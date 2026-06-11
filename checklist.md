@@ -1,5 +1,64 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 362 — Architecture Hardening: SSOT · DRY · SRP · DIP · Naming
+**Target version**: 0.59.0
+ritk-core: 0.9.0 → 0.10.0 | ritk-registration: 0.53.0 → 0.54.0 | ritk-segmentation: 0.1.0 → 0.2.0 | ritk-io: 0.2.0 → 0.3.0
+
+### Track A — Correctness
+- [x] FIX-362-01 [patch]: `engine.rs` fake-generic f32 hardcode → `loss.clone().into_scalar().elem::<f64>()` (fake-generic HARD violation; panics on non-f32 backends)
+
+### Track B — SSOT Unblock
+- [ ] SSOT-362-02 [minor]: `ritk-io::ImageFormat` enum + `from_path` resolver; replace CLI `infer_format` and Python `io/mod.rs` if-chains
+- [ ] DRY-362-03 [patch]: Remove `FftDir` compatibility shim in `filter/fft/convolution/helpers.rs`; update all call sites to `ForwardFft`/`InverseFft` ZSTs
+
+### Track C — DRY/Core
+- [ ] DRY-362-04 [minor]: `UnaryImageFilter<Op>` + `UnaryPixelOp` trait; collapse `abs/sqrt/exp/log/square` (5 files, ~570L → ~100L + type aliases); generalize `D=3` → `const D: usize`
+
+### Track D — Registration
+- [ ] DRY-362-05 [patch]: Consolidate `ConvergenceFlag` from `adaptive_stochastic_gd.rs` + `regular_step_gd/optimizer.rs` to `optimizer/convergence.rs`
+- [ ] DRY-362-06 [patch]: Complete `SamplingConfig` migration — replace `sampling_percentage: Option<f32>` in `MutualInformation` + `CorrelationRatio` + `compute_image/mod.rs`
+- [ ] DRY-362-07 [minor]: Rename `preprocessing::NormalizationMode` → `IntensityRescaleMode`; resolves name collision with `metric::NormalizationMode`
+- [ ] DRY-362-08 [patch]: `SharedCache<T>` newtype wrapping `Arc<Mutex<Option<T>>>` in `metric/cache_slot.rs`; adopt in Parzen (×3) + MutualInformation
+- [ ] SRP-362-09 [patch]: Split `bspline_ffd/basis.rs` (445L) → `basis/{scalar,cache,evaluate}.rs`
+- [ ] SRP-362-10 [patch]: Split `dl_registration_loss.rs` → `dl/losses/{lncc,grad,combined,mod}.rs`
+- [ ] SRP-362-11 [patch]: Extract `regularization/trait_::utils` → `regularization/spatial_ops.rs`; make `pub(crate)`
+- [ ] PRIM-362-12 [minor]: `EarlyStoppingPolicy::Enabled { patience, min_improvement }` — bundle orphaned fields into enum variant
+- [ ] DIP-362-13 [minor]: `Registration::with_config` DIP fix — `RegistrationCallbackSet` builder decouples engine from concrete callback types
+
+### Track E — Segmentation
+- [ ] DRY-362-14 [minor]: `HistogramThreshold` sealed trait; blanket `compute<B,D>` + `apply<B,D>` for 6 threshold structs (~150L scaffold eliminated)
+- [ ] DRY-362-15 [patch]: `smooth_or_borrow(data, dims, sigma) -> Cow<[f64]>` in `level_set/helpers.rs`; collapse 3× repeated Cow conditional
+- [ ] PRIM-362-16 [patch]: `Connectivity { Six, TwentySix }` enum in `ConnectedComponentsFilter`; remove runtime `assert!`
+- [ ] SRP-362-17 [patch]: Extract `UnionFind` from `labeling/mod.rs` → `labeling/union_find.rs`
+
+### Track F — IO
+- [ ] SRP-362-18 [patch]: Split `dicom/seg/tests/convert.rs` (554L) → 4 test modules
+- [ ] SRP-362-19 [patch]: Split `dicom/series.rs` → `series/{types,scan,loader}.rs`; replace `Arc<Mutex>` scan pattern with collect-and-merge
+
+### Track G — CLI
+- [ ] SRP-362-20 [major]: `FilterArgs` (46 fields) → `FilterKind` `ValueEnum` + `#[command(flatten)]` per-family structs; `SegmentArgs` same treatment
+- [ ] DRY-362-21 [patch]: `Backend` alias duplicated in `commands/mod.rs` + `commands/viewer.rs`; viewer uses `super::Backend`
+- [ ] DRY-362-22 [patch]: `scales: String`, `cpr_points: Vec<String>` deferred parsing → `value_delimiter` typed fields
+
+### Track H — Naming Violations
+- [ ] NAMING-362-23 [patch]: `transform_1d/_2d/_3d/_4d` in `bspline/interpolation/` → `transform_points_impl` dispatching on `D`
+- [ ] NAMING-362-24 [patch]: `spatial_gradient_2d/_3d`, `spatial_laplacian_2d/_3d` → move to `deformable_field_ops/`, surface only through `dispatch.rs`
+
+### Track I — Primitives
+- [ ] PRIM-362-25 [minor]: `IntensityRange { min, max }` validating newtype; adopt in `MinMaxNormalizer.target_{min,max}` and `ZScore` params
+- [ ] PRIM-362-26 [patch]: Add `// PRECISION:` justification comment in `normalize.rs` f64 accumulator path
+- [ ] PRIM-362-27 [minor]: `DicomSeriesInfo` — replace `ArrayString<64>` public fields with `&str` accessor; keep `ArrayString` internal
+
+### Track J — DIP/Arch
+- [ ] DIP-362-28 [patch]: `wgpu_compat` → `pub(crate)`; file `[arch]` `ExecutionPolicy::max_batch_size()` item
+- [ ] ARCH-362-29 [arch]: File `[arch]` item for `Image<B,T,D>` scalar phantom type parameter
+
+**Verification gate** (per Track A completion):
+- [x] `cargo clippy -p ritk-registration --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo test -p ritk-registration --lib` → all green
+
+---
+
 ## Sprint 361 — Phase 21 Cleanup & Optimization (20 Cycles)
 **Target version**: 0.58.0  
 ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0

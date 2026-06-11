@@ -7,12 +7,13 @@ use crate::validation::{
     NumericalCheck, ShapeValidation,
 };
 use burn::optim::GradientsParams;
+use burn::tensor::ElementConversion;
 use ritk_core::image::Image;
 use ritk_core::transform::Transform;
 
-use super::Registration;
-use super::summary::StopReason;
 use super::config::{EarlyStoppingPolicy, RegistrationConfig};
+use super::summary::StopReason;
+use super::Registration;
 
 /// Captures the loop outcome shared by both execution paths.
 struct LoopOutcome<T> {
@@ -40,9 +41,9 @@ where
         let mut progress_tracker = ProgressTracker::new();
 
         // Add console callback
-        let console_callback = std::sync::Arc::new(
-            crate::progress::ConsoleProgressCallback::new(config.log_interval),
-        );
+        let console_callback = std::sync::Arc::new(crate::progress::ConsoleProgressCallback::new(
+            config.log_interval,
+        ));
         progress_tracker.add_callback(console_callback);
 
         // Add early stopping callback if enabled
@@ -68,7 +69,10 @@ where
     }
 
     /// Add a custom progress callback.
-    pub fn add_callback(&mut self, callback: std::sync::Arc<dyn crate::progress::ProgressCallback>) {
+    pub fn add_callback(
+        &mut self,
+        callback: std::sync::Arc<dyn crate::progress::ProgressCallback>,
+    ) {
         self.progress_tracker.add_callback(callback);
     }
 
@@ -194,12 +198,12 @@ where
                 validate_tensor(&loss, &self.config.validation)?;
             }
 
-            // Get loss value
-            let loss_data = loss.to_data();
-            let loss_val = loss_data
-                .as_slice::<f32>()
-                .expect("loss value tensor data must be contiguous f32")[0]
-                as f64;
+            // Get loss value.
+            // `clone()` is a cheap Arc-increment; `into_scalar()` consumes the clone
+            // so the original `loss` remains live for `backward()` below.
+            // `ElementConversion::elem()` converts B::FloatElem → f64 for any backend type,
+            // avoiding the `as_slice::<f32>()` hardcode that panics on non-f32 backends.
+            let loss_val: f64 = loss.clone().into_scalar().elem();
             loss_history.push(loss_val);
 
             // Update progress

@@ -4,6 +4,38 @@
 
 ---
 
+## Sprint 362 Audit (2026-06-11) — Architecture Hardening: SSOT · DRY · SRP · DIP · Naming
+
+### Gaps Identified (3-agent parallel audit: ritk-core, ritk-registration, ritk-segmentation, ritk-io, ritk-python, ritk-cli)
+- **Correctness (HARD)**: `registration/engine.rs:199-202` — `B: AutodiffBackend` generic method hardcodes `as_slice::<f32>()` extraction; panics on `NdArray<f64>` or any non-f32 backend. Fix: `.clone().into_scalar().elem::<f64>()` via `ElementConversion`.
+- **SSOT (ritk-io)**: No `ImageFormat` canonical resolver; extension detection duplicated in CLI `infer_format` (20L) and Python `io/mod.rs` (27L) independently.
+- **DRY (ritk-core)**: 5 arithmetic filter files (abs/sqrt/exp/log/square) share identical `extract_vec→map→rebuild` scaffold, all D=3 locked; `UnaryImageFilter<Op>` ZST collapses ~570L → ~100L.
+- **DRY (ritk-core)**: `FftDir` enum coexists with `ForwardFft`/`InverseFft` ZSTs in `helpers.rs` — compatibility soup, no deprecation marker.
+- **DRY (ritk-registration)**: `ConvergenceFlag` enum defined identically in 2 optimizer files (introduced Sprint 359, consolidation not completed).
+- **DRY (ritk-registration)**: `SamplingConfig` migration incomplete — `MutualInformation` + `CorrelationRatio` still carry `sampling_percentage: Option<f32>`.
+- **Name collision (ritk-registration)**: `NormalizationMode` is two distinct public enums (`metric::trait_` and `preprocessing::step`).
+- **Container nesting**: `Arc<Mutex<Option<T>>>` in Parzen ×3 + MutualInformation; `SharedCache<T>` newtype collapses the 3-layer wrapper.
+- **SRP (ritk-registration)**: `dl_registration_loss.rs` bundles 6 concerns; `bspline_ffd/basis.rs` (445L) mixes scalar basis + grid evaluation; `regularization/trait_.rs` mixes trait def + spatial op library.
+- **SRP (ritk-segmentation)**: 6 threshold structs have identical scaffold; `HistogramThreshold` sealed trait eliminates ~150L duplication.
+- **SRP (ritk-segmentation)**: `labeling/mod.rs` mixes `UnionFind` + type + algorithm + re-exports; `UnionFind` → `union_find.rs`.
+- **Primitive obsession**: `ConnectedComponentsFilter::connectivity: u32` runtime panics; `Connectivity { Six, TwentySix }` enum.
+- **DIP (ritk-registration)**: `Registration::with_config` constructs concrete callback types; violates DIP.
+- **Naming violation (ritk-core)**: `transform_1d/_2d/_3d/_4d` encode dimension in identifier; `const D` already carries it.
+- **Naming violation (ritk-registration)**: `spatial_gradient_2d/_3d`, `spatial_laplacian_2d/_3d` in `regularization/trait_::utils`.
+- **SRP (ritk-io)**: `dicom/seg/tests/convert.rs` at 554L (exceeds limit); `series.rs` mixes domain type + scan + loader.
+- **SRP (ritk-cli)**: `FilterArgs` (46 fields) + `SegmentArgs` (32 fields) god structs; `filter: String` stringly-typed dispatch.
+- **DIP (ritk-core)**: `wgpu_compat` infrastructure constants imported directly by domain modules; `pub(crate)` minimum, `ExecutionPolicy` long-term.
+
+### Gaps Closed This Session
+- FIX-362-01: `engine.rs` fake-generic f32 hardcode fixed — `.clone().into_scalar().elem()` via `burn::tensor::ElementConversion`.
+
+### Residual Risk
+- 28 additional Sprint 362 items tracked in backlog; all are non-correctness (architectural, DRY, SRP, naming); no known runtime defects in residual set.
+- `Arc<Mutex<Option<T>>>` caches: STRONG-DEFAULT override inline-justified (write-once-per-level, read-many); `SharedCache<T>` newtype deferred (DRY-362-08).
+- `NdArray<f64>` backend: not used by any concrete entrypoint today; FIX-362-01 closes the latent defect.
+
+---
+
 ## Sprint 361 Audit (2026-06-11) — 20-Cycle Phase 21 Optimization (×6)
 
 ### Gaps Closed

@@ -4,6 +4,73 @@
 
 ---
 
+## Sprint 362 — Architecture Hardening: SSOT · DRY · SRP · DIP · Naming
+
+**Status**: In Progress
+**Version**: 0.59.0
+**Phase**: FIX + SSOT + DRY + SRP + PRIM + NAMING + DIP
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| FIX-362-01 | `engine.rs` fake-generic: `as_slice::<f32>()[0] as f64` → `.clone().into_scalar().elem()` via `ElementConversion` [patch] | **Done** |
+| SSOT-362-02 | `ritk-io::ImageFormat` enum + `from_path` resolver; replace CLI `infer_format` (20L) and Python `io/mod.rs` if-chains (27L) [minor] | Planned |
+| DRY-362-03 | Remove `FftDir` shim from `filter/fft/convolution/helpers.rs`; update all call sites to `ForwardFft`/`InverseFft` ZSTs [patch] | Planned |
+| DRY-362-04 | `UnaryImageFilter<Op>` + `UnaryPixelOp` sealed trait; collapse abs/sqrt/exp/log/square ~570L → ~100L; type aliases preserve public names; `D=3` → `const D` [minor] | Planned |
+| DRY-362-05 | `ConvergenceFlag` consolidation: `adaptive_stochastic_gd` + `regular_step_gd/optimizer` → shared `optimizer/convergence.rs` [patch] | Planned |
+| DRY-362-06 | Complete `SamplingConfig` migration: `MutualInformation.sampling_percentage: Option<f32>` + `CorrelationRatio` + `compute_image/mod.rs` [patch] | Planned |
+| DRY-362-07 | Rename `preprocessing::NormalizationMode` → `IntensityRescaleMode`; resolves name collision with `metric::trait_::NormalizationMode` [minor] | Planned |
+| DRY-362-08 | `SharedCache<T>` newtype in `metric/cache_slot.rs`; adopt in Parzen (×3) + MutualInformation [patch] | Planned |
+| SRP-362-09 | `bspline_ffd/basis.rs` (445L) → `basis/{scalar,cache,evaluate}.rs` [patch] | Planned |
+| SRP-362-10 | `dl_registration_loss.rs` → `dl/losses/{lncc,grad,combined,mod}.rs` (6 concerns separated) [patch] | Planned |
+| SRP-362-11 | `regularization/trait_::utils` → `regularization/spatial_ops.rs`; make `pub(crate)` [patch] | Planned |
+| PRIM-362-12 | `EarlyStoppingPolicy::Enabled { patience, min_improvement }`: bundle orphaned fields; eliminate impossible `Disabled + non-zero patience` state [minor] | Planned |
+| DIP-362-13 | `Registration::with_config` DIP: `RegistrationCallbackSet` builder owns callback construction; engine receives set [minor] | Planned |
+| DRY-362-14 | `HistogramThreshold` sealed trait; blanket `compute<B,D>` + `apply<B,D>` collapses ~150L scaffold from 6 threshold structs [minor] | Planned |
+| DRY-362-15 | `smooth_or_borrow(data, dims, sigma) -> Cow<[f64]>` in `level_set/helpers.rs`; 3× Cow conditional collapsed [patch] | Planned |
+| PRIM-362-16 | `Connectivity { Six, TwentySix }` enum in `ConnectedComponentsFilter`; eliminate `assert!` on u32 [patch] | Planned |
+| SRP-362-17 | `UnionFind` extracted from `labeling/mod.rs` → `labeling/union_find.rs` [patch] | Planned |
+| SRP-362-18 | `dicom/seg/tests/convert.rs` (554L) → 4 test modules [patch] | Planned |
+| SRP-362-19 | `dicom/series.rs` → `series/{types,scan,loader}.rs`; `Arc<Mutex>` scan → collect-and-merge [patch] | Planned |
+| SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum + `#[command(flatten)]` per-family structs; `SegmentArgs` (32 fields) same [major] | Planned |
+| DRY-362-21 | `Backend` alias: `commands/viewer.rs` → `use super::Backend` [patch] | Planned |
+| DRY-362-22 | `scales: String`, `cpr_points: Vec<String>` deferred parsing → `value_delimiter` typed Clap fields [patch] | Planned |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` in `bspline/interpolation/` → `transform_points_impl` dispatching on `D` [patch] | Planned |
+| NAMING-362-24 | `spatial_gradient_2d/_3d`, `spatial_laplacian_2d/_3d` → `deformable_field_ops/`; surface only through `dispatch.rs` [patch] | Planned |
+| PRIM-362-25 | `IntensityRange { min, max }` validating newtype; `MinMaxNormalizer.target_{min,max}` + `ZScore` adopt it [minor] | Planned |
+| PRIM-362-26 | `// PRECISION:` justification comment in `normalize.rs` f64 accumulator path [patch] | Planned |
+| PRIM-362-27 | `DicomSeriesInfo`: `ArrayString<64>` public fields → `&str` accessor; `arrayvec` leaves public API surface [minor] | Planned |
+| DIP-362-28 | `wgpu_compat` → `pub(crate)`; file `[arch]` `ExecutionPolicy::max_batch_size()` item in backlog [patch] | Planned |
+| ARCH-362-29 | File `[arch]` item: `Image<B,T,D>` scalar phantom type parameter (f32 assumed throughout; `PhantomData<T>` needed for dtype safety) | Planned |
+
+### Architecture
+
+- Audit source: 3-agent parallel review covering ritk-core, ritk-registration, ritk-segmentation, ritk-io, ritk-python, ritk-cli (2026-06-11).
+- Root SSOT gap (C1): no `ImageFormat` canonical resolver in ritk-io; extension detection duplicated independently in CLI (20L) and Python (27L); blocked both CLI stringly-typed dispatch cleanup (DRY-362-21) and Python io cleanup.
+- Root DRY gap (ritk-core): 5 arithmetic filter files share identical `extract_vec → map → rebuild` scaffold; `const D=3` hardcoded in all; ZST `UnaryPixelOp` trait collapses them.
+- Root fake-generic defect (engine.rs): `B: AutodiffBackend` generic method hardcodes `as_slice::<f32>()` — panics on `NdArray<f64>` or any non-f32 backend; fixed via established `ElementConversion::elem()` pattern.
+- `ConvergenceFlag`: introduced as enum (Sprint 359, BOOL-359-16) but each optimizer still owns its own private copy — consolidation to shared location was not done.
+- `SamplingConfig`: introduced (Sprint 354) but migration incomplete — `MutualInformation` and `CorrelationRatio` still carry raw `Option<f32>`.
+
+### Residual (next sprint)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| ARCH-361-07 | `Arc<Mutex<Option<T>>>` → typestate lifecycle in Parzen/LNCC/MI | [arch] |
+| ARCH-362-29 | `Image<B,T,D>` scalar phantom type parameter | [arch] |
+| TYPESTATE-01 | `BSplineTransform<B,D>`: `Raw` vs `WithCoefficients` typestate | [arch] |
+| TYPESTATE-02 | `NyulUdupaLandmarkNormalizer`: `Untrained` vs `Trained` typestate | [arch] |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-registration --all-targets -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-registration --lib` | TBD |
+
+---
+
 ## Sprint 359 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat ×4)
 
 **Status**: Complete
