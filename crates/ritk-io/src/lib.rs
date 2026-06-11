@@ -25,10 +25,10 @@ pub use format::dicom::{
     DicomReadMetadata, DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo,
     DicomSliceMetadata, DicomTag, DicomValue, DicomWriter, EchoResponse, FindLevel, FindQuery,
     FindResult, MoveDestination, MoveResponse, MultiFrameInfo, MultiFrameSpatialMetadata,
-    MultiFrameWriterConfig, NetworkingError, PatientPosition, RtBeamInfo, RtContour, RtDoseGrid,
-    RtFractionGroup, RtPlanInfo, RtRoiInfo, RtStructureSet, ScannedDicomSeries, ScpConfig,
-    StoreResponse, StoreScp, StoreScpHandle, StoredInstance, TagAction, TransferSyntaxKind,
-    RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID, SegEncoding,
+    MultiFrameWriterConfig, NetworkingError, PatientPosition, PixelSignedness, RtBeamInfo,
+    RtContour, RtDoseGrid, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtStructureSet,
+    ScannedDicomSeries, ScpConfig, SegEncoding, StoreResponse, StoreScp, StoreScpHandle,
+    StoredInstance, TagAction, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
 pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
 pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};

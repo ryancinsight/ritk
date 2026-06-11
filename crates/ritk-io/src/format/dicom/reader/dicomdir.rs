@@ -22,7 +22,11 @@ pub(super) fn try_read_dicomdir(dir: &Path) -> Result<Vec<PathBuf>> {
         .element(Tag(0x0004, 0x1220))
         .with_context(|| "DICOMDIR missing DirectoryRecordSequence (0004,1220)")?;
 
-    let mut paths = Vec::new();
+    let mut paths = if let Some(items) = drs.value().items() {
+        Vec::with_capacity(items.len())
+    } else {
+        Vec::new()
+    };
 
     if let Some(items) = drs.value().items() {
         for item in items {

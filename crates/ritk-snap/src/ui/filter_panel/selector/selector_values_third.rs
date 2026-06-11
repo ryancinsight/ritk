@@ -1,4 +1,5 @@
 use crate::FilterKind;
+use ritk_core::filter::ForegroundValue;
 
 /// Third portion of the ComboBox selectable_value entries (MirrorPad
 /// through CurvatureFlow).
@@ -77,7 +78,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             FilterKind::BinaryThreshold {
                 lower: 100.0,
                 upper: 500.0,
-                foreground: 1.0,
+                foreground: ForegroundValue::ONE,
                 background: 0.0,
             },
             "Binary Threshold",
@@ -87,7 +88,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         *active_filter = FilterKind::BinaryThreshold {
             lower: 100.0,
             upper: 500.0,
-            foreground: 1.0,
+            foreground: ForegroundValue::ONE,
             background: 0.0,
         };
     }

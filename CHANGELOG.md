@@ -1,5 +1,40 @@
 # CHANGELOG
 
+## [0.58.0] — 2026-06-11 (Sprint 361: 20-Cycle Phase 21 Optimization ×6)
+
+### Fixed
+- `ops.rs::gaussian_kernel_1d`: exponent denominator was `1 + σ²` instead of `2σ²` — incorrect kernel width for all σ ≠ 1.0 (normalization masked the bug). Added value-semantic FWHM regression test.
+
+### Added
+- `SamplingMode { Sampled, Dense }` enum replaces `use_sampling: bool` in Parzen histogram chunked path
+- `CliInverseConsistency { Relaxed, Enforced }` clap ValueEnum replaces `inverse_consistency: bool` in ritk-cli
+- `PySpacingMode { Physical, Voxel }` PyO3 class replaces `use_image_spacing: bool` in ritk-python
+- `CmaMiResult` extracted to dedicated `cma_mi/result.rs`
+
+### Changed (ritk-core 0.8.0 → 0.9.0)
+- `LabelMap.shape: [usize; 3]` → `VolumeDims`
+- `ImageOverlay.dims`, `MaskOverlay.dims: [usize; 3]` → `VolumeDims`
+- `N4Config.initial_control_points: [usize; 3]` → `VolumeDims`
+
+### Changed (ritk-registration 0.52.0 → 0.53.0)
+- `DemonsConfig.sigma_diffusion/sigma_fluid: f64` → `Option<GaussianSigma>` (sentinel `0.0` → `None`)
+- `GlobalMiConfig.smoothing_sigmas: Vec<f64>` → `Vec<Option<GaussianSigma>>` (0.0 → None)
+- `CmaMiLevelConfig.sigma_mm`, `CmaMiCascadeConfig.coarse_sigma_mm: f64` → `GaussianSigma`
+- `AffineTransform` adopted in `classical/spatial/` and `global_mi/transforms.rs` internal helpers
+- `RegularStepGdConfig` derives `Copy`; `.clone()` in multi-resolution loop eliminated
+- `VolumeDims` adopted in all `deformable_field_ops/` function signatures
+
+### Removed
+- 6 duplicate `gaussian_kernel_1d` implementations (n4/dft.rs, coherence/pde.rs wrapper, frangi.rs, level_set/helpers.rs, geodesic_active_contour.rs); 2 dead `convolve_2d`/`convolve_3d` wrappers; `generate_mask_2d_dispatch`/`generate_mask_3d_dispatch` collapsed to `generate_mask_generic<D>`
+- `laplacian` alias (was forwarding to `spatial_laplacian_2d`)
+- `rebuild_image_3d` renamed to `rebuild_image`; `refine_component_3d` renamed to `refine_component`
+- `use_image_spacing: bool`, `inverse_consistency: bool`, `use_sampling: bool` — all replaced with typed enums
+
+### Architecture
+- `ritk-python/filter/smooth.rs` (417L) decomposed to `smooth/` directory module (4 files)
+- `region_growing/mod.rs` (414L) thinned to 23L; `ConnectedThresholdFilter` → `connected_threshold.rs`
+- `demons.rs` (448L) tests extracted; `normalize.rs` (456L) tests extracted
+
 ## [0.57.0] - 2026-06-10 — Sprint 360 (×5)
 
 **ritk-core**: 0.7.0 → 0.8.0 | **ritk-registration**: 0.51.0 → 0.52.0

@@ -299,7 +299,7 @@ impl SnapApp {
         match ritk_io::write_nifti_labels(
             &path,
             map.as_slice(),
-            map.shape,
+            map.shape.0,
             origin,
             spacing,
             direction,
@@ -334,7 +334,13 @@ impl SnapApp {
             return;
         };
 
-        match ritk_io::label_map_to_dicom_seg(map, origin, spacing, direction, ritk_io::SegEncoding::Binary) {
+        match ritk_io::label_map_to_dicom_seg(
+            map,
+            origin,
+            spacing,
+            direction,
+            ritk_io::SegEncoding::Binary,
+        ) {
             Ok(seg) => match ritk_io::write_dicom_seg(&path, &seg) {
                 Ok(()) => {
                     self.status_message = format!("Saved DICOM-SEG to {}", path.display());
@@ -414,7 +420,7 @@ impl SnapApp {
         match ritk_io::read_dicom_seg(path) {
             Ok(seg) => match ritk_io::dicom_seg_to_label_map(&seg) {
                 Ok(map) => {
-                    if map.shape != expected_shape {
+                    if map.shape.0 != expected_shape {
                         self.status_message = format!(
                             "DICOM-SEG shape {:?} does not match volume {:?}",
                             map.shape, expected_shape

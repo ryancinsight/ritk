@@ -1,6 +1,7 @@
 //! Image gradient computation via finite differences.
 
 use super::{flat, VelocityField};
+use ritk_core::spatial::VolumeDims;
 
 /// Write the gradient of `data` into caller-provided buffers.
 ///
@@ -9,13 +10,13 @@ use super::{flat, VelocityField};
 /// into `gz`, `gy`, `gx`, each of length `dims[0] * dims[1] * dims[2]`.
 pub(crate) fn compute_gradient_into(
     data: &[f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     spacing: [f64; 3],
     gz: &mut [f32],
     gy: &mut [f32],
     gx: &mut [f32],
 ) {
-    let [nz, ny, nx] = dims;
+    let [nz, ny, nx] = dims.0;
     let sz = spacing[0] as f32;
     let sy = spacing[1] as f32;
     let sx = spacing[2] as f32;
@@ -70,8 +71,8 @@ pub(crate) fn compute_gradient_into(
 ///
 /// # Returns
 /// `(gz, gy, gx)` — three flat `Vec<f32>` of length `nz * ny * nx`.
-pub(crate) fn compute_gradient(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> VelocityField {
-    let n = dims[0] * dims[1] * dims[2];
+pub(crate) fn compute_gradient(data: &[f32], dims: VolumeDims, spacing: [f64; 3]) -> VelocityField {
+    let n = dims.total_voxels();
     let mut gz = vec![0.0_f32; n];
     let mut gy = vec![0.0_f32; n];
     let mut gx = vec![0.0_f32; n];
@@ -91,8 +92,8 @@ mod tests {
     /// Gradient of a linear ramp I[z,y,x] = x should be (0, 0, 1/sx).
     #[test]
     fn gradient_linear_ramp_x() {
-        let dims = [4usize, 4, 8];
-        let [nz, ny, nx] = dims;
+        let dims = VolumeDims::new([4, 4, 8]);
+        let [nz, ny, nx] = dims.0;
         let data: Vec<f32> = (0..nz * ny * nx).map(|fi| (fi % nx) as f32).collect();
         let spacing = [1.0, 1.0, 1.0];
         let grad = compute_gradient(&data, dims, spacing);
@@ -124,8 +125,8 @@ mod tests {
     /// Gradient of a constant field is zero everywhere.
     #[test]
     fn gradient_constant_field_is_zero() {
-        let dims = [4usize, 4, 4];
-        let [nz, ny, nx] = dims;
+        let dims = VolumeDims::new([4, 4, 4]);
+        let [nz, ny, nx] = dims.0;
         let data = vec![5.0_f32; nz * ny * nx];
         let grad = compute_gradient(&data, dims, [1.0; 3]);
         for i in 0..nz * ny * nx {

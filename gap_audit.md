@@ -4,6 +4,27 @@
 
 ---
 
+## Sprint 361 Audit (2026-06-11) — 20-Cycle Phase 21 Optimization (×6)
+
+### Gaps Closed
+- ops.rs Gaussian kernel correctness bug (1+σ² → 2σ²); 6 duplicate kernel implementations deleted
+- VolumeDims adopted in ritk-core struct fields (LabelMap, ImageOverlay, MaskOverlay, N4Config) + ritk-io/ritk-snap call sites
+- VolumeDims adopted in all deformable_field_ops/ function signatures
+- AffineTransform propagated to classical/spatial/ internal helpers
+- GaussianSigma: DemonsConfig, GlobalMiConfig.smoothing_sigmas, CmaMiLevelConfig.sigma_mm (sentinel 0.0 → Option<GaussianSigma>)
+- Boolean blindness: use_sampling, inverse_consistency (CLI), use_image_spacing (Python) → typed enums
+- CLI sigma validation: GaussianSigma::new_unchecked → validated construction with anyhow bail
+- RegularStepGdConfig Copy + clone elimination; best_x.clone() → mem::take
+- SRP: smooth.rs, demons.rs, normalize.rs, region_growing/mod.rs; CmaMiResult extracted
+
+### Residual Risk
+- `Arc<Mutex<Option<T>>>` in Parzen/LNCC/MI metric structs: STRONG-DEFAULT justified inline; typestate refactor is ARCH-361-07 (backlog)
+- DiscreteGaussianFilter.variance: Vec<f64> — variance ≠ sigma, needs GaussianVariance newtype (PRIM-361-03 revised)
+- bspline_ffd/basis.rs (445L), cma_mi/config.rs still has CmaMiConfig + CmaMiLevelConfig (without result.rs, now 375L) — SRP opportunity
+- Tier-B apply_2d/apply_3d thin wrappers in FFT/deconvolution — naming violation, [major] API change, deferred
+
+---
+
 ## Sprint 353 Audit (2026-06-10) — 20-Cycle Zero-Cost Architecture (Repeat)
 
 ### Gaps Closed

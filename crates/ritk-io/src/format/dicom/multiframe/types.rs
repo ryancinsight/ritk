@@ -2,6 +2,7 @@
 
 use crate::format::dicom::reader::types::literal_arraystring;
 use arrayvec::ArrayString;
+use ritk_dicom::PixelSignedness;
 use std::path::PathBuf;
 
 /// SOP Class UID for Multi-Frame Grayscale Word Secondary Capture Image Storage.
@@ -54,9 +55,9 @@ pub struct MultiFrameInfo {
     pub samples_per_pixel: usize,
     /// Bits allocated per sample (8 or 16).
     pub bits_allocated: u16,
-    /// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed two's complement.
-    /// Defaults to 0 (unsigned) per DICOM PS3.3 C.7.6.3.1.
-    pub pixel_representation: u16,
+    /// PixelRepresentation (0028,0103): unsigned or signed two's complement.
+    /// Defaults to unsigned per DICOM PS3.3 C.7.6.3.1.
+    pub pixel_representation: PixelSignedness,
     /// Pixel spacing [row_spacing, col_spacing] in mm.
     pub pixel_spacing: Option<[f64; 2]>,
     /// Frame thickness (SliceThickness) in mm.

@@ -183,7 +183,7 @@ pub(super) fn compute_metric_gradient_fast_into(
     // Compute spatial gradient of the warped image into scratch buffers.
     compute_gradient_into(
         warped,
-        dims.as_array(),
+        dims,
         spacing,
         &mut scratch.gw_z,
         &mut scratch.gw_y,

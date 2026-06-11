@@ -14,7 +14,7 @@ use ritk_core::image::RgbVolume;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
-    TransferSyntaxKind,
+    PixelSignedness, TransferSyntaxKind,
 };
 
 use super::color_common::{optional_u16, required_string, RGB_CHANNELS};
@@ -170,11 +170,11 @@ fn validate_rgb_multiframe(
             info.bits_allocated
         );
     }
-    if info.pixel_representation != 0 {
+    if info.pixel_representation != PixelSignedness::Unsigned {
         bail!(
             "DICOM RGB color multiframe loader supports only unsigned samples; {:?} declares PixelRepresentation={}",
             path,
-            info.pixel_representation
+            info.pixel_representation.to_u16()
         );
     }
     Ok(())

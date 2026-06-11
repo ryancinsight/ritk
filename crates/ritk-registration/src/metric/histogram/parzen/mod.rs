@@ -187,7 +187,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// Encapsulates the repeated `ParzenConfig::from_intensity_sigma(
     /// self.parzen_sigma, self.min_intensity, self.max_intensity, self.num_bins)`
     /// pattern that appeared at 8 call sites across `compute.rs`,
-    /// `compute_image.rs`, and `masked/mod.rs`.
+    /// `compute_image/mod.rs`, and `masked/mod.rs`.
     pub(super) fn fixed_sigma_cfg(&self) -> direct::ParzenConfig {
         direct::ParzenConfig::from_intensity_sigma(
             self.parzen_sigma,

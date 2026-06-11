@@ -32,6 +32,7 @@
 
 use super::binary_dilate::dilate_binary_3d;
 use super::binary_erode::erode_binary_3d;
+use super::types::ForegroundValue;
 use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -49,7 +50,7 @@ pub struct BinaryMorphologicalOpening {
     /// Structuring element half-width in voxels.
     radius: usize,
     /// Voxel value treated as foreground. Default: 1.0.
-    foreground_value: f32,
+    foreground_value: ForegroundValue,
 }
 
 impl BinaryMorphologicalOpening {
@@ -57,13 +58,13 @@ impl BinaryMorphologicalOpening {
     pub fn new(radius: usize) -> Self {
         Self {
             radius,
-            foreground_value: 1.0,
+            foreground_value: ForegroundValue::ONE,
         }
     }
 
     /// Set the foreground value (ITK `SetForegroundValue`).
-    pub fn with_foreground(mut self, v: f32) -> Self {
-        self.foreground_value = v;
+    pub fn with_foreground(mut self, v: impl Into<ForegroundValue>) -> Self {
+        self.foreground_value = v.into();
         self
     }
 

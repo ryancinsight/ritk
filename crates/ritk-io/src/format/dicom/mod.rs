@@ -60,6 +60,7 @@ pub use seg::{
     DicomSegmentInfo, DicomSegmentation, SegEncoding,
 };
 // Re-export series types and functions from the series submodule.
+pub use ritk_dicom::PixelSignedness;
 pub use series::{
     load_dicom_series, read_dicom_series, scan_dicom_directory, DicomReader, DicomSeriesInfo,
 };

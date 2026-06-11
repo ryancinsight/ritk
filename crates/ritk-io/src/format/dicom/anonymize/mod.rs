@@ -280,9 +280,10 @@ pub fn anonymize_object(
     options: &AnonymizeOptions,
 ) -> Result<(FileDicomObject<InMemDicomObject>, AnonymizeResult)> {
     let mut result = AnonymizeResult::default();
-    let mut uid_map: HashMap<String, String> = HashMap::new();
+    let tag_actions = options.profile.tag_actions();
+    let mut uid_map: HashMap<String, String> = HashMap::with_capacity(tag_actions.len());
 
-    for (tag, action) in options.profile.tag_actions() {
+    for (tag, action) in tag_actions {
         apply_action(&mut obj, tag, action, options, &mut result, &mut uid_map);
     }
 

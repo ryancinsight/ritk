@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::image::Image;
-use crate::spatial::{Direction, Point, Spacing};
+use crate::spatial::{Direction, Point, Spacing, VolumeDims};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 
@@ -86,7 +86,7 @@ fn two_class_n4_stability_discrete_histogram() {
         num_iterations: 5,
         convergence_threshold: 1e-4,
         num_histogram_bins: 200,
-        initial_control_points: [4, 4, 4],
+        initial_control_points: VolumeDims::new([4, 4, 4]),
         noise_estimate: 0.07,
         max_fitting_points: 256,
     };
@@ -192,7 +192,7 @@ fn constant_image_stable() {
         num_iterations: 5,
         convergence_threshold: 0.001,
         num_histogram_bins: 50,
-        initial_control_points: [4, 4, 4],
+        initial_control_points: VolumeDims::new([4, 4, 4]),
         noise_estimate: 0.01,
         max_fitting_points: 512,
     };
@@ -232,7 +232,7 @@ fn output_all_positive() {
         num_iterations: 5,
         convergence_threshold: 0.001,
         num_histogram_bins: 50,
-        initial_control_points: [4, 4, 4],
+        initial_control_points: VolumeDims::new([4, 4, 4]),
         noise_estimate: 0.01,
         max_fitting_points: 512,
     };
@@ -263,7 +263,7 @@ fn next_pow2_boundaries() {
 #[test]
 fn gaussian_kernel_normalised_and_symmetric() {
     for &sigma in &[0.5_f64, 1.0, 2.5, 5.0] {
-        let k = gaussian_kernel_1d(sigma);
+        let k = crate::filter::gaussian_kernel_1d(sigma, None);
         let sum: f64 = k.iter().sum();
         assert!(
             (sum - 1.0).abs() < 1e-10,

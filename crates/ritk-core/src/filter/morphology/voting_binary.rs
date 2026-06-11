@@ -28,6 +28,7 @@
 //! - Breu, H. et al. (1995). Linear time Euclidean distance algorithms.
 //!   *IEEE Trans. PAMI* 17(5):529–533.
 
+use super::types::ForegroundValue;
 use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -47,7 +48,7 @@ pub struct VotingBinaryImageFilter {
     /// Minimum foreground neighbour count for a foreground voxel to survive.
     pub survival_threshold: usize,
     /// Foreground intensity value. Default 1.0.
-    pub foreground_value: f32,
+    pub foreground_value: ForegroundValue,
     /// Background intensity value. Default 0.0.
     pub background_value: f32,
 }
@@ -58,14 +59,14 @@ impl VotingBinaryImageFilter {
         radius: usize,
         birth_threshold: usize,
         survival_threshold: usize,
-        foreground_value: f32,
+        foreground_value: impl Into<ForegroundValue>,
         background_value: f32,
     ) -> Self {
         Self {
             radius,
             birth_threshold,
             survival_threshold,
-            foreground_value,
+            foreground_value: foreground_value.into(),
             background_value,
         }
     }
@@ -73,7 +74,7 @@ impl VotingBinaryImageFilter {
 
 impl Default for VotingBinaryImageFilter {
     fn default() -> Self {
-        Self::new(1, 1, 1, 1.0, 0.0)
+        Self::new(1, 1, 1, ForegroundValue::ONE, 0.0)
     }
 }
 
@@ -87,7 +88,7 @@ impl VotingBinaryImageFilter {
         let r = self.radius;
         let birth = self.birth_threshold;
         let survival = self.survival_threshold;
-        let fg = self.foreground_value;
+        let fg = f32::from(self.foreground_value);
         let bg = self.background_value;
 
         let mut out = vec![bg; nz * ny * nx];

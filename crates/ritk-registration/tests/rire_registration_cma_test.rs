@@ -18,6 +18,7 @@ use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
+use ritk_core::filter::GaussianSigma;
 use ritk_core::transform::RigidTransform;
 use ritk_io::read_metaimage;
 use ritk_registration::optimizer::{
@@ -92,7 +93,7 @@ fn test_cma_mi_rigid_on_rire_patient001() {
 
     let config = CmaMiConfig {
         coarse_shrink: 8,
-        coarse_sigma_mm: 4.0,
+        coarse_sigma_mm: GaussianSigma::new_unchecked(4.0),
         num_mi_bins: 32,
         sampling_percentage: 0.30,
         translation_range_mm: 60.0,
@@ -231,7 +232,7 @@ fn test_multistart_rigid_on_rire_patient001() {
         base_config: GlobalMiConfig {
             num_levels: 1,
             shrink_factors: vec![4],
-            smoothing_sigmas: vec![1.0],
+            smoothing_sigmas: vec![Some(GaussianSigma::new_unchecked(1.0))],
             num_mi_bins: 32,
             sampling_percentage: 0.25,
             rsgd_configs: vec![RegularStepGdConfig {

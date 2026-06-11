@@ -77,7 +77,11 @@ fn test_cma_mi_multiscale_on_rire_patient001() {
     for (i, level) in config.pyramid_schedule.iter().enumerate() {
         println!(
             "  Level {}: shrink={}, sigma_mm={:.1}, sigma0={:.2}, max_gen={}",
-            i, level.shrink, level.sigma_mm, level.cma_sigma0, level.max_generations
+            i,
+            level.shrink,
+            level.sigma_mm.get(),
+            level.cma_sigma0,
+            level.max_generations
         );
     }
 
@@ -209,14 +213,18 @@ fn test_cma_mi_thin_slab_multiscale_on_rire_patient001() {
                 axes[0],
                 axes[1],
                 axes[2],
-                level.sigma_mm,
+                level.sigma_mm.get(),
                 level.cma_sigma0,
                 level.max_generations
             );
         } else {
             println!(
                 "  Level {}: shrink={}, sigma_mm={:.1}, sigma0={:.2}, max_gen={}",
-                i, level.shrink, level.sigma_mm, level.cma_sigma0, level.max_generations
+                i,
+                level.shrink,
+                level.sigma_mm.get(),
+                level.cma_sigma0,
+                level.max_generations
             );
         }
     }

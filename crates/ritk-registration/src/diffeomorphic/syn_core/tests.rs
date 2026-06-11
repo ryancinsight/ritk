@@ -220,7 +220,7 @@ fn zero_velocity_zero_displacement() {
     let n = 4 * 4 * 4;
     let z = vec![0.0_f32; n];
 
-    let phi = scaling_and_squaring(&z, &z, &z, dims, 6);
+    let phi = scaling_and_squaring(&z, &z, &z, dims.into(), 6);
     for i in 0..n {
         assert!(phi.z[i].abs() < 1e-5, "phiz[{i}]={}", phi.z[i]);
         assert!(phi.y[i].abs() < 1e-5, "phiy[{i}]={}", phi.y[i]);

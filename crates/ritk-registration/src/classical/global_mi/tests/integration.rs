@@ -1,6 +1,7 @@
 //! Registration integration tests: translation recovery, multires, rigid, sparse.
 
 use super::*;
+use ritk_core::filter::GaussianSigma;
 
 #[test]
 fn translation_recovery_shifted_gaussian() {
@@ -29,7 +30,7 @@ fn translation_recovery_shifted_gaussian() {
     let config = GlobalMiConfig {
         num_levels: 1,
         shrink_factors: vec![1],
-        smoothing_sigmas: vec![0.0],
+        smoothing_sigmas: vec![None],
         num_mi_bins: 32,
         sampling_percentage: 0.75,
         rsgd_configs: vec![RegularStepGdConfig {
@@ -104,7 +105,7 @@ fn multires_convergence_runs_all_levels() {
     let config = GlobalMiConfig {
         num_levels: 2,
         shrink_factors: vec![2, 1],
-        smoothing_sigmas: vec![2.0, 0.0],
+        smoothing_sigmas: vec![Some(GaussianSigma::new_unchecked(2.0)), None],
         num_mi_bins: 32,
         sampling_percentage: 0.50,
         rsgd_configs: vec![
@@ -162,7 +163,7 @@ fn rigid_recovery_identity_validates_pipeline() {
     let config = GlobalMiConfig {
         num_levels: 1,
         shrink_factors: vec![1],
-        smoothing_sigmas: vec![0.0],
+        smoothing_sigmas: vec![None],
         num_mi_bins: 32,
         sampling_percentage: 0.50,
         rsgd_configs: vec![RegularStepGdConfig {
@@ -218,7 +219,7 @@ fn sparse_sampling_produces_comparable_result() {
     let config_sparse = GlobalMiConfig {
         num_levels: 1,
         shrink_factors: vec![1],
-        smoothing_sigmas: vec![0.0],
+        smoothing_sigmas: vec![None],
         num_mi_bins: 32,
         sampling_percentage: 0.20,
         rsgd_configs: vec![RegularStepGdConfig {

@@ -125,14 +125,7 @@ impl BSplineFFDRegistration {
                 );
 
                 // 2. Warp moving image.
-                warp_image_into(
-                    moving,
-                    dims.as_array(),
-                    &disp_z,
-                    &disp_y,
-                    &disp_x,
-                    &mut warped,
-                );
+                warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut warped);
 
                 // 3. Compute NCC metric.
                 let ncc = compute_ncc(fixed, &warped);
@@ -199,7 +192,7 @@ impl BSplineFFDRegistration {
         // ── Final warp ───────────────────────────────────────────────────
         let disp =
             evaluate_bspline_displacement(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing, dims);
-        let warped_moving = warp_image(moving, dims.as_array(), &disp.z, &disp.y, &disp.x);
+        let warped_moving = warp_image(moving, dims, &disp.z, &disp.y, &disp.x);
 
         Ok(BSplineFFDResult {
             control_points: (cp_z, cp_y, cp_x),

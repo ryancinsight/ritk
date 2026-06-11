@@ -62,7 +62,7 @@ pub(super) fn integrate_geodesic(
         mz.copy_from_slice(&vz);
         my.copy_from_slice(&vy);
         mx.copy_from_slice(&vx);
-        gaussian_smooth_field_inplace(&mut mz, &mut my, &mut mx, dims, kernel_sigma);
+        gaussian_smooth_field_inplace(&mut mz, &mut my, &mut mx, dims.into(), kernel_sigma);
 
         // 2. EPDiff adjoint ad*_v(m), then smooth.
         epdiff_adjoint_into(
@@ -84,7 +84,7 @@ pub(super) fn integrate_geodesic(
                 x: &mut adx,
             },
         );
-        gaussian_smooth_field_inplace(&mut adz, &mut ady, &mut adx, dims, kernel_sigma);
+        gaussian_smooth_field_inplace(&mut adz, &mut ady, &mut adx, dims.into(), kernel_sigma);
 
         // 3. Velocity update: v ← v − dt · K_σ ∗ ad*_v(m).
         for i in 0..n {
@@ -112,7 +112,7 @@ pub(super) fn integrate_geodesic(
                 y: &dy,
                 x: &dx,
             },
-            dims,
+            dims.into(),
             VectorFieldMut3D {
                 z: &mut comp_z,
                 y: &mut comp_y,
@@ -199,7 +199,7 @@ pub(super) fn integrate_geodesic_into(
             mom_z,
             mom_y,
             mom_x,
-            dims,
+            dims.into(),
             kernel_sigma,
             smooth_tmp,
         );
@@ -229,7 +229,7 @@ pub(super) fn integrate_geodesic_into(
             adj_z,
             adj_y,
             adj_x,
-            dims,
+            dims.into(),
             kernel_sigma,
             smooth_tmp,
         );
@@ -267,7 +267,7 @@ pub(super) fn integrate_geodesic_into(
                     y: d_y,
                     x: d_x,
                 },
-                dims,
+                dims.into(),
                 VectorFieldMut3D {
                     z: comp_z,
                     y: comp_y,

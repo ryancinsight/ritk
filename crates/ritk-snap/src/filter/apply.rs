@@ -171,6 +171,7 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::MaskThreshold { threshold } => {
                 // Build a binary mask from the current image: voxels > threshold → 1, else 0.
                 // Then apply MaskImageFilter to zero out subthreshold voxels.
+                let threshold_f32 = f32::from(*threshold);
                 let dims = study.image.shape();
                 let vals: Vec<f32> = study
                     .image
@@ -178,7 +179,7 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                     .map_err(|e| anyhow::anyhow!("MaskThreshold: f32 required: {:?}", e))?;
                 let mask_vals: Vec<f32> = vals
                     .iter()
-                    .map(|&v| if v > *threshold { 1.0_f32 } else { 0.0_f32 })
+                    .map(|&v| if v > threshold_f32 { 1.0_f32 } else { 0.0_f32 })
                     .collect();
                 let device = study.image.data().device();
                 let mask_td =

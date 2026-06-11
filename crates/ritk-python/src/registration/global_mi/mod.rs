@@ -16,6 +16,7 @@ use burn::backend::Autodiff;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use pyo3::prelude::*;
+use ritk_core::filter::GaussianSigma;
 use ritk_core::image::Image;
 use ritk_core::transform::{AffineTransform, RigidTransform, TranslationTransform};
 use ritk_registration::classical::global_mi::{
@@ -122,7 +123,10 @@ fn build_config(
     GlobalMiConfig {
         num_levels,
         shrink_factors,
-        smoothing_sigmas,
+        smoothing_sigmas: smoothing_sigmas
+            .into_iter()
+            .map(GaussianSigma::new)
+            .collect(),
         num_mi_bins,
         sampling_percentage,
         rsgd_configs,

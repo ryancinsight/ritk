@@ -38,6 +38,7 @@
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer §5.6.
 //! - ITK Software Guide, Vol 2, §6.3.4 Binary Fillhole Image Filter.
 
+use super::types::ForegroundValue;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -53,20 +54,20 @@ use std::collections::VecDeque;
 #[derive(Debug, Clone)]
 pub struct BinaryFillholeFilter {
     /// Voxel value treated as foreground. Default: 1.0.
-    foreground_value: f32,
+    foreground_value: ForegroundValue,
 }
 
 impl BinaryFillholeFilter {
     /// Create a hole-filling filter with default `foreground_value = 1.0`.
     pub fn new() -> Self {
         Self {
-            foreground_value: 1.0,
+            foreground_value: ForegroundValue::ONE,
         }
     }
 
     /// Set the foreground value (ITK `SetForegroundValue`).
-    pub fn with_foreground(mut self, v: f32) -> Self {
-        self.foreground_value = v;
+    pub fn with_foreground(mut self, v: impl Into<ForegroundValue>) -> Self {
+        self.foreground_value = v.into();
         self
     }
 
@@ -117,9 +118,10 @@ impl Default for BinaryFillholeFilter {
 /// - `output[i] ∈ {fg, 0.0}`.
 /// - `f(i) == fg ⇒ output[i] == fg` (extensivity).
 /// - `i ∈ E ⇒ output[i] == 0.0` (external bg preserved).
-fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: f32) -> Vec<f32> {
+fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
+    let fg: f32 = fg.into();
 
     // `reached[i]` = true if voxel i is external background (BFS-reachable from border).
     let mut reached = vec![false; n];

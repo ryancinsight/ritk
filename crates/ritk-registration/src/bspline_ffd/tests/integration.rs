@@ -21,7 +21,7 @@ fn metric_improves_after_iterations() {
             for ix in 0..nx {
                 let src_x = (ix as f32 + 1.0).min((nx - 1) as f32);
                 moving[flat(iz, iy, ix, ny, nx)] =
-                    trilinear_interpolate(&fixed, dims, iz as f32, iy as f32, src_x);
+                    trilinear_interpolate(&fixed, dims.into(), iz as f32, iy as f32, src_x);
             }
         }
     }

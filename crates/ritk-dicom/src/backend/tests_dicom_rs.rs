@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::backend::{decode_frame_with, parse_bytes_with, parse_file_with};
-use crate::pixel::PixelLayout;
+use crate::pixel::{PixelLayout, PixelSignedness};
 use dicom::core::smallvec::SmallVec;
 use dicom::core::value::PixelFragmentSequence;
 use dicom::core::{DataElement, PrimitiveValue, VR};
@@ -79,7 +79,7 @@ fn dicom_rs_backend_parses_file_and_decodes_uncompressed_frame() {
                 cols: 2,
                 samples_per_pixel: 1,
                 bits_allocated: 16,
-                pixel_representation: 0,
+                pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 2.0,
                 rescale_intercept: -10.0,
             },
@@ -164,7 +164,7 @@ fn dicom_rs_backend_decodes_requested_native_multiframe_only() {
                 cols: 2,
                 samples_per_pixel: 1,
                 bits_allocated: 16,
-                pixel_representation: 0,
+                pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 1.0,
                 rescale_intercept: 0.0,
             },
@@ -248,7 +248,7 @@ fn native_owned_jpeg_errors_do_not_fallback_to_dicom_rs() {
                 cols: 1,
                 samples_per_pixel: 1,
                 bits_allocated: 8,
-                pixel_representation: 0,
+                pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 1.0,
                 rescale_intercept: 0.0,
             },

@@ -81,18 +81,13 @@ pub(crate) fn is_jpeg2000_codestream(fragment: &[u8]) -> bool {
     fragment.len() >= 2 && fragment[0] == (SOC >> 8) as u8 && fragment[1] == (SOC & 0xFF) as u8
 }
 
-/// Pixel signedness, replacing `signed: bool`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PixelSignedness {
-    /// Unsigned pixel representation.
-    Unsigned,
-    /// Signed (two's complement) pixel representation.
-    Signed,
-}
+// PixelSignedness is defined in crate::pixel_layout and re-exported from
+// crate::lib. No local definition needed.
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::PixelSignedness;
     use test_support::encode_grayscale_j2k;
 
     fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> PixelLayout {
@@ -101,7 +96,7 @@ mod tests {
             cols,
             samples_per_pixel: 1,
             bits_allocated: bits,
-            pixel_representation: u16::from(matches!(signed, PixelSignedness::Signed)),
+            pixel_representation: signed,
             rescale_slope: 1.0,
             rescale_intercept: 0.0,
         }
@@ -190,7 +185,7 @@ mod tests {
         let cols = 4u32;
         let pixel_value = 128i32;
         let pixels: Vec<i32> = vec![pixel_value; (rows * cols) as usize];
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, false);
+        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned);
 
         assert!(
             is_jpeg2000_codestream(&j2k),
@@ -215,7 +210,7 @@ mod tests {
         let rows = 2u32;
         let cols = 4u32;
         let pixels: Vec<i32> = (0..8).collect();
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, false);
+        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned);
 
         let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
             .expect("gradient round-trip must succeed");
@@ -229,7 +224,7 @@ mod tests {
     #[test]
     fn decode_jpeg2000_signed_samples_round_trip() {
         let pixels = [-4, -1, 0, 3];
-        let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, true);
+        let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed);
 
         let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
             .expect("signed lossless JPEG 2000 round-trip must succeed");
@@ -240,7 +235,7 @@ mod tests {
     #[test]
     fn decode_jpeg2000_lossless_rescale_applied_correctly() {
         let pixels = [100i32];
-        let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, false);
+        let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned);
         let mut pixel_layout = layout(1, 1, 8, PixelSignedness::Unsigned);
         pixel_layout.rescale_slope = 2.0;
         pixel_layout.rescale_intercept = -1024.0;

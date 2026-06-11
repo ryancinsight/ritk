@@ -45,7 +45,7 @@ pub(super) fn refine_control_grid(
 
     for comp_pair in [(cp_z, &mut new_z), (cp_y, &mut new_y), (cp_x, &mut new_x)] {
         let (old, new) = comp_pair;
-        refine_component_3d(old, new, [cnz, cny, cnx], [nnz, nny, nnx]);
+        refine_component(old, new, [cnz, cny, cnx], [nnz, nny, nnx]);
     }
 
     (new_z, new_y, new_x, new_dims, new_spacing)
@@ -53,7 +53,7 @@ pub(super) fn refine_control_grid(
 
 /// Apply 3D B-spline subdivision to a single displacement component via three
 /// sequential separable 1D passes.
-fn refine_component_3d(old: &[f32], new: &mut [f32], old_dims: [usize; 3], new_dims: [usize; 3]) {
+fn refine_component(old: &[f32], new: &mut [f32], old_dims: [usize; 3], new_dims: [usize; 3]) {
     let [oz, oy, ox] = old_dims;
     let [nz, ny, nx] = new_dims;
 

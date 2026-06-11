@@ -14,13 +14,14 @@
 
 use super::color::RgbaU8;
 use super::overlay::Visibility;
+use super::types::LabelId;
 use serde::{Deserialize, Serialize};
 
 /// A single entry in a label table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LabelEntry {
     /// Unique label identifier. 0 is conventionally the background.
-    pub id: u32,
+    pub id: LabelId,
     /// Human-readable name (e.g., Left Ventricle).
     pub name: String,
     /// RGBA color \[R, G, B, A\] each in \[0, 255\].
@@ -31,9 +32,9 @@ pub struct LabelEntry {
 
 impl LabelEntry {
     /// Construct a new fully-visible label entry.
-    pub fn new(id: u32, name: impl Into<String>, color: RgbaU8) -> Self {
+    pub fn new(id: impl Into<LabelId>, name: impl Into<String>, color: RgbaU8) -> Self {
         Self {
-            id,
+            id: id.into(),
             name: name.into(),
             color,
             visible: Visibility::Visible,
@@ -58,31 +59,35 @@ impl LabelTable {
     /// Add a label entry. Returns Err if the ID already exists in the table.
     pub fn add_label(
         &mut self,
-        id: u32,
+        id: impl Into<LabelId>,
         name: impl Into<String>,
         color: RgbaU8,
     ) -> Result<(), String> {
+        let id = id.into();
         if self.entries.iter().any(|e| e.id == id) {
-            return Err(format!("label id {} already exists", id));
+            return Err(format!("label id {} already exists", u32::from(id)));
         }
         self.entries.push(LabelEntry::new(id, name, color));
         Ok(())
     }
 
     /// Remove the label with the given ID. Returns true if the label was present.
-    pub fn remove_label(&mut self, id: u32) -> bool {
+    pub fn remove_label(&mut self, id: impl Into<LabelId>) -> bool {
+        let id = id.into();
         let before = self.entries.len();
         self.entries.retain(|e| e.id != id);
         self.entries.len() < before
     }
 
     /// Return a reference to the entry with the given ID, or None if absent.
-    pub fn get_label(&self, id: u32) -> Option<&LabelEntry> {
+    pub fn get_label(&self, id: impl Into<LabelId>) -> Option<&LabelEntry> {
+        let id = id.into();
         self.entries.iter().find(|e| e.id == id)
     }
 
     /// Return a mutable reference to the entry with the given ID, or None if absent.
-    pub fn get_label_mut(&mut self, id: u32) -> Option<&mut LabelEntry> {
+    pub fn get_label_mut(&mut self, id: impl Into<LabelId>) -> Option<&mut LabelEntry> {
+        let id = id.into();
         self.entries.iter_mut().find(|e| e.id == id)
     }
 
@@ -92,7 +97,8 @@ impl LabelTable {
     }
 
     /// Set the visibility of the label with id. Returns false if the ID is not present.
-    pub fn set_visibility(&mut self, id: u32, visible: Visibility) -> bool {
+    pub fn set_visibility(&mut self, id: impl Into<LabelId>, visible: Visibility) -> bool {
+        let id = id.into();
         match self.get_label_mut(id) {
             Some(e) => {
                 e.visible = visible;
@@ -117,11 +123,11 @@ impl LabelTable {
     /// Guarantees: result >= 1, result not in { e.id | e in entries }.
     ///
     /// Algorithm: linear scan from 1, O(n) per call.
-    pub fn next_free_id(&self) -> u32 {
+    pub fn next_free_id(&self) -> LabelId {
         let mut candidate = 1u32;
         loop {
             if !self.entries.iter().any(|e| e.id == candidate) {
-                return candidate;
+                return LabelId(candidate);
             }
             candidate += 1;
         }

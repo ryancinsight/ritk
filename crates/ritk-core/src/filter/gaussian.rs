@@ -37,9 +37,9 @@ impl<B: Backend> GaussianFilter<B> {
 
     /// Apply the filter to an image.
     pub fn apply<const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
-        let data = self.apply_tensor(image.data().clone(), image.spacing());
-
-        Image::new(data, *image.origin(), *image.spacing(), *image.direction())
+        let (tensor, origin, spacing, direction) = image.clone().into_parts();
+        let data = self.apply_tensor(tensor, &spacing);
+        Image::new(data, origin, spacing, direction)
     }
 
     /// Apply the filter to a tensor directly.
@@ -88,25 +88,7 @@ impl<B: Backend> GaussianFilter<B> {
     }
 
     fn generate_kernel(&self, sigma: f64, radius: usize) -> Vec<f32> {
-        let mut kernel = Vec::with_capacity(2 * radius + 1);
-        let mut sum = 0.0;
-        let sigma2 = sigma * sigma;
-        let two_sigma2 = 2.0 * sigma2;
-        // let _factor = 1.0 / (2.0 * std::f64::consts::PI * sigma2).sqrt(); // Normalization handles this
-
-        for i in 0..=(2 * radius) {
-            let x = (i as f64) - (radius as f64);
-            let val = (-x * x / two_sigma2).exp(); // Unnormalized Gaussian
-            kernel.push(val as f32);
-            sum += val;
-        }
-
-        // Normalize
-        for val in &mut kernel {
-            *val /= sum as f32;
-        }
-
-        kernel
+        crate::filter::gaussian_kernel_1d(sigma as f32, Some(radius))
     }
 
     fn convolve_1d<const D: usize>(

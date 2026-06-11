@@ -96,7 +96,7 @@ impl BSplineSyNRegistration {
                 &buf.v1z,
                 &buf.v1y,
                 &buf.v1x,
-                dims,
+                dims.into(),
                 self.config.n_squarings,
                 &mut buf.phi1_z,
                 &mut buf.phi1_y,
@@ -109,7 +109,7 @@ impl BSplineSyNRegistration {
                 &buf.v2z,
                 &buf.v2y,
                 &buf.v2x,
-                dims,
+                dims.into(),
                 self.config.n_squarings,
                 &mut buf.phi2_z,
                 &mut buf.phi2_y,
@@ -122,7 +122,7 @@ impl BSplineSyNRegistration {
             // Warp images (zero alloc)
             warp_image_into(
                 fixed,
-                dims,
+                dims.into(),
                 &buf.phi1_z,
                 &buf.phi1_y,
                 &buf.phi1_x,
@@ -130,7 +130,7 @@ impl BSplineSyNRegistration {
             );
             warp_image_into(
                 moving,
-                dims,
+                dims.into(),
                 &buf.phi2_z,
                 &buf.phi2_y,
                 &buf.phi2_x,
@@ -140,7 +140,7 @@ impl BSplineSyNRegistration {
             // Compute gradients (zero alloc)
             compute_gradient_into(
                 &buf.i_w,
-                dims,
+                dims.into(),
                 spacing,
                 &mut buf.gi_z,
                 &mut buf.gi_y,
@@ -148,7 +148,7 @@ impl BSplineSyNRegistration {
             );
             compute_gradient_into(
                 &buf.j_w,
-                dims,
+                dims.into(),
                 spacing,
                 &mut buf.gj_z,
                 &mut buf.gj_y,
@@ -194,12 +194,12 @@ impl BSplineSyNRegistration {
 
             // Gaussian smooth forces (zero alloc, shared scratch)
             if sigma > 0.0 {
-                gaussian_smooth_with_scratch(&mut buf.u1z, dims, sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u1y, dims, sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u1x, dims, sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u2z, dims, sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u2y, dims, sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u2x, dims, sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u1z, dims.into(), sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u1y, dims.into(), sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u1x, dims.into(), sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u2z, dims.into(), sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u2y, dims.into(), sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u2x, dims.into(), sigma, &mut buf.smooth_tmp);
             }
 
             // Accumulate forces into CP-space (zero alloc, shared accum/weight)
@@ -303,7 +303,7 @@ impl BSplineSyNRegistration {
             &buf.v1z,
             &buf.v1y,
             &buf.v1x,
-            dims,
+            dims.into(),
             self.config.n_squarings,
             &mut buf.phi1_z,
             &mut buf.phi1_y,
@@ -316,7 +316,7 @@ impl BSplineSyNRegistration {
             &buf.v2z,
             &buf.v2y,
             &buf.v2x,
-            dims,
+            dims.into(),
             self.config.n_squarings,
             &mut buf.phi2_z,
             &mut buf.phi2_y,
@@ -328,7 +328,7 @@ impl BSplineSyNRegistration {
 
         warp_image_into(
             fixed,
-            dims,
+            dims.into(),
             &buf.phi1_z,
             &buf.phi1_y,
             &buf.phi1_x,
@@ -336,7 +336,7 @@ impl BSplineSyNRegistration {
         );
         warp_image_into(
             moving,
-            dims,
+            dims.into(),
             &buf.phi2_z,
             &buf.phi2_y,
             &buf.phi2_x,

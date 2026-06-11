@@ -49,8 +49,8 @@ fn test_read_external_dcmqi_liver_seg_real_file() {
     assert!((positions[2][2] + 126.69).abs() < 1e-6);
 
     let rebuilt = dicom_seg_to_label_map(&seg).expect("rebuild label map from external SEG");
-    assert_eq!(rebuilt.shape, [3, 512, 512]);
-    assert!(rebuilt.present_labels().contains(&1));
+    assert_eq!(rebuilt.shape.0, [3, 512, 512]);
+    assert!(rebuilt.present_labels().contains(&ritk_core::annotation::LabelId(1)));
     assert!(rebuilt.as_slice().contains(&1));
 }
 
@@ -85,10 +85,10 @@ fn test_read_external_dcmqi_partial_overlaps_seg_real_file() {
 
     let rebuilt = dicom_seg_to_label_map(&seg)
         .expect("rebuild label map from external dcmqi partial-overlap SEG");
-    assert_eq!(rebuilt.shape, [3, 512, 512]);
+    assert_eq!(rebuilt.shape.0, [3, 512, 512]);
     let present = rebuilt.present_labels();
     for label in [1u32, 2, 3, 4, 5] {
-        assert!(present.contains(&label), "label {label} must be present");
+        assert!(present.contains(&ritk_core::annotation::LabelId(label)), "label {label} must be present");
         assert!(
             rebuilt.count_label(label) > 0,
             "label {label} voxels must survive reconstruction"
@@ -133,10 +133,10 @@ fn test_read_external_highdicom_overlap_seg_real_file() {
 
     let rebuilt =
         dicom_seg_to_label_map(&seg).expect("rebuild label map from external highdicom SEG");
-    assert_eq!(rebuilt.shape, [4, 16, 16]);
+    assert_eq!(rebuilt.shape.0, [4, 16, 16]);
     let present = rebuilt.present_labels();
-    assert!(present.contains(&1), "segment 1 must be present");
-    assert!(present.contains(&2), "segment 2 must be present");
+    assert!(present.contains(&ritk_core::annotation::LabelId(1)), "segment 1 must be present");
+    assert!(present.contains(&ritk_core::annotation::LabelId(2)), "segment 2 must be present");
     assert!(
         rebuilt.count_label(1) > 0,
         "segment 1 voxels must survive reconstruction"
@@ -176,8 +176,8 @@ fn test_read_external_highdicom_binary_seg_real_file() {
 
     let rebuilt =
         dicom_seg_to_label_map(&seg).expect("rebuild label map from external highdicom binary SEG");
-    assert_eq!(rebuilt.shape, [3, 16, 16]);
-    assert!(rebuilt.present_labels().contains(&1));
+    assert_eq!(rebuilt.shape.0, [3, 16, 16]);
+    assert!(rebuilt.present_labels().contains(&ritk_core::annotation::LabelId(1)));
     assert!(
         rebuilt.count_label(1) > 0,
         "segment voxels must survive reconstruction"
@@ -223,8 +223,8 @@ fn test_read_external_rsna_dido_liver_seg_real_file() {
     );
 
     let rebuilt = dicom_seg_to_label_map(&seg).expect("rebuild label map from rsna dido SEG");
-    assert_eq!(rebuilt.shape, [34, 512, 512]);
-    assert!(rebuilt.present_labels().contains(&1));
+    assert_eq!(rebuilt.shape.0, [34, 512, 512]);
+    assert!(rebuilt.present_labels().contains(&ritk_core::annotation::LabelId(1)));
     assert!(
         rebuilt.count_label(1) > 0,
         "segment voxels must survive reconstruction"

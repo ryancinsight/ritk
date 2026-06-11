@@ -172,11 +172,9 @@ pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::CannyEdgeDetector;
 
     let image = read_image(&args.input)?;
-    let detector = CannyEdgeDetector::new(
-        GaussianSigma::new_unchecked(args.sigma),
-        args.low as f64,
-        args.high as f64,
-    );
+    let sigma = GaussianSigma::new(args.sigma)
+        .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.sigma))?;
+    let detector = CannyEdgeDetector::new(sigma, args.low as f64, args.high as f64);
     let filtered = detector.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 
@@ -237,7 +235,9 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::LaplacianOfGaussianFilter;
 
     let image = read_image(&args.input)?;
-    let filter = LaplacianOfGaussianFilter::new(GaussianSigma::new_unchecked(args.sigma));
+    let sigma = GaussianSigma::new(args.sigma)
+        .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.sigma))?;
+    let filter = LaplacianOfGaussianFilter::new(sigma);
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 

@@ -15,13 +15,16 @@ pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
 
-    let g_sigma = GaussianSigma::new(args.sigma)
-        .unwrap_or_else(|| GaussianSigma::new_unchecked(1e-9));
-
-    // Isotropic sigma applied to all three spatial dimensions.
-    let filter: GaussianFilter<Backend> =
-        GaussianFilter::new(vec![g_sigma; 3]);
-    let filtered = filter.apply(&image);
+    // sigma ≤ 0 is documented as a no-op at the CLI level; skip the filter
+    // and return the image unmodified rather than constructing a near-zero sigma.
+    let filtered = if args.sigma > 0.0 {
+        let sigma = GaussianSigma::new(args.sigma)
+            .ok_or_else(|| anyhow::anyhow!("--sigma must be > 0, got {}", args.sigma))?;
+        let filter: GaussianFilter<Backend> = GaussianFilter::new(vec![sigma; 3]);
+        filter.apply(&image)
+    } else {
+        image
+    };
 
     write_image_inferred(&args.output, &filtered)?;
 

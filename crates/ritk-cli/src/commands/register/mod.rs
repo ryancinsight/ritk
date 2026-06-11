@@ -61,6 +61,18 @@ fn parse_demons_variant(s: &str) -> Result<ritk_registration::demons::DemonsVari
     }
 }
 
+// ── CLI types ────────────────────────────────────────────────────────────────
+
+/// CLI representation of the `--inverse-consistency` flag for Multi-Resolution SyN.
+///
+/// Maps to [`ritk_registration::diffeomorphic::multires_syn::InverseConsistency`]
+/// at dispatch time via `From<CliInverseConsistency> for InverseConsistency`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum CliInverseConsistency {
+    Relaxed,
+    Enforced,
+}
+
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
 /// Arguments for the `register` subcommand.
@@ -127,9 +139,9 @@ pub struct RegisterArgs {
     #[arg(long, default_value = "2", value_name = "INT")]
     pub cc_radius: usize,
 
-    /// Enforce inverse consistency in Multi-Resolution SyN (default false).
-    #[arg(long, default_value = "false", value_name = "BOOL")]
-    pub inverse_consistency: bool,
+    /// Enforce inverse consistency in Multi-Resolution SyN (default: relaxed).
+    #[arg(long, value_enum, default_value_t = CliInverseConsistency::Relaxed)]
+    pub inverse_consistency: CliInverseConsistency,
 
     /// Number of LDDMM time-discretization steps (default 10).
     #[arg(long, default_value = "10", value_name = "INT")]
@@ -319,7 +331,7 @@ mod tests {
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
-            inverse_consistency: false,
+            inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
@@ -361,7 +373,7 @@ mod tests {
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
-            inverse_consistency: false,
+            inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,

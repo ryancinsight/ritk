@@ -1,7 +1,7 @@
 //! Separable 3-D Gaussian smoothing for displacement fields.
 //!
 //! The three per-axis convolution passes are unified into a single
-//! `convolve_axis<const AXIS: usize>` function.  Because `AXIS` is a
+//! `convolve_axis<const AXIS: usize>` function. Because `AXIS` is a
 //! compile-time constant, the compiler monomorphizes three distinct
 //! instantiations (0, 1, 2) and dead-code-eliminates the two unreachable
 //! `match` arms in each one, producing machine code identical to the
@@ -10,24 +10,16 @@
 
 use super::flat;
 use crate::parallel::CellSlice;
+use ritk_core::filter::gaussian_kernel_1d;
+use ritk_core::spatial::VolumeDims;
 
 /// Build a normalised 1-D Gaussian kernel with radius `⌈3σ⌉`.
 ///
 /// The kernel sums to exactly 1.0 (probability-preserving convolution).
-pub(super) fn gaussian_kernel_1d(sigma: f64) -> Vec<f64> {
-    let radius = (3.0 * sigma).ceil() as usize;
-    let two_sigma2 = 2.0 * sigma * sigma;
-    let mut k: Vec<f64> = (0..=(2 * radius))
-        .map(|i| {
-            let x = i as f64 - radius as f64;
-            (-x * x / two_sigma2).exp()
-        })
-        .collect();
-    let sum: f64 = k.iter().sum();
-    for v in &mut k {
-        *v /= sum;
-    }
-    k
+///
+/// Delegates to [`ritk_core::filter::gaussian_kernel_1d`].
+pub(super) fn gaussian_kernel_1d_f64(sigma: f64) -> Vec<f64> {
+    gaussian_kernel_1d(sigma, None)
 }
 
 /// Convolve `data` along axis `AXIS` (0 = Z, 1 = Y, 2 = X) with `kernel`;
@@ -39,13 +31,13 @@ pub(super) fn gaussian_kernel_1d(sigma: f64) -> Vec<f64> {
 /// zero.
 pub(super) fn convolve_axis<const AXIS: usize>(
     data: &[f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     kernel: &[f64],
     output: &mut [f32],
 ) {
-    let [nz, ny, nx] = dims;
+    let [nz, ny, nx] = dims.0;
     let r = kernel.len() / 2;
-    let max_coord = dims[AXIS];
+    let max_coord = dims.0[AXIS];
     // Parallelize over z-slices: each slice writes to a disjoint contiguous
     // range in `output`; all reads are from the immutable `data` input
     // (including cross-slice reads along the Z axis).
@@ -82,7 +74,7 @@ pub(super) fn convolve_axis<const AXIS: usize>(
 ///
 /// Convolves sequentially along Z, Y, then X. Uses a temporary buffer to
 /// avoid read-after-write aliasing. A `sigma ≤ 0` is a no-op.
-pub(crate) fn gaussian_smooth_inplace(data: &mut [f32], dims: [usize; 3], sigma: f64) {
+pub(crate) fn gaussian_smooth_inplace(data: &mut [f32], dims: VolumeDims, sigma: f64) {
     if sigma <= 0.0 {
         return;
     }
@@ -98,14 +90,14 @@ pub(crate) fn gaussian_smooth_inplace(data: &mut [f32], dims: [usize; 3], sigma:
 /// `scratch` must have the same length as `data`. A `sigma ≤ 0` is a no-op.
 pub(crate) fn gaussian_smooth_with_scratch(
     data: &mut [f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     sigma: f64,
     scratch: &mut [f32],
 ) {
     if sigma <= 0.0 {
         return;
     }
-    let kernel = gaussian_kernel_1d(sigma);
+    let kernel = gaussian_kernel_1d_f64(sigma);
     convolve_axis::<0>(data, dims, &kernel, scratch);
     data.copy_from_slice(scratch);
     convolve_axis::<1>(data, dims, &kernel, scratch);
@@ -123,7 +115,7 @@ pub(crate) fn gaussian_smooth_field_inplace(
     fz: &mut [f32],
     fy: &mut [f32],
     fx: &mut [f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     sigma: f64,
 ) {
     gaussian_smooth_inplace(fz, dims, sigma);
@@ -136,7 +128,7 @@ pub(crate) fn gaussian_smooth_field_inplace_with_scratch(
     fz: &mut [f32],
     fy: &mut [f32],
     fx: &mut [f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     sigma: f64,
     scratch: &mut [f32],
 ) {
@@ -152,7 +144,7 @@ mod tests {
     /// Gaussian smoothing of a uniform field leaves the field unchanged.
     #[test]
     fn gaussian_smooth_uniform_unchanged() {
-        let dims = [6usize, 6, 6];
+        let dims = VolumeDims::new([6, 6, 6]);
         let n = 6 * 6 * 6;
         let mut data = vec![3.0_f32; n];
         gaussian_smooth_inplace(&mut data, dims, 1.5);
@@ -167,7 +159,7 @@ mod tests {
     /// Gaussian smoothing reduces peak amplitude of a delta-like spike.
     #[test]
     fn gaussian_smooth_reduces_peak() {
-        let dims = [9usize, 9, 9];
+        let dims = VolumeDims::new([9, 9, 9]);
         let n = 9 * 9 * 9;
         let mut data = vec![0.0_f32; n];
         // Single spike in the centre.
@@ -187,7 +179,7 @@ mod tests {
     /// sigma ≤ 0 is a no-op.
     #[test]
     fn gaussian_smooth_zero_sigma_noop() {
-        let dims = [4usize, 4, 4];
+        let dims = VolumeDims::new([4, 4, 4]);
         let mut data: Vec<f32> = (0..64).map(|i| i as f32).collect();
         let orig = data.clone();
         gaussian_smooth_inplace(&mut data, dims, 0.0);
@@ -197,7 +189,7 @@ mod tests {
     /// `gaussian_smooth_with_scratch` produces identical results to `gaussian_smooth_inplace`.
     #[test]
     fn gaussian_smooth_with_scratch_matches_inplace() {
-        let dims = [6usize, 6, 6];
+        let dims = VolumeDims::new([6, 6, 6]);
         let n = 6 * 6 * 6;
         let mut data1: Vec<f32> = (0..n).map(|i| i as f32).collect();
         let mut data2 = data1.clone();

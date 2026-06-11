@@ -1,6 +1,7 @@
 //! Configuration types for global MI registration.
 
 use crate::optimizer::RegularStepGdConfig;
+use ritk_core::filter::GaussianSigma;
 
 // ─── Transform Type ───────────────────────────────────────────────────────────
 
@@ -28,9 +29,10 @@ pub struct GlobalMiConfig {
     /// Shrink factors per level (default: [4, 2, 1]).
     /// Length must equal `num_levels`.
     pub shrink_factors: Vec<usize>,
-    /// Smoothing sigmas per level in physical units (default: [4.0, 2.0, 0.0]).
-    /// Length must equal `num_levels`.
-    pub smoothing_sigmas: Vec<f64>,
+    /// Gaussian smoothing sigma per level in physical units. `None` disables
+    /// smoothing at that level (replaces the former `0.0` sentinel).
+    /// Length must equal `num_levels`. Default: `[Some(4.0), Some(2.0), None]`.
+    pub smoothing_sigmas: Vec<Option<GaussianSigma>>,
     /// Number of MI histogram bins (default: 50).
     pub num_mi_bins: usize,
     /// Fraction of voxels to sample for MI estimation (default: 0.20 = 20%).
@@ -101,12 +103,16 @@ impl GlobalMiConfig {
 
     /// Create a default rigid registration configuration.
     ///
-    /// 3 levels with shrink factors [4, 2, 1], sigmas [4.0, 2.0, 0.0].
+    /// 3 levels with shrink factors [4, 2, 1], sigmas [4.0, 2.0, disabled].
     pub fn rigid_default() -> Self {
         Self {
             num_levels: 3,
             shrink_factors: vec![4, 2, 1],
-            smoothing_sigmas: vec![4.0, 2.0, 0.0],
+            smoothing_sigmas: vec![
+                Some(GaussianSigma::new_unchecked(4.0)),
+                Some(GaussianSigma::new_unchecked(2.0)),
+                None,
+            ],
             num_mi_bins: 50,
             sampling_percentage: 0.20,
             rsgd_configs: vec![

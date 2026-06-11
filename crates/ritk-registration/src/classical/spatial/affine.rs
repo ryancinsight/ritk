@@ -5,6 +5,7 @@
 use nalgebra::{Matrix3, Vector3};
 
 use super::{EULER_STEP, SCALE_STEP, TRANSLATION_STEP};
+use crate::types::AffineTransform;
 
 /// Generate the 18 canonical ±1-step 9-DOF affine perturbations.
 pub(crate) fn generate_affine_perturbations() -> [[f64; 9]; 18] {
@@ -35,21 +36,15 @@ pub(crate) fn generate_affine_perturbations() -> [[f64; 9]; 18] {
 /// Composition: R_new = R_current · S(ds) · R_x(dθ_x) · R_y(dθ_y) · R_z(dθ_z)
 /// where S = diag(1+ds_x, 1+ds_y, 1+ds_z).
 /// Translation: t_new = t_current + [dt_x, dt_y, dt_z].
-pub(crate) fn apply_affine_perturbation(current: &[f64; 16], perturbation: &[f64; 9]) -> [f64; 16] {
+pub(crate) fn apply_affine_perturbation(
+    current: &AffineTransform,
+    perturbation: &[f64; 9],
+) -> AffineTransform {
     let [dtheta_x, dtheta_y, dtheta_z, dtx, dty, dtz, dsx, dsy, dsz] = *perturbation;
+    let c = &current.0;
 
-    let r = Matrix3::new(
-        current[0],
-        current[1],
-        current[2],
-        current[4],
-        current[5],
-        current[6],
-        current[8],
-        current[9],
-        current[10],
-    );
-    let t = Vector3::new(current[3], current[7], current[11]);
+    let r = Matrix3::new(c[0], c[1], c[2], c[4], c[5], c[6], c[8], c[9], c[10]);
+    let t = Vector3::new(c[3], c[7], c[11]);
 
     let s = Matrix3::new(
         1.0 + dsx,
@@ -100,7 +95,7 @@ pub(crate) fn apply_affine_perturbation(current: &[f64; 16], perturbation: &[f64
     let new_r = r * s * rx * ry * rz;
     let new_t = t + Vector3::new(dtx, dty, dtz);
 
-    [
+    AffineTransform([
         new_r[(0, 0)],
         new_r[(0, 1)],
         new_r[(0, 2)],
@@ -117,5 +112,5 @@ pub(crate) fn apply_affine_perturbation(current: &[f64; 16], perturbation: &[f64
         0.0,
         0.0,
         1.0,
-    ]
+    ])
 }

@@ -49,6 +49,7 @@ use common::{
     compute_tre, downsample_stride, find_rire_dir, identity_m4, ncc, normalize_minmax,
     resample_mri_into_ct_ritk, B,
 };
+use ritk_core::filter::GaussianSigma;
 use ritk_core::transform::RigidTransform;
 use ritk_io::read_metaimage;
 use ritk_registration::optimizer::RegularStepGdConfig;
@@ -161,7 +162,7 @@ fn test_global_mi_rigid_registration_on_rire_patient001() {
     let config = GlobalMiConfig {
         num_levels: 1,
         shrink_factors: vec![4],
-        smoothing_sigmas: vec![1.0],
+        smoothing_sigmas: vec![Some(GaussianSigma::new_unchecked(1.0))],
         num_mi_bins: 32,
         sampling_percentage: 0.30,
         rsgd_configs: vec![RegularStepGdConfig {
@@ -301,7 +302,7 @@ fn test_global_mi_translation_only_on_rire_patient001() {
     let config = GlobalMiConfig {
         num_levels: 1,
         shrink_factors: vec![4],
-        smoothing_sigmas: vec![1.0],
+        smoothing_sigmas: vec![Some(GaussianSigma::new_unchecked(1.0))],
         num_mi_bins: 32,
         sampling_percentage: 0.30,
         rsgd_configs: vec![RegularStepGdConfig {

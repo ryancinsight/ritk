@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use dicom::core::{Tag, VR};
 use dicom::object::DefaultDicomObject;
 use dicom_core::header::Header;
-use ritk_dicom::{parse_bytes_with, parse_file_with, DicomRsBackend};
+use ritk_dicom::{parse_bytes_with, parse_file_with, DicomRsBackend, PixelSignedness};
 
 use super::preservation::{known_handled_tags, parse_sequence_item, tag_key};
 use super::types::{
@@ -41,7 +41,11 @@ fn parse_ds_array<const N: usize>(s: &str) -> Option<[f64; N]> {
             count += 1;
         }
     }
-    if count >= N { Some(out) } else { None }
+    if count >= N {
+        Some(out)
+    } else {
+        None
+    }
 }
 
 /// Parse a single DICOM Part-10 file, populating `first` with series-level
@@ -125,7 +129,7 @@ fn extract_dicom_metadata(
         sop_class_uid: None,
         transfer_syntax_uid: None,
         private_tags: HashMap::new(),
-        pixel_representation: 0,
+        pixel_representation: PixelSignedness::Unsigned,
         bits_allocated: 16,
         window_center: None,
         window_width: None,
@@ -200,8 +204,9 @@ fn extract_dicom_metadata(
         slice_meta.pixel_representation = elem
             .to_str()
             .ok()
-            .and_then(|s| s.trim().parse().ok())
-            .unwrap_or(0);
+            .and_then(|s| s.trim().parse().ok()) // parse u16
+            .and_then(|v: u16| PixelSignedness::try_from(v).ok())
+            .unwrap_or(PixelSignedness::Unsigned);
     }
     if let Ok(elem) = obj.element(Tag(0x0028, 0x0100)) {
         slice_meta.bits_allocated = elem

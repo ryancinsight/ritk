@@ -1,6 +1,6 @@
 [package]
 name = "ritk-core"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2021"
 
 [dependencies]
@@ -15,6 +15,7 @@ serde_json = { workspace = true }
 moirai = { workspace = true }
 gaia = { workspace = true }
 rustfft = { workspace = true }
+num-traits = { workspace = true }
 rand = { workspace = true }
 
 [dev-dependencies]

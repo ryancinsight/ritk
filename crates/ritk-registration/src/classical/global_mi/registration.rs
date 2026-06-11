@@ -40,7 +40,7 @@ impl GlobalMiRegistration {
         config.validate().expect("GlobalMiConfig validation failed");
         let (final_transform, mut result) =
             Self::execute_multires(fixed, moving, initial_transform, config);
-        result.matrix = AffineTransform::new(rigid_matrix_to_homogeneous(&final_transform));
+        result.matrix = rigid_matrix_to_homogeneous(&final_transform);
         (final_transform, result)
     }
 
@@ -55,7 +55,7 @@ impl GlobalMiRegistration {
         config.validate().expect("GlobalMiConfig validation failed");
         let (final_transform, mut result) =
             Self::execute_multires(fixed, moving, initial_transform, config);
-        result.matrix = AffineTransform::new(affine_matrix_to_homogeneous(&final_transform));
+        result.matrix = affine_matrix_to_homogeneous(&final_transform);
         (final_transform, result)
     }
 
@@ -70,7 +70,7 @@ impl GlobalMiRegistration {
         config.validate().expect("GlobalMiConfig validation failed");
         let (final_transform, mut result) =
             Self::execute_multires(fixed, moving, initial_transform, config);
-        result.matrix = AffineTransform::new(translation_matrix_to_homogeneous(&final_transform));
+        result.matrix = translation_matrix_to_homogeneous(&final_transform);
         (final_transform, result)
     }
 
@@ -111,21 +111,21 @@ impl GlobalMiRegistration {
     pub fn rigid_result_matrix<B: AutodiffBackend>(
         transform: &RigidTransform<B, 3>,
     ) -> AffineTransform {
-        AffineTransform::new(rigid_matrix_to_homogeneous(transform))
+        rigid_matrix_to_homogeneous(transform)
     }
 
     /// Compute the 4×4 homogeneous matrix from an affine transform result.
     pub fn affine_result_matrix<B: AutodiffBackend>(
         transform: &CoreAffineTransform<B, 3>,
     ) -> AffineTransform {
-        AffineTransform::new(affine_matrix_to_homogeneous(transform))
+        affine_matrix_to_homogeneous(transform)
     }
 
     /// Compute the 4×4 homogeneous matrix from a translation transform result.
     pub fn translation_result_matrix<B: AutodiffBackend>(
         transform: &TranslationTransform<B, 3>,
     ) -> AffineTransform {
-        AffineTransform::new(translation_matrix_to_homogeneous(transform))
+        translation_matrix_to_homogeneous(transform)
     }
 
     /// Compute the physical center of an image.
@@ -165,8 +165,14 @@ impl GlobalMiRegistration {
         // materialises to a 3-element array literal in a single mov.
         let shrink_factors: Vec<[usize; 3]> =
             config.shrink_factors.iter().map(|&f| [f; 3]).collect();
-        let smoothing_sigmas: Vec<[f64; 3]> =
-            config.smoothing_sigmas.iter().map(|&s| [s; 3]).collect();
+        let smoothing_sigmas: Vec<[f64; 3]> = config
+            .smoothing_sigmas
+            .iter()
+            .map(|s| {
+                let v = s.map_or(0.0, |g| g.get());
+                [v; 3]
+            })
+            .collect();
 
         let fixed_pyramid = MultiResolutionPyramid::new(fixed, &shrink_factors, &smoothing_sigmas);
         let moving_pyramid =
@@ -233,7 +239,7 @@ impl GlobalMiRegistration {
             )
             .with_sampling(config.sampling_percentage);
 
-            let rsgd_config = config.rsgd_configs[level].clone();
+            let rsgd_config = config.rsgd_configs[level];
             let rsgd_initial_step = rsgd_config.initial_step_length;
             let rsgd_max_iters = rsgd_config.maximum_iterations;
             let mut optimizer: RegularStepGradientDescent<T, B> =

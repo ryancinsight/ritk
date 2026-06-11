@@ -1,9 +1,9 @@
 use super::super::config::{DemonsConfig, DemonsResult};
+use super::SymmetricDemonsRegistration;
 use crate::deformable_field_ops::{
     compute_gradient_into, gaussian_smooth_field_inplace_with_scratch, warp_image_into,
 };
 use crate::error::RegistrationError;
-use super::SymmetricDemonsRegistration;
 
 impl SymmetricDemonsRegistration {
     /// Create a registration instance with the given configuration.
@@ -57,7 +57,7 @@ impl SymmetricDemonsRegistration {
         let mut grad_fx = vec![0.0_f32; n];
         compute_gradient_into(
             fixed,
-            dims,
+            dims.into(),
             spacing,
             &mut grad_fz,
             &mut grad_fy,
@@ -90,12 +90,19 @@ impl SymmetricDemonsRegistration {
             iter = it + 1;
 
             // 1. Warp moving with current displacement.
-            warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut m_warped);
+            warp_image_into(
+                moving,
+                dims.into(),
+                &disp_z,
+                &disp_y,
+                &disp_x,
+                &mut m_warped,
+            );
 
             // 2. Compute gradient of the warped moving image (changes each iteration).
             compute_gradient_into(
                 &m_warped,
-                dims,
+                dims.into(),
                 spacing,
                 &mut grad_mz,
                 &mut grad_my,
@@ -120,13 +127,13 @@ impl SymmetricDemonsRegistration {
             );
 
             // 4. Optional fluid regularisation (smooth forces before accumulation).
-            if self.config.sigma_fluid > 0.0 {
+            if let Some(sigma) = self.config.sigma_fluid {
                 gaussian_smooth_field_inplace_with_scratch(
                     &mut fz,
                     &mut fy,
                     &mut fx,
-                    dims,
-                    self.config.sigma_fluid,
+                    dims.into(),
+                    sigma.get(),
                     &mut smooth_tmp,
                 );
             }
@@ -139,13 +146,13 @@ impl SymmetricDemonsRegistration {
             }
 
             // 6. Diffusive regularisation (smooth total field).
-            if self.config.sigma_diffusion > 0.0 {
+            if let Some(sigma) = self.config.sigma_diffusion {
                 gaussian_smooth_field_inplace_with_scratch(
                     &mut disp_z,
                     &mut disp_y,
                     &mut disp_x,
-                    dims,
-                    self.config.sigma_diffusion,
+                    dims.into(),
+                    sigma.get(),
                     &mut smooth_tmp,
                 );
             }
@@ -160,7 +167,7 @@ impl SymmetricDemonsRegistration {
         }
 
         let mut warped = vec![0.0_f32; n];
-        warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut warped);
+        warp_image_into(moving, dims.into(), &disp_z, &disp_y, &disp_x, &mut warped);
 
         Ok(DemonsResult {
             warped,

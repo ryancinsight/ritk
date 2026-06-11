@@ -10,8 +10,8 @@ use crate::diffeomorphic::SyNResult;
 use crate::error::RegistrationError;
 
 use super::pyramid::{downsample, upsample_field};
-use crate::diffeomorphic::local_cc::{cc_forces_into, mean_local_cc};
 use super::InverseConsistency;
+use crate::diffeomorphic::local_cc::{cc_forces_into, mean_local_cc};
 
 /// Velocity fields and dimensions carried between resolution levels.
 struct PrevLevelState {
@@ -168,7 +168,7 @@ impl super::MultiResSyNRegistration {
                     &v1z,
                     &v1y,
                     &v1x,
-                    ld,
+                    ld.into(),
                     self.config.n_squarings,
                     &mut p1z,
                     &mut p1y,
@@ -181,7 +181,7 @@ impl super::MultiResSyNRegistration {
                     &v2z,
                     &v2y,
                     &v2x,
-                    ld,
+                    ld.into(),
                     self.config.n_squarings,
                     &mut p2z,
                     &mut p2y,
@@ -190,10 +190,10 @@ impl super::MultiResSyNRegistration {
                     &mut scratch_ss_y,
                     &mut scratch_ss_x,
                 );
-                warp_image_into(&f_ds, ld, &p1z, &p1y, &p1x, &mut i_w_buf);
-                warp_image_into(&m_ds, ld, &p2z, &p2y, &p2x, &mut j_w_buf);
-                compute_gradient_into(&i_w_buf, ld, ls, &mut giz, &mut giy, &mut gix);
-                compute_gradient_into(&j_w_buf, ld, ls, &mut gjz, &mut gjy, &mut gjx);
+                warp_image_into(&f_ds, ld.into(), &p1z, &p1y, &p1x, &mut i_w_buf);
+                warp_image_into(&m_ds, ld.into(), &p2z, &p2y, &p2x, &mut j_w_buf);
+                compute_gradient_into(&i_w_buf, ld.into(), ls, &mut giz, &mut giy, &mut gix);
+                compute_gradient_into(&j_w_buf, ld.into(), ls, &mut gjz, &mut gjy, &mut gjx);
                 cc_forces_into(
                     &i_w_buf, &j_w_buf, &giz, &giy, &gix, ld, r, &mut u1z, &mut u1y, &mut u1x,
                 );
@@ -224,7 +224,7 @@ impl super::MultiResSyNRegistration {
                         &mut v1z,
                         &mut v1y,
                         &mut v1x,
-                        ld,
+                        ld.into(),
                         self.config.sigma_smooth,
                         &mut smooth_tmp,
                     );
@@ -232,7 +232,7 @@ impl super::MultiResSyNRegistration {
                         &mut v2z,
                         &mut v2y,
                         &mut v2x,
-                        ld,
+                        ld.into(),
                         self.config.sigma_smooth,
                         &mut smooth_tmp,
                     );
@@ -249,7 +249,7 @@ impl super::MultiResSyNRegistration {
                             y: &v2y,
                             x: &v2x,
                         },
-                        ld,
+                        ld.into(),
                         VectorFieldMut3D {
                             z: &mut c1z,
                             y: &mut c1y,
@@ -267,7 +267,7 @@ impl super::MultiResSyNRegistration {
                             y: &v1y,
                             x: &v1x,
                         },
-                        ld,
+                        ld.into(),
                         VectorFieldMut3D {
                             z: &mut c2z,
                             y: &mut c2y,
@@ -309,13 +309,13 @@ impl super::MultiResSyNRegistration {
             inverse: inv,
             ..
         } = prev.expect("at least one resolution level must succeed in multires SyN");
-        let p1 = scaling_and_squaring(&fwd.z, &fwd.y, &fwd.x, dims, self.config.n_squarings);
-        let p2 = scaling_and_squaring(&inv.z, &inv.y, &inv.x, dims, self.config.n_squarings);
+        let p1 = scaling_and_squaring(&fwd.z, &fwd.y, &fwd.x, dims.into(), self.config.n_squarings);
+        let p2 = scaling_and_squaring(&inv.z, &inv.y, &inv.x, dims.into(), self.config.n_squarings);
         Ok(SyNResult {
             forward_field: fwd,
             inverse_field: inv,
-            warped_fixed: warp_image(fixed, dims, &p1.z, &p1.y, &p1.x),
-            warped_moving: warp_image(moving, dims, &p2.z, &p2.y, &p2.x),
+            warped_fixed: warp_image(fixed, dims.into(), &p1.z, &p1.y, &p1.x),
+            warped_moving: warp_image(moving, dims.into(), &p2.z, &p2.y, &p2.x),
             final_cc,
             num_iterations: total_iter,
         })

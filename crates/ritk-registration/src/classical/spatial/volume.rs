@@ -3,12 +3,13 @@
 use ndarray::Array3;
 
 use super::transform::transform_point;
+use crate::types::AffineTransform;
 
 /// Apply a 4×4 homogeneous transformation to a 3D volume.
 ///
 /// Each output voxel (z, y, x) is filled from the nearest source voxel at
 /// `transform_point([x, y, z], transform)`, with zero padding outside bounds.
-pub fn apply_transform(volume: &Array3<f64>, transform: &[f64; 16]) -> Array3<f64> {
+pub fn apply_transform(volume: &Array3<f64>, transform: &AffineTransform) -> Array3<f64> {
     let (depth, height, width) = volume.dim();
     let mut result = Array3::zeros((depth, height, width));
 

@@ -81,7 +81,7 @@ impl SnapApp {
 
         let spacing = [vol.spacing[0], vol.spacing[1], vol.spacing[2]];
         let origin = [vol.origin[0], vol.origin[1], vol.origin[2]];
-        let mesh = build_label_surface_mesh(&binary, map.shape, spacing, origin);
+        let mesh = build_label_surface_mesh(&binary, map.shape.0, spacing, origin);
 
         match ritk_io::write_mesh_as_vtk(&path, &mesh) {
             Ok(()) => {

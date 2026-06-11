@@ -12,6 +12,7 @@ use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
+    PixelSignedness,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -38,11 +39,7 @@ pub(crate) fn sort_discovered_series(series_list: &mut [DicomSeriesInfo]) {
             .then_with(|| a.modality.cmp(&b.modality))
             .then_with(|| a.series_description.cmp(&b.series_description))
             .then_with(|| a.series_instance_uid.cmp(&b.series_instance_uid))
-            .then_with(|| {
-                a.file_paths
-                    .first()
-                    .cmp(&b.file_paths.first())
-            })
+            .then_with(|| a.file_paths.first().cmp(&b.file_paths.first()))
     });
 }
 
@@ -271,7 +268,10 @@ pub fn load_dicom_series<B: Backend>(
             let intercept = get_f64(obj, tags::RESCALE_INTERCEPT).unwrap_or(0.0);
             let samples_per_pixel = get_u32(obj, tags::SAMPLES_PER_PIXEL).unwrap_or(1) as usize;
             let bits_allocated = get_u32(obj, tags::BITS_ALLOCATED).unwrap_or(16) as u16;
-            let pixel_representation = get_u32(obj, tags::PIXEL_REPRESENTATION).unwrap_or(0) as u16;
+            let pixel_representation: PixelSignedness = PixelSignedness::try_from(
+                get_u32(obj, tags::PIXEL_REPRESENTATION).unwrap_or(0) as u16,
+            )
+            .unwrap_or(PixelSignedness::Unsigned);
             let transfer_syntax = TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
 
             let rescaled = decode_frame_with::<DicomRsBackend>(

@@ -1,5 +1,6 @@
 use super::transform::transform_point;
 use super::*;
+use crate::types::AffineTransform;
 use ndarray::Array2;
 
 #[test]
@@ -19,18 +20,18 @@ fn test_build_homogeneous_matrix() {
     let translation = [1., 2., 3.];
     let matrix = build_homogeneous_matrix(&rotation, &translation);
 
-    assert_eq!(matrix[3], 1.);
-    assert_eq!(matrix[7], 2.);
-    assert_eq!(matrix[11], 3.);
-    assert_eq!(matrix[15], 1.);
+    assert_eq!(matrix.0[3], 1.);
+    assert_eq!(matrix.0[7], 2.);
+    assert_eq!(matrix.0[11], 3.);
+    assert_eq!(matrix.0[15], 1.);
 }
 
 #[test]
 fn test_transform_point() {
     let point = [1., 0., 0.];
-    let transform = [
+    let transform = AffineTransform([
         1., 0., 0., 10., 0., 1., 0., 20., 0., 0., 1., 30., 0., 0., 0., 1.,
-    ];
+    ]);
     let result = transform_point(&point, &transform);
 
     assert!((result[0] - 11.).abs() < 1e-10);

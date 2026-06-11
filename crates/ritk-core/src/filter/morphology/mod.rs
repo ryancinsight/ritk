@@ -83,3 +83,6 @@ pub use voting_binary::VotingBinaryImageFilter;
 
 pub mod iterate_structure;
 pub use iterate_structure::{iterate_structure, iterate_structure_with_origin, BoolStructure};
+
+pub mod types;
+pub use types::ForegroundValue;

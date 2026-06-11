@@ -225,7 +225,7 @@ impl AtlasRegistration {
                 &mut mean_vz,
                 &mut mean_vy,
                 &mut mean_vx,
-                dims,
+                dims.into(),
                 self.config.syn_config.sigma_smooth,
                 &mut smooth_tmp,
             );
@@ -234,11 +234,11 @@ impl AtlasRegistration {
                 &mean_vz,
                 &mean_vy,
                 &mean_vx,
-                dims,
+                dims.into(),
                 self.config.syn_config.n_squarings,
             );
             // Apply sharpening warp.
-            let sharpened = warp_image(&new_template, dims, &phi.z, &phi.y, &phi.x);
+            let sharpened = warp_image(&new_template, dims.into(), &phi.z, &phi.y, &phi.x);
 
             // 2e. Convergence: RMS(T^k − T^{k−1}).
             let rms = {

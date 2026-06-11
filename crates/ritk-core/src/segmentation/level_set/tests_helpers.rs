@@ -22,20 +22,20 @@ fn test_idx_clamped_overflow() {
 
 #[test]
 fn test_gaussian_kernel_normalised() {
-    let kernel = build_gaussian_kernel_1d(1.5, 5);
+    let kernel = crate::filter::gaussian_kernel_1d(1.5_f64, Some(5));
     let sum: f64 = kernel.iter().sum();
     assert!((sum - 1.0).abs() < 1e-12, "kernel sum = {sum}");
 }
 
 #[test]
 fn test_gaussian_kernel_length() {
-    let kernel = build_gaussian_kernel_1d(1.0, 5);
+    let kernel = crate::filter::gaussian_kernel_1d(1.0_f64, Some(5));
     assert_eq!(kernel.len(), 11);
 }
 
 #[test]
 fn test_gaussian_kernel_symmetric() {
-    let kernel = build_gaussian_kernel_1d(2.0, 6);
+    let kernel = crate::filter::gaussian_kernel_1d(2.0_f64, Some(6));
     let n = kernel.len();
     for i in 0..n {
         assert!(
@@ -49,7 +49,7 @@ fn test_gaussian_kernel_symmetric() {
 
 #[test]
 fn test_gaussian_kernel_peak_at_center() {
-    let kernel = build_gaussian_kernel_1d(1.0, 3);
+    let kernel = crate::filter::gaussian_kernel_1d(1.0_f64, Some(3));
     let center = kernel.len() / 2;
     for (i, &w) in kernel.iter().enumerate() {
         if i != center {

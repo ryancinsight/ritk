@@ -3,6 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
+use ritk_core::filter::GaussianSigma;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_registration::demons::{
     DemonsConfig, DiffeomorphicDemonsRegistration, SymmetricDemonsRegistration,
@@ -56,8 +57,8 @@ pub fn demons_register(
     py.allow_threads(|| {
         let config = DemonsConfig {
             max_iterations,
-            sigma_diffusion,
-            sigma_fluid: 0.0,
+            sigma_diffusion: GaussianSigma::new(sigma_diffusion),
+            sigma_fluid: None,
             max_step_length: 2.0,
         };
         let reg = ThirionDemonsRegistration::new(config);
@@ -137,8 +138,8 @@ pub fn diffeomorphic_demons_register(
     py.allow_threads(|| {
         let config = DemonsConfig {
             max_iterations,
-            sigma_diffusion,
-            sigma_fluid: 0.0,
+            sigma_diffusion: GaussianSigma::new(sigma_diffusion),
+            sigma_fluid: None,
             max_step_length: 2.0,
         };
         let reg = DiffeomorphicDemonsRegistration {
@@ -218,8 +219,8 @@ pub fn symmetric_demons_register(
     py.allow_threads(|| {
         let config = DemonsConfig {
             max_iterations,
-            sigma_diffusion,
-            sigma_fluid: 0.0,
+            sigma_diffusion: GaussianSigma::new(sigma_diffusion),
+            sigma_fluid: None,
             max_step_length: 2.0,
         };
         let reg = SymmetricDemonsRegistration::new(config);

@@ -2,6 +2,7 @@
 
 use super::trilinear_interpolate;
 use crate::parallel::CellSlice;
+use ritk_core::spatial::VolumeDims;
 
 /// Warp `moving` by the displacement field into a caller-provided buffer.
 ///
@@ -11,13 +12,13 @@ use crate::parallel::CellSlice;
 /// `output` must have length `dims[0] * dims[1] * dims[2]`.
 pub(crate) fn warp_image_into(
     moving: &[f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     dz: &[f32],
     dy: &[f32],
     dx: &[f32],
     output: &mut [f32],
 ) {
-    let [nz, ny, nx] = dims;
+    let [nz, ny, nx] = dims.0;
     // Parallelize over z-slices: each slice writes to a disjoint contiguous
     // range in `output`; all reads are from immutable inputs.
     let slice_len = ny * nx;
@@ -47,12 +48,12 @@ pub(crate) fn warp_image_into(
 /// sampled with trilinear interpolation and clamp-to-border BC.
 pub(crate) fn warp_image(
     moving: &[f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     dz: &[f32],
     dy: &[f32],
     dx: &[f32],
 ) -> Vec<f32> {
-    let n = dims[0] * dims[1] * dims[2];
+    let n = dims.total_voxels();
     let mut warped = vec![0.0_f32; n];
     warp_image_into(moving, dims, dz, dy, dx, &mut warped);
     warped
@@ -67,12 +68,12 @@ pub(crate) fn warp_image(
 pub(crate) fn compute_mse_streaming(
     fixed: &[f32],
     moving: &[f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     dz: &[f32],
     dy: &[f32],
     dx: &[f32],
 ) -> f64 {
-    let [nz, ny, nx] = dims;
+    let [nz, ny, nx] = dims.0;
     // Parallel reduction over z-slices; each slice accumulates its own
     // partial sum from immutable inputs only. Per-slice sequential summation
     // order is preserved, so results match the sequential implementation up
@@ -109,7 +110,7 @@ mod tests {
     /// Warp of a constant image is constant regardless of displacement.
     #[test]
     fn warp_constant_image() {
-        let dims = [4usize, 4, 4];
+        let dims = VolumeDims::new([4, 4, 4]);
         let n = 4 * 4 * 4;
         let data = vec![5.0_f32; n];
         let dz = vec![0.5_f32; n];
@@ -124,8 +125,8 @@ mod tests {
     /// Warp with zero displacement must return the original image.
     #[test]
     fn warp_identity_displacement() {
-        let dims = [6usize, 6, 6];
-        let [nz, ny, nx] = dims;
+        let dims = VolumeDims::new([6, 6, 6]);
+        let [nz, ny, nx] = dims.0;
         let n = nz * ny * nx;
         let data: Vec<f32> = (0..n).map(|i| i as f32).collect();
         let zeros = vec![0.0_f32; n];
@@ -141,7 +142,7 @@ mod tests {
     /// Streaming MSE of identical images with zero displacement is zero.
     #[test]
     fn streaming_mse_identical_is_zero() {
-        let dims = [4usize, 4, 4];
+        let dims = VolumeDims::new([4, 4, 4]);
         let n = 4 * 4 * 4;
         let data: Vec<f32> = (0..n).map(|i| i as f32 * 0.1).collect();
         let zeros = vec![0.0_f32; n];

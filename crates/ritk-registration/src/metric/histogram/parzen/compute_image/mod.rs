@@ -6,6 +6,15 @@
 
 pub(super) mod chunked;
 
+/// Whether stochastic subsampling is active for a histogram computation pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SamplingMode {
+    /// A random subset of voxels is used (stochastic sampling).
+    Sampled,
+    /// All voxels are used (dense evaluation).
+    Dense,
+}
+
 use super::super::cache::WFixedCache;
 use super::image_cache_helpers::{
     cache_matches_image, extract_cached_points, get_cached_w_fixed_t,
@@ -45,7 +54,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let total_voxels = fixed_shape.iter().product::<usize>();
             let num_samples = (total_voxels as f32 * p) as usize;
             let indices = grid::generate_random_points(fixed_shape, num_samples, &device);
-            (Some(indices), num_samples, true, None)
+            (Some(indices), num_samples, SamplingMode::Sampled, None)
         } else {
             let total_voxels = fixed_shape.iter().product::<usize>();
             let cached_points = {
@@ -56,16 +65,16 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     .map(|c| c.points.clone())
             };
             if let Some(pts) = cached_points {
-                (None, total_voxels, false, Some(pts))
+                (None, total_voxels, SamplingMode::Dense, Some(pts))
             } else {
                 let indices = grid::generate_grid(fixed_shape, &device);
-                (Some(indices), total_voxels, false, None)
+                (Some(indices), total_voxels, SamplingMode::Dense, None)
             }
         };
 
         if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
             // ── Non-chunked path ──
-            let cached_w_fixed_t = (!use_sampling)
+            let cached_w_fixed_t = (use_sampling == SamplingMode::Dense)
                 .then(|| {
                     let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                     get_cached_w_fixed_t(&cache, fixed)
@@ -73,7 +82,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 .flatten();
 
             #[cfg(feature = "direct-parzen")]
-            let cached_sparse = (!use_sampling)
+            let cached_sparse = (use_sampling == SamplingMode::Dense)
                 .then(|| {
                     let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                     let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
@@ -129,7 +138,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     oob_mask.as_ref(),
                 )
             } else {
-                let fixed_values = if use_sampling {
+                let fixed_values = if use_sampling == SamplingMode::Sampled {
                     interpolator.interpolate(
                         fixed.data(),
                         fixed_indices
@@ -142,7 +151,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 let w_fixed_t = self.compute_w_fixed_transposed(&fixed_values, n);
 
-                if !use_sampling {
+                if use_sampling == SamplingMode::Dense {
                     #[cfg(feature = "direct-parzen")]
                     let fixed_norm = Some(normalize_fixed_values::<B>(
                         &fixed_values,

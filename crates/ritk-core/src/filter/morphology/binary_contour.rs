@@ -22,6 +22,7 @@
 //! - Malandain, G. & Bertrand, G. (1992). Fast characterization of 3D simple points.
 //!   *ICPR 1992*.
 
+use super::types::ForegroundValue;
 use super::Connectivity;
 use crate::filter::ops::extract_vec;
 use crate::image::Image;
@@ -37,15 +38,15 @@ pub struct BinaryContourImageFilter {
     /// Neighbourhood connectivity topology (ITK default: `Face6`).
     pub connectivity: Connectivity,
     /// Foreground intensity value. Default 1.0.
-    pub foreground_value: f32,
+    pub foreground_value: ForegroundValue,
 }
 
 impl BinaryContourImageFilter {
     /// Construct with explicit parameters.
-    pub fn new(connectivity: Connectivity, foreground_value: f32) -> Self {
+    pub fn new(connectivity: Connectivity, foreground_value: impl Into<ForegroundValue>) -> Self {
         Self {
             connectivity,
-            foreground_value,
+            foreground_value: foreground_value.into(),
         }
     }
 
@@ -63,7 +64,7 @@ impl BinaryContourImageFilter {
 
 impl Default for BinaryContourImageFilter {
     fn default() -> Self {
-        Self::new(Connectivity::Face6, 1.0)
+        Self::new(Connectivity::Face6, ForegroundValue::ONE)
     }
 }
 
@@ -99,7 +100,7 @@ impl BinaryContourImageFilter {
         let [nz, ny, nx] = dims;
         let device = image.data().device();
 
-        let fg = self.foreground_value;
+        let fg = f32::from(self.foreground_value);
         let n26 = n26();
 
         let mut out = vec![0.0f32; nz * ny * nx];

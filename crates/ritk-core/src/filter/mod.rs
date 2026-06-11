@@ -1,6 +1,8 @@
 // ── Internal ────────────────────────────────────────────────────────────────
 pub(crate) mod ops;
 
+pub use ops::gaussian_kernel_1d;
+
 // ── Bias correction ──────────────────────────────────────────────────────────
 pub mod bias;
 pub use bias::N4BiasFieldCorrectionFilter;
@@ -67,8 +69,8 @@ pub use labeling::{
 pub use morphology::{
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
     BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter, Connectivity,
-    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
-    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    ForegroundValue, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
+    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HitOrMissTransform, LabelClosing,
     LabelContourImageFilter, LabelDilation, LabelErosion, LabelOpening,
     MorphologicalReconstruction, ReconstructionMode, VotingBinaryImageFilter, WhiteTopHatFilter,
@@ -129,6 +131,8 @@ pub mod distance;
 pub mod rank;
 pub mod surface;
 
-pub use distance::{DistanceTransformImageFilter, SignedDistanceTransformImageFilter};
+pub use distance::{
+    BinarizationThreshold, DistanceTransformImageFilter, SignedDistanceTransformImageFilter,
+};
 pub use rank::{PercentileFilter, RankFilter};
 pub use surface::{MarchingCubesFilter, Mesh, MeshBuilder};

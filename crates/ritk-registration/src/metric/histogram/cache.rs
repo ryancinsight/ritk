@@ -157,7 +157,7 @@ pub(crate) struct HistogramCache<B: Backend> {
     /// Because this field is gated by `#[cfg]`, `HistogramCache` cannot be
     /// constructed by a single function under both feature configurations —
     /// the struct literal would be missing the field in one cfg or reference a
-    /// non-existent type in the other. See `compute_image.rs::make_cache` for
+    /// non-existent type in the other. See `compute_image/mod.rs::make_cache` for
     /// the two cfg-specific constructors that work around this.
     #[cfg(feature = "direct-parzen")]
     pub sparse_w_fixed: Option<SparseWFixedT>,
@@ -278,7 +278,7 @@ impl<B: Backend> SparseWFixedCache for MaskedHistogramCache<B> {
 // `data_fingerprint`). A single function cannot construct both variants because
 // the struct literal would fail to compile in one cfg or the other. We provide
 // two cfg-gated overloads of `make_cache` and `make_masked_cache` that share
-// the same call signature, so the caller in `compute_image.rs` /
+// the same call signature, so the caller in `compute_image/mod.rs` /
 // `masked/mod.rs` does not need to duplicate surrounding logic under both cfgs.
 //
 // The sparse cache (`sparse_w_fixed`) is **not** built here — it is constructed

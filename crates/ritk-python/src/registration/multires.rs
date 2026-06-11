@@ -3,6 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
+use ritk_core::filter::GaussianSigma;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_registration::demons::{
     DemonsConfig, DemonsVariant, InverseConsistentDemonsConfig,
@@ -117,8 +118,8 @@ pub fn multires_demons_register(
         let config = MultiResDemonsConfig {
             base_config: DemonsConfig {
                 max_iterations,
-                sigma_diffusion,
-                sigma_fluid: 0.0,
+                sigma_diffusion: GaussianSigma::new(sigma_diffusion),
+                sigma_fluid: None,
                 max_step_length: 2.0,
             },
             levels,
@@ -206,8 +207,8 @@ pub fn inverse_consistent_demons_register(
         let config = InverseConsistentDemonsConfig {
             demons: DemonsConfig {
                 max_iterations,
-                sigma_diffusion,
-                sigma_fluid: 0.0,
+                sigma_diffusion: GaussianSigma::new(sigma_diffusion),
+                sigma_fluid: None,
                 max_step_length: 2.0,
             },
             inverse_consistency_weight,

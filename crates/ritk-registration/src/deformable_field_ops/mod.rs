@@ -19,6 +19,8 @@ mod normalize;
 mod smooth;
 mod warp;
 
+use ritk_core::spatial::VolumeDims;
+
 // Flat `flat` and `trilinear_interpolate` are defined here to avoid peer-module
 // resolution cycles: every sub-module accesses them via `use super::{flat, trilinear_interpolate}`.
 #[cfg(test)]
@@ -125,8 +127,8 @@ pub(crate) fn flat(iz: usize, iy: usize, ix: usize, ny: usize, nx: usize) -> usi
 /// - At integer positions the result equals `data[flat(round(z), round(y), round(x))]`.
 /// - Positions outside `[0, nZ−1] × [0, nY−1] × [0, nX−1]` are clamped.
 #[inline]
-pub(crate) fn trilinear_interpolate(data: &[f32], dims: [usize; 3], z: f32, y: f32, x: f32) -> f32 {
-    let [nz, ny, nx] = dims;
+pub(crate) fn trilinear_interpolate(data: &[f32], dims: VolumeDims, z: f32, y: f32, x: f32) -> f32 {
+    let [nz, ny, nx] = dims.0;
 
     let z = z.max(0.0).min((nz as f32) - 1.0);
     let y = y.max(0.0).min((ny as f32) - 1.0);
@@ -160,8 +162,8 @@ pub(crate) fn trilinear_interpolate(data: &[f32], dims: [usize; 3], z: f32, y: f
 mod tests {
     use super::*;
 
-    fn make_ramp(dims: [usize; 3]) -> Vec<f32> {
-        let [nz, ny, nx] = dims;
+    fn make_ramp(dims: VolumeDims) -> Vec<f32> {
+        let [nz, ny, nx] = dims.0;
         (0..nz * ny * nx)
             .map(|fi| {
                 let ix = fi % nx;
@@ -175,7 +177,7 @@ mod tests {
     /// At an integer coordinate the trilinear interpolant must equal the stored value.
     #[test]
     fn trilinear_at_integer_equals_value() {
-        let dims = [5usize, 5, 5];
+        let dims = VolumeDims::new([5, 5, 5]);
         let data = make_ramp(dims);
         for iz in 0..5 {
             for iy in 0..5 {
@@ -195,7 +197,7 @@ mod tests {
     /// Trilinear interpolation of a constant field returns the constant everywhere.
     #[test]
     fn trilinear_constant_field() {
-        let dims = [4usize, 4, 4];
+        let dims = VolumeDims::new([4, 4, 4]);
         let data = vec![7.0_f32; 4 * 4 * 4];
         let v = trilinear_interpolate(&data, dims, 1.7, 2.3, 0.8);
         assert!((v - 7.0).abs() < 1e-5, "expected 7.0, got {v}");

@@ -1,4 +1,5 @@
 use crate::FilterKind;
+use ritk_core::filter::ForegroundValue;
 
 // Verify that the default `FilterKind` values exposed by the panel are
 // within the analytically valid clamped ranges — GrayscaleMorph (remaining),
@@ -85,7 +86,7 @@ fn binary_threshold_defaults_ordered() {
     let fk = FilterKind::BinaryThreshold {
         lower: 100.0,
         upper: 500.0,
-        foreground: 1.0,
+        foreground: ForegroundValue::ONE,
         background: 0.0,
     };
     if let FilterKind::BinaryThreshold {

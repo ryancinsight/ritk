@@ -239,4 +239,4 @@ impl<B: Backend> ParzenJointHistogram<B> {
 }
 
 // Image-level joint histogram computation (compute_image_joint_histogram) is in
-// compute_image.rs to keep this file under the 500-line structural limit.
+// compute_image/mod.rs to keep this file under the 500-line structural limit.

@@ -34,6 +34,7 @@
 //!   using mathematical morphology. *IEEE TPAMI*, 9(4), 532–550.
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer.
 
+use super::types::ForegroundValue;
 use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -54,7 +55,7 @@ pub struct BinaryErodeFilter {
     /// Structuring element half-width in voxels.
     radius: usize,
     /// Voxel value treated as foreground. Default: 1.0.
-    foreground_value: f32,
+    foreground_value: ForegroundValue,
 }
 
 impl BinaryErodeFilter {
@@ -62,13 +63,13 @@ impl BinaryErodeFilter {
     pub fn new(radius: usize) -> Self {
         Self {
             radius,
-            foreground_value: 1.0,
+            foreground_value: ForegroundValue::ONE,
         }
     }
 
     /// Set the foreground value (ITK `SetForegroundValue`).
-    pub fn with_foreground(mut self, v: f32) -> Self {
-        self.foreground_value = v;
+    pub fn with_foreground(mut self, v: impl Into<ForegroundValue>) -> Self {
+        self.foreground_value = v.into();
         self
     }
 
@@ -107,9 +108,15 @@ impl Default for BinaryErodeFilter {
 /// - Output length = `nz × ny × nx`.
 /// - Output[i] ∈ {foreground_value, 0.0}.
 /// - Output[i] = foreground_value iff all (2r+1)³ neighbours (clamped-background) = fg.
-pub(crate) fn erode_binary_3d(data: &[f32], dims: [usize; 3], radius: usize, fg: f32) -> Vec<f32> {
+pub(crate) fn erode_binary_3d(
+    data: &[f32],
+    dims: [usize; 3],
+    radius: usize,
+    fg: ForegroundValue,
+) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let r = radius as isize;
+    let fg: f32 = fg.into();
     let n = nz * ny * nx;
     let mut output = vec![0.0_f32; n];
 

@@ -187,7 +187,13 @@ impl SnapApp {
                         .unwrap_or_else(|_| vec![0.0; dims[0] * dims[1] * dims[2]]);
                     let mask_vals: Vec<f32> = vals
                         .iter()
-                        .map(|&v| if v > *threshold { 1.0_f32 } else { 0.0_f32 })
+                        .map(|&v| {
+                            if v > f32::from(*threshold) {
+                                1.0_f32
+                            } else {
+                                0.0_f32
+                            }
+                        })
                         .collect();
                     let device = image.data().device();
                     let mask_td =

@@ -20,6 +20,7 @@
 //! | `MaskImageFilter`           | `MaskImageFilter`            |
 //! | `MaskNegatedImageFilter`    | `MaskNegatedImageFilter`     |
 
+use crate::filter::distance::types::BinarizationThreshold;
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -44,7 +45,7 @@ fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
 #[derive(Debug, Clone)]
 pub struct MaskImageFilter {
     /// Foreground threshold for the mask image. Default: 0.5.
-    pub threshold: f32,
+    pub threshold: BinarizationThreshold,
     /// Value written where the mask is inactive. Default: 0.0.
     pub outside_value: f32,
 }
@@ -52,7 +53,7 @@ pub struct MaskImageFilter {
 impl Default for MaskImageFilter {
     fn default() -> Self {
         Self {
-            threshold: 0.5,
+            threshold: BinarizationThreshold::DEFAULT,
             outside_value: 0.0,
         }
     }
@@ -63,8 +64,8 @@ impl MaskImageFilter {
         Self::default()
     }
 
-    pub fn with_threshold(mut self, t: f32) -> Self {
-        self.threshold = t;
+    pub fn with_threshold(mut self, t: impl Into<BinarizationThreshold>) -> Self {
+        self.threshold = t.into();
         self
     }
 
@@ -83,7 +84,7 @@ impl MaskImageFilter {
         let (iv, _) = extract_vec(image)?;
         let (mv, _) = extract_vec(mask)?;
         let outside = self.outside_value;
-        let thr = self.threshold;
+        let thr = f32::from(self.threshold);
         let out: Vec<f32> = iv
             .iter()
             .zip(mv.iter())
@@ -103,7 +104,7 @@ impl MaskImageFilter {
 #[derive(Debug, Clone)]
 pub struct MaskNegatedImageFilter {
     /// Foreground threshold for the mask image. Default: 0.5.
-    pub threshold: f32,
+    pub threshold: BinarizationThreshold,
     /// Value written where the mask is active. Default: 0.0.
     pub outside_value: f32,
 }
@@ -111,7 +112,7 @@ pub struct MaskNegatedImageFilter {
 impl Default for MaskNegatedImageFilter {
     fn default() -> Self {
         Self {
-            threshold: 0.5,
+            threshold: BinarizationThreshold::DEFAULT,
             outside_value: 0.0,
         }
     }
@@ -122,8 +123,8 @@ impl MaskNegatedImageFilter {
         Self::default()
     }
 
-    pub fn with_threshold(mut self, t: f32) -> Self {
-        self.threshold = t;
+    pub fn with_threshold(mut self, t: impl Into<BinarizationThreshold>) -> Self {
+        self.threshold = t.into();
         self
     }
 
@@ -142,7 +143,7 @@ impl MaskNegatedImageFilter {
         let (iv, _) = extract_vec(image)?;
         let (mv, _) = extract_vec(mask)?;
         let outside = self.outside_value;
-        let thr = self.threshold;
+        let thr = f32::from(self.threshold);
         let out: Vec<f32> = iv
             .iter()
             .zip(mv.iter())

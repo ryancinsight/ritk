@@ -125,13 +125,6 @@ pub mod utils {
         Tensor::cat(vec![zeros_w_front, laplacian, zeros_w_back], 3)
     }
 
-    /// Compute spatial Laplacian for 4D field.
-    ///
-    /// Alias for spatial_laplacian_2d for simpler naming.
-    pub fn laplacian<B: Backend>(field: Tensor<B, 4>) -> Tensor<B, 4> {
-        spatial_laplacian_2d(field)
-    }
-
     /// Compute spatial Laplacian for 5D field (3D).
     ///
     /// Computes the 3D Laplacian using a 6-point stencil.

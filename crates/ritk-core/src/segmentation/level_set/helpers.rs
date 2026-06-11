@@ -14,7 +14,7 @@
 //! | Differential geometry | [`compute_curvature_into`] |
 //! | Gradient operators | [`compute_gradient_magnitude`], [`compute_field_gradient`] |
 //! | Edge / speed functions | [`compute_edge_stopping`] |
-//! | Smoothing | [`gaussian_smooth_3d`], [`build_gaussian_kernel_1d`] |
+//! | Smoothing | [`gaussian_smooth_3d`] |
 //! | Regularisation | [`regularised_heaviside`], [`regularised_dirac`] |
 
 use std::f64::consts::PI;
@@ -242,7 +242,7 @@ pub(crate) fn gaussian_smooth_3d(data: &[f64], dims: [usize; 3], sigma: f64) -> 
     }
 
     let radius = (3.0 * sigma).ceil() as usize;
-    let kernel = build_gaussian_kernel_1d(sigma, radius);
+    let kernel = crate::filter::gaussian_kernel_1d(sigma, Some(radius));
     let r = radius as isize;
 
     // Separable: smooth along x, then y, then z.
@@ -297,34 +297,6 @@ pub(crate) fn gaussian_smooth_3d(data: &[f64], dims: [usize; 3], sigma: f64) -> 
     }
 
     tmp
-}
-
-/// Normalised 1-D Gaussian kernel.
-///
-/// Length = `2 * radius + 1`.  Weights sum to 1.
-///
-/// ```text
-/// w_i = exp(−d² / (2σ²)) / Z,   d = i − radius
-/// ```
-pub(crate) fn build_gaussian_kernel_1d(sigma: f64, radius: usize) -> Vec<f64> {
-    let len = 2 * radius + 1;
-    let inv_2sigma2 = 1.0 / (2.0 * sigma * sigma);
-    let mut kernel = Vec::with_capacity(len);
-    let mut sum = 0.0_f64;
-
-    for i in 0..len {
-        let d = i as f64 - radius as f64;
-        let w = (-d * d * inv_2sigma2).exp();
-        kernel.push(w);
-        sum += w;
-    }
-
-    let inv_sum = 1.0 / sum;
-    for w in &mut kernel {
-        *w *= inv_sum;
-    }
-
-    kernel
 }
 
 // ── Regularised Heaviside / Dirac ──────────────────────────────────────────────────

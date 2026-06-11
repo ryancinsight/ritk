@@ -18,10 +18,10 @@
 //! - A no-op paint/erase does not create a new undo history entry.
 //! - Out-of-bounds brush centers are rejected before touching the label map.
 
-use ritk_core::annotation::{LabelMap, LabelTable, UndoRedoStack};
+use ritk_core::annotation::{LabelId, LabelMap, LabelTable, UndoRedoStack};
 use ritk_core::annotation::{RgbaU8, Visibility};
 
-const DEFAULT_LABEL_ID: u32 = 1;
+const DEFAULT_LABEL_ID: LabelId = LabelId(1);
 const DEFAULT_LABEL_NAME: &str = "Label 1";
 const DEFAULT_LABEL_COLOR: RgbaU8 = RgbaU8([255, 0, 0, 180]);
 
@@ -29,7 +29,7 @@ const DEFAULT_LABEL_COLOR: RgbaU8 = RgbaU8([255, 0, 0, 180]);
 #[derive(Debug, Clone)]
 pub struct LabelEditor {
     history: UndoRedoStack<LabelMap>,
-    active_label_id: u32,
+    active_label_id: LabelId,
 }
 
 impl LabelEditor {
@@ -49,8 +49,9 @@ impl LabelEditor {
     pub fn with_table(
         shape: [usize; 3],
         table: LabelTable,
-        active_label_id: u32,
+        active_label_id: impl Into<LabelId>,
     ) -> Result<Self, String> {
+        let active_label_id = active_label_id.into();
         validate_label_exists(&table, active_label_id)?;
         Ok(Self {
             history: UndoRedoStack::new(LabelMap::new(shape, table)),
@@ -81,7 +82,7 @@ impl LabelEditor {
     }
 
     /// Current active foreground label ID.
-    pub fn active_label_id(&self) -> u32 {
+    pub fn active_label_id(&self) -> LabelId {
         self.active_label_id
     }
 
@@ -91,7 +92,8 @@ impl LabelEditor {
     }
 
     /// Select an existing foreground label as the active paint target.
-    pub fn set_active_label(&mut self, label_id: u32) -> Result<(), String> {
+    pub fn set_active_label(&mut self, label_id: impl Into<LabelId>) -> Result<(), String> {
+        let label_id = label_id.into();
         validate_label_exists(&self.current_map().table, label_id)?;
         self.active_label_id = label_id;
         Ok(())
@@ -100,7 +102,7 @@ impl LabelEditor {
     /// Add a label to the current table and make it active.
     ///
     /// The ID is the smallest positive integer absent from the current table.
-    pub fn add_label(&mut self, name: impl Into<String>, color: RgbaU8) -> Result<u32, String> {
+    pub fn add_label(&mut self, name: impl Into<String>, color: RgbaU8) -> Result<LabelId, String> {
         let mut next = self.current_map().clone();
         let label_id = next.table.next_free_id();
         next.table.add_label(label_id, name, color)?;
@@ -112,9 +114,10 @@ impl LabelEditor {
     /// Set label visibility in the current table.
     pub fn set_label_visibility(
         &mut self,
-        label_id: u32,
+        label_id: impl Into<LabelId>,
         visible: Visibility,
     ) -> Result<(), String> {
+        let label_id = label_id.into();
         let mut next = self.current_map().clone();
         if !next.table.set_visibility(label_id, visible) {
             return Err(format!("label id {label_id} is not present"));
@@ -149,7 +152,7 @@ impl LabelEditor {
 
     /// Erase a closed integer ball to background label `0`.
     pub fn erase_sphere(&mut self, center: [usize; 3], radius: usize) -> Result<usize, String> {
-        self.apply_sphere(center, radius, 0)
+        self.apply_sphere(center, radius, LabelId::BACKGROUND)
     }
 
     /// Undo one committed label-map/table snapshot.
@@ -173,7 +176,7 @@ impl LabelEditor {
     }
 
     /// Sorted `(label_id, voxel_count)` pairs for labels present in the map.
-    pub fn label_counts(&self) -> Vec<(u32, usize)> {
+    pub fn label_counts(&self) -> Vec<(LabelId, usize)> {
         self.current_map()
             .present_labels()
             .into_iter()
@@ -185,12 +188,12 @@ impl LabelEditor {
         &mut self,
         center: [usize; 3],
         radius: usize,
-        label_id: u32,
+        label_id: LabelId,
     ) -> Result<usize, String> {
-        validate_index(self.current_map().shape, center)?;
+        validate_index(self.current_map().shape.0, center)?;
 
         let mut next = self.current_map().clone();
-        let shape = next.shape;
+        let shape = next.shape.0;
         let [z_min, y_min, x_min] = [
             center[0].saturating_sub(radius),
             center[1].saturating_sub(radius),
@@ -242,8 +245,9 @@ pub fn default_label_table() -> LabelTable {
     table
 }
 
-fn validate_label_exists(table: &LabelTable, label_id: u32) -> Result<(), String> {
-    if label_id == 0 {
+fn validate_label_exists(table: &LabelTable, label_id: impl Into<LabelId>) -> Result<(), String> {
+    let label_id = label_id.into();
+    if label_id == LabelId::BACKGROUND {
         return Err("background label 0 cannot be active".to_string());
     }
     if table.get_label(label_id).is_none() {

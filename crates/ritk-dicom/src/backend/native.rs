@@ -92,7 +92,7 @@ mod tests {
             cols,
             samples_per_pixel: 1,
             bits_allocated: 8,
-            pixel_representation: 0,
+            pixel_representation: crate::pixel::PixelSignedness::Unsigned,
             rescale_slope: 1.0,
             rescale_intercept: 0.0,
         }
@@ -184,7 +184,7 @@ mod tests {
                     cols: 2,
                     samples_per_pixel: 3,
                     bits_allocated: 8,
-                    pixel_representation: 0,
+                    pixel_representation: crate::pixel::PixelSignedness::Unsigned,
                     rescale_slope: 1.0,
                     rescale_intercept: 0.0,
                 },

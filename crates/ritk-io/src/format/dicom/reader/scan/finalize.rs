@@ -67,7 +67,8 @@ pub(super) fn finalize_scanned_series(
     // In DICOMDIR datasets with mixed series (scout + CT), use the plurality
     // (most-frequent) dimensions as canonical; exclude non-matching files.
     {
-        let mut dim_freq: HashMap<(u32, u32), usize> = HashMap::new();
+        let mut dim_freq: HashMap<(u32, u32), usize> =
+            HashMap::with_capacity(per_file_dims.len());
         for &(r, c) in &per_file_dims {
             if r > 0 && c > 0 {
                 *dim_freq.entry((r, c)).or_insert(0) += 1;
@@ -94,8 +95,8 @@ pub(super) fn finalize_scanned_series(
                     cr,
                     cc
                 );
-                let mut new_slices = Vec::new();
-                let mut new_uids = Vec::new();
+                let mut new_slices = Vec::with_capacity(slices.len());
+                let mut new_uids = Vec::with_capacity(slices.len());
                 if part10_bytes_vec.is_empty() {
                     // Directory scan: no bytes to carry.
                     for ((s, u), (r, c)) in slices
@@ -110,7 +111,7 @@ pub(super) fn finalize_scanned_series(
                     }
                 } else {
                     // In-memory scan: carry bytes alongside slices.
-                    let mut new_bytes = Vec::new();
+                    let mut new_bytes = Vec::with_capacity(slices.len());
                     for (((s, u), (r, c)), b) in slices
                         .into_iter()
                         .zip(per_file_series_uids)
@@ -137,7 +138,8 @@ pub(super) fn finalize_scanned_series(
     // Select the most-populated series when multiple acquisitions share the same
     // row/col dimensions.  Skip filtering when two series tie.
     {
-        let mut uid_counts: HashMap<Option<&str>, usize> = HashMap::new();
+        let mut uid_counts: HashMap<Option<&str>, usize> =
+            HashMap::with_capacity(per_file_series_uids.len());
         for uid in &per_file_series_uids {
             *uid_counts.entry(uid.as_deref()).or_insert(0) += 1;
         }

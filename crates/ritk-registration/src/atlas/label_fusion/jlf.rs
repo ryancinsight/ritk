@@ -1,165 +1,16 @@
-//! Multi-atlas label fusion algorithms.
-//!
-//! Implements two algorithms for combining segmentation results from multiple
-//! registered atlas label maps into a single consensus segmentation:
-//!
-//! 1. **Majority Voting** — baseline: the mode of atlas labels at each voxel.
-//! 2. **Joint Label Fusion** (JLF) — weighted voting where per-voxel weights
-//!    are derived from local patch intensity similarity between warped atlas
-//!    images and the target image.
-//!
-//! # Joint Label Fusion — Mathematical Specification
-//!
-//! Given N atlas label maps {L₁, ..., Lₙ} registered to target space,
-//! corresponding warped atlas intensity images {A₁, ..., Aₙ}, and target
-//! image T:
-//!
-//! For each voxel x with patch P(x) of radius r (a (2r+1)³ cube clipped to
-//! image boundaries):
-//!
-//! 1. Compute per-atlas patch distance:
-//!    dᵢ(x) = ‖P_{Aᵢ}(x) − P_T(x)‖²  =  Σ_{q ∈ P(x)} (Aᵢ(q) − T(q))²
-//!
-//! 2. Build pairwise similarity matrix M(x) ∈ ℝ^{N×N}:
-//!    M_{ij}(x) = dᵢ(x) + dⱼ(x)
-//!
-//! 3. Regularize: M_{ij}(x) += α · δ_{ij}, where α = β · min_{ij}(M_{ij})
-//!    and β is a user-specified parameter (default 0.1).
-//!
-//! 4. Solve for weights w(x): M w = 1 via Gaussian elimination with partial
-//!    pivoting.  Clamp negative weights to 0, then normalize: w = w / Σwᵢ.
-//!    If the system is singular or all weights are non-positive, fall back to
-//!    uniform weights wᵢ = 1/N.
-//!
-//! 5. Fused label: L(x) = argmax_l  Σᵢ wᵢ(x) · \[Lᵢ(x) = l\]
-//!    Ties are broken by selecting the smallest label value.
-//!
-//! # References
-//!
-//! - Wang, H., Suh, J. W., Das, S. R., Pluta, J. B., Craige, C. &
-//!   Yushkevich, P. A. (2013). Multi-atlas segmentation with joint label
-//!   fusion. *IEEE Trans. Pattern Analysis and Machine Intelligence*
-//!   35(3):611–623.
+//! Joint Label Fusion (Wang et al. 2013).
 
 use std::collections::HashMap;
 
 use crate::error::RegistrationError;
 
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
-
-/// Configuration for the Joint Label Fusion algorithm.
-#[derive(Debug, Clone)]
-pub struct LabelFusionConfig {
-    /// Patch radius (voxels) for computing local similarity.
-    /// A radius of r yields a (2r+1)³ patch clipped at image boundaries.
-    pub patch_radius: usize,
-    /// Regularization factor β.  The diagonal regularization added to the
-    /// pairwise similarity matrix is α = β · min_{ij}(M_{ij}).
-    pub beta: f64,
-}
-
-impl Default for LabelFusionConfig {
-    /// Default: `patch_radius = 2`, `beta = 0.1`.
-    fn default() -> Self {
-        Self {
-            patch_radius: 2,
-            beta: 0.1,
-        }
-    }
-}
-
-/// Result of a label fusion operation.
-#[derive(Debug, Clone)]
-pub struct LabelFusionResult {
-    /// Fused label map (flat `Vec<u32>`, shape `[nz, ny, nx]`).
-    pub labels: Vec<u32>,
-    /// Per-voxel confidence.
-    ///
-    /// - For majority voting: fraction of atlases that voted for the winning
-    ///   label (range \[1/N, 1\]).
-    /// - For JLF: sum of weights assigned to the winning label (range
-    ///   \[0, 1\]).
-    pub confidence: Vec<f32>,
-}
-
-// ---------------------------------------------------------------------------
-// Majority voting
-// ---------------------------------------------------------------------------
-
-/// Majority voting label fusion (baseline).
-///
-/// For each voxel the output label is the mode of the labels across all
-/// atlases.  Ties are broken by selecting the smallest label value.
-/// Confidence is the fraction of atlases voting for the winning label.
-///
-/// # Errors
-///
-/// - [`RegistrationError::InvalidConfiguration`] if `atlas_labels` is empty.
-/// - [`RegistrationError::DimensionMismatch`] if any atlas label map length
-///   differs from `dims[0] * dims[1] * dims[2]`.
-pub fn majority_vote(
-    atlas_labels: &[&[u32]],
-    dims: [usize; 3],
-) -> Result<LabelFusionResult, RegistrationError> {
-    let n_atlases = atlas_labels.len();
-    if n_atlases == 0 {
-        return Err(RegistrationError::InvalidConfiguration(
-            "atlas_labels is empty; at least one atlas is required".into(),
-        ));
-    }
-    let [nz, ny, nx] = dims;
-    let n_voxels = nz * ny * nx;
-    for (i, lbl) in atlas_labels.iter().enumerate() {
-        if lbl.len() != n_voxels {
-            return Err(RegistrationError::DimensionMismatch(format!(
-                "atlas_labels[{}] length {} != dims product {}",
-                i,
-                lbl.len(),
-                n_voxels
-            )));
-        }
-    }
-
-    let mut labels = vec![0u32; n_voxels];
-    let mut confidence = vec![0.0f32; n_voxels];
-
-    // Capacity: bounded by the number of distinct labels across atlases (≤ n_atlases)
-    let mut counts: HashMap<u32, usize> = HashMap::with_capacity(n_atlases);
-
-    for v in 0..n_voxels {
-        counts.clear();
-        for label_map in atlas_labels {
-            *counts.entry(label_map[v]).or_insert(0) += 1;
-        }
-
-        // Deterministic tie-breaking: highest count wins; on tie, smallest
-        // label wins.
-        let mut best_label = 0u32;
-        let mut best_count = 0usize;
-        for (&label, &count) in &counts {
-            if count > best_count || (count == best_count && label < best_label) {
-                best_count = count;
-                best_label = label;
-            }
-        }
-        labels[v] = best_label;
-        confidence[v] = best_count as f32 / n_atlases as f32;
-    }
-
-    Ok(LabelFusionResult { labels, confidence })
-}
-
-// ---------------------------------------------------------------------------
-// Joint Label Fusion
-// ---------------------------------------------------------------------------
+use super::{validate_atlas_labels, LabelFusionConfig, LabelFusionResult};
 
 /// Joint Label Fusion (Wang et al. 2013).
 ///
 /// Computes per-voxel atlas weights from local patch similarity between the
 /// warped atlas intensity images and the target, then performs weighted voting
-/// over the atlas label maps.  See the [module-level documentation](self) for
+/// over the atlas label maps. See the [module-level documentation](super) for
 /// the full mathematical specification.
 ///
 /// # Errors
@@ -208,16 +59,7 @@ pub fn joint_label_fusion(
             )));
         }
     }
-    for (i, lbl) in atlas_labels.iter().enumerate() {
-        if lbl.len() != n_voxels {
-            return Err(RegistrationError::DimensionMismatch(format!(
-                "atlas_labels[{}] length {} != dims product {}",
-                i,
-                lbl.len(),
-                n_voxels
-            )));
-        }
-    }
+    validate_atlas_labels(atlas_labels, n_voxels)?;
 
     let r = config.patch_radius;
     let mut labels = vec![0u32; n_voxels];
@@ -341,7 +183,7 @@ pub fn joint_label_fusion(
 /// pivoting. `a` is a row-major flat buffer of length `n*n`, modified in
 /// place. `b` is the RHS of length `n`, modified in place. Returns `Some(x)`
 /// on success or `None` if singular (pivot < 1e-15).
-fn solve_linear_system(a: &mut [f64], n: usize, b: &mut [f64]) -> Option<Vec<f64>> {
+pub(crate) fn solve_linear_system(a: &mut [f64], n: usize, b: &mut [f64]) -> Option<Vec<f64>> {
     debug_assert_eq!(a.len(), n * n);
     debug_assert_eq!(b.len(), n);
 
@@ -394,11 +236,3 @@ fn solve_linear_system(a: &mut [f64], n: usize, b: &mut [f64]) -> Option<Vec<f64
 
     Some(x)
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-#[cfg(test)]
-#[path = "tests_label_fusion/mod.rs"]
-mod tests_label_fusion;

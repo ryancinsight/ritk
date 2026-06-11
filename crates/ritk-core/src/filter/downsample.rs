@@ -25,11 +25,9 @@ impl<B: Backend> DownsampleFilter<B> {
 
     /// Apply the filter to an image.
     pub fn apply<const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
-        let mut data = image.data().clone();
+        let (mut data, origin, mut spacing, direction) = image.clone().into_parts();
         let device = data.device();
         let dims: [usize; D] = data.shape().dims();
-
-        let mut new_spacing = *image.spacing();
         // Origin remains the same if we start sampling at index 0
         // (Physical location of first pixel is unchanged)
 
@@ -56,10 +54,10 @@ impl<B: Backend> DownsampleFilter<B> {
             data = data.select(d, indices);
 
             // Update spacing
-            new_spacing[d] *= factor as f64;
+            spacing[d] *= factor as f64;
         }
 
-        Image::new(data, *image.origin(), new_spacing, *image.direction())
+        Image::new(data, origin, spacing, direction)
     }
 }
 

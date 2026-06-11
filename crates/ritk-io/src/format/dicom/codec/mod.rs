@@ -58,7 +58,8 @@ use anyhow::{Context, Result};
 use dicom::object::DefaultDicomObject;
 #[cfg(test)]
 use ritk_dicom::{
-    decode_frame_with, DecodeFrameRequest, DicomRsBackend, PixelLayout, TransferSyntaxKind,
+    decode_frame_with, DecodeFrameRequest, DicomRsBackend, PixelLayout, PixelSignedness,
+    TransferSyntaxKind,
 };
 
 /// Decode one frame from a compressed DICOM object using the registered codec.
@@ -68,7 +69,7 @@ use ritk_dicom::{
 /// - `obj`: open Part 10 DICOM object with compressed transfer syntax in file meta.
 /// - `frame_idx`: zero-based frame index (0 for single-frame objects).
 /// - `bits_allocated`: from (0028,0100); drives byte interpretation in `decode_pixel_bytes`.
-/// - `pixel_representation`: from (0028,0103); 0 = unsigned, 1 = signed.
+/// - `pixel_representation`: from (0028,0103); unsigned or signed.
 /// - `slope`: RescaleSlope from (0028,1053); absent ⇒ 1.0.
 /// - `intercept`: RescaleIntercept from (0028,1052); absent ⇒ 0.0.
 ///
@@ -85,7 +86,7 @@ pub(super) fn decode_compressed_frame(
     obj: &DefaultDicomObject,
     frame_idx: u32,
     bits_allocated: u16,
-    pixel_representation: u16,
+    pixel_representation: PixelSignedness,
     slope: f32,
     intercept: f32,
 ) -> Result<Vec<f32>> {

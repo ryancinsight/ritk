@@ -38,7 +38,10 @@
 /// │   └── tests.rs
 /// ├── inverse/ ← Exact SVF inverse + iterative displacement inverse
 /// ├── exact_inverse_diffeomorphic/ ← Inverse-consistent diffeomorphic Demons
-/// └── multires.rs ← Multi-resolution coarse-to-fine pyramid
+/// └── multires/ ← Multi-resolution coarse-to-fine pyramid
+///     ├── mod.rs
+///     ├── resample.rs
+///     └── tests_multires.rs
 /// ```
 ///
 /// Shared CPU primitives (indexing, interpolation, gradient, smoothing,

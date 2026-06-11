@@ -17,10 +17,12 @@ pub(super) fn run_lddmm(args: &RegisterArgs) -> Result<()> {
     let (fixed_vals, fixed_shape) = image_to_flat_vec(&fixed_img);
     let (moving_vals, _) = image_to_flat_vec(&moving_img);
 
+    let kernel_sigma = GaussianSigma::new(args.kernel_sigma)
+        .ok_or_else(|| anyhow::anyhow!("--kernel-sigma must be > 0, got {}", args.kernel_sigma))?;
     let config = LddmmConfig {
         max_iterations: args.iterations,
         num_time_steps: args.num_time_steps,
-        kernel_sigma: GaussianSigma::new_unchecked(args.kernel_sigma),
+        kernel_sigma,
         learning_rate: args.learning_rate,
         ..Default::default()
     };
@@ -81,7 +83,7 @@ mod tests {
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
-            inverse_consistency: false,
+            inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
@@ -120,7 +122,7 @@ mod tests {
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
-            inverse_consistency: false,
+            inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,

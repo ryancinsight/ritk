@@ -160,9 +160,9 @@ pub(super) fn warp_displacement_into(
                 let wy = iy as f32 + query_y[fi];
                 let wx = ix as f32 + query_x[fi];
 
-                out_z[fi] = -trilinear_interpolate(disp_z, dims, wz, wy, wx);
-                out_y[fi] = -trilinear_interpolate(disp_y, dims, wz, wy, wx);
-                out_x[fi] = -trilinear_interpolate(disp_x, dims, wz, wy, wx);
+                out_z[fi] = -trilinear_interpolate(disp_z, dims.into(), wz, wy, wx);
+                out_y[fi] = -trilinear_interpolate(disp_y, dims.into(), wz, wy, wx);
+                out_x[fi] = -trilinear_interpolate(disp_x, dims.into(), wz, wy, wx);
             }
         }
     }

@@ -247,7 +247,7 @@ fn cc_forces_identical_images_bounded() {
     let dims = [6, 6, 6];
     let n = 216;
     let image = make_test_image(dims);
-    let grad = crate::deformable_field_ops::compute_gradient(&image, dims, [1.0, 1.0, 1.0]);
+    let grad = crate::deformable_field_ops::compute_gradient(&image, dims.into(), [1.0, 1.0, 1.0]);
     let (fz, fy, fx) = cc_forces(&image, &image, &grad.z, &grad.y, &grad.x, dims, 1);
     let rms = |f: &[f32]| -> f64 {
         (f.iter().map(|&v| (v as f64).powi(2)).sum::<f64>() / n as f64).sqrt()

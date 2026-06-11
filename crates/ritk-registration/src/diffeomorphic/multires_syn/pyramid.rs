@@ -75,7 +75,7 @@ pub(crate) fn upsample_field(
             for ix in 0..new[2] {
                 let ox = map(new[2], old[2], ix);
                 out[flat(iz, iy, ix, new[1], new[2])] =
-                    trilinear_interpolate(field, old, oz, oy, ox) * scale;
+                    trilinear_interpolate(field, old.into(), oz, oy, ox) * scale;
             }
         }
     }

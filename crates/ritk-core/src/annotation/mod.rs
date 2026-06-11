@@ -19,6 +19,7 @@ pub mod error;
 pub mod label_map;
 pub mod label_table;
 pub mod overlay;
+pub mod types;
 pub mod undo_redo;
 
 pub use annotation_state::{AnnotationState, PointAnnotation};
@@ -29,4 +30,5 @@ pub use label_table::{LabelEntry, LabelTable};
 pub use overlay::{
     Colormap, ContourOverlay, ImageOverlay, MaskOverlay, Opacity, OverlayState, Visibility,
 };
+pub use types::LabelId;
 pub use undo_redo::UndoRedoStack;

@@ -6,6 +6,7 @@ use nalgebra::{Matrix3, Vector3};
 
 use super::transform::build_homogeneous_matrix;
 use super::{EULER_STEP, TRANSLATION_STEP};
+use crate::types::AffineTransform;
 
 /// Generate the 12 canonical ±1-step 6-DOF rigid perturbations.
 pub(crate) fn generate_transform_perturbations() -> [[f64; 6]; 12] {
@@ -30,10 +31,11 @@ pub(crate) fn generate_transform_perturbations() -> [[f64; 6]; 12] {
 /// Rotation composition: R_new = R_current · R_x(dθ_x) · R_y(dθ_y) · R_z(dθ_z).
 /// Translation composition: t_new = t_current + [dt_x, dt_y, dt_z].
 pub(crate) fn apply_transform_perturbation(
-    current: &[f64; 16],
+    current: &AffineTransform,
     perturbation: &[f64; 6],
-) -> [f64; 16] {
+) -> AffineTransform {
     let [dtheta_x, dtheta_y, dtheta_z, dtx, dty, dtz] = *perturbation;
+    let c = &current.0;
 
     let rx = Matrix3::new(
         1.0,
@@ -70,18 +72,8 @@ pub(crate) fn apply_transform_perturbation(
     );
     let r_perturb = rx * ry * rz;
 
-    let current_r = Matrix3::new(
-        current[0],
-        current[1],
-        current[2],
-        current[4],
-        current[5],
-        current[6],
-        current[8],
-        current[9],
-        current[10],
-    );
-    let current_t = Vector3::new(current[3], current[7], current[11]);
+    let current_r = Matrix3::new(c[0], c[1], c[2], c[4], c[5], c[6], c[8], c[9], c[10]);
+    let current_t = Vector3::new(c[3], c[7], c[11]);
 
     let new_r = current_r * r_perturb;
     let new_t = current_t + Vector3::new(dtx, dty, dtz);

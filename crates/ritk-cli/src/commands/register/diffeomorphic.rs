@@ -1,4 +1,14 @@
 use super::*;
+use ritk_registration::diffeomorphic::multires_syn::InverseConsistency;
+
+impl From<CliInverseConsistency> for InverseConsistency {
+    fn from(v: CliInverseConsistency) -> Self {
+        match v {
+            CliInverseConsistency::Enforced => Self::Enforced,
+            CliInverseConsistency::Relaxed => Self::Relaxed,
+        }
+    }
+}
 
 // ── SyN diffeomorphic registration ────────────────────────────────────────────
 
@@ -111,7 +121,7 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
 /// level-doubling velocity fields and optional inverse consistency enforcement.
 pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
     use ritk_registration::diffeomorphic::multires_syn::{
-        InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration,
+        MultiResSyNConfig, MultiResSyNRegistration,
     };
 
     let fixed_img = super::super::read_image(&args.fixed)?;
@@ -128,11 +138,7 @@ pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
         convergence_window: 10,
         n_squarings: 6,
         cc_window_radius: args.cc_radius,
-        enforce_inverse_consistency: if args.inverse_consistency {
-            InverseConsistency::Enforced
-        } else {
-            InverseConsistency::Relaxed
-        },
+        enforce_inverse_consistency: args.inverse_consistency.into(),
         gradient_step: 0.25,
     };
     let reg = MultiResSyNRegistration::new(config);
@@ -242,7 +248,7 @@ mod tests {
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
-            inverse_consistency: false,
+            inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,

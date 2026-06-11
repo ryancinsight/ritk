@@ -89,7 +89,7 @@ impl ImageRegistration {
         let fre = compute_fre(fixed, moving, &rotation, &translation);
 
         Ok(RegistrationResult {
-            transform: AffineTransform::new(transform),
+            transform,
             spatial: SpatialTransform::RigidBody {
                 rotation,
                 translation,
@@ -116,7 +116,7 @@ impl ImageRegistration {
         reference: &Array3<f64>,
         initial_transform: &AffineTransform,
     ) -> Result<RegistrationResult> {
-        let mut current_transform = *initial_transform.as_array();
+        let mut current_transform = *initial_transform;
         let mut iteration = 0;
         let mut prev_loss = f64::MAX;
 
@@ -158,7 +158,7 @@ impl ImageRegistration {
         let spatial = extract_spatial_transform(&current_transform)?;
 
         Ok(RegistrationResult {
-            transform: AffineTransform::new(current_transform),
+            transform: current_transform,
             spatial,
             quality: RegistrationQualityMetrics {
                 fre: None,
@@ -187,7 +187,7 @@ impl ImageRegistration {
         reference: &Array3<f64>,
         initial_transform: &AffineTransform,
     ) -> Result<RegistrationResult> {
-        let mut current_transform = *initial_transform.as_array();
+        let mut current_transform = *initial_transform;
         let mut iteration = 0;
         let mut prev_loss = f64::MAX;
 
@@ -229,7 +229,7 @@ impl ImageRegistration {
         let spatial = extract_spatial_transform(&current_transform)?;
 
         Ok(RegistrationResult {
-            transform: AffineTransform::new(current_transform),
+            transform: current_transform,
             spatial,
             quality: RegistrationQualityMetrics {
                 fre: None,

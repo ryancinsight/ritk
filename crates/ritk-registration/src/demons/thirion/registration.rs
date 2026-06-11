@@ -65,9 +65,10 @@ impl ThirionDemonsRegistration {
         let mut disp_y = vec![0.0_f32; n];
         let mut disp_x = vec![0.0_f32; n];
 
-        let grad = compute_gradient(fixed, dims, spacing);
+        let grad = compute_gradient(fixed, dims.into(), spacing);
 
-        let mut final_mse = compute_mse_streaming(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
+        let mut final_mse =
+            compute_mse_streaming(fixed, moving, dims.into(), &disp_z, &disp_y, &disp_x);
         let mut iter = 0usize;
         let mut m_warped = vec![0.0_f32; n];
         let mut fz = vec![0.0_f32; n];
@@ -79,7 +80,14 @@ impl ThirionDemonsRegistration {
         for it in 0..self.config.max_iterations {
             iter = it + 1;
 
-            warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut m_warped);
+            warp_image_into(
+                moving,
+                dims.into(),
+                &disp_z,
+                &disp_y,
+                &disp_x,
+                &mut m_warped,
+            );
 
             thirion_forces_into(
                 fixed,
@@ -97,13 +105,13 @@ impl ThirionDemonsRegistration {
                 },
             );
 
-            if self.config.sigma_fluid > 0.0 {
+            if let Some(sigma) = self.config.sigma_fluid {
                 gaussian_smooth_field_inplace_with_scratch(
                     &mut fz,
                     &mut fy,
                     &mut fx,
-                    dims,
-                    self.config.sigma_fluid,
+                    dims.into(),
+                    sigma.get(),
                     &mut smooth_tmp,
                 );
             }
@@ -114,21 +122,29 @@ impl ThirionDemonsRegistration {
                 disp_x[i] += fx[i];
             }
 
-            if self.config.sigma_diffusion > 0.0 {
+            if let Some(sigma) = self.config.sigma_diffusion {
                 gaussian_smooth_field_inplace_with_scratch(
                     &mut disp_z,
                     &mut disp_y,
                     &mut disp_x,
-                    dims,
-                    self.config.sigma_diffusion,
+                    dims.into(),
+                    sigma.get(),
                     &mut smooth_tmp,
                 );
             }
 
-            final_mse = compute_mse_streaming(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
+            final_mse =
+                compute_mse_streaming(fixed, moving, dims.into(), &disp_z, &disp_y, &disp_x);
         }
 
-        warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut m_warped);
+        warp_image_into(
+            moving,
+            dims.into(),
+            &disp_z,
+            &disp_y,
+            &disp_x,
+            &mut m_warped,
+        );
 
         Ok(DemonsResult {
             warped: m_warped,

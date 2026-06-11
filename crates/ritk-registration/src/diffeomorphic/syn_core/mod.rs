@@ -121,7 +121,7 @@ impl SyNRegistration {
                 &buf.v1z,
                 &buf.v1y,
                 &buf.v1x,
-                dims,
+                dims.into(),
                 self.config.n_squarings,
                 &mut buf.phi1_z,
                 &mut buf.phi1_y,
@@ -134,7 +134,7 @@ impl SyNRegistration {
                 &buf.v2z,
                 &buf.v2y,
                 &buf.v2x,
-                dims,
+                dims.into(),
                 self.config.n_squarings,
                 &mut buf.phi2_z,
                 &mut buf.phi2_y,
@@ -147,7 +147,7 @@ impl SyNRegistration {
             // Warp images (zero alloc)
             warp_image_into(
                 fixed,
-                dims,
+                dims.into(),
                 &buf.phi1_z,
                 &buf.phi1_y,
                 &buf.phi1_x,
@@ -155,7 +155,7 @@ impl SyNRegistration {
             );
             warp_image_into(
                 moving,
-                dims,
+                dims.into(),
                 &buf.phi2_z,
                 &buf.phi2_y,
                 &buf.phi2_x,
@@ -165,7 +165,7 @@ impl SyNRegistration {
             // Compute gradients (zero alloc)
             compute_gradient_into(
                 &buf.i_w,
-                dims,
+                dims.into(),
                 spacing,
                 &mut buf.gi_z,
                 &mut buf.gi_y,
@@ -173,7 +173,7 @@ impl SyNRegistration {
             );
             compute_gradient_into(
                 &buf.j_w,
-                dims,
+                dims.into(),
                 spacing,
                 &mut buf.gj_z,
                 &mut buf.gj_y,
@@ -234,7 +234,7 @@ impl SyNRegistration {
                     &mut buf.v1z,
                     &mut buf.v1y,
                     &mut buf.v1x,
-                    dims,
+                    dims.into(),
                     sigma,
                     &mut buf.smooth_tmp,
                 );
@@ -242,7 +242,7 @@ impl SyNRegistration {
                     &mut buf.v2z,
                     &mut buf.v2y,
                     &mut buf.v2x,
-                    dims,
+                    dims.into(),
                     sigma,
                     &mut buf.smooth_tmp,
                 );
@@ -271,7 +271,7 @@ impl SyNRegistration {
             &buf.v1z,
             &buf.v1y,
             &buf.v1x,
-            dims,
+            dims.into(),
             self.config.n_squarings,
             &mut buf.phi1_z,
             &mut buf.phi1_y,
@@ -284,7 +284,7 @@ impl SyNRegistration {
             &buf.v2z,
             &buf.v2y,
             &buf.v2x,
-            dims,
+            dims.into(),
             self.config.n_squarings,
             &mut buf.phi2_z,
             &mut buf.phi2_y,
@@ -295,7 +295,7 @@ impl SyNRegistration {
         );
         warp_image_into(
             fixed,
-            dims,
+            dims.into(),
             &buf.phi1_z,
             &buf.phi1_y,
             &buf.phi1_x,
@@ -303,7 +303,7 @@ impl SyNRegistration {
         );
         warp_image_into(
             moving,
-            dims,
+            dims.into(),
             &buf.phi2_z,
             &buf.phi2_y,
             &buf.phi2_x,

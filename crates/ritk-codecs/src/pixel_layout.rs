@@ -5,13 +5,66 @@
 
 use anyhow::{bail, Result};
 
+/// Pixel signedness, replacing ad-hoc `u16` / `bool` representations.
+///
+/// DICOM PixelRepresentation (0028,0103) encodes signedness as 0 = unsigned,
+/// 1 = signed two's complement. This enum lifts that convention into the type
+/// system so invalid values (2, 3, …) are unrepresentable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum PixelSignedness {
+    /// Unsigned pixel representation (PixelRepresentation = 0).
+    #[default]
+    Unsigned,
+    /// Signed (two's complement) pixel representation (PixelRepresentation = 1).
+    Signed,
+}
+
+impl PixelSignedness {
+    /// Returns `true` for [`Signed`](PixelSignedness::Signed).
+    pub fn is_signed(self) -> bool {
+        matches!(self, Self::Signed)
+    }
+
+    /// Returns the DICOM integer encoding: 0 for unsigned, 1 for signed.
+    pub fn to_u16(self) -> u16 {
+        u16::from(self.is_signed())
+    }
+}
+
+impl From<PixelSignedness> for u16 {
+    fn from(value: PixelSignedness) -> Self {
+        value.to_u16()
+    }
+}
+
+impl TryFrom<u16> for PixelSignedness {
+    type Error = anyhow::Error;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Unsigned),
+            1 => Ok(Self::Signed),
+            other => bail!("pixel_representation={} is invalid; expected 0 or 1", other),
+        }
+    }
+}
+
+impl std::fmt::Display for PixelSignedness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unsigned => write!(f, "Unsigned(0)"),
+            Self::Signed => write!(f, "Signed(1)"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PixelLayout {
     pub rows: usize,
     pub cols: usize,
     pub samples_per_pixel: usize,
     pub bits_allocated: u16,
-    pub pixel_representation: u16,
+    pub pixel_representation: PixelSignedness,
     pub rescale_slope: f32,
     pub rescale_intercept: f32,
 }
@@ -66,13 +119,6 @@ impl PixelLayout {
             .ok_or_else(|| anyhow::anyhow!("pixel layout byte count overflows usize"))
     }
 
-    pub fn validate_pixel_representation(self) -> Result<()> {
-        match self.pixel_representation {
-            0 | 1 => Ok(()),
-            other => bail!("pixel_representation={} is invalid; expected 0 or 1", other),
-        }
-    }
-
     pub fn validate_rescale_parameters(self) -> Result<()> {
         if !self.rescale_slope.is_finite() {
             bail!("rescale_slope={} is not finite", self.rescale_slope);
@@ -94,44 +140,44 @@ pub fn decode_native_pixel_bytes(bytes: &[u8], layout: PixelLayout) -> Vec<f32> 
 
 fn decode_native_pixel_bytes_unchecked(bytes: &[u8], layout: PixelLayout) -> Vec<f32> {
     match (layout.bits_allocated, layout.pixel_representation) {
-        (8, 1) => bytes
+        (8, PixelSignedness::Signed) => bytes
             .iter()
             .map(|&b| (b as i8) as f32 * layout.rescale_slope + layout.rescale_intercept)
             .collect(),
-        (8, _) => bytes
+        (8, PixelSignedness::Unsigned) => bytes
             .iter()
             .map(|&b| b as f32 * layout.rescale_slope + layout.rescale_intercept)
             .collect(),
-        (16, 1) => bytes
+        (16, PixelSignedness::Signed) => bytes
             .chunks_exact(2)
             .map(|c| {
                 i16::from_le_bytes([c[0], c[1]]) as f32 * layout.rescale_slope
                     + layout.rescale_intercept
             })
             .collect(),
-        (16, _) => bytes
+        (16, PixelSignedness::Unsigned) => bytes
             .chunks_exact(2)
             .map(|c| {
                 u16::from_le_bytes([c[0], c[1]]) as f32 * layout.rescale_slope
                     + layout.rescale_intercept
             })
             .collect(),
-        (24, 1) => bytes
+        (24, PixelSignedness::Signed) => bytes
             .chunks_exact(3)
             .map(|c| sign_extend_i24(c) as f32 * layout.rescale_slope + layout.rescale_intercept)
             .collect(),
-        (24, _) => bytes
+        (24, PixelSignedness::Unsigned) => bytes
             .chunks_exact(3)
             .map(|c| u24_le(c) as f32 * layout.rescale_slope + layout.rescale_intercept)
             .collect(),
-        (32, 1) => bytes
+        (32, PixelSignedness::Signed) => bytes
             .chunks_exact(4)
             .map(|c| {
                 i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 * layout.rescale_slope
                     + layout.rescale_intercept
             })
             .collect(),
-        (32, _) => bytes
+        (32, PixelSignedness::Unsigned) => bytes
             .chunks_exact(4)
             .map(|c| {
                 u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 * layout.rescale_slope
@@ -156,7 +202,6 @@ fn sign_extend_i24(bytes: &[u8]) -> i32 {
 }
 
 pub fn decode_native_pixel_bytes_checked(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
-    layout.validate_pixel_representation()?;
     layout.validate_rescale_parameters()?;
     let expected = layout.bytes_per_frame()?;
     if bytes.len() != expected {
@@ -186,7 +231,7 @@ mod tests {
                 cols: 3,
                 samples_per_pixel: 1,
                 bits_allocated: 16,
-                pixel_representation: 1,
+                pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 2.0,
                 rescale_intercept: 5.0,
             },
@@ -206,7 +251,7 @@ mod tests {
                 cols: 3,
                 samples_per_pixel: 1,
                 bits_allocated: 8,
-                pixel_representation: 1,
+                pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 2.0,
                 rescale_intercept: 5.0,
             },
@@ -225,7 +270,7 @@ mod tests {
                 cols: 1,
                 samples_per_pixel: 1,
                 bits_allocated: 16,
-                pixel_representation: 0,
+                pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 1.0,
                 rescale_intercept: 0.0,
             },
@@ -252,7 +297,7 @@ mod tests {
                 cols: 3,
                 samples_per_pixel: 1,
                 bits_allocated: 32,
-                pixel_representation: 0,
+                pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 0.5,
                 rescale_intercept: -1.0,
             },
@@ -279,7 +324,7 @@ mod tests {
                 cols: 3,
                 samples_per_pixel: 1,
                 bits_allocated: 24,
-                pixel_representation: 1,
+                pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 2.0,
                 rescale_intercept: 5.0,
             },
@@ -303,7 +348,7 @@ mod tests {
                 cols: 3,
                 samples_per_pixel: 1,
                 bits_allocated: 32,
-                pixel_representation: 1,
+                pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 2.0,
                 rescale_intercept: 5.0,
             },
@@ -314,24 +359,11 @@ mod tests {
     }
 
     #[test]
-    fn checked_native_decode_rejects_invalid_pixel_representation() {
-        let err = decode_native_pixel_bytes_checked(
-            &[1],
-            PixelLayout {
-                rows: 1,
-                cols: 1,
-                samples_per_pixel: 1,
-                bits_allocated: 8,
-                pixel_representation: 2,
-                rescale_slope: 1.0,
-                rescale_intercept: 0.0,
-            },
-        )
-        .unwrap_err();
-
+    fn checked_native_decode_rejects_invalid_pixel_representation_from_u16() {
+        let err = PixelSignedness::try_from(2u16).unwrap_err();
         assert!(
             err.to_string().contains("pixel_representation"),
-            "expected pixel representation validation error, got {err:#}"
+            "expected pixel representation conversion error, got {err:#}"
         );
     }
 
@@ -344,7 +376,7 @@ mod tests {
                 cols: 1,
                 samples_per_pixel: 1,
                 bits_allocated: 8,
-                pixel_representation: 0,
+                pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: f32::NAN,
                 rescale_intercept: 0.0,
             },
@@ -366,7 +398,7 @@ mod tests {
                 cols: 1,
                 samples_per_pixel: 1,
                 bits_allocated: 8,
-                pixel_representation: 0,
+                pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 1.0,
                 rescale_intercept: f32::INFINITY,
             },
@@ -398,7 +430,7 @@ mod tests {
                 cols: 3,
                 samples_per_pixel: 1,
                 bits_allocated: 16,
-                pixel_representation: 1, // signed
+                pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 1.0,
                 rescale_intercept: -1024.0,
             },
@@ -424,12 +456,33 @@ mod tests {
                 cols: 4,
                 samples_per_pixel: 1,
                 bits_allocated: 16,
-                pixel_representation: 1,
+                pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 1.0,
                 rescale_intercept: 0.0,
             },
         )
         .unwrap();
         assert_eq!(out, vec![-1024.0, -512.0, 0.0, 3071.0]);
+    }
+
+    #[test]
+    fn pixel_signedness_try_from_rejects_invalid_u16() {
+        assert!(PixelSignedness::try_from(0u16).is_ok());
+        assert!(PixelSignedness::try_from(1u16).is_ok());
+        assert!(PixelSignedness::try_from(2u16).is_err());
+        assert!(PixelSignedness::try_from(255u16).is_err());
+    }
+
+    #[test]
+    fn pixel_signedness_to_u16_round_trips() {
+        assert_eq!(PixelSignedness::Unsigned.to_u16(), 0);
+        assert_eq!(PixelSignedness::Signed.to_u16(), 1);
+        assert_eq!(u16::from(PixelSignedness::Unsigned), 0);
+        assert_eq!(u16::from(PixelSignedness::Signed), 1);
+    }
+
+    #[test]
+    fn pixel_signedness_default_is_unsigned() {
+        assert_eq!(PixelSignedness::default(), PixelSignedness::Unsigned);
     }
 }

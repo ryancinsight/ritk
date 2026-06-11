@@ -5,6 +5,8 @@ use std::fmt;
 use anyhow::{bail, Context, Result};
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
+#[cfg(test)]
+use ritk_dicom::PixelSignedness;
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
     PixelLayout, TransferSyntaxKind,
@@ -16,7 +18,7 @@ use super::types::DicomSliceMetadata;
 ///
 /// # Invariants
 /// - `bits_allocated=8`: each byte is one unsigned sample.
-/// - `bits_allocated=16`, `pixel_representation=1`: each LE i16 pair is one sample.
+/// - `bits_allocated=16`, `pixel_representation=Signed`: each LE i16 pair is one sample.
 /// - Any other combination: each LE u16 pair is one sample (unsigned default).
 ///
 /// Mathematical derivation: F(x) = x × RescaleSlope + RescaleIntercept
@@ -25,20 +27,20 @@ use super::types::DicomSliceMetadata;
 pub(super) fn decode_pixel_bytes(
     bytes: &[u8],
     bits_allocated: u16,
-    pixel_representation: u16,
+    pixel_representation: PixelSignedness,
     slope: f32,
     intercept: f32,
 ) -> Vec<f32> {
     match (bits_allocated, pixel_representation) {
-        (8, 1) => bytes
+        (8, PixelSignedness::Signed) => bytes
             .iter()
             .map(|&b| (b as i8) as f32 * slope + intercept)
             .collect(),
-        (8, _) => bytes
+        (8, PixelSignedness::Unsigned) => bytes
             .iter()
             .map(|&b| b as f32 * slope + intercept)
             .collect(),
-        (16, 1) => bytes
+        (16, PixelSignedness::Signed) => bytes
             .chunks_exact(2)
             .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 * slope + intercept)
             .collect(),
@@ -64,12 +66,18 @@ pub(super) fn ensure_scalar_samples_per_pixel(
 }
 
 pub(super) fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
-    println!("read_slice_pixels: before parse_file_with: {:?}", slice.path);
+    println!(
+        "read_slice_pixels: before parse_file_with: {:?}",
+        slice.path
+    );
     let obj = parse_file_with::<DicomRsBackend, _>(&slice.path)
         .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))?;
     println!("read_slice_pixels: after parse_file_with: {:?}", slice.path);
     let res = decode_pixels_from_object(&obj, slice);
-    println!("read_slice_pixels: after decode_pixels_from_object: {:?}", slice.path);
+    println!(
+        "read_slice_pixels: after decode_pixels_from_object: {:?}",
+        slice.path
+    );
     res
 }
 
@@ -113,7 +121,10 @@ fn decode_pixels_from_object(
         .trim()
         .parse::<usize>()
         .with_context(|| format!("Columns (0028,0011) invalid in {:?}", slice.path))?;
-    println!("decode_pixels_from_object: rows = {}, cols = {}", rows, cols);
+    println!(
+        "decode_pixels_from_object: rows = {}, cols = {}",
+        rows, cols
+    );
 
     let samples_per_pixel = obj
         .element(Tag(0x0028, 0x0002))
@@ -143,7 +154,10 @@ fn decode_pixels_from_object(
     )
     .with_context(|| format!("DICOM backend decode failed for slice {:?}", slice.path))?
     .pixels;
-    println!("decode_pixels_from_object: after decode_frame_with, pixels.len = {}", data.len());
+    println!(
+        "decode_pixels_from_object: after decode_frame_with, pixels.len = {}",
+        data.len()
+    );
 
     if data.is_empty() {
         bail!(

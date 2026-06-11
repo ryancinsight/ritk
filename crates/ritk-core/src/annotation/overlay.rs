@@ -8,6 +8,8 @@
 //! MaskOverlay : data.len() == dims\[0\]\*dims\[1\]\*dims\[2\]
 
 use super::color::RgbaF32;
+use super::types::LabelId;
+use crate::spatial::VolumeDims;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -80,15 +82,16 @@ pub enum Colormap {
 pub struct ImageOverlay {
     pub name: String,
     pub data: Vec<f32>,
-    pub dims: [usize; 3],
+    pub dims: VolumeDims,
     pub opacity: Opacity,
     pub colormap: Colormap,
     pub visible: Visibility,
 }
 impl ImageOverlay {
-    /// Panics when `data.len() != dims\[0\]\*dims\[1\]\*dims\[2\]`.
-    pub fn new(name: impl Into<String>, data: Vec<f32>, dims: [usize; 3]) -> Self {
-        let expected = dims[0] * dims[1] * dims[2];
+    /// Panics when `data.len() != dims.total_voxels()`.
+    pub fn new(name: impl Into<String>, data: Vec<f32>, dims: impl Into<VolumeDims>) -> Self {
+        let dims = dims.into();
+        let expected = dims.total_voxels();
         assert_eq!(
             data.len(),
             expected,
@@ -124,17 +127,17 @@ impl ImageOverlay {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContourOverlay {
     pub name: String,
-    pub label_id: u32,
+    pub label_id: LabelId,
     pub contours: Vec<Vec<[f64; 3]>>,
     pub color: RgbaF32,
     pub line_width: f32,
     pub visible: Visibility,
 }
 impl ContourOverlay {
-    pub fn new(name: impl Into<String>, label_id: u32) -> Self {
+    pub fn new(name: impl Into<String>, label_id: impl Into<LabelId>) -> Self {
         Self {
             name: name.into(),
-            label_id,
+            label_id: label_id.into(),
             contours: Vec::new(),
             color: RgbaF32::new(1.0, 1.0, 1.0, 1.0),
             line_width: 1.0,
@@ -164,14 +167,15 @@ impl ContourOverlay {
 pub struct MaskOverlay {
     pub name: String,
     pub data: Vec<u32>,
-    pub dims: [usize; 3],
+    pub dims: VolumeDims,
     pub opacity: Opacity,
     pub visible: Visibility,
 }
 impl MaskOverlay {
-    /// Panics when `data.len() != dims\[0\]\*dims\[1\]\*dims\[2\]`.
-    pub fn new(name: impl Into<String>, data: Vec<u32>, dims: [usize; 3]) -> Self {
-        let expected = dims[0] * dims[1] * dims[2];
+    /// Panics when `data.len() != dims.total_voxels()`.
+    pub fn new(name: impl Into<String>, data: Vec<u32>, dims: impl Into<VolumeDims>) -> Self {
+        let dims = dims.into();
+        let expected = dims.total_voxels();
         assert_eq!(
             data.len(),
             expected,
@@ -265,7 +269,7 @@ mod tests {
     fn test_image_overlay_new_correct_length() {
         let o = ImageOverlay::new("layer", vec![0.0f32; 24], [2, 3, 4]);
         assert_eq!(o.data.len(), 24);
-        assert_eq!(o.dims, [2, 3, 4]);
+        assert_eq!(o.dims.0, [2, 3, 4]);
         assert_eq!(o.name, "layer");
         assert_eq!(o.visible, Visibility::Visible);
         assert_eq!(o.opacity.get(), 1.0);
@@ -376,5 +380,67 @@ mod tests {
         assert_eq!(r.mask_overlays[0].name, "msk");
         assert!((r.mask_overlays[0].opacity.get() - 0.6).abs() < 1e-6);
         assert_eq!(r.mask_overlays[0].data, vec![0u32, 1, 2, 0]);
+    }
+
+    // ── LabelId regression tests ──────────────────────────────────────────
+
+    /// LabelId serializes as a JSON integer (not an object), matching the
+    /// `#[repr(transparent)]` layout. This is the wire format that external
+    /// consumers (viewer, Python bindings) depend on.
+    #[test]
+    fn test_label_id_serde_json_is_integer() {
+        let id = LabelId(42);
+        let json = serde_json::to_string(&id).unwrap();
+        assert_eq!(json, "42");
+        let round_tripped: LabelId = serde_json::from_str(&json).unwrap();
+        assert_eq!(round_tripped, LabelId(42));
+    }
+
+    /// LabelId::BACKGROUND serialises as 0 and round-trips.
+    #[test]
+    fn test_label_id_background_serde_round_trip() {
+        let id = LabelId::BACKGROUND;
+        let json = serde_json::to_string(&id).unwrap();
+        assert_eq!(json, "0");
+        let rt: LabelId = serde_json::from_str(&json).unwrap();
+        assert_eq!(rt, LabelId::BACKGROUND);
+    }
+
+    /// LabelId at the u32 boundary (u32::MAX) round-trips through JSON
+    /// without truncation or overflow.
+    #[test]
+    fn test_label_id_u32_max_serde_round_trip() {
+        let id = LabelId(u32::MAX);
+        let json = serde_json::to_string(&id).unwrap();
+        assert_eq!(json, u32::MAX.to_string());
+        let rt: LabelId = serde_json::from_str(&json).unwrap();
+        assert_eq!(rt, LabelId(u32::MAX));
+    }
+
+    /// ContourOverlay.label_id must survive a full JSON round-trip with its
+    /// exact LabelId value. This guards against the field being serialised
+    /// as a different type (e.g. string or object) after the u32 → LabelId
+    /// migration.
+    #[test]
+    fn test_contour_overlay_label_id_serde_exact() {
+        let mut c = ContourOverlay::new("cnt", LabelId(77));
+        c.add_contour(vec![[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
+            .unwrap();
+        let json = serde_json::to_string(&c).unwrap();
+        let rt: ContourOverlay = serde_json::from_str(&json).unwrap();
+        assert_eq!(rt.label_id, LabelId(77));
+        assert_eq!(u32::from(rt.label_id), 77);
+    }
+
+    /// ContourOverlay.label_id must survive deserialisation from an existing
+    /// JSON payload that was written when the field was a bare `u32`.
+    /// Serialisation format is `#[repr(transparent)]` → integer, so
+    /// backward compatibility is automatic, but this test makes it explicit.
+    #[test]
+    fn test_contour_overlay_label_id_deser_from_u32_json() {
+        let json = r#"{"name":"legacy","label_id":99,"contours":[],"color":[1.0,1.0,1.0,1.0],"line_width":1.0,"visible":"Visible"}"#;
+        let c: ContourOverlay = serde_json::from_str(json).unwrap();
+        assert_eq!(c.label_id, LabelId(99));
+        assert_eq!(c.name, "legacy");
     }
 }

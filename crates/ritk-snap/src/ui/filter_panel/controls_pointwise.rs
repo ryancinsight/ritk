@@ -1,4 +1,5 @@
 use crate::FilterKind;
+use ritk_core::filter::BinarizationThreshold;
 
 /// Render parameter controls for Pointwise + Geometry + Threshold filter variants.
 ///
@@ -89,7 +90,13 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             );
             ui.horizontal(|ui| {
                 ui.label("Foreground threshold:");
-                ui.add(egui::Slider::new(threshold, 0.0_f32..=1000.0).step_by(0.1));
+                let mut t = f32::from(*threshold);
+                if ui
+                    .add(egui::Slider::new(&mut t, 0.0_f32..=1000.0).step_by(0.1))
+                    .changed()
+                {
+                    *threshold = BinarizationThreshold::from(t);
+                }
             });
             true
         }
@@ -111,7 +118,13 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             );
             ui.horizontal(|ui| {
                 ui.label("Threshold:");
-                ui.add(egui::Slider::new(threshold, 0.0_f32..=1000.0).step_by(0.1));
+                let mut t = f32::from(*threshold);
+                if ui
+                    .add(egui::Slider::new(&mut t, 0.0_f32..=1000.0).step_by(0.1))
+                    .changed()
+                {
+                    *threshold = BinarizationThreshold::from(t);
+                }
             });
             true
         }
@@ -144,7 +157,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             );
             ui.horizontal(|ui| {
                 ui.label("Foreground:");
-                ui.add(egui::Slider::new(foreground_value, 0.0_f32..=1000.0).step_by(1.0));
+                ui.add(egui::Slider::new(&mut foreground_value.0, 0.0_f32..=1000.0).step_by(1.0));
             });
             ui.horizontal(|ui| {
                 ui.label("Background:");
@@ -313,7 +326,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Foreground:");
-                ui.add(egui::DragValue::new(foreground).speed(0.1));
+                ui.add(egui::DragValue::new(&mut foreground.0).speed(0.1));
             });
             ui.horizontal(|ui| {
                 ui.label("Background:");

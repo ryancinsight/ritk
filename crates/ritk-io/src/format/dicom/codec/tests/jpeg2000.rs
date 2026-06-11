@@ -246,7 +246,7 @@ fn test_decode_compressed_frame_jpeg2000_lossless_round_trip() {
     write_jpeg2000_lossless_dicom_file(&path, width, height, &original);
 
     let obj = dicom::object::open_file(&path).expect("open_file failed");
-    let decoded = decode_compressed_frame(&obj, 0, 16, 0, 1.0, 0.0)
+    let decoded = decode_compressed_frame(&obj, 0, 16, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
         .expect("decode_compressed_frame must succeed for JPEG 2000 Lossless");
 
     assert_eq!(decoded.len(), 16, "decoded pixel count must equal 16");

@@ -35,9 +35,9 @@ pub(super) fn compute_ic_residual(
                 let xpz = iz as f32 + psi_z[idx];
                 let xpy = iy as f32 + psi_y[idx];
                 let xpx = ix as f32 + psi_x[idx];
-                let paz = trilinear_interpolate(phi_z, dims, xpz, xpy, xpx);
-                let pay = trilinear_interpolate(phi_y, dims, xpz, xpy, xpx);
-                let pax = trilinear_interpolate(phi_x, dims, xpz, xpy, xpx);
+                let paz = trilinear_interpolate(phi_z, dims.into(), xpz, xpy, xpx);
+                let pay = trilinear_interpolate(phi_y, dims.into(), xpz, xpy, xpx);
+                let pax = trilinear_interpolate(phi_x, dims.into(), xpz, xpy, xpx);
                 let dz = (xpz + paz - iz as f32) as f64;
                 let dy = (xpy + pay - iy as f32) as f64;
                 let dx = (xpx + pax - ix as f32) as f64;

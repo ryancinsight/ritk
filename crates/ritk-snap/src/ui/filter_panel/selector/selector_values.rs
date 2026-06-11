@@ -1,4 +1,5 @@
 use crate::FilterKind;
+use ritk_core::filter::BinarizationThreshold;
 
 /// First half of the ComboBox selectable_value entries (Gaussian through
 /// MorphologicalGradient).
@@ -132,7 +133,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryErode {
                 radius: 1,
-                foreground_value: 1.0,
+                foreground_value: ritk_core::filter::ForegroundValue::ONE,
             },
             "Binary Erode",
         )
@@ -140,7 +141,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryErode {
             radius: 1,
-            foreground_value: 1.0,
+            foreground_value: ritk_core::filter::ForegroundValue::ONE,
         };
     }
     if ui
@@ -148,7 +149,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryDilate {
                 radius: 1,
-                foreground_value: 1.0,
+                foreground_value: ritk_core::filter::ForegroundValue::ONE,
             },
             "Binary Dilate",
         )
@@ -156,7 +157,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryDilate {
             radius: 1,
-            foreground_value: 1.0,
+            foreground_value: ritk_core::filter::ForegroundValue::ONE,
         };
     }
     if ui
@@ -164,7 +165,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryClosing {
                 radius: 1,
-                foreground_value: 1.0,
+                foreground_value: ritk_core::filter::ForegroundValue::ONE,
             },
             "Binary Closing",
         )
@@ -172,7 +173,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryClosing {
             radius: 1,
-            foreground_value: 1.0,
+            foreground_value: ritk_core::filter::ForegroundValue::ONE,
         };
     }
     if ui
@@ -180,7 +181,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryOpening {
                 radius: 1,
-                foreground_value: 1.0,
+                foreground_value: ritk_core::filter::ForegroundValue::ONE,
             },
             "Binary Opening",
         )
@@ -188,21 +189,21 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryOpening {
             radius: 1,
-            foreground_value: 1.0,
+            foreground_value: ritk_core::filter::ForegroundValue::ONE,
         };
     }
     if ui
         .selectable_value(
             &mut *active_filter,
             FilterKind::BinaryFillhole {
-                foreground_value: 1.0,
+                foreground_value: ritk_core::filter::ForegroundValue::ONE,
             },
             "Binary Fill Holes",
         )
         .clicked()
     {
         *active_filter = FilterKind::BinaryFillhole {
-            foreground_value: 1.0,
+            foreground_value: ritk_core::filter::ForegroundValue::ONE,
         };
     }
     if ui
@@ -298,21 +299,29 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     if ui
         .selectable_value(
             &mut *active_filter,
-            FilterKind::DistanceTransform { threshold: 0.5 },
+            FilterKind::DistanceTransform {
+                threshold: BinarizationThreshold::DEFAULT,
+            },
             "Distance Transform",
         )
         .clicked()
     {
-        *active_filter = FilterKind::DistanceTransform { threshold: 0.5 };
+        *active_filter = FilterKind::DistanceTransform {
+            threshold: BinarizationThreshold::DEFAULT,
+        };
     }
     if ui
         .selectable_value(
             &mut *active_filter,
-            FilterKind::SignedDistanceTransform { threshold: 0.5 },
+            FilterKind::SignedDistanceTransform {
+                threshold: BinarizationThreshold::DEFAULT,
+            },
             "Signed Distance Transform",
         )
         .clicked()
     {
-        *active_filter = FilterKind::SignedDistanceTransform { threshold: 0.5 };
+        *active_filter = FilterKind::SignedDistanceTransform {
+            threshold: BinarizationThreshold::DEFAULT,
+        };
     }
 }

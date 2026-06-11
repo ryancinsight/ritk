@@ -14,6 +14,7 @@ use crate::optimizer::{HistoryPolicy, PopulationEval};
 use burn::backend::Autodiff;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::filter::GaussianSigma;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{RigidTransform, TranslationTransform};
@@ -173,10 +174,10 @@ fn rigid_identity_matrix_is_identity_homogeneous() {
         Tensor::<TestBackend, 1>::from_data(TensorData::from([16.0f32, 16.0, 16.0]), &device);
     let transform = RigidTransform::<TestBackend, 3>::identity(Some(center), &device);
     let matrix = rigid_matrix_to_homogeneous(&transform);
-    assert!((matrix[0] - 1.0).abs() < 1e-3, "R[0,0]={}", matrix[0]);
-    assert!((matrix[5] - 1.0).abs() < 1e-3, "R[1,1]={}", matrix[5]);
-    assert!((matrix[10] - 1.0).abs() < 1e-3, "R[2,2]={}", matrix[10]);
-    assert!((matrix[15] - 1.0).abs() < 1e-6, "R[3,3]={}", matrix[15]);
+    assert!((matrix.0[0] - 1.0).abs() < 1e-3, "R[0,0]={}", matrix.0[0]);
+    assert!((matrix.0[5] - 1.0).abs() < 1e-3, "R[1,1]={}", matrix.0[5]);
+    assert!((matrix.0[10] - 1.0).abs() < 1e-3, "R[2,2]={}", matrix.0[10]);
+    assert!((matrix.0[15] - 1.0).abs() < 1e-6, "R[3,3]={}", matrix.0[15]);
 }
 
 #[test]
@@ -188,7 +189,7 @@ fn translation_identity_matrix_is_identity_homogeneous() {
     let identity: [f64; 16] = [
         1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     ];
-    for (i, (&got, &expected)) in matrix.iter().zip(identity.iter()).enumerate() {
+    for (i, (&got, &expected)) in matrix.0.iter().zip(identity.iter()).enumerate() {
         assert!(
             (got - expected).abs() < 1e-9,
             "Matrix[{i}]: expected {expected}, got {got}"
@@ -329,9 +330,9 @@ fn cma_mi_multiscale_has_three_levels() {
 fn cma_mi_level_config_new_sets_defaults() {
     use super::cma_mi::CmaMiLevelConfig;
 
-    let level = CmaMiLevelConfig::new(8, 4.0, 0.5, 100);
+    let level = CmaMiLevelConfig::new(8, GaussianSigma::new_unchecked(4.0), 0.5, 100);
     assert_eq!(level.shrink, 8);
-    assert!((level.sigma_mm - 4.0).abs() < 1e-9);
+    assert!((level.sigma_mm.get() - 4.0).abs() < 1e-9);
     assert!((level.cma_sigma0 - 0.5).abs() < 1e-9);
     assert_eq!(level.max_generations, 100);
     assert_eq!(level.lambda, 0, "lambda should default to 0 (auto)");
@@ -412,7 +413,7 @@ fn cma_mi_register_rigid_with_mask_accepts_full_foreground_mask() {
             record_history: HistoryPolicy::Discard,
         },
         coarse_shrink: 4,
-        coarse_sigma_mm: 2.0,
+        coarse_sigma_mm: GaussianSigma::new_unchecked(2.0),
         sampling_percentage: 0.50,
         ..CmaMiConfig::default()
     };

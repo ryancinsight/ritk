@@ -1,5 +1,5 @@
 use crate::FilterKind;
-use ritk_core::filter::Connectivity;
+use ritk_core::filter::{Connectivity, ForegroundValue};
 
 /// Render parameter controls for Binary + Grayscale Morphology + Pad/Geometry
 /// filter variants.
@@ -24,7 +24,10 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Foreground value:");
-                ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                let mut fg = f32::from(*foreground_value);
+                if ui.add(egui::DragValue::new(&mut fg).speed(1.0)).changed() {
+                    *foreground_value = ForegroundValue::from(fg);
+                }
             });
             ui.label(egui::RichText::new("ITK BinaryErodeImageFilter parity.").small());
             true
@@ -45,7 +48,10 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Foreground value:");
-                ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                let mut fg = f32::from(*foreground_value);
+                if ui.add(egui::DragValue::new(&mut fg).speed(1.0)).changed() {
+                    *foreground_value = ForegroundValue::from(fg);
+                }
             });
             ui.label(egui::RichText::new("ITK BinaryDilateImageFilter parity.").small());
             true
@@ -66,7 +72,10 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Foreground value:");
-                ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                let mut fg = f32::from(*foreground_value);
+                if ui.add(egui::DragValue::new(&mut fg).speed(1.0)).changed() {
+                    *foreground_value = ForegroundValue::from(fg);
+                }
             });
             ui.label(
                 egui::RichText::new(
@@ -92,7 +101,10 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Foreground value:");
-                ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                let mut fg = f32::from(*foreground_value);
+                if ui.add(egui::DragValue::new(&mut fg).speed(1.0)).changed() {
+                    *foreground_value = ForegroundValue::from(fg);
+                }
             });
             ui.label(
                 egui::RichText::new(
@@ -105,7 +117,10 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::BinaryFillhole { foreground_value } => {
             ui.horizontal(|ui| {
                 ui.label("Foreground value:");
-                ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                let mut fg = f32::from(*foreground_value);
+                if ui.add(egui::DragValue::new(&mut fg).speed(1.0)).changed() {
+                    *foreground_value = ForegroundValue::from(fg);
+                }
             });
             ui.label(
                 egui::RichText::new(
@@ -135,7 +150,10 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Foreground value:");
-                ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                let mut fg = f32::from(*foreground_value);
+                if ui.add(egui::DragValue::new(&mut fg).speed(1.0)).changed() {
+                    *foreground_value = ForegroundValue::from(fg);
+                }
             });
             ui.label(
                 egui::RichText::new(
@@ -214,7 +232,10 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Foreground value:");
-                ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                let mut fg = f32::from(*foreground_value);
+                if ui.add(egui::DragValue::new(&mut fg).speed(1.0)).changed() {
+                    *foreground_value = ForegroundValue::from(fg);
+                }
             });
             ui.horizontal(|ui| {
                 ui.label("Background value:");

@@ -162,7 +162,7 @@ fn test_decode_compressed_frame_jpeg_baseline_round_trip() {
     write_jpeg_dicom_file(&path, width, height, &original);
 
     let obj = dicom::object::open_file(&path).expect("open_file failed");
-    let decoded = decode_compressed_frame(&obj, 0, 8, 0, 1.0, 0.0)
+    let decoded = decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
         .expect("decode_compressed_frame must succeed for JPEG Baseline");
 
     assert_eq!(
@@ -202,9 +202,9 @@ fn test_decode_compressed_frame_rescale_contract() {
     write_jpeg_dicom_file(&path, width, height, &pixels);
 
     let obj = dicom::object::open_file(&path).expect("open_file");
-    let base = decode_compressed_frame(&obj, 0, 8, 0, 1.0, 0.0).expect("identity rescale decode");
+    let base = decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0).expect("identity rescale decode");
     let scaled =
-        decode_compressed_frame(&obj, 0, 8, 0, 2.0, 10.0).expect("slope=2 intercept=10 decode");
+        decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 2.0, 10.0).expect("slope=2 intercept=10 decode");
 
     assert_eq!(base.len(), 16, "base must have 16 elements");
     assert_eq!(scaled.len(), 16, "scaled must have 16 elements");
@@ -356,7 +356,7 @@ fn test_decode_compressed_frame_jpeg_extended_round_trip() {
     }
 
     let obj = dicom::object::open_file(&path).expect("open_file failed");
-    let decoded = decode_compressed_frame(&obj, 0, 8, 0, 1.0, 0.0)
+    let decoded = decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
         .expect("decode_compressed_frame must succeed for JPEG Extended");
 
     assert_eq!(

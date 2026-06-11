@@ -104,7 +104,11 @@ pub fn bspline_fit(
     debug_assert_eq!(residuals.len(), n_total, "residuals length mismatch");
 
     let step = (n_total / max_fitting_points.max(1)).max(1);
-    let samples: Vec<usize> = (0..n_total).step_by(step).collect();
+    let n_samples = n_total / step + 1;
+    let mut samples = Vec::with_capacity(n_samples);
+    for i in (0..n_total).step_by(step) {
+        samples.push(i);
+    }
     let n_s = samples.len();
 
     if n_s == 0 {

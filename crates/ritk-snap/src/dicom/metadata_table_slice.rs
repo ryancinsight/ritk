@@ -98,7 +98,7 @@ pub(super) fn push_first_slice_rows(slice: &DicomSliceMetadata, rows: &mut Vec<M
         "0028,0103",
         "PixelRepresentation",
         "US",
-        slice.pixel_representation.to_string(),
+        slice.pixel_representation.to_u16().to_string(),
     ));
     rows.push(MetadataRow::first_slice(
         "0028,0100",

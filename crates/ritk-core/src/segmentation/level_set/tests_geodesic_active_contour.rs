@@ -326,7 +326,7 @@ fn test_edge_stopping_values() {
 
 #[test]
 fn test_gaussian_kernel_normalised() {
-    let kernel = build_gaussian_kernel_1d(2.0, 6);
+    let kernel = crate::filter::gaussian_kernel_1d::<f32>(2.0, Some(6));
     let sum: f32 = kernel.iter().sum();
     assert!(
         (sum - 1.0).abs() < 1e-5,

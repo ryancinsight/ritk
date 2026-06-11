@@ -91,97 +91,96 @@ impl Regularization for TikhonovRule {
     ) {
         let lambda = self.lambda;
         match pad_dims.len() {
-            2 => apply_tikhonov_2d(img_padded, ker_padded, pad_dims, lambda),
-            3 => apply_tikhonov_3d(img_padded, ker_padded, pad_dims, lambda),
+            2 => {
+                let pad: [usize; 2] = [pad_dims[0], pad_dims[1]];
+                apply_tikhonov::<2>(img_padded, ker_padded, &pad, lambda);
+            }
+            3 => {
+                let pad: [usize; 3] = [pad_dims[0], pad_dims[1], pad_dims[2]];
+                apply_tikhonov::<3>(img_padded, ker_padded, &pad, lambda);
+            }
             _ => unreachable!("only 2-D and 3-D deconvolution are supported"),
         }
     }
 }
 
+/// Const-generic Tikhonov update: `|L(ω)|² = (2D − 2Σcos(ωd))²`.
+///
+/// The discrete Laplacian eigenvalue for dimensionality `D` is
+/// `|L(ω)|² = (2D − 2cos(ω₀) − 2cos(ω₁) − … − 2cos(ω_{D−1}))²`.
+///
+/// For `D = 2`: `(4 − 2cos(ωx) − 2cos(ωy))²`.
+/// For `D = 3`: `(6 − 2cos(ωx) − 2cos(ωy) − 2cos(ωz))²`.
+pub(super) fn apply_tikhonov<const D: usize>(
+    img_padded: &mut [Complex<f32>],
+    ker_padded: &[Complex<f32>],
+    pad_dims: &[usize; D],
+    lambda: f32,
+) {
+    assert!(
+        D == 2 || D == 3,
+        "only 2-D and 3-D deconvolution are supported"
+    );
+
+    for (idx, g_slot) in img_padded.iter_mut().enumerate() {
+        let coords = decode_coords::<D>(idx, pad_dims);
+
+        // Accumulate Laplacian eigenvalue: 2D − 2Σcos(ωd)
+        let mut l_re = 2.0 * D as f32;
+        for d in 0..D {
+            let n_d = pad_dims[d];
+            let f_d = if coords[d] <= n_d / 2 {
+                coords[d] as f32 / n_d as f32
+            } else {
+                (coords[d] as f32 - n_d as f32) / n_d as f32
+            };
+            l_re -= 2.0 * (2.0 * PI * f_d).cos();
+        }
+
+        let l_sq = l_re * l_re;
+        let h = ker_padded[idx];
+        let g = *g_slot;
+        let denom = h.norm_sqr() + lambda * l_sq;
+        if denom < 1e-20 {
+            *g_slot = Complex::new(0.0, 0.0);
+        } else {
+            let scale = 1.0 / denom;
+            *g_slot = Complex::new(
+                (g.re * h.re + g.im * h.im) * scale,
+                (g.im * h.re - g.re * h.im) * scale,
+            );
+        }
+    }
+}
+
 /// 2-D Tikhonov update: `|L(ω)|² = (4 − 2cos(ωx) − 2cos(ωy))²`.
+///
+/// Delegates to [`apply_tikhonov::<2>`]. Retained for backward compatibility.
+#[deprecated(note = "use apply_tikhonov::<2> instead")]
+#[allow(dead_code)]
 fn apply_tikhonov_2d(
     img_padded: &mut [Complex<f32>],
     ker_padded: &[Complex<f32>],
     pad_dims: &[usize],
     lambda: f32,
 ) {
-    let pad_h = pad_dims[0];
-    let pad_w = pad_dims[1];
-    for row in 0..pad_h {
-        let fy = if row <= pad_h / 2 {
-            row as f32 / pad_h as f32
-        } else {
-            (row as f32 - pad_h as f32) / pad_h as f32
-        };
-        let wy = 2.0 * PI * fy;
-        for col in 0..pad_w {
-            let idx = row * pad_w + col;
-            let fx = col as f32 / pad_w as f32;
-            let wx = 2.0 * PI * fx;
-            let l_re = 4.0 - 2.0 * wx.cos() - 2.0 * wy.cos();
-            let l_sq = l_re * l_re;
-            let h = ker_padded[idx];
-            let g = img_padded[idx];
-            let denom = h.norm_sqr() + lambda * l_sq;
-            if denom < 1e-20 {
-                img_padded[idx] = Complex::new(0.0, 0.0);
-            } else {
-                let scale = 1.0 / denom;
-                img_padded[idx] = Complex::new(
-                    (g.re * h.re + g.im * h.im) * scale,
-                    (g.im * h.re - g.re * h.im) * scale,
-                );
-            }
-        }
-    }
+    let pad: [usize; 2] = [pad_dims[0], pad_dims[1]];
+    apply_tikhonov::<2>(img_padded, ker_padded, &pad, lambda);
 }
 
 /// 3-D Tikhonov update: `|L(ω)|² = (6 − 2cos(ωx) − 2cos(ωy) − 2cos(ωz))²`.
+///
+/// Delegates to [`apply_tikhonov::<3>`]. Retained for backward compatibility.
+#[deprecated(note = "use apply_tikhonov::<3> instead")]
+#[allow(dead_code)]
 fn apply_tikhonov_3d(
     img_padded: &mut [Complex<f32>],
     ker_padded: &[Complex<f32>],
     pad_dims: &[usize],
     lambda: f32,
 ) {
-    let pad_d = pad_dims[0];
-    let pad_h = pad_dims[1];
-    let pad_w = pad_dims[2];
-    let pad_slice = pad_h * pad_w;
-    for depth in 0..pad_d {
-        let fz = if depth <= pad_d / 2 {
-            depth as f32 / pad_d as f32
-        } else {
-            (depth as f32 - pad_d as f32) / pad_d as f32
-        };
-        let wz = 2.0 * PI * fz;
-        for row in 0..pad_h {
-            let fy = if row <= pad_h / 2 {
-                row as f32 / pad_h as f32
-            } else {
-                (row as f32 - pad_h as f32) / pad_h as f32
-            };
-            let wy = 2.0 * PI * fy;
-            for col in 0..pad_w {
-                let idx = depth * pad_slice + row * pad_w + col;
-                let fx = col as f32 / pad_w as f32;
-                let wx = 2.0 * PI * fx;
-                let l_re = 6.0 - 2.0 * wx.cos() - 2.0 * wy.cos() - 2.0 * wz.cos();
-                let l_sq = l_re * l_re;
-                let h = ker_padded[idx];
-                let g = img_padded[idx];
-                let denom = h.norm_sqr() + lambda * l_sq;
-                if denom < 1e-20 {
-                    img_padded[idx] = Complex::new(0.0, 0.0);
-                } else {
-                    let scale = 1.0 / denom;
-                    img_padded[idx] = Complex::new(
-                        (g.re * h.re + g.im * h.im) * scale,
-                        (g.im * h.re - g.re * h.im) * scale,
-                    );
-                }
-            }
-        }
-    }
+    let pad: [usize; 3] = [pad_dims[0], pad_dims[1], pad_dims[2]];
+    apply_tikhonov::<3>(img_padded, ker_padded, &pad, lambda);
 }
 
 // ── Generic pipelines ──────────────────────────────────────────────────────

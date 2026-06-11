@@ -212,37 +212,3 @@ pub(super) fn convolve<const D: usize>(
     }
     result
 }
-
-// ── Legacy wrappers ─────────────────────────────────────────────────────────
-
-/// FFT-based 2-D convolution returning a "same"-sized output.
-///
-/// Delegates to `convolve<2>`. Retained for backward compatibility.
-#[allow(dead_code)]
-pub(super) fn convolve_2d(
-    image: &[f32],
-    ih: usize,
-    iw: usize,
-    kernel: &[f32],
-    kh: usize,
-    kw: usize,
-) -> Vec<f32> {
-    convolve::<2>(image, &[ih, iw], kernel, &[kh, kw])
-}
-
-/// FFT-based 3-D convolution returning a "same"-sized output.
-///
-/// Delegates to `convolve<3>`. Retained for backward compatibility.
-#[allow(dead_code, clippy::too_many_arguments)]
-pub(super) fn convolve_3d(
-    image: &[f32],
-    id: usize,
-    ih: usize,
-    iw: usize,
-    kernel: &[f32],
-    kd: usize,
-    kh: usize,
-    kw: usize,
-) -> Vec<f32> {
-    convolve::<3>(image, &[id, ih, iw], kernel, &[kd, kh, kw])
-}

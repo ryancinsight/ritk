@@ -1,3 +1,5 @@
+use ritk_dicom::PixelSignedness;
+
 use super::*;
 use arrayvec::ArrayString;
 use burn::tensor::backend::Backend;
@@ -284,7 +286,7 @@ fn load_dicom_color_from_series_is_callable() {
         sop_class_uid: None,
         transfer_syntax_uid: Some("1.2.840.10008.1.2.1".try_into().unwrap()),
         private_tags: Default::default(),
-        pixel_representation: 0,
+        pixel_representation: PixelSignedness::Unsigned,
         bits_allocated: 8,
         window_center: None,
         window_width: None,

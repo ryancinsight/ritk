@@ -1,9 +1,12 @@
 //! Transform-to-matrix conversion helpers and intensity range estimation.
 
+use crate::types::AffineTransform;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
-use ritk_core::transform::{AffineTransform, RigidTransform, TranslationTransform};
+use ritk_core::transform::{
+    AffineTransform as CoreAffineTransform, RigidTransform, TranslationTransform,
+};
 
 // ─── Intensity Range Estimation ───────────────────────────────────────────────
 
@@ -27,7 +30,7 @@ pub(crate) fn estimate_intensity_range<B: Backend, const D: usize>(
 /// Extract a 4×4 homogeneous matrix from a rigid transform.
 pub(crate) fn rigid_matrix_to_homogeneous<B: Backend>(
     transform: &RigidTransform<B, 3>,
-) -> [f64; 16] {
+) -> AffineTransform {
     let matrix_3x4 = transform.matrix();
     let data = matrix_3x4.to_data();
     let slice = data
@@ -37,13 +40,13 @@ pub(crate) fn rigid_matrix_to_homogeneous<B: Backend>(
     for (i, &v) in slice.iter().enumerate() {
         result[i] = v as f64;
     }
-    result
+    AffineTransform(result)
 }
 
 /// Extract a 4×4 homogeneous matrix from an affine transform.
 pub(crate) fn affine_matrix_to_homogeneous<B: Backend>(
-    transform: &AffineTransform<B, 3>,
-) -> [f64; 16] {
+    transform: &CoreAffineTransform<B, 3>,
+) -> AffineTransform {
     let mat = transform.matrix();
     let t = transform.translation();
     let mat_data = mat.to_data();
@@ -62,13 +65,13 @@ pub(crate) fn affine_matrix_to_homogeneous<B: Backend>(
         result[r * 4 + 3] = t_slice[r] as f64;
     }
     result[15] = 1.0;
-    result
+    AffineTransform(result)
 }
 
 /// Extract a 4×4 homogeneous matrix from a translation transform.
 pub(crate) fn translation_matrix_to_homogeneous<B: Backend, const D: usize>(
     transform: &TranslationTransform<B, D>,
-) -> [f64; 16] {
+) -> AffineTransform {
     let t = transform.translation();
     let t_data = t.to_data();
     let t_slice = t_data
@@ -82,7 +85,7 @@ pub(crate) fn translation_matrix_to_homogeneous<B: Backend, const D: usize>(
     for i in 0..D.min(3) {
         result[i * 4 + 3] = t_slice[i] as f64;
     }
-    result
+    AffineTransform(result)
 }
 
 // ─── Center Computation ───────────────────────────────────────────────────────

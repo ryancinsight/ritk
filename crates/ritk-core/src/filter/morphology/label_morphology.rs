@@ -443,6 +443,3 @@ fn erode1_scalar(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
     out
 }
 
-#[cfg(test)]
-#[path = "tests_label_morphology.rs"]
-mod tests_label_morphology;

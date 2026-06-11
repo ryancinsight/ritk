@@ -69,6 +69,8 @@
 mod config;
 mod helpers;
 mod registration;
+mod result;
 
-pub use config::{CmaMiConfig, CmaMiLevelConfig, CmaMiResult, InitStrategy};
+pub use config::{CmaMiConfig, CmaMiLevelConfig, InitStrategy};
 pub use registration::CmaMiRegistration;
+pub use result::CmaMiResult;

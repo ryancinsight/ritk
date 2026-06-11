@@ -7,9 +7,9 @@ use ritk_core::transform::RigidTransform;
 
 use super::super::registration::GlobalMiRegistration;
 use super::super::transforms::rigid_matrix_to_homogeneous;
-use super::config::{CmaMiConfig, CmaMiResult, InitStrategy};
+use super::config::{CmaMiConfig, InitStrategy};
 use super::helpers::run_cma_level;
-use crate::types::AffineTransform;
+use super::result::CmaMiResult;
 
 /// CMA-ES → RSGD cascade rigid registration pipeline.
 ///
@@ -160,12 +160,12 @@ impl CmaMiRegistration {
                      shrink={:?}, sigma_mm={:.1}, sigma0={:.3}, max_gen={}",
                     level_idx,
                     per_axis,
-                    level.sigma_mm,
+                    level.sigma_mm.get(),
                     level.cma_sigma0,
                     level.max_generations,
                 );
 
-                let level_result = run_cma_level(
+                let mut level_result = run_cma_level(
                     fixed,
                     moving,
                     config,
@@ -191,7 +191,7 @@ impl CmaMiRegistration {
                     level_result.stop_reason,
                 );
 
-                current_x = level_result.best_x.clone();
+                current_x = std::mem::take(&mut level_result.best_x);
                 last_result = Some(level_result);
             }
 
@@ -257,11 +257,9 @@ impl CmaMiRegistration {
         };
 
         // ── Assemble result ───────────────────────────────────────────────────
-        let matrix = rigid_matrix_to_homogeneous(&final_transform);
         let final_mi = -cma_result.best_f; // negate: CMA-ES minimises −MI
-
         let result = CmaMiResult {
-            matrix: AffineTransform::new(matrix),
+            matrix: rigid_matrix_to_homogeneous(&final_transform),
             final_mi,
             cma_generations: cma_result.generations,
             cma_stop_reason: cma_result.stop_reason,

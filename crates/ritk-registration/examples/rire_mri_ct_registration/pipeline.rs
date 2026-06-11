@@ -11,6 +11,7 @@ use super::math::{
 use super::viz::{ncc_bar, save_comparison_png};
 use super::RireData;
 
+use ritk_core::filter::GaussianSigma;
 use ritk_io::read_metaimage;
 use ritk_registration::{CmaMiConfig, CmaMiRegistration, InitStrategy};
 
@@ -199,7 +200,7 @@ pub fn run_cma_es(data: &mut RireData) -> anyhow::Result<()> {
     // ── CMA-ES configuration ──────────────────────────────────────────────
     let cma_config = CmaMiConfig {
         coarse_shrink: 8,
-        coarse_sigma_mm: 4.0,
+        coarse_sigma_mm: GaussianSigma::new_unchecked(4.0),
         num_mi_bins: 32,
         sampling_percentage: 0.20,
         translation_range_mm: 80.0,

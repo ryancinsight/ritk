@@ -25,6 +25,7 @@
 //! `itk::ZeroCrossingImageFilter` with `SetForegroundValue` / `SetBackgroundValue`.
 //! Typical use: detect zero crossings of a Laplacian-of-Gaussian edge image.
 
+use crate::filter::morphology::types::ForegroundValue;
 use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -36,7 +37,7 @@ use burn::tensor::backend::Backend;
 #[derive(Debug, Clone)]
 pub struct ZeroCrossingImageFilter {
     /// Value assigned to zero-crossing voxels (default 1.0).
-    pub foreground_value: f32,
+    pub foreground_value: ForegroundValue,
     /// Value assigned to non-crossing voxels (default 0.0).
     pub background_value: f32,
 }
@@ -44,7 +45,7 @@ pub struct ZeroCrossingImageFilter {
 impl Default for ZeroCrossingImageFilter {
     fn default() -> Self {
         Self {
-            foreground_value: 1.0,
+            foreground_value: ForegroundValue::ONE,
             background_value: 0.0,
         }
     }
@@ -55,8 +56,8 @@ impl ZeroCrossingImageFilter {
         Self::default()
     }
 
-    pub fn with_foreground(mut self, v: f32) -> Self {
-        self.foreground_value = v;
+    pub fn with_foreground(mut self, v: impl Into<ForegroundValue>) -> Self {
+        self.foreground_value = v.into();
         self
     }
 
@@ -73,7 +74,7 @@ impl ZeroCrossingImageFilter {
 
         let idx = |iz: usize, iy: usize, ix: usize| iz * ny * nx + iy * nx + ix;
 
-        let fg = self.foreground_value;
+        let fg = f32::from(self.foreground_value);
         let bg = self.background_value;
 
         let mut out = vec![bg; nz * ny * nx];

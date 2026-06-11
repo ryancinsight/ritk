@@ -5,5 +5,5 @@
 //! `crate::pixel::PixelLayout` without modification.
 #[allow(deprecated)]
 pub use ritk_codecs::pixel_layout::{
-    decode_native_pixel_bytes, decode_native_pixel_bytes_checked, PixelLayout,
+    decode_native_pixel_bytes, decode_native_pixel_bytes_checked, PixelLayout, PixelSignedness,
 };

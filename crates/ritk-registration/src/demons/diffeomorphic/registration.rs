@@ -95,13 +95,13 @@ impl DiffeomorphicDemonsRegistration {
         // Pre-hoisted scratch: reused by the smooth call, eliminates 3×n f32 allocs per iter.
         let mut smooth_tmp = vec![0.0_f32; n];
 
-        let grad = compute_gradient(fixed, dims, spacing);
+        let grad = compute_gradient(fixed, dims.into(), spacing);
 
         scaling_and_squaring_into(
             &vel_z,
             &vel_y,
             &vel_x,
-            dims,
+            dims.into(),
             self.n_squarings,
             &mut phi_z,
             &mut phi_y,
@@ -110,7 +110,8 @@ impl DiffeomorphicDemonsRegistration {
             &mut scratch_ss_y,
             &mut scratch_ss_x,
         );
-        let mut final_mse = compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x);
+        let mut final_mse =
+            compute_mse_streaming(fixed, moving, dims.into(), &phi_z, &phi_y, &phi_x);
         let mut iter = 0usize;
 
         for it in 0..self.config.max_iterations {
@@ -120,7 +121,7 @@ impl DiffeomorphicDemonsRegistration {
                 &vel_z,
                 &vel_y,
                 &vel_x,
-                dims,
+                dims.into(),
                 self.n_squarings,
                 &mut phi_z,
                 &mut phi_y,
@@ -129,7 +130,7 @@ impl DiffeomorphicDemonsRegistration {
                 &mut scratch_ss_y,
                 &mut scratch_ss_x,
             );
-            warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut m_warped);
+            warp_image_into(moving, dims.into(), &phi_z, &phi_y, &phi_x, &mut m_warped);
 
             thirion_forces_into(
                 fixed,
@@ -153,13 +154,13 @@ impl DiffeomorphicDemonsRegistration {
                 vel_x[i] += fx[i];
             }
 
-            if self.config.sigma_diffusion > 0.0 {
+            if let Some(sigma) = self.config.sigma_diffusion {
                 gaussian_smooth_field_inplace_with_scratch(
                     &mut vel_z,
                     &mut vel_y,
                     &mut vel_x,
-                    dims,
-                    self.config.sigma_diffusion,
+                    dims.into(),
+                    sigma.get(),
                     &mut smooth_tmp,
                 );
             }
@@ -168,7 +169,7 @@ impl DiffeomorphicDemonsRegistration {
                 &vel_z,
                 &vel_y,
                 &vel_x,
-                dims,
+                dims.into(),
                 self.n_squarings,
                 &mut phi_z,
                 &mut phi_y,
@@ -177,12 +178,12 @@ impl DiffeomorphicDemonsRegistration {
                 &mut scratch_ss_y,
                 &mut scratch_ss_x,
             );
-            final_mse = compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x);
+            final_mse = compute_mse_streaming(fixed, moving, dims.into(), &phi_z, &phi_y, &phi_x);
         }
 
         // phi_z/y/x already holds exp(vel) from the last MSE computation in the loop
         // (or exp(0) = identity if max_iterations = 0). Compute the final warped image.
-        warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut m_warped);
+        warp_image_into(moving, dims.into(), &phi_z, &phi_y, &phi_x, &mut m_warped);
 
         Ok(DemonsResult {
             warped: m_warped,
@@ -205,7 +206,13 @@ impl DiffeomorphicDemonsRegistration {
         match (&result.vel_z, &result.vel_y, &result.vel_x) {
             (Some(vel_z), Some(vel_y), Some(vel_x)) => {
                 let inv_vel = invert_velocity_field(vel_z, vel_y, vel_x);
-                scaling_and_squaring(&inv_vel.z, &inv_vel.y, &inv_vel.x, dims, self.n_squarings)
+                scaling_and_squaring(
+                    &inv_vel.z,
+                    &inv_vel.y,
+                    &inv_vel.x,
+                    dims.into(),
+                    self.n_squarings,
+                )
             }
             _ => {
                 use crate::demons::inverse::{invert_displacement_field, InverseFieldConfig};

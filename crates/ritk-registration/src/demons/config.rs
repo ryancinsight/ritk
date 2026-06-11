@@ -1,5 +1,7 @@
 //! Shared configuration and result types for Demons-family registration.
 
+use ritk_core::filter::GaussianSigma;
+
 /// Variant selector for Demons registration algorithms.
 ///
 /// Replaces the former `use_diffeomorphic: bool` field, eliminating boolean
@@ -25,14 +27,13 @@ impl DemonsVariant {
 pub struct DemonsConfig {
     /// Maximum number of iterations.
     pub max_iterations: usize,
-    /// Standard deviation (in voxels) of the Gaussian applied to the total
-    /// displacement field after each iteration (diffusive regularisation).
-    /// Set to 0.0 to disable.
-    pub sigma_diffusion: f64,
-    /// Standard deviation (in voxels) of the Gaussian applied to the *force
-    /// update* before adding it to the displacement field (fluid regularisation).
-    /// Set to 0.0 to disable.
-    pub sigma_fluid: f64,
+    /// Gaussian standard deviation (voxels) applied to the total displacement
+    /// field after each iteration (diffusive regularisation). `None` disables
+    /// diffusion smoothing.
+    pub sigma_diffusion: Option<GaussianSigma>,
+    /// Gaussian standard deviation (voxels) applied to the force update before
+    /// accumulation (fluid regularisation). `None` disables fluid smoothing.
+    pub sigma_fluid: Option<GaussianSigma>,
     /// Maximum per-voxel step length in voxel units.  Forces whose magnitude
     /// exceeds this value are rescaled to exactly `max_step_length`.
     pub max_step_length: f32,
@@ -42,8 +43,8 @@ impl Default for DemonsConfig {
     fn default() -> Self {
         Self {
             max_iterations: 50,
-            sigma_diffusion: 1.5,
-            sigma_fluid: 0.0,
+            sigma_diffusion: Some(GaussianSigma::new_unchecked(1.5)),
+            sigma_fluid: None,
             max_step_length: 2.0,
         }
     }

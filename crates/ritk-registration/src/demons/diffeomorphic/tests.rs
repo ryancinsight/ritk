@@ -134,8 +134,8 @@ fn zero_velocity_zero_displacement() {
     let n = 4 * 4 * 4;
     let image = make_test_image(dims);
     let zero = vec![0.0_f32; n];
-    let phi = scaling_and_squaring(&zero, &zero, &zero, dims, 6);
-    let mse = compute_mse_streaming(&image, &image, dims, &phi.z, &phi.y, &phi.x);
+    let phi = scaling_and_squaring(&zero, &zero, &zero, dims.into(), 6);
+    let mse = compute_mse_streaming(&image, &image, dims.into(), &phi.z, &phi.y, &phi.x);
     assert!(mse < 1e-10, "zero velocity should give zero MSE, got {mse}");
 }
 
@@ -200,7 +200,7 @@ fn exact_inverse_composes_to_near_identity() {
         &result.disp_z,
         &result.disp_y,
         &result.disp_x,
-        dims,
+        dims.into(),
     );
 
     let n = dims[0] * dims[1] * dims[2];
@@ -252,7 +252,13 @@ fn invert_result_matches_negated_velocity_exponential() {
     let neg_vel_y: Vec<f32> = vel_y.iter().map(|&v| -v).collect();
     let neg_vel_x: Vec<f32> = vel_x.iter().map(|&v| -v).collect();
 
-    let expected = scaling_and_squaring(&neg_vel_z, &neg_vel_y, &neg_vel_x, dims, reg.n_squarings);
+    let expected = scaling_and_squaring(
+        &neg_vel_z,
+        &neg_vel_y,
+        &neg_vel_x,
+        dims.into(),
+        reg.n_squarings,
+    );
 
     for i in 0..expected.z.len() {
         assert!(

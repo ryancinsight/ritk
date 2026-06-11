@@ -1,6 +1,6 @@
 //! Cache lookup and normalization helpers for Parzen image-level histogram computation.
 //!
-//! Extracted from `compute_image.rs` (Sprint 356 cycle 12-13) to keep each file
+//! Extracted from `compute_image/mod.rs` (Sprint 356 cycle 12-13) to keep each file
 //! under the 500-line structural limit. All utilities are used exclusively by
 //! [`super::compute_image`].
 
@@ -84,7 +84,7 @@ pub(crate) fn normalize_fixed_values<B: Backend>(
 ///
 /// Returns `None` when the cache is absent or does not match `fixed`'s spatial
 /// metadata. Moved here from `compute_image` (Sprint SRP-split) to keep
-/// `compute_image.rs` under 500 lines.
+/// `compute_image/mod.rs` under 500 lines.
 pub(crate) fn extract_cached_points<B: Backend, const D: usize>(
     fixed: &Image<B, D>,
     cache: &std::sync::Arc<std::sync::Mutex<Option<HistogramCache<B>>>>,

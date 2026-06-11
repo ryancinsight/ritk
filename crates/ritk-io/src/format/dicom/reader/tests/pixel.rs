@@ -18,12 +18,12 @@ use crate::format::dicom::{
 };
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_dicom::TransferSyntaxKind;
+use ritk_dicom::{PixelSignedness, TransferSyntaxKind};
 #[test]
 fn test_decode_pixel_bytes_unsigned_16bit_identity_rescale() {
     // u16: [0x00,0x00] = 0; [0xFF,0xFF] = 65535. slope=1.0, intercept=0.0 → identity.
     let bytes: [u8; 4] = [0x00, 0x00, 0xFF, 0xFF];
-    let result = decode_pixel_bytes(&bytes, 16, 0, 1.0, 0.0);
+    let result = decode_pixel_bytes(&bytes, 16, PixelSignedness::Unsigned, 1.0, 0.0);
     assert_eq!(result.len(), 2);
     assert_eq!(result[0], 0.0f32);
     assert_eq!(result[1], 65535.0f32);
@@ -33,7 +33,7 @@ fn test_decode_pixel_bytes_unsigned_16bit_identity_rescale() {
 fn test_decode_pixel_bytes_signed_16bit_identity_rescale() {
     // i16::MIN = -32768 stored as [0x00, 0x80] LE; i16::MAX = 32767 stored as [0xFF, 0x7F] LE.
     let bytes: [u8; 4] = [0x00, 0x80, 0xFF, 0x7F];
-    let result = decode_pixel_bytes(&bytes, 16, 1, 1.0, 0.0);
+    let result = decode_pixel_bytes(&bytes, 16, PixelSignedness::Signed, 1.0, 0.0);
     assert_eq!(result.len(), 2);
     assert_eq!(result[0], -32768.0f32);
     assert_eq!(result[1], 32767.0f32);
@@ -43,7 +43,7 @@ fn test_decode_pixel_bytes_signed_16bit_identity_rescale() {
 fn test_decode_pixel_bytes_signed_16bit_with_rescale() {
     // i16: -1 = [0xFF, 0xFF] LE; decoded = -1.0 × 2.0 + 100.0 = 98.0.
     let bytes: [u8; 2] = [0xFF, 0xFF];
-    let result = decode_pixel_bytes(&bytes, 16, 1, 2.0, 100.0);
+    let result = decode_pixel_bytes(&bytes, 16, PixelSignedness::Signed, 2.0, 100.0);
     assert_eq!(result.len(), 1);
     assert_eq!(result[0], 98.0f32);
 }
@@ -51,7 +51,7 @@ fn test_decode_pixel_bytes_signed_16bit_with_rescale() {
 #[test]
 fn test_decode_pixel_bytes_8bit_identity_rescale() {
     let bytes: [u8; 3] = [0, 127, 255];
-    let result = decode_pixel_bytes(&bytes, 8, 0, 1.0, 0.0);
+    let result = decode_pixel_bytes(&bytes, 8, PixelSignedness::Unsigned, 1.0, 0.0);
     assert_eq!(result, vec![0.0f32, 127.0f32, 255.0f32]);
 }
 
@@ -59,7 +59,7 @@ fn test_decode_pixel_bytes_8bit_identity_rescale() {
 fn test_decode_pixel_bytes_8bit_with_rescale() {
     // 8-bit value 200; slope=0.5, intercept=10.0 → 200 × 0.5 + 10.0 = 110.0.
     let bytes: [u8; 1] = [200];
-    let result = decode_pixel_bytes(&bytes, 8, 0, 0.5, 10.0);
+    let result = decode_pixel_bytes(&bytes, 8, PixelSignedness::Unsigned, 0.5, 10.0);
     assert_eq!(result[0], 110.0f32);
 }
 
@@ -81,11 +81,12 @@ fn test_is_likely_dicom_file_rejects_analyze_and_raw_extensions() {
 }
 
 #[test]
-fn test_slice_metadata_default_pixel_representation_is_zero() {
+fn test_slice_metadata_default_pixel_representation_is_unsigned() {
     let meta = DicomSliceMetadata::default();
     assert_eq!(
-        meta.pixel_representation, 0,
-        "pixel_representation default must be 0 (unsigned)"
+        meta.pixel_representation,
+        PixelSignedness::Unsigned,
+        "pixel_representation default must be Unsigned"
     );
     assert_eq!(meta.bits_allocated, 16, "bits_allocated default must be 16");
     assert!(
@@ -197,7 +198,7 @@ fn test_read_slice_pixels_signed_i16_roundtrip() {
         path: path.clone(),
         rescale_slope: 1.0,
         rescale_intercept: 0.0,
-        pixel_representation: 1,
+        pixel_representation: PixelSignedness::Signed,
         bits_allocated: 16,
         ..DicomSliceMetadata::default()
     };
@@ -282,7 +283,7 @@ fn test_read_slice_pixels_rejects_rgb_scalar_volume() {
     let slice_meta = DicomSliceMetadata {
         path,
         bits_allocated: 8,
-        pixel_representation: 0,
+        pixel_representation: PixelSignedness::Unsigned,
         ..DicomSliceMetadata::default()
     };
 

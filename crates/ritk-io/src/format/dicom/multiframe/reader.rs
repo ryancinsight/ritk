@@ -10,7 +10,7 @@ use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
-    TransferSyntaxKind,
+    PixelSignedness, TransferSyntaxKind,
 };
 use std::path::Path;
 
@@ -83,12 +83,13 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> 
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(1);
 
-    let pixel_representation: u16 = obj
+    let pixel_representation: PixelSignedness = obj
         .element(Tag(0x0028, 0x0103))
         .ok()
         .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(0);
+        .and_then(|s| s.trim().parse().ok()) // parse u16 first
+        .and_then(|v: u16| PixelSignedness::try_from(v).ok())
+        .unwrap_or(PixelSignedness::Unsigned);
 
     let pixel_spacing = obj
         .element(Tag(0x0028, 0x0030))

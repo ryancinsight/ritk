@@ -1,6 +1,6 @@
 //! solve_linear_system unit tests.
 
-use super::super::*;
+use crate::atlas::label_fusion::jlf::solve_linear_system;
 
 // ── solve_linear_system unit tests ───────────────────────────────────
 

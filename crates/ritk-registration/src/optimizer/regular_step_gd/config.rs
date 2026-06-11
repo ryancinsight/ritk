@@ -3,7 +3,7 @@
 /// Configuration for [`super::RegularStepGradientDescent`].
 ///
 /// Default values match ITK's `RegularStepGradientDescentOptimizerv4`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct RegularStepGdConfig {
     /// Initial step length in parameter space.
     pub initial_step_length: f64,

@@ -104,7 +104,7 @@ fn cc_forces_identical_images_bounded() {
     let dims = [6usize, 6, 6];
     let n = 216;
     let image: Vec<f32> = (0..n).map(|i| i as f32).collect();
-    let grad = crate::deformable_field_ops::compute_gradient(&image, dims, [1.0, 1.0, 1.0]);
+    let grad = crate::deformable_field_ops::compute_gradient(&image, dims.into(), [1.0, 1.0, 1.0]);
     let (fz, fy, fx) = cc_forces(&image, &image, &grad.z, &grad.y, &grad.x, dims, 1);
     let rms = |f: &[f32]| -> f64 {
         (f.iter().map(|&v| (v as f64).powi(2)).sum::<f64>() / n as f64).sqrt()
@@ -144,7 +144,7 @@ fn cc_forces_into_matches_cc_forces() {
     let n = 6 * 6 * 6;
     let fixed: Vec<f32> = (0..n).map(|i| i as f32).collect();
     let moving: Vec<f32> = (0..n).map(|i| (i + 6) as f32).collect();
-    let gi = crate::deformable_field_ops::compute_gradient(&fixed, dims, [1.0, 1.0, 1.0]);
+    let gi = crate::deformable_field_ops::compute_gradient(&fixed, dims.into(), [1.0, 1.0, 1.0]);
     let (fz_alloc, fy_alloc, fx_alloc) = cc_forces(&fixed, &moving, &gi.z, &gi.y, &gi.x, dims, 1);
     let mut fz = vec![0.0_f32; n];
     let mut fy = vec![0.0_f32; n];

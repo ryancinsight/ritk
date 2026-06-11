@@ -14,6 +14,7 @@ use crate::spatial::Point;
 use serde::{Deserialize, Serialize};
 
 use super::error::AnnotationError;
+use super::types::LabelId;
 
 /// A single 3-D point annotation with an optional label association.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -21,7 +22,7 @@ pub struct PointAnnotation {
     /// Physical-space coordinate in mm.
     pub position: Point<3>,
     /// Optional label ID this point belongs to (e.g., a seed for region growing).
-    pub label_id: Option<u32>,
+    pub label_id: Option<LabelId>,
 }
 
 impl PointAnnotation {
@@ -34,10 +35,10 @@ impl PointAnnotation {
     }
 
     /// Construct a point annotation bound to a label ID.
-    pub fn with_label(position: impl Into<Point<3>>, label_id: u32) -> Self {
+    pub fn with_label(position: impl Into<Point<3>>, label_id: impl Into<LabelId>) -> Self {
         Self {
             position: position.into(),
-            label_id: Some(label_id),
+            label_id: Some(label_id.into()),
         }
     }
 }
@@ -116,7 +117,8 @@ impl AnnotationState {
     }
 
     /// Collect all seed points for a given label ID.
-    pub fn seeds_for_label(&self, label_id: u32) -> Vec<Point<3>> {
+    pub fn seeds_for_label(&self, label_id: impl Into<LabelId>) -> Vec<Point<3>> {
+        let label_id = label_id.into();
         self.points
             .iter()
             .filter(|p| p.label_id == Some(label_id))
@@ -155,7 +157,7 @@ mod tests {
         state.add_point(ann);
         assert_eq!(state.points.len(), 1);
         assert_eq!(state.points[0].position, Point::new([1.0, 2.0, 3.0]));
-        assert_eq!(state.points[0].label_id, Some(5));
+        assert_eq!(state.points[0].label_id, Some(LabelId(5)));
     }
 
     #[test]
@@ -282,7 +284,7 @@ mod tests {
         let restored = AnnotationState::from_json(&json).expect("deserialization must succeed");
         assert_eq!(restored.points.len(), state.points.len());
         assert_eq!(restored.points[0].position, Point::new([10.0, 20.0, 30.0]));
-        assert_eq!(restored.points[0].label_id, Some(3));
+        assert_eq!(restored.points[0].label_id, Some(LabelId(3)));
         assert_eq!(restored.contours.len(), 1);
         assert_eq!(restored.contours[0].len(), 3);
         assert_eq!(restored.polylines.len(), 1);

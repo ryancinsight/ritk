@@ -1,5 +1,6 @@
 //! Unsigned Euclidean distance transform filter.
 
+use super::super::types::BinarizationThreshold;
 use super::core::edt_3d;
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
@@ -28,12 +29,14 @@ use burn::tensor::{Shape, Tensor, TensorData};
 #[derive(Debug, Clone)]
 pub struct DistanceTransformImageFilter {
     /// Intensity threshold separating background (≤ threshold) from foreground (> threshold).
-    pub threshold: f32,
+    pub threshold: BinarizationThreshold,
 }
 
 impl Default for DistanceTransformImageFilter {
     fn default() -> Self {
-        Self { threshold: 0.5 }
+        Self {
+            threshold: BinarizationThreshold::DEFAULT,
+        }
     }
 }
 
@@ -42,8 +45,8 @@ impl DistanceTransformImageFilter {
         Self::default()
     }
 
-    pub fn with_threshold(mut self, t: f32) -> Self {
-        self.threshold = t;
+    pub fn with_threshold(mut self, t: impl Into<BinarizationThreshold>) -> Self {
+        self.threshold = t.into();
         self
     }
 
@@ -51,7 +54,10 @@ impl DistanceTransformImageFilter {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
         let (vals, _shape) = extract_vec_infallible(image);
-        let fg: Vec<bool> = vals.iter().map(|&v| v > self.threshold).collect();
+        let fg: Vec<bool> = vals
+            .iter()
+            .map(|&v| v > f32::from(self.threshold))
+            .collect();
         let sp = image.spacing();
         let spacing = [sp[0], sp[1], sp[2]];
         let result = edt_3d(&fg, dims, spacing);

@@ -1,5 +1,6 @@
 use super::*;
 use arrayvec::ArrayString;
+use ritk_io::PixelSignedness;
 use ritk_io::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomReadMetadata,
     DicomSliceMetadata, DicomTag, PatientPosition,
@@ -56,7 +57,7 @@ fn metadata_fixture() -> DicomReadMetadata {
             rescale_intercept: -1024.0,
             sop_class_uid: Some("1.2.840.sop".try_into().unwrap()),
             transfer_syntax_uid: Some("1.2.840.10008.1.2.1".try_into().unwrap()),
-            pixel_representation: 1,
+            pixel_representation: PixelSignedness::Signed,
             bits_allocated: 16,
             window_center: Some(40.0),
             window_width: Some(400.0),

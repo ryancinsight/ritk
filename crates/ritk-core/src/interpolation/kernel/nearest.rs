@@ -219,6 +219,32 @@ pub(crate) fn interpolate_4d<B: Backend, const D: usize>(
     }
 }
 
+// ═════════════════════════════════════════════════════════════════════
+//  Const-generic shape specialization (Sprint 361 — 351-01-NN-TYPED)
+// ═════════════════════════════════════════════════════════════════════
+//
+// Parallel to `interpolate_3d` above, but takes the volume shape as
+// `const D0: usize, const D1: usize, const D2: usize`. This enables
+// compile-time bounds, mask inlining, and per-shape monomorphization.
+// Generated via the [`ritk_macros::interp_dim_template_nearest_typed!`]
+// proc-macro, which provides the nearest-neighbor rounding prelude
+// (`floor(coord + 0.5)`) and the pre-clamp mask application.
+ritk_macros::interp_dim_template_nearest_typed!(
+    3,
+    interpolate_nearest_3d_typed,
+    x, y, z,
+    wx, wy, wz,
+    D2 - 1, D1 - 1, D0 - 1,
+    D0, D1, D2,
+    {
+        // Compute the flat gather index from the per-axis nearest indices.
+        // The strides are pre-computed by the proc-macro prelude.
+        let flat_data = data.clone().reshape([d0 * d1 * d2]);
+        let idx = z_i * stride_z + y_i * stride_y + x_i;
+        flat_data.gather(0, idx)
+    }
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;

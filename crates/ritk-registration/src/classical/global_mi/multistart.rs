@@ -263,10 +263,8 @@ impl MultiStartMiRegistration {
             .expect("translation vector tensor data must be contiguous");
         let best_translation = [trans_slice[0], trans_slice[1], trans_slice[2]];
 
-        let matrix = super::transforms::rigid_matrix_to_homogeneous(&best_transform);
-
         let ms_result = MultiStartResult {
-            matrix: AffineTransform::new(matrix),
+            matrix: super::transforms::rigid_matrix_to_homogeneous(&best_transform),
             best_mi,
             best_start_index: best_start,
             per_start_mi,

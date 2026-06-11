@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use ritk_core::annotation::LabelId;
 use std::collections::HashMap;
 
 use crate::format::dicom::reader::types::literal_arraystring;
@@ -35,7 +36,7 @@ pub fn label_map_to_dicom_seg(
     direction: [f64; 9],
     encoding: SegEncoding,
 ) -> Result<DicomSegmentation> {
-    if label_map.shape[0] == 0 || label_map.shape[1] == 0 || label_map.shape[2] == 0 {
+    if label_map.shape.0[0] == 0 || label_map.shape.0[1] == 0 || label_map.shape.0[2] == 0 {
         bail!("label_map has zero dimension: {:?}", label_map.shape);
     }
 
@@ -46,9 +47,9 @@ pub fn label_map_to_dicom_seg(
         bail!("no foreground labels found in label_map");
     }
 
-    let nz = label_map.shape[0];
-    let ny = label_map.shape[1];
-    let nx = label_map.shape[2];
+    let nz = label_map.shape.0[0];
+    let ny = label_map.shape.0[1];
+    let nx = label_map.shape.0[2];
     let rows = ny;
     let cols = nx;
     let n_pixels_per_frame = rows * cols;
@@ -204,7 +205,7 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         if s.segment_number == 0 {
             bail!("segment_number 0 is invalid for DICOM-SEG");
         }
-        let label_id = u32::from(s.segment_number);
+        let label_id = LabelId::from(u32::from(s.segment_number));
         let color = segment_color(label_id);
         table
             .add_label(label_id, s.segment_label.clone(), color)
@@ -353,7 +354,7 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         for (i, &v) in frame.iter().enumerate() {
             if v != 0 {
                 let flat = z * n_pixels_per_frame + i;
-                data[flat] = label_id;
+                data[flat] = u32::from(label_id);
             }
         }
     }
@@ -362,8 +363,8 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         .map_err(|e| anyhow::anyhow!("failed to build LabelMap from DICOM-SEG: {e}"))
 }
 
-pub(super) fn segment_color(label_id: u32) -> ritk_core::annotation::RgbaU8 {
-    let seed = label_id.wrapping_mul(0x9E37_79B9);
+pub(super) fn segment_color(label_id: LabelId) -> ritk_core::annotation::RgbaU8 {
+    let seed = u32::from(label_id).wrapping_mul(0x9E37_79B9);
     let r = 40 + ((seed & 0x7F) as u8);
     let g = 40 + (((seed >> 8) & 0x7F) as u8);
     let b = 40 + (((seed >> 16) & 0x7F) as u8);

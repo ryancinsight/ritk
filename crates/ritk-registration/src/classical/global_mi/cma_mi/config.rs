@@ -1,8 +1,9 @@
 // ─── Configuration ────────────────────────────────────────────────────────────
 
+use ritk_core::filter::GaussianSigma;
+
 use crate::metric::{MutualInformationVariant, NormalizationMethod};
-use crate::optimizer::{HistoryPolicy, PopulationEval, StopReason};
-use crate::types::AffineTransform;
+use crate::optimizer::{HistoryPolicy, PopulationEval};
 
 use super::super::config::GlobalMiConfig;
 
@@ -26,7 +27,7 @@ pub struct CmaMiLevelConfig {
 
     /// Gaussian pre-smoothing sigma (mm) applied before downsampling.
     /// Should be ≥ shrink/2 to satisfy the Nyquist criterion.
-    pub sigma_mm: f64,
+    pub sigma_mm: GaussianSigma,
 
     /// CMA-ES initial step-size σ₀ at this level, in normalised parameter
     /// units.  Set larger (e.g. 0.8) at coarse levels for wide exploration and
@@ -46,7 +47,12 @@ pub struct CmaMiLevelConfig {
 impl CmaMiLevelConfig {
     /// Convenience constructor: create a level with the given shrink, smoothing,
     /// σ₀, and generation budget.  All other fields use sensible defaults.
-    pub fn new(shrink: usize, sigma_mm: f64, cma_sigma0: f64, max_generations: usize) -> Self {
+    pub fn new(
+        shrink: usize,
+        sigma_mm: GaussianSigma,
+        cma_sigma0: f64,
+        max_generations: usize,
+    ) -> Self {
         Self {
             shrink,
             shrink_per_axis: None,
@@ -95,7 +101,7 @@ pub struct CmaMiConfig {
 
     /// Gaussian smoothing sigma applied before downsampling, in physical units
     /// (mm). Used only when `pyramid_schedule` is empty. Default: **4.0 mm**.
-    pub coarse_sigma_mm: f64,
+    pub coarse_sigma_mm: GaussianSigma,
 
     /// Number of histogram bins for MI estimation. Default: **32**.
     pub num_mi_bins: usize,
@@ -176,7 +182,7 @@ impl Default for CmaMiConfig {
                 record_history: HistoryPolicy::Discard,
             },
             coarse_shrink: 8,
-            coarse_sigma_mm: 4.0,
+            coarse_sigma_mm: GaussianSigma::new_unchecked(4.0),
             num_mi_bins: 32,
             sampling_percentage: 0.15,
             translation_range_mm: 60.0,
@@ -217,7 +223,7 @@ impl CmaMiConfig {
                 record_history: HistoryPolicy::Discard,
             },
             coarse_shrink: 8,
-            coarse_sigma_mm: 4.0,
+            coarse_sigma_mm: GaussianSigma::new_unchecked(4.0),
             num_mi_bins: 32,
             sampling_percentage: 0.30,
             translation_range_mm: 60.0,
@@ -249,7 +255,7 @@ impl CmaMiConfig {
                 record_history: HistoryPolicy::Discard,
             },
             coarse_shrink: 16,
-            coarse_sigma_mm: 8.0,
+            coarse_sigma_mm: GaussianSigma::new_unchecked(8.0),
             num_mi_bins: 16,
             sampling_percentage: 0.25,
             translation_range_mm: 100.0,
@@ -312,8 +318,8 @@ impl CmaMiConfig {
                 parallel_population: PopulationEval::Parallel,
                 record_history: HistoryPolicy::Discard,
             },
-            coarse_shrink: 8,     // unused when pyramid_schedule is non-empty
-            coarse_sigma_mm: 4.0, // unused when pyramid_schedule is non-empty
+            coarse_shrink: 8, // unused when pyramid_schedule is non-empty
+            coarse_sigma_mm: GaussianSigma::new_unchecked(4.0), // unused when pyramid_schedule is non-empty
             num_mi_bins: 32,
             sampling_percentage: 0.25,
             translation_range_mm: 60.0,
@@ -326,9 +332,9 @@ impl CmaMiConfig {
             // artefact that inflates JointEntropy NMI at large displacements.
             mi_variant: MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
             pyramid_schedule: vec![
-                CmaMiLevelConfig::new(16, 8.0, 0.8, 100),
-                CmaMiLevelConfig::new(8, 4.0, 0.3, 200),
-                CmaMiLevelConfig::new(4, 2.0, 0.1, 100),
+                CmaMiLevelConfig::new(16, GaussianSigma::new_unchecked(8.0), 0.8, 100),
+                CmaMiLevelConfig::new(8, GaussianSigma::new_unchecked(4.0), 0.3, 200),
+                CmaMiLevelConfig::new(4, GaussianSigma::new_unchecked(2.0), 0.1, 100),
             ],
         }
     }
@@ -356,53 +362,18 @@ impl CmaMiConfig {
                     // 1 IPOP restart doubles population → better escape from false MI maxima
                     // at the very coarse 29×32×32 pyramid level where MI is noisy.
                     ipop_restarts: 1,
-                    ..CmaMiLevelConfig::new(16, 8.0, 0.8, 150)
+                    ..CmaMiLevelConfig::new(16, GaussianSigma::new_unchecked(8.0), 0.8, 150)
                 },
                 CmaMiLevelConfig {
                     shrink_per_axis: Some([1, 8, 8]),
-                    ..CmaMiLevelConfig::new(8, 4.0, 0.3, 200)
+                    ..CmaMiLevelConfig::new(8, GaussianSigma::new_unchecked(4.0), 0.3, 200)
                 },
                 CmaMiLevelConfig {
                     shrink_per_axis: Some([1, 4, 4]),
-                    ..CmaMiLevelConfig::new(4, 2.0, 0.15, 100)
+                    ..CmaMiLevelConfig::new(4, GaussianSigma::new_unchecked(2.0), 0.15, 100)
                 },
             ],
             ..Self::brain_rigid_multiscale()
         }
     }
-}
-
-// ─── Result ─────────────────────────────────────────────────────────────────────────────
-
-/// Result produced by [`CmaMiRegistration::register_rigid`](super::CmaMiRegistration::register_rigid).
-#[derive(Debug, Clone)]
-pub struct CmaMiResult {
-    /// 4×4 homogeneous matrix of the final transform (row-major, f64).
-    pub matrix: AffineTransform,
-
-    /// Final MI value (positive; negated from the CMA-ES loss).
-    /// Reflects the CMA-ES coarse-level MI, not the full-resolution value
-    /// even when RSGD refinement is applied.
-    pub final_mi: f64,
-
-    /// Number of CMA-ES generations executed (last level for cascade mode).
-    pub cma_generations: usize,
-
-    /// Reason the CMA-ES loop terminated (last level for cascade mode).
-    pub cma_stop_reason: StopReason,
-
-    /// CMA-ES final step-size σ (last level for cascade mode).
-    pub cma_final_sigma: f64,
-
-    /// Total RSGD iterations across all resolution levels (0 if no refinement).
-    pub rsgd_iterations: usize,
-
-    /// Per-iteration loss history from RSGD refinement (empty if no refinement).
-    pub rsgd_loss_history: Vec<f64>,
-
-    /// Normalised CMA-ES best parameter vector `[α_n, β_n, γ_n, tz_n, ty_n, tx_n]`.
-    /// Each component is in `[−1, 1]`; multiply by `rotation_range_rad` (first 3) or
-    /// `translation_range_mm` (last 3) to recover physical units.
-    /// Populated from the last cascade level in multi-scale mode.
-    pub cma_best_params: Vec<f64>,
 }

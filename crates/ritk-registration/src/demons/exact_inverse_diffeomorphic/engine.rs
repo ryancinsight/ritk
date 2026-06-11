@@ -66,8 +66,8 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
         let cfg = &self.config.demons;
         let n_sq = self.config.n_squarings;
 
-        let gf = compute_gradient(fixed, dims, spacing);
-        let gm = compute_gradient(moving, dims, spacing);
+        let gf = compute_gradient(fixed, dims.into(), spacing);
+        let gm = compute_gradient(moving, dims.into(), spacing);
 
         let mut vel_z = vec![0.0_f32; n];
         let mut vel_y = vec![0.0_f32; n];
@@ -116,7 +116,7 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                 &vel_z,
                 &vel_y,
                 &vel_x,
-                dims,
+                dims.into(),
                 n_sq,
                 &mut phi_z,
                 &mut phi_y,
@@ -137,7 +137,7 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                 &inv_vel_z,
                 &inv_vel_y,
                 &inv_vel_x,
-                dims,
+                dims.into(),
                 n_sq,
                 &mut psi_z,
                 &mut psi_y,
@@ -146,8 +146,8 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                 &mut scratch_ss_y,
                 &mut scratch_ss_x,
             );
-            warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut m_warped);
-            warp_image_into(fixed, dims, &psi_z, &psi_y, &psi_x, &mut f_warped);
+            warp_image_into(moving, dims.into(), &phi_z, &phi_y, &phi_x, &mut m_warped);
+            warp_image_into(fixed, dims.into(), &psi_z, &psi_y, &psi_x, &mut f_warped);
 
             thirion_forces_into(
                 fixed,
@@ -188,13 +188,13 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                 vel_x[i] += w_fwd * fx_fwd[i] - w_bwd * fx_bwd[i];
             }
 
-            if cfg.sigma_diffusion > 0.0 {
+            if let Some(sigma) = cfg.sigma_diffusion {
                 gaussian_smooth_field_inplace_with_scratch(
                     &mut vel_z,
                     &mut vel_y,
                     &mut vel_x,
-                    dims,
-                    cfg.sigma_diffusion,
+                    dims.into(),
+                    sigma.get(),
                     &mut smooth_tmp,
                 );
             }
@@ -204,7 +204,7 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                 &vel_z,
                 &vel_y,
                 &vel_x,
-                dims,
+                dims.into(),
                 n_sq,
                 &mut phi_z,
                 &mut phi_y,
@@ -213,11 +213,11 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                 &mut scratch_ss_y,
                 &mut scratch_ss_x,
             );
-            final_mse = compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x);
+            final_mse = compute_mse_streaming(fixed, moving, dims.into(), &phi_z, &phi_y, &phi_x);
         }
 
         // phi_z/y/x already holds exp(vel) from the final MSE step of the loop.
-        warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut m_warped);
+        warp_image_into(moving, dims.into(), &phi_z, &phi_y, &phi_x, &mut m_warped);
         invert_velocity_field_into(
             &vel_z,
             &vel_y,
@@ -230,7 +230,7 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             &inv_vel_z,
             &inv_vel_y,
             &inv_vel_x,
-            dims,
+            dims.into(),
             n_sq,
             &mut psi_z,
             &mut psi_y,

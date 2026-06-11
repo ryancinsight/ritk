@@ -123,13 +123,9 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
 
     /// Apply the filter; spatial metadata preserved.
     pub fn apply<const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
-        let smoothed = self.apply_inner(image.data().clone(), image.spacing());
-        Image::new(
-            smoothed,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        )
+        let (tensor, origin, spacing, direction) = image.clone().into_parts();
+        let smoothed = self.apply_inner(tensor, &spacing);
+        Image::new(smoothed, origin, spacing, direction)
     }
 
     #[inline]

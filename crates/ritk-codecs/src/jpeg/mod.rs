@@ -111,7 +111,6 @@ fn validate_jpeg_layout(
 }
 
 fn decode_l16_native_endian(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
-    layout.validate_pixel_representation()?;
     layout.validate_rescale_parameters()?;
     if !bytes.len().is_multiple_of(2) {
         bail!("L16 JPEG decoder returned odd byte length {}", bytes.len());
@@ -119,8 +118,8 @@ fn decode_l16_native_endian(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32
     let pixels = bytes
         .chunks_exact(2)
         .map(|sample| match layout.pixel_representation {
-            1 => i16::from_ne_bytes([sample[0], sample[1]]) as f32,
-            _ => u16::from_ne_bytes([sample[0], sample[1]]) as f32,
+            crate::PixelSignedness::Signed => i16::from_ne_bytes([sample[0], sample[1]]) as f32,
+            crate::PixelSignedness::Unsigned => u16::from_ne_bytes([sample[0], sample[1]]) as f32,
         })
         .map(|sample| sample * layout.rescale_slope + layout.rescale_intercept)
         .collect();
@@ -134,16 +133,17 @@ mod tests {
     use super::*;
     use crate::jpeg::backend::JpegDecodeBackend;
     use crate::jpeg::ritk_decoder::RitkJpegDecoder;
+    use crate::PixelSignedness;
 
     fn layout(rows: usize, cols: usize, slope: f32, intercept: f32) -> PixelLayout {
-        layout_with_bits(rows, cols, 8, 0, slope, intercept)
+        layout_with_bits(rows, cols, 8, PixelSignedness::Unsigned, slope, intercept)
     }
 
     fn layout_with_bits(
         rows: usize,
         cols: usize,
         bits_allocated: u16,
-        pixel_representation: u16,
+        pixel_representation: PixelSignedness,
         slope: f32,
         intercept: f32,
     ) -> PixelLayout {
@@ -227,7 +227,7 @@ mod tests {
             cols: 2,
             samples_per_pixel: 3,
             bits_allocated: 8,
-            pixel_representation: 0,
+            pixel_representation: PixelSignedness::Unsigned,
             rescale_slope: 1.0,
             rescale_intercept: 0.0,
         };
@@ -267,7 +267,7 @@ mod tests {
     #[test]
     fn jpeg_lossless_signed_l8_fragment_decodes_exact_sample() {
         let jpeg = lossless_single_pixel_jpeg_8bit_gray_128();
-        let layout = layout_with_bits(1, 1, 8, 1, 2.0, 5.0);
+        let layout = layout_with_bits(1, 1, 8, PixelSignedness::Signed, 2.0, 5.0);
 
         let decoded = decode_jpeg_fragment(&jpeg, layout).unwrap();
 
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn jpeg_lossless_l16_fragment_decodes_exact_unsigned_sample() {
         let jpeg = lossless_single_pixel_jpeg_16bit_gray_0x1234();
-        let layout = layout_with_bits(1, 1, 16, 0, 2.0, -4.0);
+        let layout = layout_with_bits(1, 1, 16, PixelSignedness::Unsigned, 2.0, -4.0);
 
         let decoded = decode_jpeg_fragment(&jpeg, layout).unwrap();
 

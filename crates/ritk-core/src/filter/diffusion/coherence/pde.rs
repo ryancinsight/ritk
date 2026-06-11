@@ -15,7 +15,7 @@ pub fn ced_diffuse(data: &[f64], dims: [usize; 3], config: &CoherenceConfig) -> 
     let mut cur = data.to_vec();
 
     // Pre-build the 1-D Gaussian kernel for structure-tensor smoothing.
-    let kernel = make_gaussian_kernel_1d(config.sigma.get());
+    let kernel = crate::filter::gaussian_kernel_1d(config.sigma.get(), None);
     for _ in 0..config.n_iterations {
         // ── Step 1: gradient via central differences ────────────────────
         let grad = compute_gradient(&cur, dims);
@@ -82,35 +82,6 @@ pub fn compute_gradient(data: &[f64], dims: [usize; 3]) -> Gradient {
 }
 
 // ── Gaussian smoothing ────────────────────────────────────────────────────────
-
-/// Build a normalised 1-D Gaussian kernel of radius ⌈3·σ⌉.
-///
-/// The kernel is symmetric and sums to 1.0.
-///
-/// # Note
-/// Similar construction to `filter::gaussian::GaussianFilter::generate_kernel`
-/// (returns `Vec<f32>`, limits max width). When a shared generic kernel builder
-/// is introduced, deduplicate both sites.
-// TODO: deduplicate with filter::gaussian::GaussianFilter::generate_kernel
-pub fn make_gaussian_kernel_1d(sigma: f64) -> Vec<f64> {
-    if sigma <= 0.0 {
-        return vec![1.0];
-    }
-    let radius = (3.0 * sigma).ceil() as usize;
-    let size = 2 * radius + 1;
-    let mut kernel = Vec::with_capacity(size);
-    let mut sum = 0.0f64;
-    for k in -(radius as i64)..=radius as i64 {
-        let x = k as f64;
-        let w = (-x * x / (2.0 * sigma * sigma)).exp();
-        kernel.push(w);
-        sum += w;
-    }
-    for w in &mut kernel {
-        *w /= sum;
-    }
-    kernel
-}
 
 /// Separable Gaussian smoothing along a single axis.
 ///

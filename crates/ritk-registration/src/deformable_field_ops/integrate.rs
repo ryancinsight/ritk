@@ -2,6 +2,7 @@
 
 use super::compose::compose_fields_into;
 use super::{VectorField3D, VectorFieldMut3D, VelocityField};
+use ritk_core::spatial::VolumeDims;
 
 /// Compute the exponential map `exp(v)` of a stationary velocity field `v`
 /// via the scaling-and-squaring algorithm.
@@ -20,7 +21,7 @@ pub(crate) fn scaling_and_squaring(
     vz: &[f32],
     vy: &[f32],
     vx: &[f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     n_steps: usize,
 ) -> VelocityField {
     let scale = 1.0_f32 / (1u32 << n_steps) as f32;
@@ -82,7 +83,7 @@ pub(crate) fn scaling_and_squaring_into(
     vz: &[f32],
     vy: &[f32],
     vx: &[f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
     n_steps: usize,
     out_z: &mut [f32],
     out_y: &mut [f32],
@@ -135,7 +136,7 @@ mod tests {
     /// Scaling-and-squaring of the zero field is the zero field.
     #[test]
     fn scaling_and_squaring_zero_field() {
-        let dims = [4usize, 4, 4];
+        let dims = VolumeDims::new([4, 4, 4]);
         let n = 4 * 4 * 4;
         let vz = vec![0.0_f32; n];
         let vy = vec![0.0_f32; n];
@@ -151,7 +152,7 @@ mod tests {
     /// For a small constant velocity field, exp(v) ≈ v (first-order approximation).
     #[test]
     fn scaling_and_squaring_small_velocity_approx_identity() {
-        let dims = [4usize, 4, 4];
+        let dims = VolumeDims::new([4, 4, 4]);
         let n = 4 * 4 * 4;
         let vz = vec![0.0_f32; n];
         let vy = vec![0.0_f32; n];
@@ -171,7 +172,7 @@ mod tests {
     /// `scaling_and_squaring_into` produces the same result as `scaling_and_squaring`.
     #[test]
     fn scaling_and_squaring_into_matches_allocating() {
-        let dims = [4usize, 4, 4];
+        let dims = VolumeDims::new([4, 4, 4]);
         let n = 4 * 4 * 4;
         let vz: Vec<f32> = (0..n).map(|i| (i as f32) * 0.001).collect();
         let vy: Vec<f32> = (0..n).map(|i| (i as f32) * -0.001).collect();

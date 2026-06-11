@@ -49,7 +49,7 @@ pub(super) fn extract_pixels(image: &Image, layout: &PixelLayout) -> Result<Vec<
             layout.cols
         );
     };
-    let expected_signed = layout.pixel_representation != 0;
+    let expected_signed = layout.pixel_representation.is_signed();
     let Some(expected_samples) = expected_pixels.checked_mul(comps.len()) else {
         bail!(
             "JPEG 2000 sample count overflow pixels={} components={}",
@@ -78,7 +78,7 @@ pub(super) fn extract_pixels(image: &Image, layout: &PixelLayout) -> Result<Vec<
                 "JPEG 2000 component {} signedness {} does not match PixelRepresentation {}",
                 ci,
                 comp.is_signed(),
-                layout.pixel_representation
+                layout.pixel_representation.to_u16()
             );
         }
         let Some(component_pixels) = w.checked_mul(h) else {

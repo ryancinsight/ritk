@@ -6,12 +6,14 @@
 
 use openjp2::openjpeg as opj;
 
+use crate::PixelSignedness;
+
 pub(super) fn encode_grayscale_j2k(
     pixels: &[i32],
     rows: u32,
     cols: u32,
     precision: u32,
-    signed: bool,
+    signed: PixelSignedness,
 ) -> Vec<u8> {
     assert_eq!(
         pixels.len(),
@@ -22,7 +24,7 @@ pub(super) fn encode_grayscale_j2k(
     unsafe {
         let mut out: Vec<u8> = Vec::new();
         let write_stream = create_memory_write_stream(&mut out);
-        let image = create_image(pixels, rows, cols, precision, signed);
+        let image = create_image(pixels, rows, cols, precision, signed.is_signed());
         let codec = opj::opj_create_compress(opj::CODEC_FORMAT::OPJ_CODEC_J2K);
         assert!(!codec.is_null(), "opj_create_compress returned null");
 

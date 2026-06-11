@@ -10,6 +10,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use crate::format::dicom::object_model::{DicomObjectModel, DicomPreservationSet};
+use ritk_dicom::PixelSignedness;
 
 /// Per-slice DICOM metadata extracted during series loading.
 #[derive(Debug, Clone, PartialEq)]
@@ -31,8 +32,8 @@ pub struct DicomSliceMetadata {
     pub sop_class_uid: Option<ArrayString<64>>,
     pub transfer_syntax_uid: Option<ArrayString<64>>,
     pub private_tags: HashMap<String, String>,
-    /// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed two's complement.
-    pub pixel_representation: u16,
+    /// PixelRepresentation (0028,0103): unsigned or signed two's complement.
+    pub pixel_representation: PixelSignedness,
     /// BitsAllocated (0028,0100). Defaults to 16 when absent.
     pub bits_allocated: u16,
     pub window_center: Option<f64>,
@@ -61,7 +62,7 @@ impl Default for DicomSliceMetadata {
             sop_class_uid: None,
             transfer_syntax_uid: None,
             private_tags: HashMap::new(),
-            pixel_representation: 0,
+            pixel_representation: PixelSignedness::Unsigned,
             bits_allocated: 16,
             window_center: None,
             window_width: None,

@@ -5,6 +5,7 @@ use super::super::registration::GlobalMiRegistration;
 use crate::optimizer::RegularStepGdConfig;
 use crate::optimizer::{HistoryPolicy, PopulationEval};
 use burn::tensor::Tensor;
+use ritk_core::filter::GaussianSigma;
 use ritk_core::transform::TranslationTransform;
 
 use super::{make_box_mask, make_gaussian_blob, TestBackend};
@@ -22,7 +23,11 @@ fn convergence_history_tracks_per_level() {
     let config = GlobalMiConfig {
         num_levels: 3,
         shrink_factors: vec![4, 2, 1],
-        smoothing_sigmas: vec![4.0, 2.0, 0.0],
+        smoothing_sigmas: vec![
+            Some(GaussianSigma::new_unchecked(4.0)),
+            Some(GaussianSigma::new_unchecked(2.0)),
+            None,
+        ],
         num_mi_bins: 16,
         sampling_percentage: 0.30,
         rsgd_configs: vec![
@@ -98,7 +103,7 @@ fn cma_mi_register_rigid_without_mask_matches_register_rigid_with_none() {
             record_history: HistoryPolicy::Discard,
         },
         coarse_shrink: 4,
-        coarse_sigma_mm: 2.0,
+        coarse_sigma_mm: GaussianSigma::new_unchecked(2.0),
         ..CmaMiConfig::default()
     };
 
@@ -145,7 +150,7 @@ fn cma_mi_register_rigid_with_mask_partial_foreground_runs_without_error() {
             record_history: HistoryPolicy::Discard,
         },
         coarse_shrink: 2, // mild shrink so 8×8×8 → 4×4×4 (mask still has foreground)
-        coarse_sigma_mm: 1.0,
+        coarse_sigma_mm: GaussianSigma::new_unchecked(1.0),
         sampling_percentage: 1.0, // use all foreground
         init_strategy: InitStrategy::Manual,
         ..CmaMiConfig::default()

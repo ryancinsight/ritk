@@ -4,6 +4,7 @@
 use super::VelocityField;
 use super::{trilinear_interpolate, VectorField3D, VectorFieldMut3D};
 use crate::parallel::CellSlice;
+use ritk_core::spatial::VolumeDims;
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂` into caller-provided buffers.
 ///
@@ -11,14 +12,14 @@ use crate::parallel::CellSlice;
 /// `x` is obtained by displacing `x` by `φ₂(x)` and then sampling `φ₁` at the
 /// resulting position via trilinear interpolation.
 ///
-/// Output buffers must have length `dims[0] * dims[1] * dims[2]`.
+/// Output buffers must have length `dims.total_voxels()`.
 pub(crate) fn compose_fields_into(
     phi1: VectorField3D<'_>,
     phi2: VectorField3D<'_>,
-    dims: [usize; 3],
+    dims: VolumeDims,
     out: VectorFieldMut3D<'_>,
 ) {
-    let [nz, ny, nx] = dims;
+    let [nz, ny, nx] = dims.0;
     let VectorField3D {
         z: phi1_z,
         y: phi1_y,
@@ -77,9 +78,9 @@ pub(crate) fn compose_fields(
     phi2_z: &[f32],
     phi2_y: &[f32],
     phi2_x: &[f32],
-    dims: [usize; 3],
+    dims: VolumeDims,
 ) -> VelocityField {
-    let [nz, ny, nx] = dims;
+    let [nz, ny, nx] = dims.0;
     let n = nz * ny * nx;
 
     let mut cz = vec![0.0_f32; n];
@@ -119,7 +120,7 @@ mod tests {
     /// Identity composition: φ ∘ 0 = φ.
     #[test]
     fn compose_with_zero_is_identity() {
-        let dims = [4usize, 4, 4];
+        let dims = VolumeDims::new([4, 4, 4]);
         let n = 4 * 4 * 4;
         let phiz: Vec<f32> = (0..n).map(|i| i as f32 * 0.01).collect();
         let phiy: Vec<f32> = (0..n).map(|i| -(i as f32) * 0.01).collect();
@@ -153,7 +154,7 @@ mod tests {
     /// 0 ∘ φ = φ.
     #[test]
     fn compose_zero_with_field_is_field() {
-        let dims = [4usize, 4, 4];
+        let dims = VolumeDims::new([4, 4, 4]);
         let n = 4 * 4 * 4;
         let phi: Vec<f32> = (0..n).map(|i| i as f32 * 0.01).collect();
         let zero = vec![0.0_f32; n];

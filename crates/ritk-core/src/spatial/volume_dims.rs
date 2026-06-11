@@ -1,5 +1,7 @@
 //! Validated volume dimensions newtype.
 
+use serde::{Deserialize, Serialize};
+
 /// Newtype wrapping `[usize; 3]` to type-distinguish volume (image) spatial
 /// dimensions from other `[usize; 3]` arrays (control-grid dims, strides, etc.).
 ///
@@ -8,7 +10,8 @@
 /// # Invariants
 /// All three dimensions are non-zero for a valid image (not enforced by the
 /// newtype; use `total_voxels()` to detect degenerate shapes).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 #[repr(transparent)]
 pub struct VolumeDims(pub [usize; 3]);
 

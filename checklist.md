@@ -1,7 +1,42 @@
 # RITK Sprint Checklist — Active
 
-## Sprint 360 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat ×5)
-**Target version**: 0.57.0
+## Sprint 361 — Phase 21 Cleanup & Optimization (20 Cycles)
+**Target version**: 0.58.0  
+ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
+
+- [x] CYC-01 [patch]: Fix `ops.rs::gaussian_kernel_1d` bug (1+σ² → 2σ²) + value-semantic FWHM test
+- [x] CYC-02 [patch]: Delete 6 duplicate Gaussian kernel functions (n4/dft, frangi, pde wrapper, level_set/helpers, geodesic_active_contour, deconvolution legacy wrappers)
+- [x] CYC-03 [patch]: Naming prohibition: `rebuild_image_3d`→`rebuild_image`, `refine_component_3d`→`refine_component`, `laplacian` alias deleted
+- [x] CYC-04 [minor]: GaussianSigma in DemonsConfig.sigma_diffusion/fluid (Option<GaussianSigma>), GlobalMiConfig.smoothing_sigmas (Vec<Option<GaussianSigma>>), CmaMiLevelConfig.sigma_mm/coarse_sigma_mm
+- [x] CYC-05 [patch]: RegularStepGdConfig derive Copy; `best_x.clone()` → mem::take; Range<i32> redundant clone; SamplingMode enum for use_sampling:bool
+- [x] CYC-06 [minor]: VolumeDims for LabelMap.shape, ImageOverlay.dims, MaskOverlay.dims, N4Config.initial_control_points + ritk-io call sites
+- [x] CYC-07 [minor]: AffineTransform internal propagation: classical/spatial/{transform,affine,rigid}.rs + global_mi/transforms.rs
+- [x] CYC-08 [minor]: CliInverseConsistency enum in ritk-cli (21 bool stubs updated)
+- [x] CYC-09 [minor]: CLI sigma validation: checked GaussianSigma construction with anyhow bail in mi.rs, lddmm.rs, smoothing.rs, spatial_impl.rs
+- [x] CYC-10 [minor]: PySpacingMode enum replacing use_image_spacing:bool in ritk-python
+- [x] CYC-11 [patch]: SRP: demons.rs 448L→152L + normalize.rs 456L→187L (tests extracted)
+- [x] CYC-12 [patch]: Delete remaining Gaussian kernel duplicates: level_set/helpers.rs, geodesic_active_contour.rs
+- [x] CYC-13 [patch]: Collapse generate_mask_2d_dispatch/3d to generate_mask_generic<D>
+- [x] CYC-14 [patch]: Extract CmaMiResult to cma_mi/result.rs
+- [x] CYC-15 [patch]: iterate_structure/mod.rs tests already extracted (prior sprint, confirmed)
+- [x] CYC-16 [patch]: region_growing/mod.rs 414L → 23L; ConnectedThresholdFilter → connected_threshold.rs; tests → tests.rs
+- [x] CYC-17 [patch]: ritk-python/filter/smooth.rs 417L → smooth/ directory (mod.rs, gaussian.rs, diffusion.rs, special.rs)
+- [x] CYC-18 [minor]: VolumeDims in deformable_field_ops/* function params (6 files + 21 callers)
+- [x] CYC-19 [patch]: Vec::with_capacity — no Vec::new() in hot paths (confirmed no-op)
+- [x] CYC-20 [patch]: Full verification gate — clippy 0 warnings, all test suites green
+
+**Verification gate**:
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo test -p ritk-core --lib` → 1647/0/1
+- [x] `cargo test -p ritk-registration --lib` → 583/0/1
+- [x] `cargo test -p ritk-codecs --lib` → 106/0/0
+- [x] `cargo test -p ritk-nrrd --lib` → 23/0/0
+- [x] `cargo test -p ritk-io --lib` → 327/0/0
+- [x] ritk-core: 0.8.0 → 0.9.0; ritk-registration: 0.52.0 → 0.53.0
+
+---
+
+## Residual Items for Sprint 361
 
 - [x] PRIM-360-01: `GaussianSigma` in `WhiteStripeResult.sigma` + all call sites [minor]
 - [x] BOOL-360-02: `DicomAssociationState` for `Association.active: bool` [patch]

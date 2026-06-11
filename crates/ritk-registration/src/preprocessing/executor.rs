@@ -58,7 +58,7 @@ impl PreprocessingPipeline {
                                 .collect()
                         }
                     };
-                    rebuild_image_3d(&image, result)?
+                    rebuild_image(&image, result)?
                 }
 
                 PreprocessingStep::Clamp { lower, upper } => {
@@ -66,7 +66,7 @@ impl PreprocessingPipeline {
                         .try_data_vec()
                         .context("Clamp requires f32 image data")?;
                     let result: Vec<f32> = vals.iter().map(|&v| v.clamp(*lower, *upper)).collect();
-                    rebuild_image_3d(&image, result)?
+                    rebuild_image(&image, result)?
                 }
 
                 PreprocessingStep::Masking {
@@ -98,7 +98,7 @@ impl PreprocessingPipeline {
                         .zip(mask.iter())
                         .map(|(&v, &m)| if m == 0 { 0.0 } else { v })
                         .collect();
-                    rebuild_image_3d(&image, result)?
+                    rebuild_image(&image, result)?
                 }
 
                 PreprocessingStep::Smoothing { sigma } => {
@@ -114,7 +114,7 @@ impl PreprocessingPipeline {
 }
 
 /// Reconstruct a 3-D image from a flat `Vec<f32>`, preserving spatial metadata.
-fn rebuild_image_3d<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>) -> Result<Image<B, 3>> {
+fn rebuild_image<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>) -> Result<Image<B, 3>> {
     let shape = src.shape();
     let device = src.data().device();
     let tensor = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &device);

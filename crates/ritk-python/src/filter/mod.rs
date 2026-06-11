@@ -43,6 +43,7 @@ pub use vessel::*;
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new_bound(parent.py(), "filter")?;
     // Smoothing & diffusion
+    m.add_class::<PySpacingMode>()?;
     m.add_function(wrap_pyfunction!(gaussian_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(discrete_gaussian, &m)?)?;
     m.add_function(wrap_pyfunction!(median_filter, &m)?)?;

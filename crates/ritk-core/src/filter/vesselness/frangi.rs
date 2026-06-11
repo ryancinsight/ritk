@@ -214,7 +214,7 @@ pub(crate) fn gaussian_blur_vec(
         }
 
         let radius = (3.0 * sigma_px).ceil() as usize;
-        let kernel = build_gaussian_kernel(sigma_px, radius);
+        let kernel = crate::filter::gaussian_kernel_1d::<f32>(sigma_px as f32, Some(radius));
         let mut scratch = vec![0.0f32; n];
 
         match axis {
@@ -278,27 +278,6 @@ pub(crate) fn gaussian_blur_vec(
     }
 
     buf
-}
-
-/// Build a normalised 1-D Gaussian kernel.
-///
-/// `kernel[i] = exp(−(i − radius)² / (2 · sigma_px²))`, normalised to sum = 1.
-fn build_gaussian_kernel(sigma_px: f64, radius: usize) -> Vec<f32> {
-    let width = 2 * radius + 1;
-    let inv_two_s2 = 1.0 / (2.0 * sigma_px * sigma_px);
-    let mut k: Vec<f32> = (0..width)
-        .map(|i| {
-            let x = i as f64 - radius as f64;
-            (-(x * x) * inv_two_s2).exp() as f32
-        })
-        .collect();
-    let sum: f32 = k.iter().sum();
-    if sum > f32::EPSILON {
-        for v in &mut k {
-            *v /= sum;
-        }
-    }
-    k
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────

@@ -91,6 +91,6 @@ fn constant_displacement_translates_image() {
 fn trilinear_interpolate_accessible_from_bspline_tests() {
     let data = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
     let dims = [2, 2, 2];
-    let v = trilinear_interpolate(&data, dims, 0.0, 0.0, 0.0);
+    let v = trilinear_interpolate(&data, dims.into(), 0.0, 0.0, 0.0);
     assert_eq!(v, 1.0);
 }

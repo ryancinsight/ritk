@@ -47,7 +47,8 @@ pub(super) fn handle_connection(
     };
 
     // 2. Accept every offered presentation context with its first transfer syntax.
-    let mut ctx_map: HashMap<u8, (ArrayString<64>, ArrayString<64>)> = HashMap::new();
+    let mut ctx_map: HashMap<u8, (ArrayString<64>, ArrayString<64>)> =
+        HashMap::with_capacity(rq.presentation_contexts.len());
     let pc_acs: Vec<PresentationContextItemAc> = rq
         .presentation_contexts
         .iter()

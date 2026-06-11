@@ -115,7 +115,11 @@ impl Association {
 
 /// Build a map of presentation-context ID → abstract-syntax UID from an RQ PDU.
 pub(super) fn rq_iter_abstracts(pdu: &Pdu) -> HashMap<u8, ArrayString<64>> {
-    let mut m = HashMap::new();
+    let mut m = if let Pdu::AssociateRq(rq) = pdu {
+        HashMap::with_capacity(rq.presentation_contexts.len())
+    } else {
+        HashMap::new()
+    };
     if let Pdu::AssociateRq(rq) = pdu {
         for pc in &rq.presentation_contexts {
             m.insert(pc.presentation_context_id, pc.abstract_syntax_uid);

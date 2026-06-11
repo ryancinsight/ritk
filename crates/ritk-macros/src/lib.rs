@@ -290,3 +290,121 @@ fn interp_dim_template_typed_inner(input: TokenStream) -> TokenStream {
     };
     output
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// Typed nearest-neighbor specialization layer (Sprint 361)
+// ══════════════════════════════════════════════════════════════════════
+//
+// Parallel to [`interp_dim_template_typed!`] but for nearest-neighbor
+// interpolation. The key differences from the linear typed macro:
+//   1. **Rounding**: uses `floor(coord + 0.5)` (round-to-nearest)
+//      instead of `floor(coord)` + `ceil(coord)` (lower/upper corners).
+//   2. **One index per axis**: nearest only needs one int index per
+//      axis (no upper/lower pair), so the body is a single gather.
+//   3. **Pre-clamp floor values**: the `x_f`/`y_f`/`z_f`/`w_f` values
+//      are bound for use by the nearest mask (the mask checks if the
+//      *rounded* coordinate is in bounds, not the clamped int index).
+//   4. **No weights**: nearest has no `wx`/`wy`/`wz`/`ww` (no lerp
+//      cascade).
+//
+// The input format is identical to [`interp_dim_template_typed!`], so
+// the same `InterpDimTypedInput` parser is reused.
+
+/// Generate a per-D `interpolate_nearest_<D>d_typed` function with
+/// **const-generic shape** (Sprint 361 — 351-01-NN-TYPED).
+///
+/// Parallel to [`interp_dim_template_typed!`] but for nearest-neighbor
+/// interpolation. See the module-level doc comment for the full design
+/// rationale.
+#[proc_macro]
+pub fn interp_dim_template_nearest_typed(
+    input: ::proc_macro::TokenStream,
+) -> ::proc_macro::TokenStream {
+    let input = proc_macro2::TokenStream::from(input);
+    let output = interp_dim_template_nearest_typed_inner(input);
+    ::proc_macro::TokenStream::from(output)
+}
+
+fn interp_dim_template_nearest_typed_inner(input: TokenStream) -> TokenStream {
+    let parsed = match syn::parse2::<InterpDimTypedInput>(input) {
+        Ok(p) => p,
+        Err(e) => return e.to_compile_error(),
+    };
+
+    let dim_val = match parsed.dim.base10_parse::<usize>() {
+        Ok(n) => n,
+        Err(e) => return e.to_compile_error(),
+    };
+
+    let func = &parsed.func;
+    let body = &parsed.body;
+    let dims = &parsed.dims;
+
+    // Validate counts match dim.
+    let n = dim_val;
+    if dims.len() != n {
+        let err = syn::Error::new_spanned(
+            &parsed.dim,
+            format!(
+                "dim {} requires {} dims (got {})",
+                n,
+                n,
+                dims.len()
+            ),
+        );
+        return err.to_compile_error();
+    }
+
+    // Build the const-generic function signature.
+    let const_generics = dims.iter().map(|d| {
+        quote! { const #d: usize }
+    });
+
+    // Build the nearest-neighbor prelude (rounding, clamping) and mask
+    // (using pre-clamp floor values for in_bounds_mask).
+    let (prelude, mask) = match dim_val {
+        1 => (
+            generate_typed_nearest_d1_prelude(dims),
+            generate_nearest_d1_mask(dims),
+        ),
+        2 => (
+            generate_typed_nearest_d2_prelude(dims),
+            generate_nearest_d2_mask(dims),
+        ),
+        3 => (
+            generate_typed_nearest_d3_prelude(dims),
+            generate_nearest_d3_mask(dims),
+        ),
+        4 => (
+            generate_typed_nearest_d4_prelude(dims),
+            generate_nearest_d4_mask(dims),
+        ),
+        _ => {
+            let err = syn::Error::new_spanned(
+                &parsed.dim,
+                format!("dim must be 1, 2, 3, or 4 (got {})", dim_val),
+            );
+            return err.to_compile_error();
+        }
+    };
+
+    // The function signature is specialized to the rank (D = dim_val),
+    // not generic over it — the body assumes the rank matches the
+    // const-generic shape length. The const generics parameterize the
+    // shape, not the rank.
+    let output = quote! {
+        pub(crate) fn #func<
+            B: ::burn::tensor::backend::Backend,
+            #( #const_generics ),*
+        >(
+            data: &::burn::tensor::Tensor<B, #dim_val>,
+            indices: ::burn::tensor::Tensor<B, 2>,
+            mode: crate::interpolation::shared::OutOfBoundsMode,
+        ) -> ::burn::tensor::Tensor<B, 1> {
+            #prelude
+            let result = { #body };
+            #mask
+        }
+    };
+    output
+}

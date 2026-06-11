@@ -7,6 +7,7 @@
 //! This is the binary indicator function B(x) = 1[I(x) in [lo, hi]]
 //! scaled to {foreground, background}.
 
+use crate::filter::morphology::types::ForegroundValue;
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -19,7 +20,7 @@ pub struct BinaryThresholdImageFilter {
     /// Upper bound (inclusive) of the foreground interval.
     pub upper_threshold: f32,
     /// Output value for pixels inside [lower_threshold, upper_threshold].
-    pub foreground: f32,
+    pub foreground: ForegroundValue,
     /// Output value for pixels outside [lower_threshold, upper_threshold].
     pub background: f32,
 }
@@ -28,13 +29,13 @@ impl BinaryThresholdImageFilter {
     pub fn new(
         lower_threshold: f32,
         upper_threshold: f32,
-        foreground: f32,
+        foreground: impl Into<ForegroundValue>,
         background: f32,
     ) -> Self {
         Self {
             lower_threshold,
             upper_threshold,
-            foreground,
+            foreground: foreground.into(),
             background,
         }
     }
@@ -43,7 +44,7 @@ impl BinaryThresholdImageFilter {
         let (vals, dims) = extract_vec(image)?;
         let lo = self.lower_threshold;
         let hi = self.upper_threshold;
-        let fg = self.foreground;
+        let fg = f32::from(self.foreground);
         let bg = self.background;
         let out: Vec<f32> = vals
             .iter()

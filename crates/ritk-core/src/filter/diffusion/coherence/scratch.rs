@@ -1,7 +1,7 @@
 use crate::filter::edge::GaussianSigma;
 use moirai::ParallelSliceMut;
 
-use super::pde::{compute_divergence_into, gaussian_smooth_1d, make_gaussian_kernel_1d};
+use super::pde::{compute_divergence_into, gaussian_smooth_1d};
 
 // ── Gradient buffer ──────────────────────────────────────────────────────────
 
@@ -119,7 +119,7 @@ impl CedScratch {
             self.smooth_buf = vec![0.0; n];
         }
         if self.cached_sigma != Some(sigma) || self.kernel.is_empty() {
-            self.kernel = make_gaussian_kernel_1d(sigma.get());
+            self.kernel = crate::filter::gaussian_kernel_1d(sigma.get(), None);
             self.cached_sigma = Some(sigma);
         }
     }

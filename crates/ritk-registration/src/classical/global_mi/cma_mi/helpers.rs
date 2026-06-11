@@ -6,6 +6,7 @@
 use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::filter::pyramid::MultiResolutionPyramid;
+use ritk_core::filter::GaussianSigma;
 use ritk_core::image::Image;
 use ritk_core::transform::RigidTransform;
 
@@ -83,7 +84,7 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     moving: &Image<B, 3>,
     config: &CmaMiConfig,
     per_axis: &[usize; 3],
-    sigma_mm: f64,
+    sigma_mm: GaussianSigma,
     cma_sigma0: f64,
     max_generations: usize,
     lambda: usize,
@@ -104,9 +105,21 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     // on an axis we are NOT downsampling wastes z-information that the thin-slab
     // preset specifically preserves via anisotropic shrink factors.
     let smoothing_sigmas: Vec<[f64; 3]> = vec![[
-        if per_axis[0] <= 1 { 0.0 } else { sigma_mm },
-        if per_axis[1] <= 1 { 0.0 } else { sigma_mm },
-        if per_axis[2] <= 1 { 0.0 } else { sigma_mm },
+        if per_axis[0] <= 1 {
+            0.0
+        } else {
+            sigma_mm.get()
+        },
+        if per_axis[1] <= 1 {
+            0.0
+        } else {
+            sigma_mm.get()
+        },
+        if per_axis[2] <= 1 {
+            0.0
+        } else {
+            sigma_mm.get()
+        },
     ]];
 
     let fixed_pyr = MultiResolutionPyramid::new(fixed, &shrink_factors, &smoothing_sigmas);

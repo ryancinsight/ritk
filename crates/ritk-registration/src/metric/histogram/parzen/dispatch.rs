@@ -35,7 +35,7 @@
 //! All sigma² conversions now go through `ParzenConfig::from_intensity_sigma`
 //! (SSOT-319-02). The former `sigma_sq_in_bins` standalone function has been
 //! removed — its 10+ call sites across `dispatch.rs`, `compute.rs`,
-//! `compute_image.rs`, `masked/mod.rs`, and test files now call
+//! `compute_image/mod.rs`, `masked/mod.rs`, and test files now call
 //! `ParzenConfig::from_intensity_sigma` directly.
 
 use burn::tensor::backend::Backend;
@@ -77,9 +77,7 @@ pub(in crate::metric::histogram) fn normalize_and_extract<B: Backend>(
 /// Burn exposes stable slice accessors.
 #[cfg(feature = "direct-parzen")]
 #[inline]
-fn extract_oob_mask<B: Backend>(
-    oob_mask: Option<&Tensor<B, 1>>,
-) -> Option<Cow<'static, [f32]>> {
+fn extract_oob_mask<B: Backend>(oob_mask: Option<&Tensor<B, 1>>) -> Option<Cow<'static, [f32]>> {
     oob_mask.map(|m| {
         Cow::Owned(
             m.clone()

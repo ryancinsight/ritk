@@ -272,14 +272,6 @@ fn compute_edge_stopping(grad_mag: &[f32], k: f64) -> Vec<f32> {
         .collect()
 }
 
-#[cfg(test)]
-fn build_gaussian_kernel_1d(sigma: f64, radius: i64) -> Vec<f32> {
-    helpers::build_gaussian_kernel_1d(sigma, radius as usize)
-        .iter()
-        .map(|&v| v as f32)
-        .collect()
-}
-
 // ── Tests ──────────────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

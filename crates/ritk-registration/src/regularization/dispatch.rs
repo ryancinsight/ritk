@@ -23,7 +23,7 @@ fn dispatch_laplacian_squared<B: Backend, const D: usize>(
             let shape = displacement.shape();
             let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
             let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
-            utils::laplacian(d4)
+            utils::spatial_laplacian_2d(d4)
                 .powf_scalar(2.0)
                 .mean()
                 .mul_scalar(weight)

@@ -137,7 +137,7 @@ impl LddmmRegistration {
                 &mut gs_comp_y,
                 &mut gs_comp_x,
             );
-            warp_image_into(moving, dims, &dz, &dy, &dx, &mut warped);
+            warp_image_into(moving, dims.into(), &dz, &dy, &dx, &mut warped);
 
             // ACCUMULATOR: f64 — sum over n voxels; f32 would lose precision.
             let mse: f64 = warped
@@ -161,7 +161,14 @@ impl LddmmRegistration {
             prev_mse = mse;
 
             // Body force: K_σ ∗ [2 (warped − fixed) · ∇(warped)]
-            compute_gradient_into(&warped, dims, spacing, &mut gw_z, &mut gw_y, &mut gw_x);
+            compute_gradient_into(
+                &warped,
+                dims.into(),
+                spacing,
+                &mut gw_z,
+                &mut gw_y,
+                &mut gw_x,
+            );
 
             for i in 0..n {
                 let residual = 2.0 * (warped[i] - fixed[i]);
@@ -173,7 +180,7 @@ impl LddmmRegistration {
                 &mut bf_z,
                 &mut bf_y,
                 &mut bf_x,
-                dims,
+                dims.into(),
                 cfg.kernel_sigma.get(),
                 &mut smooth_tmp,
             );
@@ -211,7 +218,7 @@ impl LddmmRegistration {
             &mut gs_comp_y,
             &mut gs_comp_x,
         );
-        warp_image_into(moving, dims, &dz, &dy, &dx, &mut warped);
+        warp_image_into(moving, dims.into(), &dz, &dy, &dx, &mut warped);
         // ACCUMULATOR: f64 — sum over n voxels; f32 would lose precision.
         let final_mse: f64 = warped
             .iter()

@@ -155,49 +155,6 @@ impl FrequencyResponse for ButterworthHighPass {
     }
 }
 
-// ── Mask generation (generic) ─────────────────────────────────────────────────
-
-fn generate_mask_2d_dispatch(
-    h: usize,
-    w: usize,
-    kind: FftFilterKind,
-    cutoff: f64,
-    order: usize,
-) -> Vec<f32> {
-    let dims = [h, w];
-    match kind {
-        FftFilterKind::IdealLowPass => IdealLowPass::compute_mask::<2>(&dims, cutoff, order),
-        FftFilterKind::IdealHighPass => IdealHighPass::compute_mask::<2>(&dims, cutoff, order),
-        FftFilterKind::ButterworthLowPass => {
-            ButterworthLowPass::compute_mask::<2>(&dims, cutoff, order)
-        }
-        FftFilterKind::ButterworthHighPass => {
-            ButterworthHighPass::compute_mask::<2>(&dims, cutoff, order)
-        }
-    }
-}
-
-fn generate_mask_3d_dispatch(
-    d: usize,
-    h: usize,
-    w: usize,
-    kind: FftFilterKind,
-    cutoff: f64,
-    order: usize,
-) -> Vec<f32> {
-    let dims = [d, h, w];
-    match kind {
-        FftFilterKind::IdealLowPass => IdealLowPass::compute_mask::<3>(&dims, cutoff, order),
-        FftFilterKind::IdealHighPass => IdealHighPass::compute_mask::<3>(&dims, cutoff, order),
-        FftFilterKind::ButterworthLowPass => {
-            ButterworthLowPass::compute_mask::<3>(&dims, cutoff, order)
-        }
-        FftFilterKind::ButterworthHighPass => {
-            ButterworthHighPass::compute_mask::<3>(&dims, cutoff, order)
-        }
-    }
-}
-
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
 /// Frequency-domain image filter.
@@ -251,7 +208,7 @@ impl FrequencyDomainFilter {
 
         // Generate and apply mask.
         let (vals, dims) = extract_vec(&shifted)?;
-        let mask = generate_mask_2d_dispatch(h, w, kind, cutoff, order);
+        let mask = Self::generate_mask_generic::<2>(&[h, w], kind, cutoff, order);
         let mut out = Vec::with_capacity(vals.len());
         for r in 0..h {
             for c in 0..w {
@@ -293,7 +250,7 @@ impl FrequencyDomainFilter {
 
         // Generate and apply mask.
         let (vals, dims) = extract_vec(&shifted)?;
-        let mask = generate_mask_3d_dispatch(d, h, w, kind, cutoff, order);
+        let mask = Self::generate_mask_generic::<3>(&[d, h, w], kind, cutoff, order);
         let slice_size = h * cw;
         let mut out = Vec::with_capacity(vals.len());
         for z in 0..d {
@@ -326,7 +283,6 @@ impl FrequencyDomainFilter {
     ///
     /// This is the const-generic entry point that delegates to the appropriate
     /// [`FrequencyResponse`] implementor's [`compute_mask`] method.
-    #[allow(dead_code)]
     pub(crate) fn generate_mask_generic<const D: usize>(
         spatial_dims: &[usize; D],
         kind: FftFilterKind,

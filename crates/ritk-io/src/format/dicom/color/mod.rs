@@ -16,7 +16,7 @@ use ritk_core::image::RgbVolume;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
-    PixelLayout, TransferSyntaxKind,
+    PixelLayout, PixelSignedness, TransferSyntaxKind,
 };
 
 use super::color_common::{
@@ -286,13 +286,14 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let pixel_representation =
-        optional_u16(obj, Tag(0x0028, 0x0103)).unwrap_or(slice.pixel_representation);
-    if pixel_representation != 0 {
+    let pixel_representation: PixelSignedness = optional_u16(obj, Tag(0x0028, 0x0103))
+        .and_then(|v| PixelSignedness::try_from(v).ok())
+        .unwrap_or(slice.pixel_representation);
+    if pixel_representation != PixelSignedness::Unsigned {
         bail!(
             "DICOM RGB color volume loader supports only unsigned samples; {:?} declares PixelRepresentation={}",
             slice.path,
-            pixel_representation
+            pixel_representation.to_u16()
         );
     }
 

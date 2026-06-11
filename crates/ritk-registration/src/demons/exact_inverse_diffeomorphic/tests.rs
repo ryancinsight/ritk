@@ -4,13 +4,14 @@ use super::engine::InverseConsistentDiffeomorphicDemonsRegistration;
 use super::types::InverseConsistentDemonsConfig;
 use crate::demons::config::DemonsConfig;
 use crate::demons::diffeomorphic::DiffeomorphicDemonsRegistration;
+use ritk_core::filter::GaussianSigma;
 
 fn default_config() -> InverseConsistentDemonsConfig {
     InverseConsistentDemonsConfig {
         demons: DemonsConfig {
             max_iterations: 20,
-            sigma_diffusion: 1.0,
-            sigma_fluid: 0.0,
+            sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
+            sigma_fluid: None,
             max_step_length: 2.0,
         },
         inverse_consistency_weight: 0.5,
@@ -146,8 +147,8 @@ fn test_weight_zero_matches_standard_diffeomorphic() {
     let config_ic = InverseConsistentDemonsConfig {
         demons: DemonsConfig {
             max_iterations: 10,
-            sigma_diffusion: 1.0,
-            sigma_fluid: 0.0,
+            sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
+            sigma_fluid: None,
             max_step_length: 2.0,
         },
         inverse_consistency_weight: 0.0,
@@ -158,8 +159,8 @@ fn test_weight_zero_matches_standard_diffeomorphic() {
 
     let config_std = DemonsConfig {
         max_iterations: 10,
-        sigma_diffusion: 1.0,
-        sigma_fluid: 0.0,
+        sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
+        sigma_fluid: None,
         max_step_length: 2.0,
     };
     let reg_std = DiffeomorphicDemonsRegistration::with_squarings(config_std, 6);
@@ -182,8 +183,8 @@ fn test_ic_residual_decreases_with_symmetric_weight() {
         InverseConsistentDiffeomorphicDemonsRegistration::new(InverseConsistentDemonsConfig {
             demons: DemonsConfig {
                 max_iterations: 15,
-                sigma_diffusion: 1.0,
-                sigma_fluid: 0.0,
+                sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
+                sigma_fluid: None,
                 max_step_length: 2.0,
             },
             inverse_consistency_weight: 0.0,
@@ -193,8 +194,8 @@ fn test_ic_residual_decreases_with_symmetric_weight() {
         InverseConsistentDiffeomorphicDemonsRegistration::new(InverseConsistentDemonsConfig {
             demons: DemonsConfig {
                 max_iterations: 15,
-                sigma_diffusion: 1.0,
-                sigma_fluid: 0.0,
+                sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
+                sigma_fluid: None,
                 max_step_length: 2.0,
             },
             inverse_consistency_weight: 0.5,

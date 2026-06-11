@@ -12,8 +12,10 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     // GaussianFilter skips any dimension whose sigma ≤ 1e-6, so sigma=0.0
     // is a safe no-op.
     let (fixed_img, moving_img) = if args.sigma_fixed > 1e-12 {
-        let filter: GaussianFilter<Backend> =
-            GaussianFilter::new(vec![GaussianSigma::new_unchecked(args.sigma_fixed); 3]);
+        let sigma = GaussianSigma::new(args.sigma_fixed).ok_or_else(|| {
+            anyhow::anyhow!("--sigma-fixed must be > 0, got {}", args.sigma_fixed)
+        })?;
+        let filter = GaussianFilter::<Backend>::new(vec![sigma; 3]);
         (filter.apply(&fixed_img), filter.apply(&moving_img))
     } else {
         (fixed_img, moving_img)
@@ -51,7 +53,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     // output preserves the full-resolution signal.
     let moving_orig = super::super::read_image(&args.moving)?;
     let moving_orig_arr = image_to_array3(&moving_orig);
-    let warped_arr = spatial::apply_transform(&moving_orig_arr, result.transform.as_array());
+    let warped_arr = spatial::apply_transform(&moving_orig_arr, &result.transform);
 
     // ── 7. Convert warped array back to Image and write output ─────────────
     // Spatial metadata comes from the fixed image (the output lives in the
@@ -124,7 +126,7 @@ mod tests {
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
-            inverse_consistency: false,
+            inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
@@ -170,7 +172,7 @@ mod tests {
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
-            inverse_consistency: false,
+            inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
@@ -215,7 +217,7 @@ mod tests {
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
-            inverse_consistency: false,
+            inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
@@ -281,7 +283,7 @@ mod tests {
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
-            inverse_consistency: false,
+            inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,

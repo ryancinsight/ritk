@@ -25,12 +25,16 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     if ui
         .selectable_value(
             &mut *active_filter,
-            FilterKind::MaskThreshold { threshold: 0.5 },
+            FilterKind::MaskThreshold {
+                threshold: 0.5.into(),
+            },
             "Mask Threshold",
         )
         .clicked()
     {
-        *active_filter = FilterKind::MaskThreshold { threshold: 0.5 };
+        *active_filter = FilterKind::MaskThreshold {
+            threshold: 0.5.into(),
+        };
     }
     if ui
         .selectable_value(
@@ -72,7 +76,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .selectable_value(
             &mut *active_filter,
             FilterKind::ZeroCrossing {
-                foreground_value: 1.0,
+                foreground_value: ritk_core::filter::ForegroundValue::ONE,
                 background_value: 0.0,
             },
             "Zero Crossing",
@@ -80,7 +84,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .clicked()
     {
         *active_filter = FilterKind::ZeroCrossing {
-            foreground_value: 1.0,
+            foreground_value: ritk_core::filter::ForegroundValue::ONE,
             background_value: 0.0,
         };
     }
@@ -137,7 +141,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryContour {
                 connectivity: Connectivity::Face6,
-                foreground_value: 1.0,
+                foreground_value: ritk_core::filter::ForegroundValue::ONE,
             },
             "Binary Contour",
         )
@@ -145,7 +149,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryContour {
             connectivity: Connectivity::Face6,
-            foreground_value: 1.0,
+            foreground_value: ritk_core::filter::ForegroundValue::ONE,
         };
     }
     if ui
@@ -171,7 +175,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 radius: 1,
                 birth_threshold: 1,
                 survival_threshold: 1,
-                foreground_value: 1.0,
+                foreground_value: ritk_core::filter::ForegroundValue::ONE,
                 background_value: 0.0,
             },
             "Voting Binary",
@@ -182,7 +186,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             radius: 1,
             birth_threshold: 1,
             survival_threshold: 1,
-            foreground_value: 1.0,
+            foreground_value: ritk_core::filter::ForegroundValue::ONE,
             background_value: 0.0,
         };
     }

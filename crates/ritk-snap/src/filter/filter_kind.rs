@@ -1,5 +1,7 @@
 use crate::filter::serde_helper::BedSeparationConfigSerde;
-use ritk_core::filter::{BedSeparationConfig, ClampPolicy, Connectivity};
+use ritk_core::filter::{
+    BedSeparationConfig, BinarizationThreshold, ClampPolicy, Connectivity, ForegroundValue,
+};
 use serde::{Deserialize, Serialize};
 
 #[doc = include_str!("variant_docs/enum_level.md")]
@@ -81,7 +83,7 @@ pub enum FilterKind {
         /// Structuring element half-width in voxels.
         radius: usize,
         /// Voxel intensity treated as foreground. Default: 1.0.
-        foreground_value: f32,
+        foreground_value: ForegroundValue,
     },
 
     #[doc = include_str!("variant_docs/binary_dilate.md")]
@@ -89,7 +91,7 @@ pub enum FilterKind {
         /// Structuring element half-width in voxels.
         radius: usize,
         /// Voxel intensity treated as foreground. Default: 1.0.
-        foreground_value: f32,
+        foreground_value: ForegroundValue,
     },
 
     #[doc = include_str!("variant_docs/binary_closing.md")]
@@ -97,7 +99,7 @@ pub enum FilterKind {
         /// Structuring element half-width in voxels.
         radius: usize,
         /// Voxel intensity treated as foreground. Default: 1.0.
-        foreground_value: f32,
+        foreground_value: ForegroundValue,
     },
 
     #[doc = include_str!("variant_docs/binary_opening.md")]
@@ -105,13 +107,13 @@ pub enum FilterKind {
         /// Structuring element half-width in voxels.
         radius: usize,
         /// Voxel intensity treated as foreground. Default: 1.0.
-        foreground_value: f32,
+        foreground_value: ForegroundValue,
     },
 
     #[doc = include_str!("variant_docs/binary_fillhole.md")]
     BinaryFillhole {
         /// Voxel intensity treated as foreground. Default: 1.0.
-        foreground_value: f32,
+        foreground_value: ForegroundValue,
     },
 
     #[doc = include_str!("variant_docs/grayscale_closing.md")]
@@ -162,13 +164,13 @@ pub enum FilterKind {
     #[doc = include_str!("variant_docs/distance_transform.md")]
     DistanceTransform {
         /// Intensity threshold separating background from foreground. Default: 0.5.
-        threshold: f32,
+        threshold: BinarizationThreshold,
     },
 
     #[doc = include_str!("variant_docs/signed_distance_transform.md")]
     SignedDistanceTransform {
         /// Intensity threshold. Default: 0.5.
-        threshold: f32,
+        threshold: BinarizationThreshold,
     },
 
     /// Flip image along the Z axis (ITK `FlipImageFilter` with axis 0).
@@ -180,8 +182,8 @@ pub enum FilterKind {
 
     #[doc = include_str!("variant_docs/mask_threshold.md")]
     MaskThreshold {
-        /// Intensity threshold; voxels ≤ threshold are zeroed.
-        threshold: f32,
+        /// Intensity threshold; voxels \u2264 threshold are zeroed.
+        threshold: BinarizationThreshold,
     },
 
     #[doc = include_str!("variant_docs/geodesic_dilation_self.md")]
@@ -200,7 +202,7 @@ pub enum FilterKind {
     #[doc = include_str!("variant_docs/zero_crossing.md")]
     ZeroCrossing {
         /// Value assigned to zero-crossing voxels.
-        foreground_value: f32,
+        foreground_value: ForegroundValue,
         /// Value assigned to non-crossing voxels.
         background_value: f32,
     },
@@ -243,7 +245,7 @@ pub enum FilterKind {
         /// Voxel neighborhood connectivity.
         connectivity: Connectivity,
         /// Foreground voxel value. Default: 1.0.
-        foreground_value: f32,
+        foreground_value: ForegroundValue,
     },
 
     /// Extract boundaries between label regions (ITK `LabelContourImageFilter`).
@@ -263,7 +265,7 @@ pub enum FilterKind {
         /// Min foreground neighbours needed for survival (foreground→foreground).
         survival_threshold: usize,
         /// Foreground voxel value. Default: 1.0.
-        foreground_value: f32,
+        foreground_value: ForegroundValue,
         /// Background voxel value. Default: 0.0.
         background_value: f32,
     },
@@ -329,7 +331,7 @@ pub enum FilterKind {
         /// Inclusive upper bound.
         upper: f32,
         /// Output value for voxels inside the interval. Default: 1.0.
-        foreground: f32,
+        foreground: ForegroundValue,
         /// Output value for voxels outside the interval. Default: 0.0.
         background: f32,
     },

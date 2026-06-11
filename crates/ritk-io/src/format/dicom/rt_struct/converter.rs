@@ -169,7 +169,7 @@ pub fn label_map_to_rt_struct(
     spacing: [f64; 3],
     direction: [f64; 9],
 ) -> Result<RtStructureSet> {
-    let [nz, ny, nx] = label_map.shape;
+    let [nz, ny, nx] = label_map.shape.0;
     if nz == 0 || ny == 0 || nx == 0 {
         bail!("label_map has zero dimension: {:?}", label_map.shape);
     }
@@ -220,7 +220,7 @@ pub fn label_map_to_rt_struct(
         }
 
         rois.push(RtRoiInfo {
-            roi_number: label_id,
+            roi_number: u32::from(label_id),
             roi_name,
             roi_description: None,
             roi_interpreted_type: None,
