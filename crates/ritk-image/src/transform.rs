@@ -76,10 +76,14 @@ impl<B: Backend, const D: usize> Image<B, D> {
             .try_inverse()
             .expect("Direction matrix must be invertible");
 
+        // Output index columns are INNERMOST-FIRST (column 0 = x = axis D-1), the
+        // inverse of `index_to_world_tensor` and the order the interpolation kernels
+        // consume. Output column `c` corresponds to spatial axis `D-1-c`.
         let mut t_data = Vec::with_capacity(D * D);
         for r in 0..D {
             for c in 0..D {
-                let val = (inv_dir[(c, r)] / self.spacing()[c]) as f32;
+                let axis = D - 1 - c;
+                let val = (inv_dir[(axis, r)] / self.spacing()[axis]) as f32;
                 t_data.push(val);
             }
         }
@@ -114,11 +118,19 @@ impl<B: Backend, const D: usize> Image<B, D> {
         )
         .reshape([1, D]);
 
-        // 2. Prepare Transform Matrix M = S * D^T
+        // 2. Prepare Transform Matrix M = S * D^T.
+        //
+        // Index tensors use INNERMOST-FIRST column order (column 0 = x = axis D-1),
+        // matching `grid::generate_grid` and the interpolation kernels. Spacing and
+        // direction are stored AXIS-major (index 0 = depth/z). So index column `r`
+        // corresponds to spatial axis `D-1-r`; pair them accordingly. (Using `r`
+        // directly silently scrambled world coordinates for anisotropic spacing or
+        // non-identity direction — only identity/isotropic cases were unaffected.)
         let mut m_data = Vec::with_capacity(D * D);
         for r in 0..D {
+            let axis = D - 1 - r;
             for c in 0..D {
-                let val = (self.spacing()[r] * self.direction()[(c, r)]) as f32;
+                let val = (self.spacing()[axis] * self.direction()[(c, axis)]) as f32;
                 m_data.push(val);
             }
         }

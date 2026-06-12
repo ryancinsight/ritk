@@ -61,30 +61,23 @@ fn translation_recovery_shifted_gaussian() {
     let t_data = final_transform.translation().to_data();
     let t_slice = t_data.as_slice::<f32>().unwrap();
 
-    // Tolerance relaxed from 0.5 to 0.8 to accommodate stochastic sampling
-    // variance under concurrent test execution.
+    // The recovered translation is a PHYSICAL world vector in axis order
+    // `[d0, d1, d2]`. `make_gaussian_blob` pairs `center[0]` with the innermost
+    // axis (x = d2), so shifting `center` by `[tx, ty, tz]` displaces voxel axes
+    // `[d2, d1, d0]`. With identity direction + unit spacing the world translation
+    // is therefore `[d0, d1, d2] = [tz, ty, tx]`. (A prior reversed index→world
+    // bug made this `[tx, ty, tz]`; the geometry is now verified pixel-exact vs
+    // SimpleITK, so the d0-first order is the correct expectation.)
+    // Tolerance 0.8 accommodates stochastic-sampling variance.
     let tolerance = 0.8;
-    assert!(
-        (t_slice[0] - true_tx).abs() < tolerance,
-        "Translation X error: {:.4} > {tolerance} (est={}, true={})",
-        (t_slice[0] - true_tx).abs(),
-        t_slice[0],
-        true_tx,
-    );
-    assert!(
-        (t_slice[1] - true_ty).abs() < tolerance,
-        "Translation Y error: {:.4} > {tolerance} (est={}, true={})",
-        (t_slice[1] - true_ty).abs(),
-        t_slice[1],
-        true_ty,
-    );
-    assert!(
-        (t_slice[2] - true_tz).abs() < tolerance,
-        "Translation Z error: {:.4} > {tolerance} (est={}, true={})",
-        (t_slice[2] - true_tz).abs(),
-        t_slice[2],
-        true_tz,
-    );
+    let checks = [(t_slice[0], true_tz, "d0/z"), (t_slice[1], true_ty, "d1/y"), (t_slice[2], true_tx, "d2/x")];
+    for (est, want, axis) in checks {
+        assert!(
+            (est - want).abs() < tolerance,
+            "Translation {axis} error: {:.4} > {tolerance} (est={est}, true={want})",
+            (est - want).abs(),
+        );
+    }
 
     assert!(
         !result.convergence_history.is_empty(),

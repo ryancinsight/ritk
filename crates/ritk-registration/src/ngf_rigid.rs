@@ -39,6 +39,12 @@ pub struct NgfRigidConfig {
     /// of the periphery. `None` keeps the uniform Haber–Modersitzki average.
     /// `frac ≈ 0.7` ≈ σ at ⅓ the outer brain radius (multimodal-edge convention).
     pub center_weight_sigma_frac: Option<f64>,
+    /// Optional stochastic-sampling count. `Some(s)` estimates NGF on a fixed
+    /// deterministic subset of `s` mask voxels per evaluation instead of the full
+    /// grid — the dominant speed lever (elastix-style), trading a bounded-variance
+    /// estimate for orders-of-magnitude fewer resample/gradient ops. `None`
+    /// evaluates densely. Typical: a few thousand (2048–8192).
+    pub sample_count: Option<usize>,
     /// CMA-ES optimizer configuration.
     pub cma: CmaEsConfig,
 }
@@ -49,6 +55,7 @@ impl Default for NgfRigidConfig {
             rotation_range_rad: std::f64::consts::FRAC_PI_4, // ±45°
             translation_range_mm: 60.0,
             center_weight_sigma_frac: None,
+            sample_count: None,
             cma: CmaEsConfig {
                 sigma0: 0.3,
                 lambda: 0, // auto: 4 + ⌊3 ln n⌋
@@ -70,9 +77,10 @@ pub struct NgfRigidResult {
     /// Recovered rigid transform as a row-major `4×4` homogeneous matrix
     /// (ritk `[z, y, x]` convention; same layout as `CmaMiResult::matrix`).
     pub matrix: [f64; 16],
-    /// Recovered ZYX Euler rotation [rad].
+    /// Recovered Euler rotation `[α, β, γ]` [rad] about the x, y, z world axes
+    /// (`RigidTransform` `R = R_z R_y R_x`).
     pub rotation_rad: [f64; 3],
-    /// Recovered translation `[tz, ty, tx]` [mm].
+    /// Recovered translation `[tx, ty, tz]` [mm] in world (LPS) space.
     pub translation_mm: [f64; 3],
     /// NGF edge-alignment at the recovered pose (`−best_f`, in `[0, 1]`).
     pub best_ngf: f64,
@@ -169,7 +177,11 @@ pub fn register_rigid_ngf<B: Backend>(
     // Precompute the fixed-image NGF state ONCE (grid world points, fixed
     // gradient field, η_F, mask, weights). Every CMA-ES objective evaluation
     // reuses it, so only the moving resample + moving gradient run per step.
-    let prep = NgfFixedPrep::new(fixed, mask_bool.as_deref(), weights.as_deref());
+    // With `sample_count`, only a fixed random voxel subset is evaluated.
+    let prep = match config.sample_count {
+        Some(s) => NgfFixedPrep::new_sampled(fixed, mask_bool.as_deref(), weights.as_deref(), s),
+        None => NgfFixedPrep::new(fixed, mask_bool.as_deref(), weights.as_deref()),
+    };
 
     // Rotate about the fixed-image centroid so the residual search decouples
     // rotation from translation (rotation about the world origin would couple a
@@ -291,7 +303,7 @@ pub fn register_rigid_ngf_multires<B: Backend>(
     let mut trans = initial_translation;
     let mut out: Option<(RigidTransform<B, 3>, NgfRigidResult)> = None;
 
-    for level in levels {
+    for (li, level) in levels.iter().enumerate() {
         let shrink = BinShrinkImageFilter::new(level.shrink.to_vec());
         let f = shrink.apply(fixed);
         let m = shrink.apply(moving);
@@ -300,32 +312,56 @@ pub fn register_rigid_ngf_multires<B: Backend>(
         // Warm-start the next (finer) level from this pose.
         rot = res.rotation_rad;
         trans = res.translation_mm;
+        let tr = res.matrix[0] + res.matrix[5] + res.matrix[10];
+        let ang = (((tr - 1.0) / 2.0).clamp(-1.0, 1.0)).acos().to_degrees();
+        tracing::debug!(
+            level = li,
+            shrink = ?level.shrink,
+            rot_deg = ang,
+            best_ngf = res.best_ngf,
+            rot_euler_deg = ?rot.map(|r| r.to_degrees()),
+            t_mm = ?trans,
+            "ngf multires level"
+        );
         out = Some((t, res));
     }
     out.expect("non-empty schedule yields a result")
 }
 
-/// Default 3-level head CT↔MR schedule: coarse global search (in-plane shrink 8,
-/// wide residual) → medium (shrink 4) → fine (shrink 2, tight residual, few
-/// generations). The thick through-plane axis is never shrunk. Tune per data.
+/// Default 3-level head CT↔MR schedule for a COM-pre-aligned same-patient pair:
+/// shrink 4 → 2 → 1 (full-resolution finest). Rotation ranges are deliberately
+/// TIGHT (±12°→±5°): a same-patient head pose differs by little, and the cross-
+/// modal NGF landscape develops spurious far optima at large rotation/translation
+/// that a wide search locks onto (confirmed: a ±30° coarse level diverged to ~25°).
+/// The through-plane axis is never shrunk; the finest level is full resolution so
+/// the NGF optimum is sharp (a heavily downsampled grid blurs the very edges the
+/// metric needs). Tune per data.
 #[must_use]
 pub fn default_ngf_pyramid(center_weight_sigma_frac: Option<f64>) -> Vec<NgfPyramidLevel> {
-    let level = |shrink_xy: usize, rot_deg: f64, trans_mm: f64, gens: usize| NgfPyramidLevel {
-        shrink: [1, shrink_xy, shrink_xy],
-        config: NgfRigidConfig {
-            rotation_range_rad: rot_deg.to_radians(),
-            translation_range_mm: trans_mm,
-            center_weight_sigma_frac,
-            cma: CmaEsConfig {
-                max_generations: gens,
-                ..NgfRigidConfig::default().cma
+    let level = |shrink_xy: usize, rot_deg: f64, trans_mm: f64, gens: usize, samples: usize| {
+        NgfPyramidLevel {
+            shrink: [1, shrink_xy, shrink_xy],
+            config: NgfRigidConfig {
+                rotation_range_rad: rot_deg.to_radians(),
+                translation_range_mm: trans_mm,
+                center_weight_sigma_frac,
+                // Stochastic sampling keeps every level cheap; finer levels use
+                // more samples to resolve the sharper optimum.
+                sample_count: Some(samples),
+                cma: CmaEsConfig {
+                    max_generations: gens,
+                    // The λ candidates per generation are independent NGF
+                    // evaluations — evaluate them across threads.
+                    parallel_population: PopulationEval::Parallel,
+                    ..NgfRigidConfig::default().cma
+                },
             },
-        },
+        }
     };
     vec![
-        level(8, 30.0, 50.0, 200), // coarse: wide global basin
-        level(4, 12.0, 20.0, 120), // medium: refine
-        level(2, 6.0, 10.0, 80),   // fine: sharp optimum
+        level(4, 12.0, 25.0, 150, 5000),  // coarse: tight rot, residual-bounded trans
+        level(2, 8.0, 15.0, 100, 10000),  // medium: refine
+        level(1, 5.0, 8.0, 60, 20000),    // fine: full resolution, sharp optimum
     ]
 }
 

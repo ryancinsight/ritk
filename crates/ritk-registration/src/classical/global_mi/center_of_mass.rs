@@ -58,6 +58,7 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
     let shape = image.shape();
     let origin = image.origin();
     let spacing = image.spacing();
+    let direction = image.direction();
 
     let nz = shape[0];
     let ny = shape[1];
@@ -66,39 +67,51 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
     // Global minimum — enables negative-intensity support (e.g. CT HU values).
     let min_val = data.iter().copied().fold(f32::INFINITY, f32::min) as f64;
 
-    let mut weighted_sum = [0.0_f64; 3];
+    // Weighted-mean voxel index per axis `[d0=z, d1=y, d2=x]`.
+    let mut wi = [0.0_f64; 3];
     let mut total_weight = 0.0_f64;
-
     for iz in 0..nz {
-        let phys_z = origin[0] + iz as f64 * spacing[0];
         for iy in 0..ny {
-            let phys_y = origin[1] + iy as f64 * spacing[1];
             for ix in 0..nx {
-                let phys_x = origin[2] + ix as f64 * spacing[2];
-                let idx = iz * ny * nx + iy * nx + ix;
-                let w = (data[idx] as f64 - min_val).max(0.0);
-                weighted_sum[0] += w * phys_z;
-                weighted_sum[1] += w * phys_y;
-                weighted_sum[2] += w * phys_x;
+                let w = (data[iz * ny * nx + iy * nx + ix] as f64 - min_val).max(0.0);
+                wi[0] += w * iz as f64;
+                wi[1] += w * iy as f64;
+                wi[2] += w * ix as f64;
                 total_weight += w;
             }
         }
     }
 
-    if total_weight < 1e-10 {
-        // Blank or perfectly uniform image — fall back to unweighted geometric centre.
+    let mean_idx = if total_weight < 1e-10 {
+        // Blank/uniform image — unweighted geometric centre index.
         [
-            origin[0] + (nz as f64 - 1.0) * 0.5 * spacing[0],
-            origin[1] + (ny as f64 - 1.0) * 0.5 * spacing[1],
-            origin[2] + (nx as f64 - 1.0) * 0.5 * spacing[2],
+            (nz as f64 - 1.0) * 0.5,
+            (ny as f64 - 1.0) * 0.5,
+            (nx as f64 - 1.0) * 0.5,
         ]
     } else {
         [
-            weighted_sum[0] / total_weight,
-            weighted_sum[1] / total_weight,
-            weighted_sum[2] / total_weight,
+            wi[0] / total_weight,
+            wi[1] / total_weight,
+            wi[2] / total_weight,
         ]
+    };
+
+    // Map the mean voxel index to a PHYSICAL world point in LPS `[px, py, pz]`
+    // (matching `Image::index_to_world_tensor` and `RigidTransform`'s world space):
+    //   world[c] = origin[c] + Σ_axis mean_idx[axis] · spacing[axis] · direction[(c, axis)]
+    // The previous implementation paired the physical origin with index extents in
+    // the wrong axis order and ignored the direction matrix, returning a scrambled
+    // centre that placed the rotation centre / CoM seed in the wrong frame.
+    let mut world = [0.0_f64; 3];
+    for (c, wc) in world.iter_mut().enumerate() {
+        let mut acc = origin[c];
+        for (axis, &mi) in mean_idx.iter().enumerate() {
+            acc += mi * spacing[axis] * direction[(c, axis)];
+        }
+        *wc = acc;
     }
+    world
 }
 
 // ─── Translation Initialisation ──────────────────────────────────────────────
@@ -106,14 +119,15 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
 /// Compute the translation that aligns the center of mass of the moving image
 /// with that of the fixed image.
 ///
-/// Returns `[tz, ty, tx]` in mm (RITK `[z, y, x]` order). Adding this vector
-/// to the initial translation parameter places the moving CoM at the fixed CoM
-/// before any gradient- or evolution-based optimisation begins.
+/// Returns `[tx, ty, tz]` in mm — a PHYSICAL world-space (LPS) vector matching
+/// [`compute_center_of_mass`], `Image::index_to_world_tensor`, and the world
+/// space `RigidTransform` operates in. Adding it to the initial translation
+/// parameter places the moving CoM at the fixed CoM before optimisation begins.
 ///
 /// # Formula
 ///
 /// ```text
-/// translation[i] = CoM_fixed[i] − CoM_moving[i],  i ∈ {z, y, x}
+/// translation[i] = CoM_fixed[i] − CoM_moving[i],  i ∈ {x, y, z} (world LPS)
 /// ```
 ///
 /// # Notes
