@@ -848,7 +848,12 @@ mod tests {
     fn ebcot_1x7_tail_refinement_round_trip() {
         // Regression (proptest seed 3841344251786497144): the final-plane MRP
         // bits sit at the stream tail; a lossy MQ flush decoded LSB 0 → 1.
-        enc_dec_roundtrip(&[51i32, 90, 124, 50, 69, 68, 8], 7, 1, SubbandOrientation::LlOrLh);
+        enc_dec_roundtrip(
+            &[51i32, 90, 124, 50, 69, 68, 8],
+            7,
+            1,
+            SubbandOrientation::LlOrLh,
+        );
     }
 
     #[test]

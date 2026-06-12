@@ -4,22 +4,22 @@ use super::*;
 fn quant_boundary_mapping() {
     // T1=3, T2=7, T3=21
     let (t1, t2, t3) = (3, 7, 21);
-    assert_eq!(quant(-30, t1, t2, t3), -4); // d <= -T3
-    assert_eq!(quant(-21, t1, t2, t3), -4); // d == -T3 → ≤ -T3
-    assert_eq!(quant(-10, t1, t2, t3), -3); // -T3 < d ≤ -T2
-    assert_eq!(quant(-7, t1, t2, t3), -3); // d == -T2 → ≤ -T2
-    assert_eq!(quant(-5, t1, t2, t3), -2);
-    assert_eq!(quant(-3, t1, t2, t3), -2); // d == -T1 → ≤ -T1
-    assert_eq!(quant(-1, t1, t2, t3), -1);
-    assert_eq!(quant(0, t1, t2, t3), 0);
-    assert_eq!(quant(1, t1, t2, t3), 1);
-    assert_eq!(quant(2, t1, t2, t3), 1); // d < T1
-    assert_eq!(quant(3, t1, t2, t3), 2); // d == T1 → ≥ T1
-    assert_eq!(quant(6, t1, t2, t3), 2);
-    assert_eq!(quant(7, t1, t2, t3), 3);
-    assert_eq!(quant(20, t1, t2, t3), 3);
-    assert_eq!(quant(21, t1, t2, t3), 4); // d ≥ T3
-    assert_eq!(quant(100, t1, t2, t3), 4);
+    assert_eq!(quant(-30, t1, t2, t3, 0), -4); // d <= -T3
+    assert_eq!(quant(-21, t1, t2, t3, 0), -4); // d == -T3 → ≤ -T3
+    assert_eq!(quant(-10, t1, t2, t3, 0), -3); // -T3 < d ≤ -T2
+    assert_eq!(quant(-7, t1, t2, t3, 0), -3); // d == -T2 → ≤ -T2
+    assert_eq!(quant(-5, t1, t2, t3, 0), -2);
+    assert_eq!(quant(-3, t1, t2, t3, 0), -2); // d == -T1 → ≤ -T1
+    assert_eq!(quant(-1, t1, t2, t3, 0), -1);
+    assert_eq!(quant(0, t1, t2, t3, 0), 0);
+    assert_eq!(quant(1, t1, t2, t3, 0), 1);
+    assert_eq!(quant(2, t1, t2, t3, 0), 1); // d < T1
+    assert_eq!(quant(3, t1, t2, t3, 0), 2); // d == T1 → ≥ T1
+    assert_eq!(quant(6, t1, t2, t3, 0), 2);
+    assert_eq!(quant(7, t1, t2, t3, 0), 3);
+    assert_eq!(quant(20, t1, t2, t3, 0), 3);
+    assert_eq!(quant(21, t1, t2, t3, 0), 4); // d ≥ T3
+    assert_eq!(quant(100, t1, t2, t3, 0), 4);
 }
 
 #[test]
@@ -92,11 +92,10 @@ fn context_index_max_value_is_364() {
 
 #[test]
 fn default_thresholds_8bit() {
-    // maxval=255: factor=(255+128)/256=1
-    // t1 = max(3, 2).min(32) = 3
-    // t2 = max(7, 3).min(64) = 7
-    // t3 = max(21, 4).min(255) = 21
-    let (t1, t2, t3) = default_thresholds(255);
+    // ISO 14495-1 C.2.4.1.1.1, maxval=255, NEAR=0:
+    // factor = (min(255,4095)+128)/256 = 1 → T1 = 1+2 = 3, T2 = 4+3 = 7,
+    // T3 = 17+4 = 21 (the canonical 8-bit defaults).
+    let (t1, t2, t3) = default_thresholds(255, 0);
     assert_eq!(t1, 3);
     assert_eq!(t2, 7);
     assert_eq!(t3, 21);
@@ -104,14 +103,29 @@ fn default_thresholds_8bit() {
 
 #[test]
 fn default_thresholds_16bit() {
-    // maxval=65535: factor=(65535+128)/256=256
-    // t1=max(768,2).min(8192)=768
-    // t2=max(1792,3).min(16384)=1792
-    // t3=max(5376,4).min(65535)=5376
-    let (t1, t2, t3) = default_thresholds(65535);
-    assert_eq!(t1, 768);
-    assert_eq!(t2, 1792);
-    assert_eq!(t3, 5376);
+    // ISO 14495-1 C.2.4.1.1.1, maxval=65535, NEAR=0:
+    // factor = (min(65535,4095)+128)/256 = 4223/256 = 16
+    // T1 = 16·(3−2)+2 = 18, T2 = 16·(7−3)+3 = 67, T3 = 16·(21−4)+4 = 276.
+    // (Previous assertions 768/1792/5376 derived FACTOR without the 4095 cap
+    // and used BASIC·FACTOR instead of FACTOR·(BASIC−k)+k — non-conformant.)
+    let (t1, t2, t3) = default_thresholds(65535, 0);
+    assert_eq!(t1, 18);
+    assert_eq!(t2, 67);
+    assert_eq!(t3, 276);
+}
+
+#[test]
+fn default_thresholds_12bit_matches_iso_factor_cap() {
+    // maxval=4095: factor = (4095+128)/256 = 16 → same as 16-bit (cap at 4095).
+    let (t1, t2, t3) = default_thresholds(4095, 0);
+    assert_eq!((t1, t2, t3), (18, 67, 276));
+}
+
+#[test]
+fn default_thresholds_near_lossless_offsets() {
+    // NEAR=2, maxval=255: T1 = 3+3·2 = 9, T2 = 7+5·2 = 17, T3 = 21+7·2 = 35.
+    let (t1, t2, t3) = default_thresholds(255, 2);
+    assert_eq!((t1, t2, t3), (9, 17, 35));
 }
 
 #[test]

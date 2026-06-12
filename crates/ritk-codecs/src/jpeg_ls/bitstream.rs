@@ -125,9 +125,144 @@ impl<'a> BitReader<'a> {
     }
 }
 
+// ── Bit writer (encoder side) ─────────────────────────────────────────────────
+
+/// Bit-level writer for JPEG-LS compressed scan data — exact mirror of
+/// [`BitReader`]'s stuffing rule (ISO 14495-1 §C.2.1): after an emitted `0xFF`
+/// byte, the following byte carries only 7 entropy bits with its MSB held 0.
+pub(super) struct BitWriter {
+    out: Vec<u8>,
+    /// Bit accumulator (LSB-aligned; bits enter from the right).
+    cur: u32,
+    /// Bits currently held in `cur`.
+    used: u32,
+    /// Capacity of the byte being assembled: 8 normally, 7 after an 0xFF.
+    cap: u32,
+}
+
+impl BitWriter {
+    pub(super) fn new() -> Self {
+        Self {
+            out: Vec::new(),
+            cur: 0,
+            used: 0,
+            cap: 8,
+        }
+    }
+
+    #[inline(always)]
+    pub(super) fn write_bit(&mut self, bit: u32) {
+        self.cur = (self.cur << 1) | (bit & 1);
+        self.used += 1;
+        if self.used == self.cap {
+            // A 7-bit byte after 0xFF has its MSB 0 by construction (cur < 128).
+            let byte = self.cur as u8;
+            self.out.push(byte);
+            self.cap = if byte == 0xFF { 7 } else { 8 };
+            self.cur = 0;
+            self.used = 0;
+        }
+    }
+
+    #[inline(always)]
+    pub(super) fn write_bits(&mut self, value: u32, count: u32) {
+        for shift in (0..count).rev() {
+            self.write_bit((value >> shift) & 1);
+        }
+    }
+
+    /// Encode a Golomb-Rice code — exact mirror of [`BitReader::read_golomb`].
+    ///
+    /// Normal form (`q = me >> k < limit − qbpp − 1`): `q` zeros, a 1, then the
+    /// k-bit remainder. Escape form: `limit − qbpp − 1` zeros, a 1, then
+    /// `me − 1` in `qbpp` bits.
+    pub(super) fn write_golomb(&mut self, me: u32, k: u32, limit: u32, qbpp: u32) {
+        let max_zeros = limit - qbpp - 1;
+        let q = me >> k;
+        if q < max_zeros {
+            for _ in 0..q {
+                self.write_bit(0);
+            }
+            self.write_bit(1);
+            if k > 0 {
+                self.write_bits(me & ((1 << k) - 1), k);
+            }
+        } else {
+            for _ in 0..max_zeros {
+                self.write_bit(0);
+            }
+            self.write_bit(1);
+            self.write_bits(me - 1, qbpp);
+        }
+    }
+
+    /// Flush remaining bits (zero-padded) and return the scan bytes.
+    ///
+    /// Zero padding cannot synthesise an 0xFF byte (≥ 1 trailing zero bit), so
+    /// no stuffing is required for the final byte.
+    pub(super) fn finish(mut self) -> Vec<u8> {
+        if self.used > 0 {
+            self.cur <<= self.cap - self.used;
+            self.out.push(self.cur as u8);
+        }
+        self.out
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bit_writer_reader_round_trip_with_stuffing() {
+        // 0xFF as 8 bits, then 7+1 bits: the writer must stuff after the 0xFF
+        // and the reader must transparently remove the stuffed zero bit.
+        let mut w = BitWriter::new();
+        w.write_bits(0xFF, 8);
+        w.write_bits(0, 7);
+        w.write_bit(1);
+        let bytes = w.finish();
+        let mut r = BitReader::new(&bytes);
+        assert_eq!(r.read_bits(8), 0xFF);
+        assert_eq!(r.read_bits(7), 0);
+        assert_eq!(r.read_bit(), 1);
+    }
+
+    #[test]
+    fn golomb_writer_reader_round_trip_normal_form() {
+        let limit = 32u32;
+        let qbpp = 8u32;
+        for k in 0..=qbpp {
+            for me in 0..512u32 {
+                if (me >> k) >= limit - qbpp - 1 {
+                    continue; // escape form covered separately
+                }
+                let mut w = BitWriter::new();
+                w.write_golomb(me, k, limit, qbpp);
+                let bytes = w.finish();
+                let mut r = BitReader::new(&bytes);
+                assert_eq!(
+                    r.read_golomb(k, limit, qbpp),
+                    me,
+                    "k={k} me={me} bytes={bytes:02X?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn golomb_writer_reader_round_trip_escape_form() {
+        let limit = 32u32;
+        let qbpp = 8u32;
+        // Escape form is reached when q = me >> k ≥ limit − qbpp − 1.
+        for me in [184u32, 200, 255, 256] {
+            let mut w = BitWriter::new();
+            w.write_golomb(me, 0, limit, qbpp);
+            let bytes = w.finish();
+            let mut r = BitReader::new(&bytes);
+            assert_eq!(r.read_golomb(0, limit, qbpp), me, "me={me}");
+        }
+    }
 
     #[test]
     fn bit_reader_basic_bit_sequence() {

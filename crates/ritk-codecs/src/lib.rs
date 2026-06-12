@@ -13,9 +13,9 @@
 //! | PackBits    | (none — pure Rust) |                                     | done   |
 //! | RLE         | (none — pure Rust) |                                     | done   |
 //!
-//! `openjpeg-sys` / `openjp2` / `jpeg2k` / `charls` are no longer dependencies
-//! of this crate (`charls` remains a *dev*-dependency of `ritk-io` solely as a
-//! differential JPEG-LS reference).
+//! `openjpeg-sys` / `openjp2` / `jpeg2k` / `charls` are no longer workspace
+//! dependencies — all DICOM codec paths (decode and the JPEG 2000 / JPEG-LS
+//! encoders) are pure Rust with no C/C++ FFI.
 
 pub mod jpeg;
 pub mod jpeg_2000;

@@ -55,17 +55,20 @@ where
     let total: usize = shape.iter().product();
     let mut grid = Vec::with_capacity(total * D);
 
-    // indices[D-1] = innermost (x), indices[0] = outermost (z).
-    // Increment innermost first so column 0 = x (matching generate_grid_3d/2d).
+    // Column order is INNERMOST-FIRST: column 0 = x = `indices[D-1]`, matching the
+    // interpolation kernels (`gather` uses column 0 as the unit-stride/x axis) and
+    // `Image::index_to_world_tensor`/`world_to_index_tensor` (which reverse the
+    // column↔axis mapping to agree). The ROW order is row-major (innermost varies
+    // fastest) so rows match the image's flat data layout.
     let mut indices = [0usize; D];
 
     for _ in 0..total {
-        // Push innermost dimension first: col 0 = x = indices[D-1]
+        // Push innermost dimension first: col 0 = x = indices[D-1].
         for d in (0..D).rev() {
             grid.push(indices[d] as f32);
         }
 
-        // Increment innermost first
+        // Increment innermost first → row-major iteration (rows match flat data).
         for d in (0..D).rev() {
             indices[d] += 1;
             if indices[d] < shape[d] {
@@ -96,7 +99,7 @@ mod tests {
         let g = generate_grid::<B, 3>([2, 3, 4], &device);
         let [rows, cols] = g.dims();
         assert_eq!(rows, 2 * 3 * 4, "row count must equal D*H*W");
-        assert_eq!(cols, 3, "column count must be 3 (x, y, z)");
+        assert_eq!(cols, 3, "column count must be 3 (innermost-first [x,y,z])");
     }
 
     /// First voxel (z=0, y=0, x=0) must be [0, 0, 0].
@@ -106,17 +109,19 @@ mod tests {
         let g = generate_grid::<B, 3>([3, 3, 3], &device);
         let first = g.clone().slice([0..1]).into_data();
         let vals = first.as_slice::<f32>().unwrap();
-        // column order: push(x), push(y), push(z)
+        // column order: innermost-first [x, y, z]
         assert_eq!(vals[0], 0.0, "x of first voxel");
         assert_eq!(vals[1], 0.0, "y of first voxel");
         assert_eq!(vals[2], 0.0, "z of first voxel");
     }
 
-    /// Last voxel of [D, H, W] must be [W-1, H-1, D-1].
+    /// Last voxel of [D, H, W] must be [W-1, H-1, D-1] in innermost-first [x,y,z].
     ///
     /// # Derivation
-    /// The innermost loop is over x (0..W), middle y (0..H), outer z (0..D).
-    /// Last entry: z=D-1, y=H-1, x=W-1. push order: x, y, z.
+    /// The innermost loop is over x (0..W), middle y (0..H), outer z (0..D), so the
+    /// last row is z=D-1, y=H-1, x=W-1. Columns are innermost-first (col0=x), so the
+    /// row is [x, y, z] = [W-1, H-1, D-1] — matching the interpolation kernels and
+    /// the (reversed-mapping) `index_to_world_tensor`.
     #[test]
     fn grid_3d_last_voxel_matches_shape_minus_one() {
         let device = Default::default();

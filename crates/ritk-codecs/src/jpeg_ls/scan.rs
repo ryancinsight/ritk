@@ -9,14 +9,15 @@ use anyhow::Result;
 
 use super::bitstream::BitReader;
 use super::context::{
-    compute_k, context_index, error_correction, inverse_map, quant, sign_normalize, update_context,
-    ContextModel,
+    compute_k, context_index, error_correction, inverse_map, quant, reconstruct, sign_normalize,
+    update_context, CodingParams, ContextModel,
 };
 
 /// Golomb run-length table J[0..32] — ISO 14495-1 Table C.1.
 ///
 /// J[i] is the Golomb order: at run index i, a hit extends the run by 2^J[i].
-const J: [u32; 32] = [
+/// Shared by the scan decoder and the [`super::encoder`] (single source of truth).
+pub(super) const J: [u32; 32] = [
     0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 10, 11, 12, 13,
     14, 15,
 ];
@@ -64,11 +65,6 @@ fn predict_adaptive(a: i32, b: i32, c: i32) -> i32 {
     } else {
         a + b - c
     }
-}
-
-#[inline(always)]
-fn reconstruct_lossless(predicted: i32, error: i32, maxval: i32) -> i32 {
-    (predicted + error).rem_euclid(maxval + 1)
 }
 
 /// Compute the predictor for sample at (row, col) given causal neighborhood.
@@ -134,19 +130,19 @@ pub(super) fn decode_scan(
 ) -> Result<()> {
     let rows = params.rows;
     let cols = params.cols;
-    let maxval = (1i32 << params.bpp) - 1;
-    let range = (maxval + 1) as u32;
-    let qbpp = params.bpp; // lossless: qbpp = bpp
-    let limit = 2 * (qbpp + qbpp.max(2));
-    let a_init = ((range + 32) >> 6).max(2);
+    let near = params.near as i32;
+    let cp = CodingParams::new(params.bpp, near);
+    let maxval = cp.maxval;
+    let qbpp = cp.qbpp;
+    let limit = cp.limit;
 
     let (t1, t2, t3) = if params.t1 > 0 {
         (params.t1, params.t2, params.t3)
     } else {
-        super::context::default_thresholds(maxval)
+        super::context::default_thresholds(maxval, near)
     };
 
-    let mut ctx = ContextModel::new(a_init);
+    let mut ctx = ContextModel::new(cp.a_init);
     // Row-major sample buffer with one extra row of zeros above (r=−1 = sentinel).
     let mut buf = vec![0i32; (rows + 1) * cols];
     // Row −1 (index 0) is already zeroed.
@@ -185,9 +181,9 @@ pub(super) fn decode_scan(
             let d3 = cc - a; // diagonal gradient (above-left − left)
 
             // Quantize gradients
-            let q1 = quant(d1, t1, t2, t3);
-            let q2 = quant(d2, t1, t2, t3);
-            let q3 = quant(d3, t1, t2, t3);
+            let q1 = quant(d1, t1, t2, t3, near);
+            let q2 = quant(d2, t1, t2, t3, near);
+            let q3 = quant(d3, t1, t2, t3, near);
 
             if q1 == 0 && q2 == 0 && q3 == 0 {
                 // ── Run mode (ISO 14495-1 §A.6) ──────────────────────────────
@@ -247,9 +243,9 @@ pub(super) fn decode_scan(
                     ri_ctx.update(errval, me);
 
                     let rx = if ri_ctx.run_interruption_type() == 1 {
-                        reconstruct_lossless(ra, errval, maxval)
+                        reconstruct(ra, errval, &cp)
                     } else {
-                        reconstruct_lossless(rb, errval * (rb - ra).signum(), maxval)
+                        reconstruct(rb, errval * (rb - ra).signum(), &cp)
                     };
 
                     // Decrement run index on interrupt
@@ -286,7 +282,7 @@ pub(super) fn decode_scan(
             let errval = sign * errval_canon;
 
             // Reconstruct sample
-            let rx = reconstruct_lossless(px, errval, maxval);
+            let rx = reconstruct(px, errval, &cp);
             buf[row_off + c] = rx;
 
             // Update context (errval relative to context sign)

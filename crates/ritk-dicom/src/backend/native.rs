@@ -27,7 +27,7 @@ where
                 let fragment = object.encapsulated_frame(request.frame_index)?;
                 decode_jpeg_fragment(&fragment, request.layout)?
             }
-            TransferSyntaxKind::JpegLsLossless => {
+            TransferSyntaxKind::JpegLsLossless | TransferSyntaxKind::JpegLsLossy => {
                 let fragment = object.encapsulated_frame(request.frame_index)?;
                 decode_jpeg_ls_fragment(&fragment, request.layout)?
             }
@@ -208,7 +208,7 @@ mod tests {
             &source,
             DecodeFrameRequest {
                 frame_index: 0,
-                transfer_syntax: TransferSyntaxKind::JpegLsLossy,
+                transfer_syntax: TransferSyntaxKind::JpegXl,
                 layout: layout(2, 2),
             },
         )

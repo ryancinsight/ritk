@@ -1,5 +1,30 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 369 — Native JPEG-LS codec: CharLS elimination + NEAR support
+**Target version**: 0.66.0 (ritk-codecs 0.3.0)  
+**Sprint phase**: Closure — native JPEG-LS encoder/decoder delivered; zero C/C++ FFI in the DICOM codec stack.
+
+### Delivered (Sprint 369)
+- [x] JLS-369-ENC [minor]: pure-Rust JPEG-LS encoder (lossless + NEAR), mirror of the scan decoder over the shared context model; bit writer + Golomb writer with §C.2.1 stuffing
+- [x] JLS-369-NEAR [minor]: NEAR-aware decode (TS .81 native); `CodingParams` + `quantize_error`/`reconstruct` SSOT shared by both sides
+- [x] JLS-369-CONF [patch]: `default_thresholds` per ISO C.2.4.1.1.1 (4095 factor cap; >8-bit defaults were non-conformant); §A.3.3 NEAR dead-zone in gradient quantization
+- [x] JLS-369-DEP [minor]: `charls` removed (workspace + dev-dep + build.rs libstdc++ hacks); registry `charls`/`openjp2` features and `jpeg2k` dropped — codec stack 100 % Rust
+- [x] JLS-369-TEST [patch]: lossless + NEAR proptests, run-mode/interrupt fixtures, 12/16-bit threshold derivation tests; one-time differential: native NEAR=2 stream decoded by CharLS-backed backend before removal → |err| ≤ 2 confirmed
+- [x] FIX-369-WS [patch]: clippy fixes in in-flight registration work (`grid.rs`, dead `integrate_geodesic_into` removed, bench rand API, `sample_count` call site)
+
+### Blocked / Deferred
+- [ ] REG-MI-FLAKY [investigate]: `translation_recovery_shifted_gaussian` fails deterministically (est 1.0 vs true 3.0) in the in-flight NGF/RSGD registration wave — owned by the concurrent registration effort; not in codec blast radius
+- [ ] J2K-DECODE-DWT [minor]: carry-forward (Sprint 368)
+- [ ] J2K-LOSSY-97, J2K-INTEROP: carry-forward (Sprint 368)
+
+### Verification gate (Sprint 369)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run -p ritk-codecs -p ritk-dicom -p ritk-io` → 510/510 + 68 jpeg_ls module tests passed
+- [x] `cargo doc --no-deps -p ritk-codecs` → warning-clean
+- [x] libstdc++ DLL-shadowing failure mode eliminated (no C++ linkage remains)
+
+---
+
 ## Sprint 368 — RITK-native JPEG 2000 codec (pure-Rust ISO 15444-1, C/FFI elimination)
 **Target version**: 0.65.0 (ritk-codecs 0.2.0)  
 **Sprint phase**: Closure — native J2K lossless codec delivered and verified.

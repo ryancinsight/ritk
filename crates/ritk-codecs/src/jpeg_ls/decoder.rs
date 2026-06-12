@@ -13,7 +13,7 @@ pub(crate) struct JpegLsDecoder {
     pub(crate) height: usize,
     pub(crate) bits_per_sample: u32,
     pub(crate) components: Vec<ComponentInfo>,
-    /// NEAR parameter; DICOM lossless JPEG-LS requires zero.
+    /// NEAR parameter; 0 = lossless (TS .80), > 0 = near-lossless (TS .81).
     pub(crate) near: u32,
     /// Interleave mode from the SOS header. Single-component scans require zero.
     pub(crate) interleave_mode: u8,
@@ -49,12 +49,6 @@ impl JpegLsDecoder {
                 "JPEG-LS fragment has invalid dimensions ({}x{})",
                 self.width,
                 self.height
-            );
-        }
-        if self.near != 0 {
-            bail!(
-                "JPEG-LS NEAR={} not supported (lossless only, DICOM PS 3.5 §8.2.3)",
-                self.near
             );
         }
         if self.components.len() != 1 {

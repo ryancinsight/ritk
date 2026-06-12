@@ -152,6 +152,7 @@ impl TransferSyntaxKind {
                 self,
                 Self::RleLossless
                     | Self::JpegLsLossless
+                    | Self::JpegLsLossy
                     | Self::Jpeg2000Lossless
                     | Self::Jpeg2000Lossy
             )
@@ -272,9 +273,8 @@ mod tests {
     fn external_backend_predicate_excludes_native_ritk_codecs() {
         for syntax in variants() {
             match syntax {
-                // JpegLsLossy, JpegXl variants remain external-only (no RITK-native decoder).
-                TransferSyntaxKind::JpegLsLossy
-                | TransferSyntaxKind::JpegXlLossless
+                // JpegXl variants remain external-only (no RITK-native decoder).
+                TransferSyntaxKind::JpegXlLossless
                 | TransferSyntaxKind::JpegXlJpegRecompression
                 | TransferSyntaxKind::JpegXl => {
                     assert!(
@@ -288,12 +288,13 @@ mod tests {
                         syntax
                     );
                 }
-                // JPEG baseline/LS-lossless/RLE/JPEG2000 are RITK-native.
+                // JPEG baseline/LS (lossless + near-lossless)/RLE/JPEG2000 are RITK-native.
                 TransferSyntaxKind::JpegBaseline
                 | TransferSyntaxKind::JpegExtended
                 | TransferSyntaxKind::JpegLosslessNonHierarchical
                 | TransferSyntaxKind::JpegLosslessFirstOrderPrediction
                 | TransferSyntaxKind::JpegLsLossless
+                | TransferSyntaxKind::JpegLsLossy
                 | TransferSyntaxKind::RleLossless
                 | TransferSyntaxKind::Jpeg2000Lossless
                 | TransferSyntaxKind::Jpeg2000Lossy => {

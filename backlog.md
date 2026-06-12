@@ -4,6 +4,28 @@
 
 ---
 
+## Sprint 369 — Native JPEG-LS codec: CharLS elimination + NEAR support
+
+**Status**: Complete  
+**Version**: 0.66.0 (ritk-codecs 0.3.0)  
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| JLS-369-ENC | Pure-Rust JPEG-LS encoder (lossless + NEAR), §C.2.1 bit writer, Golomb writer [minor] | **Done** |
+| JLS-369-NEAR | NEAR-aware native decode (TS .81); shared `CodingParams` SSOT [minor] | **Done** |
+| JLS-369-CONF | ISO C.2.4.1.1.1 default thresholds (>8-bit fix); §A.3.3 NEAR dead-zone [patch] | **Done** |
+| JLS-369-DEP | charls/openjp2/jpeg2k fully removed — codec stack 100 % Rust [minor] | **Done** |
+| JLS-369-TEST | Lossless + NEAR proptests; one-time CharLS differential before removal [patch] | **Done** |
+
+### Carry-forward
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| REG-MI-FLAKY | `translation_recovery_shifted_gaussian` deterministic failure in in-flight NGF/RSGD registration wave (est 1.0 vs true 3.0) | [investigate] |
+| JLS-INTEROP | Differential decode vs reference JPEG-LS corpora (e.g. ISO conformance streams) | [patch] |
+
+---
+
 ## Sprint 368 — RITK-native JPEG 2000 codec (pure-Rust ISO 15444-1)
 
 **Status**: Complete (lossless, 0 DWT levels)  

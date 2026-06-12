@@ -1,15 +1,17 @@
-//! Native JPEG-LS (ISO 14495-1) lossless decoder for DICOM encapsulated frames.
+//! Native JPEG-LS (ISO 14495-1) codec for DICOM encapsulated frames (lossless and near-lossless).
 //!
 //! # Architecture
-//! - `bitstream`: bit-level reader with JPEG-LS 0xFF/0x00 stuffing handling.
+//! - `bitstream`: bit-level reader and writer with JPEG-LS 0xFF stuffing.
 //! - `context`: ISO 14495-1 context model and threshold computation.
 //! - `scan`: ISO 14495-1 regular-mode and run-mode scan decoder.
+//! - [`encoder`]: ISO 14495-1 encoder, lossless and near-lossless.
 //! - `decoder`: header-derived decoder state and scan-to-byte conversion.
 //! - `parser`: marker parsing for SOI, SOF55, SOS, LSE, DRI, DNL, and EOI.
 
 mod bitstream;
 mod context;
 mod decoder;
+pub mod encoder;
 mod marker;
 mod parser;
 mod scan;

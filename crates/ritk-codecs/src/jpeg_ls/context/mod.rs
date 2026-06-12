@@ -120,11 +120,19 @@ impl RunInterruptionContext {
         k
     }
 
+    /// Sign-mapping condition used by both the decoder's `compute_error_value`
+    /// and the encoder's forward mapping (ISO 14495-1 §A.7.2): when `true`,
+    /// a negative error value maps to an odd `temp`.
+    #[inline(always)]
+    pub(crate) fn negative_maps_to_odd(self, k: u32) -> bool {
+        k != 0 || 2 * self.nn >= self.n
+    }
+
     #[inline(always)]
     pub(crate) fn compute_error_value(self, temp: u32, k: u32) -> i32 {
         let map = temp & 1 != 0;
         let error_value_abs = ((temp + u32::from(map)) / 2) as i32;
-        if (k != 0 || 2 * self.nn >= self.n) == map {
+        if self.negative_maps_to_odd(k) == map {
             -error_value_abs
         } else {
             error_value_abs
@@ -207,20 +215,21 @@ pub(crate) fn compute_k(a: u32, n: u32, qbpp: u32) -> u32 {
 }
 
 /// Quantize gradient `d` into one of 9 levels {−4, −3, −2, −1, 0, 1, 2, 3, 4}
-/// using thresholds T1, T2, T3 (where 0 < T1 ≤ T2 ≤ T3).
+/// using thresholds T1, T2, T3 (where NEAR < T1 ≤ T2 ≤ T3) and the NEAR
+/// dead-zone (`|d| ≤ NEAR → 0`; NEAR = 0 for lossless).
 ///
-/// ISO 14495-1 §A.2.
+/// ISO 14495-1 §A.3.3 (code segment A.4).
 #[inline(always)]
-pub(crate) fn quant(d: i32, t1: i32, t2: i32, t3: i32) -> i32 {
+pub(crate) fn quant(d: i32, t1: i32, t2: i32, t3: i32, near: i32) -> i32 {
     if d <= -t3 {
         -4
     } else if d <= -t2 {
         -3
     } else if d <= -t1 {
         -2
-    } else if d < 0 {
+    } else if d < -near {
         -1
-    } else if d == 0 {
+    } else if d <= near {
         0
     } else if d < t1 {
         1
@@ -268,15 +277,106 @@ pub(crate) fn context_index(q1: i32, q2: i32, q3: i32) -> usize {
     }
 }
 
-/// Compute default gradient thresholds T1, T2, T3 from MAXVAL.
+/// Compute default gradient thresholds T1, T2, T3 from MAXVAL and NEAR.
 ///
-/// ISO 14495-1 §C.2.4 default preset parameters (no LSE marker).
-pub(crate) fn default_thresholds(maxval: i32) -> (i32, i32, i32) {
-    let factor = (maxval + 128) / 256;
-    let t1 = (3 * factor).max(2).min((maxval + 1) / 8);
-    let t2 = (7 * factor).max(3).min((maxval + 1) / 4);
-    let t3 = (21 * factor).max(4).min(maxval);
-    (t1, t2, t3)
+/// ISO 14495-1 §C.2.4.1.1.1 default preset parameters (no LSE marker):
+/// `FACTOR = (min(MAXVAL, 4095) + 128) / 256`, then
+/// `T1 = FACTOR·(BASIC_T1 − 2) + 2 + 3·NEAR`,
+/// `T2 = FACTOR·(BASIC_T2 − 3) + 3 + 5·NEAR`,
+/// `T3 = FACTOR·(BASIC_T3 − 4) + 4 + 7·NEAR`,
+/// with `BASIC = (3, 7, 21)`, each clamped to `[NEAR + 1 / T1 / T2, MAXVAL]`.
+/// For `MAXVAL < 128` the FACTOR term scales the basic values down instead;
+/// DICOM data is ≥ 8-bit so the high branch is the production path.
+pub(crate) fn default_thresholds(maxval: i32, near: i32) -> (i32, i32, i32) {
+    if maxval >= 128 {
+        let factor = (maxval.min(4095) + 128) / 256;
+        let t1 = (factor + 2 + 3 * near).clamp(near + 1, maxval);
+        let t2 = (4 * factor + 3 + 5 * near).clamp(t1, maxval);
+        let t3 = (17 * factor + 4 + 7 * near).clamp(t2, maxval);
+        (t1, t2, t3)
+    } else {
+        // Low-precision branch (ISO 14495-1 §C.2.4.1.1.1, MAXVAL < 128):
+        // FACTOR = 256 / (MAXVAL + 1) divides the basic thresholds.
+        let factor = 256 / (maxval + 1);
+        let t1 = (3 / factor + 3 * near).max(2).clamp(near + 1, maxval);
+        let t2 = (7 / factor + 5 * near).max(3).clamp(t1, maxval);
+        let t3 = (21 / factor + 7 * near).max(4).clamp(t2, maxval);
+        (t1, t2, t3)
+    }
+}
+
+/// Coding parameters derived from the sample precision and the NEAR bound
+/// (ISO 14495-1 §A.2.1) — shared by the encoder and the scan decoder.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CodingParams {
+    /// Maximum sample value `2^bpp − 1`.
+    pub(crate) maxval: i32,
+    /// Range of quantized prediction errors; `2^bpp` for lossless.
+    pub(crate) range: i32,
+    /// `⌈log₂ RANGE⌉`; equals `bpp` for lossless.
+    pub(crate) qbpp: u32,
+    /// Golomb code length limit `2·(bpp + max(8, bpp))`.
+    pub(crate) limit: u32,
+    /// Context initialisation value `max(2, (RANGE + 32)/64)`.
+    pub(crate) a_init: u32,
+    /// NEAR bound (0 = lossless).
+    pub(crate) near: i32,
+}
+
+impl CodingParams {
+    pub(crate) fn new(bpp: u32, near: i32) -> Self {
+        let maxval = (1i32 << bpp) - 1;
+        let range = (maxval + 2 * near) / (2 * near + 1) + 1;
+        let qbpp = u32::BITS - ((range - 1) as u32).leading_zeros();
+        let limit = 2 * (bpp + bpp.max(8));
+        let a_init = ((range as u32 + 32) >> 6).max(2);
+        Self {
+            maxval,
+            range,
+            qbpp,
+            limit,
+            a_init,
+            near,
+        }
+    }
+}
+
+/// Reduce a quantized prediction error to the canonical modulo-RANGE
+/// representative in `[−RANGE/2, (RANGE+1)/2)` (ISO 14495-1 §A.4.5).
+#[inline(always)]
+pub(crate) fn modulo_reduce(mut errval: i32, range: i32) -> i32 {
+    if errval < 0 {
+        errval += range;
+    }
+    if errval >= (range + 1) / 2 {
+        errval -= range;
+    }
+    errval
+}
+
+/// Quantize a raw prediction error by the NEAR dead-zone (ISO 14495-1 §A.4.4):
+/// `q = sign(e) · (|e| + NEAR) / (2·NEAR + 1)`. Identity for NEAR = 0.
+#[inline(always)]
+pub(crate) fn quantize_error(e: i32, near: i32) -> i32 {
+    if e > 0 {
+        (e + near) / (2 * near + 1)
+    } else {
+        -((near - e) / (2 * near + 1))
+    }
+}
+
+/// Dequantize and reconstruct a sample (ISO 14495-1 §A.4.4 / §A.8.2): wrap
+/// into `[−NEAR, MAXVAL + NEAR]` by RANGE·(2·NEAR+1) steps, then clamp to
+/// `[0, MAXVAL]`. For NEAR = 0 this is the modulo-RANGE reconstruction.
+#[inline(always)]
+pub(crate) fn reconstruct(pred: i32, errval_q: i32, p: &CodingParams) -> i32 {
+    let mut rx = pred + errval_q * (2 * p.near + 1);
+    if rx < -p.near {
+        rx += p.range * (2 * p.near + 1);
+    } else if rx > p.maxval + p.near {
+        rx -= p.range * (2 * p.near + 1);
+    }
+    rx.clamp(0, p.maxval)
 }
 
 /// Inverse error mapping: MErrval (≥0) → signed errval.

@@ -21,12 +21,32 @@ fn decoder_new_initializes_defaults() {
 }
 
 #[test]
-fn decode_fragment_rejects_near_nonzero() {
-    let decoder = one_component_decoder(100, 100, 8, 1, 0, 0);
-    let result = decoder.decode_fragment(&[]);
-    assert!(result.is_err());
-    let msg = format!("{:?}", result.unwrap_err());
-    assert!(msg.contains("NEAR"), "Expected 'NEAR' in error: {msg}");
+fn decode_fragment_near_lossless_bounded_error() {
+    // NEAR=2 native encode → native decode must satisfy |s' − s| ≤ 2 for all
+    // samples (ISO 14495-1 §A.4.4 analytical bound; tolerance is exact).
+    let original: Vec<u16> = vec![
+        10, 50, 100, 150, 200, 245, 30, 80, 130, 180, 220, 60, 110, 160, 210, 40,
+    ];
+    let stream = crate::jpeg_ls::encoder::encode_grayscale_jpeg_ls(&original, 4, 4, 8, 2);
+    let layout = crate::PixelLayout {
+        rows: 4,
+        cols: 4,
+        samples_per_pixel: 1,
+        bits_allocated: 8,
+        pixel_representation: crate::PixelSignedness::Unsigned,
+        rescale_slope: 1.0,
+        rescale_intercept: 0.0,
+    };
+    let decoded =
+        decode_jpeg_ls_fragment(&stream, layout).expect("near-lossless decode must succeed");
+    assert_eq!(decoded.len(), original.len());
+    for (i, (&orig, &dec)) in original.iter().zip(decoded.iter()).enumerate() {
+        let err = (f32::from(orig) - dec).abs();
+        assert!(
+            err <= 2.0,
+            "sample[{i}]: |{dec} − {orig}| = {err} exceeds NEAR=2 bound"
+        );
+    }
 }
 
 #[test]

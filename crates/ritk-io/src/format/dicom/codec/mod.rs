@@ -13,27 +13,27 @@
 //!   which has an off-by-one write-start offset (`start = 1` instead of `0`)
 //!   for 8-bit grayscale images, silently corrupting `pixel[0]` and losing
 //!   `pixel[N−1]` for any file where `pixel[0] ≠ 0`.
-//! - **JPEG-LS Lossless, JPEG 2000, and RLE Lossless**: dispatched through
-//!   `ritk-dicom::NativeCodecBackend`.
+//! - **JPEG-LS (lossless + near-lossless), JPEG 2000, and RLE Lossless**:
+//!   dispatched through `ritk-dicom::NativeCodecBackend`.
 //! - **Remaining external compressed transfer syntaxes**: calls the configured
 //!   `dicom-rs` backend and then applies the linear modality LUT.
 //!
-//! # Supported codecs (pure Rust, `native` feature of `dicom-pixeldata`)
+//! # Supported codecs (all pure Rust; no C/C++ FFI)
 //!
-//! | Transfer Syntax                        | UID                      | Codec          | Feature       |
-//! |----------------------------------------|--------------------------|----------------|---------------|
-//! | JPEG Baseline (Process 1)              | 1.2.840.10008.1.2.4.50   | jpeg-decoder   | native        |
-//! | JPEG Extended (Process 2 & 4)          | 1.2.840.10008.1.2.4.51   | jpeg-decoder   | native        |
-//! | JPEG Lossless Non-Hierarchical (P14)   | 1.2.840.10008.1.2.4.57   | jpeg-decoder   | native        |
-//! | JPEG Lossless First-Order Prediction   | 1.2.840.10008.1.2.4.70   | jpeg-decoder   | native        |
-//! | JPEG-LS Lossless                       | 1.2.840.10008.1.2.4.80   | RITK-native    | native        |
-//! | JPEG-LS Near-Lossless                  | 1.2.840.10008.1.2.4.81   | charls         | charls        |
-//! | JPEG 2000 Lossless                     | 1.2.840.10008.1.2.4.90   | openjp2        | openjp2       |
-//! | JPEG 2000 Lossy                        | 1.2.840.10008.1.2.4.91   | openjp2        | openjp2       |
-//! | RLE Lossless                           | 1.2.840.10008.1.2.5      | dicom-rle      | native        |
-//! | JPEG XL Lossless                       | 1.2.840.10008.1.2.4.110  | jxl-oxide      | jpegxl        |
-//! | JPEG XL JPEG Recompression             | 1.2.840.10008.1.2.4.111  | jxl-oxide      | jpegxl        |
-//! | JPEG XL                                | 1.2.840.10008.1.2.4.112  | jxl-oxide      | jpegxl        |
+//! | Transfer Syntax                        | UID                      | Codec          |
+//! |----------------------------------------|--------------------------|----------------|
+//! | JPEG Baseline (Process 1)              | 1.2.840.10008.1.2.4.50   | jpeg-decoder   |
+//! | JPEG Extended (Process 2 & 4)          | 1.2.840.10008.1.2.4.51   | jpeg-decoder   |
+//! | JPEG Lossless Non-Hierarchical (P14)   | 1.2.840.10008.1.2.4.57   | jpeg-decoder   |
+//! | JPEG Lossless First-Order Prediction   | 1.2.840.10008.1.2.4.70   | jpeg-decoder   |
+//! | JPEG-LS Lossless                       | 1.2.840.10008.1.2.4.80   | RITK-native    |
+//! | JPEG-LS Near-Lossless                  | 1.2.840.10008.1.2.4.81   | RITK-native    |
+//! | JPEG 2000 Lossless                     | 1.2.840.10008.1.2.4.90   | RITK-native    |
+//! | JPEG 2000 Lossy (lossless-coded)       | 1.2.840.10008.1.2.4.91   | RITK-native    |
+//! | RLE Lossless                           | 1.2.840.10008.1.2.5      | RITK-native    |
+//! | JPEG XL Lossless                       | 1.2.840.10008.1.2.4.110  | jxl-oxide      |
+//! | JPEG XL JPEG Recompression             | 1.2.840.10008.1.2.4.111  | jxl-oxide      |
+//! | JPEG XL                                | 1.2.840.10008.1.2.4.112  | jxl-oxide      |
 //!
 //! # Mathematical contract
 //!

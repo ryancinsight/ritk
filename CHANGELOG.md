@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [0.66.0] — 2026-06-12 (Sprint 369: Native JPEG-LS codec — CharLS elimination, NEAR support, zero C/C++ FFI)
+
+### Added
+- `ritk-codecs 0.3.0`: pure-Rust JPEG-LS encoder (`jpeg_ls::encoder::encode_grayscale_jpeg_ls`) — ISO 14495-1 lossless (NEAR = 0) and near-lossless (NEAR > 0), single-component 8–16-bit; mirrors the scan decoder over the shared context model.
+- `ritk-codecs`: NEAR-aware scan decoding — TS 1.2.840.10008.1.2.4.81 (JPEG-LS Near-Lossless) now decodes RITK-natively; `CodingParams` (RANGE/qbpp/LIMIT/A-init) and `quantize_error`/`reconstruct`/`modulo_reduce` shared by encoder and decoder (SSOT).
+- `ritk-codecs`: JPEG-LS bit writer with §C.2.1 stuffing; Golomb writer (normal + escape forms); round-trip suites incl. lossless and NEAR-bounded proptests.
+- `ritk-dicom`: `JpegLsLossy` reclassified as native; routed through `NativeCodecBackend`.
+
+### Fixed
+- `default_thresholds` now follows ISO 14495-1 C.2.4.1.1.1: FACTOR caps MAXVAL at 4095 and scales `(BASIC − k) + k + offset·NEAR`; previous formula produced non-conformant T1/T2/T3 for >8-bit data without an LSE marker (e.g. 16-bit: 768/1792/5376 → 18/67/276).
+- Gradient quantization gains the NEAR dead-zone (`|d| ≤ NEAR → 0`, §A.3.3).
+
+### Removed
+- `charls` (C++ CharLS binding) — workspace dep, ritk-io dev-dep, and `ritk-io/build.rs` libstdc++ link hacks all deleted. Cross-implementation conformance of the native encoder was verified against the CharLS-backed decoder before removal.
+- `dicom-transfer-syntax-registry` `charls` + `openjp2` features; `jpeg2k` workspace dep. The DICOM codec stack is now 100 % Rust (no C/C++ FFI), which also eliminates the Windows `libstdc++-6.dll` PATH-shadowing failure mode (0xc0000139).
+
 ## [0.65.0] — 2026-06-12 (Sprint 368: RITK-native JPEG 2000 codec — pure-Rust ISO 15444-1, C/FFI elimination)
 
 ### Added
