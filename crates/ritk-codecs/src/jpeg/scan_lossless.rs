@@ -246,7 +246,7 @@ pub(crate) mod tests {
         let data = std::fs::read(path).unwrap();
         let mut jpeg_start = None;
         for i in 0..data.len() - 1 {
-            if data[i] == 0xFF && data[i+1] == 0xD8 {
+            if data[i] == 0xFF && data[i + 1] == 0xD8 {
                 jpeg_start = Some(i);
                 break;
             }
@@ -259,17 +259,23 @@ pub(crate) mod tests {
         let ref_pixels = dec.decode().expect("jpeg-decoder failed");
         let ref_info = dec.info().expect("info failed");
         assert_eq!(ref_info.pixel_format, jpeg_decoder::PixelFormat::L16);
-        let ref_u16: Vec<u16> = ref_pixels.chunks_exact(2).map(|c| u16::from_ne_bytes([c[0], c[1]])).collect();
+        let ref_u16: Vec<u16> = ref_pixels
+            .chunks_exact(2)
+            .map(|c| u16::from_ne_bytes([c[0], c[1]]))
+            .collect();
 
         // 2. Decode with native decoder
         let frame = parse_jpeg(jpeg_data).expect("parse_jpeg failed");
         let entropy = &jpeg_data[frame.scan_data_start..];
         let decoded = decode_lossless_scan(&frame, entropy).expect("decode_lossless_scan failed");
         assert_eq!(decoded.pixel_format, JpegPixelFormat::L16);
-        let native_u16: Vec<u16> = decoded.pixels.chunks_exact(2).map(|c| u16::from_ne_bytes([c[0], c[1]])).collect();
+        let native_u16: Vec<u16> = decoded
+            .pixels
+            .chunks_exact(2)
+            .map(|c| u16::from_ne_bytes([c[0], c[1]]))
+            .collect();
 
         assert_eq!(ref_u16.len(), native_u16.len());
         assert_eq!(ref_u16, native_u16);
     }
 }
-

@@ -201,8 +201,9 @@ fn test_decode_compressed_frame_rle_lossless_round_trip() {
     }
 
     let obj = dicom::object::open_file(&path).expect("open_file failed");
-    let decoded = decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
-        .expect("decode_compressed_frame must succeed for RLE Lossless");
+    let decoded =
+        decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
+            .expect("decode_compressed_frame must succeed for RLE Lossless");
 
     assert_eq!(
         decoded.len(),
@@ -355,8 +356,9 @@ fn test_decode_compressed_frame_rle_lossless_unrestricted_round_trip() {
     }
 
     let obj = dicom::object::open_file(&path).expect("open_file failed");
-    let decoded = decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
-        .expect("decode_compressed_frame must succeed for RLE Lossless with native decoder");
+    let decoded =
+        decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
+            .expect("decode_compressed_frame must succeed for RLE Lossless with native decoder");
 
     assert_eq!(
         decoded.len(),

@@ -4,36 +4,21 @@
 //! primitives: pixel layout arithmetic, native sample decoding, and all
 //! encapsulated transfer syntax decoders.
 //!
-//! # C/C++ dependency migration plan
-//! | Codec       | Current C/C++ dep  | Target pure Rust        | Phase |
-//! |-------------|-------------------|-------------------------|-------|
-//! | JPEG 2000   | `openjpeg-sys`    | ISO 15444-1 Rust impl   | 2     |
-//! | JPEG        | `jpeg-decoder`    | Pure Rust JPEG decoder  | 3     |
-//! | JPEG-LS     | (none — RITK-native since Sprint 127) | complete | done |
-//! | PackBits    | (none — pure Rust) |                        | done  |
-//! | RLE         | (none — pure Rust) |                        | done  |
+//! # C/C++ dependency migration status
+//! | Codec       | C/C++ dep         | Pure Rust implementation             | Status |
+//! |-------------|-------------------|--------------------------------------|--------|
+//! | JPEG 2000   | (none)            | ISO 15444-1 codec in [`jpeg_2000`]   | done (lossless, 0 DWT levels; multi-level DWT: J2K-DECODE-DWT) |
+//! | JPEG        | `jpeg-decoder`    | Pure Rust JPEG decoder (Rust crate)  | done   |
+//! | JPEG-LS     | (none — RITK-native since Sprint 127) |                  | done   |
+//! | PackBits    | (none — pure Rust) |                                     | done   |
+//! | RLE         | (none — pure Rust) |                                     | done   |
 //!
-//! Phase 1 (this sprint): extract all codecs from `ritk-dicom` into this crate.
-//! Phase 2: replace `openjpeg-sys` with a pure Rust JPEG 2000 decoder.
-//! Phase 3: replace `jpeg-decoder` with a pure Rust JPEG decoder.
-//! Phase 4: remove `charls` / `dicom-transfer-syntax-registry` charls+openjpeg
-//!          features from the workspace once RITK-native codecs cover all
-//!          needed transfer syntaxes.
+//! `openjpeg-sys` / `openjp2` / `jpeg2k` / `charls` are no longer dependencies
+//! of this crate (`charls` remains a *dev*-dependency of `ritk-io` solely as a
+//! differential JPEG-LS reference).
 
 pub mod jpeg;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod jpeg_2000;
-#[cfg(target_arch = "wasm32")]
-pub mod jpeg_2000 {
-    use anyhow::{bail, Result};
-
-    use crate::PixelLayout;
-
-    /// WebAssembly builds do not link OpenJPEG C libraries.
-    pub fn decode_jpeg2000_fragment(_fragment: &[u8], _layout: PixelLayout) -> Result<Vec<f32>> {
-        bail!("JPEG 2000 decoding is unavailable on wasm32 targets")
-    }
-}
 pub mod jpeg_ls;
 pub mod packbits;
 pub mod pixel_layout;

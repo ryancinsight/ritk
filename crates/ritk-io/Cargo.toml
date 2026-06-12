@@ -53,8 +53,7 @@ dicom-transfer-syntax-registry = { version = "0.8", default-features = false }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }
-openjp2 = { workspace = true, features = ["file-io"] }
-openjpeg-sys = { workspace = true }
+ritk-codecs = { workspace = true }
 charls = { workspace = true }
 tempfile = { workspace = true }
 zune-jpegxl = { version = "0.4", default-features = false, features = ["std"] }

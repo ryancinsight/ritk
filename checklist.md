@@ -1,5 +1,32 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 368 — RITK-native JPEG 2000 codec (pure-Rust ISO 15444-1, C/FFI elimination)
+**Target version**: 0.65.0 (ritk-codecs 0.2.0)  
+**Sprint phase**: Closure — native J2K lossless codec delivered and verified.
+
+### Delivered (Sprint 368)
+- [x] J2K-368-MQ [patch]: MQ coder conformance fixes — INITDEC alignment, MPSEXCHANGE `A=Qe` removal, CODEMPS/CODELPS per Figures C.7/C.8, dummy-first-byte BYTEOUT, FLUSH `CT` shift, QE_TABLE NMPS/NLPS column swap, Table D.7 initial contexts
+- [x] J2K-368-T2 [patch]: tier-2 packet fixes — Lblock terminator bit, Table B.4 39+ prefix (5 bits), inclusion tag-tree threshold 0
+- [x] J2K-368-ENC [minor]: encoder promoted from `#[cfg(test)]` to public module (`jpeg_2000::encoder`); ritk-io consumes it for DICOM J2K round-trip tests
+- [x] J2K-368-DEP [minor]: `jpeg2k`/`openjp2`/`openjpeg-sys`/`charls` removed from ritk-codecs; `decode_tile_part` params → `TileCodingParams`
+- [x] J2K-368-TEST [patch]: 16-bit regression test + proptest lossless round-trip (random images, 8/12/16-bit, signed/unsigned)
+- [x] FIX-368-REG [patch]: NGF/RSGD config call-site compile fixes (`center_weight_sigma_frac`, `learning_rate_decay`); `ngf_scalar` gated `#[cfg(test)]`
+
+### Blocked / Deferred
+- [ ] J2K-DECODE-DWT [minor]: multi-level 5/3 DWT decode (wavelet.rs idwt groundwork in place; `decode_tile_part` currently bails on `num_decomp_levels > 0`)
+- [ ] J2K-LOSSY-97 [minor]: 9/7 irreversible wavelet (lossy TS .91 full support)
+- [ ] J2K-INTEROP [patch]: differential decode test against an OpenJPEG-encoded reference codestream (real-world DICOM corpus)
+
+### Verification gate (Sprint 368)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run -p ritk-codecs` → 145/145 passed (incl. 256-case proptest)
+- [x] `cargo nextest run -p ritk-io` → 330/330 passed (JPEG2000 Windows abort resolved — pure-Rust path)
+
+### Environment note
+- `ritk-io` test binaries link `libstdc++-6.dll` (charls dev-dep); a Julia `libstdc++-6.dll` in PATH caused 0xc0000139 at load. Workaround: ucrt64 runtime DLLs copied beside `target/debug/deps`. Root fix: drop charls dev-dep once a pure-Rust JPEG-LS differential reference exists.
+
+---
+
 ## Sprint 367 — Architecture Hardening Round 6: ENUM · NAMING · SRP · SSOT · DRY · COMPAT + ritk-core Crate Extraction
 **Target version**: 0.64.0  
 **Sprint phase**: Closure — all 40 patches + [arch] crate extraction delivered and verified.

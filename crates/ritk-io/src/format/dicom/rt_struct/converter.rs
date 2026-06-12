@@ -323,18 +323,10 @@ mod tests {
     fn make_small_label_map() -> ritk_annotation::LabelMap {
         let mut table = ritk_annotation::LabelTable::new();
         table
-            .add_label(
-                1,
-                "Tumor",
-                ritk_annotation::RgbaBytes::new(255, 0, 0, 255),
-            )
+            .add_label(1, "Tumor", ritk_annotation::RgbaBytes::new(255, 0, 0, 255))
             .unwrap();
         table
-            .add_label(
-                2,
-                "Organ",
-                ritk_annotation::RgbaBytes::new(0, 255, 0, 255),
-            )
+            .add_label(2, "Organ", ritk_annotation::RgbaBytes::new(0, 255, 0, 255))
             .unwrap();
         let mut lm = ritk_annotation::LabelMap::new([2, 4, 4], table);
         // Label 1: voxels [z=0, y=1..2, x=1..2]

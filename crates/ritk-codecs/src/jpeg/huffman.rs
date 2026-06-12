@@ -111,14 +111,12 @@ impl<'a> BitReader<'a> {
     /// Returns `None` when the entropy stream ends (marker boundary or EOF).
     fn next_entropy_byte(&mut self) -> Option<u8> {
         if self.pos >= self.data.len() {
-            println!("next_entropy_byte: EOF reached at pos {}, data.len() = {}", self.pos, self.data.len());
             return None;
         }
         let b = self.data[self.pos];
         self.pos += 1;
         if b == 0xFF {
             if self.pos >= self.data.len() {
-                println!("next_entropy_byte: Trailing 0xFF at EOF");
                 return None;
             }
             let next = self.data[self.pos];
@@ -131,7 +129,6 @@ impl<'a> BitReader<'a> {
                 return Some(0xFF); // Treat the restart as a boundary fill byte.
             } else {
                 // Non-stuffed marker (e.g. EOI) — back up.
-                println!("next_entropy_byte: Found marker 0xFF{:02X} at pos {}, data.len() = {}", next, self.pos, self.data.len());
                 self.pos -= 1;
                 return None;
             }

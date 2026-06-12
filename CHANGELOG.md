@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [0.65.0] — 2026-06-12 (Sprint 368: RITK-native JPEG 2000 codec — pure-Rust ISO 15444-1, C/FFI elimination)
+
+### Added
+- `ritk-codecs 0.2.0`: pure-Rust JPEG 2000 codec (`jpeg_2000` module): MQ arithmetic coder (Annex C), EBCOT tier-1 (Annex D), tier-2 packets (Annex B), main-header parser (SIZ/COD/QCD/SOT), 5/3 reversible inverse DWT groundwork (Annex F), and a public encoder (`jpeg_2000::encoder::encode_grayscale_j2k`) producing conformant lossless codestreams for DICOM TS 1.2.840.10008.1.2.4.90.
+- `ritk-codecs`: 16-bit round-trip regression test (Table B.4 long pass-count branch) and a proptest lossless round-trip over random images (1–8 px per side, 8/12/16-bit, signed/unsigned).
+
+### Fixed
+- MQ decoder INITDEC register alignment (`C = B0<<16; BYTEIN; C <<= 7`) — Chigh was previously misaligned by one bit.
+- MQ decoder MPSEXCHANGE incorrectly set `A = Qe` (only LPSEXCHANGE does, ISO 15444-1 Figures C.18/C.19).
+- MQ encoder CODEMPS/CODELPS rewritten to Figures C.7/C.8 (missing `C += Qe` on the fast MPS branch; exchange branches added `A` instead of `Qe`).
+- MQ encoder emitted a spurious leading 0x00 byte (OpenJPEG `bp = start − 1` dummy-slot semantics now honoured); FLUSH second shift now uses the post-BYTEOUT `CT` instead of a fixed 8.
+- `QE_TABLE` NMPS/NLPS columns were swapped relative to Table C.2; initial context states now match Table D.7 (ZC context 0 → state 4).
+- Tier-2 packet writer: missing Lblock-signalling terminator bit; 39+ pass-count prefix used 6 bits instead of 5 (Table B.4); inclusion tag-tree decode started at threshold 1 instead of 0.
+- `ritk-io` JPEG 2000 DICOM round-trip (previously aborting 0xC0000374 in the OpenJPEG C runtime) now passes via the RITK-native path.
+
+### Removed
+- `ritk-codecs`: `jpeg2k`, `openjp2`, `openjpeg-sys`, and unused `charls` dependencies — C/C++ FFI eliminated from the codec crate; `ritk-io` dev-deps swap `openjp2`/`openjpeg-sys` for `ritk-codecs`.
+
+### Changed
+- `packet::decode_tile_part` parameter chain consolidated into `TileCodingParams` (no-parameter-chaining rule).
+- `ritk-registration`: NGF/RSGD config call sites updated for new `center_weight_sigma_frac` / `learning_rate_decay` fields (in-flight NGF work compile fixes).
+
 ## [0.64.0] — 2026-06-12 (Sprint 367: Architecture Hardening Round 6 — ENUM · NAMING · SRP · SSOT · DRY · COMPAT + ritk-core Crate Extraction)
 
 ### Added

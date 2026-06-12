@@ -67,8 +67,7 @@ pub(super) fn finalize_scanned_series(
     // In DICOMDIR datasets with mixed series (scout + CT), use the plurality
     // (most-frequent) dimensions as canonical; exclude non-matching files.
     {
-        let mut dim_freq: HashMap<(u32, u32), usize> =
-            HashMap::with_capacity(per_file_dims.len());
+        let mut dim_freq: HashMap<(u32, u32), usize> = HashMap::with_capacity(per_file_dims.len());
         for &(r, c) in &per_file_dims {
             if r > 0 && c > 0 {
                 *dim_freq.entry((r, c)).or_insert(0) += 1;

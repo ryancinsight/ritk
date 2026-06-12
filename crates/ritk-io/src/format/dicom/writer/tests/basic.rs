@@ -124,7 +124,10 @@ fn test_series_pixel_clamp_u16_range() {
                         has_non_zero = true;
                     }
                 }
-                assert!(has_non_zero || bytes.is_empty(), "non-zero pixel data expected");
+                assert!(
+                    has_non_zero || bytes.is_empty(),
+                    "non-zero pixel data expected"
+                );
             }
         }
     }

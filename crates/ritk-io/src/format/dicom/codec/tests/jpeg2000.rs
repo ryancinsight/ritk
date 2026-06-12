@@ -3,120 +3,43 @@ use dicom::core::smallvec::SmallVec;
 use dicom::core::value::PixelFragmentSequence;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
+use ritk_codecs::jpeg_2000::encoder::encode_grayscale_j2k;
+use ritk_codecs::PixelSignedness;
 
 /// Build and write a minimal JPEG 2000 Lossless DICOM Part 10 file.
 ///
-/// Pixel data is encoded as a bare J2K codestream (`OPJ_CODEC_J2K`) using the
-/// 5/3 reversible integer wavelet transform (`irreversible = 0`) via the Rust
-/// `openjp2` port.
-/// One resolution level is used to satisfy tile-size constraints for small images.
+/// Pixel data is encoded as a bare J2K codestream via the RITK-native pure-Rust
+/// encoder (`ritk_codecs::jpeg_2000::encoder`).  The 5/3 reversible wavelet is
+/// used with zero DWT decomposition levels, producing lossless output.
+///
+/// This replaces the former `openjp2`/`openjpeg-sys` FFI encoder, eliminating
+/// the Windows heap-corruption abort (0xC0000374) that manifested in the C
+/// OpenJPEG runtime when encoding small frames.
 fn write_jpeg2000_lossless_dicom_file(
     path: &std::path::Path,
     width: u32,
     height: u32,
     pixels_u16: &[u16],
 ) {
-    use std::ffi::CString;
-
     assert_eq!(
         pixels_u16.len(),
         (width * height) as usize,
         "pixels_u16 length must equal width × height"
     );
 
-    let j2k_tmp = tempfile::NamedTempFile::new().expect("NamedTempFile::new failed");
-    let j2k_tmp_path = j2k_tmp.into_temp_path();
-    let tmp_path_str = j2k_tmp_path
-        .to_str()
-        .expect("temp file path is not valid UTF-8");
-    let tmp_cstr = CString::new(tmp_path_str).expect("CString::new failed");
+    // Convert u16 pixels to i32 for the encoder (lossless, no narrowing).
+    let pixels_i32: Vec<i32> = pixels_u16.iter().map(|&v| v as i32).collect();
 
-    let j2k_bytes = unsafe {
-        use openjp2::openjpeg::{
-            opj_cparameters_t, opj_create_compress, opj_destroy_codec, opj_encode,
-            opj_end_compress, opj_image_create, opj_image_destroy,
-            opj_set_default_encoder_parameters, opj_setup_encoder, opj_start_compress,
-            opj_stream_create_default_file_stream, opj_stream_destroy, CODEC_FORMAT, COLOR_SPACE,
-            OPJ_BOOL, OPJ_FALSE, OPJ_TRUE,
-        };
-        use openjp2::opj_image_comptparm as opj_image_cmptparm_t;
-
-        let mut params: opj_cparameters_t = std::mem::zeroed();
-        opj_set_default_encoder_parameters(&mut params);
-        params.irreversible = 0;
-        params.numresolution = 1;
-
-        let mut cmptparm: opj_image_cmptparm_t = std::mem::zeroed();
-        cmptparm.dx = 1;
-        cmptparm.dy = 1;
-        cmptparm.w = width;
-        cmptparm.h = height;
-        cmptparm.x0 = 0;
-        cmptparm.y0 = 0;
-        cmptparm.prec = 16;
-        cmptparm.bpp = 16;
-        cmptparm.sgnd = 0;
-
-        let image = opj_image_create(1, &mut cmptparm, COLOR_SPACE::OPJ_CLRSPC_GRAY);
-        assert!(!image.is_null(), "opj_image_create returned NULL");
-        (*image).x0 = 0;
-        (*image).y0 = 0;
-        (*image).x1 = width;
-        (*image).y1 = height;
-
-        let data_ptr = (*(*image).comps).data;
-        assert!(
-            !data_ptr.is_null(),
-            "opj_image_comp_t data pointer is NULL after opj_image_create"
-        );
-        for (i, &px) in pixels_u16.iter().enumerate() {
-            *data_ptr.add(i) = px as i32;
-        }
-
-        let codec = opj_create_compress(CODEC_FORMAT::OPJ_CODEC_J2K);
-        assert!(!codec.is_null(), "opj_create_compress returned NULL");
-
-        let setup_ok = opj_setup_encoder(codec, &mut params, image);
-        assert_eq!(
-            setup_ok, OPJ_TRUE as OPJ_BOOL,
-            "opj_setup_encoder failed (returned {setup_ok})"
-        );
-
-        let stream =
-            opj_stream_create_default_file_stream(tmp_cstr.as_ptr(), OPJ_FALSE as OPJ_BOOL);
-        assert!(
-            !stream.is_null(),
-            "opj_stream_create_default_file_stream returned NULL"
-        );
-
-        let start_ok = opj_start_compress(codec, image, stream);
-        assert_eq!(
-            start_ok, OPJ_TRUE as OPJ_BOOL,
-            "opj_start_compress failed (returned {start_ok})"
-        );
-
-        let encode_ok = opj_encode(codec, stream);
-        assert_eq!(
-            encode_ok, OPJ_TRUE as OPJ_BOOL,
-            "opj_encode failed (returned {encode_ok})"
-        );
-
-        let end_ok = opj_end_compress(codec, stream);
-        assert_eq!(
-            end_ok, OPJ_TRUE as OPJ_BOOL,
-            "opj_end_compress failed (returned {end_ok})"
-        );
-
-        opj_stream_destroy(stream);
-        opj_image_destroy(image);
-        opj_destroy_codec(codec);
-
-        std::fs::read(&*j2k_tmp_path).expect("failed to read encoded J2K codestream")
-    };
+    let j2k_bytes = encode_grayscale_j2k(&pixels_i32, height, width, 16, PixelSignedness::Unsigned);
 
     assert!(
-        !j2k_bytes.is_empty(),
-        "J2K encoded codestream must not be empty"
+        j2k_bytes.len() >= 4,
+        "J2K encoded codestream must be non-trivial"
+    );
+    assert_eq!(
+        j2k_bytes[..2],
+        [0xFF, 0x4F],
+        "encoded J2K codestream must start with SOC 0xFF4F"
     );
 
     let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![j2k_bytes]);
@@ -224,16 +147,13 @@ fn write_jpeg2000_lossless_dicom_file(
 /// JPEG 2000 Lossless round-trip: encode known 16-bit pixel values, decode via codec,
 /// verify exact pixel equality (lossless invariant).
 ///
-/// Mathematical justification:
+/// # Mathematical justification
 /// JPEG 2000 Lossless (TS 1.2.840.10008.1.2.4.90) uses the 5/3 reversible integer
-/// wavelet transform with lossless coding. Per ISO 15444-1 §C.5.5.1, irreversible=0
+/// wavelet transform with lossless coding.  Per ISO 15444-1 §C.5.5.1, irreversible=0
 /// ⟹ exact reconstruction: |decoded[i] − original[i]| = 0 for all i.
-///   Encode: J2K_Lossless(S, irreversible=0) → codestream C
-///   Decode: J2K_Decode(C) → S' where S'[i] = S[i] for all i.
-/// Max error = max|S[i] − S'[i]| = 0.
 ///
-/// Pixel set spans [0, 4095] with boundary and interior samples representative of
-/// a 12-bit effective range within 16-bit allocation.
+/// Evidence tier: round-trip differential test — encoder and decoder are separate
+/// code paths; the lossless invariant is verified by asserting max_error = 0.
 #[test]
 fn test_decode_compressed_frame_jpeg2000_lossless_round_trip() {
     let width = 4u32;
@@ -246,8 +166,9 @@ fn test_decode_compressed_frame_jpeg2000_lossless_round_trip() {
     write_jpeg2000_lossless_dicom_file(&path, width, height, &original);
 
     let obj = dicom::object::open_file(&path).expect("open_file failed");
-    let decoded = decode_compressed_frame(&obj, 0, 16, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
-        .expect("decode_compressed_frame must succeed for JPEG 2000 Lossless");
+    let decoded =
+        decode_compressed_frame(&obj, 0, 16, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
+            .expect("decode_compressed_frame must succeed for JPEG 2000 Lossless");
 
     assert_eq!(decoded.len(), 16, "decoded pixel count must equal 16");
     for (i, &v) in decoded.iter().enumerate() {
@@ -264,7 +185,7 @@ fn test_decode_compressed_frame_jpeg2000_lossless_round_trip() {
     assert_eq!(
         max_error, 0.0,
         "JPEG 2000 Lossless decode error {max_error} must be exactly 0 \
-         (ISO 15444-1 §C.5.5.1: irreversible=0 ⟹ |S'[i]−S[i]| = 0)"
+         (ISO 15444-1 §C.5.5.1: 5/3 reversible wavelet ⟹ |S'[i]−S[i]| = 0)"
     );
     for (i, (&orig, &dec)) in original.iter().zip(decoded.iter()).enumerate() {
         assert_eq!(

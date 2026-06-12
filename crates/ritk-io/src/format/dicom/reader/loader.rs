@@ -57,7 +57,6 @@ pub(crate) fn load_from_series<B: Backend>(
     series: DicomSeriesInfo,
     device: &B::Device,
 ) -> Result<(Image<B, 3>, DicomReadMetadata)> {
-    println!("load_from_series: entering function");
     let mut metadata = series.metadata;
     let slices = std::mem::take(&mut metadata.slices);
 
@@ -160,21 +159,14 @@ pub(crate) fn load_from_series<B: Backend>(
     };
 
     let frame_len = rows * cols;
-    println!("load_from_series: needs_resample = {}", needs_resample);
     let (volume, final_depth) = if needs_resample {
-        println!(
-            "load_from_series: entering resample branch, slices.len() = {}",
-            slices.len()
-        );
         // Irregular z-spacing: decode to frame vectors then resample to uniform grid.
         #[cfg(not(target_arch = "wasm32"))]
         let decoded: Vec<Vec<f32>> = {
-            println!("load_from_series: before resample parallel map_collect");
             use moirai::prelude::ParallelSlice;
             let decoded: Result<Vec<Vec<f32>>, anyhow::Error> = slices
                 .par()
                 .map_collect(|slice| {
-                    println!("load_from_series: mapping resample slice {:?}", slice.path);
                     let data = if let Some(ref bytes) = slice.part10_bytes {
                         read_slice_pixels_from_bytes(bytes, slice)
                     } else {
@@ -229,21 +221,15 @@ pub(crate) fn load_from_series<B: Backend>(
         }
         (volume, new_depth)
     } else {
-        println!("load_from_series: entering direct-decode branch");
         // Uniform z-spacing: decode directly into a preallocated contiguous volume.
         let mut volume = vec![0f32; frame_len * depth];
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            println!(
-                "load_from_series: before direct parallel map_collect, slices.len() = {}",
-                slices.len()
-            );
             use moirai::prelude::ParallelSlice;
             // Decode slices in parallel (fallible), then write into the volume
             // sequentially (cheap memcpy) so the first decode error propagates.
             let decoded: Vec<Result<Vec<f32>>> = slices.par().map_collect(|slice| {
-                println!("load_from_series: mapping direct slice {:?}", slice.path);
                 let data = if let Some(ref bytes) = slice.part10_bytes {
                     read_slice_pixels_from_bytes(bytes, slice)
                 } else {

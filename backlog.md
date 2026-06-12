@@ -4,6 +4,30 @@
 
 ---
 
+## Sprint 368 — RITK-native JPEG 2000 codec (pure-Rust ISO 15444-1)
+
+**Status**: Complete (lossless, 0 DWT levels)  
+**Version**: 0.65.0 (ritk-codecs 0.2.0)  
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| J2K-368-MQ | MQ coder ISO 15444-1 Annex C conformance (INITDEC, MPSEXCHANGE, CODEMPS/CODELPS, BYTEOUT/FLUSH, Table C.2 columns, Table D.7 init) [patch] | **Done** |
+| J2K-368-T2 | Tier-2 packet conformance (Lblock terminator, Table B.4 prefix, inclusion threshold) [patch] | **Done** |
+| J2K-368-ENC | Public pure-Rust J2K encoder (`jpeg_2000::encoder`); ritk-io DICOM round-trip uses it [minor] | **Done** |
+| J2K-368-DEP | C/FFI elimination: `jpeg2k`/`openjp2`/`openjpeg-sys`/`charls` out of ritk-codecs; `TileCodingParams` consolidation [minor] | **Done** |
+| J2K-368-TEST | 16-bit regression + proptest lossless round-trip [patch] | **Done** |
+
+### Carry-forward (J2K)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| J2K-DECODE-DWT | Multi-level 5/3 DWT decode — idwt groundwork in `wavelet.rs`; wire into `decode_tile_part` resolution-level packet loop | [minor] |
+| J2K-LOSSY-97 | 9/7 irreversible wavelet for lossy TS 1.2.840.10008.1.2.4.91 | [minor] |
+| J2K-INTEROP | Differential decode vs OpenJPEG-encoded reference codestreams (real DICOM corpus) | [patch] |
+| JLS-NATIVE-REF | Replace `charls` dev-dep in ritk-io with RITK-native JPEG-LS differential reference (removes libstdc++ DLL coupling) | [patch] |
+
+---
+
 ## Sprint 367 — Architecture Hardening Round 6: ENUM · NAMING · SRP · SSOT · DRY · COMPAT + ritk-core Crate Extraction
 
 **Status**: Complete  

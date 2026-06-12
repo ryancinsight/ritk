@@ -1,47 +1,50 @@
 //! Native JPEG 2000 (ISO 15444-1) decoder for DICOM encapsulated frames.
 //!
 //! # Architecture
-//! - [`jpeg2k`] owns safe codestream decode.
-//! - `jpeg2k` is compiled with its `openjp2` backend, a Rust port of OpenJPEG,
-//!   not the `openjpeg-sys` C FFI backend.
-//! - `image` validates decoded component planes against DICOM pixel metadata
-//!   and applies the DICOM modality LUT.
+//! This module provides a **pure-Rust** implementation of JPEG 2000 decoding,
+//! eliminating all C/FFI dependencies (`jpeg2k`, `openjp2`, `openjpeg-sys`).
+//!
+//! Sub-modules:
+//! - `marker`     – ISO 15444-1 marker constants and byte-read utilities.
+//! - `codestream` – Main-header parser (SIZ, COD, QCD, SOT).
+//! - `mq_coder`   – MQ arithmetic coder — encoder and decoder (Annex C).
+//! - `ebcot`      – EBCOT tier-1 encoder and decoder (Annex D).
+//! - `packet`     – Tier-2 packet encoder and decoder (Annex B).
+//! - `wavelet`    – Inverse 5/3 reversible DWT (Annex F).
+//! - `image`      – Full codestream decoder and DICOM pixel extractor.
+//! - [`encoder`]  – Pure-Rust encoder (produces conformant codestreams).
 //!
 //! # Specification (ISO 15444-1 / DICOM PS3.5)
 //! DICOM JPEG 2000 encapsulates a raw J2K codestream (not a JP2 file wrapper):
 //! - Transfer Syntax 1.2.840.10008.1.2.4.90: JPEG 2000 Lossless Only.
 //! - Transfer Syntax 1.2.840.10008.1.2.4.91: JPEG 2000 lossy or lossless.
 //!
-//! A valid J2K codestream begins with SOC (0xFF4F).  JP2 wrappers are rejected
-//! before decode because DICOM transfer syntaxes 1.2.840.10008.1.2.4.90/91 store
-//! a bare codestream fragment.
-//!
-//! # Decode path
-//! 1. Validate SOC marker at byte 0.
-//! 2. Decode the codestream through `jpeg2k::Image` with full resolution and all
-//!    quality layers.
-//! 3. Extract raw `i32` component samples via `ImageComponent::data`.
-//! 4. Validate component count, dimensions, precision, and signedness against
-//!    [`PixelLayout`].
-//! 5. Apply DICOM PS3.3 §C.7.6.3.1 modality LUT:
-//!    `output = stored_integer × rescale_slope + rescale_intercept`.
+//! # Current limitations
+//! - Only `num_decomp_levels = 0` (no DWT) is supported.  Support for images
+//!   encoded with 1+ wavelet decomposition levels will be added in a future
+//!   sprint (backlog: J2K-DECODE-DWT).
+//! - Lossy (9/7 irreversible wavelet) decoding is not yet supported.
 
-mod image;
-#[cfg(test)]
-mod test_support;
+pub(crate) mod codestream;
+pub(crate) mod ebcot;
+pub mod encoder;
+pub(crate) mod image;
+pub(crate) mod marker;
+pub(crate) mod mq_coder;
+pub(crate) mod packet;
+pub(crate) mod wavelet;
 
-use anyhow::{bail, Context, Result};
-use jpeg2k::{DecodeParameters, Image};
+use anyhow::{bail, Result};
 
 use crate::PixelLayout;
+use image::{decode_j2k_fragment, is_soc};
 
 /// J2K Start of Codestream marker (ISO 15444-1 §A.3): bytes `0xFF 0x4F`.
+#[allow(dead_code)] // Tested via soc_marker_constant_matches_iso_15444_1
 pub(crate) const SOC: u16 = 0xFF4F;
 
-/// JPEG / JFIF Start of Image marker, shared with JPEG-LS (0xFFD8).
-/// Presence of SOI instead of SOC indicates another JPEG variant, not a bare
-/// J2K codestream.
-#[allow(dead_code)]
+/// JPEG / JFIF Start of Image marker (0xFFD8), distinct from SOC.
+#[allow(dead_code)] // Tested via soi_constant_matches_jpeg_start_of_image
 pub(crate) const SOI: u16 = 0xFFD8;
 
 /// Decode a DICOM-encapsulated JPEG 2000 J2K codestream fragment.
@@ -53,7 +56,7 @@ pub(crate) const SOI: u16 = 0xFFD8;
 /// # Errors
 /// Returns an error if:
 /// - `fragment` does not begin with the SOC marker (0xFF4F).
-/// - the JPEG 2000 backend fails to parse or decode the codestream.
+/// - the JPEG 2000 decoder fails to parse or decode the codestream.
 /// - decoded component metadata does not match `layout`.
 pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     if !is_jpeg2000_codestream(fragment) {
@@ -63,32 +66,24 @@ pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<
             &fragment[..fragment.len().min(2)]
         );
     }
-
-    let params = DecodeParameters::new().reduce(0).layers(0).strict(true);
-    let decoded = Image::from_bytes_with(fragment, params)
-        .with_context(|| "JPEG 2000 codestream decode failed")?;
-
-    image::extract_pixels(&decoded, &layout).with_context(|| "JPEG 2000 pixel extraction failed")
+    decode_j2k_fragment(fragment, layout)
 }
 
 /// Returns `true` if `fragment` begins with the J2K SOC marker (`0xFF 0x4F`).
 ///
 /// A bare DICOM JPEG 2000 codestream always starts with SOC (ISO 15444-1 §A.3).
-/// JP2 file wrappers begin with the 12-byte JP2 Signature Box and do not appear
-/// in DICOM transfer syntaxes 1.2.840.10008.1.2.4.90/91.
 #[inline]
 pub(crate) fn is_jpeg2000_codestream(fragment: &[u8]) -> bool {
-    fragment.len() >= 2 && fragment[0] == (SOC >> 8) as u8 && fragment[1] == (SOC & 0xFF) as u8
+    is_soc(fragment)
 }
 
-// PixelSignedness is defined in crate::pixel_layout and re-exported from
-// crate::lib. No local definition needed.
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::PixelSignedness;
-    use test_support::encode_grayscale_j2k;
+    use encoder::encode_grayscale_j2k;
 
     fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> PixelLayout {
         PixelLayout {
@@ -101,6 +96,8 @@ mod tests {
             rescale_intercept: 0.0,
         }
     }
+
+    // ── Marker constant tests ────────────────────────────────────────────────
 
     #[test]
     fn soc_marker_constant_matches_iso_15444_1() {
@@ -115,44 +112,30 @@ mod tests {
         assert_ne!(SOI, SOC, "SOI and SOC must be distinct markers");
     }
 
+    // ── Codestream detection ─────────────────────────────────────────────────
+
     #[test]
     fn is_jpeg2000_codestream_detects_soc_at_byte_0() {
-        let codestream = [0xFF_u8, 0x4F, 0x00, 0x00];
-        assert!(
-            is_jpeg2000_codestream(&codestream),
-            "0xFF 0x4F prefix must be recognized as J2K SOC"
-        );
+        assert!(is_jpeg2000_codestream(&[0xFF_u8, 0x4F, 0x00]));
     }
 
     #[test]
     fn is_jpeg2000_codestream_rejects_jpeg_ls_prefix() {
-        let jpeg_ls = [0xFF_u8, 0xD8, 0xFF, 0xF7];
-        assert!(
-            !is_jpeg2000_codestream(&jpeg_ls),
-            "JPEG-LS SOI prefix 0xFFD8 must not be recognized as J2K SOC"
-        );
+        assert!(!is_jpeg2000_codestream(&[0xFF_u8, 0xD8, 0xFF, 0xF7]));
     }
 
     #[test]
     fn is_jpeg2000_codestream_rejects_rle_prefix() {
-        let rle = [0x00_u8, 0x00, 0x00, 0x01];
-        assert!(
-            !is_jpeg2000_codestream(&rle),
-            "RLE prefix must not be recognized as J2K SOC"
-        );
+        assert!(!is_jpeg2000_codestream(&[0x00_u8, 0x00, 0x00, 0x01]));
     }
 
     #[test]
     fn is_jpeg2000_codestream_rejects_empty_and_single_byte() {
-        assert!(
-            !is_jpeg2000_codestream(&[]),
-            "empty slice must return false"
-        );
-        assert!(
-            !is_jpeg2000_codestream(&[0xFF]),
-            "single byte must return false because SOC requires two bytes"
-        );
+        assert!(!is_jpeg2000_codestream(&[]));
+        assert!(!is_jpeg2000_codestream(&[0xFF]));
     }
+
+    // ── Error-path tests ─────────────────────────────────────────────────────
 
     #[test]
     fn decode_returns_error_for_non_soc_prefix() {
@@ -162,8 +145,7 @@ mod tests {
         let msg = format!("{:#}", err);
         assert!(
             msg.contains("SOC") || msg.contains("0xFF4F") || msg.contains("FF4F"),
-            "error must mention SOC marker; got: {}",
-            msg
+            "error must mention SOC marker; got: {msg}"
         );
     }
 
@@ -174,22 +156,28 @@ mod tests {
             .unwrap_err();
         let msg = format!("{:#}", err);
         assert!(
-            msg.contains("decode") || msg.contains("JPEG 2000") || msg.contains("Unknown format"),
-            "truncated J2K codestream error must be codec-contextual; got: {msg}"
+            msg.contains("parse")
+                || msg.contains("JPEG 2000")
+                || msg.contains("J2K")
+                || msg.contains("SIZ")
+                || msg.contains("SOC"),
+            "truncated J2K codestream error must be descriptive; got: {msg}"
         );
     }
+
+    // ── Lossless round-trip tests ────────────────────────────────────────────
 
     #[test]
     fn decode_jpeg2000_lossless_round_trip_4x4_uniform() {
         let rows = 4u32;
         let cols = 4u32;
         let pixel_value = 128i32;
-        let pixels: Vec<i32> = vec![pixel_value; (rows * cols) as usize];
+        let pixels = vec![pixel_value; (rows * cols) as usize];
         let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned);
 
         assert!(
             is_jpeg2000_codestream(&j2k),
-            "encoded output must start with SOC 0xFF4F; got: {:02X?}",
+            "encoded output must start with SOC 0xFF4F; first bytes: {:02X?}",
             &j2k[..j2k.len().min(4)]
         );
 
@@ -223,13 +211,13 @@ mod tests {
 
     #[test]
     fn decode_jpeg2000_signed_samples_round_trip() {
-        let pixels = [-4, -1, 0, 3];
+        let pixels = [-4i32, -1, 0, 3];
         let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed);
 
         let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
             .expect("signed lossless JPEG 2000 round-trip must succeed");
 
-        assert_eq!(decoded, vec![-4.0, -1.0, 0.0, 3.0]);
+        assert_eq!(decoded, vec![-4.0f32, -1.0, 0.0, 3.0]);
     }
 
     #[test]
@@ -243,19 +231,79 @@ mod tests {
         let decoded = decode_jpeg2000_fragment(&j2k, pixel_layout)
             .expect("single-pixel rescale test must succeed");
 
-        assert_eq!(decoded, vec![-824.0]);
+        assert_eq!(decoded, vec![-824.0f32]); // 100 × 2 + (−1024) = −824
     }
 
     #[test]
-    fn openjp2_backend_version_is_2_5_x() {
-        let version_str = unsafe {
-            let ptr = openjp2::openjpeg::opj_version();
-            assert!(!ptr.is_null(), "opj_version returned null");
-            std::ffi::CStr::from_ptr(ptr).to_str().unwrap_or("unknown")
-        };
-        assert!(
-            version_str.starts_with("2.5"),
-            "openjp2 Rust backend must report OpenJPEG 2.5.x compatibility; got {version_str}"
+    fn decode_jpeg2000_lossless_round_trip_unsigned_16bit() {
+        // Regression: 16-bit precision uses ≥ 39 coding passes, exercising the
+        // long branch of the pass-count prefix code (ISO 15444-1 Table B.4).
+        let pixels: Vec<i32> = vec![
+            0, 256, 512, 1024, 2048, 3071, 3584, 3840, 100, 200, 400, 800, 1600, 2400, 3000, 4095,
+        ];
+        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 16, PixelSignedness::Unsigned);
+        let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 16, PixelSignedness::Unsigned))
+            .expect("16-bit lossless round-trip must succeed");
+        let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
+        assert_eq!(decoded, expected, "16-bit samples must round-trip exactly");
+    }
+
+    proptest::proptest! {
+        /// Lossless invariant (ISO 15444-1, 5/3 reversible, 0 DWT levels):
+        /// for any image and precision, |decoded − original| = 0 exactly.
+        #[test]
+        fn decode_jpeg2000_lossless_round_trip_random(
+            rows in 1u32..9,
+            cols in 1u32..9,
+            precision in proptest::sample::select(vec![8u32, 12, 16]),
+            signed in proptest::bool::ANY,
+            seed in proptest::num::u64::ANY,
+        ) {
+            let n = (rows * cols) as usize;
+            // Deterministic LCG over the sample domain of the chosen precision.
+            let mut state = seed | 1;
+            let pixels: Vec<i32> = (0..n)
+                .map(|_| {
+                    state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                    let raw = (state >> 33) as i64;
+                    if signed {
+                        let half = 1i64 << (precision - 1);
+                        ((raw % (2 * half)) - half) as i32
+                    } else {
+                        (raw % (1i64 << precision)) as i32
+                    }
+                })
+                .collect();
+            let signedness = if signed { PixelSignedness::Signed } else { PixelSignedness::Unsigned };
+            let j2k = encode_grayscale_j2k(&pixels, rows, cols, precision, signedness);
+            let decoded = decode_jpeg2000_fragment(
+                &j2k,
+                layout(rows as usize, cols as usize, precision as u16, signedness),
+            )
+            .expect("random lossless round-trip must succeed");
+            let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
+            proptest::prop_assert_eq!(decoded, expected);
+        }
+    }
+
+    #[test]
+    fn ritk_native_decoder_replaces_openjp2_backend() {
+        // This test was previously `openjp2_backend_version_is_2_5_x`.
+        // The RITK-native pure-Rust decoder has no version dependency on
+        // OpenJPEG; we verify the codec pipeline is self-consistent by
+        // confirming a round-trip produces zero error.
+        let pixels: Vec<i32> = (0..16i32).map(|v| v * 10).collect();
+        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned);
+        let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
+            .expect("native codec round-trip must succeed");
+        let max_err = pixels
+            .iter()
+            .zip(decoded.iter())
+            .map(|(&p, &d)| (p as f32 - d).abs())
+            .fold(0.0f32, f32::max);
+        assert_eq!(
+            max_err, 0.0,
+            "RITK-native J2K round-trip max error must be 0; got {max_err}"
         );
     }
 }

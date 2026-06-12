@@ -4,10 +4,10 @@ use burn_ndarray::NdArray;
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_io::{
     read_analyze, read_dicom_series_with_metadata, write_analyze, write_dicom_series_with_metadata,
 };
+use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
