@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## [0.60.0] — 2026-06-11 (Sprint 363: Architecture Hardening Round 2 — DRY · SRP · PRIM · NAMING · CACHE)
+
+### Added
+- `ritk-core`: `IntensityRange<T>` validating newtype in `statistics::normalization`; `new(min, max) -> Option<Self>`, `new_unchecked`, `min()`, `max()`, `span()`, `Display`.
+- `ritk-filter`: `UnaryPixelOp` sealed trait + `UnaryImageFilter<Op, const D>` generic struct in `intensity/arithmetic/unary.rs`; `apply` is now D-generic (previously hardcoded to D=3).
+- `ritk-filter`: `label_morphology/` directory with `label_ops.rs`, `reconstruction.rs`, `mod.rs`, `tests.rs` (split from monolithic 445-line file).
+- `ritk-registration`: `CacheSlot::get_or_reinit_if<F, P>` method for conditional-invalidation cache pattern.
+- `ritk-io`: `DicomSeriesInfo::new(uid, description, modality, patient_id, file_paths)` public constructor.
+- `ritk-io`: `DicomSeriesInfo::series_instance_uid() -> &str` and `modality() -> &str` public accessors.
+
+### Changed
+- `ritk-filter`: `AbsImageFilter`, `SqrtImageFilter`, `ExpImageFilter`, `LogImageFilter`, `SquareImageFilter` are now type aliases for `UnaryImageFilter<Op>` — public names unchanged, backward-compatible.
+- `ritk-filter`: `DiscreteGaussianFilter::new` now takes `Vec<GaussianSigma>` (sigma, not variance). Callers must convert: `GaussianSigma::new_unchecked(sigma_val)` or `GaussianSigma::new(variance.sqrt()).expect(...)`.
+- `ritk-registration`: `EarlyStoppingPolicy::Enabled` variant now carries `{ patience: usize, min_improvement: f64 }`; `RegistrationConfig.early_stopping_patience` and `.early_stopping_min_improvement` fields removed — use `if let Enabled { patience, min_improvement } = config.early_stopping`.
+- `ritk-registration`: `CorrelationRatio::new` takes `range: IntensityRange<f32>` instead of `min_intensity: f32, max_intensity: f32`.
+- `ritk-core`: `MinMaxNormalizer` field `target_min/target_max: f32` replaced by `range: IntensityRange<f32>`; use `.range.min()` / `.range.max()`.
+- `ritk-cli`: `RegisterArgs.sigma_fixed` and `.kernel_sigma` are now `GaussianSigma` (validated at CLI parse time); no runtime conversion needed at call sites.
+- `ritk-io`: `DicomSeriesInfo.series_instance_uid` and `.modality` fields are now `pub(crate)`; external callers must use the accessor methods.
+- `ritk-io`: `scan_dicom_directory` lock-free parallel collect-and-merge (removes `Arc<Mutex<HashMap>>`); semantics unchanged.
+- `ritk-io`: `format/dicom/series.rs` split into `series/{types,scan,loader}.rs`.
+- `ritk-io`: `format/dicom/seg/tests/convert.rs` split into 4 focused test modules.
+- `ritk-registration`: `spatial_gradient_2d/_3d`, `spatial_laplacian_2d/_3d` — removed from `pub(crate)` API; now private functions inside `dispatch.rs`; `spatial_ops.rs` deleted.
+- `ritk-registration`: LNCC fixed-image cache migrated to `CacheSlot<LnccCacheEntry<B>>`; `Arc<Mutex<Option<>>>` removed.
+- `ritk-cli`: `run_discrete_gaussian` — `variance=0` is now an explicit identity path (copy without filtering) rather than passing sigma=0 to the filter.
+
+### Migration
+- `DiscreteGaussianFilter::new(vec![variance])` → `DiscreteGaussianFilter::new(vec![GaussianSigma::new_unchecked(sigma)])` where `sigma = variance.sqrt()`.
+- `CorrelationRatio::new(bins, 0.0, 255.0, sigma, dir, dev)` → `CorrelationRatio::new(bins, IntensityRange::new_unchecked(0.0_f32, 255.0), sigma, dir, dev)`.
+- `config.early_stopping_patience` → match on `EarlyStoppingPolicy::Enabled { patience, .. }`.
+- `series.series_instance_uid` (field) → `series.series_instance_uid()` (method).
+
+
 ## [0.59.0] — 2026-06-11 (Sprint 362: Architecture Hardening — SSOT · DRY · SRP · DIP)
 
 ### Fixed

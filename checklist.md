@@ -1,5 +1,39 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 363 — Architecture Hardening Round 2: DRY · SRP · PRIM · NAMING · CACHE
+**Target version**: 0.60.0
+ritk-core: 0.10.0 → 0.11.0 | ritk-registration: 0.54.0 → 0.55.0 | ritk-filter: → minor bump | ritk-io: 0.3.0 → 0.4.0
+**Sprint phase**: Closure — all 20 patches delivered and verified.
+
+### Delivered (Sprint 363)
+- [x] DRY-362-04 [minor]: `UnaryImageFilter<Op, const D>` + `UnaryPixelOp` sealed trait; abs/sqrt/exp/log/square → type aliases; D-generic `apply`
+- [x] SRP-361-06 [patch]: `label_morphology.rs` (445L) → `label_morphology/{mod,label_ops,reconstruction,tests}.rs`
+- [x] PRIM-361-03 [minor]: `DiscreteGaussianFilter::new(Vec<GaussianSigma>)` — sigma not variance; all callers updated
+- [x] PRIM-362-12 [minor]: `EarlyStoppingPolicy::Enabled { patience, min_improvement }` — bundle eliminates invalid state
+- [x] NAMING-362-24 [patch]: `spatial_gradient_2d/_3d`, `spatial_laplacian_2d/_3d` → private `fn` in `dispatch.rs`; `spatial_ops.rs` deleted
+- [x] CACHE-363-01 [patch]: `CacheSlot<LnccCacheEntry<B>>` in `lncc.rs`; `get_or_reinit_if` added to `CacheSlot`; `Arc<Mutex<Option<>>>` eliminated
+- [x] SRP-362-19 [patch]: `series.rs` (438L) → `series/{types,scan,loader}.rs`; `Arc<Mutex<HashMap>>` replaced with lock-free collect-and-merge
+- [x] SRP-362-18 [patch]: `seg/tests/convert.rs` (554L) → 4 focused test modules
+- [x] PRIM-362-27 [minor]: `DicomSeriesInfo` — `pub(crate)` `ArrayString` fields + public `&str` accessors + `pub fn new()`
+- [x] PRIM-362-25 [minor]: `IntensityRange<T>` validating newtype in `ritk-core::statistics`
+- [x] PRIM-362-25b [minor]: `MinMaxNormalizer` adopts `IntensityRange<f32>`
+- [x] PRIM-362-25c [minor]: `CorrelationRatio::new` adopts `IntensityRange<f32>` for intensity bounds
+- [x] BOOL-361-05a [minor]: `RegisterArgs.sigma_fixed: GaussianSigma` via clap `value_parser`
+- [x] BOOL-361-05b [minor]: `RegisterArgs.kernel_sigma: GaussianSigma` via clap `value_parser`
+- [x] FIX-363-01/02/03/04 [patch]: Cross-crate call site fixes (ritk-cli smoothing, ritk-cli viewer, ritk-snap series_tree, ritk-python gaussian)
+
+### Blocked / Deferred
+- [ ] DIP-362-13 [minor]: `RegistrationCallbackSet` DIP — deferred; requires surveying `src/progress/` ProgressTracker internals first
+- [ ] NAMING-362-23 [patch]: `transform_1d/_2d/_3d/_4d` — **BLOCKED**: duplicate method names on same type; [arch] refactor required
+- [ ] SRP-362-20 [major]: `FilterArgs` (46 fields) → `FilterKind` ValueEnum — carry forward
+
+### Verification gate (Sprint 363)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run -p ritk-filter ritk-registration ritk-core ritk-io ritk-snap ritk-cli --no-fail-fast` → 2868/2869 passed (1 pre-existing JPEG2000 Windows codec abort)
+- [x] Commit: 59f4bee pushed to origin/main
+
+---
+
 ## Sprint 362 — Architecture Hardening: SSOT · DRY · SRP · DIP · Naming
 **Target version**: 0.59.0
 ritk-core: 0.9.0 → 0.10.0 | ritk-registration: 0.53.0 → 0.54.0 | ritk-segmentation: 0.1.0 → 0.2.0 | ritk-io: 0.2.0 → 0.3.0
