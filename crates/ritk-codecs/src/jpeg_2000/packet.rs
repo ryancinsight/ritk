@@ -702,14 +702,69 @@ mod tests {
                 (((i as i64 * 5) + noise) % 256) as i32 - 128
             })
             .collect();
+        // Symbol-level differential: compare encoder-intended vs decoder-read
+        // (ctx, bit) sequences; first divergence pinpoints the modelling gap.
+        let _ = super::super::ebcot::cup_trace_take();
+        // Differential A: our encoder must reproduce OpenJPEG byte-for-byte.
+        let enc = encode_code_block(
+            &expected,
+            8,
+            8,
+            super::super::ebcot::SubbandOrientation::LlOrLh,
+        );
+        eprintln!(
+            "ENC nbp={} ncp={} len={} (ref nbp={} ncp={ncp} len={len})",
+            enc.num_bit_planes,
+            enc.num_passes,
+            enc.bytes.len(),
+            9 - msbs,
+        );
+        let reference = &body[header_bytes..header_bytes + len];
+        let first_diff = enc
+            .bytes
+            .iter()
+            .zip(reference.iter())
+            .position(|(a, b)| a != b);
+        eprintln!(
+            "FIRST DIFF at {:?}; ours[0..16]={:02X?} ref[0..16]={:02X?}",
+            first_diff,
+            &enc.bytes[..16.min(enc.bytes.len())],
+            &reference[..16.min(reference.len())]
+        );
+        let enc_trace = super::super::ebcot::cup_trace_take();
+        // Differential B: our decoder on the reference body.
         let block = decode_code_block(
-            &body[header_bytes..header_bytes + len],
+            reference,
             8,
             8,
             (9 - msbs) as u8,
             ncp,
             super::super::ebcot::SubbandOrientation::LlOrLh,
         );
+        let dec_trace = super::super::ebcot::cup_trace_take();
+        let div = enc_trace
+            .iter()
+            .zip(dec_trace.iter())
+            .position(|(a, b)| a != b);
+        eprintln!(
+            "TRACE div at {:?} (enc len {}, dec len {})",
+            div,
+            enc_trace.len(),
+            dec_trace.len()
+        );
+        if let Some(k) = div {
+            let lo = k.saturating_sub(6);
+            eprintln!(
+                "enc[{lo}..{}] = {:?}",
+                (k + 4).min(enc_trace.len()),
+                &enc_trace[lo..(k + 4).min(enc_trace.len())]
+            );
+            eprintln!(
+                "dec[{lo}..{}] = {:?}",
+                (k + 4).min(dec_trace.len()),
+                &dec_trace[lo..(k + 4).min(dec_trace.len())]
+            );
+        }
         assert_eq!(block.samples, expected, "EBCOT tier-1 must match OpenJPEG");
     }
 

@@ -198,12 +198,19 @@ impl BitWriter {
 
     /// Flush remaining bits (zero-padded) and return the scan bytes.
     ///
-    /// Zero padding cannot synthesise an 0xFF byte (≥ 1 trailing zero bit), so
-    /// no stuffing is required for the final byte.
+    /// Zero padding cannot synthesise an 0xFF byte (≥ 1 trailing zero bit),
+    /// but the stream may legitimately END on an 0xFF data byte. A decoder
+    /// then sees `0xFF` followed by the next marker's high-bit byte and must
+    /// treat the 0xFF as a marker prefix — losing the final 8 entropy bits.
+    /// Per ISO 14495-1 §C.2.1 the stuffed 7-bit follow byte is therefore
+    /// emitted even when it carries only padding.
     pub(super) fn finish(mut self) -> Vec<u8> {
         if self.used > 0 {
             self.cur <<= self.cap - self.used;
             self.out.push(self.cur as u8);
+        }
+        if self.out.last() == Some(&0xFF) {
+            self.out.push(0x00);
         }
         self.out
     }

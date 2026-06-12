@@ -181,6 +181,12 @@ impl<'a> MqDecoder<'a> {
         }
     }
 
+    /// Test-only register introspection: `(a, c, ct)`.
+    #[cfg(test)]
+    pub(crate) fn registers(&self) -> (u32, u32, u32) {
+        (self.a, self.c, self.ct)
+    }
+
     // ── private helpers ──────────────────────────────────────────────────────
 
     #[inline]
@@ -417,6 +423,12 @@ impl MqEncoder {
         }
     }
 
+    /// Test-only register introspection: `(a, c, ct, b)`.
+    #[cfg(test)]
+    pub(crate) fn enc_registers(&self) -> (u32, u32, u32, u32) {
+        (self.a, self.c, self.ct, self.b)
+    }
+
     /// Commit the pending byte to `out`; the initial dummy byte is discarded
     /// (OpenJPEG's write slot at `start - 1`).
     #[inline]
@@ -545,6 +557,179 @@ mod tests {
                 let got = dec.decode(&mut dec_ctxs[ctx_idx]);
                 proptest::prop_assert_eq!(got, expected, "symbol[{}] ctx={}", i, ctx_idx);
             }
+        }
+    }
+
+    #[test]
+    fn trace_openjp2_reference_prefix() {
+        // First bytes of the 62-byte code-block body captured from OpenJPEG
+        // 2.5.2 (8×8, prec 8, numres 1).
+        let body: [u8; 12] = [
+            0x12, 0x51, 0x7A, 0x62, 0x3E, 0xFC, 0x7B, 0x8E, 0x3E, 0x6C, 0xBF, 0x33,
+        ];
+        // Intended symbol/context prefix per the EBCOT cleanup algorithm.
+        let prefix: [(usize, u32); 10] = [
+            (18, 1),
+            (17, 0),
+            (17, 0),
+            (9, 1),
+            (3, 0),
+            (0, 0),
+            (0, 0),
+            (5, 1),
+            (12, 0),
+            (3, 1),
+        ];
+        let mut ctxs = initial_contexts();
+        let mut dec = MqDecoder::new(&body);
+        for (i, &(ctx, expect)) in prefix.iter().enumerate() {
+            let before = dec.registers();
+            let st = (ctxs[ctx].state, ctxs[ctx].mps);
+            let got = dec.decode(&mut ctxs[ctx]);
+            eprintln!(
+                "sym{i:2} ctx={ctx:2} st={st:?} before(a={:04X},chigh={:04X},ct={}) got={got} expect={expect}",
+                before.0,
+                before.1 >> 16,
+                before.2
+            );
+        }
+    }
+
+    /// Verbatim port of OpenJPEG's `opj_mqc_*` encoder (mqc.c) used purely as
+    /// an in-test reference for register-level differential comparison.
+    struct RefMq {
+        a: u32,
+        c: u32,
+        ct: u32,
+        b: u32,
+        first: bool,
+        out: Vec<u8>,
+    }
+
+    impl RefMq {
+        fn new() -> Self {
+            Self {
+                a: 0x8000,
+                c: 0,
+                ct: 12,
+                b: 0,
+                first: true,
+                out: Vec::new(),
+            }
+        }
+        fn commit(&mut self) {
+            if self.first {
+                self.first = false;
+            } else {
+                self.out.push(self.b as u8);
+            }
+        }
+        fn byteout(&mut self) {
+            if self.b == 0xFF {
+                self.commit();
+                self.b = self.c >> 20;
+                self.c &= 0xF_FFFF;
+                self.ct = 7;
+            } else if self.c & 0x800_0000 == 0 {
+                self.commit();
+                self.b = (self.c >> 19) & 0xFF;
+                self.c &= 0x7_FFFF;
+                self.ct = 8;
+            } else {
+                self.b += 1;
+                if self.b == 0xFF {
+                    self.c &= 0x7FF_FFFF;
+                    self.commit();
+                    self.b = self.c >> 20;
+                    self.c &= 0xF_FFFF;
+                    self.ct = 7;
+                } else {
+                    self.commit();
+                    self.b = (self.c >> 19) & 0xFF;
+                    self.c &= 0x7_FFFF;
+                    self.ct = 8;
+                }
+            }
+        }
+        fn renorme(&mut self) {
+            loop {
+                self.a <<= 1;
+                self.c <<= 1;
+                self.ct -= 1;
+                if self.ct == 0 {
+                    self.byteout();
+                }
+                if self.a & 0x8000 != 0 {
+                    break;
+                }
+            }
+        }
+        fn encode(&mut self, d: u32, ctx: &mut CtxState) {
+            let entry = QE_TABLE[ctx.state as usize];
+            let qe = u32::from(entry.qe);
+            if u32::from(ctx.mps) == d {
+                // codemps
+                self.a -= qe;
+                if self.a & 0x8000 == 0 {
+                    if self.a < qe {
+                        self.a = qe;
+                    } else {
+                        self.c += qe;
+                    }
+                    ctx.state = entry.nmps;
+                    self.renorme();
+                } else {
+                    self.c += qe;
+                    ctx.state = entry.nmps;
+                }
+            } else {
+                // codelps
+                self.a -= qe;
+                if self.a < qe {
+                    self.c += qe;
+                } else {
+                    self.a = qe;
+                }
+                if entry.switch_flag {
+                    ctx.mps = 1 - ctx.mps;
+                }
+                ctx.state = entry.nlps;
+                self.renorme();
+            }
+        }
+    }
+
+    #[test]
+    fn reference_port_register_differential() {
+        let prefix: [(usize, u32); 10] = [
+            (18, 1),
+            (17, 0),
+            (17, 0),
+            (9, 1),
+            (3, 0),
+            (0, 0),
+            (0, 0),
+            (5, 1),
+            (12, 0),
+            (3, 1),
+        ];
+        let mut ours_ctx = initial_contexts();
+        let mut refs_ctx = initial_contexts();
+        let mut ours = MqEncoder::new();
+        let mut refs = RefMq::new();
+        for (i, &(ctx, bit)) in prefix.iter().enumerate() {
+            ours.encode(bit, &mut ours_ctx[ctx]);
+            refs.encode(bit, &mut refs_ctx[ctx]);
+            let o = ours.enc_registers();
+            eprintln!(
+                "sym{i:2} ours(a={:04X} c={:07X} ct={:2} b={:02X}) ref(a={:04X} c={:07X} ct={:2} b={:02X})",
+                o.0, o.1, o.2, o.3, refs.a, refs.c, refs.ct, refs.b
+            );
+            assert_eq!(
+                (o.0, o.1, o.2, o.3),
+                (refs.a, refs.c, refs.ct, refs.b),
+                "register divergence at symbol {i}"
+            );
         }
     }
 

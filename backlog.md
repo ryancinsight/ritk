@@ -18,9 +18,9 @@
 
 | ID | Description | Repro |
 |----|-------------|-------|
-| J2K-INTEROP | Tier-1 EBCOT divergence vs OpenJPEG: tier-2 header of captured packet parses exactly (probe test, ignored); decode diverges in the FIRST cleanup pass around the 3rd stripe column — context adaptation (ZC/SC/RLC detail) under investigation | `tests/jpeg2000_interop.rs` (6 ignored acceptance tests + ignored probe in packet.rs) |
-| JLS-NEAR-TAIL | JPEG-LS NEAR>0 run-interruption desync near end of stream | 9x3, NEAR=2, LCG seed 6419120415352800387, sample[25] err 159; ignored proptest `round_trip_random_near_lossless` |
-| JLS-16BIT-LOSSLESS | JPEG-LS 16-bit lossless round-trip failure (suspect: limited-length Golomb / 16-bit refill path) | 3x8 bpp16 LCG seed 18395098268947010899; ignored test `round_trip_16bit_regression_seed`; proptest restricted to 8/12-bit until fixed |
+| J2K-INTEROP | NARROWED: MQ encoder proven register-identical to a verbatim OpenJPEG port (`reference_port_register_differential`, active test); coefficient values independently re-derived (BigInteger LCG) — divergence is the EBCOT cleanup-pass SYMBOL FRAMING within the first ~9 symbols (our assumed RLC/ZC sequence vs OpenJPEG's). Next step: port `opj_t1_enc_clnpass` as an in-test reference for the captured 8x8 block and diff symbol-by-symbol | `tests/jpeg2000_interop.rs` (6 ignored acceptance tests), ignored probe + cfg(test) CUP trace in ebcot/packet |
+| ~~JLS-NEAR-TAIL~~ | **FIXED**: root cause was a trailing 0xFF entropy byte directly before EOI being discarded as a marker prefix; flush now emits the stuffed 7-bit follow byte (ISO 14495-1 C.2.1). Both proptests re-enabled at full domain; regression seeds committed | closed |
+| ~~JLS-16BIT-LOSSLESS~~ | **FIXED**: same root cause as JLS-NEAR-TAIL (single fix closed both). Regression test `round_trip_16bit_regression_seed` active | closed |
 
 ---
 

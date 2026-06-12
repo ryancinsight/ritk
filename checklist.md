@@ -9,9 +9,8 @@
 - [x] J2K-372-HARNESS: openjp2 differential suite (dev-dep, pure Rust) — tier-2 header now parses OpenJPEG output exactly
 
 ### Open (next increment)
-- [ ] J2K-INTEROP [P1]: tier-1 EBCOT divergence — first cleanup pass, ~3rd stripe column; compare ZC/SC selection + RLC details against opj_t1 symbol-by-symbol
-- [ ] JLS-NEAR-TAIL [P1]: NEAR>0 run-interruption desync (9x3/NEAR2 repro pinned)
-- [ ] JLS-16BIT-LOSSLESS [P1]: 16-bit lossless failure (3x8 repro pinned); proptest restricted to 8/12-bit until fixed
+- [ ] J2K-INTEROP [P1]: NARROWED — MQ register-identical to OpenJPEG port (new active differential test); divergence is cleanup-pass symbol framing (first ~9 symbols); next: in-test `opj_t1_enc_clnpass` port for the captured block
+- [x] JLS-NEAR-TAIL + JLS-16BIT-LOSSLESS [P1→closed]: single root cause — trailing 0xFF before EOI discarded as marker prefix; flush emits the stuffed follow byte. Proptests re-enabled at full domain
 
 ### Verification gate
 - [x] clippy workspace -D warnings → 0; nextest codecs+dicom+io → 526/526 (9 ignored = tracked pending/defect tests)

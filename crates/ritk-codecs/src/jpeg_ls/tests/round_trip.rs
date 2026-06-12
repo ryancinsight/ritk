@@ -105,8 +105,7 @@ proptest::proptest! {
     fn round_trip_random(
         rows in 1u32..12,
         cols in 1u32..12,
-        // 16-bit excluded pending JLS-16BIT-LOSSLESS (see ignored repro below).
-        bpp in proptest::sample::select(vec![8u32, 12]),
+        bpp in proptest::sample::select(vec![8u32, 12, 16]),
         seed in proptest::num::u64::ANY,
     ) {
         let n = (rows * cols) as usize;
@@ -118,7 +117,7 @@ proptest::proptest! {
         for _ in 0..n {
             state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
             let r = state >> 33;
-            if r % 3 == 0 {
+            if r.is_multiple_of(3) {
                 samples.push(last); // extend a run
             } else {
                 last = (r & mask) as u16;
@@ -137,14 +136,7 @@ proptest::proptest! {
 
     /// Near-lossless invariant over random images: reconstruction error is
     /// bounded by NEAR per sample (ISO 14495-1 §A.4.4; the bound is exact).
-    ///
-    /// KNOWN DEFECT (JLS-NEAR-TAIL, P1): run-interruption coding desyncs on
-    /// some NEAR > 0 images (minimized: 9×3, NEAR=2, LCG seed
-    /// 6419120415352800387 → sample[25] error 159). Tracked in backlog.md;
-    /// ignored until fixed so the defect is visible, not silently sampled
-    /// around.
     #[test]
-    #[ignore = "JLS-NEAR-TAIL: NEAR>0 run-interruption desync — see backlog.md"]
     fn round_trip_random_near_lossless(
         rows in 1u32..10,
         cols in 1u32..10,
@@ -174,21 +166,26 @@ proptest::proptest! {
     }
 }
 
-/// KNOWN DEFECT (JLS-16BIT-LOSSLESS, P1): minimized failing case from the
-/// lossless proptest (rows 3 × cols 8, bpp 16). Tracked in backlog.md; kept
-/// as an ignored acceptance test so the defect stays visible.
+/// Regression (JLS-16BIT-LOSSLESS): a trailing 0xFF entropy byte directly
+/// before EOI was discarded as a marker prefix, corrupting the last samples
+/// (fixed by emitting the stuffed 7-bit follow byte at flush).
 #[test]
-#[ignore = "JLS-16BIT-LOSSLESS: 16-bit lossless round-trip defect — see backlog.md"]
 fn round_trip_16bit_regression_seed() {
+    // Proptest generator (run-mixing LCG), minimized case rows 3 × cols 8.
     let mut state = 18395098268947010898u64 | 1;
-    let samples: Vec<u16> = (0..24)
-        .map(|_| {
-            state = state
-                .wrapping_mul(6364136223846793005)
-                .wrapping_add(1442695040888963407);
-            let r = state >> 33;
-            (r & 0xFFFF) as u16
-        })
-        .collect();
+    let mut samples: Vec<u16> = Vec::with_capacity(24);
+    let mut last = 0u16;
+    for _ in 0..24 {
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let r = state >> 33;
+        if r.is_multiple_of(3) {
+            samples.push(last);
+        } else {
+            last = (r & 0xFFFF) as u16;
+            samples.push(last);
+        }
+    }
     round_trip(&samples, 3, 8, 16);
 }

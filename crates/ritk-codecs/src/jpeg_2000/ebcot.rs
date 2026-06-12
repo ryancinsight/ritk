@@ -136,6 +136,26 @@ fn mr_context(has_sig_other: bool, refined_before: bool) -> usize {
     }
 }
 
+// ── Test-only symbol trace (CUP differential debugging) ──────────────────────
+
+#[cfg(test)]
+thread_local! {
+    /// (context index, bit) pairs recorded by the cleanup pass.
+    pub(crate) static CUP_TRACE: std::cell::RefCell<Vec<(usize, u32)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+#[cfg(test)]
+pub(crate) fn cup_trace_take() -> Vec<(usize, u32)> {
+    CUP_TRACE.with(|t| std::mem::take(&mut *t.borrow_mut()))
+}
+
+#[inline(always)]
+#[allow(unused_variables)]
+fn trace(ctx: usize, bit: u32) {
+    #[cfg(test)]
+    CUP_TRACE.with(|t| t.borrow_mut().push((ctx, bit)));
+}
 // ── Per-sample state flags ────────────────────────────────────────────────────
 
 /// Compact per-sample state used during EBCOT processing.
@@ -227,12 +247,15 @@ pub fn decode_code_block(
                         state[idx].visit = true;
                         let ctx = zc_context(orient, h, v, d);
                         let sig_bit = mq.decode(&mut ctxs[ctx]);
+                        trace(ctx, sig_bit);
                         if sig_bit == 1 {
                             mag[idx] |= 1 << bp;
                             state[idx].sig = true;
                             let (kh, kv) = sign_contributions(&state, width, height, x, y);
                             let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                            let sign_bit = mq.decode(&mut ctxs[sc_ctx]) ^ xor_bit;
+                            let raw_sign = mq.decode(&mut ctxs[sc_ctx]);
+                            trace(sc_ctx, raw_sign);
+                            let sign_bit = raw_sign ^ xor_bit;
                             state[idx].sign = sign_bit != 0;
                         }
                     }
@@ -260,6 +283,7 @@ pub fn decode_code_block(
                         let has_sig_other = any_neighbour_sig(&state, width, height, x, y);
                         let ctx = mr_context(has_sig_other, state[idx].refine);
                         let bit = mq.decode(&mut ctxs[ctx]);
+                        trace(ctx, bit);
                         mag[idx] |= bit << bp;
                         state[idx].refine = true;
                     }
@@ -293,6 +317,7 @@ pub fn decode_code_block(
                 if can_rlc {
                     // Decode aggregate bit: are all 4 samples non-significant?
                     let agg = mq.decode(&mut ctxs[CTX_AGG]);
+                    trace(CTX_AGG, agg);
                     if agg == 0 {
                         // All 4 samples are non-significant at this bit-plane.
                         x += 1;
@@ -302,7 +327,9 @@ pub fn decode_code_block(
                     }
                     // One of the 4 became significant: decode 2-bit position.
                     let pos0 = mq.decode(&mut ctxs[CTX_UNI]);
+                    trace(CTX_UNI, pos0);
                     let pos1 = mq.decode(&mut ctxs[CTX_UNI]);
+                    trace(CTX_UNI, pos1);
                     let run_pos = (pos0 << 1) | pos1; // row offset 0..3
                     for row_off in 0..4usize {
                         let yy = y + row_off;
@@ -315,7 +342,9 @@ pub fn decode_code_block(
                             state[idx].sig = true;
                             let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                             let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                            let sign_bit = mq.decode(&mut ctxs[sc_ctx]) ^ xor_bit;
+                            let raw_sign = mq.decode(&mut ctxs[sc_ctx]);
+                            trace(sc_ctx, raw_sign);
+                            let sign_bit = raw_sign ^ xor_bit;
                             state[idx].sign = sign_bit != 0;
                         } else {
                             // Remaining samples: code normally via ZC.
@@ -323,12 +352,15 @@ pub fn decode_code_block(
                                 let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
                                 let ctx = zc_context(orient, h, v, d);
                                 let sig_bit = mq.decode(&mut ctxs[ctx]);
+                                trace(ctx, sig_bit);
                                 if sig_bit == 1 {
                                     mag[idx] |= 1 << bp;
                                     state[idx].sig = true;
                                     let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                                     let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                                    let sign_bit = mq.decode(&mut ctxs[sc_ctx]) ^ xor_bit;
+                                    let raw_sign = mq.decode(&mut ctxs[sc_ctx]);
+                                    trace(sc_ctx, raw_sign);
+                                    let sign_bit = raw_sign ^ xor_bit;
                                     state[idx].sign = sign_bit != 0;
                                 }
                             }
@@ -349,12 +381,15 @@ pub fn decode_code_block(
                     let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
                     let ctx = zc_context(orient, h, v, d);
                     let sig_bit = mq.decode(&mut ctxs[ctx]);
+                    trace(ctx, sig_bit);
                     if sig_bit == 1 {
                         mag[idx] |= 1 << bp;
                         state[idx].sig = true;
                         let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                         let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                        let sign_bit = mq.decode(&mut ctxs[sc_ctx]) ^ xor_bit;
+                        let raw_sign = mq.decode(&mut ctxs[sc_ctx]);
+                        trace(sc_ctx, raw_sign);
+                        let sign_bit = raw_sign ^ xor_bit;
                         state[idx].sign = sign_bit != 0;
                     }
                 }
@@ -471,12 +506,17 @@ pub fn encode_code_block(
                         state[idx].visit = true;
                         let sig_bit = (mag[idx] >> bp) & 1;
                         let ctx = zc_context(orient, h, v, d);
+                        trace(ctx, sig_bit);
                         mq.encode(sig_bit, &mut ctxs[ctx]);
                         if sig_bit == 1 {
                             state[idx].sig = true;
                             let (kh, kv) = sign_contributions(&state, width, height, x, y);
                             let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                            mq.encode(u32::from(state[idx].sign) ^ xor_bit, &mut ctxs[sc_ctx]);
+                            {
+                                let sb = u32::from(state[idx].sign) ^ xor_bit;
+                                trace(sc_ctx, sb);
+                                mq.encode(sb, &mut ctxs[sc_ctx]);
+                            }
                         }
                     }
                 }
@@ -496,6 +536,7 @@ pub fn encode_code_block(
                         let has_sig_other = any_neighbour_sig(&state, width, height, x, y);
                         let ctx = mr_context(has_sig_other, state[idx].refine);
                         let bit = (mag[idx] >> bp) & 1;
+                        trace(ctx, bit);
                         mq.encode(bit, &mut ctxs[ctx]);
                         state[idx].refine = true;
                     }
@@ -521,13 +562,16 @@ pub fn encode_code_block(
                 if can_rlc {
                     // Check if all 4 rows are zero at this bit-plane.
                     let all_zero = (y..y + 4).all(|yy| (mag[yy * width + x] >> bp) & 1 == 0);
+                    trace(CTX_AGG, u32::from(!all_zero));
                     mq.encode(u32::from(!all_zero), &mut ctxs[CTX_AGG]);
                     if !all_zero {
                         // Find the first non-zero row.
                         let run_pos = (y..y + 4)
                             .position(|yy| (mag[yy * width + x] >> bp) & 1 == 1)
                             .unwrap_or(0) as u32;
+                        trace(CTX_UNI, (run_pos >> 1) & 1);
                         mq.encode((run_pos >> 1) & 1, &mut ctxs[CTX_UNI]);
+                        trace(CTX_UNI, run_pos & 1);
                         mq.encode(run_pos & 1, &mut ctxs[CTX_UNI]);
 
                         for row_off in 0..4usize {
@@ -538,11 +582,16 @@ pub fn encode_code_block(
                                 state[idx].sig = true;
                                 let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                                 let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                                mq.encode(u32::from(state[idx].sign) ^ xor_bit, &mut ctxs[sc_ctx]);
+                                {
+                                    let sb = u32::from(state[idx].sign) ^ xor_bit;
+                                    trace(sc_ctx, sb);
+                                    mq.encode(sb, &mut ctxs[sc_ctx]);
+                                }
                             } else if row_off > run_pos as usize && !state[idx].sig {
                                 let sig_bit = (mag[idx] >> bp) & 1;
                                 let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
                                 let ctx = zc_context(orient, h, v, d);
+                                trace(ctx, sig_bit);
                                 mq.encode(sig_bit, &mut ctxs[ctx]);
                                 if sig_bit == 1 {
                                     state[idx].sig = true;
@@ -571,12 +620,17 @@ pub fn encode_code_block(
                     let sig_bit = (mag[idx] >> bp) & 1;
                     let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
                     let ctx = zc_context(orient, h, v, d);
+                    trace(ctx, sig_bit);
                     mq.encode(sig_bit, &mut ctxs[ctx]);
                     if sig_bit == 1 {
                         state[idx].sig = true;
                         let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                         let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                        mq.encode(u32::from(state[idx].sign) ^ xor_bit, &mut ctxs[sc_ctx]);
+                        {
+                            let sb = u32::from(state[idx].sign) ^ xor_bit;
+                            trace(sc_ctx, sb);
+                            mq.encode(sb, &mut ctxs[sc_ctx]);
+                        }
                     }
                 }
                 x += 1;
