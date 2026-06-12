@@ -4,6 +4,61 @@
 
 ---
 
+## Sprint 365 — Architecture Hardening Round 4: COMPAT · NAMING · SSOT · SRP · DRY · DIP · ENUM
+
+**Status**: Complete  
+**Version**: 0.62.0  
+**Commit**: c6daed5  
+
+### Delivered
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| COMPAT-365-01 | Delete dead `NormalizationMode` enum + its test from `metric/trait_.rs` [patch] | **Done** |
+| NAMING-365-02 | `collect_vec_3`/`collect_vec_9` → `collect_array::<N>` in `metric/histogram/cache.rs`; fix inaccurate panic doc [patch] | **Done** |
+| NAMING-365-03 | `StopReason` → `CmaEsStopReason` in `optimizer/cma_es/state.rs` + all re-exports and usages [minor] | **Done** |
+| DIP-365-04 | `RegistrationConfig::build_tracker()` + `TrackerBuildResult`; `Registration::with_config` decoupled [minor] | **Done** |
+| SRP-365-05 | `metric/correlation_ratio.rs` tests → `metric/tests_correlation_ratio.rs` [patch] | **Done** |
+| COMPAT-365-06 | Delete deprecated dead `apply_tikhonov_2d/_3d` from `deconvolution/regularization.rs` [patch] | **Done** |
+| NAMING-365-07 | Private dim-suffix renames in ritk-filter: `gaussian_smooth_1d`→`gaussian_smooth`, `gradient_3d`→`compute_gradient`, `bilateral_3d`→`compute`, `edt_3d`→`euclidean_dt`, `phase1_1d`→`phase1_row`, `meijster_1d`→`meijster_row`; all call sites updated [patch] | **Done** |
+| SRP-365-09 | `statistics/image_statistics.rs` tests → `tests_image_statistics.rs` [patch] | **Done** |
+| SRP-365-10 | `statistics/normalization/minmax.rs` tests → `tests_minmax.rs` [patch] | **Done** |
+| DRY-365-11 | Extract `build_tensor` helper from repeated bodies in `filter/ops.rs` `rebuild*` functions [patch] | **Done** |
+| SSOT-365-12 | Add `.ima` to `ImageFormat::from_path` Dicom arm; `is_likely_dicom_file` delegates to it [minor] | **Done** |
+| NAMING-365-13 | `DicomObjectNode::u16/i32/f64` → `from_u16/from_i32/from_f64`; all call sites updated [patch] | **Done** |
+| DRY-365-14 | `io_err()` helper eliminates 17 repeated `map_err` closures in `ritk-python/src/io/mod.rs` [patch] | **Done** |
+| PRIM-365-15 | `read_transform`/`write_transform` `path: String` → `path: &str` at PyO3 boundary [patch] | **Done** |
+| NAMING-365-16 | `gaussian_smooth_3d` → `gaussian_smooth` in `level_set/helpers.rs`; all callers updated [patch] | **Done** |
+| NAMING-365-17 | `skeleton_1d/2d/3d` → `endpoint_extract`/`zhang_suen`/`sequential_thin`; `mod.rs` dispatch updated [patch] | **Done** |
+| NAMING-365-18 | `dilate/erode_1d/2d/3d` → `dilate/erode_line/plane/volume` in `binary_{dilation,erosion}/mod.rs` [patch] | **Done** |
+| ENUM-365-19 | `StatsArgs.metric: String` → `StatMetric` ValueEnum (7 variants, `msd` alias); exhaustive match [minor] | **Done** |
+| ENUM-365-20 | `RegisterArgs.method: String` → `RegistrationMethod` ValueEnum (10 variants); exhaustive match; `mi.rs` secondary dispatch updated [minor] | **Done** |
+
+### Blocked / Deferred (carry-forward)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| DIP-362-13 | Superseded by DIP-365-04 (delivered). Closed. | — |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED [arch]: duplicate method names on same type; requires `DimInterpolation<B>` sealed trait per-D impl | [arch] |
+| SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
+| ENUM-365-03 | `ResampleArgs.interpolation: String` → `InterpolationMode` ValueEnum (4 variants) [minor] | Low |
+| NAMING-CORE-01 | `gaussian_kernel_1d` → `gaussian_kernel` in `ritk-core/filter/kernel_utils.rs` (cross-crate callers in ritk-filter + ritk-segmentation) [patch] | Medium |
+| NAMING-FILTER-01 | `FftConvolution3DFilter`/`FftNormalizedCorrelation3DFilter` → const-generic `<B, const D>` unification [major] | Low |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| `cargo nextest run -p ritk-filter` | 699/699 passed |
+| `cargo nextest run -p ritk-core` | 373/373 passed |
+| `cargo nextest run -p ritk-registration` | 630/630 passed, 23 skipped |
+| `cargo nextest run -p ritk-segmentation` | 375/375 passed |
+| `cargo nextest run -p ritk-io --no-fail-fast` | 329/330 (1 pre-existing JPEG2000 Windows abort 0xc0000374) |
+| `cargo nextest run -p ritk-cli` | 198/198 passed |
+
+---
+
 ## Sprint 364 — Architecture Hardening Round 3: COMPAT · NAMING · SSOT · CACHE · SRP · PRIM · ENUM
 
 **Status**: Complete  

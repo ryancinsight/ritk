@@ -1,5 +1,49 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 365 — Architecture Hardening Round 4: COMPAT · NAMING · SSOT · SRP · DRY · DIP · ENUM
+**Target version**: 0.62.0  
+**Sprint phase**: Closure — all 20 patches delivered and verified.
+
+### Delivered (Sprint 365)
+- [x] COMPAT-365-01 [patch]: Delete dead `NormalizationMode` + test from `metric/trait_.rs`
+- [x] NAMING-365-02 [patch]: `collect_vec_3/9` → `collect_array::<N>` in histogram/cache.rs; fix doc
+- [x] NAMING-365-03 [minor]: `StopReason` → `CmaEsStopReason` in cma_es/state.rs + re-exports
+- [x] DIP-365-04 [minor]: `RegistrationConfig::build_tracker()` + `TrackerBuildResult`; engine decoupled
+- [x] SRP-365-05 [patch]: `correlation_ratio.rs` tests → `tests_correlation_ratio.rs`
+- [x] COMPAT-365-06 [patch]: Delete deprecated dead `apply_tikhonov_2d/_3d` from regularization.rs
+- [x] NAMING-365-07 [patch]: 6 private dim-suffix renames in ritk-filter; all call sites updated
+- [x] SRP-365-09 [patch]: `image_statistics.rs` tests → `tests_image_statistics.rs`
+- [x] SRP-365-10 [patch]: `minmax.rs` tests → `tests_minmax.rs`
+- [x] DRY-365-11 [patch]: `build_tensor` helper extracted from `filter/ops.rs` rebuild bodies
+- [x] SSOT-365-12 [minor]: `.ima` added to `ImageFormat::from_path` Dicom arm; `is_likely_dicom_file` unified
+- [x] NAMING-365-13 [patch]: `DicomObjectNode::u16/i32/f64` → `from_u16/from_i32/from_f64`
+- [x] DRY-365-14 [patch]: `io_err()` helper; 17 repeated closures removed in ritk-python/io/mod.rs
+- [x] PRIM-365-15 [patch]: `read_transform`/`write_transform` `String` → `&str` at PyO3 boundary
+- [x] NAMING-365-16 [patch]: `gaussian_smooth_3d` → `gaussian_smooth` in level_set/helpers.rs
+- [x] NAMING-365-17 [patch]: `skeleton_1d/2d/3d` → `endpoint_extract`/`zhang_suen`/`sequential_thin`
+- [x] NAMING-365-18 [patch]: `dilate/erode_1d/2d/3d` → `dilate/erode_line/plane/volume`
+- [x] ENUM-365-19 [minor]: `StatsArgs.metric: String` → `StatMetric` ValueEnum (7 variants)
+- [x] ENUM-365-20 [minor]: `RegisterArgs.method: String` → `RegistrationMethod` ValueEnum (10 variants)
+
+### Blocked / Deferred
+- [ ] NAMING-362-23 [arch]: `transform_1d/_2d/_3d/_4d` — BLOCKED; `DimInterpolation<B>` sealed trait design needed
+- [ ] SRP-362-20 [major]: `FilterArgs` → `FilterKind` ValueEnum — carry forward
+- [ ] ENUM-365-03 [minor]: `ResampleArgs.interpolation: String` → `InterpolationMode` ValueEnum
+- [ ] NAMING-CORE-01 [patch]: `gaussian_kernel_1d` → `gaussian_kernel` (cross-crate callers)
+- [ ] NAMING-FILTER-01 [major]: FftConvolution*3DFilter → const-generic unification
+
+### Verification gate (Sprint 365)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run -p ritk-filter` → 699/699 passed
+- [x] `cargo nextest run -p ritk-core` → 373/373 passed
+- [x] `cargo nextest run -p ritk-registration` → 630/630 passed, 23 skipped
+- [x] `cargo nextest run -p ritk-segmentation` → 375/375 passed
+- [x] `cargo nextest run -p ritk-io --no-fail-fast` → 329/330 (1 pre-existing JPEG2000 Windows abort)
+- [x] `cargo nextest run -p ritk-cli` → 198/198 passed
+- [x] Commit: c6daed5 pushed to origin/main
+
+---
+
 ## Sprint 364 — Architecture Hardening Round 3: COMPAT · NAMING · SSOT · CACHE · SRP · PRIM · ENUM
 **Target version**: 0.61.0
 ritk-filter: → major bump | ritk-core: → minor bump | ritk-registration: minor bump | ritk-io: minor bump | ritk-cli: minor bump | ritk-python: minor bump

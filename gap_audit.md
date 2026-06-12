@@ -4,6 +4,40 @@
 
 ---
 
+## Sprint 365 Audit (2026-06-11) — Architecture Hardening Round 4: COMPAT · NAMING · SSOT · SRP · DRY · DIP · ENUM
+
+### Gaps Identified (5-agent parallel audit: ritk-cli, ritk-registration, ritk-core + ritk-filter + ritk-segmentation, ritk-io + ritk-python + ritk-core)
+- **COMPAT (ritk-registration)**: `NormalizationMode` enum dead — zero usages, orphaned after `NormalizationMethod` migration; deleted.
+- **NAMING (ritk-registration)**: `collect_vec_3`/`collect_vec_9` encode size in name; unified to `collect_array::<N>`; doc “panics” claim was inaccurate (silent zero-fill); corrected.
+- **NAMING (ritk-registration)**: `optimizer::cma_es::StopReason` collides with `registration::summary::StopReason` — same public name, different semantics; CMA-ES variant renamed `CmaEsStopReason`.
+- **DIP (ritk-registration)**: `Registration::with_config` constructs concrete `ConsoleProgressCallback` + `EarlyStoppingCallback` in-line — DIP violation; moved to `RegistrationConfig::build_tracker()`.
+- **SRP (ritk-registration)**: `correlation_ratio.rs` 410L inline tests; extracted to `tests_correlation_ratio.rs`.
+- **COMPAT (ritk-filter)**: `apply_tikhonov_2d/_3d` private, deprecated, dead code; deleted.
+- **NAMING (ritk-filter)**: 6 private/pub(crate)/pub(super) functions with dimension suffixes (`bilateral_3d`, `gradient_3d`, `gaussian_smooth_1d`, `edt_3d`, `phase1_1d`, `meijster_1d`); renamed to descriptive names; all call sites updated.
+- **SRP (ritk-core)**: `image_statistics.rs` (411L) and `minmax.rs` (414L) inline test blocks; extracted.
+- **DRY (ritk-core)**: `rebuild`/`rebuild_with_origin`/`rebuild_with_metadata` in `filter/ops.rs` repeated 3-line tensor-construction body; extracted to `build_tensor` helper.
+- **SSOT (ritk-io)**: `is_likely_dicom_file` matched `"ima"` extension independently of `ImageFormat::from_path`; `.ima` added to the canonical `from_path`; function delegates to it.
+- **NAMING (ritk-io)**: `DicomObjectNode::u16/i32/f64` — type names as method names; renamed to `from_u16/from_i32/from_f64`.
+- **DRY (ritk-python)**: `read_image`/`write_image` in `io/mod.rs` had 17 structurally identical `.map_err` closures; collapsed to `io_err(label)` helper.
+- **PRIM (ritk-python)**: `read_transform`/`write_transform` accepted `path: String` while all other PyO3 path args used `&str`; corrected.
+- **NAMING (ritk-segmentation)**: `gaussian_smooth_3d` in `level_set/helpers.rs` — dimension suffix; renamed.
+- **NAMING (ritk-segmentation)**: `skeleton_1d/2d/3d` in skeletonization — dimension suffixes on pub(super) functions; renamed to algorithmic names (`endpoint_extract`, `zhang_suen`, `sequential_thin`).
+- **NAMING (ritk-segmentation)**: `dilate/erode_1d/2d/3d` in binary morphology — dimension suffixes; renamed to `_line/plane/volume`.
+- **ENUM (ritk-cli)**: `StatsArgs.metric: String` (7-variant closed set); `StatMetric` ValueEnum with `msd` alias.
+- **ENUM (ritk-cli)**: `RegisterArgs.method: String` (10-variant closed set); `RegistrationMethod` ValueEnum; secondary dispatch in `mi.rs` also updated.
+
+### Gaps Closed This Session
+All 19 distinct gap classes above closed (20 patch deliverables). Note: SRP-365-08 (discrete_gaussian test extraction) was already done in a prior sprint — replaced by DRY-365-11.
+
+### Residual Risk
+- `NAMING-CORE-01`: `gaussian_kernel_1d` → `gaussian_kernel` in ritk-core — deferred (cross-crate callers require coordinated change across ritk-filter and ritk-segmentation).
+- `NAMING-FILTER-01` + `DRY-FILTER-01`: `FftConvolution*3DFilter` const-generic unification — [major], ADR required.
+- `NAMING-362-23`: `transform_1d/_2d/_3d/_4d` remains BLOCKED [arch] — design sprint needed for `DimInterpolation<B>` sealed trait approach.
+- `SRP-362-20`: `FilterArgs` → `FilterKind` ValueEnum — [major] scope, deferred.
+- JPEG2000 Windows abort (`0xc0000374`) remains pre-existing.
+
+---
+
 ## Sprint 364 Audit (2026-06-11) — Architecture Hardening Round 3: COMPAT · NAMING · SSOT · CACHE · SRP · PRIM · ENUM
 
 ### Gaps Identified (4-agent parallel audit: ritk-filter, ritk-registration, ritk-segmentation + ritk-core, ritk-io + ritk-python + ritk-cli)

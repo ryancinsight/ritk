@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [0.62.0] — 2026-06-11 (Sprint 365: Architecture Hardening Round 4 — COMPAT · NAMING · SSOT · SRP · DRY · DIP · ENUM)
+
+### Removed
+- `ritk-registration`: Dead `NormalizationMode` enum and its test removed from `metric/trait_.rs` (zero usages; orphaned after `NormalizationMethod` migration).
+- `ritk-filter`: Deprecated dead `apply_tikhonov_2d` / `apply_tikhonov_3d` removed from `deconvolution/regularization.rs`.
+
+### Added
+- `ritk-registration`: `RegistrationConfig::build_tracker()` method returning `TrackerBuildResult`; concrete callback construction moved out of `Registration::with_config` (DIP).
+- `ritk-registration`: `CmaEsStopReason` — unambiguous rename of `optimizer::cma_es::StopReason` to eliminate name collision with `registration::summary::StopReason`.
+- `ritk-io`: `.ima` extension added to the `ImageFormat::from_path` Dicom arm; `is_likely_dicom_file` now delegates to `from_path` (SSOT).
+
+### Changed
+- `ritk-registration`: `collect_vec_3` / `collect_vec_9` renamed to `collect_array::<N>`; inaccurate "panics" doc corrected (silent zero-fill, not panic).
+- `ritk-io`: `DicomObjectNode::u16` / `i32` / `f64` → `from_u16` / `from_i32` / `from_f64`; all call sites updated.
+- `ritk-python`: `read_transform` / `write_transform` `path` parameter changed from `String` to `&str` at PyO3 boundary (consistent with all other path args).
+- `ritk-cli`: `StatsArgs.metric: String` → `StatMetric` ValueEnum (7 variants: `Summary`, `Dice`, `Hausdorff`, `Psnr`, `Ssim`, `MeanSurfaceDistance` w/ alias `msd`, `NoiseEstimate`); exhaustive match; clap rejects unknown values at parse time.
+- `ritk-cli`: `RegisterArgs.method: String` → `RegistrationMethod` ValueEnum (10 variants: `RigidMi`, `AffineMi`, `Demons`, `MultiResDemons`, `IcDemons`, `Syn`, `BsplineFfd`, `MultiResSyn`, `BsplineSyn`, `Lddmm`); exhaustive match; `mi.rs` secondary dispatch updated.
+- `ritk-filter` (internal): 6 private/pub(crate)/pub(super) functions renamed to remove dimension suffixes: `gaussian_smooth_1d`→`gaussian_smooth`, `gradient_3d`→`compute_gradient`, `bilateral_3d`→`compute`, `edt_3d`→`euclidean_dt`, `phase1_1d`→`phase1_row`, `meijster_1d`→`meijster_row`.
+- `ritk-segmentation` (internal): `gaussian_smooth_3d` → `gaussian_smooth` in `level_set/helpers.rs`.
+- `ritk-segmentation` (internal): `skeleton_1d/2d/3d` → `endpoint_extract` / `zhang_suen` / `sequential_thin`.
+- `ritk-segmentation` (internal): `dilate/erode_1d/2d/3d` → `dilate/erode_line/plane/volume`.
+
+### Internal (patch — no public API change)
+- `ritk-registration` (SRP): `correlation_ratio.rs` inline tests extracted to `tests_correlation_ratio.rs`.
+- `ritk-core` (SRP): `image_statistics.rs` and `minmax.rs` inline tests extracted to `tests_image_statistics.rs` / `tests_minmax.rs`.
+- `ritk-core` (DRY): `build_tensor` helper extracted from the three repeated `rebuild*` bodies in `filter/ops.rs`.
+- `ritk-python` (DRY): `io_err(label)` helper collapses 17 structurally identical `.map_err` closures in `io/mod.rs`.
+
 ## [0.61.0] — 2026-06-11 (Sprint 364: Architecture Hardening Round 3 — COMPAT · NAMING · SSOT · CACHE · SRP · PRIM · ENUM)
 
 ### Removed (breaking)
