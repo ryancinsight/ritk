@@ -328,14 +328,20 @@ impl MqEncoder {
     /// (ISO 15444-1 §C.2.9 FLUSH).
     pub fn finish(mut self) -> Vec<u8> {
         // ISO 15444-1 §C.2.9 FLUSH (= OpenJPEG `opj_mqc_flush`):
-        // SETBITS; C <<= CT; BYTEOUT; C <<= 8 (fixed); BYTEOUT; commit final pending byte.
+        // SETBITS; C <<= CT; BYTEOUT; C <<= CT; BYTEOUT — the second shift uses
+        // the CT set by the first BYTEOUT (7 after a stuffed byte, else 8); a
+        // fixed 8 misaligns the final bits. The final pending byte is included
+        // only when it is not 0xFF (OpenJPEG `if (*bp != 0xff) bp++`); pushing
+        // it unconditionally breaks tail decode (regression test:
+        // ebcot_1x7_tail_refinement_round_trip).
         self.set_bits();
         self.c <<= self.ct;
         self.byteout();
-        self.c <<= 8; // fixed 8-bit shift (not self.ct which byteout just updated)
+        self.c <<= self.ct;
         self.byteout();
-        // Commit the final pending byte unconditionally (= OpenJPEG’s final bp++).
-        self.commit();
+        if self.b != 0xFF {
+            self.commit();
+        }
         self.out
     }
 
@@ -368,28 +374,30 @@ impl MqEncoder {
         }
     }
 
-    /// CODELPS (ISO 15444-1 Figure C.8 / OpenJPEG `opj_mqc_codelps`).
+    /// CODELPS (ISO 15444-1 Figure C.8).
+    ///
+    /// Exchange (A < Qe): C += Qe so the code lands in the MPS region;
+    /// the DECODER routes via `mps_exchange` exchange → returns 1−mps. ✓
+    /// No-exchange (A ≥ Qe): C unchanged; code stays in the LPS region;
+    /// the DECODER routes via `lps_exchange` no-exchange → returns 1−mps. ✓
+    /// Both paths: A = Qe (synchronises renorm depth with the decoder), state → NLPS,
+    /// flip MPS when SWITCH is set.
     #[inline]
     fn lps_encode(&mut self, ctx: &mut CtxState) {
         let entry = QE_TABLE[ctx.state as usize];
         let qe = u32::from(entry.qe);
         self.a -= qe;
         if self.a < qe {
-            // Conditional exchange: LPS gets the shorter interval.
-            // Shift C up by the reduced A so the code lands above the MPS range.
-            // Decoder will route via lps_exchange → exchange path → returns MPS from NMPS.
-            self.c += self.a; // C += reduced A (not Qe)
-            self.a = qe; // reset A to Qe for renorm
-            ctx.state = entry.nmps; // — matches decoder lps_exchange exchange branch
-                                    // No MPS flip on this (nmps) path.
+            // Conditional exchange (Figure C.8): LPS takes the upper interval;
+            // A keeps its reduced value A − Qe. Setting A = Qe here desyncs the
+            // decoder (regression test: ebcot_1x7_tail_refinement_round_trip).
+            self.c += qe;
         } else {
-            // No exchange: LPS gets the longer interval.
-            // C is unchanged (code stays in the lower [0, A) range).
-            self.a = qe; // reset A to Qe for renorm
-            ctx.state = entry.nlps;
-            if entry.switch_flag {
-                ctx.mps = 1 - ctx.mps;
-            }
+            self.a = qe;
+        }
+        ctx.state = entry.nlps;
+        if entry.switch_flag {
+            ctx.mps = 1 - ctx.mps;
         }
         self.renorme();
     }
@@ -518,6 +526,26 @@ mod tests {
             .map(|i| (((i * 7 + 3) % 2) as u32, i % NUM_CONTEXTS))
             .collect();
         round_trip(&symbols);
+    }
+
+    proptest::proptest! {
+        /// Any (symbol, context) sequence must round-trip exactly through the
+        /// MQ encoder/decoder pair (flush termination must be lossless).
+        #[test]
+        fn mq_round_trip_random(seq in proptest::collection::vec((0u32..2, 0usize..NUM_CONTEXTS), 1..200)) {
+            let mut enc_ctxs = initial_contexts();
+            let mut enc = MqEncoder::new();
+            for &(sym, ctx_idx) in &seq {
+                enc.encode(sym, &mut enc_ctxs[ctx_idx]);
+            }
+            let bytes = enc.finish();
+            let mut dec_ctxs = initial_contexts();
+            let mut dec = MqDecoder::new(&bytes);
+            for (i, &(expected, ctx_idx)) in seq.iter().enumerate() {
+                let got = dec.decode(&mut dec_ctxs[ctx_idx]);
+                proptest::prop_assert_eq!(got, expected, "symbol[{}] ctx={}", i, ctx_idx);
+            }
+        }
     }
 
     #[test]
