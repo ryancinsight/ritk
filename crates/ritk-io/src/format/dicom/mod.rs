@@ -2,6 +2,7 @@ mod anonymize;
 mod codec;
 mod color;
 mod color_common;
+mod helpers;
 mod multiframe;
 pub mod networking;
 mod object_model;

@@ -1,21 +1,21 @@
 //! Optical-flow force computation and field clamping utilities.
 
-use crate::deformable_field_ops::{VectorField3D, VectorFieldMut3D};
+use crate::deformable_field_ops::{VectorField, VectorFieldMut};
 
 /// Compute optical-flow Thirion forces into caller-provided buffers.
 pub(crate) fn thirion_forces_into(
     fixed: &[f32],
     m_warped: &[f32],
-    grad: VectorField3D<'_>,
+    grad: VectorField<'_>,
     max_step_length: f32,
-    forces: VectorFieldMut3D<'_>,
+    forces: VectorFieldMut<'_>,
 ) {
-    let VectorField3D {
+    let VectorField {
         z: grad_z,
         y: grad_y,
         x: grad_x,
     } = grad;
-    let VectorFieldMut3D {
+    let VectorFieldMut {
         z: fz,
         y: fy,
         x: fx,

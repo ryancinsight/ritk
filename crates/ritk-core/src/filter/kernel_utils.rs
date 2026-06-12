@@ -7,12 +7,12 @@
 //!
 //! # Exports
 //!
-//! - [`gaussian_kernel_1d`]: normalised symmetric 1-D Gaussian kernel.
+//! - [`gaussian_kernel`]: normalised symmetric 1-D Gaussian kernel.
 
 use num_traits::Float;
 use std::ops::AddAssign;
 
-// ── gaussian_kernel_1d ──────────────────────────────────────────────────────
+// ── gaussian_kernel ─────────────────────────────────────────────────────────
 
 /// Build a normalised 1-D Gaussian kernel of type `T`.
 ///
@@ -43,7 +43,7 @@ use std::ops::AddAssign;
 ///
 /// Property-tested: normalisation, symmetry, peak-at-centre, length (see tests
 /// in `filter::kernel_utils`, `level_set::helpers`, `level_set::geodesic_active_contour`).
-pub fn gaussian_kernel_1d<T>(sigma: T, radius: Option<usize>) -> Vec<T>
+pub fn gaussian_kernel<T>(sigma: T, radius: Option<usize>) -> Vec<T>
 where
     T: Float + AddAssign + Default,
 {
@@ -80,35 +80,35 @@ where
 
 #[cfg(test)]
 mod tests {
-    // ── gaussian_kernel_1d ──────────────────────────────────────────────
+    // ── gaussian_kernel ────────────────────────────────────────────────
 
     /// Kernel sums to 1.0 (f64 variant).
     #[test]
-    fn gaussian_kernel_1d_f64_sums_to_one() {
-        let kernel = super::gaussian_kernel_1d(2.0_f64, None);
+    fn gaussian_kernel_f64_sums_to_one() {
+        let kernel = super::gaussian_kernel(2.0_f64, None);
         let sum: f64 = kernel.iter().sum();
         assert!((sum - 1.0).abs() < 1e-12, "kernel sum = {sum}");
     }
 
     /// Kernel sums to 1.0 (f32 variant).
     #[test]
-    fn gaussian_kernel_1d_f32_sums_to_one() {
-        let kernel = super::gaussian_kernel_1d(2.0_f32, None);
+    fn gaussian_kernel_f32_sums_to_one() {
+        let kernel = super::gaussian_kernel(2.0_f32, None);
         let sum: f32 = kernel.iter().sum();
         assert!((sum - 1.0).abs() < 1e-5, "kernel sum = {sum}");
     }
 
     /// Zero sigma returns identity kernel.
     #[test]
-    fn gaussian_kernel_1d_zero_sigma_is_identity() {
-        let kernel = super::gaussian_kernel_1d(0.0_f64, None);
+    fn gaussian_kernel_zero_sigma_is_identity() {
+        let kernel = super::gaussian_kernel(0.0_f64, None);
         assert_eq!(kernel, vec![1.0_f64]);
     }
 
     /// Explicit radius overrides the default.
     #[test]
-    fn gaussian_kernel_1d_explicit_radius() {
-        let kernel = super::gaussian_kernel_1d(1.0_f64, Some(5));
+    fn gaussian_kernel_explicit_radius() {
+        let kernel = super::gaussian_kernel(1.0_f64, Some(5));
         assert_eq!(kernel.len(), 11); // 2 * 5 + 1
     }
 
@@ -119,9 +119,9 @@ mod tests {
     /// With σ=2.0: expected = exp(-1/8) ≈ 0.882497.
     /// The previous defect (`1 + σ²` = 5) would produce exp(-1/5) ≈ 0.818731 — a ~7% error.
     #[test]
-    fn gaussian_kernel_1d_exponent_denominator_is_two_sigma_squared() {
+    fn gaussian_kernel_exponent_denominator_is_two_sigma_squared() {
         let sigma = 2.0_f64;
-        let kernel = super::gaussian_kernel_1d(sigma, Some(4));
+        let kernel = super::gaussian_kernel(sigma, Some(4));
         let centre = 4_usize; // r = 4, centre = index 4
         let expected_ratio = (-1.0_f64 / (2.0 * sigma * sigma)).exp();
         let actual_ratio = kernel[centre - 1] / kernel[centre];
@@ -133,8 +133,8 @@ mod tests {
 
     /// Kernel is symmetric.
     #[test]
-    fn gaussian_kernel_1d_is_symmetric() {
-        let kernel = super::gaussian_kernel_1d(2.0_f64, None);
+    fn gaussian_kernel_is_symmetric() {
+        let kernel = super::gaussian_kernel(2.0_f64, None);
         let n = kernel.len();
         for i in 0..n {
             assert!(
@@ -148,8 +148,8 @@ mod tests {
 
     /// Peak is at the centre.
     #[test]
-    fn gaussian_kernel_1d_peak_at_centre() {
-        let kernel = super::gaussian_kernel_1d(1.0_f64, Some(3));
+    fn gaussian_kernel_peak_at_centre() {
+        let kernel = super::gaussian_kernel(1.0_f64, Some(3));
         let center = kernel.len() / 2;
         for (i, &w) in kernel.iter().enumerate() {
             if i != center {

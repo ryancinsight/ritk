@@ -157,7 +157,7 @@ pub(crate) fn histogram_sharpen(
 
     // ── Gaussian kernel (σ in histogram-bin units) ─────────────────────────
     let sigma_bins = (noise_fraction * n_bins as f64).max(0.5);
-    scratch.g = crate::gaussian_kernel_1d(sigma_bins, None);
+    scratch.g = crate::gaussian_kernel(sigma_bins, None);
 
     // ── Wiener deconvolution in DFT domain ─────────────────────────────────
     let h_hat = &mut scratch.h_hat[..n_dft];

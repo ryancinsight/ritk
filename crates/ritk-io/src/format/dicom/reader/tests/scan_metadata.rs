@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
 use super::super::geometry::{
-    analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
+    analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
     load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
@@ -18,8 +18,8 @@ use crate::format::dicom::{
 };
 use arrayvec::ArrayString;
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
+use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_metadata_round_trip_spatial_fields() {
     use burn::tensor::{Shape, Tensor, TensorData};

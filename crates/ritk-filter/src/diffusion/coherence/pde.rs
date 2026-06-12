@@ -15,7 +15,7 @@ pub fn ced_diffuse(data: &[f64], dims: [usize; 3], config: &CoherenceConfig) -> 
     let mut cur = data.to_vec();
 
     // Pre-build the 1-D Gaussian kernel for structure-tensor smoothing.
-    let kernel = crate::gaussian_kernel_1d(config.sigma.get(), None);
+    let kernel = crate::gaussian_kernel(config.sigma.get(), None);
     for _ in 0..config.n_iterations {
         // ── Step 1: gradient via central differences ────────────────────
         let grad = compute_gradient(&cur, dims);

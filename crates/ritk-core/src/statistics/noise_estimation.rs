@@ -32,8 +32,8 @@
 //!   Deviation. *J. Amer. Statist. Assoc.*, 88(424), 1273–1283.
 
 use crate::filter::ops::extract_vec_infallible;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -150,7 +150,7 @@ pub fn estimate_noise_mad_masked<B: Backend, const D: usize>(
     let mut values: Vec<f32> = img_slice
         .iter()
         .zip(mask_slice.iter())
-        .filter(|(_, &m)| m > 0.5)
+        .filter(|(_, &m)| m > crate::statistics::FOREGROUND_THRESHOLD)
         .map(|(&v, _)| v)
         .collect();
 
@@ -200,7 +200,7 @@ pub fn estimate_noise_mad_masked_from_slices(img_slice: &[f32], mask_slice: &[f3
     let mut values: Vec<f32> = img_slice
         .iter()
         .zip(mask_slice.iter())
-        .filter(|(_, &m)| m > 0.5)
+        .filter(|(_, &m)| m > crate::statistics::FOREGROUND_THRESHOLD)
         .map(|(&v, _)| v)
         .collect();
     mad_sigma(&mut values)

@@ -13,7 +13,8 @@
 //! | [`RichardsonLucyDeconvolution`] | Iterative | `uₖ₊₁ = uₖ · H* ⋆ (f / (H ⋆ uₖ))` |
 //! | [`LandweberDeconvolution`] | Iterative | `uₖ₊₁ = uₖ + α · H* ⋆ (f − H ⋆ uₖ)` |
 //!
-//! All filters expose both `apply_2d` (2-D images) and `apply_3d` (3-D volumes).
+//! All filters expose a single generic `apply<B: Backend, const D: usize>` that
+//! accepts images of any supported dimensionality (currently `D = 2` and `D = 3`).
 //!
 //! # Theory
 //!

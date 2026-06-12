@@ -44,7 +44,7 @@ pub(crate) use warp::{compute_mse_streaming, warp_image, warp_image_into};
 /// Groups the three spatial components of a displacement, velocity, momentum, or
 /// gradient field so that functions stay within Clippy's `too_many_arguments` limit.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct VectorField3D<'a> {
+pub(crate) struct VectorField<'a> {
     /// Z-component (flat buffer, Z-major order).
     pub z: &'a [f32],
     /// Y-component.
@@ -55,7 +55,7 @@ pub(crate) struct VectorField3D<'a> {
 
 /// Mutable 3D vector field: three co-equal flat component slice-muts (z, y, x).
 #[derive(Debug)]
-pub(crate) struct VectorFieldMut3D<'a> {
+pub(crate) struct VectorFieldMut<'a> {
     /// Z-component (flat buffer, Z-major order).
     pub z: &'a mut [f32],
     /// Y-component.

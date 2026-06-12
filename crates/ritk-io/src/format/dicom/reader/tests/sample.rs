@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
 use super::super::geometry::{
-    analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
+    analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
     load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
@@ -17,8 +17,8 @@ use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
+use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
     println!("START test_scan_skull_ct_folder_with_dicomdir_loads_series");
@@ -30,7 +30,10 @@ fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
     println!("Path: {:?}", series_path);
     println!("Before scan_dicom_directory");
     let info = scan_dicom_directory(series_path).expect("scan_dicom_directory must succeed");
-    println!("After scan_dicom_directory, num_slices: {}", info.num_slices);
+    println!(
+        "After scan_dicom_directory, num_slices: {}",
+        info.num_slices
+    );
     assert!(
         info.num_slices > 0,
         "expected at least one slice from skull CT sample"
@@ -54,7 +57,6 @@ fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
         "loaded image must have nonzero in-plane dimensions"
     );
 }
-
 
 #[test]
 fn test_scan_skull_ct_dicomdir_and_folder_agree_on_series() {

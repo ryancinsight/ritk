@@ -3,7 +3,7 @@
 use arrayvec::ArrayString;
 
 use super::super::geometry::{
-    analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
+    analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
     load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
@@ -19,8 +19,8 @@ use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
+use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_write_series_load_series_intensity_roundtrip() {
     use burn::tensor::{Shape, Tensor, TensorData};

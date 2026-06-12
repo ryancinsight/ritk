@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 use super::VelocityField;
-use super::{trilinear_interpolate, VectorField3D, VectorFieldMut3D};
+use super::{trilinear_interpolate, VectorField, VectorFieldMut};
 use crate::parallel::CellSlice;
 use ritk_spatial::VolumeDims;
 
@@ -14,23 +14,23 @@ use ritk_spatial::VolumeDims;
 ///
 /// Output buffers must have length `dims.total_voxels()`.
 pub(crate) fn compose_fields_into(
-    phi1: VectorField3D<'_>,
-    phi2: VectorField3D<'_>,
+    phi1: VectorField<'_>,
+    phi2: VectorField<'_>,
     dims: VolumeDims,
-    out: VectorFieldMut3D<'_>,
+    out: VectorFieldMut<'_>,
 ) {
     let [nz, ny, nx] = dims.0;
-    let VectorField3D {
+    let VectorField {
         z: phi1_z,
         y: phi1_y,
         x: phi1_x,
     } = phi1;
-    let VectorField3D {
+    let VectorField {
         z: phi2_z,
         y: phi2_y,
         x: phi2_x,
     } = phi2;
-    let VectorFieldMut3D {
+    let VectorFieldMut {
         z: out_z,
         y: out_y,
         x: out_x,
@@ -88,18 +88,18 @@ pub(crate) fn compose_fields(
     let mut cx = vec![0.0_f32; n];
 
     compose_fields_into(
-        VectorField3D {
+        VectorField {
             z: phi1_z,
             y: phi1_y,
             x: phi1_x,
         },
-        VectorField3D {
+        VectorField {
             z: phi2_z,
             y: phi2_y,
             x: phi2_x,
         },
         dims,
-        VectorFieldMut3D {
+        VectorFieldMut {
             z: &mut cz,
             y: &mut cy,
             x: &mut cx,

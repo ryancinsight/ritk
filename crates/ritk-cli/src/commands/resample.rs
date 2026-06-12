@@ -18,6 +18,19 @@ use tracing::info;
 
 use super::{read_image, write_image_inferred, Backend};
 
+/// Spatial interpolation mode used during image resampling.
+#[derive(clap::ValueEnum, Clone, Debug, PartialEq)]
+pub enum InterpolationMode {
+    /// Nearest-neighbour: fastest, no blurring, preserves discrete labels.
+    Nearest,
+    /// Trilinear (or bilinear for 2-D): smooth, general purpose.
+    Linear,
+    /// Cubic B-spline: higher-order smooth interpolation.
+    BSpline,
+    /// Lanczos (windowed sinc, kernel radius 4): highest quality for downsampling.
+    Lanczos4,
+}
+
 /// Resample an image to a new voxel spacing.
 #[derive(clap::Args, Debug)]
 pub struct ResampleArgs {
@@ -28,15 +41,15 @@ pub struct ResampleArgs {
     /// New voxel spacing (ZYX order, three positive values).
     #[arg(short, long, value_delimiter = ',', value_name = "SZ,SY,SX")]
     pub spacing: Vec<f64>,
-    /// Interpolation mode: nearest | linear | bspline | lanczos4
-    #[arg(long, default_value = "linear")]
-    pub interpolation: String,
+    /// Interpolation mode.
+    #[arg(long, value_enum, default_value_t = InterpolationMode::Linear)]
+    pub interpolation: InterpolationMode,
 }
 
 /// Execute the `resample` subcommand.
 pub fn run(args: ResampleArgs) -> Result<()> {
     info!(
-        "resample: starting input={} output={} spacing={:?} interpolation={}",
+        "resample: starting input={} output={} spacing={:?} interpolation={:?}",
         args.input.display(),
         args.output.display(),
         args.spacing,
@@ -80,8 +93,8 @@ pub fn run(args: ResampleArgs) -> Result<()> {
     let zero_t =
         Tensor::<Backend, 1>::from_data(TensorData::new(vec![0.0f32; 3], Shape::new([3])), &device);
 
-    let result = match args.interpolation.as_str() {
-        "nearest" => ResampleImageFilter::new(
+    let result = match args.interpolation {
+        InterpolationMode::Nearest => ResampleImageFilter::new(
             [new_nz, new_ny, new_nx],
             orig_origin,
             new_spacing,
@@ -90,7 +103,7 @@ pub fn run(args: ResampleArgs) -> Result<()> {
             NearestNeighborInterpolator::new(),
         )
         .apply(&image),
-        "linear" => ResampleImageFilter::new(
+        InterpolationMode::Linear => ResampleImageFilter::new(
             [new_nz, new_ny, new_nx],
             orig_origin,
             new_spacing,
@@ -99,7 +112,7 @@ pub fn run(args: ResampleArgs) -> Result<()> {
             LinearInterpolator::new(),
         )
         .apply(&image),
-        "bspline" => ResampleImageFilter::new(
+        InterpolationMode::BSpline => ResampleImageFilter::new(
             [new_nz, new_ny, new_nx],
             orig_origin,
             new_spacing,
@@ -108,7 +121,7 @@ pub fn run(args: ResampleArgs) -> Result<()> {
             BSplineInterpolator::new(),
         )
         .apply(&image),
-        "lanczos4" => ResampleImageFilter::new(
+        InterpolationMode::Lanczos4 => ResampleImageFilter::new(
             [new_nz, new_ny, new_nx],
             orig_origin,
             new_spacing,
@@ -117,10 +130,6 @@ pub fn run(args: ResampleArgs) -> Result<()> {
             Lanczos4Interpolator::new(),
         )
         .apply(&image),
-        other => bail!(
-            "Unknown interpolation mode '{}'..Accepted: nearest, linear, bspline, lanczos4",
-            other
-        ),
     };
 
     write_image_inferred(&args.output, &result)?;
@@ -162,7 +171,7 @@ mod tests {
             input: input.clone(),
             output: output.clone(),
             spacing: vec![1.0, 1.0, 1.0],
-            interpolation: "linear".to_string(),
+            interpolation: InterpolationMode::Linear,
         };
         run(args).expect("resample must succeed");
         assert!(output.exists());
@@ -195,7 +204,7 @@ mod tests {
             input: input.clone(),
             output: output.clone(),
             spacing: vec![1.0, 1.0, 1.0],
-            interpolation: "linear".to_string(),
+            interpolation: InterpolationMode::Linear,
         };
         run(args).unwrap();
         let loaded = ritk_io::read_nrrd::<Backend, _>(&output, &dev).unwrap();
@@ -216,7 +225,7 @@ mod tests {
             input,
             output: output.clone(),
             spacing: vec![1.0, 1.0, 1.0],
-            interpolation: "nearest".to_string(),
+            interpolation: InterpolationMode::Nearest,
         };
         run(args).unwrap();
         let dev: <Backend as BurnBackend>::Device = Default::default();
@@ -230,25 +239,9 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_resample_unknown_mode_returns_error() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("in.nii");
-        let output = dir.path().join("out.nii");
-        write_test_nifti(&input, vec![0.0f32; 8], [2, 2, 2], [1.0, 1.0, 1.0]);
-        let args = ResampleArgs {
-            input,
-            output,
-            spacing: vec![1.0, 1.0, 1.0],
-            interpolation: "cubic".to_string(),
-        };
-        let result = run(args);
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Unknown interpolation mode"));
-    }
+    // NOTE: the "unknown interpolation mode" runtime test is removed; invalid mode
+    // strings are now rejected at parse time by clap (ValueEnum), so the error
+    // surfaces before `run` is ever called.
 
     #[test]
     fn test_resample_invalid_spacing_string_returns_error() {
@@ -260,7 +253,7 @@ mod tests {
             input,
             output,
             spacing: vec![1.0, 2.0],
-            interpolation: "linear".to_string(),
+            interpolation: InterpolationMode::Linear,
         };
         let result = run(args);
         assert!(result.is_err());

@@ -61,7 +61,7 @@ pub mod registration;
 pub mod regularization;
 pub mod types;
 pub mod validation;
-pub(crate) mod wgpu_compat;
+
 // ============================================================================
 // Re-exports — SSOT for quality metrics
 // ============================================================================

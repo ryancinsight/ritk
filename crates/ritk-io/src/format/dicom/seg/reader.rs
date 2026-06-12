@@ -7,6 +7,7 @@ use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 
 use super::types::{DicomSegmentInfo, DicomSegmentation, SEG_SOP_CLASS_UID};
+use crate::format::dicom::helpers::read_nested_f64;
 use crate::format::dicom::reader::types::{literal_arraystring, truncate_arraystring};
 
 /// Read a DICOM Segmentation Storage file at `path` into [`DicomSegmentation`].
@@ -145,22 +146,6 @@ fn read_nested_ds<const N: usize>(
             .to_str()
             .ok()
             .and_then(|s| parse_ds_backslash::<N>(&s))
-    } else {
-        None
-    }
-}
-
-/// Navigate `item → seq_tag → items[0] → inner_tag` and parse as single `f64`.
-fn read_nested_f64(item: &InMemDicomObject, seq_tag: Tag, inner_tag: Tag) -> Option<f64> {
-    let elem = item.element(seq_tag).ok()?;
-    if let Value::Sequence(seq) = elem.value() {
-        let inner = seq.items().first()?;
-        inner
-            .element(inner_tag)
-            .ok()?
-            .to_str()
-            .ok()
-            .and_then(|s| s.trim().parse::<f64>().ok())
     } else {
         None
     }

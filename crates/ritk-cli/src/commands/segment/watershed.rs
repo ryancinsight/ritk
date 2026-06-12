@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use std::path::PathBuf;
+
 use tracing::info;
 
 use ritk_segmentation::{MarkerControlledWatershed, WatershedSegmentation};
@@ -61,7 +61,7 @@ pub(super) fn run_marker_watershed(args: &SegmentArgs) -> Result<()> {
         .ok_or_else(|| anyhow!("marker-watershed requires --markers <PATH>"))?;
 
     let gradient = read_image(&args.input)?;
-    let markers = read_image(&PathBuf::from(markers_path))?;
+    let markers = read_image(markers_path)?;
 
     let labeled = MarkerControlledWatershed::new()
         .apply(&gradient, &markers)
@@ -80,7 +80,7 @@ pub(super) fn run_marker_watershed(args: &SegmentArgs) -> Result<()> {
     info!(
         "segment: marker-watershed complete input={} markers={} basins={n_basins}",
         args.input.display(),
-        markers_path,
+        markers_path.display(),
     );
     Ok(())
 }

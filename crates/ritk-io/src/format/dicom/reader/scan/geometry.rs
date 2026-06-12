@@ -3,9 +3,7 @@
 //! IOP/spacing consistency checks, gantry tilt synthesis, slice normal
 //! computation, spatial sorting, and direction/origin/spacing assembly.
 
-use super::super::geometry::{
-    analyze_slice_spacing, cross_3d, dot_3d, normalize_3d, slice_normal_from_iop,
-};
+use super::super::geometry::{analyze_slice_spacing, cross, dot, normalize, slice_normal_from_iop};
 use super::super::types::DicomSliceMetadata;
 use super::thresholds::{
     AXIAL_IOP_THRESHOLD, GANTRY_TILT_MIN_DEGREES, IOP_CONSISTENCY_THRESHOLD,
@@ -29,12 +27,12 @@ pub(super) fn sort_slices_spatially(
 ) {
     slices.sort_by(|a, b| {
         let pos_a = match (a.image_position_patient, maybe_normal) {
-            (Some(ipp), Some(n)) => dot_3d(ipp, n),
+            (Some(ipp), Some(n)) => dot(ipp, n),
             (Some(ipp), None) => ipp[2],
             (None, _) => f64::MAX,
         };
         let pos_b = match (b.image_position_patient, maybe_normal) {
-            (Some(ipp), Some(n)) => dot_3d(ipp, n),
+            (Some(ipp), Some(n)) => dot(ipp, n),
             (Some(ipp), None) => ipp[2],
             (None, _) => f64::MAX,
         };
@@ -151,7 +149,7 @@ pub(super) fn compute_spacing_z(
     let positions: Vec<f64> = if let Some(n) = maybe_normal {
         slices
             .iter()
-            .filter_map(|s| s.image_position_patient.map(|ipp| dot_3d(ipp, n)))
+            .filter_map(|s| s.image_position_patient.map(|ipp| dot(ipp, n)))
             .collect()
     } else {
         slices
@@ -173,7 +171,7 @@ pub(super) fn assemble_direction(slices: &[DicomSliceMetadata]) -> [f64; 9] {
     if let Some(ori) = slices.first().and_then(|s| s.image_orientation_patient) {
         let r = [ori[0], ori[1], ori[2]];
         let c = [ori[3], ori[4], ori[5]];
-        let n = normalize_3d(cross_3d(r, c)).unwrap_or([0.0, 0.0, 1.0]);
+        let n = normalize(cross(r, c)).unwrap_or([0.0, 0.0, 1.0]);
         [
             n[0], n[1], n[2], ori[3], ori[4], ori[5], ori[0], ori[1], ori[2],
         ]

@@ -47,6 +47,10 @@ pub(crate) fn sort_floats(values: &mut [f32]) {
     values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 }
 
+/// Binary-mask foreground threshold: voxels with mask value strictly above
+/// this threshold are treated as foreground; those at or below are background.
+pub(crate) const FOREGROUND_THRESHOLD: f32 = 0.5;
+
 #[cfg(test)]
 mod tests_label_overlap;
 

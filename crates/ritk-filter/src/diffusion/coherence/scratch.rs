@@ -119,7 +119,7 @@ impl CedScratch {
             self.smooth_buf = vec![0.0; n];
         }
         if self.cached_sigma != Some(sigma) || self.kernel.is_empty() {
-            self.kernel = crate::gaussian_kernel_1d(sigma.get(), None);
+            self.kernel = crate::gaussian_kernel(sigma.get(), None);
             self.cached_sigma = Some(sigma);
         }
     }

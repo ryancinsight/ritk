@@ -40,5 +40,5 @@ pub use types::{
 };
 
 pub(super) use geometry::{
-    analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
+    analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };

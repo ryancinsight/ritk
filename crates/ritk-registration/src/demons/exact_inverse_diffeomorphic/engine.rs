@@ -6,7 +6,7 @@ use super::ic_residual::compute_ic_residual;
 use super::types::{InverseConsistentDemonsConfig, InverseConsistentDemonsResult};
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace_with_scratch,
-    scaling_and_squaring_into, warp_image_into, VectorField3D, VectorFieldMut3D,
+    scaling_and_squaring_into, warp_image_into, VectorField, VectorFieldMut,
 };
 use crate::error::RegistrationError;
 
@@ -152,13 +152,13 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             thirion_forces_into(
                 fixed,
                 &m_warped,
-                VectorField3D {
+                VectorField {
                     z: &gf.z,
                     y: &gf.y,
                     x: &gf.x,
                 },
                 cfg.max_step_length,
-                VectorFieldMut3D {
+                VectorFieldMut {
                     z: &mut fz_fwd,
                     y: &mut fy_fwd,
                     x: &mut fx_fwd,
@@ -167,13 +167,13 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             thirion_forces_into(
                 moving,
                 &f_warped,
-                VectorField3D {
+                VectorField {
                     z: &gm.z,
                     y: &gm.y,
                     x: &gm.x,
                 },
                 cfg.max_step_length,
-                VectorFieldMut3D {
+                VectorFieldMut {
                     z: &mut fz_bwd,
                     y: &mut fy_bwd,
                     x: &mut fx_bwd,

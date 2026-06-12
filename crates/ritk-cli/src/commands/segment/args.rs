@@ -128,7 +128,7 @@ pub struct SegmentArgs {
     // -- Marker-watershed --------------------------------------------------
     /// Path to marker label image (for marker-watershed method).
     #[arg(long, value_name = "PATH")]
-    pub markers: Option<String>,
+    pub markers: Option<PathBuf>,
 }
 
 impl Default for SegmentArgs {

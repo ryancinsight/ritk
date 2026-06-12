@@ -1,7 +1,7 @@
 //! Scaling-and-squaring exponential map for stationary velocity fields.
 
 use super::compose::compose_fields_into;
-use super::{VectorField3D, VectorFieldMut3D, VelocityField};
+use super::{VectorField, VectorFieldMut, VelocityField};
 use ritk_spatial::VolumeDims;
 
 /// Compute the exponential map `exp(v)` of a stationary velocity field `v`
@@ -37,18 +37,18 @@ pub(crate) fn scaling_and_squaring(
 
     for _ in 0..n_steps {
         compose_fields_into(
-            VectorField3D {
+            VectorField {
                 z: &phiz,
                 y: &phiy,
                 x: &phix,
             },
-            VectorField3D {
+            VectorField {
                 z: &phiz,
                 y: &phiy,
                 x: &phix,
             },
             dims,
-            VectorFieldMut3D {
+            VectorFieldMut {
                 z: &mut next_z,
                 y: &mut next_y,
                 x: &mut next_x,
@@ -106,18 +106,18 @@ pub(crate) fn scaling_and_squaring_into(
         let phi_y: &[f32] = out_y;
         let phi_x: &[f32] = out_x;
         compose_fields_into(
-            VectorField3D {
+            VectorField {
                 z: phi_z,
                 y: phi_y,
                 x: phi_x,
             },
-            VectorField3D {
+            VectorField {
                 z: phi_z,
                 y: phi_y,
                 x: phi_x,
             },
             dims,
-            VectorFieldMut3D {
+            VectorFieldMut {
                 z: scratch_z,
                 y: scratch_y,
                 x: scratch_x,

@@ -2,10 +2,10 @@
 //! Extracted to keep the 500-line structural limit.
 
 use super::*;
-use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing, VolumeDims};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::image::Image;
+use ritk_spatial::{Direction, Point, Spacing, VolumeDims};
 
 type B = NdArray<f32>;
 
@@ -263,7 +263,7 @@ fn next_pow2_boundaries() {
 #[test]
 fn gaussian_kernel_normalised_and_symmetric() {
     for &sigma in &[0.5_f64, 1.0, 2.5, 5.0] {
-        let k = crate::gaussian_kernel_1d(sigma, None);
+        let k = crate::gaussian_kernel(sigma, None);
         let sum: f64 = k.iter().sum();
         assert!(
             (sum - 1.0).abs() < 1e-10,

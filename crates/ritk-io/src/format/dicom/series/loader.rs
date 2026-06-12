@@ -45,7 +45,7 @@ pub fn load_dicom_series<B: Backend>(
 
     // 2. Determine Orientation from the first slice
     let first_obj = &slices[0].1;
-    let orientation = get_f64_vec(first_obj, tags::IMAGE_ORIENTATION_PATIENT)
+    let orientation = get_scalar_vec(first_obj, tags::IMAGE_ORIENTATION_PATIENT)
         .context("Missing ImageOrientationPatient in first slice")?;
 
     if orientation.len() != 6 {
@@ -82,7 +82,7 @@ pub fn load_dicom_series<B: Backend>(
     let rows = get_u32(first_obj, tags::ROWS).context("Missing Rows")?;
     let cols = get_u32(first_obj, tags::COLUMNS).context("Missing Columns")?;
     let pixel_spacing =
-        get_f64_vec(first_obj, tags::PIXEL_SPACING).context("Missing PixelSpacing")?;
+        get_scalar_vec(first_obj, tags::PIXEL_SPACING).context("Missing PixelSpacing")?;
     let dy = pixel_spacing[0]; // Row spacing (between rows) -> Y spacing
     let dx = pixel_spacing[1]; // Col spacing (between cols) -> X spacing
 
@@ -111,8 +111,8 @@ pub fn load_dicom_series<B: Backend>(
             }
 
             // Validate orientation consistency
-            let current_orient =
-                get_f64_vec(&slices[i + 1].1, tags::IMAGE_ORIENTATION_PATIENT).unwrap_or_default();
+            let current_orient = get_scalar_vec(&slices[i + 1].1, tags::IMAGE_ORIENTATION_PATIENT)
+                .unwrap_or_default();
             if current_orient.len() == 6 {
                 let cx = NaVector3::new(current_orient[0], current_orient[1], current_orient[2]);
                 let cy = NaVector3::new(current_orient[3], current_orient[4], current_orient[5]);
@@ -136,7 +136,7 @@ pub fn load_dicom_series<B: Backend>(
 
         avg_spacing
     } else {
-        get_f64(first_obj, tags::SLICE_THICKNESS).unwrap_or(1.0)
+        get_scalar(first_obj, tags::SLICE_THICKNESS).unwrap_or(1.0)
     };
 
     // 5. Build Spatial Metadata
@@ -149,8 +149,8 @@ pub fn load_dicom_series<B: Backend>(
     let slice_pixels: Vec<Vec<f32>> = slices
         .par()
         .map_collect(|(_p, obj)| {
-            let slope = get_f64(obj, tags::RESCALE_SLOPE).unwrap_or(1.0);
-            let intercept = get_f64(obj, tags::RESCALE_INTERCEPT).unwrap_or(0.0);
+            let slope = get_scalar(obj, tags::RESCALE_SLOPE).unwrap_or(1.0);
+            let intercept = get_scalar(obj, tags::RESCALE_INTERCEPT).unwrap_or(0.0);
             let samples_per_pixel = get_u32(obj, tags::SAMPLES_PER_PIXEL).unwrap_or(1) as usize;
             let bits_allocated = get_u32(obj, tags::BITS_ALLOCATED).unwrap_or(16) as u16;
             let pixel_representation: PixelSignedness = PixelSignedness::try_from(
@@ -235,16 +235,19 @@ fn get_u32(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Op
     obj.element(tag).ok()?.to_int::<u32>().ok()
 }
 
-fn get_f64(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<f64> {
+fn get_scalar(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<f64> {
     obj.element(tag).ok()?.to_float64().ok()
 }
 
-fn get_f64_vec(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<Vec<f64>> {
+fn get_scalar_vec(
+    obj: &FileDicomObject<InMemDicomObject>,
+    tag: dicom::core::Tag,
+) -> Option<Vec<f64>> {
     obj.element(tag).ok()?.to_multi_float64().ok()
 }
 
 fn get_position(obj: &FileDicomObject<InMemDicomObject>) -> Option<NaPoint3<f64>> {
-    let v = get_f64_vec(obj, tags::IMAGE_POSITION_PATIENT)?;
+    let v = get_scalar_vec(obj, tags::IMAGE_POSITION_PATIENT)?;
     if v.len() == 3 {
         Some(NaPoint3::new(v[0], v[1], v[2]))
     } else {

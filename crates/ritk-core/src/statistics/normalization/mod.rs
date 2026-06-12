@@ -10,6 +10,11 @@
 //! - [`WhiteStripeNormalizer`]: white stripe normalization for brain MRI
 //!   (Shinohara et al. 2014).
 
+/// Stability epsilon added to the denominator in intensity normalizers
+/// to prevent division by zero when input range or standard deviation is
+/// zero.
+pub(crate) const NORMALIZER_EPSILON: f32 = 1e-8_f32;
+
 pub mod histogram_matching;
 pub mod intensity_range;
 pub mod minmax;

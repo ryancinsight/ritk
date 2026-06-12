@@ -1,7 +1,7 @@
 // ── Internal ────────────────────────────────────────────────────────────────
 
-// ── Re-export gaussian_kernel_1d from ritk-core::filter::ops ──────────────────
-pub use ritk_core::filter::gaussian_kernel_1d;
+// ── Re-export gaussian_kernel from ritk-core::filter ────────────────────────────
+pub use ritk_core::filter::gaussian_kernel;
 
 // ── Bias correction ──────────────────────────────────────────────────────────
 pub mod bias;

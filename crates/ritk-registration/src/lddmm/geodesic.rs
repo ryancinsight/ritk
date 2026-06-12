@@ -5,8 +5,7 @@ use crate::deformable_field_ops::gaussian_smooth_field_inplace;
 #[cfg(test)]
 use crate::deformable_field_ops::VelocityField;
 use crate::deformable_field_ops::{
-    compose_fields_into, gaussian_smooth_field_inplace_with_scratch, VectorField3D,
-    VectorFieldMut3D,
+    compose_fields_into, gaussian_smooth_field_inplace_with_scratch, VectorField, VectorFieldMut,
 };
 
 use super::adjoint::epdiff_adjoint_into;
@@ -66,19 +65,19 @@ pub(super) fn integrate_geodesic(
 
         // 2. EPDiff adjoint ad*_v(m), then smooth.
         epdiff_adjoint_into(
-            VectorField3D {
+            VectorField {
                 z: &vz,
                 y: &vy,
                 x: &vx,
             },
-            VectorField3D {
+            VectorField {
                 z: &mz,
                 y: &my,
                 x: &mx,
             },
             dims,
             spacing,
-            VectorFieldMut3D {
+            VectorFieldMut {
                 z: &mut adz,
                 y: &mut ady,
                 x: &mut adx,
@@ -102,18 +101,18 @@ pub(super) fn integrate_geodesic(
 
         // 5. Compose: φ ← (v·dt) ∘ φ.
         compose_fields_into(
-            VectorField3D {
+            VectorField {
                 z: &adz,
                 y: &ady,
                 x: &adx,
             },
-            VectorField3D {
+            VectorField {
                 z: &dz,
                 y: &dy,
                 x: &dx,
             },
             dims.into(),
-            VectorFieldMut3D {
+            VectorFieldMut {
                 z: &mut comp_z,
                 y: &mut comp_y,
                 x: &mut comp_x,
@@ -206,19 +205,19 @@ pub(super) fn integrate_geodesic_into(
 
         // 2. EPDiff adjoint ad*_v(m) → adj.
         epdiff_adjoint_into(
-            VectorField3D {
+            VectorField {
                 z: vel_z,
                 y: vel_y,
                 x: vel_x,
             },
-            VectorField3D {
+            VectorField {
                 z: mom_z,
                 y: mom_y,
                 x: mom_x,
             },
             dims,
             spacing,
-            VectorFieldMut3D {
+            VectorFieldMut {
                 z: adj_z,
                 y: adj_y,
                 x: adj_x,
@@ -257,18 +256,18 @@ pub(super) fn integrate_geodesic_into(
             let d_y: &[f32] = out_y;
             let d_x: &[f32] = out_x;
             compose_fields_into(
-                VectorField3D {
+                VectorField {
                     z: step_z,
                     y: step_y,
                     x: step_x,
                 },
-                VectorField3D {
+                VectorField {
                     z: d_z,
                     y: d_y,
                     x: d_x,
                 },
                 dims.into(),
-                VectorFieldMut3D {
+                VectorFieldMut {
                     z: comp_z,
                     y: comp_y,
                     x: comp_x,

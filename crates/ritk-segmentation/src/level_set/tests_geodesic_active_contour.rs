@@ -1,8 +1,8 @@
 use super::*;
-use ritk_filter::edge::GaussianSigma;
-use ritk_core::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_filter::edge::GaussianSigma;
 
 type B = NdArray<f32>;
 
@@ -326,7 +326,7 @@ fn test_edge_stopping_values() {
 
 #[test]
 fn test_gaussian_kernel_normalised() {
-    let kernel = ritk_filter::gaussian_kernel_1d::<f32>(2.0, Some(6));
+    let kernel = ritk_filter::gaussian_kernel::<f32>(2.0, Some(6));
     let sum: f32 = kernel.iter().sum();
     assert!(
         (sum - 1.0).abs() < 1e-5,

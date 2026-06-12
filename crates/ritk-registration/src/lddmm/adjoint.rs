@@ -1,8 +1,8 @@
 //! EPDiff coadjoint operator ad*_v(m).
 
-use crate::deformable_field_ops::{flat, VectorField3D, VectorFieldMut3D};
 #[cfg(test)]
 use crate::deformable_field_ops::VelocityField;
+use crate::deformable_field_ops::{flat, VectorField, VectorFieldMut};
 
 /// Compute the EPDiff coadjoint operator ad\*\_v(m).
 ///
@@ -14,8 +14,8 @@ use crate::deformable_field_ops::VelocityField;
 /// differences at boundaries, consistent with [`compute_gradient`].
 #[cfg(test)]
 pub(super) fn epdiff_adjoint(
-    v: VectorField3D<'_>,
-    m: VectorField3D<'_>,
+    v: VectorField<'_>,
+    m: VectorField<'_>,
     dims: [usize; 3],
     spacing: [f64; 3],
 ) -> VelocityField {
@@ -29,7 +29,7 @@ pub(super) fn epdiff_adjoint(
         m,
         dims,
         spacing,
-        VectorFieldMut3D {
+        VectorFieldMut {
             z: &mut ad_z,
             y: &mut ad_y,
             x: &mut ad_x,
@@ -47,23 +47,23 @@ pub(super) fn epdiff_adjoint(
 /// Writes the result directly into `out` instead of allocating new `Vec`s.
 /// `out` must have the same length as `v.z` (i.e. `dims[0]*dims[1]*dims[2]`).
 pub(super) fn epdiff_adjoint_into(
-    v: VectorField3D<'_>,
-    m: VectorField3D<'_>,
+    v: VectorField<'_>,
+    m: VectorField<'_>,
     dims: [usize; 3],
     spacing: [f64; 3],
-    out: VectorFieldMut3D<'_>,
+    out: VectorFieldMut<'_>,
 ) {
-    let VectorField3D {
+    let VectorField {
         z: vz,
         y: vy,
         x: vx,
     } = v;
-    let VectorField3D {
+    let VectorField {
         z: mz,
         y: my,
         x: mx,
     } = m;
-    let VectorFieldMut3D {
+    let VectorFieldMut {
         z: ad_z,
         y: ad_y,
         x: ad_x,

@@ -3,9 +3,9 @@
 use super::{
     adjoint::epdiff_adjoint, geodesic::integrate_geodesic, LddmmConfig, LddmmRegistration,
 };
-use ritk_filter::edge::GaussianSigma;
-use crate::deformable_field_ops::VectorField3D;
+use crate::deformable_field_ops::VectorField;
 use crate::error::RegistrationError;
+use ritk_filter::edge::GaussianSigma;
 
 fn make_test_image(dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
@@ -171,12 +171,12 @@ fn epdiff_adjoint_zero_momentum_is_zero() {
     let v: Vec<f32> = (0..n).map(|i| 0.01 * i as f32).collect();
     let zeros = vec![0.0_f32; n];
     let ad = epdiff_adjoint(
-        VectorField3D {
+        VectorField {
             z: &v,
             y: &v,
             x: &v,
         },
-        VectorField3D {
+        VectorField {
             z: &zeros,
             y: &zeros,
             x: &zeros,

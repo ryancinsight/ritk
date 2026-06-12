@@ -10,7 +10,7 @@
 
 use super::flat;
 use crate::parallel::CellSlice;
-use ritk_filter::gaussian_kernel_1d;
+use ritk_filter::gaussian_kernel;
 use ritk_spatial::VolumeDims;
 
 /// Convolve `data` along axis `AXIS` (0 = Z, 1 = Y, 2 = X) with `kernel`;
@@ -88,7 +88,7 @@ pub(crate) fn gaussian_smooth_with_scratch(
     if sigma <= 0.0 {
         return;
     }
-    let kernel = gaussian_kernel_1d(sigma, None);
+    let kernel = gaussian_kernel(sigma, None);
     convolve_axis::<0>(data, dims, &kernel, scratch);
     data.copy_from_slice(scratch);
     convolve_axis::<1>(data, dims, &kernel, scratch);

@@ -102,7 +102,7 @@ fn test_segment_marker_watershed_creates_output_with_correct_shape() {
     ritk_io::write_nifti(&markers_path, &make_two_seed_marker_image()).unwrap();
 
     let args = SegmentArgs {
-        markers: Some(markers_path.to_string_lossy().to_string()),
+        markers: Some(markers_path.clone()),
         ..default_args(
             gradient_path.clone(),
             output_path.clone(),
@@ -141,7 +141,7 @@ fn test_segment_marker_watershed_output_contains_both_basin_labels() {
     ritk_io::write_nifti(&markers_path, &make_two_seed_marker_image()).unwrap();
 
     let args = SegmentArgs {
-        markers: Some(markers_path.to_string_lossy().to_string()),
+        markers: Some(markers_path.clone()),
         ..default_args(
             gradient_path.clone(),
             output_path.clone(),

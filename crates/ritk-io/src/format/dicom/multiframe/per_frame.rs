@@ -9,6 +9,7 @@ use dicom::object::InMemDicomObject;
 
 use super::reader::parse_ds_backslash;
 use super::types::PerFrameInfo;
+use crate::format::dicom::helpers::read_nested_f64;
 
 /// Navigate item → seq_tag → items()\[0\] → inner_tag and parse as `\[f64; N\]` DS array.
 ///
@@ -27,24 +28,6 @@ fn read_nested_ds<const N: usize>(
             .to_str()
             .ok()
             .and_then(|s| parse_ds_backslash::<N>(&s))
-    } else {
-        None
-    }
-}
-
-/// Navigate item → seq_tag → items()\[0\] → inner_tag and parse as f64.
-///
-/// Returns None if either sequence is absent, has no items, or the DS value fails to
-/// parse as a finite f64.
-fn read_nested_f64(item: &InMemDicomObject, seq_tag: Tag, inner_tag: Tag) -> Option<f64> {
-    let elem = item.element(seq_tag).ok()?;
-    if let Value::Sequence(seq) = elem.value() {
-        let inner_item = seq.items().first()?;
-        let inner_elem = inner_item.element(inner_tag).ok()?;
-        inner_elem
-            .to_str()
-            .ok()
-            .and_then(|s| s.trim().parse::<f64>().ok())
     } else {
         None
     }

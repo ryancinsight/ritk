@@ -1,8 +1,8 @@
 #![allow(unused_imports)]
 
 use super::super::geometry::{
-    analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
-    SpacingUniformity, SliceCoverage,
+    analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
+    SliceCoverage, SpacingUniformity,
 };
 use super::super::loader::{
     load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
@@ -19,8 +19,8 @@ use crate::format::dicom::{
 };
 use arrayvec::ArrayString;
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
+use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_analyze_slice_spacing_uniform() {
     // 5 slices at 0, 1, 2, 3, 4 mm
@@ -171,14 +171,14 @@ fn test_resample_frames_linear_nonuniform_interpolation() {
 
 #[test]
 fn test_normalize_3d() {
-    let v = normalize_3d([3.0, 0.0, 0.0]).expect("non-zero");
+    let v = normalize([3.0, 0.0, 0.0]).expect("non-zero");
     assert!((v[0] - 1.0).abs() < 1e-10 && v[1].abs() < 1e-10 && v[2].abs() < 1e-10);
     // Diagonal unit vector
-    let d = normalize_3d([1.0, 1.0, 1.0]).expect("non-zero");
+    let d = normalize([1.0, 1.0, 1.0]).expect("non-zero");
     let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
     assert!((len - 1.0).abs() < 1e-10, "len={}", len);
     // Zero vector → None
-    assert!(normalize_3d([0.0, 0.0, 0.0]).is_none());
+    assert!(normalize([0.0, 0.0, 0.0]).is_none());
 }
 
 #[test]
@@ -194,8 +194,8 @@ fn test_slice_normal_from_iop_axial() {
 
 #[test]
 fn test_dot_3d() {
-    assert!((dot_3d([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]) - 32.0).abs() < 1e-10);
-    assert!((dot_3d([1.0, 0.0, 0.0], [0.0, 1.0, 0.0])).abs() < 1e-10);
+    assert!((dot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]) - 32.0).abs() < 1e-10);
+    assert!((dot([1.0, 0.0, 0.0], [0.0, 1.0, 0.0])).abs() < 1e-10);
 }
 
 #[test]

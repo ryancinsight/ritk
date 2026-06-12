@@ -40,7 +40,7 @@ impl ZScoreNormalizer {
         let stats = compute_statistics(image);
         let mean = stats.mean;
         let std = stats.std;
-        let denom = std + 1e-8_f32;
+        let denom = std + super::NORMALIZER_EPSILON;
 
         let normalized = image.data().clone().sub_scalar(mean).div_scalar(denom);
 
@@ -79,7 +79,9 @@ impl ZScoreNormalizer {
         // masked_statistics, which panics on an empty foreground set.
         let (mask_vals, _) = extract_vec_infallible(mask);
         let mask_slice: &[f32] = &mask_vals;
-        let has_foreground = mask_slice.iter().any(|&m| m > 0.5);
+        let has_foreground = mask_slice
+            .iter()
+            .any(|&m| m > crate::statistics::FOREGROUND_THRESHOLD);
 
         let stats = if has_foreground {
             masked_statistics(image, mask)
@@ -89,7 +91,7 @@ impl ZScoreNormalizer {
 
         let mean = stats.mean;
         let std = stats.std;
-        let denom = std + 1e-8_f32;
+        let denom = std + super::NORMALIZER_EPSILON;
 
         let normalized = image.data().clone().sub_scalar(mean).div_scalar(denom);
 

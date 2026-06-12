@@ -11,11 +11,11 @@ use nalgebra::SMatrix;
 use std::path::Path;
 
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
+use ritk_spatial::{Direction, Point, Spacing};
 
 use super::geometry::{
-    analyze_slice_spacing, dot_3d, resample_frames_linear, slice_normal_from_iop, SliceCoverage,
+    analyze_slice_spacing, dot, resample_frames_linear, slice_normal_from_iop, SliceCoverage,
     SpacingUniformity,
 };
 use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
@@ -104,7 +104,7 @@ pub(crate) fn load_from_series<B: Backend>(
     let (needs_resample, final_spacing_z, resample_positions) = if let Some(normal) = maybe_normal {
         let proj: Vec<Option<f64>> = slices
             .iter()
-            .map(|s| s.image_position_patient.map(|ipp| dot_3d(ipp, normal)))
+            .map(|s| s.image_position_patient.map(|ipp| dot(ipp, normal)))
             .collect();
         let missing_ipp = proj.iter().filter(|p| p.is_none()).count();
         if missing_ipp > 0 {
@@ -162,7 +162,10 @@ pub(crate) fn load_from_series<B: Backend>(
     let frame_len = rows * cols;
     println!("load_from_series: needs_resample = {}", needs_resample);
     let (volume, final_depth) = if needs_resample {
-        println!("load_from_series: entering resample branch, slices.len() = {}", slices.len());
+        println!(
+            "load_from_series: entering resample branch, slices.len() = {}",
+            slices.len()
+        );
         // Irregular z-spacing: decode to frame vectors then resample to uniform grid.
         #[cfg(not(target_arch = "wasm32"))]
         let decoded: Vec<Vec<f32>> = {
@@ -232,7 +235,10 @@ pub(crate) fn load_from_series<B: Backend>(
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            println!("load_from_series: before direct parallel map_collect, slices.len() = {}", slices.len());
+            println!(
+                "load_from_series: before direct parallel map_collect, slices.len() = {}",
+                slices.len()
+            );
             use moirai::prelude::ParallelSlice;
             // Decode slices in parallel (fallible), then write into the volume
             // sequentially (cheap memcpy) so the first decode error propagates.

@@ -14,8 +14,8 @@
 //! - p75     = V_sorted[⌊3n/4⌋]
 
 use crate::filter::ops::extract_vec_infallible;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
 
 /// Descriptive statistics over image intensities.
 #[derive(Debug, Clone, PartialEq)]
@@ -73,7 +73,7 @@ pub fn masked_statistics<B: Backend, const D: usize>(
     let values: Vec<f32> = image_slice
         .iter()
         .zip(mask_slice.iter())
-        .filter(|(_, &m)| m > 0.5)
+        .filter(|(_, &m)| m > crate::statistics::FOREGROUND_THRESHOLD)
         .map(|(&v, _)| v)
         .collect();
 

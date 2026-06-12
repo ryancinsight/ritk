@@ -21,7 +21,7 @@
 //!   *IEEE Trans. Med. Imaging* 20(7):568–582.
 
 use crate::deformable_field_ops::{
-    trilinear_interpolate, VectorField3D, VectorFieldMut3D, VelocityField,
+    trilinear_interpolate, VectorField, VectorFieldMut, VelocityField,
 };
 
 /// Configuration for iterative inverse computation (used for non-SVF fields).
@@ -78,18 +78,18 @@ pub fn invert_displacement_field(
         iters += 1;
 
         warp_displacement_into(
-            VectorField3D {
+            VectorField {
                 z: disp_z,
                 y: disp_y,
                 x: disp_x,
             },
-            VectorField3D {
+            VectorField {
                 z: &inv_z,
                 y: &inv_y,
                 x: &inv_x,
             },
             dims,
-            VectorFieldMut3D {
+            VectorFieldMut {
                 z: &mut next_z,
                 y: &mut next_y,
                 x: &mut next_x,
@@ -130,23 +130,23 @@ pub fn invert_displacement_field(
 /// All three displacement components are sampled in one pass to avoid
 /// repeating the same coordinate computation three times.
 pub(super) fn warp_displacement_into(
-    disp: VectorField3D<'_>,
-    query: VectorField3D<'_>,
+    disp: VectorField<'_>,
+    query: VectorField<'_>,
     dims: [usize; 3],
-    out: VectorFieldMut3D<'_>,
+    out: VectorFieldMut<'_>,
 ) {
     let [nz, ny, nx] = dims;
-    let VectorField3D {
+    let VectorField {
         z: disp_z,
         y: disp_y,
         x: disp_x,
     } = disp;
-    let VectorField3D {
+    let VectorField {
         z: query_z,
         y: query_y,
         x: query_x,
     } = query;
-    let VectorFieldMut3D {
+    let VectorFieldMut {
         z: out_z,
         y: out_y,
         x: out_x,

@@ -243,7 +243,6 @@ impl NyulUdupaNormalizer {
             anyhow::anyhow!("standard landmarks not learned; call learn_standard before apply")
         })?;
 
-        let _device = image.data().device();
         let shape: [usize; D] = image.shape();
 
         // ── 1. Extract and sort voxel intensities ─────────────────────────────

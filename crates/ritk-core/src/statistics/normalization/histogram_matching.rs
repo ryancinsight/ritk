@@ -71,7 +71,6 @@ impl HistogramMatcher {
         source: &Image<B, D>,
         reference: &Image<B, D>,
     ) -> Image<B, D> {
-        let _device = source.data().device();
         let shape: [usize; D] = source.shape();
 
         // ── 1. Extract pixel arrays ───────────────────────────────────────────

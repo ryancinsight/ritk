@@ -2,7 +2,7 @@
 
 /// Compute the cross product of two 3-vectors.
 #[inline]
-pub(super) fn cross_3d(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+pub(super) fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -18,7 +18,7 @@ pub(super) const MISSING_SLICE_GAP_FACTOR: f64 = 1.5;
 
 /// Normalize a 3-vector; returns `None` when the vector length is < 1e-10.
 #[inline]
-pub(in crate::format::dicom) fn normalize_3d(v: [f64; 3]) -> Option<[f64; 3]> {
+pub(in crate::format::dicom) fn normalize(v: [f64; 3]) -> Option<[f64; 3]> {
     let len = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
     if len < 1e-10 {
         None
@@ -29,7 +29,7 @@ pub(in crate::format::dicom) fn normalize_3d(v: [f64; 3]) -> Option<[f64; 3]> {
 
 /// Dot product of two 3-vectors.
 #[inline]
-pub(in crate::format::dicom) fn dot_3d(a: [f64; 3], b: [f64; 3]) -> f64 {
+pub(in crate::format::dicom) fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
@@ -42,7 +42,7 @@ pub(in crate::format::dicom) fn dot_3d(a: [f64; 3], b: [f64; 3]) -> f64 {
 pub(in crate::format::dicom) fn slice_normal_from_iop(iop: [f64; 6]) -> Option<[f64; 3]> {
     let r = [iop[0], iop[1], iop[2]];
     let c = [iop[3], iop[4], iop[5]];
-    normalize_3d(cross_3d(r, c))
+    normalize(cross(r, c))
 }
 
 /// Spacing uniformity classification for a DICOM series.

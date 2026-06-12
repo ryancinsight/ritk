@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use crate::deformable_field_ops::{
     compose_fields_into, compute_gradient_into, gaussian_smooth_field_inplace_with_scratch,
     normalize_forces_into, scaling_and_squaring, scaling_and_squaring_into, warp_image,
-    warp_image_into, VectorField3D, VectorFieldMut3D, VelocityField,
+    warp_image_into, VectorField, VectorFieldMut, VelocityField,
 };
 use crate::diffeomorphic::SyNResult;
 use crate::error::RegistrationError;
@@ -239,36 +239,36 @@ impl super::MultiResSyNRegistration {
                 }
                 if self.config.enforce_inverse_consistency == InverseConsistency::Enforced {
                     compose_fields_into(
-                        VectorField3D {
+                        VectorField {
                             z: &v1z,
                             y: &v1y,
                             x: &v1x,
                         },
-                        VectorField3D {
+                        VectorField {
                             z: &v2z,
                             y: &v2y,
                             x: &v2x,
                         },
                         ld.into(),
-                        VectorFieldMut3D {
+                        VectorFieldMut {
                             z: &mut c1z,
                             y: &mut c1y,
                             x: &mut c1x,
                         },
                     );
                     compose_fields_into(
-                        VectorField3D {
+                        VectorField {
                             z: &v2z,
                             y: &v2y,
                             x: &v2x,
                         },
-                        VectorField3D {
+                        VectorField {
                             z: &v1z,
                             y: &v1y,
                             x: &v1x,
                         },
                         ld.into(),
-                        VectorFieldMut3D {
+                        VectorFieldMut {
                             z: &mut c2z,
                             y: &mut c2y,
                             x: &mut c2x,

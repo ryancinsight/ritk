@@ -1,10 +1,10 @@
 use crate::edge::GaussianSigma;
-use ritk_core::image::Image;
-use ritk_spatial::Spacing;
-use ritk_wgpu_compat::apply_row_chunks;
 use burn::tensor::backend::Backend;
 use burn::tensor::ops::ConvOptions;
 use burn::tensor::{Shape, Tensor};
+use ritk_core::image::Image;
+use ritk_spatial::Spacing;
+use ritk_wgpu_compat::apply_row_chunks;
 
 /// Gaussian smoothing filter.
 ///
@@ -88,7 +88,7 @@ impl<B: Backend> GaussianFilter<B> {
     }
 
     fn generate_kernel(&self, sigma: f64, radius: usize) -> Vec<f32> {
-        crate::gaussian_kernel_1d(sigma as f32, Some(radius))
+        crate::gaussian_kernel(sigma as f32, Some(radius))
     }
 
     fn convolve_1d<const D: usize>(
@@ -137,14 +137,11 @@ impl<B: Backend> GaussianFilter<B> {
         // Perform convolution
         let options = ConvOptions::new([1], [padding], [1], 1);
 
-        let output_reshaped = apply_row_chunks(
-            input_reshaped,
-            ritk_wgpu_compat::WGPU_CHUNK_SIZE,
-            |chunk| {
+        let output_reshaped =
+            apply_row_chunks(input_reshaped, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk| {
                 // BURN-API: conv1d consumes kernel_reshaped; clone required until upstream adds non-consuming variant
                 burn::tensor::module::conv1d(chunk, kernel_reshaped.clone(), None, options.clone())
-            },
-        );
+            });
 
         // 3. Reshape back and inverse permute
         // Output shape matches input_permuted shape since we used padding
@@ -182,11 +179,11 @@ impl<B: Backend> GaussianFilter<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
     use ritk_core::filter::ops::extract_vec_infallible;
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
-    use burn::tensor::{Shape, Tensor, TensorData};
-    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 

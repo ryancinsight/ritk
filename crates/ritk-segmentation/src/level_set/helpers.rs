@@ -242,7 +242,7 @@ pub(crate) fn gaussian_smooth(data: &[f64], dims: [usize; 3], sigma: f64) -> Vec
     }
 
     let radius = (3.0 * sigma).ceil() as usize;
-    let kernel = ritk_filter::gaussian_kernel_1d(sigma, Some(radius));
+    let kernel = ritk_filter::gaussian_kernel(sigma, Some(radius));
     let r = radius as isize;
 
     // Separable: smooth along x, then y, then z.

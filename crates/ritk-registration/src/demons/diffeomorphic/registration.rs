@@ -5,8 +5,8 @@ use super::super::inverse::invert_velocity_field;
 use super::super::thirion::thirion_forces_into;
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace_with_scratch,
-    scaling_and_squaring, scaling_and_squaring_into, warp_image_into, VectorField3D,
-    VectorFieldMut3D, VelocityField,
+    scaling_and_squaring, scaling_and_squaring_into, warp_image_into, VectorField, VectorFieldMut,
+    VelocityField,
 };
 use crate::error::RegistrationError;
 
@@ -135,13 +135,13 @@ impl DiffeomorphicDemonsRegistration {
             thirion_forces_into(
                 fixed,
                 &m_warped,
-                VectorField3D {
+                VectorField {
                     z: &grad.z,
                     y: &grad.y,
                     x: &grad.x,
                 },
                 self.config.max_step_length,
-                VectorFieldMut3D {
+                VectorFieldMut {
                     z: &mut fz,
                     y: &mut fy,
                     x: &mut fx,

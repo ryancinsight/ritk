@@ -214,7 +214,7 @@ pub(crate) fn gaussian_blur_vec(
         }
 
         let radius = (3.0 * sigma_px).ceil() as usize;
-        let kernel = crate::gaussian_kernel_1d::<f32>(sigma_px as f32, Some(radius));
+        let kernel = crate::gaussian_kernel::<f32>(sigma_px as f32, Some(radius));
         let mut scratch = vec![0.0f32; n];
 
         match axis {

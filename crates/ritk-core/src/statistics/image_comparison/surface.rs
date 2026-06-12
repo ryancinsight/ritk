@@ -55,7 +55,7 @@ fn extract_boundary_physical<B: Backend, const D: usize>(
     let mut boundary: Vec<[f64; D]> = Vec::with_capacity(n_total / 32);
 
     'voxel: for flat_idx in 0..n_total {
-        if flat[flat_idx] <= 0.5 {
+        if flat[flat_idx] <= crate::statistics::FOREGROUND_THRESHOLD {
             continue;
         }
 
@@ -72,7 +72,7 @@ fn extract_boundary_physical<B: Backend, const D: usize>(
                 let mut nb_coords = coords.clone();
                 nb_coords[dim] = nb as usize;
                 let nb_flat = coords_to_flat(&nb_coords, &strides);
-                if flat[nb_flat] <= 0.5 {
+                if flat[nb_flat] <= crate::statistics::FOREGROUND_THRESHOLD {
                     let phys: [f64; D] = std::array::from_fn(|d| coords[d] as f64 * spacing[d]);
                     boundary.push(phys);
                     continue 'voxel;

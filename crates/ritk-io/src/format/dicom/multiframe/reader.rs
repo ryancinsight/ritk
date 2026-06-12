@@ -7,11 +7,11 @@ use dicom::core::Tag;
 use dicom::object::InMemDicomObject;
 use nalgebra::SMatrix;
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness, TransferSyntaxKind,
 };
+use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
 use super::per_frame::extract_functional_groups;
@@ -314,7 +314,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
             .take(actual_n)
             .map(|pf| {
                 pf.image_position
-                    .map(|p| super::super::reader::dot_3d(p, normal))
+                    .map(|p| super::super::reader::dot(p, normal))
             })
             .collect();
 
@@ -391,7 +391,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         let nx = ry * cz - rz * cy;
         let ny = rz * cx - rx * cz;
         let nz = rx * cy - ry * cx;
-        let n = super::super::reader::normalize_3d([nx, ny, nz]).unwrap_or([0.0, 0.0, 1.0]);
+        let n = super::super::reader::normalize([nx, ny, nz]).unwrap_or([0.0, 0.0, 1.0]);
         let col_data: [f64; 9] = [n[0], n[1], n[2], cx, cy, cz, rx, ry, rz];
         Direction(SMatrix::<f64, 3, 3>::from_column_slice(&col_data))
     } else {

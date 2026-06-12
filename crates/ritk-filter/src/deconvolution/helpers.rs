@@ -1,14 +1,11 @@
 //! Internal FFT-based convolution helpers for deconvolution filters.
-
+//!
 //! # Design
 //!
 //! The const-generic `convolve<const D: usize>` implements linear convolution
-//! via FFT with "same" output cropping for any dimensionality. `D=2` uses
-//! `fft2d`; `D=3` uses `fft3d`. The padding, FFT, pointwise multiply, IFFT,
-//! and crop logic is shared.
-//!
-//! Legacy `convolve_2d` / `convolve_3d` functions are thin wrappers delegating
-//! to `convolve<2>` / `convolve<3>` for backward compatibility.
+//! via FFT with "same" output cropping for any dimensionality. `D=2` selects
+//! `fft2d`; `D=3` selects `fft3d`. The padding, FFT, pointwise multiply, IFFT,
+//! and crop logic is shared across all supported dimensionalities.
 
 use crate::fft::convolution::{fft2d, fft3d, ForwardFft, InverseFft};
 use rustfft::{num_complex::Complex, FftPlanner};

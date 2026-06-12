@@ -184,9 +184,6 @@ pub struct SSMMorphAnalysis {
 pub struct DiffeomorphicSSMMorph<B: Backend> {
     /// Base SSMMorph integration
     integration: SSMMorphIntegration<B>,
-    /// Number of integration steps
-    #[allow(dead_code)]
-    integration_steps: usize,
 }
 
 impl<B: Backend> DiffeomorphicSSMMorph<B> {
@@ -194,10 +191,7 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
     pub fn new(config: &SSMMorphConfig, device: &B::Device) -> Self {
         let integration = SSMMorphIntegration::new(config, device);
 
-        Self {
-            integration,
-            integration_steps: config.integration_steps,
-        }
+        Self { integration }
     }
 
     /// Register with full diffeomorphic constraints
@@ -282,8 +276,6 @@ mod tests {
     fn test_diffeomorphic_wrapper() {
         let device = NdArrayDevice::default();
         let config = SSMMorphConfig::for_3d_registration();
-        let diff_ssm = DiffeomorphicSSMMorph::<TestBackend>::new(&config, &device);
-
-        assert_eq!(diff_ssm.integration_steps, 7);
+        let _diff_ssm = DiffeomorphicSSMMorph::<TestBackend>::new(&config, &device);
     }
 }

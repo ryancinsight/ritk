@@ -21,7 +21,7 @@ fn dispatch_laplacian_squared<B: Backend, const D: usize>(
             let shape = displacement.shape();
             let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
             let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
-            spatial_laplacian_2d(d4)
+            spatial_laplacian_planar(d4)
                 .powf_scalar(2.0)
                 .mean()
                 .mul_scalar(weight)
@@ -36,7 +36,7 @@ fn dispatch_laplacian_squared<B: Backend, const D: usize>(
                 shape.dims[4],
             ];
             let d5: Tensor<B, 5> = displacement.reshape([b, c, d, h, w]);
-            spatial_laplacian_3d(d5)
+            spatial_laplacian_volumetric(d5)
                 .powf_scalar(2.0)
                 .mean()
                 .mul_scalar(weight)
@@ -74,7 +74,7 @@ pub fn dispatch_diffusion<B: Backend, const D: usize>(
             let shape = displacement.shape();
             let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
             let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
-            let (grad_h, grad_w) = spatial_gradient_2d(d4);
+            let (grad_h, grad_w) = spatial_gradient_planar(d4);
             (grad_h.powf_scalar(2.0) + grad_w.powf_scalar(2.0))
                 .mean()
                 .mul_scalar(weight)
@@ -89,7 +89,7 @@ pub fn dispatch_diffusion<B: Backend, const D: usize>(
                 shape.dims[4],
             ];
             let d5: Tensor<B, 5> = displacement.reshape([b, c, d, h, w]);
-            let (grad_d, grad_h, grad_w) = spatial_gradient_3d(d5);
+            let (grad_d, grad_h, grad_w) = spatial_gradient_volumetric(d5);
             (grad_d.powf_scalar(2.0) + grad_h.powf_scalar(2.0) + grad_w.powf_scalar(2.0))
                 .mean()
                 .mul_scalar(weight)
@@ -113,7 +113,7 @@ pub fn dispatch_elastic<B: Backend, const D: usize>(
             let shape = displacement.shape();
             let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
             let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
-            let (grad_h, grad_w) = spatial_gradient_2d(d4);
+            let (grad_h, grad_w) = spatial_gradient_planar(d4);
             let membrane = grad_h.clone().powf_scalar(2.0) + grad_w.clone().powf_scalar(2.0);
             let div_u = grad_h.narrow(1, 0, 1) + grad_w.narrow(1, 1, 1);
             let volume_term = div_u.powf_scalar(2.0);
@@ -132,7 +132,7 @@ pub fn dispatch_elastic<B: Backend, const D: usize>(
                 shape.dims[4],
             ];
             let d5: Tensor<B, 5> = displacement.reshape([b, c, d, h, w]);
-            let (grad_d, grad_h, grad_w) = spatial_gradient_3d(d5);
+            let (grad_d, grad_h, grad_w) = spatial_gradient_volumetric(d5);
             let membrane = grad_d.clone().powf_scalar(2.0)
                 + grad_h.clone().powf_scalar(2.0)
                 + grad_w.clone().powf_scalar(2.0);
@@ -155,7 +155,7 @@ pub fn dispatch_total_variation<B: Backend, const D: usize>(
             let shape = displacement.shape();
             let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
             let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
-            let (grad_h, grad_w) = spatial_gradient_2d(d4);
+            let (grad_h, grad_w) = spatial_gradient_planar(d4);
             let grad_mag = (grad_h.powf_scalar(2.0) + grad_w.powf_scalar(2.0)).sqrt();
             grad_mag.mean().mul_scalar(weight)
         }
@@ -169,7 +169,7 @@ pub fn dispatch_total_variation<B: Backend, const D: usize>(
                 shape.dims[4],
             ];
             let d5: Tensor<B, 5> = displacement.reshape([b, c, d, h, w]);
-            let (grad_d, grad_h, grad_w) = spatial_gradient_3d(d5);
+            let (grad_d, grad_h, grad_w) = spatial_gradient_volumetric(d5);
             let grad_mag =
                 (grad_d.powf_scalar(2.0) + grad_h.powf_scalar(2.0) + grad_w.powf_scalar(2.0))
                     .sqrt();
@@ -180,13 +180,9 @@ pub fn dispatch_total_variation<B: Backend, const D: usize>(
 }
 
 // ── Private spatial-operator helpers ─────────────────────────────────────────
-//
-// These are implementation details of this module; the naming convention with
-// dimension suffixes is intentional for clarity within this private scope.
-// They are not part of the public API and do not violate the naming prohibition.
 
 /// Spatial gradients via forward finite differences on a 2-D field `[B, C, H, W]`.
-fn spatial_gradient_2d<B: Backend>(field: Tensor<B, 4>) -> (Tensor<B, 4>, Tensor<B, 4>) {
+fn spatial_gradient_planar<B: Backend>(field: Tensor<B, 4>) -> (Tensor<B, 4>, Tensor<B, 4>) {
     let [b, c, h, w] = field.dims();
     let device = field.device();
 
@@ -212,7 +208,7 @@ fn spatial_gradient_2d<B: Backend>(field: Tensor<B, 4>) -> (Tensor<B, 4>, Tensor
 }
 
 /// Spatial gradients via forward finite differences on a 3-D field `[B, C, D, H, W]`.
-fn spatial_gradient_3d<B: Backend>(
+fn spatial_gradient_volumetric<B: Backend>(
     field: Tensor<B, 5>,
 ) -> (Tensor<B, 5>, Tensor<B, 5>, Tensor<B, 5>) {
     let [b, c, d, h, w] = field.dims();
@@ -243,7 +239,7 @@ fn spatial_gradient_3d<B: Backend>(
 }
 
 /// Second-order spatial Laplacian via 4-point stencil on a 2-D field `[B, C, H, W]`.
-fn spatial_laplacian_2d<B: Backend>(field: Tensor<B, 4>) -> Tensor<B, 4> {
+fn spatial_laplacian_planar<B: Backend>(field: Tensor<B, 4>) -> Tensor<B, 4> {
     let [b, c, h, w] = field.dims();
     let device = field.device();
 
@@ -267,7 +263,7 @@ fn spatial_laplacian_2d<B: Backend>(field: Tensor<B, 4>) -> Tensor<B, 4> {
 }
 
 /// Spatial Laplacian via 6-point stencil on a 3-D field `[B, C, D, H, W]`.
-fn spatial_laplacian_3d<B: Backend>(field: Tensor<B, 5>) -> Tensor<B, 5> {
+fn spatial_laplacian_volumetric<B: Backend>(field: Tensor<B, 5>) -> Tensor<B, 5> {
     let [b, c, d, h, w] = field.dims();
     let device = field.device();
 

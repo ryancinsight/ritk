@@ -68,12 +68,6 @@ impl SaltAndPepperNoiseFilter {
             });
         Ok(rebuild(out, dims, image))
     }
-
-    /// Apply salt-and-pepper noise to a 3-D image.
-    #[deprecated(since = "0.64.0", note = "use `apply` instead")]
-    pub fn apply_3d<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        self.apply(image)
-    }
 }
 
 impl Default for SaltAndPepperNoiseFilter {
