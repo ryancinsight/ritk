@@ -4,6 +4,38 @@
 
 ---
 
+## Sprint 364 Audit (2026-06-11) — Architecture Hardening Round 3: COMPAT · NAMING · SSOT · CACHE · SRP · PRIM · ENUM
+
+### Gaps Identified (4-agent parallel audit: ritk-filter, ritk-registration, ritk-segmentation + ritk-core, ritk-io + ritk-python + ritk-cli)
+- **COMPAT (ritk-filter)**: 16 `#[deprecated(since="0.57.0")]` methods (`apply_2d`/`apply_3d`) across 8 files; compatibility soup (STRONG-DEFAULT); removed.
+- **NAMING (ritk-filter)**: `apply_3d` is the REAL impl in 4 noise structs; `apply` forwards to it — inverted delegation; fixed.
+- **NAMING (ritk-filter)**: `cdt_3d`, `chamfer_distance_transform_3d` (+ `_dispatch`, `_generic`): dimension suffix in primary public API; renamed.
+- **NAMING (ritk-filter)**: `compute_hessian_3d`: dimension suffix in public API; renamed.
+- **NAMING (ritk-registration)**: `cubic_bspline_1d`: dimension suffix in public API; renamed.
+- **NAMING (ritk-registration)**: `gaussian_kernel_1d_f64`: type+dimension suffix in `pub(super)` forwarder; deleted.
+- **SSOT (ritk-io)**: `ImageFormat` missing `Analyze` variant; `.hdr`/`.img` not covered by `from_path`; SSOT contract broken.
+- **SSOT (ritk-python)**: `io/mod.rs` bypassed `ImageFormat::from_path` with 10-branch `ends_with` chains.
+- **SSOT (ritk-cli)**: `commands/mod.rs` string-keyed `read_image`/`write_image` diverged from `ImageFormat` enum.
+- **CACHE (ritk-registration)**: `ParzenJointHistogram.cache`/`masked_cache` still `Arc<Mutex<Option<...>>>` after `CacheSlot<T>` was available; migrated.
+- **DRY (ritk-registration)**: `compute_image_joint_histogram` exposed raw `Option<f32>` while `SamplingConfig` existed for exactly this encoding.
+- **SRP (ritk-filter)**: `noise.rs` 370L with 4 independent structs; split.
+- **SRP (ritk-segmentation)**: `threshold_level_set.rs` (454L), `laplacian.rs` (452L), `kapur.rs` (450L), `triangle.rs` (435L) — large inline test blocks; extracted.
+- **SRP (ritk-core)**: `filter/ops.rs` 404L mixed tensor utilities + `gaussian_kernel_1d` kernel; extracted.
+- **PRIM (ritk-cli)**: `ResampleArgs.spacing: String` — manual split/parse; replaced with `value_delimiter`.
+- **PRIM (ritk-cli)**: `ConvertArgs.format: Option<String>` — runtime string dispatch; `ImageFormat`-typed resolution.
+- **ENUM (ritk-cli)**: `NormalizeArgs.method: String` — 5-variant closed set, stringly-typed; `NormalizeMethod` ValueEnum.
+
+### Gaps Closed This Session
+All 20 gaps above closed. See backlog Sprint 364 → Delivered table.
+
+### Residual Risk
+- `NormalizeArgs.method` was the only CLI `method: String` converted this sprint; `StatsArgs.metric`, `RegisterArgs.method`, `ResampleArgs.interpolation` remain stringly-typed (ENUM-365-01/02/03 filed).
+- `FilterArgs.filter: String` (31-arm stringly-typed dispatch, [major] scope): deferred SRP-362-20.
+- `NAMING-362-23` (`transform_1d/_2d/_3d/_4d`) remains BLOCKED [arch] — duplicate method names on same type.
+- JPEG2000 Windows codec abort (`0xc0000374`) remains pre-existing; not caused by these changes.
+
+---
+
 ## Sprint 362 Audit (2026-06-11) — Architecture Hardening: SSOT · DRY · SRP · DIP · Naming
 
 ### Gaps Identified (3-agent parallel audit: ritk-core, ritk-registration, ritk-segmentation, ritk-io, ritk-python, ritk-cli)

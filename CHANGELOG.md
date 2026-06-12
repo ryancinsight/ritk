@@ -1,5 +1,46 @@
 # CHANGELOG
 
+## [0.61.0] — 2026-06-11 (Sprint 364: Architecture Hardening Round 3 — COMPAT · NAMING · SSOT · CACHE · SRP · PRIM · ENUM)
+
+### Removed (breaking)
+- `ritk-filter`: 16 deprecated `apply_2d` / `apply_3d` methods removed from `LandweberDeconvolutionFilter`, `RlDeconvolutionFilter`, `TikhonovDeconvolutionFilter`, `WienerDeconvolutionFilter`, `ForwardFft`, `FrequencyFilter`, `InverseFft`, `FftShift`. Use `apply::<2>` / `apply::<3>` or the generic `apply` instead (deprecated since 0.57.0).
+- `ritk-filter`: `compute_hessian_3d` removed from public API — use `compute_hessian`.
+- `ritk-filter`: `cdt_3d`, `cdt_3d_dispatch`, `chamfer_distance_transform_3d`, `chamfer_distance_transform_3d_generic` removed — use `cdt`, `cdt_dispatch`, `chamfer_distance_transform`, `chamfer_distance_transform_generic`.
+- `ritk-registration`: `cubic_bspline_1d` removed — use `cubic_bspline_basis`.
+
+### Added
+- `ritk-io`: `ImageFormat::Analyze` variant; `from_path` recognises `.hdr` / `.img`; `as_str` returns `"analyze"`; `from_str_name(s: &str) -> Option<Self>` for string → variant lookup.
+- `ritk-registration`: `CacheSlot::with_ref<F,R>` and `with_mut<F,R>` helpers for ergonomic lock-free slot access.
+- `ritk-registration`: `SamplingConfig::full_grid()` constructor (zero-allocation full-grid sentinel).
+- `ritk-core`: `filter::kernel_utils` module — `gaussian_kernel_1d<T>` re-exported from `ritk_core::filter` unchanged.
+- `ritk-cli`: `NormalizeMethod` ValueEnum — exhaustive typed dispatch for `--method`; clap rejects unknown values at parse time.
+
+### Changed
+- `ritk-filter`: `AdditiveGaussianNoiseFilter`, `SaltAndPepperNoiseFilter`, `ShotNoiseFilter`, `SpeckleNoiseFilter` — real implementation moved from `apply_3d` into `apply`; `apply_3d` is now deprecated (since 0.64.0) and forwards to `apply`. Source split: `noise.rs` → `noise/{mod, gaussian, salt_pepper, shot, speckle}.rs`.
+- `ritk-filter`: `compute_hessian_3d` → `compute_hessian` (naming prohibition — dimension suffix removed).
+- `ritk-filter`: `cdt_3d` → `cdt`, `chamfer_distance_transform_3d` → `chamfer_distance_transform` (and `_dispatch`, `_generic` variants); all re-exports and internal call sites updated.
+- `ritk-registration`: `ParzenJointHistogram.cache` / `.masked_cache` migrated to `CacheSlot<T>`; `Arc<Mutex<Option<>>>` eliminated; `HistogramCache` / `MaskedHistogramCache` derive `Clone`.
+- `ritk-registration`: `compute_image_joint_histogram` signature — `sampling_percentage: Option<f32>` → `sampling: SamplingConfig`; inline percentage branch replaced with `SamplingConfig` API.
+- `ritk-registration`: `cubic_bspline_1d` → `cubic_bspline_basis`; re-export and all call sites updated.
+- `ritk-registration`: `deformable_field_ops/smooth.rs` — redundant `gaussian_kernel_1d_f64` wrapper deleted; callers use `ritk_filter::gaussian_kernel_1d` directly.
+- `ritk-python`: `io/mod.rs` `read_image` / `write_image` — `ends_with` if-chains replaced with `ImageFormat::from_path` match; Analyze (`.hdr`/`.img`) now covered; `lower` variable removed.
+- `ritk-cli`: `commands/mod.rs` `infer_format` → `Option<ImageFormat>`; `read_image` / `write_image` match on enum variants; Analyze arm added; `write_image` takes `ImageFormat` (not `&str`).
+- `ritk-cli`: `ResampleArgs.spacing: String` → `Vec<f64>` with `value_delimiter = ','`; manual split/parse removed.
+- `ritk-cli`: `NormalizeArgs.method: String` → `NormalizeArgs.method: NormalizeMethod`; exhaustive match in `run()`.
+- `ritk-segmentation`: `level_set/threshold_level_set.rs`, `level_set/laplacian.rs`, `threshold/kapur.rs`, `threshold/triangle.rs` — inline test blocks extracted to sibling `tests_*.rs` modules (250–260 lines each, clearing the 500-line structural budget).
+- `ritk-core`: `filter/ops.rs` — `gaussian_kernel_1d` extracted to `filter/kernel_utils.rs`; public re-export unchanged.
+
+### Migration
+- `apply_2d(...)` / `apply_3d(...)` on FFT/deconvolution types → `apply::<2>(...)` / `apply::<3>(...)`.
+- `compute_hessian_3d(data, dims, ...)` → `compute_hessian(data, dims, ...)`.
+- `cdt_3d(fg, dims, weights)` → `cdt(fg, dims, weights)`; `chamfer_distance_transform_3d(...)` → `chamfer_distance_transform(...)`.
+- `cubic_bspline_1d(t)` → `cubic_bspline_basis(t)`.
+- `NormalizeArgs { method: "zscore".to_string(), ... }` → `NormalizeArgs { method: NormalizeMethod::Zscore, ... }`.
+- `ResampleArgs { spacing: "1.0,1.0,1.0".to_string(), ... }` → `ResampleArgs { spacing: vec![1.0, 1.0, 1.0], ... }`.
+- `compute_image_joint_histogram(..., None)` → `compute_image_joint_histogram(..., SamplingConfig::full_grid())`.
+
+---
+
 ## [0.60.0] — 2026-06-11 (Sprint 363: Architecture Hardening Round 2 — DRY · SRP · PRIM · NAMING · CACHE)
 
 ### Added

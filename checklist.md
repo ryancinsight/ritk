@@ -1,5 +1,48 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 364 — Architecture Hardening Round 3: COMPAT · NAMING · SSOT · CACHE · SRP · PRIM · ENUM
+**Target version**: 0.61.0
+ritk-filter: → major bump | ritk-core: → minor bump | ritk-registration: minor bump | ritk-io: minor bump | ritk-cli: minor bump | ritk-python: minor bump
+**Sprint phase**: Closure — all 20 patches delivered and verified.
+
+### Delivered (Sprint 364)
+- [x] COMPAT-364-01 [major]: Remove 16 deprecated `apply_2d`/`apply_3d` from deconvolution ×4 + fft ×4; fix doctests
+- [x] SRP-364-02 [patch]: `noise.rs` (370L) → `noise/{mod,gaussian,salt_pepper,shot,speckle}.rs`
+- [x] NAMING-364-03 [minor]: Noise `apply_3d` inversion fixed; `apply` is now real impl; `apply_3d` deprecated; 30+ test sites updated
+- [x] NAMING-364-04 [minor]: Chamfer `cdt_3d*` → `cdt*`; `chamfer_distance_transform_3d*` → `chamfer_distance_transform*`
+- [x] NAMING-364-05 [minor]: `compute_hessian_3d` → `compute_hessian`; frangi, sato, tests updated
+- [x] CACHE-364-06 [patch]: `ParzenJointHistogram.cache`/`masked_cache` → `CacheSlot<T>`; `with_ref`/`with_mut` added
+- [x] DRY-364-07 [patch]: `compute_image_joint_histogram` `Option<f32>` → `SamplingConfig`; `full_grid()` added
+- [x] NAMING-364-08 [patch]: `cubic_bspline_1d` → `cubic_bspline_basis`
+- [x] NAMING-364-09 [patch]: Remove `gaussian_kernel_1d_f64` redundant wrapper in `smooth.rs`
+- [x] SRP-364-10 [patch]: `threshold_level_set.rs` inline tests → `tests_threshold_level_set.rs`
+- [x] SRP-364-11 [patch]: `laplacian.rs` inline tests → `tests_laplacian_level_set.rs`
+- [x] SRP-364-12 [patch]: `kapur.rs` inline tests → `tests_kapur.rs`
+- [x] SRP-364-13 [patch]: `triangle.rs` inline tests → `tests_triangle.rs`
+- [x] SRP-364-14 [patch]: `filter/ops.rs` → extract `gaussian_kernel_1d` into `filter/kernel_utils.rs`
+- [x] SSOT-364-15 [minor]: `ImageFormat::Analyze` + `from_path` arms + `from_str_name()`
+- [x] SSOT-364-16 [minor]: `ritk-python/io/mod.rs` if-chains → `ImageFormat::from_path` dispatch
+- [x] SSOT-364-17 [patch]: `ritk-cli/commands/mod.rs` → `ImageFormat` dispatch; `write_image` takes `ImageFormat`
+- [x] PRIM-364-18 [patch]: `ResampleArgs.spacing: String` → `Vec<f64>` with `value_delimiter = ','`
+- [x] PRIM-364-19 [patch]: `ConvertArgs.format` → `ImageFormat`-typed resolution
+- [x] ENUM-364-20 [minor]: `NormalizeMethod` ValueEnum replaces `NormalizeArgs.method: String`
+
+### Blocked / Deferred
+- [ ] DIP-362-13 [minor]: `RegistrationCallbackSet` DIP — deferred; requires surveying `src/progress/` first
+- [ ] NAMING-362-23 [patch]: `transform_1d/_2d/_3d/_4d` — **BLOCKED** [arch] — duplicate method names on same type
+- [ ] SRP-362-20 [major]: `FilterArgs` (46 fields) → `FilterKind` ValueEnum — carry forward
+- [ ] ENUM-365-01 [minor]: `StatsArgs.metric: String` → `StatMetric` ValueEnum
+- [ ] ENUM-365-02 [minor]: `RegisterArgs.method: String` → `RegisterMethod` ValueEnum
+- [ ] ENUM-365-03 [minor]: `ResampleArgs.interpolation: String` → `InterpolationMethod` ValueEnum
+
+### Verification gate (Sprint 364)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run -p ritk-filter ritk-core ritk-segmentation ritk-io ritk-cli` → 1976/1977 (1 pre-existing JPEG2000 Windows abort)
+- [x] `cargo nextest run -p ritk-registration` → 631/631 passed, 23 skipped
+- [x] Commit: b740507 pushed to origin/main
+
+---
+
 ## Sprint 363 — Architecture Hardening Round 2: DRY · SRP · PRIM · NAMING · CACHE
 **Target version**: 0.60.0
 ritk-core: 0.10.0 → 0.11.0 | ritk-registration: 0.54.0 → 0.55.0 | ritk-filter: → minor bump | ritk-io: 0.3.0 → 0.4.0

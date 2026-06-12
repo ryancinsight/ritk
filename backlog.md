@@ -4,6 +4,58 @@
 
 ---
 
+## Sprint 364 — Architecture Hardening Round 3: COMPAT · NAMING · SSOT · CACHE · SRP · PRIM · ENUM
+
+**Status**: Complete  
+**Version**: 0.61.0  
+**Commit**: b740507  
+
+### Delivered
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| COMPAT-364-01 | Remove 16 deprecated `apply_2d`/`apply_3d` (deconvolution ×4 + fft ×4) + fix doctests [major] | **Done** |
+| SRP-364-02 | `noise.rs` (370L, 4 structs) → `noise/{mod,gaussian,salt_pepper,shot,speckle}.rs` [patch] | **Done** |
+| NAMING-364-03 | Noise `apply_3d` inversion fixed — real impl in `apply`; `apply_3d` deprecated 0.64.0; 30+ test call sites updated [minor] | **Done** |
+| NAMING-364-04 | Chamfer `cdt_3d*` → `cdt*`; `chamfer_distance_transform_3d*` → `chamfer_distance_transform*`; all re-exports and internals updated [minor] | **Done** |
+| NAMING-364-05 | `compute_hessian_3d` → `compute_hessian`; update frangi, sato, tests [minor] | **Done** |
+| CACHE-364-06 | `ParzenJointHistogram.cache`/`masked_cache` → `CacheSlot<T>`; `with_ref`/`with_mut` added; `HistogramCache` derives `Clone` [patch] | **Done** |
+| DRY-364-07 | `compute_image_joint_histogram` `Option<f32>` → `SamplingConfig`; `full_grid()` added [patch] | **Done** |
+| NAMING-364-08 | `cubic_bspline_1d` → `cubic_bspline_basis` in `bspline_ffd/basis` [patch] | **Done** |
+| NAMING-364-09 | Remove redundant `gaussian_kernel_1d_f64` wrapper in `smooth.rs` [patch] | **Done** |
+| SRP-364-10 | `threshold_level_set.rs` inline tests → `tests_threshold_level_set.rs` [patch] | **Done** |
+| SRP-364-11 | `laplacian.rs` inline tests → `tests_laplacian_level_set.rs` [patch] | **Done** |
+| SRP-364-12 | `kapur.rs` inline tests → `tests_kapur.rs` [patch] | **Done** |
+| SRP-364-13 | `triangle.rs` inline tests → `tests_triangle.rs` [patch] | **Done** |
+| SRP-364-14 | `ritk-core/filter/ops.rs` → extract `gaussian_kernel_1d` into `filter/kernel_utils.rs` [patch] | **Done** |
+| SSOT-364-15 | `ImageFormat::Analyze` + `from_path` `.hdr`/`.img` arms + `from_str_name()` [minor] | **Done** |
+| SSOT-364-16 | `ritk-python/io/mod.rs` `ends_with` chains → `ImageFormat::from_path` dispatch [minor] | **Done** |
+| SSOT-364-17 | `ritk-cli/commands/mod.rs` `infer_format`/`read_image`/`write_image` → `ImageFormat` dispatch [patch] | **Done** |
+| PRIM-364-18 | `ResampleArgs.spacing: String` → `Vec<f64>` with `value_delimiter = ','` [patch] | **Done** |
+| PRIM-364-19 | `ConvertArgs.format` → `ImageFormat`-typed resolution in `run()` [patch] | **Done** |
+| ENUM-364-20 | `NormalizeMethod` ValueEnum replaces `NormalizeArgs.method: String`; exhaustive match [minor] | **Done** |
+
+### Blocked / Deferred
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| DIP-362-13 | `RegistrationCallbackSet` DIP — deferred; requires surveying `src/progress/` ProgressTracker internals | Medium |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED: duplicate method names on same type; [arch] refactor required | [arch] |
+| SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
+| ENUM-365-01 | `StatsArgs.metric: String` → `StatMetric` ValueEnum (7 variants + `msd` alias) [minor] | Medium |
+| ENUM-365-02 | `RegisterArgs.method: String` → `RegisterMethod` ValueEnum (10 variants) [minor] | Medium |
+| ENUM-365-03 | `ResampleArgs.interpolation: String` → `InterpolationMethod` ValueEnum (4 variants) [minor] | Low |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| nextest (ritk-filter + ritk-core + ritk-segmentation + ritk-io + ritk-cli) | 1976/1977 passed (1 pre-existing JPEG2000 Windows codec abort) |
+| `cargo nextest run -p ritk-registration` | 631/631 passed, 23 skipped |
+
+---
+
 ## Sprint 363 — Architecture Hardening Round 2: DRY · SRP · PRIM · NAMING · CACHE
 
 **Status**: Complete  
