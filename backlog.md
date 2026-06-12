@@ -23,6 +23,8 @@
 |----|-------------|----------|
 | REG-MI-FLAKY | `translation_recovery_shifted_gaussian` deterministic failure in in-flight NGF/RSGD registration wave (est 1.0 vs true 3.0) | [investigate] |
 | JLS-INTEROP | Differential decode vs reference JPEG-LS corpora (e.g. ISO conformance streams) | [patch] |
+| CODEC-PERF | Profile-first throughput pass on JPEG-LS/J2K hot loops (bit I/O batching, context-table layout) against the `sprint369` criterion baseline | [patch] |
+| J2K-MULTI-CBLK | Multiple code-blocks per precinct/tile (current native J2K scope: one code-block per tile, images > 64 px rely on whole-tile blocks) | [minor] |
 
 ---
 

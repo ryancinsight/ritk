@@ -22,6 +22,7 @@
 - [x] `cargo nextest run -p ritk-codecs -p ritk-dicom -p ritk-io` → 510/510 + 68 jpeg_ls module tests passed
 - [x] `cargo doc --no-deps -p ritk-codecs` → warning-clean
 - [x] libstdc++ DLL-shadowing failure mode eliminated (no C++ linkage remains)
+- [x] criterion baseline `sprint369` saved (ritk-codecs/benches/codec_throughput): JPEG-LS 512x512 16-bit encode 13.4 ms / decode 10.3 ms (median); J2K 64x64 16-bit ~0.6 ms each way. Follow-up: CODEC-PERF profile-first optimization pass
 
 ---
 

@@ -11,3 +11,9 @@ jpeg-decoder = { workspace = true }
 [dev-dependencies]
 image = { workspace = true }
 proptest = { workspace = true }
+
+criterion = { workspace = true }
+
+[[bench]]
+name = "codec_throughput"
+harness = false
