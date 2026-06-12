@@ -24,6 +24,34 @@ mod metrics;
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
+/// Image quality and similarity metric to compute.
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum StatMetric {
+    Summary,
+    Dice,
+    Hausdorff,
+    Psnr,
+    Ssim,
+    #[value(name = "mean-surface-distance", alias = "msd")]
+    MeanSurfaceDistance,
+    #[value(name = "noise-estimate")]
+    NoiseEstimate,
+}
+
+impl std::fmt::Display for StatMetric {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Summary => "summary",
+            Self::Dice => "dice",
+            Self::Hausdorff => "hausdorff",
+            Self::Psnr => "psnr",
+            Self::Ssim => "ssim",
+            Self::MeanSurfaceDistance => "mean-surface-distance",
+            Self::NoiseEstimate => "noise-estimate",
+        })
+    }
+}
+
 /// Arguments for the `stats` subcommand.
 #[derive(Args, Debug)]
 pub struct StatsArgs {
@@ -40,8 +68,8 @@ pub struct StatsArgs {
     ///
     /// Accepted values: `summary`, `dice`, `hausdorff`, `psnr`, `ssim`,
     /// `mean-surface-distance` (alias `msd`), `noise-estimate`.
-    #[arg(long, value_name = "METRIC")]
-    pub metric: String,
+    #[arg(long)]
+    pub metric: StatMetric,
 
     /// Maximum possible pixel value, used by `psnr` and `ssim`.
     #[arg(long, default_value = "255.0", value_name = "FLOAT")]
@@ -59,7 +87,6 @@ pub struct StatsArgs {
 /// Returns an error when:
 /// - The input or reference image cannot be read.
 /// - A comparison metric is requested without `--reference`.
-/// - An unknown metric name is supplied.
 pub fn run(args: StatsArgs) -> Result<()> {
     info!(
         "stats: starting input={} metric={}",
@@ -67,18 +94,14 @@ pub fn run(args: StatsArgs) -> Result<()> {
         args.metric
     );
 
-    match args.metric.as_str() {
-        "summary" => metrics::run_summary(&args),
-        "dice" => metrics::run_dice(&args),
-        "hausdorff" => metrics::run_hausdorff(&args),
-        "psnr" => metrics::run_psnr(&args),
-        "ssim" => metrics::run_ssim(&args),
-        "mean-surface-distance" | "msd" => metrics::run_mean_surface_distance(&args),
-        "noise-estimate" => metrics::run_noise_estimate(&args),
-        other => Err(anyhow!(
-            "Unknown metric '{other}'. \
-             Available: summary, dice, hausdorff, psnr, ssim, mean-surface-distance, noise-estimate."
-        )),
+    match &args.metric {
+        StatMetric::Summary => metrics::run_summary(&args),
+        StatMetric::Dice => metrics::run_dice(&args),
+        StatMetric::Hausdorff => metrics::run_hausdorff(&args),
+        StatMetric::Psnr => metrics::run_psnr(&args),
+        StatMetric::Ssim => metrics::run_ssim(&args),
+        StatMetric::MeanSurfaceDistance => metrics::run_mean_surface_distance(&args),
+        StatMetric::NoiseEstimate => metrics::run_noise_estimate(&args),
     }
 }
 

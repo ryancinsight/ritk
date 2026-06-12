@@ -3,23 +3,10 @@ use burn::tensor::Tensor;
 
 use crate::types::DirectionFingerprint;
 
-/// Collect exactly 3 elements from an iterator into `[f64; 3]`.
-///
-/// Panics if fewer than 3 elements are available.
-pub(crate) fn collect_vec_3(iter: impl Iterator<Item = f64>) -> [f64; 3] {
-    let mut arr = [0.0; 3];
-    for (i, v) in iter.take(3).enumerate() {
-        arr[i] = v;
-    }
-    arr
-}
-
-/// Collect exactly 9 elements from an iterator into `[f64; 9]`.
-///
-/// Panics if fewer than 9 elements are available.
-pub(crate) fn collect_vec_9(iter: impl Iterator<Item = f64>) -> [f64; 9] {
-    let mut arr = [0.0; 9];
-    for (i, v) in iter.take(9).enumerate() {
+/// Collect up to `N` elements from `iter` into `[f64; N]`; remaining slots are zero-filled.
+pub(crate) fn collect_array<const N: usize>(iter: impl Iterator<Item = f64>) -> [f64; N] {
+    let mut arr = [0.0f64; N];
+    for (i, v) in iter.take(N).enumerate() {
         arr[i] = v;
     }
     arr
@@ -66,9 +53,11 @@ impl<B: Backend> WFixedCache<B> {
     ) -> Self {
         Self {
             shape: fixed.shape().to_vec(),
-            origin: collect_vec_3(fixed.origin().0.iter().copied()),
-            spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
-            direction: DirectionFingerprint(collect_vec_9(fixed.direction().0.iter().copied())),
+            origin: collect_array::<3>(fixed.origin().0.iter().copied()),
+            spacing: collect_array::<3>(fixed.spacing().0.iter().copied()),
+            direction: DirectionFingerprint(collect_array::<9>(
+                fixed.direction().0.iter().copied(),
+            )),
             n,
             w_fixed_t,
         }
@@ -307,9 +296,9 @@ pub(crate) fn make_cache<B: Backend, const D: usize>(
         sparse_w_fixed: None,
         fixed_norm,
         shape: fixed.shape().to_vec(),
-        origin: collect_vec_3(fixed.origin().0.iter().copied()),
-        spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
-        direction: DirectionFingerprint(collect_vec_9(fixed.direction().0.iter().copied())),
+        origin: collect_array::<3>(fixed.origin().0.iter().copied()),
+        spacing: collect_array::<3>(fixed.spacing().0.iter().copied()),
+        direction: DirectionFingerprint(collect_array::<9>(fixed.direction().0.iter().copied())),
     }
 }
 
@@ -326,9 +315,9 @@ pub(crate) fn make_cache<B: Backend, const D: usize>(
         points,
         w_fixed_transposed: Some(w_fixed_transposed),
         shape: fixed.shape().to_vec(),
-        origin: collect_vec_3(fixed.origin().0.iter().copied()),
-        spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
-        direction: DirectionFingerprint(collect_vec_9(fixed.direction().0.iter().copied())),
+        origin: collect_array::<3>(fixed.origin().0.iter().copied()),
+        spacing: collect_array::<3>(fixed.spacing().0.iter().copied()),
+        direction: DirectionFingerprint(collect_array::<9>(fixed.direction().0.iter().copied())),
     }
 }
 

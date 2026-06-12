@@ -136,11 +136,7 @@ impl LaplacianLevelSet {
 
         // Optional Gaussian pre-smoothing of the input image.
         let smoothed: Cow<[f64]> = if self.sigma.get() > 0.0 {
-            Cow::Owned(helpers::gaussian_smooth_3d(
-                &img_wide,
-                dims,
-                self.sigma.get(),
-            ))
+            Cow::Owned(helpers::gaussian_smooth(&img_wide, dims, self.sigma.get()))
         } else {
             Cow::Borrowed(&img_wide)
         };

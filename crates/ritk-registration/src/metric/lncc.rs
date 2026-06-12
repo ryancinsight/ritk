@@ -23,7 +23,7 @@
 //! and eliminating $O(N)$ operations per forward pass.
 
 use super::cache_slot::CacheSlot;
-use super::histogram::cache::{collect_vec_3, collect_vec_9};
+use super::histogram::cache::collect_array;
 use super::trait_::Metric;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
@@ -165,9 +165,9 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
                     self.compute_local_stats(fixed_values.clone(), &filter, fixed.spacing());
                 LnccCacheEntry {
                     shape: fixed.shape().to_vec(),
-                    origin: collect_vec_3(fixed.origin().0.iter().copied()),
-                    spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
-                    direction: collect_vec_9(fixed.direction().0.iter().copied()),
+                    origin: collect_array::<3>(fixed.origin().0.iter().copied()),
+                    spacing: collect_array::<3>(fixed.spacing().0.iter().copied()),
+                    direction: collect_array::<9>(fixed.direction().0.iter().copied()),
                     mean_f_flat: m_f.flatten(0, D - 1),
                     var_f_flat: v_f.flatten(0, D - 1),
                 }

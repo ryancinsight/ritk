@@ -1,6 +1,6 @@
 // ─── Result ───────────────────────────────────────────────────────────────────
 
-use crate::optimizer::StopReason;
+use crate::optimizer::CmaEsStopReason;
 use crate::types::AffineTransform;
 
 /// Result produced by [`CmaMiRegistration::register_rigid`](super::CmaMiRegistration::register_rigid).
@@ -18,7 +18,7 @@ pub struct CmaMiResult {
     pub cma_generations: usize,
 
     /// Reason the CMA-ES loop terminated (last level for cascade mode).
-    pub cma_stop_reason: StopReason,
+    pub cma_stop_reason: CmaEsStopReason,
 
     /// CMA-ES final step-size σ (last level for cascade mode).
     pub cma_final_sigma: f64,

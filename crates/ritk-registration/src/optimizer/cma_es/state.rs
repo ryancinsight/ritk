@@ -29,7 +29,7 @@ pub enum HistoryPolicy {
 
 /// Reason the CMA-ES run terminated.
 #[derive(Debug, Clone, PartialEq)]
-pub enum StopReason {
+pub enum CmaEsStopReason {
     /// Step-size σ fell below `CmaEsConfig::sigma_tol`.
     StepSizeTooSmall,
     /// Generation count reached `CmaEsConfig::max_generations`.
@@ -96,7 +96,7 @@ pub struct CmaEsResult {
     /// Number of generations completed before termination.
     pub generations: usize,
     /// Condition that triggered termination.
-    pub stop_reason: StopReason,
+    pub stop_reason: CmaEsStopReason,
     /// LCG seed actually used (equals `CmaEsConfig::seed`).
     pub seed_used: u64,
     /// Step-size σ at termination.

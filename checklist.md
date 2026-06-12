@@ -31,8 +31,8 @@ ritk-filter: → major bump | ritk-core: → minor bump | ritk-registration: min
 - [ ] DIP-362-13 [minor]: `RegistrationCallbackSet` DIP — deferred; requires surveying `src/progress/` first
 - [ ] NAMING-362-23 [patch]: `transform_1d/_2d/_3d/_4d` — **BLOCKED** [arch] — duplicate method names on same type
 - [ ] SRP-362-20 [major]: `FilterArgs` (46 fields) → `FilterKind` ValueEnum — carry forward
-- [ ] ENUM-365-01 [minor]: `StatsArgs.metric: String` → `StatMetric` ValueEnum
-- [ ] ENUM-365-02 [minor]: `RegisterArgs.method: String` → `RegisterMethod` ValueEnum
+- [ ] ENUM-365-01 [minor]: `StatsArgs.metric: String` → `StatMetric` ValueEnum — **Done** (Patch 19)
+- [ ] ENUM-365-02 [minor]: `RegisterArgs.method: String` → `RegistrationMethod` ValueEnum — **Done** (Patch 20)
 - [ ] ENUM-365-03 [minor]: `ResampleArgs.interpolation: String` → `InterpolationMethod` ValueEnum
 
 ### Verification gate (Sprint 364)

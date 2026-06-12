@@ -112,14 +112,23 @@ pub fn extract_vec_infallible<B: Backend, const D: usize>(
 /// # Invariant
 /// `vals.len() == dims[0] * dims[1] * … * dims[D-1]`
 #[inline]
+fn build_tensor<B: Backend, const D: usize>(
+    vals: Vec<f32>,
+    dims: [usize; D],
+    device: &B::Device,
+) -> Tensor<B, D> {
+    let td = TensorData::new(vals, Shape::new(dims));
+    Tensor::<B, D>::from_data(td, device)
+}
+
+#[inline]
 pub fn rebuild<B: Backend, const D: usize>(
     vals: Vec<f32>,
     dims: [usize; D],
     src: &Image<B, D>,
 ) -> Image<B, D> {
     let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, D>::from_data(td, &device);
+    let tensor = build_tensor::<B, D>(vals, dims, &device);
     Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
@@ -131,8 +140,7 @@ pub fn rebuild_with_origin<B: Backend, const D: usize>(
     src: &Image<B, D>,
 ) -> Image<B, D> {
     let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, D>::from_data(td, &device);
+    let tensor = build_tensor::<B, D>(vals, dims, &device);
     Image::new(tensor, new_origin, *src.spacing(), *src.direction())
 }
 
@@ -146,8 +154,7 @@ pub fn rebuild_with_metadata<B: Backend, const D: usize>(
     src: &Image<B, D>,
 ) -> Image<B, D> {
     let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, D>::from_data(td, &device);
+    let tensor = build_tensor::<B, D>(vals, dims, &device);
     Image::new(tensor, new_origin, new_spacing, new_direction)
 }
 

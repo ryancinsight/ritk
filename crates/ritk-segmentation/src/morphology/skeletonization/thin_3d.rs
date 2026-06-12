@@ -144,7 +144,7 @@ fn is_simple_3d(
 }
 
 /// 6-directional sequential thinning for 3-D binary images.
-pub(super) fn skeleton_3d(flat: &[f32], nz: usize, ny: usize, nx: usize) -> Vec<f32> {
+pub(super) fn sequential_thin(flat: &[f32], nz: usize, ny: usize, nx: usize) -> Vec<f32> {
     let n = nz * ny * nx;
     let mut mask: Vec<bool> = flat.iter().map(|&v| v > 0.5).collect();
     let flat_idx = |z: usize, y: usize, x: usize| -> usize { z * ny * nx + y * nx + x };

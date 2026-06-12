@@ -18,9 +18,9 @@
 //! # Supported dimensionalities
 //! D = 1, 2, 3.  For D outside this set the function panics with a clear message.
 
+use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_core::filter::ops::extract_vec_infallible;
 use ritk_core::image::Image;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
 /// Binary erosion with a box structuring element of half-width `radius` voxels.
 ///
@@ -75,16 +75,16 @@ impl<B: Backend, const D: usize> super::MorphologicalOperation<B, D> for BinaryE
 /// Panics for ranks other than 1, 2, 3.
 pub(super) fn erode_nd(flat: &[f32], shape: &[usize], radius: usize) -> Vec<f32> {
     match shape.len() {
-        1 => erode_1d(flat, shape[0], radius),
-        2 => erode_2d(flat, shape[0], shape[1], radius),
-        3 => erode_3d(flat, shape[0], shape[1], shape[2], radius),
+        1 => erode_line(flat, shape[0], radius),
+        2 => erode_plane(flat, shape[0], shape[1], radius),
+        3 => erode_volume(flat, shape[0], shape[1], shape[2], radius),
         d => panic!("BinaryErosion: unsupported dimensionality D={d}; only D=1,2,3 are supported"),
     }
 }
 
 // ── D = 1 ─────────────────────────────────────────────────────────────────────
 
-fn erode_1d(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
+fn erode_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
     let mut output = vec![0.0_f32; nx];
     for ix in 0..nx {
@@ -107,7 +107,7 @@ fn erode_1d(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
 
 // ── D = 2 ─────────────────────────────────────────────────────────────────────
 
-fn erode_2d(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
+fn erode_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
     let mut output = vec![0.0_f32; ny * nx];
     for iy in 0..ny {
@@ -141,7 +141,7 @@ fn erode_2d(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
 
 // ── D = 3 ─────────────────────────────────────────────────────────────────────
 
-fn erode_3d(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) -> Vec<f32> {
+fn erode_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
     let mut output = vec![0.0_f32; nz * ny * nx];
     for iz in 0..nz {

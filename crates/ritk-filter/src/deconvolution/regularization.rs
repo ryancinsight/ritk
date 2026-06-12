@@ -153,36 +153,6 @@ pub(super) fn apply_tikhonov<const D: usize>(
     }
 }
 
-/// 2-D Tikhonov update: `|L(ω)|² = (4 − 2cos(ωx) − 2cos(ωy))²`.
-///
-/// Delegates to [`apply_tikhonov::<2>`]. Retained for backward compatibility.
-#[deprecated(note = "use apply_tikhonov::<2> instead")]
-#[allow(dead_code)]
-fn apply_tikhonov_2d(
-    img_padded: &mut [Complex<f32>],
-    ker_padded: &[Complex<f32>],
-    pad_dims: &[usize],
-    lambda: f32,
-) {
-    let pad: [usize; 2] = [pad_dims[0], pad_dims[1]];
-    apply_tikhonov::<2>(img_padded, ker_padded, &pad, lambda);
-}
-
-/// 3-D Tikhonov update: `|L(ω)|² = (6 − 2cos(ωx) − 2cos(ωy) − 2cos(ωz))²`.
-///
-/// Delegates to [`apply_tikhonov::<3>`]. Retained for backward compatibility.
-#[deprecated(note = "use apply_tikhonov::<3> instead")]
-#[allow(dead_code)]
-fn apply_tikhonov_3d(
-    img_padded: &mut [Complex<f32>],
-    ker_padded: &[Complex<f32>],
-    pad_dims: &[usize],
-    lambda: f32,
-) {
-    let pad: [usize; 3] = [pad_dims[0], pad_dims[1], pad_dims[2]];
-    apply_tikhonov::<3>(img_padded, ker_padded, &pad, lambda);
-}
-
 // ── Generic pipelines ──────────────────────────────────────────────────────
 
 /// Single-pass deconvolution: pad → FFT → regularization rule → IFFT → crop.

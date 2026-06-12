@@ -95,7 +95,7 @@ impl ImageFormat {
             "mha" | "mhd" => Some(Self::MetaImage),
             "nrrd" | "nhdr" => Some(Self::Nrrd),
             "png" => Some(Self::Png),
-            "dcm" | "dicom" => Some(Self::Dicom),
+            "dcm" | "dicom" | "ima" => Some(Self::Dicom),
             "mgz" | "mgh" => Some(Self::Mgh),
             "tif" | "tiff" => Some(Self::Tiff),
             "vtk" => Some(Self::Vtk),

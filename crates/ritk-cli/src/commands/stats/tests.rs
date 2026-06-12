@@ -2,8 +2,8 @@ use super::*;
 use burn::tensor::backend::Backend as BurnBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_core::statistics::{compute_statistics, dice_coefficient, hausdorff_distance, psnr, ssim};
+use ritk_spatial::{Direction, Point, Spacing};
 use std::path::PathBuf;
 use tempfile::tempdir;
 
@@ -71,7 +71,7 @@ fn test_stats_summary_constant_image() {
     let result = run(StatsArgs {
         input,
         reference: None,
-        metric: "summary".to_string(),
+        metric: StatMetric::Summary,
         max_val: 255.0,
     });
     assert!(result.is_ok(), "summary must succeed: {:?}", result.err());
@@ -110,7 +110,7 @@ fn test_stats_dice_identical_masks_returns_one() {
     let result = run(StatsArgs {
         input: input.clone(),
         reference: Some(reference),
-        metric: "dice".to_string(),
+        metric: StatMetric::Dice,
         max_val: 255.0,
     });
     assert!(result.is_ok(), "dice must succeed: {:?}", result.err());
@@ -163,7 +163,7 @@ fn test_stats_psnr_identical_images_returns_inf() {
     let result = run(StatsArgs {
         input: input.clone(),
         reference: Some(reference),
-        metric: "psnr".to_string(),
+        metric: StatMetric::Psnr,
         max_val: 63.0,
     });
     assert!(result.is_ok(), "psnr must succeed: {:?}", result.err());
@@ -188,7 +188,7 @@ fn test_stats_ssim_identical_images_returns_one() {
     let result = run(StatsArgs {
         input: input.clone(),
         reference: Some(reference),
-        metric: "ssim".to_string(),
+        metric: StatMetric::Ssim,
         max_val: 63.0,
     });
     assert!(result.is_ok(), "ssim must succeed: {:?}", result.err());
@@ -213,7 +213,7 @@ fn test_stats_hausdorff_identical_masks_returns_zero() {
     let result = run(StatsArgs {
         input: input.clone(),
         reference: Some(reference),
-        metric: "hausdorff".to_string(),
+        metric: StatMetric::Hausdorff,
         max_val: 255.0,
     });
     assert!(result.is_ok(), "hausdorff must succeed: {:?}", result.err());
@@ -228,28 +228,9 @@ fn test_stats_hausdorff_identical_masks_returns_zero() {
     );
 }
 
-// ── Negative: unknown metric returns descriptive error ────────────────
-
-#[test]
-fn test_stats_unknown_metric_returns_error() {
-    let dir = tempdir().unwrap();
-    let image = make_constant_image(1.0);
-    let input = write_nifti_tmp(dir.path(), "img.nii", &image);
-
-    let result = run(StatsArgs {
-        input,
-        reference: None,
-        metric: "bogus".to_string(),
-        max_val: 255.0,
-    });
-    assert!(result.is_err(), "unknown metric must return Err");
-
-    let msg = result.unwrap_err().to_string();
-    assert!(
-        msg.contains("Unknown metric 'bogus'"),
-        "error must name the unsupported metric, got: {msg}"
-    );
-}
+// ── Negative: invalid metric names are rejected by clap at parse time;
+//    the `run()` function is exhaustive over `StatMetric` and cannot receive
+//    an unknown variant. ─────────────────────────────────────────────────
 
 // ── Negative: comparison metric without --reference returns error ─────
 
@@ -262,7 +243,7 @@ fn test_stats_dice_without_reference_returns_error() {
     let result = run(StatsArgs {
         input,
         reference: None,
-        metric: "dice".to_string(),
+        metric: StatMetric::Dice,
         max_val: 255.0,
     });
     assert!(result.is_err(), "dice without --reference must return Err");
@@ -283,7 +264,7 @@ fn test_stats_psnr_without_reference_returns_error() {
     let result = run(StatsArgs {
         input,
         reference: None,
-        metric: "psnr".to_string(),
+        metric: StatMetric::Psnr,
         max_val: 255.0,
     });
     assert!(result.is_err(), "psnr without --reference must return Err");
@@ -304,7 +285,7 @@ fn test_stats_ssim_without_reference_returns_error() {
     let result = run(StatsArgs {
         input,
         reference: None,
-        metric: "ssim".to_string(),
+        metric: StatMetric::Ssim,
         max_val: 255.0,
     });
     assert!(result.is_err(), "ssim without --reference must return Err");
@@ -325,7 +306,7 @@ fn test_stats_hausdorff_without_reference_returns_error() {
     let result = run(StatsArgs {
         input,
         reference: None,
-        metric: "hausdorff".to_string(),
+        metric: StatMetric::Hausdorff,
         max_val: 255.0,
     });
     assert!(
@@ -350,7 +331,7 @@ fn test_stats_missing_input_returns_error() {
     let result = run(StatsArgs {
         input,
         reference: None,
-        metric: "summary".to_string(),
+        metric: StatMetric::Summary,
         max_val: 255.0,
     });
     assert!(result.is_err(), "missing input must yield an error");
@@ -368,7 +349,7 @@ fn test_stats_mean_surface_distance_identical_masks_returns_zero() {
     let args = StatsArgs {
         input: path_a,
         reference: Some(path_b),
-        metric: "mean-surface-distance".to_string(),
+        metric: StatMetric::MeanSurfaceDistance,
         max_val: 255.0,
     };
     run(args).expect("mean-surface-distance must succeed");
@@ -385,7 +366,7 @@ fn test_stats_noise_estimate_constant_image_returns_zero() {
     let args = StatsArgs {
         input: path,
         reference: None,
-        metric: "noise-estimate".to_string(),
+        metric: StatMetric::NoiseEstimate,
         max_val: 255.0,
     };
     run(args).expect("noise-estimate must succeed");
@@ -402,7 +383,7 @@ fn test_stats_mean_surface_distance_without_reference_returns_error() {
     let args = StatsArgs {
         input: path,
         reference: None,
-        metric: "mean-surface-distance".to_string(),
+        metric: StatMetric::MeanSurfaceDistance,
         max_val: 255.0,
     };
     assert!(run(args).is_err(), "must error without --reference");

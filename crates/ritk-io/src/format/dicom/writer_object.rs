@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn test_model_to_in_mem_u16_node() {
         let mut model = DicomObjectModel::new();
-        model.insert(DicomObjectNode::u16(
+        model.insert(DicomObjectNode::from_u16(
             DicomTag::new(0x0028, 0x0100),
             "US",
             16,

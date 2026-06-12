@@ -229,7 +229,11 @@ mod tests {
     /// Build default `RegisterArgs` for diffeomorphic-family tests.
     ///
     /// Writes the ramp image to both `fixed` and `moving` paths inside `dir`.
-    fn default_args(dir: &std::path::Path, method: &str, output_name: &str) -> RegisterArgs {
+    fn default_args(
+        dir: &std::path::Path,
+        method: RegistrationMethod,
+        output_name: &str,
+    ) -> RegisterArgs {
         let fixed_path = dir.join("fixed.nii");
         let moving_path = dir.join("moving.nii");
         let img = make_ramp_image();
@@ -239,7 +243,7 @@ mod tests {
             fixed: fixed_path,
             moving: moving_path,
             output: dir.join(output_name),
-            method: method.to_string(),
+            method,
             output_transform: None,
             iterations: 2,
             sigma_fixed: GaussianSigma::default(),
@@ -261,11 +265,14 @@ mod tests {
     /// Run a diffeomorphic method with default args and return the temp dir + output path.
     ///
     /// The caller must keep the `TempDir` alive until done reading the output file.
-    fn run_method(method: &str, output_name: &str) -> (tempfile::TempDir, std::path::PathBuf) {
+    fn run_method(
+        method: RegistrationMethod,
+        output_name: &str,
+    ) -> (tempfile::TempDir, std::path::PathBuf) {
         let dir = tempdir().unwrap();
-        let args = default_args(dir.path(), method, output_name);
+        let args = default_args(dir.path(), method.clone(), output_name);
         let output = args.output.clone();
-        run(args).unwrap_or_else(|_| panic!("{method} must succeed"));
+        run(args).unwrap_or_else(|e| panic!("{} must succeed: {e}", method));
         (dir, output)
     }
 
@@ -276,7 +283,7 @@ mod tests {
     #[test]
     fn test_register_syn_creates_output_with_correct_shape() {
         let dir = tempdir().unwrap();
-        let args = default_args(dir.path(), "syn", "warped.nii");
+        let args = default_args(dir.path(), RegistrationMethod::Syn, "warped.nii");
         run(args).unwrap();
         let output = dir.path().join("warped.nii");
         assert!(output.exists(), "syn warped output file must be created");
@@ -293,7 +300,7 @@ mod tests {
     /// When fixed == moving, the SyN output voxels must all be finite.
     #[test]
     fn test_register_syn_identity_finite_voxels() {
-        let (_dir, output) = run_method("syn", "warped.nii");
+        let (_dir, output) = run_method(RegistrationMethod::Syn, "warped.nii");
         let warped = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         warped.with_data_slice(|vals| {
             for (i, &v) in vals.iter().enumerate() {
@@ -309,14 +316,14 @@ mod tests {
 
     #[test]
     fn test_register_bspline_ffd_creates_output_with_correct_shape() {
-        let (_dir, output) = run_method("bspline-ffd", "output.nii");
+        let (_dir, output) = run_method(RegistrationMethod::BsplineFfd, "output.nii");
         assert!(output.exists(), "output must exist");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
     }
     #[test]
     fn test_register_bspline_ffd_identity_finite_voxels() {
-        let (_dir, output) = run_method("bspline-ffd", "output.nii");
+        let (_dir, output) = run_method(RegistrationMethod::BsplineFfd, "output.nii");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         out.with_data_slice(|vals| {
             assert!(
@@ -330,14 +337,14 @@ mod tests {
 
     #[test]
     fn test_register_multires_syn_creates_output_with_correct_shape() {
-        let (_dir, output) = run_method("multires-syn", "output.nii");
+        let (_dir, output) = run_method(RegistrationMethod::MultiResSyn, "output.nii");
         assert!(output.exists(), "output must exist");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
     }
     #[test]
     fn test_register_multires_syn_identity_finite_voxels() {
-        let (_dir, output) = run_method("multires-syn", "output.nii");
+        let (_dir, output) = run_method(RegistrationMethod::MultiResSyn, "output.nii");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         out.with_data_slice(|vals| {
             assert!(
@@ -351,14 +358,14 @@ mod tests {
 
     #[test]
     fn test_register_bspline_syn_creates_output_with_correct_shape() {
-        let (_dir, output) = run_method("bspline-syn", "output.nii");
+        let (_dir, output) = run_method(RegistrationMethod::BsplineSyn, "output.nii");
         assert!(output.exists(), "output must exist");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
     }
     #[test]
     fn test_register_bspline_syn_identity_finite_voxels() {
-        let (_dir, output) = run_method("bspline-syn", "output.nii");
+        let (_dir, output) = run_method(RegistrationMethod::BsplineSyn, "output.nii");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         out.with_data_slice(|vals| {
             assert!(

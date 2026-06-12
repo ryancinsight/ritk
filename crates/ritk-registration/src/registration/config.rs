@@ -1,6 +1,12 @@
 use crate::progress::ConvergenceChecker;
 use crate::validation::ValidationConfig;
 
+/// Output of [`RegistrationConfig::build_tracker`].
+pub(crate) struct TrackerBuildResult {
+    pub tracker: crate::progress::ProgressTracker,
+    pub early_stopping: Option<std::sync::Arc<crate::progress::EarlyStoppingCallback>>,
+}
+
 /// Whether early stopping is enabled during iterative optimization.
 ///
 /// `Enabled` carries its parameters so invalid state
@@ -80,5 +86,37 @@ impl RegistrationConfig {
     pub fn without_convergence_detection(mut self) -> Self {
         self.convergence_checker = None;
         self
+    }
+
+    /// Construct a [`ProgressTracker`](crate::progress::ProgressTracker) pre-populated with
+    /// callbacks derived from this config.
+    ///
+    /// Always adds [`ConsoleProgressCallback`](crate::progress::ConsoleProgressCallback).
+    /// Adds [`EarlyStoppingCallback`](crate::progress::EarlyStoppingCallback) when
+    /// `self.early_stopping == EarlyStoppingPolicy::Enabled`.
+    pub(crate) fn build_tracker(&self) -> TrackerBuildResult {
+        let mut tracker = crate::progress::ProgressTracker::new();
+        let console = std::sync::Arc::new(crate::progress::ConsoleProgressCallback::new(
+            self.log_interval,
+        ));
+        tracker.add_callback(console);
+        let early_stopping = if let EarlyStoppingPolicy::Enabled {
+            patience,
+            min_improvement,
+        } = self.early_stopping
+        {
+            let es = std::sync::Arc::new(crate::progress::EarlyStoppingCallback::new(
+                min_improvement,
+                patience,
+            ));
+            tracker.add_callback(es.clone());
+            Some(es)
+        } else {
+            None
+        };
+        TrackerBuildResult {
+            tracker,
+            early_stopping,
+        }
     }
 }

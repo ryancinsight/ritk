@@ -11,8 +11,8 @@ use ritk_transform::composition::io::{CompositeTransform, TransformDescription};
 ///
 /// Returns a dict with keys `"dimensionality"`, `"description"`, `"transforms"`.
 #[pyfunction]
-pub fn read_transform(py: Python<'_>, path: String) -> RitkResult<PyObject> {
-    let composite = CompositeTransform::load_json(&path)
+pub fn read_transform(py: Python<'_>, path: &str) -> RitkResult<PyObject> {
+    let composite = CompositeTransform::load_json(path)
         .map_err(|e| RitkPyError::io(format!("Transform read error: {e}")))?;
 
     let transforms_list = PyList::empty_bound(py);
@@ -77,7 +77,7 @@ pub fn read_transform(py: Python<'_>, path: String) -> RitkResult<PyObject> {
 #[pyo3(signature = (path, dimensionality, transforms, description=""))]
 pub fn write_transform(
     py: Python<'_>,
-    path: String,
+    path: &str,
     dimensionality: usize,
     transforms: Vec<PyObject>,
     description: &str,
@@ -184,6 +184,6 @@ pub fn write_transform(
     }
 
     composite
-        .save_json(&path)
+        .save_json(path)
         .map_err(|e| RitkPyError::io(format!("Transform write error: {e}")))
 }

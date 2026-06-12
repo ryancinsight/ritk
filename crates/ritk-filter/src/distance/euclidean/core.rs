@@ -8,8 +8,7 @@ pub(super) const INF: f64 = 1e30_f64;
 /// 1-D first pass: squared 1-D distance to nearest foreground along one axis.
 /// `fg_row[i] = true` iff voxel i is foreground. `s` is the voxel spacing in mm.
 /// Writes squared distances `(dist_mm)²` into `out[0..n]`.
-pub(super) fn phase1_1d(fg_row: &[bool], n: usize, s: f64, out: &mut [f64]) {
-    debug_assert_eq!(out.len(), n);
+pub(super) fn phase1_row(fg_row: &[bool], n: usize, s: f64, out: &mut [f64]) {
     // Forward scan: accumulate distance from left-most foreground
     if fg_row[0] {
         out[0] = 0.0;
@@ -64,7 +63,7 @@ pub(super) fn f_dt(x: isize, i: isize, gi: f64, s: f64) -> f64 {
 /// Input: `g[i]` = accumulated squared distance from all previous axes at position i.
 /// Writes updated squared distances into `dt[0..n]`.
 /// `s_stack[0..n]` and `t_stack[0..n]` are scratch buffers for the envelope stack.
-pub(super) fn meijster_1d(
+pub(super) fn meijster_row(
     g: &[f64],
     n: usize,
     s: f64,
@@ -160,7 +159,7 @@ pub(super) fn meijster_1d(
 /// `fg[iz*ny*nx + iy*nx + ix] = true` for foreground voxels.
 /// `spacing = [sz, sy, sx]` in mm.
 /// Returns `Vec<f32>` of Euclidean distances (not squared) in mm.
-pub(crate) fn edt_3d(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
+pub(crate) fn euclidean_dt(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let [sz, sy, sx] = spacing;
     let n_total = nz * ny * nx;
@@ -180,7 +179,7 @@ pub(crate) fn edt_3d(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f3
             let base = iz * ny * nx + iy * nx;
             // fg row is contiguous — pass the slice directly, no allocation
             let row = &fg[base..(base + nx)];
-            phase1_1d(row, nx, sx, &mut phase1_buf);
+            phase1_row(row, nx, sx, &mut phase1_buf);
             g1[base..(base + nx)].copy_from_slice(&phase1_buf[..nx]);
         }
     }
@@ -193,7 +192,7 @@ pub(crate) fn edt_3d(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f3
             for iy in 0..ny {
                 col_buf[iy] = g1[iz * ny * nx + iy * nx + ix];
             }
-            meijster_1d(
+            meijster_row(
                 &col_buf[..ny],
                 ny,
                 sy,
@@ -216,7 +215,7 @@ pub(crate) fn edt_3d(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f3
             for iz in 0..nz {
                 col_buf[iz] = g2[iz * ny * nx + iy * nx + ix];
             }
-            meijster_1d(
+            meijster_row(
                 &col_buf[..nz],
                 nz,
                 sz,

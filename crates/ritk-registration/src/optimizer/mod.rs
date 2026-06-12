@@ -24,7 +24,7 @@ pub mod trait_;
 pub use adam::AdamOptimizer;
 pub use adaptive_stochastic_gd::{AdaptiveStochasticGdConfig, AdaptiveStochasticGradientDescent};
 pub use cma_es::{
-    CmaEsConfig, CmaEsOptimizer, CmaEsResult, HistoryPolicy, PopulationEval, StopReason,
+    CmaEsConfig, CmaEsOptimizer, CmaEsResult, CmaEsStopReason, HistoryPolicy, PopulationEval,
 };
 pub use gradient_descent::GradientDescent;
 pub use momentum::Momentum;

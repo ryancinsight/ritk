@@ -40,6 +40,11 @@ use std::path::Path;
 
 type Backend = NdArray<f32>;
 
+#[inline]
+fn io_err<E: std::fmt::Display>(label: &'static str) -> impl Fn(E) -> RitkPyError {
+    move |e| RitkPyError::io(format!("{label}: {e}"))
+}
+
 // ── read_image ────────────────────────────────────────────────────────────────
 
 /// Read a medical image from file.
@@ -66,33 +71,33 @@ pub fn read_image(py: Python<'_>, path: &str) -> RitkResult<PyImage> {
         match ritk_io::ImageFormat::from_path(p) {
             Some(ritk_io::ImageFormat::NIfTI) => ritk_io::read_nifti::<Backend, _>(p, &device)
                 .map(into_py_image)
-                .map_err(|e| RitkPyError::io(format!("NIfTI read error: {e}"))),
+                .map_err(io_err("NIfTI read error")),
             Some(ritk_io::ImageFormat::MetaImage) => {
                 ritk_io::read_metaimage::<Backend, _>(p, &device)
                     .map(into_py_image)
-                    .map_err(|e| RitkPyError::io(format!("MetaImage read error: {e}")))
+                    .map_err(io_err("MetaImage read error"))
             }
             Some(ritk_io::ImageFormat::Nrrd) => ritk_io::read_nrrd::<Backend, _>(p, &device)
                 .map(into_py_image)
-                .map_err(|e| RitkPyError::io(format!("NRRD read error: {e}"))),
+                .map_err(io_err("NRRD read error")),
             Some(ritk_io::ImageFormat::Png) => ritk_io::read_png_to_image::<Backend, _>(p, &device)
                 .map(into_py_image)
-                .map_err(|e| RitkPyError::io(format!("PNG read error: {e}"))),
+                .map_err(io_err("PNG read error")),
             Some(ritk_io::ImageFormat::Tiff) => ritk_io::read_tiff::<Backend, _>(p, &device)
                 .map(into_py_image)
-                .map_err(|e| RitkPyError::io(format!("TIFF read error: {e}"))),
+                .map_err(io_err("TIFF read error")),
             Some(ritk_io::ImageFormat::Vtk) => ritk_io::read_vtk::<Backend, _>(p, &device)
                 .map(into_py_image)
-                .map_err(|e| RitkPyError::io(format!("VTK read error: {e}"))),
+                .map_err(io_err("VTK read error")),
             Some(ritk_io::ImageFormat::Mgh) => ritk_io::read_mgh::<Backend, _>(p, &device)
                 .map(into_py_image)
-                .map_err(|e| RitkPyError::io(format!("MGH read error: {e}"))),
+                .map_err(io_err("MGH read error")),
             Some(ritk_io::ImageFormat::Analyze) => ritk_io::read_analyze::<Backend, _>(p, &device)
                 .map(into_py_image)
-                .map_err(|e| RitkPyError::io(format!("Analyze read error: {e}"))),
+                .map_err(io_err("Analyze read error")),
             Some(ritk_io::ImageFormat::Jpeg) => ritk_io::read_jpeg::<Backend, _>(p, &device)
                 .map(into_py_image)
-                .map_err(|e| RitkPyError::io(format!("JPEG read error: {e}"))),
+                .map_err(io_err("JPEG read error")),
             Some(ritk_io::ImageFormat::Dicom) | None => Err(RitkPyError::io(format!(
                 "Unsupported path '{}'. Supported: .nii, .nii.gz, .png, \
                  .mha, .mhd, .nrrd, .tif, .tiff, .vtk, .mgh, .mgz, \
@@ -120,25 +125,30 @@ pub fn write_image(py: Python<'_>, image: &PyImage, path: &str) -> RitkResult<()
         let p = Path::new(&path_owned);
         match ritk_io::ImageFormat::from_path(p) {
             Some(ritk_io::ImageFormat::NIfTI) => ritk_io::write_nifti(&path_owned, image.as_ref())
-                .map_err(|e| RitkPyError::io(format!("NIfTI write error: {e}"))),
+                .map_err(io_err("NIfTI write error")),
             Some(ritk_io::ImageFormat::MetaImage) => {
                 ritk_io::write_metaimage(&path_owned, image.as_ref())
-                    .map_err(|e| RitkPyError::io(format!("MetaImage write error: {e}")))
+                    .map_err(io_err("MetaImage write error"))
             }
-            Some(ritk_io::ImageFormat::Nrrd) => ritk_io::write_nrrd(&path_owned, image.as_ref())
-                .map_err(|e| RitkPyError::io(format!("NRRD write error: {e}"))),
-            Some(ritk_io::ImageFormat::Tiff) => ritk_io::write_tiff(image.as_ref(), &path_owned)
-                .map_err(|e| RitkPyError::io(format!("TIFF write error: {e}"))),
-            Some(ritk_io::ImageFormat::Vtk) => ritk_io::write_vtk(&path_owned, image.as_ref())
-                .map_err(|e| RitkPyError::io(format!("VTK write error: {e}"))),
-            Some(ritk_io::ImageFormat::Mgh) => ritk_io::write_mgh(image.as_ref(), &path_owned)
-                .map_err(|e| RitkPyError::io(format!("MGH write error: {e}"))),
+            Some(ritk_io::ImageFormat::Nrrd) => {
+                ritk_io::write_nrrd(&path_owned, image.as_ref()).map_err(io_err("NRRD write error"))
+            }
+            Some(ritk_io::ImageFormat::Tiff) => {
+                ritk_io::write_tiff(image.as_ref(), &path_owned).map_err(io_err("TIFF write error"))
+            }
+            Some(ritk_io::ImageFormat::Vtk) => {
+                ritk_io::write_vtk(&path_owned, image.as_ref()).map_err(io_err("VTK write error"))
+            }
+            Some(ritk_io::ImageFormat::Mgh) => {
+                ritk_io::write_mgh(image.as_ref(), &path_owned).map_err(io_err("MGH write error"))
+            }
             Some(ritk_io::ImageFormat::Analyze) => {
                 ritk_io::write_analyze(&path_owned, image.as_ref())
-                    .map_err(|e| RitkPyError::io(format!("Analyze write error: {e}")))
+                    .map_err(io_err("Analyze write error"))
             }
-            Some(ritk_io::ImageFormat::Jpeg) => ritk_io::write_jpeg(&path_owned, image.as_ref())
-                .map_err(|e| RitkPyError::io(format!("JPEG write error: {e}"))),
+            Some(ritk_io::ImageFormat::Jpeg) => {
+                ritk_io::write_jpeg(&path_owned, image.as_ref()).map_err(io_err("JPEG write error"))
+            }
             Some(ritk_io::ImageFormat::Png) => Err(RitkPyError::io(
                 "PNG write not yet implemented. Use .nii, .nii.gz, .mha, .mhd, or .nrrd.",
             )),

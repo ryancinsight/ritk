@@ -1,11 +1,11 @@
 //! Tests for euclidean
 //! Extracted to keep the 500-line structural limit.
 use super::*;
+use burn::tensor::{Shape, Tensor, TensorData};
+use burn_ndarray::NdArray;
 use ritk_core::filter::ops::extract_vec_infallible;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
-use burn::tensor::{Shape, Tensor, TensorData};
-use burn_ndarray::NdArray;
 
 type B = NdArray<f32>;
 
@@ -35,7 +35,7 @@ fn edt_3d_single_foreground_voxel_at_origin() {
     let dims = [5usize, 5, 5];
     let mut fg = vec![false; 5 * 5 * 5];
     fg[0] = true; // iz=0, iy=0, ix=0
-    let dt = edt_3d(&fg, dims, [1.0, 1.0, 1.0]);
+    let dt = euclidean_dt(&fg, dims, [1.0, 1.0, 1.0]);
     // Voxel (0,0,0): distance 0
     assert!((dt[0] - 0.0).abs() < 1e-5);
     // Voxel (0,0,1): distance 1 — index formula: iz * ny * nx + iy * nx + ix
@@ -67,7 +67,7 @@ fn edt_3d_single_foreground_voxel_at_origin() {
 fn edt_3d_all_foreground_gives_zero_everywhere() {
     let dims = [4usize, 4, 4];
     let fg = vec![true; 64];
-    let dt = edt_3d(&fg, dims, [1.0, 1.0, 1.0]);
+    let dt = euclidean_dt(&fg, dims, [1.0, 1.0, 1.0]);
     for (i, &v) in dt.iter().enumerate() {
         assert!((v - 0.0).abs() < 1e-5, "voxel {} expected 0, got {}", i, v);
     }
@@ -78,7 +78,7 @@ fn edt_3d_two_foreground_voxels_midpoint() {
     // 1×1×5 volume, foreground at ix=0 and ix=4
     let dims = [1usize, 1, 5];
     let fg = vec![true, false, false, false, true];
-    let dt = edt_3d(&fg, dims, [1.0, 1.0, 1.0]);
+    let dt = euclidean_dt(&fg, dims, [1.0, 1.0, 1.0]);
     // Distances: 0, 1, 2, 1, 0
     let expected = [0.0f32, 1.0, 2.0, 1.0, 0.0];
     for (i, (&d, &e)) in dt.iter().zip(expected.iter()).enumerate() {
@@ -91,7 +91,7 @@ fn edt_3d_anisotropic_spacing_scales_distance() {
     // 1×1×3 with spacing sx=2.0; foreground at ix=0 only
     let dims = [1usize, 1, 3];
     let fg = vec![true, false, false];
-    let dt = edt_3d(&fg, dims, [1.0, 1.0, 2.0]);
+    let dt = euclidean_dt(&fg, dims, [1.0, 1.0, 2.0]);
     // Distances: 0, 2, 4 (in mm with sx=2)
     assert!((dt[0] - 0.0).abs() < 1e-4);
     assert!((dt[1] - 2.0).abs() < 1e-4, "expected 2.0, got {}", dt[1]);

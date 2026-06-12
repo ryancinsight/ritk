@@ -59,7 +59,7 @@ pub mod state;
 
 use constants::AdaptationConstants;
 use generation::{run_one_generation, GenerationState};
-pub use state::{CmaEsConfig, CmaEsResult, HistoryPolicy, PopulationEval, StopReason};
+pub use state::{CmaEsConfig, CmaEsResult, CmaEsStopReason, HistoryPolicy, PopulationEval};
 
 /// (μ/μ_w, λ)-CMA-ES optimizer.
 ///
@@ -129,11 +129,11 @@ impl CmaEsOptimizer {
         let stop_reason;
         loop {
             if gen >= self.config.max_generations {
-                stop_reason = StopReason::MaxGenerations;
+                stop_reason = CmaEsStopReason::MaxGenerations;
                 break;
             }
             if state.sigma < self.config.sigma_tol {
-                stop_reason = StopReason::StepSizeTooSmall;
+                stop_reason = CmaEsStopReason::StepSizeTooSmall;
                 break;
             }
             if let Some(reason) =

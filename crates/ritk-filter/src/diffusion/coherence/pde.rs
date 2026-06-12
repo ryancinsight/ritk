@@ -86,12 +86,7 @@ pub fn compute_gradient(data: &[f64], dims: [usize; 3]) -> Gradient {
 /// Separable Gaussian smoothing along a single axis.
 ///
 /// `axis` is 0 (z), 1 (y), or 2 (x). Boundary: replicate (Neumann).
-pub fn gaussian_smooth_1d(
-    input: &[f64],
-    dims: [usize; 3],
-    axis: usize,
-    kernel: &[f64],
-) -> Vec<f64> {
+pub fn gaussian_smooth(input: &[f64], dims: [usize; 3], axis: usize, kernel: &[f64]) -> Vec<f64> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let radius = (kernel.len() / 2) as i64;
@@ -169,9 +164,9 @@ pub fn smooth_structure_tensor(
             // Extract component c as a flat buffer.
             let mut buf: Vec<f64> = st.data.iter().map(|v| v[c]).collect();
             // Separable smoothing along z, y, x.
-            buf = gaussian_smooth_1d(&buf, dims, 0, kernel);
-            buf = gaussian_smooth_1d(&buf, dims, 1, kernel);
-            buf = gaussian_smooth_1d(&buf, dims, 2, kernel);
+            buf = gaussian_smooth(&buf, dims, 0, kernel);
+            buf = gaussian_smooth(&buf, dims, 1, kernel);
+            buf = gaussian_smooth(&buf, dims, 2, kernel);
             buf
         })
         .try_into()

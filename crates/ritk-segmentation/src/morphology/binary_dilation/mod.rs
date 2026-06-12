@@ -20,9 +20,9 @@
 //!
 //! D = 1, 2, 3. For D outside this set the function panics with a clear message.
 
+use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_core::filter::ops::extract_vec_infallible;
 use ritk_core::image::Image;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
 /// Binary dilation with a box structuring element of half-width `radius` voxels.
 ///
@@ -79,16 +79,16 @@ impl<B: Backend, const D: usize> super::MorphologicalOperation<B, D> for BinaryD
 /// Panics for ranks other than 1, 2, 3.
 pub(super) fn dilate_nd(flat: &[f32], shape: &[usize], radius: usize) -> Vec<f32> {
     match shape.len() {
-        1 => dilate_1d(flat, shape[0], radius),
-        2 => dilate_2d(flat, shape[0], shape[1], radius),
-        3 => dilate_3d(flat, shape[0], shape[1], shape[2], radius),
+        1 => dilate_line(flat, shape[0], radius),
+        2 => dilate_plane(flat, shape[0], shape[1], radius),
+        3 => dilate_volume(flat, shape[0], shape[1], shape[2], radius),
         d => panic!("BinaryDilation: unsupported dimensionality D={d}; only D=1,2,3 are supported"),
     }
 }
 
 // ── D = 1 ─────────────────────────────────────────────────────────────────────
 
-fn dilate_1d(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
+fn dilate_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
     let mut output = vec![0.0_f32; nx];
     for (ix, out) in output.iter_mut().enumerate().take(nx) {
@@ -108,7 +108,7 @@ fn dilate_1d(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
 
 // ── D = 2 ─────────────────────────────────────────────────────────────────────
 
-fn dilate_2d(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
+fn dilate_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
     let mut output = vec![0.0_f32; ny * nx];
     for iy in 0..ny {
@@ -138,7 +138,7 @@ fn dilate_2d(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
 
 // ── D = 3 ─────────────────────────────────────────────────────────────────────
 
-fn dilate_3d(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) -> Vec<f32> {
+fn dilate_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
     let mut output = vec![0.0_f32; nz * ny * nx];
     for iz in 0..nz {

@@ -92,7 +92,7 @@ fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, pass: ZhangSuenPass)
 }
 
 /// Zhang–Suen iterative thinning for 2-D binary images.
-pub(super) fn skeleton_2d(flat: &[f32], ny: usize, nx: usize) -> Vec<f32> {
+pub(super) fn zhang_suen(flat: &[f32], ny: usize, nx: usize) -> Vec<f32> {
     let mut mask: Vec<bool> = flat.iter().map(|&v| v > 0.5).collect();
     loop {
         let removed1 = zhang_suen_step(&mut mask, ny, nx, ZhangSuenPass::Pass1);

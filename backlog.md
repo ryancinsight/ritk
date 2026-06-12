@@ -42,8 +42,8 @@
 | DIP-362-13 | `RegistrationCallbackSet` DIP — deferred; requires surveying `src/progress/` ProgressTracker internals | Medium |
 | NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED: duplicate method names on same type; [arch] refactor required | [arch] |
 | SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
-| ENUM-365-01 | `StatsArgs.metric: String` → `StatMetric` ValueEnum (7 variants + `msd` alias) [minor] | Medium |
-| ENUM-365-02 | `RegisterArgs.method: String` → `RegisterMethod` ValueEnum (10 variants) [minor] | Medium |
+| ENUM-365-01 | `StatsArgs.metric: String` → `StatMetric` ValueEnum (7 variants + `msd` alias) [minor] | **Done** |
+| ENUM-365-02 | `RegisterArgs.method: String` → `RegistrationMethod` ValueEnum (10 variants) [minor] | **Done** |
 | ENUM-365-03 | `ResampleArgs.interpolation: String` → `InterpolationMethod` ValueEnum (4 variants) [minor] | Low |
 
 ### Verification

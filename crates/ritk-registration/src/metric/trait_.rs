@@ -80,31 +80,3 @@ pub trait Metric<B: Backend, const D: usize> {
     /// String identifier for the metric
     fn name(&self) -> &'static str;
 }
-
-/// Normalization mode for metrics.
-///
-/// Controls how metric values are normalized to ensure consistent ranges
-/// across different image pairs.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub enum NormalizationMode {
-    /// No normalization applied.
-    None,
-    /// Normalize by the number of samples.
-    #[default]
-    ByCount,
-    /// Normalize by the variance of the fixed image.
-    ByFixedVariance,
-    /// Normalize by the product of standard deviations.
-    ByJointStd,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_normalization_mode_default() {
-        let mode: NormalizationMode = Default::default();
-        assert_eq!(mode, NormalizationMode::ByCount);
-    }
-}

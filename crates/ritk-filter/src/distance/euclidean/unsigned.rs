@@ -1,11 +1,11 @@
 //! Unsigned Euclidean distance transform filter.
 
 use super::super::types::BinarizationThreshold;
-use super::core::edt_3d;
-use ritk_core::filter::ops::extract_vec_infallible;
-use ritk_core::image::Image;
+use super::core::euclidean_dt;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_core::image::Image;
 
 /// Unsigned Euclidean distance transform.
 ///
@@ -60,7 +60,7 @@ impl DistanceTransformImageFilter {
             .collect();
         let sp = image.spacing();
         let spacing = [sp[0], sp[1], sp[2]];
-        let result = edt_3d(&fg, dims, spacing);
+        let result = euclidean_dt(&fg, dims, spacing);
 
         let device = image.data().device();
         let td_out = TensorData::new(result, Shape::new([nz, ny, nx]));

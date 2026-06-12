@@ -1,11 +1,11 @@
 //! Signed Euclidean distance transform filter.
 
 use super::super::types::BinarizationThreshold;
-use super::core::edt_3d;
-use ritk_core::filter::ops::extract_vec_infallible;
-use ritk_core::image::Image;
+use super::core::euclidean_dt;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_core::image::Image;
 
 /// Signed Euclidean distance transform.
 ///
@@ -61,9 +61,9 @@ impl SignedDistanceTransformImageFilter {
         let spacing = [sp[0], sp[1], sp[2]];
 
         // EDT from each voxel to nearest foreground (background voxels get positive value)
-        let edt_to_fg = edt_3d(&fg, dims, spacing);
+        let edt_to_fg = euclidean_dt(&fg, dims, spacing);
         // EDT from each voxel to nearest background (foreground voxels get positive value)
-        let edt_to_bg = edt_3d(&bg, dims, spacing);
+        let edt_to_bg = euclidean_dt(&bg, dims, spacing);
 
         // Signed: outside (+) = edt_to_fg, inside (−) = −edt_to_bg
         let result: Vec<f32> = fg

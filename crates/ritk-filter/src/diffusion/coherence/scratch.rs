@@ -1,7 +1,7 @@
 use crate::edge::GaussianSigma;
 use moirai::prelude::ParallelSliceMut;
 
-use super::pde::{compute_divergence_into, gaussian_smooth_1d};
+use super::pde::{compute_divergence_into, gaussian_smooth};
 
 // ── Gradient buffer ──────────────────────────────────────────────────────────
 
@@ -294,9 +294,9 @@ fn smooth_structure_tensor_into(
     for c in 0..6 {
         buf.clear();
         buf.extend(st_products.iter().map(|v| v[c]));
-        *buf = gaussian_smooth_1d(buf, dims, 0, kernel);
-        *buf = gaussian_smooth_1d(buf, dims, 1, kernel);
-        *buf = gaussian_smooth_1d(buf, dims, 2, kernel);
+        *buf = gaussian_smooth(buf, dims, 0, kernel);
+        *buf = gaussian_smooth(buf, dims, 1, kernel);
+        *buf = gaussian_smooth(buf, dims, 2, kernel);
         for (i, &v) in buf.iter().enumerate() {
             out[i][c] = v;
         }

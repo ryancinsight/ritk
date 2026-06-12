@@ -5,7 +5,7 @@
 /// For each maximal connected foreground run [a, b], retain only the
 /// midpoint ⌊(a + b) / 2⌋. This preserves one point per connected
 /// component (topology) and selects the medial position.
-pub(super) fn skeleton_1d(flat: &[f32], nx: usize) -> Vec<f32> {
+pub(super) fn endpoint_extract(flat: &[f32], nx: usize) -> Vec<f32> {
     let mut output = vec![0.0_f32; nx];
     let mut i = 0;
     while i < nx {

@@ -31,11 +31,11 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     let initial_transform = ritk_registration::AffineTransform::IDENTITY;
 
     // ── 5. Run registration ────────────────────────────────────────────────
-    let result = match args.method.as_str() {
-        "rigid-mi" => reg
+    let result = match &args.method {
+        RegistrationMethod::RigidMi => reg
             .rigid_registration_mutual_info(&moving_arr, &fixed_arr, &initial_transform)
             .with_context(|| "rigid MI registration failed")?,
-        "affine-mi" => reg
+        RegistrationMethod::AffineMi => reg
             .affine_registration_mutual_info(&moving_arr, &fixed_arr, &initial_transform)
             .with_context(|| "affine MI registration failed")?,
         _ => unreachable!("run_mi_registration called with non-MI method"),
@@ -109,7 +109,7 @@ mod tests {
             fixed: fixed_path,
             moving: moving_path,
             output: output_path.clone(),
-            method: "rigid-mi".to_string(),
+            method: RegistrationMethod::RigidMi,
             output_transform: None,
             // Use very few iterations so the test completes quickly.
             iterations: 3,
@@ -156,7 +156,7 @@ mod tests {
             fixed: fixed_path,
             moving: moving_path,
             output: output_path.clone(),
-            method: "affine-mi".to_string(),
+            method: RegistrationMethod::AffineMi,
             output_transform: None,
             iterations: 3,
             sigma_fixed: GaussianSigma::default(),
@@ -201,7 +201,7 @@ mod tests {
             fixed: fixed_path,
             moving: moving_path,
             output: output_path,
-            method: "rigid-mi".to_string(),
+            method: RegistrationMethod::RigidMi,
             output_transform: Some(tx_path.clone()),
             iterations: 3,
             sigma_fixed: GaussianSigma::default(),
@@ -267,7 +267,7 @@ mod tests {
             fixed: fixed_path,
             moving: moving_path,
             output: output_path.clone(),
-            method: "rigid-mi".to_string(),
+            method: RegistrationMethod::RigidMi,
             output_transform: None,
             iterations: 3,
             sigma_fixed: GaussianSigma::default(),

@@ -219,7 +219,7 @@ fn test_gaussian_smooth_identity_for_constant() {
     let dims = [4, 5, 6];
     let n = 4 * 5 * 6;
     let data = vec![42.0_f64; n];
-    let smoothed = gaussian_smooth_3d(&data, dims, 1.5);
+    let smoothed = gaussian_smooth(&data, dims, 1.5);
     for (i, &v) in smoothed.iter().enumerate() {
         assert!(
             (v - 42.0).abs() < 1e-10,
@@ -232,7 +232,7 @@ fn test_gaussian_smooth_identity_for_constant() {
 fn test_gaussian_smooth_sigma_zero_is_identity() {
     let dims = [3, 3, 3];
     let data: Vec<f64> = (0..27).map(|i| i as f64).collect();
-    let smoothed = gaussian_smooth_3d(&data, dims, 0.0);
+    let smoothed = gaussian_smooth(&data, dims, 0.0);
     assert_eq!(smoothed, data);
 }
 

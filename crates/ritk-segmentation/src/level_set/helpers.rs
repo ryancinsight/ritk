@@ -14,7 +14,7 @@
 //! | Differential geometry | [`compute_curvature_into`] |
 //! | Gradient operators | [`compute_gradient_magnitude`], [`compute_field_gradient`] |
 //! | Edge / speed functions | [`compute_edge_stopping`] |
-//! | Smoothing | [`gaussian_smooth_3d`], [`smooth_or_borrow`] |
+//! | Smoothing | [`gaussian_smooth`], [`smooth_or_borrow`] |
 //! | Regularisation | [`regularised_heaviside`], [`regularised_dirac`] |
 
 use std::f64::consts::PI;
@@ -233,7 +233,7 @@ pub(crate) fn compute_edge_stopping(grad_mag: &[f64], k: f64) -> Vec<f64> {
 /// Separable 3-D Gaussian smoothing with clamped boundary conditions.
 ///
 /// Kernel radius = ⌈3σ⌉.  If σ ≤ 0, returns a copy of the input unchanged.
-pub(crate) fn gaussian_smooth_3d(data: &[f64], dims: [usize; 3], sigma: f64) -> Vec<f64> {
+pub(crate) fn gaussian_smooth(data: &[f64], dims: [usize; 3], sigma: f64) -> Vec<f64> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
 
@@ -304,7 +304,7 @@ pub(crate) fn gaussian_smooth_3d(data: &[f64], dims: [usize; 3], sigma: f64) -> 
 /// Smooth `data` if `sigma > 0`; otherwise borrow it zero-copy.
 ///
 /// Returns a `Cow<[f64]>`:
-/// - `sigma > 0` → `Cow::Owned(gaussian_smooth_3d(data, dims, sigma))`
+/// - `sigma > 0` → `Cow::Owned(gaussian_smooth(data, dims, sigma))`
 /// - `sigma ≤ 0` → `Cow::Borrowed(data)` (zero allocation)
 ///
 /// This collapses the repeated `if sigma > 0 { smooth } else { data.to_vec() }` pattern
@@ -316,7 +316,7 @@ pub(crate) fn smooth_or_borrow<'a>(
     sigma: f64,
 ) -> std::borrow::Cow<'a, [f64]> {
     if sigma > 0.0 {
-        std::borrow::Cow::Owned(gaussian_smooth_3d(data, dims, sigma))
+        std::borrow::Cow::Owned(gaussian_smooth(data, dims, sigma))
     } else {
         std::borrow::Cow::Borrowed(data)
     }

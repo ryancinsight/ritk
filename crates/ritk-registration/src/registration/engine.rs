@@ -11,7 +11,7 @@ use burn::tensor::ElementConversion;
 use ritk_image::Image;
 use ritk_transform::Transform;
 
-use super::config::{EarlyStoppingPolicy, RegistrationConfig};
+use super::config::{RegistrationConfig, TrackerBuildResult};
 use super::summary::StopReason;
 use super::Registration;
 
@@ -38,29 +38,10 @@ where
 
     /// Create a new registration with custom config.
     pub fn with_config(optimizer: O, metric: M, config: RegistrationConfig) -> Self {
-        let mut progress_tracker = ProgressTracker::new();
-
-        // Add console callback
-        let console_callback = std::sync::Arc::new(crate::progress::ConsoleProgressCallback::new(
-            config.log_interval,
-        ));
-        progress_tracker.add_callback(console_callback);
-
-        // Add early stopping callback if enabled
-        let early_stopping = if let EarlyStoppingPolicy::Enabled {
-            patience,
-            min_improvement,
-        } = config.early_stopping
-        {
-            let es = std::sync::Arc::new(crate::progress::EarlyStoppingCallback::new(
-                min_improvement,
-                patience,
-            ));
-            progress_tracker.add_callback(es.clone());
-            Some(es)
-        } else {
-            None
-        };
+        let TrackerBuildResult {
+            tracker: progress_tracker,
+            early_stopping,
+        } = config.build_tracker();
 
         Self {
             optimizer,

@@ -8,7 +8,7 @@ use moirai::prelude::ParallelSliceMut;
 
 use super::constants::AdaptationConstants;
 use super::math::{chol_mul, chol_solve_lower, cholesky, identity, vec_norm};
-use super::state::{CmaEsConfig, HistoryPolicy, PopulationEval, StopReason};
+use super::state::{CmaEsConfig, CmaEsStopReason, HistoryPolicy, PopulationEval};
 
 /// Mutable state that evolves across CMA-ES generations.
 ///
@@ -116,7 +116,7 @@ pub(super) fn run_one_generation<F>(
     config: &CmaEsConfig,
     f: &F,
     gen: usize,
-) -> Option<StopReason>
+) -> Option<CmaEsStopReason>
 where
     F: Fn(&[f64]) -> f64 + Sync,
 {
@@ -202,7 +202,7 @@ where
             .copy_from_slice(&state.xs[best_k * n..(best_k + 1) * n]);
     }
     if state.best_f < config.ftol {
-        return Some(StopReason::FunctionTolerance);
+        return Some(CmaEsStopReason::FunctionTolerance);
     }
 
     // 3. Weighted recombination: m_new = Σ wᵢ · x_{i:λ}
@@ -313,7 +313,7 @@ where
         state.condition_estimate = (chol_diag_max / chol_diag_min).powi(2);
     }
     if state.condition_estimate > 1e14 {
-        return Some(StopReason::ConditionTooLarge);
+        return Some(CmaEsStopReason::ConditionTooLarge);
     }
 
     state.mean = m_new;

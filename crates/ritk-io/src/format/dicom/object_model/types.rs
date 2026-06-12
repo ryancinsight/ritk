@@ -189,7 +189,7 @@ impl DicomObjectNode {
 
     /// Create a numeric node from a 16-bit unsigned value.
     #[inline]
-    pub fn u16(tag: DicomTag, vr: &str, value: u16) -> Self {
+    pub fn from_u16(tag: DicomTag, vr: &str, value: u16) -> Self {
         Self {
             tag,
             vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
@@ -205,7 +205,7 @@ impl DicomObjectNode {
 
     /// Create a numeric node from a signed 32-bit value.
     #[inline]
-    pub fn i32(tag: DicomTag, vr: &str, value: i32) -> Self {
+    pub fn from_i32(tag: DicomTag, vr: &str, value: i32) -> Self {
         Self {
             tag,
             vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
@@ -221,7 +221,7 @@ impl DicomObjectNode {
 
     /// Create a numeric node from a 64-bit float.
     #[inline]
-    pub fn f64(tag: DicomTag, vr: &str, value: f64) -> Self {
+    pub fn from_f64(tag: DicomTag, vr: &str, value: f64) -> Self {
         Self {
             tag,
             vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),

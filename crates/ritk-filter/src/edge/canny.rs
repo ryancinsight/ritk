@@ -32,10 +32,10 @@
 //!   pp. 679–698.
 
 use super::GaussianSigma;
+use burn::tensor::backend::Backend;
 use ritk_core::filter::ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use ritk_spatial::Spacing;
-use burn::tensor::backend::Backend;
 use std::collections::VecDeque;
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
@@ -127,8 +127,7 @@ impl CannyEdgeDetector {
 
         // ── Stage 1: Gaussian smoothing ───────────────────────────────────
         let smoothed = {
-            let gauss =
-                crate::GaussianFilter::<B>::new(vec![self.sigma, self.sigma, self.sigma]);
+            let gauss = crate::GaussianFilter::<B>::new(vec![self.sigma, self.sigma, self.sigma]);
             gauss.apply(image)
         };
 
@@ -143,7 +142,7 @@ impl CannyEdgeDetector {
         let vals = &vals_vec;
 
         // ── Stage 2: Gradient magnitude and direction ─────────────────────
-        let (mag, dir_z, dir_y, dir_x) = gradient_3d(vals, dims, sp);
+        let (mag, dir_z, dir_y, dir_x) = compute_gradient(vals, dims, sp);
 
         // ── Stage 3: Non-maximum suppression ──────────────────────────────
         let nms = non_maximum_suppression(&mag, &dir_z, &dir_y, &dir_x, dims);
@@ -171,7 +170,7 @@ impl CannyEdgeDetector {
 ///
 /// Returns `(magnitude, dir_z, dir_y, dir_x)` where each direction component
 /// is the normalised gradient component (unit vector) at each voxel.
-fn gradient_3d(
+fn compute_gradient(
     data: &[f32],
     dims: [usize; 3],
     spacing: Spacing<3>,

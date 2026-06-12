@@ -14,6 +14,8 @@
 - `ritk-registration`: `SamplingConfig::full_grid()` constructor (zero-allocation full-grid sentinel).
 - `ritk-core`: `filter::kernel_utils` module — `gaussian_kernel_1d<T>` re-exported from `ritk_core::filter` unchanged.
 - `ritk-cli`: `NormalizeMethod` ValueEnum — exhaustive typed dispatch for `--method`; clap rejects unknown values at parse time.
+- `ritk-cli`: `StatMetric` ValueEnum (`Summary`, `Dice`, `Hausdorff`, `Psnr`, `Ssim`, `MeanSurfaceDistance` w/ alias `msd`, `NoiseEstimate`) — exhaustive typed dispatch for `--metric`; clap rejects unknown values at parse time.
+- `ritk-cli`: `RegistrationMethod` ValueEnum (10 variants: `RigidMi`, `AffineMi`, `Demons`, `MultiResDemons`, `IcDemons`, `Syn`, `BsplineFfd`, `MultiResSyn`, `BsplineSyn`, `Lddmm`) — exhaustive typed dispatch for `--method` in `RegisterArgs`; clap rejects unknown values at parse time.
 
 ### Changed
 - `ritk-filter`: `AdditiveGaussianNoiseFilter`, `SaltAndPepperNoiseFilter`, `ShotNoiseFilter`, `SpeckleNoiseFilter` — real implementation moved from `apply_3d` into `apply`; `apply_3d` is now deprecated (since 0.64.0) and forwards to `apply`. Source split: `noise.rs` → `noise/{mod, gaussian, salt_pepper, shot, speckle}.rs`.

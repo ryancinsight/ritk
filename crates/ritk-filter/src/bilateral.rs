@@ -21,9 +21,9 @@
 //! # Complexity
 //! O(n · (2r+1)³) per image, where `r = ⌈3 · σ_s⌉`.
 
+use burn::tensor::backend::Backend;
 use ritk_core::filter::ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
-use burn::tensor::backend::Backend;
 use serde::{Deserialize, Serialize};
 
 /// Spatial-domain sigma for bilateral filtering (σ_s > 0).
@@ -111,7 +111,7 @@ impl BilateralFilter {
     /// Returns `Err` if the tensor data cannot be read as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (data, dims) = extract_vec(image)?;
-        let filtered = bilateral_3d(
+        let filtered = compute(
             &data,
             dims,
             self.spatial_sigma.get(),
@@ -134,7 +134,7 @@ impl BilateralFilter {
 /// 3. `Output(p) = Σ w·I(q) / Σ w`.
 ///
 /// Accumulation is f64 to avoid catastrophic cancellation.
-fn bilateral_3d(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64) -> Vec<f32> {
+fn compute(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64) -> Vec<f32> {
     let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
 
     // Guard degenerate sigma values.
@@ -206,9 +206,9 @@ fn bilateral_3d(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

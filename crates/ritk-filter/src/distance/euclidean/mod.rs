@@ -35,10 +35,10 @@ mod core;
 mod signed;
 mod unsigned;
 
+#[cfg(test)]
+pub(crate) use core::euclidean_dt;
 pub use signed::SignedDistanceTransformImageFilter;
 pub use unsigned::DistanceTransformImageFilter;
-#[cfg(test)]
-pub(crate) use core::edt_3d;
 
 #[cfg(test)]
 #[path = "../tests_euclidean.rs"]

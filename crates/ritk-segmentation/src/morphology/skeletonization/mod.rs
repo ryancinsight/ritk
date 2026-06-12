@@ -97,9 +97,9 @@
 mod thin_1d;
 mod thin_2d;
 mod thin_3d;
+use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_core::filter::ops::extract_vec_infallible;
 use ritk_core::image::Image;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -152,9 +152,9 @@ impl<B: Backend, const D: usize> super::MorphologicalOperation<B, D> for Skeleto
 
 fn skeleton_nd(flat: &[f32], shape: &[usize]) -> Vec<f32> {
     match shape.len() {
-        1 => thin_1d::skeleton_1d(flat, shape[0]),
-        2 => thin_2d::skeleton_2d(flat, shape[0], shape[1]),
-        3 => thin_3d::skeleton_3d(flat, shape[0], shape[1], shape[2]),
+        1 => thin_1d::endpoint_extract(flat, shape[0]),
+        2 => thin_2d::zhang_suen(flat, shape[0], shape[1]),
+        3 => thin_3d::sequential_thin(flat, shape[0], shape[1], shape[2]),
         d => {
             panic!("Skeletonization: unsupported dimensionality D={d}; only D=1,2,3 are supported")
         }

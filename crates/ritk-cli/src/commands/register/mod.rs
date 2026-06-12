@@ -36,7 +36,7 @@ mod diffeomorphic;
 mod lddmm;
 mod mi;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use clap::Args;
@@ -81,6 +81,45 @@ pub enum CliInverseConsistency {
     Enforced,
 }
 
+/// Registration algorithm to use.
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum RegistrationMethod {
+    #[value(name = "rigid-mi")]
+    RigidMi,
+    #[value(name = "affine-mi")]
+    AffineMi,
+    Demons,
+    #[value(name = "multires-demons")]
+    MultiResDemons,
+    #[value(name = "ic-demons")]
+    IcDemons,
+    Syn,
+    #[value(name = "bspline-ffd")]
+    BsplineFfd,
+    #[value(name = "multires-syn")]
+    MultiResSyn,
+    #[value(name = "bspline-syn")]
+    BsplineSyn,
+    Lddmm,
+}
+
+impl std::fmt::Display for RegistrationMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::RigidMi => "rigid-mi",
+            Self::AffineMi => "affine-mi",
+            Self::Demons => "demons",
+            Self::MultiResDemons => "multires-demons",
+            Self::IcDemons => "ic-demons",
+            Self::Syn => "syn",
+            Self::BsplineFfd => "bspline-ffd",
+            Self::MultiResSyn => "multires-syn",
+            Self::BsplineSyn => "bspline-syn",
+            Self::Lddmm => "lddmm",
+        })
+    }
+}
+
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
 /// Arguments for the `register` subcommand.
@@ -102,8 +141,8 @@ pub struct RegisterArgs {
     ///
     /// Accepted values: `rigid-mi`, `affine-mi`, `demons`, `multires-demons`,
     /// `ic-demons`, `syn`, `bspline-ffd`, `multires-syn`, `bspline-syn`, `lddmm`.
-    #[arg(long, value_name = "METHOD")]
-    pub method: String,
+    #[arg(long)]
+    pub method: RegistrationMethod,
 
     /// Output path for the estimated transform (JSON array of 16 floats
     /// representing a row-major 4×4 homogeneous matrix). Optional.
@@ -251,7 +290,6 @@ pub(super) fn flat_vec_to_image(
 /// # Errors
 /// Returns an error when:
 /// - The fixed or moving image cannot be read.
-/// - An unknown method name is supplied.
 /// - The registration engine reports an error.
 /// - The output image or transform cannot be written.
 pub fn run(args: RegisterArgs) -> Result<()> {
@@ -265,21 +303,18 @@ pub fn run(args: RegisterArgs) -> Result<()> {
         args.sigma_fixed.get()
     );
 
-    match args.method.as_str() {
-        "rigid-mi" | "affine-mi" => mi::run_mi_registration(&args),
-        "demons" => demons::run_demons(&args),
-        "multires-demons" => demons::run_multires_demons(&args),
-        "ic-demons" => demons::run_inverse_consistent_demons(&args),
-        "syn" => diffeomorphic::run_syn(&args),
-        "bspline-ffd" => diffeomorphic::run_bspline_ffd(&args),
-        "multires-syn" => diffeomorphic::run_multires_syn(&args),
-        "bspline-syn" => diffeomorphic::run_bspline_syn(&args),
-        "lddmm" => lddmm::run_lddmm(&args),
-        other => Err(anyhow!(
-            "Unknown registration method '{other}'. \
-            Supported methods: rigid-mi, affine-mi, demons, multires-demons, ic-demons, syn, \
-            bspline-ffd, multires-syn, bspline-syn, lddmm."
-        )),
+    match &args.method {
+        RegistrationMethod::RigidMi | RegistrationMethod::AffineMi => {
+            mi::run_mi_registration(&args)
+        }
+        RegistrationMethod::Demons => demons::run_demons(&args),
+        RegistrationMethod::MultiResDemons => demons::run_multires_demons(&args),
+        RegistrationMethod::IcDemons => demons::run_inverse_consistent_demons(&args),
+        RegistrationMethod::Syn => diffeomorphic::run_syn(&args),
+        RegistrationMethod::BsplineFfd => diffeomorphic::run_bspline_ffd(&args),
+        RegistrationMethod::MultiResSyn => diffeomorphic::run_multires_syn(&args),
+        RegistrationMethod::BsplineSyn => diffeomorphic::run_bspline_syn(&args),
+        RegistrationMethod::Lddmm => lddmm::run_lddmm(&args),
     }
 }
 
@@ -312,49 +347,9 @@ mod tests {
         )
     }
 
-    // ── Negative: unknown method returns descriptive error ────────────────
-
-    /// Supplying an unknown method name must return `Err`, not panic.
-    #[test]
-    fn test_register_unknown_method_returns_error() {
-        let dir = tempdir().unwrap();
-        let fixed_path = dir.path().join("fixed.nii");
-        let moving_path = dir.path().join("moving.nii");
-        let output_path = dir.path().join("warped.nii");
-
-        let image = make_ramp_image();
-        ritk_io::write_nifti(&fixed_path, &image).unwrap();
-        ritk_io::write_nifti(&moving_path, &image).unwrap();
-
-        let result = run(RegisterArgs {
-            fixed: fixed_path,
-            moving: moving_path,
-            output: output_path,
-            method: "nonexistent".to_string(),
-            output_transform: None,
-            iterations: 3,
-            sigma_fixed: GaussianSigma::default(),
-            levels: 3,
-            variant: DemonsVariant::Classic,
-            regularization_weight: 0.001,
-            control_spacing: 4,
-            cc_radius: 2,
-            inverse_consistency: CliInverseConsistency::Relaxed,
-            num_time_steps: 2,
-            kernel_sigma: GaussianSigma::new_unchecked(3.0),
-            learning_rate: 0.01,
-            inverse_consistency_weight: 0.5,
-            n_squarings: 6,
-            convergence_threshold: 1e-5,
-        });
-
-        assert!(result.is_err(), "unknown method must return Err");
-        let msg = result.unwrap_err().to_string();
-        assert!(
-            msg.contains("Unknown registration method 'nonexistent'"),
-            "error must name the unsupported method, got: {msg}"
-        );
-    }
+    // ── Negative: invalid method names are rejected by clap at parse time;
+    //    `run()` is exhaustive over `RegistrationMethod` and cannot receive
+    //    an unknown variant. ─────────────────────────────────────────────
 
     // ── Negative: missing fixed image returns error ───────────────────────
 
@@ -372,7 +367,7 @@ mod tests {
             fixed: fixed_path,
             moving: moving_path,
             output: output_path,
-            method: "rigid-mi".to_string(),
+            method: RegistrationMethod::RigidMi,
             output_transform: None,
             iterations: 3,
             sigma_fixed: GaussianSigma::default(),
