@@ -1,11 +1,11 @@
 //! Image-binding filter struct (see [`ChamferDistanceTransform`]).
 
 use super::super::types::BinarizationThreshold;
-use super::kernel::{cdt_3d_dispatch, ChamferMetric, INF};
-use ritk_core::filter::ops::extract_vec_infallible;
-use ritk_core::image::Image;
+use super::kernel::{cdt_dispatch, ChamferMetric, INF};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_core::image::Image;
 
 /// Compute the **chamfer distance transform** of a 3-D binary image.
 ///
@@ -103,7 +103,7 @@ impl ChamferDistanceTransform {
             (spacing[2] / s_min).round() as i32,
         ];
 
-        let result = cdt_3d_dispatch(&fg, dims, weights, self.metric);
+        let result = cdt_dispatch(&fg, dims, weights, self.metric);
 
         let scale = s_min as f32;
         let scaled: Vec<f32> = result

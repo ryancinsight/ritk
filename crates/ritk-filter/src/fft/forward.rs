@@ -25,10 +25,10 @@
 //! O(N log N), N = product of image dimensions.
 
 use crate::fft::convolution::{fft_nd, ForwardFft};
-use ritk_core::filter::ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
+use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_image::Image;
 use rustfft::{num_complex::Complex, FftPlanner};
 
 /// Forward Fast Fourier Transform filter.
@@ -66,22 +66,6 @@ impl ForwardFftFilter {
         Self::apply_inner(image)
     }
 
-    /// Apply forward FFT to a 2-D real image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<2>` instead")]
-    pub fn apply_2d<B: Backend>(&self, image: &Image<B, 2>) -> Result<Image<B, 2>> {
-        self.apply(image)
-    }
-
-    /// Apply forward FFT to a 3-D real image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<3>` instead")]
-    pub fn apply_3d<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        self.apply(image)
-    }
-
-    /// Dimension-generic forward FFT implementation.
-    ///
-    /// Extracts real data into a complex buffer, applies a separable N-D forward
-    /// FFT via [`fft_nd`], and interleaves the result as `(Re, Im)` pairs.
     fn apply_inner<B: Backend, const D: usize>(image: &Image<B, D>) -> Result<Image<B, D>> {
         let dims = image.shape();
         let (vals, _) = extract_vec(image)?;

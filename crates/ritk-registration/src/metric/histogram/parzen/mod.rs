@@ -3,6 +3,8 @@ use burn::tensor::Tensor;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
+use crate::metric::cache_slot::CacheSlot;
+
 #[cfg(feature = "direct-parzen")]
 use self::direct::HistogramPool;
 use super::cache::{HistogramCache, MaskedHistogramCache};
@@ -44,57 +46,24 @@ pub struct ParzenJointHistogram<B: Backend> {
     /// GPU kernel dispatches (arange + int→float cast) per
     /// `compute_joint_histogram*` call.
     ///
-    /// Wrapped in `Option<Tensor<B, 2>>` rather than `Tensor<B, 2>` so that
-    /// struct literals can set this field to `None` in test or deserialization
-    /// contexts without requiring a dummy tensor. In practice the field is always
-    /// `Some` after [`new()`](Self::new) initializes it, so `.unwrap()` calls on
-    /// this field are safe.
+    /// Wrapped in `Option<Tensor<B, 2>>` so that struct literals can set this
+    /// field to `None` in test or deserialization contexts. In practice always
+    /// `Some` after [`new()`](Self::new) initialises it.
     bins_exp: Option<Tensor<B, 2>>,
-    /// Cached fixed-image weights and precomputed grid data for the image-grid histogram path.
+    /// Lazily populated cache of fixed-image Parzen weights and grid data for
+    /// the image-grid histogram path.
     ///
-    /// # Why `Arc<Mutex<...>>`
+    /// Uses [`CacheSlot<HistogramCache<B>>`] — a shared `Arc<Mutex<Option<T>>>`
+    /// wrapper — so that `Clone` shares the cache across multi-resolution clones
+    /// (all levels observe the same lazily-built data) and interior mutability
+    /// allows population/invalidation without `&mut self`.
+    pub(super) cache: CacheSlot<HistogramCache<B>>,
+    /// Lazily populated cache for the masked histogram path (Strategy 2:
+    /// caller-supplied cache key).
     ///
-    /// The cache is shared across all clones of this struct. In multi-resolution registration
-    /// pipelines the metric handle is cloned once per resolution level; `Arc` provides shared
-    /// ownership so every clone observes the same lazily-built cache without redundant
-    /// recomputation. `Mutex` provides interior mutability so the cache can be populated and
-    /// invalidated on the first [`Self::compute_image_joint_histogram`] call without requiring
-    /// `&mut self`.
-    ///
-    /// # Thread safety
-    ///
-    /// The lock is held only during cache lookup and update — never across tensor operations —
-    /// so lock contention is bounded to the setup phase and does not extend into convolution
-    /// or histogram accumulation.
-    ///
-    /// # Alternative considered
-    ///
-    /// A per-instance `RefCell<Option<...>>` would avoid the lock but would not satisfy `Sync`
-    /// and each clone would maintain an independent cache, forcing redundant fixed-image
-    /// preprocessing at every resolution level.
-    pub(super) cache: Arc<Mutex<Option<HistogramCache<B>>>>,
-    /// Cached `W_fixed^T`, sparse weights, and associated metadata for the masked histogram
-    /// path (Strategy 2: caller-supplied cache key).
-    ///
-    /// # Why `Arc<Mutex<...>>`
-    ///
-    /// Shared across all clones of this struct for the same reason as [`Self::cache`]: `Arc`
-    /// provides shared ownership across multi-resolution clones so the cached masked
-    /// fixed-image data (up to ~2 MB of sparse weights) is computed once and reused.
-    /// `Mutex` provides interior mutability for cache population and invalidation without
-    /// `&mut self`.
-    ///
-    /// # Thread safety
-    ///
-    /// The lock is held only during cache lookup and update — never across tensor operations —
-    /// so lock contention is bounded to the setup phase.
-    ///
-    /// # Alternative considered
-    ///
-    /// A per-instance `RefCell<Option<...>>` would avoid the lock but would not satisfy `Sync`
-    /// and would force redundant preprocessing of the masked fixed-image data at each
-    /// resolution level.
-    pub(super) masked_cache: Arc<Mutex<Option<MaskedHistogramCache<B>>>>,
+    /// Uses [`CacheSlot<MaskedHistogramCache<B>>`] for the same shared-ownership
+    /// and interior-mutability reasons as [`Self::cache`].
+    pub(super) masked_cache: CacheSlot<MaskedHistogramCache<B>>,
     /// Phantom data
     _phantom: PhantomData<fn() -> B>,
     /// Reusable histogram buffer pool, allocated once in `new()` and reused
@@ -106,11 +75,10 @@ pub struct ParzenJointHistogram<B: Backend> {
 }
 
 /// Cloning a [`ParzenJointHistogram`] creates a new handle that **shares** the caches with
-/// the original — `Arc::clone` increments the reference count on `cache` and `masked_cache`
-/// rather than deep-copying the cached tensors. Both the original and the clone observe each
-/// other's cache updates and invalidations. This is the intended behavior in multi-resolution
-/// pipelines, where one metric handle per resolution level is created via `.clone()` and all
-/// levels share a single lazily-built fixed-image cache.
+/// the original — both the original and the clone observe each other's cache updates and
+/// invalidations via the shared `Arc` inside each [`CacheSlot`]. This is the intended behavior
+/// in multi-resolution pipelines, where one metric handle per resolution level is created via
+/// `.clone()` and all levels share a single lazily-built fixed-image cache.
 impl<B: Backend> Clone for ParzenJointHistogram<B> {
     fn clone(&self) -> Self {
         Self {
@@ -122,8 +90,8 @@ impl<B: Backend> Clone for ParzenJointHistogram<B> {
             moving_max_intensity: self.moving_max_intensity,
             moving_parzen_sigma: self.moving_parzen_sigma,
             bins_exp: self.bins_exp.clone(),
-            cache: Arc::clone(&self.cache),
-            masked_cache: Arc::clone(&self.masked_cache),
+            cache: self.cache.clone(),
+            masked_cache: self.masked_cache.clone(),
             _phantom: PhantomData,
             #[cfg(feature = "direct-parzen")]
             histogram_pool: Arc::clone(&self.histogram_pool),
@@ -153,8 +121,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
             moving_max_intensity: None,
             moving_parzen_sigma: None,
             bins_exp: Some(compute::arange_bins(num_bins, device)),
-            cache: Arc::new(Mutex::new(None)),
-            masked_cache: Arc::new(Mutex::new(None)),
+            cache: CacheSlot::empty(),
+            masked_cache: CacheSlot::empty(),
             _phantom: PhantomData,
             #[cfg(feature = "direct-parzen")]
             histogram_pool: Arc::new(Mutex::new({
@@ -233,7 +201,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// Invalidation is idempotent: clearing an already-`None` cache is a
     /// no-op.
     pub fn invalidate_cache(&self) {
-        *self.cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        self.cache.invalidate();
     }
 
     /// Invalidate the masked-path cache.
@@ -257,7 +225,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// Invalidation is idempotent: clearing an already-`None` cache is a
     /// no-op.
     pub fn invalidate_masked_cache(&self) {
-        *self.masked_cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        self.masked_cache.invalidate();
     }
 
     /// Invalidate both the image-grid cache and the masked-path cache.
@@ -315,16 +283,17 @@ impl<B: Backend> ParzenJointHistogram<B> {
         }
         let current_fp = hasher.finish();
 
-        let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(ref masked) = *cache {
-            if let Some(stored_fp) = masked.data_fingerprint {
-                if stored_fp != current_fp {
-                    // Fingerprint mismatch — invalidate
-                    *cache = None;
-                    return false;
+        self.masked_cache.with_mut(|cache| {
+            if let Some(ref masked) = *cache {
+                if let Some(stored_fp) = masked.data_fingerprint {
+                    if stored_fp != current_fp {
+                        // Fingerprint mismatch — invalidate
+                        *cache = None;
+                        return false;
+                    }
                 }
             }
-        }
-        true
+            true
+        })
     }
 }

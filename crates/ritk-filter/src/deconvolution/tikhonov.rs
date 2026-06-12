@@ -16,10 +16,10 @@
 //! Higher λ → smoother output (higher regularization strength).
 
 use super::regularization::{apply_single_pass, TikhonovRule};
-use ritk_core::filter::ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
+use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_image::Image;
 
 /// Tikhonov-regularized deconvolution (ridge regression in frequency domain).
 ///
@@ -69,28 +69,5 @@ impl TikhonovDeconvolution {
             },
         );
         Ok(rebuild(out_vals, img_dims, image))
-    }
-
-    /// Apply Tikhonov deconvolution to a 2-D image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<2>` instead")]
-    pub fn apply_2d<B: Backend>(
-        &self,
-        image: &Image<B, 2>,
-        kernel: &Image<B, 2>,
-    ) -> Result<Image<B, 2>> {
-        self.apply(image, kernel)
-    }
-
-    /// Apply Tikhonov deconvolution to a 3-D image.
-    ///
-    /// Uses the 3-D discrete Laplacian:
-    /// `|L(ω)|² = (6 − 2cos(ωx) − 2cos(ωy) − 2cos(ωz))²`
-    #[deprecated(since = "0.57.0", note = "use `apply::<3>` instead")]
-    pub fn apply_3d<B: Backend>(
-        &self,
-        image: &Image<B, 3>,
-        kernel: &Image<B, 3>,
-    ) -> Result<Image<B, 3>> {
-        self.apply(image, kernel)
     }
 }

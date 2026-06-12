@@ -17,7 +17,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn_ndarray::NdArray;
 use ritk_image::Image;
-use ritk_io::{is_rgb_dicom_series, read_dicom_series};
+use ritk_io::{is_rgb_dicom_series, read_dicom_series, ImageFormat};
 use std::path::Path;
 
 // ── Shared backend ────────────────────────────────────────────────────────────
@@ -30,11 +30,11 @@ pub(crate) type Backend = NdArray<f32>;
 
 // ── Format inference ──────────────────────────────────────────────────────────
 
-/// Infer the image format string from a file-system path.
+/// Infer the image format from a file-system path.
 ///
 /// Delegates to [`ritk_io::ImageFormat::from_path`] as the SSOT for extension→format mapping.
-pub(crate) fn infer_format(path: &Path) -> Option<&'static str> {
-    ritk_io::ImageFormat::from_path(path).map(ritk_io::ImageFormat::as_str)
+pub(crate) fn infer_format(path: &Path) -> Option<ImageFormat> {
+    ImageFormat::from_path(path)
 }
 
 // ── Read helper ───────────────────────────────────────────────────────────────
@@ -52,15 +52,15 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
         .ok_or_else(|| anyhow!("Cannot infer input format from path: {}", path.display()))?;
 
     match fmt {
-        "nifti" => ritk_io::read_nifti::<Backend, _>(path, &device)
+        ImageFormat::NIfTI => ritk_io::read_nifti::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read NIfTI file: {}", path.display())),
-        "metaimage" => ritk_io::read_metaimage::<Backend, _>(path, &device)
+        ImageFormat::MetaImage => ritk_io::read_metaimage::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read MetaImage file: {}", path.display())),
-        "nrrd" => ritk_io::read_nrrd::<Backend, _>(path, &device)
+        ImageFormat::Nrrd => ritk_io::read_nrrd::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read NRRD file: {}", path.display())),
-        "png" => ritk_io::read_png_to_image::<Backend, _>(path, &device)
+        ImageFormat::Png => ritk_io::read_png_to_image::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read PNG file: {}", path.display())),
-        "dicom" => {
+        ImageFormat::Dicom => {
             if is_rgb_dicom_series(path).unwrap_or(false) {
                 bail!(
                     "RGB DICOM colour series are not supported by the CLI. \
@@ -70,62 +70,64 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
             read_dicom_series::<Backend, _>(path, &device)
                 .with_context(|| format!("Failed to read DICOM series from: {}", path.display()))
         }
-        "mgh" => ritk_io::read_mgh::<Backend, _>(path, &device)
+        ImageFormat::Mgh => ritk_io::read_mgh::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read MGH file: {}", path.display())),
-        "tiff" => ritk_io::read_tiff::<Backend, _>(path, &device)
+        ImageFormat::Tiff => ritk_io::read_tiff::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read TIFF file: {}", path.display())),
-        "vtk" => ritk_io::read_vtk::<Backend, _>(path, &device)
+        ImageFormat::Vtk => ritk_io::read_vtk::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read VTK file: {}", path.display())),
-        "jpeg" => ritk_io::read_jpeg::<Backend, _>(path, &device)
+        ImageFormat::Jpeg => ritk_io::read_jpeg::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read JPEG file: {}", path.display())),
-        other => unreachable!("infer_format returned unexpected value: {other}"),
+        ImageFormat::Analyze => ritk_io::read_analyze::<Backend, _>(path, &device)
+            .with_context(|| format!("Failed to read Analyze file: {}", path.display())),
     }
 }
 
 // ── Write helpers ─────────────────────────────────────────────────────────────
 
-/// Write `image` to `path` using the explicitly supplied `format` string.
+/// Write `image` to `path` using the explicitly supplied `format`.
 ///
-/// Accepted format strings: `"nifti"`, `"metaimage"`, `"nrrd"`, `"mgh"`,
-/// `"tiff"`.
-/// `"png"`, `"dicom"`, `"vtk"`, and `"jpeg"` are recognised but unsupported;
-/// they return a descriptive `Err`.
+/// Accepted formats: `NIfTI`, `MetaImage`, `Nrrd`, `Mgh`, `Tiff`, `Vtk`,
+/// `Jpeg`, `Analyze`.
+/// `Png` is recognised but unsupported (returns a descriptive `Err`).
+/// `Dicom` write is supported via [`ritk_io::write_dicom_series`].
 ///
 /// # Errors
-/// Returns an error when the format is unsupported, unknown, or the writer
-/// fails.
-pub(crate) fn write_image(path: &Path, image: &Image<Backend, 3>, format: &str) -> Result<()> {
+/// Returns an error when the format is unsupported or the writer fails.
+pub(crate) fn write_image(
+    path: &Path,
+    image: &Image<Backend, 3>,
+    format: ImageFormat,
+) -> Result<()> {
     match format {
-        "nifti" => ritk_io::write_nifti::<Backend, _>(path, image)
+        ImageFormat::NIfTI => ritk_io::write_nifti::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write NIfTI file: {}", path.display())),
-        "metaimage" => ritk_io::write_metaimage::<Backend, _>(path, image)
+        ImageFormat::MetaImage => ritk_io::write_metaimage::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write MetaImage file: {}", path.display())),
-        "nrrd" => ritk_io::write_nrrd::<Backend, _>(path, image)
+        ImageFormat::Nrrd => ritk_io::write_nrrd::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write NRRD file: {}", path.display())),
-        "mgh" => ritk_io::write_mgh::<Backend, _>(image, path)
+        ImageFormat::Mgh => ritk_io::write_mgh::<Backend, _>(image, path)
             .with_context(|| format!("Failed to write MGH file: {}", path.display())),
-        "tiff" => ritk_io::write_tiff::<Backend, _>(image, path)
+        ImageFormat::Tiff => ritk_io::write_tiff::<Backend, _>(image, path)
             .with_context(|| format!("Failed to write TIFF file: {}", path.display())),
-        "png" => Err(anyhow!(
+        ImageFormat::Png => Err(anyhow!(
             "PNG output is not supported: ritk-io has no write_png implementation. \
              Convert to NIfTI, MetaImage, or NRRD instead."
         )),
-        "dicom" => ritk_io::write_dicom_series::<Backend, _>(path, image)
+        ImageFormat::Dicom => ritk_io::write_dicom_series::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write DICOM series to: {}", path.display())),
-        "vtk" => ritk_io::write_vtk::<Backend, _>(path, image)
+        ImageFormat::Vtk => ritk_io::write_vtk::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write VTK file: {}", path.display())),
-        "jpeg" => ritk_io::write_jpeg::<Backend, _>(path, image)
+        ImageFormat::Jpeg => ritk_io::write_jpeg::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write JPEG file: {}", path.display())),
-        other => Err(anyhow!(
-            "Unrecognised output format '{other}'. \
-             Supported write formats: nifti, metaimage, nrrd, mgh, tiff."
-        )),
+        ImageFormat::Analyze => ritk_io::write_analyze::<Backend, _>(path, image)
+            .with_context(|| format!("Failed to write Analyze file: {}", path.display())),
     }
 }
 
 /// Write `image` to `path`, inferring the output format from the path extension.
 ///
-/// Delegates to [`write_image`] after resolving the format string.
+/// Delegates to [`write_image`] after resolving the format.
 ///
 /// # Errors
 /// Returns an error when the extension is unrecognised or the writer fails.
@@ -140,80 +142,124 @@ pub(crate) fn write_image_inferred(path: &Path, image: &Image<Backend, 3>) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ritk_io::ImageFormat;
 
     #[test]
     fn test_infer_format_nifti_single_ext() {
-        assert_eq!(infer_format(Path::new("brain.nii")), Some("nifti"));
+        assert_eq!(
+            infer_format(Path::new("brain.nii")),
+            Some(ImageFormat::NIfTI)
+        );
     }
 
     #[test]
     fn test_infer_format_nifti_compound_ext() {
-        assert_eq!(infer_format(Path::new("brain.nii.gz")), Some("nifti"));
+        assert_eq!(
+            infer_format(Path::new("brain.nii.gz")),
+            Some(ImageFormat::NIfTI)
+        );
     }
 
     #[test]
     fn test_infer_format_metaimage_mha() {
-        assert_eq!(infer_format(Path::new("scan.mha")), Some("metaimage"));
+        assert_eq!(
+            infer_format(Path::new("scan.mha")),
+            Some(ImageFormat::MetaImage)
+        );
     }
 
     #[test]
     fn test_infer_format_metaimage_mhd() {
-        assert_eq!(infer_format(Path::new("scan.mhd")), Some("metaimage"));
+        assert_eq!(
+            infer_format(Path::new("scan.mhd")),
+            Some(ImageFormat::MetaImage)
+        );
     }
 
     #[test]
     fn test_infer_format_nrrd() {
-        assert_eq!(infer_format(Path::new("volume.nrrd")), Some("nrrd"));
+        assert_eq!(
+            infer_format(Path::new("volume.nrrd")),
+            Some(ImageFormat::Nrrd)
+        );
     }
 
     #[test]
     fn test_infer_format_nhdr() {
-        assert_eq!(infer_format(Path::new("volume.nhdr")), Some("nrrd"));
+        assert_eq!(
+            infer_format(Path::new("volume.nhdr")),
+            Some(ImageFormat::Nrrd)
+        );
     }
 
     #[test]
     fn test_infer_format_png() {
-        assert_eq!(infer_format(Path::new("slice.png")), Some("png"));
+        assert_eq!(infer_format(Path::new("slice.png")), Some(ImageFormat::Png));
     }
 
     #[test]
     fn test_infer_format_dicom_dcm() {
-        assert_eq!(infer_format(Path::new("001.dcm")), Some("dicom"));
+        assert_eq!(infer_format(Path::new("001.dcm")), Some(ImageFormat::Dicom));
     }
 
     #[test]
     fn test_infer_format_mgh() {
-        assert_eq!(infer_format(Path::new("brain.mgh")), Some("mgh"));
+        assert_eq!(infer_format(Path::new("brain.mgh")), Some(ImageFormat::Mgh));
     }
 
     #[test]
     fn test_infer_format_mgz() {
-        assert_eq!(infer_format(Path::new("brain.mgz")), Some("mgh"));
+        assert_eq!(infer_format(Path::new("brain.mgz")), Some(ImageFormat::Mgh));
     }
 
     #[test]
     fn test_infer_format_tiff() {
-        assert_eq!(infer_format(Path::new("scan.tiff")), Some("tiff"));
+        assert_eq!(
+            infer_format(Path::new("scan.tiff")),
+            Some(ImageFormat::Tiff)
+        );
     }
 
     #[test]
     fn test_infer_format_tif() {
-        assert_eq!(infer_format(Path::new("scan.tif")), Some("tiff"));
+        assert_eq!(infer_format(Path::new("scan.tif")), Some(ImageFormat::Tiff));
     }
 
     #[test]
     fn test_infer_format_vtk() {
-        assert_eq!(infer_format(Path::new("model.vtk")), Some("vtk"));
+        assert_eq!(infer_format(Path::new("model.vtk")), Some(ImageFormat::Vtk));
     }
 
     #[test]
     fn test_infer_format_jpeg() {
-        assert_eq!(infer_format(Path::new("photo.jpeg")), Some("jpeg"));
+        assert_eq!(
+            infer_format(Path::new("photo.jpeg")),
+            Some(ImageFormat::Jpeg)
+        );
     }
 
     #[test]
     fn test_infer_format_jpg() {
-        assert_eq!(infer_format(Path::new("photo.jpg")), Some("jpeg"));
+        assert_eq!(
+            infer_format(Path::new("photo.jpg")),
+            Some(ImageFormat::Jpeg)
+        );
+    }
+
+    #[test]
+    fn test_infer_format_analyze_hdr() {
+        assert_eq!(
+            infer_format(Path::new("brain.hdr")),
+            Some(ImageFormat::Analyze)
+        );
+    }
+
+    #[test]
+    fn test_infer_format_analyze_img() {
+        assert_eq!(
+            infer_format(Path::new("brain.img")),
+            Some(ImageFormat::Analyze)
+        );
     }
 
     #[test]
@@ -241,7 +287,7 @@ mod tests {
             Spacing::new([1.0; 3]),
             Direction::identity(),
         );
-        let result = write_image(Path::new("out.png"), &image, "png");
+        let result = write_image(Path::new("out.png"), &image, ImageFormat::Png);
         assert!(result.is_err(), "PNG write must return an error");
         let msg = result.unwrap_err().to_string();
         assert!(
@@ -266,7 +312,7 @@ mod tests {
             Spacing::new([1.0; 3]),
             Direction::identity(),
         );
-        let result = write_image(&out_path, &image, "dicom");
+        let result = write_image(&out_path, &image, ImageFormat::Dicom);
         assert!(
             result.is_ok(),
             "DICOM write must succeed: {:?}",
@@ -293,7 +339,7 @@ mod tests {
             Spacing::new([1.0; 3]),
             Direction::identity(),
         );
-        let result = write_image(&out_path, &image, "vtk");
+        let result = write_image(&out_path, &image, ImageFormat::Vtk);
         assert!(result.is_ok(), "VTK write must succeed: {:?}", result.err());
         assert!(out_path.exists(), "VTK output file must exist");
         assert!(
@@ -320,7 +366,7 @@ mod tests {
         );
         let dir = tempfile::tempdir().unwrap();
         let out_path = dir.path().join("out.jpg");
-        let result = write_image(&out_path, &image, "jpeg");
+        let result = write_image(&out_path, &image, ImageFormat::Jpeg);
         assert!(result.is_err(), "JPEG write with nz=2 must fail");
         let err = result.unwrap_err();
         let msg = format!("{:#}", err);
@@ -349,7 +395,7 @@ mod tests {
             Spacing::new([1.0; 3]),
             Direction::identity(),
         );
-        let result = write_image(&out_path, &image, "jpeg");
+        let result = write_image(&out_path, &image, ImageFormat::Jpeg);
         assert!(
             result.is_ok(),
             "JPEG write with nz=1 must succeed: {:?}",
@@ -360,24 +406,5 @@ mod tests {
             out_path.metadata().unwrap().len() > 0,
             "JPEG file must be non-empty"
         );
-    }
-
-    #[test]
-    fn test_write_image_unknown_format_returns_err() {
-        use burn::tensor::{Shape, Tensor, TensorData};
-        use ritk_image::Image;
-        use ritk_spatial::{Direction, Point, Spacing};
-
-        let device: <Backend as BurnBackend>::Device = Default::default();
-        let td = TensorData::new(vec![0.0f32; 8], Shape::new([2, 2, 2]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-        let image = Image::new(
-            tensor,
-            Point::new([0.0; 3]),
-            Spacing::new([1.0; 3]),
-            Direction::identity(),
-        );
-        let result = write_image(Path::new("out.xyz"), &image, "xyz");
-        assert!(result.is_err(), "unknown format must return an error");
     }
 }

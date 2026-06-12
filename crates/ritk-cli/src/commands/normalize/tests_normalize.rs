@@ -22,11 +22,11 @@ fn write_ramp_image(path: &Path) {
     ritk_io::write_nifti(path, &image).unwrap();
 }
 
-fn default_args(method: &str, input: PathBuf, output: PathBuf) -> NormalizeArgs {
+fn default_args(method: NormalizeMethod, input: PathBuf, output: PathBuf) -> NormalizeArgs {
     NormalizeArgs {
         input,
         output,
-        method: method.to_string(),
+        method,
         reference: None,
         num_bins: 256,
         contrast: None,
@@ -43,7 +43,7 @@ fn test_normalize_zscore_creates_output_file() {
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    let args = default_args("zscore", input, output.clone());
+    let args = default_args(NormalizeMethod::Zscore, input, output.clone());
     run(args).unwrap();
     assert!(output.exists());
 }
@@ -54,7 +54,7 @@ fn test_normalize_zscore_output_has_near_zero_mean() {
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    run(default_args("zscore", input, output.clone())).unwrap();
+    run(default_args(NormalizeMethod::Zscore, input, output.clone())).unwrap();
     let device: <Backend as BurnBackend>::Device = Default::default();
     let im: Image<Backend, 3> = ritk_io::read_nifti(&output, &device).unwrap();
     let vals: Vec<f32> = im
@@ -76,7 +76,7 @@ fn test_normalize_minmax_output_in_zero_one() {
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    run(default_args("minmax", input, output.clone())).unwrap();
+    run(default_args(NormalizeMethod::Minmax, input, output.clone())).unwrap();
     let device: <Backend as BurnBackend>::Device = Default::default();
     let im: Image<Backend, 3> = ritk_io::read_nifti(&output, &device).unwrap();
     let vals: Vec<f32> = im
@@ -107,7 +107,7 @@ fn test_normalize_histogram_match_creates_output() {
     write_ramp_image(&reference);
     let args = NormalizeArgs {
         reference: Some(reference),
-        ..default_args("histogram-match", input, output.clone())
+        ..default_args(NormalizeMethod::HistogramMatch, input, output.clone())
     };
     run(args).unwrap();
     assert!(output.exists());
@@ -119,7 +119,7 @@ fn test_normalize_histogram_match_without_reference_returns_error() {
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    let args = default_args("histogram-match", input, output);
+    let args = default_args(NormalizeMethod::HistogramMatch, input, output);
     let result = run(args);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
@@ -137,7 +137,7 @@ fn test_normalize_nyul_creates_output() {
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    run(default_args("nyul", input, output.clone())).unwrap();
+    run(default_args(NormalizeMethod::Nyul, input, output.clone())).unwrap();
     assert!(output.exists());
 }
 
@@ -151,29 +151,13 @@ fn test_normalize_nyul_with_reference_creates_output() {
     write_ramp_image(&reference);
     let args = NormalizeArgs {
         reference: Some(reference),
-        ..default_args("nyul", input, output.clone())
+        ..default_args(NormalizeMethod::Nyul, input, output.clone())
     };
     run(args).unwrap();
     assert!(output.exists());
 }
 
 // ── error cases ───────────────────────────────────────────────────────────
-
-#[test]
-fn test_normalize_unknown_method_returns_error() {
-    let dir = tempfile::tempdir().unwrap();
-    let input = dir.path().join("in.nii.gz");
-    let output = dir.path().join("out.nii.gz");
-    write_ramp_image(&input);
-    let args = default_args("unknown-method", input, output);
-    let result = run(args);
-    assert!(result.is_err());
-    let msg = result.unwrap_err().to_string();
-    assert!(
-        msg.contains("Unknown"),
-        "error must mention 'Unknown', got: {msg}"
-    );
-}
 
 #[test]
 fn test_normalize_white_stripe_invalid_contrast_returns_error() {
@@ -183,7 +167,7 @@ fn test_normalize_white_stripe_invalid_contrast_returns_error() {
     write_ramp_image(&input);
     let args = NormalizeArgs {
         contrast: Some("flair".to_string()),
-        ..default_args("white-stripe", input, output)
+        ..default_args(NormalizeMethod::WhiteStripe, input, output)
     };
     let result = run(args);
     assert!(result.is_err());
@@ -226,7 +210,7 @@ fn test_normalize_zscore_masked_creates_output_file() {
     write_half_mask_image(&mask);
     let args = NormalizeArgs {
         mask: Some(mask),
-        ..default_args("zscore", input, output.clone())
+        ..default_args(NormalizeMethod::Zscore, input, output.clone())
     };
     run(args).unwrap();
     assert!(output.exists(), "output file must be created");
@@ -246,7 +230,7 @@ fn test_normalize_zscore_masked_mean_of_foreground_voxels_near_zero() {
     write_half_mask_image(&mask);
     let args = NormalizeArgs {
         mask: Some(mask),
-        ..default_args("zscore", input, output.clone())
+        ..default_args(NormalizeMethod::Zscore, input, output.clone())
     };
     run(args).unwrap();
     let device: <Backend as BurnBackend>::Device = Default::default();

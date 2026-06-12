@@ -24,6 +24,32 @@ use super::{read_image, write_image_inferred, Backend};
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
+/// Normalization method for the `normalize` subcommand.
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum NormalizeMethod {
+    #[value(name = "histogram-match")]
+    HistogramMatch,
+    Nyul,
+    #[value(name = "zscore")]
+    Zscore,
+    #[value(name = "minmax")]
+    Minmax,
+    #[value(name = "white-stripe")]
+    WhiteStripe,
+}
+
+impl std::fmt::Display for NormalizeMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::HistogramMatch => "histogram-match",
+            Self::Nyul => "nyul",
+            Self::Zscore => "zscore",
+            Self::Minmax => "minmax",
+            Self::WhiteStripe => "white-stripe",
+        })
+    }
+}
+
 /// Arguments for the `normalize` subcommand.
 #[derive(Args, Debug)]
 pub struct NormalizeArgs {
@@ -39,8 +65,8 @@ pub struct NormalizeArgs {
     ///
     /// Accepted values: `histogram-match`, `nyul`, `zscore`, `minmax`,
     /// `white-stripe`.
-    #[arg(long, value_name = "METHOD")]
-    pub method: String,
+    #[arg(long, value_enum, value_name = "METHOD")]
+    pub method: NormalizeMethod,
 
     /// Reference image path.
     ///
@@ -99,8 +125,8 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
 
     let input = read_image(&args.input)?;
 
-    let normalized: ritk_image::Image<Backend, 3> = match args.method.as_str() {
-        "histogram-match" => {
+    let normalized: ritk_image::Image<Backend, 3> = match args.method {
+        NormalizeMethod::HistogramMatch => {
             let ref_path = args.reference.as_ref().ok_or_else(|| {
                 anyhow!("--reference is required for the 'histogram-match' method")
             })?;
@@ -108,7 +134,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             HistogramMatcher::new(args.num_bins).match_histograms(&input, &reference)
         }
 
-        "nyul" => {
+        NormalizeMethod::Nyul => {
             let mut normalizer = NyulUdupaNormalizer::default();
             if let Some(ref_path) = args.reference.as_ref() {
                 let reference = read_image(ref_path)?;
@@ -119,7 +145,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             normalizer.apply(&input)?
         }
 
-        "zscore" => {
+        NormalizeMethod::Zscore => {
             if let Some(mask_path) = &args.mask {
                 let mask_img = read_image(mask_path)?;
                 ZScoreNormalizer::new().normalize_masked(&input, &mask_img)
@@ -128,9 +154,9 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             }
         }
 
-        "minmax" => MinMaxNormalizer::default().normalize(&input),
+        NormalizeMethod::Minmax => MinMaxNormalizer::default().normalize(&input),
 
-        "white-stripe" => {
+        NormalizeMethod::WhiteStripe => {
             let contrast_str = args.contrast.as_deref().unwrap_or("t1").to_lowercase();
             let contrast = match contrast_str.as_str() {
                 "t1" => MriContrast::T1,
@@ -150,26 +176,13 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             let result = WhiteStripeNormalizer::normalize(&input, None, &config);
             info!(
                 "white-stripe: mu={:.4} sigma={:.4} wm_peak={:.4} stripe_size={}",
-                result.mu,
-                result.sigma,
-                result.wm_peak,
-                result.stripe_size
+                result.mu, result.sigma, result.wm_peak, result.stripe_size
             );
             println!(
                 "white-stripe stats: mu={:.4}, sigma={:.4}, wm_peak={:.4}, stripe_size={}",
-                result.mu,
-                result.sigma,
-                result.wm_peak,
-                result.stripe_size
+                result.mu, result.sigma, result.wm_peak, result.stripe_size
             );
             result.normalized
-        }
-
-        other => {
-            return Err(anyhow!(
-                "Unknown normalization method '{other}'. \
-                 Available: histogram-match, nyul, zscore, minmax, white-stripe."
-            ))
         }
     };
 

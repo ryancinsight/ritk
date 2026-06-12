@@ -14,7 +14,7 @@
 /// Returns `[β₃₀(t), β₃₁(t), β₃₂(t), β₃₃(t)]`. These sum to 1.0 (partition
 /// of unity) and are non-negative on `[0, 1]`.
 #[inline]
-pub fn cubic_bspline_1d(t: f64) -> [f64; 4] {
+pub fn cubic_bspline_basis(t: f64) -> [f64; 4] {
     let t2 = t * t;
     let t3 = t2 * t;
     let omt = 1.0 - t;
@@ -54,7 +54,7 @@ impl AxisBasis {
             let ki = u.floor() as isize - 1;
             let t = u - (ki + 1) as f64;
             k.push(ki);
-            b.push(cubic_bspline_1d(t));
+            b.push(cubic_bspline_basis(t));
         }
         Self { k, b }
     }

@@ -27,10 +27,10 @@
 //! `(z + s_D + s_D) % D = (z + D) % D = z` for even D. The same
 //! argument applies to `H/2` and `W/2` on the remaining axes. ∎
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
+use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_image::Image;
 
 /// Moves the zero-frequency (DC) component from the corners to the centre of
 /// a complex frequency-domain image.
@@ -40,9 +40,9 @@ use burn::tensor::backend::Backend;
 ///
 /// # Example
 /// ```ignore
-/// let shifted = FftShiftFilter::new().apply_2d(&freq_image)?;
+/// let shifted = FftShiftFilter::new().apply::<2>(&freq_image)?;
 /// // … inspect centred spectrum …
-/// let restored = FftShiftFilter::new().apply_2d(&shifted)?; // back to original
+/// let restored = FftShiftFilter::new().apply::<2>(&shifted)?; // back to original
 /// ```
 pub struct FftShiftFilter;
 
@@ -68,24 +68,6 @@ impl FftShiftFilter {
         Self::apply_inner(image)
     }
 
-    /// Apply FFT shift to a 2-D complex (frequency-domain) image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<2>` instead")]
-    pub fn apply_2d<B: Backend>(&self, image: &Image<B, 2>) -> Result<Image<B, 2>> {
-        self.apply(image)
-    }
-
-    /// Apply FFT shift to a 3-D complex (frequency-domain) image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<3>` instead")]
-    pub fn apply_3d<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        self.apply(image)
-    }
-
-    /// Dimension-generic FFT shift implementation.
-    ///
-    /// For each spatial axis (all axes except the last interleaved one),
-    /// computes a cyclic shift of `dim / 2`. For the innermost complex
-    /// dimension `[2·W]`, shifts by `W / 2` in complex-pixel space, which
-    /// corresponds to `2 · ((c + W/2) % W)` in the interleaved f32 layout.
     fn apply_inner<B: Backend, const D: usize>(image: &Image<B, D>) -> Result<Image<B, D>> {
         let dims = image.shape();
         let cw = dims[D - 1]; // complex width = 2 * W

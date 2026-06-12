@@ -33,10 +33,10 @@
 //! - Gonzalez & Woods, *Digital Image Processing*, 4th ed., ch. 4
 
 use crate::fft::{FftShiftFilter, ForwardFftFilter, InverseFftFilter};
-use ritk_core::filter::ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use anyhow::{bail, Result};
 use burn::tensor::backend::Backend;
+use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_image::Image;
 
 // ── Filter type ───────────────────────────────────────────────────────────────
 
@@ -169,10 +169,10 @@ impl FrequencyResponse for ButterworthHighPass {
 /// use ritk_core::filter::fft::{FrequencyDomainFilter, FftFilterKind};
 ///
 /// let low = FrequencyDomainFilter::new()
-///     .apply_2d(&image, FftFilterKind::IdealLowPass, 0.3, 2)?;
+///     .apply::<2>(&image, FftFilterKind::IdealLowPass, 0.3, 2)?;
 ///
 /// let high = FrequencyDomainFilter::new()
-///     .apply_3d(&volume, FftFilterKind::ButterworthHighPass, 0.25, 4)?;
+///     .apply::<3>(&volume, FftFilterKind::ButterworthHighPass, 0.25, 4)?;
 /// ```
 pub struct FrequencyDomainFilter;
 
@@ -236,30 +236,6 @@ impl FrequencyDomainFilter {
         // Unshift → inverse FFT.
         let unshifted = FftShiftFilter::new().apply(&masked)?;
         InverseFftFilter::new().apply(&unshifted)
-    }
-
-    /// Apply a frequency-domain filter to a 2-D image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<2>` instead")]
-    pub fn apply_2d<B: Backend>(
-        &self,
-        image: &Image<B, 2>,
-        kind: FftFilterKind,
-        cutoff: f64,
-        order: usize,
-    ) -> Result<Image<B, 2>> {
-        self.apply(image, kind, cutoff, order)
-    }
-
-    /// Apply a frequency-domain filter to a 3-D volume.
-    #[deprecated(since = "0.57.0", note = "use `apply::<3>` instead")]
-    pub fn apply_3d<B: Backend>(
-        &self,
-        image: &Image<B, 3>,
-        kind: FftFilterKind,
-        cutoff: f64,
-        order: usize,
-    ) -> Result<Image<B, 3>> {
-        self.apply(image, kind, cutoff, order)
     }
 
     // ── Private helpers ────────────────────────────────────────────────

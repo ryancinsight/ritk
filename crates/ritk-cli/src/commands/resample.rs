@@ -25,9 +25,9 @@ pub struct ResampleArgs {
     pub input: PathBuf,
     #[arg(long)]
     pub output: PathBuf,
-    /// New voxel spacing as "sz,sy,sx" (ZYX, comma-separated, positive floats).
-    #[arg(long, default_value = "1.0,1.0,1.0")]
-    pub spacing: String,
+    /// New voxel spacing (ZYX order, three positive values).
+    #[arg(short, long, value_delimiter = ',', value_name = "SZ,SY,SX")]
+    pub spacing: Vec<f64>,
     /// Interpolation mode: nearest | linear | bspline | lanczos4
     #[arg(long, default_value = "linear")]
     pub interpolation: String,
@@ -36,33 +36,20 @@ pub struct ResampleArgs {
 /// Execute the `resample` subcommand.
 pub fn run(args: ResampleArgs) -> Result<()> {
     info!(
-        "resample: starting input={} output={} spacing={} interpolation={}",
+        "resample: starting input={} output={} spacing={:?} interpolation={}",
         args.input.display(),
         args.output.display(),
         args.spacing,
         args.interpolation
     );
 
-    let parts: Vec<&str> = args.spacing.split(',').collect();
-    if parts.len() != 3 {
+    let &[new_sz, new_sy, new_sx] = args.spacing.as_slice() else {
         bail!(
-            "spacing must be sz,sy,sx (3 comma-separated values), got '{}'",
-            args.spacing
-        );
-    }
-    let new_sz: f64 = parts[0]
-        .trim()
-        .parse()
-        .map_err(|_| anyhow::anyhow!("Invalid spacing value: '{}'", parts[0].trim()))?;
-    let new_sy: f64 = parts[1]
-        .trim()
-        .parse()
-        .map_err(|_| anyhow::anyhow!("Invalid spacing value: '{}'", parts[1].trim()))?;
-    let new_sx: f64 = parts[2]
-        .trim()
-        .parse()
-        .map_err(|_| anyhow::anyhow!("Invalid spacing value: '{}'", parts[2].trim()))?;
-    if new_sz <= 0.0 || new_sy <= 0.0 || new_sx <= 0.0 {
+            "spacing must have exactly 3 values, got {}",
+            args.spacing.len()
+        )
+    };
+    if args.spacing.iter().any(|&v| v <= 0.0) {
         bail!(
             "spacing values must be positive, got {},{},{}",
             new_sz,
@@ -174,7 +161,7 @@ mod tests {
         let args = ResampleArgs {
             input: input.clone(),
             output: output.clone(),
-            spacing: "1.0,1.0,1.0".to_string(),
+            spacing: vec![1.0, 1.0, 1.0],
             interpolation: "linear".to_string(),
         };
         run(args).expect("resample must succeed");
@@ -207,7 +194,7 @@ mod tests {
         let args = ResampleArgs {
             input: input.clone(),
             output: output.clone(),
-            spacing: "1.0,1.0,1.0".to_string(),
+            spacing: vec![1.0, 1.0, 1.0],
             interpolation: "linear".to_string(),
         };
         run(args).unwrap();
@@ -228,7 +215,7 @@ mod tests {
         let args = ResampleArgs {
             input,
             output: output.clone(),
-            spacing: "1.0,1.0,1.0".to_string(),
+            spacing: vec![1.0, 1.0, 1.0],
             interpolation: "nearest".to_string(),
         };
         run(args).unwrap();
@@ -252,7 +239,7 @@ mod tests {
         let args = ResampleArgs {
             input,
             output,
-            spacing: "1.0,1.0,1.0".to_string(),
+            spacing: vec![1.0, 1.0, 1.0],
             interpolation: "cubic".to_string(),
         };
         let result = run(args);
@@ -272,7 +259,7 @@ mod tests {
         let args = ResampleArgs {
             input,
             output,
-            spacing: "1.0,2.0".to_string(),
+            spacing: vec![1.0, 2.0],
             interpolation: "linear".to_string(),
         };
         let result = run(args);

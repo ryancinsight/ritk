@@ -22,11 +22,12 @@ use super::image_cache_helpers::{
 #[cfg(feature = "direct-parzen")]
 use super::image_cache_helpers::{get_cached_sparse_w_fixed, normalize_fixed_values};
 use super::ParzenJointHistogram;
+use crate::metric::sampling::{resolve_n_points, SamplingConfig};
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
-use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
+use ritk_interpolation::{Interpolator, LinearInterpolator};
 
 // `make_cache` was moved to `super::super::cache` in Sprint 354 (DRY-354-03).
 // Both cfg-gated overloads (`#[cfg(feature = "direct-parzen")]` and
@@ -42,7 +43,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         moving: &Image<B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
-        sampling_percentage: Option<f32>,
+        sampling: SamplingConfig,
     ) -> Tensor<B, 2> {
         use ritk_core::image::grid;
 
@@ -50,20 +51,18 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let device = fixed.data().device();
 
         // 1. Determine n and points strategy
-        let (fixed_indices, n, use_sampling, cached_points) = if let Some(p) = sampling_percentage {
-            let total_voxels = fixed_shape.iter().product::<usize>();
-            let num_samples = (total_voxels as f32 * p) as usize;
+        let total_voxels = fixed_shape.iter().product::<usize>();
+        let (fixed_indices, n, use_sampling, cached_points) = if sampling.is_active() {
+            let num_samples = resolve_n_points(&sampling, total_voxels);
             let indices = grid::generate_random_points(fixed_shape, num_samples, &device);
             (Some(indices), num_samples, SamplingMode::Sampled, None)
         } else {
-            let total_voxels = fixed_shape.iter().product::<usize>();
-            let cached_points = {
-                let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
+            let cached_points = self.cache.with_ref(|cache| {
                 cache
                     .as_ref()
                     .filter(|c| cache_matches_image(c, fixed))
                     .map(|c| c.points.clone())
-            };
+            });
             if let Some(pts) = cached_points {
                 (None, total_voxels, SamplingMode::Dense, Some(pts))
             } else {
@@ -76,17 +75,18 @@ impl<B: Backend> ParzenJointHistogram<B> {
             // ── Non-chunked path ──
             let cached_w_fixed_t = (use_sampling == SamplingMode::Dense)
                 .then(|| {
-                    let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                    get_cached_w_fixed_t(&cache, fixed)
+                    self.cache
+                        .with_ref(|cache| get_cached_w_fixed_t(cache, fixed))
                 })
                 .flatten();
 
             #[cfg(feature = "direct-parzen")]
             let cached_sparse = (use_sampling == SamplingMode::Dense)
                 .then(|| {
-                    let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                     let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
-                    get_cached_sparse_w_fixed(&mut cache, fixed, self.num_bins, sigma_sq_fix)
+                    self.cache.with_mut(|cache| {
+                        get_cached_sparse_w_fixed(cache, fixed, self.num_bins, sigma_sq_fix)
+                    })
                 })
                 .flatten();
             let fixed_points = if let Some(pts) = cached_points {
@@ -115,7 +115,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 (values, oob)
             };
 
-            // ── Sparse cache path (CMA-ES, direct-parzen) ──────────────────────
+            // ── Sparse cache path (CMA-ES, direct-parzen) ────────────────────────────────────────────────────
             // Prefer the sparse dispatch when available: it eliminates the
             // 0..num_bins inner scan and the `if w_f > 0.0` branch (~3× faster
             // than the dense cache path on CPU). Only safe for derivative-free
@@ -162,18 +162,19 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     #[cfg(not(feature = "direct-parzen"))]
                     let fixed_norm: Option<()> = None;
 
-                    let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                    *cache = Some(super::super::cache::make_cache(
-                        fixed.index_to_world_tensor(
-                            fixed_indices
-                                .as_ref()
-                                .expect("fixed_indices must be Some when storing cache")
-                                .clone(),
-                        ),
-                        w_fixed_t.clone(),
-                        fixed,
-                        fixed_norm,
-                    ));
+                    self.cache.with_mut(|cache| {
+                        *cache = Some(super::super::cache::make_cache(
+                            fixed.index_to_world_tensor(
+                                fixed_indices
+                                    .as_ref()
+                                    .expect("fixed_indices must be Some when storing cache")
+                                    .clone(),
+                            ),
+                            w_fixed_t.clone(),
+                            fixed,
+                            fixed_norm,
+                        ));
+                    });
                 }
 
                 self.compute_joint_histogram_from_cache_dispatch(
@@ -300,12 +301,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
         fixed: &Image<B, D>,
         n: usize,
     ) -> Option<WFixedCache<B>> {
-        let cache_guard = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-        let cache = cache_guard.as_ref()?;
-        if !cache_matches_image(cache, fixed) {
-            return None;
-        }
-        let w_fixed_t = cache.w_fixed_transposed.clone()?;
-        Some(WFixedCache::from_image(fixed, n, w_fixed_t))
+        self.cache.with_ref(|cache_opt| {
+            let cache = cache_opt.as_ref()?;
+            if !cache_matches_image(cache, fixed) {
+                return None;
+            }
+            let w_fixed_t = cache.w_fixed_transposed.clone()?;
+            Some(WFixedCache::from_image(fixed, n, w_fixed_t))
+        })
     }
 }

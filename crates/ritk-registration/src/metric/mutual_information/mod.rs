@@ -324,7 +324,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
                 moving,
                 transform,
                 &self.interpolator,
-                self.sampling.percentage(),
+                self.sampling,
             )
         };
 

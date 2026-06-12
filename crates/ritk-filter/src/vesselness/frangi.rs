@@ -27,11 +27,11 @@
 //! Frangi, A. F., Niessen, W. J., Vincken, K. L., & Viergever, M. A. (1998).
 //! Multiscale vessel enhancement filtering. MICCAI, LNCS 1496, 130–137.
 
-use super::hessian::{compute_hessian_3d, symmetric_3x3_eigenvalues};
+use super::hessian::{compute_hessian, symmetric_3x3_eigenvalues};
 use super::VesselPolarity;
+use burn::tensor::backend::Backend;
 use ritk_core::filter::ops::{extract_vec, rebuild};
 use ritk_image::Image;
-use burn::tensor::backend::Backend;
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -115,7 +115,7 @@ impl FrangiVesselnessFilter {
             let blurred = gaussian_blur_vec(vals, dims, sigma, spacing);
 
             // 2. Compute Hessian at every voxel.
-            let hessians = compute_hessian_3d(&blurred, dims, spacing);
+            let hessians = compute_hessian(&blurred, dims, spacing);
 
             // 3. Compute Frangi vesselness at every voxel.
             for i in 0..n {

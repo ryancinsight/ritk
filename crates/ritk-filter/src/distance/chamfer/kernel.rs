@@ -129,7 +129,7 @@ const fn successor_offsets() -> [(i32, i32, i32); 7] {
 /// assignment, this gives the exact L∞ distance (chessboard); with the
 /// L1 weight assignment, this gives the exact L1 distance (taxicab) on a
 /// uniform grid.
-pub fn cdt_3d<K: ChamferKernel>(fg: &[bool], dims: [usize; 3], weights: [i32; 3]) -> Vec<i32> {
+pub fn cdt<K: ChamferKernel>(fg: &[bool], dims: [usize; 3], weights: [i32; 3]) -> Vec<i32> {
     let [nz, ny, nx] = dims;
     let stride = ny * nx;
     let pred = predecessor_offsets();
@@ -201,16 +201,16 @@ pub fn cdt_3d<K: ChamferKernel>(fg: &[bool], dims: [usize; 3], weights: [i32; 3]
 }
 
 /// Backward-compatible non-generic entry point: dispatches to the
-/// monomorphised `cdt_3d` based on the runtime `ChamferMetric` enum.
-pub fn cdt_3d_dispatch(
+/// monomorphised `cdt` based on the runtime `ChamferMetric` enum.
+pub fn cdt_dispatch(
     fg: &[bool],
     dims: [usize; 3],
     weights: [i32; 3],
     metric: ChamferMetric,
 ) -> Vec<i32> {
     match metric {
-        ChamferMetric::Chessboard => cdt_3d::<Chessboard>(fg, dims, weights),
-        ChamferMetric::Taxicab => cdt_3d::<Taxicab>(fg, dims, weights),
+        ChamferMetric::Chessboard => cdt::<Chessboard>(fg, dims, weights),
+        ChamferMetric::Taxicab => cdt::<Taxicab>(fg, dims, weights),
     }
 }
 
@@ -219,7 +219,7 @@ pub fn cdt_3d_dispatch(
 ///
 /// Returns the chamfer distance map as `Vec<i32>` in units of `s_min`.
 /// Unreachable voxels (no foreground in the volume) carry `i32::MAX`.
-pub fn chamfer_distance_transform_3d(
+pub fn chamfer_distance_transform(
     fg: &[bool],
     dims: [usize; 3],
     spacing: [f64; 3],
@@ -231,11 +231,11 @@ pub fn chamfer_distance_transform_3d(
         (spacing[1] / s_min).round() as i32,
         (spacing[2] / s_min).round() as i32,
     ];
-    cdt_3d_dispatch(fg, dims, weights, metric)
+    cdt_dispatch(fg, dims, weights, metric)
 }
 
 /// Generic free-function form parameterised by `K: ChamferKernel`.
-pub fn chamfer_distance_transform_3d_generic<K: ChamferKernel>(
+pub fn chamfer_distance_transform_generic<K: ChamferKernel>(
     fg: &[bool],
     dims: [usize; 3],
     spacing: [f64; 3],
@@ -246,5 +246,5 @@ pub fn chamfer_distance_transform_3d_generic<K: ChamferKernel>(
         (spacing[1] / s_min).round() as i32,
         (spacing[2] / s_min).round() as i32,
     ];
-    cdt_3d::<K>(fg, dims, weights)
+    cdt::<K>(fg, dims, weights)
 }

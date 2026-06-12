@@ -136,7 +136,7 @@ pub(crate) trait SparseWFixedCache {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct HistogramCache<B: Backend> {
     /// World-space coordinates of all fixed-image voxels [N, D].
     pub points: Tensor<B, 2>,
@@ -198,7 +198,7 @@ pub(crate) struct HistogramCache<B: Backend> {
 /// stored — a SipHash-1-3 of the normalized fixed-image data. On cache hit, if a
 /// fingerprint is present and doesn't match the current data, the cache is
 /// invalidated. This provides deterministic collision detection.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct MaskedHistogramCache<B: Backend> {
     /// Caller-supplied key that identifies this particular mask/point-set.
     pub cache_key: u64,

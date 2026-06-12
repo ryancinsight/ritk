@@ -5,6 +5,7 @@
 //! [`super::compute_image`].
 
 use super::super::cache::{HistogramCache, SparseWFixedCache};
+use crate::metric::cache_slot::CacheSlot;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
@@ -17,7 +18,8 @@ pub(crate) fn cache_matches_image<B: Backend, const D: usize>(
     let fs = fixed.shape();
     cache.shape.as_slice() == fs
         && cache.origin.iter().eq(fixed.origin().0.iter())
-        && cache.spacing.iter().eq(fixed.spacing().as_slice().iter())            && cache.direction.0.iter().eq(fixed.direction().0.iter())
+        && cache.spacing.iter().eq(fixed.spacing().as_slice().iter())
+        && cache.direction.0.iter().eq(fixed.direction().0.iter())
 }
 
 /// Helper: read the dense W_fixed^T from the cache if it matches the fixed image.
@@ -86,11 +88,12 @@ pub(crate) fn normalize_fixed_values<B: Backend>(
 /// `compute_image/mod.rs` under 500 lines.
 pub(crate) fn extract_cached_points<B: Backend, const D: usize>(
     fixed: &Image<B, D>,
-    cache: &std::sync::Arc<std::sync::Mutex<Option<HistogramCache<B>>>>,
+    cache: &CacheSlot<HistogramCache<B>>,
 ) -> Option<Tensor<B, 2>> {
-    let cache_guard = cache.lock().unwrap_or_else(|e| e.into_inner());
-    cache_guard
-        .as_ref()
-        .filter(|c| cache_matches_image(c, fixed))
-        .map(|c| c.points.clone())
+    cache.with_ref(|guard| {
+        guard
+            .as_ref()
+            .filter(|c| cache_matches_image(c, fixed))
+            .map(|c| c.points.clone())
+    })
 }

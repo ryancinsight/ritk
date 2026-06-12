@@ -18,10 +18,10 @@
 //! - Slower than conjugate-gradient methods but simple and analyzable
 
 use super::regularization::{apply_iterative, IterativeAlgorithm, IterativeParams};
-use ritk_core::filter::ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
+use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_image::Image;
 
 /// Landweber iterative deconvolution (gradient descent).
 ///
@@ -100,26 +100,6 @@ impl LandweberDeconvolution {
             },
         );
         Ok(rebuild(out_vals, img_dims, image))
-    }
-
-    /// Apply Landweber deconvolution to a 2-D image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<2>` instead")]
-    pub fn apply_2d<B: Backend>(
-        &self,
-        image: &Image<B, 2>,
-        kernel: &Image<B, 2>,
-    ) -> Result<Image<B, 2>> {
-        self.apply(image, kernel)
-    }
-
-    /// Apply Landweber deconvolution to a 3-D image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<3>` instead")]
-    pub fn apply_3d<B: Backend>(
-        &self,
-        image: &Image<B, 3>,
-        kernel: &Image<B, 3>,
-    ) -> Result<Image<B, 3>> {
-        self.apply(image, kernel)
     }
 }
 

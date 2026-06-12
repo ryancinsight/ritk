@@ -80,6 +80,17 @@ impl SamplingConfig {
         }
     }
 
+    /// Full-grid evaluation — all voxels, no subsampling.
+    ///
+    /// Equivalent to `percentage >= 1.0`: the `percentage` field is stored as
+    /// `None` so [`is_active`](Self::is_active) returns `false`.
+    pub fn full_grid() -> Self {
+        Self {
+            percentage: None,
+            mode: SamplingMode::Uniform,
+        }
+    }
+
     /// Returns `true` if sampling is active (any percentage < 1.0).
     #[inline]
     pub fn is_active(&self) -> bool {

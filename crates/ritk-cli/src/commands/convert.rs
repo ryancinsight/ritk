@@ -14,6 +14,7 @@
 
 use anyhow::{anyhow, Result};
 use clap::Args;
+use ritk_io::ImageFormat;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -67,8 +68,9 @@ pub fn run(args: ConvertArgs) -> Result<()> {
     let spacing = image.spacing();
 
     // Resolve output format: explicit flag takes precedence over extension.
-    let out_fmt: String = match &args.format {
-        Some(f) => f.clone(),
+    let out_fmt: ImageFormat = match &args.format {
+        Some(s) => ImageFormat::from_str_name(s)
+            .ok_or_else(|| anyhow!("Unknown format '{s}'. Accepted: nifti, metaimage, nrrd, mgh, tiff, vtk, jpeg, analyze."))?,
         None => infer_format(&args.output)
             .ok_or_else(|| {
                 anyhow!(
@@ -76,11 +78,10 @@ pub fn run(args: ConvertArgs) -> Result<()> {
                      Specify --format nifti|metaimage|nrrd.",
                     args.output.display()
                 )
-            })?
-            .to_owned(),
+            })?,
     };
 
-    write_image(&args.output, &image, &out_fmt)?;
+    write_image(&args.output, &image, out_fmt)?;
 
     println!(
         "Converted {} \u{2192} {} (shape: {}x{}x{}, spacing: {:.4}\u{d7}{:.4}\u{d7}{:.4})",

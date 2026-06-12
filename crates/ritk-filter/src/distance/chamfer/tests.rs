@@ -5,10 +5,10 @@
 //! foreground voxels carry the chamfer distance to the nearest background.
 
 use super::*;
-use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
@@ -204,7 +204,7 @@ fn free_function_matches_scipy_chessboard_2x2x2() {
     data[0] = 1.0;
     let fg: Vec<bool> = data.iter().map(|&v| v > 0.5).collect();
     let free =
-        chamfer_distance_transform_3d(&fg, [2, 2, 2], [1.0, 1.0, 1.0], ChamferMetric::Chessboard);
+        chamfer_distance_transform(&fg, [2, 2, 2], [1.0, 1.0, 1.0], ChamferMetric::Chessboard);
     assert_eq!(free[0], 1);
     for &x in &free[1..] {
         assert_eq!(
@@ -219,8 +219,7 @@ fn free_function_matches_scipy_taxicab_2x2x2() {
     let mut data = [0.0_f32; 8];
     data[0] = 1.0;
     let fg: Vec<bool> = data.iter().map(|&v| v > 0.5).collect();
-    let free =
-        chamfer_distance_transform_3d(&fg, [2, 2, 2], [1.0, 1.0, 1.0], ChamferMetric::Taxicab);
+    let free = chamfer_distance_transform(&fg, [2, 2, 2], [1.0, 1.0, 1.0], ChamferMetric::Taxicab);
     assert_eq!(free[0], 1);
     for &x in &free[1..] {
         assert_eq!(x, 0);

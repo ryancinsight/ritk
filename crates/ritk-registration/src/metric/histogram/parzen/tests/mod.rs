@@ -300,8 +300,8 @@ fn dispatch_with_oob_mask() {
 fn chunked_cached_path_matches_non_chunked() {
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
@@ -340,7 +340,7 @@ fn chunked_cached_path_matches_non_chunked() {
         &moving_img,
         &translation,
         &interp,
-        None, // no sampling → triggers non-sampling chunked path
+        crate::metric::sampling::SamplingConfig::full_grid(), // no sampling → triggers non-sampling chunked path
     );
 
     // Also compute directly (bypass chunking) for comparison.

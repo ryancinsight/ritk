@@ -12,13 +12,13 @@ use burn_ndarray::NdArray;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ritk_core::image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
-use ritk_spatial::{Direction, Point, Spacing};
-use ritk_transform::{Transform, TranslationTransform};
 use ritk_registration::metric::histogram::{
     build_sparse_w_fixed_transposed, compaction_sizes, compute_joint_histogram_direct,
     compute_joint_histogram_from_cache_sparse, ParzenJointHistogram, SparseWFixedEntry,
     SparseWFixedT,
 };
+use ritk_spatial::{Direction, Point, Spacing};
+use ritk_transform::{Transform, TranslationTransform};
 
 type B = NdArray<f32>;
 
@@ -52,7 +52,7 @@ fn bench_parzen_direct(c: &mut Criterion) {
                 black_box(&moving),
                 black_box(&transform),
                 black_box(&interpolator),
-                None,
+                ritk_registration::metric::SamplingConfig::full_grid(),
             ))
         })
     });

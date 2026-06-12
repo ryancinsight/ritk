@@ -12,10 +12,10 @@
 //! When `K = 0`, this reduces to direct inverse filtering (noisy but exact).
 
 use super::regularization::{apply_single_pass, WienerRule};
-use ritk_core::filter::ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
+use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_image::Image;
 
 /// Wiener deconvolution filter (minimum mean-square error restoration).
 ///
@@ -67,25 +67,5 @@ impl WienerDeconvolution {
             },
         );
         Ok(rebuild(out_vals, img_dims, image))
-    }
-
-    /// Apply Wiener deconvolution to a 2-D image with a 2-D PSF kernel.
-    #[deprecated(since = "0.57.0", note = "use `apply::<2>` instead")]
-    pub fn apply_2d<B: Backend>(
-        &self,
-        image: &Image<B, 2>,
-        kernel: &Image<B, 2>,
-    ) -> Result<Image<B, 2>> {
-        self.apply(image, kernel)
-    }
-
-    /// Apply Wiener deconvolution to a 3-D image with a 3-D PSF kernel.
-    #[deprecated(since = "0.57.0", note = "use `apply::<3>` instead")]
-    pub fn apply_3d<B: Backend>(
-        &self,
-        image: &Image<B, 3>,
-        kernel: &Image<B, 3>,
-    ) -> Result<Image<B, 3>> {
-        self.apply(image, kernel)
     }
 }

@@ -7,8 +7,8 @@ use super::super::*;
 fn lazy_sparse_cache_built_on_first_access() {
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
@@ -40,20 +40,28 @@ fn lazy_sparse_cache_built_on_first_access() {
 
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
 
-    let _first =
-        hist.compute_image_joint_histogram(&fixed_img, &moving_img, &translation, &interp, None);
+    let _first = hist.compute_image_joint_histogram(
+        &fixed_img,
+        &moving_img,
+        &translation,
+        &interp,
+        crate::metric::sampling::SamplingConfig::full_grid(),
+    );
 
-    let _sparse_built_after_first = {
-        let cache = hist.cache.lock().unwrap();
+    let _sparse_built_after_first = hist.cache.with_ref(|cache| {
         let cache_inner = cache.as_ref().expect("cache must exist after first call");
         cache_inner.sparse_w_fixed.is_some()
-    };
+    });
 
-    let second =
-        hist.compute_image_joint_histogram(&fixed_img, &moving_img, &translation, &interp, None);
+    let second = hist.compute_image_joint_histogram(
+        &fixed_img,
+        &moving_img,
+        &translation,
+        &interp,
+        crate::metric::sampling::SamplingConfig::full_grid(),
+    );
 
-    {
-        let cache = hist.cache.lock().unwrap();
+    hist.cache.with_ref(|cache| {
         let cache_inner = cache.as_ref().expect("cache must exist after second call");
         assert!(
             cache_inner.sparse_w_fixed.is_some(),
@@ -63,7 +71,7 @@ fn lazy_sparse_cache_built_on_first_access() {
             cache_inner.fixed_norm.is_none(),
             "fixed_norm should be consumed (None) after sparse cache is built"
         );
-    }
+    });
 
     let second_data = second.into_data();
     let second_slice = second_data.as_slice::<f32>().unwrap();

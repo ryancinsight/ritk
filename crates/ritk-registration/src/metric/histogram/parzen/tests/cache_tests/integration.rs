@@ -73,8 +73,8 @@ fn sparse_cache_dispatch_matches_direct() {
 fn chunked_sparse_path_matches_nonchunked() {
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
@@ -106,8 +106,13 @@ fn chunked_sparse_path_matches_nonchunked() {
 
     let hist = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 255.0 / 32.0, &device);
 
-    let joint_chunked =
-        hist.compute_image_joint_histogram(&fixed_img, &moving_img, &translation, &interp, None);
+    let joint_chunked = hist.compute_image_joint_histogram(
+        &fixed_img,
+        &moving_img,
+        &translation,
+        &interp,
+        crate::metric::sampling::SamplingConfig::full_grid(),
+    );
 
     let fixed_flat = fixed_img.data().clone().reshape([n]);
     let moving_flat = moving_img.data().clone().reshape([n]);

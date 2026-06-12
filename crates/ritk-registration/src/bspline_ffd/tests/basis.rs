@@ -1,5 +1,5 @@
 use super::super::basis::{
-    cubic_bspline_1d, evaluate_bspline_displacement_fast, init_control_grid, BasisCache,
+    cubic_bspline_basis, evaluate_bspline_displacement_fast, init_control_grid, BasisCache,
 };
 use super::super::volume_dims::VolumeDims;
 
@@ -7,7 +7,7 @@ use super::super::volume_dims::VolumeDims;
 fn bspline_basis_partition_of_unity() {
     for i in 0..=100 {
         let t = i as f64 / 100.0;
-        let b = cubic_bspline_1d(t);
+        let b = cubic_bspline_basis(t);
         let sum: f64 = b.iter().sum();
         assert!(
             (sum - 1.0).abs() < 1e-14,
@@ -22,7 +22,7 @@ fn bspline_basis_partition_of_unity() {
 fn bspline_basis_non_negative() {
     for i in 0..=100 {
         let t = i as f64 / 100.0;
-        let b = cubic_bspline_1d(t);
+        let b = cubic_bspline_basis(t);
         for (j, &val) in b.iter().enumerate() {
             assert!(val >= -1e-15, "basis {}({}) = {} < 0", j, t, val);
         }

@@ -18,4 +18,4 @@ pub use evaluate::{
     evaluate_bspline_displacement, evaluate_bspline_displacement_fast,
     evaluate_bspline_displacement_fast_into, init_control_grid,
 };
-pub use scalar::{cubic_bspline_1d, AxisBasis};
+pub use scalar::{cubic_bspline_basis, AxisBasis};

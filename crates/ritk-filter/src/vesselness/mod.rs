@@ -21,5 +21,5 @@ pub enum VesselPolarity {
 }
 
 pub use frangi::{FrangiConfig, FrangiVesselnessFilter};
-pub use hessian::compute_hessian_3d;
+pub use hessian::compute_hessian;
 pub use sato::{SatoConfig, SatoLineFilter};

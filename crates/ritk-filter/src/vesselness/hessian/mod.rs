@@ -42,7 +42,7 @@ use std::f64::consts::PI;
 /// At edges the `±` index is clamped to the nearest valid position and `Δa`,
 /// `Δb` are derived from the actual index separation, yielding a valid
 /// one-sided first-order approximation.
-pub fn compute_hessian_3d(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<[f32; 6]> {
+pub fn compute_hessian(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<[f32; 6]> {
     let [nz, ny, nx] = dims;
     let [sz, sy, sx] = spacing;
 

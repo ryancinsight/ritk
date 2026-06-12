@@ -4,9 +4,10 @@
 //! output verification against known-good values or mathematical invariants.
 
 use super::*;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
@@ -30,7 +31,7 @@ fn gaussian_deterministic_seed_42() {
     let filter = AdditiveGaussianNoiseFilter::new(5.0)
         .with_mean(0.0)
         .with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     // Different seed produces different values; just verify shape and that
     // values differ from the original (noise was actually added).
@@ -44,7 +45,7 @@ fn gaussian_zero_std_is_identity() {
     let data = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
     let img = make_image(data.clone(), [2, 2, 2]);
     let filter = AdditiveGaussianNoiseFilter::new(0.0);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -61,7 +62,7 @@ fn gaussian_nonzero_mean_shifts() {
     let filter = AdditiveGaussianNoiseFilter::new(0.1)
         .with_mean(100.0)
         .with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     let mean: f64 = vals.iter().map(|&v| v as f64).sum::<f64>() / vals.len() as f64;
     assert!(
@@ -78,7 +79,7 @@ fn gaussian_seeds_differ() {
     let filter1 = AdditiveGaussianNoiseFilter::new(1.0).with_seed(42);
     let filter2 = AdditiveGaussianNoiseFilter::new(1.0).with_seed(43);
     let v1 = filter1
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -86,7 +87,7 @@ fn gaussian_seeds_differ() {
         .into_vec::<f32>()
         .unwrap();
     let v2 = filter2
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -103,7 +104,7 @@ fn gaussian_same_seed_idempotent() {
     let img = make_image(data, [5, 5, 2]);
     let filter = AdditiveGaussianNoiseFilter::new(1.0).with_seed(42);
     let v1 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -111,7 +112,7 @@ fn gaussian_same_seed_idempotent() {
         .into_vec::<f32>()
         .unwrap();
     let v2 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -129,7 +130,7 @@ fn salt_pepper_zero_prob_is_identity() {
     let data: Vec<f32> = (0..27).map(|i| i as f32).collect();
     let img = make_image(data.clone(), [3, 3, 3]);
     let filter = SaltAndPepperNoiseFilter::new(0.0);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     assert_eq!(vals, data, "zero probability must leave image unchanged");
 }
@@ -140,7 +141,7 @@ fn salt_pepper_full_prob_saturates() {
     let data: Vec<f32> = (0..100).map(|i| (i % 10) as f32).collect();
     let img = make_image(data, [5, 5, 4]);
     let filter = SaltAndPepperNoiseFilter::new(1.0).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     let min = vals.iter().fold(f32::INFINITY, |a, &b| a.min(b));
     let max = vals.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
@@ -157,7 +158,7 @@ fn salt_pepper_deterministic() {
     let img = make_image(data, [4, 4, 4]);
     let filter = SaltAndPepperNoiseFilter::new(0.3).with_seed(42);
     let v1 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -165,7 +166,7 @@ fn salt_pepper_deterministic() {
         .into_vec::<f32>()
         .unwrap();
     let v2 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -183,7 +184,7 @@ fn shot_large_scale_near_identity() {
     let data: Vec<f32> = (0..27).map(|i| (i + 1) as f32 * 10.0).collect();
     let img = make_image(data.clone(), [3, 3, 3]);
     let filter = ShotNoiseFilter::new(1000.0).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     for (i, &v) in vals.iter().enumerate() {
         let rel_err = (v - data[i]).abs() / data[i];
@@ -200,7 +201,7 @@ fn shot_zero_scale_produces_zeros() {
     let data = vec![100.0_f32; 8];
     let img = make_image(data, [2, 2, 2]);
     let filter = ShotNoiseFilter::new(0.0);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     for &v in &vals {
         assert_eq!(v, 0.0, "zero scale must produce zero output");
@@ -213,7 +214,7 @@ fn shot_clamps_negative() {
     let data = vec![-10.0_f32; 8];
     let img = make_image(data, [2, 2, 2]);
     let filter = ShotNoiseFilter::new(1.0).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     for &v in &vals {
         assert_eq!(v, 0.0, "negative intensities must be clamped to zero");
@@ -226,7 +227,7 @@ fn shot_zero_input_returns_zero() {
     let data = vec![0.0_f32; 27];
     let img = make_image(data, [3, 3, 3]);
     let filter = ShotNoiseFilter::new(10.0).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     for (i, &v) in vals.iter().enumerate() {
         assert_eq!(v, 0.0, "voxel {i}: zero input must produce zero output");
@@ -240,7 +241,7 @@ fn shot_same_seed_idempotent() {
     let img = make_image(data, [5, 5, 2]);
     let filter = ShotNoiseFilter::new(5.0).with_seed(42);
     let v1 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -248,7 +249,7 @@ fn shot_same_seed_idempotent() {
         .into_vec::<f32>()
         .unwrap();
     let v2 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -264,7 +265,7 @@ fn shot_preserves_shape() {
     let data: Vec<f32> = (0..60).map(|i| (i + 1) as f32).collect();
     let img = make_image(data, [3, 4, 5]);
     let filter = ShotNoiseFilter::new(10.0).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     assert_eq!(
         result.shape(),
         img.shape(),
@@ -288,7 +289,7 @@ fn shot_preserves_metadata() {
         Direction::identity(),
     );
     let filter = ShotNoiseFilter::new(5.0).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     assert_eq!(result.origin(), img.origin(), "origin must be preserved");
     assert_eq!(result.spacing(), img.spacing(), "spacing must be preserved");
     assert_eq!(
@@ -306,7 +307,7 @@ fn speckle_zero_std_is_identity() {
     let data = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
     let img = make_image(data.clone(), [2, 2, 2]);
     let filter = SpeckleNoiseFilter::new(0.0);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -322,7 +323,7 @@ fn speckle_deterministic() {
     let img = make_image(vec![10.0_f32; 64], [4, 4, 4]);
     let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
     let v1 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -330,7 +331,7 @@ fn speckle_deterministic() {
         .into_vec::<f32>()
         .unwrap();
     let v2 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -345,7 +346,7 @@ fn speckle_deterministic() {
 fn speckle_preserves_mean_approx() {
     let img = make_image(vec![50.0_f32; 1000], [10, 10, 10]);
     let filter = SpeckleNoiseFilter::new(0.05).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     let mean: f64 = vals.iter().map(|&v| v as f64).sum::<f64>() / vals.len() as f64;
     // Multiplicative N(0, σ) has mean multiplicative factor 1.0
@@ -361,7 +362,7 @@ fn speckle_nonzero_sigma_changes_values() {
     let data = vec![10.0_f32; 100];
     let img = make_image(data.clone(), [5, 5, 4]);
     let filter = SpeckleNoiseFilter::new(0.5).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     assert!(
         vals.iter().any(|&v| (v - 10.0).abs() > 0.01),
@@ -375,7 +376,7 @@ fn speckle_positive_input_no_negatives() {
     let data: Vec<f32> = (1..=64).map(|i| i as f32).collect();
     let img = make_image(data, [4, 4, 4]);
     let filter = SpeckleNoiseFilter::new(0.3).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     // With σ=0.3 the multiplicative factor is (1+N(0,0.3)).
     // The 3σ range is [0.1, 1.9] so all outputs should be ≥ 0.
@@ -396,7 +397,7 @@ fn speckle_same_seed_idempotent() {
     let img = make_image(data, [5, 5, 2]);
     let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
     let v1 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -404,7 +405,7 @@ fn speckle_same_seed_idempotent() {
         .into_vec::<f32>()
         .unwrap();
     let v2 = filter
-        .apply_3d(&img)
+        .apply(&img)
         .unwrap()
         .data()
         .clone()
@@ -420,7 +421,7 @@ fn speckle_preserves_shape() {
     let data: Vec<f32> = (0..60).map(|i| (i + 1) as f32).collect();
     let img = make_image(data, [3, 4, 5]);
     let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     assert_eq!(
         result.shape(),
         img.shape(),
@@ -444,7 +445,7 @@ fn speckle_preserves_metadata() {
         Direction::identity(),
     );
     let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
-    let result = filter.apply_3d(&img).unwrap();
+    let result = filter.apply(&img).unwrap();
     assert_eq!(result.origin(), img.origin(), "origin must be preserved");
     assert_eq!(result.spacing(), img.spacing(), "spacing must be preserved");
     assert_eq!(

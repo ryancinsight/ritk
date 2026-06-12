@@ -20,8 +20,8 @@ use crate::metric::histogram::parzen::direct;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
-use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
+use ritk_interpolation::{Interpolator, LinearInterpolator};
 
 impl<B: Backend> ParzenJointHistogram<B> {
     /// Chunked histogram computation for [`compute_image_joint_histogram`](Self::compute_image_joint_histogram).
@@ -59,17 +59,18 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
         let cached_w_fixed_t = (use_sampling == SamplingMode::Dense)
             .then(|| {
-                let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                get_cached_w_fixed_t(&cache, fixed)
+                self.cache
+                    .with_ref(|cache| get_cached_w_fixed_t(cache, fixed))
             })
             .flatten();
 
         #[cfg(feature = "direct-parzen")]
         let cached_sparse = (use_sampling == SamplingMode::Dense)
             .then(|| {
-                let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                 let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
-                get_cached_sparse_w_fixed(&mut cache, fixed, self.num_bins, sigma_sq_fix)
+                self.cache.with_mut(|cache| {
+                    get_cached_sparse_w_fixed(cache, fixed, self.num_bins, sigma_sq_fix)
+                })
             })
             .flatten();
 
@@ -86,19 +87,20 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 // Cache hit for W_fixed^T — only update cache if points are missing or
                 // the cached tensor dimensions are stale. The sparse cache is not
                 // passed here; it is built lazily from `fixed_norm` on first access.
-                let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                if cache.as_ref().is_none_or(|c| c.points.dims() != [n, D]) {
-                    #[cfg(feature = "direct-parzen")]
-                    let fixed_norm_for_cache: Option<Vec<f32>> = None;
-                    #[cfg(not(feature = "direct-parzen"))]
-                    let fixed_norm_for_cache: Option<()> = None;
-                    *cache = Some(cache::make_cache(
-                        pts.clone(),
-                        w_fixed_t.clone(),
-                        fixed,
-                        fixed_norm_for_cache,
-                    ));
-                }
+                self.cache.with_mut(|cache| {
+                    if cache.as_ref().is_none_or(|c| c.points.dims() != [n, D]) {
+                        #[cfg(feature = "direct-parzen")]
+                        let fixed_norm_for_cache: Option<Vec<f32>> = None;
+                        #[cfg(not(feature = "direct-parzen"))]
+                        let fixed_norm_for_cache: Option<()> = None;
+                        *cache = Some(cache::make_cache(
+                            pts.clone(),
+                            w_fixed_t.clone(),
+                            fixed,
+                            fixed_norm_for_cache,
+                        ));
+                    }
+                });
             } else {
                 let fixed_data_flat = fixed.data().clone().reshape([n]);
                 let w_fixed_t = self.compute_w_fixed_transposed(&fixed_data_flat, n);
@@ -113,8 +115,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 #[cfg(not(feature = "direct-parzen"))]
                 let fixed_norm: Option<()> = None;
 
-                let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                *cache = Some(cache::make_cache(pts.clone(), w_fixed_t, fixed, fixed_norm));
+                self.cache.with_mut(|cache| {
+                    *cache = Some(cache::make_cache(pts.clone(), w_fixed_t, fixed, fixed_norm))
+                });
             }
             pts
         } else {

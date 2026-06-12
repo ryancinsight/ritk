@@ -36,10 +36,10 @@
 //!   Re at `d·H·2W + r·2W + 2c`, Im at `+1`
 
 use crate::fft::convolution::{fft_nd, InverseFft};
-use ritk_core::filter::ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
+use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_image::Image;
 use rustfft::{num_complex::Complex, FftPlanner};
 
 // ── Struct ────────────────────────────────────────────────────────────────────
@@ -88,18 +88,6 @@ impl InverseFftFilter {
     /// `f32`.
     pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Result<Image<B, D>> {
         Self::apply_inner(image)
-    }
-
-    /// Apply inverse FFT to a 2-D complex image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<2>` instead")]
-    pub fn apply_2d<B: Backend>(&self, image: &Image<B, 2>) -> Result<Image<B, 2>> {
-        self.apply(image)
-    }
-
-    /// Apply inverse FFT to a 3-D complex image.
-    #[deprecated(since = "0.57.0", note = "use `apply::<3>` instead")]
-    pub fn apply_3d<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        self.apply(image)
     }
 
     /// Dimension-generic inverse FFT implementation.

@@ -13,15 +13,6 @@ use crate::parallel::CellSlice;
 use ritk_filter::gaussian_kernel_1d;
 use ritk_spatial::VolumeDims;
 
-/// Build a normalised 1-D Gaussian kernel with radius `⌈3σ⌉`.
-///
-/// The kernel sums to exactly 1.0 (probability-preserving convolution).
-///
-/// Delegates to [`ritk_filter::gaussian_kernel_1d`].
-pub(super) fn gaussian_kernel_1d_f64(sigma: f64) -> Vec<f64> {
-    gaussian_kernel_1d(sigma, None)
-}
-
 /// Convolve `data` along axis `AXIS` (0 = Z, 1 = Y, 2 = X) with `kernel`;
 /// write the result into `output`.  Uses a replicate-border boundary condition.
 ///
@@ -97,7 +88,7 @@ pub(crate) fn gaussian_smooth_with_scratch(
     if sigma <= 0.0 {
         return;
     }
-    let kernel = gaussian_kernel_1d_f64(sigma);
+    let kernel = gaussian_kernel_1d(sigma, None);
     convolve_axis::<0>(data, dims, &kernel, scratch);
     data.copy_from_slice(scratch);
     convolve_axis::<1>(data, dims, &kernel, scratch);

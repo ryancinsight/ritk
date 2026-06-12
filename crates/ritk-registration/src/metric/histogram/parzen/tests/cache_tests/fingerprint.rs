@@ -7,8 +7,8 @@ use super::super::*;
 fn masked_cache_fingerprint_detects_collision() {
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
@@ -73,13 +73,10 @@ fn masked_cache_fingerprint_detects_collision() {
         "fingerprint validation should succeed with matching data"
     );
 
-    {
-        let cache = hist.masked_cache.lock().unwrap();
-        assert!(
-            cache.is_some(),
-            "cache should still be populated after valid fingerprint"
-        );
-    }
+    assert!(
+        hist.masked_cache.is_populated(),
+        "cache should still be populated after valid fingerprint"
+    );
 
     // `normalize_and_extract` returns `Cow<[f32]>`; materialize an owned copy
     // to mutate it for the fingerprint-mismatch assertion.
@@ -90,11 +87,8 @@ fn masked_cache_fingerprint_detects_collision() {
         "fingerprint validation should fail with different data"
     );
 
-    {
-        let cache = hist.masked_cache.lock().unwrap();
-        assert!(
-            cache.is_none(),
-            "cache should be invalidated after fingerprint mismatch"
-        );
-    }
+    assert!(
+        !hist.masked_cache.is_populated(),
+        "cache should be invalidated after fingerprint mismatch"
+    );
 }

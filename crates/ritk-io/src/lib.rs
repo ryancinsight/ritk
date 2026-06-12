@@ -72,6 +72,7 @@ pub enum ImageFormat {
     Tiff,
     Vtk,
     Jpeg,
+    Analyze,
 }
 
 impl ImageFormat {
@@ -99,6 +100,7 @@ impl ImageFormat {
             "tif" | "tiff" => Some(Self::Tiff),
             "vtk" => Some(Self::Vtk),
             "jpg" | "jpeg" => Some(Self::Jpeg),
+            "hdr" | "img" => Some(Self::Analyze),
             _ => None,
         }
     }
@@ -118,6 +120,27 @@ impl ImageFormat {
             Self::Tiff => "tiff",
             Self::Vtk => "vtk",
             Self::Jpeg => "jpeg",
+            Self::Analyze => "analyze",
+        }
+    }
+
+    /// Map the canonical format name string to its [`ImageFormat`] variant.
+    ///
+    /// Accepts the same strings produced by [`ImageFormat::as_str`].
+    /// Returns `None` for unrecognised names.
+    pub fn from_str_name(s: &str) -> Option<Self> {
+        match s {
+            "nifti" => Some(Self::NIfTI),
+            "metaimage" => Some(Self::MetaImage),
+            "nrrd" => Some(Self::Nrrd),
+            "png" => Some(Self::Png),
+            "dicom" => Some(Self::Dicom),
+            "mgh" => Some(Self::Mgh),
+            "tiff" => Some(Self::Tiff),
+            "vtk" => Some(Self::Vtk),
+            "jpeg" => Some(Self::Jpeg),
+            "analyze" => Some(Self::Analyze),
+            _ => None,
         }
     }
 }

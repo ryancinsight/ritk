@@ -38,11 +38,11 @@
 //! The final output is the **maximum** response over all scales σ.
 
 use super::frangi::gaussian_blur_vec;
-use super::hessian::{compute_hessian_3d, symmetric_3x3_eigenvalues};
+use super::hessian::{compute_hessian, symmetric_3x3_eigenvalues};
 use super::VesselPolarity;
+use burn::tensor::backend::Backend;
 use ritk_core::filter::ops::{extract_vec, rebuild};
 use ritk_image::Image;
-use burn::tensor::backend::Backend;
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ fn compute_sato_multiscale(
         let blurred = gaussian_blur_vec(data, dims, sigma, spacing);
 
         // Compute physical-space Hessian components at all voxels.
-        let hessian = compute_hessian_3d(&blurred, dims, spacing);
+        let hessian = compute_hessian(&blurred, dims, spacing);
 
         // Per-voxel line response (scale-normalised by σ²).
         let sigma2 = (sigma * sigma) as f32;

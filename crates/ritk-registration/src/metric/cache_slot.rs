@@ -88,6 +88,38 @@ impl<T: Clone> CacheSlot<T> {
             .expect("invariant: CacheSlot mutex is not poisoned") = None;
     }
 
+    /// Apply `f` to a shared reference to the cached `Option<T>`, returning `f`'s result.
+    ///
+    /// Holds the lock only for the duration of `f`.
+    ///
+    /// # Panics
+    /// Panics if the mutex has been poisoned.
+    pub(crate) fn with_ref<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&Option<T>) -> R,
+    {
+        f(&self
+            .0
+            .lock()
+            .expect("invariant: CacheSlot mutex is not poisoned"))
+    }
+
+    /// Apply `f` to an exclusive reference to the cached `Option<T>`, returning `f`'s result.
+    ///
+    /// Holds the lock only for the duration of `f`.
+    ///
+    /// # Panics
+    /// Panics if the mutex has been poisoned.
+    pub(crate) fn with_mut<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut Option<T>) -> R,
+    {
+        f(&mut self
+            .0
+            .lock()
+            .expect("invariant: CacheSlot mutex is not poisoned"))
+    }
+
     /// Returns `true` if a value has been cached (without mutating the slot).
     pub(crate) fn is_populated(&self) -> bool {
         self.0

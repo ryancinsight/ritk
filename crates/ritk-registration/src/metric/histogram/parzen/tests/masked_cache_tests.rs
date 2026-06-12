@@ -11,8 +11,8 @@ fn masked_cache_reuses_weights_on_same_key() {
     // without recomputing fixed-image weights.
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
@@ -90,17 +90,18 @@ fn masked_cache_reuses_weights_on_same_key() {
     }
 
     // Verify that the masked cache is populated
-    let cache = hist.masked_cache.lock().unwrap();
-    assert!(
-        cache.is_some(),
-        "masked cache must be populated after first call"
-    );
-    let inner = cache.as_ref().unwrap();
-    assert_eq!(inner.cache_key, 42);
-    assert!(
-        inner.w_fixed_transposed.is_some(),
-        "w_fixed_transposed must be cached"
-    );
+    hist.masked_cache.with_ref(|cache| {
+        assert!(
+            cache.is_some(),
+            "masked cache must be populated after first call"
+        );
+        let inner = cache.as_ref().unwrap();
+        assert_eq!(inner.cache_key, 42);
+        assert!(
+            inner.w_fixed_transposed.is_some(),
+            "w_fixed_transposed must be cached"
+        );
+    });
 
     // Verify the histogram is non-zero
     let sum: f32 = first_slice.iter().sum();
@@ -117,8 +118,8 @@ fn masked_cache_different_key_recomputes() {
     // (cache miss with new key).
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
@@ -181,12 +182,13 @@ fn masked_cache_different_key_recomputes() {
     );
 
     // The cache should now hold the key=200 entry
-    let cache = hist.masked_cache.lock().unwrap();
-    let inner = cache.as_ref().unwrap();
-    assert_eq!(
-        inner.cache_key, 200,
-        "masked cache key should be updated to 200 after second call with different key"
-    );
+    hist.masked_cache.with_ref(|cache| {
+        let inner = cache.as_ref().unwrap();
+        assert_eq!(
+            inner.cache_key, 200,
+            "masked cache key should be updated to 200 after second call with different key"
+        );
+    });
 
     // Result should still be valid
     let sum: f32 = second.into_data().as_slice::<f32>().unwrap().iter().sum();
@@ -202,8 +204,8 @@ fn masked_no_cache_key_matches_uncached() {
     // as the original uncached path.
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
@@ -308,8 +310,8 @@ fn cache_invalidate_clears_image_cache() {
     // populated by a prior compute_image_joint_histogram call.
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
@@ -349,39 +351,35 @@ fn cache_invalidate_clears_image_cache() {
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
 
     // Populate the image-grid cache
-    let _result =
-        hist.compute_image_joint_histogram(&fixed_img, &moving_img, &translation, &interp, None);
+    let _result = hist.compute_image_joint_histogram(
+        &fixed_img,
+        &moving_img,
+        &translation,
+        &interp,
+        crate::metric::sampling::SamplingConfig::full_grid(),
+    );
 
     // Verify cache is populated
-    {
-        let cache = hist.cache.lock().unwrap();
-        assert!(
-            cache.is_some(),
-            "image-grid cache must be populated after compute_image_joint_histogram"
-        );
-    }
+    assert!(
+        hist.cache.is_populated(),
+        "image-grid cache must be populated after compute_image_joint_histogram"
+    );
 
     // Invalidate the image-grid cache
     hist.invalidate_cache();
 
     // Verify cache is now None
-    {
-        let cache = hist.cache.lock().unwrap();
-        assert!(
-            cache.is_none(),
-            "image-grid cache must be None after invalidate_cache()"
-        );
-    }
+    assert!(
+        !hist.cache.is_populated(),
+        "image-grid cache must be None after invalidate_cache()"
+    );
 
     // Invalidation is idempotent — calling again should not panic
     hist.invalidate_cache();
-    {
-        let cache = hist.cache.lock().unwrap();
-        assert!(
-            cache.is_none(),
-            "image-grid cache must still be None after second invalidate_cache()"
-        );
-    }
+    assert!(
+        !hist.cache.is_populated(),
+        "image-grid cache must still be None after second invalidate_cache()"
+    );
 }
 
 #[test]
@@ -390,8 +388,8 @@ fn cache_invalidate_clears_masked_cache() {
     // populated by a prior compute_masked_joint_histogram call with a cache_key.
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
@@ -447,33 +445,24 @@ fn cache_invalidate_clears_masked_cache() {
     );
 
     // Verify masked cache is populated
-    {
-        let cache = hist.masked_cache.lock().unwrap();
-        assert!(
-            cache.is_some(),
-            "masked cache must be populated after compute_masked_joint_histogram"
-        );
-    }
+    assert!(
+        hist.masked_cache.is_populated(),
+        "masked cache must be populated after compute_masked_joint_histogram"
+    );
 
     // Invalidate the masked cache
     hist.invalidate_masked_cache();
 
     // Verify masked cache is now None
-    {
-        let cache = hist.masked_cache.lock().unwrap();
-        assert!(
-            cache.is_none(),
-            "masked cache must be None after invalidate_masked_cache()"
-        );
-    }
+    assert!(
+        !hist.masked_cache.is_populated(),
+        "masked cache must be None after invalidate_masked_cache()"
+    );
 
     // Invalidation is idempotent — calling again should not panic
     hist.invalidate_masked_cache();
-    {
-        let cache = hist.masked_cache.lock().unwrap();
-        assert!(
-            cache.is_none(),
-            "masked cache must still be None after second invalidate_masked_cache()"
-        );
-    }
+    assert!(
+        !hist.masked_cache.is_populated(),
+        "masked cache must still be None after second invalidate_masked_cache()"
+    );
 }

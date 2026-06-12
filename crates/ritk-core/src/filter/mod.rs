@@ -2,8 +2,11 @@
 //
 // All other filter modules moved to `ritk-filter` (Sprint 361).
 // `ops` stays here because `ritk-core::statistics` also uses `extract_vec` /
-// `extract_vec_infallible` / `rebuild` / `gaussian_kernel_1d` and moving them
-// would create a circular dependency (`ritk-filter` → `ritk-core` ← `ritk-filter`).
+// `extract_vec_infallible` / `rebuild` and moving them would create a circular
+// dependency (`ritk-filter` → `ritk-core` ← `ritk-filter`).
+// `kernel_utils` owns `gaussian_kernel_1d` separately so ops stays focused on
+// tensor extract/rebuild helpers.
+pub mod kernel_utils;
 pub mod ops;
 
-pub use ops::gaussian_kernel_1d;
+pub use kernel_utils::gaussian_kernel_1d;

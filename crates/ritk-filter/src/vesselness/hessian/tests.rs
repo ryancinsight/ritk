@@ -20,7 +20,7 @@ fn test_hessian_quadratic_separable() {
         }
     }
 
-    let h_out = compute_hessian_3d(&data, [N, N, N], [1.0, 1.0, 1.0]);
+    let h_out = compute_hessian(&data, [N, N, N], [1.0, 1.0, 1.0]);
 
     // Interior voxel (iz=2, iy=2, ix=2): central differences apply.
     let voxel = 2 * N * N + 2 * N + 2;
@@ -50,7 +50,7 @@ fn test_hessian_product_xy() {
         }
     }
 
-    let h_out = compute_hessian_3d(&data, [N, N, N], [1.0, 1.0, 1.0]);
+    let h_out = compute_hessian(&data, [N, N, N], [1.0, 1.0, 1.0]);
 
     // Interior voxel (iz=2, iy=2, ix=2).
     let voxel = 2 * N * N + 2 * N + 2;
@@ -81,7 +81,7 @@ fn test_hessian_nonunit_spacing() {
     }
 
     // spacing = [sz=1.0, sy=1.0, sx=2.0]
-    let h_out = compute_hessian_3d(&data, [N, N, N], [1.0, 1.0, 2.0]);
+    let h_out = compute_hessian(&data, [N, N, N], [1.0, 1.0, 2.0]);
 
     let voxel = 2 * N * N + 2 * N + 2;
     let [_hzz, _hzy, _hzx, _hyy, _hyx, hxx] = h_out[voxel];
