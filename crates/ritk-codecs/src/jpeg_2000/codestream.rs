@@ -153,6 +153,17 @@ impl QcdMarker {
     pub fn is_no_quantization(&self) -> bool {
         self.sqcd & 0x1F == 0
     }
+
+    /// Per-subband quantizer exponents ε_b in codestream subband order
+    /// (ISO 15444-1 §A.6.4): 1-byte entries carry ε in bits 7–3; 2-byte
+    /// scalar entries carry ε in bits 15–11.
+    pub fn exponents(&self) -> Vec<u32> {
+        let shift = if self.is_no_quantization() { 3 } else { 11 };
+        self.step_sizes
+            .iter()
+            .map(|&s| u32::from(s) >> shift)
+            .collect()
+    }
 }
 
 /// ISO 15444-1 §A.4.2 – Start of Tile-part.

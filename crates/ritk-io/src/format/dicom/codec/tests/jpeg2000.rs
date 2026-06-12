@@ -10,7 +10,7 @@ use ritk_codecs::PixelSignedness;
 ///
 /// Pixel data is encoded as a bare J2K codestream via the RITK-native pure-Rust
 /// encoder (`ritk_codecs::jpeg_2000::encoder`).  The 5/3 reversible wavelet is
-/// used with zero DWT decomposition levels, producing lossless output.
+/// used with two DWT decomposition levels, producing lossless output.
 ///
 /// This replaces the former `openjp2`/`openjpeg-sys` FFI encoder, eliminating
 /// the Windows heap-corruption abort (0xC0000374) that manifested in the C
@@ -30,7 +30,8 @@ fn write_jpeg2000_lossless_dicom_file(
     // Convert u16 pixels to i32 for the encoder (lossless, no narrowing).
     let pixels_i32: Vec<i32> = pixels_u16.iter().map(|&v| v as i32).collect();
 
-    let j2k_bytes = encode_grayscale_j2k(&pixels_i32, height, width, 16, PixelSignedness::Unsigned);
+    let j2k_bytes =
+        encode_grayscale_j2k(&pixels_i32, height, width, 16, PixelSignedness::Unsigned, 2);
 
     assert!(
         j2k_bytes.len() >= 4,

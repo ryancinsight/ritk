@@ -4,6 +4,20 @@
 
 ---
 
+## Sprint 370 — J2K multi-level DWT
+
+**Status**: Complete  
+**Version**: 0.67.0 (ritk-codecs 0.4.0)  
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| J2K-370-DWT | Mallat-layout forward/inverse multi-level 5/3 DWT + subband geometry [minor] | **Done** |
+| J2K-370-T2 | LRCP multi-resolution packets; per-subband ε_b from QCD [minor] | **Done** |
+| J2K-370-FIX | Tier-2 byte_pos RAW-offset fix (stuffed-0xFF desync) [patch] | **Done** |
+| J2K-370-TEST | Level-randomized proptest + regressions; 2-level DICOM round-trip [patch] | **Done** |
+
+---
+
 ## Sprint 369 — Native JPEG-LS codec: CharLS elimination + NEAR support
 
 **Status**: Complete  

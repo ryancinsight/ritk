@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc 13de78c1b301f9f97052d379a20d4b1b122b1374c2fe1985311b926ae81a0fce # shrinks to rows = 1, cols = 1, precision = 8, signed = false, seed = 5453720090349446174
 cc 0950a7189fd328d9a4e8d6c23100c09131f747231ca87e2869393b291b84da9b # shrinks to rows = 1, cols = 7, precision = 8, signed = false, seed = 3841344251786497144
+cc a7e558695ff8662295b943ece9d0dc2d6625202f093b4b9b5cb016b59b1e9069 # shrinks to rows = 2, cols = 2, precision = 8, signed = false, num_decomp_levels = 1, seed = 3404172460139922156

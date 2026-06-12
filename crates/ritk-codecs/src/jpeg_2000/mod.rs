@@ -10,7 +10,8 @@
 //! - `mq_coder`   – MQ arithmetic coder — encoder and decoder (Annex C).
 //! - `ebcot`      – EBCOT tier-1 encoder and decoder (Annex D).
 //! - `packet`     – Tier-2 packet encoder and decoder (Annex B).
-//! - `wavelet`    – Inverse 5/3 reversible DWT (Annex F).
+//! - `wavelet`    – Forward and inverse 5/3 reversible DWT (Annex F).
+//! - `subband`    – Mallat subband geometry (Annex B.5).
 //! - `image`      – Full codestream decoder and DICOM pixel extractor.
 //! - [`encoder`]  – Pure-Rust encoder (produces conformant codestreams).
 //!
@@ -20,10 +21,8 @@
 //! - Transfer Syntax 1.2.840.10008.1.2.4.91: JPEG 2000 lossy or lossless.
 //!
 //! # Current limitations
-//! - Only `num_decomp_levels = 0` (no DWT) is supported.  Support for images
-//!   encoded with 1+ wavelet decomposition levels will be added in a future
-//!   sprint (backlog: J2K-DECODE-DWT).
-//! - Lossy (9/7 irreversible wavelet) decoding is not yet supported.
+//! - One code-block per subband (no precinct partitioning) — J2K-MULTI-CBLK.
+//! - Lossy (9/7 irreversible wavelet) decoding is not yet supported — J2K-LOSSY-97.
 
 pub(crate) mod codestream;
 pub(crate) mod ebcot;
@@ -32,6 +31,7 @@ pub(crate) mod image;
 pub(crate) mod marker;
 pub(crate) mod mq_coder;
 pub(crate) mod packet;
+pub(crate) mod subband;
 pub(crate) mod wavelet;
 
 use anyhow::{bail, Result};
@@ -173,7 +173,7 @@ mod tests {
         let cols = 4u32;
         let pixel_value = 128i32;
         let pixels = vec![pixel_value; (rows * cols) as usize];
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned, 0);
 
         assert!(
             is_jpeg2000_codestream(&j2k),
@@ -198,7 +198,7 @@ mod tests {
         let rows = 2u32;
         let cols = 4u32;
         let pixels: Vec<i32> = (0..8).collect();
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned, 0);
 
         let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
             .expect("gradient round-trip must succeed");
@@ -212,7 +212,7 @@ mod tests {
     #[test]
     fn decode_jpeg2000_signed_samples_round_trip() {
         let pixels = [-4i32, -1, 0, 3];
-        let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed);
+        let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed, 0);
 
         let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
             .expect("signed lossless JPEG 2000 round-trip must succeed");
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn decode_jpeg2000_lossless_rescale_applied_correctly() {
         let pixels = [100i32];
-        let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned, 0);
         let mut pixel_layout = layout(1, 1, 8, PixelSignedness::Unsigned);
         pixel_layout.rescale_slope = 2.0;
         pixel_layout.rescale_intercept = -1024.0;
@@ -241,7 +241,7 @@ mod tests {
         let pixels: Vec<i32> = vec![
             0, 256, 512, 1024, 2048, 3071, 3584, 3840, 100, 200, 400, 800, 1600, 2400, 3000, 4095,
         ];
-        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 16, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 16, PixelSignedness::Unsigned, 0);
         let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 16, PixelSignedness::Unsigned))
             .expect("16-bit lossless round-trip must succeed");
         let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -257,6 +257,7 @@ mod tests {
             cols in 1u32..9,
             precision in proptest::sample::select(vec![8u32, 12, 16]),
             signed in proptest::bool::ANY,
+            num_decomp_levels in 0u8..4,
             seed in proptest::num::u64::ANY,
         ) {
             let n = (rows * cols) as usize;
@@ -275,7 +276,7 @@ mod tests {
                 })
                 .collect();
             let signedness = if signed { PixelSignedness::Signed } else { PixelSignedness::Unsigned };
-            let j2k = encode_grayscale_j2k(&pixels, rows, cols, precision, signedness);
+            let j2k = encode_grayscale_j2k(&pixels, rows, cols, precision, signedness, num_decomp_levels);
             let decoded = decode_jpeg2000_fragment(
                 &j2k,
                 layout(rows as usize, cols as usize, precision as u16, signedness),
@@ -287,13 +288,38 @@ mod tests {
     }
 
     #[test]
+    fn decode_jpeg2000_lossless_round_trip_two_dwt_levels_16bit() {
+        // 5/3 reversible ⟹ exact reconstruction at any decomposition depth.
+        let rows = 8u32;
+        let cols = 12u32;
+        let pixels: Vec<i32> = (0..96).map(|i| (i * 631) % 4096).collect();
+        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 16, PixelSignedness::Unsigned, 2);
+        let decoded = decode_jpeg2000_fragment(&j2k, layout(8, 12, 16, PixelSignedness::Unsigned))
+            .expect("2-level DWT lossless round-trip must succeed");
+        let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
+        assert_eq!(decoded, expected, "2-level DWT samples must be exact");
+    }
+
+    #[test]
+    fn decode_jpeg2000_lossless_round_trip_three_dwt_levels_signed_odd_dims() {
+        let rows = 7u32;
+        let cols = 9u32;
+        let pixels: Vec<i32> = (0..63).map(|i| ((i * 37) % 256) - 128).collect();
+        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Signed, 3);
+        let decoded = decode_jpeg2000_fragment(&j2k, layout(7, 9, 8, PixelSignedness::Signed))
+            .expect("3-level DWT signed odd-dims round-trip must succeed");
+        let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
+        assert_eq!(decoded, expected, "3-level DWT samples must be exact");
+    }
+
+    #[test]
     fn ritk_native_decoder_replaces_openjp2_backend() {
         // This test was previously `openjp2_backend_version_is_2_5_x`.
         // The RITK-native pure-Rust decoder has no version dependency on
         // OpenJPEG; we verify the codec pipeline is self-consistent by
         // confirming a round-trip produces zero error.
         let pixels: Vec<i32> = (0..16i32).map(|v| v * 10).collect();
-        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned, 0);
         let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
             .expect("native codec round-trip must succeed");
         let max_err = pixels

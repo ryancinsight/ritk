@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [0.67.0] — 2026-06-12 (Sprint 370: J2K multi-level DWT — full-resolution-pyramid lossless decode/encode)
+
+### Added
+- `ritk-codecs 0.4.0`: multi-level 5/3 reversible DWT in the native JPEG 2000 codec — `wavelet::forward_dwt_5_3`/`inverse_dwt_5_3` on the standard Mallat layout (per-level H-then-V synthesis, mirrored analysis), `subband` module (Annex B.5 geometry: rectangles, ZC orientations, reversible gains), and LRCP multi-resolution packets (one packet per resolution, per-code-block inclusion/MSBs/passes/Lblock state across quality layers).
+- `decode_tile_part` consumes per-subband quantizer exponents ε_b from QCD (`QcdMarker::exponents`); the encoder emits 3N+1 `SPqcd` entries with ε_b = precision + gain.
+- `encode_grayscale_j2k` gains a `num_decomp_levels` parameter; the ritk-io DICOM round-trip now exercises 2 DWT levels at 16-bit.
+- Tests: 2- and 3-level explicit round-trips (odd dims, signed), 2×2 1-level regression (proptest seed 3404172460139922156), and the lossless proptest now randomizes 0–3 decomposition levels.
+
+### Fixed
+- Tier-2 `BitReader::byte_pos()` now reports RAW byte offsets: packet headers containing stuffed 0xFF bytes previously desynchronized the following packet body (latent in the single-packet path, exposed by multi-resolution streams).
+- The previous `inverse_dwt_5_3` multi-level ROI scheme (interleaved-in-place over growing contiguous regions) was structurally incorrect for N > 1; replaced by the Mallat-layout implementation.
+
+### Removed
+- Dead `decode_packet_header` single-code-block path, `CblkPacketInfo`/`CblkHeaderInfo`, and unused `DecodedBlock::width/height`.
 ## [0.66.0] — 2026-06-12 (Sprint 369: Native JPEG-LS codec — CharLS elimination, NEAR support, zero C/C++ FFI)
 
 ### Added

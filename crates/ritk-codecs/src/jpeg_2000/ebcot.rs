@@ -153,8 +153,6 @@ struct SampleState {
 pub struct DecodedBlock {
     /// Reconstructed samples (row-major), in the order they appear in the tile.
     pub samples: Vec<i32>,
-    pub width: usize,
-    pub height: usize,
 }
 
 // ── EBCOT decoder ─────────────────────────────────────────────────────────────
@@ -189,8 +187,6 @@ pub fn decode_code_block(
     if data.is_empty() || num_bit_planes == 0 || num_passes == 0 {
         return DecodedBlock {
             samples: vec![0i32; n],
-            width,
-            height,
         };
     }
 
@@ -374,11 +370,7 @@ pub fn decode_code_block(
         })
         .collect();
 
-    DecodedBlock {
-        samples,
-        width,
-        height,
-    }
+    DecodedBlock { samples }
 }
 
 // ── EBCOT encoder ─────────────────────────────────────────────────────────────

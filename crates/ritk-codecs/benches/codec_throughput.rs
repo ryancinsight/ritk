@@ -100,6 +100,7 @@ fn bench_jpeg_2000(c: &mut Criterion) {
                 cols as u32,
                 16,
                 PixelSignedness::Unsigned,
+                0,
             ))
         })
     });
@@ -110,6 +111,7 @@ fn bench_jpeg_2000(c: &mut Criterion) {
         cols as u32,
         16,
         PixelSignedness::Unsigned,
+        0,
     );
     c.bench_function("jpeg2000_decode_64x64_16bit_lossless", |b| {
         b.iter(|| {

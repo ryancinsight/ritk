@@ -19,7 +19,9 @@
 
 use anyhow::{bail, Result};
 
-use super::ebcot::{decode_code_block, encode_code_block, SubbandOrientation};
+use super::ebcot::{decode_code_block, encode_code_block};
+use super::subband::{resolution_band_range, subband_layout};
+use super::wavelet::{forward_dwt_5_3, inverse_dwt_5_3};
 
 // ── Bit I/O ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +82,10 @@ impl BitWriter {
 /// Read individual bits from a byte buffer (MSB first), stripping 0xFF stuffing.
 pub struct BitReader {
     bytes: Vec<u8>, // de-stuffed bytes
+    /// `raw_offsets[k]` = raw (stuffed) bytes consumed once `k` de-stuffed
+    /// bytes have been read — needed so [`Self::byte_pos`] reports the packet
+    /// body offset in RAW bytes even when the header contains stuffed 0xFFs.
+    raw_offsets: Vec<usize>,
     byte_pos: usize,
     bit_pos: u8, // 0 = MSB of current byte
 }
@@ -90,6 +96,8 @@ impl BitReader {
     /// Strips the 0x00 bytes that follow each 0xFF byte (§B.10.1).
     pub fn new(raw: &[u8]) -> Self {
         let mut bytes = Vec::with_capacity(raw.len());
+        let mut raw_offsets = Vec::with_capacity(raw.len() + 1);
+        raw_offsets.push(0);
         let mut i = 0;
         while i < raw.len() {
             let b = raw[i];
@@ -98,9 +106,11 @@ impl BitReader {
             if b == 0xFF && i < raw.len() && raw[i] == 0x00 {
                 i += 1; // skip stuffed zero
             }
+            raw_offsets.push(i);
         }
         Self {
             bytes,
+            raw_offsets,
             byte_pos: 0,
             bit_pos: 0,
         }
@@ -128,13 +138,15 @@ impl BitReader {
         v
     }
 
-    /// Byte position of the first unused byte (for locating the packet body).
+    /// RAW byte position of the first unused byte (for locating the packet
+    /// body); accounts for stuffed bytes removed during construction.
     pub fn byte_pos(&self) -> usize {
-        if self.bit_pos == 0 {
+        let destuffed = if self.bit_pos == 0 {
             self.byte_pos
         } else {
             self.byte_pos + 1
-        }
+        };
+        self.raw_offsets[destuffed.min(self.raw_offsets.len() - 1)]
     }
 }
 
@@ -245,44 +257,33 @@ fn lblock_extra_bits(ncp: u32) -> u8 {
 
 // ── High-level packet structures ──────────────────────────────────────────────
 
-/// Metadata produced by the encoder for one code-block to be written into the
-/// packet header.
-#[allow(dead_code)] // Used when tag-tree packet header encoding is extended to multi-cblk precincts
-#[derive(Debug, Clone)]
-pub struct CblkPacketInfo {
-    /// Number of new coding passes.
-    pub num_passes: u32,
-    /// Number of missing MSBs (zero bit-planes from the top).
-    pub msbs: u32,
-    /// Byte length of the EBCOT data.
-    pub data_len: usize,
-    /// The EBCOT-coded bytes.
-    pub data: Vec<u8>,
+/// Per-code-block decode state accumulated across quality layers.
+#[derive(Debug, Clone, Default)]
+struct CblkState {
+    /// Concatenated EBCOT bytes across all layers.
+    data: Vec<u8>,
+    /// Accumulated coding passes.
+    num_passes: u32,
+    /// Missing MSBs signalled at first inclusion.
+    msbs: u32,
+    /// Lblock state (§B.10.7.1), persists across layers.
+    lblock: u8,
+    /// Whether this code-block has been included in an earlier layer.
+    included_before: bool,
 }
 
-/// Metadata decoded from a packet header for one code-block.
-#[allow(dead_code)] // Used when the public packet-header API is exposed for multi-layer decode
-#[derive(Debug, Clone)]
-pub struct CblkHeaderInfo {
-    /// Number of new coding passes in this packet.
-    pub num_passes: u32,
-    /// Missing MSBs (zero bit-planes from the top of the dynamic range).
-    pub msbs: u32,
-    /// Byte count of the coded data.
-    pub data_len: usize,
-}
+// ── Encoder: single tile, LRCP, one code-block per subband ───────────────────
 
-// ── Test-only encoder: single tile, single layer, LL0 ─────────────────────────
-
-/// Encode a single LL0 code-block into a J2K tile-part byte stream.
-///
-/// Produces a valid SOT + SOD + packet-header + packet-body + EOC byte sequence.
+/// Encode one tile-component into a J2K tile-part byte stream:
+/// SOT + SOD + LRCP packets (one quality layer, no precinct partitioning,
+/// one code-block per subband — multi-code-block tiles: J2K-MULTI-CBLK).
 ///
 /// # Parameters
 /// - `samples`: DC-shifted i32 samples in row-major order.
-/// - `width` / `height`: dimensions.
+/// - `width` / `height`: tile dimensions.
 /// - `num_guard_bits`: from the QCD marker (typically 2).
 /// - `precision`: component bit precision (from SIZ Ssiz).
+/// - `num_decomp_levels`: 5/3 reversible DWT levels (0 = no transform).
 pub fn encode_tile_part(
     samples: &[i32],
     width: usize,
@@ -290,75 +291,109 @@ pub fn encode_tile_part(
     num_guard_bits: u8,
     precision: u32,
     tile_index: u16,
+    num_decomp_levels: u8,
 ) -> Vec<u8> {
-    let enc = encode_code_block(samples, width, height, SubbandOrientation::LlOrLh);
+    // Forward DWT into the Mallat coefficient layout.
+    let mut mallat = samples.to_vec();
+    forward_dwt_5_3(&mut mallat, width, height, num_decomp_levels)
+        .expect("invariant: samples.len() == width × height");
+    let bands = subband_layout(width, height, num_decomp_levels);
 
-    // Compute packet-header fields.
-    let (msbs, num_passes, cblk_data) = if enc.num_bit_planes == 0 {
-        // All-zero code-block: not included.
-        (0u32, 0u32, Vec::new())
-    } else {
-        let msbs = (num_guard_bits as u32 + precision).saturating_sub(enc.num_bit_planes as u32);
-        (msbs, enc.num_passes, enc.bytes)
-    };
+    // EBCOT-encode each non-empty subband as one code-block.
+    struct EncBand {
+        msbs: u32,
+        passes: u32,
+        data: Vec<u8>,
+    }
+    let enc_bands: Vec<EncBand> = bands
+        .iter()
+        .map(|b| {
+            if b.w == 0 || b.h == 0 {
+                return EncBand {
+                    msbs: 0,
+                    passes: 0,
+                    data: Vec::new(),
+                };
+            }
+            let mut coeffs = Vec::with_capacity(b.w * b.h);
+            for y in 0..b.h {
+                let off = (b.y0 + y) * width + b.x0;
+                coeffs.extend_from_slice(&mallat[off..off + b.w]);
+            }
+            let enc = encode_code_block(&coeffs, b.w, b.h, b.orient);
+            if enc.num_bit_planes == 0 {
+                // All-zero code-block: excluded from the packet.
+                EncBand {
+                    msbs: 0,
+                    passes: 0,
+                    data: Vec::new(),
+                }
+            } else {
+                // Dynamic range of subband b: guard bits + ε_b, with
+                // ε_b = precision + gain for the reversible 5/3 transform.
+                let total_bp = u32::from(num_guard_bits) + precision + b.gain;
+                EncBand {
+                    msbs: total_bp.saturating_sub(u32::from(enc.num_bit_planes)),
+                    passes: enc.num_passes,
+                    data: enc.bytes,
+                }
+            }
+        })
+        .collect();
 
-    // Build packet header using bit I/O.
-    let mut bw = BitWriter::new();
-    // Zero-packet indicator: 0 = non-zero packet.
-    bw.write_bit(0);
-
-    if num_passes == 0 {
-        // Empty code-block: inclusion tag tree = 1 (not in layer 0).
-        // For simplicity, encode value=1 → bits: 10
-        tag_tree_encode(&mut bw, 1, 0);
-    } else {
-        // Inclusion tag tree: value = 0 (included in layer 0).
-        tag_tree_encode(&mut bw, 0, 0);
-        // Missing MSBs tag tree.
-        tag_tree_encode(&mut bw, msbs, 0);
-        // Number of coding passes.
-        write_num_passes(&mut bw, num_passes);
-        // Lblock signalling (§B.10.7.1): each 1-bit increments Lblock; a 0-bit
-        // terminates. Then the byte count is coded in Lblock + Lextra bits.
-        let lextra = lblock_extra_bits(num_passes);
-        let len = cblk_data.len() as u32;
-        let needed_bits = (u32::BITS - len.leading_zeros()).max(1) as u8;
-        let mut lblock: u8 = 3;
-        while lblock + lextra < needed_bits {
-            bw.write_bit(1);
-            lblock += 1;
+    // LRCP packet sequence: one packet per resolution (single quality layer).
+    let mut body = Vec::new();
+    for r in 0..=usize::from(num_decomp_levels) {
+        let (s, e) = resolution_band_range(r);
+        let mut bw = BitWriter::new();
+        bw.write_bit(0); // non-empty packet indicator
+        for i in s..e {
+            if bands[i].w == 0 || bands[i].h == 0 {
+                continue; // no code-block exists for an empty subband
+            }
+            let eb = &enc_bands[i];
+            if eb.passes == 0 {
+                // Not included in layer 0: inclusion tag-tree value 1.
+                tag_tree_encode(&mut bw, 1, 0);
+                continue;
+            }
+            tag_tree_encode(&mut bw, 0, 0); // included in layer 0
+            tag_tree_encode(&mut bw, eb.msbs, 0); // missing MSBs
+            write_num_passes(&mut bw, eb.passes);
+            // Lblock signalling (§B.10.7.1): 1-bits increment Lblock, a 0-bit
+            // terminates; the byte count then uses Lblock + Lextra bits.
+            let lextra = lblock_extra_bits(eb.passes);
+            let len = eb.data.len() as u32;
+            let needed_bits = (u32::BITS - len.leading_zeros()).max(1) as u8;
+            let mut lblock: u8 = 3;
+            while lblock + lextra < needed_bits {
+                bw.write_bit(1);
+                lblock += 1;
+            }
+            bw.write_bit(0);
+            bw.write_bits(len, lblock + lextra);
         }
-        bw.write_bit(0);
-        bw.write_bits(len, lblock + lextra);
+        body.extend_from_slice(&bw.flush());
+        for eb in &enc_bands[s..e] {
+            body.extend_from_slice(&eb.data);
+        }
     }
 
-    let header_bytes = bw.flush();
-
-    // Assemble: SOT + SOD + packet-header + packet-body + EOC.
-    // Total tile-part byte count = 2(SOT) + 10(Lsot) + 2(SOD) + header + body + 2(EOC)
-    // We compute psot = 12 + header.len() + body.len()  (the whole tile-part from SOT start)
-    let body_len = cblk_data.len();
-    let psot = 14u32 + header_bytes.len() as u32 + body_len as u32;
-
-    let mut out = Vec::new();
-    // SOT marker + segment.
+    // Assemble: SOT + SOD + packets. Psot counts from the SOT marker.
+    let psot = 14u32 + body.len() as u32;
+    let mut out = Vec::with_capacity(body.len() + 16);
     out.extend_from_slice(&[0xFF, 0x90]); // SOT
     out.extend_from_slice(&[0x00, 0x0A]); // Lsot = 10
     out.extend_from_slice(&tile_index.to_be_bytes()); // Isot
     out.extend_from_slice(&psot.to_be_bytes()); // Psot
     out.push(0x00); // TPsot
     out.push(0x01); // TNsot
-                    // SOD marker.
-    out.extend_from_slice(&[0xFF, 0x93]);
-    // Packet header.
-    out.extend_from_slice(&header_bytes);
-    // Packet body.
-    out.extend_from_slice(&cblk_data);
-
+    out.extend_from_slice(&[0xFF, 0x93]); // SOD
+    out.extend_from_slice(&body);
     out
 }
 
-// ── Decoder: general packet header reader ────────────────────────────────────
+// ── Decoder: LRCP packet sequence ────────────────────────────────────────────
 
 /// Decoded samples for one complete component of one tile.
 #[allow(dead_code)] // width and height used when multi-tile/multi-component support is added
@@ -370,7 +405,7 @@ pub struct TileComponentSamples {
 
 /// Tile coding parameters extracted from the COD/QCD main-header segments.
 #[derive(Clone, Copy, Debug)]
-pub struct TileCodingParams {
+pub struct TileCodingParams<'a> {
     /// Guard bits from QCD (ISO 15444-1 §A.6.4).
     pub num_guard_bits: u8,
     /// Component bit precision (Ssiz + 1).
@@ -379,14 +414,17 @@ pub struct TileCodingParams {
     pub num_decomp_levels: u8,
     /// Quality layers from COD; must be ≥ 1.
     pub num_layers: u16,
-    /// Subband orientation (LL0 when `num_decomp_levels == 0`).
-    pub orient: SubbandOrientation,
+    /// Per-subband quantizer exponents ε_b from QCD in codestream subband
+    /// order; when empty (or too short) the reversible default
+    /// `precision + gain_b` is used.
+    pub exponents: &'a [u32],
 }
 
 /// Decode the tile-part body starting immediately after the SOD marker.
 ///
-/// Handles the simple single-layer, zero-DWT-level case produced by
-/// `encode_tile_part`, and also handles real conformant JPEG 2000 tile-parts.
+/// Supports the LRCP progression with no precinct partitioning and one
+/// code-block per subband, any number of 5/3 decomposition levels, and
+/// multiple quality layers (per-code-block pass accumulation).
 ///
 /// # Parameters
 /// - `tile_data`: bytes from (and including) the first packet header byte to
@@ -395,181 +433,116 @@ pub struct TileCodingParams {
 /// - `coding`: tile coding parameters from the COD/QCD main-header segments.
 ///
 /// # Errors
-/// Returns an error if `coding.num_decomp_levels > 0` (DWT not yet supported by
-/// this implementation; generalise in a future sprint).
+/// Returns an error when a signalled packet-body length exceeds the available
+/// tile data or the inverse DWT geometry is inconsistent.
 pub fn decode_tile_part(
     tile_data: &[u8],
     width: usize,
     height: usize,
-    coding: TileCodingParams,
+    coding: TileCodingParams<'_>,
 ) -> Result<TileComponentSamples> {
-    let TileCodingParams {
-        num_guard_bits,
-        precision,
-        num_decomp_levels,
-        num_layers,
-        orient,
-    } = coding;
-    if num_decomp_levels > 0 {
-        bail!(
-            "J2K: DWT decomposition levels > 0 not yet supported in RITK-native decoder; \
-             num_decomp_levels={num_decomp_levels}"
-        );
-    }
-
-    // For LL0 (no DWT), the tile has one packet per layer.
-    // Decode all layers, accumulating passes.
-    let mut cblk_num_passes: u32 = 0;
-    let mut cblk_msbs: u32 = num_guard_bits as u32 + precision; // initial: all zero
-    let mut cblk_data: Vec<u8> = Vec::new();
-    let mut lblock: u8 = 3;
-    let mut msbs_prev: u32 = 0;
-    let mut inclusion_prev: u32 = u32::MAX;
+    let bands = subband_layout(width, height, coding.num_decomp_levels);
+    let mut states: Vec<CblkState> = bands
+        .iter()
+        .map(|_| CblkState {
+            lblock: 3,
+            ..CblkState::default()
+        })
+        .collect();
 
     let mut pos = 0usize;
-
-    for _layer in 0..num_layers {
-        if pos >= tile_data.len() {
-            break;
-        }
-        let remaining = &tile_data[pos..];
-        let header = decode_packet_header(remaining, lblock, inclusion_prev, msbs_prev)?;
-
-        pos += header.header_bytes;
-
-        if header.included {
-            // Accumulate code-block data.
-            let end = pos + header.data_len;
-            if end > tile_data.len() {
-                bail!(
-                    "J2K: packet body length {} at offset {} exceeds tile data {}",
-                    header.data_len,
-                    pos,
-                    tile_data.len()
-                );
+    'layers: for _layer in 0..coding.num_layers.max(1) {
+        for r in 0..=usize::from(coding.num_decomp_levels) {
+            if pos >= tile_data.len() {
+                break 'layers;
             }
-            cblk_data.extend_from_slice(&tile_data[pos..end]);
-            pos = end;
-
-            cblk_num_passes += header.num_passes;
-            cblk_msbs = header.msbs;
-            msbs_prev = header.msbs;
-            inclusion_prev = 0; // included means layer-index = 0
-            lblock = header.next_lblock;
+            let (s, e) = resolution_band_range(r);
+            let mut br = BitReader::new(&tile_data[pos..]);
+            // (band index, body length) for blocks included in this packet.
+            let mut included: Vec<(usize, usize)> = Vec::new();
+            if br.read_bit() == 0 {
+                for i in s..e {
+                    if bands[i].w == 0 || bands[i].h == 0 {
+                        continue;
+                    }
+                    let st = &mut states[i];
+                    // Inclusion (§B.10.4): tag tree before first inclusion,
+                    // a single bit afterwards.
+                    let included_now = if st.included_before {
+                        br.read_bit() == 1
+                    } else {
+                        tag_tree_decode(&mut br, 0) == 0
+                    };
+                    if !included_now {
+                        continue;
+                    }
+                    if !st.included_before {
+                        st.msbs = tag_tree_decode(&mut br, 0);
+                        st.included_before = true;
+                    }
+                    let np = read_num_passes(&mut br);
+                    st.num_passes += np;
+                    while br.read_bit() == 1 {
+                        st.lblock += 1;
+                    }
+                    let bits = st.lblock + lblock_extra_bits(np);
+                    let len = br.read_bits(bits) as usize;
+                    included.push((i, len));
+                }
+            }
+            pos += br.byte_pos();
+            for (i, len) in included {
+                let end = pos.checked_add(len).filter(|&e2| e2 <= tile_data.len());
+                let Some(end) = end else {
+                    bail!(
+                        "J2K: packet body length {len} at offset {pos} exceeds tile data {}",
+                        tile_data.len()
+                    );
+                };
+                states[i].data.extend_from_slice(&tile_data[pos..end]);
+                pos = end;
+            }
         }
     }
 
-    // Compute number of bit-planes from msbs.
-    let total_bp = num_guard_bits as u32 + precision;
-    let num_bit_planes = total_bp.saturating_sub(cblk_msbs) as u8;
+    // EBCOT-decode each code-block into the Mallat coefficient plane.
+    let mut mallat = vec![0i32; width * height];
+    for (i, b) in bands.iter().enumerate() {
+        if b.w == 0 || b.h == 0 {
+            continue;
+        }
+        let st = &states[i];
+        let exponent = coding
+            .exponents
+            .get(i)
+            .copied()
+            .unwrap_or(coding.precision + b.gain);
+        let total_bp = u32::from(coding.num_guard_bits) + exponent;
+        let num_bit_planes = if st.included_before {
+            total_bp.saturating_sub(st.msbs)
+        } else {
+            0
+        };
+        let block = decode_code_block(
+            &st.data,
+            b.w,
+            b.h,
+            num_bit_planes as u8,
+            st.num_passes,
+            b.orient,
+        );
+        for y in 0..b.h {
+            let off = (b.y0 + y) * width + b.x0;
+            mallat[off..off + b.w].copy_from_slice(&block.samples[y * b.w..(y + 1) * b.w]);
+        }
+    }
 
-    let block = decode_code_block(
-        &cblk_data,
-        width,
-        height,
-        num_bit_planes,
-        cblk_num_passes,
-        orient,
-    );
+    inverse_dwt_5_3(&mut mallat, width, height, coding.num_decomp_levels)?;
 
     Ok(TileComponentSamples {
-        samples: block.samples,
-        width: block.width,
-        height: block.height,
-    })
-}
-
-// ── Packet header decoder ─────────────────────────────────────────────────────
-
-struct PacketHeaderResult {
-    /// Was this code-block included in this layer?
-    included: bool,
-    /// Number of new coding passes.
-    num_passes: u32,
-    /// Missing MSBs.
-    msbs: u32,
-    /// Coded data byte length.
-    data_len: usize,
-    /// Byte count consumed by the packet header.
-    header_bytes: usize,
-    /// Updated Lblock for the next layer.
-    next_lblock: u8,
-}
-
-fn decode_packet_header(
-    data: &[u8],
-    lblock: u8,
-    inclusion_prev: u32,
-    msbs_prev: u32,
-) -> Result<PacketHeaderResult> {
-    if data.is_empty() {
-        bail!("J2K: decode_packet_header called on empty slice");
-    }
-
-    let mut br = BitReader::new(data);
-
-    // Zero-packet indicator.
-    let zero_bit = br.read_bit();
-    if zero_bit == 1 {
-        // Empty packet.
-        return Ok(PacketHeaderResult {
-            included: false,
-            num_passes: 0,
-            msbs: msbs_prev,
-            data_len: 0,
-            header_bytes: br.byte_pos(),
-            next_lblock: lblock,
-        });
-    }
-
-    // Inclusion signalling (§B.10.4): before first inclusion the layer index is
-    // coded with the inclusion tag tree (threshold starts at 0); afterwards a
-    // single bit per layer signals whether new passes are present.
-    let included = if inclusion_prev == u32::MAX {
-        tag_tree_decode(&mut br, 0) == 0
-    } else {
-        br.read_bit() == 1
-    };
-
-    if !included {
-        return Ok(PacketHeaderResult {
-            included: false,
-            num_passes: 0,
-            msbs: msbs_prev,
-            data_len: 0,
-            header_bytes: br.byte_pos(),
-            next_lblock: lblock,
-        });
-    }
-
-    // First inclusion: decode missing MSBs.
-    let msbs = if inclusion_prev == u32::MAX {
-        tag_tree_decode(&mut br, msbs_prev)
-    } else {
-        msbs_prev
-    };
-
-    // Number of new coding passes.
-    let num_passes = read_num_passes(&mut br);
-
-    // Lblock increment: while next bit is 1, increment Lblock.
-    let mut lb = lblock;
-    while br.read_bit() == 1 {
-        lb += 1;
-    }
-
-    // Compute number of bits for the byte count.
-    let lextra = lblock_extra_bits(num_passes);
-    let total_bits = lb + lextra;
-    let data_len = br.read_bits(total_bits) as usize;
-
-    Ok(PacketHeaderResult {
-        included,
-        num_passes,
-        msbs,
-        data_len,
-        header_bytes: br.byte_pos(),
-        next_lblock: lb,
+        samples: mallat,
+        width,
+        height,
     })
 }
 
@@ -606,9 +579,35 @@ mod tests {
     }
 
     #[test]
+    fn tile_part_round_trip_2x2_one_dwt_level() {
+        // Regression (proptest seed 3404172460139922156): 2×2, 1 DWT level,
+        // four 1×1 code-blocks across two LRCP packets.
+        let samples = vec![64i32, -119, -42, -28];
+        let tp = encode_tile_part(&samples, 2, 2, 2, 8, 0, 1);
+        let sod = tp
+            .windows(2)
+            .position(|w| w == [0xFF, 0x93])
+            .expect("SOD present");
+        let result = decode_tile_part(
+            &tp[sod + 2..],
+            2,
+            2,
+            TileCodingParams {
+                num_guard_bits: 2,
+                precision: 8,
+                num_decomp_levels: 1,
+                num_layers: 1,
+                exponents: &[],
+            },
+        )
+        .expect("decode must succeed");
+        assert_eq!(result.samples, samples, "1-level DWT 2×2 must be lossless");
+    }
+
+    #[test]
     fn tile_part_encode_decode_round_trip_uniform() {
         let samples = vec![0i32; 16]; // all zeros (DC-shifted uniform)
-        let tp = encode_tile_part(&samples, 4, 4, 2, 8, 0);
+        let tp = encode_tile_part(&samples, 4, 4, 2, 8, 0, 0);
         // The tile-part contains SOT(12) + SOD(2) + header + body.
         assert!(tp.len() >= 14, "tile-part must be at least 14 bytes");
     }
@@ -617,7 +616,7 @@ mod tests {
     fn tile_part_encode_decode_round_trip_gradient() {
         // DC-shifted: pixels 0..8 → -128..-121
         let samples: Vec<i32> = (0..8i32).map(|v| v - 128).collect();
-        let tp = encode_tile_part(&samples, 4, 2, 2, 8, 0);
+        let tp = encode_tile_part(&samples, 4, 2, 2, 8, 0, 0);
         assert!(tp.len() >= 14);
         // Locate SOD (0xFF93) and parse the packet.
         let sod_pos = tp
@@ -634,7 +633,7 @@ mod tests {
                 precision: 8,
                 num_decomp_levels: 0,
                 num_layers: 1,
-                orient: SubbandOrientation::LlOrLh,
+                exponents: &[],
             },
         )
         .expect("decode_tile_part must succeed");

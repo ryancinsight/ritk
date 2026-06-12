@@ -4,7 +4,7 @@
 //! required for DICOM-encapsulated JPEG 2000 Lossless (TS 1.2.840.10008.1.2.4.90).
 //! Current configuration:
 //! - One tile = entire image.
-//! - Zero DWT decomposition levels (`num_decomp_levels = 0`).
+//! - Caller-selected 5/3 reversible DWT decomposition levels.
 //! - Reversible 5/3 wavelet (`wavelet_transform = 1`).
 //! - One quality layer.
 //! - Guard bits = 2.
@@ -18,6 +18,7 @@
 //! 0 for all test inputs (lossless invariant).
 
 use super::packet::encode_tile_part;
+use super::subband::subband_layout;
 use crate::PixelSignedness;
 
 /// Guard bits used in the QCD marker and MSBs computation.
@@ -42,6 +43,7 @@ pub fn encode_grayscale_j2k(
     cols: u32,
     precision: u32,
     signed: PixelSignedness,
+    num_decomp_levels: u8,
 ) -> Vec<u8> {
     assert_eq!(
         pixels.len(),
@@ -63,7 +65,7 @@ pub fn encode_grayscale_j2k(
     let shifted: Vec<i32> = pixels.iter().map(|&v| v + dc_offset).collect();
 
     // Build the tile-part (SOT + SOD + packet).
-    let tile_part = encode_tile_part(&shifted, w, h, GUARD_BITS, precision, 0);
+    let tile_part = encode_tile_part(&shifted, w, h, GUARD_BITS, precision, 0, num_decomp_levels);
 
     // Assemble the full codestream.
     let mut cs = Vec::new();
@@ -106,21 +108,24 @@ pub fn encode_grayscale_j2k(
     cs.push(0x00); // SGcod: LRCP
     cs.extend_from_slice(&1u16.to_be_bytes()); // SGcod: 1 layer
     cs.push(0x00); // SGcod: no MCT
-    cs.push(0x00); // SPcod: num_decomp_levels = 0
+    cs.push(num_decomp_levels); // SPcod: num_decomp_levels
     cs.push(0x04); // SPcod: xcb_o = 4 → cb_width = 2^(4+2) = 64
     cs.push(0x04); // SPcod: ycb_o = 4 → cb_height = 64
     cs.push(0x00); // SPcod: cb_style = 0
     cs.push(0x01); // SPcod: wavelet_transform = 1 (5/3)
 
     // QCD: no quantization (lossless), guard_bits=2.
-    // One SPqcd entry for the LL0 subband: (guard_bits + precision - 1) << 3.
-    let lqcd: u16 = 4; // Lqcd = 4 bytes (1 byte Sqcd + 1 byte SPqcd)
-    let sqcd: u8 = GUARD_BITS << 5; // guard_bits in bits 7-5, style 0 in bits 4-0
-    let spqcd: u8 = ((GUARD_BITS as u32 + precision - 1) << 3) as u8;
+    let num_bands = 3 * u16::from(num_decomp_levels) + 1;
+    let lqcd: u16 = 3 + num_bands; // Lqcd: 2 (length) + 1 (Sqcd) + 1 byte per subband
+    let sqcd: u8 = GUARD_BITS << 5; // guard_bits in bits 7-5, style 0 (no quant)
     cs.extend_from_slice(&[0xFF, 0x5C]); // QCD marker
     cs.extend_from_slice(&lqcd.to_be_bytes()); // Lqcd
     cs.push(sqcd); // Sqcd
-    cs.push(spqcd); // SPqcd[0]
+                   // SPqcd per subband in codestream order: ε_b = precision + gain_b
+                   // (reversible 5/3 gains: LL 0, HL/LH 1, HH 2), ε in bits 7–3.
+    for band in subband_layout(w, h, num_decomp_levels) {
+        cs.push((((precision + band.gain) << 3) & 0xFF) as u8); // SPqcd[b]
+    }
 
     // Tile-part (SOT + SOD + packet).
     cs.extend_from_slice(&tile_part);
@@ -152,7 +157,7 @@ mod tests {
 
     #[test]
     fn encoder_output_starts_with_soc() {
-        let j2k = encode_grayscale_j2k(&[0i32; 4], 2, 2, 8, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&[0i32; 4], 2, 2, 8, PixelSignedness::Unsigned, 0);
         assert!(
             is_soc(&j2k),
             "encoded codestream must start with SOC 0xFF4F"
@@ -161,7 +166,7 @@ mod tests {
 
     #[test]
     fn encoder_ends_with_eoc() {
-        let j2k = encode_grayscale_j2k(&[1i32; 4], 2, 2, 8, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&[1i32; 4], 2, 2, 8, PixelSignedness::Unsigned, 0);
         let last2 = &j2k[j2k.len() - 2..];
         assert_eq!(
             last2,
@@ -174,7 +179,7 @@ mod tests {
     fn round_trip_uniform_unsigned_8bit() {
         let pixel_value = 128i32;
         let pixels = vec![pixel_value; 16];
-        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned, 0);
         let decoded = decode_j2k_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
             .expect("round-trip decode must succeed");
         assert_eq!(decoded.len(), 16);
@@ -186,7 +191,7 @@ mod tests {
     #[test]
     fn round_trip_gradient_unsigned_8bit() {
         let pixels: Vec<i32> = (0..8).collect();
-        let j2k = encode_grayscale_j2k(&pixels, 2, 4, 8, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&pixels, 2, 4, 8, PixelSignedness::Unsigned, 0);
         let decoded = decode_j2k_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
             .expect("gradient round-trip must succeed");
         for (i, (&orig, &dec)) in pixels.iter().zip(decoded.iter()).enumerate() {
@@ -197,7 +202,7 @@ mod tests {
     #[test]
     fn round_trip_signed_8bit() {
         let pixels = vec![-4i32, -1, 0, 3];
-        let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed);
+        let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed, 0);
         let decoded = decode_j2k_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
             .expect("signed round-trip must succeed");
         assert_eq!(decoded, vec![-4.0f32, -1.0, 0.0, 3.0]);
@@ -206,7 +211,7 @@ mod tests {
     #[test]
     fn round_trip_single_pixel_with_rescale() {
         let pixels = vec![100i32];
-        let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned);
+        let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned, 0);
         let mut lyt = layout(1, 1, 8, PixelSignedness::Unsigned);
         lyt.rescale_slope = 2.0;
         lyt.rescale_intercept = -1024.0;

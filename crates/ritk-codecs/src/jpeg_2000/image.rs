@@ -11,7 +11,6 @@
 use anyhow::{bail, Context, Result};
 
 use super::codestream::{parse_main_header, parse_sot};
-use super::ebcot::SubbandOrientation;
 use super::marker;
 use super::packet::{decode_tile_part, TileCodingParams};
 use crate::PixelLayout;
@@ -39,6 +38,7 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     let qcd = &header.qcd;
 
     let num_guard_bits = qcd.num_guard_bits();
+    let qcd_exponents = qcd.exponents();
 
     // Validate layout consistency.
     let expected_comps = layout.samples_per_pixel;
@@ -71,16 +71,6 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     // encapsulates one frame per fragment with a single tile).  Multi-tile
     // images are handled by reconstructing each tile into the correct region
     // of the output buffer.
-    //
-    // Currently only num_decomp_levels = 0 is supported.  Images with
-    // num_decomp_levels > 0 report a diagnostic error.
-    if cod.num_decomp_levels > 0 {
-        bail!(
-            "J2K: num_decomp_levels={} > 0: DWT not yet supported in the RITK-native decoder. \
-             This will be addressed in a future sprint.",
-            cod.num_decomp_levels
-        );
-    }
 
     // Decode all tile-parts.
     // We allocate the full output and write each tile into its region.
@@ -142,7 +132,7 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
                             precision: c_prec,
                             num_decomp_levels: cod.num_decomp_levels,
                             num_layers: cod.num_layers.max(1),
-                            orient: SubbandOrientation::LlOrLh,
+                            exponents: &qcd_exponents,
                         },
                     )
                     .with_context(|| format!("J2K: decode tile {isot} component {ci}"))?;

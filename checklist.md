@@ -1,5 +1,26 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 370 — J2K multi-level DWT (J2K-DECODE-DWT delivered)
+**Target version**: 0.67.0 (ritk-codecs 0.4.0)  
+**Sprint phase**: Closure — multi-resolution lossless J2K decode/encode delivered and verified.
+
+### Delivered (Sprint 370)
+- [x] J2K-370-DWT [minor]: forward + inverse multi-level 5/3 DWT on the Mallat layout (the prior multi-level ROI scheme was structurally wrong for N > 1); `subband` geometry module (rects, ZC orientations, gains)
+- [x] J2K-370-T2 [minor]: LRCP multi-resolution packets with per-code-block state across layers; per-subband ε_b from QCD (`QcdMarker::exponents`); encoder emits 3N+1 SPqcd entries
+- [x] J2K-370-FIX [patch]: tier-2 `BitReader::byte_pos()` returns RAW offsets — stuffed-0xFF packet headers desynced the next packet body (latent single-packet bug)
+- [x] J2K-370-TEST [patch]: 2/3-level explicit round-trips, 2×2 L1 regression, proptest randomizes 0–3 levels; ritk-io DICOM round-trip uses 2 levels @16-bit
+- [x] FIX-370-WS [patch]: in-flight registration example `registration_compare_figure.rs` write_nifti arg order
+
+### Blocked / Deferred
+- [ ] REG-MI-FLAKY [investigate]: carry-forward (in-flight registration wave)
+- [ ] J2K-MULTI-CBLK, J2K-LOSSY-97, J2K-INTEROP, JLS-INTEROP, CODEC-PERF: carry-forward
+
+### Verification gate (Sprint 370)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run -p ritk-codecs -p ritk-dicom -p ritk-io` → 520/520 (174 codec tests incl. level-randomized proptest)
+- [x] `cargo doc --no-deps -p ritk-codecs` → warning-clean
+
+---
 ## Sprint 369 — Native JPEG-LS codec: CharLS elimination + NEAR support
 **Target version**: 0.66.0 (ritk-codecs 0.3.0)  
 **Sprint phase**: Closure — native JPEG-LS encoder/decoder delivered; zero C/C++ FFI in the DICOM codec stack.
