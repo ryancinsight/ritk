@@ -7,9 +7,9 @@
 //!
 //! This maps intensities to [0, 1].  An optional affine remap then applies:
 //!
-//!   R(x) = N(x) · (target_max − target_min) + target_min
+//!   R(x) = N(x) · range.span() + range.min()
 //!
-//! which maps to [target_min, target_max].
+//! which maps to `[range.min(), range.max()]`.
 //!
 //! # Invariants
 //! - Output image carries the same spatial metadata (origin, spacing, direction)
@@ -17,6 +17,7 @@
 //! - ε prevents division by zero on constant images.
 //! - Default target range is [0.0, 1.0].
 
+use super::intensity_range::IntensityRange;
 use crate::image::Image;
 use crate::statistics::image_statistics::compute_statistics;
 use burn::tensor::backend::Backend;
@@ -24,28 +25,28 @@ use burn::tensor::backend::Backend;
 /// Min-max intensity normalizer.
 ///
 /// Rescales image intensities to [0, 1] (default) or an arbitrary range
-/// `[target_min, target_max]`.
+/// encoded as an [`IntensityRange<f32>`].
 pub struct MinMaxNormalizer {
-    /// Lower bound of the output intensity range.
-    pub target_min: f32,
-    /// Upper bound of the output intensity range.
-    pub target_max: f32,
+    /// Target output intensity range `[min, max]`.
+    pub range: IntensityRange<f32>,
 }
 
 impl MinMaxNormalizer {
     /// Create a normalizer that maps intensities to [0, 1].
     pub fn new() -> Self {
         Self {
-            target_min: 0.0,
-            target_max: 1.0,
+            range: IntensityRange::new_unchecked(0.0_f32, 1.0_f32),
         }
     }
 
     /// Create a normalizer that maps intensities to `[target_min, target_max]`.
+    ///
+    /// # Panics
+    /// Panics if `target_min > target_max` (invariant: must satisfy `target_min ≤ target_max`).
     pub fn with_range(target_min: f32, target_max: f32) -> Self {
         Self {
-            target_min,
-            target_max,
+            range: IntensityRange::new(target_min, target_max)
+                .expect("invariant: target_min <= target_max"),
         }
     }
 
@@ -54,7 +55,7 @@ impl MinMaxNormalizer {
     /// # Formula
     /// ```text
     /// normalized = (input − min) / (max − min + 1e-8)
-    /// output     = normalized · (target_max − target_min) + target_min
+    /// output     = normalized · range.span() + range.min()
     /// ```
     ///
     /// Spatial metadata is preserved exactly.
@@ -62,20 +63,20 @@ impl MinMaxNormalizer {
         let stats = compute_statistics(image);
         let min = stats.min;
         let max = stats.max;
-        let range = (max - min) + 1e-8_f32;
+        let input_range = (max - min) + 1e-8_f32;
 
         // N(x) = (x − min) / (max − min + ε)
-        let normalized = image.data().clone().sub_scalar(min).div_scalar(range);
+        let normalized = image.data().clone().sub_scalar(min).div_scalar(input_range);
 
-        // R(x) = N(x) · (target_max − target_min) + target_min
-        let output_range = self.target_max - self.target_min;
-        let remapped = if (output_range - 1.0).abs() < 1e-9 && self.target_min.abs() < 1e-9 {
+        // R(x) = N(x) · range.span() + range.min()
+        let output_span = self.range.span();
+        let remapped = if (output_span - 1.0).abs() < 1e-9 && self.range.min().abs() < 1e-9 {
             // Default [0,1] case: skip the remap arithmetic entirely.
             normalized
         } else {
             normalized
-                .mul_scalar(output_range)
-                .add_scalar(self.target_min)
+                .mul_scalar(output_span)
+                .add_scalar(self.range.min())
         };
 
         Image::new(
@@ -356,7 +357,7 @@ mod tests {
     #[test]
     fn test_minmax_constant_image_does_not_panic() {
         // Constant image: range = 0. Division by (0 + 1e-8) must not panic.
-        // N(c) = (c − c) / ε = 0.  Remapped: target_min + 0 * range = target_min.
+        // N(c) = (c − c) / ε = 0.  Remapped: range.min() + 0 * range.span() = range.min().
         let image = make_image_1d(vec![7.0; 8]);
         let normalizer = MinMaxNormalizer::new();
         let result = normalizer.normalize(&image);
@@ -374,7 +375,7 @@ mod tests {
     #[test]
     fn test_minmax_constant_image_custom_range_maps_to_target_min() {
         // Constant image with custom range [5, 10]:
-        //   N(c) = 0 → 5 + 0 * 5 = 5 = target_min.
+        //   N(c) = 0 → 5 + 0 * 5 = 5 = range.min().
         let image = make_image_1d(vec![7.0; 4]);
         let normalizer = MinMaxNormalizer::with_range(5.0, 10.0);
         let result = normalizer.normalize(&image);
@@ -391,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_minmax_single_voxel() {
-        // Single voxel: range = 0, N = 0, output = target_min = 0.
+        // Single voxel: range = 0, N = 0, output = range.min() = 0.
         let image = make_image_1d(vec![42.0]);
         let normalizer = MinMaxNormalizer::new();
         let result = normalizer.normalize(&image);
@@ -407,7 +408,7 @@ mod tests {
     #[test]
     fn test_default_is_unit_range() {
         let n1 = MinMaxNormalizer::default();
-        assert_eq!(n1.target_min, 0.0);
-        assert_eq!(n1.target_max, 1.0);
+        assert_eq!(n1.range.min(), 0.0);
+        assert_eq!(n1.range.max(), 1.0);
     }
 }

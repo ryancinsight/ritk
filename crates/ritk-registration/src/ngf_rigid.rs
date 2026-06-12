@@ -15,10 +15,10 @@
 
 use burn::tensor::backend::Backend;
 use burn::tensor::{Tensor, TensorData};
-use ritk_core::image::Image;
+use ritk_image::Image;
 use ritk_transform::RigidTransform;
 
-use crate::metric::{Metric, NormalizedGradientField};
+use crate::metric::NormalizedGradientField;
 use crate::optimizer::{CmaEsConfig, CmaEsOptimizer, HistoryPolicy, PopulationEval};
 
 /// Configuration for [`register_rigid_ngf`].
@@ -108,12 +108,28 @@ pub fn register_rigid_ngf<B: Backend>(
     moving: &Image<B, 3>,
     initial_rotation: [f64; 3],
     initial_translation: [f64; 3],
+    fixed_mask: Option<&Image<B, 3>>,
     config: &NgfRigidConfig,
 ) -> (RigidTransform<B, 3>, NgfRigidResult) {
     let device = fixed.data().device();
     let metric = NormalizedGradientField::new();
     let rot_scale = config.rotation_range_rad;
     let trans_scale = config.translation_range_mm;
+
+    // Restrict NGF to the (brain/skull) mask in fixed-image C-order. Without it,
+    // cross-modal NGF locks onto the scalp / scanner-bed / FOV edges and diverges.
+    let mask_bool: Option<Vec<bool>> = fixed_mask.map(|mask| {
+        let n: usize = mask.shape().iter().product();
+        mask.data()
+            .clone()
+            .reshape([n])
+            .into_data()
+            .to_vec::<f32>()
+            .expect("mask to f32 host vec")
+            .into_iter()
+            .map(|v| v > 0.5)
+            .collect()
+    });
 
     let x0: [f64; 6] = [
         initial_rotation[0] / rot_scale,
@@ -145,10 +161,8 @@ pub fn register_rigid_ngf<B: Backend>(
             return boundary;
         }
         let t = build_rigid::<B>(params, rot_scale, trans_scale, &device);
-        let loss = metric.forward(fixed, moving, &t);
-        loss.into_data()
-            .as_slice::<f32>()
-            .expect("ngf loss tensor must be contiguous f32")[0] as f64
+        // −NGF over the mask (the registration's masked path).
+        -f64::from(metric.ngf_value(fixed, moving, &t, mask_bool.as_deref()))
     };
 
     let cma = CmaEsOptimizer::new(config.cma.clone()).run(obj, &x0);
@@ -231,7 +245,7 @@ mod tests {
                 ..NgfRigidConfig::default().cma
             },
         };
-        let (_t, res) = register_rigid_ngf(&fixed, &moving, [0.0; 3], [0.0; 3], &cfg);
+        let (_t, res) = register_rigid_ngf(&fixed, &moving, [0.0; 3], [0.0; 3], None, &cfg);
 
         assert!(
             (res.translation_mm[2].abs() - 3.0).abs() < 1.5,

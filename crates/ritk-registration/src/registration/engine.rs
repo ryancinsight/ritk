@@ -47,10 +47,14 @@ where
         progress_tracker.add_callback(console_callback);
 
         // Add early stopping callback if enabled
-        let early_stopping = if config.early_stopping == EarlyStoppingPolicy::Enabled {
+        let early_stopping = if let EarlyStoppingPolicy::Enabled {
+            patience,
+            min_improvement,
+        } = config.early_stopping
+        {
             let es = std::sync::Arc::new(crate::progress::EarlyStoppingCallback::new(
-                config.early_stopping_min_improvement,
-                config.early_stopping_patience,
+                min_improvement,
+                patience,
             ));
             progress_tracker.add_callback(es.clone());
             Some(es)

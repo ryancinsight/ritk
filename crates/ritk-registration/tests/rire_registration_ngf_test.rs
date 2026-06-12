@@ -16,10 +16,11 @@ mod common;
 use burn_ndarray::NdArray;
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
-use ritk_filter::BinShrinkImageFilter;
+use ritk_filter::{BinShrinkImageFilter, BinaryDilateFilter};
 use ritk_io::read_metaimage;
 use ritk_registration::{
-    register_rigid_ngf, translation_from_centers_of_mass, NgfRigidConfig,
+    ct_brain_mask, register_rigid_ngf, translation_from_centers_of_mass, CtBrainMaskConfig,
+    NgfRigidConfig,
 };
 
 #[test]
@@ -35,11 +36,20 @@ fn test_ngf_rigid_tre_on_rire_patient001() {
         .expect("load MRI T1");
     println!("CT {:?}  MRI {:?}", ct.shape(), mri.shape());
 
+    // Brain+skull mask: CT brain mask dilated to the inner skull table — the
+    // shared rigid structure NGF should align (unmasked NGF locks onto the
+    // scalp/scanner-bed/FOV edges and diverges).
+    let brain = ct_brain_mask(&ct, &CtBrainMaskConfig::default());
+    let region = BinaryDilateFilter::new(8)
+        .apply(&brain)
+        .expect("dilate brain mask");
+
     // Thin-slab in-plane shrink (z preserved) for a fast global search; the
     // world-space transform applies at full resolution.
     let shrink = BinShrinkImageFilter::new(vec![1, 8, 8]);
     let ct_s = shrink.apply(&ct);
     let mri_s = shrink.apply(&mri);
+    let mask_s = shrink.apply(&region);
     println!("shrunk CT {:?}  MRI {:?}", ct_s.shape(), mri_s.shape());
 
     // Centroid translation seed (world mm).
@@ -52,10 +62,13 @@ fn test_ngf_rigid_tre_on_rire_patient001() {
     let config = NgfRigidConfig {
         rotation_range_rad: 0.26, // ±15°
         translation_range_mm: 60.0,
-        ..Default::default()
+        cma: ritk_registration::optimizer::CmaEsConfig {
+            max_generations: 150,
+            ..NgfRigidConfig::default().cma
+        },
     };
     let t0 = std::time::Instant::now();
-    let (_t, res) = register_rigid_ngf(&ct_s, &mri_s, [0.0; 3], com, &config);
+    let (_t, res) = register_rigid_ngf(&ct_s, &mri_s, [0.0; 3], com, Some(&mask_s), &config);
     let dt = t0.elapsed();
     let (ngf_tre, ngf_tre_max) = compute_tre(&res.matrix);
 

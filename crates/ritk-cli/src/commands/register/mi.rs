@@ -9,17 +9,10 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     let moving_img = super::super::read_image(&args.moving)?;
 
     // ── 2. Optional pre-registration Gaussian smoothing ───────────────────
-    // GaussianFilter skips any dimension whose sigma ≤ 1e-6, so sigma=0.0
-    // is a safe no-op.
-    let (fixed_img, moving_img) = if args.sigma_fixed > 1e-12 {
-        let sigma = GaussianSigma::new(args.sigma_fixed).ok_or_else(|| {
-            anyhow::anyhow!("--sigma-fixed must be > 0, got {}", args.sigma_fixed)
-        })?;
-        let filter = GaussianFilter::<Backend>::new(vec![sigma; 3]);
-        (filter.apply(&fixed_img), filter.apply(&moving_img))
-    } else {
-        (fixed_img, moving_img)
-    };
+    // GaussianFilter applies isotropic smoothing; sigma_fixed is always > 0
+    // (enforced by GaussianSigma). Pass it directly to the filter.
+    let filter = GaussianFilter::<Backend>::new(vec![args.sigma_fixed; 3]);
+    let (fixed_img, moving_img) = (filter.apply(&fixed_img), filter.apply(&moving_img));
 
     // ── 3. Convert images to ndarray::Array3<f64> ─────────────────────────
     let fixed_arr = image_to_array3(&fixed_img);
@@ -120,7 +113,7 @@ mod tests {
             output_transform: None,
             // Use very few iterations so the test completes quickly.
             iterations: 3,
-            sigma_fixed: 0.0,
+            sigma_fixed: GaussianSigma::default(),
             levels: 3,
             variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
@@ -128,7 +121,7 @@ mod tests {
             cc_radius: 2,
             inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
-            kernel_sigma: 3.0,
+            kernel_sigma: GaussianSigma::new_unchecked(3.0),
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
@@ -166,7 +159,7 @@ mod tests {
             method: "affine-mi".to_string(),
             output_transform: None,
             iterations: 3,
-            sigma_fixed: 0.0,
+            sigma_fixed: GaussianSigma::default(),
             levels: 3,
             variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
@@ -174,7 +167,7 @@ mod tests {
             cc_radius: 2,
             inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
-            kernel_sigma: 3.0,
+            kernel_sigma: GaussianSigma::new_unchecked(3.0),
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
@@ -211,7 +204,7 @@ mod tests {
             method: "rigid-mi".to_string(),
             output_transform: Some(tx_path.clone()),
             iterations: 3,
-            sigma_fixed: 0.0,
+            sigma_fixed: GaussianSigma::default(),
             levels: 3,
             variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
@@ -219,7 +212,7 @@ mod tests {
             cc_radius: 2,
             inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
-            kernel_sigma: 3.0,
+            kernel_sigma: GaussianSigma::new_unchecked(3.0),
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
@@ -277,7 +270,7 @@ mod tests {
             method: "rigid-mi".to_string(),
             output_transform: None,
             iterations: 3,
-            sigma_fixed: 0.0,
+            sigma_fixed: GaussianSigma::default(),
             levels: 3,
             variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
@@ -285,7 +278,7 @@ mod tests {
             cc_radius: 2,
             inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
-            kernel_sigma: 3.0,
+            kernel_sigma: GaussianSigma::new_unchecked(3.0),
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,

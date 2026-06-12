@@ -42,6 +42,41 @@ impl<T: Clone> CacheSlot<T> {
         guard.clone().unwrap()
     }
 
+    /// Returns the cached value if present **and** valid; otherwise (re-)initialises.
+    ///
+    /// If the slot is populated but `valid` returns `false`, the stale value is
+    /// discarded. Then `init` is called (outside the lock) and the result is
+    /// stored. Concurrent reinitializations are possible if two threads both
+    /// observe a stale value; last-writer-wins, which is correct for deterministic
+    /// caches where every thread computes the same result.
+    ///
+    /// # Panics
+    /// Panics if the mutex has been poisoned.
+    pub(crate) fn get_or_reinit_if<F, P>(&self, valid: P, init: F) -> T
+    where
+        F: FnOnce() -> T,
+        P: FnOnce(&T) -> bool,
+    {
+        {
+            let guard = self
+                .0
+                .lock()
+                .expect("invariant: CacheSlot mutex is not poisoned");
+            if let Some(ref v) = *guard {
+                if valid(v) {
+                    return v.clone();
+                }
+            }
+        }
+        // Either empty or the validity predicate rejected the cached entry.
+        let val = init();
+        *self
+            .0
+            .lock()
+            .expect("invariant: CacheSlot mutex is not poisoned") = Some(val.clone());
+        val
+    }
+
     /// Clears the cached value; the next `get_or_init` will recompute.
     ///
     /// # Panics

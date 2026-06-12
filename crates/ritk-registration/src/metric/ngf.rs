@@ -68,6 +68,29 @@ impl<B: Backend, const D: usize> Metric<B, D> for NormalizedGradientField {
         transform: &impl Transform<B, D>,
     ) -> Tensor<B, 1> {
         let device = fixed.data().device();
+        let ngf = self.ngf_value(fixed, moving, transform, None);
+        // −NGF as a minimization loss.
+        Tensor::<B, 1>::from_data(TensorData::new(vec![-ngf], [1]), &device)
+    }
+
+    fn name(&self) -> &'static str {
+        "NormalizedGradientField"
+    }
+}
+
+impl NormalizedGradientField {
+    /// Resample `moving` onto the `fixed` grid through `transform`, then return
+    /// `NGF ∈ [0, 1]` over the `true` voxels of `mask` (or all if `None`). The
+    /// masked path is used by the cross-modal rigid registration; the unmasked
+    /// path backs [`Metric::forward`].
+    pub(crate) fn ngf_value<B: Backend, const D: usize>(
+        &self,
+        fixed: &Image<B, D>,
+        moving: &Image<B, D>,
+        transform: &impl Transform<B, D>,
+        mask: Option<&[bool]>,
+    ) -> f32 {
+        let device = fixed.data().device();
         let shape = fixed.shape();
         let n: usize = shape.iter().product();
 
@@ -93,23 +116,24 @@ impl<B: Backend, const D: usize> Metric<B, D> for NormalizedGradientField {
             .to_vec()
             .expect("resampled moving image to f32 host vec");
 
-        let ngf = ngf_scalar(&f, &m, &shape);
-        // −NGF as a minimization loss.
-        Tensor::<B, 1>::from_data(TensorData::new(vec![-ngf], [1]), &device)
-    }
-
-    fn name(&self) -> &'static str {
-        "NormalizedGradientField"
+        ngf_scalar(&f, &m, &shape, mask)
     }
 }
 
-/// `NGF ∈ [0, 1]` of two co-gridded volumes `f`, `m` of (row-major) `shape`. See
-/// the [module docs](self).
-fn ngf_scalar<const D: usize>(f: &[f32], m: &[f32], shape: &[usize; D]) -> f32 {
+/// `NGF ∈ [0, 1]` of two co-gridded volumes `f`, `m` of (row-major) `shape`,
+/// averaged over the `true` voxels of `mask` (or all voxels if `mask` is `None`).
+///
+/// Gradients always use real neighbours (the image is *not* zeroed outside the
+/// mask), so the mask only restricts which voxels are *counted* — no artificial
+/// mask-boundary edge is introduced. Masking to the brain+skull region is what
+/// makes cross-modal NGF lock onto the shared rigid anatomy instead of the
+/// scalp/scanner-bed/FOV edges. See the [module docs](self).
+fn ngf_scalar<const D: usize>(f: &[f32], m: &[f32], shape: &[usize; D], mask: Option<&[bool]>) -> f32 {
     let n = f.len();
     if n == 0 || m.len() != n {
         return 0.0;
     }
+    let included = |flat: usize| mask.is_none_or(|mk| mk[flat]);
     // Row-major (C-order) strides: last axis is fastest.
     let mut stride = [1usize; D];
     for a in (0..D.saturating_sub(1)).rev() {
@@ -117,21 +141,30 @@ fn ngf_scalar<const D: usize>(f: &[f32], m: &[f32], shape: &[usize; D]) -> f32 {
     }
 
     // Pass 1: η_F², η_M² = (mean masked gradient magnitude)² (Haber & Modersitzki).
-    let (mut sum_f, mut sum_m) = (0.0_f64, 0.0_f64);
+    let (mut sum_f, mut sum_m, mut count) = (0.0_f64, 0.0_f64, 0.0_f64);
     let (mut gf, mut gm) = ([0.0_f32; D], [0.0_f32; D]);
     for flat in 0..n {
+        if !included(flat) {
+            continue;
+        }
         grad_at(f, flat, shape, &stride, &mut gf);
         grad_at(m, flat, shape, &stride, &mut gm);
         sum_f += f64::from(magnitude(&gf));
         sum_m += f64::from(magnitude(&gm));
+        count += 1.0;
     }
-    let nf64 = n as f64;
-    let eta_f2 = ((sum_f / nf64).powi(2)).max(1e-12) as f32;
-    let eta_m2 = ((sum_m / nf64).powi(2)).max(1e-12) as f32;
+    if count < 1.0 {
+        return 0.0;
+    }
+    let eta_f2 = ((sum_f / count).powi(2)).max(1e-12) as f32;
+    let eta_m2 = ((sum_m / count).powi(2)).max(1e-12) as f32;
 
-    // Pass 2: mean squared normalized gradient dot product.
+    // Pass 2: mean squared normalized gradient dot product over the mask.
     let mut acc = 0.0_f64;
     for flat in 0..n {
+        if !included(flat) {
+            continue;
+        }
         grad_at(f, flat, shape, &stride, &mut gf);
         grad_at(m, flat, shape, &stride, &mut gm);
         let dot: f32 = (0..D).map(|a| gf[a] * gm[a]).sum();
@@ -139,7 +172,7 @@ fn ngf_scalar<const D: usize>(f: &[f32], m: &[f32], shape: &[usize; D]) -> f32 {
         let nb2: f32 = (0..D).map(|a| gm[a] * gm[a]).sum::<f32>() + eta_m2;
         acc += f64::from((dot * dot) / (na2 * nb2));
     }
-    (acc / nf64) as f32
+    (acc / count) as f32
 }
 
 /// Central-difference spatial gradient of `data` at flat index `flat`, written
@@ -205,8 +238,8 @@ mod tests {
     fn ngf_is_sign_invariant() {
         let (w, h) = (8usize, 8usize);
         let f = vertical_edge(w, h, 4, 1.0);
-        let same = ngf_scalar(&f, &f, &[h, w]);
-        let opposite = ngf_scalar(&f, &vertical_edge(w, h, 4, -1.0), &[h, w]);
+        let same = ngf_scalar(&f, &f, &[h, w], None);
+        let opposite = ngf_scalar(&f, &vertical_edge(w, h, 4, -1.0), &[h, w], None);
         assert!(same > 0.0, "self-NGF should be positive, got {same}");
         assert!(
             (same - opposite).abs() < 1e-4,
@@ -227,8 +260,8 @@ mod tests {
                 horiz[y * w + x] = if y < 4 { 0.0 } else { 1.0 };
             }
         }
-        let aligned = ngf_scalar(&vert, &vert, &[h, w]);
-        let perpendicular = ngf_scalar(&vert, &horiz, &[h, w]);
+        let aligned = ngf_scalar(&vert, &vert, &[h, w], None);
+        let perpendicular = ngf_scalar(&vert, &horiz, &[h, w], None);
         assert!(
             aligned > perpendicular + 0.1,
             "aligned {aligned} should exceed perpendicular {perpendicular}"

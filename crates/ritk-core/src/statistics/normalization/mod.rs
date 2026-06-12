@@ -11,12 +11,14 @@
 //!   (Shinohara et al. 2014).
 
 pub mod histogram_matching;
+pub mod intensity_range;
 pub mod minmax;
 pub mod nyul_udupa;
 pub mod white_stripe;
 pub mod zscore;
 
 pub use histogram_matching::HistogramMatcher;
+pub use intensity_range::IntensityRange;
 pub use minmax::MinMaxNormalizer;
 pub use nyul_udupa::NyulUdupaNormalizer;
 pub use white_stripe::{MriContrast, WhiteStripeConfig, WhiteStripeNormalizer, WhiteStripeResult};

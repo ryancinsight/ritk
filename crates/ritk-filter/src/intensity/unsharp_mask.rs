@@ -51,11 +51,11 @@
 //! - ITK Software Guide 4th Ed., §6.5.2 UnsharpMaskingImageFilter.
 
 use crate::discrete_gaussian::DiscreteGaussianFilter;
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild};
 use crate::edge::GaussianSigma;
-use ritk_image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
+use ritk_core::filter::ops::{extract_vec_infallible, rebuild};
+use ritk_image::Image;
 use serde::{Deserialize, Serialize};
 
 /// Whether to clamp the unsharp mask output to the input intensity range.
@@ -152,9 +152,8 @@ impl UnsharpMaskFilter {
         let (input, dims) = extract_vec_infallible(image);
         let n = input.len();
 
-        // Compute blurred image via DiscreteGaussianFilter (variance = sigma^2).
-        let variance: Vec<f64> = self.sigmas.iter().map(|s| s.get() * s.get()).collect();
-        let blur = DiscreteGaussianFilter::<B>::new(variance).apply(image);
+        // Compute blurred image via DiscreteGaussianFilter (variance = sigma², computed internally).
+        let blur = DiscreteGaussianFilter::<B>::new(self.sigmas.clone()).apply(image);
         let (blurred, _) = extract_vec_infallible(&blur);
 
         let amount = self.amount as f32;
@@ -206,10 +205,10 @@ impl UnsharpMaskFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

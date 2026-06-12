@@ -70,9 +70,12 @@ pub fn discrete_gaussian(
             PySpacingMode::Physical => ritk_filter::discrete_gaussian::SpacingMode::Physical,
             PySpacingMode::Voxel => ritk_filter::discrete_gaussian::SpacingMode::Voxel,
         };
-        let filter = DiscreteGaussianFilter::<Backend>::new(vec![variance])
-            .with_maximum_error(maximum_error)
-            .with_spacing_mode(spacing_mode);
+        let filter = DiscreteGaussianFilter::<Backend>::new(vec![ritk_filter::GaussianSigma::new(
+            variance.sqrt(),
+        )
+        .expect("invariant: variance must be positive (validated by caller)")])
+        .with_maximum_error(maximum_error)
+        .with_spacing_mode(spacing_mode);
         filter.apply(image.as_ref())
     });
     into_py_image(result)

@@ -4,8 +4,9 @@ use burn::tensor::TensorData;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_transform::TranslationTransform;
+use ritk_core::statistics::IntensityRange;
 use ritk_registration::metric::{CorrelationDirection, CorrelationRatio, Metric};
+use ritk_transform::TranslationTransform;
 
 type B = NdArray<f32>;
 
@@ -33,8 +34,7 @@ fn test_cr_perfect_match() {
     // parzen_sigma in intensity units: bin_width = range/(bins-1) = 1.0/31 ≈ 0.032
     let metric = CorrelationRatio::<B>::new(
         32,
-        0.0,
-        1.0,
+        IntensityRange::new_unchecked(0.0_f32, 1.0_f32),
         0.03,
         CorrelationDirection::MovingGivenFixed,
         &device,
@@ -70,8 +70,7 @@ fn test_cr_shift_sensitivity() {
 
     let metric = CorrelationRatio::<B>::new(
         32,
-        0.0,
-        1.0,
+        IntensityRange::new_unchecked(0.0_f32, 1.0_f32),
         0.03,
         CorrelationDirection::MovingGivenFixed,
         &device,

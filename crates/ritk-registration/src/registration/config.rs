@@ -2,13 +2,21 @@ use crate::progress::ConvergenceChecker;
 use crate::validation::ValidationConfig;
 
 /// Whether early stopping is enabled during iterative optimization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+///
+/// `Enabled` carries its parameters so invalid state
+/// (`Disabled` + non-zero patience) is unrepresentable.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum EarlyStoppingPolicy {
     /// Early stopping is disabled.
     #[default]
     Disabled,
-    /// Early stopping is enabled.
-    Enabled,
+    /// Early stopping is enabled with the given patience and minimum improvement threshold.
+    Enabled {
+        /// Number of iterations without sufficient improvement before stopping.
+        patience: usize,
+        /// Minimum loss improvement required to reset the patience counter.
+        min_improvement: f64,
+    },
 }
 
 /// Configuration for registration.
@@ -16,12 +24,8 @@ pub enum EarlyStoppingPolicy {
 pub struct RegistrationConfig {
     /// Validation configuration.
     pub validation: ValidationConfig,
-    /// Early stopping policy.
+    /// Early stopping policy; parameters are co-located with the variant.
     pub early_stopping: EarlyStoppingPolicy,
-    /// Early stopping patience.
-    pub early_stopping_patience: usize,
-    /// Early stopping minimum improvement.
-    pub early_stopping_min_improvement: f64,
     /// Log interval for progress.
     pub log_interval: usize,
     /// Convergence checker. When `Some`, convergence detection is enabled.
@@ -33,8 +37,6 @@ impl Default for RegistrationConfig {
         Self {
             validation: ValidationConfig::default(),
             early_stopping: EarlyStoppingPolicy::Disabled,
-            early_stopping_patience: 50,
-            early_stopping_min_improvement: 1e-6,
             log_interval: 50,
             convergence_checker: None,
         }
@@ -47,11 +49,12 @@ impl RegistrationConfig {
         Self::default()
     }
 
-    /// Enable early stopping.
+    /// Enable early stopping with the given `patience` and `min_improvement` threshold.
     pub fn with_early_stopping(mut self, patience: usize, min_improvement: f64) -> Self {
-        self.early_stopping = EarlyStoppingPolicy::Enabled;
-        self.early_stopping_patience = patience;
-        self.early_stopping_min_improvement = min_improvement;
+        self.early_stopping = EarlyStoppingPolicy::Enabled {
+            patience,
+            min_improvement,
+        };
         self
     }
 

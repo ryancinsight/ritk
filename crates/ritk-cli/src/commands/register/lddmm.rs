@@ -8,7 +8,6 @@ use super::*;
 /// The initial velocity field parameterizes the geodesic; the deformation
 /// phi_1 at t=1 warps the moving image.
 pub(super) fn run_lddmm(args: &RegisterArgs) -> Result<()> {
-    use ritk_filter::GaussianSigma;
     use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
 
     let fixed_img = super::super::read_image(&args.fixed)?;
@@ -17,12 +16,10 @@ pub(super) fn run_lddmm(args: &RegisterArgs) -> Result<()> {
     let (fixed_vals, fixed_shape) = image_to_flat_vec(&fixed_img);
     let (moving_vals, _) = image_to_flat_vec(&moving_img);
 
-    let kernel_sigma = GaussianSigma::new(args.kernel_sigma)
-        .ok_or_else(|| anyhow::anyhow!("--kernel-sigma must be > 0, got {}", args.kernel_sigma))?;
     let config = LddmmConfig {
         max_iterations: args.iterations,
         num_time_steps: args.num_time_steps,
-        kernel_sigma,
+        kernel_sigma: args.kernel_sigma,
         learning_rate: args.learning_rate,
         ..Default::default()
     };
@@ -77,7 +74,7 @@ mod tests {
             method: "lddmm".to_string(),
             output_transform: None,
             iterations: 2,
-            sigma_fixed: 0.0,
+            sigma_fixed: GaussianSigma::default(),
             levels: 1,
             variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
@@ -85,7 +82,7 @@ mod tests {
             cc_radius: 2,
             inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
-            kernel_sigma: 3.0,
+            kernel_sigma: GaussianSigma::new_unchecked(3.0),
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
@@ -116,7 +113,7 @@ mod tests {
             method: "lddmm".to_string(),
             output_transform: None,
             iterations: 2,
-            sigma_fixed: 0.0,
+            sigma_fixed: GaussianSigma::default(),
             levels: 1,
             variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
@@ -124,7 +121,7 @@ mod tests {
             cc_radius: 2,
             inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
-            kernel_sigma: 3.0,
+            kernel_sigma: GaussianSigma::new_unchecked(3.0),
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,

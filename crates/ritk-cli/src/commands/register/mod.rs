@@ -44,8 +44,8 @@ use std::path::PathBuf;
 use tracing::info;
 
 use super::Backend;
-use ritk_filter::{GaussianFilter, GaussianSigma};
 use ritk_core::image::Image;
+use ritk_filter::{GaussianFilter, GaussianSigma};
 use ritk_registration::classical::engine::{ClassicalConfig, MutualInformationMetric};
 use ritk_registration::classical::spatial;
 use ritk_registration::ImageRegistration;
@@ -59,6 +59,14 @@ fn parse_demons_variant(s: &str) -> Result<ritk_registration::demons::DemonsVari
             "Invalid Demons variant '{other}'. Expected 'thirion' or 'diffeomorphic'."
         )),
     }
+}
+
+/// Parse a clap string argument into a validated [`GaussianSigma`].
+///
+/// Rejects any value that is not a finite positive float.
+fn parse_gaussian_sigma(s: &str) -> Result<GaussianSigma, String> {
+    let v: f64 = s.parse().map_err(|e| format!("invalid float: {e}"))?;
+    GaussianSigma::new(v).ok_or_else(|| format!("sigma must be > 0, got {v}"))
 }
 
 // ── CLI types ────────────────────────────────────────────────────────────────
@@ -108,9 +116,9 @@ pub struct RegisterArgs {
     pub iterations: usize,
 
     /// Standard deviation (mm) of the isotropic Gaussian filter applied to
-    /// both images before registration. Set to 0.0 to disable smoothing.
-    #[arg(long, default_value = "1.5", value_name = "FLOAT")]
-    pub sigma_fixed: f64,
+    /// both images before registration. Must be > 0.
+    #[arg(long, default_value = "1.5", value_name = "FLOAT", value_parser = parse_gaussian_sigma)]
+    pub sigma_fixed: GaussianSigma,
 
     /// Number of pyramid levels for multi-resolution Demons (default 3).
     #[arg(long, default_value = "3", value_name = "INT")]
@@ -148,8 +156,8 @@ pub struct RegisterArgs {
     pub num_time_steps: usize,
 
     /// RKHS Gaussian kernel sigma for LDDMM regularization (default 3.0).
-    #[arg(long, default_value = "3.0", value_name = "FLOAT")]
-    pub kernel_sigma: f64,
+    #[arg(long, default_value = "3.0", value_name = "FLOAT", value_parser = parse_gaussian_sigma)]
+    pub kernel_sigma: GaussianSigma,
 
     /// Learning rate for BSpline FFD and LDDMM gradient descent (default 0.01).
     #[arg(long, default_value = "0.01", value_name = "FLOAT")]
@@ -254,7 +262,7 @@ pub fn run(args: RegisterArgs) -> Result<()> {
         args.output.display(),
         args.method,
         args.iterations,
-        args.sigma_fixed
+        args.sigma_fixed.get()
     );
 
     match args.method.as_str() {
@@ -283,8 +291,8 @@ mod tests {
     use burn::tensor::backend::Backend as BurnBackend;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use ritk_registration::demons::DemonsVariant;
+    use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
     /// Build a deterministic 4×4×4 image from a ramp of intensities.
@@ -325,7 +333,7 @@ mod tests {
             method: "nonexistent".to_string(),
             output_transform: None,
             iterations: 3,
-            sigma_fixed: 0.0,
+            sigma_fixed: GaussianSigma::default(),
             levels: 3,
             variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
@@ -333,7 +341,7 @@ mod tests {
             cc_radius: 2,
             inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
-            kernel_sigma: 3.0,
+            kernel_sigma: GaussianSigma::new_unchecked(3.0),
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
@@ -367,7 +375,7 @@ mod tests {
             method: "rigid-mi".to_string(),
             output_transform: None,
             iterations: 3,
-            sigma_fixed: 0.0,
+            sigma_fixed: GaussianSigma::default(),
             levels: 3,
             variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
@@ -375,7 +383,7 @@ mod tests {
             cc_radius: 2,
             inverse_consistency: CliInverseConsistency::Relaxed,
             num_time_steps: 2,
-            kernel_sigma: 3.0,
+            kernel_sigma: GaussianSigma::new_unchecked(3.0),
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,

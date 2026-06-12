@@ -3,10 +3,11 @@ use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_transform::{BSplineTransform, Transform};
+use ritk_core::statistics::IntensityRange;
 use ritk_registration::metric::{CorrelationDirection, CorrelationRatio};
 use ritk_registration::optimizer::AdamOptimizer;
 use ritk_registration::registration::Registration;
+use ritk_transform::{BSplineTransform, Transform};
 
 type B = Autodiff<NdArray<f32>>;
 
@@ -79,9 +80,8 @@ fn test_bspline_cr_registration_small() {
     // Use fewer bins for speed (16 instead of 32)
     // parzen_sigma in intensity units: bin_width = 1.0/15 ≈ 0.067 for 16 bins
     let metric = CorrelationRatio::new(
-        16,   // bins
-        0.0,  // min
-        1.0,  // max
+        16, // bins
+        IntensityRange::new_unchecked(0.0_f32, 1.0_f32),
         0.07, // parzen_sigma (≈ bin_width for 16 bins over [0,1])
         CorrelationDirection::MovingGivenFixed,
         &device,

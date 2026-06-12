@@ -22,6 +22,7 @@
 //! evaluation, reducing the computational payload strictly to $M$-dependent convolutions
 //! and eliminating $O(N)$ operations per forward pass.
 
+use super::cache_slot::CacheSlot;
 use super::histogram::cache::{collect_vec_3, collect_vec_9};
 use super::trait_::Metric;
 use burn::tensor::backend::Backend;
@@ -32,17 +33,28 @@ use ritk_image::grid;
 use ritk_image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_transform::Transform;
-use std::sync::{Arc, Mutex};
 
-/// Cache for local statistics of the stationary fixed image.
-#[derive(Debug)]
-struct LnccCache<B: Backend> {
+/// Cached local statistics for the stationary fixed image.
+#[derive(Debug, Clone)]
+struct LnccCacheEntry<B: Backend> {
     shape: Vec<usize>,
     origin: [f64; 3],
     spacing: [f64; 3],
     direction: [f64; 9],
     mean_f_flat: Tensor<B, 1>,
     var_f_flat: Tensor<B, 1>,
+}
+
+impl<B: Backend> LnccCacheEntry<B> {
+    /// Returns `true` when this entry was computed from an image with the same
+    /// spatial geometry as `fixed` (shape, origin, spacing, direction).
+    fn is_valid_for<const D: usize>(&self, fixed: &Image<B, D>) -> bool {
+        let fs = fixed.shape();
+        self.shape.as_slice() == fs
+            && self.origin.iter().eq(fixed.origin().0.iter())
+            && self.spacing.iter().eq(fixed.spacing().0.iter())
+            && self.direction.iter().eq(fixed.direction().0.iter())
+    }
 }
 
 /// Local Normalized Cross Correlation (LNCC) Metric.
@@ -54,8 +66,8 @@ pub struct LocalNormalizedCrossCorrelation<B: Backend> {
     interpolator: LinearInterpolator,
     kernel_sigma: GaussianSigma,
     epsilon: f64,
-    // dyn exception: lazy-initialized cache that may be invalidated, requires Mutex for cross-thread Sync
-    cache: Arc<Mutex<Option<LnccCache<B>>>>,
+    // CacheSlot: lazy-initialized, validity-checked per fixed-image geometry, Arc-shared across clones.
+    cache: CacheSlot<LnccCacheEntry<B>>,
 }
 
 impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
@@ -68,7 +80,7 @@ impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
             interpolator: LinearInterpolator::new(),
             kernel_sigma,
             epsilon: 1e-5,
-            cache: Arc::new(Mutex::new(None)),
+            cache: CacheSlot::empty(),
         }
     }
 
@@ -146,53 +158,29 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
         let filter = GaussianFilter::new(vec![self.kernel_sigma; D]);
 
         // 5. Compute or load Local Stats for FIXED image (Stationary Cache O(1))
-        let (mean_f, var_f) = {
-            let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-
-            let mut cache_hit = false;
-            if let Some(c) = cache.as_ref() {
-                let fs = fixed.shape();
-                if c.shape.as_slice() == fs
-                    && c.origin.iter().eq(fixed.origin().0.iter())
-                    && c.spacing.iter().eq(fixed.spacing().0.iter())
-                    && c.direction.iter().eq(fixed.direction().0.iter())
-                {
-                    cache_hit = true;
-                }
-            }
-
-            if cache_hit {
-                let c = cache
-                    .as_ref()
-                    .expect("LNCC cache must be initialized before computation");
-                let m_f = c
-                    .mean_f_flat
-                    .clone()
-                    .reshape(burn::tensor::Shape::new(shape_dims));
-                let v_f = c
-                    .var_f_flat
-                    .clone()
-                    .reshape(burn::tensor::Shape::new(shape_dims));
-                (m_f, v_f)
-            } else {
+        let entry = self.cache.get_or_reinit_if(
+            |e| e.is_valid_for::<D>(fixed),
+            || {
                 let (m_f, v_f) =
                     self.compute_local_stats(fixed_values.clone(), &filter, fixed.spacing());
-                let current_shape = fixed.shape().to_vec();
-                let current_origin: [f64; 3] = collect_vec_3(fixed.origin().0.iter().copied());
-                let current_spacing: [f64; 3] = collect_vec_3(fixed.spacing().0.iter().copied());
-                let current_direction: [f64; 9] =
-                    collect_vec_9(fixed.direction().0.iter().copied());
-                *cache = Some(LnccCache {
-                    shape: current_shape,
-                    origin: current_origin,
-                    spacing: current_spacing,
-                    direction: current_direction,
-                    mean_f_flat: m_f.clone().flatten(0, D - 1),
-                    var_f_flat: v_f.clone().flatten(0, D - 1),
-                });
-                (m_f, v_f)
-            }
-        };
+                LnccCacheEntry {
+                    shape: fixed.shape().to_vec(),
+                    origin: collect_vec_3(fixed.origin().0.iter().copied()),
+                    spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
+                    direction: collect_vec_9(fixed.direction().0.iter().copied()),
+                    mean_f_flat: m_f.flatten(0, D - 1),
+                    var_f_flat: v_f.flatten(0, D - 1),
+                }
+            },
+        );
+        let mean_f = entry
+            .mean_f_flat
+            .clone()
+            .reshape(burn::tensor::Shape::new(shape_dims));
+        let var_f = entry
+            .var_f_flat
+            .clone()
+            .reshape(burn::tensor::Shape::new(shape_dims));
 
         // Local Stats for MOVING image (computed per forward pass)
         let (mean_m, var_m) =

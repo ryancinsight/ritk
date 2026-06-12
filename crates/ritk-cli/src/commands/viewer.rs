@@ -128,8 +128,8 @@ pub fn run(args: ViewerArgs) -> Result<()> {
 fn print_summary(path: &std::path::Path, series: &DicomSeriesInfo, image: &Image<Backend, 3>) {
     let shape = image.shape();
     println!("DICOM study: {}", path.display());
-    println!("  series_uid: {}", series.series_instance_uid);
-    println!("  modality: {}", series.modality);
+    println!("  series_uid: {}", series.series_instance_uid());
+    println!("  modality: {}", series.modality());
     println!("  description: {}", series.series_description);
     println!("  slices: {}", series.file_paths.len());
     println!("  shape:  [{}, {}, {}]", shape[0], shape[1], shape[2]);

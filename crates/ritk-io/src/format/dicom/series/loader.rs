@@ -1,7 +1,6 @@
-//! DICOM series scanning, loading, and the `DicomReader` facade.
+//! Series loading — `load_dicom_series`, `read_dicom_series`, and the `DicomReader` facade.
 
 use anyhow::{bail, Context, Result};
-use arrayvec::ArrayString;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::dictionary_std::tags;
@@ -9,126 +8,17 @@ use dicom::object::{FileDicomObject, InMemDicomObject};
 use moirai::prelude::ParallelSlice;
 use nalgebra::{Matrix3, Point3 as NaPoint3, Vector3 as NaVector3};
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness,
 };
-use std::collections::HashMap;
-use std::fs;
+use ritk_spatial::{Direction, Point, Spacing};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
-use super::transfer_syntax::TransferSyntaxKind;
-use crate::format::dicom::reader::types::{literal_arraystring, truncate_arraystring};
+use crate::format::dicom::transfer_syntax::TransferSyntaxKind;
 
-/// Metadata for a discovered DICOM series
-#[derive(Debug, Clone)]
-pub struct DicomSeriesInfo {
-    pub series_instance_uid: ArrayString<64>,
-    pub series_description: String,
-    pub modality: ArrayString<16>,
-    pub patient_id: String,
-    pub file_paths: Vec<PathBuf>,
-}
-
-pub(crate) fn sort_discovered_series(series_list: &mut [DicomSeriesInfo]) {
-    series_list.sort_by(|a, b| {
-        a.patient_id
-            .cmp(&b.patient_id)
-            .then_with(|| a.modality.cmp(&b.modality))
-            .then_with(|| a.series_description.cmp(&b.series_description))
-            .then_with(|| a.series_instance_uid.cmp(&b.series_instance_uid))
-            .then_with(|| a.file_paths.first().cmp(&b.file_paths.first()))
-    });
-}
-
-/// Scan a directory for DICOM series, grouping them by SeriesInstanceUID.
-///
-/// This function scans the directory in parallel to parse DICOM headers.
-pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesInfo>> {
-    let path = path.as_ref();
-
-    // Collect all file paths first
-    let entries: Vec<PathBuf> = fs::read_dir(path)
-        .context("Failed to read directory")?
-        .filter_map(|e| e.ok())
-        .map(|e| e.path())
-        .filter(|p| p.is_file())
-        .collect();
-
-    if entries.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    // Parallel processing to read headers
-    let series_map = Arc::new(Mutex::new(
-        HashMap::<ArrayString<64>, DicomSeriesInfo>::new(),
-    ));
-
-    entries.par().for_each(|file_path| {
-        // Try to open as DICOM
-        if let Ok(obj) = parse_file_with::<DicomRsBackend, _>(file_path) {
-            let uid = match get_string(&obj, tags::SERIES_INSTANCE_UID) {
-                Some(u) => match ArrayString::<64>::from(u.trim()) {
-                    Ok(v) => v,
-                    Err(_) => {
-                        tracing::warn!(
-                            "SeriesInstanceUID exceeds 64 chars, truncating: {}",
-                            &u.trim()[..64]
-                        );
-                        truncate_arraystring::<64>(u.trim())
-                    }
-                },
-                None => return, // Skip files without SeriesUID
-            };
-
-            let description = get_string(&obj, tags::SERIES_DESCRIPTION).unwrap_or_default();
-            let modality = get_string(&obj, tags::MODALITY)
-                .map(|s| {
-                    let trimmed = s.trim();
-                    match ArrayString::<16>::from(trimmed) {
-                        Ok(v) => v,
-                        Err(_) => {
-                            tracing::warn!(
-                                "Modality exceeds 16 chars, truncating: {}",
-                                &trimmed[..16]
-                            );
-                            truncate_arraystring::<16>(trimmed)
-                        }
-                    }
-                })
-                .unwrap_or_else(|| literal_arraystring("OT"));
-            let patient_id = get_string(&obj, tags::PATIENT_ID).unwrap_or_default();
-
-            let mut map = series_map.lock().expect(
-                "series map mutex poisoned — another thread panicked while holding the lock",
-            );
-            let entry = map.entry(uid).or_insert_with(|| DicomSeriesInfo {
-                series_instance_uid: uid,
-                series_description: description,
-                modality,
-                patient_id,
-                file_paths: Vec::new(),
-            });
-            entry.file_paths.push(file_path.clone());
-        }
-    });
-
-    let map = Arc::try_unwrap(series_map)
-        .expect("series map Arc still has multiple owners — parallel scan must be complete")
-        .into_inner()
-        .expect("series map mutex must be unlocked after parallel scan");
-    let mut series_list: Vec<DicomSeriesInfo> = map.into_values().collect();
-
-    // Sort file paths within each series for determinism (though load_series will re-sort spatially)
-    for series in &mut series_list {
-        series.file_paths.sort();
-    }
-    sort_discovered_series(&mut series_list);
-
-    Ok(series_list)
-}
+use super::scan::scan_dicom_directory;
+use super::types::DicomSeriesInfo;
 
 /// Load a specific DICOM series into a 3D Image.
 ///
@@ -142,7 +32,6 @@ pub fn load_dicom_series<B: Backend>(
     }
 
     // 1. Read all headers to sort spatially
-    // We read sequentially here or parallel? Parallel is better.
     let mut slices: Vec<(PathBuf, FileDicomObject<InMemDicomObject>)> = series
         .file_paths
         .par()
@@ -189,7 +78,6 @@ pub fn load_dicom_series<B: Backend>(
     });
 
     // 4. Validate Spatial Consistency & Calculate Spacing
-    // We need to ensure all slices have the same orientation and consistent spacing.
     let first_obj = &slices[0].1;
     let rows = get_u32(first_obj, tags::ROWS).context("Missing Rows")?;
     let cols = get_u32(first_obj, tags::COLUMNS).context("Missing Columns")?;
@@ -258,9 +146,6 @@ pub fn load_dicom_series<B: Backend>(
     let direction = Direction(direction_mat);
 
     // 6. Load Pixel Data in Parallel
-    // Chunk buffer for parallel writing
-    // We can't easily mutate a Vec in parallel without unsafe or splitting.
-    // Using par_iter to decode and collect is better.
     let slice_pixels: Vec<Vec<f32>> = slices
         .par()
         .map_collect(|(_p, obj)| {
@@ -328,7 +213,6 @@ pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
-    // Convert path to owned string for error messages before move
     let path_ref = path.as_ref().to_path_buf();
 
     let series_list = scan_dicom_directory(&path_ref)?;
@@ -346,10 +230,6 @@ pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
 }
 
 // --- Helpers ---
-
-fn get_string(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<String> {
-    obj.element(tag).ok()?.to_str().ok().map(|s| s.to_string())
-}
 
 fn get_u32(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<u32> {
     obj.element(tag).ok()?.to_int::<u32>().ok()
@@ -388,51 +268,5 @@ impl<B: Backend> DicomReader<B> {
 impl<B: Backend> ImageReader<B, 3> for DicomReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
         read_dicom_series(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::format::dicom::reader::types::literal_arraystring;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_scan_empty_dir() {
-        let temp = tempfile::tempdir().unwrap();
-        let series = scan_dicom_directory(temp.path()).unwrap();
-        assert!(series.is_empty());
-    }
-
-    #[test]
-    fn discovered_series_sort_is_deterministic() {
-        let mut v = vec![
-            DicomSeriesInfo {
-                series_instance_uid: literal_arraystring::<64>("2"),
-                series_description: "B".to_owned(),
-                modality: literal_arraystring::<16>("MR"),
-                patient_id: "P2".to_owned(),
-                file_paths: vec![PathBuf::from("z/2.dcm")],
-            },
-            DicomSeriesInfo {
-                series_instance_uid: literal_arraystring::<64>("1"),
-                series_description: "A".to_owned(),
-                modality: literal_arraystring::<16>("CT"),
-                patient_id: "P1".to_owned(),
-                file_paths: vec![PathBuf::from("a/1.dcm")],
-            },
-            DicomSeriesInfo {
-                series_instance_uid: literal_arraystring::<64>("3"),
-                series_description: "A".to_owned(),
-                modality: literal_arraystring::<16>("CT"),
-                patient_id: "P1".to_owned(),
-                file_paths: vec![PathBuf::from("b/1.dcm")],
-            },
-        ];
-
-        sort_discovered_series(&mut v);
-
-        let uids: Vec<&str> = v.iter().map(|s| s.series_instance_uid.as_str()).collect();
-        assert_eq!(uids, vec!["1", "3", "2"]);
     }
 }

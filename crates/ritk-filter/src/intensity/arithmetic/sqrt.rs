@@ -1,45 +1,13 @@
-use ritk_core::filter::ops::{extract_vec_infallible as extract_vec, rebuild};
-use ritk_core::image::Image;
-use burn::tensor::backend::Backend;
-
-/// Pixelwise square-root filter.
-///
-/// # Mathematical Specification
-///
-/// `out(x) = √in(x)`
-///
-/// For negative inputs, the IEEE 754 result is `NaN` — matching ITK behaviour.
-/// In medical image contexts, inputs are expected to be non-negative; callers
-/// requiring defined behaviour for negative inputs should precede this filter
-/// with \[`AbsImageFilter`\].
-///
-/// # References
-/// - ITK `itk::SqrtImageFilter<TInputImage, TOutputImage>`.
-/// - ImageJ Process > Math > Square Root.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct SqrtImageFilter;
-
-impl SqrtImageFilter {
-    /// Construct a new `SqrtImageFilter`.
-    pub fn new() -> Self {
-        Self
-    }
-
-    /// Apply pixelwise square root to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
-        let (vals, dims) = extract_vec(image);
-        let out: Vec<f32> = vals.into_iter().map(f32::sqrt).collect();
-        rebuild(out, dims, image)
-    }
-}
+// Implementation lives in `unary::UnaryImageFilter<Sqrt>`.
+pub use super::unary::SqrtImageFilter;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_core::image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

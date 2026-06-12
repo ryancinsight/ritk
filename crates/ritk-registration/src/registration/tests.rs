@@ -15,8 +15,13 @@ fn test_registration_config_builder() {
         .with_early_stopping(10, 1e-5)
         .with_log_interval(25);
 
-    assert_eq!(config.early_stopping, EarlyStoppingPolicy::Enabled);
-    assert_eq!(config.early_stopping_patience, 10);
+    assert_eq!(
+        config.early_stopping,
+        EarlyStoppingPolicy::Enabled {
+            patience: 10,
+            min_improvement: 1e-5
+        }
+    );
     assert_eq!(config.log_interval, 25);
 }
 

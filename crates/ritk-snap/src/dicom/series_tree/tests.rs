@@ -1,5 +1,4 @@
 use super::*;
-use arrayvec::ArrayString;
 use std::path::PathBuf;
 
 /// Build a synthetic `SeriesEntry` for testing purposes.
@@ -211,16 +210,16 @@ fn test_series_entry_display_label_contains_slice_count() {
 
 #[test]
 fn test_series_entry_from_dicom_series_info_uses_file_parent_and_slice_count() {
-    let info = DicomSeriesInfo {
-        series_instance_uid: ArrayString::from("1.2.3").unwrap(),
-        series_description: "Axial CT".to_string(),
-        modality: ArrayString::from("CT").unwrap(),
-        patient_id: "P001".to_string(),
-        file_paths: vec![
+    let info = DicomSeriesInfo::new(
+        "1.2.3",
+        "Axial CT".to_string(),
+        "CT",
+        "P001".to_string(),
+        vec![
             PathBuf::from("C:/study/series/slice_0001.dcm"),
             PathBuf::from("C:/study/series/slice_0002.dcm"),
         ],
-    };
+    );
     let entry = SeriesEntry::from_dicom_series_info(info);
     assert_eq!(entry.series_uid, "1.2.3");
     assert_eq!(entry.folder, PathBuf::from("C:/study/series"));

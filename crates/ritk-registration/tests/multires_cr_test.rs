@@ -3,10 +3,11 @@ use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_transform::TranslationTransform;
+use ritk_core::statistics::IntensityRange;
 use ritk_registration::metric::{CorrelationDirection, CorrelationRatio};
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::AdamOptimizer;
+use ritk_transform::TranslationTransform;
 
 type B = Autodiff<NdArray<f32>>;
 
@@ -63,9 +64,8 @@ fn test_multires_cr_registration() {
     // Note: Image values are 0.0 to 1.0
     // parzen_sigma in intensity units: bin_width = 1.0/31 ≈ 0.032 for 32 bins
     let metric = CorrelationRatio::new(
-        32,   // bins
-        0.0,  // min
-        1.0,  // max
+        32, // bins
+        IntensityRange::new_unchecked(0.0_f32, 1.0_f32),
         0.03, // parzen_sigma (≈ bin_width for 32 bins over [0,1])
         CorrelationDirection::MovingGivenFixed,
         &device,

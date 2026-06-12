@@ -1,4 +1,5 @@
 use super::*;
+use crate::edge::GaussianSigma;
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = burn_ndarray::NdArray<f32>;
@@ -27,10 +28,14 @@ fn vals(img: &Image<B, 3>) -> Vec<f32> {
     img.data().clone().into_data().into_vec::<f32>().unwrap()
 }
 
+// Helper: near-zero sigma that lies below the 1e-9 skip threshold.
+// sigma = 1e-100 → variance ≈ 0 → pixel_sigma << 1e-9 → no kernel built (identity).
+const NEAR_ZERO_SIGMA: f64 = 1e-100;
+
 #[test]
 fn test_uniform_image_is_unchanged_by_gaussian() {
     let img = make_image(vec![7.0_f32; 125], [5, 5, 5]);
-    let out = DiscreteGaussianFilter::<B>::new(vec![1.0]).apply(&img);
+    let out = DiscreteGaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1.0)]).apply(&img);
     for &x in &vals(&out) {
         assert!((x - 7.0).abs() < 1e-4);
     }
@@ -39,7 +44,7 @@ fn test_uniform_image_is_unchanged_by_gaussian() {
 #[test]
 fn test_output_shape_matches_input() {
     let img = make_image(vec![1.0_f32; 216], [6, 6, 6]);
-    let out = DiscreteGaussianFilter::<B>::new(vec![2.0]).apply(&img);
+    let out = DiscreteGaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(2.0)]).apply(&img);
     assert_eq!(out.shape(), img.shape());
 }
 
@@ -49,14 +54,22 @@ fn test_larger_variance_produces_more_smoothing_on_step_edge() {
     v.extend(vec![100.0; 8]);
     let img = make_image(v, [1, 1, 16]);
     let sv = vals(
-        &DiscreteGaussianFilter::<B>::new(vec![0.5, 0.5, 0.5])
-            .with_spacing_mode(SpacingMode::Voxel)
-            .apply(&img),
+        &DiscreteGaussianFilter::<B>::new(vec![
+            GaussianSigma::new_unchecked(0.5),
+            GaussianSigma::new_unchecked(0.5),
+            GaussianSigma::new_unchecked(0.5),
+        ])
+        .with_spacing_mode(SpacingMode::Voxel)
+        .apply(&img),
     );
     let lv = vals(
-        &DiscreteGaussianFilter::<B>::new(vec![0.5, 0.5, 4.0])
-            .with_spacing_mode(SpacingMode::Voxel)
-            .apply(&img),
+        &DiscreteGaussianFilter::<B>::new(vec![
+            GaussianSigma::new_unchecked(0.5),
+            GaussianSigma::new_unchecked(0.5),
+            GaussianSigma::new_unchecked(4.0),
+        ])
+        .with_spacing_mode(SpacingMode::Voxel)
+        .apply(&img),
     );
     assert!((50.0 - lv[8]).abs() < (50.0 - sv[8]).abs());
 }
@@ -67,7 +80,7 @@ fn test_use_image_spacing_accounts_for_spacing() {
     v.extend(vec![100.0; 8]);
     let img_a = make_image_with_spacing(v.clone(), [1, 1, 16], [1.0, 1.0, 1.0]);
     let img_b = make_image_with_spacing(v.clone(), [1, 1, 16], [1.0, 1.0, 2.0]);
-    let f = DiscreteGaussianFilter::<B>::new(vec![4.0]);
+    let f = DiscreteGaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(4.0)]);
     let a8 = vals(&f.apply(&img_a))[8];
     let b8 = vals(&f.apply(&img_b))[8];
     assert!((100.0 - a8).abs() > (100.0 - b8).abs());
@@ -77,7 +90,8 @@ fn test_use_image_spacing_accounts_for_spacing() {
 fn test_zero_variance_produces_identity() {
     let v: Vec<f32> = (0..27).map(|i| i as f32).collect();
     let img = make_image(v.clone(), [3, 3, 3]);
-    let out = DiscreteGaussianFilter::<B>::new(vec![0.0])
+    // zero variance = sigma = 0 → use new_isotropic(0.0) which accepts variance directly
+    let out = DiscreteGaussianFilter::<B>::new_isotropic(0.0)
         .with_spacing_mode(SpacingMode::Voxel)
         .apply(&img);
     for (&e, &a) in v.iter().zip(vals(&out).iter()) {
@@ -96,7 +110,7 @@ fn test_spatial_metadata_preserved() {
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let dir = Direction::identity();
     let img = Image::new(t, origin, spacing, dir);
-    let out = DiscreteGaussianFilter::<B>::new(vec![1.0]).apply(&img);
+    let out = DiscreteGaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1.0)]).apply(&img);
     assert_eq!(out.origin(), &origin);
     assert_eq!(out.spacing(), &spacing);
     assert_eq!(out.direction(), &dir);
@@ -107,17 +121,26 @@ fn test_maximum_error_smaller_produces_larger_kernel() {
     let mut v: Vec<f32> = vec![0.0; 8];
     v.extend(vec![100.0; 8]);
     let img = make_image(v, [1, 1, 16]);
+    // sigma=2.0 → variance=4.0 (same as original var=4.0); near-zero sigmas for unused dims
     let loose = vals(
-        &DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, 4.0])
-            .with_maximum_error(0.1)
-            .with_spacing_mode(SpacingMode::Voxel)
-            .apply(&img),
+        &DiscreteGaussianFilter::<B>::new(vec![
+            GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
+            GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
+            GaussianSigma::new_unchecked(2.0),
+        ])
+        .with_maximum_error(0.1)
+        .with_spacing_mode(SpacingMode::Voxel)
+        .apply(&img),
     );
     let strict = vals(
-        &DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, 4.0])
-            .with_maximum_error(0.001)
-            .with_spacing_mode(SpacingMode::Voxel)
-            .apply(&img),
+        &DiscreteGaussianFilter::<B>::new(vec![
+            GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
+            GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
+            GaussianSigma::new_unchecked(2.0),
+        ])
+        .with_maximum_error(0.001)
+        .with_spacing_mode(SpacingMode::Voxel)
+        .apply(&img),
     );
     assert!((50.0 - strict[8]).abs() <= (50.0 - loose[8]).abs() + 1.0);
 }
@@ -127,10 +150,15 @@ fn test_per_dimension_variance_applied_independently() {
     let mut v = vec![0.0_f32; 64];
     v[4 * 8 + 4] = 100.0;
     let img = make_image(v, [1, 8, 8]);
+    // sigma=2.0 in dim2 (x) only; near-zero sigma in dim1 (y) → no y-smoothing
     let ov = vals(
-        &DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, 4.0])
-            .with_spacing_mode(SpacingMode::Voxel)
-            .apply(&img),
+        &DiscreteGaussianFilter::<B>::new(vec![
+            GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
+            GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
+            GaussianSigma::new_unchecked(2.0),
+        ])
+        .with_spacing_mode(SpacingMode::Voxel)
+        .apply(&img),
     );
     assert!(ov[4 * 8 + 3] > 1.0);
     assert!(ov[4 * 8 + 5] > 1.0);
@@ -140,19 +168,24 @@ fn test_per_dimension_variance_applied_independently() {
 
 #[test]
 fn test_impulse_response_matches_analytical_gaussian() {
-    // sigma=sqrt(4)=2; impulse at 15 in 1x1x31. Tol 1e-3.
+    // sigma=2.0 → variance=4.0; impulse at 15 in 1x1x31. Tol 1e-3.
     let n = 31usize;
     let c = 15usize;
     let var = 4.0f64;
+    let sigma = var.sqrt(); // sigma=2.0 → variance=sigma²=4.0
     let mut imp = vec![0.0_f32; n];
     imp[c] = 1.0;
     let img = make_image(imp, [1, 1, n]);
     let ov = vals(
-        &DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, var])
-            .with_spacing_mode(SpacingMode::Voxel)
-            .apply(&img),
+        &DiscreteGaussianFilter::<B>::new(vec![
+            GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
+            GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
+            GaussianSigma::new_unchecked(sigma),
+        ])
+        .with_spacing_mode(SpacingMode::Voxel)
+        .apply(&img),
     );
-    let tv = 2.0 * var;
+    let tv = 2.0 * var; // = 2 * sigma² = 2 * 4 = 8
     let raw: Vec<f64> = (0..n)
         .map(|k| (-((k as f64 - c as f64).powi(2)) / tv).exp())
         .collect();
@@ -171,10 +204,12 @@ fn test_empty_variance_panics() {
 #[test]
 #[should_panic]
 fn test_maximum_error_zero_panics() {
-    let _ = DiscreteGaussianFilter::<B>::new(vec![1.0]).with_maximum_error(0.0);
+    let _ = DiscreteGaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1.0)])
+        .with_maximum_error(0.0);
 }
 #[test]
 #[should_panic]
 fn test_maximum_error_one_panics() {
-    let _ = DiscreteGaussianFilter::<B>::new(vec![1.0]).with_maximum_error(1.0);
+    let _ = DiscreteGaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1.0)])
+        .with_maximum_error(1.0);
 }

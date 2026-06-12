@@ -1,8 +1,13 @@
 //! Pixelwise arithmetic intensity transform filters.
 //!
 //! Each filter is a pure pixelwise map `f : f32 → f32` applied independently to
-//! every voxel in a 3-D image. Spatial metadata (origin, spacing, direction) is
-//! preserved identically in every output image.
+//! every voxel in a D-dimensional image. Spatial metadata (origin, spacing,
+//! direction) is preserved identically in every output image.
+//!
+//! The five uniform-scaffold filters (`Abs`, `Sqrt`, `Exp`, `Log`, `Square`)
+//! share a single generic implementation in [`unary`]; type aliases maintain
+//! the original names.  [`invert`] stays separate because it carries state
+//! (`maximum: Option<f32>`).
 //!
 //! # ITK / ImageJ / SimpleITK parity
 //!
@@ -16,18 +21,23 @@
 //! | `LogImageFilter`             | `LogImageFilter`                   | Log                     |
 //! | `ExpImageFilter`             | `ExpImageFilter`                   | Exp                     |
 
+// ── Generic unary infrastructure ─────────────────────────────────────────────
+pub mod unary;
+pub use unary::{
+    Abs, AbsImageFilter, Exp, ExpImageFilter, Log, LogImageFilter, Sqrt, SqrtImageFilter, Square,
+    SquareImageFilter, UnaryImageFilter, UnaryPixelOp,
+};
+
+// ── Test-hosting modules (one per filter; contain only the #[cfg(test)] block) ─
 pub mod abs;
 pub mod exp;
-pub mod invert;
 pub mod log;
-pub mod normalize;
 pub mod sqrt;
 pub mod square;
 
-pub use abs::AbsImageFilter;
-pub use exp::ExpImageFilter;
+// ── Filters with unique state ─────────────────────────────────────────────────
+pub mod invert;
+pub mod normalize;
+
 pub use invert::InvertIntensityFilter;
-pub use log::LogImageFilter;
 pub use normalize::NormalizeImageFilter;
-pub use sqrt::SqrtImageFilter;
-pub use square::SquareImageFilter;

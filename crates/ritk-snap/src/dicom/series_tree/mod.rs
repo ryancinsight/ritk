@@ -57,20 +57,24 @@ impl SeriesEntry {
     /// series-level identifiers plus file paths. Fields not present in that
     /// summary stay empty until the full series is loaded.
     pub fn from_dicom_series_info(info: DicomSeriesInfo) -> Self {
+        // Extract borrow-based values before consuming owned fields.
+        let series_uid = info.series_instance_uid().to_string();
+        let modality = info.modality().to_string();
         let folder = info
             .file_paths
             .first()
             .and_then(|path| path.parent())
             .map(Path::to_path_buf)
             .unwrap_or_default();
+        let num_slices = info.file_paths.len();
         Self {
-            series_uid: info.series_instance_uid.to_string(),
+            series_uid,
             folder,
             patient_name: String::new(),
             patient_id: info.patient_id,
-            modality: info.modality.to_string(),
+            modality,
             series_description: info.series_description,
-            num_slices: info.file_paths.len(),
+            num_slices,
             study_date: None,
             study_uid: None,
         }

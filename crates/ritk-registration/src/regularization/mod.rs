@@ -21,7 +21,6 @@ pub mod curvature;
 pub mod diffusion;
 pub mod dispatch;
 pub mod elastic;
-pub(crate) mod spatial_ops;
 pub mod total_variation;
 pub mod trait_;
 

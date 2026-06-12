@@ -1,46 +1,14 @@
-use ritk_core::filter::ops::{extract_vec_infallible as extract_vec, rebuild};
-use ritk_core::image::Image;
-use burn::tensor::backend::Backend;
-
-/// Pixelwise natural exponential filter.
-///
-/// # Mathematical Specification
-///
-/// `out(x) = e^{in(x)}`
-///
-/// # Properties
-/// - `out(x) > 0` for all finite inputs.
-/// - `LogImageFilter(ExpImageFilter(I)) ≈ I` (composition recovers identity,
-///   up to floating-point round-trip error).
-///
-/// # References
-/// - ITK `itk::ExpImageFilter<TInputImage, TOutputImage>`.
-/// - ImageJ Process > Math > Exp.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct ExpImageFilter;
-
-impl ExpImageFilter {
-    /// Construct a new `ExpImageFilter`.
-    pub fn new() -> Self {
-        Self
-    }
-
-    /// Apply pixelwise natural exponential to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
-        let (vals, dims) = extract_vec(image);
-        let out: Vec<f32> = vals.into_iter().map(f32::exp).collect();
-        rebuild(out, dims, image)
-    }
-}
+// Implementation lives in `unary::UnaryImageFilter<Exp>`.
+pub use super::unary::ExpImageFilter;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::intensity::arithmetic::LogImageFilter;
-    use ritk_core::image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_core::image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

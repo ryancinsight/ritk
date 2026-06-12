@@ -179,11 +179,28 @@ pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
-    use ritk_filter::DiscreteGaussianFilter;
+    use ritk_filter::{DiscreteGaussianFilter, GaussianSigma};
 
     let image = read_image(&args.input)?;
 
-    let filter = DiscreteGaussianFilter::<Backend>::new(vec![args.variance])
+    // variance < 0 is invalid; variance = 0 is identity (no smoothing applied).
+    if args.variance < 0.0 {
+        anyhow::bail!("--variance must be non-negative, got {}", args.variance);
+    }
+    if args.variance == 0.0 {
+        write_image_inferred(&args.output, &image)?;
+        println!(
+            "Applied discrete-gaussian (variance=0.0: identity) to {} -> {}",
+            args.input.display(),
+            args.output.display()
+        );
+        return Ok(());
+    }
+
+    // CLI accepts variance (σ²); DiscreteGaussianFilter API takes sigma (σ).
+    let sigma = GaussianSigma::new(args.variance.sqrt())
+        .expect("invariant: sqrt of positive variance yields positive sigma");
+    let filter = DiscreteGaussianFilter::<Backend>::new(vec![sigma])
         .with_maximum_error(args.maximum_error)
         .with_spacing_mode(args.spacing_mode);
     let filtered = filter.apply(&image);

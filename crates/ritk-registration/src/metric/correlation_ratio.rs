@@ -7,6 +7,7 @@ use crate::metric::sampling::SamplingConfig;
 use crate::metric::{histogram::ParzenJointHistogram, Metric};
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_core::statistics::IntensityRange;
 use ritk_image::Image;
 use ritk_interpolation::LinearInterpolator;
 use ritk_transform::Transform;
@@ -43,14 +44,12 @@ impl<B: Backend> CorrelationRatio<B> {
     ///
     /// # Arguments
     /// * `num_bins` - Number of histogram bins
-    /// * `min_intensity` - Minimum intensity value
-    /// * `max_intensity` - Maximum intensity value
+    /// * `range` - Validated intensity range `[min, max]`
     /// * `parzen_sigma` - Parzen window sigma (e.g. 1.0)
     /// * `direction` - Direction of correlation
     pub fn new(
         num_bins: usize,
-        min_intensity: f32,
-        max_intensity: f32,
+        range: IntensityRange<f32>,
         parzen_sigma: f32,
         direction: CorrelationDirection,
         device: &B::Device,
@@ -58,8 +57,8 @@ impl<B: Backend> CorrelationRatio<B> {
         Self {
             histogram_calculator: ParzenJointHistogram::new(
                 num_bins,
-                min_intensity,
-                max_intensity,
+                range.min(),
+                range.max(),
                 parzen_sigma,
                 device,
             ),
@@ -82,8 +81,7 @@ impl<B: Backend> CorrelationRatio<B> {
     pub fn default_params(device: &B::Device) -> Self {
         Self::new(
             32,
-            0.0,
-            255.0,
+            IntensityRange::new_unchecked(0.0_f32, 255.0_f32),
             1.0,
             CorrelationDirection::MovingGivenFixed,
             device,

@@ -8,11 +8,12 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_transform::{RigidTransform, TranslationTransform};
+use ritk_core::statistics::IntensityRange;
 use ritk_registration::metric::{
     CorrelationDirection, CorrelationRatio, Metric, MutualInformation, MutualInformationVariant,
     NormalizationMethod,
 };
+use ritk_transform::{RigidTransform, TranslationTransform};
 
 type B = NdArray<f32>;
 
@@ -220,8 +221,7 @@ fn test_cr_perfect_alignment() {
     let device = Default::default();
     let cr = CorrelationRatio::<B>::new(
         32,
-        0.0,
-        1.0,
+        IntensityRange::new_unchecked(0.0_f32, 1.0_f32),
         0.03,
         CorrelationDirection::MovingGivenFixed,
         &device,
@@ -253,16 +253,14 @@ fn test_cr_direction_symmetry() {
     let device = Default::default();
     let cr_mgf = CorrelationRatio::<B>::new(
         32,
-        0.0,
-        1.0,
+        IntensityRange::new_unchecked(0.0_f32, 1.0_f32),
         0.03,
         CorrelationDirection::MovingGivenFixed,
         &device,
     );
     let cr_fgm = CorrelationRatio::<B>::new(
         32,
-        0.0,
-        1.0,
+        IntensityRange::new_unchecked(0.0_f32, 1.0_f32),
         0.03,
         CorrelationDirection::FixedGivenMoving,
         &device,

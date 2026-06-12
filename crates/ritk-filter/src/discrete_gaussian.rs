@@ -22,9 +22,10 @@
 //! - Young et al. (1995). Fundamentals of Image Processing. Delft UT.
 //! - ITK Software Guide 2nd Ed., Sec 6.3.1.
 
-use ritk_core::image::Image;
+use crate::edge::GaussianSigma;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_core::image::Image;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
@@ -79,10 +80,13 @@ pub struct DiscreteGaussianFilter<B: Backend> {
 }
 
 impl<B: Backend> DiscreteGaussianFilter<B> {
-    /// Create with per-dimension variances (physical units^2).
-    /// Panics if variance is empty.
-    pub fn new(variance: Vec<f64>) -> Self {
-        assert!(!variance.is_empty(), "variance list must not be empty");
+    /// Create with per-dimension Gaussian sigmas (physical units).
+    ///
+    /// Variance is computed internally as `sigma²` for each dimension.
+    /// Panics if `sigmas` is empty.
+    pub fn new(sigmas: Vec<GaussianSigma>) -> Self {
+        assert!(!sigmas.is_empty(), "sigmas list must not be empty");
+        let variance: Vec<f64> = sigmas.iter().map(|s| s.get().powi(2)).collect();
         Self {
             variance,
             maximum_error: 0.01,
