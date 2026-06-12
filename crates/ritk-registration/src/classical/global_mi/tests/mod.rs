@@ -14,8 +14,8 @@ use crate::optimizer::{HistoryPolicy, PopulationEval};
 use burn::backend::Autodiff;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_filter::GaussianSigma;
 use ritk_core::image::Image;
+use ritk_filter::GaussianSigma;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::{RigidTransform, TranslationTransform};
 

@@ -3,6 +3,23 @@
 /// Configuration for [`super::RegularStepGradientDescent`].
 ///
 /// Default values match ITK's `RegularStepGradientDescentOptimizerv4`.
+///
+/// # Adaptive Learning Rate (Robbins-Monro Schedule)
+///
+/// When `learning_rate_decay` is set (> 0), the step length follows the
+/// Robbins-Monro stochastic approximation schedule:
+///
+/// ```text
+/// Δ_k = Δ₀ / (1 + λ_decay · (k − 1))
+/// ```
+///
+/// This guarantees almost-sure convergence in the convex limit by satisfying
+/// Σ Δ_k = ∞ and Σ Δ_k² < ∞ (Robbins & Monro, 1951). In practice it
+/// stabilises the late-stage registration by reducing overshoot when the
+/// gradient norm has already collapsed to the noise floor.
+///
+/// Set `learning_rate_decay = 0.0` to disable and use the classic fixed-step
+/// RSGD behaviour (ITK-compatible).
 #[derive(Debug, Clone, Copy)]
 pub struct RegularStepGdConfig {
     /// Initial step length in parameter space.
@@ -19,6 +36,13 @@ pub struct RegularStepGdConfig {
     pub gradient_tolerance: f64,
     /// Maximum number of accepted optimization steps.
     pub maximum_iterations: usize,
+    /// Robbins-Monro decay factor for adaptive step-length scheduling.
+    ///
+    /// Step length at iteration k is:
+    ///   `Δ_k = initial_step_length / (1 + learning_rate_decay * (k - 1))`
+    ///
+    /// Typical values: 1e-4–1e-3.  Set to 0.0 to disable (classic RSGD).
+    pub learning_rate_decay: f64,
 }
 
 impl Default for RegularStepGdConfig {
@@ -30,6 +54,7 @@ impl Default for RegularStepGdConfig {
             maximum_step_length: 10.0,
             gradient_tolerance: 1e-6,
             maximum_iterations: 200,
+            learning_rate_decay: 0.0,
         }
     }
 }

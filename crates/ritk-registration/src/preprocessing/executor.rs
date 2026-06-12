@@ -3,9 +3,9 @@
 use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_image::Image;
 use ritk_filter::bias::N4Config;
 use ritk_filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
+use ritk_image::Image;
 
 use super::pipeline::PreprocessingPipeline;
 use super::step::{IntensityRescaleMode, PreprocessingStep};

@@ -26,12 +26,11 @@ use ritk_registration::{
 #[test]
 #[ignore = "requires test_data/registration/rire; runs CMA-ES NGF (~minutes) on CPU"]
 fn test_ngf_rigid_tre_on_rire_patient001() {
-    let rire_dir = find_rire_dir()
-        .expect("RIRE data not found under test_data/registration/rire/");
+    let rire_dir = find_rire_dir().expect("RIRE data not found under test_data/registration/rire/");
     let device: <NdArray<f32> as burn::tensor::backend::Backend>::Device = Default::default();
 
-    let ct = read_metaimage::<B, _>(&rire_dir.join("training_001_ct.mha"), &device)
-        .expect("load CT");
+    let ct =
+        read_metaimage::<B, _>(&rire_dir.join("training_001_ct.mha"), &device).expect("load CT");
     let mri = read_metaimage::<B, _>(&rire_dir.join("training_001_mr_T1.mha"), &device)
         .expect("load MRI T1");
     println!("CT {:?}  MRI {:?}", ct.shape(), mri.shape());
@@ -62,6 +61,7 @@ fn test_ngf_rigid_tre_on_rire_patient001() {
     let config = NgfRigidConfig {
         rotation_range_rad: 0.26, // ±15°
         translation_range_mm: 60.0,
+        center_weight_sigma_frac: None,
         cma: ritk_registration::optimizer::CmaEsConfig {
             max_generations: 150,
             ..NgfRigidConfig::default().cma

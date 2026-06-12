@@ -9,14 +9,14 @@
 use burn::backend::Autodiff;
 use burn::tensor::Tensor;
 use burn_ndarray::NdArray;
-use ritk_filter::ResampleImageFilter;
 use ritk_core::image::Image;
+use ritk_filter::ResampleImageFilter;
 use ritk_interpolation::LinearInterpolator;
-use ritk_transform::{AffineTransform, RigidTransform};
 use ritk_io::{read_png_series, write_nifti};
 use ritk_registration::metric::MutualInformation;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::AdamOptimizer;
+use ritk_transform::{AffineTransform, RigidTransform};
 
 // CPU backend with automatic differentiation
 type Backend = Autodiff<NdArray<f32>>;

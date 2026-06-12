@@ -19,7 +19,6 @@ use burn_ndarray::NdArray;
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
 use ritk_filter::GaussianSigma;
-use ritk_transform::RigidTransform;
 use ritk_io::read_metaimage;
 use ritk_registration::optimizer::{
     CmaEsConfig, HistoryPolicy, PopulationEval, RegularStepGdConfig,
@@ -28,6 +27,7 @@ use ritk_registration::{
     CmaMiConfig, CmaMiRegistration, GlobalMiConfig, GlobalMiTransformType, InitStrategy,
     MultiStartConfig, MultiStartMiRegistration,
 };
+use ritk_transform::RigidTransform;
 
 /// Run CMA-ES global rigid registration on the RIRE Patient-001 dataset.
 ///
@@ -242,6 +242,7 @@ fn test_multistart_rigid_on_rire_patient001() {
                 maximum_step_length: 2.0,
                 gradient_tolerance: 1e-7,
                 maximum_iterations: 100,
+                ..Default::default()
             }],
             transform_type: GlobalMiTransformType::Rigid,
             center: None,

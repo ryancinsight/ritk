@@ -16,13 +16,13 @@ use burn::backend::Autodiff;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use pyo3::prelude::*;
-use ritk_filter::GaussianSigma;
 use ritk_core::image::Image;
-use ritk_transform::{AffineTransform, RigidTransform, TranslationTransform};
+use ritk_filter::GaussianSigma;
 use ritk_registration::classical::global_mi::{
     ConvergenceStatus, GlobalMiConfig, GlobalMiRegistration, GlobalMiTransformType,
 };
 use ritk_registration::optimizer::regular_step_gd::RegularStepGdConfig;
+use ritk_transform::{AffineTransform, RigidTransform, TranslationTransform};
 
 // ─── Backend aliases ─────────────────────────────────────────────────────────
 // NdArray<f32> is the concrete inner backend (matching crate::image::Backend).
@@ -116,6 +116,7 @@ fn build_config(
                 maximum_step_length: initial_step_length * 2.0,
                 gradient_tolerance: minimum_step_length,
                 maximum_iterations: ((maximum_iterations as f64) * iter_scale) as usize,
+                learning_rate_decay: 0.0, // classic fixed-step RSGD (ITK-compatible)
             }
         })
         .collect();

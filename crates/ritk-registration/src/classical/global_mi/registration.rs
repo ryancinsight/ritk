@@ -13,8 +13,8 @@ use crate::types::AffineTransform;
 use burn::module::AutodiffModule;
 use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
-use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_core::image::Image;
+use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_transform::{
     AffineTransform as CoreAffineTransform, Resampleable, RigidTransform, Transform,
     TranslationTransform,

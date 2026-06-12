@@ -4,8 +4,8 @@ use burn::tensor::TensorData;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_statistics::IntensityRange;
 use ritk_registration::metric::{CorrelationDirection, CorrelationRatio, Metric};
+use ritk_statistics::IntensityRange;
 use ritk_transform::TranslationTransform;
 
 type B = NdArray<f32>;

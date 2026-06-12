@@ -65,6 +65,7 @@ fn rsgd_returns_module_unchanged_after_convergence() {
         maximum_step_length: 10.0,
         gradient_tolerance: 1e-5,
         maximum_iterations: 100,
+        ..Default::default()
     };
 
     let mut optimizer: RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend> =

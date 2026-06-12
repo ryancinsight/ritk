@@ -4,9 +4,10 @@ use super::super::config::{DemonsConfig, DemonsResult};
 use super::forces::thirion_forces_into;
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace_with_scratch,
-    warp_image_into, VectorField, VectorFieldMut, VelocityField,
+    warp_image_into, GpuFieldSmoother, VectorField, VectorFieldMut, VelocityField,
 };
 use crate::error::RegistrationError;
+use burn::tensor::backend::Backend;
 
 /// Thirion Demons registration (classic variant).
 ///
@@ -131,6 +132,129 @@ impl ThirionDemonsRegistration {
                     sigma.get(),
                     &mut smooth_tmp,
                 );
+            }
+
+            final_mse =
+                compute_mse_streaming(fixed, moving, dims.into(), &disp_z, &disp_y, &disp_x);
+        }
+
+        warp_image_into(
+            moving,
+            dims.into(),
+            &disp_z,
+            &disp_y,
+            &disp_x,
+            &mut m_warped,
+        );
+
+        Ok(DemonsResult {
+            warped: m_warped,
+            disp_z,
+            disp_y,
+            disp_x,
+            vel_z: None,
+            vel_y: None,
+            vel_x: None,
+            final_mse,
+            num_iterations: iter,
+        })
+    }
+
+    /// Register `moving` to `fixed` with **GPU-accelerated** Gaussian field
+    /// smoothing for both fluid regularisation and diffusion regularisation.
+    ///
+    /// The [`GpuFieldSmoother`] instances manage pre-allocated staging tensors
+    /// and a single [`ritk_filter::GaussianFilter`] each, reused across all
+    /// iterations.
+    ///
+    /// # Arguments
+    /// - `gpu_fluid_smoother` — GPU smoother for fluid regularisation
+    ///   (`sigma_fluid`). Called on the per-iteration forces.
+    /// - `gpu_diffusion_smoother` — GPU smoother for diffusion regularisation
+    ///   (`sigma_diffusion`). Called on the accumulated displacement field.
+    pub fn register_with_gpu_smoother<B: Backend>(
+        &self,
+        fixed: &[f32],
+        moving: &[f32],
+        dims: [usize; 3],
+        spacing: [f64; 3],
+        gpu_fluid_smoother: &mut GpuFieldSmoother<B>,
+        gpu_diffusion_smoother: &mut GpuFieldSmoother<B>,
+    ) -> Result<DemonsResult, RegistrationError> {
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+
+        if fixed.len() != n {
+            return Err(RegistrationError::DimensionMismatch(format!(
+                "fixed length {} != dims product {}",
+                fixed.len(),
+                n
+            )));
+        }
+        if moving.len() != n {
+            return Err(RegistrationError::DimensionMismatch(format!(
+                "moving length {} != dims product {}",
+                moving.len(),
+                n
+            )));
+        }
+
+        let mut disp_z = vec![0.0_f32; n];
+        let mut disp_y = vec![0.0_f32; n];
+        let mut disp_x = vec![0.0_f32; n];
+
+        let grad = compute_gradient(fixed, dims.into(), spacing);
+
+        let mut final_mse =
+            compute_mse_streaming(fixed, moving, dims.into(), &disp_z, &disp_y, &disp_x);
+        let mut iter = 0usize;
+        let mut m_warped = vec![0.0_f32; n];
+        let mut fz = vec![0.0_f32; n];
+        let mut fy = vec![0.0_f32; n];
+        let mut fx = vec![0.0_f32; n];
+
+        for it in 0..self.config.max_iterations {
+            iter = it + 1;
+
+            warp_image_into(
+                moving,
+                dims.into(),
+                &disp_z,
+                &disp_y,
+                &disp_x,
+                &mut m_warped,
+            );
+
+            thirion_forces_into(
+                fixed,
+                &m_warped,
+                VectorField {
+                    z: &grad.z,
+                    y: &grad.y,
+                    x: &grad.x,
+                },
+                self.config.max_step_length,
+                VectorFieldMut {
+                    z: &mut fz,
+                    y: &mut fy,
+                    x: &mut fx,
+                },
+            );
+
+            // GPU-accelerated fluid regularisation
+            if self.config.sigma_fluid.is_some() {
+                gpu_fluid_smoother.smooth_field_inplace(&mut fz, &mut fy, &mut fx);
+            }
+
+            for i in 0..n {
+                disp_z[i] += fz[i];
+                disp_y[i] += fy[i];
+                disp_x[i] += fx[i];
+            }
+
+            // GPU-accelerated diffusion regularisation
+            if self.config.sigma_diffusion.is_some() {
+                gpu_diffusion_smoother.smooth_field_inplace(&mut disp_z, &mut disp_y, &mut disp_x);
             }
 
             final_mse =

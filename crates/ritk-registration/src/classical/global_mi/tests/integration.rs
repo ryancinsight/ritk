@@ -40,6 +40,7 @@ fn translation_recovery_shifted_gaussian() {
             maximum_step_length: 10.0,
             gradient_tolerance: 1e-6,
             maximum_iterations: 300,
+            ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Translation,
         center: None,
@@ -116,6 +117,7 @@ fn multires_convergence_runs_all_levels() {
                 maximum_step_length: 5.0,
                 gradient_tolerance: 1e-4,
                 maximum_iterations: 50,
+                ..Default::default()
             },
             RegularStepGdConfig {
                 initial_step_length: 0.5,
@@ -124,6 +126,7 @@ fn multires_convergence_runs_all_levels() {
                 maximum_step_length: 2.0,
                 gradient_tolerance: 1e-5,
                 maximum_iterations: 50,
+                ..Default::default()
             },
         ],
         transform_type: GlobalMiTransformType::Rigid,
@@ -173,6 +176,7 @@ fn rigid_recovery_identity_validates_pipeline() {
             maximum_step_length: 5.0,
             gradient_tolerance: 1e-5,
             maximum_iterations: 50,
+            ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Rigid,
         center: None,
@@ -229,6 +233,7 @@ fn sparse_sampling_produces_comparable_result() {
             maximum_step_length: 10.0,
             gradient_tolerance: 1e-6,
             maximum_iterations: 200,
+            ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Translation,
         center: None,

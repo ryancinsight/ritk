@@ -5,8 +5,7 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_segmentation::{
-    connected_components as core_connected_components,
-    labeling::Connectivity as SegConnectivity,
+    connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     ConnectedComponentsFilter, KMeansSegmentation, MarkerControlledWatershed, SlicConfig,
     SlicSuperpixelFilter, WatershedSegmentation,
 };
@@ -42,7 +41,11 @@ pub fn connected_components(
 
     let mask = Arc::clone(&mask.inner);
     let (label_image, num_components) = {
-        let seg_conn = if connectivity == 6 { SegConnectivity::Six } else { SegConnectivity::TwentySix };
+        let seg_conn = if connectivity == 6 {
+            SegConnectivity::Six
+        } else {
+            SegConnectivity::TwentySix
+        };
         py.allow_threads(|| core_connected_components(mask.as_ref(), seg_conn))
     };
     Ok((into_py_image(label_image), num_components))
@@ -80,7 +83,11 @@ pub fn label_shape_statistics(
     }
     let mask_arc = Arc::clone(&mask.inner);
     let (_label_image, stats) = py.allow_threads(|| {
-        let seg_conn = if connectivity == 6 { SegConnectivity::Six } else { SegConnectivity::TwentySix };
+        let seg_conn = if connectivity == 6 {
+            SegConnectivity::Six
+        } else {
+            SegConnectivity::TwentySix
+        };
         ConnectedComponentsFilter::with_connectivity(seg_conn).apply(mask_arc.as_ref())
     });
     let list = PyList::empty_bound(py);

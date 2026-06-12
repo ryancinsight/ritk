@@ -2,12 +2,12 @@
 mod tests {
     use burn::tensor::{Distribution, Shape, Tensor};
     use burn_ndarray::NdArray;
-    use ritk_filter::GaussianSigma;
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_transform::TranslationTransform;
+    use ritk_filter::GaussianSigma;
     use ritk_registration::metric::LocalNormalizedCrossCorrelation;
     use ritk_registration::metric::Metric;
+    use ritk_transform::TranslationTransform;
 
     type B = NdArray<f32>;
 

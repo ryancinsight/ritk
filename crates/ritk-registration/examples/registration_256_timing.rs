@@ -47,12 +47,12 @@ use burn::backend::Autodiff;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
-use ritk_transform::TranslationTransform;
 use ritk_registration::metric::MutualInformation;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::regular_step_gd::RegularStepGdConfig;
 use ritk_registration::optimizer::regular_step_gd::RegularStepGradientDescent;
+use ritk_spatial::{Direction, Point, Spacing};
+use ritk_transform::TranslationTransform;
 
 type B = Autodiff<NdArray<f32>>;
 

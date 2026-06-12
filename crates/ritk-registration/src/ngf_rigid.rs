@@ -18,7 +18,10 @@ use burn::tensor::{Tensor, TensorData};
 use ritk_image::Image;
 use ritk_transform::RigidTransform;
 
-use crate::metric::NormalizedGradientField;
+use ritk_filter::BinShrinkImageFilter;
+
+use crate::classical::compute_center_of_mass;
+use crate::metric::ngf::NgfFixedPrep;
 use crate::optimizer::{CmaEsConfig, CmaEsOptimizer, HistoryPolicy, PopulationEval};
 
 /// Configuration for [`register_rigid_ngf`].
@@ -29,6 +32,13 @@ pub struct NgfRigidConfig {
     pub rotation_range_rad: f64,
     /// Half-range of the per-axis translation search [mm].
     pub translation_range_mm: f64,
+    /// Optional brain-centroid Gaussian weighting of the NGF metric. `Some(frac)`
+    /// weights each masked voxel by `exp(−‖x−c‖²/(2σ²))`, `σ = frac · r_rms`
+    /// (RMS mask radius, physical units), suppressing the high-gradient skull/scalp
+    /// rim so the optimiser aligns deep structure (ventricles, deep gray) instead
+    /// of the periphery. `None` keeps the uniform Haber–Modersitzki average.
+    /// `frac ≈ 0.7` ≈ σ at ⅓ the outer brain radius (multimodal-edge convention).
+    pub center_weight_sigma_frac: Option<f64>,
     /// CMA-ES optimizer configuration.
     pub cma: CmaEsConfig,
 }
@@ -38,6 +48,7 @@ impl Default for NgfRigidConfig {
         Self {
             rotation_range_rad: std::f64::consts::FRAC_PI_4, // ±45°
             translation_range_mm: 60.0,
+            center_weight_sigma_frac: None,
             cma: CmaEsConfig {
                 sigma0: 0.3,
                 lambda: 0, // auto: 4 + ⌊3 ln n⌋
@@ -69,31 +80,44 @@ pub struct NgfRigidResult {
     pub generations: usize,
 }
 
-/// Build a [`RigidTransform`] from normalized CMA-ES parameters
-/// `[α_n, β_n, γ_n, tz_n, ty_n, tx_n] ∈ [−1, 1]⁶`.
+/// Build a [`RigidTransform`] from normalized CMA-ES residual parameters
+/// `[α_n, β_n, γ_n, tz_n, ty_n, tx_n] ∈ [−1, 1]⁶`, composed onto a fixed base
+/// pose `(base_rot, base_trans)` and rotating about `center` (the fixed-image
+/// centroid). Searching a tight residual about a centroid pre-alignment — rather
+/// than a wide box about the world origin — keeps rotation and translation
+/// decoupled (rotation about the brain centre induces no spurious translation),
+/// so the optimiser stays in the correct basin instead of trading rotation
+/// against a large compensating translation.
+#[allow(clippy::too_many_arguments)]
 fn build_rigid<B: Backend>(
     params: &[f64],
     rot_scale: f64,
     trans_scale: f64,
+    base_rot: [f64; 3],
+    base_trans: [f64; 3],
+    center: [f64; 3],
     device: &B::Device,
 ) -> RigidTransform<B, 3> {
     let rot = Tensor::<B, 1>::from_data(
         TensorData::from([
-            (params[0] * rot_scale) as f32,
-            (params[1] * rot_scale) as f32,
-            (params[2] * rot_scale) as f32,
+            (base_rot[0] + params[0] * rot_scale) as f32,
+            (base_rot[1] + params[1] * rot_scale) as f32,
+            (base_rot[2] + params[2] * rot_scale) as f32,
         ]),
         device,
     );
     let trans = Tensor::<B, 1>::from_data(
         TensorData::from([
-            (params[3] * trans_scale) as f32,
-            (params[4] * trans_scale) as f32,
-            (params[5] * trans_scale) as f32,
+            (base_trans[0] + params[3] * trans_scale) as f32,
+            (base_trans[1] + params[4] * trans_scale) as f32,
+            (base_trans[2] + params[5] * trans_scale) as f32,
         ]),
         device,
     );
-    let center = Tensor::<B, 1>::zeros([3], device);
+    let center = Tensor::<B, 1>::from_data(
+        TensorData::from([center[0] as f32, center[1] as f32, center[2] as f32]),
+        device,
+    );
     RigidTransform::<B, 3>::new(trans, rot, center)
 }
 
@@ -112,7 +136,6 @@ pub fn register_rigid_ngf<B: Backend>(
     config: &NgfRigidConfig,
 ) -> (RigidTransform<B, 3>, NgfRigidResult) {
     let device = fixed.data().device();
-    let metric = NormalizedGradientField::new();
     let rot_scale = config.rotation_range_rad;
     let trans_scale = config.translation_range_mm;
 
@@ -131,14 +154,30 @@ pub fn register_rigid_ngf<B: Backend>(
             .collect()
     });
 
-    let x0: [f64; 6] = [
-        initial_rotation[0] / rot_scale,
-        initial_rotation[1] / rot_scale,
-        initial_rotation[2] / rot_scale,
-        initial_translation[0] / trans_scale,
-        initial_translation[1] / trans_scale,
-        initial_translation[2] / trans_scale,
-    ];
+    // Optional brain-centroid Gaussian weight field (physical-space, anisotropy
+    // aware) that de-emphasises the skull/scalp rim. Built once over the fixed
+    // mask; reused for every CMA-ES objective evaluation.
+    let weights: Option<Vec<f32>> = config.center_weight_sigma_frac.map(|frac| {
+        crate::metric::ngf::center_gaussian_weight_field(
+            &fixed.shape(),
+            mask_bool.as_deref(),
+            &fixed.spacing().to_array(),
+            frac,
+        )
+    });
+
+    // Precompute the fixed-image NGF state ONCE (grid world points, fixed
+    // gradient field, η_F, mask, weights). Every CMA-ES objective evaluation
+    // reuses it, so only the moving resample + moving gradient run per step.
+    let prep = NgfFixedPrep::new(fixed, mask_bool.as_deref(), weights.as_deref());
+
+    // Rotate about the fixed-image centroid so the residual search decouples
+    // rotation from translation (rotation about the world origin would couple a
+    // few degrees into tens of mm for a brain centred far from the origin). The
+    // caller's `initial_*` become the fixed base pose; the CMA-ES residual is
+    // searched from zero within the configured (tight) ranges.
+    let center = compute_center_of_mass(fixed);
+    let x0 = [0.0_f64; 6];
 
     // Objective: −NGF on the inner backend, with the same box + soft-boundary
     // penalty the CMA-MI path uses to suppress out-of-FOV corner optima.
@@ -160,14 +199,30 @@ pub fn register_rigid_ngf<B: Backend>(
         if boundary > 0.0 {
             return boundary;
         }
-        let t = build_rigid::<B>(params, rot_scale, trans_scale, &device);
-        // −NGF over the mask (the registration's masked path).
-        -f64::from(metric.ngf_value(fixed, moving, &t, mask_bool.as_deref()))
+        let t = build_rigid::<B>(
+            params,
+            rot_scale,
+            trans_scale,
+            initial_rotation,
+            initial_translation,
+            center,
+            &device,
+        );
+        // −NGF (optionally center-weighted) reusing the precomputed fixed state.
+        -f64::from(prep.eval(moving, &t))
     };
 
     let cma = CmaEsOptimizer::new(config.cma.clone()).run(obj, &x0);
 
-    let final_transform = build_rigid::<B>(&cma.best_x, rot_scale, trans_scale, &device);
+    let final_transform = build_rigid::<B>(
+        &cma.best_x,
+        rot_scale,
+        trans_scale,
+        initial_rotation,
+        initial_translation,
+        center,
+        &device,
+    );
 
     // Pack the 3×4 rigid matrix into a 4×4 homogeneous [f64; 16] (matches the
     // CmaMiResult convention used downstream).
@@ -181,15 +236,97 @@ pub fn register_rigid_ngf<B: Backend>(
     }
     matrix[15] = 1.0;
 
+    // Recovered pose = base + residual (the residual is the CMA-ES solution).
     let b = &cma.best_x;
     let result = NgfRigidResult {
         matrix,
-        rotation_rad: [b[0] * rot_scale, b[1] * rot_scale, b[2] * rot_scale],
-        translation_mm: [b[3] * trans_scale, b[4] * trans_scale, b[5] * trans_scale],
+        rotation_rad: [
+            initial_rotation[0] + b[0] * rot_scale,
+            initial_rotation[1] + b[1] * rot_scale,
+            initial_rotation[2] + b[2] * rot_scale,
+        ],
+        translation_mm: [
+            initial_translation[0] + b[3] * trans_scale,
+            initial_translation[1] + b[4] * trans_scale,
+            initial_translation[2] + b[5] * trans_scale,
+        ],
         best_ngf: -cma.best_f,
         generations: cma.generations,
     };
     (final_transform, result)
+}
+
+/// One level of an [`register_rigid_ngf_multires`] Gaussian-pyramid schedule.
+#[derive(Debug, Clone)]
+pub struct NgfPyramidLevel {
+    /// Per-axis bin-shrink factor for this level (`[1, s, s]` keeps thick slices
+    /// and downsamples in-plane). Coarser levels (larger factors) run the global
+    /// search cheaply; finer levels refine where the NGF optimum is sharp.
+    pub shrink: [usize; 3],
+    /// Per-level rigid-search configuration. Coarse levels use a wide residual
+    /// range; fine levels tighten it (and need fewer generations from a good seed).
+    pub config: NgfRigidConfig,
+}
+
+/// Multi-resolution coarse-to-fine NGF rigid registration. Each level
+/// bin-shrinks `fixed`/`moving`/`mask` (averaging — anti-aliasing low-pass),
+/// runs [`register_rigid_ngf`] seeded from the previous level's recovered pose,
+/// and passes the result down. Coarse levels remove high-frequency edge texture
+/// so the objective is smoother and the global basin is found cheaply; fine
+/// levels then lock onto the sharp full-resolution optimum that a single coarse
+/// pass blurs away. Bin-shrink preserves world coordinates, so the recovered
+/// transform applies at full resolution.
+///
+/// `levels` must be ordered COARSE → FINE and be non-empty.
+pub fn register_rigid_ngf_multires<B: Backend>(
+    fixed: &Image<B, 3>,
+    moving: &Image<B, 3>,
+    initial_rotation: [f64; 3],
+    initial_translation: [f64; 3],
+    fixed_mask: Option<&Image<B, 3>>,
+    levels: &[NgfPyramidLevel],
+) -> (RigidTransform<B, 3>, NgfRigidResult) {
+    assert!(!levels.is_empty(), "multires schedule must have ≥ 1 level");
+    let mut rot = initial_rotation;
+    let mut trans = initial_translation;
+    let mut out: Option<(RigidTransform<B, 3>, NgfRigidResult)> = None;
+
+    for level in levels {
+        let shrink = BinShrinkImageFilter::new(level.shrink.to_vec());
+        let f = shrink.apply(fixed);
+        let m = shrink.apply(moving);
+        let mask = fixed_mask.map(|mk| shrink.apply(mk));
+        let (t, res) = register_rigid_ngf(&f, &m, rot, trans, mask.as_ref(), &level.config);
+        // Warm-start the next (finer) level from this pose.
+        rot = res.rotation_rad;
+        trans = res.translation_mm;
+        out = Some((t, res));
+    }
+    out.expect("non-empty schedule yields a result")
+}
+
+/// Default 3-level head CT↔MR schedule: coarse global search (in-plane shrink 8,
+/// wide residual) → medium (shrink 4) → fine (shrink 2, tight residual, few
+/// generations). The thick through-plane axis is never shrunk. Tune per data.
+#[must_use]
+pub fn default_ngf_pyramid(center_weight_sigma_frac: Option<f64>) -> Vec<NgfPyramidLevel> {
+    let level = |shrink_xy: usize, rot_deg: f64, trans_mm: f64, gens: usize| NgfPyramidLevel {
+        shrink: [1, shrink_xy, shrink_xy],
+        config: NgfRigidConfig {
+            rotation_range_rad: rot_deg.to_radians(),
+            translation_range_mm: trans_mm,
+            center_weight_sigma_frac,
+            cma: CmaEsConfig {
+                max_generations: gens,
+                ..NgfRigidConfig::default().cma
+            },
+        },
+    };
+    vec![
+        level(8, 30.0, 50.0, 200), // coarse: wide global basin
+        level(4, 12.0, 20.0, 120), // medium: refine
+        level(2, 6.0, 10.0, 80),   // fine: sharp optimum
+    ]
 }
 
 #[cfg(test)]
@@ -227,31 +364,50 @@ mod tests {
     }
 
     /// CMA-ES + NGF recovers a known x-translation across modalities (the moving
-    /// slab is shifted 3 voxels in x with OPPOSITE contrast). x is index 2 of the
-    /// `[tz, ty, tx]` translation; the recovered magnitude must be ≈ 3 mm. (y, z
-    /// and the x-axis rotation are unconstrained by an x-only slab, so only tx is
-    /// asserted.)
+    /// slab is shifted 3 voxels in x with OPPOSITE contrast). The registrar
+    /// rotates about the fixed centroid, so the `(R, t)` decomposition of an
+    /// alignment is not unique — the physical edge displacement is
+    /// `t + (I − R)·c`, equal to the raw `t` only when `R = I`. We therefore
+    /// assert the decomposition-INVARIANT quantity: the net x-displacement the
+    /// recovered matrix applies to a point on the fixed edge (≈ +3 mm), plus a
+    /// high NGF confirming the slabs actually align.
     #[test]
     fn recovers_known_translation_cross_modal() {
         let (d, h, w) = (6usize, 24usize, 24usize);
         let fixed = image3d(x_slab(d, h, w, 12, 1.0), [d, h, w]);
         let moving = image3d(x_slab(d, h, w, 15, -1.0), [d, h, w]); // +3 in x, inverted
 
+        // Near-zero rotation range isolates TRANSLATION recovery: an x-slab is
+        // rotation-degenerate (constant in y,z), so a free rotation about the
+        // centroid only adds an ambiguous degree of freedom. Constraining it keeps
+        // this a clean translation test.
         let cfg = NgfRigidConfig {
-            rotation_range_rad: 0.15,
+            rotation_range_rad: 1e-3,
             translation_range_mm: 10.0,
             cma: CmaEsConfig {
-                max_generations: 150,
+                max_generations: 200,
                 ..NgfRigidConfig::default().cma
             },
+            ..Default::default()
         };
         let (_t, res) = register_rigid_ngf(&fixed, &moving, [0.0; 3], [0.0; 3], None, &cfg);
 
+        // Net x-shift the matrix (row-major [z,y,x]) applies at the edge point
+        // (z,y,x)=(3,12,12): x' = m[8]·z + m[9]·y + m[10]·x + m[11].
+        let m = res.matrix;
+        let (z, y, x) = (3.0_f64, 12.0_f64, 12.0_f64);
+        let net_x = (m[8] * z + m[9] * y + m[10] * x + m[11]) - x;
         assert!(
-            (res.translation_mm[2].abs() - 3.0).abs() < 1.5,
-            "recovered tx {} mm, expected ≈ ±3 mm",
-            res.translation_mm[2]
+            (net_x.abs() - 3.0).abs() < 1.5,
+            "net x-displacement {net_x} mm, expected ≈ ±3 mm"
         );
-        assert!(res.best_ngf > 0.05, "NGF too low at recovered pose: {}", res.best_ngf);
+        // Mean NGF over the whole volume is modest: the slab is mostly flat
+        // (zero-gradient) voxels that contribute ~0; only the single edge plane
+        // scores ~1. A low-but-positive value confirms the edges co-locate.
+        assert!(
+            res.best_ngf > 0.05,
+            "NGF too low at recovered pose: {}",
+            res.best_ngf
+        );
     }
 }

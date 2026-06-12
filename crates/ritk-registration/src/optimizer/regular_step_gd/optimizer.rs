@@ -182,6 +182,27 @@ where
                 );
             }
 
+            // Apply Robbins-Monro decay on accepted steps.
+            // Δ_{k+1} = Δ₀ / (1 + λ_decay · k)
+            //
+            // Note: this decay runs *after* the step-length check above, so
+            // `self.current_step_length` reflects the (possibly already
+            // relaxation-shrunk) value. When a step was previously rejected
+            // and the step length was shrunk by `relaxation_factor`, the
+            // decay formula further reduces it. This double-shrink is benign
+            // because both mechanisms push Δ toward zero, but callers
+            // should prefer `learning_rate_decay` OR small `relaxation_factor`,
+            // not both, to avoid overly aggressive step reduction.
+            // ITK resets Δ to `initial_step_length` after a failed line
+            // search; that behaviour can be obtained by setting
+            // `relaxation_factor = 1.0` and relying solely on the
+            // Robbins-Monro schedule.
+            if self.config.learning_rate_decay > 0.0 {
+                let decayed = self.config.initial_step_length
+                    / (1.0 + self.config.learning_rate_decay * self.steps as f64);
+                self.current_step_length = decayed.max(self.config.minimum_step_length);
+            }
+
             new_module
         }
     }

@@ -127,7 +127,10 @@ pub use classical::{
 // ============================================================================
 // Re-exports — NGF (Normalized Gradient Fields) cross-modal rigid registration
 // ============================================================================
-pub use ngf_rigid::{register_rigid_ngf, NgfRigidConfig, NgfRigidResult};
+pub use ngf_rigid::{
+    default_ngf_pyramid, register_rigid_ngf, register_rigid_ngf_multires, NgfPyramidLevel,
+    NgfRigidConfig, NgfRigidResult,
+};
 
 // ============================================================================
 // Re-exports — ML-based registration

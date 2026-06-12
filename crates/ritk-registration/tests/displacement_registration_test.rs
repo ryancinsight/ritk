@@ -2,12 +2,12 @@ use burn::backend::Autodiff;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
-use ritk_interpolation::LinearInterpolator;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_transform::{DisplacementField, DisplacementFieldTransform};
+use ritk_interpolation::LinearInterpolator;
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::optimizer::AdamOptimizer as Adam;
 use ritk_registration::registration::{Registration, RegistrationConfig};
+use ritk_transform::{DisplacementField, DisplacementFieldTransform};
 
 type B = Autodiff<NdArray<f32>>;
 const D: usize = 2;

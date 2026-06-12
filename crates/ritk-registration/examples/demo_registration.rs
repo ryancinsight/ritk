@@ -9,14 +9,14 @@
 use burn::backend::wgpu::Wgpu;
 use burn::backend::Autodiff;
 use burn::tensor::Tensor;
-use ritk_filter::ResampleImageFilter;
 use ritk_core::image::Image;
+use ritk_filter::ResampleImageFilter;
 use ritk_interpolation::LinearInterpolator;
-use ritk_transform::RigidTransform;
 use ritk_io::{read_nifti, write_nifti};
 use ritk_registration::metric::MutualInformation;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::AdamOptimizer;
+use ritk_transform::RigidTransform;
 use std::path::Path;
 
 // Use WGPU backend for GPU acceleration

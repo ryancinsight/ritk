@@ -40,17 +40,14 @@ use ritk_transform::Transform;
 ///
 /// Returns `−NGF ∈ [−1, 0]` as a loss to be minimized. Robust for cross-modal
 /// (CT↔MRI) alignment where intensity MI/NCC are weak. See the [module docs](self).
-pub struct NormalizedGradientField {
-    interpolator: LinearInterpolator,
-}
+pub struct NormalizedGradientField;
 
 impl NormalizedGradientField {
-    /// Create a new NGF metric (linear interpolation of the moving image).
+    /// Create a new NGF metric (linear interpolation of the moving image, held by
+    /// the per-registration [`NgfFixedPrep`]).
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            interpolator: LinearInterpolator::new(),
-        }
+        Self
     }
 }
 
@@ -90,33 +87,28 @@ impl NormalizedGradientField {
         transform: &impl Transform<B, D>,
         mask: Option<&[bool]>,
     ) -> f32 {
-        let device = fixed.data().device();
-        let shape = fixed.shape();
-        let n: usize = shape.iter().product();
+        self.ngf_value_weighted(fixed, moving, transform, mask, None)
+    }
 
-        // Resample the moving image onto the fixed grid (NCC idiom): fixed voxel →
-        // world → transform → moving index → interpolate.
-        let fixed_indices = grid::generate_grid(shape, &device);
-        let fixed_points = fixed.index_to_world_tensor(fixed_indices);
-        let moving_points = transform.transform_points(fixed_points);
-        let moving_indices = moving.world_to_index_tensor(moving_points);
-        let m_tensor = self.interpolator.interpolate(moving.data(), moving_indices);
-
-        // Materialize both volumes on the fixed grid (gradients need neighbours;
-        // the metric is gradient-free so reading to host is fine).
-        let f: Vec<f32> = fixed
-            .data()
-            .clone()
-            .reshape([n])
-            .into_data()
-            .to_vec()
-            .expect("fixed image to f32 host vec");
-        let m: Vec<f32> = m_tensor
-            .into_data()
-            .to_vec()
-            .expect("resampled moving image to f32 host vec");
-
-        ngf_scalar(&f, &m, &shape, mask)
+    /// As [`ngf_value`](Self::ngf_value), but each masked voxel's contribution is
+    /// scaled by `weights[flat]` (row-major, same length as the fixed image).
+    /// A brain-centroid Gaussian weight (see [`center_gaussian_weight_field`])
+    /// down-weights the high-gradient skull/scalp rim — which otherwise dominates
+    /// the uniform NGF average and lets the optimiser ignore deep structures
+    /// (ventricles, deep gray) — so the metric becomes sensitive to the central
+    /// anatomy where rigid alignment is anatomically defined.
+    pub(crate) fn ngf_value_weighted<B: Backend, const D: usize>(
+        &self,
+        fixed: &Image<B, D>,
+        moving: &Image<B, D>,
+        transform: &impl Transform<B, D>,
+        mask: Option<&[bool]>,
+        weights: Option<&[f32]>,
+    ) -> f32 {
+        // One-shot path (trait `forward`): build the fixed context and evaluate
+        // once. The registration hot loop instead builds [`NgfFixedPrep`] ONCE and
+        // calls [`NgfFixedPrep::eval`] per transform, reusing the fixed work.
+        NgfFixedPrep::new(fixed, mask, weights).eval(moving, transform)
     }
 }
 
@@ -128,51 +120,266 @@ impl NormalizedGradientField {
 /// mask-boundary edge is introduced. Masking to the brain+skull region is what
 /// makes cross-modal NGF lock onto the shared rigid anatomy instead of the
 /// scalp/scanner-bed/FOV edges. See the [module docs](self).
-fn ngf_scalar<const D: usize>(f: &[f32], m: &[f32], shape: &[usize; D], mask: Option<&[bool]>) -> f32 {
+#[cfg(test)]
+fn ngf_scalar<const D: usize>(
+    f: &[f32],
+    m: &[f32],
+    shape: &[usize; D],
+    mask: Option<&[bool]>,
+    weights: Option<&[f32]>,
+) -> f32 {
     let n = f.len();
     if n == 0 || m.len() != n {
         return 0.0;
     }
-    let included = |flat: usize| mask.is_none_or(|mk| mk[flat]);
-    // Row-major (C-order) strides: last axis is fastest.
+    let stride = row_major_strides(shape);
+    let gf = compute_gradient_field(f, shape, &stride);
+    let eta_f2 = weighted_eta2(&gf, mask, weights);
+    weighted_ngf_from_fixed(&gf, eta_f2, m, shape, &stride, mask, weights)
+}
+
+/// Row-major (C-order) strides for `shape` — last axis fastest.
+fn row_major_strides<const D: usize>(shape: &[usize; D]) -> [usize; D] {
     let mut stride = [1usize; D];
     for a in (0..D.saturating_sub(1)).rev() {
         stride[a] = stride[a + 1] * shape[a + 1];
     }
+    stride
+}
 
-    // Pass 1: η_F², η_M² = (mean masked gradient magnitude)² (Haber & Modersitzki).
-    let (mut sum_f, mut sum_m, mut count) = (0.0_f64, 0.0_f64, 0.0_f64);
-    let (mut gf, mut gm) = ([0.0_f32; D], [0.0_f32; D]);
-    for flat in 0..n {
-        if !included(flat) {
-            continue;
-        }
-        grad_at(f, flat, shape, &stride, &mut gf);
-        grad_at(m, flat, shape, &stride, &mut gm);
-        sum_f += f64::from(magnitude(&gf));
-        sum_m += f64::from(magnitude(&gm));
-        count += 1.0;
+/// Per-voxel central-difference gradient field of `data` (one `[f32; D]` per
+/// voxel). Computed once per image and, for the fixed image, reused across every
+/// transform evaluation.
+fn compute_gradient_field<const D: usize>(
+    data: &[f32],
+    shape: &[usize; D],
+    stride: &[usize; D],
+) -> Vec<[f32; D]> {
+    let mut g = vec![[0.0_f32; D]; data.len()];
+    for (flat, gv) in g.iter_mut().enumerate() {
+        grad_at(data, flat, shape, stride, gv);
     }
-    if count < 1.0 {
+    g
+}
+
+/// Per-voxel weight: 0 outside the mask, else `weights[flat]` (or 1 when no
+/// weight field is supplied — recovering the uniform Haber–Modersitzki mean).
+fn voxel_weight(flat: usize, mask: Option<&[bool]>, weights: Option<&[f32]>) -> f64 {
+    if mask.is_some_and(|mk| !mk[flat]) {
         return 0.0;
     }
-    let eta_f2 = ((sum_f / count).powi(2)).max(1e-12) as f32;
-    let eta_m2 = ((sum_m / count).powi(2)).max(1e-12) as f32;
+    weights.map_or(1.0, |w| f64::from(w[flat]).max(0.0))
+}
 
-    // Pass 2: mean squared normalized gradient dot product over the mask.
+/// `η² = (weighted-mean masked gradient magnitude)²` — the edge-noise scale
+/// (Haber & Modersitzki), clamped away from zero.
+fn weighted_eta2<const D: usize>(
+    grads: &[[f32; D]],
+    mask: Option<&[bool]>,
+    weights: Option<&[f32]>,
+) -> f32 {
+    let (mut s, mut ws) = (0.0_f64, 0.0_f64);
+    for (flat, g) in grads.iter().enumerate() {
+        let w = voxel_weight(flat, mask, weights);
+        if w == 0.0 {
+            continue;
+        }
+        s += w * f64::from(magnitude(g));
+        ws += w;
+    }
+    if ws <= 0.0 {
+        1e-12
+    } else {
+        ((s / ws).powi(2)).max(1e-12) as f32
+    }
+}
+
+/// Weighted mean squared normalized gradient dot product, given the PRECOMPUTED
+/// fixed gradient field `gf`/`eta_f2` and the moving host volume `m`. The moving
+/// gradient and `η_M` are computed here (they vary with the transform); the fixed
+/// side is supplied so a registration reuses it across every evaluation.
+fn weighted_ngf_from_fixed<const D: usize>(
+    gf: &[[f32; D]],
+    eta_f2: f32,
+    m: &[f32],
+    shape: &[usize; D],
+    stride: &[usize; D],
+    mask: Option<&[bool]>,
+    weights: Option<&[f32]>,
+) -> f32 {
+    let n = gf.len();
+    if m.len() != n {
+        return 0.0;
+    }
+    let mut gm = [0.0_f32; D];
+
+    // Pass 1: η_M² from the (weighted) moving gradient magnitude.
+    let (mut s, mut ws) = (0.0_f64, 0.0_f64);
+    for flat in 0..n {
+        let w = voxel_weight(flat, mask, weights);
+        if w == 0.0 {
+            continue;
+        }
+        grad_at(m, flat, shape, stride, &mut gm);
+        s += w * f64::from(magnitude(&gm));
+        ws += w;
+    }
+    if ws <= 0.0 {
+        return 0.0;
+    }
+    let eta_m2 = ((s / ws).powi(2)).max(1e-12) as f32;
+
+    // Pass 2: weighted squared normalized gradient dot product over the mask.
     let mut acc = 0.0_f64;
+    for (flat, g) in gf.iter().enumerate() {
+        let w = voxel_weight(flat, mask, weights);
+        if w == 0.0 {
+            continue;
+        }
+        grad_at(m, flat, shape, stride, &mut gm);
+        let dot: f32 = (0..D).map(|a| g[a] * gm[a]).sum();
+        let na2: f32 = (0..D).map(|a| g[a] * g[a]).sum::<f32>() + eta_f2;
+        let nb2: f32 = (0..D).map(|a| gm[a] * gm[a]).sum::<f32>() + eta_m2;
+        acc += w * f64::from((dot * dot) / (na2 * nb2));
+    }
+    (acc / ws) as f32
+}
+
+/// Precomputed fixed-image NGF state for repeated transform evaluations across a
+/// registration. Building this ONCE removes from the optimiser's hot loop: the
+/// fixed-grid generation, the index→world mapping, the fixed host read, the fixed
+/// gradient field, and `η_F`. Each [`eval`](Self::eval) then only resamples the
+/// moving image and computes its gradient — roughly halving the per-evaluation
+/// gradient work and eliminating the largest repeated allocations.
+pub(crate) struct NgfFixedPrep<B: Backend, const D: usize> {
+    /// World coordinates of every fixed-grid voxel, `[N, D]` (constant).
+    fixed_points: Tensor<B, 2>,
+    shape: [usize; D],
+    stride: [usize; D],
+    /// Precomputed fixed gradient field and its edge-noise scale.
+    gf: Vec<[f32; D]>,
+    eta_f2: f32,
+    mask: Option<Vec<bool>>,
+    weights: Option<Vec<f32>>,
+    interpolator: LinearInterpolator,
+}
+
+impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
+    /// Precompute the fixed-image state for `fixed`, restricted to `mask` and
+    /// scaled by `weights` (both row-major, fixed-image C-order).
+    pub(crate) fn new(fixed: &Image<B, D>, mask: Option<&[bool]>, weights: Option<&[f32]>) -> Self {
+        let device = fixed.data().device();
+        let shape = fixed.shape();
+        let n: usize = shape.iter().product();
+        let fixed_indices = grid::generate_grid(shape, &device);
+        let fixed_points = fixed.index_to_world_tensor(fixed_indices);
+        let f: Vec<f32> = fixed
+            .data()
+            .clone()
+            .reshape([n])
+            .into_data()
+            .to_vec()
+            .expect("fixed image to f32 host vec");
+        let stride = row_major_strides(&shape);
+        let gf = compute_gradient_field(&f, &shape, &stride);
+        let eta_f2 = weighted_eta2(&gf, mask, weights);
+        Self {
+            fixed_points,
+            shape,
+            stride,
+            gf,
+            eta_f2,
+            mask: mask.map(<[bool]>::to_vec),
+            weights: weights.map(<[f32]>::to_vec),
+            interpolator: LinearInterpolator::new(),
+        }
+    }
+
+    /// `NGF ∈ [0, 1]` of `moving` resampled through `transform` onto the fixed
+    /// grid, reusing the precomputed fixed state.
+    pub(crate) fn eval(&self, moving: &Image<B, D>, transform: &impl Transform<B, D>) -> f32 {
+        let moving_points = transform.transform_points(self.fixed_points.clone());
+        let moving_indices = moving.world_to_index_tensor(moving_points);
+        let m: Vec<f32> = self
+            .interpolator
+            .interpolate(moving.data(), moving_indices)
+            .into_data()
+            .to_vec()
+            .expect("resampled moving image to f32 host vec");
+        weighted_ngf_from_fixed(
+            &self.gf,
+            self.eta_f2,
+            &m,
+            &self.shape,
+            &self.stride,
+            self.mask.as_deref(),
+            self.weights.as_deref(),
+        )
+    }
+}
+
+/// Build a brain-centroid Gaussian weight field over `mask` for the weighted NGF
+/// metric. `w(x) = exp(−‖x − c‖² / (2σ²))` for masked voxels (0 elsewhere), with
+/// `c` the mask centroid and `σ = sigma_frac · r_rms`, where `r_rms` is the
+/// mask's root-mean-square radius — all distances in PHYSICAL units via `spacing`
+/// so anisotropic voxels (e.g. 0.4×0.4×3 mm) are weighted correctly.
+///
+/// `sigma_frac` controls how sharply the periphery is suppressed: smaller →
+/// tighter central focus. With the RMS radius as the scale, `sigma_frac ≈ 0.7`
+/// places σ near ⅓ of the outer brain radius (the value the multimodal-edge
+/// literature uses to emphasise deep structure over the skull rim).
+#[must_use]
+pub fn center_gaussian_weight_field<const D: usize>(
+    shape: &[usize; D],
+    mask: Option<&[bool]>,
+    spacing: &[f64; D],
+    sigma_frac: f64,
+) -> Vec<f32> {
+    let n: usize = shape.iter().product();
+    let mut stride = [1usize; D];
+    for a in (0..D.saturating_sub(1)).rev() {
+        stride[a] = stride[a + 1] * shape[a + 1];
+    }
+    let included = |flat: usize| mask.is_none_or(|mk| mk[flat]);
+    let phys = |flat: usize, a: usize| ((flat / stride[a]) % shape[a]) as f64 * spacing[a];
+
+    // Centroid (physical) and RMS radius over the mask.
+    let mut c = [0.0_f64; D];
+    let mut cnt = 0.0_f64;
     for flat in 0..n {
         if !included(flat) {
             continue;
         }
-        grad_at(f, flat, shape, &stride, &mut gf);
-        grad_at(m, flat, shape, &stride, &mut gm);
-        let dot: f32 = (0..D).map(|a| gf[a] * gm[a]).sum();
-        let na2: f32 = (0..D).map(|a| gf[a] * gf[a]).sum::<f32>() + eta_f2;
-        let nb2: f32 = (0..D).map(|a| gm[a] * gm[a]).sum::<f32>() + eta_m2;
-        acc += f64::from((dot * dot) / (na2 * nb2));
+        for (a, ca) in c.iter_mut().enumerate() {
+            *ca += phys(flat, a);
+        }
+        cnt += 1.0;
     }
-    (acc / count) as f32
+    if cnt < 1.0 {
+        return vec![1.0; n];
+    }
+    for ca in &mut c {
+        *ca /= cnt;
+    }
+    let mut r2sum = 0.0_f64;
+    for flat in 0..n {
+        if !included(flat) {
+            continue;
+        }
+        r2sum += (0..D).map(|a| (phys(flat, a) - c[a]).powi(2)).sum::<f64>();
+    }
+    let r_rms = (r2sum / cnt).sqrt().max(f64::EPSILON);
+    let two_sigma2 = 2.0 * (sigma_frac * r_rms).powi(2);
+
+    let mut w = vec![0.0_f32; n];
+    for (flat, wf) in w.iter_mut().enumerate() {
+        if !included(flat) {
+            continue;
+        }
+        let r2 = (0..D).map(|a| (phys(flat, a) - c[a]).powi(2)).sum::<f64>();
+        *wf = (-r2 / two_sigma2).exp() as f32;
+    }
+    w
 }
 
 /// Central-difference spatial gradient of `data` at flat index `flat`, written
@@ -188,8 +395,16 @@ fn grad_at<const D: usize>(
         let idx_a = (flat / stride[a]) % shape[a];
         let has_lo = idx_a > 0;
         let has_hi = idx_a + 1 < shape[a];
-        let lo = if has_lo { data[flat - stride[a]] } else { data[flat] };
-        let hi = if has_hi { data[flat + stride[a]] } else { data[flat] };
+        let lo = if has_lo {
+            data[flat - stride[a]]
+        } else {
+            data[flat]
+        };
+        let hi = if has_hi {
+            data[flat + stride[a]]
+        } else {
+            data[flat]
+        };
         let denom = (usize::from(has_lo) + usize::from(has_hi)).max(1) as f32;
         out[a] = (hi - lo) / denom;
     }
@@ -238,8 +453,8 @@ mod tests {
     fn ngf_is_sign_invariant() {
         let (w, h) = (8usize, 8usize);
         let f = vertical_edge(w, h, 4, 1.0);
-        let same = ngf_scalar(&f, &f, &[h, w], None);
-        let opposite = ngf_scalar(&f, &vertical_edge(w, h, 4, -1.0), &[h, w], None);
+        let same = ngf_scalar(&f, &f, &[h, w], None, None);
+        let opposite = ngf_scalar(&f, &vertical_edge(w, h, 4, -1.0), &[h, w], None, None);
         assert!(same > 0.0, "self-NGF should be positive, got {same}");
         assert!(
             (same - opposite).abs() < 1e-4,
@@ -260,12 +475,50 @@ mod tests {
                 horiz[y * w + x] = if y < 4 { 0.0 } else { 1.0 };
             }
         }
-        let aligned = ngf_scalar(&vert, &vert, &[h, w], None);
-        let perpendicular = ngf_scalar(&vert, &horiz, &[h, w], None);
+        let aligned = ngf_scalar(&vert, &vert, &[h, w], None, None);
+        let perpendicular = ngf_scalar(&vert, &horiz, &[h, w], None, None);
         assert!(
             aligned > perpendicular + 0.1,
             "aligned {aligned} should exceed perpendicular {perpendicular}"
         );
+    }
+
+    /// Center weighting makes a CENTRAL edge mismatch dominate the metric over a
+    /// stronger PERIPHERAL one — the skull-domination fix. Fixed and moving agree
+    /// at the periphery but disagree centrally; the uniform NGF barely drops
+    /// (periphery dominates), while the center-Gaussian-weighted NGF drops sharply
+    /// because the central disagreement now carries the weight.
+    #[test]
+    fn center_weight_emphasizes_central_mismatch() {
+        let (w, h) = (32usize, 32usize);
+        // Fixed: strong peripheral vertical edges (cols 2 and 29) + a central one (col 16).
+        let mut f = vec![0.0f32; w * h];
+        let mut m = vec![0.0f32; w * h];
+        for y in 0..h {
+            for x in 0..w {
+                let periph = if x == 2 || x == 29 { 1.0 } else { 0.0 };
+                f[y * w + x] = periph + if x == 16 { 1.0 } else { 0.0 };
+                // Moving matches the periphery but the central edge is displaced
+                // (col 20 instead of 16) — a purely central disagreement.
+                m[y * w + x] = periph + if x == 20 { 1.0 } else { 0.0 };
+            }
+        }
+        let shape = [h, w];
+        let spacing = [1.0_f64, 1.0_f64];
+        let uniform = ngf_scalar(&f, &m, &shape, None, None);
+        let wfield = center_gaussian_weight_field(&shape, None, &spacing, 0.4);
+        let weighted = ngf_scalar(&f, &m, &shape, None, Some(&wfield));
+        // The central mismatch costs MORE under center weighting: weighted NGF
+        // (similarity) is strictly lower than the periphery-dominated uniform NGF.
+        assert!(
+            weighted < uniform - 1e-3,
+            "center weighting should penalise the central mismatch: \
+             weighted {weighted} vs uniform {uniform}"
+        );
+        // Weight field is a valid Gaussian: positive at the centre, ~0 at corners.
+        let center = wfield[(h / 2) * w + w / 2];
+        assert!(center > 0.9, "center weight {center} should be near 1");
+        assert!(wfield[0] < center, "corner weight {} < center", wfield[0]);
     }
 
     /// End-to-end through the `Metric` trait: registering the moving edge onto the
@@ -290,7 +543,10 @@ mod tests {
         };
         let aligned = loss(0.0);
         let shifted = loss(4.0);
-        assert!(aligned < 0.0, "aligned loss should be negative, got {aligned}");
+        assert!(
+            aligned < 0.0,
+            "aligned loss should be negative, got {aligned}"
+        );
         assert!(
             aligned < shifted,
             "aligned loss {aligned} should be below shifted {shifted}"

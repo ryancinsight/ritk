@@ -5,10 +5,11 @@ use super::super::inverse::invert_velocity_field;
 use super::super::thirion::thirion_forces_into;
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace_with_scratch,
-    scaling_and_squaring, scaling_and_squaring_into, warp_image_into, VectorField, VectorFieldMut,
-    VelocityField,
+    scaling_and_squaring, scaling_and_squaring_into, warp_image_into, GpuFieldSmoother,
+    VectorField, VectorFieldMut, VelocityField,
 };
 use crate::error::RegistrationError;
+use burn::tensor::backend::Backend;
 
 /// Diffeomorphic Demons registration using stationary velocity fields.
 ///
@@ -42,7 +43,10 @@ impl DiffeomorphicDemonsRegistration {
         }
     }
 
-    /// Register `moving` to `fixed` using a stationary velocity field.
+    /// Register `moving` to `fixed` using a stationary velocity field with
+    /// **CPU-based** Gaussian field smoothing.
+    ///
+    /// Prefer [`register_with_gpu_smoother`] when a Burn GPU backend is available.
     ///
     /// # Arguments
     /// - `fixed`   — reference image, flat `Vec<f32>` in Z-major order.
@@ -84,7 +88,6 @@ impl DiffeomorphicDemonsRegistration {
         let mut fy = vec![0.0_f32; n];
         let mut fx = vec![0.0_f32; n];
 
-        // ── Pre-allocated scratch for zero-allocation inner loop ──────────────────
         let mut phi_z = vec![0.0_f32; n];
         let mut phi_y = vec![0.0_f32; n];
         let mut phi_x = vec![0.0_f32; n];
@@ -92,7 +95,6 @@ impl DiffeomorphicDemonsRegistration {
         let mut scratch_ss_y = vec![0.0_f32; n];
         let mut scratch_ss_x = vec![0.0_f32; n];
         let mut m_warped = vec![0.0_f32; n];
-        // Pre-hoisted scratch: reused by the smooth call, eliminates 3×n f32 allocs per iter.
         let mut smooth_tmp = vec![0.0_f32; n];
 
         let grad = compute_gradient(fixed, dims.into(), spacing);
@@ -181,8 +183,147 @@ impl DiffeomorphicDemonsRegistration {
             final_mse = compute_mse_streaming(fixed, moving, dims.into(), &phi_z, &phi_y, &phi_x);
         }
 
-        // phi_z/y/x already holds exp(vel) from the last MSE computation in the loop
-        // (or exp(0) = identity if max_iterations = 0). Compute the final warped image.
+        warp_image_into(moving, dims.into(), &phi_z, &phi_y, &phi_x, &mut m_warped);
+
+        Ok(DemonsResult {
+            warped: m_warped,
+            disp_z: phi_z,
+            disp_y: phi_y,
+            disp_x: phi_x,
+            vel_z: Some(vel_z),
+            vel_y: Some(vel_y),
+            vel_x: Some(vel_x),
+            final_mse,
+            num_iterations: iter,
+        })
+    }
+
+    /// Register `moving` to `fixed` using a stationary velocity field with
+    /// **GPU-accelerated** Gaussian field smoothing.
+    ///
+    /// The [`GpuFieldSmoother`] manages pre-allocated staging tensors and a
+    /// single [`ritk_filter::GaussianFilter`] reused across all iterations.
+    pub fn register_with_gpu_smoother<B: Backend>(
+        &self,
+        fixed: &[f32],
+        moving: &[f32],
+        dims: [usize; 3],
+        spacing: [f64; 3],
+        gpu_smoother: &mut GpuFieldSmoother<B>,
+    ) -> Result<DemonsResult, RegistrationError> {
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+
+        if fixed.len() != n {
+            return Err(RegistrationError::DimensionMismatch(format!(
+                "fixed length {} != dims product {}",
+                fixed.len(),
+                n
+            )));
+        }
+        if moving.len() != n {
+            return Err(RegistrationError::DimensionMismatch(format!(
+                "moving length {} != dims product {}",
+                moving.len(),
+                n
+            )));
+        }
+
+        let mut vel_z = vec![0.0_f32; n];
+        let mut vel_y = vec![0.0_f32; n];
+        let mut vel_x = vec![0.0_f32; n];
+        let mut fz = vec![0.0_f32; n];
+        let mut fy = vec![0.0_f32; n];
+        let mut fx = vec![0.0_f32; n];
+
+        let mut phi_z = vec![0.0_f32; n];
+        let mut phi_y = vec![0.0_f32; n];
+        let mut phi_x = vec![0.0_f32; n];
+        let mut scratch_ss_z = vec![0.0_f32; n];
+        let mut scratch_ss_y = vec![0.0_f32; n];
+        let mut scratch_ss_x = vec![0.0_f32; n];
+        let mut m_warped = vec![0.0_f32; n];
+
+        let grad = compute_gradient(fixed, dims.into(), spacing);
+
+        scaling_and_squaring_into(
+            &vel_z,
+            &vel_y,
+            &vel_x,
+            dims.into(),
+            self.n_squarings,
+            &mut phi_z,
+            &mut phi_y,
+            &mut phi_x,
+            &mut scratch_ss_z,
+            &mut scratch_ss_y,
+            &mut scratch_ss_x,
+        );
+        let mut final_mse =
+            compute_mse_streaming(fixed, moving, dims.into(), &phi_z, &phi_y, &phi_x);
+        let mut iter = 0usize;
+
+        for it in 0..self.config.max_iterations {
+            iter = it + 1;
+
+            scaling_and_squaring_into(
+                &vel_z,
+                &vel_y,
+                &vel_x,
+                dims.into(),
+                self.n_squarings,
+                &mut phi_z,
+                &mut phi_y,
+                &mut phi_x,
+                &mut scratch_ss_z,
+                &mut scratch_ss_y,
+                &mut scratch_ss_x,
+            );
+            warp_image_into(moving, dims.into(), &phi_z, &phi_y, &phi_x, &mut m_warped);
+
+            thirion_forces_into(
+                fixed,
+                &m_warped,
+                VectorField {
+                    z: &grad.z,
+                    y: &grad.y,
+                    x: &grad.x,
+                },
+                self.config.max_step_length,
+                VectorFieldMut {
+                    z: &mut fz,
+                    y: &mut fy,
+                    x: &mut fx,
+                },
+            );
+
+            for i in 0..n {
+                vel_z[i] += fz[i];
+                vel_y[i] += fy[i];
+                vel_x[i] += fx[i];
+            }
+
+            // GPU-accelerated diffusion regularisation
+            if self.config.sigma_diffusion.is_some() {
+                gpu_smoother.smooth_field_inplace(&mut vel_z, &mut vel_y, &mut vel_x);
+            }
+
+            scaling_and_squaring_into(
+                &vel_z,
+                &vel_y,
+                &vel_x,
+                dims.into(),
+                self.n_squarings,
+                &mut phi_z,
+                &mut phi_y,
+                &mut phi_x,
+                &mut scratch_ss_z,
+                &mut scratch_ss_y,
+                &mut scratch_ss_x,
+            );
+            final_mse = compute_mse_streaming(fixed, moving, dims.into(), &phi_z, &phi_y, &phi_x);
+        }
+
         warp_image_into(moving, dims.into(), &phi_z, &phi_y, &phi_x, &mut m_warped);
 
         Ok(DemonsResult {
@@ -199,9 +340,6 @@ impl DiffeomorphicDemonsRegistration {
     }
 
     /// Compute the inverse displacement field of a registration result.
-    ///
-    /// Uses `exp(−v)` when the SVF is available; falls back to fixed-point
-    /// inversion of the displacement field otherwise.
     pub fn invert_result(&self, result: &DemonsResult, dims: [usize; 3]) -> VelocityField {
         match (&result.vel_z, &result.vel_y, &result.vel_x) {
             (Some(vel_z), Some(vel_y), Some(vel_x)) => {

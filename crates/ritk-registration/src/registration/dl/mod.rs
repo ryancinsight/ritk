@@ -11,7 +11,9 @@ pub mod grad;
 pub mod lncc;
 pub mod ncc;
 
-pub use combined::{RegistrationLoss, RegistrationLossConfig, RegularizationType, SimilarityMetric};
+pub use combined::{
+    RegistrationLoss, RegistrationLossConfig, RegularizationType, SimilarityMetric,
+};
 pub use grad::{GradLoss, GradientPenalty};
 pub use lncc::LocalNCCLoss;
 pub use ncc::GlobalNCCLoss;

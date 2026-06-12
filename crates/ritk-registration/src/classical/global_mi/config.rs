@@ -123,6 +123,7 @@ impl GlobalMiConfig {
                     maximum_step_length: 10.0,
                     gradient_tolerance: 1e-4,
                     maximum_iterations: 100,
+                    ..Default::default()
                 },
                 RegularStepGdConfig {
                     initial_step_length: 1.0,
@@ -131,6 +132,7 @@ impl GlobalMiConfig {
                     maximum_step_length: 5.0,
                     gradient_tolerance: 1e-5,
                     maximum_iterations: 150,
+                    ..Default::default()
                 },
                 RegularStepGdConfig {
                     initial_step_length: 0.5,
@@ -139,6 +141,7 @@ impl GlobalMiConfig {
                     maximum_step_length: 2.0,
                     gradient_tolerance: 1e-6,
                     maximum_iterations: 200,
+                    ..Default::default()
                 },
             ],
             transform_type: GlobalMiTransformType::Rigid,

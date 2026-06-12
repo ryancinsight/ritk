@@ -73,6 +73,7 @@ fn test_global_mi_translation_near_gt_rire_patient001() {
             maximum_step_length: 15.0,
             gradient_tolerance: 1e-8,
             maximum_iterations: 200,
+            ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Translation,
         center: None,

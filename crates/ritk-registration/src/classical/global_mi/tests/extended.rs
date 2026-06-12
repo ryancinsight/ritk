@@ -38,6 +38,7 @@ fn convergence_history_tracks_per_level() {
                 maximum_step_length: 5.0,
                 gradient_tolerance: 1e-4,
                 maximum_iterations: 30,
+                ..Default::default()
             },
             RegularStepGdConfig {
                 initial_step_length: 0.5,
@@ -46,6 +47,7 @@ fn convergence_history_tracks_per_level() {
                 maximum_step_length: 2.0,
                 gradient_tolerance: 1e-5,
                 maximum_iterations: 30,
+                ..Default::default()
             },
             RegularStepGdConfig {
                 initial_step_length: 0.2,
@@ -54,6 +56,7 @@ fn convergence_history_tracks_per_level() {
                 maximum_step_length: 1.0,
                 gradient_tolerance: 1e-6,
                 maximum_iterations: 30,
+                ..Default::default()
             },
         ],
         transform_type: GlobalMiTransformType::Translation,

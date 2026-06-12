@@ -7,9 +7,7 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use pyo3::prelude::*;
 use ritk_filter::ResampleImageFilter;
 use ritk_interpolation::LinearInterpolator;
-use ritk_interpolation::{
-    BSplineInterpolator, Lanczos4Interpolator, NearestNeighborInterpolator,
-};
+use ritk_interpolation::{BSplineInterpolator, Lanczos4Interpolator, NearestNeighborInterpolator};
 use ritk_segmentation::DistanceTransform;
 use ritk_spatial::Spacing as CoreSpacing;
 use ritk_transform::affine::translation::TranslationTransform;

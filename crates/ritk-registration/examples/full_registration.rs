@@ -1,14 +1,14 @@
 use burn::backend::Autodiff;
 use burn::tensor::Tensor;
 use burn_ndarray::{NdArray, NdArrayDevice};
-use ritk_filter::resample::ResampleImageFilter;
 use ritk_core::image::Image;
+use ritk_filter::resample::ResampleImageFilter;
 use ritk_interpolation::NearestNeighborInterpolator;
-use ritk_spatial::{Direction3, Point3, Spacing3};
-use ritk_transform::TranslationTransform;
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::AdamOptimizer;
+use ritk_spatial::{Direction3, Point3, Spacing3};
+use ritk_transform::TranslationTransform;
 use std::time::Instant;
 
 type B = Autodiff<NdArray<f32>>;

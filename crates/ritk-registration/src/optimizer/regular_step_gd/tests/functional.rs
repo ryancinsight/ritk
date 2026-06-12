@@ -24,6 +24,7 @@ fn rsgd_minimizes_quadratic_function() {
         maximum_step_length: 10.0,
         gradient_tolerance: 1e-8,
         maximum_iterations: 500,
+        ..Default::default()
     };
 
     let mut optimizer: RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend> =
@@ -80,6 +81,7 @@ fn rsgd_detects_gradient_convergence() {
         maximum_step_length: 10.0,
         gradient_tolerance: 1e-5,
         maximum_iterations: 100,
+        ..Default::default()
     };
 
     let mut optimizer: RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend> =
@@ -125,6 +127,7 @@ fn rsgd_detects_step_convergence() {
         maximum_step_length: 1000.0,
         gradient_tolerance: 1e-20,
         maximum_iterations: 10000,
+        ..Default::default()
     };
 
     let mut optimizer: RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend> =
@@ -170,6 +173,7 @@ fn rsgd_detects_maximum_iterations() {
         maximum_step_length: 10.0,
         gradient_tolerance: 1e-30,
         maximum_iterations: 5,
+        ..Default::default()
     };
 
     let mut optimizer: RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend> =
@@ -197,6 +201,164 @@ fn rsgd_detects_maximum_iterations() {
     assert_eq!(optimizer.steps(), 5);
 }
 
+// ── Robbins-Monro decay reduces step length over accepted iterations ─────────
+//
+// With `learning_rate_decay = 0.1` and `relaxation_factor = 1.0` (no
+// rejection-shrink), the step length after k accepted steps must be
+// Δₖ = Δ₀ / (1 + λ_decay · k).  After 20 accepted steps on the simple
+// quadratic f(x) = x², Δ must have dropped well below Δ₀.
+
+#[test]
+fn rsgd_robbins_monro_decay_reduces_step_length() {
+    let device = Default::default();
+    let mut module = Quadratic::<TestBackend>::new(&[5.0, -3.0], &device);
+
+    let config = RegularStepGdConfig {
+        initial_step_length: 2.0,
+        relaxation_factor: 0.5, // all steps accepted on convex quadratic; decay dominates
+        minimum_step_length: 1e-4,
+        maximum_step_length: 10.0,
+        gradient_tolerance: 1e-12, // keep the loop alive
+        maximum_iterations: 200,
+        learning_rate_decay: 0.1,
+    };
+
+    let mut optimizer: RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend> =
+        RegularStepGradientDescent::new(config);
+
+    // Collect step lengths after each accepted step.
+    let mut deltas: Vec<f64> = Vec::with_capacity(30);
+
+    for _ in 0..500 {
+        if optimizer.converged() {
+            break;
+        }
+        let steps_before = optimizer.steps();
+        let loss = module.forward();
+        let loss_val = module.loss_value();
+        optimizer.set_loss(loss_val);
+        let grads = loss.backward();
+        let grads_params = GradientsParams::from_grads(grads, &module);
+        module = optimizer.step(module, grads_params);
+        // Record Δ only when an acceptance occurred (steps incremented).
+        if optimizer.steps() > steps_before {
+            deltas.push(optimizer.current_step_length());
+        }
+    }
+
+    // Sanity: at least 5 accepted steps
+    assert!(
+        deltas.len() >= 5,
+        "need at least 5 accepted steps to test decay; got {}",
+        deltas.len()
+    );
+
+    // Δ after k=1: 2.0 / (1 + 0.1·1) = 2.0/1.1 ≈ 1.818
+    let delta_1 = deltas[0];
+    let expected_1 = 2.0 / (1.0 + 0.1 * 1.0);
+    assert!(
+        (delta_1 - expected_1).abs() < 1e-10,
+        "Δ after 1st accepted step must be 2.0/1.1 = {expected_1:.6}; got {delta_1:.6}"
+    );
+
+    // Δ after k=5: 2.0 / (1 + 0.1·5) = 2.0/1.5 ≈ 1.333
+    let delta_5 = deltas[4];
+    let expected_5 = 2.0 / (1.0 + 0.1 * 5.0);
+    assert!(
+        (delta_5 - expected_5).abs() < 1e-10,
+        "Δ after 5th accepted step must be 2.0/1.5 = {expected_5:.6}; got {delta_5:.6}"
+    );
+
+    // Δ after k=10: 2.0 / (1 + 0.1·10) = 2.0/2.0 = 1.0
+    let delta_10 = deltas[9];
+    let expected_10 = 2.0 / (1.0 + 0.1 * 10.0);
+    assert!(
+        (delta_10 - expected_10).abs() < 1e-10,
+        "Δ after 10th accepted step must be 2.0/2.0 = {expected_10:.6}; got {delta_10:.6}"
+    );
+
+    // Monotonic: Δ must be non-increasing across accepted steps
+    for window in deltas.windows(2) {
+        assert!(
+            window[0] >= window[1],
+            "Δ must be non-increasing across accepted steps; got {} → {}",
+            window[0],
+            window[1]
+        );
+    }
+}
+
+// ── Robbins-Monro decay is disabled when learning_rate_decay = 0 ──────────────
+
+#[test]
+fn rsgd_zero_decay_preserves_step_length() {
+    let device = Default::default();
+    let mut module = Quadratic::<TestBackend>::new(&[5.0, -3.0], &device);
+
+    let config = RegularStepGdConfig {
+        initial_step_length: 2.0,
+        relaxation_factor: 0.5,
+        minimum_step_length: 1e-4,
+        maximum_step_length: 10.0,
+        gradient_tolerance: 1e-12,
+        maximum_iterations: 200,
+        learning_rate_decay: 0.0, // explicitly disabled
+    };
+
+    let mut optimizer: RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend> =
+        RegularStepGradientDescent::new(config);
+
+    // Verify that accepted steps never change Δ when decay=0.  We compare
+    // Δ before and after each accepted step individually (not across
+    // consecutive accepted steps, because rejections may shrink Δ between
+    // them via relaxation_factor).
+    let mut accept_count = 0usize;
+    let mut first_accepted_delta: Option<f64> = None;
+
+    for _ in 0..500 {
+        if optimizer.converged() {
+            break;
+        }
+        let steps_before = optimizer.steps();
+        let delta_before = optimizer.current_step_length();
+        let loss = module.forward();
+        let loss_val = module.loss_value();
+        optimizer.set_loss(loss_val);
+        let grads = loss.backward();
+        let grads_params = GradientsParams::from_grads(grads, &module);
+        module = optimizer.step(module, grads_params);
+        let delta_after = optimizer.current_step_length();
+
+        if optimizer.steps() > steps_before {
+            // Accepted: decay=0 means Δ must not change from before to after.
+            assert_eq!(
+                delta_before,
+                delta_after,
+                "accepted step {} with decay=0 must not change Δ; {} → {}",
+                accept_count + 1,
+                delta_before,
+                delta_after
+            );
+            if first_accepted_delta.is_none() {
+                first_accepted_delta = Some(delta_after);
+            }
+            accept_count += 1;
+        }
+    }
+
+    assert!(
+        accept_count >= 3,
+        "need at least 3 accepted steps; got {accept_count}"
+    );
+
+    // First accepted step starts from Δ₀.
+    assert!(
+        (first_accepted_delta.unwrap() - 2.0).abs() < 1e-10,
+        "Δ after 1st accepted step must be 2.0 with decay=0; got {}",
+        first_accepted_delta.unwrap()
+    );
+}
+
 // ── Revert on loss increase ───────────────────────────────────────────────────
 //
 // x₀ = [1.0], Δ₀ = 3.0:
@@ -215,6 +377,7 @@ fn rsgd_reverts_on_loss_increase() {
         maximum_step_length: 100.0,
         gradient_tolerance: 1e-30,
         maximum_iterations: 100,
+        ..Default::default()
     };
 
     let mut optimizer: RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend> =

@@ -22,11 +22,11 @@
 //! it.
 
 use burn::tensor::backend::Backend;
+use ritk_core::Image;
 use ritk_filter::{
     BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryThresholdImageFilter,
 };
-use ritk_segmentation::{Connectivity, ConnectedComponentsFilter};
-use ritk_core::Image;
+use ritk_segmentation::{ConnectedComponentsFilter, Connectivity};
 
 /// Parameters for [`ct_brain_mask`].
 #[derive(Debug, Clone, Copy, PartialEq)]

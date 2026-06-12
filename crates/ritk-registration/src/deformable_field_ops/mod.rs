@@ -35,6 +35,10 @@ pub(crate) use smooth::{
     gaussian_smooth_field_inplace_with_scratch, gaussian_smooth_inplace,
     gaussian_smooth_with_scratch,
 };
+
+// — GPU-accelerated smoothing (Burn tensor path) —————————————————————————————
+#[allow(unused_imports)]
+pub use smooth::{gaussian_smooth_field_tensor, gaussian_smooth_tensor, GpuFieldSmoother};
 pub(crate) use warp::{compute_mse_streaming, warp_image, warp_image_into};
 
 // ── 3D vector field grouping structs ─────────────────────────────────────────

@@ -50,10 +50,10 @@ use common::{
     resample_mri_into_ct_ritk, B,
 };
 use ritk_filter::GaussianSigma;
-use ritk_transform::RigidTransform;
 use ritk_io::read_metaimage;
 use ritk_registration::optimizer::RegularStepGdConfig;
 use ritk_registration::{GlobalMiConfig, GlobalMiRegistration, GlobalMiTransformType};
+use ritk_transform::RigidTransform;
 
 /// Run 6-DOF rigid `GlobalMiRegistration` on the RIRE Patient-001 data
 /// and validate that the 6-DOF gradient machinery computes meaningful gradients
@@ -172,6 +172,7 @@ fn test_global_mi_rigid_registration_on_rire_patient001() {
             maximum_step_length: 2.0,
             gradient_tolerance: 1e-8,
             maximum_iterations: 150,
+            ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Rigid,
         center: None,
@@ -312,6 +313,7 @@ fn test_global_mi_translation_only_on_rire_patient001() {
             maximum_step_length: 15.0,
             gradient_tolerance: 1e-8,
             maximum_iterations: 200,
+            ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Translation,
         center: None,
@@ -357,10 +359,8 @@ fn test_global_mi_translation_only_on_rire_patient001() {
 
     // Run translation-only registration
     println!("\n── Running 3-DOF translation GlobalMiRegistration (shrink [4], 200 iters) ──");
-    let initial_t = ritk_transform::TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros(
-        [3],
-        &device,
-    ));
+    let initial_t =
+        ritk_transform::TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
     let (final_t, result) =
         GlobalMiRegistration::register_translation_full(&ct_img, &mri_img, initial_t, &config);
 

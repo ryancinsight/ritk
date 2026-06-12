@@ -4,12 +4,12 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::GaussianSigma;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_registration::demons::{
     DemonsConfig, DemonsVariant, InverseConsistentDemonsConfig,
     InverseConsistentDiffeomorphicDemonsRegistration, MultiResDemonsConfig,
     MultiResDemonsRegistration,
 };
+use ritk_spatial::{Direction, Point, Spacing};
 
 /// Configuration options for [`multires_demons_register`].
 #[pyclass(name = "MultiResDemonsOptions")]

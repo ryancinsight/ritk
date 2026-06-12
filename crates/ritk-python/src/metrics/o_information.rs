@@ -6,9 +6,7 @@
 
 use anyhow::Result;
 use pyo3::prelude::*;
-use ritk_statistics::information::{
-    dual_total_correlation as core_dtc, o_information as core_oi,
-};
+use ritk_statistics::information::{dual_total_correlation as core_dtc, o_information as core_oi};
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::PyImage;

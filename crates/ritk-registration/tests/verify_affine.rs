@@ -3,10 +3,10 @@ use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction2, Point2, Spacing2};
-use ritk_transform::AffineTransform;
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::optimizer::GradientDescent;
 use ritk_registration::registration::Registration;
+use ritk_transform::AffineTransform;
 
 type B = Autodiff<NdArray<f32>>;
 
