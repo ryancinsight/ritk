@@ -31,9 +31,9 @@
 //! - A constant source image (src_min == src_max) is returned unchanged because
 //!   no CDF slope can be estimated from a degenerate distribution.
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Histogram matcher via empirical CDF-based lookup.
 ///

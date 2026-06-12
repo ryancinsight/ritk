@@ -1,13 +1,13 @@
 //! Tests for the fused transform → world-to-index → interpolation kernel.
 
-use ritk_core::image::Image;
 use crate::interpolation::fused::{is_identity_direction, transform_and_interpolate_3d};
-use ritk_core::interpolation::Interpolator;
 use crate::interpolation::LinearInterpolator;
-use ritk_spatial::{Direction, Point, Spacing};
-use ritk_core::transform::Transform;
 use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::image::Image;
+use ritk_core::interpolation::Interpolator;
+use ritk_core::transform::Transform;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type Backend = NdArray<f32>;
 type Point3 = Point<3>;

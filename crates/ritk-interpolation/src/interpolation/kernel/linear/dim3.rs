@@ -10,7 +10,6 @@
 
 use burn::tensor::{backend::Backend, Int, Tensor};
 
-
 /// 3-D gather with borrowed coordinates — used by the autodiff path.
 #[inline]
 fn gather_3d<B: Backend>(
@@ -43,9 +42,15 @@ fn gather_3d_owned<B: Backend>(
 ritk_macros::interp_dim_template!(
     3,
     interpolate_3d,
-    x, y, z,
-    wx, wy, wz,
-    d2 - 1, d1 - 1, d0 - 1,
+    x,
+    y,
+    z,
+    wx,
+    wy,
+    wz,
+    d2 - 1,
+    d1 - 1,
+    d0 - 1,
     {
         let flat_data = data.clone().reshape([d0 * d1 * d2]);
 
@@ -63,13 +68,62 @@ ritk_macros::interp_dim_template!(
             )
         } else {
             (
-                gather_3d_owned(&flat_data, x0_i.clone(), y0_i.clone(), z0_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x0_i.clone(), y0_i.clone(), z1_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x0_i.clone(), y1_i.clone(), z0_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x0_i, y1_i.clone(), z1_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x1_i.clone(), y0_i.clone(), z0_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x1_i.clone(), y0_i, z1_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x1_i.clone(), y1_i.clone(), z0_i, stride_y, stride_z),
+                gather_3d_owned(
+                    &flat_data,
+                    x0_i.clone(),
+                    y0_i.clone(),
+                    z0_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x0_i.clone(),
+                    y0_i.clone(),
+                    z1_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x0_i.clone(),
+                    y1_i.clone(),
+                    z0_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x0_i,
+                    y1_i.clone(),
+                    z1_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x1_i.clone(),
+                    y0_i.clone(),
+                    z0_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x1_i.clone(),
+                    y0_i,
+                    z1_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x1_i.clone(),
+                    y1_i.clone(),
+                    z0_i,
+                    stride_y,
+                    stride_z,
+                ),
                 gather_3d_owned(&flat_data, x1_i, y1_i, z1_i, stride_y, stride_z),
             )
         };
@@ -116,10 +170,18 @@ ritk_macros::interp_dim_template!(
 ritk_macros::interp_dim_template_typed!(
     3,
     interpolate_3d_typed,
-    x, y, z,
-    wx, wy, wz,
-    D0 - 1, D1 - 1, D2 - 1,
-    D0, D1, D2,
+    x,
+    y,
+    z,
+    wx,
+    wy,
+    wz,
+    D0 - 1,
+    D1 - 1,
+    D2 - 1,
+    D0,
+    D1,
+    D2,
     {
         let flat_data = data.clone().reshape([d0 * d1 * d2]);
 
@@ -137,13 +199,62 @@ ritk_macros::interp_dim_template_typed!(
             )
         } else {
             (
-                gather_3d_owned(&flat_data, x0_i.clone(), y0_i.clone(), z0_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x0_i.clone(), y0_i.clone(), z1_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x0_i.clone(), y1_i.clone(), z0_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x0_i, y1_i.clone(), z1_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x1_i.clone(), y0_i.clone(), z0_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x1_i.clone(), y0_i, z1_i.clone(), stride_y, stride_z),
-                gather_3d_owned(&flat_data, x1_i.clone(), y1_i.clone(), z0_i, stride_y, stride_z),
+                gather_3d_owned(
+                    &flat_data,
+                    x0_i.clone(),
+                    y0_i.clone(),
+                    z0_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x0_i.clone(),
+                    y0_i.clone(),
+                    z1_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x0_i.clone(),
+                    y1_i.clone(),
+                    z0_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x0_i,
+                    y1_i.clone(),
+                    z1_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x1_i.clone(),
+                    y0_i.clone(),
+                    z0_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x1_i.clone(),
+                    y0_i,
+                    z1_i.clone(),
+                    stride_y,
+                    stride_z,
+                ),
+                gather_3d_owned(
+                    &flat_data,
+                    x1_i.clone(),
+                    y1_i.clone(),
+                    z0_i,
+                    stride_y,
+                    stride_z,
+                ),
                 gather_3d_owned(&flat_data, x1_i, y1_i, z1_i, stride_y, stride_z),
             )
         };

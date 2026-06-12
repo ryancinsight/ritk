@@ -103,8 +103,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Clamp:");
-                let mut clamp_bool =
-                    matches!(*clamp, ritk_filter::ClampPolicy::ClampToInputRange);
+                let mut clamp_bool = matches!(*clamp, ritk_filter::ClampPolicy::ClampToInputRange);
                 if ui.checkbox(&mut clamp_bool, "").changed() {
                     *clamp = if clamp_bool {
                         ritk_filter::ClampPolicy::ClampToInputRange

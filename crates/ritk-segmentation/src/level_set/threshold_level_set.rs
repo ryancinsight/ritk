@@ -12,8 +12,8 @@
 
 use super::helpers;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec;
 use ritk_image::Image;
+use ritk_tensor_ops::extract_vec;
 /// Threshold Level Set segmentation parameters.
 ///
 /// The contour expands where image intensity lies within

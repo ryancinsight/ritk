@@ -34,9 +34,9 @@
 //! - Lanczos, C. (1956). *Applied Analysis*. Prentice-Hall.
 //! - Turkowski, K. (1990). Filters for common resampling tasks. *Graphics Gems I*, 147-165.
 
-use ritk_core::interpolation::Interpolator;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_core::interpolation::Interpolator;
 
 /// Lanczos-windowed Sinc interpolator.
 ///

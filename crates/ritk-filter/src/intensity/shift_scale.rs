@@ -20,9 +20,9 @@
 //! `itk::ShiftScaleImageFilter` with `SetShift(s)` and `SetScale(k)`.
 //! Output type defaults to f32 (matching ITK behaviour when input is float).
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Apply a linear shift-then-scale to every voxel.
 ///
@@ -93,9 +93,9 @@ impl ShiftScaleImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use burn_ndarray::NdArray;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 

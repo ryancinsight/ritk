@@ -13,7 +13,6 @@ ritk-annotation = { path = "../ritk-annotation" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 ritk-statistics = { path = "../ritk-statistics" }
 
-num-traits = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

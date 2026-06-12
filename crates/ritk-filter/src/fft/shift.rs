@@ -29,8 +29,8 @@
 
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Moves the zero-frequency (DC) component from the corners to the centre of
 /// a complex frequency-domain image.

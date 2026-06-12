@@ -1,5 +1,5 @@
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
 
 /// Compute the Dice similarity coefficient between two binary segmentation masks.
 ///

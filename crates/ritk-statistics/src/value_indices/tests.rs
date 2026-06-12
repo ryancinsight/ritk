@@ -1,9 +1,9 @@
 use super::compute::flat_to_multi;
 use super::*;
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type TestBackend = NdArray<f32>;
 

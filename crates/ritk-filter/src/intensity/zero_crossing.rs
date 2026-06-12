@@ -26,9 +26,9 @@
 //! Typical use: detect zero crossings of a Laplacian-of-Gaussian edge image.
 
 use crate::morphology::types::ForegroundValue;
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Detect zero crossings in a 3-D image.
 ///
@@ -127,9 +127,9 @@ impl ZeroCrossingImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use burn_ndarray::NdArray;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 

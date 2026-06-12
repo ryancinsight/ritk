@@ -4,8 +4,8 @@ use super::super::types::BinarizationThreshold;
 use super::kernel::{cdt_dispatch, ChamferMetric, INF};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
 use ritk_core::image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// Compute the **chamfer distance transform** of a 3-D binary image.
 ///

@@ -14,9 +14,9 @@
 
 use super::grayscale_dilation::GrayscaleDilation;
 use super::grayscale_erosion::GrayscaleErosion;
-use ritk_tensor_ops::extract_vec;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec;
 
 /// White top-hat filter: WTH_B(f) = f - opening_B(f).
 /// Isolates bright structures smaller than the structuring element.
@@ -77,10 +77,10 @@ fn sub_clamp<B: Backend>(a: &Image<B, 3>, b: &Image<B, 3>) -> anyhow::Result<Ima
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
     type B = NdArray<f32>;
     fn img(v: Vec<f32>, d: [usize; 3]) -> Image<B, 3> {
         let t = Tensor::<B, 3>::from_data(TensorData::new(v, Shape::new(d)), &Default::default());

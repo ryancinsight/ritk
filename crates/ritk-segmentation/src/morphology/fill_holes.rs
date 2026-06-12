@@ -10,8 +10,8 @@
 
 use super::MorphologicalOperation;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
 use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::VecDeque;
 
 /// Fills enclosed background holes in a 3-D binary mask.

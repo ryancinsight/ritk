@@ -5,26 +5,25 @@ use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationFilter,
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
     BinaryMorphologicalClosing, BinaryMorphologicalOpening, BinaryThresholdImageFilter,
-    BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter,
-    Connectivity, ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter,
-    CurvatureFlowConfig, CurvatureFlowImageFilter, DistanceTransformImageFilter, ExpImageFilter,
-    FlipImageFilter, GaussianFilter, GaussianSigma, GradientAnisotropicDiffusionFilter,
-    GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
-    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter, Connectivity,
+    ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter, CurvatureFlowConfig,
+    CurvatureFlowImageFilter, DistanceTransformImageFilter, ExpImageFilter, FlipImageFilter,
+    GaussianFilter, GaussianSigma, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
     InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
-    Padding, PermuteAxesImageFilter, RegionOfInterestImageFilter,
-    RescaleIntensityFilter, ShiftScaleImageFilter, ShrinkImageFilter,
-    SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
-    TanImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter, WrapPadImageFilter,
-    ZeroCrossingImageFilter,
+    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter, Padding,
+    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
+    ShiftScaleImageFilter, ShrinkImageFilter, SignedDistanceTransformImageFilter, SinImageFilter,
+    SqrtImageFilter, SquareImageFilter, TanImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter,
+    WrapPadImageFilter, ZeroCrossingImageFilter,
 };
-use ritk_segmentation::{ConnectedComponentsFilter, MultiOtsuThreshold, RelabelComponentFilter};
 use ritk_image::Image;
 use ritk_segmentation::region_growing::{
     ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter,
 };
+use ritk_segmentation::{ConnectedComponentsFilter, MultiOtsuThreshold, RelabelComponentFilter};
 
 impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
     /// Apply a filter to the currently loaded study's image.

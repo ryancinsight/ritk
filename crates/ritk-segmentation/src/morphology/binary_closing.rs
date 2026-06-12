@@ -11,8 +11,8 @@
 
 use super::MorphologicalOperation;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
 use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// Discriminates erosion from dilation in the shared morphological scan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

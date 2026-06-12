@@ -4,8 +4,8 @@ use super::super::types::BinarizationThreshold;
 use super::core::euclidean_dt;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
 use ritk_core::image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// Unsigned Euclidean distance transform.
 ///

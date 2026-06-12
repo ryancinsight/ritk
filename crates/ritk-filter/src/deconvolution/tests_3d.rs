@@ -10,10 +10,10 @@
 use super::{
     LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
 };
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
@@ -129,9 +129,7 @@ fn tikhonov_3d_lambda_reduces_variance() {
     let image_vals: Vec<f32> = (0..125).map(|i| (i as f32 * 2.7).sin()).collect();
     let img = make_image_3d(image_vals, [5, 5, 5]);
     let ker = make_image_3d(kernel_vals, [3, 3, 3]);
-    let result = TikhonovDeconvolution::new(1.0)
-        .apply(&img, &ker)
-        .unwrap();
+    let result = TikhonovDeconvolution::new(1.0).apply(&img, &ker).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
     // All outputs must be finite — verifies no NaN/Inf in 3-D Laplacian path
     for &v in &vals {
@@ -144,9 +142,7 @@ fn tikhonov_3d_lambda_reduces_variance() {
 fn tikhonov_3d_output_shape_matches_input() {
     let img = make_image_3d(vec![1.0_f32; 4 * 5 * 6], [4, 5, 6]);
     let ker = make_image_3d(dirac_kernel_3x3x3(), [3, 3, 3]);
-    let result = TikhonovDeconvolution::new(0.01)
-        .apply(&img, &ker)
-        .unwrap();
+    let result = TikhonovDeconvolution::new(0.01).apply(&img, &ker).unwrap();
     assert_eq!(result.shape(), [4, 5, 6]);
 }
 

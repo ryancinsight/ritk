@@ -47,9 +47,9 @@
 //! - `stripe_size` in the result is always > 0 for valid inputs with at least one
 //!   foreground voxel.
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Selects which extreme of the local-maxima set to return.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

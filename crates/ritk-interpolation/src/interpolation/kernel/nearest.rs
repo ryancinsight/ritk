@@ -2,11 +2,11 @@
 //!
 //! This module provides nearest neighbor interpolation for 1D, 2D, 3D, and 4D data.
 
-use crate::interpolation::dispatch::dispatch_nearest;
-use ritk_core::interpolation::Interpolator;
 use super::BoundsPolicy;
+use crate::interpolation::dispatch::dispatch_nearest;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_core::interpolation::Interpolator;
 
 use crate::interpolation::shared::{in_bounds_mask, OutOfBoundsMode};
 
@@ -232,10 +232,18 @@ pub(crate) fn interpolate_4d<B: Backend, const D: usize>(
 ritk_macros::interp_dim_template_nearest_typed!(
     3,
     interpolate_nearest_3d_typed,
-    x, y, z,
-    wx, wy, wz,
-    D2 - 1, D1 - 1, D0 - 1,
-    D0, D1, D2,
+    x,
+    y,
+    z,
+    wx,
+    wy,
+    wz,
+    D2 - 1,
+    D1 - 1,
+    D0 - 1,
+    D0,
+    D1,
+    D2,
     {
         // Compute the flat gather index from the per-axis nearest indices.
         // The strides are pre-computed by the proc-macro prelude.

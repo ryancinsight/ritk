@@ -43,9 +43,9 @@
 //! - Nyúl, L. G., Udupa, J. K., & Zhang, X. (2000). New variants of a method
 //!   of MRI scale standardization. *IEEE Trans. Med. Imaging*, 19(2), 143–150.
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 // ── Percentile Helper ─────────────────────────────────────────────────────────
 

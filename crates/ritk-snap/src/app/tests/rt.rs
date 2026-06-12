@@ -83,9 +83,9 @@ fn rt_dose_plan_link_status_reports_linked_uid() {
 // as the backend.
 
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_filter::{BedSeparationConfig, ComponentPolicy};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_filter::{BedSeparationConfig, ComponentPolicy};
 
 type Backend = burn_ndarray::NdArray<f32>;
 

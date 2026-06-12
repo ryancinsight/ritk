@@ -2,9 +2,9 @@
 //! Extracted to keep the 500-line structural limit.
 
 use super::*;
-use ritk_core::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 

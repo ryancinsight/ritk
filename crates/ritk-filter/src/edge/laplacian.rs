@@ -20,10 +20,10 @@
 //! # Reference
 //! Press et al., *Numerical Recipes*, 3rd ed., §18.1.
 
-use ritk_tensor_ops::{extract_vec, rebuild};
+use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_spatial::Spacing;
-use burn::tensor::backend::Backend;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Filter that computes the discrete Laplacian ∇²I of a 3-D image.
 ///
@@ -157,11 +157,11 @@ fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>) -> Vec<f3
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_tensor_ops::extract_vec_infallible;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
+    use ritk_tensor_ops::extract_vec_infallible;
 
     type B = NdArray<f32>;
 

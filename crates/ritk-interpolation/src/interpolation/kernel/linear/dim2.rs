@@ -9,7 +9,6 @@
 
 use burn::tensor::{backend::Backend, Int, Tensor};
 
-
 /// 2-D gather with borrowed coordinates — used by the autodiff path.
 #[inline]
 fn gather_2d<B: Backend>(
@@ -35,43 +34,36 @@ fn gather_2d_owned<B: Backend>(
     flat_data.clone().gather(0, idx)
 }
 
-ritk_macros::interp_dim_template!(
-    2,
-    interpolate_2d,
-    x, y,
-    wx, wy,
-    d1 - 1, d0 - 1,
-    {
-        let flat_data = data.clone().reshape([d0 * d1]);
+ritk_macros::interp_dim_template!(2, interpolate_2d, x, y, wx, wy, d1 - 1, d0 - 1, {
+    let flat_data = data.clone().reshape([d0 * d1]);
 
-        // ── Const-generic dispatch (Sprint 355) ────────────────────────
-        let (v00, v01, v10, v11) = if B::ad_enabled() {
-            (
-                gather_2d(&flat_data, &x0_i, &y0_i, stride_y),
-                gather_2d(&flat_data, &x0_i, &y1_i, stride_y),
-                gather_2d(&flat_data, &x1_i, &y0_i, stride_y),
-                gather_2d(&flat_data, &x1_i, &y1_i, stride_y),
-            )
-        } else {
-            (
-                gather_2d_owned(&flat_data, x0_i.clone(), y0_i.clone(), stride_y),
-                gather_2d_owned(&flat_data, x0_i, y1_i.clone(), stride_y),
-                gather_2d_owned(&flat_data, x1_i.clone(), y0_i, stride_y),
-                gather_2d_owned(&flat_data, x1_i, y1_i, stride_y),
-            )
-        };
+    // ── Const-generic dispatch (Sprint 355) ────────────────────────
+    let (v00, v01, v10, v11) = if B::ad_enabled() {
+        (
+            gather_2d(&flat_data, &x0_i, &y0_i, stride_y),
+            gather_2d(&flat_data, &x0_i, &y1_i, stride_y),
+            gather_2d(&flat_data, &x1_i, &y0_i, stride_y),
+            gather_2d(&flat_data, &x1_i, &y1_i, stride_y),
+        )
+    } else {
+        (
+            gather_2d_owned(&flat_data, x0_i.clone(), y0_i.clone(), stride_y),
+            gather_2d_owned(&flat_data, x0_i, y1_i.clone(), stride_y),
+            gather_2d_owned(&flat_data, x1_i.clone(), y0_i, stride_y),
+            gather_2d_owned(&flat_data, x1_i, y1_i, stride_y),
+        )
+    };
 
-        // Bilinear lerp cascade.
-        let one = Tensor::<B, 1>::ones([batch_size], &_device);
-        let one_minus_wx = one.clone() - wx.clone();
-        let one_minus_wy = one - wy.clone();
+    // Bilinear lerp cascade.
+    let one = Tensor::<B, 1>::ones([batch_size], &_device);
+    let one_minus_wx = one.clone() - wx.clone();
+    let one_minus_wy = one - wy.clone();
 
-        let c0 = v00 * one_minus_wx.clone() + v10 * wx.clone();
-        let c1 = v01 * one_minus_wx + v11 * wx;
+    let c0 = v00 * one_minus_wx.clone() + v10 * wx.clone();
+    let c1 = v01 * one_minus_wx + v11 * wx;
 
-        c0 * one_minus_wy + c1 * wy
-    }
-);
+    c0 * one_minus_wy + c1 * wy
+});
 
 // ════════════════════════════════════════════════════════════════════════
 //  Const-generic shape specialization (audit §8 351-01)
@@ -83,10 +75,14 @@ ritk_macros::interp_dim_template!(
 ritk_macros::interp_dim_template_typed!(
     2,
     interpolate_2d_typed,
-    x, y,
-    wx, wy,
-    D1 - 1, D0 - 1,
-    D0, D1,
+    x,
+    y,
+    wx,
+    wy,
+    D1 - 1,
+    D0 - 1,
+    D0,
+    D1,
     {
         let flat_data = data.clone().reshape([d0 * d1]);
 

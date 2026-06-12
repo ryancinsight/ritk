@@ -60,10 +60,10 @@ pub mod tile_cdf;
 
 use interpolate::clahe_2d_with_scratch;
 
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_core::image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
+use ritk_core::image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Contrast Limited Adaptive Histogram Equalization (CLAHE) filter.
 ///

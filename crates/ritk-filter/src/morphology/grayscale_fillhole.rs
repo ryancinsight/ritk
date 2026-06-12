@@ -53,10 +53,10 @@
 //!   analysis: Applications and efficient algorithms. *IEEE Trans. Image
 //!   Processing*, 2(2), 176–201.
 
-use ritk_tensor_ops::extract_vec;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 

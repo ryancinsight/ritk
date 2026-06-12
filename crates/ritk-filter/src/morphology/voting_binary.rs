@@ -29,10 +29,10 @@
 //!   *IEEE Trans. PAMI* 17(5):529–533.
 
 use super::types::ForegroundValue;
-use ritk_tensor_ops::extract_vec;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec;
 
 /// Voting binary image filter.
 ///
@@ -152,9 +152,9 @@ impl VotingBinaryImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::TensorData;
     use burn_ndarray::NdArray;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

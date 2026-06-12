@@ -3,12 +3,12 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
+use super::sealed;
 use crate::interpolation::kernel::linear::dim1;
 use crate::interpolation::kernel::linear::dim2;
 use crate::interpolation::kernel::linear::dim3;
 use crate::interpolation::kernel::linear::dim4;
 use crate::interpolation::shared::OutOfBoundsMode;
-use super::sealed;
 
 /// Sealed trait for per-shape 3-D interpolation dispatch.
 ///

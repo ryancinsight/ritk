@@ -7,9 +7,9 @@
 //! - Above:   output(x) = if I(x) > threshold { outside_value } else { I(x) }
 //! - Outside: output(x) = if I(x) < lower || I(x) > upper { outside_value } else { I(x) }
 
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Threshold mode controlling which pixels are replaced by outside_value.
 #[derive(Debug, Clone)]
@@ -99,10 +99,10 @@ impl ThresholdImageFilter {
 #[allow(clippy::needless_range_loop)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
     type B = NdArray<f32>;
 
     fn make_image(vals: Vec<f32>) -> Image<B, 3> {

@@ -30,8 +30,8 @@
 //! - Space:           O(K) auxiliary.
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
 use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 // ── Public types ──────────────────────────────────────────────────────────────
 

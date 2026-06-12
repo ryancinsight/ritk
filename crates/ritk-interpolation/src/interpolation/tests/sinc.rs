@@ -1,8 +1,8 @@
 use crate::interpolation::kernel::sinc::{compute_lanczos_weights, lanczos_kernel};
-use ritk_core::interpolation::Interpolator;
 use crate::interpolation::{LanczosInterpolator, SincInterpolator};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::interpolation::Interpolator;
 
 type TestBackend = NdArray<f32>;
 

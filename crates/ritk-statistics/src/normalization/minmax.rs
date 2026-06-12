@@ -18,9 +18,9 @@
 //! - Default target range is [0.0, 1.0].
 
 use super::intensity_range::IntensityRange;
-use ritk_image::Image;
 use crate::image_statistics::compute_statistics;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
 
 /// Min-max intensity normalizer.
 ///

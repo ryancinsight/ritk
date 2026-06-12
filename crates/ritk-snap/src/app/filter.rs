@@ -8,13 +8,12 @@ impl SnapApp {
         use ritk_filter::{
             AbsImageFilter, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
             BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
-            ClaheFilter, Connectivity, CprConfig, CprImageFilter,
-            ExpImageFilter, GaussianFilter, GaussianSigma, GradientAnisotropicDiffusionFilter,
-            GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleFillholeFilter,
-            GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
-            HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
-            NormalizeImageFilter, SqrtImageFilter,
-            SquareImageFilter, UnsharpMaskFilter,
+            ClaheFilter, Connectivity, CprConfig, CprImageFilter, ExpImageFilter, GaussianFilter,
+            GaussianSigma, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+            GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter,
+            GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter,
+            LogImageFilter, MedianFilter, NormalizeImageFilter, SqrtImageFilter, SquareImageFilter,
+            UnsharpMaskFilter,
         };
         use ritk_segmentation::{
             ConnectedComponentsFilter, MultiOtsuThreshold, RelabelComponentFilter,
@@ -92,7 +91,9 @@ impl SnapApp {
                 } => {
                     let seg_connectivity = match connectivity {
                         Connectivity::Face6 => ritk_segmentation::labeling::Connectivity::Six,
-                        Connectivity::Vertex26 => ritk_segmentation::labeling::Connectivity::TwentySix,
+                        Connectivity::Vertex26 => {
+                            ritk_segmentation::labeling::Connectivity::TwentySix
+                        }
                     };
                     let filter = ConnectedComponentsFilter::with_connectivity(seg_connectivity)
                         .with_background(*background_value);
@@ -174,15 +175,9 @@ impl SnapApp {
                         .with_threshold(*threshold)
                         .apply(&image)
                 }
-                crate::FilterKind::FlipZ => {
-                    ritk_filter::FlipImageFilter::flip_z().apply(&image)
-                }
-                crate::FilterKind::FlipY => {
-                    ritk_filter::FlipImageFilter::flip_y().apply(&image)
-                }
-                crate::FilterKind::FlipX => {
-                    ritk_filter::FlipImageFilter::flip_x().apply(&image)
-                }
+                crate::FilterKind::FlipZ => ritk_filter::FlipImageFilter::flip_z().apply(&image),
+                crate::FilterKind::FlipY => ritk_filter::FlipImageFilter::flip_y().apply(&image),
+                crate::FilterKind::FlipX => ritk_filter::FlipImageFilter::flip_x().apply(&image),
                 crate::FilterKind::MaskThreshold { threshold } => {
                     let dims = image.shape();
                     let vals: Vec<f32> = image
@@ -251,19 +246,13 @@ impl SnapApp {
                 crate::FilterKind::BinaryContour {
                     connectivity,
                     foreground_value,
-                } => ritk_filter::BinaryContourImageFilter::new(
-                    *connectivity,
-                    *foreground_value,
-                )
-                .apply(&image),
+                } => ritk_filter::BinaryContourImageFilter::new(*connectivity, *foreground_value)
+                    .apply(&image),
                 crate::FilterKind::LabelContour {
                     connectivity,
                     background_value,
-                } => ritk_filter::LabelContourImageFilter::new(
-                    *connectivity,
-                    *background_value,
-                )
-                .apply(&image),
+                } => ritk_filter::LabelContourImageFilter::new(*connectivity, *background_value)
+                    .apply(&image),
                 crate::FilterKind::VotingBinary {
                     radius,
                     birth_threshold,
@@ -396,36 +385,22 @@ impl SnapApp {
                     .with_radius([*radius_z, *radius_y, *radius_x])
                     .apply(&image),
                 ),
-                crate::FilterKind::Atan => {
-                    Ok(ritk_filter::AtanImageFilter::new().apply(&image))
-                }
-                crate::FilterKind::Sin => {
-                    Ok(ritk_filter::SinImageFilter::new().apply(&image))
-                }
-                crate::FilterKind::Cos => {
-                    Ok(ritk_filter::CosImageFilter::new().apply(&image))
-                }
-                crate::FilterKind::Tan => {
-                    Ok(ritk_filter::TanImageFilter::new().apply(&image))
-                }
-                crate::FilterKind::Asin => {
-                    Ok(ritk_filter::AsinImageFilter::new().apply(&image))
-                }
-                crate::FilterKind::Acos => {
-                    Ok(ritk_filter::AcosImageFilter::new().apply(&image))
-                }
+                crate::FilterKind::Atan => Ok(ritk_filter::AtanImageFilter::new().apply(&image)),
+                crate::FilterKind::Sin => Ok(ritk_filter::SinImageFilter::new().apply(&image)),
+                crate::FilterKind::Cos => Ok(ritk_filter::CosImageFilter::new().apply(&image)),
+                crate::FilterKind::Tan => Ok(ritk_filter::TanImageFilter::new().apply(&image)),
+                crate::FilterKind::Asin => Ok(ritk_filter::AsinImageFilter::new().apply(&image)),
+                crate::FilterKind::Acos => Ok(ritk_filter::AcosImageFilter::new().apply(&image)),
                 crate::FilterKind::BoundedReciprocal => {
                     Ok(ritk_filter::BoundedReciprocalImageFilter::new().apply(&image))
                 }
                 crate::FilterKind::CurvatureFlow {
                     iterations,
                     time_step,
-                } => ritk_filter::CurvatureFlowImageFilter::new(
-                    ritk_filter::CurvatureFlowConfig {
-                        num_iterations: *iterations as usize,
-                        time_step: *time_step,
-                    },
-                )
+                } => ritk_filter::CurvatureFlowImageFilter::new(ritk_filter::CurvatureFlowConfig {
+                    num_iterations: *iterations as usize,
+                    time_step: *time_step,
+                })
                 .apply(&image),
                 crate::FilterKind::Cpr {
                     control_points,

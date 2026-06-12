@@ -33,7 +33,13 @@ fn compute_strides(shape: &[usize]) -> Vec<usize> {
 /// No heap allocation; uses the precomputed stride to compute the offset
 /// in O(1) with a single bounds check.
 #[inline]
-fn neighbor_index(i: usize, d: usize, delta: isize, shape: &[usize], stride: usize) -> Option<usize> {
+fn neighbor_index(
+    i: usize,
+    d: usize,
+    delta: isize,
+    shape: &[usize],
+    stride: usize,
+) -> Option<usize> {
     let coord = (i / stride) % shape[d];
     let nbr_coord = coord as isize + delta;
     if nbr_coord < 0 || nbr_coord >= shape[d] as isize {
@@ -141,8 +147,7 @@ pub fn enforce_connectivity(
                             if nbr_root != small_root {
                                 let nbr_label = new_label[nbr];
                                 if nbr_label != small_label {
-                                    let nbr_mean =
-                                        comp_mean.get(&nbr_root).copied().unwrap_or(0.0);
+                                    let nbr_mean = comp_mean.get(&nbr_root).copied().unwrap_or(0.0);
                                     let dist = (small_mean - nbr_mean).abs();
                                     if dist < best_dist {
                                         best_dist = dist;

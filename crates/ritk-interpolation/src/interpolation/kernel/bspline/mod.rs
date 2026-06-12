@@ -3,10 +3,10 @@
 //! This module provides cubic B-Spline interpolation for smooth sampling
 //! of image values at continuous coordinates.
 
-use ritk_core::interpolation::Interpolator;
 use super::BoundsPolicy;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Tensor, TensorData};
+use ritk_core::interpolation::Interpolator;
 
 mod flat;
 mod legacy;

@@ -13,10 +13,10 @@
 //!   as the input.
 //! - μ and σ are computed from the full image population (not a sample).
 
-use ritk_tensor_ops::extract_vec_infallible;
-use ritk_image::Image;
 use crate::image_statistics::{compute_statistics, masked_statistics};
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// Z-score normalizer.
 ///
@@ -79,9 +79,7 @@ impl ZScoreNormalizer {
         // masked_statistics, which panics on an empty foreground set.
         let (mask_vals, _) = extract_vec_infallible(mask);
         let mask_slice: &[f32] = &mask_vals;
-        let has_foreground = mask_slice
-            .iter()
-            .any(|&m| m > crate::FOREGROUND_THRESHOLD);
+        let has_foreground = mask_slice.iter().any(|&m| m > crate::FOREGROUND_THRESHOLD);
 
         let stats = if has_foreground {
             masked_statistics(image, mask)

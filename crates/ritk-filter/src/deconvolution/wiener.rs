@@ -14,8 +14,8 @@
 use super::regularization::{apply_single_pass, WienerRule};
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Wiener deconvolution filter (minimum mean-square error restoration).
 ///

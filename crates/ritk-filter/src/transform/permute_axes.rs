@@ -30,10 +30,10 @@
 //!
 //! `itk::PermuteAxesImageFilter` with `SetOrder({a, b, c})`.
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
+use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Spacing};
-use burn::tensor::backend::Backend;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 
 /// Rearrange the axes of a 3-D image according to a permutation.
 ///
@@ -128,10 +128,10 @@ impl PermuteAxesImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_tensor_ops::extract_vec_infallible;
+    use burn_ndarray::NdArray;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
+    use ritk_tensor_ops::extract_vec_infallible;
 
     type B = NdArray<f32>;
 

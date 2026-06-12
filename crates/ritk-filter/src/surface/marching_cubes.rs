@@ -28,8 +28,8 @@
 //! Emission is streamed directly into the builder (no temporary global soup buffer),
 //! reducing peak memory to O(1) additional storage per active cube.
 
-use ritk_spatial::Point;
 use nalgebra::Point3;
+use ritk_spatial::Point;
 
 use super::mesh::{Mesh, MeshBuilder};
 

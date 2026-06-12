@@ -9,8 +9,8 @@
 use std::marker::PhantomData;
 
 use burn::tensor::backend::Backend;
-use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 use ritk_core::image::Image;
+use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 
 // ── Sealed trait infrastructure ──────────────────────────────────────────────
 

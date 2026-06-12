@@ -9,6 +9,7 @@ burn = { workspace = true }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
 anyhow = { workspace = true }
+num-traits = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

@@ -1,10 +1,10 @@
 //! Tests for otsu
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use ritk_tensor_ops::extract_vec_infallible;
-use ritk_core::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_tensor_ops::extract_vec_infallible;
 
 type TestBackend = NdArray<f32>;
 
@@ -302,9 +302,9 @@ fn test_with_bins_zero_panics() {
 /// normalised histogram; the only difference is the data source.
 #[test]
 fn test_compute_otsu_from_slice_matches_filter() {
-    use ritk_core::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_core::spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

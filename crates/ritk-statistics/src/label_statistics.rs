@@ -21,9 +21,9 @@
 //! # Reference
 //! ITK LabelStatisticsImageFilter -- per-label min, max, mean, sigma, count.
 
-use ritk_tensor_ops::extract_vec_infallible;
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::HashMap;
 
 /// Intensity statistics for a single label region.

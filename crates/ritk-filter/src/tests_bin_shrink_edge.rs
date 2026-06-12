@@ -19,11 +19,11 @@
 
 use crate::bin_shrink::BinShrinkImageFilter;
 use crate::downsample::DownsampleFilter;
-use ritk_tensor_ops::extract_vec_infallible;
-use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
+use ritk_tensor_ops::extract_vec_infallible;
 
 type B = NdArray<f32>;
 

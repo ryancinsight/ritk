@@ -2,8 +2,8 @@ use super::*;
 use burn::tensor::backend::Backend as BurnBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
-use ritk_statistics::{compute_statistics, dice_coefficient, hausdorff_distance, psnr, ssim};
 use ritk_spatial::{Direction, Point, Spacing};
+use ritk_statistics::{compute_statistics, dice_coefficient, hausdorff_distance, psnr, ssim};
 use std::path::PathBuf;
 use tempfile::tempdir;
 

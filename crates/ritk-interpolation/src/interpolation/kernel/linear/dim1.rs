@@ -12,56 +12,42 @@
 
 use burn::tensor::{backend::Backend, Int, Tensor};
 
-
 /// 1-D gather with a borrowed index — used by the autodiff path where
 /// the caller must retain the index tensor for further use.
 #[inline]
-fn gather_1d<B: Backend>(
-    flat_data: &Tensor<B, 1>,
-    idx: &Tensor<B, 1, Int>,
-) -> Tensor<B, 1> {
+fn gather_1d<B: Backend>(flat_data: &Tensor<B, 1>, idx: &Tensor<B, 1, Int>) -> Tensor<B, 1> {
     flat_data.clone().gather(0, idx.clone())
 }
 
 /// 1-D gather consuming the index tensor — used by the non-autodiff
 /// fast path. Eliminates the `idx.clone()` per call.
 #[inline]
-fn gather_1d_owned<B: Backend>(
-    flat_data: &Tensor<B, 1>,
-    idx: Tensor<B, 1, Int>,
-) -> Tensor<B, 1> {
+fn gather_1d_owned<B: Backend>(flat_data: &Tensor<B, 1>, idx: Tensor<B, 1, Int>) -> Tensor<B, 1> {
     flat_data.clone().gather(0, idx)
 }
 
-ritk_macros::interp_dim_template!(
-    1,
-    interpolate_1d,
-    x,
-    wx,
-    d0 - 1,
-    {
-        // ── Const-generic dispatch (Sprint 355) ────────────────────────
-        // The `if B::ad_enabled()` branch is monomorphized per backend
-        // and dead-code-eliminated at compile time.
-        let (v0, v1) = if B::ad_enabled() {
-            (
-                gather_1d(&data.clone().reshape([d0]), &x0_i),
-                gather_1d(&data.clone().reshape([d0]), &x1_i),
-            )
-        } else {
-            (
-                gather_1d_owned(&data.clone().reshape([d0]), x0_i),
-                gather_1d_owned(&data.clone().reshape([d0]), x1_i),
-            )
-        };
+ritk_macros::interp_dim_template!(1, interpolate_1d, x, wx, d0 - 1, {
+    // ── Const-generic dispatch (Sprint 355) ────────────────────────
+    // The `if B::ad_enabled()` branch is monomorphized per backend
+    // and dead-code-eliminated at compile time.
+    let (v0, v1) = if B::ad_enabled() {
+        (
+            gather_1d(&data.clone().reshape([d0]), &x0_i),
+            gather_1d(&data.clone().reshape([d0]), &x1_i),
+        )
+    } else {
+        (
+            gather_1d_owned(&data.clone().reshape([d0]), x0_i),
+            gather_1d_owned(&data.clone().reshape([d0]), x1_i),
+        )
+    };
 
-        // Linear interpolation.
-        let one = Tensor::<B, 1>::ones([batch_size], &_device);
-        let one_minus_wx = one - wx.clone();
+    // Linear interpolation.
+    let one = Tensor::<B, 1>::ones([batch_size], &_device);
+    let one_minus_wx = one - wx.clone();
 
-        v0 * one_minus_wx + v1 * wx
-    }
-);
+    v0 * one_minus_wx + v1 * wx
+});
 
 // ════════════════════════════════════════════════════════════════════════
 //  Const-generic shape specialization (audit §8 351-01)
@@ -77,31 +63,23 @@ ritk_macros::interp_dim_template!(
 //   3. **No `data.shape()` read**: saves 1 memory load per call.
 //   4. **Monomorphization**: each `D0` value is a separate monomorphized
 //      function.
-ritk_macros::interp_dim_template_typed!(
-    1,
-    interpolate_1d_typed,
-    x,
-    wx,
-    D0 - 1,
-    D0,
-    {
-        // ── Const-generic dispatch (Sprint 355) ────────────────────────
-        let (v0, v1) = if B::ad_enabled() {
-            (
-                gather_1d(&data.clone().reshape([d0]), &x0_i),
-                gather_1d(&data.clone().reshape([d0]), &x1_i),
-            )
-        } else {
-            (
-                gather_1d_owned(&data.clone().reshape([d0]), x0_i),
-                gather_1d_owned(&data.clone().reshape([d0]), x1_i),
-            )
-        };
+ritk_macros::interp_dim_template_typed!(1, interpolate_1d_typed, x, wx, D0 - 1, D0, {
+    // ── Const-generic dispatch (Sprint 355) ────────────────────────
+    let (v0, v1) = if B::ad_enabled() {
+        (
+            gather_1d(&data.clone().reshape([d0]), &x0_i),
+            gather_1d(&data.clone().reshape([d0]), &x1_i),
+        )
+    } else {
+        (
+            gather_1d_owned(&data.clone().reshape([d0]), x0_i),
+            gather_1d_owned(&data.clone().reshape([d0]), x1_i),
+        )
+    };
 
-        // Linear interpolation.
-        let one = Tensor::<B, 1>::ones([batch_size], &_device);
-        let one_minus_wx = one - wx.clone();
+    // Linear interpolation.
+    let one = Tensor::<B, 1>::ones([batch_size], &_device);
+    let one_minus_wx = one - wx.clone();
 
-        v0 * one_minus_wx + v1 * wx
-    }
-);
+    v0 * one_minus_wx + v1 * wx
+});

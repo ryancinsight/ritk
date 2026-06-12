@@ -40,11 +40,11 @@
 //! - Catmull, E. and Rom, R. (1974). "A class of local interpolating splines."
 //!   In *Computer Aided Geometric Design*, Academic Press.
 
-use ritk_tensor_ops::extract_vec;
-use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_core::image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
+use ritk_tensor_ops::extract_vec;
 
 #[path = "cpr_helpers.rs"]
 pub(super) mod cpr_helpers;

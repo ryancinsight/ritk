@@ -16,7 +16,6 @@ burn = { workspace = true }
 ritk-interpolation = { path = "../ritk-interpolation" }
 ritk-transform = { path = "../ritk-transform" }
 anyhow = { workspace = true }
-num-traits = { workspace = true }
 nalgebra = { workspace = true }
 rustfft = { workspace = true }
 gaia = { workspace = true }

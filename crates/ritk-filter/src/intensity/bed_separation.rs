@@ -33,9 +33,9 @@
 //! ultrasound, the caller should either avoid this filter or provide explicit
 //! configuration derived from modality-specific display semantics.
 
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
@@ -304,10 +304,10 @@ fn index(z: usize, y: usize, x: usize, dims: [usize; 3]) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

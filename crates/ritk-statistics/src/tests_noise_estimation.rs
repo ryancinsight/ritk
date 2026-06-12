@@ -1,7 +1,7 @@
 use super::*;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type TestBackend = NdArray<f32>;
 

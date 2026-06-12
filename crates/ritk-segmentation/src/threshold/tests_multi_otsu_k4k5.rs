@@ -1,8 +1,8 @@
 //! Extracted tests: K=4, K=5, between-class variance K=2 product formula, adversarial.
 use super::*;
-use ritk_core::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::spatial::{Direction, Point, Spacing};
 
 type TestBackend = NdArray<f32>;
 

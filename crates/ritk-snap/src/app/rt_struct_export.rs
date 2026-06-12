@@ -82,11 +82,7 @@ mod tests {
 
         let mut table = ritk_annotation::LabelTable::new();
         table
-            .add_label(
-                10,
-                "Tumor",
-                ritk_annotation::RgbaBytes::new(255, 0, 0, 255),
-            )
+            .add_label(10, "Tumor", ritk_annotation::RgbaBytes::new(255, 0, 0, 255))
             .unwrap();
         let mut lm = ritk_annotation::LabelMap::new(shape, table);
         for y in 1..3 {

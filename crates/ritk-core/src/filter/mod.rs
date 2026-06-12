@@ -1,13 +1,10 @@
-// ── ops module: thin shim re-exporting to `ritk_tensor_ops` ────────────────
+// ── Thin shims re-exporting to extracted crates ────────────────────────
 //
 // All filter implementations moved to `ritk-filter` (Sprint 361).
-// `ops` was extracted to `ritk-tensor-ops` (Sprint 361, Phase 3) to break
-// the circular dependency (`ritk-filter` → `ritk-core` ← `ritk-filter`).
-// This module is a compatibility shim; callers should prefer importing from
-// `ritk_tensor_ops` directly.
-// `kernel_utils` owns `gaussian_kernel` (the only remaining substantive code
-// in ritk-core's filter module).
-pub mod kernel_utils;
+// `ops` was extracted to `ritk-tensor-ops` (Sprint 361, Phase 3).
+// `kernel_utils` (gaussian_kernel) was extracted to `ritk-tensor-ops`
+// (Sprint 361, Phase 5). This module is a compatibility shim; callers
+// should prefer importing directly from `ritk_tensor_ops`.
 pub mod ops;
 
-pub use kernel_utils::gaussian_kernel;
+pub use ritk_tensor_ops::gaussian_kernel;

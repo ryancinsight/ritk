@@ -35,9 +35,9 @@
 //! anisotropic diffusion. *IEEE Trans. Pattern Anal. Mach. Intell.*
 //! 12(7):629–639. doi:10.1109/34.56205
 
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── ZST conductance strategy ─────────────────────────────────────────────────
 

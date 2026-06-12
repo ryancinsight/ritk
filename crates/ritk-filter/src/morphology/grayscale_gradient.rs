@@ -41,10 +41,10 @@
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, §4.3.
 //! - ITK `itk::GrayscaleMorphologicalGradientImageFilter`.
 
-use ritk_tensor_ops::extract_vec;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec;
 
 use super::grayscale_dilation::dilate_3d;
 use super::grayscale_erosion::erode_3d;
@@ -123,10 +123,10 @@ impl GrayscaleMorphologicalGradientFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

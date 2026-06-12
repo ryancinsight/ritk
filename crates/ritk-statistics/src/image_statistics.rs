@@ -13,9 +13,9 @@
 //! - p50     = V_sorted[⌊n/2⌋]
 //! - p75     = V_sorted[⌊3n/4⌋]
 
-use ritk_tensor_ops::extract_vec_infallible;
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// Descriptive statistics over image intensities.
 #[derive(Debug, Clone, PartialEq)]

@@ -36,9 +36,9 @@
 //! saturates at `(nz + ny + nx)²`. This is a finite upper bound rather than
 //! `f32::INFINITY` to preserve numerical stability in downstream arithmetic.
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Sentinel for "infinite" distance in integer grid units.
 /// Set per-image to `nz + ny + nx` so that `INF_DIST²` never overflows `i64`.

@@ -17,11 +17,11 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::{Tensor, TensorData};
 
-use ritk_image::Image;
 use crate::interpolation::shared::compute_oob_mask_3d;
-use ritk_core::interpolation::Interpolator;
 use crate::interpolation::LinearInterpolator;
+use ritk_core::interpolation::Interpolator;
 use ritk_core::transform::Transform;
+use ritk_image::Image;
 
 /// Check whether a direction matrix is the identity (within tolerance).
 pub(crate) fn is_identity_direction<const D: usize>(

@@ -22,9 +22,9 @@
 //! O(n) where n = ∏ d_k. One pass over the data, no allocation beyond the
 //! 4-byte (or 8-byte) running extremum and the returned `[usize; D]`.
 
-use ritk_tensor_ops::extract_vec_infallible;
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// Return the multi-index of the **minimum** voxel value.
 ///

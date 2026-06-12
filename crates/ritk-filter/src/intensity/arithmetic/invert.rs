@@ -1,6 +1,6 @@
-use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
-use ritk_core::image::Image;
 use burn::tensor::backend::Backend;
+use ritk_core::image::Image;
+use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 
 /// Intensity inversion filter.
 ///
@@ -58,10 +58,10 @@ impl InvertIntensityFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_core::image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

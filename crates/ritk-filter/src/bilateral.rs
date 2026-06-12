@@ -22,8 +22,8 @@
 //! O(n · (2r+1)³) per image, where `r = ⌈3 · σ_s⌉`.
 
 use burn::tensor::backend::Backend;
-use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 use serde::{Deserialize, Serialize};
 
 /// Spatial-domain sigma for bilateral filtering (σ_s > 0).

@@ -23,10 +23,10 @@
 //! - Malandain, G. & Bertrand, G. (1992). Fast characterization of 3D simple points.
 
 use super::Connectivity;
-use ritk_tensor_ops::extract_vec;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec;
 
 /// Label contour filter.
 ///
@@ -165,9 +165,9 @@ impl LabelContourImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::TensorData;
     use burn_ndarray::NdArray;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

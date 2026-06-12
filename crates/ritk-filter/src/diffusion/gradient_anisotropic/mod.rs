@@ -52,9 +52,9 @@
 //!   doi:10.1109/42.141646
 //! - Ibanez, L. et al. (2005). *The ITK Software Guide*, 2nd ed. §6.4.1.
 
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_core::image::Image;
 use burn::tensor::backend::Backend;
+use ritk_core::image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 

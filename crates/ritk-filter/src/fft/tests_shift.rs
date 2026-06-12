@@ -4,10 +4,10 @@
 //!   shape invariant → self-inverse property → DC-to-centre mapping → 3-D shape invariant
 
 use crate::fft::FftShiftFilter;
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 

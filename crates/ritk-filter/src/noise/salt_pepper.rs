@@ -5,8 +5,8 @@ use anyhow::Result;
 use burn::tensor::backend::Backend;
 use rand::prelude::*;
 use rand::rngs::StdRng;
-use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Salt-and-pepper (impulse) noise filter.
 ///

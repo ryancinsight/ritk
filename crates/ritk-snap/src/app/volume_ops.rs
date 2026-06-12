@@ -132,8 +132,8 @@ impl SnapApp {
                 self.axis = protocol.preferred_axis.min(2);
                 self.coronal_slice = shape[1] / 2;
                 self.sagittal_slice = shape[2] / 2;
-                self.multi_planar =
-                    protocol.layout == crate::dicom::hanging_protocol::LayoutSuggestion::MultiPlanarReformat;
+                self.multi_planar = protocol.layout
+                    == crate::dicom::hanging_protocol::LayoutSuggestion::MultiPlanarReformat;
                 self.dual_plane = false;
                 self.compare_side_by_side = false;
                 self.compare_fused_overlay = false;

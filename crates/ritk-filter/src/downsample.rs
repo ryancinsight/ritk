@@ -1,6 +1,6 @@
-use ritk_core::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_core::image::Image;
 
 /// Downsample filter.
 ///
@@ -64,11 +64,11 @@ impl<B: Backend> DownsampleFilter<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_tensor_ops::extract_vec_infallible;
-    use ritk_core::image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_core::image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
+    use ritk_tensor_ops::extract_vec_infallible;
 
     type B = NdArray<f32>;
 

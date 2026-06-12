@@ -18,8 +18,8 @@
 
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec;
 use ritk_image::Image;
+use ritk_tensor_ops::extract_vec;
 
 // ════════════════════════════════════════════════════════════════════════════
 // LabelDilation

@@ -2,9 +2,9 @@ use super::super::{
     empirical_cdf_rank, quantile_sorted, MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
 };
 use super::{get_values, make_image_3d, make_trimodal_volume, TestBackend};
+use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
-use burn::tensor::{Shape, Tensor, TensorData};
 
 // ── Test 1: Synthetic tri-modal T1 → WM peak detection ────────────────
 

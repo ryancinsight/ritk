@@ -38,10 +38,10 @@
 //!
 //! The outer Z loop is parallelised with \[`rayon`\]; each Z-slice is independent.
 
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── Public structs ────────────────────────────────────────────────────────────
 

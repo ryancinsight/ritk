@@ -1,11 +1,11 @@
 //! Tests for 2-D `FftConvolutionFilter`.
 
 use crate::fft::FftConvolutionFilter;
-use ritk_tensor_ops::extract_vec;
-use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
+use ritk_tensor_ops::extract_vec;
 
 type B = NdArray<f32>;
 

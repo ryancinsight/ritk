@@ -36,10 +36,10 @@
 //!
 //! `itk::RegionOfInterestImageFilter` with `SetRegionOfInterest(region)`.
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_origin};
+use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_spatial::Point;
-use burn::tensor::backend::Backend;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_origin};
 
 /// Extract a 3-D sub-volume (region of interest) from an image.
 ///
@@ -156,9 +156,9 @@ impl RegionOfInterestImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use burn_ndarray::NdArray;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 

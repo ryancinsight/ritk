@@ -2,9 +2,9 @@
 #![allow(clippy::identity_op, clippy::erasing_op)]
 
 use super::*;
+use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use burn::tensor::{Shape, Tensor, TensorData};
 
 // ── D = 2 tests ──────────────────────────────────────────────────────
 

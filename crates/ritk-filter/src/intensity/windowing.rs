@@ -9,9 +9,9 @@
 //! Pixels below window_min map to out_min; pixels above window_max map to out_max.
 //! Interior pixels are mapped linearly.
 
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Clamp input to [window_min, window_max], then rescale to [out_min, out_max].
 #[derive(Debug, Clone)]
@@ -64,10 +64,10 @@ impl IntensityWindowingFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
     type B = NdArray<f32>;
 
     fn make_image(vals: Vec<f32>) -> Image<B, 3> {

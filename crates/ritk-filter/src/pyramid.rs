@@ -1,8 +1,8 @@
 use super::downsample::DownsampleFilter;
 use super::gaussian::GaussianFilter;
 use crate::edge::GaussianSigma;
-use ritk_core::image::Image;
 use burn::tensor::backend::Backend;
+use ritk_core::image::Image;
 
 /// Multi-resolution image pyramid.
 ///
@@ -60,7 +60,9 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
             let smoothed = if !is_identity_smooth {
                 let sigmas_val: Vec<GaussianSigma> = sigmas
                     .iter()
-                    .map(|&s| GaussianSigma::new(s).unwrap_or_else(|| GaussianSigma::new_unchecked(1e-9)))
+                    .map(|&s| {
+                        GaussianSigma::new(s).unwrap_or_else(|| GaussianSigma::new_unchecked(1e-9))
+                    })
                     .collect();
                 let smoother = GaussianFilter::new(sigmas_val);
                 smoother.apply(input)
@@ -122,10 +124,10 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_core::image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

@@ -41,11 +41,11 @@
 //! shrink factor along each axis; origin and direction are preserved (the
 //! physical location of the first voxel is unchanged).
 
-use ritk_tensor_ops::extract_vec_infallible;
-use ritk_core::image::Image;
-use ritk_spatial::Spacing;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_core::image::Image;
+use ritk_spatial::Spacing;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// BinShrink image filter: integer sub-sampling by bin averaging.
 ///

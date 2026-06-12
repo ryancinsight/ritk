@@ -10,10 +10,10 @@
 //! - Serra, J. (1982). Image Analysis and Mathematical Morphology. Academic Press.
 //! - Soille, P. (2003). Morphological Image Analysis, 2nd ed. Springer.
 
-use ritk_tensor_ops::extract_vec;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec;
 
 #[derive(Debug, Clone)]
 pub struct HitOrMissTransform {
@@ -152,10 +152,10 @@ fn hit_or_miss_3d(data: &[f32], dims: [usize; 3], fg_r: usize, bg_r: usize) -> V
 #[allow(clippy::needless_range_loop)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
     type B = NdArray<f32>;
     fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
         let t =

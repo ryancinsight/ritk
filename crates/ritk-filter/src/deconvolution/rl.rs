@@ -21,8 +21,8 @@ use super::regularization::{
 };
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Richardson-Lucy iterative deconvolution (expectation-maximization).
 ///

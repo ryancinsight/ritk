@@ -41,10 +41,10 @@
 //!   derivative filters. *Proc. 14th ICPR*, pp. 509–514.
 
 use crate::edge::GaussianSigma;
-use ritk_tensor_ops::extract_vec;
-use ritk_core::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_core::image::Image;
+use ritk_tensor_ops::extract_vec;
 use serde::{Deserialize, Serialize};
 
 #[path = "iir.rs"]

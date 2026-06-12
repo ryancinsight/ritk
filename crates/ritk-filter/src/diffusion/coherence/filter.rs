@@ -1,7 +1,7 @@
 use crate::edge::GaussianSigma;
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-use ritk_core::image::Image;
 use burn::tensor::backend::Backend;
+use ritk_core::image::Image;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 use super::pde::ced_diffuse;
 use super::scratch::CedScratch;

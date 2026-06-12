@@ -7,9 +7,8 @@ pub mod dim2;
 pub mod dim3;
 pub mod dim4;
 
-use crate::interpolation::dispatch::dispatch_linear;
-use ritk_core::interpolation::Interpolator;
 use super::BoundsPolicy;
+use crate::interpolation::dispatch::dispatch_linear;
 use burn::module::{
     AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault, ModuleMapper,
     ModuleVisitor,
@@ -17,6 +16,7 @@ use burn::module::{
 use burn::record::{PrecisionSettings, Record};
 use burn::tensor::backend::{AutodiffBackend, Backend};
 use burn::tensor::Tensor;
+use ritk_core::interpolation::Interpolator;
 use serde::{Deserialize, Serialize};
 
 /// Linear Interpolator.

@@ -27,10 +27,10 @@
 mod kernel;
 pub use kernel::{GradientKernel, PrewittKernel, SobelKernel};
 
-use ritk_tensor_ops::{extract_vec, rebuild};
+use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use ritk_spatial::Spacing;
-use burn::tensor::backend::Backend;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── Generic filter ────────────────────────────────────────────────────────────
 

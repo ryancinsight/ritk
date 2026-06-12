@@ -1,9 +1,9 @@
 //! Tests for nyul_udupa
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type TestBackend = NdArray<f32>;
 

@@ -1,9 +1,9 @@
 //! 3-D thinning tests and internal predicate / trait tests.
 
 use super::*;
+use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use burn::tensor::{Shape, Tensor, TensorData};
 
 // ── D = 3 tests ──────────────────────────────────────────────────────
 

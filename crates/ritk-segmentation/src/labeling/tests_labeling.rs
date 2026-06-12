@@ -3,8 +3,8 @@
 use super::*;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::Image;
 
 type TestBackend = NdArray<f32>;
 

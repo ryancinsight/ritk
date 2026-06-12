@@ -3,12 +3,12 @@
 //! This module provides ResampleImageFilter which resamples an image
 //! into a new coordinate system using a transform and an interpolator.
 
+use burn::tensor::backend::Backend;
+use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_interpolation::Interpolator;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::Transform;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use std::marker::PhantomData;
 
 /// Resample image filter.
@@ -258,11 +258,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_tensor_ops::extract_vec_infallible;
+    use burn_ndarray::NdArray;
     use ritk_interpolation::LinearInterpolator;
     use ritk_spatial::{Direction2, Point2, Spacing2};
+    use ritk_tensor_ops::extract_vec_infallible;
     use ritk_transform::affine::translation::TranslationTransform;
-    use burn_ndarray::NdArray;
 
     type TestBackend = NdArray<f32>;
 

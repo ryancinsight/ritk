@@ -3,10 +3,10 @@
 //! Every test follows the "value-semantic" pattern: deterministic inputs produce
 //! deterministic outputs verified against mathematical invariants.
 
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 use super::{
     LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,

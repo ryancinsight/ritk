@@ -1,10 +1,10 @@
 //! Tests for grayscale_fillhole
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 

@@ -15,9 +15,9 @@
 //! - Spatial metadata (shape, origin, spacing, direction) is preserved exactly.
 //! - Transforms voxels from Bq/mL to unitless SUV.
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Convert PET activity concentration (Bq/mL) to SUV Body Weight (SUVbw).
 ///
@@ -78,9 +78,9 @@ impl SuvBodyWeightImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use burn_ndarray::NdArray;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 

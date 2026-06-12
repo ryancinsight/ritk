@@ -1,6 +1,6 @@
-use ritk_tensor_ops::extract_vec_infallible;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// Compute the Peak Signal-to-Noise Ratio (PSNR) between two images.
 ///

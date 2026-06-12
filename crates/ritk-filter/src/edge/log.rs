@@ -42,8 +42,8 @@
 use super::GaussianSigma;
 use crate::edge::LaplacianFilter;
 use crate::GaussianFilter;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -100,10 +100,10 @@ impl LaplacianOfGaussianFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

@@ -21,9 +21,9 @@
 //! | `MaskNegatedImageFilter`    | `MaskNegatedImageFilter`     |
 
 use crate::distance::types::BinarizationThreshold;
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
     anyhow::ensure!(
@@ -158,10 +158,10 @@ impl MaskNegatedImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

@@ -1,8 +1,8 @@
 use super::*;
 use crate::edge::GaussianSigma;
-use ritk_core::image::Image;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::image::Image;
 
 type B = NdArray<f32>;
 

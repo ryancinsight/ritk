@@ -49,9 +49,9 @@
 //!   and edge detection by nonlinear diffusion II. *SIAM J. Numer. Anal.* 29(3):845–866.
 //! - Weickert, J. (1998). *Anisotropic Diffusion in Image Processing*. Teubner.
 
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 

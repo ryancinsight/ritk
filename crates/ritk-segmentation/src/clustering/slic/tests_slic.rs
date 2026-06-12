@@ -4,9 +4,9 @@
 
 use super::*;
 use crate::clustering::slic::coords::decode_coords;
-use ritk_core::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_core::spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 

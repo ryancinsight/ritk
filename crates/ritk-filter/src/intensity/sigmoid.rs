@@ -13,9 +13,9 @@
 //! Reference: Sethian (1996). The output is strictly bounded in (min_output, max_output)
 //! for finite input and nonzero beta.
 
-use ritk_tensor_ops::{extract_vec, rebuild};
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Pixel-wise sigmoid intensity transform.
 ///
@@ -67,10 +67,10 @@ impl SigmoidImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
     type B = NdArray<f32>;
 
     fn make_image(vals: Vec<f32>) -> Image<B, 3> {

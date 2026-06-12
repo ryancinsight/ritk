@@ -3,9 +3,9 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
+use super::sealed;
 use crate::interpolation::kernel::nearest;
 use crate::interpolation::shared::OutOfBoundsMode;
-use super::sealed;
 
 // ════════════════════════════════════════════════════════════════════════
 // Sealed trait for nearest-neighbor shape-based dispatch (Sprint 358)

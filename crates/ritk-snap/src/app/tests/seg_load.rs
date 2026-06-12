@@ -67,7 +67,10 @@ fn load_external_dcmqi_partial_overlap_dicom_seg_into_snap_app() {
     assert_eq!(map.shape.0, [3, 512, 512]);
     let present = map.present_labels();
     for label in [1u32, 2, 3, 4, 5] {
-        assert!(present.contains(&LabelId(label)), "label {label} must be present");
+        assert!(
+            present.contains(&LabelId(label)),
+            "label {label} must be present"
+        );
         assert!(map.count_label(label) > 0, "label {label} must have voxels");
     }
     assert_eq!(

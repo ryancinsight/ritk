@@ -22,10 +22,10 @@
 //! `itk::PasteImageFilter` with `SetDestinationIndex(idx)` and
 //! `SetSourceRegion(region)` spanning the full source.
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
+use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_spatial::VoxelIndex;
-use burn::tensor::backend::Backend;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Paste a source image into a destination image at a given index.
 ///
@@ -106,10 +106,10 @@ impl PasteImageFilter {
 #[allow(clippy::identity_op, clippy::erasing_op)]
 mod tests {
     use super::*;
-    use ritk_tensor_ops::extract_vec_infallible;
+    use burn_ndarray::NdArray;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
+    use ritk_tensor_ops::extract_vec_infallible;
 
     type B = NdArray<f32>;
 

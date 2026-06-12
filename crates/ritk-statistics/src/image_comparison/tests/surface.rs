@@ -3,11 +3,11 @@ use super::super::surface::{
     min_distance_to_set,
 };
 use super::{make_mask_1d, make_mask_2d, make_mask_3d, TestBackend};
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use crate::image_comparison::{hausdorff_distance, mean_surface_distance};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 #[test]
 fn test_hausdorff_identical_masks_is_zero() {

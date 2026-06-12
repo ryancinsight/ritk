@@ -1,11 +1,11 @@
 //! Tests for sobel
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use ritk_tensor_ops::extract_vec_infallible;
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
+use ritk_tensor_ops::extract_vec_infallible;
 
 type B = NdArray<f32>;
 

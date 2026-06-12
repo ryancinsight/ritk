@@ -29,12 +29,12 @@ mod dft;
 mod histogram_sharpen;
 
 use super::bspline_bias::{bspline_evaluate, bspline_fit};
-use ritk_tensor_ops::extract_vec;
-use ritk_core::image::Image;
-use ritk_spatial::VolumeDims;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use histogram_sharpen::{histogram_sharpen, HistogramSharpenScratch};
+use ritk_core::image::Image;
+use ritk_spatial::VolumeDims;
+use ritk_tensor_ops::extract_vec;
 
 // Re-export the DFT helpers so the `tests_n4` module can reach them
 // via `use super::*;` (the tests were failing with E0425 "cannot find

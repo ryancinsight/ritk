@@ -27,10 +27,10 @@
 //! - ITK: `HistogramEqualizationImageFilter`.
 //! - ImageJ: Process → Enhance Contrast (Equalize Histogram).
 
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-use ritk_image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Global histogram equalization filter.
 ///

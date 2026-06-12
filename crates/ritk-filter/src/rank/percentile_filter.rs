@@ -1,9 +1,9 @@
 //! Sliding-window percentile filter (see [`PercentileFilter`]).
 
-use ritk_tensor_ops::{extract_vec, rebuild};
+use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_morphology::{Offset3D, StructuringElement};
-use burn::tensor::backend::Backend;
+use ritk_tensor_ops::{extract_vec, rebuild};
 use std::borrow::Cow;
 
 /// Sliding-window percentile filter for 3-D volumes.

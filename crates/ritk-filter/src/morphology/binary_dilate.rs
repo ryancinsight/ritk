@@ -26,7 +26,12 @@
 //!
 //! # Complexity
 //!
-//! O(N · (2r + 1)³) where N is the total voxel count.
+//! O(N) where N is the total voxel count, independent of the radius `r`.
+//! A flat cubic structuring element is the Minkowski sum of three orthogonal
+//! line segments, and dilation distributes over the Minkowski sum
+//! (`D_{A⊕B} = D_A ∘ D_B`), so the `(2r+1)³` cube is computed as three separable
+//! 1-D passes. Each pass is a linear nearest-foreground distance transform, so
+//! total work is `O(3N)` rather than the direct `O(N · (2r+1)³)`.
 //!
 //! # References
 //!
@@ -35,10 +40,10 @@
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer.
 
 use super::types::ForegroundValue;
-use ritk_tensor_ops::extract_vec;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec;
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -115,44 +120,76 @@ pub(crate) fn dilate_binary_3d(
     fg: ForegroundValue,
 ) -> Vec<f32> {
     let [nz, ny, nx] = dims;
-    let r = radius as isize;
+    let n = nz * ny * nx;
     let fg: f32 = fg.into();
-    let mut output = vec![0.0_f32; nz * ny * nx];
+    if n == 0 {
+        return Vec::new();
+    }
 
+    // Work in a boolean buffer, then map back to {fg, 0.0}. Three separable
+    // 1-D dilations (x, then y, then z) reproduce the (2r+1)³ cubic result
+    // exactly: each pass marks a voxel foreground iff some in-bounds neighbour
+    // within `radius` along that axis is foreground, and out-of-bounds positions
+    // never contribute foreground — matching the cubic filter's boundary rule.
+    let mut buf: Vec<bool> = data.iter().map(|&v| v == fg).collect();
+    let mut scratch = vec![false; nx.max(ny).max(nz)];
+
+    // X axis: contiguous runs of length nx, stride 1.
+    for line in 0..(nz * ny) {
+        dilate_line(&mut buf, line * nx, 1, nx, radius, &mut scratch);
+    }
+    // Y axis: runs of length ny, stride nx.
     for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut any_fg = false;
-                'outer: for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            let zz = iz as isize + dz;
-                            let yy = iy as isize + dy;
-                            let xx = ix as isize + dx;
-                            if zz < 0
-                                || yy < 0
-                                || xx < 0
-                                || zz >= nz as isize
-                                || yy >= ny as isize
-                                || xx >= nx as isize
-                            {
-                                continue;
-                            }
-                            let idx = zz as usize * ny * nx + yy as usize * nx + xx as usize;
-                            if data[idx] == fg {
-                                any_fg = true;
-                                break 'outer;
-                            }
-                        }
-                    }
-                }
-                if any_fg {
-                    output[iz * ny * nx + iy * nx + ix] = fg;
-                }
-            }
+        for ix in 0..nx {
+            dilate_line(&mut buf, iz * ny * nx + ix, nx, ny, radius, &mut scratch);
         }
     }
-    output
+    // Z axis: runs of length nz, stride ny*nx.
+    let plane = ny * nx;
+    for iy in 0..ny {
+        for ix in 0..nx {
+            dilate_line(&mut buf, iy * nx + ix, plane, nz, radius, &mut scratch);
+        }
+    }
+
+    buf.into_iter().map(|b| if b { fg } else { 0.0 }).collect()
+}
+
+/// In-place 1-D binary dilation of one strided line by a flat segment of
+/// half-width `radius`. Output voxel `i` is foreground iff some in-bounds
+/// position within `radius` of `i` is foreground in the input line. Linear in
+/// the line length via a two-sided nearest-foreground sweep; `scratch` (length
+/// ≥ `len`) is reused across calls to avoid per-line allocation.
+fn dilate_line(
+    buf: &mut [bool],
+    start: usize,
+    stride: usize,
+    len: usize,
+    radius: usize,
+    scratch: &mut [bool],
+) {
+    let r = radius as isize;
+    // Forward sweep: distance back to the most recent foreground voxel.
+    let mut last_fg = isize::MIN;
+    for i in 0..len {
+        if buf[start + i * stride] {
+            last_fg = i as isize;
+        }
+        scratch[i] = last_fg != isize::MIN && (i as isize - last_fg) <= r;
+    }
+    // Backward sweep: distance forward to the next foreground voxel.
+    let mut next_fg = isize::MAX;
+    for i in (0..len).rev() {
+        if buf[start + i * stride] {
+            next_fg = i as isize;
+        }
+        if next_fg != isize::MAX && (next_fg - i as isize) <= r {
+            scratch[i] = true;
+        }
+    }
+    for i in 0..len {
+        buf[start + i * stride] = scratch[i];
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -160,10 +197,10 @@ pub(crate) fn dilate_binary_3d(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 
@@ -262,6 +299,69 @@ mod tests {
         let img = make_image(f, [1, 1, 5]);
         let out = BinaryDilateFilter::new(1).apply(&img).unwrap();
         assert_eq!(flat(&out), vec![0.0, 1.0, 1.0, 1.0, 0.0]);
+    }
+
+    /// Brute-force `(2r+1)³` cubic dilation — the direct definition, used as the
+    /// differential oracle for the separable implementation.
+    fn cubic_reference(data: &[f32], dims: [usize; 3], radius: usize, fg: f32) -> Vec<f32> {
+        let [nz, ny, nx] = dims;
+        let r = radius as isize;
+        let mut out = vec![0.0_f32; nz * ny * nx];
+        for iz in 0..nz {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let mut any = false;
+                    'o: for dz in -r..=r {
+                        for dy in -r..=r {
+                            for dx in -r..=r {
+                                let (zz, yy, xx) =
+                                    (iz as isize + dz, iy as isize + dy, ix as isize + dx);
+                                if zz < 0
+                                    || yy < 0
+                                    || xx < 0
+                                    || zz >= nz as isize
+                                    || yy >= ny as isize
+                                    || xx >= nx as isize
+                                {
+                                    continue;
+                                }
+                                if data[zz as usize * ny * nx + yy as usize * nx + xx as usize]
+                                    == fg
+                                {
+                                    any = true;
+                                    break 'o;
+                                }
+                            }
+                        }
+                    }
+                    if any {
+                        out[iz * ny * nx + iy * nx + ix] = fg;
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// T9: separable 3-D dilation is bitwise-identical to the brute-force cubic
+    /// definition across radii on a non-trivial asymmetric volume (5×6×7) with
+    /// scattered foreground seeds, exercising interior, edge, and corner voxels.
+    #[test]
+    fn separable_matches_cubic_3d() {
+        let dims = [5, 6, 7];
+        let n = dims.iter().product::<usize>();
+        // Deterministic scattered seeds (no rng dependency).
+        let mut data = vec![0.0_f32; n];
+        for (i, v) in data.iter_mut().enumerate() {
+            if i % 11 == 0 || i % 17 == 3 {
+                *v = 1.0;
+            }
+        }
+        for r in 0..=3 {
+            let got = dilate_binary_3d(&data, dims, r, ForegroundValue::ONE);
+            let want = cubic_reference(&data, dims, r, 1.0);
+            assert_eq!(got, want, "separable != cubic at radius {r}");
+        }
     }
 
     /// T8: Spatial metadata is preserved unchanged.

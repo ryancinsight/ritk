@@ -31,10 +31,10 @@
 //! Two serial passes per label (centroid+bbox, then moments), one parallel fold
 //! to group voxel indices, and one parallel map over labels.
 
-use ritk_tensor_ops::extract_vec_infallible;
+use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_spatial::Point;
-use burn::tensor::backend::Backend;
+use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::HashMap;
 use std::f64::consts::PI;
 

@@ -1,6 +1,6 @@
-use ritk_tensor_ops::extract_vec_infallible;
-use ritk_image::Image;
 use burn::tensor::backend::Backend;
+use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// Compute row-major strides for a shape given as a runtime slice.
 pub(super) fn compute_strides(shape: &[usize]) -> Vec<usize> {
