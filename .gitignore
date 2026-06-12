@@ -24,3 +24,9 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Windows reserved-name artifact (accidental 'nul' redirection)
+nul
+
+# Local agent tooling state
+.mimocode/
