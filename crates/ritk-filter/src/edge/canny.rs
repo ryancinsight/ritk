@@ -33,7 +33,7 @@
 
 use super::GaussianSigma;
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use ritk_spatial::Spacing;
 use std::collections::VecDeque;

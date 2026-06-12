@@ -7,7 +7,7 @@ use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 
 use super::types::{DicomSegmentInfo, DicomSegmentation, SEG_SOP_CLASS_UID};
-use crate::format::dicom::helpers::read_nested_f64;
+use crate::format::dicom::helpers::read_nested_scalar;
 use crate::format::dicom::reader::types::{literal_arraystring, truncate_arraystring};
 
 /// Read a DICOM Segmentation Storage file at `path` into [`DicomSegmentation`].
@@ -285,7 +285,8 @@ fn parse_shared_functional_groups(
 
     let orientation = read_nested_ds::<6>(&item, Tag(0x0020, 0x9116), Tag(0x0020, 0x0037));
     let pixel_spacing = read_nested_ds::<2>(&item, Tag(0x0028, 0x9110), Tag(0x0028, 0x0030));
-    let slice_thickness = read_nested_f64(&item, Tag(0x0028, 0x9110), Tag(0x0018, 0x0050));
+    let slice_thickness =
+        read_nested_scalar::<f64>(&item, Tag(0x0028, 0x9110), Tag(0x0018, 0x0050));
 
     (orientation, pixel_spacing, slice_thickness)
 }

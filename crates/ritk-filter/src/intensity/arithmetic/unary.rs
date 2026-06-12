@@ -9,7 +9,7 @@
 use std::marker::PhantomData;
 
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec_infallible as extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 use ritk_core::image::Image;
 
 // ── Sealed trait infrastructure ──────────────────────────────────────────────
@@ -25,7 +25,7 @@ mod sealed {
 /// `Square`) are valid implementations.
 pub trait UnaryPixelOp: sealed::Sealed {
     /// Apply the operation to a single voxel value.
-    fn apply_f32(v: f32) -> f32;
+    fn apply(v: f32) -> f32;
 }
 
 // ── Operation marker ZSTs ────────────────────────────────────────────────────
@@ -62,35 +62,35 @@ impl sealed::Sealed for Square {}
 
 impl UnaryPixelOp for Abs {
     #[inline]
-    fn apply_f32(v: f32) -> f32 {
+    fn apply(v: f32) -> f32 {
         v.abs()
     }
 }
 
 impl UnaryPixelOp for Sqrt {
     #[inline]
-    fn apply_f32(v: f32) -> f32 {
+    fn apply(v: f32) -> f32 {
         v.sqrt()
     }
 }
 
 impl UnaryPixelOp for Exp {
     #[inline]
-    fn apply_f32(v: f32) -> f32 {
+    fn apply(v: f32) -> f32 {
         v.exp()
     }
 }
 
 impl UnaryPixelOp for Log {
     #[inline]
-    fn apply_f32(v: f32) -> f32 {
+    fn apply(v: f32) -> f32 {
         v.ln()
     }
 }
 
 impl UnaryPixelOp for Square {
     #[inline]
-    fn apply_f32(v: f32) -> f32 {
+    fn apply(v: f32) -> f32 {
         v * v
     }
 }
@@ -99,7 +99,7 @@ impl UnaryPixelOp for Square {
 
 /// Generic pixelwise unary intensity filter parameterised by an [`UnaryPixelOp`].
 ///
-/// Applies `Op::apply_f32` independently to every voxel.  Spatial metadata
+/// Applies `Op::apply` independently to every voxel.  Spatial metadata
 /// (origin, spacing, direction) is preserved identically in the output image.
 ///
 /// # Type parameters
@@ -129,7 +129,7 @@ impl<Op: UnaryPixelOp> UnaryImageFilter<Op> {
     /// Works for any spatial dimensionality `D`; spatial metadata is preserved.
     pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
         let (vals, dims) = extract_vec(image);
-        let out: Vec<f32> = vals.into_iter().map(|v| Op::apply_f32(v)).collect();
+        let out: Vec<f32> = vals.into_iter().map(|v| Op::apply(v)).collect();
         rebuild(out, dims, image)
     }
 }

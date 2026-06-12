@@ -1,12 +1,12 @@
 //! O-Information and Dual Total Correlation pyfunction wrappers.
 //!
-//! Delegates to `ritk_core::statistics::information`:
+//! Delegates to `ritk_statistics::information`:
 //! - DTC(X₁,...,Xₙ) = Σᵢ H(X₁,...,Xₙ\Xᵢ) − (n−1)·H(X₁,...,Xₙ)  (Han 1978)
 //! - Ω(X₁,...,Xₙ) = TC − DTC                                        (Rosas 2019)
 
 use anyhow::Result;
 use pyo3::prelude::*;
-use ritk_core::statistics::information::{
+use ritk_statistics::information::{
     dual_total_correlation as core_dtc, o_information as core_oi,
 };
 
@@ -97,7 +97,7 @@ pub fn compute_o_information(images: Vec<PyRef<PyImage>>, num_bins: usize) -> Ri
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::statistics::information::o_information_direct as core_oi_direct;
+    use ritk_statistics::information::o_information_direct as core_oi_direct;
 
     fn ramp(n: usize, modulus: usize) -> Vec<f32> {
         (0..n).map(|i| (i % modulus) as f32).collect()

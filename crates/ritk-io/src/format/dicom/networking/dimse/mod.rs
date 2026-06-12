@@ -30,20 +30,21 @@ pub enum CommandField {
     CGetRsp = 0x8010,
 }
 
-impl CommandField {
-    pub(crate) fn from_u16(v: u16) -> Option<Self> {
-        match v {
-            0x0030 => Some(Self::CEchoRq),
-            0x8030 => Some(Self::CEchoRsp),
-            0x0020 => Some(Self::CFindRq),
-            0x8020 => Some(Self::CFindRsp),
-            0x0001 => Some(Self::CStoreRq),
-            0x8001 => Some(Self::CStoreRsp),
-            0x0021 => Some(Self::CMoveRq),
-            0x8021 => Some(Self::CMoveRsp),
-            0x0010 => Some(Self::CGetRq),
-            0x8010 => Some(Self::CGetRsp),
-            _ => None,
+impl TryFrom<u16> for CommandField {
+    type Error = u16;
+    fn try_from(value: u16) -> Result<Self, u16> {
+        match value {
+            0x0030 => Ok(Self::CEchoRq),
+            0x8030 => Ok(Self::CEchoRsp),
+            0x0020 => Ok(Self::CFindRq),
+            0x8020 => Ok(Self::CFindRsp),
+            0x0001 => Ok(Self::CStoreRq),
+            0x8001 => Ok(Self::CStoreRsp),
+            0x0021 => Ok(Self::CMoveRq),
+            0x8021 => Ok(Self::CMoveRsp),
+            0x0010 => Ok(Self::CGetRq),
+            0x8010 => Ok(Self::CGetRsp),
+            _ => Err(value),
         }
     }
 }
@@ -253,7 +254,7 @@ impl DimseMessage {
     pub fn command_field(&self) -> Option<CommandField> {
         self.find_element(TAG_COMMAND_FIELD)
             .and_then(|e| decode_us(e.value.as_bytes()))
-            .and_then(CommandField::from_u16)
+            .and_then(|v| CommandField::try_from(v).ok())
     }
 
     /// Message ID from (0000,0110).

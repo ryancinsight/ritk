@@ -3,11 +3,11 @@
 use crate::image::{with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use ritk_core::statistics::label_overlap::label_overlap_measures_from_slices;
+use ritk_statistics::label_overlap::label_overlap_measures_from_slices;
 
 /// Compute per-label overlap measures between a predicted label map and ground truth.
 ///
-/// Delegates to `ritk_core::statistics::label_overlap::label_overlap_measures_from_slices`.
+/// Delegates to `ritk_statistics::label_overlap::label_overlap_measures_from_slices`.
 /// Background label (0) is excluded from results.
 ///
 /// Args:

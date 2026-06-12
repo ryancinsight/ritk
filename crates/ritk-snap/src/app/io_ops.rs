@@ -383,7 +383,7 @@ impl SnapApp {
                     error!("{}", self.status_message);
                     return;
                 }
-                match ritk_core::annotation::LabelMap::from_data(
+                match ritk_annotation::LabelMap::from_data(
                     shape,
                     labels,
                     crate::label::default_label_table(),

@@ -9,7 +9,7 @@ use dicom::object::InMemDicomObject;
 
 use super::reader::parse_ds_backslash;
 use super::types::PerFrameInfo;
-use crate::format::dicom::helpers::read_nested_f64;
+use crate::format::dicom::helpers::read_nested_scalar;
 
 /// Navigate item → seq_tag → items()\[0\] → inner_tag and parse as `\[f64; N\]` DS array.
 ///
@@ -85,13 +85,17 @@ pub(crate) fn extract_functional_groups(
                         Tag(0x0028, 0x9110),
                         Tag(0x0028, 0x0030),
                     ),
-                    slice_thickness: read_nested_f64(
+                    slice_thickness: read_nested_scalar::<f64>(
                         item,
                         Tag(0x0028, 0x9110),
                         Tag(0x0018, 0x0050),
                     ),
-                    rescale_slope: read_nested_f64(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1053)),
-                    rescale_intercept: read_nested_f64(
+                    rescale_slope: read_nested_scalar::<f64>(
+                        item,
+                        Tag(0x0028, 0x9145),
+                        Tag(0x0028, 0x1053),
+                    ),
+                    rescale_intercept: read_nested_scalar::<f64>(
                         item,
                         Tag(0x0028, 0x9145),
                         Tag(0x0028, 0x1052),
@@ -156,15 +160,15 @@ pub(crate) fn extract_functional_groups(
                 );
                 override_if_some!(
                     slice_thickness,
-                    read_nested_f64(item, Tag(0x0028, 0x9110), Tag(0x0018, 0x0050))
+                    read_nested_scalar::<f64>(item, Tag(0x0028, 0x9110), Tag(0x0018, 0x0050))
                 );
                 override_if_some!(
                     rescale_slope,
-                    read_nested_f64(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1053))
+                    read_nested_scalar::<f64>(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1053))
                 );
                 override_if_some!(
                     rescale_intercept,
-                    read_nested_f64(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1052))
+                    read_nested_scalar::<f64>(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1052))
                 );
             }
             info

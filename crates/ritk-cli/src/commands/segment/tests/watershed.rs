@@ -50,7 +50,12 @@ fn test_segment_watershed_creates_output() {
 
     ritk_io::write_nifti(&input, &make_ramp_image()).unwrap();
 
-    run(default_args(input.clone(), output.clone(), "watershed")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Watershed,
+    ))
+    .unwrap();
 
     assert!(output.exists(), "watershed output must be created");
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -72,7 +77,11 @@ fn test_segment_marker_watershed_missing_markers_returns_error() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
 
-    let args = default_args(input.clone(), output.clone(), "marker-watershed");
+    let args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::MarkerWatershed,
+    );
     let result = run(args);
     assert!(
         result.is_err(),
@@ -106,7 +115,7 @@ fn test_segment_marker_watershed_creates_output_with_correct_shape() {
         ..default_args(
             gradient_path.clone(),
             output_path.clone(),
-            "marker-watershed",
+            SegmentMethod::MarkerWatershed,
         )
     };
     let result = run(args);
@@ -145,7 +154,7 @@ fn test_segment_marker_watershed_output_contains_both_basin_labels() {
         ..default_args(
             gradient_path.clone(),
             output_path.clone(),
-            "marker-watershed",
+            SegmentMethod::MarkerWatershed,
         )
     };
     run(args).expect("marker-watershed must succeed with valid inputs");

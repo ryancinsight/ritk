@@ -46,7 +46,7 @@
 //!   13(6), 583–598.
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_tensor_ops::extract_vec_infallible;
 use ritk_image::Image;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;

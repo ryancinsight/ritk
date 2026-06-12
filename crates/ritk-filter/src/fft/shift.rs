@@ -29,7 +29,7 @@
 
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 
 /// Moves the zero-frequency (DC) component from the corners to the centre of

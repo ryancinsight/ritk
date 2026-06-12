@@ -41,7 +41,7 @@ use super::frangi::gaussian_blur_vec;
 use super::hessian::{compute_hessian, symmetric_3x3_eigenvalues};
 use super::VesselPolarity;
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 
 // ── Public types ──────────────────────────────────────────────────────────────

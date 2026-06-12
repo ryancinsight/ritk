@@ -30,11 +30,26 @@ use tracing::info;
 pub(crate) use super::Backend;
 use super::{read_image, write_image_inferred};
 
-/// Parse a spacing-mode string for the `--spacing-mode` CLI argument.
-///
-/// Accepts `"physical"` (or legacy `"true"`) and `"voxel"` (or legacy `"false"`).
-fn parse_spacing_mode(s: &str) -> Result<SpacingMode, String> {
-    s.parse()
+/// Derivative order for `recursive-gaussian`.
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
+pub enum CliDerivativeOrder {
+    #[default]
+    #[value(name = "0")]
+    Zero,
+    #[value(name = "1")]
+    First,
+    #[value(name = "2")]
+    Second,
+}
+
+impl std::fmt::Display for CliDerivativeOrder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Zero => "0",
+            Self::First => "1",
+            Self::Second => "2",
+        })
+    }
 }
 
 #[cfg(test)]
@@ -171,8 +186,8 @@ pub struct FilterArgs {
     /// 0 = smoothing, 1 = first derivative, 2 = second derivative.
     ///
     /// Used by: `recursive-gaussian`.
-    #[arg(long, default_value = "0", value_name = "INT")]
-    pub order: usize,
+    #[arg(long, default_value = "0", value_enum, value_name = "INT")]
+    pub order: CliDerivativeOrder,
 
     // ── Discrete Gaussian ─────────────────────────────────────────────────────
     /// Gaussian variance σ² in physical units².
@@ -197,7 +212,7 @@ pub struct FilterArgs {
     ///
     /// Used by: `discrete-gaussian`.
     #[arg(long = "spacing-mode", default_value = "physical", value_name = "MODE",
-          value_parser = parse_spacing_mode)]
+          value_parser = |s: &str| s.parse::<SpacingMode>().map_err(|e| e.to_string()))]
     pub spacing_mode: SpacingMode,
 
     /// Lower intensity threshold for the bed separation filter.
@@ -414,7 +429,7 @@ pub(crate) fn default_args(input: PathBuf, output: PathBuf, filter: &str) -> Fil
         low: 0.1,
         high: 0.3,
         radius: 1,
-        order: 0,
+        order: CliDerivativeOrder::Zero,
         variance: 1.0,
         maximum_error: 0.01,
         spacing_mode: SpacingMode::Physical,

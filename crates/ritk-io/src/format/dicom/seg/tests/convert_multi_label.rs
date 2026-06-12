@@ -1,16 +1,16 @@
 use super::super::{label_map_to_dicom_seg, SegEncoding};
-use ritk_core::annotation::RgbaU8;
+use ritk_annotation::RgbaBytes;
 
 #[test]
 fn test_label_map_to_dicom_seg_multi_label() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
-        .add_label(1, "Foreground", RgbaU8::new(255, 0, 0, 255))
+        .add_label(1, "Foreground", RgbaBytes::new(255, 0, 0, 255))
         .unwrap();
     table
-        .add_label(2, "Other", RgbaU8::new(0, 255, 0, 255))
+        .add_label(2, "Other", RgbaBytes::new(0, 255, 0, 255))
         .unwrap();
 
     let data = vec![1, 1, 1, 1, 2, 2, 2, 2];

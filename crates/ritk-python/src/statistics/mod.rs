@@ -1,6 +1,6 @@
 //! Python-exposed image statistics, comparison, normalization, and Jacobian functions.
 //!
-//! All functions delegate to `ritk_core::statistics` implementations (SSOT).
+//! All functions delegate to `ritk_statistics` implementations (SSOT).
 //!
 //! # Submodules
 //! - `descriptive`:    Descriptive statistics, image comparison, noise estimation, label stats.

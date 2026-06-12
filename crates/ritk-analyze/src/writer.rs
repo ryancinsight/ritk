@@ -39,6 +39,7 @@ use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 
+use crate::codec::{write_f32, write_i16, write_i32, DT_FLOAT};
 use std::marker::PhantomData;
 use std::path::Path;
 
@@ -97,7 +98,7 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     write_i16(&mut hdr, 46, nz as i16); // dim[3] = Z
     write_i16(&mut hdr, 48, 1); // dim[4] = time (1 volume)
 
-    write_i16(&mut hdr, 70, 16); // datatype = DT_FLOAT (16)
+    write_i16(&mut hdr, 70, DT_FLOAT); // datatype = DT_FLOAT (16)
     write_i16(&mut hdr, 72, 32); // bitpix   = 32 bits
 
     // pixdim[8] at offset 76
@@ -163,8 +164,6 @@ impl<B: Backend> Default for AnalyzeWriter<B> {
     }
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
-
 /// Convert physical origin coordinate to voxel index (rounded, clamped to i16).
 #[inline]
 fn vox_coord(origin_mm: f64, spacing_mm: f64) -> i16 {
@@ -173,22 +172,4 @@ fn vox_coord(origin_mm: f64, spacing_mm: f64) -> i16 {
     }
     let vox = (origin_mm / spacing_mm).round();
     vox.clamp(i16::MIN as f64, i16::MAX as f64) as i16
-}
-
-/// Write a little-endian `i32` at byte offset `off` in `buf`.
-#[inline]
-fn write_i32(buf: &mut [u8], off: usize, val: i32) {
-    buf[off..off + 4].copy_from_slice(&val.to_le_bytes());
-}
-
-/// Write a little-endian `i16` at byte offset `off` in `buf`.
-#[inline]
-fn write_i16(buf: &mut [u8], off: usize, val: i16) {
-    buf[off..off + 2].copy_from_slice(&val.to_le_bytes());
-}
-
-/// Write a little-endian `f32` at byte offset `off` in `buf`.
-#[inline]
-fn write_f32(buf: &mut [u8], off: usize, val: f32) {
-    buf[off..off + 4].copy_from_slice(&val.to_le_bytes());
 }

@@ -11,6 +11,7 @@ path = "src/main.rs"
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
+ritk-statistics = { path = "../ritk-statistics" }
 ritk-interpolation = { path = "../ritk-interpolation" }
 serde_json = { workspace = true }
 ritk-transform = { path = "../ritk-transform" }

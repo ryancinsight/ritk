@@ -18,7 +18,7 @@
 use super::regularization::{apply_single_pass, TikhonovRule};
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 
 /// Tikhonov-regularized deconvolution (ridge regression in frequency domain).

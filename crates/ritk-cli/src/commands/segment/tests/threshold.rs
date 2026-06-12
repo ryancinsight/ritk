@@ -11,7 +11,12 @@ fn test_segment_otsu_creates_output_file_with_correct_shape() {
 
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
 
-    run(default_args(input.clone(), output.clone(), "otsu")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Otsu,
+    ))
+    .unwrap();
 
     assert!(output.exists(), "output mask must be created");
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -29,7 +34,12 @@ fn test_segment_otsu_output_is_strictly_binary() {
 
     ritk_io::write_metaimage(&input, &make_bimodal_image()).unwrap();
 
-    run(default_args(input.clone(), output.clone(), "otsu")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Otsu,
+    ))
+    .unwrap();
 
     let mask = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
     mask.with_data_slice(|values| {
@@ -68,7 +78,12 @@ fn test_segment_otsu_foreground_count_equals_high_mode_voxels() {
 
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
 
-    run(default_args(input.clone(), output.clone(), "otsu")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Otsu,
+    ))
+    .unwrap();
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     let foreground = count_foreground(&mask);
@@ -89,7 +104,12 @@ fn test_segment_multi_otsu_creates_output_with_correct_shape() {
 
     ritk_io::write_nifti(&input, &make_trimodal_image()).unwrap();
 
-    run(default_args(input.clone(), output.clone(), "multi-otsu")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::MultiOtsu,
+    ))
+    .unwrap();
 
     assert!(output.exists(), "output label image must be created");
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -107,7 +127,12 @@ fn test_segment_multi_otsu_labels_in_valid_set() {
 
     ritk_io::write_metaimage(&input, &make_trimodal_image()).unwrap();
 
-    run(default_args(input.clone(), output.clone(), "multi-otsu")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::MultiOtsu,
+    ))
+    .unwrap();
 
     let labels = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
     labels.with_data_slice(|values| {
@@ -157,7 +182,7 @@ fn test_segment_binary_threshold_creates_output_with_correct_shape() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "binary");
+    let mut args = default_args(input.clone(), output.clone(), SegmentMethod::Binary);
     args.lower = Some(100.0);
     args.upper = Some(255.0);
     run(args).unwrap();
@@ -178,7 +203,7 @@ fn test_segment_binary_threshold_output_is_strictly_binary() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "binary");
+    let mut args = default_args(input.clone(), output.clone(), SegmentMethod::Binary);
     args.lower = Some(100.0);
     args.upper = Some(255.0);
     run(args).unwrap();
@@ -201,7 +226,7 @@ fn test_segment_binary_threshold_no_bounds_all_inside() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
 
-    let args = default_args(input.clone(), output.clone(), "binary");
+    let args = default_args(input.clone(), output.clone(), SegmentMethod::Binary);
     run(args).unwrap();
 
     let out_image = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();

@@ -20,7 +20,7 @@
 //! # Reference
 //! Press et al., *Numerical Recipes*, 3rd ed., §18.1.
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use ritk_spatial::Spacing;
 use burn::tensor::backend::Backend;
@@ -157,7 +157,7 @@ fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>) -> Vec<f3
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::filter::ops::extract_vec_infallible;
+    use ritk_tensor_ops::extract_vec_infallible;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};

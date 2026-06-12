@@ -7,7 +7,7 @@ use crate::metric::sampling::SamplingConfig;
 use crate::metric::{histogram::ParzenJointHistogram, Metric};
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
-use ritk_core::statistics::IntensityRange;
+use ritk_statistics::IntensityRange;
 use ritk_image::Image;
 use ritk_interpolation::LinearInterpolator;
 use ritk_transform::Transform;

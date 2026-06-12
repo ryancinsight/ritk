@@ -53,13 +53,8 @@ use std::io::Read;
 use std::marker::PhantomData;
 use std::path::Path;
 
-// ── Datatype constants ────────────────────────────────────────────────────────
-
-pub const DT_UNSIGNED_CHAR: i16 = 2;
-pub const DT_SIGNED_SHORT: i16 = 4;
-pub const DT_SIGNED_INT: i16 = 8;
-pub const DT_FLOAT: i16 = 16;
-pub const DT_DOUBLE: i16 = 64;
+use crate::codec::{read_f32, read_i16, read_i32};
+pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_UNSIGNED_CHAR};
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -280,24 +275,4 @@ impl<B: Backend> AnalyzeReader<B> {
             _phantom: PhantomData,
         }
     }
-}
-
-// ── Private helpers ───────────────────────────────────────────────────────────
-
-/// Read a little-endian `i32` from `buf` at byte offset `off`.
-#[inline]
-fn read_i32(buf: &[u8], off: usize) -> i32 {
-    i32::from_le_bytes([buf[off], buf[off + 1], buf[off + 2], buf[off + 3]])
-}
-
-/// Read a little-endian `i16` from `buf` at byte offset `off`.
-#[inline]
-fn read_i16(buf: &[u8], off: usize) -> i16 {
-    i16::from_le_bytes([buf[off], buf[off + 1]])
-}
-
-/// Read a little-endian `f32` from `buf` at byte offset `off`.
-#[inline]
-fn read_f32(buf: &[u8], off: usize) -> f32 {
-    f32::from_le_bytes([buf[off], buf[off + 1], buf[off + 2], buf[off + 3]])
 }

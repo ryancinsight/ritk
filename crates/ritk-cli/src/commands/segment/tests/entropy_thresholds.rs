@@ -6,7 +6,12 @@ fn test_segment_li_creates_output_and_threshold_between_modes() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
-    run(default_args(input.clone(), output.clone(), "li")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Li,
+    ))
+    .unwrap();
     assert!(output.exists(), "li output mask must be created");
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [4, 4, 4], "output shape must match input");
@@ -32,7 +37,12 @@ fn test_segment_yen_creates_output_and_threshold_between_modes() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
-    run(default_args(input.clone(), output.clone(), "yen")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Yen,
+    ))
+    .unwrap();
     assert!(output.exists(), "yen output mask must be created");
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [4, 4, 4]);
@@ -58,7 +68,12 @@ fn test_segment_kapur_creates_output_and_threshold_between_modes() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
-    run(default_args(input.clone(), output.clone(), "kapur")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Kapur,
+    ))
+    .unwrap();
     assert!(output.exists(), "kapur output mask must be created");
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [4, 4, 4]);
@@ -84,7 +99,12 @@ fn test_segment_triangle_creates_output_and_threshold_between_modes() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
-    run(default_args(input.clone(), output.clone(), "triangle")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Triangle,
+    ))
+    .unwrap();
     assert!(output.exists(), "triangle output mask must be created");
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [4, 4, 4]);
@@ -110,7 +130,12 @@ fn test_segment_li_foreground_count() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
-    run(default_args(input.clone(), output.clone(), "li")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Li,
+    ))
+    .unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     let foreground = count_foreground(&mask);
     assert_eq!(
@@ -125,7 +150,12 @@ fn test_segment_yen_foreground_count() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
-    run(default_args(input.clone(), output.clone(), "yen")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Yen,
+    ))
+    .unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     let foreground = count_foreground(&mask);
     assert_eq!(
@@ -140,7 +170,12 @@ fn test_segment_kapur_foreground_count() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
-    run(default_args(input.clone(), output.clone(), "kapur")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Kapur,
+    ))
+    .unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     let foreground = count_foreground(&mask);
     assert!(
@@ -155,7 +190,12 @@ fn test_segment_triangle_foreground_count() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
-    run(default_args(input.clone(), output.clone(), "triangle")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Triangle,
+    ))
+    .unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     let foreground = count_foreground(&mask);
     assert_eq!(

@@ -1,10 +1,11 @@
 //! Speckle (multiplicative) noise filter.
 
+use super::DEFAULT_NOISE_SEED;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
 use rand::prelude::*;
 use rand::rngs::StdRng;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
 
 /// Speckle (multiplicative) noise filter.
@@ -34,7 +35,10 @@ pub struct SpeckleNoiseFilter {
 impl SpeckleNoiseFilter {
     /// Create a filter with the given multiplicative noise std.
     pub fn new(std: f64) -> Self {
-        Self { std, seed: 42 }
+        Self {
+            std,
+            seed: DEFAULT_NOISE_SEED,
+        }
     }
 
     /// Set the random seed (builder pattern).
@@ -53,9 +57,7 @@ impl SpeckleNoiseFilter {
             .map(|_| {
                 let u1: f64 = rng.random();
                 let u2: f64 = rng.random();
-                (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
-                    * (2.0 * std::f64::consts::TAU * u2).cos()
-                    * self.std
+                super::box_muller(u1, u2) * self.std
             })
             .collect();
         let out: Vec<f32> =

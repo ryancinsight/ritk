@@ -43,7 +43,7 @@
 pub mod marker_controlled;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 pub use marker_controlled::MarkerControlledWatershed;
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_image::Image;
 
 // ── Public API ─────────────────────────────────────────────────────────────────

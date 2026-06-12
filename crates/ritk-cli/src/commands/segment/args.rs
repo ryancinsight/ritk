@@ -1,6 +1,79 @@
 use clap::Args;
 use std::path::PathBuf;
 
+/// Segmentation algorithm.
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum SegmentMethod {
+    Otsu,
+    #[value(name = "multi-otsu")]
+    MultiOtsu,
+    #[value(name = "connected-threshold")]
+    ConnectedThreshold,
+    Li,
+    Yen,
+    Kapur,
+    Triangle,
+    Watershed,
+    #[value(name = "kmeans")]
+    Kmeans,
+    #[value(name = "distance-transform")]
+    DistanceTransform,
+    #[value(name = "fill-holes")]
+    FillHoles,
+    #[value(name = "morphological-gradient")]
+    MorphologicalGradient,
+    #[value(name = "confidence-connected")]
+    ConfidenceConnected,
+    #[value(name = "neighborhood-connected")]
+    NeighborhoodConnected,
+    #[value(name = "shape-detection")]
+    ShapeDetection,
+    #[value(name = "threshold-level-set")]
+    ThresholdLevelSet,
+    #[value(name = "laplacian-level-set")]
+    LaplacianLevelSet,
+    Skeletonization,
+    #[value(name = "connected-components")]
+    ConnectedComponents,
+    #[value(name = "chan-vese")]
+    ChanVese,
+    #[value(name = "geodesic-active-contour")]
+    GeodesicActiveContour,
+    Binary,
+    #[value(name = "marker-watershed")]
+    MarkerWatershed,
+}
+
+impl std::fmt::Display for SegmentMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Otsu => "otsu",
+            Self::MultiOtsu => "multi-otsu",
+            Self::ConnectedThreshold => "connected-threshold",
+            Self::Li => "li",
+            Self::Yen => "yen",
+            Self::Kapur => "kapur",
+            Self::Triangle => "triangle",
+            Self::Watershed => "watershed",
+            Self::Kmeans => "kmeans",
+            Self::DistanceTransform => "distance-transform",
+            Self::FillHoles => "fill-holes",
+            Self::MorphologicalGradient => "morphological-gradient",
+            Self::ConfidenceConnected => "confidence-connected",
+            Self::NeighborhoodConnected => "neighborhood-connected",
+            Self::ShapeDetection => "shape-detection",
+            Self::ThresholdLevelSet => "threshold-level-set",
+            Self::LaplacianLevelSet => "laplacian-level-set",
+            Self::Skeletonization => "skeletonization",
+            Self::ConnectedComponents => "connected-components",
+            Self::ChanVese => "chan-vese",
+            Self::GeodesicActiveContour => "geodesic-active-contour",
+            Self::Binary => "binary",
+            Self::MarkerWatershed => "marker-watershed",
+        })
+    }
+}
+
 /// Arguments for the `segment` subcommand.
 #[derive(Args, Debug)]
 pub struct SegmentArgs {
@@ -13,11 +86,8 @@ pub struct SegmentArgs {
     pub output: PathBuf,
 
     /// Segmentation method.
-    ///
-    /// Accepted values: `otsu`, `multi-otsu`, `connected-threshold`, `li`,
-    /// `yen`, `kapur`, `triangle`, `watershed`, `kmeans`, `distance-transform`.
-    #[arg(long, value_name = "METHOD")]
-    pub method: String,
+    #[arg(long, value_enum, value_name = "METHOD")]
+    pub method: SegmentMethod,
 
     // ── Multi-Otsu / K-Means ──────────────────────────────────────────────
     /// Number of intensity classes for `multi-otsu` or `kmeans`.
@@ -136,7 +206,7 @@ impl Default for SegmentArgs {
         Self {
             input: PathBuf::default(),
             output: PathBuf::default(),
-            method: String::default(),
+            method: SegmentMethod::Otsu,
             classes: 3,
             kmeans_max_iterations: None,
             kmeans_tolerance: None,

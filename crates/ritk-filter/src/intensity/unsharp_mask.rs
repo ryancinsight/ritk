@@ -54,7 +54,7 @@ use crate::discrete_gaussian::DiscreteGaussianFilter;
 use crate::edge::GaussianSigma;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild};
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use ritk_image::Image;
 use serde::{Deserialize, Serialize};
 

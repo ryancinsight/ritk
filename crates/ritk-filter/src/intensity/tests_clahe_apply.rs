@@ -4,7 +4,7 @@
 #![allow(clippy::identity_op, clippy::erasing_op)]
 
 use super::*;
-use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_tensor_ops::extract_vec_infallible;
 use burn_ndarray::NdArray;
 
 type B = NdArray<f32>;

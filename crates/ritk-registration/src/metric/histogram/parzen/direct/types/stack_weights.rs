@@ -138,6 +138,7 @@ impl StackWeights {
     /// changes by a fixed second-difference increment. Reduces cost from
     /// `N×exp()` to `1×exp()+(N-1)×fma` (~3× faster for 7-bin window).
     /// Drift ≤31 ULP at max capacity, within 1e-4 test tolerance.
+    #[cfg(test)]
     #[inline]
     pub fn new(val: f32, lo: usize, hi: usize, inv_2sigma_sq: f32) -> Self {
         Self::new_with_sum(val, lo, hi, inv_2sigma_sq).0
@@ -168,8 +169,8 @@ impl StackWeights {
 
     /// Whether the weight array is empty. Convention companion to `len()`.
     /// Production use (ARCH-328-04): gating on empty weights.
+    #[cfg(test)]
     #[inline]
-    #[allow(dead_code)] // Convention companion; no current production caller
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }

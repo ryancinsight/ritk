@@ -13,7 +13,7 @@
 //! Reference: Sethian (1996). The output is strictly bounded in (min_output, max_output)
 //! for finite input and nonzero beta.
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 

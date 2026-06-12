@@ -159,25 +159,6 @@ fn test_normalize_nyul_with_reference_creates_output() {
 
 // ── error cases ───────────────────────────────────────────────────────────
 
-#[test]
-fn test_normalize_white_stripe_invalid_contrast_returns_error() {
-    let dir = tempfile::tempdir().unwrap();
-    let input = dir.path().join("in.nii.gz");
-    let output = dir.path().join("out.nii.gz");
-    write_ramp_image(&input);
-    let args = NormalizeArgs {
-        contrast: Some("flair".to_string()),
-        ..default_args(NormalizeMethod::WhiteStripe, input, output)
-    };
-    let result = run(args);
-    assert!(result.is_err());
-    let msg = result.unwrap_err().to_string();
-    assert!(
-        msg.to_lowercase().contains("contrast"),
-        "error must mention 'contrast', got: {msg}"
-    );
-}
-
 // ── zscore masked ─────────────────────────────────────────────────────────
 
 fn write_half_mask_image(path: &Path) {

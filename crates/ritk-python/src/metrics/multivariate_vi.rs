@@ -1,11 +1,11 @@
 //! Multivariate Variation of Information pyfunction wrapper.
 //!
-//! Delegates to `ritk_core::statistics::information::multivariate_variation_of_information`.
+//! Delegates to `ritk_statistics::information::multivariate_variation_of_information`.
 //! VI_n(X₁,...,Xₙ) = (2 / n(n−1)) · Σ_{i<j} VI(Xᵢ,Xⱼ)   (average pairwise VI)
 
 use anyhow::Result;
 use pyo3::prelude::*;
-use ritk_core::statistics::information::multivariate_variation_of_information as core_mvi;
+use ritk_statistics::information::multivariate_variation_of_information as core_mvi;
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::PyImage;

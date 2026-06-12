@@ -1,7 +1,7 @@
 //! Viewer-side segmentation label editing.
 //!
 //! This module is the `ritk-snap` application boundary for interactive label
-//! editing. It composes the canonical annotation primitives from `ritk-core`
+//! editing. It composes the canonical annotation primitives from `ritk-annotation`
 //! instead of duplicating label-map storage, label-table metadata, or undo/redo
 //! history inside the viewer crate.
 //!
@@ -18,12 +18,12 @@
 //! - A no-op paint/erase does not create a new undo history entry.
 //! - Out-of-bounds brush centers are rejected before touching the label map.
 
-use ritk_core::annotation::{LabelId, LabelMap, LabelTable, UndoRedoStack};
-use ritk_core::annotation::{RgbaU8, Visibility};
+use ritk_annotation::{LabelId, LabelMap, LabelTable, UndoRedoStack};
+use ritk_annotation::{RgbaBytes, Visibility};
 
 const DEFAULT_LABEL_ID: LabelId = LabelId(1);
 const DEFAULT_LABEL_NAME: &str = "Label 1";
-const DEFAULT_LABEL_COLOR: RgbaU8 = RgbaU8([255, 0, 0, 180]);
+const DEFAULT_LABEL_COLOR: RgbaBytes = RgbaBytes([255, 0, 0, 180]);
 
 /// Application-level segmentation editor for a single 3-D label map.
 #[derive(Debug, Clone)]
@@ -102,7 +102,11 @@ impl LabelEditor {
     /// Add a label to the current table and make it active.
     ///
     /// The ID is the smallest positive integer absent from the current table.
-    pub fn add_label(&mut self, name: impl Into<String>, color: RgbaU8) -> Result<LabelId, String> {
+    pub fn add_label(
+        &mut self,
+        name: impl Into<String>,
+        color: RgbaBytes,
+    ) -> Result<LabelId, String> {
         let mut next = self.current_map().clone();
         let label_id = next.table.next_free_id();
         next.table.add_label(label_id, name, color)?;

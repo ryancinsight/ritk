@@ -55,7 +55,7 @@ fn packbits_encode(data: &[u8]) -> Vec<u8> {
 ///   header[0] = 1  (one segment)
 ///   header[1] = 64 (segment 0 offset = header size)
 ///   header[2..15] = 0 (unused)
-fn build_rle_fragment_8bit(pixels: &[u8]) -> Vec<u8> {
+fn build_rle_fragment(pixels: &[u8]) -> Vec<u8> {
     let segment = packbits_encode(pixels);
     const HEADER_BYTES: usize = 64;
     let mut header = [0u32; 16];
@@ -94,7 +94,7 @@ fn test_decode_compressed_frame_rle_lossless_round_trip() {
         0, 50, 50, 50, 75, 80, 85, 90, 100, 100, 100, 100, 120, 130, 140, 150,
     ];
 
-    let rle_fragment = build_rle_fragment_8bit(&original);
+    let rle_fragment = build_rle_fragment(&original);
     let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![rle_fragment]);
     let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
 
@@ -248,7 +248,7 @@ fn test_decode_compressed_frame_rle_lossless_unrestricted_round_trip() {
         42, 50, 50, 50, 75, 80, 85, 90, 100, 100, 100, 100, 120, 130, 140, 150,
     ];
 
-    let rle_fragment = build_rle_fragment_8bit(&original);
+    let rle_fragment = build_rle_fragment(&original);
     let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![rle_fragment]);
     let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
 

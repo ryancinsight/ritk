@@ -19,7 +19,7 @@
 //! D = 1, 2, 3.  For D outside this set the function panics with a clear message.
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_tensor_ops::extract_vec_infallible;
 use ritk_core::image::Image;
 
 /// Binary erosion with a box structuring element of half-width `radius` voxels.
@@ -88,7 +88,7 @@ fn erode_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
     let mut output = vec![0.0_f32; nx];
     for ix in 0..nx {
-        if flat[ix] <= 0.5 {
+        if flat[ix] <= super::FOREGROUND_THRESHOLD {
             continue;
         }
         let all_fg = ((-r)..=r).all(|dx| {
@@ -96,7 +96,7 @@ fn erode_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
             if nb < 0 || nb >= nx as isize {
                 return false; // out-of-bounds → background
             }
-            flat[nb as usize] > 0.5
+            flat[nb as usize] > super::FOREGROUND_THRESHOLD
         });
         if all_fg {
             output[ix] = 1.0;
@@ -113,7 +113,7 @@ fn erode_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     for iy in 0..ny {
         for ix in 0..nx {
             let center = iy * nx + ix;
-            if flat[center] <= 0.5 {
+            if flat[center] <= super::FOREGROUND_THRESHOLD {
                 continue;
             }
             let all_fg = 'outer: {
@@ -124,7 +124,7 @@ fn erode_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
                         if ny_i < 0 || ny_i >= ny as isize || nx_i < 0 || nx_i >= nx as isize {
                             break 'outer false;
                         }
-                        if flat[ny_i as usize * nx + nx_i as usize] <= 0.5 {
+                        if flat[ny_i as usize * nx + nx_i as usize] <= super::FOREGROUND_THRESHOLD {
                             break 'outer false;
                         }
                     }
@@ -148,7 +148,7 @@ fn erode_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) ->
         for iy in 0..ny {
             for ix in 0..nx {
                 let center = iz * ny * nx + iy * nx + ix;
-                if flat[center] <= 0.5 {
+                if flat[center] <= super::FOREGROUND_THRESHOLD {
                     continue;
                 }
                 let all_fg = 'outer: {
@@ -169,7 +169,7 @@ fn erode_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) ->
                                 }
                                 let nb =
                                     nz_i as usize * ny * nx + ny_i as usize * nx + nx_i as usize;
-                                if flat[nb] <= 0.5 {
+                                if flat[nb] <= super::FOREGROUND_THRESHOLD {
                                     break 'outer false;
                                 }
                             }

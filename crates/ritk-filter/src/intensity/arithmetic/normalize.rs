@@ -1,5 +1,5 @@
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec_infallible as extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 use ritk_core::image::Image;
 
 /// Zero-mean, unit-variance intensity normalization filter.

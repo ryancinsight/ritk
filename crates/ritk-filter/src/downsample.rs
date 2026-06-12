@@ -64,7 +64,7 @@ impl<B: Backend> DownsampleFilter<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::filter::ops::extract_vec_infallible;
+    use ritk_tensor_ops::extract_vec_infallible;
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};

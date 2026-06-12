@@ -37,7 +37,7 @@ fn make_image_with_spacing(vals: Vec<f32>, dims: [usize; 3], sp: [f64; 3]) -> Im
 }
 
 fn values_finite(img: &Image<B, 3>) -> Vec<f32> {
-    ritk_core::filter::ops::extract_vec(img).unwrap().0
+    ritk_tensor_ops::extract_vec(img).unwrap().0
 }
 
 // ── Chessboard (scipy parity) ─────────────────────────────────────────────

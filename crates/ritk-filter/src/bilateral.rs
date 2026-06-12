@@ -22,7 +22,7 @@
 //! O(n · (2r+1)³) per image, where `r = ⌈3 · σ_s⌉`.
 
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
 use serde::{Deserialize, Serialize};
 

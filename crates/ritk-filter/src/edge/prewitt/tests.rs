@@ -19,7 +19,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
 }
 
 fn values(img: &Image<TestBackend, 3>) -> Vec<f32> {
-    ritk_core::filter::ops::extract_vec(img).unwrap().0
+    ritk_tensor_ops::extract_vec(img).unwrap().0
 }
 
 #[test]

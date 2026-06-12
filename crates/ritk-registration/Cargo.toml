@@ -17,6 +17,7 @@ ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
 ritk-spatial = { path = "../ritk-spatial" }
+ritk-statistics = { path = "../ritk-statistics" }
 ritk-interpolation = { path = "../ritk-interpolation" }
 ritk-transform = { path = "../ritk-transform" }
 ritk-filter = { path = "../ritk-filter" }

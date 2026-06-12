@@ -101,7 +101,6 @@ impl<B: Backend> ParzenJointHistogram<B> {
     ///
     /// `oob_mask` is an optional `[N]` float tensor (`1.0` = in-bounds, `0.0` = out-of-bounds).
     /// When provided, OOB samples are zeroed out of W_moving before the histogram matmul.
-    #[allow(dead_code)] // Used by #[cfg(not(feature = "direct-parzen"))] fallback path
     pub(super) fn compute_joint_histogram_from_cache(
         &self,
         w_fixed_transposed: &Tensor<B, 2>, // [num_bins, N]

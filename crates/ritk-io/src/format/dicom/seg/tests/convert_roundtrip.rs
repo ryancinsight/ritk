@@ -3,11 +3,11 @@ use super::super::{
     DicomSegmentInfo, DicomSegmentation, SegEncoding,
 };
 use arrayvec::ArrayString;
-use ritk_core::annotation::RgbaU8;
+use ritk_annotation::RgbaBytes;
 
 #[test]
 fn test_dicom_seg_to_label_map_roundtrip_single_label() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
@@ -35,14 +35,14 @@ fn test_dicom_seg_to_label_map_roundtrip_single_label() {
 
 #[test]
 fn test_dicom_seg_to_label_map_roundtrip_multi_label() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
-        .add_label(1, "A", RgbaU8::new(255, 0, 0, 255))
+        .add_label(1, "A", RgbaBytes::new(255, 0, 0, 255))
         .unwrap();
     table
-        .add_label(2, "B", RgbaU8::new(0, 255, 0, 255))
+        .add_label(2, "B", RgbaBytes::new(0, 255, 0, 255))
         .unwrap();
     let original = LabelMap::from_data([2, 2, 2], vec![1, 1, 0, 2, 2, 0, 1, 2], table).unwrap();
 
@@ -127,11 +127,11 @@ fn test_dicom_seg_to_label_map_sparse_uneven_frames_supported() {
     );
     let present = result.present_labels();
     assert!(
-        present.contains(&ritk_core::annotation::LabelId(1)),
+        present.contains(&ritk_annotation::LabelId(1)),
         "label 1 must be reconstructed"
     );
     assert!(
-        present.contains(&ritk_core::annotation::LabelId(2)),
+        present.contains(&ritk_annotation::LabelId(2)),
         "label 2 must be reconstructed"
     );
 }
@@ -174,14 +174,14 @@ fn test_dicom_seg_to_label_map_sorts_frames_by_physical_position() {
 
 #[test]
 fn test_label_map_dicom_seg_file_roundtrip_identity() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
-        .add_label(1, "A", RgbaU8::new(255, 0, 0, 255))
+        .add_label(1, "A", RgbaBytes::new(255, 0, 0, 255))
         .unwrap();
     table
-        .add_label(2, "B", RgbaU8::new(0, 255, 0, 255))
+        .add_label(2, "B", RgbaBytes::new(0, 255, 0, 255))
         .unwrap();
     let original =
         LabelMap::from_data([2, 3, 2], vec![1, 0, 2, 0, 1, 2, 2, 1, 0, 1, 0, 2], table).unwrap();

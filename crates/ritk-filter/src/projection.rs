@@ -15,7 +15,7 @@
 //! using `rayon::into_par_iter`. The inner reduction over the collapsed axis
 //! is a sequential `fold` per output pixel.
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;

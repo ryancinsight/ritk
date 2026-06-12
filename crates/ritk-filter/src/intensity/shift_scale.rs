@@ -20,7 +20,7 @@
 //! `itk::ShiftScaleImageFilter` with `SetShift(s)` and `SetScale(k)`.
 //! Output type defaults to f32 (matching ITK behaviour when input is float).
 
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild};
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 

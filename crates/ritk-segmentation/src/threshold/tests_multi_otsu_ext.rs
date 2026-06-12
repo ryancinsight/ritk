@@ -1,6 +1,6 @@
 //! Extracted tests: general invariants, edge cases, internal variance, negative, from_slice.
 use super::*;
-use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_tensor_ops::extract_vec_infallible;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;

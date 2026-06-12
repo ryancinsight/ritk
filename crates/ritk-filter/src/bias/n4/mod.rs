@@ -29,7 +29,7 @@ mod dft;
 mod histogram_sharpen;
 
 use super::bspline_bias::{bspline_evaluate, bspline_fit};
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_core::image::Image;
 use ritk_spatial::VolumeDims;
 use burn::tensor::backend::Backend;

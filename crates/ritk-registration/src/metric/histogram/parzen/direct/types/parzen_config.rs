@@ -55,7 +55,7 @@ impl ParzenConfig {
     /// Promoted to production API in ARCH-330-03 (was `#[cfg(test)]`).
     /// Downstream consumers (e.g. bin-range validation, capacity checks)
     /// need access to the support window size without test gating.
-    #[allow(dead_code)] // Production API; currently called from test code and ParzenConfig internals
+    #[cfg(test)]
     #[inline]
     pub fn half_width(&self) -> usize {
         self.half_width
@@ -66,7 +66,7 @@ impl ParzenConfig {
     /// Promoted to production API in ARCH-330-03 (was `#[cfg(test)]`).
     /// Downstream consumers (e.g. custom weight computation) need the
     /// exponent factor without test gating.
-    #[allow(dead_code)] // Production API; currently called from test code and ParzenConfig internals
+    #[cfg(test)]
     #[inline]
     pub fn inv_2sigma_sq(&self) -> f32 {
         self.inv_2sigma_sq
@@ -133,6 +133,7 @@ impl ParzenConfig {
     /// # Arguments
     /// * `val` — Normalised intensity in `[0, num_bins-1]`
     /// * `num_bins` — Histogram bins per axis
+    #[cfg(test)]
     #[inline]
     pub fn compute_weights(&self, val: f32, num_bins: usize) -> (BinRange, StackWeights) {
         let range = self.bin_range(val, num_bins);
@@ -180,8 +181,8 @@ impl ParzenConfig {
     /// # Arguments
     /// * `val` — Normalised intensity in `[0, num_bins-1]`
     /// * `num_bins` — Histogram bins per axis
+    #[cfg(test)]
     #[inline]
-    #[allow(dead_code)] // Public API; internal callers use compute_weights_with_inv_sum
     pub fn sum_weights(&self, val: f32, num_bins: usize) -> f32 {
         let (_, weights) = self.compute_weights(val, num_bins);
         weights.iter().map(|(_, w)| w).sum()
@@ -196,8 +197,8 @@ impl ParzenConfig {
     /// # Arguments
     /// * `val` — Normalised intensity in `[0, num_bins-1]`
     /// * `num_bins` — Histogram bins per axis
+    #[cfg(test)]
     #[inline]
-    #[allow(dead_code)] // Public API; internal callers use compute_weights_with_inv_sum
     pub fn inv_sum_weights(&self, val: f32, num_bins: usize) -> f32 {
         let (_, weights) = self.compute_weights(val, num_bins);
         let sum: f32 = weights.iter().map(|(_, w)| w).sum();

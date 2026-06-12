@@ -27,7 +27,7 @@
 mod kernel;
 pub use kernel::{GradientKernel, PrewittKernel, SobelKernel};
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
 use ritk_spatial::Spacing;
 use burn::tensor::backend::Backend;

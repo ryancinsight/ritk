@@ -258,19 +258,14 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
 ///
 /// `--order` selects the derivative: 0 = smooth, 1 = first, 2 = second.
 pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
+    use crate::commands::filter::CliDerivativeOrder;
     use ritk_filter::recursive_gaussian::DerivativeOrder;
     use ritk_filter::RecursiveGaussianFilter;
 
     let order = match args.order {
-        0 => DerivativeOrder::Zero,
-        1 => DerivativeOrder::First,
-        2 => DerivativeOrder::Second,
-        other => {
-            return Err(anyhow!(
-                "Invalid --order {other} for recursive-gaussian. \
-                 Valid values: 0 (smooth), 1 (first derivative), 2 (second derivative)."
-            ));
-        }
+        CliDerivativeOrder::Zero => DerivativeOrder::Zero,
+        CliDerivativeOrder::First => DerivativeOrder::First,
+        CliDerivativeOrder::Second => DerivativeOrder::Second,
     };
 
     let image = read_image(&args.input)?;

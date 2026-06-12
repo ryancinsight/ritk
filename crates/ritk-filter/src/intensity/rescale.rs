@@ -8,7 +8,7 @@
 //!
 //! This is the unique affine bijection mapping [I_min, I_max] to [out_min, out_max].
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 

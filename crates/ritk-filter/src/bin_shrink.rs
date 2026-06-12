@@ -41,7 +41,7 @@
 //! shrink factor along each axis; origin and direction are preserved (the
 //! physical location of the first voxel is unchanged).
 
-use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_tensor_ops::extract_vec_infallible;
 use ritk_core::image::Image;
 use ritk_spatial::Spacing;
 use burn::tensor::backend::Backend;

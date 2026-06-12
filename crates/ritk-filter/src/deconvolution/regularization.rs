@@ -21,6 +21,9 @@ use super::helpers::{
 use rustfft::num_complex::Complex;
 use std::f32::consts::PI;
 
+/// Default convergence tolerance for iterative deconvolution algorithms.
+pub(crate) const DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6;
+
 // ── Pattern A: Frequency-domain regularization ─────────────────────────────
 
 /// Frequency-domain update rule for single-pass deconvolution.
@@ -157,9 +160,8 @@ pub(super) fn apply_tikhonov<const D: usize>(
 
 /// Single-pass deconvolution: pad → FFT → regularization rule → IFFT → crop.
 ///
-/// Used by Wiener and Tikhonov. The public `apply_2d`/`apply_3d` methods
-/// delegate here with the appropriate `R` implementation and const generic
-/// dimension `D`.
+/// Used by `WienerDeconvolution::apply` and `TikhonovDeconvolution::apply`
+/// via the const-generic `D` parameter.
 pub(super) fn apply_single_pass<const D: usize, R: Regularization>(
     img_vals: &[f32],
     img_dims: &[usize; D],

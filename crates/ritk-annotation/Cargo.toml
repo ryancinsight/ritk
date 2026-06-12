@@ -1,0 +1,11 @@
+[package]
+name = "ritk-annotation"
+version = "0.1.0"
+edition = "2021"
+description = "ITK-SNAP workflow annotation primitives — label tables, dense label maps, seed/contour annotations, undo/redo history, and overlay composition state"
+
+[dependencies]
+ritk-spatial = { path = "../ritk-spatial" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

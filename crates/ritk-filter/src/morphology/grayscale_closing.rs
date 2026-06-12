@@ -41,7 +41,7 @@
 
 use super::grayscale_dilation::dilate_3d;
 use super::grayscale_erosion::erode_3d;
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};

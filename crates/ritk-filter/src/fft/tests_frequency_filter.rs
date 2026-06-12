@@ -4,7 +4,7 @@
 //! frequency-domain filtering pipeline.
 
 use crate::fft::frequency_filter::{FftFilterKind, FrequencyDomainFilter};
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};

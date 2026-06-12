@@ -53,7 +53,7 @@
 //! - Caselles, V., Kimmel, R., Sapiro, G. (1997). "Geodesic active contours."
 //!   Int. J. Comput. Vis. 22(1):61-79.
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 
@@ -211,7 +211,7 @@ impl CurvatureFlowImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::filter::ops::extract_vec_infallible;
+    use ritk_tensor_ops::extract_vec_infallible;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};

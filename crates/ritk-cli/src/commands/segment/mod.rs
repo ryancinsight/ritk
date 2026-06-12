@@ -20,7 +20,7 @@
 //! | `threshold-level-set`    | Threshold Level Set (Whitaker 1998)            |
 //! | `laplacian-level-set`    | Laplacian Level Set                             |
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use tracing::info;
 
 mod args;
@@ -36,7 +36,7 @@ mod tests;
 
 #[cfg(test)]
 pub(crate) use super::Backend;
-pub use args::SegmentArgs;
+pub use args::{SegmentArgs, SegmentMethod};
 #[cfg(test)]
 pub(crate) use helpers::{count_foreground, parse_seed};
 
@@ -50,7 +50,6 @@ pub(crate) use helpers::{count_foreground, parse_seed};
 /// - The input image cannot be read.
 /// - A required argument for the chosen method is missing or malformed.
 /// - The output image cannot be written.
-/// - An unknown method name is supplied.
 pub fn run(args: SegmentArgs) -> Result<()> {
     info!(
         "segment: starting input={} output={} method={}",
@@ -58,39 +57,29 @@ pub fn run(args: SegmentArgs) -> Result<()> {
         args.output.display(),
         args.method
     );
-    match args.method.as_str() {
-        "otsu" => threshold::run_otsu(&args),
-        "multi-otsu" => threshold::run_multi_otsu(&args),
-        "connected-threshold" => region_growing::run_connected_threshold(&args),
-        "li" => threshold::run_li(&args),
-        "yen" => threshold::run_yen(&args),
-        "kapur" => threshold::run_kapur(&args),
-        "triangle" => threshold::run_triangle(&args),
-        "watershed" => watershed::run_watershed(&args),
-        "kmeans" => clustering::run_kmeans(&args),
-        "distance-transform" => clustering::run_distance_transform(&args),
-        "fill-holes" => clustering::run_fill_holes(&args),
-        "morphological-gradient" => clustering::run_morphological_gradient(&args),
-        "confidence-connected" => region_growing::run_confidence_connected(&args),
-        "neighborhood-connected" => region_growing::run_neighborhood_connected(&args),
-        "shape-detection" => level_set::run_shape_detection(&args),
-        "threshold-level-set" => level_set::run_threshold_level_set(&args),
-        "laplacian-level-set" => level_set::run_laplacian_level_set(&args),
-        "skeletonization" => clustering::run_skeletonization(&args),
-        "connected-components" => clustering::run_connected_components(&args),
-        "chan-vese" => level_set::run_chan_vese(&args),
-        "geodesic-active-contour" => level_set::run_geodesic_active_contour(&args),
-        "binary" => threshold::run_binary(&args),
-        "marker-watershed" => watershed::run_marker_watershed(&args),
-        other => Err(anyhow!(
-            "Unknown segmentation method '{}'. \
-        Supported methods: otsu, multi-otsu, connected-threshold, \
-        li, yen, kapur, triangle, watershed, kmeans, distance-transform, \
-        fill-holes, morphological-gradient, confidence-connected, \
-        neighborhood-connected, shape-detection, threshold-level-set, \
-        laplacian-level-set, skeletonization, connected-components, chan-vese, \
-        geodesic-active-contour, binary, marker-watershed.",
-            other
-        )),
+    match args.method {
+        SegmentMethod::Otsu => threshold::run_otsu(&args),
+        SegmentMethod::MultiOtsu => threshold::run_multi_otsu(&args),
+        SegmentMethod::ConnectedThreshold => region_growing::run_connected_threshold(&args),
+        SegmentMethod::Li => threshold::run_li(&args),
+        SegmentMethod::Yen => threshold::run_yen(&args),
+        SegmentMethod::Kapur => threshold::run_kapur(&args),
+        SegmentMethod::Triangle => threshold::run_triangle(&args),
+        SegmentMethod::Watershed => watershed::run_watershed(&args),
+        SegmentMethod::Kmeans => clustering::run_kmeans(&args),
+        SegmentMethod::DistanceTransform => clustering::run_distance_transform(&args),
+        SegmentMethod::FillHoles => clustering::run_fill_holes(&args),
+        SegmentMethod::MorphologicalGradient => clustering::run_morphological_gradient(&args),
+        SegmentMethod::ConfidenceConnected => region_growing::run_confidence_connected(&args),
+        SegmentMethod::NeighborhoodConnected => region_growing::run_neighborhood_connected(&args),
+        SegmentMethod::ShapeDetection => level_set::run_shape_detection(&args),
+        SegmentMethod::ThresholdLevelSet => level_set::run_threshold_level_set(&args),
+        SegmentMethod::LaplacianLevelSet => level_set::run_laplacian_level_set(&args),
+        SegmentMethod::Skeletonization => clustering::run_skeletonization(&args),
+        SegmentMethod::ConnectedComponents => clustering::run_connected_components(&args),
+        SegmentMethod::ChanVese => level_set::run_chan_vese(&args),
+        SegmentMethod::GeodesicActiveContour => level_set::run_geodesic_active_contour(&args),
+        SegmentMethod::Binary => threshold::run_binary(&args),
+        SegmentMethod::MarkerWatershed => watershed::run_marker_watershed(&args),
     }
 }

@@ -25,7 +25,7 @@
 //! |--------------------|--------------------|-----------------------------|
 //! | `FlipImageFilter`  | `FlipImageFilter`  | Flip Horizontally / Vertically |
 
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild};
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use serde::{Deserialize, Serialize};
@@ -140,7 +140,7 @@ impl FlipImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::filter::ops::extract_vec_infallible;
+    use ritk_tensor_ops::extract_vec_infallible;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};

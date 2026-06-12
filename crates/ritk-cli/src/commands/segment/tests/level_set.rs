@@ -40,7 +40,7 @@ fn test_segment_shape_detection_creates_output_with_correct_shape() {
     let phi = make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0);
     ritk_io::write_nifti(&input, &image).unwrap();
     ritk_io::write_nifti(&phi_path, &phi).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "shape-detection");
+    let mut args = default_args(input.clone(), output.clone(), SegmentMethod::ShapeDetection);
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 50;
     run(args).unwrap();
@@ -59,7 +59,7 @@ fn test_segment_shape_detection_output_is_binary() {
     let phi = make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0);
     ritk_io::write_nifti(&input, &image).unwrap();
     ritk_io::write_nifti(&phi_path, &phi).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "shape-detection");
+    let mut args = default_args(input.clone(), output.clone(), SegmentMethod::ShapeDetection);
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 50;
     run(args).unwrap();
@@ -77,7 +77,7 @@ fn test_segment_shape_detection_missing_phi_returns_error() {
     let input = dir.path().join("image.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-    let args = default_args(input.clone(), output.clone(), "shape-detection");
+    let args = default_args(input.clone(), output.clone(), SegmentMethod::ShapeDetection);
     let result = run(args);
     assert!(result.is_err(), "--initial-phi missing must produce error");
     let msg = result.unwrap_err().to_string();
@@ -99,7 +99,11 @@ fn test_segment_threshold_level_set_creates_output_with_correct_shape() {
     let phi = make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0);
     ritk_io::write_nifti(&input, &image).unwrap();
     ritk_io::write_nifti(&phi_path, &phi).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ThresholdLevelSet,
+    );
     args.initial_phi = Some(phi_path);
     args.lower_threshold = Some(5.0);
     args.upper_threshold = Some(250.0);
@@ -120,7 +124,11 @@ fn test_segment_threshold_level_set_output_is_binary() {
     let phi = make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0);
     ritk_io::write_nifti(&input, &image).unwrap();
     ritk_io::write_nifti(&phi_path, &phi).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ThresholdLevelSet,
+    );
     args.initial_phi = Some(phi_path);
     args.lower_threshold = Some(5.0);
     args.upper_threshold = Some(250.0);
@@ -140,7 +148,11 @@ fn test_segment_threshold_level_set_missing_phi_returns_error() {
     let input = dir.path().join("image.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ThresholdLevelSet,
+    );
     args.lower_threshold = Some(5.0);
     args.upper_threshold = Some(250.0);
     let result = run(args);
@@ -156,7 +168,11 @@ fn test_segment_threshold_level_set_missing_lower_returns_error() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0)).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ThresholdLevelSet,
+    );
     args.initial_phi = Some(phi_path);
     args.upper_threshold = Some(250.0);
     let result = run(args);
@@ -175,7 +191,11 @@ fn test_segment_threshold_level_set_missing_upper_returns_error() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0)).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ThresholdLevelSet,
+    );
     args.initial_phi = Some(phi_path);
     args.lower_threshold = Some(5.0);
     let result = run(args);
@@ -194,7 +214,11 @@ fn test_segment_threshold_level_set_lower_gt_upper_returns_error() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0)).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ThresholdLevelSet,
+    );
     args.initial_phi = Some(phi_path);
     args.lower_threshold = Some(250.0);
     args.upper_threshold = Some(5.0);
@@ -217,7 +241,7 @@ fn test_segment_chan_vese_creates_output_with_correct_shape() {
 
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "chan-vese");
+    let mut args = default_args(input.clone(), output.clone(), SegmentMethod::ChanVese);
     args.level_set_max_iterations = 10;
 
     let result = run(args);
@@ -233,7 +257,7 @@ fn test_segment_chan_vese_output_is_binary() {
     let input = dir.path().join("image.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "chan-vese");
+    let mut args = default_args(input.clone(), output.clone(), SegmentMethod::ChanVese);
     args.level_set_max_iterations = 50;
     run(args).unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -261,7 +285,11 @@ fn test_segment_geodesic_active_contour_creates_output_with_correct_shape() {
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "geodesic-active-contour");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::GeodesicActiveContour,
+    );
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 10;
 
@@ -280,7 +308,11 @@ fn test_segment_geodesic_active_contour_output_is_binary() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "geodesic-active-contour");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::GeodesicActiveContour,
+    );
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 50;
     run(args).unwrap();
@@ -305,7 +337,11 @@ fn test_segment_geodesic_active_contour_missing_phi_returns_error() {
 
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
 
-    let args = default_args(input.clone(), output.clone(), "geodesic-active-contour");
+    let args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::GeodesicActiveContour,
+    );
     let result = run(args);
     assert!(result.is_err(), "--initial-phi missing must produce error");
     let msg = result.unwrap_err().to_string();
@@ -327,7 +363,11 @@ fn test_segment_laplacian_level_set_creates_output_with_correct_shape() {
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "laplacian-level-set");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::LaplacianLevelSet,
+    );
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 10;
 
@@ -346,7 +386,11 @@ fn test_segment_laplacian_level_set_output_is_binary() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
-    let mut args = default_args(input.clone(), output.clone(), "laplacian-level-set");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::LaplacianLevelSet,
+    );
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 50;
     run(args).unwrap();
@@ -371,7 +415,11 @@ fn test_segment_laplacian_level_set_missing_phi_returns_error() {
 
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
 
-    let args = default_args(input.clone(), output.clone(), "laplacian-level-set");
+    let args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::LaplacianLevelSet,
+    );
     let result = run(args);
     assert!(result.is_err(), "--initial-phi missing must produce error");
     let msg = result.unwrap_err().to_string();

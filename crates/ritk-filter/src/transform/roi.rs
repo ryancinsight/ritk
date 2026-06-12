@@ -36,7 +36,7 @@
 //!
 //! `itk::RegionOfInterestImageFilter` with `SetRegionOfInterest(region)`.
 
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild_with_origin};
+use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_origin};
 use ritk_image::Image;
 use ritk_spatial::Point;
 use burn::tensor::backend::Backend;

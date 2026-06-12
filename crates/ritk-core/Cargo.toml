@@ -5,15 +5,14 @@ edition = "2021"
 
 [dependencies]
 burn = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-image = { path = "../ritk-image" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
+ritk-morphology = { path = "../ritk-morphology" }
+ritk-annotation = { path = "../ritk-annotation" }
+ritk-tensor-ops = { path = "../ritk-tensor-ops" }
+ritk-statistics = { path = "../ritk-statistics" }
 
-serde = { workspace = true }
-serde_json = { workspace = true }
-moirai = { workspace = true }
 num-traits = { workspace = true }
 
 [dev-dependencies]

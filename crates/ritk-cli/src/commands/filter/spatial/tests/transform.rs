@@ -82,7 +82,7 @@ fn test_filter_recursive_gaussian_order_1_creates_output() {
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
     let mut args = default_args(input, output.clone(), "recursive-gaussian");
-    args.order = 1;
+    args.order = CliDerivativeOrder::First;
 
     let result = run_recursive_gaussian(&args);
     assert!(
@@ -93,25 +93,5 @@ fn test_filter_recursive_gaussian_order_1_creates_output() {
     assert!(
         output.exists(),
         "recursive-gaussian order=1 must write output file"
-    );
-}
-
-#[test]
-fn test_filter_recursive_gaussian_invalid_order_returns_error() {
-    let dir = tempdir().unwrap();
-    let input = dir.path().join("input.nii");
-    let output = dir.path().join("out.nii");
-    ritk_io::write_nifti(&input, &make_test_image()).unwrap();
-
-    let mut args = default_args(input, output, "recursive-gaussian");
-    args.order = 5;
-
-    let result = run_recursive_gaussian(&args);
-    assert!(result.is_err(), "invalid order must yield an error");
-
-    let msg = result.unwrap_err().to_string();
-    assert!(
-        msg.contains("Invalid --order 5"),
-        "error must report the invalid order, got: {msg}"
     );
 }

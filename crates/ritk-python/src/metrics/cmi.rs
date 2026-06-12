@@ -1,24 +1,24 @@
 //! Conditional Mutual Information and Interaction Information pyfunction wrappers.
 //!
-//! Delegates to `ritk_core::statistics::information`:
+//! Delegates to `ritk_statistics::information`:
 //! - I(X;Y|Z) = H(X,Z) + H(Y,Z) − H(X,Y,Z) − H(Z)   (conditional MI)
 //! - II(X;Y;Z) = I(X;Y) − I(X;Y|Z)                     (interaction info, McGill 1954)
 
 use anyhow::Result;
 use pyo3::prelude::*;
-use ritk_core::statistics::information::{
+use ritk_statistics::information::{
     conditional_mutual_information as core_cmi, interaction_information as core_ii,
 };
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};
 
-/// I(X;Y|Z) via `ritk_core::statistics::information::conditional_mutual_information`.
+/// I(X;Y|Z) via `ritk_statistics::information::conditional_mutual_information`.
 pub(super) fn cmi_slices(x: &[f32], y: &[f32], z: &[f32], num_bins: usize) -> Result<f64> {
     core_cmi(x, y, z, num_bins)
 }
 
-/// II(X;Y;Z) via `ritk_core::statistics::information::interaction_information`.
+/// II(X;Y;Z) via `ritk_statistics::information::interaction_information`.
 pub(super) fn ii_slices(x: &[f32], y: &[f32], z: &[f32], num_bins: usize) -> Result<f64> {
     core_ii(x, y, z, num_bins)
 }
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn cmi_constant_z_equals_mi_slice() {
         // I(X;Y|const) = I(X;Y) (validated analytically in ritk-core; cross-check slice path).
-        use ritk_core::statistics::information::mutual_information as core_mi;
+        use ritk_statistics::information::mutual_information as core_mi;
         let x: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
         let y: Vec<f32> = (0..64).map(|i| ((i / 8) % 8) as f32).collect();
         let z_const = vec![2.0_f32; 64];

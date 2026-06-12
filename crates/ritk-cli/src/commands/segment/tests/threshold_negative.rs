@@ -1,30 +1,4 @@
-use super::*; // ── Negative: unknown method returns descriptive error ────────────────────
-#[test]
-fn test_segment_unknown_method_returns_error() {
-    let dir = tempdir().unwrap();
-    let input = dir.path().join("input.nii");
-    let output = dir.path().join("out.nii");
-    ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
-    let result = run(SegmentArgs {
-        input,
-        output,
-        method: "nonexistent".to_string(),
-        classes: 3,
-        lower: None,
-        upper: None,
-        seed: None,
-        multiplier: 2.5,
-        ..Default::default()
-    });
-    assert!(result.is_err(), "unknown method must return Err");
-    let msg = result.unwrap_err().to_string();
-    assert!(
-        msg.contains("Unknown segmentation method 'nonexistent'"),
-        "error must name the unsupported method, got: {msg}"
-    );
-}
-
-// ── Negative: multi-otsu classes < 2 returns error ───────────────────────
+use super::*; // ── Negative: multi-otsu classes < 2 returns error ───────────────────────
 #[test]
 fn test_segment_multi_otsu_classes_lt_2_returns_error() {
     let dir = tempdir().unwrap();
@@ -34,7 +8,7 @@ fn test_segment_multi_otsu_classes_lt_2_returns_error() {
     let result = run(SegmentArgs {
         input,
         output,
-        method: "multi-otsu".to_string(),
+        method: SegmentMethod::MultiOtsu,
         classes: 1,
         lower: None,
         upper: None,

@@ -29,7 +29,7 @@
 //!   *IEEE Trans. PAMI* 17(5):529–533.
 
 use super::types::ForegroundValue;
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};

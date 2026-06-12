@@ -1,6 +1,6 @@
 //! Histogram-based Mutual Information variants plus entropy pyfunction wrappers.
 //!
-//! Delegates all variants to `ritk_core::statistics::information`:
+//! Delegates all variants to `ritk_statistics::information`:
 //! - "standard":   hard nearest-bin assignment — `mutual_information`
 //! - "normalized": symmetric uncertainty 2·I/(H(A)+H(B)) ∈ [0,1] — `symmetric_uncertainty`
 //! - "mattes":     bilinear soft-binning (Mattes 2003) — `mutual_information_mattes`
@@ -12,7 +12,7 @@
 
 use anyhow::Result;
 use pyo3::prelude::*;
-use ritk_core::statistics::information::{
+use ritk_statistics::information::{
     joint_entropy as core_joint_entropy, marginal_entropy as core_marginal_entropy,
     mutual_information as core_mi, mutual_information_mattes as core_mi_mattes,
     symmetric_uncertainty as core_su,

@@ -35,7 +35,7 @@
 //!
 //! - Gonzalez, R.C. & Woods, R.E. (2008). *Digital Image Processing*, 3rd ed. §4.7.
 
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild_with_metadata};
+use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 use ritk_image::Image;
 use ritk_spatial::Spacing;
 use burn::tensor::backend::Backend;
@@ -132,7 +132,7 @@ impl ShrinkImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::filter::ops::extract_vec_infallible;
+    use ritk_tensor_ops::extract_vec_infallible;
     use ritk_spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;

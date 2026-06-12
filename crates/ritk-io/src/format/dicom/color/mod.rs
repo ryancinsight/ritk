@@ -13,15 +13,13 @@ use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use nalgebra::SMatrix;
 use ritk_core::image::RgbVolume;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
     PixelLayout, PixelSignedness, TransferSyntaxKind,
 };
+use ritk_spatial::{Direction, Point, Spacing};
 
-use super::color_common::{
-    optional_u16, optional_usize, required_string, required_usize, RGB_CHANNELS,
-};
+use super::color_common::{read_optional, read_required, required_string, RGB_CHANNELS};
 use super::reader::{self, DicomReadMetadata, DicomSliceMetadata};
 
 /// Check whether a directory contains a DICOM RGB colour series.
@@ -56,7 +54,7 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
             Err(_) => continue,
         };
 
-        let samples = optional_usize(&obj, Tag(0x0028, 0x0002)).unwrap_or(1);
+        let samples = read_optional::<usize>(&obj, Tag(0x0028, 0x0002)).unwrap_or(1);
         if samples != RGB_CHANNELS {
             return Ok(false);
         }
@@ -236,8 +234,8 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let rows = required_usize(obj, Tag(0x0028, 0x0010), "Rows")?;
-    let cols = required_usize(obj, Tag(0x0028, 0x0011), "Columns")?;
+    let rows = read_required::<usize>(obj, Tag(0x0028, 0x0010), "Rows")?;
+    let cols = read_required::<usize>(obj, Tag(0x0028, 0x0011), "Columns")?;
 
     if rows != expected_rows || cols != expected_cols {
         bail!(
@@ -250,7 +248,7 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let samples_per_pixel = optional_usize(obj, Tag(0x0028, 0x0002)).unwrap_or(1);
+    let samples_per_pixel = read_optional::<usize>(obj, Tag(0x0028, 0x0002)).unwrap_or(1);
     if samples_per_pixel != RGB_CHANNELS {
         bail!(
             "DICOM color volume loader supports only RGB SamplesPerPixel=3; {:?} declares SamplesPerPixel={}",
@@ -268,7 +266,7 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let planar_configuration = optional_u16(obj, Tag(0x0028, 0x0006)).unwrap_or(0);
+    let planar_configuration = read_optional::<u16>(obj, Tag(0x0028, 0x0006)).unwrap_or(0);
     if planar_configuration != 0 {
         bail!(
             "DICOM RGB color volume loader supports only interleaved PlanarConfiguration=0; {:?} declares {}",
@@ -277,7 +275,8 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let bits_allocated = optional_u16(obj, Tag(0x0028, 0x0100)).unwrap_or(slice.bits_allocated);
+    let bits_allocated =
+        read_optional::<u16>(obj, Tag(0x0028, 0x0100)).unwrap_or(slice.bits_allocated);
     if bits_allocated != 8 {
         bail!(
             "DICOM RGB color volume loader supports only BitsAllocated=8; {:?} declares {}",
@@ -286,7 +285,7 @@ fn validate_and_decode_rgb_slice(
         );
     }
 
-    let pixel_representation: PixelSignedness = optional_u16(obj, Tag(0x0028, 0x0103))
+    let pixel_representation: PixelSignedness = read_optional::<u16>(obj, Tag(0x0028, 0x0103))
         .and_then(|v| PixelSignedness::try_from(v).ok())
         .unwrap_or(slice.pixel_representation);
     if pixel_representation != PixelSignedness::Unsigned {

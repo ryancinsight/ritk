@@ -73,7 +73,7 @@ fn self_inverse_2d() {
     let once = FftShiftFilter::new().apply(&img).unwrap();
     let twice = FftShiftFilter::new().apply(&once).unwrap();
 
-    let (result, _) = ritk_core::filter::ops::extract_vec(&twice).unwrap();
+    let (result, _) = ritk_tensor_ops::extract_vec(&twice).unwrap();
     let max_diff = result
         .iter()
         .zip(vals.iter())
@@ -104,7 +104,7 @@ fn dc_moves_to_center_2d() {
 
     let img = make_complex_2d(&vals, h, cw);
     let shifted = FftShiftFilter::new().apply(&img).unwrap();
-    let (shifted_data, _) = ritk_core::filter::ops::extract_vec(&shifted).unwrap();
+    let (shifted_data, _) = ritk_tensor_ops::extract_vec(&shifted).unwrap();
 
     // Expected centre: row=2, col=2 → flat indices 2·8 + 2·2 = 20 and 21.
     let re_idx = 2 * cw + 2 * 2; // = 20
@@ -156,7 +156,7 @@ fn dc_moves_to_center_3d() {
 
     let img = make_complex_3d(&vals, depth, h, cw);
     let shifted = FftShiftFilter::new().apply(&img).unwrap();
-    let (data, _) = ritk_core::filter::ops::extract_vec(&shifted).unwrap();
+    let (data, _) = ritk_tensor_ops::extract_vec(&shifted).unwrap();
 
     // Expected DC centre: d=2, r=2, c=2
     // flat index = 2 * h * cw + 2 * cw + 2 * 2 = 2*32 + 2*8 + 4 = 64 + 16 + 4 = 84
@@ -188,7 +188,7 @@ fn self_inverse_3d() {
     let once = FftShiftFilter::new().apply(&img).unwrap();
     let twice = FftShiftFilter::new().apply(&once).unwrap();
 
-    let (result, _) = ritk_core::filter::ops::extract_vec(&twice).unwrap();
+    let (result, _) = ritk_tensor_ops::extract_vec(&twice).unwrap();
     let max_diff = result
         .iter()
         .zip(vals.iter())
@@ -211,7 +211,7 @@ fn odd_dimensions_3d() {
     let img = make_complex_3d(&vals, depth, h, cw);
 
     let shifted = FftShiftFilter::new().apply(&img).unwrap();
-    let (data, _) = ritk_core::filter::ops::extract_vec(&shifted).unwrap();
+    let (data, _) = ritk_tensor_ops::extract_vec(&shifted).unwrap();
 
     // Shape must be preserved.
     assert_eq!(

@@ -4,12 +4,12 @@ use crate::errors::RitkResult;
 use crate::image::{with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use ritk_core::statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
-use ritk_core::statistics::image_statistics::compute_statistics_from_slice;
-use ritk_core::statistics::noise_estimation::{
+use ritk_statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
+use ritk_statistics::image_statistics::compute_statistics_from_slice;
+use ritk_statistics::noise_estimation::{
     estimate_noise_mad_from_slice, estimate_noise_mad_masked_from_slices,
 };
-use ritk_core::statistics::{
+use ritk_statistics::{
     dice_coefficient as core_dice_coefficient, hausdorff_distance as core_hausdorff_distance,
     mean_surface_distance as core_mean_surface_distance, psnr as core_psnr, ssim as core_ssim,
     ImageStatistics,
@@ -32,7 +32,7 @@ pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResu
 
 /// Compute descriptive statistics over all voxels in an image.
 ///
-/// Delegates to `ritk_core::statistics::compute_statistics`.
+/// Delegates to `ritk_statistics::compute_statistics`.
 ///
 /// Args:
 ///     image: Input PyImage.
@@ -48,7 +48,7 @@ pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> RitkResult<Py<PyDi
 
 /// Compute descriptive statistics over foreground voxels (mask > 0.5).
 ///
-/// Delegates to `ritk_core::statistics::masked_statistics`.
+/// Delegates to `ritk_statistics::masked_statistics`.
 ///
 /// Args:
 ///     image: Input PyImage.
@@ -88,7 +88,7 @@ pub fn masked_statistics(
 
 /// Compute the Sørensen–Dice coefficient between two binary masks.
 ///
-/// Delegates to `ritk_core::statistics::dice_coefficient`.
+/// Delegates to `ritk_statistics::dice_coefficient`.
 ///
 /// Args:
 ///     image1: First binary segmentation PyImage.
@@ -103,7 +103,7 @@ pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
 
 /// Compute the symmetric Hausdorff distance between two binary masks.
 ///
-/// Delegates to `ritk_core::statistics::hausdorff_distance`.
+/// Delegates to `ritk_statistics::hausdorff_distance`.
 /// HD(A, B) = max( hd(∂A→∂B), hd(∂B→∂A) ). Distance in mm.
 ///
 /// Args:
@@ -123,7 +123,7 @@ pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) ->
 
 /// Compute the symmetric mean surface distance between two binary masks.
 ///
-/// Delegates to `ritk_core::statistics::mean_surface_distance`.
+/// Delegates to `ritk_statistics::mean_surface_distance`.
 /// MSD = ( MSD(∂A→∂B) + MSD(∂B→∂A) ) / 2. Distance in mm.
 ///
 /// Args:
@@ -143,7 +143,7 @@ pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage)
 
 /// Compute the Peak Signal-to-Noise Ratio between two images.
 ///
-/// Delegates to `ritk_core::statistics::psnr`.
+/// Delegates to `ritk_statistics::psnr`.
 /// Formula: PSNR = 10 · log₁₀(MAX² / MSE).
 ///
 /// Args:
@@ -161,7 +161,7 @@ pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
 
 /// Compute the Structural Similarity Index (SSIM) between two images.
 ///
-/// Delegates to `ritk_core::statistics::ssim`.
+/// Delegates to `ritk_statistics::ssim`.
 /// Wang et al. (2004), C₁ = (0.01·MAX)², C₂ = (0.03·MAX)².
 ///
 /// Args:
@@ -205,7 +205,7 @@ pub fn estimate_noise(image: &PyImage, mask: Option<&PyImage>) -> f32 {
 
 /// Compute per-label intensity statistics over a co-registered intensity image.
 ///
-/// Delegates to `ritk_core::statistics::compute_label_intensity_statistics_from_slices`.
+/// Delegates to `ritk_statistics::compute_label_intensity_statistics_from_slices`.
 /// Background (label 0) is excluded. Results are sorted by label ascending.
 ///
 /// Args:

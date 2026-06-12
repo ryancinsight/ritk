@@ -3,11 +3,11 @@
 //! # Design
 //!
 //! The const-generic `convolve<const D: usize>` implements linear convolution
-//! via FFT with "same" output cropping for any dimensionality. `D=2` selects
-//! `fft2d`; `D=3` selects `fft3d`. The padding, FFT, pointwise multiply, IFFT,
+//! via FFT with "same" output cropping for any dimensionality, dispatching via
+//! `fft_nd`. The padding, FFT, pointwise multiply, IFFT,
 //! and crop logic is shared across all supported dimensionalities.
 
-use crate::fft::convolution::{fft2d, fft3d, ForwardFft, InverseFft};
+use crate::fft::convolution::{fft_nd, ForwardFft, InverseFft};
 use rustfft::{num_complex::Complex, FftPlanner};
 
 // ── Padding & FFT ───────────────────────────────────────────────────────────
@@ -101,11 +101,7 @@ fn run_fft<const D: usize, Dir: crate::fft::convolution::FftDirection>(
     pad: &[usize; D],
     planner: &mut FftPlanner<f32>,
 ) {
-    match D {
-        2 => fft2d::<Dir>(buf, pad[0], pad[1], planner),
-        3 => fft3d::<Dir>(buf, pad[0], pad[1], pad[2], planner),
-        _ => unreachable!("only 2-D and 3-D deconvolution are supported"),
-    }
+    fft_nd::<D, Dir>(buf, pad, planner);
 }
 
 /// Pad two real-valued arrays into complex buffers, execute forward FFT on both.

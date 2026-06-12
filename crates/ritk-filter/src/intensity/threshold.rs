@@ -7,7 +7,7 @@
 //! - Above:   output(x) = if I(x) > threshold { outside_value } else { I(x) }
 //! - Outside: output(x) = if I(x) < lower || I(x) > upper { outside_value } else { I(x) }
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 

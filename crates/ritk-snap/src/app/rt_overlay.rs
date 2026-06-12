@@ -5,7 +5,7 @@ use crate::ui::{
     axis_slice_dimensions, compute_roi_dose_analytics, map_view_row_col_to_voxel,
     project_rt_struct_contours_for_slice, rt_dose_analytics::VolumeGeometry,
 };
-use ritk_core::annotation::Visibility;
+use ritk_annotation::Visibility;
 use tracing::{error, info};
 
 impl SnapApp {

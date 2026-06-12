@@ -80,15 +80,15 @@ mod tests {
             decay_correction: None,
         });
 
-        let mut table = ritk_core::annotation::LabelTable::new();
+        let mut table = ritk_annotation::LabelTable::new();
         table
             .add_label(
                 10,
                 "Tumor",
-                ritk_core::annotation::RgbaU8::new(255, 0, 0, 255),
+                ritk_annotation::RgbaBytes::new(255, 0, 0, 255),
             )
             .unwrap();
-        let mut lm = ritk_core::annotation::LabelMap::new(shape, table);
+        let mut lm = ritk_annotation::LabelMap::new(shape, table);
         for y in 1..3 {
             for x in 1..3 {
                 lm.set_label_at([0, y, x], 10);
@@ -133,7 +133,7 @@ mod tests {
         let mut app = volume_with_segmentation();
         let editor = app.label_editor.as_mut().unwrap();
         let next_id = editor
-            .add_label("Organ", ritk_core::annotation::RgbaU8::new(0, 255, 0, 255))
+            .add_label("Organ", ritk_annotation::RgbaBytes::new(0, 255, 0, 255))
             .expect("add label");
         let map = editor.current_map();
         let mut lm = map.clone();

@@ -22,6 +22,22 @@ use super::{infer_format, read_image, write_image};
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
+/// Override output format.
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum OutputFormat {
+    #[value(name = "nifti")]
+    Nifti,
+    #[value(name = "metaimage")]
+    MetaImage,
+    #[value(name = "nrrd")]
+    Nrrd,
+    Mgh,
+    Tiff,
+    Vtk,
+    Jpeg,
+    Analyze,
+}
+
 /// Arguments for the `convert` subcommand.
 #[derive(Args, Debug)]
 pub struct ConvertArgs {
@@ -35,12 +51,8 @@ pub struct ConvertArgs {
     pub output: PathBuf,
 
     /// Override the output format.
-    ///
-    /// Accepted values: `nifti`, `metaimage`, `nrrd`.
-    /// `png` and `dicom` are listed here for completeness but are not
-    /// writable in the current build of `ritk-io`.
-    #[arg(long, value_name = "FORMAT")]
-    pub format: Option<String>,
+    #[arg(long, value_enum, value_name = "FORMAT")]
+    pub format: Option<OutputFormat>,
 }
 
 // ── Command handler ───────────────────────────────────────────────────────────
@@ -68,17 +80,24 @@ pub fn run(args: ConvertArgs) -> Result<()> {
     let spacing = image.spacing();
 
     // Resolve output format: explicit flag takes precedence over extension.
-    let out_fmt: ImageFormat = match &args.format {
-        Some(s) => ImageFormat::from_str_name(s)
-            .ok_or_else(|| anyhow!("Unknown format '{s}'. Accepted: nifti, metaimage, nrrd, mgh, tiff, vtk, jpeg, analyze."))?,
-        None => infer_format(&args.output)
-            .ok_or_else(|| {
-                anyhow!(
-                    "Cannot infer output format from path '{}'. \
+    let out_fmt: ImageFormat = match args.format {
+        Some(fmt) => match fmt {
+            OutputFormat::Nifti => ImageFormat::NIfTI,
+            OutputFormat::MetaImage => ImageFormat::MetaImage,
+            OutputFormat::Nrrd => ImageFormat::Nrrd,
+            OutputFormat::Mgh => ImageFormat::Mgh,
+            OutputFormat::Tiff => ImageFormat::Tiff,
+            OutputFormat::Vtk => ImageFormat::Vtk,
+            OutputFormat::Jpeg => ImageFormat::Jpeg,
+            OutputFormat::Analyze => ImageFormat::Analyze,
+        },
+        None => infer_format(&args.output).ok_or_else(|| {
+            anyhow!(
+                "Cannot infer output format from path '{}'. \
                      Specify --format nifti|metaimage|nrrd.",
-                    args.output.display()
-                )
-            })?,
+                args.output.display()
+            )
+        })?,
     };
 
     write_image(&args.output, &image, out_fmt)?;
@@ -233,7 +252,7 @@ mod tests {
         run(ConvertArgs {
             input: input.clone(),
             output: output.clone(),
-            format: Some("nifti".to_string()),
+            format: Some(OutputFormat::Nifti),
         })
         .unwrap();
 

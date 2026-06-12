@@ -1,7 +1,7 @@
 //! Tests for 3-D `FftConvolution3DFilter` and `FftNormalizedCorrelation3DFilter`.
 
 use crate::fft::{FftConvolution3DFilter, FftNormalizedCorrelation3DFilter};
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};

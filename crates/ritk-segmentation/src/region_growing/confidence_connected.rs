@@ -38,7 +38,7 @@
 //! Yanowitz, S.D., & Bruckstein, A.M. (1989). "A New Method for Image
 //! Segmentation." *Computer Vision, Graphics, and Image Processing*, 46(1), 82-95.
 
-use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_tensor_ops::extract_vec_infallible;
 use ritk_image::Image;
 use ritk_core::spatial::VoxelIndex;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};

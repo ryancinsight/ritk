@@ -19,7 +19,7 @@
 //! Standard finite difference approximation of the gradient (see e.g., Press et al.,
 //! *Numerical Recipes in C*, 3rd ed., §18.1).
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use ritk_spatial::Spacing;
 use burn::tensor::backend::Backend;

@@ -9,7 +9,7 @@
 //! Pixels below window_min map to out_min; pixels above window_max map to out_max.
 //! Interior pixels are mapped linearly.
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 

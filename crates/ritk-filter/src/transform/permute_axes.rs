@@ -30,7 +30,7 @@
 //!
 //! `itk::PermuteAxesImageFilter` with `SetOrder({a, b, c})`.
 
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild_with_metadata};
+use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Spacing};
 use burn::tensor::backend::Backend;
@@ -128,7 +128,7 @@ impl PermuteAxesImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::filter::ops::extract_vec_infallible;
+    use ritk_tensor_ops::extract_vec_infallible;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use burn_ndarray::NdArray;

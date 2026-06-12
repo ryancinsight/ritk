@@ -1,0 +1,14 @@
+[package]
+name = "ritk-tensor-ops"
+version = "0.1.0"
+edition = "2021"
+description = "Shared tensor extract/rebuild helpers — bridges burn::Tensor ↔ flat Vec<f32> for CPU-side filter and statistics paths"
+
+[dependencies]
+burn = { workspace = true }
+ritk-image = { path = "../ritk-image" }
+ritk-spatial = { path = "../ritk-spatial" }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }

@@ -40,7 +40,7 @@
 //!
 //!   t_intensity = x_min + t / (N − 1) · (x_max − x_min)
 
-use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_tensor_ops::extract_vec_infallible;
 use ritk_image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 

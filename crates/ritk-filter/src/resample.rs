@@ -258,7 +258,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::filter::ops::extract_vec_infallible;
+    use ritk_tensor_ops::extract_vec_infallible;
     use ritk_interpolation::LinearInterpolator;
     use ritk_spatial::{Direction2, Point2, Spacing2};
     use ritk_transform::affine::translation::TranslationTransform;

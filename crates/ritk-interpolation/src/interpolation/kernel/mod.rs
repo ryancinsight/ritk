@@ -23,7 +23,6 @@ use crate::interpolation::shared::OutOfBoundsMode;
 ///   (or use weight renormalization for B-Spline). Default.
 /// - `ZeroPad`: out-of-bounds samples return `0.0`, preventing spurious
 ///   correlation peaks in MI-based registration metrics.
-#[allow(dead_code)] // ARCH-353-01: reserved for upcoming interpolator dispatch wiring.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum BoundsPolicy {
     /// Clamp to the nearest edge voxel (or renormalize weights for B-Spline).
@@ -34,13 +33,6 @@ pub enum BoundsPolicy {
 }
 
 impl BoundsPolicy {
-    /// Returns `true` when this is [`BoundsPolicy::ZeroPad`].
-    #[allow(dead_code)]
-    #[inline]
-    pub fn is_zero_pad(self) -> bool {
-        matches!(self, Self::ZeroPad)
-    }
-
     /// Convert to the canonical [`OutOfBoundsMode`] used by interpolation kernels.
     ///
     /// - [`BoundsPolicy::ZeroPad`] → [`OutOfBoundsMode::ZeroPad`]

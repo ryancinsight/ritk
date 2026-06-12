@@ -6486,6 +6486,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-annotation"
+version = "0.1.0"
+dependencies = [
+ "ritk-spatial",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "ritk-cli"
 version = "0.1.0"
 dependencies = [
@@ -6503,6 +6513,7 @@ dependencies = [
  "ritk-segmentation",
  "ritk-snap",
  "ritk-spatial",
+ "ritk-statistics",
  "ritk-transform",
  "serde_json",
  "tempfile",
@@ -6528,19 +6539,18 @@ dependencies = [
 name = "ritk-core"
 version = "0.9.0"
 dependencies = [
- "anyhow",
  "burn",
  "burn-ndarray",
- "moirai",
  "nalgebra",
  "num-traits",
  "proptest",
+ "ritk-annotation",
  "ritk-image",
+ "ritk-morphology",
  "ritk-spatial",
+ "ritk-statistics",
+ "ritk-tensor-ops",
  "ritk-wgpu-compat",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -6570,10 +6580,14 @@ dependencies = [
  "nalgebra",
  "num-traits",
  "rand 0.9.2",
+ "ritk-annotation",
  "ritk-core",
  "ritk-image",
  "ritk-interpolation",
+ "ritk-morphology",
  "ritk-spatial",
+ "ritk-statistics",
+ "ritk-tensor-ops",
  "ritk-transform",
  "ritk-wgpu-compat",
  "rustfft",
@@ -6635,6 +6649,7 @@ dependencies = [
  "openjpeg-sys",
  "reqwest",
  "ritk-analyze",
+ "ritk-annotation",
  "ritk-codecs",
  "ritk-core",
  "ritk-dicom",
@@ -6754,6 +6769,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-morphology"
+version = "0.1.0"
+
+[[package]]
 name = "ritk-nifti"
 version = "0.1.0"
 dependencies = [
@@ -6817,6 +6836,7 @@ dependencies = [
  "ritk-registration",
  "ritk-segmentation",
  "ritk-spatial",
+ "ritk-statistics",
  "ritk-transform",
 ]
 
@@ -6842,6 +6862,7 @@ dependencies = [
  "ritk-model",
  "ritk-segmentation",
  "ritk-spatial",
+ "ritk-statistics",
  "ritk-transform",
  "ritk-wgpu-compat",
  "serde",
@@ -6862,6 +6883,7 @@ dependencies = [
  "ritk-core",
  "ritk-filter",
  "ritk-image",
+ "ritk-tensor-ops",
  "tracing",
 ]
 
@@ -6886,6 +6908,7 @@ dependencies = [
  "nalgebra",
  "pollster",
  "rfd",
+ "ritk-annotation",
  "ritk-core",
  "ritk-filter",
  "ritk-image",
@@ -6910,6 +6933,34 @@ dependencies = [
  "burn",
  "nalgebra",
  "serde",
+]
+
+[[package]]
+name = "ritk-statistics"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "moirai",
+ "nalgebra",
+ "num-traits",
+ "ritk-image",
+ "ritk-spatial",
+ "ritk-tensor-ops",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "ritk-tensor-ops"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "ritk-image",
+ "ritk-spatial",
 ]
 
 [[package]]

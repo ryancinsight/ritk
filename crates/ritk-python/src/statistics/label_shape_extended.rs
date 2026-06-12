@@ -1,6 +1,6 @@
 //! Python binding for extended label shape statistics (GAP-262-STA-03).
 //!
-//! Wraps `ritk_core::statistics::label_shape_extended` to expose per-label
+//! Wraps `ritk_statistics::label_shape_extended` to expose per-label
 //! shape attributes: perimeter, roundness, flatness, elongation,
 //! principal moments, centroid, and Feret diameter.
 
@@ -8,7 +8,7 @@ use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use ritk_core::statistics::label_shape_extended::compute_label_shape_statistics_extended;
+use ritk_statistics::label_shape_extended::compute_label_shape_statistics_extended;
 use std::sync::Arc;
 
 /// Compute extended per-label shape statistics from a label image.

@@ -170,7 +170,7 @@ fn test_resample_frames_linear_nonuniform_interpolation() {
 }
 
 #[test]
-fn test_normalize_3d() {
+fn test_normalize_unit_vector() {
     let v = normalize([3.0, 0.0, 0.0]).expect("non-zero");
     assert!((v[0] - 1.0).abs() < 1e-10 && v[1].abs() < 1e-10 && v[2].abs() < 1e-10);
     // Diagonal unit vector
@@ -193,7 +193,7 @@ fn test_slice_normal_from_iop_axial() {
 }
 
 #[test]
-fn test_dot_3d() {
+fn test_dot_product() {
     assert!((dot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]) - 32.0).abs() < 1e-10);
     assert!((dot([1.0, 0.0, 0.0], [0.0, 1.0, 0.0])).abs() < 1e-10);
 }

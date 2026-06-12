@@ -35,7 +35,7 @@
 use crate::fft::{FftShiftFilter, ForwardFftFilter, InverseFftFilter};
 use anyhow::{bail, Result};
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 
 // ── Filter type ───────────────────────────────────────────────────────────────

@@ -14,8 +14,8 @@
 //!
 //! `itk::BlendImageFilter`
 
-use ritk_core::annotation::overlay::Opacity;
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild};
+use ritk_annotation::overlay::Opacity;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 

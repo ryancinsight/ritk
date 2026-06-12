@@ -1,10 +1,11 @@
 //! Salt-and-pepper (impulse) noise filter.
 
+use super::DEFAULT_NOISE_SEED;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
 use rand::prelude::*;
 use rand::rngs::StdRng;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
 
 /// Salt-and-pepper (impulse) noise filter.
@@ -36,7 +37,7 @@ impl SaltAndPepperNoiseFilter {
     pub fn new(probability: f64) -> Self {
         Self {
             probability,
-            seed: 42,
+            seed: DEFAULT_NOISE_SEED,
         }
     }
 

@@ -1,5 +1,5 @@
 use super::super::{dicom_seg_to_label_map, label_map_to_dicom_seg, SegEncoding};
-use ritk_core::annotation::RgbaU8;
+use ritk_annotation::RgbaBytes;
 
 // ── LabelId cross-crate regression tests ──────────────────────────────────
 
@@ -14,14 +14,14 @@ use ritk_core::annotation::RgbaU8;
 /// the 1-based remapping, and (b) label names are preserved.
 #[test]
 fn test_voxel_data_survives_dicom_seg_segment_number_remapping() {
-    use ritk_core::annotation::{LabelId, LabelMap, LabelTable};
+    use ritk_annotation::{LabelId, LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
-        .add_label(LabelId(42), "Lesion 42", RgbaU8::new(255, 0, 0, 255))
+        .add_label(LabelId(42), "Lesion 42", RgbaBytes::new(255, 0, 0, 255))
         .unwrap();
     table
-        .add_label(LabelId(7), "Region 7", RgbaU8::new(0, 255, 0, 255))
+        .add_label(LabelId(7), "Region 7", RgbaBytes::new(0, 255, 0, 255))
         .unwrap();
 
     let data = vec![42, 42, 0, 7, 7, 42, 0, 0];
@@ -78,14 +78,14 @@ fn test_voxel_data_survives_dicom_seg_segment_number_remapping() {
 /// value. Label names survive, and voxel data is consistently remapped.
 #[test]
 fn test_label_id_remapped_to_sequential_segment_numbers() {
-    use ritk_core::annotation::{LabelId, LabelMap, LabelTable};
+    use ritk_annotation::{LabelId, LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
         .add_label(
             LabelId(u32::from(u16::MAX)),
             "Max",
-            RgbaU8::new(0, 0, 255, 255),
+            RgbaBytes::new(0, 0, 255, 255),
         )
         .unwrap();
 
@@ -131,7 +131,7 @@ fn test_label_id_remapped_to_sequential_segment_numbers() {
 #[test]
 fn test_segment_color_deterministic_for_label_id() {
     use super::super::converters::segment_color;
-    use ritk_core::annotation::LabelId;
+    use ritk_annotation::LabelId;
 
     let a = segment_color(LabelId(1));
     let b = segment_color(LabelId(1));
@@ -148,7 +148,7 @@ fn test_segment_color_deterministic_for_label_id() {
 #[test]
 fn test_segment_color_accepts_background_label_id() {
     use super::super::converters::segment_color;
-    use ritk_core::annotation::LabelId;
+    use ritk_annotation::LabelId;
 
     let color = segment_color(LabelId::BACKGROUND);
     assert_eq!(color.a(), 180, "background alpha must be 180");

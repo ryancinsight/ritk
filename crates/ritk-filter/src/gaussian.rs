@@ -181,7 +181,7 @@ mod tests {
     use super::*;
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
-    use ritk_core::filter::ops::extract_vec_infallible;
+    use ritk_tensor_ops::extract_vec_infallible;
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 

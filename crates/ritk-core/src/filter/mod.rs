@@ -1,11 +1,12 @@
-// ── ops module: shared pixel-buffer I/O helpers retained in ritk-core ───────
+// ── ops module: thin shim re-exporting to `ritk_tensor_ops` ────────────────
 //
-// All other filter modules moved to `ritk-filter` (Sprint 361).
-// `ops` stays here because `ritk-core::statistics` also uses `extract_vec` /
-// `extract_vec_infallible` / `rebuild` and moving them would create a circular
-// dependency (`ritk-filter` → `ritk-core` ← `ritk-filter`).
-// `kernel_utils` owns `gaussian_kernel` separately so ops stays focused on
-// tensor extract/rebuild helpers.
+// All filter implementations moved to `ritk-filter` (Sprint 361).
+// `ops` was extracted to `ritk-tensor-ops` (Sprint 361, Phase 3) to break
+// the circular dependency (`ritk-filter` → `ritk-core` ← `ritk-filter`).
+// This module is a compatibility shim; callers should prefer importing from
+// `ritk_tensor_ops` directly.
+// `kernel_utils` owns `gaussian_kernel` (the only remaining substantive code
+// in ritk-core's filter module).
 pub mod kernel_utils;
 pub mod ops;
 

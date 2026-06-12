@@ -1,5 +1,5 @@
 use crate::fft::convolution::helpers::{fft2d, ForwardFft, InverseFft};
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;

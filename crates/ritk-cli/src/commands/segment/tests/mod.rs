@@ -1,5 +1,5 @@
 pub(crate) use super::{count_foreground, parse_seed, Backend};
-pub use super::{run, SegmentArgs};
+pub use super::{run, SegmentArgs, SegmentMethod};
 
 pub use burn::tensor::backend::Backend as BurnBackend;
 pub use burn::tensor::{Shape, Tensor, TensorData};
@@ -135,12 +135,12 @@ pub fn make_ramp_image() -> Image<Backend, 3> {
 pub fn default_args(
     input: std::path::PathBuf,
     output: std::path::PathBuf,
-    method: &str,
+    method: SegmentMethod,
 ) -> SegmentArgs {
     SegmentArgs {
         input,
         output,
-        method: method.to_string(),
+        method,
         ..Default::default()
     }
 }

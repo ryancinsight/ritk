@@ -1,5 +1,5 @@
 use super::*;
-use ritk_core::annotation::{LabelId, RgbaU8, Visibility};
+use ritk_annotation::{LabelId, RgbaBytes, Visibility};
 
 #[test]
 fn new_editor_has_default_foreground_label_and_background_volume() {
@@ -16,7 +16,7 @@ fn new_editor_has_default_foreground_label_and_background_volume() {
         .get_label(1)
         .expect("default label must be present");
     assert_eq!(entry.name, "Label 1");
-    assert_eq!(entry.color, RgbaU8::new(255, 0, 0, 180));
+    assert_eq!(entry.color, RgbaBytes::new(255, 0, 0, 180));
     assert_eq!(entry.visible, Visibility::Visible);
 }
 
@@ -88,7 +88,7 @@ fn add_label_uses_next_free_id_sets_active_and_updates_visibility() {
     let mut editor = LabelEditor::new([1, 2, 3]);
 
     let id = editor
-        .add_label("Tumor", RgbaU8::new(0, 255, 0, 200))
+        .add_label("Tumor", RgbaBytes::new(0, 255, 0, 200))
         .expect("adding a second label must succeed");
     assert_eq!(id, LabelId(2));
     assert_eq!(editor.active_label_id(), LabelId(2));
@@ -117,7 +117,7 @@ fn add_label_uses_next_free_id_sets_active_and_updates_visibility() {
 fn custom_table_rejects_background_or_absent_active_label() {
     let mut table = LabelTable::new();
     table
-        .add_label(7, "Kidney", RgbaU8::new(0, 0, 255, 180))
+        .add_label(7, "Kidney", RgbaBytes::new(0, 0, 255, 180))
         .unwrap();
 
     assert!(LabelEditor::with_table([1, 1, 1], table.clone(), LabelId(0)).is_err());
@@ -169,11 +169,11 @@ fn repeat_paint_noop_does_not_create_history_entry() {
 /// (0, 2, 4, 6 out of 8), label 0 otherwise.
 #[test]
 fn from_label_map_preserves_voxel_data() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
-        .add_label(1, "A", RgbaU8::new(255, 0, 0, 180))
+        .add_label(1, "A", RgbaBytes::new(255, 0, 0, 180))
         .unwrap();
 
     let data: Vec<u32> = (0..8u32).map(|i| if i % 2 == 0 { 1 } else { 0 }).collect();
@@ -206,7 +206,7 @@ fn from_label_map_preserves_voxel_data() {
 /// from_label_map with an empty table falls back to DEFAULT_LABEL_ID (1).
 #[test]
 fn from_label_map_empty_table_uses_default_label_id() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let map = LabelMap::new([1, 1, 1], LabelTable::new());
     let editor = LabelEditor::from_label_map(map);
@@ -220,11 +220,11 @@ fn from_label_map_empty_table_uses_default_label_id() {
 /// from_label_map preserves undo history: initial state is depth 0.
 #[test]
 fn from_label_map_starts_with_zero_history_depth() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
-        .add_label(1, "X", RgbaU8::new(0, 255, 0, 180))
+        .add_label(1, "X", RgbaBytes::new(0, 255, 0, 180))
         .unwrap();
     let map = LabelMap::new([3, 3, 3], table);
     let editor = LabelEditor::from_label_map(map);

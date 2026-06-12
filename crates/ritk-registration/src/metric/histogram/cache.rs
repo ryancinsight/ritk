@@ -283,7 +283,6 @@ impl<B: Backend> SparseWFixedCache for MaskedHistogramCache<B> {
 /// lazily build the sparse W_fixed^T on first access. When the
 /// `direct-parzen` feature is off, this parameter must be `None::<()>`.
 #[cfg(feature = "direct-parzen")]
-#[allow(dead_code)]
 pub(crate) fn make_cache<B: Backend, const D: usize>(
     points: Tensor<B, 2>,
     w_fixed_transposed: Tensor<B, 2>,
@@ -325,7 +324,6 @@ pub(crate) fn make_cache<B: Backend, const D: usize>(
 /// fixed values. When `fixed_norm` is `Some`, a `data_fingerprint` is computed
 /// from the values and stored for collision detection.
 #[cfg(feature = "direct-parzen")]
-#[allow(dead_code)]
 pub(crate) fn make_masked_cache<B: Backend>(
     cache_key: u64,
     w_fixed_transposed: Tensor<B, 2>,
@@ -365,7 +363,6 @@ pub(crate) fn make_masked_cache<B: Backend>(
 /// Uses `to_bits()` to convert each `f32` to a `u32` before hashing,
 /// providing deterministic hashing (NaN is not expected in normalized data).
 #[cfg(feature = "direct-parzen")]
-#[allow(dead_code)]
 fn compute_fingerprint(fixed_norm: &[f32]) -> u64 {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};

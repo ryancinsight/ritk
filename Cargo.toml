@@ -27,6 +27,10 @@ members = [
   "crates/ritk-spatial",
   "crates/ritk-image",
   "crates/ritk-wgpu-compat",
+  "crates/ritk-morphology",
+  "crates/ritk-annotation",
+  "crates/ritk-tensor-ops",
+  "crates/ritk-statistics",
   "xtask",
 ]
 resolver = "2"
@@ -55,6 +59,10 @@ ritk-interpolation = { path = "crates/ritk-interpolation" }
 ritk-spatial = { path = "crates/ritk-spatial" }
 ritk-image = { path = "crates/ritk-image" }
 ritk-wgpu-compat = { path = "crates/ritk-wgpu-compat" }
+ritk-morphology = { path = "crates/ritk-morphology" }
+ritk-annotation = { path = "crates/ritk-annotation" }
+ritk-tensor-ops = { path = "crates/ritk-tensor-ops" }
+ritk-statistics = { path = "crates/ritk-statistics" }
 gaia = { git = "https://github.com/ryancinsight/gaia.git", default-features = false }
 
 criterion = { version = "0.5", features = ["html_reports"] }

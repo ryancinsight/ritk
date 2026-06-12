@@ -30,7 +30,7 @@
 //!
 //! O(N) time, O(N) space (output allocation), O(1) auxiliary.
 
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -100,7 +100,7 @@ impl ClampImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::filter::ops::extract_vec_infallible;
+    use ritk_tensor_ops::extract_vec_infallible;
     use burn_ndarray::NdArray;
 
     use ritk_image::Image;

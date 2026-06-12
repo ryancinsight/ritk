@@ -1,7 +1,7 @@
 //! Tests for 2-D `FftConvolutionFilter`.
 
 use crate::fft::FftConvolutionFilter;
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};

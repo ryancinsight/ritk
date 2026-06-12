@@ -1,7 +1,7 @@
 // ── Metric implementations ───────────────────────────────────────────────────
 
 use anyhow::Result;
-use ritk_core::statistics::{
+use ritk_statistics::{
     compute_statistics, dice_coefficient, estimate_noise_mad, hausdorff_distance,
     mean_surface_distance, psnr, ssim,
 };

@@ -15,7 +15,7 @@ use clap::Args;
 use std::path::PathBuf;
 use tracing::info;
 
-use ritk_core::statistics::normalization::{
+use ritk_statistics::normalization::{
     HistogramMatcher, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer, WhiteStripeConfig,
     WhiteStripeNormalizer, ZScoreNormalizer,
 };
@@ -23,6 +23,15 @@ use ritk_core::statistics::normalization::{
 use super::{read_image, write_image_inferred, Backend};
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
+
+/// MRI contrast type for white-stripe normalization.
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum CliContrast {
+    #[value(name = "t1")]
+    T1,
+    #[value(name = "t2")]
+    T2,
+}
 
 /// Normalization method for the `normalize` subcommand.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -82,10 +91,10 @@ pub struct NormalizeArgs {
 
     /// MRI contrast type for `white-stripe`.
     ///
-    /// Accepted values: `t1`, `T1`, `t2`, `T2`.  Defaults to `t1` when not
+    /// Accepted values: `t1`, `t2`.  Defaults to `t1` when not
     /// supplied.
-    #[arg(long, value_name = "CONTRAST")]
-    pub contrast: Option<String>,
+    #[arg(long, value_enum, value_name = "CONTRAST")]
+    pub contrast: Option<CliContrast>,
 
     /// White stripe half-width as a fraction of the intensity range
     /// (default: 0.05).
@@ -114,7 +123,6 @@ pub struct NormalizeArgs {
 /// Returns an error when:
 /// - The input or reference image cannot be read.
 /// - `histogram-match` is requested without `--reference`.
-/// - An invalid contrast string is supplied to `white-stripe`.
 /// - An unknown method name is supplied.
 pub fn run(args: NormalizeArgs) -> Result<()> {
     info!(
@@ -157,16 +165,9 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
         NormalizeMethod::Minmax => MinMaxNormalizer::default().normalize(&input),
 
         NormalizeMethod::WhiteStripe => {
-            let contrast_str = args.contrast.as_deref().unwrap_or("t1").to_lowercase();
-            let contrast = match contrast_str.as_str() {
-                "t1" => MriContrast::T1,
-                "t2" => MriContrast::T2,
-                other => {
-                    return Err(anyhow!(
-                        "Unknown contrast '{}'. Accepted values: t1, t2.",
-                        other
-                    ))
-                }
+            let contrast = match args.contrast.unwrap_or(CliContrast::T1) {
+                CliContrast::T1 => MriContrast::T1,
+                CliContrast::T2 => MriContrast::T2,
             };
             let config = WhiteStripeConfig {
                 contrast,

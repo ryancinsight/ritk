@@ -14,6 +14,7 @@
 //! Both produce the same flat byte sequence, so no in-memory permutation
 //! is required.
 
+pub(crate) mod codec;
 pub mod reader;
 pub mod writer;
 

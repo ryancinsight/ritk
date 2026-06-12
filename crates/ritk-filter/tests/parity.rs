@@ -142,7 +142,7 @@ fn parity_laplacian_linear_ramp_is_zero_at_interior() {
 /// Input [2,4,4,4,5,5,7,9]: mean=5, std=2.
 #[test]
 fn parity_zscore_zero_mean_unit_variance() {
-    use ritk_core::statistics::ZScoreNormalizer;
+    use ritk_statistics::ZScoreNormalizer;
     let img = make_image(vec![2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0], [8, 1, 1]);
     let out = ZScoreNormalizer::new().normalize(&img);
     let v = vals(&out);
@@ -160,7 +160,7 @@ fn parity_zscore_zero_mean_unit_variance() {
 /// dice(A, A) = 1.0 for any non-empty binary mask A.
 #[test]
 fn parity_dice_perfect_overlap() {
-    use ritk_core::statistics::dice_coefficient;
+    use ritk_statistics::dice_coefficient;
     let seg = make_image(vec![1.0, 0.0, 1.0, 0.0, 1.0], [5, 1, 1]);
     let d = dice_coefficient(&seg, &seg);
     assert!(
@@ -172,7 +172,7 @@ fn parity_dice_perfect_overlap() {
 /// dice(A, complement(A)) = 0.0 when A and complement are disjoint.
 #[test]
 fn parity_dice_zero_overlap() {
-    use ritk_core::statistics::dice_coefficient;
+    use ritk_statistics::dice_coefficient;
     let a = make_image(vec![1.0, 0.0, 1.0], [3, 1, 1]);
     let b = make_image(vec![0.0, 1.0, 0.0], [3, 1, 1]);
     let d = dice_coefficient(&a, &b);

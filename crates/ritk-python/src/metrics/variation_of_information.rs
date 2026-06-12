@@ -1,18 +1,18 @@
 //! Variation of Information (VI) pyfunction wrapper.
 //!
-//! Delegates to `ritk_core::statistics::information::variation_of_information`.
+//! Delegates to `ritk_statistics::information::variation_of_information`.
 //! See that module for the mathematical definition (Meilă 2003).
 
 use anyhow::Result;
 use pyo3::prelude::*;
-use ritk_core::statistics::information::variation_of_information as core_vi;
+use ritk_statistics::information::variation_of_information as core_vi;
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};
 
 /// VI(X,Y) = H(X) + H(Y) − 2·I(X,Y).
 ///
-/// Delegates to `ritk_core::statistics::information::variation_of_information`.
+/// Delegates to `ritk_statistics::information::variation_of_information`.
 pub(super) fn variation_of_information_slices(
     a: &[f32],
     b: &[f32],

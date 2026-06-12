@@ -74,7 +74,7 @@
 //!   *IEEE Transactions on Image Processing*, 10(2), 266–277.
 
 use super::helpers::{compute_curvature_into, regularised_dirac, regularised_heaviside};
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 

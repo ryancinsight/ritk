@@ -16,6 +16,7 @@ clap = { workspace = true, features = ["derive"] }
 burn = { workspace = true }
 burn-ndarray = { workspace = true }
 ritk-core = { workspace = true }
+ritk-annotation = { path = "../ritk-annotation" }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-filter = { workspace = true }

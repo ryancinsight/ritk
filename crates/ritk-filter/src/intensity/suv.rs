@@ -15,7 +15,7 @@
 //! - Spatial metadata (shape, origin, spacing, direction) is preserved exactly.
 //! - Transforms voxels from Bq/mL to unitless SUV.
 
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild};
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 

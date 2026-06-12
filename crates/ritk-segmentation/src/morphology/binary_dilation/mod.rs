@@ -21,7 +21,7 @@
 //! D = 1, 2, 3. For D outside this set the function panics with a clear message.
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_tensor_ops::extract_vec_infallible;
 use ritk_core::image::Image;
 
 /// Binary dilation with a box structuring element of half-width `radius` voxels.
@@ -97,7 +97,7 @@ fn dilate_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
             if nb < 0 || nb >= nx as isize {
                 return false; // out-of-bounds → skip
             }
-            flat[nb as usize] > 0.5
+            flat[nb as usize] > super::FOREGROUND_THRESHOLD
         });
         if any_fg {
             *out = 1.0;
@@ -121,7 +121,7 @@ fn dilate_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
                         if ny_i < 0 || ny_i >= ny as isize || nx_i < 0 || nx_i >= nx as isize {
                             continue; // out-of-bounds → skip
                         }
-                        if flat[ny_i as usize * nx + nx_i as usize] > 0.5 {
+                        if flat[ny_i as usize * nx + nx_i as usize] > super::FOREGROUND_THRESHOLD {
                             break 'outer true;
                         }
                     }
@@ -162,7 +162,7 @@ fn dilate_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) -
                                 }
                                 let nb =
                                     nz_i as usize * ny * nx + ny_i as usize * nx + nx_i as usize;
-                                if flat[nb] > 0.5 {
+                                if flat[nb] > super::FOREGROUND_THRESHOLD {
                                     break 'outer true;
                                 }
                             }

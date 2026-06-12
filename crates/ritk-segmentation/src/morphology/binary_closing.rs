@@ -10,9 +10,9 @@
 //! O(n · (2r+1)^D) where n = total voxels, r = radius, D = image dimension.
 
 use super::MorphologicalOperation;
-use ritk_core::filter::ops::extract_vec_infallible;
-use ritk_image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_tensor_ops::extract_vec_infallible;
+use ritk_image::Image;
 
 /// Discriminates erosion from dilation in the shared morphological scan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -132,7 +132,7 @@ fn scan_neighborhood<const D: usize>(
         }
 
         if in_bounds {
-            let is_foreground = data[flat] >= 0.5;
+            let is_foreground = data[flat] >= super::FOREGROUND_THRESHOLD;
             if op == MorphOp::Erosion && !is_foreground {
                 return false; // Found a background voxel → erosion output = 0.
             }

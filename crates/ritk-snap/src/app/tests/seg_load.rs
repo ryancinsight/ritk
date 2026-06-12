@@ -1,7 +1,7 @@
 //! Segmentation DICOM-SEG loading tests (external fixtures).
 
 use super::*;
-use ritk_core::annotation::LabelId;
+use ritk_annotation::LabelId;
 use std::path::PathBuf;
 
 #[test]

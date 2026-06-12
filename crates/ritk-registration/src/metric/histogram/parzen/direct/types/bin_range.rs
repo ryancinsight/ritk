@@ -46,10 +46,11 @@ impl BinRange {
         (self.hi - self.lo + 1) as usize
     }
 
-    /// Whether the range is empty (should never be true after `new()`).
-    /// Production use (ARCH-328-05).
+    /// Returns `true` when `lo > hi`, meaning no bins fall in range.
+    ///
+    /// Test-only: production code checks `len() > 0` or iterates directly.
+    #[cfg(test)]
     #[inline]
-    #[allow(dead_code)] // Convention companion; no current production caller
     pub fn is_empty(&self) -> bool {
         self.lo > self.hi
     }

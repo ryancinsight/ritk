@@ -33,7 +33,7 @@
 //! ultrasound, the caller should either avoid this filter or provide explicit
 //! configuration derived from modality-specific display semantics.
 
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use serde::{Deserialize, Serialize};

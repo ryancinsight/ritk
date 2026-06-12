@@ -1,5 +1,5 @@
 use crate::edge::GaussianSigma;
-use ritk_core::filter::ops::{extract_vec_infallible, rebuild};
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use ritk_core::image::Image;
 use burn::tensor::backend::Backend;
 

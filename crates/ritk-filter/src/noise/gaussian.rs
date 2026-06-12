@@ -1,10 +1,11 @@
 //! Additive Gaussian noise filter.
 
+use super::DEFAULT_NOISE_SEED;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
 use rand::prelude::*;
 use rand::rngs::StdRng;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
 
 /// Additive Gaussian noise filter.
@@ -41,7 +42,7 @@ impl AdditiveGaussianNoiseFilter {
         Self {
             mean: 0.0,
             std,
-            seed: 42,
+            seed: DEFAULT_NOISE_SEED,
         }
     }
 
@@ -68,8 +69,7 @@ impl AdditiveGaussianNoiseFilter {
             .map(|_| {
                 let u1: f64 = rng.random();
                 let u2: f64 = rng.random();
-                (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
-                    * (2.0 * std::f64::consts::TAU * u2).cos()
+                super::box_muller(u1, u2)
             })
             .collect();
         let out: Vec<f32> =

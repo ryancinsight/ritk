@@ -15,7 +15,7 @@ fn test_segment_connected_threshold_grows_sphere_from_centre_seed() {
     run(SegmentArgs {
         input: input.clone(),
         output: output.clone(),
-        method: "connected-threshold".to_string(),
+        method: SegmentMethod::ConnectedThreshold,
         classes: 3,
         lower: Some(100.0),
         upper: Some(255.0),
@@ -47,7 +47,7 @@ fn test_segment_connected_threshold_output_is_strictly_binary() {
     run(SegmentArgs {
         input: input.clone(),
         output: output.clone(),
-        method: "connected-threshold".to_string(),
+        method: SegmentMethod::ConnectedThreshold,
         classes: 3,
         lower: Some(100.0),
         upper: Some(255.0),
@@ -80,7 +80,7 @@ fn test_segment_connected_threshold_missing_lower_returns_error() {
     let result = run(SegmentArgs {
         input,
         output,
-        method: "connected-threshold".to_string(),
+        method: SegmentMethod::ConnectedThreshold,
         classes: 3,
         lower: None,
         upper: Some(255.0),
@@ -109,7 +109,7 @@ fn test_segment_connected_threshold_missing_upper_returns_error() {
     let result = run(SegmentArgs {
         input,
         output,
-        method: "connected-threshold".to_string(),
+        method: SegmentMethod::ConnectedThreshold,
         classes: 3,
         lower: Some(100.0),
         upper: None,
@@ -138,7 +138,7 @@ fn test_segment_connected_threshold_missing_seed_returns_error() {
     let result = run(SegmentArgs {
         input,
         output,
-        method: "connected-threshold".to_string(),
+        method: SegmentMethod::ConnectedThreshold,
         classes: 3,
         lower: Some(100.0),
         upper: Some(255.0),
@@ -167,7 +167,7 @@ fn test_segment_connected_threshold_lower_gt_upper_returns_error() {
     let result = run(SegmentArgs {
         input,
         output,
-        method: "connected-threshold".to_string(),
+        method: SegmentMethod::ConnectedThreshold,
         classes: 3,
         lower: Some(255.0),
         upper: Some(100.0),
@@ -196,7 +196,7 @@ fn test_segment_connected_threshold_out_of_bounds_seed_returns_error() {
     let result = run(SegmentArgs {
         input,
         output,
-        method: "connected-threshold".to_string(),
+        method: SegmentMethod::ConnectedThreshold,
         classes: 3,
         lower: Some(100.0),
         upper: Some(255.0),
@@ -225,7 +225,7 @@ fn test_segment_malformed_seed_returns_error() {
     let result = run(SegmentArgs {
         input,
         output,
-        method: "connected-threshold".to_string(),
+        method: SegmentMethod::ConnectedThreshold,
         classes: 3,
         lower: Some(100.0),
         upper: Some(255.0),
@@ -251,7 +251,11 @@ fn test_segment_confidence_connected_grows_region() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "confidence-connected");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ConfidenceConnected,
+    );
     args.lower = Some(150.0);
     args.upper = Some(250.0);
     args.seed = Some("2,2,2".to_string());
@@ -271,7 +275,11 @@ fn test_segment_confidence_connected_output_is_binary() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "confidence-connected");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ConfidenceConnected,
+    );
     args.lower = Some(150.0);
     args.upper = Some(250.0);
     args.seed = Some("2,2,2".to_string());
@@ -294,7 +302,7 @@ fn test_segment_confidence_connected_missing_lower_returns_error() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-    let mut args = default_args(input, output, "confidence-connected");
+    let mut args = default_args(input, output, SegmentMethod::ConfidenceConnected);
     args.upper = Some(1.5);
     args.seed = Some("2,2,2".to_string());
     let result = run(args);
@@ -312,7 +320,7 @@ fn test_segment_confidence_connected_missing_upper_returns_error() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-    let mut args = default_args(input, output, "confidence-connected");
+    let mut args = default_args(input, output, SegmentMethod::ConfidenceConnected);
     args.lower = Some(0.5);
     args.seed = Some("2,2,2".to_string());
     let result = run(args);
@@ -325,7 +333,7 @@ fn test_segment_confidence_connected_missing_seed_returns_error() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-    let mut args = default_args(input, output, "confidence-connected");
+    let mut args = default_args(input, output, SegmentMethod::ConfidenceConnected);
     args.lower = Some(0.5);
     args.upper = Some(1.5);
     let result = run(args);
@@ -341,7 +349,11 @@ fn test_segment_neighborhood_connected_grows_region() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "neighborhood-connected");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::NeighborhoodConnected,
+    );
     args.lower = Some(0.0);
     args.upper = Some(250.0);
     args.seed = Some("2,2,2".to_string());
@@ -361,7 +373,11 @@ fn test_segment_neighborhood_connected_output_is_binary() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "neighborhood-connected");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::NeighborhoodConnected,
+    );
     args.lower = Some(0.0);
     args.upper = Some(250.0);
     args.seed = Some("2,2,2".to_string());

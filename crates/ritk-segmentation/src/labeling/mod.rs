@@ -27,7 +27,7 @@
 //! - Space: O(n) for provisional labels + O(K) for statistics.
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_core::filter::ops::extract_vec_infallible;
+use ritk_tensor_ops::extract_vec_infallible;
 use ritk_image::Image;
 use ritk_core::spatial::Point;
 

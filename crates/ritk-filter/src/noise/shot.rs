@@ -1,10 +1,11 @@
 //! Poisson (shot) noise filter.
 
+use super::DEFAULT_NOISE_SEED;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
 use rand::prelude::*;
 use rand::rngs::StdRng;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_core::image::Image;
 
 /// Poisson (shot) noise filter for low-photon-count simulation.
@@ -37,7 +38,10 @@ pub struct ShotNoiseFilter {
 impl ShotNoiseFilter {
     /// Create a filter with the given photon-count scale.
     pub fn new(scale: f64) -> Self {
-        Self { scale, seed: 42 }
+        Self {
+            scale,
+            seed: DEFAULT_NOISE_SEED,
+        }
     }
 
     /// Set the random seed (builder pattern).
@@ -102,8 +106,7 @@ fn poisson_sample(rng: &mut StdRng, lambda: f64) -> f64 {
         // Normal approximation: Poisson(λ) ≈ N(λ, λ) for large λ.
         let u1: f64 = rng.random();
         let u2: f64 = rng.random();
-        let z = (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
-            * (2.0 * std::f64::consts::TAU * u2).cos();
+        let z = super::box_muller(u1, u2);
         (lambda + z * lambda.sqrt()).max(0.0).round()
     }
 }

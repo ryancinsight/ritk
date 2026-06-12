@@ -1,12 +1,12 @@
 //! Total Correlation (Multivariate Mutual Information) pyfunction wrapper.
 //!
-//! Delegates to `ritk_core::statistics::information::total_correlation`.
+//! Delegates to `ritk_statistics::information::total_correlation`.
 //! See that module for the mathematical definition (Watanabe 1960) and
 //! complexity constraints (B^n ≤ 4_194_304).
 
 use anyhow::Result;
 use pyo3::prelude::*;
-use ritk_core::statistics::information::total_correlation as core_tc;
+use ritk_statistics::information::total_correlation as core_tc;
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::PyImage;
@@ -14,7 +14,7 @@ use crate::metrics::image_batch::collect_image_vectors;
 
 /// Total correlation C(X₁,...,Xₙ) = Σᵢ H(Xᵢ) − H(X₁,...,Xₙ).
 ///
-/// Delegates to `ritk_core::statistics::information::total_correlation`.
+/// Delegates to `ritk_statistics::information::total_correlation`.
 pub(super) fn total_correlation_slices(channels: &[&[f32]], num_bins: usize) -> Result<f64> {
     core_tc(channels, num_bins)
 }

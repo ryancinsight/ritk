@@ -4,10 +4,10 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::statistics::normalization::white_stripe::{
+use ritk_statistics::normalization::white_stripe::{
     MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
 };
-use ritk_core::statistics::normalization::{
+use ritk_statistics::normalization::{
     HistogramMatcher, MinMaxNormalizer, NyulUdupaNormalizer, ZScoreNormalizer,
 };
 use std::sync::Arc;

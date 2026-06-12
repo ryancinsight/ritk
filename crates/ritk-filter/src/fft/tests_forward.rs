@@ -12,7 +12,7 @@
 //!    Proof: F(u,v) = Σ 0·e^{...} = 0.
 
 use crate::fft::ForwardFftFilter;
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, TensorData};

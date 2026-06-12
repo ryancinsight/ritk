@@ -11,7 +11,7 @@
 //! the neighbourhood half-width, using introselect (select_nth_unstable_by)
 //! rather than a full sort.  Parallelised over z-slices via Rayon.
 
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_core::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};

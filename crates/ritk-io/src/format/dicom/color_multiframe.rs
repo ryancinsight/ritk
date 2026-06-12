@@ -17,7 +17,7 @@ use ritk_dicom::{
 };
 use ritk_spatial::{Direction, Point, Spacing};
 
-use super::color_common::{optional_u16, required_string, RGB_CHANNELS};
+use super::color_common::{read_optional, required_string, RGB_CHANNELS};
 use super::multiframe::{read_multiframe_info, MultiFrameInfo};
 use super::reader::geometry::{SliceCoverage, SpacingUniformity};
 
@@ -155,7 +155,7 @@ fn validate_rgb_multiframe(
             photometric.trim()
         );
     }
-    let planar_configuration = optional_u16(obj, Tag(0x0028, 0x0006)).unwrap_or(0);
+    let planar_configuration = read_optional::<u16>(obj, Tag(0x0028, 0x0006)).unwrap_or(0);
     if planar_configuration != 0 {
         bail!(
             "DICOM RGB color multiframe loader supports only interleaved PlanarConfiguration=0; {:?} declares {}",

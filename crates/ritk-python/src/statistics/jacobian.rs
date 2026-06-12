@@ -1,6 +1,6 @@
 //! Python-exposed Jacobian determinant functions.
 //!
-//! All functions delegate to `ritk_core::statistics::jacobian` (SSOT).
+//! All functions delegate to `ritk_statistics::jacobian` (SSOT).
 //!
 //! # Input convention
 //!
@@ -18,7 +18,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::statistics::jacobian;
+use ritk_statistics::jacobian;
 
 /// Compute the Jacobian determinant of a 3-D displacement field.
 ///

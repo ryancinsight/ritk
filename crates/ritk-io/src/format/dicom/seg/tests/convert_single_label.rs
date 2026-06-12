@@ -1,13 +1,13 @@
 use super::super::{label_map_to_dicom_seg, SegEncoding};
-use ritk_core::annotation::RgbaU8;
+use ritk_annotation::RgbaBytes;
 
 #[test]
 fn test_label_map_to_dicom_seg_identity_single_label() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
-        .add_label(1, "Label 1", RgbaU8::new(255, 0, 0, 255))
+        .add_label(1, "Label 1", RgbaBytes::new(255, 0, 0, 255))
         .unwrap();
 
     let map = LabelMap::from_data([2, 2, 2], vec![1u32; 8], table).unwrap();
@@ -35,11 +35,11 @@ fn test_label_map_to_dicom_seg_identity_single_label() {
 
 #[test]
 fn test_label_map_to_dicom_seg_background_excluded() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
-        .add_label(1, "Lesion", RgbaU8::new(255, 0, 0, 255))
+        .add_label(1, "Lesion", RgbaBytes::new(255, 0, 0, 255))
         .unwrap();
 
     let data = vec![0, 0, 1, 1];
@@ -61,11 +61,11 @@ fn test_label_map_to_dicom_seg_background_excluded() {
 
 #[test]
 fn test_label_map_to_dicom_seg_spatial_metadata() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
     table
-        .add_label(1, "A", RgbaU8::new(255, 0, 0, 255))
+        .add_label(1, "A", RgbaBytes::new(255, 0, 0, 255))
         .unwrap();
 
     let map = LabelMap::from_data([2, 2, 2], vec![1u32; 8], table).unwrap();
@@ -105,7 +105,7 @@ fn test_label_map_to_dicom_seg_spatial_metadata() {
 
 #[test]
 fn test_label_map_to_dicom_seg_error_empty_geometry() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let table = LabelTable::new();
     let map = LabelMap::new([1, 2, 2], table);
@@ -120,7 +120,7 @@ fn test_label_map_to_dicom_seg_error_empty_geometry() {
 
 #[test]
 fn test_label_map_to_dicom_seg_error_no_foreground() {
-    use ritk_core::annotation::{LabelMap, LabelTable};
+    use ritk_annotation::{LabelMap, LabelTable};
 
     let table = LabelTable::new();
     let map = LabelMap::from_data([2, 2, 2], vec![0u32; 8], table).unwrap();

@@ -60,7 +60,7 @@
 //! - scipy.ndimage.morphological_laplace:
 //!   <https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.morphological_laplace.html>
 
-use ritk_core::filter::ops::extract_vec;
+use ritk_tensor_ops::extract_vec;
 use ritk_core::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};

@@ -27,7 +27,7 @@
 use crate::fft::convolution::{fft_nd, ForwardFft};
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 use rustfft::{num_complex::Complex, FftPlanner};
 

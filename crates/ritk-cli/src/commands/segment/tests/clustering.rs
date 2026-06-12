@@ -39,7 +39,12 @@ fn test_segment_kmeans_creates_output_with_valid_labels() {
 
     ritk_io::write_nifti(&input, &make_trimodal_image()).unwrap();
 
-    run(default_args(input.clone(), output.clone(), "kmeans")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::Kmeans,
+    ))
+    .unwrap();
 
     assert!(output.exists(), "kmeans output must be created");
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -71,7 +76,7 @@ fn test_segment_kmeans_max_iterations_param_accepted() {
     let args = SegmentArgs {
         input,
         output: output.clone(),
-        method: "kmeans".to_string(),
+        method: SegmentMethod::Kmeans,
         classes: 2,
         kmeans_max_iterations: Some(50),
         ..Default::default()
@@ -96,7 +101,7 @@ fn test_segment_kmeans_seed_produces_deterministic_output() {
     let make_args = |input: std::path::PathBuf, output: std::path::PathBuf| SegmentArgs {
         input,
         output,
-        method: "kmeans".to_string(),
+        method: SegmentMethod::Kmeans,
         classes: 2,
         kmeans_seed: Some(7),
         ..Default::default()
@@ -123,7 +128,7 @@ fn test_segment_kmeans_tolerance_param_accepted() {
     let args = SegmentArgs {
         input,
         output: output.clone(),
-        method: "kmeans".to_string(),
+        method: SegmentMethod::Kmeans,
         classes: 2,
         kmeans_tolerance: Some(1e-4),
         ..Default::default()
@@ -148,7 +153,7 @@ fn test_segment_distance_transform_creates_output() {
     run(default_args(
         input.clone(),
         output.clone(),
-        "distance-transform",
+        SegmentMethod::DistanceTransform,
     ))
     .unwrap();
 
@@ -191,7 +196,7 @@ fn test_segment_distance_transform_background_is_zero() {
     run(default_args(
         input.clone(),
         output.clone(),
-        "distance-transform",
+        SegmentMethod::DistanceTransform,
     ))
     .unwrap();
 
@@ -237,7 +242,12 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
         Direction::identity(),
     );
     ritk_io::write_nifti(&input, &hollow_sphere).unwrap();
-    run(default_args(input.clone(), output.clone(), "fill-holes")).unwrap();
+    run(default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::FillHoles,
+    ))
+    .unwrap();
     let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     result.with_data_slice(|out_vals| {
         for iz in 0..nz {
@@ -274,7 +284,7 @@ fn test_segment_morphological_gradient_extracts_boundary() {
     run(default_args(
         input.clone(),
         output.clone(),
-        "morphological-gradient",
+        SegmentMethod::MorphologicalGradient,
     ))
     .unwrap();
     let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -303,7 +313,7 @@ fn test_segment_skeletonization_creates_output() {
     run(default_args(
         input.clone(),
         output.clone(),
-        "skeletonization",
+        SegmentMethod::Skeletonization,
     ))
     .unwrap();
 
@@ -321,7 +331,7 @@ fn test_segment_skeletonization_strictly_binary() {
     run(default_args(
         input.clone(),
         output.clone(),
-        "skeletonization",
+        SegmentMethod::Skeletonization,
     ))
     .unwrap();
     let skel = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -348,7 +358,11 @@ fn test_segment_connected_components_creates_output_with_correct_shape() {
 
     ritk_io::write_nifti(&input, &image).unwrap();
 
-    let args = default_args(input.clone(), output.clone(), "connected-components");
+    let args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ConnectedComponents,
+    );
     let result = run(args);
     assert!(result.is_ok(), "connected-components should succeed");
 
@@ -367,7 +381,11 @@ fn test_segment_connected_components_output_labels_are_valid() {
 
     ritk_io::write_nifti(&input, &image).unwrap();
 
-    let args = default_args(input.clone(), output.clone(), "connected-components");
+    let args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ConnectedComponents,
+    );
     run(args).unwrap();
 
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -397,7 +415,11 @@ fn test_segment_connected_components_connectivity_26() {
 
     ritk_io::write_nifti(&input, &image).unwrap();
 
-    let mut args = default_args(input.clone(), output.clone(), "connected-components");
+    let mut args = default_args(
+        input.clone(),
+        output.clone(),
+        SegmentMethod::ConnectedComponents,
+    );
     args.connectivity = 26;
     run(args).unwrap();
 

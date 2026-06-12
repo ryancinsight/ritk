@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use ritk_core::annotation::LabelId;
+use ritk_annotation::LabelId;
 use std::collections::HashMap;
 
 use crate::format::dicom::reader::types::literal_arraystring;
@@ -30,7 +30,7 @@ pub enum SegEncoding {
 /// - `label_map.shape` has zero dimension.
 /// - No foreground labels exist.
 pub fn label_map_to_dicom_seg(
-    label_map: &ritk_core::annotation::LabelMap,
+    label_map: &ritk_annotation::LabelMap,
     origin: [f64; 3],
     spacing: [f64; 3],
     direction: [f64; 9],
@@ -158,7 +158,7 @@ pub fn label_map_to_dicom_seg(
 /// - `frame_segment_numbers.len() == n_frames`.
 /// - `pixel_data.len() == n_frames` and each frame length is `rows * cols`.
 /// - Every frame must reference a defined segment.
-pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::annotation::LabelMap> {
+pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_annotation::LabelMap> {
     if seg.rows == 0 || seg.cols == 0 {
         bail!(
             "DICOM-SEG has invalid frame geometry: rows={}, cols={}",
@@ -198,7 +198,7 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         }
     }
 
-    let mut table = ritk_core::annotation::LabelTable::new();
+    let mut table = ritk_annotation::LabelTable::new();
     let mut segment_to_index: HashMap<u16, usize> = HashMap::with_capacity(seg.segments.len());
     let mut labels_by_index = Vec::with_capacity(seg.segments.len());
     for (segment_idx, s) in seg.segments.iter().enumerate() {
@@ -359,14 +359,14 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         }
     }
 
-    ritk_core::annotation::LabelMap::from_data([nz, seg.rows, seg.cols], data, table)
+    ritk_annotation::LabelMap::from_data([nz, seg.rows, seg.cols], data, table)
         .map_err(|e| anyhow::anyhow!("failed to build LabelMap from DICOM-SEG: {e}"))
 }
 
-pub(super) fn segment_color(label_id: LabelId) -> ritk_core::annotation::RgbaU8 {
+pub(super) fn segment_color(label_id: LabelId) -> ritk_annotation::RgbaBytes {
     let seed = u32::from(label_id).wrapping_mul(0x9E37_79B9);
     let r = 40 + ((seed & 0x7F) as u8);
     let g = 40 + (((seed >> 8) & 0x7F) as u8);
     let b = 40 + (((seed >> 16) & 0x7F) as u8);
-    ritk_core::annotation::RgbaU8::new(r, g, b, 180)
+    ritk_annotation::RgbaBytes::new(r, g, b, 180)
 }

@@ -14,6 +14,10 @@
 //! enumeration, supporting D=1, D=2, and D=3 images (BinaryFillHoles and
 //! MorphologicalGradient support D=3 only).
 
+/// Binary-mask foreground threshold: voxels with value strictly above this threshold
+/// are foreground; those at or below are background.
+pub(crate) const FOREGROUND_THRESHOLD: f32 = 0.5;
+
 pub mod binary_closing;
 pub mod binary_dilation;
 pub mod binary_erosion;

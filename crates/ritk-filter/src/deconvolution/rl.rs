@@ -16,10 +16,12 @@
 //! - Preserves total flux: Σ uₖ = Σ g for all k
 //! - Converges to the maximum-likelihood estimate under Poisson noise
 
-use super::regularization::{apply_iterative, IterativeAlgorithm, IterativeParams};
+use super::regularization::{
+    apply_iterative, IterativeAlgorithm, IterativeParams, DEFAULT_ITERATIVE_TOLERANCE,
+};
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 use ritk_image::Image;
 
 /// Richardson-Lucy iterative deconvolution (expectation-maximization).
@@ -52,7 +54,7 @@ impl RichardsonLucyDeconvolution {
     pub fn new() -> Self {
         Self {
             max_iterations: 30,
-            tolerance: 1e-6,
+            tolerance: DEFAULT_ITERATIVE_TOLERANCE,
         }
     }
 
