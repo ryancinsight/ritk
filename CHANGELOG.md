@@ -1,5 +1,48 @@
 # CHANGELOG
 
+## [0.64.0] — 2026-06-12 (Sprint 367: Architecture Hardening Round 6 — ENUM · NAMING · SRP · SSOT · DRY · COMPAT + ritk-core Crate Extraction)
+
+### Added
+- `ritk-annotation` (new crate): `RgbaBytes`, `RgbaLinear`, `LabelMap`, `LabelTable`, `AnnotationState`, `OverlayState` and related types extracted from ritk-core; `ritk-core/annotation/mod.rs` is now a `pub use ritk_annotation::*` shim.
+- `ritk-statistics` (new crate): statistics, normalization, image comparison, information theory, and noise estimation modules extracted from ritk-core; `ritk-core/statistics/mod.rs` is now a `pub use ritk_statistics::*` shim.
+- `ritk-morphology` (new crate): morphology primitives (`Offset`, `StructuringElement`, shape markers) extracted from ritk-core.
+- `ritk-tensor-ops` (new crate): tensor operation utilities extracted from ritk-core.
+- `ritk-filter/noise/mod.rs`: `DEFAULT_NOISE_SEED: u64 = 42` const; 4 noise filter structs updated.
+- `ritk-filter/deconvolution/regularization.rs`: `DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6` const; Landweber + RL filters updated.
+- `ritk-filter/noise/mod.rs`: `box_muller(u1, u2) -> f64` helper extracted; gaussian, shot, and speckle noise filters use it.
+- `ritk-segmentation/morphology/mod.rs`: `FOREGROUND_THRESHOLD: f32 = 0.5` const; binary_closing, binary_dilation, binary_erosion, fill_holes, morphological_gradient updated.
+- `ritk-analyze/codec.rs`: shared read/write helpers for i16/i32/f32 and `DT_FLOAT` constant; reader.rs + writer.rs use shared module.
+- `ritk-annotation`: 3 test files extracted: `tests_annotation_state.rs`, `tests_overlay.rs`, `tests_color.rs`.
+- `ritk-registration`: 3 test files extracted: `tests_lncc.rs`, `tests_ncc.rs`, `tests_numerical.rs`.
+- `ritk-io`: `tests_sop_class.rs` extracted (193L).
+- `ritk-segmentation`: 4 test files extracted: `tests_shape_detection.rs` (230L), `tests_growcut.rs` (175L), `tests_fill_holes.rs` (116L), `tests_morphological_gradient.rs` (114L).
+
+### Changed
+- `ritk-cli`: `SegmentArgs.method: String` → `SegmentMethod` ValueEnum (23 variants); exhaustive match; unreachable `other =>` arm removed.
+- `ritk-cli`: `ConvertArgs.format: Option<String>` → `Option<OutputFormat>` ValueEnum (8 variants); clap rejects unknown formats at parse time.
+- `ritk-cli`: `NormalizeArgs.contrast: Option<String>` → `Option<CliContrast>` ValueEnum; clap rejects unknown values at parse time.
+- `ritk-cli`: `FilterArgs.order: usize` → `CliDerivativeOrder` ValueEnum; `parse_spacing_mode` trivial wrapper removed.
+- `ritk-annotation`: `RgbaU8` renamed to `RgbaBytes`; `RgbaF32` renamed to `RgbaLinear`; all callers in ritk-io and ritk-snap updated.
+- `ritk-filter`: `UnaryPixelOp::apply_f32` renamed to `apply` (type-name suffix removed).
+- `ritk-filter`: `fft2d`/`fft3d` visibility narrowed from `pub` to `pub(crate)`; deconvolution/helpers.rs migrated to call `fft_nd`.
+- `ritk-io`: `required_usize`/`optional_usize`/`optional_u16` unified to generic `read_required<T>`/`read_optional<T>` in color_common.rs.
+- `ritk-io`: `read_nested_f64` generalized to `read_nested_scalar<T: FromStr>` in helpers.rs.
+- `ritk-io`: `build_rle_fragment_8bit` renamed to `build_rle_fragment` (type-name suffix removed).
+- `ritk-io`: `CommandField::from_u16` replaced with `impl TryFrom<u16> for CommandField`.
+
+### Removed
+- `ritk-cli`: Dead test for unreachable `other =>` arm in segment dispatch removed.
+- `ritk-cli`: Dead contrast-error test in normalize dispatch removed.
+- `ritk-interpolation/kernel/macros.rs`: `DRY_353_02_STATUS` dead tracking const removed.
+- `ritk-registration`: Dead `is_zero_pad` fn; stale `#[allow(dead_code)]` on `BoundsPolicy`; dead `is_empty` from `bin_range.rs` + `stack_weights.rs` removed.
+- `ritk-registration`: `ParzenConfig` test-only fns moved behind `#[cfg(test)]`; `#[allow(dead_code)]` suppressions removed.
+- `ritk-filter/deconvolution/regularization.rs`: Stale doc references to removed `apply_2d`/`apply_3d` corrected.
+
+### Fixed
+- `ritk-snap/label/tests.rs`: `use super::*` restored after `RgbaU8`→`RgbaBytes` rename (agent had incorrectly removed it).
+- `ritk-registration/direct_parzen/cache.rs`: `#[allow(dead_code)]` on feature-gated functions replaced with correct `#[cfg(feature = "direct-parzen")]` gates.
+- `ritk-registration`: `compute_joint_histogram_from_cache` suppression changed from `#[allow(dead_code)]` to `#[cfg(not(feature = "direct-parzen"))]`.
+
 ## [0.63.0] — 2026-06-12 (Sprint 366: Architecture Hardening Round 5 — NAMING · SSOT · COMPAT · DRY · SRP · ENUM · PRIM)
 
 ### Changed

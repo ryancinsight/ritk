@@ -4,6 +4,52 @@
 
 ---
 
+## Sprint 367 Audit (2026-06-12) — Architecture Hardening Round 6: ENUM · NAMING · SRP · SSOT · DRY · COMPAT + ritk-core Crate Extraction
+
+### Gaps Identified (parallel audit: ritk-core, ritk-annotation, ritk-statistics, ritk-morphology, ritk-tensor-ops, ritk-filter, ritk-segmentation, ritk-registration, ritk-io, ritk-cli, ritk-interpolation, ritk-snap, ritk-analyze)
+- **ARCH (ritk-core)**: `annotation/` and `statistics/` bounded contexts grew large enough to warrant independent crates; `ritk-annotation`, `ritk-statistics`, `ritk-morphology`, `ritk-tensor-ops` extracted; `annotation/mod.rs` + `statistics/mod.rs` reduced to `pub use` shims.
+- **ENUM (ritk-cli)**: `SegmentArgs.method: String` (23-variant closed set); `SegmentMethod` ValueEnum; unreachable `other =>` arm + dead test deleted.
+- **ENUM (ritk-cli)**: `ConvertArgs.format: Option<String>` (8-variant closed set); `OutputFormat` ValueEnum.
+- **ENUM (ritk-cli)**: `NormalizeArgs.contrast: Option<String>` closed set; `CliContrast` ValueEnum; dead contrast-error test deleted.
+- **ENUM (ritk-cli)**: `FilterArgs.order: usize` — derivative order is a closed bounded set; `CliDerivativeOrder` ValueEnum; `parse_spacing_mode` trivial forwarder deleted.
+- **NAMING (ritk-annotation)**: `RgbaU8`/`RgbaF32` — type names in struct identifiers (naming prohibition); renamed `RgbaBytes`/`RgbaLinear`; all callers in ritk-io + ritk-snap updated.
+- **NAMING (ritk-filter)**: `UnaryPixelOp::apply_f32` — type name suffix on trait method; renamed `apply`.
+- **NAMING (ritk-filter)**: `fft2d`/`fft3d` — leaked pub visibility; narrowed to `pub(crate)`; deconvolution/helpers.rs migrated to `fft_nd`.
+- **NAMING (ritk-io)**: `required_usize`/`optional_usize`/`optional_u16` — type-name suffixes on parser helpers; unified to `read_required<T>`/`read_optional<T>` in color_common.rs.
+- **NAMING (ritk-io)**: `read_nested_f64` — type-name suffix; generalized to `read_nested_scalar<T: FromStr>` in helpers.rs.
+- **NAMING (ritk-core)**: `test_normalize_3d`/`test_dot_3d` — dimension+type suffixes in test fn names; renamed to descriptive `test_normalize_unit_vector`/`test_dot_product`.
+- **NAMING (ritk-io)**: `build_rle_fragment_8bit` — type-name suffix; renamed `build_rle_fragment`.
+- **NAMING (ritk-io)**: `CommandField::from_u16` — bespoke constructor encodes type name; replaced with `impl TryFrom<u16> for CommandField` (std-trait integration).
+- **SRP (ritk-annotation)**: 3 inline test blocks extracted: `tests_annotation_state.rs`, `tests_overlay.rs`, `tests_color.rs`.
+- **SRP (ritk-registration)**: 3 inline test blocks extracted: `tests_lncc.rs`, `tests_ncc.rs`, `tests_numerical.rs`.
+- **SRP (ritk-io)**: `tests_sop_class.rs` extracted (193L).
+- **SRP (ritk-segmentation)**: 4 inline test blocks extracted: `tests_shape_detection.rs` (230L), `tests_growcut.rs` (175L), `tests_fill_holes.rs` (116L), `tests_morphological_gradient.rs` (114L).
+- **SSOT (ritk-filter)**: Noise seed literal `42u64` at 4 sites; `DEFAULT_NOISE_SEED: u64` const extracted to noise/mod.rs.
+- **SSOT (ritk-filter)**: Iterative tolerance `1e-6_f32` at 2 sites; `DEFAULT_ITERATIVE_TOLERANCE: f32` const extracted to deconvolution/regularization.rs.
+- **SSOT (ritk-segmentation)**: `FOREGROUND_THRESHOLD` literal duplicated across 5 morphology modules; `FOREGROUND_THRESHOLD: f32` const extracted to segmentation/morphology/mod.rs.
+- **DRY (ritk-filter)**: `Box-Muller` transform duplicated across gaussian/shot/speckle noise modules; `box_muller(u1, u2) -> f64` extracted to noise/mod.rs.
+- **DRY (ritk-analyze)**: Read/write helpers for i16/i32/f32 + `DT_FLOAT` const duplicated between reader.rs and writer.rs; shared `codec.rs` module extracted.
+- **COMPAT (ritk-interpolation)**: `DRY_353_02_STATUS` dead tracking const in kernel/macros.rs; removed.
+- **COMPAT (ritk-registration)**: Stale `#[allow(dead_code)]` on `BoundsPolicy`; dead `is_zero_pad`; `BinRange::is_empty` exposed publicly but test-only; all corrected.
+- **COMPAT (ritk-registration)**: `#[allow(dead_code)]` on feature-gated fns in direct-parzen `cache.rs`; suppression replaced with proper feature gate.
+- **COMPAT (ritk-registration)**: `ParzenConfig` test-only fns not gated `#[cfg(test)]`; corrected; suppressions removed.
+- **COMPAT (ritk-registration)**: `compute_joint_histogram_from_cache` `#[allow(dead_code)]` — wrong suppression mechanism; replaced with `#[cfg(not(feature = "direct-parzen"))]`.
+- **COMPAT (ritk-registration)**: Dead `is_empty` methods in `bin_range.rs` + `stack_weights.rs`; removed.
+- **COMPAT (ritk-filter)**: Stale doc in `deconvolution/regularization.rs` referencing removed `apply_2d`/`apply_3d`; corrected.
+- **FIX**: ritk-snap/label/tests.rs: `use super::*` incorrectly removed during RgbaU8→RgbaBytes rename; restored.
+
+### Gaps Closed This Session
+All 30 gap classes above closed (40 patch deliverables + 1 [arch] crate extraction).
+
+### Residual Risk
+- `NAMING-362-23`: `transform_1d/_2d/_3d/_4d` remains BLOCKED [arch] — `DimInterpolation<B>` sealed trait ADR required before implementation.
+- `SRP-362-20`: `FilterArgs` → `FilterKind` ValueEnum — [major] scope, deferred.
+- `NAMING-FILTER-01`: `FftConvolution*3DFilter` const-generic unification — [major], ADR required.
+- `TIMEOUT-367`: 4 ritk-interpolation tests (`dim4`, `dim3_extended`) exceed 30s threshold — pre-existing; performance_engineering investigation needed; not introduced by this sprint.
+- JPEG2000 Windows abort (`0xc0000374`) remains pre-existing.
+
+---
+
 ## Sprint 366 Audit (2026-06-12) — Architecture Hardening Round 5: NAMING · SSOT · COMPAT · DRY · SRP · ENUM · PRIM
 
 ### Gaps Identified (6-agent parallel audit: ritk-core, ritk-filter, ritk-segmentation, ritk-registration, ritk-io, ritk-python, ritk-cli)

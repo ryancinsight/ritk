@@ -1,5 +1,63 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 367 — Architecture Hardening Round 6: ENUM · NAMING · SRP · SSOT · DRY · COMPAT + ritk-core Crate Extraction
+**Target version**: 0.64.0  
+**Sprint phase**: Closure — all 40 patches + [arch] crate extraction delivered and verified.
+
+### Delivered (Sprint 367)
+- [x] ARCH-367 [arch]: Extract `ritk-annotation`, `ritk-statistics`, `ritk-morphology`, `ritk-tensor-ops` from ritk-core; compatibility shims in `annotation/mod.rs` + `statistics/mod.rs`
+- [x] ENUM-367-35 [minor]: `SegmentArgs.method: String` → `SegmentMethod` ValueEnum (23 variants); unreachable arm + dead test removed
+- [x] ENUM-367-36 [minor]: `ConvertArgs.format: Option<String>` → `Option<OutputFormat>` ValueEnum (8 variants)
+- [x] ENUM-367-37 [minor]: `NormalizeArgs.contrast: Option<String>` → `Option<CliContrast>` ValueEnum; dead test removed
+- [x] ENUM-367-38 [minor/patch]: `FilterArgs.order: usize` → `CliDerivativeOrder` ValueEnum; `parse_spacing_mode` wrapper removed
+- [x] NAMING-367-05 [patch]: `RgbaU8`→`RgbaBytes`, `RgbaF32`→`RgbaLinear`; all callers in ritk-io + ritk-snap updated
+- [x] NAMING-367-06 [patch]: `UnaryPixelOp::apply_f32` → `apply` in ritk-filter
+- [x] NAMING-367-07 [patch]: `fft2d`/`fft3d` `pub` → `pub(crate)`; deconvolution/helpers.rs migrated to `fft_nd`
+- [x] NAMING-367-08 [patch]: `required_usize`/`optional_usize`/`optional_u16` → `read_required<T>`/`read_optional<T>` in color_common.rs
+- [x] NAMING-367-09 [patch]: `read_nested_f64` → `read_nested_scalar<T: FromStr>` in ritk-io/helpers.rs
+- [x] NAMING-367-10 [patch]: `test_normalize_3d`/`test_dot_3d` → `test_normalize_unit_vector`/`test_dot_product`
+- [x] NAMING-367-11 [patch]: `build_rle_fragment_8bit` → `build_rle_fragment`
+- [x] NAMING-367-12 [patch]: `CommandField::from_u16` → `impl TryFrom<u16> for CommandField`
+- [x] SRP-367-A1 [patch]: ritk-annotation `tests_annotation_state.rs` extracted
+- [x] SRP-367-A2 [patch]: ritk-annotation `tests_overlay.rs` extracted
+- [x] SRP-367-A3 [patch]: ritk-annotation `tests_color.rs` extracted
+- [x] SRP-367-R1 [patch]: ritk-registration `tests_lncc.rs` extracted
+- [x] SRP-367-R2 [patch]: ritk-registration `tests_ncc.rs` extracted
+- [x] SRP-367-R3 [patch]: ritk-registration `tests_numerical.rs` extracted
+- [x] SRP-367-I1 [patch]: ritk-io `tests_sop_class.rs` extracted (193L)
+- [x] SRP-367-S1 [patch]: ritk-segmentation `tests_shape_detection.rs` extracted (230L)
+- [x] SRP-367-S2 [patch]: ritk-segmentation `tests_growcut.rs` extracted (175L)
+- [x] SRP-367-S3 [patch]: ritk-segmentation `tests_fill_holes.rs` extracted (116L)
+- [x] SRP-367-S4 [patch]: ritk-segmentation `tests_morphological_gradient.rs` extracted (114L)
+- [x] SSOT-367-23 [patch]: `DEFAULT_NOISE_SEED: u64 = 42` const; 4 noise filters updated
+- [x] SSOT-367-24 [patch]: `DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6` const; landweber + rl updated
+- [x] SSOT-367-25 [patch]: `FOREGROUND_THRESHOLD: f32 = 0.5` const; 5 morphology modules updated
+- [x] DRY-367-28 [patch]: `box_muller(u1, u2) -> f64` extracted to noise/mod.rs; 3 noise filters use it
+- [x] DRY-367-30 [patch]: `ritk-analyze/codec.rs` shared helpers + `DT_FLOAT` const; reader.rs + writer.rs updated
+- [x] COMPAT-367-32 [patch]: `DRY_353_02_STATUS` dead const removed from ritk-interpolation/kernel/macros.rs
+- [x] COMPAT-367-33 [patch]: Stale `#[allow(dead_code)]` on `BoundsPolicy` removed; dead `is_zero_pad` deleted; `BinRange::is_empty` gated `#[cfg(test)]`
+- [x] COMPAT-367-34 [patch]: `#[allow(dead_code)]` removed from direct-parzen `cache.rs` feature-gated functions
+- [x] COMPAT-367-35 [patch]: `ParzenConfig` test-only fns gated `#[cfg(test)]`; suppressions removed
+- [x] COMPAT-367-36 [patch]: `compute_joint_histogram_from_cache` `#[allow(dead_code)]` → `#[cfg(not(feature = "direct-parzen"))]`
+- [x] COMPAT-367-37 [patch]: Dead `is_empty` removed from `bin_range.rs` + `stack_weights.rs`; suppressions removed
+- [x] COMPAT-367-39 [patch]: Stale doc in `deconvolution/regularization.rs` referencing `apply_2d`/`apply_3d` corrected
+- [x] FIX-367-INT [patch]: ritk-snap/label/tests.rs `use super::*` restored after RgbaU8→RgbaBytes rename
+
+### Blocked / Deferred
+- [ ] NAMING-362-23 [arch]: `transform_1d/_2d/_3d/_4d` — BLOCKED; `DimInterpolation<B>` sealed trait design needed
+- [ ] SRP-362-20 [major]: `FilterArgs` → `FilterKind` ValueEnum — carry forward
+- [ ] NAMING-FILTER-01 [major]: `FftConvolution3DFilter`/`FftNormalizedCorrelation3DFilter` → const-generic unification
+- [ ] TIMEOUT-367: ritk-interpolation 4-test timeout cluster (`dim4`, `dim3_extended`) — investigate under performance_engineering protocol
+
+### Verification gate (Sprint 367)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run -p ritk-core -p ritk-filter -p ritk-segmentation -p ritk-statistics -p ritk-annotation` → 1429/1429 passed
+- [x] `cargo nextest run -p ritk-registration --lib` → 591/591 passed, 1 skipped
+- [x] `cargo nextest run -p ritk-io -p ritk-cli --no-fail-fast` → 523/524 passed (1 pre-existing JPEG2000 Windows abort)
+- [x] Commit: ec6badc pushed to origin/main
+
+---
+
 ## Sprint 366 — Architecture Hardening Round 5: NAMING · SSOT · COMPAT · DRY · SRP · ENUM · PRIM
 **Target version**: 0.63.0  
 **Sprint phase**: Closure — all 20 patches delivered and verified.

@@ -4,6 +4,74 @@
 
 ---
 
+## Sprint 367 — Architecture Hardening Round 6: ENUM · NAMING · SRP · SSOT · DRY · COMPAT + ritk-core Crate Extraction
+
+**Status**: Complete  
+**Version**: 0.64.0  
+**Commit**: ec6badc  
+
+### Delivered
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| ARCH-367 | Extract `ritk-annotation`, `ritk-statistics`, `ritk-morphology`, `ritk-tensor-ops` from ritk-core; `annotation/mod.rs` + `statistics/mod.rs` → thin `pub use` shims [arch] | **Done** |
+| ENUM-367-35 | `SegmentArgs.method: String` → `SegmentMethod` ValueEnum (23 variants); unreachable `other =>` arm + dead test removed [minor] | **Done** |
+| ENUM-367-36 | `ConvertArgs.format: Option<String>` → `Option<OutputFormat>` ValueEnum (8 variants) [minor] | **Done** |
+| ENUM-367-37 | `NormalizeArgs.contrast: Option<String>` → `Option<CliContrast>` ValueEnum; dead contrast-error test removed [minor] | **Done** |
+| ENUM-367-38 | `FilterArgs.order: usize` → `CliDerivativeOrder` ValueEnum; `parse_spacing_mode` trivial wrapper removed [minor/patch] | **Done** |
+| NAMING-367-05 | `RgbaU8`→`RgbaBytes`, `RgbaF32`→`RgbaLinear` in ritk-annotation; all callers in ritk-io + ritk-snap updated [patch] | **Done** |
+| NAMING-367-06 | `UnaryPixelOp::apply_f32` → `apply` in ritk-filter [patch] | **Done** |
+| NAMING-367-07 | `fft2d`/`fft3d` `pub` → `pub(crate)`; deconvolution/helpers.rs migrated to `fft_nd` [patch] | **Done** |
+| NAMING-367-08 | `required_usize`/`optional_usize`/`optional_u16` → `read_required<T>`/`read_optional<T>` in ritk-io/color_common.rs [patch] | **Done** |
+| NAMING-367-09 | `read_nested_f64` → `read_nested_scalar<T: FromStr>` in ritk-io/helpers.rs [patch] | **Done** |
+| NAMING-367-10 | `test_normalize_3d`/`test_dot_3d` → `test_normalize_unit_vector`/`test_dot_product` [patch] | **Done** |
+| NAMING-367-11 | `build_rle_fragment_8bit` → `build_rle_fragment` [patch] | **Done** |
+| NAMING-367-12 | `CommandField::from_u16` → `impl TryFrom<u16> for CommandField` [patch] | **Done** |
+| SRP-367-A1 | ritk-annotation: `tests_annotation_state.rs` extracted [patch] | **Done** |
+| SRP-367-A2 | ritk-annotation: `tests_overlay.rs` extracted [patch] | **Done** |
+| SRP-367-A3 | ritk-annotation: `tests_color.rs` extracted [patch] | **Done** |
+| SRP-367-R1 | ritk-registration: `tests_lncc.rs` extracted [patch] | **Done** |
+| SRP-367-R2 | ritk-registration: `tests_ncc.rs` extracted [patch] | **Done** |
+| SRP-367-R3 | ritk-registration: `tests_numerical.rs` extracted [patch] | **Done** |
+| SRP-367-I1 | ritk-io: `tests_sop_class.rs` extracted (193L) [patch] | **Done** |
+| SRP-367-S1 | ritk-segmentation: `tests_shape_detection.rs` extracted (230L) [patch] | **Done** |
+| SRP-367-S2 | ritk-segmentation: `tests_growcut.rs` extracted (175L) [patch] | **Done** |
+| SRP-367-S3 | ritk-segmentation: `tests_fill_holes.rs` extracted (116L) [patch] | **Done** |
+| SRP-367-S4 | ritk-segmentation: `tests_morphological_gradient.rs` extracted (114L) [patch] | **Done** |
+| SSOT-367-23 | `DEFAULT_NOISE_SEED: u64 = 42` const in noise/mod.rs; 4 noise filters updated [patch] | **Done** |
+| SSOT-367-24 | `DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6` const in deconvolution/regularization.rs; landweber + rl updated [patch] | **Done** |
+| SSOT-367-25 | `FOREGROUND_THRESHOLD: f32 = 0.5` const in segmentation/morphology/mod.rs; binary_closing/dilation/erosion/fill_holes/morphological_gradient updated [patch] | **Done** |
+| DRY-367-28 | `box_muller(u1, u2) -> f64` extracted to noise/mod.rs; gaussian/shot/speckle noise filters use it [patch] | **Done** |
+| DRY-367-30 | `ritk-analyze/codec.rs`: read/write i16/i32/f32 helpers + `DT_FLOAT` const; reader.rs + writer.rs use shared module [patch] | **Done** |
+| COMPAT-367-32 | `DRY_353_02_STATUS` dead const removed from ritk-interpolation/kernel/macros.rs [patch] | **Done** |
+| COMPAT-367-33 | Stale `#[allow(dead_code)]` on `BoundsPolicy` removed; dead `is_zero_pad` deleted; `BinRange::is_empty` gated `#[cfg(test)]` [patch] | **Done** |
+| COMPAT-367-34 | `#[allow(dead_code)]` removed from direct-parzen `cache.rs` feature-gated functions [patch] | **Done** |
+| COMPAT-367-35 | `ParzenConfig` test-only fns gated `#[cfg(test)]`; suppressions removed [patch] | **Done** |
+| COMPAT-367-36 | `compute_joint_histogram_from_cache` `#[allow(dead_code)]` → `#[cfg(not(feature = "direct-parzen"))]` [patch] | **Done** |
+| COMPAT-367-37 | Dead `is_empty` removed from `bin_range.rs` + `stack_weights.rs`; `#[allow(dead_code)]` removed [patch] | **Done** |
+| COMPAT-367-39 | Stale doc in `deconvolution/regularization.rs` referencing `apply_2d`/`apply_3d` corrected [patch] | **Done** |
+| FIX-367-INT | ritk-snap/label/tests.rs: `use super::*` restored after RgbaU8→RgbaBytes rename [patch] | **Done** |
+
+### Blocked / Deferred (carry-forward)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED [arch]: duplicate method names on same type; requires `DimInterpolation<B>` sealed trait per-D impl | [arch] |
+| SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
+| NAMING-FILTER-01 | `FftConvolution3DFilter`/`FftNormalizedCorrelation3DFilter` → const-generic `<B, const D>` unification [major] | Low |
+| TIMEOUT-367 | ritk-interpolation 4-test timeout cluster (`dim4`, `dim3_extended`) — pre-existing; investigate under performance_engineering protocol | Medium |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| `cargo nextest run -p ritk-core -p ritk-filter -p ritk-segmentation -p ritk-statistics -p ritk-annotation` | 1429/1429 passed |
+| `cargo nextest run -p ritk-registration --lib` | 591/591 passed, 1 skipped |
+| `cargo nextest run -p ritk-io -p ritk-cli --no-fail-fast` | 523/524 passed (1 pre-existing JPEG2000 Windows abort 0xc0000374) |
+
+---
+
 ## Sprint 366 — Architecture Hardening Round 5: NAMING · SSOT · COMPAT · DRY · SRP · ENUM · PRIM
 
 **Status**: Complete  
