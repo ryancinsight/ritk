@@ -1,5 +1,45 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 366 — Architecture Hardening Round 5: NAMING · SSOT · COMPAT · DRY · SRP · ENUM · PRIM
+**Target version**: 0.63.0  
+**Sprint phase**: Closure — all 20 patches delivered and verified.
+
+### Delivered (Sprint 366)
+- [x] NAMING-CORE-01 [patch]: `gaussian_kernel_1d` → `gaussian_kernel`; all callers updated
+- [x] ENUM-366-01 [minor]: `ResampleArgs.interpolation: String` → `InterpolationMode` ValueEnum
+- [x] COMPAT-366-02 [patch]: Delete 4 `#[deprecated(0.64.0)] apply_3d` shims in noise filters
+- [x] SSOT-366-03 [patch]: Delete dead `wgpu_compat.rs` shadow module in ritk-registration
+- [x] COMPAT-366-04 [patch]: Remove `let _device` dead bindings in normalization modules
+- [x] SSOT-366-05 [patch]: `NORMALIZER_EPSILON` const; `minmax.rs` + `zscore.rs` updated
+- [x] SSOT-366-06 [patch]: `FOREGROUND_THRESHOLD` const; 4 statistics modules updated
+- [x] SSOT-366-07 [patch]: Fix stale docs in `deconvolution/helpers.rs` + `mod.rs`
+- [x] NAMING-366-08 [patch]: `cross_3d/normalize_3d/dot_3d` → `cross/normalize/dot`; 22 callers updated
+- [x] NAMING-366-09 [patch]: `spatial_gradient_2d/_3d`/`spatial_laplacian_2d/_3d` → `*_planar/*_volumetric`
+- [x] NAMING-366-10 [patch]: `VectorField3D/VectorFieldMut3D` → `VectorField/VectorFieldMut`; 12 files updated
+- [x] NAMING-366-11 [patch]: `get_f64/get_f64_vec` → `get_scalar/get_scalar_vec` in series/loader.rs
+- [x] DRY-366-12 [patch]: `read_nested_f64` consolidated into `dicom/helpers.rs`
+- [x] SRP-366-13 [patch]: `threshold/li.rs` inline tests → `tests_li.rs`
+- [x] SRP-366-14 [patch]: `threshold/yen.rs` inline tests → `tests_yen.rs`
+- [x] SRP-366-15 [patch]: `watershed/mod.rs` inline tests → `tests_watershed.rs`
+- [x] SRP-366-16 [patch]: `labeling/relabel.rs` inline tests → `tests_relabel.rs`
+- [x] SRP-366-17 [patch]: `color_multiframe.rs` inline tests → `tests_color_multiframe.rs`
+- [x] PRIM-366-18 [patch]: `SegmentArgs.markers: Option<String>` → `Option<PathBuf>`
+- [x] COMPAT-366-19 [patch]: Remove dead `integration_steps` field from `DiffeomorphicSSMMorph`
+
+### Blocked / Deferred
+- [ ] NAMING-362-23 [arch]: `transform_1d/_2d/_3d/_4d` — BLOCKED; `DimInterpolation<B>` sealed trait design needed
+- [ ] SRP-362-20 [major]: `FilterArgs` → `FilterKind` ValueEnum — carry forward
+- [ ] NAMING-FILTER-01 [major]: `FftConvolution3DFilter`/`FftNormalizedCorrelation3DFilter` → const-generic unification
+
+### Verification gate (Sprint 366)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run -p ritk-core -p ritk-filter -p ritk-segmentation` → 1447/1447 passed
+- [x] `cargo nextest run -p ritk-registration --lib` → 591/591 passed, 1 skipped
+- [x] `cargo nextest run -p ritk-io -p ritk-cli --no-fail-fast` → 526/527 (1 pre-existing JPEG2000 Windows abort)
+- [x] Commit: 0feb9ec pushed to origin/main
+
+---
+
 ## Sprint 365 — Architecture Hardening Round 4: COMPAT · NAMING · SSOT · SRP · DRY · DIP · ENUM
 **Target version**: 0.62.0  
 **Sprint phase**: Closure — all 20 patches delivered and verified.

@@ -4,6 +4,42 @@
 
 ---
 
+## Sprint 366 Audit (2026-06-12) — Architecture Hardening Round 5: NAMING · SSOT · COMPAT · DRY · SRP · ENUM · PRIM
+
+### Gaps Identified (6-agent parallel audit: ritk-core, ritk-filter, ritk-segmentation, ritk-registration, ritk-io, ritk-python, ritk-cli)
+- **NAMING (ritk-core)**: `gaussian_kernel_1d` carry-forward; 6 missed callers in tests/level_set; fixed.
+- **NAMING (ritk-registration)**: `spatial_gradient_2d/_3d`, `spatial_laplacian_2d/_3d` private dim-suffix helpers in dispatch.rs; renamed `*_planar/*_volumetric`.
+- **NAMING (ritk-registration)**: `VectorField3D`/`VectorFieldMut3D` struct names; renamed to `VectorField`/`VectorFieldMut`; 12 call-site files updated.
+- **NAMING (ritk-io)**: `cross_3d`/`normalize_3d`/`dot_3d` in DICOM geometry.rs; renamed `cross`/`normalize`/`dot`; 22 callers updated.
+- **NAMING (ritk-io)**: `get_f64`/`get_f64_vec` private type-suffixed helpers in series/loader.rs; renamed `get_scalar`/`get_scalar_vec`.
+- **SSOT (ritk-registration)**: Dead `wgpu_compat.rs` shadow copy of `ritk_wgpu_compat::WGPU_CHUNK_SIZE`; deleted + lib.rs declaration removed.
+- **SSOT (ritk-core)**: `1e-8_f32` normalizer epsilon bare literal in minmax.rs (×1) + zscore.rs (×2); `NORMALIZER_EPSILON` const extracted to normalization/mod.rs.
+- **SSOT (ritk-core)**: `0.5` foreground threshold literal at 6 sites across 4 modules; `FOREGROUND_THRESHOLD` const extracted to statistics/mod.rs.
+- **SSOT (ritk-filter)**: Stale docs in deconvolution/helpers.rs (referenced non-existent `convolve_2d`/`convolve_3d`) and mod.rs (claimed `apply_2d`/`apply_3d`); corrected.
+- **COMPAT (ritk-filter)**: 4 `#[deprecated(0.64.0)] apply_3d` shims in noise filters; deleted.
+- **COMPAT (ritk-registration)**: `DiffeomorphicSSMMorph::integration_steps` field with `#[allow(dead_code)]`, only read in test assertion; removed.
+- **COMPAT (ritk-core)**: `let _device` dead bindings in `histogram_matching.rs` and `nyul_udupa.rs`; removed.
+- **DRY (ritk-io)**: `read_nested_f64` duplicated in `multiframe/per_frame.rs` and `seg/reader.rs`; consolidated into new `dicom/helpers.rs`.
+- **SRP (ritk-segmentation)**: `threshold/li.rs` 150L inline test block; extracted to `tests_li.rs`.
+- **SRP (ritk-segmentation)**: `threshold/yen.rs` 151L inline test block; extracted to `tests_yen.rs`.
+- **SRP (ritk-segmentation)**: `watershed/mod.rs` 162L inline test block; extracted to `tests_watershed.rs`.
+- **SRP (ritk-segmentation)**: `labeling/relabel.rs` 193L inline test block; extracted to `tests_relabel.rs`.
+- **SRP (ritk-io)**: `color_multiframe.rs` 175L inline test block; extracted to `tests_color_multiframe.rs`.
+- **ENUM (ritk-cli)**: `ResampleArgs.interpolation: String` 4-variant closed set; `InterpolationMode` ValueEnum.
+- **PRIM (ritk-cli)**: `SegmentArgs.markers: Option<String>` path field; changed to `Option<PathBuf>`.
+
+### Gaps Closed This Session
+All 20 gap classes above closed.
+
+### Residual Risk
+- `NAMING-362-23`: `transform_1d/_2d/_3d/_4d` remains BLOCKED [arch] — design sprint needed for `DimInterpolation<B>` sealed trait approach.
+- `SRP-362-20`: `FilterArgs` → `FilterKind` ValueEnum — [major] scope, deferred.
+- `NAMING-FILTER-01`: `FftConvolution*3DFilter` const-generic unification — [major], ADR required.
+- Many dimension-suffixed test helper names remain in ritk-core, ritk-filter, and ritk-segmentation test modules (e.g., `make_image_1d/2d/3d`, `get_slice_1d/3d`); low severity (test-only), candidate for next sprint.
+- `RgbaU8`/`RgbaF32` type-name struct identifiers in ritk-core `annotation/color.rs` — candidate [minor] for next sprint.
+- JPEG2000 Windows abort (`0xc0000374`) remains pre-existing.
+
+---
 ## Sprint 365 Audit (2026-06-11) — Architecture Hardening Round 4: COMPAT · NAMING · SSOT · SRP · DRY · DIP · ENUM
 
 ### Gaps Identified (5-agent parallel audit: ritk-cli, ritk-registration, ritk-core + ritk-filter + ritk-segmentation, ritk-io + ritk-python + ritk-core)

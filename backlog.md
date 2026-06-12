@@ -4,6 +4,55 @@
 
 ---
 
+## Sprint 366 — Architecture Hardening Round 5: NAMING · SSOT · COMPAT · DRY · SRP · ENUM · PRIM
+
+**Status**: Complete  
+**Version**: 0.63.0  
+**Commit**: 0feb9ec  
+
+### Delivered
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| NAMING-CORE-01 | `gaussian_kernel_1d` → `gaussian_kernel` in ritk-core + all callers (ritk-filter ×6, ritk-segmentation ×3, ritk-registration) [patch] | **Done** |
+| ENUM-366-01 | `ResampleArgs.interpolation: String` → `InterpolationMode` ValueEnum (nearest/linear/bspline/lanczos4) [minor] | **Done** |
+| COMPAT-366-02 | Delete 4 `#[deprecated(0.64.0)] apply_3d` shims in noise filters [patch] | **Done** |
+| SSOT-366-03 | Delete dead `wgpu_compat.rs` shadow module in ritk-registration + lib.rs declaration [patch] | **Done** |
+| COMPAT-366-04 | Remove `let _device` dead bindings in `histogram_matching.rs` + `nyul_udupa.rs` [patch] | **Done** |
+| SSOT-366-05 | `NORMALIZER_EPSILON` const in `normalization/mod.rs`; `minmax.rs` + `zscore.rs` updated [patch] | **Done** |
+| SSOT-366-06 | `FOREGROUND_THRESHOLD` const in `statistics/mod.rs`; 4 files updated [patch] | **Done** |
+| SSOT-366-07 | Fix stale docs in `deconvolution/helpers.rs` + `deconvolution/mod.rs` [patch] | **Done** |
+| NAMING-366-08 | `cross_3d`/`normalize_3d`/`dot_3d` → `cross`/`normalize`/`dot` in `reader/geometry.rs` + 22 callers [patch] | **Done** |
+| NAMING-366-09 | `spatial_gradient_2d/_3d`/`spatial_laplacian_2d/_3d` → `*_planar/*_volumetric` in `dispatch.rs` [patch] | **Done** |
+| NAMING-366-10 | `VectorField3D`/`VectorFieldMut3D` → `VectorField`/`VectorFieldMut`; 12 call-site files updated [patch] | **Done** |
+| NAMING-366-11 | `get_f64`/`get_f64_vec` → `get_scalar`/`get_scalar_vec` in `series/loader.rs` [patch] | **Done** |
+| DRY-366-12 | `read_nested_f64` consolidated into `dicom/helpers.rs`; removed from `per_frame.rs` + `seg/reader.rs` [patch] | **Done** |
+| SRP-366-13 | `threshold/li.rs` inline tests → `tests_li.rs` [patch] | **Done** |
+| SRP-366-14 | `threshold/yen.rs` inline tests → `tests_yen.rs` [patch] | **Done** |
+| SRP-366-15 | `watershed/mod.rs` inline tests → `tests_watershed.rs` [patch] | **Done** |
+| SRP-366-16 | `labeling/relabel.rs` inline tests → `tests_relabel.rs` [patch] | **Done** |
+| SRP-366-17 | `color_multiframe.rs` inline tests → `tests_color_multiframe.rs` in ritk-io [patch] | **Done** |
+| PRIM-366-18 | `SegmentArgs.markers: Option<String>` → `Option<PathBuf>` [patch] | **Done** |
+| COMPAT-366-19 | Remove `#[allow(dead_code)]` field `integration_steps` from `DiffeomorphicSSMMorph` [patch] | **Done** |
+
+### Blocked / Deferred (carry-forward)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED [arch]: duplicate method names on same type; requires `DimInterpolation<B>` sealed trait per-D impl | [arch] |
+| SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
+| NAMING-FILTER-01 | `FftConvolution3DFilter`/`FftNormalizedCorrelation3DFilter` → const-generic `<B, const D>` unification [major] | Low |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| `cargo nextest run -p ritk-core -p ritk-filter -p ritk-segmentation` | 1447/1447 passed |
+| `cargo nextest run -p ritk-registration --lib` | 591/591 passed, 1 skipped |
+| `cargo nextest run -p ritk-io -p ritk-cli --no-fail-fast` | 526/527 (1 pre-existing JPEG2000 Windows abort 0xc0000374) |
+
+---
 ## Sprint 365 — Architecture Hardening Round 4: COMPAT · NAMING · SSOT · SRP · DRY · DIP · ENUM
 
 **Status**: Complete  

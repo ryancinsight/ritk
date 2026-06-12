@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## [0.63.0] — 2026-06-12 (Sprint 366: Architecture Hardening Round 5 — NAMING · SSOT · COMPAT · DRY · SRP · ENUM · PRIM)
+
+### Changed
+- `ritk-core`: `gaussian_kernel_1d` renamed to `gaussian_kernel`; re-export in `ritk-filter` updated; all callers across `ritk-filter` (6 files), `ritk-segmentation` (3 files), and `ritk-registration` updated.
+- `ritk-registration`: `VectorField3D`/`VectorFieldMut3D` renamed to `VectorField`/`VectorFieldMut`; 12 call-site files updated.
+- `ritk-registration`: `spatial_gradient_2d/_3d`/`spatial_laplacian_2d/_3d` renamed to `spatial_gradient_planar/_volumetric`/`spatial_laplacian_planar/_volumetric` in `regularization/dispatch.rs`.
+- `ritk-io`: `cross_3d`/`normalize_3d`/`dot_3d` renamed to `cross`/`normalize`/`dot` in DICOM `reader/geometry.rs`; 11 production + 11 test call-site files updated.
+- `ritk-io`: `get_f64`/`get_f64_vec` renamed to `get_scalar`/`get_scalar_vec` in `series/loader.rs` (private helpers).
+- `ritk-cli`: `ResampleArgs.interpolation: String` replaced with `InterpolationMode` ValueEnum (nearest/linear/bspline/lanczos4); invalid modes now rejected at parse time by clap.
+- `ritk-cli`: `SegmentArgs.markers: Option<String>` replaced with `Option<PathBuf>`; clap handles path natively, eliminating runtime `PathBuf::from` conversion.
+
+### Added
+- `ritk-core/statistics/normalization/mod.rs`: `NORMALIZER_EPSILON` constant (`1e-8_f32`) replaces bare literals in `MinMaxNormalizer` and `ZScoreNormalizer`.
+- `ritk-core/statistics/mod.rs`: `FOREGROUND_THRESHOLD` constant (`0.5_f32`) replaces bare literals in `image_statistics`, `noise_estimation`, `surface`, and `zscore` modules.
+- `ritk-io/format/dicom/helpers.rs`: new shared DICOM helper module; `read_nested_f64` consolidated here from `multiframe/per_frame.rs` and `seg/reader.rs`.
+- `ritk-segmentation`: 4 new test files extracted from inline blocks: `tests_li.rs`, `tests_yen.rs`, `tests_watershed.rs`, `tests_relabel.rs`.
+- `ritk-io`: `tests_color_multiframe.rs` extracted from inline test block in `color_multiframe.rs`.
+
+### Removed
+- `ritk-filter`: 4 `#[deprecated(since="0.64.0")] apply_3d` forwarding shims removed from noise filters (`AdditiveGaussianNoise`, `SaltAndPepper`, `ShotNoise`, `SpeckleNoise`). Use `apply` directly.
+- `ritk-registration`: Dead `wgpu_compat.rs` shadow module deleted (all callers already used `ritk_wgpu_compat::WGPU_CHUNK_SIZE` directly; the local copy was never read).
+- `ritk-registration`: `DiffeomorphicSSMMorph::integration_steps` field removed (`#[allow(dead_code)]`; stored but never used in live computation).
+- `ritk-core`: Dead `let _device` bindings removed from `histogram_matching.rs` and `nyul_udupa.rs`.
+- `ritk-filter`: Stale doc claims in `deconvolution/helpers.rs` (referenced non-existent `convolve_2d`/`convolve_3d`) and `deconvolution/mod.rs` (claimed `apply_2d`/`apply_3d` API) corrected.
 ## [0.62.0] — 2026-06-11 (Sprint 365: Architecture Hardening Round 4 — COMPAT · NAMING · SSOT · SRP · DRY · DIP · ENUM)
 
 ### Removed
