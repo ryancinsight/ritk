@@ -4,6 +4,20 @@
 
 ---
 
+## Sprint 371 — J2K multi-code-block tier-2
+
+**Status**: Complete  
+**Version**: 0.68.0 (ritk-codecs 0.5.0)  
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| J2K-371-TT | §B.10.2 tag trees (standard polarity, cross-layer state) [minor] | **Done** |
+| J2K-371-CBLK | 64×64 code-blocks per subband; arbitrary single-tile sizes [minor] | **Done** |
+| J2K-371-TEST | Multi-grid round-trips + tag-tree unit tests [patch] | **Done** |
+| J2K-371-BENCH | 512×512 5-level baseline `sprint371` (55.6/58.2 ms) [patch] | **Done** |
+
+---
+
 ## Sprint 370 — J2K multi-level DWT
 
 **Status**: Complete  

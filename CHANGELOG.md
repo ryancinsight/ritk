@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.68.0] — 2026-06-12 (Sprint 371: J2K multi-code-block tier-2 — conformant tag trees, full-size images)
+
+### Added
+- `ritk-codecs 0.5.0`: `tag_tree` module — incremental 2-D quad-tree coding (ISO 15444-1 §B.10.2) with standard bit polarity (0 = increment, 1 = known), persistent encoder/decoder state across quality layers; round-trip and partial-threshold tests.
+- Tier-2 multi-code-block support: 64×64 nominal code-blocks per subband (`CBLK_SIZE`), raster-order enumeration, per-band inclusion + missing-MSB tag trees, per-code-block layer state. Images of arbitrary single-tile size now encode/decode (previously one code-block per subband).
+- Tests: 130×70 LL0 (3×2 grid) and 150×100 2-level multi-code-block lossless round-trips; criterion cases `jpeg2000_{encode,decode}_512x512_16bit_5levels` (55.6 / 58.2 ms median, baseline `sprint371`).
+
+### Changed
+- The single-leaf inclusion/MSB coding (non-standard inverted polarity) is replaced by conformant tag trees — a prerequisite for J2K-INTEROP differential validation.
+
 ## [0.67.0] — 2026-06-12 (Sprint 370: J2K multi-level DWT — full-resolution-pyramid lossless decode/encode)
 
 ### Added

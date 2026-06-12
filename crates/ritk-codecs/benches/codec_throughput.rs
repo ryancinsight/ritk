@@ -9,8 +9,8 @@
 //! Workloads:
 //! - JPEG-LS lossless 512×512 16-bit (CT-slice-class payload).
 //! - JPEG-LS near-lossless (NEAR=2) 512×512 16-bit.
-//! - JPEG 2000 lossless 64×64 16-bit (current native scope: one code-block
-//!   per tile; multi-code-block tiles tracked as J2K-MULTI-CBLK).
+//! - JPEG 2000 lossless 64×64 16-bit (single code-block) and 512×512 16-bit
+//!   with 5 DWT levels (multi-code-block, multi-resolution).
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use ritk_codecs::jpeg_2000::encoder::encode_grayscale_j2k;
@@ -123,5 +123,48 @@ fn bench_jpeg_2000(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_jpeg_ls, bench_jpeg_2000);
+fn bench_jpeg_2000_full(c: &mut Criterion) {
+    let (rows, cols) = (512usize, 512usize);
+    let img: Vec<i32> = synthetic_image(rows, cols)
+        .iter()
+        .map(|&v| v as i32)
+        .collect();
+
+    c.bench_function("jpeg2000_encode_512x512_16bit_5levels", |b| {
+        b.iter(|| {
+            black_box(encode_grayscale_j2k(
+                black_box(&img),
+                rows as u32,
+                cols as u32,
+                16,
+                PixelSignedness::Unsigned,
+                5,
+            ))
+        })
+    });
+
+    let stream = encode_grayscale_j2k(
+        &img,
+        rows as u32,
+        cols as u32,
+        16,
+        PixelSignedness::Unsigned,
+        5,
+    );
+    c.bench_function("jpeg2000_decode_512x512_16bit_5levels", |b| {
+        b.iter(|| {
+            black_box(decode_jpeg2000_fragment(
+                black_box(&stream),
+                layout(rows, cols, 16),
+            ))
+        })
+    });
+}
+
+criterion_group!(
+    benches,
+    bench_jpeg_ls,
+    bench_jpeg_2000,
+    bench_jpeg_2000_full
+);
 criterion_main!(benches);

@@ -12,6 +12,7 @@
 //! - `packet`     – Tier-2 packet encoder and decoder (Annex B).
 //! - `wavelet`    – Forward and inverse 5/3 reversible DWT (Annex F).
 //! - `subband`    – Mallat subband geometry (Annex B.5).
+//! - `tag_tree`   – Quad-tree inclusion/MSB coding (Annex B.10.2).
 //! - `image`      – Full codestream decoder and DICOM pixel extractor.
 //! - [`encoder`]  – Pure-Rust encoder (produces conformant codestreams).
 //!
@@ -21,8 +22,11 @@
 //! - Transfer Syntax 1.2.840.10008.1.2.4.91: JPEG 2000 lossy or lossless.
 //!
 //! # Current limitations
-//! - One code-block per subband (no precinct partitioning) — J2K-MULTI-CBLK.
+//! - One precinct per resolution/band (no precinct partitioning; code-blocks
+//!   are 64×64 within each subband).
 //! - Lossy (9/7 irreversible wavelet) decoding is not yet supported — J2K-LOSSY-97.
+//! - Interop against externally encoded streams is pending differential
+//!   validation — J2K-INTEROP.
 
 pub(crate) mod codestream;
 pub(crate) mod ebcot;
@@ -32,6 +36,7 @@ pub(crate) mod marker;
 pub(crate) mod mq_coder;
 pub(crate) mod packet;
 pub(crate) mod subband;
+pub(crate) mod tag_tree;
 pub(crate) mod wavelet;
 
 use anyhow::{bail, Result};
@@ -285,6 +290,47 @@ mod tests {
             let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
             proptest::prop_assert_eq!(decoded, expected);
         }
+    }
+
+    /// Deterministic CT-like content: gradient + LCG noise.
+    fn synthetic(rows: u32, cols: u32, amplitude: i32) -> Vec<i32> {
+        let mut state = 0x1234_5678_9ABC_DEF0u64;
+        (0..rows as usize * cols as usize)
+            .map(|i| {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let noise = ((state >> 33) % 32) as i32;
+                ((i as i32 * 7) + noise) % amplitude
+            })
+            .collect()
+    }
+
+    #[test]
+    fn decode_jpeg2000_multi_codeblock_zero_levels() {
+        // 130×70 LL0 → 3×2 code-block grid: exercises multi-code-block packet
+        // headers (shared tag trees) without DWT.
+        let (rows, cols) = (70u32, 130u32);
+        let pixels = synthetic(rows, cols, 256);
+        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned, 0);
+        let decoded = decode_jpeg2000_fragment(&j2k, layout(70, 130, 8, PixelSignedness::Unsigned))
+            .expect("multi-code-block LL0 round-trip must succeed");
+        let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
+        assert_eq!(decoded, expected, "multi-code-block LL0 must be lossless");
+    }
+
+    #[test]
+    fn decode_jpeg2000_multi_codeblock_two_levels_16bit() {
+        // 150×100, 2 levels: level-1 bands are 75×50 → 2×1 code-block grids;
+        // exercises tag-tree coding over non-trivial grids at every resolution.
+        let (rows, cols) = (100u32, 150u32);
+        let pixels = synthetic(rows, cols, 4096);
+        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 16, PixelSignedness::Unsigned, 2);
+        let decoded =
+            decode_jpeg2000_fragment(&j2k, layout(100, 150, 16, PixelSignedness::Unsigned))
+                .expect("multi-code-block 2-level round-trip must succeed");
+        let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
+        assert_eq!(decoded, expected, "multi-code-block DWT must be lossless");
     }
 
     #[test]

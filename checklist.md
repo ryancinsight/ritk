@@ -1,5 +1,25 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 371 — J2K multi-code-block tier-2 (J2K-MULTI-CBLK delivered)
+**Target version**: 0.68.0 (ritk-codecs 0.5.0)  
+**Sprint phase**: Closure — full-size single-tile J2K encode/decode delivered and verified.
+
+### Delivered (Sprint 371)
+- [x] J2K-371-TT [minor]: `tag_tree` module — §B.10.2 quad-tree with standard polarity, persistent cross-layer state; replaces the non-standard single-leaf coding
+- [x] J2K-371-CBLK [minor]: 64×64 code-block partitioning per subband; per-band inclusion/MSB trees; per-code-block layer state; arbitrary single-tile sizes
+- [x] J2K-371-TEST [patch]: multi-grid lossless round-trips (130×70 LL0; 150×100 L2 @16-bit); tag-tree unit + partial-threshold tests
+- [x] J2K-371-BENCH [patch]: criterion 512×512 16-bit 5-level cases — encode 55.6 ms / decode 58.2 ms median (baseline `sprint371`); CODEC-PERF target ≈2–3× (OpenJPEG-class)
+
+### Blocked / Deferred
+- [ ] J2K-INTEROP [patch]: differential decode vs OpenJPEG-encoded reference corpus — now unblocked (conformant tag trees + multi-cblk in place); NEXT
+- [ ] J2K-LOSSY-97, JLS-INTEROP, CODEC-PERF, REG-MI-FLAKY: carry-forward
+
+### Verification gate (Sprint 371)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run -p ritk-codecs -p ritk-dicom -p ritk-io` → 526/526 (180 codec tests)
+- [x] `cargo doc --no-deps -p ritk-codecs` → warning-clean
+
+---
 ## Sprint 370 — J2K multi-level DWT (J2K-DECODE-DWT delivered)
 **Target version**: 0.67.0 (ritk-codecs 0.4.0)  
 **Sprint phase**: Closure — multi-resolution lossless J2K decode/encode delivered and verified.

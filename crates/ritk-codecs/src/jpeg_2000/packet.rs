@@ -20,7 +20,8 @@
 use anyhow::{bail, Result};
 
 use super::ebcot::{decode_code_block, encode_code_block};
-use super::subband::{resolution_band_range, subband_layout};
+use super::subband::{resolution_band_range, subband_layout, Subband};
+use super::tag_tree::TagTree;
 use super::wavelet::{forward_dwt_5_3, inverse_dwt_5_3};
 
 // ── Bit I/O ───────────────────────────────────────────────────────────────────
@@ -30,14 +31,14 @@ use super::wavelet::{forward_dwt_5_3, inverse_dwt_5_3};
 /// The JPEG 2000 packet-header bit stream uses 0xFF byte-stuffing (ISO 15444-1
 /// §B.10.1): whenever 0xFF would appear in the output, a 0x00 is inserted after
 /// it.  We apply stuffing on `flush`.
-struct BitWriter {
+pub(crate) struct BitWriter {
     bits: Vec<u8>, // packed bytes (before stuffing)
     cur: u8,
     used: u8,
 }
 
 impl BitWriter {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             bits: Vec::new(),
             cur: 0,
@@ -45,7 +46,7 @@ impl BitWriter {
         }
     }
 
-    fn write_bit(&mut self, b: u32) {
+    pub(crate) fn write_bit(&mut self, b: u32) {
         self.cur = (self.cur << 1) | (b as u8 & 1);
         self.used += 1;
         if self.used == 8 {
@@ -55,14 +56,14 @@ impl BitWriter {
         }
     }
 
-    fn write_bits(&mut self, value: u32, n: u8) {
+    pub(crate) fn write_bits(&mut self, value: u32, n: u8) {
         for shift in (0..n).rev() {
             self.write_bit((value >> shift) & 1);
         }
     }
 
     /// Flush remaining bits (padding with 0s), apply 0xFF-stuffing, return bytes.
-    fn flush(mut self) -> Vec<u8> {
+    pub(crate) fn flush(mut self) -> Vec<u8> {
         if self.used > 0 {
             self.cur <<= 8 - self.used;
             self.bits.push(self.cur);
@@ -150,33 +151,6 @@ impl BitReader {
     }
 }
 
-// ── Tag tree (single-leaf, sufficient for our test encoder) ───────────────────
-
-/// Encode one tag-tree leaf value into a bit writer.
-///
-/// Previous value `prev` is the value already communicated from a prior layer;
-/// we only send bits that raise the known threshold from `prev` to `value`.
-fn tag_tree_encode(bw: &mut BitWriter, value: u32, prev: u32) {
-    for _ in prev..value {
-        bw.write_bit(1); // threshold < value
-    }
-    bw.write_bit(0); // threshold == value
-}
-
-/// Decode one tag-tree leaf value (general single-leaf tree).
-///
-/// `prev` is the threshold communicated so far; the reader is positioned at
-/// the next unread bit.  Returns the decoded value.
-fn tag_tree_decode(br: &mut BitReader, prev: u32) -> u32 {
-    let mut v = prev;
-    loop {
-        if br.read_bit() == 0 {
-            return v;
-        }
-        v += 1;
-    }
-}
-
 // ── Number-of-passes encoding (ISO 15444-1 §B.10.6, Table B.3) ───────────────
 
 /// Encode `ncp` (number of new coding passes) into a `BitWriter`.
@@ -255,7 +229,56 @@ fn lblock_extra_bits(ncp: u32) -> u8 {
     (u32::BITS - thirds.leading_zeros() - 1) as u8
 }
 
-// ── High-level packet structures ──────────────────────────────────────────────
+// ── Code-block partitioning ───────────────────────────────────────────────────
+
+/// Nominal code-block size (COD `xcb = ycb = 4` → 2^(4+2) = 64), shared by the
+/// encoder's COD emission and both tier-2 directions.
+pub(crate) const CBLK_SIZE: usize = 64;
+
+/// One code-block: its subband, grid position, and rectangle within the band.
+#[derive(Clone, Copy, Debug)]
+struct CblkRef {
+    /// Index into the subband list.
+    band: usize,
+    /// Grid position within the band's code-block grid.
+    gx: usize,
+    gy: usize,
+    /// Rectangle within the subband (band-local coordinates).
+    x0: usize,
+    y0: usize,
+    w: usize,
+    h: usize,
+}
+
+/// Per-band code-block grid dimensions (`ceil(dim / CBLK_SIZE)`).
+fn cblk_grid(band_w: usize, band_h: usize) -> (usize, usize) {
+    (band_w.div_ceil(CBLK_SIZE), band_h.div_ceil(CBLK_SIZE))
+}
+
+/// Enumerate the code-blocks of one subband in raster order.
+fn band_cblks(band_idx: usize, band: &Subband) -> Vec<CblkRef> {
+    if band.w == 0 || band.h == 0 {
+        return Vec::new();
+    }
+    let (gw, gh) = cblk_grid(band.w, band.h);
+    let mut out = Vec::with_capacity(gw * gh);
+    for gy in 0..gh {
+        for gx in 0..gw {
+            let x0 = gx * CBLK_SIZE;
+            let y0 = gy * CBLK_SIZE;
+            out.push(CblkRef {
+                band: band_idx,
+                gx,
+                gy,
+                x0,
+                y0,
+                w: (band.w - x0).min(CBLK_SIZE),
+                h: (band.h - y0).min(CBLK_SIZE),
+            });
+        }
+    }
+    out
+}
 
 /// Per-code-block decode state accumulated across quality layers.
 #[derive(Debug, Clone, Default)]
@@ -272,11 +295,34 @@ struct CblkState {
     included_before: bool,
 }
 
-// ── Encoder: single tile, LRCP, one code-block per subband ───────────────────
+/// Per-band tag trees (inclusion + missing MSBs), persistent across layers.
+struct BandTrees {
+    incl: TagTree,
+    msbs: TagTree,
+}
+
+fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
+    bands
+        .iter()
+        .map(|b| {
+            if b.w == 0 || b.h == 0 {
+                None
+            } else {
+                let (gw, gh) = cblk_grid(b.w, b.h);
+                Some(BandTrees {
+                    incl: TagTree::new(gw, gh),
+                    msbs: TagTree::new(gw, gh),
+                })
+            }
+        })
+        .collect()
+}
+
+// ── Encoder: single tile, LRCP, 64×64 code-blocks ────────────────────────────
 
 /// Encode one tile-component into a J2K tile-part byte stream:
-/// SOT + SOD + LRCP packets (one quality layer, no precinct partitioning,
-/// one code-block per subband — multi-code-block tiles: J2K-MULTI-CBLK).
+/// SOT + SOD + LRCP packets (one quality layer, one precinct per
+/// resolution/band, 64×64 nominal code-blocks).
 ///
 /// # Parameters
 /// - `samples`: DC-shifted i32 samples in row-major order.
@@ -299,47 +345,58 @@ pub fn encode_tile_part(
         .expect("invariant: samples.len() == width × height");
     let bands = subband_layout(width, height, num_decomp_levels);
 
-    // EBCOT-encode each non-empty subband as one code-block.
-    struct EncBand {
+    // EBCOT-encode every code-block of every non-empty subband.
+    struct EncCblk {
+        cblk: CblkRef,
         msbs: u32,
         passes: u32,
         data: Vec<u8>,
     }
-    let enc_bands: Vec<EncBand> = bands
-        .iter()
-        .map(|b| {
-            if b.w == 0 || b.h == 0 {
-                return EncBand {
-                    msbs: 0,
-                    passes: 0,
-                    data: Vec::new(),
-                };
+    let mut per_band_cblks: Vec<Vec<EncCblk>> = Vec::with_capacity(bands.len());
+    for (bi, b) in bands.iter().enumerate() {
+        let mut list = Vec::new();
+        for cblk in band_cblks(bi, b) {
+            let mut coeffs = Vec::with_capacity(cblk.w * cblk.h);
+            for y in 0..cblk.h {
+                let off = (b.y0 + cblk.y0 + y) * width + b.x0 + cblk.x0;
+                coeffs.extend_from_slice(&mallat[off..off + cblk.w]);
             }
-            let mut coeffs = Vec::with_capacity(b.w * b.h);
-            for y in 0..b.h {
-                let off = (b.y0 + y) * width + b.x0;
-                coeffs.extend_from_slice(&mallat[off..off + b.w]);
-            }
-            let enc = encode_code_block(&coeffs, b.w, b.h, b.orient);
-            if enc.num_bit_planes == 0 {
-                // All-zero code-block: excluded from the packet.
-                EncBand {
-                    msbs: 0,
-                    passes: 0,
-                    data: Vec::new(),
-                }
+            let enc = encode_code_block(&coeffs, cblk.w, cblk.h, b.orient);
+            let (msbs, passes, data) = if enc.num_bit_planes == 0 {
+                (0u32, 0u32, Vec::new())
             } else {
-                // Dynamic range of subband b: guard bits + ε_b, with
-                // ε_b = precision + gain for the reversible 5/3 transform.
                 let total_bp = u32::from(num_guard_bits) + precision + b.gain;
-                EncBand {
-                    msbs: total_bp.saturating_sub(u32::from(enc.num_bit_planes)),
-                    passes: enc.num_passes,
-                    data: enc.bytes,
-                }
+                (
+                    total_bp.saturating_sub(u32::from(enc.num_bit_planes)),
+                    enc.num_passes,
+                    enc.bytes,
+                )
+            };
+            list.push(EncCblk {
+                cblk,
+                msbs,
+                passes,
+                data,
+            });
+        }
+        per_band_cblks.push(list);
+    }
+
+    // Build per-band tag trees: inclusion layer (0 = layer 0, 1 = never) and
+    // missing MSBs (excluded blocks contribute 0, which only affects internal
+    // minima — the decoder never reads their leaves).
+    let mut trees = band_trees(&bands);
+    for (bi, list) in per_band_cblks.iter().enumerate() {
+        if let Some(t) = trees[bi].as_mut() {
+            for ec in list {
+                let incl = u32::from(ec.passes == 0);
+                t.incl.set_value(ec.cblk.gx, ec.cblk.gy, incl);
+                t.msbs.set_value(ec.cblk.gx, ec.cblk.gy, ec.msbs);
             }
-        })
-        .collect();
+            t.incl.finalize();
+            t.msbs.finalize();
+        }
+    }
 
     // LRCP packet sequence: one packet per resolution (single quality layer).
     let mut body = Vec::new();
@@ -347,35 +404,38 @@ pub fn encode_tile_part(
         let (s, e) = resolution_band_range(r);
         let mut bw = BitWriter::new();
         bw.write_bit(0); // non-empty packet indicator
-        for i in s..e {
-            if bands[i].w == 0 || bands[i].h == 0 {
-                continue; // no code-block exists for an empty subband
-            }
-            let eb = &enc_bands[i];
-            if eb.passes == 0 {
-                // Not included in layer 0: inclusion tag-tree value 1.
-                tag_tree_encode(&mut bw, 1, 0);
+        for bi in s..e {
+            let Some(t) = trees[bi].as_mut() else {
                 continue;
+            };
+            for ec in &per_band_cblks[bi] {
+                let (gx, gy) = (ec.cblk.gx, ec.cblk.gy);
+                // Inclusion tag tree at threshold layer + 1 = 1.
+                t.incl.encode(&mut bw, gx, gy, 1);
+                if ec.passes == 0 {
+                    continue;
+                }
+                // Missing MSBs tag tree, fully communicated.
+                t.msbs.encode(&mut bw, gx, gy, ec.msbs + 1);
+                write_num_passes(&mut bw, ec.passes);
+                // Lblock signalling (§B.10.7.1).
+                let lextra = lblock_extra_bits(ec.passes);
+                let len = ec.data.len() as u32;
+                let needed_bits = (u32::BITS - len.leading_zeros()).max(1) as u8;
+                let mut lblock: u8 = 3;
+                while lblock + lextra < needed_bits {
+                    bw.write_bit(1);
+                    lblock += 1;
+                }
+                bw.write_bit(0);
+                bw.write_bits(len, lblock + lextra);
             }
-            tag_tree_encode(&mut bw, 0, 0); // included in layer 0
-            tag_tree_encode(&mut bw, eb.msbs, 0); // missing MSBs
-            write_num_passes(&mut bw, eb.passes);
-            // Lblock signalling (§B.10.7.1): 1-bits increment Lblock, a 0-bit
-            // terminates; the byte count then uses Lblock + Lextra bits.
-            let lextra = lblock_extra_bits(eb.passes);
-            let len = eb.data.len() as u32;
-            let needed_bits = (u32::BITS - len.leading_zeros()).max(1) as u8;
-            let mut lblock: u8 = 3;
-            while lblock + lextra < needed_bits {
-                bw.write_bit(1);
-                lblock += 1;
-            }
-            bw.write_bit(0);
-            bw.write_bits(len, lblock + lextra);
         }
         body.extend_from_slice(&bw.flush());
-        for eb in &enc_bands[s..e] {
-            body.extend_from_slice(&eb.data);
+        for band_list in &per_band_cblks[s..e] {
+            for ec in band_list {
+                body.extend_from_slice(&ec.data);
+            }
         }
     }
 
@@ -422,8 +482,8 @@ pub struct TileCodingParams<'a> {
 
 /// Decode the tile-part body starting immediately after the SOD marker.
 ///
-/// Supports the LRCP progression with no precinct partitioning and one
-/// code-block per subband, any number of 5/3 decomposition levels, and
+/// Supports the LRCP progression with one precinct per resolution/band,
+/// 64×64 nominal code-blocks, any number of 5/3 decomposition levels, and
 /// multiple quality layers (per-code-block pass accumulation).
 ///
 /// # Parameters
@@ -442,56 +502,78 @@ pub fn decode_tile_part(
     coding: TileCodingParams<'_>,
 ) -> Result<TileComponentSamples> {
     let bands = subband_layout(width, height, coding.num_decomp_levels);
-    let mut states: Vec<CblkState> = bands
+    let cblks: Vec<CblkRef> = bands
+        .iter()
+        .enumerate()
+        .flat_map(|(bi, b)| band_cblks(bi, b))
+        .collect();
+    let mut states: Vec<CblkState> = cblks
         .iter()
         .map(|_| CblkState {
             lblock: 3,
             ..CblkState::default()
         })
         .collect();
+    let mut trees = band_trees(&bands);
+    // Per-band index range into the flat `cblks` list.
+    let mut band_ranges = Vec::with_capacity(bands.len());
+    let mut start = 0usize;
+    for b in &bands {
+        let n = if b.w == 0 || b.h == 0 {
+            0
+        } else {
+            let (gw, gh) = cblk_grid(b.w, b.h);
+            gw * gh
+        };
+        band_ranges.push(start..start + n);
+        start += n;
+    }
 
     let mut pos = 0usize;
-    'layers: for _layer in 0..coding.num_layers.max(1) {
+    'layers: for layer in 0..u32::from(coding.num_layers.max(1)) {
         for r in 0..=usize::from(coding.num_decomp_levels) {
             if pos >= tile_data.len() {
                 break 'layers;
             }
             let (s, e) = resolution_band_range(r);
             let mut br = BitReader::new(&tile_data[pos..]);
-            // (band index, body length) for blocks included in this packet.
+            // (flat code-block index, body length) included in this packet.
             let mut included: Vec<(usize, usize)> = Vec::new();
             if br.read_bit() == 0 {
-                for i in s..e {
-                    if bands[i].w == 0 || bands[i].h == 0 {
+                for bi in s..e {
+                    let Some(t) = trees[bi].as_mut() else {
                         continue;
-                    }
-                    let st = &mut states[i];
-                    // Inclusion (§B.10.4): tag tree before first inclusion,
-                    // a single bit afterwards.
-                    let included_now = if st.included_before {
-                        br.read_bit() == 1
-                    } else {
-                        tag_tree_decode(&mut br, 0) == 0
                     };
-                    if !included_now {
-                        continue;
+                    for ci in band_ranges[bi].clone() {
+                        let c = cblks[ci];
+                        let st = &mut states[ci];
+                        // Inclusion (§B.10.4): tag tree before first
+                        // inclusion, a single raw bit afterwards.
+                        let included_now = if st.included_before {
+                            br.read_bit() == 1
+                        } else {
+                            t.incl.decode(&mut br, c.gx, c.gy, layer + 1)
+                        };
+                        if !included_now {
+                            continue;
+                        }
+                        if !st.included_before {
+                            st.msbs = t.msbs.decode_value(&mut br, c.gx, c.gy);
+                            st.included_before = true;
+                        }
+                        let np = read_num_passes(&mut br);
+                        st.num_passes += np;
+                        while br.read_bit() == 1 {
+                            st.lblock += 1;
+                        }
+                        let bits = st.lblock + lblock_extra_bits(np);
+                        let len = br.read_bits(bits) as usize;
+                        included.push((ci, len));
                     }
-                    if !st.included_before {
-                        st.msbs = tag_tree_decode(&mut br, 0);
-                        st.included_before = true;
-                    }
-                    let np = read_num_passes(&mut br);
-                    st.num_passes += np;
-                    while br.read_bit() == 1 {
-                        st.lblock += 1;
-                    }
-                    let bits = st.lblock + lblock_extra_bits(np);
-                    let len = br.read_bits(bits) as usize;
-                    included.push((i, len));
                 }
             }
             pos += br.byte_pos();
-            for (i, len) in included {
+            for (ci, len) in included {
                 let end = pos.checked_add(len).filter(|&e2| e2 <= tile_data.len());
                 let Some(end) = end else {
                     bail!(
@@ -499,7 +581,7 @@ pub fn decode_tile_part(
                         tile_data.len()
                     );
                 };
-                states[i].data.extend_from_slice(&tile_data[pos..end]);
+                states[ci].data.extend_from_slice(&tile_data[pos..end]);
                 pos = end;
             }
         }
@@ -507,14 +589,12 @@ pub fn decode_tile_part(
 
     // EBCOT-decode each code-block into the Mallat coefficient plane.
     let mut mallat = vec![0i32; width * height];
-    for (i, b) in bands.iter().enumerate() {
-        if b.w == 0 || b.h == 0 {
-            continue;
-        }
-        let st = &states[i];
+    for (ci, c) in cblks.iter().enumerate() {
+        let b = &bands[c.band];
+        let st = &states[ci];
         let exponent = coding
             .exponents
-            .get(i)
+            .get(c.band)
             .copied()
             .unwrap_or(coding.precision + b.gain);
         let total_bp = u32::from(coding.num_guard_bits) + exponent;
@@ -525,15 +605,15 @@ pub fn decode_tile_part(
         };
         let block = decode_code_block(
             &st.data,
-            b.w,
-            b.h,
+            c.w,
+            c.h,
             num_bit_planes as u8,
             st.num_passes,
             b.orient,
         );
-        for y in 0..b.h {
-            let off = (b.y0 + y) * width + b.x0;
-            mallat[off..off + b.w].copy_from_slice(&block.samples[y * b.w..(y + 1) * b.w]);
+        for y in 0..c.h {
+            let off = (b.y0 + c.y0 + y) * width + b.x0 + c.x0;
+            mallat[off..off + c.w].copy_from_slice(&block.samples[y * c.w..(y + 1) * c.w]);
         }
     }
 
