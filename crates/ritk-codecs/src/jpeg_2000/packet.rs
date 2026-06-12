@@ -153,15 +153,13 @@ impl BitReader {
 
 // ── Number-of-passes encoding (ISO 15444-1 §B.10.6, Table B.3) ───────────────
 
-/// Encode `ncp` (number of new coding passes) into a `BitWriter`.
-///
-/// The code is a prefix code:
-/// - 1   pass  → `0`
-/// - 2   passes → `10`
-/// - 3–4 passes → `110` + 1 bit
-/// - 5–6 passes → `1110` + 1 bit
-/// - 7–38 passes → `11110` + 5 bits (value = ncp − 7)
-/// - 39–166 passes → `11111` + 7 bits (value = ncp − 39)
+/// Encode `ncp` (number of new coding passes) into a `BitWriter`
+/// (ISO 15444-1 Table B.4):
+/// - 1 pass    → `0`
+/// - 2 passes  → `10`
+/// - 3–5       → `11` + 2 bits (ncp − 3 ∈ 0..=2)
+/// - 6–36      → `1111` + 5 bits (ncp − 6 ∈ 0..=30)
+/// - 37–164    → `111111111` + 7 bits (ncp − 37)
 fn write_num_passes(bw: &mut BitWriter, ncp: u32) {
     match ncp {
         0 => {} // No passes: write nothing (caller ensures code-block is excluded).
@@ -170,31 +168,25 @@ fn write_num_passes(bw: &mut BitWriter, ncp: u32) {
             bw.write_bit(1);
             bw.write_bit(0);
         }
-        3 | 4 => {
-            bw.write_bit(1);
-            bw.write_bit(1);
-            bw.write_bit(0);
-            bw.write_bit(ncp - 3);
+        3..=5 => {
+            bw.write_bits(0b11, 2);
+            bw.write_bits(ncp - 3, 2);
         }
-        5 | 6 => {
-            bw.write_bit(1);
-            bw.write_bit(1);
-            bw.write_bit(1);
-            bw.write_bit(0);
-            bw.write_bit(ncp - 5);
-        }
-        7..=38 => {
-            bw.write_bits(0b11110, 5);
-            bw.write_bits(ncp - 7, 5);
+        6..=36 => {
+            bw.write_bits(0b11, 2);
+            bw.write_bits(0b11, 2);
+            bw.write_bits(ncp - 6, 5);
         }
         _ => {
+            bw.write_bits(0b11, 2);
+            bw.write_bits(0b11, 2);
             bw.write_bits(0b11111, 5);
-            bw.write_bits(ncp - 39, 7);
+            bw.write_bits(ncp - 37, 7);
         }
     }
 }
 
-/// Decode the number-of-passes prefix code from a `BitReader`.
+/// Decode the number-of-passes code from a `BitReader` (ISO 15444-1 Table B.4).
 fn read_num_passes(br: &mut BitReader) -> u32 {
     if br.read_bit() == 0 {
         return 1;
@@ -202,31 +194,26 @@ fn read_num_passes(br: &mut BitReader) -> u32 {
     if br.read_bit() == 0 {
         return 2;
     }
-    if br.read_bit() == 0 {
-        return 3 + br.read_bit();
+    let n = br.read_bits(2);
+    if n != 3 {
+        return 3 + n;
     }
-    if br.read_bit() == 0 {
-        return 5 + br.read_bit();
+    let n = br.read_bits(5);
+    if n != 31 {
+        return 6 + n;
     }
-    if br.read_bit() == 0 {
-        return 7 + br.read_bits(5);
-    }
-    39 + br.read_bits(7)
+    37 + br.read_bits(7)
 }
 
 // ── Lblock byte-count encoding ────────────────────────────────────────────────
 
-/// Compute the number of extra bits for the Lblock based on the pass count.
-///
-/// `Lextra = floor(log2(max(1, ceil(ncp / 3))))`
-/// This gives the extra bits beyond the stored `Lblock` needed to represent
-/// the byte count for `ncp` new coding passes.
+/// Extra length bits beyond the stored `Lblock` for a packet contributing
+/// `ncp` passes: `⌊log₂ ncp⌋` (ISO 15444-1 §B.10.7.1).
 fn lblock_extra_bits(ncp: u32) -> u8 {
     if ncp == 0 {
         return 0;
     }
-    let thirds = ncp.div_ceil(3).max(1);
-    (u32::BITS - thirds.leading_zeros() - 1) as u8
+    (u32::BITS - ncp.leading_zeros() - 1) as u8
 }
 
 // ── Code-block partitioning ───────────────────────────────────────────────────
@@ -365,7 +352,8 @@ pub fn encode_tile_part(
             let (msbs, passes, data) = if enc.num_bit_planes == 0 {
                 (0u32, 0u32, Vec::new())
             } else {
-                let total_bp = u32::from(num_guard_bits) + precision + b.gain;
+                // Mb = ε_b + G − 1 (ISO 15444-1 §E.1), ε_b = precision + gain.
+                let total_bp = u32::from(num_guard_bits) + precision + b.gain - 1;
                 (
                     total_bp.saturating_sub(u32::from(enc.num_bit_planes)),
                     enc.num_passes,
@@ -403,7 +391,7 @@ pub fn encode_tile_part(
     for r in 0..=usize::from(num_decomp_levels) {
         let (s, e) = resolution_band_range(r);
         let mut bw = BitWriter::new();
-        bw.write_bit(0); // non-empty packet indicator
+        bw.write_bit(1); // non-empty packet (§B.10.3: 1 = data present)
         for bi in s..e {
             let Some(t) = trees[bi].as_mut() else {
                 continue;
@@ -539,7 +527,7 @@ pub fn decode_tile_part(
             let mut br = BitReader::new(&tile_data[pos..]);
             // (flat code-block index, body length) included in this packet.
             let mut included: Vec<(usize, usize)> = Vec::new();
-            if br.read_bit() == 0 {
+            if br.read_bit() == 1 {
                 for bi in s..e {
                     let Some(t) = trees[bi].as_mut() else {
                         continue;
@@ -597,7 +585,8 @@ pub fn decode_tile_part(
             .get(c.band)
             .copied()
             .unwrap_or(coding.precision + b.gain);
-        let total_bp = u32::from(coding.num_guard_bits) + exponent;
+        // Mb = ε_b + G − 1 (ISO 15444-1 §E.1).
+        let total_bp = (u32::from(coding.num_guard_bits) + exponent).saturating_sub(1);
         let num_bit_planes = if st.included_before {
             total_bp.saturating_sub(st.msbs)
         } else {
@@ -656,6 +645,72 @@ mod tests {
             let decoded = read_num_passes(&mut br);
             assert_eq!(decoded, ncp, "ncp={ncp}");
         }
+    }
+
+    /// Differential frontier (J2K-INTEROP): the tier-2 header of this captured
+    /// OpenJPEG packet parses exactly (msbs=2, ncp=19=3·7−2, body fills the
+    /// tile-part), but tier-1 decode diverges in the first cleanup pass around
+    /// the third stripe column — context-adaptation mismatch under
+    /// investigation.
+    #[test]
+    #[ignore = "J2K-INTEROP: tier-1 divergence under investigation (see backlog.md)"]
+    fn probe_openjp2_packet_header_fields() {
+        // Captured 8×8 8-bit numres=1 OpenJPEG 2.5.2 tile body (after SOD).
+        let body: [u8; 65] = [
+            0xCF, 0xB4, 0xF8, 0x12, 0x51, 0x7A, 0x62, 0x3E, 0xFC, 0x7B, 0x8E, 0x3E, 0x6C, 0xBF,
+            0x33, 0xA9, 0xB6, 0xED, 0xDD, 0x98, 0x8C, 0x61, 0x4E, 0x7B, 0x10, 0x37, 0x1E, 0x00,
+            0x55, 0x20, 0xC9, 0x4D, 0x0D, 0xB4, 0x4E, 0xEF, 0xE7, 0xC7, 0x55, 0x87, 0x6A, 0xDF,
+            0x82, 0xED, 0xD1, 0xCF, 0xA5, 0x9E, 0x88, 0x11, 0x34, 0x5D, 0xEB, 0xB7, 0x4F, 0x03,
+            0xDB, 0x1A, 0xA9, 0x8F, 0x19, 0xD7, 0x94, 0x36, 0x8E,
+        ];
+        let mut br = BitReader::new(&body);
+        assert_eq!(br.read_bit(), 1, "non-empty packet bit");
+        let mut incl = TagTree::new(1, 1);
+        assert!(incl.decode(&mut br, 0, 0, 1), "cblk included in layer 0");
+        let mut msbs_tree = TagTree::new(1, 1);
+        let msbs = msbs_tree.decode_value(&mut br, 0, 0);
+        let ncp = read_num_passes(&mut br);
+        let mut lblock = 3u8;
+        while br.read_bit() == 1 {
+            lblock += 1;
+        }
+        let bits = lblock + lblock_extra_bits(ncp);
+        let len = br.read_bits(bits) as usize;
+        let header_bytes = br.byte_pos();
+        eprintln!(
+            "PROBE msbs={msbs} ncp={ncp} lblock={lblock} len={len} header_bytes={header_bytes} body_total={}",
+            body.len()
+        );
+        // 8-bit, guard 2, ε = 8 → Mb = ε + G − 1 = 9 planes. Expected pass
+        // budget is 3·nbp − 2 with nbp = 9 − msbs. Body must fit exactly.
+        assert_eq!(
+            header_bytes + len,
+            body.len(),
+            "packet body must fill the tile-part"
+        );
+        assert_eq!(ncp, 3 * (9 - msbs) - 2, "pass count must equal 3·nbp − 2");
+
+        // Tier-1: decode the code-block body and compare with the source
+        // image (8×8 synthetic from the interop suite, DC-shifted by −128).
+        let mut state = 0xC0FF_EE00_DEAD_F00Du64;
+        let expected: Vec<i32> = (0..64)
+            .map(|i| {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let noise = ((state >> 33) % 64) as i64;
+                (((i as i64 * 5) + noise) % 256) as i32 - 128
+            })
+            .collect();
+        let block = decode_code_block(
+            &body[header_bytes..header_bytes + len],
+            8,
+            8,
+            (9 - msbs) as u8,
+            ncp,
+            super::super::ebcot::SubbandOrientation::LlOrLh,
+        );
+        assert_eq!(block.samples, expected, "EBCOT tier-1 must match OpenJPEG");
     }
 
     #[test]

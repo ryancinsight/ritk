@@ -55,10 +55,10 @@ fn zc_ll_lh(h: u32, v: u32, d: u32) -> usize {
     CTX_ZC_BASE
         + match (h, v, d) {
             (2, _, _) => 8,
-            (1, v, d) if v + d > 0 => 7,
-            (1, _, _) => 6,
-            (0, 2, _) => 5,
-            (0, 1, d) if d > 0 => 4,
+            (1, v, _) if v >= 1 => 7,
+            (1, 0, d) if d >= 1 => 6,
+            (1, 0, 0) => 5,
+            (0, 2, _) => 4,
             (0, 1, _) => 3,
             (0, 0, d) if d >= 2 => 2,
             (0, 0, 1) => 1,
@@ -76,14 +76,16 @@ fn zc_hl(h: u32, v: u32, d: u32) -> usize {
 #[inline]
 fn zc_hh(h: u32, v: u32, d: u32) -> usize {
     CTX_ZC_BASE
-        + match d {
-            d if d >= 3 => 8,
-            2 => 7,
-            1 if h + v >= 1 => 6,
-            1 => 5,
-            _ if h + v >= 2 => 4,
-            _ if h + v == 1 => 3,
-            _ => 2,
+        + match (d, h + v) {
+            (d, _) if d >= 3 => 8,
+            (2, hv) if hv >= 1 => 7,
+            (2, _) => 6,
+            (1, hv) if hv >= 2 => 5,
+            (1, 1) => 4,
+            (1, 0) => 3,
+            (0, hv) if hv >= 2 => 2,
+            (0, 1) => 1,
+            _ => 0,
         }
 }
 
@@ -196,59 +198,75 @@ pub fn decode_code_block(
     let total_bit_planes = num_bit_planes as u32;
     let mut passes_remaining = num_passes;
 
-    // Iterate bit-planes from MSB (highest) downward.
+    // Iterate bit-planes from MSB (highest) downward. The first (MSB) plane
+    // carries only a cleanup pass (ISO 15444-1 §D.4.1): nothing can be
+    // significant yet, so SPP/MRP are skipped and the total pass count for a
+    // block with P planes is 3P − 2.
     for bp in (0..total_bit_planes).rev() {
+        let first_plane = bp + 1 == total_bit_planes;
         // ── Significance Propagation Pass ────────────────────────────────────
-        if passes_remaining == 0 {
-            break;
-        }
-        passes_remaining -= 1;
-        for y in 0..height {
-            for x in 0..width {
-                let idx = y * width + x;
-                if state[idx].sig || state[idx].visit {
-                    continue;
-                }
-                let (h, v, d) = neighbour_sig_counts(&state, width, height, x, y);
-                if h + v + d == 0 {
-                    continue;
-                }
-                state[idx].visit = true;
-                let ctx = zc_context(orient, h, v, d);
-                let sig_bit = mq.decode(&mut ctxs[ctx]);
-                if sig_bit == 1 {
-                    mag[idx] |= 1 << bp;
-                    state[idx].sig = true;
-                    let (kh, kv) = sign_contributions(&state, width, height, x, y);
-                    let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                    let sign_bit = mq.decode(&mut ctxs[sc_ctx]) ^ xor_bit;
-                    state[idx].sign = sign_bit != 0;
-                }
+        if !first_plane {
+            if passes_remaining == 0 {
+                break;
             }
-        }
+            passes_remaining -= 1;
+            // Stripe-oriented scan (ISO 15444-1 §D.2): 4-row stripes, columns
+            // within each stripe, rows within each column.
+            let mut sy = 0;
+            while sy < height {
+                for x in 0..width {
+                    for y in sy..height.min(sy + 4) {
+                        let idx = y * width + x;
+                        if state[idx].sig || state[idx].visit {
+                            continue;
+                        }
+                        let (h, v, d) = neighbour_sig_counts(&state, width, height, x, y);
+                        if h + v + d == 0 {
+                            continue;
+                        }
+                        state[idx].visit = true;
+                        let ctx = zc_context(orient, h, v, d);
+                        let sig_bit = mq.decode(&mut ctxs[ctx]);
+                        if sig_bit == 1 {
+                            mag[idx] |= 1 << bp;
+                            state[idx].sig = true;
+                            let (kh, kv) = sign_contributions(&state, width, height, x, y);
+                            let (sc_ctx, xor_bit) = sc_context(kh, kv);
+                            let sign_bit = mq.decode(&mut ctxs[sc_ctx]) ^ xor_bit;
+                            state[idx].sign = sign_bit != 0;
+                        }
+                    }
+                }
+                sy += 4;
+            }
 
-        // ── Magnitude Refinement Pass ─────────────────────────────────────────
-        if passes_remaining == 0 {
-            // Reset visit flags before leaving.
-            for s in &mut state {
-                s.visit = false;
-            }
-            break;
-        }
-        passes_remaining -= 1;
-        for y in 0..height {
-            for x in 0..width {
-                let idx = y * width + x;
-                if !state[idx].sig || state[idx].visit {
-                    continue;
+            // ── Magnitude Refinement Pass ─────────────────────────────────────────
+            if passes_remaining == 0 {
+                // Reset visit flags before leaving.
+                for s in &mut state {
+                    s.visit = false;
                 }
-                let has_sig_other = any_neighbour_sig(&state, width, height, x, y);
-                let ctx = mr_context(has_sig_other, state[idx].refine);
-                let bit = mq.decode(&mut ctxs[ctx]);
-                mag[idx] |= bit << bp;
-                state[idx].refine = true;
+                break;
             }
-        }
+            passes_remaining -= 1;
+            let mut sy = 0;
+            while sy < height {
+                for x in 0..width {
+                    for y in sy..height.min(sy + 4) {
+                        let idx = y * width + x;
+                        if !state[idx].sig || state[idx].visit {
+                            continue;
+                        }
+                        let has_sig_other = any_neighbour_sig(&state, width, height, x, y);
+                        let ctx = mr_context(has_sig_other, state[idx].refine);
+                        let bit = mq.decode(&mut ctxs[ctx]);
+                        mag[idx] |= bit << bp;
+                        state[idx].refine = true;
+                    }
+                }
+                sy += 4;
+            }
+        } // end !first_plane (SPP + MRP)
 
         // ── Cleanup Pass ──────────────────────────────────────────────────────
         if passes_remaining == 0 {
@@ -264,8 +282,7 @@ pub fn decode_code_block(
             while x < width {
                 // Check run-length condition: 4 consecutive rows in this column,
                 // all non-sig, non-visited, and no significant neighbours.
-                let can_rlc = bp > 0
-                    && y + 4 <= height
+                let can_rlc = y + 4 <= height
                     && (y..y + 4).all(|yy| {
                         let i = yy * width + x;
                         !state[i].sig
@@ -431,55 +448,69 @@ pub fn encode_code_block(
     let mut ctxs = initial_contexts();
     let mut total_passes = 0u32;
 
+    // The first (MSB) plane is cleanup-only (ISO 15444-1 §D.4.1): SPP/MRP are
+    // skipped, giving the standard pass count 3P − 2 for P coded bit-planes.
     for bp in (0..num_bit_planes as u32).rev() {
-        // ── SPP ──────────────────────────────────────────────────────────────
-        for y in 0..height {
-            for x in 0..width {
-                let idx = y * width + x;
-                if state[idx].sig || state[idx].visit {
-                    continue;
+        let first_plane = bp + 1 == u32::from(num_bit_planes);
+        if !first_plane {
+            // ── SPP ──────────────────────────────────────────────────────────────
+            // Stripe-oriented scan (ISO 15444-1 §D.2): 4-row stripes, columns
+            // within each stripe, rows within each column.
+            let mut sy = 0;
+            while sy < height {
+                for x in 0..width {
+                    for y in sy..height.min(sy + 4) {
+                        let idx = y * width + x;
+                        if state[idx].sig || state[idx].visit {
+                            continue;
+                        }
+                        let (h, v, d) = neighbour_sig_counts(&state, width, height, x, y);
+                        if h + v + d == 0 {
+                            continue;
+                        }
+                        state[idx].visit = true;
+                        let sig_bit = (mag[idx] >> bp) & 1;
+                        let ctx = zc_context(orient, h, v, d);
+                        mq.encode(sig_bit, &mut ctxs[ctx]);
+                        if sig_bit == 1 {
+                            state[idx].sig = true;
+                            let (kh, kv) = sign_contributions(&state, width, height, x, y);
+                            let (sc_ctx, xor_bit) = sc_context(kh, kv);
+                            mq.encode(u32::from(state[idx].sign) ^ xor_bit, &mut ctxs[sc_ctx]);
+                        }
+                    }
                 }
-                let (h, v, d) = neighbour_sig_counts(&state, width, height, x, y);
-                if h + v + d == 0 {
-                    continue;
-                }
-                state[idx].visit = true;
-                let sig_bit = (mag[idx] >> bp) & 1;
-                let ctx = zc_context(orient, h, v, d);
-                mq.encode(sig_bit, &mut ctxs[ctx]);
-                if sig_bit == 1 {
-                    state[idx].sig = true;
-                    let (kh, kv) = sign_contributions(&state, width, height, x, y);
-                    let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                    mq.encode(u32::from(state[idx].sign) ^ xor_bit, &mut ctxs[sc_ctx]);
-                }
+                sy += 4;
             }
-        }
-        total_passes += 1;
+            total_passes += 1;
 
-        // ── MRP ──────────────────────────────────────────────────────────────
-        for y in 0..height {
-            for x in 0..width {
-                let idx = y * width + x;
-                if !state[idx].sig || state[idx].visit {
-                    continue;
+            // ── MRP ──────────────────────────────────────────────────────────────
+            let mut sy = 0;
+            while sy < height {
+                for x in 0..width {
+                    for y in sy..height.min(sy + 4) {
+                        let idx = y * width + x;
+                        if !state[idx].sig || state[idx].visit {
+                            continue;
+                        }
+                        let has_sig_other = any_neighbour_sig(&state, width, height, x, y);
+                        let ctx = mr_context(has_sig_other, state[idx].refine);
+                        let bit = (mag[idx] >> bp) & 1;
+                        mq.encode(bit, &mut ctxs[ctx]);
+                        state[idx].refine = true;
+                    }
                 }
-                let has_sig_other = any_neighbour_sig(&state, width, height, x, y);
-                let ctx = mr_context(has_sig_other, state[idx].refine);
-                let bit = (mag[idx] >> bp) & 1;
-                mq.encode(bit, &mut ctxs[ctx]);
-                state[idx].refine = true;
+                sy += 4;
             }
-        }
-        total_passes += 1;
+            total_passes += 1;
+        } // end !first_plane (SPP + MRP)
 
         // ── CUP ──────────────────────────────────────────────────────────────
         let mut y = 0;
         while y < height {
             let mut x = 0;
             while x < width {
-                let can_rlc = bp > 0
-                    && y + 4 <= height
+                let can_rlc = y + 4 <= height
                     && (y..y + 4).all(|yy| {
                         let i = yy * width + x;
                         !state[i].sig

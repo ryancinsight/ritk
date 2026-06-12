@@ -1,5 +1,22 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 372 — J2K conformance + interop harness (Execution: interop gate open)
+**Target version**: 0.68.x  
+**Sprint phase**: Execution — conformance fixes landed; 3 P1 defects open (see backlog.md Sprint 372 table).
+
+### Delivered
+- [x] J2K-372-CONF [patch]: 7 ISO 15444-1 conformance fixes (B.10.3 packet bit, Table B.4, B.10.7.1 Lblock, E.1 Mb, D.4.1 pass count, D.2 stripe scan, D.1 ZC tables, RLC)
+- [x] J2K-372-HARNESS: openjp2 differential suite (dev-dep, pure Rust) — tier-2 header now parses OpenJPEG output exactly
+
+### Open (next increment)
+- [ ] J2K-INTEROP [P1]: tier-1 EBCOT divergence — first cleanup pass, ~3rd stripe column; compare ZC/SC selection + RLC details against opj_t1 symbol-by-symbol
+- [ ] JLS-NEAR-TAIL [P1]: NEAR>0 run-interruption desync (9x3/NEAR2 repro pinned)
+- [ ] JLS-16BIT-LOSSLESS [P1]: 16-bit lossless failure (3x8 repro pinned); proptest restricted to 8/12-bit until fixed
+
+### Verification gate
+- [x] clippy workspace -D warnings → 0; nextest codecs+dicom+io → 526/526 (9 ignored = tracked pending/defect tests)
+
+---
 ## Sprint 371 — J2K multi-code-block tier-2 (J2K-MULTI-CBLK delivered)
 **Target version**: 0.68.0 (ritk-codecs 0.5.0)  
 **Sprint phase**: Closure — full-size single-tile J2K encode/decode delivered and verified.

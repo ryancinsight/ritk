@@ -4,6 +4,26 @@
 
 ---
 
+## Sprint 372 — J2K conformance fixes + differential interop harness (in progress)
+
+**Status**: Conformance fixes delivered; interop acceptance gate pending  
+**Version**: 0.68.x (ritk-codecs 0.5.x)  
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| J2K-372-CONF | Seven tier-1/tier-2 conformance fixes (see CHANGELOG/commit): packet non-empty bit polarity, Table B.4 pass-count code, Lblock = +floor(log2 ncp), Mb = eps+G-1, 3P-2 pass accounting, stripe-oriented SPP/MRP scan, Table D.1 ZC context tables, unrestricted RLC [patch] | **Done** |
+| J2K-372-HARNESS | Differential interop suite vs openjp2 (pure-Rust c2rust port, dev-dep): encode+decode both directions, marker/packet dump diagnostic | **Done (gate pending)** |
+
+### Open defects (P1)
+
+| ID | Description | Repro |
+|----|-------------|-------|
+| J2K-INTEROP | Tier-1 EBCOT divergence vs OpenJPEG: tier-2 header of captured packet parses exactly (probe test, ignored); decode diverges in the FIRST cleanup pass around the 3rd stripe column — context adaptation (ZC/SC/RLC detail) under investigation | `tests/jpeg2000_interop.rs` (6 ignored acceptance tests + ignored probe in packet.rs) |
+| JLS-NEAR-TAIL | JPEG-LS NEAR>0 run-interruption desync near end of stream | 9x3, NEAR=2, LCG seed 6419120415352800387, sample[25] err 159; ignored proptest `round_trip_random_near_lossless` |
+| JLS-16BIT-LOSSLESS | JPEG-LS 16-bit lossless round-trip failure (suspect: limited-length Golomb / 16-bit refill path) | 3x8 bpp16 LCG seed 18395098268947010899; ignored test `round_trip_16bit_regression_seed`; proptest restricted to 8/12-bit until fixed |
+
+---
+
 ## Sprint 371 — J2K multi-code-block tier-2
 
 **Status**: Complete  
