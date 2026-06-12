@@ -2,10 +2,10 @@
 //!
 //! Exposes continuous field projections mathematically validated against geometric origins.
 
-use ritk_core::spatial::{Direction, Point, Spacing};
 use burn::module::{Module, Param};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_core::spatial::{Direction, Point, Spacing};
 
 /// Displacement field data representing a dense vector field on a regular mathematical grid.
 ///

@@ -2,12 +2,12 @@
 //!
 //! This module provides a rigid transform (rotation + translation).
 
-use ritk_core::transform::{Resampleable, Transform};
-use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_wgpu_compat::apply_row_chunks;
 use burn::module::{Module, Param};
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_core::transform::{Resampleable, Transform};
+use ritk_wgpu_compat::apply_row_chunks;
 
 /// Rigid Transform (Rotation + Translation).
 ///
@@ -205,15 +205,11 @@ impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
         let t = self.translation.val().reshape([1, D]);
         let c = self.center.clone().reshape([1, D]);
 
-        apply_row_chunks(
-            points,
-            ritk_wgpu_compat::WGPU_CHUNK_SIZE,
-            |chunk_points| {
-                let centered = chunk_points - c.clone();
-                let rotated = centered.matmul(r.clone().transpose());
-                rotated + c.clone() + t.clone()
-            },
-        )
+        apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk_points| {
+            let centered = chunk_points - c.clone();
+            let rotated = centered.matmul(r.clone().transpose());
+            rotated + c.clone() + t.clone()
+        })
     }
 }
 

@@ -5,10 +5,10 @@
 
 use std::borrow::Cow;
 
-use ritk_spatial::{Direction, Point, Spacing};
 use anyhow::anyhow;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_spatial::{Direction, Point, Spacing};
 
 /// Medical image with physical metadata.
 ///

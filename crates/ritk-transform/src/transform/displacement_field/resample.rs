@@ -1,8 +1,8 @@
 use super::core::DisplacementField;
-use ritk_interpolation::{Interpolator, LinearInterpolator};
-use ritk_core::spatial::{Direction, Point, Spacing};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_interpolation::{Interpolator, LinearInterpolator};
 
 impl<B: Backend, const D: usize> DisplacementField<B, D> {
     /// # Theorem: Continuous Field Resampling

@@ -3,11 +3,11 @@
 //! This module provides a mechanism to chain two transforms together.
 //! T(x) = T2(T1(x))
 
-use ritk_core::transform::Transform;
 use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
 use burn::record::{PrecisionSettings, Record};
 use burn::tensor::backend::{AutodiffBackend, Backend};
 use burn::tensor::Tensor;
+use ritk_core::transform::Transform;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 

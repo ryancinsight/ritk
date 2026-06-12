@@ -1,7 +1,7 @@
 use crate::transform::bspline::BSplineTransform;
-use ritk_wgpu_compat::apply_row_chunks;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_wgpu_compat::apply_row_chunks;
 
 impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     pub(crate) fn transform_4d(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {

@@ -1,9 +1,9 @@
 use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_interpolation::LinearInterpolator;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_transform::{DisplacementField, DisplacementFieldTransform, RigidTransform};
+use ritk_interpolation::LinearInterpolator;
 use ritk_transform::Transform;
+use ritk_transform::{DisplacementField, DisplacementFieldTransform, RigidTransform};
 use std::f32::consts::PI;
 
 type B = NdArray<f32>;

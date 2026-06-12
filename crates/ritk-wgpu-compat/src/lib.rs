@@ -133,7 +133,11 @@ pub(crate) fn apply_row_chunks_3d<B: Backend, const CHUNK: usize>(
             // bounds at compile time (they don't depend on `i`), so
             // the slice bounds for axes 1 and 2 are hoisted out of
             // the loop.
-            chunks.push(op(tensor.clone().slice([start..end, 0..dims[1], 0..dims[2]])));
+            chunks.push(op(tensor.clone().slice([
+                start..end,
+                0..dims[1],
+                0..dims[2],
+            ])));
         }
         Tensor::cat(chunks, 0)
     }

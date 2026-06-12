@@ -2,12 +2,12 @@
 //!
 //! This module provides an affine transform (linear transformation + translation).
 
-use ritk_core::transform::{Resampleable, Transform};
-use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_wgpu_compat::apply_row_chunks;
 use burn::module::{Module, Param};
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_core::transform::{Resampleable, Transform};
+use ritk_wgpu_compat::apply_row_chunks;
 
 /// Affine Transform (Linear transformation + Translation).
 ///
@@ -105,15 +105,11 @@ impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
         let a = self.matrix.val();
         let a_t = a.transpose();
 
-        apply_row_chunks(
-            points,
-            ritk_wgpu_compat::WGPU_CHUNK_SIZE,
-            |chunk_points| {
-                let centered = chunk_points - c.clone();
-                let rotated = centered.matmul(a_t.clone());
-                rotated + c.clone() + t.clone()
-            },
-        )
+        apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk_points| {
+            let centered = chunk_points - c.clone();
+            let rotated = centered.matmul(a_t.clone());
+            rotated + c.clone() + t.clone()
+        })
     }
 }
 

@@ -191,7 +191,10 @@ mod tests {
 
     /// Compute max absolute difference between two flat matrices.
     fn max_abs_diff<const D: usize>(a: &[f32], b: &[f32]) -> f32 {
-        a.iter().zip(b).map(|(x, y)| (x - y).abs()).fold(0.0f32, f32::max)
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| (x - y).abs())
+            .fold(0.0f32, f32::max)
     }
 
     // ── D = 1 ─────────────────────────────────────────────────────────
@@ -368,8 +371,7 @@ mod tests {
     fn invert_4x4_singular() {
         // Row 2 is a zero row — clearly rank-deficient.
         let a = [
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 0.0, 0.0, 0.0, 13.0, 14.0, 15.0,
-            16.0,
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 0.0, 0.0, 0.0, 13.0, 14.0, 15.0, 16.0,
         ];
         assert!(try_invert_small::<4>(&a).is_none());
     }

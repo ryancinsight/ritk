@@ -135,8 +135,8 @@ pub(crate) mod mapping;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_core::transform::Transform;
     use burn_ndarray::NdArray;
+    use ritk_core::transform::Transform;
     type TestBackend = NdArray<f32>;
 
     #[test]

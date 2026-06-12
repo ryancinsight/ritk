@@ -5,9 +5,9 @@ pub mod dim3;
 pub mod dim4;
 
 use super::BSplineTransform;
-use ritk_core::transform::Transform;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_core::transform::Transform;
 
 impl<B: Backend, const D: usize> Transform<B, D> for BSplineTransform<B, D> {
     fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {

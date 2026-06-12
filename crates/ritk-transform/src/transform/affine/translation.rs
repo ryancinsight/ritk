@@ -2,11 +2,11 @@
 //!
 //! This module provides a simple translation transform.
 
-use ritk_core::transform::{Resampleable, Transform};
-use ritk_core::spatial::{Direction, Point, Spacing};
 use burn::module::{Module, Param};
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_core::transform::{Resampleable, Transform};
 
 /// Simple Translation Transform.
 ///

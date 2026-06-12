@@ -2,10 +2,10 @@
 //!
 //! This module provides a scale transform (scaling around a center).
 
-use ritk_core::transform::Transform;
 use burn::module::{Module, Param};
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use ritk_core::transform::Transform;
 
 /// Scale Transform.
 ///

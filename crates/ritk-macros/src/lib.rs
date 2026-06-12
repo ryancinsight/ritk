@@ -345,12 +345,7 @@ fn interp_dim_template_nearest_typed_inner(input: TokenStream) -> TokenStream {
     if dims.len() != n {
         let err = syn::Error::new_spanned(
             &parsed.dim,
-            format!(
-                "dim {} requires {} dims (got {})",
-                n,
-                n,
-                dims.len()
-            ),
+            format!("dim {} requires {} dims (got {})", n, n, dims.len()),
         );
         return err.to_compile_error();
     }

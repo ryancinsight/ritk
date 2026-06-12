@@ -1,8 +1,8 @@
 use crate::types::Image;
-use ritk_spatial::Point;
-use ritk_wgpu_compat::apply_row_chunks;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Tensor, TensorData};
+use ritk_spatial::Point;
+use ritk_wgpu_compat::apply_row_chunks;
 
 impl<B: Backend, const D: usize> Image<B, D> {
     /// Convert a continuous physical point to a continuous index.
@@ -137,8 +137,8 @@ impl<B: Backend, const D: usize> Image<B, D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_spatial::{Direction, Spacing};
     use burn_ndarray::NdArray;
+    use ritk_spatial::{Direction, Spacing};
 
     type Backend = NdArray<f32>;
     type Point3 = Point<3>;
