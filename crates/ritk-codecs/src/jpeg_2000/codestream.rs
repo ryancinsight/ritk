@@ -164,6 +164,20 @@ impl QcdMarker {
             .map(|&s| u32::from(s) >> shift)
             .collect()
     }
+
+    /// Per-subband quantizer mantissas μ_b (scalar styles only): the low 11 bits
+    /// of each 2-byte SPqcd entry.  Returns all-zero for the no-quantization
+    /// style, where the entries are 1-byte exponents with no mantissa.
+    pub fn mantissas(&self) -> Vec<u32> {
+        if self.is_no_quantization() {
+            vec![0; self.step_sizes.len()]
+        } else {
+            self.step_sizes
+                .iter()
+                .map(|&s| u32::from(s) & 0x07FF)
+                .collect()
+        }
+    }
 }
 
 /// ISO 15444-1 §A.4.2 – Start of Tile-part.

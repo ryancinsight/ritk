@@ -12,7 +12,7 @@ use anyhow::{bail, Context, Result};
 
 use super::codestream::{parse_main_header, parse_sot};
 use super::marker;
-use super::packet::{decode_tile_part, TileCodingParams};
+use super::packet::{decode_tile_part, TileCodingParams, WaveletTransform};
 use crate::PixelLayout;
 
 /// Decode a DICOM-encapsulated J2K codestream, returning rescaled `f32` pixel values.
@@ -39,6 +39,12 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
 
     let num_guard_bits = qcd.num_guard_bits();
     let qcd_exponents = qcd.exponents();
+    let qcd_mantissas = qcd.mantissas();
+    let transform = if cod.is_lossless() {
+        WaveletTransform::Reversible
+    } else {
+        WaveletTransform::Irreversible
+    };
 
     // Validate layout consistency.
     let expected_comps = layout.samples_per_pixel;
@@ -133,6 +139,8 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
                             num_decomp_levels: cod.num_decomp_levels,
                             num_layers: cod.num_layers.max(1),
                             exponents: &qcd_exponents,
+                            mantissas: &qcd_mantissas,
+                            transform,
                         },
                     )
                     .with_context(|| format!("J2K: decode tile {isot} component {ci}"))?;

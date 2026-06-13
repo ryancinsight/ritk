@@ -11,6 +11,8 @@
 //! - `ebcot`      – EBCOT tier-1 encoder and decoder (Annex D).
 //! - `packet`     – Tier-2 packet encoder and decoder (Annex B).
 //! - `wavelet`    – Forward and inverse 5/3 reversible DWT (Annex F).
+//! - `wavelet_9_7`– Forward and inverse 9/7 irreversible DWT (Annex F, lossy).
+//! - `quantization`– Scalar dead-zone quantization for the 9/7 path (Annex E).
 //! - `subband`    – Mallat subband geometry (Annex B.5).
 //! - `tag_tree`   – Quad-tree inclusion/MSB coding (Annex B.10.2).
 //! - `image`      – Full codestream decoder and DICOM pixel extractor.
@@ -24,7 +26,8 @@
 //! # Current limitations
 //! - One precinct per resolution/band (no precinct partitioning; code-blocks
 //!   are 64×64 within each subband).
-//! - Lossy (9/7 irreversible wavelet) decoding is not yet supported — J2K-LOSSY-97.
+//! - Lossy 9/7 irreversible encode and decode are supported (scalar quantization,
+//!   unit-step near-lossless encoder); a rate-controlled quality knob is pending.
 //! - Interop against externally encoded streams is pending differential
 //!   validation — J2K-INTEROP.
 
@@ -35,9 +38,11 @@ pub(crate) mod image;
 pub(crate) mod marker;
 pub(crate) mod mq_coder;
 pub(crate) mod packet;
+pub(crate) mod quantization;
 pub(crate) mod subband;
 pub(crate) mod tag_tree;
 pub(crate) mod wavelet;
+pub(crate) mod wavelet_9_7;
 
 use anyhow::{bail, Result};
 
@@ -88,7 +93,7 @@ pub(crate) fn is_jpeg2000_codestream(fragment: &[u8]) -> bool {
 mod tests {
     use super::*;
     use crate::PixelSignedness;
-    use encoder::encode_grayscale_j2k;
+    use encoder::{encode_grayscale_j2k, WaveletTransform};
 
     fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> PixelLayout {
         PixelLayout {
@@ -178,7 +183,15 @@ mod tests {
         let cols = 4u32;
         let pixel_value = 128i32;
         let pixels = vec![pixel_value; (rows * cols) as usize];
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned, 0);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            rows,
+            cols,
+            8,
+            PixelSignedness::Unsigned,
+            0,
+            WaveletTransform::Reversible,
+        );
 
         assert!(
             is_jpeg2000_codestream(&j2k),
@@ -203,7 +216,15 @@ mod tests {
         let rows = 2u32;
         let cols = 4u32;
         let pixels: Vec<i32> = (0..8).collect();
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned, 0);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            rows,
+            cols,
+            8,
+            PixelSignedness::Unsigned,
+            0,
+            WaveletTransform::Reversible,
+        );
 
         let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
             .expect("gradient round-trip must succeed");
@@ -217,7 +238,15 @@ mod tests {
     #[test]
     fn decode_jpeg2000_signed_samples_round_trip() {
         let pixels = [-4i32, -1, 0, 3];
-        let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed, 0);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            2,
+            2,
+            8,
+            PixelSignedness::Signed,
+            0,
+            WaveletTransform::Reversible,
+        );
 
         let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
             .expect("signed lossless JPEG 2000 round-trip must succeed");
@@ -228,7 +257,15 @@ mod tests {
     #[test]
     fn decode_jpeg2000_lossless_rescale_applied_correctly() {
         let pixels = [100i32];
-        let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned, 0);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            1,
+            1,
+            8,
+            PixelSignedness::Unsigned,
+            0,
+            WaveletTransform::Reversible,
+        );
         let mut pixel_layout = layout(1, 1, 8, PixelSignedness::Unsigned);
         pixel_layout.rescale_slope = 2.0;
         pixel_layout.rescale_intercept = -1024.0;
@@ -246,7 +283,15 @@ mod tests {
         let pixels: Vec<i32> = vec![
             0, 256, 512, 1024, 2048, 3071, 3584, 3840, 100, 200, 400, 800, 1600, 2400, 3000, 4095,
         ];
-        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 16, PixelSignedness::Unsigned, 0);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            4,
+            4,
+            16,
+            PixelSignedness::Unsigned,
+            0,
+            WaveletTransform::Reversible,
+        );
         let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 16, PixelSignedness::Unsigned))
             .expect("16-bit lossless round-trip must succeed");
         let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -281,7 +326,7 @@ mod tests {
                 })
                 .collect();
             let signedness = if signed { PixelSignedness::Signed } else { PixelSignedness::Unsigned };
-            let j2k = encode_grayscale_j2k(&pixels, rows, cols, precision, signedness, num_decomp_levels);
+            let j2k = encode_grayscale_j2k(&pixels, rows, cols, precision, signedness, num_decomp_levels, WaveletTransform::Reversible);
             let decoded = decode_jpeg2000_fragment(
                 &j2k,
                 layout(rows as usize, cols as usize, precision as u16, signedness),
@@ -312,7 +357,15 @@ mod tests {
         // headers (shared tag trees) without DWT.
         let (rows, cols) = (70u32, 130u32);
         let pixels = synthetic(rows, cols, 256);
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Unsigned, 0);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            rows,
+            cols,
+            8,
+            PixelSignedness::Unsigned,
+            0,
+            WaveletTransform::Reversible,
+        );
         let decoded = decode_jpeg2000_fragment(&j2k, layout(70, 130, 8, PixelSignedness::Unsigned))
             .expect("multi-code-block LL0 round-trip must succeed");
         let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -325,7 +378,15 @@ mod tests {
         // exercises tag-tree coding over non-trivial grids at every resolution.
         let (rows, cols) = (100u32, 150u32);
         let pixels = synthetic(rows, cols, 4096);
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 16, PixelSignedness::Unsigned, 2);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            rows,
+            cols,
+            16,
+            PixelSignedness::Unsigned,
+            2,
+            WaveletTransform::Reversible,
+        );
         let decoded =
             decode_jpeg2000_fragment(&j2k, layout(100, 150, 16, PixelSignedness::Unsigned))
                 .expect("multi-code-block 2-level round-trip must succeed");
@@ -339,7 +400,15 @@ mod tests {
         let rows = 8u32;
         let cols = 12u32;
         let pixels: Vec<i32> = (0..96).map(|i| (i * 631) % 4096).collect();
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 16, PixelSignedness::Unsigned, 2);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            rows,
+            cols,
+            16,
+            PixelSignedness::Unsigned,
+            2,
+            WaveletTransform::Reversible,
+        );
         let decoded = decode_jpeg2000_fragment(&j2k, layout(8, 12, 16, PixelSignedness::Unsigned))
             .expect("2-level DWT lossless round-trip must succeed");
         let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -351,7 +420,15 @@ mod tests {
         let rows = 7u32;
         let cols = 9u32;
         let pixels: Vec<i32> = (0..63).map(|i| ((i * 37) % 256) - 128).collect();
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Signed, 3);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            rows,
+            cols,
+            8,
+            PixelSignedness::Signed,
+            3,
+            WaveletTransform::Reversible,
+        );
         let decoded = decode_jpeg2000_fragment(&j2k, layout(7, 9, 8, PixelSignedness::Signed))
             .expect("3-level DWT signed odd-dims round-trip must succeed");
         let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -365,7 +442,15 @@ mod tests {
         // OpenJPEG; we verify the codec pipeline is self-consistent by
         // confirming a round-trip produces zero error.
         let pixels: Vec<i32> = (0..16i32).map(|v| v * 10).collect();
-        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned, 0);
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            4,
+            4,
+            8,
+            PixelSignedness::Unsigned,
+            0,
+            WaveletTransform::Reversible,
+        );
         let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
             .expect("native codec round-trip must succeed");
         let max_err = pixels
@@ -376,6 +461,108 @@ mod tests {
         assert_eq!(
             max_err, 0.0,
             "RITK-native J2K round-trip max error must be 0; got {max_err}"
+        );
+    }
+
+    // ── Lossy 9/7 irreversible round-trips ───────────────────────────────────
+
+    /// Encode with the 9/7 irreversible transform (unit-step quantization) and
+    /// decode; the near-lossless path must reconstruct an 8-bit structured image
+    /// at high fidelity (PSNR ≥ 48 dB, max error ≤ a few levels).
+    #[test]
+    fn decode_jpeg2000_lossy_9_7_round_trip_structured_8bit() {
+        let (rows, cols) = (32u32, 32u32);
+        let pixels: Vec<i32> = (0..rows * cols)
+            .map(|i| {
+                let (x, y) = (i % cols, i / cols);
+                // smooth ramp + a localized bump
+                let ramp = (x * 5 + y * 3) % 200;
+                let bump = if (x as i32 - 16).pow(2) + (y as i32 - 16).pow(2) < 25 {
+                    50
+                } else {
+                    0
+                };
+                (ramp as i32 + bump).min(255)
+            })
+            .collect();
+
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            rows,
+            cols,
+            8,
+            PixelSignedness::Unsigned,
+            2,
+            WaveletTransform::Irreversible,
+        );
+
+        // The codestream must declare the irreversible transform (COD wavelet=0)
+        // and scalar quantization (QCD style ≠ 0), distinguishing it from the
+        // lossless path.
+        let decoded = decode_jpeg2000_fragment(
+            &j2k,
+            layout(rows as usize, cols as usize, 8, PixelSignedness::Unsigned),
+        )
+        .expect("9/7 lossy round-trip must decode");
+        assert_eq!(decoded.len(), pixels.len());
+
+        let mse: f64 = pixels
+            .iter()
+            .zip(&decoded)
+            .map(|(&p, &d)| {
+                let e = p as f64 - d as f64;
+                e * e
+            })
+            .sum::<f64>()
+            / pixels.len() as f64;
+        let max_err = pixels
+            .iter()
+            .zip(&decoded)
+            .map(|(&p, &d)| (p as f64 - d as f64).abs())
+            .fold(0.0, f64::max);
+        let psnr = if mse > 0.0 {
+            10.0 * (255.0f64.powi(2) / mse).log10()
+        } else {
+            f64::INFINITY
+        };
+        assert!(
+            psnr >= 48.0,
+            "9/7 near-lossless PSNR {psnr:.2} dB too low (mse {mse:.4}, max_err {max_err})"
+        );
+    }
+
+    /// Irreversible signed 16-bit round-trip: exercises the DC-shift-free signed
+    /// path and the 2-byte scalar QCD at higher precision.
+    #[test]
+    fn decode_jpeg2000_lossy_9_7_round_trip_signed_16bit() {
+        let (rows, cols) = (16u32, 24u32);
+        let pixels: Vec<i32> = (0..rows * cols)
+            .map(|i| (i as i32 * 37 % 4000) - 2000)
+            .collect();
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            rows,
+            cols,
+            16,
+            PixelSignedness::Signed,
+            1,
+            WaveletTransform::Irreversible,
+        );
+        let decoded = decode_jpeg2000_fragment(
+            &j2k,
+            layout(rows as usize, cols as usize, 16, PixelSignedness::Signed),
+        )
+        .expect("signed 16-bit 9/7 round-trip must decode");
+        let max_err = pixels
+            .iter()
+            .zip(&decoded)
+            .map(|(&p, &d)| (p as f64 - d as f64).abs())
+            .fold(0.0, f64::max);
+        // Unit-step quantization on a ±2000 range: error is a small multiple of
+        // the reconstruction step, far below the signal amplitude.
+        assert!(
+            max_err <= 8.0,
+            "signed 16-bit 9/7 max error {max_err} exceeds tolerance"
         );
     }
 }

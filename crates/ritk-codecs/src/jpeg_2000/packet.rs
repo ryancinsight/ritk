@@ -20,9 +20,22 @@
 use anyhow::{bail, Result};
 
 use super::ebcot::{decode_code_block, encode_code_block};
+use super::quantization::{dequantize, quantize, step_size};
 use super::subband::{resolution_band_range, subband_layout, Subband};
 use super::tag_tree::TagTree;
 use super::wavelet::{forward_dwt_5_3, inverse_dwt_5_3};
+use super::wavelet_9_7::{forward_dwt_9_7, inverse_dwt_9_7};
+
+/// Wavelet transform family selected for a tile (ISO 15444-1 §A.6.1, COD
+/// `SPcod` wavelet field).  `Reversible` is the integer 5/3 (lossless);
+/// `Irreversible` is the floating-point 9/7 (lossy, scalar-quantized).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum WaveletTransform {
+    /// 5/3 integer lifting — bit-exact, no quantization.
+    Reversible,
+    /// 9/7 floating-point lifting — lossy, dead-zone scalar quantization.
+    Irreversible,
+}
 
 // ── Bit I/O ───────────────────────────────────────────────────────────────────
 
@@ -310,6 +323,9 @@ fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
 /// - `num_guard_bits`: from the QCD marker (typically 2).
 /// - `precision`: component bit precision (from SIZ Ssiz).
 /// - `num_decomp_levels`: 5/3 reversible DWT levels (0 = no transform).
+// Codestream parameters are distinct primitives mirrored 1:1 from the COD/QCD/SIZ
+// markers; a wrapper struct would only re-encode the same fields.
+#[allow(clippy::too_many_arguments)]
 pub fn encode_tile_part(
     samples: &[i32],
     width: usize,
@@ -318,11 +334,27 @@ pub fn encode_tile_part(
     precision: u32,
     tile_index: u16,
     num_decomp_levels: u8,
+    transform: WaveletTransform,
 ) -> Vec<u8> {
-    // Forward DWT into the Mallat coefficient layout.
-    let mut mallat = samples.to_vec();
-    forward_dwt_5_3(&mut mallat, width, height, num_decomp_levels)
-        .expect("invariant: samples.len() == width × height");
+    // Forward DWT into the Mallat coefficient layout.  The irreversible 9/7
+    // path transforms in floating point and then dead-zone quantizes with a
+    // unit step (Δ_b = 1, i.e. ε_b = R_b = precision + gain_b, μ_b = 0) so the
+    // quantized integer coefficients reuse the same Mb = G + ε_b − 1 bit-plane
+    // budget and entropy-coding path as the reversible 5/3 transform.
+    let mallat = match transform {
+        WaveletTransform::Reversible => {
+            let mut m = samples.to_vec();
+            forward_dwt_5_3(&mut m, width, height, num_decomp_levels)
+                .expect("invariant: samples.len() == width × height");
+            m
+        }
+        WaveletTransform::Irreversible => {
+            let mut f: Vec<f32> = samples.iter().map(|&v| v as f32).collect();
+            forward_dwt_9_7(&mut f, width, height, num_decomp_levels)
+                .expect("invariant: samples.len() == width × height");
+            f.iter().map(|&c| quantize(c, 1.0)).collect()
+        }
+    };
     let bands = subband_layout(width, height, num_decomp_levels);
 
     // EBCOT-encode every code-block of every non-empty subband.
@@ -459,6 +491,12 @@ pub struct TileCodingParams<'a> {
     /// order; when empty (or too short) the reversible default
     /// `precision + gain_b` is used.
     pub exponents: &'a [u32],
+    /// Per-subband quantizer mantissas μ_b from QCD (scalar style only); empty
+    /// for the no-quantization style, where μ_b = 0.
+    pub mantissas: &'a [u32],
+    /// Wavelet transform family (from COD); selects the inverse DWT and whether
+    /// coefficients are dequantized.
+    pub transform: WaveletTransform,
 }
 
 /// Decode the tile-part body starting immediately after the SOD marker.
@@ -599,7 +637,32 @@ pub fn decode_tile_part(
         }
     }
 
-    inverse_dwt_5_3(&mut mallat, width, height, coding.num_decomp_levels)?;
+    match coding.transform {
+        WaveletTransform::Reversible => {
+            inverse_dwt_5_3(&mut mallat, width, height, coding.num_decomp_levels)?;
+        }
+        WaveletTransform::Irreversible => {
+            // Dequantize each subband (Δ_b from the QCD ε_b/μ_b relative to
+            // R_b = precision + gain_b), inverse 9/7, then round to integers.
+            let mut coeffs = vec![0f32; width * height];
+            for (bi, b) in bands.iter().enumerate() {
+                let r_b = coding.precision + b.gain;
+                let exponent = coding.exponents.get(bi).copied().unwrap_or(r_b);
+                let mantissa = coding.mantissas.get(bi).copied().unwrap_or(0);
+                let delta = step_size(r_b, exponent, mantissa);
+                for y in 0..b.h {
+                    for x in 0..b.w {
+                        let idx = (b.y0 + y) * width + b.x0 + x;
+                        coeffs[idx] = dequantize(mallat[idx], delta);
+                    }
+                }
+            }
+            inverse_dwt_9_7(&mut coeffs, width, height, coding.num_decomp_levels)?;
+            for (m, &c) in mallat.iter_mut().zip(coeffs.iter()) {
+                *m = c.round() as i32;
+            }
+        }
+    }
 
     Ok(TileComponentSamples {
         samples: mallat,
@@ -899,7 +962,7 @@ mod tests {
         // Regression (proptest seed 3404172460139922156): 2×2, 1 DWT level,
         // four 1×1 code-blocks across two LRCP packets.
         let samples = vec![64i32, -119, -42, -28];
-        let tp = encode_tile_part(&samples, 2, 2, 2, 8, 0, 1);
+        let tp = encode_tile_part(&samples, 2, 2, 2, 8, 0, 1, WaveletTransform::Reversible);
         let sod = tp
             .windows(2)
             .position(|w| w == [0xFF, 0x93])
@@ -914,6 +977,8 @@ mod tests {
                 num_decomp_levels: 1,
                 num_layers: 1,
                 exponents: &[],
+                mantissas: &[],
+                transform: WaveletTransform::Reversible,
             },
         )
         .expect("decode must succeed");
@@ -923,7 +988,7 @@ mod tests {
     #[test]
     fn tile_part_encode_decode_round_trip_uniform() {
         let samples = vec![0i32; 16]; // all zeros (DC-shifted uniform)
-        let tp = encode_tile_part(&samples, 4, 4, 2, 8, 0, 0);
+        let tp = encode_tile_part(&samples, 4, 4, 2, 8, 0, 0, WaveletTransform::Reversible);
         // The tile-part contains SOT(12) + SOD(2) + header + body.
         assert!(tp.len() >= 14, "tile-part must be at least 14 bytes");
     }
@@ -932,7 +997,7 @@ mod tests {
     fn tile_part_encode_decode_round_trip_gradient() {
         // DC-shifted: pixels 0..8 → -128..-121
         let samples: Vec<i32> = (0..8i32).map(|v| v - 128).collect();
-        let tp = encode_tile_part(&samples, 4, 2, 2, 8, 0, 0);
+        let tp = encode_tile_part(&samples, 4, 2, 2, 8, 0, 0, WaveletTransform::Reversible);
         assert!(tp.len() >= 14);
         // Locate SOD (0xFF93) and parse the packet.
         let sod_pos = tp
@@ -950,6 +1015,8 @@ mod tests {
                 num_decomp_levels: 0,
                 num_layers: 1,
                 exponents: &[],
+                mantissas: &[],
+                transform: WaveletTransform::Reversible,
             },
         )
         .expect("decode_tile_part must succeed");

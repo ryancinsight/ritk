@@ -7,7 +7,7 @@
 //! - `openjp2` encode → RITK decode: every sample exact.
 //! - RITK encode → `openjp2` (via `jpeg2k`) decode: every sample exact.
 
-use ritk_codecs::jpeg_2000::encoder::encode_grayscale_j2k;
+use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, WaveletTransform};
 use ritk_codecs::{decode_jpeg2000_fragment, PixelLayout, PixelSignedness};
 use std::ffi::CString;
 
@@ -140,7 +140,15 @@ fn assert_ritk_decodes_openjp2(rows: u32, cols: u32, prec: u32, numres: i32) {
 /// RITK → reference: every sample must reconstruct exactly.
 fn assert_openjp2_decodes_ritk(rows: u32, cols: u32, prec: u32, levels: u8) {
     let pixels = synthetic(rows, cols, prec);
-    let j2k = encode_grayscale_j2k(&pixels, rows, cols, prec, PixelSignedness::Unsigned, levels);
+    let j2k = encode_grayscale_j2k(
+        &pixels,
+        rows,
+        cols,
+        prec,
+        PixelSignedness::Unsigned,
+        levels,
+        WaveletTransform::Reversible,
+    );
     let img = jpeg2k::Image::from_bytes(&j2k).unwrap_or_else(|e| {
         panic!(
             "openjp2 decode of RITK stream failed ({rows}×{cols}, prec {prec}, L{levels}): {e:#}"
@@ -274,7 +282,15 @@ fn escalation_byte_compare_with_openjp2() {
     ];
     let mut failures = Vec::new();
     for (name, px) in cases {
-        let ours_stream = encode_grayscale_j2k(px, 8, 8, 8, PixelSignedness::Unsigned, 0);
+        let ours_stream = encode_grayscale_j2k(
+            px,
+            8,
+            8,
+            8,
+            PixelSignedness::Unsigned,
+            0,
+            WaveletTransform::Reversible,
+        );
         let refs_stream = openjp2_encode(px, 8, 8, 8, 1);
         let ours = tile_body(&ours_stream);
         let refs = tile_body(&refs_stream);
@@ -326,7 +342,15 @@ fn cross_decode_impulse_8x8_regression() {
     assert_eq!(dec, expected, "openjp2 → RITK impulse reconstruction");
 
     // RITK stream → openjp2 decoder.
-    let ours = encode_grayscale_j2k(&v1_mid, 8, 8, 8, PixelSignedness::Unsigned, 0);
+    let ours = encode_grayscale_j2k(
+        &v1_mid,
+        8,
+        8,
+        8,
+        PixelSignedness::Unsigned,
+        0,
+        WaveletTransform::Reversible,
+    );
     let img = jpeg2k::Image::from_bytes(&ours).expect("openjp2 decode of RITK impulse stream");
     let data = img.components()[0].data().to_vec();
     assert_eq!(data, v1_mid, "RITK → openjp2 impulse reconstruction");
