@@ -175,6 +175,39 @@ fn openjp2_to_ritk_150x100_8bit_five_levels_multi_cblk() {
     assert_ritk_decodes_openjp2(100, 150, 8, 6);
 }
 
+#[test]
+fn openjp2_to_ritk_64x80_16bit_five_levels() {
+    // Matches the GDCM/OpenJPEG DICOM writer defaults (numres = 6).
+    assert_ritk_decodes_openjp2(64, 80, 16, 6);
+}
+
+/// Full openjp2 → RITK matrix: sizes × {8, 12, 16}-bit × all resolution
+/// counts. Regression coverage for the §B.10.1 header bit-stuffing defect
+/// (we byte-stuffed 0x00 after 0xFF instead of 7-bit stuffing), which only
+/// manifested when a packet header happened to contain 0xFF.
+#[test]
+fn openjp2_to_ritk_matrix() {
+    for &(rows, cols) in &[(64u32, 64u32), (64, 80), (80, 64), (100, 150)] {
+        for &prec in &[8u32, 12, 16] {
+            for numres in 1..=6i32 {
+                assert_ritk_decodes_openjp2(rows, cols, prec, numres);
+            }
+        }
+    }
+}
+
+/// Full RITK → openjp2 matrix (reverse direction of [`openjp2_to_ritk_matrix`]).
+#[test]
+fn ritk_to_openjp2_matrix() {
+    for &(rows, cols) in &[(64u32, 64u32), (64, 80), (100, 150)] {
+        for &prec in &[8u32, 12, 16] {
+            for levels in 0..=5u8 {
+                assert_openjp2_decodes_ritk(rows, cols, prec, levels);
+            }
+        }
+    }
+}
+
 // ── RITK → openjp2 ───────────────────────────────────────────────────────────
 
 #[test]

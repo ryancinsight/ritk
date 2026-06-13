@@ -28,32 +28,40 @@ use super::wavelet::{forward_dwt_5_3, inverse_dwt_5_3};
 
 /// Write individual bits, MSB first, into a byte buffer.
 ///
-/// The JPEG 2000 packet-header bit stream uses 0xFF byte-stuffing (ISO 15444-1
-/// §B.10.1): whenever 0xFF would appear in the output, a 0x00 is inserted after
-/// it.  We apply stuffing on `flush`.
+/// The JPEG 2000 packet-header bit stream uses **bit**-stuffing (ISO 15444-1
+/// §B.10.1, = OpenJPEG `opj_bio_byteout`): a byte following 0xFF carries only
+/// 7 payload bits (its MSB is a stuffed 0), so 0xFF can never be followed by a
+/// byte with the MSB set. This is not byte-stuffing — no full 0x00 is inserted.
 pub(crate) struct BitWriter {
-    bits: Vec<u8>, // packed bytes (before stuffing)
-    cur: u8,
-    used: u8,
+    out: Vec<u8>,
+    /// 16-bit sliding window: bits accumulate in the low byte; the high byte
+    /// is the previously completed byte (drives the 7-bit follow rule).
+    buf: u32,
+    /// Bits still available in the current byte (7 after emitting 0xFF).
+    ct: u8,
 }
 
 impl BitWriter {
     pub(crate) fn new() -> Self {
         Self {
-            bits: Vec::new(),
-            cur: 0,
-            used: 0,
+            out: Vec::new(),
+            buf: 0,
+            ct: 8,
         }
     }
 
+    fn byteout(&mut self) {
+        self.buf = (self.buf << 8) & 0xFFFF;
+        self.ct = if self.buf == 0xFF00 { 7 } else { 8 };
+        self.out.push((self.buf >> 8) as u8);
+    }
+
     pub(crate) fn write_bit(&mut self, b: u32) {
-        self.cur = (self.cur << 1) | (b as u8 & 1);
-        self.used += 1;
-        if self.used == 8 {
-            self.bits.push(self.cur);
-            self.cur = 0;
-            self.used = 0;
+        if self.ct == 0 {
+            self.byteout();
         }
+        self.ct -= 1;
+        self.buf |= (b & 1) << self.ct;
     }
 
     pub(crate) fn write_bits(&mut self, value: u32, n: u8) {
@@ -62,73 +70,58 @@ impl BitWriter {
         }
     }
 
-    /// Flush remaining bits (padding with 0s), apply 0xFF-stuffing, return bytes.
+    /// Flush remaining bits (padding with 0s) and return the header bytes
+    /// (= OpenJPEG `opj_bio_flush`): if the final byte is 0xFF, one extra
+    /// 7-bit byte is emitted so the header never ends on 0xFF.
     pub(crate) fn flush(mut self) -> Vec<u8> {
-        if self.used > 0 {
-            self.cur <<= 8 - self.used;
-            self.bits.push(self.cur);
+        self.byteout();
+        if self.ct == 7 {
+            self.byteout();
         }
-        // Apply 0xFF byte-stuffing per ISO 15444-1 §B.10.1.
-        let mut out = Vec::with_capacity(self.bits.len() + 4);
-        for b in self.bits {
-            out.push(b);
-            if b == 0xFF {
-                out.push(0x00);
-            }
-        }
-        out
+        self.out
     }
 }
 
-/// Read individual bits from a byte buffer (MSB first), stripping 0xFF stuffing.
+/// Read individual bits (MSB first) from a §B.10.1 bit-stuffed header: after
+/// a 0xFF byte, the following byte contributes only its low 7 bits
+/// (= OpenJPEG `opj_bio_bytein`).
 pub struct BitReader {
-    bytes: Vec<u8>, // de-stuffed bytes
-    /// `raw_offsets[k]` = raw (stuffed) bytes consumed once `k` de-stuffed
-    /// bytes have been read — needed so [`Self::byte_pos`] reports the packet
-    /// body offset in RAW bytes even when the header contains stuffed 0xFFs.
-    raw_offsets: Vec<usize>,
-    byte_pos: usize,
-    bit_pos: u8, // 0 = MSB of current byte
+    bytes: Vec<u8>,
+    /// Next unread byte index.
+    pos: usize,
+    /// 16-bit sliding window (high byte = previously consumed byte).
+    buf: u32,
+    /// Unread bits remaining in the low byte of `buf`.
+    ct: u8,
 }
 
 impl BitReader {
-    /// Create a `BitReader` from a raw (stuffed) byte slice.
-    ///
-    /// Strips the 0x00 bytes that follow each 0xFF byte (§B.10.1).
+    /// Create a `BitReader` over a raw packet-header byte slice.
     pub fn new(raw: &[u8]) -> Self {
-        let mut bytes = Vec::with_capacity(raw.len());
-        let mut raw_offsets = Vec::with_capacity(raw.len() + 1);
-        raw_offsets.push(0);
-        let mut i = 0;
-        while i < raw.len() {
-            let b = raw[i];
-            bytes.push(b);
-            i += 1;
-            if b == 0xFF && i < raw.len() && raw[i] == 0x00 {
-                i += 1; // skip stuffed zero
-            }
-            raw_offsets.push(i);
-        }
         Self {
-            bytes,
-            raw_offsets,
-            byte_pos: 0,
-            bit_pos: 0,
+            bytes: raw.to_vec(),
+            pos: 0,
+            buf: 0,
+            ct: 0,
+        }
+    }
+
+    fn bytein(&mut self) {
+        self.buf = (self.buf << 8) & 0xFFFF;
+        self.ct = if self.buf == 0xFF00 { 7 } else { 8 };
+        if self.pos < self.bytes.len() {
+            self.buf |= u32::from(self.bytes[self.pos]);
+            self.pos += 1;
         }
     }
 
     #[inline]
     pub fn read_bit(&mut self) -> u32 {
-        if self.byte_pos >= self.bytes.len() {
-            return 0;
+        if self.ct == 0 {
+            self.bytein();
         }
-        let b = (self.bytes[self.byte_pos] >> (7 - self.bit_pos)) & 1;
-        self.bit_pos += 1;
-        if self.bit_pos == 8 {
-            self.bit_pos = 0;
-            self.byte_pos += 1;
-        }
-        u32::from(b)
+        self.ct -= 1;
+        (self.buf >> self.ct) & 1
     }
 
     pub fn read_bits(&mut self, n: u8) -> u32 {
@@ -139,15 +132,15 @@ impl BitReader {
         v
     }
 
-    /// RAW byte position of the first unused byte (for locating the packet
-    /// body); accounts for stuffed bytes removed during construction.
-    pub fn byte_pos(&self) -> usize {
-        let destuffed = if self.bit_pos == 0 {
-            self.byte_pos
-        } else {
-            self.byte_pos + 1
-        };
-        self.raw_offsets[destuffed.min(self.raw_offsets.len() - 1)]
+    /// Align past the header to the packet body and return its RAW byte
+    /// offset (= OpenJPEG `opj_bio_inalign`): if the last consumed header
+    /// byte is 0xFF, the mandatory stuffed follow byte is skipped too.
+    pub fn byte_pos(&mut self) -> usize {
+        if self.buf & 0xFF == 0xFF {
+            self.bytein();
+        }
+        self.ct = 0;
+        self.pos
     }
 }
 

@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [0.68.2] — 2026-06-12 (Sprint 373 cont.: J2K packet-header bit-stuffing — SimpleITK/GDCM interop)
+
+### Fixed
+- `ritk-codecs 0.5.2`: tier-2 packet headers used **byte**-stuffing (0x00 inserted after 0xFF) instead of the §B.10.1 **bit**-stuffing contract (the byte following 0xFF carries only 7 payload bits; a header never ends on 0xFF; the decoder skips the mandatory follow byte when aligning to the body). Writer and reader shared the wrong model, so internal round-trips passed; cross-implementation exchange corrupted every image whose packet header happened to contain 0xFF — first surfaced decoding SimpleITK/GDCM-written JPEG 2000 DICOM. `BitWriter`/`BitReader` rewritten on OpenJPEG's `opj_bio` sliding-window semantics (`byteout`/`bytein`/`flush`/`inalign`).
+
+### Added
+- Interop acceptance matrices both directions: {64×64, 64×80, 80×64, 100×150} × {8, 12, 16}-bit × 0–5 DWT levels — 126 configurations, every sample exact (first coverage of 12-bit, the GDCM CT default).
+- `openjp2_to_ritk_64x80_16bit_five_levels`: the GDCM DICOM writer default geometry.
+
 ## [0.68.1] — 2026-06-12 (Sprint 373: J2K-INTEROP closed — MQ probability-estimation root cause)
 
 ### Fixed
