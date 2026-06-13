@@ -18,8 +18,16 @@ pub fn generate_random_points<B: Backend, const D: usize>(
     num_samples: usize,
     device: &B::Device,
 ) -> Tensor<B, 2> {
-    // Create a scaling tensor for each dimension
-    let max_vals: Vec<f32> = shape.iter().map(|&s| (s as f32) - 1.0).collect();
+    // Per-column scaling must use the SAME innermost-first column convention as
+    // [`generate_grid`] and the interpolation kernels: column 0 = x = `shape[D-1]`,
+    // …, column D-1 = z = `shape[0]`.  Scaling column `j` by `shape[j]-1` (axis
+    // order) instead transposes the axes — harmless for cubic images (all extents
+    // equal) but catastrophic for anisotropic shapes: e.g. for a [29, 512, 512]
+    // thin slab it would draw the z-column over [0, 511] when the z-axis only
+    // spans [0, 28], sending almost every sample out of bounds and collapsing the
+    // joint histogram (MI ≈ 0).  Reverse the extents so column j ranges over
+    // shape[D-1-j].
+    let max_vals: Vec<f32> = (0..D).map(|j| (shape[D - 1 - j] as f32) - 1.0).collect();
     let max_vals_tensor =
         Tensor::<B, 1>::from_data(TensorData::new(max_vals, Shape::new([D])), device)
             .reshape([D, 1]);
@@ -168,11 +176,16 @@ mod tests {
         assert_eq!(pts.dims(), [50, 3]);
     }
 
-    /// All random index values must lie in [0, shape[d]-1].
+    /// All random index values must lie within the per-axis bound, using the
+    /// innermost-first column convention shared with [`generate_grid`] and the
+    /// interpolation kernels: column 0 = x bounded by `shape[D-1]-1`, …,
+    /// column D-1 = z bounded by `shape[0]-1`.
     ///
     /// # Derivation
-    /// For shape=[4, 6, 8], the maximum valid index per dimension is [3, 5, 7].
-    /// generate_random_points scales Uniform(0,1) by (shape[d]-1).
+    /// For shape=[4, 6, 8] (= [z, y, x]), column j ranges over shape[D-1-j], so
+    /// the per-column maxima are [x_max, y_max, z_max] = [7, 5, 3].  Asserting
+    /// column 0 against shape[0] (z=3) would be the wrong axis — that mismatch is
+    /// the transposition bug that collapsed MI sampling on anisotropic images.
     #[test]
     fn random_points_within_bounds() {
         let device = Default::default();
@@ -182,12 +195,49 @@ mod tests {
         let vals = data.as_slice::<f32>().unwrap();
         // vals layout: [row0_x, row0_y, row0_z, row1_x, ...]
         for (i, &v) in vals.iter().enumerate() {
-            let col = i % 3; // dimension index
-            let max_idx = (shape[col] - 1) as f32;
+            let col = i % 3; // column 0 = x = shape[D-1], column D-1 = z = shape[0]
+            let max_idx = (shape[3 - 1 - col] - 1) as f32;
             assert!(
                 v >= 0.0 && v <= max_idx + 1e-4, // small epsilon for float rounding
                 "random index col={col} out of [0, {max_idx}]: got {v}"
             );
         }
+    }
+
+    /// Regression for the axis-transposition bug: on a strongly anisotropic
+    /// shape the x-column (col 0) must be allowed to exceed the z-extent, and the
+    /// z-column (col 2) must stay within the (small) z-extent.  Under the old
+    /// `shape[col]` scaling the z-column would be drawn over [0, nx-1], sending
+    /// MI samples massively out of bounds and collapsing the joint histogram.
+    #[test]
+    fn random_points_anisotropic_axis_order() {
+        let device = Default::default();
+        let shape = [3usize, 256, 256]; // [z=3, y=256, x=256] — thin slab
+        let pts = generate_random_points::<B, 3>(shape, 4000, &device);
+        let data = pts.into_data();
+        let vals = data.as_slice::<f32>().unwrap();
+        let mut max_x = 0.0f32;
+        let mut max_z = 0.0f32;
+        for (i, &v) in vals.iter().enumerate() {
+            match i % 3 {
+                0 => max_x = max_x.max(v),
+                2 => {
+                    max_z = max_z.max(v);
+                    assert!(
+                        v <= (shape[0] - 1) as f32 + 1e-4,
+                        "z-column (col 2) must stay within z-extent {}: got {v}",
+                        shape[0] - 1
+                    );
+                }
+                _ => {}
+            }
+        }
+        // With 4000 samples the x-column must reach well beyond the z-extent (2),
+        // confirming column 0 spans the x-axis (255), not the z-axis.
+        assert!(
+            max_x > (shape[0] - 1) as f32,
+            "x-column max {max_x} must exceed z-extent {}; axes are transposed",
+            shape[0] - 1
+        );
     }
 }
