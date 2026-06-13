@@ -359,9 +359,9 @@ pub fn default_ngf_pyramid(center_weight_sigma_frac: Option<f64>) -> Vec<NgfPyra
         }
     };
     vec![
-        level(4, 12.0, 25.0, 150, 5000),  // coarse: tight rot, residual-bounded trans
-        level(2, 8.0, 15.0, 100, 10000),  // medium: refine
-        level(1, 5.0, 8.0, 60, 20000),    // fine: full resolution, sharp optimum
+        level(4, 12.0, 25.0, 150, 5000), // coarse: tight rot, residual-bounded trans
+        level(2, 8.0, 15.0, 100, 10000), // medium: refine
+        level(1, 5.0, 8.0, 60, 20000),   // fine: full resolution, sharp optimum
     ]
 }
 

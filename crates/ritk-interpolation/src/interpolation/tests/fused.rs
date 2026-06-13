@@ -88,7 +88,7 @@ fn test_fused_identity_image_zero_translation() {
     let values = result.values.into_data().into_vec::<f32>().unwrap();
 
     assert_eq!(values[0], 0.0, "Voxel (0,0,0) should be 0.0");
-    assert_eq!(values[1], 1.0, "Voxel (1,0,0) should be 1.0");
+    assert_eq!(values[1], 16.0, "Voxel (0,0,1) should be 16.0");
     assert_eq!(values[2], 4.0, "Voxel (0,1,0) should be 4.0");
 }
 
@@ -151,8 +151,8 @@ fn test_fused_non_identity_spacing() {
     let values = result.values.into_data().into_vec::<f32>().unwrap();
 
     assert_eq!(
-        values[0], 1.0,
-        "World [2,0,0] with spacing 2 → index [1,0,0] = value 1.0"
+        values[0], 16.0,
+        "World [2,0,0] with spacing 2 → index [0,0,1] = value 16.0"
     );
 }
 

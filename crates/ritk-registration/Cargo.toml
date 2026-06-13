@@ -58,6 +58,10 @@ harness = false
 name = "bspline_displacement"
 harness = false
 
+[[bench]]
+name = "lddmm_smoothing"
+harness = false
+
 [[example]]
 name = "rigid_registration"
 path = "examples/rigid_registration.rs"

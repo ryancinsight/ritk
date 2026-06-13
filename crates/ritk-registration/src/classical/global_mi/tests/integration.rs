@@ -70,7 +70,11 @@ fn translation_recovery_shifted_gaussian() {
     // SimpleITK, so the d0-first order is the correct expectation.)
     // Tolerance 0.8 accommodates stochastic-sampling variance.
     let tolerance = 0.8;
-    let checks = [(t_slice[0], true_tz, "d0/z"), (t_slice[1], true_ty, "d1/y"), (t_slice[2], true_tx, "d2/x")];
+    let checks = [
+        (t_slice[0], true_tz, "d0/z"),
+        (t_slice[1], true_ty, "d1/y"),
+        (t_slice[2], true_tx, "d2/x"),
+    ];
     for (est, want, axis) in checks {
         assert!(
             (est - want).abs() < tolerance,

@@ -17,8 +17,10 @@ mod gradient;
 mod integrate;
 mod normalize;
 mod smooth;
+mod validation;
 mod warp;
 
+use burn::tensor::backend::Backend;
 use ritk_spatial::VolumeDims;
 
 // Flat `flat` and `trilinear_interpolate` are defined here to avoid peer-module
@@ -36,10 +38,103 @@ pub(crate) use smooth::{
     gaussian_smooth_with_scratch,
 };
 
-// — GPU-accelerated smoothing (Burn tensor path) —————————————————————————————
-#[allow(unused_imports)]
-pub use smooth::{gaussian_smooth_field_tensor, gaussian_smooth_tensor, GpuFieldSmoother};
-pub(crate) use warp::{compute_mse_streaming, warp_image, warp_image_into};
+// ── GPU-accelerated smoothing (Burn tensor path) ─────────────────────────────
+pub use smooth::GpuFieldSmoother;
+pub(crate) use validation::{cc_converged, validate_image_pair};
+pub(crate) use warp::{compute_mse_inplace, compute_mse_streaming, warp_image, warp_image_into};
+
+// ── FieldSmoother trait — zero-cost abstraction over CPU/GPU smoothing ───────
+
+/// Smooth a 3-component displacement or velocity field in place.
+///
+/// Implementations include [`CpuFieldSmoother`] (CPU `moirai` path) and
+/// [`GpuFieldSmoother`] (Burn GPU path).  Registration engines accept
+/// `impl FieldSmoother` so callers choose the backend at the call site
+/// without needing separate `register_with_gpu_smoother` entry points.
+pub trait FieldSmoother {
+    /// Smooth the three components of a vector field **in place**.
+    ///
+    /// The three slices must have the same length.  A sigma ≤ 0 is a no-op
+    /// (the trait does not prescribe how implementations handle this).
+    fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]);
+}
+
+/// CPU-based Gaussian field smoother.
+///
+/// Uses [`gaussian_smooth_field_inplace_with_scratch`] internally.
+/// Pre-allocates a scratch buffer so the hot path performs zero heap
+/// allocations.
+///
+/// # Example
+///
+/// ```no_run
+/// use ritk_registration::deformable_field_ops::{CpuFieldSmoother, FieldSmoother};
+///
+/// let mut smoother = CpuFieldSmoother::new([256, 256, 256], 1.5);
+/// smoother.smooth_field(&mut fz, &mut fy, &mut fx);
+/// ```
+pub struct CpuFieldSmoother {
+    smooth_tmp: Vec<f32>,
+    dims: VolumeDims,
+    sigma: f64,
+}
+
+impl CpuFieldSmoother {
+    /// Create a CPU smoother for `dims` with isotropic `sigma` (mm).
+    ///
+    /// Allocates one scratch buffer of size `nz * ny * nx`.
+    pub fn new(dims: [usize; 3], sigma: f64) -> Self {
+        let n = dims[0] * dims[1] * dims[2];
+        Self {
+            smooth_tmp: vec![0.0_f32; n],
+            dims: VolumeDims::new(dims),
+            sigma,
+        }
+    }
+}
+
+impl FieldSmoother for CpuFieldSmoother {
+    fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]) {
+        gaussian_smooth_field_inplace_with_scratch(
+            z,
+            y,
+            x,
+            self.dims,
+            self.sigma,
+            &mut self.smooth_tmp,
+        );
+    }
+}
+
+// ── CpuOrGpu enum — static dispatch without Box heap allocation ──────────────
+
+/// Static-dispatch union of [`CpuFieldSmoother`] and [`GpuFieldSmoother`].
+///
+/// Replaces `Box<dyn FieldSmoother>` in multi-resolution registration loops
+/// where a per-level smoother must be created.  The enum is stack-allocated
+/// and uses a match arm instead of vtable dispatch — zero heap allocations,
+/// zero dynamic dispatch.
+///
+/// # Type parameter
+///
+/// `B` is the Burn backend used by the GPU variant.  For CPU-only usage,
+/// any backend will work (it is never used by the [`Cpu`](CpuOrGpu::Cpu)
+/// arm) — [`burn::backend::Wgpu`] is a convenient choice.
+pub enum CpuOrGpu<B: Backend = burn::backend::Wgpu> {
+    /// CPU Gaussian smoother with pre-allocated scratch buffer.
+    Cpu(CpuFieldSmoother),
+    /// GPU Gaussian smoother with Burn backend `B`.
+    Gpu(GpuFieldSmoother<B>),
+}
+
+impl<B: Backend> FieldSmoother for CpuOrGpu<B> {
+    fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]) {
+        match self {
+            Self::Cpu(s) => s.smooth_field(z, y, x),
+            Self::Gpu(s) => s.smooth_field(z, y, x),
+        }
+    }
+}
 
 // ── 3D vector field grouping structs ─────────────────────────────────────────
 

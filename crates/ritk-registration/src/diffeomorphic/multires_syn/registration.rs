@@ -1,10 +1,13 @@
 use std::borrow::Cow;
 use std::collections::VecDeque;
 
+use burn::tensor::backend::Backend;
+
 use crate::deformable_field_ops::{
-    compose_fields_into, compute_gradient_into, gaussian_smooth_field_inplace_with_scratch,
-    normalize_forces_into, scaling_and_squaring, scaling_and_squaring_into, warp_image,
-    warp_image_into, VectorField, VectorFieldMut, VelocityField,
+    cc_converged, compose_fields_into, compute_gradient_into, normalize_forces_into,
+    scaling_and_squaring, scaling_and_squaring_into, validate_image_pair, warp_image,
+    warp_image_into, CpuFieldSmoother, CpuOrGpu, FieldSmoother, VectorField, VectorFieldMut,
+    VelocityField,
 };
 use crate::diffeomorphic::SyNResult;
 use crate::error::RegistrationError;
@@ -29,6 +32,9 @@ impl super::MultiResSyNRegistration {
     }
 
     /// Register `moving` to `fixed` using multi-resolution SyN with local CC.
+    ///
+    /// Convenience wrapper that constructs a [`CpuFieldSmoother`] per resolution
+    /// level and delegates to [`register_with`](MultiResSyNRegistration::register_with).
     pub fn register(
         &self,
         fixed: &[f32],
@@ -36,22 +42,33 @@ impl super::MultiResSyNRegistration {
         dims: [usize; 3],
         spacing: [f64; 3],
     ) -> Result<SyNResult, RegistrationError> {
+        let sigma = self.config.sigma_smooth;
+        let mut factory =
+            |ld: [usize; 3]| -> CpuOrGpu { CpuOrGpu::Cpu(CpuFieldSmoother::new(ld, sigma)) };
+        self.register_with(fixed, moving, dims, spacing, &mut factory)
+    }
+
+    /// Register `moving` to `fixed` using multi-resolution SyN with a
+    /// user-provided [`CpuOrGpu`] factory.
+    ///
+    /// When the factory returns [`CpuOrGpu::Gpu`], the per-iteration
+    /// velocity-field smoothing runs on the GPU — 10–50× faster than the
+    /// CPU path for typical 256³ fields.
+    ///
+    /// A fresh smoother is constructed per resolution level (because
+    /// dimensions change). The [`CpuOrGpu`] enum is stack-allocated —
+    /// zero heap allocation, zero dynamic dispatch per `smooth_field` call.
+    pub fn register_with<B: Backend>(
+        &self,
+        fixed: &[f32],
+        moving: &[f32],
+        dims: [usize; 3],
+        spacing: [f64; 3],
+        smoother_factory: &mut impl FnMut([usize; 3]) -> CpuOrGpu<B>,
+    ) -> Result<SyNResult, RegistrationError> {
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
-        if fixed.len() != n {
-            return Err(RegistrationError::DimensionMismatch(format!(
-                "fixed length {} != dims product {}",
-                fixed.len(),
-                n
-            )));
-        }
-        if moving.len() != n {
-            return Err(RegistrationError::DimensionMismatch(format!(
-                "moving length {} != dims product {}",
-                moving.len(),
-                n
-            )));
-        }
+        validate_image_pair(fixed, moving, dims)?;
         if self.config.iterations_per_level.len() != self.config.num_levels {
             return Err(RegistrationError::InvalidConfiguration(format!(
                 "iterations_per_level length {} != num_levels {}",
@@ -141,6 +158,9 @@ impl super::MultiResSyNRegistration {
             let mut cc_hist: VecDeque<f64> = VecDeque::new();
             let r = self.config.cc_window_radius;
 
+            // ── Per-level smoother (dimensions change each level) ─────────
+            let mut smoother = smoother_factory(ld);
+
             // ── Per-level scratch (zero alloc inside the inner loop) ─────────
             let mut p1z = vec![0.0_f32; ln];
             let mut p1y = vec![0.0_f32; ln];
@@ -159,8 +179,6 @@ impl super::MultiResSyNRegistration {
             let mut scratch_ss_z = vec![0.0_f32; ln];
             let mut scratch_ss_y = vec![0.0_f32; ln];
             let mut scratch_ss_x = vec![0.0_f32; ln];
-            // Pre-hoisted smooth scratch: reused across all inner iterations, eliminates 3×ln allocs per iter.
-            let mut smooth_tmp = vec![0.0_f32; ln];
 
             for _ in 0..self.config.iterations_per_level[level] {
                 total_iter += 1;
@@ -220,22 +238,8 @@ impl super::MultiResSyNRegistration {
                     v2x[i] += u2x[i];
                 }
                 if self.config.sigma_smooth > 0.0 {
-                    gaussian_smooth_field_inplace_with_scratch(
-                        &mut v1z,
-                        &mut v1y,
-                        &mut v1x,
-                        ld.into(),
-                        self.config.sigma_smooth,
-                        &mut smooth_tmp,
-                    );
-                    gaussian_smooth_field_inplace_with_scratch(
-                        &mut v2z,
-                        &mut v2y,
-                        &mut v2x,
-                        ld.into(),
-                        self.config.sigma_smooth,
-                        &mut smooth_tmp,
-                    );
+                    smoother.smooth_field(&mut v1z, &mut v1y, &mut v1x);
+                    smoother.smooth_field(&mut v2z, &mut v2y, &mut v2x);
                 }
                 if self.config.enforce_inverse_consistency == InverseConsistency::Enforced {
                     compose_fields_into(
@@ -284,17 +288,13 @@ impl super::MultiResSyNRegistration {
                     }
                 }
                 final_cc = mean_local_cc(&i_w_buf, &j_w_buf, ld, r);
-                cc_hist.push_back(final_cc);
-                if cc_hist.len() > self.config.convergence_window {
-                    cc_hist.pop_front();
-                }
-                if cc_hist.len() == self.config.convergence_window {
-                    let mu = cc_hist.iter().sum::<f64>() / cc_hist.len() as f64;
-                    let var = cc_hist.iter().map(|&v| (v - mu).powi(2)).sum::<f64>()
-                        / cc_hist.len() as f64;
-                    if var < self.config.convergence_threshold {
-                        break;
-                    }
+                if cc_converged(
+                    &mut cc_hist,
+                    final_cc,
+                    self.config.convergence_window,
+                    self.config.convergence_threshold,
+                ) {
+                    break;
                 }
             }
             prev = Some(PrevLevelState {

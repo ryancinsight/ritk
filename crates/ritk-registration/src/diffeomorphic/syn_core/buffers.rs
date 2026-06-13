@@ -6,6 +6,9 @@
 /// Dense scratch buffers for one SyN registration.
 ///
 /// Sized to `n = nz * ny * nx` voxels. All buffers are 0-initialized.
+///
+/// The smoothing scratch buffer is handled by [`FieldSmoother`] implementations;
+/// it is no longer stored here.
 pub(super) struct SyNBuffers {
     // ── Velocity fields v₁, v₂ (output) ──
     pub v1z: Vec<f32>,
@@ -47,13 +50,10 @@ pub(super) struct SyNBuffers {
     pub u2z: Vec<f32>,
     pub u2y: Vec<f32>,
     pub u2x: Vec<f32>,
-
-    // ── Gaussian smooth scratch ──
-    pub smooth_tmp: Vec<f32>,
 }
 
 impl SyNBuffers {
-    /// Allocate all 30 buffers for a volume with `n = nz*ny*nx` voxels.
+    /// Allocate all 29 buffers for a volume with `n = nz*ny*nx` voxels.
     pub(super) fn new(n: usize) -> Self {
         Self {
             v1z: vec![0.0_f32; n],
@@ -85,7 +85,6 @@ impl SyNBuffers {
             u2z: vec![0.0_f32; n],
             u2y: vec![0.0_f32; n],
             u2x: vec![0.0_f32; n],
-            smooth_tmp: vec![0.0_f32; n],
         }
     }
 }

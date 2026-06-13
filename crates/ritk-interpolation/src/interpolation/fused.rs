@@ -24,6 +24,7 @@ use ritk_core::transform::Transform;
 use ritk_image::Image;
 
 /// Check whether a direction matrix is the identity (within tolerance).
+#[cfg(test)]
 pub(crate) fn is_identity_direction<const D: usize>(
     direction: &ritk_spatial::Direction<D>,
 ) -> bool {
@@ -91,55 +92,30 @@ pub fn transform_and_interpolate_3d<B: Backend, T: Transform<B, 3>>(
     let moving_world = transform.transform_points(fixed_points);
 
     // ---- Step 2: world-to-index (fused, inlined) ----
-    let indices = if is_identity_direction(moving.direction()) {
-        // Fast path: identity direction means
-        // index = (world - origin) / spacing
-        // which can be computed with a simple broadcast subtraction and
-        // element-wise multiply (by precomputed 1/spacing), avoiding the
-        // matmul entirely.
+    let origin_data: Vec<f32> = (0..3).map(|i| moving.origin()[i] as f32).collect();
+    let origin_tensor = Tensor::<B, 1>::from_data(
+        TensorData::new(origin_data, burn::tensor::Shape::new([3])),
+        &device,
+    );
 
-        let origin_data: Vec<f32> = (0..3).map(|i| moving.origin()[i] as f32).collect();
-        let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_data, burn::tensor::Shape::new([3])),
-            &device,
-        );
-
-        let inv_spacing_data: Vec<f32> =
-            (0..3).map(|i| (1.0 / moving.spacing()[i]) as f32).collect();
-        let inv_spacing_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(inv_spacing_data, burn::tensor::Shape::new([3])),
-            &device,
-        );
-
-        compute_identity_indices_chunked(moving_world, origin_tensor, inv_spacing_tensor, n_points)
-    } else {
-        // General path: inline the world-to-index matmul
-        // index = (world - origin) @ T  where T = (D^-1)^T * S^-1
-
-        let origin_data: Vec<f32> = (0..3).map(|i| moving.origin()[i] as f32).collect();
-        let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_data, burn::tensor::Shape::new([3])),
-            &device,
-        );
-
-        let inv_dir = moving
-            .direction()
-            .try_inverse()
-            .expect("Direction matrix must be invertible");
-        let mut t_data = Vec::with_capacity(9);
-        for r in 0..3 {
-            for c in 0..3 {
-                let val = (inv_dir[(c, r)] / moving.spacing()[c]) as f32;
-                t_data.push(val);
-            }
+    let inv_dir = moving
+        .direction()
+        .try_inverse()
+        .expect("Direction matrix must be invertible");
+    let mut t_data = Vec::with_capacity(9);
+    for r in 0..3 {
+        for c in 0..3 {
+            let axis = 2 - c;
+            let val = (inv_dir[(axis, r)] / moving.spacing()[axis]) as f32;
+            t_data.push(val);
         }
-        let t_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(t_data, burn::tensor::Shape::new([3, 3])),
-            &device,
-        );
+    }
+    let t_tensor = Tensor::<B, 2>::from_data(
+        TensorData::new(t_data, burn::tensor::Shape::new([3, 3])),
+        &device,
+    );
 
-        compute_general_indices_chunked(moving_world, origin_tensor, t_tensor, n_points)
-    };
+    let indices = compute_general_indices_chunked(moving_world, origin_tensor, t_tensor, n_points);
 
     // ---- Step 2b: compute OOB mask from indices before interpolation consumes them ----
     let oob_mask = compute_oob_mask_3d(&indices, &moving.shape());
@@ -153,38 +129,6 @@ pub fn transform_and_interpolate_3d<B: Backend, T: Transform<B, 3>>(
     }
 }
 
-/// Compute `(world - origin) * inv_spacing` with chunking for WGPU dispatch limits.
-///
-/// For identity-direction images, this replaces the matmul with a simple
-/// element-wise multiply by the precomputed inverse spacing.
-fn compute_identity_indices_chunked<B: Backend>(
-    world: Tensor<B, 2>,
-    origin: Tensor<B, 1>,      // shape [3], will be reshaped to [1, 3] per chunk
-    inv_spacing: Tensor<B, 1>, // shape [3], will be reshaped to [1, 3] per chunk
-    n_points: usize,
-) -> Tensor<B, 2> {
-    let origin = origin.reshape([1usize, 3]);
-    let inv_spacing = inv_spacing.reshape([1usize, 3]);
-
-    if n_points <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
-        (world - origin) * inv_spacing
-    } else {
-        let num_chunks = n_points.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
-        let mut chunks = Vec::with_capacity(num_chunks);
-        for i in 0..num_chunks {
-            let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
-            let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n_points);
-            let chunk_range = start..end;
-            // slice() consumes self; tensor clones are refcounted handle
-            // copies, not data copies, so cloning `world` per chunk is cheap.
-            // The [1,3] broadcast tensors are likewise cheap to clone.
-            let chunk_world = world.clone().slice([chunk_range]);
-            let result = (chunk_world - origin.clone()) * inv_spacing.clone();
-            chunks.push(result);
-        }
-        Tensor::cat(chunks, 0)
-    }
-}
 
 /// Compute `(world - origin) @ T` with chunking for WGPU dispatch limits.
 ///

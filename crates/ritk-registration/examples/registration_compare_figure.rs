@@ -86,7 +86,7 @@ fn main() -> anyhow::Result<()> {
         [0.0; 3],
         com_t,
         Some(&mask),
-        &default_ngf_pyramid(Some(0.7)),
+        &default_ngf_pyramid(None), // uniform NGF (skull-driven) on correct geometry
     );
     let tr = res.matrix[0] + res.matrix[5] + res.matrix[10];
     let ang = (((tr - 1.0) / 2.0).clamp(-1.0, 1.0)).acos().to_degrees();

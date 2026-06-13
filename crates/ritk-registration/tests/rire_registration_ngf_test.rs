@@ -62,6 +62,7 @@ fn test_ngf_rigid_tre_on_rire_patient001() {
         rotation_range_rad: 0.26, // ±15°
         translation_range_mm: 60.0,
         center_weight_sigma_frac: None,
+        sample_count: None,
         cma: ritk_registration::optimizer::CmaEsConfig {
             max_generations: 150,
             ..NgfRigidConfig::default().cma

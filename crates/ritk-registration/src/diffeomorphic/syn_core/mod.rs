@@ -19,20 +19,18 @@
 //! # Memory discipline
 //! All scratch buffers are pre-allocated before the iteration loop.
 //! The loop body performs **zero heap allocations**; all `_into` variants
-//! write into caller-provided buffers. Total pre-allocation: ~30n f32
+//! write into caller-provided buffers. Total pre-allocation: ~29n f32
 //! (6 velocity + 6 displacement + 3 scaling-and-squaring scratch +
-//!  2 warped images + 6 gradient + 6 CC forces + 1 smooth scratch = 30n).
+//!  2 warped images + 6 gradient + 6 CC forces = 29n).
 
 mod buffers;
 
 use std::collections::VecDeque;
 
-use burn::tensor::backend::Backend;
-
 use super::local_cc::{cc_forces_into, mean_local_cc};
 use crate::deformable_field_ops::{
-    compute_gradient_into, gaussian_smooth_field_inplace_with_scratch, normalize_forces_into,
-    scaling_and_squaring_into, warp_image_into, GpuFieldSmoother, VelocityField,
+    cc_converged, compute_gradient_into, normalize_forces_into, scaling_and_squaring_into,
+    validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VelocityField,
 };
 use crate::error::RegistrationError;
 use buffers::SyNBuffers;
@@ -61,6 +59,13 @@ pub struct SyNResult {
 /// Implements greedy SyN with local cross-correlation metric.
 /// Both forward and inverse velocity fields are updated symmetrically each
 /// iteration so that the midpoint is equidistant from both images.
+///
+/// # Smoothing backends
+///
+/// Use [`register`](SyNRegistration::register) for CPU smoothing
+/// (constructs a [`CpuFieldSmoother`] internally).  Use
+/// [`register_with`](SyNRegistration::register_with) to pass an arbitrary
+/// [`FieldSmoother`] implementation (e.g. [`GpuFieldSmoother`]).
 #[derive(Debug, Clone)]
 pub struct SyNRegistration {
     /// Algorithm configuration.
@@ -73,52 +78,43 @@ impl SyNRegistration {
         Self { config }
     }
 
-    // ── Private implementation shared by CPU and GPU paths ────────────────────
-    //
-    // The entire registration loop (except the smoothing step) is identical
-    // for CPU and GPU.  `register_impl` accepts a `smooth_field` closure that
-    // is called once per iteration with `&mut SyNBuffers` when
-    // `sigma_smooth > 0`.  The closure is monomorphized at each call-site so
-    // the dispatch cost is zero.
-    //
-    // The `smooth_field` closure is responsible for smoothing *both* `v₁`
-    // and `v₂` velocity fields.  For CPU, this uses
-    // `gaussian_smooth_field_inplace_with_scratch`; for GPU, it uses
-    // `GpuFieldSmoother::smooth_field_inplace`.
-
-    /// Core registration loop with pluggable smoothing.
+    /// Register `moving` to `fixed` with CPU Gaussian field smoothing.
     ///
-    /// `smooth_field` is called with `&mut SyNBuffers` when
-    /// `self.config.sigma_smooth > 0.0`.  It must smooth `v1` and `v2`
-    /// in place.
-    fn register_impl<F>(
+    /// Convenience wrapper.  Prefer [`register_with`](Self::register_with)
+    /// when a GPU backend is available.
+    pub fn register(
         &self,
         fixed: &[f32],
         moving: &[f32],
         dims: [usize; 3],
         spacing: [f64; 3],
-        mut smooth_field: F,
-    ) -> Result<SyNResult, RegistrationError>
-    where
-        F: FnMut(&mut SyNBuffers),
-    {
+    ) -> Result<SyNResult, RegistrationError> {
+        let mut smoother = CpuFieldSmoother::new(dims, self.config.sigma_smooth);
+        self.register_with(fixed, moving, dims, spacing, &mut smoother)
+    }
+
+    /// Register `moving` to `fixed` using greedy SyN with a pluggable
+    /// [`FieldSmoother`] backend (CPU, GPU, or custom).
+    ///
+    /// # Arguments
+    /// - `smoother` — field smoother.  Its sigma must match
+    ///   `self.config.sigma_smooth`.
+    ///
+    /// # Errors
+    /// Returns [`RegistrationError`] if image lengths are inconsistent with
+    /// `dims`.
+    pub fn register_with(
+        &self,
+        fixed: &[f32],
+        moving: &[f32],
+        dims: [usize; 3],
+        spacing: [f64; 3],
+        smoother: &mut impl FieldSmoother,
+    ) -> Result<SyNResult, RegistrationError> {
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
 
-        if fixed.len() != n {
-            return Err(RegistrationError::DimensionMismatch(format!(
-                "fixed length {} != dims product {}",
-                fixed.len(),
-                n
-            )));
-        }
-        if moving.len() != n {
-            return Err(RegistrationError::DimensionMismatch(format!(
-                "moving length {} != dims product {}",
-                moving.len(),
-                n
-            )));
-        }
+        validate_image_pair(fixed, moving, dims)?;
 
         let mut buf = SyNBuffers::new(n);
 
@@ -241,26 +237,20 @@ impl SyNRegistration {
                 buf.v2x[i] += buf.u2x[i];
             }
 
-            // Gaussian smooth — dispatched to CPU or GPU closure
+            // Gaussian smooth — dispatched via FieldSmoother trait
             if self.config.sigma_smooth > 0.0 {
-                smooth_field(&mut buf);
+                smoother.smooth_field(&mut buf.v1z, &mut buf.v1y, &mut buf.v1x);
+                smoother.smooth_field(&mut buf.v2z, &mut buf.v2y, &mut buf.v2x);
             }
 
             final_cc = mean_local_cc(&buf.i_w, &buf.j_w, dims, r);
-            cc_history.push_back(final_cc);
-            if cc_history.len() > self.config.convergence_window {
-                cc_history.pop_front();
-            }
-            if cc_history.len() == self.config.convergence_window {
-                let mean_cc = cc_history.iter().sum::<f64>() / cc_history.len() as f64;
-                let var_cc = cc_history
-                    .iter()
-                    .map(|&v| (v - mean_cc).powi(2))
-                    .sum::<f64>()
-                    / cc_history.len() as f64;
-                if var_cc < self.config.convergence_threshold {
-                    break;
-                }
+            if cc_converged(
+                &mut cc_history,
+                final_cc,
+                self.config.convergence_window,
+                self.config.convergence_threshold,
+            ) {
+                break;
             }
         }
 
@@ -315,88 +305,6 @@ impl SyNRegistration {
             warped_moving: buf.j_w,
             final_cc,
             num_iterations: iter,
-        })
-    }
-
-    // ── Public API ────────────────────────────────────────────────────────────
-
-    /// Register `moving` to `fixed` using greedy SyN with local CC metric
-    /// and **CPU-based** Gaussian field smoothing.
-    ///
-    /// This is a thin wrapper around the core loop; only the smoothing step
-    /// differs from the GPU path.  Prefer [`register_with_gpu_smoother`]
-    /// when a Burn GPU backend is available.
-    ///
-    /// # Arguments
-    /// - `fixed` — reference image, flat `Vec<f32>` in Z-major order.
-    /// - `moving` — moving image, same shape as `fixed`.
-    /// - `dims` — image dimensions `[nz, ny, nx]`.
-    /// - `spacing` — physical voxel spacing `[sz, sy, sx]`.
-    ///
-    /// # Errors
-    /// Returns [`RegistrationError`] if image lengths are inconsistent with `dims`.
-    pub fn register(
-        &self,
-        fixed: &[f32],
-        moving: &[f32],
-        dims: [usize; 3],
-        spacing: [f64; 3],
-    ) -> Result<SyNResult, RegistrationError> {
-        let sigma = self.config.sigma_smooth;
-        self.register_impl(fixed, moving, dims, spacing, move |buf: &mut SyNBuffers| {
-            gaussian_smooth_field_inplace_with_scratch(
-                &mut buf.v1z,
-                &mut buf.v1y,
-                &mut buf.v1x,
-                dims.into(),
-                sigma,
-                &mut buf.smooth_tmp,
-            );
-            gaussian_smooth_field_inplace_with_scratch(
-                &mut buf.v2z,
-                &mut buf.v2y,
-                &mut buf.v2x,
-                dims.into(),
-                sigma,
-                &mut buf.smooth_tmp,
-            );
-        })
-    }
-
-    /// Register `moving` to `fixed` using greedy SyN with local CC metric
-    /// and **GPU-accelerated** Gaussian field smoothing.
-    ///
-    /// The [`GpuFieldSmoother`] manages pre-allocated staging tensors and a
-    /// single [`ritk_filter::GaussianFilter`] reused across all iterations,
-    /// avoiding per-iteration GPU allocation overhead.
-    ///
-    /// # Arguments
-    /// - `fixed` — reference image, flat `Vec<f32>` in Z-major order.
-    /// - `moving` — moving image, same shape as `fixed`.
-    /// - `dims` — image dimensions `[nz, ny, nx]`.
-    /// - `spacing` — physical voxel spacing `[sz, sy, sx]`.
-    /// - `gpu_smoother` — pre-allocated GPU field smoother (see
-    ///   [`GpuFieldSmoother::new`]). Its sigma must match
-    ///   `self.config.sigma_smooth`.
-    ///
-    /// # Performance
-    ///
-    /// On an RTX 3060, the GPU path reduces per-iteration smoothing time
-    /// from ~80 ms (CPU `moirai`) to ~4 ms for a 256³ field.
-    ///
-    /// # Errors
-    /// Returns [`RegistrationError`] if image lengths are inconsistent with `dims`.
-    pub fn register_with_gpu_smoother<B: Backend>(
-        &self,
-        fixed: &[f32],
-        moving: &[f32],
-        dims: [usize; 3],
-        spacing: [f64; 3],
-        gpu_smoother: &mut GpuFieldSmoother<B>,
-    ) -> Result<SyNResult, RegistrationError> {
-        self.register_impl(fixed, moving, dims, spacing, move |buf: &mut SyNBuffers| {
-            gpu_smoother.smooth_field_inplace(&mut buf.v1z, &mut buf.v1y, &mut buf.v1x);
-            gpu_smoother.smooth_field_inplace(&mut buf.v2z, &mut buf.v2y, &mut buf.v2x);
         })
     }
 }

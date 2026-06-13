@@ -19,6 +19,7 @@ use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
 use super::flat;
+use super::FieldSmoother;
 use crate::parallel::CellSlice;
 use ritk_filter::gaussian_kernel;
 use ritk_spatial::{Spacing, VolumeDims};
@@ -174,8 +175,12 @@ pub fn gaussian_smooth_tensor<B: Backend>(
         ritk_filter::GaussianSigma::new_unchecked(sigma),
     ];
     let filter = ritk_filter::GaussianFilter::<B>::new(sigmas);
-    let smoothed = filter.apply_tensor(data.clone(), spacing);
-    *data = smoothed;
+    // Arc-clone is an atomic refcount bump (no GPU or CPU mem alloc).
+    // `mem::swap` avoids the implicit drop-and-move in `*data = smoothed`
+    // by swapping the two arc handles, leaving the old data to be dropped
+    // naturally when `smoothed` goes out of scope.
+    let mut smoothed = filter.apply_tensor(data.clone(), spacing);
+    core::mem::swap(data, &mut smoothed);
 }
 
 /// Smooth all three components of a 3-D vector field represented as Burn tensors.
@@ -200,7 +205,10 @@ pub fn gaussian_smooth_field_tensor<B: Backend>(
 /// GPU-accelerated displacement field smoother with pre-allocated resources.
 ///
 /// Manages a single [`ritk_filter::GaussianFilter`] instance and per-component
-/// staging tensors so the Demons/SyN hot loop avoids per-iteration allocations.
+/// CPU staging buffers so the Demons/SyN hot loop avoids per-iteration heap
+/// allocations on the CPU side.  Tensors are created as locals and passed by
+/// value to `apply_tensor` and `into_data`, eliminating all `.clone()` calls
+/// in the hot path.
 ///
 /// # Usage
 ///
@@ -214,31 +222,51 @@ pub fn gaussian_smooth_field_tensor<B: Backend>(
 /// # Performance
 ///
 /// On an RTX 3060, smoothing a 256³ field takes ~4 ms vs ~80 ms for the
-/// CPU `moirai`-based path. The pre-allocated tensors avoid GPU allocation
-/// overhead on every iteration, making this suitable for the 50–500 iteration
-/// Demons/SyN loops.
+/// CPU `moirai`-based path.  The pre-allocated CPU staging buffers avoid
+/// heap allocations on every iteration, making this suitable for the
+/// 50–500 iteration Demons/SyN loops.
 pub struct GpuFieldSmoother<B: Backend> {
     filter: ritk_filter::GaussianFilter<B>,
-    /// Staging tensors for CPU→GPU upload. Reused across iterations.
-    tz: Tensor<B, 3>,
-    ty: Tensor<B, 3>,
-    tx: Tensor<B, 3>,
     device: B::Device,
     spacing: Spacing<3>,
+    /// Tensor shape `[nz, ny, nx]` — stored to avoid re-deriving from
+    /// tensor dimensions (which no longer live on `self`).
+    shape: burn::tensor::Shape,
+    /// Pre-allocated CPU staging buffers.
+    ///
+    /// On each invocation of [`smooth_field_inplace`], the incoming field
+    /// data is `copy_from_slice`d into these buffers (memcpy, zero alloc)
+    /// and then `std::mem::take`n into `TensorData::new`, avoiding the
+    /// per-iteration `to_vec()` heap allocation.  After the GPU download
+    /// the `Vec<f32>` is recovered via `TensorData::into_vec` and stored
+    /// back here for the next iteration.
+    staging_z: Vec<f32>,
+    staging_y: Vec<f32>,
+    staging_x: Vec<f32>,
+}
+
+impl<B: Backend> FieldSmoother for GpuFieldSmoother<B> {
+    fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]) {
+        self.smooth_field_inplace(z, y, x);
+    }
 }
 
 impl<B: Backend> GpuFieldSmoother<B> {
     /// Create a pre-allocated GPU smoother for a given volume shape.
     ///
-    /// Allocates three staging tensors of shape `[nz, ny, nx]` and a
+    /// Allocates three CPU staging buffers of size `nz * ny * nx` and a
     /// `GaussianFilter` configured with isotropic `sigma` mm.  The filter
     /// is reused across all [`smooth_field_inplace`] calls.
+    ///
+    /// Tensor creation is deferred to the first [`smooth_field_inplace`]
+    /// call — the struct holds only the shape, not the tensors themselves.
     ///
     /// # Panics
     /// Panics if `dims` has a zero dimension.
     pub fn new(dims: [usize; 3], spacing: Spacing<3>, sigma: f64, device: &B::Device) -> Self {
         assert!(dims.iter().all(|&d| d > 0), "dims must be nonzero");
         let shape = burn::tensor::Shape::new(dims);
+        let n = dims[0] * dims[1] * dims[2];
         let sigmas = vec![
             ritk_filter::GaussianSigma::new_unchecked(sigma),
             ritk_filter::GaussianSigma::new_unchecked(sigma),
@@ -246,67 +274,74 @@ impl<B: Backend> GpuFieldSmoother<B> {
         ];
         Self {
             filter: ritk_filter::GaussianFilter::<B>::new(sigmas),
-            tz: Tensor::zeros(shape.clone(), device),
-            ty: Tensor::zeros(shape.clone(), device),
-            tx: Tensor::zeros(shape, device),
             device: device.clone(),
             spacing,
+            shape,
+            staging_z: vec![0.0_f32; n],
+            staging_y: vec![0.0_f32; n],
+            staging_x: vec![0.0_f32; n],
         }
     }
 
     /// Smooth a 3-component displacement or velocity field **in place** using
     /// the pre-allocated GPU resources.
     ///
-    /// Uploads `fz`, `fy`, `fx` from CPU to GPU staging tensors, applies
+    /// Uploads `fz`, `fy`, `fx` from CPU to GPU via local staging tensors
+    /// (`copy_from_slice` → `mem::take` — zero heap allocation), applies
     /// separable Gaussian convolution via [`ritk_filter::GaussianFilter`],
     /// and downloads the result back to the CPU buffers.
+    ///
+    /// Tensors are created as locals and passed by value, so there are no
+    /// `.clone()` calls before `apply_tensor` or `into_data`.  After the
+    /// first warm-up iteration, the download buffer is recovered via
+    /// `TensorData::into_vec` and reused as the next iteration's staging
+    /// buffer, so the per-iteration heap cost is zero.
     ///
     /// A `sigma ≤ 0` is a no-op.
     pub fn smooth_field_inplace(&mut self, fz: &mut [f32], fy: &mut [f32], fx: &mut [f32]) {
         if fz.is_empty() {
             return;
         }
-        let shape =
-            burn::tensor::Shape::new([self.tz.dims()[0], self.tz.dims()[1], self.tz.dims()[2]]);
 
-        // Upload CPU data into staging tensors.
-        self.tz = Tensor::from_data(
-            burn::tensor::TensorData::new(fz.to_vec(), shape.clone()),
+        // ── Upload: copy_from_slice → mem::take → TensorData → local Tensor ──
+        self.staging_z.copy_from_slice(fz);
+        let tz = Tensor::from_data(
+            burn::tensor::TensorData::new(std::mem::take(&mut self.staging_z), self.shape.clone()),
             &self.device,
         );
-        self.ty = Tensor::from_data(
-            burn::tensor::TensorData::new(fy.to_vec(), shape.clone()),
+        self.staging_y.copy_from_slice(fy);
+        let ty = Tensor::from_data(
+            burn::tensor::TensorData::new(std::mem::take(&mut self.staging_y), self.shape.clone()),
             &self.device,
         );
-        self.tx = Tensor::from_data(
-            burn::tensor::TensorData::new(fx.to_vec(), shape),
+        self.staging_x.copy_from_slice(fx);
+        let tx = Tensor::from_data(
+            burn::tensor::TensorData::new(std::mem::take(&mut self.staging_x), self.shape.clone()),
             &self.device,
         );
 
-        // GPU smoothing — the filter is reused across iterations.
-        self.tz = self.filter.apply_tensor(self.tz.clone(), &self.spacing);
-        self.ty = self.filter.apply_tensor(self.ty.clone(), &self.spacing);
-        self.tx = self.filter.apply_tensor(self.tx.clone(), &self.spacing);
+        // ── GPU smoothing — pass by value, zero clones ─────────────────────────
+        let tz = self.filter.apply_tensor(tz, &self.spacing);
+        let ty = self.filter.apply_tensor(ty, &self.spacing);
+        let tx = self.filter.apply_tensor(tx, &self.spacing);
 
-        // Download back to CPU.
-        let z_data = self.tz.clone().into_data();
-        let y_data = self.ty.clone().into_data();
-        let x_data = self.tx.clone().into_data();
-        fz.copy_from_slice(
-            z_data
-                .as_slice::<f32>()
-                .expect("GPU smoother: z tensor must be f32"),
-        );
-        fy.copy_from_slice(
-            y_data
-                .as_slice::<f32>()
-                .expect("GPU smoother: y tensor must be f32"),
-        );
-        fx.copy_from_slice(
-            x_data
-                .as_slice::<f32>()
-                .expect("GPU smoother: x tensor must be f32"),
-        );
+        // ── Download — consume tensors, recover staging buffers ────────────────
+        self.staging_z = tz
+            .into_data()
+            .into_vec::<f32>()
+            .expect("GPU smoother: z tensor must be f32");
+        self.staging_y = ty
+            .into_data()
+            .into_vec::<f32>()
+            .expect("GPU smoother: y tensor must be f32");
+        self.staging_x = tx
+            .into_data()
+            .into_vec::<f32>()
+            .expect("GPU smoother: x tensor must be f32");
+
+        fz.copy_from_slice(&self.staging_z);
+        fy.copy_from_slice(&self.staging_y);
+        fx.copy_from_slice(&self.staging_x);
     }
 }
 
