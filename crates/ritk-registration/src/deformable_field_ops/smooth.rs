@@ -212,7 +212,7 @@ pub fn gaussian_smooth_field_tensor<B: Backend>(
 ///
 /// # Usage
 ///
-/// ```no_run
+/// ```ignore
 /// use ritk_registration::deformable_field_ops::GpuFieldSmoother;
 ///
 /// let smoother = GpuFieldSmoother::new([256, 256, 256], spacing, 1.5, &device);

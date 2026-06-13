@@ -94,19 +94,19 @@ fn test_verify_registration_coordinates() {
     let t_p_data = t_p.into_data();
     let t_p_slice = t_p_data.as_slice::<f32>().unwrap();
 
-    let recovered_x = t_p_slice[0]; // Dim 0 should be X
-    let recovered_y = t_p_slice[1]; // Dim 1 should be Y
+    let recovered_y = t_p_slice[0]; // Dim 0 is Y
+    let recovered_x = t_p_slice[1]; // Dim 1 is X
 
-    println!("Recovered Translation: [{}, {}]", recovered_x, recovered_y);
+    println!("Recovered Translation: [Y={}, X={}]", recovered_y, recovered_x);
 
-    assert!(
-        (recovered_x - 2.0).abs() < 0.1,
-        "Expected X=2.0, got {}",
-        recovered_x
-    );
     assert!(
         (recovered_y - 1.0).abs() < 0.1,
         "Expected Y=1.0, got {}",
         recovered_y
+    );
+    assert!(
+        (recovered_x - 2.0).abs() < 0.1,
+        "Expected X=2.0, got {}",
+        recovered_x
     );
 }

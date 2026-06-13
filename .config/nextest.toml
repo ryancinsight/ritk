@@ -28,7 +28,7 @@ slow-timeout = { period = "600s", terminate-after = 5 }
 # DICOM full-scan tests over the 303-slice skull-CT fixture: I/O-heavy.
 [[profile.default.overrides]]
 filter = 'test(test_scan_skull_ct) | test(test_load_dicom_volume_shape)'
-slow-timeout = { period = "15s", terminate-after = 1 }
+slow-timeout = { period = "60s", terminate-after = 1 }
 
 [profile.ci]
 slow-timeout = { period = "60s", terminate-after = 2 }

@@ -50,8 +50,21 @@ pub(crate) fn validate_image_pair(
     moving: &[f32],
     dims: [usize; 3],
 ) -> Result<(), RegistrationError> {
-    validate_image(fixed, dims)?;
-    validate_image(moving, dims)?;
+    let n = dims[0] * dims[1] * dims[2];
+    if fixed.len() != n {
+        return Err(RegistrationError::DimensionMismatch(format!(
+            "fixed length {} != dims product {}",
+            fixed.len(),
+            n
+        )));
+    }
+    if moving.len() != n {
+        return Err(RegistrationError::DimensionMismatch(format!(
+            "moving length {} != dims product {}",
+            moving.len(),
+            n
+        )));
+    }
     Ok(())
 }
 
@@ -212,10 +225,11 @@ mod tests {
         let mut hist = VecDeque::new();
         // Two values with variance exactly 1.0: (0.0, 2.0) → mean = 1.0,
         // variance = 0.5 * ((0-1)² + (2-1)²) = 1.0.
-        for _ in 0..3 {
-            assert!(!cc_converged(&mut hist, 0.0, 2, 1.0));
-        }
-        // 4th push brings variance to 1.0 exactly; threshold = 1.0 → not converged.
+        // We alternate 0.0 and 2.0 so that the rolling window always has
+        // variance exactly 1.0.
+        assert!(!cc_converged(&mut hist, 0.0, 2, 1.0));
+        assert!(!cc_converged(&mut hist, 2.0, 2, 1.0));
+        assert!(!cc_converged(&mut hist, 0.0, 2, 1.0));
         assert!(!cc_converged(&mut hist, 2.0, 2, 1.0));
     }
 

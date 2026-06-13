@@ -107,6 +107,7 @@ fn dispatch_routes_384_cube_to_typed_path() {
 }
 
 #[test]
+#[ignore = "requires 4GB of contiguous memory"]
 fn dispatch_routes_1024_cube_to_typed_path() {
     let data = build_cube(1024);
     let indices = query_near_center(1024);
@@ -220,6 +221,7 @@ fn nearest_dispatch_routes_384_cube_to_typed_path() {
 }
 
 #[test]
+#[ignore = "requires 4GB of contiguous memory"]
 fn nearest_dispatch_routes_1024_cube_to_typed_path() {
     let data = build_cube(1024);
     let device = Default::default();

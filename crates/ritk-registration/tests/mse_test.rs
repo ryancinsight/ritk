@@ -77,7 +77,7 @@ fn test_mse_translation() {
 
     // Shift by 1.0 in X.
     let transform = TranslationTransform::<B, 3>::new(Tensor::from_data(
-        TensorData::from([1.0, 0.0, 0.0]),
+        TensorData::from([0.0, 0.0, 1.0]),
         &device,
     ));
 

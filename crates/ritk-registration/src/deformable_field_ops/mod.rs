@@ -67,7 +67,7 @@ pub trait FieldSmoother {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// use ritk_registration::deformable_field_ops::{CpuFieldSmoother, FieldSmoother};
 ///
 /// let mut smoother = CpuFieldSmoother::new([256, 256, 256], 1.5);

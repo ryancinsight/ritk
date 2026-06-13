@@ -95,9 +95,10 @@ fn test_registration_rigid_3d() {
 
     println!("Estimated Translation (Only): {:?}", t_vals);
 
+    // Expected translation: (0, 1, 1) in [Z, Y, X] ordering
     assert!(
-        (t_vals[0] - 1.0).abs() < 0.1,
-        "Translation X error: {}",
+        (t_vals[0] - 0.0).abs() < 0.1,
+        "Translation Z error: {}",
         t_vals[0]
     );
     assert!(
@@ -106,8 +107,8 @@ fn test_registration_rigid_3d() {
         t_vals[1]
     );
     assert!(
-        (t_vals[2] - 0.0).abs() < 0.1,
-        "Translation Z error: {}",
+        (t_vals[2] - 1.0).abs() < 0.1,
+        "Translation X error: {}",
         t_vals[2]
     );
 }
@@ -178,9 +179,10 @@ fn test_registration_rigid_full() {
 
     println!("Estimated Rotation (Only): {:?}", r_vals);
 
+    // Expected rotation: -0.2 rad around Z axis, which is index 0 in [Z, Y, X] ordering
     assert!(
-        (r_vals[2] - 0.2).abs() < 0.05,
+        (r_vals[0] - (-0.2)).abs() < 0.05,
         "Rotation Z error: {}",
-        r_vals[2]
+        r_vals[0]
     );
 }

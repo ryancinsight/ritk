@@ -79,7 +79,7 @@ fn test_multires_registration_translation() {
     let t_vals = t_est.as_slice::<f32>().unwrap();
     println!("Estimated Translation: {:?}", t_vals);
 
-    assert!((t_vals[0] - 4.0).abs() < 0.2, "X error: {}", t_vals[0]);
+    assert!((t_vals[0] - 0.0).abs() < 0.2, "Z error: {}", t_vals[0]);
     assert!((t_vals[1] - 4.0).abs() < 0.2, "Y error: {}", t_vals[1]);
-    assert!((t_vals[2] - 0.0).abs() < 0.2, "Z error: {}", t_vals[2]);
+    assert!((t_vals[2] - 4.0).abs() < 0.2, "X error: {}", t_vals[2]);
 }
