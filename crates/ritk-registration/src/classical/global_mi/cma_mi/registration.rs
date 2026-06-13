@@ -165,7 +165,7 @@ impl CmaMiRegistration {
                     level.max_generations,
                 );
 
-                let mut level_result = run_cma_level(
+                let level_result = run_cma_level(
                     fixed,
                     moving,
                     config,
@@ -191,7 +191,12 @@ impl CmaMiRegistration {
                     level_result.stop_reason,
                 );
 
-                current_x = std::mem::take(&mut level_result.best_x);
+                // Seed the next pyramid level with this level's solution.  Clone
+                // rather than `mem::take` so `level_result` retains its `best_x`:
+                // the final iteration's result is read back below as `cma_result`
+                // to reconstruct the transform.  Taking here would leave the
+                // stored result with an empty `best_x` and panic on `best[0]`.
+                current_x = level_result.best_x.clone();
                 last_result = Some(level_result);
             }
 

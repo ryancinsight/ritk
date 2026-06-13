@@ -299,7 +299,11 @@ impl GlobalMiRegistration {
             }
         }
 
-        let final_mi = -final_loss_val;
+        // Mutual information is mathematically non-negative (MI = H(X)+H(Y)−H(X,Y)
+        // ≥ 0); a tiny negative value (≈ −1e-7) is float32 cancellation in the
+        // Parzen histogram entropies, not a real quantity.  Clamp so the reported
+        // MI never goes below zero.
+        let final_mi = (-final_loss_val).max(0.0);
 
         // extract_homogeneous_matrix is a placeholder; typed entry points override matrix.
         let matrix = AffineTransform::IDENTITY;
