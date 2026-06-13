@@ -12,8 +12,10 @@
 - [x] SITK-PARITY (filters/registration/statistics): `test_simpleitk_parity.py` 175/175 green against SimpleITK 3.0.0a1
 - [x] J2K-BITSTUFF [P1→closed, patch]: tier-2 packet headers byte-stuffed (0x00 after 0xFF) instead of §B.10.1 bit-stuffing; found via SimpleITK/GDCM-written J2K DICOM failing to decode; `BitWriter`/`BitReader` rewritten on `opj_bio` semantics; 126-config interop matrices (incl. 12-bit) green both directions. ritk-codecs 0.5.2
 
+- [x] SITK-PARITY (codec e2e, manual): SimpleITK/GDCM-written J2K DICOM → `ritk.io.read_image` exact at 8/12/16-bit (fresh wheel, extracted-archive run; 2026-06-12)
+
 ### Open (next increment)
-- [ ] SITK-PARITY (codec e2e): Python-level test — SimpleITK-written J2K DICOM → `ritk.io.read_image` exact (blocked on wheel rebuild; .pyd locked by running pytest)
+- [ ] SITK-PARITY (codec e2e, automated): add the SimpleITK-written J2K DICOM round-trip as a pytest in `test_simpleitk_parity.py` once the concurrent agent's `fix/sitk-parity-mi-sampling` branch merges (file currently has uncommitted edits on that branch)
 - [ ] J2K-LOSSY-97, JLS-INTEROP, CODEC-PERF, REG-MI-FLAKY: carry-forward
 
 ### Verification gate
