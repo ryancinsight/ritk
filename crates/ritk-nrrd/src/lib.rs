@@ -33,7 +33,7 @@ mod spatial;
 pub mod writer;
 
 pub use reader::{read_nrrd, NrrdReader};
-pub use writer::{write_nrrd, NrrdWriter};
+pub use writer::{write_nrrd, write_nrrd_with_data, NrrdWriter};
 
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;

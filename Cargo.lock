@@ -6662,6 +6662,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "bytemuck",
  "nalgebra",
  "ritk-core",
  "ritk-image",

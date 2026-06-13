@@ -101,7 +101,12 @@ impl<B: Backend, const D: usize> Image<B, D> {
     }
 
     /// Extract the underlying f32 tensor data, propagating dtype errors.
-    #[allow(deprecated)] // data_vec is deprecated but try_data_vec wraps it
+    ///
+    /// Materializes the tensor to host via `into_data()`.  For large volumes on
+    /// a host backend this `into_data()` step dominates; callers on the
+    /// concrete `NdArray` backend that need throughput should use the zero-copy
+    /// `into_primitive()` + `as_slice_memory_order()` path instead (see
+    /// `ritk-python`'s `image_to_vec`).
     pub fn try_data_vec(&self) -> anyhow::Result<Vec<f32>> {
         self.data
             .clone()

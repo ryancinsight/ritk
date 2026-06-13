@@ -21,11 +21,23 @@ use std::path::Path;
 /// Voxel values are written as 32-bit IEEE 754 floats in little-endian byte
 /// order immediately after the `ElementDataFile = LOCAL` header line.
 pub fn write_metaimage<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    let path = path.as_ref();
-
-    // ── Voxel data ────────────────────────────────────────────────────────
     let f32_vec = image.try_data_vec()?;
-    let f32_slice: &[f32] = &f32_vec;
+    write_metaimage_with_data(path, image, &f32_vec)
+}
+
+/// Like [`write_metaimage`] but uses caller-provided voxel data.
+///
+/// `image` supplies only spatial metadata (shape, spacing, origin, direction);
+/// the binary payload comes from `f32_slice`.  This lets a caller that already
+/// holds a fast (e.g. zero-copy NdArray) slice skip the generic
+/// `into_data()` materialization, which dominates write time for large volumes.
+/// `f32_slice.len()` must equal the image voxel count.
+pub fn write_metaimage_with_data<B: Backend, P: AsRef<Path>>(
+    path: P,
+    image: &Image<B, 3>,
+    f32_slice: &[f32],
+) -> Result<()> {
+    let path = path.as_ref();
 
     // image.shape() is [nz, ny, nx] in RITK convention.
     // MetaImage DimSize is written in [nx, ny, nz] file-axis order.
@@ -84,9 +96,19 @@ pub fn write_metaimage<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>)
     // LOCAL signals that binary data follows immediately.
     writeln!(writer, "ElementDataFile = LOCAL")?;
 
-    // Binary payload — little-endian f32.
-    for &v in f32_slice {
-        writer.write_all(&v.to_le_bytes())?;
+    // Binary payload — little-endian f32, written in a single bulk call.
+    // On little-endian targets the f32 slice reinterprets to bytes with no copy
+    // (BinaryDataByteOrderMSB = False); a per-element `write_all` loop is ~10×
+    // slower from the per-call overhead across millions of voxels.
+    #[cfg(target_endian = "little")]
+    writer.write_all(bytemuck::cast_slice(f32_slice))?;
+    #[cfg(target_endian = "big")]
+    {
+        let mut bytes = Vec::with_capacity(f32_slice.len() * 4);
+        for &v in f32_slice {
+            bytes.extend_from_slice(&v.to_le_bytes());
+        }
+        writer.write_all(&bytes)?;
     }
 
     writer
