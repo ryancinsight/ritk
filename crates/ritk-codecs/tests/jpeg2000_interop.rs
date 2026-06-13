@@ -161,47 +161,16 @@ fn assert_openjp2_decodes_ritk(rows: u32, cols: u32, prec: u32, levels: u8) {
 // ── openjp2 → RITK ───────────────────────────────────────────────────────────
 
 #[test]
-fn dump_openjp2_stream_structure() {
-    // Diagnostic: marker layout + first packet bytes of a minimal stream.
-    let pixels = synthetic(8, 8, 8);
-    let j2k = openjp2_encode(&pixels, 8, 8, 8, 1);
-    let mut pos = 0usize;
-    while pos + 4 <= j2k.len() {
-        let m = u16::from_be_bytes([j2k[pos], j2k[pos + 1]]);
-        if m == 0xFF93 {
-            eprintln!(
-                "SOD at {pos}; next 48 bytes: {:02X?}",
-                &j2k[pos + 2..(pos + 50).min(j2k.len())]
-            );
-            break;
-        }
-        let len = u16::from_be_bytes([j2k[pos + 2], j2k[pos + 3]]) as usize;
-        eprintln!(
-            "marker {m:04X} at {pos} len {len}: {:02X?}",
-            &j2k[pos + 4..(pos + 2 + len).min(j2k.len())]
-        );
-        if m == 0xFF4F {
-            pos += 2;
-        } else {
-            pos += 2 + len;
-        }
-    }
-}
-
-#[test]
-#[ignore = "J2K-INTEROP acceptance gate: tier-1 context-adaptation divergence under investigation (see backlog.md)"]
 fn openjp2_to_ritk_64x64_8bit_no_dwt() {
     assert_ritk_decodes_openjp2(64, 64, 8, 1);
 }
 
 #[test]
-#[ignore = "J2K-INTEROP acceptance gate: tier-1 context-adaptation divergence under investigation (see backlog.md)"]
 fn openjp2_to_ritk_64x64_16bit_three_levels() {
     assert_ritk_decodes_openjp2(64, 64, 16, 4);
 }
 
 #[test]
-#[ignore = "J2K-INTEROP acceptance gate: tier-1 context-adaptation divergence under investigation (see backlog.md)"]
 fn openjp2_to_ritk_150x100_8bit_five_levels_multi_cblk() {
     assert_ritk_decodes_openjp2(100, 150, 8, 6);
 }
@@ -209,19 +178,123 @@ fn openjp2_to_ritk_150x100_8bit_five_levels_multi_cblk() {
 // ── RITK → openjp2 ───────────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "J2K-INTEROP acceptance gate: tier-1 context-adaptation divergence under investigation (see backlog.md)"]
 fn ritk_to_openjp2_64x64_8bit_no_dwt() {
     assert_openjp2_decodes_ritk(64, 64, 8, 0);
 }
 
 #[test]
-#[ignore = "J2K-INTEROP acceptance gate: tier-1 context-adaptation divergence under investigation (see backlog.md)"]
 fn ritk_to_openjp2_64x64_16bit_three_levels() {
     assert_openjp2_decodes_ritk(64, 64, 16, 3);
 }
 
 #[test]
-#[ignore = "J2K-INTEROP acceptance gate: tier-1 context-adaptation divergence under investigation (see backlog.md)"]
 fn ritk_to_openjp2_150x100_8bit_two_levels_multi_cblk() {
     assert_openjp2_decodes_ritk(100, 150, 8, 2);
+}
+/// Extract the tile body (after SOD, before EOC) from a bare J2K codestream.
+fn tile_body(j2k: &[u8]) -> &[u8] {
+    let sod = j2k
+        .windows(2)
+        .position(|w| w == [0xFF, 0x93])
+        .expect("SOD present");
+    let end = j2k.len() - 2; // strip EOC
+    &j2k[sod + 2..end]
+}
+
+/// Escalation harness: byte-compare our encoder against openjp2 for a series
+/// of increasingly complex 8×8 images; reports the first differing byte.
+#[test]
+fn escalation_byte_compare_with_openjp2() {
+    // 128 is the 8-bit unsigned DC level: pixel 128 → coefficient 0, so these
+    // are true coefficient impulses after the encoder's DC shift.
+    let mut impulse = vec![128i32; 64];
+    impulse[0] = 138; // coefficient +10 at (0,0)
+    let mut impulse_mid = vec![128i32; 64];
+    impulse_mid[3 * 8 + 1] = 100; // coefficient −28 at (1,3)
+    let mut two = vec![128i32; 64];
+    two[0] = 200; // +72
+    two[9] = 100; // −28
+    let ramp: Vec<i32> = (0..64).map(|i| (i % 8) * 30).collect();
+    let vramp: Vec<i32> = (0..64).map(|i| (i / 8) * 30).collect();
+    let synth = synthetic(8, 8, 8);
+    // Bit-plane bisection: +1 → exactly one cleanup pass; +3 → CUP then one
+    // SPP/MRP/CUP round.
+    let mut v1 = vec![128i32; 64];
+    v1[0] = 129;
+    let mut v1_mid = vec![128i32; 64];
+    v1_mid[4 * 8 + 4] = 129;
+    let mut v3 = vec![128i32; 64];
+    v3[0] = 131;
+    let mut v3_neg = vec![128i32; 64];
+    v3_neg[4 * 8 + 3] = 125;
+    let cases: [(&str, &[i32]); 10] = [
+        ("v1_corner", &v1),
+        ("v1_mid", &v1_mid),
+        ("v3_corner", &v3),
+        ("v3_neg_mid", &v3_neg),
+        ("impulse00", &impulse),
+        ("impulse31", &impulse_mid),
+        ("two_px", &two),
+        ("hramp", &ramp),
+        ("vramp", &vramp),
+        ("synthetic", &synth),
+    ];
+    let mut failures = Vec::new();
+    for (name, px) in cases {
+        let ours_stream = encode_grayscale_j2k(px, 8, 8, 8, PixelSignedness::Unsigned, 0);
+        let refs_stream = openjp2_encode(px, 8, 8, 8, 1);
+        let ours = tile_body(&ours_stream);
+        let refs = tile_body(&refs_stream);
+        let diff = ours
+            .iter()
+            .zip(refs.iter())
+            .position(|(a, b)| a != b)
+            .filter(|_| true)
+            .or(if ours.len() != refs.len() {
+                Some(ours.len().min(refs.len()))
+            } else {
+                None
+            });
+        eprintln!(
+            "case {name}: ours {} bytes, ref {} bytes, first diff {:?}",
+            ours.len(),
+            refs.len(),
+            diff
+        );
+        if let Some(k) = diff {
+            let lo = k.saturating_sub(2);
+            eprintln!(
+                "  ours[{lo}..] = {:02X?}\n  refs[{lo}..] = {:02X?}",
+                &ours[lo..(k + 6).min(ours.len())],
+                &refs[lo..(k + 6).min(refs.len())]
+            );
+            failures.push(name);
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "byte divergence in cases: {failures:?}"
+    );
+}
+/// Regression (J2K-INTEROP): single-impulse 8×8 image, no DWT — the minimized
+/// case for the MQ probability-estimation defect (state advanced on every MPS
+/// instead of only on renormalisation, ISO 15444-1 §C.2.6/Figure C.7). Both
+/// cross-decode directions must reconstruct every sample exactly.
+#[test]
+fn cross_decode_impulse_8x8_regression() {
+    let mut v1_mid = vec![128i32; 64];
+    v1_mid[4 * 8 + 4] = 129;
+
+    // openjp2 stream → RITK decoder.
+    let theirs = openjp2_encode(&v1_mid, 8, 8, 8, 1);
+    let dec = decode_jpeg2000_fragment(&theirs, layout(8, 8, 8))
+        .expect("RITK decode of openjp2 impulse stream");
+    let expected: Vec<f32> = v1_mid.iter().map(|&p| p as f32).collect();
+    assert_eq!(dec, expected, "openjp2 → RITK impulse reconstruction");
+
+    // RITK stream → openjp2 decoder.
+    let ours = encode_grayscale_j2k(&v1_mid, 8, 8, 8, PixelSignedness::Unsigned, 0);
+    let img = jpeg2k::Image::from_bytes(&ours).expect("openjp2 decode of RITK impulse stream");
+    let data = img.components()[0].data().to_vec();
+    assert_eq!(data, v1_mid, "RITK → openjp2 impulse reconstruction");
 }

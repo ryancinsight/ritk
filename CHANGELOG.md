@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [0.68.1] — 2026-06-12 (Sprint 373: J2K-INTEROP closed — MQ probability-estimation root cause)
+
+### Fixed
+- `ritk-codecs 0.5.1`: MQ coder (ISO 15444-1 Annex C) advanced the probability-estimation state `I(CX)` on **every** MPS instead of only on renormalisation (§C.2.6, Figures C.7/C.15). Encoder and decoder shared the defect, so all internal round-trips passed while every cross-implementation exchange with OpenJPEG corrupted samples. Root cause isolated by diffing MQ register traces against an instrumented copy of the `openjp2` reference encoder (instrumentation removed after diagnosis). The in-test `RefMq` reference port carried the same transcription error and is corrected.
+
+### Added
+- All 6 openjp2 interop acceptance tests un-ignored and green (both encode/decode directions, up to 150×100 multi-code-block, 5 DWT levels, 16-bit).
+- `openjp2_captured_packet_conformance`: fixed-vector test against a tile body captured from OpenJPEG 2.5.2 (C library) — header fields, byte-exact encoder output, and exact tier-1 reconstruction.
+- `cross_decode_impulse_8x8_regression`: minimized impulse case for the MQ defect, asserted in both cross-decode directions.
+
+### Removed
+- Diagnostic dump/probe tests and the `env_logger`/`log` dev-dependencies used during the investigation.
+
 ## [0.68.0] — 2026-06-12 (Sprint 371: J2K multi-code-block tier-2 — conformant tag trees, full-size images)
 
 ### Added

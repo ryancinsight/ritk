@@ -1,15 +1,28 @@
 # RITK Sprint Checklist — Active
 
-## Sprint 372 — J2K conformance + interop harness (Execution: interop gate open)
+## Sprint 373 — J2K interop closure (MQ root cause fixed)
 **Target version**: 0.68.x  
-**Sprint phase**: Execution — conformance fixes landed; 3 P1 defects open (see backlog.md Sprint 372 table).
+**Sprint phase**: Closure — J2K-INTEROP P1 closed; next increment: SimpleITK parity comparison (tests + examples).
+
+### Delivered
+- [x] J2K-INTEROP [P1→closed, patch]: MQ probability-estimation root cause — `I(CX)` advanced on every MPS instead of only on renormalisation (ISO 15444-1 §C.2.6/Fig. C.7); encoder+decoder shared the defect so internal round-trips masked it. Found via register-trace diff against an instrumented vendored openjp2 (instrumentation removed after diagnosis). 6 interop acceptance tests un-ignored; escalation byte-compare green; `openjp2_captured_packet_conformance` (OpenJPEG 2.5.2 fixed vector) byte-exact both directions
+- [x] Cleanup: diagnostic probe/dump tests removed; minimized impulse case kept as `cross_decode_impulse_8x8_regression`; env_logger/log dev-deps removed
+
+### Open (next increment)
+- [ ] SITK-PARITY: SimpleITK parity comparison using tests and examples (driver: user request 2026-06-12)
+- [ ] J2K-LOSSY-97, JLS-INTEROP, CODEC-PERF, REG-MI-FLAKY: carry-forward
+
+### Verification gate
+- [x] nextest ritk-codecs → 194/194 (0 ignored); ritk-io → 330/330; clippy -p ritk-codecs --all-targets → 0 warnings; fmt clean; doc clean
+
+---
+## Sprint 372 — J2K conformance + interop harness (complete)
+**Target version**: 0.68.x  
+**Sprint phase**: Closure.
 
 ### Delivered
 - [x] J2K-372-CONF [patch]: 7 ISO 15444-1 conformance fixes (B.10.3 packet bit, Table B.4, B.10.7.1 Lblock, E.1 Mb, D.4.1 pass count, D.2 stripe scan, D.1 ZC tables, RLC)
 - [x] J2K-372-HARNESS: openjp2 differential suite (dev-dep, pure Rust) — tier-2 header now parses OpenJPEG output exactly
-
-### Open (next increment)
-- [ ] J2K-INTEROP [P1]: NARROWED — MQ register-identical to OpenJPEG port (new active differential test); divergence is cleanup-pass symbol framing (first ~9 symbols); next: in-test `opj_t1_enc_clnpass` port for the captured block
 - [x] JLS-NEAR-TAIL + JLS-16BIT-LOSSLESS [P1→closed]: single root cause — trailing 0xFF before EOI discarded as marker prefix; flush emits the stuffed follow byte. Proptests re-enabled at full domain
 
 ### Verification gate

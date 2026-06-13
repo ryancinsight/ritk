@@ -169,8 +169,9 @@ impl<'a> MqDecoder<'a> {
         } else {
             self.c -= qe << 16;
             if self.a & 0x8000 != 0 {
-                // Already normalised; MPS decoded without renorm.
-                ctx.state = QE_TABLE[ctx.state as usize].nmps;
+                // Already normalised; MPS decoded without renorm. No state
+                // transition — ISO 15444-1 Figure C.15 advances I(CX) only on
+                // the renormalisation path (mirrors the encoder's CODEMPS).
                 u32::from(ctx.mps)
             } else {
                 // MPS but renorm needed (possible exchange).
@@ -365,9 +366,11 @@ impl MqEncoder {
         let qe = u32::from(entry.qe);
         self.a -= qe;
         if self.a & 0x8000 != 0 {
-            // Still normalised: MPS takes the upper interval.
+            // Still normalised: MPS takes the upper interval. No state
+            // transition — ISO 15444-1 Figure C.7 advances I(CX) only on the
+            // renormalisation path (probability estimation is renorm-driven,
+            // §C.2.6); matching OpenJPEG `opj_mqc_codemps`.
             self.c += qe;
-            ctx.state = entry.nmps;
         } else {
             if self.a < qe {
                 // Conditional exchange: MPS takes the lower (Qe) interval.
@@ -679,8 +682,8 @@ mod tests {
                     ctx.state = entry.nmps;
                     self.renorme();
                 } else {
+                    // No renorm → no state transition (opj_mqc_codemps).
                     self.c += qe;
-                    ctx.state = entry.nmps;
                 }
             } else {
                 // codelps
@@ -730,6 +733,34 @@ mod tests {
                 (refs.a, refs.c, refs.ct, refs.b),
                 "register divergence at symbol {i}"
             );
+        }
+    }
+
+    #[test]
+    fn trace_v1_mid_reference() {
+        // OpenJPEG body for the +1 impulse at (4,4) of an 8×8 block (single
+        // cleanup pass). Our cleanup script: stripe0 = 8 AGG zeros; stripe1 =
+        // 4 AGG zeros, col4 RLC (AGG, UNI, UNI, sign), col4 rows 5-7 ZC,
+        // col5 4 ZC, cols 6-7 AGG zeros.
+        let body: [u8; 2] = [0x50, 0x6F];
+        let script: [usize; 25] = [
+            18, 18, 18, 18, 18, 18, 18, 18, // stripe 0
+            18, 18, 18, 18, // stripe 1 cols 0-3
+            18, 17, 17, 9, // col 4 RLC + sign
+            3, 0, 0, // col 4 rows 5-7
+            5, 1, 0, 0, // col 5
+            18, 18, // cols 6-7
+        ];
+        let ours: [u32; 25] = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ];
+        let mut ctxs = initial_contexts();
+        let mut dec = MqDecoder::new(&body);
+        for (i, (&ctx, &expect)) in script.iter().zip(ours.iter()).enumerate() {
+            let st = (ctxs[ctx].state, ctxs[ctx].mps);
+            let got = dec.decode(&mut ctxs[ctx]);
+            let mark = if got == expect { ' ' } else { '*' };
+            eprintln!("sym{i:2} ctx={ctx:2} st={st:?} got={got} ours={expect} {mark}");
         }
     }
 

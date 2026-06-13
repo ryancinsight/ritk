@@ -647,14 +647,189 @@ mod tests {
         }
     }
 
-    /// Differential frontier (J2K-INTEROP): the tier-2 header of this captured
-    /// OpenJPEG packet parses exactly (msbs=2, ncp=19=3·7−2, body fills the
-    /// tile-part), but tier-1 decode diverges in the first cleanup pass around
-    /// the third stripe column — context-adaptation mismatch under
-    /// investigation.
+    /// Faithful port of OpenJPEG's tier-1 ENCODER control flow (t1.c
+    /// `opj_t1_enc_sigpass/refpass/clnpass`, flag-based, vsc off) producing a
+    /// `(ctx, bit)` symbol trace — used to diff symbol framing against ours.
+    fn opj_reference_trace(coeffs: &[i32], w: usize, h: usize) -> Vec<(usize, u32)> {
+        use super::super::ebcot::{sc_context_for_test, zc_context_for_test, SubbandOrientation};
+        const SIG: u8 = 1;
+        const VISIT: u8 = 2;
+        const REFINE: u8 = 4;
+        let n = w * h;
+        let mag: Vec<u32> = coeffs.iter().map(|&v| v.unsigned_abs()).collect();
+        let sign: Vec<bool> = coeffs.iter().map(|&v| v < 0).collect();
+        let max = *mag.iter().max().unwrap();
+        let numbps = u32::BITS - max.leading_zeros();
+        let mut flags = vec![0u8; n];
+        let mut trace = Vec::new();
+
+        let sig_at = |flags: &[u8], x: isize, y: isize| -> bool {
+            x >= 0
+                && y >= 0
+                && (x as usize) < w
+                && (y as usize) < h
+                && flags[y as usize * w + x as usize] & SIG != 0
+        };
+        let hvd = |flags: &[u8], x: usize, y: usize| -> (u32, u32, u32) {
+            let (x, y) = (x as isize, y as isize);
+            let hh = u32::from(sig_at(flags, x - 1, y)) + u32::from(sig_at(flags, x + 1, y));
+            let vv = u32::from(sig_at(flags, x, y - 1)) + u32::from(sig_at(flags, x, y + 1));
+            let dd = u32::from(sig_at(flags, x - 1, y - 1))
+                + u32::from(sig_at(flags, x + 1, y - 1))
+                + u32::from(sig_at(flags, x - 1, y + 1))
+                + u32::from(sig_at(flags, x + 1, y + 1));
+            (hh, vv, dd)
+        };
+        let sc = |flags: &[u8], x: usize, y: usize| -> (usize, u32) {
+            let contrib = |xx: isize, yy: isize| -> i32 {
+                if xx < 0 || yy < 0 || xx as usize >= w || yy as usize >= h {
+                    return 0;
+                }
+                let i = yy as usize * w + xx as usize;
+                if flags[i] & SIG == 0 {
+                    0
+                } else if sign[i] {
+                    -1
+                } else {
+                    1
+                }
+            };
+            let (x, y) = (x as isize, y as isize);
+            let kh = (contrib(x - 1, y) + contrib(x + 1, y)).signum();
+            let kv = (contrib(x, y - 1) + contrib(x, y + 1)).signum();
+            sc_context_for_test(kh, kv)
+        };
+
+        for bp in (0..numbps).rev() {
+            let one = 1u32 << bp;
+            let first = bp + 1 == numbps;
+            if !first {
+                // ── sigpass ──────────────────────────────────────────────
+                let mut k = 0;
+                while k < h {
+                    for x in 0..w {
+                        for y in k..h.min(k + 4) {
+                            let i = y * w + x;
+                            let (hh, vv, dd) = hvd(&flags, x, y);
+                            if flags[i] & (SIG | VISIT) != 0 || hh + vv + dd == 0 {
+                                continue;
+                            }
+                            let ctx = zc_context_for_test(SubbandOrientation::LlOrLh, hh, vv, dd);
+                            let bit = u32::from(mag[i] & one != 0);
+                            trace.push((ctx, bit));
+                            if bit == 1 {
+                                flags[i] |= SIG;
+                                let (sctx, xor) = sc(&flags, x, y);
+                                trace.push((sctx, u32::from(sign[i]) ^ xor));
+                            }
+                            flags[i] |= VISIT;
+                        }
+                    }
+                    k += 4;
+                }
+                // ── refpass ──────────────────────────────────────────────
+                let mut k = 0;
+                while k < h {
+                    for x in 0..w {
+                        for y in k..h.min(k + 4) {
+                            let i = y * w + x;
+                            if flags[i] & SIG == 0 || flags[i] & VISIT != 0 {
+                                continue;
+                            }
+                            let (hh, vv, dd) = hvd(&flags, x, y);
+                            let ctx = if flags[i] & REFINE != 0 {
+                                16
+                            } else if hh + vv + dd > 0 {
+                                15
+                            } else {
+                                14
+                            };
+                            trace.push((ctx, u32::from(mag[i] & one != 0)));
+                            flags[i] |= REFINE;
+                        }
+                    }
+                    k += 4;
+                }
+            }
+            // ── clnpass ──────────────────────────────────────────────────
+            let mut k = 0;
+            while k < h {
+                for x in 0..w {
+                    let agg = k + 3 < h
+                        && (k..k + 4).all(|y| {
+                            let i = y * w + x;
+                            let (hh, vv, dd) = hvd(&flags, x, y);
+                            flags[i] & (SIG | VISIT) == 0 && hh + vv + dd == 0
+                        });
+                    let mut runlen = 0usize;
+                    if agg {
+                        while runlen < 4 && mag[(k + runlen) * w + x] & one == 0 {
+                            runlen += 1;
+                        }
+                        trace.push((18, u32::from(runlen != 4)));
+                        if runlen == 4 {
+                            continue;
+                        }
+                        trace.push((17, (runlen as u32 >> 1) & 1));
+                        trace.push((17, runlen as u32 & 1));
+                    }
+                    let start = if agg { k + runlen } else { k };
+                    for y in start..h.min(k + 4) {
+                        let i = y * w + x;
+                        if flags[i] & (SIG | VISIT) != 0 {
+                            flags[i] &= !VISIT;
+                            continue;
+                        }
+                        let partial = agg && y == k + runlen;
+                        let bit = u32::from(mag[i] & one != 0);
+                        if !partial {
+                            let (hh, vv, dd) = hvd(&flags, x, y);
+                            let ctx = zc_context_for_test(SubbandOrientation::LlOrLh, hh, vv, dd);
+                            trace.push((ctx, bit));
+                        }
+                        if bit == 1 || partial {
+                            flags[i] |= SIG;
+                            let (sctx, xor) = sc(&flags, x, y);
+                            trace.push((sctx, u32::from(sign[i]) ^ xor));
+                        }
+                    }
+                }
+                k += 4;
+            }
+            for f in flags.iter_mut() {
+                *f &= !VISIT;
+            }
+        }
+        trace
+    }
+
     #[test]
-    #[ignore = "J2K-INTEROP: tier-1 divergence under investigation (see backlog.md)"]
-    fn probe_openjp2_packet_header_fields() {
+    fn trace_v1_mid_ours_vs_port() {
+        // +1 impulse at (4,4) of an 8×8 block: single cleanup pass.
+        let mut coeffs = vec![0i32; 64];
+        coeffs[4 * 8 + 4] = 1;
+        let _ = super::super::ebcot::cup_trace_take();
+        let enc = encode_code_block(
+            &coeffs,
+            8,
+            8,
+            super::super::ebcot::SubbandOrientation::LlOrLh,
+        );
+        let ours = super::super::ebcot::cup_trace_take();
+        let port = opj_reference_trace(&coeffs, 8, 8);
+        eprintln!("ours ({}): {:?}", ours.len(), ours);
+        eprintln!("port ({}): {:?}", port.len(), port);
+        eprintln!("bytes: {:02X?}", enc.bytes);
+        assert_eq!(ours, port, "symbol trace must match the OpenJPEG port");
+    }
+
+    /// Fixed-vector conformance: a tile body captured from OpenJPEG 2.5.2
+    /// (the C library, 8×8 8-bit synthetic, numres=1). The tier-2 header must
+    /// parse exactly (msbs=2, ncp=3·nbp−2, body fills the tile-part), our
+    /// tier-1 decoder must reconstruct every sample, and our encoder must
+    /// reproduce the code-block body byte-for-byte.
+    #[test]
+    fn openjp2_captured_packet_conformance() {
         // Captured 8×8 8-bit numres=1 OpenJPEG 2.5.2 tile body (after SOD).
         let body: [u8; 65] = [
             0xCF, 0xB4, 0xF8, 0x12, 0x51, 0x7A, 0x62, 0x3E, 0xFC, 0x7B, 0x8E, 0x3E, 0x6C, 0xBF,
@@ -702,37 +877,19 @@ mod tests {
                 (((i as i64 * 5) + noise) % 256) as i32 - 128
             })
             .collect();
-        // Symbol-level differential: compare encoder-intended vs decoder-read
-        // (ctx, bit) sequences; first divergence pinpoints the modelling gap.
-        let _ = super::super::ebcot::cup_trace_take();
-        // Differential A: our encoder must reproduce OpenJPEG byte-for-byte.
+        // Our encoder must reproduce the OpenJPEG code-block body
+        // byte-for-byte (same pass structure, same MQ arithmetic).
         let enc = encode_code_block(
             &expected,
             8,
             8,
             super::super::ebcot::SubbandOrientation::LlOrLh,
         );
-        eprintln!(
-            "ENC nbp={} ncp={} len={} (ref nbp={} ncp={ncp} len={len})",
-            enc.num_bit_planes,
-            enc.num_passes,
-            enc.bytes.len(),
-            9 - msbs,
-        );
         let reference = &body[header_bytes..header_bytes + len];
-        let first_diff = enc
-            .bytes
-            .iter()
-            .zip(reference.iter())
-            .position(|(a, b)| a != b);
-        eprintln!(
-            "FIRST DIFF at {:?}; ours[0..16]={:02X?} ref[0..16]={:02X?}",
-            first_diff,
-            &enc.bytes[..16.min(enc.bytes.len())],
-            &reference[..16.min(reference.len())]
-        );
-        let enc_trace = super::super::ebcot::cup_trace_take();
-        // Differential B: our decoder on the reference body.
+        assert_eq!(enc.num_bit_planes, (9 - msbs) as u8, "bit-plane count");
+        assert_eq!(enc.num_passes, ncp, "coding-pass count");
+        assert_eq!(enc.bytes, reference, "code-block body bytes");
+        // Our decoder must reconstruct every sample from the reference body.
         let block = decode_code_block(
             reference,
             8,
@@ -741,30 +898,6 @@ mod tests {
             ncp,
             super::super::ebcot::SubbandOrientation::LlOrLh,
         );
-        let dec_trace = super::super::ebcot::cup_trace_take();
-        let div = enc_trace
-            .iter()
-            .zip(dec_trace.iter())
-            .position(|(a, b)| a != b);
-        eprintln!(
-            "TRACE div at {:?} (enc len {}, dec len {})",
-            div,
-            enc_trace.len(),
-            dec_trace.len()
-        );
-        if let Some(k) = div {
-            let lo = k.saturating_sub(6);
-            eprintln!(
-                "enc[{lo}..{}] = {:?}",
-                (k + 4).min(enc_trace.len()),
-                &enc_trace[lo..(k + 4).min(enc_trace.len())]
-            );
-            eprintln!(
-                "dec[{lo}..{}] = {:?}",
-                (k + 4).min(dec_trace.len()),
-                &dec_trace[lo..(k + 4).min(dec_trace.len())]
-            );
-        }
         assert_eq!(block.samples, expected, "EBCOT tier-1 must match OpenJPEG");
     }
 

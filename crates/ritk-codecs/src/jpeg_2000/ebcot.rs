@@ -156,6 +156,19 @@ fn trace(ctx: usize, bit: u32) {
     #[cfg(test)]
     CUP_TRACE.with(|t| t.borrow_mut().push((ctx, bit)));
 }
+
+/// Test-only re-export of the ZC context selector for differential harnesses.
+#[cfg(test)]
+pub(crate) fn zc_context_for_test(orient: SubbandOrientation, h: u32, v: u32, d: u32) -> usize {
+    zc_context(orient, h, v, d)
+}
+
+/// Test-only re-export of the SC context selector for differential harnesses.
+#[cfg(test)]
+pub(crate) fn sc_context_for_test(kh: i32, kv: i32) -> (usize, u32) {
+    sc_context(kh, kv)
+}
+
 // ── Per-sample state flags ────────────────────────────────────────────────────
 
 /// Compact per-sample state used during EBCOT processing.
@@ -597,10 +610,9 @@ pub fn encode_code_block(
                                     state[idx].sig = true;
                                     let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                                     let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                                    mq.encode(
-                                        u32::from(state[idx].sign) ^ xor_bit,
-                                        &mut ctxs[sc_ctx],
-                                    );
+                                    let sb = u32::from(state[idx].sign) ^ xor_bit;
+                                    trace(sc_ctx, sb);
+                                    mq.encode(sb, &mut ctxs[sc_ctx]);
                                 }
                             }
                         }

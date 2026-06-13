@@ -18,7 +18,7 @@
 
 | ID | Description | Repro |
 |----|-------------|-------|
-| J2K-INTEROP | NARROWED: MQ encoder proven register-identical to a verbatim OpenJPEG port (`reference_port_register_differential`, active test); coefficient values independently re-derived (BigInteger LCG) — divergence is the EBCOT cleanup-pass SYMBOL FRAMING within the first ~9 symbols (our assumed RLC/ZC sequence vs OpenJPEG's). Next step: port `opj_t1_enc_clnpass` as an in-test reference for the captured 8x8 block and diff symbol-by-symbol | `tests/jpeg2000_interop.rs` (6 ignored acceptance tests), ignored probe + cfg(test) CUP trace in ebcot/packet |
+| ~~J2K-INTEROP~~ | **FIXED**: root cause was the MQ probability-estimation state machine advancing `I(CX)` on EVERY MPS instead of only on renormalisation (ISO 15444-1 §C.2.6 / Figure C.7; encoder AND decoder shared the defect, so internal round-trips masked it; found by instrumenting a vendored openjp2 MQ encoder and diffing register traces). All 6 interop acceptance tests un-ignored and green both directions; byte-for-byte escalation compare green; captured OpenJPEG 2.5.2 packet conformance test active | closed |
 | ~~JLS-NEAR-TAIL~~ | **FIXED**: root cause was a trailing 0xFF entropy byte directly before EOI being discarded as a marker prefix; flush now emits the stuffed 7-bit follow byte (ISO 14495-1 C.2.1). Both proptests re-enabled at full domain; regression seeds committed | closed |
 | ~~JLS-16BIT-LOSSLESS~~ | **FIXED**: same root cause as JLS-NEAR-TAIL (single fix closed both). Regression test `round_trip_16bit_regression_seed` active | closed |
 
