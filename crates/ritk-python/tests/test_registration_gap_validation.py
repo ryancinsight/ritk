@@ -300,10 +300,27 @@ def _sitk_bspline_register(
 # ---------------------------------------------------------------------------
 
 
+# Opts-based registration functions take a single config object rather than
+# flat keyword arguments; map each to its config class so the helper can wrap
+# **kwargs.  The Demons family (demons_register and variants) remains flat.
+_RITK_OPTS_CONFIG = {
+    "syn_register": "SynConfig",
+    "multires_syn_register": "MultiResSynOptions",
+    "bspline_syn_register": "BSplineSynOptions",
+    "bspline_ffd_register": "BSplineFfdConfig",
+    "lddmm_register": "LddmmConfig",
+    "multires_demons_register": "MultiResDemonsOptions",
+}
+
+
 def _ritk_warped(name, fixed, moving, **kwargs):
     """Run an RITK registration and return only the warped image array."""
     fn = getattr(ritk.registration, name)
-    result = fn(fixed, moving, **kwargs)
+    if name in _RITK_OPTS_CONFIG:
+        config = getattr(ritk.registration, _RITK_OPTS_CONFIG[name])(**kwargs)
+        result = fn(fixed, moving, config)
+    else:
+        result = fn(fixed, moving, **kwargs)
     if name == "bspline_ffd_register":
         return result.to_numpy()
     elif name in ("syn_register", "multires_syn_register", "bspline_syn_register"):

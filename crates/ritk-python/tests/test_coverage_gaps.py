@@ -159,7 +159,7 @@ def test_multires_demons_improves_ncc():
     fixed = _make_sphere()
     moving = _make_translated()
     ncc_before = _ncc(moving, fixed)
-    warped, disp = rreg.multires_demons_register(_ritk(fixed), _ritk(moving), levels=2)
+    warped, disp = rreg.multires_demons_register(_ritk(fixed), _ritk(moving), rreg.MultiResDemonsOptions(levels=2))
     warped_arr = warped.to_numpy()
     assert warped_arr.shape == fixed.shape
     ncc_after = _ncc(warped_arr, fixed)
@@ -175,9 +175,7 @@ def test_bspline_syn_register_improves_ncc():
     fixed = _make_sphere()
     moving = _make_translated()
     ncc_before = _ncc(moving, fixed)
-    wf, wm = rreg.bspline_syn_register(
-        _ritk(fixed), _ritk(moving), max_iterations=30
-    )
+    wf, wm = rreg.bspline_syn_register(_ritk(fixed), _ritk(moving), rreg.BSplineSynOptions(max_iterations=30))
     wm_arr = wm.to_numpy()
     assert wm_arr.shape == fixed.shape
     ncc_after = _ncc(wm_arr, fixed)
@@ -191,9 +189,7 @@ def test_lddmm_register_improves_ncc():
     ncc_before = _ncc(moving, fixed)
     # lddmm_register returns (warped_moving, displacement_field)
     # displacement_field shape is (3*nz, ny, nx) — packed x/y/z channels
-    warped, disp = rreg.lddmm_register(
-        _ritk(fixed), _ritk(moving), max_iterations=20
-    )
+    warped, disp = rreg.lddmm_register(_ritk(fixed), _ritk(moving), rreg.LddmmConfig(max_iterations=20))
     warped_arr = warped.to_numpy()
     assert warped_arr.shape == fixed.shape, f"warped shape {warped_arr.shape} must match fixed {fixed.shape}"
     ncc_after = _ncc(warped_arr, fixed)

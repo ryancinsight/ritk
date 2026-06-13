@@ -104,7 +104,7 @@ def _dice(a, b):
 
 def test_discrete_gaussian_interior_agrees_with_sitk():
     # ITK DiscreteGaussianImageFilter parity: variance=4.0, maximum_error=0.01,
-    # use_image_spacing=False; kernel radius=7 voxels; interior crop [8:-8].
+    # spacing_mode=ritk.filter.PySpacingMode.Voxel; kernel radius=7 voxels; interior crop [8:-8].
     # Tolerances: interior max diff < 0.01, global mean diff < 0.005.
     arr = _make_gradient()
     sr = _np(
@@ -113,7 +113,7 @@ def test_discrete_gaussian_interior_agrees_with_sitk():
         )
     )
     rr = ritk.filter.discrete_gaussian(
-        _ritk(arr), variance=4.0, maximum_error=0.01, use_image_spacing=False
+        _ritk(arr), variance=4.0, maximum_error=0.01, spacing_mode=ritk.filter.PySpacingMode.Voxel
     ).to_numpy()
     assert sr.shape == rr.shape
     m = 8
@@ -136,7 +136,7 @@ def test_discrete_gaussian_constant_image_invariant():
         )
     )
     rr = ritk.filter.discrete_gaussian(
-        _ritk(arr), variance=4.0, maximum_error=0.01, use_image_spacing=False
+        _ritk(arr), variance=4.0, maximum_error=0.01, spacing_mode=ritk.filter.PySpacingMode.Voxel
     ).to_numpy()
     assert float(np.abs(sr - 0.5).max()) < 1e-4, (
         "SimpleITK DiscreteGaussian constant deviation >= 1e-4"
@@ -858,14 +858,8 @@ def test_sitk_bspline_deformable_vs_ritk_syn():
     assert d_sitk >= 0.80, f"SimpleITK BSpline Dice {d_sitk:.4f} < 0.80"
 
     # RITK SyN deformable
-    warped_ritk, _ = ritk.registration.syn_register(
-        fixed_ritk,
-        moving_ritk,
-        max_iterations=50,
-        sigma_smooth=1.5,
-        cc_radius=2,
-        gradient_step=0.25,
-    )
+    warped_ritk, _ = ritk.registration.syn_register(fixed_ritk,
+        moving_ritk, ritk.registration.SynConfig(max_iterations=50,sigma_smooth=1.5,cc_radius=2,gradient_step=0.25))
     ritk_arr = (warped_ritk.to_numpy() > 0.5).astype(np.float32)
     d_ritk = _dice(ritk_arr, ref_arr)
     assert d_ritk >= 0.80, (
@@ -939,15 +933,8 @@ def test_bspline_ffd_register_ncc_improves_on_shifted_gaussian_blob():
 
     ncc_before = pearsonr(arr.ravel(), arr_shifted.ravel()).statistic
 
-    warped = ritk.registration.bspline_ffd_register(
-        fixed,
-        moving,
-        initial_control_spacing=8,
-        num_levels=2,
-        max_iterations=100,
-        learning_rate=1.0,
-        regularization_weight=0.0,
-    )
+    warped = ritk.registration.bspline_ffd_register(fixed,
+        moving, ritk.registration.BSplineFfdConfig(initial_control_spacing=8,num_levels=2,max_iterations=100,learning_rate=1.0,regularization_weight=0.0))
     warped_arr = warped.to_numpy()
     ncc_after = pearsonr(arr.ravel(), warped_arr.ravel()).statistic
 
@@ -994,14 +981,8 @@ def test_syn_register_ncc_improves_on_shifted_gaussian_blob():
     m_flat = arr_moving.ravel().astype(np.float64)
     ncc_before = float(np.corrcoef(f_flat, m_flat)[0, 1])
 
-    warped_fixed, warped_moving = ritk.registration.syn_register(
-        fixed_ritk,
-        moving_ritk,
-        max_iterations=50,
-        sigma_smooth=1.5,
-        cc_radius=2,
-        gradient_step=0.25,
-    )
+    warped_fixed, warped_moving = ritk.registration.syn_register(fixed_ritk,
+        moving_ritk, ritk.registration.SynConfig(max_iterations=50,sigma_smooth=1.5,cc_radius=2,gradient_step=0.25))
     wf = warped_fixed.to_numpy().ravel().astype(np.float64)
     wm = (
         warped_moving.ravel().astype(np.float64)
@@ -1165,14 +1146,8 @@ def test_multires_demons_ncc_improves_on_shifted_sphere():
 
     ncc_before = pearsonr(arr.ravel(), arr_shifted.ravel()).statistic
 
-    warped, _ = ritk.registration.multires_demons_register(
-        fixed,
-        moving,
-        max_iterations=50,
-        sigma_diffusion=1.0,
-        levels=3,
-        variant="thirion",
-    )
+    warped, _ = ritk.registration.multires_demons_register(fixed,
+        moving, ritk.registration.MultiResDemonsOptions(max_iterations=50,sigma_diffusion=1.0,levels=3,variant="thirion"))
     warped_arr = warped.to_numpy()
     ncc_after = pearsonr(arr.ravel(), warped_arr.ravel()).statistic
 
@@ -1397,7 +1372,7 @@ def test_distance_transform_agrees_with_sitk() -> None:
     # Contract: mean absolute error on background voxels < 0.15 voxel units.
     arr = (_make_sphere(16, 4) > 0.5).astype(np.float32)
     dt_ritk = ritk.filter.distance_transform(
-        _ritk(arr), foreground_threshold=0.5, squared=False
+        _ritk(arr), foreground_threshold=0.5, metric="euclidean"
     ).to_numpy()
     # Cast to uint8 for SimpleITK: SignedMaurerDistanceMapImageFilter does not
     # support float32 in 3D.
@@ -1444,7 +1419,7 @@ def test_chan_vese_sphere_dice_vs_ground_truth():
     """
     arr = _make_noisy()
     sphere_gt = _make_sphere()
-    result = ritk.segmentation.chan_vese_segment(_ritk(arr), mu=0.1, max_iterations=100)
+    result = ritk.segmentation.chan_vese_segment(_ritk(arr), ritk.segmentation.ChanVeseOptions(mu=0.1,max_iterations=100))
     rn = result.to_numpy()
     assert rn.shape == arr.shape
     assert np.isfinite(rn).all()
@@ -1477,17 +1452,8 @@ def test_geodesic_active_contour_expands_inside_uniform_image():
         np.float32
     )
     area_before = int((phi_init < 0).sum())
-    result = ritk.segmentation.geodesic_active_contour_segment(
-        _ritk(arr),
-        _ritk(phi_init),
-        propagation_weight=1.0,
-        curvature_weight=0.1,
-        advection_weight=0.0,
-        edge_k=1.0,
-        sigma=0.5,
-        dt=0.05,
-        max_iterations=50,
-    )
+    result = ritk.segmentation.geodesic_active_contour_segment(_ritk(arr),
+        _ritk(phi_init), ritk.segmentation.GeodesicActiveContourOptions(propagation_weight=1.0,curvature_weight=0.1,advection_weight=0.0,edge_k=1.0,sigma=0.5,dt=0.05,max_iterations=50))
     rn = result.to_numpy()
     area_after = int((rn > 0.5).sum())
     assert rn.shape == arr.shape
@@ -1515,17 +1481,8 @@ def test_shape_detection_segment_produces_binary_output_near_sphere():
     phi_init = (np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init).astype(
         np.float32
     )
-    result = ritk.segmentation.shape_detection_segment(
-        _ritk(arr),
-        _ritk(phi_init),
-        curvature_weight=1.0,
-        propagation_weight=1.0,
-        advection_weight=1.0,
-        edge_k=1.0,
-        sigma=0.5,
-        dt=0.05,
-        max_iterations=50,
-    )
+    result = ritk.segmentation.shape_detection_segment(_ritk(arr),
+        _ritk(phi_init), ritk.segmentation.ShapeDetectionOptions(curvature_weight=1.0,propagation_weight=1.0,advection_weight=1.0,edge_k=1.0,sigma=0.5,dt=0.05,max_iterations=50))
     rn = result.to_numpy()
     assert rn.shape == arr.shape
     assert np.isfinite(rn).all()
@@ -1558,16 +1515,8 @@ def test_threshold_level_set_segment_expands_inside_intensity_band():
         np.float32
     )
     area_before = int((phi_init < 0).sum())
-    result = ritk.segmentation.threshold_level_set_segment(
-        _ritk(arr),
-        _ritk(phi_init),
-        lower_threshold=0.3,
-        upper_threshold=0.7,
-        propagation_weight=1.0,
-        curvature_weight=0.2,
-        dt=0.05,
-        max_iterations=50,
-    )
+    result = ritk.segmentation.threshold_level_set_segment(_ritk(arr),
+        _ritk(phi_init), ritk.segmentation.ThresholdLevelSetOptions(lower_threshold=0.3,upper_threshold=0.7,propagation_weight=1.0,curvature_weight=0.2,dt=0.05,max_iterations=50))
     rn = result.to_numpy()
     area_after = int((rn > 0.5).sum())
     assert rn.shape == arr.shape
@@ -1601,15 +1550,8 @@ def test_laplacian_level_set_segment_produces_nontrivial_binary_mask():
     phi_init = (np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init).astype(
         np.float32
     )
-    result = ritk.segmentation.laplacian_level_set_segment(
-        _ritk(arr),
-        _ritk(phi_init),
-        propagation_weight=1.0,
-        curvature_weight=0.2,
-        sigma=1.0,
-        dt=0.1,
-        max_iterations=50,
-    )
+    result = ritk.segmentation.laplacian_level_set_segment(_ritk(arr),
+        _ritk(phi_init), ritk.segmentation.LaplacianLevelSetOptions(propagation_weight=1.0,curvature_weight=0.2,sigma=1.0,dt=0.1,max_iterations=50))
     rn = result.to_numpy()
     assert rn.shape == arr.shape
     assert np.isfinite(rn).all()
@@ -1967,7 +1909,7 @@ def test_sato_line_filter_responds_to_tube_like_structure():
     tube = ((y - c) ** 2 + (x - c) ** 2) < 4  # radius-2 tube along z
     arr[tube] = 1.0
     result = ritk.filter.sato_line_filter(
-        _ritk(arr), scales=[1.0, 2.0], alpha=0.5, bright_tubes=True
+        _ritk(arr), scales=[1.0, 2.0], alpha=0.5, polarity="bright"
     ).to_numpy()
     assert np.all(np.isfinite(result)), "Sato filter produced non-finite values"
     tube_mean = float(result[tube].mean())
@@ -2107,15 +2049,8 @@ def test_global_mi_register_translation_parity_vs_sitk():
     arr_moving = np.roll(arr_fixed, 4, axis=2).astype(np.float32)
 
     # ── RITK global_mi_register ─────────────────────────────────────────────
-    matrix_flat, final_mi_ritk, info = ritk.registration.global_mi_register(
-        _ritk(arr_fixed),
-        _ritk(arr_moving),
-        transform_type="translation",
-        num_levels=2,
-        maximum_iterations=100,
-        sampling_percentage=1.0,
-        num_mi_bins=32,
-    )
+    matrix_flat, final_mi_ritk, info = ritk.registration.global_mi_register(_ritk(arr_fixed),
+        _ritk(arr_moving), ritk.registration.GlobalMiOptions(transform_type="translation",num_levels=2,maximum_iterations=100,sampling_percentage=1.0,num_mi_bins=32))
 
     # 4×4 row-major homogeneous matrix; rotation block must be identity for
     # a pure translation transform.
@@ -3029,7 +2964,7 @@ class TestBSplineFFDRegistrationParity:
         """
         fixed = _make_sphere()
         warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(fixed), **self._BSPLINE_KWARGS
+            _ritk(fixed), _ritk(fixed), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
         )
         warped = warped_img.to_numpy()
         ncc = _ncc_numpy(warped, fixed)
@@ -3043,7 +2978,7 @@ class TestBSplineFFDRegistrationParity:
         """Output ritk.Image has the same spatial shape as the fixed image."""
         fixed, moving = _make_shifted_sphere()
         warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(moving), **self._BSPLINE_KWARGS
+            _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
         )
         warped = warped_img.to_numpy()
         assert warped.shape == fixed.shape, (
@@ -3054,7 +2989,7 @@ class TestBSplineFFDRegistrationParity:
         """No NaN or infinite values in the registered output."""
         fixed, moving = _make_shifted_sphere()
         warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(moving), **self._BSPLINE_KWARGS
+            _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
         )
         warped = warped_img.to_numpy()
         assert np.all(np.isfinite(warped)), (
@@ -3074,7 +3009,7 @@ class TestBSplineFFDRegistrationParity:
         fixed, moving = _make_shifted_sphere(shift_voxels=4)
         ncc_before = _ncc_numpy(moving, fixed)
         warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(moving), **self._BSPLINE_KWARGS
+            _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
         )
         warped = warped_img.to_numpy()
         ncc_after = _ncc_numpy(warped, fixed)
@@ -3091,7 +3026,7 @@ class TestBSplineFFDRegistrationParity:
         fixed, moving = _make_shifted_sphere(shift_voxels=4)
         mse_before = float(np.mean((moving - fixed) ** 2))
         warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(moving), **self._BSPLINE_KWARGS
+            _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
         )
         warped = warped_img.to_numpy()
         mse_after = float(np.mean((warped - fixed) ** 2))
@@ -3111,7 +3046,7 @@ class TestBSplineFFDRegistrationParity:
         """
         fixed, moving = _make_shifted_sphere(shift_voxels=4)
         warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(moving), **self._BSPLINE_KWARGS
+            _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
         )
         warped = warped_img.to_numpy()
         ncc_direct = _ncc_numpy(warped, fixed)
@@ -3125,15 +3060,8 @@ class TestBSplineFFDRegistrationParity:
     def test_registered_ncc_in_valid_range(self):
         """NCC ∈ [−1, 1] after B-spline FFD registration (multi-level)."""
         fixed, moving = _make_shifted_sphere(shift_voxels=4)
-        warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed),
-            _ritk(moving),
-            initial_control_spacing=8,
-            num_levels=2,
-            max_iterations=5,
-            learning_rate=0.5,
-            regularization_weight=0.0,
-        )
+        warped_img = ritk.registration.bspline_ffd_register(_ritk(fixed),
+            _ritk(moving), ritk.registration.BSplineFfdConfig(initial_control_spacing=8,num_levels=2,max_iterations=5,learning_rate=0.5,regularization_weight=0.0))
         warped = warped_img.to_numpy()
         ncc = _ncc_numpy(warped, fixed)
         assert -1.0 <= ncc <= 1.0, f"NCC={ncc:.6f} out of valid range [-1, 1]"
@@ -3153,15 +3081,8 @@ class TestBSplineFFDRegistrationParity:
         fixed = _brain_ritk(r27)
         moving = _brain_ritk(r16)
         ncc_before = _ncc_numpy(r16, r27)
-        warped_img = ritk.registration.bspline_ffd_register(
-            fixed,
-            moving,
-            initial_control_spacing=16,
-            num_levels=1,
-            max_iterations=5,
-            learning_rate=0.5,
-            regularization_weight=1e-3,
-        )
+        warped_img = ritk.registration.bspline_ffd_register(fixed,
+            moving, ritk.registration.BSplineFfdConfig(initial_control_spacing=16,num_levels=1,max_iterations=5,learning_rate=0.5,regularization_weight=1e-3))
         warped = warped_img.to_numpy()
         ncc_after = _ncc_numpy(warped.squeeze(), r27)
         assert ncc_after >= ncc_before - 1e-4, (
@@ -3175,15 +3096,8 @@ class TestBSplineFFDRegistrationParity:
         r27 = _load_brain_slice(_R27)
         fixed = _brain_ritk(r27)
         moving = _brain_ritk(r16)
-        warped_img = ritk.registration.bspline_ffd_register(
-            fixed,
-            moving,
-            initial_control_spacing=16,
-            num_levels=1,
-            max_iterations=3,
-            learning_rate=0.5,
-            regularization_weight=1e-3,
-        )
+        warped_img = ritk.registration.bspline_ffd_register(fixed,
+            moving, ritk.registration.BSplineFfdConfig(initial_control_spacing=16,num_levels=1,max_iterations=3,learning_rate=0.5,regularization_weight=1e-3))
         warped = warped_img.to_numpy()
         fixed_arr = fixed.to_numpy()
         assert warped.shape == fixed_arr.shape, (
@@ -3197,15 +3111,8 @@ class TestBSplineFFDRegistrationParity:
         r27 = _load_brain_slice(_R27)
         fixed = _brain_ritk(r27)
         moving = _brain_ritk(r16)
-        warped_img = ritk.registration.bspline_ffd_register(
-            fixed,
-            moving,
-            initial_control_spacing=16,
-            num_levels=1,
-            max_iterations=3,
-            learning_rate=0.5,
-            regularization_weight=1e-3,
-        )
+        warped_img = ritk.registration.bspline_ffd_register(fixed,
+            moving, ritk.registration.BSplineFfdConfig(initial_control_spacing=16,num_levels=1,max_iterations=3,learning_rate=0.5,regularization_weight=1e-3))
         warped = warped_img.to_numpy()
         moving_arr = moving.to_numpy()
         assert np.any(warped != 0.0), (
@@ -3295,9 +3202,7 @@ class TestLddmmRegistrationParity:
         arr = np.zeros((8, 8, 8), dtype=np.float32)
         arr[2:6, 2:6, 2:6] = 1.0
         img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(
-            img, img, max_iterations=3, num_time_steps=2, learning_rate=0.01
-        )
+        warped, _ = ritk.registration.lddmm_register(img, img, ritk.registration.LddmmConfig(max_iterations=3,num_time_steps=2,learning_rate=0.01))
         mse = float(np.mean((arr - warped.to_numpy()) ** 2))
         assert mse < 1e-8, f"identity MSE = {mse} exceeds 1e-8"
 
@@ -3306,9 +3211,7 @@ class TestLddmmRegistrationParity:
         arr = np.random.RandomState(0).rand(10, 10, 10).astype(np.float32)
         fixed = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(
-            fixed, moving, max_iterations=2, num_time_steps=2
-        )
+        warped, _ = ritk.registration.lddmm_register(fixed, moving, ritk.registration.LddmmConfig(max_iterations=2,num_time_steps=2))
         assert warped.to_numpy().shape == arr.shape, (
             f"warped shape {warped.to_numpy().shape} != fixed shape {arr.shape}"
         )
@@ -3318,9 +3221,7 @@ class TestLddmmRegistrationParity:
         nz, ny, nx = 8, 9, 10
         arr = np.zeros((nz, ny, nx), dtype=np.float32)
         img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
-        _, disp = ritk.registration.lddmm_register(
-            img, img, max_iterations=2, num_time_steps=2
-        )
+        _, disp = ritk.registration.lddmm_register(img, img, ritk.registration.LddmmConfig(max_iterations=2,num_time_steps=2))
         expected = (3 * nz, ny, nx)
         actual = disp.to_numpy().shape
         assert actual == expected, f"displacement shape {actual} != expected {expected}"
@@ -3331,9 +3232,7 @@ class TestLddmmRegistrationParity:
         fixed = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
         arr2 = np.roll(arr, 1, axis=1)
         moving = ritk.Image(np.ascontiguousarray(arr2), spacing=[1.0, 1.0, 1.0])
-        warped, disp = ritk.registration.lddmm_register(
-            fixed, moving, max_iterations=5, num_time_steps=3
-        )
+        warped, disp = ritk.registration.lddmm_register(fixed, moving, ritk.registration.LddmmConfig(max_iterations=5,num_time_steps=3))
         assert np.all(np.isfinite(warped.to_numpy())), (
             "non-finite values in warped output"
         )
@@ -3345,9 +3244,7 @@ class TestLddmmRegistrationParity:
         """For fixed==moving the displacement field is identically zero."""
         arr = np.random.RandomState(2).rand(6, 6, 6).astype(np.float32)
         img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
-        _, disp = ritk.registration.lddmm_register(
-            img, img, max_iterations=5, num_time_steps=2
-        )
+        _, disp = ritk.registration.lddmm_register(img, img, ritk.registration.LddmmConfig(max_iterations=5,num_time_steps=2))
         max_disp = float(np.max(np.abs(disp.to_numpy())))
         assert max_disp < 1e-5, (
             f"max displacement {max_disp} for identical images; expected 0"
@@ -3358,15 +3255,8 @@ class TestLddmmRegistrationParity:
         sphere, shifted = _make_shifted_sphere_lddmm(shift=2, size=16)
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(
-            fixed,
-            moving,
-            max_iterations=20,
-            num_time_steps=5,
-            kernel_sigma=2.0,
-            learning_rate=0.05,
-            regularization_weight=0.01,
-        )
+        warped, _ = ritk.registration.lddmm_register(fixed,
+            moving, ritk.registration.LddmmConfig(max_iterations=20,num_time_steps=5,kernel_sigma=2.0,learning_rate=0.05,regularization_weight=0.01))
         mse_before = float(np.mean((sphere - shifted) ** 2))
         mse_after = float(np.mean((sphere - warped.to_numpy()) ** 2))
         assert mse_after < mse_before, (
@@ -3378,15 +3268,8 @@ class TestLddmmRegistrationParity:
         sphere, shifted = _make_shifted_sphere_lddmm(shift=2, size=16)
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(
-            fixed,
-            moving,
-            max_iterations=20,
-            num_time_steps=5,
-            kernel_sigma=2.0,
-            learning_rate=0.05,
-            regularization_weight=0.01,
-        )
+        warped, _ = ritk.registration.lddmm_register(fixed,
+            moving, ritk.registration.LddmmConfig(max_iterations=20,num_time_steps=5,kernel_sigma=2.0,learning_rate=0.05,regularization_weight=0.01))
         ncc_before = _ncc_lddmm(sphere, shifted)
         ncc_after = _ncc_lddmm(sphere, warped.to_numpy())
         assert ncc_after >= ncc_before, (
@@ -3400,15 +3283,8 @@ class TestLddmmRegistrationParity:
 
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(
-            fixed,
-            moving,
-            max_iterations=20,
-            num_time_steps=5,
-            kernel_sigma=2.0,
-            learning_rate=0.05,
-            regularization_weight=0.01,
-        )
+        warped, _ = ritk.registration.lddmm_register(fixed,
+            moving, ritk.registration.LddmmConfig(max_iterations=20,num_time_steps=5,kernel_sigma=2.0,learning_rate=0.05,regularization_weight=0.01))
         mse_lddmm = float(np.mean((sphere - warped.to_numpy()) ** 2))
         mse_demons = _sitk_demons_mse(sphere, shifted, n_iter=20)
 
@@ -3424,9 +3300,7 @@ class TestLddmmRegistrationParity:
         sphere, shifted = _make_shifted_sphere_lddmm(shift=1, size=12)
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(
-            fixed, moving, max_iterations=10, num_time_steps=3
-        )
+        warped, _ = ritk.registration.lddmm_register(fixed, moving, ritk.registration.LddmmConfig(max_iterations=10,num_time_steps=3))
         ncc = _ncc_lddmm(sphere, warped.to_numpy())
         assert -1.0 <= ncc <= 1.0, f"NCC = {ncc} outside [-1, 1]"
 
@@ -3435,15 +3309,8 @@ class TestLddmmRegistrationParity:
         sphere, shifted = _make_shifted_sphere_lddmm(shift=2, size=16)
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(
-            fixed,
-            moving,
-            max_iterations=20,
-            num_time_steps=5,
-            kernel_sigma=2.0,
-            learning_rate=0.05,
-            regularization_weight=0.01,
-        )
+        warped, _ = ritk.registration.lddmm_register(fixed,
+            moving, ritk.registration.LddmmConfig(max_iterations=20,num_time_steps=5,kernel_sigma=2.0,learning_rate=0.05,regularization_weight=0.01))
         ncc = _ncc_lddmm(sphere, warped.to_numpy())
         assert ncc > 0.0, (
             f"NCC = {ncc} after LDDMM; expected positive for co-modal pair"
@@ -3687,9 +3554,7 @@ class TestDemonsRegistrationParity:
         baseline = _mse(fixed_arr, moving_arr)
         fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.multires_demons_register(
-            fixed, moving, max_iterations=30, levels=2
-        )
+        warped, _ = ritk.registration.multires_demons_register(fixed, moving, ritk.registration.MultiResDemonsOptions(max_iterations=30,levels=2))
         final = _mse(fixed_arr, warped.to_numpy())
         assert final < baseline, (
             f"MultiRes Demons MSE did not decrease: baseline={baseline:.6f} final={final:.6f}"

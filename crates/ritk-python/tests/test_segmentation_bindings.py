@@ -57,16 +57,7 @@ def test_chan_vese_segment_preserves_shape_and_finite_values() -> None:
     image = np.zeros((9, 9, 9), dtype=np.float32)
     image[2:7, 2:7, 2:7] = 1.0
 
-    result = ritk.segmentation.chan_vese_segment(
-        _image(image),
-        mu=0.25,
-        nu=0.0,
-        lambda1=1.0,
-        lambda2=1.0,
-        max_iterations=3,
-        dt=0.1,
-        tolerance=1e-6,
-    )
+    result = ritk.segmentation.chan_vese_segment(_image(image), ritk.segmentation.ChanVeseOptions(mu=0.25,nu=0.0,lambda1=1.0,lambda2=1.0,max_iterations=3,dt=0.1,tolerance=1e-6))
     result_np = result.to_numpy()
 
     assert result_np.shape == image.shape
@@ -85,17 +76,8 @@ def test_geodesic_active_contour_segment_preserves_shape_and_finite_values() -> 
     initial_phi = np.ones((9, 9, 9), dtype=np.float32)
     initial_phi[2:7, 2:7, 2:7] = -1.0
 
-    result = ritk.segmentation.geodesic_active_contour_segment(
-        _image(image),
-        _image(initial_phi),
-        propagation_weight=1.0,
-        curvature_weight=0.5,
-        advection_weight=1.0,
-        edge_k=1.0,
-        sigma=1.0,
-        dt=0.05,
-        max_iterations=2,
-    )
+    result = ritk.segmentation.geodesic_active_contour_segment(_image(image),
+        _image(initial_phi), ritk.segmentation.GeodesicActiveContourOptions(propagation_weight=1.0,curvature_weight=0.5,advection_weight=1.0,edge_k=1.0,sigma=1.0,dt=0.05,max_iterations=2))
     result_np = result.to_numpy()
 
     assert result_np.shape == image.shape
@@ -111,18 +93,8 @@ def test_shape_detection_segment_preserves_shape_and_finite_values() -> None:
     initial_phi = np.ones((7, 7, 7), dtype=np.float32)
     initial_phi[1:6, 1:6, 1:6] = -1.0
 
-    result = ritk.segmentation.shape_detection_segment(
-        _image(image),
-        _image(initial_phi),
-        curvature_weight=1.0,
-        propagation_weight=1.0,
-        advection_weight=1.0,
-        edge_k=1.0,
-        sigma=1.0,
-        dt=0.05,
-        max_iterations=2,
-        tolerance=1e-6,
-    )
+    result = ritk.segmentation.shape_detection_segment(_image(image),
+        _image(initial_phi), ritk.segmentation.ShapeDetectionOptions(curvature_weight=1.0,propagation_weight=1.0,advection_weight=1.0,edge_k=1.0,sigma=1.0,dt=0.05,max_iterations=2,tolerance=1e-6))
     result_np = result.to_numpy()
 
     assert result_np.shape == image.shape
@@ -140,17 +112,8 @@ def test_threshold_level_set_segment_preserves_shape_and_finite_values() -> None
     initial_phi = np.ones((7, 7, 7), dtype=np.float32)
     initial_phi[1:6, 1:6, 1:6] = -1.0
 
-    result = ritk.segmentation.threshold_level_set_segment(
-        _image(image),
-        _image(initial_phi),
-        lower_threshold=1.0,
-        upper_threshold=4.0,
-        propagation_weight=1.0,
-        curvature_weight=0.2,
-        dt=0.05,
-        max_iterations=2,
-        tolerance=1e-6,
-    )
+    result = ritk.segmentation.threshold_level_set_segment(_image(image),
+        _image(initial_phi), ritk.segmentation.ThresholdLevelSetOptions(lower_threshold=1.0,upper_threshold=4.0,propagation_weight=1.0,curvature_weight=0.2,dt=0.05,max_iterations=2,tolerance=1e-6))
     result_np = result.to_numpy()
 
     assert result_np.shape == image.shape
@@ -168,16 +131,8 @@ def test_laplacian_level_set_segment_preserves_shape_and_finite_values() -> None
     initial_phi = np.ones((7, 7, 7), dtype=np.float32)
     initial_phi[2:5, 2:5, 2:5] = -1.0
 
-    result = ritk.segmentation.laplacian_level_set_segment(
-        _image(image),
-        _image(initial_phi),
-        propagation_weight=1.0,
-        curvature_weight=0.2,
-        sigma=1.0,
-        dt=0.05,
-        max_iterations=2,
-        tolerance=1e-6,
-    )
+    result = ritk.segmentation.laplacian_level_set_segment(_image(image),
+        _image(initial_phi), ritk.segmentation.LaplacianLevelSetOptions(propagation_weight=1.0,curvature_weight=0.2,sigma=1.0,dt=0.05,max_iterations=2,tolerance=1e-6))
     result_np = result.to_numpy()
 
     assert result_np.shape == image.shape
@@ -215,15 +170,15 @@ def test_distance_transform_single_foreground_voxel_background_nonzero() -> None
 
 
 def test_distance_transform_squared_equals_euclidean_squared() -> None:
-    # squared=True output must equal element-wise square of squared=False output
+    # metric="squared" output must equal element-wise square of metric="euclidean" output
     mask = np.zeros((5, 5, 5), dtype=np.float32)
     mask[2, 2, 2] = 1.0
     img = _image(mask)
     dist_np = ritk.filter.distance_transform(
-        img, foreground_threshold=0.5, squared=False
+        img, foreground_threshold=0.5, metric="euclidean"
     ).to_numpy()
     sq_np = ritk.filter.distance_transform(
-        img, foreground_threshold=0.5, squared=True
+        img, foreground_threshold=0.5, metric="squared"
     ).to_numpy()
     assert np.allclose(sq_np, dist_np**2, atol=1e-4)
 

@@ -54,6 +54,7 @@ def test_ritk___all___matches_public_contract():
         "Image",
         "io",
         "filter",
+        "metrics",
         "registration",
         "segmentation",
         "statistics",
@@ -99,6 +100,9 @@ def test_io_public_functions_exist():
         "write_image",
         "read_transform",
         "write_transform",
+        "anonymize_dicom_dir",
+        "read_mesh",
+        "write_mesh",
     ]
     missing = [fn for fn in required if not callable(getattr(rio, fn, None))]
     assert not missing, f"Missing callable functions in ritk.io: {missing}"
@@ -150,6 +154,32 @@ def test_filter_public_functions_exist():
         "morphological_reconstruction",
         "resample_image",
         "distance_transform",
+        "additive_gaussian_noise",
+        "salt_and_pepper_noise",
+        "shot_noise",
+        "speckle_noise",
+        "bin_shrink",
+        "coherence_enhancing_diffusion",
+        "forward_fft",
+        "inverse_fft",
+        "fft_shift",
+        "fft_convolve",
+        "fft_convolve_3d",
+        "fft_normalized_correlate",
+        "fft_normalized_correlate_3d",
+        "fft_ideal_low_pass",
+        "fft_ideal_high_pass",
+        "fft_butterworth_low_pass",
+        "fft_butterworth_high_pass",
+        "richardson_lucy_deconvolution",
+        "landweber_deconvolution",
+        "wiener_deconvolution",
+        "tikhonov_deconvolution",
+        "max_intensity_projection",
+        "min_intensity_projection",
+        "mean_intensity_projection",
+        "sum_intensity_projection",
+        "stddev_intensity_projection",
     ]
     missing = [fn for fn in required if not callable(getattr(rf, fn, None))]
     assert not missing, f"Missing callable functions in ritk.filter: {missing}"
@@ -186,6 +216,8 @@ def test_segmentation_public_functions_exist():
         "label_shape_statistics",
         "binary_threshold_segment",
         "marker_watershed_segment",
+        "growcut_segment",
+        "staple_ensemble",
     ]
     missing = [fn for fn in required if not callable(getattr(rs, fn, None))]
     assert not missing, f"Missing callable functions in ritk.segmentation: {missing}"
@@ -208,6 +240,8 @@ def test_registration_public_functions_exist():
         "build_atlas",
         "majority_vote_fusion",
         "joint_label_fusion_py",
+        "global_mi_register",
+        "cma_mi_register",
     ]
     missing = [fn for fn in required if not callable(getattr(rr, fn, None))]
     assert not missing, f"Missing callable functions in ritk.registration: {missing}"
@@ -232,6 +266,10 @@ def test_statistics_public_functions_exist():
         "white_stripe_normalize",
         "nyul_udupa_normalize",
         "compute_label_intensity_statistics",
+        "jacobian_determinant",
+        "analyze_jacobian",
+        "extended_label_shape_statistics_py",
+        "label_overlap_measures",
     ]
     missing = [fn for fn in required if not callable(getattr(rstat, fn, None))]
     assert not missing, f"Missing callable functions in ritk.statistics: {missing}"

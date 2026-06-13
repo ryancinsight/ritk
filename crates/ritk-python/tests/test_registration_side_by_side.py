@@ -330,13 +330,8 @@ class TestSyntheticSphere:
 
     def test_ritk_multires_demons_recovers_sphere(self):
         """RITK Multi-Res Demons must achieve Dice >= 0.70."""
-        warped, _ = ritk.registration.multires_demons_register(
-            self.fixed_ritk,
-            self.moving_ritk,
-            max_iterations=100,
-            sigma_diffusion=1.0,
-            levels=3,
-        )
+        warped, _ = ritk.registration.multires_demons_register(self.fixed_ritk,
+            self.moving_ritk, ritk.registration.MultiResDemonsOptions(max_iterations=100,sigma_diffusion=1.0,levels=3))
         d = _dice(warped.to_numpy(), self.fixed_arr)
         assert d >= 0.70, f"RITK Multi-Res Demons Dice {d:.4f} < 0.70"
 
@@ -358,43 +353,22 @@ class TestSyntheticSphere:
         sphere is lower than direct Demons because the midpoint warp does not
         fully align with the fixed image — it converges to the midpoint.
         """
-        _, warped_m = ritk.registration.syn_register(
-            self.fixed_ritk,
-            self.moving_ritk,
-            max_iterations=100,
-            sigma_smooth=1.0,
-            cc_radius=2,
-            gradient_step=0.5,
-        )
+        _, warped_m = ritk.registration.syn_register(self.fixed_ritk,
+            self.moving_ritk, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5))
         d = _dice(warped_m.to_numpy(), self.fixed_arr)
         assert d >= 0.60, f"RITK SyN Dice {d:.4f} < 0.60"
 
     def test_ritk_multires_syn_recovers_sphere(self):
         """RITK Multi-Res SyN must achieve Dice >= 0.60."""
-        _, warped_m = ritk.registration.multires_syn_register(
-            self.fixed_ritk,
-            self.moving_ritk,
-            num_levels=3,
-            sigma_smooth=1.0,
-            cc_radius=2,
-            gradient_step=0.5,
-        )
+        _, warped_m = ritk.registration.multires_syn_register(self.fixed_ritk,
+            self.moving_ritk, ritk.registration.MultiResSynOptions(num_levels=3,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5))
         d = _dice(warped_m.to_numpy(), self.fixed_arr)
         assert d >= 0.60, f"RITK Multi-Res SyN Dice {d:.4f} < 0.60"
 
     def test_ritk_bspline_syn_recovers_sphere(self):
         """RITK BSpline SyN must achieve Dice >= 0.55 on shifted sphere."""
-        _, warped_m = ritk.registration.bspline_syn_register(
-            self.fixed_ritk,
-            self.moving_ritk,
-            max_iterations=100,
-            control_spacing_z=8,
-            control_spacing_y=8,
-            control_spacing_x=8,
-            sigma_smooth=1.0,
-            cc_radius=2,
-            gradient_step=0.5,
-        )
+        _, warped_m = ritk.registration.bspline_syn_register(self.fixed_ritk,
+            self.moving_ritk, ritk.registration.BSplineSynOptions(max_iterations=100,control_spacing_z=8,control_spacing_y=8,control_spacing_x=8,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5))
         d = _dice(warped_m.to_numpy(), self.fixed_arr)
         assert d >= 0.55, f"RITK BSpline SyN Dice {d:.4f} < 0.55"
 
@@ -403,13 +377,8 @@ class TestSyntheticSphere:
 
         BSpline FFD returns a single warped Image (not a tuple).
         """
-        warped = ritk.registration.bspline_ffd_register(
-            self.fixed_ritk,
-            self.moving_ritk,
-            initial_control_spacing=8,
-            num_levels=3,
-            max_iterations=100,
-        )
+        warped = ritk.registration.bspline_ffd_register(self.fixed_ritk,
+            self.moving_ritk, ritk.registration.BSplineFfdConfig(initial_control_spacing=8,num_levels=3,max_iterations=100))
         d = _dice(warped.to_numpy(), self.fixed_arr)
         assert d >= 0.55, f"RITK BSpline FFD Dice {d:.4f} < 0.55"
 
@@ -469,14 +438,8 @@ class TestSyntheticSphere:
             d_sitk = 0.0
 
         # RITK SyN with reduced smoothing for continuous data
-        _, warped_m = ritk.registration.syn_register(
-            fixed_r,
-            moving_r,
-            max_iterations=100,
-            sigma_smooth=1.0,
-            cc_radius=2,
-            gradient_step=0.5,
-        )
+        _, warped_m = ritk.registration.syn_register(fixed_r,
+            moving_r, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5))
         d_ritk = _dice(warped_m.to_numpy(), arr_fixed)
 
         assert d_sitk >= 0.70 or sitk_result is None, (
@@ -508,14 +471,8 @@ class TestSyntheticGaussianBlob:
 
     def test_ritk_syn_ncc_improves(self):
         """RITK SyN must improve NCC over baseline."""
-        _, warped_m = ritk.registration.syn_register(
-            self.fixed_ritk,
-            self.moving_ritk,
-            max_iterations=100,
-            sigma_smooth=1.0,
-            cc_radius=2,
-            gradient_step=0.5,
-        )
+        _, warped_m = ritk.registration.syn_register(self.fixed_ritk,
+            self.moving_ritk, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5))
         ncc_after = _ncc(self.fixed_arr, warped_m.to_numpy())
         assert ncc_after > self.ncc_before, (
             f"SyN did not improve NCC: before={self.ncc_before:.4f}, "
@@ -538,13 +495,8 @@ class TestSyntheticGaussianBlob:
 
         bspline_ffd_register returns a single warped Image (not a tuple).
         """
-        warped = ritk.registration.bspline_ffd_register(
-            self.fixed_ritk,
-            self.moving_ritk,
-            initial_control_spacing=8,
-            num_levels=2,
-            max_iterations=50,
-        )
+        warped = ritk.registration.bspline_ffd_register(self.fixed_ritk,
+            self.moving_ritk, ritk.registration.BSplineFfdConfig(initial_control_spacing=8,num_levels=2,max_iterations=50))
         ncc_after = _ncc(self.fixed_arr, warped.to_numpy())
         assert ncc_after > self.ncc_before, (
             f"BSpline FFD did not improve NCC: before={self.ncc_before:.4f}, "
@@ -556,13 +508,8 @@ class TestSyntheticGaussianBlob:
 
         lddmm_register returns (warped, velocity_field).
         """
-        warped, _ = ritk.registration.lddmm_register(
-            self.fixed_ritk,
-            self.moving_ritk,
-            max_iterations=30,
-            num_time_steps=5,
-            kernel_sigma=2.0,
-        )
+        warped, _ = ritk.registration.lddmm_register(self.fixed_ritk,
+            self.moving_ritk, ritk.registration.LddmmConfig(max_iterations=30,num_time_steps=5,kernel_sigma=2.0))
         ncc_after = _ncc(self.fixed_arr, warped.to_numpy())
         assert ncc_after > self.ncc_before, (
             f"LDDMM did not improve NCC: before={self.ncc_before:.4f}, "
@@ -582,14 +529,8 @@ class TestSyntheticGaussianBlob:
         else:
             ncc_sitk = self.ncc_before
 
-        _, warped_m = ritk.registration.syn_register(
-            self.fixed_ritk,
-            self.moving_ritk,
-            max_iterations=100,
-            sigma_smooth=1.0,
-            cc_radius=2,
-            gradient_step=0.5,
-        )
+        _, warped_m = ritk.registration.syn_register(self.fixed_ritk,
+            self.moving_ritk, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5))
         ncc_ritk = _ncc(self.fixed_arr, warped_m.to_numpy())
 
         assert ncc_sitk > self.ncc_before, (
@@ -664,14 +605,8 @@ class TestInterSubjectBrainMNI:
 
     def test_ritk_syn_reduces_mse(self):
         """RITK SyN must reduce MSE on inter-subject brain."""
-        _, warped_m = ritk.registration.syn_register(
-            self.fixed_norm_r,
-            self.moving_norm_r,
-            max_iterations=30,
-            sigma_smooth=3.0,
-            cc_radius=2,
-            gradient_step=0.25,
-        )
+        _, warped_m = ritk.registration.syn_register(self.fixed_norm_r,
+            self.moving_norm_r, ritk.registration.SynConfig(max_iterations=30,sigma_smooth=3.0,cc_radius=2,gradient_step=0.25))
         mse_after = _mse(self.fixed_norm, warped_m.to_numpy())
         assert mse_after < self.mse_before, (
             f"RITK SyN did not reduce MSE: "
@@ -750,13 +685,8 @@ class TestRIREMultiModal:
 
     def test_ritk_syn_cross_modal_ncc_improves(self):
         """RITK SyN must improve NCC on cross-modal data after normalization."""
-        _, warped_m = ritk.registration.syn_register(
-            self.fixed_norm_r,
-            self.moving_norm_r,
-            max_iterations=30,
-            sigma_smooth=3.0,
-            cc_radius=2,
-        )
+        _, warped_m = ritk.registration.syn_register(self.fixed_norm_r,
+            self.moving_norm_r, ritk.registration.SynConfig(max_iterations=30,sigma_smooth=3.0,cc_radius=2))
         ncc_after = _ncc(self.fixed_norm, warped_m.to_numpy())
         assert ncc_after > self.ncc_before, (
             f"SyN did not improve cross-modal NCC: "
@@ -775,13 +705,8 @@ class TestRIREMultiModal:
         else:
             ncc_sitk = self.ncc_before
 
-        _, warped_m = ritk.registration.syn_register(
-            self.fixed_norm_r,
-            self.moving_norm_r,
-            max_iterations=30,
-            sigma_smooth=3.0,
-            cc_radius=2,
-        )
+        _, warped_m = ritk.registration.syn_register(self.fixed_norm_r,
+            self.moving_norm_r, ritk.registration.SynConfig(max_iterations=30,sigma_smooth=3.0,cc_radius=2))
         ncc_ritk = _ncc(self.fixed_norm, warped_m.to_numpy())
 
         # SimpleITK BSpline may diverge on small cross-modal crops;
@@ -848,13 +773,8 @@ class TestVMHeadMultiModal:
 
     def test_ritk_syn_cross_modal_ncc_improves(self):
         """RITK SyN must improve NCC on VM head cross-modal data."""
-        _, warped_m = ritk.registration.syn_register(
-            self.fixed_norm_r,
-            self.moving_norm_r,
-            max_iterations=30,
-            sigma_smooth=3.0,
-            cc_radius=2,
-        )
+        _, warped_m = ritk.registration.syn_register(self.fixed_norm_r,
+            self.moving_norm_r, ritk.registration.SynConfig(max_iterations=30,sigma_smooth=3.0,cc_radius=2))
         ncc_after = _ncc(self.fixed_norm, warped_m.to_numpy())
         assert ncc_after > self.ncc_before, (
             f"SyN did not improve NCC: before={self.ncc_before:.4f}, "
@@ -899,53 +819,20 @@ class TestRegistrationQualityReport:
             "symmetric_demons": lambda: ritk.registration.symmetric_demons_register(
                 fixed_r, moving_r, max_iterations=100
             ),
-            "multires_demons": lambda: ritk.registration.multires_demons_register(
-                fixed_r, moving_r, max_iterations=100, levels=3
-            ),
+            "multires_demons": lambda: ritk.registration.multires_demons_register(fixed_r, moving_r, ritk.registration.MultiResDemonsOptions(max_iterations=100,levels=3)),
             "ic_demons": lambda: ritk.registration.inverse_consistent_demons_register(
                 fixed_r, moving_r, max_iterations=100
             ),
-            "syn": lambda: ritk.registration.syn_register(
-                fixed_r,
-                moving_r,
-                max_iterations=100,
-                sigma_smooth=1.0,
-                cc_radius=2,
-                gradient_step=0.5,
-            ),
-            "multires_syn": lambda: ritk.registration.multires_syn_register(
-                fixed_r,
-                moving_r,
-                num_levels=3,
-                sigma_smooth=1.0,
-                cc_radius=2,
-                gradient_step=0.5,
-            ),
-            "bspline_syn": lambda: ritk.registration.bspline_syn_register(
-                fixed_r,
-                moving_r,
-                max_iterations=100,
-                control_spacing_z=8,
-                control_spacing_y=8,
-                control_spacing_x=8,
-                sigma_smooth=1.0,
-                cc_radius=2,
-                gradient_step=0.5,
-            ),
-            "bspline_ffd": lambda: ritk.registration.bspline_ffd_register(
-                fixed_r,
-                moving_r,
-                initial_control_spacing=8,
-                num_levels=2,
-                max_iterations=50,
-            ),
-            "lddmm": lambda: ritk.registration.lddmm_register(
-                fixed_r,
-                moving_r,
-                max_iterations=30,
-                num_time_steps=5,
-                kernel_sigma=2.0,
-            ),
+            "syn": lambda: ritk.registration.syn_register(fixed_r,
+                moving_r, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5)),
+            "multires_syn": lambda: ritk.registration.multires_syn_register(fixed_r,
+                moving_r, ritk.registration.MultiResSynOptions(num_levels=3,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5)),
+            "bspline_syn": lambda: ritk.registration.bspline_syn_register(fixed_r,
+                moving_r, ritk.registration.BSplineSynOptions(max_iterations=100,control_spacing_z=8,control_spacing_y=8,control_spacing_x=8,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5)),
+            "bspline_ffd": lambda: ritk.registration.bspline_ffd_register(fixed_r,
+                moving_r, ritk.registration.BSplineFfdConfig(initial_control_spacing=8,num_levels=2,max_iterations=50)),
+            "lddmm": lambda: ritk.registration.lddmm_register(fixed_r,
+                moving_r, ritk.registration.LddmmConfig(max_iterations=30,num_time_steps=5,kernel_sigma=2.0)),
         }
 
         for name, fn in algorithms.items():

@@ -111,13 +111,19 @@ class TestToCanonical:
         assert np.allclose(result, float_arr)
 
     def test_float_with_small_values(self):
-        """Test float arrays with very small values."""
+        """Sub-integer float values are preserved as float (no lossy rounding).
+
+        0.0001 and 0.0002 differ from their nearest integer (0) by 1e-4, which
+        exceeds the integer-detection tolerance (1e-5 absolute for max|x|<1e-3).
+        They are genuine, distinct floating-point data — rounding them to int
+        would collapse all three values to 0 and destroy information.  The
+        canonical-form contract preserves truly floating-point pixels as float.
+        """
         float_arr = np.array([0.0, 0.0001, 0.0002], dtype=np.float32)
         result = to_canonical(float_arr)
 
-        # Small values that are close to integers (0) should be converted
-        # 0.0001 and 0.0002 are within tolerance of 0
-        assert result.dtype in [np.uint8, np.int32, np.int64]
+        assert result.dtype == np.float32
+        assert np.allclose(result, float_arr)
 
     def test_integer_array_unchanged(self):
         """Test that integer arrays are unchanged."""
@@ -212,9 +218,11 @@ class TestToCanonicalWithSimpleITK:
 
         result = to_canonical(img)
 
-        # Check that metadata is preserved
-        assert result.GetSpacing() == [1.0, 2.0]
-        assert result.GetOrigin() == [10.0, 20.0]
+        # Check that metadata is preserved.  SimpleITK's GetSpacing/GetOrigin
+        # return tuples, so compare against tuples (a tuple never equals a list
+        # in Python: (1.0, 2.0) != [1.0, 2.0]).
+        assert result.GetSpacing() == (1.0, 2.0)
+        assert result.GetOrigin() == (10.0, 20.0)
 
 
 class TestEdgeCases:

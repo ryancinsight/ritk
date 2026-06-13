@@ -331,7 +331,7 @@ def test_cma_mi_options_defaults():
     assert abs(opts.translation_range_mm - 60.0) < 1e-6
     assert abs(opts.rotation_range_rad - math.pi / 4) < 1e-5
     assert opts.max_generations == 200
-    assert opts.use_com_init is False
+    assert opts.init_strategy == "manual"
     assert opts.sigma0 == pytest.approx(0.7, abs=1e-9)
 
 
@@ -341,11 +341,11 @@ def test_cma_mi_options_preset_mutation():
     opts.preset = "custom"
     opts.coarse_shrink = 4
     opts.max_generations = 50
-    opts.use_com_init = True
+    opts.init_strategy = "center_of_mass"
     assert opts.preset == "custom"
     assert opts.coarse_shrink == 4
     assert opts.max_generations == 50
-    assert opts.use_com_init is True
+    assert opts.init_strategy == "center_of_mass"
 
 
 def test_cma_mi_register_invalid_preset():

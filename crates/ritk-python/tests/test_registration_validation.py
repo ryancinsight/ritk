@@ -648,14 +648,8 @@ def test_1b_gaussian_blob_local_deformation():
     # -- RITK SyN --
     fixed_ritk = numpy_to_ritk(arr_fixed)
     moving_ritk = numpy_to_ritk(arr_moving)
-    warped_fixed_ritk, warped_moving_ritk = ritk.registration.syn_register(
-        fixed_ritk,
-        moving_ritk,
-        max_iterations=100,
-        sigma_smooth=3.0,
-        cc_radius=2,
-        gradient_step=0.25,
-    )
+    warped_fixed_ritk, warped_moving_ritk = ritk.registration.syn_register(fixed_ritk,
+        moving_ritk, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=3.0,cc_radius=2,gradient_step=0.25))
     ncc_ritk = ncc_3d(warped_moving_ritk.to_numpy(), arr_fixed)
     assert ncc_ritk >= 0.90, (
         f"RITK SyN NCC {ncc_ritk:.4f} < 0.90 on locally deformed Gaussian blob"
@@ -913,18 +907,9 @@ def test_3a_ritk_multires_syn_on_inter_subject():
     moving_ritk = numpy_to_ritk(moving_arr)
     # multires_syn_register signature:
     #   (fixed, moving, num_levels=3, iterations=None, sigma_smooth=3.0,
-    #    cc_radius=2, inverse_consistency=True, gradient_step=0.25)
-    warped_fixed, warped_moving = ritk.registration.multires_syn_register(
-        fixed_ritk,
-        moving_ritk,
-        num_levels=3,
-        iterations=[200, 100, 50],
-        sigma_smooth=1.0,
-        cc_radius=4,
-        inverse_consistency=True,
-        gradient_step=0.5,
-        convergence_threshold=1e-8,
-    )
+    #    cc_radius=2, inverse_consistency="enforced", gradient_step=0.25)
+    warped_fixed, warped_moving = ritk.registration.multires_syn_register(fixed_ritk,
+        moving_ritk, ritk.registration.MultiResSynOptions(num_levels=3,iterations=[200, 100, 50],sigma_smooth=1.0,cc_radius=4,inverse_consistency="enforced",gradient_step=0.5,convergence_threshold=1e-8))
     ncc_after = ncc_3d(warped_moving.to_numpy(), fixed_arr)
 
     delta = ncc_after - ncc_before
@@ -996,17 +981,8 @@ def test_3c_parallel_quality_inter_subject():
     # RITK multires SyN
     fixed_ritk = numpy_to_ritk(fixed_arr)
     moving_ritk = numpy_to_ritk(moving_arr)
-    warped_fixed, warped_moving = ritk.registration.multires_syn_register(
-        fixed_ritk,
-        moving_ritk,
-        num_levels=3,
-        iterations=[200, 100, 50],
-        sigma_smooth=1.0,
-        cc_radius=4,
-        inverse_consistency=True,
-        gradient_step=0.5,
-        convergence_threshold=1e-8,
-    )
+    warped_fixed, warped_moving = ritk.registration.multires_syn_register(fixed_ritk,
+        moving_ritk, ritk.registration.MultiResSynOptions(num_levels=3,iterations=[200, 100, 50],sigma_smooth=1.0,cc_radius=4,inverse_consistency="enforced",gradient_step=0.5,convergence_threshold=1e-8))
     ncc_ritk = ncc_3d(warped_moving.to_numpy(), fixed_arr)
     delta_ritk = ncc_ritk - ncc_before
 
@@ -1238,15 +1214,8 @@ def test_4b_ritk_syn_on_resampled_ct_mr():
     gm_affine_norm = gm_affine / (gm_affine.max() + 1e-9)
     fixed_gm_ritk = numpy_to_ritk(gm_fixed_norm.astype(np.float32))
     moving_gm_ritk = numpy_to_ritk(gm_affine_norm.astype(np.float32))
-    _, warped_gm_ritk = ritk.registration.syn_register(
-        fixed_gm_ritk,
-        moving_gm_ritk,
-        max_iterations=100,
-        sigma_smooth=1.5,
-        cc_radius=2,
-        gradient_step=0.25,
-        convergence_threshold=1e-8,
-    )
+    _, warped_gm_ritk = ritk.registration.syn_register(fixed_gm_ritk,
+        moving_gm_ritk, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.5,cc_radius=2,gradient_step=0.25,convergence_threshold=1e-8))
     ncc_gm_after_syn = ncc_3d(gm_fixed, warped_gm_ritk.to_numpy())
 
     delta = ncc_gm_after_syn - ncc_gm_after_affine
@@ -1348,15 +1317,8 @@ def test_5a_parallel_deformable_on_vm_head():
     gm_moving_norm = gm_moving_before / (gm_moving_before.max() + 1e-9)
     fixed_gm_ritk = numpy_to_ritk(gm_fixed_norm.astype(np.float32))
     moving_gm_ritk = numpy_to_ritk(gm_moving_norm.astype(np.float32))
-    _, warped_gm_ritk = ritk.registration.syn_register(
-        fixed_gm_ritk,
-        moving_gm_ritk,
-        max_iterations=200,
-        sigma_smooth=1.5,
-        cc_radius=2,
-        gradient_step=0.25,
-        convergence_threshold=1e-8,
-    )
+    _, warped_gm_ritk = ritk.registration.syn_register(fixed_gm_ritk,
+        moving_gm_ritk, ritk.registration.SynConfig(max_iterations=200,sigma_smooth=1.5,cc_radius=2,gradient_step=0.25,convergence_threshold=1e-8))
     ncc_gm_ritk = ncc_3d(gm_fixed, warped_gm_ritk.to_numpy())
     assert ncc_gm_ritk >= 0.15, (
         f"RITK SyN gradient-magnitude NCC {ncc_gm_ritk:.4f} < 0.15 on VM head"
