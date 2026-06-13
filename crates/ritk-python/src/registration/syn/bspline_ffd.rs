@@ -36,8 +36,27 @@ impl Default for PyBSplineFfdConfig {
 #[pymethods]
 impl PyBSplineFfdConfig {
     #[new]
-    pub fn new() -> Self {
-        Self::default()
+    #[pyo3(signature = (
+        initial_control_spacing = 8,
+        num_levels = 3,
+        max_iterations = 100,
+        learning_rate = 0.01,
+        regularization_weight = 0.001,
+    ))]
+    pub fn new(
+        initial_control_spacing: usize,
+        num_levels: usize,
+        max_iterations: usize,
+        learning_rate: f64,
+        regularization_weight: f64,
+    ) -> Self {
+        Self {
+            initial_control_spacing,
+            num_levels,
+            max_iterations,
+            learning_rate,
+            regularization_weight,
+        }
     }
 }
 

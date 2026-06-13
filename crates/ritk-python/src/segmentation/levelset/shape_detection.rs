@@ -55,8 +55,37 @@ impl Default for PyShapeDetectionOptions {
 #[pymethods]
 impl PyShapeDetectionOptions {
     #[new]
-    pub fn new() -> Self {
-        Self::default()
+    #[pyo3(signature = (
+        curvature_weight = 1.0,
+        propagation_weight = 1.0,
+        advection_weight = 1.0,
+        edge_k = 1.0,
+        sigma = 1.0,
+        dt = 0.05,
+        max_iterations = 200,
+        tolerance = 1e-3,
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        curvature_weight: f64,
+        propagation_weight: f64,
+        advection_weight: f64,
+        edge_k: f64,
+        sigma: f64,
+        dt: f64,
+        max_iterations: usize,
+        tolerance: f64,
+    ) -> Self {
+        Self {
+            curvature_weight,
+            propagation_weight,
+            advection_weight,
+            edge_k,
+            sigma,
+            dt,
+            max_iterations,
+            tolerance,
+        }
     }
 }
 

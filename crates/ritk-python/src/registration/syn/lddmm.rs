@@ -37,8 +37,27 @@ impl Default for PyLddmmConfig {
 #[pymethods]
 impl PyLddmmConfig {
     #[new]
-    pub fn new() -> Self {
-        Self::default()
+    #[pyo3(signature = (
+        max_iterations = 50,
+        num_time_steps = 10,
+        kernel_sigma = 2.0,
+        learning_rate = 0.1,
+        regularization_weight = 1.0,
+    ))]
+    pub fn new(
+        max_iterations: usize,
+        num_time_steps: usize,
+        kernel_sigma: f64,
+        learning_rate: f64,
+        regularization_weight: f64,
+    ) -> Self {
+        Self {
+            max_iterations,
+            num_time_steps,
+            kernel_sigma,
+            learning_rate,
+            regularization_weight,
+        }
     }
 }
 

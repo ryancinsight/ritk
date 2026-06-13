@@ -81,36 +81,36 @@ def to_canonical(image) -> object:
 
 
 def _to_canonical_sitk(image):
-    """Convert a SimpleITK image to canonical form."""
+    """Convert a SimpleITK image to canonical form.
+
+    Canonicalization is performed on the image's numpy array view so the
+    decision logic is shared verbatim with :func:`_to_canonical_numpy` (single
+    source of truth).  This avoids keying off ``GetPixelIDTypeAsString()``,
+    whose human-readable strings (``"32-bit float"``,
+    ``"vector of 8-bit unsigned integer"``) never match the SWIG enum
+    identifiers (``"sitkFloat32"`` …) the previous implementation compared
+    against — a comparison that silently disabled both conversions.
+    """
     import SimpleITK as sitk
 
-    # Get the pixel type
-    pixel_type = image.GetPixelIDTypeAsString()
-
-    # Check if it's a vector image (could be RGB)
     num_components = image.GetNumberOfComponentsPerPixel()
+    arr = sitk.GetArrayFromImage(image)
+    original_dtype = arr.dtype
+    original_shape = arr.shape
 
-    # Handle RGB/RGBA images - convert to BGR/BGRA
-    if num_components >= 3:
-        # Check if it's an RGB-like image
-        if pixel_type in (
-            "sitkVectorUInt8",
-            "sitkVectorUInt16",
-            "sitkVectorFloat32",
-            "sitkVectorFloat64",
-            "sitkRGBPixelUInt8",
-            "sitkRGBPixelUInt16",
-            "sitkRGBAPixelUInt8",
-            "sitkRGBAPixelUInt16",
-        ):
-            # Convert RGB to BGR
-            image = _convert_rgb_to_bgr_sitk(image)
+    canonical = _to_canonical_numpy(arr)
 
-    # Check if floating point with integer values should be converted to integer
-    if _is_float_with_integer_values(image):
-        image = _convert_float_to_int_sitk(image)
+    # Nothing changed — return the original image untouched to preserve every
+    # geometry/metadata field exactly.
+    if canonical.dtype == original_dtype and canonical.shape == original_shape:
+        if num_components >= 3 or canonical is arr:
+            return image
+        if np.array_equal(canonical, arr):
+            return image
 
-    return image
+    new_image = sitk.GetImageFromArray(canonical, isVector=num_components >= 3)
+    new_image.CopyInformation(image)
+    return new_image
 
 
 def _to_canonical_numpy(arr):
@@ -175,66 +175,6 @@ def _to_canonical_sitk_like(image):
         return new_image
     except Exception:
         return arr
-
-
-def _convert_rgb_to_bgr_sitk(image):
-    """Convert an RGB/RGBA SimpleITK image to BGR/BGRA."""
-    import SimpleITK as sitk
-
-    pixel_type = image.GetPixelIDTypeAsString()
-    num_components = image.GetNumberOfComponentsPerPixel()
-
-    # Get the array
-    arr = sitk.GetArrayFromImage(image)
-
-    # Convert color channels to ITK convention (BGR/BGRA)
-    if num_components == 3:
-        # RGB to BGR: reverse all 3 channels
-        arr = arr[..., ::-1].copy()
-    elif num_components == 4:
-        # RGBA to BGRA: reverse first 3 channels (RGB -> BGR), keep alpha at end
-        # Input: [R, G, B, A] -> Output: [B, G, R, A]
-        arr = arr[..., [2, 1, 0, 3]].copy()
-
-    # Create new image with BGR/BGRA order
-    new_image = sitk.GetImageFromArray(arr)
-    new_image.CopyInformation(image)
-
-    return new_image
-
-
-def _is_float_with_integer_values(image):
-    """Check if a SimpleITK image has floating point type but integer values."""
-    import SimpleITK as sitk
-
-    pixel_type = image.GetPixelIDTypeAsString()
-
-    # Only check floating point types
-    if "Float" not in pixel_type and "Double" not in pixel_type:
-        return False
-
-    # Get a sample of pixels to check
-    try:
-        arr = sitk.GetArrayFromImage(image)
-        return _is_integer_valued(arr)
-    except Exception:
-        return False
-
-
-def _convert_float_to_int_sitk(image):
-    """Convert a floating point SimpleITK image with integer values to integer type."""
-    import SimpleITK as sitk
-
-    arr = sitk.GetArrayFromImage(image)
-
-    # Convert to appropriate integer type
-    arr_int = _convert_float_to_int_numpy(arr)
-
-    # Create new image with integer type
-    new_image = sitk.GetImageFromArray(arr_int)
-    new_image.CopyInformation(image)
-
-    return new_image
 
 
 def _is_integer_valued(arr):

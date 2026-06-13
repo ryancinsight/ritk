@@ -6,6 +6,8 @@ All signatures are derived from the authoritative Rust source at
 
 from __future__ import annotations
 
+from typing import Any
+
 from ritk._ritk.image import Image
 
 # ── Thresholding ────────────────────────────────────────────────────────────
@@ -153,3 +155,12 @@ def label_shape_statistics(
         ValueError: if connectivity is not 6 or 26.
     """
     ...
+
+# -- GrowCut / STAPLE ---------------------------------------------------------
+
+def growcut_segment(
+    image: Image, seeds: Image, max_iter: int = 200
+) -> Image: ...
+def staple_ensemble(
+    raters: list[Image], max_iter: int = 100, tol: float = 1e-06
+) -> dict[str, Any]: ...

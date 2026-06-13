@@ -7,6 +7,8 @@ and intensity normalization functions.  All delegate to
 
 from __future__ import annotations
 
+from typing import Any
+
 from ritk._ritk.image import Image
 
 def compute_statistics(image: Image) -> dict[str, float]:
@@ -148,3 +150,16 @@ def compute_label_intensity_statistics(
         RuntimeError: if images have different element counts.
     """
     ...
+
+# -- Deformation-field Jacobian and label-overlap analysis --------------------
+
+def jacobian_determinant(
+    disp_z: Image, disp_y: Image, disp_x: Image
+) -> Image: ...
+def analyze_jacobian(jac: Image) -> dict[str, Any]: ...
+def extended_label_shape_statistics_py(
+    label_image: Image,
+) -> list[dict[str, Any]]: ...
+def label_overlap_measures(
+    prediction: Image, ground_truth: Image
+) -> dict[str, Any]: ...

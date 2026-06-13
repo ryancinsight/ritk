@@ -15,3 +15,20 @@ def write_transform(
     transforms: list[dict[str, Any]],
     description: str = "",
 ) -> None: ...
+
+# -- DICOM anonymization ------------------------------------------------------
+
+def anonymize_dicom_dir(
+    input_dir: str,
+    output_dir: str,
+    profile: str = "basic",
+    patient_name: str = "ANONYMOUS",
+    patient_id: str = "ANON001",
+    uid_salt: str = "ritk-anon-salt",
+    cleaning: Any | None = None,
+) -> int: ...
+
+# -- Polygonal mesh I/O -------------------------------------------------------
+
+def read_mesh(path: str) -> Any: ...
+def write_mesh(path: str, mesh: Any) -> None: ...

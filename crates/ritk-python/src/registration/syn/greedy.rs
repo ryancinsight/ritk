@@ -36,8 +36,27 @@ impl Default for PySynConfig {
 #[pymethods]
 impl PySynConfig {
     #[new]
-    pub fn new() -> Self {
-        Self::default()
+    #[pyo3(signature = (
+        max_iterations = 100,
+        sigma_smooth = 3.0,
+        cc_radius = 2,
+        gradient_step = 0.25,
+        convergence_threshold = 1e-8,
+    ))]
+    pub fn new(
+        max_iterations: usize,
+        sigma_smooth: f64,
+        cc_radius: usize,
+        gradient_step: f64,
+        convergence_threshold: f64,
+    ) -> Self {
+        Self {
+            max_iterations,
+            sigma_smooth,
+            cc_radius,
+            gradient_step,
+            convergence_threshold,
+        }
     }
 }
 

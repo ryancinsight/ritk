@@ -45,8 +45,37 @@ impl Default for PyBSplineSynOptions {
 #[pymethods]
 impl PyBSplineSynOptions {
     #[new]
-    pub fn new() -> Self {
-        Self::default()
+    #[pyo3(signature = (
+        max_iterations = 100,
+        control_spacing_z = 8,
+        control_spacing_y = 8,
+        control_spacing_x = 8,
+        sigma_smooth = 1.0,
+        cc_radius = 2,
+        regularization_weight = 0.001,
+        gradient_step = 0.25,
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        max_iterations: usize,
+        control_spacing_z: usize,
+        control_spacing_y: usize,
+        control_spacing_x: usize,
+        sigma_smooth: f64,
+        cc_radius: usize,
+        regularization_weight: f64,
+        gradient_step: f64,
+    ) -> Self {
+        Self {
+            max_iterations,
+            control_spacing_z,
+            control_spacing_y,
+            control_spacing_x,
+            sigma_smooth,
+            cc_radius,
+            regularization_weight,
+            gradient_step,
+        }
     }
 }
 

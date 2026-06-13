@@ -350,8 +350,43 @@ impl Default for PyGlobalMiOptions {
 #[pymethods]
 impl PyGlobalMiOptions {
     #[new]
-    pub fn new() -> Self {
-        Self::default()
+    #[pyo3(signature = (
+        transform_type = "rigid".to_owned(),
+        num_levels = 3,
+        shrink_factors = None,
+        smoothing_sigmas = None,
+        num_mi_bins = 50,
+        sampling_percentage = 0.20,
+        initial_step_length = 1.0,
+        relaxation_factor = 0.5,
+        minimum_step_length = 1e-6,
+        maximum_iterations = 200,
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        transform_type: String,
+        num_levels: usize,
+        shrink_factors: Option<Vec<usize>>,
+        smoothing_sigmas: Option<Vec<f64>>,
+        num_mi_bins: usize,
+        sampling_percentage: f32,
+        initial_step_length: f64,
+        relaxation_factor: f64,
+        minimum_step_length: f64,
+        maximum_iterations: usize,
+    ) -> Self {
+        Self {
+            transform_type,
+            num_levels,
+            shrink_factors,
+            smoothing_sigmas,
+            num_mi_bins,
+            sampling_percentage,
+            initial_step_length,
+            relaxation_factor,
+            minimum_step_length,
+            maximum_iterations,
+        }
     }
 }
 

@@ -5,6 +5,8 @@ All signatures derived from ``ritk-python/src/registration.rs``.
 
 from __future__ import annotations
 
+from typing import Any
+
 from ritk._ritk.image import Image
 
 def demons_register(
@@ -112,3 +114,17 @@ def joint_label_fusion_py(
     patch_radius: int = 2,
     beta: float = 0.1,
 ) -> tuple[Image, Image]: ...
+
+# -- Global affine/rigid Mutual Information registration -----------------------
+
+def global_mi_register(
+    fixed: Image,
+    moving: Image,
+    opts: Any | None = None,
+) -> tuple[list[float], float, dict[str, Any]]: ...
+def cma_mi_register(
+    fixed: Image,
+    moving: Image,
+    opts: Any | None = None,
+    fixed_mask: Image | None = None,
+) -> tuple[list[float], float, dict[str, Any]]: ...
