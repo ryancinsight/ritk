@@ -41,17 +41,30 @@ impl RescaleIntensityFilter {
     /// Apply the rescaling to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
+        let n = vals.len();
 
-        let i_min = vals.iter().cloned().fold(f32::INFINITY, f32::min);
-        let i_max = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        // Fused parallel min/max reduction (one pass over the data instead of
+        // two sequential folds). NaN compares `false` in `min`/`max`, leaving
+        // the running extremum unchanged — matching the prior `f32::min`/`max`.
+        let (i_min, i_max) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+            n,
+            || (f32::INFINITY, f32::NEG_INFINITY),
+            |(mn, mx), i| {
+                let v = vals[i];
+                (mn.min(v), mx.max(v))
+            },
+            |(a_mn, a_mx), (b_mn, b_mx)| (a_mn.min(b_mn), a_mx.max(b_mx)),
+        );
 
         let out: Vec<f32> = if (i_max - i_min).abs() < f32::EPSILON {
-            vec![self.out_min; vals.len()]
+            vec![self.out_min; n]
         } else {
+            // Affine remap, parallelized element-wise (independent per voxel).
             let scale = (self.out_max - self.out_min) / (i_max - i_min);
-            vals.iter()
-                .map(|&v| (v - i_min) * scale + self.out_min)
-                .collect()
+            let out_min = self.out_min;
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+                (vals[i] - i_min) * scale + out_min
+            })
         };
 
         Ok(rebuild(out, dims, image))

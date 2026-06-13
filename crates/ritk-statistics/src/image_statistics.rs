@@ -85,8 +85,18 @@ pub fn masked_statistics<B: Backend, const D: usize>(
 ///
 /// # Invariants
 /// - `values` is non-empty (caller enforced).
-/// - Sorts `values` in-place; NaN propagates arithmetic and is ordered last by
-///   the `partial_cmp` fallback.
+/// - Copies `values` and partially reorders the copy in place; NaN compares
+///   `Equal` under the `partial_cmp` fallback and is ignored by min/max.
+///
+/// # Algorithm
+/// The three percentiles are the order statistics at floor-division ranks
+/// `n/4`, `n/2`, `3n/4`. Computing them with a full sort is `O(n log n)` and
+/// dominates the cost; instead each rank is isolated with `select_nth_unstable`
+/// (quickselect, `O(n)` average). The selections run on progressively smaller
+/// suffixes — after rank `k` is placed, every element before `k` is `≤` it, so
+/// the next (larger) rank is sought only in `values[k+1..]` — giving `≈2.25n`
+/// comparisons total versus `n log n` for the sort. Min, max, and the f64 sum
+/// are gathered in a single fused pass before any reordering.
 ///
 /// # Precision
 /// Mean and variance accumulate in f64 to avoid catastrophic f32 cancellation
@@ -96,19 +106,27 @@ pub fn masked_statistics<B: Backend, const D: usize>(
 /// rounded to zero and the sum saturates.  Two-pass f64 accumulation is the
 /// algorithm's numerical contract requirement, not a convenience cast.
 pub fn compute_from_values(values: &[f32]) -> ImageStatistics {
-    let mut sorted_values = values.to_vec();
-    let values = sorted_values.as_mut_slice();
+    let mut buffer = values.to_vec();
+    let values = buffer.as_mut_slice();
     let n = values.len();
     debug_assert!(n > 0, "compute_from_values requires non-empty input");
 
-    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    // Fused pass: min, max, and the f64 sum. NaN compares `Equal` (the
+    // `partial_cmp` fallback) so it never displaces a real extremum, matching
+    // the prior sorted-array semantics; it still propagates into the f64 sum.
+    let mut min = values[0];
+    let mut max = values[0];
+    let mut sum_wide = 0.0_f64;
+    for &v in values.iter() {
+        sum_wide += v as f64;
+        if matches!(v.partial_cmp(&min), Some(std::cmp::Ordering::Less)) {
+            min = v;
+        }
+        if matches!(v.partial_cmp(&max), Some(std::cmp::Ordering::Greater)) {
+            max = v;
+        }
+    }
 
-    let min = values[0];
-    let max = values[n - 1];
-
-    // Accumulate in f64: sequential f32 sum saturates for n > ~10^7 elements
-    // when the running total exceeds the f32 ULP of individual values.
-    let sum_wide: f64 = values.iter().map(|&v| v as f64).sum::<f64>();
     let mean_wide: f64 = sum_wide / n as f64;
     let mean: f32 = mean_wide as f32;
 
@@ -124,17 +142,30 @@ pub fn compute_from_values(values: &[f32]) -> ImageStatistics {
         / n as f64;
     let std = var_wide.sqrt() as f32;
 
-    // Floor-division percentile indices as specified in the module contract.
-    let p25 = values[n / 4];
-    let p50 = values[n / 2];
-    let p75 = values[(3 * n) / 4];
+    // Floor-division percentile ranks (module contract). Quickselect each rank
+    // on the suffix left of the previous one — O(n) average, exact order
+    // statistic, no full sort.
+    let cmp = |a: &f32, b: &f32| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal);
+    let ranks = [n / 4, n / 2, (3 * n) / 4];
+    let mut percentiles = [0.0_f32; 3];
+    let mut lo = 0usize;
+    for (slot, &rank) in percentiles.iter_mut().zip(ranks.iter()) {
+        if rank >= lo {
+            // Elements in `values[..lo]` are already ≤ everything in
+            // `values[lo..]`, so the (rank − lo)-th smallest of the suffix is
+            // the rank-th smallest overall.
+            values[lo..].select_nth_unstable_by(rank - lo, cmp);
+            lo = rank + 1;
+        }
+        *slot = values[rank];
+    }
 
     ImageStatistics {
         min,
         max,
         mean,
         std,
-        percentiles: [p25, p50, p75],
+        percentiles,
     }
 }
 
