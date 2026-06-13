@@ -30,7 +30,7 @@
 pub mod label_fusion;
 
 use crate::deformable_field_ops::{
-    scaling_and_squaring, validate_image_pair, warp_image, CpuFieldSmoother, CpuOrGpu,
+    scaling_and_squaring, validate_image, warp_image, CpuFieldSmoother, CpuOrGpu,
     FieldSmoother, VelocityField,
 };
 use crate::diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
@@ -156,10 +156,7 @@ impl AtlasRegistration {
             ));
         }
         for (i, s) in subjects.iter().enumerate() {
-            // Reuse the canonical pair-validator: pass the subject as both
-            // `fixed` and `moving` slots since atlas registration doesn't
-            // distinguish them — the validator only checks the length.
-            if let Err(e) = validate_image_pair(s, s, dims) {
+            if let Err(e) = validate_image(s, dims) {
                 return Err(RegistrationError::DimensionMismatch(format!(
                     "subjects[{}]: {}",
                     i, e

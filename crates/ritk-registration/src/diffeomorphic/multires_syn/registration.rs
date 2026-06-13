@@ -67,7 +67,6 @@ impl super::MultiResSyNRegistration {
         smoother_factory: &mut impl FnMut([usize; 3]) -> CpuOrGpu<B>,
     ) -> Result<SyNResult, RegistrationError> {
         let [nz, ny, nx] = dims;
-        let n = nz * ny * nx;
         validate_image_pair(fixed, moving, dims)?;
         if self.config.iterations_per_level.len() != self.config.num_levels {
             return Err(RegistrationError::InvalidConfiguration(format!(

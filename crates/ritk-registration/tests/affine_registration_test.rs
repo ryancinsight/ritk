@@ -80,10 +80,10 @@ fn test_registration_affine_translation() {
 
     println!("Estimated Translation: {:?}", t_vals);
 
-    // Expected translation: (1, 2, 3)
+    // Expected translation: (3, 2, 1) in [Z, Y, X] ordering
     assert!(
-        (t_vals[0] - 1.0).abs() < 0.1,
-        "Translation X error: {}",
+        (t_vals[0] - 3.0).abs() < 0.1,
+        "Translation Z error: {}",
         t_vals[0]
     );
     assert!(
@@ -92,8 +92,8 @@ fn test_registration_affine_translation() {
         t_vals[1]
     );
     assert!(
-        (t_vals[2] - 3.0).abs() < 0.1,
-        "Translation Z error: {}",
+        (t_vals[2] - 1.0).abs() < 0.1,
+        "Translation X error: {}",
         t_vals[2]
     );
 }
