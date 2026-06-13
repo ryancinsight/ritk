@@ -8,8 +8,12 @@
 - [x] J2K-INTEROP [P1→closed, patch]: MQ probability-estimation root cause — `I(CX)` advanced on every MPS instead of only on renormalisation (ISO 15444-1 §C.2.6/Fig. C.7); encoder+decoder shared the defect so internal round-trips masked it. Found via register-trace diff against an instrumented vendored openjp2 (instrumentation removed after diagnosis). 6 interop acceptance tests un-ignored; escalation byte-compare green; `openjp2_captured_packet_conformance` (OpenJPEG 2.5.2 fixed vector) byte-exact both directions
 - [x] Cleanup: diagnostic probe/dump tests removed; minimized impulse case kept as `cross_decode_impulse_8x8_regression`; env_logger/log dev-deps removed
 
+### Delivered (cont. — SITK validation pass)
+- [x] SITK-PARITY (filters/registration/statistics): `test_simpleitk_parity.py` 175/175 green against SimpleITK 3.0.0a1
+- [x] J2K-BITSTUFF [P1→closed, patch]: tier-2 packet headers byte-stuffed (0x00 after 0xFF) instead of §B.10.1 bit-stuffing; found via SimpleITK/GDCM-written J2K DICOM failing to decode; `BitWriter`/`BitReader` rewritten on `opj_bio` semantics; 126-config interop matrices (incl. 12-bit) green both directions. ritk-codecs 0.5.2
+
 ### Open (next increment)
-- [ ] SITK-PARITY: SimpleITK parity comparison using tests and examples (driver: user request 2026-06-12)
+- [ ] SITK-PARITY (codec e2e): Python-level test — SimpleITK-written J2K DICOM → `ritk.io.read_image` exact (blocked on wheel rebuild; .pyd locked by running pytest)
 - [ ] J2K-LOSSY-97, JLS-INTEROP, CODEC-PERF, REG-MI-FLAKY: carry-forward
 
 ### Verification gate
