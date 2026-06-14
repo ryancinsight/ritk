@@ -33,9 +33,15 @@
 //! The reversible (5/3 lossless) path is differentially validated against the
 //! `openjp2` reference both directions and bit-exactly (`tests/jpeg2000_interop.rs`:
 //! `openjp2_to_ritk_matrix`, `ritk_to_openjp2_matrix`, `escalation_byte_compare_with_openjp2`).
-//! The irreversible (9/7 lossy) encode/decode are validated by internal
-//! round-trips (PSNR and bounded-error tests in this module); cross-implementation
-//! differential validation of the lossy path is pending — J2K-INTEROP.
+//! The irreversible (9/7 lossy) decode is differentially validated against
+//! `openjp2` over the multi-level regime every real DICOM stream uses
+//! (`lossy_openjp2_to_ritk_matrix`, `numres = 2..=6`): RITK reconstructs an
+//! openjp2-encoded 9/7 stream within 1 dB PSNR of the reference, isolating the
+//! 9/7 inverse lifting and QCD step-size parsing. Internal round-trips additionally
+//! cover lossy encode→decode (PSNR/bounded-error tests in this module).
+//! Residual (J2K-LOSSY-RECON): in the degenerate zero-level case the §E.1.1.2
+//! reconstruction bias is decoder-discretionary and RITK's midpoint r = 0.5 gives
+//! ≈ 2× the reference MSE; a bitplane-aware reconstruction refinement is pending.
 
 pub(crate) mod codestream;
 pub(crate) mod ebcot;
