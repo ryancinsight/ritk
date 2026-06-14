@@ -84,9 +84,9 @@ def _make_shell(size=SIZE, outer=8, inner=4):
     return ((d2 <= outer**2) & (d2 > inner**2)).astype(np.float32)
 
 
-def _make_noisy(size=SIZE, seed=0):
+def _make_noisy(size=SIZE, radius=6, seed=0):
     rng = np.random.default_rng(seed)
-    sphere = _make_sphere(size)
+    sphere = _make_sphere(size, radius)
     noise = rng.standard_normal((size, size, size)).astype(np.float32) * 0.1
     return np.clip(sphere + noise, 0.0, 1.0).astype(np.float32)
 
@@ -313,8 +313,8 @@ def test_li_threshold_produces_valid_segmentation():
     # (different convergence criteria and initialisation), so this test
     # validates RITK independently.
     # Criterion: threshold in (0.05, 0.95); mask Dice vs ground-truth sphere >= 0.90.
-    arr = _make_noisy()
-    sphere_gt = _make_sphere()
+    arr = _make_noisy(radius=8)
+    sphere_gt = _make_sphere(radius=8)
     ritk_t, mask_img = ritk.segmentation.li_threshold(_ritk(arr))
     t = float(ritk_t)
     assert 0.05 < t < 0.95, "Li threshold " + str(t) + " outside (0.05, 0.95)"

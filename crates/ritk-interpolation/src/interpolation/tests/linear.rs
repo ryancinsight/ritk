@@ -1,7 +1,7 @@
 use crate::interpolation::kernel::bspline::cubic_bspline;
 use crate::interpolation::kernel::BoundsPolicy;
 use crate::interpolation::BSplineInterpolator;
-use burn::tensor::{ElementConversion, Tensor};
+use burn::tensor::{ElementConversion, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::interpolation::Interpolator;
 
@@ -110,17 +110,24 @@ fn test_bspline_zero_pad_3d_oob_returns_zero() {
 
 #[test]
 fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
-    // In-bounds queries should produce the same result regardless of zero_pad flag.
+    // Zero-pad and mirror boundary agree only when the 4-tap support is fully
+    // in-bounds, i.e. the query is ≥ 1 voxel from every edge. On a 4³ volume,
+    // (1.5,1.5,1.5) reaches support taps {0,1,2,3} along each axis — all valid.
     let device = Default::default();
-    let data = Tensor::<TestBackend, 3>::from_floats(
-        [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
-        &device,
-    );
+    let n = 4usize;
+    let mut data_vec = Vec::with_capacity(n * n * n);
+    for i in 0..n {
+        for j in 0..n {
+            for k in 0..n {
+                data_vec.push((i * 16 + j * 4 + k) as f32);
+            }
+        }
+    }
+    let data = Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [n, n, n]), &device);
     let interp_pad = BSplineInterpolator::new_zero_pad();
     let interp_nop = BSplineInterpolator::new();
 
-    // Interior point; floor coords are (0,0,0) which is in-bounds.
-    let pt = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
+    let pt = Tensor::<TestBackend, 2>::from_floats([[1.5, 1.5, 1.5]], &device);
     let val_pad = interp_pad
         .interpolate(&data, pt.clone())
         .into_data()
@@ -138,7 +145,7 @@ fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
         val_nop
     );
     assert!(
-        (0.0..=8.0).contains(&val_pad),
+        (0.0..=63.0).contains(&val_pad),
         "In-bounds value {} out of range",
         val_pad
     );

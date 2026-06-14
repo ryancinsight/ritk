@@ -115,18 +115,26 @@ fn test_bspline_zero_pad_3d_oob_returns_zero() {
 
 #[test]
 fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
-    // In-bounds queries should produce the same result regardless of zero_pad flag.
+    // When the 4-tap support is fully in-bounds, zero-pad and mirror boundary
+    // must agree (no boundary taps are reached). The query must therefore sit at
+    // least one voxel from every edge — on a 4³ volume, (1.5,1.5,1.5) has support
+    // taps {0,1,2,3} along each axis, all in-bounds.
     let device = Default::default();
-    let data = Tensor::<TestBackend, 3>::from_floats(
-        [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
-        &device,
-    );
+    let n = 4usize;
+    let mut data_vec = Vec::with_capacity(n * n * n);
+    for i in 0..n {
+        for j in 0..n {
+            for k in 0..n {
+                data_vec.push((i * 16 + j * 4 + k) as f32);
+            }
+        }
+    }
+    let data = Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [n, n, n]), &device);
 
     let interp_pad = BSplineInterpolator::new_zero_pad();
     let interp_nop = BSplineInterpolator::new();
 
-    // Interior point; floor coords are (0,0,0) which is in-bounds.
-    let pt = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
+    let pt = Tensor::<TestBackend, 2>::from_floats([[1.5, 1.5, 1.5]], &device);
 
     let val_pad = interp_pad
         .interpolate(&data, pt.clone())
@@ -146,7 +154,7 @@ fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
         val_nop
     );
     assert!(
-        (0.0..=8.0).contains(&val_pad),
+        (0.0..=63.0).contains(&val_pad),
         "In-bounds value {} out of range",
         val_pad
     );
@@ -293,6 +301,89 @@ fn test_bspline_2d_batch_correctness() {
             expected,
             vals[idx]
         );
+    }
+}
+
+/// Prefiltered B-spline interpolation reproduces the sample values exactly at
+/// integer grid points — the defining property of *interpolation* (vs the old
+/// un-prefiltered smoothing). Uses an asymmetric field so an x↔z axis transpose
+/// would be caught.
+#[test]
+fn test_bspline_reproduces_grid_values_3d() {
+    let device = Default::default();
+    let (d0, d1, d2) = (5usize, 4usize, 6usize); // [z, y, x], all distinct
+    let mut data_vec = vec![0.0f32; d0 * d1 * d2];
+    for a0 in 0..d0 {
+        for a1 in 0..d1 {
+            for a2 in 0..d2 {
+                // Non-separable, asymmetric field.
+                data_vec[a0 * d1 * d2 + a1 * d2 + a2] =
+                    (a0 as f32) * 7.0 + (a1 as f32) * 13.0 - (a2 as f32) * 3.0 + (a0 * a2) as f32;
+            }
+        }
+    }
+    let data =
+        Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec.clone(), [d0, d1, d2]), &device);
+    let interp = BSplineInterpolator::new();
+
+    // Query every interior grid point; coords are [x, y, z] = [a2, a1, a0].
+    let mut pts = Vec::new();
+    let mut expected = Vec::new();
+    for a0 in 0..d0 {
+        for a1 in 0..d1 {
+            for a2 in 0..d2 {
+                pts.extend_from_slice(&[a2 as f32, a1 as f32, a0 as f32]);
+                expected.push(data_vec[a0 * d1 * d2 + a1 * d2 + a2]);
+            }
+        }
+    }
+    let n_pts = expected.len();
+    let indices = Tensor::<TestBackend, 2>::from_data(TensorData::new(pts, [n_pts, 3]), &device);
+    let vals = interp
+        .interpolate(&data, indices)
+        .into_data()
+        .as_slice::<f32>()
+        .unwrap()
+        .to_vec();
+    for (i, (&got, &want)) in vals.iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (got - want).abs() < 2e-3,
+            "grid reproduction at flat {i}: got {got}, want {want}"
+        );
+    }
+}
+
+/// Regression for the x↔z axis transpose: a z = 1 (2-D promoted) volume must
+/// interpolate within its single plane, reproducing the in-plane samples — the
+/// old code indexed the x coordinate against the size-1 z axis and returned 0.
+#[test]
+fn test_bspline_z1_anisotropic_plane() {
+    let device = Default::default();
+    let (d0, d1, d2) = (1usize, 4usize, 5usize); // z = 1
+    let mut data_vec = vec![0.0f32; d0 * d1 * d2];
+    for a1 in 0..d1 {
+        for a2 in 0..d2 {
+            data_vec[a1 * d2 + a2] = (a1 * 10 + a2) as f32 + 1.0;
+        }
+    }
+    let data =
+        Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec.clone(), [d0, d1, d2]), &device);
+    let interp = BSplineInterpolator::new();
+
+    for a1 in 0..d1 {
+        for a2 in 0..d2 {
+            let pt = Tensor::<TestBackend, 2>::from_floats([[a2 as f32, a1 as f32, 0.0]], &device);
+            let v = interp
+                .interpolate(&data, pt)
+                .into_data()
+                .as_slice::<f32>()
+                .unwrap()[0];
+            let want = data_vec[a1 * d2 + a2];
+            assert!(
+                (v - want).abs() < 2e-3,
+                "z=1 reproduction at (y={a1}, x={a2}): got {v}, want {want}"
+            );
+        }
     }
 }
 

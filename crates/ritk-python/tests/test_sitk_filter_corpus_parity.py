@@ -227,6 +227,40 @@ def test_resample_identity_reproduces_input(images):
     assert _interior_absmax(rid.astype(np.float64), ia.astype(np.float64)) / _rng(ia.astype(np.float64)) < 1e-3
 
 
+def test_resample_bspline_downsample_matches_sitk(images):
+    """2× cubic B-spline downsample of the z=1 cthead1 slice matches sitk.
+
+    Guards the B-spline coefficient prefiltering: without it the interpolator
+    smooths instead of interpolates (and the z=1 grid collapsed to zero).
+    """
+    ri, si = images
+    ns = SPACING * 2.0
+    rr = ritk.filter.resample_image(ri, 1.0, ns, ns, "bspline")
+    ra = rr.to_numpy().astype(np.float64)
+    rf = sitk.ResampleImageFilter()
+    rf.SetOutputSpacing((ns, ns))
+    rf.SetSize([ra.shape[2], ra.shape[1]])
+    rf.SetOutputOrigin(si.GetOrigin())
+    rf.SetOutputDirection(si.GetDirection())
+    rf.SetInterpolator(sitk.sitkBSpline)
+    rf.SetDefaultPixelValue(0.0)
+    sa = _sa(rf.Execute(si))
+    assert ra.shape[0] == 1
+    # Both prefilter to coefficients and use mirror boundary; residual is f32 +
+    # the prefilter horizon (ritk exact mirror vs ITK's 1e-10-truncated).
+    assert _interior_absmax(ra, sa) / _rng(sa) < 5e-3
+
+
+def test_resample_bspline_identity_reproduces_input(images):
+    """Identity B-spline resample reproduces the input — the interpolation
+    property that prefiltering provides (the old smoothing path lost ~73%)."""
+    ri, _ = images
+    rid = ritk.filter.resample_image(ri, 1.0, SPACING, SPACING, "bspline").to_numpy()
+    ia = ri.to_numpy()
+    assert rid.shape == ia.shape
+    assert _interior_absmax(rid.astype(np.float64), ia.astype(np.float64)) / _rng(ia.astype(np.float64)) < 5e-3
+
+
 # ── Automatic threshold-selection algorithms ──────────────────────────────────
 #
 # Each computes a scalar threshold from a 256-bin intensity histogram. ritk

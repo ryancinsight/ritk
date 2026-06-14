@@ -10,6 +10,7 @@ use ritk_core::interpolation::Interpolator;
 
 mod flat;
 mod legacy;
+mod prefilter;
 
 #[cfg(test)]
 mod tests;
@@ -40,12 +41,16 @@ pub(crate) fn cubic_bspline(x: f32) -> f32 {
 ///
 /// Provides smooth interpolation using cubic B-Spline basis functions.
 ///
-/// When [`BoundsPolicy::Extend`] (the default), out-of-bounds neighborhood
-/// samples are skipped and the remaining in-bounds weights are renormalized,
-/// which produces an edge-continuation effect at volume boundaries.
-/// When [`BoundsPolicy::ZeroPad`], query coordinates that fall outside the valid
-/// voxel range `[0, dim-1]` for any dimension return `0.0` immediately,
-/// matching the behavior of \[`LinearInterpolator`\] and
+/// The image is first prefiltered into B-spline coefficients (see
+/// [`prefilter`]), so reconstruction interpolates the samples exactly at the grid
+/// points rather than smoothing them.
+///
+/// When [`BoundsPolicy::Extend`] (the default), support taps outside the volume
+/// use whole-sample **mirror** boundary conditions — matching ITK's B-spline
+/// interpolator and the mirror boundary used by the coefficient prefilter.
+/// When [`BoundsPolicy::ZeroPad`], query coordinates outside the valid voxel
+/// range `[0, dim-1]` return `0.0` immediately and out-of-bounds support taps
+/// contribute zero, matching \[`LinearInterpolator`\] and
 /// \[`NearestNeighborInterpolator`\] in zero-pad mode.
 #[derive(Debug, Clone, Copy)]
 pub struct BSplineInterpolator {
@@ -98,14 +103,16 @@ impl<B: Backend> Interpolator<B> for BSplineInterpolator {
         let shape = data.shape();
         let dims: Vec<usize> = shape.dims;
 
-        // Pre-extract the volume data as a flat f32 slice — O(1) per point instead of
-        // O(volume_size) per neighborhood sample. This is the core Sprint 293 optimization:
-        // it replaces 64 (3-D) or 16 (2-D) `data.clone().slice(…)` calls per query point
-        // with a single `to_data()` call and pure-Rust scalar indexing.
+        // Pre-extract the volume as a flat f32 slice, then recover the separable
+        // B-spline coefficients once (O(volume) prefilter). Sampling the
+        // coefficients — rather than the raw samples — is what makes this true
+        // interpolation (exact at grid points) instead of a smoothing
+        // approximation; it is also O(1) per query point.
         let volume_data = data.to_data();
         let volume_slice: &[f32] = volume_data
             .as_slice::<f32>()
             .expect("Volume data must be f32");
+        let coeffs = prefilter::compute_coefficients(volume_slice, &dims);
 
         // Get all index data at once
         let indices_data = indices.to_data();
@@ -121,13 +128,13 @@ impl<B: Backend> Interpolator<B> for BSplineInterpolator {
             let coords_start = i * D;
             let value = match D {
                 3 => flat::interpolate_point_3d_flat(
-                    volume_slice,
+                    &coeffs,
                     &indices_slice[coords_start..coords_start + D],
                     &dims,
                     self.bounds_policy.as_out_of_bounds_mode(),
                 ),
                 2 => flat::interpolate_point_2d_flat(
-                    volume_slice,
+                    &coeffs,
                     &indices_slice[coords_start..coords_start + D],
                     &dims,
                     self.bounds_policy.as_out_of_bounds_mode(),
