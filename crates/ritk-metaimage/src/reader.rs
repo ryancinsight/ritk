@@ -169,6 +169,12 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         ByteOrder::LeastSignificantByteFirst
     };
 
+    // CompressedData = True → the payload is zlib-deflated; default is raw.
+    let compressed = headers
+        .get("CompressedData")
+        .map(|s| s.to_uppercase() == "TRUE")
+        .unwrap_or(false);
+
     let element_data_file = headers
         .get("ElementDataFile")
         .ok_or_else(|| anyhow!("Missing 'ElementDataFile' in MetaImage header"))?
@@ -177,28 +183,42 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     // ── Binary data ───────────────────────────────────────────────────────
     let total_voxels = nx * ny * nz;
 
-    let f32_data: Vec<f32> = if element_data_file.to_uppercase() == "LOCAL" {
+    // Read the payload bytes (still zlib-deflated when `compressed`) from the
+    // inline LOCAL stream or the detached raw file, then inflate if needed.
+    let payload: Vec<u8> = if element_data_file.to_uppercase() == "LOCAL" {
         // Seek the BufReader to the exact position after the last header line.
         // BufReader<File> implements Seek; this discards any internal buffer
         // and repositions the underlying file descriptor.
         reader
             .seek(SeekFrom::Start(byte_offset))
             .context("Failed to seek to binary data in .mha file")?;
-        let mut raw_bytes = Vec::new();
+        let mut bytes = Vec::new();
         reader
-            .read_to_end(&mut raw_bytes)
+            .read_to_end(&mut bytes)
             .context("Failed to read binary voxel data from .mha file")?;
-        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
+        bytes
     } else {
         // External .raw file: resolve relative to the header file's directory.
         let raw_path = path
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .join(&element_data_file);
-        let raw_bytes = std::fs::read(&raw_path)
-            .with_context(|| format!("Cannot read raw data file {:?}", raw_path))?;
-        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
+        std::fs::read(&raw_path)
+            .with_context(|| format!("Cannot read raw data file {:?}", raw_path))?
     };
+
+    let raw_bytes: Vec<u8> = if compressed {
+        let mut out = Vec::with_capacity(total_voxels * 4);
+        flate2::read::ZlibDecoder::new(&payload[..])
+            .read_to_end(&mut out)
+            .context("Failed to inflate zlib-compressed MetaImage payload")?;
+        out
+    } else {
+        payload
+    };
+
+    let f32_data: Vec<f32> =
+        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?;
 
     if f32_data.len() != total_voxels {
         return Err(anyhow!(
