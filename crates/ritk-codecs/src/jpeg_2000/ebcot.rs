@@ -188,6 +188,13 @@ struct SampleState {
 pub struct DecodedBlock {
     /// Reconstructed samples (row-major), in the order they appear in the tile.
     pub samples: Vec<i32>,
+    /// Index of the lowest bit-plane reached by any executed coding pass
+    /// (`0` when the block decoded down to the LSB, i.e. fully decoded).
+    /// A truncated block stops at a higher plane, so the magnitudes carry zero
+    /// in bits `0..lowest_bitplane`; the irreversible reconstruction uses this
+    /// to place the dequantized value at the midpoint of the still-undecoded
+    /// interval (ISO 15444-1 §E.1.1.2) rather than a fixed half-step.
+    pub lowest_bitplane: u32,
 }
 
 // ── EBCOT decoder ─────────────────────────────────────────────────────────────
@@ -222,6 +229,7 @@ pub fn decode_code_block(
     if data.is_empty() || num_bit_planes == 0 || num_passes == 0 {
         return DecodedBlock {
             samples: vec![0i32; n],
+            lowest_bitplane: num_bit_planes as u32,
         };
     }
 
@@ -230,6 +238,9 @@ pub fn decode_code_block(
 
     let total_bit_planes = num_bit_planes as u32;
     let mut passes_remaining = num_passes;
+    // Lowest bit-plane index touched by an executed pass; starts above the MSB
+    // and descends to the plane of the last pass run (0 ⟺ fully decoded).
+    let mut lowest_bp = total_bit_planes;
 
     // Iterate bit-planes from MSB (highest) downward. The first (MSB) plane
     // carries only a cleanup pass (ISO 15444-1 §D.4.1): nothing can be
@@ -243,6 +254,7 @@ pub fn decode_code_block(
                 break;
             }
             passes_remaining -= 1;
+            lowest_bp = bp;
             // Stripe-oriented scan (ISO 15444-1 §D.2): 4-row stripes, columns
             // within each stripe, rows within each column.
             let mut sy = 0;
@@ -285,6 +297,7 @@ pub fn decode_code_block(
                 break;
             }
             passes_remaining -= 1;
+            lowest_bp = bp;
             let mut sy = 0;
             while sy < height {
                 for x in 0..width {
@@ -313,6 +326,7 @@ pub fn decode_code_block(
             break;
         }
         passes_remaining -= 1;
+        lowest_bp = bp;
         let mut y = 0;
         while y < height {
             let mut x = 0;
@@ -435,7 +449,10 @@ pub fn decode_code_block(
         })
         .collect();
 
-    DecodedBlock { samples }
+    DecodedBlock {
+        samples,
+        lowest_bitplane: lowest_bp,
+    }
 }
 
 // ── EBCOT encoder ─────────────────────────────────────────────────────────────

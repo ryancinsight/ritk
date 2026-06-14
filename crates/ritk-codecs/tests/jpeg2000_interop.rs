@@ -462,21 +462,17 @@ fn lossy_openjp2_to_ritk_64x80_16bit_five_levels() {
 
 /// Lossy 9/7 differential matrix across sizes, precisions, and resolution counts.
 ///
-/// `numres ≥ 2` (≥ 1 decomposition level) is the regime where cross-decoder PSNR
-/// parity is a well-posed oracle and the one every real DICOM J2K stream uses
-/// (GDCM/OpenJPEG default `numres = 6`). The degenerate `numres = 1` case (zero
-/// decomposition levels: no wavelet, pure scalar quantization) is excluded
-/// deliberately — with no transform the reconstruction collapses to dequantizing
-/// indices whose §E.1.1.2 reconstruction bias r is decoder-discretionary, and
-/// openjp2 resolves it to ≈ 2× lower MSE than RITK's midpoint r = 0.5. That gap
-/// is conformant decoder freedom, not a 9/7-inverse or QCD-parse defect (both of
-/// which this matrix exercises across `numres = 2..=6`); it is tracked as a
-/// separate reconstruction-bias refinement (J2K-LOSSY-RECON).
+/// Covers `numres = 1..=6`, including the degenerate zero-decomposition-level
+/// case (no wavelet, pure scalar quantization). With the bitplane-aware
+/// reconstruction (a fully decoded index reconstructs at q·Δ, matching the
+/// OpenJPEG reference), RITK tracks openjp2 within 1 dB PSNR across the whole
+/// matrix — the 9/7 inverse lifting, the QCD step-size parsing, and the
+/// dequantization reconstruction are all validated against the reference.
 #[test]
 fn lossy_openjp2_to_ritk_matrix() {
     for &(rows, cols) in &[(64u32, 64u32), (64, 80), (100, 150)] {
         for &prec in &[8u32, 12, 16] {
-            for numres in 2..=6i32 {
+            for numres in 1..=6i32 {
                 assert_ritk_matches_openjp2_lossy(rows, cols, prec, numres);
             }
         }

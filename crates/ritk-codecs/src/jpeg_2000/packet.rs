@@ -606,8 +606,12 @@ pub fn decode_tile_part(
         }
     }
 
-    // EBCOT-decode each code-block into the Mallat coefficient plane.
+    // EBCOT-decode each code-block into the Mallat coefficient plane. `bp_plane`
+    // records, per coefficient, the lowest bit-plane its code-block decoded so
+    // the irreversible reconstruction can place the dequantized value at the
+    // midpoint of the still-undecoded interval (ISO 15444-1 §E.1.1.2).
     let mut mallat = vec![0i32; width * height];
+    let mut bp_plane = vec![0u32; width * height];
     for (ci, c) in cblks.iter().enumerate() {
         let b = &bands[c.band];
         let st = &states[ci];
@@ -634,6 +638,9 @@ pub fn decode_tile_part(
         for y in 0..c.h {
             let off = (b.y0 + c.y0 + y) * width + b.x0 + c.x0;
             mallat[off..off + c.w].copy_from_slice(&block.samples[y * c.w..(y + 1) * c.w]);
+            for x in 0..c.w {
+                bp_plane[off + x] = block.lowest_bitplane;
+            }
         }
     }
 
@@ -644,6 +651,11 @@ pub fn decode_tile_part(
         WaveletTransform::Irreversible => {
             // Dequantize each subband (Δ_b from the QCD ε_b/μ_b relative to
             // R_b = precision + gain_b), inverse 9/7, then round to integers.
+            // With ≥ 1 decomposition level the coefficients are continuous 9/7
+            // outputs (sub-step uncertainty → midpoint reconstruction); with zero
+            // levels the single LL band is the original integer image captured
+            // losslessly (exact → no reconstruction bias).
+            let continuous = coding.num_decomp_levels > 0;
             let mut coeffs = vec![0f32; width * height];
             for (bi, b) in bands.iter().enumerate() {
                 let r_b = coding.precision + b.gain;
@@ -653,7 +665,7 @@ pub fn decode_tile_part(
                 for y in 0..b.h {
                     for x in 0..b.w {
                         let idx = (b.y0 + y) * width + b.x0 + x;
-                        coeffs[idx] = dequantize(mallat[idx], delta);
+                        coeffs[idx] = dequantize(mallat[idx], delta, bp_plane[idx], continuous);
                     }
                 }
             }
