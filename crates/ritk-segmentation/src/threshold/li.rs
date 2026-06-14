@@ -143,9 +143,18 @@ impl AutoThreshold for LiThreshold {
                 break;
             }
 
-            let mu_b = sum_b / w_b;
-            let mu_f = sum_f / w_f;
-            let t_new = (mu_b + mu_f) / 2.0;
+            // Li's minimum cross-entropy update is the *logarithmic mean* of the
+            // two class means, not their arithmetic mean — the latter is the
+            // ISODATA/intermeans method and converges to a different threshold.
+            // Means are taken in 1-based bin space so the logarithm is defined
+            // when a class mean sits at bin 0 (matches ITK's LiThresholdCalculator).
+            let mu_b = sum_b / w_b + 1.0;
+            let mu_f = sum_f / w_f + 1.0;
+            let t_new = if (mu_b - mu_f).abs() < 1e-12 {
+                t
+            } else {
+                (mu_b - mu_f) / (mu_b.ln() - mu_f.ln()) - 1.0
+            };
 
             if (t_new - t).abs() < tolerance {
                 t = t_new;
@@ -231,10 +240,16 @@ pub fn compute_li_threshold_from_slice(
             break;
         }
 
-        let mu_b = sum_b / w_b;
-        let mu_f = sum_f / w_f;
-
-        let t_new = (mu_b + mu_f) / 2.0;
+        // Li's minimum cross-entropy update: the logarithmic mean of the class
+        // means (1-based bin space so log is defined at bin 0), not the arithmetic
+        // mean — (mu_b + mu_f)/2 is the ISODATA method and converges elsewhere.
+        let mu_b = sum_b / w_b + 1.0;
+        let mu_f = sum_f / w_f + 1.0;
+        let t_new = if (mu_b - mu_f).abs() < 1e-12 {
+            t
+        } else {
+            (mu_b - mu_f) / (mu_b.ln() - mu_f.ln()) - 1.0
+        };
 
         if (t_new - t).abs() < tolerance {
             t = t_new;
