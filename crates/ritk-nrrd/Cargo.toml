@@ -13,6 +13,7 @@ burn = { workspace = true }
 anyhow = { workspace = true }
 nalgebra = { workspace = true }
 bytemuck = { workspace = true }
+flate2 = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

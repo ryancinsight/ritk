@@ -27,8 +27,8 @@ use std::path::Path;
 /// directions.
 ///
 /// # Encoding
-/// Only `raw` encoding is supported.  Files with `gzip` or any other encoding
-/// return an error with an actionable message.
+/// `raw` and `gzip` (`gz`) encodings are supported; any other encoding returns
+/// an error with an actionable message.
 ///
 /// # Supported types
 /// `float`, `double`, `short`, `unsigned short`, `int`, `unsigned int`,
@@ -127,14 +127,16 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         .map(|s| s.to_lowercase())
         .unwrap_or_else(|| "raw".to_string());
 
-    if encoding != "raw" {
-        return Err(anyhow!(
-            "Unsupported NRRD encoding '{}'. Only 'raw' is supported. \
-             Convert the file to raw encoding first (e.g., with \
-             `unu convert -i input.nrrd -o output.nrrd -e raw`).",
-            encoding
-        ));
-    }
+    let gzipped = match encoding.as_str() {
+        "raw" => false,
+        "gzip" | "gz" => true,
+        other => {
+            return Err(anyhow!(
+                "Unsupported NRRD encoding '{}'. Supported: 'raw', 'gzip'.",
+                other
+            ))
+        }
+    };
 
     // ── Endianness ────────────────────────────────────────────────────────
     // True ⟹ big-endian.  Default is little-endian for multi-byte types.
@@ -170,30 +172,42 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     let total_voxels = nx * ny * nz;
     let data_file_field = headers.get("data file").cloned();
 
-    let f32_data: Vec<f32> = match &data_file_field {
-        // Inline: data follows the blank terminator line in the same file.
+    // Read the payload bytes (still compressed for gzip encoding) from the
+    // inline stream or the detached data file, then gunzip if needed.
+    let payload: Vec<u8> = match &data_file_field {
         None => {
-            let mut raw_bytes = Vec::new();
+            let mut bytes = Vec::new();
             reader
-                .read_to_end(&mut raw_bytes)
+                .read_to_end(&mut bytes)
                 .context("Failed to read inline NRRD binary data")?;
-            decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
+            bytes
         }
         Some(df) if df.to_uppercase() == "INTERNAL" => {
-            let mut raw_bytes = Vec::new();
+            let mut bytes = Vec::new();
             reader
-                .read_to_end(&mut raw_bytes)
+                .read_to_end(&mut bytes)
                 .context("Failed to read inline NRRD binary data (INTERNAL)")?;
-            decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
+            bytes
         }
-        // Detached: data is in an external file.
         Some(df) => {
             let raw_path = path.parent().unwrap_or_else(|| Path::new(".")).join(df);
-            let raw_bytes = std::fs::read(&raw_path)
-                .with_context(|| format!("Cannot read NRRD data file {:?}", raw_path))?;
-            decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
+            std::fs::read(&raw_path)
+                .with_context(|| format!("Cannot read NRRD data file {:?}", raw_path))?
         }
     };
+
+    let raw_bytes: Vec<u8> = if gzipped {
+        let mut out = Vec::with_capacity(payload.len() * 2);
+        flate2::read::GzDecoder::new(&payload[..])
+            .read_to_end(&mut out)
+            .context("Failed to inflate gzip-encoded NRRD payload")?;
+        out
+    } else {
+        payload
+    };
+
+    let f32_data: Vec<f32> =
+        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?;
 
     if f32_data.len() != total_voxels {
         return Err(anyhow!(

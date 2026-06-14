@@ -6754,6 +6754,7 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "bytemuck",
+ "flate2",
  "nalgebra",
  "ritk-core",
  "ritk-image",
