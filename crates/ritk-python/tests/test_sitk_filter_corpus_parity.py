@@ -225,3 +225,42 @@ def test_resample_identity_reproduces_input(images):
     # Each output voxel centre maps to an input voxel centre; residual is f32
     # round-off in the world↔index round trip.
     assert _interior_absmax(rid.astype(np.float64), ia.astype(np.float64)) / _rng(ia.astype(np.float64)) < 1e-3
+
+
+# ── Automatic threshold-selection algorithms ──────────────────────────────────
+#
+# Each computes a scalar threshold from a 256-bin intensity histogram. ritk
+# defaults to 256 bins, so SimpleITK's calculators are forced to 256 bins too
+# (its own defaults are 128). The tolerance is the histogram bin width: range/255
+# ≈ 1.0 intensity unit for cthead1; two correct implementations can disagree by up
+# to one bin from the bin-centre mapping and argmax ties.
+
+
+def _sitk_threshold(filt, simg, bins=256):
+    filt.SetNumberOfHistogramBins(bins)
+    filt.Execute(simg)
+    return filt.GetThreshold()
+
+
+def test_otsu_threshold_matches_sitk(images):
+    ri, si = images
+    rthr, _ = ritk.segmentation.otsu_threshold(ri)
+    sthr = _sitk_threshold(sitk.OtsuThresholdImageFilter(), si)
+    assert abs(rthr - sthr) < 2.0, f"otsu ritk {rthr} vs sitk {sthr}"
+
+
+def test_yen_threshold_matches_sitk(images):
+    """Regression for the degenerate Yen criterion (−log(P1sq+P2sq) is constant)."""
+    ri, si = images
+    rthr, _ = ritk.segmentation.yen_threshold(ri)
+    sthr = _sitk_threshold(sitk.YenThresholdImageFilter(), si)
+    assert abs(rthr - sthr) < 2.0, f"yen ritk {rthr} vs sitk {sthr}"
+
+
+def test_li_threshold_matches_sitk(images):
+    """Regression for Li computed via ISODATA (arithmetic mean) instead of the
+    minimum-cross-entropy logarithmic mean."""
+    ri, si = images
+    rthr, _ = ritk.segmentation.li_threshold(ri)
+    sthr = _sitk_threshold(sitk.LiThresholdImageFilter(), si)
+    assert abs(rthr - sthr) < 2.0, f"li ritk {rthr} vs sitk {sthr}"
