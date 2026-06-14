@@ -30,3 +30,6 @@ nul
 
 # Local agent tooling state
 .mimocode/
+
+# Fetched SimpleITK ExternalData test corpus (downloaded on demand)
+externals/
