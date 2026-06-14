@@ -19,6 +19,15 @@
 #   (6) Both RITK LDDMM and SimpleITK Demons reduce MSE from baseline.
 # =============================================================================
 
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+sitk = pytest.importorskip("SimpleITK")
+
+import ritk  # noqa: E402
+
 
 def _ncc_lddmm(a, b):
     """Pearson NCC: sum(F_tilde * M_tilde) / sqrt(sum(F_tilde^2) * sum(M_tilde^2))."""
@@ -75,7 +84,8 @@ class TestLddmmRegistrationParity:
         arr[2:6, 2:6, 2:6] = 1.0
         img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
-            img, img, max_iterations=3, num_time_steps=2, learning_rate=0.01
+            img, img,
+            ritk.registration.LddmmConfig(max_iterations=3, num_time_steps=2, learning_rate=0.01),
         )
         mse = float(np.mean((arr - warped.to_numpy()) ** 2))
         assert mse < 1e-8, f"identity MSE = {mse} exceeds 1e-8"
@@ -86,7 +96,8 @@ class TestLddmmRegistrationParity:
         fixed = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
-            fixed, moving, max_iterations=2, num_time_steps=2
+            fixed, moving,
+            ritk.registration.LddmmConfig(max_iterations=2, num_time_steps=2),
         )
         assert warped.to_numpy().shape == arr.shape, (
             f"warped shape {warped.to_numpy().shape} != fixed shape {arr.shape}"
@@ -97,7 +108,9 @@ class TestLddmmRegistrationParity:
         nz, ny, nx = 8, 9, 10
         arr = np.zeros((nz, ny, nx), dtype=np.float32)
         img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
-        _, disp = ritk.registration.lddmm_register(img, img, max_iterations=2, num_time_steps=2)
+        _, disp = ritk.registration.lddmm_register(
+            img, img, ritk.registration.LddmmConfig(max_iterations=2, num_time_steps=2)
+        )
         expected = (3 * nz, ny, nx)
         actual = disp.to_numpy().shape
         assert actual == expected, f"displacement shape {actual} != expected {expected}"
@@ -109,7 +122,8 @@ class TestLddmmRegistrationParity:
         arr2 = np.roll(arr, 1, axis=1)
         moving = ritk.Image(np.ascontiguousarray(arr2), spacing=[1.0, 1.0, 1.0])
         warped, disp = ritk.registration.lddmm_register(
-            fixed, moving, max_iterations=5, num_time_steps=3
+            fixed, moving,
+            ritk.registration.LddmmConfig(max_iterations=5, num_time_steps=3),
         )
         assert np.all(np.isfinite(warped.to_numpy())), "non-finite values in warped output"
         assert np.all(np.isfinite(disp.to_numpy())), "non-finite values in displacement field"
@@ -118,7 +132,9 @@ class TestLddmmRegistrationParity:
         """For fixed==moving the displacement field is identically zero."""
         arr = np.random.RandomState(2).rand(6, 6, 6).astype(np.float32)
         img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
-        _, disp = ritk.registration.lddmm_register(img, img, max_iterations=5, num_time_steps=2)
+        _, disp = ritk.registration.lddmm_register(
+            img, img, ritk.registration.LddmmConfig(max_iterations=5, num_time_steps=2)
+        )
         max_disp = float(np.max(np.abs(disp.to_numpy())))
         assert max_disp < 1e-5, f"max displacement {max_disp} for identical images; expected 0"
 
@@ -129,8 +145,10 @@ class TestLddmmRegistrationParity:
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
             fixed, moving,
-            max_iterations=20, num_time_steps=5,
-            kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            ritk.registration.LddmmConfig(
+                max_iterations=20, num_time_steps=5,
+                kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            ),
         )
         mse_before = float(np.mean((sphere - shifted) ** 2))
         mse_after = float(np.mean((sphere - warped.to_numpy()) ** 2))
@@ -145,8 +163,10 @@ class TestLddmmRegistrationParity:
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
             fixed, moving,
-            max_iterations=20, num_time_steps=5,
-            kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            ritk.registration.LddmmConfig(
+                max_iterations=20, num_time_steps=5,
+                kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            ),
         )
         ncc_before = _ncc_lddmm(sphere, shifted)
         ncc_after = _ncc_lddmm(sphere, warped.to_numpy())
@@ -163,8 +183,10 @@ class TestLddmmRegistrationParity:
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
             fixed, moving,
-            max_iterations=20, num_time_steps=5,
-            kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            ritk.registration.LddmmConfig(
+                max_iterations=20, num_time_steps=5,
+                kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            ),
         )
         mse_lddmm = float(np.mean((sphere - warped.to_numpy()) ** 2))
         mse_demons = _sitk_demons_mse(sphere, shifted, n_iter=20)
@@ -182,7 +204,8 @@ class TestLddmmRegistrationParity:
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
-            fixed, moving, max_iterations=10, num_time_steps=3
+            fixed, moving,
+            ritk.registration.LddmmConfig(max_iterations=10, num_time_steps=3),
         )
         ncc = _ncc_lddmm(sphere, warped.to_numpy())
         assert -1.0 <= ncc <= 1.0, f"NCC = {ncc} outside [-1, 1]"
@@ -194,8 +217,10 @@ class TestLddmmRegistrationParity:
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
             fixed, moving,
-            max_iterations=20, num_time_steps=5,
-            kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            ritk.registration.LddmmConfig(
+                max_iterations=20, num_time_steps=5,
+                kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            ),
         )
         ncc = _ncc_lddmm(sphere, warped.to_numpy())
         assert ncc > 0.0, f"NCC = {ncc} after LDDMM; expected positive for co-modal pair"
