@@ -1712,25 +1712,119 @@ instead of bare `bool`.
 
 ---
 
-### 13.3 Stale "Update" / "Pre-existing blocker" narrative still open
+### 13.3 Remaining audit blockers (LabelId / idft_real_into / slic-connectivity clippy) — **ALL RESOLVED** (2026-06-14)
 
-For completeness, the following audit paragraphs still describe issues that
-**may or may not be live** as of this section's write-date. Each is recorded
-here with the latest verification result so future readers do not have to
-re-run the workspace themselves.
+This section upgrades the three "Not verified by this turn" items from the
+previous §13.3 draft to **RESOLVED** with live on-disk verification, plus
+documents the one new blocker surfaced and fixed during the same pass.
 
-| Audit reference | Issue | Live status (2026-06-14 verification) |
-|-----------------|-------|----------------------------------------|
-| §7.7 "Sprint 356 final state" — `ritk-io.exe` linker file lock | Pre-existing file-handle lock blocking `cargo test --workspace` | **Not reproduced** — `cargo test -p ritk-registration --lib` and `cargo check -p ritk-core` / `-p ritk-filter` complete cleanly; if the lock resurfaces it is a transient Windows issue, not a code defect |
-| §8.6 "Pre-existing blocker" — `ritk-snap` `LabelId` / `ForegroundValue` migration (18 + 19 = 37 errors across `seg_load.rs`, `tests_integrity.rs`, `external.rs`) | `&integer` passed where `&LabelId` now expected | **Not verified by this turn** — would require a full `cargo test --workspace` run to surface. Audit doc prescribes the mechanical fix (wrap literals in `&LabelId(...)`); not attempted here per scope |
-| §8.6 "Pre-existing blocker" — `n4/tests_n4.rs:300` missing `idft_real_into` import (10 errors) | Stale import after API rename | **Not verified by this turn** — same as above |
-| §4.2.2 "Next steps" item 3 — `slic/connectivity.rs:78,131` `clippy::needless_range_loop` (2 errors) | Stale `for d in (0..ndim.saturating_sub(1)).rev() { strides[d] = ... }` pattern | **Not verified by this turn** — clippy wasn't re-run on this file in this turn |
+**Important path correction first** — the audit doc's §8.6 / §4.2.2
+references point to pre-extraction paths. During the Sprint 334+
+`ritk-filter` and `ritk-segmentation` extractions, two of the three
+files moved to their own crates:
 
-**Caveat**: the §7.7 / §8.6 narratives were last edited by the
-implementation log during Sprint 356 (per the audit's own date stamp).
-The "RESOLVED" markers in §13.1 and §13.2 reflect this turn's
-verification only; the unresolved items in §13.3 require a follow-up
-audit pass to either confirm or close.
+- `crates/ritk-core/src/filter/bias/n4/tests_n4.rs` → **`crates/ritk-filter/src/bias/n4/tests_n4.rs`**
+- `crates/ritk-core/src/segmentation/clustering/slic/connectivity.rs` → **`crates/ritk-segmentation/src/clustering/slic/connectivity.rs`**
+
+The audit paths in §8.6 and §4.2.2 are **stale** (predate the extractions).
+
+#### 13.3.1 `LabelId` / `ForegroundValue` newtype migration — **RESOLVED**
+
+**Original error** (audit §8.6 "Pre-existing blocker"):
+
+```
+crates/ritk-snap/src/app/tests/seg_load.rs: 6 × E0308 (&integer → &LabelId)
+crates/ritk-snap/src/ui/filter_panel/tests_integrity.rs: 1 × E0308 (foreground: 1.0 → ForegroundValue)
+crates/ritk-io/src/format/dicom/seg/tests/external.rs: 19 × E0308 (&integer → &LabelId)
+```
+
+**On-disk state** (verified 2026-06-14):
+
+- `crates/ritk-snap/src/app/tests/seg_load.rs` — all 6 sites wrap literals in `&LabelId(1)`, `&LabelId(2)`, `LabelId(label)` for the `[1u32, 2, 3, 4, 5]` loop, plus the import `use ritk_annotation::LabelId;`.
+- `crates/ritk-snap/src/ui/filter_panel/tests_integrity.rs` — `foreground: ForegroundValue::ONE` with `use ritk_filter::ForegroundValue;`.
+- `crates/ritk-io/src/format/dicom/seg/tests/external.rs` — all 19 sites use `&ritk_annotation::LabelId(1)`, `&ritk_annotation::LabelId(2)`, `ritk_annotation::LabelId(label)` for the `for label in [1u32, 2, 3, 4, 5]` loop.
+
+| Command | Result |
+|---------|--------|
+| `cargo check --workspace` | **Finished dev profile in 57.98s** — 0 errors, 0 warnings |
+| `cargo test --workspace --no-run` | **All test binaries built successfully** — 0 build errors |
+| `cargo test -p ritk-registration --lib deformable_field_ops` | **32 passed, 0 failed** |
+
+#### 13.3.2 `n4/tests_n4.rs:300` missing `idft_real_into` import (10 errors) — **RESOLVED**
+
+**Original error** (audit §8.3 / §8.5 "Pre-existing blockers"):
+
+```
+crates/ritk-core/src/filter/bias/n4/tests_n4.rs:300:
+  E0432: unresolved import `idft_real_into`
+  + 9 cascading type errors
+```
+
+**On-disk state** (verified 2026-06-14 at `crates/ritk-filter/src/bias/n4/tests_n4.rs`):
+
+- The file imports `use super::*;` (line 18) and the parent module (`dft.rs`) defines `pub fn idft_real_into(freq: &mut [(f64, f64)], n: usize, out: &mut [f64])` as a `pub(crate)` item re-exported via the `bias::n4` module.
+- The test helpers `dft_real` (line 264) and `idft_real` (line 269) call the imported functions directly: `dft_real_into(data, n, &mut out)` and `idft_real_into(freq, n, &mut out)`.
+- The round-trip test (`dft_round_trip`, line 274) uses these helpers successfully — `cargo test -p ritk-filter` passes.
+
+| Command | Result |
+|---------|--------|
+| `cargo check -p ritk-filter` | **Finished dev profile in ~2 min** — 0 errors, 0 warnings |
+| `cargo test -p ritk-filter --lib` | All n4 tests pass (round-trip, histogram_sharpen, two-class stability, etc.) |
+
+#### 13.3.3 `slic/connectivity.rs:78,131` `clippy::needless_range_loop` (2 errors) — **RESOLVED**
+
+**Original error** (audit §4.2.2 "Next steps" item 3, also referenced in §7.6 verification):
+
+```
+crates/ritk-core/src/segmentation/clustering/slic/connectivity.rs:78,131:
+  clippy::needless_range_loop
+  (stale `for d in (0..ndim.saturating_sub(1)).rev() { strides[d] = ... }` pattern)
+```
+
+**On-disk state** (verified 2026-06-14 at `crates/ritk-segmentation/src/clustering/slic/connectivity.rs`):
+
+- `compute_strides` (lines 15–32) now uses a reverse `enumerate()` over `shape` that accumulates the stride product: `for (i, &s) in shape.iter().enumerate().rev() { strides[i] = stride; stride *= s; }`. The doc-comment explicitly cites the `clippy::needless_range_loop` rationale.
+
+| Command | Result |
+|---------|--------|
+| `cargo clippy --workspace --all-features -- -D warnings` | **0 errors, 0 warnings** (Finished dev profile in 10.61s) |
+
+#### 13.3.4 New blocker surfaced + fixed in this pass: `warp.rs:101` `clippy::manual_div_ceil`
+
+**Surfaced during the §13.3 verification pass** — clippy reported
+`manually reimplementing div_ceil` at `crates/ritk-registration/src/deformable_field_ops/warp.rs:101:20`:
+
+```rust
+// before (introduced by the recent `compute_mse_inplace` refactor)
+let n_chunks = (n + chunk - 1) / chunk;
+```
+
+This was the only remaining `clippy -D warnings` failure across the entire
+workspace. The fix uses the standard-library `usize::div_ceil` (stable
+since Rust 1.73):
+
+```rust
+// after — semantically identical for n, chunk > 0
+let n_chunks = n.div_ceil(chunk);
+```
+
+Code-reviewer verdict: *"Correct and minimal — matches the workspace-wide
+convention and resolves the only outstanding clippy -D warnings failure."*
+
+| Command | Result |
+|---------|--------|
+| `cargo clippy --workspace --all-features -- -D warnings` | **0 errors, 0 warnings** (the one failure above, now clean) |
+| `cargo test -p ritk-registration --lib deformable_field_ops` | **32 passed, 0 failed** (no behaviour change vs. pre-fix) |
+
+**Net effect of this pass**:
+
+- **3 audit-blocker items** (§13.3.1 LabelId, §13.3.2 idft_real_into, §13.3.3 slic/connectivity clippy) all upgraded from "Not verified" to **RESOLVED** with on-disk verification.
+- **1 new blocker** (§13.3.4 warp.rs:101 `clippy::manual_div_ceil`) surfaced by the clippy run and fixed in the same pass.
+- `cargo check --workspace`: 0 errors (verified).
+- `cargo test --workspace --no-run`: all test binaries build (verified).
+- `cargo clippy --workspace --all-features -- -D warnings`: 0 errors, 0 warnings (verified).
+- The path to `cargo test --workspace` is now unblocked for the §13.3 items specifically; the historical `ritk-io.exe` linker file lock (audit §7.7) remains a Windows-environment concern, not a code defect.
+
 
 ---
 
