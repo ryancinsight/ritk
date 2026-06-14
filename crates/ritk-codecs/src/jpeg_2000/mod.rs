@@ -28,8 +28,14 @@
 //!   are 64×64 within each subband).
 //! - Lossy 9/7 irreversible encode and decode are supported (scalar quantization,
 //!   unit-step near-lossless encoder); a rate-controlled quality knob is pending.
-//! - Interop against externally encoded streams is pending differential
-//!   validation — J2K-INTEROP.
+//!
+//! # Interop validation
+//! The reversible (5/3 lossless) path is differentially validated against the
+//! `openjp2` reference both directions and bit-exactly (`tests/jpeg2000_interop.rs`:
+//! `openjp2_to_ritk_matrix`, `ritk_to_openjp2_matrix`, `escalation_byte_compare_with_openjp2`).
+//! The irreversible (9/7 lossy) encode/decode are validated by internal
+//! round-trips (PSNR and bounded-error tests in this module); cross-implementation
+//! differential validation of the lossy path is pending — J2K-INTEROP.
 
 pub(crate) mod codestream;
 pub(crate) mod ebcot;
