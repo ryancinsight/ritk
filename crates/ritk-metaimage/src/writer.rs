@@ -2,6 +2,7 @@ use crate::spatial::file_spatial_fields_from_internal;
 use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::HostExtract;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
@@ -20,8 +21,12 @@ use std::path::Path;
 /// # Binary payload
 /// Voxel values are written as 32-bit IEEE 754 floats in little-endian byte
 /// order immediately after the `ElementDataFile = LOCAL` header line.
-pub fn write_metaimage<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    let f32_vec = image.try_data_vec()?;
+pub fn write_metaimage<B: HostExtract, P: AsRef<Path>>(
+    path: P,
+    image: &Image<B, 3>,
+) -> Result<()> {
+    // Extract via the backend's fast host path to avoid `into_data()`.
+    let f32_vec = image.data_vec_fast();
     write_metaimage_with_data(path, image, &f32_vec)
 }
 
@@ -128,7 +133,7 @@ pub struct MetaImageWriter;
 
 impl MetaImageWriter {
     /// Write `image` to the MetaImage file at `path`.
-    pub fn write<B: Backend, P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> Result<()> {
+    pub fn write<B: HostExtract, P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> Result<()> {
         write_metaimage(path, image)
     }
 }

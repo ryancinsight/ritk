@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::HostExtract;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
@@ -27,9 +28,10 @@ use crate::spatial::file_space_directions_from_internal;
 /// # Binary payload
 /// Voxel values are written as 32-bit IEEE 754 floats in little-endian byte
 /// order, immediately after a blank header-terminator line.
-pub fn write_nrrd<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    // RITK [Z,Y,X] flat layout is already NRRD X-fastest raw order.
-    let f32_vec = image.try_data_vec()?;
+pub fn write_nrrd<B: HostExtract, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+    // RITK [Z,Y,X] flat layout is already NRRD X-fastest raw order.  Extract via
+    // the backend's fast host path to avoid the `into_data()` materialization.
+    let f32_vec = image.data_vec_fast();
     write_nrrd_with_data(path, image, &f32_vec)
 }
 
@@ -132,7 +134,7 @@ pub struct NrrdWriter;
 
 impl NrrdWriter {
     /// Write `image` to the NRRD file at `path`.
-    pub fn write<B: Backend, P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> Result<()> {
+    pub fn write<B: HostExtract, P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> Result<()> {
         write_nrrd(path, image)
     }
 }

@@ -68,7 +68,10 @@ impl<B: Backend> Default for NrrdDipWriter<B> {
 }
 
 impl<B: Backend> NrrdDipWriter<B> {
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> anyhow::Result<()> {
+    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> anyhow::Result<()>
+    where
+        B: ritk_image::HostExtract,
+    {
         write_nrrd(path, image)
     }
 }

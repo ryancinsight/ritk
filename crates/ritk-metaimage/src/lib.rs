@@ -66,7 +66,10 @@ impl<B: Backend> Default for MetaImageDipWriter<B> {
 }
 
 impl<B: Backend> MetaImageDipWriter<B> {
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> anyhow::Result<()> {
+    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> anyhow::Result<()>
+    where
+        B: ritk_image::HostExtract,
+    {
         write_metaimage(path, image)
     }
 }
