@@ -98,7 +98,7 @@ pub(crate) fn compute_mse_inplace(fixed: &[f32], warped: &[f32]) -> f64 {
     // swamping the per-voxel subtraction.
     const MSE_INPLACE_CHUNK: usize = 4096;
     let chunk = MSE_INPLACE_CHUNK;
-    let n_chunks = (n + chunk - 1) / chunk;
+    let n_chunks = n.div_ceil(chunk);
     let sum = moirai::reduce_index_with::<moirai::Adaptive, _, _, _>(
         n_chunks,
         0.0_f64,
