@@ -106,9 +106,11 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         .parse()
         .context("'dimension' is not a valid integer")?;
 
-    if dimension != 3 {
+    // 2-D NRRD files are promoted to a degenerate `[1, Y, X]` (z = 1) volume,
+    // since ritk's `Image` is 3-D.
+    if dimension != 2 && dimension != 3 {
         return Err(anyhow!(
-            "Expected dimension = 3 for a 3-D NRRD file, found {}",
+            "Expected dimension = 2 or 3 for a NRRD file, found {}",
             dimension
         ));
     }
@@ -116,10 +118,10 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     let sizes_str = headers
         .get("sizes")
         .ok_or_else(|| anyhow!("Missing 'sizes' in NRRD header"))?;
-    let sizes = parse_usize_vec(sizes_str, "sizes", 3)?;
+    let sizes = parse_usize_vec(sizes_str, "sizes", dimension)?;
     let nx = sizes[0];
     let ny = sizes[1];
-    let nz = sizes[2];
+    let nz = if dimension == 3 { sizes[2] } else { 1 };
 
     // ── Encoding ──────────────────────────────────────────────────────────
     let encoding = headers
@@ -151,11 +153,19 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     };
 
     // ── Spacing and direction ─────────────────────────────────────────────
+    // 2-D files carry 2-component directions/spacings/origin, promoted with an
+    // identity through-plane z-axis (unit z-spacing, zero z-origin).
     let spatial = if let Some(sd_str) = headers.get("space directions") {
-        metadata_from_file_space_directions(parse_space_directions(sd_str)?)
+        let dirs = if dimension == 3 {
+            parse_space_directions(sd_str)?
+        } else {
+            parse_space_directions_2d(sd_str)?
+        };
+        metadata_from_file_space_directions(dirs)
     } else if let Some(sp_str) = headers.get("spacings") {
-        let sp_vals = parse_f64_vec(sp_str, "spacings", 3)?;
-        metadata_from_file_spacings([sp_vals[0], sp_vals[1], sp_vals[2]])
+        let sp = parse_f64_vec(sp_str, "spacings", dimension)?;
+        let sz = if dimension == 3 { sp[2] } else { 1.0 };
+        metadata_from_file_spacings([sp[0], sp[1], sz])
     } else {
         // Neither field present: unit spacing with canonical file-axis order.
         metadata_from_file_spacings([1.0, 1.0, 1.0])
@@ -163,7 +173,11 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
 
     // ── Origin ────────────────────────────────────────────────────────────
     let origin = if let Some(so_str) = headers.get("space origin") {
-        parse_nrrd_point(so_str)?
+        if dimension == 3 {
+            parse_nrrd_point(so_str)?
+        } else {
+            parse_nrrd_point_2d(so_str)?
+        }
     } else {
         Point::new([0.0, 0.0, 0.0])
     };

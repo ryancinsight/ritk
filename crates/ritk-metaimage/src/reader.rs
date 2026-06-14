@@ -94,11 +94,10 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         .parse()
         .context("'NDims' is not a valid integer")?;
 
-    if ndims != 3 {
-        return Err(anyhow!(
-            "Expected NDims = 3 for a 3-D image, found {}",
-            ndims
-        ));
+    // 2-D images are promoted to a degenerate `[1, Y, X]` (z = 1) volume: ritk's
+    // Image is `Image<B, 3>`, so a 2-D file becomes a single-slice 3-D image.
+    if ndims != 2 && ndims != 3 {
+        return Err(anyhow!("Expected NDims = 2 or 3, found {}", ndims));
     }
 
     let dim_sizes = parse_usize_vec(
@@ -106,32 +105,53 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
             .get("DimSize")
             .ok_or_else(|| anyhow!("Missing 'DimSize' in MetaImage header"))?,
         "DimSize",
-        3,
+        ndims,
     )?;
     let nx = dim_sizes[0];
     let ny = dim_sizes[1];
-    let nz = dim_sizes[2];
+    let nz = if ndims == 3 { dim_sizes[2] } else { 1 };
 
-    let spacing_vals = parse_f64_vec(
+    let spacing_raw = parse_f64_vec(
         headers
             .get("ElementSpacing")
             .ok_or_else(|| anyhow!("Missing 'ElementSpacing' in MetaImage header"))?,
         "ElementSpacing",
-        3,
+        ndims,
     )?;
+    // Promote spacing with unit z when 2-D.
+    let spacing_vals = if ndims == 3 {
+        spacing_raw
+    } else {
+        vec![spacing_raw[0], spacing_raw[1], 1.0]
+    };
 
     let offset_str = headers
         .get("Offset")
         .or_else(|| headers.get("Position"))
         .ok_or_else(|| anyhow!("Missing 'Offset' (or 'Position') in MetaImage header"))?;
-    let offset_vals = parse_f64_vec(offset_str, "Offset", 3)?;
+    let offset_raw = parse_f64_vec(offset_str, "Offset", ndims)?;
+    let offset_vals = if ndims == 3 {
+        offset_raw
+    } else {
+        vec![offset_raw[0], offset_raw[1], 0.0]
+    };
 
-    // TransformMatrix defaults to identity when absent.
+    // TransformMatrix is row-major direction cosines (ndims² entries); defaults to
+    // identity when absent.  A 2-D `[a b; c d]` matrix promotes to the 3-D
+    // `[a b 0; c d 0; 0 0 1]` (identity through-plane z-axis).
+    let tm_default = if ndims == 3 { "1 0 0 0 1 0 0 0 1" } else { "1 0 0 1" };
     let tm_src = headers
         .get("TransformMatrix")
         .map(|s| s.as_str())
-        .unwrap_or("1 0 0 0 1 0 0 0 1");
-    let tm_vals = parse_f64_vec(tm_src, "TransformMatrix", 9)?;
+        .unwrap_or(tm_default);
+    let tm_raw = parse_f64_vec(tm_src, "TransformMatrix", ndims * ndims)?;
+    let tm_vals = if ndims == 3 {
+        tm_raw
+    } else {
+        vec![
+            tm_raw[0], tm_raw[1], 0.0, tm_raw[2], tm_raw[3], 0.0, 0.0, 0.0, 1.0,
+        ]
+    };
 
     let element_type = headers
         .get("ElementType")

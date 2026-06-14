@@ -145,3 +145,31 @@ def test_ritk_reads_gzip_nrrd_brain_mri():
     sa = sitk.GetArrayFromImage(sitk.ReadImage(path)).astype(np.float32)
     assert ra.shape == sa.shape
     assert float(np.max(np.abs(ra - sa))) == 0.0
+
+
+# ── ritk native 2-D reads (promoted to z=1) ───────────────────────────────────
+#
+# ritk's `Image` is intrinsically 3-D; its MetaImage, NRRD, and PNG readers
+# promote a 2-D file to a degenerate `[1, Y, X]` (z=1) volume at read time.
+# Each case reads the file natively with ritk and asserts byte-exact agreement
+# with SimpleITK's `GetArrayFromImage` after adding the singleton z-axis.
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "cthead1-Float.mha",  # 2-D MetaImage, MET_FLOAT
+        "BrainProtonDensitySlice.png",  # 2-D PNG, 8-bit grayscale
+        "Gaussian_1.5.nrrd",  # 2-D gzip-encoded NRRD
+    ],
+)
+def test_ritk_reads_2d_image_as_z1_identically_to_sitk(name):
+    """ritk reads a 2-D file as `[1, Y, X]`, matching sitk's array with z=1 added."""
+    path = fetch(name)
+    ra = ritk.io.read_image(path).to_numpy()
+    sa = sitk.GetArrayFromImage(sitk.ReadImage(path)).astype(np.float32)
+    assert sa.ndim == 2, f"{name}: expected a 2-D SimpleITK image, got ndim {sa.ndim}"
+    sa = sa[None, :, :]
+    assert ra.shape == sa.shape, f"{name}: shape {ra.shape} != {sa.shape}"
+    assert ra.shape[0] == 1, f"{name}: 2-D file must promote to a single z-slice"
+    assert float(np.max(np.abs(ra - sa))) == 0.0, f"{name}: ritk 2-D read differs from sitk"

@@ -30,6 +30,25 @@ pub(super) fn parse_space_directions(s: &str) -> Result<[[f64; 3]; 3]> {
     Ok([vecs[0], vecs[1], vecs[2]])
 }
 
+/// Parse a 2-D `space directions` field "(a,b) (c,d)" and promote it to a 3-D
+/// row-major direction matrix `[[a,b,0],[c,d,0],[0,0,1]]` — the in-plane axes
+/// keep their cosines and an identity through-plane z-axis is appended (the
+/// 2-D-as-z=1 convention).
+pub(super) fn parse_space_directions_2d(s: &str) -> Result<[[f64; 3]; 3]> {
+    let vecs = parse_vectors(s, 2)?;
+    if vecs.len() != 2 {
+        return Err(anyhow!(
+            "2-D 'space directions' must contain 2 vectors, found {}",
+            vecs.len()
+        ));
+    }
+    Ok([
+        [vecs[0][0], vecs[0][1], 0.0],
+        [vecs[1][0], vecs[1][1], 0.0],
+        [0.0, 0.0, 1.0],
+    ])
+}
+
 /// Parse a `space origin` field into a `Point<3>`.
 ///
 /// The field value must contain exactly one `(v0,v1,v2)` group.
@@ -44,43 +63,56 @@ pub(super) fn parse_nrrd_point(s: &str) -> Result<Point<3>> {
     Ok(Point::new([vecs[0][0], vecs[0][1], vecs[0][2]]))
 }
 
-/// Extract all `(v0,v1,v2)` groups from `s` and return them as `Vec<[f64;3]>`.
-///
-/// Handles spaces inside or between components; stops at any malformed group.
+/// Parse a 2-D `space origin` "(x,y)" and promote it to the 3-D point `[x,y,0]`.
+pub(super) fn parse_nrrd_point_2d(s: &str) -> Result<Point<3>> {
+    let vecs = parse_vectors(s, 2)?;
+    if vecs.is_empty() {
+        return Err(anyhow!(
+            "Invalid 2-D 'space origin' format: no parenthesised vector found in '{}'",
+            s
+        ));
+    }
+    Ok(Point::new([vecs[0][0], vecs[0][1], 0.0]))
+}
+
+/// Extract all `(v0,v1,v2)` groups from `s` as `Vec<[f64;3]>`.
 pub(super) fn parse_parenthesized_vectors(s: &str) -> Result<Vec<[f64; 3]>> {
-    let mut vecs: Vec<[f64; 3]> = Vec::new();
+    parse_vectors(s, 3).map(|vs| {
+        vs.into_iter()
+            .map(|v| [v[0], v[1], v[2]])
+            .collect::<Vec<_>>()
+    })
+}
+
+/// Extract all parenthesised groups of exactly `n` comma-separated f64
+/// components from `s`.  Handles spaces inside or between components; stops at
+/// any unterminated group.
+fn parse_vectors(s: &str, n: usize) -> Result<Vec<Vec<f64>>> {
+    let mut vecs: Vec<Vec<f64>> = Vec::new();
     let mut rest = s.trim();
     while let Some(start) = rest.find('(') {
         rest = &rest[start + 1..];
-        if let Some(end) = rest.find(')') {
-            let inner = &rest[..end];
-            let parts: Vec<&str> = inner.split(',').collect();
-            if parts.len() != 3 {
-                return Err(anyhow!(
-                    "Expected 3 components in vector '({})'; got {}",
-                    inner,
-                    parts.len()
-                ));
-            }
-            let v = [
-                parts[0]
-                    .trim()
-                    .parse::<f64>()
-                    .with_context(|| format!("Cannot parse '{}' as f64", parts[0].trim()))?,
-                parts[1]
-                    .trim()
-                    .parse::<f64>()
-                    .with_context(|| format!("Cannot parse '{}' as f64", parts[1].trim()))?,
-                parts[2]
-                    .trim()
-                    .parse::<f64>()
-                    .with_context(|| format!("Cannot parse '{}' as f64", parts[2].trim()))?,
-            ];
-            vecs.push(v);
-            rest = &rest[end + 1..];
-        } else {
-            break;
+        let Some(end) = rest.find(')') else { break };
+        let inner = &rest[..end];
+        let parts: Vec<&str> = inner.split(',').collect();
+        if parts.len() != n {
+            return Err(anyhow!(
+                "Expected {} components in vector '({})'; got {}",
+                n,
+                inner,
+                parts.len()
+            ));
         }
+        let mut v = Vec::with_capacity(n);
+        for p in parts {
+            v.push(
+                p.trim()
+                    .parse::<f64>()
+                    .with_context(|| format!("Cannot parse '{}' as f64", p.trim()))?,
+            );
+        }
+        vecs.push(v);
+        rest = &rest[end + 1..];
     }
     Ok(vecs)
 }
