@@ -186,3 +186,42 @@ def test_distance_transform_matches_sitk_danielsson():
     sa = _sa(sitk.DanielssonDistanceMap(binary, inputIsBinary=True, squaredDistance=False, useImageSpacing=True))
     # Two exact-Euclidean DTs differ only at the half-voxel boundary convention.
     assert _interior_absmax(ra, sa) / _rng(sa) < 0.02
+
+
+# ── Geometric resampling (z = 1 anisotropic grid) ─────────────────────────────
+
+
+def test_resample_downsample_matches_sitk(images):
+    """2× linear downsample of the z = 1 cthead1 slice matches sitk's resampler.
+
+    Regression guard for the resample axis-order defect: ``indices_to_physical``
+    paired innermost-first index columns with axis-major spacing by position, so a
+    z = 1 (2-D promoted) anisotropic grid collapsed every output row to a constant.
+    """
+    ri, si = images
+    ns = SPACING * 2.0  # 0.7056 mm → 256 → 128 in plane; z stays 1.
+    rr = ritk.filter.resample_image(ri, 1.0, ns, ns, "linear")
+    ra = rr.to_numpy().astype(np.float64)
+    rf = sitk.ResampleImageFilter()
+    rf.SetOutputSpacing((ns, ns))
+    rf.SetSize([ra.shape[2], ra.shape[1]])
+    rf.SetOutputOrigin(si.GetOrigin())
+    rf.SetOutputDirection(si.GetDirection())
+    rf.SetInterpolator(sitk.sitkLinear)
+    rf.SetDefaultPixelValue(0.0)
+    sa = _sa(rf.Execute(si))
+    assert ra.shape[0] == 1, "z = 1 slice must stay a single output plane"
+    # Identical output grid + linear interpolation: agreement is f32 sampling
+    # round-off, far below any structural axis error (which gave rel ≈ 1).
+    assert _interior_absmax(ra, sa) / _rng(sa) < 1e-3
+
+
+def test_resample_identity_reproduces_input(images):
+    """Resampling to the same spacing reproduces the input (no off-by-axis shift)."""
+    ri, _ = images
+    rid = ritk.filter.resample_image(ri, 1.0, SPACING, SPACING, "linear").to_numpy()
+    ia = ri.to_numpy()
+    assert rid.shape == ia.shape
+    # Each output voxel centre maps to an input voxel centre; residual is f32
+    # round-off in the world↔index round trip.
+    assert _interior_absmax(rid.astype(np.float64), ia.astype(np.float64)) / _rng(ia.astype(np.float64)) < 1e-3

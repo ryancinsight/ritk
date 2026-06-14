@@ -222,36 +222,29 @@ where
         )
         .reshape([1, D]);
 
-        // 2. Prepare Transform Matrix
-        // We want: Point = Origin + Index.matmul(T)
-        // where T corresponds to applying spacing then direction
-
-        let spacing_vec: Vec<f32> = (0..D).map(|i| self.spacing[i] as f32).collect();
-        let spacing_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(spacing_vec, burn::tensor::Shape::new([D])),
-            device,
-        )
-        .reshape([1, D]);
-
-        let scaled_indices = indices * spacing_tensor;
-
-        // Direction: [D, D]
-        // We need D^T for matmul with row vectors
-        let mut dir_data = Vec::with_capacity(D * D);
-        for c in 0..D {
-            for r in 0..D {
-                dir_data.push(self.direction[(r, c)] as f32);
+        // 2. Prepare Transform Matrix M so that Point = Index.matmul(M) + Origin.
+        //
+        // The grid index columns are INNERMOST-FIRST (column 0 = x = axis D-1, see
+        // `generate_grid_indices` and the interpolation kernels), while spacing and
+        // direction are stored AXIS-MAJOR (index 0 = depth/z). Index column `r`
+        // therefore corresponds to spatial axis `D-1-r`; pairing them by `r`
+        // directly scrambles world coordinates whenever spacing is anisotropic or a
+        // grid axis is degenerate (e.g. a z = 1 promoted 2-D image), while leaving
+        // isotropic/cubic cases unaffected. This mirrors `Image::index_to_world_tensor`.
+        let mut m_data = Vec::with_capacity(D * D);
+        for r in 0..D {
+            let axis = D - 1 - r;
+            for c in 0..D {
+                m_data.push((self.spacing[axis] * self.direction[(c, axis)]) as f32);
             }
         }
 
-        let dir_t_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(dir_data, burn::tensor::Shape::new([D, D])),
+        let m_tensor = Tensor::<B, 2>::from_data(
+            TensorData::new(m_data, burn::tensor::Shape::new([D, D])),
             device,
         );
 
-        let rotated = scaled_indices.matmul(dir_t_tensor);
-
-        origin_tensor + rotated
+        indices.matmul(m_tensor) + origin_tensor
     }
 }
 
@@ -288,8 +281,12 @@ mod tests {
 
         let image = Image::new(tensor, origin, spacing, direction);
 
-        // 2. Define Transform: Shift by +2 in X, +1 in Y
-        let offset = Tensor::<TestBackend, 1>::from_floats([-2.0, -1.0], &device);
+        // 2. Define Transform: shift content by +1 row (Y) and +2 cols (X).
+        // The offset is in the image's axis-major physical convention [row, col] =
+        // [y, x] (matching world_to_index_tensor / index_to_world_tensor), so the
+        // output→input map subtracts [1, 2]: output reads input one row up and two
+        // columns left, moving the square down one row and right two columns.
+        let offset = Tensor::<TestBackend, 1>::from_floats([-1.0, -2.0], &device);
         let transform = TranslationTransform::<TestBackend, 2>::new(offset);
 
         // 3. Define Interpolator
@@ -305,16 +302,70 @@ mod tests {
         let (data, _) = extract_vec_infallible(&result);
         let slice = data.as_slice();
 
-        // Check (6,5) -> index 5*10 + 6 = 56
+        // Check index corresponding to physical coordinates (x=6, y=5) -> index 5*10 + 6 = 56
         assert!(slice[56] > 0.9);
-        // Check (7,5) -> index 5*10 + 7 = 57
+        // Check index corresponding to physical coordinates (x=7, y=5) -> index 5*10 + 7 = 57
         assert!(slice[57] > 0.9);
-        // Check (6,6) -> index 6*10 + 6 = 66
+        // Check index corresponding to physical coordinates (x=6, y=6) -> index 6*10 + 6 = 66
         assert!(slice[66] > 0.9);
-        // Check (7,6) -> index 6*10 + 7 = 67
+        // Check index corresponding to physical coordinates (x=7, y=6) -> index 6*10 + 7 = 67
         assert!(slice[67] > 0.9);
 
         // Check original location (4,4) -> 44 should be 0
         assert!(slice[44] < 0.1);
+    }
+
+    /// Regression: identity resampling of an anisotropic 3-D grid (here a z = 1
+    /// "2-D promoted" volume with z-spacing ≠ in-plane spacing) must reproduce the
+    /// input exactly. The previous `indices_to_physical` paired innermost-first
+    /// index columns with axis-major spacing by position, multiplying the x index
+    /// by the z spacing; identity on a cube hid it, but a z = 1 anisotropic grid
+    /// collapsed every output row to a constant.
+    #[test]
+    fn test_resample_identity_anisotropic_z1_3d() {
+        use ritk_interpolation::LinearInterpolator;
+        use ritk_spatial::{Direction, Point, Spacing};
+        use ritk_transform::affine::translation::TranslationTransform;
+
+        let device = Default::default();
+        // [z, y, x] = [1, 4, 5], a horizontal ramp varying along x so a column
+        // collapse is immediately visible.
+        let (nz, ny, nx) = (1usize, 4usize, 5usize);
+        let mut data = vec![0.0f32; nz * ny * nx];
+        for y in 0..ny {
+            for x in 0..nx {
+                data[y * nx + x] = (y * 10 + x) as f32;
+            }
+        }
+        let tensor = Tensor::<TestBackend, 3>::from_floats(
+            burn::tensor::TensorData::new(data.clone(), Shape::new([nz, ny, nx])),
+            &device,
+        );
+        // Anisotropic spacing: z = 1.0, y = x = 0.35 (mirrors a promoted 2-D slice).
+        let image = Image::new(
+            tensor,
+            Point::<3>::new([0.0, 0.0, 0.0]),
+            Spacing::<3>::new([1.0, 0.35, 0.35]),
+            Direction::<3>::identity(),
+        );
+
+        let zero = Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, 0.0], &device);
+        let filter = ResampleImageFilter::new(
+            [nz, ny, nx],
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            TranslationTransform::<TestBackend, 3>::new(zero),
+            LinearInterpolator::new(),
+        );
+        let result = filter.apply(&image);
+        let (out, _) = extract_vec_infallible(&result);
+
+        for (i, (&o, &d)) in out.as_slice().iter().zip(data.iter()).enumerate() {
+            assert!(
+                (o - d).abs() < 1e-4,
+                "identity resample mismatch at flat {i}: got {o}, want {d}"
+            );
+        }
     }
 }
