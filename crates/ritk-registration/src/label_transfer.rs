@@ -21,6 +21,7 @@ use burn::tensor::backend::Backend;
 use ritk_image::{grid, Image};
 use ritk_interpolation::{Interpolator, NearestNeighborInterpolator};
 use ritk_transform::Transform;
+use std::collections::BTreeMap;
 
 /// Warp a moving-space label/atlas image onto `reference`'s grid through
 /// `transform` (mapping reference → moving world coordinates), using
@@ -56,6 +57,60 @@ pub fn warp_label_map<B: Backend>(
         *reference.spacing(),
         *reference.direction(),
     )
+}
+
+/// World-space centroid of every non-zero label in `labels`, returned as
+/// `(label_id, [x, y, z])` pairs sorted by id. Turns a warped atlas label map
+/// into target points: register the patient to an atlas, [`warp_label_map`] the
+/// atlas regions into patient space, then read each region's centroid as an
+/// array-center / focus target. Centroids are in the image's physical (LPS) world
+/// frame, consistent with [`Image::index_to_world_tensor`].
+#[must_use]
+pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> Vec<(u32, [f64; 3])> {
+    let [d0, d1, d2] = labels.shape();
+    let n = d0 * d1 * d2;
+    let data: Vec<f32> = labels
+        .data()
+        .clone()
+        .reshape([n])
+        .into_data()
+        .to_vec()
+        .expect("labels host vec");
+    let origin = labels.origin();
+    let spacing = labels.spacing();
+    let direction = labels.direction();
+    let (s0, s1) = (d1 * d2, d2);
+
+    // Accumulate per-label sum of voxel multi-index [d0, d1, d2] + count.
+    let mut acc: BTreeMap<u32, ([f64; 3], f64)> = BTreeMap::new();
+    for (flat, &v) in data.iter().enumerate() {
+        if v <= 0.5 {
+            continue; // background / unlabelled
+        }
+        let lab = (v + 0.5) as u32; // nearest integer label id
+        let (i0, i1, i2) = ((flat / s0) % d0, (flat / s1) % d1, flat % d2);
+        let e = acc.entry(lab).or_insert(([0.0; 3], 0.0));
+        e.0[0] += i0 as f64;
+        e.0[1] += i1 as f64;
+        e.0[2] += i2 as f64;
+        e.1 += 1.0;
+    }
+
+    acc.into_iter()
+        .map(|(lab, (sum, cnt))| {
+            let mean = [sum[0] / cnt, sum[1] / cnt, sum[2] / cnt];
+            // world[c] = origin[c] + Σ_axis mean[axis]·spacing[axis]·direction[(c, axis)]
+            let mut world = [0.0_f64; 3];
+            for (c, wc) in world.iter_mut().enumerate() {
+                let mut a = origin[c];
+                for (axis, &mi) in mean.iter().enumerate() {
+                    a += mi * spacing[axis] * direction[(c, axis)];
+                }
+                *wc = a;
+            }
+            (lab, world)
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -143,5 +198,38 @@ mod tests {
         let count = |s: &[f32]| s.iter().filter(|&&x| x == 5.0).count();
         assert_eq!(count(&out), count(&v), "in-bounds shift preserves label volume");
         assert_ne!(out, v, "a non-zero translation must move the labels");
+    }
+
+    /// Region centroids land at the geometric centres (identity direction + unit
+    /// spacing + zero origin ⇒ world centroid == mean voxel multi-index [d0,d1,d2]).
+    #[test]
+    fn label_centroids_finds_region_centres() {
+        let (d, h, w) = (10usize, 10, 10);
+        let mut v = vec![0.0f32; d * h * w];
+        // Label 1: single voxel at index (d0,d1,d2) = (2, 3, 4).
+        v[(2 * h + 3) * w + 4] = 1.0;
+        // Label 2: 2×2×2 block over [6,8) on each axis → centroid 6.5 each.
+        for z in 6..8 {
+            for y in 6..8 {
+                for x in 6..8 {
+                    v[(z * h + y) * w + x] = 2.0;
+                }
+            }
+        }
+        let c = label_centroids(&label_image(v, [d, h, w]));
+        assert_eq!(c.len(), 2);
+        let close = |a: f64, b: f64| (a - b).abs() < 1e-6;
+        assert_eq!(c[0].0, 1);
+        assert!(
+            close(c[0].1[0], 2.0) && close(c[0].1[1], 3.0) && close(c[0].1[2], 4.0),
+            "label 1 centroid {:?}",
+            c[0].1
+        );
+        assert_eq!(c[1].0, 2);
+        assert!(
+            close(c[1].1[0], 6.5) && close(c[1].1[1], 6.5) && close(c[1].1[2], 6.5),
+            "label 2 centroid {:?}",
+            c[1].1
+        );
     }
 }

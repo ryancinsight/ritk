@@ -138,7 +138,7 @@ pub use ngf_rigid::{
 // ============================================================================
 // Re-exports — atlas / label-map transfer (apply a transform to a label map)
 // ============================================================================
-pub use label_transfer::warp_label_map;
+pub use label_transfer::{label_centroids, warp_label_map};
 
 // ============================================================================
 // Re-exports — ML-based registration
