@@ -129,7 +129,6 @@ pub fn transform_and_interpolate_3d<B: Backend, T: Transform<B, 3>>(
     }
 }
 
-
 /// Compute `(world - origin) @ T` with chunking for WGPU dispatch limits.
 ///
 /// For general-direction images, this inlines the world-to-index matmul.

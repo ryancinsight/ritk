@@ -274,8 +274,7 @@ mod tests {
         let fixed: Vec<f32> = (0..n).map(|i| (i as f32).sin()).collect();
         let moving: Vec<f32> = (0..n).map(|i| (i as f32).cos()).collect();
         let zeros = vec![0.0_f32; n];
-        let mse_streaming =
-            compute_mse_streaming(&fixed, &moving, dims, &zeros, &zeros, &zeros);
+        let mse_streaming = compute_mse_streaming(&fixed, &moving, dims, &zeros, &zeros, &zeros);
         // `warped == moving` because displacement is zero, so the two helpers
         // must produce identical results.
         let mse_inplace = compute_mse_inplace(&fixed, &moving);

@@ -39,7 +39,9 @@ impl<T: Clone> CacheSlot<T> {
             *guard = Some(init());
         }
         // SAFETY: guard is Some after the if-is_none block above.
-        guard.clone().expect("invariant: cached value is always Some after get_or_init populates it")
+        guard
+            .clone()
+            .expect("invariant: cached value is always Some after get_or_init populates it")
     }
 
     /// Returns the cached value if present **and** valid; otherwise (re-)initialises.

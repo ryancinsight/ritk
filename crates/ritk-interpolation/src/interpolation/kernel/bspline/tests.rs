@@ -322,8 +322,10 @@ fn test_bspline_reproduces_grid_values_3d() {
             }
         }
     }
-    let data =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec.clone(), [d0, d1, d2]), &device);
+    let data = Tensor::<TestBackend, 3>::from_data(
+        TensorData::new(data_vec.clone(), [d0, d1, d2]),
+        &device,
+    );
     let interp = BSplineInterpolator::new();
 
     // Query every interior grid point; coords are [x, y, z] = [a2, a1, a0].
@@ -366,8 +368,10 @@ fn test_bspline_z1_anisotropic_plane() {
             data_vec[a1 * d2 + a2] = (a1 * 10 + a2) as f32 + 1.0;
         }
     }
-    let data =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec.clone(), [d0, d1, d2]), &device);
+    let data = Tensor::<TestBackend, 3>::from_data(
+        TensorData::new(data_vec.clone(), [d0, d1, d2]),
+        &device,
+    );
     let interp = BSplineInterpolator::new();
 
     for a1 in 0..d1 {
@@ -455,10 +459,14 @@ fn test_print_cthead() {
     let (d0, d1, d2) = (1usize, 256, 256);
     let mut data_vec = vec![0.0f32; d0 * d1 * d2];
     data_vec[128 * 256 + 128] = 255.0;
-    let data = Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [d0, d1, d2]), &device);
+    let data =
+        Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [d0, d1, d2]), &device);
     let interp = BSplineInterpolator::new();
     let pt = Tensor::<TestBackend, 2>::from_floats([[128.0, 128.0, 0.0]], &device);
-    let val = interp.interpolate(&data, pt).into_data().as_slice::<f32>().unwrap()[0];
+    let val = interp
+        .interpolate(&data, pt)
+        .into_data()
+        .as_slice::<f32>()
+        .unwrap()[0];
     println!("Interpolated center value: {}", val);
 }
-

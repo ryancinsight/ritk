@@ -30,8 +30,15 @@ fn write_jpeg2000_lossless_dicom_file(
     // Convert u16 pixels to i32 for the encoder (lossless, no narrowing).
     let pixels_i32: Vec<i32> = pixels_u16.iter().map(|&v| v as i32).collect();
 
-    let j2k_bytes =
-        encode_grayscale_j2k(&pixels_i32, height, width, 16, PixelSignedness::Unsigned, 2, WaveletTransform::Reversible);
+    let j2k_bytes = encode_grayscale_j2k(
+        &pixels_i32,
+        height,
+        width,
+        16,
+        PixelSignedness::Unsigned,
+        2,
+        WaveletTransform::Reversible,
+    );
 
     assert!(
         j2k_bytes.len() >= 4,

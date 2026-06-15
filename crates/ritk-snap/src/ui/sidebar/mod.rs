@@ -254,7 +254,8 @@ impl<'a> SidebarPanel<'a> {
                                                 .inner
                                                 .on_hover_text(hover_text);
                                             if resp.clicked() {
-                                                new_selection = Some(series.folder.as_ref().to_path_buf());
+                                                new_selection =
+                                                    Some(series.folder.as_ref().to_path_buf());
                                             }
                                         }
                                     });

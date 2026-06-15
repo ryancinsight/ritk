@@ -74,15 +74,15 @@ pub fn anisotropic_diffusion(
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| match kind {
         // ITK-exact gradient anisotropic diffusion (matches SimpleITK).
-        PyConductanceKind::Exponential => GradientAnisotropicDiffusionFilter::new(
-            GradientDiffusionConfig {
+        PyConductanceKind::Exponential => {
+            GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {
                 num_iterations: iterations,
                 time_step: time_step as f32,
                 conductance: conductance as f32,
-            },
-        )
-        .apply(image.as_ref())
-        .map_err(|e| RitkPyError::runtime(e.to_string())),
+            })
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+        }
         // Crate-specific Perona-Malik with quadratic conductance.
         PyConductanceKind::Quadratic => DiffusionConfig {
             num_iterations: iterations,

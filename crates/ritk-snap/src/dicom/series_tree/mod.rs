@@ -148,8 +148,14 @@ pub struct SeriesEntry<'a> {
 }
 
 impl<'a> SeriesEntryView for SeriesEntry<'a> {
-    type Str<'b> = &'b str where Self: 'b;
-    type Path<'b> = &'b Path where Self: 'b;
+    type Str<'b>
+        = &'b str
+    where
+        Self: 'b;
+    type Path<'b>
+        = &'b Path
+    where
+        Self: 'b;
 
     fn series_uid(&self) -> Self::Str<'_> {
         self.series_uid.as_ref()
@@ -226,8 +232,14 @@ pub struct SeriesNode<'a> {
 }
 
 impl<'a> SeriesEntryView for SeriesNode<'a> {
-    type Str<'b> = &'b str where Self: 'b;
-    type Path<'b> = &'b Path where Self: 'b;
+    type Str<'b>
+        = &'b str
+    where
+        Self: 'b;
+    type Path<'b>
+        = &'b Path
+    where
+        Self: 'b;
 
     fn series_uid(&self) -> Self::Str<'_> {
         self.series_uid.as_ref()
@@ -391,7 +403,6 @@ impl<'a> SeriesTree<'a> {
         }
         tree
     }
-
 
     /// Total number of series stored across all patients and studies.
     pub fn total_series(&self) -> usize {

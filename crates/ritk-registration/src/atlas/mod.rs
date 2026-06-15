@@ -30,8 +30,8 @@
 pub mod label_fusion;
 
 use crate::deformable_field_ops::{
-    scaling_and_squaring, validate_image, warp_image, CpuFieldSmoother, CpuOrGpu,
-    FieldSmoother, VelocityField,
+    scaling_and_squaring, validate_image, warp_image, CpuFieldSmoother, CpuOrGpu, FieldSmoother,
+    VelocityField,
 };
 use crate::diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
 use crate::error::RegistrationError;

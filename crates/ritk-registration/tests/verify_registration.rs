@@ -97,7 +97,10 @@ fn test_verify_registration_coordinates() {
     let recovered_y = t_p_slice[0]; // Dim 0 is Y
     let recovered_x = t_p_slice[1]; // Dim 1 is X
 
-    println!("Recovered Translation: [Y={}, X={}]", recovered_y, recovered_x);
+    println!(
+        "Recovered Translation: [Y={}, X={}]",
+        recovered_y, recovered_x
+    );
 
     assert!(
         (recovered_y - 1.0).abs() < 0.1,

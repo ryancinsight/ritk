@@ -129,7 +129,11 @@ fn test_z1_square_erodes_in_plane_not_to_zero() {
     let mask = make_mask_3d(values, [1, 7, 7]);
     let result = BinaryErosion::new(1).apply(&mask);
     let out = values_3d(&result);
-    assert_eq!(count_fg_3d(&result), 9, "z=1 square must erode to 3×3 = 9, not 0");
+    assert_eq!(
+        count_fg_3d(&result),
+        9,
+        "z=1 square must erode to 3×3 = 9, not 0"
+    );
     for y in 0..7 {
         for x in 0..7 {
             let want = if (2..5).contains(&y) && (2..5).contains(&x) {

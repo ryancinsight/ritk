@@ -20,10 +20,7 @@ use crate::error::RegistrationError;
 /// subject in a per-element loop (the atlas has N subject images rather
 /// than a fixed/moving pair), and as the inner check for
 /// [`validate_image_pair`].
-pub(crate) fn validate_image(
-    image: &[f32],
-    dims: [usize; 3],
-) -> Result<(), RegistrationError> {
+pub(crate) fn validate_image(image: &[f32], dims: [usize; 3]) -> Result<(), RegistrationError> {
     let n = dims[0] * dims[1] * dims[2];
     if image.len() != n {
         return Err(RegistrationError::DimensionMismatch(format!(
@@ -106,11 +103,7 @@ pub(crate) fn cc_converged(
         return false;
     }
     let mean = history.iter().sum::<f64>() / history.len() as f64;
-    let var = history
-        .iter()
-        .map(|&v| (v - mean).powi(2))
-        .sum::<f64>()
-        / history.len() as f64;
+    let var = history.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / history.len() as f64;
     var < threshold
 }
 

@@ -118,7 +118,11 @@ fn line_base(line_idx: usize, axis: usize, dims: &[usize], stride: &[usize]) -> 
 /// interpolation pipeline.
 pub(super) fn compute_coefficients(volume: &[f32], dims: &[usize]) -> Vec<f32> {
     let total: usize = dims.iter().product();
-    debug_assert_eq!(total, volume.len(), "volume length must equal product(dims)");
+    debug_assert_eq!(
+        total,
+        volume.len(),
+        "volume length must equal product(dims)"
+    );
 
     let mut coeffs: Vec<f64> = volume.iter().map(|&v| f64::from(v)).collect();
     let stride = strides(dims);

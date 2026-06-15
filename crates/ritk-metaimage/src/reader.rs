@@ -139,7 +139,11 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     // TransformMatrix is row-major direction cosines (ndims² entries); defaults to
     // identity when absent.  A 2-D `[a b; c d]` matrix promotes to the 3-D
     // `[a b 0; c d 0; 0 0 1]` (identity through-plane z-axis).
-    let tm_default = if ndims == 3 { "1 0 0 0 1 0 0 0 1" } else { "1 0 0 1" };
+    let tm_default = if ndims == 3 {
+        "1 0 0 0 1 0 0 0 1"
+    } else {
+        "1 0 0 1"
+    };
     let tm_src = headers
         .get("TransformMatrix")
         .map(|s| s.as_str())

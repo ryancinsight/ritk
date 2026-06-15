@@ -29,10 +29,8 @@ use crate::Image;
 pub trait HostExtract: Backend {
     /// Invoke `f` with a borrowed contiguous `&[f32]` view of `tensor`'s data,
     /// using the fastest host-access path the backend supports.
-    fn with_host_f32<const D: usize, R>(
-        tensor: &Tensor<Self, D>,
-        f: impl FnOnce(&[f32]) -> R,
-    ) -> R;
+    fn with_host_f32<const D: usize, R>(tensor: &Tensor<Self, D>, f: impl FnOnce(&[f32]) -> R)
+        -> R;
 
     /// Extract `tensor`'s data as an owned `Vec<f32>` (a single host copy).
     #[inline]
@@ -106,10 +104,7 @@ mod tests {
     fn ndarray_host_vec_matches_into_data() {
         let device = Default::default();
         let values: Vec<f32> = (0..24).map(|i| i as f32 * 0.5).collect();
-        let t = Tensor::<B, 2>::from_data(
-            TensorData::new(values.clone(), [4, 6]),
-            &device,
-        );
+        let t = Tensor::<B, 2>::from_data(TensorData::new(values.clone(), [4, 6]), &device);
         assert_eq!(B::host_f32_vec(&t), values);
         let sum = B::with_host_f32(&t, |s| s.iter().sum::<f32>());
         assert_eq!(sum, values.iter().sum::<f32>());

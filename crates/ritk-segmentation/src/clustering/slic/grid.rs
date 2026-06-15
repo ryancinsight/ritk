@@ -67,13 +67,7 @@ fn init_centers_impl<const D: usize>(
             Some(d) => {
                 adjusted_steps[d] = (adjusted_steps[d] - 1).max(1);
                 grid_points.clear();
-                generate_grid_points(
-                    shape_arr,
-                    adjusted_steps,
-                    &mut grid_points,
-                    &mut current,
-                    0,
-                );
+                generate_grid_points(shape_arr, adjusted_steps, &mut grid_points, &mut current, 0);
             }
             None => break,
         }

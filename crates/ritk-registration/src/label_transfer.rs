@@ -97,7 +97,8 @@ pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> anyhow::Result<Vec<(
         }
     }
 
-    let centroids = acc.into_iter()
+    let centroids = acc
+        .into_iter()
         .map(|(lab, (sum, cnt))| {
             let mean = [sum[0] / cnt, sum[1] / cnt, sum[2] / cnt];
             // world[c] = origin[c] + Σ_axis mean[axis]·spacing[axis]·direction[(c, axis)]
@@ -198,7 +199,11 @@ mod tests {
             );
         }
         let count = |s: &[f32]| s.iter().filter(|&&x| x == 5.0).count();
-        assert_eq!(count(&out), count(&v), "in-bounds shift preserves label volume");
+        assert_eq!(
+            count(&out),
+            count(&v),
+            "in-bounds shift preserves label volume"
+        );
         assert_ne!(out, v, "a non-zero translation must move the labels");
     }
 

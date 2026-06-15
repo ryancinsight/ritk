@@ -302,7 +302,16 @@ fn test_const_generic_modality_mapper() {
 /// Test that monomorphized `format_series_label` produces the expected format.
 #[test]
 fn test_monomorphized_format_series_label() {
-    let entry = make_entry("P1", "Alice", None, None, "S1", "/path/to/series", "CT", 123);
+    let entry = make_entry(
+        "P1",
+        "Alice",
+        None,
+        None,
+        "S1",
+        "/path/to/series",
+        "CT",
+        123,
+    );
     let label = format_series_label(&entry, &DEFAULT_MODALITY_MAPPER);
     assert_eq!(label, "🫁 [CT] CT series (123 slices)");
 
@@ -350,6 +359,9 @@ fn test_bench_tree_construction() {
     let start = Instant::now();
     let tree = SeriesTree::from_entries(entries);
     let duration = start.elapsed();
-    println!("\n[BENCHMARK] Built SeriesTree of 5000 entries in {:?}", duration);
+    println!(
+        "\n[BENCHMARK] Built SeriesTree of 5000 entries in {:?}",
+        duration
+    );
     assert_eq!(tree.total_series(), 5000);
 }

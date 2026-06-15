@@ -139,7 +139,11 @@ pub struct NrrdWriter;
 
 impl NrrdWriter {
     /// Write `image` to the NRRD file at `path`.
-    pub fn write<B: HostExtract, P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> Result<()> {
+    pub fn write<B: HostExtract, P: AsRef<Path>>(
+        &self,
+        path: P,
+        image: &Image<B, 3>,
+    ) -> Result<()> {
         write_nrrd(path, image)
     }
 }

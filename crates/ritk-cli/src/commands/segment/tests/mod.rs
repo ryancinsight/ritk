@@ -126,7 +126,6 @@ pub fn make_binary_sphere_image() -> Image<Backend, 3> {
     )
 }
 
-
 /// Build a 4×4×4 binary image: first 32 voxels = 1.0 (foreground),
 /// remaining 32 = 0.0 (background).  Used for distance-transform tests.
 pub fn make_binary_image() -> Image<Backend, 3> {
