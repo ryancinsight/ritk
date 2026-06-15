@@ -190,14 +190,14 @@ fn test_vtk_cell_type_round_trip_all_known() {
     ];
     for &(code, variant) in known {
         assert_eq!(
-            VtkCellType::from_u8(code),
+            VtkCellType::try_from(code).ok(),
             Some(variant),
-            "from_u8({code}) must return Some({variant:?})"
+            "try_from({code}) must return Some({variant:?})"
         );
         assert_eq!(
-            variant.to_u8(),
+            u8::from(variant),
             code,
-            "{variant:?}.to_u8() must return {code}"
+            "u8::from({variant:?}) must return {code}"
         );
     }
 }
@@ -206,9 +206,9 @@ fn test_vtk_cell_type_round_trip_all_known() {
 fn test_vtk_cell_type_unknown_returns_none() {
     for v in [0u8, 17, 18, 19, 20, 35, 200, 255] {
         assert_eq!(
-            VtkCellType::from_u8(v),
+            VtkCellType::try_from(v).ok(),
             None,
-            "from_u8({v}) must return None for unknown code"
+            "try_from({v}) must return None for unknown code"
         );
     }
 }

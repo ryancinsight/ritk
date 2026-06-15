@@ -329,7 +329,7 @@ fn between_class_variance(
 
         // P_k = H[b] - H[a]  (sum of h over bins [a, b−1]).
         let p = prefix_h[b] - prefix_h[a];
-        if p < 1e-12 {
+        if p < super::PROB_ZERO_GUARD {
             // Empty class: contributes zero.
             continue;
         }

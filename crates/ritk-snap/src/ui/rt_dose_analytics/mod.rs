@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 
 use egui::{Color32, Pos2, Rect, Stroke, Ui, Vec2};
-use ritk_io::{RtDoseGrid, RtStructureSet};
+use ritk_io::{ContourGeometricType, RtDoseGrid, RtStructureSet};
 
 use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
 
@@ -67,7 +67,7 @@ pub fn compute_roi_dose_analytics(
 
     let mut polygons_by_slice: BTreeMap<usize, Vec<RasterPolygon>> = BTreeMap::new();
     for contour in &roi.contours {
-        if contour.geometric_type.trim() != "CLOSED_PLANAR" || contour.points.len() < 3 {
+        if contour.geometric_type != ContourGeometricType::ClosedPlanar || contour.points.len() < 3 {
             continue;
         }
 

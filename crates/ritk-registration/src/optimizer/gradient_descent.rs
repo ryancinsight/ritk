@@ -1,4 +1,4 @@
-use crate::optimizer::{Optimizer, OptimizerTelemetry};
+use crate::optimizer::{Optimizer, OptimizerAlgorithm, OptimizerTelemetry};
 use burn::module::AutodiffModule;
 use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::{GradientsParams, Optimizer as BurnOptimizer, Sgd, SgdConfig};
@@ -48,7 +48,7 @@ where
 
     fn telemetry(&self) -> OptimizerTelemetry {
         OptimizerTelemetry {
-            algorithm: "GradientDescent",
+            algorithm: OptimizerAlgorithm::GradientDescent,
             steps: self.steps,
             learning_rate: Some(self.learning_rate),
         }

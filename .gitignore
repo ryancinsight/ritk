@@ -33,3 +33,7 @@ nul
 
 # Fetched SimpleITK ExternalData test corpus (downloaded on demand)
 externals/
+/target_ag
+/target_temp
+
+

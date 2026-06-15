@@ -163,6 +163,9 @@ impl CannyEdgeDetector {
     }
 }
 
+/// Gradient magnitude threshold below which a pixel is treated as flat.
+const NEAR_ZERO_MAG: f32 = 1e-10;
+
 // ── Gradient computation ──────────────────────────────────────────────────────
 
 /// Compute gradient magnitude and per-component direction using central
@@ -227,7 +230,7 @@ fn compute_gradient(
                 let m = (gz * gz + gy * gy + gx * gx).sqrt();
                 mag[flat] = m;
 
-                if m > 1e-10 {
+                if m > NEAR_ZERO_MAG {
                     dz[flat] = gz / m;
                     dy[flat] = gy / m;
                     dx[flat] = gx / m;
@@ -266,7 +269,7 @@ fn non_maximum_suppression(
             for ix in 0..nx {
                 let flat = idx(iz, iy, ix);
                 let m = mag[flat];
-                if m < 1e-10 {
+                if m < NEAR_ZERO_MAG {
                     continue;
                 }
 

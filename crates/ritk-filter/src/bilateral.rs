@@ -121,6 +121,9 @@ impl BilateralFilter {
     }
 }
 
+/// Minimum sigma value to prevent division-by-zero in bilateral weighting.
+const SIGMA_MIN: f64 = 1e-10;
+
 // ── bilateral_3d ────────────────────────────────────────────────────────────────
 
 /// Bilateral filter on a 3-D volume stored in flat Z×Y×X order.
@@ -138,8 +141,8 @@ fn compute(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64)
     let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
 
     // Guard degenerate sigma values.
-    let spatial_sigma = spatial_sigma.max(1e-10);
-    let range_sigma = range_sigma.max(1e-10);
+    let spatial_sigma = spatial_sigma.max(SIGMA_MIN);
+    let range_sigma = range_sigma.max(SIGMA_MIN);
 
     let r = (3.0 * spatial_sigma).ceil() as isize;
     let inv_two_ss2 = 1.0_f64 / (2.0 * spatial_sigma * spatial_sigma);

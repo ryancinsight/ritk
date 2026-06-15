@@ -177,19 +177,19 @@ fn push_series_rows(metadata: &DicomReadMetadata, rows: &mut Vec<MetadataRow>) {
         "derived:spacing",
         "Spacing",
         "DS",
-        format_f64_3(metadata.spacing),
+        format_float_slice(metadata.spacing),
     ));
     rows.push(MetadataRow::series(
         "derived:origin",
         "Origin",
         "DS",
-        format_f64_3(metadata.origin),
+        format_float_slice(metadata.origin),
     ));
     rows.push(MetadataRow::series(
         "derived:direction",
         "Direction",
         "DS",
-        format_f64_9(metadata.direction),
+        format_float_slice(metadata.direction),
     ));
     if let Some(value) = metadata.bits_allocated {
         rows.push(MetadataRow::series(
@@ -307,26 +307,10 @@ fn format_usize3(values: [usize; 3]) -> String {
     format!("{} x {} x {}", values[0], values[1], values[2])
 }
 
-pub(super) fn format_f64_2(values: [f64; 2]) -> String {
-    format!("{:.6} x {:.6}", values[0], values[1])
-}
-
-pub(super) fn format_f64_3(values: [f64; 3]) -> String {
-    format!("{:.6} x {:.6} x {:.6}", values[0], values[1], values[2])
-}
-
-pub(super) fn format_f64_6(values: [f64; 6]) -> String {
+pub(super) fn format_float_slice<const N: usize>(values: [f64; N]) -> String {
     values
         .iter()
-        .map(|value| format!("{value:.6}"))
-        .collect::<Vec<_>>()
-        .join(" x ")
-}
-
-fn format_f64_9(values: [f64; 9]) -> String {
-    values
-        .iter()
-        .map(|value| format!("{value:.6}"))
+        .map(|v| format!("{v:.6}"))
         .collect::<Vec<_>>()
         .join(" x ")
 }

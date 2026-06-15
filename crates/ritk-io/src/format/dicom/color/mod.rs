@@ -292,7 +292,7 @@ fn validate_and_decode_rgb_slice(
         bail!(
             "DICOM RGB color volume loader supports only unsigned samples; {:?} declares PixelRepresentation={}",
             slice.path,
-            pixel_representation.to_u16()
+            u16::from(pixel_representation)
         );
     }
 

@@ -53,7 +53,7 @@ use std::io::Read;
 use std::marker::PhantomData;
 use std::path::Path;
 
-use crate::codec::{read_f32, read_i16, read_i32};
+use crate::codec::{read_le, HDR_SIZE};
 pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_UNSIGNED_CHAR};
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -87,14 +87,14 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
 
     // ── Read and validate the 348-byte header ─────────────────────────────────
     let mut hdr_file = std::fs::File::open(&hdr_path).context("Cannot open Analyze header")?;
-    let mut hdr = [0u8; 348];
+    let mut hdr = [0u8; HDR_SIZE];
     hdr_file
         .read_exact(&mut hdr)
         .with_context(|| "Cannot read 348-byte header".to_string())?;
 
     // sizeof_hdr must be exactly 348.
-    let sizeof_hdr = read_i32(&hdr, 0);
-    if sizeof_hdr != 348 {
+    let sizeof_hdr = read_le::<i32>(&hdr, 0);
+    if sizeof_hdr != HDR_SIZE as i32 {
         return Err(anyhow!(
             "Invalid Analyze file: sizeof_hdr={} (expected 348)",
             sizeof_hdr
@@ -102,9 +102,9 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
     }
 
     // ── Parse image dimensions ────────────────────────────────────────────────
-    let nx = read_i16(&hdr, 42) as usize;
-    let ny = read_i16(&hdr, 44) as usize;
-    let nz = read_i16(&hdr, 46) as usize;
+    let nx = read_le::<i16>(&hdr, 42) as usize;
+    let ny = read_le::<i16>(&hdr, 44) as usize;
+    let nz = read_le::<i16>(&hdr, 46) as usize;
 
     if nx == 0 || ny == 0 || nz == 0 {
         return Err(anyhow!(
@@ -116,28 +116,28 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
     }
 
     // ── Parse voxel type ──────────────────────────────────────────────────────
-    let datatype = read_i16(&hdr, 70);
+    let datatype = read_le::<i16>(&hdr, 70);
 
     // ── Parse physical spacing (pixdim[1..3]) ─────────────────────────────────
-    let sx_raw = read_f32(&hdr, 80) as f64;
-    let sy_raw = read_f32(&hdr, 84) as f64;
-    let sz_raw = read_f32(&hdr, 88) as f64;
+    let sx_raw = read_le::<f32>(&hdr, 80) as f64;
+    let sy_raw = read_le::<f32>(&hdr, 84) as f64;
+    let sz_raw = read_le::<f32>(&hdr, 88) as f64;
     // Fall back to unit spacing when stored value is zero or negative.
     let sx = if sx_raw > 0.0 { sx_raw } else { 1.0 };
     let sy = if sy_raw > 0.0 { sy_raw } else { 1.0 };
     let sz = if sz_raw > 0.0 { sz_raw } else { 1.0 };
 
     // ── Parse scale factor (funused1 at offset 112) ───────────────────────────
-    let scale_raw = read_f32(&hdr, 112);
+    let scale_raw = read_le::<f32>(&hdr, 112);
     let scale = if scale_raw == 0.0 { 1.0_f32 } else { scale_raw };
 
     // ── Parse vox_offset (offset 108) ────────────────────────────────────────
-    let vox_offset = { read_f32(&hdr, 108) as u64 };
+    let vox_offset = { read_le::<f32>(&hdr, 108) as u64 };
 
     // ── Parse origin from originator[10] (5 × i16 at offset 253) ─────────────
-    let ox_vox = read_i16(&hdr, 253) as f64;
-    let oy_vox = read_i16(&hdr, 255) as f64;
-    let oz_vox = read_i16(&hdr, 257) as f64;
+    let ox_vox = read_le::<i16>(&hdr, 253) as f64;
+    let oy_vox = read_le::<i16>(&hdr, 255) as f64;
+    let oz_vox = read_le::<i16>(&hdr, 257) as f64;
     let ox = ox_vox * sx;
     let oy = oy_vox * sy;
     let oz = oz_vox * sz;

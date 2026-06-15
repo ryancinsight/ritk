@@ -110,8 +110,8 @@ pub fn render_fused_slice(
 
             let p = primary_transform.apply(primary_pixels[row * width + col]);
             let s = secondary_transform.apply(secondary_pixels[sy * secondary_width + sx]);
-            let p_rgb = primary_colormap.map(primary_wl.apply(p) as f32 / 255.0);
-            let s_rgb = secondary_colormap.map(secondary_wl.apply(s) as f32 / 255.0);
+            let p_rgb = primary_colormap.map(primary_wl.apply(p) as f32 / super::U8_MAX_F32);
+            let s_rgb = secondary_colormap.map(secondary_wl.apply(s) as f32 / super::U8_MAX_F32);
 
             let out_idx = (row * width + col) * 3;
             rgb[out_idx] = (inv_alpha * p_rgb[0] as f32 + alpha * s_rgb[0] as f32).round() as u8;

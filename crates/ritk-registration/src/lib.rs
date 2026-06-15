@@ -30,17 +30,17 @@
 //!
 //! ```text
 //! ritk-registration (unified crate)
-//! ├── classical/     - Non-ML algorithms (SSOT)
-//! │   ├── engine.rs  - Registration orchestrator
+//! ├── classical/     - Non-ML algorithms
+//! │   ├── engine/    - Registration orchestrator
 //! │   ├── error.rs   - Error types
-//! │   ├── intensity.rs - MI, NCC, correlation
-//! │   ├── spatial.rs - Kabsch SVD, transforms
-//! │   └── temporal.rs - Temporal sync
-//! ├── metric/       - Similarity metrics (ML path)
-//! ├── optimizer/    - Optimization algorithms
-//! ├── registration/ - Registration workflow
+//! │   ├── global_mi/ - MI-based registration
+//! │   ├── spatial/   - Kabsch SVD, transforms
+//! │   └── temporal/  - Temporal sync
+//! ├── metric/        - Similarity metrics (ML path)
+//! ├── optimizer/     - Optimization algorithms
+//! ├── registration/  - Registration workflow
 //! ├── regularization/ - Regularization terms
-//! └── validation/   - Quality metrics (SSOT)
+//! └── validation/   - Quality metrics
 //! ```
 
 pub mod atlas;
@@ -93,8 +93,8 @@ pub use bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, BSplineFFDResult
 // Re-exports — SyN diffeomorphic registration
 // ============================================================================
 pub use deformable_field_ops::{
-    CpuFieldSmoother, CpuOrGpu, FieldSmoother, GpuFieldSmoother, VelocityField, WarpInterpolation,
-    warp_image,
+    warp_image, CpuFieldSmoother, CpuOrGpu, FieldSmoother, GpuFieldSmoother, VelocityField,
+    WarpInterpolation,
 };
 pub use diffeomorphic::{SyNConfig, SyNRegistration, SyNResult};
 

@@ -1,4 +1,4 @@
-use crate::optimizer::{Optimizer, OptimizerTelemetry};
+use crate::optimizer::{Optimizer, OptimizerAlgorithm, OptimizerTelemetry};
 use burn::module::AutodiffModule;
 use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::{Adam, AdamConfig, GradientsParams, Optimizer as BurnOptimizer};
@@ -67,7 +67,7 @@ where
 
     fn telemetry(&self) -> OptimizerTelemetry {
         OptimizerTelemetry {
-            algorithm: "Adam",
+            algorithm: OptimizerAlgorithm::Adam,
             steps: self.steps,
             learning_rate: Some(self.learning_rate),
         }

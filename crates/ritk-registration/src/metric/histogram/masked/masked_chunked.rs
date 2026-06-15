@@ -99,7 +99,7 @@ fn sample_moving_chunk<B: Backend, const D: usize>(
     let chunk_moving_world = transform.transform_points(chunk_fixed_world.clone());
     let chunk_moving_idx = moving.world_to_index_tensor(chunk_moving_world);
     let oob = if D == 3 {
-        Some(crate::metric::histogram::parzen::compute_oob_mask_3d(
+        Some(crate::metric::histogram::parzen::compute_oob_mask(
             &chunk_moving_idx,
             moving.shape().as_ref(),
         ))

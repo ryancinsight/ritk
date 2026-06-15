@@ -2,6 +2,9 @@
 
 use super::dft::{dft_real_into, idft_real_into, next_pow2};
 
+/// Near-zero weight guard to prevent degenerate histogram sharpening.
+const NEAR_ZERO_WEIGHT: f64 = 1e-12;
+
 /// Pre-allocated scratch buffers for [`histogram_sharpen`], eliminating
 /// per-iteration heap allocations inside the N4 inner loop.
 ///
@@ -205,7 +208,7 @@ pub(crate) fn histogram_sharpen(
     let total_s: f64 = h_sharp.iter().sum();
 
     // Guard 1: if sharpening collapsed the density to zero, pass through.
-    if total_h < 1.0 || total_s < 1e-12 {
+    if total_h < 1.0 || total_s < NEAR_ZERO_WEIGHT {
         scratch.w_sharp[..n_voxels].copy_from_slice(w);
         return Ok(());
     }
@@ -219,7 +222,7 @@ pub(crate) fn histogram_sharpen(
     // widens voxel intensities, increasing CoV. Detect and bail out.
     let max_h: f64 = h.iter().cloned().fold(0.0_f64, f64::max);
     let max_s: f64 = {
-        let s_sum = total_s.max(1e-12);
+        let s_sum = total_s.max(NEAR_ZERO_WEIGHT);
         h_sharp.iter().map(|&v| v / s_sum).fold(0.0_f64, f64::max)
     };
     if max_s <= max_h * 1.01 {

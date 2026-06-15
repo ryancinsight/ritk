@@ -85,8 +85,8 @@ fn piecewise_linear(t: f32, points: &[(f32, f32)]) -> f32 {
 
 /// Convert a normalised [0, 1] channel value to a clamped u8.
 #[inline]
-fn to_u8(v: f32) -> u8 {
-    (v.clamp(0.0, 1.0) * 255.0).round() as u8
+fn clamp_to_byte(v: f32) -> u8 {
+    (v.clamp(0.0, 1.0) * super::U8_MAX_F32).round() as u8
 }
 
 // ── Bone breakpoints (matplotlib `bone`) ─────────────────────────────────────
@@ -177,42 +177,42 @@ impl Colormap {
         let t = t.clamp(0.0, 1.0);
         match self {
             Colormap::Grayscale => {
-                let v = to_u8(t);
+                let v = clamp_to_byte(t);
                 [v, v, v]
             }
             Colormap::Inverted => {
-                let v = to_u8(1.0 - t);
+                let v = clamp_to_byte(1.0 - t);
                 [v, v, v]
             }
             Colormap::Hot => {
                 // Classic hot: R rises first, then G, then B.
-                let r = to_u8((3.0 * t).clamp(0.0, 1.0));
-                let g = to_u8((3.0 * t - 1.0).clamp(0.0, 1.0));
-                let b = to_u8((3.0 * t - 2.0).clamp(0.0, 1.0));
+                let r = clamp_to_byte((3.0 * t).clamp(0.0, 1.0));
+                let g = clamp_to_byte((3.0 * t - 1.0).clamp(0.0, 1.0));
+                let b = clamp_to_byte((3.0 * t - 2.0).clamp(0.0, 1.0));
                 [r, g, b]
             }
             Colormap::Cool => {
                 // R = t, G = 1−t, B = 1 (constant cyan→magenta sweep).
-                let r = to_u8(t);
-                let g = to_u8(1.0 - t);
+                let r = clamp_to_byte(t);
+                let g = clamp_to_byte(1.0 - t);
                 [r, g, 255]
             }
             Colormap::Bone => {
-                let r = to_u8(piecewise_linear(t, BONE_R));
-                let g = to_u8(piecewise_linear(t, BONE_G));
-                let b = to_u8(piecewise_linear(t, BONE_B));
+                let r = clamp_to_byte(piecewise_linear(t, BONE_R));
+                let g = clamp_to_byte(piecewise_linear(t, BONE_G));
+                let b = clamp_to_byte(piecewise_linear(t, BONE_B));
                 [r, g, b]
             }
             Colormap::Jet => {
-                let r = to_u8(piecewise_linear(t, JET_R));
-                let g = to_u8(piecewise_linear(t, JET_G));
-                let b = to_u8(piecewise_linear(t, JET_B));
+                let r = clamp_to_byte(piecewise_linear(t, JET_R));
+                let g = clamp_to_byte(piecewise_linear(t, JET_G));
+                let b = clamp_to_byte(piecewise_linear(t, JET_B));
                 [r, g, b]
             }
             Colormap::Plasma => {
-                let r = to_u8(piecewise_linear(t, PLASMA_R));
-                let g = to_u8(piecewise_linear(t, PLASMA_G));
-                let b = to_u8(piecewise_linear(t, PLASMA_B));
+                let r = clamp_to_byte(piecewise_linear(t, PLASMA_R));
+                let g = clamp_to_byte(piecewise_linear(t, PLASMA_G));
+                let b = clamp_to_byte(piecewise_linear(t, PLASMA_B));
                 [r, g, b]
             }
         }

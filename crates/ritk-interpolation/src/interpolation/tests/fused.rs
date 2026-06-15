@@ -1,6 +1,6 @@
 //! Tests for the fused transform → world-to-index → interpolation kernel.
 
-use crate::interpolation::fused::{is_identity_direction, transform_and_interpolate_3d};
+use crate::interpolation::fused::{is_identity_direction, transform_and_interpolate};
 use crate::interpolation::LinearInterpolator;
 use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
@@ -84,7 +84,7 @@ fn test_fused_identity_image_zero_translation() {
         &device,
     );
 
-    let result = transform_and_interpolate_3d(points, &transform, &moving, &interpolator);
+    let result = transform_and_interpolate(points, &transform, &moving, &interpolator);
     let values = result.values.into_data().into_vec::<f32>().unwrap();
 
     assert_eq!(values[0], 0.0, "Voxel (0,0,0) should be 0.0");
@@ -116,7 +116,7 @@ fn test_fused_identity_image_with_translation() {
     let interpolator = LinearInterpolator::new();
 
     let points = Tensor::<Backend, 2>::from_floats([[0.0, 0.0, 0.0]], &device);
-    let result = transform_and_interpolate_3d(points, &transform, &moving, &interpolator);
+    let result = transform_and_interpolate(points, &transform, &moving, &interpolator);
     let values = result.values.into_data().into_vec::<f32>().unwrap();
 
     assert_eq!(
@@ -147,7 +147,7 @@ fn test_fused_non_identity_spacing() {
 
     // With spacing=2, a world point at [2,0,0] should map to index [1,0,0]
     let points = Tensor::<Backend, 2>::from_floats([[2.0, 0.0, 0.0]], &device);
-    let result = transform_and_interpolate_3d(points, &transform, &moving, &interpolator);
+    let result = transform_and_interpolate(points, &transform, &moving, &interpolator);
     let values = result.values.into_data().into_vec::<f32>().unwrap();
 
     assert_eq!(
@@ -181,7 +181,7 @@ fn test_fused_matches_unfused() {
 
     // Fused path
     let fused_result =
-        transform_and_interpolate_3d(fixed_points.clone(), &transform, &moving, &interpolator);
+        transform_and_interpolate(fixed_points.clone(), &transform, &moving, &interpolator);
 
     // Unfused path (3 separate allocations)
     let moving_world = transform.transform_points(fixed_points);
@@ -236,7 +236,7 @@ fn test_fused_general_direction_matches_unfused() {
 
     // Fused path
     let fused_result =
-        transform_and_interpolate_3d(fixed_points.clone(), &transform, &moving, &interpolator);
+        transform_and_interpolate(fixed_points.clone(), &transform, &moving, &interpolator);
 
     // Unfused path
     let moving_world = transform.transform_points(fixed_points);
@@ -290,7 +290,7 @@ fn test_fused_oob_mask() {
         &device,
     );
 
-    let result = transform_and_interpolate_3d(points, &transform, &moving, &interpolator);
+    let result = transform_and_interpolate(points, &transform, &moving, &interpolator);
 
     // OOB mask should be Some for 3D images
     let mask = result.oob_mask.expect("OOB mask should be present for 3D");

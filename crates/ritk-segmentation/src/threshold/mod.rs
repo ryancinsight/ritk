@@ -34,3 +34,7 @@ pub use triangle::compute_triangle_threshold_from_slice;
 pub use triangle::{triangle_threshold, TriangleThreshold};
 pub use yen::compute_yen_threshold_from_slice;
 pub use yen::{yen_threshold, YenThreshold};
+
+/// Near-zero class probability guard: thresholds with essentially empty classes
+/// (probability < PROB_ZERO_GUARD) are skipped to avoid log(0) and division by zero.
+pub(super) const PROB_ZERO_GUARD: f64 = 1e-12;

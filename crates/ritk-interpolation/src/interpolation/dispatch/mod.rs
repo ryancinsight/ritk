@@ -10,7 +10,7 @@
 //!
 //! # Per-shape typed specialization (audit §8 351-01)
 //!
-//! For `D = 3`, [`dispatch_linear`] delegates to [`dispatch_3d_for_shape`],
+//! For `D = 3`, [`dispatch_linear`] delegates to the sealed [`DispatchByShape`] trait,
 //! which matches on the runtime shape and routes common volumes
 //! (64³, 128³, 256³, 512³) to the **const-generic** typed instantiations
 //! in `kernel::linear::dim3::interpolate_3d_typed::<B, D0, D1, D2>`.
@@ -50,10 +50,9 @@ pub mod nearest;
 
 // ── Re-exports: preserve `interpolation::dispatch::*` API ───────────────
 pub use linear::{
-    dispatch_1d_for_shape, dispatch_2d_for_shape, dispatch_3d_for_shape, dispatch_4d_for_shape,
     Dispatch1DTyped, Dispatch2DTyped, Dispatch3DTyped, Dispatch4DTyped, DispatchByShape,
 };
-pub use nearest::{dispatch_nearest_3d_for_shape, DispatchNearest3DTyped, DispatchNearestByShape};
+pub use nearest::{DispatchNearest3DTyped, DispatchNearestByShape};
 
 // ════════════════════════════════════════════════════════════════════════
 // Sealed trait for shape-based dispatch (Sprint 357)
@@ -132,6 +131,26 @@ pub fn dispatch_nearest<B: Backend, const D: usize>(
         _ => panic!("Nearest-neighbor interpolation only supports D ∈ {{1, 2, 3, 4}}, got D = {D}"),
     }
 }
+
+/// Per-shape runtime dispatcher for linear interpolation.
+///
+/// Alias for [`dispatch_linear`] — the canonical const-generic entry point.
+/// Routes D-dimensional tensors to the correct const-generic typed
+/// instantiation based on `D` and the runtime shape.
+///
+/// # Panics
+/// Panics if `D ∉ {1, 2, 3, 4}`.
+pub use dispatch_linear as dispatch_for_shape;
+
+/// Per-shape runtime dispatcher for nearest-neighbor interpolation.
+///
+/// Alias for [`dispatch_nearest`] — the canonical const-generic entry point.
+/// For `D = 3`, routes through the sealed [`DispatchNearestByShape`] trait
+/// method; for other supported dimensions, falls through to the generic path.
+///
+/// # Panics
+/// Panics if `D ∉ {1, 2, 3, 4}`.
+pub use dispatch_nearest as dispatch_nearest_for_shape;
 
 #[cfg(test)]
 #[path = "../tests_dispatch/mod.rs"]

@@ -104,7 +104,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let moving_points = transform.transform_points(fixed_points);
                 let moving_indices = moving.world_to_index_tensor(moving_points);
                 let oob = if D == 3 {
-                    Some(super::compute_oob_mask_3d(
+                    Some(super::compute_oob_mask(
                         &moving_indices,
                         moving.shape().as_ref(),
                     ))
@@ -254,7 +254,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let moving_points = transform.transform_points(fixed_points);
                 let moving_indices = moving.world_to_index_tensor(moving_points);
                 let oob = if D == 3 {
-                    Some(super::compute_oob_mask_3d(
+                    Some(super::compute_oob_mask(
                         &moving_indices,
                         moving.shape().as_ref(),
                     ))

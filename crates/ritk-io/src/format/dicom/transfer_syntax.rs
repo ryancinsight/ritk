@@ -7,6 +7,9 @@
 
 pub use ritk_dicom::TransferSyntaxKind;
 
+/// Transfer Syntax UID for Explicit VR Little Endian (DICOM PS3.6 A.1).
+pub(crate) const EXPLICIT_VR_LE: &str = "1.2.840.10008.1.2.1";
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -163,7 +163,7 @@ fn test_zscore_masked_uses_mask_statistics() {
     let (slice, _) = extract_vec_infallible(&result);
 
     let expected_std = (2.0_f32 / 3.0_f32).sqrt();
-    let denom = expected_std + 1e-8_f32;
+    let denom = expected_std + crate::normalization::NORMALIZER_EPSILON;
     let expected_z3 = 1.0_f32 / denom; // z(3.0) = (3 − 2) / denom ≈ 1.2247
 
     assert!(

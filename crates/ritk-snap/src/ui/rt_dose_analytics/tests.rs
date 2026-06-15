@@ -1,6 +1,6 @@
 use super::*;
 use arrayvec::ArrayString;
-use ritk_io::{RtContour, RtDoseGrid, RtRoiInfo, RtStructureSet};
+use ritk_io::{ContourGeometricType, RtContour, RtDoseGrid, RtRoiInfo, RtStructureSet};
 
 fn square_roi() -> RtStructureSet {
     RtStructureSet {
@@ -13,7 +13,7 @@ fn square_roi() -> RtStructureSet {
             roi_interpreted_type: Some("PTV".to_owned()),
             display_color: Some([255, 0, 0]),
             contours: vec![RtContour {
-                geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
+                geometric_type: ContourGeometricType::ClosedPlanar,
                 points: vec![
                     [0.0, 0.0, 0.0],
                     [0.0, 2.0, 0.0],

@@ -2,7 +2,7 @@
 
 use egui::{Pos2, Rect, Response, Vec2};
 
-use super::super::state::{img_to_volume, screen_to_img, screen_to_img_f32, ViewportPanel};
+use super::super::state::{img_to_volume, screen_to_img, screen_to_img_exact, ViewportPanel};
 use crate::{
     tools::{
         interaction::{Annotation, RoiKind, ToolState},
@@ -76,7 +76,7 @@ impl<'a> ViewportPanel<'a> {
                 ToolKind::MeasureLength => {
                     // First click of a two-click length measurement.
                     if let Some(cursor) = response.interact_pointer_pos() {
-                        if let Some((col, row)) = screen_to_img_f32(cursor, offset, scale) {
+                        if let Some((col, row)) = screen_to_img_exact(cursor, offset, scale) {
                             match &self.state.tool_state {
                                 ToolState::Idle => {
                                     self.state.tool_state = ToolState::MeasureLength1 {
@@ -113,7 +113,7 @@ impl<'a> ViewportPanel<'a> {
                 }
                 ToolKind::MeasureAngle => {
                     if let Some(cursor) = response.interact_pointer_pos() {
-                        if let Some((col, row)) = screen_to_img_f32(cursor, offset, scale) {
+                        if let Some((col, row)) = screen_to_img_exact(cursor, offset, scale) {
                             let pt = Pos2::new(col, row);
                             match &self.state.tool_state {
                                 ToolState::Idle => {
@@ -148,7 +148,7 @@ impl<'a> ViewportPanel<'a> {
                 }
                 ToolKind::RoiRect | ToolKind::RoiEllipse => {
                     if let Some(cursor) = response.interact_pointer_pos() {
-                        if let Some((col, row)) = screen_to_img_f32(cursor, offset, scale) {
+                        if let Some((col, row)) = screen_to_img_exact(cursor, offset, scale) {
                             let kind = if self.active_tool == ToolKind::RoiRect {
                                 RoiKind::Rect
                             } else {
@@ -164,7 +164,7 @@ impl<'a> ViewportPanel<'a> {
                 }
                 ToolKind::PointHu => {
                     if let Some(cursor) = response.interact_pointer_pos() {
-                        if let Some((col, row)) = screen_to_img_f32(cursor, offset, scale) {
+                        if let Some((col, row)) = screen_to_img_exact(cursor, offset, scale) {
                             let col_i = col.round() as usize;
                             let row_i = row.round() as usize;
                             let value = match self.state.axis {
@@ -210,7 +210,7 @@ impl<'a> ViewportPanel<'a> {
                 }
                 ToolState::RoiDrag { start, kind, .. } => {
                     if let Some(cursor) = response.interact_pointer_pos() {
-                        if let Some((col, row)) = screen_to_img_f32(cursor, offset, scale) {
+                        if let Some((col, row)) = screen_to_img_exact(cursor, offset, scale) {
                             self.state.tool_state = ToolState::RoiDrag {
                                 start,
                                 current: Pos2::new(col, row),

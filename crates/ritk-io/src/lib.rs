@@ -27,6 +27,7 @@ pub use format::dicom::{
     FindResult, MoveDestination, MoveResponse, MultiFrameInfo, MultiFrameSpatialMetadata,
     MultiFrameWriterConfig, NetworkingError, PatientPosition, PixelSignedness, RtBeamInfo,
     RtContour, RtDoseGrid, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtStructureSet,
+    ContourGeometricType,
     ScannedDicomSeries, ScpConfig, SegEncoding, StoreResponse, StoreScp, StoreScpHandle,
     StoredInstance, TagAction, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };

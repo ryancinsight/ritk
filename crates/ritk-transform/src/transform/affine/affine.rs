@@ -132,6 +132,8 @@ mod tests {
 
     type TestBackend = NdArray<f32>;
 
+    const NEAR_ZERO: f32 = 1e-6;
+
     #[test]
     fn test_affine_transform_identity() {
         let device = Default::default();
@@ -209,8 +211,8 @@ mod tests {
         let data = transformed.to_data();
         let slice = data.as_slice::<f32>().unwrap();
 
-        assert!((slice[0] - 3.0).abs() < 1e-6);
-        assert!((slice[1] - 1.0).abs() < 1e-6);
+        assert!((slice[0] - 3.0).abs() < NEAR_ZERO);
+        assert!((slice[1] - 1.0).abs() < NEAR_ZERO);
     }
 
     #[test]

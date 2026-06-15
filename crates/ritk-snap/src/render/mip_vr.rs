@@ -120,7 +120,7 @@ pub(crate) fn render_vr_axial_with_scratch(
                 let rgb = colormap.map(norm);
                 let a = alpha * norm;
                 for i in 0..3 {
-                    accum[i] += (1.0 - accum_alpha) * (rgb[i] as f32 / 255.0) * a;
+                    accum[i] += (1.0 - accum_alpha) * (rgb[i] as f32 / super::U8_MAX_F32) * a;
                 }
                 accum_alpha += (1.0 - accum_alpha) * a;
                 if accum_alpha >= 0.99 {
@@ -129,9 +129,9 @@ pub(crate) fn render_vr_axial_with_scratch(
             }
             let idx = (row * cols + col) * 4;
             for i in 0..3 {
-                scratch[idx + i] = (accum[i].clamp(0.0, 1.0) * 255.0) as u8;
+                scratch[idx + i] = (accum[i].clamp(0.0, 1.0) * super::U8_MAX_F32) as u8;
             }
-            scratch[idx + 3] = (accum_alpha.clamp(0.0, 1.0) * 255.0) as u8;
+            scratch[idx + 3] = (accum_alpha.clamp(0.0, 1.0) * super::U8_MAX_F32) as u8;
         }
     }
     ColorImage::from_rgba_unmultiplied([cols, rows], scratch)

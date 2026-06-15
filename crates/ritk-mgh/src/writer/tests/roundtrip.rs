@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn test_round_trip_f32_values() -> Result<()> {
+fn test_round_trip_float_values() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("rt_f32.mgh");
     let device: <TestBackend as Backend>::Device = Default::default();

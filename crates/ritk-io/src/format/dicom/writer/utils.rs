@@ -3,7 +3,7 @@ use dicom::core::VR;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-pub(super) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.1.1.7";
+pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.1.1.7";
 
 pub(super) fn format_triplet(value: [f64; 3]) -> String {
     format!("{:.6}\\{:.6}\\{:.6}", value[0], value[1], value[2])
@@ -37,7 +37,7 @@ pub(super) fn generate_instance_uid(series_uid: &str, instance: usize) -> String
 }
 
 /// Map a VR string slice to the dicom VR enum, defaulting to UN for unknown names.
-pub(super) fn str_to_vr(s: &str) -> VR {
+pub(crate) fn str_to_vr(s: &str) -> VR {
     match s {
         "AE" => VR::AE,
         "AS" => VR::AS,

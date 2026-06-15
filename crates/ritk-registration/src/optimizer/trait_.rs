@@ -7,11 +7,38 @@ use burn::module::AutodiffModule;
 use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
 
+/// Discriminant for optimizer algorithm variants used in registration telemetry.
+///
+/// Exhaustiveness-checked dispatch prevents typos and enforces the closed set
+/// at compile time rather than runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OptimizerAlgorithm {
+    GradientDescent,
+    Adam,
+    AdaptiveStochasticGradientDescent,
+    Momentum,
+    RegularStepGradientDescent,
+}
+
+impl std::fmt::Display for OptimizerAlgorithm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::GradientDescent => write!(f, "GradientDescent"),
+            Self::Adam => write!(f, "Adam"),
+            Self::AdaptiveStochasticGradientDescent => {
+                write!(f, "AdaptiveStochasticGradientDescent")
+            }
+            Self::Momentum => write!(f, "Momentum"),
+            Self::RegularStepGradientDescent => write!(f, "RegularStepGradientDescent"),
+        }
+    }
+}
+
 /// Lightweight optimizer telemetry for registration workflows.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OptimizerTelemetry {
-    /// Human-readable optimizer name.
-    pub algorithm: &'static str,
+    /// Optimizer algorithm discriminant.
+    pub algorithm: OptimizerAlgorithm,
     /// Number of parameter-update steps taken.
     pub steps: usize,
     /// Current learning rate, if applicable.
@@ -115,6 +142,9 @@ impl LearningRateScheduler for StepDecay {
 mod tests {
     use super::*;
 
+    /// Tolerance for exact scheduler arithmetic assertions (f64 precision).
+    const SCHEDULER_TOL: f64 = 1e-12;
+
     // ── StepDecay ─────────────────────────────────────────────────────────────
 
     /// At step=0 the exponent is 0, so get_lr returns initial_lr * gamma^0 = initial_lr.
@@ -123,7 +153,7 @@ mod tests {
         let sched = StepDecay::new(10, 0.1);
         let lr = sched.get_lr(0, 1.0);
         assert!(
-            (lr - 1.0).abs() < 1e-12,
+            (lr - 1.0).abs() < SCHEDULER_TOL,
             "step=0 must return initial_lr unchanged; got {lr}"
         );
     }
@@ -138,7 +168,7 @@ mod tests {
         let lr = sched.get_lr(10, 0.5);
         let expected = 0.5 * 0.5_f64.powi(1);
         assert!(
-            (lr - expected).abs() < 1e-12,
+            (lr - expected).abs() < SCHEDULER_TOL,
             "step=10 with step_size=10, initial=0.5, gamma=0.5: expected {expected}, got {lr}"
         );
     }
@@ -167,7 +197,7 @@ mod tests {
         for step in 0..100 {
             let lr = sched.get_lr(step, initial_lr);
             assert!(
-                (lr - initial_lr).abs() < 1e-12,
+                (lr - initial_lr).abs() < SCHEDULER_TOL,
                 "gamma=1.0 must produce constant LR; step={step}, got {lr}"
             );
         }
@@ -186,9 +216,12 @@ mod tests {
         let lr0 = sched.get_lr(0, 1.0);
         let lr3 = sched.get_lr(3, 1.0);
         let lr6 = sched.get_lr(6, 1.0);
-        assert!((lr0 - 1.0).abs() < 1e-12, "step=0 → 1.0; got {lr0}");
-        assert!((lr3 - 0.5).abs() < 1e-12, "step=3 → 0.5; got {lr3}");
-        assert!((lr6 - 0.25).abs() < 1e-12, "step=6 → 0.25; got {lr6}");
+        assert!((lr0 - 1.0).abs() < SCHEDULER_TOL, "step=0 → 1.0; got {lr0}");
+        assert!((lr3 - 0.5).abs() < SCHEDULER_TOL, "step=3 → 0.5; got {lr3}");
+        assert!(
+            (lr6 - 0.25).abs() < SCHEDULER_TOL,
+            "step=6 → 0.25; got {lr6}"
+        );
     }
 
     // ── OptimizerTelemetry ───────────────────────────────────────────────────
@@ -196,7 +229,7 @@ mod tests {
     #[test]
     fn optimizer_telemetry_debug_and_eq() {
         let t1 = OptimizerTelemetry {
-            algorithm: "GradientDescent",
+            algorithm: OptimizerAlgorithm::GradientDescent,
             steps: 42,
             learning_rate: Some(1e-3),
         };

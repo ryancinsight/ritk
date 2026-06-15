@@ -10,6 +10,7 @@ use ritk_core::image::Image;
 use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
+use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 
 /// Generate a DICOM UID using nanoseconds since UNIX epoch under the 2.25 root.
 ///
@@ -309,7 +310,7 @@ fn write_multiframe_impl<B: Backend>(
             FileMetaTableBuilder::new()
                 .media_storage_sop_class_uid(config.sop_class_uid.as_str())
                 .media_storage_sop_instance_uid(sop_instance_uid.as_str())
-                .transfer_syntax("1.2.840.10008.1.2.1"),
+                .transfer_syntax(EXPLICIT_VR_LE),
         )
         .map_err(|e| anyhow::anyhow!("DICOM multiframe meta build failed: {e}"))?;
 

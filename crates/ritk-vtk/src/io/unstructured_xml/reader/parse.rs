@@ -91,7 +91,7 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
     let cell_types: Vec<VtkCellType> = type_codes
         .iter()
         .map(|&v| {
-            VtkCellType::from_u8(v as u8).unwrap_or_else(|| {
+            VtkCellType::try_from(v as u8).unwrap_or_else(|_| {
                 tracing::warn!(
                     code = v,
                     "unknown VTK cell type code in VTU; mapped to Vertex"

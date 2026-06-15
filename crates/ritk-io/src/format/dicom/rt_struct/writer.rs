@@ -12,6 +12,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::types::{RtContour, RtRoiInfo, RtStructureSet, RT_STRUCT_SOP_CLASS_UID};
+use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 
 static RT_STRUCT_UID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -100,7 +101,7 @@ pub fn write_rt_struct<P: AsRef<Path>>(path: P, ss: &RtStructureSet) -> Result<(
         FileMetaTableBuilder::new()
             .media_storage_sop_class_uid(RT_STRUCT_SOP_CLASS_UID)
             .media_storage_sop_instance_uid(sop_instance_uid.as_str())
-            .transfer_syntax("1.2.840.10008.1.2.1"),
+            .transfer_syntax(EXPLICIT_VR_LE),
     )
     .with_context(|| "build RT Structure Set file meta")?
     .write_to_file(path)
@@ -173,7 +174,7 @@ fn build_contour_item(contour: &RtContour) -> InMemDicomObject {
     item.put(DataElement::new(
         Tag(0x3006, 0x0042),
         VR::CS,
-        PrimitiveValue::from(contour.geometric_type.as_str()),
+        PrimitiveValue::from(contour.geometric_type.as_dicom_str()),
     ));
     item.put(DataElement::new(
         Tag(0x3006, 0x0050),

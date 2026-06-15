@@ -86,3 +86,48 @@ pub use iterate_structure::{iterate_structure, iterate_structure_with_origin, Bo
 
 pub mod types;
 pub use types::ForegroundValue;
+
+// ── Shared morphological primitive ───────────────────────────────────────────────────────────
+
+/// Generic 3-D morphological neighbourhood scan.
+///
+/// Iterates a cubic kernel of side `2*radius+1` around each voxel, collecting
+/// the fold result of `reduce` over all neighbour values.
+///
+/// # Invariants
+/// - Output length equals `nz * ny * nx`.
+/// - Boundary voxels are handled by clamping to the nearest valid index.
+pub(super) fn morphological_scan_3d(
+    data: &[f32],
+    dims: [usize; 3],
+    radius: usize,
+    init: f32,
+    reduce: impl Fn(f32, f32) -> f32,
+) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let r = radius as isize;
+    let mut output = vec![0.0_f32; nz * ny * nx];
+
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let mut acc = init;
+
+                for dz in -r..=r {
+                    for dy in -r..=r {
+                        for dx in -r..=r {
+                            let zz = (iz as isize + dz).clamp(0, nz as isize - 1) as usize;
+                            let yy = (iy as isize + dy).clamp(0, ny as isize - 1) as usize;
+                            let xx = (ix as isize + dx).clamp(0, nx as isize - 1) as usize;
+                            acc = reduce(acc, data[zz * ny * nx + yy * nx + xx]);
+                        }
+                    }
+                }
+
+                output[iz * ny * nx + iy * nx + ix] = acc;
+            }
+        }
+    }
+
+    output
+}

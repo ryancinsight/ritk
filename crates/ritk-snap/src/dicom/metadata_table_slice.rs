@@ -2,7 +2,7 @@
 
 use ritk_io::DicomSliceMetadata;
 
-use super::{format_f64_2, format_f64_3, format_f64_6, push_slice_opt, MetadataRow};
+use super::{format_float_slice, push_slice_opt, MetadataRow};
 
 pub(super) fn push_first_slice_rows(slice: &DicomSliceMetadata, rows: &mut Vec<MetadataRow>) {
     push_slice_opt(
@@ -33,7 +33,7 @@ pub(super) fn push_first_slice_rows(slice: &DicomSliceMetadata, rows: &mut Vec<M
             "0020,0032",
             "ImagePositionPatient",
             "DS",
-            format_f64_3(value),
+            format_float_slice(value),
         ));
     }
     if let Some(value) = slice.image_orientation_patient {
@@ -41,7 +41,7 @@ pub(super) fn push_first_slice_rows(slice: &DicomSliceMetadata, rows: &mut Vec<M
             "0020,0037",
             "ImageOrientationPatient",
             "DS",
-            format_f64_6(value),
+            format_float_slice(value),
         ));
     }
     if let Some(value) = slice.patient_position.as_ref() {
@@ -57,7 +57,7 @@ pub(super) fn push_first_slice_rows(slice: &DicomSliceMetadata, rows: &mut Vec<M
             "0028,0030",
             "PixelSpacing",
             "DS",
-            format_f64_2(value),
+            format_float_slice(value),
         ));
     }
     if let Some(value) = slice.slice_thickness {
@@ -98,7 +98,7 @@ pub(super) fn push_first_slice_rows(slice: &DicomSliceMetadata, rows: &mut Vec<M
         "0028,0103",
         "PixelRepresentation",
         "US",
-        slice.pixel_representation.to_u16().to_string(),
+        u16::from(slice.pixel_representation).to_string(),
     ));
     rows.push(MetadataRow::first_slice(
         "0028,0100",

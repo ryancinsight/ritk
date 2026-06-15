@@ -183,7 +183,7 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
                 read_binary_i32(reader, n)?
                     .iter()
                     .map(|&v| {
-                        VtkCellType::from_u8(v as u8).unwrap_or_else(|| {
+                        VtkCellType::try_from(v as u8).unwrap_or_else(|_| {
                             tracing::warn!(
                                 code = v,
                                 "unknown VTK cell type code; mapped to Vertex"
@@ -200,7 +200,7 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
                         .trim()
                         .parse()
                         .with_context(|| format!("bad type: {}", tl.trim()))?;
-                    t.push(VtkCellType::from_u8(code as u8).unwrap_or_else(|| {
+                    t.push(VtkCellType::try_from(code as u8).unwrap_or_else(|_| {
                         tracing::warn!(code, "unknown VTK cell type code; mapped to Vertex");
                         VtkCellType::Vertex
                     }));
@@ -276,7 +276,7 @@ fn write_unstructured_grid(w: &mut dyn Write, grid: &VtkUnstructuredGrid) -> Res
 
     writeln!(w, "CELL_TYPES {}", nc)?;
     for t in &grid.cell_types {
-        writeln!(w, "{}", t.to_u8())?;
+        writeln!(w, "{}", u8::from(*t))?;
     }
 
     if !grid.point_data.is_empty() {

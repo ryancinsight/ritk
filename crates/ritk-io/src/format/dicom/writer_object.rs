@@ -11,6 +11,8 @@
 use super::object_model::{
     DicomObjectModel, DicomObjectNode, DicomSequenceItem, DicomTag, DicomValue,
 };
+use super::transfer_syntax::EXPLICIT_VR_LE;
+use super::writer::utils::{str_to_vr, DICOM_SOP_CLASS_SECONDARY_CAPTURE};
 use anyhow::{Context, Result};
 use dicom::core::header::Length;
 use dicom::core::smallvec::SmallVec;
@@ -18,43 +20,6 @@ use dicom::core::value::{DataSetSequence, Value as DicomCoreValue};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{meta::FileMetaTableBuilder, InMemDicomObject};
 use std::path::Path;
-
-fn str_to_vr(s: &str) -> VR {
-    match s {
-        "AE" => VR::AE,
-        "AS" => VR::AS,
-        "AT" => VR::AT,
-        "CS" => VR::CS,
-        "DA" => VR::DA,
-        "DS" => VR::DS,
-        "DT" => VR::DT,
-        "FL" => VR::FL,
-        "FD" => VR::FD,
-        "IS" => VR::IS,
-        "LO" => VR::LO,
-        "LT" => VR::LT,
-        "OB" => VR::OB,
-        "OD" => VR::OD,
-        "OF" => VR::OF,
-        "OL" => VR::OL,
-        "OW" => VR::OW,
-        "PN" => VR::PN,
-        "SH" => VR::SH,
-        "SL" => VR::SL,
-        "SQ" => VR::SQ,
-        "SS" => VR::SS,
-        "ST" => VR::ST,
-        "TM" => VR::TM,
-        "UC" => VR::UC,
-        "UI" => VR::UI,
-        "UL" => VR::UL,
-        "UN" => VR::UN,
-        "UR" => VR::UR,
-        "US" => VR::US,
-        "UT" => VR::UT,
-        _ => VR::UN,
-    }
-}
 
 fn sequence_item_to_dicom(item: &DicomSequenceItem) -> InMemDicomObject {
     let mut obj = InMemDicomObject::new_empty();
@@ -112,7 +77,7 @@ pub fn write_object(model: &DicomObjectModel, path: &Path) -> Result<()> {
     let sop_class = model
         .get(DicomTag::new(0x0008, 0x0016))
         .and_then(|n| n.value.as_text())
-        .unwrap_or("1.2.840.10008.5.1.4.1.1.7");
+        .unwrap_or(DICOM_SOP_CLASS_SECONDARY_CAPTURE);
     let sop_inst = model
         .get(DicomTag::new(0x0008, 0x0018))
         .and_then(|n| n.value.as_text())
@@ -122,7 +87,7 @@ pub fn write_object(model: &DicomObjectModel, path: &Path) -> Result<()> {
             FileMetaTableBuilder::new()
                 .media_storage_sop_class_uid(sop_class)
                 .media_storage_sop_instance_uid(sop_inst)
-                .transfer_syntax("1.2.840.10008.1.2.1"),
+                .transfer_syntax(EXPLICIT_VR_LE),
         )
         .map_err(|e| anyhow::anyhow!("DICOM meta build failed: {e}"))?;
     file_obj

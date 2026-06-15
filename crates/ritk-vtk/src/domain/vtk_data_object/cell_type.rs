@@ -1,9 +1,9 @@
 /// VTK cell type codes per VTK File Formats specification (Table 2, Kitware Inc.).
 ///
 /// # Invariants
-/// - `VtkCellType::to_u8()` returns the canonical VTK integer cell type code.
-/// - `VtkCellType::from_u8(v)` is the left inverse of `to_u8` for all known codes.
-/// - Unknown codes return `None` from `from_u8`.
+/// - `u8::from(cell_type)` returns the canonical VTK integer cell type code.
+/// - `VtkCellType::try_from(v)` is the left inverse of `u8::from` for all known codes.
+/// - Unknown codes return `Err` from `try_from`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VtkCellType {
     Vertex = 1,
@@ -38,48 +38,66 @@ pub enum VtkCellType {
     BilinearQuadraticWedge = 34,
 }
 
-impl VtkCellType {
-    /// Return the canonical VTK integer cell type code.
-    pub fn to_u8(self) -> u8 {
-        self as u8
+/// Error returned when a `u8` value does not correspond to a known VTK cell type code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnknownVtkCellType(pub u8);
+
+impl std::fmt::Display for UnknownVtkCellType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unknown VTK cell type code: {}", self.0)
     }
+}
+
+impl std::error::Error for UnknownVtkCellType {}
+
+impl From<VtkCellType> for u8 {
+    /// Return the canonical VTK integer cell type code.
+    #[inline]
+    fn from(ct: VtkCellType) -> u8 {
+        ct as u8
+    }
+}
+
+impl TryFrom<u8> for VtkCellType {
+    type Error = UnknownVtkCellType;
 
     /// Parse a VTK integer cell type code.
     ///
-    /// Returns `None` when the code does not correspond to a known VTK cell type.
-    pub fn from_u8(v: u8) -> Option<Self> {
+    /// Returns `Err(UnknownVtkCellType)` when the code does not correspond to
+    /// a known VTK cell type.
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
         match v {
-            1 => Some(Self::Vertex),
-            2 => Some(Self::PolyVertex),
-            3 => Some(Self::Line),
-            4 => Some(Self::PolyLine),
-            5 => Some(Self::Triangle),
-            6 => Some(Self::TriangleStrip),
-            7 => Some(Self::Polygon),
-            8 => Some(Self::Pixel),
-            9 => Some(Self::Quad),
-            10 => Some(Self::Tetra),
-            11 => Some(Self::Voxel),
-            12 => Some(Self::Hexahedron),
-            13 => Some(Self::Wedge),
-            14 => Some(Self::Pyramid),
-            15 => Some(Self::PentagonalPrism),
-            16 => Some(Self::HexagonalPrism),
-            21 => Some(Self::QuadraticEdge),
-            22 => Some(Self::QuadraticTriangle),
-            23 => Some(Self::QuadraticQuad),
-            24 => Some(Self::QuadraticTetra),
-            25 => Some(Self::QuadraticHexahedron),
-            26 => Some(Self::QuadraticWedge),
-            27 => Some(Self::QuadraticPyramid),
-            28 => Some(Self::BiquadraticQuad),
-            29 => Some(Self::TriquadraticHexahedron),
-            30 => Some(Self::QuadraticLinearQuad),
-            31 => Some(Self::QuadraticLinearWedge),
-            32 => Some(Self::BiquadraticQuadraticWedge),
-            33 => Some(Self::BiquadraticQuadraticHexahedron),
-            34 => Some(Self::BilinearQuadraticWedge),
-            _ => None,
+            1 => Ok(Self::Vertex),
+            2 => Ok(Self::PolyVertex),
+            3 => Ok(Self::Line),
+            4 => Ok(Self::PolyLine),
+            5 => Ok(Self::Triangle),
+            6 => Ok(Self::TriangleStrip),
+            7 => Ok(Self::Polygon),
+            8 => Ok(Self::Pixel),
+            9 => Ok(Self::Quad),
+            10 => Ok(Self::Tetra),
+            11 => Ok(Self::Voxel),
+            12 => Ok(Self::Hexahedron),
+            13 => Ok(Self::Wedge),
+            14 => Ok(Self::Pyramid),
+            15 => Ok(Self::PentagonalPrism),
+            16 => Ok(Self::HexagonalPrism),
+            21 => Ok(Self::QuadraticEdge),
+            22 => Ok(Self::QuadraticTriangle),
+            23 => Ok(Self::QuadraticQuad),
+            24 => Ok(Self::QuadraticTetra),
+            25 => Ok(Self::QuadraticHexahedron),
+            26 => Ok(Self::QuadraticWedge),
+            27 => Ok(Self::QuadraticPyramid),
+            28 => Ok(Self::BiquadraticQuad),
+            29 => Ok(Self::TriquadraticHexahedron),
+            30 => Ok(Self::QuadraticLinearQuad),
+            31 => Ok(Self::QuadraticLinearWedge),
+            32 => Ok(Self::BiquadraticQuadraticWedge),
+            33 => Ok(Self::BiquadraticQuadraticHexahedron),
+            34 => Ok(Self::BilinearQuadraticWedge),
+            _ => Err(UnknownVtkCellType(v)),
         }
     }
 }

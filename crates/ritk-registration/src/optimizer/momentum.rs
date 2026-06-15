@@ -1,4 +1,4 @@
-use crate::optimizer::{Optimizer, OptimizerTelemetry};
+use crate::optimizer::{Optimizer, OptimizerAlgorithm, OptimizerTelemetry};
 use burn::module::AutodiffModule;
 use burn::optim::adaptor::OptimizerAdaptor;
 use burn::optim::momentum::MomentumConfig;
@@ -51,7 +51,7 @@ where
 
     fn telemetry(&self) -> OptimizerTelemetry {
         OptimizerTelemetry {
-            algorithm: "Momentum",
+            algorithm: OptimizerAlgorithm::Momentum,
             steps: self.steps,
             learning_rate: Some(self.learning_rate),
         }

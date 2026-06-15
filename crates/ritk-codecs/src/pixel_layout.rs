@@ -24,16 +24,11 @@ impl PixelSignedness {
     pub fn is_signed(self) -> bool {
         matches!(self, Self::Signed)
     }
-
-    /// Returns the DICOM integer encoding: 0 for unsigned, 1 for signed.
-    pub fn to_u16(self) -> u16 {
-        u16::from(self.is_signed())
-    }
 }
 
 impl From<PixelSignedness> for u16 {
     fn from(value: PixelSignedness) -> Self {
-        value.to_u16()
+        u16::from(value.is_signed())
     }
 }
 
@@ -474,9 +469,7 @@ mod tests {
     }
 
     #[test]
-    fn pixel_signedness_to_u16_round_trips() {
-        assert_eq!(PixelSignedness::Unsigned.to_u16(), 0);
-        assert_eq!(PixelSignedness::Signed.to_u16(), 1);
+    fn pixel_signedness_from_u16_round_trips() {
         assert_eq!(u16::from(PixelSignedness::Unsigned), 0);
         assert_eq!(u16::from(PixelSignedness::Signed), 1);
     }

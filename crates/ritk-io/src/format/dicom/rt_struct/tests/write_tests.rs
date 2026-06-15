@@ -1,5 +1,4 @@
 use super::*;
-use arrayvec::ArrayString;
 
 /// Invariant: write_rt_struct followed by read_rt_struct preserves all fields
 /// for a single ROI with one CLOSED_PLANAR contour, display_color, and
@@ -19,7 +18,7 @@ fn test_write_rt_struct_single_roi_round_trip() {
             roi_interpreted_type: Some("GTV".into()),
             display_color: Some([255, 0, 0]),
             contours: vec![RtContour {
-                geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
+                geometric_type: ContourGeometricType::ClosedPlanar,
                 points: vec![
                     [0.0, 0.0, 0.0],
                     [10.0, 0.0, 0.0],
@@ -61,7 +60,7 @@ fn test_write_rt_struct_single_roi_round_trip() {
     );
     assert_eq!(roi.contours.len(), 1, "contour count preserved");
     assert_eq!(
-        roi.contours[0].geometric_type.as_str(),
+        roi.contours[0].geometric_type.as_dicom_str(),
         "CLOSED_PLANAR",
         "geometric_type"
     );
@@ -88,7 +87,7 @@ fn test_write_rt_struct_multi_roi_round_trip() {
                 roi_interpreted_type: Some("PTV".into()),
                 display_color: Some([0, 255, 0]),
                 contours: vec![RtContour {
-                    geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
+                    geometric_type: ContourGeometricType::ClosedPlanar,
                     points: vec![[0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [5.0, 5.0, 0.0]],
                 }],
             },
@@ -99,7 +98,7 @@ fn test_write_rt_struct_multi_roi_round_trip() {
                 roi_interpreted_type: Some("PTV".into()),
                 display_color: Some([255, 255, 0]),
                 contours: vec![RtContour {
-                    geometric_type: ArrayString::from("OPEN_PLANAR").unwrap(),
+                    geometric_type: ContourGeometricType::OpenPlanar,
                     points: vec![[1.0, 1.0, 0.0], [2.0, 1.0, 0.0]],
                 }],
             },
@@ -124,7 +123,7 @@ fn test_write_rt_struct_multi_roi_round_trip() {
         "color preserved"
     );
     assert_eq!(
-        result.rois[0].contours[0].geometric_type.as_str(),
+        result.rois[0].contours[0].geometric_type.as_dicom_str(),
         "OPEN_PLANAR",
         "geo type"
     );
@@ -187,7 +186,7 @@ fn test_write_rt_struct_point_contour_round_trip() {
             roi_interpreted_type: None,
             display_color: None,
             contours: vec![RtContour {
-                geometric_type: ArrayString::from("POINT").unwrap(),
+                geometric_type: ContourGeometricType::Point,
                 points: vec![[42.5, -13.2, 7.0]],
             }],
         }],
@@ -199,7 +198,7 @@ fn test_write_rt_struct_point_contour_round_trip() {
     assert_eq!(result.rois.len(), 1, "one ROI");
     assert_eq!(result.rois[0].contours.len(), 1, "one contour");
     assert_eq!(
-        result.rois[0].contours[0].geometric_type.as_str(),
+        result.rois[0].contours[0].geometric_type.as_dicom_str(),
         "POINT",
         "geo type"
     );

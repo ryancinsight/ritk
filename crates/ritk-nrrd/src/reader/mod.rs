@@ -159,7 +159,7 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         let dirs = if dimension == 3 {
             parse_space_directions(sd_str)?
         } else {
-            parse_space_directions_2d(sd_str)?
+            parse_space_directions_planar(sd_str)?
         };
         metadata_from_file_space_directions(dirs)
     } else if let Some(sp_str) = headers.get("spacings") {
@@ -176,7 +176,7 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         if dimension == 3 {
             parse_nrrd_point(so_str)?
         } else {
-            parse_nrrd_point_2d(so_str)?
+            parse_nrrd_point_planar(so_str)?
         }
     } else {
         Point::new([0.0, 0.0, 0.0])

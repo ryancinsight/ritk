@@ -53,8 +53,8 @@ pub use rt_plan::{
     read_rt_plan, write_rt_plan, RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID,
 };
 pub use rt_struct::{
-    label_map_to_rt_struct, read_rt_struct, rt_roi_to_polydata, write_rt_struct, RtContour,
-    RtRoiInfo, RtStructureSet,
+    label_map_to_rt_struct, read_rt_struct, rt_roi_to_polydata, write_rt_struct,
+    ContourGeometricType, RtContour, RtRoiInfo, RtStructureSet,
 };
 pub use seg::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,

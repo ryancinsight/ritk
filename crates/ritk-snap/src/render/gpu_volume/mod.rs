@@ -84,11 +84,11 @@ use frame_cache::GpuFrameCache;
 fn build_colormap_lut(colormap: Colormap) -> Vec<f32> {
     let mut lut = Vec::with_capacity(256 * 4);
     for i in 0u32..256 {
-        let norm = i as f32 / 255.0;
+        let norm = i as f32 / super::U8_MAX_F32;
         let [r, g, b] = colormap.map(norm);
-        lut.push(r as f32 / 255.0);
-        lut.push(g as f32 / 255.0);
-        lut.push(b as f32 / 255.0);
+        lut.push(r as f32 / super::U8_MAX_F32);
+        lut.push(g as f32 / super::U8_MAX_F32);
+        lut.push(b as f32 / super::U8_MAX_F32);
         lut.push(1.0f32);
     }
     lut

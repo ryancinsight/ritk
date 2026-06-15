@@ -7,7 +7,7 @@
 //! - `write_vtu_unstructured_grid` validates via `grid.validate()` before writing.
 //! - `write_vtu_str` produces a well-formed ASCII-inline VTU document.
 //! - Offsets satisfy: `offsets[i] = sum(cell_len[0..=i])` (1-based cumulative).
-//! - Types are emitted as the canonical `VtkCellType::to_u8()` integer code.
+//! - Types are emitted as the canonical `u8::from(cell_type)` integer code.
 
 use crate::domain::vtk_data_object::VtkUnstructuredGrid;
 use crate::io::xml_write_attr::write_attr_xml;
@@ -83,7 +83,7 @@ pub fn write_vtu_str(grid: &VtkUnstructuredGrid) -> String {
     // ── <Cells> ──────────────────────────────────────────────────────────────
     // connectivity: flat list of all point indices across all cells.
     // offsets[i]  : cumulative sum of cell sizes through cell i (1-based).
-    // types       : VtkCellType::to_u8() for each cell.
+    // types       : u8::from(cell_type) for each cell.
     let mut conn: Vec<u32> = Vec::new();
     let mut offs: Vec<u32> = Vec::new();
     let mut cum: u32 = 0;
@@ -129,7 +129,7 @@ pub fn write_vtu_str(grid: &VtkUnstructuredGrid) -> String {
     .unwrap();
     write!(s, "       ").unwrap();
     for t in &grid.cell_types {
-        write!(s, " {}", t.to_u8()).unwrap();
+        write!(s, " {}", u8::from(*t)).unwrap();
     }
     writeln!(s).unwrap();
     writeln!(s, "        </DataArray>").unwrap();

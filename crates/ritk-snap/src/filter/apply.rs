@@ -1,4 +1,4 @@
-use crate::filter::promote::promote_2d_to_3d;
+use crate::filter::promote::elevate_to_volume;
 use crate::filter::FilterKind;
 use crate::viewer::{Study, ViewerCore, ViewerEvent};
 use ritk_filter::{
@@ -386,7 +386,7 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                     },
                 );
                 let image_2d = cpr_filter.apply(&study.image)?;
-                promote_2d_to_3d(image_2d)
+                elevate_to_volume(image_2d)
             }
         };
 

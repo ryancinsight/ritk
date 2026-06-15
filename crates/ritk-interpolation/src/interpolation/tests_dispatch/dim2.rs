@@ -98,14 +98,14 @@ fn dispatch_2d_falls_through_to_generic_for_non_square() {
 }
 
 #[test]
-fn dispatch_2d_for_shape_convenience_routes_typed() {
+fn dispatch_for_shape_convenience_routes_typed() {
     let data = build_2d(256);
     let indices = query_2d(256);
-    let result = dispatch_2d_for_shape(&data, indices, OutOfBoundsMode::Clamp);
+    let result = dispatch_for_shape::<TestBackend, 2>(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
         (val - 1.0).abs() < 1e-5,
-        "2-D 256×256 via dispatch_2d_for_shape should give 1.0, got {}",
+        "2-D 256×256 via dispatch_for_shape should give 1.0, got {}",
         val
     );
 }

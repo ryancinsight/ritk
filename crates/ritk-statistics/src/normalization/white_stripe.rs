@@ -165,7 +165,7 @@ impl WhiteStripeNormalizer {
                 all_slice
                     .iter()
                     .zip(mask_slice.iter())
-                    .filter(|(_, &mv)| mv > 0.5)
+                    .filter(|(_, &mv)| mv > crate::FOREGROUND_THRESHOLD)
                     .map(|(&v, _)| v as f64)
                     .collect()
             }

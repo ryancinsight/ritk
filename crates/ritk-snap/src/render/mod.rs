@@ -22,6 +22,8 @@ pub mod mip_vr;
 pub mod slice_render;
 
 pub(crate) use buffer_pool::RenderBufferPool;
+/// Maximum value of a u8 pixel component as f32, used for normalizing to [0, 1].
+pub(crate) const U8_MAX_F32: f32 = 255.0;
 pub use colormap::Colormap;
 pub use fusion::{render_fused_slice, FusedSliceParams};
 #[cfg(not(target_arch = "wasm32"))]

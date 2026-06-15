@@ -107,7 +107,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let moving_world_points = transform.transform_points(fixed_world_points);
                 let moving_voxel_indices = moving.world_to_index_tensor(moving_world_points);
                 let oob = if D == 3 {
-                    Some(super::parzen::compute_oob_mask_3d(
+                    Some(super::parzen::compute_oob_mask(
                         &moving_voxel_indices,
                         moving.shape().as_ref(),
                     ))
@@ -305,7 +305,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     let chunk_moving_world = transform.transform_points(chunk_fixed_world);
                     let chunk_moving_idx = moving.world_to_index_tensor(chunk_moving_world);
                     let oob = if D == 3 {
-                        Some(super::parzen::compute_oob_mask_3d(
+                        Some(super::parzen::compute_oob_mask(
                             &chunk_moving_idx,
                             moving.shape().as_ref(),
                         ))

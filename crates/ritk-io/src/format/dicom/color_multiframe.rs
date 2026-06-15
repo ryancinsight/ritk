@@ -174,7 +174,7 @@ fn validate_rgb_multiframe(
         bail!(
             "DICOM RGB color multiframe loader supports only unsigned samples; {:?} declares PixelRepresentation={}",
             path,
-            info.pixel_representation.to_u16()
+            u16::from(info.pixel_representation)
         );
     }
     Ok(())

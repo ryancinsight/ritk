@@ -35,7 +35,9 @@
 //!   "Adaptive stochastic gradient descent optimisation for image registration."
 //!   International Journal of Computer Vision, 81(3), 227-239.
 
-use crate::optimizer::{ConvergenceFlag, ConvergenceReason, Optimizer, OptimizerTelemetry};
+use crate::optimizer::{
+    ConvergenceFlag, ConvergenceReason, Optimizer, OptimizerAlgorithm, OptimizerTelemetry,
+};
 use burn::module::{AutodiffModule, Param};
 use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
@@ -361,7 +363,7 @@ where
 
     fn telemetry(&self) -> OptimizerTelemetry {
         OptimizerTelemetry {
-            algorithm: "AdaptiveStochasticGradientDescent",
+            algorithm: OptimizerAlgorithm::AdaptiveStochasticGradientDescent,
             steps: self.steps,
             learning_rate: Some(self.learning_rate()),
         }

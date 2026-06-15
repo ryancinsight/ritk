@@ -130,14 +130,14 @@ impl AutoThreshold for KapurThreshold {
             let p_b = cp_t;
             let p_f = 1.0 - p_b;
 
-            if p_b < 1e-12 || p_f < 1e-12 {
+            if p_b < super::PROB_ZERO_GUARD || p_f < super::PROB_ZERO_GUARD {
                 continue;
             }
 
             // Background entropy: H_b = -Σ_{i=0}^{t} (p(i)/P_b)·ln(p(i)/P_b).
             let mut h_b = 0.0_f64;
             for &hi in h.iter().take(t + 1) {
-                if hi > 1e-12 {
+                if hi > super::PROB_ZERO_GUARD {
                     let q = hi / p_b;
                     h_b -= q * q.ln();
                 }
@@ -146,7 +146,7 @@ impl AutoThreshold for KapurThreshold {
             // Foreground entropy: H_f = -Σ_{i=t+1}^{N-1} (p(i)/P_f)·ln(p(i)/P_f).
             let mut h_f = 0.0_f64;
             for &hi in h.iter().take(n_bins).skip(t + 1) {
-                if hi > 1e-12 {
+                if hi > super::PROB_ZERO_GUARD {
                     let q = hi / p_f;
                     h_f -= q * q.ln();
                 }
@@ -217,14 +217,14 @@ pub fn compute_kapur_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32
         let p_f = 1.0 - p_b;
 
         // Skip degenerate splits where one class is empty.
-        if p_b < 1e-12 || p_f < 1e-12 {
+        if p_b < super::PROB_ZERO_GUARD || p_f < super::PROB_ZERO_GUARD {
             continue;
         }
 
         // Background entropy: H_b = -Σ_{i=0}^{t} (p(i)/P_b) · ln(p(i)/P_b)
         let mut h_b = 0.0_f64;
         for &hi in h.iter().take(t + 1) {
-            if hi > 1e-12 {
+            if hi > super::PROB_ZERO_GUARD {
                 let q = hi / p_b;
                 h_b -= q * q.ln();
             }
@@ -233,7 +233,7 @@ pub fn compute_kapur_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32
         // Foreground entropy: H_f = -Σ_{i=t+1}^{N-1} (p(i)/P_f) · ln(p(i)/P_f)
         let mut h_f = 0.0_f64;
         for &hi in h.iter().take(num_bins).skip(t + 1) {
-            if hi > 1e-12 {
+            if hi > super::PROB_ZERO_GUARD {
                 let q = hi / p_f;
                 h_f -= q * q.ln();
             }

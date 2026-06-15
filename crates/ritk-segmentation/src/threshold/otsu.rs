@@ -122,7 +122,7 @@ impl AutoThreshold for OtsuThreshold {
             mu1_partial += (t - 1) as f64 * h[t - 1];
 
             let w2 = 1.0 - w1;
-            if w1 < 1e-12 || w2 < 1e-12 {
+            if w1 < super::PROB_ZERO_GUARD || w2 < super::PROB_ZERO_GUARD {
                 continue;
             }
 
@@ -212,7 +212,7 @@ pub fn compute_otsu_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 
         let w2 = 1.0 - w1;
 
         // Skip degenerate splits where one class is empty.
-        if w1 < 1e-12 || w2 < 1e-12 {
+        if w1 < super::PROB_ZERO_GUARD || w2 < super::PROB_ZERO_GUARD {
             continue;
         }
 

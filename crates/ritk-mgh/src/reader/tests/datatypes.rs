@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn test_read_f32_data() -> Result<()> {
+fn test_read_float_data() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("f32.mgh");
     let device: <TestBackend as Backend>::Device = Default::default();
@@ -43,7 +43,7 @@ fn test_read_f32_data() -> Result<()> {
 }
 
 #[test]
-fn test_read_u8_data() -> Result<()> {
+fn test_read_byte_data() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("u8.mgh");
     let device: <TestBackend as Backend>::Device = Default::default();
@@ -75,7 +75,7 @@ fn test_read_u8_data() -> Result<()> {
 }
 
 #[test]
-fn test_read_i16_data() -> Result<()> {
+fn test_read_signed_short_data() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("i16.mgh");
     let device: <TestBackend as Backend>::Device = Default::default();
@@ -113,7 +113,7 @@ fn test_read_i16_data() -> Result<()> {
 }
 
 #[test]
-fn test_read_i32_data() -> Result<()> {
+fn test_read_signed_int_data() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("i32.mgh");
     let device: <TestBackend as Backend>::Device = Default::default();

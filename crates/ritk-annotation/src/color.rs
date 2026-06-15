@@ -142,15 +142,18 @@ impl From<RgbaLinear> for [f32; 4] {
     }
 }
 
+/// Maximum value of a u8 channel as f32, used for linear↔byte normalization.
+const U8_MAX_F: f32 = 255.0;
+
 /// Normalize 0–255 to 0.0–1.0.
 impl From<RgbaBytes> for RgbaLinear {
     #[inline]
     fn from(c: RgbaBytes) -> Self {
         Self([
-            c.r() as f32 / 255.0,
-            c.g() as f32 / 255.0,
-            c.b() as f32 / 255.0,
-            c.a() as f32 / 255.0,
+            c.r() as f32 / U8_MAX_F,
+            c.g() as f32 / U8_MAX_F,
+            c.b() as f32 / U8_MAX_F,
+            c.a() as f32 / U8_MAX_F,
         ])
     }
 }
@@ -160,7 +163,7 @@ impl From<RgbaLinear> for RgbaBytes {
     #[inline]
     fn from(c: RgbaLinear) -> Self {
         fn clamp_denorm(v: f32) -> u8 {
-            (v.clamp(0.0, 1.0) * 255.0).round() as u8
+            (v.clamp(0.0, 1.0) * U8_MAX_F).round() as u8
         }
         Self([
             clamp_denorm(c.r()),

@@ -1,5 +1,5 @@
 use super::*;
-use crate::optimizer::OptimizerTelemetry;
+use crate::optimizer::{OptimizerAlgorithm, OptimizerTelemetry};
 use crate::registration::summary::StopReason;
 
 #[test]
@@ -31,7 +31,7 @@ fn registration_summary_holds_execution_diagnostics() {
         transform: 3_u32,
         loss_history: vec![2.0, 1.0],
         optimizer_telemetry: OptimizerTelemetry {
-            algorithm: "Test",
+            algorithm: OptimizerAlgorithm::GradientDescent,
             steps: 2,
             learning_rate: Some(0.1),
         },

@@ -50,7 +50,7 @@ impl RenderBufferPool {
     ///
     /// Elements beyond the previous length are set to `0`.
     #[inline]
-    pub(crate) fn resize_u8(&mut self, len: usize) {
+    pub(crate) fn resize_pixel_bytes(&mut self, len: usize) {
         self.rgba_u8.resize(len, 0_u8);
     }
 
@@ -108,7 +108,7 @@ mod tests {
     /// Analytical: initial capacity = 0 → after resize(100), capacity ≥ 100 →
     /// second resize(100) must preserve capacity (monotone non-decreasing).
     #[test]
-    fn test_resize_f32_capacity_monotone_same_size() {
+    fn capacity_is_monotone_for_same_size() {
         let mut pool = RenderBufferPool::default();
         pool.pixel_f32.resize(100, 0.0_f32);
         assert_eq!(pool.pixel_f32.len(), 100, "len must equal requested size");
@@ -130,16 +130,16 @@ mod tests {
     /// Analytical: Vec::resize(n) with n < current capacity does not
     /// deallocate — capacity is monotone non-decreasing in observed peak.
     #[test]
-    fn test_resize_u8_capacity_monotone_grow_then_smaller_request() {
+    fn capacity_grows_monotonically() {
         let mut pool = RenderBufferPool::default();
-        pool.resize_u8(50);
-        pool.resize_u8(200);
+        pool.resize_pixel_bytes(50);
+        pool.resize_pixel_bytes(200);
         let cap_at_200 = pool.rgba_u8.capacity();
         assert!(
             cap_at_200 >= 200,
             "capacity must be ≥ 200 after resize(200)"
         );
-        pool.resize_u8(50);
+        pool.resize_pixel_bytes(50);
         assert!(
             pool.rgba_u8.capacity() >= cap_at_200,
             "capacity must not shrink when resize requests a smaller length"
@@ -153,7 +153,7 @@ mod tests {
 
     /// New elements added by direct `Vec::resize` on `pixel_f32` must be initialized to `0.0`.
     #[test]
-    fn test_resize_f32_new_elements_zero() {
+    fn new_elements_are_zero_initialized() {
         let mut pool = RenderBufferPool::default();
         pool.pixel_f32.resize(4, 0.0_f32);
         assert!(
@@ -162,11 +162,11 @@ mod tests {
         );
     }
 
-    /// New elements added by `resize_u8` must be initialized to `0`.
+    /// New elements added by `resize_pixel_bytes` must be initialized to `0`.
     #[test]
-    fn test_resize_u8_new_elements_zero() {
+    fn pixel_bytes_new_elements_are_zero_initialized() {
         let mut pool = RenderBufferPool::default();
-        pool.resize_u8(4);
+        pool.resize_pixel_bytes(4);
         assert!(
             pool.rgba_u8.iter().all(|&v| v == 0u8),
             "all newly allocated u8 elements must be 0"

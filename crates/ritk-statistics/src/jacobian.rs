@@ -78,6 +78,9 @@ pub struct JacobianStats {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
+/// Half-coefficient in the central-difference formula: (f[i+1] − f[i−1]) / (2·h) = (f[i+1] − f[i−1]) * (0.5 / h).
+const CENTRAL_DIFF_HALF: f32 = 0.5;
+
 /// Grid coordinate and shape for a 3-D volume of shape `[nz, ny, nx]`.
 ///
 /// Groups the six index/extent parameters shared by `diff_z`, `diff_y`, `diff_x`
@@ -120,7 +123,8 @@ fn diff_z(field: &[f32], gc: &GridCoord, sz_inv: f32) -> f32 {
     } else if z == nz - 1 {
         (field[flat(nz - 1, y, x, ny, nx)] - field[flat(nz - 2, y, x, ny, nx)]) * sz_inv
     } else {
-        (field[flat(z + 1, y, x, ny, nx)] - field[flat(z - 1, y, x, ny, nx)]) * (0.5 * sz_inv)
+        (field[flat(z + 1, y, x, ny, nx)] - field[flat(z - 1, y, x, ny, nx)])
+            * (CENTRAL_DIFF_HALF * sz_inv)
     }
 }
 
@@ -145,7 +149,8 @@ fn diff_y(field: &[f32], gc: &GridCoord, sy_inv: f32) -> f32 {
     } else if y == ny - 1 {
         (field[flat(z, ny - 1, x, ny, nx)] - field[flat(z, ny - 2, x, ny, nx)]) * sy_inv
     } else {
-        (field[flat(z, y + 1, x, ny, nx)] - field[flat(z, y - 1, x, ny, nx)]) * (0.5 * sy_inv)
+        (field[flat(z, y + 1, x, ny, nx)] - field[flat(z, y - 1, x, ny, nx)])
+            * (CENTRAL_DIFF_HALF * sy_inv)
     }
 }
 
@@ -170,7 +175,8 @@ fn diff_x(field: &[f32], gc: &GridCoord, sx_inv: f32) -> f32 {
     } else if x == nx - 1 {
         (field[flat(z, y, nx - 1, ny, nx)] - field[flat(z, y, nx - 2, ny, nx)]) * sx_inv
     } else {
-        (field[flat(z, y, x + 1, ny, nx)] - field[flat(z, y, x - 1, ny, nx)]) * (0.5 * sx_inv)
+        (field[flat(z, y, x + 1, ny, nx)] - field[flat(z, y, x - 1, ny, nx)])
+            * (CENTRAL_DIFF_HALF * sx_inv)
     }
 }
 

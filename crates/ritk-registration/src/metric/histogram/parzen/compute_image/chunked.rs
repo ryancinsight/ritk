@@ -14,7 +14,7 @@ use super::super::image_cache_helpers::{get_cached_sparse_w_fixed, normalize_fix
 use super::super::ParzenJointHistogram;
 use super::SamplingMode;
 use crate::metric::histogram::cache;
-use crate::metric::histogram::parzen::compute_oob_mask_3d;
+use crate::metric::histogram::parzen::compute_oob_mask;
 #[cfg(feature = "direct-parzen")]
 use crate::metric::histogram::parzen::direct;
 use burn::tensor::backend::Backend;
@@ -146,7 +146,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
                 let oob = if D == 3 {
-                    Some(compute_oob_mask_3d(
+                    Some(compute_oob_mask(
                         &chunk_moving_indices,
                         moving.shape().as_ref(),
                     ))
@@ -306,7 +306,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
                 let oob = if D == 3 {
-                    Some(compute_oob_mask_3d(
+                    Some(compute_oob_mask(
                         &chunk_moving_indices,
                         moving.shape().as_ref(),
                     ))

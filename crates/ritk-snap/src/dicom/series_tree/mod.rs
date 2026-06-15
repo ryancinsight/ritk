@@ -330,39 +330,48 @@ impl<'a> SeriesTree<'a> {
         let mut study_maps = Vec::new(); // maps patient_idx -> HashMap<study_key, study_idx>
 
         for entry in entries {
-            let patient_id = &entry.patient_id;
+            let SeriesEntry {
+                series_uid,
+                folder,
+                patient_name,
+                patient_id,
+                modality,
+                series_description,
+                num_slices,
+                study_date,
+                study_uid,
+            } = entry;
+
             let patient_idx = if patient_id.is_empty() {
                 // Anonymous patients each get their own node.
                 tree.patients.push(PatientNode {
-                    patient_id: entry.patient_id.clone(),
-                    patient_name: entry.patient_name.clone(),
+                    patient_id,
+                    patient_name,
                     studies: Vec::new(),
                 });
                 study_maps.push(std::collections::HashMap::new());
                 tree.patients.len() - 1
             } else {
-                match patient_map.get(patient_id) {
+                match patient_map.get(&patient_id) {
                     Some(&idx) => idx,
                     None => {
+                        let id_clone = patient_id.clone();
                         tree.patients.push(PatientNode {
-                            patient_id: entry.patient_id.clone(),
-                            patient_name: entry.patient_name.clone(),
+                            patient_id,
+                            patient_name,
                             studies: Vec::new(),
                         });
                         let idx = tree.patients.len() - 1;
-                        patient_map.insert(patient_id.clone(), idx);
+                        patient_map.insert(id_clone, idx);
                         study_maps.push(std::collections::HashMap::new());
                         idx
                     }
                 }
             };
 
-            let entry_study_uid = entry.study_uid.clone();
-            let entry_study_date = entry.study_date.clone();
-
-            let study_key = match (&entry_study_uid, &entry_study_date) {
-                (Some(uid), _) => Some(uid.clone()),
-                (None, Some(date)) => Some(date.clone()),
+            let study_key = match (&study_uid, &study_date) {
+                (Some(uid), _) => Some(uid),
+                (None, Some(date)) => Some(date),
                 (None, None) => None,
             };
 
@@ -378,27 +387,28 @@ impl<'a> SeriesTree<'a> {
                     });
                     patient.studies.len() - 1
                 }
-                Some(key) => match study_map.get(&key) {
+                Some(key) => match study_map.get(key) {
                     Some(&idx) => idx,
                     None => {
+                        let key_clone = key.clone();
                         patient.studies.push(StudyNode {
-                            study_uid: entry_study_uid,
-                            study_date: entry_study_date,
+                            study_uid,
+                            study_date,
                             series: Vec::new(),
                         });
                         let idx = patient.studies.len() - 1;
-                        study_map.insert(key, idx);
+                        study_map.insert(key_clone, idx);
                         idx
                     }
                 },
             };
 
             patient.studies[study_idx].series.push(SeriesNode {
-                series_uid: entry.series_uid,
-                folder: entry.folder,
-                modality: entry.modality,
-                series_description: entry.series_description,
-                num_slices: entry.num_slices,
+                series_uid,
+                folder,
+                modality,
+                series_description,
+                num_slices,
             });
         }
         tree

@@ -74,7 +74,7 @@ fn bins_exp_histogram_result_matches_lazy() {
     }
 }
 
-// ─── compute_oob_mask_3d ─────────────────────────────────────────────────
+// ─── compute_oob_mask ─────────────────────────────────────────────────
 
 #[test]
 fn oob_mask_3d_in_bounds_all_ones() {
@@ -83,7 +83,7 @@ fn oob_mask_3d_in_bounds_all_ones() {
     // [x=1.5, y=1.5, z=1.5] — floor = [1,1,1], dims = [4,4,4] → in-bounds on all axes
     let indices =
         Tensor::<B, 2>::from_floats([[1.5, 1.5, 1.5], [0.0, 0.0, 0.0], [3.0, 3.0, 3.0]], &dev);
-    let mask = compute_oob_mask_3d(&indices, &[4, 4, 4]);
+    let mask = compute_oob_mask(&indices, &[4, 4, 4]);
     let vals: Vec<f32> = mask.into_data().as_slice::<f32>().unwrap().to_vec();
     assert_eq!(
         vals,
@@ -98,7 +98,7 @@ fn oob_mask_3d_oob_all_zeros() {
     // x=-1 (OOB), y=5 > d1-1=3 (OOB), z=-0.1 → floor=-1 (OOB)
     let indices =
         Tensor::<B, 2>::from_floats([[-1.0, 1.0, 1.0], [1.0, 5.0, 1.0], [1.0, 1.0, -0.1]], &dev);
-    let mask = compute_oob_mask_3d(&indices, &[4, 4, 4]);
+    let mask = compute_oob_mask(&indices, &[4, 4, 4]);
     let vals: Vec<f32> = mask.into_data().as_slice::<f32>().unwrap().to_vec();
     assert_eq!(vals, vec![0.0, 0.0, 0.0], "all OOB coords must give 0.0");
 }
@@ -117,7 +117,7 @@ fn oob_mask_3d_mixed_in_and_out() {
         ],
         &dev,
     );
-    let mask = compute_oob_mask_3d(&indices, &[2, 4, 4]);
+    let mask = compute_oob_mask(&indices, &[2, 4, 4]);
     let vals: Vec<f32> = mask.into_data().as_slice::<f32>().unwrap().to_vec();
     assert_eq!(
         vals,

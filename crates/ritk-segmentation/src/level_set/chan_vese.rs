@@ -284,6 +284,11 @@ fn compute_region_means(img: &[f64], phi: &[f64], eps: f64) -> (f64, f64) {
 
 // ── Otsu threshold (f64 slice) ─────────────────────────────────────────────────
 
+/// Near-zero class-weight guard used inside the local Otsu computation: threshold
+/// candidates where either class weight falls below this value are skipped to
+/// avoid division by zero when computing class means.
+const WEIGHT_ZERO_GUARD: f64 = 1e-12;
+
 /// Compute the Otsu between-class-variance-maximising threshold on a `f64` slice.
 ///
 /// Uses a 256-bin histogram. Returns the intensity value t* that maximises
@@ -325,7 +330,7 @@ fn local_otsu_threshold(img: &[f64]) -> f64 {
         w1 += h[t - 1];
         mu1_partial += (t - 1) as f64 * h[t - 1];
         let w2 = 1.0 - w1;
-        if w1 < 1e-12 || w2 < 1e-12 {
+        if w1 < WEIGHT_ZERO_GUARD || w2 < WEIGHT_ZERO_GUARD {
             continue;
         }
         let mu1 = mu1_partial / w1;

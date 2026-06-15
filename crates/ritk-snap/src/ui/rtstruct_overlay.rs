@@ -3,7 +3,7 @@
 //! This module is the SSOT for converting RT-STRUCT contour points (patient mm)
 //! into 2-D row/column coordinates for a selected MPR slice.
 
-use ritk_io::RtStructureSet;
+use ritk_io::{ContourGeometricType, RtStructureSet};
 
 /// One projected RT contour ready for viewport-space raster mapping.
 #[derive(Debug, Clone, PartialEq)]
@@ -78,7 +78,7 @@ pub fn project_rt_struct_contours_for_slice(
                 continue;
             }
 
-            let closed = contour.geometric_type.trim() == "CLOSED_PLANAR";
+            let closed = contour.geometric_type == ContourGeometricType::ClosedPlanar;
             out.push(ProjectedRtContour {
                 color,
                 closed,
@@ -158,7 +158,6 @@ fn invert_3x3(m: [f64; 9]) -> Option<[f64; 9]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_io::literal_arraystring;
     use ritk_io::{RtContour, RtRoiInfo, RtStructureSet};
 
     fn make_rt() -> RtStructureSet {
@@ -172,7 +171,7 @@ mod tests {
                 roi_interpreted_type: Some("PTV".to_string()),
                 display_color: Some([255, 0, 0]),
                 contours: vec![RtContour {
-                    geometric_type: literal_arraystring::<16>("CLOSED_PLANAR"),
+                    geometric_type: ContourGeometricType::ClosedPlanar,
                     points: vec![
                         [2.0, 3.0, 4.0],
                         [2.0, 5.0, 4.0],

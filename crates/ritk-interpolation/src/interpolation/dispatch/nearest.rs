@@ -160,21 +160,4 @@ impl<B: Backend, const D: usize> DispatchNearest3DTyped<B, D> for Tensor<B, D> {
     }
 }
 
-/// Per-shape runtime dispatcher for 3-D nearest-neighbor interpolation.
-///
-/// This is a convenience wrapper around the sealed [`DispatchNearestByShape`]
-/// trait method. It currently falls through to the generic
-/// `nearest::interpolate_3d` for all shapes — typed nearest-neighbor
-/// instantiations are not yet available. The wrapper exists so that the
-/// public API matches the linear-dispatch path, and so that typed
-/// nearest-neighbor instantiations can be added without changing callers.
-///
-/// See [`DispatchNearestByShape`] for the trait-based implementation.
-#[inline]
-pub fn dispatch_nearest_3d_for_shape<B: Backend>(
-    data: &Tensor<B, 3>,
-    indices: Tensor<B, 2>,
-    mode: OutOfBoundsMode,
-) -> Tensor<B, 1> {
-    data.dispatch_nearest_by_shape(indices, mode)
-}
+

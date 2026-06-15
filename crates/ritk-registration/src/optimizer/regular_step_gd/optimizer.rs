@@ -4,7 +4,7 @@ use super::config::RegularStepGdConfig;
 use super::convergence::{ConvergenceFlag, ConvergenceReason};
 use super::grad_norm::GradientNormVisitor;
 use super::step_mapper::RsgdStepMapper;
-use crate::optimizer::{Optimizer, OptimizerTelemetry};
+use crate::optimizer::{Optimizer, OptimizerAlgorithm, OptimizerTelemetry};
 use burn::module::AutodiffModule;
 use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
@@ -217,7 +217,7 @@ where
 
     fn telemetry(&self) -> OptimizerTelemetry {
         OptimizerTelemetry {
-            algorithm: "RegularStepGradientDescent",
+            algorithm: OptimizerAlgorithm::RegularStepGradientDescent,
             steps: self.steps,
             learning_rate: Some(self.current_step_length),
         }

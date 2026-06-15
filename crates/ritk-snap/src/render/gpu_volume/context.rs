@@ -11,15 +11,12 @@
 //! - The resulting device supports `BufferBindingType::Storage` (base wgpu
 //!   feature set, no additional features required).
 
-use wgpu::{Adapter, Device, InstanceDescriptor, Queue, RequestAdapterOptions};
+use wgpu::{Device, InstanceDescriptor, Queue, RequestAdapterOptions};
 
 /// Owned wgpu device and queue for GPU compute operations.
 pub(super) struct GpuContext {
     pub device: Device,
     pub queue: Queue,
-    /// Retained to allow adapter queries (e.g., limits check).
-    #[allow(dead_code)]
-    pub adapter: Adapter,
 }
 
 impl GpuContext {
@@ -44,11 +41,7 @@ impl GpuContext {
                 .request_device(&wgpu::DeviceDescriptor::default(), None)
                 .await
                 .ok()?;
-            Some(GpuContext {
-                device,
-                queue,
-                adapter,
-            })
+            Some(GpuContext { device, queue })
         })
     }
 }

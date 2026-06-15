@@ -99,13 +99,13 @@ fn dispatch_falls_through_to_generic_for_non_cube() {
 // ══════════════════════════════════════════════════════════════════════
 
 /// Verifies the sealed [`DispatchByShape`] trait method directly.
-/// This is the trait that `dispatch_3d_for_shape` delegates to.
+/// This is the trait that `dispatch_for_shape` delegates to.
 #[test]
 fn sealed_trait_dispatch_by_shape_routes_typed_path() {
     let data = build_cube(256);
     let indices = query_near_center(256);
     // Call the sealed trait method directly via the public wrapper.
-    let result = dispatch_3d_for_shape(&data, indices, OutOfBoundsMode::Clamp);
+    let result = dispatch_for_shape::<TestBackend, 3>(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
         (val - 1.0).abs() < 1e-5,
@@ -174,18 +174,18 @@ fn nearest_type_narrowing_wrapper_routes_3d() {
     );
 }
 
-/// Verifies the [`dispatch_nearest_3d_for_shape`] convenience function
-/// (parallel to [`dispatch_3d_for_shape`] for linear).
+/// Verifies the [`dispatch_nearest_for_shape`] convenience function
+/// (parallel to [`dispatch_for_shape`] for linear).
 #[test]
-fn nearest_dispatch_3d_for_shape_routes_correctly() {
+fn nearest_dispatch_for_shape_routes_correctly() {
     let data = build_cube(256);
     let device = Default::default();
     let indices = Tensor::<TestBackend, 2>::from_floats([[128.0, 128.0, 128.0]], &device);
-    let result = dispatch_nearest_3d_for_shape(&data, indices, OutOfBoundsMode::Clamp);
+    let result = dispatch_nearest_for_shape::<TestBackend, 3>(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
         (val - 1.0).abs() < 1e-5,
-        "Nearest 256³ at center via dispatch_nearest_3d_for_shape should give 1.0, got {}",
+        "Nearest 256³ at center via dispatch_nearest_for_shape should give 1.0, got {}",
         val
     );
 }

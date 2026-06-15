@@ -52,7 +52,7 @@ fn test_read_rt_struct_single_roi_closed_planar() {
 
     let contour = &roi.contours[0];
     assert_eq!(
-        contour.geometric_type.as_str(),
+        contour.geometric_type.as_dicom_str(),
         "CLOSED_PLANAR",
         "geometric_type"
     );

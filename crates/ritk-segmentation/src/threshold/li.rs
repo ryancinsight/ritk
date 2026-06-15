@@ -139,7 +139,7 @@ impl AutoThreshold for LiThreshold {
                 sum_f += i as f64 * hi;
             }
 
-            if w_b < 1e-12 || w_f < 1e-12 {
+            if w_b < super::PROB_ZERO_GUARD || w_f < super::PROB_ZERO_GUARD {
                 break;
             }
 
@@ -150,7 +150,7 @@ impl AutoThreshold for LiThreshold {
             // when a class mean sits at bin 0 (matches ITK's LiThresholdCalculator).
             let mu_b = sum_b / w_b + 1.0;
             let mu_f = sum_f / w_f + 1.0;
-            let t_new = if (mu_b - mu_f).abs() < 1e-12 {
+            let t_new = if (mu_b - mu_f).abs() < super::PROB_ZERO_GUARD {
                 t
             } else {
                 (mu_b - mu_f) / (mu_b.ln() - mu_f.ln()) - 1.0
@@ -236,7 +236,7 @@ pub fn compute_li_threshold_from_slice(
         }
 
         // If either class is empty, the threshold is at the boundary.
-        if w_b < 1e-12 || w_f < 1e-12 {
+        if w_b < super::PROB_ZERO_GUARD || w_f < super::PROB_ZERO_GUARD {
             break;
         }
 
@@ -245,7 +245,7 @@ pub fn compute_li_threshold_from_slice(
         // mean — (mu_b + mu_f)/2 is the ISODATA method and converges elsewhere.
         let mu_b = sum_b / w_b + 1.0;
         let mu_f = sum_f / w_f + 1.0;
-        let t_new = if (mu_b - mu_f).abs() < 1e-12 {
+        let t_new = if (mu_b - mu_f).abs() < super::PROB_ZERO_GUARD {
             t
         } else {
             (mu_b - mu_f) / (mu_b.ln() - mu_f.ln()) - 1.0

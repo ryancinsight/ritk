@@ -108,35 +108,7 @@ impl GrayscaleErosion {
 /// - Output length equals `nz * ny * nx`.
 /// - Each output voxel equals `min_{b ∈ B} data[clamp(x + b)]`.
 pub(crate) fn erode_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
-    let [nz, ny, nx] = dims;
-    let r = radius as isize;
-    let mut output = vec![0.0_f32; nz * ny * nx];
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut min_val = f32::INFINITY;
-
-                for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            let zz = (iz as isize + dz).clamp(0, nz as isize - 1) as usize;
-                            let yy = (iy as isize + dy).clamp(0, ny as isize - 1) as usize;
-                            let xx = (ix as isize + dx).clamp(0, nx as isize - 1) as usize;
-                            let val = data[zz * ny * nx + yy * nx + xx];
-                            if val < min_val {
-                                min_val = val;
-                            }
-                        }
-                    }
-                }
-
-                output[iz * ny * nx + iy * nx + ix] = min_val;
-            }
-        }
-    }
-
-    output
+    super::morphological_scan_3d(data, dims, radius, f32::INFINITY, f32::min)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

@@ -130,7 +130,7 @@ impl SnapApp {
                 ToolState::MeasureLength1 { p1 } => {
                     let p1_arr = [p1.y, p1.x];
                     let p2_arr = [pos.y, pos.x];
-                    let spacing = self.slice_spacing_2d();
+                    let spacing = self.slice_plane_spacing();
                     let length_mm = Annotation::compute_length(p1_arr, p2_arr, spacing);
                     self.annotations.push(Annotation::Length {
                         p1: p1_arr,
@@ -192,7 +192,7 @@ impl SnapApp {
         let Some(vol) = &self.loaded else { return };
         let p1 = [start.y, start.x];
         let p2 = [end.y, end.x];
-        let spacing = self.slice_spacing_2d();
+        let spacing = self.slice_plane_spacing();
         let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
         let (mean, std_dev, min, max, area_mm2) =
             Annotation::compute_roi_rect_stats(p1, p2, &pixels, width, height, spacing);
@@ -213,7 +213,7 @@ impl SnapApp {
         let Some(vol) = &self.loaded else { return };
         let p1 = [start.y, start.x];
         let p2 = [end.y, end.x];
-        let spacing = self.slice_spacing_2d();
+        let spacing = self.slice_plane_spacing();
         let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
         let (center, radii, mean, std_dev, min, max, area_mm2) =
             Annotation::compute_roi_ellipse_stats(p1, p2, &pixels, width, height, spacing);
@@ -238,7 +238,7 @@ impl SnapApp {
     /// | 0 axial   | dy | dx |
     /// | 1 coronal | dz | dx |
     /// | 2 sagittal| dz | dy |
-    pub(crate) fn slice_spacing_2d(&self) -> [f32; 2] {
+    pub(crate) fn slice_plane_spacing(&self) -> [f32; 2] {
         let Some(vol) = &self.loaded else {
             return [1.0, 1.0];
         };

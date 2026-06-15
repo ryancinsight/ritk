@@ -191,24 +191,24 @@ fn parse_ascii_body(text: &str, hdr: &PlyHeader) -> Result<VtkPolyData> {
         let toks: Vec<&str> = line.split_whitespace().collect();
         let x = hdr
             .prop_type(xi)
-            .parse_as_f32(toks.get(xi).context("x tok")?)?;
+            .parse_float_ascii(toks.get(xi).context("x tok")?)?;
         let y = hdr
             .prop_type(yi)
-            .parse_as_f32(toks.get(yi).context("y tok")?)?;
+            .parse_float_ascii(toks.get(yi).context("y tok")?)?;
         let z = hdr
             .prop_type(zi)
-            .parse_as_f32(toks.get(zi).context("z tok")?)?;
+            .parse_float_ascii(toks.get(zi).context("z tok")?)?;
         points.push([x, y, z]);
         if let Some(ref mut ns) = normals {
             let nx = hdr
                 .prop_type(nxi)
-                .parse_as_f32(toks.get(nxi).context("nx tok")?)?;
+                .parse_float_ascii(toks.get(nxi).context("nx tok")?)?;
             let ny = hdr
                 .prop_type(nyi)
-                .parse_as_f32(toks.get(nyi).context("ny tok")?)?;
+                .parse_float_ascii(toks.get(nyi).context("ny tok")?)?;
             let nz = hdr
                 .prop_type(nzi)
-                .parse_as_f32(toks.get(nzi).context("nz tok")?)?;
+                .parse_float_ascii(toks.get(nzi).context("nz tok")?)?;
             ns.push([nx, ny, nz]);
         }
     }
@@ -266,24 +266,24 @@ fn parse_binary_le_body(body: &[u8], hdr: &PlyHeader) -> Result<VtkPolyData> {
         }
         let x = hdr
             .prop_type(xi)
-            .read_le_f32(body, off + hdr.prop_byte_offset(xi));
+            .read_le_float(body, off + hdr.prop_byte_offset(xi));
         let y = hdr
             .prop_type(yi)
-            .read_le_f32(body, off + hdr.prop_byte_offset(yi));
+            .read_le_float(body, off + hdr.prop_byte_offset(yi));
         let z = hdr
             .prop_type(zi)
-            .read_le_f32(body, off + hdr.prop_byte_offset(zi));
+            .read_le_float(body, off + hdr.prop_byte_offset(zi));
         points.push([x, y, z]);
         if let Some(ref mut ns) = normals {
             let nx = hdr
                 .prop_type(nxi)
-                .read_le_f32(body, off + hdr.prop_byte_offset(nxi));
+                .read_le_float(body, off + hdr.prop_byte_offset(nxi));
             let ny = hdr
                 .prop_type(nyi)
-                .read_le_f32(body, off + hdr.prop_byte_offset(nyi));
+                .read_le_float(body, off + hdr.prop_byte_offset(nyi));
             let nz = hdr
                 .prop_type(nzi)
-                .read_le_f32(body, off + hdr.prop_byte_offset(nzi));
+                .read_le_float(body, off + hdr.prop_byte_offset(nzi));
             ns.push([nx, ny, nz]);
         }
         off += vert_sz;

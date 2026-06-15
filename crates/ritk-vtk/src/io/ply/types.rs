@@ -40,7 +40,7 @@ impl PlyType {
         }
     }
 
-    pub(super) fn parse_as_f32(self, s: &str) -> Result<f32> {
+    pub(super) fn parse_float_ascii(self, s: &str) -> Result<f32> {
         Ok(match self {
             Self::Float | Self::Double => s
                 .parse::<f32>()
@@ -72,7 +72,7 @@ impl PlyType {
         }
     }
 
-    pub(super) fn read_le_f32(self, b: &[u8], off: usize) -> f32 {
+    pub(super) fn read_le_float(self, b: &[u8], off: usize) -> f32 {
         match self {
             Self::Float => f32::from_le_bytes([b[off], b[off + 1], b[off + 2], b[off + 3]]),
             Self::Double => f64::from_le_bytes([

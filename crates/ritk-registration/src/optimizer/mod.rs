@@ -31,4 +31,6 @@ pub use momentum::Momentum;
 pub use regular_step_gd::{
     ConvergenceFlag, ConvergenceReason, RegularStepGdConfig, RegularStepGradientDescent,
 };
-pub use trait_::{LearningRateScheduler, Optimizer, OptimizerTelemetry, StepDecay};
+pub use trait_::{
+    LearningRateScheduler, Optimizer, OptimizerAlgorithm, OptimizerTelemetry, StepDecay,
+};

@@ -1,9 +1,41 @@
 //! Domain types for RT Structure Set Storage.
 
-use arrayvec::ArrayString;
-
 /// SOP Class UID for RT Structure Set Storage.
 pub const RT_STRUCT_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.481.3";
+
+/// Geometric type of an RT contour (DICOM tag 3006,0042).
+///
+/// The type determines how `points` are interpreted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContourGeometricType {
+    /// Single control point.
+    Point,
+    /// Ordered polyline lying on a plane; the last point does NOT connect to the first.
+    OpenPlanar,
+    /// Closed polygon lying on a plane; the last point implicitly connects to the first.
+    ClosedPlanar,
+}
+
+impl ContourGeometricType {
+    /// Parse from the DICOM string representation.
+    pub fn from_dicom_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "POINT" => Some(Self::Point),
+            "OPEN_PLANAR" => Some(Self::OpenPlanar),
+            "CLOSED_PLANAR" => Some(Self::ClosedPlanar),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical DICOM string for this type.
+    pub fn as_dicom_str(self) -> &'static str {
+        match self {
+            Self::Point => "POINT",
+            Self::OpenPlanar => "OPEN_PLANAR",
+            Self::ClosedPlanar => "CLOSED_PLANAR",
+        }
+    }
+}
 
 /// A single contour slice within an RT ROI.
 ///
@@ -17,8 +49,8 @@ pub const RT_STRUCT_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.481.3";
 /// Encoding: `X₀\Y₀\Z₀\X₁\Y₁\Z₁\…\X_{N-1}\Y_{N-1}\Z_{N-1}`
 #[derive(Debug, Clone)]
 pub struct RtContour {
-    /// Geometric type: `"POINT"` | `"OPEN_PLANAR"` | `"CLOSED_PLANAR"`.
-    pub geometric_type: ArrayString<16>,
+    /// Geometric type of this contour.
+    pub geometric_type: ContourGeometricType,
     /// Patient-coordinate points `[X, Y, Z]` in mm.
     pub points: Vec<[f64; 3]>,
 }

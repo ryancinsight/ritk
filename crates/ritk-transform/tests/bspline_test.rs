@@ -6,6 +6,8 @@ use ritk_transform::Transform;
 
 type B = NdArray<f32>;
 
+const ABS_TOL: f32 = 1e-5;
+
 #[test]
 fn test_bspline_transform_2d_identity() {
     let device = Default::default();
@@ -36,8 +38,8 @@ fn test_bspline_transform_2d_identity() {
     let result = transformed.into_data();
     let actual = result.as_slice::<f32>().unwrap();
 
-    assert!((actual[0] - 2.0).abs() < 1e-5);
-    assert!((actual[1] - 2.0).abs() < 1e-5);
+    assert!((actual[0] - 2.0).abs() < ABS_TOL);
+    assert!((actual[1] - 2.0).abs() < ABS_TOL);
 }
 
 #[test]
@@ -78,12 +80,12 @@ fn test_bspline_transform_2d_shift() {
     let actual = result.as_slice::<f32>().unwrap();
 
     assert!(
-        (actual[0] - 2.5).abs() < 1e-5,
+        (actual[0] - 2.5).abs() < ABS_TOL,
         "Expected 2.5, got {}",
         actual[0]
     );
     assert!(
-        (actual[1] - 1.5).abs() < 1e-5,
+        (actual[1] - 1.5).abs() < ABS_TOL,
         "Expected 1.5, got {}",
         actual[1]
     );
@@ -113,9 +115,9 @@ fn test_bspline_transform_3d_identity() {
     let result = transformed.into_data();
     let actual = result.as_slice::<f32>().unwrap();
 
-    assert!((actual[0] - 1.5).abs() < 1e-5);
-    assert!((actual[1] - 1.5).abs() < 1e-5);
-    assert!((actual[2] - 1.5).abs() < 1e-5);
+    assert!((actual[0] - 1.5).abs() < ABS_TOL);
+    assert!((actual[1] - 1.5).abs() < ABS_TOL);
+    assert!((actual[2] - 1.5).abs() < ABS_TOL);
 }
 
 #[test]
@@ -150,14 +152,14 @@ fn test_bspline_transform_3d_chunking() {
     let actual = result.as_slice::<f32>().unwrap();
 
     // Point 1
-    assert!((actual[0] - 2.5).abs() < 1e-5); // 1.5 + 1.0
-    assert!((actual[1] - 2.5).abs() < 1e-5);
-    assert!((actual[2] - 2.5).abs() < 1e-5);
+    assert!((actual[0] - 2.5).abs() < ABS_TOL); // 1.5 + 1.0
+    assert!((actual[1] - 2.5).abs() < ABS_TOL);
+    assert!((actual[2] - 2.5).abs() < ABS_TOL);
 
     // Point 2
-    assert!((actual[3] - 3.0).abs() < 1e-5); // 2.0 + 1.0
-    assert!((actual[4] - 3.0).abs() < 1e-5);
-    assert!((actual[5] - 3.0).abs() < 1e-5);
+    assert!((actual[3] - 3.0).abs() < ABS_TOL); // 2.0 + 1.0
+    assert!((actual[4] - 3.0).abs() < ABS_TOL);
+    assert!((actual[5] - 3.0).abs() < ABS_TOL);
 }
 
 #[test]
@@ -187,7 +189,7 @@ fn test_bspline_boundary_conditions() {
     let p_in = Tensor::<B, 2>::from_data(TensorData::from([[2.0, 2.0]]), &device);
     let res_in = transform.transform_points(p_in).into_data();
     let slice_in = res_in.as_slice::<f32>().unwrap();
-    assert!((slice_in[0] - 3.0).abs() < 1e-5);
+    assert!((slice_in[0] - 3.0).abs() < ABS_TOL);
 
     // Point outside grid (-1, -1) -> Should have 0 displacement (Identity)
     let p_out = Tensor::<B, 2>::from_data(TensorData::from([[-1.0, -1.0]]), &device);
@@ -196,12 +198,12 @@ fn test_bspline_boundary_conditions() {
 
     // Should remain -1.0
     assert!(
-        (slice_out[0] - -1.0).abs() < 1e-5,
+        (slice_out[0] - -1.0).abs() < ABS_TOL,
         "Outside point X mismatch: {}",
         slice_out[0]
     );
     assert!(
-        (slice_out[1] - -1.0).abs() < 1e-5,
+        (slice_out[1] - -1.0).abs() < ABS_TOL,
         "Outside point Y mismatch: {}",
         slice_out[1]
     );
@@ -211,5 +213,5 @@ fn test_bspline_boundary_conditions() {
     let res_far = transform.transform_points(p_far).into_data();
     let slice_far = res_far.as_slice::<f32>().unwrap();
 
-    assert!((slice_far[0] - 10.0).abs() < 1e-5);
+    assert!((slice_far[0] - 10.0).abs() < ABS_TOL);
 }

@@ -1,6 +1,6 @@
 //! Viewport unit tests.
 
-use super::state::{img_to_screen, img_to_volume, screen_to_img, screen_to_img_f32, slice_dims};
+use super::state::{img_to_screen, img_to_volume, screen_to_img, screen_to_img_exact, slice_dims};
 use super::*;
 use crate::render::slice_render::WindowLevel;
 use crate::LoadedVolume;
@@ -180,8 +180,8 @@ fn test_img_screen_transform_round_trip_identity() {
     let scale = 2.75;
     let img = pos2(19.25, 4.5);
     let screen = img_to_screen(img, offset, scale);
-    let restored =
-        screen_to_img_f32(screen, offset, scale).expect("inverse mapping must exist for scale > 0");
+    let restored = screen_to_img_exact(screen, offset, scale)
+        .expect("inverse mapping must exist for scale > 0");
     assert!(
         (restored.0 - img.x).abs() < 1e-6,
         "round-trip col mismatch: expected {}, got {}",
@@ -196,7 +196,7 @@ fn test_img_screen_transform_round_trip_identity() {
     );
 }
 
-/// Integer `screen_to_img` must agree with `floor(screen_to_img_f32)` for
+/// Integer `screen_to_img` must agree with `floor(screen_to_img_exact)` for
 /// in-bounds points.
 #[test]
 fn test_screen_to_img_matches_f32_floor_for_in_bounds_points() {
@@ -209,23 +209,23 @@ fn test_screen_to_img_matches_f32_floor_for_in_bounds_points() {
     let int_coord =
         screen_to_img(screen, offset, scale, img_w, img_h).expect("chosen point must be in bounds");
     let float_coord =
-        screen_to_img_f32(screen, offset, scale).expect("scale > 0 must produce f32 coordinate");
+        screen_to_img_exact(screen, offset, scale).expect("scale > 0 must produce f32 coordinate");
     assert_eq!(int_coord.0, float_coord.0 as usize, "col floor mismatch");
     assert_eq!(int_coord.1, float_coord.1 as usize, "row floor mismatch");
 }
 
-/// `screen_to_img_f32` must reject non-positive scales to preserve the
+/// `screen_to_img_exact` must reject non-positive scales to preserve the
 /// affine inverse precondition.
 #[test]
-fn test_screen_to_img_f32_rejects_non_positive_scale() {
+fn test_screen_to_img_exact_rejects_non_positive_scale() {
     let p = pos2(1.0, 2.0);
     let o = Vec2::new(0.0, 0.0);
     assert!(
-        screen_to_img_f32(p, o, 0.0).is_none(),
+        screen_to_img_exact(p, o, 0.0).is_none(),
         "scale=0 must reject"
     );
     assert!(
-        screen_to_img_f32(p, o, -1.0).is_none(),
+        screen_to_img_exact(p, o, -1.0).is_none(),
         "negative scale must reject"
     );
 }

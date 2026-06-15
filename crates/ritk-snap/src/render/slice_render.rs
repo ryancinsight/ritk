@@ -82,7 +82,7 @@ impl WindowLevel {
             255
         } else {
             // SAFETY: l < v < u ⟹ u − l = width > 0, no division by zero.
-            ((v - l) / (u - l) * 255.0).round() as u8
+            ((v - l) / (u - l) * super::U8_MAX_F32 as f64).round() as u8
         }
     }
 
@@ -145,7 +145,7 @@ impl SliceRenderer {
         let mut rgba = Vec::with_capacity(width * height * 4);
         for &p in &pixels {
             let byte = wl.apply(p as f64);
-            let [r, g, b] = colormap.map(byte as f32 / 255.0);
+            let [r, g, b] = colormap.map(byte as f32 / super::U8_MAX_F32);
             rgba.push(r);
             rgba.push(g);
             rgba.push(b);
@@ -183,14 +183,14 @@ impl SliceRenderer {
         if width == 0 || height == 0 {
             return egui::ColorImage::from_rgb([1, 1], &[0u8, 0, 0]);
         }
-        pool.resize_u8(width * height * 4);
+        pool.resize_pixel_bytes(width * height * 4);
         // Split-borrow: pool.pixel_f32 (read) and pool.rgba_u8 (write) are
         // distinct fields; Rust NLL permits simultaneous borrows.
         let pixels = pool.pixel_f32.as_slice();
         let rgba = pool.rgba_u8.as_mut_slice();
         for (i, &p) in pixels.iter().enumerate() {
             let byte = wl.apply(p as f64);
-            let [r, g, b] = colormap.map(byte as f32 / 255.0);
+            let [r, g, b] = colormap.map(byte as f32 / super::U8_MAX_F32);
             let base = i * 4;
             rgba[base] = r;
             rgba[base + 1] = g;

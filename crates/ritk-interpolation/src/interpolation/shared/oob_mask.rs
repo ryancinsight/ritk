@@ -10,7 +10,7 @@
 /// - column 0 → x (→ `shape[2]`, the X / last dimension)
 /// - column 1 → y (→ `shape[1]`, the Y / middle dimension)
 /// - column 2 → z (→ `shape[0]`, the Z / first dimension)
-pub fn compute_oob_mask_3d<B: burn::tensor::backend::Backend>(
+pub fn compute_oob_mask<B: burn::tensor::backend::Backend>(
     indices: &burn::tensor::Tensor<B, 2>, // [N, 3]
     shape: &[usize],                      // at least 3 elements: [d0=Z, d1=Y, d2=X]
 ) -> burn::tensor::Tensor<B, 1> {

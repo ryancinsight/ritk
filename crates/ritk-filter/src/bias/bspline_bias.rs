@@ -79,6 +79,9 @@ pub fn bspline_evaluate(
     result
 }
 
+/// Tikhonov regularization parameter λ for B-spline bias field least-squares fitting.
+const TIKHONOV_LAMBDA: f64 = 1e-6;
+
 /// Fit a cubic B-spline surface to `residuals` via subsampled Tikhonov-regularised
 /// normal equations.
 ///
@@ -146,7 +149,7 @@ pub fn bspline_fit(
     // Tikhonov-regularised normal equations: (AᵀA + λI)c = Aᵀr
     let ata = a.tr_mul(&a);
     let atr = a.tr_mul(&r);
-    let lhs = ata + DMatrix::<f64>::identity(n_cp, n_cp) * 1e-6;
+    let lhs = ata + DMatrix::<f64>::identity(n_cp, n_cp) * TIKHONOV_LAMBDA;
 
     let solution = lhs
         .lu()

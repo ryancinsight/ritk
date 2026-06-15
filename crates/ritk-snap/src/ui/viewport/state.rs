@@ -23,7 +23,7 @@
 //! $$
 //! T^{-1}(q) = \frac{q - o}{s}
 //! $$
-//! implemented by `screen_to_img_f32`.
+//! implemented by `screen_to_img_exact`.
 //!
 //! Proof sketch:
 //! - Injective: if $T(p_1)=T(p_2)$ then $o+s p_1=o+s p_2$, so $s(p_1-p_2)=0$;
@@ -272,7 +272,7 @@ pub(super) fn img_to_screen(img: Pos2, offset: Vec2, scale: f32) -> Pos2 {
 /// Convert a screen position to floating-point image coordinates `(col, row)`.
 ///
 /// No bounds check; returns `None` only when `scale <= 0`.
-pub(super) fn screen_to_img_f32(screen: Pos2, offset: Vec2, scale: f32) -> Option<(f32, f32)> {
+pub(super) fn screen_to_img_exact(screen: Pos2, offset: Vec2, scale: f32) -> Option<(f32, f32)> {
     if scale <= 0.0 {
         return None;
     }

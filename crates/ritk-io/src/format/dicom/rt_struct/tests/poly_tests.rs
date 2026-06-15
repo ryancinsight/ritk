@@ -1,5 +1,4 @@
 use super::*;
-use arrayvec::ArrayString;
 
 /// Invariant: a single CLOSED_PLANAR contour (unit square, 4 points) must
 /// produce exactly 1 polygon cell containing 4 point indices, with no lines or vertices.
@@ -12,7 +11,7 @@ fn test_rt_roi_to_polydata_closed_planar() {
         roi_interpreted_type: None,
         display_color: None,
         contours: vec![RtContour {
-            geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
+            geometric_type: ContourGeometricType::ClosedPlanar,
             points: vec![
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
@@ -53,7 +52,7 @@ fn test_rt_roi_to_polydata_open_planar() {
         roi_interpreted_type: None,
         display_color: None,
         contours: vec![RtContour {
-            geometric_type: ArrayString::from("OPEN_PLANAR").unwrap(),
+            geometric_type: ContourGeometricType::OpenPlanar,
             points: vec![[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.0, 3.0, 0.0]],
         }],
     };
@@ -80,7 +79,7 @@ fn test_rt_roi_to_polydata_mixed_contours() {
         display_color: None,
         contours: vec![
             RtContour {
-                geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
+                geometric_type: ContourGeometricType::ClosedPlanar,
                 points: vec![
                     [0.0, 0.0, 0.0],
                     [1.0, 0.0, 0.0],
@@ -89,7 +88,7 @@ fn test_rt_roi_to_polydata_mixed_contours() {
                 ],
             },
             RtContour {
-                geometric_type: ArrayString::from("OPEN_PLANAR").unwrap(),
+                geometric_type: ContourGeometricType::OpenPlanar,
                 points: vec![[5.0, 0.0, 0.0], [6.0, 0.0, 0.0], [7.0, 1.0, 0.0]],
             },
         ],

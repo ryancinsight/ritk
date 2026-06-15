@@ -417,7 +417,7 @@ impl SnapApp {
                         },
                     );
                     match cpr_filter.apply(&image) {
-                        Ok(image_2d) => crate::filter::promote::promote_2d_to_3d(image_2d),
+                        Ok(image_2d) => crate::filter::promote::elevate_to_volume(image_2d),
                         Err(e) => Err(e),
                     }
                 }

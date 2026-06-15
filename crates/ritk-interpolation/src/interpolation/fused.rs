@@ -17,7 +17,7 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::{Tensor, TensorData};
 
-use crate::interpolation::shared::compute_oob_mask_3d;
+use crate::interpolation::shared::compute_oob_mask;
 use crate::interpolation::LinearInterpolator;
 use ritk_core::interpolation::Interpolator;
 use ritk_core::transform::Transform;
@@ -63,7 +63,7 @@ pub struct FusedInterpolationResult<B: Backend> {
 /// avoiding the need for the caller to retain the `moving_indices` tensor
 /// just for OOB masking. This eliminates one `[N, 3]` intermediate allocation
 /// compared to the unfused path (`transform_points` → `world_to_index_tensor`
-/// → `compute_oob_mask_3d` → `interpolate`).
+/// → `compute_oob_mask` → `interpolate`).
 ///
 /// For the special case where the moving image has an identity direction matrix,
 /// the world-to-index conversion uses element-wise `(world - origin) * inv_spacing`
@@ -78,7 +78,7 @@ pub struct FusedInterpolationResult<B: Backend> {
 /// # Returns
 /// [`FusedInterpolationResult`] containing interpolated values `[N]` and
 /// an OOB mask `[N]` (`1.0` = in-bounds, `0.0` = out-of-bounds).
-pub fn transform_and_interpolate_3d<B: Backend, T: Transform<B, 3>>(
+pub fn transform_and_interpolate<B: Backend, T: Transform<B, 3>>(
     fixed_points: Tensor<B, 2>,
     transform: &T,
     moving: &Image<B, 3>,
@@ -118,7 +118,7 @@ pub fn transform_and_interpolate_3d<B: Backend, T: Transform<B, 3>>(
     let indices = compute_general_indices_chunked(moving_world, origin_tensor, t_tensor, n_points);
 
     // ---- Step 2b: compute OOB mask from indices before interpolation consumes them ----
-    let oob_mask = compute_oob_mask_3d(&indices, &moving.shape());
+    let oob_mask = compute_oob_mask(&indices, &moving.shape());
 
     // ---- Step 3: interpolate ----
     let values = interpolator.interpolate(moving.data(), indices);

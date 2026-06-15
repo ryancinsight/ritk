@@ -211,23 +211,6 @@ impl<B: Backend, const D: usize> Dispatch3DTyped<B, D> for Tensor<B, D> {
     }
 }
 
-/// Per-shape runtime dispatcher for 3-D linear interpolation.
-///
-/// This is a convenience wrapper around the sealed [`DispatchByShape`]
-/// trait method. It matches on `data.shape().dims` at runtime and routes
-/// common cube shapes (64³, 128³, 256³, 512³) to the const-generic typed
-/// instantiations, with fallback to the generic `dim3::interpolate_3d`.
-///
-/// See [`DispatchByShape`] for the trait-based implementation.
-#[inline]
-pub fn dispatch_3d_for_shape<B: Backend>(
-    data: &Tensor<B, 3>,
-    indices: Tensor<B, 2>,
-    mode: OutOfBoundsMode,
-) -> Tensor<B, 1> {
-    data.dispatch_by_shape(indices, mode)
-}
-
 // ════════════════════════════════════════════════════════════════════════
 // N-D type-narrowing wrapper traits (Sprint 359)
 // ════════════════════════════════════════════════════════════════════════
@@ -313,47 +296,3 @@ impl<B: Backend, const D: usize> Dispatch4DTyped<B, D> for Tensor<B, D> {
     }
 }
 
-/// Per-shape runtime dispatcher for 1-D linear interpolation.
-///
-/// Convenience wrapper around the sealed [`DispatchByShape`] trait
-/// method for `Tensor<B, 1>`. Matches on `data.shape().dims` and routes
-/// common 1-D shapes (64, 128, 256, 512) to the const-generic typed
-/// instantiations, with fallback to the generic `dim1::interpolate_1d`.
-#[inline]
-pub fn dispatch_1d_for_shape<B: Backend>(
-    data: &Tensor<B, 1>,
-    indices: Tensor<B, 2>,
-    mode: OutOfBoundsMode,
-) -> Tensor<B, 1> {
-    data.dispatch_by_shape(indices, mode)
-}
-
-/// Per-shape runtime dispatcher for 2-D linear interpolation.
-///
-/// Convenience wrapper around the sealed [`DispatchByShape`] trait
-/// method for `Tensor<B, 2>`. Matches on `data.shape().dims` and routes
-/// common 2-D shapes (64², 128², 256², 512²) to the const-generic typed
-/// instantiations, with fallback to the generic `dim2::interpolate_2d`.
-#[inline]
-pub fn dispatch_2d_for_shape<B: Backend>(
-    data: &Tensor<B, 2>,
-    indices: Tensor<B, 2>,
-    mode: OutOfBoundsMode,
-) -> Tensor<B, 1> {
-    data.dispatch_by_shape(indices, mode)
-}
-
-/// Per-shape runtime dispatcher for 4-D linear interpolation.
-///
-/// Convenience wrapper around the sealed [`DispatchByShape`] trait
-/// method for `Tensor<B, 4>`. Matches on `data.shape().dims` and routes
-/// common 4-D shapes (64⁴, 128⁴) to the const-generic typed
-/// instantiations, with fallback to the generic `dim4::interpolate_4d`.
-#[inline]
-pub fn dispatch_4d_for_shape<B: Backend>(
-    data: &Tensor<B, 4>,
-    indices: Tensor<B, 2>,
-    mode: OutOfBoundsMode,
-) -> Tensor<B, 1> {
-    data.dispatch_by_shape(indices, mode)
-}

@@ -1,16 +1,16 @@
 //! RT Structure Set reader — parse a DICOM RT Structure Set file into [`RtStructureSet`].
 
 use anyhow::{bail, Context, Result};
-use arrayvec::ArrayString;
 use dicom::core::value::Value;
 use dicom::core::Tag;
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::collections::HashMap;
 use std::path::Path;
 
-use super::types::{RtContour, RtRoiInfo, RtStructureSet, RT_STRUCT_SOP_CLASS_UID};
+use super::types::{
+    ContourGeometricType, RtContour, RtRoiInfo, RtStructureSet, RT_STRUCT_SOP_CLASS_UID,
+};
 use super::utils::{parse_color, parse_contour_data};
-use crate::format::dicom::reader::types::truncate_arraystring;
 
 /// Read and parse a DICOM RT Structure Set file.
 ///
@@ -142,17 +142,8 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
                                 .element(Tag(0x3006, 0x0042))
                                 .ok()
                                 .and_then(|e| e.to_str().ok())
-                                .map(|s| {
-                                    let trimmed = s.trim();
-                                    match ArrayString::<16>::from(trimmed) {
-                                        Ok(v) => v,
-                                        Err(_) => {
-                                            tracing::warn!("ContourGeometricType exceeds 16 chars, truncating: {}", &trimmed[..16]);
-                                                                truncate_arraystring::<16>(trimmed)
-                                        }
-                                    }
-                                })
-                                .unwrap_or_else(ArrayString::new);
+                                .and_then(|s| ContourGeometricType::from_dicom_str(s.trim()))
+                                .unwrap_or(ContourGeometricType::ClosedPlanar);
 
                             let points = ci
                                 .element(Tag(0x3006, 0x0050))

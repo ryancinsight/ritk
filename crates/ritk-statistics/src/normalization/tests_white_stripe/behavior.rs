@@ -97,7 +97,7 @@ fn test_normalized_white_stripe_mean_zero_std_one() {
         "white stripe normalized mean must be ≈ 0, got {stripe_mean}"
     );
 
-    if sigma_ws > 1e-8 {
+    if sigma_ws > crate::normalization::NORMALIZER_EPSILON as f64 {
         assert!(
             (stripe_std - 1.0).abs() < 0.1,
             "white stripe normalized std must be ≈ 1, got {stripe_std}"

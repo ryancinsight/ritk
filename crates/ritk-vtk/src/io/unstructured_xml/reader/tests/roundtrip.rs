@@ -24,7 +24,7 @@ fn test_tetra_roundtrip() {
     assert_eq!(r.n_cells(), 1);
     assert_eq!(r.cells[0], vec![0u32, 1, 2, 3]);
     assert_eq!(r.cell_types[0], VtkCellType::Tetra);
-    assert_eq!(r.cell_types[0].to_u8(), 10, "Tetra VTK code must be 10");
+    assert_eq!(u8::from(r.cell_types[0]), 10, "Tetra VTK code must be 10");
     assert!(
         (r.points[0][0] - 0.0).abs() < 1e-5,
         "p[0].x = {}",
@@ -73,7 +73,7 @@ fn test_two_triangles_roundtrip() {
     assert_eq!(r.cells[1], vec![1u32, 2, 3], "cell 1 connectivity");
     assert_eq!(r.cell_types[0], VtkCellType::Triangle);
     assert_eq!(r.cell_types[1], VtkCellType::Triangle);
-    assert_eq!(r.cell_types[0].to_u8(), 5, "Triangle VTK code must be 5");
+    assert_eq!(u8::from(r.cell_types[0]), 5, "Triangle VTK code must be 5");
 }
 
 #[test]
@@ -190,10 +190,10 @@ fn test_cell_types_variety_roundtrip() {
     assert_eq!(r.cell_types[2], VtkCellType::Tetra);
     assert_eq!(r.cell_types[3], VtkCellType::Hexahedron);
     // Canonical code verification.
-    assert_eq!(r.cell_types[0].to_u8(), 1);
-    assert_eq!(r.cell_types[1].to_u8(), 5);
-    assert_eq!(r.cell_types[2].to_u8(), 10);
-    assert_eq!(r.cell_types[3].to_u8(), 12);
+    assert_eq!(u8::from(r.cell_types[0]), 1);
+    assert_eq!(u8::from(r.cell_types[1]), 5);
+    assert_eq!(u8::from(r.cell_types[2]), 10);
+    assert_eq!(u8::from(r.cell_types[3]), 12);
 }
 
 #[test]

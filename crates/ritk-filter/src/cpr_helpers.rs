@@ -198,6 +198,9 @@ pub fn generate_path_batch(control_points: &[[f64; 3]], num_samples: usize) -> V
     path
 }
 
+/// Near-zero length guard for CPR path geometry normalization.
+const LENGTH_EPSILON: f64 = 1e-12;
+
 // ── Cross-section basis ──────────────────────────────────────────────────
 
 /// Construct an orthonormal basis `(up, right)` spanning the plane
@@ -209,7 +212,7 @@ pub fn generate_path_batch(control_points: &[[f64; 3]], num_samples: usize) -> V
 /// back to the world-Z reference axis.
 pub fn cross_section_basis(tangent: &[f64; 3]) -> ([f64; 3], [f64; 3]) {
     let len = (tangent[0] * tangent[0] + tangent[1] * tangent[1] + tangent[2] * tangent[2]).sqrt();
-    let t = if len > 1e-12 {
+    let t = if len > LENGTH_EPSILON {
         [tangent[0] / len, tangent[1] / len, tangent[2] / len]
     } else {
         [0.0, 0.0, 1.0]
@@ -228,7 +231,7 @@ pub fn cross_section_basis(tangent: &[f64; 3]) -> ([f64; 3], [f64; 3]) {
         ref_vec[2] - dot * t[2],
     ];
     let up_len = (up[0] * up[0] + up[1] * up[1] + up[2] * up[2]).sqrt();
-    if up_len > 1e-12 {
+    if up_len > LENGTH_EPSILON {
         up = [up[0] / up_len, up[1] / up_len, up[2] / up_len];
     } else {
         up = [1.0, 0.0, 0.0];

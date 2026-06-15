@@ -19,7 +19,7 @@ pub(crate) mod sparse;
 #[cfg(test)]
 mod tests;
 
-pub(super) use oob::compute_oob_mask_3d;
+pub(super) use oob::compute_oob_mask;
 
 /// Joint Histogram Calculator using Parzen windowing.
 #[derive(Debug)]

@@ -248,7 +248,7 @@ fn rasterize_triangle(
     let face_normal = compute_face_normal(p0, p1, p2);
     let phong_color = phong_shade(face_normal, camera.eye, p0, material, lights);
 
-    let alpha = (material.opacity * 255.0).clamp(0.0, 255.0) as u8;
+    let alpha = (material.opacity * super::U8_MAX_F32).clamp(0.0, super::U8_MAX_F32) as u8;
 
     // Bounding box scan-line rasterization with Z-buffer
     let min_x = (sx0.min(sx1).min(sx2).floor() as i32).max(0);
@@ -281,9 +281,12 @@ fn rasterize_triangle(
             if z < z_buf[idx] {
                 z_buf[idx] = z;
                 let base = idx * 4;
-                color_buf[base] = (phong_color[0] * 255.0).clamp(0.0, 255.0) as u8;
-                color_buf[base + 1] = (phong_color[1] * 255.0).clamp(0.0, 255.0) as u8;
-                color_buf[base + 2] = (phong_color[2] * 255.0).clamp(0.0, 255.0) as u8;
+                color_buf[base] =
+                    (phong_color[0] * super::U8_MAX_F32).clamp(0.0, super::U8_MAX_F32) as u8;
+                color_buf[base + 1] =
+                    (phong_color[1] * super::U8_MAX_F32).clamp(0.0, super::U8_MAX_F32) as u8;
+                color_buf[base + 2] =
+                    (phong_color[2] * super::U8_MAX_F32).clamp(0.0, super::U8_MAX_F32) as u8;
                 color_buf[base + 3] = alpha;
             }
         }

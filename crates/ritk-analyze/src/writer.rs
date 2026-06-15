@@ -39,7 +39,7 @@ use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 
-use crate::codec::{write_f32, write_i16, write_i32, DT_FLOAT};
+use crate::codec::{write_le, DT_FLOAT, EXTENTS, HDR_SIZE};
 use std::marker::PhantomData;
 use std::path::Path;
 
@@ -85,31 +85,31 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     }
 
     // ── Build 348-byte header ─────────────────────────────────────────────────
-    let mut hdr = [0u8; 348];
+    let mut hdr = [0u8; HDR_SIZE];
 
-    write_i32(&mut hdr, 0, 348); // sizeof_hdr
-    write_i32(&mut hdr, 32, 16384); // extents
+    write_le::<i32>(&mut hdr, 0, HDR_SIZE as i32); // sizeof_hdr
+    write_le::<i32>(&mut hdr, 32, EXTENTS); // extents
     hdr[38] = b'r'; // regular
 
     // image_dimension — dim[8] at offset 40
-    write_i16(&mut hdr, 40, 4); // dim[0] = num dimensions
-    write_i16(&mut hdr, 42, nx as i16); // dim[1] = X
-    write_i16(&mut hdr, 44, ny as i16); // dim[2] = Y
-    write_i16(&mut hdr, 46, nz as i16); // dim[3] = Z
-    write_i16(&mut hdr, 48, 1); // dim[4] = time (1 volume)
+    write_le::<i16>(&mut hdr, 40, 4); // dim[0] = num dimensions
+    write_le::<i16>(&mut hdr, 42, nx as i16); // dim[1] = X
+    write_le::<i16>(&mut hdr, 44, ny as i16); // dim[2] = Y
+    write_le::<i16>(&mut hdr, 46, nz as i16); // dim[3] = Z
+    write_le::<i16>(&mut hdr, 48, 1); // dim[4] = time (1 volume)
 
-    write_i16(&mut hdr, 70, DT_FLOAT); // datatype = DT_FLOAT (16)
-    write_i16(&mut hdr, 72, 32); // bitpix   = 32 bits
+    write_le::<i16>(&mut hdr, 70, DT_FLOAT); // datatype = DT_FLOAT (16)
+    write_le::<i16>(&mut hdr, 72, 32); // bitpix   = 32 bits
 
     // pixdim[8] at offset 76
-    write_f32(&mut hdr, 76, 4.0_f32); // pixdim[0] = number of dims
-    write_f32(&mut hdr, 80, sp[0] as f32); // pixdim[1] = sx
-    write_f32(&mut hdr, 84, sp[1] as f32); // pixdim[2] = sy
-    write_f32(&mut hdr, 88, sp[2] as f32); // pixdim[3] = sz
-    write_f32(&mut hdr, 92, 1.0_f32); // pixdim[4] = TR (unused)
+    write_le::<f32>(&mut hdr, 76, 4.0_f32); // pixdim[0] = number of dims
+    write_le::<f32>(&mut hdr, 80, sp[0] as f32); // pixdim[1] = sx
+    write_le::<f32>(&mut hdr, 84, sp[1] as f32); // pixdim[2] = sy
+    write_le::<f32>(&mut hdr, 88, sp[2] as f32); // pixdim[3] = sz
+    write_le::<f32>(&mut hdr, 92, 1.0_f32); // pixdim[4] = TR (unused)
 
-    write_f32(&mut hdr, 108, 0.0_f32); // vox_offset
-    write_f32(&mut hdr, 112, 1.0_f32); // funused1 = scale factor (1 = no scaling)
+    write_le::<f32>(&mut hdr, 108, 0.0_f32); // vox_offset
+    write_le::<f32>(&mut hdr, 112, 1.0_f32); // funused1 = scale factor (1 = no scaling)
 
     // data_history — descrip[80] at offset 148
     let descrip = b"RITK";
@@ -119,9 +119,9 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     let ox_vox = vox_coord(orig[0], sp[0]);
     let oy_vox = vox_coord(orig[1], sp[1]);
     let oz_vox = vox_coord(orig[2], sp[2]);
-    write_i16(&mut hdr, 253, ox_vox); // originator[0] = x voxel
-    write_i16(&mut hdr, 255, oy_vox); // originator[1] = y voxel
-    write_i16(&mut hdr, 257, oz_vox); // originator[2] = z voxel
+    write_le::<i16>(&mut hdr, 253, ox_vox); // originator[0] = x voxel
+    write_le::<i16>(&mut hdr, 255, oy_vox); // originator[1] = y voxel
+    write_le::<i16>(&mut hdr, 257, oz_vox); // originator[2] = z voxel
 
     // Write .hdr
     std::fs::write(&hdr_path, hdr).context("Failed to write Analyze header")?;

@@ -8,6 +8,8 @@ use std::f32::consts::PI;
 
 type B = NdArray<f32>;
 
+const ABS_TOL: f32 = 1e-5;
+
 #[test]
 fn test_rigid_transform_2d() {
     let device = Default::default();
@@ -34,13 +36,13 @@ fn test_rigid_transform_2d() {
     let actual = result.as_slice::<f32>().unwrap();
 
     assert!(
-        (actual[0] - expected[0]).abs() < 1e-5,
+        (actual[0] - expected[0]).abs() < ABS_TOL,
         "X mismatch: got {}, expected {}",
         actual[0],
         expected[0]
     );
     assert!(
-        (actual[1] - expected[1]).abs() < 1e-5,
+        (actual[1] - expected[1]).abs() < ABS_TOL,
         "Y mismatch: got {}, expected {}",
         actual[1],
         expected[1]
@@ -75,19 +77,19 @@ fn test_rigid_transform_3d() {
     let actual = result.as_slice::<f32>().unwrap();
 
     assert!(
-        (actual[0] - expected[0]).abs() < 1e-5,
+        (actual[0] - expected[0]).abs() < ABS_TOL,
         "X mismatch: got {}, expected {}",
         actual[0],
         expected[0]
     );
     assert!(
-        (actual[1] - expected[1]).abs() < 1e-5,
+        (actual[1] - expected[1]).abs() < ABS_TOL,
         "Y mismatch: got {}, expected {}",
         actual[1],
         expected[1]
     );
     assert!(
-        (actual[2] - expected[2]).abs() < 1e-5,
+        (actual[2] - expected[2]).abs() < ABS_TOL,
         "Z mismatch: got {}, expected {}",
         actual[2],
         expected[2]
@@ -133,12 +135,12 @@ fn test_displacement_field_transform_2d() {
     // T(x) = x + D(x) = (0.5, 0.5) + (1.0, 0.5) = (1.5, 1.0)
 
     assert!(
-        (actual[0] - 1.5).abs() < 1e-5,
+        (actual[0] - 1.5).abs() < ABS_TOL,
         "X mismatch: got {}, expected 1.5",
         actual[0]
     );
     assert!(
-        (actual[1] - 1.0).abs() < 1e-5,
+        (actual[1] - 1.0).abs() < ABS_TOL,
         "Y mismatch: got {}, expected 1.0",
         actual[1]
     );

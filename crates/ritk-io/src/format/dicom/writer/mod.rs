@@ -9,7 +9,7 @@
 mod metadata;
 mod preservation;
 mod series;
-mod utils;
+pub(crate) mod utils;
 
 #[cfg(test)]
 mod tests;

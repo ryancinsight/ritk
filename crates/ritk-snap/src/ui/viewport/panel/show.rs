@@ -3,7 +3,7 @@
 use egui::{pos2, vec2, Color32, Pos2, Rect, Sense, Stroke, TextureOptions, Ui, Vec2};
 
 use super::super::state::{
-    draw_crosshair, img_to_screen, screen_to_img, screen_to_img_f32, slice_dims, ViewportPanel,
+    draw_crosshair, img_to_screen, screen_to_img, screen_to_img_exact, slice_dims, ViewportPanel,
     ViewportRenderMode, ViewportState,
 };
 use crate::{
@@ -166,7 +166,7 @@ impl<'a> ViewportPanel<'a> {
             // Compute cursor in image coordinates for live measurement labels.
             let cursor_img_opt = response
                 .hover_pos()
-                .and_then(|s| screen_to_img_f32(s, offset, scale))
+                .and_then(|s| screen_to_img_exact(s, offset, scale))
                 .map(|(col, row)| egui::pos2(col, row));
             let sp = volume.spacing;
             let spacing_2d: [f32; 2] = match self.state.axis {

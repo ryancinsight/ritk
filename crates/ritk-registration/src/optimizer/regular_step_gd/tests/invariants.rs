@@ -30,13 +30,15 @@ fn rsgd_set_learning_rate_updates_step_length() {
     assert!((rsgd.current_step_length() - 0.5).abs() < 1e-12);
 }
 
+use crate::optimizer::OptimizerAlgorithm;
+
 #[test]
 fn rsgd_telemetry_reports_algorithm_name() {
     let rsgd: RegularStepGradientDescent<TestModule, TestBackend> =
         RegularStepGradientDescent::new(RegularStepGdConfig::default());
 
     let telemetry = rsgd.telemetry();
-    assert_eq!(telemetry.algorithm, "RegularStepGradientDescent");
+    assert_eq!(telemetry.algorithm, OptimizerAlgorithm::RegularStepGradientDescent);
     assert_eq!(telemetry.steps, 0);
     assert!(telemetry.learning_rate.is_some());
 }

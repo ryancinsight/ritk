@@ -39,7 +39,7 @@ fn test_unstructured_grid_roundtrip_tetrahedra() {
     assert_eq!(r.n_cells(), 1);
     assert_eq!(r.cells[0], vec![0u32, 1, 2, 3]);
     assert_eq!(r.cell_types[0], VtkCellType::Tetra);
-    assert_eq!(r.cell_types[0].to_u8(), 10);
+    assert_eq!(u8::from(r.cell_types[0]), 10);
 
     match r.point_data.get("pressure").expect("pressure") {
         AttributeArray::Scalars { values, .. } => {
@@ -91,7 +91,7 @@ fn test_unstructured_grid_roundtrip_multiple_cells() {
     assert_eq!(r.cells[1], vec![1u32, 2, 3]);
     assert_eq!(r.cell_types[0], VtkCellType::Triangle);
     assert_eq!(r.cell_types[1], VtkCellType::Triangle);
-    assert_eq!(r.cell_types[0].to_u8(), 5);
+    assert_eq!(u8::from(r.cell_types[0]), 5);
 }
 
 #[test]

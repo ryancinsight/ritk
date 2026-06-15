@@ -289,25 +289,6 @@ impl<'a> ToolbarPanel<'a> {
     }
 }
 
-/// Return keyboard shortcut text for a tool kind.
-/// (Reserved for future use in tooltip integration.)
-#[allow(dead_code)]
-fn tool_shortcut_text(tool: ToolKind) -> Option<&'static str> {
-    match tool {
-        ToolKind::WindowLevel => Some("Ctrl+1"),
-        ToolKind::Pan => Some("Ctrl+2"),
-        ToolKind::Zoom => Some("Ctrl+3"),
-        ToolKind::MeasureLength => Some("Ctrl+4"),
-        ToolKind::MeasureAngle => Some("Ctrl+5"),
-        ToolKind::RoiRect => Some("Ctrl+6"),
-        ToolKind::RoiEllipse => Some("Ctrl+7"),
-        ToolKind::LabelPaint => Some("Ctrl+8"),
-        ToolKind::LabelErase => Some("Ctrl+9"),
-        ToolKind::PointHu => Some("Ctrl+0"),
-        ToolKind::Crosshair => None,
-    }
-}
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

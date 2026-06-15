@@ -65,6 +65,11 @@ pub struct LabelShapeStatisticsExtended {
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
+/// Singularity epsilon for the Cardano eigenvalue solver: when the off-diagonal
+/// norm `p` falls below this threshold the inertia tensor is essentially a scalar
+/// multiple of the identity and all three eigenvalues equal the mean diagonal `q̄`.
+const EIGENVALUE_SINGULARITY_EPS: f64 = 1e-12;
+
 /// Eigenvalues of a 3×3 real symmetric matrix via Cardano's formula.
 ///
 /// # Formula
@@ -82,7 +87,7 @@ fn sym3_eigenvalues(m00: f64, m11: f64, m22: f64, m01: f64, m02: f64, m12: f64) 
     let p = (p2 / 6.0).sqrt();
 
     // Degenerate / spherical case: matrix is a scalar multiple of identity.
-    if p < 1e-12 {
+    if p < EIGENVALUE_SINGULARITY_EPS {
         return [q, q, q];
     }
 
