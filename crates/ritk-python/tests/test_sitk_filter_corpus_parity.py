@@ -126,6 +126,26 @@ def test_gradient_magnitude_matches_sitk(images):
     assert _interior_absmax(ra, sa) / _rng(sa) < 1e-4
 
 
+def test_gaussian_filter_preserves_mean(images):
+    """Regression: GaussianFilter convolved the size-1 z-axis with a wide kernel
+    under zero padding, scaling a z=1 image by the kernel centre weight (≈0.2)."""
+    ri, _ = images
+    rin = ri.to_numpy().astype(np.float64)
+    rg = ritk.filter.gaussian_filter(ri, 2.0).to_numpy().astype(np.float64)
+    # Gaussian smoothing conserves the image mean (up to boundary zero-padding).
+    assert abs(rg.mean() - rin.mean()) / rin.mean() < 0.02
+
+
+def test_laplacian_of_gaussian_matches_sitk(images):
+    """LoG magnitude matches sitk's LaplacianRecursiveGaussian (was ~5× small on
+    the z=1 slice). Residual is ritk's discrete Gaussian+Laplacian vs ITK's
+    recursive-Gaussian second derivative."""
+    ri, si = images
+    ra = ritk.filter.laplacian_of_gaussian(ri, sigma=2.0).to_numpy()
+    sa = _sa(sitk.LaplacianRecursiveGaussian(si, sigma=2.0))
+    assert _interior_absmax(ra, sa) / _rng(sa) < 0.06
+
+
 # ── Morphology (flat box structuring element) ─────────────────────────────────
 
 

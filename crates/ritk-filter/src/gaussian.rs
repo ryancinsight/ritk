@@ -54,6 +54,7 @@ impl<B: Backend> GaussianFilter<B> {
     ) -> Tensor<B, D> {
         let mut data = input;
         let device = data.device();
+        let dims: [usize; D] = data.shape().dims();
 
         // Apply 1D convolution along each dimension
         for d in 0..D {
@@ -66,6 +67,14 @@ impl<B: Backend> GaussianFilter<B> {
 
             // Skip if sigma is close to zero
             if sigma <= 1e-6 {
+                continue;
+            }
+
+            // Skip a degenerate (size-1) axis: a length-1 signal cannot be
+            // smoothed, and convolving it with a wide kernel under zero padding
+            // would multiply the slice by only the kernel's centre weight,
+            // darkening the whole image (e.g. a z=1 2-D-promoted volume → ≈0.2×).
+            if dims[d] <= 1 {
                 continue;
             }
 
@@ -230,6 +239,30 @@ mod tests {
         assert!(
             (v - 3.0).abs() < 5e-3,
             "center voxel of constant image under Gaussian must stay ≈ 3.0; got {v}"
+        );
+    }
+
+    /// A z=1 (2-D promoted) image must not be darkened: the degenerate z-axis is
+    /// skipped, so an in-plane constant stays constant rather than being scaled by
+    /// the Gaussian kernel's centre weight (≈0.2) from convolving length-1 z with
+    /// zero padding.
+    #[test]
+    fn z1_image_constant_preserved() {
+        let size = 15usize;
+        let filter = GaussianFilter::<B>::new(vec![
+            GaussianSigma::new_unchecked(2.0),
+            GaussianSigma::new_unchecked(2.0),
+            GaussianSigma::new_unchecked(2.0),
+        ]);
+        let img = make_image(vec![50.0_f32; 1 * size * size], [1, size, size]);
+        let out = filter.apply(&img);
+        let vals = voxels(&out);
+        let cx = size / 2;
+        let center = cx * size + cx;
+        assert!(
+            (vals[center] - 50.0).abs() < 0.5,
+            "z=1 constant must stay ≈ 50.0 (degenerate z-axis skipped); got {}",
+            vals[center]
         );
     }
 
