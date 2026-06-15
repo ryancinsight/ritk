@@ -4,6 +4,33 @@ use super::trilinear_interpolate;
 use crate::parallel::CellSlice;
 use ritk_spatial::VolumeDims;
 
+/// Interpolation mode for [`warp_image`].
+///
+/// Intensity images use [`Trilinear`](WarpInterpolation::Trilinear) (smooth,
+/// the default for registration). **Integer label maps must use
+/// [`Nearest`](WarpInterpolation::Nearest)** — trilinear interpolation blends
+/// distinct label ids into meaningless fractional values, corrupting the
+/// segmentation. Nearest-neighbour preserves exact label ids.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WarpInterpolation {
+    /// Trilinear interpolation (smooth) — for continuous intensity images.
+    #[default]
+    Trilinear,
+    /// Nearest-neighbour — for integer label maps / categorical data.
+    Nearest,
+}
+
+/// Nearest-neighbour sample of `data` at continuous index `(z, y, x)` with
+/// clamp-to-border BC (matching [`trilinear_interpolate`]'s boundary handling).
+#[inline]
+fn nearest_sample(data: &[f32], dims: VolumeDims, z: f32, y: f32, x: f32) -> f32 {
+    let [nz, ny, nx] = dims.0;
+    let iz = (z.round() as isize).clamp(0, nz as isize - 1) as usize;
+    let iy = (y.round() as isize).clamp(0, ny as isize - 1) as usize;
+    let ix = (x.round() as isize).clamp(0, nx as isize - 1) as usize;
+    data[(iz * ny + iy) * nx + ix]
+}
+
 /// Warp `moving` by the displacement field into a caller-provided buffer.
 ///
 /// For each voxel `p = (iz, iy, ix)`:
@@ -41,21 +68,62 @@ pub(crate) fn warp_image_into(
     });
 }
 
-/// Warp `moving` by the displacement field `(dz, dy, dx)`.
+/// Warp `moving` by the displacement field `(dz, dy, dx)` into a caller-provided
+/// buffer using **nearest-neighbour** sampling (clamp-to-border BC).
 ///
-/// For each voxel `p = (iz, iy, ix)`:
-///   `warped(p) = moving(iz + dz[p], iy + dy[p], ix + dx[p])`
-/// sampled with trilinear interpolation and clamp-to-border BC.
-pub(crate) fn warp_image(
+/// For label maps: preserves exact integer ids where trilinear would blend them.
+pub(crate) fn warp_image_nearest_into(
     moving: &[f32],
     dims: VolumeDims,
     dz: &[f32],
     dy: &[f32],
     dx: &[f32],
+    output: &mut [f32],
+) {
+    let [nz, ny, nx] = dims.0;
+    let slice_len = ny * nx;
+    let output = CellSlice::from_mut(output);
+    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
+        let base = iz * slice_len;
+        // SAFETY: `output` has length nz*ny*nx; each thread writes only to its
+        // own disjoint [base, base + slice_len) range.
+        let out_s = unsafe { output.slice_mut(base, slice_len) };
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let local = iy * nx + ix;
+                let fi = base + local;
+                let wz = iz as f32 + dz[fi];
+                let wy = iy as f32 + dy[fi];
+                let wx = ix as f32 + dx[fi];
+                out_s[local] = nearest_sample(moving, dims, wz, wy, wx);
+            }
+        }
+    });
+}
+
+/// Warp `moving` by the displacement field `(dz, dy, dx)` with the chosen
+/// interpolation [`mode`](WarpInterpolation).
+///
+/// For each voxel `p = (iz, iy, ix)`:
+///   `warped(p) = moving(iz + dz[p], iy + dy[p], ix + dx[p])`
+/// sampled per `mode` (trilinear for intensities, nearest for label maps) with
+/// clamp-to-border BC.
+pub fn warp_image(
+    moving: &[f32],
+    dims: VolumeDims,
+    dz: &[f32],
+    dy: &[f32],
+    dx: &[f32],
+    mode: WarpInterpolation,
 ) -> Vec<f32> {
     let n = dims.total_voxels();
     let mut warped = vec![0.0_f32; n];
-    warp_image_into(moving, dims, dz, dy, dx, &mut warped);
+    match mode {
+        WarpInterpolation::Trilinear => warp_image_into(moving, dims, dz, dy, dx, &mut warped),
+        WarpInterpolation::Nearest => {
+            warp_image_nearest_into(moving, dims, dz, dy, dx, &mut warped)
+        }
+    }
     warped
 }
 
@@ -177,9 +245,44 @@ mod tests {
         let dz = vec![0.5_f32; n];
         let dy = vec![-0.3_f32; n];
         let dx = vec![1.1_f32; n];
-        let out = warp_image(&data, dims, &dz, &dy, &dx);
+        let out = warp_image(&data, dims, &dz, &dy, &dx, WarpInterpolation::Trilinear);
         for &v in &out {
             assert!((v - 5.0).abs() < 1e-5, "expected 5.0, got {v}");
+        }
+    }
+
+    /// Nearest-neighbour warp preserves exact label ids (no blending), where a
+    /// trilinear warp of the same field would produce fractional values.
+    #[test]
+    fn warp_nearest_preserves_labels() {
+        let dims = VolumeDims::new([1, 1, 6]);
+        // Two adjacent label regions: ids 0,0,0, 5,5,5 along x.
+        let labels = vec![0.0_f32, 0.0, 0.0, 5.0, 5.0, 5.0];
+        let n = 6;
+        // Shift by −1 voxel in x: voxel ix samples moving(ix − 1).
+        let dz = vec![0.0_f32; n];
+        let dy = vec![0.0_f32; n];
+        let dx = vec![-1.0_f32; n];
+
+        let nn = warp_image(&labels, dims, &dz, &dy, &dx, WarpInterpolation::Nearest);
+        // Every output value must be an exact original id (0 or 5), never blended.
+        for &v in &nn {
+            assert!(v == 0.0 || v == 5.0, "nearest blended a label: {v}");
+        }
+        // The 0→5 boundary shifts right by one voxel: index 4 becomes 5 (was the
+        // boundary), confirming the shift direction + NN selection.
+        assert_eq!(nn, vec![0.0, 0.0, 0.0, 0.0, 5.0, 5.0]);
+
+        // A half-voxel shift trilinearly blends 0 and 5 → fractional; nearest does not.
+        let dx_half = vec![-0.5_f32; n];
+        let tri = warp_image(&labels, dims, &dz, &dy, &dx_half, WarpInterpolation::Trilinear);
+        assert!(
+            tri.iter().any(|&v| v != 0.0 && v != 5.0),
+            "trilinear should blend at the boundary (control for the NN guarantee)"
+        );
+        let nn_half = warp_image(&labels, dims, &dz, &dy, &dx_half, WarpInterpolation::Nearest);
+        for &v in &nn_half {
+            assert!(v == 0.0 || v == 5.0, "nearest blended at half-voxel: {v}");
         }
     }
 
@@ -191,7 +294,7 @@ mod tests {
         let n = nz * ny * nx;
         let data: Vec<f32> = (0..n).map(|i| i as f32).collect();
         let zeros = vec![0.0_f32; n];
-        let out = warp_image(&data, dims, &zeros, &zeros, &zeros);
+        let out = warp_image(&data, dims, &zeros, &zeros, &zeros, WarpInterpolation::Trilinear);
         for (i, (&orig, &warped)) in data.iter().zip(out.iter()).enumerate() {
             assert!(
                 (orig - warped).abs() < 1e-5,
@@ -247,7 +350,7 @@ mod tests {
         let dz = vec![0.0_f32; n];
         let dy = vec![0.0_f32; n];
         let dx = vec![1.0_f32; n];
-        let warped = warp_image(&moving, dims, &dz, &dy, &dx);
+        let warped = warp_image(&moving, dims, &dz, &dy, &dx, WarpInterpolation::Trilinear);
         let mse_inplace = compute_mse_inplace(&fixed, &warped);
         // Hand-rolled reference sum.
         let mse_ref: f64 = fixed

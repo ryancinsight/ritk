@@ -31,7 +31,7 @@ pub mod label_fusion;
 
 use crate::deformable_field_ops::{
     scaling_and_squaring, validate_image, warp_image, CpuFieldSmoother, CpuOrGpu, FieldSmoother,
-    VelocityField,
+    VelocityField, WarpInterpolation,
 };
 use crate::diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
 use crate::error::RegistrationError;
@@ -240,7 +240,14 @@ impl AtlasRegistration {
                 dims.into(),
                 self.config.syn_config.n_squarings,
             );
-            let sharpened = warp_image(&new_template, dims.into(), &phi.z, &phi.y, &phi.x);
+            let sharpened = warp_image(
+                &new_template,
+                dims.into(),
+                &phi.z,
+                &phi.y,
+                &phi.x,
+                WarpInterpolation::Trilinear,
+            );
 
             // 2e. Convergence.
             let rms = {

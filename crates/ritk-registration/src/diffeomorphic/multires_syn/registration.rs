@@ -7,7 +7,7 @@ use crate::deformable_field_ops::{
     cc_converged, compose_fields_into, compute_gradient_into, normalize_forces_into,
     scaling_and_squaring, scaling_and_squaring_into, validate_image_pair, warp_image,
     warp_image_into, CpuFieldSmoother, CpuOrGpu, FieldSmoother, VectorField, VectorFieldMut,
-    VelocityField,
+    VelocityField, WarpInterpolation,
 };
 use crate::diffeomorphic::SyNResult;
 use crate::error::RegistrationError;
@@ -313,8 +313,8 @@ impl super::MultiResSyNRegistration {
         Ok(SyNResult {
             forward_field: fwd,
             inverse_field: inv,
-            warped_fixed: warp_image(fixed, dims.into(), &p1.z, &p1.y, &p1.x),
-            warped_moving: warp_image(moving, dims.into(), &p2.z, &p2.y, &p2.x),
+            warped_fixed: warp_image(fixed, dims.into(), &p1.z, &p1.y, &p1.x, WarpInterpolation::Trilinear),
+            warped_moving: warp_image(moving, dims.into(), &p2.z, &p2.y, &p2.x, WarpInterpolation::Trilinear),
             final_cc,
             num_iterations: total_iter,
         })

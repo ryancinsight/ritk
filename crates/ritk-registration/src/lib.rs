@@ -93,7 +93,8 @@ pub use bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, BSplineFFDResult
 // Re-exports — SyN diffeomorphic registration
 // ============================================================================
 pub use deformable_field_ops::{
-    CpuFieldSmoother, CpuOrGpu, FieldSmoother, GpuFieldSmoother, VelocityField,
+    CpuFieldSmoother, CpuOrGpu, FieldSmoother, GpuFieldSmoother, VelocityField, WarpInterpolation,
+    warp_image,
 };
 pub use diffeomorphic::{SyNConfig, SyNRegistration, SyNResult};
 

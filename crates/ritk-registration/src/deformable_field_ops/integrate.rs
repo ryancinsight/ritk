@@ -17,7 +17,7 @@ use ritk_spatial::VolumeDims;
 /// # Invariants
 /// - For `v = 0` the result is the identity displacement `(0, 0, 0)`.
 /// - For small `v`, `exp(v) ≈ v` (first-order approximation).
-pub(crate) fn scaling_and_squaring(
+pub fn scaling_and_squaring(
     vz: &[f32],
     vy: &[f32],
     vx: &[f32],

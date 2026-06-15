@@ -284,10 +284,10 @@ fn test_multi_seed_two_cubes_no_cross_contamination() {
 /// in a gradient image than a small multiplier.
 ///
 /// Image: 1×1×3 = [100, 130, 10]. Seed at [0,0,0], initial=[50, 200].
-/// k=2.0: After iteration 1 (seed+130=region), μ=115, σ=15.
-///   Bounds=[115-30, 115+30]=[85, 145]. Neighbor 10 ∉ [85,145] → stop = 2 voxels.
-/// k=10.0: After iteration 1, μ=115, σ=15. Bounds=[115-150, 115+150]=[-35, 265].
-///   Neighbor 10 ∈ [-35, 265] → add = 3 voxels.
+/// First flood [50,200] captures {100, 130} (10 ∉ [50,200]); sample stats over
+/// those two are μ=115, σ=√(((100²+130²) − 115²·2)/(2−1))=√450≈21.2.
+/// k=2.0: bounds≈[115−42, 115+42]=[73, 157]; 10 ∉ → fixed point at 2 voxels.
+/// k=10.0: bounds≈[115−212, 115+212]=[−97, 327]; re-flood now reaches 10 → 3 voxels.
 #[test]
 fn test_large_multiplier_expands_region_over_gradient() {
     let values = vec![100.0_f32, 130.0, 10.0];
@@ -354,10 +354,16 @@ fn test_zero_max_iterations_returns_only_seed_voxel() {
 ///
 /// Image: 1×1×3 = [50, 100, 200]. initial_lower=50, initial_upper=200.
 /// Seed at [0,0,0] (value 50 == initial_lower): must be included.
-/// All 3 voxels are in [50, 200], so all are eventually grown.
-/// Iteration 1: σ=0, bounds=[50,200]. Add 100 at position 1.
-/// Iteration 2: μ=75, σ≈25. With k=2.5, bounds=[12.5, 137.5]. 200 ∉ → stop.
-/// Result: 2 voxels. Both [0,0,0]=50 and [0,0,1]=100 must be foreground.
+///
+/// The first flood uses the full initial interval [50, 200], and 50, 100, 200 are
+/// all in it and connected, so the *entire* line is captured in one pass (this is
+/// ITK's behaviour: each iteration floods the whole connected region within the
+/// current interval). Recomputed stats over {50,100,200} are μ=116.67,
+/// σ=√(((2500+10000+40000) − μ²·3)/(3−1))≈76.38, so with k=2.5 the interval widens
+/// to ≈[−74, 308] and the region is a fixed point at all 3 voxels.
+///
+/// (The earlier 2-voxel expectation came from a defect that advanced one BFS ring
+/// per iteration and narrowed the band before voxel 200 was ever tested.)
 #[test]
 fn test_initial_bound_exact_values_are_inclusive() {
     let values = vec![50.0_f32, 100.0, 200.0];
@@ -373,10 +379,11 @@ fn test_initial_bound_exact_values_are_inclusive() {
     );
     // Adjacent voxel 100 ∈ [50, 200] must be included.
     assert_eq!(vals[1], 1.0, "voxel 100 ∈ [50, 200] must be foreground");
-    // Voxel 200 ∉ second-iteration bounds → background.
+    // Voxel 200 == initial_upper is in the first flood's interval, so it is
+    // captured in the initial pass and the widened bounds keep it.
     assert_eq!(
-        vals[2], 0.0,
-        "voxel 200 excluded by second-iteration bounds must be background"
+        vals[2], 1.0,
+        "voxel at exact initial_upper (200.0) ∈ [50, 200] must be foreground"
     );
 
     // Separate test: seed exactly at initial_upper (1×1×1 single voxel).

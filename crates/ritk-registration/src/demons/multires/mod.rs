@@ -106,6 +106,7 @@ impl MultiResDemonsRegistration {
                 &init_z,
                 &init_y,
                 &init_x,
+                crate::deformable_field_ops::WarpInterpolation::Trilinear,
             );
 
             // Reduce iterations proportionally to scale factor, minimum 10.
@@ -172,6 +173,7 @@ impl MultiResDemonsRegistration {
             &final_result.disp_z,
             &final_result.disp_y,
             &final_result.disp_x,
+            crate::deformable_field_ops::WarpInterpolation::Trilinear,
         );
         let final_mse = crate::deformable_field_ops::compute_mse_streaming(
             fixed,

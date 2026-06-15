@@ -18,25 +18,36 @@
 //!
 //! where k is the confidence interval multiplier.
 //!
-//! ## Algorithm — Iterative Adaptive Flood Fill
+//! ## Algorithm — Iterative Re-Flood (ITK `ConfidenceConnectedImageFilter`)
 //!
-//! 1. Initialize R₀ = {s}, μ₀ = I(s), σ₀ = 0
-//! 2. For iteration i until convergence:
-//!    a. Compute interval [μᵢ - k·σᵢ, μᵢ + k·σᵢ]
-//!    b. Use initial bounds [lower, upper] when i = 0 and σ₀ = 0
-//!    c. Find all 6-connected neighbors outside Rᵢ with I ∈ interval
-//!    d. Add qualifying voxels to Rᵢ₊₁
-//!    e. Recompute μᵢ₊₁, σᵢ₊₁ from all voxels in Rᵢ₊₁
-//! 3. Termination when |Rᵢ₊₁| = |Rᵢ| (no growth) or max iterations reached
+//! 1. Flood-fill the **entire** 6-connected region reachable from the seed whose
+//!    intensity lies in the initial interval `[lower₀, upper₀]`.
+//! 2. For each of `max_iterations` passes:
+//!    a. Recompute μ and σ over **all** voxels currently in the region, using the
+//!       sample (N − 1) variance estimator.
+//!    b. Set the interval to `[μ − k·σ, μ + k·σ]`, widened if necessary to contain
+//!       the seed intensity.
+//!    c. Discard the region and **re-flood from scratch** from the seed with the
+//!       new interval (a complete connected-threshold flood, not one BFS ring).
+//!    d. Stop early once the interval is a fixed point (the next flood would be
+//!       identical).
+//!
+//! The earlier implementation advanced exactly **one BFS wavefront per iteration**
+//! and recomputed statistics after each ring, so `max_iterations` capped growth at
+//! that many rings (≈ a tiny diamond around the seed) instead of the full region —
+//! the source of a ~180× under-segmentation versus ITK. Each iteration is now a
+//! complete flood, matching ITK's "clear output, re-flood from seeds" loop.
 //!
 //! # Complexity
-//! - Time: O(|R| · iter) — each voxel visited once per iteration, statistics
-//!   computed from accumulating sums for O(1) amortized update.
-//! - Space: O(|R|) for visited set, queue, and region voxel tracking.
+//! - Time: O(|R| · iter) — one full flood per iteration, each visiting the region
+//!   plus its boundary once.
+//! - Space: O(n) for the visited buffer and BFS queue.
 //!
 //! # References
 //! Yanowitz, S.D., & Bruckstein, A.M. (1989). "A New Method for Image
 //! Segmentation." *Computer Vision, Graphics, and Image Processing*, 46(1), 82-95.
+//! ITK `itkConfidenceConnectedImageFilter.hxx` (N−1 variance, per-iteration
+//! re-flood, seed-clamped inclusive bounds).
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_core::spatial::VoxelIndex;
@@ -202,38 +213,99 @@ fn grow_region(
 ) -> Vec<f32> {
     let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
     let n = nz * ny * nx;
-    let flat = |z: usize, y: usize, x: usize| z * ny * nx + y * nx + x;
+    let seed_flat = seed[0] * ny * nx + seed[1] * nx + seed[2];
+    let seed_val = data[seed_flat];
 
-    // Check seed intensity against initial bounds (otherwise empty region).
-    let seed_val = data[flat(seed[0], seed[1], seed[2])];
+    let mut output = vec![0.0_f32; n];
+
+    // Seed must lie in the initial interval; otherwise the region is empty.
     if seed_val < initial_lower || seed_val > initial_upper {
-        return vec![0.0_f32; n];
+        return output;
+    }
+    // The seed is always part of the region (covers the max_iterations == 0 case).
+    output[seed_flat] = 1.0;
+
+    // Reusable flood buffers.
+    let mut visited = vec![false; n];
+    let mut queue: VecDeque<usize> = VecDeque::with_capacity(1024);
+    let mut region: Vec<usize> = Vec::with_capacity(n / 16);
+
+    let mut lower = initial_lower;
+    let mut upper = initial_upper;
+
+    for _ in 0..max_iterations {
+        // Full connected-threshold flood from the seed with the current interval.
+        let (sum, sum_sq) = flood_region(
+            data,
+            dims,
+            seed_flat,
+            lower,
+            upper,
+            &mut visited,
+            &mut queue,
+            &mut region,
+        );
+
+        // Recompute the interval from the whole region using the sample (N-1)
+        // variance estimator, matching ITK. A 1-voxel region has σ = 0.
+        let count = region.len();
+        let (mut new_lower, mut new_upper) = if count <= 1 {
+            (seed_val, seed_val)
+        } else {
+            let n_f = count as f64;
+            let mean = sum / n_f;
+            let variance = ((sum_sq - mean * mean * n_f) / (n_f - 1.0)).max(0.0);
+            let delta = multiplier as f64 * variance.sqrt();
+            ((mean - delta) as f32, (mean + delta) as f32)
+        };
+        // Bounds are widened to always contain the seed intensity (ITK clamps the
+        // threshold to include every seed value).
+        new_lower = new_lower.min(seed_val);
+        new_upper = new_upper.max(seed_val);
+
+        // Fixed point: the next flood would reproduce the same interval and region.
+        if new_lower == lower && new_upper == upper {
+            break;
+        }
+        lower = new_lower;
+        upper = new_upper;
     }
 
-    // Output binary mask.
-    let mut output = vec![0.0_f32; n];
-    // Visited tracking (includes both queued and processed).
-    let mut visited = vec![false; n];
-    // BFS frontier.
-    let mut queue: VecDeque<usize> = VecDeque::with_capacity(1024);
-    // Track region voxels for statistics recomputation: stores flat indices.
-    // Heuristic: region typically covers a small fraction of the volume.
-    let mut region_voxels: Vec<usize> = Vec::with_capacity(n / 16);
-    // Buffer for collecting new voxels each iteration (hoisted to avoid per-iteration heap allocation).
-    let mut new_voxels: Vec<usize> = Vec::with_capacity(queue.capacity().min(n / 16));
+    // Mark the final region (the last completed flood) into the output mask.
+    for &idx in &region {
+        output[idx] = 1.0;
+    }
+    output
+}
 
-    let seed_flat = flat(seed[0], seed[1], seed[2]);
+/// Flood the full 6-connected region reachable from `seed_flat` whose intensity
+/// lies in `[lower, upper]` (inclusive). The `visited`/`queue`/`region` buffers
+/// are cleared and reused across calls. Returns the region's intensity `sum` and
+/// `sum_sq` for statistics.
+#[allow(clippy::too_many_arguments)]
+fn flood_region(
+    data: &[f32],
+    dims: [usize; 3],
+    seed_flat: usize,
+    lower: f32,
+    upper: f32,
+    visited: &mut [bool],
+    queue: &mut VecDeque<usize>,
+    region: &mut Vec<usize>,
+) -> (f64, f64) {
+    let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
+    visited.iter_mut().for_each(|v| *v = false);
+    queue.clear();
+    region.clear();
+
+    let seed_val = data[seed_flat] as f64;
     visited[seed_flat] = true;
-    output[seed_flat] = 1.0;
     queue.push_back(seed_flat);
-    region_voxels.push(seed_flat);
+    region.push(seed_flat);
+    let mut sum = seed_val;
+    let mut sum_sq = seed_val * seed_val;
 
-    // Running statistics: sum and sum of squares for O(1) updates.
-    let mut sum: f64 = seed_val as f64;
-    let mut sum_sq: f64 = (seed_val as f64) * (seed_val as f64);
-
-    // 6-connectivity face offsets.
-    let face_offsets: [(isize, isize, isize); 6] = [
+    const FACE_OFFSETS: [(isize, isize, isize); 6] = [
         (-1, 0, 0),
         (1, 0, 0),
         (0, -1, 0),
@@ -242,92 +314,43 @@ fn grow_region(
         (0, 0, 1),
     ];
 
-    // Iterative growing.
-    for _iteration in 0..max_iterations {
-        // Compute current statistics.
-        let count = region_voxels.len() as f64;
-        let mean = sum / count;
-        let variance = (sum_sq / count) - (mean * mean);
-        let std_dev = variance.max(0.0).sqrt() as f32;
+    while let Some(curr) = queue.pop_front() {
+        let iz = curr / (ny * nx);
+        let rem = curr % (ny * nx);
+        let iy = rem / nx;
+        let ix = rem % nx;
 
-        // Determine intensity interval.
-        let (lower, upper) = if std_dev == 0.0 {
-            (initial_lower, initial_upper)
-        } else {
-            let delta = multiplier * std_dev;
-            ((mean as f32) - delta, (mean as f32) + delta)
-        };
-
-        // Collect new voxels to add this iteration.
-        new_voxels.clear();
-        // Process BFS queue with current interval criteria.
-        let mut _frontier_processed = false;
-
-        while let Some(curr_flat) = queue.pop_front() {
-            _frontier_processed = true;
-
-            // Decode flat index to (z, y, x).
-            let iz = curr_flat / (ny * nx);
-            let rem = curr_flat % (ny * nx);
-            let iy = rem / nx;
-            let ix = rem % nx;
-
-            // Check 6-connected neighbors.
-            for &(dz, dy, dx) in &face_offsets {
-                let nz_i = iz as isize + dz;
-                let ny_i = iy as isize + dy;
-                let nx_i = ix as isize + dx;
-
-                // Bounds check.
-                if nz_i < 0
-                    || nz_i >= nz as isize
-                    || ny_i < 0
-                    || ny_i >= ny as isize
-                    || nx_i < 0
-                    || nx_i >= nx as isize
-                {
-                    continue;
-                }
-
-                let n_flat = flat(nz_i as usize, ny_i as usize, nx_i as usize);
-                if visited[n_flat] {
-                    continue;
-                }
-
-                let intensity = data[n_flat];
-                if intensity < lower || intensity > upper {
-                    continue;
-                }
-
-                // Voxel qualifies: mark visited, add to output, track as new region member.
-                visited[n_flat] = true;
-                output[n_flat] = 1.0;
-                new_voxels.push(n_flat);
+        for &(dz, dy, dx) in &FACE_OFFSETS {
+            let zz = iz as isize + dz;
+            let yy = iy as isize + dy;
+            let xx = ix as isize + dx;
+            if zz < 0
+                || zz >= nz as isize
+                || yy < 0
+                || yy >= ny as isize
+                || xx < 0
+                || xx >= nx as isize
+            {
+                continue;
             }
-        }
-
-        // If no new voxels added, convergence reached.
-        if new_voxels.is_empty() {
-            break;
-        }
-
-        // Update region tracking and statistics for next iteration.
-        for &voxel_flat in &new_voxels {
-            region_voxels.push(voxel_flat);
-            let val = data[voxel_flat] as f64;
-            sum += val;
-            sum_sq += val * val;
-            // Add to BFS queue for next iteration's expansion.
-            queue.push_back(voxel_flat);
-        }
-
-        // If queue is empty after processing, no further growth possible.
-        if queue.is_empty() {
-            break;
+            let n_flat = zz as usize * ny * nx + yy as usize * nx + xx as usize;
+            if visited[n_flat] {
+                continue;
+            }
+            let intensity = data[n_flat];
+            if intensity < lower || intensity > upper {
+                continue;
+            }
+            visited[n_flat] = true;
+            queue.push_back(n_flat);
+            region.push(n_flat);
+            let v = intensity as f64;
+            sum += v;
+            sum_sq += v * v;
         }
     }
 
-    output
+    (sum, sum_sq)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

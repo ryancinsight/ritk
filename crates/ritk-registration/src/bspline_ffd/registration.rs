@@ -9,7 +9,7 @@ use super::metric::{compute_metric_gradient_fast_into, compute_ncc, MetricGradie
 use super::pyramid::refine_control_grid;
 use super::regularization::bending_energy_gradient;
 use super::volume_dims::VolumeDims;
-use crate::deformable_field_ops::{warp_image, warp_image_into};
+use crate::deformable_field_ops::{warp_image, warp_image_into, WarpInterpolation};
 use crate::error::RegistrationError;
 
 /// B-Spline FFD registration engine.
@@ -192,7 +192,7 @@ impl BSplineFFDRegistration {
         // ── Final warp ───────────────────────────────────────────────────
         let disp =
             evaluate_bspline_displacement(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing, dims);
-        let warped_moving = warp_image(moving, dims, &disp.z, &disp.y, &disp.x);
+        let warped_moving = warp_image(moving, dims, &disp.z, &disp.y, &disp.x, WarpInterpolation::Trilinear);
 
         Ok(BSplineFFDResult {
             control_points: (cp_z, cp_y, cp_x),

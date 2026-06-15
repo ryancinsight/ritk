@@ -41,7 +41,8 @@ pub(crate) use smooth::{
 // ── GPU-accelerated smoothing (Burn tensor path) ─────────────────────────────
 pub use smooth::GpuFieldSmoother;
 pub(crate) use validation::{cc_converged, validate_image, validate_image_pair};
-pub(crate) use warp::{compute_mse_inplace, compute_mse_streaming, warp_image, warp_image_into};
+pub use warp::{WarpInterpolation, warp_image};
+pub(crate) use warp::{compute_mse_inplace, compute_mse_streaming, warp_image_into};
 
 // ── FieldSmoother trait — zero-cost abstraction over CPU/GPU smoothing ───────
 

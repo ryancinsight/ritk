@@ -2,7 +2,7 @@
 
 use super::basis::evaluate_bspline_displacement;
 use super::volume_dims::VolumeDims;
-use crate::deformable_field_ops::warp_image;
+use crate::deformable_field_ops::{warp_image, WarpInterpolation};
 
 /// Warp an image using the B-spline displacement field.
 ///
@@ -21,5 +21,5 @@ pub fn warp_image_bspline(
     ctrl_spacing: &[f64; 3],
 ) -> Vec<f32> {
     let disp = evaluate_bspline_displacement(cp_z, cp_y, cp_x, ctrl_dims, ctrl_spacing, dims);
-    warp_image(moving, dims, &disp.z, &disp.y, &disp.x)
+    warp_image(moving, dims, &disp.z, &disp.y, &disp.x, WarpInterpolation::Trilinear)
 }
