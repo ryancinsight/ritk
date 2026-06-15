@@ -298,3 +298,85 @@ def test_li_threshold_matches_sitk(images):
     rthr, _ = ritk.segmentation.li_threshold(ri)
     sthr = _sitk_threshold(sitk.LiThresholdImageFilter(), si)
     assert abs(rthr - sthr) < 2.0, f"li ritk {rthr} vs sitk {sthr}"
+
+
+# ── Binary morphology on a z=1 (2-D promoted) Otsu mask ───────────────────────
+#
+# These guard the degenerate z-axis handling: a 3×3×3 box structuring element on
+# a z=1 slice reaches the out-of-bounds z±1 neighbours, which previously eroded
+# every voxel (collapsing the mask to zero) and made hole-filling treat every
+# voxel as a z-face border. SimpleITK is forced to a box SE to match ritk.
+
+
+@pytest.fixture(scope="module")
+def masks(images):
+    ri, si = images
+    _, rmask = ritk.segmentation.otsu_threshold(ri)
+    smask = sitk.Cast(sitk.OtsuThreshold(si, 0, 1, 256), sitk.sitkUInt8)
+    return rmask, smask
+
+
+def _bin_mismatch(ra: np.ndarray, sa: np.ndarray) -> int:
+    return int(((ra > 0.5) != (sa > 0.5)).sum())
+
+
+def test_binary_erosion_matches_sitk(masks):
+    """Regression: a 3×3×3 SE on a z=1 mask eroded every voxel to zero."""
+    rmask, smask = masks
+    ra = ritk.segmentation.binary_erosion(rmask, 1).to_numpy()
+    sa = _sa(sitk.BinaryErode(smask, [1, 1], sitk.sitkBox))
+    assert _bin_mismatch(ra, sa) == 0
+
+
+def test_binary_dilation_matches_sitk(masks):
+    rmask, smask = masks
+    ra = ritk.segmentation.binary_dilation(rmask, 1).to_numpy()
+    sa = _sa(sitk.BinaryDilate(smask, [1, 1], sitk.sitkBox))
+    assert _bin_mismatch(ra, sa) == 0
+
+
+def test_binary_opening_matches_sitk(masks):
+    rmask, smask = masks
+    ra = ritk.segmentation.binary_opening(rmask, 1).to_numpy()
+    sa = _sa(sitk.BinaryMorphologicalOpening(smask, [1, 1], sitk.sitkBox))
+    assert _bin_mismatch(ra, sa) == 0
+
+
+def test_binary_closing_matches_sitk(masks):
+    rmask, smask = masks
+    ra = ritk.segmentation.binary_closing(rmask, 1).to_numpy()
+    sa = _sa(sitk.BinaryMorphologicalClosing(smask, [1, 1], sitk.sitkBox))
+    assert _bin_mismatch(ra, sa) == 0
+
+
+def test_binary_fill_holes_matches_sitk(masks):
+    """Regression: z=1 made every voxel a z-face border, so no holes were filled."""
+    rmask, smask = masks
+    ra = ritk.segmentation.binary_fill_holes(rmask).to_numpy()
+    sa = _sa(sitk.BinaryFillhole(smask))
+    assert _bin_mismatch(ra, sa) == 0
+
+
+def test_dice_coefficient_matches_sitk(masks):
+    """Dice of the mask vs its erosion; previously 0 because erosion was empty."""
+    rmask, smask = masks
+    rmask2 = ritk.segmentation.binary_erosion(rmask, 1)
+    smask2 = sitk.BinaryErode(smask, [1, 1], sitk.sitkBox)
+    rdice = ritk.statistics.dice_coefficient(rmask, rmask2)
+    f = sitk.LabelOverlapMeasuresImageFilter()
+    f.Execute(smask, smask2)
+    assert abs(rdice - f.GetDiceCoefficient()) < 1e-4, f"dice {rdice} vs {f.GetDiceCoefficient()}"
+
+
+def test_connected_components_match_sitk(masks):
+    """ritk's labelling partitions the Otsu mask identically to ITK (face-conn)."""
+    rmask, smask = masks
+    rcc = ritk.segmentation.connected_components(rmask, connectivity=6)[0].to_numpy()
+    scc = _sa(sitk.ConnectedComponent(smask, False))
+
+    def sizes(lbl):
+        lbl = lbl.astype(np.int64).ravel()
+        c = np.bincount(lbl[lbl > 0])
+        return sorted(c[c > 0].tolist(), reverse=True)
+
+    assert sizes(rcc) == sizes(scc)

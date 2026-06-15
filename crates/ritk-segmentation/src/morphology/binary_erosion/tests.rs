@@ -86,27 +86,60 @@ fn test_radius0_is_identity_1d() {
 // ── All-foreground large image: interior survives ─────────────────────────
 
 #[test]
-fn test_all_fg_5x5x5_erosion_r1_keeps_3x3x3_interior() {
-    // 5×5×5 all-foreground: r=1 removes the outer shell → 3×3×3 = 27 voxels survive.
+fn test_all_fg_5x5x5_erosion_r1_keeps_all() {
+    // 5×5×5 all-foreground: out-of-bounds is treated as foreground (ITK's
+    // BoundaryToForeground = true), so the boundary shell is NOT eroded and all
+    // 125 voxels survive — a fully-foreground region erodes to itself.
     let mask = make_mask_3d(vec![1.0_f32; 125], [5, 5, 5]);
     let result = BinaryErosion::new(1).apply(&mask);
     assert_eq!(
         count_fg_3d(&result),
-        27,
-        "5×5×5 all-fg erosion r=1 must keep 3×3×3 = 27 voxels"
+        125,
+        "5×5×5 all-fg erosion r=1 keeps all 125 voxels (OOB = foreground)"
     );
 }
 
 #[test]
-fn test_all_fg_7x7x7_erosion_r2_keeps_3x3x3_interior() {
-    // 7×7×7 all-fg: r=2 removes 2-voxel shell → 3×3×3 = 27 survive.
+fn test_all_fg_7x7x7_erosion_r2_keeps_all() {
+    // 7×7×7 all-fg, r=2: OOB = foreground, so nothing erodes; all 343 survive.
     let mask = make_mask_3d(vec![1.0_f32; 343], [7, 7, 7]);
     let result = BinaryErosion::new(2).apply(&mask);
     assert_eq!(
         count_fg_3d(&result),
-        27,
-        "7×7×7 all-fg erosion r=2 must keep 3×3×3 = 27 voxels"
+        343,
+        "7×7×7 all-fg erosion r=2 keeps all 343 voxels (OOB = foreground)"
     );
+}
+
+// ── z = 1 (2-D promoted) volume erodes in-plane, not to zero ──────────────
+
+#[test]
+fn test_z1_square_erodes_in_plane_not_to_zero() {
+    // A 5×5 foreground square inside a [1,7,7] (z=1) volume. With OOB treated as
+    // foreground, the degenerate z±1 neighbours do not erode anything, so the
+    // square erodes purely in-plane to its 3×3 interior — matching a 2-D ITK
+    // erosion. (The previous OOB=background rule eroded every voxel via its
+    // out-of-bounds z neighbours, collapsing the whole slice to zero.)
+    let mut values = vec![0.0_f32; 7 * 7];
+    for y in 1..6 {
+        for x in 1..6 {
+            values[y * 7 + x] = 1.0;
+        }
+    }
+    let mask = make_mask_3d(values, [1, 7, 7]);
+    let result = BinaryErosion::new(1).apply(&mask);
+    let out = values_3d(&result);
+    assert_eq!(count_fg_3d(&result), 9, "z=1 square must erode to 3×3 = 9, not 0");
+    for y in 0..7 {
+        for x in 0..7 {
+            let want = if (2..5).contains(&y) && (2..5).contains(&x) {
+                1.0
+            } else {
+                0.0
+            };
+            assert_eq!(out[y * 7 + x], want, "at (y={y}, x={x})");
+        }
+    }
 }
 
 // ── Single isolated voxel is fully eroded ─────────────────────────────────
@@ -181,19 +214,22 @@ fn test_1d_erosion_r1_known_output() {
 
 #[test]
 fn test_1d_all_foreground_erosion_r1() {
-    // [1,1,1,1,1] → boundary voxels eroded → [0,1,1,1,0].
+    // [1,1,1,1,1] all-foreground: OOB = foreground, so the boundary survives and
+    // the line erodes to itself.
     let mask = make_mask_1d(vec![1.0_f32; 5]);
     let result = BinaryErosion::new(1).apply(&mask);
     let out = values_1d(&result);
-    assert_eq!(out, vec![0.0, 1.0, 1.0, 1.0, 0.0]);
+    assert_eq!(out, vec![1.0, 1.0, 1.0, 1.0, 1.0]);
 }
 
 #[test]
-fn test_1d_single_voxel_eroded() {
-    // Single foreground voxel at edge → boundary neighbours missing → eroded.
+fn test_1d_single_voxel_image_survives() {
+    // A 1-voxel image is entirely foreground; with OOB = foreground its (OOB)
+    // neighbours satisfy the erosion, so it survives — the degenerate
+    // whole-image-foreground case, matching ITK.
     let mask = make_mask_1d(vec![1.0]);
     let result = BinaryErosion::new(1).apply(&mask);
-    assert_eq!(values_1d(&result), vec![0.0]);
+    assert_eq!(values_1d(&result), vec![1.0]);
 }
 
 // ── Output strictly binary ────────────────────────────────────────────────

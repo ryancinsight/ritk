@@ -7,6 +7,10 @@
 //! Given binary mask M, let E = set of background voxels reachable from
 //! any border voxel via 6-connected background paths.
 //! Output(x) = M(x) if M(x)=1 OR x in E, else 1 (hole -> foreground).
+//!
+//! Only the boundary of a non-degenerate axis seeds the exterior set, so a z=1
+//! (2-D promoted) volume fills its in-plane holes exactly like a 2-D image
+//! rather than treating every voxel as a z-face border.
 
 use super::MorphologicalOperation;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
@@ -39,12 +43,14 @@ impl<B: Backend> MorphologicalOperation<B, 3> for BinaryFillHoles {
         for iz in 0..nz {
             for iy in 0..ny {
                 for ix in 0..nx {
-                    let border = iz == 0
-                        || iz == nz - 1
-                        || iy == 0
-                        || iy == ny - 1
-                        || ix == 0
-                        || ix == nx - 1;
+                    // A voxel seeds the exterior flood-fill only if it lies on the
+                    // boundary of a NON-degenerate axis. A size-1 axis (e.g. a z=1
+                    // 2-D promoted volume) must not mark every voxel as a z-face
+                    // border — that would treat interior holes as exterior and
+                    // leave them unfilled.
+                    let border = (nz > 1 && (iz == 0 || iz == nz - 1))
+                        || (ny > 1 && (iy == 0 || iy == ny - 1))
+                        || (nx > 1 && (ix == 0 || ix == nx - 1));
                     if border && is_background(vals[idx(iz, iy, ix)]) {
                         let i = idx(iz, iy, ix);
                         if !reachable[i] {

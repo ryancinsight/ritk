@@ -9,8 +9,12 @@
 //! where N_r(p) is the set of voxels within Chebyshev distance r of p
 //! (the axis-aligned hypercube of side 2r+1 centred at p).
 //!
-//! Out-of-bounds neighbours are treated as background (0), which means
-//! any foreground voxel within `r` voxels of the image boundary is eroded.
+//! Out-of-bounds neighbours are treated as **foreground** (the structuring
+//! element is clipped at the image boundary), matching ITK's
+//! `BinaryErodeImageFilter` default (`BoundaryToForeground = true`): a foreground
+//! voxel is not eroded merely for lying against the image edge, and a degenerate
+//! `z = 1` (2-D promoted) volume erodes purely in-plane rather than vanishing.
+//! This is the dual of dilation, whose out-of-bounds neighbours are background.
 //!
 //! # Complexity
 //! O(n · (2r+1)^D) where n is the total voxel count.
@@ -27,8 +31,8 @@ use ritk_tensor_ops::extract_vec_infallible;
 /// For each voxel p, output\[p\] = 1.0 iff every voxel within the axis-aligned
 /// hypercube of half-width `radius` centred at p is foreground (value > 0.5).
 ///
-/// Out-of-bounds neighbours are treated as background, so any foreground voxel
-/// within `radius` of the image boundary is removed.
+/// Out-of-bounds neighbours are treated as foreground (structuring element
+/// clipped to the image), matching ITK's `BinaryErodeImageFilter`.
 pub struct BinaryErosion {
     /// Half-width of the box structuring element in voxels.
     /// Radius 0 → structuring element = {p} → erosion is the identity.
@@ -94,7 +98,7 @@ fn erode_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
         let all_fg = ((-r)..=r).all(|dx| {
             let nb = ix as isize + dx;
             if nb < 0 || nb >= nx as isize {
-                return false; // out-of-bounds → background
+                return true; // out-of-bounds → foreground (no boundary erosion)
             }
             flat[nb as usize] > super::FOREGROUND_THRESHOLD
         });
@@ -122,7 +126,7 @@ fn erode_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
                         let ny_i = iy as isize + dy;
                         let nx_i = ix as isize + dx;
                         if ny_i < 0 || ny_i >= ny as isize || nx_i < 0 || nx_i >= nx as isize {
-                            break 'outer false;
+                            continue; // out-of-bounds → foreground (clip SE to image)
                         }
                         if flat[ny_i as usize * nx + nx_i as usize] <= super::FOREGROUND_THRESHOLD {
                             break 'outer false;
@@ -165,7 +169,7 @@ fn erode_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) ->
                                     || nx_i < 0
                                     || nx_i >= nx as isize
                                 {
-                                    break 'outer false;
+                                    continue; // out-of-bounds → foreground (clip SE to image)
                                 }
                                 let nb =
                                     nz_i as usize * ny * nx + ny_i as usize * nx + nx_i as usize;

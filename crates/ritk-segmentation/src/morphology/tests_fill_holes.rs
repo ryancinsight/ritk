@@ -39,6 +39,36 @@ fn test_fill_holes_solid_sphere_unchanged() {
 }
 
 #[test]
+fn test_fill_holes_z1_in_plane_hole() {
+    // A 5×5 foreground square with a single interior background hole, in a [1,7,7]
+    // (z=1 promoted) volume. The hole must be filled exactly as in a 2-D image —
+    // the degenerate z faces must not seed it as exterior.
+    let mut vals = vec![0.0f32; 7 * 7];
+    for y in 1..6 {
+        for x in 1..6 {
+            vals[y * 7 + x] = 1.0;
+        }
+    }
+    vals[3 * 7 + 3] = 0.0; // interior hole at (y=3, x=3)
+    let mask = make_mask(vals, [1, 7, 7]);
+    let result = BinaryFillHoles.apply(&mask);
+    result.with_data_slice(|out| {
+        assert_eq!(out[3 * 7 + 3], 1.0, "interior hole must be filled");
+        // The full 5×5 square is now solid; nothing outside it changed.
+        for y in 0..7 {
+            for x in 0..7 {
+                let want = if (1..6).contains(&y) && (1..6).contains(&x) {
+                    1.0
+                } else {
+                    0.0
+                };
+                assert_eq!(out[y * 7 + x], want, "at (y={y}, x={x})");
+            }
+        }
+    });
+}
+
+#[test]
 fn test_fill_holes_hollow_sphere_fills_interior() {
     let shape = [7usize, 7, 7];
     let n = 343;
