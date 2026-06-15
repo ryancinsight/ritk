@@ -1,70 +1,51 @@
-//! Gradient anisotropic diffusion filter.
+//! Gradient anisotropic diffusion filter (ITK `GradientNDAnisotropicDiffusionFunction`).
 //!
 //! # Mathematical Specification
 //!
-//! A Perona-Malik anisotropic diffusion in the spirit of Gerig et al. (1992),
-//! with the discrete update rule at each voxel `p` over one time step:
+//! Perona-Malik anisotropic diffusion (Gerig et al. 1992), discretised exactly as
+//! ITK's `GradientAnisotropicDiffusionImageFilter`. Each explicit-Euler step:
 //!
-//! ```text
-//! I_new(p) = I(p) + Δt · Σ_{q ∈ N₆(p)} c(|I(q) − I(p)|) · (I(q) − I(p))
-//! ```
+//! 1. Recompute `m_K = avgGradMagSq · K² · −2`, where `avgGradMagSq` is the mean
+//!    over all voxels of `Σ_d (central_d)²` (spacing-scaled central differences,
+//!    ZeroFluxNeumann boundary). `m_K` is negative; conductance `c = exp(g²/m_K)`.
+//! 2. For each voxel and dimension `i`, the conductance is evaluated on the
+//!    **full gradient magnitude at the ±i half-pixel faces** — the face-normal
+//!    forward/backward difference plus the averaged tangential central
+//!    differences in the orthogonal dimensions:
 //!
-//! where N₆(p) is the 6-neighbourhood (±z, ±y, ±x), and the conductance
-//! function is:
+//!    ```text
+//!    gms± = dx_face[i]² + Σ_{j≠i} ¼·(central_j + central_j^{±i})²
+//!    c±   = exp(gms± / m_K)
+//!    δ   += c⁺·dx_fwd[i] − c⁻·dx_bwd[i]
+//!    ```
+//! 3. `I_new = I + Δt·δ`.
 //!
-//! ```text
-//! c(s) = exp(−(s / K)²)
-//! ```
-//!
-//! # Relationship to ITK (NOT bit-exact — tracked as ANISO-DIFF-ITK)
-//!
-//! This is a *simplified* scheme and does **not** reproduce ITK's
-//! `GradientAnisotropicDiffusionImageFilter` output. ITK's
-//! `GradientNDAnisotropicDiffusionFunction` differs in two material ways:
-//! 1. The conductance is evaluated on the **full gradient magnitude at each
-//!    half-pixel face** (combining the face-normal difference with the averaged
-//!    tangential central differences in the orthogonal dimensions), not on the
-//!    single-direction intensity difference used here.
-//! 2. `K` is rescaled every iteration by the image's **average gradient
-//!    magnitude squared** (`m_K = avgGradMagSq · K² · −2`), so the effective
-//!    conductance is content-adaptive.
-//! Against SimpleITK on cthead1 the per-iteration discrepancy is ≈ 2.6 %
-//! (compounding over iterations) and the two can diffuse a voxel in opposite
-//! directions. Matching ITK requires implementing the face-gradient + average-
-//! gradient-magnitude normalisation above.
+//! Derivatives are scaled by image spacing (ITK `UseImageSpacing = true`);
+//! boundary conditions are ZeroFluxNeumann (index-clamp). Verified against
+//! SimpleITK `GradientAnisotropicDiffusion` on cthead1 to ≈ 6 × 10⁻⁸ relative
+//! (f64-vs-f32 round-off).
 //!
 //! # Distinction from `AnisotropicDiffusionFilter` (Perona-Malik)
 //!
-//! The Perona-Malik filter in this crate (`perona_malik.rs`) uses spacing-
-//! normalised gradients `delta/spacing` inside the conductance evaluation and
-//! `flux = c(|delta/s|) · delta/s²` in the divergence form.  This filter
-//! uses **raw intensity differences** (no spacing normalisation) both in
-//! conductance and in the direct-flux summation.
+//! `perona_malik.rs` is a simpler scheme (single-direction-difference conductance,
+//! optional quadratic conductance) with no per-iteration `K` rescaling; it is the
+//! `"quadratic"` kind of the Python `anisotropic_diffusion` binding, while the
+//! `"exponential"` default dispatches to this ITK-exact filter.
 //!
 //! # Stability
 //!
 //! Explicit Euler stability for the 6-neighbour Laplacian in 3-D requires
-//! `Δt ≤ 1 / (2 · D) = 1/6`.  The ITK default `Δt = 0.125 < 1/6` satisfies
-//! this bound with a safety factor of ~1.33.
-//!
-//! # Boundary Conditions
-//!
-//! Neumann (zero-flux): neighbour terms that fall outside the image are
-//! omitted (i.e. contribute 0 to the sum).
+//! `Δt ≤ 1/(2·D)` (in the image coordinate frame); ITK warns when exceeded.
 //!
 //! # Invariants
 //!
-//! - Constant image: all differences = 0 → update = 0 → image unchanged.
-//! - Conductance K → ∞: c(s) → 1 for all s; the update becomes isotropic
-//!   (scaled 6-neighbour Laplacian smoothing).
-//! - Conductance K → 0: c(s) → 0 for all s ≠ 0; the update → 0 (no
-//!   diffusion across any edge).
+//! - Constant image: `avgGradMagSq = 0 → m_K = 0 → c = 0 → δ = 0`; unchanged.
 //!
 //! # References
 //! - Gerig, G., Kübler, O., Kikinis, R. & Jolesz, F. A. (1992). Nonlinear
 //!   anisotropic filtering of MRI data. *IEEE Trans. Med. Imag.* 11(2):221–232.
-//!   doi:10.1109/42.141646
-//! - Ibanez, L. et al. (2005). *The ITK Software Guide*, 2nd ed. §6.4.1.
+//! - ITK `itkGradientNDAnisotropicDiffusionFunction.hxx`,
+//!   `itkScalarAnisotropicDiffusionFunction.hxx`.
 
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
@@ -102,15 +83,11 @@ impl Default for GradientDiffusionConfig {
     }
 }
 
-/// Gradient anisotropic diffusion filter (simplified Perona-Malik).
+/// Gradient anisotropic diffusion filter — ITK `GradientAnisotropicDiffusionImageFilter`.
 ///
-/// Reduces noise while preserving edges.  Distinct from
-/// [`crate::diffusion::AnisotropicDiffusionFilter`] in that conductance
-/// is evaluated on raw intensity differences (not spacing-normalised gradients)
-/// and the update uses direct-flux summation. This is **not** bit-exact with
-/// ITK's `GradientAnisotropicDiffusionImageFilter` — see the module docs for the
-/// two differences (face-gradient conductance, average-gradient-magnitude `K`
-/// rescaling) needed to match it.
+/// Reduces noise while preserving edges. Reproduces ITK's output (face-gradient
+/// conductance + per-iteration average-gradient-magnitude `K` rescaling); see the
+/// module docs for the full discretisation.
 #[derive(Debug, Clone)]
 pub struct GradientAnisotropicDiffusionFilter {
     /// Algorithm configuration.
@@ -132,87 +109,132 @@ impl GradientAnisotropicDiffusionFilter {
         let (vals_vec, dims) = extract_vec(image)?;
         let vals = &vals_vec;
 
-        let result = diffuse(vals, dims, &self.config);
+        let sp = image.spacing();
+        let spacing = [sp[0], sp[1], sp[2]];
+        let result = diffuse(vals, dims, spacing, &self.config);
 
         Ok(rebuild(result, dims, image))
     }
 }
 
-// ── Core computation ──────────────────────────────────────────────────────────
+// ── Core computation (ITK GradientNDAnisotropicDiffusionFunction) ─────────────
 
-/// Evaluate the exponential conductance function c(s) = exp(−(s/K)²).
-///
-/// - `s` — raw unsigned intensity difference |I(q) − I(p)|
-/// - `k` — conductance parameter K
-///
-/// # Invariants
-/// - c(0)   = 1  (maximum diffusion in flat regions)
-/// - c(∞)   = 0  (no diffusion across strong edges)
-/// - c(s)   ∈ (0, 1] for all finite s ≥ 0
-#[inline(always)]
-fn conductance_exp(s: f32, k: f32) -> f32 {
-    let r = s / k;
-    (-(r * r)).exp()
-}
+use super::{central_diff as central, clamp_at as at};
 
-/// Perform `config.num_iterations` explicit Euler steps on `data`.
+/// Perform `config.num_iterations` explicit Euler steps of the ITK
+/// `GradientNDAnisotropicDiffusionFunction` on `data`.
 ///
-/// Returns the diffused voxel buffer with the same length as `data`.
+/// Each step:
+/// 1. Recompute `m_K = avgGradMagSq · K² · −2`, where `avgGradMagSq` is the mean
+///    over all voxels of `Σ_d (central_d)²` (spacing-scaled central differences).
+/// 2. For every voxel and dimension `i`, evaluate the conductance on the *full*
+///    gradient magnitude at the `±i` half-pixel faces — the face-normal
+///    forward/backward difference plus the averaged tangential central
+///    differences in the orthogonal dimensions:
+///    `c± = exp((dx_face² + Σ_{j≠i} ¼(central_j + central_j^{±i})²) / m_K)` —
+///    then accumulate the divergence `δ += c⁺·dx_fwd − c⁻·dx_bwd`.
+/// 3. `I_new = I + Δt·δ`.
 ///
-/// # Boundary conditions
-/// Neumann (zero-flux): neighbour terms that fall outside `dims` are omitted.
-fn diffuse(data: &[f32], dims: [usize; 3], config: &GradientDiffusionConfig) -> Vec<f32> {
+/// Boundary conditions are ZeroFluxNeumann (index-clamp). Derivatives are scaled
+/// by the image spacing, matching ITK's default `UseImageSpacing = true`.
+#[allow(clippy::needless_range_loop)]
+fn diffuse(
+    data: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    config: &GradientDiffusionConfig,
+) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let mut cur: Vec<f32> = data.to_vec();
     let mut nxt: Vec<f32> = vec![0.0_f32; n];
 
-    let dt = config.time_step;
-    let k = config.conductance;
-
-    // Row-major linear index.
-    let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * ny * nx + iy * nx + ix };
+    let dt = config.time_step as f64;
+    let cond = config.conductance as f64;
+    let inv_sp = [1.0 / spacing[0], 1.0 / spacing[1], 1.0 / spacing[2]];
+    let inv_2sp = [0.5 / spacing[0], 0.5 / spacing[1], 0.5 / spacing[2]];
 
     for _iter in 0..config.num_iterations {
-        for iz in 0..nz {
-            for iy in 0..ny {
-                for ix in 0..nx {
-                    let p = idx(iz, iy, ix);
-                    let v = cur[p];
-                    let mut update = 0.0_f32;
+        // 1. Average gradient magnitude squared over the whole image.
+        let mut sum_gms = 0.0_f64;
+        for z in 0..nz as isize {
+            for y in 0..ny as isize {
+                for x in 0..nx as isize {
+                    let g0 = central(&cur, dims, inv_2sp, 0, z, y, x);
+                    let g1 = central(&cur, dims, inv_2sp, 1, z, y, x);
+                    let g2 = central(&cur, dims, inv_2sp, 2, z, y, x);
+                    sum_gms += g0 * g0 + g1 * g1 + g2 * g2;
+                }
+            }
+        }
+        let avg_gms = sum_gms / n as f64;
+        // m_K is negative; the conductance is exp(gradMag² / m_K) ∈ (0, 1].
+        let m_k = avg_gms * cond * cond * -2.0;
 
-                    // +z neighbour
-                    if iz + 1 < nz {
-                        let delta = cur[idx(iz + 1, iy, ix)] - v;
-                        update += conductance_exp(delta.abs(), k) * delta;
-                    }
-                    // -z neighbour
-                    if iz > 0 {
-                        let delta = cur[idx(iz - 1, iy, ix)] - v;
-                        update += conductance_exp(delta.abs(), k) * delta;
-                    }
-                    // +y neighbour
-                    if iy + 1 < ny {
-                        let delta = cur[idx(iz, iy + 1, ix)] - v;
-                        update += conductance_exp(delta.abs(), k) * delta;
-                    }
-                    // -y neighbour
-                    if iy > 0 {
-                        let delta = cur[idx(iz, iy - 1, ix)] - v;
-                        update += conductance_exp(delta.abs(), k) * delta;
-                    }
-                    // +x neighbour
-                    if ix + 1 < nx {
-                        let delta = cur[idx(iz, iy, ix + 1)] - v;
-                        update += conductance_exp(delta.abs(), k) * delta;
-                    }
-                    // -x neighbour
-                    if ix > 0 {
-                        let delta = cur[idx(iz, iy, ix - 1)] - v;
-                        update += conductance_exp(delta.abs(), k) * delta;
+        // 2. Diffusion update.
+        for z in 0..nz as isize {
+            for y in 0..ny as isize {
+                for x in 0..nx as isize {
+                    let center = at(&cur, dims, z, y, x);
+                    let dc = [
+                        central(&cur, dims, inv_2sp, 0, z, y, x),
+                        central(&cur, dims, inv_2sp, 1, z, y, x),
+                        central(&cur, dims, inv_2sp, 2, z, y, x),
+                    ];
+
+                    let mut delta = 0.0_f64;
+                    for i in 0..3 {
+                        // Face-normal forward/backward differences in dimension i.
+                        let (fp, fm) = match i {
+                            0 => (at(&cur, dims, z + 1, y, x), at(&cur, dims, z - 1, y, x)),
+                            1 => (at(&cur, dims, z, y + 1, x), at(&cur, dims, z, y - 1, x)),
+                            _ => (at(&cur, dims, z, y, x + 1), at(&cur, dims, z, y, x - 1)),
+                        };
+                        let fwd = (fp - center) * inv_sp[i];
+                        let bwd = (center - fm) * inv_sp[i];
+
+                        // Tangential gradient contributions at the ± i faces:
+                        // the central difference in each orthogonal dim j averaged
+                        // between the centre and the ± i neighbour.
+                        let mut accum_f = 0.0_f64;
+                        let mut accum_b = 0.0_f64;
+                        for j in 0..3 {
+                            if j == i {
+                                continue;
+                            }
+                            let (aug, dim_) = match i {
+                                0 => (
+                                    central(&cur, dims, inv_2sp, j, z + 1, y, x),
+                                    central(&cur, dims, inv_2sp, j, z - 1, y, x),
+                                ),
+                                1 => (
+                                    central(&cur, dims, inv_2sp, j, z, y + 1, x),
+                                    central(&cur, dims, inv_2sp, j, z, y - 1, x),
+                                ),
+                                _ => (
+                                    central(&cur, dims, inv_2sp, j, z, y, x + 1),
+                                    central(&cur, dims, inv_2sp, j, z, y, x - 1),
+                                ),
+                            };
+                            let sf = dc[j] + aug;
+                            let sb = dc[j] + dim_;
+                            accum_f += 0.25 * sf * sf;
+                            accum_b += 0.25 * sb * sb;
+                        }
+
+                        let (cx, cxd) = if m_k == 0.0 {
+                            (0.0, 0.0)
+                        } else {
+                            (
+                                ((fwd * fwd + accum_f) / m_k).exp(),
+                                ((bwd * bwd + accum_b) / m_k).exp(),
+                            )
+                        };
+                        delta += cx * fwd - cxd * bwd;
                     }
 
-                    nxt[p] = v + dt * update;
+                    let p = (z as usize) * ny * nx + (y as usize) * nx + (x as usize);
+                    nxt[p] = (center + dt * delta) as f32;
                 }
             }
         }

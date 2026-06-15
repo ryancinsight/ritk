@@ -187,20 +187,6 @@ fn spatial_metadata_preserved() {
     assert_eq!(*out.direction(), direction);
 }
 
-// T7 — Conductance function analytical values.
-//
-// conductance_exp(s, K):
-//   s = 0, K = 1.0  → exp(0) = 1.0
-//   s = K,   K = 1.0  → exp(-1) ≈ 0.36788
-//   s = 2K,  K = 1.0  → exp(-4) ≈ 0.01832
-#[test]
-fn conductance_exp_analytical_values() {
-    let eps = 1e-5_f32;
-    assert!((conductance_exp(0.0, 1.0) - 1.0).abs() < eps);
-    assert!((conductance_exp(1.0, 1.0) - (-1.0_f32).exp()).abs() < eps);
-    assert!((conductance_exp(2.0, 1.0) - (-4.0_f32).exp()).abs() < eps);
-}
-
 // T8 — One iteration: analytical update for interior voxel of step edge.
 //
 // Image: 1×1×3, values [0.0, 50.0, 100.0].

@@ -172,6 +172,41 @@ def test_bilateral_matches_sitk(images):
     assert _interior_absmax(ra, sa) / _rng(sa) < 0.01
 
 
+def test_gradient_anisotropic_diffusion_matches_sitk(images):
+    """ITK-exact gradient anisotropic diffusion (exponential kind) vs SimpleITK.
+
+    Regression for the simplified Perona-Malik scheme that previously diverged
+    ~2.6%/iteration (face-gradient conductance + average-gradient-magnitude K
+    rescaling now matched).
+    """
+    ri, si = images
+    ra = ritk.filter.anisotropic_diffusion(
+        ri, iterations=5, conductance=3.0, time_step=0.0625
+    ).to_numpy()
+    sa = _sa(
+        sitk.GradientAnisotropicDiffusion(
+            si, timeStep=0.0625, conductanceParameter=3.0, numberOfIterations=5
+        )
+    )
+    # ritk accumulates in f64, ITK in f32; residual is f32 round-off over iterations.
+    assert _interior_absmax(ra, sa) / _rng(sa) < 2e-3
+
+
+def test_curvature_anisotropic_diffusion_matches_sitk(images):
+    """ITK-exact curvature MCDE vs SimpleITK (was ~44% off)."""
+    ri, si = images
+    # Time step below ITK's stability threshold (~0.044 for 0.35 mm spacing).
+    ra = ritk.filter.curvature_anisotropic_diffusion(
+        ri, iterations=5, time_step=0.04, conductance=3.0
+    ).to_numpy()
+    sa = _sa(
+        sitk.CurvatureAnisotropicDiffusion(
+            si, timeStep=0.04, conductanceParameter=3.0, numberOfIterations=5
+        )
+    )
+    assert _interior_absmax(ra, sa) / _rng(sa) < 2e-3
+
+
 # ── Distance transform (unsigned Euclidean, Danielsson semantics) ─────────────
 
 

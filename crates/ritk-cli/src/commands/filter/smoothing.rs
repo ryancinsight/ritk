@@ -125,6 +125,7 @@ pub(super) fn run_curvature(args: &FilterArgs) -> Result<()> {
     let config = CurvatureConfig {
         num_iterations: args.iterations,
         time_step: args.time_step as f32,
+        conductance: args.conductance as f32,
     };
     let filter = CurvatureAnisotropicDiffusionFilter::new(config);
     let filtered = filter.apply(&image)?;

@@ -2,53 +2,45 @@
 //!
 //! # Mathematical Specification
 //!
-//! Implements mean curvature motion of image level sets (Alvarez et al. 1992):
+//! Implements ITK's `CurvatureNDAnisotropicDiffusionFunction` — the Modified
+//! Curvature Diffusion Equation (MCDE) of Whitaker & Xue (2001):
 //!
-//!   ∂I/∂t = |∇I| · div(∇I / |∇I|) = |∇I| · κ
+//!   ∂I/∂t = |∇I| · ∇·( c(|∇I|) · ∇I/|∇I| )
 //!
-//! where κ is the mean curvature of the iso-intensity level set through each voxel.
+//! the curvature-driven analogue of Perona-Malik: the conductance-weighted flux
+//! is normalised by the gradient magnitude (so each level set evolves by its own
+//! conductance-modulated mean curvature) and the divergence is multiplied by an
+//! upwind approximation of |∇I|.
 //!
-//! Unlike Perona-Malik (which modulates flux by scalar gradient magnitude),
-//! curvature diffusion evolves each level set by its own mean curvature,
-//! smoothing structures along level sets while preserving their geometry.
+//! # Discretisation (per voxel, ITK-exact)
 //!
-//! # 3-D Finite-Difference Discretisation
+//! With spacing-scaled forward/backward/central differences `dx_fwd[i]`,
+//! `dx_bwd[i]`, `dx[i]` (derivative scaled by `1/spacing[i]`):
 //!
-//! Let I_x, I_y, I_z denote central-difference first derivatives and I_xx, I_yy, I_zz,
-//! I_xy, I_xz, I_yz denote second derivatives (symmetric 3-point stencils at interior
-//! voxels, one-sided at boundaries).
+//! For each dimension `i`, the gradient magnitude squared at the `±i` faces is
+//! the face-normal difference plus the averaged tangential central differences:
 //!
-//! The curvature-weighted magnitude term is:
+//!   gms±  = dx_{fwd,bwd}[i]² + Σ_{j≠i} ¼·(dx[j] + dx[j]^{±i})²
 //!
-//!   C(p) = I_xx·(I_y² + I_z²)
-//!         + I_yy·(I_x² + I_z²)
-//!         + I_zz·(I_x² + I_y²)
-//!         − 2·I_x·I_y·I_xy
-//!         − 2·I_x·I_z·I_xz
-//!         − 2·I_y·I_z·I_yz
+//! The conductance is `c± = exp(gms± / m_K)` with the average-gradient-magnitude
+//! `m_K = avgGradMagSq · K² · −2` (recomputed each iteration, shared with the
+//! gradient filter), and the normalised flux is
 //!
-//! Explicit Euler update at each voxel p:
+//!   speed = Σ_i [ (dx_fwd[i]/√(ε+gms⁺))·c⁺ − (dx_bwd[i]/√(ε+gms⁻))·c⁻ ],  ε = 1e-10
 //!
-//!   I_new(p) = I(p) + Δt · C(p) / (I_x² + I_y² + I_z² + ε)
-//!
-//! where ε = 1e-10 prevents division by zero in flat regions.
-//!
-//! # Stability
-//!
-//! Stability condition for explicit Euler in 3-D: Δt ≤ 1/6 (unit spacing).
-//! Default Δt = 1/16 provides a safety factor of ~2.67.
-//! Neumann (zero-flux) boundary conditions are enforced by one-sided differences.
+//! Finally the update is `√(propagation_gradient) · speed`, where the upwind
+//! `propagation_gradient` selects forward/backward squared differences by the
+//! sign of `speed`. Boundary conditions are ZeroFluxNeumann (index-clamp).
 //!
 //! # Invariants
-//!
-//! - Constant and linear images: C(p) = 0 everywhere → image unchanged.
-//! - Mean intensity is approximately conserved (zero-mean update in the continuum).
+//! - Constant image: all differences 0 → update 0 → image unchanged.
 //!
 //! # References
-//! - Alvarez, L., Lions, P.-L. & Morel, J.-M. (1992). Image selective smoothing
-//!   and edge detection by nonlinear diffusion II. *SIAM J. Numer. Anal.* 29(3):845–866.
-//! - Weickert, J. (1998). *Anisotropic Diffusion in Image Processing*. Teubner.
+//! - Whitaker, R. & Xue, X. (2001). Variable-conductance, level-set curvature
+//!   for image denoising. *Proc. ICIP*.
+//! - ITK `itkCurvatureNDAnisotropicDiffusionFunction.hxx`.
 
+use super::{central_diff, clamp_at};
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -63,6 +55,9 @@ pub struct CurvatureConfig {
     /// Time step Δt.  Must satisfy Δt ≤ 1/6 for unit spacing.
     /// Default: 0.0625 = 1/16.
     pub time_step: f32,
+    /// Conductance parameter K. Larger K → more isotropic smoothing.
+    /// ITK default: 3.0.
+    pub conductance: f32,
 }
 
 impl Default for CurvatureConfig {
@@ -70,6 +65,7 @@ impl Default for CurvatureConfig {
         Self {
             num_iterations: 20,
             time_step: 1.0 / 16.0,
+            conductance: 3.0,
         }
     }
 }
@@ -97,11 +93,8 @@ impl CurvatureAnisotropicDiffusionFilter {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals_vec, dims) = extract_vec(image)?;
         let vals = &vals_vec;
-        let spacing = [
-            image.spacing()[0] as f32,
-            image.spacing()[1] as f32,
-            image.spacing()[2] as f32,
-        ];
+        let sp = image.spacing();
+        let spacing = [sp[0], sp[1], sp[2]];
 
         let result = curvature_diffuse(vals, dims, spacing, &self.config);
 
@@ -109,166 +102,129 @@ impl CurvatureAnisotropicDiffusionFilter {
     }
 }
 
-// ── Core computation ──────────────────────────────────────────────────────────
+// ── Core computation (ITK CurvatureNDAnisotropicDiffusionFunction) ────────────
 
-/// Numerical floor to prevent division by zero in flat regions.
-const EPSILON: f32 = 1e-10;
+/// Gradient-magnitude floor (ITK `m_MIN_NORM`).
+const MIN_NORM: f64 = 1.0e-10;
 
-/// Run explicit Euler curvature diffusion for the requested number of iterations.
+/// Run the MCDE explicit Euler curvature diffusion for the requested iterations.
 ///
-/// Neumann (zero-flux) boundary conditions: one-sided differences at boundaries.
+/// Per iteration: recompute `m_K = avgGradMagSq · K² · −2` (shared with the
+/// gradient filter), then apply the conductance-weighted, gradient-normalised
+/// curvature flux multiplied by the upwind `√(propagation_gradient)`. Boundary
+/// conditions are ZeroFluxNeumann (index-clamp); derivatives are spacing-scaled.
+#[allow(clippy::needless_range_loop)]
 fn curvature_diffuse(
     data: &[f32],
     dims: [usize; 3],
-    spacing: [f32; 3],
+    spacing: [f64; 3],
     config: &CurvatureConfig,
 ) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-    let [sz, sy, sx] = spacing;
-
     let mut cur = data.to_vec();
-    let mut next = vec![0.0f32; n];
+    let mut nxt = vec![0.0f32; n];
 
-    // Precompute reciprocals to avoid repeated division in the inner loop.
-    let _inv_2sz = 1.0 / (2.0 * sz);
-    let _inv_2sy = 1.0 / (2.0 * sy);
-    let _inv_2sx = 1.0 / (2.0 * sx);
-    let inv_sz2 = 1.0 / (sz * sz);
-    let inv_sy2 = 1.0 / (sy * sy);
-    let inv_sx2 = 1.0 / (sx * sx);
-
-    let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * ny * nx + iy * nx + ix };
+    let dt = config.time_step as f64;
+    let cond = config.conductance as f64;
+    let inv_sp = [1.0 / spacing[0], 1.0 / spacing[1], 1.0 / spacing[2]];
+    let inv_2sp = [0.5 / spacing[0], 0.5 / spacing[1], 0.5 / spacing[2]];
 
     for _ in 0..config.num_iterations {
-        for iz in 0..nz {
-            for iy in 0..ny {
-                for ix in 0..nx {
-                    let c = idx(iz, iy, ix);
-
-                    // ── First derivatives (central, one-sided at boundary) ──
-                    let iz_m = if iz > 0 { iz - 1 } else { 0 };
-                    let iz_p = if iz + 1 < nz { iz + 1 } else { nz - 1 };
-                    let iy_m = if iy > 0 { iy - 1 } else { 0 };
-                    let iy_p = if iy + 1 < ny { iy + 1 } else { ny - 1 };
-                    let ix_m = if ix > 0 { ix - 1 } else { 0 };
-                    let ix_p = if ix + 1 < nx { ix + 1 } else { nx - 1 };
-
-                    // Effective half-step sizes for one-sided boundaries.
-                    let dz_span = (iz_p - iz_m) as f32;
-                    let dy_span = (iy_p - iy_m) as f32;
-                    let dx_span = (ix_p - ix_m) as f32;
-
-                    let dz = if dz_span > 0.0 {
-                        (cur[idx(iz_p, iy, ix)] - cur[idx(iz_m, iy, ix)]) / (dz_span * sz)
-                    } else {
-                        0.0
-                    };
-                    let dy = if dy_span > 0.0 {
-                        (cur[idx(iz, iy_p, ix)] - cur[idx(iz, iy_m, ix)]) / (dy_span * sy)
-                    } else {
-                        0.0
-                    };
-                    let dx = if dx_span > 0.0 {
-                        (cur[idx(iz, iy, ix_p)] - cur[idx(iz, iy, ix_m)]) / (dx_span * sx)
-                    } else {
-                        0.0
-                    };
-
-                    // ── Second derivatives ─────────────────────────────────
-                    // Diagonal: symmetric 3-point stencil or one-sided at edge.
-                    let (az, bz, cz_) = diag_stencil(iz, nz);
-                    let i_zz = (cur[idx(az, iy, ix)] - 2.0 * cur[idx(bz, iy, ix)]
-                        + cur[idx(cz_, iy, ix)])
-                        * inv_sz2;
-
-                    let (ay, by_, cy) = diag_stencil(iy, ny);
-                    let i_yy = (cur[idx(iz, ay, ix)] - 2.0 * cur[idx(iz, by_, ix)]
-                        + cur[idx(iz, cy, ix)])
-                        * inv_sy2;
-
-                    let (ax, bx, cx) = diag_stencil(ix, nx);
-                    let i_xx = (cur[idx(iz, iy, ax)] - 2.0 * cur[idx(iz, iy, bx)]
-                        + cur[idx(iz, iy, cx)])
-                        * inv_sx2;
-
-                    // Cross: bilinear stencil, one-sided at edges.
-                    let i_zy = if nz > 1 && ny > 1 {
-                        let dz2 = (iz_p - iz_m) as f32 * sz;
-                        let dy2 = (iy_p - iy_m) as f32 * sy;
-                        (cur[idx(iz_p, iy_p, ix)]
-                            - cur[idx(iz_p, iy_m, ix)]
-                            - cur[idx(iz_m, iy_p, ix)]
-                            + cur[idx(iz_m, iy_m, ix)])
-                            / (dz2 * dy2 + EPSILON)
-                    } else {
-                        0.0
-                    };
-
-                    let i_zx = if nz > 1 && nx > 1 {
-                        let dz2 = (iz_p - iz_m) as f32 * sz;
-                        let dx2 = (ix_p - ix_m) as f32 * sx;
-                        (cur[idx(iz_p, iy, ix_p)]
-                            - cur[idx(iz_p, iy, ix_m)]
-                            - cur[idx(iz_m, iy, ix_p)]
-                            + cur[idx(iz_m, iy, ix_m)])
-                            / (dz2 * dx2 + EPSILON)
-                    } else {
-                        0.0
-                    };
-
-                    let i_yx = if ny > 1 && nx > 1 {
-                        let dy2 = (iy_p - iy_m) as f32 * sy;
-                        let dx2 = (ix_p - ix_m) as f32 * sx;
-                        (cur[idx(iz, iy_p, ix_p)]
-                            - cur[idx(iz, iy_p, ix_m)]
-                            - cur[idx(iz, iy_m, ix_p)]
-                            + cur[idx(iz, iy_m, ix_m)])
-                            / (dy2 * dx2 + EPSILON)
-                    } else {
-                        0.0
-                    };
-
-                    // ── Curvature update ───────────────────────────────────
-                    // C(p) = I_xx(I_y² + I_z²) + I_yy(I_x² + I_z²) + I_zz(I_x² + I_y²)
-                    //        - 2·I_x·I_y·I_xy - 2·I_x·I_z·I_xz - 2·I_y·I_z·I_yz
-                    let grad_sq = dx * dx + dy * dy + dz * dz;
-
-                    let curv_num = i_xx * (dy * dy + dz * dz)
-                        + i_yy * (dx * dx + dz * dz)
-                        + i_zz * (dx * dx + dy * dy)
-                        - 2.0 * dx * dy * i_yx
-                        - 2.0 * dx * dz * i_zx
-                        - 2.0 * dy * dz * i_zy;
-
-                    next[c] = cur[c] + config.time_step * curv_num / (grad_sq + EPSILON);
+        // Average gradient magnitude squared → m_K (identical to the gradient
+        // anisotropic filter; ITK shares this via the base diffusion function).
+        let mut sum_gms = 0.0_f64;
+        for z in 0..nz as isize {
+            for y in 0..ny as isize {
+                for x in 0..nx as isize {
+                    let g0 = central_diff(&cur, dims, inv_2sp, 0, z, y, x);
+                    let g1 = central_diff(&cur, dims, inv_2sp, 1, z, y, x);
+                    let g2 = central_diff(&cur, dims, inv_2sp, 2, z, y, x);
+                    sum_gms += g0 * g0 + g1 * g1 + g2 * g2;
                 }
             }
         }
-        cur.copy_from_slice(&next);
-    }
+        let m_k = (sum_gms / n as f64) * cond * cond * -2.0;
 
+        for z in 0..nz as isize {
+            for y in 0..ny as isize {
+                for x in 0..nx as isize {
+                    let center = clamp_at(&cur, dims, z, y, x);
+
+                    // Spacing-scaled forward/backward/central differences per dim.
+                    let mut dxf = [0.0_f64; 3];
+                    let mut dxb = [0.0_f64; 3];
+                    let mut dxc = [0.0_f64; 3];
+                    for i in 0..3 {
+                        let (fp, fm) = match i {
+                            0 => (clamp_at(&cur, dims, z + 1, y, x), clamp_at(&cur, dims, z - 1, y, x)),
+                            1 => (clamp_at(&cur, dims, z, y + 1, x), clamp_at(&cur, dims, z, y - 1, x)),
+                            _ => (clamp_at(&cur, dims, z, y, x + 1), clamp_at(&cur, dims, z, y, x - 1)),
+                        };
+                        dxf[i] = (fp - center) * inv_sp[i];
+                        dxb[i] = (center - fm) * inv_sp[i];
+                        dxc[i] = central_diff(&cur, dims, inv_2sp, i, z, y, x);
+                    }
+
+                    // Conductance-weighted, gradient-normalised curvature flux.
+                    let mut speed = 0.0_f64;
+                    for i in 0..3 {
+                        let mut gms = dxf[i] * dxf[i];
+                        let mut gms_d = dxb[i] * dxb[i];
+                        for j in 0..3 {
+                            if j == i {
+                                continue;
+                            }
+                            let (aug, dim_) = match i {
+                                0 => (
+                                    central_diff(&cur, dims, inv_2sp, j, z + 1, y, x),
+                                    central_diff(&cur, dims, inv_2sp, j, z - 1, y, x),
+                                ),
+                                1 => (
+                                    central_diff(&cur, dims, inv_2sp, j, z, y + 1, x),
+                                    central_diff(&cur, dims, inv_2sp, j, z, y - 1, x),
+                                ),
+                                _ => (
+                                    central_diff(&cur, dims, inv_2sp, j, z, y, x + 1),
+                                    central_diff(&cur, dims, inv_2sp, j, z, y, x - 1),
+                                ),
+                            };
+                            let sf = dxc[j] + aug;
+                            let sb = dxc[j] + dim_;
+                            gms += 0.25 * sf * sf;
+                            gms_d += 0.25 * sb * sb;
+                        }
+                        let grad_mag = (MIN_NORM + gms).sqrt();
+                        let grad_mag_d = (MIN_NORM + gms_d).sqrt();
+                        let (cx, cxd) = if m_k == 0.0 {
+                            (0.0, 0.0)
+                        } else {
+                            ((gms / m_k).exp(), (gms_d / m_k).exp())
+                        };
+                        speed += (dxf[i] / grad_mag) * cx - (dxb[i] / grad_mag_d) * cxd;
+                    }
+
+                    // Upwind |∇I| (propagation gradient), selected by sign of speed.
+                    let mut prop = 0.0_f64;
+                    if speed > 0.0 {
+                        for i in 0..3 {
+                            prop += dxb[i].min(0.0).powi(2) + dxf[i].max(0.0).powi(2);
+                        }
+                    } else {
+                        for i in 0..3 {
+                            prop += dxb[i].max(0.0).powi(2) + dxf[i].min(0.0).powi(2);
+                        }
+                    }
+                    let update = prop.sqrt() * speed;
+
+                    let p = (z as usize) * ny * nx + (y as usize) * nx + (x as usize);
+                    nxt[p] = (center + dt * update) as f32;
+                }
+            }
+        }
+        cur.copy_from_slice(&nxt);
+    }
     cur
-}
-
-/// Returns three indices `(a, b, c)` for the symmetric 3-point stencil at
-/// position `i` in a dimension of size `n`.
-///
-/// Interior: `(i-1, i, i+1)` — standard symmetric stencil.
-/// Left boundary (`i == 0`): `(0, 1, 2)` — forward 2nd-difference.
-/// Right boundary (`i == n-1`): `(n-3, n-2, n-1)` — backward 2nd-difference.
-#[inline(always)]
-fn diag_stencil(i: usize, n: usize) -> (usize, usize, usize) {
-    if n <= 1 {
-        return (0, 0, 0);
-    }
-    if i == 0 {
-        (0, 1, 2.min(n - 1))
-    } else if i + 1 >= n {
-        (n.saturating_sub(3), n - 2, n - 1)
-    } else {
-        (i - 1, i, i + 1)
-    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

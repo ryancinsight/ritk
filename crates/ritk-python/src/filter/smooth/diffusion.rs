@@ -4,6 +4,7 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::diffusion::{
     CoherenceConfig, ConductanceFunction, CurvatureConfig, DiffusionConfig,
+    GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
 };
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter};
@@ -40,13 +41,19 @@ impl<'a> From<Option<&'a str>> for PyConductanceKind {
 /// Reduces noise while preserving edges via the PDE:
 /// ∂I/∂t = div(c(|∇I|) · ∇I)
 ///
+/// The default `"exponential"` kind dispatches to the ITK-exact
+/// `GradientAnisotropicDiffusionImageFilter` (face-gradient conductance with the
+/// per-iteration average-gradient-magnitude `K` rescaling), so it matches
+/// SimpleITK's `GradientAnisotropicDiffusion`. The `"quadratic"` kind uses the
+/// crate's simpler Perona-Malik conductance `1/(1+(s/K)²)` (no SimpleITK
+/// equivalent).
+///
 /// Args:
 /// image: Input PyImage.
 /// iterations: Number of explicit Euler time steps (default 20).
 /// conductance: Edge-stopping parameter K (default 3.0; larger = more smoothing).
 /// time_step: Euler step size Δt (default 0.0625; must be ≤ 1/6 for 3-D stability).
 /// conductance_kind: Conductance function kind — "exponential" (default) or "quadratic".
-/// Exponential maps to c(s) = exp(-(s/K)²), quadratic to c(s) = 1/(1+(s/K)²).
 ///
 /// Returns:
 /// Smoothed PyImage with identical shape and spatial metadata.
@@ -63,31 +70,44 @@ pub fn anisotropic_diffusion(
     time_step: f64,
     conductance_kind: Option<&str>,
 ) -> RitkResult<PyImage> {
-    let function: ConductanceFunction = PyConductanceKind::from(conductance_kind).into();
+    let kind = PyConductanceKind::from(conductance_kind);
     let image = std::sync::Arc::clone(&image.inner);
-    py.allow_threads(|| {
-        let config = DiffusionConfig {
+    py.allow_threads(|| match kind {
+        // ITK-exact gradient anisotropic diffusion (matches SimpleITK).
+        PyConductanceKind::Exponential => GradientAnisotropicDiffusionFilter::new(
+            GradientDiffusionConfig {
+                num_iterations: iterations,
+                time_step: time_step as f32,
+                conductance: conductance as f32,
+            },
+        )
+        .apply(image.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string())),
+        // Crate-specific Perona-Malik with quadratic conductance.
+        PyConductanceKind::Quadratic => DiffusionConfig {
             num_iterations: iterations,
             conductance: conductance as f32,
             time_step: time_step as f32,
-            function,
-        };
-        config
-            .apply(image.as_ref())
-            .map_err(|e| RitkPyError::runtime(e.to_string()))
+            function: ConductanceFunction::Quadratic,
+        }
+        .apply(image.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string())),
     })
     .map(into_py_image)
 }
 
-/// Apply curvature anisotropic diffusion (Alvarez et al. 1992).
+/// Apply curvature anisotropic diffusion (ITK `CurvatureAnisotropicDiffusion`).
 ///
-/// Evolves image level sets by mean curvature motion:
-/// ∂I/∂t = |∇I| · div(∇I / |∇I|) = |∇I| · κ
+/// Modified Curvature Diffusion Equation (Whitaker & Xue 2001):
+/// ∂I/∂t = |∇I| · ∇·( c(|∇I|) · ∇I/|∇I| )
 ///
 /// Args:
 ///     image: Input PyImage.
 ///     iterations: Number of explicit Euler time steps (default 20).
-///     time_step: Euler Δt (default 0.0625; stability requires Δt ≤ 1/6 for unit spacing).
+///     time_step: Euler Δt (default 0.0625; ITK's stable step is smaller for
+///         fine spacing — keep ≲ 0.044 for ~0.35 mm CT to avoid instability).
+///     conductance: Conductance parameter K (default 3.0). Larger K → more
+///         isotropic smoothing.
 ///
 /// Returns:
 ///     Smoothed PyImage with identical shape and spatial metadata.
@@ -95,18 +115,20 @@ pub fn anisotropic_diffusion(
 /// Raises:
 ///     RuntimeError: on tensor extraction failure.
 #[pyfunction]
-#[pyo3(signature = (image, iterations=20, time_step=0.0625))]
+#[pyo3(signature = (image, iterations=20, time_step=0.0625, conductance=3.0))]
 pub fn curvature_anisotropic_diffusion(
     py: Python<'_>,
     image: &PyImage,
     iterations: usize,
     time_step: f64,
+    conductance: f64,
 ) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
         let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
+            conductance: conductance as f32,
         });
         filter
             .apply(image.as_ref())

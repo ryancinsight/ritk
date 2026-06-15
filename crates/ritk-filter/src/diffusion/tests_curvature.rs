@@ -50,12 +50,18 @@ fn test_constant_image_unchanged() {
     );
 }
 
-// ── Test 2: linear field must be unchanged ─────────────────────────────────
-// A linear ramp I(x,y,z) = ax+by+cz has zero curvature everywhere.
+// ── Test 2: linear field — deep interior must be unchanged ─────────────────
+// A linear ramp has zero curvature, so the MCDE speed is identically 0 wherever
+// the stencil sees only real (unclamped) data. ITK's ZeroFluxNeumann boundary
+// does perturb the ramp at the edges (the boundary acts as a reflecting wall),
+// and that perturbation propagates one voxel inward per iteration. Voxels at
+// Chebyshev distance > num_iterations from every boundary are therefore exactly
+// unchanged.
 
 #[test]
-fn test_linear_field_unchanged() {
-    let [nz, ny, nx] = [10usize, 10, 10];
+fn test_linear_field_deep_interior_unchanged() {
+    let [nz, ny, nx] = [30usize, 30, 30];
+    let iters = 5usize;
     let vals: Vec<f32> = (0..nz * ny * nx)
         .map(|i| {
             let ix = (i % nx) as f32;
@@ -67,26 +73,28 @@ fn test_linear_field_unchanged() {
     let img = make_image(vals.clone(), [nz, ny, nx]);
 
     let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
-        num_iterations: 10,
+        num_iterations: iters,
         time_step: 1.0 / 16.0,
+        conductance: 3.0,
     });
     let out = filter.apply(&img).unwrap();
     let out_vals = image_vals(&out);
 
-    // Interior voxels only (boundaries use one-sided stencils which introduce small errors)
-    let mut max_interior_diff = 0.0f32;
-    for iz in 1..nz - 1 {
-        for iy in 1..ny - 1 {
-            for ix in 1..nx - 1 {
+    // Margin of (iters + 1) keeps every stencil access away from the propagated
+    // boundary perturbation.
+    let m = iters + 1;
+    let mut max_diff = 0.0f32;
+    for iz in m..nz - m {
+        for iy in m..ny - m {
+            for ix in m..nx - m {
                 let i = iz * ny * nx + iy * nx + ix;
-                let diff = (out_vals[i] - vals[i]).abs();
-                max_interior_diff = max_interior_diff.max(diff);
+                max_diff = max_diff.max((out_vals[i] - vals[i]).abs());
             }
         }
     }
     assert!(
-        max_interior_diff < 1e-3,
-        "linear field interior should be unchanged; max diff = {max_interior_diff}"
+        max_diff < 1e-4,
+        "linear field deep interior must be unchanged; max diff = {max_diff}"
     );
 }
 
@@ -114,6 +122,7 @@ fn test_mean_conservation() {
     let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
         num_iterations: 20,
         time_step: 1.0 / 16.0,
+        conductance: 3.0,
     });
     let out = filter.apply(&img).unwrap();
     let out_vals = image_vals(&out);
@@ -153,6 +162,7 @@ fn test_spherical_blob_smoothed() {
     let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
         num_iterations: 10,
         time_step: 1.0 / 16.0,
+        conductance: 3.0,
     });
     let out = filter.apply(&img).unwrap();
     let out_vals = image_vals(&out);
@@ -185,6 +195,7 @@ fn test_stability_small_timestep() {
     let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
         num_iterations: 50,
         time_step: 1.0 / 16.0,
+        conductance: 3.0,
     });
     let out = filter.apply(&img).unwrap();
     let out_vals = image_vals(&out);
