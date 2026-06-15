@@ -83,7 +83,7 @@ mod tests {
     use burn_ndarray::NdArray;
 
     #[test]
-    fn test_curvature_2d() {
+    fn uniform_field_has_near_zero_loss() {
         type Backend = NdArray;
         let device = Default::default();
 

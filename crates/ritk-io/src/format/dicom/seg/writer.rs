@@ -6,9 +6,10 @@ use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::types::{DicomSegmentation, SEG_SOP_CLASS_UID};
+use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
+use crate::format::dicom::writer::utils::generate_series_uid;
 
 /// Write a [`DicomSegmentation`] to a DICOM Segmentation Storage file.
 ///
@@ -46,13 +47,9 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
         }
     }
 
-    static SEG_UID_COUNTER: AtomicU64 = AtomicU64::new(0);
-    let t = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64;
-    let n = SEG_UID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let sop_instance_uid = format!("2.25.{}.{}", t, n);
+    let sop_instance_uid = generate_series_uid();
+    let study_instance_uid = generate_series_uid();
+    let series_instance_uid = generate_series_uid();
 
     // BINARY: MSB-first packing — inverse of unpack_pixel_data (BitsAllocated == 1).
     // FRACTIONAL: raw byte-per-pixel concatenation (BitsAllocated == 8).
@@ -97,7 +94,12 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
             item.put(DataElement::new(
                 Tag(0x0062, 0x0008),
                 VR::CS,
-                PrimitiveValue::from(info.algorithm_type.as_deref().unwrap_or("MANUAL")),
+                PrimitiveValue::from(
+                    info.algorithm_type
+                        .as_ref()
+                        .map(|t| t.as_dicom_str())
+                        .unwrap_or("MANUAL"),
+                ),
             ));
             item
         })
@@ -123,12 +125,12 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
     obj.put(DataElement::new(
         Tag(0x0020, 0x000D),
         VR::UI,
-        PrimitiveValue::from("2.25.999"),
+        PrimitiveValue::from(study_instance_uid.as_str()),
     ));
     obj.put(DataElement::new(
         Tag(0x0020, 0x000E),
         VR::UI,
-        PrimitiveValue::from("2.25.998"),
+        PrimitiveValue::from(series_instance_uid.as_str()),
     ));
     obj.put(DataElement::new(
         Tag(0x0020, 0x0013),
@@ -183,7 +185,7 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
     obj.put(DataElement::new(
         Tag(0x0062, 0x0001),
         VR::CS,
-        PrimitiveValue::from(seg.segmentation_type.as_str()),
+        PrimitiveValue::from(seg.segmentation_type.as_dicom_str()),
     ));
 
     if !seg_items.is_empty() {
@@ -310,7 +312,7 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
         FileMetaTableBuilder::new()
             .media_storage_sop_class_uid(SEG_SOP_CLASS_UID)
             .media_storage_sop_instance_uid(sop_instance_uid.as_str())
-            .transfer_syntax("1.2.840.10008.1.2.1"),
+            .transfer_syntax(EXPLICIT_VR_LE),
     )
     .with_context(|| "build DICOM-SEG file meta")?
     .write_to_file(path)

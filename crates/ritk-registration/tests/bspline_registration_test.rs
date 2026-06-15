@@ -11,7 +11,7 @@ use ritk_transform::{BSplineTransform, Transform};
 type B = Autodiff<NdArray<f32>>;
 
 #[test]
-fn test_registration_bspline_3d() {
+fn bspline_registers_offset_sphere() {
     let device = Default::default();
 
     // 1. Create 3D images (10x10x10)

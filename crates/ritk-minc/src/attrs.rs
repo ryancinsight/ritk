@@ -11,7 +11,7 @@ use consus_core::AttributeValue;
 // ── Scalar extractors ────────────────────────────────────────────────────────
 
 /// Extract a scalar `f64` from an `AttributeValue`.
-pub fn extract_f64(val: &AttributeValue) -> Result<f64> {
+pub fn extract_scalar_float(val: &AttributeValue) -> Result<f64> {
     match val {
         AttributeValue::Float(v) => Ok(*v),
         AttributeValue::Int(v) => Ok(*v as f64),
@@ -32,7 +32,7 @@ pub fn extract_i64(val: &AttributeValue) -> Result<i64> {
 }
 
 /// Extract a 3-element `f64` array from an `AttributeValue`.
-pub fn extract_f64_array_3(val: &AttributeValue) -> Result<[f64; 3]> {
+pub fn extract_float_array_3(val: &AttributeValue) -> Result<[f64; 3]> {
     match val {
         AttributeValue::FloatArray(arr) if arr.len() >= 3 => Ok([arr[0], arr[1], arr[2]]),
         AttributeValue::Float(v) => {
@@ -120,11 +120,11 @@ pub fn parse_dimension_attrs(
 
         match attr.name.as_str() {
             "start" => {
-                start = extract_f64(&decoded)
+                start = extract_scalar_float(&decoded)
                     .with_context(|| format!("Invalid 'start' attribute on {}", name))?;
             }
             "step" => {
-                step = extract_f64(&decoded)
+                step = extract_scalar_float(&decoded)
                     .with_context(|| format!("Invalid 'step' attribute on {}", name))?;
             }
             "length" => {
@@ -137,7 +137,7 @@ pub fn parse_dimension_attrs(
             }
             "direction_cosines" => {
                 dir_cos = Some(
-                    extract_f64_array_3(&decoded)
+                    extract_float_array_3(&decoded)
                         .with_context(|| format!("Invalid 'direction_cosines' on {}", name))?,
                 );
             }
@@ -166,33 +166,33 @@ mod tests {
 
     #[test]
     #[allow(clippy::approx_constant)]
-    fn extract_f64_from_float() {
+    fn extract_scalar_float_from_float() {
         let val = AttributeValue::Float(3.14);
-        assert!((extract_f64(&val).unwrap() - 3.14).abs() < 1e-10);
+        assert!((extract_scalar_float(&val).unwrap() - 3.14).abs() < 1e-10);
     }
 
     #[test]
-    fn extract_f64_from_int() {
+    fn extract_scalar_float_from_int() {
         let val = AttributeValue::Int(42);
-        assert!((extract_f64(&val).unwrap() - 42.0).abs() < 1e-10);
+        assert!((extract_scalar_float(&val).unwrap() - 42.0).abs() < 1e-10);
     }
 
     #[test]
-    fn extract_f64_from_uint() {
+    fn extract_scalar_float_from_uint() {
         let val = AttributeValue::Uint(7);
-        assert!((extract_f64(&val).unwrap() - 7.0).abs() < 1e-10);
+        assert!((extract_scalar_float(&val).unwrap() - 7.0).abs() < 1e-10);
     }
 
     #[test]
-    fn extract_f64_from_single_element_array() {
+    fn extract_scalar_float_from_single_element_array() {
         let val = AttributeValue::FloatArray(vec![2.5]);
-        assert!((extract_f64(&val).unwrap() - 2.5).abs() < 1e-10);
+        assert!((extract_scalar_float(&val).unwrap() - 2.5).abs() < 1e-10);
     }
 
     #[test]
-    fn extract_f64_rejects_multi_element_array() {
+    fn extract_scalar_float_rejects_multi_element_array() {
         let val = AttributeValue::FloatArray(vec![1.0, 2.0]);
-        assert!(extract_f64(&val).is_err());
+        assert!(extract_scalar_float(&val).is_err());
     }
 
     #[test]
@@ -214,33 +214,33 @@ mod tests {
     }
 
     #[test]
-    fn extract_f64_array_3_from_exact() {
+    fn extract_float_array_3_from_exact() {
         let val = AttributeValue::FloatArray(vec![0.5, 0.7, 0.3]);
-        let arr = extract_f64_array_3(&val).unwrap();
+        let arr = extract_float_array_3(&val).unwrap();
         assert!((arr[0] - 0.5).abs() < 1e-10);
         assert!((arr[1] - 0.7).abs() < 1e-10);
         assert!((arr[2] - 0.3).abs() < 1e-10);
     }
 
     #[test]
-    fn extract_f64_array_3_from_longer() {
+    fn extract_float_array_3_from_longer() {
         let val = AttributeValue::FloatArray(vec![1.0, 2.0, 3.0, 4.0]);
-        let arr = extract_f64_array_3(&val).unwrap();
+        let arr = extract_float_array_3(&val).unwrap();
         assert!((arr[0] - 1.0).abs() < 1e-10);
         assert!((arr[1] - 2.0).abs() < 1e-10);
         assert!((arr[2] - 3.0).abs() < 1e-10);
     }
 
     #[test]
-    fn extract_f64_array_3_too_short_errors() {
+    fn extract_float_array_3_too_short_errors() {
         let val = AttributeValue::FloatArray(vec![1.0, 2.0]);
-        assert!(extract_f64_array_3(&val).is_err());
+        assert!(extract_float_array_3(&val).is_err());
     }
 
     #[test]
-    fn extract_f64_array_3_from_scalar_replicates() {
+    fn extract_float_array_3_from_scalar_replicates() {
         let val = AttributeValue::Float(0.707);
-        let arr = extract_f64_array_3(&val).unwrap();
+        let arr = extract_float_array_3(&val).unwrap();
         assert!((arr[0] - 0.707).abs() < 1e-10);
         assert!((arr[1] - 0.707).abs() < 1e-10);
         assert!((arr[2] - 0.707).abs() < 1e-10);

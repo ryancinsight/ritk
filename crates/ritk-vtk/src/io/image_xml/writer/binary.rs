@@ -27,7 +27,7 @@ fn flatten_attr(attr: &AttributeArray) -> Vec<f32> {
 }
 
 fn write_da_appended_tag(s: &mut String, name: &str, ncomp: usize, offset: usize) {
-    let dq = char::from(34u8); // "
+    let dq = '"';
     s.push_str("        <DataArray type=");
     s.push(dq);
     s.push_str("Float32");

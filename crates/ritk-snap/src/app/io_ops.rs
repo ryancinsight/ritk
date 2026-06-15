@@ -3,6 +3,7 @@ use super::clinical_distribution::{
     mpr_root, report_path, summary_from_loaded_volume, ClinicalDistributionExportSummary,
 };
 use super::state::SnapApp;
+use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
 use crate::ui::{apply_to_image, plan_all_mpr_exports};
@@ -36,8 +37,15 @@ impl SnapApp {
             return;
         };
 
-        let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-        let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+        let wc = self
+            .viewer_state
+            .window_center
+            .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+        let ww = self
+            .viewer_state
+            .window_width
+            .unwrap_or(DEFAULT_WINDOW_WIDTH)
+            .max(1.0) as f64;
         let wl = WindowLevel::new(wc, ww);
 
         if let Some(path) = FileDialog::new()
@@ -75,8 +83,15 @@ impl SnapApp {
             return;
         };
 
-        let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-        let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+        let wc = self
+            .viewer_state
+            .window_center
+            .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+        let ww = self
+            .viewer_state
+            .window_width
+            .unwrap_or(DEFAULT_WINDOW_WIDTH)
+            .max(1.0) as f64;
         let wl = WindowLevel::new(wc, ww);
 
         match self.export_all_mpr_slices_to(vol, wl, &root) {
@@ -172,8 +187,15 @@ impl SnapApp {
         std::fs::write(&report_path_buf, report)?;
 
         let current_slice_path_buf = current_slice_path(&root);
-        let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-        let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+        let wc = self
+            .viewer_state
+            .window_center
+            .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+        let ww = self
+            .viewer_state
+            .window_width
+            .unwrap_or(DEFAULT_WINDOW_WIDTH)
+            .max(1.0) as f64;
         let wl = WindowLevel::new(wc, ww);
         self.save_rendered_slice_png(
             vol,

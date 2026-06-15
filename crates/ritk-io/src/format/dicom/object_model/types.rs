@@ -29,6 +29,27 @@ pub enum DicomValue {
     Empty,
 }
 
+impl From<u16> for DicomValue {
+    #[inline]
+    fn from(v: u16) -> Self {
+        Self::U16(v)
+    }
+}
+
+impl From<i32> for DicomValue {
+    #[inline]
+    fn from(v: i32) -> Self {
+        Self::I32(v)
+    }
+}
+
+impl From<f64> for DicomValue {
+    #[inline]
+    fn from(v: f64) -> Self {
+        Self::F64(v)
+    }
+}
+
 impl DicomValue {
     /// Render a stable textual form when one exists.
     pub fn as_text(&self) -> Option<&str> {
@@ -187,7 +208,26 @@ impl DicomObjectNode {
         }
     }
 
+    /// Create a node from any value convertible to [`DicomValue`].
+    ///
+    /// Prefer this over the type-specific constructors.
+    #[inline]
+    pub fn with_value<V: Into<DicomValue>>(tag: DicomTag, vr: &str, value: V) -> Self {
+        Self {
+            tag,
+            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
+            value: value.into(),
+            element_class: if is_private_tag(tag) {
+                DicomElementClass::Private
+            } else {
+                DicomElementClass::Standard
+            },
+            source: None,
+        }
+    }
+
     /// Create a numeric node from a 16-bit unsigned value.
+    #[deprecated(since = "0.65.0", note = "use `with_value` instead")]
     #[inline]
     pub fn from_u16(tag: DicomTag, vr: &str, value: u16) -> Self {
         Self {
@@ -204,6 +244,7 @@ impl DicomObjectNode {
     }
 
     /// Create a numeric node from a signed 32-bit value.
+    #[deprecated(since = "0.65.0", note = "use `with_value` instead")]
     #[inline]
     pub fn from_i32(tag: DicomTag, vr: &str, value: i32) -> Self {
         Self {
@@ -220,6 +261,7 @@ impl DicomObjectNode {
     }
 
     /// Create a numeric node from a 64-bit float.
+    #[deprecated(since = "0.65.0", note = "use `with_value` instead")]
     #[inline]
     pub fn from_f64(tag: DicomTag, vr: &str, value: f64) -> Self {
         Self {

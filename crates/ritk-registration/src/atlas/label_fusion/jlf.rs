@@ -6,6 +6,9 @@ use crate::error::RegistrationError;
 
 use super::{validate_atlas_labels, LabelFusionConfig, LabelFusionResult};
 
+const JLF_WEIGHT_ZERO_GUARD: f64 = 1e-30;
+const JLF_PIVOT_SINGULARITY: f64 = 1e-15;
+
 /// Joint Label Fusion (Wang et al. 2013).
 ///
 /// Computes per-voxel atlas weights from local patch similarity between the
@@ -137,7 +140,7 @@ pub fn joint_label_fusion(
 
                 // Normalize.
                 let sum: f64 = w.iter().sum();
-                if sum > 1e-30 {
+                if sum > JLF_WEIGHT_ZERO_GUARD {
                     for v in w.iter_mut() {
                         *v /= sum;
                     }
@@ -199,7 +202,7 @@ pub(crate) fn solve_linear_system(a: &mut [f64], n: usize, b: &mut [f64]) -> Opt
                 max_row = row;
             }
         }
-        if max_val < 1e-15 {
+        if max_val < JLF_PIVOT_SINGULARITY {
             return None; // Singular.
         }
         // Swap rows col and max_row in the flat slice.

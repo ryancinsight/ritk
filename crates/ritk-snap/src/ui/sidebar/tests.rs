@@ -29,7 +29,11 @@ fn test_sidebar_tab_variants_are_distinct() {
 
 // ── Tag filter logic ──────────────────────────────────────────────────────
 
-fn make_row<'a>(tag: &'a str, keyword: &'a str, value: &'a str) -> crate::dicom::metadata_table::MetadataRow<'a> {
+fn make_row<'a>(
+    tag: &'a str,
+    keyword: &'a str,
+    value: &'a str,
+) -> crate::dicom::metadata_table::MetadataRow<'a> {
     crate::dicom::metadata_table::MetadataRow {
         scope: crate::dicom::metadata_table::MetadataScope::Series,
         tag: std::borrow::Cow::Borrowed(tag),

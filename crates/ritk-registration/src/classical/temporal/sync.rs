@@ -30,6 +30,9 @@ use super::config::TemporalSyncConfig;
 use super::quality::{compute_success_rate, compute_timing_errors};
 use crate::validation::TemporalQualityMetrics;
 
+/// Variance floor for correlation-based synchrony metrics.
+const SIGNAL_VARIANCE_GUARD: f64 = 1e-10;
+
 /// Temporal synchronization using cross-correlation phase estimation.
 ///
 /// Aligns temporal signals from multi-modal acquisitions (e.g., MRI and PET
@@ -94,10 +97,10 @@ impl TemporalSync {
             let mean = signal2.sum() / n;
             signal2.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / n
         };
-        if variance1 < 1e-10 && variance2 < 1e-10 {
+        if variance1 < SIGNAL_VARIANCE_GUARD && variance2 < SIGNAL_VARIANCE_GUARD {
             // Both constant: synchronization is trivially zero shift.
             // Success = 1.0 iff both are the same constant value.
-            let identical = (signal1[0] - signal2[0]).abs() < 1e-10;
+            let identical = (signal1[0] - signal2[0]).abs() < SIGNAL_VARIANCE_GUARD;
             let rate = if identical { 1.0 } else { 0.0 };
             return Ok((
                 0.0,
@@ -132,7 +135,7 @@ impl TemporalSync {
             let r_p1 = correlations[peak_idx + 1];
 
             let denom = r_m1 - 2.0 * r_0 + r_p1;
-            if denom.abs() > 1e-10 {
+            if denom.abs() > SIGNAL_VARIANCE_GUARD {
                 let delta = (r_m1 - r_p1) / (2.0 * denom);
                 lags[peak_idx] as f64 + delta
             } else {
@@ -215,7 +218,7 @@ impl TemporalSync {
         }
 
         let denom = (var1 * var2).sqrt();
-        if denom < 1e-10 {
+        if denom < SIGNAL_VARIANCE_GUARD {
             0.0
         } else {
             cov / denom
@@ -254,7 +257,7 @@ impl TemporalSync {
         }
 
         let denom = (var1 * var2).sqrt();
-        if denom < 1e-10 {
+        if denom < SIGNAL_VARIANCE_GUARD {
             0.0
         } else {
             cov / denom

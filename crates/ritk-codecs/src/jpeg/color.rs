@@ -8,21 +8,25 @@
 //! Integer arithmetic uses signed 16.8 fixed-point (multiply by 256, round,
 //! shift) to avoid floating-point on each pixel.
 
+use crate::jpeg::constants::{
+    CB_B_COEFF, CB_G_COEFF, CR_G_COEFF, CR_R_COEFF, FIXED_SHIFT, YCBCR_BIAS,
+};
+
 /// Convert a YCbCr triple to RGB using JFIF BT.601 fixed-point coefficients.
 ///
 /// All inputs and outputs are in [0, 255].
 #[inline]
 pub(crate) fn ycbcr_to_rgb(y: i32, cb: i32, cr: i32) -> (u8, u8, u8) {
-    let cb_bias = cb - 128;
-    let cr_bias = cr - 128;
+    let cb_bias = cb - YCBCR_BIAS;
+    let cr_bias = cr - YCBCR_BIAS;
     // Fixed-point coefficients × 256 (8 fractional bits):
-    //   1.402   × 256 = 358.912 → 359
-    //   0.344136× 256 =  88.099 →  88
-    //   0.714136× 256 = 182.819 → 183
-    //   1.772   × 256 = 453.632 → 454
-    let r = y + ((359 * cr_bias + 128) >> 8);
-    let g = y - ((88 * cb_bias + 183 * cr_bias + 128) >> 8);
-    let b = y + ((454 * cb_bias + 128) >> 8);
+    //   1.402   × 256 = 358.912 → CR_R_COEFF
+    //   0.344136× 256 =  88.099 →  CB_G_COEFF
+    //   0.714136× 256 = 182.819 → CR_G_COEFF
+    //   1.772   × 256 = 453.632 → CB_B_COEFF
+    let r = y + ((CR_R_COEFF * cr_bias + YCBCR_BIAS) >> FIXED_SHIFT);
+    let g = y - ((CB_G_COEFF * cb_bias + CR_G_COEFF * cr_bias + YCBCR_BIAS) >> FIXED_SHIFT);
+    let b = y + ((CB_B_COEFF * cb_bias + YCBCR_BIAS) >> FIXED_SHIFT);
     (
         r.clamp(0, 255) as u8,
         g.clamp(0, 255) as u8,
@@ -33,11 +37,12 @@ pub(crate) fn ycbcr_to_rgb(y: i32, cb: i32, cr: i32) -> (u8, u8, u8) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jpeg::constants::YCBCR_BIAS;
 
     /// White (Y=255, Cb=128, Cr=128) → RGB (255, 255, 255).
     #[test]
     fn ycbcr_white_maps_to_white() {
-        let (r, g, b) = ycbcr_to_rgb(255, 128, 128);
+        let (r, g, b) = ycbcr_to_rgb(255, YCBCR_BIAS, YCBCR_BIAS);
         assert_eq!(r, 255);
         assert_eq!(g, 255);
         assert_eq!(b, 255);
@@ -46,7 +51,7 @@ mod tests {
     /// Black (Y=0, Cb=128, Cr=128) → RGB (0, 0, 0).
     #[test]
     fn ycbcr_black_maps_to_black() {
-        let (r, g, b) = ycbcr_to_rgb(0, 128, 128);
+        let (r, g, b) = ycbcr_to_rgb(0, YCBCR_BIAS, YCBCR_BIAS);
         assert_eq!(r, 0);
         assert_eq!(g, 0);
         assert_eq!(b, 0);
@@ -55,10 +60,10 @@ mod tests {
     /// Mid-gray (Y=128, Cb=128, Cr=128) → RGB all near 128.
     #[test]
     fn ycbcr_midgray_maps_to_midgray() {
-        let (r, g, b) = ycbcr_to_rgb(128, 128, 128);
-        assert!(r.abs_diff(128) <= 1);
-        assert!(g.abs_diff(128) <= 1);
-        assert!(b.abs_diff(128) <= 1);
+        let (r, g, b) = ycbcr_to_rgb(YCBCR_BIAS, YCBCR_BIAS, YCBCR_BIAS);
+        assert!(r.abs_diff(YCBCR_BIAS as u8) <= 1);
+        assert!(g.abs_diff(YCBCR_BIAS as u8) <= 1);
+        assert!(b.abs_diff(YCBCR_BIAS as u8) <= 1);
     }
 
     /// Pure red in YCbCr: Y=76, Cb=85, Cr=255.

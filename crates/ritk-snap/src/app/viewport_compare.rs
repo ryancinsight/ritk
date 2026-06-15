@@ -5,9 +5,11 @@
 //! rendering via [`render_fused_slice`] and standard fit-scale / zoom logic.
 
 use super::state::SnapApp;
+use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
 use crate::render::fusion::{render_fused_slice, FusedSliceParams};
 use crate::render::slice_render::WindowLevel;
 use crate::ui::apply_to_image_into;
+use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 impl SnapApp {
     /// Render the secondary (compare / fused-overlay) viewport.
@@ -51,11 +53,22 @@ impl SnapApp {
                         return;
                     };
 
-                    let primary_wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-                    let primary_ww =
-                        self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
-                    let secondary_wc = self.secondary_window_center.unwrap_or(128.0) as f64;
-                    let secondary_ww = self.secondary_window_width.unwrap_or(256.0).max(1.0) as f64;
+                    let primary_wc =
+                        self.viewer_state
+                            .window_center
+                            .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+                    let primary_ww = self
+                        .viewer_state
+                        .window_width
+                        .unwrap_or(DEFAULT_WINDOW_WIDTH)
+                        .max(1.0) as f64;
+                    let secondary_wc =
+                        self.secondary_window_center
+                            .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+                    let secondary_ww = self
+                        .secondary_window_width
+                        .unwrap_or(DEFAULT_WINDOW_WIDTH)
+                        .max(1.0) as f64;
 
                     let color_image = render_fused_slice(
                         FusedSliceParams {
@@ -113,15 +126,15 @@ impl SnapApp {
 
         let painter = ui.painter_at(response.rect);
         painter.text(
-            response.rect.min + egui::vec2(6.0, 6.0),
+            response.rect.min + egui::vec2(OVERLAY_LABEL_INSET, OVERLAY_LABEL_INSET),
             egui::Align2::LEFT_TOP,
             if self.compare_fused_overlay {
                 "Fused"
             } else {
                 "Secondary"
             },
-            egui::FontId::proportional(12.0),
-            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210),
+            egui::FontId::proportional(OVERLAY_LABEL_FONT_SIZE),
+            OVERLAY_LABEL_COLOR,
         );
     }
 }

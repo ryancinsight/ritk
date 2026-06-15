@@ -3,6 +3,87 @@
 /// SOP Class UID for RT Structure Set Storage.
 pub const RT_STRUCT_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.481.3";
 
+/// DICOM PS3.3 C.8.8.8.1 ROI Interpreted Type vocabulary.
+///
+/// Encodes the clinical role of each region of interest in a structure set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RtRoiInterpretedType {
+    /// Gross Tumor Volume.
+    Gtv,
+    /// Clinical Target Volume.
+    Ctv,
+    /// Planning Target Volume.
+    Ptv,
+    /// Organ at risk.
+    Organ,
+    /// External body contour.
+    External,
+    /// Control region (dose–volume objectives).
+    Control,
+    /// Bolus material placed on the patient.
+    Bolus,
+    /// Treated volume.
+    TreatedVolume,
+    /// Irradiated volume.
+    IrradVolume,
+    /// Avoidance structure.
+    Avoidance,
+    /// Marker or fiducial.
+    Marker,
+    /// Registration target.
+    Registration,
+    /// Isocenter.
+    Isocenter,
+    /// Brachytherapy channel.
+    BrachyChannel,
+    /// Unrecognized type — preserves the original DICOM string.
+    Other(arrayvec::ArrayString<16>),
+}
+
+impl RtRoiInterpretedType {
+    /// Parse from the DICOM string representation (case-sensitive per PS3.3).
+    pub fn from_dicom_str(s: &str) -> Self {
+        match s {
+            "GTV" => Self::Gtv,
+            "CTV" => Self::Ctv,
+            "PTV" => Self::Ptv,
+            "ORGAN" => Self::Organ,
+            "EXTERNAL" => Self::External,
+            "CONTROL" => Self::Control,
+            "BOLUS" => Self::Bolus,
+            "TREATED_VOLUME" => Self::TreatedVolume,
+            "IRRAD_VOLUME" => Self::IrradVolume,
+            "AVOIDANCE" => Self::Avoidance,
+            "MARKER" => Self::Marker,
+            "REGISTRATION" => Self::Registration,
+            "ISOCENTER" => Self::Isocenter,
+            "BRACHY_CHANNEL" => Self::BrachyChannel,
+            other => Self::Other(arrayvec::ArrayString::try_from(other).unwrap_or_default()),
+        }
+    }
+
+    /// Return the canonical DICOM CS string for this type.
+    pub fn as_dicom_str(&self) -> &str {
+        match self {
+            Self::Gtv => "GTV",
+            Self::Ctv => "CTV",
+            Self::Ptv => "PTV",
+            Self::Organ => "ORGAN",
+            Self::External => "EXTERNAL",
+            Self::Control => "CONTROL",
+            Self::Bolus => "BOLUS",
+            Self::TreatedVolume => "TREATED_VOLUME",
+            Self::IrradVolume => "IRRAD_VOLUME",
+            Self::Avoidance => "AVOIDANCE",
+            Self::Marker => "MARKER",
+            Self::Registration => "REGISTRATION",
+            Self::Isocenter => "ISOCENTER",
+            Self::BrachyChannel => "BRACHY_CHANNEL",
+            Self::Other(s) => s.as_str(),
+        }
+    }
+}
+
 /// Geometric type of an RT contour (DICOM tag 3006,0042).
 ///
 /// The type determines how `points` are interpreted.
@@ -64,8 +145,8 @@ pub struct RtRoiInfo {
     pub roi_name: String,
     /// Optional free-text description.
     pub roi_description: Option<String>,
-    /// RT ROI Interpreted Type from `(3006,00A4)`, e.g. `"GTV"`, `"CTV"`, `"PTV"`.
-    pub roi_interpreted_type: Option<String>,
+    /// RT ROI Interpreted Type from `(3006,00A4)`, e.g. `GTV`, `CTV`, `PTV`.
+    pub roi_interpreted_type: Option<RtRoiInterpretedType>,
     /// Display color `[R, G, B]` from `(3006,002A)`.
     pub display_color: Option<[u8; 3]>,
     /// Contour slices.

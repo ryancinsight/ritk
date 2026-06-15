@@ -62,7 +62,7 @@
 
 pub mod attrs;
 pub mod convert;
-pub mod hdf5_binary;
+pub(crate) mod hdf5_binary;
 pub mod reader;
 pub mod spatial;
 pub mod writer;

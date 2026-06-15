@@ -6,6 +6,10 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 use rustfft::num_complex::Complex;
 use std::marker::PhantomData;
 
+/// Minimum NCC denominator; below this the correlation output is clamped to 0.
+/// 3 orders of magnitude above f32 epsilon (~1.2e-7).
+const NCC_DENOM_FLOOR: f32 = 1e-10;
+
 // ── FftNormalizedCorrelationFilter ────────────────────────────────────────────
 
 /// FFT-based normalized cross-correlation filter for template matching.
@@ -142,7 +146,11 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
                 // Σ (I − Īwin)² = Σ I² − (Σ I)² / N, clamped against round-off.
                 let energy = (lsumsq - lsum * lsum / window_n).max(0.0);
                 let denom = energy.sqrt() * t_norm;
-                out[r * w + c] = if denom > 1e-10_f32 { num / denom } else { 0.0 };
+                out[r * w + c] = if denom > NCC_DENOM_FLOOR {
+                    num / denom
+                } else {
+                    0.0
+                };
             }
         }
 

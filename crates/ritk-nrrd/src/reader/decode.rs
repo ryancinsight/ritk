@@ -120,7 +120,7 @@ fn parse_vectors(s: &str, n: usize) -> Result<Vec<Vec<f64>>> {
 /// Decode a raw byte buffer into `Vec<f32>` according to the NRRD `type`.
 ///
 /// Precisely `count` elements are decoded; surplus trailing bytes are ignored.
-pub(super) fn decode_bytes_to_f32(
+pub(super) fn decode_element_bytes(
     bytes: &[u8],
     element_type: &str,
     count: usize,
@@ -250,7 +250,7 @@ pub(super) fn require_bytes(
 }
 
 /// Parse a whitespace-separated list of exactly `expected` `f64` values.
-pub(super) fn parse_f64_vec(s: &str, field: &str, expected: usize) -> Result<Vec<f64>> {
+pub(super) fn parse_float_vec(s: &str, field: &str, expected: usize) -> Result<Vec<f64>> {
     let vals: Vec<f64> = s
         .split_whitespace()
         .map(|t| {

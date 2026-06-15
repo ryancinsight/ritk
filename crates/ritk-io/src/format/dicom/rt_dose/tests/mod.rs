@@ -175,11 +175,11 @@ fn test_read_rt_dose_synthetic_grid() {
 
     assert_eq!(grid.dose_grid_scaling, 0.001, "dose_grid_scaling");
     assert_eq!(
-        grid.dose_summation_type.as_str(),
-        "PLAN",
+        grid.dose_summation_type,
+        RtDoseSummationType::Plan,
         "dose_summation_type"
     );
-    assert_eq!(grid.dose_type.as_str(), "PHYSICAL", "dose_type");
+    assert_eq!(grid.dose_type, RtDoseType::Physical, "dose_type");
 
     assert_eq!(grid.frame_offsets.len(), 2, "frame_offsets length");
     assert!(
@@ -205,8 +205,8 @@ fn test_write_rt_dose_rejects_mismatched_voxel_count() {
         rows: 2,
         cols: 2,
         n_frames: 1,
-        dose_type: ArrayString::from("PHYSICAL").unwrap(),
-        dose_summation_type: ArrayString::from("PLAN").unwrap(),
+        dose_type: RtDoseType::Physical,
+        dose_summation_type: RtDoseSummationType::Other(arrayvec::ArrayString::new()),
         dose_grid_scaling: 0.001,
         frame_offsets: vec![0.0],
         dose_gy: vec![0.0, 0.001, 0.002, 0.003, 0.004],
@@ -238,8 +238,8 @@ fn test_write_rt_dose_round_trip() {
         rows: 4,
         cols: 4,
         n_frames: 2,
-        dose_type: ArrayString::from("PHYSICAL").unwrap(),
-        dose_summation_type: ArrayString::from("BEAM").unwrap(),
+        dose_type: RtDoseType::Physical,
+        dose_summation_type: RtDoseSummationType::Plan,
         dose_grid_scaling: 0.001,
         frame_offsets: vec![0.0, 5.0],
         dose_gy: dose_gy.clone(),
@@ -268,8 +268,8 @@ fn test_write_rt_dose_round_trip() {
 
     assert_eq!(back.dose_grid_scaling, 0.001, "dose_grid_scaling");
     assert_eq!(
-        back.dose_summation_type.as_str(),
-        "BEAM",
+        back.dose_summation_type.as_dicom_str(),
+        "PLAN",
         "dose_summation_type"
     );
 
@@ -306,7 +306,9 @@ fn test_write_rt_dose_round_trip() {
     assert!((ps[1] - 2.5).abs() < 1e-6, "pixel_spacing[1] = {}", ps[1]);
 
     assert_eq!(
-        back.referenced_rt_plan_sop_instance_uid.as_deref(),
+        back.referenced_rt_plan_sop_instance_uid
+            .as_ref()
+            .map(|s| s.as_str()),
         Some("2.25.12345"),
         "referenced RT plan SOP Instance UID"
     );

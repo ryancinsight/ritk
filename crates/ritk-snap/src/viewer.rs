@@ -78,6 +78,14 @@ impl Default for ViewerState {
     }
 }
 
+/// Default window centre used when the viewer state has no explicit W/L set.
+///
+/// This is the conservative 8-bit equivalent that works for US and unknown modalities.
+pub(crate) const DEFAULT_WINDOW_CENTER: f32 = 128.0;
+
+/// Default window width used when the viewer state has no explicit W/L set.
+pub(crate) const DEFAULT_WINDOW_WIDTH: f32 = 256.0;
+
 /// Events emitted by the viewer core for presentation backends.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ViewerEvent {

@@ -13,6 +13,7 @@ use super::super::types::{
 };
 use super::super::utils::is_likely_dicom_file;
 use super::support::*;
+use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
@@ -20,6 +21,7 @@ use arrayvec::ArrayString;
 use ritk_core::image::Image;
 use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
+
 #[test]
 fn test_scan_metadata_round_trip_spatial_fields() {
     use burn::tensor::{Shape, Tensor, TensorData};
@@ -385,9 +387,8 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
 
     let info = scan_dicom_directory(&series_path).expect("scan must not fail");
 
-    // The writer emits transfer_syntax("1.2.840.10008.1.2.1") = Explicit VR Little Endian.
+    // The writer emits transfer_syntax EXPLICIT_VR_LE = Explicit VR Little Endian.
     // The reader must extract this from the file meta, not from Tag(0x0008,0x0070).
-    const EXPLICIT_VR_LE: &str = "1.2.840.10008.1.2.1";
     assert!(
         !info.metadata.slices.is_empty(),
         "at least one slice must be returned"

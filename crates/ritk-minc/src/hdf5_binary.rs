@@ -8,7 +8,7 @@
 //! The `direction_cosines` attribute is written as a 1-D HDF5 float array
 //! of 3 `f64` values (dataspace rank=1, dim0=3). This matches what the
 //! MINC2 reader's `parse_dimension_attrs` expects when it calls
-//! `extract_f64_array_3` on an `AttributeValue::FloatArray(3)`.
+//! `extract_float_array_3` on an `AttributeValue::FloatArray(3)`.
 
 use anyhow::Result;
 use consus_io::WriteAt;
@@ -116,11 +116,20 @@ fn pad8(n: usize) -> usize {
     (n + 7) & !7
 }
 
-/// Build an attribute message (type 0x000C, v1) for a scalar `f64`.
-pub fn build_attr_msg_f64(name: &str, value: f64) -> Vec<u8> {
+/// Build the shared attribute message header and body for a scalar attribute.
+///
+/// Encodes the name (null-terminated, padded to 8 bytes), the given datatype
+/// bytes, a scalar dataspace (rank=0, 8 bytes), and the value bytes, then
+/// wraps the whole in an attribute envelope.
+fn build_scalar_attr_raw(
+    name: &str,
+    datatype_bytes: impl AsRef<[u8]>,
+    value_bytes: impl AsRef<[u8]>,
+) -> Vec<u8> {
     let name_bytes = name.as_bytes();
     let name_size = name_bytes.len() + 1; // null-terminated
-    let dt_size: u16 = 8;
+    let dt_bytes = datatype_bytes.as_ref();
+    let dt_size = dt_bytes.len() as u16;
     let ds_size: u16 = 8; // scalar dataspace
 
     let mut msg_data = Vec::new();
@@ -135,60 +144,41 @@ pub fn build_attr_msg_f64(name: &str, value: f64) -> Vec<u8> {
     msg_data.push(0);
     msg_data.resize(msg_data.len() + pad8(name_size) - name_size, 0);
 
-    // Datatype: 64-bit LE float.
-    let mut dt = [0u8; 8];
-    dt[0] = 0x11; // class=1 (float), version=1
-    dt[1] = 0x20;
-    dt[4..8].copy_from_slice(&8u32.to_le_bytes());
-    msg_data.extend_from_slice(&dt);
+    // Datatype.
+    msg_data.extend_from_slice(dt_bytes);
 
     // Dataspace: scalar (rank=0).
     msg_data.extend_from_slice(&[1u8, 0, 0, 0, 0, 0, 0, 0]);
 
     // Data.
-    msg_data.extend_from_slice(&value.to_le_bytes());
+    msg_data.extend_from_slice(value_bytes.as_ref());
 
     wrap_attr_envelope(msg_data)
 }
 
+/// Build an attribute message (type 0x000C, v1) for a scalar `f64`.
+pub(crate) fn build_attr_msg_float(name: &str, value: f64) -> Vec<u8> {
+    let mut dt = [0u8; 8];
+    dt[0] = 0x11; // class=1 (float), version=1
+    dt[1] = 0x20;
+    dt[4..8].copy_from_slice(&8u32.to_le_bytes());
+    build_scalar_attr_raw(name, dt, value.to_le_bytes())
+}
+
 /// Build an attribute message (type 0x000C, v1) for a scalar `i32`.
-pub fn build_attr_msg_i32(name: &str, value: i32) -> Vec<u8> {
-    let name_bytes = name.as_bytes();
-    let name_size = name_bytes.len() + 1;
-    let dt_size: u16 = 8;
-    let ds_size: u16 = 8;
-
-    let mut msg_data = Vec::new();
-    msg_data.push(1);
-    msg_data.push(0);
-    msg_data.extend_from_slice(&(name_size as u16).to_le_bytes());
-    msg_data.extend_from_slice(&dt_size.to_le_bytes());
-    msg_data.extend_from_slice(&ds_size.to_le_bytes());
-
-    msg_data.extend_from_slice(name_bytes);
-    msg_data.push(0);
-    msg_data.resize(msg_data.len() + pad8(name_size) - name_size, 0);
-
-    // Datatype: 32-bit LE signed integer.
+pub(crate) fn build_attr_msg_int(name: &str, value: i32) -> Vec<u8> {
     let mut dt = [0u8; 8];
     dt[0] = 0x00; // class=0 (integer), version=0
     dt[1] = 0x08; // byte order LE, signed
     dt[4..8].copy_from_slice(&4u32.to_le_bytes());
-    msg_data.extend_from_slice(&dt);
-
-    // Dataspace: scalar.
-    msg_data.extend_from_slice(&[1u8, 0, 0, 0, 0, 0, 0, 0]);
-
-    msg_data.extend_from_slice(&value.to_le_bytes());
-
-    wrap_attr_envelope(msg_data)
+    build_scalar_attr_raw(name, dt, value.to_le_bytes())
 }
 
 /// Build an attribute message for a 3-element `f64` array.
 ///
 /// Encodes `direction_cosines` as a 1-D HDF5 float array of 3 `f64` values.
-/// The reader's `extract_f64_array_3` expects `AttributeValue::FloatArray(3)`.
-pub fn build_attr_msg_f64_array(name: &str, values: &[f64; 3]) -> Vec<u8> {
+/// The reader's `extract_float_array_3` expects `AttributeValue::FloatArray(3)`.
+pub(crate) fn build_attr_msg_float_array(name: &str, values: &[f64; 3]) -> Vec<u8> {
     let name_bytes = name.as_bytes();
     let name_size = name_bytes.len() + 1;
     let dt_size: u16 = 8; // f64 datatype descriptor
@@ -328,12 +318,12 @@ fn build_minc2_hdf5_binary(
 
     // ── Dimension group OHs ───────────────────────────────────────────────
     for (i, &addr) in dim_addrs.iter().enumerate() {
-        let start_attr = build_attr_msg_f64("start", origin[i]);
-        let step_attr = build_attr_msg_f64("step", spacing[i]);
-        let length_attr = build_attr_msg_i32("length", shape[i] as i32);
+        let start_attr = build_attr_msg_float("start", origin[i]);
+        let step_attr = build_attr_msg_float("step", spacing[i]);
+        let length_attr = build_attr_msg_int("length", shape[i] as i32);
         // direction_cosines as a single FloatArray(3) attribute.
         let dc = [direction[(0, i)], direction[(1, i)], direction[(2, i)]];
-        let dc_attr = build_attr_msg_f64_array("direction_cosines", &dc);
+        let dc_attr = build_attr_msg_float_array("direction_cosines", &dc);
         write_v1_oh(file, addr, &[start_attr, step_attr, length_attr, dc_attr])?;
     }
 
@@ -394,8 +384,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn build_attr_msg_f64_contains_value() {
-        let msg = build_attr_msg_f64("start", 3.5);
+    fn build_attr_msg_float_contains_value() {
+        let msg = build_attr_msg_float("start", 3.5);
         // The f64 value 3.5 should appear as LE bytes somewhere in the message.
         let expected = 3.5f64.to_le_bytes();
         assert!(
@@ -407,8 +397,8 @@ mod tests {
     }
 
     #[test]
-    fn build_attr_msg_i32_contains_value() {
-        let msg = build_attr_msg_i32("length", 128);
+    fn build_attr_msg_int_contains_value() {
+        let msg = build_attr_msg_int("length", 128);
         let expected = 128i32.to_le_bytes();
         assert!(
             msg.windows(4).any(|w| w == expected),
@@ -417,9 +407,9 @@ mod tests {
     }
 
     #[test]
-    fn build_attr_msg_f64_array_contains_all_values() {
+    fn build_attr_msg_float_array_contains_all_values() {
         let values = [0.707f64, 0.0, -0.707];
-        let msg = build_attr_msg_f64_array("direction_cosines", &values);
+        let msg = build_attr_msg_float_array("direction_cosines", &values);
         for &v in &values {
             let expected = v.to_le_bytes();
             assert!(
@@ -433,10 +423,10 @@ mod tests {
     }
 
     #[test]
-    fn build_attr_msg_f64_array_ds_rank_is_one() {
+    fn build_attr_msg_float_array_ds_rank_is_one() {
         // The dataspace descriptor in the message must have rank = 1.
         // Verify the dataspace segment size field (ds_size) equals 16.
-        let msg = build_attr_msg_f64_array("direction_cosines", &[1.0, 0.0, 0.0]);
+        let msg = build_attr_msg_float_array("direction_cosines", &[1.0, 0.0, 0.0]);
         // Envelope: type(2) + data_size(2) + flags(1) + reserved(3) = 8 bytes preamble.
         // Then msg_data starts. Offset 8: version(1), reserved(1), name_size(2), dt_size(2), ds_size(2).
         let ds_size_bytes: [u8; 2] = [msg[14], msg[15]];
@@ -452,7 +442,7 @@ mod tests {
         let mut f = tempfile().unwrap();
         // Extend file to at least 256 bytes so the write at offset 0 lands inside.
         f.write_all(&[0u8; 256]).unwrap();
-        let msg = build_attr_msg_f64("start", 1.0);
+        let msg = build_attr_msg_float("start", 1.0);
         let end = write_v1_oh(&mut f, 0, std::slice::from_ref(&msg)).unwrap();
         // 12 (prefix) + msg.len()
         assert_eq!(end, (12 + msg.len()) as u64);

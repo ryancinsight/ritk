@@ -12,15 +12,20 @@
 
 use anyhow::{bail, Result};
 
+/// Maximum Huffman code length per JPEG T.81 §C.1.
+const MAX_CODE_LEN: usize = 16;
+/// Maximum number of HUFFVAL entries per JPEG T.81 §C.1.
+const MAX_HUFFVAL: usize = 256;
+
 // ─── Huffman Table ────────────────────────────────────────────────────────────
 
 /// Canonical Huffman decode table (T.81 §C.1).
 #[derive(Debug, Clone)]
 pub(crate) struct HuffmanTable {
-    pub(crate) maxcode: [i32; 16],
-    pub(crate) mincode: [i32; 16],
-    pub(crate) valptr: [usize; 16],
-    pub(crate) huffval: [u8; 256],
+    pub(crate) maxcode: [i32; MAX_CODE_LEN],
+    pub(crate) mincode: [i32; MAX_CODE_LEN],
+    pub(crate) valptr: [usize; MAX_CODE_LEN],
+    pub(crate) huffval: [u8; MAX_HUFFVAL],
 }
 
 impl HuffmanTable {
@@ -28,7 +33,7 @@ impl HuffmanTable {
     /// 1–16) and `huffval` (symbols in canonical order).
     pub(crate) fn from_bits_huffval(bits: &[u8; 16], huffval: &[u8]) -> Result<Self> {
         let num_symbols = huffval.len();
-        if num_symbols > 256 {
+        if num_symbols > MAX_HUFFVAL {
             bail!("Huffman table has too many symbols: {}", num_symbols);
         }
         let total: usize = bits.iter().map(|&b| b as usize).sum();
@@ -36,17 +41,17 @@ impl HuffmanTable {
             bail!("BITS sum {} != HUFFVAL length {}", total, num_symbols);
         }
 
-        let mut hv = [0u8; 256];
+        let mut hv = [0u8; MAX_HUFFVAL];
         hv[..num_symbols].copy_from_slice(huffval);
 
-        let mut maxcode = [-1i32; 16];
-        let mut mincode = [-1i32; 16];
-        let mut valptr = [0usize; 16];
+        let mut maxcode = [-1i32; MAX_CODE_LEN];
+        let mut mincode = [-1i32; MAX_CODE_LEN];
+        let mut valptr = [0usize; MAX_CODE_LEN];
 
         // Assign canonical codes per T.81 Figure C.1
         let mut code: i32 = 0;
         let mut idx: usize = 0;
-        for len in 0..16 {
+        for len in 0..MAX_CODE_LEN {
             let count = bits[len] as usize;
             if count == 0 {
                 code <<= 1;
@@ -72,14 +77,17 @@ impl HuffmanTable {
     #[inline]
     pub(crate) fn decode(&self, reader: &mut BitReader<'_>) -> Result<u8> {
         let mut code: i32 = 0;
-        for len in 0..16 {
+        for len in 0..MAX_CODE_LEN {
             code = (code << 1) | (reader.read_bit()? as i32);
             if self.maxcode[len] >= 0 && code <= self.maxcode[len] {
                 let idx = self.valptr[len] + (code - self.mincode[len]) as usize;
                 return Ok(self.huffval[idx]);
             }
         }
-        bail!("invalid Huffman code (no matching entry after 16 bits)")
+        bail!(
+            "invalid Huffman code (no matching entry after {} bits)",
+            MAX_CODE_LEN
+        )
     }
 }
 
@@ -168,7 +176,7 @@ impl<'a> BitReader<'a> {
     /// Read `n` bits (MSB first) and return them as a `u32`.
     /// `n` must be ≤ 16.
     pub(crate) fn read_bits(&mut self, n: u8) -> Result<u32> {
-        debug_assert!(n <= 16);
+        debug_assert!(n <= MAX_CODE_LEN as u8);
         if n == 0 {
             return Ok(0);
         }

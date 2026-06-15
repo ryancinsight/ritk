@@ -20,7 +20,7 @@
 //! which will be added in a follow-up sprint.
 
 use crate::{
-    convert::convert_to_f32,
+    convert::decode_raw_bytes,
     spatial::{
         build_spatial_metadata, order_dimensions_by_dimorder, read_dimension_metadata,
         read_dimorder,
@@ -97,7 +97,7 @@ pub fn read_minc<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     hdf5.read_contiguous_dataset_bytes(data_address, 0, &mut raw)
         .map_err(|e| anyhow::anyhow!("Failed to read voxel data: {}", e))?;
 
-    let f32_data = convert_to_f32(&raw, &dataset.datatype)?;
+    let f32_data = decode_raw_bytes(&raw, &dataset.datatype)?;
 
     let ordered_dims = order_dimensions_by_dimorder(&dimensions, &dimorder)?;
     let (origin, spacing, direction) = build_spatial_metadata(&ordered_dims);

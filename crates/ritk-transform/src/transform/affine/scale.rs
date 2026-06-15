@@ -84,6 +84,10 @@ mod tests {
 
     type B = NdArray<f32>;
 
+    /// Tolerance for scale transform exact-value arithmetic.
+    /// Scale factors are exact floats; error bound is 4 × f32::EPSILON.
+    const SCALE_TRANSFORM_TOL: f32 = f32::EPSILON * 4.0;
+
     #[test]
     fn test_scale_transform() {
         let device = Default::default();
@@ -99,14 +103,14 @@ mod tests {
         let slice = data.as_slice::<f32>().unwrap();
 
         // Point 1: [1*2, 2*0.5, 3*1] = [2, 1, 3]
-        assert!((slice[0] - 2.0).abs() < 1e-6);
-        assert!((slice[1] - 1.0).abs() < 1e-6);
-        assert!((slice[2] - 3.0).abs() < 1e-6);
+        assert!((slice[0] - 2.0).abs() < SCALE_TRANSFORM_TOL);
+        assert!((slice[1] - 1.0).abs() < SCALE_TRANSFORM_TOL);
+        assert!((slice[2] - 3.0).abs() < SCALE_TRANSFORM_TOL);
 
         // Point 2: [2*2, 4*0.5, 6*1] = [4, 2, 6]
-        assert!((slice[3] - 4.0).abs() < 1e-6);
-        assert!((slice[4] - 2.0).abs() < 1e-6);
-        assert!((slice[5] - 6.0).abs() < 1e-6);
+        assert!((slice[3] - 4.0).abs() < SCALE_TRANSFORM_TOL);
+        assert!((slice[4] - 2.0).abs() < SCALE_TRANSFORM_TOL);
+        assert!((slice[5] - 6.0).abs() < SCALE_TRANSFORM_TOL);
     }
 
     #[test]
@@ -123,8 +127,8 @@ mod tests {
         let data = transformed.into_data();
         let slice = data.as_slice::<f32>().unwrap();
 
-        assert!((slice[0] - 1.0).abs() < 1e-6);
-        assert!((slice[1] - 1.0).abs() < 1e-6);
+        assert!((slice[0] - 1.0).abs() < SCALE_TRANSFORM_TOL);
+        assert!((slice[1] - 1.0).abs() < SCALE_TRANSFORM_TOL);
 
         // Point at (2, 2). Relative to center (1, 1) is (1, 1).
         // Scale by 2 -> (2, 2). Add center -> (3, 3).
@@ -133,7 +137,7 @@ mod tests {
         let data = transformed.into_data();
         let slice = data.as_slice::<f32>().unwrap();
 
-        assert!((slice[0] - 3.0).abs() < 1e-6);
-        assert!((slice[1] - 3.0).abs() < 1e-6);
+        assert!((slice[0] - 3.0).abs() < SCALE_TRANSFORM_TOL);
+        assert!((slice[1] - 3.0).abs() < SCALE_TRANSFORM_TOL);
     }
 }

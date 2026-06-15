@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use tracing::{error, info};
 
-use super::state::{ProjectionMode, SeriesLoadTarget, SnapApp};
+use super::state::{ProjectionMode, SeriesLoadTarget, SnapApp, DEFAULT_FUSION_ALPHA};
 use crate::dicom::select_hanging_protocol;
 use crate::label::LabelEditor;
 use crate::render::colormap::Colormap;
@@ -166,7 +166,7 @@ impl SnapApp {
         self.dual_plane = false;
         self.compare_side_by_side = false;
         self.compare_fused_overlay = false;
-        self.compare_fusion_alpha = 0.35;
+        self.compare_fusion_alpha = DEFAULT_FUSION_ALPHA;
         self.compare_axes = [0, 0];
         self.dual_axes = [0, 1];
         self.annotations.clear();

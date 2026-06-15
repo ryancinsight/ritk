@@ -177,7 +177,7 @@ mod tests {
     type TestBackend = NdArray<f32>;
 
     #[test]
-    fn test_chained_transform_2d() {
+    fn chained_translations_sum_additively() {
         let device = Default::default();
 
         // T1: Translate by [1, 0]

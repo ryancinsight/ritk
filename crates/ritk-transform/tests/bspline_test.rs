@@ -9,7 +9,7 @@ type B = NdArray<f32>;
 const ABS_TOL: f32 = 1e-5;
 
 #[test]
-fn test_bspline_transform_2d_identity() {
+fn bspline_zero_coefficients_planar_is_identity() {
     let device = Default::default();
 
     // 5x5 grid
@@ -43,7 +43,7 @@ fn test_bspline_transform_2d_identity() {
 }
 
 #[test]
-fn test_bspline_transform_2d_shift() {
+fn bspline_constant_shift_planar_displaces_by_offset() {
     let device = Default::default();
 
     // 5x5 grid
@@ -92,7 +92,7 @@ fn test_bspline_transform_2d_shift() {
 }
 
 #[test]
-fn test_bspline_transform_3d_identity() {
+fn bspline_zero_coefficients_volume_is_identity() {
     let device = Default::default();
 
     // 4x4x4 grid
@@ -121,7 +121,7 @@ fn test_bspline_transform_3d_identity() {
 }
 
 #[test]
-fn test_bspline_transform_3d_chunking() {
+fn bspline_volume_chunked_evaluation_matches_full() {
     let device = Default::default();
 
     // 4x4x4 grid

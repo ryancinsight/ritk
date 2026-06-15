@@ -9,12 +9,10 @@ use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::types::{RtContour, RtRoiInfo, RtStructureSet, RT_STRUCT_SOP_CLASS_UID};
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
-
-static RT_STRUCT_UID_COUNTER: AtomicU64 = AtomicU64::new(0);
+use crate::format::dicom::writer::utils::generate_series_uid;
 
 /// Write an [`RtStructureSet`] to a DICOM RT Structure Set Storage file at `path`.
 ///
@@ -29,12 +27,7 @@ static RT_STRUCT_UID_COUNTER: AtomicU64 = AtomicU64::new(0);
 pub fn write_rt_struct<P: AsRef<Path>>(path: P, ss: &RtStructureSet) -> Result<()> {
     let path = path.as_ref();
 
-    let t = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64;
-    let n = RT_STRUCT_UID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let sop_instance_uid = format!("2.25.{}.{}", t, n);
+    let sop_instance_uid = generate_series_uid();
 
     let roi_seq_items: Vec<InMemDicomObject> = ss.rois.iter().map(build_roi_seq_item).collect();
     let roi_contour_seq_items: Vec<InMemDicomObject> =
@@ -192,13 +185,11 @@ fn build_obs_item(roi: &RtRoiInfo) -> InMemDicomObject {
         PrimitiveValue::from(roi.roi_number.to_string().as_str()),
     ));
     if let Some(itype) = &roi.roi_interpreted_type {
-        if !itype.is_empty() {
-            item.put(DataElement::new(
-                Tag(0x3006, 0x00A4),
-                VR::CS,
-                PrimitiveValue::from(itype.as_str()),
-            ));
-        }
+        item.put(DataElement::new(
+            Tag(0x3006, 0x00A4),
+            VR::CS,
+            PrimitiveValue::from(itype.as_dicom_str()),
+        ));
     }
     item
 }

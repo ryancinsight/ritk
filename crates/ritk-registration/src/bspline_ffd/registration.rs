@@ -5,7 +5,9 @@ use super::basis::{
     BasisCache,
 };
 use super::config::{BSplineFFDConfig, BSplineFFDResult};
-use super::metric::{compute_metric_gradient_fast_into, compute_ncc, MetricGradientScratch};
+use super::metric::{
+    compute_metric_gradient_fast_into, compute_ncc, MetricGradientScratch, NCC_SIGMA_GUARD,
+};
 use super::pyramid::refine_control_grid;
 use super::regularization::bending_energy_gradient;
 use super::volume_dims::VolumeDims;
@@ -131,7 +133,7 @@ impl BSplineFFDRegistration {
                 let ncc = compute_ncc(fixed, &warped);
 
                 // 4. Convergence check.
-                let rel_change = if prev_metric.is_finite() && prev_metric.abs() > 1e-12 {
+                let rel_change = if prev_metric.is_finite() && prev_metric.abs() > NCC_SIGMA_GUARD {
                     ((ncc - prev_metric) / prev_metric.abs()).abs()
                 } else {
                     f64::INFINITY
@@ -192,7 +194,14 @@ impl BSplineFFDRegistration {
         // ── Final warp ───────────────────────────────────────────────────
         let disp =
             evaluate_bspline_displacement(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing, dims);
-        let warped_moving = warp_image(moving, dims, &disp.z, &disp.y, &disp.x, WarpInterpolation::Trilinear);
+        let warped_moving = warp_image(
+            moving,
+            dims,
+            &disp.z,
+            &disp.y,
+            &disp.x,
+            WarpInterpolation::Trilinear,
+        );
 
         Ok(BSplineFFDResult {
             control_points: (cp_z, cp_y, cp_x),

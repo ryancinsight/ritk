@@ -7,6 +7,9 @@ use crate::ui::RoiDoseAnalytics;
 use crate::ui::{CinePlayback, LinkedCursor, ViewTransform};
 use crate::{LoadedVolume, ViewerState};
 
+/// Default opacity for the fused-overlay compare mode.
+pub(crate) const DEFAULT_FUSION_ALPHA: f32 = 0.35;
+
 // ── Helper types ──────────────────────────────────────────────────────────────
 
 /// CPU backend used for DICOM loading.
@@ -314,7 +317,7 @@ impl Default for SnapApp {
             dual_plane: false,
             compare_side_by_side: false,
             compare_fused_overlay: false,
-            compare_fusion_alpha: 0.35,
+            compare_fusion_alpha: DEFAULT_FUSION_ALPHA,
             dual_axes: [0, 1],
             compare_axes: [0, 0],
             show_overlay: true,

@@ -7,7 +7,7 @@ use dicom::core::Tag;
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 
-use super::types::{RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
+use super::types::{RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID};
 use super::utils::parse_ds_backslash;
 use crate::format::dicom::reader::types::truncate_arraystring;
 
@@ -58,37 +58,19 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
         .and_then(|e| e.to_str().ok().and_then(|s| s.trim().parse().ok()))
         .unwrap_or(1.0);
 
-    let dose_summation_type: ArrayString<16> = obj
+    let dose_summation_type = obj
         .element(Tag(0x3004, 0x0002))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .map(|s| match ArrayString::<16>::from(s.as_str()) {
-            Ok(v) => v,
-            Err(_) => {
-                tracing::warn!(
-                    "DoseSummationType exceeds 16 chars, truncating: {}",
-                    &s[..16]
-                );
-                truncate_arraystring::<16>(s.as_str())
-            }
-        })
-        .unwrap_or_else(ArrayString::new);
+        .map(|s| RtDoseSummationType::from_dicom_str(&s))
+        .unwrap_or_else(|| RtDoseSummationType::Other(ArrayString::new()));
 
-    let dose_type: ArrayString<16> = obj
+    let dose_type = obj
         .element(Tag(0x3004, 0x0004))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .map(|s| match ArrayString::<16>::from(s.as_str()) {
-            Ok(v) => v,
-            Err(_) => {
-                tracing::warn!("DoseType exceeds 16 chars, truncating: {}", &s[..16]);
-                truncate_arraystring::<16>(s.as_str())
-            }
-        })
-        .unwrap_or_else(|| match ArrayString::<16>::from("PHYSICAL") {
-            Ok(v) => v,
-            Err(_) => ArrayString::new(),
-        });
+        .map(|s| RtDoseType::from_dicom_str(&s))
+        .unwrap_or(RtDoseType::Physical);
 
     let frame_offsets: Vec<f64> = {
         let raw: Vec<f64> = obj

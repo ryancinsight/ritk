@@ -71,8 +71,6 @@ pub struct ModalityDisplay {
     pub window_center: f64,
     /// Window width for intensity display.
     pub window_width: f64,
-    /// Modality string used to select the defaults.
-    pub modality: String,
 }
 
 impl ModalityDisplay {
@@ -85,27 +83,18 @@ impl ModalityDisplay {
             Some("CT") => Self {
                 window_center: -400.0,
                 window_width: 1500.0,
-                modality: "CT".to_string(),
             },
-            Some("MR") => Self {
+            Some("MR" | "MRI") => Self {
                 window_center: 600.0,
                 window_width: 1200.0,
-                modality: "MR".to_string(),
-            },
-            Some("MRI") => Self {
-                window_center: 600.0,
-                window_width: 1200.0,
-                modality: "MRI".to_string(),
             },
             Some("US") => Self {
                 window_center: 128.0,
                 window_width: 256.0,
-                modality: "US".to_string(),
             },
-            other => Self {
+            _ => Self {
                 window_center: 128.0,
                 window_width: 256.0,
-                modality: other.unwrap_or("").to_string(),
             },
         }
     }

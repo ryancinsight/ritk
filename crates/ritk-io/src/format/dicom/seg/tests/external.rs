@@ -22,12 +22,15 @@ fn test_read_external_dcmqi_liver_seg_real_file() {
     assert_eq!(seg.cols, 512);
     assert_eq!(seg.n_frames, 3);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
+    assert_eq!(seg.segmentation_type.as_dicom_str(), "BINARY");
     assert_eq!(seg.segments.len(), 1);
     assert_eq!(seg.segments[0].segment_number, 1);
     assert_eq!(seg.segments[0].segment_label, "Liver");
     assert_eq!(
-        seg.segments[0].algorithm_type.as_deref(),
+        seg.segments[0]
+            .algorithm_type
+            .as_ref()
+            .map(|t| t.as_dicom_str()),
         Some("SEMIAUTOMATIC")
     );
     assert_eq!(seg.frame_segment_numbers, vec![1, 1, 1]);
@@ -77,13 +80,13 @@ fn test_read_external_dcmqi_partial_overlaps_seg_real_file() {
     assert_eq!(seg.cols, 512);
     assert_eq!(seg.n_frames, 7);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
+    assert_eq!(seg.segmentation_type.as_dicom_str(), "BINARY");
     assert_eq!(seg.segments.len(), 5);
     assert_eq!(seg.frame_segment_numbers.len(), 7);
     assert!(seg
         .segments
         .iter()
-        .all(|s| s.algorithm_type.as_deref() == Some("MANUAL")));
+        .all(|s| s.algorithm_type.as_ref().map(|t| t.as_dicom_str()) == Some("MANUAL")));
 
     let rebuilt = dicom_seg_to_label_map(&seg)
         .expect("rebuild label map from external dcmqi partial-overlap SEG");
@@ -122,12 +125,24 @@ fn test_read_external_highdicom_overlap_seg_real_file() {
     assert_eq!(seg.cols, 16);
     assert_eq!(seg.n_frames, 8);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
+    assert_eq!(seg.segmentation_type.as_dicom_str(), "BINARY");
     assert_eq!(seg.segments.len(), 2);
     assert_eq!(seg.segments[0].segment_label, "first segment");
     assert_eq!(seg.segments[1].segment_label, "second segment");
-    assert_eq!(seg.segments[0].algorithm_type.as_deref(), Some("AUTOMATIC"));
-    assert_eq!(seg.segments[1].algorithm_type.as_deref(), Some("AUTOMATIC"));
+    assert_eq!(
+        seg.segments[0]
+            .algorithm_type
+            .as_ref()
+            .map(|t| t.as_dicom_str()),
+        Some("AUTOMATIC")
+    );
+    assert_eq!(
+        seg.segments[1]
+            .algorithm_type
+            .as_ref()
+            .map(|t| t.as_dicom_str()),
+        Some("AUTOMATIC")
+    );
     assert_eq!(seg.frame_segment_numbers, vec![1, 1, 1, 1, 2, 2, 2, 2]);
 
     let pixel_spacing = seg.pixel_spacing.expect("pixel spacing from shared FG");
@@ -179,10 +194,16 @@ fn test_read_external_highdicom_binary_seg_real_file() {
     assert_eq!(seg.cols, 16);
     assert_eq!(seg.n_frames, 3);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
+    assert_eq!(seg.segmentation_type.as_dicom_str(), "BINARY");
     assert_eq!(seg.segments.len(), 1);
     assert_eq!(seg.segments[0].segment_label, "first segment");
-    assert_eq!(seg.segments[0].algorithm_type.as_deref(), Some("AUTOMATIC"));
+    assert_eq!(
+        seg.segments[0]
+            .algorithm_type
+            .as_ref()
+            .map(|t| t.as_dicom_str()),
+        Some("AUTOMATIC")
+    );
     assert_eq!(seg.frame_segment_numbers, vec![1, 1, 1]);
 
     let rebuilt =
@@ -218,11 +239,17 @@ fn test_read_external_rsna_dido_liver_seg_real_file() {
     assert_eq!(seg.cols, 512);
     assert_eq!(seg.n_frames, 34);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
+    assert_eq!(seg.segmentation_type.as_dicom_str(), "BINARY");
     assert_eq!(seg.segments.len(), 1);
     assert_eq!(seg.segments[0].segment_number, 1);
     assert_eq!(seg.segments[0].segment_label, "liver");
-    assert_eq!(seg.segments[0].algorithm_type.as_deref(), Some("MANUAL"));
+    assert_eq!(
+        seg.segments[0]
+            .algorithm_type
+            .as_ref()
+            .map(|t| t.as_dicom_str()),
+        Some("MANUAL")
+    );
     assert_eq!(seg.frame_segment_numbers, vec![1; 34]);
 
     let pixel_spacing = seg.pixel_spacing.expect("pixel spacing from shared FG");

@@ -54,7 +54,8 @@ pub(super) fn build_metric<IB: burn::tensor::backend::Backend>(
     moving_range: Option<(f32, f32)>,
     device: &IB::Device,
 ) -> MutualInformation<IB> {
-    let bin_width = (max_int - min_int).max(1e-6) / num_bins as f32;
+    const MIN_HISTOGRAM_BIN_WIDTH: f32 = 1e-6;
+    let bin_width = (max_int - min_int).max(MIN_HISTOGRAM_BIN_WIDTH) / num_bins as f32;
     let mi = if let Some((mov_min, mov_max)) = moving_range {
         MutualInformation::new_with_separate_ranges(
             variant, num_bins, min_int, max_int, mov_min, mov_max, device,

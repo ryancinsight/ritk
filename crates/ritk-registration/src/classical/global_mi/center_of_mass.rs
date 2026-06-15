@@ -25,6 +25,9 @@ use ritk_core::image::Image;
 
 // ─── Center-of-Mass ──────────────────────────────────────────────────────────
 
+/// Guard against blank (all-zero) image weight collapse.
+const BLANK_IMAGE_WEIGHT_GUARD: f64 = 1e-10;
+
 /// Compute the intensity-weighted center of mass of a 3-D image.
 ///
 /// Returns physical coordinates in RITK `[z, y, x]` order (mm).
@@ -82,7 +85,7 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
         }
     }
 
-    let mean_idx = if total_weight < 1e-10 {
+    let mean_idx = if total_weight < BLANK_IMAGE_WEIGHT_GUARD {
         // Blank/uniform image — unweighted geometric centre index.
         [
             (nz as f64 - 1.0) * 0.5,

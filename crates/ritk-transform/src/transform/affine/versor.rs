@@ -65,7 +65,10 @@ impl<B: Backend> VersorRigid3DTransform<B> {
         let norm_val = norm_data
             .as_slice::<f32>()
             .expect("norm tensor must be contiguous f32")[0];
-        let norm = norm_val + 1e-12; // Avoid div by zero
+        // Quaternion norm guard: prevents divide-by-zero during normalization.
+        // Practical threshold well above f32 underflow (~1.2e-38).
+        const QUAT_NORM_GUARD: f32 = 1e-12;
+        let norm = norm_val + QUAT_NORM_GUARD; // Avoid div by zero
         let q_data = (q / norm).into_data();
         let q_slice = q_data
             .as_slice::<f32>()
@@ -134,7 +137,7 @@ mod tests {
     type TestBackend = NdArray<f32>;
 
     #[test]
-    fn test_versor_transform_3d_identity() {
+    fn identity_quaternion_leaves_point_unchanged() {
         let device = Default::default();
         let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
         let rotation = Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, 0.0, 1.0], &device); // Identity quaternion (x=0,y=0,z=0,w=1)
@@ -153,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn test_versor_transform_3d_rotation_x_90() {
+    fn rotation_x_90deg_maps_y_to_z() {
         let device = Default::default();
         let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
         // Rotate 90 degrees around X axis
@@ -171,8 +174,9 @@ mod tests {
         let vals = data.as_slice::<f32>().unwrap();
 
         // Check closeness
-        assert!((vals[0] - 0.0).abs() < 1e-4);
-        assert!((vals[1] - 0.0).abs() < 1e-4);
-        assert!((vals[2] - 1.0).abs() < 1e-4);
+        const QUATERNION_ROTATION_TOL: f32 = 1e-4;
+        assert!((vals[0] - 0.0).abs() < QUATERNION_ROTATION_TOL);
+        assert!((vals[1] - 0.0).abs() < QUATERNION_ROTATION_TOL);
+        assert!((vals[2] - 1.0).abs() < QUATERNION_ROTATION_TOL);
     }
 }

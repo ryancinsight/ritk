@@ -1,9 +1,11 @@
 //! ASCII-inline VTI reader: `read_vti_image_data`, `parse_vti`, `parse_attrs`.
 
-use super::xml_helpers::{attr_val, find_section, find_tag, parse_floats, parse_i64s};
-use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
+use super::xml_helpers::{
+    attr_val, find_section, find_tag, parse_attrs, parse_floats, parse_i64s, DEFAULT_ORIGIN_STR,
+    DEFAULT_SPACING_STR,
+};
+use crate::domain::vtk_data_object::VtkImageData;
 use anyhow::{bail, Context, Result};
-use std::collections::HashMap;
 use std::path::Path;
 
 /// Read a VTI XML (ASCII inline) file from disk into a [`VtkImageData`].
@@ -31,14 +33,16 @@ pub(crate) fn parse_vti(input: &str) -> Result<VtkImageData> {
     let mut whole_extent = [0i64; 6];
     whole_extent.copy_from_slice(&extent_vals[..6]);
 
-    let origin_str = attr_val(&image_tag, "Origin").unwrap_or_else(|| "0 0 0".to_string());
+    let origin_str =
+        attr_val(&image_tag, "Origin").unwrap_or_else(|| DEFAULT_ORIGIN_STR.to_string());
     let origin_vals: Vec<f64> = parse_floats(&origin_str);
     let mut origin = [0.0f64; 3];
     for (i, dst) in origin.iter_mut().enumerate() {
         *dst = origin_vals.get(i).copied().unwrap_or(0.0);
     }
 
-    let spacing_str = attr_val(&image_tag, "Spacing").unwrap_or_else(|| "1 1 1".to_string());
+    let spacing_str =
+        attr_val(&image_tag, "Spacing").unwrap_or_else(|| DEFAULT_SPACING_STR.to_string());
     let spacing_vals: Vec<f64> = parse_floats(&spacing_str);
     let mut spacing = [1.0f64; 3];
     for (i, dst) in spacing.iter_mut().enumerate() {
@@ -64,58 +68,4 @@ pub(crate) fn parse_vti(input: &str) -> Result<VtkImageData> {
         point_data,
         cell_data,
     })
-}
-
-/// Parse all `<DataArray>` elements in a PointData/CellData section into an
-/// attribute map.
-///
-/// - `NumberOfComponents="3"` → `Vectors` (or `Normals` when name contains "normal").
-/// - `NumberOfComponents="2"` → `TextureCoords` with `dim=2`.
-/// - All other component counts → `Scalars` with that `num_components`.
-pub(super) fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
-    let mut map = HashMap::new();
-    let mut rest = section;
-    let close = "</DataArray>";
-    while let Some(start) = rest.find("<DataArray") {
-        rest = &rest[start..];
-        let te = match rest.find('>') {
-            Some(e) => e + 1,
-            None => break,
-        };
-        let tag = &rest[..te];
-        let name = attr_val(tag, "Name").unwrap_or_default();
-        let ncomp: usize = attr_val(tag, "NumberOfComponents")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(1);
-        let de = match rest.find(close) {
-            Some(e) => e,
-            None => break,
-        };
-        let data = rest[te..de].trim().to_string();
-        let floats = parse_floats(&data);
-        if !name.is_empty() {
-            let attr = match ncomp {
-                3 => {
-                    let v3: Vec<[f32; 3]> =
-                        floats.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
-                    if name.to_lowercase().contains("normal") {
-                        AttributeArray::Normals { values: v3 }
-                    } else {
-                        AttributeArray::Vectors { values: v3 }
-                    }
-                }
-                2 => AttributeArray::TextureCoords {
-                    values: floats,
-                    dim: 2,
-                },
-                n => AttributeArray::Scalars {
-                    values: floats,
-                    num_components: n,
-                },
-            };
-            map.insert(name, attr);
-        }
-        rest = &rest[de + close.len()..];
-    }
-    map
 }

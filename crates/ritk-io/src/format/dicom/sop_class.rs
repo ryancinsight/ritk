@@ -247,15 +247,6 @@ pub fn classify_sop_class(uid: &str) -> SopClassKind {
     }
 }
 
-/// Returns `true` iff `uid` refers to a pixel-bearing image SOP class.
-///
-/// Equivalent to `classify_sop_class(uid).is_image_storage()`.
-/// Unknown UIDs (classified as `Other`) return `false`.
-#[allow(dead_code)]
-pub fn is_image_sop_class(uid: &str) -> bool {
-    classify_sop_class(uid).is_image_storage()
-}
-
 // Tests
 
 #[cfg(test)]

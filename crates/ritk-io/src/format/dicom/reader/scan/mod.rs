@@ -210,14 +210,14 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
             ));
         }
         if let Some(instance_number) = slice.instance_number {
-            series_object.insert(DicomObjectNode::from_i32(
+            series_object.insert(DicomObjectNode::with_value(
                 DicomTag::new(0x0020, 0x0013),
                 "IS",
                 instance_number,
             ));
         }
         if let Some(slice_location) = slice.slice_location {
-            series_object.insert(DicomObjectNode::from_f64(
+            series_object.insert(DicomObjectNode::with_value(
                 DicomTag::new(0x0020, 0x1041),
                 "DS",
                 slice_location,
@@ -253,7 +253,7 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
             ));
         }
         if let Some(slice_thickness) = slice.slice_thickness {
-            series_object.insert(DicomObjectNode::from_f64(
+            series_object.insert(DicomObjectNode::with_value(
                 DicomTag::new(0x0018, 0x0050),
                 "DS",
                 slice_thickness,

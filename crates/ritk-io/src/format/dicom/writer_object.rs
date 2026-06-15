@@ -129,10 +129,10 @@ mod tests {
     #[test]
     fn test_model_to_in_mem_u16_node() {
         let mut model = DicomObjectModel::new();
-        model.insert(DicomObjectNode::from_u16(
+        model.insert(DicomObjectNode::with_value(
             DicomTag::new(0x0028, 0x0100),
             "US",
-            16,
+            16u16,
         ));
         let obj = model_to_in_mem(&model).expect("model_to_in_mem");
         assert_eq!(obj.iter().count(), 1);

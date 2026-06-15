@@ -1,5 +1,8 @@
 //! Configuration for the classical registration engine.
 
+/// Default convergence tolerance for classical optimizer similarity-metric improvement.
+pub const DEFAULT_OPTIMIZER_TOLERANCE: f64 = 1e-6;
+
 /// Configuration for classical registration algorithms.
 #[derive(Debug, Clone)]
 pub struct ClassicalConfig {
@@ -15,7 +18,7 @@ impl Default for ClassicalConfig {
     fn default() -> Self {
         Self {
             max_iterations: 100,
-            tolerance: 1e-6,
+            tolerance: DEFAULT_OPTIMIZER_TOLERANCE,
             step_multiplier: 1.0,
         }
     }

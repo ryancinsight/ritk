@@ -1,6 +1,7 @@
 //! VTK XML PolyData (.vtp) writer (ASCII inline format).
 
-use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
+use crate::domain::vtk_data_object::VtkPolyData;
+use crate::io::xml_write_attr::write_attr_xml;
 use anyhow::{Context, Result};
 use std::fmt::Write;
 use std::path::Path;
@@ -11,7 +12,6 @@ pub fn write_vtp_polydata<P: AsRef<Path>>(path: P, poly: &VtkPolyData) -> Result
 }
 
 pub(crate) fn write_vtp_str(poly: &VtkPolyData) -> String {
-    let q = char::from(34u8);
     let mut s = String::new();
     let np = poly.points.len();
     let nv = poly.vertices.len();
@@ -36,12 +36,12 @@ pub(crate) fn write_vtp_str(poly: &VtkPolyData) -> String {
         ] {
             piece.push(' ');
             piece.push_str(k);
-            piece.push(char::from(61u8));
-            piece.push(q);
+            piece.push('=');
+            piece.push('"');
             piece.push_str(&v.to_string());
-            piece.push(q);
+            piece.push('"');
         }
-        piece.push(char::from(62u8)); // >
+        piece.push('>');
         writeln!(s, "{}", piece).unwrap();
     }
     writeln!(s, "      <Points>").unwrap();
@@ -64,21 +64,20 @@ pub(crate) fn write_vtp_str(poly: &VtkPolyData) -> String {
     if !poly.point_data.is_empty() {
         writeln!(s, "      <PointData>").unwrap();
         for (name, attr) in &poly.point_data {
-            write_attr(&mut s, name, attr);
+            write_attr_xml(&mut s, name, attr);
         }
         writeln!(s, "      </PointData>").unwrap();
     }
     if !poly.cell_data.is_empty() {
         writeln!(s, "      <CellData>").unwrap();
         for (name, attr) in &poly.cell_data {
-            write_attr(&mut s, name, attr);
+            write_attr_xml(&mut s, name, attr);
         }
         writeln!(s, "      </CellData>").unwrap();
     }
     writeln!(s, "    </Piece>").unwrap();
     writeln!(s, "  </PolyData>").unwrap();
     writeln!(s, "</VTKFile>").unwrap();
-    let _ = q;
     s
 }
 
@@ -117,71 +116,6 @@ fn write_cells(s: &mut String, tag: &str, cells: &[Vec<u32>]) {
     writeln!(s, "      </{}>", tag).unwrap();
 }
 
-fn write_attr(s: &mut String, name: &str, attr: &AttributeArray) {
-    let dq = char::from(34u8);
-    let hdr = |ncomp: usize| -> String {
-        let mut h = String::from("        <DataArray type=");
-        h.push(dq);
-        h.push_str("Float32");
-        h.push(dq);
-        h.push_str(" Name=");
-        h.push(dq);
-        h.push_str(name);
-        h.push(dq);
-        h.push_str(" NumberOfComponents=");
-        h.push(dq);
-        h.push_str(&ncomp.to_string());
-        h.push(dq);
-        h.push_str(" format=");
-        h.push(dq);
-        h.push_str("ascii");
-        h.push(dq);
-        h.push(char::from(62u8));
-        h
-    };
-    match attr {
-        AttributeArray::Scalars {
-            values,
-            num_components,
-        } => {
-            writeln!(s, "{}", hdr(*num_components)).unwrap();
-            write!(s, "       ").unwrap();
-            for x in values {
-                write!(s, " {:.6}", x).unwrap();
-            }
-            writeln!(s).unwrap();
-            writeln!(s, "        </DataArray>").unwrap();
-        }
-        AttributeArray::Vectors { values } => {
-            writeln!(s, "{}", hdr(3)).unwrap();
-            write!(s, "       ").unwrap();
-            for [x, y, z] in values {
-                write!(s, " {:.6} {:.6} {:.6}", x, y, z).unwrap();
-            }
-            writeln!(s).unwrap();
-            writeln!(s, "        </DataArray>").unwrap();
-        }
-        AttributeArray::Normals { values } => {
-            writeln!(s, "{}", hdr(3)).unwrap();
-            write!(s, "       ").unwrap();
-            for [x, y, z] in values {
-                write!(s, " {:.6} {:.6} {:.6}", x, y, z).unwrap();
-            }
-            writeln!(s).unwrap();
-            writeln!(s, "        </DataArray>").unwrap();
-        }
-        AttributeArray::TextureCoords { values, dim } => {
-            writeln!(s, "{}", hdr(*dim)).unwrap();
-            write!(s, "       ").unwrap();
-            for x in values {
-                write!(s, " {:.6}", x).unwrap();
-            }
-            writeln!(s).unwrap();
-            writeln!(s, "        </DataArray>").unwrap();
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,12 +131,15 @@ mod tests {
 
     #[test]
     fn test_triangle_counts() {
-        let dq = char::from(34u8);
         let s = write_vtp_str(&triangle());
-        let np_attr: String = ["NumberOfPoints=", &dq.to_string(), "3", &dq.to_string()].concat();
-        assert!(s.contains(&np_attr), "missing NumberOfPoints=3 in output");
-        let np_attr2: String = ["NumberOfPolys=", &dq.to_string(), "1", &dq.to_string()].concat();
-        assert!(s.contains(&np_attr2), "missing NumberOfPolys=1 in output");
+        assert!(
+            s.contains("NumberOfPoints=\"3\""),
+            "missing NumberOfPoints=3 in output"
+        );
+        assert!(
+            s.contains("NumberOfPolys=\"1\""),
+            "missing NumberOfPolys=1 in output"
+        );
     }
     #[test]
     fn test_roundtrip() {

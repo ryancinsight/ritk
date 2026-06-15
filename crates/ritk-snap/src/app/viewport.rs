@@ -2,6 +2,16 @@
 
 use super::state::SnapApp;
 use crate::ui::AnatomicalPlane;
+// ── Layout constants ─────────────────────────────────────────────────────────
+
+/// Fraction of the available height reserved for the MPR info panel.
+const MPR_INFO_HEIGHT_FRAC: f32 = 0.24;
+
+/// Minimum pixel height of the MPR info panel.
+const MPR_INFO_MIN_H: f32 = 110.0;
+
+/// Maximum pixel height of the MPR info panel.
+const MPR_INFO_MAX_H: f32 = 210.0;
 
 impl SnapApp {
     // ── Single-viewport central panel ────────────────────────────────────
@@ -23,7 +33,7 @@ impl SnapApp {
     pub(crate) fn show_central_panel_multi(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let avail = ui.available_size();
-            let info_h = (avail.y * 0.24).clamp(110.0, 210.0);
+            let info_h = (avail.y * MPR_INFO_HEIGHT_FRAC).clamp(MPR_INFO_MIN_H, MPR_INFO_MAX_H);
             let grid_h = (avail.y - info_h - 6.0).max(160.0);
             let row_h = grid_h / 2.0;
             let col_w = avail.x / 2.0;
@@ -68,7 +78,7 @@ impl SnapApp {
             }
 
             let avail = ui.available_size();
-            let info_h = (avail.y * 0.24).clamp(110.0, 210.0);
+            let info_h = (avail.y * MPR_INFO_HEIGHT_FRAC).clamp(MPR_INFO_MIN_H, MPR_INFO_MAX_H);
             let view_h = (avail.y - info_h - 6.0).max(120.0);
             let view_w = avail.x / 2.0;
 
@@ -100,7 +110,7 @@ impl SnapApp {
             }
 
             let avail = ui.available_size();
-            let info_h = (avail.y * 0.24).clamp(110.0, 210.0);
+            let info_h = (avail.y * MPR_INFO_HEIGHT_FRAC).clamp(MPR_INFO_MIN_H, MPR_INFO_MAX_H);
             let view_h = (avail.y - info_h - 6.0).max(120.0);
             let view_w = avail.x / 2.0;
 

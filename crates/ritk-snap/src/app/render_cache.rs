@@ -1,8 +1,13 @@
 use super::state::ProjectionMode;
+
+/// Per-voxel opacity scale for volume rendering. Canonical value per GPU VR spec.
+const DEFAULT_VR_ALPHA: f32 = 0.06;
 use super::state::SnapApp;
+use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
 use crate::render::mip_vr::{render_mip_axial_with_scratch, render_vr_axial_with_scratch};
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
 use crate::ui::apply_to_image_into;
+use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 impl SnapApp {
     pub(crate) fn rebuild_texture_for_axis(&mut self, ctx: &egui::Context, axis: usize) {
@@ -10,8 +15,15 @@ impl SnapApp {
             let Some(vol) = &self.loaded else {
                 return;
             };
-            let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-            let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+            let wc = self
+                .viewer_state
+                .window_center
+                .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+            let ww = self
+                .viewer_state
+                .window_width
+                .unwrap_or(DEFAULT_WINDOW_WIDTH)
+                .max(1.0) as f64;
             let wl = WindowLevel::new(wc, ww);
             let slice_index = match axis {
                 0 => self.viewer_state.slice_index,
@@ -49,8 +61,15 @@ impl SnapApp {
         let Some(vol) = self.loaded.clone() else {
             return;
         };
-        let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-        let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+        let wc = self
+            .viewer_state
+            .window_center
+            .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+        let ww = self
+            .viewer_state
+            .window_width
+            .unwrap_or(DEFAULT_WINDOW_WIDTH)
+            .max(1.0) as f64;
         let wl = WindowLevel::new(wc, ww);
 
         // ── GPU-accelerated MIP and VR (native only) ─────────────────────────
@@ -58,7 +77,7 @@ impl SnapApp {
         if let Some(ref mut gpu) = self.gpu_renderer {
             let gpu_img = match self.projection_mode {
                 ProjectionMode::Mip => gpu.render_mip(&vol, wl, self.colormap),
-                ProjectionMode::Vr => gpu.render_vr(&vol, wl, self.colormap, 0.06),
+                ProjectionMode::Vr => gpu.render_vr(&vol, wl, self.colormap, DEFAULT_VR_ALPHA),
             };
             if let Some(img) = gpu_img {
                 self.mip_tex = Some(ctx.load_texture(
@@ -146,11 +165,11 @@ impl SnapApp {
             ProjectionMode::Vr => "3D VR",
         };
         painter.text(
-            response.rect.min + egui::vec2(6.0, 6.0),
+            response.rect.min + egui::vec2(OVERLAY_LABEL_INSET, OVERLAY_LABEL_INSET),
             egui::Align2::LEFT_TOP,
             label,
-            egui::FontId::proportional(12.0),
-            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210),
+            egui::FontId::proportional(OVERLAY_LABEL_FONT_SIZE),
+            OVERLAY_LABEL_COLOR,
         );
 
         response.context_menu(|ui| {
@@ -185,8 +204,13 @@ impl SnapApp {
             let Some(vol) = &self.loaded_secondary else {
                 return;
             };
-            let wc = self.secondary_window_center.unwrap_or(128.0) as f64;
-            let ww = self.secondary_window_width.unwrap_or(256.0).max(1.0) as f64;
+            let wc = self
+                .secondary_window_center
+                .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+            let ww = self
+                .secondary_window_width
+                .unwrap_or(DEFAULT_WINDOW_WIDTH)
+                .max(1.0) as f64;
             let wl = WindowLevel::new(wc, ww);
             let name = "slice_tex_secondary";
             let img = SliceRenderer::render_with_scratch(

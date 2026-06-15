@@ -2,9 +2,7 @@ use anyhow::{bail, Result};
 use ritk_annotation::LabelId;
 use std::collections::HashMap;
 
-use crate::format::dicom::reader::types::literal_arraystring;
-
-use super::types::{DicomSegmentInfo, DicomSegmentation};
+use super::types::{DicomSegmentInfo, DicomSegmentation, SegmentationType};
 
 /// Bit-depth encoding for a DICOM SEG pixel data frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -113,8 +111,8 @@ pub fn label_map_to_dicom_seg(
         SegEncoding::Fractional => 8u16,
     };
     let segmentation_type = match encoding {
-        SegEncoding::Binary => literal_arraystring("BINARY"),
-        SegEncoding::Fractional => literal_arraystring("FRACTIONAL"),
+        SegEncoding::Binary => SegmentationType::Binary,
+        SegEncoding::Fractional => SegmentationType::Fractional,
     };
 
     // Convert 3×3 direction matrix to 6-element image orientation (row, then column direction)

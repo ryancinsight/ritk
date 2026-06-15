@@ -4,7 +4,10 @@ use ritk_io::DicomSliceMetadata;
 
 use super::{format_float_slice, push_slice_opt, MetadataRow};
 
-pub(super) fn push_first_slice_rows<'a>(slice: &'a DicomSliceMetadata, rows: &mut Vec<MetadataRow<'a>>) {
+pub(super) fn push_first_slice_rows<'a>(
+    slice: &'a DicomSliceMetadata,
+    rows: &mut Vec<MetadataRow<'a>>,
+) {
     push_slice_opt(
         rows,
         "0008,0018",

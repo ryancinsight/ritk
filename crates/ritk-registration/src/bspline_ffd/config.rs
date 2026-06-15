@@ -1,5 +1,10 @@
 use super::ctrl_dims::ControlGridDims;
 
+/// Default bending-energy regularization weight for B-Spline FFD.
+pub const DEFAULT_REGULARIZATION_WEIGHT: f64 = 1e-3;
+/// Default convergence threshold (relative NCC change) for B-Spline FFD.
+pub const DEFAULT_CONVERGENCE_THRESHOLD: f64 = 1e-5;
+
 /// Configuration for B-Spline FFD registration.
 #[derive(Debug, Clone)]
 pub struct BSplineFFDConfig {
@@ -26,8 +31,8 @@ impl Default for BSplineFFDConfig {
             num_levels: 3,
             max_iterations_per_level: 100,
             learning_rate: 1.0,
-            regularization_weight: 1e-3,
-            convergence_threshold: 1e-5,
+            regularization_weight: DEFAULT_REGULARIZATION_WEIGHT,
+            convergence_threshold: DEFAULT_CONVERGENCE_THRESHOLD,
         }
     }
 }

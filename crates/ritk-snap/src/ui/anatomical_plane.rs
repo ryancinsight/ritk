@@ -44,7 +44,7 @@ impl AnatomicalPlane {
     }
 }
 
-fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -52,7 +52,7 @@ fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn normalize3(v: [f64; 3]) -> [f64; 3] {
+fn normalize(v: [f64; 3]) -> [f64; 3] {
     let n = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
     if n > 1e-10 {
         [v[0] / n, v[1] / n, v[2] / n]
@@ -100,7 +100,7 @@ fn axis_vectors_for_volume(volume: &LoadedVolume) -> [[f64; 3]; 3] {
         {
             let row = [iop[0], iop[1], iop[2]];
             let col = [iop[3], iop[4], iop[5]];
-            let normal = normalize3(cross3(row, col));
+            let normal = normalize(cross(row, col));
             // Internal axis convention: axis0=depth(normal), axis1=row-index axis,
             // axis2=col-index axis.
             return [normal, col, row];

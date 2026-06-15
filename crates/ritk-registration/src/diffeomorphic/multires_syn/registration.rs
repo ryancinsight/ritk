@@ -313,8 +313,22 @@ impl super::MultiResSyNRegistration {
         Ok(SyNResult {
             forward_field: fwd,
             inverse_field: inv,
-            warped_fixed: warp_image(fixed, dims.into(), &p1.z, &p1.y, &p1.x, WarpInterpolation::Trilinear),
-            warped_moving: warp_image(moving, dims.into(), &p2.z, &p2.y, &p2.x, WarpInterpolation::Trilinear),
+            warped_fixed: warp_image(
+                fixed,
+                dims.into(),
+                &p1.z,
+                &p1.y,
+                &p1.x,
+                WarpInterpolation::Trilinear,
+            ),
+            warped_moving: warp_image(
+                moving,
+                dims.into(),
+                &p2.z,
+                &p2.y,
+                &p2.x,
+                WarpInterpolation::Trilinear,
+            ),
             final_cc,
             num_iterations: total_iter,
         })

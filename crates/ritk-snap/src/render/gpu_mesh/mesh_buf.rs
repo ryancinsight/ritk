@@ -156,7 +156,7 @@ fn build_mesh_cpu(mesh: &VtkPolyData) -> (Vec<MeshVertex>, Vec<u32>) {
         .map(|(i, &p)| {
             let n = match &precomputed_normals {
                 Some(normals) => normals[i],
-                None => normalize3(normal_acc[i]),
+                None => normalize(normal_acc[i]),
             };
             MeshVertex {
                 position: p,
@@ -205,10 +205,10 @@ fn face_normal(p0: [f32; 3], p1: [f32; 3], p2: [f32; 3]) -> [f32; 3] {
         e0[2] * e1[0] - e0[0] * e1[2],
         e0[0] * e1[1] - e0[1] * e1[0],
     ];
-    normalize3(n)
+    normalize(n)
 }
 
-fn normalize3(v: [f32; 3]) -> [f32; 3] {
+fn normalize(v: [f32; 3]) -> [f32; 3] {
     let len = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
     if len < 1e-12 {
         return [0.0, 0.0, 1.0];

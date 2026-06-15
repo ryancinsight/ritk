@@ -11,7 +11,7 @@ use ritk_transform::RigidTransform;
 type B = Autodiff<NdArray<f32>>;
 
 #[test]
-fn test_registration_rigid_3d() {
+fn rigid_registers_rotated_ellipsoid() {
     let device = Default::default();
 
     // 1. Create 3D images (20x20x20)

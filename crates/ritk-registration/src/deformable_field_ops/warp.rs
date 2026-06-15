@@ -275,12 +275,26 @@ mod tests {
 
         // A half-voxel shift trilinearly blends 0 and 5 → fractional; nearest does not.
         let dx_half = vec![-0.5_f32; n];
-        let tri = warp_image(&labels, dims, &dz, &dy, &dx_half, WarpInterpolation::Trilinear);
+        let tri = warp_image(
+            &labels,
+            dims,
+            &dz,
+            &dy,
+            &dx_half,
+            WarpInterpolation::Trilinear,
+        );
         assert!(
             tri.iter().any(|&v| v != 0.0 && v != 5.0),
             "trilinear should blend at the boundary (control for the NN guarantee)"
         );
-        let nn_half = warp_image(&labels, dims, &dz, &dy, &dx_half, WarpInterpolation::Nearest);
+        let nn_half = warp_image(
+            &labels,
+            dims,
+            &dz,
+            &dy,
+            &dx_half,
+            WarpInterpolation::Nearest,
+        );
         for &v in &nn_half {
             assert!(v == 0.0 || v == 5.0, "nearest blended at half-voxel: {v}");
         }
@@ -294,7 +308,14 @@ mod tests {
         let n = nz * ny * nx;
         let data: Vec<f32> = (0..n).map(|i| i as f32).collect();
         let zeros = vec![0.0_f32; n];
-        let out = warp_image(&data, dims, &zeros, &zeros, &zeros, WarpInterpolation::Trilinear);
+        let out = warp_image(
+            &data,
+            dims,
+            &zeros,
+            &zeros,
+            &zeros,
+            WarpInterpolation::Trilinear,
+        );
         for (i, (&orig, &warped)) in data.iter().zip(out.iter()).enumerate() {
             assert!(
                 (orig - warped).abs() < 1e-5,

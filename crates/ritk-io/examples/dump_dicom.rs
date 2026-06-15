@@ -64,7 +64,8 @@ fn main() -> anyhow::Result<()> {
                 segment.segment_label,
                 segment
                     .algorithm_type
-                    .as_deref()
+                    .as_ref()
+                    .map(|a| a.as_dicom_str())
                     .unwrap_or("algorithm unspecified")
             );
         }

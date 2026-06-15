@@ -41,7 +41,7 @@ fn make_complex_3d(vals: &[f32], depth: usize, h: usize, cw: usize) -> Image<B, 
 
 /// `apply_2d` must preserve the input shape `[H, 2·W]` unchanged.
 #[test]
-fn output_shape_unchanged_2d() {
+fn output_shape_unchanged_after_shift() {
     let h = 4_usize;
     let cw = 8_usize; // 2·W where W = 4
     let vals: Vec<f32> = (0..(h * cw)).map(|i| i as f32).collect();
@@ -61,7 +61,7 @@ fn output_shape_unchanged_2d() {
 ///                          `= in[(r + 2·s_h) % H, (c + 2·s_w) % W]`.
 /// For even H: `2·s_h = H`, so `(r + H) % H = r`. ∎
 #[test]
-fn self_inverse_2d() {
+fn double_shift_is_identity() {
     let h = 4_usize;
     let cw = 8_usize; // W = 4 (even)
                       // Deterministic values derived from a sine series (analytical reference).
@@ -94,7 +94,7 @@ fn self_inverse_2d() {
 /// At `(r=2, c=2)`: `src_r = (2+2)%4 = 0`, `src_c = (2+2)%4 = 0`.
 /// → `out[2·8 + 2·2] = in[0·8 + 2·0] = 1.0`. ∎
 #[test]
-fn dc_moves_to_center_2d() {
+fn dc_moves_to_center_after_shift() {
     let h = 4_usize;
     let cw = 8_usize; // W = 4
     let mut vals = vec![0.0_f32; h * cw];
@@ -121,7 +121,7 @@ fn dc_moves_to_center_2d() {
 
 /// `apply_3d` must preserve the input shape `[D, H, 2·W]` unchanged.
 #[test]
-fn output_shape_unchanged_3d() {
+fn output_shape_unchanged_after_shift_volume() {
     let depth = 3_usize;
     let h = 4_usize;
     let cw = 8_usize; // 2·W where W = 4
@@ -144,7 +144,7 @@ fn output_shape_unchanged_3d() {
 /// After a 3-D cyclic roll by `(D/2, H/2, W/2) = (2, 2, 2)`:
 ///   out[2, 2, 2] = in[(2+2)%4, (2+2)%4, (2+2)%4] = in[0, 0, 0] = 1.0
 #[test]
-fn dc_moves_to_center_3d() {
+fn dc_moves_to_center_after_shift_volume() {
     let depth = 4_usize;
     let h = 4_usize;
     let cw = 8_usize; // W = 4
@@ -176,7 +176,7 @@ fn dc_moves_to_center_3d() {
 ///
 /// Proof: shift by (D/2, H/2, W/2) twice shifts by (D, H, W) = identity mod D, H, W.
 #[test]
-fn self_inverse_3d() {
+fn double_shift_is_identity_volume() {
     let depth = 4_usize;
     let h = 4_usize;
     let cw = 8_usize; // W = 4
@@ -203,7 +203,7 @@ fn self_inverse_3d() {
 /// `apply_3d` with odd dimensions still works (the roll is well-defined
 /// for any positive integer shift).
 #[test]
-fn odd_dimensions_3d() {
+fn odd_dimension_volume_shifts_correctly() {
     let depth = 3_usize;
     let h = 5_usize;
     let cw = 6_usize; // W = 3 (odd)

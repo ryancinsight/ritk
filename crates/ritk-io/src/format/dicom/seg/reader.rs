@@ -1,14 +1,14 @@
 use anyhow::{bail, Context, Result};
-use arrayvec::ArrayString;
 use dicom::core::value::Value;
 use dicom::core::Tag;
 use dicom::object::InMemDicomObject;
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 
-use super::types::{DicomSegmentInfo, DicomSegmentation, SEG_SOP_CLASS_UID};
+use super::types::{
+    DicomSegmentInfo, DicomSegmentation, SegmentAlgorithmType, SegmentationType, SEG_SOP_CLASS_UID,
+};
 use crate::format::dicom::helpers::read_nested_scalar;
-use crate::format::dicom::reader::types::{literal_arraystring, truncate_arraystring};
 
 /// Read a DICOM Segmentation Storage file at `path` into [`DicomSegmentation`].
 ///
@@ -58,17 +58,8 @@ pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
         .element(Tag(0x0062, 0x0001))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .map(|s| match ArrayString::<16>::from(s.as_str()) {
-            Ok(v) => v,
-            Err(_) => {
-                tracing::warn!(
-                    "SegmentationType exceeds 16 chars, truncating: {}",
-                    &s[..16]
-                );
-                truncate_arraystring::<16>(s.as_str())
-            }
-        })
-        .unwrap_or_else(|| literal_arraystring("BINARY"));
+        .map(|s| SegmentationType::from_dicom_str(&s))
+        .unwrap_or(SegmentationType::Binary);
 
     tracing::debug!(
         "read_dicom_seg: header rows={} cols={} n_frames={} bits_allocated={} seg_type={}",
@@ -76,7 +67,7 @@ pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
         cols,
         n_frames,
         bits_allocated,
-        segmentation_type
+        segmentation_type.as_dicom_str()
     );
 
     let segments = parse_segment_sequence(&obj);
@@ -97,7 +88,8 @@ pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
         cols,
         bits_allocated,
         &segmentation_type,
-    )?;
+    );
+    let pixel_data = pixel_data?;
 
     Ok(DicomSegmentation {
         rows,
@@ -196,13 +188,7 @@ fn parse_segment_sequence(obj: &InMemDicomObject) -> Vec<DicomSegmentInfo> {
                         .map(|s: std::borrow::Cow<str>| s.trim().to_owned())
                 })
                 .filter(|s: &String| !s.is_empty())
-                .map(|s| match ArrayString::<16>::from(s.as_str()) {
-                    Ok(v) => v,
-                    Err(_) => {
-                        tracing::warn!("AlgorithmType exceeds 16 chars, truncating: {}", &s[..16]);
-                        truncate_arraystring::<16>(s.as_str())
-                    }
-                });
+                .map(|s| SegmentAlgorithmType::from_dicom_str(&s));
             DicomSegmentInfo {
                 segment_number,
                 segment_label,
@@ -310,12 +296,12 @@ fn unpack_pixel_data(
     rows: usize,
     cols: usize,
     bits_allocated: u16,
-    segmentation_type: &str,
+    segmentation_type: &SegmentationType,
 ) -> Result<Vec<Vec<u8>>> {
     let n_pixels = rows * cols;
 
-    match (bits_allocated, segmentation_type.trim()) {
-        (1, _) | (_, "BINARY") => {
+    match (bits_allocated, segmentation_type) {
+        (1, SegmentationType::Binary) => {
             let frame_bytes = n_pixels.div_ceil(8);
             let expected = n_frames * frame_bytes;
             if px_bytes.len() < expected {
@@ -338,7 +324,7 @@ fn unpack_pixel_data(
             }
             Ok(frames)
         }
-        (8, _) => {
+        (8, SegmentationType::Fractional) => {
             let frame_bytes = n_pixels;
             let expected = n_frames * frame_bytes;
             if px_bytes.len() < expected {
@@ -356,7 +342,7 @@ fn unpack_pixel_data(
         _ => bail!(
             "unsupported BitsAllocated={} for segmentation_type={}",
             bits_allocated,
-            segmentation_type
+            segmentation_type.as_dicom_str()
         ),
     }
 }

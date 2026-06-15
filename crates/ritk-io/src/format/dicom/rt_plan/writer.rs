@@ -9,9 +9,10 @@ use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::types::{RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID};
+use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
+use crate::format::dicom::writer::utils::generate_series_uid;
 
 /// Write an [`RtPlanInfo`] to a DICOM RT Plan Storage file at `path`.
 ///
@@ -25,13 +26,7 @@ use super::types::{RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UI
 pub fn write_rt_plan<P: AsRef<Path>>(path: P, plan: &RtPlanInfo) -> Result<()> {
     let path = path.as_ref();
 
-    static RT_PLAN_UID_COUNTER: AtomicU64 = AtomicU64::new(0);
-    let t = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64;
-    let n = RT_PLAN_UID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let generated_uid = format!("2.25.{}.{}", t, n);
+    let generated_uid = generate_series_uid();
     let sop_instance_uid = if plan.sop_instance_uid.trim().is_empty() {
         generated_uid.as_str()
     } else {
@@ -103,7 +98,7 @@ pub fn write_rt_plan<P: AsRef<Path>>(path: P, plan: &RtPlanInfo) -> Result<()> {
         FileMetaTableBuilder::new()
             .media_storage_sop_class_uid(RT_PLAN_SOP_CLASS_UID)
             .media_storage_sop_instance_uid(sop_instance_uid)
-            .transfer_syntax("1.2.840.10008.1.2.1"),
+            .transfer_syntax(EXPLICIT_VR_LE),
     )
     .with_context(|| "build RT Plan file meta")?
     .write_to_file(path)

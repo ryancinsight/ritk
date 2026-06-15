@@ -9,6 +9,19 @@ use super::state::SnapApp;
 use crate::render::slice_render::WindowLevel;
 use crate::tools::kind::ToolKind;
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
+use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
+// ── Overlay label constants ──────────────────────────────────────────────────
+
+/// Pixel inset from the viewport corner for overlay text labels.
+pub(crate) const OVERLAY_LABEL_INSET: f32 = 6.0;
+
+/// Font size for viewport overlay text labels (proportional points).
+pub(crate) const OVERLAY_LABEL_FONT_SIZE: f32 = 12.0;
+
+/// Colour for viewport overlay text labels (white @ 82 % opacity, premultiplied).
+pub(crate) const OVERLAY_LABEL_COLOR: egui::Color32 =
+    egui::Color32::from_rgba_premultiplied(210, 210, 210, 210);
+
 use crate::ui::{should_zoom_with_scroll, zoom_from_scroll};
 
 impl SnapApp {
@@ -122,13 +135,13 @@ impl SnapApp {
         let painter = ui.painter_at(response.rect);
 
         let axis_name = self.axis_label(axis);
-        let label_color = egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210);
+        let label_color = OVERLAY_LABEL_COLOR;
 
         painter.text(
-            response.rect.min + egui::vec2(6.0, 6.0),
+            response.rect.min + egui::vec2(OVERLAY_LABEL_INSET, OVERLAY_LABEL_INSET),
             egui::Align2::LEFT_TOP,
             axis_name,
-            egui::FontId::proportional(12.0),
+            egui::FontId::proportional(OVERLAY_LABEL_FONT_SIZE),
             label_color,
         );
 
@@ -144,8 +157,15 @@ impl SnapApp {
         // DICOM 4-corner overlay.
         if self.show_overlay {
             if let Some(vol) = &self.loaded {
-                let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-                let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+                let wc = self
+                    .viewer_state
+                    .window_center
+                    .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+                let ww = self
+                    .viewer_state
+                    .window_width
+                    .unwrap_or(DEFAULT_WINDOW_WIDTH)
+                    .max(1.0) as f64;
                 let wl = WindowLevel::new(wc, ww);
 
                 let cursor_value = self.current_cursor_value();

@@ -325,15 +325,15 @@ pub fn phong_shade(
 
     for light in lights {
         let l = normalize(light.direction);
-        let n_dot_l = dot3(n, l).max(0.0);
+        let n_dot_l = dot(n, l).max(0.0);
         // Diffuse
         for ((c, diff), lc) in color.iter_mut().zip(material.diffuse).zip(light.color) {
             *c += diff * n_dot_l * lc;
         }
         // Specular (Phong reflection model)
         if n_dot_l > 0.0 {
-            let r = sub3(scale3(n, 2.0 * dot3(n, l)), l);
-            let r_dot_v = dot3(r, v).max(0.0);
+            let r = sub3(scale3(n, 2.0 * dot(n, l)), l);
+            let r_dot_v = dot(r, v).max(0.0);
             let spec = r_dot_v.powf(material.shininess);
             for ((c, spec_val), lc) in color.iter_mut().zip(material.specular).zip(light.color) {
                 *c += spec_val * spec * lc;
@@ -368,8 +368,8 @@ pub fn mat4_mul(a: [f32; 16], b: [f32; 16]) -> [f32; 16] {
 /// Constructs an orthonormal right-handed view basis from eye, target, up.
 pub fn look_at(eye: [f32; 3], target: [f32; 3], up: [f32; 3]) -> [f32; 16] {
     let f = normalize(sub3(target, eye)); // forward
-    let r = normalize(cross3(f, normalize(up))); // right
-    let u = cross3(r, f); // true up
+    let r = normalize(cross(f, normalize(up))); // right
+    let u = cross(r, f); // true up
 
     // Column-major: column j is [r[j], u[j], -f[j], 0] for j<3, then translation
     [
@@ -385,9 +385,9 @@ pub fn look_at(eye: [f32; 3], target: [f32; 3], up: [f32; 3]) -> [f32; 16] {
         u[2],
         -f[2],
         0.0,
-        -dot3(r, eye),
-        -dot3(u, eye),
-        dot3(f, eye),
+        -dot(r, eye),
+        -dot(u, eye),
+        dot(f, eye),
         1.0,
     ]
 }
@@ -414,8 +414,8 @@ pub fn perspective(fov_y: f32, aspect: f32, near: f32, far: f32) -> [f32; 16] {
 pub fn compute_face_normal(p0: [f32; 3], p1: [f32; 3], p2: [f32; 3]) -> [f32; 3] {
     let e0 = sub3(p1, p0);
     let e1 = sub3(p2, p0);
-    let n = cross3(e0, e1);
-    let len = (dot3(n, n)).sqrt();
+    let n = cross(e0, e1);
+    let len = (dot(n, n)).sqrt();
     if len < 1e-12 {
         return [0.0, 0.0, 1.0];
     }
@@ -434,7 +434,7 @@ pub(crate) fn normalize(v: [f32; 3]) -> [f32; 3] {
 }
 
 #[inline]
-pub(crate) fn dot3(a: [f32; 3], b: [f32; 3]) -> f32 {
+pub(crate) fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
@@ -449,7 +449,7 @@ pub(crate) fn scale3(v: [f32; 3], s: f32) -> [f32; 3] {
 }
 
 #[inline]
-pub(crate) fn cross3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+pub(crate) fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],

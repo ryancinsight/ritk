@@ -124,8 +124,10 @@ pub fn read_vtk<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Resu
             read_binary_scalars(&mut reader, expected_voxels, header.scalar_type)
                 .with_context(|| "failed to read VTK binary scalar data")?
         }
-        VtkEncoding::Ascii => read_ascii_scalars(&mut reader, expected_voxels)
-            .with_context(|| "failed to read VTK ASCII scalar data")?,
+        VtkEncoding::Ascii => {
+            crate::io::read_helpers::read_ascii::<f32>(&mut reader, expected_voxels, "f32")
+                .with_context(|| "failed to read VTK ASCII scalar data")?
+        }
     };
 
     // Tensor shape: [nz, ny, nx] per RITK convention.
@@ -372,45 +374,6 @@ fn read_binary_scalars(
     if out.len() != count {
         bail!(
             "binary scalar parse produced {} values, expected {}",
-            out.len(),
-            count
-        );
-    }
-
-    Ok(out)
-}
-
-// ---------------------------------------------------------------------------
-// ASCII data reading
-// ---------------------------------------------------------------------------
-
-/// Read `count` whitespace-separated f32 values from the remaining stream.
-fn read_ascii_scalars(reader: &mut impl BufRead, count: usize) -> Result<Vec<f32>> {
-    let mut out = Vec::with_capacity(count);
-    let mut buf = String::new();
-
-    while out.len() < count {
-        buf.clear();
-        let n = reader
-            .read_line(&mut buf)
-            .with_context(|| "I/O error reading VTK ASCII data")?;
-        if n == 0 {
-            break; // EOF
-        }
-        for token in buf.split_whitespace() {
-            if out.len() >= count {
-                break;
-            }
-            let val: f32 = token
-                .parse()
-                .with_context(|| format!("failed to parse ASCII scalar value: '{}'", token))?;
-            out.push(val);
-        }
-    }
-
-    if out.len() != count {
-        bail!(
-            "ASCII data contains {} values, expected {}",
             out.len(),
             count
         );

@@ -50,7 +50,7 @@ fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
 
 /// Shape contract 2-D: input `[H, W]` → output `[H, 2*W]`.
 #[test]
-fn output_shape_2d() {
+fn output_shape_matches_input_planar() {
     let img = make_real_2d(vec![0.0_f32; 4 * 6], 4, 6);
     let freq = ForwardFftFilter::new().apply(&img).unwrap();
     assert_eq!(
@@ -62,7 +62,7 @@ fn output_shape_2d() {
 
 /// Shape contract 3-D: input `[D, H, W]` → output `[D, H, 2*W]`.
 #[test]
-fn output_shape_3d() {
+fn output_shape_matches_input_volume() {
     let img = make_real_3d(vec![0.0_f32; 3 * 4 * 6], 3, 4, 6);
     let freq = ForwardFftFilter::new().apply(&img).unwrap();
     assert_eq!(
@@ -79,7 +79,7 @@ fn output_shape_3d() {
 /// Proof: F(0,0) = Σ_{x,y} f(x,y)·e^{-2πi·0} = Σ f(x,y) = H·W·v.
 /// The imaginary part vanishes because all phases are zero at u=0, v=0.
 #[test]
-fn dc_component_2d() {
+fn dc_component_equals_sum_of_values() {
     let h = 4_usize;
     let w = 4_usize;
     let v = 3.0_f32;
@@ -109,7 +109,7 @@ fn dc_component_2d() {
 ///
 /// Reference: DFT Parseval's theorem for the unnormalized forward transform.
 #[test]
-fn energy_scaling_2d() {
+fn energy_scales_with_normalization() {
     let h = 4_usize;
     let w = 5_usize;
     let data: Vec<f32> = (0..h * w).map(|i| (i as f32 * 0.37_f32).sin()).collect();
@@ -144,7 +144,7 @@ fn energy_scaling_2d() {
 ///
 /// Proof: F(u,v) = Σ_{x,y} 0·e^{...} = 0.
 #[test]
-fn zero_image_2d() {
+fn all_zero_input_gives_all_zero_output() {
     let h = 3_usize;
     let w = 4_usize;
     let img = make_real_2d(vec![0.0_f32; h * w], h, w);

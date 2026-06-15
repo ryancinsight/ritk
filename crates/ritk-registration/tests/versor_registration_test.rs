@@ -11,7 +11,7 @@ use ritk_transform::VersorRigid3DTransform;
 type B = Autodiff<NdArray<f32>>;
 
 #[test]
-fn test_registration_versor_3d_rotation() {
+fn versor_registers_rotated_ellipsoid() {
     let device = Default::default();
     let d = 20;
     let shape = [d, d, d];

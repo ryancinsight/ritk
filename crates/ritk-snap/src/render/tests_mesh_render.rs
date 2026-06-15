@@ -32,20 +32,20 @@ fn normalize_zero_vector_is_zero() {
 /// dot([1,0,0], [0,1,0]) = 0 (orthogonal).
 #[test]
 fn dot3_orthogonal_axes() {
-    assert!((dot3([1.0, 0.0, 0.0], [0.0, 1.0, 0.0])).abs() < 1e-10);
+    assert!((dot([1.0, 0.0, 0.0], [0.0, 1.0, 0.0])).abs() < 1e-10);
 }
 
 /// dot([1,2,3], [4,5,6]) = 4+10+18 = 32 (analytically).
 #[test]
 fn dot3_value_semantic() {
-    let d = dot3([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]);
+    let d = dot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]);
     assert!((d - 32.0).abs() < 1e-6, "expected 32, got {d}");
 }
 
 /// cross([1,0,0], [0,1,0]) = [0,0,1] (standard basis).
 #[test]
 fn cross3_standard_basis() {
-    let c = cross3([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+    let c = cross([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
     assert!((c[0]).abs() < 1e-10);
     assert!((c[1]).abs() < 1e-10);
     assert!((c[2] - 1.0).abs() < 1e-10);

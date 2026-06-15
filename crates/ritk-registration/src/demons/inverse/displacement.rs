@@ -24,6 +24,10 @@ use crate::deformable_field_ops::{
     trilinear_interpolate, VectorField, VectorFieldMut, VelocityField,
 };
 
+/// Default convergence tolerance for iterative inverse displacement field computation.
+/// Maximum per-voxel Euclidean-norm change threshold between successive iterates.
+pub const DEFAULT_INVERSE_FIELD_TOLERANCE: f64 = 1e-4;
+
 /// Configuration for iterative inverse computation (used for non-SVF fields).
 ///
 /// # Defaults
@@ -46,7 +50,7 @@ impl Default for InverseFieldConfig {
     fn default() -> Self {
         Self {
             max_iterations: 20,
-            tolerance: 1e-4,
+            tolerance: DEFAULT_INVERSE_FIELD_TOLERANCE,
         }
     }
 }

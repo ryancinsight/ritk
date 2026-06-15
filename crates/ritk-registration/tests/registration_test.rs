@@ -12,7 +12,7 @@ use ritk_transform::TranslationTransform;
 type B = Autodiff<NdArray<f32>>;
 
 #[test]
-fn test_registration_translation_2d() {
+fn translation_registers_offset_gaussian() {
     let device = Default::default();
 
     // Create 2D images: 10x10

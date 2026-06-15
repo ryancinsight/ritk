@@ -181,7 +181,8 @@ fn nearest_dispatch_for_shape_routes_correctly() {
     let data = build_cube(256);
     let device = Default::default();
     let indices = Tensor::<TestBackend, 2>::from_floats([[128.0, 128.0, 128.0]], &device);
-    let result = dispatch_nearest_for_shape::<TestBackend, 3>(&data, indices, OutOfBoundsMode::Clamp);
+    let result =
+        dispatch_nearest_for_shape::<TestBackend, 3>(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
         (val - 1.0).abs() < 1e-5,

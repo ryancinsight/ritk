@@ -28,7 +28,7 @@ mod writer;
 
 pub use converters::{dicom_seg_to_label_map, label_map_to_dicom_seg, SegEncoding};
 pub use reader::read_dicom_seg;
-pub use types::{DicomSegmentInfo, DicomSegmentation};
+pub use types::{DicomSegmentInfo, DicomSegmentation, SegmentAlgorithmType, SegmentationType};
 pub use writer::write_dicom_seg;
 
 #[cfg(test)]

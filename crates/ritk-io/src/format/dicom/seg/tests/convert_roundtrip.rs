@@ -1,8 +1,7 @@
 use super::super::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
-    DicomSegmentInfo, DicomSegmentation, SegEncoding,
+    DicomSegmentInfo, DicomSegmentation, SegEncoding, SegmentationType,
 };
-use arrayvec::ArrayString;
 use ritk_annotation::RgbaBytes;
 
 #[test]
@@ -69,7 +68,7 @@ fn test_dicom_seg_to_label_map_error_bad_frame_lengths() {
         cols: 2,
         n_frames: 1,
         bits_allocated: 1,
-        segmentation_type: ArrayString::from("BINARY").unwrap(),
+        segmentation_type: SegmentationType::Binary,
         segments: vec![DicomSegmentInfo {
             segment_number: 1,
             segment_label: "A".to_owned(),
@@ -95,7 +94,7 @@ fn test_dicom_seg_to_label_map_sparse_uneven_frames_supported() {
         cols: 2,
         n_frames: 3,
         bits_allocated: 1,
-        segmentation_type: ArrayString::from("BINARY").unwrap(),
+        segmentation_type: SegmentationType::Binary,
         segments: vec![
             DicomSegmentInfo {
                 segment_number: 1,
@@ -143,7 +142,7 @@ fn test_dicom_seg_to_label_map_sorts_frames_by_physical_position() {
         cols: 2,
         n_frames: 2,
         bits_allocated: 1,
-        segmentation_type: ArrayString::from("BINARY").unwrap(),
+        segmentation_type: SegmentationType::Binary,
         segments: vec![DicomSegmentInfo {
             segment_number: 1,
             segment_label: "A".to_owned(),

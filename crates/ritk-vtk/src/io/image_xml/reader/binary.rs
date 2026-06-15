@@ -1,6 +1,9 @@
 //! Binary-appended VTI reader: `read_vti_binary_appended_bytes`, helpers.
 
-use super::xml_helpers::{attr_val, find_section, find_tag, parse_floats, parse_i64s};
+use super::xml_helpers::{
+    attr_val, find_section, find_tag, parse_floats, parse_i64s, DEFAULT_ORIGIN_STR,
+    DEFAULT_SPACING_STR,
+};
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
@@ -156,14 +159,16 @@ pub fn read_vti_binary_appended_bytes(data: &[u8]) -> Result<VtkImageData> {
     let mut whole_extent = [0i64; 6];
     whole_extent.copy_from_slice(&extent_vals[..6]);
 
-    let origin_str = attr_val(&image_tag, "Origin").unwrap_or_else(|| "0 0 0".to_string());
+    let origin_str =
+        attr_val(&image_tag, "Origin").unwrap_or_else(|| DEFAULT_ORIGIN_STR.to_string());
     let origin_vals: Vec<f64> = parse_floats(&origin_str);
     let mut origin = [0.0f64; 3];
     for (i, dst) in origin.iter_mut().enumerate() {
         *dst = origin_vals.get(i).copied().unwrap_or(0.0);
     }
 
-    let spacing_str = attr_val(&image_tag, "Spacing").unwrap_or_else(|| "1 1 1".to_string());
+    let spacing_str =
+        attr_val(&image_tag, "Spacing").unwrap_or_else(|| DEFAULT_SPACING_STR.to_string());
     let spacing_vals: Vec<f64> = parse_floats(&spacing_str);
     let mut spacing = [1.0f64; 3];
     for (i, dst) in spacing.iter_mut().enumerate() {

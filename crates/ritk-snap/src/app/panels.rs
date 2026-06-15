@@ -6,6 +6,7 @@ use crate::ui::{
     decide_dropped_input_action, format_lps, show_colorbar, voxel_to_lps, DroppedInputAction,
     LinkedCursor, MAX_ZOOM, MIN_ZOOM,
 };
+use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 impl SnapApp {
     pub(crate) fn mark_all_textures_dirty(&mut self) {
@@ -244,8 +245,15 @@ impl SnapApp {
                 .open(&mut show_cb)
                 .resizable(false)
                 .show(ctx, |ui| {
-                    let wc = self.viewer_state.window_center.unwrap_or(128.0);
-                    let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0);
+                    let wc = self
+                        .viewer_state
+                        .window_center
+                        .unwrap_or(DEFAULT_WINDOW_CENTER);
+                    let ww = self
+                        .viewer_state
+                        .window_width
+                        .unwrap_or(DEFAULT_WINDOW_WIDTH)
+                        .max(1.0);
                     show_colorbar(ui, self.colormap, wc, ww);
                 });
         }
@@ -304,8 +312,14 @@ impl SnapApp {
             if let Some(vol) = &self.loaded {
                 let [depth, rows, cols] = vol.shape;
                 let [dz, dy, dx] = vol.spacing;
-                let wc = self.viewer_state.window_center.unwrap_or(128.0);
-                let ww = self.viewer_state.window_width.unwrap_or(256.0);
+                let wc = self
+                    .viewer_state
+                    .window_center
+                    .unwrap_or(DEFAULT_WINDOW_CENTER);
+                let ww = self
+                    .viewer_state
+                    .window_width
+                    .unwrap_or(DEFAULT_WINDOW_WIDTH);
 
                 egui::Grid::new("mpr_info_grid")
                     .num_columns(2)

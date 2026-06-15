@@ -7,6 +7,7 @@ use crate::ui::{
     viewport_point_to_voxel, window_level_from_drag_delta, zoom_from_drag_delta, AnatomicalPlane,
     WINDOW_LEVEL_SENSITIVITY,
 };
+use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
@@ -27,8 +28,14 @@ impl SnapApp {
                 };
             }
             ToolKind::WindowLevel => {
-                let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-                let ww = self.viewer_state.window_width.unwrap_or(256.0) as f64;
+                let wc = self
+                    .viewer_state
+                    .window_center
+                    .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+                let ww = self
+                    .viewer_state
+                    .window_width
+                    .unwrap_or(DEFAULT_WINDOW_WIDTH) as f64;
                 self.tool_state = ToolState::WindowLevelDrag {
                     start: pos,
                     original_center: wc,

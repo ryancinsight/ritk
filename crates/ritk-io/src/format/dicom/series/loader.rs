@@ -79,8 +79,8 @@ pub fn load_dicom_series<B: Backend>(
 
     // 4. Validate Spatial Consistency & Calculate Spacing
     let first_obj = &slices[0].1;
-    let rows = get_u32(first_obj, tags::ROWS).context("Missing Rows")?;
-    let cols = get_u32(first_obj, tags::COLUMNS).context("Missing Columns")?;
+    let rows = element_as_u32(first_obj, tags::ROWS).context("Missing Rows")?;
+    let cols = element_as_u32(first_obj, tags::COLUMNS).context("Missing Columns")?;
     let pixel_spacing =
         get_scalar_vec(first_obj, tags::PIXEL_SPACING).context("Missing PixelSpacing")?;
     let dy = pixel_spacing[0]; // Row spacing (between rows) -> Y spacing
@@ -151,10 +151,11 @@ pub fn load_dicom_series<B: Backend>(
         .map_collect(|(_p, obj)| {
             let slope = get_scalar(obj, tags::RESCALE_SLOPE).unwrap_or(1.0);
             let intercept = get_scalar(obj, tags::RESCALE_INTERCEPT).unwrap_or(0.0);
-            let samples_per_pixel = get_u32(obj, tags::SAMPLES_PER_PIXEL).unwrap_or(1) as usize;
-            let bits_allocated = get_u32(obj, tags::BITS_ALLOCATED).unwrap_or(16) as u16;
+            let samples_per_pixel =
+                element_as_u32(obj, tags::SAMPLES_PER_PIXEL).unwrap_or(1) as usize;
+            let bits_allocated = element_as_u32(obj, tags::BITS_ALLOCATED).unwrap_or(16) as u16;
             let pixel_representation: PixelSignedness = PixelSignedness::try_from(
-                get_u32(obj, tags::PIXEL_REPRESENTATION).unwrap_or(0) as u16,
+                element_as_u32(obj, tags::PIXEL_REPRESENTATION).unwrap_or(0) as u16,
             )
             .unwrap_or(PixelSignedness::Unsigned);
             let transfer_syntax = TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
@@ -231,7 +232,7 @@ pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
 
 // --- Helpers ---
 
-fn get_u32(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<u32> {
+fn element_as_u32(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<u32> {
     obj.element(tag).ok()?.to_int::<u32>().ok()
 }
 

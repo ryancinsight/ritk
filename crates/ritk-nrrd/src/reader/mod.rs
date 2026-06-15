@@ -163,7 +163,7 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         };
         metadata_from_file_space_directions(dirs)
     } else if let Some(sp_str) = headers.get("spacings") {
-        let sp = parse_f64_vec(sp_str, "spacings", dimension)?;
+        let sp = parse_float_vec(sp_str, "spacings", dimension)?;
         let sz = if dimension == 3 { sp[2] } else { 1.0 };
         metadata_from_file_spacings([sp[0], sp[1], sz])
     } else {
@@ -221,7 +221,7 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     };
 
     let f32_data: Vec<f32> =
-        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?;
+        decode_element_bytes(&raw_bytes, &element_type, total_voxels, byte_order)?;
 
     if f32_data.len() != total_voxels {
         return Err(anyhow!(

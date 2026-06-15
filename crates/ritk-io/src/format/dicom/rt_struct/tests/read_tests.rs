@@ -175,7 +175,7 @@ fn test_read_rt_struct_roi_interpreted_type() {
     assert_eq!(ss.rois.len(), 1, "must contain 1 ROI");
     assert_eq!(
         ss.rois[0].roi_interpreted_type,
-        Some("GTV".to_string()),
-        "roi_interpreted_type must be Some(\"GTV\")"
+        Some(RtRoiInterpretedType::Gtv),
+        "roi_interpreted_type must be Some(Gtv)"
     );
 }

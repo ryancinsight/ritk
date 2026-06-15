@@ -11,7 +11,7 @@ type B = NdArray<f32>;
 const ABS_TOL: f32 = 1e-5;
 
 #[test]
-fn test_rigid_transform_2d() {
+fn rigid_translation_planar_displaces_correctly() {
     let device = Default::default();
 
     // Rotate 90 degrees (PI/2) and translate by (1, 1)
@@ -50,7 +50,7 @@ fn test_rigid_transform_2d() {
 }
 
 #[test]
-fn test_rigid_transform_3d() {
+fn rigid_translation_volume_displaces_correctly() {
     let device = Default::default();
 
     // Rotate 90 degrees around Z axis (Gamma = PI/2)
@@ -97,7 +97,7 @@ fn test_rigid_transform_3d() {
 }
 
 #[test]
-fn test_displacement_field_transform_2d() {
+fn displacement_field_planar_maps_by_offset() {
     let device = Default::default();
 
     // Create a 2x2 displacement field

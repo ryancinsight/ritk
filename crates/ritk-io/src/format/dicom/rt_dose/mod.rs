@@ -23,7 +23,7 @@ mod utils;
 mod writer;
 
 pub use reader::read_rt_dose;
-pub use types::{RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
+pub use types::{RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID};
 pub use writer::write_rt_dose;
 
 #[cfg(test)]

@@ -25,7 +25,7 @@ fn test_label_map_to_dicom_seg_identity_single_label() {
         seg.bits_allocated, 1,
         "SegEncoding::Binary → bits_allocated=1"
     );
-    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
+    assert_eq!(seg.segmentation_type.as_dicom_str(), "BINARY");
     assert_eq!(seg.segments.len(), 1, "one segment");
     assert_eq!(seg.segments[0].segment_label, "Label 1");
     assert_eq!(seg.segments[0].segment_number, 1);

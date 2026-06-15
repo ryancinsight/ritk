@@ -11,22 +11,9 @@ use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
-
-/// Generate a DICOM UID using nanoseconds since UNIX epoch under the 2.25 root.
-///
-/// Invariant: uniqueness holds within a single process under non-repeating system clock.
-fn generate_multiframe_uid() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: std::sync::atomic::AtomicU64 = AtomicU64::new(0);
-
-    let t = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64;
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    // Format: 2.25.<ns>.<seq> — both components are numeric; total ≤ 64 chars.
-    format!("2.25.{}.{}", t, n)
-}
+use crate::format::dicom::writer::utils::{
+    emit_u16_pixel_format_tags, generate_series_uid, normalize_f32_to_u16,
+};
 
 /// Write a 3-D `Image<B, 3>` with shape `[n_frames, rows, cols]` as a single
 /// multi-frame DICOM Part 10 file.
@@ -34,8 +21,8 @@ fn generate_multiframe_uid() -> String {
 /// ## Invariants
 /// - `n_frames >= 1`, `rows >= 1`, `cols >= 1`; returns `Err` otherwise.
 /// - A single linear rescale (slope/intercept) maps the full f32 volume to
-///   the [0, 65535] u16 range. When max == min, slope = 1.0 and
-///   intercept = min_val (flat-image degenerate case).
+///   the [0, 65535] u16 range. When max == min, slope ≈ ε/65535 and
+///   intercept = min_val (flat-image degenerate case; reconstruction is exact).
 /// - The emitted file is readable by `load_dicom_multiframe` (round-trip
 ///   invariant: abs(recovered - original) <= rescale_slope + 1.0).
 ///
@@ -106,31 +93,11 @@ fn write_multiframe_impl<B: Backend>(
         .try_data_vec()
         .context("DICOM multiframe writer requires f32 image data")?;
 
-    let (min_val, max_val) = all_data
-        .iter()
-        .copied()
-        .fold((f32::INFINITY, f32::NEG_INFINITY), |(mn, mx), v| {
-            (mn.min(v), mx.max(v))
-        });
+    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_f32_to_u16(&all_data);
 
-    let (rescale_slope, rescale_intercept) = if (max_val - min_val).abs() <= f32::EPSILON {
-        (1.0_f32, min_val)
-    } else {
-        ((max_val - min_val) / 65535.0_f32, min_val)
-    };
-
-    let pixel_u16: Vec<u16> = all_data
-        .iter()
-        .map(|&v| {
-            ((v - rescale_intercept) / rescale_slope)
-                .round()
-                .clamp(0.0, 65535.0) as u16
-        })
-        .collect();
-
-    let sop_instance_uid = generate_multiframe_uid();
-    let study_instance_uid = generate_multiframe_uid();
-    let series_instance_uid = generate_multiframe_uid();
+    let sop_instance_uid = generate_series_uid();
+    let study_instance_uid = generate_series_uid();
+    let series_instance_uid = generate_series_uid();
 
     let modality_str = config
         .spatial
@@ -232,26 +199,7 @@ fn write_multiframe_impl<B: Backend>(
         VR::US,
         PrimitiveValue::from(cols as u16),
     ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
-        VR::US,
-        PrimitiveValue::from(16_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
-        VR::US,
-        PrimitiveValue::from(16_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
-        VR::US,
-        PrimitiveValue::from(15_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
-        VR::US,
-        PrimitiveValue::from(0_u16),
-    ));
+    emit_u16_pixel_format_tags(&mut obj);
     obj.put(DataElement::new(
         Tag(0x0028, 0x0004),
         VR::CS,

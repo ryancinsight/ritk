@@ -21,5 +21,12 @@ pub fn warp_image_bspline(
     ctrl_spacing: &[f64; 3],
 ) -> Vec<f32> {
     let disp = evaluate_bspline_displacement(cp_z, cp_y, cp_x, ctrl_dims, ctrl_spacing, dims);
-    warp_image(moving, dims, &disp.z, &disp.y, &disp.x, WarpInterpolation::Trilinear)
+    warp_image(
+        moving,
+        dims,
+        &disp.z,
+        &disp.y,
+        &disp.x,
+        WarpInterpolation::Trilinear,
+    )
 }

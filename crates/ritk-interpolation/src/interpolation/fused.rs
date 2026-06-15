@@ -23,6 +23,9 @@ use ritk_core::interpolation::Interpolator;
 use ritk_core::transform::Transform;
 use ritk_image::Image;
 
+/// Spatial dimensionality for the fused transform+interpolation path.
+const SPATIAL_DIMS: usize = 3;
+
 /// Check whether a direction matrix is the identity (within tolerance).
 #[cfg(test)]
 pub(crate) fn is_identity_direction<const D: usize>(
@@ -92,9 +95,11 @@ pub fn transform_and_interpolate<B: Backend, T: Transform<B, 3>>(
     let moving_world = transform.transform_points(fixed_points);
 
     // ---- Step 2: world-to-index (fused, inlined) ----
-    let origin_data: Vec<f32> = (0..3).map(|i| moving.origin()[i] as f32).collect();
+    let origin_data: Vec<f32> = (0..SPATIAL_DIMS)
+        .map(|i| moving.origin()[i] as f32)
+        .collect();
     let origin_tensor = Tensor::<B, 1>::from_data(
-        TensorData::new(origin_data, burn::tensor::Shape::new([3])),
+        TensorData::new(origin_data, burn::tensor::Shape::new([SPATIAL_DIMS])),
         &device,
     );
 
@@ -102,16 +107,19 @@ pub fn transform_and_interpolate<B: Backend, T: Transform<B, 3>>(
         .direction()
         .try_inverse()
         .expect("Direction matrix must be invertible");
-    let mut t_data = Vec::with_capacity(9);
-    for r in 0..3 {
-        for c in 0..3 {
+    let mut t_data = Vec::with_capacity(SPATIAL_DIMS * SPATIAL_DIMS);
+    for r in 0..SPATIAL_DIMS {
+        for c in 0..SPATIAL_DIMS {
             let axis = 2 - c;
             let val = (inv_dir[(axis, r)] / moving.spacing()[axis]) as f32;
             t_data.push(val);
         }
     }
     let t_tensor = Tensor::<B, 2>::from_data(
-        TensorData::new(t_data, burn::tensor::Shape::new([3, 3])),
+        TensorData::new(
+            t_data,
+            burn::tensor::Shape::new([SPATIAL_DIMS, SPATIAL_DIMS]),
+        ),
         &device,
     );
 
@@ -138,7 +146,7 @@ fn compute_general_indices_chunked<B: Backend>(
     t: Tensor<B, 2>,      // shape [3, 3]
     n_points: usize,
 ) -> Tensor<B, 2> {
-    let origin = origin.reshape([1usize, 3]);
+    let origin = origin.reshape([1usize, SPATIAL_DIMS]);
 
     if n_points <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
         let diff = world - origin;

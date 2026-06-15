@@ -38,7 +38,10 @@ fn rsgd_telemetry_reports_algorithm_name() {
         RegularStepGradientDescent::new(RegularStepGdConfig::default());
 
     let telemetry = rsgd.telemetry();
-    assert_eq!(telemetry.algorithm, OptimizerAlgorithm::RegularStepGradientDescent);
+    assert_eq!(
+        telemetry.algorithm,
+        OptimizerAlgorithm::RegularStepGradientDescent
+    );
     assert_eq!(telemetry.steps, 0);
     assert!(telemetry.learning_rate.is_some());
 }

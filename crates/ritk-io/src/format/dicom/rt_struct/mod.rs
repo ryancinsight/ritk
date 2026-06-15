@@ -21,7 +21,7 @@ mod writer;
 
 pub use converter::{label_map_to_rt_struct, rt_roi_to_polydata};
 pub use reader::read_rt_struct;
-pub use types::{ContourGeometricType, RtContour, RtRoiInfo, RtStructureSet};
+pub use types::{ContourGeometricType, RtContour, RtRoiInfo, RtRoiInterpretedType, RtStructureSet};
 pub use writer::write_rt_struct;
 
 #[cfg(test)]

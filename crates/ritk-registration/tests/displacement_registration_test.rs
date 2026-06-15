@@ -13,7 +13,7 @@ type B = Autodiff<NdArray<f32>>;
 const D: usize = 2;
 
 #[test]
-fn test_displacement_registration_2d() {
+fn displacement_field_registers_shifted_blob() {
     let device = Default::default();
 
     // 1. Create Images (10x10)

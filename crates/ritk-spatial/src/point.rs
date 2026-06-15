@@ -103,15 +103,6 @@ impl<const D: usize> Point<D> {
         point
     }
 
-    /// Convert point to a vector of coordinates.
-    #[deprecated(
-        since = "0.7.0",
-        note = "use to_array() for zero-allocation, or .as_slice() for &[f64]"
-    )]
-    pub fn to_vec(&self) -> Vec<f64> {
-        (0..D).map(|i| self.0.coords[i]).collect()
-    }
-
     /// Convert point to a fixed-size array of coordinates (zero-allocation).
     pub fn to_array(&self) -> [f64; D] {
         std::array::from_fn(|i| self.0.coords[i])
@@ -212,14 +203,6 @@ mod tests {
         assert_eq!(p[0], 1.0);
         assert_eq!(p[1], 2.0);
         assert_eq!(p[2], 3.0);
-    }
-
-    #[test]
-    fn test_point_to_vec() {
-        let p = Point3::new([1.0, 2.0, 3.0]);
-        #[allow(deprecated)] // explicitly testing the deprecated accessor
-        let coords = p.to_vec();
-        assert_eq!(coords, vec![1.0, 2.0, 3.0]);
     }
 
     #[test]

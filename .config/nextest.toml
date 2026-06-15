@@ -11,7 +11,7 @@ slow-timeout = { period = "10s", terminate-after = 1 }
 # test_bspline_registration_3d), so the filter uses the actual prefixes.
 # Also covers RSGD lib-integration tests that compete for NdArray CPU time.
 [[profile.default.overrides]]
-filter = 'test(test_registration_bspline) | test(test_registration_affine) | test(test_registration_rigid) | test(test_registration_versor) | test(test_multires_registration) | test(translation_recovery_shifted_gaussian) | test(multires_convergence_runs_all_levels) | test(rigid_recovery_identity_validates_pipeline) | test(sparse_sampling_produces_comparable_result) | test(test_diffeomorphic_ssmmorph_integration) | test(chunked_sparse_path_matches_nonchunked) | test(chunked_cached_path_matches_non_chunked) | test(convergence_history_tracks_per_level) | test(test_verify_) | test(recovers_known_translation_cross_modal) | test(syn_)'
+filter = 'test(test_registration_bspline) | test(test_registration_affine) | test(test_registration_rigid) | test(test_registration_versor) | test(test_multires_registration) | test(translation_recovery_shifted_gaussian) | test(multires_convergence_runs_all_levels) | test(rigid_recovery_identity_validates_pipeline) | test(sparse_sampling_produces_comparable_result) | test(test_diffeomorphic_ssmmorph_integration) | test(chunked_sparse_path_matches_nonchunked) | test(chunked_cached_path_matches_non_chunked) | test(convergence_history_tracks_per_level) | test(test_verify_) | test(recovers_known_translation_cross_modal) | test(syn_) | test(bspline_registers_) | test(rigid_registers_) | test(versor_registers_) | test(affine_registers_) | test(multires_registers_)'
 slow-timeout = { period = "600s", terminate-after = 5 }
 
 # B-Spline CR and multiscale CR tests: 5–10 min under CPU contention.
@@ -34,7 +34,7 @@ slow-timeout = { period = "60s", terminate-after = 1 }
 slow-timeout = { period = "60s", terminate-after = 2 }
 
 [[profile.ci.overrides]]
-filter = 'test(test_registration_bspline) | test(test_registration_affine) | test(test_registration_rigid) | test(test_registration_versor) | test(test_multires_registration) | test(translation_recovery_shifted_gaussian) | test(multires_convergence_runs_all_levels) | test(rigid_recovery_identity_validates_pipeline) | test(sparse_sampling_produces_comparable_result) | test(test_diffeomorphic_ssmmorph_integration) | test(chunked_sparse_path_matches_nonchunked) | test(chunked_cached_path_matches_non_chunked) | test(convergence_history_tracks_per_level) | test(test_verify_) | test(recovers_known_translation_cross_modal) | test(syn_)'
+filter = 'test(test_registration_bspline) | test(test_registration_affine) | test(test_registration_rigid) | test(test_registration_versor) | test(test_multires_registration) | test(translation_recovery_shifted_gaussian) | test(multires_convergence_runs_all_levels) | test(rigid_recovery_identity_validates_pipeline) | test(sparse_sampling_produces_comparable_result) | test(test_diffeomorphic_ssmmorph_integration) | test(chunked_sparse_path_matches_nonchunked) | test(chunked_cached_path_matches_non_chunked) | test(convergence_history_tracks_per_level) | test(test_verify_) | test(recovers_known_translation_cross_modal) | test(syn_) | test(bspline_registers_) | test(rigid_registers_) | test(versor_registers_) | test(affine_registers_) | test(multires_registers_)'
 slow-timeout = { period = "600s", terminate-after = 5 }
 
 [[profile.ci.overrides]]

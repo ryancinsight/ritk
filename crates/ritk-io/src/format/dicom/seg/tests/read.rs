@@ -77,7 +77,7 @@ fn test_read_seg_binary_4x4_single_frame() {
     assert_eq!(seg.cols, 4, "cols");
     assert_eq!(seg.n_frames, 1, "n_frames");
     assert_eq!(
-        seg.segmentation_type.as_str(),
+        seg.segmentation_type.as_dicom_str(),
         "BINARY",
         "segmentation_type"
     );

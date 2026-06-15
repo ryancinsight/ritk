@@ -9,10 +9,11 @@ use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::types::{RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
 use crate::format::dicom::rt_plan::RT_PLAN_SOP_CLASS_UID;
+use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
+use crate::format::dicom::writer::utils::generate_series_uid;
 
 /// Write an [`RtDoseGrid`] to a DICOM RT Dose Storage file at `path`.
 ///
@@ -57,13 +58,7 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
         );
     }
 
-    static RT_DOSE_UID_COUNTER: AtomicU64 = AtomicU64::new(0);
-    let t = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64;
-    let n = RT_DOSE_UID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let sop_instance_uid = format!("2.25.{}.{}", t, n);
+    let sop_instance_uid = generate_series_uid();
 
     let inv_scaling = 1.0 / grid.dose_grid_scaling;
     let mut pixel_bytes: Vec<u8> = Vec::with_capacity(expected_voxels * 4);
@@ -137,12 +132,12 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
     obj.put(DataElement::new(
         Tag(0x3004, 0x0002),
         VR::CS,
-        PrimitiveValue::from(grid.dose_summation_type.as_str()),
+        PrimitiveValue::from(grid.dose_summation_type.as_dicom_str()),
     ));
     obj.put(DataElement::new(
         Tag(0x3004, 0x0004),
         VR::CS,
-        PrimitiveValue::from(grid.dose_type.as_str()),
+        PrimitiveValue::from(grid.dose_type.as_dicom_str()),
     ));
     obj.put(DataElement::new(
         Tag(0x3004, 0x000E),
@@ -228,7 +223,7 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
         FileMetaTableBuilder::new()
             .media_storage_sop_class_uid(RT_DOSE_SOP_CLASS_UID)
             .media_storage_sop_instance_uid(sop_instance_uid.as_str())
-            .transfer_syntax("1.2.840.10008.1.2.1"),
+            .transfer_syntax(EXPLICIT_VR_LE),
     )
     .with_context(|| "build RT Dose file meta")?
     .write_to_file(path)

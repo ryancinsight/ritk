@@ -9,8 +9,10 @@
 //! Reference: VTK File Formats (legacy) section 4.5, Kitware Inc.
 
 use crate::domain::vtk_data_object::{AttributeArray, VtkCellType, VtkUnstructuredGrid};
+use crate::io::legacy_write_attribute::write_attribute_legacy;
+use crate::io::read_helpers::{parse_cells_from_ints, read_ascii, read_binary_be, read_line};
 use anyhow::{anyhow, bail, Context, Result};
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 
 /// Read a VTK legacy UNSTRUCTURED_GRID file from disk.
@@ -58,7 +60,6 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
 
     let mut grid = VtkUnstructuredGrid::default();
     let mut in_point_data = false;
-    let mut in_cell_data = false;
     let mut pd_n: usize = 0;
     let mut cd_n: usize = 0;
     let mut psc: Option<(String, usize, bool)> = None;
@@ -73,9 +74,9 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
             }
             let n = if ip { pd_n } else { cd_n };
             let vals = if binary {
-                read_binary_f32(reader, n * nc)?
+                read_binary_be::<f32>(reader, n * nc, "f32")?
             } else {
-                read_ascii_f32(reader, n * nc)?
+                read_ascii::<f32>(reader, n * nc, "f32")?
             };
             let arr = AttributeArray::Scalars {
                 values: vals,
@@ -92,9 +93,9 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
         if let Some((nm, ip)) = pvc.take() {
             let n = if ip { pd_n } else { cd_n };
             let flat = if binary {
-                read_binary_f32(reader, n * 3)?
+                read_binary_be::<f32>(reader, n * 3, "f32")?
             } else {
-                read_ascii_f32(reader, n * 3)?
+                read_ascii::<f32>(reader, n * 3, "f32")?
             };
             let v: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             if ip {
@@ -110,9 +111,9 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
         if let Some((nm, ip)) = pnc.take() {
             let n = if ip { pd_n } else { cd_n };
             let flat = if binary {
-                read_binary_f32(reader, n * 3)?
+                read_binary_be::<f32>(reader, n * 3, "f32")?
             } else {
-                read_ascii_f32(reader, n * 3)?
+                read_ascii::<f32>(reader, n * 3, "f32")?
             };
             let v: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             if ip {
@@ -143,23 +144,23 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
                 .unwrap_or(false);
             grid.points = if binary {
                 if dbl {
-                    let r = read_binary_f64(reader, n * 3)?;
+                    let r = read_binary_be::<f64>(reader, n * 3, "f64")?;
                     r.chunks_exact(3)
                         .map(|c| [c[0] as f32, c[1] as f32, c[2] as f32])
                         .collect()
                 } else {
-                    let r = read_binary_f32(reader, n * 3)?;
+                    let r = read_binary_be::<f32>(reader, n * 3, "f32")?;
                     r.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
                 }
             } else {
-                let r = read_ascii_f32(reader, n * 3)?;
+                let r = read_ascii::<f32>(reader, n * 3, "f32")?;
                 r.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
             };
         } else if upper.starts_with("CELLS") {
             let nc: usize = toks[1].parse().with_context(|| "bad CELLS count")?;
             let sz: usize = toks[2].parse().with_context(|| "bad CELLS size")?;
             grid.cells = if binary {
-                parse_cells_from_ints(&read_binary_i32(reader, sz)?, nc)?
+                parse_cells_from_ints(&read_binary_be::<i32>(reader, sz, "i32")?, nc)?
             } else {
                 let mut cells = Vec::with_capacity(nc);
                 for _ in 0..nc {
@@ -180,7 +181,7 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
         } else if upper.starts_with("CELL_TYPES") {
             let n: usize = toks[1].parse().with_context(|| "bad CELL_TYPES count")?;
             grid.cell_types = if binary {
-                read_binary_i32(reader, n)?
+                read_binary_be::<i32>(reader, n, "i32")?
                     .iter()
                     .map(|&v| {
                         VtkCellType::try_from(v as u8).unwrap_or_else(|_| {
@@ -210,10 +211,8 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
         } else if upper.starts_with("POINT_DATA") {
             pd_n = toks.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
             in_point_data = true;
-            in_cell_data = false;
         } else if upper.starts_with("CELL_DATA") {
             cd_n = toks.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-            in_cell_data = true;
             in_point_data = false;
         } else if upper.starts_with("SCALARS") {
             if toks.len() < 3 {
@@ -226,29 +225,11 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
         } else if upper.starts_with("NORMALS") {
             pnc = Some((toks[1].to_string(), in_point_data));
         }
-        let _ = (in_cell_data, in_point_data);
+        // Unknown keywords silently skipped for forward compatibility.
     }
 
     grid.validate().map_err(|e| anyhow!("{}", e))?;
     Ok(grid)
-}
-
-fn parse_cells_from_ints(ints: &[i32], n: usize) -> Result<Vec<Vec<u32>>> {
-    let mut cells = Vec::with_capacity(n);
-    let mut pos = 0;
-    for _ in 0..n {
-        if pos >= ints.len() {
-            bail!("truncated CELLS");
-        }
-        let c = ints[pos] as usize;
-        pos += 1;
-        if pos + c > ints.len() {
-            bail!("cell overrun");
-        }
-        cells.push(ints[pos..pos + c].iter().map(|&i| i as u32).collect());
-        pos += c;
-    }
-    Ok(cells)
 }
 
 fn write_unstructured_grid(w: &mut dyn Write, grid: &VtkUnstructuredGrid) -> Result<()> {
@@ -282,125 +263,18 @@ fn write_unstructured_grid(w: &mut dyn Write, grid: &VtkUnstructuredGrid) -> Res
     if !grid.point_data.is_empty() {
         writeln!(w, "POINT_DATA {}", np)?;
         for (name, attr) in &grid.point_data {
-            write_attribute(w, name, attr)?;
+            write_attribute_legacy(w, name, attr)?;
         }
     }
 
     if !grid.cell_data.is_empty() {
         writeln!(w, "CELL_DATA {}", nc)?;
         for (name, attr) in &grid.cell_data {
-            write_attribute(w, name, attr)?;
+            write_attribute_legacy(w, name, attr)?;
         }
     }
 
     Ok(())
-}
-
-fn write_attribute(w: &mut dyn Write, name: &str, attr: &AttributeArray) -> Result<()> {
-    match attr {
-        AttributeArray::Scalars {
-            values,
-            num_components,
-        } => {
-            writeln!(w, "SCALARS {} float {}", name, num_components)?;
-            writeln!(w, "LOOKUP_TABLE default")?;
-            for v in values {
-                writeln!(w, "{}", v)?;
-            }
-        }
-        AttributeArray::Vectors { values } => {
-            writeln!(w, "VECTORS {} float", name)?;
-            for [x, y, z] in values {
-                writeln!(w, "{} {} {}", x, y, z)?;
-            }
-        }
-        AttributeArray::Normals { values } => {
-            writeln!(w, "NORMALS {} float", name)?;
-            for [x, y, z] in values {
-                writeln!(w, "{} {} {}", x, y, z)?;
-            }
-        }
-        AttributeArray::TextureCoords { values, dim } => {
-            writeln!(w, "TEXTURE_COORDINATES {} float {}", name, dim)?;
-            for chunk in values.chunks(*dim) {
-                let p: Vec<String> = chunk.iter().map(|v| v.to_string()).collect();
-                writeln!(w, "{}", p.join(" "))?;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn read_line(reader: &mut dyn BufRead) -> Result<Option<String>> {
-    let mut buf = String::new();
-    loop {
-        buf.clear();
-        let n = reader.read_line(&mut buf)?;
-        if n == 0 {
-            return Ok(None);
-        }
-        let t = buf.trim();
-        if !t.is_empty() {
-            return Ok(Some(t.to_owned()));
-        }
-    }
-}
-
-fn read_ascii_f32(reader: &mut dyn BufRead, count: usize) -> Result<Vec<f32>> {
-    let mut out = Vec::with_capacity(count);
-    let mut buf = String::new();
-    while out.len() < count {
-        buf.clear();
-        if reader.read_line(&mut buf)? == 0 {
-            break;
-        }
-        for tok in buf.split_whitespace() {
-            if out.len() >= count {
-                break;
-            }
-            out.push(
-                tok.parse::<f32>()
-                    .with_context(|| format!("bad f32: {}", tok))?,
-            );
-        }
-    }
-    if out.len() != count {
-        bail!("expected {} f32, got {}", count, out.len());
-    }
-    Ok(out)
-}
-
-fn read_binary_f32(reader: &mut dyn Read, count: usize) -> Result<Vec<f32>> {
-    let mut buf = vec![0u8; count * 4];
-    reader
-        .read_exact(&mut buf)
-        .with_context(|| format!("trunc f32 (need {})", count))?;
-    Ok(buf
-        .chunks_exact(4)
-        .map(|c| f32::from_be_bytes([c[0], c[1], c[2], c[3]]))
-        .collect())
-}
-
-fn read_binary_f64(reader: &mut dyn Read, count: usize) -> Result<Vec<f64>> {
-    let mut buf = vec![0u8; count * 8];
-    reader
-        .read_exact(&mut buf)
-        .with_context(|| format!("trunc f64 (need {})", count))?;
-    Ok(buf
-        .chunks_exact(8)
-        .map(|c| f64::from_be_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]]))
-        .collect())
-}
-
-fn read_binary_i32(reader: &mut dyn Read, count: usize) -> Result<Vec<i32>> {
-    let mut buf = vec![0u8; count * 4];
-    reader
-        .read_exact(&mut buf)
-        .with_context(|| format!("trunc i32 (need {})", count))?;
-    Ok(buf
-        .chunks_exact(4)
-        .map(|c| i32::from_be_bytes([c[0], c[1], c[2], c[3]]))
-        .collect())
 }
 
 #[cfg(test)]

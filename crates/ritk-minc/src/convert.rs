@@ -8,7 +8,7 @@
 use anyhow::{bail, Result};
 use consus_core::Datatype;
 
-/// Convert raw bytes to `Vec<f32>` based on the HDF5 datatype.
+/// Decode raw bytes to `Vec<f32>` based on the HDF5 datatype.
 ///
 /// # Supported Types
 ///
@@ -27,7 +27,7 @@ use consus_core::Datatype;
 /// # Errors
 ///
 /// Returns `Err` for unsupported or variable-length data types.
-pub fn convert_to_f32(raw: &[u8], dtype: &Datatype) -> Result<Vec<f32>> {
+pub fn decode_raw_bytes(raw: &[u8], dtype: &Datatype) -> Result<Vec<f32>> {
     use consus_core::ByteOrder;
 
     match dtype {
@@ -162,7 +162,7 @@ mod tests {
             bits: NonZeroUsize::new(32).unwrap(),
             byte_order: consus_core::ByteOrder::LittleEndian,
         };
-        let result = convert_to_f32(&raw, &dtype).unwrap();
+        let result = decode_raw_bytes(&raw, &dtype).unwrap();
         assert_eq!(result.len(), 1);
         assert!((result[0] - 3.14).abs() < 1e-5);
     }
@@ -175,7 +175,7 @@ mod tests {
             bits: NonZeroUsize::new(32).unwrap(),
             byte_order: consus_core::ByteOrder::BigEndian,
         };
-        let result = convert_to_f32(&raw, &dtype).unwrap();
+        let result = decode_raw_bytes(&raw, &dtype).unwrap();
         assert_eq!(result.len(), 1);
         assert!((result[0] - 2.71).abs() < 1e-5);
     }
@@ -188,7 +188,7 @@ mod tests {
             bits: NonZeroUsize::new(64).unwrap(),
             byte_order: consus_core::ByteOrder::LittleEndian,
         };
-        let result = convert_to_f32(&raw, &dtype).unwrap();
+        let result = decode_raw_bytes(&raw, &dtype).unwrap();
         assert_eq!(result.len(), 1);
         assert!((result[0] - 1.234_567_9_f32).abs() < 1e-5);
     }
@@ -201,7 +201,7 @@ mod tests {
             byte_order: consus_core::ByteOrder::LittleEndian,
             signed: false,
         };
-        let result = convert_to_f32(&raw, &dtype).unwrap();
+        let result = decode_raw_bytes(&raw, &dtype).unwrap();
         assert_eq!(result, vec![0.0, 128.0, 255.0]);
     }
 
@@ -213,7 +213,7 @@ mod tests {
             byte_order: consus_core::ByteOrder::LittleEndian,
             signed: true,
         };
-        let result = convert_to_f32(&raw, &dtype).unwrap();
+        let result = decode_raw_bytes(&raw, &dtype).unwrap();
         assert_eq!(result, vec![0.0, 127.0, -128.0]);
     }
 
@@ -229,14 +229,14 @@ mod tests {
             byte_order: consus_core::ByteOrder::LittleEndian,
             signed: true,
         };
-        let result = convert_to_f32(&raw, &dtype).unwrap();
+        let result = decode_raw_bytes(&raw, &dtype).unwrap();
         assert_eq!(result, vec![0.0, 32767.0, -32768.0]);
     }
 
     #[test]
     fn convert_boolean_maps_nonzero_to_one() {
         let raw = vec![0u8, 1, 0, 255];
-        let result = convert_to_f32(&raw, &Datatype::Boolean).unwrap();
+        let result = decode_raw_bytes(&raw, &Datatype::Boolean).unwrap();
         assert_eq!(result, vec![0.0, 1.0, 0.0, 1.0]);
     }
 
@@ -245,7 +245,7 @@ mod tests {
         let dtype = Datatype::VariableString {
             encoding: consus_core::StringEncoding::Utf8,
         };
-        assert!(convert_to_f32(&[], &dtype).is_err());
+        assert!(decode_raw_bytes(&[], &dtype).is_err());
     }
 
     #[test]
@@ -256,7 +256,7 @@ mod tests {
             bits: NonZeroUsize::new(32).unwrap(),
             byte_order: consus_core::ByteOrder::LittleEndian,
         };
-        let result = convert_to_f32(&raw, &dtype).unwrap();
+        let result = decode_raw_bytes(&raw, &dtype).unwrap();
         assert_eq!(result.len(), 5);
         for (i, &expected) in values.iter().enumerate() {
             assert_eq!(

@@ -5,6 +5,9 @@ use super::ctrl_dims::ControlGridDims;
 use super::volume_dims::VolumeDims;
 use crate::deformable_field_ops::{compute_gradient_into, flat};
 
+/// Minimum sigma for NCC computation; prevents denominator collapse.
+pub(super) const NCC_SIGMA_GUARD: f64 = 1e-12;
+
 /// Compute global normalized cross-correlation between two images.
 ///
 /// ```text
@@ -35,7 +38,7 @@ pub(super) fn compute_ncc(fixed: &[f32], warped: &[f32]) -> f64 {
     }
 
     let denom = (sum_ff * sum_ww).sqrt();
-    if denom < 1e-12 {
+    if denom < NCC_SIGMA_GUARD {
         return 0.0;
     }
     sum_fw / denom
@@ -174,7 +177,7 @@ pub(super) fn compute_metric_gradient_fast_into(
     }
     let sigma_f = (sum_ff / nf).sqrt();
     let sigma_w = (sum_ww / nf).sqrt();
-    let rho = if sigma_f * sigma_w > 1e-12 {
+    let rho = if sigma_f * sigma_w > NCC_SIGMA_GUARD {
         sum_fw / (nf * sigma_f * sigma_w)
     } else {
         0.0
@@ -190,17 +193,21 @@ pub(super) fn compute_metric_gradient_fast_into(
         &mut scratch.gw_x,
     );
 
-    let inv_n_sigma_f = if sigma_f > 1e-12 {
+    let inv_n_sigma_f = if sigma_f > NCC_SIGMA_GUARD {
         1.0 / (nf * sigma_f)
     } else {
         0.0
     };
-    let inv_n_sigma_w = if sigma_w > 1e-12 {
+    let inv_n_sigma_w = if sigma_w > NCC_SIGMA_GUARD {
         1.0 / (nf * sigma_w)
     } else {
         0.0
     };
-    let inv_sigma_w = if sigma_w > 1e-12 { 1.0 / sigma_w } else { 0.0 };
+    let inv_sigma_w = if sigma_w > NCC_SIGMA_GUARD {
+        1.0 / sigma_w
+    } else {
+        0.0
+    };
 
     // Interior ranges.
     let (iz_lo, iz_hi) = cache.interior_z_range(cnz);

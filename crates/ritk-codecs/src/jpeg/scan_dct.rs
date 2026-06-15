@@ -12,12 +12,13 @@ use anyhow::{bail, Context, Result};
 
 use super::backend::{JpegDecoded, JpegPixelFormat};
 use super::color::ycbcr_to_rgb;
+use super::constants::{DCT_BLOCK_CELLS, DCT_BLOCK_DIM};
 use super::huffman::{receive_and_extend, BitReader};
 use super::idct::idct_8x8;
 use super::marker::{JpegFrameData, SOF0, SOF1};
 
 /// Natural zigzag-to-raster reorder (T.81 §A.3.6).
-const ZIGZAG: [usize; 64] = [
+const ZIGZAG: [usize; DCT_BLOCK_CELLS] = [
     0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20,
     13, 6, 7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59,
     52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63,
@@ -56,11 +57,11 @@ fn decode_block(
     let dc = *prev_dc;
 
     // Decode AC coefficients (T.81 §F.2.2.2)
-    let mut coeffs_zigzag = [0i16; 64];
+    let mut coeffs_zigzag = [0i16; DCT_BLOCK_CELLS];
     coeffs_zigzag[0] = dc as i16;
 
     let mut k = 1usize;
-    while k < 64 {
+    while k < DCT_BLOCK_CELLS {
         let rs = ac_table.decode(reader)?;
         let run = (rs >> 4) as usize;
         let size = rs & 0x0F;
@@ -72,7 +73,7 @@ fn decode_block(
             }
         } else {
             k += run;
-            if k >= 64 {
+            if k >= DCT_BLOCK_CELLS {
                 break;
             }
             let val = receive_and_extend(reader, size)?;
@@ -82,7 +83,7 @@ fn decode_block(
     }
 
     // Dequantize: multiply by quantization table in zigzag order, place in raster order
-    let mut coeffs_raster = [0i16; 64];
+    let mut coeffs_raster = [0i16; DCT_BLOCK_CELLS];
     for (zz, &qval) in quant.values.iter().enumerate() {
         let raster = ZIGZAG[zz];
         coeffs_raster[raster] = coeffs_zigzag[zz].saturating_mul(qval as i16);
@@ -92,15 +93,15 @@ fn decode_block(
 }
 
 /// Apply 8×8 IDCT to a block of quantized coefficients and level-shift.
-fn reconstruct_block(coeffs: &[i16; 64], precision: u8) -> [u8; 64] {
-    let mut block = [0.0f32; 64];
+fn reconstruct_block(coeffs: &[i16; DCT_BLOCK_CELLS], precision: u8) -> [u8; DCT_BLOCK_CELLS] {
+    let mut block = [0.0f32; DCT_BLOCK_CELLS];
     for (i, &c) in coeffs.iter().enumerate() {
         block[i] = c as f32;
     }
     idct_8x8(&mut block);
     let level_shift = (1 << (precision - 1)) as f32;
     let maxval = ((1 << precision) - 1) as f32;
-    let mut out = [0u8; 64];
+    let mut out = [0u8; DCT_BLOCK_CELLS];
     for (i, v) in block.iter().enumerate() {
         let shifted = v + level_shift;
         out[i] = shifted.clamp(0.0, maxval) as u8;
@@ -168,8 +169,8 @@ fn decode_baseline_grayscale(
     let fc_idx = comp_by_id(scan_comp.id)?;
     let fc = &frame.sof.components[fc_idx];
 
-    let blocks_x = width.div_ceil(8);
-    let blocks_y = height.div_ceil(8);
+    let blocks_x = width.div_ceil(DCT_BLOCK_DIM);
+    let blocks_y = height.div_ceil(DCT_BLOCK_DIM);
     let mut pixels = vec![0u8; width * height];
     let mut prev_dc = 0i32;
     let mut reader = BitReader::new(entropy_data);
@@ -186,17 +187,17 @@ fn decode_baseline_grayscale(
             )?;
             let block = reconstruct_block(&coeffs, frame.sof.precision);
             // Write 8×8 block into output, clamping to image bounds
-            for r in 0..8 {
-                let py = by * 8 + r;
+            for r in 0..DCT_BLOCK_DIM {
+                let py = by * DCT_BLOCK_DIM + r;
                 if py >= height {
                     break;
                 }
-                for c in 0..8 {
-                    let px = bx * 8 + c;
+                for c in 0..DCT_BLOCK_DIM {
+                    let px = bx * DCT_BLOCK_DIM + c;
                     if px >= width {
                         break;
                     }
-                    pixels[py * width + px] = block[r * 8 + c];
+                    pixels[py * width + px] = block[r * DCT_BLOCK_DIM + c];
                 }
             }
         }
@@ -232,8 +233,8 @@ fn decode_baseline_ycbcr(
         }
     }
 
-    let mcu_width = 8 * max_h as usize;
-    let mcu_height = 8 * max_v as usize;
+    let mcu_width = DCT_BLOCK_DIM * max_h as usize;
+    let mcu_height = DCT_BLOCK_DIM * max_v as usize;
     let mcus_x = width.div_ceil(mcu_width);
     let mcus_y = height.div_ceil(mcu_height);
     let total_width = mcus_x * mcu_width;
@@ -271,15 +272,16 @@ fn decode_baseline_ycbcr(
                         // Component (ci) has sampling h_samp:max_h, v_samp:max_v.
                         // Each MCU has max_h*8 × max_v*8 pixels at full resolution.
                         // Component ci's sub-blocks map to that MCU region.
-                        let base_x = mcu_x * max_h as usize * 8 + bh * 8;
-                        let base_y = mcu_y * max_v as usize * 8 + bv * 8;
+                        let base_x = mcu_x * max_h as usize * DCT_BLOCK_DIM + bh * DCT_BLOCK_DIM;
+                        let base_y = mcu_y * max_v as usize * DCT_BLOCK_DIM + bv * DCT_BLOCK_DIM;
 
-                        for r in 0..8 {
-                            for c in 0..8 {
+                        for r in 0..DCT_BLOCK_DIM {
+                            for c in 0..DCT_BLOCK_DIM {
                                 let px = base_x + c;
                                 let py = base_y + r;
                                 if px < total_width && py < total_height {
-                                    planes[ci][py * total_width + px] = block[r * 8 + c];
+                                    planes[ci][py * total_width + px] =
+                                        block[r * DCT_BLOCK_DIM + c];
                                 }
                             }
                         }

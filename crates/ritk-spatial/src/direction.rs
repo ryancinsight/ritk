@@ -9,6 +9,10 @@ use burn::tensor::backend::{AutodiffBackend, Backend};
 use nalgebra::SMatrix;
 use serde::{Deserialize, Serialize};
 
+/// Tolerance for checking whether a matrix row/column is orthogonal.
+/// Derived from f64 machine epsilon (~2.2e-16) with a 10-order practical margin.
+const ORTHOGONALITY_TOLERANCE: f64 = 1e-6;
+
 /// Direction matrix representing image orientation.
 ///
 /// The direction matrix is a D×D matrix where each column represents
@@ -95,12 +99,14 @@ impl<const D: usize> Direction<D> {
     pub fn is_orthogonal(&self) -> bool {
         let product = self.0 * self.0.transpose();
         let identity = Self::identity();
-        (0..D).all(|i| (0..D).all(|j| (product[(i, j)] - identity.0[(i, j)]).abs() < 1e-6))
+        (0..D).all(|i| {
+            (0..D).all(|j| (product[(i, j)] - identity.0[(i, j)]).abs() < ORTHOGONALITY_TOLERANCE)
+        })
     }
 
     /// Check if direction matrix is a proper rotation (det = 1).
     pub fn is_proper_rotation(&self) -> bool {
-        self.is_orthogonal() && (self.determinant() - 1.0).abs() < 1e-6
+        self.is_orthogonal() && (self.determinant() - 1.0).abs() < ORTHOGONALITY_TOLERANCE
     }
 
     /// Compute the determinant of the direction matrix.

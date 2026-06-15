@@ -70,8 +70,6 @@ pub enum DicomAssociationState {
 
 pub struct Association {
     stream: TcpStream,
-    #[allow(dead_code)]
-    config: AssociationConfig,
     negotiated_contexts: Vec<NegotiatedContext>,
     next_context_id: u8,
     pub remote_max_pdu_length: u32,
@@ -127,7 +125,6 @@ impl Association {
         let num_contexts = config.presentation_contexts.len();
         let mut assoc = Self {
             stream,
-            config,
             negotiated_contexts: Vec::with_capacity(num_contexts),
             next_context_id: next_id,
             remote_max_pdu_length: DEFAULT_MAXIMUM_LENGTH,

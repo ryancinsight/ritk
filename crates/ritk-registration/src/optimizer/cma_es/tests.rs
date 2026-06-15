@@ -15,7 +15,7 @@ fn test_default_population_size() {
 }
 
 #[test]
-fn test_sphere_convergence_5d() {
+fn sphere_function_converges_within_budget() {
     // Sphere in 5D: CMA-ES should converge to ‖x‖ < 1e-3 within 2000 generations
     let x0 = vec![3.0, -2.0, 1.5, -1.0, 0.5];
     let opt = CmaEsOptimizer::new(CmaEsConfig {

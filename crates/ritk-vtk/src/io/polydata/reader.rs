@@ -13,8 +13,9 @@
 //! BINARY: big-endian encoding -- f32/f64 for coordinates, i32 for cell indices.
 
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
+use crate::io::read_helpers::{parse_cells_from_ints, read_ascii, read_binary_be, read_line};
 use anyhow::{bail, Context, Result};
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 /// Read a VTK legacy POLYDATA file from disk.
@@ -52,7 +53,6 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
 
     let mut poly = VtkPolyData::default();
     let mut in_point_data = false;
-    let mut in_cell_data = false;
     // Track what is expected next after a SCALARS header
     let mut pending_scalars: Option<(String, usize, bool)> = None; // (name, ncomp, is_point_data)
     let mut pending_vectors: Option<(String, bool)> = None; // (name, is_point_data)
@@ -72,9 +72,9 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
             };
             let total = n * ncomp;
             let values = if binary {
-                read_binary_f32(reader, total)?
+                read_binary_be::<f32>(reader, total, "f32")?
             } else {
-                read_ascii_f32(reader, total)?
+                read_ascii::<f32>(reader, total, "f32")?
             };
             let arr = AttributeArray::Scalars {
                 values,
@@ -94,9 +94,9 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
                 poly.num_cells()
             };
             let flat = if binary {
-                read_binary_f32(reader, n * 3)?
+                read_binary_be::<f32>(reader, n * 3, "f32")?
             } else {
-                read_ascii_f32(reader, n * 3)?
+                read_ascii::<f32>(reader, n * 3, "f32")?
             };
             let values: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             let arr = AttributeArray::Vectors { values };
@@ -114,9 +114,9 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
                 poly.num_cells()
             };
             let flat = if binary {
-                read_binary_f32(reader, n * 3)?
+                read_binary_be::<f32>(reader, n * 3, "f32")?
             } else {
-                read_ascii_f32(reader, n * 3)?
+                read_ascii::<f32>(reader, n * 3, "f32")?
             };
             let values: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             let arr = AttributeArray::Normals { values };
@@ -149,16 +149,16 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
                 .unwrap_or(false);
             poly.points = if binary {
                 if is_double {
-                    let raw = read_binary_f64(reader, n * 3)?;
+                    let raw = read_binary_be::<f64>(reader, n * 3, "f64")?;
                     raw.chunks_exact(3)
                         .map(|c| [c[0] as f32, c[1] as f32, c[2] as f32])
                         .collect()
                 } else {
-                    let raw = read_binary_f32(reader, n * 3)?;
+                    let raw = read_binary_be::<f32>(reader, n * 3, "f32")?;
                     raw.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
                 }
             } else {
-                let raw = read_ascii_f32(reader, n * 3)?;
+                let raw = read_ascii::<f32>(reader, n * 3, "f32")?;
                 raw.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
             };
         } else if upper.starts_with("POLYGONS") {
@@ -171,9 +171,7 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
             poly.triangle_strips = read_cell_section(reader, &tokens, binary)?;
         } else if upper.starts_with("POINT_DATA") {
             in_point_data = true;
-            in_cell_data = false;
         } else if upper.starts_with("CELL_DATA") {
-            in_cell_data = true;
             in_point_data = false;
         } else if upper.starts_with("SCALARS") {
             if tokens.len() < 3 {
@@ -196,111 +194,12 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
             // Standalone LOOKUP_TABLE outside SCALARS context: skip.
         }
         // Unknown lines are skipped for forward compatibility.
-        let _ = (in_cell_data, in_point_data);
     }
 
     Ok(poly)
 }
 
-// ── Internal I/O helpers ──────────────────────────────────────────────────────
-
-fn read_line(reader: &mut dyn BufRead) -> Result<Option<String>> {
-    let mut buf = String::new();
-    loop {
-        buf.clear();
-        let n = reader.read_line(&mut buf)?;
-        if n == 0 {
-            return Ok(None);
-        }
-        let trimmed = buf.trim();
-        if !trimmed.is_empty() {
-            return Ok(Some(trimmed.to_owned()));
-        }
-    }
-}
-
-fn read_ascii_f32(reader: &mut dyn BufRead, count: usize) -> Result<Vec<f32>> {
-    let mut out = Vec::with_capacity(count);
-    let mut buf = String::new();
-    while out.len() < count {
-        buf.clear();
-        let n = reader.read_line(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        for tok in buf.split_whitespace() {
-            if out.len() >= count {
-                break;
-            }
-            let v: f32 = tok
-                .parse()
-                .with_context(|| format!("bad f32 token '{}'", tok))?;
-            out.push(v);
-        }
-    }
-    if out.len() != count {
-        bail!("expected {} f32 values, got {}", count, out.len());
-    }
-    Ok(out)
-}
-
-fn read_ascii_i32(reader: &mut dyn BufRead, count: usize) -> Result<Vec<i32>> {
-    let mut out = Vec::with_capacity(count);
-    let mut buf = String::new();
-    while out.len() < count {
-        buf.clear();
-        let n = reader.read_line(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        for tok in buf.split_whitespace() {
-            if out.len() >= count {
-                break;
-            }
-            let v: i32 = tok
-                .parse()
-                .with_context(|| format!("bad i32 token '{}'", tok))?;
-            out.push(v);
-        }
-    }
-    if out.len() != count {
-        bail!("expected {} i32 values, got {}", count, out.len());
-    }
-    Ok(out)
-}
-
-fn read_binary_f32(reader: &mut dyn Read, count: usize) -> Result<Vec<f32>> {
-    let mut buf = vec![0u8; count * 4];
-    reader
-        .read_exact(&mut buf)
-        .with_context(|| format!("truncated binary f32 (need {} values)", count))?;
-    Ok(buf
-        .chunks_exact(4)
-        .map(|c| f32::from_be_bytes([c[0], c[1], c[2], c[3]]))
-        .collect())
-}
-
-fn read_binary_f64(reader: &mut dyn Read, count: usize) -> Result<Vec<f64>> {
-    let mut buf = vec![0u8; count * 8];
-    reader
-        .read_exact(&mut buf)
-        .with_context(|| format!("truncated binary f64 (need {} values)", count))?;
-    Ok(buf
-        .chunks_exact(8)
-        .map(|c| f64::from_be_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]]))
-        .collect())
-}
-
-fn read_binary_i32(reader: &mut dyn Read, count: usize) -> Result<Vec<i32>> {
-    let mut buf = vec![0u8; count * 4];
-    reader
-        .read_exact(&mut buf)
-        .with_context(|| format!("truncated binary i32 (need {} values)", count))?;
-    Ok(buf
-        .chunks_exact(4)
-        .map(|c| i32::from_be_bytes([c[0], c[1], c[2], c[3]]))
-        .collect())
-}
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
 /// Parse a cell section (POLYGONS, LINES, VERTICES, or TRIANGLE_STRIPS).
 ///
@@ -321,31 +220,10 @@ fn read_cell_section(
         .with_context(|| "bad cell section total_size")?;
 
     if binary {
-        let ints = read_binary_i32(reader, total_size)?;
-        parse_cells_from_ints(&ints, n_cells)
+        parse_cells_from_ints(&read_binary_be::<i32>(reader, total_size, "i32")?, n_cells)
     } else {
-        let ints = read_ascii_i32(reader, total_size)?;
-        parse_cells_from_ints(&ints, n_cells)
+        parse_cells_from_ints(&read_ascii::<i32>(reader, total_size, "i32")?, n_cells)
     }
-}
-
-fn parse_cells_from_ints(ints: &[i32], n_cells: usize) -> Result<Vec<Vec<u32>>> {
-    let mut cells = Vec::with_capacity(n_cells);
-    let mut pos = 0;
-    for _ in 0..n_cells {
-        if pos >= ints.len() {
-            bail!("truncated cell data");
-        }
-        let count = ints[pos] as usize;
-        pos += 1;
-        if pos + count > ints.len() {
-            bail!("cell overruns data buffer");
-        }
-        let cell: Vec<u32> = ints[pos..pos + count].iter().map(|&i| i as u32).collect();
-        cells.push(cell);
-        pos += count;
-    }
-    Ok(cells)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

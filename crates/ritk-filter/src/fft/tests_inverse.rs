@@ -70,7 +70,7 @@ fn make_complex_3d(data: Vec<f32>, depth: usize, h: usize, w_complex: usize) -> 
 ///
 /// `w_real = w_complex / 2 = 12 / 2 = 6`.
 #[test]
-fn output_shape_2d() {
+fn output_shape_preserved_after_inverse() {
     let data = vec![0.0_f32; 4 * 12];
     let img = make_complex_2d(data, 4, 12);
     let result = InverseFftFilter::new().apply(&img).unwrap();
@@ -85,7 +85,7 @@ fn output_shape_2d() {
 ///
 /// `w_real = w_complex / 2 = 12 / 2 = 6`.
 #[test]
-fn output_shape_3d() {
+fn output_shape_preserved_after_inverse_volume() {
     let data = vec![0.0_f32; 3 * 4 * 12];
     let img = make_complex_3d(data, 3, 4, 12);
     let result = InverseFftFilter::new().apply(&img).unwrap();
@@ -133,7 +133,7 @@ fn all_zero_complex_image_gives_zero_real() {
 /// Expected output: every pixel equals 1.0 (within 1e-4), per the DC derivation
 /// in the module-level proof.
 #[test]
-fn dc_only_complex_image_2d() {
+fn dc_only_complex_input_reconstructs_to_constant() {
     // Complex image shape [4, 8] = [H, 2*W] with H=4, W=4.
     // data[0] = Re(F[0,0]) = 16.0  (= H*W)
     // data[1] = Im(F[0,0]) = 0.0

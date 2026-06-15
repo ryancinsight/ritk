@@ -2,6 +2,7 @@ use super::state::SeriesLoadTarget;
 use super::state::SnapApp;
 use crate::tools::interaction::ToolState;
 use crate::tools::kind::ToolKind;
+use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 #[cfg(not(target_arch = "wasm32"))]
 use rfd::FileDialog;
@@ -198,8 +199,13 @@ impl SnapApp {
                             }
                             ui.separator();
                             ui.label("Secondary W/L");
-                            let mut c = self.secondary_window_center.unwrap_or(128.0);
-                            let mut w = self.secondary_window_width.unwrap_or(256.0).max(1.0);
+                            let mut c = self
+                                .secondary_window_center
+                                .unwrap_or(DEFAULT_WINDOW_CENTER);
+                            let mut w = self
+                                .secondary_window_width
+                                .unwrap_or(DEFAULT_WINDOW_WIDTH)
+                                .max(1.0);
                             let c_changed = ui
                                 .add(
                                     egui::DragValue::new(&mut c)

@@ -38,6 +38,10 @@ use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
 
+/// Weight magnitude below which a Lanczos kernel sample is treated as zero.
+/// Derived from f32 epsilon (~1.2e-7) with a 3-order safety margin.
+const LANCZOS_WEIGHT_EPS: f32 = 1e-10;
+
 /// Lanczos-windowed Sinc interpolator.
 ///
 /// Implements high-quality bandlimited interpolation using the Lanczos kernel.
@@ -181,7 +185,7 @@ pub(crate) fn compute_lanczos_weights<const A: usize>(
         // Bounds check: only include valid indices
         if idx >= 0 && (idx as usize) < dim_size {
             let weight = lanczos_kernel::<A>(x);
-            if weight.abs() > 1e-10 {
+            if weight.abs() > LANCZOS_WEIGHT_EPS {
                 weights.push((idx, weight));
             }
         }
@@ -250,7 +254,7 @@ fn interpolate_point_3d_flat<const A: usize>(
     // Normalize by weight sum to handle boundary effects
     // This ensures reconstruction fidelity even when some kernel samples
     // fall outside the image bounds
-    if weight_sum.abs() > 1e-10 {
+    if weight_sum.abs() > LANCZOS_WEIGHT_EPS {
         result / weight_sum
     } else {
         0.0
@@ -303,7 +307,7 @@ fn interpolate_point_2d_flat<const A: usize>(
         }
     }
 
-    if weight_sum.abs() > 1e-10 {
+    if weight_sum.abs() > LANCZOS_WEIGHT_EPS {
         result / weight_sum
     } else {
         0.0

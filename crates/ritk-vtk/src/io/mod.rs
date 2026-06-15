@@ -34,6 +34,9 @@ pub use mesh_indexed::{
     write_indexed_ply, write_indexed_stl_ascii, write_indexed_stl_binary,
 };
 
+pub(crate) mod legacy_write_attribute;
+pub(crate) mod read_helpers;
+pub(crate) mod xml_helpers;
 pub mod xml_write_attr;
 
 pub mod reader;

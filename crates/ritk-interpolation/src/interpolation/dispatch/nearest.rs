@@ -159,5 +159,3 @@ impl<B: Backend, const D: usize> DispatchNearest3DTyped<B, D> for Tensor<B, D> {
         }
     }
 }
-
-

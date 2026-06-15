@@ -2,7 +2,8 @@ use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::reader::read_vti_binary_appended_bytes;
 use crate::io::image_xml::writer::write_vti_binary_appended_bytes;
 
-/// Invariant: the reader correctly parses a CellData array from
+/// Invariant: the reader correctly parses a CellData array from a
+/// binary-appended VTI byte buffer and returns it with exact scalar values.
 
 #[test]
 #[allow(clippy::approx_constant)]

@@ -15,7 +15,7 @@ fn test_write_rt_struct_single_roi_round_trip() {
             roi_number: 1,
             roi_name: "GTV".into(),
             roi_description: Some("Gross Tumor Volume".into()),
-            roi_interpreted_type: Some("GTV".into()),
+            roi_interpreted_type: Some(RtRoiInterpretedType::Gtv),
             display_color: Some([255, 0, 0]),
             contours: vec![RtContour {
                 geometric_type: ContourGeometricType::ClosedPlanar,
@@ -50,7 +50,7 @@ fn test_write_rt_struct_single_roi_round_trip() {
     );
     assert_eq!(
         roi.roi_interpreted_type,
-        Some("GTV".into()),
+        Some(RtRoiInterpretedType::Gtv),
         "roi_interpreted_type preserved"
     );
     assert_eq!(
@@ -84,7 +84,7 @@ fn test_write_rt_struct_multi_roi_round_trip() {
                 roi_number: 2,
                 roi_name: "PTV2".into(),
                 roi_description: None,
-                roi_interpreted_type: Some("PTV".into()),
+                roi_interpreted_type: Some(RtRoiInterpretedType::Ptv),
                 display_color: Some([0, 255, 0]),
                 contours: vec![RtContour {
                     geometric_type: ContourGeometricType::ClosedPlanar,
@@ -95,7 +95,7 @@ fn test_write_rt_struct_multi_roi_round_trip() {
                 roi_number: 1,
                 roi_name: "PTV1".into(),
                 roi_description: Some("Primary PTV".into()),
-                roi_interpreted_type: Some("PTV".into()),
+                roi_interpreted_type: Some(RtRoiInterpretedType::Ptv),
                 display_color: Some([255, 255, 0]),
                 contours: vec![RtContour {
                     geometric_type: ContourGeometricType::OpenPlanar,

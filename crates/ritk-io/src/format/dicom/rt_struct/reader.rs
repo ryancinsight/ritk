@@ -8,7 +8,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use super::types::{
-    ContourGeometricType, RtContour, RtRoiInfo, RtStructureSet, RT_STRUCT_SOP_CLASS_UID,
+    ContourGeometricType, RtContour, RtRoiInfo, RtRoiInterpretedType, RtStructureSet,
+    RT_STRUCT_SOP_CLASS_UID,
 };
 use super::utils::{parse_color, parse_contour_data};
 
@@ -107,8 +108,8 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
                     .element(Tag(0x3006, 0x00A4))
                     .ok()
                     .and_then(|e| e.to_str().ok())
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty());
+                    .filter(|s| !s.trim().is_empty())
+                    .map(|s| RtRoiInterpretedType::from_dicom_str(s.trim()));
 
                 if let Some(roi) = roi_map.get_mut(&ref_roi) {
                     roi.roi_interpreted_type = interpreted_type;

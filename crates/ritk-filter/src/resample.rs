@@ -259,6 +259,11 @@ mod tests {
 
     type TestBackend = NdArray<f32>;
 
+    /// Bilinear interpolation at exact integer offset yields ≥ this value.
+    const NEAR_ONE_TOL: f32 = 0.9;
+    /// Outside-patch region expected to be ≤ this value.
+    const NEAR_ZERO_TOL: f32 = 0.1;
+
     #[test]
     fn test_resample_translation_2d() {
         let device = Default::default();
@@ -303,16 +308,16 @@ mod tests {
         let slice = data.as_slice();
 
         // Check index corresponding to physical coordinates (x=6, y=5) -> index 5*10 + 6 = 56
-        assert!(slice[56] > 0.9);
+        assert!(slice[56] > NEAR_ONE_TOL);
         // Check index corresponding to physical coordinates (x=7, y=5) -> index 5*10 + 7 = 57
-        assert!(slice[57] > 0.9);
+        assert!(slice[57] > NEAR_ONE_TOL);
         // Check index corresponding to physical coordinates (x=6, y=6) -> index 6*10 + 6 = 66
-        assert!(slice[66] > 0.9);
+        assert!(slice[66] > NEAR_ONE_TOL);
         // Check index corresponding to physical coordinates (x=7, y=6) -> index 6*10 + 7 = 67
-        assert!(slice[67] > 0.9);
+        assert!(slice[67] > NEAR_ONE_TOL);
 
         // Check original location (4,4) -> 44 should be 0
-        assert!(slice[44] < 0.1);
+        assert!(slice[44] < NEAR_ZERO_TOL);
     }
 
     /// Regression: identity resampling of an anisotropic 3-D grid (here a z = 1

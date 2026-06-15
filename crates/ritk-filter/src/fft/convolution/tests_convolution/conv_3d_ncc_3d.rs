@@ -29,7 +29,7 @@ fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
 /// ∀ f ∈ ℝ^{d×h×w}, ∀ g ∈ ℝ^{kd×kh×kw}:
 /// shape(FftConvolution3DFilter::new(g).apply(f)) = [d, h, w]
 #[test]
-fn output_shape_matches_input_3d() {
+fn output_shape_matches_input() {
     let vol = make_image_3d(vec![1.0_f32; 64], 4, 4, 4);
     let kernel = make_image_3d(vec![0.0_f32; 27], 3, 3, 3);
 
@@ -53,7 +53,7 @@ fn output_shape_matches_input_3d() {
 ///
 /// Tolerance: 1e-3.
 #[test]
-fn identity_kernel_convolution_3d() {
+fn identity_kernel_is_passthrough() {
     let vol_vals: Vec<f32> = (0..64).map(|i| i as f32).collect();
     let vol = make_image_3d(vol_vals.clone(), 4, 4, 4);
 
@@ -86,7 +86,7 @@ fn identity_kernel_convolution_3d() {
 /// Proof: FFT(0) = 0; FFT(f) · 0 = 0; IFFT(0) = 0.
 /// Tolerance: 1e-6.
 #[test]
-fn zero_kernel_gives_zero_output_3d() {
+fn zero_kernel_gives_zero_output() {
     let vol_vals: Vec<f32> = (0..27).map(|i| i as f32).collect();
     let vol = make_image_3d(vol_vals, 3, 3, 3);
     let kernel = make_image_3d(vec![0.0_f32; 8], 2, 2, 2);
@@ -115,7 +115,7 @@ fn zero_kernel_gives_zero_output_3d() {
 /// Uses a volume with a safe interior region.
 /// Tolerance: 1e-3.
 #[test]
-fn constant_kernel_sum_3d() {
+fn constant_kernel_sums_neighborhood() {
     let vol = make_image_3d(vec![1.0_f32; 216], 6, 6, 6);
     let kernel = make_image_3d(vec![1.0_f32; 24], 2, 3, 4);
 

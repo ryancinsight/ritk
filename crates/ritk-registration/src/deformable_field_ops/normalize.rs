@@ -1,13 +1,16 @@
 //! Force normalization for diffeomorphic registration.
 
+/// Gradient magnitude floor for field normalization.
+const GRADIENT_ZERO_GUARD: f64 = 1e-10;
+
 /// Normalize two force fields by their maximum magnitude and a gradient step.
 ///
 /// Scales `u1` and `u2` so their max component equals `gradient_step`,
 /// preventing instability from large gradient magnitudes.
 ///
 /// # Invariants
-/// - If all components of `u1` are zero (below 1e-10), `u1` is left unchanged.
-/// - If all components of `u2` are zero (below 1e-10), `u2` is left unchanged.
+/// - If all components of `u1` are zero (below `GRADIENT_ZERO_GUARD`), `u1` is left unchanged.
+/// - If all components of `u2` are zero (below `GRADIENT_ZERO_GUARD`), `u2` is left unchanged.
 /// - Computation is performed in `f64` to avoid intermediate precision loss;
 ///   the scaling factor is cast to `f32` only for the final multiply.
 #[inline]
@@ -26,7 +29,7 @@ pub(crate) fn normalize_forces_into(
         .chain(u1x.iter())
         .map(|&v| (v as f64).abs())
         .fold(0.0_f64, f64::max);
-    if max_u1 > 1e-10 {
+    if max_u1 > GRADIENT_ZERO_GUARD {
         let s = (gradient_step / max_u1) as f32;
         u1z.iter_mut().for_each(|v| *v *= s);
         u1y.iter_mut().for_each(|v| *v *= s);
@@ -39,7 +42,7 @@ pub(crate) fn normalize_forces_into(
         .chain(u2x.iter())
         .map(|&v| (v as f64).abs())
         .fold(0.0_f64, f64::max);
-    if max_u2 > 1e-10 {
+    if max_u2 > GRADIENT_ZERO_GUARD {
         let s = (gradient_step / max_u2) as f32;
         u2z.iter_mut().for_each(|v| *v *= s);
         u2y.iter_mut().for_each(|v| *v *= s);

@@ -42,7 +42,7 @@ fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
 
 /// `apply_2d` must preserve the input spatial shape `[H, W]`.
 #[test]
-fn shape_preserved_2d() {
+fn shape_preserved_through_filter() {
     let img = make_image_2d(vec![1.0_f32; 64], 8, 8);
     for kind in &[
         FftFilterKind::IdealLowPass,
@@ -69,7 +69,7 @@ fn shape_preserved_2d() {
 ///
 /// Tolerance: 1e-4 (round-trip FFT error on constant data).
 #[test]
-fn constant_preserved_by_low_pass_2d() {
+fn constant_image_preserved_by_low_pass() {
     let img = make_image_2d(vec![42.0_f32; 64], 8, 8);
     let result = FrequencyDomainFilter::new()
         .apply(&img, FftFilterKind::IdealLowPass, 0.3, 2)
@@ -91,7 +91,7 @@ fn constant_preserved_by_low_pass_2d() {
 ///
 /// Tolerance: 1e-4 (round-trip FFT error).
 #[test]
-fn constant_removed_by_high_pass_2d() {
+fn constant_image_removed_by_high_pass() {
     let img = make_image_2d(vec![42.0_f32; 64], 8, 8);
     let result = FrequencyDomainFilter::new()
         .apply(&img, FftFilterKind::IdealHighPass, 0.3, 2)
@@ -114,7 +114,7 @@ fn constant_removed_by_high_pass_2d() {
 ///
 /// Tolerance: RMS < 0.5 (the original RMS is 1.0 for the ±1 pattern).
 #[test]
-fn checkerboard_attenuated_by_low_pass_2d() {
+fn checkerboard_attenuated_by_low_pass() {
     let vals: Vec<f32> = (0..64)
         .map(|i| {
             let r = i / 8;
@@ -140,7 +140,7 @@ fn checkerboard_attenuated_by_low_pass_2d() {
 
 /// Butterworth low-pass filter output is finite (sanity check).
 #[test]
-fn butterworth_low_pass_finite_2d() {
+fn butterworth_low_pass_gives_finite_output() {
     let vals: Vec<f32> = (0..100).map(|i| (i as f64 * 0.314).sin() as f32).collect();
     let img = make_image_2d(vals, 10, 10);
     let result = FrequencyDomainFilter::new()
@@ -157,7 +157,7 @@ fn butterworth_low_pass_finite_2d() {
 
 /// Butterworth high-pass filter output is finite (sanity check).
 #[test]
-fn butterworth_high_pass_finite_2d() {
+fn butterworth_high_pass_gives_finite_output() {
     let vals: Vec<f32> = (0..100).map(|i| (i as f64 * 0.314).sin() as f32).collect();
     let img = make_image_2d(vals, 10, 10);
     let result = FrequencyDomainFilter::new()
@@ -176,7 +176,7 @@ fn butterworth_high_pass_finite_2d() {
 
 /// `apply_3d` must preserve the input shape `[D, H, W]`.
 #[test]
-fn shape_preserved_3d() {
+fn shape_preserved_through_filter_volume() {
     let vol = make_image_3d(vec![1.0_f32; 64], 4, 4, 4);
     for kind in &[
         FftFilterKind::IdealLowPass,
@@ -197,7 +197,7 @@ fn shape_preserved_3d() {
 
 /// Ideal low-pass preserves a constant volume.
 #[test]
-fn constant_volume_preserved_by_low_pass_3d() {
+fn constant_volume_preserved_by_low_pass() {
     let vol = make_image_3d(vec![std::f32::consts::PI; 64], 4, 4, 4);
     let result = FrequencyDomainFilter::new()
         .apply(&vol, FftFilterKind::IdealLowPass, 0.3, 2)
@@ -213,7 +213,7 @@ fn constant_volume_preserved_by_low_pass_3d() {
 
 /// Ideal high-pass removes a constant volume.
 #[test]
-fn constant_volume_removed_by_high_pass_3d() {
+fn constant_volume_removed_by_high_pass() {
     let vol = make_image_3d(vec![std::f32::consts::PI; 64], 4, 4, 4);
     let result = FrequencyDomainFilter::new()
         .apply(&vol, FftFilterKind::IdealHighPass, 0.3, 2)

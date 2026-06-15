@@ -1,7 +1,69 @@
-use arrayvec::ArrayString;
+//! Domain types for DICOM Segmentation Storage.
 
 /// SOP Class UID for Segmentation Storage.
 pub const SEG_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.66.4";
+
+/// Algorithm type for a segment (DICOM PS3.3 C.8.20.3, tag 0062,0008).
+///
+/// DICOM defines three exhaustive values for BINARY and FRACTIONAL segmentation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SegmentAlgorithmType {
+    /// Fully automatic algorithm.
+    Automatic,
+    /// Semi-automatic algorithm (some user interaction).
+    SemiAutomatic,
+    /// Manually drawn.
+    Manual,
+}
+
+impl SegmentAlgorithmType {
+    /// Parse from the DICOM CS string representation.
+    pub fn from_dicom_str(s: &str) -> Self {
+        match s.trim() {
+            "AUTOMATIC" => Self::Automatic,
+            "SEMIAUTOMATIC" => Self::SemiAutomatic,
+            _ => Self::Manual,
+        }
+    }
+
+    /// Return the canonical DICOM string for this type.
+    pub fn as_dicom_str(&self) -> &str {
+        match self {
+            Self::Automatic => "AUTOMATIC",
+            Self::SemiAutomatic => "SEMIAUTOMATIC",
+            Self::Manual => "MANUAL",
+        }
+    }
+}
+
+/// Segmentation type (DICOM PS3.3 C.8.20.2, tag 0062,0001).
+///
+/// DICOM defines two exhaustive values.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SegmentationType {
+    /// Each voxel is classified as belonging to a segment (1) or not (0).
+    Binary,
+    /// Each voxel stores a probability or partial-volume fraction in [0, 255].
+    Fractional,
+}
+
+impl SegmentationType {
+    /// Parse from the DICOM CS string representation, defaulting to Binary.
+    pub fn from_dicom_str(s: &str) -> Self {
+        match s.trim() {
+            "FRACTIONAL" => Self::Fractional,
+            _ => Self::Binary,
+        }
+    }
+
+    /// Return the canonical DICOM string for this type.
+    pub fn as_dicom_str(&self) -> &str {
+        match self {
+            Self::Binary => "BINARY",
+            Self::Fractional => "FRACTIONAL",
+        }
+    }
+}
 
 /// Metadata for one segment label defined in the Segment Sequence (0062,0002).
 #[derive(Debug, Clone)]
@@ -13,7 +75,7 @@ pub struct DicomSegmentInfo {
     /// SegmentDescription (0062,0006) ST, optional.
     pub segment_description: Option<String>,
     /// AlgorithmType (0062,0008) CS, optional.
-    pub algorithm_type: Option<ArrayString<16>>,
+    pub algorithm_type: Option<SegmentAlgorithmType>,
 }
 
 /// Complete in-memory representation of a DICOM-SEG object.
@@ -34,8 +96,8 @@ pub struct DicomSegmentation {
     pub n_frames: usize,
     /// BitsAllocated (0028,0100): 1 for BINARY, 8 for FRACTIONAL.
     pub bits_allocated: u16,
-    /// SegmentationType (0062,0001): "BINARY" or "FRACTIONAL".
-    pub segmentation_type: ArrayString<16>,
+    /// SegmentationType (0062,0001): BINARY or FRACTIONAL.
+    pub segmentation_type: SegmentationType,
     /// One entry per segment defined in SegmentSequence (0062,0002).
     pub segments: Vec<DicomSegmentInfo>,
     /// ReferencedSegmentNumber per frame; length == n_frames.

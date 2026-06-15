@@ -57,12 +57,7 @@ pub struct MetadataRow<'a> {
 }
 
 impl<'a> MetadataRow<'a> {
-    fn series(
-        tag: &'a str,
-        keyword: &'a str,
-        vr: &'a str,
-        value: impl Into<Cow<'a, str>>,
-    ) -> Self {
+    fn series(tag: &'a str, keyword: &'a str, vr: &'a str, value: impl Into<Cow<'a, str>>) -> Self {
         Self::new(MetadataScope::Series, tag, keyword, vr, value)
     }
 

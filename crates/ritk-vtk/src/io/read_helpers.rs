@@ -1,4 +1,5 @@
-//! Generic VTK I/O reader helpers — ASCII and big-endian binary numeric readers.
+//! Generic VTK I/O reader helpers — ASCII, big-endian binary numeric readers,
+//! and shared line/cell parsing utilities.
 
 use anyhow::{bail, Context, Result};
 use std::io::{BufRead, Read};
@@ -73,6 +74,48 @@ impl FromBeBytes for u8 {
     fn from_be_slice(bytes: &[u8]) -> Self {
         bytes[0]
     }
+}
+
+/// Read the next non-blank line from a buffered reader.
+///
+/// Strips leading/trailing whitespace.  Returns `Ok(None)` at EOF, `Err` on
+/// I/O failure, and `Ok(Some(line))` for the first non-empty line.
+pub(crate) fn read_line(reader: &mut dyn BufRead) -> Result<Option<String>> {
+    let mut buf = String::new();
+    loop {
+        buf.clear();
+        let n = reader.read_line(&mut buf)?;
+        if n == 0 {
+            return Ok(None);
+        }
+        let trimmed = buf.trim();
+        if !trimmed.is_empty() {
+            return Ok(Some(trimmed.to_owned()));
+        }
+    }
+}
+
+/// Reconstruct a `Vec<Vec<u32>>` from a flat VTK i32 cell buffer.
+///
+/// Buffer layout: `[n0, i0_0, …, i0_{n0-1}, n1, i1_0, …]` where `n_k` is the
+/// vertex count of cell k.  Errors on truncated data or overrun.
+pub(crate) fn parse_cells_from_ints(raw: &[i32], n_cells: usize) -> Result<Vec<Vec<u32>>> {
+    let mut cells = Vec::with_capacity(n_cells);
+    let mut pos = 0;
+    for _ in 0..n_cells {
+        if pos >= raw.len() {
+            bail!("truncated cell data");
+        }
+        let count = raw[pos] as usize;
+        pos += 1;
+        if pos + count > raw.len() {
+            bail!("cell overruns data buffer");
+        }
+        let cell: Vec<u32> = raw[pos..pos + count].iter().map(|&i| i as u32).collect();
+        cells.push(cell);
+        pos += count;
+    }
+    Ok(cells)
 }
 
 /// Read `count` big-endian binary numeric values from a reader.

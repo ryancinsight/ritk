@@ -1,9 +1,11 @@
 use super::super::reader::DicomReadMetadata;
 use super::preservation::emit_preservation_nodes;
 use super::utils::{
-    ensure_series_directory, format_pair, format_six, format_triplet, generate_instance_uid,
-    generate_series_uid, writer_exclusion_tags, DICOM_SOP_CLASS_SECONDARY_CAPTURE,
+    emit_u16_pixel_format_tags, ensure_series_directory, format_pair, format_six, format_triplet,
+    generate_instance_uid, generate_series_uid, normalize_f32_to_u16, writer_exclusion_tags,
+    DICOM_SOP_CLASS_SECONDARY_CAPTURE,
 };
+use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use dicom::core::smallvec::SmallVec;
@@ -69,25 +71,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     for z in 0..depth {
         let slice_offset = z * slice_len;
         let slice_f32 = &all_data[slice_offset..slice_offset + slice_len];
-        let (min_val, max_val) = slice_f32
-            .iter()
-            .copied()
-            .fold((f32::INFINITY, f32::NEG_INFINITY), |(mn, mx), v| {
-                (mn.min(v), mx.max(v))
-            });
-        let (rescale_slope, rescale_intercept) = if (max_val - min_val).abs() <= f32::EPSILON {
-            (1.0_f32, min_val)
-        } else {
-            ((max_val - min_val) / 65535.0_f32, min_val)
-        };
-        let pixel_u16: Vec<u16> = slice_f32
-            .iter()
-            .map(|&v| {
-                ((v - rescale_intercept) / rescale_slope)
-                    .round()
-                    .clamp(0.0, 65535.0) as u16
-            })
-            .collect();
+        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_f32_to_u16(slice_f32);
 
         let sop_instance_uid = generate_instance_uid(series_uid, z);
         let mut obj = InMemDicomObject::new_empty();
@@ -143,26 +127,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
             VR::US,
             PrimitiveValue::from(cols as u16),
         ));
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x0100),
-            VR::US,
-            PrimitiveValue::from(16_u16),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x0101),
-            VR::US,
-            PrimitiveValue::from(16_u16),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x0102),
-            VR::US,
-            PrimitiveValue::from(15_u16),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x0103),
-            VR::US,
-            PrimitiveValue::from(0_u16),
-        ));
+        emit_u16_pixel_format_tags(&mut obj);
         obj.put(DataElement::new(
             Tag(0x0028, 0x1053),
             VR::DS,
@@ -347,7 +312,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
                 FileMetaTableBuilder::new()
                     .media_storage_sop_class_uid(sop_class)
                     .media_storage_sop_instance_uid(sop_instance_uid.as_str())
-                    .transfer_syntax("1.2.840.10008.1.2.1"),
+                    .transfer_syntax(EXPLICIT_VR_LE),
             )
             .map_err(|e| anyhow::anyhow!("DICOM meta failed slice {z}: {e}"))?;
         let slice_path = series_dir.join(format!("slice_{z:04}.dcm"));

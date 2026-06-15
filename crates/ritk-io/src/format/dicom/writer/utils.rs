@@ -1,9 +1,69 @@
 use anyhow::{bail, Context, Result};
-use dicom::core::VR;
+use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+use dicom::object::InMemDicomObject;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+/// Maximum u16 pixel value as f32, used for normalization (u16::MAX = 65535).
+pub(crate) const U16_MAX_F32: f32 = 65535.0;
+
 pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.1.1.7";
+
+/// Normalize a slice of f32 pixel values to u16, computing min/max rescale parameters.
+///
+/// Returns `(pixel_u16, rescale_slope, rescale_intercept)`.
+///
+/// # Mathematical specification
+///
+/// Let range = max(max_val - min_val, ε). Then:
+///   pixel[i] = round((v[i] - min) / range × 65535).clamp(0, 65535)
+///   rescale_slope = range / 65535
+///   rescale_intercept = min_val
+///
+/// Reconstruction invariant: |v[i] - (pixel[i] × slope + intercept)| ≤ slope / 2.
+pub(crate) fn normalize_f32_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
+    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let range = (max_val - min_val).max(f32::EPSILON);
+    let rescale_slope = range / U16_MAX_F32;
+    let rescale_intercept = min_val;
+    let pixels: Vec<u16> = data
+        .iter()
+        .map(|&v| {
+            ((v - min_val) / range * U16_MAX_F32)
+                .round()
+                .clamp(0.0, U16_MAX_F32) as u16
+        })
+        .collect();
+    (pixels, rescale_slope, rescale_intercept)
+}
+
+/// Emit the four DICOM tags that define unsigned 16-bit pixel format.
+///
+/// BitsAllocated = 16, BitsStored = 16, HighBit = 15, PixelRepresentation = 0 (unsigned).
+/// Call sites may override individual tags afterwards if metadata specifies different values.
+pub(crate) fn emit_u16_pixel_format_tags(obj: &mut InMemDicomObject) {
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0100),
+        VR::US,
+        PrimitiveValue::from(16u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(16u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(15u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0103),
+        VR::US,
+        PrimitiveValue::from(0u16),
+    ));
+}
 
 pub(super) fn format_triplet(value: [f64; 3]) -> String {
     format!("{:.6}\\{:.6}\\{:.6}", value[0], value[1], value[2])

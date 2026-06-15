@@ -48,17 +48,19 @@ pub use reader::{
     read_dicom_series_with_metadata, scan_dicom_instances, scan_dicom_part10_bytes,
     DicomReadMetadata, DicomSliceMetadata, PatientPosition, ScannedDicomSeries,
 };
-pub use rt_dose::{read_rt_dose, write_rt_dose, RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
+pub use rt_dose::{
+    read_rt_dose, write_rt_dose, RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID,
+};
 pub use rt_plan::{
     read_rt_plan, write_rt_plan, RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID,
 };
 pub use rt_struct::{
     label_map_to_rt_struct, read_rt_struct, rt_roi_to_polydata, write_rt_struct,
-    ContourGeometricType, RtContour, RtRoiInfo, RtStructureSet,
+    ContourGeometricType, RtContour, RtRoiInfo, RtRoiInterpretedType, RtStructureSet,
 };
 pub use seg::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
-    DicomSegmentInfo, DicomSegmentation, SegEncoding,
+    DicomSegmentInfo, DicomSegmentation, SegEncoding, SegmentAlgorithmType, SegmentationType,
 };
 // Re-export series types and functions from the series submodule.
 pub use ritk_dicom::PixelSignedness;

@@ -1,6 +1,8 @@
 use super::*;
-use arrayvec::ArrayString;
-use ritk_io::{ContourGeometricType, RtContour, RtDoseGrid, RtRoiInfo, RtStructureSet};
+use ritk_io::{
+    ContourGeometricType, RtContour, RtDoseGrid, RtDoseSummationType, RtDoseType, RtRoiInfo,
+    RtRoiInterpretedType, RtStructureSet,
+};
 
 fn square_roi() -> RtStructureSet {
     RtStructureSet {
@@ -10,7 +12,7 @@ fn square_roi() -> RtStructureSet {
             roi_number: 1,
             roi_name: "PTV".to_owned(),
             roi_description: None,
-            roi_interpreted_type: Some("PTV".to_owned()),
+            roi_interpreted_type: Some(RtRoiInterpretedType::from_dicom_str("PTV")),
             display_color: Some([255, 0, 0]),
             contours: vec![RtContour {
                 geometric_type: ContourGeometricType::ClosedPlanar,
@@ -30,8 +32,8 @@ fn uniform_dose_3x3() -> RtDoseGrid {
         rows: 3,
         cols: 3,
         n_frames: 1,
-        dose_type: ArrayString::from("PHYSICAL").unwrap(),
-        dose_summation_type: ArrayString::from("PLAN").unwrap(),
+        dose_type: RtDoseType::Physical,
+        dose_summation_type: RtDoseSummationType::Plan,
         dose_grid_scaling: 1.0,
         frame_offsets: vec![0.0],
         dose_gy: vec![2.0; 9],

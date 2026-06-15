@@ -98,7 +98,6 @@ fn test_find_context() {
     let l = TcpListener::bind("127.0.0.1:0").unwrap();
     let a = Association {
         stream: TcpStream::connect(l.local_addr().unwrap()).unwrap(),
-        config: AssociationConfig::default(),
         negotiated_contexts: vec![
             NegotiatedContext {
                 presentation_context_id: 1,
