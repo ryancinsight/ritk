@@ -280,7 +280,7 @@ fn test_segment_morphological_gradient_extracts_boundary() {
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
     let output = dir.path().join("gradient.nii");
-    ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+    ritk_io::write_nifti(&input, &make_binary_sphere_image()).unwrap();
     run(default_args(
         input.clone(),
         output.clone(),
@@ -308,7 +308,7 @@ fn test_segment_skeletonization_creates_output() {
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
     let output = dir.path().join("skeleton.nii");
-    ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+    ritk_io::write_nifti(&input, &make_binary_sphere_image()).unwrap();
 
     run(default_args(
         input.clone(),
@@ -327,7 +327,7 @@ fn test_segment_skeletonization_strictly_binary() {
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
     let output = dir.path().join("skeleton.nii");
-    ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+    ritk_io::write_nifti(&input, &make_binary_sphere_image()).unwrap();
     run(default_args(
         input.clone(),
         output.clone(),

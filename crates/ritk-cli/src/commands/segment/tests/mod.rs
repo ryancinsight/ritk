@@ -98,6 +98,35 @@ pub fn make_sphere_image() -> Image<Backend, 3> {
     )
 }
 
+/// Build a 5×5×5 binary sphere image: centre and its 6 face-adjacent neighbours
+/// have intensity 1.0, and all other voxels have intensity 0.0.
+pub fn make_binary_sphere_image() -> Image<Backend, 3> {
+    let device: <Backend as BurnBackend>::Device = Default::default();
+    let (nz, ny, nx) = (5usize, 5usize, 5usize);
+    let mut values = vec![0.0_f32; nz * ny * nx];
+    let high_indices: &[(usize, usize, usize)] = &[
+        (2, 2, 2), // centre
+        (1, 2, 2), // −Z
+        (3, 2, 2), // +Z
+        (2, 1, 2), // −Y
+        (2, 3, 2), // +Y
+        (2, 2, 1), // −X
+        (2, 2, 3), // +X
+    ];
+    for &(z, y, x) in high_indices {
+        values[z * ny * nx + y * nx + x] = 1.0;
+    }
+    let td = TensorData::new(values, Shape::new([nz, ny, nx]));
+    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    Image::new(
+        tensor,
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+    )
+}
+
+
 /// Build a 4×4×4 binary image: first 32 voxels = 1.0 (foreground),
 /// remaining 32 = 0.0 (background).  Used for distance-transform tests.
 pub fn make_binary_image() -> Image<Backend, 3> {

@@ -66,37 +66,39 @@ pub fn warp_label_map<B: Backend>(
 /// array-center / focus target. Centroids are in the image's physical (LPS) world
 /// frame, consistent with [`Image::index_to_world_tensor`].
 #[must_use]
-pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> Vec<(u32, [f64; 3])> {
+pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> anyhow::Result<Vec<(u32, [f64; 3])>> {
     let [d0, d1, d2] = labels.shape();
-    let n = d0 * d1 * d2;
-    let data: Vec<f32> = labels
-        .data()
-        .clone()
-        .reshape([n])
-        .into_data()
-        .to_vec()
-        .expect("labels host vec");
+    let data = labels.try_data_slice()?;
     let origin = labels.origin();
     let spacing = labels.spacing();
     let direction = labels.direction();
-    let (s0, s1) = (d1 * d2, d2);
 
     // Accumulate per-label sum of voxel multi-index [d0, d1, d2] + count.
+    // 3D loop iteration pattern avoids expensive division and modulo operations per voxel.
     let mut acc: BTreeMap<u32, ([f64; 3], f64)> = BTreeMap::new();
-    for (flat, &v) in data.iter().enumerate() {
-        if v <= 0.5 {
-            continue; // background / unlabelled
+    let mut flat = 0;
+    for iz in 0..d0 {
+        let z_f = iz as f64;
+        for iy in 0..d1 {
+            let y_f = iy as f64;
+            for ix in 0..d2 {
+                let v = data[flat];
+                flat += 1;
+                if v <= 0.5 {
+                    continue; // background / unlabelled
+                }
+                let x_f = ix as f64;
+                let lab = (v + 0.5) as u32; // nearest integer label id
+                let e = acc.entry(lab).or_insert(([0.0; 3], 0.0));
+                e.0[0] += z_f;
+                e.0[1] += y_f;
+                e.0[2] += x_f;
+                e.1 += 1.0;
+            }
         }
-        let lab = (v + 0.5) as u32; // nearest integer label id
-        let (i0, i1, i2) = ((flat / s0) % d0, (flat / s1) % d1, flat % d2);
-        let e = acc.entry(lab).or_insert(([0.0; 3], 0.0));
-        e.0[0] += i0 as f64;
-        e.0[1] += i1 as f64;
-        e.0[2] += i2 as f64;
-        e.1 += 1.0;
     }
 
-    acc.into_iter()
+    let centroids = acc.into_iter()
         .map(|(lab, (sum, cnt))| {
             let mean = [sum[0] / cnt, sum[1] / cnt, sum[2] / cnt];
             // world[c] = origin[c] + Σ_axis mean[axis]·spacing[axis]·direction[(c, axis)]
@@ -110,7 +112,8 @@ pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> Vec<(u32, [f64; 3])>
             }
             (lab, world)
         })
-        .collect()
+        .collect();
+    Ok(centroids)
 }
 
 #[cfg(test)]
@@ -216,7 +219,7 @@ mod tests {
                 }
             }
         }
-        let c = label_centroids(&label_image(v, [d, h, w]));
+        let c = label_centroids(&label_image(v, [d, h, w])).unwrap();
         assert_eq!(c.len(), 2);
         let close = |a: f64, b: f64| (a - b).abs() < 1e-6;
         assert_eq!(c[0].0, 1);
