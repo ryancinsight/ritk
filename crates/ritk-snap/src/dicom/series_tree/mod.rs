@@ -8,56 +8,170 @@
 //! SeriesTree
 //! └── PatientNode (keyed by patient_id)
 //!     └── StudyNode (keyed by study_uid or study_date)
-//!         └── SeriesEntry (one per DICOM series folder)
+//!         └── SeriesNode (one per DICOM series folder)
 //! ```
 //!
 //! [`SeriesTree::from_entries`] builds this hierarchy from a flat
 //! `Vec<SeriesEntry>`. Patients with the same `patient_id` are merged;
 //! studies with the same `study_uid` within a patient are merged.
 //!
+//! To eliminate string and path duplicate overhead, parent attributes
+//! (such as patient name/ID and study UIDs) are stored only in parent nodes
+//! (SSOT), and the leaf nodes (`SeriesNode`) store only series-specific data.
+//!
 //! # Invariants
 //! - [`SeriesTree::total_series`] equals the number of entries passed to
 //!   [`SeriesTree::from_entries`].
 //! - [`SeriesTree::find_by_folder`] returns `Some` for every folder that
-//!   appears in any `SeriesEntry` stored in the tree.
+//!   appears in any series stored in the tree.
 
 use ritk_io::DicomSeriesInfo;
-use std::path::{Path, PathBuf};
+use std::borrow::Cow;
+use std::path::Path;
 
-// ── SeriesEntry ───────────────────────────────────────────────────────────────
+// ── SeriesEntryView ──────────────────────────────────────────────────────────
 
-/// A single DICOM series as displayed in the series browser.
+/// A zero-copy view abstraction over a DICOM series entry.
+///
+/// Uses Generic Associated Types (GATs) for zero-copy string and path access,
+/// allowing implementations to return either borrowed or owned types.
+pub trait SeriesEntryView {
+    type Str<'b>: AsRef<str> + 'b
+    where
+        Self: 'b;
+    type Path<'b>: AsRef<Path> + 'b
+    where
+        Self: 'b;
+
+    fn series_uid(&self) -> Self::Str<'_>;
+    fn folder(&self) -> Self::Path<'_>;
+    fn modality(&self) -> Self::Str<'_>;
+    fn series_description(&self) -> Self::Str<'_>;
+    fn num_slices(&self) -> usize;
+}
+
+// ── ModalityMapper ───────────────────────────────────────────────────────────
+
+/// Helper to map modality strings to emoji or text icons using a const-generic mapping array.
+#[derive(Debug, Clone, Copy)]
+pub struct ModalityMapper<const N: usize> {
+    mappings: [(&'static str, &'static str); N],
+}
+
+impl<const N: usize> ModalityMapper<N> {
+    /// Create a new modality mapper.
+    pub const fn new(mappings: [(&'static str, &'static str); N]) -> Self {
+        Self { mappings }
+    }
+
+    /// Return the icon for the given modality.
+    pub fn get_icon(&self, modality: &str) -> &'static str {
+        let upper = modality.to_ascii_uppercase();
+        for &(m, icon) in &self.mappings {
+            if m == upper {
+                return icon;
+            }
+        }
+        "🗂"
+    }
+}
+
+/// Default list of DICOM modalities and their corresponding icons.
+pub const DEFAULT_MODALITY_ICONS: [(&str, &str); 11] = [
+    ("CT", "🫁"),
+    ("MR", "🧠"),
+    ("PT", "☢"),
+    ("NM", "☢"),
+    ("US", "〰"),
+    ("CR", "📷"),
+    ("DR", "📷"),
+    ("DX", "📷"),
+    ("MG", "🎗"),
+    ("XA", "💉"),
+    ("RF", "📡"),
+];
+
+/// Global default instance of the modality mapper.
+pub static DEFAULT_MODALITY_MAPPER: ModalityMapper<11> =
+    ModalityMapper::new(DEFAULT_MODALITY_ICONS);
+
+/// Formats a series display label in a generic, monomorphized way.
+pub fn format_series_label<S: SeriesEntryView, const N: usize>(
+    entry: &S,
+    mapper: &ModalityMapper<N>,
+) -> String {
+    let modality = entry.modality();
+    let icon = mapper.get_icon(modality.as_ref());
+    let desc_ref = entry.series_description();
+    let desc_str = desc_ref.as_ref();
+    let folder = entry.folder();
+    let desc = if desc_str.is_empty() {
+        folder
+            .as_ref()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("(unknown)")
+    } else {
+        desc_str
+    };
+    let mod_tag = if modality.as_ref().is_empty() {
+        String::new()
+    } else {
+        format!("[{}] ", modality.as_ref())
+    };
+    format!("{icon} {mod_tag}{desc} ({} slices)", entry.num_slices())
+}
+
+// ── SeriesEntry ──────────────────────────────────────────────────────────────
+
+/// A single flat DICOM series representation as populated by directory scanning.
 #[derive(Debug, Clone)]
-pub struct SeriesEntry {
+pub struct SeriesEntry<'a> {
     /// Series Instance UID (may be empty when absent from metadata).
-    pub series_uid: String,
+    pub series_uid: Cow<'a, str>,
     /// Absolute path to the folder containing the DICOM slice files.
-    pub folder: PathBuf,
+    pub folder: Cow<'a, Path>,
     /// Patient name extracted from series metadata.
-    pub patient_name: String,
+    pub patient_name: Cow<'a, str>,
     /// Patient ID extracted from series metadata.
-    pub patient_id: String,
+    pub patient_id: Cow<'a, str>,
     /// DICOM modality string (e.g. `"CT"`, `"MR"`, `"PT"`).
-    pub modality: String,
+    pub modality: Cow<'a, str>,
     /// Series description from tag (0008,103E).
-    pub series_description: String,
+    pub series_description: Cow<'a, str>,
     /// Number of image slices in the series.
     pub num_slices: usize,
     /// Study date in `YYYYMMDD` format, if present.
-    pub study_date: Option<String>,
+    pub study_date: Option<Cow<'a, str>>,
     /// Study Instance UID, if present.
-    pub study_uid: Option<String>,
+    pub study_uid: Option<Cow<'a, str>>,
 }
 
-impl SeriesEntry {
+impl<'a> SeriesEntryView for SeriesEntry<'a> {
+    type Str<'b> = &'b str where Self: 'b;
+    type Path<'b> = &'b Path where Self: 'b;
+
+    fn series_uid(&self) -> Self::Str<'_> {
+        self.series_uid.as_ref()
+    }
+    fn folder(&self) -> Self::Path<'_> {
+        self.folder.as_ref()
+    }
+    fn modality(&self) -> Self::Str<'_> {
+        self.modality.as_ref()
+    }
+    fn series_description(&self) -> Self::Str<'_> {
+        self.series_description.as_ref()
+    }
+    fn num_slices(&self) -> usize {
+        self.num_slices
+    }
+}
+
+impl<'a> SeriesEntry<'a> {
     /// Construct a [`SeriesEntry`] from a [`DicomSeriesInfo`] returned by
     /// `ritk_io::scan_dicom_directory`.
-    ///
-    /// The current public `ritk_io::scan_dicom_directory` surface exposes
-    /// series-level identifiers plus file paths. Fields not present in that
-    /// summary stay empty until the full series is loaded.
     pub fn from_dicom_series_info(info: DicomSeriesInfo) -> Self {
-        // Extract borrow-based values before consuming owned fields.
         let series_uid = info.series_instance_uid().to_string();
         let modality = info.modality().to_string();
         let folder = info
@@ -68,12 +182,12 @@ impl SeriesEntry {
             .unwrap_or_default();
         let num_slices = info.file_paths.len();
         Self {
-            series_uid,
-            folder,
-            patient_name: String::new(),
-            patient_id: info.patient_id,
-            modality,
-            series_description: info.series_description,
+            series_uid: Cow::Owned(series_uid),
+            folder: Cow::Owned(folder),
+            patient_name: Cow::Borrowed(""),
+            patient_id: Cow::Owned(info.patient_id),
+            modality: Cow::Owned(modality),
+            series_description: Cow::Owned(info.series_description),
             num_slices,
             study_date: None,
             study_uid: None,
@@ -81,77 +195,85 @@ impl SeriesEntry {
     }
 
     /// Short display label used in the series browser tree.
-    ///
-    /// Format: `"<icon> [<modality>] <description> (<n> slices)"`.
-    /// Falls back to the folder name when `series_description` is empty.
     pub fn display_label(&self) -> String {
-        let icon = self.modality_icon();
-        let desc = if self.series_description.is_empty() {
-            self.folder
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("(unknown)")
-                .to_string()
-        } else {
-            self.series_description.clone()
-        };
-        let mod_tag = if self.modality.is_empty() {
-            String::new()
-        } else {
-            format!("[{}] ", self.modality)
-        };
-        format!("{icon} {mod_tag}{desc} ({} slices)", self.num_slices)
+        format_series_label(self, &DEFAULT_MODALITY_MAPPER)
     }
 
     /// Short modality icon string (emoji or abbreviated text) for display.
-    ///
-    /// | Modality prefix | Icon |
-    /// |-----------------|------|
-    /// | CT              | 🫁   |
-    /// | MR              | 🧠   |
-    /// | PT              | ☢    |
-    /// | NM              | ☢    |
-    /// | US              | 〰   |
-    /// | CR / DR / DX    | 📷   |
-    /// | MG              | 🎗   |
-    /// | XA              | 💉   |
-    /// | RF              | 📡   |
-    /// | (other / empty) | 🗂   |
     pub fn modality_icon(&self) -> &'static str {
-        match self.modality.to_uppercase().as_str() {
-            "CT" => "🫁",
-            "MR" => "🧠",
-            "PT" | "NM" => "☢",
-            "US" => "〰",
-            "CR" | "DR" | "DX" => "📷",
-            "MG" => "🎗",
-            "XA" => "💉",
-            "RF" => "📡",
-            _ => "🗂",
-        }
+        DEFAULT_MODALITY_MAPPER.get_icon(self.modality.as_ref())
     }
 }
 
-// ── StudyNode ─────────────────────────────────────────────────────────────────
+// ── SeriesNode ───────────────────────────────────────────────────────────────
+
+/// A leaf node in the DICOM series tree, containing only series-specific data.
+///
+/// Patient and study details are stored strictly in parent nodes (`PatientNode`
+/// and `StudyNode`), enforcing DRY and SSOT.
+#[derive(Debug, Clone)]
+pub struct SeriesNode<'a> {
+    /// Series Instance UID.
+    pub series_uid: Cow<'a, str>,
+    /// Absolute path to the folder containing the DICOM slice files.
+    pub folder: Cow<'a, Path>,
+    /// DICOM modality string.
+    pub modality: Cow<'a, str>,
+    /// Series description.
+    pub series_description: Cow<'a, str>,
+    /// Number of image slices.
+    pub num_slices: usize,
+}
+
+impl<'a> SeriesEntryView for SeriesNode<'a> {
+    type Str<'b> = &'b str where Self: 'b;
+    type Path<'b> = &'b Path where Self: 'b;
+
+    fn series_uid(&self) -> Self::Str<'_> {
+        self.series_uid.as_ref()
+    }
+    fn folder(&self) -> Self::Path<'_> {
+        self.folder.as_ref()
+    }
+    fn modality(&self) -> Self::Str<'_> {
+        self.modality.as_ref()
+    }
+    fn series_description(&self) -> Self::Str<'_> {
+        self.series_description.as_ref()
+    }
+    fn num_slices(&self) -> usize {
+        self.num_slices
+    }
+}
+
+impl<'a> SeriesNode<'a> {
+    /// Short display label used in the series browser tree.
+    pub fn display_label(&self) -> String {
+        format_series_label(self, &DEFAULT_MODALITY_MAPPER)
+    }
+
+    /// Short modality icon string (emoji or abbreviated text) for display.
+    pub fn modality_icon(&self) -> &'static str {
+        DEFAULT_MODALITY_MAPPER.get_icon(self.modality.as_ref())
+    }
+}
+
+// ── StudyNode ────────────────────────────────────────────────────────────────
 
 /// One study within a patient, containing one or more series.
 #[derive(Debug, Clone)]
-pub struct StudyNode {
+pub struct StudyNode<'a> {
     /// Study Instance UID — `None` when absent from metadata.
-    pub study_uid: Option<String>,
+    pub study_uid: Option<Cow<'a, str>>,
     /// Study date in `YYYYMMDD` format — `None` when absent.
-    pub study_date: Option<String>,
+    pub study_date: Option<Cow<'a, str>>,
     /// Series belonging to this study, in insertion order.
-    pub series: Vec<SeriesEntry>,
+    pub series: Vec<SeriesNode<'a>>,
 }
 
-impl StudyNode {
+impl<'a> StudyNode<'a> {
     /// Canonical grouping key for deduplication inside a patient.
-    ///
-    /// Prefers the Study UID when available; falls back to the study date;
-    /// ultimately falls back to an empty string so studies without either
-    /// field still collapse into a single node.
-    fn key(&self) -> &str {
+    pub fn key(&self) -> &str {
         self.study_uid
             .as_deref()
             .or(self.study_date.as_deref())
@@ -159,56 +281,39 @@ impl StudyNode {
     }
 }
 
-// ── PatientNode ───────────────────────────────────────────────────────────────
+// ── PatientNode ──────────────────────────────────────────────────────────────
 
 /// One patient, containing one or more studies.
 #[derive(Debug, Clone)]
-pub struct PatientNode {
+pub struct PatientNode<'a> {
     /// Patient ID string from DICOM metadata.
-    pub patient_id: String,
+    pub patient_id: Cow<'a, str>,
     /// Patient name string from DICOM metadata.
-    pub patient_name: String,
+    pub patient_name: Cow<'a, str>,
     /// Studies belonging to this patient, in insertion order.
-    pub studies: Vec<StudyNode>,
+    pub studies: Vec<StudyNode<'a>>,
 }
 
-// ── SeriesTree ────────────────────────────────────────────────────────────────
+// ── SeriesTree ───────────────────────────────────────────────────────────────
 
 /// Hierarchical patient → study → series tree for the series browser.
-///
-/// # Invariants
-/// - Every [`SeriesEntry`] passed to [`SeriesTree::from_entries`] appears
-///   exactly once in the tree.
-/// - [`SeriesTree::total_series`] equals the number of entries provided.
-/// - [`SeriesTree::find_by_folder`] is O(n) in the total number of series.
 #[derive(Debug, Clone, Default)]
-pub struct SeriesTree {
+pub struct SeriesTree<'a> {
     /// Top-level patient nodes, in insertion order.
-    pub patients: Vec<PatientNode>,
+    pub patients: Vec<PatientNode<'a>>,
 }
 
-impl SeriesTree {
+impl<'a> SeriesTree<'a> {
     /// Construct an empty tree.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            patients: Vec::new(),
+        }
     }
 
     /// Build the hierarchy from a flat list of [`SeriesEntry`] records.
-    ///
-    /// Grouping rules:
-    /// 1. Entries with the same non-empty `patient_id` are placed in the
-    ///    same [`PatientNode`]. Entries whose `patient_id` is empty are
-    ///    each placed in their own anonymous patient node.
-    /// 2. Within a patient, entries with the same non-empty `study_uid`
-    ///    (or the same `study_date` when `study_uid` is absent) are placed
-    ///    in the same [`StudyNode`].
-    /// 3. Insertion order is preserved at every level.
-    ///
-    /// # Complexity
-    /// O(n²) in the number of entries — acceptable for typical DICOM
-    /// directory sizes (≤ a few thousand series).
-    pub fn from_entries(entries: Vec<SeriesEntry>) -> Self {
-        let mut tree = SeriesTree::new();
+    pub fn from_entries(entries: Vec<SeriesEntry<'a>>) -> Self {
+        let mut tree = Self::new();
         for entry in entries {
             tree.insert(entry);
         }
@@ -217,8 +322,8 @@ impl SeriesTree {
 
     /// Insert a single [`SeriesEntry`] into the correct position in the
     /// hierarchy, creating patient and study nodes as needed.
-    fn insert(&mut self, entry: SeriesEntry) {
-        // ── Patient lookup / creation ──────────────────────────────────────
+    fn insert(&mut self, entry: SeriesEntry<'a>) {
+        // Patient lookup / creation
         let patient_idx = if entry.patient_id.is_empty() {
             // Anonymous patients each get their own node.
             self.patients.push(PatientNode {
@@ -245,49 +350,47 @@ impl SeriesTree {
             }
         };
 
-        // ── Study lookup / creation within patient ─────────────────────────
-        let entry_study_key: String = entry
-            .study_uid
-            .as_deref()
-            .or(entry.study_date.as_deref())
-            .unwrap_or("")
-            .to_string();
+        let entry_study_uid = entry.study_uid.clone();
+        let entry_study_date = entry.study_date.clone();
 
         let patient = &mut self.patients[patient_idx];
-        let study_idx = if entry_study_key.is_empty() {
-            // No study key: create a new anonymous study node.
-            patient.studies.push(StudyNode {
-                study_uid: entry.study_uid.clone(),
-                study_date: entry.study_date.clone(),
-                series: Vec::new(),
-            });
-            patient.studies.len() - 1
-        } else {
-            match patient
-                .studies
-                .iter()
-                .position(|s| s.key() == entry_study_key.as_str())
-            {
+        let study_idx = match (&entry_study_uid, &entry_study_date) {
+            (None, None) => {
+                patient.studies.push(StudyNode {
+                    study_uid: None,
+                    study_date: None,
+                    series: Vec::new(),
+                });
+                patient.studies.len() - 1
+            }
+            _ => match patient.studies.iter().position(|s| {
+                (entry_study_uid.is_some() && s.study_uid == entry_study_uid)
+                    || (entry_study_uid.is_none()
+                        && entry_study_date.is_some()
+                        && s.study_date == entry_study_date)
+            }) {
                 Some(i) => i,
                 None => {
                     patient.studies.push(StudyNode {
-                        study_uid: entry.study_uid.clone(),
-                        study_date: entry.study_date.clone(),
+                        study_uid: entry_study_uid,
+                        study_date: entry_study_date,
                         series: Vec::new(),
                     });
                     patient.studies.len() - 1
                 }
-            }
+            },
         };
 
-        patient.studies[study_idx].series.push(entry);
+        patient.studies[study_idx].series.push(SeriesNode {
+            series_uid: entry.series_uid,
+            folder: entry.folder,
+            modality: entry.modality,
+            series_description: entry.series_description,
+            num_slices: entry.num_slices,
+        });
     }
 
     /// Total number of series stored across all patients and studies.
-    ///
-    /// # Postcondition
-    /// Returns the same value as `entries.len()` for any list passed to
-    /// [`SeriesTree::from_entries`].
     pub fn total_series(&self) -> usize {
         self.patients
             .iter()
@@ -296,19 +399,17 @@ impl SeriesTree {
             .sum()
     }
 
-    /// Find the first [`SeriesEntry`] whose `folder` equals `folder`.
-    ///
-    /// Returns `None` when no matching entry exists.
-    pub fn find_by_folder(&self, folder: &Path) -> Option<&SeriesEntry> {
+    /// Find the first [`SeriesNode`] whose `folder` equals `folder`.
+    pub fn find_by_folder(&self, folder: &Path) -> Option<&SeriesNode<'a>> {
         self.patients
             .iter()
             .flat_map(|p| p.studies.iter())
             .flat_map(|s| s.series.iter())
-            .find(|e| e.folder == folder)
+            .find(|e| e.folder.as_ref() == folder)
     }
 
-    /// Iterate over every [`SeriesEntry`] in the tree in insertion order.
-    pub fn iter_series(&self) -> impl Iterator<Item = &SeriesEntry> {
+    /// Iterate over every [`SeriesNode`] in the tree in insertion order.
+    pub fn iter_series(&self) -> impl Iterator<Item = &SeriesNode<'a>> {
         self.patients
             .iter()
             .flat_map(|p| p.studies.iter())

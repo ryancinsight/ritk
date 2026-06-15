@@ -192,7 +192,7 @@ pub(crate) struct SnapApp {
 
     // ── Series browser ────────────────────────────────────────────────────────
     /// Hierarchical DICOM series tree.
-    pub(crate) series_tree: crate::dicom::series_tree::SeriesTree,
+    pub(crate) series_tree: crate::dicom::series_tree::SeriesTree<'static>,
     /// The folder path currently highlighted in the series browser.
     pub(crate) selected_series: Option<std::path::PathBuf>,
     /// Which tab is active in the series browser sidebar.

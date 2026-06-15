@@ -26,7 +26,7 @@ use crate::dicom::series_tree::{SeriesEntry, SeriesTree};
 ///
 /// # Errors
 /// Returns an error only when `folder` itself cannot be read as a directory.
-pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree> {
+pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'static>> {
     let requested = folder.as_ref();
     let folder = classify_dicom_input_path(requested)
         .dicom_root()

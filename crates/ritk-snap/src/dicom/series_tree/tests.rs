@@ -1,34 +1,31 @@
 use super::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Build a synthetic `SeriesEntry` for testing purposes.
-fn make_entry(
-    patient_id: &str,
-    patient_name: &str,
-    study_uid: Option<&str>,
-    study_date: Option<&str>,
-    series_uid: &str,
-    folder: &str,
-    modality: &str,
+fn make_entry<'a>(
+    patient_id: &'a str,
+    patient_name: &'a str,
+    study_uid: Option<&'a str>,
+    study_date: Option<&'a str>,
+    series_uid: &'a str,
+    folder: &'a str,
+    modality: &'a str,
     num_slices: usize,
-) -> SeriesEntry {
+) -> SeriesEntry<'a> {
     SeriesEntry {
-        series_uid: series_uid.to_string(),
-        folder: PathBuf::from(folder),
-        patient_name: patient_name.to_string(),
-        patient_id: patient_id.to_string(),
-        modality: modality.to_string(),
-        series_description: format!("{modality} series"),
+        series_uid: Cow::Borrowed(series_uid),
+        folder: Cow::Borrowed(Path::new(folder)),
+        patient_name: Cow::Borrowed(patient_name),
+        patient_id: Cow::Borrowed(patient_id),
+        modality: Cow::Borrowed(modality),
+        series_description: Cow::Owned(format!("{modality} series")),
         num_slices,
-        study_date: study_date.map(str::to_string),
-        study_uid: study_uid.map(str::to_string),
+        study_date: study_date.map(Cow::Borrowed),
+        study_uid: study_uid.map(Cow::Borrowed),
     }
 }
 
 /// Three series across two patients must produce exactly two patient nodes.
-///
-/// Patient A has two series in the same study; patient B has one series.
-/// Postcondition: `tree.patients.len() == 2`, `total_series() == 3`.
 #[test]
 fn test_from_entries_groups_by_patient() {
     let entries = vec![
@@ -104,9 +101,6 @@ fn test_from_entries_groups_by_patient() {
 }
 
 /// `total_series()` must return the exact number of entries inserted.
-///
-/// Tested with five entries spanning three patients to exercise the
-/// summation path across non-trivial tree depth.
 #[test]
 fn test_total_series_count() {
     let entries = vec![
@@ -124,8 +118,7 @@ fn test_total_series_count() {
     );
 }
 
-/// `from_entries` with an empty input must produce an empty tree with
-/// zero patients and `total_series() == 0`.
+/// `from_entries` with an empty input must produce an empty tree.
 #[test]
 fn test_from_entries_empty_input() {
     let tree = SeriesTree::from_entries(vec![]);
@@ -222,7 +215,7 @@ fn test_series_entry_from_dicom_series_info_uses_file_parent_and_slice_count() {
     );
     let entry = SeriesEntry::from_dicom_series_info(info);
     assert_eq!(entry.series_uid, "1.2.3");
-    assert_eq!(entry.folder, PathBuf::from("C:/study/series"));
+    assert_eq!(entry.folder.as_ref(), Path::new("C:/study/series"));
     assert_eq!(entry.patient_id, "P001");
     assert_eq!(entry.modality, "CT");
     assert_eq!(entry.series_description, "Axial CT");
@@ -268,4 +261,63 @@ fn test_from_entries_splits_different_studies() {
         "two distinct study_uids must produce two StudyNodes"
     );
     assert_eq!(tree.total_series(), 2);
+}
+
+// ── New Optimization & Architecture Verification Tests ───────────────────────
+
+/// Test that GAT-based `SeriesEntryView` works for both `SeriesEntry` and `SeriesNode`.
+#[test]
+fn test_gat_series_entry_view() {
+    let entry = make_entry("P1", "Alice", None, None, "S1", "/s1", "CT", 10);
+    let node = SeriesNode {
+        series_uid: Cow::Borrowed("S1"),
+        folder: Cow::Borrowed(Path::new("/s1")),
+        modality: Cow::Borrowed("CT"),
+        series_description: Cow::Borrowed("CT series"),
+        num_slices: 10,
+    };
+
+    fn check_gat<V: SeriesEntryView>(view: &V) {
+        assert_eq!(view.series_uid().as_ref(), "S1");
+        assert_eq!(view.folder().as_ref(), Path::new("/s1"));
+        assert_eq!(view.modality().as_ref(), "CT");
+        assert_eq!(view.num_slices(), 10);
+    }
+
+    check_gat(&entry);
+    check_gat(&node);
+}
+
+/// Test that `ModalityMapper` using const generics correctly matches icons.
+#[test]
+fn test_const_generic_modality_mapper() {
+    let custom_icons: [(&str, &str); 2] = [("CT", "☢CT"), ("MR", "☢MR")];
+    let mapper = ModalityMapper::new(custom_icons);
+
+    assert_eq!(mapper.get_icon("CT"), "☢CT");
+    assert_eq!(mapper.get_icon("MR"), "☢MR");
+    assert_eq!(mapper.get_icon("US"), "🗂"); // Default fallback
+}
+
+/// Test that monomorphized `format_series_label` produces the expected format.
+#[test]
+fn test_monomorphized_format_series_label() {
+    let entry = make_entry("P1", "Alice", None, None, "S1", "/path/to/series", "CT", 123);
+    let label = format_series_label(&entry, &DEFAULT_MODALITY_MAPPER);
+    assert_eq!(label, "🫁 [CT] CT series (123 slices)");
+
+    // Test fallback when description is empty
+    let empty_desc_entry = SeriesEntry {
+        series_uid: Cow::Borrowed("S1"),
+        folder: Cow::Borrowed(Path::new("/path/to/my_folder")),
+        patient_name: Cow::Borrowed(""),
+        patient_id: Cow::Borrowed(""),
+        modality: Cow::Borrowed("MR"),
+        series_description: Cow::Borrowed(""),
+        num_slices: 15,
+        study_date: None,
+        study_uid: None,
+    };
+    let label2 = format_series_label(&empty_desc_entry, &DEFAULT_MODALITY_MAPPER);
+    assert_eq!(label2, "🧠 [MR] my_folder (15 slices)");
 }

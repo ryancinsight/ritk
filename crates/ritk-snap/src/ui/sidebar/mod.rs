@@ -61,7 +61,7 @@ pub enum SidebarTab {
 ///   (shared, optional).
 pub struct SidebarPanel<'a> {
     /// Hierarchical series tree to render in the Series tab.
-    pub tree: &'a SeriesTree,
+    pub tree: &'a SeriesTree<'static>,
     /// The series folder path that is currently selected/highlighted.
     pub selected_path: &'a mut Option<std::path::PathBuf>,
     /// Which tab is currently active.
@@ -80,7 +80,7 @@ impl<'a> SidebarPanel<'a> {
     ///
     /// All parameters map directly to the corresponding public fields.
     pub fn new(
-        tree: &'a SeriesTree,
+        tree: &'a SeriesTree<'static>,
         selected_path: &'a mut Option<std::path::PathBuf>,
         active_tab: &'a mut SidebarTab,
         metadata_volume: Option<&'a LoadedVolume>,
@@ -99,7 +99,7 @@ impl<'a> SidebarPanel<'a> {
 
     /// Construct the panel with an explicit tag search string (backwards-compat alias).
     pub fn with_tag_search(
-        tree: &'a SeriesTree,
+        tree: &'a SeriesTree<'static>,
         selected_path: &'a mut Option<std::path::PathBuf>,
         active_tab: &'a mut SidebarTab,
         metadata_volume: Option<&'a LoadedVolume>,
@@ -174,7 +174,7 @@ impl<'a> SidebarPanel<'a> {
     /// clicked an entry.
     fn show_series_tab(&mut self, ui: &mut Ui) -> Option<std::path::PathBuf> {
         // Copy the &'a SeriesTree reference — &T: Copy, releases borrow on self.
-        let tree: &'a SeriesTree = self.tree;
+        let tree: &'a SeriesTree<'static> = self.tree;
         // Clone current selection for inside-closure comparison without holding
         // a borrow on self.selected_path during the closure.
         let current_path: Option<std::path::PathBuf> = self.selected_path.as_ref().cloned();
@@ -199,7 +199,7 @@ impl<'a> SidebarPanel<'a> {
                     };
 
                     CollapsingHeader::new(patient_label)
-                        .id_source(("patient", patient_idx, patient.patient_id.as_str()))
+                        .id_source(("patient", patient_idx, patient.patient_id.as_ref()))
                         .default_open(true)
                         .show(ui, |ui| {
                             for (study_idx, study) in patient.studies.iter().enumerate() {
@@ -225,11 +225,11 @@ impl<'a> SidebarPanel<'a> {
                                             // ── Series entry ──────────────────
                                             let is_selected = current_path
                                                 .as_ref()
-                                                .map(|p| p == &series.folder)
+                                                .map(|p| p == series.folder.as_ref())
                                                 .unwrap_or(false);
                                             let hover_text = format!(
                                                 "Folder: {}\nUID: {}\nSlices: {}",
-                                                series.folder.display(),
+                                                series.folder.as_ref().display(),
                                                 series.series_uid,
                                                 series.num_slices,
                                             );
@@ -241,8 +241,8 @@ impl<'a> SidebarPanel<'a> {
                                                         patient_idx,
                                                         study_idx,
                                                         series_idx,
-                                                        series.series_uid.as_str(),
-                                                        series.folder.to_string_lossy(),
+                                                        series.series_uid.as_ref(),
+                                                        series.folder.as_ref().to_string_lossy(),
                                                     ),
                                                     |ui| {
                                                         ui.selectable_label(
@@ -254,7 +254,7 @@ impl<'a> SidebarPanel<'a> {
                                                 .inner
                                                 .on_hover_text(hover_text);
                                             if resp.clicked() {
-                                                new_selection = Some(series.folder.clone());
+                                                new_selection = Some(series.folder.as_ref().to_path_buf());
                                             }
                                         }
                                     });

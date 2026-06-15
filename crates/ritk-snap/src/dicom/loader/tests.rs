@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::dicom::series_tree::SeriesEntry;
+use std::borrow::Cow;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
@@ -11,41 +12,41 @@ use tempfile::tempdir;
 fn sort_series_entries_is_deterministic() {
     let mut entries = vec![
         SeriesEntry {
-            series_uid: "UID-B".to_owned(),
-            folder: std::path::PathBuf::from("z/path"),
-            patient_name: "B".to_owned(),
-            patient_id: "P2".to_owned(),
-            modality: "MR".to_owned(),
-            series_description: "S2".to_owned(),
+            series_uid: Cow::Borrowed("UID-B"),
+            folder: Cow::Borrowed(std::path::Path::new("z/path")),
+            patient_name: Cow::Borrowed("B"),
+            patient_id: Cow::Borrowed("P2"),
+            modality: Cow::Borrowed("MR"),
+            series_description: Cow::Borrowed("S2"),
             num_slices: 1,
-            study_date: Some("20260102".to_owned()),
-            study_uid: Some("ST2".to_owned()),
+            study_date: Some(Cow::Borrowed("20260102")),
+            study_uid: Some(Cow::Borrowed("ST2")),
         },
         SeriesEntry {
-            series_uid: "UID-A2".to_owned(),
-            folder: std::path::PathBuf::from("b/path"),
-            patient_name: "A".to_owned(),
-            patient_id: "P1".to_owned(),
-            modality: "CT".to_owned(),
-            series_description: "S1".to_owned(),
+            series_uid: Cow::Borrowed("UID-A2"),
+            folder: Cow::Borrowed(std::path::Path::new("b/path")),
+            patient_name: Cow::Borrowed("A"),
+            patient_id: Cow::Borrowed("P1"),
+            modality: Cow::Borrowed("CT"),
+            series_description: Cow::Borrowed("S1"),
             num_slices: 1,
-            study_date: Some("20260101".to_owned()),
-            study_uid: Some("ST1".to_owned()),
+            study_date: Some(Cow::Borrowed("20260101")),
+            study_uid: Some(Cow::Borrowed("ST1")),
         },
         SeriesEntry {
-            series_uid: "UID-A1".to_owned(),
-            folder: std::path::PathBuf::from("a/path"),
-            patient_name: "A".to_owned(),
-            patient_id: "P1".to_owned(),
-            modality: "CT".to_owned(),
-            series_description: "S1".to_owned(),
+            series_uid: Cow::Borrowed("UID-A1"),
+            folder: Cow::Borrowed(std::path::Path::new("a/path")),
+            patient_name: Cow::Borrowed("A"),
+            patient_id: Cow::Borrowed("P1"),
+            modality: Cow::Borrowed("CT"),
+            series_description: Cow::Borrowed("S1"),
             num_slices: 1,
-            study_date: Some("20260101".to_owned()),
-            study_uid: Some("ST1".to_owned()),
+            study_date: Some(Cow::Borrowed("20260101")),
+            study_uid: Some(Cow::Borrowed("ST1")),
         },
     ];
     scan::sort_series_entries_deterministically(&mut entries);
-    let ordered_uids: Vec<&str> = entries.iter().map(|e| e.series_uid.as_str()).collect();
+    let ordered_uids: Vec<&str> = entries.iter().map(|e| e.series_uid.as_ref()).collect();
     assert_eq!(ordered_uids, vec!["UID-A1", "UID-A2", "UID-B"]);
 }
 
