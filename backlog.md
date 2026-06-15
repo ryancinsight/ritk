@@ -168,6 +168,7 @@
 | DRY-374-07 | `decode_bytes_to_f32`/`parse_f64_vec` duplicated across ritk-metaimage/ritk-nrrd | [minor] |
 | DRY-374-08 | `read_ascii/binary_f32/f64/i32` — 10 clones across 3 ritk-vtk IO modules | [minor] |
 | VAR-375-01 | `PhantomData<B>` → `PhantomData<fn() -> B>` BLOCKED [upstream]: `burn-core-0.19.1` only implements `Module<B> for PhantomData<B>` (burn-core/src/module/param/constant.rs:202), not for the covariant form. An attempted switch of 2 sites in `registration/dl/{grad,ncc}.rs` produced 108 compile errors and was reverted. Workarounds: (a) upstream PR to broaden `Module<B>` impls to `PhantomData<fn() -> T>` + `PhantomData<*const T>`; (b) `#[module(custom)]` newtype with hand-written `Module` impl; (c) sealed `BackendMarker` newtype; (d) accept invariant `PhantomData<B>` (current state) | [upstream] |
+| CONST-375-02 | `const _: () = assert!(matches!(D, 1..=4), "...{D}...");` companion in `BSplineTransform` impl BLOCKED [toolchain]: formatted panic in const context requires unstable `const_panic_fmt`; the fallback `[(); (D >= 1 && D <= 4) as usize - 1]:` where-bound also fails with "cannot perform const operation using 'D'" in this Rust toolchain. Current state: four per-D impl blocks produce a trait-coherence compile error for D ∉ {1, 2, 3, 4} ("the trait `Transform<B, D>` is not implemented for `BSplineTransform<B, D>`") which is already a human-readable diagnostic. The const-assert companion can be added once `const_panic_fmt` stabilizes | [toolchain] |
 
 ### Verification
 
