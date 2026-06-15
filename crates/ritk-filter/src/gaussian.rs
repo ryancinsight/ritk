@@ -254,7 +254,7 @@ mod tests {
             GaussianSigma::new_unchecked(2.0),
             GaussianSigma::new_unchecked(2.0),
         ]);
-        let img = make_image(vec![50.0_f32; 1 * size * size], [1, size, size]);
+        let img = make_image(vec![50.0_f32; size * size], [1, size, size]);
         let out = filter.apply(&img);
         let vals = voxels(&out);
         let cx = size / 2;
