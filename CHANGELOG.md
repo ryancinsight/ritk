@@ -1,5 +1,53 @@
 # CHANGELOG
 
+## [0.69.0] — 2026-06-15 (Sprint 374: Architecture Hardening Round 7)
+
+### Added
+- `ritk-registration`: `OptimizerAlgorithm` enum (`GradientDescent`, `Adam`, `AdaptiveStochasticGradientDescent`, `Momentum`, `RegularStepGradientDescent`) replaces bare `&'static str` in `OptimizerTelemetry.algorithm`; exhaustiveness-checked dispatch [P11]
+- `ritk-io`: `ContourGeometricType` enum (`Point`, `OpenPlanar`, `ClosedPlanar`) replaces `ArrayString<16>` in `RtContour.geometric_type`; `from_dicom_str`/`as_dicom_str` round-trips; re-exported from crate root [P15]
+- `ritk-io`: `pub(crate) const EXPLICIT_VR_LE` in transfer_syntax.rs [P18]
+- `ritk-filter`: `pub(super) fn morphological_scan_3d` — generic DRY consolidation of `dilate_3d`/`erode_3d` [P06]
+- `ritk-analyze`: generic `read_le<T>`/`write_le<T>` with sealed `LeBytes` trait; constants `HDR_SIZE = 348`, `EXTENTS = 16_384` [P22, P23]
+- `ritk-snap`: `pub(crate) const U8_MAX_F32: f32 = 255.0` in render/mod.rs [P30]
+
+### Changed
+- `ritk-registration`: `OptimizerTelemetry.algorithm: &'static str` → `OptimizerAlgorithm` — update construction sites [P11, **Breaking**]
+- `ritk-io`: `RtContour.geometric_type: ArrayString<16>` → `ContourGeometricType` — update construction/match sites [P15, **Breaking**]
+- `ritk-snap`: renamed `screen_to_img_f32` → `screen_to_img_exact`, `promote_2d_to_3d` → `elevate_to_volume`, `slice_spacing_2d` → `slice_plane_spacing`, `resize_u8` → `resize_pixel_bytes`, `format_float_slice<const N>` replaces `format_f64_2/3/6/9` [P24-P28]
+- `ritk-vtk`: `VtkCellType::to_u8()`/`from_u8()` replaced by `From<VtkCellType> for u8`/`TryFrom<u8> for VtkCellType` [P32, **Breaking**]
+- `ritk-codecs`: `PixelSignedness::to_u16()` removed; use `u16::from(signedness)` [P21]
+- `ritk-analyze`: `read_i16`/`read_i32`/`read_f32`/`write_i16`/`write_i32`/`write_f32` replaced by `read_le<T>`/`write_le<T>` (pub(crate) API) [P22]
+- `ritk-nrrd`: `parse_space_directions_2d` → `_planar`, `parse_nrrd_point_2d` → `_planar` [P38]
+- `ritk-vtk`: `parse_f64s` → generic `parse_floats<T: FromStr>` [P33]
+
+### Fixed
+- `ritk-image`: `data_vec` `#[deprecated(since = "0.7.0")]` corrected to `since = "0.1.0"`; dead `if B::ad_enabled()` branches in `data_slice()` collapsed; stale `TODO(audit §3.3)` removed [P20]
+- `ritk-registration`: Stale architecture diagram in `lib.rs` fixed (removed phantom `intensity.rs`; engine/spatial/temporal correctly shown as module directories) [P12]
+- `ritk-io`: `str_to_vr` 36-arm duplication eliminated; `DICOM_SOP_CLASS_SECONDARY_CAPTURE` promoted to `pub(crate)` [P16, P17]
+- `ritk-statistics`: `white_stripe.rs` SSOT bypass fixed (`0.5` → `crate::FOREGROUND_THRESHOLD`) [P08]
+
+### Removed
+- `ritk-snap`: Dead `fn tool_shortcut_text` and `pub adapter: Adapter` field [P31]
+- `ritk-vtk`: Dead `extract_da_content` + `named_da` functions from xml_helpers.rs [P33]
+
+### SSOT constants added
+- `ritk-filter`: `SIGMA_MIN`, `NEAR_ZERO_MAG`, `LENGTH_EPSILON`, `NEAR_ZERO_WEIGHT`, `TIKHONOV_LAMBDA` [P01-P05]
+- `ritk-segmentation`: `PROB_ZERO_GUARD: f64 = 1e-12` (15 production sites); `EIGENVALUE_SINGULARITY_EPS` in label_shape_extended; `WEIGHT_ZERO_GUARD` in chan_vese [P07]
+- `ritk-statistics`: `CENTRAL_DIFF_HALF: f32 = 0.5` in jacobian.rs [P10]
+- `ritk-transform`/`ritk-registration`: test tolerance constants `NEAR_ZERO`, `ABS_TOL`, `SCHEDULER_TOL` [P13, P14]
+- `ritk-annotation`: `EPSILON: f32 = 1e-6`, `U8_MAX_F: f32 = 255.0` [P36]
+
+### SRP — Test block extractions
+- `ritk-io/rt_struct`: `tests/converter.rs` (202L) [P19]
+- `ritk-annotation`: `tests_label_table.rs` (107L), `tests_undo_redo.rs` (115L), `tests_label_map.rs` (82L) [P37]
+- `ritk-tensor-ops`: `tests_tensor_ops.rs` (182L) [P40]
+
+### Breaking
+- `ritk-registration 0.53.0 → 0.54.0`: `OptimizerTelemetry { algorithm: "GradientDescent" }` → `{ algorithm: OptimizerAlgorithm::GradientDescent }`
+- `ritk-io 0.2.0 → 0.3.0`: `RtContour { geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap() }` → `{ geometric_type: ContourGeometricType::ClosedPlanar }`
+- `ritk-vtk 0.1.0 → 0.2.0`: `cell_type.to_u8()` → `u8::from(cell_type)`; `VtkCellType::from_u8(v)` → `VtkCellType::try_from(v).ok()`
+- `ritk-codecs 0.5.3 → 0.5.4` (patch: pub method removal, pre-1.0): `signedness.to_u16()` → `u16::from(signedness)`
+
 ## [0.68.2] — 2026-06-12 (Sprint 373 cont.: J2K packet-header bit-stuffing — SimpleITK/GDCM interop)
 
 ### Fixed

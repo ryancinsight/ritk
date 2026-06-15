@@ -4,6 +4,89 @@
 
 ---
 
+## Sprint 374 — Architecture Hardening Round 7: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
+
+**Status**: Complete  
+**Version**: 0.69.0  
+
+### Delivered
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| P01 | `SIGMA_MIN: f64 = 1e-10` const in bilateral.rs [patch] | Done |
+| P02 | `NEAR_ZERO_MAG: f32 = 1e-10` const in canny.rs [patch] | Done |
+| P03 | `LENGTH_EPSILON: f64 = 1e-12` const in cpr_helpers.rs [patch] | Done |
+| P04 | `NEAR_ZERO_WEIGHT: f64 = 1e-12` const in n4/histogram_sharpen.rs [patch] | Done |
+| P05 | `TIKHONOV_LAMBDA: f64 = 1e-6` const in bspline_bias.rs [patch] | Done |
+| P06 | DRY: `morphological_scan_3d` consolidates `dilate_3d`/`erode_3d` (−60L) [minor] | Done |
+| P07 | SSOT: `PROB_ZERO_GUARD: f64 = 1e-12` in threshold/mod.rs; 15 sites + EIGENVALUE_SINGULARITY_EPS + WEIGHT_ZERO_GUARD [minor] | Done |
+| P08 | SSOT: `white_stripe.rs` `mv > 0.5` → `crate::FOREGROUND_THRESHOLD` [patch] | Done |
+| P09 | SSOT: `NORMALIZER_EPSILON` in 2 test files (tests_white_stripe, tests_zscore) [patch] | Done |
+| P10 | SSOT: `CENTRAL_DIFF_HALF: f32 = 0.5` in jacobian.rs (3 sites) [patch] | Done |
+| P11 | ENUM: `OptimizerAlgorithm` enum replaces `&'static str` in `OptimizerTelemetry`; 5 optimizer impls updated [minor] | Done |
+| P12 | COMPAT: Stale architecture diagram in ritk-registration/lib.rs fixed [patch] | Done |
+| P13 | SSOT: `NEAR_ZERO`/`ABS_TOL` test tolerance consts in ritk-transform tests [patch] | Done |
+| P14 | SSOT: `SCHEDULER_TOL: f64 = 1e-12` in optimizer/trait_.rs tests (6 sites) [patch] | Done |
+| P15 | ENUM: `ContourGeometricType` replaces `ArrayString<16>` in `RtContour`; reader/converter/writer updated [minor] | Done |
+| P16 | DRY: `str_to_vr` 36-arm duplication eliminated; widened to `pub(crate)`, deleted from writer_object.rs [patch] | Done |
+| P17 | SSOT: `DICOM_SOP_CLASS_SECONDARY_CAPTURE` promoted to `pub(crate)` [patch] | Done |
+| P18 | SSOT: `EXPLICIT_VR_LE` const added to transfer_syntax.rs; 3 raw UID literals replaced [patch] | Done |
+| P19 | SRP: rt_struct/converter.rs 202L test block → tests/converter.rs [patch] | Done |
+| P20 | COMPAT: `data_vec` deprecated since fixed 0.7.0→0.1.0; data_slice() dead branches collapsed; stale TODO removed [patch] | Done |
+| P21 | NAMING: `PixelSignedness::to_u16` deleted; `From` impl inlined [patch] | Done |
+| P22 | NAMING: sealed `LeBytes` trait + `read_le<T>`/`write_le<T>` replaces 6 type-suffixed fns in ritk-analyze [minor] | Done |
+| P23 | SSOT: `HDR_SIZE = 348` + `EXTENTS = 16_384` consts in ritk-analyze [patch] | Done |
+| P24 | NAMING: `format_float_slice<const N>` replaces `format_f64_2/3/6/9` in metadata_table.rs [patch] | Done |
+| P25 | NAMING: `screen_to_img_f32` → `screen_to_img_exact` + 2 test renames [patch] | Done |
+| P26 | NAMING: `promote_2d_to_3d` → `elevate_to_volume` [patch] | Done |
+| P27 | NAMING: `slice_spacing_2d` → `slice_plane_spacing` [patch] | Done |
+| P28 | NAMING: `resize_u8` → `resize_pixel_bytes` + 4 test fn renames [patch] | Done |
+| P29 | NAMING: `to_u8` → `clamp_to_byte` in colormap.rs (10 sites) [patch] | Done |
+| P30 | SSOT: `U8_MAX_F32: f32 = 255.0` in render/mod.rs; 11 literals replaced across 6 render files [patch] | Done |
+| P31 | COMPAT: deleted `tool_shortcut_text` dead fn; deleted `adapter` dead field from gpu_volume/context.rs [patch] | Done |
+| P32 | NAMING: `VtkCellType::to_u8`/`from_u8` → `From`/`TryFrom`; 7 callers updated [minor] | Done |
+| P33 | NAMING+COMPAT: `parse_f64s` → `parse_floats<T: FromStr>`; deleted `extract_da_content`+`named_da` [patch] | Done |
+| P34 | NAMING: `parse_as_f32`→`parse_float_ascii`, `read_le_f32`→`read_le_float`; 12 callers [patch] | Done |
+| P35 | NAMING: 10 stale `rgba_u8_*`/`rgba_f32_*` test names updated in tests_color.rs [patch] | Done |
+| P36 | SSOT: `EPSILON: f32 = 1e-6` (8 sites) + `U8_MAX_F: f32 = 255.0` (5 sites) in ritk-annotation [patch] | Done |
+| P37 | SRP: 3 test blocks extracted from ritk-annotation: tests_label_table, tests_undo_redo, tests_label_map [patch] | Done |
+| P38 | NAMING: `parse_space_directions_2d`→`_planar`, `parse_nrrd_point_2d`→`_planar` in ritk-nrrd [patch] | Done |
+| P39 | NAMING: 5 type-suffixed test fn names in ritk-mgh renamed to scenario descriptions [patch] | Done |
+| P40 | NAMING+SRP: `make_image_3d`→`make_test_image`; gaussian_kernel test renames; extract tests_tensor_ops.rs [patch] | Done |
+
+### Blocked / Deferred (carry-forward)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` BLOCKED [arch]: `DimInterpolation<B>` sealed trait ADR required | [arch] |
+| SRP-362-20 | `FilterArgs` (30 variants) → `FilterKind` ValueEnum [major] scope | [major] |
+| NAMING-FILTER-01 | `FftConvolution3DFilter` const-generic unification [major] | Low |
+| TIMEOUT-367 | 4 ritk-interpolation large-dispatch tests — pre-existing performance issue | Medium |
+| DRY-374-01 | `make_image_1d/3d`/`make_mask_*` — 35+ copies across ritk-segmentation/ritk-statistics | [minor] |
+| NAMING-374-02 | 30+ test fn dim-suffix names in ritk-filter fft tests; 22 in ritk-registration regularization | [patch] |
+| SRP-374-03 | 21 inline test blocks in ritk-filter > 80L (grayscale_erosion 198L, unsharp_mask 210L, median 193L) | [patch] |
+| SRP-374-04 | 25 inline test blocks in ritk-snap > 80L | [patch] |
+| NAMING-374-05 | ritk-minc public API type suffixes (`extract_f64`, `build_attr_msg_f64`, `convert_to_f32`) | [minor] |
+| ENUM-374-06 | `ModalityDisplay.modality: String` in ritk-snap — deferred for serde-compat impl | [minor] |
+| DRY-374-07 | `decode_bytes_to_f32`/`parse_f64_vec` duplicated across ritk-metaimage/ritk-nrrd | [minor] |
+| DRY-374-08 | `read_ascii/binary_f32/f64/i32` — 10 clones across 3 ritk-vtk IO modules | [minor] |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| ritk-filter nextest | 702/702 |
+| ritk-segmentation + ritk-statistics nextest | 663/663 |
+| ritk-registration + ritk-transform nextest | 615 + 69 = 684 |
+| ritk-io nextest | 330/330 |
+| ritk-image + ritk-codecs + ritk-analyze nextest | 236/236 |
+| ritk-snap nextest | 640/640 |
+| ritk-vtk + ritk-annotation + ritk-nrrd + ritk-mgh + ritk-tensor-ops nextest | 365/365 |
+| Total across modified crates | **3620/3620** |
+
+---
+
 ## Sprint 372 — J2K conformance fixes + differential interop harness (in progress)
 
 **Status**: Conformance fixes delivered; interop acceptance gate pending  

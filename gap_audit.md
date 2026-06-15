@@ -4,6 +4,55 @@
 
 ---
 
+## Sprint 374 Audit (2026-06-15) — Architecture Hardening Round 7: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
+
+### Gaps Identified (7-agent parallel audit: ritk-core/filter/image, ritk-segmentation/morphology/statistics, ritk-registration/transform, ritk-io/dicom/codecs, ritk-cli/interpolation/analyze, ritk-annotation/snap/spatial/tensor-ops/format crates)
+
+- **SSOT (ritk-filter)**: 5 bare literal constants without names (SIGMA_MIN 1e-10 ×2, NEAR_ZERO_MAG 1e-10 ×2, LENGTH_EPSILON 1e-12 ×2, NEAR_ZERO_WEIGHT 1e-12 ×2, TIKHONOV_LAMBDA 1e-6 ×1)
+- **DRY (ritk-filter)**: `dilate_3d`/`erode_3d` structurally identical 6-level nested loops differing only in init value and comparator
+- **SSOT (ritk-segmentation)**: `1e-12_f64` zero-probability guard at 15 production sites across 5 threshold files + chan_vese
+- **SSOT (ritk-statistics)**: `white_stripe.rs` hardcoded `0.5` bypassing `crate::FOREGROUND_THRESHOLD`; `NORMALIZER_EPSILON` bypassed in 2 test files; `CENTRAL_DIFF_HALF` undocumented `0.5` in jacobian.rs
+- **ENUM (ritk-registration)**: `OptimizerTelemetry.algorithm: &'static str` closed set of optimizer names
+- **COMPAT (ritk-registration)**: Stale architecture diagram referencing non-existent `intensity.rs` and flat-file paths for directory modules
+- **SSOT (ritk-registration/transform)**: `1e-6`/`1e-5`/`1e-4`/`1e-12` bare tolerance literals across test files
+- **ENUM (ritk-io)**: `RtContour.geometric_type: ArrayString<16>` for 3-variant closed set (POINT/OPEN_PLANAR/CLOSED_PLANAR)
+- **DRY (ritk-io)**: `str_to_vr` 36-arm match cloned verbatim in `writer/utils.rs` and `writer_object.rs`
+- **SSOT (ritk-io)**: `DICOM_SOP_CLASS_SECONDARY_CAPTURE` pub(super) unreachable from writer_object.rs; Explicit VR LE UID `"1.2.840.10008.1.2.1"` raw literal at 3 sites
+- **SRP (ritk-io)**: 202-line inline test block in rt_struct/converter.rs
+- **COMPAT (ritk-image)**: `data_vec` `#[deprecated(since = "0.7.0")]` wrong version (crate is 0.1.0); dead branches in `data_slice()` both return same value; stale `TODO(audit §3.3)` in production source
+- **NAMING (ritk-codecs)**: `PixelSignedness::to_u16()` type name in method identifier, redundant with `From<PixelSignedness> for u16`
+- **NAMING (ritk-analyze)**: `read_i16`/`read_i32`/`read_f32`/`write_i16`/`write_i32`/`write_f32` — 6 type-suffixed pub(crate) functions; resolved with sealed `LeBytes` trait
+- **SSOT (ritk-analyze)**: `348` bare integer at 6 sites; `16384` bare integer; no named constants
+- **NAMING (ritk-snap)**: `format_f64_2/3/6/9` — type+arity in 4 cloned fns; `screen_to_img_f32` type suffix; `promote_2d_to_3d`/`slice_spacing_2d`/`resize_u8` dimension/type suffixes; `to_u8` type suffix in colormap
+- **SSOT (ritk-snap)**: `255.0` u8-max normalization constant scattered across 6 render files
+- **COMPAT (ritk-snap)**: `tool_shortcut_text` dead fn; `adapter` dead field with no call sites
+- **NAMING (ritk-vtk)**: `VtkCellType::to_u8`/`from_u8` type-name method identifiers (pattern replaced by From/TryFrom); `parse_f64s` type suffix; `parse_as_f32`/`read_le_f32` in ply/types.rs
+- **COMPAT (ritk-vtk)**: `extract_da_content`/`named_da` dead code with `#[allow(dead_code)]`
+- **NAMING (ritk-annotation)**: 10 stale `rgba_u8_*`/`rgba_f32_*` test fn names from Sprint 367 type rename not followed up
+- **SSOT (ritk-annotation)**: `1e-6` epsilon × 8 in tests_color.rs; `255.0` × 5 in color.rs
+- **SRP (ritk-annotation)**: 3 inline test blocks (label_table 107L, undo_redo 115L, label_map 82L)
+- **NAMING (ritk-nrrd)**: `parse_space_directions_2d`/`parse_nrrd_point_2d` dimension suffixes
+- **NAMING (ritk-mgh)**: 5 type-suffixed test fn names
+- **NAMING+SRP (ritk-tensor-ops)**: `make_image_3d` dimension suffix; gaussian_kernel test names embed type; 182L inline test block
+
+### Gaps Closed This Session
+All 40 gap classes above closed.
+
+### Residual Risk
+- `NAMING-362-23`: `transform_1d/_2d/_3d/_4d` remains BLOCKED [arch] — `DimInterpolation<B>` sealed trait ADR required.
+- `SRP-362-20`: `FilterArgs` → `FilterKind` ValueEnum — [major] scope, deferred.
+- `NAMING-FILTER-01`: `FftConvolution*3DFilter` const-generic unification — [major], ADR required.
+- `TIMEOUT-367`: 4 ritk-interpolation large-dispatch tests — pre-existing.
+- `DRY-374-01`: `make_image_1d/3d`/`make_mask_*` — 35+ copies (ritk-segmentation/statistics); partial (tensor-ops done). Fix requires shared test-utils module across crate boundary — filed for next sprint.
+- `NAMING-374-02`: ~52 test fn dim-suffix names in ritk-filter (fft/conv/shift/freq) and ritk-registration (regularization tests).
+- `SRP-374-03/04`: 21 inline test blocks > 80L in ritk-filter; 25 in ritk-snap. Mechanical extraction; filed for next sprint.
+- `NAMING-374-05`: ritk-minc public API (`extract_f64`, `build_attr_msg_f64`, `convert_to_f32`) — public API rename needs [minor] version bump.
+- `ENUM-374-06`: `ModalityDisplay.modality: String` in ritk-snap — deferred: serde `From<String>`/`Into<String>` impl required for backward-compat serialization.
+- `DRY-374-07`: `decode_bytes_to_f32`/`parse_f64_vec` duplicated ritk-metaimage/ritk-nrrd — requires shared `ritk-io` codec layer.
+- `DRY-374-08`: 10 `read_ascii/binary_f32/f64/i32` clones across 3 ritk-vtk IO modules — consolidate into `io/codec.rs`.
+
+---
+
 ## Sprint 367 Audit (2026-06-12) — Architecture Hardening Round 6: ENUM · NAMING · SRP · SSOT · DRY · COMPAT + ritk-core Crate Extraction
 
 ### Gaps Identified (parallel audit: ritk-core, ritk-annotation, ritk-statistics, ritk-morphology, ritk-tensor-ops, ritk-filter, ritk-segmentation, ritk-registration, ritk-io, ritk-cli, ritk-interpolation, ritk-snap, ritk-analyze)

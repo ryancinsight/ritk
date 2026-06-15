@@ -1,5 +1,36 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 374 — Architecture Hardening Round 7: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
+**Target version**: 0.69.0  
+**Sprint phase**: Closure — all 40 patches delivered and verified.
+
+### Delivered (Sprint 374)
+- [x] P01–P05 [patch]: SSOT constants extracted in ritk-filter (SIGMA_MIN, NEAR_ZERO_MAG, LENGTH_EPSILON, NEAR_ZERO_WEIGHT, TIKHONOV_LAMBDA)
+- [x] P06 [minor]: DRY — `morphological_scan_3d` consolidates dilate_3d/erode_3d in ritk-filter morphology/mod.rs
+- [x] P07 [minor]: SSOT — `PROB_ZERO_GUARD: f64 = 1e-12` in threshold/mod.rs; 15 production sites across kapur/li/otsu/multi_otsu/chan_vese; EIGENVALUE_SINGULARITY_EPS in label_shape_extended
+- [x] P08–P10 [patch]: SSOT — FOREGROUND_THRESHOLD bypass fixed; NORMALIZER_EPSILON in 2 test files; CENTRAL_DIFF_HALF in jacobian.rs
+- [x] P11 [minor]: ENUM — `OptimizerAlgorithm` enum in ritk-registration (5 optimizer impls updated)
+- [x] P12–P14 [patch]: COMPAT + SSOT — stale diagram fixed; test tolerance consts in transform/registration
+- [x] P15 [minor]: ENUM — `ContourGeometricType` enum in ritk-io RtContour (reader/converter/writer/tests updated)
+- [x] P16–P19 [patch]: DRY + SSOT + SRP — str_to_vr dedup; SOP UID + TS UID SSOT; converter tests extracted
+- [x] P20–P23 [patch/minor]: COMPAT + NAMING + SSOT — ritk-image deprecated fix; ritk-codecs to_u16 removal; ritk-analyze LeBytes trait + HDR_SIZE/EXTENTS
+- [x] P24–P31 [patch]: NAMING + SSOT + COMPAT — 6 snap renames; U8_MAX_F32 const; 2 dead code deletions
+- [x] P32–P34 [minor/patch]: NAMING + COMPAT — VtkCellType From/TryFrom; parse_floats generic; ply renames + dead fn deletion
+- [x] P35–P40 [patch]: NAMING + SSOT + SRP — annotation test names; epsilon/U8_MAX_F consts; 3 test extractions; nrrd/mgh/tensor-ops naming
+
+### Blocked / Deferred
+- [ ] NAMING-362-23: `transform_1d/_2d/_3d/_4d` [arch] BLOCKED
+- [ ] SRP-362-20: `FilterArgs` → `FilterKind` [major]
+- [ ] DRY-374-01: `make_image_*`/`make_mask_*` 35+ copies (next round)
+- [ ] SRP-374-03: 21 test blocks in ritk-filter (next round)
+- [ ] SRP-374-04: 25 test blocks in ritk-snap (next round)
+- [ ] NAMING-374-02, ENUM-374-06, DRY-374-07/08, NAMING-374-05: carry-forward (next round)
+
+### Verification gate
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo nextest run` (modified crates) → 3620/3620 passed
+
+---
 ## Sprint 373 — J2K interop closure (MQ root cause fixed)
 **Target version**: 0.68.x  
 **Sprint phase**: Closure — J2K-INTEROP P1 closed; next increment: SimpleITK parity comparison (tests + examples).
