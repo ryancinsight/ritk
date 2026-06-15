@@ -147,6 +147,42 @@ def test_ritk_reads_gzip_nrrd_brain_mri():
     assert float(np.max(np.abs(ra - sa))) == 0.0
 
 
+# ── Write round-trips: ritk writes → SimpleITK reads back, metadata preserved ──
+
+
+@pytest.mark.parametrize("ext", [".mha", ".nrrd"])
+def test_ritk_write_roundtrips_metadata_through_sitk(ext, tmp_path):
+    """ritk writing a volume with an anisotropic origin and an axis-permuted
+    direction (OAS1) must produce a file SimpleITK reads back identically.
+
+    Guards two I/O conventions: the NRRD writer's space declaration (LPS, not RAS
+    — RAS made sitk negate the x/y origin) and the MetaImage TransformMatrix
+    layout (ITK row-major axis directions, i.e. the transpose of the column-major
+    direction matrix — writing columns transposed an axis-permuted direction).
+    """
+    path = fetch("OAS1_0001_MR1_mpr-1_anon.nrrd")
+    orig = sitk.ReadImage(path)
+    ri = ritk.io.read_image(path)
+
+    out = str(tmp_path / f"roundtrip{ext}")
+    ritk.io.write_image(ri, out)
+    back = sitk.ReadImage(out)
+
+    # Pixels byte-exact.
+    assert float(np.max(np.abs(
+        sitk.GetArrayFromImage(orig).astype(np.float64)
+        - sitk.GetArrayFromImage(back).astype(np.float64)
+    ))) == 0.0
+    # Geometry preserved.
+    assert np.allclose(orig.GetSpacing(), back.GetSpacing(), atol=1e-4), "spacing"
+    assert np.allclose(orig.GetOrigin(), back.GetOrigin(), atol=1e-3), (
+        f"origin {orig.GetOrigin()} vs {back.GetOrigin()}"
+    )
+    assert np.allclose(orig.GetDirection(), back.GetDirection(), atol=1e-4), (
+        f"direction {orig.GetDirection()} vs {back.GetDirection()}"
+    )
+
+
 # ── ritk native 2-D reads (promoted to z=1) ───────────────────────────────────
 #
 # ritk's `Image` is intrinsically 3-D; its MetaImage, NRRD, and PNG readers

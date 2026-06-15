@@ -1,6 +1,6 @@
 [package]
 name = "ritk-nrrd"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "NRRD (Nearly Raw Raster Data) I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"

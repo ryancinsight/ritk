@@ -89,7 +89,12 @@ pub fn write_nrrd_with_data<B: Backend, P: AsRef<Path>>(
     writeln!(writer, "# Complete NRRD file written by ritk")?;
     writeln!(writer, "type: float")?;
     writeln!(writer, "dimension: 3")?;
-    writeln!(writer, "space: right-anterior-superior")?;
+    // ITK/SimpleITK and ritk's own reader work in LPS: the reader stores the
+    // `space origin` / `space directions` verbatim (no space conversion), and ITK
+    // NRRDs are written LPS. Declaring RAS here made SimpleITK reinterpret the
+    // LPS-valued origin/directions and negate the x and y (R↔L, A↔P) components on
+    // read, corrupting the origin of an anisotropic-origin volume on round-trip.
+    writeln!(writer, "space: left-posterior-superior")?;
     // sizes is in NRRD [X, Y, Z] order.
     writeln!(writer, "sizes: {} {} {}", nx, ny, nz)?;
     writeln!(writer, "space directions: {} {} {}", sd0, sd1, sd2)?;

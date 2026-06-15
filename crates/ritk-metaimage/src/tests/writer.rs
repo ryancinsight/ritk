@@ -296,10 +296,29 @@ fn test_non_identity_direction_reordered_in_header() -> Result<()> {
     write_metaimage(&path, &image)?;
 
     let bytes = std::fs::read(&path)?;
+    // ITK MetaImage TransformMatrix is row-major with each row an axis direction
+    // cosine (the transpose of the column-major direction matrix). For this image
+    // the file-axis directions (after the [x,y,z]↔[z,y,x] reorder) are emitted as
+    // rows: 0 0 1 / -1 0 0 / 0 1 0.
     assert!(
-        bytes_contain(&bytes, "TransformMatrix = 0 -1 0 0 0 1 1 0 0"),
-        "internal direction columns must be serialized as MetaImage [x,y,z] columns"
+        bytes_contain(&bytes, "TransformMatrix = 0 0 1 -1 0 0 0 1 0"),
+        "TransformMatrix must be ITK row-major axis directions, got header:\n{}",
+        String::from_utf8_lossy(&bytes[..bytes.len().min(300)])
     );
+
+    // Round-trip: reading the written file must recover the exact direction.
+    let read_back = crate::read_metaimage::<TestBackend, _>(&path, &device)?;
+    let got = read_back.direction().0;
+    for i in 0..3 {
+        for j in 0..3 {
+            assert!(
+                (got[(i, j)] - mat[(i, j)]).abs() < 1e-9,
+                "direction round-trip mismatch at ({i},{j}): got {} want {}",
+                got[(i, j)],
+                mat[(i, j)]
+            );
+        }
+    }
 
     Ok(())
 }

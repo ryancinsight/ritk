@@ -58,17 +58,20 @@ pub(crate) fn file_spatial_fields_from_internal(
         internal_columns[0],
     ];
 
+    // ITK MetaImage TransformMatrix is row-major with row `axis` = that axis's
+    // direction cosine (the transpose of the column-major direction matrix), so
+    // each file axis direction is emitted as a row.
     MetaImageSpatialFields {
         element_spacing: [spacing[2], spacing[1], spacing[0]],
         transform_matrix_row_major: [
             file_columns[0][0],
-            file_columns[1][0],
-            file_columns[2][0],
             file_columns[0][1],
-            file_columns[1][1],
-            file_columns[2][1],
             file_columns[0][2],
+            file_columns[1][0],
+            file_columns[1][1],
             file_columns[1][2],
+            file_columns[2][0],
+            file_columns[2][1],
             file_columns[2][2],
         ],
     }
@@ -107,15 +110,23 @@ fn metadata_from_internal_scaled_columns(
     }
 }
 
+/// Direction cosine vector of file axis `axis`, scaled by its spacing.
+///
+/// ITK's MetaImage `TransformMatrix` is **row-major with each row the direction
+/// cosine of one image axis** (the transpose of the ITK/SimpleITK direction
+/// matrix, whose columns are axis directions). Row `axis` is therefore the file
+/// axis-`axis` direction. Reading the column instead transposed the matrix —
+/// invisible for identity/symmetric directions but corrupting oblique or
+/// axis-permuted volumes on read/write.
 fn scaled_file_direction_column(
     transform_matrix_row_major: [f64; 9],
     file_spacing: [f64; 3],
-    column: usize,
+    axis: usize,
 ) -> Vector3<f64> {
     Vector3::new(
-        transform_matrix_row_major[column] * file_spacing[column],
-        transform_matrix_row_major[3 + column] * file_spacing[column],
-        transform_matrix_row_major[6 + column] * file_spacing[column],
+        transform_matrix_row_major[3 * axis] * file_spacing[axis],
+        transform_matrix_row_major[3 * axis + 1] * file_spacing[axis],
+        transform_matrix_row_major[3 * axis + 2] * file_spacing[axis],
     )
 }
 
