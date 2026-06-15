@@ -60,11 +60,11 @@ slow-timeout = { period = "120s", terminate-after = 2 }
 
 # Heavy interpolation dispatch tests on large grids (1024^3 and 4D 128^4)
 [[profile.default.overrides]]
-filter = 'test(dispatch_routes_1024_cube) | test(nearest_dispatch_routes_1024_cube) | test(dispatch_4d_routes_128) | test(type_narrowing_wrapper_4d_routes)'
+filter = 'test(dispatch_routes_1024_to_typed_path) | test(nearest_dispatch_routes_1024_to_typed_path) | test(dispatch_4d_routes_128) | test(type_narrowing_wrapper_4d_routes_through_sealed_trait)'
 slow-timeout = { period = "120s", terminate-after = 2 }
 
 [[profile.ci.overrides]]
-filter = 'test(dispatch_routes_1024_cube) | test(nearest_dispatch_routes_1024_cube) | test(dispatch_4d_routes_128) | test(type_narrowing_wrapper_4d_routes)'
+filter = 'test(dispatch_routes_1024_to_typed_path) | test(nearest_dispatch_routes_1024_to_typed_path) | test(dispatch_4d_routes_128) | test(type_narrowing_wrapper_4d_routes_through_sealed_trait)'
 slow-timeout = { period = "120s", terminate-after = 2 }
 
 # wgpu/GPU rendering and layout tests in ritk-snap.
