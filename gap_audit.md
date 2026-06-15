@@ -4,6 +4,47 @@
 
 ---
 
+## Sprint 375 Audit (2026-06-15) — Architecture Hardening Round 8: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
+
+### Gaps Identified (8-crate parallel audit: ritk-io, ritk-vtk, ritk-spatial/morphology/minc/metaimage/nrrd, ritk-snap, ritk-registration/transform, ritk-codecs/image/interpolation, ritk-filter, ritk-segmentation/statistics)
+
+- **[HARD] (ritk-io)**: `seg/writer.rs` fake UID bypass — `generate_uid()` suppressed, static value returned; real computation restored (P01)
+- **SSOT (ritk-io)**: `EXPLICIT_VR_LE` UID literal at 6 writer sites; `normalize_f32_to_u16` inline in 3 writers; `emit_u16_pixel_format_tags` cloned across 2 writers; 5 private UID counters duplicating `generate_uid`
+- **ENUM (ritk-io)**: `RtRoiInfo.roi_interpreted_type: Option<String>` (3-variant closed set); `RtDoseGrid.dose_type`/`dose_summation_type: ArrayString<16>`; `DicomSegmentation.segmentation_type`/`DicomSegmentInfo.algorithm_type: ArrayString<16>` — all closed sets
+- **NAMING (ritk-io)**: `DicomObjectNode::from_u16`/`from_i32`/`from_f64` type-name constructors; `get_u16` not reflecting u32 storage; `Association::config` dead field
+- **NAMING (ritk-vtk)**: 13 type-concrete read functions (`read_ascii_f32`, `read_binary_i32`, etc.); `write_attribute` cloned across VTK/VTP writers; XML attribute helpers duplicated across 3 modules; `char::from(Nu8)` idiom in 11 files vs char literal
+- **SRP (ritk-vtk)**: 6 oversized test blocks (domain/filters/io) co-located in production modules
+- **SSOT (ritk-spatial)**: `ORTHOGONALITY_TOLERANCE` bare literal; inline test block in spacing.rs
+- **COMPAT (ritk-spatial)**: `Point::to_vec()`/`Vector::to_vec()` deprecated stubs still present
+- **SRP (ritk-morphology)**: `shape_markers.rs` inline test block > 80L
+- **NAMING (ritk-minc)**: `extract_f64`/`build_attr_msg_f64`/`convert_to_f32` — type suffixes in public API (3 fns)
+- **NAMING (ritk-metaimage/nrrd)**: `decode_bytes_to_f32`/`parse_f64_vec` type-suffixed across both crates (DRY-374-07 partially closed)
+- **SRP (ritk-metaimage)**: `reader.rs` 600L+ combining decode + reader logic — split into mod.rs + decode.rs
+- **SSOT+NAMING (ritk-snap)**: 24 inline test blocks > 80L; `DEFAULT_WINDOW_CENTER/WIDTH` bare literals; `MPR_INFO`/`OVERLAY` bare string literals; `DEFAULT_VR_ALPHA`/`FUSION_ALPHA`/RT-dose opacity bare floats; `dot3`/`cross3`/`normalize3` non-idiomatic names; W/L extraction duplicated
+- **COMPAT (ritk-snap)**: `ModalityDisplay.modality: String` dead field; dead MRI dispatch arm
+- **NAMING+SSOT (ritk-registration/transform)**: 27 test fn dim-suffixes in regularization; 14 test fn dim-suffixes in transform; 6 integration test dim-suffixes; 17 production bare literals (NCC_SIGMA_GUARD, QUAT_NORM_GUARD, etc.); test tolerance literals
+- **SRP (ritk-registration)**: 5 inline test blocks; 5 duplicate inline regularization tests; 5 dead code items
+- **SSOT (ritk-codecs)**: JPEG magic numbers (MAX_CODE_LEN=16, DCT_BLOCK_DIM=8, DCT_BLOCK_CELLS=64, YCbCr coefficients) scattered; `decode_native_pixel_bytes` not deprecated despite `apply_rescale` superseding it; `legacy.rs` with 8 redundant NN dispatch arms
+- **ENUM (ritk-codecs)**: `InterleaveMode` and `QuantPrecision` represented as bare strings/integers
+- **SSOT (ritk-interpolation)**: `LANCZOS_WEIGHT_EPS`/`SPATIAL_DIMS` bare literals; test modules named `dim*.rs` (dimension suffix)
+- **SRP (ritk-codecs/image/interpolation)**: 6 inline test blocks in grid.rs, transform.rs, pixel_layout.rs, jpeg/mod.rs, nearest.rs, tensor_trilinear.rs
+- **NAMING (ritk-filter)**: 28 fft/conv test fn names with `_dim`/`_3d`/`_2d` suffixes; `NCC_DENOM_FLOOR`/`NEAR_ONE_TOL`/`NEAR_ZERO_TOL` bare literals
+- **SRP (ritk-filter/segmentation/statistics)**: 22 inline test blocks > 80L (batches A+B)
+- **SSOT (ritk-segmentation/statistics)**: `entropy_from_hist` pub(super) blocking crate reuse; `F32_TOL`/`STAPLE_TOL`/`FOREGROUND_THRESHOLD` bare literals in staple
+
+### Gaps Closed This Session
+All 60 gap classes above closed (P01–P60).
+
+### Residual Risk
+- `DRY-374-01`: `make_image_*`/`make_mask_*` — 68 occurrences across ritk-segmentation/statistics. Requires shared test-utils module across crate boundary; partial fix blocked pending cross-crate test-helper strategy. Filed for Sprint 376.
+- `NAMING-362-23`: `transform_1d/_2d/_3d/_4d` → `DimInterpolation<B>` sealed trait BLOCKED [arch] — ADR required before implementation; 4 crate boundaries affected.
+- `SRP-362-20`: `FilterArgs` → `FilterKind` ValueEnum — [major] scope; affects CLI public API; ADR required.
+- `NAMING-FILTER-01`: `FftConvolution3DFilter` const-generic unification — [major]; concurrent-crate changes required.
+- `N-375-08`: DRY cross-crate parse utils (ritk-io shared codec layer covering metaimage/nrrd/minc `decode_element_bytes`/`parse_float_vec`) BLOCKED [arch] — crate dependency direction change required; architecture_scoping promotion trigger for ritk-io → ritk-core migration.
+- `VAR-375-01`: `PhantomData<B>` → `PhantomData<fn() -> B>` BLOCKED [upstream] — burn-core-0.19.1 does not implement `Module<B>` for `PhantomData<fn() -> B>`; upstream PR pending.
+
+---
+
 ## Sprint 374 Audit (2026-06-15) — Architecture Hardening Round 7: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
 
 ### Gaps Identified (7-agent parallel audit: ritk-core/filter/image, ritk-segmentation/morphology/statistics, ritk-registration/transform, ritk-io/dicom/codecs, ritk-cli/interpolation/analyze, ritk-annotation/snap/spatial/tensor-ops/format crates)
