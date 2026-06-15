@@ -183,6 +183,35 @@ def test_ritk_write_roundtrips_metadata_through_sitk(ext, tmp_path):
     )
 
 
+@pytest.mark.parametrize("ext", [".mha", ".nrrd"])
+def test_ritk_reads_sitk_written_oblique_direction(ext, tmp_path):
+    """ritk reads a SimpleITK-written volume with an axis-permuted direction and
+    anisotropic origin/spacing, preserving geometry on a sitk→ritk→sitk loop.
+
+    Validates the MetaImage TransformMatrix *reader* (ITK row-major axis
+    directions) — distinct from the OAS1 test, which reads from NRRD.
+    """
+    img = sitk.GetImageFromArray(np.arange(4 * 5 * 6, dtype=np.float32).reshape(6, 5, 4))
+    img.SetDirection((0.0, 0.0, 1.0, -1.0, 0.0, 0.0, 0.0, -1.0, 0.0))
+    img.SetSpacing((2.0, 3.0, 4.0))
+    img.SetOrigin((10.0, 20.0, 30.0))
+    src = str(tmp_path / f"src{ext}")
+    sitk.WriteImage(img, src)
+
+    ri = ritk.io.read_image(src)
+    out = str(tmp_path / f"rt{ext}")
+    ritk.io.write_image(ri, out)
+    back = sitk.ReadImage(out)
+
+    assert float(np.max(np.abs(
+        sitk.GetArrayFromImage(img).astype(np.float64)
+        - sitk.GetArrayFromImage(back).astype(np.float64)
+    ))) == 0.0
+    assert np.allclose(img.GetDirection(), back.GetDirection(), atol=1e-4)
+    assert np.allclose(img.GetOrigin(), back.GetOrigin(), atol=1e-3)
+    assert np.allclose(img.GetSpacing(), back.GetSpacing(), atol=1e-4)
+
+
 # ── ritk native 2-D reads (promoted to z=1) ───────────────────────────────────
 #
 # ritk's `Image` is intrinsically 3-D; its MetaImage, NRRD, and PNG readers
