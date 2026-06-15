@@ -195,6 +195,38 @@ def test_rescale_intensity_agrees_with_sitk():
     )
 
 
+def test_intensity_projections_agree_with_sitk():
+    """All five intensity projections match sitk on every axis of a NON-CUBE
+    volume (5×7×9), which exposes axis-order bugs that a cube would hide.
+
+    ritk's projection ``axis`` is the [z,y,x] index axis; sitk's
+    ``projectionDimension`` is [x,y,z], so they pair as sitk_dim = 2 − ritk_axis.
+    The std-dev projection uses the sample (N−1) estimator to match ITK.
+    """
+    rng = np.random.default_rng(0)
+    nz, ny, nx = 5, 7, 9
+    arr = (
+        np.arange(nz * ny * nx, dtype=np.float32).reshape(nz, ny, nx)
+        + rng.normal(0, 3, (nz, ny, nx)).astype(np.float32)
+    )
+    ri, si = _ritk(arr), _sitk(arr)
+    cases = [
+        (ritk.filter.max_intensity_projection, sitk.MaximumProjection, 1e-5),
+        (ritk.filter.mean_intensity_projection, sitk.MeanProjection, 1e-5),
+        (ritk.filter.min_intensity_projection, sitk.MinimumProjection, 1e-5),
+        (ritk.filter.sum_intensity_projection, sitk.SumProjection, 1e-4),
+        (ritk.filter.stddev_intensity_projection, sitk.StandardDeviationProjection, 1e-4),
+    ]
+    for rfn, sfn, tol in cases:
+        for axis in range(3):
+            ra = np.squeeze(rfn(ri, axis=axis).to_numpy().astype(np.float64))
+            sa = np.squeeze(_np(sfn(si, projectionDimension=2 - axis)).astype(np.float64))
+            assert ra.shape == sa.shape, f"{rfn.__name__} axis={axis}: {ra.shape} vs {sa.shape}"
+            rng_ = max(float(np.abs(sa).max()), 1e-9)
+            rel = float(np.abs(ra - sa).max()) / rng_
+            assert rel < tol, f"{rfn.__name__} axis={axis}: rel={rel:.2e}"
+
+
 def test_binary_threshold_agrees_with_sitk_and_analytical():
     # Analytical: output=1.0 iff 0.3<=v<=0.7.
     # Gradient f(z,y,x)=x/(SIZE-1); threshold maps to contiguous X slices.
