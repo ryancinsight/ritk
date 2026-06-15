@@ -3,7 +3,7 @@
 #![allow(clippy::needless_range_loop)]
 
 use super::*;
-use crate::clustering::slic::coords::decode_coords;
+use crate::clustering::slic::coords::decode_coords_dyn as decode_coords;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::spatial::{Direction, Point, Spacing};

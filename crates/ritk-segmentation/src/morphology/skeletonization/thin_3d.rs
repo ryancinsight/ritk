@@ -108,7 +108,7 @@ pub fn fg_components_26(local: &[bool; 27]) -> usize {
 /// Returns `true` iff T₂₆(p) = 1: exactly one 26-connected foreground
 /// component exists in N₂₆(p) \ {p}.
 #[inline]
-fn is_simple_3d(
+fn is_simple_point(
     mask: &[bool],
     nz: usize,
     ny: usize,
@@ -207,7 +207,7 @@ pub(super) fn sequential_thin(flat: &[f32], nz: usize, ny: usize, nx: usize) -> 
                     continue;
                 }
                 // Simple point test: T₂₆ = 1.
-                if is_simple_3d(&mask, nz, ny, nx, iz, iy, ix) {
+                if is_simple_point(&mask, nz, ny, nx, iz, iy, ix) {
                     mask[idx] = false;
                     any_removed = true;
                 }

@@ -314,81 +314,84 @@ impl<'a> SeriesTree<'a> {
     /// Build the hierarchy from a flat list of [`SeriesEntry`] records.
     pub fn from_entries(entries: Vec<SeriesEntry<'a>>) -> Self {
         let mut tree = Self::new();
+        let mut patient_map = std::collections::HashMap::new();
+        let mut study_maps = Vec::new(); // maps patient_idx -> HashMap<study_key, study_idx>
+
         for entry in entries {
-            tree.insert(entry);
-        }
-        tree
-    }
-
-    /// Insert a single [`SeriesEntry`] into the correct position in the
-    /// hierarchy, creating patient and study nodes as needed.
-    fn insert(&mut self, entry: SeriesEntry<'a>) {
-        // Patient lookup / creation
-        let patient_idx = if entry.patient_id.is_empty() {
-            // Anonymous patients each get their own node.
-            self.patients.push(PatientNode {
-                patient_id: entry.patient_id.clone(),
-                patient_name: entry.patient_name.clone(),
-                studies: Vec::new(),
-            });
-            self.patients.len() - 1
-        } else {
-            match self
-                .patients
-                .iter()
-                .position(|p| p.patient_id == entry.patient_id)
-            {
-                Some(i) => i,
-                None => {
-                    self.patients.push(PatientNode {
-                        patient_id: entry.patient_id.clone(),
-                        patient_name: entry.patient_name.clone(),
-                        studies: Vec::new(),
-                    });
-                    self.patients.len() - 1
-                }
-            }
-        };
-
-        let entry_study_uid = entry.study_uid.clone();
-        let entry_study_date = entry.study_date.clone();
-
-        let patient = &mut self.patients[patient_idx];
-        let study_idx = match (&entry_study_uid, &entry_study_date) {
-            (None, None) => {
-                patient.studies.push(StudyNode {
-                    study_uid: None,
-                    study_date: None,
-                    series: Vec::new(),
+            let patient_id = &entry.patient_id;
+            let patient_idx = if patient_id.is_empty() {
+                // Anonymous patients each get their own node.
+                tree.patients.push(PatientNode {
+                    patient_id: entry.patient_id.clone(),
+                    patient_name: entry.patient_name.clone(),
+                    studies: Vec::new(),
                 });
-                patient.studies.len() - 1
-            }
-            _ => match patient.studies.iter().position(|s| {
-                (entry_study_uid.is_some() && s.study_uid == entry_study_uid)
-                    || (entry_study_uid.is_none()
-                        && entry_study_date.is_some()
-                        && s.study_date == entry_study_date)
-            }) {
-                Some(i) => i,
+                study_maps.push(std::collections::HashMap::new());
+                tree.patients.len() - 1
+            } else {
+                match patient_map.get(patient_id) {
+                    Some(&idx) => idx,
+                    None => {
+                        tree.patients.push(PatientNode {
+                            patient_id: entry.patient_id.clone(),
+                            patient_name: entry.patient_name.clone(),
+                            studies: Vec::new(),
+                        });
+                        let idx = tree.patients.len() - 1;
+                        patient_map.insert(patient_id.clone(), idx);
+                        study_maps.push(std::collections::HashMap::new());
+                        idx
+                    }
+                }
+            };
+
+            let entry_study_uid = entry.study_uid.clone();
+            let entry_study_date = entry.study_date.clone();
+
+            let study_key = match (&entry_study_uid, &entry_study_date) {
+                (Some(uid), _) => Some(uid.clone()),
+                (None, Some(date)) => Some(date.clone()),
+                (None, None) => None,
+            };
+
+            let patient = &mut tree.patients[patient_idx];
+            let study_map = &mut study_maps[patient_idx];
+
+            let study_idx = match study_key {
                 None => {
                     patient.studies.push(StudyNode {
-                        study_uid: entry_study_uid,
-                        study_date: entry_study_date,
+                        study_uid: None,
+                        study_date: None,
                         series: Vec::new(),
                     });
                     patient.studies.len() - 1
                 }
-            },
-        };
+                Some(key) => match study_map.get(&key) {
+                    Some(&idx) => idx,
+                    None => {
+                        patient.studies.push(StudyNode {
+                            study_uid: entry_study_uid,
+                            study_date: entry_study_date,
+                            series: Vec::new(),
+                        });
+                        let idx = patient.studies.len() - 1;
+                        study_map.insert(key, idx);
+                        idx
+                    }
+                },
+            };
 
-        patient.studies[study_idx].series.push(SeriesNode {
-            series_uid: entry.series_uid,
-            folder: entry.folder,
-            modality: entry.modality,
-            series_description: entry.series_description,
-            num_slices: entry.num_slices,
-        });
+            patient.studies[study_idx].series.push(SeriesNode {
+                series_uid: entry.series_uid,
+                folder: entry.folder,
+                modality: entry.modality,
+                series_description: entry.series_description,
+                num_slices: entry.num_slices,
+            });
+        }
+        tree
     }
+
 
     /// Total number of series stored across all patients and studies.
     pub fn total_series(&self) -> usize {

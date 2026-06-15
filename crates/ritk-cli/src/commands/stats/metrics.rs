@@ -47,14 +47,14 @@ pub(super) fn run_summary(args: &StatsArgs) -> Result<()> {
 /// non-zero voxels as foreground.
 pub(super) fn run_dice(args: &StatsArgs) -> Result<()> {
     let image = read_image(&args.input)?;
-    let reference = require_reference(args)?;
+    let (reference, ref_path) = require_reference(args)?;
 
     let value = dice_coefficient(&image, &reference);
     println!(
         "Dice coefficient: {:.6} (input={}, reference={})",
         value,
         args.input.display(),
-        args.reference.as_ref().unwrap().display(),
+        ref_path.display(),
     );
     info!(dice = value, "stats: dice complete");
 
@@ -68,7 +68,7 @@ pub(super) fn run_dice(args: &StatsArgs) -> Result<()> {
 /// Physical spacing from the input image is used for distance computation.
 pub(super) fn run_hausdorff(args: &StatsArgs) -> Result<()> {
     let image = read_image(&args.input)?;
-    let reference = require_reference(args)?;
+    let (reference, ref_path) = require_reference(args)?;
 
     let sp = image.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
@@ -77,7 +77,7 @@ pub(super) fn run_hausdorff(args: &StatsArgs) -> Result<()> {
         "Hausdorff distance: {:.6} mm (input={}, reference={})",
         value,
         args.input.display(),
-        args.reference.as_ref().unwrap().display(),
+        ref_path.display(),
     );
     info!(hausdorff = value, "stats: hausdorff complete");
 
@@ -89,7 +89,7 @@ pub(super) fn run_hausdorff(args: &StatsArgs) -> Result<()> {
 /// Compute Peak Signal-to-Noise Ratio between input and reference.
 pub(super) fn run_psnr(args: &StatsArgs) -> Result<()> {
     let image = read_image(&args.input)?;
-    let reference = require_reference(args)?;
+    let (reference, ref_path) = require_reference(args)?;
 
     let value = psnr(&image, &reference, args.max_val);
     println!(
@@ -97,7 +97,7 @@ pub(super) fn run_psnr(args: &StatsArgs) -> Result<()> {
         value,
         args.max_val,
         args.input.display(),
-        args.reference.as_ref().unwrap().display(),
+        ref_path.display(),
     );
     info!(psnr = value, max_val = args.max_val, "stats: psnr complete");
 
@@ -109,7 +109,7 @@ pub(super) fn run_psnr(args: &StatsArgs) -> Result<()> {
 /// Compute the Structural Similarity Index between input and reference.
 pub(super) fn run_ssim(args: &StatsArgs) -> Result<()> {
     let image = read_image(&args.input)?;
-    let reference = require_reference(args)?;
+    let (reference, ref_path) = require_reference(args)?;
 
     let value = ssim(&image, &reference, args.max_val);
     println!(
@@ -117,7 +117,7 @@ pub(super) fn run_ssim(args: &StatsArgs) -> Result<()> {
         value,
         args.max_val,
         args.input.display(),
-        args.reference.as_ref().unwrap().display(),
+        ref_path.display(),
     );
     info!(ssim = value, max_val = args.max_val, "stats: ssim complete");
 
@@ -131,7 +131,7 @@ pub(super) fn run_ssim(args: &StatsArgs) -> Result<()> {
 /// Physical spacing from the input image is used for distance computation.
 pub(super) fn run_mean_surface_distance(args: &StatsArgs) -> Result<()> {
     let image = read_image(&args.input)?;
-    let reference = require_reference(args)?;
+    let (reference, ref_path) = require_reference(args)?;
 
     let sp = image.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
@@ -140,7 +140,7 @@ pub(super) fn run_mean_surface_distance(args: &StatsArgs) -> Result<()> {
         "Mean surface distance: {:.6} mm (input={}, reference={})",
         value,
         args.input.display(),
-        args.reference.as_ref().unwrap().display(),
+        ref_path.display(),
     );
     info!(msd = value, "stats: mean-surface-distance complete");
 
