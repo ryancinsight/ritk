@@ -2,10 +2,8 @@
 //!
 //! # Mathematical Specification
 //!
-//! Implements the ITK `GradientAnisotropicDiffusionImageFilter` as described in
-//! Gerig et al. (1992) and ITK Software Guide §6.4.1.
-//!
-//! The discrete update rule at each voxel `p` over one time step is:
+//! A Perona-Malik anisotropic diffusion in the spirit of Gerig et al. (1992),
+//! with the discrete update rule at each voxel `p` over one time step:
 //!
 //! ```text
 //! I_new(p) = I(p) + Δt · Σ_{q ∈ N₆(p)} c(|I(q) − I(p)|) · (I(q) − I(p))
@@ -18,14 +16,30 @@
 //! c(s) = exp(−(s / K)²)
 //! ```
 //!
+//! # Relationship to ITK (NOT bit-exact — tracked as ANISO-DIFF-ITK)
+//!
+//! This is a *simplified* scheme and does **not** reproduce ITK's
+//! `GradientAnisotropicDiffusionImageFilter` output. ITK's
+//! `GradientNDAnisotropicDiffusionFunction` differs in two material ways:
+//! 1. The conductance is evaluated on the **full gradient magnitude at each
+//!    half-pixel face** (combining the face-normal difference with the averaged
+//!    tangential central differences in the orthogonal dimensions), not on the
+//!    single-direction intensity difference used here.
+//! 2. `K` is rescaled every iteration by the image's **average gradient
+//!    magnitude squared** (`m_K = avgGradMagSq · K² · −2`), so the effective
+//!    conductance is content-adaptive.
+//! Against SimpleITK on cthead1 the per-iteration discrepancy is ≈ 2.6 %
+//! (compounding over iterations) and the two can diffuse a voxel in opposite
+//! directions. Matching ITK requires implementing the face-gradient + average-
+//! gradient-magnitude normalisation above.
+//!
 //! # Distinction from `AnisotropicDiffusionFilter` (Perona-Malik)
 //!
 //! The Perona-Malik filter in this crate (`perona_malik.rs`) uses spacing-
 //! normalised gradients `delta/spacing` inside the conductance evaluation and
 //! `flux = c(|delta/s|) · delta/s²` in the divergence form.  This filter
 //! uses **raw intensity differences** (no spacing normalisation) both in
-//! conductance and in the direct-flux summation, matching the ITK
-//! `GradientAnisotropicDiffusionImageFilter` implementation exactly.
+//! conductance and in the direct-flux summation.
 //!
 //! # Stability
 //!
@@ -88,13 +102,15 @@ impl Default for GradientDiffusionConfig {
     }
 }
 
-/// Gradient anisotropic diffusion filter (ITK `GradientAnisotropicDiffusionImageFilter`).
+/// Gradient anisotropic diffusion filter (simplified Perona-Malik).
 ///
 /// Reduces noise while preserving edges.  Distinct from
 /// [`crate::diffusion::AnisotropicDiffusionFilter`] in that conductance
 /// is evaluated on raw intensity differences (not spacing-normalised gradients)
-/// and the update uses direct-flux summation, matching the ITK reference
-/// implementation exactly.
+/// and the update uses direct-flux summation. This is **not** bit-exact with
+/// ITK's `GradientAnisotropicDiffusionImageFilter` — see the module docs for the
+/// two differences (face-gradient conductance, average-gradient-magnitude `K`
+/// rescaling) needed to match it.
 #[derive(Debug, Clone)]
 pub struct GradientAnisotropicDiffusionFilter {
     /// Algorithm configuration.
