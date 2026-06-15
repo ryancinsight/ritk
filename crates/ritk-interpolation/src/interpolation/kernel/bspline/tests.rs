@@ -448,3 +448,17 @@ fn test_bspline_3d_perf_regression() {
         elapsed.as_secs_f32()
     );
 }
+
+#[test]
+fn test_print_cthead() {
+    let device = Default::default();
+    let (d0, d1, d2) = (1usize, 256, 256);
+    let mut data_vec = vec![0.0f32; d0 * d1 * d2];
+    data_vec[128 * 256 + 128] = 255.0;
+    let data = Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [d0, d1, d2]), &device);
+    let interp = BSplineInterpolator::new();
+    let pt = Tensor::<TestBackend, 2>::from_floats([[128.0, 128.0, 0.0]], &device);
+    let val = interp.interpolate(&data, pt).into_data().as_slice::<f32>().unwrap()[0];
+    println!("Interpolated center value: {}", val);
+}
+
