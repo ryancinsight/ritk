@@ -139,11 +139,11 @@ fn sum_projection_z_values() {
 // ── 7. stddev_projection_z_values ─────────────────────────────────────────────
 
 /// StdDevIP along Z of a [2,1,1] image with values [0.0, 1.0] must produce
-/// shape [1,1,1] with value 0.5.
+/// shape [1,1,1] with the sample standard deviation.
 ///
-/// Derivation (population std-dev):
+/// Derivation (sample / N−1 std-dev, matching ITK):
 ///   μ = (0 + 1) / 2 = 0.5
-///   σ = sqrt(((0 − 0.5)² + (1 − 0.5)²) / 2) = sqrt(0.25) = 0.5
+///   σ = sqrt(((0 − 0.5)² + (1 − 0.5)²) / (2 − 1)) = sqrt(0.5) ≈ 0.70710678
 #[test]
 fn stddev_projection_z_values() {
     let img = make_volume(vec![0.0_f32, 1.0_f32], [2, 1, 1]);
@@ -153,8 +153,8 @@ fn stddev_projection_z_values() {
     let vals = extract_vals(&out);
     assert_eq!(vals.len(), 1);
     assert!(
-        (vals[0] - 0.5_f32).abs() < 1e-5,
-        "StdDevIP-Z of [0,1] must equal 0.5 (population std-dev), got {}",
+        (vals[0] - 0.5_f32.sqrt()).abs() < 1e-5,
+        "StdDevIP-Z of [0,1] must equal sqrt(0.5) (sample std-dev), got {}",
         vals[0]
     );
 }

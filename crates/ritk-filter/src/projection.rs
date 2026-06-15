@@ -126,7 +126,8 @@ impl SumIntensityProjectionFilter {
 /// For each output pixel, let `v₀ … v_{n-1}` be the values along the
 /// collapsed axis.
 /// `μ = Σvᵢ / n`
-/// `σ = sqrt(Σ(vᵢ − μ)² / n)`
+/// `σ = sqrt(Σ(vᵢ − μ)² / (n − 1))`  (sample standard deviation, matching ITK's
+/// `StandardDeviationProjectionImageFilter`; a length-1 axis yields σ = 0)
 pub struct StdDevIntensityProjectionFilter {
     axis: ProjectionAxis,
 }
@@ -243,7 +244,9 @@ where
 
 // ── Private: project_stddev ───────────────────────────────────────────────────
 
-/// Population std-dev projection: two-pass (mean then variance) per output pixel.
+/// Sample (N−1) std-dev projection: two-pass (mean then variance) per output
+/// pixel, matching ITK's `StandardDeviationProjectionImageFilter`. A length-1
+/// projection axis yields σ = 0.
 fn project_stddev<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Result<Image<B, 3>> {
     let [nz, ny, nx] = image.shape();
     let (vals, _) = extract_vec(image)?;
@@ -259,7 +262,7 @@ fn project_stddev<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
                     let var = (0..nz).fold(0.0_f64, |acc, z| {
                         let d = vals[z * ny * nx + y * nx + x] as f64 - mean;
                         acc + d * d
-                    }) / nz as f64;
+                    }) / (nz - 1).max(1) as f64;
                     var.sqrt() as f32
                 });
             Ok(rebuild(out, [1, ny, nx], image))
@@ -275,7 +278,7 @@ fn project_stddev<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
                     let var = (0..ny).fold(0.0_f64, |acc, y| {
                         let d = vals[z * ny * nx + y * nx + x] as f64 - mean;
                         acc + d * d
-                    }) / ny as f64;
+                    }) / (ny - 1).max(1) as f64;
                     var.sqrt() as f32
                 });
             Ok(rebuild(out, [nz, 1, nx], image))
@@ -291,7 +294,7 @@ fn project_stddev<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
                     let var = (0..nx).fold(0.0_f64, |acc, x| {
                         let d = vals[z * ny * nx + y * nx + x] as f64 - mean;
                         acc + d * d
-                    }) / nx as f64;
+                    }) / (nx - 1).max(1) as f64;
                     var.sqrt() as f32
                 });
             Ok(rebuild(out, [nz, ny, 1], image))
