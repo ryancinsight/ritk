@@ -65,7 +65,6 @@ pub fn warp_label_map<B: Backend>(
 /// atlas regions into patient space, then read each region's centroid as an
 /// array-center / focus target. Centroids are in the image's physical (LPS) world
 /// frame, consistent with [`Image::index_to_world_tensor`].
-#[must_use]
 pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> anyhow::Result<Vec<(u32, [f64; 3])>> {
     let [d0, d1, d2] = labels.shape();
     let data = labels.try_data_slice()?;
