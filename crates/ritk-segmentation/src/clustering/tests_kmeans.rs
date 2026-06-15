@@ -198,6 +198,35 @@ fn test_deterministic_with_same_seed() {
     assert_eq!(l1, l2, "same seed must produce identical results");
 }
 
+// ── Zero seed is valid (no panic) ──────────────────────────────────────────
+
+#[test]
+fn test_seed_zero_does_not_panic() {
+    // Regression: a zero seed reached xorshift64's fixed point and panicked
+    // ("seed must be non-zero"). `seed = 0` is a natural user default and must
+    // segment normally; it is remapped to a fixed nonzero state internally.
+    let mut data = vec![10.0_f32; 50];
+    data.extend(vec![200.0_f32; 50]);
+    let image = make_image_1d(data);
+
+    let seg = KMeansSegmentation {
+        seed: 0,
+        ..KMeansSegmentation::new(2)
+    };
+    let labels = get_slice_1d(&seg.apply(&image));
+
+    // Valid two-cluster partition: the two modes land in different clusters.
+    for &l in &labels {
+        assert!((0.0..2.0).contains(&l), "label out of range: {l}");
+    }
+    assert!(
+        (labels[0] - labels[50]).abs() > 0.5,
+        "seed=0 must still separate the two modes: {} vs {}",
+        labels[0],
+        labels[50]
+    );
+}
+
 // ── k=1 assigns all label 0 ────────────────────────────────────────────────
 
 #[test]

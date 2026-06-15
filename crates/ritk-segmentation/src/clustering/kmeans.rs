@@ -59,11 +59,17 @@ struct Xorshift64 {
 impl Xorshift64 {
     /// Create a new PRNG with the given seed.
     ///
-    /// # Panics
-    /// Panics if `seed == 0` (xorshift64 has a fixed point at 0).
+    /// xorshift64 has a fixed point at 0, so a zero seed is remapped to the
+    /// 64-bit golden-ratio constant. This keeps every user-supplied seed valid
+    /// and deterministic (in particular `seed == 0`, a natural default) rather
+    /// than panicking on input.
     fn new(seed: u64) -> Self {
-        assert!(seed != 0, "xorshift64 seed must be non-zero");
-        Self { state: seed }
+        let state = if seed == 0 {
+            0x9E37_79B9_7F4A_7C15
+        } else {
+            seed
+        };
+        Self { state }
     }
 
     /// Return the next pseudo-random `u64`.
