@@ -157,9 +157,18 @@ fn curvature_diffuse(
                     let mut dxc = [0.0_f64; 3];
                     for i in 0..3 {
                         let (fp, fm) = match i {
-                            0 => (clamp_at(&cur, dims, z + 1, y, x), clamp_at(&cur, dims, z - 1, y, x)),
-                            1 => (clamp_at(&cur, dims, z, y + 1, x), clamp_at(&cur, dims, z, y - 1, x)),
-                            _ => (clamp_at(&cur, dims, z, y, x + 1), clamp_at(&cur, dims, z, y, x - 1)),
+                            0 => (
+                                clamp_at(&cur, dims, z + 1, y, x),
+                                clamp_at(&cur, dims, z - 1, y, x),
+                            ),
+                            1 => (
+                                clamp_at(&cur, dims, z, y + 1, x),
+                                clamp_at(&cur, dims, z, y - 1, x),
+                            ),
+                            _ => (
+                                clamp_at(&cur, dims, z, y, x + 1),
+                                clamp_at(&cur, dims, z, y, x - 1),
+                            ),
                         };
                         dxf[i] = (fp - center) * inv_sp[i];
                         dxb[i] = (center - fm) * inv_sp[i];
