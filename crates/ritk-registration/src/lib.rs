@@ -51,6 +51,7 @@ pub mod demons;
 pub mod diffeomorphic;
 pub mod error;
 pub mod lddmm;
+pub mod label_transfer;
 pub mod metric;
 pub mod multires;
 pub mod ngf_rigid;
@@ -133,6 +134,11 @@ pub use ngf_rigid::{
     default_ngf_pyramid, register_rigid_ngf, register_rigid_ngf_multires, NgfPyramidLevel,
     NgfRigidConfig, NgfRigidResult,
 };
+
+// ============================================================================
+// Re-exports — atlas / label-map transfer (apply a transform to a label map)
+// ============================================================================
+pub use label_transfer::warp_label_map;
 
 // ============================================================================
 // Re-exports — ML-based registration
