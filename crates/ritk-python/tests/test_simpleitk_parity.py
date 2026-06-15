@@ -227,6 +227,45 @@ def test_intensity_projections_agree_with_sitk():
             assert rel < tol, f"{rfn.__name__} axis={axis}: rel={rel:.2e}"
 
 
+def test_deconvolution_matches_sitk():
+    """Deconvolution parity, including the ritk↔ITK naming cross-map.
+
+    On a clean blurred square (Gaussian PSF), the iterative methods match sitk to
+    float precision, and ritk's constant-regularization Wiener equals ITK's
+    *Tikhonov* (both are `G·conj(H)/(|H|²+λ)` constant-regularized inverse filters
+    — ITK files that form under the name TikhonovDeconvolution, while ITK's own
+    WienerDeconvolution is a different signal-power-adaptive filter ritk does not
+    replicate).
+    """
+    sq = np.zeros((40, 40), dtype=np.float32)
+    sq[10:30, 10:30] = 100.0
+    yy, xx = np.mgrid[-2:3, -2:3]
+    g = np.exp(-(yy**2 + xx**2) / 2.0).astype(np.float32)
+    g /= g.sum()
+    blur_s = sitk.Convolution(_sitk(sq), _sitk(g))
+    blur = _np(blur_s)
+    rb, rk = _ritk(blur[None]), _ritk(g[None])
+
+    def _relmax(a, b, m=6):
+        a, b = np.squeeze(a)[m:-m, m:-m], np.squeeze(b)[m:-m, m:-m]
+        return float(np.abs(a - b).max()) / max(float(np.abs(b).max()), 1e-9)
+
+    # Richardson-Lucy and Landweber match their sitk namesakes to float precision.
+    rl_r = ritk.filter.richardson_lucy_deconvolution(rb, rk, max_iterations=20).to_numpy()[0]
+    rl_s = _np(sitk.RichardsonLucyDeconvolution(blur_s, _sitk(g), 20))
+    assert _relmax(rl_r, rl_s) < 1e-4, f"RL rel {_relmax(rl_r, rl_s):.2e}"
+
+    lw_r = ritk.filter.landweber_deconvolution(rb, rk, step_size=0.5, max_iterations=20).to_numpy()[0]
+    lw_s = _np(sitk.LandweberDeconvolution(blur_s, _sitk(g), 0.5, 20))
+    assert _relmax(lw_r, lw_s) < 1e-4, f"Landweber rel {_relmax(lw_r, lw_s):.2e}"
+
+    # ritk Wiener(K) == sitk Tikhonov(K): the constant-regularized inverse filter.
+    for k in (0.01, 1.0, 10.0):
+        rw = ritk.filter.wiener_deconvolution(rb, rk, noise_to_signal=k).to_numpy()[0]
+        st = _np(sitk.TikhonovDeconvolution(blur_s, _sitk(g), k))
+        assert _relmax(rw, st) < 1e-4, f"Wiener({k}) vs Tikhonov rel {_relmax(rw, st):.2e}"
+
+
 def test_fft_normalized_correlation_peaks_at_one():
     """Fully normalized cross-correlation matches sitk's value semantics: the map
     equals 1.0 where the template aligns with its source patch, and never exceeds
