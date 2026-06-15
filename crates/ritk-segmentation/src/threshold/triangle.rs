@@ -1,37 +1,39 @@
-//! Triangle thresholding method (Zack, Rogers & Latt 1977).
+//! Triangle thresholding method (Zack, Rogers & Latt 1977), matching ITK's
+//! `itk::TriangleThresholdCalculator`.
 //!
 //! # Mathematical Specification
 //!
-//! The triangle algorithm selects a threshold by maximising the perpendicular
-//! distance from each histogram bin to a line drawn between the histogram peak
-//! and the lowest-count tail.
+//! The triangle algorithm draws a line from the histogram peak to the opposite
+//! end of the distribution and selects the bin of maximum vertical distance
+//! between the histogram and that line. ITK departs from the textbook form in
+//! three details that materially shift the result on skewed histograms; all
+//! three are reproduced here:
 //!
-//! Given a normalised histogram h\[0..N−1\]:
+//! Given a histogram `h[0..N−1]` with peak bin `p = argmax h`:
 //!
-//! 1. Find the peak bin p = argmax h\[i\].
-//! 2. Identify the tail bin t as the bin farthest from p (either 0 or N−1)
-//!    that has the minimum count in that direction.
-//! 3. For each bin i between p and t, compute the perpendicular distance d(i)
-//!    from the point (i, h\[i\]) to the line segment (p, h\[p\])→(t, h\[t\]):
+//! 1. The line endpoints are the **1st and 99th percentile bins**
+//!    (`p_lo`, `p_hi`) — the first bin whose cumulative count reaches 1 % / 99 %
+//!    of the total — not the first/last non-empty bins. This makes the endpoint
+//!    robust to single-voxel outlier tails.
+//! 2. The active side is the one **farther** from the peak:
+//!    `|p − p_lo| > |p − p_hi|` selects the low side, otherwise the high side.
+//! 3. The bin of maximum distance is **incremented by one**, and the threshold
+//!    is the **bin centre**: `x_min + (idx + 0.5) · (x_max − x_min)/N`.
 //!
-//!      d(i) = |A·i + B·h\[i\] + C| / √(A² + B²)
-//!
-//!    where the line Ax + By + C = 0 passes through (p, h\[p\]) and (t, h\[t\]):
-//!    A = h\[t\] − h\[p\]
-//!    B = p − t
-//!    C = t·h\[p\] − p·h\[t\]
-//!
-//! 4. t* = argmax_i d(i).
-//! 5. Convert to intensity: t*_intensity = x_min + t* · (x_max − x_min) / (N − 1).
+//! For the high side the distance at bin `k ∈ [p, p_hi)` is
+//! `slope·(k − p) + h[p] − h[k]` with `slope = −h[p]/(p_hi − p)`; for the low
+//! side, bin `k ∈ [p_lo, p)` uses `slope·(k − p_lo) − h[k]` with
+//! `slope = h[p]/(p − p_lo)`. The normalising `1/√(A²+B²)` of the perpendicular
+//! distance is a positive constant over the search range, so `argmax` is
+//! unaffected and the cheaper signed triangle height is used.
 //!
 //! # Complexity
-//! Histogram construction: O(n) voxels.
-//! Threshold search:       O(N) bins.
-//! Total:                  O(n + N).
+//! Histogram construction: O(n) voxels. Threshold search: O(N) bins.
 //!
 //! # References
 //! - Zack G.W., Rogers W.E., Latt S.A. (1977). "Automatic measurement of
 //!   sister chromatid exchange frequency." *J. Histochem. Cytochem.* 25(7):741–753.
+//! - ITK `itkTriangleThresholdCalculator.hxx` (percentile endpoints, +1 shift).
 
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
@@ -102,75 +104,89 @@ impl AutoThreshold for TriangleThreshold {
         self.num_bins
     }
 
-    /// Triangle geometric criterion (Zack et al. 1977).
-    ///
-    /// # Algorithm
-    /// 1. Find the peak bin (highest raw count).
-    /// 2. Identify the tail bin (farthest non-zero end from the peak).
-    /// 3. For each bin between peak and tail, compute the perpendicular
-    ///    distance to the peak–tail line using f64 arithmetic.
-    /// 4. t* = argmax distance.
-    /// 5. t*_intensity = x_min + t* / (N−1) · (x_max − x_min).
+    /// Triangle geometric criterion, matching `itk::TriangleThresholdCalculator`
+    /// (see the module docs for the percentile-endpoint / +1 / bin-centre rules).
     fn compute_threshold(&self, hist: &[u32], n_bins: usize, x_min: f32, x_max: f32) -> f32 {
-        // Work with u64 counts to match the precision of the existing
-        // compute_triangle_threshold_from_slice implementation.
         let counts: Vec<u64> = hist.iter().map(|&c| c as u64).collect();
+        let bin_size = (x_max as f64 - x_min as f64) / n_bins as f64;
+        triangle_from_counts(&counts, x_min as f64, bin_size)
+    }
+}
 
-        // Find peak bin (highest count).
-        let peak_bin = counts
-            .iter()
-            .enumerate()
-            .max_by_key(|&(_, &c)| c)
-            .map(|(i, _)| i)
-            .unwrap_or(0);
+// ── ITK-faithful core ────────────────────────────────────────────────────────
 
-        // Identify tail bin (farthest end from the peak).
-        let tail_bin = if peak_bin <= n_bins / 2 {
-            counts.iter().rposition(|&c| c > 0).unwrap_or(n_bins - 1)
-        } else {
-            counts.iter().position(|&c| c > 0).unwrap_or(0)
-        };
-
-        // Degenerate: peak and tail coincide.
-        if peak_bin == tail_bin {
-            return x_min + peak_bin as f32 / (n_bins - 1) as f32 * (x_max - x_min);
+/// First bin index whose cumulative count reaches `quantile · total`
+/// (the bin containing the `quantile` percentile), mirroring ITK's use of
+/// `Histogram::Quantile` followed by `GetIndex`.
+fn percentile_bin(counts: &[u64], total: u64, quantile: f64) -> usize {
+    let target = quantile * total as f64;
+    let mut running = 0u64;
+    for (i, &c) in counts.iter().enumerate() {
+        running += c;
+        if running as f64 >= target {
+            return i;
         }
+    }
+    counts.len().saturating_sub(1)
+}
 
-        // Line equation coefficients (f64 for numerical stability).
-        let x1 = peak_bin as f64;
-        let y1 = counts[peak_bin] as f64;
-        let x2 = tail_bin as f64;
-        let y2 = counts[tail_bin] as f64;
+/// Compute the triangle threshold intensity from a histogram, following
+/// `itk::TriangleThresholdCalculator`. `x_min` is the lower intensity bound and
+/// `bin_size = (x_max − x_min)/N`; the returned value is the bin centre of the
+/// selected (`+1`-shifted) bin.
+#[allow(clippy::needless_range_loop)]
+fn triangle_from_counts(counts: &[u64], x_min: f64, bin_size: f64) -> f32 {
+    let n = counts.len();
+    let total: u64 = counts.iter().sum();
+    if n == 0 || total == 0 {
+        return x_min as f32;
+    }
 
-        // Line: A·x + B·y + C = 0
-        let a = y2 - y1;
-        let b = x1 - x2;
-        let c = x2 * y1 - x1 * y2;
-        let norm = (a * a + b * b).sqrt();
+    let bin_centre = |idx: usize| -> f32 { (x_min + (idx as f64 + 0.5) * bin_size) as f32 };
 
-        // Search for maximum perpendicular distance.
-        let (start, end) = if peak_bin < tail_bin {
-            (peak_bin + 1, tail_bin)
-        } else {
-            (tail_bin + 1, peak_bin)
-        };
+    // Peak bin (highest frequency).
+    let peak = counts
+        .iter()
+        .enumerate()
+        .max_by_key(|&(_, &c)| c)
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+    let peak_h = counts[peak] as f64;
 
-        let mut best_dist = 0.0_f64;
-        let mut best_bin = start;
+    // Percentile endpoints (robust to outlier tails).
+    let p_lo = percentile_bin(counts, total, 0.01);
+    let p_hi = percentile_bin(counts, total, 0.99);
 
-        for (i, &cnt) in counts.iter().enumerate().take(end).skip(start) {
-            let xi = i as f64;
-            let yi = cnt as f64;
-            let dist = (a * xi + b * yi + c).abs() / norm;
-            if dist > best_dist {
-                best_dist = dist;
-                best_bin = i;
+    // Operate on the side of the peak that is farther away.
+    let toward_lo = peak.abs_diff(p_lo) > peak.abs_diff(p_hi);
+
+    let mut best = f64::NEG_INFINITY;
+    let mut best_idx = peak;
+    if toward_lo && peak > p_lo {
+        let slope = peak_h / (peak as f64 - p_lo as f64);
+        for k in p_lo..peak {
+            let d = slope * (k as f64 - p_lo as f64) - counts[k] as f64;
+            if d > best {
+                best = d;
+                best_idx = k;
             }
         }
-
-        // Convert bin index to intensity.
-        x_min + best_bin as f32 / (n_bins - 1) as f32 * (x_max - x_min)
+    } else if !toward_lo && p_hi > peak {
+        let slope = -peak_h / (p_hi as f64 - peak as f64);
+        for k in peak..p_hi {
+            let d = slope * (k as f64 - peak as f64) + peak_h - counts[k] as f64;
+            if d > best {
+                best = d;
+                best_idx = k;
+            }
+        }
+    } else {
+        // Degenerate: percentile endpoint coincides with the peak.
+        return bin_centre(peak);
     }
+
+    // ITK increments the selected bin by one before reporting its centre.
+    bin_centre((best_idx + 1).min(n - 1))
 }
 
 // ── Convenience functions ──────────────────────────────────────────────────────
@@ -180,16 +196,19 @@ pub fn triangle_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f3
     TriangleThreshold::new().compute(image)
 }
 
-/// Compute the triangle threshold for a contiguous f32 intensity slice.
+/// Compute the triangle threshold for a contiguous f32 intensity slice,
+/// matching `itk::TriangleThresholdCalculator`.
+///
+/// The histogram spans `[x_min, x_max]` with `num_bins` equal-width bins
+/// (`bin_size = (x_max − x_min)/num_bins`, ITK's convention), then delegates to
+/// [`triangle_from_counts`] for the percentile-endpoint geometry.
 pub fn compute_triangle_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
     assert!(num_bins >= 2, "num_bins must be >= 2");
 
-    let n = slice.len();
-    if n == 0 {
+    if slice.is_empty() {
         return 0.0;
     }
 
-    // ── Intensity range ────────────────────────────────────────────────────────
     let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
     let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
 
@@ -198,79 +217,18 @@ pub fn compute_triangle_threshold_from_slice(slice: &[f32], num_bins: usize) -> 
         return x_min;
     }
 
-    let range = x_max - x_min;
-    let num_bins_f = (num_bins - 1) as f64;
+    let x_min = x_min as f64;
+    let bin_size = (x_max as f64 - x_min) / num_bins as f64;
 
-    // ── Build histogram ────────────────────────────────────────────────────────
+    // Histogram with the ITK bin convention: bin = ⌊(v − x_min)/bin_size⌋,
+    // clamped to the last bin (so the maximum value lands in bin N−1).
     let mut counts = vec![0u64; num_bins];
     for &v in slice {
-        let bin = ((v - x_min) as f64 / range as f64 * num_bins_f).floor() as usize;
-        let bin = bin.min(num_bins - 1);
-        counts[bin] += 1;
+        let bin = ((v as f64 - x_min) / bin_size).floor() as usize;
+        counts[bin.min(num_bins - 1)] += 1;
     }
 
-    // ── Find peak bin ──────────────────────────────────────────────────────────
-    let peak_bin = counts
-        .iter()
-        .enumerate()
-        .max_by_key(|&(_, &c)| c)
-        .map(|(i, _)| i)
-        .unwrap_or(0);
-
-    // ── Identify tail bin ──────────────────────────────────────────────────────
-    // The tail is the end of the histogram farthest from the peak.
-    // If the peak is in the left half, the tail is the rightmost non-zero bin
-    // (or N−1). Otherwise, the tail is the leftmost non-zero bin (or 0).
-    let tail_bin = if peak_bin <= num_bins / 2 {
-        // Tail on the right side.
-        counts.iter().rposition(|&c| c > 0).unwrap_or(num_bins - 1)
-    } else {
-        // Tail on the left side.
-        counts.iter().position(|&c| c > 0).unwrap_or(0)
-    };
-
-    // Degenerate: peak and tail coincide.
-    if peak_bin == tail_bin {
-        return x_min + peak_bin as f32 / num_bins_f as f32 * range;
-    }
-
-    // ── Line equation coefficients ─────────────────────────────────────────────
-    // Line through (peak_bin, counts[peak_bin]) and (tail_bin, counts[tail_bin]).
-    // Using f64 for numerical stability.
-    let x1 = peak_bin as f64;
-    let y1 = counts[peak_bin] as f64;
-    let x2 = tail_bin as f64;
-    let y2 = counts[tail_bin] as f64;
-
-    // Line: A·x + B·y + C = 0
-    let a = y2 - y1;
-    let b = x1 - x2;
-    let c = x2 * y1 - x1 * y2;
-    let norm = (a * a + b * b).sqrt();
-
-    // ── Search for maximum perpendicular distance ──────────────────────────────
-    let (start, end) = if peak_bin < tail_bin {
-        (peak_bin + 1, tail_bin)
-    } else {
-        (tail_bin + 1, peak_bin)
-    };
-
-    let mut best_dist = 0.0_f64;
-    let mut best_bin = start;
-
-    for (i, &cnt) in counts.iter().enumerate().take(end).skip(start) {
-        let xi = i as f64;
-        let yi = cnt as f64;
-        let dist = (a * xi + b * yi + c).abs() / norm;
-
-        if dist > best_dist {
-            best_dist = dist;
-            best_bin = i;
-        }
-    }
-
-    // ── Convert bin index to intensity ─────────────────────────────────────────
-    x_min + best_bin as f32 / num_bins_f as f32 * range
+    triangle_from_counts(&counts, x_min, bin_size)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

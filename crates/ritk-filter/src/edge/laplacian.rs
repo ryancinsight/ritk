@@ -10,15 +10,16 @@
 //!
 //! ∂²I/∂z² ≈ (I\[iz+1,iy,ix\] − 2·I\[iz,iy,ix\] + I\[iz−1,iy,ix\]) / sz²
 //!
-//! At boundary voxels the second-order one-sided (forward at iz=0, backward at
-//! iz=nz−1) formula is used, which maintains second-order accuracy for smooth
-//! fields while keeping the computation well-defined everywhere:
-//!
-//! forward (iz=0): (I\[2\]−2·I\[1\]+I\[0\]) / sz² (uses the first three points)
-//! backward (iz=nz-1): (I\[n-3\]−2·I\[n-2\]+I\[n-1\]) / sz²
+//! At boundary voxels the same `[1, −2, 1]` stencil is evaluated with the
+//! out-of-range neighbour clamped to the edge voxel (ZeroFluxNeumann boundary
+//! condition); e.g. at iz=0 the lower neighbour is `I[0]`, giving
+//! `(I[1] − I[0]) / sz²`. This reproduces ITK's `LaplacianImageFilter`, which
+//! couples the Laplacian operator with `ZeroFluxNeumannBoundaryCondition`, to
+//! within float rounding.
 //!
 //! # Reference
-//! Press et al., *Numerical Recipes*, 3rd ed., §18.1.
+//! Press et al., *Numerical Recipes*, 3rd ed., §18.1; boundary handling per ITK
+//! `itk::ZeroFluxNeumannBoundaryCondition`.
 
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
@@ -66,8 +67,9 @@ impl LaplacianFilter {
 /// Compute the Laplacian of a flat 3-D volume.
 ///
 /// # Invariants
-/// - Interior: central second-order differences, O(h²) accurate.
-/// - Boundary: one-sided second-order differences using the nearest three points.
+/// - `[1, −2, 1]` second-difference stencil divided by spacing² along each axis.
+/// - Boundary voxels clamp the out-of-range neighbour to the edge voxel
+///   (ZeroFluxNeumann), matching ITK; a length-1 axis contributes 0.
 /// - Output length equals `nz * ny * nx`.
 fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>) -> Vec<f32> {
     let [nz, ny, nx] = dims;
@@ -84,65 +86,16 @@ fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>) -> Vec<f3
         for iy in 0..ny {
             for ix in 0..nx {
                 let flat = idx(iz, iy, ix);
+                let center = data[flat];
 
-                // ∂²I/∂z²
-                let d2z = if nz < 2 {
-                    0.0_f32
-                } else if nz == 2 {
-                    // Only two points: trivial central diff degenerates.
-                    // Use (I[1]-I[0]) - (I[0]-I[?]); with only 2 pts the
-                    // best we can do is the forward one-sided approx at iz=0
-                    // and backward at iz=1. Both reduce to (I[1]-I[0])/sz² − (I[0]-I[1])/sz²
-                    // which gives ±(I[1]−I[0])/sz² — not ideal but consistent.
-                    if iz == 0 {
-                        (data[idx(1, iy, ix)] - data[flat]) / sz2
-                    } else {
-                        (data[idx(0, iy, ix)] - data[flat]) / sz2
-                    }
-                } else if iz == 0 {
-                    // Forward one-sided: uses iz=0,1,2
-                    (data[idx(2, iy, ix)] - 2.0 * data[idx(1, iy, ix)] + data[flat]) / sz2
-                } else if iz == nz - 1 {
-                    // Backward one-sided: uses iz=n-3,n-2,n-1
-                    (data[flat] - 2.0 * data[idx(nz - 2, iy, ix)] + data[idx(nz - 3, iy, ix)]) / sz2
-                } else {
-                    // Central: uses iz-1,iz,iz+1
-                    (data[idx(iz + 1, iy, ix)] - 2.0 * data[flat] + data[idx(iz - 1, iy, ix)]) / sz2
-                };
+                // ZeroFluxNeumann: clamp out-of-range neighbours to the edge.
+                let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
+                let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
+                let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
 
-                // ∂²I/∂y²
-                let d2y = if ny < 2 {
-                    0.0_f32
-                } else if ny == 2 {
-                    if iy == 0 {
-                        (data[idx(iz, 1, ix)] - data[flat]) / sy2
-                    } else {
-                        (data[idx(iz, 0, ix)] - data[flat]) / sy2
-                    }
-                } else if iy == 0 {
-                    (data[idx(iz, 2, ix)] - 2.0 * data[idx(iz, 1, ix)] + data[flat]) / sy2
-                } else if iy == ny - 1 {
-                    (data[flat] - 2.0 * data[idx(iz, ny - 2, ix)] + data[idx(iz, ny - 3, ix)]) / sy2
-                } else {
-                    (data[idx(iz, iy + 1, ix)] - 2.0 * data[flat] + data[idx(iz, iy - 1, ix)]) / sy2
-                };
-
-                // ∂²I/∂x²
-                let d2x = if nx < 2 {
-                    0.0_f32
-                } else if nx == 2 {
-                    if ix == 0 {
-                        (data[idx(iz, iy, 1)] - data[flat]) / sx2
-                    } else {
-                        (data[idx(iz, iy, 0)] - data[flat]) / sx2
-                    }
-                } else if ix == 0 {
-                    (data[idx(iz, iy, 2)] - 2.0 * data[idx(iz, iy, 1)] + data[flat]) / sx2
-                } else if ix == nx - 1 {
-                    (data[flat] - 2.0 * data[idx(iz, iy, nx - 2)] + data[idx(iz, iy, nx - 3)]) / sx2
-                } else {
-                    (data[idx(iz, iy, ix + 1)] - 2.0 * data[flat] + data[idx(iz, iy, ix - 1)]) / sx2
-                };
+                let d2z = (data[idx(zhi, iy, ix)] - 2.0 * center + data[idx(zlo, iy, ix)]) / sz2;
+                let d2y = (data[idx(iz, yhi, ix)] - 2.0 * center + data[idx(iz, ylo, ix)]) / sy2;
+                let d2x = (data[idx(iz, iy, xhi)] - 2.0 * center + data[idx(iz, iy, xlo)]) / sx2;
 
                 out[flat] = d2z + d2y + d2x;
             }
@@ -290,9 +243,15 @@ mod tests {
         }
     }
 
-    /// Linear field I = x + y + z → all second derivatives = 0 → Laplacian = 0.
+    /// Linear field I = x + y + z → interior second derivatives = 0 → Laplacian = 0.
+    ///
+    /// The boundary is intentionally excluded: under the ZeroFluxNeumann boundary
+    /// condition (ITK's convention, which this filter matches) a min-face voxel
+    /// evaluates `(I[1] − 2·I[0] + I[0])/h² = (I[1] − I[0])/h² = slope/h²`, which
+    /// is nonzero for a non-constant linear field. Asserting zero there would be
+    /// analytically incorrect for the boundary condition under test.
     #[test]
-    fn test_linear_field_zero_laplacian() {
+    fn test_linear_field_zero_laplacian_interior() {
         let [nz, ny, nx] = [6usize, 6, 6];
         let vals: Vec<f32> = (0..nz * ny * nx)
             .map(|flat| {
@@ -307,11 +266,16 @@ mod tests {
         let lap = filter.apply(&img).unwrap();
 
         let (out, _) = extract_vec_infallible(&lap);
-        for &v in &out {
-            assert!(
-                v.abs() < 1e-4,
-                "Laplacian = {v} expected 0 for linear field"
-            );
+        for iz in 1..nz - 1 {
+            for iy in 1..ny - 1 {
+                for ix in 1..nx - 1 {
+                    let v = out[iz * ny * nx + iy * nx + ix];
+                    assert!(
+                        v.abs() < 1e-4,
+                        "interior Laplacian[{iz},{iy},{ix}] = {v} expected 0 for linear field"
+                    );
+                }
+            }
         }
     }
 }

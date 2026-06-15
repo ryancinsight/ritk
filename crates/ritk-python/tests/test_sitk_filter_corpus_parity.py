@@ -111,19 +111,30 @@ def test_threshold_above_matches_sitk(images):
 # ── Derivative / spatial filters ──────────────────────────────────────────────
 
 
+def _full_absmax(ra: np.ndarray, sa: np.ndarray) -> float:
+    """Max abs difference over the *entire* image, including the 1-voxel border."""
+    assert ra.shape == sa.shape, f"shape {ra.shape} != {sa.shape}"
+    return float(np.abs(ra.astype(np.float64) - sa.astype(np.float64)).max())
+
+
 def test_laplacian_matches_sitk(images):
+    """Full-image (boundary-inclusive) parity: ritk's Laplacian uses the same
+    central [1,-2,1] stencil with a ZeroFluxNeumann clamp at the border that ITK
+    does, so the result agrees to float rounding everywhere — not just interior."""
     ri, si = images
     ra = ritk.filter.laplacian(ri).to_numpy()
     sa = _sa(sitk.Laplacian(si))
-    assert _interior_absmax(ra, sa) / _rng(sa) < 1e-4
+    assert _full_absmax(ra, sa) / _rng(sa) < 1e-5
 
 
 def test_gradient_magnitude_matches_sitk(images):
+    """Full-image parity: central differences scaled by physical spacing, with a
+    ZeroFluxNeumann boundary matching ITK's GradientMagnitudeImageFilter. The
+    border previously used a one-sided difference (≈2× the ITK value there)."""
     ri, si = images
     ra = ritk.filter.gradient_magnitude(ri).to_numpy()
     sa = _sa(sitk.GradientMagnitude(si))
-    # Both compute |∇I| with central differences scaled by physical spacing.
-    assert _interior_absmax(ra, sa) / _rng(sa) < 1e-4
+    assert _full_absmax(ra, sa) / _rng(sa) < 1e-5
 
 
 def test_gaussian_filter_preserves_mean(images):
@@ -353,6 +364,19 @@ def test_li_threshold_matches_sitk(images):
     rthr, _ = ritk.segmentation.li_threshold(ri)
     sthr = _sitk_threshold(sitk.LiThresholdImageFilter(), si)
     assert abs(rthr - sthr) < 2.0, f"li ritk {rthr} vs sitk {sthr}"
+
+
+def test_triangle_threshold_matches_sitk(images):
+    """Regression for the triangle method: ritk used the first/last non-empty
+    bins as the peak→tail line endpoints and a peak≤N/2 side heuristic, giving
+    3.0 here against ITK's 4.48 (and 13.7 % off on skewed 3-D histograms). It now
+    follows itk::TriangleThresholdCalculator exactly — 1st/99th-percentile
+    endpoints, longer-side selection, +1 bin shift, bin-centre output — matching
+    to well under one histogram bin."""
+    ri, si = images
+    rthr, _ = ritk.segmentation.triangle_threshold(ri)
+    sthr = _sitk_threshold(sitk.TriangleThresholdImageFilter(), si)
+    assert abs(rthr - sthr) < 0.5, f"triangle ritk {rthr} vs sitk {sthr}"
 
 
 # ── Binary morphology on a z=1 (2-D promoted) Otsu mask ───────────────────────

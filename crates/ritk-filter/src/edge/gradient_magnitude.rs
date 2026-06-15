@@ -9,15 +9,19 @@
 //!   ∂I/∂y ≈ (I[iz, iy+1, ix] − I[iz, iy−1, ix]) / (2 · sy)
 //!   ∂I/∂x ≈ (I[iz, iy, ix+1] − I[iz, iy, ix−1]) / (2 · sx)
 //!
-//! At boundary voxels one-sided first-order differences are used:
-//! forward: (I\[i+1\] − I\[i\]) / s
-//! backward: (I\[i\] − I\[i−1\]) / s
+//! At boundary voxels the same central stencil is evaluated with the
+//! out-of-range neighbour clamped to the edge voxel (ZeroFluxNeumann boundary
+//! condition), i.e. at `i = 0` the lower neighbour is `I[0]` and at `i = n−1`
+//! the upper neighbour is `I[n−1]`. This reproduces ITK's
+//! `GradientMagnitudeImageFilter`, which couples a central `DerivativeOperator`
+//! with `ZeroFluxNeumannBoundaryCondition`, to within float rounding.
 //!
 //! Gradient magnitude: |∇I| = √(gz² + gy² + gx²)
 //!
 //! # Reference
 //! Standard finite difference approximation of the gradient (see e.g., Press et al.,
-//! *Numerical Recipes in C*, 3rd ed., §18.1).
+//! *Numerical Recipes in C*, 3rd ed., §18.1); boundary handling per ITK
+//! `itk::ZeroFluxNeumannBoundaryCondition`.
 
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
@@ -53,52 +57,7 @@ impl GradientMagnitudeFilter {
     /// Returns an `Image` whose voxel values are |∇I(x)| at each position x.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let [nz, ny, nx] = dims;
-        let sz = self.spacing[0] as f32;
-        let sy = self.spacing[1] as f32;
-        let sx = self.spacing[2] as f32;
-
-        let mag: Vec<f32> =
-            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
-                let iz = flat / (ny * nx);
-                let iy = (flat / nx) % ny;
-                let ix = flat % nx;
-                let f = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
-
-                let gz = if nz == 1 {
-                    0.0_f32
-                } else if iz == 0 {
-                    (f(1, iy, ix) - f(0, iy, ix)) / sz
-                } else if iz == nz - 1 {
-                    (f(nz - 1, iy, ix) - f(nz - 2, iy, ix)) / sz
-                } else {
-                    (f(iz + 1, iy, ix) - f(iz - 1, iy, ix)) / (2.0 * sz)
-                };
-
-                let gy = if ny == 1 {
-                    0.0_f32
-                } else if iy == 0 {
-                    (f(iz, 1, ix) - f(iz, 0, ix)) / sy
-                } else if iy == ny - 1 {
-                    (f(iz, ny - 1, ix) - f(iz, ny - 2, ix)) / sy
-                } else {
-                    (f(iz, iy + 1, ix) - f(iz, iy - 1, ix)) / (2.0 * sy)
-                };
-
-                let gx = if nx == 1 {
-                    0.0_f32
-                } else if ix == 0 {
-                    (f(iz, iy, 1) - f(iz, iy, 0)) / sx
-                } else if ix == nx - 1 {
-                    (f(iz, iy, nx - 1) - f(iz, iy, nx - 2)) / sx
-                } else {
-                    (f(iz, iy, ix + 1) - f(iz, iy, ix - 1)) / (2.0 * sx)
-                };
-
-                (gz * gz + gy * gy + gx * gx).sqrt()
-            });
-
-        Ok(rebuild(mag, dims, image))
+        self.apply_from_slice(&vals, dims, image)
     }
 
     /// Compute the three gradient component images (z, y, x).
@@ -155,35 +114,16 @@ impl GradientMagnitudeFilter {
                 let ix = flat % nx;
                 let f = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
 
-                let gz = if nz == 1 {
-                    0.0_f32
-                } else if iz == 0 {
-                    (f(1, iy, ix) - f(0, iy, ix)) / sz
-                } else if iz == nz - 1 {
-                    (f(nz - 1, iy, ix) - f(nz - 2, iy, ix)) / sz
-                } else {
-                    (f(iz + 1, iy, ix) - f(iz - 1, iy, ix)) / (2.0 * sz)
-                };
+                // ZeroFluxNeumann central difference: clamp the out-of-range
+                // neighbour to the edge voxel. A degenerate (length-1) axis
+                // yields a zero numerator, so the partial derivative is 0.
+                let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
+                let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
+                let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
 
-                let gy = if ny == 1 {
-                    0.0_f32
-                } else if iy == 0 {
-                    (f(iz, 1, ix) - f(iz, 0, ix)) / sy
-                } else if iy == ny - 1 {
-                    (f(iz, ny - 1, ix) - f(iz, ny - 2, ix)) / sy
-                } else {
-                    (f(iz, iy + 1, ix) - f(iz, iy - 1, ix)) / (2.0 * sy)
-                };
-
-                let gx = if nx == 1 {
-                    0.0_f32
-                } else if ix == 0 {
-                    (f(iz, iy, 1) - f(iz, iy, 0)) / sx
-                } else if ix == nx - 1 {
-                    (f(iz, iy, nx - 1) - f(iz, iy, nx - 2)) / sx
-                } else {
-                    (f(iz, iy, ix + 1) - f(iz, iy, ix - 1)) / (2.0 * sx)
-                };
+                let gz = (f(zhi, iy, ix) - f(zlo, iy, ix)) / (2.0 * sz);
+                let gy = (f(iz, yhi, ix) - f(iz, ylo, ix)) / (2.0 * sy);
+                let gx = (f(iz, iy, xhi) - f(iz, iy, xlo)) / (2.0 * sx);
 
                 (gz * gz + gy * gy + gx * gx).sqrt()
             });
@@ -197,8 +137,9 @@ impl GradientMagnitudeFilter {
 /// Compute gradient component vectors (gz, gy, gx) via finite differences.
 ///
 /// # Invariants
-/// - Interior voxels: second-order central differences divided by 2·spacing.
-/// - Boundary voxels: first-order one-sided differences divided by spacing.
+/// - Central second-order differences divided by 2·spacing everywhere.
+/// - Boundary voxels clamp the out-of-range neighbour to the edge voxel
+///   (ZeroFluxNeumann), matching ITK; a length-1 axis yields a zero component.
 /// - Output lengths equal `nz * ny * nx`.
 fn gradient_vecs(
     data: &[f32],
@@ -222,39 +163,13 @@ fn gradient_vecs(
         for iy in 0..ny {
             for ix in 0..nx {
                 let flat = idx(iz, iy, ix);
+                let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
+                let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
+                let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
 
-                // ∂I/∂z
-                gz[flat] = if nz == 1 {
-                    0.0
-                } else if iz == 0 {
-                    (data[idx(1, iy, ix)] - data[flat]) / sz
-                } else if iz == nz - 1 {
-                    (data[flat] - data[idx(nz - 2, iy, ix)]) / sz
-                } else {
-                    (data[idx(iz + 1, iy, ix)] - data[idx(iz - 1, iy, ix)]) / (2.0 * sz)
-                };
-
-                // ∂I/∂y
-                gy[flat] = if ny == 1 {
-                    0.0
-                } else if iy == 0 {
-                    (data[idx(iz, 1, ix)] - data[flat]) / sy
-                } else if iy == ny - 1 {
-                    (data[flat] - data[idx(iz, ny - 2, ix)]) / sy
-                } else {
-                    (data[idx(iz, iy + 1, ix)] - data[idx(iz, iy - 1, ix)]) / (2.0 * sy)
-                };
-
-                // ∂I/∂x
-                gx[flat] = if nx == 1 {
-                    0.0
-                } else if ix == 0 {
-                    (data[idx(iz, iy, 1)] - data[flat]) / sx
-                } else if ix == nx - 1 {
-                    (data[flat] - data[idx(iz, iy, nx - 2)]) / sx
-                } else {
-                    (data[idx(iz, iy, ix + 1)] - data[idx(iz, iy, ix - 1)]) / (2.0 * sx)
-                };
+                gz[flat] = (data[idx(zhi, iy, ix)] - data[idx(zlo, iy, ix)]) / (2.0 * sz);
+                gy[flat] = (data[idx(iz, yhi, ix)] - data[idx(iz, ylo, ix)]) / (2.0 * sy);
+                gx[flat] = (data[idx(iz, iy, xhi)] - data[idx(iz, iy, xlo)]) / (2.0 * sx);
             }
         }
     }
