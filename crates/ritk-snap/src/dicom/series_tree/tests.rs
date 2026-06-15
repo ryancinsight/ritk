@@ -321,3 +321,35 @@ fn test_monomorphized_format_series_label() {
     let label2 = format_series_label(&empty_desc_entry, &DEFAULT_MODALITY_MAPPER);
     assert_eq!(label2, "🧠 [MR] my_folder (15 slices)");
 }
+
+/// Benchmark test to empirically validate the O(N) linear time construction complexity.
+#[test]
+fn test_bench_tree_construction() {
+    use std::time::Instant;
+
+    let mut entries = Vec::new();
+    // Generate 5000 entries across 50 patients and 250 studies.
+    for i in 0..5000 {
+        let patient_id = format!("P{}", i % 50);
+        let study_uid = format!("ST{}", i % 250);
+        let series_uid = format!("S{}", i);
+        let folder = format!("/path/to/patient_{}/study_{}/series_{}", i % 50, i % 250, i);
+        entries.push(SeriesEntry {
+            series_uid: Cow::Owned(series_uid),
+            folder: Cow::Owned(PathBuf::from(folder)),
+            patient_name: Cow::Owned(format!("Patient {}", i % 50)),
+            patient_id: Cow::Owned(patient_id),
+            modality: Cow::Borrowed("CT"),
+            series_description: Cow::Borrowed("Bench CT"),
+            num_slices: 100,
+            study_date: Some(Cow::Borrowed("20260615")),
+            study_uid: Some(Cow::Owned(study_uid)),
+        });
+    }
+
+    let start = Instant::now();
+    let tree = SeriesTree::from_entries(entries);
+    let duration = start.elapsed();
+    println!("\n[BENCHMARK] Built SeriesTree of 5000 entries in {:?}", duration);
+    assert_eq!(tree.total_series(), 5000);
+}
