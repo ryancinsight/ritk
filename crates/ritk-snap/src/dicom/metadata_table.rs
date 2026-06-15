@@ -39,40 +39,52 @@ impl MetadataScope {
     }
 }
 
+use std::borrow::Cow;
+
 /// One row in the DICOM tag inspector.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MetadataRow {
+pub struct MetadataRow<'a> {
     /// Row scope.
     pub scope: MetadataScope,
     /// Canonical tag text or derived-field identifier.
-    pub tag: String,
+    pub tag: Cow<'a, str>,
     /// DICOM keyword or derived field name.
-    pub keyword: String,
+    pub keyword: Cow<'a, str>,
     /// Value representation when known.
-    pub vr: String,
+    pub vr: Cow<'a, str>,
     /// Stable textual value.
-    pub value: String,
+    pub value: Cow<'a, str>,
 }
 
-impl MetadataRow {
-    fn series(tag: &str, keyword: &str, vr: &str, value: impl Into<String>) -> Self {
+impl<'a> MetadataRow<'a> {
+    fn series(
+        tag: &'a str,
+        keyword: &'a str,
+        vr: &'a str,
+        value: impl Into<Cow<'a, str>>,
+    ) -> Self {
         Self::new(MetadataScope::Series, tag, keyword, vr, value)
     }
 
-    fn first_slice(tag: &str, keyword: &str, vr: &str, value: impl Into<String>) -> Self {
+    fn first_slice(
+        tag: &'a str,
+        keyword: &'a str,
+        vr: &'a str,
+        value: impl Into<Cow<'a, str>>,
+    ) -> Self {
         Self::new(MetadataScope::FirstSlice, tag, keyword, vr, value)
     }
 
-    fn private(tag: impl Into<String>, value: impl Into<String>) -> Self {
+    fn private(tag: impl Into<Cow<'a, str>>, value: impl Into<Cow<'a, str>>) -> Self {
         Self::new(MetadataScope::PrivateTag, tag, "PrivateTag", "UN", value)
     }
 
     fn new(
         scope: MetadataScope,
-        tag: impl Into<String>,
-        keyword: impl Into<String>,
-        vr: impl Into<String>,
-        value: impl Into<String>,
+        tag: impl Into<Cow<'a, str>>,
+        keyword: impl Into<Cow<'a, str>>,
+        vr: impl Into<Cow<'a, str>>,
+        value: impl Into<Cow<'a, str>>,
     ) -> Self {
         Self {
             scope,
@@ -85,7 +97,7 @@ impl MetadataRow {
 }
 
 /// Build a deterministic tag-inspector row list from loaded DICOM metadata.
-pub fn build_metadata_rows(metadata: &DicomReadMetadata) -> Vec<MetadataRow> {
+pub fn build_metadata_rows<'a>(metadata: &'a DicomReadMetadata) -> Vec<MetadataRow<'a>> {
     let mut rows = Vec::new();
     push_series_rows(metadata, &mut rows);
     if let Some(slice) = metadata.slices.first() {
@@ -96,7 +108,7 @@ pub fn build_metadata_rows(metadata: &DicomReadMetadata) -> Vec<MetadataRow> {
     rows
 }
 
-fn push_series_rows(metadata: &DicomReadMetadata, rows: &mut Vec<MetadataRow>) {
+fn push_series_rows<'a>(metadata: &'a DicomReadMetadata, rows: &mut Vec<MetadataRow<'a>>) {
     push_opt(
         rows,
         "0020,000E",
@@ -224,7 +236,7 @@ fn push_series_rows(metadata: &DicomReadMetadata, rows: &mut Vec<MetadataRow>) {
     );
 }
 
-fn push_private_rows(metadata: &DicomReadMetadata, rows: &mut Vec<MetadataRow>) {
+fn push_private_rows<'a>(metadata: &'a DicomReadMetadata, rows: &mut Vec<MetadataRow<'a>>) {
     let mut tags: Vec<_> = metadata.private_tags.iter().collect();
     tags.sort_by_key(|(tag, _)| tag.as_str());
     for (tag, value) in tags {
@@ -232,7 +244,7 @@ fn push_private_rows(metadata: &DicomReadMetadata, rows: &mut Vec<MetadataRow>) 
     }
 }
 
-fn push_preserved_rows(metadata: &DicomReadMetadata, rows: &mut Vec<MetadataRow>) {
+fn push_preserved_rows<'a>(metadata: &'a DicomReadMetadata, rows: &mut Vec<MetadataRow<'a>>) {
     for node in &metadata.preservation.object.nodes {
         rows.push(row_from_node(MetadataScope::PreservedNode, node));
     }
@@ -249,7 +261,7 @@ fn push_preserved_rows(metadata: &DicomReadMetadata, rows: &mut Vec<MetadataRow>
     }
 }
 
-fn row_from_node(scope: MetadataScope, node: &DicomObjectNode) -> MetadataRow {
+fn row_from_node<'a>(scope: MetadataScope, node: &'a DicomObjectNode) -> MetadataRow<'a> {
     MetadataRow::new(
         scope,
         node.tag.canonical(),
@@ -263,7 +275,7 @@ fn row_from_node(scope: MetadataScope, node: &DicomObjectNode) -> MetadataRow {
     )
 }
 
-fn row_from_preserved(element: &DicomPreservedElement) -> MetadataRow {
+fn row_from_preserved<'a>(element: &'a DicomPreservedElement) -> MetadataRow<'a> {
     MetadataRow::new(
         MetadataScope::PreservedRaw,
         element.tag.canonical(),
@@ -273,33 +285,39 @@ fn row_from_preserved(element: &DicomPreservedElement) -> MetadataRow {
     )
 }
 
-fn push_opt(rows: &mut Vec<MetadataRow>, tag: &str, keyword: &str, vr: &str, value: Option<&str>) {
+fn push_opt<'a>(
+    rows: &mut Vec<MetadataRow<'a>>,
+    tag: &'a str,
+    keyword: &'a str,
+    vr: &'a str,
+    value: Option<&'a str>,
+) {
     if let Some(value) = value {
         rows.push(MetadataRow::series(tag, keyword, vr, value));
     }
 }
 
-pub(super) fn push_slice_opt(
-    rows: &mut Vec<MetadataRow>,
-    tag: &str,
-    keyword: &str,
-    vr: &str,
-    value: Option<&str>,
+pub(super) fn push_slice_opt<'a>(
+    rows: &mut Vec<MetadataRow<'a>>,
+    tag: &'a str,
+    keyword: &'a str,
+    vr: &'a str,
+    value: Option<&'a str>,
 ) {
     if let Some(value) = value {
         rows.push(MetadataRow::first_slice(tag, keyword, vr, value));
     }
 }
 
-fn value_to_text(value: &DicomValue) -> String {
+fn value_to_text<'a>(value: &'a DicomValue) -> Cow<'a, str> {
     match value {
-        DicomValue::Text(value) => value.clone(),
-        DicomValue::Bytes(bytes) => format!("{} bytes", bytes.len()),
-        DicomValue::U16(value) => value.to_string(),
-        DicomValue::I32(value) => value.to_string(),
-        DicomValue::F64(value) => format!("{value:.6}"),
-        DicomValue::Sequence(items) => format!("{} items", items.len()),
-        DicomValue::Empty => String::new(),
+        DicomValue::Text(val) => Cow::Borrowed(val.as_str()),
+        DicomValue::Bytes(bytes) => Cow::Owned(format!("{} bytes", bytes.len())),
+        DicomValue::U16(val) => Cow::Owned(val.to_string()),
+        DicomValue::I32(val) => Cow::Owned(val.to_string()),
+        DicomValue::F64(val) => Cow::Owned(format!("{val:.6}")),
+        DicomValue::Sequence(items) => Cow::Owned(format!("{} items", items.len())),
+        DicomValue::Empty => Cow::Borrowed(""),
     }
 }
 
@@ -308,11 +326,15 @@ fn format_usize3(values: [usize; 3]) -> String {
 }
 
 pub(super) fn format_float_slice<const N: usize>(values: [f64; N]) -> String {
-    values
-        .iter()
-        .map(|v| format!("{v:.6}"))
-        .collect::<Vec<_>>()
-        .join(" x ")
+    use std::fmt::Write;
+    let mut s = String::with_capacity(N * 12);
+    for (i, &v) in values.iter().enumerate() {
+        if i > 0 {
+            s.push_str(" x ");
+        }
+        let _ = write!(s, "{v:.6}");
+    }
+    s
 }
 
 #[cfg(test)]

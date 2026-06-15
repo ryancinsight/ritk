@@ -29,21 +29,21 @@ fn test_sidebar_tab_variants_are_distinct() {
 
 // ── Tag filter logic ──────────────────────────────────────────────────────
 
-fn make_row(tag: &str, keyword: &str, value: &str) -> crate::dicom::metadata_table::MetadataRow {
+fn make_row<'a>(tag: &'a str, keyword: &'a str, value: &'a str) -> crate::dicom::metadata_table::MetadataRow<'a> {
     crate::dicom::metadata_table::MetadataRow {
         scope: crate::dicom::metadata_table::MetadataScope::Series,
-        tag: tag.to_owned(),
-        keyword: keyword.to_owned(),
-        vr: "LO".to_owned(),
-        value: value.to_owned(),
+        tag: std::borrow::Cow::Borrowed(tag),
+        keyword: std::borrow::Cow::Borrowed(keyword),
+        vr: std::borrow::Cow::Borrowed("LO"),
+        value: std::borrow::Cow::Borrowed(value),
     }
 }
 
 /// Mirrors the exact filter predicate in `show_metadata_tab`.
-fn filter_rows(
-    rows: &[crate::dicom::metadata_table::MetadataRow],
+fn filter_rows<'a>(
+    rows: &[crate::dicom::metadata_table::MetadataRow<'a>],
     needle: &str,
-) -> Vec<crate::dicom::metadata_table::MetadataRow> {
+) -> Vec<crate::dicom::metadata_table::MetadataRow<'a>> {
     let needle_lc = needle.to_lowercase();
     rows.iter()
         .filter(|r| {

@@ -76,7 +76,8 @@ fn metadata_fixture() -> DicomReadMetadata {
 
 #[test]
 fn metadata_rows_include_series_slice_private_and_preserved_values() {
-    let rows = build_metadata_rows(&metadata_fixture());
+    let fixture = metadata_fixture();
+    let rows = build_metadata_rows(&fixture);
 
     assert!(
         rows.iter().any(|row| {
