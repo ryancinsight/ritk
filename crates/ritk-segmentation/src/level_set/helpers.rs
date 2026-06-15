@@ -209,6 +209,64 @@ pub(crate) fn compute_field_gradient(
     (gz, gy, gx)
 }
 
+/// Upwind discretisation of the level-set advection term `∇g·∇φ`.
+///
+/// Returns, per voxel, `Σ_d (∂g/∂x_d) · D_upwind^d φ` where the φ difference along
+/// axis `d` is taken from the upwind side of the advection velocity `−∇g`
+/// (Osher & Sethian): a forward difference where `∂g/∂x_d > 0` and a backward
+/// difference where `∂g/∂x_d ≤ 0`. Boundaries clamp to the edge voxel.
+///
+/// The advection term transports the front (it is hyperbolic, not diffusive);
+/// central differencing of it is unconditionally unstable and lets the contour
+/// leak through edges. Callers add `+advection_weight · this` to `∂φ/∂t` so the
+/// front is pulled toward minima of `g` (image edges).
+pub(crate) fn upwind_advection(
+    phi: &[f64],
+    dims: [usize; 3],
+    a_z: &[f64],
+    a_y: &[f64],
+    a_x: &[f64],
+) -> Vec<f64> {
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    let mut adv = vec![0.0_f64; n];
+
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let i = iz * ny * nx + iy * nx + ix;
+                let (z, y, x) = (iz as isize, iy as isize, ix as isize);
+                let c = phi[i];
+
+                let az = a_z[i];
+                let dz = if az > 0.0 {
+                    phi[idx_clamped(z + 1, y, x, nz, ny, nx)] - c
+                } else {
+                    c - phi[idx_clamped(z - 1, y, x, nz, ny, nx)]
+                };
+
+                let ay = a_y[i];
+                let dy = if ay > 0.0 {
+                    phi[idx_clamped(z, y + 1, x, nz, ny, nx)] - c
+                } else {
+                    c - phi[idx_clamped(z, y - 1, x, nz, ny, nx)]
+                };
+
+                let ax = a_x[i];
+                let dx = if ax > 0.0 {
+                    phi[idx_clamped(z, y, x + 1, nz, ny, nx)] - c
+                } else {
+                    c - phi[idx_clamped(z, y, x - 1, nz, ny, nx)]
+                };
+
+                adv[i] = az * dz + ay * dy + ax * dx;
+            }
+        }
+    }
+
+    adv
+}
+
 // ── Edge / speed functions ─────────────────────────────────────────────────────────
 
 /// Edge stopping function.

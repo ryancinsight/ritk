@@ -190,6 +190,9 @@ impl GeodesicActiveContourSegmentation {
             // Compute curvature and gradient of phi.
             helpers::compute_curvature_into(&phi, dims, &mut kappa);
             let (phi_gz, phi_gy, phi_gx) = helpers::compute_field_gradient(&phi, dims);
+            // Upwind discretisation of the advection (transport) term ∇g·∇φ;
+            // central differencing it is unstable and leaks the front past edges.
+            let adv = helpers::upwind_advection(&phi, dims, &g_grad_z, &g_grad_y, &g_grad_x);
 
             let mut max_change: f64 = 0.0;
 
@@ -203,11 +206,11 @@ impl GeodesicActiveContourSegmentation {
                 // Propagation term (positive w_p → expansion): −w_p·g·|∇φ|
                 let prop = self.propagation_weight * g[i] * grad_phi_mag;
 
-                // Advection term (attracts toward edges): −w_a·∇g·∇φ
-                let advection = self.advection_weight
-                    * (g_grad_z[i] * phi_gz[i] + g_grad_y[i] * phi_gy[i] + g_grad_x[i] * phi_gx[i]);
+                // Advection term (attracts the front toward edges): +w_a·∇g·∇φ,
+                // upwind-discretised for stability.
+                let advection = self.advection_weight * adv[i];
 
-                let dphi = self.dt * (curv - prop - advection);
+                let dphi = self.dt * (curv - prop + advection);
                 phi_new[i] = phi[i] + dphi;
 
                 let change = dphi.abs() / self.dt;

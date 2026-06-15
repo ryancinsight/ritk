@@ -181,6 +181,68 @@ fn test_step_edge_contour_expands_to_edge() {
     );
 }
 
+// ── Test 1b: Advection edge-attraction stays bounded (no leak) ─────────────
+
+/// With a strong advection (edge-attraction) weight the front must stay bounded
+/// near the object, not run away and fill the volume.
+///
+/// Regression: the advection term ∇g·∇φ was discretised with central differences
+/// — unconditionally unstable for a transport term — so a positive
+/// `advection_weight` leaked the contour straight through the edge until it
+/// filled the whole image (segmented count → volume). Upwind differencing makes
+/// the term stable, so the front is pulled toward the edge and the segmented
+/// region stays a small multiple of the object, well under half the volume.
+#[test]
+fn test_advection_does_not_leak_through_edges() {
+    let dims = [16, 16, 16];
+    let [nz, ny, nx] = dims;
+    let total = nz * ny * nx;
+    let center = [8.0, 8.0, 8.0];
+    let fg_radius = 6.0;
+
+    let mut img = vec![0.0_f32; total];
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let dz = iz as f64 - center[0];
+                let dy = iy as f64 - center[1];
+                let dx = ix as f64 - center[2];
+                if (dz * dz + dy * dy + dx * dx).sqrt() <= fg_radius {
+                    img[iz * ny * nx + iy * nx + ix] = 200.0;
+                }
+            }
+        }
+    }
+    let image = make_image(img, dims);
+    let phi_image = make_image(sphere_phi(dims, center, 2.0), dims);
+
+    let mut gac = GeodesicActiveContourSegmentation::new();
+    gac.propagation_weight = 1.0;
+    gac.curvature_weight = 0.2;
+    gac.advection_weight = 5.0; // strong edge attraction
+    gac.edge_k = 1.0;
+    gac.sigma = GaussianSigma::new_unchecked(1.0);
+    gac.dt = 0.05;
+    gac.max_iterations = 300;
+
+    let mask = get_values(&gac.apply(&image, &phi_image).unwrap());
+    let seg: usize = mask.iter().filter(|&&v| v == 1.0).count();
+    let init: usize = sphere_phi(dims, center, 2.0)
+        .iter()
+        .filter(|&&v| v < 0.0)
+        .count();
+
+    assert!(
+        seg > init,
+        "the front must evolve from the seed ({init} → {seg})"
+    );
+    assert!(
+        seg < total / 2,
+        "advection must not leak the front through the edge: segmented {seg} of {total} \
+         (central-difference advection filled the volume here)"
+    );
+}
+
 // ── Test 2: Uniform image — no edges, uniform expansion ────────────────────
 
 #[test]

@@ -137,6 +137,9 @@ impl ShapeDetectionSegmentation {
         for _iter in 0..self.max_iterations {
             helpers::compute_curvature_into(&phi, dims, &mut kappa);
             let (phi_z, phi_y, phi_x) = helpers::compute_field_gradient(&phi, dims);
+            // Upwind discretisation of the advection (transport) term ∇g·∇φ;
+            // central differencing it is unstable and leaks the front past edges.
+            let adv = helpers::upwind_advection(&phi, dims, &g_z, &g_y, &g_x);
 
             let mut max_change = 0.0_f64;
 
@@ -146,10 +149,10 @@ impl ShapeDetectionSegmentation {
 
                 let curvature = self.curvature_weight * g[i] * kappa[i] * grad_phi_mag;
                 let propagation = self.propagation_weight * g[i] * grad_phi_mag;
-                let advection = self.advection_weight
-                    * (g_z[i] * phi_z[i] + g_y[i] * phi_y[i] + g_x[i] * phi_x[i]);
+                // Edge attraction +w_a·∇g·∇φ, upwind-discretised for stability.
+                let advection = self.advection_weight * adv[i];
 
-                let dphi = self.dt * (curvature - propagation - advection);
+                let dphi = self.dt * (curvature - propagation + advection);
                 phi_new[i] = phi[i] + dphi;
 
                 let change = dphi.abs() / self.dt;
