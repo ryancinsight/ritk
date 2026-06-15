@@ -99,6 +99,56 @@ def test_statistics_match_sitk_on_real_image(name):
     assert abs(rs["std"] - f.GetSigma()) / rng < 1e-2, f"{name}: std"
 
 
+# ── Segmentation parity on real data ──────────────────────────────────────────
+
+
+def test_confidence_connected_matches_sitk_on_cthead():
+    """ritk.confidence_connected_segment matches sitk.ConfidenceConnected.
+
+    Regression: ritk advanced one BFS ring per iteration, so it under-segmented
+    ~180x (41 px vs sitk's 7387 on this seed). It now re-floods the whole region
+    each iteration like ITK. ritk's API takes explicit initial bounds where ITK
+    derives them from the seed neighbourhood, so to compare like-for-like the
+    initial interval is set to ITK's neighbourhood (radius 1) mean ± k·σ; from the
+    second iteration on both algorithms use identical region statistics and
+    converge to the same region.
+    """
+    simg = load_sitk("cthead1-Float.mha")
+    rimg = load_ritk("cthead1-Float.mha")
+    arr = sitk_to_zyx(simg)[0].astype(np.float64)  # [y, x]
+
+    sx, sy, radius, mult, iters = 128, 128, 1, 2.5, 8
+
+    seg_s = sitk.ConfidenceConnected(
+        simg,
+        seedList=[(sx, sy)],
+        numberOfIterations=iters,
+        multiplier=mult,
+        initialNeighborhoodRadius=radius,
+        replaceValue=1,
+    )
+    fg_s = sitk_to_zyx(seg_s)[0] > 0.5
+
+    # ITK's initial interval: mean ± k·σ over the (2r+1)² seed neighbourhood (N-1 σ).
+    nb = arr[sy - radius : sy + radius + 1, sx - radius : sx + radius + 1].ravel()
+    mean, std = nb.mean(), nb.std(ddof=1)
+    seg_r = ritk.segmentation.confidence_connected_segment(
+        rimg,
+        seed=[0, sy, sx],
+        initial_lower=float(mean - mult * std),
+        initial_upper=float(mean + mult * std),
+        multiplier=mult,
+        max_iterations=iters,
+    )
+    fg_r = np.asarray(seg_r.to_numpy())[0] > 0.5
+
+    # The grown region must be substantial (guards against the ring-growth defect).
+    assert fg_s.sum() > 1000, f"sitk region unexpectedly small: {fg_s.sum()}"
+    inter = np.logical_and(fg_r, fg_s).sum()
+    dice = 2.0 * inter / (fg_r.sum() + fg_s.sum())
+    assert dice > 0.99, f"Dice {dice:.4f} (ritk {fg_r.sum()} vs sitk {fg_s.sum()})"
+
+
 # ── Registration on a real brain pair ─────────────────────────────────────────
 
 
