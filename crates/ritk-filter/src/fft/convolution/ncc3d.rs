@@ -8,48 +8,39 @@ use std::marker::PhantomData;
 
 // ── FftNormalizedCorrelation3DFilter ───────────────────────────────────────────
 
-/// FFT-based 3-D normalized cross-correlation filter (partial NCC).
+/// FFT-based 3-D normalized cross-correlation filter (Lewis 1995, full NCC).
 ///
-/// Computes the normalized cross-correlation between a 3-D volume and a 3-D
-/// template using a full separable 3-D FFT (not slice-by-slice).
+/// Computes the fully normalized cross-correlation between a 3-D volume and a
+/// 3-D template using a full separable 3-D FFT (not slice-by-slice), matching
+/// ITK's `FFTNormalizedCorrelationImageFilter` in value semantics: the map
+/// equals `1.0` where the template aligns with an identical volume patch.
 ///
 /// # Mathematical specification
 ///
+/// At lag `(z, r, c)`, with template window `N = td·tr·tc` and
+/// `T̂ = T − mean(T)`,
+///
 /// ```text
-/// xcorr[z,r,c] = IFFT(FFT(V) · conj(FFT(T̂)))[z,r,c]
-/// out[z,r,c]   = xcorr[z,r,c] / (‖T̂‖₂ · pad_n)
+/// num         = Σ V(z+k, r+i, c+j) · T̂(k, i, j)              (= Σ (V − V̄win)·T̂)
+/// Σ V, Σ V²   = local window sum / sum-of-squares of V         (box correlation)
+/// energy      = Σ V² − (Σ V)² / N                             (= Σ (V − V̄win)²)
+/// out         = num / ( sqrt(energy) · ‖T̂‖₂ )
 /// ```
 ///
-/// where `T̂ = T − mean(T)` is the mean-subtracted template.
-///
-/// # Notes on normalization
-///
-/// Only the template L₂ norm is removed (partial normalization). Full NCC
-/// — dividing by the local volume patch energy via an integral volume — is
-/// deferred.
+/// The window sums come from correlating `V` and `V²` with a box of ones of the
+/// template's size, all via FFT, keeping the cost `O(N log N)`.
 ///
 /// # Output interpretation
 ///
-/// `out[z,r,c]` is the cross-correlation at lag `(z,r,c)`. For template
-/// matching, locate the position of maximum `out[z,r,c]`.
-///
-/// # Algorithm
-///
-/// 1. Mean-subtract template: `T̂ = T − mean(T)`.
-/// 2. Pad volume `[D, H, W]` and template `[TD, TH, TW]` to
-///    `[pad_d, pad_h, pad_w]` (next power of two).
-/// 3. Apply separable 3-D forward FFT to both.
-/// 4. Multiply pointwise: `FFT(V) · conj(FFT(T̂))`.
-/// 5. Apply separable 3-D inverse FFT; normalize by `1 / (pad_n · ‖T̂‖₂)`.
-/// 6. Extract output of size `[D, H, W]` starting at `(0, 0, 0)`
-///    (zero offset — unlike convolution, NCC is not centred).
+/// `out[z,r,c]` is the normalized correlation at lag `(z,r,c)` in `[−1, 1]`. For
+/// template matching, locate the position of maximum `out[z,r,c]`.
 pub struct FftNormalizedCorrelation3DFilter<B: Backend> {
     /// Mean-centred template values (row-major, placed at origin).
     template_vals: Vec<f32>,
     template_depth: usize,
     template_rows: usize,
     template_cols: usize,
-    /// L₂ norm of the mean-centred template used for partial normalization.
+    /// L₂ norm of the mean-centred template ‖T̂‖₂ used in the NCC denominator.
     template_norm: f32,
     _phantom: PhantomData<fn() -> B>,
 }
@@ -81,7 +72,8 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
         })
     }
 
-    /// Compute the 3-D cross-correlation map; output has the same shape as `volume`.
+    /// Compute the 3-D normalized cross-correlation map; output has the same
+    /// shape as `volume`.
     pub fn apply(&self, volume: &Image<B, 3>) -> Result<Image<B, 3>> {
         let [d, h, w] = volume.shape();
         let (vals, dims) = extract_vec(volume)?;
@@ -89,6 +81,7 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
         let td = self.template_depth;
         let tr = self.template_rows;
         let tc = self.template_cols;
+        let window_n = (td * tr * tc) as f32;
 
         // Padding must be >= dim + tmpl − 1 to suppress circular aliasing.
         let pad_d = (d + td - 1).next_power_of_two();
@@ -97,56 +90,69 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
         let pad_n = pad_d * pad_h * pad_w;
         let slice = pad_h * pad_w;
 
-        // Zero-padded volume: placed at top-left (origin).
+        // Zero-padded buffers: volume V, its square V², mean-centred template T̂,
+        // and a box of ones (template footprint) for window sums.
         let mut vol_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
+        let mut vol2_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
         for z in 0..d {
             for r in 0..h {
                 for c in 0..w {
-                    vol_buf[z * slice + r * pad_w + c] =
-                        Complex::new(vals[z * h * w + r * w + c], 0.0);
+                    let v = vals[z * h * w + r * w + c];
+                    vol_buf[z * slice + r * pad_w + c] = Complex::new(v, 0.0);
+                    vol2_buf[z * slice + r * pad_w + c] = Complex::new(v * v, 0.0);
                 }
             }
         }
 
-        // Zero-padded template: placed at top-left (origin).
         let mut tmpl_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
+        let mut box_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
         for z in 0..td {
             for r in 0..tr {
                 for c in 0..tc {
                     tmpl_buf[z * slice + r * pad_w + c] =
                         Complex::new(self.template_vals[z * tr * tc + r * tc + c], 0.0);
+                    box_buf[z * slice + r * pad_w + c] = Complex::new(1.0, 0.0);
                 }
             }
         }
 
         let mut planner = rustfft::FftPlanner::<f32>::new();
         fft3d::<ForwardFft>(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner);
+        fft3d::<ForwardFft>(&mut vol2_buf, pad_d, pad_h, pad_w, &mut planner);
         fft3d::<ForwardFft>(&mut tmpl_buf, pad_d, pad_h, pad_w, &mut planner);
+        fft3d::<ForwardFft>(&mut box_buf, pad_d, pad_h, pad_w, &mut planner);
 
-        // Cross-correlation: multiply volume FFT by conjugate of template FFT.
-        // (a + bi) · conj(c + di) = (a + bi)(c − di) = (ac + bd) + (bc − ad)i
-        for i in 0..pad_n {
-            let a = vol_buf[i];
-            let b = tmpl_buf[i];
-            vol_buf[i] = Complex::new(a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im);
-        }
-
-        fft3d::<InverseFft>(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner);
-
-        // Partial normalization: divide by ‖T̂‖₂ · pad_n.
-        let denom = if self.template_norm > 1e-10_f32 {
-            self.template_norm * pad_n as f32
-        } else {
-            1.0_f32
+        // Correlation multiplies by the conjugate of the kernel spectrum:
+        // (a + bi)·conj(c + di) = (ac + bd) + (bc − ad)i.
+        let corr = |a: Complex<f32>, b: Complex<f32>| {
+            Complex::new(a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im)
         };
-        let scale = 1.0_f32 / denom;
+        let mut num_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Σ V·T̂
+        let mut sum_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Σ V (window)
+        let mut sumsq_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Σ V² (window)
+        for i in 0..pad_n {
+            num_buf[i] = corr(vol_buf[i], tmpl_buf[i]);
+            sum_buf[i] = corr(vol_buf[i], box_buf[i]);
+            sumsq_buf[i] = corr(vol2_buf[i], box_buf[i]);
+        }
+        fft3d::<InverseFft>(&mut num_buf, pad_d, pad_h, pad_w, &mut planner);
+        fft3d::<InverseFft>(&mut sum_buf, pad_d, pad_h, pad_w, &mut planner);
+        fft3d::<InverseFft>(&mut sumsq_buf, pad_d, pad_h, pad_w, &mut planner);
 
-        // Extract result at zero offset (no crop for NCC).
+        // rustfft's inverse is unnormalized; divide each correlation by pad_n.
+        let inv_pad = 1.0_f32 / pad_n as f32;
+        let t_norm = self.template_norm;
         let mut out = vec![0.0_f32; d * h * w];
         for z in 0..d {
             for r in 0..h {
                 for c in 0..w {
-                    out[z * h * w + r * w + c] = vol_buf[z * slice + r * pad_w + c].re * scale;
+                    let idx = z * slice + r * pad_w + c;
+                    let num = num_buf[idx].re * inv_pad;
+                    let lsum = sum_buf[idx].re * inv_pad;
+                    let lsumsq = sumsq_buf[idx].re * inv_pad;
+                    let energy = (lsumsq - lsum * lsum / window_n).max(0.0);
+                    let denom = energy.sqrt() * t_norm;
+                    out[z * h * w + r * w + c] = if denom > 1e-10_f32 { num / denom } else { 0.0 };
                 }
             }
         }

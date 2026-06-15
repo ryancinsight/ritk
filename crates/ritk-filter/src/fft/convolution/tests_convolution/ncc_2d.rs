@@ -49,6 +49,44 @@ fn ncc_zero_mean_template_gives_zero_output() {
     }
 }
 
+/// Full normalization: where the template exactly overlays an identical image
+/// patch, the NCC equals 1.0 (and that is the global maximum). This is the
+/// defining property of a *normalized* correlation and the parity contract with
+/// ITK's `FFTNormalizedCorrelationImageFilter`.
+#[test]
+fn ncc_perfect_match_peaks_at_one() {
+    // 8×8 background of zeros with a distinctive non-constant 3×3 patch at (2,3).
+    let (h, w) = (8usize, 8usize);
+    let mut img = vec![0.0_f32; h * w];
+    let patch: [f32; 9] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+    let (pr, pc) = (2usize, 3usize);
+    for i in 0..3 {
+        for j in 0..3 {
+            img[(pr + i) * w + (pc + j)] = patch[i * 3 + j];
+        }
+    }
+    let image = make_image_2d(img, h, w);
+    let tmpl = make_image_2d(patch.to_vec(), 3, 3);
+
+    let result = FftNormalizedCorrelationFilter::<B>::new(&tmpl)
+        .unwrap()
+        .apply(&image)
+        .unwrap();
+    let (out, _) = extract_vec(&result).unwrap();
+
+    // NCC at the embedding lag must be 1.0; nothing may exceed it.
+    let at_match = out[pr * w + pc];
+    assert!(
+        (at_match - 1.0).abs() < 1e-4,
+        "NCC at the perfect-match lag must be 1.0, got {at_match:.6}"
+    );
+    let global_max = out.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    assert!(
+        global_max <= 1.0 + 1e-4,
+        "normalized correlation must not exceed 1.0, got max {global_max:.6}"
+    );
+}
+
 /// Cross-correlation output is finite for a realistic image and non-trivial template.
 #[test]
 fn ncc_output_is_finite() {

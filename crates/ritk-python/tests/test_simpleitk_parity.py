@@ -227,6 +227,44 @@ def test_intensity_projections_agree_with_sitk():
             assert rel < tol, f"{rfn.__name__} axis={axis}: rel={rel:.2e}"
 
 
+def test_fft_normalized_correlation_peaks_at_one():
+    """Fully normalized cross-correlation matches sitk's value semantics: the map
+    equals 1.0 where the template aligns with its source patch, and never exceeds
+    1.0. Regression: ritk previously did only partial (template-norm) normalization
+    and peaked at ~sqrt(N) (≈11.9 for this 10×14 patch) instead of 1.0.
+
+    ritk emits a "same"-shape lag map (peak at the patch's top-left index); sitk
+    emits a "full" map at a shifted origin — the layouts differ but the peak VALUE
+    (1.0) is the parity contract, which sitk also satisfies.
+    """
+    rng = np.random.default_rng(1)
+    # 2-D (z=1) case.
+    h, w = 30, 40
+    img = rng.normal(0, 1, (h, w)).astype(np.float32)
+    pr, pc, th, tw = 8, 12, 10, 14
+    tmpl = img[pr : pr + th, pc : pc + tw].copy()
+    rc = ritk.filter.fft_normalized_correlate(
+        _ritk(img[None]), _ritk(tmpl[None])
+    ).to_numpy()[0]
+    assert abs(float(rc[pr, pc]) - 1.0) < 1e-3, f"2-D NCC at match = {float(rc[pr, pc])}"
+    assert float(rc.max()) <= 1.0 + 1e-3, f"2-D NCC exceeds 1.0: {float(rc.max())}"
+    assert tuple(np.unravel_index(int(rc.argmax()), rc.shape)) == (pr, pc)
+
+    # sitk peaks at 1.0 too (different "full" layout) — the value is the contract.
+    sc = _np(sitk.FFTNormalizedCorrelation(_sitk(img), _sitk(tmpl)))
+    assert abs(float(sc.max()) - 1.0) < 1e-3
+
+    # 3-D case.
+    nz, ny, nx = 10, 14, 16
+    vol = rng.normal(0, 1, (nz, ny, nx)).astype(np.float32)
+    zz, yy, xx, dz, dy, dx = 2, 4, 5, 4, 5, 6
+    t3 = vol[zz : zz + dz, yy : yy + dy, xx : xx + dx].copy()
+    rc3 = ritk.filter.fft_normalized_correlate_3d(_ritk(vol), _ritk(t3)).to_numpy()
+    assert abs(float(rc3[zz, yy, xx]) - 1.0) < 1e-3, f"3-D NCC at match = {float(rc3[zz, yy, xx])}"
+    assert float(rc3.max()) <= 1.0 + 1e-3, f"3-D NCC exceeds 1.0: {float(rc3.max())}"
+    assert tuple(np.unravel_index(int(rc3.argmax()), rc3.shape)) == (zz, yy, xx)
+
+
 def test_binary_threshold_agrees_with_sitk_and_analytical():
     # Analytical: output=1.0 iff 0.3<=v<=0.7.
     # Gradient f(z,y,x)=x/(SIZE-1); threshold maps to contiguous X slices.
