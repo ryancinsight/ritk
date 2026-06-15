@@ -17,6 +17,7 @@
 //! - Vincent, L. (1993). Morphological grayscale reconstruction in image analysis.
 //!   *IEEE Trans. Image Process.* 2(2):176-201.
 
+use crate::morphology::Connectivity;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
@@ -44,6 +45,9 @@ pub enum ReconstructionMode {
 pub struct MorphologicalReconstruction {
     pub mode: ReconstructionMode,
     pub max_iter: usize,
+    /// Structuring-element adjacency for each geodesic step. Defaults to
+    /// [`Connectivity::Face6`], matching ITK's `FullyConnectedOff`.
+    pub connectivity: Connectivity,
 }
 
 impl MorphologicalReconstruction {
@@ -51,11 +55,18 @@ impl MorphologicalReconstruction {
         Self {
             mode,
             max_iter: 200,
+            connectivity: Connectivity::default(),
         }
     }
 
     pub fn with_max_iter(mut self, n: usize) -> Self {
         self.max_iter = n;
+        self
+    }
+
+    /// Set the structuring-element adjacency (face vs full connectivity).
+    pub fn with_connectivity(mut self, connectivity: Connectivity) -> Self {
+        self.connectivity = connectivity;
         self
     }
 
@@ -100,7 +111,7 @@ impl MorphologicalReconstruction {
         for _ in 0..self.max_iter {
             let next = match self.mode {
                 ReconstructionMode::Dilation => {
-                    let dilated = dilate1_scalar(&current, dims);
+                    let dilated = dilate1_scalar(&current, dims, self.connectivity);
                     dilated
                         .iter()
                         .zip(mask_vec.iter())
@@ -108,7 +119,7 @@ impl MorphologicalReconstruction {
                         .collect::<Vec<f32>>()
                 }
                 ReconstructionMode::Erosion => {
-                    let eroded = erode1_scalar(&current, dims);
+                    let eroded = erode1_scalar(&current, dims, self.connectivity);
                     eroded
                         .iter()
                         .zip(mask_vec.iter())
@@ -144,8 +155,9 @@ impl MorphologicalReconstruction {
 // Private neighbourhood helpers
 // ════════════════════════════════════════════════════════════════════════════
 
-/// One-step grayscale dilation (max in 3x3x3 neighbourhood, clamp padding).
-fn dilate1_scalar(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
+/// One-step grayscale dilation (max over the connectivity neighbourhood, clamp
+/// padding). `conn` selects face (6/4) or full (26/8) adjacency.
+fn dilate1_scalar(data: &[f32], dims: [usize; 3], conn: Connectivity) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let mut out = Vec::with_capacity(data.len());
     for iz in 0..nz {
@@ -155,6 +167,9 @@ fn dilate1_scalar(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
                 for dz in -1i32..=1 {
                     for dy in -1i32..=1 {
                         for dx in -1i32..=1 {
+                            if !conn.includes(dz, dy, dx) {
+                                continue;
+                            }
                             let zz = (iz as i32 + dz).clamp(0, nz as i32 - 1) as usize;
                             let yy = (iy as i32 + dy).clamp(0, ny as i32 - 1) as usize;
                             let xx = (ix as i32 + dx).clamp(0, nx as i32 - 1) as usize;
@@ -178,7 +193,7 @@ fn dilate1_scalar(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
 /// voxels erode toward the mask value during geodesic erosion reconstruction.
 /// This is mathematically required: on a finite-support domain the exterior
 /// acts as a strict lower bound, enabling convergence from marker to mask.
-fn erode1_scalar(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
+fn erode1_scalar(data: &[f32], dims: [usize; 3], conn: Connectivity) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let mut out = Vec::with_capacity(data.len());
     for iz in 0..nz {
@@ -188,6 +203,9 @@ fn erode1_scalar(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
                 'outer_e: for dz in -1i32..=1 {
                     for dy in -1i32..=1 {
                         for dx in -1i32..=1 {
+                            if !conn.includes(dz, dy, dx) {
+                                continue;
+                            }
                             let zz = iz as i32 + dz;
                             let yy = iy as i32 + dy;
                             let xx = ix as i32 + dx;

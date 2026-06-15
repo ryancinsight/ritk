@@ -30,6 +30,7 @@
 //!   *IEEE Trans. Image Process.* 2(2):176–201.
 
 use crate::morphology::label_morphology::{MorphologicalReconstruction, ReconstructionMode};
+use crate::morphology::Connectivity;
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 
@@ -63,6 +64,13 @@ impl Default for GrayscaleGeodesicDilationFilter {
 impl GrayscaleGeodesicDilationFilter {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Set the structuring-element adjacency (face vs full connectivity).
+    /// Defaults to [`Connectivity::Face6`], matching ITK's `FullyConnectedOff`.
+    pub fn with_connectivity(mut self, connectivity: Connectivity) -> Self {
+        self.inner = self.inner.with_connectivity(connectivity);
+        self
     }
 
     /// Apply geodesic dilation: reconstruct `mask` from `marker` by dilation.
@@ -108,6 +116,13 @@ impl Default for GrayscaleGeodesicErosionFilter {
 impl GrayscaleGeodesicErosionFilter {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Set the structuring-element adjacency (face vs full connectivity).
+    /// Defaults to [`Connectivity::Face6`], matching ITK's `FullyConnectedOff`.
+    pub fn with_connectivity(mut self, connectivity: Connectivity) -> Self {
+        self.inner = self.inner.with_connectivity(connectivity);
+        self
     }
 
     /// Apply geodesic erosion: reconstruct `mask` from `marker` by erosion.
@@ -227,6 +242,57 @@ mod tests {
                 a
             );
         }
+    }
+
+    /// Face vs full connectivity differ on diagonal-only propagation.
+    ///
+    /// On a 3×3 checkerboard mask, the corner voxels (value 5) are reachable from
+    /// the centre seed only through diagonal (vertex) steps; the edge voxels
+    /// between them are 0 and block every axis-aligned path. Face connectivity
+    /// (ITK default) therefore leaves the corners at 0, while full connectivity
+    /// reconstructs them to 5.
+    #[test]
+    fn geodesic_dilation_connectivity_controls_diagonal_propagation() {
+        // 1×3×3 checkerboard mask; marker = centre seed only.
+        let mask_vals = vec![5.0f32, 0.0, 5.0, 0.0, 5.0, 0.0, 5.0, 0.0, 5.0];
+        let mut marker_vals = vec![0.0f32; 9];
+        marker_vals[4] = 5.0; // centre
+        let marker = make_image(marker_vals, [1, 3, 3]);
+        let mask = make_image(mask_vals.clone(), [1, 3, 3]);
+
+        let face = voxels(
+            &GrayscaleGeodesicDilationFilter::new()
+                .with_connectivity(Connectivity::Face6)
+                .apply(&marker, &mask)
+                .unwrap(),
+        );
+        let full = voxels(
+            &GrayscaleGeodesicDilationFilter::new()
+                .with_connectivity(Connectivity::Vertex26)
+                .apply(&marker, &mask)
+                .unwrap(),
+        );
+
+        // Face: only the centre carries the marker; corners stay 0.
+        let expect_face = [0.0f32, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0];
+        // Full: centre plus the four diagonal corners reach 5.
+        let expect_full = [5.0f32, 0.0, 5.0, 0.0, 5.0, 0.0, 5.0, 0.0, 5.0];
+        for (i, (&f, &e)) in face.iter().zip(expect_face.iter()).enumerate() {
+            assert!((f - e).abs() < 1e-4, "face voxel {i}: got {f}, want {e}");
+        }
+        for (i, (&f, &e)) in full.iter().zip(expect_full.iter()).enumerate() {
+            assert!((f - e).abs() < 1e-4, "full voxel {i}: got {f}, want {e}");
+        }
+        // Default (no with_connectivity) must equal face connectivity (ITK default).
+        let default = voxels(
+            &GrayscaleGeodesicDilationFilter::new()
+                .apply(&marker, &mask)
+                .unwrap(),
+        );
+        assert_eq!(
+            default, face,
+            "default connectivity must be face (ITK default)"
+        );
     }
 
     /// Marker ≥ mask: reconstruction contracts marker but never goes below mask.

@@ -4,9 +4,9 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform, LabelClosing,
-    LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction, ReconstructionMode,
-    WhiteTopHatFilter,
+    BlackTopHatFilter, Connectivity, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform,
+    LabelClosing, LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction,
+    ReconstructionMode, WhiteTopHatFilter,
 };
 
 /// Apply grayscale morphological erosion with a flat cubic structuring element.
@@ -165,13 +165,22 @@ pub fn hit_or_miss(
 }
 
 /// Geodesic morphological reconstruction.
+///
+/// Args:
+///     marker: seed image (marker ≤ mask for dilation, marker ≥ mask for erosion).
+///     mask: constraint image.
+///     mode: "dilation" or "erosion".
+///     fully_connected: if False (default), use face connectivity (6-connected in
+///         3-D, 4-connected in 2-D) to match ITK's default; if True, use full
+///         connectivity (26/8-connected, including diagonals).
 #[pyfunction]
-#[pyo3(signature = (marker, mask, mode = "dilation"))]
+#[pyo3(signature = (marker, mask, mode = "dilation", fully_connected = false))]
 pub fn morphological_reconstruction(
     py: Python<'_>,
     marker: &PyImage,
     mask: &PyImage,
     mode: &str,
+    fully_connected: bool,
 ) -> RitkResult<PyImage> {
     let recon_mode = match mode {
         "dilation" => ReconstructionMode::Dilation,
@@ -183,10 +192,16 @@ pub fn morphological_reconstruction(
             )))
         }
     };
+    let connectivity = if fully_connected {
+        Connectivity::Vertex26
+    } else {
+        Connectivity::Face6
+    };
     let marker_arc = std::sync::Arc::clone(&marker.inner);
     let mask_arc = std::sync::Arc::clone(&mask.inner);
     py.allow_threads(|| {
         MorphologicalReconstruction::new(recon_mode)
+            .with_connectivity(connectivity)
             .apply(marker_arc.as_ref(), mask_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
