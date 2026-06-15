@@ -195,6 +195,49 @@ def test_black_top_hat_matches_sitk_box_kernel(images):
     assert _interior_absmax(ra, sa) / _rng(sa) < 0.02
 
 
+def _recon_inputs(images):
+    """Marker = (image − 30) clamped ≥ 0; mask = image. Shared geometry."""
+    ri, si = images
+    img = _sa(si)
+    marker_np = np.clip(img - 30.0, 0.0, None).astype(np.float32)
+    spacing = list(ri.spacing)
+    rmarker = ritk.Image(np.ascontiguousarray(marker_np), spacing=spacing)
+    smarker = sitk.GetImageFromArray(marker_np[0] if marker_np.shape[0] == 1 else marker_np)
+    smarker.CopyInformation(si)
+    return rmarker, ri, smarker, si
+
+
+def test_morphological_reconstruction_face_matches_sitk(images):
+    """Default face connectivity matches ITK's FullyConnectedOff (its default)."""
+    rmarker, rmask, smarker, smask = _recon_inputs(images)
+    ra = ritk.filter.morphological_reconstruction(
+        rmarker, rmask, mode="dilation", fully_connected=False
+    ).to_numpy()
+    sa = _sa(sitk.ReconstructionByDilation(smarker, smask, fullyConnected=False))
+    assert _full_absmax(ra, sa) / _rng(sa) < 1e-5
+
+
+def test_morphological_reconstruction_full_matches_sitk(images):
+    """fully_connected=True matches ITK's FullyConnectedOn (26/8-connectivity)."""
+    rmarker, rmask, smarker, smask = _recon_inputs(images)
+    ra = ritk.filter.morphological_reconstruction(
+        rmarker, rmask, mode="dilation", fully_connected=True
+    ).to_numpy()
+    sa = _sa(sitk.ReconstructionByDilation(smarker, smask, fullyConnected=True))
+    assert _full_absmax(ra, sa) / _rng(sa) < 1e-5
+
+
+def test_morphological_reconstruction_default_is_face(images):
+    """The default (no fully_connected kwarg) equals face connectivity, so it
+    diverges from ITK's full-connectivity result — guarding the default choice."""
+    rmarker, rmask, smarker, smask = _recon_inputs(images)
+    ra_default = ritk.filter.morphological_reconstruction(rmarker, rmask).to_numpy()
+    ra_face = ritk.filter.morphological_reconstruction(
+        rmarker, rmask, fully_connected=False
+    ).to_numpy()
+    assert _full_absmax(ra_default, ra_face) == 0.0
+
+
 def test_bilateral_matches_sitk(images):
     ri, si = images
     # ritk spatial_sigma is in voxels; sitk domainSigma is physical (mm).
