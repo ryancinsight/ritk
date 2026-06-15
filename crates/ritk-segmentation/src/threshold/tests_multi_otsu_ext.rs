@@ -101,7 +101,7 @@ fn test_computation_is_deterministic() {
 }
 
 #[test]
-fn test_apply_preserves_spatial_metadata_3d() {
+fn test_apply_preserves_spatial_metadata_volumetric() {
     let device: <TestBackend as Backend>::Device = Default::default();
     let data: Vec<f32> = (0u8..27)
         .map(|x| {

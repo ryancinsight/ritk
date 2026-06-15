@@ -133,51 +133,44 @@ pub fn decode_native_pixel_bytes(bytes: &[u8], layout: PixelLayout) -> Vec<f32> 
     decode_native_pixel_bytes_unchecked(bytes, layout)
 }
 
+#[inline]
+fn apply_rescale(sample: f32, layout: &PixelLayout) -> f32 {
+    sample * layout.rescale_slope + layout.rescale_intercept
+}
+
 fn decode_native_pixel_bytes_unchecked(bytes: &[u8], layout: PixelLayout) -> Vec<f32> {
     match (layout.bits_allocated, layout.pixel_representation) {
         (8, PixelSignedness::Signed) => bytes
             .iter()
-            .map(|&b| (b as i8) as f32 * layout.rescale_slope + layout.rescale_intercept)
+            .map(|&b| apply_rescale((b as i8) as f32, &layout))
             .collect(),
         (8, PixelSignedness::Unsigned) => bytes
             .iter()
-            .map(|&b| b as f32 * layout.rescale_slope + layout.rescale_intercept)
+            .map(|&b| apply_rescale(b as f32, &layout))
             .collect(),
         (16, PixelSignedness::Signed) => bytes
             .chunks_exact(2)
-            .map(|c| {
-                i16::from_le_bytes([c[0], c[1]]) as f32 * layout.rescale_slope
-                    + layout.rescale_intercept
-            })
+            .map(|c| apply_rescale(i16::from_le_bytes([c[0], c[1]]) as f32, &layout))
             .collect(),
         (16, PixelSignedness::Unsigned) => bytes
             .chunks_exact(2)
-            .map(|c| {
-                u16::from_le_bytes([c[0], c[1]]) as f32 * layout.rescale_slope
-                    + layout.rescale_intercept
-            })
+            .map(|c| apply_rescale(u16::from_le_bytes([c[0], c[1]]) as f32, &layout))
             .collect(),
         (24, PixelSignedness::Signed) => bytes
             .chunks_exact(3)
-            .map(|c| sign_extend_i24(c) as f32 * layout.rescale_slope + layout.rescale_intercept)
+            .map(|c| apply_rescale(sign_extend_i24(c) as f32, &layout))
             .collect(),
         (24, PixelSignedness::Unsigned) => bytes
             .chunks_exact(3)
-            .map(|c| u24_le(c) as f32 * layout.rescale_slope + layout.rescale_intercept)
+            .map(|c| apply_rescale(u24_le(c) as f32, &layout))
             .collect(),
         (32, PixelSignedness::Signed) => bytes
             .chunks_exact(4)
-            .map(|c| {
-                i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 * layout.rescale_slope
-                    + layout.rescale_intercept
-            })
+            .map(|c| apply_rescale(i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32, &layout))
             .collect(),
         (32, PixelSignedness::Unsigned) => bytes
             .chunks_exact(4)
-            .map(|c| {
-                u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 * layout.rescale_slope
-                    + layout.rescale_intercept
-            })
+            .map(|c| apply_rescale(u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32, &layout))
             .collect(),
         _ => Vec::new(),
     }

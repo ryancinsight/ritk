@@ -84,16 +84,7 @@ impl<B: Backend> DispatchNearestByShape<B> for Tensor<B, 3> {
             [512, 512, 512] => {
                 nearest::interpolate_nearest_3d_typed::<B, 512, 512, 512>(self, indices, mode)
             }
-            // Other common shapes (Sprint 360 — 351-01-SHAPE-LIST) fall
-            // through to the generic path until typed variants are added.
-            [32, 32, 32]
-            | [48, 48, 48]
-            | [96, 96, 96]
-            | [192, 192, 192]
-            | [384, 384, 384]
-            | [1024, 1024, 1024]
-            | [256, 256, 128]
-            | [192, 256, 256] => nearest::interpolate_3d(self, indices, mode),
+            // Other shapes fall through to the generic path.
             _ => nearest::interpolate_3d(self, indices, mode),
         }
     }

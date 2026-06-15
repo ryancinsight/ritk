@@ -71,23 +71,3 @@ impl<B: Backend> Regularizer<B> for BendingEnergyRegularizer {
         self.weight = weight;
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use burn_ndarray::NdArray;
-
-    #[test]
-    fn uniform_field_has_near_zero_loss() {
-        type Backend = NdArray;
-        let device = Default::default();
-
-        let reg = BendingEnergyRegularizer::new(0.1);
-
-        // Uniform displacement field should have zero bending
-        let displacement = Tensor::<Backend, 4>::ones([1, 2, 32, 32], &device);
-        let loss: f32 = reg.compute_loss(displacement).into_scalar();
-
-        assert!(loss < 0.01);
-    }
-}

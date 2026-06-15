@@ -14,7 +14,11 @@ fn test_hausdorff_identical_masks_is_zero() {
     let mask = make_mask_2d(vec![1.0f32; 9], [3, 3]);
     let spacing = [1.0f64, 1.0];
     let hd = hausdorff_distance(&mask, &mask, &spacing);
-    assert!(hd.abs() < 1e-5, "identical masks -> HD = 0.0, got {}", hd);
+    assert!(
+        hd.abs() < super::F32_TOL,
+        "identical masks -> HD = 0.0, got {}",
+        hd
+    );
 }
 
 #[test]
@@ -66,7 +70,7 @@ fn test_hausdorff_symmetry() {
     let hd_pg = hausdorff_distance(&pred, &gt, &spacing);
     let hd_gp = hausdorff_distance(&gt, &pred, &spacing);
     assert!(
-        (hd_pg - hd_gp).abs() < 1e-5,
+        (hd_pg - hd_gp).abs() < super::F32_TOL,
         "HD not symmetric: {} vs {}",
         hd_pg,
         hd_gp
@@ -79,7 +83,11 @@ fn test_hausdorff_both_empty_is_zero() {
     let gt = make_mask_3d(vec![0.0; 27], [3, 3, 3]);
     let spacing = [1.0f64, 1.0, 1.0];
     let hd = hausdorff_distance(&pred, &gt, &spacing);
-    assert!(hd.abs() < 1e-5, "both empty -> HD = 0.0, got {}", hd);
+    assert!(
+        hd.abs() < super::F32_TOL,
+        "both empty -> HD = 0.0, got {}",
+        hd
+    );
 }
 
 #[test]
@@ -88,7 +96,7 @@ fn test_msd_identical_masks_is_zero() {
     let spacing = [1.0f64, 1.0];
     let msd = mean_surface_distance(&mask, &mask, &spacing);
     assert!(
-        msd.abs() < 1e-5,
+        msd.abs() < super::F32_TOL,
         "identical masks -> MSD = 0.0, got {}",
         msd
     );
@@ -110,7 +118,12 @@ fn test_msd_leq_hausdorff() {
     let spacing = [1.0f64];
     let hd = hausdorff_distance(&pred, &gt, &spacing);
     let msd = mean_surface_distance(&pred, &gt, &spacing);
-    assert!(msd <= hd + 1e-5, "MSD ({}) must be <= HD ({})", msd, hd);
+    assert!(
+        msd <= hd + super::F32_TOL,
+        "MSD ({}) must be <= HD ({})",
+        msd,
+        hd
+    );
 }
 
 #[test]
@@ -119,7 +132,11 @@ fn test_msd_both_empty_is_zero() {
     let gt = make_mask_3d(vec![0.0; 27], [3, 3, 3]);
     let spacing = [1.0f64, 1.0, 1.0];
     let msd = mean_surface_distance(&pred, &gt, &spacing);
-    assert!(msd.abs() < 1e-5, "both empty -> MSD = 0.0, got {}", msd);
+    assert!(
+        msd.abs() < super::F32_TOL,
+        "both empty -> MSD = 0.0, got {}",
+        msd
+    );
 }
 
 #[test]
@@ -130,7 +147,7 @@ fn test_msd_symmetry() {
     let msd_pg = mean_surface_distance(&pred, &gt, &spacing);
     let msd_gp = mean_surface_distance(&gt, &pred, &spacing);
     assert!(
-        (msd_pg - msd_gp).abs() < 1e-5,
+        (msd_pg - msd_gp).abs() < super::F32_TOL,
         "MSD is not symmetric: {} vs {}",
         msd_pg,
         msd_gp
@@ -138,7 +155,7 @@ fn test_msd_symmetry() {
 }
 
 #[test]
-fn test_strides_3d() {
+fn test_strides_volumetric() {
     let shape = [2usize, 3, 4];
     let strides = compute_strides(&shape);
     assert_eq!(strides, vec![12, 4, 1]);

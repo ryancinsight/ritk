@@ -40,7 +40,7 @@ fn build_marginal_hist(data: &[f32], num_bins: usize) -> Vec<f64> {
 }
 
 /// H(X) = -Σ p·ln(p) for non-zero `p`.
-fn entropy_from_hist(hist: &[f64]) -> f64 {
+pub(crate) fn entropy_from_hist(hist: &[f64]) -> f64 {
     hist.iter()
         .filter(|&&p| p > 0.0)
         .map(|&p| -p * p.ln())
@@ -205,9 +205,4 @@ pub fn marginalize_hist(
         out[out_idx] += p;
     }
     out
-}
-
-/// Calculate entropy directly from an already computed histogram
-pub fn entropy_from_hist_pub(hist: &[f64]) -> f64 {
-    entropy_from_hist(hist)
 }

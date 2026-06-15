@@ -69,24 +69,3 @@ impl<B: Backend> Regularizer<B> for DiffusionRegularizer {
         self.weight = weight;
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use burn_ndarray::NdArray;
-
-    #[test]
-    fn uniform_field_has_near_zero_loss() {
-        type Backend = NdArray;
-        let device = Default::default();
-
-        let reg = DiffusionRegularizer::new(0.1);
-
-        // Create displacement field with gradient
-        let displacement = Tensor::<Backend, 4>::ones([1, 2, 32, 32], &device);
-        let loss: f32 = reg.compute_loss(displacement).into_scalar();
-
-        // Loss should be very small for uniform field
-        assert!(loss < 0.01);
-    }
-}

@@ -15,7 +15,7 @@ use super::color::ycbcr_to_rgb;
 use super::constants::{DCT_BLOCK_CELLS, DCT_BLOCK_DIM};
 use super::huffman::{receive_and_extend, BitReader};
 use super::idct::idct_8x8;
-use super::marker::{JpegFrameData, SOF0, SOF1};
+use super::marker::{JpegFrameData, QuantPrecision, SOF0, SOF1};
 
 /// Natural zigzag-to-raster reorder (T.81 §A.3.6).
 const ZIGZAG: [usize; DCT_BLOCK_CELLS] = [
@@ -44,7 +44,7 @@ fn decode_block(
     let quant = frame.quant[quant_id]
         .as_ref()
         .with_context(|| format!("Quantization table {quant_id} not loaded"))?;
-    if quant.precision != 0 {
+    if quant.precision != QuantPrecision::Bits8 {
         bail!(
             "JPEG DCT quantization table {quant_id} uses 16-bit precision; only 8-bit DQT is supported"
         );

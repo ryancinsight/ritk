@@ -35,6 +35,9 @@ use super::types::{BinRange, StackWeights};
 pub(crate) fn accumulate_sample_direct(hist: &mut [f32], num_bins: usize, window: &SampleWindow) {
     let f_lo_u = window.f_range().lo as usize; // PERF-327-02: hoisted
     let m_lo_u = window.m_range().lo as usize; // PERF-327-02: hoisted
+                                               // Invariant: weights length matches bin-range length for each axis.
+    debug_assert_eq!(window.f_weights.len(), window.f_range().len());
+    debug_assert_eq!(window.m_weights.len(), window.m_range().len());
     let inv_norm = window.inv_sum_f() * window.inv_sum_m(); // PERF-328-01
                                                             // FIX-PROP-NAN-355: skip the sample when `inv_norm` is non-finite
                                                             // (e.g. `+inf * 0.0 = NaN` or `+inf * +inf = +inf`). The contribution

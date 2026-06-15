@@ -261,7 +261,7 @@ mod tests {
     type TestBackend = NdArray<f32>;
 
     #[test]
-    fn test_nearest_neighbor_interpolator_2d() {
+    fn test_nearest_neighbor_interpolator_planar() {
         let device = Default::default();
         let data = Tensor::<TestBackend, 2>::from_floats([[0.0, 1.0], [2.0, 3.0]], &device);
         let interpolator = NearestNeighborInterpolator::new();
@@ -292,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nearest_neighbor_interpolator_2d_axes() {
+    fn test_nearest_neighbor_interpolator_planar_axes() {
         let device = Default::default();
         // data: [[0, 1],
         //        [2, 3]]
@@ -309,7 +309,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nearest_neighbor_interpolator_1d() {
+    fn test_nearest_neighbor_interpolator_line() {
         let device = Default::default();
         let data = Tensor::<TestBackend, 1>::from_floats([10.0, 20.0, 30.0], &device);
         let interpolator = NearestNeighborInterpolator::new();
@@ -345,7 +345,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nearest_neighbor_zero_pad_3d_oob_returns_zero() {
+    fn test_nearest_neighbor_zero_pad_volumetric_oob_returns_zero() {
         let device = Default::default();
         let data_vec = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let data = Tensor::<TestBackend, 3>::from_data(
@@ -366,7 +366,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nearest_neighbor_zero_pad_3d_inbounds_unchanged() {
+    fn test_nearest_neighbor_zero_pad_volumetric_inbounds_unchanged() {
         let device = Default::default();
         let data_vec = vec![10.0_f32, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0];
         let data = Tensor::<TestBackend, 3>::from_data(

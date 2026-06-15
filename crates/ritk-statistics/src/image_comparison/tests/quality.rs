@@ -31,7 +31,7 @@ fn test_psnr_symmetry() {
     let psnr_ab = psnr(&a, &b, 10.0);
     let psnr_ba = psnr(&b, &a, 10.0);
     assert!(
-        (psnr_ab - psnr_ba).abs() < 1e-5,
+        (psnr_ab - psnr_ba).abs() < super::F32_TOL,
         "PSNR must be symmetric: {} vs {}",
         psnr_ab,
         psnr_ba
@@ -58,7 +58,7 @@ fn test_ssim_identical_images_is_one() {
     let img = make_mask_1d(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
     let result = ssim(&img, &img, 5.0);
     assert!(
-        (result - 1.0).abs() < 1e-5,
+        (result - 1.0).abs() < super::F32_TOL,
         "identical images -> SSIM = 1.0, got {}",
         result
     );
@@ -79,7 +79,7 @@ fn test_ssim_symmetry() {
     let ssim_ab = ssim(&a, &b, 10.0);
     let ssim_ba = ssim(&b, &a, 10.0);
     assert!(
-        (ssim_ab - ssim_ba).abs() < 1e-5,
+        (ssim_ab - ssim_ba).abs() < super::F32_TOL,
         "SSIM must be symmetric: {} vs {}",
         ssim_ab,
         ssim_ba
@@ -91,7 +91,7 @@ fn test_ssim_constant_identical_is_one() {
     let img = make_mask_1d(vec![42.0; 10]);
     let result = ssim(&img, &img, 255.0);
     assert!(
-        (result - 1.0).abs() < 1e-5,
+        (result - 1.0).abs() < super::F32_TOL,
         "identical constant images -> SSIM = 1.0, got {}",
         result
     );

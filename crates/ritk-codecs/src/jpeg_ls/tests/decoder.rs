@@ -16,7 +16,7 @@ fn decoder_new_initializes_defaults() {
     assert_eq!(decoder.height, 0);
     assert_eq!(decoder.bits_per_sample, 8);
     assert_eq!(decoder.near, 0);
-    assert_eq!(decoder.interleave_mode, 0);
+    assert_eq!(decoder.interleave_mode, InterleaveMode::None);
     assert_eq!(decoder.point_transform, 0);
 }
 
@@ -82,7 +82,7 @@ fn one_component_decoder(
         bits_per_sample,
         components: vec![ComponentInfo {}],
         near,
-        interleave_mode,
+        interleave_mode: InterleaveMode::try_from(interleave_mode).unwrap_or(InterleaveMode::None),
         point_transform,
         t1: 0,
         t2: 0,

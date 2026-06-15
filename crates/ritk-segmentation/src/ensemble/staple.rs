@@ -48,7 +48,7 @@
 /// largest sub-1.0 f32 representable value. This guarantees `(1 − EPS) as f32 < 1.0_f32`,
 /// preserving the strict-(0,1) invariant in the f32 output without sacrificing log safety
 /// (`log(1e-6) ≈ −13.8`, bounded).
-const EPS: f64 = 1e-6;
+pub(crate) const EPS: f64 = 1e-6;
 
 /// Convergence outcome of the STAPLE algorithm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,7 +117,11 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
     // Threshold input masks at 0.5 → bool (avoids repeated f32 comparisons in the hot path).
     let d: Vec<Vec<bool>> = raters
         .iter()
-        .map(|r| r.iter().map(|&v| v > 0.5).collect())
+        .map(|r| {
+            r.iter()
+                .map(|&v| v > crate::morphology::FOREGROUND_THRESHOLD)
+                .collect()
+        })
         .collect();
 
     // ── Initialise parameters ────────────────────────────────────────────────

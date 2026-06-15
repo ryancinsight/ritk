@@ -63,12 +63,12 @@ pub fn dual_total_correlation(channels: &[&[f32]], num_bins: usize) -> Result<f6
     // Performance/Memory optimization: build the full N-dimensional joint histogram ONCE.
     // Marginalizing this avoids O(N^2 * num_samples) complexity.
     let joint_hist = super::entropy::build_joint_hist_n(channels, num_bins)?;
-    let h_joint = super::entropy::entropy_from_hist_pub(&joint_hist);
+    let h_joint = super::entropy::entropy_from_hist(&joint_hist);
 
     let sum_h_minus_i: f64 = (0..n)
         .map(|i| {
             let sub_hist = super::entropy::marginalize_hist(&joint_hist, num_bins, n, i);
-            super::entropy::entropy_from_hist_pub(&sub_hist)
+            super::entropy::entropy_from_hist(&sub_hist)
         })
         .sum();
 
@@ -127,7 +127,7 @@ pub fn o_information_direct(channels: &[&[f32]], num_bins: usize) -> Result<f64>
 
     // Performance/Memory optimization: build the full N-dimensional joint histogram ONCE.
     let joint_hist = super::entropy::build_joint_hist_n(channels, num_bins)?;
-    let h_joint = super::entropy::entropy_from_hist_pub(&joint_hist);
+    let h_joint = super::entropy::entropy_from_hist(&joint_hist);
 
     let sum_h_marginal: f64 = channels
         .iter()
@@ -137,7 +137,7 @@ pub fn o_information_direct(channels: &[&[f32]], num_bins: usize) -> Result<f64>
     let sum_h_minus_i: f64 = (0..n)
         .map(|i| {
             let sub_hist = super::entropy::marginalize_hist(&joint_hist, num_bins, n, i);
-            super::entropy::entropy_from_hist_pub(&sub_hist)
+            super::entropy::entropy_from_hist(&sub_hist)
         })
         .sum();
 

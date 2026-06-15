@@ -16,7 +16,7 @@ mod marker;
 mod parser;
 mod scan;
 
-pub(crate) use decoder::{ComponentInfo, JpegLsDecoder};
+pub(crate) use decoder::{ComponentInfo, InterleaveMode, JpegLsDecoder};
 pub(crate) use marker::{DNL, DRI, EOI, LSE, SOF55, SOI, SOS};
 use parser::{find_scan_data, parse_jpeg_ls_headers};
 

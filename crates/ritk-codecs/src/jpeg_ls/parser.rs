@@ -1,6 +1,6 @@
 //! JPEG-LS marker parser.
 
-use super::{ComponentInfo, JpegLsDecoder, DNL, DRI, EOI, LSE, SOF55, SOI, SOS};
+use super::{ComponentInfo, InterleaveMode, JpegLsDecoder, DNL, DRI, EOI, LSE, SOF55, SOI, SOS};
 use anyhow::{bail, Result};
 
 /// Parse all JPEG-LS markers before scan data and populate `decoder`.
@@ -120,7 +120,8 @@ fn parse_sos(decoder: &mut JpegLsDecoder, data: &[u8], pos: usize) -> Result<()>
     let comp_end = pos + 5 + ns * 2;
     if comp_end + 3 <= data.len() {
         decoder.near = data[comp_end] as u32;
-        decoder.interleave_mode = data[comp_end + 1];
+        decoder.interleave_mode =
+            InterleaveMode::try_from(data[comp_end + 1]).unwrap_or(InterleaveMode::None);
         decoder.point_transform = data[comp_end + 2];
     }
     Ok(())

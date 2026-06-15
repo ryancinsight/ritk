@@ -1,5 +1,74 @@
 # CHANGELOG
 
+## [0.70.0] — 2026-06-15 (Sprint 375: Architecture Hardening Round 8)
+
+### Added
+- `ritk-io`: `RtRoiInterpretedType` enum replaces `Option<String>` in `RtRoiInfo.roi_interpreted_type`; `from_dicom_str`/`as_dicom_str` round-trips [P06]
+- `ritk-io`: `RtDoseType` / `RtDoseSummationType` enums replace `ArrayString<16>` in `RtDoseGrid` [P07]
+- `ritk-io`: `SegmentationType` / `SegmentAlgorithmType` enums replace `ArrayString<16>` in `DicomSegmentation`/`DicomSegmentInfo` [P08]
+- `ritk-io`: `DicomObjectNode::with_value<V: Into<DicomValue>>` generic constructor; `is_image_sop_class()` predicate [P09]
+- `ritk-vtk`: `io/xml_helpers.rs` shared module — 3 duplicate XML attribute helpers consolidated [P13]
+- `ritk-vtk`: `DEFAULT_ORIGIN_STR` / `DEFAULT_SPACING_STR` SSOT constants; `char` literals replace `char::from(Nu8)` in 11 files [P14]
+- `ritk-codecs`: JPEG constants module (`MAX_CODE_LEN`, `DCT_BLOCK_DIM`, `DCT_BLOCK_CELLS`, YCbCr BT.601 coefficients) [P47]
+- `ritk-interpolation`: `LANCZOS_WEIGHT_EPS` + `SPATIAL_DIMS` SSOT constants [P48]
+- `ritk-filter`: `NCC_DENOM_FLOOR` + `NEAR_ONE_TOL` / `NEAR_ZERO_TOL` tolerance constants in fft/ncc [P56]
+- `ritk-segmentation`: `entropy_from_hist` promoted to `pub(crate)`; `F32_TOL`, `STAPLE_TOL`, `FOREGROUND_THRESHOLD` consts [P59]
+
+### Changed
+- `ritk-io`: UID generation dedup — 5 private counters deleted, `generate_uid` unified [P04]
+- `ritk-io`: `normalize_f32_to_u16` DRY helper extracted; `emit_u16_pixel_format_tags` DRY helper extracted [P03, P05]
+- `ritk-io`: `EXPLICIT_VR_LE` SSOT propagated to 6 writers [P02]
+- `ritk-io`: `DicomObjectNode::get_u16` → `get_u32`; `Association::config` field removed [P09]
+- `ritk-vtk`: 12+1 type-concrete read functions deleted → unified `read_helpers` [P10]; `read_line` + `parse_cells_from_ints` promoted to `read_helpers` [P11]
+- `ritk-vtk`: `write_attribute` / VTP `write_attr` deduplicated [P12]
+- `ritk-minc`: `extract_f64` → `extract_scalar_float`; `extract_f64_array_3` → `extract_float_array_3` [P21]
+- `ritk-minc`: `build_attr_msg_f64` → `build_attr_msg_float` [P22]
+- `ritk-minc`: `convert_to_f32` → `decode_raw_bytes`; `hdf5_binary` promoted to `pub(crate)`; `build_scalar_attr_raw` helper extracted [P23]
+- `ritk-metaimage`: `decode_bytes_to_f32` → `decode_element_bytes`; `parse_f64_vec` → `parse_float_vec` [P24]; `reader.rs` split → `reader/mod.rs` + `reader/decode.rs` [P25]
+- `ritk-nrrd`: `decode_element_bytes` / `parse_float_vec` renames applied [P26]
+- `ritk-spatial`: `ORTHOGONALITY_TOLERANCE` const extracted; spacing.rs test extracted [P18]
+- `ritk-registration`: 17 production SSOT constants (`NCC_SIGMA_GUARD`, `QUAT_NORM_GUARD`, etc.) [P42]; test tolerance constants (`ZERO_FIELD_LOSS_TOL`, `SCALE_TRANSFORM_TOL`, etc.) [P43]
+- `ritk-snap`: `DEFAULT_WINDOW_CENTER`/`DEFAULT_WINDOW_WIDTH` consts + `current_window_level()` helper [P33]; `MPR_INFO`/`OVERLAY` constants [P34]; `DEFAULT_VR_ALPHA`/`FUSION_ALPHA`/RT-dose opacity constants [P35]; `dot3`/`cross3`/`normalize3` renames [P36]; W/L extraction DRY helper [P37]
+- `ritk-codecs`: `apply_rescale` helper + `data_vec()` migration + `decode_native_pixel_bytes` deprecated [P52]; 8 redundant NN dispatch arms deleted; `legacy.rs` deleted [P53]; `InterleaveMode` + `QuantPrecision` enums [P54]
+- `ritk-interpolation`: `tests_dispatch/dim*.rs` → `rank*.rs` [P55]
+- `ritk-filter`: 28 fft/conv test fn dim-suffixes renamed [P56]
+
+### Fixed
+- `ritk-io`: [HARD] fake UID bypass in `seg/writer.rs` replaced with real `generate_uid()` computation [P01]
+
+### Removed
+- `ritk-io`: `DicomObjectNode::from_u16`/`from_i32`/`from_f64` concrete constructors (superseded by `with_value<V>`) [P09]
+- `ritk-spatial`: deprecated `Point::to_vec()` / `Vector::to_vec()` removed [P19]
+- `ritk-snap`: dead `ModalityDisplay.modality` field + dead MRI arm removed [P32]
+- `ritk-registration`: 5 dead code items removed [P46]; 5 duplicate inline regularization tests deleted [P45]
+- `ritk-codecs`: `legacy.rs` deleted; 8 redundant nearest-neighbour dispatch arms deleted [P53]
+
+### SSOT constants added
+- `ritk-registration`: `NCC_SIGMA_GUARD`, `QUAT_NORM_GUARD`, and 15 others; test tolerance consts [P42, P43]
+- `ritk-snap`: `DEFAULT_WINDOW_CENTER`, `DEFAULT_WINDOW_WIDTH`, `MPR_INFO`, `OVERLAY`, `DEFAULT_VR_ALPHA`, `FUSION_ALPHA` [P33–P35]
+- `ritk-codecs`: `MAX_CODE_LEN`, `DCT_BLOCK_DIM`, `DCT_BLOCK_CELLS`, YCbCr BT.601 coefficients [P47]
+- `ritk-interpolation`: `LANCZOS_WEIGHT_EPS`, `SPATIAL_DIMS` [P48]
+- `ritk-filter`: `NCC_DENOM_FLOOR`, `NEAR_ONE_TOL`, `NEAR_ZERO_TOL` [P56]
+- `ritk-segmentation/statistics`: `F32_TOL`, `STAPLE_TOL`, `FOREGROUND_THRESHOLD` [P59]
+
+### SRP — Test block extractions
+- `ritk-snap` P27–P31: 24 inline test blocks extracted to sibling files
+- `ritk-vtk` P15–P16: domain/filters + io tests extracted (6 files)
+- `ritk-registration/transform` P39–P41/P44: 27+14+6 test fn renames; 5 inline test blocks extracted
+- `ritk-codecs/image/interpolation` P49–P51: grid.rs, transform.rs, pixel_layout.rs, jpeg/mod.rs, nearest.rs, tensor_trilinear.rs tests extracted
+- `ritk-filter/segmentation/statistics` P57–P58: 22 inline test blocks extracted (batches A+B)
+
+### Breaking
+- `ritk-io`: `RtRoiInfo.roi_interpreted_type: Option<String>` → `Option<RtRoiInterpretedType>`
+- `ritk-io`: `RtDoseGrid.dose_type: ArrayString<16>` → `RtDoseType`; `.dose_summation_type` → `RtDoseSummationType`
+- `ritk-io`: `DicomSegmentation.segmentation_type: ArrayString<16>` → `SegmentationType`
+- `ritk-io`: `DicomSegmentInfo.algorithm_type: ArrayString<16>` → `SegmentAlgorithmType`
+- `ritk-io`: `DicomObjectNode::from_u16`/`from_i32`/`from_f64` removed; use `with_value<V: Into<DicomValue>>`
+- `ritk-io`: `DicomObjectNode::get_u16` renamed to `get_u32`; `Association::config` field removed
+- `ritk-minc`: `extract_f64` → `extract_scalar_float`; `build_attr_msg_f64` → `build_attr_msg_float`; `convert_to_f32` → `decode_raw_bytes`
+- `ritk-spatial`: `Point::to_vec()` / `Vector::to_vec()` removed
+- `ritk-interpolation`: test module paths `tests_dispatch/dim*.rs` → `rank*.rs`
+
 ## [0.69.0] — 2026-06-15 (Sprint 374: Architecture Hardening Round 7)
 
 ### Added

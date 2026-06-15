@@ -5,7 +5,7 @@ use burn_ndarray::NdArray;
 type TestBackend = NdArray<f32>;
 
 #[test]
-fn test_linear_interpolator_3d_axes() {
+fn test_linear_interpolator_volumetric_axes() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
     let data = Tensor::<TestBackend, 3>::from_data(
@@ -48,7 +48,7 @@ fn test_linear_interpolator_3d_axes() {
 }
 
 #[test]
-fn test_linear_interpolator_2d() {
+fn test_linear_interpolator_planar() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0];
     let data = Tensor::<TestBackend, 2>::from_data(
@@ -152,7 +152,7 @@ fn test_linear_interpolator_zero_pad_out_of_bounds() {
 }
 
 #[test]
-fn test_linear_interpolator_3d_zero_pad_out_of_bounds() {
+fn test_linear_interpolator_volumetric_zero_pad_out_of_bounds() {
     let device = Default::default();
     let data_vec = vec![0.0_f32, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
     let data = Tensor::<TestBackend, 3>::from_data(
@@ -189,7 +189,7 @@ fn test_linear_interpolator_3d_zero_pad_out_of_bounds() {
 }
 
 #[test]
-fn test_linear_interpolator_1d() {
+fn test_linear_interpolator_line() {
     let device = Default::default();
     let data_vec = vec![0.0, 10.0, 20.0, 30.0];
     let data = Tensor::<TestBackend, 1>::from_data(
@@ -208,7 +208,7 @@ fn test_linear_interpolator_1d() {
 }
 
 #[test]
-fn test_linear_interpolator_3d_typed() {
+fn test_linear_interpolator_volumetric_typed() {
     // Const-generic shape specialization (audit §8 351-01).
     // Verifies that `interpolate_3d_typed::<B, 2, 2, 2>` matches the
     // runtime `interpolate_3d` for a 2×2×2 cube with the same query
@@ -293,7 +293,7 @@ fn test_linear_interpolator_4d() {
 // ════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_linear_interpolator_1d_typed() {
+fn test_linear_interpolator_line_typed() {
     use super::dim1::interpolate_1d_typed;
     let device = Default::default();
     let data_vec = vec![0.0, 10.0, 20.0, 30.0];
@@ -331,7 +331,7 @@ fn test_linear_interpolator_1d_typed() {
 }
 
 #[test]
-fn test_linear_interpolator_2d_typed() {
+fn test_linear_interpolator_planar_typed() {
     use super::dim2::interpolate_2d_typed;
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0];

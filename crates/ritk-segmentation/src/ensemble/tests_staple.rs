@@ -10,6 +10,7 @@
 //!   p* = q* = 1−ε (clamped), which is a stable attractor reached in O(1) iterations.
 
 use super::*;
+use crate::ensemble::staple::EPS as STAPLE_TOL;
 
 // ── Test 1: Perfect raters converge to the true segmentation ────────────────
 
@@ -20,7 +21,7 @@ fn test_perfect_raters_converge_to_truth() {
     let mask: Vec<f32> = (0..n).map(|i| if i < n / 2 { 1.0 } else { 0.0 }).collect();
     let raters = vec![mask.clone(), mask.clone(), mask.clone()];
 
-    let result = staple(&raters, 100, 1e-6);
+    let result = staple(&raters, 100, STAPLE_TOL);
 
     for (i, &w) in result.probabilistic_truth.iter().enumerate() {
         if i < n / 2 {
@@ -71,7 +72,7 @@ fn test_single_rater_returns_itself() {
     let mask: Vec<f32> = (0..n).map(|i| if i % 2 == 0 { 1.0 } else { 0.0 }).collect();
     let raters = vec![mask.clone()];
 
-    let result = staple(&raters, 100, 1e-6);
+    let result = staple(&raters, 100, STAPLE_TOL);
 
     for (i, (&rater_val, &w)) in mask
         .iter()
@@ -111,7 +112,7 @@ fn test_majority_vote_approximation() {
         vec![0.0_f32, 0.0, 0.0, 0.0],
     ];
 
-    let result = staple(&raters, 100, 1e-6);
+    let result = staple(&raters, 100, STAPLE_TOL);
     let w = &result.probabilistic_truth;
 
     assert!(
@@ -146,7 +147,7 @@ fn test_result_lengths() {
         })
         .collect();
 
-    let result = staple(&raters, 100, 1e-6);
+    let result = staple(&raters, 100, STAPLE_TOL);
 
     assert_eq!(
         result.probabilistic_truth.len(),
@@ -176,7 +177,7 @@ fn test_sensitivity_range() {
     let mask: Vec<f32> = (0..n).map(|i| if i < n / 2 { 1.0 } else { 0.0 }).collect();
     let raters = vec![mask.clone(), mask.clone(), mask.clone()];
 
-    let result = staple(&raters, 100, 1e-6);
+    let result = staple(&raters, 100, STAPLE_TOL);
 
     for (ki, &p) in result.sensitivity.iter().enumerate() {
         assert!(
@@ -240,7 +241,7 @@ fn test_iterations_bounded_by_max_iter() {
 #[should_panic(expected = "raters must be non-empty")]
 fn test_empty_raters_panics() {
     let empty: Vec<Vec<f32>> = Vec::new();
-    let _ = staple(&empty, 100, 1e-6);
+    let _ = staple(&empty, 100, STAPLE_TOL);
 }
 
 // ── Test 9: Mismatched mask lengths panics ────────────────────────────────────
@@ -252,5 +253,5 @@ fn test_mismatched_lengths_panics() {
         vec![1.0_f32, 0.0, 1.0], // N = 3
         vec![1.0_f32, 0.0],      // N = 2  ← mismatch
     ];
-    let _ = staple(&raters, 100, 1e-6);
+    let _ = staple(&raters, 100, STAPLE_TOL);
 }

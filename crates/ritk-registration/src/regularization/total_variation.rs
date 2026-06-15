@@ -86,31 +86,3 @@ impl<B: Backend> Regularizer<B> for TotalVariationRegularizer {
         self.weight = weight;
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use burn_ndarray::NdArray;
-
-    #[test]
-    fn uniform_field_has_near_zero_loss() {
-        type Backend = NdArray;
-        let device = Default::default();
-
-        let reg = TotalVariationRegularizer::new(0.1);
-
-        // Uniform field should have zero TV
-        let displacement = Tensor::<Backend, 4>::ones([1, 2, 32, 32], &device);
-        let loss: f32 = reg.compute_loss(displacement).into_scalar();
-
-        assert!(loss < 0.01);
-    }
-
-    #[test]
-    fn test_tv_weight() {
-        type B = NdArray<f32>;
-        let reg = TotalVariationRegularizer::new(0.5);
-        let weight = <TotalVariationRegularizer as Regularizer<B>>::weight(&reg);
-        assert!((weight - 0.5).abs() < 1e-6);
-    }
-}

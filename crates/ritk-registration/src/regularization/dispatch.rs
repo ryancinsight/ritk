@@ -41,7 +41,11 @@ fn dispatch_laplacian_squared<B: Backend, const D: usize>(
                 .mean()
                 .mul_scalar(weight)
         }
-        _ => panic!("Laplacian-squared regularizer only supports D ∈ {{4, 5}}, got D = {D}"),
+        // D is `const`; only D=4 and D=5 ever instantiate this function. The
+        // `_` arm is statically unreachable in monomorphized code, but Rust's
+        // stable exhaustiveness checker cannot prove that across const
+        // generics, so the arm is required for type-checking.
+        _ => unreachable!("Laplacian-squared regularizer: D ∈ {{4, 5}}, got D = {D}"),
     }
 }
 
@@ -94,7 +98,8 @@ pub fn dispatch_diffusion<B: Backend, const D: usize>(
                 .mean()
                 .mul_scalar(weight)
         }
-        _ => panic!("DiffusionRegularizer only supports D ∈ {{4, 5}}, got D = {D}"),
+        // See `dispatch_laplacian_squared` for the const-generic `_` arm rationale.
+        _ => unreachable!("DiffusionRegularizer: D ∈ {{4, 5}}, got D = {D}"),
     }
 }
 
@@ -140,7 +145,8 @@ pub fn dispatch_elastic<B: Backend, const D: usize>(
             let volume_term = div_u.powf_scalar(2.0);
             membrane.mean() * alpha + volume_term.mean() * beta
         }
-        _ => panic!("ElasticRegularizer only supports D ∈ {{4, 5}}, got D = {D}"),
+        // See `dispatch_laplacian_squared` for the const-generic `_` arm rationale.
+        _ => unreachable!("ElasticRegularizer: D ∈ {{4, 5}}, got D = {D}"),
     }
 }
 
@@ -175,7 +181,8 @@ pub fn dispatch_total_variation<B: Backend, const D: usize>(
                     .sqrt();
             grad_mag.mean().mul_scalar(weight)
         }
-        _ => panic!("TotalVariationRegularizer only supports D ∈ {{4, 5}}, got D = {D}"),
+        // See `dispatch_laplacian_squared` for the const-generic `_` arm rationale.
+        _ => unreachable!("TotalVariationRegularizer: D ∈ {{4, 5}}, got D = {D}"),
     }
 }
 

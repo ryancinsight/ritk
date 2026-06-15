@@ -325,7 +325,7 @@ fn test_preserves_spatial_metadata() {
 // ── Test 10: Checkerboard pattern ─────────────────────────────────────
 
 #[test]
-fn test_checkerboard_3d() {
+fn test_checkerboard_volumetric() {
     // 1×2×2 checkerboard:
     //   (0,0,0)=bg, (0,0,1)=fg, (0,1,0)=fg, (0,1,1)=bg
     // New convention: foreground voxels are seeds.

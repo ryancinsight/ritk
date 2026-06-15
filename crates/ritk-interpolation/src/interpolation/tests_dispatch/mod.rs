@@ -31,8 +31,8 @@ fn query_near_center(side: usize) -> Tensor<TestBackend, 2> {
     Tensor::<TestBackend, 2>::from_floats([[mid, mid, mid]], &device)
 }
 
-mod dim1;
-mod dim2;
-mod dim3;
-mod dim3_extended;
-mod dim4;
+mod rank1;
+mod rank2;
+mod rank3;
+mod rank3_extended;
+mod rank4;

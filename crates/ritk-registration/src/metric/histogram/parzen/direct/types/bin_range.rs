@@ -41,8 +41,7 @@ impl BinRange {
     ///
     /// Production use (ARCH-328-05): weight normalization and range validation.
     #[inline]
-    #[allow(dead_code)] // Production API; current callers use BinRange fields directly
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         (self.hi - self.lo + 1) as usize
     }
 

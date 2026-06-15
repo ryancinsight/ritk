@@ -1,5 +1,43 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 375 — Architecture Hardening Round 8: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
+**Target version**: 0.70.0  
+**Sprint phase**: Closure — all 60 patches delivered and verified.
+
+### Delivered (Sprint 375)
+- [x] P01 [patch]: [HARD] fake UID bypass in seg/writer.rs — real compute restored
+- [x] P02–P05 [patch]: SSOT/DRY — EXPLICIT_VR_LE ×6 writers; normalize_f32_to_u16 helper; UID gen dedup; emit_u16_pixel_format_tags helper
+- [x] P06–P08 [minor]: ENUM — RtRoiInterpretedType, RtDoseType/RtDoseSummationType, SegmentationType/SegmentAlgorithmType promoted from ArrayString<16>
+- [x] P09 [minor]: DRY+NAMING — DicomObjectNode::with_value<V> generic + get_u32 rename + is_image_sop_class + Association::config removed
+- [x] P10–P14 [minor/patch]: NAMING+DRY — ritk-vtk 13 type-concrete fns deleted → read_helpers; write_attribute dedup; xml_helpers.rs shared module; char literals + SSOT consts
+- [x] P15–P17 [patch]: SRP+COMPAT — ritk-vtk domain/io test extraction (6 files); compat/doc cleanup
+- [x] P18–P20 [patch]: SSOT+COMPAT+SRP — spatial ORTHOGONALITY_TOLERANCE; deprecated to_vec() removed; shape_markers test extracted
+- [x] P21–P26 [minor]: NAMING — ritk-minc/metaimage/nrrd type-suffix renames (extract_scalar_float, build_attr_msg_float, decode_raw_bytes, decode_element_bytes, parse_float_vec) + reader.rs SRP split
+- [x] P27–P31 [patch]: SRP — 24 inline test blocks extracted to sibling files in ritk-snap
+- [x] P32–P38 [patch]: COMPAT+SSOT+NAMING+DRY — dead ModalityDisplay/MRI arm; W/L + MPR + alpha constants; dot3/cross3/normalize3; W/L DRY helper; SSOT sweep
+- [x] P39–P46 [patch]: NAMING+SSOT+SRP+COMPAT — 27+14+6 test fn renames; 17 prod SSOT consts; test tolerance consts; 5 test extractions; 5 dup test deletions; 5 dead code removals
+- [x] P47–P55 [patch/minor]: SSOT+SRP+NAMING+ENUM+COMPAT — JPEG constants; LANCZOS/SPATIAL_DIMS; grid/transform/pixel_layout/jpeg/nearest/trilinear test extractions; apply_rescale helper; legacy.rs + 8 NN arms deleted; InterleaveMode/QuantPrecision enums; dim→rank rename
+- [x] P56–P60 [patch]: NAMING+SRP+SSOT+COMPAT — 28 fft/conv test renames; NCC_DENOM_FLOOR; 22 test extractions (batch A+B); entropy/F32_TOL/STAPLE_TOL/FOREGROUND_THRESHOLD; final verification
+
+### Blocked / Deferred
+- [ ] DRY-374-01: `make_image_*`/`make_mask_*` — 68 occurrences [minor] (next round)
+- [ ] NAMING-362-23: `transform_1d/_2d/_3d/_4d` [arch] BLOCKED — ADR required
+- [ ] SRP-362-20: `FilterArgs` → `FilterKind` [major] BLOCKED
+- [ ] NAMING-FILTER-01: `FftConvolution3DFilter` const-generic unification [major] BLOCKED
+- [ ] N-375-08: DRY cross-crate parse utils (shared IO codec layer) [arch] BLOCKED
+
+### Verification gate
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] ritk-io nextest → 330/330
+- [x] ritk-vtk nextest → 241/241
+- [x] ritk-spatial/morphology/minc/metaimage/nrrd nextest → 131/131
+- [x] ritk-snap nextest → 633/633
+- [x] ritk-registration + ritk-transform nextest → 69+69 = 138
+- [x] ritk-codecs + ritk-image + ritk-interpolation nextest → 353/353
+- [x] ritk-filter nextest → 703/703
+- [x] ritk-segmentation + ritk-statistics nextest → 663/663
+
+---
 ## Sprint 374 — Architecture Hardening Round 7: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
 **Target version**: 0.69.0  
 **Sprint phase**: Closure — all 40 patches delivered and verified.

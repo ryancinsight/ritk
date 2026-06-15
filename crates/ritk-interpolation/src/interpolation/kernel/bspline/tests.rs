@@ -5,7 +5,7 @@ use burn_ndarray::NdArray;
 type TestBackend = NdArray<f32>;
 
 #[test]
-fn test_bspline_3d() {
+fn test_bspline_volumetric() {
     let device = Default::default();
 
     // Create a simple 3D volume
@@ -44,7 +44,7 @@ fn test_bspline_3d() {
 }
 
 #[test]
-fn test_bspline_2d() {
+fn test_bspline_planar() {
     let device = Default::default();
 
     // Create a simple 2D image
@@ -82,7 +82,7 @@ fn test_bspline_basis() {
 // ---- zero_pad tests ------------------------------------------------
 
 #[test]
-fn test_bspline_zero_pad_3d_oob_returns_zero() {
+fn test_bspline_zero_pad_volumetric_oob_returns_zero() {
     let device = Default::default();
     let data = Tensor::<TestBackend, 3>::from_floats(
         [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
@@ -114,7 +114,7 @@ fn test_bspline_zero_pad_3d_oob_returns_zero() {
 }
 
 #[test]
-fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
+fn test_bspline_zero_pad_volumetric_inbounds_matches_no_pad() {
     // When the 4-tap support is fully in-bounds, zero-pad and mirror boundary
     // must agree (no boundary taps are reached). The query must therefore sit at
     // least one voxel from every edge — on a 4³ volume, (1.5,1.5,1.5) has support
@@ -161,7 +161,7 @@ fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
 }
 
 #[test]
-fn test_bspline_zero_pad_2d_oob_returns_zero() {
+fn test_bspline_zero_pad_planar_oob_returns_zero() {
     let device = Default::default();
     let data = Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device);
     let interp = BSplineInterpolator::new_zero_pad();
@@ -226,7 +226,7 @@ fn test_bspline_with_zero_pad_builder() {
 /// B-spline without pre-filtering reproduces linear fields exactly when all
 /// 4 support samples in each axis are in-bounds (coord ≥ 1).
 #[test]
-fn test_bspline_3d_batch_correctness() {
+fn test_bspline_volumetric_batch_correctness() {
     let device = Default::default();
     let n = 8usize;
     let mut data_vec: Vec<f32> = Vec::with_capacity(n * n * n);
@@ -268,7 +268,7 @@ fn test_bspline_3d_batch_correctness() {
 
 /// 2D version of the linear ramp batch test.
 #[test]
-fn test_bspline_2d_batch_correctness() {
+fn test_bspline_planar_batch_correctness() {
     let device = Default::default();
     let n = 6usize;
     let mut data_vec: Vec<f32> = Vec::with_capacity(n * n);
@@ -309,7 +309,7 @@ fn test_bspline_2d_batch_correctness() {
 /// un-prefiltered smoothing). Uses an asymmetric field so an x↔z axis transpose
 /// would be caught.
 #[test]
-fn test_bspline_reproduces_grid_values_3d() {
+fn test_bspline_reproduces_grid_values_volumetric() {
     let device = Default::default();
     let (d0, d1, d2) = (5usize, 4usize, 6usize); // [z, y, x], all distinct
     let mut data_vec = vec![0.0f32; d0 * d1 * d2];
@@ -411,7 +411,7 @@ fn test_bspline_empty_indices() {
 /// Run with `cargo test -- bspline_perf --ignored --nocapture` to see timing.
 #[test]
 #[ignore = "performance measurement; run explicitly"]
-fn test_bspline_3d_perf_regression() {
+fn test_bspline_volumetric_perf_regression() {
     use std::time::Instant;
 
     let device = Default::default();

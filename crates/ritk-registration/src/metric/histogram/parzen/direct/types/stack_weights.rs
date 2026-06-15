@@ -151,9 +151,9 @@ impl StackWeights {
     #[inline]
     pub fn iter(&self) -> StackWeightsIter<'_> {
         StackWeightsIter {
-            slice: &self.weights[..self.len as usize], // MEM-325-01: u8 → usize
+            slice: &self.weights[..self.len()], // via len() accessor (MEM-325-01)
             pos: 0,
-            remaining: self.len as usize,
+            remaining: self.len(),
         }
     }
 
@@ -162,8 +162,7 @@ impl StackWeights {
     /// Production use (ARCH-328-04): per-sample weight normalization.
     /// Returns `usize`; internal `u8` losslessly upcast (MEM-325-01).
     #[inline]
-    #[allow(dead_code)] // Production API; current callers use StackWeightsIter::len()
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.len as usize
     }
 

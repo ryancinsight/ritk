@@ -57,7 +57,7 @@ fn count_fg_3d(image: &Image<TestBackend, 3>) -> usize {
 // ── radius = 0 is identity ────────────────────────────────────────────────
 
 #[test]
-fn test_radius0_is_identity_3d() {
+fn test_radius0_is_identity_volumetric() {
     // Structuring element {p} → output = input for any binary mask.
     let data: Vec<f32> = (0u8..27)
         .map(|i| if i % 2 == 0 { 1.0 } else { 0.0 })
@@ -72,7 +72,7 @@ fn test_radius0_is_identity_3d() {
 }
 
 #[test]
-fn test_radius0_is_identity_1d() {
+fn test_radius0_is_identity_line() {
     let data = vec![1.0, 0.0, 1.0, 1.0, 0.0];
     let mask = make_mask_1d(data.clone());
     let result = BinaryErosion::new(0).apply(&mask);
@@ -239,7 +239,7 @@ fn test_1d_single_voxel_image_survives() {
 // ── Output strictly binary ────────────────────────────────────────────────
 
 #[test]
-fn test_output_strictly_binary_3d() {
+fn test_output_strictly_binary_volumetric() {
     let values: Vec<f32> = (0u8..27)
         .map(|i| if i % 2 == 0 { 1.0 } else { 0.0 })
         .collect();

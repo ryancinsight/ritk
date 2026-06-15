@@ -86,20 +86,6 @@ impl<B: Backend, const D: usize> Image<B, D> {
         (self.data, self.origin, self.spacing, self.direction)
     }
 
-    /// Extract the underlying f32 tensor data as a `Vec<f32>`.
-    ///
-    /// # Panics
-    /// Panics if the tensor's internal scalar type is not `f32`.
-    #[deprecated(since = "0.1.0", note = "use data_as_cow() or data_slice() instead")]
-    #[inline]
-    pub fn data_vec(&self) -> Vec<f32> {
-        self.data
-            .clone()
-            .into_data()
-            .into_vec::<f32>()
-            .expect("Image::data_vec requires f32 backend tensor")
-    }
-
     /// Extract the underlying f32 tensor data, propagating dtype errors.
     ///
     /// Materializes the tensor to host via `into_data()`.  For large volumes on
@@ -141,10 +127,10 @@ impl<B: Backend, const D: usize> Image<B, D> {
     ///
     /// # Panics
     /// Panics if the tensor's internal scalar type is not `f32`.
+    #[deprecated(since = "0.1.0", note = "use data_slice() instead")]
     #[inline]
-    #[allow(deprecated)] // data_vec is deprecated but data_as_cow wraps it intentionally
     pub fn data_as_cow(&self) -> Cow<'_, [f32]> {
-        Cow::Owned(self.data_vec())
+        self.data_slice()
     }
 
     /// Zero-copy slice view of the image data.
@@ -157,9 +143,14 @@ impl<B: Backend, const D: usize> Image<B, D> {
     /// # Panics
     /// Panics if the tensor's internal scalar type is not `f32`.
     #[inline]
-    #[allow(deprecated)] // data_vec is deprecated but data_slice wraps it intentionally
     pub fn data_slice(&self) -> Cow<'_, [f32]> {
-        Cow::Owned(self.data_vec())
+        Cow::Owned(
+            self.data
+                .clone()
+                .into_data()
+                .into_vec::<f32>()
+                .expect("Image::data_slice requires f32 backend tensor"),
+        )
     }
 
     /// Fallible variant of [`Self::data_slice`].
@@ -167,7 +158,6 @@ impl<B: Backend, const D: usize> Image<B, D> {
     /// Propagates dtype mismatch errors (non-`f32` backend) instead of
     /// panicking. Returns `Cow::Owned` in all cases for the same reason
     /// documented on `data_slice`.
-    #[allow(deprecated)] // data_vec is deprecated but try_data_slice wraps it
     pub fn try_data_slice(&self) -> anyhow::Result<Cow<'_, [f32]>> {
         // Both AD and non-AD paths require Owned because `try_data_vec` consumes
         // the tensor's data into a new Vec. A Borrowed path would require a

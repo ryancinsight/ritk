@@ -179,7 +179,7 @@ fn test_filter_kind_bed_separation_dispatch_replaces_study_image() {
 ///
 /// Expected: filter succeeds, study image shape becomes [1, num_cross, num_path].
 #[test]
-fn test_filter_kind_cpr_dispatch_reshapes_2d_to_3d() {
+fn test_filter_kind_cpr_dispatch_reshapes_planar_to_volumetric() {
     let device: <Backend as burn::tensor::backend::Backend>::Device = Default::default();
     let vals = vec![100.0_f32; 4 * 4 * 4];
     let tensor =

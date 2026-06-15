@@ -4,6 +4,32 @@ use super::bitstream::BitReader;
 use super::scan::{decode_scan, Predictor, ScanParams};
 use anyhow::{bail, Context, Result};
 
+/// Interleave mode from the SOS header (JPEG-LS standard §C.1.3).
+///
+/// Single-component DICOM frames require `None` (0). Multi-component
+/// encodings use `LineInterleaved` or `SampleInterleaved` but are not
+/// supported by this decoder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub(crate) enum InterleaveMode {
+    None = 0,
+    LineInterleaved = 1,
+    SampleInterleaved = 2,
+}
+
+impl TryFrom<u8> for InterleaveMode {
+    type Error = u8;
+
+    fn try_from(v: u8) -> Result<Self, u8> {
+        match v {
+            0 => Ok(Self::None),
+            1 => Ok(Self::LineInterleaved),
+            2 => Ok(Self::SampleInterleaved),
+            other => Err(other),
+        }
+    }
+}
+
 /// Per-component decoder metadata populated during SOF55 header parsing.
 pub(crate) struct ComponentInfo {}
 
@@ -15,8 +41,8 @@ pub(crate) struct JpegLsDecoder {
     pub(crate) components: Vec<ComponentInfo>,
     /// NEAR parameter; 0 = lossless (TS .80), > 0 = near-lossless (TS .81).
     pub(crate) near: u32,
-    /// Interleave mode from the SOS header. Single-component scans require zero.
-    pub(crate) interleave_mode: u8,
+    /// Interleave mode from the SOS header. Single-component scans require `None`.
+    pub(crate) interleave_mode: InterleaveMode,
     /// Point transform byte from the SOS header. DICOM lossless frames require zero.
     pub(crate) point_transform: u8,
     /// LSE-specified thresholds; zero values mean ISO defaults.
@@ -34,7 +60,7 @@ impl JpegLsDecoder {
             bits_per_sample: 8,
             components: Vec::new(),
             near: 0,
-            interleave_mode: 0,
+            interleave_mode: InterleaveMode::None,
             point_transform: 0,
             t1: 0,
             t2: 0,
@@ -57,9 +83,9 @@ impl JpegLsDecoder {
                 self.components.len()
             );
         }
-        if self.interleave_mode != 0 {
+        if self.interleave_mode != InterleaveMode::None {
             bail!(
-                "JPEG-LS interleave mode {} not supported for single-component DICOM frames",
+                "JPEG-LS interleave mode {:?} not supported for single-component DICOM frames",
                 self.interleave_mode
             );
         }

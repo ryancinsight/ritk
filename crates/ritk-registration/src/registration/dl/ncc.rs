@@ -10,7 +10,13 @@ use std::marker::PhantomData;
 #[derive(Module, Debug)]
 pub struct GlobalNCCLoss<B: Backend> {
     pub(super) epsilon: Ignored<f32>,
-    // BURN-forced: Module derive requires invariant B for correct gradient tracking.
+    // BURN-derive: must stay `PhantomData<B>` (invariant). Burn 0.19.1 only
+    // implements `Module<B> for PhantomData<B>` (see
+    // burn-core/src/module/param/constant.rs:202), not for the covariant
+    // `PhantomData<fn() -> B>` form. An earlier attempt to switch to the
+    // covariant form failed to compile with 108 errors; see audit Sprint
+    // 374-08 and the compile error against `burn-core-0.19.1`. The blocked
+    // variance relaxation is tracked in `backlog.md` §Blocked/Deferred.
     pub(super) phantom: PhantomData<B>,
 }
 

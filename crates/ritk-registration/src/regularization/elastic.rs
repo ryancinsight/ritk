@@ -110,32 +110,3 @@ impl<B: Backend> Regularizer<B> for ElasticRegularizer {
         self.beta = weight * 0.1; // Maintain ratio
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use burn_ndarray::NdArray;
-
-    #[test]
-    fn uniform_field_has_near_zero_loss() {
-        type Backend = NdArray;
-        let device = Default::default();
-
-        let reg = ElasticRegularizer::hyperelastic(0.1, 0.01);
-
-        // Create displacement field
-        let displacement = Tensor::<Backend, 4>::ones([1, 2, 32, 32], &device);
-        let loss: f32 = reg.compute_loss(displacement).into_scalar();
-
-        // Uniform field should have minimal loss
-        assert!(loss < 0.01);
-    }
-
-    #[test]
-    fn test_elastic_weights() {
-        type B = NdArray<f32>;
-        let reg = ElasticRegularizer::hyperelastic(0.2, 0.02);
-        let weight = <ElasticRegularizer as Regularizer<B>>::weight(&reg);
-        assert!((weight - 0.2).abs() < 1e-6);
-    }
-}

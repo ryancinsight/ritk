@@ -42,6 +42,8 @@ fn make_mask_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
     )
 }
 
+pub(super) const F32_TOL: f32 = 1e-5;
+
 mod overlap;
 mod quality;
 mod surface;

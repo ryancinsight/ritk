@@ -17,7 +17,7 @@ mod tests {
     use burn_ndarray::NdArray;
 
     #[test]
-    fn test_scan_2d() {
+    fn test_scan_planar() {
         let device = <NdArray as Backend>::Device::default();
         let input = Tensor::<NdArray, 4>::zeros([2, 8, 16, 16], &device);
 
@@ -29,7 +29,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scan_3d() {
+    fn test_scan_volumetric() {
         let device = <NdArray as Backend>::Device::default();
         let input = Tensor::<NdArray, 5>::zeros([2, 8, 4, 8, 8], &device);
 
@@ -41,7 +41,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cross_scan_3d() {
+    fn test_cross_scan_volumetric() {
         let device = <NdArray as Backend>::Device::default();
         let config = CrossScanConfig::new_3d();
         let cross_scan = CrossScan::new(&config);

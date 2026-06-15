@@ -8,7 +8,7 @@ use ritk_core::interpolation::Interpolator;
 type TestBackend = NdArray<f32>;
 
 #[test]
-fn test_bspline_3d() {
+fn test_bspline_volumetric() {
     let device = Default::default();
     // Create a simple 3D volume
     let data = Tensor::<TestBackend, 3>::from_floats(
@@ -43,7 +43,7 @@ fn test_bspline_3d() {
 }
 
 #[test]
-fn test_bspline_2d() {
+fn test_bspline_planar() {
     let device = Default::default();
     // Create a simple 2D image
     let data = Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0], [3.0, 4.0]], &device);
@@ -222,7 +222,7 @@ fn test_bspline_with_zero_pad_builder() {
 /// This guards against unintentional performance regressions from
 /// the flat-data optimization (which reduced allocations by ~64x for 3D).
 #[test]
-fn test_bspline_performance_regression_3d() {
+fn test_bspline_performance_regression_volumetric() {
     let device = Default::default();
     // 64x64x64 volume - large enough to be meaningful, small enough to be fast
     let size = 64usize;

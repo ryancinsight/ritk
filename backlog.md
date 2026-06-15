@@ -4,6 +4,103 @@
 
 ---
 
+## Sprint 375 — Architecture Hardening Round 8: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
+
+**Status**: Complete  
+**Version**: 0.70.0  
+
+### Delivered
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| P01 | [HARD] fake UID bypass fix in seg/writer.rs — real generate_uid() restored [patch] | Done |
+| P02 | SSOT: EXPLICIT_VR_LE propagated to 6 writers [patch] | Done |
+| P03 | DRY: normalize_f32_to_u16 helper extracted in ritk-io [patch] | Done |
+| P04 | DRY: UID generation dedup — 5 private counters deleted [patch] | Done |
+| P05 | DRY: emit_u16_pixel_format_tags helper extracted [patch] | Done |
+| P06 | ENUM: RtRoiInterpretedType replaces Option<String> in RtRoiInfo [minor] | Done |
+| P07 | ENUM: RtDoseType / RtDoseSummationType replace ArrayString<16> in RtDoseGrid [minor] | Done |
+| P08 | ENUM: SegmentationType / SegmentAlgorithmType replace ArrayString<16> in DicomSegmentation/DicomSegmentInfo [minor] | Done |
+| P09 | DRY+NAMING: DicomObjectNode::with_value<V> generic + get_u32 rename + is_image_sop_class + Association::config removed [minor] | Done |
+| P10 | NAMING: delete 12+1 type-concrete read functions → read_helpers in ritk-vtk [minor] | Done |
+| P11 | NAMING: promote read_line + parse_cells_from_ints to read_helpers [patch] | Done |
+| P12 | DRY: write_attribute dedup + VTP write_attr dedup in ritk-vtk [patch] | Done |
+| P13 | DRY: create shared io/xml_helpers.rs (3 duplicates eliminated) [patch] | Done |
+| P14 | NAMING: char::from(Nu8) → char literals in 11 files + DEFAULT_ORIGIN/SPACING_STR consts [patch] | Done |
+| P15 | SRP: domain/filters test extraction (3 files) in ritk-vtk [patch] | Done |
+| P16 | SRP: io test extraction (3 files) in ritk-vtk [patch] | Done |
+| P17 | COMPAT: compat cleanup + truncated doc fix in ritk-vtk [patch] | Done |
+| P18 | SSOT: ORTHOGONALITY_TOLERANCE const + spacing.rs test extracted in ritk-spatial [patch] | Done |
+| P19 | COMPAT: deprecated to_vec() removed from Point/Vector in ritk-spatial [minor] | Done |
+| P20 | SRP: shape_markers.rs test extracted in ritk-morphology [patch] | Done |
+| P21 | NAMING: extract_f64 → extract_scalar_float; extract_f64_array_3 → extract_float_array_3 in ritk-minc [minor] | Done |
+| P22 | NAMING: build_attr_msg_f64 → build_attr_msg_float in ritk-minc [minor] | Done |
+| P23 | NAMING: convert_to_f32 → decode_raw_bytes + pub(crate) hdf5_binary + build_scalar_attr_raw helper in ritk-minc [minor] | Done |
+| P24 | NAMING: decode_bytes_to_f32 → decode_element_bytes + parse_f64_vec → parse_float_vec in ritk-metaimage [minor] | Done |
+| P25 | SRP: split metaimage/reader.rs → reader/mod.rs + reader/decode.rs [patch] | Done |
+| P26 | NAMING: same renames (decode_element_bytes / parse_float_vec) in ritk-nrrd [minor] | Done |
+| P27 | SRP: extract inline test block 1 from ritk-snap [patch] | Done |
+| P28 | SRP: extract inline test block 2 from ritk-snap [patch] | Done |
+| P29 | SRP: extract inline test block 3 from ritk-snap [patch] | Done |
+| P30 | SRP: extract inline test block 4 from ritk-snap [patch] | Done |
+| P31 | SRP: extract inline test block 5 from ritk-snap [patch] | Done |
+| P32 | COMPAT: remove dead ModalityDisplay.modality field + dead MRI arm [patch] | Done |
+| P33 | SSOT: DEFAULT_WINDOW_CENTER/WIDTH consts + current_window_level() in ritk-snap [patch] | Done |
+| P34 | SSOT: MPR_INFO / OVERLAY constants in ritk-snap [patch] | Done |
+| P35 | SSOT: DEFAULT_VR_ALPHA / FUSION_ALPHA / RT-dose opacity constants in ritk-snap [patch] | Done |
+| P36 | NAMING: dot3/cross3/normalize3 renames in ritk-snap [patch] | Done |
+| P37 | DRY: W/L extraction DRY helper in ritk-snap [patch] | Done |
+| P38 | SSOT: additional SSOT sweep in ritk-snap [patch] | Done |
+| P39 | NAMING: rename 27 test fns in regularization dispatch + inline tests [patch] | Done |
+| P40 | NAMING: rename 14 test fns in ritk-transform [patch] | Done |
+| P41 | NAMING: rename 6 external integration test fns + cma_es test [patch] | Done |
+| P42 | SSOT: 17 production SSOT constants (NCC_SIGMA_GUARD, QUAT_NORM_GUARD, etc.) in ritk-registration [patch] | Done |
+| P43 | SSOT: test tolerance constants (ZERO_FIELD_LOSS_TOL, SCALE_TRANSFORM_TOL, etc.) [patch] | Done |
+| P44 | SRP: extract 5 inline test blocks in ritk-registration [patch] | Done |
+| P45 | COMPAT: delete 5 duplicate inline regularization tests [patch] | Done |
+| P46 | COMPAT: remove 5 dead code items in ritk-registration [patch] | Done |
+| P47 | SSOT: JPEG constants module (MAX_CODE_LEN, DCT_BLOCK_DIM, DCT_BLOCK_CELLS, YCbCr BT.601) [patch] | Done |
+| P48 | SSOT: LANCZOS_WEIGHT_EPS + SPATIAL_DIMS in ritk-interpolation [patch] | Done |
+| P49 | SRP: extract grid.rs + transform.rs tests in ritk-interpolation [patch] | Done |
+| P50 | SRP: extract pixel_layout.rs + jpeg/mod.rs tests in ritk-codecs/image [patch] | Done |
+| P51 | SRP: extract nearest.rs + tensor_trilinear.rs tests [patch] | Done |
+| P52 | DRY: apply_rescale helper + data_vec() migration + deprecated decode_native_pixel_bytes [patch] | Done |
+| P53 | COMPAT: delete 8 redundant NN dispatch arms + delete legacy.rs in ritk-codecs [patch] | Done |
+| P54 | ENUM: InterleaveMode + QuantPrecision enums in ritk-codecs [minor] | Done |
+| P55 | NAMING: rename tests_dispatch/dim*.rs → rank*.rs in ritk-interpolation [patch] | Done |
+| P56 | NAMING: rename 28 fft/conv test fn dim-suffixes + NCC_DENOM_FLOOR + NEAR_ONE/ZERO_TOL in ritk-filter [patch] | Done |
+| P57 | SRP: extract 11 inline test blocks (batch A) in ritk-filter/segmentation/statistics [patch] | Done |
+| P58 | SRP: extract 11 inline test blocks (batch B) [patch] | Done |
+| P59 | SSOT: entropy_from_hist pub(crate) + F32_TOL + STAPLE_TOL + FOREGROUND_THRESHOLD in staple [patch] | Done |
+| P60 | COMPAT: final verification pass — 0 warnings, all tests green [patch] | Done |
+
+### Blocked / Deferred (carry-forward)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| DRY-374-01 | `make_image_*`/`make_mask_*` — 68 occurrences across ritk-segmentation/statistics (expanded from 35) | [minor] |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` → sealed `DimInterpolation<B>` trait BLOCKED [arch] — ADR required | [arch] |
+| SRP-362-20 | `FilterArgs` (30 variants) → `FilterKind` ValueEnum BLOCKED [major] | [major] |
+| NAMING-FILTER-01 | `FftConvolution3DFilter` const-generic unification BLOCKED [major] | Low |
+| N-375-08 | DRY cross-crate parse utils (ritk-io shared codec layer for metaimage/nrrd/minc) BLOCKED [arch] | [arch] |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| ritk-io nextest | 330/330 |
+| ritk-vtk nextest | 241/241 |
+| ritk-spatial/morphology/minc/metaimage/nrrd nextest | 131/131 |
+| ritk-snap nextest | 633/633 |
+| ritk-registration + ritk-transform nextest | 69+69 = 138 |
+| ritk-codecs + ritk-image + ritk-interpolation nextest | 353/353 |
+| ritk-filter nextest | 703/703 |
+| ritk-segmentation + ritk-statistics nextest | 663/663 |
+| Total across modified crates | **3257/3257** |
+
+---
+
 ## Sprint 374 — Architecture Hardening Round 7: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
 
 **Status**: Complete  
@@ -58,18 +155,19 @@
 
 | ID | Description | Priority |
 |----|-------------|----------|
-| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` BLOCKED [arch]: `DimInterpolation<B>` sealed trait ADR required | [arch] |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` → sealed `DimInterpolation<B>` trait + per-D `pub(super)` body functions [arch] | **Done Sprint 375** |
 | SRP-362-20 | `FilterArgs` (30 variants) → `FilterKind` ValueEnum [major] scope | [major] |
 | NAMING-FILTER-01 | `FftConvolution3DFilter` const-generic unification [major] | Low |
 | TIMEOUT-367 | 4 ritk-interpolation large-dispatch tests — pre-existing performance issue | Medium |
 | DRY-374-01 | `make_image_1d/3d`/`make_mask_*` — 35+ copies across ritk-segmentation/ritk-statistics | [minor] |
-| NAMING-374-02 | 30+ test fn dim-suffix names in ritk-filter fft tests; 22 in ritk-registration regularization | [patch] |
+| NAMING-374-02 | 40+ test fn dim-suffix names across ritk-interpolation / ritk-filter / ritk-snap / ritk-model / ritk-segmentation / ritk-statistics: `_1d`/`_2d`/`_3d` → `_line`/`_planar`/`_volumetric` (Sprint 366-09 convention); `_4d` kept as-is (no established convention) [patch] | **Done Sprint 375** |
 | SRP-374-03 | 21 inline test blocks in ritk-filter > 80L (grayscale_erosion 198L, unsharp_mask 210L, median 193L) | [patch] |
 | SRP-374-04 | 25 inline test blocks in ritk-snap > 80L | [patch] |
 | NAMING-374-05 | ritk-minc public API type suffixes (`extract_f64`, `build_attr_msg_f64`, `convert_to_f32`) | [minor] |
 | ENUM-374-06 | `ModalityDisplay.modality: String` in ritk-snap — deferred for serde-compat impl | [minor] |
 | DRY-374-07 | `decode_bytes_to_f32`/`parse_f64_vec` duplicated across ritk-metaimage/ritk-nrrd | [minor] |
 | DRY-374-08 | `read_ascii/binary_f32/f64/i32` — 10 clones across 3 ritk-vtk IO modules | [minor] |
+| VAR-375-01 | `PhantomData<B>` → `PhantomData<fn() -> B>` BLOCKED [upstream]: `burn-core-0.19.1` only implements `Module<B> for PhantomData<B>` (burn-core/src/module/param/constant.rs:202), not for the covariant form. An attempted switch of 2 sites in `registration/dl/{grad,ncc}.rs` produced 108 compile errors and was reverted. Workarounds: (a) upstream PR to broaden `Module<B>` impls to `PhantomData<fn() -> T>` + `PhantomData<*const T>`; (b) `#[module(custom)]` newtype with hand-written `Module` impl; (c) sealed `BackendMarker` newtype; (d) accept invariant `PhantomData<B>` (current state) | [upstream] |
 
 ### Verification
 
@@ -235,7 +333,7 @@
 
 | ID | Description | Priority |
 |----|-------------|----------|
-| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED [arch]: duplicate method names on same type; requires `DimInterpolation<B>` sealed trait per-D impl | [arch] |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` → sealed `DimInterpolation<B>` trait + per-D `pub(super)` body functions [arch] | **Done Sprint 375** |
 | SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
 | NAMING-FILTER-01 | `FftConvolution3DFilter`/`FftNormalizedCorrelation3DFilter` → const-generic `<B, const D>` unification [major] | Low |
 | TIMEOUT-367 | ritk-interpolation 4-test timeout cluster (`dim4`, `dim3_extended`) — pre-existing; investigate under performance_engineering protocol | Medium |
@@ -286,7 +384,7 @@
 
 | ID | Description | Priority |
 |----|-------------|----------|
-| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED [arch]: duplicate method names on same type; requires `DimInterpolation<B>` sealed trait per-D impl | [arch] |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` → sealed `DimInterpolation<B>` trait + per-D `pub(super)` body functions [arch] | **Done Sprint 375** |
 | SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
 | NAMING-FILTER-01 | `FftConvolution3DFilter`/`FftNormalizedCorrelation3DFilter` → const-generic `<B, const D>` unification [major] | Low |
 
@@ -335,7 +433,7 @@
 | ID | Description | Priority |
 |----|-------------|----------|
 | DIP-362-13 | Superseded by DIP-365-04 (delivered). Closed. | — |
-| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED [arch]: duplicate method names on same type; requires `DimInterpolation<B>` sealed trait per-D impl | [arch] |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` → sealed `DimInterpolation<B>` trait + per-D `pub(super)` body functions [arch] | **Done Sprint 375** |
 | SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
 | ENUM-365-03 | `ResampleArgs.interpolation: String` → `InterpolationMode` ValueEnum (4 variants) [minor] | Low |
 | NAMING-CORE-01 | `gaussian_kernel_1d` → `gaussian_kernel` in `ritk-core/filter/kernel_utils.rs` (cross-crate callers in ritk-filter + ritk-segmentation) [patch] | Medium |
@@ -391,7 +489,7 @@
 | ID | Description | Priority |
 |----|-------------|----------|
 | DIP-362-13 | `RegistrationCallbackSet` DIP — deferred; requires surveying `src/progress/` ProgressTracker internals | Medium |
-| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED: duplicate method names on same type; [arch] refactor required | [arch] |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` → sealed `DimInterpolation<B>` trait + per-D `pub(super)` body functions [arch] | **Done Sprint 375** |
 | SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
 | ENUM-365-01 | `StatsArgs.metric: String` → `StatMetric` ValueEnum (7 variants + `msd` alias) [minor] | **Done** |
 | ENUM-365-02 | `RegisterArgs.method: String` → `RegistrationMethod` ValueEnum (10 variants) [minor] | **Done** |
@@ -438,7 +536,7 @@
 | ID | Description | Priority |
 |----|-------------|----------|
 | DIP-362-13 | `RegistrationCallbackSet` DIP — deferred; requires surveying `src/progress/` ProgressTracker internals | Medium |
-| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` — BLOCKED: duplicate method names on same type; [arch] refactor required | [arch] |
+| NAMING-362-23 | `transform_1d/_2d/_3d/_4d` → sealed `DimInterpolation<B>` trait + per-D `pub(super)` body functions [arch] | **Done Sprint 375** |
 | SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum — [major] scope, carry forward | [major] |
 
 ### Verification

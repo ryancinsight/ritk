@@ -8,12 +8,9 @@
 //! former hand-written `convolve_z / convolve_y / convolve_x` trio while
 //! maintaining a single authoritative implementation.
 //!
-//! # GPU-Accelerated Path
-//!
-//! When a Burn backend is available, prefer [`gaussian_smooth_tensor`] which
-//! uses GPU-accelerated separable 1-D convolutions via
-//! [`ritk_filter::GaussianFilter`]. This runs 10-50× faster than the CPU
-//! path for typical 256³ displacement fields on consumer GPUs.
+//! For a GPU-accelerated path, see [`GpuFieldSmoother`], which uses
+//! [`ritk_filter::GaussianFilter`] for 10-50× speedup on typical 256³
+//! displacement fields.
 
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
@@ -137,67 +134,6 @@ pub(crate) fn gaussian_smooth_field_inplace_with_scratch(
     gaussian_smooth_with_scratch(fz, dims, sigma, scratch);
     gaussian_smooth_with_scratch(fy, dims, sigma, scratch);
     gaussian_smooth_with_scratch(fx, dims, sigma, scratch);
-}
-
-/// Apply separable 3-D Gaussian smoothing to a Burn tensor **in place** using
-/// GPU-accelerated separable 1-D convolutions.
-///
-/// This is the preferred path over [`gaussian_smooth_inplace`] when a Burn
-/// backend is available. The underlying [`ritk_filter::GaussianFilter`] uses
-/// the Burn `conv1d` operator which dispatches to WGPU compute shaders on GPU
-/// backends and to optimised BLAS routines on CPU backends.
-///
-/// # Performance
-///
-/// On a consumer GPU, smoothing a 256³ displacement field takes ~4 ms vs
-/// ~80 ms for the CPU `moirai`-based path (~20× speedup). The speedup
-/// increases with volume size due to GPU memory bandwidth advantages.
-///
-/// # Arguments
-/// * `data` — 3-D tensor to smooth (typically a single component of a
-///   displacement or velocity field).
-/// * `spacing` — physical voxel spacing used to convert `sigma` from mm
-///   to pixel units.
-/// * `sigma` — Gaussian standard deviation in physical units (mm). A value
-///   ≤ 0 is a no-op.
-#[allow(dead_code)]
-pub fn gaussian_smooth_tensor<B: Backend>(
-    data: &mut Tensor<B, 3>,
-    spacing: &Spacing<3>,
-    sigma: f64,
-) {
-    if sigma <= 0.0 {
-        return;
-    }
-    let sigmas = vec![
-        ritk_filter::GaussianSigma::new_unchecked(sigma),
-        ritk_filter::GaussianSigma::new_unchecked(sigma),
-        ritk_filter::GaussianSigma::new_unchecked(sigma),
-    ];
-    let filter = ritk_filter::GaussianFilter::<B>::new(sigmas);
-    // Arc-clone is an atomic refcount bump (no GPU or CPU mem alloc).
-    // `mem::swap` avoids the implicit drop-and-move in `*data = smoothed`
-    // by swapping the two arc handles, leaving the old data to be dropped
-    // naturally when `smoothed` goes out of scope.
-    let mut smoothed = filter.apply_tensor(data.clone(), spacing);
-    core::mem::swap(data, &mut smoothed);
-}
-
-/// Smooth all three components of a 3-D vector field represented as Burn tensors.
-///
-/// GPU-accelerated equivalent of [`gaussian_smooth_field_inplace`]. Each
-/// component is smoothed independently with the same sigma.
-#[allow(dead_code)]
-pub fn gaussian_smooth_field_tensor<B: Backend>(
-    fz: &mut Tensor<B, 3>,
-    fy: &mut Tensor<B, 3>,
-    fx: &mut Tensor<B, 3>,
-    spacing: &Spacing<3>,
-    sigma: f64,
-) {
-    gaussian_smooth_tensor(fz, spacing, sigma);
-    gaussian_smooth_tensor(fy, spacing, sigma);
-    gaussian_smooth_tensor(fx, spacing, sigma);
 }
 
 // ── GpuFieldSmoother: pre-allocated GPU smoothing for Demons/SyN loops ───────

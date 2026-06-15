@@ -25,10 +25,33 @@ pub(crate) const DRI: u16 = 0xFFDD;
 
 // ─── Data Structures ──────────────────────────────────────────────────────────
 
+/// Quantization table precision (T.81 §B.2.4.1, Pq field).
+///
+/// `Bits8` (Pq = 0) means 8-bit quantization values; `Bits16` (Pq = 1) means
+/// 16-bit values. Baseline DCT (SOF0) requires `Bits8`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub(crate) enum QuantPrecision {
+    Bits8 = 0,
+    Bits16 = 1,
+}
+
+impl TryFrom<u8> for QuantPrecision {
+    type Error = u8;
+
+    fn try_from(v: u8) -> Result<Self, u8> {
+        match v {
+            0 => Ok(Self::Bits8),
+            1 => Ok(Self::Bits16),
+            other => Err(other),
+        }
+    }
+}
+
 /// JPEG quantization table (T.81 §B.2.4.1).
 #[derive(Debug, Clone)]
 pub(crate) struct QuantTable {
-    pub(crate) precision: u8,     // 0 = 8-bit, 1 = 16-bit
+    pub(crate) precision: QuantPrecision,
     pub(crate) values: [u16; 64], // zigzag order
 }
 
@@ -151,14 +174,17 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                 pos += 2;
                 while pos < end {
                     let pq_tq = data[pos];
-                    let precision = pq_tq >> 4;
+                    let precision_byte = pq_tq >> 4;
                     let id = (pq_tq & 0x0F) as usize;
                     pos += 1;
                     if id >= 4 {
                         bail!("DQT table id {id} out of range");
                     }
+                    let precision = QuantPrecision::try_from(precision_byte).map_err(|v| {
+                        anyhow::anyhow!("DQT precision {v} is invalid; expected 0 or 1")
+                    })?;
                     let mut values = [0u16; 64];
-                    if precision == 0 {
+                    if precision == QuantPrecision::Bits8 {
                         for v in &mut values {
                             *v = u16::from(data[pos]);
                             pos += 1;
