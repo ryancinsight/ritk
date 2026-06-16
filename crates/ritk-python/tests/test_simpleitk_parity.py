@@ -852,6 +852,53 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+def test_staple_matches_sitk():
+    # STAPLE EM converges to the same probabilistic truth and per-rater
+    # sensitivity/specificity as sitk.STAPLE.
+    nz, ny, nx = 10, 18, 22
+    z, y, x = np.mgrid[:nz, :ny, :nx]
+    truth = (((x - 11) ** 2 + (y - 9) ** 2 + (z - 5) ** 2) <= 30).astype(np.uint8)
+    rng = np.random.default_rng(0)
+    raters = []
+    for fp, fn in [(0.02, 0.05), (0.05, 0.10), (0.01, 0.15), (0.08, 0.03)]:
+        r = truth.copy()
+        r[(truth == 1) & (rng.random(truth.shape) < fn)] = 0
+        r[(truth == 0) & (rng.random(truth.shape) < fp)] = 1
+        raters.append(r.astype(np.float32))
+    rr = ritk.segmentation.staple_ensemble([_ritk(r) for r in raters], 200, 1e-7)
+    rp = np.array(rr["probabilistic_truth"], np.float64).reshape(nz, ny, nx)
+    simgs = [sitk.Cast(sitk.GetImageFromArray(r.astype(np.uint8)), sitk.sitkUInt8) for r in raters]
+    f = sitk.STAPLEImageFilter()
+    f.SetForegroundValue(1.0)
+    f.SetMaximumIterations(200)
+    sp = sitk.GetArrayFromImage(f.Execute(simgs)).astype(np.float64)
+    assert np.abs(rp - sp).mean() < 5e-3
+    for rk, sk in zip(rr["sensitivity"], f.GetSensitivity()):
+        assert abs(rk - sk) < 1e-2
+    for rk, sk in zip(rr["specificity"], f.GetSpecificity()):
+        assert abs(rk - sk) < 1e-2
+
+
+def test_majority_vote_matches_sitk_label_voting():
+    # majority_vote_fusion reproduces sitk.LabelVoting exactly.
+    nz, ny, nx = 8, 16, 20
+    z, y, x = np.mgrid[:nz, :ny, :nx]
+    truth = (x < 10).astype(np.uint8) + 2 * (x >= 10).astype(np.uint8)
+    rng = np.random.default_rng(1)
+    labs = []
+    for _ in range(5):
+        l = truth.copy()
+        noise = rng.random(truth.shape) < 0.1
+        l[noise] = 3 - l[noise]
+        labs.append(l.astype(np.float32))
+    res = ritk.registration.majority_vote_fusion([_ritk(l) for l in labs])
+    rv = res[0] if isinstance(res, tuple) else res
+    rva = np.asarray(rv.to_numpy()).astype(int)
+    simgs = [sitk.Cast(sitk.GetImageFromArray(l.astype(np.uint8)), sitk.sitkUInt8) for l in labs]
+    sv = sitk.GetArrayFromImage(sitk.LabelVoting(simgs)).astype(int)
+    assert np.array_equal(rva, sv)
+
+
 def test_threshold_segmentation_matches_sitk():
     # binary/connected/neighborhood-connected threshold segmentation match sitk
     # exactly. Seeds are [z,y,x] in ritk; sitk takes [x,y,z].
