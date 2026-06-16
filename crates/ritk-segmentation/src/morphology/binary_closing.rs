@@ -52,10 +52,101 @@ impl<B: Backend, const D: usize> MorphologicalOperation<B, D> for BinaryClosing 
     ///
     /// # Returns
     /// A new `Image<B, D>` with holes filled, preserving spatial metadata.
+    ///
+    /// Uses ITK's default "safe border": the mask is padded with `radius`
+    /// background voxels on every face before the dilate→erode, then cropped
+    /// back. Without this, the trailing erosion treats out-of-bounds neighbours
+    /// as foreground, leaving spurious foreground within `radius` of the volume
+    /// border (closing is *not* border-invariant otherwise). This reproduces
+    /// SimpleITK's `BinaryMorphologicalClosing` (`SafeBorder = true`).
     fn apply(&self, mask: &Image<B, D>) -> Image<B, D> {
-        let dilated = apply_morphological_op(mask, self.radius, MorphOp::Dilation);
-        apply_morphological_op(&dilated, self.radius, MorphOp::Erosion)
+        if self.radius == 0 {
+            return Image::new(
+                mask.data().clone(),
+                *mask.origin(),
+                *mask.spacing(),
+                *mask.direction(),
+            );
+        }
+        let padded = pad_background(mask, self.radius);
+        let dilated = apply_morphological_op(&padded, self.radius, MorphOp::Dilation);
+        let eroded = apply_morphological_op(&dilated, self.radius, MorphOp::Erosion);
+        crop_border(&eroded, self.radius, mask)
     }
+}
+
+/// Row-major strides for a shape.
+fn strides_of<const D: usize>(shape: &[usize; D]) -> [usize; D] {
+    let mut strides = [0usize; D];
+    let mut s = 1usize;
+    for i in (0..D).rev() {
+        strides[i] = s;
+        s = s.saturating_mul(shape[i]);
+    }
+    strides
+}
+
+/// Pad `mask` with `r` background (0.0) voxels on every face. Spatial metadata is
+/// carried through unchanged — the padded image is a transient processing buffer
+/// that `crop_border` reverses.
+fn pad_background<B: Backend, const D: usize>(mask: &Image<B, D>, r: usize) -> Image<B, D> {
+    let shape: [usize; D] = mask.shape();
+    let (vals, _) = extract_vec_infallible(mask);
+    let mut new_shape = shape;
+    for v in new_shape.iter_mut() {
+        *v += 2 * r;
+    }
+    let in_strides = strides_of(&shape);
+    let out_strides = strides_of(&new_shape);
+    let in_total: usize = shape.iter().product();
+    let mut out = vec![0.0f32; new_shape.iter().product()];
+    for (flat, &val) in vals.iter().enumerate().take(in_total) {
+        let mut rem = flat;
+        let mut out_flat = 0usize;
+        for i in 0..D {
+            let c = rem / in_strides[i];
+            rem %= in_strides[i];
+            out_flat += (c + r) * out_strides[i];
+        }
+        out[out_flat] = val;
+    }
+    let device = mask.data().device();
+    let tensor = Tensor::<B, D>::from_data(TensorData::new(out, Shape::new(new_shape)), &device);
+    Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
+}
+
+/// Crop `r` voxels from every face of `padded`, restoring `original`'s shape and
+/// spatial metadata.
+fn crop_border<B: Backend, const D: usize>(
+    padded: &Image<B, D>,
+    r: usize,
+    original: &Image<B, D>,
+) -> Image<B, D> {
+    let p_shape: [usize; D] = padded.shape();
+    let o_shape: [usize; D] = original.shape();
+    let (pvals, _) = extract_vec_infallible(padded);
+    let p_strides = strides_of(&p_shape);
+    let o_strides = strides_of(&o_shape);
+    let o_total: usize = o_shape.iter().product();
+    let mut out = vec![0.0f32; o_total];
+    for (flat, slot) in out.iter_mut().enumerate().take(o_total) {
+        let mut rem = flat;
+        let mut p_flat = 0usize;
+        for i in 0..D {
+            let c = rem / o_strides[i];
+            rem %= o_strides[i];
+            p_flat += (c + r) * p_strides[i];
+        }
+        *slot = pvals[p_flat];
+    }
+    let device = original.data().device();
+    let tensor = Tensor::<B, D>::from_data(TensorData::new(out, Shape::new(o_shape)), &device);
+    Image::new(
+        tensor,
+        *original.origin(),
+        *original.spacing(),
+        *original.direction(),
+    )
 }
 
 // ── Shared implementation ─────────────────────────────────────────────────────
