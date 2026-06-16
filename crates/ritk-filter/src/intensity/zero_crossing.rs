@@ -2,15 +2,18 @@
 //!
 //! # Mathematical Specification
 //!
-//! A zero crossing exists at voxel x if:
+//! Voxel `x` is marked a zero crossing if:
 //!
 //! 1. `I(x) == 0.0`, **or**
-//! 2. There exists a 6-connected neighbour y such that `I(x) * I(y) < 0`
-//!    (i.e. x and y have strictly opposite signs).
+//! 2. some 6-connected neighbour `y` has the opposite sign (`I(x)·I(y) < 0`)
+//!    **and** `x` is the side closer to zero. Per axis the forward (+) neighbour
+//!    is accepted with `|I(x)| <= |I(y)|` and the backward (−) neighbour with the
+//!    strict `|I(x)| < |I(y)|`, so an exact-magnitude tie is resolved toward the
+//!    forward voxel.
 //!
-//! This matches the ITK `ZeroCrossingImageFilter` definition:
-//! a voxel is a zero crossing if it equals exactly 0 or if at least one
-//! 6-connected neighbour has an opposite sign.
+//! This matches ITK `ZeroCrossingImageFilter`, which marks only the voxel on the
+//! near-zero side of each crossing — marking *both* sides (every voxel with any
+//! opposite-sign neighbour) roughly doubles the detected crossings.
 //!
 //! ## Invariants
 //!
@@ -83,36 +86,47 @@ impl ZeroCrossingImageFilter {
             for iy in 0..ny {
                 for ix in 0..nx {
                     let v = vals[idx(iz, iy, ix)];
-                    // Case 1: exact zero
+                    // Case 1: exact zero is always a crossing.
                     if v == 0.0 {
                         out[idx(iz, iy, ix)] = fg;
                         continue;
                     }
-                    // Case 2: opposite-sign 6-connected neighbour
-                    let neighbours: &[(isize, isize, isize)] = &[
-                        (-1, 0, 0),
-                        (1, 0, 0),
-                        (0, -1, 0),
-                        (0, 1, 0),
-                        (0, 0, -1),
-                        (0, 0, 1),
-                    ];
-                    let crosses = neighbours.iter().any(|&(dz, dy, dx)| {
-                        let nz_ = iz as isize + dz;
-                        let ny_ = iy as isize + dy;
-                        let nx_ = ix as isize + dx;
-                        if nz_ < 0
-                            || ny_ < 0
-                            || nx_ < 0
-                            || nz_ >= nz as isize
-                            || ny_ >= ny as isize
-                            || nx_ >= nx as isize
-                        {
-                            return false;
+                    // Case 2: opposite-sign 6-connected neighbour, but mark this
+                    // voxel only on the side *closer to zero* (matching ITK
+                    // ZeroCrossingImageFilter — otherwise both sides of every
+                    // crossing get marked, ~doubling the detections). Per axis the
+                    // forward (+) neighbour uses `|v| <= |nv|` and the backward (−)
+                    // neighbour uses the strict `|v| < |nv|`, so an exact-magnitude
+                    // tie is resolved toward the forward voxel.
+                    let in_b = |z: isize, y: isize, x: isize| {
+                        z >= 0
+                            && y >= 0
+                            && x >= 0
+                            && z < nz as isize
+                            && y < ny as isize
+                            && x < nx as isize
+                    };
+                    let av = v.abs();
+                    let mut crosses = false;
+                    // axis offsets: (dz, dy, dx)
+                    for &(dz, dy, dx) in &[(1isize, 0isize, 0isize), (0, 1, 0), (0, 0, 1)] {
+                        let (fz, fy, fx) = (iz as isize + dz, iy as isize + dy, ix as isize + dx);
+                        if in_b(fz, fy, fx) {
+                            let nv = vals[idx(fz as usize, fy as usize, fx as usize)];
+                            if v * nv < 0.0 && av <= nv.abs() {
+                                crosses = true;
+                                break;
+                            }
                         }
-                        let nv = vals[idx(nz_ as usize, ny_ as usize, nx_ as usize)];
-                        v * nv < 0.0
-                    });
+                        let (bz, by, bx) = (iz as isize - dz, iy as isize - dy, ix as isize - dx);
+                        if in_b(bz, by, bx) {
+                            let nv = vals[idx(bz as usize, by as usize, bx as usize)];
+                            if v * nv < 0.0 && av < nv.abs() {
+                                crosses = true;
+                                break;
+                            }
+                        }
+                    }
                     if crosses {
                         out[idx(iz, iy, ix)] = fg;
                     }

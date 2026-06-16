@@ -17,15 +17,17 @@ fn voxels(img: &Image<B, 3>) -> Vec<f32> {
 
 #[test]
 fn zero_crossing_detects_sign_change_across_boundary() {
-    // 1×1×3: [-1, +1, +1] — crossing between ix=0 and ix=1
+    // 1×1×3: [-1, +1, +1] — crossing between ix=0 and ix=1, equal magnitude.
+    // ITK marks only the near-zero side; on a |·|-tie it resolves toward the
+    // forward voxel, so ix=0 (whose +neighbour crosses) is marked, ix=1 is not.
     let img = make_image(vec![-1.0, 1.0, 1.0], [1, 1, 3]);
     let out = ZeroCrossingImageFilter::new().apply(&img).unwrap();
     let v = voxels(&out);
-    // ix=0: neighbour ix=1 is +1, -1 * +1 < 0 → crossing
+    // ix=0: forward neighbour ix=1 = +1, sign change, |−1| <= |1| → crossing.
     assert_eq!(v[0], 1.0, "ix=0 should be zero-crossing");
-    // ix=1: neighbour ix=0 is -1, +1 * -1 < 0 → crossing
-    assert_eq!(v[1], 1.0, "ix=1 should be zero-crossing");
-    // ix=2: only neighbour ix=1 is +1, +1 * +1 > 0 → not crossing
+    // ix=1: backward neighbour ix=0 = -1, |1| < |−1| is false (tie) → background.
+    assert_eq!(v[1], 0.0, "ix=1 should be background (tie resolved to ix=0)");
+    // ix=2: only neighbour ix=1 is +1, no sign change → background.
     assert_eq!(v[2], 0.0, "ix=2 should be background");
 }
 
@@ -58,7 +60,8 @@ fn zero_crossing_uniform_positive_no_crossings() {
 
 #[test]
 fn zero_crossing_custom_foreground_background_values() {
-    // 1×1×2: [-1, +1] — both voxels are crossings
+    // 1×1×2: [-1, +1] — equal-magnitude crossing; ITK marks only the forward
+    // side (ix=0), leaving ix=1 as background.
     let img = make_image(vec![-1.0, 1.0], [1, 1, 2]);
     let out = ZeroCrossingImageFilter::new()
         .with_foreground(255.0)
@@ -66,8 +69,8 @@ fn zero_crossing_custom_foreground_background_values() {
         .apply(&img)
         .unwrap();
     let v = voxels(&out);
-    assert_eq!(v[0], 255.0);
-    assert_eq!(v[1], 255.0);
+    assert_eq!(v[0], 255.0, "forward side of the crossing is foreground");
+    assert_eq!(v[1], -1.0, "backward side of the tie is background");
 }
 
 #[test]
