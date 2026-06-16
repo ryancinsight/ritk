@@ -4,6 +4,56 @@
 
 ---
 
+## Sprint 376 — DRY Closure, Build Hardening & Carry-Forward Reconciliation
+
+**Status**: In Progress (Foundation → Execution)
+**Version**: 0.70.1
+
+### Delivered
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| DRY-374-01 | `ritk-image::test_support` consumed by 78 test files via thin local wrappers; 51 files had unused-import cleanup via `cargo fix` [minor] | Done |
+| CARRY-376-01 | `feat(python): expose normalize, unsharp, zero-crossing, rotate, shift, zoom` — 6 new PyImage functions [minor] | Done |
+| CARRY-376-02 | `feat(stats): ddof flag for sample (sitk) vs population std` + parity tests [minor] | Done |
+| CARRY-376-03 | Carry-forward filter binding surface expansion (single-axis match sitk Euler3DTransform + extended corpus + API mismatches) [patch] | Done |
+| CLIPPY-376-01 | Doc list indent + Range single-element array lint failures resolved [patch] | Done |
+| FMT-376-01 | `cargo fmt --check` clean (0 diff lines) [patch] | Done |
+| BILAT-PERF-01 | Bilateral filter `compute`: 1-D `spatial_w` lookup table + clamped neighborhood iteration; boundary checks hoisted out of inner loop; per-voxel inner-loop cost reduced to one table lookup + one `exp` [minor] | In Progress |
+| BILAT-BENCH-01 | criterion bench `benches/bilateral.rs` covering 16³/32³/64³ sizes, recording baseline [patch] | In Progress |
+
+### In Flight
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| DOC-376-01 | Sync `ARCHITECTURE.md` + `IMPLEMENTATION_SUMMARY.md` `test-helpers` feature-gate + 78-file DRY migration note [patch] | Next |
+| DOC-376-02 | Sync `OPTIMIZATION.md` BilateralFilter row with measured speedup [patch] | Next |
+
+### Blocked / Deferred (carry-forward, unchanged from Sprint 375)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| VAR-375-01 | `PhantomData<B>` → `PhantomData<fn() -> B>` blocked at `burn-core-0.19.1` | [upstream] |
+| CONST-375-02 | const-assert companion on `BSplineTransform` blocked on `const_panic_fmt` | [toolchain] |
+| NAMING-362-23 | sealed trait `DimInterpolation<B>` BLOCKED — ADR required | [arch] |
+| SRP-362-20 | `FilterKind` ValueEnum — slice delivered; per-family Args structs remain | [minor] |
+| NAMING-FILTER-01 | `FftConvolution3DFilter` const-generic unification — cross-crate dependent | [major] |
+| N-375-08 | DRY cross-crate parse utils — promotion trigger requires `ritk-io` → `ritk-core` migration | [arch] |
+| TIMEOUT-367 | 4 heavy interpolation dispatch tests pre-existing perf issue | [patch] |
+
+### Verification (so far)
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| `cargo fmt --check` | 0 diffs |
+| ritk-filter nextest | 703/703 |
+| ritk-segmentation + ritk-statistics + ritk-tiff nextest | 680/680 |
+| ritk-registration nextest | 647/647 (23 skipped) |
+| ritk-image + ritk-statistics nextest | 312/312 |
+
+---
+
 ## Sprint 375 — Architecture Hardening Round 8: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
 
 **Status**: Complete  

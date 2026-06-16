@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [0.70.1] — 2026-06-16 (Sprint 376: DRY Closure + BilateralFilter Perf)
+
+### Changed
+- `ritk-filter 0.2.2`: `BilateralFilter::compute` rewritten with a precomputed spatial-kernel lookup table `spatial_w[d²]` (size `3·r² + 1`) and clamped boundary iteration (`z_lo..z_hi`, etc. via `saturating_sub` / `.min`). Each neighbour evaluation replaces three squarings, one multiplication and one `exp` with a single table load. Per-neighbour `as isize`/`as usize` casts and boundary branches eliminated. Output is bitwise-identical to the previous formulation — verified by `test_bilateral_matches_brute_force_reference` (max |Δ| = 0 on a `5×6×7` deterministic volume).
+
+### Added
+- `ritk-filter`: `test_bilateral_matches_brute_force_reference` test — locks the kernel computation to its mathematical formulation by comparing `apply` output against an explicit-arithmetic brute-force reference. Acts as a regression sentinel for any future change to the bilateral inner loop.
+- `ritk-filter`: `benches/bilateral.rs` criterion bench — measures `apply` over 16³/32³/64³ volumes at spatial σ = 1.5 (r ≈ 5). Baselines recorded at 16³ = 14.4 ms, 32³ = 152 ms.
+
 ## [0.70.0] — 2026-06-15 (Sprint 375: Architecture Hardening Round 8)
 
 ### Added

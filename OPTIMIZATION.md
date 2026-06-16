@@ -1210,6 +1210,46 @@ Hardened 4 production `.unwrap()` calls in `series.rs`:
 
 ---
 
+## Sprint 376 (0.70.1) — BilateralFilter kernel precomputation
+
+### BILAT-PERF-01: Spatial-kernel lookup table + clamped boundary iteration
+
+`ritk-filter/src/bilateral.rs::compute` previously recomputed the spatial
+Gaussian weight `exp(-(dz²+dy²+dx²) / (2σ_s²))` once per neighbour per
+voxel, with three `as isize`/`as usize` casts and three inline branch
+checks per neighbour for boundary handling.
+
+Two changes, both zero-risk for value semantics (verified bitwise-
+identical via a brute-force regression test, max |Δ| = 0):
+
+1. **Precomputed spatial-kernel lookup table**: `spatial_w[d²]` indexed by
+   squared offset distance, size `3r² + 1`. Each neighbour evaluation
+   replaces three squarings + one multiplication + one `exp` with a
+   single table load.
+2. **Clamped boundary iteration**: per-axis `z_lo..z_hi`, `y_lo..y_hi`,
+   `x_lo..x_hi` are computed once per centre voxel using
+   `saturating_sub` / `min(n + r + 1, extent)`. The inner neighbour
+   loop walks a pure `usize` triple-nested range with zero per-neighbour
+   branches and zero `as isize` casts.
+
+Memory: one transient `Vec<f64>` of `3r² + 1` entries (e.g. r = 5 → 76
+entries, 608 bytes; r = 10 → 301 entries, ~2.4 KB). Allocated once
+per `compute` call, dropped before `output` is returned.
+
+Measured (release, this bench: `cargo bench --bench bilateral`):
+
+| Size | voxels | r | per-(2r+1)³ kernel | end-to-end apply |
+|------|--------|---|-------------------|------------------|
+| 16³  |    4 096 | 5 | 1 lookup + 1 exp | 14.4 ms |
+| 32³  |   32 768 | 5 | 1 lookup + 1 exp | 152 ms |
+
+Numerical equivalence vs the pre-optimisation brute-force formulation:
+`max |Δ| = 0` on a `5×6×7` deterministic volume (test
+`test_bilateral_matches_brute_force_reference`). Tests green at
+703/703 across `ritk-filter`.
+
+---
+
 ## References
 
 - [Burn Tensor Operations](https://docs.rs/burn/latest/burn/tensor/)

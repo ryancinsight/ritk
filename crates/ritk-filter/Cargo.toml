@@ -1,6 +1,6 @@
 [package]
 name = "ritk-filter"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 
 [dependencies]
@@ -29,4 +29,8 @@ criterion = { workspace = true }
 
 [[bench]]
 name = "cpr_path"
+harness = false
+
+[[bench]]
+name = "bilateral"
 harness = false

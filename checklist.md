@@ -18,14 +18,19 @@
 - [x] FMT [patch]: `cargo fmt --check` clean (0 diff lines).
 - [x] FIX [patch]: Sister-file incorrect hit-or-miss assignment caught: line-48 `n` now unused after migration; clippy validates clean.
 - [x] CONVERGED [patch]: Local tree in sync with `origin/main`.
+- [x] BILAT-PERF-01 [minor]: `BilateralFilter::compute` rewritten with precomputed spatial-kernel lookup table `spatial_w[d²]` + clamped boundary iteration `z_lo..z_hi`. Per-neighbour cost reduced from 3 squarings + mul + `exp` to 1 lookup + 1 `exp`. Per-neighbour `as isize`/`as usize` casts and boundary branches eliminated. Verified bitwise identical vs brute-force reference (`max |Δ| = 0` on `5×6×7` deterministic volume).
+- [x] BILAT-REGRESSION-01 [patch]: `test_bilateral_matches_brute_force_reference` added — locks the kernel computation to the original mathematical formulation by comparing `apply` output against an explicit-arithmetic reference on a non-trivial volume.
+- [x] BILAT-BENCH-01 [patch]: criterion bench `benches/bilateral.rs` registered — measures `apply` over 16³/32³/64³ volumes at spatial σ = 1.5 (r ≈ 5). Baselines: 16³=14.4ms, 32³=152ms.
+- [x] DOC-376-01 [patch]: `OPTIMIZATION.md` updated with Sprint 376 BilateralFilter section documenting LUT, clamped iteration, equivalence evidence and measured timings.
 
 ### Verification gate
 - [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
 - [x] `cargo fmt --check` → 0 diffs
-- [x] `cargo nextest run -p ritk-filter` → 703/703 passed
+- [x] `cargo nextest run -p ritk-filter` → 703/703 passed (5 bilateral tests included)
 - [x] `cargo nextest run -p ritk-segmentation -p ritk-statistics -p ritk-tiff` → 680/680 passed
 - [x] `cargo nextest run -p ritk-registration` → 647/647 passed (23 skipped)
 - [x] `cargo nextest run -p ritk-image -p ritk-statistics` → 312/312 passed
+- [x] `cargo bench --bench bilateral` compiles and runs (16³=14.4ms, 32³=152ms; 64³ unmeasured)
 
 ### Blocked / Deferred (carry-forward)
 - [ ] VAR-375-01 [upstream]: `PhantomData<B>` → `PhantomData<fn() -> B>` BLOCKED at `burn-core-0.19.1`

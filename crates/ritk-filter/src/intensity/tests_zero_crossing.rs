@@ -26,7 +26,10 @@ fn zero_crossing_detects_sign_change_across_boundary() {
     // ix=0: forward neighbour ix=1 = +1, sign change, |−1| <= |1| → crossing.
     assert_eq!(v[0], 1.0, "ix=0 should be zero-crossing");
     // ix=1: backward neighbour ix=0 = -1, |1| < |−1| is false (tie) → background.
-    assert_eq!(v[1], 0.0, "ix=1 should be background (tie resolved to ix=0)");
+    assert_eq!(
+        v[1], 0.0,
+        "ix=1 should be background (tie resolved to ix=0)"
+    );
     // ix=2: only neighbour ix=1 is +1, no sign change → background.
     assert_eq!(v[2], 0.0, "ix=2 should be background");
 }

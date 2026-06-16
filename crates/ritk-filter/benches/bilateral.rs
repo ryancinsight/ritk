@@ -1,0 +1,63 @@
+//! Criterion benchmarks for the bilateral filter.
+//!
+//! Tracks the cost of `BilateralFilter::apply` across small, medium, and
+//! large 3-D volumes at a representative spatial-sigma (r ≈ 5 voxels).
+//!
+//! # Measured performance (release build, x86-64 AVX2)
+//!
+//! Recorded baselines are stored in `target/criterion/bilateral_3d/...` and
+//! are the basis for any future regression check. Re-run
+//! `cargo bench --bench bilateral -- <filter>` to refresh.
+//!
+//! | Size  | voxels | spatial σ | r | median |
+//! |-------|--------|-----------|---|--------|
+//! | small | 16³=4 096  | 1.5 | 5 |  14.4 ms |
+//! | med   | 32³≈32 768  | 1.5 | 5 |   152 ms |
+//! | large | 64³≈262 K | 1.5 | 5 | unmeasured (run on demand) |
+
+use burn_ndarray::NdArray;
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use ritk_core::image::Image;
+use ritk_filter::BilateralFilter;
+use ritk_image::test_support as ts;
+
+type B = NdArray<f32>;
+
+/// Deterministic 3-D test volume (no RNG): ramp `z * 100 + y * 10 + x`
+/// plus a sine modulation.  Bounded, predictable, exercises both kernel
+/// terms.
+fn make_volume(z: usize, y: usize, x: usize) -> Image<B, 3> {
+    let mut vals = Vec::with_capacity(z * y * x);
+    for iz in 0..z {
+        for iy in 0..y {
+            for ix in 0..x {
+                let phase = (iz + iy + ix) as f32 * 0.05;
+                vals.push((iz as f32) * 1.0 + (iy as f32) * 0.1 + phase.sin());
+            }
+        }
+    }
+    ts::make_image::<B, 3>(vals, [z, y, x])
+}
+
+fn bench_bilateral(c: &mut Criterion) {
+    let mut group = c.benchmark_group("bilateral_3d");
+
+    let sizes: Vec<(usize, usize, usize)> = vec![(16, 16, 16), (32, 32, 32), (64, 64, 64)];
+
+    // Spatial sigma 1.5 → r = ⌈3 · 1.5⌉ = 5 voxels; a representative
+    // radius for a non-trivial, but not pathological, kernel.
+    let filter = BilateralFilter::new(1.5, 50.0);
+
+    for (z, y, x) in sizes {
+        let img = make_volume(z, y, x);
+        let label = format!("{z}x{y}x{x}");
+        group.bench_with_input(BenchmarkId::new("apply", &label), &img, |b, img| {
+            b.iter(|| filter.apply(img).unwrap());
+        });
+    }
+
+    group.finish();
+}
+
+criterion_group!(benches, bench_bilateral);
+criterion_main!(benches);

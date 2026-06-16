@@ -170,3 +170,97 @@ fn test_bilateral_smooth_region_is_smoothed() {
         "variance reduction insufficient: input={input_var:.4} output={output_var:.4}"
     );
 }
+
+// ── 5. Equivalence vs brute-force reference ──────────────────────────
+
+/// Reference implementation of the bilateral filter used only by this
+/// test. It performs the inner loop with the original, completely
+/// explicit arithmetic — no lookup table, no clamped iteration — so any
+/// regression in `compute` (typo, sign flip, missing neighbour,
+/// range/sigma swapped) will be caught by a value-level diff.
+///
+/// Tolerance: 1e-4 absolute. Both implementations accumulate the same
+/// terms in the same floating-point order on this small volume, so
+/// bitwise equality is also expected; we use a small absolute epsilon
+/// to absorb unrelated LTO/optimisation variance if any.
+#[test]
+fn test_bilateral_matches_brute_force_reference() {
+    let dims = [5usize, 6, 7];
+    // Deterministic non-trivial data spanning a range that exercises
+    // both spatial and intensity kernels.
+    let n = dims[0] * dims[1] * dims[2];
+    let vals: Vec<f32> = (0..n).map(|i| 50.0 + ((i * 7 + 3) % 23) as f32).collect();
+
+    let img = make_image(vals.clone(), dims);
+    let filter = BilateralFilter::new(1.2, 4.0);
+    let out = filter.apply(&img).unwrap();
+    let actual = extract_vals(&out);
+
+    // Brute-force reference (uses the original `compute` formula in plain
+    // form, without our LUT / clamped-loop optimisation).
+    let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
+    let inv_two_ss2 = 1.0_f64 / (2.0 * 1.2_f64.powi(2));
+    let inv_two_sr2 = 1.0_f64 / (2.0 * 4.0_f64.powi(2));
+
+    let mut expected = vec![0.0_f32; n];
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let c_flat = iz * ny * nx + iy * nx + ix;
+                let c_val = vals[c_flat] as f64;
+
+                let mut ws = 0.0_f64;
+                let mut wt = 0.0_f64;
+                let r = (3.0_f64 * 1.2).ceil() as isize;
+                for dz in -r..=r {
+                    let nz_i = iz as isize + dz;
+                    if nz_i < 0 || nz_i >= nz as isize {
+                        continue;
+                    }
+                    for dy in -r..=r {
+                        let ny_i = iy as isize + dy;
+                        if ny_i < 0 || ny_i >= ny as isize {
+                            continue;
+                        }
+                        for dx in -r..=r {
+                            let nx_i = ix as isize + dx;
+                            if nx_i < 0 || nx_i >= nx as isize {
+                                continue;
+                            }
+                            let n_flat =
+                                nz_i as usize * ny * nx + ny_i as usize * nx + nx_i as usize;
+                            let n_val = vals[n_flat] as f64;
+                            let sd2 = (dz * dz + dy * dy + dx * dx) as f64;
+                            let rd2 = (c_val - n_val) * (c_val - n_val);
+                            let w = (-sd2 * inv_two_ss2 - rd2 * inv_two_sr2).exp();
+                            ws += w * n_val;
+                            wt += w;
+                        }
+                    }
+                }
+                expected[c_flat] = if wt > 1e-20 {
+                    (ws / wt) as f32
+                } else {
+                    vals[c_flat]
+                };
+            }
+        }
+    }
+
+    assert_eq!(actual.len(), expected.len());
+    let mut max_abs = 0.0_f32;
+    for (i, (&a, &e)) in actual.iter().zip(expected.iter()).enumerate() {
+        let d = (a - e).abs();
+        if d > max_abs {
+            max_abs = d;
+        }
+        assert!(
+            d < 1e-4,
+            "voxel {i}: optimized={a} reference={e} (Δ={d:.3e})"
+        );
+    }
+    assert!(
+        max_abs < 1e-5,
+        "max |a - e| = {max_abs:.3e} exceeds tight bound 1e-5 — possible floating-point reordering"
+    );
+}
