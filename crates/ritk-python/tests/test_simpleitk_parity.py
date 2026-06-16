@@ -827,6 +827,69 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+def _blob(nz=14, ny=22, nx=26):
+    z, y, x = np.mgrid[:nz, :ny, :nx]
+    return (100 * np.exp(-(((x - 13) / 6) ** 2 + ((y - 11) / 4) ** 2 + ((z - 7) / 3) ** 2))).astype(np.float32)
+
+
+@pytest.mark.parametrize("sh", [(2.0, 0, 0), (0, 3.0, 0), (0, 0, 4.0), (1.5, -2.5, 3.0)])
+def test_shift_image_matches_scipy(sh):
+    # shift_image(z,y,x) shifts content by +shift, matching scipy.ndimage.shift.
+    ndimage = pytest.importorskip("scipy.ndimage")
+    img = _blob()
+    r = ritk.filter.shift_image(_ritk(img), sh[0], sh[1], sh[2], "linear").to_numpy()
+    s = ndimage.shift(img.astype(np.float64), list(sh), order=1, mode="constant", cval=0.0)
+    c = (slice(2, -2),) * 3
+    assert np.abs(np.asarray(r, np.float64)[c] - s[c]).max() / max(abs(s[c]).max(), 1e-9) < 1e-5
+
+
+@pytest.mark.parametrize("axis,deg", [("x", 20), ("y", 13), ("z", 25)])
+def test_rotate_image_single_axis_matches_sitk(axis, deg):
+    # A single-axis rotation matches sitk Euler3DTransform exactly. (Combined
+    # multi-axis rotations differ — see rotate_image docstring.)
+    img = _blob()
+    si = _sitk(img)
+    ang = {"x": 0.0, "y": 0.0, "z": 0.0}
+    ang[axis] = np.deg2rad(deg)
+    r = ritk.filter.rotate_image(_ritk(img), ang["x"], ang["y"], ang["z"], "linear", 0.0).to_numpy()
+    sz, sp, org = si.GetSize(), si.GetSpacing(), si.GetOrigin()
+    center = [org[i] + (sz[i] - 1) * 0.5 * sp[i] for i in range(3)]
+    e = sitk.Euler3DTransform()
+    e.SetCenter(center)
+    e.SetRotation(ang["x"], ang["y"], ang["z"])
+    rf = sitk.ResampleImageFilter()
+    rf.SetReferenceImage(si)
+    rf.SetTransform(e)
+    rf.SetInterpolator(sitk.sitkLinear)
+    rf.SetDefaultPixelValue(0.0)
+    s = _np(rf.Execute(si)).astype(np.float64)
+    c = (slice(2, -2),) * 3
+    assert np.abs(np.asarray(r, np.float64)[c] - s[c]).max() / max(abs(s[c]).max(), 1e-9) < 1e-4
+
+
+@pytest.mark.parametrize("zf", [(2.0, 2.0, 2.0), (0.5, 0.5, 0.5), (1.5, 2.0, 0.75)])
+def test_zoom_image_matches_sitk_resample(zf):
+    # zoom_image = resample to spacing old/zoom; matches sitk.Resample exactly.
+    img = _blob()
+    si = _sitk(img)
+    r = np.asarray(ritk.filter.zoom_image(_ritk(img), zf[0], zf[1], zf[2], "linear").to_numpy(), np.float64)
+    nz, ny, nx = img.shape
+    out_sp = [1.0 / zf[2], 1.0 / zf[1], 1.0 / zf[0]]
+    out_sz = [int(round(nx * zf[2])), int(round(ny * zf[1])), int(round(nz * zf[0]))]
+    rf = sitk.ResampleImageFilter()
+    rf.SetOutputSpacing(out_sp)
+    rf.SetSize(out_sz)
+    rf.SetOutputOrigin(si.GetOrigin())
+    rf.SetOutputDirection(si.GetDirection())
+    rf.SetTransform(sitk.Transform(3, sitk.sitkIdentity))
+    rf.SetInterpolator(sitk.sitkLinear)
+    rf.SetDefaultPixelValue(0.0)
+    s = _np(rf.Execute(si)).astype(np.float64)
+    assert r.shape == s.shape
+    c = (slice(2, -2),) * 3
+    assert np.abs(r[c] - s[c]).max() / max(abs(s[c]).max(), 1e-9) < 1e-4
+
+
 @pytest.mark.parametrize("fac", [(2, 2, 2), (3, 2, 4), (2, 2, 3)])
 def test_bin_shrink_matches_sitk(fac):
     # bin_shrink (tile-mean downsample) matches sitk.BinShrink. Anisotropic
