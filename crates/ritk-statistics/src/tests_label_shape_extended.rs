@@ -92,36 +92,42 @@ fn interior_voxel_perimeter_is_zero() {
 
 // ── Elongation & Flatness ───────────────────────────────────────────────────
 
-/// Sphere-like (3×3×3 block): elongation ≈ 1, flatness ≈ 1.
+/// Sphere-like (3×3×3 block): elongation ≈ 1, flatness ≈ 1 (ITK convention,
+/// both ≥ 1 with 1 = isotropic).
 #[test]
 fn solid_block_is_roughly_spherical() {
     let data = vec![1.0_f32; 27];
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
     let stats = compute_label_shape_statistics_extended(&img);
-    assert!(stats[0].elongation > 0.9, "elongation should be near 1");
-    assert!(stats[0].flatness > 0.9, "flatness should be near 1");
-}
-
-/// Line along X (1×1×5): high elongation, low flatness.
-#[test]
-fn line_component_is_highly_elongated() {
-    let mut data = vec![0.0_f32; 5]; // [1,1,5]
-    data[0] = 1.0;
-    data[1] = 1.0;
-    data[2] = 1.0;
-    data[3] = 1.0;
-    data[4] = 1.0;
-    let img = make_label_image(data, [1, 1, 5], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
-    // Elongation should be near 0 for a thin line (λ1 << λ2)
     assert!(
-        stats[0].elongation < 0.3,
-        "line elongation should be low, got {}",
+        (stats[0].elongation - 1.0).abs() < 0.1,
+        "elongation should be near 1, got {}",
         stats[0].elongation
     );
     assert!(
-        stats[0].flatness < 0.3,
-        "line flatness should be low, got {}",
+        (stats[0].flatness - 1.0).abs() < 0.1,
+        "flatness should be near 1, got {}",
+        stats[0].flatness
+    );
+}
+
+/// Elongated box (3×3×15 along X): ITK elongation = √(λ2/λ1) ≫ 1 (long axis vs
+/// square cross-section), flatness = √(λ1/λ0) ≈ 1 (square cross-section).
+#[test]
+fn line_component_is_highly_elongated() {
+    let (nz, ny, nx) = (3usize, 3usize, 15usize);
+    let data = vec![1.0_f32; nz * ny * nx];
+    let img = make_label_image(data, [nz, ny, nx], [1.0, 1.0, 1.0]);
+    let stats = compute_label_shape_statistics_extended(&img);
+    // λ2 (x, length 15) ≫ λ1 ≈ λ0 (3×3 cross-section) → elongation large.
+    assert!(
+        stats[0].elongation > 2.5,
+        "elongated box elongation should be ≫ 1, got {}",
+        stats[0].elongation
+    );
+    assert!(
+        (stats[0].flatness - 1.0).abs() < 0.1,
+        "square cross-section flatness should be ≈ 1, got {}",
         stats[0].flatness
     );
 }

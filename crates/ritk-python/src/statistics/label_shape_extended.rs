@@ -26,8 +26,8 @@ use std::sync::Arc;
 ///       - count (int): number of foreground voxels
 ///       - perimeter (int): 3-D surface area (voxel face count)
 ///       - roundness (float): sphericity (1.0 = perfect sphere)
-///       - flatness (float): √(λ₀/λ₂) — smallest/largest moment ratio
-///       - elongation (float): √(λ₁/λ₂) — middle/largest moment ratio
+///       - flatness (float): √(λ₁/λ₀) — ITK convention, ≥ 1, 1.0 = isotropic
+///       - elongation (float): √(λ₂/λ₁) — ITK convention, ≥ 1, 1.0 = isotropic
 ///       - principal_moments (list[float]): eigenvalues [λ₀, λ₁, λ₂] ascending
 ///       - centroid (list[float]): [z, y, x] in voxel index coordinates
 ///       - feret_diameter (float): approximate Feret diameter in physical units

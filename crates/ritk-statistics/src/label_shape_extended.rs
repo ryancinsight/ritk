@@ -16,8 +16,8 @@
 //! **Principal moments** λ_0 ≤ λ_1 ≤ λ_2: eigenvalues of I, computed via the
 //! Cardano / characteristic-polynomial method (Kopp 2008, Eberly 2021 §2).
 //!
-//! **Elongation** = √(λ_1/λ_2) ∈ \[0,1\];  returns 1.0 when λ_2 ≤ 0.
-//! **Flatness**   = √(λ_0/λ_2) ∈ \[0,1\];  returns 1.0 when λ_2 ≤ 0.
+//! **Elongation** = √(λ_2/λ_1) ∈ \[1, ∞) (ITK convention); 1.0 when λ_1 ≤ 0.
+//! **Flatness**   = √(λ_1/λ_0) ∈ \[1, ∞) (ITK convention); 1.0 when λ_0 ≤ 0.
 //!
 //! **Feret diameter** (approximate): maximum Euclidean distance between the 8
 //! axis-aligned bounding-box corners in physical units.
@@ -51,9 +51,11 @@ pub struct LabelShapeStatisticsExtended {
     pub perimeter: usize,
     /// V_phys / (π/6 · feret³): ∈ (0,1], 1.0 = sphere. 0.0 if feret = 0.
     pub roundness: f64,
-    /// √(λ_0/λ_2): smallest/largest principal moment ratio. ∈ \[0,1\].
+    /// √(λ_1/λ_0): second-smallest/smallest principal moment ratio (ITK
+    /// `ShapeLabelObject::GetFlatness`). ∈ \[1, ∞); 1.0 = isotropic.
     pub flatness: f64,
-    /// √(λ_1/λ_2): middle/largest principal moment ratio. ∈ \[0,1\].
+    /// √(λ_2/λ_1): largest/second-largest principal moment ratio (ITK
+    /// `ShapeLabelObject::GetElongation`). ∈ \[1, ∞); 1.0 = isotropic.
     pub elongation: f64,
     /// Approximate Feret diameter (bounding-box diagonal) in physical units.
     pub feret_diameter: f64,
@@ -317,16 +319,22 @@ pub fn compute_label_shape_statistics_extended_from_slices(
             let eigs = sym3_eigenvalues(m00, m11, m22, m01, m02, m12);
             let [lambda0, lambda1, lambda2] = eigs;
 
-            // ── Shape descriptors ─────────────────────────────────────────────
-            let elongation = if lambda2 <= 0.0 {
+            // ── Shape descriptors (ITK ShapeLabelObject convention) ───────────
+            // Principal moments are ascending [λ0 ≤ λ1 ≤ λ2]. ITK defines both
+            // ratios over ADJACENT moments and ≥ 1:
+            //   elongation = √(λ2 / λ1)  (largest / second-largest)
+            //   flatness   = √(λ1 / λ0)  (second-smallest / smallest)
+            // For a solid ellipsoid with semi-axes a ≥ b ≥ c these reduce to
+            // a/b and b/c respectively.
+            let elongation = if lambda1 <= 0.0 {
                 1.0
             } else {
-                (lambda1.max(0.0) / lambda2).sqrt()
+                (lambda2 / lambda1).sqrt()
             };
-            let flatness = if lambda2 <= 0.0 {
+            let flatness = if lambda0 <= 0.0 {
                 1.0
             } else {
-                (lambda0.max(0.0) / lambda2).sqrt()
+                (lambda1 / lambda0).sqrt()
             };
 
             let feret = feret_from_bbox(z_min, z_max, y_min, y_max, x_min, x_max, spacing);
