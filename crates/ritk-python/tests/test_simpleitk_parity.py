@@ -716,6 +716,31 @@ def test_label_overlap_measures_agree_with_sitk():
     assert abs(m["false_positive_rate"] - of.GetFalsePositiveError()) < 1e-4
 
 
+def test_label_shape_elongation_flatness_match_sitk():
+    # Solid ellipsoid, semi-axes a=24>b=16>c=10 (voxels). ITK ShapeLabelObject:
+    # elongation = √(λ2/λ1) = a/b = 1.5, flatness = √(λ1/λ0) = b/c = 1.6.
+    # Guards the regression where ritk reported the reciprocal elongation
+    # (√(λ1/λ2)) and a mismatched flatness (√(λ0/λ2)). Principal moments already
+    # matched sitk exactly, so the corrected ratios must too.
+    n = 80
+    a, b, c = 24.0, 16.0, 10.0
+    z, y, x = np.mgrid[:n, :n, :n]
+    cc = n / 2
+    ell = (
+        ((x - cc) / a) ** 2 + ((y - cc) / b) ** 2 + ((z - cc) / c) ** 2 <= 1.0
+    ).astype(np.float32)
+    lsf = sitk.LabelShapeStatisticsImageFilter()
+    lsf.Execute(sitk.Cast(sitk.GetImageFromArray(ell.astype(np.uint8)), sitk.sitkUInt8))
+    m = ritk.statistics.extended_label_shape_statistics_py(_ritk(ell))[0]
+    assert m["count"] == lsf.GetNumberOfPixels(1)
+    assert abs(m["elongation"] - lsf.GetElongation(1)) < 1e-3
+    assert abs(m["flatness"] - lsf.GetFlatness(1)) < 1e-3
+    assert m["elongation"] > 1.0 and m["flatness"] > 1.0, "ITK convention is ≥ 1"
+    s_pm = list(lsf.GetPrincipalMoments(1))
+    for rm, sm in zip(m["principal_moments"], s_pm):
+        assert abs(rm - sm) / max(abs(sm), 1e-9) < 1e-4
+
+
 def test_minmax_normalize_agrees_with_sitk_rescale_intensity():
     # output=(v-v_min)/(v_max-v_min). Tolerance: max diff < 1e-4; spans [0,1].
     arr = _make_noisy()
