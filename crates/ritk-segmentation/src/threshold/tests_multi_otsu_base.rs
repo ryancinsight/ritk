@@ -2,11 +2,14 @@
 //! Extracted from the main module to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::make_image_1d;
+use ritk_image::test_support::make_image;
 
 type TestBackend = NdArray<f32>;
 
-
+fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+    let n = data.len();
+    make_image(data, [n])
+}
 
 fn get_values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
     image

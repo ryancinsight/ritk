@@ -2,10 +2,15 @@
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::make_image;
+use ritk_image::test_support::{make_image, make_image_with};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type TestBackend = NdArray<f32>;
+
+fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+    let n = data.len();
+    make_image(data, [n])
+}
 
 fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
     make_image(data, dims)
@@ -122,18 +127,16 @@ fn test_apply_output_is_strictly_binary() {
 
 #[test]
 fn test_apply_preserves_spatial_metadata() {
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(
-            (0u8..27).map(|x| x as f32).collect::<Vec<f32>>(),
-            Shape::new([3, 3, 3]),
-        ),
-        &device,
+    let origin = ritk_core::spatial::Point::new([1.0, 2.0, 3.0]);
+    let spacing = ritk_core::spatial::Spacing::new([0.5, 0.5, 0.5]);
+    let direction = ritk_core::spatial::Direction::<3>::identity();
+    let image: Image<TestBackend, 3> = make_image_with(
+        (0u8..27).map(|x| x as f32).collect::<Vec<f32>>(),
+        [3, 3, 3],
+        Some(origin),
+        Some(spacing),
+        None,
     );
-    let origin = Point::new([1.0, 2.0, 3.0]);
-    let spacing = Spacing::new([0.5, 0.5, 0.5]);
-    let direction = Direction::identity();
-    let image: Image<TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
 
     let mask = OtsuThreshold::new().apply(&image);
 
@@ -280,30 +283,11 @@ fn test_with_bins_zero_panics() {
 /// normalised histogram; the only difference is the data source.
 #[test]
 fn test_compute_otsu_from_slice_matches_filter() {
-    use burn::tensor::{Shape, Tensor, TensorData};
-    use burn_ndarray::NdArray;
-    use ritk_core::spatial::{Direction, Point, Spacing};
-
-    type B = NdArray<f32>;
-
-
-fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
-    let n = data.len();
-    make_image(data, [n])
-}
     // Bimodal distribution: 128 voxels at 10.0 and 128 at 90.0.
     let mut vals: Vec<f32> = vec![10.0_f32; 128];
     vals.extend(vec![90.0_f32; 128]);
 
-    let device = Default::default();
-    let tensor =
-        Tensor::<B, 1>::from_data(TensorData::new(vals.clone(), Shape::new([256])), &device);
-    let img = ritk_image::Image::new(
-        tensor,
-        Point::new([0.0]),
-        Spacing::new([1.0]),
-        Direction::identity(),
-    );
+    let img = make_image_1d(vals.clone());
 
     let filter = OtsuThreshold::new();
     let threshold_filter = filter.compute(&img);

@@ -2,7 +2,8 @@
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::make_image;
+use ritk_image::test_support::{make_image, make_image_with};
+use ritk_core::spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
@@ -11,6 +12,7 @@ fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
     let n = data.len();
     make_image(data, [n])
 }
+
 fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
     make_image(data, dims)
 }
@@ -198,13 +200,16 @@ fn test_single_point_band_lower_eq_upper() {
 
 #[test]
 fn test_spatial_metadata_preserved() {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
-    let td = TensorData::new(vec![100.0_f32; 24], Shape::new([2, 3, 4]));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
-    let direction = Direction::identity();
-    let image: Image<B, 3> = Image::new(tensor, origin, spacing, direction);
+    let direction = Direction::<3>::identity();
+    let image: Image<B, 3> = make_image_with(
+        vec![100.0_f32; 24],
+        [2, 3, 4],
+        Some(origin),
+        Some(spacing),
+        None,
+    );
 
     let result = BinaryThreshold::new(50.0, 150.0).apply(&image);
     assert_eq!(result.origin(), &origin);

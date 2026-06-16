@@ -1,7 +1,7 @@
 use super::*;
 use burn_ndarray::NdArray;
 use ritk_image::test_support::{make_image, make_image_with};
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_core::spatial::{Point, Spacing};
 use ritk_filter::edge::GaussianSigma;
 
 type B = NdArray<f32>;
@@ -341,8 +341,8 @@ fn test_metadata_preserved() {
 
 #[test]
 fn test_shape_mismatch_returns_error() {
-    let image = make_image(vec![0.0_f32; 27], [3, 3, 3]);
-    let phi_image = make_image(vec![0.0_f32; 8], [2, 2, 2]);
+    let image: Image<B, 3> = make_image(vec![0.0_f32; 27], [3, 3, 3]);
+    let phi_image: Image<B, 3> = make_image(vec![0.0_f32; 8], [2, 2, 2]);
 
     let gac = GeodesicActiveContourSegmentation::new();
     let result = gac.apply(&image, &phi_image);

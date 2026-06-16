@@ -4,7 +4,7 @@
 use super::*;
 use burn_ndarray::NdArray;
 use ritk_image::test_support::{make_image, make_image_with};
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_core::spatial::{Point, Spacing};
 
 type B = NdArray<f32>;
 

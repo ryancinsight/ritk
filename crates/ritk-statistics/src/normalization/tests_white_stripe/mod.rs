@@ -1,5 +1,4 @@
 use burn_ndarray::NdArray;
-use ritk_image::test_support::make_image;
 use ritk_image::Image;
 
 pub(super) type TestBackend = NdArray<f32>;

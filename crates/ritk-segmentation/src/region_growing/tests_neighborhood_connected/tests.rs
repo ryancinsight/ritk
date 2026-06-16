@@ -2,8 +2,10 @@
 //! Extracted from the main module to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
+use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_image::test_support::make_image;
 use ritk_core::image::Image;
+use ritk_core::spatial::{Direction, Point, Spacing};
 
 type TestBackend = NdArray<f32>;
 

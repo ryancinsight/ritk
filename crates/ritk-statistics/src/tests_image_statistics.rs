@@ -1,24 +1,16 @@
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support;
+use ritk_image::test_support::make_image;
 use ritk_image::Image;
 
 type TestBackend = NdArray<f32>;
-
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
-    test_support::make_image_1d(data)
-}
-
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
-    test_support::make_image(data, dims)
-}
 
 // ── Positive tests ────────────────────────────────────────────────────────
 
 #[test]
 fn test_uniform_image() {
     // All voxels = 5.0 → std = 0, all percentiles = 5.
-    let image = make_image_3d(vec![5.0f32; 27], [3, 3, 3]);
+    let image: Image<TestBackend, 3> = make_image(vec![5.0f32; 27], [3, 3, 3]);
     let s = compute_statistics(&image);
 
     assert_eq!(s.min, 5.0);
@@ -37,7 +29,7 @@ fn test_known_sequence() {
     //   p50 = values[8/2]   = values[4] = 5.0
     //   p75 = values[24/4]  = values[6] = 7.0
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
-    let image = make_image_1d(data);
+    let image: Image<TestBackend, 1> = make_image(data, [8]);
     let s = compute_statistics(&image);
 
     assert_eq!(s.min, 1.0);
@@ -57,7 +49,7 @@ fn test_known_sequence() {
 #[test]
 fn test_single_voxel() {
     // n=1: all statistics collapse to the single value.
-    let image = make_image_1d(vec![42.0]);
+    let image: Image<TestBackend, 1> = make_image(vec![42.0], [1]);
     let s = compute_statistics(&image);
 
     assert_eq!(s.min, 42.0);
@@ -74,7 +66,7 @@ fn test_two_values() {
     //   p25 = values[2/4=0] = 1.0
     //   p50 = values[2/2=1] = 2.0
     //   p75 = values[6/4=1] = 2.0
-    let image = make_image_1d(vec![1.0, 2.0]);
+    let image: Image<TestBackend, 1> = make_image(vec![1.0, 2.0], [2]);
     let s = compute_statistics(&image);
 
     assert_eq!(s.min, 1.0);
@@ -89,8 +81,8 @@ fn test_two_values() {
 #[test]
 fn test_reverse_order_input_matches_sorted() {
     // Sort order of input must not change the result.
-    let sorted = make_image_1d(vec![1.0, 2.0, 3.0, 4.0]);
-    let reversed = make_image_1d(vec![4.0, 3.0, 2.0, 1.0]);
+    let sorted: Image<TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0, 4.0], [4]);
+    let reversed: Image<TestBackend, 1> = make_image(vec![4.0, 3.0, 2.0, 1.0], [4]);
 
     let s_sorted = compute_statistics(&sorted);
     let s_reversed = compute_statistics(&reversed);
@@ -118,8 +110,8 @@ fn test_masked_statistics_subset() {
         *v = 1.0;
     }
 
-    let image = make_image_1d(data);
-    let mask = make_image_1d(mask_data);
+    let image: Image<TestBackend, 1> = make_image(data, [8]);
+    let mask: Image<TestBackend, 1> = make_image(mask_data, [8]);
     let s = masked_statistics(&image, &mask);
 
     assert_eq!(s.min, 3.0);
@@ -142,8 +134,8 @@ fn test_masked_statistics_all_foreground_matches_full() {
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
     let mask_data = vec![1.0f32; 8];
 
-    let image = make_image_1d(data);
-    let mask = make_image_1d(mask_data);
+    let image: Image<TestBackend, 1> = make_image(data, [8]);
+    let mask: Image<TestBackend, 1> = make_image(mask_data, [8]);
 
     let s_full = compute_statistics(&image);
     let s_masked = masked_statistics(&image, &mask);
@@ -162,8 +154,8 @@ fn test_masked_statistics_single_foreground_voxel() {
     let mut mask_data = vec![0.0f32; 4];
     mask_data[2] = 1.0; // foreground is value 30.0
 
-    let image = make_image_1d(data);
-    let mask = make_image_1d(mask_data);
+    let image: Image<TestBackend, 1> = make_image(data, [4]);
+    let mask: Image<TestBackend, 1> = make_image(mask_data, [4]);
     let s = masked_statistics(&image, &mask);
 
     assert_eq!(s.min, 30.0);
@@ -178,16 +170,16 @@ fn test_masked_statistics_single_foreground_voxel() {
 #[test]
 #[should_panic(expected = "mask contains no foreground voxels")]
 fn test_masked_statistics_empty_mask_panics() {
-    let image = make_image_1d(vec![1.0, 2.0, 3.0]);
-    let mask = make_image_1d(vec![0.0, 0.0, 0.0]);
+    let image: Image<TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0], [3]);
+    let mask: Image<TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0], [3]);
     let _ = masked_statistics(&image, &mask);
 }
 
 #[test]
 #[should_panic(expected = "identical element count")]
 fn test_masked_statistics_shape_mismatch_panics() {
-    let image = make_image_1d(vec![1.0, 2.0, 3.0]);
-    let mask = make_image_1d(vec![1.0, 1.0]);
+    let image: Image<TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0], [3]);
+    let mask: Image<TestBackend, 1> = make_image(vec![1.0, 1.0], [2]);
     let _ = masked_statistics(&image, &mask);
 }
 

@@ -1,7 +1,6 @@
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_image::test_support::make_image;
+use ritk_image::test_support::{make_image, make_image_with};
 
 type TestBackend = NdArray<f32>;
 
@@ -40,15 +39,16 @@ fn test_zscore_unit_variance() {
 
 #[test]
 fn test_zscore_preserves_metadata() {
-    let device = Default::default();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![1.0f32; 27], Shape::new([3, 3, 3])),
-        &device,
-    );
     let origin = ritk_spatial::Point::new([1.0, 2.0, 3.0]);
     let spacing = ritk_spatial::Spacing::new([0.5, 0.5, 0.5]);
     let direction = ritk_spatial::Direction::identity();
-    let image: Image<TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
+    let image: Image<TestBackend, 3> = make_image_with(
+        vec![1.0_f32; 27],
+        [3, 3, 3],
+        Some(origin),
+        Some(spacing),
+        Some(direction),
+    );
 
     let normalizer = ZScoreNormalizer::new();
     let result = normalizer.normalize(&image);
@@ -208,23 +208,26 @@ fn test_zscore_masked_empty_mask_falls_back_to_full_image() {
 fn test_zscore_masked_preserves_metadata() {
     // Verify origin, spacing, direction, and shape are carried through
     // normalize_masked unchanged.
-    let device = Default::default();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![1.0f32; 27], Shape::new([3, 3, 3])),
-        &device,
-    );
-    // Single foreground voxel so masked_statistics path is exercised.
-    let mut mask_data = vec![0.0f32; 27];
-    mask_data[0] = 1.0;
-    let mask_tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(mask_data, Shape::new([3, 3, 3])),
-        &device,
-    );
     let origin = ritk_spatial::Point::new([1.0, 2.0, 3.0]);
     let spacing = ritk_spatial::Spacing::new([0.5, 0.5, 0.5]);
     let direction = ritk_spatial::Direction::identity();
-    let image: Image<TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
-    let mask: Image<TestBackend, 3> = Image::new(mask_tensor, origin, spacing, direction);
+    // Single foreground voxel so masked_statistics path is exercised.
+    let mut mask_data = vec![0.0_f32; 27];
+    mask_data[0] = 1.0;
+    let image: Image<TestBackend, 3> = make_image_with(
+        vec![1.0_f32; 27],
+        [3, 3, 3],
+        Some(origin),
+        Some(spacing),
+        Some(direction),
+    );
+    let mask: Image<TestBackend, 3> = make_image_with(
+        mask_data,
+        [3, 3, 3],
+        Some(origin),
+        Some(spacing),
+        Some(direction),
+    );
 
     let normalizer = ZScoreNormalizer::new();
     let result = normalizer.normalize_masked(&image, &mask);

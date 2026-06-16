@@ -2,6 +2,7 @@
 //! Extracted to keep the 500-line structural limit.
 
 use super::*;
+use ritk_image::test_support::make_image_with;
 use ritk_core::spatial::{Direction, Point, Spacing};
 
 type B = burn_ndarray::NdArray<f32>;
@@ -108,7 +109,7 @@ fn test_metadata_preserved() {
     let dims = [6, 6, 6];
     let origin = [2.0, 3.0, 4.0];
     let spacing = [0.5, 0.5, 1.0];
-    let image = make_image_with_metadata(dims, 128.0, origin, spacing);
+    let image = make_image_with_metadata(vec![128.0; dims.iter().product()], dims, origin, spacing);
     let phi = sphere_phi(dims, [3.0, 3.0, 3.0], 2.0);
     let result = LaplacianLevelSet::new().apply(&image, &phi).unwrap();
     assert_eq!(result.origin(), &Point::new(origin));

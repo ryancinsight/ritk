@@ -10,8 +10,6 @@ fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
     make_image(data, [n])
 }
 
-
-
 fn get_values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
     image
         .data()

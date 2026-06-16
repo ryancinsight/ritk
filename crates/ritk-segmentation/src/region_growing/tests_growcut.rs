@@ -1,9 +1,12 @@
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::make_image;
 use ritk_image::Image;
 
 type TestBackend = NdArray<f32>;
+
+fn make_image(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
+    ritk_image::test_support::make_image(data, dims)
+}
 
 
 fn get_labels(image: &Image<TestBackend, 3>) -> Vec<u32> {

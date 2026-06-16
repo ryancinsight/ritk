@@ -1,10 +1,16 @@
 //! Extracted tests: general invariants, edge cases, internal variance, negative, from_slice.
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::make_image;
+use ritk_image::test_support::{make_image, make_image_with};
+use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type TestBackend = NdArray<f32>;
+
+fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+    let n = data.len();
+    make_image(data, [n])
+}
 
 fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
     make_image(data, dims)
@@ -80,7 +86,6 @@ fn test_computation_is_deterministic() {
 
 #[test]
 fn test_apply_preserves_spatial_metadata_volumetric() {
-    let device: <TestBackend as Backend>::Device = Default::default();
     let data: Vec<f32> = (0u8..27)
         .map(|x| {
             if x < 9 {
@@ -92,12 +97,10 @@ fn test_apply_preserves_spatial_metadata_volumetric() {
             }
         })
         .collect();
-    let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new([3, 3, 3])), &device);
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.5, 0.5]);
-    let direction = Direction::identity();
-    let image: Image<TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
+    let direction = Direction::<3>::identity();
+    let image: Image<TestBackend, 3> = make_image_with(data, [3, 3, 3], Some(origin), Some(spacing), None);
     let labels = MultiOtsuThreshold::new(3).apply(&image);
     assert_eq!(labels.origin(), &origin, "origin must be preserved");
     assert_eq!(labels.spacing(), &spacing, "spacing must be preserved");
