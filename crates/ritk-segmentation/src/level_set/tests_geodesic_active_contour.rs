@@ -1,21 +1,11 @@
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support::{make_image, make_image_with};
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::edge::GaussianSigma;
 
 type B = NdArray<f32>;
 
-fn make_image(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    )
-}
 
 fn make_image_with_metadata(
     data: Vec<f32>,
@@ -23,13 +13,15 @@ fn make_image_with_metadata(
     origin: [f64; 3],
     spacing: [f64; 3],
 ) -> Image<B, 3> {
-    let device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-    Image::new(
-        tensor,
-        Point::new(origin),
-        Spacing::new(spacing),
-        Direction::identity(),
+    make_image_with(
+        data, dims,
+        Some(Point::new(origin)),
+        Some(Spacing::new(spacing)),
+        None,
+    )
+}),
+        Some(ritk_spatial::Spacing::new(spacing)),
+        None,
     )
 }
 

@@ -3,6 +3,7 @@
 use super::{connected_threshold, ConnectedThresholdFilter};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support::make_image;
 use ritk_core::{
     image::Image,
     spatial::{Direction, Point, Spacing},
@@ -10,17 +11,6 @@ use ritk_core::{
 
 type TestBackend = NdArray<f32>;
 
-fn make_image(values: Vec<f32>, shape: [usize; 3]) -> Image<TestBackend, 3> {
-    let device = Default::default();
-    let td = TensorData::new(values, Shape::new(shape));
-    let tensor = Tensor::<TestBackend, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    )
-}
 
 fn get_values(image: &Image<TestBackend, 3>) -> Vec<f32> {
     image

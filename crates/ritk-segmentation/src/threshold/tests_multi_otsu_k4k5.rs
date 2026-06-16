@@ -1,22 +1,12 @@
 //! Extracted tests: K=4, K=5, between-class variance K=2 product formula, adversarial.
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::test_support::make_image_1d;
 
 type TestBackend = NdArray<f32>;
 
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
-    let n = data.len();
-    let device = Default::default();
-    let tensor =
-        Tensor::<TestBackend, 1>::from_data(TensorData::new(data, Shape::new([n])), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0]),
-        Spacing::new([1.0]),
-        Direction::identity(),
-    )
+fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
+    make_image_1d(data)
 }
 
 fn get_values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {

@@ -17,20 +17,20 @@ fn make_image(dims: [usize; 3], val: f32) -> Image<B, 3> {
 }
 
 fn make_image_with_metadata(
+    data: Vec<f32>,
     dims: [usize; 3],
-    val: f32,
     origin: [f64; 3],
     spacing: [f64; 3],
 ) -> Image<B, 3> {
-    let n: usize = dims.iter().product();
-    let device = Default::default();
-    let tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(vec![val; n], Shape::new(dims)), &device);
-    Image::new(
-        tensor,
-        Point::new(origin),
-        Spacing::new(spacing),
-        Direction::identity(),
+    make_image_with(
+        data, dims,
+        Some(Point::new(origin)),
+        Some(Spacing::new(spacing)),
+        None,
+    )
+}),
+        Some(ritk_spatial::Spacing::new(spacing)),
+        None,
     )
 }
 
