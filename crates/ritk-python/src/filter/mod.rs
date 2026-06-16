@@ -70,6 +70,10 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sigmoid_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(blend_images, &m)?)?;
+    // Additional intensity transforms
+    m.add_function(wrap_pyfunction!(normalize_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(unsharp_mask, &m)?)?;
+    m.add_function(wrap_pyfunction!(zero_crossing_image, &m)?)?;
     // Arithmetic
     m.add_function(wrap_pyfunction!(add_images, &m)?)?;
     m.add_function(wrap_pyfunction!(subtract_images, &m)?)?;
@@ -90,6 +94,9 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(morphological_reconstruction, &m)?)?;
     // Spatial transforms
     m.add_function(wrap_pyfunction!(resample_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(rotate_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(shift_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(zoom_image, &m)?)?;
     m.add_function(wrap_pyfunction!(distance_transform, &m)?)?;
     // FFT / frequency domain
     m.add_function(wrap_pyfunction!(forward_fft, &m)?)?;

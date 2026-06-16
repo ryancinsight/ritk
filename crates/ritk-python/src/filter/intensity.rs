@@ -1,11 +1,14 @@
-//! Intensity transform filters: rescale, windowing, thresholds, sigmoid, binary threshold, blend.
+//! Intensity transform filters: rescale, windowing, thresholds, sigmoid, binary threshold, blend,
+//! normalize, unsharp mask, and zero crossing.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
+use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
-    BinaryThresholdImageFilter, BlendImageFilter, IntensityWindowingFilter, RescaleIntensityFilter,
-    SigmoidImageFilter, ThresholdImageFilter,
+    BinaryThresholdImageFilter, BlendImageFilter, ClampPolicy, IntensityWindowingFilter,
+    NormalizeImageFilter, RescaleIntensityFilter, SigmoidImageFilter, ThresholdImageFilter,
+    UnsharpMaskFilter, ZeroCrossingImageFilter,
 };
 
 /// Linearly rescale image intensity to [out_min, out_max].
@@ -213,6 +216,124 @@ pub fn blend_images(py: Python<'_>, a: &PyImage, b: &PyImage, alpha: f32) -> Rit
     py.allow_threads(|| {
         BlendImageFilter::new(alpha)
             .apply(a_arc.as_ref(), b_arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Zero-mean, unit-variance intensity normalization.
+///
+/// Computes global mean μ and standard deviation σ, then outputs
+/// `(I(x) − μ) / σ` for each voxel. Constant images (σ = 0) produce
+/// all-zero output. Equivalent to ITK `NormalizeImageFilter`.
+///
+/// Args:
+///     image: Input PyImage.
+///
+/// Returns:
+///     Normalized PyImage with identical shape and spatial metadata.
+#[pyfunction]
+pub fn normalize_image(py: Python<'_>, image: &PyImage) -> PyImage {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = NormalizeImageFilter::new();
+        filter.apply(image.as_ref())
+    });
+    into_py_image(result)
+}
+
+/// Unsharp mask sharpening filter.
+///
+/// Sharpens an image by amplifying the high-frequency residual between the
+/// input and its Gaussian-blurred version.
+///
+/// Given input `I` and blurred version `B = Gaussian(I, sigma)`:
+/// ```text
+/// mask(p)   = I(p) - B(p)
+/// output(p) = I(p) + amount * max(|mask(p)| - threshold, 0) * sign(mask(p))
+/// ```
+/// Output is clamped to `[min(I), max(I)]` when `clamp=True`.
+///
+/// Equivalent to ITK `UnsharpMaskingImageFilter` with identical parameter
+/// semantics. ImageJ "Unsharp Mask" is the special case `threshold=0.0`.
+///
+/// Args:
+///     image:     Input PyImage.
+///     sigma:     Gaussian blur sigma in physical units (mm). Applied
+///                isotropically to all three axes (default 1.0).
+///     amount:    Sharpening strength in [0, ∞). Default 0.5.
+///     threshold: Minimum absolute mask value to trigger sharpening.
+///                Voxels with |mask| < threshold are left unchanged (default 0.0).
+///     clamp:     If True, clamp output to original intensity range (default True).
+///
+/// Returns:
+///     Sharpened PyImage with identical shape and spatial metadata.
+///
+/// Raises:
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, sigma=1.0_f64, amount=0.5_f64, threshold=0.0_f64, clamp=true))]
+pub fn unsharp_mask(
+    py: Python<'_>,
+    image: &PyImage,
+    sigma: f64,
+    amount: f64,
+    threshold: f64,
+    clamp: bool,
+) -> RitkResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        let clamp_policy = if clamp {
+            ClampPolicy::ClampToInputRange
+        } else {
+            ClampPolicy::NoClamp
+        };
+        let filter = UnsharpMaskFilter::new(
+            vec![GaussianSigma::new_unchecked(sigma); 3],
+            amount,
+            threshold,
+            clamp_policy,
+        );
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Detect zero crossings in a 3-D image.
+///
+/// Marks voxels where the image crosses zero (sign change in 6-connected
+/// neighbourhood or exact zero). Typical use: detect edges from a
+/// Laplacian-of-Gaussian image.
+///
+/// Equivalent to ITK `ZeroCrossingImageFilter`.
+///
+/// Args:
+///     image:            Input PyImage (typically LoG output).
+///     foreground_value: Output value at zero-crossing voxels (default 1.0).
+///     background_value: Output value at non-crossing voxels (default 0.0).
+///
+/// Returns:
+///     Binary-valued PyImage with identical shape and spatial metadata.
+///
+/// Raises:
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, foreground_value=1.0_f32, background_value=0.0_f32))]
+pub fn zero_crossing_image(
+    py: Python<'_>,
+    image: &PyImage,
+    foreground_value: f32,
+    background_value: f32,
+) -> RitkResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        let filter = ZeroCrossingImageFilter::new()
+            .with_foreground(foreground_value)
+            .with_background(background_value);
+        filter
+            .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
