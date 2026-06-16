@@ -852,6 +852,31 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+def test_marker_watershed_matches_sitk():
+    # Marker-controlled watershed is deterministic given the relief and markers.
+    # ritk always marks watershed-line voxels as label 0, matching sitk's
+    # MorphologicalWatershedFromMarkers(markWatershedLine=True).
+    nz, ny, nx = 8, 24, 28
+    z, y, x = np.mgrid[:nz, :ny, :nx]
+    img = (100 * np.exp(-(((x - 8) / 4) ** 2 + ((y - 12) / 4) ** 2 + ((z - 4) / 3) ** 2))
+           + 100 * np.exp(-(((x - 20) / 4) ** 2 + ((y - 12) / 4) ** 2 + ((z - 4) / 3) ** 2))).astype(np.float32)
+    grad = sitk.GradientMagnitude(_sitk(img))
+    ga = sitk.GetArrayFromImage(grad).astype(np.float32)
+    markers = np.zeros((nz, ny, nx), np.float32)
+    markers[4, 12, 8] = 1
+    markers[4, 12, 20] = 2
+    markers[0, 0, 0] = 3
+    rm = np.asarray(
+        ritk.segmentation.marker_watershed_segment(_ritk(ga), _ritk(markers)).to_numpy()
+    ).astype(int)
+    sm_img = sitk.MorphologicalWatershedFromMarkers(
+        grad, sitk.Cast(sitk.GetImageFromArray(markers.astype(np.uint8)), sitk.sitkUInt8),
+        markWatershedLine=True, fullyConnected=False,
+    )
+    sm = sitk.GetArrayFromImage(sm_img).astype(int)
+    assert np.array_equal(rm, sm)
+
+
 def test_staple_matches_sitk():
     # STAPLE EM converges to the same probabilistic truth and per-rater
     # sensitivity/specificity as sitk.STAPLE.
