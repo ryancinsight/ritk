@@ -7,7 +7,7 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use pyo3::prelude::*;
 use ritk_filter::ResampleImageFilter;
 use ritk_interpolation::LinearInterpolator;
-use ritk_interpolation::{BSplineInterpolator, Lanczos4Interpolator, NearestNeighborInterpolator};
+use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
 use ritk_segmentation::DistanceTransform;
 use ritk_spatial::Spacing as CoreSpacing;
 use ritk_transform::affine::translation::TranslationTransform;
@@ -47,7 +47,9 @@ impl<'py> FromPyObject<'py> for PyDistanceMetric {
 ///     spacing_z: Output voxel spacing along Z axis (default 1.0 mm).
 ///     spacing_y: Output voxel spacing along Y axis (default 1.0 mm).
 ///     spacing_x: Output voxel spacing along X axis (default 1.0 mm).
-///     mode:      Interpolation mode: "nearest", "linear" (default), "bspline", "lanczos4".
+///     mode:      Interpolation mode: "nearest", "linear" (default), "bspline", "lanczos".
+///                "lanczos" is the radius-5 windowed-sinc matching
+///                SimpleITK's `sitkLanczosWindowedSinc`.
 ///
 /// Returns:
 ///     Resampled PyImage with updated spacing and shape.
@@ -123,17 +125,17 @@ pub fn resample_image(
                 BSplineInterpolator::new(),
             )
             .apply(inner.as_ref())),
-            "lanczos4" => Ok(ResampleImageFilter::new(
+            "lanczos" => Ok(ResampleImageFilter::new(
                 [new_nz, new_ny, new_nx],
                 orig_orig,
                 new_sp,
                 orig_dir,
                 TranslationTransform::<Backend, 3>::new(zero_t),
-                Lanczos4Interpolator::new(),
+                Lanczos5Interpolator::new(),
             )
             .apply(inner.as_ref())),
             other => Err(format!(
-                "Unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos4",
+                "Unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos",
                 other
             )),
         }

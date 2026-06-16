@@ -10,7 +10,7 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use clap;
 use ritk_filter::resample::ResampleImageFilter;
 use ritk_interpolation::{
-    BSplineInterpolator, Lanczos4Interpolator, LinearInterpolator, NearestNeighborInterpolator,
+    BSplineInterpolator, Lanczos5Interpolator, LinearInterpolator, NearestNeighborInterpolator,
 };
 use ritk_transform::TranslationTransform;
 use std::path::PathBuf;
@@ -27,8 +27,9 @@ pub enum InterpolationMode {
     Linear,
     /// Cubic B-spline: higher-order smooth interpolation.
     BSpline,
-    /// Lanczos (windowed sinc, kernel radius 4): highest quality for downsampling.
-    Lanczos4,
+    /// Lanczos (windowed sinc, kernel radius 5): highest quality for
+    /// downsampling. Matches SimpleITK's `sitkLanczosWindowedSinc`.
+    Lanczos,
 }
 
 /// Resample an image to a new voxel spacing.
@@ -121,13 +122,13 @@ pub fn run(args: ResampleArgs) -> Result<()> {
             BSplineInterpolator::new(),
         )
         .apply(&image),
-        InterpolationMode::Lanczos4 => ResampleImageFilter::new(
+        InterpolationMode::Lanczos => ResampleImageFilter::new(
             [new_nz, new_ny, new_nx],
             orig_origin,
             new_spacing,
             orig_dir,
             TranslationTransform::<Backend, 3>::new(zero_t),
-            Lanczos4Interpolator::new(),
+            Lanczos5Interpolator::new(),
         )
         .apply(&image),
     };

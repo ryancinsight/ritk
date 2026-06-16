@@ -166,13 +166,20 @@ fn test_sinc_interpolator_constant_image() {
     let result_data = result.into_data();
     let slice = result_data.as_slice::<f32>().unwrap();
 
-    // For a constant image, interpolation should return the constant value
+    // The windowed-sinc kernel is not renormalized (ITK semantics — see
+    // `compute_lanczos_weights`), so a constant `C` reconstructs as
+    // `C · (Σ wx)(Σ wy)`, where the per-axis weight sum deviates from 1 by the
+    // Lanczos-`A` partition-of-unity defect `δ = maxₓ |1 − Σ_k L_A(k − x)|`.
+    // For `A = 3`, `δ ≈ 5.70e-3`, so the 2-D reconstruction error is bounded by
+    // `C·(1 − (1 − δ)²) ≈ 42 · 0.01137 ≈ 0.478` (attained at the half-integer
+    // offset (0.5, 0.5)). Renormalizing would null this defect but break parity
+    // with `sitk.Resample(..., sitkLanczosWindowedSinc)`.
+    const A3_PU_DEFECT: f32 = 5.70e-3;
+    let tol = 42.0 * (1.0 - (1.0 - A3_PU_DEFECT).powi(2)) + 1e-3;
     for (i, &val) in slice.iter().enumerate() {
         assert!(
-            (val - 42.0).abs() < 0.1,
-            "Expected ~42.0 at index {}, got {}",
-            i,
-            val
+            (val - 42.0).abs() <= tol,
+            "Expected 42.0 within windowed-sinc defect {tol:.4} at index {i}, got {val}",
         );
     }
 }

@@ -38,10 +38,6 @@ use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
 
-/// Weight magnitude below which a Lanczos kernel sample is treated as zero.
-/// Derived from f32 epsilon (~1.2e-7) with a 3-order safety margin.
-const LANCZOS_WEIGHT_EPS: f32 = 1e-10;
-
 /// Lanczos-windowed Sinc interpolator.
 ///
 /// Implements high-quality bandlimited interpolation using the Lanczos kernel.
@@ -156,39 +152,41 @@ pub(crate) fn lanczos_kernel<const A: usize>(x: f32) -> f32 {
 
 /// Precompute Lanczos kernel weights for a single dimension.
 ///
-/// Given a continuous coordinate, computes the `(2A)` weights and integer offsets
-/// for all contributing samples along one dimension.
+/// Given a continuous coordinate, computes the full `2A` (index, weight) taps
+/// spanning `center - A + 1 ..= center + A`. Taps whose index leaves
+/// `[0, dim_size - 1]` are **edge-clamped** to the nearest in-bounds voxel and
+/// keep their kernel weight — matching ITK's `WindowedSincInterpolateImageFunction`
+/// with a `ZeroFluxNeumann` boundary. The weights are deliberately **not**
+/// renormalized: ITK relies on the windowed-sinc kernel being an approximate
+/// partition of unity (sum-of-weights deviates from 1 by the radius-dependent
+/// window defect, ~5.7e-3 for `A = 3`, ~1.3e-3 for `A = 5`). Renormalizing here
+/// would shift every sample by that defect and break differential parity with
+/// `sitk.Resample(..., sitkLanczosWindowedSinc)`.
 ///
 /// # Arguments
 ///
 /// * `coord` - Continuous coordinate (may be fractional)
-/// * `dim_size` - Size of the dimension (for bounds checking)
+/// * `dim_size` - Size of the dimension (for edge clamping)
 ///
 /// # Returns
 ///
-/// Vector of (integer_index, weight) pairs for non-zero weights.
+/// Vector of exactly `2A` (clamped_index, weight) pairs.
 pub(crate) fn compute_lanczos_weights<const A: usize>(
     coord: f32,
     dim_size: usize,
 ) -> Vec<(i64, f32)> {
     let center = coord.floor() as i64;
     let frac = coord - center as f32;
+    let max_idx = dim_size as i64 - 1;
 
     let mut weights = Vec::with_capacity(2 * A);
 
-    // Sample from center - A + 1 to center + A
-    // This covers all positions where the kernel is non-zero
+    // Sample from center - A + 1 to center + A (all positions where the kernel
+    // is non-zero), edge-clamping indices that fall outside the buffer.
     for k in -(A as i64 - 1)..=(A as i64) {
-        let idx = center + k;
+        let idx = (center + k).clamp(0, max_idx);
         let x = k as f32 - frac;
-
-        // Bounds check: only include valid indices
-        if idx >= 0 && (idx as usize) < dim_size {
-            let weight = lanczos_kernel::<A>(x);
-            if weight.abs() > LANCZOS_WEIGHT_EPS {
-                weights.push((idx, weight));
-            }
-        }
+        weights.push((idx, lanczos_kernel::<A>(x)));
     }
 
     weights
@@ -218,47 +216,28 @@ fn interpolate_point_3d_flat<const A: usize>(
     let (x, y, z) = (coords[0], coords[1], coords[2]);
     let (d2, d1, d0) = (dims[2], dims[1], dims[0]); // X, Y, Z sizes
 
-    // Precompute weights for each dimension
+    // Precompute the 2A edge-clamped weights for each dimension.
     let weights_x = compute_lanczos_weights::<A>(x, d2);
     let weights_y = compute_lanczos_weights::<A>(y, d1);
     let weights_z = compute_lanczos_weights::<A>(z, d0);
 
-    // Early exit if no valid weights (should not happen for in-bounds coordinates)
-    if weights_x.is_empty() || weights_y.is_empty() || weights_z.is_empty() {
-        return 0.0;
-    }
-
-    // Accumulate the weighted sum
+    // Accumulate the separable weighted sum (no renormalization — see
+    // `compute_lanczos_weights`):
     // L(x,y,z) = Σᵢ Σⱼ Σₖ L_x(i) · L_y(j) · L_z(k) · f[i,j,k]
     let mut result = 0.0;
-    let mut weight_sum = 0.0;
 
     for (iz, wz) in &weights_z {
         for (iy, wy) in &weights_y {
             for (ix, wx) in &weights_x {
-                // Combined weight from separable kernel
                 let w = wz * wy * wx;
-
-                // Linear index: data is [Z, Y, X] layout
-                // idx = iz * (d1 * d2) + iy * d2 + ix
+                // Linear index: data is [Z, Y, X] layout.
                 let idx = (*iz as usize) * (d1 * d2) + (*iy as usize) * d2 + (*ix as usize);
-
-                let val = flat_slice[idx];
-
-                result += w * val;
-                weight_sum += w;
+                result += w * flat_slice[idx];
             }
         }
     }
 
-    // Normalize by weight sum to handle boundary effects
-    // This ensures reconstruction fidelity even when some kernel samples
-    // fall outside the image bounds
-    if weight_sum.abs() > LANCZOS_WEIGHT_EPS {
-        result / weight_sum
-    } else {
-        0.0
-    }
+    result
 }
 
 /// Interpolate a single point in a 2D image using Lanczos kernel.
@@ -282,36 +261,23 @@ fn interpolate_point_2d_flat<const A: usize>(
     let (x, y) = (coords[0], coords[1]);
     let (d1, d0) = (dims[1], dims[0]); // X, Y sizes
 
-    // Precompute weights for each dimension
+    // Precompute the 2A edge-clamped weights for each dimension.
     let weights_x = compute_lanczos_weights::<A>(x, d1);
     let weights_y = compute_lanczos_weights::<A>(y, d0);
 
-    if weights_x.is_empty() || weights_y.is_empty() {
-        return 0.0;
-    }
-
+    // Separable weighted sum, no renormalization (see `compute_lanczos_weights`).
     let mut result = 0.0;
-    let mut weight_sum = 0.0;
 
     for (iy, wy) in &weights_y {
         for (ix, wx) in &weights_x {
             let w = wy * wx;
-
-            // Linear index: data is [Y, X] layout
+            // Linear index: data is [Y, X] layout.
             let idx = (*iy as usize) * d1 + (*ix as usize);
-
-            let val = flat_slice[idx];
-
-            result += w * val;
-            weight_sum += w;
+            result += w * flat_slice[idx];
         }
     }
 
-    if weight_sum.abs() > LANCZOS_WEIGHT_EPS {
-        result / weight_sum
-    } else {
-        0.0
-    }
+    result
 }
 
 impl<B: Backend, const A: usize> Interpolator<B> for LanczosInterpolator<A> {
