@@ -827,6 +827,28 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+@pytest.mark.parametrize("op,sfn", [
+    ("binary_dilation", lambda m, r: sitk.BinaryDilate(m, [r, r, r], sitk.sitkBox, 0.0, 1.0)),
+    ("binary_erosion", lambda m, r: sitk.BinaryErode(m, [r, r, r], sitk.sitkBox, 0.0, 1.0)),
+    ("binary_opening", lambda m, r: sitk.BinaryMorphologicalOpening(m, [r, r, r], sitk.sitkBox, 0.0, 1.0)),
+    ("binary_closing", lambda m, r: sitk.BinaryMorphologicalClosing(m, [r, r, r], sitk.sitkBox, 1.0)),
+])
+@pytest.mark.parametrize("r", [1, 2])
+def test_binary_morphology_matches_sitk_box(op, sfn, r):
+    # Box structuring element; the sphere touches the volume border so closing's
+    # ITK safe-border padding is exercised (radius 2 previously had 117 border
+    # disagreements). dilation/erosion/opening already matched.
+    nz, ny, nx = 16, 24, 28
+    z, y, x = np.mgrid[:nz, :ny, :nx]
+    m = (((x - 14) ** 2 + (y - 12) ** 2 + (z - 8) ** 2) <= 36).astype(np.float32)
+    m[8, 12, 14] = 0.0  # interior hole
+    m[0, 12, 14] = 1.0  # border-touching foreground
+    rr = (np.asarray(getattr(ritk.segmentation, op)(_ritk(m), r).to_numpy()) > 0.5).astype(np.uint8)
+    sm = sitk.Cast(sitk.GetImageFromArray(m.astype(np.uint8)), sitk.sitkUInt8)
+    ss = (sitk.GetArrayFromImage(sfn(sm, r)) > 0.5).astype(np.uint8)
+    assert int((rr != ss).sum()) == 0, f"{op} r={r}: {(rr != ss).sum()} voxel disagreements"
+
+
 def test_anisotropic_diffusion_matches_sitk():
     # Curvature and gradient (Perona-Malik) anisotropic diffusion match ITK's
     # iterative filters when time-step, conductance, and iteration count agree.
