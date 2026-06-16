@@ -778,6 +778,55 @@ def test_label_shape_elongation_flatness_match_sitk():
         assert abs(rm - sm) / max(abs(sm), 1e-9) < 1e-4
 
 
+def _cc_blobs():
+    # Distinct-size blobs incl. two boxes (C: vc=8, D: vc=12) touching ONLY at a
+    # diagonal corner — separate under face (6) connectivity, merged under full (26).
+    m = np.zeros((12, 20, 24), dtype=np.float32)
+    m[2:5, 3:8, 4:9] = 1.0       # A: 3×5×5 = 75
+    m[7:10, 12:17, 14:20] = 1.0  # B: 3×5×6 = 90
+    m[1:3, 2:4, 18:20] = 1.0     # C: 2×2×2 = 8
+    m[3:5, 4:6, 20:23] = 1.0     # D: 2×2×3 = 12, diagonal-touches C at (2,3,19)/(3,4,20)
+    return m
+
+
+def _sizes(arr):
+    c = np.bincount(arr.astype(np.int64).ravel())
+    return sorted(c[1:][c[1:] > 0].tolist(), reverse=True)
+
+
+@pytest.mark.parametrize("conn,full", [(6, False), (26, True)])
+def test_connected_components_count_and_sizes_match_sitk(conn, full):
+    # Face (6) keeps the diagonal-touching boxes separate (4 components); full (26)
+    # merges them (3). ritk's labels permute sitk's, so compare counts + size multisets.
+    m = _cc_blobs()
+    label_img, n_ritk = ritk.segmentation.connected_components(_ritk(m), connectivity=conn)
+    scc = sitk.GetArrayFromImage(sitk.ConnectedComponent(sitk.GetImageFromArray(m.astype(np.uint8)), full))
+    assert n_ritk == int(scc.max())
+    assert _sizes(np.asarray(label_img.to_numpy())) == _sizes(scc)
+
+
+def test_label_shape_statistics_centroid_bbox_match_sitk():
+    # label_shape_statistics centroid ([z,y,x] index) and bounding box match ITK's
+    # LabelShapeStatisticsImageFilter (physical [x,y,z] centroid, [x0,y0,z0,xs,ys,zs]
+    # bbox) after the axis-order conversion. Unit spacing / zero origin → physical
+    # index == voxel index reversed.
+    m = _cc_blobs()
+    scc = sitk.ConnectedComponent(sitk.GetImageFromArray(m.astype(np.uint8)), False)
+    lsf = sitk.LabelShapeStatisticsImageFilter()
+    lsf.Execute(scc)
+    by_count_sitk = {lsf.GetNumberOfPixels(L): L for L in lsf.GetLabels()}
+    for r in ritk.segmentation.label_shape_statistics(_ritk(m), connectivity=6):
+        L = by_count_sitk[r["voxel_count"]]  # blob sizes are distinct → unambiguous
+        rc_xyz = r["centroid"][::-1]
+        sc = lsf.GetCentroid(L)
+        assert max(abs(rc_xyz[i] - sc[i]) for i in range(3)) < 1e-4
+        bb = lsf.GetBoundingBox(L)  # [x0,y0,z0, xs,ys,zs]
+        bmin = r["bounding_box_min"][::-1]
+        bmax = r["bounding_box_max"][::-1]
+        assert bmin == [bb[0], bb[1], bb[2]]
+        assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
+
+
 def test_minmax_normalize_agrees_with_sitk_rescale_intensity():
     # output=(v-v_min)/(v_max-v_min). Tolerance: max diff < 1e-4; spans [0,1].
     arr = _make_noisy()
