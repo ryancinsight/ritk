@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 ritk-core = { path = "../ritk-core" }
-ritk-image = { path = "../ritk-image" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
 ritk-morphology = { path = "../ritk-morphology" }
 ritk-annotation = { path = "../ritk-annotation" }
