@@ -692,6 +692,30 @@ def test_dice_agrees_with_sitk_label_overlap_filter():
     assert abs(rd - sd) < 1e-4, "Dice mismatch: ritk=" + str(rd) + " sitk=" + str(sd)
 
 
+def test_label_overlap_measures_agree_with_sitk():
+    # All per-label LabelOverlapMeasures fields match SimpleITK's filter.
+    # Unequal-volume spheres (r=8 prediction vs r=6 ground truth, same centre) so
+    # volume_similarity is a non-trivial signed value — guards the regression where
+    # ritk reported the [0,1] "1 = identical" similarity instead of ITK's signed
+    # 2·(V_P − V_G)/(V_P + V_G). prediction = source, ground_truth = target.
+    c = SIZE // 2
+    z, y, x = np.mgrid[:SIZE, :SIZE, :SIZE]
+    pred = ((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2 <= 8**2).astype(np.float32)
+    gt = ((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2 <= 6**2).astype(np.float32)
+    of = sitk.LabelOverlapMeasuresImageFilter()
+    of.Execute(
+        sitk.Cast(sitk.GetImageFromArray(pred.astype(np.uint8)), sitk.sitkUInt8),
+        sitk.Cast(sitk.GetImageFromArray(gt.astype(np.uint8)), sitk.sitkUInt8),
+    )
+    m = ritk.statistics.label_overlap_measures(_ritk(pred), _ritk(gt))[0]
+    assert abs(m["dice"] - of.GetDiceCoefficient()) < 1e-4
+    assert abs(m["jaccard"] - of.GetJaccardCoefficient()) < 1e-4
+    assert abs(m["volume_similarity"] - of.GetVolumeSimilarity()) < 1e-4
+    assert m["volume_similarity"] > 0.0, "pred larger than gt → positive signed VS"
+    assert abs(m["false_negative_rate"] - of.GetFalseNegativeError()) < 1e-4
+    assert abs(m["false_positive_rate"] - of.GetFalsePositiveError()) < 1e-4
+
+
 def test_minmax_normalize_agrees_with_sitk_rescale_intensity():
     # output=(v-v_min)/(v_max-v_min). Tolerance: max diff < 1e-4; spans [0,1].
     arr = _make_noisy()
@@ -727,6 +751,22 @@ def test_hausdorff_distance_parallel_planes_analytical():
     hd = float(ritk.statistics.hausdorff_distance(_ritk(m1), _ritk(m2)))
     assert abs(hd - 12.0) < 1.0, (
         "Hausdorff parallel planes: ritk=" + str(hd) + " analytical=12.0"
+    )
+
+
+def test_mean_surface_distance_parallel_planes_analytical():
+    # Two full-extent parallel planes (z=8, z=20). Each boundary voxel's nearest
+    # opposite-surface voxel is its straight-across partner at |20-8| = 12 mm, so
+    # both directed mean surface distances — and their symmetric average — equal
+    # 12.0. Value-checks ritk's contour-to-contour ASSD (the existing
+    # GetAverageHausdorffDistance-based tests only bound it, since avgHD ≠ ASSD).
+    m1 = np.zeros((SIZE, SIZE, SIZE), dtype=np.float32)
+    m1[8, :, :] = 1.0
+    m2 = np.zeros((SIZE, SIZE, SIZE), dtype=np.float32)
+    m2[20, :, :] = 1.0
+    msd = float(ritk.statistics.mean_surface_distance(_ritk(m1), _ritk(m2)))
+    assert abs(msd - 12.0) < 1e-3, (
+        "Mean surface distance parallel planes: ritk=" + str(msd) + " analytical=12.0"
     )
 
 
