@@ -252,10 +252,10 @@ pub fn normalize_image(py: Python<'_>, image: &PyImage) -> PyImage {
 /// mask(p)   = I(p) - B(p)
 /// output(p) = I(p) + amount * max(|mask(p)| - threshold, 0) * sign(mask(p))
 /// ```
-/// Output is clamped to `[min(I), max(I)]` when `clamp=True`.
-///
-/// Equivalent to ITK `UnsharpMaskingImageFilter` with identical parameter
-/// semantics. ImageJ "Unsharp Mask" is the special case `threshold=0.0`.
+/// With `clamp=False` (the default) the result matches SimpleITK's
+/// `UnsharpMask` (which only clamps to the *output pixel type's* range — a no-op
+/// for ritk's f32). `clamp=True` additionally clamps the output to the input
+/// value range `[min(I), max(I)]`, the ImageJ "Unsharp Mask" behaviour.
 ///
 /// Args:
 ///     image:     Input PyImage.
@@ -264,7 +264,8 @@ pub fn normalize_image(py: Python<'_>, image: &PyImage) -> PyImage {
 ///     amount:    Sharpening strength in [0, ∞). Default 0.5.
 ///     threshold: Minimum absolute mask value to trigger sharpening.
 ///                Voxels with |mask| < threshold are left unchanged (default 0.0).
-///     clamp:     If True, clamp output to original intensity range (default True).
+///     clamp:     If True, clamp output to the input value range (ImageJ style).
+///                Default False — matches SimpleITK's `UnsharpMask`.
 ///
 /// Returns:
 ///     Sharpened PyImage with identical shape and spatial metadata.
@@ -272,7 +273,7 @@ pub fn normalize_image(py: Python<'_>, image: &PyImage) -> PyImage {
 /// Raises:
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
-#[pyo3(signature = (image, sigma=1.0_f64, amount=0.5_f64, threshold=0.0_f64, clamp=true))]
+#[pyo3(signature = (image, sigma=1.0_f64, amount=0.5_f64, threshold=0.0_f64, clamp=false))]
 pub fn unsharp_mask(
     py: Python<'_>,
     image: &PyImage,
