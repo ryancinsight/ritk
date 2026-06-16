@@ -827,6 +827,23 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+@pytest.mark.parametrize("fac", [(2, 2, 2), (3, 2, 4), (2, 2, 3)])
+def test_bin_shrink_matches_sitk(fac):
+    # bin_shrink (tile-mean downsample) matches sitk.BinShrink. Anisotropic
+    # factors guard the row-major stride fix: the slab walk previously used
+    # column-major strides and averaged voxels along the wrong axes on genuine
+    # 3-D volumes (invisible on cubes / 1×1×N inputs).
+    rng = np.random.default_rng(2)
+    img = (rng.standard_normal((8, 12, 16)) * 20 + 100).astype(np.float32)
+    rb = np.asarray(
+        ritk.filter.bin_shrink(_ritk(img), fac[0], fac[1], fac[2]).to_numpy(), np.float64
+    )
+    # ritk factors are [z,y,x]; sitk.BinShrink takes [x,y,z].
+    sb = _np(sitk.BinShrink(_sitk(img), [fac[2], fac[1], fac[0]])).astype(np.float64)
+    assert rb.shape == sb.shape
+    assert np.abs(rb - sb).max() / max(abs(sb).max(), 1e-9) < 1e-5
+
+
 def test_minmax_normalize_agrees_with_sitk_rescale_intensity():
     # output=(v-v_min)/(v_max-v_min). Tolerance: max diff < 1e-4; spans [0,1].
     arr = _make_noisy()
