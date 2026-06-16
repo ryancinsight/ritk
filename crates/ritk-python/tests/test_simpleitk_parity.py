@@ -843,20 +843,29 @@ def test_shift_image_matches_scipy(sh):
     assert np.abs(np.asarray(r, np.float64)[c] - s[c]).max() / max(abs(s[c]).max(), 1e-9) < 1e-5
 
 
-@pytest.mark.parametrize("axis,deg", [("x", 20), ("y", 13), ("z", 25)])
-def test_rotate_image_single_axis_matches_sitk(axis, deg):
-    # A single-axis rotation matches sitk Euler3DTransform exactly. (Combined
-    # multi-axis rotations differ — see rotate_image docstring.)
+@pytest.mark.parametrize(
+    "ax_deg,ay_deg,az_deg",
+    [
+        (20, 0, 0),  # single axis
+        (0, 13, 0),
+        (0, 0, 25),
+        (20, 13, 25),  # combined multi-axis (Rz·Rx·Ry composition)
+        (35, -22, 48),  # large combined angles
+    ],
+)
+def test_rotate_image_matches_sitk_euler3d(ax_deg, ay_deg, az_deg):
+    # rotate_image matches sitk Euler3DTransform (ComputeZYX=false default) about
+    # the image centre for arbitrary single- AND multi-axis rotations. Guards the
+    # axis/sign fix and the Rz·Rx·Ry composition matrix (AffineTransform path).
     img = _blob()
     si = _sitk(img)
-    ang = {"x": 0.0, "y": 0.0, "z": 0.0}
-    ang[axis] = np.deg2rad(deg)
-    r = ritk.filter.rotate_image(_ritk(img), ang["x"], ang["y"], ang["z"], "linear", 0.0).to_numpy()
+    ax, ay, az = np.deg2rad(ax_deg), np.deg2rad(ay_deg), np.deg2rad(az_deg)
+    r = ritk.filter.rotate_image(_ritk(img), ax, ay, az, "linear", 0.0).to_numpy()
     sz, sp, org = si.GetSize(), si.GetSpacing(), si.GetOrigin()
     center = [org[i] + (sz[i] - 1) * 0.5 * sp[i] for i in range(3)]
     e = sitk.Euler3DTransform()
     e.SetCenter(center)
-    e.SetRotation(ang["x"], ang["y"], ang["z"])
+    e.SetRotation(ax, ay, az)
     rf = sitk.ResampleImageFilter()
     rf.SetReferenceImage(si)
     rf.SetTransform(e)

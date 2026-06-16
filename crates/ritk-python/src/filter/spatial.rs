@@ -10,7 +10,7 @@ use ritk_interpolation::LinearInterpolator;
 use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
 use ritk_segmentation::DistanceTransform;
 use ritk_spatial::Spacing as CoreSpacing;
-use ritk_transform::affine::rigid::RigidTransform;
+use ritk_transform::affine::affine::AffineTransform;
 use ritk_transform::affine::translation::TranslationTransform;
 
 /// Distance metric variant for distance transform, replacing `squared: bool`.
@@ -182,16 +182,11 @@ pub fn distance_transform(
 
 /// Rotate a 3-D image about its geometric centre.
 ///
-/// Each `angle_<axis>` rotates about the corresponding physical axis with
-/// SimpleITK's `Euler3DTransform.SetRotation(angle_x, angle_y, angle_z)` sign,
-/// so a single-axis rotation matches `Euler3DTransform` exactly. (Internally the
-/// angles are mapped onto `ritk_transform::RigidTransform`, whose ZYX Euler
-/// builder uses tensor-axis order and the opposite rotation sense.)
-///
-/// NOTE: For simultaneous rotations about more than one axis, ritk's ZYX
-/// composition does not coincide with ITK's `Euler3DTransform` composition, so
-/// the combined result differs from SimpleITK; apply the axes sequentially (one
-/// `rotate_image` call per non-zero angle) for exact parity.
+/// The result matches SimpleITK's
+/// `Euler3DTransform.SetRotation(angle_x, angle_y, angle_z)` (with its default
+/// `ComputeZYX = false`, i.e. `R = R_z·R_x·R_y`) about the image centre, for
+/// arbitrary single- or multi-axis rotations, spacings, and origins. Each
+/// `angle_<axis>` rotates about the corresponding physical axis.
 ///
 /// The output grid is identical to the input grid (same shape, spacing, and
 /// origin).  Out-of-bounds voxels receive `default_pixel_value`.
@@ -242,22 +237,25 @@ pub fn rotate_image(
             TensorData::new(centre, Shape::new([3])),
             &device,
         );
-        // Zero translation (pure rotation about centre)
+        // Zero translation (pure rotation about centre).
         let translation = Tensor::<Backend, 1>::zeros([3], &device);
-        // `RigidTransform` takes Euler angles in tensor-axis order [z, y, x]
-        // (element 0 rotates about Z), and its rotation sense is the negative of
-        // SimpleITK's `Euler3DTransform` for the same angle. The public API
-        // exposes SimpleITK's convention — `angle_x` rotates about the physical X
-        // axis with SimpleITK's sign — so reverse the axis order and negate to
-        // match `Euler3DTransform.SetRotation(angle_x, angle_y, angle_z)`.
-        let rotation = Tensor::<Backend, 1>::from_data(
-            TensorData::new(
-                vec![-angle_z as f32, -angle_y as f32, -angle_x as f32],
-                Shape::new([3]),
-            ),
-            &device,
-        );
-        let transform = RigidTransform::<Backend, 3>::new(translation, rotation, centre_t);
+        // Build the rotation to match SimpleITK's `Euler3DTransform`
+        // (`ComputeZYX = false`, the default), whose matrix in physical [x, y, z]
+        // space is `M = R_z(angle_z) · R_x(angle_x) · R_y(angle_y)`. ritk's
+        // resample operates in tensor-axis [z, y, x] space — the reverse of the
+        // physical axes — so the applied matrix is `P · M · Pᵀ` with `P` the
+        // axis-reversal permutation, i.e. `A[i][j] = M[2-i][2-j]`. Using the
+        // explicit matrix (instead of `RigidTransform`'s `R_z·R_y·R_x` Euler
+        // builder) reproduces SimpleITK's composition for simultaneous
+        // multi-axis rotations, not just one axis at a time.
+        let m = euler_zxy_matrix(angle_x, angle_y, angle_z);
+        let a: Vec<f32> = (0..3)
+            .flat_map(|i| (0..3).map(move |j| (i, j)))
+            .map(|(i, j)| m[2 - i][2 - j] as f32)
+            .collect();
+        let matrix =
+            Tensor::<Backend, 2>::from_data(TensorData::new(a, Shape::new([3, 3])), &device);
+        let transform = AffineTransform::<Backend, 3>::new(matrix, translation, centre_t);
 
         match mode.as_str() {
             "nearest" => Ok(ResampleImageFilter::new(
@@ -422,4 +420,30 @@ pub fn zoom_image(
     let new_sy = sp[1] / zoom_y;
     let new_sx = sp[2] / zoom_x;
     resample_image(py, image, new_sz, new_sy, new_sx, mode)
+}
+
+// ── Euler rotation matrix (SimpleITK Euler3DTransform, ComputeZYX = false) ──────
+
+/// 3×3 product of two row-major matrices.
+fn matmul3(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
+    let mut c = [[0.0f64; 3]; 3];
+    for (i, ci) in c.iter_mut().enumerate() {
+        for (j, cij) in ci.iter_mut().enumerate() {
+            *cij = (0..3).map(|k| a[i][k] * b[k][j]).sum();
+        }
+    }
+    c
+}
+
+/// Rotation matrix `R_z(angle_z) · R_x(angle_x) · R_y(angle_y)` in physical
+/// [x, y, z] coordinates — the composition SimpleITK's `Euler3DTransform` uses
+/// with its default `ComputeZYX = false`.
+fn euler_zxy_matrix(angle_x: f64, angle_y: f64, angle_z: f64) -> [[f64; 3]; 3] {
+    let (sa, ca) = angle_x.sin_cos();
+    let (sb, cb) = angle_y.sin_cos();
+    let (sg, cg) = angle_z.sin_cos();
+    let rx = [[1.0, 0.0, 0.0], [0.0, ca, -sa], [0.0, sa, ca]];
+    let ry = [[cb, 0.0, sb], [0.0, 1.0, 0.0], [-sb, 0.0, cb]];
+    let rz = [[cg, -sg, 0.0], [sg, cg, 0.0], [0.0, 0.0, 1.0]];
+    matmul3(rz, matmul3(rx, ry))
 }
