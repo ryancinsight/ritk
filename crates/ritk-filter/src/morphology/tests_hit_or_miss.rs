@@ -1,0 +1,88 @@
+//! Tests for hit_or_miss
+//! Extracted to keep the 500-line structural limit.
+use super::*;
+use burn::tensor::{Shape, Tensor, TensorData};
+use burn_ndarray::NdArray;
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
+type B = NdArray<f32>;
+fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+    let t =
+        Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &Default::default());
+    Image::new(
+        t,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    )
+}
+fn vv(i: &Image<B, 3>) -> Vec<f32> {
+    i.data_slice().into_owned()
+}
+#[test]
+fn test_identity_both_zero() {
+    let dims = [6, 6, 6];
+    let n = dims[0] * dims[1] * dims[2];
+    let v: Vec<f32> = (0..n).map(|i| if i % 3 == 0 { 1.0 } else { 0.0 }).collect();
+    let r = HitOrMissTransform::new(0, 0)
+        .apply(&img(v.clone(), dims))
+        .unwrap();
+    for (i, (&e, &a)) in v.iter().zip(vv(&r).iter()).enumerate() {
+        assert!((a - e).abs() < 1e-6, "voxel {i}: expected {e}, got {a}");
+    }
+}
+#[test]
+fn test_constant_fg_zeroes() {
+    let dims = [8, 8, 8];
+    let n = dims[0] * dims[1] * dims[2];
+    let out = vv(&HitOrMissTransform::new(0, 1)
+        .apply(&img(vec![1.0; n], dims))
+        .unwrap());
+    for (i, &v) in out.iter().enumerate() {
+        assert!(v < 0.5, "voxel {i}={v}");
+    }
+}
+#[test]
+fn test_isolated_voxel_detected() {
+    let dims = [9, 9, 9];
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    let mut v = vec![0.0_f32; n];
+    let c = 4 * ny * nx + 4 * nx + 4;
+    v[c] = 1.0;
+    let out = vv(&HitOrMissTransform::new(0, 1).apply(&img(v, dims)).unwrap());
+    assert!(out[c] > 0.5, "centre must be detected, got {}", out[c]);
+    for i in 0..n {
+        if i != c {
+            assert!(out[i] < 0.5, "voxel {i}={}", out[i]);
+        }
+    }
+}
+#[test]
+fn test_metadata_preserved() {
+    let dims = [5, 5, 5];
+    let n = dims[0] * dims[1] * dims[2];
+    let t = Tensor::<B, 3>::from_data(
+        TensorData::new(vec![1.0_f32; n], Shape::new(dims)),
+        &Default::default(),
+    );
+    let o = Point::new([1.0, 2.0, 3.0]);
+    let s = Spacing::new([0.5, 0.5, 0.5]);
+    let r = HitOrMissTransform::new(0, 0)
+        .apply(&Image::new(t, o, s, Direction::identity()))
+        .unwrap();
+    assert_eq!(*r.origin(), o);
+    assert_eq!(*r.spacing(), s);
+}
+#[test]
+fn test_anti_extensivity() {
+    let dims = [7, 7, 7];
+    let n = dims[0] * dims[1] * dims[2];
+    let v: Vec<f32> = (0..n).map(|i| if i % 2 == 0 { 1.0 } else { 0.0 }).collect();
+    let out = vv(&HitOrMissTransform::new(1, 1)
+        .apply(&img(v.clone(), dims))
+        .unwrap());
+    for (i, (&orig, &res)) in v.iter().zip(out.iter()).enumerate() {
+        assert!(res <= orig + 1e-6, "anti-ext at {i}: res={res}>orig={orig}");
+    }
+}
