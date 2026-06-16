@@ -114,7 +114,7 @@ where
                 let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
                 let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n_pixels);
 
-                let chunk_indices = output_indices.clone().slice([start..end]);
+                let chunk_indices = output_indices.clone().slice(start..end);
                 chunks.push(self.resample_indices(input, chunk_indices, &device));
             }
             Tensor::cat(chunks, 0)
@@ -174,7 +174,10 @@ where
         for c in 0..D {
             let axis = D - 1 - c;
             let upper = input_shape[axis] as f64 - 0.5;
-            let col = input_indices.clone().slice([0..n, c..c + 1]).flatten::<1>(0, 1);
+            let col = input_indices
+                .clone()
+                .slice([0..n, c..c + 1])
+                .flatten::<1>(0, 1);
             let ge_low = col.clone().greater_equal_elem(-0.5).float();
             let lt_high = col.lower_elem(upper).float();
             mask = mask * ge_low * lt_high;

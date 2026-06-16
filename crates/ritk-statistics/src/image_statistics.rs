@@ -9,9 +9,9 @@
 //! - max     = max(V)
 //! - mean    = (1/n) · Σ vᵢ
 //! - std     = √( (1/(n − ddof)) · Σ (vᵢ − mean)² )
-//!             `ddof` is the numpy-style delta degrees of freedom: 0 → population
-//!             std (the default), 1 → sample std (Bessel-corrected, matching
-//!             ITK/SimpleITK `StatisticsImageFilter`/`LabelStatisticsImageFilter`).
+//!   `ddof` is the numpy-style delta degrees of freedom: 0 → population
+//!   std (the default), 1 → sample std (Bessel-corrected, matching
+//!   ITK/SimpleITK `StatisticsImageFilter`/`LabelStatisticsImageFilter`).
 //! - p25     = V_sorted[⌊n/4⌋]
 //! - p50     = V_sorted[⌊n/2⌋]
 //! - p75     = V_sorted[⌊3n/4⌋]
