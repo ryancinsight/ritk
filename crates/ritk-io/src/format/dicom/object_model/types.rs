@@ -226,57 +226,6 @@ impl DicomObjectNode {
         }
     }
 
-    /// Create a numeric node from a 16-bit unsigned value.
-    #[deprecated(since = "0.65.0", note = "use `with_value` instead")]
-    #[inline]
-    pub fn from_u16(tag: DicomTag, vr: &str, value: u16) -> Self {
-        Self {
-            tag,
-            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
-            value: DicomValue::U16(value),
-            element_class: if is_private_tag(tag) {
-                DicomElementClass::Private
-            } else {
-                DicomElementClass::Standard
-            },
-            source: None,
-        }
-    }
-
-    /// Create a numeric node from a signed 32-bit value.
-    #[deprecated(since = "0.65.0", note = "use `with_value` instead")]
-    #[inline]
-    pub fn from_i32(tag: DicomTag, vr: &str, value: i32) -> Self {
-        Self {
-            tag,
-            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
-            value: DicomValue::I32(value),
-            element_class: if is_private_tag(tag) {
-                DicomElementClass::Private
-            } else {
-                DicomElementClass::Standard
-            },
-            source: None,
-        }
-    }
-
-    /// Create a numeric node from a 64-bit float.
-    #[deprecated(since = "0.65.0", note = "use `with_value` instead")]
-    #[inline]
-    pub fn from_f64(tag: DicomTag, vr: &str, value: f64) -> Self {
-        Self {
-            tag,
-            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
-            value: DicomValue::F64(value),
-            element_class: if is_private_tag(tag) {
-                DicomElementClass::Private
-            } else {
-                DicomElementClass::Standard
-            },
-            source: None,
-        }
-    }
-
     /// Return the node tag.
     #[inline]
     pub fn tag(&self) -> DicomTag {

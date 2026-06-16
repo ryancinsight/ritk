@@ -9,8 +9,8 @@ fn test_filter_frangi_creates_output() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let mut args = default_args(input, output.clone(), "frangi");
-    args.scales = vec![1.0, 2.0];
+    let mut args = default_args(input, output.clone(), FilterKind::Frangi);
+    args.vesselness.scales = vec![1.0, 2.0];
 
     let result = run_frangi(&args);
     assert!(result.is_ok(), "frangi must succeed: {:?}", result.err());
@@ -26,7 +26,7 @@ fn test_filter_gradient_magnitude_creates_output() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_gradient_magnitude(&default_args(input, output.clone(), "gradient-magnitude"));
+    let result = run_gradient_magnitude(&default_args(input, output.clone(), FilterKind::GradientMagnitude));
     assert!(
         result.is_ok(),
         "gradient-magnitude must succeed: {:?}",
@@ -44,7 +44,7 @@ fn test_filter_laplacian_creates_output() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_laplacian(&default_args(input, output.clone(), "laplacian"));
+    let result = run_laplacian(&default_args(input, output.clone(), FilterKind::Laplacian));
     assert!(result.is_ok(), "laplacian must succeed: {:?}", result.err());
     assert!(output.exists(), "laplacian must write output file");
 }
@@ -58,7 +58,7 @@ fn test_filter_recursive_gaussian_creates_output_with_correct_shape() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_recursive_gaussian(&default_args(input, output.clone(), "recursive-gaussian"));
+    let result = run_recursive_gaussian(&default_args(input, output.clone(), FilterKind::RecursiveGaussian));
     assert!(
         result.is_ok(),
         "recursive-gaussian must succeed: {:?}",
@@ -81,8 +81,8 @@ fn test_filter_recursive_gaussian_order_1_creates_output() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let mut args = default_args(input, output.clone(), "recursive-gaussian");
-    args.order = CliDerivativeOrder::First;
+    let mut args = default_args(input, output.clone(), FilterKind::RecursiveGaussian);
+    args.recursive.order = CliDerivativeOrder::First;
 
     let result = run_recursive_gaussian(&args);
     assert!(

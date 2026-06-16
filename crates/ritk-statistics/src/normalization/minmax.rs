@@ -70,7 +70,9 @@ impl MinMaxNormalizer {
 
         // R(x) = N(x) · range.span() + range.min()
         let output_span = self.range.span();
-        let remapped = if (output_span - 1.0).abs() < 1e-9 && self.range.min().abs() < 1e-9 {
+        let remapped = if (output_span - 1.0).abs() < super::UNIT_RANGE_EPSILON
+            && self.range.min().abs() < super::UNIT_RANGE_EPSILON
+        {
             // Default [0,1] case: skip the remap arithmetic entirely.
             normalized
         } else {

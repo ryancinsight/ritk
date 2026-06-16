@@ -1,14 +1,8 @@
 //! NRRD header parsing and byte decoding helpers.
 
 use anyhow::{anyhow, Context, Result};
+use ritk_codecs::{decode_bytes_to_f32, ByteOrder};
 use ritk_spatial::Point;
-
-/// Byte order for multi-byte pixel data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum ByteOrder {
-    MostSignificantByteFirst,
-    LeastSignificantByteFirst,
-}
 
 /// Parse a `space directions` field into three NRRD file-axis vectors.
 ///
@@ -119,172 +113,33 @@ fn parse_vectors(s: &str, n: usize) -> Result<Vec<Vec<f64>>> {
 
 /// Decode a raw byte buffer into `Vec<f32>` according to the NRRD `type`.
 ///
-/// Precisely `count` elements are decoded; surplus trailing bytes are ignored.
+/// Translates the NRRD type-name string to a (size, signed, is_float) triple
+/// and delegates to [`ritk_codecs::decode_bytes_to_f32`].
 pub(super) fn decode_element_bytes(
     bytes: &[u8],
     element_type: &str,
     count: usize,
     byte_order: ByteOrder,
 ) -> Result<Vec<f32>> {
-    match element_type.to_lowercase().as_str() {
-        "uchar" | "unsigned char" | "uint8" => {
-            require_bytes(bytes.len(), count, 1, element_type)?;
-            Ok(bytes[..count].iter().map(|&b| b as f32).collect())
-        }
-        "char" | "signed char" | "int8" => {
-            require_bytes(bytes.len(), count, 1, element_type)?;
-            Ok(bytes[..count].iter().map(|&b| (b as i8) as f32).collect())
-        }
-        "short" | "int16" | "signed short" | "int 16" => {
-            require_bytes(bytes.len(), count, 2, element_type)?;
-            Ok(bytes
-                .chunks_exact(2)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        i16::from_be_bytes(b)
-                    } else {
-                        i16::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        "unsigned short" | "uint16" | "ushort" | "unsigned short int" => {
-            require_bytes(bytes.len(), count, 2, element_type)?;
-            Ok(bytes
-                .chunks_exact(2)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        u16::from_be_bytes(b)
-                    } else {
-                        u16::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        "int" | "int32" | "signed int" | "int 32" => {
-            require_bytes(bytes.len(), count, 4, element_type)?;
-            Ok(bytes
-                .chunks_exact(4)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1], c[2], c[3]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        i32::from_be_bytes(b)
-                    } else {
-                        i32::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        "unsigned int" | "uint32" | "uint" | "unsigned int 32" => {
-            require_bytes(bytes.len(), count, 4, element_type)?;
-            Ok(bytes
-                .chunks_exact(4)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1], c[2], c[3]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        u32::from_be_bytes(b)
-                    } else {
-                        u32::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        "float" => {
-            require_bytes(bytes.len(), count, 4, element_type)?;
-            Ok(bytes
-                .chunks_exact(4)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1], c[2], c[3]];
-                    if byte_order == ByteOrder::MostSignificantByteFirst {
-                        f32::from_be_bytes(b)
-                    } else {
-                        f32::from_le_bytes(b)
-                    }
-                })
-                .collect())
-        }
-        "double" => {
-            require_bytes(bytes.len(), count, 8, element_type)?;
-            Ok(bytes
-                .chunks_exact(8)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        f64::from_be_bytes(b)
-                    } else {
-                        f64::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        other => Err(anyhow!("Unsupported NRRD type: '{}'", other)),
-    }
-}
-
-/// Return an error when `have` bytes are fewer than `count * elem_size`.
-pub(super) fn require_bytes(
-    have: usize,
-    count: usize,
-    elem_size: usize,
-    type_name: &str,
-) -> Result<()> {
-    let need = count * elem_size;
-    if have < need {
-        Err(anyhow!(
-            "Insufficient data for type '{}': need {} bytes, got {}",
-            type_name,
-            need,
-            have
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-/// Parse a whitespace-separated list of exactly `expected` `f64` values.
-pub(super) fn parse_float_vec(s: &str, field: &str, expected: usize) -> Result<Vec<f64>> {
-    let vals: Vec<f64> = s
-        .split_whitespace()
-        .map(|t| {
-            t.parse::<f64>()
-                .with_context(|| format!("Invalid float in '{}': '{}'", field, t))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    if vals.len() != expected {
-        return Err(anyhow!(
-            "'{}' must have {} components, got {}",
-            field,
-            expected,
-            vals.len()
-        ));
-    }
-    Ok(vals)
-}
-
-/// Parse a whitespace-separated list of exactly `expected` `usize` values.
-pub(super) fn parse_usize_vec(s: &str, field: &str, expected: usize) -> Result<Vec<usize>> {
-    let vals: Vec<usize> = s
-        .split_whitespace()
-        .map(|t| {
-            t.parse::<usize>()
-                .with_context(|| format!("Invalid integer in '{}': '{}'", field, t))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    if vals.len() != expected {
-        return Err(anyhow!(
-            "'{}' must have {} components, got {}",
-            field,
-            expected,
-            vals.len()
-        ));
-    }
-    Ok(vals)
+    let normalised = element_type.to_lowercase();
+    let (elem_size, signed, is_float) = match normalised.as_str() {
+        "uchar" | "unsigned char" | "uint8" => (1_usize, false, false),
+        "char" | "signed char" | "int8" => (1, true, false),
+        "short" | "int16" | "signed short" | "int 16" => (2, true, false),
+        "unsigned short" | "uint16" | "ushort" | "unsigned short int" => (2, false, false),
+        "int" | "int32" | "signed int" | "int 32" => (4, true, false),
+        "unsigned int" | "uint32" | "uint" | "unsigned int 32" => (4, false, false),
+        "float" => (4, false, true),
+        "double" => (8, false, true),
+        other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)),
+    };
+    decode_bytes_to_f32(
+        bytes,
+        elem_size,
+        signed,
+        is_float,
+        byte_order,
+        count,
+        element_type,
+    )
 }

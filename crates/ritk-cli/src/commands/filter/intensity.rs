@@ -11,10 +11,10 @@ pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
 
     let config = BedSeparationConfig {
-        body_threshold: args.body_threshold,
-        closing_radius: args.bed_closing_radius,
-        opening_radius: args.bed_opening_radius,
-        outside_value: args.bed_outside_value,
+        body_threshold: args.bed.body_threshold,
+        closing_radius: args.bed.closing_radius,
+        opening_radius: args.bed.opening_radius,
+        outside_value: args.bed.outside_value,
         ..Default::default()
     };
     let filtered = BedSeparationFilter::new(config).apply(&image)?;
@@ -23,10 +23,10 @@ pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
 
     println!(
         "Applied bed-separation (body_threshold={}, closing_radius={}, opening_radius={}, outside={}) to {} -> {}",
-        args.body_threshold,
-        args.bed_closing_radius,
-        args.bed_opening_radius,
-        args.bed_outside_value,
+        args.bed.body_threshold,
+        args.bed.closing_radius,
+        args.bed.opening_radius,
+        args.bed.outside_value,
         args.input.display(),
         args.output.display()
     );
@@ -39,14 +39,15 @@ pub(super) fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
     use ritk_filter::RescaleIntensityFilter;
 
     let image = read_image(&args.input)?;
-    let filtered = RescaleIntensityFilter::new(args.out_min, args.out_max).apply(&image)?;
+    let filtered =
+        RescaleIntensityFilter::new(args.range.out_min, args.range.out_max).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
         "Applied rescale-intensity (out=[{},{}]) to {} -> {}",
-        args.out_min,
-        args.out_max,
+        args.range.out_min,
+        args.range.out_max,
         args.input.display(),
         args.output.display()
     );
@@ -59,18 +60,22 @@ pub(super) fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
     use ritk_filter::IntensityWindowingFilter;
 
     let image = read_image(&args.input)?;
-    let filtered =
-        IntensityWindowingFilter::new(args.window_min, args.window_max, args.out_min, args.out_max)
-            .apply(&image)?;
+    let filtered = IntensityWindowingFilter::new(
+        args.window.window_min,
+        args.window.window_max,
+        args.range.out_min,
+        args.range.out_max,
+    )
+    .apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
         "Applied intensity-windowing (window=[{},{}], out=[{},{}]) to {} -> {}",
-        args.window_min,
-        args.window_max,
-        args.out_min,
-        args.out_max,
+        args.window.window_min,
+        args.window.window_max,
+        args.range.out_min,
+        args.range.out_max,
         args.input.display(),
         args.output.display()
     );
@@ -84,14 +89,15 @@ pub(super) fn run_threshold_below(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
     let filtered =
-        ThresholdImageFilter::below(args.threshold_value, args.outside_value).apply(&image)?;
+        ThresholdImageFilter::below(args.threshold.threshold_value, args.band.outside_value)
+            .apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
         "Applied threshold-below (threshold={}, outside={}) to {} -> {}",
-        args.threshold_value,
-        args.outside_value,
+        args.threshold.threshold_value,
+        args.band.outside_value,
         args.input.display(),
         args.output.display()
     );
@@ -105,14 +111,15 @@ pub(super) fn run_threshold_above(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
     let filtered =
-        ThresholdImageFilter::above(args.threshold_value, args.outside_value).apply(&image)?;
+        ThresholdImageFilter::above(args.threshold.threshold_value, args.band.outside_value)
+            .apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
         "Applied threshold-above (threshold={}, outside={}) to {} -> {}",
-        args.threshold_value,
-        args.outside_value,
+        args.threshold.threshold_value,
+        args.band.outside_value,
         args.input.display(),
         args.output.display()
     );
@@ -126,9 +133,9 @@ pub(super) fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
     let filtered = ThresholdImageFilter::outside(
-        args.lower_threshold,
-        args.upper_threshold,
-        args.outside_value,
+        args.band.lower_threshold,
+        args.band.upper_threshold,
+        args.band.outside_value,
     )
     .apply(&image)?;
 
@@ -136,9 +143,9 @@ pub(super) fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
 
     println!(
         "Applied threshold-outside ([{},{}], outside={}) to {} -> {}",
-        args.lower_threshold,
-        args.upper_threshold,
-        args.outside_value,
+        args.band.lower_threshold,
+        args.band.upper_threshold,
+        args.band.outside_value,
         args.input.display(),
         args.output.display()
     );
@@ -152,21 +159,21 @@ pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
     let filtered = SigmoidImageFilter::new(
-        args.alpha as f32,
-        args.beta as f32,
-        args.out_min,
-        args.out_max,
+        args.sigmoid.midpoint,
+        args.sigmoid.steepness,
+        args.range.out_min,
+        args.range.out_max,
     )
     .apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
-        "Applied sigmoid (alpha={}, beta={}, out=[{},{}]) to {} -> {}",
-        args.alpha,
-        args.beta,
-        args.out_min,
-        args.out_max,
+        "Applied sigmoid (midpoint={}, steepness={}, out=[{},{}]) to {} -> {}",
+        args.sigmoid.midpoint,
+        args.sigmoid.steepness,
+        args.range.out_min,
+        args.range.out_max,
         args.input.display(),
         args.output.display()
     );
@@ -180,10 +187,10 @@ pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
     let filtered = BinaryThresholdImageFilter::new(
-        args.lower_threshold,
-        args.upper_threshold,
-        args.foreground_value,
-        args.background_value,
+        args.band.lower_threshold,
+        args.band.upper_threshold,
+        args.band.foreground_value,
+        args.band.background_value,
     )
     .apply(&image)?;
 
@@ -191,10 +198,10 @@ pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
 
     println!(
         "Applied binary-threshold ([{},{}] fg={} bg={}) to {} -> {}",
-        args.lower_threshold,
-        args.upper_threshold,
-        args.foreground_value,
-        args.background_value,
+        args.band.lower_threshold,
+        args.band.upper_threshold,
+        args.band.foreground_value,
+        args.band.background_value,
         args.input.display(),
         args.output.display()
     );
@@ -207,7 +214,7 @@ pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::filter::{default_args, make_test_image};
+    use crate::commands::filter::{default_args, make_test_image, FilterKind};
     use burn::tensor::backend::Backend as BurnBackend;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
@@ -235,11 +242,11 @@ mod tests {
         );
         ritk_io::write_metaimage(&input, &image).unwrap();
 
-        let mut args = default_args(input.clone(), output.clone(), "bed-separation");
-        args.body_threshold = -350.0;
-        args.bed_closing_radius = 0;
-        args.bed_opening_radius = 0;
-        args.bed_outside_value = -2048.0;
+        let mut args = default_args(input.clone(), output.clone(), FilterKind::BedSeparation);
+        args.bed.body_threshold = -350.0;
+        args.bed.closing_radius = 0;
+        args.bed.opening_radius = 0;
+        args.bed.outside_value = -2048.0;
         super::run_bed_separation(&args).unwrap();
 
         let result = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
@@ -260,7 +267,7 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let args = default_args(input, output.clone(), "rescale-intensity");
+        let args = default_args(input, output.clone(), FilterKind::RescaleIntensity);
         run_rescale_intensity(&args).unwrap();
         assert!(output.exists());
 
@@ -289,11 +296,11 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let mut args = default_args(input, output.clone(), "intensity-windowing");
-        args.window_min = 20.0;
-        args.window_max = 80.0;
-        args.out_min = 0.0;
-        args.out_max = 1.0;
+        let mut args = default_args(input, output.clone(), FilterKind::IntensityWindowing);
+        args.window.window_min = 20.0;
+        args.window.window_max = 80.0;
+        args.range.out_min = 0.0;
+        args.range.out_max = 1.0;
         run_intensity_windowing(&args).unwrap();
         assert!(output.exists());
 
@@ -309,9 +316,9 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let mut args = default_args(input, output.clone(), "threshold-below");
-        args.threshold_value = 50.0;
-        args.outside_value = 0.0;
+        let mut args = default_args(input, output.clone(), FilterKind::ThresholdBelow);
+        args.threshold.threshold_value = 50.0;
+        args.band.outside_value = 0.0;
         run_threshold_below(&args).unwrap();
         assert!(output.exists());
 
@@ -336,9 +343,9 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let mut args = default_args(input, output.clone(), "threshold-above");
-        args.threshold_value = 50.0;
-        args.outside_value = 0.0;
+        let mut args = default_args(input, output.clone(), FilterKind::ThresholdAbove);
+        args.threshold.threshold_value = 50.0;
+        args.band.outside_value = 0.0;
         run_threshold_above(&args).unwrap();
         assert!(output.exists());
 
@@ -354,10 +361,10 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let mut args = default_args(input, output.clone(), "threshold-outside");
-        args.lower_threshold = 30.0;
-        args.upper_threshold = 90.0;
-        args.outside_value = 0.0;
+        let mut args = default_args(input, output.clone(), FilterKind::ThresholdOutside);
+        args.band.lower_threshold = 30.0;
+        args.band.upper_threshold = 90.0;
+        args.band.outside_value = 0.0;
         run_threshold_outside(&args).unwrap();
         assert!(output.exists());
 
@@ -373,11 +380,11 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let mut args = default_args(input, output.clone(), "sigmoid");
-        args.alpha = 62.0; // midpoint of 0..124
-        args.beta = 20.0;
-        args.out_min = 0.0;
-        args.out_max = 1.0;
+        let mut args = default_args(input, output.clone(), FilterKind::Sigmoid);
+        args.sigmoid.midpoint = 62.0; // midpoint of 0..124
+        args.sigmoid.steepness = 20.0;
+        args.range.out_min = 0.0;
+        args.range.out_max = 1.0;
         run_sigmoid(&args).unwrap();
         assert!(output.exists());
 
@@ -401,11 +408,11 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let mut args = default_args(input, output.clone(), "binary-threshold");
-        args.lower_threshold = 40.0;
-        args.upper_threshold = 80.0;
-        args.foreground_value = 1.0;
-        args.background_value = 0.0;
+        let mut args = default_args(input, output.clone(), FilterKind::BinaryThreshold);
+        args.band.lower_threshold = 40.0;
+        args.band.upper_threshold = 80.0;
+        args.band.foreground_value = 1.0;
+        args.band.background_value = 0.0;
         run_binary_threshold(&args).unwrap();
         assert!(output.exists());
 

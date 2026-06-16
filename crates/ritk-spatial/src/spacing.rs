@@ -25,6 +25,9 @@ use burn::record::{PrecisionSettings, Record};
 use burn::tensor::backend::{AutodiffBackend, Backend};
 use std::ops::{Deref, DerefMut};
 
+/// Tolerance for determining whether voxel spacing is isotropic.
+const ISOTROPY_TOLERANCE: f64 = 1e-9;
+
 /// Error returned when `Spacing` construction receives non-positive components.
 #[derive(Debug, Clone)]
 pub struct InvalidSpacing {
@@ -147,7 +150,7 @@ impl<const D: usize> Spacing<D> {
             return true;
         }
         let first = self[0];
-        (1..D).all(|i| (self[i] - first).abs() < 1e-9)
+        (1..D).all(|i| (self[i] - first).abs() < ISOTROPY_TOLERANCE)
     }
 
     /// Get the minimum spacing value.

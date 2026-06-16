@@ -17,6 +17,7 @@
 //! dependencies — all DICOM codec paths (decode and the JPEG 2000 / JPEG-LS
 //! encoders) are pure Rust with no C/C++ FFI.
 
+pub mod byte_decode;
 pub mod jpeg;
 pub mod jpeg_2000;
 pub mod jpeg_ls;
@@ -24,12 +25,14 @@ pub mod packbits;
 pub mod pixel_layout;
 pub mod rle;
 
+pub use byte_decode::{
+    decode_bytes_to_f32, parse_f64_vec, parse_floats, parse_usize_vec, require_bytes, ByteOrder,
+};
 pub use jpeg::decode_jpeg_fragment;
 pub use jpeg_2000::decode_jpeg2000_fragment;
 pub use jpeg_ls::decode_jpeg_ls_fragment;
 pub use packbits::packbits_decode;
-#[allow(deprecated)]
 pub use pixel_layout::{
-    decode_native_pixel_bytes, decode_native_pixel_bytes_checked, PixelLayout, PixelSignedness,
+    decode_native_pixel_bytes_checked, PixelLayout, PixelSignedness,
 };
 pub use rle::decode_rle_lossless_fragment;

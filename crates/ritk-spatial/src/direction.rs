@@ -139,6 +139,9 @@ impl<const D: usize> Direction<D> {
                     let mut pivot_idx = i;
                     let mut pivot_val = m[(i, i)].abs();
 
+                    /// Threshold below which a pivot value is treated as singular in direction normalization.
+                    const PIVOT_SINGULARITY_THRESHOLD: f64 = 1e-10;
+
                     for k in (i + 1)..D {
                         let val = m[(k, i)].abs();
                         if val > pivot_val {
@@ -147,7 +150,7 @@ impl<const D: usize> Direction<D> {
                         }
                     }
 
-                    if pivot_val < 1e-10 {
+                    if pivot_val < PIVOT_SINGULARITY_THRESHOLD {
                         return 0.0;
                     }
 

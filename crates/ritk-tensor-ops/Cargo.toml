@@ -6,7 +6,7 @@ description = "Shared tensor extract/rebuild helpers â€” bridges burn::Tensor â†
 
 [dependencies]
 burn = { workspace = true }
-ritk-image = { path = "../ritk-image" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-spatial = { path = "../ritk-spatial" }
 anyhow = { workspace = true }
 num-traits = { workspace = true }

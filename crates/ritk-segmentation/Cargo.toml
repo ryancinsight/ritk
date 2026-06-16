@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 ritk-core = { path = "../ritk-core" }
-ritk-image = { path = "../ritk-image" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-filter = { path = "../ritk-filter" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 burn = { workspace = true }

@@ -5,6 +5,7 @@ use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spa
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
 use ritk_image::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
@@ -141,16 +142,11 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     };
 
     // ── Endianness ────────────────────────────────────────────────────────
-    // True ⟹ big-endian.  Default is little-endian for multi-byte types.
-    let byte_order = if headers
-        .get("endian")
-        .map(|s| s.to_lowercase() == "big")
-        .unwrap_or(false)
-    {
-        ByteOrder::MostSignificantByteFirst
-    } else {
-        ByteOrder::LeastSignificantByteFirst
-    };
+    // Delegates to the shared `ByteOrder::from_nrrd` constructor in
+    // `ritk-codecs::byte_decode`. Unknown / misspelled byte-order strings
+    // fall back to little-endian (pre-refactor behavior preserved).
+    let endian_str = headers.get("endian").map(String::as_str).unwrap_or("little");
+    let byte_order = ByteOrder::from_nrrd(endian_str);
 
     // ── Spacing and direction ─────────────────────────────────────────────
     // 2-D files carry 2-component directions/spacings/origin, promoted with an
@@ -163,7 +159,7 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         };
         metadata_from_file_space_directions(dirs)
     } else if let Some(sp_str) = headers.get("spacings") {
-        let sp = parse_float_vec(sp_str, "spacings", dimension)?;
+        let sp = parse_f64_vec(sp_str, "spacings", dimension)?;
         let sz = if dimension == 3 { sp[2] } else { 1.0 };
         metadata_from_file_spacings([sp[0], sp[1], sz])
     } else {

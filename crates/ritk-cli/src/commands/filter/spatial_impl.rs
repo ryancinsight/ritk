@@ -59,8 +59,8 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
 
-    // Parse comma-separated scale list (e.g. "0.5,1.0,2.0").
-    let scales = args.scales.clone();
+    // Use the scales from the vesselness Args chunk.
+    let scales = args.vesselness.scales.clone();
     let scales = if scales.is_empty() {
         vec![0.5, 1.0, 2.0]
     } else {
@@ -69,9 +69,9 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
 
     let config = FrangiConfig {
         scales,
-        alpha: args.alpha,
-        beta: args.beta,
-        gamma: args.gamma,
+        alpha: args.vesselness.alpha,
+        beta: args.vesselness.beta,
+        gamma: args.vesselness.gamma,
         polarity: ritk_filter::VesselPolarity::Bright,
     };
     let filter = FrangiVesselnessFilter { config };
@@ -81,9 +81,9 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
     println!(
         "Applied frangi (scales={:?}, \u{03b1}={}, \u{03b2}={}, \u{03b3}={}) to {} \u{2192} {}",
         filter.config.scales,
-        args.alpha,
-        args.beta,
-        args.gamma,
+        args.vesselness.alpha,
+        args.vesselness.beta,
+        args.vesselness.gamma,
         args.input.display(),
         args.output.display()
     );
@@ -91,9 +91,9 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
         "filter: frangi complete input={} output={} alpha={} beta={} gamma={}",
         args.input.display(),
         args.output.display(),
-        args.alpha,
-        args.beta,
-        args.gamma
+        args.vesselness.alpha,
+        args.vesselness.beta,
+        args.vesselness.gamma
     );
     Ok(())
 }
@@ -107,13 +107,13 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
     use ritk_filter::MedianFilter;
 
     let image = read_image(&args.input)?;
-    let filter = MedianFilter::new(args.radius);
+    let filter = MedianFilter::new(args.kernel.radius);
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
         "Applied median (radius={}) to {} \u{2192} {}",
-        args.radius,
+        args.kernel.radius,
         args.input.display(),
         args.output.display()
     );
@@ -121,7 +121,7 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
         "filter: median complete input={} output={} radius={}",
         args.input.display(),
         args.output.display(),
-        args.radius
+        args.kernel.radius
     );
     Ok(())
 }
@@ -130,20 +130,19 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
 
 /// Apply a bilateral filter preserving edges.
 ///
-/// `--sigma-spatial` controls the spatial Gaussian (voxels),
-/// `--sigma-range` controls the intensity Gaussian.
+/// Edge σ values control bilateral spatial/intensity Gaussians.
 pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
     use ritk_filter::BilateralFilter;
 
     let image = read_image(&args.input)?;
-    let filter = BilateralFilter::new(args.sigma_spatial, args.sigma_range);
+    let filter = BilateralFilter::new(args.edge.sigma_spatial, args.edge.sigma_range);
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
         "Applied bilateral (\u{03c3}_spatial={}, \u{03c3}_range={}) to {} \u{2192} {}",
-        args.sigma_spatial,
-        args.sigma_range,
+        args.edge.sigma_spatial,
+        args.edge.sigma_range,
         args.input.display(),
         args.output.display()
     );
@@ -151,34 +150,33 @@ pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
         "filter: bilateral complete input={} output={} sigma_spatial={} sigma_range={}",
         args.input.display(),
         args.output.display(),
-        args.sigma_spatial,
-        args.sigma_range
+        args.edge.sigma_spatial,
+        args.edge.sigma_range
     );
     Ok(())
 }
 
 // ── Canny edge detector ───────────────────────────────────────────────────────
 
-/// Apply the Canny edge detector.
-///
-/// `--sigma` controls pre-smoothing, `--low` and `--high` set the
-/// hysteresis thresholds on gradient magnitude.
+/// Apply the Canny edge detector.  Reads shared `sigma` from
+/// [`crate::commands::filter::SmoothingArgs`] (Gaussian family) and edge
+/// hysteresis from [`crate::commands::filter::EdgeArgs`].
 pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
     use ritk_filter::edge::GaussianSigma;
     use ritk_filter::CannyEdgeDetector;
 
     let image = read_image(&args.input)?;
-    let sigma = GaussianSigma::new(args.sigma)
-        .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.sigma))?;
-    let detector = CannyEdgeDetector::new(sigma, args.low as f64, args.high as f64);
+    let sigma = GaussianSigma::new(args.smoothing.sigma)
+        .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.smoothing.sigma))?;
+    let detector = CannyEdgeDetector::new(sigma, args.edge.low as f64, args.edge.high as f64);
     let filtered = detector.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
         "Applied canny (\u{03c3}={}, low={}, high={}) to {} \u{2192} {}",
-        args.sigma,
-        args.low,
-        args.high,
+        args.smoothing.sigma,
+        args.edge.low,
+        args.edge.high,
         args.input.display(),
         args.output.display()
     );
@@ -186,9 +184,9 @@ pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
         "filter: canny complete input={} output={} sigma={} low={} high={}",
         args.input.display(),
         args.output.display(),
-        args.sigma,
-        args.low,
-        args.high
+        args.smoothing.sigma,
+        args.edge.low,
+        args.edge.high
     );
     Ok(())
 }
@@ -222,24 +220,22 @@ pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
 
 // ── Laplacian of Gaussian (LoG) ───────────────────────────────────────────────
 
-/// Apply the Laplacian of Gaussian filter.
-///
-/// Computes G_σ * ∇²I by smoothing with Gaussian of standard deviation σ
-/// then computing the discrete Laplacian.
+/// Apply the Laplacian of Gaussian filter.  Reads σ from [`SmoothingArgs`].
 pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     use ritk_filter::edge::GaussianSigma;
     use ritk_filter::LaplacianOfGaussianFilter;
 
     let image = read_image(&args.input)?;
-    let sigma = GaussianSigma::new(args.sigma)
-        .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.sigma))?;
+    let sigma = GaussianSigma::new(args.smoothing.sigma)
+        .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.smoothing.sigma))?;
     let filter = LaplacianOfGaussianFilter::new(sigma);
     let filtered = filter.apply(&image)?;
+
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
         "Applied log (\u{03c3}={}) to {} \u{2192} {}",
-        args.sigma,
+        args.smoothing.sigma,
         args.input.display(),
         args.output.display()
     );
@@ -247,7 +243,7 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
         "filter: log complete input={} output={} sigma={}",
         args.input.display(),
         args.output.display(),
-        args.sigma
+        args.smoothing.sigma
     );
     Ok(())
 }
@@ -255,28 +251,26 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
 // ── Recursive Gaussian filter ─────────────────────────────────────────────────
 
 /// Apply the recursive Gaussian (Young–van Vliet IIR) filter.
-///
-/// `--order` selects the derivative: 0 = smooth, 1 = first, 2 = second.
 pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
     use crate::commands::filter::CliDerivativeOrder;
     use ritk_filter::recursive_gaussian::DerivativeOrder;
     use ritk_filter::RecursiveGaussianFilter;
 
-    let order = match args.order {
+    let order = match args.recursive.order {
         CliDerivativeOrder::Zero => DerivativeOrder::Zero,
         CliDerivativeOrder::First => DerivativeOrder::First,
         CliDerivativeOrder::Second => DerivativeOrder::Second,
     };
 
     let image = read_image(&args.input)?;
-    let filter = RecursiveGaussianFilter::new(args.sigma).with_derivative_order(order);
+    let filter = RecursiveGaussianFilter::new(args.smoothing.sigma).with_derivative_order(order);
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
         "Applied recursive-gaussian (\u{03c3}={}, order={}) to {} \u{2192} {}",
-        args.sigma,
-        args.order,
+        args.smoothing.sigma,
+        args.recursive.order,
         args.input.display(),
         args.output.display()
     );
@@ -284,8 +278,8 @@ pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
         "filter: recursive-gaussian complete input={} output={} sigma={} order={}",
         args.input.display(),
         args.output.display(),
-        args.sigma,
-        args.order
+        args.smoothing.sigma,
+        args.recursive.order
     );
     Ok(())
 }
@@ -296,14 +290,15 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
     use ritk_filter::{CprConfig, CprImageFilter};
     use ritk_spatial::{Direction, Point, Spacing};
 
-    if args.cpr_points.len() < 2 {
+    if args.cpr.cpr_points.len() < 2 {
         return Err(anyhow!(
             "CPR requires at least 2 control points (got {}); use --cpr-point z,y,x",
-            args.cpr_points.len()
+            args.cpr.cpr_points.len()
         ));
     }
 
     let control_points: Vec<[f64; 3]> = args
+        .cpr
         .cpr_points
         .iter()
         .map(|s| {
@@ -329,9 +324,9 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
     let cpr_filter = CprImageFilter::new(
         control_points,
         CprConfig {
-            num_path_samples: args.cpr_path_samples as usize,
-            cross_section_half_width: f64::from(args.cpr_half_width),
-            num_cross_samples: args.cpr_cross_samples as usize,
+            num_path_samples: args.cpr.cpr_path_samples as usize,
+            cross_section_half_width: f64::from(args.cpr.cpr_half_width),
+            num_cross_samples: args.cpr.cpr_cross_samples as usize,
         },
     );
 

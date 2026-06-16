@@ -3,7 +3,8 @@
 ## [0.70.0] — 2026-06-15 (Sprint 375: Architecture Hardening Round 8)
 
 ### Added
-- `ritk-io`: `RtRoiInterpretedType` enum replaces `Option<String>` in `RtRoiInfo.roi_interpreted_type`; `from_dicom_str`/`as_dicom_str` round-trips [P06]
+- `ritk-codecs 0.5.4`: `byte_decode` module — shared SSOT for `ByteOrder` (with `from_metaimage_msb`/`from_nrrd` constructors), `require_bytes`, generic `decode_bytes_to_f32(bytes, elem_size, signed, is_float, byte_order, count, type_name)`, generic `parse_floats<T: FromStr>(s, field, expected)`, and convenience `parse_usize_vec`/`parse_f64_vec` wrappers. Consolidates ~270 lines of duplicated byte-decode/header-parse helpers previously in `ritk-metaimage` + `ritk-nrrd`.
+- `ritk-image`: `test_support` module is the SSOT for `make_image`/`make_image_with`/`make_image_with_spacing`/`fill_image` test-image constructors. Enabled via the `test-helpers` feature; now active in `ritk-segmentation`/`ritk-statistics`/`ritk-tensor-ops` `[dependencies]`.
 - `ritk-io`: `RtDoseType` / `RtDoseSummationType` enums replace `ArrayString<16>` in `RtDoseGrid` [P07]
 - `ritk-io`: `SegmentationType` / `SegmentAlgorithmType` enums replace `ArrayString<16>` in `DicomSegmentation`/`DicomSegmentInfo` [P08]
 - `ritk-io`: `DicomObjectNode::with_value<V: Into<DicomValue>>` generic constructor; `is_image_sop_class()` predicate [P09]
@@ -15,6 +16,16 @@
 - `ritk-segmentation`: `entropy_from_hist` promoted to `pub(crate)`; `F32_TOL`, `STAPLE_TOL`, `FOREGROUND_THRESHOLD` consts [P59]
 
 ### Changed
+- `ritk-metaimage`: local `ByteOrder` deleted; local `decode_bytes_to_f32`/`parse_f64_vec`/`parse_usize_vec`/`require_bytes` replaced by `ritk_codecs` re-exports. New `decode_metaimage_bytes` thin wrapper translates `MET_*` type names to (size, signed, is_float) and delegates to the shared `decode_bytes_to_f32`. ~150 lines removed.
+- `ritk-nrrd`: local `ByteOrder` deleted; `decode_element_bytes` is now a thin wrapper translating NRRD type names to (size, signed, is_float); `parse_float_vec`/`parse_usize_vec` are thin wrappers around the shared `parse_floats`. NRRD `endian` header parsing now delegates to `ByteOrder::from_nrrd`. ~120 lines removed.
+- `ritk-codecs`: stale `pub use pixel_layout::decode_native_pixel_bytes` re-export removed (function was deleted in Sprint 375 P52; only `decode_native_pixel_bytes_checked` remains in the module). Pre-existing dead re-export that blocked `cargo check`.
+- `ritk-image`: `test_support` module docstring corrected to match the `#[cfg(any(test, feature = "test-helpers"))]` gate (was previously documented as `test-support`).
+- `ritk-segmentation`/`ritk-statistics`/`ritk-tensor-ops`: `ritk-image` `[dependencies]` entry gained `features = ["test-helpers"]` (not `[dev-dependencies]`, which Cargo rejects as a duplicate key). The `test_support` module is now visible in production builds of these consumers (pure utility code; no runtime cost).
+- `ritk-codecs::byte_decode`: `ByteOrder::from_nrrd` signature tightened — returns `Self` (not `Result<Self>`) with `LeastSignificantByteFirst` as the default for unknown / misspelled byte-order strings (matches pre-refactor behavior). Non-spec aliases ("msbfirst", "mostsignificantbytefirst") dropped — only "big" and "little" accepted per NRRD spec §3.5. Caller in `ritk-nrrd/src/reader/mod.rs` is now infallible (no `.unwrap_or`).
+- `ritk-nrrd/src/reader/decode.rs`: local `parse_float_vec`/`parse_usize_vec` thin wrappers deleted; `ritk-nrrd/src/reader/mod.rs` now imports `parse_f64_vec`/`parse_usize_vec` directly from `ritk_codecs` (matching `ritk-metaimage`'s approach). Consistent wrapper layer across both format crates.
+
+### Added
+- `ritk-codecs::byte_decode`: 39 unit tests covering the full (elem_size, signed, is_float) × byte-order matrix — 8 signed (i8/i16/i32/i64 × LE/BE) + 8 unsigned (u8/u16/u32/u64 × LE/BE) + 2 float (f32 LE, f64 BE narrow-to-f32) = 18 happy-path decode tests; plus error paths (unsupported integer/float element size, buffer too short, invalid type-name passthrough into error message, count=0 returns empty); plus 5 `from_nrrd` cases (big/little/case-insensitive/whitespace-trimmed/unknown-defaults/embedded-whitespace/partial-match) and 3 `from_metaimage_msb` cases (True/False variants + mixed-case + non-bool string defaults); plus `parse_floats` (f64/usize round-trip with `format!("-{}", PI)` for full precision, length-mismatch error, bad-token error) and `require_bytes` (ok/error with explicit byte counts). Without these tests a future refactor of the SSOT would silently break the 3 downstream format crates. (`SmoothingArgs`, `DiffusionArgs`, `VesselnessArgs`, `EdgeArgs`, `DiscreteArgs`, `KernelArgs`, `RecursiveArgs`, `BedArgs`, `RangeArgs`, `WindowArgs`, `BandArgs`, `ThresholdArgs`, `MaskInputArgs`, `CprArgs`, `SigmoidArgs`) [SRP-362-20, **Breaking**]. Exhaustive match in `run()` (no `_ =>` arm) forces compile error on new variants. `default_args(...)` test helper now takes `kind: FilterKind`. CLI surface preserved: `--bed-closing-radius`/`--bed-opening-radius`/`--bed-outside-value` via explicit `#[arg(long = "...")]`; `--alpha`/`--beta` retained as aliases for `--sigmoid-midpoint`/`--sigmoid-steepness`.
 - `ritk-io`: UID generation dedup — 5 private counters deleted, `generate_uid` unified [P04]
 - `ritk-io`: `normalize_f32_to_u16` DRY helper extracted; `emit_u16_pixel_format_tags` DRY helper extracted [P03, P05]
 - `ritk-io`: `EXPLICIT_VR_LE` SSOT propagated to 6 writers [P02]
@@ -59,6 +70,7 @@
 - `ritk-filter/segmentation/statistics` P57–P58: 22 inline test blocks extracted (batches A+B)
 
 ### Breaking
+- `ritk-cli 0.x`: `FilterArgs.filter: String` (31-arm stringly-typed dispatch) → `FilterKind` typed enum (34 variants); `FilterArgs` field accesses move from `args.<field>` to `args.<group>.<field>` (per-family Args structs flattened via `#[command(flatten)]`); `default_args(...)` test helper signature is now `fn default_args(input, output, kind: FilterKind)`. All 35 helper rewrites + 5 test files updated. CLI flag surface preserved; the only intentional alias is `--alpha`/`--beta` for sigmoid.
 - `ritk-io`: `RtRoiInfo.roi_interpreted_type: Option<String>` → `Option<RtRoiInterpretedType>`
 - `ritk-io`: `RtDoseGrid.dose_type: ArrayString<16>` → `RtDoseType`; `.dose_summation_type` → `RtDoseSummationType`
 - `ritk-io`: `DicomSegmentation.segmentation_type: ArrayString<16>` → `SegmentationType`

@@ -6,7 +6,7 @@ description = "Image statistics, information theory, image comparison metrics, n
 
 [dependencies]
 burn = { workspace = true }
-ritk-image = { path = "../ritk-image" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 ritk-spatial = { path = "../ritk-spatial" }
 moirai = { workspace = true }

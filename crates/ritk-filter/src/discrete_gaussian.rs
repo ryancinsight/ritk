@@ -163,7 +163,7 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     /// r_min = ceil(sqrt(-2*sigma^2*ln(maximum_error))), minimum 1.
     #[inline]
     fn kernel_radius(&self, sigma_pixel: f64) -> usize {
-        if sigma_pixel < 1e-9 {
+        if sigma_pixel < Self::SIGMA_MIN {
             return 0;
         }
         let r = (-2.0 * sigma_pixel * sigma_pixel * self.maximum_error.ln())
@@ -190,6 +190,10 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         }
         k
     }
+
+    /// Minimum Gaussian sigma in pixels; below this the kernel degenerates to an identity impulse.
+    const SIGMA_MIN: f64 = 1e-9;
+
     #[inline]
     fn apply_inner<const D: usize>(
         &self,
@@ -203,7 +207,7 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         let mut kernels: [Option<Vec<f32>>; D] = std::array::from_fn(|_| None);
         for (d, kernel_slot) in kernels.iter_mut().enumerate() {
             let sigma = self.pixel_sigma_for_dim::<D>(d, spacing);
-            if sigma >= 1e-9 {
+            if sigma >= Self::SIGMA_MIN {
                 let radius = self.kernel_radius(sigma);
                 if radius > 0 {
                     *kernel_slot = Some(self.build_kernel(sigma, radius));
@@ -416,7 +420,7 @@ fn convolve_separable<const D: usize>(
         if D == 3 {
             convolve3d_dim(&data, &mut buf, shape[0], shape[1], shape[2], dim, kernel);
         } else {
-            convolve_nd_dim_serial(&data, &mut buf, &shape, dim, kernel);
+            convolve_nd_dim_serial(&data, &mut buf, shape.as_slice(), dim, kernel);
         }
         std::mem::swap(&mut data, &mut buf);
     }

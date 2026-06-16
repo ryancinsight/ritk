@@ -6,6 +6,8 @@ pub mod color;
 pub mod grid;
 pub mod host_extract;
 pub mod metadata;
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod test_support;
 pub mod transform;
 pub mod types;
 

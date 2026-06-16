@@ -301,14 +301,17 @@ impl DimseMessage {
 // ── SOP Class UIDs ────────────────────────────────────────────────────────────
 
 pub mod sop_class {
-    pub const VERIFICATION: &str = "1.2.840.10008.1.1";
+    /// Verification SOP Class (C-ECHO) — re-exported from canonical location in command module.
+    pub use super::super::command::VERIFICATION_SOP_CLASS as VERIFICATION;
     pub const FIND_STUDY: &str = "1.2.840.10008.5.1.4.1.2.1.1";
     pub const FIND_PATIENT: &str = "1.2.840.10008.5.1.4.1.2.1.3";
-    pub const FIND_SERIES: &str = "1.2.840.10008.5.1.4.1.2.2.1";
+    /// Study Root Q/R FIND — re-exported from canonical location in command module.
+    pub use super::super::command::STUDY_ROOT_FIND_SOP_CLASS as FIND_SERIES;
     pub const FIND_INSTANCE: &str = "1.2.840.10008.5.1.4.1.2.3.1";
     pub const MOVE_STUDY: &str = "1.2.840.10008.5.1.4.1.2.1.2";
     pub const MOVE_PATIENT: &str = "1.2.840.10008.5.1.4.1.2.1.4";
-    pub const MOVE_SERIES: &str = "1.2.840.10008.5.1.4.1.2.2.2";
+    /// Study Root Q/R MOVE — re-exported from canonical location in command module.
+    pub use super::super::command::STUDY_ROOT_MOVE_SOP_CLASS as MOVE_SERIES;
     pub const GET_STUDY: &str = "1.2.840.10008.5.1.4.1.2.1.3";
     pub const STORAGE_COMMITMENT: &str = "1.2.840.10008.1.20.1";
 }

@@ -15,6 +15,10 @@
 /// zero.
 pub(crate) const NORMALIZER_EPSILON: f32 = 1e-8_f32;
 
+/// Comparison epsilon for detecting the default `[0, 1]` target range in
+/// [`MinMaxNormalizer`], allowing the remap arithmetic to be skipped.
+pub(crate) const UNIT_RANGE_EPSILON: f32 = 1e-9_f32;
+
 pub mod histogram_matching;
 pub mod intensity_range;
 pub mod minmax;

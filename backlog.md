@@ -79,8 +79,11 @@
 | ID | Description | Priority |
 |----|-------------|----------|
 | DRY-374-01 | `make_image_*`/`make_mask_*` — 68 occurrences across ritk-segmentation/statistics (expanded from 35) | [minor] |
+| DRY-374-01 | `ritk-image::test_support` SSOT wired into 3 consumer `[dependencies]` (feature `test-helpers` enabled); actual 68-occurrence test-file migration deferred — **partial** | [minor] |
+| DRY-374-07 | `decode_bytes_to_f32`/`parse_f64_vec` consolidated into `ritk-codecs::byte_decode`; `ritk-metaimage` + `ritk-nrrd` migrated; ~270 lines removed | [minor] |
+| DRY-374-08 | `parse_floats<T: FromStr>` + `require_bytes` SSOT in `ritk-codecs::byte_decode`; `ritk-metaimage` + `ritk-nrrd` thin-wrapper re-exports; `ritk-vtk` local kept (different signature) | [minor] |
 | NAMING-362-23 | `transform_1d/_2d/_3d/_4d` → sealed `DimInterpolation<B>` trait BLOCKED [arch] — ADR required | [arch] |
-| SRP-362-20 | `FilterArgs` (30 variants) → `FilterKind` ValueEnum BLOCKED [major] | [major] |
+| SRP-362-20 | `FilterArgs` (46 fields) → `FilterKind` ValueEnum + 15 per-family `#[command(flatten)]` Args structs [major] | **Done Sprint 375** |
 | NAMING-FILTER-01 | `FftConvolution3DFilter` const-generic unification BLOCKED [major] | Low |
 | N-375-08 | DRY cross-crate parse utils (ritk-io shared codec layer for metaimage/nrrd/minc) BLOCKED [arch] | [arch] |
 

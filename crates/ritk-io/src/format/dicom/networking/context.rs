@@ -15,8 +15,8 @@ use std::time::Duration;
 pub mod transfer_syntax {
     /// Implicit VR Little Endian — default transfer syntax.
     pub const IMPLICIT_VR_LE: &str = "1.2.840.10008.1.2";
-    /// Explicit VR Little Endian.
-    pub const EXPLICIT_VR_LE: &str = "1.2.840.10008.1.2.1";
+    /// Explicit VR Little Endian — re-exported from the crate-canonical location.
+    pub const EXPLICIT_VR_LE: &str = crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
     /// Explicit VR Big Endian (retired; included for compatibility).
     pub const EXPLICIT_VR_BE: &str = "1.2.840.10008.1.2.2";
     /// JPEG Baseline (Process 1) — lossy 8-bit.

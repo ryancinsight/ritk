@@ -2,18 +2,12 @@ use crate::spatial::metadata_from_file_transform;
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
 use ritk_core::image::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
-
-/// Byte order for multi-byte pixel data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ByteOrder {
-    MostSignificantByteFirst,
-    LeastSignificantByteFirst,
-}
 
 /// Read a MetaImage (.mha or .mhd) file into a 3-D `Image`.
 ///
@@ -163,15 +157,12 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         .clone();
 
     // BinaryDataByteOrderMSB = True → big-endian; default is little-endian.
-    let byte_order = if headers
-        .get("BinaryDataByteOrderMSB")
-        .map(|s| s.to_uppercase() == "TRUE")
-        .unwrap_or(false)
-    {
-        ByteOrder::MostSignificantByteFirst
-    } else {
-        ByteOrder::LeastSignificantByteFirst
-    };
+    let byte_order = ByteOrder::from_metaimage_msb(
+        headers
+            .get("BinaryDataByteOrderMSB")
+            .map(|s| s.as_str())
+            .unwrap_or("FALSE"),
+    );
 
     // CompressedData = True → the payload is zlib-deflated; default is raw.
     let compressed = headers
@@ -222,7 +213,7 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     };
 
     let f32_data: Vec<f32> =
-        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?;
+        decode_metaimage_bytes(&raw_bytes, &element_type, total_voxels, byte_order)?;
 
     if f32_data.len() != total_voxels {
         return Err(anyhow!(
@@ -258,170 +249,34 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-/// Decode a raw byte buffer into `Vec<f32>` according to `element_type`.
-///
-/// Precisely `count` elements are decoded; surplus bytes are ignored.
-/// Returns an error when the buffer is too short or the type is unknown.
-fn decode_bytes_to_f32(
+/// Decode a raw byte buffer into `Vec<f32>` according to the MetaImage
+/// `ElementType` name. Translates the string to a (size, signed, is_float)
+/// triple and delegates to [`ritk_codecs::decode_bytes_to_f32`].
+fn decode_metaimage_bytes(
     bytes: &[u8],
     element_type: &str,
     count: usize,
     byte_order: ByteOrder,
 ) -> Result<Vec<f32>> {
-    match element_type {
-        "MET_UCHAR" => {
-            require_bytes(bytes.len(), count, 1, "MET_UCHAR")?;
-            Ok(bytes[..count].iter().map(|&b| b as f32).collect())
-        }
-        "MET_SHORT" => {
-            require_bytes(bytes.len(), count, 2, "MET_SHORT")?;
-            Ok(bytes
-                .chunks_exact(2)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        i16::from_be_bytes(b)
-                    } else {
-                        i16::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        "MET_USHORT" => {
-            require_bytes(bytes.len(), count, 2, "MET_USHORT")?;
-            Ok(bytes
-                .chunks_exact(2)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        u16::from_be_bytes(b)
-                    } else {
-                        u16::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        "MET_INT" => {
-            require_bytes(bytes.len(), count, 4, "MET_INT")?;
-            Ok(bytes
-                .chunks_exact(4)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1], c[2], c[3]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        i32::from_be_bytes(b)
-                    } else {
-                        i32::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        "MET_UINT" => {
-            require_bytes(bytes.len(), count, 4, "MET_UINT")?;
-            Ok(bytes
-                .chunks_exact(4)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1], c[2], c[3]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        u32::from_be_bytes(b)
-                    } else {
-                        u32::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        "MET_FLOAT" => {
-            require_bytes(bytes.len(), count, 4, "MET_FLOAT")?;
-            Ok(bytes
-                .chunks_exact(4)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1], c[2], c[3]];
-                    if byte_order == ByteOrder::MostSignificantByteFirst {
-                        f32::from_be_bytes(b)
-                    } else {
-                        f32::from_le_bytes(b)
-                    }
-                })
-                .collect())
-        }
-        "MET_DOUBLE" => {
-            require_bytes(bytes.len(), count, 8, "MET_DOUBLE")?;
-            Ok(bytes
-                .chunks_exact(8)
-                .take(count)
-                .map(|c| {
-                    let b = [c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]];
-                    (if byte_order == ByteOrder::MostSignificantByteFirst {
-                        f64::from_be_bytes(b)
-                    } else {
-                        f64::from_le_bytes(b)
-                    }) as f32
-                })
-                .collect())
-        }
-        other => Err(anyhow!("Unsupported MetaImage ElementType: '{}'", other)),
-    }
-}
-
-/// Return an error when `have` bytes are fewer than `count * elem_size`.
-fn require_bytes(have: usize, count: usize, elem_size: usize, type_name: &str) -> Result<()> {
-    let need = count * elem_size;
-    if have < need {
-        Err(anyhow!(
-            "Insufficient data for {}: need {} bytes, got {}",
-            type_name,
-            need,
-            have
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-/// Parse a whitespace-separated list of `expected` `f64` values from `s`.
-fn parse_f64_vec(s: &str, field: &str, expected: usize) -> Result<Vec<f64>> {
-    let vals: Vec<f64> = s
-        .split_whitespace()
-        .map(|t| {
-            t.parse::<f64>()
-                .with_context(|| format!("Invalid float in '{}': '{}'", field, t))
-        })
-        .collect::<Result<Vec<_>>>()?;
-
-    if vals.len() != expected {
-        return Err(anyhow!(
-            "'{}' must have {} components, got {}",
-            field,
-            expected,
-            vals.len()
-        ));
-    }
-    Ok(vals)
-}
-
-/// Parse a whitespace-separated list of `expected` `usize` values from `s`.
-fn parse_usize_vec(s: &str, field: &str, expected: usize) -> Result<Vec<usize>> {
-    let vals: Vec<usize> = s
-        .split_whitespace()
-        .map(|t| {
-            t.parse::<usize>()
-                .with_context(|| format!("Invalid integer in '{}': '{}'", field, t))
-        })
-        .collect::<Result<Vec<_>>>()?;
-
-    if vals.len() != expected {
-        return Err(anyhow!(
-            "'{}' must have {} components, got {}",
-            field,
-            expected,
-            vals.len()
-        ));
-    }
-    Ok(vals)
+    let (elem_size, signed, is_float) = match element_type {
+        "MET_UCHAR" => (1_usize, false, false),
+        "MET_SHORT" => (2, true, false),
+        "MET_USHORT" => (2, false, false),
+        "MET_INT" => (4, true, false),
+        "MET_UINT" => (4, false, false),
+        "MET_FLOAT" => (4, false, true),
+        "MET_DOUBLE" => (8, false, true),
+        other => return Err(anyhow!("Unsupported MetaImage ElementType: '{}'", other)),
+    };
+    decode_bytes_to_f32(
+        bytes,
+        elem_size,
+        signed,
+        is_float,
+        byte_order,
+        count,
+        element_type,
+    )
 }
 
 // ── Public reader struct ──────────────────────────────────────────────────────

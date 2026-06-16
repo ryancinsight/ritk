@@ -9,7 +9,7 @@ fn test_filter_median_creates_output_with_correct_shape() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_median(&default_args(input, output.clone(), "median"));
+    let result = run_median(&default_args(input, output.clone(), FilterKind::Median));
     assert!(result.is_ok(), "median must succeed: {:?}", result.err());
     assert!(output.exists(), "median must write output file");
 
@@ -30,7 +30,7 @@ fn test_filter_bilateral_creates_output_with_correct_shape() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_bilateral(&default_args(input, output.clone(), "bilateral"));
+    let result = run_bilateral(&default_args(input, output.clone(), FilterKind::Bilateral));
     assert!(result.is_ok(), "bilateral must succeed: {:?}", result.err());
     assert!(output.exists(), "bilateral must write output file");
 
@@ -51,7 +51,7 @@ fn test_filter_canny_creates_output_with_binary_values() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_canny(&default_args(input, output.clone(), "canny"));
+    let result = run_canny(&default_args(input, output.clone(), FilterKind::Canny));
     assert!(result.is_ok(), "canny must succeed: {:?}", result.err());
     assert!(output.exists(), "canny must write output file");
 
@@ -82,7 +82,7 @@ fn test_filter_sobel_creates_output_with_correct_shape() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_sobel(&default_args(input, output.clone(), "sobel"));
+    let result = run_sobel(&default_args(input, output.clone(), FilterKind::Sobel));
     assert!(result.is_ok(), "sobel must succeed: {:?}", result.err());
     assert!(output.exists(), "sobel must write output file");
 
@@ -103,7 +103,7 @@ fn test_filter_log_creates_output_with_correct_shape() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_log(&default_args(input, output.clone(), "log"));
+    let result = run_log(&default_args(input, output.clone(), FilterKind::Log));
     assert!(result.is_ok(), "log must succeed: {:?}", result.err());
     assert!(output.exists(), "log must write output file");
 

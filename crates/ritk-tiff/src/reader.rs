@@ -36,7 +36,7 @@ use tiff::decoder::{Decoder, DecodingResult};
 /// 1. Open the file and create a `tiff::decoder::Decoder`.
 /// 2. Read the first page to obtain `(width, height)`.
 /// 3. Iterate through all IFD pages; each page becomes one Z-slice.
-/// 4. Convert pixel data to `f32` (see [`decoding_result_to_f32`]).
+/// 4. Convert pixel data to `f32` (see [`decode_page_to_scalar`]).
 /// 5. Validate that every page has the same `(width, height)`.
 /// 6. Stack slices into tensor shape `[nz, ny, nx]`.
 /// 7. Return `Image` with default spatial metadata.
@@ -93,7 +93,7 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
             .read_image()
             .map_err(|e| anyhow!("Failed to decode TIFF page {}: {}", page_index, e))?;
 
-        let page_data = decoding_result_to_f32(result, page_index)?;
+        let page_data = decode_page_to_scalar(result)?;
 
         if page_data.len() != pixels_per_page {
             return Err(anyhow!(
@@ -160,10 +160,7 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
 /// Every integer and float variant is converted losslessly where the source
 /// fits in f32.  For u32/i32/u64/i64, large magnitudes may lose precision
 /// due to the 24-bit f32 significand.
-pub(crate) fn decoding_result_to_f32(
-    result: DecodingResult,
-    page_index: usize,
-) -> Result<Vec<f32>> {
+pub(crate) fn decode_page_to_scalar(result: DecodingResult) -> Result<Vec<f32>> {
     match result {
         DecodingResult::U8(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
         DecodingResult::U16(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
@@ -175,11 +172,6 @@ pub(crate) fn decoding_result_to_f32(
         DecodingResult::I64(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
         DecodingResult::F32(v) => Ok(v),
         DecodingResult::F64(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-        #[allow(unreachable_patterns)]
-        _ => Err(anyhow!(
-            "Unsupported TIFF sample format on page {}",
-            page_index
-        )),
     }
 }
 
@@ -210,220 +202,5 @@ impl<B: Backend> TiffReader<B> {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-mod tests {
-    use crate::write_tiff;
-    use burn::tensor::backend::Backend;
-    use burn::tensor::{Shape, Tensor, TensorData};
-    use burn_ndarray::NdArray;
-    use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
-    use tempfile::tempdir;
-
-    use super::{read_tiff, TiffReader};
-
-    type TestBackend = NdArray<f32>;
-
-    fn make_image(data: Vec<f32>, nz: usize, ny: usize, nx: usize) -> Image<TestBackend, 3> {
-        let device: <TestBackend as Backend>::Device = Default::default();
-        let tensor_data = TensorData::new(data, Shape::new([nz, ny, nx]));
-        let tensor = Tensor::<TestBackend, 3>::from_data(tensor_data, &device);
-        Image::new(
-            tensor,
-            Point::new([0.0, 0.0, 0.0]),
-            Spacing::new([1.0, 1.0, 1.0]),
-            Direction::identity(),
-        )
-    }
-
-    #[test]
-    fn round_trip_single_slice_preserves_shape_and_values() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("single_slice.tiff");
-        let device: <TestBackend as Backend>::Device = Default::default();
-
-        let nz = 1usize;
-        let ny = 4usize;
-        let nx = 5usize;
-        let data_vec: Vec<f32> = (0u32..(nz * ny * nx) as u32)
-            .map(|i| i as f32 * 0.5)
-            .collect();
-
-        let image = make_image(data_vec.clone(), nz, ny, nx);
-        write_tiff(&image, &path)?;
-
-        let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
-
-        assert_eq!(loaded.shape(), [nz, ny, nx], "shape mismatch");
-        assert_eq!(loaded.origin(), &Point::new([0.0, 0.0, 0.0]));
-        assert_eq!(loaded.spacing(), &Spacing::new([1.0, 1.0, 1.0]));
-        assert_eq!(loaded.direction(), &Direction::identity());
-        loaded.with_data_slice(|loaded_vals| {
-            for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-                assert!(
-                    (got - expected).abs() < 1e-6,
-                    "voxel[{}]: expected {}, got {}",
-                    i,
-                    expected,
-                    got,
-                );
-            }
-        });
-        Ok(())
-    }
-
-    #[test]
-    fn round_trip_multi_slice_preserves_shape_and_values() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("multi_slice.tiff");
-        let device: <TestBackend as Backend>::Device = Default::default();
-
-        let nz = 3usize;
-        let ny = 4usize;
-        let nx = 5usize;
-        let data_vec: Vec<f32> = (0u32..(nz * ny * nx) as u32).map(|i| i as f32).collect();
-
-        let image = make_image(data_vec.clone(), nz, ny, nx);
-        write_tiff(&image, &path)?;
-
-        let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
-        assert_eq!(loaded.shape(), [nz, ny, nx], "shape mismatch");
-
-        loaded.with_data_slice(|loaded_vals| {
-            for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-                assert!(
-                    (got - expected).abs() < 1e-6,
-                    "voxel[{}]: expected {}, got {}",
-                    i,
-                    expected,
-                    got,
-                );
-            }
-        });
-        Ok(())
-    }
-
-    #[test]
-    fn slice_ordering_preserved_through_write_read() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("slice_order.tiff");
-        let device: <TestBackend as Backend>::Device = Default::default();
-
-        let nz = 4usize;
-        let ny = 3usize;
-        let nx = 2usize;
-        let pixels_per_slice = ny * nx;
-        let mut data_vec = Vec::with_capacity(nz * pixels_per_slice);
-        for z in 0..nz {
-            let fill_value = (z + 1) as f32 * 100.0;
-            data_vec.extend(std::iter::repeat_n(fill_value, pixels_per_slice));
-        }
-
-        let image = make_image(data_vec.clone(), nz, ny, nx);
-        write_tiff(&image, &path)?;
-
-        let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
-        assert_eq!(loaded.shape(), [nz, ny, nx]);
-        loaded.with_data_slice(|loaded_vals| {
-            for z in 0..nz {
-                let expected = (z + 1) as f32 * 100.0;
-                let offset = z * pixels_per_slice;
-                for px in 0..pixels_per_slice {
-                    let got = loaded_vals[offset + px];
-                    assert!(
-                        (got - expected).abs() < 1e-6,
-                        "slice {} pixel {}: expected {}, got {}",
-                        z,
-                        px,
-                        expected,
-                        got,
-                    );
-                }
-            }
-        });
-        Ok(())
-    }
-
-    #[test]
-    fn tiff_reader_struct_delegates_to_read_tiff() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("struct_read.tiff");
-        let device: <TestBackend as Backend>::Device = Default::default();
-
-        let data_vec: Vec<f32> = vec![42.0; 2 * 3 * 4];
-        let image = make_image(data_vec, 2, 3, 4);
-        write_tiff(&image, &path)?;
-
-        let reader = TiffReader::<TestBackend>::new(device);
-        let loaded = reader.read_image(&path)?;
-        assert_eq!(loaded.shape(), [2, 3, 4]);
-        loaded.with_data_slice(|loaded_vals| {
-            for (i, &v) in loaded_vals.iter().enumerate() {
-                assert!(
-                    (v - 42.0).abs() < 1e-6,
-                    "voxel[{}]: expected 42.0, got {}",
-                    i,
-                    v,
-                );
-            }
-        });
-        Ok(())
-    }
-
-    #[test]
-    fn missing_file_returns_error_with_open_message() {
-        let device: <TestBackend as Backend>::Device = Default::default();
-        let result = read_tiff::<TestBackend, _>("/nonexistent/path.tiff", &device);
-        assert!(result.is_err(), "missing file must produce an error");
-        let msg = format!("{}", result.unwrap_err());
-        assert!(
-            msg.contains("Cannot open TIFF file"),
-            "error message must mention file open failure, got: {}",
-            msg,
-        );
-    }
-
-    #[test]
-    fn invalid_file_returns_error() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("not_a_tiff.tiff");
-        std::fs::write(&path, b"this is not a tiff file")?;
-
-        let device: <TestBackend as Backend>::Device = Default::default();
-        let result = read_tiff::<TestBackend, _>(&path, &device);
-        assert!(result.is_err(), "invalid TIFF must produce an error");
-
-        Ok(())
-    }
-
-    #[test]
-    fn negative_values_survive_round_trip() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("negative.tiff");
-        let device: <TestBackend as Backend>::Device = Default::default();
-
-        let nz = 2usize;
-        let ny = 3usize;
-        let nx = 4usize;
-        let data_vec: Vec<f32> = (0..(nz * ny * nx) as i32)
-            .map(|i| (i as f32) - 12.0)
-            .collect();
-
-        let image = make_image(data_vec.clone(), nz, ny, nx);
-        write_tiff(&image, &path)?;
-
-        let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
-        assert_eq!(loaded.shape(), [nz, ny, nx]);
-        loaded.with_data_slice(|loaded_vals| {
-            for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-                assert!(
-                    (got - expected).abs() < 1e-6,
-                    "voxel[{}]: expected {}, got {}",
-                    i,
-                    expected,
-                    got,
-                );
-            }
-        });
-        Ok(())
-    }
-}
+#[path = "tests_reader.rs"]
+mod tests;

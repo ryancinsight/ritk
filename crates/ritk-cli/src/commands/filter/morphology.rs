@@ -9,7 +9,7 @@ pub(super) fn run_grayscale_erosion(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GrayscaleErosion;
 
     let image = read_image(&args.input)?;
-    let filtered = GrayscaleErosion::new(args.radius).apply(&image)?;
+    let filtered = GrayscaleErosion::new(args.kernel.radius).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
     info!("filter: grayscale-erosion complete");
@@ -21,7 +21,7 @@ pub(super) fn run_grayscale_dilation(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GrayscaleDilation;
 
     let image = read_image(&args.input)?;
-    let filtered = GrayscaleDilation::new(args.radius).apply(&image)?;
+    let filtered = GrayscaleDilation::new(args.kernel.radius).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
     info!("filter: grayscale-dilation complete");
@@ -33,7 +33,7 @@ pub(super) fn run_white_top_hat(args: &FilterArgs) -> Result<()> {
     use ritk_filter::WhiteTopHatFilter;
 
     let image = read_image(&args.input)?;
-    let filtered = WhiteTopHatFilter::new(args.radius).apply(&image)?;
+    let filtered = WhiteTopHatFilter::new(args.kernel.radius).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
     info!("filter: white-top-hat complete");
@@ -45,7 +45,7 @@ pub(super) fn run_black_top_hat(args: &FilterArgs) -> Result<()> {
     use ritk_filter::BlackTopHatFilter;
 
     let image = read_image(&args.input)?;
-    let filtered = BlackTopHatFilter::new(args.radius).apply(&image)?;
+    let filtered = BlackTopHatFilter::new(args.kernel.radius).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
     info!("filter: black-top-hat complete");
@@ -57,10 +57,10 @@ pub(super) fn run_hit_or_miss(args: &FilterArgs) -> Result<()> {
     use ritk_filter::HitOrMissTransform;
 
     let image = read_image(&args.input)?;
-    let filtered = HitOrMissTransform::new(args.radius, args.radius).apply(&image)?;
+    let filtered = HitOrMissTransform::new(args.kernel.radius, args.kernel.radius).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
-    info!("filter: label-dilation complete");
+    info!("filter: hit-or-miss complete");
 
     Ok(())
 }
@@ -69,12 +69,12 @@ pub(super) fn run_label_dilation(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LabelDilation;
 
     let image = read_image(&args.input)?;
-    let filtered = LabelDilation::new(args.radius).apply(&image)?;
+    let filtered = LabelDilation::new(args.kernel.radius).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
     info!(
         "filter: label-dilation complete radius={} input={} output={}",
-        args.radius,
+        args.kernel.radius,
         args.input.display(),
         args.output.display()
     );
@@ -86,7 +86,7 @@ pub(super) fn run_label_erosion(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LabelErosion;
 
     let image = read_image(&args.input)?;
-    let filtered = LabelErosion::new(args.radius).apply(&image)?;
+    let filtered = LabelErosion::new(args.kernel.radius).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
     info!("filter: label-erosion complete");
@@ -98,7 +98,7 @@ pub(super) fn run_label_opening(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LabelOpening;
 
     let image = read_image(&args.input)?;
-    let filtered = LabelOpening::new(args.radius).apply(&image)?;
+    let filtered = LabelOpening::new(args.kernel.radius).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
     info!("filter: label-opening complete");
@@ -110,7 +110,7 @@ pub(super) fn run_label_closing(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LabelClosing;
 
     let image = read_image(&args.input)?;
-    let filtered = LabelClosing::new(args.radius).apply(&image)?;
+    let filtered = LabelClosing::new(args.kernel.radius).apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
     info!("filter: label-closing complete");
@@ -122,10 +122,10 @@ pub(super) fn run_morphological_reconstruction(args: &FilterArgs) -> Result<()> 
     use ritk_filter::{MorphologicalReconstruction, ReconstructionMode};
 
     let marker = read_image(&args.input)?;
-    let mask_path = args
-        .mask
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("morphological-reconstruction requires --mask <path>"))?;
+    let mask_path =
+        args.mask_input.mask.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("morphological-reconstruction requires --mask <path>")
+        })?;
     let mask = read_image(mask_path)?;
 
     let filtered =
@@ -141,7 +141,7 @@ pub(super) fn run_morphological_reconstruction(args: &FilterArgs) -> Result<()> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::filter::default_args;
+    use crate::commands::filter::{default_args, FilterKind};
     use burn::tensor::backend::Backend as BurnBackend;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
@@ -167,8 +167,8 @@ mod tests {
         );
         ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
 
-        let mut args = default_args(input_path, output_path.clone(), "label-erosion");
-        args.radius = 1;
+        let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelErosion);
+        args.kernel.radius = 1;
         run_label_erosion(&args).expect("label-erosion must succeed");
         assert!(output_path.exists());
     }
@@ -190,8 +190,8 @@ mod tests {
         );
         ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
 
-        let mut args = default_args(input_path, output_path.clone(), "label-opening");
-        args.radius = 1;
+        let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelOpening);
+        args.kernel.radius = 1;
         run_label_opening(&args).expect("label-opening must succeed");
         assert!(output_path.exists());
     }
@@ -213,8 +213,8 @@ mod tests {
         );
         ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
 
-        let mut args = default_args(input_path, output_path.clone(), "label-closing");
-        args.radius = 1;
+        let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelClosing);
+        args.kernel.radius = 1;
         run_label_closing(&args).expect("label-closing must succeed");
         assert!(output_path.exists());
     }
@@ -236,8 +236,12 @@ mod tests {
         );
         ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
 
-        let mut args = default_args(input_path, output_path, "morphological-reconstruction");
-        args.mask = None;
+        let mut args = default_args(
+            input_path,
+            output_path,
+            FilterKind::MorphologicalReconstruction,
+        );
+        args.mask_input.mask = None;
         let result = run_morphological_reconstruction(&args);
         assert!(result.is_err(), "missing mask must return Err");
         assert!(result.unwrap_err().to_string().contains("mask"));

@@ -125,14 +125,6 @@ impl PixelLayout {
     }
 }
 
-#[deprecated(
-    since = "0.14.9",
-    note = "use decode_native_pixel_bytes_checked to validate DICOM pixel layout metadata"
-)]
-pub fn decode_native_pixel_bytes(bytes: &[u8], layout: PixelLayout) -> Vec<f32> {
-    decode_native_pixel_bytes_unchecked(bytes, layout)
-}
-
 #[inline]
 fn apply_rescale(sample: f32, layout: &PixelLayout) -> f32 {
     sample * layout.rescale_slope + layout.rescale_intercept

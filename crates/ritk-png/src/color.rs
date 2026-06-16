@@ -19,7 +19,7 @@ pub fn read_png_color_to_volume<B: Backend, P: AsRef<Path>>(
     let path = path.as_ref();
     let image = read_rgb8_png(path)?;
     let (width, height) = image.dimensions();
-    let pixels = rgb_pixels_to_f32(&image);
+    let pixels = rgb_pixels_normalized(&image);
     rgb_volume_from_flat_pixels(pixels, 1, height as usize, width as usize, device)
 }
 
@@ -112,7 +112,7 @@ fn append_rgb_pixels(out: &mut Vec<f32>, image: &RgbImage) {
     out.extend(image.as_raw().iter().map(|&v| v as f32));
 }
 
-fn rgb_pixels_to_f32(image: &RgbImage) -> Vec<f32> {
+fn rgb_pixels_normalized(image: &RgbImage) -> Vec<f32> {
     image.as_raw().iter().map(|&v| v as f32).collect()
 }
 

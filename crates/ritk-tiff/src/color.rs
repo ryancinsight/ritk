@@ -14,7 +14,7 @@ use ritk_core::spatial::{Direction, Point, Spacing};
 use tiff::decoder::Decoder;
 use tiff::ColorType;
 
-use crate::reader::decoding_result_to_f32;
+use crate::reader::decode_page_to_scalar;
 
 const RGB_CHANNELS: usize = 3;
 
@@ -71,7 +71,7 @@ fn read_tiff_color_from_reader<B: Backend, R: Read + Seek>(
         let result = decoder
             .read_image()
             .map_err(|e| anyhow!("Failed to decode TIFF page {}: {}", page_index, e))?;
-        let page_data = decoding_result_to_f32(result, page_index)?;
+        let page_data = decode_page_to_scalar(result)?;
 
         if page_data.len() != samples_per_page {
             return Err(anyhow!(

@@ -5,7 +5,9 @@ pub(super) use super::spatial_file::{
 
 #[cfg(test)]
 mod tests {
-    pub(crate) use super::super::{default_args, make_test_image, Backend, CliDerivativeOrder};
+    pub(crate) use super::super::{
+        default_args, make_test_image, Backend, CliDerivativeOrder, FilterKind,
+    };
     pub use ritk_io;
     pub use tempfile::tempdir;
 

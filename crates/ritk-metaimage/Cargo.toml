@@ -9,6 +9,7 @@ repository = "https://github.com/ryancinsight/ritk"
 ritk-core = { workspace = true }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
+ritk-codecs = { path = "../ritk-codecs" }
 burn = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }

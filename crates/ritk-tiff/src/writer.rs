@@ -185,7 +185,7 @@ mod tests {
     }
 
     #[test]
-    fn round_trip_f32_values_are_bitwise_identical() -> anyhow::Result<()> {
+    fn round_trip_scalar_values_are_bitwise_identical() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("roundtrip_f32.tiff");
         let device: <TestBackend as Backend>::Device = Default::default();
@@ -247,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn file_contains_full_f32_payload() -> anyhow::Result<()> {
+    fn file_contains_full_scalar_payload() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("payload.tiff");
 
