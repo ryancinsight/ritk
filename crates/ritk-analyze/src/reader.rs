@@ -35,7 +35,12 @@
 //!
 //! # Spatial Metadata
 //!
-//! Spacing components are read directly from `pixdim[1..3]`.
+//! The file stores spacing in file-axis order `pixdim[1..3] = [sx, sy, sz]`.
+//! RITK's core `Spacing` is per tensor axis `[z, y, x]` (matching the `[nz, ny,
+//! nx]` tensor shape), so the file components are reversed to `[sz, sy, sx]` on
+//! read — the same column reorder the MetaImage/NRRD readers apply. The core
+//! `origin` is a world-space point `[x, y, z]` and is **not** reversed.
+//!
 //! The physical origin is reconstructed from `originator` voxel coordinates:
 //!
 //! ```text
@@ -43,6 +48,10 @@
 //!   origin_y = originator[1] × sy
 //!   origin_z = originator[2] × sz
 //! ```
+//!
+//! Note: the `originator` field is unreliable across writers (Analyze 7.5 is a
+//! deprecated format; SimpleITK does not round-trip a physical origin through
+//! it), so origin parity with foreign Analyze files is not guaranteed.
 
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend;
@@ -247,10 +256,12 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
     let td = TensorData::new(vals, Shape::new([nz, ny, nx]));
     let tensor = Tensor::<B, 3>::from_data(td, device);
 
+    // Spacing reverses file `[sx, sy, sz]` into core tensor-axis order
+    // `[sz, sy, sx]`; origin stays a world-space `[x, y, z]` point.
     let image = Image::new(
         tensor,
         Point::new([ox, oy, oz]),
-        Spacing::new([sx, sy, sz]),
+        Spacing::new([sz, sy, sx]),
         Direction::identity(),
     );
 

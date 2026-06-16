@@ -367,6 +367,43 @@ def test_io_metadata_axis_order_matches_sitk(ext, tmp_path):
     assert tuple(round(o, 5) for o in sb.GetOrigin()) == tuple(origin_xyz)
 
 
+def test_analyze_spacing_and_pixels_match_sitk(tmp_path):
+    """Analyze 7.5 (.hdr/.img) pixel data and spacing match sitk in both
+    directions. Regression: the Analyze reader/writer read/wrote pixdim in
+    core tensor-axis [z,y,x] order instead of the file's [x,y,z] order, so a
+    non-cube spacing (2,3,4) loaded as (4,3,2) vs sitk.
+
+    Origin is deliberately NOT asserted for parity: Analyze 7.5 is deprecated
+    (sitk emits a deprecation warning) and has no reliable physical-origin
+    field — sitk does not round-trip a world-space origin through the integer
+    `originator` field, so cross-writer origin parity is unachievable. ritk's
+    own write→read preserves a spacing-commensurate origin (covered in the Rust
+    crate's round-trip test); foreign-origin parity is a format limitation.
+    """
+    nz, ny, nx = 4, 5, 6
+    vol = np.arange(nz * ny * nx, dtype=np.float32).reshape(nz, ny, nx)
+    spacing_xyz = [2.0, 3.0, 4.0]
+
+    si = sitk.GetImageFromArray(np.ascontiguousarray(vol))
+    si.SetSpacing(spacing_xyz)
+
+    # sitk-write -> ritk-read: pixels identical, spacing equals sitk reversed.
+    p = str(tmp_path / "s.img")
+    sitk.WriteImage(si, p)
+    ri = ritk.io.read_image(p)
+    assert np.array_equal(np.asarray(ri.to_numpy()), vol)
+    assert tuple(round(s, 5) for s in ri.spacing) == tuple(spacing_xyz[::-1])
+
+    # ritk-write -> sitk-read: pixels and spacing survive the round-trip.
+    p2 = str(tmp_path / "r.img")
+    ritk.io.write_image(ri, p2)
+    sb = sitk.ReadImage(p2)
+    assert np.array_equal(
+        sitk.GetArrayFromImage(sb).astype(np.float32), vol
+    )
+    assert tuple(round(s, 5) for s in sb.GetSpacing()) == tuple(spacing_xyz)
+
+
 def test_image_origin_spacing_share_axis_order():
     """The Image constructor and getters agree on the [z, y, x] order for both
     spacing and origin, so a getter→constructor round-trip is the identity."""

@@ -29,11 +29,12 @@
 //!
 //! # Spatial Metadata
 //!
-//! RITK's `origin` and `spacing` are stored in physical `[X, Y, Z]` order.
-//! This matches the Analyze convention: `pixdim[1]=sx`, `pixdim[2]=sy`,
-//! `pixdim[3]=sz`.  The origin is written to the `originator` field as five
-//! little-endian `i16` values encoding voxel coordinates
-//! `(round(ox/sx), round(oy/sy), round(oz/sz), 0, 0)`.
+//! RITK's core `spacing` is per tensor axis `[z, y, x]`, while Analyze `pixdim`
+//! is file-axis `[x, y, z]`; the writer reverses the columns
+//! (`pixdim[1]=sx=spacing[2]`, `pixdim[2]=sy=spacing[1]`, `pixdim[3]=sz=spacing[0]`).
+//! The core `origin` is already a world-space `[x, y, z]` point and is written
+//! to the `originator` field as five little-endian `i16` values encoding voxel
+//! coordinates `(round(ox/sx), round(oy/sy), round(oz/sz), 0, 0)`.
 
 use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
@@ -71,8 +72,10 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     // Spatial metadata.  RITK shape = [nz, ny, nx]; spacing/origin in XYZ order.
     let shape = image.shape(); // [nz, ny, nx]
     let [nz, ny, nx] = shape;
-    let sp = image.spacing(); // [sx, sy, sz]
-    let orig = image.origin(); // [ox, oy, oz]
+    let sp = image.spacing(); // tensor-axis order [sz, sy, sx]
+    let orig = image.origin(); // world-space [ox, oy, oz]
+    // File-axis spacing [sx, sy, sz] is the reverse of core [sz, sy, sx].
+    let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
 
     // Validate dimensions fit in i16 (Analyze constraint).
     for (name, &val) in [("nx", &nx), ("ny", &ny), ("nz", &nz)].iter() {
@@ -103,9 +106,9 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
 
     // pixdim[8] at offset 76
     write_le::<f32>(&mut hdr, 76, 4.0_f32); // pixdim[0] = number of dims
-    write_le::<f32>(&mut hdr, 80, sp[0] as f32); // pixdim[1] = sx
-    write_le::<f32>(&mut hdr, 84, sp[1] as f32); // pixdim[2] = sy
-    write_le::<f32>(&mut hdr, 88, sp[2] as f32); // pixdim[3] = sz
+    write_le::<f32>(&mut hdr, 80, sx as f32); // pixdim[1] = sx
+    write_le::<f32>(&mut hdr, 84, sy as f32); // pixdim[2] = sy
+    write_le::<f32>(&mut hdr, 88, sz as f32); // pixdim[3] = sz
     write_le::<f32>(&mut hdr, 92, 1.0_f32); // pixdim[4] = TR (unused)
 
     write_le::<f32>(&mut hdr, 108, 0.0_f32); // vox_offset
@@ -116,9 +119,9 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     hdr[148..148 + descrip.len()].copy_from_slice(descrip);
 
     // originator[10] at offset 253 — voxel-space origin (5 × i16)
-    let ox_vox = vox_coord(orig[0], sp[0]);
-    let oy_vox = vox_coord(orig[1], sp[1]);
-    let oz_vox = vox_coord(orig[2], sp[2]);
+    let ox_vox = vox_coord(orig[0], sx);
+    let oy_vox = vox_coord(orig[1], sy);
+    let oz_vox = vox_coord(orig[2], sz);
     write_le::<i16>(&mut hdr, 253, ox_vox); // originator[0] = x voxel
     write_le::<i16>(&mut hdr, 255, oy_vox); // originator[1] = y voxel
     write_le::<i16>(&mut hdr, 257, oz_vox); // originator[2] = z voxel
