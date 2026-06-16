@@ -827,6 +827,30 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+def test_fft_matches_numpy():
+    # ritk's forward/inverse FFT and fft_shift agree with numpy's DFT (the same
+    # transform SimpleITK's ForwardFFT computes). forward_fft stores the complex
+    # spectrum as interleaved (real, imag) pairs along the last axis.
+    nz, ny, nx = 8, 10, 12
+    img = np.random.default_rng(0).standard_normal((nz, ny, nx)).astype(np.float32)
+    ri = _ritk(img)
+    f = ritk.filter.forward_fft(ri)
+    fa = np.asarray(f.to_numpy(), np.float64)
+    cx = fa[..., 0::2] + 1j * fa[..., 1::2]
+    npf = np.fft.fftn(img.astype(np.float64))
+    assert np.abs(cx - npf).max() / max(np.abs(npf).max(), 1e-9) < 1e-5
+    # fft_shift vs np.fft.fftshift
+    fs = np.asarray(ritk.filter.fft_shift(f).to_numpy(), np.float64)
+    cxs = fs[..., 0::2] + 1j * fs[..., 1::2]
+    nps = np.fft.fftshift(npf)
+    assert np.abs(cxs - nps).max() / max(np.abs(nps).max(), 1e-9) < 1e-5
+    # round-trip recovers the input
+    rt = np.asarray(ritk.filter.inverse_fft(f).to_numpy(), np.float64)
+    if rt.shape[-1] == 2 * nx:
+        rt = rt[..., 0::2]
+    assert np.abs(rt - img.astype(np.float64)).max() / max(abs(img).max(), 1e-9) < 1e-5
+
+
 def test_zero_crossing_matches_sitk():
     # zero_crossing_image marks only the near-zero side of each crossing, exactly
     # reproducing sitk.ZeroCrossing on a Laplacian-of-Gaussian edge image.
