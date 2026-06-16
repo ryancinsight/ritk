@@ -716,6 +716,43 @@ def test_label_overlap_measures_agree_with_sitk():
     assert abs(m["false_positive_rate"] - of.GetFalsePositiveError()) < 1e-4
 
 
+def test_std_ddof_population_default_and_sample_matches_sitk():
+    # ritk defaults to population std (ddof=0); ddof=1 (sample) matches SimpleITK's
+    # StatisticsImageFilter / LabelStatisticsImageFilter GetSigma() exactly.
+    rng = np.random.default_rng(3)
+    inten = rng.normal(100.0, 17.0, (6, 9, 11)).astype(np.float32)
+    flat = inten.astype(np.float64).ravel()
+
+    sf = sitk.StatisticsImageFilter()
+    sf.Execute(_sitk(inten))
+    # whole image
+    assert ritk.statistics.compute_statistics(_ritk(inten), ddof=0)["std"] == pytest.approx(
+        flat.std(ddof=0), abs=1e-3
+    )
+    assert ritk.statistics.compute_statistics(_ritk(inten), ddof=1)["std"] == pytest.approx(
+        sf.GetSigma(), abs=1e-3
+    )
+    # default is population (ddof=0)
+    assert ritk.statistics.compute_statistics(_ritk(inten))["std"] == pytest.approx(
+        flat.std(ddof=0), abs=1e-3
+    )
+
+    # per-label: two labels over the same intensities
+    labels = np.zeros_like(inten, dtype=np.float32)
+    labels[:, :, : inten.shape[2] // 2] = 1
+    labels[:, :, inten.shape[2] // 2 :] = 2
+    lsf = sitk.LabelStatisticsImageFilter()
+    lsf.Execute(_sitk(inten), sitk.Cast(_sitk(labels), sitk.sitkUInt8))
+    samp = {
+        int(s["label"]): s
+        for s in ritk.statistics.compute_label_intensity_statistics(
+            _ritk(labels), _ritk(inten), ddof=1
+        )
+    }
+    for L in (1, 2):
+        assert samp[L]["std"] == pytest.approx(lsf.GetSigma(L), abs=1e-3)
+
+
 def test_label_shape_elongation_flatness_match_sitk():
     # Solid ellipsoid, semi-axes a=24>b=16>c=10 (voxels). ITK ShapeLabelObject:
     # elongation = √(λ2/λ1) = a/b = 1.5, flatness = √(λ1/λ0) = b/c = 1.6.
