@@ -1,4 +1,4 @@
-//! Spatial filters: resample image to new spacing, Euclidean distance transform.
+//! Spatial filters: resample image to new spacing, rotate, shift, zoom, and Euclidean distance transform.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, Backend, PyImage};
@@ -10,6 +10,7 @@ use ritk_interpolation::LinearInterpolator;
 use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
 use ritk_segmentation::DistanceTransform;
 use ritk_spatial::Spacing as CoreSpacing;
+use ritk_transform::affine::rigid::RigidTransform;
 use ritk_transform::affine::translation::TranslationTransform;
 
 /// Distance metric variant for distance transform, replacing `squared: bool`.
@@ -175,4 +176,250 @@ pub fn distance_transform(
         PyDistanceMetric::Squared => DistanceTransform::squared(arc.as_ref(), foreground_threshold),
     });
     into_py_image(result)
+}
+
+// ── GAP-SCI-01: rotate_image ─────────────────────────────────────────────────
+
+/// Rotate a 3-D image about its geometric centre.
+///
+/// Each `angle_<axis>` rotates about the corresponding physical axis with
+/// SimpleITK's `Euler3DTransform.SetRotation(angle_x, angle_y, angle_z)` sign,
+/// so a single-axis rotation matches `Euler3DTransform` exactly. (Internally the
+/// angles are mapped onto `ritk_transform::RigidTransform`, whose ZYX Euler
+/// builder uses tensor-axis order and the opposite rotation sense.)
+///
+/// NOTE: For simultaneous rotations about more than one axis, ritk's ZYX
+/// composition does not coincide with ITK's `Euler3DTransform` composition, so
+/// the combined result differs from SimpleITK; apply the axes sequentially (one
+/// `rotate_image` call per non-zero angle) for exact parity.
+///
+/// The output grid is identical to the input grid (same shape, spacing, and
+/// origin).  Out-of-bounds voxels receive `default_pixel_value`.
+///
+/// Args:
+///     image:               Input PyImage.
+///     angle_x:             Rotation about physical X axis in radians (default 0.0).
+///     angle_y:             Rotation about physical Y axis in radians (default 0.0).
+///     angle_z:             Rotation about physical Z axis in radians (default 0.0).
+///     mode:                Interpolation mode — "linear" (default), "nearest",
+///                          "bspline", "lanczos".
+///     default_pixel_value: Fill value for voxels outside the field of view
+///                          (default 0.0).
+///
+/// Returns:
+///     Rotated PyImage with identical shape, spacing, origin, and direction.
+///
+/// Raises:
+///     ValueError: if `mode` is not one of the recognised modes.
+#[pyfunction]
+#[pyo3(signature = (image, angle_x=0.0_f64, angle_y=0.0_f64, angle_z=0.0_f64, mode="linear", default_pixel_value=0.0_f64))]
+#[allow(clippy::too_many_arguments)]
+pub fn rotate_image(
+    py: Python<'_>,
+    image: &PyImage,
+    angle_x: f64,
+    angle_y: f64,
+    angle_z: f64,
+    mode: &str,
+    default_pixel_value: f64,
+) -> RitkResult<PyImage> {
+    let mode = mode.to_string();
+    let inner = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(move || -> Result<_, String> {
+        let shape = inner.shape();
+        let sp = *inner.spacing();
+        let orig = *inner.origin();
+        let dir = *inner.direction();
+        let device: <Backend as BurnBackend>::Device = Default::default();
+
+        // Centre of rotation in physical coordinates:
+        //   c_d = origin_d + spacing_d * (shape_d - 1) / 2
+        // Note: stored in ZYX order (shape[0]=Z, shape[1]=Y, shape[2]=X)
+        let centre: Vec<f32> = (0..3)
+            .map(|d| orig[d] as f32 + sp[d] as f32 * (shape[d] as f32 - 1.0) / 2.0)
+            .collect();
+        let centre_t = Tensor::<Backend, 1>::from_data(
+            TensorData::new(centre, Shape::new([3])),
+            &device,
+        );
+        // Zero translation (pure rotation about centre)
+        let translation = Tensor::<Backend, 1>::zeros([3], &device);
+        // `RigidTransform` takes Euler angles in tensor-axis order [z, y, x]
+        // (element 0 rotates about Z), and its rotation sense is the negative of
+        // SimpleITK's `Euler3DTransform` for the same angle. The public API
+        // exposes SimpleITK's convention — `angle_x` rotates about the physical X
+        // axis with SimpleITK's sign — so reverse the axis order and negate to
+        // match `Euler3DTransform.SetRotation(angle_x, angle_y, angle_z)`.
+        let rotation = Tensor::<Backend, 1>::from_data(
+            TensorData::new(
+                vec![-angle_z as f32, -angle_y as f32, -angle_x as f32],
+                Shape::new([3]),
+            ),
+            &device,
+        );
+        let transform = RigidTransform::<Backend, 3>::new(translation, rotation, centre_t);
+
+        match mode.as_str() {
+            "nearest" => Ok(ResampleImageFilter::new(
+                shape, orig, sp, dir, transform.clone(), NearestNeighborInterpolator::new(),
+            )
+            .with_default_pixel_value(default_pixel_value)
+            .apply(inner.as_ref())),
+            "linear" => Ok(ResampleImageFilter::new(
+                shape, orig, sp, dir, transform.clone(), LinearInterpolator::new(),
+            )
+            .with_default_pixel_value(default_pixel_value)
+            .apply(inner.as_ref())),
+            "bspline" => Ok(ResampleImageFilter::new(
+                shape, orig, sp, dir, transform.clone(), BSplineInterpolator::new(),
+            )
+            .with_default_pixel_value(default_pixel_value)
+            .apply(inner.as_ref())),
+            "lanczos" => Ok(ResampleImageFilter::new(
+                shape, orig, sp, dir, transform, Lanczos5Interpolator::new(),
+            )
+            .with_default_pixel_value(default_pixel_value)
+            .apply(inner.as_ref())),
+            other => Err(format!(
+                "rotate_image: unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos",
+                other
+            )),
+        }
+    })
+    .map_err(RitkPyError::value)
+    .map(into_py_image)
+}
+
+// ── GAP-SCI-02: shift_image ──────────────────────────────────────────────────
+
+/// Translate (shift) a 3-D image by a physical offset.
+///
+/// Implements `scipy.ndimage.shift` / SimpleITK TranslationTransform parity.
+/// The output grid is identical to the input grid (same shape, spacing, origin,
+/// and direction).  Out-of-bounds voxels receive `default_pixel_value`.
+///
+/// Args:
+///     image:               Input PyImage.
+///     shift_z:             Translation along Z axis in physical units (mm, default 0.0).
+///     shift_y:             Translation along Y axis in physical units (mm, default 0.0).
+///     shift_x:             Translation along X axis in physical units (mm, default 0.0).
+///     mode:                Interpolation mode — "linear" (default), "nearest",
+///                          "bspline", "lanczos".
+///     default_pixel_value: Fill value for voxels outside the field of view
+///                          (default 0.0).
+///
+/// Returns:
+///     Shifted PyImage with identical shape, spacing, origin, and direction.
+///
+/// Raises:
+///     ValueError: if `mode` is not one of the recognised modes.
+#[pyfunction]
+#[pyo3(signature = (image, shift_z=0.0_f64, shift_y=0.0_f64, shift_x=0.0_f64, mode="linear", default_pixel_value=0.0_f64))]
+#[allow(clippy::too_many_arguments)]
+pub fn shift_image(
+    py: Python<'_>,
+    image: &PyImage,
+    shift_z: f64,
+    shift_y: f64,
+    shift_x: f64,
+    mode: &str,
+    default_pixel_value: f64,
+) -> RitkResult<PyImage> {
+    let mode = mode.to_string();
+    let inner = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(move || -> Result<_, String> {
+        let shape = inner.shape();
+        let sp = *inner.spacing();
+        let orig = *inner.origin();
+        let dir = *inner.direction();
+        let device: <Backend as BurnBackend>::Device = Default::default();
+
+        // TranslationTransform shifts the OUTPUT→INPUT mapping, so we negate:
+        // to shift the image by (dz, dy, dx), the transform must map
+        // out_point → out_point - [dz, dy, dx] in physical space.
+        let translation = Tensor::<Backend, 1>::from_data(
+            TensorData::new(
+                vec![-shift_z as f32, -shift_y as f32, -shift_x as f32],
+                Shape::new([3]),
+            ),
+            &device,
+        );
+        let transform = TranslationTransform::<Backend, 3>::new(translation);
+
+        match mode.as_str() {
+            "nearest" => Ok(ResampleImageFilter::new(
+                shape, orig, sp, dir, transform.clone(), NearestNeighborInterpolator::new(),
+            )
+            .with_default_pixel_value(default_pixel_value)
+            .apply(inner.as_ref())),
+            "linear" => Ok(ResampleImageFilter::new(
+                shape, orig, sp, dir, transform.clone(), LinearInterpolator::new(),
+            )
+            .with_default_pixel_value(default_pixel_value)
+            .apply(inner.as_ref())),
+            "bspline" => Ok(ResampleImageFilter::new(
+                shape, orig, sp, dir, transform.clone(), BSplineInterpolator::new(),
+            )
+            .with_default_pixel_value(default_pixel_value)
+            .apply(inner.as_ref())),
+            "lanczos" => Ok(ResampleImageFilter::new(
+                shape, orig, sp, dir, transform, Lanczos5Interpolator::new(),
+            )
+            .with_default_pixel_value(default_pixel_value)
+            .apply(inner.as_ref())),
+            other => Err(format!(
+                "shift_image: unknown mode '{}'. Use: nearest, linear, bspline, lanczos",
+                other
+            )),
+        }
+    })
+    .map_err(RitkPyError::value)
+    .map(into_py_image)
+}
+
+// ── GAP-SCI-15: zoom_image ───────────────────────────────────────────────────
+
+/// Zoom a 3-D image by a scale factor (scipy.ndimage.zoom parity).
+///
+/// Equivalent to `resample_image` with `new_spacing = old_spacing / zoom_factor`
+/// and output size `round(old_size * zoom_factor)`.
+///
+/// A zoom > 1.0 upsamples (finer grid); < 1.0 downsamples (coarser grid).
+/// Per-axis zoom factors allow anisotropic rescaling.
+///
+/// Args:
+///     image:    Input PyImage.
+///     zoom_z:   Zoom factor along Z axis (default 1.0).
+///     zoom_y:   Zoom factor along Y axis (default 1.0).
+///     zoom_x:   Zoom factor along X axis (default 1.0).
+///     mode:     Interpolation mode — "linear" (default), "nearest",
+///               "bspline", "lanczos".
+///
+/// Returns:
+///     Zoomed PyImage with new shape and updated spacing.
+///
+/// Raises:
+///     ValueError: if any zoom factor is ≤ 0 or `mode` is unrecognised.
+#[pyfunction]
+#[pyo3(signature = (image, zoom_z=1.0_f64, zoom_y=1.0_f64, zoom_x=1.0_f64, mode="linear"))]
+pub fn zoom_image(
+    py: Python<'_>,
+    image: &PyImage,
+    zoom_z: f64,
+    zoom_y: f64,
+    zoom_x: f64,
+    mode: &str,
+) -> RitkResult<PyImage> {
+    if zoom_z <= 0.0 || zoom_y <= 0.0 || zoom_x <= 0.0 {
+        return Err(RitkPyError::value(format!(
+            "zoom factors must be positive, got ({zoom_z},{zoom_y},{zoom_x})"
+        )));
+    }
+    let inner = std::sync::Arc::clone(&image.inner);
+    let sp = *inner.spacing();
+    // new_spacing = old_spacing / zoom_factor
+    let new_sz = sp[0] / zoom_z;
+    let new_sy = sp[1] / zoom_y;
+    let new_sx = sp[2] / zoom_x;
+    resample_image(py, image, new_sz, new_sy, new_sx, mode)
 }
