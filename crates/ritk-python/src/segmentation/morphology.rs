@@ -121,9 +121,14 @@ pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyImage {
 /// Output is 1.0 at boundary voxels (in dilation but not erosion) and 0.0
 /// at interior foreground, exterior background, and all other voxels.
 ///
+/// Uses a box (hypercube) structuring element of half-width `radius`, matching
+/// `sitk.MorphologicalGradient(..., sitk.sitkBox)` exactly (the binary
+/// dilation/erosion it is built from are box-SE, like the rest of ritk's binary
+/// morphology — *not* a ball).
+///
 /// Args:
 ///     image: Binary mask PyImage (values in {0.0, 1.0}).
-///     radius: Structuring element ball radius (default: 1).
+///     radius: Box structuring-element half-width in voxels (default: 1).
 ///
 /// Returns:
 ///     Binary boundary mask, same shape and spatial metadata as input.

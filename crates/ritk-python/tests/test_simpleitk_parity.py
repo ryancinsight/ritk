@@ -827,6 +827,42 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+def test_threshold_segmentation_matches_sitk():
+    # binary/connected/neighborhood-connected threshold segmentation match sitk
+    # exactly. Seeds are [z,y,x] in ritk; sitk takes [x,y,z].
+    rng = np.random.default_rng(0)
+    z, y, x = np.mgrid[:16, :24, :28]
+    img = (50 + 40 * np.exp(-(((x - 14) / 5) ** 2 + ((y - 12) / 5) ** 2 + ((z - 8) / 4) ** 2)) * 100 / 140
+           + 5 * rng.standard_normal((16, 24, 28))).astype(np.float32)
+    si = _sitk(img)
+    seed = [8, 12, 14]  # [z,y,x]
+    sxyz = (seed[2], seed[1], seed[0])
+
+    rb = (np.asarray(ritk.segmentation.binary_threshold_segment(_ritk(img), 60.0, 200.0).to_numpy()) > 0.5)
+    sb = (sitk.GetArrayFromImage(sitk.BinaryThreshold(si, 60.0, 200.0, 1, 0)) > 0.5)
+    assert np.array_equal(rb, sb)
+
+    rc = (np.asarray(ritk.segmentation.connected_threshold_segment(_ritk(img), seed, 60.0, 200.0).to_numpy()) > 0.5)
+    sc = (sitk.GetArrayFromImage(sitk.ConnectedThreshold(si, [sxyz], 60.0, 200.0, 1)) > 0.5)
+    assert np.array_equal(rc, sc)
+
+    rn = (np.asarray(ritk.segmentation.neighborhood_connected_segment(_ritk(img), seed, 60.0, 200.0, 1).to_numpy()) > 0.5)
+    sn = (sitk.GetArrayFromImage(sitk.NeighborhoodConnected(si, [sxyz], 60.0, 200.0, [1, 1, 1], 1.0)) > 0.5)
+    assert np.array_equal(rn, sn)
+
+
+def test_morphological_gradient_matches_sitk_box():
+    # Binary morphological gradient uses a box SE (not ball, despite an earlier
+    # docstring) — matches sitk.MorphologicalGradient(sitkBox) exactly.
+    z, y, x = np.mgrid[:16, :24, :28]
+    m = (((x - 14) ** 2 + (y - 12) ** 2 + (z - 8) ** 2) <= 36).astype(np.float32)
+    m[8, 12, 14] = 0.0
+    rg = (np.asarray(ritk.segmentation.morphological_gradient(_ritk(m), 1).to_numpy()) > 0.5).astype(np.uint8)
+    sm = sitk.Cast(sitk.GetImageFromArray(m.astype(np.uint8)), sitk.sitkUInt8)
+    sg = (sitk.GetArrayFromImage(sitk.MorphologicalGradient(sm, [1, 1, 1], sitk.sitkBox)) > 0.5).astype(np.uint8)
+    assert int((rg != sg).sum()) == 0
+
+
 @pytest.mark.parametrize("op,sfn", [
     ("binary_dilation", lambda m, r: sitk.BinaryDilate(m, [r, r, r], sitk.sitkBox, 0.0, 1.0)),
     ("binary_erosion", lambda m, r: sitk.BinaryErode(m, [r, r, r], sitk.sitkBox, 0.0, 1.0)),
