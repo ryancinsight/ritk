@@ -1,24 +1,10 @@
 //! Tests for nyul_udupa
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::test_support::make_image;
 
 type TestBackend = NdArray<f32>;
-
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
-    let n = data.len();
-    let device = Default::default();
-    let tensor =
-        Tensor::<TestBackend, 1>::from_data(TensorData::new(data, Shape::new([n])), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0]),
-        Spacing::new([1.0]),
-        Direction::identity(),
-    )
-}
 
 fn get_values(image: &Image<TestBackend, 1>) -> Vec<f32> {
     image
@@ -125,7 +111,7 @@ fn test_learn_and_apply_single_image_roundtrip() {
     // Values outside [p1, p99] are clamped to the boundary landmarks
     // per the Nyúl-Udupa algorithm specification.
     let data: Vec<f32> = (0..100).map(|i| i as f32).collect();
-    let image = make_image_1d(data.clone());
+    let image: Image<TestBackend, 1> = make_image(data.clone(), [100]);
 
     let mut normalizer = NyulUdupaNormalizer::new();
     normalizer.learn_standard(&[&image]);
@@ -176,8 +162,8 @@ fn test_standardize_two_different_ranges_converge() {
     let data_a: Vec<f32> = (0..200).map(|i| i as f32 * 0.5).collect();
     let data_b: Vec<f32> = (0..200).map(|i| 1000.0 + i as f32 * 5.0).collect();
 
-    let image_a = make_image_1d(data_a);
-    let image_b = make_image_1d(data_b);
+    let image_a: Image<TestBackend, 1> = make_image(data_a, [200]);
+    let image_b: Image<TestBackend, 1> = make_image(data_b, [200]);
 
     let mut normalizer = NyulUdupaNormalizer::new();
     normalizer.learn_standard(&[&image_a, &image_b]);
@@ -213,7 +199,7 @@ fn test_standardize_two_different_ranges_converge() {
 #[test]
 fn test_preserves_spatial_metadata() {
     let data: Vec<f32> = (0..50).map(|i| i as f32).collect();
-    let image = make_image_1d(data);
+    let image: Image<TestBackend, 1> = make_image(data, [50]);
 
     let mut normalizer = NyulUdupaNormalizer::new();
     normalizer.learn_standard(&[&image]);
@@ -236,7 +222,7 @@ fn test_preserves_spatial_metadata() {
 #[test]
 fn test_custom_percentiles() {
     let data: Vec<f32> = (0..100).map(|i| i as f32).collect();
-    let image = make_image_1d(data.clone());
+    let image: Image<TestBackend, 1> = make_image(data.clone(), [100]);
 
     let mut normalizer = NyulUdupaNormalizer::with_percentiles(vec![5.0, 25.0, 50.0, 75.0, 95.0]);
     normalizer.learn_standard(&[&image]);
@@ -285,8 +271,8 @@ fn test_learn_from_multiple_images_averages_landmarks() {
     // Standard landmarks should be the average of A and B landmarks.
     let data_a: Vec<f32> = (0..100).map(|i| i as f32).collect();
     let data_b: Vec<f32> = (0..100).map(|i| 100.0 + i as f32).collect();
-    let image_a = make_image_1d(data_a);
-    let image_b = make_image_1d(data_b);
+    let image_a: Image<TestBackend, 1> = make_image(data_a, [100]);
+    let image_b: Image<TestBackend, 1> = make_image(data_b, [100]);
 
     let mut normalizer = NyulUdupaNormalizer::new();
     normalizer.learn_standard(&[&image_a, &image_b]);
@@ -314,7 +300,7 @@ fn test_learn_from_multiple_images_averages_landmarks() {
 fn test_apply_before_learn_returns_error() {
     let normalizer = NyulUdupaNormalizer::new();
     let data: Vec<f32> = (0..10).map(|i| i as f32).collect();
-    let image = make_image_1d(data);
+    let image: Image<TestBackend, 1> = make_image(data, [10]);
 
     let result = normalizer.apply(&image);
     assert!(
@@ -356,7 +342,7 @@ fn test_constant_image_maps_to_constant() {
     // Constant image: all landmarks are the same value.
     // After learning and applying, output should be constant.
     let data = vec![5.0f32; 100];
-    let image = make_image_1d(data);
+    let image: Image<TestBackend, 1> = make_image(data, [100]);
 
     let mut normalizer = NyulUdupaNormalizer::new();
     normalizer.learn_standard(&[&image]);

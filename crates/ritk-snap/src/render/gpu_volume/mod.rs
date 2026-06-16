@@ -51,7 +51,7 @@
 
 use crate::render::Colormap;
 
-mod context;
+pub(crate) mod context;
 mod frame_cache;
 mod mip_pass;
 mod params;

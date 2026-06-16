@@ -1,12 +1,12 @@
-use super::{make_mask_1d, make_mask_2d, make_mask_3d};
+use super::*;
 use crate::image_comparison::dice_coefficient;
 
 #[test]
 fn test_dice_identical_masks_is_one() {
-    let mask = make_mask_3d(vec![1.0f32; 27], [3, 3, 3]);
+    let mask: Image<TestBackend, 3> = make_image(vec![1.0f32; 27], [3, 3, 3]);
     let dice = dice_coefficient(&mask, &mask);
     assert!(
-        (dice - 1.0).abs() < super::F32_TOL,
+        (dice - 1.0).abs() < F32_TOL,
         "identical masks -> Dice = 1.0, got {}",
         dice
     );
@@ -22,11 +22,11 @@ fn test_dice_disjoint_masks_is_zero() {
     for v in gt.iter_mut().take(27).skip(14) {
         *v = 1.0;
     }
-    let pred_img = make_mask_3d(pred, [3, 3, 3]);
-    let gt_img = make_mask_3d(gt, [3, 3, 3]);
+    let pred_img: Image<TestBackend, 3> = make_image(pred, [3, 3, 3]);
+    let gt_img: Image<TestBackend, 3> = make_image(gt, [3, 3, 3]);
     let dice = dice_coefficient(&pred_img, &gt_img);
     assert!(
-        dice.abs() < super::F32_TOL,
+        dice.abs() < F32_TOL,
         "disjoint masks -> Dice = 0.0, got {}",
         dice
     );
@@ -36,11 +36,11 @@ fn test_dice_disjoint_masks_is_zero() {
 fn test_dice_known_overlap_half() {
     let pred = vec![1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0];
     let gt = vec![0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0];
-    let pred_img = make_mask_1d(pred);
-    let gt_img = make_mask_1d(gt);
+    let pred_img: Image<TestBackend, 1> = make_image(pred, [8]);
+    let gt_img: Image<TestBackend, 1> = make_image(gt, [8]);
     let dice = dice_coefficient(&pred_img, &gt_img);
     assert!(
-        (dice - 0.5).abs() < super::F32_TOL,
+        (dice - 0.5).abs() < F32_TOL,
         "Dice = 2*2/(4+4) = 0.5, got {}",
         dice
     );
@@ -48,11 +48,11 @@ fn test_dice_known_overlap_half() {
 
 #[test]
 fn test_dice_both_empty_returns_one() {
-    let pred = make_mask_3d(vec![0.0; 27], [3, 3, 3]);
-    let gt = make_mask_3d(vec![0.0; 27], [3, 3, 3]);
+    let pred: Image<TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
+    let gt: Image<TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
     let dice = dice_coefficient(&pred, &gt);
     assert!(
-        (dice - 1.0).abs() < super::F32_TOL,
+        (dice - 1.0).abs() < F32_TOL,
         "both empty -> Dice = 1.0, got {}",
         dice
     );
@@ -71,20 +71,16 @@ fn test_dice_2d_known_overlap() {
     gt[5] = 1.0;
     gt[6] = 1.0;
 
-    let pred_img = make_mask_2d(pred, [4, 4]);
-    let gt_img = make_mask_2d(gt, [4, 4]);
+    let pred_img: Image<TestBackend, 2> = make_image(pred, [4, 4]);
+    let gt_img: Image<TestBackend, 2> = make_image(gt, [4, 4]);
     let dice = dice_coefficient(&pred_img, &gt_img);
-    assert!(
-        (dice - 0.5).abs() < super::F32_TOL,
-        "2D Dice = 0.5, got {}",
-        dice
-    );
+    assert!((dice - 0.5).abs() < F32_TOL, "2D Dice = 0.5, got {}", dice);
 }
 
 #[test]
 fn test_dice_symmetry() {
-    let pred = make_mask_1d(vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-    let gt = make_mask_1d(vec![0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]);
+    let pred: Image<TestBackend, 1> = make_image(vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], [8]);
+    let gt: Image<TestBackend, 1> = make_image(vec![0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0], [8]);
     let d_pg = dice_coefficient(&pred, &gt);
     let d_gp = dice_coefficient(&gt, &pred);
     assert!(
@@ -97,11 +93,11 @@ fn test_dice_symmetry() {
 
 #[test]
 fn test_dice_one_empty_one_nonempty_is_zero() {
-    let pred = make_mask_1d(vec![0.0; 8]);
-    let gt = make_mask_1d(vec![1.0; 8]);
+    let pred: Image<TestBackend, 1> = make_image(vec![0.0; 8], [8]);
+    let gt: Image<TestBackend, 1> = make_image(vec![1.0; 8], [8]);
     let dice = dice_coefficient(&pred, &gt);
     assert!(
-        dice.abs() < super::F32_TOL,
+        dice.abs() < F32_TOL,
         "one empty -> Dice = 0.0, got {}",
         dice
     );

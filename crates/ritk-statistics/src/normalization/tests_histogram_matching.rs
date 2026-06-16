@@ -1,24 +1,9 @@
 use super::*;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support::{make_image, make_image_with};
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 
 type TestBackend = NdArray<f32>;
-
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
-    let n = data.len();
-    let device = Default::default();
-    let tensor =
-        Tensor::<TestBackend, 1>::from_data(TensorData::new(data, Shape::new([n])), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0]),
-        Spacing::new([1.0]),
-        Direction::identity(),
-    )
-}
 
 fn get_values(image: &Image<TestBackend, 1>) -> Vec<f32> {
     image
@@ -37,7 +22,7 @@ fn test_self_match_is_approximately_identity() {
     // Matching a source against itself: T(v) = F_src⁻¹(F_src(v)) ≈ v.
     // Due to discrete LUT quantisation, the tolerance is one LUT step.
     let data: Vec<f32> = (0u16..256).map(|x| x as f32 * 32.0 / 255.0).collect();
-    let image = make_image_1d(data.clone());
+    let image: Image<TestBackend, 1> = make_image(data.clone(), [data.len()]);
     let matcher = HistogramMatcher::new(256);
     let result = matcher.match_histograms(&image, &image);
     let values = get_values(&result);
@@ -62,8 +47,8 @@ fn test_match_shifts_mean_toward_reference() {
     let source: Vec<f32> = (0u8..=10).map(|x| x as f32).collect();
     let reference: Vec<f32> = (90u8..=100).map(|x| x as f32).collect();
 
-    let src_image = make_image_1d(source);
-    let ref_image = make_image_1d(reference);
+    let src_image: Image<TestBackend, 1> = make_image(source, [11]);
+    let ref_image: Image<TestBackend, 1> = make_image(reference, [11]);
 
     let matcher = HistogramMatcher::new(64);
     let result = matcher.match_histograms(&src_image, &ref_image);
@@ -85,8 +70,8 @@ fn test_output_values_bounded_by_reference_range() {
     let source: Vec<f32> = (0u8..=20).map(|x| x as f32).collect();
     let reference: Vec<f32> = (50u8..=70).map(|x| x as f32).collect();
 
-    let src_image = make_image_1d(source);
-    let ref_image = make_image_1d(reference);
+    let src_image: Image<TestBackend, 1> = make_image(source, [21]);
+    let ref_image: Image<TestBackend, 1> = make_image(reference, [21]);
 
     let matcher = HistogramMatcher::new(64);
     let result = matcher.match_histograms(&src_image, &ref_image);
@@ -113,8 +98,8 @@ fn test_output_shape_matches_source() {
     let source: Vec<f32> = (0u8..16).map(|x| x as f32).collect();
     let reference: Vec<f32> = (0u8..64).map(|x| x as f32).collect();
 
-    let src_image = make_image_1d(source);
-    let ref_image = make_image_1d(reference);
+    let src_image: Image<TestBackend, 1> = make_image(source, [16]);
+    let ref_image: Image<TestBackend, 1> = make_image(reference, [64]);
 
     let matcher = HistogramMatcher::default();
     let result = matcher.match_histograms(&src_image, &ref_image);
@@ -128,16 +113,10 @@ fn test_output_shape_matches_source() {
 
 #[test]
 fn test_preserves_spatial_metadata() {
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let make_3d = |vals: Vec<f32>| {
-        let tensor = Tensor::<TestBackend, 3>::from_data(
-            TensorData::new(vals, Shape::new([3, 3, 3])),
-            &device,
-        );
-        let origin = Point::new([1.0, 2.0, 3.0]);
-        let spacing = Spacing::new([0.5, 0.5, 0.5]);
-        let direction = Direction::<3>::identity();
-        Image::new(tensor, origin, spacing, direction)
+    let origin = ritk_spatial::Point::new([1.0, 2.0, 3.0]);
+    let spacing = ritk_spatial::Spacing::new([0.5, 0.5, 0.5]);
+    let make_3d = |vals: Vec<f32>| -> Image<TestBackend, 3> {
+        make_image_with(vals, [3, 3, 3], Some(origin), Some(spacing), None)
     };
 
     let src_vals: Vec<f32> = (0u16..27).map(|x| x as f32).collect();
@@ -169,8 +148,8 @@ fn test_monotone_output_for_monotone_input() {
     let source: Vec<f32> = (0u8..=16).map(|x| x as f32).collect();
     let reference: Vec<f32> = (0u8..=100).map(|x| x as f32).collect();
 
-    let src_image = make_image_1d(source);
-    let ref_image = make_image_1d(reference);
+    let src_image: Image<TestBackend, 1> = make_image(source, [17]);
+    let ref_image: Image<TestBackend, 1> = make_image(reference, [101]);
 
     let matcher = HistogramMatcher::new(128);
     let result = matcher.match_histograms(&src_image, &ref_image);
@@ -197,8 +176,8 @@ fn test_lut_endpoints_clamp_correctly() {
     let source: Vec<f32> = (0..n).map(|x| x as f32).collect();
     let reference: Vec<f32> = (100..100 + n).map(|x| x as f32).collect();
 
-    let src_image = make_image_1d(source);
-    let ref_image = make_image_1d(reference);
+    let src_image: Image<TestBackend, 1> = make_image(source, [n]);
+    let ref_image: Image<TestBackend, 1> = make_image(reference, [n]);
 
     let matcher = HistogramMatcher::new(256);
     let result = matcher.match_histograms(&src_image, &ref_image);
@@ -224,9 +203,9 @@ fn test_lut_endpoints_clamp_correctly() {
 #[test]
 fn test_constant_source_returns_unchanged() {
     // Constant source: CDF slope is undefined → source returned unchanged.
-    let source = make_image_1d(vec![5.0; 8]);
+    let source: Image<TestBackend, 1> = make_image(vec![5.0; 8], [8]);
     let reference: Vec<f32> = (0u8..8).map(|x| x as f32).collect();
-    let ref_image = make_image_1d(reference);
+    let ref_image: Image<TestBackend, 1> = make_image(reference, [8]);
 
     let matcher = HistogramMatcher::new(64);
     let result = matcher.match_histograms(&source, &ref_image);
@@ -244,9 +223,9 @@ fn test_constant_source_returns_unchanged() {
 #[test]
 fn test_single_source_voxel_does_not_panic() {
     // Single source voxel must produce a single output value without panic.
-    let source = make_image_1d(vec![0.5]);
+    let source: Image<TestBackend, 1> = make_image(vec![0.5], [1]);
     let reference: Vec<f32> = (0u8..16).map(|x| x as f32).collect();
-    let ref_image = make_image_1d(reference);
+    let ref_image: Image<TestBackend, 1> = make_image(reference, [16]);
 
     let matcher = HistogramMatcher::new(64);
     let result = matcher.match_histograms(&source, &ref_image);
@@ -258,8 +237,8 @@ fn test_single_source_voxel_does_not_panic() {
 fn test_single_reference_voxel() {
     // Single reference value: all output values must equal that reference value.
     let source: Vec<f32> = (0u8..8).map(|x| x as f32).collect();
-    let src_image = make_image_1d(source);
-    let ref_image = make_image_1d(vec![42.0]);
+    let src_image: Image<TestBackend, 1> = make_image(source, [8]);
+    let ref_image: Image<TestBackend, 1> = make_image(vec![42.0], [1]);
 
     let matcher = HistogramMatcher::new(64);
     let result = matcher.match_histograms(&src_image, &ref_image);

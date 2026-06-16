@@ -108,7 +108,7 @@ fn test_slice_metadata_default_pixel_representation_is_unsigned() {
 }
 
 #[test]
-fn test_read_slice_pixels_signed_i16_roundtrip() {
+fn test_read_slice_pixels_signed_short_roundtrip() {
     // Build a DICOM file with PixelRepresentation=1 and three known i16 values.
     // Stored pixel values: -1000, 0, 1000. RescaleSlope=1, RescaleIntercept=0.
     // Expected decoded values: [-1000.0, 0.0, 1000.0].

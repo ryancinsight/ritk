@@ -1,29 +1,22 @@
 use super::*;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type TestBackend = NdArray<f32>;
 
-fn make_image(data: Vec<f32>, len: usize) -> Image<TestBackend, 1> {
-    let device = Default::default();
-    let tensor =
-        Tensor::<TestBackend, 1>::from_data(TensorData::new(data, Shape::new([len])), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0]),
-        Spacing::new([1.0]),
-        Direction::identity(),
-    )
+fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+    test_support::make_image_1d(data)
 }
 
-// ── Positive tests ─────────────────────────────────────────────────────────
+
 
 #[test]
 fn test_zscore_zero_mean() {
     // Values [1, 2, 3, 4, 5]: mean = 3.0
     // After normalization the mean of the output must be ≈ 0.
-    let image = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0], 5);
+    let image = make_image_1d(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
     let normalizer = ZScoreNormalizer::new();
     let result = normalizer.normalize(&image);
 
@@ -40,7 +33,7 @@ fn test_zscore_unit_variance() {
     // Values [1, 2, 3, 4, 5]:
     //   variance = Σ(xᵢ−3)²/5 = (4+1+0+1+4)/5 = 2  →  std = √2
     //   After division by (√2 + ε), output std ≈ 1.
-    let image = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0], 5);
+    let image = make_image_1d(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
     let normalizer = ZScoreNormalizer::new();
     let result = normalizer.normalize(&image);
 
@@ -84,7 +77,7 @@ fn test_zscore_known_values() {
     //   variance = ((1−2)² + (3−2)²) / 2 = 1.0 → std = 1.0
     //   z(1) = (1−2)/(1+1e-8) ≈ −1.0
     //   z(3) = (3−2)/(1+1e-8) ≈  1.0
-    let image = make_image(vec![1.0, 3.0], 2);
+    let image = make_image_1d(vec![1.0, 3.0]);
     let normalizer = ZScoreNormalizer::new();
     let result = normalizer.normalize(&image);
 
@@ -108,7 +101,7 @@ fn test_zscore_known_values() {
 fn test_zscore_constant_image_does_not_panic() {
     // Constant image: std = 0. Division by (0 + 1e-8) must not panic.
     // All output values = (5 − 5) / 1e-8 = 0.
-    let image = make_image(vec![5.0; 8], 8);
+    let image = make_image_1d(vec![5.0; 8]);
     let normalizer = ZScoreNormalizer::new();
     let result = normalizer.normalize(&image);
 
@@ -125,7 +118,7 @@ fn test_zscore_constant_image_does_not_panic() {
 #[test]
 fn test_zscore_single_voxel() {
     // Single voxel: mean = value, std = 0 → output = 0.
-    let image = make_image(vec![100.0], 1);
+    let image = make_image_1d(vec![100.0]);
     let normalizer = ZScoreNormalizer::new();
     let result = normalizer.normalize(&image);
 
@@ -155,8 +148,8 @@ fn test_zscore_masked_uses_mask_statistics() {
     // z(3.0)   = (3 − 2) / denom ≈  1.2247
     // z(100.0) = (100 − 2) / denom ≈ 120.04  (background voxels also transformed)
     // z(200.0) = (200 − 2) / denom ≈ 242.28
-    let image = make_image(vec![1.0, 2.0, 3.0, 100.0, 200.0], 5);
-    let mask = make_image(vec![1.0, 1.0, 1.0, 0.0, 0.0], 5);
+    let image = make_image_1d(vec![1.0, 2.0, 3.0, 100.0, 200.0]);
+    let mask = make_image_1d(vec![1.0, 1.0, 1.0, 0.0, 0.0]);
     let normalizer = ZScoreNormalizer::new();
     let result = normalizer.normalize_masked(&image, &mask);
 
@@ -200,8 +193,8 @@ fn test_zscore_masked_empty_mask_falls_back_to_full_image() {
     // All-zero mask: masked_statistics would panic; normalize_masked must
     // fall back to full-image statistics and produce output identical to
     // normalize.
-    let image = make_image(vec![1.0, 2.0, 3.0, 100.0, 200.0], 5);
-    let mask = make_image(vec![0.0; 5], 5);
+    let image = make_image_1d(vec![1.0, 2.0, 3.0, 100.0, 200.0]);
+    let mask = make_image_1d(vec![0.0; 5]);
     let normalizer = ZScoreNormalizer::new();
 
     let result_masked = normalizer.normalize_masked(&image, &mask);
@@ -257,7 +250,7 @@ fn test_zscore_masked_preserves_metadata() {
 fn test_zscore_negative_values_preserved_sign() {
     // Values [−2, −1, 0, 1, 2]: mean = 0, std = √2 ≈ 1.4142
     // z(−2) < z(−1) < z(0) == 0 < z(1) < z(2): ordering preserved.
-    let image = make_image(vec![-2.0, -1.0, 0.0, 1.0, 2.0], 5);
+    let image = make_image_1d(vec![-2.0, -1.0, 0.0, 1.0, 2.0]);
     let normalizer = ZScoreNormalizer::new();
     let result = normalizer.normalize(&image);
 

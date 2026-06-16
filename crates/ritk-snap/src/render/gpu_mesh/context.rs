@@ -10,11 +10,12 @@
 //! | `ssao`             | ssao.wgsl         | Compute           | 0=ssao_params, 1=normal_depth, 2=ao_buf, 3=kernel |
 //! | `composite`        | composite.wgsl    | Compute           | 0=color_layers, 1=ao_buf, 2=output, 3=comp_params |
 
+use std::sync::Arc;
 use super::params::MeshVertex;
 
 pub(super) struct GpuMeshContext {
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
 
     pub geom_base_pipeline: wgpu::RenderPipeline,
     pub geom_peel_pipeline: wgpu::RenderPipeline,
@@ -32,23 +33,7 @@ impl GpuMeshContext {
     ///
     /// Returns `None` when no compatible GPU adapter is available.
     pub fn try_new() -> Option<Self> {
-        let (device, queue) = pollster::block_on(async {
-            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-                backends: wgpu::Backends::all(),
-                ..Default::default()
-            });
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: wgpu::PowerPreference::HighPerformance,
-                    compatible_surface: None,
-                    force_fallback_adapter: false,
-                })
-                .await?;
-            adapter
-                .request_device(&wgpu::DeviceDescriptor::default(), None)
-                .await
-                .ok()
-        })?;
+        let (device, queue) = crate::render::gpu_volume::context::get_shared_device_queue()?;
 
         // ── Shader modules ────────────────────────────────────────────────────
         let geom_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {

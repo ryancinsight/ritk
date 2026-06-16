@@ -88,7 +88,7 @@ fn test_series_writer_has_samples_per_pixel_one() {
 /// all pixels <= 65535.
 #[test]
 #[allow(unused_comparisons)]
-fn test_series_pixel_clamp_u16_range() {
+fn test_series_pixel_clamp_unsigned_range() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("clamp_series");
     let n_frames = 1_usize;

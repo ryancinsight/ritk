@@ -1,6 +1,6 @@
 use super::utils::{
-    emit_u16_pixel_format_tags, ensure_series_directory, generate_instance_uid,
-    generate_series_uid, normalize_f32_to_u16, DICOM_SOP_CLASS_SECONDARY_CAPTURE,
+    emit_pixel_format_tags, ensure_series_directory, generate_instance_uid, generate_series_uid,
+    normalize_to_u16, DICOM_SOP_CLASS_SECONDARY_CAPTURE, MONOCHROME2,
 };
 use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
@@ -30,7 +30,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 
     for z in 0..depth {
         let slice_offset = z * slice_len;
         let slice_f32 = &all_data[slice_offset..slice_offset + slice_len];
-        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_f32_to_u16(slice_f32);
+        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(slice_f32);
         let sop_instance_uid = generate_instance_uid(&series_uid, z);
         let mut obj = InMemDicomObject::new_empty();
         obj.put(DataElement::new(
@@ -111,7 +111,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 
             VR::US,
             PrimitiveValue::from(cols as u16),
         ));
-        emit_u16_pixel_format_tags(&mut obj);
+        emit_pixel_format_tags(&mut obj);
         obj.put(DataElement::new(
             Tag(0x0028, 0x1053),
             VR::DS,
@@ -125,7 +125,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 
         obj.put(DataElement::new(
             Tag(0x0028, 0x0004),
             VR::CS,
-            PrimitiveValue::from("MONOCHROME2"),
+            PrimitiveValue::from(MONOCHROME2),
         ));
         obj.put(DataElement::new(
             Tag(0x7FE0, 0x0010),

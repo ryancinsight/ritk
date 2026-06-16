@@ -15,9 +15,9 @@
 |----------|-------------|--------|
 | P01 | [HARD] fake UID bypass fix in seg/writer.rs — real generate_uid() restored [patch] | Done |
 | P02 | SSOT: EXPLICIT_VR_LE propagated to 6 writers [patch] | Done |
-| P03 | DRY: normalize_f32_to_u16 helper extracted in ritk-io [patch] | Done |
+| P03 | DRY: normalize_to_u16 helper extracted in ritk-io [patch] | Done |
 | P04 | DRY: UID generation dedup — 5 private counters deleted [patch] | Done |
-| P05 | DRY: emit_u16_pixel_format_tags helper extracted [patch] | Done |
+| P05 | DRY: emit_pixel_format_tags helper extracted [patch] | Done |
 | P06 | ENUM: RtRoiInterpretedType replaces Option<String> in RtRoiInfo [minor] | Done |
 | P07 | ENUM: RtDoseType / RtDoseSummationType replace ArrayString<16> in RtDoseGrid [minor] | Done |
 | P08 | ENUM: SegmentationType / SegmentAlgorithmType replace ArrayString<16> in DicomSegmentation/DicomSegmentInfo [minor] | Done |

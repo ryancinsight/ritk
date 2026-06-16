@@ -1,8 +1,8 @@
 use super::super::reader::DicomReadMetadata;
 use super::preservation::emit_preservation_nodes;
 use super::utils::{
-    emit_u16_pixel_format_tags, ensure_series_directory, format_pair, format_six, format_triplet,
-    generate_instance_uid, generate_series_uid, normalize_f32_to_u16, writer_exclusion_tags,
+    emit_pixel_format_tags, ensure_series_directory, format_pair, format_six, format_triplet,
+    generate_instance_uid, generate_series_uid, normalize_to_u16, writer_exclusion_tags,
     DICOM_SOP_CLASS_SECONDARY_CAPTURE,
 };
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
@@ -71,7 +71,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     for z in 0..depth {
         let slice_offset = z * slice_len;
         let slice_f32 = &all_data[slice_offset..slice_offset + slice_len];
-        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_f32_to_u16(slice_f32);
+        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(slice_f32);
 
         let sop_instance_uid = generate_instance_uid(series_uid, z);
         let mut obj = InMemDicomObject::new_empty();
@@ -127,7 +127,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
             VR::US,
             PrimitiveValue::from(cols as u16),
         ));
-        emit_u16_pixel_format_tags(&mut obj);
+        emit_pixel_format_tags(&mut obj);
         obj.put(DataElement::new(
             Tag(0x0028, 0x1053),
             VR::DS,

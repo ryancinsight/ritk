@@ -3,25 +3,16 @@
 #![allow(clippy::needless_range_loop)]
 
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::test_support::make_image;
 
 type TestBackend = NdArray<f32>;
 
 // ── 1-D helpers ───────────────────────────────────────────────────────
 
 pub(super) fn make_mask_1d(values: Vec<f32>, nx: usize) -> Image<TestBackend, 1> {
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
-    let td = TensorData::new(values, Shape::new([nx]));
-    let tensor = Tensor::<TestBackend, 1>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0]),
-        Spacing::new([1.0]),
-        Direction::identity(),
-    )
+    make_image(values, [nx])
 }
 
 pub(super) fn values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
@@ -41,15 +32,7 @@ pub(super) fn count_fg_1d(image: &Image<TestBackend, 1>) -> usize {
 // ── 2-D helpers ───────────────────────────────────────────────────────
 
 pub(super) fn make_mask_2d(values: Vec<f32>, shape: [usize; 2]) -> Image<TestBackend, 2> {
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
-    let td = TensorData::new(values, Shape::new(shape));
-    let tensor = Tensor::<TestBackend, 2>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0; 2]),
-        Spacing::new([1.0; 2]),
-        Direction::identity(),
-    )
+    make_image(values, shape)
 }
 
 pub(super) fn values_2d(image: &Image<TestBackend, 2>) -> Vec<f32> {
@@ -69,15 +52,7 @@ pub(super) fn count_fg_2d(image: &Image<TestBackend, 2>) -> usize {
 // ── 3-D helpers ───────────────────────────────────────────────────────
 
 pub(super) fn make_mask_3d(values: Vec<f32>, shape: [usize; 3]) -> Image<TestBackend, 3> {
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
-    let td = TensorData::new(values, Shape::new(shape));
-    let tensor = Tensor::<TestBackend, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    )
+    make_image(values, shape)
 }
 
 pub(super) fn values_3d(image: &Image<TestBackend, 3>) -> Vec<f32> {

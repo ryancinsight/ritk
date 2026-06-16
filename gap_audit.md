@@ -9,7 +9,7 @@
 ### Gaps Identified (8-crate parallel audit: ritk-io, ritk-vtk, ritk-spatial/morphology/minc/metaimage/nrrd, ritk-snap, ritk-registration/transform, ritk-codecs/image/interpolation, ritk-filter, ritk-segmentation/statistics)
 
 - **[HARD] (ritk-io)**: `seg/writer.rs` fake UID bypass — `generate_uid()` suppressed, static value returned; real computation restored (P01)
-- **SSOT (ritk-io)**: `EXPLICIT_VR_LE` UID literal at 6 writer sites; `normalize_f32_to_u16` inline in 3 writers; `emit_u16_pixel_format_tags` cloned across 2 writers; 5 private UID counters duplicating `generate_uid`
+- **SSOT (ritk-io)**: `EXPLICIT_VR_LE` UID literal at 6 writer sites; `normalize_to_u16` inline in 3 writers; `emit_pixel_format_tags` cloned across 2 writers; 5 private UID counters duplicating `generate_uid`
 - **ENUM (ritk-io)**: `RtRoiInfo.roi_interpreted_type: Option<String>` (3-variant closed set); `RtDoseGrid.dose_type`/`dose_summation_type: ArrayString<16>`; `DicomSegmentation.segmentation_type`/`DicomSegmentInfo.algorithm_type: ArrayString<16>` — all closed sets
 - **NAMING (ritk-io)**: `DicomObjectNode::from_u16`/`from_i32`/`from_f64` type-name constructors; `get_u16` not reflecting u32 storage; `Association::config` dead field
 - **NAMING (ritk-vtk)**: 13 type-concrete read functions (`read_ascii_f32`, `read_binary_i32`, etc.); `write_attribute` cloned across VTK/VTP writers; XML attribute helpers duplicated across 3 modules; `char::from(Nu8)` idiom in 11 files vs char literal

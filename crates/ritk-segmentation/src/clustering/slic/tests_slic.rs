@@ -4,32 +4,17 @@
 
 use super::*;
 use crate::clustering::slic::coords::decode_coords_dyn as decode_coords;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::test_support::make_image;
 
 type B = NdArray<f32>;
 
 fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<B, 2> {
-    let device = Default::default();
-    let tensor = Tensor::<B, 2>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0, 0.0]),
-        Spacing::new([1.0, 1.0]),
-        Direction::identity(),
-    )
+    make_image(data, dims)
 }
 
 fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    )
+    make_image(data, dims)
 }
 
 fn get_slice_2d(image: &Image<B, 2>) -> Vec<f32> {

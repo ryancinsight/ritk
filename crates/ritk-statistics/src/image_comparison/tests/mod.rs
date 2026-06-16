@@ -1,45 +1,24 @@
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support;
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 
 type TestBackend = NdArray<f32>;
 
-fn make_mask_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
-    let device = Default::default();
-    let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    )
-}
-
-fn make_mask_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<TestBackend, 2> {
-    let device = Default::default();
-    let tensor =
-        Tensor::<TestBackend, 2>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0, 0.0]),
-        Spacing::new([1.0, 1.0]),
-        Direction::identity(),
-    )
+pub(super) fn make_image<const D: usize>(data: Vec<f32>, dims: [usize; D]) -> Image<TestBackend, D> {
+    test_support::make_image(data, dims)
 }
 
 fn make_mask_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
     let n = data.len();
-    let device = Default::default();
-    let tensor =
-        Tensor::<TestBackend, 1>::from_data(TensorData::new(data, Shape::new([n])), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0]),
-        Spacing::new([1.0]),
-        Direction::identity(),
-    )
+    test_support::make_image(data, [n])
+}
+
+fn make_mask_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<TestBackend, 2> {
+    test_support::make_image(data, dims)
+}
+
+fn make_mask_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
+    test_support::make_image(data, dims)
 }
 
 pub(super) const F32_TOL: f32 = 1e-5;

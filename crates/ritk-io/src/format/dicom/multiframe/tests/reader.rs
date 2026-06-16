@@ -334,7 +334,7 @@ fn test_load_multiframe_jpeg_baseline_codec_round_trip() {
 }
 
 #[test]
-fn test_load_multiframe_signed_i16_roundtrip() {
+fn test_load_multiframe_signed_short_roundtrip() {
     let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("signed_i16.dcm");

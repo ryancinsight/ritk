@@ -6,7 +6,7 @@
 
 ### Delivered (Sprint 375)
 - [x] P01 [patch]: [HARD] fake UID bypass in seg/writer.rs — real compute restored
-- [x] P02–P05 [patch]: SSOT/DRY — EXPLICIT_VR_LE ×6 writers; normalize_f32_to_u16 helper; UID gen dedup; emit_u16_pixel_format_tags helper
+- [x] P02–P05 [patch]: SSOT/DRY — EXPLICIT_VR_LE ×6 writers; normalize_to_u16 helper; UID gen dedup; emit_pixel_format_tags helper
 - [x] P06–P08 [minor]: ENUM — RtRoiInterpretedType, RtDoseType/RtDoseSummationType, SegmentationType/SegmentAlgorithmType promoted from ArrayString<16>
 - [x] P09 [minor]: DRY+NAMING — DicomObjectNode::with_value<V> generic + get_u32 rename + is_image_sop_class + Association::config removed
 - [x] P10–P14 [minor/patch]: NAMING+DRY — ritk-vtk 13 type-concrete fns deleted → read_helpers; write_attribute dedup; xml_helpers.rs shared module; char literals + SSOT consts

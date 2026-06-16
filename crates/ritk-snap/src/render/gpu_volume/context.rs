@@ -11,12 +11,44 @@
 //! - The resulting device supports `BufferBindingType::Storage` (base wgpu
 //!   feature set, no additional features required).
 
+use std::sync::{Arc, OnceLock};
 use wgpu::{Device, InstanceDescriptor, Queue, RequestAdapterOptions};
 
+static SHARED_DEVICE_QUEUE: OnceLock<Option<(Arc<Device>, Arc<Queue>)>> = OnceLock::new();
+
+/// Fetch the shared global `wgpu::Device` and `wgpu::Queue` pair, initializing
+/// them once on the first call. Subsequent calls reuse the same device context
+/// to avoid driver resource limits and access violations.
+pub(crate) fn get_shared_device_queue() -> Option<(Arc<Device>, Arc<Queue>)> {
+    SHARED_DEVICE_QUEUE
+        .get_or_init(|| {
+            pollster::block_on(async {
+                let instance = wgpu::Instance::new(InstanceDescriptor {
+                    backends: wgpu::Backends::all(),
+                    ..Default::default()
+                });
+                let adapter = instance
+                    .request_adapter(&RequestAdapterOptions {
+                        power_preference: wgpu::PowerPreference::HighPerformance,
+                        compatible_surface: None,
+                        force_fallback_adapter: false,
+                    })
+                    .await?;
+                let (device, queue) = adapter
+                    .request_device(&wgpu::DeviceDescriptor::default(), None)
+                    .await
+                    .ok()?;
+                Some((Arc::new(device), Arc::new(queue)))
+            })
+        })
+        .clone()
+}
+
 /// Owned wgpu device and queue for GPU compute operations.
+#[derive(Clone)]
 pub(super) struct GpuContext {
-    pub device: Device,
-    pub queue: Queue,
+    pub device: Arc<Device>,
+    pub queue: Arc<Queue>,
 }
 
 impl GpuContext {
@@ -25,23 +57,7 @@ impl GpuContext {
     /// Returns `None` on any failure (no GPU, feature mismatch, driver error).
     /// Callers must fall back to CPU rendering when this returns `None`.
     pub fn try_new() -> Option<Self> {
-        pollster::block_on(async {
-            let instance = wgpu::Instance::new(InstanceDescriptor {
-                backends: wgpu::Backends::all(),
-                ..Default::default()
-            });
-            let adapter = instance
-                .request_adapter(&RequestAdapterOptions {
-                    power_preference: wgpu::PowerPreference::HighPerformance,
-                    compatible_surface: None,
-                    force_fallback_adapter: false,
-                })
-                .await?;
-            let (device, queue) = adapter
-                .request_device(&wgpu::DeviceDescriptor::default(), None)
-                .await
-                .ok()?;
-            Some(GpuContext { device, queue })
-        })
+        let (device, queue) = get_shared_device_queue()?;
+        Some(GpuContext { device, queue })
     }
 }

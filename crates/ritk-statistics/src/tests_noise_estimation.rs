@@ -1,21 +1,12 @@
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::test_support;
+use ritk_image::Image;
 
 type TestBackend = NdArray<f32>;
 
 fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
-    let n = data.len();
-    let device = Default::default();
-    let tensor =
-        Tensor::<TestBackend, 1>::from_data(TensorData::new(data, Shape::new([n])), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0]),
-        Spacing::new([1.0]),
-        Direction::identity(),
-    )
+    test_support::make_image_1d(data)
 }
 
 // ── Positive tests ────────────────────────────────────────────────────────

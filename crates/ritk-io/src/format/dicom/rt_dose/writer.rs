@@ -13,7 +13,7 @@ use std::path::Path;
 use super::types::{RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
 use crate::format::dicom::rt_plan::RT_PLAN_SOP_CLASS_UID;
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
-use crate::format::dicom::writer::utils::generate_series_uid;
+use crate::format::dicom::writer::utils::{generate_series_uid, MONOCHROME2};
 
 /// Write an [`RtDoseGrid`] to a DICOM RT Dose Storage file at `path`.
 ///
@@ -92,7 +92,7 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
     obj.put(DataElement::new(
         Tag(0x0028, 0x0004),
         VR::CS,
-        PrimitiveValue::from("MONOCHROME2"),
+        PrimitiveValue::from(MONOCHROME2),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0008),

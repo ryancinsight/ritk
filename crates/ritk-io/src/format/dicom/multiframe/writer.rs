@@ -12,7 +12,7 @@ use std::path::Path;
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use crate::format::dicom::writer::utils::{
-    emit_u16_pixel_format_tags, generate_series_uid, normalize_f32_to_u16,
+    emit_pixel_format_tags, generate_series_uid, normalize_to_u16, MONOCHROME2,
 };
 
 /// Write a 3-D `Image<B, 3>` with shape `[n_frames, rows, cols]` as a single
@@ -93,7 +93,7 @@ fn write_multiframe_impl<B: Backend>(
         .try_data_vec()
         .context("DICOM multiframe writer requires f32 image data")?;
 
-    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_f32_to_u16(&all_data);
+    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(&all_data);
 
     let sop_instance_uid = generate_series_uid();
     let study_instance_uid = generate_series_uid();
@@ -199,11 +199,11 @@ fn write_multiframe_impl<B: Backend>(
         VR::US,
         PrimitiveValue::from(cols as u16),
     ));
-    emit_u16_pixel_format_tags(&mut obj);
+    emit_pixel_format_tags(&mut obj);
     obj.put(DataElement::new(
         Tag(0x0028, 0x0004),
         VR::CS,
-        PrimitiveValue::from("MONOCHROME2"),
+        PrimitiveValue::from(MONOCHROME2),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x1053),

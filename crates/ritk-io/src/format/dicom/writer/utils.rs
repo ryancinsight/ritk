@@ -5,7 +5,10 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 /// Maximum u16 pixel value as f32, used for normalization (u16::MAX = 65535).
-pub(crate) const U16_MAX_F32: f32 = 65535.0;
+pub(crate) const U16_MAX_F: f32 = 65535.0;
+
+/// Photometric interpretation for scalar/grayscale images in DICOM writers.
+pub(crate) const MONOCHROME2: &str = "MONOCHROME2";
 
 pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.1.1.7";
 
@@ -21,18 +24,18 @@ pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.
 ///   rescale_intercept = min_val
 ///
 /// Reconstruction invariant: |v[i] - (pixel[i] × slope + intercept)| ≤ slope / 2.
-pub(crate) fn normalize_f32_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
+pub(crate) fn normalize_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
     let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
     let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     let range = (max_val - min_val).max(f32::EPSILON);
-    let rescale_slope = range / U16_MAX_F32;
+    let rescale_slope = range / U16_MAX_F;
     let rescale_intercept = min_val;
     let pixels: Vec<u16> = data
         .iter()
         .map(|&v| {
-            ((v - min_val) / range * U16_MAX_F32)
+            ((v - min_val) / range * U16_MAX_F)
                 .round()
-                .clamp(0.0, U16_MAX_F32) as u16
+                .clamp(0.0, U16_MAX_F) as u16
         })
         .collect();
     (pixels, rescale_slope, rescale_intercept)
@@ -42,7 +45,7 @@ pub(crate) fn normalize_f32_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
 ///
 /// BitsAllocated = 16, BitsStored = 16, HighBit = 15, PixelRepresentation = 0 (unsigned).
 /// Call sites may override individual tags afterwards if metadata specifies different values.
-pub(crate) fn emit_u16_pixel_format_tags(obj: &mut InMemDicomObject) {
+pub(crate) fn emit_pixel_format_tags(obj: &mut InMemDicomObject) {
     obj.put(DataElement::new(
         Tag(0x0028, 0x0100),
         VR::US,

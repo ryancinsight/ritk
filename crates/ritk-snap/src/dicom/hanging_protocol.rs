@@ -45,32 +45,32 @@ pub fn select_hanging_protocol(
 
     let mut decision = if modality_upper.starts_with("CT") {
         if contains_any(&desc_upper, &["LUNG", "CHEST"]) {
-            ct_lung_protocol()
+            CT_LUNG
         } else if contains_any(&desc_upper, &["ANGIO", "CTA", "VASC"]) {
-            ct_angio_protocol()
+            CT_ANGIO
         } else if contains_any(&desc_upper, &["BONE", "SPINE", "TEMPORAL"]) {
-            ct_bone_protocol()
+            CT_BONE
         } else if contains_any(&desc_upper, &["BRAIN", "HEAD", "STROKE"]) {
-            ct_brain_protocol()
+            CT_BRAIN
         } else {
-            ct_soft_tissue_protocol()
+            CT_SOFT_TISSUE
         }
     } else if modality_upper.starts_with("MR") {
         if contains_any(&desc_upper, &["FLAIR"]) {
-            mr_flair_protocol()
+            MR_FLAIR
         } else if contains_any(&desc_upper, &["T1", "MPRAGE"]) {
-            mr_t1_protocol()
+            MR_T1
         } else if contains_any(&desc_upper, &["T2"]) {
-            mr_t2_protocol()
+            MR_T2
         } else if contains_any(&desc_upper, &["SPINE"]) {
-            mr_spine_protocol()
+            MR_SPINE
         } else {
-            mr_t2_protocol()
+            MR_T2
         }
     } else if modality_upper.starts_with("PT") {
-        pet_suv_protocol()
+        PET_SUV
     } else {
-        generic_protocol()
+        GENERIC
     };
 
     if shape[decision.preferred_axis.min(2)] == 0 {
@@ -95,115 +95,92 @@ fn first_non_empty_axis(shape: [usize; 3]) -> usize {
     }
 }
 
-fn ct_brain_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "CT Brain",
-        window_center: 40.0,
-        window_width: 80.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
+// ── Protocol constants ───────────────────────────────────────────────────────
+//
+// All window/axis/layout values live here as named consts.
+// Adding a new protocol: add one const, update `select_hanging_protocol`.
 
-fn ct_lung_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "CT Lung",
-        window_center: -400.0,
-        window_width: 1500.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
+const MPR: LayoutSuggestion = LayoutSuggestion::MultiPlanarReformat;
+const SGL: LayoutSuggestion = LayoutSuggestion::SinglePane;
 
-fn ct_bone_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "CT Bone",
-        window_center: 400.0,
-        window_width: 1000.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
+const CT_BRAIN: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "CT Brain",
+    window_center: 40.0,
+    window_width: 80.0,
+    preferred_axis: 0,
+    layout: MPR,
+};
+const CT_LUNG: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "CT Lung",
+    window_center: -400.0,
+    window_width: 1500.0,
+    preferred_axis: 0,
+    layout: MPR,
+};
+const CT_BONE: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "CT Bone",
+    window_center: 400.0,
+    window_width: 1000.0,
+    preferred_axis: 0,
+    layout: MPR,
+};
+const CT_ANGIO: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "CT Angio",
+    window_center: 300.0,
+    window_width: 600.0,
+    preferred_axis: 0,
+    layout: MPR,
+};
+const CT_SOFT_TISSUE: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "CT Soft Tissue",
+    window_center: 60.0,
+    window_width: 400.0,
+    preferred_axis: 0,
+    layout: MPR,
+};
+const MR_T1: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "MR T1",
+    window_center: 500.0,
+    window_width: 800.0,
+    preferred_axis: 0,
+    layout: MPR,
+};
+const MR_T2: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "MR T2",
+    window_center: 600.0,
+    window_width: 1200.0,
+    preferred_axis: 0,
+    layout: MPR,
+};
+const MR_FLAIR: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "MR FLAIR",
+    window_center: 400.0,
+    window_width: 800.0,
+    preferred_axis: 0,
+    layout: MPR,
+};
+const MR_SPINE: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "MR Spine",
+    window_center: 600.0,
+    window_width: 1200.0,
+    preferred_axis: 1,
+    layout: MPR,
+};
+const GENERIC: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "Generic",
+    window_center: 128.0,
+    window_width: 256.0,
+    preferred_axis: 0,
+    layout: SGL,
+};
+const PET_SUV: HangingProtocolDecision = HangingProtocolDecision {
+    protocol_name: "PET SUV",
+    window_center: 3.0,
+    window_width: 6.0,
+    preferred_axis: 0,
+    layout: MPR,
+};
 
-fn ct_angio_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "CT Angio",
-        window_center: 300.0,
-        window_width: 600.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
-
-fn ct_soft_tissue_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "CT Soft Tissue",
-        window_center: 60.0,
-        window_width: 400.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
-
-fn mr_t1_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "MR T1",
-        window_center: 500.0,
-        window_width: 800.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
-
-fn mr_t2_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "MR T2",
-        window_center: 600.0,
-        window_width: 1200.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
-
-fn mr_flair_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "MR FLAIR",
-        window_center: 400.0,
-        window_width: 800.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
-
-fn mr_spine_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "MR Spine",
-        window_center: 600.0,
-        window_width: 1200.0,
-        preferred_axis: 1,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
-
-fn generic_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "Generic",
-        window_center: 128.0,
-        window_width: 256.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::SinglePane,
-    }
-}
-
-fn pet_suv_protocol() -> HangingProtocolDecision {
-    HangingProtocolDecision {
-        protocol_name: "PET SUV",
-        window_center: 3.0,
-        window_width: 6.0,
-        preferred_axis: 0,
-        layout: LayoutSuggestion::MultiPlanarReformat,
-    }
-}
 
 #[cfg(test)]
 mod tests {

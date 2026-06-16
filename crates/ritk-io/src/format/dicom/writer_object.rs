@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn test_model_to_in_mem_u16_node() {
+    fn test_model_to_in_mem_unsigned_node() {
         let mut model = DicomObjectModel::new();
         model.insert(DicomObjectNode::with_value(
             DicomTag::new(0x0028, 0x0100),

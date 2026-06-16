@@ -9,7 +9,7 @@ use std::path::Path;
 
 use super::types::{DicomSegmentation, SEG_SOP_CLASS_UID};
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
-use crate::format::dicom::writer::utils::generate_series_uid;
+use crate::format::dicom::writer::utils::{generate_series_uid, MONOCHROME2};
 
 /// Write a [`DicomSegmentation`] to a DICOM Segmentation Storage file.
 ///
@@ -180,7 +180,7 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
     obj.put(DataElement::new(
         Tag(0x0028, 0x0004),
         VR::CS,
-        PrimitiveValue::from("MONOCHROME2"),
+        PrimitiveValue::from(MONOCHROME2),
     ));
     obj.put(DataElement::new(
         Tag(0x0062, 0x0001),

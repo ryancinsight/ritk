@@ -1,33 +1,13 @@
 //! Tests for kmeans
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::test_support::{make_image, make_image_1d};
 
 type B = NdArray<f32>;
 
-fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
-    let n = data.len();
-    let device = Default::default();
-    let tensor = Tensor::<B, 1>::from_data(TensorData::new(data, Shape::new([n])), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0]),
-        Spacing::new([1.0]),
-        Direction::identity(),
-    )
-}
-
 fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    )
+    make_image(data, dims)
 }
 
 fn get_slice_1d(image: &Image<B, 1>) -> Vec<f32> {

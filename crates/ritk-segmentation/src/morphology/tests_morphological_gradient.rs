@@ -1,20 +1,12 @@
 #![allow(clippy::needless_range_loop)]
 
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::test_support::make_image;
 use ritk_image::Image;
 type Backend = burn_ndarray::NdArray<f32>;
 
 fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<Backend, 3> {
-    let device = Default::default();
-    let tensor = Tensor::<Backend, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    )
+    make_image(vals, shape)
 }
 
 #[test]

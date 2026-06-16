@@ -44,7 +44,14 @@ pub use scan::scan_folder_for_series;
 /// CPU backend alias used for all loading operations in this module.
 type B = NdArray<f32>;
 
-// ── Auto-detect ───────────────────────────────────────────────────────────────
+/// Return a default device for the `B` backend.
+///
+/// Centralises the `<B as Backend>::Device::default()` spelling so callers
+/// don't repeat the turbofish at every format branch.
+#[inline]
+fn device() -> <B as burn::tensor::backend::Backend>::Device {
+    Default::default()
+}
 
 /// Auto-detect the volume format from `path` and load accordingly.
 ///
@@ -73,20 +80,17 @@ pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
         return load_nifti_volume(path);
     }
     if path_str.ends_with(".mha") || path_str.ends_with(".mhd") {
-        let device = <B as burn::tensor::backend::Backend>::Device::default();
-        let image = ritk_io::read_metaimage::<B, _>(path, &device)
+        let image = ritk_io::read_metaimage::<B, _>(path, &device())
             .with_context(|| format!("failed to read MetaImage '{}'", path.display()))?;
         return convert::volume_from_image_no_meta(image, path.to_path_buf());
     }
     if path_str.ends_with(".nrrd") || path_str.ends_with(".nhdr") {
-        let device = <B as burn::tensor::backend::Backend>::Device::default();
-        let image = ritk_io::read_nrrd::<B, _>(path, &device)
+        let image = ritk_io::read_nrrd::<B, _>(path, &device())
             .with_context(|| format!("failed to read NRRD '{}'", path.display()))?;
         return convert::volume_from_image_no_meta(image, path.to_path_buf());
     }
     if path_str.ends_with(".mgh") || path_str.ends_with(".mgz") {
-        let device = <B as burn::tensor::backend::Backend>::Device::default();
-        let image = ritk_io::read_mgh::<B, _>(path, &device)
+        let image = ritk_io::read_mgh::<B, _>(path, &device())
             .with_context(|| format!("failed to read MGH '{}'", path.display()))?;
         return convert::volume_from_image_no_meta(image, path.to_path_buf());
     }
@@ -94,6 +98,7 @@ pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     // Fallback: treat as DICOM folder or single-file DICOM.
     load_dicom_volume(path)
 }
+
 
 /// Load a pathless in-memory medical payload.
 ///
@@ -107,8 +112,7 @@ pub fn load_volume_from_bytes(name_hint: &str, bytes: &[u8]) -> Result<LoadedVol
     }
 
     if name.ends_with(".nii") || name.ends_with(".nii.gz") {
-        let device = <B as burn::tensor::backend::Backend>::Device::default();
-        let image = ritk_io::read_nifti_from_bytes::<B>(bytes, &device)
+        let image = ritk_io::read_nifti_from_bytes::<B>(bytes, &device())
             .with_context(|| format!("failed to read dropped NIfTI bytes '{}'", name_hint))?;
         return convert::volume_from_image_no_meta(image, PathBuf::from(name_hint));
     }
