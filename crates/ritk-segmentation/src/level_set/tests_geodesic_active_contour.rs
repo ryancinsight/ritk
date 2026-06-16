@@ -1,11 +1,10 @@
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::{make_image, make_image_with};
 use ritk_core::spatial::{Point, Spacing};
 use ritk_filter::edge::GaussianSigma;
+use ritk_image::test_support::{make_image, make_image_with};
 
 type B = NdArray<f32>;
-
 
 fn make_image_with_metadata(
     data: Vec<f32>,
@@ -14,7 +13,8 @@ fn make_image_with_metadata(
     spacing: [f64; 3],
 ) -> Image<B, 3> {
     make_image_with(
-        data, dims,
+        data,
+        dims,
         Some(Point::new(origin)),
         Some(Spacing::new(spacing)),
         None,

@@ -1,10 +1,9 @@
 #![allow(clippy::identity_op, clippy::erasing_op)]
 
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_image::test_support as ts;
 use ritk_core::image::Image;
+use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -21,13 +20,7 @@ fn make_image_with_metadata(
     spacing: Spacing<3>,
     direction: Direction<3>,
 ) -> Image<B, 3> {
-    ts::make_image_with::<B, 3>(
-        vals,
-        dims,
-        Some(origin),
-        Some(spacing),
-        Some(direction),
-    )
+    ts::make_image_with::<B, 3>(vals, dims, Some(origin), Some(spacing), Some(direction))
 }
 
 #[test]

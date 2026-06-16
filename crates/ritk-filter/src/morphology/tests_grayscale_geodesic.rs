@@ -1,11 +1,9 @@
 //! Tests for grayscale_geodesic
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 

@@ -2,9 +2,9 @@ use super::*;
 
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_image::test_support as ts;
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::test_support as ts;
+use ritk_spatial::{Point, Spacing};
 
 type B = NdArray<f32>;
 

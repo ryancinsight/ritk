@@ -145,7 +145,10 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     // Delegates to the shared `ByteOrder::from_nrrd` constructor in
     // `ritk-codecs::byte_decode`. Unknown / misspelled byte-order strings
     // fall back to little-endian (pre-refactor behavior preserved).
-    let endian_str = headers.get("endian").map(String::as_str).unwrap_or("little");
+    let endian_str = headers
+        .get("endian")
+        .map(String::as_str)
+        .unwrap_or("little");
     let byte_order = ByteOrder::from_nrrd(endian_str);
 
     // ── Spacing and direction ─────────────────────────────────────────────

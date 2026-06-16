@@ -7,8 +7,7 @@ use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = NdArray<f32>;
 fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    let t =
-        Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &Default::default());
+    let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &Default::default());
     Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),
@@ -52,9 +51,9 @@ fn test_isolated_voxel_detected() {
     v[c] = 1.0;
     let out = vv(&HitOrMissTransform::new(0, 1).apply(&img(v, dims)).unwrap());
     assert!(out[c] > 0.5, "centre must be detected, got {}", out[c]);
-    for i in 0..n {
+    for (i, &v) in out.iter().enumerate() {
         if i != c {
-            assert!(out[i] < 0.5, "voxel {i}={}", out[i]);
+            assert!(v < 0.5, "voxel {i}={v}");
         }
     }
 }

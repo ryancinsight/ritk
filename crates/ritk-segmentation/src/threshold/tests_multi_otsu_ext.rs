@@ -1,8 +1,8 @@
 //! Extracted tests: general invariants, edge cases, internal variance, negative, from_slice.
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::{make_image, make_image_with};
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::test_support::{make_image, make_image_with};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type TestBackend = NdArray<f32>;
@@ -100,7 +100,8 @@ fn test_apply_preserves_spatial_metadata_volumetric() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.5, 0.5]);
     let direction = Direction::<3>::identity();
-    let image: Image<TestBackend, 3> = make_image_with(data, [3, 3, 3], Some(origin), Some(spacing), None);
+    let image: Image<TestBackend, 3> =
+        make_image_with(data, [3, 3, 3], Some(origin), Some(spacing), None);
     let labels = MultiOtsuThreshold::new(3).apply(&image);
     assert_eq!(labels.origin(), &origin, "origin must be preserved");
     assert_eq!(labels.spacing(), &spacing, "spacing must be preserved");

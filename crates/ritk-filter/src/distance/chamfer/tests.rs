@@ -5,11 +5,9 @@
 //! foreground voxels carry the chamfer distance to the nearest background.
 
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_image::test_support as ts;
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::test_support as ts;
 
 type B = NdArray<f32>;
 
@@ -18,11 +16,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
 }
 
 fn make_image_with_spacing(vals: Vec<f32>, dims: [usize; 3], sp: [f64; 3]) -> Image<B, 3> {
-    ts::make_image_with_spacing::<B, 3>(
-        vals,
-        dims,
-        sp,
-    )
+    ts::make_image_with_spacing::<B, 3>(vals, dims, sp)
 }
 
 fn values_finite(img: &Image<B, 3>) -> Vec<f32> {

@@ -18,11 +18,10 @@
 //! slowst in memory (outermost loop), the leftmost varies fastest.
 
 use crate::bin_shrink::BinShrinkImageFilter;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_image::test_support as ts;
 use ritk_core::image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::test_support as ts;
+use ritk_spatial::{Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type B = NdArray<f32>;

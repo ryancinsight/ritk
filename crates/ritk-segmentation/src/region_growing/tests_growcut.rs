@@ -8,7 +8,6 @@ fn make_image(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
     ritk_image::test_support::make_image(data, dims)
 }
 
-
 fn get_labels(image: &Image<TestBackend, 3>) -> Vec<u32> {
     image
         .data()

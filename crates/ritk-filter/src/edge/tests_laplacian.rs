@@ -1,19 +1,13 @@
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type B = NdArray<f32>;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
-    ts::make_image_with_spacing::<B, 3>(
-        vals,
-        dims,
-        spacing,
-    )
+    ts::make_image_with_spacing::<B, 3>(vals, dims, spacing)
 }
 
 /// Uniform image → Laplacian = 0 everywhere.

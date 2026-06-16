@@ -106,4 +106,3 @@ impl GrayscaleClosingFilter {
 #[cfg(test)]
 #[path = "tests_grayscale_closing.rs"]
 mod tests_grayscale_closing;
-

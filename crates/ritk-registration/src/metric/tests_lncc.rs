@@ -1,8 +1,6 @@
 use super::*;
-use burn::tensor::{Shape, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::TranslationTransform;
 
 type B = NdArray<f32>;

@@ -4,7 +4,10 @@ use ritk_image::Image;
 
 type TestBackend = NdArray<f32>;
 
-pub(super) fn make_image<const D: usize>(data: Vec<f32>, dims: [usize; D]) -> Image<TestBackend, D> {
+pub(super) fn make_image<const D: usize>(
+    data: Vec<f32>,
+    dims: [usize; D],
+) -> Image<TestBackend, D> {
     test_support::make_image(data, dims)
 }
 

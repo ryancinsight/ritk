@@ -1,7 +1,7 @@
 use super::*;
-use ritk_image::test_support as ts;
 use crate::edge::GaussianSigma;
 use ritk_core::image::Image;
+use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = burn_ndarray::NdArray<f32>;
 
@@ -9,11 +9,7 @@ fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
     ts::make_image::<B, 3>(vals, shape)
 }
 fn make_image_with_spacing(vals: Vec<f32>, shape: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
-    ts::make_image_with_spacing::<B, 3>(
-        vals,
-        shape,
-        spacing,
-    )
+    ts::make_image_with_spacing::<B, 3>(vals, shape, spacing)
 }
 fn vals(img: &Image<B, 3>) -> Vec<f32> {
     img.data().clone().into_data().into_vec::<f32>().unwrap()

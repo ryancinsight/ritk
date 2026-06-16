@@ -123,9 +123,7 @@ fn cubic_reference(data: &[f32], dims: [usize; 3], radius: usize, fg: f32) -> Ve
                             {
                                 continue;
                             }
-                            if data[zz as usize * ny * nx + yy as usize * nx + xx as usize]
-                                == fg
-                            {
+                            if data[zz as usize * ny * nx + yy as usize * nx + xx as usize] == fg {
                                 any = true;
                                 break 'o;
                             }

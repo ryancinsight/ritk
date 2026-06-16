@@ -4,11 +4,9 @@
 //! frequency-domain filtering pipeline.
 
 use crate::fft::frequency_filter::{FftFilterKind, FrequencyDomainFilter};
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec;
 
 type B = NdArray<f32>;

@@ -10,9 +10,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 
 type B = NdArray<f32>;
 
-use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 
 fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
     ts::make_image::<B, 3>(data, shape)

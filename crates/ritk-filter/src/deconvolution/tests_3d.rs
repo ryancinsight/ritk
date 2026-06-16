@@ -10,11 +10,9 @@
 use super::{
     LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
 };
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 

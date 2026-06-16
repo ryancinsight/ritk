@@ -74,7 +74,7 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     let [nz, ny, nx] = shape;
     let sp = image.spacing(); // tensor-axis order [sz, sy, sx]
     let orig = image.origin(); // world-space [ox, oy, oz]
-    // File-axis spacing [sx, sy, sz] is the reverse of core [sz, sy, sx].
+                               // File-axis spacing [sx, sy, sz] is the reverse of core [sz, sy, sx].
     let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
 
     // Validate dimensions fit in i16 (Analyze constraint).

@@ -10,8 +10,8 @@
 //! | `ssao`             | ssao.wgsl         | Compute           | 0=ssao_params, 1=normal_depth, 2=ao_buf, 3=kernel |
 //! | `composite`        | composite.wgsl    | Compute           | 0=color_layers, 1=ao_buf, 2=output, 3=comp_params |
 
-use std::sync::Arc;
 use super::params::MeshVertex;
+use std::sync::Arc;
 
 pub(super) struct GpuMeshContext {
     pub device: Arc<wgpu::Device>,

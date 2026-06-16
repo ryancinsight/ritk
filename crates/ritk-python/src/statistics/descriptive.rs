@@ -45,11 +45,7 @@ pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResu
 ///     Percentiles correspond to the 25th, 50th (median), and 75th percentiles.
 #[pyfunction]
 #[pyo3(signature = (image, ddof=0))]
-pub fn compute_statistics(
-    py: Python<'_>,
-    image: &PyImage,
-    ddof: usize,
-) -> RitkResult<Py<PyDict>> {
+pub fn compute_statistics(py: Python<'_>, image: &PyImage, ddof: usize) -> RitkResult<Py<PyDict>> {
     let stats = with_tensor_slice(image.inner.data(), |slice| {
         compute_statistics_from_slice(slice, ddof)
     });

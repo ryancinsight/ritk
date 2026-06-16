@@ -3,8 +3,8 @@
 
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::{make_image, make_image_with};
 use ritk_core::spatial::{Point, Spacing};
+use ritk_image::test_support::{make_image, make_image_with};
 
 type B = NdArray<f32>;
 
@@ -14,7 +14,6 @@ fn compute_curvature(phi: &[f64], dims: [usize; 3], kappa: &mut [f64]) {
     compute_curvature_into(phi, dims, kappa);
 }
 
-
 fn make_image_with_metadata(
     data: Vec<f32>,
     dims: [usize; 3],
@@ -22,13 +21,13 @@ fn make_image_with_metadata(
     spacing: [f64; 3],
 ) -> Image<B, 3> {
     make_image_with(
-        data, dims,
+        data,
+        dims,
         Some(Point::new(origin)),
         Some(Spacing::new(spacing)),
         None,
     )
 }
-
 
 fn get_values(image: &Image<B, 3>) -> Vec<f32> {
     image

@@ -99,7 +99,6 @@ pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     load_dicom_volume(path)
 }
 
-
 /// Load a pathless in-memory medical payload.
 ///
 /// Currently supports NIfTI byte payloads identified by `name_hint`

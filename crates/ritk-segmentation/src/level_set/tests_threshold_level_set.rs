@@ -2,8 +2,8 @@
 //! Extracted to keep the 500-line structural limit.
 
 use super::*;
-use ritk_image::test_support::make_image_with;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::test_support::make_image_with;
 
 type B = burn_ndarray::NdArray<f32>;
 
@@ -27,7 +27,8 @@ fn make_image_with_metadata(
     spacing: [f64; 3],
 ) -> Image<B, 3> {
     make_image_with(
-        data, dims,
+        data,
+        dims,
         Some(Point::new(origin)),
         Some(Spacing::new(spacing)),
         None,

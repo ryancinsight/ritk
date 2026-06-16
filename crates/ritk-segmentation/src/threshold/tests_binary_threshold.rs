@@ -2,11 +2,10 @@
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::{make_image, make_image_with};
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::test_support::{make_image, make_image_with};
 
 type B = NdArray<f32>;
-
 
 fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
     let n = data.len();

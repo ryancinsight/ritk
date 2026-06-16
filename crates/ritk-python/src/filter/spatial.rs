@@ -346,22 +346,42 @@ pub fn shift_image(
 
         match mode.as_str() {
             "nearest" => Ok(ResampleImageFilter::new(
-                shape, orig, sp, dir, transform.clone(), NearestNeighborInterpolator::new(),
+                shape,
+                orig,
+                sp,
+                dir,
+                transform.clone(),
+                NearestNeighborInterpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
             .apply(inner.as_ref())),
             "linear" => Ok(ResampleImageFilter::new(
-                shape, orig, sp, dir, transform.clone(), LinearInterpolator::new(),
+                shape,
+                orig,
+                sp,
+                dir,
+                transform.clone(),
+                LinearInterpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
             .apply(inner.as_ref())),
             "bspline" => Ok(ResampleImageFilter::new(
-                shape, orig, sp, dir, transform.clone(), BSplineInterpolator::new(),
+                shape,
+                orig,
+                sp,
+                dir,
+                transform.clone(),
+                BSplineInterpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
             .apply(inner.as_ref())),
             "lanczos" => Ok(ResampleImageFilter::new(
-                shape, orig, sp, dir, transform, Lanczos5Interpolator::new(),
+                shape,
+                orig,
+                sp,
+                dir,
+                transform,
+                Lanczos5Interpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
             .apply(inner.as_ref())),

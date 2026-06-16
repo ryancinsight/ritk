@@ -75,9 +75,8 @@ fn analyze_writer_emits_pixdim_in_file_axis_order() -> Result<()> {
     write_analyze(&path, &image)?;
 
     let hdr = std::fs::read(&path)?;
-    let read_f32 = |off: usize| {
-        f32::from_le_bytes([hdr[off], hdr[off + 1], hdr[off + 2], hdr[off + 3]])
-    };
+    let read_f32 =
+        |off: usize| f32::from_le_bytes([hdr[off], hdr[off + 1], hdr[off + 2], hdr[off + 3]]);
     assert_eq!(read_f32(80), 3.75, "pixdim[1] must be sx (file-axis X)");
     assert_eq!(read_f32(84), 2.5, "pixdim[2] must be sy (file-axis Y)");
     assert_eq!(read_f32(88), 1.25, "pixdim[3] must be sz (file-axis Z)");

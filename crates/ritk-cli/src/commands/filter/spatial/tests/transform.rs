@@ -26,7 +26,11 @@ fn test_filter_gradient_magnitude_creates_output() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_gradient_magnitude(&default_args(input, output.clone(), FilterKind::GradientMagnitude));
+    let result = run_gradient_magnitude(&default_args(
+        input,
+        output.clone(),
+        FilterKind::GradientMagnitude,
+    ));
     assert!(
         result.is_ok(),
         "gradient-magnitude must succeed: {:?}",
@@ -58,7 +62,11 @@ fn test_filter_recursive_gaussian_creates_output_with_correct_shape() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_recursive_gaussian(&default_args(input, output.clone(), FilterKind::RecursiveGaussian));
+    let result = run_recursive_gaussian(&default_args(
+        input,
+        output.clone(),
+        FilterKind::RecursiveGaussian,
+    ));
     assert!(
         result.is_ok(),
         "recursive-gaussian must succeed: {:?}",

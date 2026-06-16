@@ -6,7 +6,6 @@ use ritk_image::test_support::make_image;
 
 type B = NdArray<f32>;
 
-
 fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
     let n = data.len();
     make_image(data, [n])

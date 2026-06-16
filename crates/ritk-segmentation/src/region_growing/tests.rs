@@ -3,11 +3,10 @@
 use super::{connected_threshold, ConnectedThresholdFilter};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_image::test_support::make_image;
 use ritk_core::image::Image;
+use ritk_image::test_support::make_image;
 
 type TestBackend = NdArray<f32>;
-
 
 fn get_values(image: &Image<TestBackend, 3>) -> Vec<f32> {
     image

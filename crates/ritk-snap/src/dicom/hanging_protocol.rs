@@ -181,7 +181,6 @@ const PET_SUV: HangingProtocolDecision = HangingProtocolDecision {
     layout: MPR,
 };
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

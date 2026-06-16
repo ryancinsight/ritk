@@ -575,7 +575,8 @@ mod tests {
         )
         .unwrap_err();
         assert!(
-            err.to_string().contains("Unsupported integer element size 3"),
+            err.to_string()
+                .contains("Unsupported integer element size 3"),
             "expected explicit error, got: {err:#}"
         );
     }

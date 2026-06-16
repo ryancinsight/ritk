@@ -112,7 +112,8 @@ fn test_compute_from_image_api_matches_slice_api() {
     let label_image = make_image_3d(label_data.clone(), [2, 2, 2]);
     let intensity_image = make_image_3d(intensity_data.clone(), [2, 2, 2]);
     let stats_img = compute_label_intensity_statistics(&label_image, &intensity_image);
-    let stats_slice = compute_label_intensity_statistics_from_slices(&label_data, &intensity_data, 0);
+    let stats_slice =
+        compute_label_intensity_statistics_from_slices(&label_data, &intensity_data, 0);
     assert_eq!(stats_img.len(), stats_slice.len());
     for (a, b) in stats_img.iter().zip(stats_slice.iter()) {
         assert_eq!(a.label, b.label);
