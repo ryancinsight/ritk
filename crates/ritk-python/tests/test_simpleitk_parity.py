@@ -852,6 +852,28 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+def test_kmeans_segment_partition_matches_sitk():
+    # ritk's Lloyd k-means and sitk.ScalarImageKmeans converge to the same
+    # 3-class partition (labels may be numbered differently → compare the best
+    # label permutation).
+    import itertools
+
+    nz, ny, nx = 10, 18, 22
+    rng = np.random.default_rng(0)
+    z, y, x = np.mgrid[:nz, :ny, :nx]
+    img = (np.select([x < 7, x < 15], [50.0, 120.0], 190.0).astype(np.float32)
+           + 3 * rng.standard_normal((nz, ny, nx)).astype(np.float32))
+    rk = np.asarray(ritk.segmentation.kmeans_segment(_ritk(img), 3, 100, 1e-5, 0).to_numpy()).astype(int)
+    sk = sitk.GetArrayFromImage(sitk.ScalarImageKmeans(_sitk(img), [50.0, 120.0, 190.0])).astype(int)
+    la, lb = sorted(np.unique(rk)), sorted(np.unique(sk))
+    assert len(la) == len(lb) == 3
+    best = max(
+        (np.vectorize({la[i]: perm[i] for i in range(3)}.get)(rk) == sk).mean()
+        for perm in itertools.permutations(lb)
+    )
+    assert best > 0.99, f"k-means partition agreement {best:.4f} <= 0.99"
+
+
 def test_marker_watershed_matches_sitk():
     # Marker-controlled watershed is deterministic given the relief and markers.
     # ritk always marks watershed-line voxels as label 0, matching sitk's
