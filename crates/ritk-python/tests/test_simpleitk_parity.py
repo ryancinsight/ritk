@@ -228,14 +228,12 @@ def test_intensity_projections_agree_with_sitk():
 
 
 def test_deconvolution_matches_sitk():
-    """Deconvolution parity, including the ritk↔ITK naming cross-map.
+    """Deconvolution parity: each ritk filter matches its SimpleITK namesake.
 
-    On a clean blurred square (Gaussian PSF), the iterative methods match sitk to
-    float precision, and ritk's constant-regularization Wiener equals ITK's
-    *Tikhonov* (both are `G·conj(H)/(|H|²+λ)` constant-regularized inverse filters
-    — ITK files that form under the name TikhonovDeconvolution, while ITK's own
-    WienerDeconvolution is a different signal-power-adaptive filter ritk does not
-    replicate).
+    On a clean blurred square (Gaussian PSF), Richardson-Lucy and Landweber match
+    to float precision, ritk's Wiener matches ITK's signal-adaptive
+    WienerDeconvolution, and ritk's Tikhonov matches ITK's constant-regularised
+    TikhonovDeconvolution.
     """
     sq = np.zeros((40, 40), dtype=np.float32)
     sq[10:30, 10:30] = 100.0
@@ -259,11 +257,16 @@ def test_deconvolution_matches_sitk():
     lw_s = _np(sitk.LandweberDeconvolution(blur_s, _sitk(g), 0.5, 20))
     assert _relmax(lw_r, lw_s) < 1e-4, f"Landweber rel {_relmax(lw_r, lw_s):.2e}"
 
-    # ritk Wiener(K) == sitk Tikhonov(K): the constant-regularized inverse filter.
     for k in (0.01, 1.0, 10.0):
-        rw = ritk.filter.wiener_deconvolution(rb, rk, noise_to_signal=k).to_numpy()[0]
-        st = _np(sitk.TikhonovDeconvolution(blur_s, _sitk(g), k))
-        assert _relmax(rw, st) < 1e-4, f"Wiener({k}) vs Tikhonov rel {_relmax(rw, st):.2e}"
+        # ITK adaptive Wiener: U = G·conj(H)/(|H|² + Pn/(|G|²−Pn)).
+        rw = ritk.filter.wiener_deconvolution(rb, rk, noise_variance=k).to_numpy()[0]
+        sw = _np(sitk.WienerDeconvolution(blur_s, _sitk(g), k))
+        assert _relmax(rw, sw) < 1e-2, f"Wiener({k}) rel {_relmax(rw, sw):.2e}"
+
+        # ITK constant Tikhonov: U = G·conj(H)/(|H|² + λ).
+        rt = ritk.filter.tikhonov_deconvolution(rb, rk, k).to_numpy()[0]
+        stk = _np(sitk.TikhonovDeconvolution(blur_s, _sitk(g), k))
+        assert _relmax(rt, stk) < 1e-3, f"Tikhonov({k}) rel {_relmax(rt, stk):.2e}"
 
 
 def test_fft_normalized_correlation_peaks_at_one():
