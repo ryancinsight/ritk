@@ -827,6 +827,44 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+def test_zero_crossing_matches_sitk():
+    # zero_crossing_image marks only the near-zero side of each crossing, exactly
+    # reproducing sitk.ZeroCrossing on a Laplacian-of-Gaussian edge image.
+    # Regression: ritk previously marked both sides (~2x detections).
+    rng = np.random.default_rng(0)
+    z, y, x = np.mgrid[:12, :20, :24]
+    img = (80 + 40 * np.sin(0.3 * x) * np.cos(0.25 * y) + 5 * z
+           + 8 * rng.standard_normal((12, 20, 24))).astype(np.float32)
+    log = sitk.LaplacianRecursiveGaussian(_sitk(img), 2.0)
+    loga = sitk.GetArrayFromImage(log).astype(np.float32)
+    rz = np.asarray(ritk.filter.zero_crossing_image(_ritk(loga)).to_numpy())
+    szc = sitk.GetArrayFromImage(sitk.ZeroCrossing(log, 1, 0))
+    assert np.array_equal((rz > 0.5).astype(np.uint8), szc.astype(np.uint8))
+
+
+def test_normalize_image_matches_sitk():
+    # normalize_image (zero mean, unit variance) matches sitk.Normalize. ritk
+    # uses population std (÷N); sitk uses sample (÷N-1) — the sqrt(N/(N-1)) factor
+    # is ~1e-4 at this size, so compare with a loose tolerance.
+    rng = np.random.default_rng(1)
+    img = (100 + 20 * rng.standard_normal((10, 18, 22))).astype(np.float32)
+    r = np.asarray(ritk.filter.normalize_image(_ritk(img)).to_numpy(), np.float64)
+    s = _np(sitk.Normalize(_sitk(img))).astype(np.float64)
+    assert np.abs(r - s).max() / max(abs(s).max(), 1e-9) < 1e-3
+
+
+def test_unsharp_mask_default_matches_sitk():
+    # The default (clamp=False) matches sitk.UnsharpMask out of the box.
+    rng = np.random.default_rng(2)
+    z, y, x = np.mgrid[:12, :20, :24]
+    img = (80 + 40 * np.sin(0.3 * x) * np.cos(0.25 * y)
+           + 6 * rng.standard_normal((12, 20, 24))).astype(np.float32)
+    r = np.asarray(ritk.filter.unsharp_mask(_ritk(img), 1.0, 0.5, 0.0).to_numpy(), np.float64)
+    s = _np(sitk.UnsharpMask(_sitk(img), [1.0, 1.0, 1.0], 0.5, 0.0)).astype(np.float64)
+    c = (slice(2, -2),) * 3
+    assert np.abs(r[c] - s[c]).max() / max(abs(s[c]).max(), 1e-9) < 2e-3
+
+
 def _blob(nz=14, ny=22, nx=26):
     z, y, x = np.mgrid[:nz, :ny, :nx]
     return (100 * np.exp(-(((x - 13) / 6) ** 2 + ((y - 11) / 4) ** 2 + ((z - 7) / 3) ** 2))).astype(np.float32)
