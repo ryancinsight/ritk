@@ -104,19 +104,7 @@ where
         let [n_pixels, _] = output_indices.dims();
 
         let output_flat = if n_pixels <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
-            // Process all at once
-
-            // 2. Convert output indices to output physical points
-            let output_points = self.indices_to_physical(output_indices, &device);
-
-            // 3. Apply transform to get input physical points
-            let input_points = self.transform.transform_points(output_points);
-
-            // 4. Convert input physical points to input continuous indices
-            let input_indices = input.world_to_index_tensor(input_points);
-
-            // 5. Interpolate values
-            self.interpolator.interpolate(input.data(), input_indices)
+            self.resample_indices(input, output_indices, &device)
         } else {
             // Process in chunks
             let num_chunks = n_pixels.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
@@ -126,18 +114,8 @@ where
                 let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
                 let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n_pixels);
 
-                let chunk_range = start..end;
-                let chunk_indices = output_indices.clone().slice([chunk_range]);
-
-                // Pipeline for this chunk
-                let chunk_out_points = self.indices_to_physical(chunk_indices, &device);
-                let chunk_in_points = self.transform.transform_points(chunk_out_points);
-                let chunk_in_indices = input.world_to_index_tensor(chunk_in_points);
-                let chunk_values = self
-                    .interpolator
-                    .interpolate(input.data(), chunk_in_indices);
-
-                chunks.push(chunk_values);
+                let chunk_indices = output_indices.clone().slice([start..end]);
+                chunks.push(self.resample_indices(input, chunk_indices, &device));
             }
             Tensor::cat(chunks, 0)
         };
@@ -146,6 +124,69 @@ where
         let output_data = output_flat.reshape(Shape::new(self.size));
 
         Image::new(output_data, self.origin, self.spacing, self.direction)
+    }
+
+    /// Resample the values for one block of output grid indices: map output
+    /// indices → output physical points → input physical points → input
+    /// continuous indices, interpolate, then substitute the default pixel value
+    /// for samples that fall outside the input buffer (matching ITK).
+    fn resample_indices(
+        &self,
+        input: &Image<B, D>,
+        output_indices: Tensor<B, 2>,
+        device: &<B as Backend>::Device,
+    ) -> Tensor<B, 1> {
+        let output_points = self.indices_to_physical(output_indices, device);
+        let input_points = self.transform.transform_points(output_points);
+        let input_indices = input.world_to_index_tensor(input_points);
+        let values = self
+            .interpolator
+            .interpolate(input.data(), input_indices.clone());
+        self.apply_default_outside_buffer(values, input_indices, input.shape(), device)
+    }
+
+    /// Replace interpolated values with `default_pixel_value` wherever the
+    /// continuous input index falls outside the input buffer.
+    ///
+    /// This reproduces ITK's `InterpolateImageFunction::IsInsideBuffer`: a
+    /// continuous index is inside iff, for every axis, it lies in the half-open
+    /// interval `[-0.5, N - 0.5)` (`N` = axis size). Inside that interval the
+    /// interpolator's own edge-clamping handles taps that reach one voxel past
+    /// the border (so a sample at index `N - 0.75` still interpolates against the
+    /// clamped edge value); outside it, ITK emits the default pixel value rather
+    /// than the clamped edge — without this check ritk edge-clamped the entire
+    /// out-of-FOV halo instead.
+    ///
+    /// `input_indices` columns are innermost-first (`column c` ↔ spatial axis
+    /// `D - 1 - c`), matching `world_to_index_tensor` and the interpolators.
+    fn apply_default_outside_buffer(
+        &self,
+        values: Tensor<B, 1>,
+        input_indices: Tensor<B, 2>,
+        input_shape: [usize; D],
+        device: &<B as Backend>::Device,
+    ) -> Tensor<B, 1> {
+        let n = input_indices.dims()[0];
+
+        // Per-axis inside-buffer mask (1.0 inside, 0.0 outside), combined by
+        // product so a sample outside on any axis is marked outside.
+        let mut mask = Tensor::<B, 1>::ones([n], device);
+        for c in 0..D {
+            let axis = D - 1 - c;
+            let upper = input_shape[axis] as f64 - 0.5;
+            let col = input_indices.clone().slice([0..n, c..c + 1]).flatten::<1>(0, 1);
+            let ge_low = col.clone().greater_equal_elem(-0.5).float();
+            let lt_high = col.lower_elem(upper).float();
+            mask = mask * ge_low * lt_high;
+        }
+
+        if self.default_pixel_value == 0.0 {
+            values * mask
+        } else {
+            // values·mask + default·(1 − mask)
+            let inv = mask.clone().neg().add_scalar(1.0);
+            values * mask + inv * self.default_pixel_value
+        }
     }
 
     fn generate_grid_indices(&self, device: &<B as Backend>::Device) -> Tensor<B, 2> {
