@@ -60,9 +60,13 @@ pub fn multiply_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<P
     .map(into_py_image)
 }
 
-/// Pixelwise division: out(x) = a(x) / b(x). Division by zero yields 0.
+/// Pixelwise division: out(x) = a(x) / b(x).
 ///
-/// ITK Parity: DivideImageFilter
+/// Matches ITK/SimpleITK `DivideImageFilter` for all non-zero denominators.
+/// Division-by-zero convention differs: ritk yields 0 (a safer default for
+/// downstream computation), whereas ITK yields the maximum float value
+/// (`NumericTraits::max()`, ≈ 3.4e38). Pre-mask zeros if exact ITK behaviour is
+/// required.
 #[pyfunction]
 pub fn divide_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);

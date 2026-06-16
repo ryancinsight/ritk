@@ -827,6 +827,28 @@ def test_label_shape_statistics_centroid_bbox_match_sitk():
         assert [bmax[i] - bmin[i] + 1 for i in range(3)] == [bb[3], bb[4], bb[5]]
 
 
+def test_anisotropic_diffusion_matches_sitk():
+    # Curvature and gradient (Perona-Malik) anisotropic diffusion match ITK's
+    # iterative filters when time-step, conductance, and iteration count agree.
+    rng = np.random.default_rng(0)
+    img = (50 + 30 * rng.standard_normal((10, 16, 20))).astype(np.float32)
+    it, dt, k = 5, 0.0625, 3.0
+    c = (slice(2, -2),) * 3
+
+    rc = np.asarray(
+        ritk.filter.curvature_anisotropic_diffusion(_ritk(img), it, dt, k).to_numpy(), np.float64
+    )
+    sc = _np(sitk.CurvatureAnisotropicDiffusion(_sitk(img), dt, k, 1, it)).astype(np.float64)
+    assert np.abs(rc[c] - sc[c]).max() / max(abs(sc[c]).max(), 1e-9) < 1e-3
+
+    rg = np.asarray(
+        ritk.filter.anisotropic_diffusion(_ritk(img), it, k, dt, "exponential").to_numpy(),
+        np.float64,
+    )
+    sg = _np(sitk.GradientAnisotropicDiffusion(_sitk(img), dt, k, 1, it)).astype(np.float64)
+    assert np.abs(rg[c] - sg[c]).max() / max(abs(sg[c]).max(), 1e-9) < 1e-3
+
+
 def test_fft_matches_numpy():
     # ritk's forward/inverse FFT and fft_shift agree with numpy's DFT (the same
     # transform SimpleITK's ForwardFFT computes). forward_fft stores the complex
