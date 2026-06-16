@@ -461,6 +461,31 @@ def test_otsu_threshold_value_within_two_bins_of_sitk():
     )
 
 
+@pytest.mark.parametrize("ritk_fn,sitk_cls", [
+    ("kapur_threshold", "MaximumEntropyThresholdImageFilter"),
+    ("yen_threshold", "YenThresholdImageFilter"),
+    ("li_threshold", "LiThresholdImageFilter"),
+    ("triangle_threshold", "TriangleThresholdImageFilter"),
+])
+def test_histogram_threshold_value_within_two_bins_of_sitk(ritk_fn, sitk_cls):
+    # Histogram-based threshold calculators agree with sitk to within ~2 bin
+    # widths (the inherent bin-centre→intensity mapping uncertainty). Both use
+    # 256 bins.
+    rng = np.random.default_rng(0)
+    a = rng.normal(60, 12, (8, 20, 24))
+    b = rng.normal(160, 18, (8, 20, 24))
+    arr = np.where(rng.random((8, 20, 24)) < 0.5, a, b).astype(np.float32)
+    filt = getattr(sitk, sitk_cls)()
+    filt.SetNumberOfHistogramBins(256)
+    filt.Execute(_sitk(arr))
+    sitk_t = float(filt.GetThreshold())
+    ritk_t = float(getattr(ritk.segmentation, ritk_fn)(_ritk(arr))[0])
+    bw = (float(arr.max()) - float(arr.min())) / 256.0
+    assert abs(ritk_t - sitk_t) <= 2.0 * bw, (
+        f"{ritk_fn} threshold ritk={ritk_t:.3f} sitk={sitk_t:.3f} diff > 2*binw={2 * bw:.3f}"
+    )
+
+
 def test_otsu_mask_dice_vs_sitk_exceeds_threshold():
     # Noisy sphere has clear bimodal histogram; Dice must be >= 0.97.
     arr = _make_noisy()
