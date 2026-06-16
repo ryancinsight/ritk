@@ -8,19 +8,6 @@ pub(super) fn make_image<const D: usize>(data: Vec<f32>, dims: [usize; D]) -> Im
     test_support::make_image(data, dims)
 }
 
-fn make_mask_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
-    let n = data.len();
-    test_support::make_image(data, [n])
-}
-
-fn make_mask_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<TestBackend, 2> {
-    test_support::make_image(data, dims)
-}
-
-fn make_mask_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
-    test_support::make_image(data, dims)
-}
-
 pub(super) const F32_TOL: f32 = 1e-5;
 
 mod overlap;

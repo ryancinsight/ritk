@@ -1,14 +1,15 @@
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::{make_image, make_image_1d};
+use ritk_image::test_support::make_image;
 
 type TestBackend = NdArray<f32>;
 
-fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
-    make_image_1d(data)
+fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+    let n = data.len();
+    make_image(data, [n])
 }
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
     make_image(data, dims)
 }
 

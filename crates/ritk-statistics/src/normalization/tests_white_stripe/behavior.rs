@@ -1,17 +1,17 @@
 use super::super::{
     empirical_cdf_rank, quantile_sorted, MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
 };
-use super::{get_values, make_image_3d, make_trimodal_volume, TestBackend};
+use super::*;
 use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::test_support::make_image;
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
 
 // ── Test 1: Synthetic tri-modal T1 → WM peak detection ────────────────
 
 #[test]
 fn test_trimodal_t1_wm_peak_detection() {
     let (data, total) = make_trimodal_volume(500, 1000, 800);
-    let image = make_image_3d(data, [1, 1, total]);
+    let image: Image<TestBackend, 3> = make_image(data, [1, 1, total]);
 
     let config = WhiteStripeConfig {
         contrast: MriContrast::T1,
@@ -49,7 +49,7 @@ fn test_trimodal_t1_wm_peak_detection() {
 #[test]
 fn test_normalized_white_stripe_mean_zero_std_one() {
     let (data, total) = make_trimodal_volume(500, 1000, 800);
-    let image = make_image_3d(data.clone(), [1, 1, total]);
+    let image: Image<TestBackend, 3> = make_image(data.clone(), [1, 1, total]);
 
     let config = WhiteStripeConfig::default();
 
@@ -135,7 +135,7 @@ fn test_t2_contrast_wm_peak_lower_range() {
     }
 
     let total = data.len();
-    let image = make_image_3d(data, [1, 1, total]);
+    let image: Image<TestBackend, 3> = make_image(data, [1, 1, total]);
 
     let config = WhiteStripeConfig {
         contrast: MriContrast::T2,
@@ -163,7 +163,7 @@ fn test_t2_contrast_wm_peak_lower_range() {
 #[test]
 fn test_default_config_non_degenerate() {
     let (data, total) = make_trimodal_volume(300, 600, 500);
-    let image = make_image_3d(data, [1, 1, total]);
+    let image: Image<TestBackend, 3> = make_image(data, [1, 1, total]);
 
     let config = WhiteStripeConfig::default();
     let result = WhiteStripeNormalizer::normalize(&image, None, &config);
@@ -180,7 +180,7 @@ fn test_default_config_non_degenerate() {
 fn test_uniform_image_sigma_near_zero() {
     let val = 0.5f32;
     let data = vec![val; 1000];
-    let image = make_image_3d(data, [10, 10, 10]);
+    let image: Image<TestBackend, 3> = make_image(data, [10, 10, 10]);
 
     let config = WhiteStripeConfig::default();
     let result = WhiteStripeNormalizer::normalize(&image, None, &config);
@@ -224,8 +224,8 @@ fn test_mask_restricts_foreground() {
     }
 
     let total = data.len();
-    let image = make_image_3d(data.clone(), [1, 1, total]);
-    let mask = make_image_3d(mask_data, [1, 1, total]);
+    let image: Image<TestBackend, 3> = make_image(data.clone(), [1, 1, total]);
+    let mask: Image<TestBackend, 3> = make_image(mask_data, [1, 1, total]);
 
     let config = WhiteStripeConfig {
         contrast: MriContrast::T1,
@@ -257,9 +257,9 @@ fn test_preserves_spatial_metadata() {
         TensorData::new(vec![0.5f32; 27], Shape::new([3, 3, 3])),
         &device,
     );
-    let origin = Point::new([1.0, 2.0, 3.0]);
-    let spacing = Spacing::new([0.5, 0.5, 0.5]);
-    let direction = Direction::identity();
+    let origin = ritk_spatial::Point::new([1.0, 2.0, 3.0]);
+    let spacing = ritk_spatial::Spacing::new([0.5, 0.5, 0.5]);
+    let direction = ritk_spatial::Direction::identity();
     let image: Image<TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
 
     let config = WhiteStripeConfig::default();
@@ -280,7 +280,7 @@ fn test_preserves_spatial_metadata() {
 #[test]
 fn test_explicit_bandwidth() {
     let (data, total) = make_trimodal_volume(500, 1000, 800);
-    let image = make_image_3d(data, [1, 1, total]);
+    let image: Image<TestBackend, 3> = make_image(data, [1, 1, total]);
 
     let config_auto = WhiteStripeConfig {
         contrast: MriContrast::T1,

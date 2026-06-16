@@ -6,9 +6,7 @@ use ritk_image::test_support::make_image_1d;
 
 type TestBackend = NdArray<f32>;
 
-fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
-    make_image_1d(data)
-}
+
 
 fn get_values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
     image

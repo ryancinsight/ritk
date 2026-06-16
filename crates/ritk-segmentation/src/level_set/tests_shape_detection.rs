@@ -28,10 +28,6 @@ fn make_image_with_metadata(
         Some(Spacing::new(spacing)),
         None,
     )
-}),
-        Some(ritk_spatial::Spacing::new(spacing)),
-        None,
-    )
 }
 
 fn sphere_phi(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<B, 3> {

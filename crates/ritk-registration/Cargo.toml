@@ -41,6 +41,7 @@ image = { workspace = true }
 criterion = { workspace = true }
 rand = { workspace = true }
 proptest = { workspace = true }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 
 [[bench]]
 name = "mi_histogram"

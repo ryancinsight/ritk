@@ -19,10 +19,6 @@ fn make_image_with_metadata(
         Some(Spacing::new(spacing)),
         None,
     )
-}),
-        Some(ritk_spatial::Spacing::new(spacing)),
-        None,
-    )
 }
 
 fn get_values(image: &Image<B, 3>) -> Vec<f32> {

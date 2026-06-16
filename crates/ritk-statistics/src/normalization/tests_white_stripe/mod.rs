@@ -4,10 +4,6 @@ use ritk_image::Image;
 
 pub(super) type TestBackend = NdArray<f32>;
 
-pub(super) fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
-    make_image(data, dims)
-}
-
 pub(super) fn get_values(image: &Image<TestBackend, 3>) -> Vec<f32> {
     image
         .data()

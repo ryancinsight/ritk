@@ -60,6 +60,41 @@ impl<B: Backend> FftConvolutionFilter<B> {
 
         let kr = self.kernel_rows;
         let kc = self.kernel_cols;
+        let off_r = kr / 2;
+        let off_c = kc / 2;
+
+        // ZeroFluxNeumann boundary (matching ITK): edge-replicate-pad by the
+        // kernel radius, convolve the larger image with zero padding, then crop
+        // the central window so each original-border pixel sees a full
+        // edge-clamped kernel footprint.
+        let (ph, pw) = (h + 2 * off_r, w + 2 * off_c);
+        let mut padded = vec![0.0_f32; ph * pw];
+        for r in 0..ph {
+            let sr = (r as isize - off_r as isize).clamp(0, h as isize - 1) as usize;
+            for c in 0..pw {
+                let sc = (c as isize - off_c as isize).clamp(0, w as isize - 1) as usize;
+                padded[r * pw + c] = vals[sr * w + sc];
+            }
+        }
+
+        let conv = self.convolve_same(&padded, [ph, pw]);
+
+        let mut out = vec![0.0_f32; h * w];
+        for r in 0..h {
+            for c in 0..w {
+                out[r * w + c] = conv[(r + off_r) * pw + (c + off_c)];
+            }
+        }
+
+        Ok(rebuild(out, dims, image))
+    }
+
+    /// FFT linear convolution with "same" output (zero padding, no boundary
+    /// extension). `dims` is the input shape `[h, w]`.
+    fn convolve_same(&self, vals: &[f32], dims: [usize; 2]) -> Vec<f32> {
+        let [h, w] = dims;
+        let kr = self.kernel_rows;
+        let kc = self.kernel_cols;
 
         // Padding must be >= h + kr − 1 to suppress circular aliasing.
         let pad_r = (h + kr - 1).next_power_of_two();
@@ -108,6 +143,6 @@ impl<B: Backend> FftConvolutionFilter<B> {
             }
         }
 
-        Ok(rebuild(out, dims, image))
+        out
     }
 }

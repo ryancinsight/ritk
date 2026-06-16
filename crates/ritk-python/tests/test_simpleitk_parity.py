@@ -227,6 +227,54 @@ def test_intensity_projections_agree_with_sitk():
             assert rel < tol, f"{rfn.__name__} axis={axis}: rel={rel:.2e}"
 
 
+def test_fft_convolution_matches_sitk_full_image():
+    """FFT convolution matches sitk.Convolution over the WHOLE image, including
+    the kernel-radius border.
+
+    Regression: ritk zero-padded the FFT buffer, so the border used zero
+    extension while ITK uses ZeroFluxNeumann (edge replication) — the interior
+    was float-exact but the border diverged (full-image relmax ~0.26). ritk now
+    edge-replicate-pads by the kernel radius before the transform, so the full
+    image agrees to float precision.
+    """
+    rng = np.random.default_rng(0)
+    nz, ny, nx = 6, 8, 10
+    vol = (
+        np.arange(nz * ny * nx, dtype=np.float32).reshape(nz, ny, nx)
+        + rng.normal(0, 2, (nz, ny, nx)).astype(np.float32)
+    )
+    si = _sitk(vol)
+
+    def _relmax(a, b):
+        return float(np.abs(a.ravel() - b.ravel()).max()) / max(float(np.abs(b).max()), 1e-9)
+
+    # 3-D convolution, a couple of kernel sizes.
+    for ks in (3, 5):
+        k = np.zeros((ks, ks, ks), np.float32)
+        c = ks // 2
+        k[c, c, c] = 0.5
+        for o in range(ks):
+            k[o, c, c] += 0.5 / ks
+            k[c, o, c] += 0.5 / ks
+        k /= k.sum()
+        ra = np.asarray(
+            ritk.filter.fft_convolve_3d(_ritk(vol), _ritk(k)).to_numpy(), dtype=np.float64
+        )
+        sa = _np(sitk.Convolution(si, _sitk(k), normalize=False)).astype(np.float64)
+        assert _relmax(ra, sa) < 1e-5, f"3-D conv {ks}^3: rel {_relmax(ra, sa):.2e}"
+
+    # 2-D (z=1) convolution.
+    img = vol[0]
+    k2 = np.zeros((3, 3), np.float32)
+    k2[1, 1] = 0.5
+    k2[0, 1] = k2[2, 1] = k2[1, 0] = k2[1, 2] = 0.125
+    ra2 = np.asarray(
+        ritk.filter.fft_convolve(_ritk(img[None]), _ritk(k2[None])).to_numpy(), dtype=np.float64
+    )[0]
+    sa2 = _np(sitk.Convolution(_sitk(img), _sitk(k2), normalize=False)).astype(np.float64)
+    assert _relmax(ra2, sa2) < 1e-5, f"2-D conv: rel {_relmax(ra2, sa2):.2e}"
+
+
 def test_deconvolution_matches_sitk():
     """Deconvolution parity: each ritk filter matches its SimpleITK namesake.
 
