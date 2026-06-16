@@ -2,14 +2,17 @@
 //!
 //! # Theory
 //!
-//! Given `g = h ∗ u + n`, the Wiener filter minimises MSE by:
+//! Given `g = h ∗ u + n`, the Wiener filter minimises MSE by, per ITK's
+//! `WienerDeconvolutionImageFilter`:
 //!
 //! ```text
-//! U(ω) = G(ω) · H*(ω) / (|H(ω)|² + K)
+//! U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn / (|G(ω)|² − Pn) )
 //! ```
 //!
-//! where `K = Pn / Ps` is the noise-to-signal power ratio.
-//! When `K = 0`, this reduces to direct inverse filtering (noisy but exact).
+//! where `Pn` is the noise power spectral density (the `noise_variance`
+//! parameter). The regularisation is frequency-adaptive: it estimates the signal
+//! power as `|G(ω)|² − Pn`, so weak-signal frequencies are suppressed more. For a
+//! *constant*-regularisation inverse filter use [`super::TikhonovDeconvolution`].
 
 use super::regularization::{apply_single_pass, WienerRule};
 use anyhow::Result;
@@ -17,19 +20,15 @@ use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-/// Wiener deconvolution filter (minimum mean-square error restoration).
+/// Wiener deconvolution filter (minimum mean-square error restoration),
+/// matching ITK's `WienerDeconvolutionImageFilter`.
 ///
-/// Restores a degraded image `g = h ∗ u + n` given the PSF kernel `h` and
-/// an estimate of the noise-to-signal power ratio `K = Pn / Ps`.
-///
-/// In the frequency domain:
+/// Restores a degraded image `g = h ∗ u + n` given the PSF kernel `h` and the
+/// noise power spectral density `Pn`:
 ///
 /// ```text
-/// U(ω) = G(ω) · H*(ω) / (|H(ω)|² + K)
+/// U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn / (|G(ω)|² − Pn) )
 /// ```
-///
-/// When `K = 0`, this reduces to direct inverse filtering (noisy).
-/// When `K → ∞`, the output tends to zero (overly smooth).
 ///
 /// # Use cases
 /// - Motion blur correction
@@ -39,14 +38,14 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// # Complexity
 /// O(N log N) for FFT-based execution.
 pub struct WienerDeconvolution {
-    /// Noise-to-signal power ratio K = Pn / Ps (default: 0.01).
-    pub noise_to_signal: f32,
+    /// Noise power spectral density `Pn` (ITK `NoiseVariance`, default: 0.01).
+    pub noise_variance: f32,
 }
 
 impl WienerDeconvolution {
-    /// Create a new Wiener deconvolution filter with the given noise-to-signal ratio.
-    pub fn new(noise_to_signal: f32) -> Self {
-        Self { noise_to_signal }
+    /// Create a new Wiener deconvolution filter with the given noise variance.
+    pub fn new(noise_variance: f32) -> Self {
+        Self { noise_variance }
     }
 
     /// Apply Wiener deconvolution to a D-dimensional image with a D-dimensional PSF kernel.
@@ -63,7 +62,7 @@ impl WienerDeconvolution {
             &ker_vals,
             &ker_dims,
             WienerRule {
-                noise_to_signal: self.noise_to_signal,
+                noise_variance: self.noise_variance,
             },
         );
         Ok(rebuild(out_vals, img_dims, image))

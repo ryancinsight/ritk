@@ -19,7 +19,6 @@ use super::helpers::{
     convolve, decode_coords, encode_flat, ifft_and_crop, pad_and_fft, pad_dims, pad_total,
 };
 use rustfft::num_complex::Complex;
-use std::f32::consts::PI;
 
 /// Default convergence tolerance for iterative deconvolution algorithms.
 pub(crate) const DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6;
@@ -45,12 +44,21 @@ pub trait Regularization {
     );
 }
 
-/// Wiener filter: `U = G·H* / (|H|² + K)`.
+/// Wiener filter, matching ITK's `WienerDeconvolutionImageFilter`:
 ///
-/// `K` is the noise-to-signal power ratio.
+/// ```text
+/// U(ω) = G(ω)·H*(ω) / ( |H(ω)|² + Pn / (|G(ω)|² − Pn) )
+/// ```
+///
+/// `Pn` is the (constant) noise power spectral density — ITK's `NoiseVariance`.
+/// The regularisation is frequency-adaptive: it uses the input's own power
+/// spectrum `|G(ω)|²` to estimate the signal power `(|G|² − Pn)`, so it suppresses
+/// frequencies where the signal is weak relative to the noise. This differs from
+/// a constant-regularisation inverse filter (that is ITK's Tikhonov — see
+/// [`TikhonovRule`]).
 pub struct WienerRule {
-    /// Noise-to-signal power ratio K = Pn / Ps.
-    pub noise_to_signal: f32,
+    /// Noise power spectral density `Pn` (ITK `NoiseVariance`).
+    pub noise_variance: f32,
 }
 
 impl Regularization for WienerRule {
@@ -60,9 +68,14 @@ impl Regularization for WienerRule {
         ker_padded: &[Complex<f32>],
         _pad_dims: &[usize],
     ) {
-        let k = self.noise_to_signal;
+        let pn = self.noise_variance;
         for (g, &h) in img_padded.iter_mut().zip(ker_padded.iter()) {
-            let denom = h.norm_sqr() + k;
+            // |G(ω)|² of the input (G is in `g` on entry). The signal-power
+            // estimate (|G|² − Pn) is clamped away from zero so the noise-to-
+            // signal regularisation stays finite where the spectrum is weak.
+            let pf = g.norm_sqr();
+            let reg = pn / (pf - pn).max(1e-9);
+            let denom = h.norm_sqr() + reg;
             if denom < 1e-20 {
                 *g = Complex::new(0.0, 0.0);
             } else {
@@ -76,10 +89,14 @@ impl Regularization for WienerRule {
     }
 }
 
-/// Tikhonov filter: `U = G·H* / (|H|² + λ|L|²)`.
+/// Tikhonov filter, matching ITK's `TikhonovDeconvolutionImageFilter`:
 ///
-/// `|L|²` is the squared eigenvalue of the discrete Laplacian operator,
-/// which depends on dimensionality (2-D vs 3-D) and frequency coordinates.
+/// ```text
+/// U(ω) = G(ω)·H*(ω) / ( |H(ω)|² + λ )
+/// ```
+///
+/// A constant-regularised inverse filter: `λ` trades inversion sharpness against
+/// noise amplification uniformly across frequency.
 pub struct TikhonovRule {
     /// Regularization parameter λ.
     pub lambda: f32,
@@ -90,68 +107,20 @@ impl Regularization for TikhonovRule {
         &self,
         img_padded: &mut [Complex<f32>],
         ker_padded: &[Complex<f32>],
-        pad_dims: &[usize],
+        _pad_dims: &[usize],
     ) {
         let lambda = self.lambda;
-        match pad_dims.len() {
-            2 => {
-                let pad: [usize; 2] = [pad_dims[0], pad_dims[1]];
-                apply_tikhonov::<2>(img_padded, ker_padded, &pad, lambda);
-            }
-            3 => {
-                let pad: [usize; 3] = [pad_dims[0], pad_dims[1], pad_dims[2]];
-                apply_tikhonov::<3>(img_padded, ker_padded, &pad, lambda);
-            }
-            _ => unreachable!("only 2-D and 3-D deconvolution are supported"),
-        }
-    }
-}
-
-/// Const-generic Tikhonov update: `|L(ω)|² = (2D − 2Σcos(ωd))²`.
-///
-/// The discrete Laplacian eigenvalue for dimensionality `D` is
-/// `|L(ω)|² = (2D − 2cos(ω₀) − 2cos(ω₁) − … − 2cos(ω_{D−1}))²`.
-///
-/// For `D = 2`: `(4 − 2cos(ωx) − 2cos(ωy))²`.
-/// For `D = 3`: `(6 − 2cos(ωx) − 2cos(ωy) − 2cos(ωz))²`.
-pub(super) fn apply_tikhonov<const D: usize>(
-    img_padded: &mut [Complex<f32>],
-    ker_padded: &[Complex<f32>],
-    pad_dims: &[usize; D],
-    lambda: f32,
-) {
-    assert!(
-        D == 2 || D == 3,
-        "only 2-D and 3-D deconvolution are supported"
-    );
-
-    for (idx, g_slot) in img_padded.iter_mut().enumerate() {
-        let coords = decode_coords::<D>(idx, pad_dims);
-
-        // Accumulate Laplacian eigenvalue: 2D − 2Σcos(ωd)
-        let mut l_re = 2.0 * D as f32;
-        for d in 0..D {
-            let n_d = pad_dims[d];
-            let f_d = if coords[d] <= n_d / 2 {
-                coords[d] as f32 / n_d as f32
+        for (g, &h) in img_padded.iter_mut().zip(ker_padded.iter()) {
+            let denom = h.norm_sqr() + lambda;
+            if denom < 1e-20 {
+                *g = Complex::new(0.0, 0.0);
             } else {
-                (coords[d] as f32 - n_d as f32) / n_d as f32
-            };
-            l_re -= 2.0 * (2.0 * PI * f_d).cos();
-        }
-
-        let l_sq = l_re * l_re;
-        let h = ker_padded[idx];
-        let g = *g_slot;
-        let denom = h.norm_sqr() + lambda * l_sq;
-        if denom < 1e-20 {
-            *g_slot = Complex::new(0.0, 0.0);
-        } else {
-            let scale = 1.0 / denom;
-            *g_slot = Complex::new(
-                (g.re * h.re + g.im * h.im) * scale,
-                (g.im * h.re - g.re * h.im) * scale,
-            );
+                let scale = 1.0 / denom;
+                *g = Complex::new(
+                    (g.re * h.re + g.im * h.im) * scale,
+                    (g.im * h.re - g.re * h.im) * scale,
+                );
+            }
         }
     }
 }

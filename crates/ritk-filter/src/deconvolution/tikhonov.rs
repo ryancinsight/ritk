@@ -2,18 +2,16 @@
 //!
 //! # Theory
 //!
-//! Minimises `||g − h ∗ u||² + λ||L ∗ u||²` where L is the Laplacian operator.
-//!
-//! In the frequency domain:
+//! Constant-regularised inverse filter, matching ITK's
+//! `TikhonovDeconvolutionImageFilter`:
 //!
 //! ```text
-//! U(ω) = G(ω) · H*(ω) / (|H(ω)|² + λ · |L(ω)|²)
+//! U(ω) = G(ω) · H*(ω) / (|H(ω)|² + λ)
 //! ```
 //!
-//! 2-D Laplacian: `|L(ω)|² = (4 − 2cos(ωx) − 2cos(ωy))²`
-//! 3-D Laplacian: `|L(ω)|² = (6 − 2cos(ωx) − 2cos(ωy) − 2cos(ωz))²`
-//!
-//! Higher λ → smoother output (higher regularization strength).
+//! `λ` trades inversion sharpness against noise amplification uniformly across
+//! frequency. For a noise-/signal-adaptive regularisation use the Wiener filter
+//! ([`super::WienerDeconvolution`]).
 
 use super::regularization::{apply_single_pass, TikhonovRule};
 use anyhow::Result;
@@ -21,22 +19,16 @@ use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-/// Tikhonov-regularized deconvolution (ridge regression in frequency domain).
-///
-/// Minimizes `||g − h ∗ u||² + λ||L ∗ u||²` where L is the Laplacian operator.
-///
-/// In the frequency domain:
+/// Tikhonov-regularized deconvolution (constant ridge term in the frequency
+/// domain), matching ITK's `TikhonovDeconvolutionImageFilter`:
 ///
 /// ```text
-/// U(ω) = G(ω) · H*(ω) / (|H(ω)|² + λ · |L(ω)|²)
+/// U(ω) = G(ω) · H*(ω) / (|H(ω)|² + λ)
 /// ```
 ///
-/// where `|L(ω)|² = (4 − 2cos(ωx) − 2cos(ωy))²` for 2-D discrete Laplacian
-/// and `|L(ω)|² = (6 − 2cos(ωx) − 2cos(ωy) − 2cos(ωz))²` for 3-D.
-///
 /// # Comparison to Wiener
-/// Tikhonov uses a smoothness prior (λ|Lu|²) rather than a noise-to-signal
-/// ratio. It tends to produce smoother restorations.
+/// Tikhonov adds a constant `λ`; Wiener adds a frequency-adaptive
+/// noise-to-signal term estimated from the input power spectrum.
 ///
 /// # Complexity
 /// O(N log N).

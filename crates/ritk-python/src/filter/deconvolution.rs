@@ -15,30 +15,32 @@ use ritk_filter::{
 ///
 /// Restores a degraded image given the PSF kernel and noise-to-signal ratio K.
 ///
-/// In the frequency domain:
+/// Matches `SimpleITK.WienerDeconvolution`. In the frequency domain:
 /// ```text
-/// U(ω) = G(ω) · H*(ω) / (|H(ω)|² + K)
+/// U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn / (|G(ω)|² − Pn) )
 /// ```
 ///
 /// Args:
 ///     image: Degraded PyImage (any shape [Z, Y, X]).
 ///     kernel: 3-D PSF kernel PyImage (shape [kz, ky, kx]).
-///     noise_to_signal: Noise-to-signal power ratio K = Pn/Ps (default 0.01).
+///     noise_variance: Noise power spectral density Pn (sitk noiseVariance,
+///                     default 0.01). The regularisation is frequency-adaptive,
+///                     using the input power spectrum to estimate the signal.
 ///
 /// Returns:
 ///     Restored PyImage with the same shape as `image`.
 #[pyfunction]
-#[pyo3(signature = (image, kernel, noise_to_signal=0.01_f32))]
+#[pyo3(signature = (image, kernel, noise_variance=0.01_f32))]
 pub fn wiener_deconvolution(
     py: Python<'_>,
     image: &PyImage,
     kernel: &PyImage,
-    noise_to_signal: f32,
+    noise_variance: f32,
 ) -> RitkResult<PyImage> {
     let img_ref = image.inner.clone();
     let ker_ref = kernel.inner.clone();
     let result = py.allow_threads(|| {
-        WienerDeconvolution::new(noise_to_signal)
+        WienerDeconvolution::new(noise_variance)
             .apply(img_ref.as_ref(), ker_ref.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
@@ -47,11 +49,10 @@ pub fn wiener_deconvolution(
 
 /// Apply Tikhonov-regularized deconvolution to a 3-D image.
 ///
-/// Minimizes `||g − h ∗ u||² + λ||L ∗ u||²` with 3-D Laplacian regularization.
-///
-/// In the frequency domain:
+/// Matches `SimpleITK.TikhonovDeconvolution` — a constant-regularised inverse
+/// filter. In the frequency domain:
 /// ```text
-/// U(ω) = G(ω) · H*(ω) / (|H(ω)|² + λ · |L(ω)|²)
+/// U(ω) = G(ω) · H*(ω) / (|H(ω)|² + λ)
 /// ```
 ///
 /// Args:
