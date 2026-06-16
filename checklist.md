@@ -1,5 +1,42 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 376 — DRY Closure, Build Hardening & Carry-Forward Reconciliation
+**Target version**: 0.70.1
+**Sprint phase**: Foundation — Sprint 375 carry-forward reconciled; DRY-374-01 closed; clippy green; tree re-synced.
+
+### Delivered (Sprint 376)
+- [x] CARRY [patch]: Concurrent trunk of 25 inline test blocks extracted (`b052c40a refactor(filter): extract 25 inline test blocks to sibling files (SRP) [-3070L]`)
+- [x] CARRY [patch]: Carry `cpro_CHRONO_history' DRY tracker commits `d4754aa1 6998b4cf d4a9a701 `carry-forward filter binding surface expansion (single-axis match sitk Euler3DTransform + extended corpus + API mismatches)`
+- [x] CARRY [minor]: `feat(python): expose normalize, unsharp, zero-crossing, rotate, shift, zoom` (`43d9553 feat python filter bindings`) 6 new PyImage functions added.
+- [x] CARRY [minor]: Concurrent drain: `feat(stats): Add ddof flag for sample (sitk) vs population std` + std-ddof population/sample parity tests
+- [x] CARRY [patch]: Concurrent drain: `test(python): Connected-component + label-shape parity vs sitk`
+- [x] CARRY [patch]: `chore(filter): enable ritk-image test-helpers feature for DRY helper consumption`
+- [x] DRY-374-01 [minor]: `Refactor tests to use shared test_support helpers` — 78 test files migrated to delegating wrappers over `ritk_image::test_support::*`. Resolution: keeps thin local wrappers for type fixity while body delegates to canonical entry point.
+- [x] CARRY [patch]: Cargo-fix applied 51 test files to strip unused `burn::tensor` and `ritk_spatial` imports after migration.
+- [x] CLIPPY [patch]: 2 prior lint failures resolved before this sprint (doc list indent + Range single-element array). `cargo clippy --workspace --all-targets -- -D warnings` clean at session start.
+- [x] CLIPPY [patch]: 1 carry-over clippy warning fixed: `for i in 0..n { out[i] }`  closeness simplified to `for (i, &v) in out.iter().enumerate()` in `tests_hit_or_miss.rs`.
+- [x] FMT [patch]: `cargo fmt --check` clean (0 diff lines).
+- [x] FIX [patch]: Sister-file incorrect hit-or-miss assignment caught: line-48 `n` now unused after migration; clippy validates clean.
+- [x] CONVERGED [patch]: Local tree in sync with `origin/main`.
+
+### Verification gate
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `cargo fmt --check` → 0 diffs
+- [x] `cargo nextest run -p ritk-filter` → 703/703 passed
+- [x] `cargo nextest run -p ritk-segmentation -p ritk-statistics -p ritk-tiff` → 680/680 passed
+- [x] `cargo nextest run -p ritk-registration` → 647/647 passed (23 skipped)
+- [x] `cargo nextest run -p ritk-image -p ritk-statistics` → 312/312 passed
+
+### Blocked / Deferred (carry-forward)
+- [ ] VAR-375-01 [upstream]: `PhantomData<B>` → `PhantomData<fn() -> B>` BLOCKED at `burn-core-0.19.1`
+- [ ] CONST-375-02 [toolchain]: const-assert companion for `BSplineTransform` blocked on const_panic_fmt
+- [ ] NAMING-362-23 [arch]: sealed trait `DimInterpolation<B>` BLOCKED — ADR required
+- [ ] SRP-362-20 [minor]: `FilterKind` ValueEnum separation — partial (slice delivery done; per-family Args structs remain)
+- [ ] NAMING-FILTER-01 [major]: `FftConvolution3DFilter` const-generic unification — concurrent-crate changes required
+- [ ] N-375-08 [arch]: DRY cross-crate parse utils — promotion trigger requires `ritk-io` → `ritk-core` migration
+
+---
+
 ## Sprint 375 — Architecture Hardening Round 8: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
 **Target version**: 0.70.0  
 **Sprint phase**: Closure — all 60 patches delivered and verified.
