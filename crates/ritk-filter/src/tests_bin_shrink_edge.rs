@@ -9,13 +9,16 @@
 //!
 //! # Layout convention
 //!
-//! Burn tensors use column-major (Fortran) memory layout. For a shape
-//! [Z, Y, X], the flat index is computed as:
+//! Burn `NdArray` tensors use row-major (C-contiguous) memory layout, matching
+//! the rest of ritk. For a shape [Z, Y, X], the flat index is
 //!
-//! flat(z, y, x) = z + Z·y + Z·Y·x
+//! flat(z, y, x) = z·Y·X + y·X + x
 //!
-//! where Z = shape[0], Y = shape[1]. The rightmost dimension varies
-//! slowst in memory (outermost loop), the leftmost varies fastest.
+//! so the rightmost dimension (X) varies fastest in memory and the leftmost (Z)
+//! varies slowest. (An earlier version of these tests assumed column-major
+//! layout — `z + Z·y + Z·Y·x` — which only agrees with the real layout on
+//! layout-symmetric bins; the bin-shrink stride walk averaged the wrong axes
+//! for any genuine anisotropic case.)
 
 use crate::bin_shrink::BinShrinkImageFilter;
 use crate::downsample::DownsampleFilter;
@@ -51,18 +54,18 @@ fn make_image_2d(data: Vec<f32>, shape: [usize; 2]) -> Image<B, 2> {
     )
 }
 
-/// Compute the flat (column-major) index for a 3D multi-index in the given shape.
-/// flat(z, y, x) = z + Z*y + Z*Y*x where Z=shape[0], Y=shape[1].
+/// Row-major flat index for a 3D multi-index: flat(z, y, x) = z·Y·X + y·X + x
+/// where Y = shape[1], X = shape[2].
 #[inline]
 fn flat3(shape: [usize; 3], z: usize, y: usize, x: usize) -> usize {
-    z + shape[0] * y + shape[0] * shape[1] * x
+    z * shape[1] * shape[2] + y * shape[2] + x
 }
 
-/// Compute the flat (column-major) index for a 2D multi-index.
-/// flat(r, c) = r + R*c where R=shape[0].
+/// Row-major flat index for a 2D multi-index: flat(r, c) = r·C + c where
+/// C = shape[1].
 #[inline]
 fn flat2(shape: [usize; 2], r: usize, c: usize) -> usize {
-    r + shape[0] * c
+    r * shape[1] + c
 }
 
 // ── Test 8: BinShrink vs DownsampleFilter ────────────────────────────────────
@@ -70,11 +73,10 @@ fn flat2(shape: [usize; 2], r: usize, c: usize) -> usize {
 // # Derivation
 // BinShrink averages all voxels in each bin.
 // Downsample picks every Nth voxel (subsample).
-// For non-uniform input, these must produce different values.
 //
 // Input: [1,2,3,4,5,6,7,8] shaped as [2,2,2], factor=[2,2,2].
-// BinShrink output: 4.5 (mean of all 8).
-// Downsample output: I[0,0,0] = first element = 1 (column-major).
+// BinShrink output: 4.5 (mean of all 8, layout-invariant).
+// Downsample output: I[0,0,0] = first element = 1.
 
 #[test]
 fn bin_shrink_differs_from_downsample() {
@@ -110,17 +112,16 @@ fn bin_shrink_differs_from_downsample() {
 // ── Test 9: 2D support ──────────────────────────────────────────────────────
 //
 // # Derivation
-// 2D image [4,6], factor=[2,3]:
-// out_shape = [2, 2]
+// 2D image [4,6], factor=[2,3] → out_shape = [2, 2].
+// Row-major: I[r,c] = 6·r + c.
 //
-// Column-major: I[r,c] = r + 4*c (shape[0]=4)
 // output[0,0] = mean of I[0..2, 0..3]:
-//   I[0,0]=0, I[1,0]=1, I[0,1]=4, I[1,1]=5, I[0,2]=8, I[1,2]=9
-//   Mean = (0+1+4+5+8+9)/6 = 27/6 = 4.5
+//   I[0,0]=0, I[0,1]=1, I[0,2]=2, I[1,0]=6, I[1,1]=7, I[1,2]=8
+//   Mean = (0+1+2+6+7+8)/6 = 24/6 = 4.0
 //
 // output[1,1] = mean of I[2..4, 3..6]:
-//   I[2,3]=14, I[3,3]=15, I[2,4]=18, I[3,4]=19, I[2,5]=22, I[3,5]=23
-//   Mean = (14+15+18+19+22+23)/6 = 111/6 = 18.5
+//   I[2,3]=15, I[2,4]=16, I[2,5]=17, I[3,3]=21, I[3,4]=22, I[3,5]=23
+//   Mean = (15+16+17+21+22+23)/6 = 114/6 = 19.0
 
 #[test]
 fn two_d_support() {
@@ -131,8 +132,7 @@ fn two_d_support() {
     assert_eq!(s[0], 2, "dim0: 4 / 2 = 2");
     assert_eq!(s[1], 2, "dim1: 6 / 3 = 2");
     let (got, out_shape) = extract_vec_infallible(&out);
-    // output[0,0] in column-major output [2,2]: flat = 0 + 2*0 = 0
-    let expected_00 = (0.0 + 1.0 + 4.0 + 5.0 + 8.0 + 9.0) / 6.0;
+    let expected_00 = (0.0 + 1.0 + 2.0 + 6.0 + 7.0 + 8.0) / 6.0;
     assert!(
         (got[flat2(out_shape, 0, 0)] - expected_00).abs() < 1e-4,
         "output[0,0] = {}, expected {}",
@@ -140,12 +140,11 @@ fn two_d_support() {
         expected_00
     );
     assert!(
-        (expected_00 - 4.5).abs() < 1e-4,
-        "analytical expected = 4.5, computed {}",
+        (expected_00 - 4.0).abs() < 1e-4,
+        "analytical expected = 4.0, computed {}",
         expected_00
     );
-    // output[1,1] in column-major output [2,2]: flat = 1 + 2*1 = 3
-    let expected_11 = (14.0 + 15.0 + 18.0 + 19.0 + 22.0 + 23.0) / 6.0;
+    let expected_11 = (15.0 + 16.0 + 17.0 + 21.0 + 22.0 + 23.0) / 6.0;
     assert!(
         (got[flat2(out_shape, 1, 1)] - expected_11).abs() < 1e-4,
         "output[1,1] = {}, expected {}",
@@ -153,8 +152,8 @@ fn two_d_support() {
         expected_11
     );
     assert!(
-        (expected_11 - 18.5).abs() < 1e-4,
-        "analytical expected = 18.5, computed {}",
+        (expected_11 - 19.0).abs() < 1e-4,
+        "analytical expected = 19.0, computed {}",
         expected_11
     );
 }
@@ -162,20 +161,13 @@ fn two_d_support() {
 // ── Test 10: Non-uniform bin averaging with analytical result ─────────────────
 //
 // # Derivation
-// 4×4×4 image with sequential data, factor [2,2,2].
-// Output shape [2,2,2].
-//
-// Column-major for shape [4,4,4]: I[z,y,x] = z + 4*y + 16*x
+// 4×4×4 image with sequential data, factor [2,2,2] → output shape [2,2,2].
+// Row-major for shape [4,4,4]: I[z,y,x] = 16·z + 4·y + x.
 //
 // output[0,0,0] = mean of I[0..2, 0..2, 0..2]:
-//   I[0,0,0]=0, I[1,0,0]=1, I[0,1,0]=4, I[1,1,0]=5
-//   I[0,0,1]=16, I[1,0,1]=17, I[0,1,1]=20, I[1,1,1]=21
-//   Mean = (0+1+4+5+16+17+20+21)/8 = 84/8 = 10.5
-//
+//   {0,1,4,5,16,17,20,21} → 84/8 = 10.5
 // output[1,1,1] = mean of I[2..4, 2..4, 2..4]:
-//   I[2,2,2]=42, I[3,2,2]=43, I[2,3,2]=46, I[3,3,2]=47
-//   I[2,2,3]=58, I[3,2,3]=59, I[2,3,3]=62, I[3,3,3]=63
-//   Mean = (42+43+46+47+58+59+62+63)/8 = 420/8 = 52.5
+//   {42,43,46,47,58,59,62,63} → 420/8 = 52.5
 
 #[test]
 fn non_uniform_bin_averaging_analytical() {
@@ -185,7 +177,6 @@ fn non_uniform_bin_averaging_analytical() {
     let out = BinShrinkImageFilter::new(vec![2, 2, 2]).apply(&img);
     let (got, out_shape) = extract_vec_infallible(&out);
     assert_eq!(out_shape, [2, 2, 2], "output shape must be [2,2,2]");
-    // output[0,0,0]: flat = 0 + 2*0 + 4*0 = 0
     let expected_000 = 10.5f32;
     assert!(
         (got[flat3(out_shape, 0, 0, 0)] - expected_000).abs() < 1e-4,
@@ -193,7 +184,6 @@ fn non_uniform_bin_averaging_analytical() {
         got[flat3(out_shape, 0, 0, 0)],
         expected_000
     );
-    // output[1,1,1]: flat = 1 + 2*1 + 4*1 = 7
     let expected_111 = 52.5f32;
     assert!(
         (got[flat3(out_shape, 1, 1, 1)] - expected_111).abs() < 1e-4,
@@ -206,15 +196,11 @@ fn non_uniform_bin_averaging_analytical() {
 // ── Test 11: Single-dimension shrink preserves other dimensions ───────────────
 //
 // # Derivation
-// Input shape [8,4,4], factor=[4,1,1]:
-// out_shape = [2,4,4]
-// Only dim 0 (z) is shrunk.
+// Input shape [8,4,4], factor=[4,1,1] → out_shape = [2,4,4]; only dim 0 (z) shrinks.
+// Row-major for [8,4,4]: I[z,y,x] = 16·z + 4·y + x.
 //
-// Column-major for [8,4,4]: I[z,y,x] = z + 8*y + 32*x
-//
-// output[0,0,0] = mean of I[0..4, 0, 0]:
-//   I[0,0,0]=0, I[1,0,0]=1, I[2,0,0]=2, I[3,0,0]=3
-//   Mean = (0+1+2+3)/4 = 6/4 = 1.5
+// output[0,0,0] = mean of I[0..4, 0, 0] = {0,16,32,48} → 96/4 = 24.0
+// output[1,0,0] = mean of I[4..8, 0, 0] = {64,80,96,112} → 352/4 = 88.0
 
 #[test]
 fn single_dimension_shrink() {
@@ -227,18 +213,14 @@ fn single_dimension_shrink() {
     assert_eq!(s[1], 4, "dim1: unchanged");
     assert_eq!(s[2], 4, "dim2: unchanged");
     let (got, out_shape) = extract_vec_infallible(&out);
-    // output[0,0,0] = mean of I[0,1,2,3, 0, 0]
-    // flat3([8,4,4], z, 0, 0) = z for z in 0..4 → values 0,1,2,3
-    let expected = (0.0 + 1.0 + 2.0 + 3.0) / 4.0;
+    let expected = (0.0 + 16.0 + 32.0 + 48.0) / 4.0;
     assert!(
         (got[flat3(out_shape, 0, 0, 0)] - expected).abs() < 1e-4,
         "output[0,0,0] = {}, expected {}",
         got[flat3(out_shape, 0, 0, 0)],
         expected
     );
-    // output[1,0,0] = mean of I[4,5,6,7, 0, 0]
-    // flat3([8,4,4], z, 0, 0) = z for z in 4..8 → values 4,5,6,7
-    let expected_100 = (4.0 + 5.0 + 6.0 + 7.0) / 4.0;
+    let expected_100 = (64.0 + 80.0 + 96.0 + 112.0) / 4.0;
     assert!(
         (got[flat3(out_shape, 1, 0, 0)] - expected_100).abs() < 1e-4,
         "output[1,0,0] = {}, expected {}",
@@ -250,19 +232,11 @@ fn single_dimension_shrink() {
 // ── Test 12: Middle-dimension shrink (non-contiguous axis) ────────────────────
 //
 // # Derivation
-// Input shape [2,8,2], factor=[1,4,1]:
-// out_shape = [2,2,2]
-// Only dim 1 (y) is shrunk.
+// Input shape [2,8,2], factor=[1,4,1] → out_shape = [2,2,2]; only dim 1 (y) shrinks.
+// Row-major for [2,8,2]: I[z,y,x] = 16·z + 2·y + x.
 //
-// Column-major for [2,8,2]: I[z,y,x] = z + 2*y + 16*x
-//
-// output[0,0,0] = mean of I[0, 0..4, 0]:
-//   I[0,0,0]=0, I[0,1,0]=2, I[0,2,0]=4, I[0,3,0]=6
-//   Mean = (0+2+4+6)/4 = 12/4 = 3.0
-//
-// output[0,1,0] = mean of I[0, 4..8, 0]:
-//   I[0,4,0]=8, I[0,5,0]=10, I[0,6,0]=12, I[0,7,0]=14
-//   Mean = (8+10+12+14)/4 = 44/4 = 11.0
+// output[0,0,0] = mean of I[0, 0..4, 0] = {0,2,4,6} → 12/4 = 3.0
+// output[0,1,0] = mean of I[0, 4..8, 0] = {8,10,12,14} → 44/4 = 11.0
 
 #[test]
 fn middle_dimension_shrink() {
@@ -275,7 +249,6 @@ fn middle_dimension_shrink() {
     assert_eq!(s[1], 2, "dim1: 8 / 4 = 2");
     assert_eq!(s[2], 2, "dim2: unchanged");
     let (got, out_shape) = extract_vec_infallible(&out);
-    // output[0,0,0] in output [2,2,2]: flat = 0 + 2*0 + 4*0 = 0
     let expected_000 = (0.0 + 2.0 + 4.0 + 6.0) / 4.0;
     assert!(
         (got[flat3(out_shape, 0, 0, 0)] - expected_000).abs() < 1e-4,
@@ -283,7 +256,6 @@ fn middle_dimension_shrink() {
         got[flat3(out_shape, 0, 0, 0)],
         expected_000
     );
-    // output[0,1,0] in output [2,2,2]: flat = 0 + 2*1 + 4*0 = 2
     let expected_010 = (8.0 + 10.0 + 12.0 + 14.0) / 4.0;
     assert!(
         (got[flat3(out_shape, 0, 1, 0)] - expected_010).abs() < 1e-4,
@@ -293,22 +265,14 @@ fn middle_dimension_shrink() {
     );
 }
 
-// ── Test 13: Last-dimension shrink (rightmost/outermost axis) ─────────────────
+// ── Test 13: Last-dimension shrink (rightmost/innermost axis) ──────────────────
 //
 // # Derivation
-// Input shape [2,2,8], factor=[1,1,4]:
-// out_shape = [2,2,2]
-// Only dim 2 (x) is shrunk.
+// Input shape [2,2,8], factor=[1,1,4] → out_shape = [2,2,2]; only dim 2 (x) shrinks.
+// Row-major for [2,2,8]: I[z,y,x] = 16·z + 8·y + x.
 //
-// Column-major for [2,2,8]: I[z,y,x] = z + 2*y + 4*x
-//
-// output[0,0,0] = mean of I[0, 0, 0..4]:
-//   I[0,0,0]=0, I[0,0,1]=4, I[0,0,2]=8, I[0,0,3]=12
-//   Mean = (0+4+8+12)/4 = 24/4 = 6.0
-//
-// output[0,0,1] = mean of I[0, 0, 4..8]:
-//   I[0,0,4]=16, I[0,0,5]=20, I[0,0,6]=24, I[0,0,7]=28
-//   Mean = (16+20+24+28)/4 = 88/4 = 22.0
+// output[0,0,0] = mean of I[0, 0, 0..4] = {0,1,2,3} → 6/4 = 1.5
+// output[0,0,1] = mean of I[0, 0, 4..8] = {4,5,6,7} → 22/4 = 5.5
 
 #[test]
 fn last_dimension_shrink() {
@@ -321,8 +285,7 @@ fn last_dimension_shrink() {
     assert_eq!(s[1], 2, "dim1: unchanged");
     assert_eq!(s[2], 2, "dim2: 8 / 4 = 2");
     let (got, out_shape) = extract_vec_infallible(&out);
-    // output[0,0,0] in output [2,2,2]: flat = 0 + 2*0 + 4*0 = 0
-    let expected_000 = (0.0 + 4.0 + 8.0 + 12.0) / 4.0;
+    let expected_000 = (0.0 + 1.0 + 2.0 + 3.0) / 4.0;
     assert!(
         (got[flat3(out_shape, 0, 0, 0)] - expected_000).abs() < 1e-4,
         "output[0,0,0] = {}, expected {}",
@@ -330,12 +293,11 @@ fn last_dimension_shrink() {
         expected_000
     );
     assert!(
-        (expected_000 - 6.0).abs() < 1e-4,
-        "analytical expected = 6.0, computed {}",
+        (expected_000 - 1.5).abs() < 1e-4,
+        "analytical expected = 1.5, computed {}",
         expected_000
     );
-    // output[0,0,1] in output [2,2,2]: flat = 0 + 2*0 + 4*1 = 4
-    let expected_001 = (16.0 + 20.0 + 24.0 + 28.0) / 4.0;
+    let expected_001 = (4.0 + 5.0 + 6.0 + 7.0) / 4.0;
     assert!(
         (got[flat3(out_shape, 0, 0, 1)] - expected_001).abs() < 1e-4,
         "output[0,0,1] = {}, expected {}",
@@ -343,8 +305,8 @@ fn last_dimension_shrink() {
         expected_001
     );
     assert!(
-        (expected_001 - 22.0).abs() < 1e-4,
-        "analytical expected = 22.0, computed {}",
+        (expected_001 - 5.5).abs() < 1e-4,
+        "analytical expected = 5.5, computed {}",
         expected_001
     );
 }

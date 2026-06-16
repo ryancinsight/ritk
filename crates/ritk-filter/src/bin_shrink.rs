@@ -123,10 +123,11 @@ impl BinShrinkImageFilter {
 /// Shrink the data along one dimension by averaging consecutive groups of
 /// `factor` voxels.
 ///
-/// The data buffer is in column-major (Fortran) order: the leftmost dimension
-/// varies fastest in memory. For each output index `o` along dimension `dim`,
-/// the output value is the mean of `input[o*factor .. (o+1)*factor]` along
-/// that dimension, with all other indices held fixed.
+/// The data buffer is in row-major (C-contiguous) order: the rightmost
+/// dimension (X) varies fastest in memory. For each output index `o` along
+/// dimension `dim`, the output value is the mean of
+/// `input[o*factor .. (o+1)*factor]` along that dimension, with all other
+/// indices held fixed.
 ///
 /// Uses `rayon::par_iter` over independent "slabs" (1-D slices along `dim`)
 /// for parallelism. Each slab is a contiguous or strided run of
@@ -149,9 +150,9 @@ fn shrink_along_dim<const D: usize>(
 
     let out_size_dim = out_shape[dim];
 
-    // Compute column-major strides for input and output shapes.
-    let in_strides = col_major_strides(shape);
-    let out_strides = col_major_strides(&out_shape);
+    // Compute row-major strides for input and output shapes.
+    let in_strides = row_major_strides(shape);
+    let out_strides = row_major_strides(&out_shape);
 
     // For each slab, we need to:
     // 1. Find the base input/output offsets (at index 0 along `dim`)
@@ -203,11 +204,18 @@ fn shrink_along_dim<const D: usize>(
 ///
 /// # Invariant
 /// `strides[d] = product of shape[0..d]` (leftmost dimension varies fastest)
-fn col_major_strides<const D: usize>(shape: &[usize; D]) -> [usize; D] {
+/// Row-major (C-contiguous) strides for a `[d₀, …, d_{D-1}]` shape, matching the
+/// `[Z, Y, X]` layout of ritk tensors (`vals[z·ny·nx + y·nx + x]`, X innermost).
+///
+/// The bin-shrink slab walk indexes the flat buffer with these strides; using
+/// column-major strides averaged voxels along the wrong axes — invisible on
+/// `1×1×N` or constant inputs (where the two stride orders coincide or averaging
+/// is layout-invariant), but corrupting any genuine anisotropic 3-D volume.
+fn row_major_strides<const D: usize>(shape: &[usize; D]) -> [usize; D] {
     let mut strides = [0usize; D];
-    strides[0] = 1;
-    for d in 1..D {
-        strides[d] = strides[d - 1] * shape[d - 1];
+    strides[D - 1] = 1;
+    for d in (0..D - 1).rev() {
+        strides[d] = strides[d + 1] * shape[d + 1];
     }
     strides
 }
