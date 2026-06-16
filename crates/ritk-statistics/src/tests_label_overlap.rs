@@ -26,8 +26,9 @@ fn test_perfect_overlap_single_label() {
     let r = find(&m, 1);
     assert!((r.dice - 1.0).abs() < 1e-6, "dice={}", r.dice);
     assert!((r.jaccard - 1.0).abs() < 1e-6, "jaccard={}", r.jaccard);
+    // ITK signed convention: equal volumes → 2·(3−3)/(3+3) = 0.
     assert!(
-        (r.volume_similarity - 1.0).abs() < 1e-6,
+        r.volume_similarity.abs() < 1e-6,
         "vol_sim={}",
         r.volume_similarity
     );
@@ -90,7 +91,7 @@ fn test_dice_known_value() {
     );
 }
 
-/// Volume similarity: pred_vol=3, gt_vol=1 → 1 - |3-1|/(3+1) = 1 - 0.5 = 0.5.
+/// Volume similarity (ITK signed): pred_vol=3, gt_vol=1 → 2·(3−1)/(3+1) = 1.0.
 #[test]
 fn test_volume_similarity_known_value() {
     let pred = vec![1.0_f32, 1.0, 1.0, 0.0];
@@ -98,9 +99,9 @@ fn test_volume_similarity_known_value() {
     let m = label_overlap_measures_from_slices(&pred, &gt);
     let r = find(&m, 1);
     // TP=1, FP=2, FN=0, pred_vol=3, gt_vol=1
-    // vol_sim = 1 - |3-1|/(3+1) = 1 - 0.5 = 0.5
+    // vol_sim = 2·(V_P − V_G)/(V_P + V_G) = 2·(3−1)/(3+1) = 1.0
     assert!(
-        (r.volume_similarity - 0.5).abs() < 1e-6,
+        (r.volume_similarity - 1.0).abs() < 1e-6,
         "vol_sim={}",
         r.volume_similarity
     );

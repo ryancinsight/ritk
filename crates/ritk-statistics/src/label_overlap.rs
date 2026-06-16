@@ -12,10 +12,11 @@
 //!   V_P_k = TP_k + FP_k    (predicted volume for label k)
 //!   V_G_k = TP_k + FN_k    (ground-truth volume for label k)
 //!
-//! Metrics (all in \[0,1\]):
+//! Metrics (all in \[0,1\] except the signed volume_similarity in \[−2,2\]):
 //!   dice_k             = 2·TP_k / (V_P_k + V_G_k);       1.0 when both empty
 //!   jaccard_k          = TP_k / (TP_k + FP_k + FN_k);    1.0 when both empty
-//!   volume_similarity_k = 1 − |V_P_k − V_G_k| / (V_P_k + V_G_k); 1.0 when both empty
+//!   volume_similarity_k = 2·(V_P_k − V_G_k) / (V_P_k + V_G_k); 0.0 when both empty
+//!                         (signed ITK convention, range \[−2,2\], 0 = equal volumes)
 //!   false_negative_rate_k = FN_k / V_G_k;                0.0 when V_G_k = 0
 //!   false_positive_rate_k = FP_k / (FP_k + TN_k);        0.0 when (FP_k + TN_k) = 0
 //!   sensitivity_k      = TP_k / V_G_k;                   1.0 when V_G_k = 0
@@ -43,7 +44,8 @@ pub struct LabelOverlapMeasures {
     pub dice: f32,
     /// Jaccard / Union Overlap: TP / (TP + FP + FN). Range \[0,1\].
     pub jaccard: f32,
-    /// Volumetric similarity: 1 − |V_P − V_G| / (V_P + V_G). Range \[0,1\].
+    /// Volumetric similarity (signed ITK convention):
+    /// 2·(V_P − V_G) / (V_P + V_G). Range \[−2,2\]; 0 = equal volumes.
     pub volume_similarity: f32,
     /// False-negative rate: FN / V_G. Range \[0,1\].
     pub false_negative_rate: f32,
@@ -164,14 +166,14 @@ pub fn label_overlap_measures_from_slices(
                 }
             };
 
-            // Volume similarity
+            // Volume similarity (ITK signed convention):
+            // 2·(V_P − V_G) / (V_P + V_G); 0 when volumes are equal (or both empty).
             let volume_similarity = {
                 let denom = v_p + v_g;
                 if denom == 0 {
-                    1.0_f32
+                    0.0_f32
                 } else {
-                    let diff = (v_p as isize - v_g as isize).unsigned_abs();
-                    1.0 - diff as f32 / denom as f32
+                    2.0 * (v_p as f32 - v_g as f32) / denom as f32
                 }
             };
 
