@@ -75,9 +75,12 @@ impl PyImage {
         let sp = spacing.unwrap_or([1.0, 1.0, 1.0]);
         let orig = origin.unwrap_or([0.0, 0.0, 0.0]);
 
+        // `origin`/`spacing` are given in the Python [z, y, x] axis order (matching
+        // `shape`/`to_numpy`). Spacing is stored per tensor axis [z, y, x]; the
+        // core keeps the origin as a world-space point [x, y, z], so reverse it.
         let image = Image::new(
             tensor,
-            Point::new(orig),
+            Point::new([orig[2], orig[1], orig[0]]),
             Spacing::new(sp),
             Direction::identity(),
         );
@@ -112,11 +115,13 @@ impl PyImage {
         (sp[0], sp[1], sp[2])
     }
 
-    /// Physical coordinate of first voxel as (oz, oy, ox) in mm.
+    /// Physical coordinate of first voxel as (oz, oy, ox) in mm — the same
+    /// [z, y, x] axis order as `shape`, `spacing`, and `to_numpy`. (The core
+    /// stores it as a world-space point [x, y, z]; this getter reverses it.)
     #[getter]
     fn origin(&self) -> (f64, f64, f64) {
         let o = self.inner.origin();
-        (o[0], o[1], o[2])
+        (o[2], o[1], o[0])
     }
 
     fn __repr__(&self) -> String {
@@ -125,7 +130,7 @@ impl PyImage {
         let o = self.inner.origin();
         format!(
             "Image(shape=({},{},{}), spacing=({:.3},{:.3},{:.3}), origin=({:.3},{:.3},{:.3}))",
-            s[0], s[1], s[2], sp[0], sp[1], sp[2], o[0], o[1], o[2],
+            s[0], s[1], s[2], sp[0], sp[1], sp[2], o[2], o[1], o[0],
         )
     }
 }

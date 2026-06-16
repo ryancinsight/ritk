@@ -330,3 +330,50 @@ def test_ritk_reads_2d_image_as_z1_identically_to_sitk(name):
     assert ra.shape == sa.shape, f"{name}: shape {ra.shape} != {sa.shape}"
     assert ra.shape[0] == 1, f"{name}: 2-D file must promote to a single z-slice"
     assert float(np.max(np.abs(ra - sa))) == 0.0, f"{name}: ritk 2-D read differs from sitk"
+
+
+@pytest.mark.parametrize("ext", [".mha", ".nrrd", ".nii", ".nii.gz"])
+def test_io_metadata_axis_order_matches_sitk(ext, tmp_path):
+    """ritk's Python spatial metadata uses one [z, y, x] axis order for shape,
+    spacing, AND origin (matching to_numpy), consistent with sitk's reversed
+    metadata. Regression: the origin getter returned [x, y, z] while spacing
+    returned [z, y, x], so a loaded image's origin was transposed relative to its
+    spacing — silently corrupting any index→physical computation a user did.
+
+    Verified both directions on a non-cube volume with distinct per-axis spacing
+    and origin (a cube/zero-origin would hide an axis swap).
+    """
+    nz, ny, nx = 4, 5, 6
+    vol = np.arange(nz * ny * nx, dtype=np.float32).reshape(nz, ny, nx)
+    spacing_xyz, origin_xyz = [2.0, 3.0, 4.0], [10.0, 20.0, 30.0]
+
+    si = sitk.GetImageFromArray(np.ascontiguousarray(vol))
+    si.SetSpacing(spacing_xyz)
+    si.SetOrigin(origin_xyz)
+
+    # sitk-write -> ritk-read: ritk's [z,y,x] metadata equals sitk's reversed.
+    p = str(tmp_path / f"s{ext}")
+    sitk.WriteImage(si, p)
+    ri = ritk.io.read_image(p)
+    assert np.array_equal(np.asarray(ri.to_numpy()), vol)
+    assert tuple(round(s, 5) for s in ri.spacing) == tuple(spacing_xyz[::-1])
+    assert tuple(round(o, 5) for o in ri.origin) == tuple(origin_xyz[::-1])
+
+    # ritk-write -> sitk-read: physical metadata survives the round-trip.
+    p2 = str(tmp_path / f"r{ext}")
+    ritk.io.write_image(ri, p2)
+    sb = sitk.ReadImage(p2)
+    assert tuple(round(s, 5) for s in sb.GetSpacing()) == tuple(spacing_xyz)
+    assert tuple(round(o, 5) for o in sb.GetOrigin()) == tuple(origin_xyz)
+
+
+def test_image_origin_spacing_share_axis_order():
+    """The Image constructor and getters agree on the [z, y, x] order for both
+    spacing and origin, so a getter→constructor round-trip is the identity."""
+    arr = np.arange(2 * 3 * 4, dtype=np.float32).reshape(2, 3, 4)
+    img = ritk.Image(arr, spacing=[1.5, 2.5, 3.5], origin=[7.0, 8.0, 9.0])
+    assert tuple(round(s, 5) for s in img.spacing) == (1.5, 2.5, 3.5)
+    assert tuple(round(o, 5) for o in img.origin) == (7.0, 8.0, 9.0)
+    rt = ritk.Image(arr, spacing=list(img.spacing), origin=list(img.origin))
+    assert tuple(rt.spacing) == tuple(img.spacing)
+    assert tuple(rt.origin) == tuple(img.origin)
