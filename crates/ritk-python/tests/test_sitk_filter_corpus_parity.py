@@ -502,3 +502,80 @@ def test_connected_components_match_sitk(masks):
         return sorted(c[c > 0].tolist(), reverse=True)
 
     assert sizes(rcc) == sizes(scc)
+
+
+# ── Full-image resample parity across all interpolators ───────────────────────
+#
+# The corpus tests above compare only the interior (axis-order regression). These
+# exercise the *whole* output, including the out-of-FOV halo, on a synthetic 3-D
+# volume resampled to a mixed up/down spacing that pushes trailing samples past
+# the input buffer. Guards the boundary fix: ITK's ResampleImageFilter emits the
+# default pixel value where the mapped continuous index leaves [-0.5, N-0.5);
+# ritk previously edge-clamped that halo instead (rel ≈ 0.9).
+
+_SXYZ = (1.0, 1.2, 0.8)   # sitk x,y,z input spacing (anisotropic)
+_OXYZ = (5.0, -3.0, 2.0)
+
+
+def _synthetic_pair():
+    nz, ny, nx = 8, 10, 12
+    zz, yy, xx = np.meshgrid(np.arange(nz), np.arange(ny), np.arange(nx), indexing="ij")
+    rng = np.random.default_rng(0)
+    vol = (np.sin(0.3 * xx) * np.cos(0.4 * yy) * (1 + 0.1 * zz)
+           + 0.05 * rng.standard_normal((nz, ny, nx))).astype(np.float32)
+    si = sitk.GetImageFromArray(np.ascontiguousarray(vol))
+    si.SetSpacing(_SXYZ)
+    si.SetOrigin(_OXYZ)
+    ri = ritk.Image(np.ascontiguousarray(vol),
+                    spacing=[_SXYZ[2], _SXYZ[1], _SXYZ[0]],
+                    origin=[_OXYZ[2], _OXYZ[1], _OXYZ[0]])
+    return ri, si, vol
+
+
+def _sitk_resample(si, new_xyz, interp):
+    in_sz = np.array(si.GetSize(), float)
+    in_sp = np.array(si.GetSpacing(), float)
+    out_sp = np.array(new_xyz, float)
+    out_sz = np.maximum(1, np.round(in_sz * in_sp / out_sp)).astype(int)
+    rf = sitk.ResampleImageFilter()
+    rf.SetOutputSpacing([float(s) for s in out_sp])
+    rf.SetSize([int(s) for s in out_sz])
+    rf.SetOutputOrigin(si.GetOrigin())
+    rf.SetOutputDirection(si.GetDirection())
+    rf.SetTransform(sitk.Transform(3, sitk.sitkIdentity))
+    rf.SetInterpolator(interp)
+    rf.SetDefaultPixelValue(0.0)
+    return _sa(rf.Execute(si))
+
+
+# spacing ratios chosen non-commensurate so no continuous index lands on an exact
+# half-integer tie (where f32 geometry vs ITK's f64 can round to opposite voxels).
+@pytest.mark.parametrize("mode,sinterp,tol", [
+    ("linear",  sitk.sitkLinear,              1e-4),
+    ("bspline", sitk.sitkBSpline,             1e-4),
+    ("lanczos", sitk.sitkLanczosWindowedSinc, 1e-4),
+])
+def test_resample_full_image_matches_sitk(mode, sinterp, tol):
+    """Whole-output parity (incl. out-of-FOV halo) with sitk.Resample."""
+    ri, si, _ = _synthetic_pair()
+    new_xyz = (1.37, 0.71, 0.91)
+    ro = ritk.filter.resample_image(ri, spacing_z=new_xyz[2], spacing_y=new_xyz[1],
+                                    spacing_x=new_xyz[0], mode=mode)
+    ra = ro.to_numpy().astype(np.float64)
+    sa = _sitk_resample(si, new_xyz, sinterp)
+    assert ra.shape == sa.shape
+    assert np.abs(ra - sa).max() / _rng(sa) < tol
+
+
+def test_resample_nearest_matches_sitk_no_ties():
+    """Nearest-neighbour resampling matches sitk exactly when no continuous index
+    is an exact half-integer (the tie case is f32-vs-f64 sensitive: ritk's f32
+    geometry can round 0.5 to the opposite voxel of ITK's double precision)."""
+    ri, si, _ = _synthetic_pair()
+    new_xyz = (1.37, 0.71, 0.91)   # non-commensurate → no exact ties
+    ro = ritk.filter.resample_image(ri, spacing_z=new_xyz[2], spacing_y=new_xyz[1],
+                                    spacing_x=new_xyz[0], mode="nearest")
+    ra = ro.to_numpy().astype(np.float64)
+    sa = _sitk_resample(si, new_xyz, sitk.sitkNearestNeighbor)
+    assert ra.shape == sa.shape
+    assert np.abs(ra - sa).max() == 0.0
