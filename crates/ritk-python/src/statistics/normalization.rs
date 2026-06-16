@@ -124,22 +124,30 @@ pub fn zscore_normalize(
 
 /// Match the intensity histogram of a source image to a reference image.
 ///
-/// Applies T(v) = F_ref⁻¹(F_src(v)) via a piecewise-linear lookup table.
+/// Follows ITK's `HistogramMatchingImageFilter`: quantile match-point landmarks
+/// with an optional mean threshold, mapped piecewise-linearly. Equivalent to
+/// `SimpleITK.HistogramMatching(source, reference, num_bins, num_match_points,
+/// threshold_at_mean)`.
 ///
 /// Args:
-///     source:    Image whose histogram is to be transformed (PyImage).
-///     reference: Image whose histogram serves as the target distribution (PyImage).
-///     num_bins:  Number of histogram bins (default 256).
+///     source:           Image whose histogram is to be transformed (PyImage).
+///     reference:        Image whose histogram is the target distribution (PyImage).
+///     num_bins:         Number of histogram levels (default 256).
+///     num_match_points: Number of interior quantile match points (default 7).
+///     threshold_at_mean: Exclude sub-mean (background) intensities from the
+///                        landmark estimation (default True).
 ///
 /// Returns:
 ///     PyImage with matched histogram, same shape and spatial metadata as source.
 #[pyfunction]
-#[pyo3(signature = (source, reference, num_bins = 256))]
+#[pyo3(signature = (source, reference, num_bins = 256, num_match_points = 7, threshold_at_mean = true))]
 pub fn histogram_match(
     py: Python<'_>,
     source: &PyImage,
     reference: &PyImage,
     num_bins: usize,
+    num_match_points: usize,
+    threshold_at_mean: bool,
 ) -> RitkResult<PyImage> {
     if num_bins < 2 {
         return Err(RitkPyError::value(format!(
@@ -150,6 +158,8 @@ pub fn histogram_match(
     let reference_arc = Arc::clone(&reference.inner);
     let result = py.allow_threads(|| {
         HistogramMatcher::new(num_bins)
+            .with_match_points(num_match_points)
+            .with_threshold_at_mean(threshold_at_mean)
             .match_histograms(source_arc.as_ref(), reference_arc.as_ref())
     });
     Ok(into_py_image(result))

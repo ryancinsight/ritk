@@ -99,6 +99,48 @@ def test_statistics_match_sitk_on_real_image(name):
     assert abs(rs["std"] - f.GetSigma()) / rng < 1e-2, f"{name}: std"
 
 
+def test_histogram_matching_matches_sitk_on_real_pair():
+    """ritk.histogram_match follows ITK's HistogramMatchingImageFilter (quantile
+    landmarks + threshold-at-mean), matching sitk on the cthead1 → RA-slice pair.
+
+    Regression: ritk used an exact full-CDF specification, which ignored ITK's
+    mean threshold and K-landmark mapping (its output min did not reach the
+    reference min and it diverged ~15 % in the tails). The landmark algorithm now
+    agrees with sitk to well under 1 % across match-point / threshold settings.
+    """
+    src_s = load_sitk("cthead1-Float.mha")
+    src_r = load_ritk("cthead1-Float.mha")
+    ra = load_sitk("RA-Short.nrrd")
+    ref_s = sitk.Cast(ra[:, :, 32], sitk.sitkFloat32)
+    ref_r = ritk.Image(
+        np.ascontiguousarray(sitk_to_zyx(ref_s).astype(np.float32)), spacing=[1, 1, 1]
+    )
+
+    for match_points, threshold in [(7, True), (7, False), (20, True), (1, True)]:
+        rk = np.asarray(
+            ritk.statistics.histogram_match(
+                src_r,
+                ref_r,
+                num_bins=256,
+                num_match_points=match_points,
+                threshold_at_mean=threshold,
+            ).to_numpy(),
+            dtype=np.float64,
+        )
+        sk = sitk_to_zyx(
+            sitk.HistogramMatching(
+                src_s,
+                ref_s,
+                numberOfHistogramLevels=256,
+                numberOfMatchPoints=match_points,
+                thresholdAtMeanIntensity=threshold,
+            )
+        ).astype(np.float64)
+        rng = max(float(np.abs(sk).max()), 1e-9)
+        rel = float(np.abs(rk - sk).max()) / rng
+        assert rel < 1e-2, f"histmatch mp={match_points} thr={threshold}: rel {rel:.2e}"
+
+
 # ── Segmentation parity on real data ──────────────────────────────────────────
 
 
