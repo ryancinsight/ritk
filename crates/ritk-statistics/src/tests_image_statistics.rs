@@ -203,7 +203,7 @@ fn test_large_n_ct_scale_mean_precision() {
         .map(|i| ((i as f64 * scale / n as f64).floor() as f32) - 2048.0)
         .collect();
 
-    let s = compute_statistics_from_slice(&data);
+    let s = compute_statistics_from_slice(&data, 0);
 
     let expected_mean = 511.5_f32;
     assert!(
@@ -225,7 +225,7 @@ fn test_large_n_negative_mean_precision() {
     let constant = -789.0_f32;
     let data = vec![constant; n];
 
-    let s = compute_statistics_from_slice(&data);
+    let s = compute_statistics_from_slice(&data, 0);
 
     assert!(
         (s.mean - constant).abs() < 1.0,

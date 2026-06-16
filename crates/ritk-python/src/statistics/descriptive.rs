@@ -36,13 +36,23 @@ pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResu
 ///
 /// Args:
 ///     image: Input PyImage.
+///     ddof:  Delta degrees of freedom for `std` (numpy convention). 0 (default)
+///            = population std (÷N); 1 = sample std (÷N-1), matching
+///            SimpleITK's StatisticsImageFilter.GetSigma().
 ///
 /// Returns:
 ///     dict with keys: min, max, mean, std, p25, p50, p75 (all float).
 ///     Percentiles correspond to the 25th, 50th (median), and 75th percentiles.
 #[pyfunction]
-pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> RitkResult<Py<PyDict>> {
-    let stats = with_tensor_slice(image.inner.data(), compute_statistics_from_slice);
+#[pyo3(signature = (image, ddof=0))]
+pub fn compute_statistics(
+    py: Python<'_>,
+    image: &PyImage,
+    ddof: usize,
+) -> RitkResult<Py<PyDict>> {
+    let stats = with_tensor_slice(image.inner.data(), |slice| {
+        compute_statistics_from_slice(slice, ddof)
+    });
     stats_to_dict(py, &stats)
 }
 
@@ -53,6 +63,7 @@ pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> RitkResult<Py<PyDi
 /// Args:
 ///     image: Input PyImage.
 ///     mask:  Binary mask PyImage (same shape as image; values > 0.5 = foreground).
+///     ddof:  Delta degrees of freedom for `std` (0 = population, 1 = sample/sitk).
 ///
 /// Returns:
 ///     dict with keys: min, max, mean, std, p25, p50, p75 (all float).
@@ -61,10 +72,12 @@ pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> RitkResult<Py<PyDi
 /// Raises:
 ///     RuntimeError: if image and mask shapes differ or mask has no foreground voxels.
 #[pyfunction]
+#[pyo3(signature = (image, mask, ddof=0))]
 pub fn masked_statistics(
     py: Python<'_>,
     image: &PyImage,
     mask: &PyImage,
+    ddof: usize,
 ) -> RitkResult<Py<PyDict>> {
     let stats = with_tensor_slice(image.inner.data(), |img_slice| {
         with_tensor_slice(mask.inner.data(), |mask_slice| {
@@ -80,7 +93,7 @@ pub fn masked_statistics(
                 .map(|(&v, _)| v)
                 .collect();
             assert!(!values.is_empty(), "mask contains no foreground voxels");
-            compute_statistics_from_slice(&values)
+            compute_statistics_from_slice(&values, ddof)
         })
     });
     stats_to_dict(py, &stats)
@@ -211,6 +224,9 @@ pub fn estimate_noise(image: &PyImage, mask: Option<&PyImage>) -> f32 {
 /// Args:
 ///     label_image:     Label image (integer labels stored as f32; 0 = background).
 ///     intensity_image: Intensity image with identical shape to `label_image`.
+///     ddof:            Delta degrees of freedom for `std` (0 = population,
+///                      1 = sample, matching SimpleITK's
+///                      LabelStatisticsImageFilter.GetSigma()).
 ///
 /// Returns:
 ///     list of dicts, one per label, sorted ascending by label, each with keys:
@@ -220,14 +236,16 @@ pub fn estimate_noise(image: &PyImage, mask: Option<&PyImage>) -> f32 {
 /// Raises:
 ///     RuntimeError: if images have different element counts or shapes.
 #[pyfunction]
+#[pyo3(signature = (label_image, intensity_image, ddof=0))]
 pub fn compute_label_intensity_statistics(
     py: Python<'_>,
     label_image: &PyImage,
     intensity_image: &PyImage,
+    ddof: usize,
 ) -> RitkResult<Py<PyList>> {
     let stats = with_tensor_slice(label_image.inner.data(), |label_slice| {
         with_tensor_slice(intensity_image.inner.data(), |intensity_slice| {
-            core_label_intensity_stats_from_slices(label_slice, intensity_slice)
+            core_label_intensity_stats_from_slices(label_slice, intensity_slice, ddof)
         })
     });
     let list = PyList::empty_bound(py);

@@ -8,7 +8,10 @@
 //! - min     = min(V)
 //! - max     = max(V)
 //! - mean    = (1/n) · Σ vᵢ
-//! - std     = √( (1/n) · Σ (vᵢ − mean)² )   (population std)
+//! - std     = √( (1/(n − ddof)) · Σ (vᵢ − mean)² )
+//!             `ddof` is the numpy-style delta degrees of freedom: 0 → population
+//!             std (the default), 1 → sample std (Bessel-corrected, matching
+//!             ITK/SimpleITK `StatisticsImageFilter`/`LabelStatisticsImageFilter`).
 //! - p25     = V_sorted[⌊n/4⌋]
 //! - p50     = V_sorted[⌊n/2⌋]
 //! - p75     = V_sorted[⌊3n/4⌋]
@@ -26,7 +29,7 @@ pub struct ImageStatistics {
     pub max: f32,
     /// Arithmetic mean intensity.
     pub mean: f32,
-    /// Population standard deviation.
+    /// Standard deviation with the requested `ddof` (0 = population, 1 = sample).
     pub std: f32,
     /// Percentiles: \[p25, p50, p75\].
     pub percentiles: [f32; 3],
@@ -38,7 +41,7 @@ pub struct ImageStatistics {
 pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> ImageStatistics {
     let (vals, _) = extract_vec_infallible(image);
     let slice: &[f32] = &vals;
-    compute_statistics_from_slice(slice)
+    compute_statistics_from_slice(slice, 0)
 }
 
 /// Compute statistics from an immutable slice.
@@ -46,9 +49,9 @@ pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> Im
 /// This is the zero-domain-logic public helper for callers that already have
 /// borrowed f32 tensor storage. The sorted copy required for percentile
 /// computation is allocated once inside `compute_from_values`.
-pub fn compute_statistics_from_slice(slice: &[f32]) -> ImageStatistics {
+pub fn compute_statistics_from_slice(slice: &[f32], ddof: usize) -> ImageStatistics {
     // Delegate directly; compute_from_values allocates a sorted copy internally.
-    compute_from_values(slice)
+    compute_from_values(slice, ddof)
 }
 
 /// Compute statistics restricted to voxels where `mask` > 0.5 (foreground).
@@ -78,7 +81,7 @@ pub fn masked_statistics<B: Backend, const D: usize>(
         .collect();
 
     assert!(!values.is_empty(), "mask contains no foreground voxels");
-    compute_from_values(&values)
+    compute_from_values(&values, 0)
 }
 
 /// Core statistics computation.
@@ -105,7 +108,7 @@ pub fn masked_statistics<B: Backend, const D: usize>(
 /// f32 ULP (≈8192) exceeds individual element magnitudes, so additions are
 /// rounded to zero and the sum saturates.  Two-pass f64 accumulation is the
 /// algorithm's numerical contract requirement, not a convenience cast.
-pub fn compute_from_values(values: &[f32]) -> ImageStatistics {
+pub fn compute_from_values(values: &[f32], ddof: usize) -> ImageStatistics {
     let mut buffer = values.to_vec();
     let values = buffer.as_mut_slice();
     let n = values.len();
@@ -132,15 +135,21 @@ pub fn compute_from_values(values: &[f32]) -> ImageStatistics {
 
     // Two-pass f64 variance: squared deviations sum to ~10^13 for CT-scale
     // data, exceeding f32 representable precision per element at n > ~10^7.
-    let var_wide: f64 = values
+    let sum_sq_dev: f64 = values
         .iter()
         .map(|&v| {
             let d = v as f64 - mean_wide;
             d * d
         })
-        .sum::<f64>()
-        / n as f64;
-    let std = var_wide.sqrt() as f32;
+        .sum::<f64>();
+    // numpy-style ddof: divisor = n − ddof. n ≤ ddof (e.g. sample std of a single
+    // voxel) yields a degenerate 0.0 rather than a NaN/∞.
+    let denom = n.saturating_sub(ddof);
+    let std = if denom == 0 {
+        0.0
+    } else {
+        (sum_sq_dev / denom as f64).sqrt() as f32
+    };
 
     // Floor-division percentile ranks (module contract). Quickselect each rank
     // on the suffix left of the previous one — O(n) average, exact order

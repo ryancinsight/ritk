@@ -14,7 +14,7 @@ fn test_single_label_single_voxel() {
     // Expected: count=1, min=max=mean=42.0, std=0.0
     let labels = vec![0.0_f32, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let intensities = vec![10.0_f32, 42.0, 5.0, 3.0, 7.0, 1.0, 9.0, 2.0];
-    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities);
+    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities, 0);
 
     assert_eq!(stats.len(), 1, "exactly one label");
     let s = &stats[0];
@@ -31,7 +31,7 @@ fn test_single_label_known_statistics() {
     // n=4, values [1,2,3,4]: mean=2.5, variance=1.25, std=sqrt(1.25)
     let labels = vec![1.0_f32, 1.0, 1.0, 1.0, 0.0, 0.0];
     let intensities = vec![1.0_f32, 2.0, 3.0, 4.0, 99.0, 99.0];
-    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities);
+    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities, 0);
 
     assert_eq!(stats.len(), 1);
     let s = &stats[0];
@@ -54,7 +54,7 @@ fn test_two_labels_independent_statistics() {
     // Label=2: [5,15] mean=10, variance=25, std=5.0
     let labels = vec![1.0_f32, 1.0, 1.0, 2.0, 2.0];
     let intensities = vec![10.0_f32, 20.0, 30.0, 5.0, 15.0];
-    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities);
+    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities, 0);
 
     assert_eq!(stats.len(), 2, "two labels");
     let s1 = &stats[0];
@@ -84,7 +84,7 @@ fn test_background_label_zero_excluded() {
     // All labels=0: result must be empty.
     let labels = vec![0.0_f32; 10];
     let intensities: Vec<f32> = (0..10).map(|i| i as f32).collect();
-    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities);
+    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities, 0);
     assert_eq!(stats.len(), 0, "all background -> empty result");
 }
 
@@ -93,7 +93,7 @@ fn test_uniform_intensity_within_label() {
     // Uniform intensity -> std = 0.
     let labels: Vec<f32> = vec![1.0; 20];
     let intensities: Vec<f32> = vec![7.5; 20];
-    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities);
+    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities, 0);
 
     assert_eq!(stats.len(), 1);
     let s = &stats[0];
@@ -112,7 +112,7 @@ fn test_compute_from_image_api_matches_slice_api() {
     let label_image = make_image_3d(label_data.clone(), [2, 2, 2]);
     let intensity_image = make_image_3d(intensity_data.clone(), [2, 2, 2]);
     let stats_img = compute_label_intensity_statistics(&label_image, &intensity_image);
-    let stats_slice = compute_label_intensity_statistics_from_slices(&label_data, &intensity_data);
+    let stats_slice = compute_label_intensity_statistics_from_slices(&label_data, &intensity_data, 0);
     assert_eq!(stats_img.len(), stats_slice.len());
     for (a, b) in stats_img.iter().zip(stats_slice.iter()) {
         assert_eq!(a.label, b.label);
@@ -127,7 +127,7 @@ fn test_compute_from_image_api_matches_slice_api() {
 #[test]
 #[should_panic(expected = "equal length")]
 fn test_length_mismatch_panics() {
-    let _ = compute_label_intensity_statistics_from_slices(&[1.0_f32; 4], &[1.0_f32; 5]);
+    let _ = compute_label_intensity_statistics_from_slices(&[1.0_f32; 4], &[1.0_f32; 5], 0);
 }
 
 #[test]
@@ -144,7 +144,7 @@ fn test_results_sorted_by_label() {
     // Labels inserted out of order: 3, 1, 2 -> sorted output must be 1, 2, 3.
     let labels = vec![3.0_f32, 1.0, 2.0, 3.0, 1.0];
     let intensities = vec![30.0_f32, 10.0, 20.0, 30.0, 10.0];
-    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities);
+    let stats = compute_label_intensity_statistics_from_slices(&labels, &intensities, 0);
     assert_eq!(stats.len(), 3);
     assert_eq!(stats[0].label, 1, "first must be label 1");
     assert_eq!(stats[1].label, 2, "second must be label 2");

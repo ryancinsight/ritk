@@ -39,7 +39,8 @@ pub struct LabelIntensityStatistics {
     pub max: f32,
     /// Arithmetic mean intensity.
     pub mean: f32,
-    /// Population standard deviation of intensity.
+    /// Standard deviation of intensity with the requested `ddof`
+    /// (0 = population, 1 = sample / ITK `LabelStatisticsImageFilter`).
     pub std: f32,
 }
 
@@ -68,7 +69,7 @@ pub fn compute_label_intensity_statistics<B: Backend>(
     let (intensity_vals, _) = extract_vec_infallible(intensity_image);
     let intensity_slice: &[f32] = &intensity_vals;
 
-    compute_label_intensity_statistics_from_slices(label_slice, intensity_slice)
+    compute_label_intensity_statistics_from_slices(label_slice, intensity_slice, 0)
 }
 
 /// Compute per-label intensity statistics from pre-extracted flat slices.
@@ -83,6 +84,7 @@ pub fn compute_label_intensity_statistics<B: Backend>(
 pub fn compute_label_intensity_statistics_from_slices(
     label_slice: &[f32],
     intensity_slice: &[f32],
+    ddof: usize,
 ) -> Vec<LabelIntensityStatistics> {
     assert_eq!(
         label_slice.len(),
@@ -138,9 +140,15 @@ pub fn compute_label_intensity_statistics_from_slices(
             let n = count as f64;
             let mean_wide = sum / n;
             let mean = mean_wide as f32;
-            // Population variance: E[X^2] - E[X]^2; .max(0.0) absorbs f64 cancellation.
-            let variance = ((sum_sq / n) - mean_wide * mean_wide).max(0.0) as f32;
-            let std = variance.sqrt();
+            // Σ(v − mean)² = Σv² − n·mean²; .max(0.0) absorbs f64 cancellation.
+            let sum_sq_dev = (sum_sq - n * mean_wide * mean_wide).max(0.0);
+            // numpy-style ddof: divisor = count − ddof (0 = population, 1 = sample).
+            let denom = count.saturating_sub(ddof);
+            let std = if denom == 0 {
+                0.0
+            } else {
+                (sum_sq_dev / denom as f64).sqrt() as f32
+            };
             LabelIntensityStatistics {
                 label,
                 count,
