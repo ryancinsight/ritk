@@ -8,7 +8,7 @@ type B = NdArray<f32>;
 fn make_image(vals: Vec<f32>) -> Image<B, 3> {
     let n = vals.len();
     let device = Default::default();
-    let td = TensorData::new(vals, Shape::new([1, 1, n]));
+    let td = TensorData::new(vals, Shape::from([1, 1, n]));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     Image::new(
         tensor,

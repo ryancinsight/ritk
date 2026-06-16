@@ -6,6 +6,7 @@
 use crate::fft::frequency_filter::{FftFilterKind, FrequencyDomainFilter};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec;
@@ -15,27 +16,11 @@ type B = NdArray<f32>;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn make_image_2d(vals: Vec<f32>, h: usize, w: usize) -> Image<B, 2> {
-    let device = Default::default();
-    let td = TensorData::new(vals, Shape::new([h, w]));
-    let tensor = Tensor::<B, 2>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0_f64, 0.0_f64]),
-        Spacing::new([1.0_f64, 1.0_f64]),
-        Direction::identity(),
-    )
+    ts::make_image::<B, 2>(vals, [h, w])
 }
 
 fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
-    let device = Default::default();
-    let td = TensorData::new(vals, Shape::new([d, h, w]));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0_f64, 0.0_f64, 0.0_f64]),
-        Spacing::new([1.0_f64, 1.0_f64, 1.0_f64]),
-        Direction::identity(),
-    )
+    ts::make_image::<B, 3>(vals, [d, h, w])
 }
 
 // ── 2-D tests ─────────────────────────────────────────────────────────────────

@@ -1,27 +1,18 @@
 use super::*;
+use ritk_image::test_support as ts;
 use crate::edge::GaussianSigma;
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = burn_ndarray::NdArray<f32>;
 
 fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    let dev = Default::default();
-    let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &dev);
-    Image::new(
-        t,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    )
+    ts::make_image::<B, 3>(vals, shape)
 }
 fn make_image_with_spacing(vals: Vec<f32>, shape: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
-    let dev = Default::default();
-    let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &dev);
-    Image::new(
-        t,
-        Point::new([0.0; 3]),
-        Spacing::new(spacing),
-        Direction::identity(),
+    ts::make_image_with_spacing::<B, 3>(
+        vals,
+        shape,
+        spacing,
     )
 }
 fn vals(img: &Image<B, 3>) -> Vec<f32> {

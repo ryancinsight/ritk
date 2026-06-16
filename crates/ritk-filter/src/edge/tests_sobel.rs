@@ -3,6 +3,7 @@
 use super::*;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
@@ -11,14 +12,10 @@ type B = NdArray<f32>;
 
 /// Construct a test image from flat data, dimensions, and spacing.
 fn make_image(vals: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new(spacing),
-        Direction::identity(),
+    ts::make_image_with_spacing::<B, 3>(
+        vals,
+        dims,
+        spacing,
     )
 }
 

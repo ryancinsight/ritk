@@ -1,22 +1,15 @@
 use super::*;
+use ritk_spatial::{Point, Spacing};
 use crate::edge::GaussianSigma;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support as ts;
 use ritk_core::image::Image;
 
 type B = NdArray<f32>;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    use ritk_spatial::{Direction, Point, Spacing};
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    )
+    ts::make_image::<B, 3>(vals, dims)
 }
 
 fn make_image_with_metadata(
@@ -25,15 +18,12 @@ fn make_image_with_metadata(
     origin: [f64; 3],
     spacing: [f64; 3],
 ) -> Image<B, 3> {
-    use ritk_spatial::{Direction, Point, Spacing};
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new(origin),
-        Spacing::new(spacing),
-        Direction::identity(),
+    ts::make_image_with::<B, 3>(
+        vals,
+        dims,
+        Some(Point::new(origin)),
+        Some(Spacing::new(spacing)),
+        None,
     )
 }
 

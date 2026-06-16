@@ -3,6 +3,7 @@
 use super::*;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support as ts;
 
 // Re-import using the crate's own paths (within ritk-core).
 use ritk_image::Image as CoreImage;
@@ -11,15 +12,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 type B = NdArray<f32>;
 
 fn make_image(data: Vec<f32>, dims: [usize; 3]) -> CoreImage<B, 3> {
-    let _device: <B as burn::tensor::backend::Backend>::Device = Default::default();
-    let td = TensorData::new(data, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &_device);
-    CoreImage::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    )
+    ts::make_image::<B, 3>(data, dims)
 }
 
 /// Build a 3-D volume with a bright cylinder of radius `r` centred at

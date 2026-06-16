@@ -1,20 +1,12 @@
 use super::*;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support as ts;
 
 type B = NdArray<f32>;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    use ritk_spatial::{Direction, Point, Spacing};
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    )
+    ts::make_image::<B, 3>(vals, dims)
 }
 
 fn image_vals(img: &Image<B, 3>) -> Vec<f32> {

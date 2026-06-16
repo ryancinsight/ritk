@@ -1,8 +1,10 @@
 use super::*;
+use ritk_spatial::{Direction, Point, Spacing};
 use crate::read_tiff;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support as ts;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;

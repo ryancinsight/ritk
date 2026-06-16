@@ -2,6 +2,7 @@
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
+use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
@@ -9,15 +10,12 @@ use ritk_tensor_ops::extract_vec_infallible;
 type B = NdArray<f32>;
 
 fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    use burn::tensor::{Shape, Tensor, TensorData};
-    let device = Default::default();
-    let td = TensorData::new(vals, Shape::new(shape));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0_f64, 0.0, 0.0]),
-        Spacing::new([1.0_f64, 2.0, 3.0]),
-        Direction::identity(),
+    ts::make_image_with::<B, 3>(
+        vals,
+        shape,
+        Some(Point::new([0.0, 0.0, 0.0])),
+        Some(Spacing::new([1.0, 2.0, 3.0])),
+        None,
     )
 }
 

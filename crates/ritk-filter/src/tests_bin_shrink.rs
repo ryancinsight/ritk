@@ -20,6 +20,7 @@
 use crate::bin_shrink::BinShrinkImageFilter;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support as ts;
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
@@ -29,14 +30,7 @@ type B = NdArray<f32>;
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 fn make_image_3d(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
-    Image::new(
-        t,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    )
+    ts::make_image::<B, 3>(data, shape)
 }
 
 fn make_image_3d_with_metadata(
@@ -45,13 +39,12 @@ fn make_image_3d_with_metadata(
     origin: [f64; 3],
     spacing: [f64; 3],
 ) -> Image<B, 3> {
-    let device = Default::default();
-    let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
-    Image::new(
-        t,
-        Point::new(origin),
-        Spacing::new(spacing),
-        Direction::identity(),
+    ts::make_image_with::<B, 3>(
+        data,
+        shape,
+        Some(Point::new(origin)),
+        Some(Spacing::new(spacing)),
+        None,
     )
 }
 

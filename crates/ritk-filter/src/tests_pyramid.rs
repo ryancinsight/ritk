@@ -3,22 +3,14 @@
 use super::*;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::test_support as ts;
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
 fn make_image(shape: [usize; 3]) -> Image<B, 3> {
-    let n = shape.iter().product();
-    let data: Vec<f32> = (0..n).map(|i| i as f32).collect();
-    let device = Default::default();
-    let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
-    Image::new(
-        t,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    )
+    ts::fill_image::<B, 3>(shape, 0.0)
 }
 
 // ── MultiResolutionPyramid ────────────────────────────────────────────────────
