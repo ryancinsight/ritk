@@ -691,6 +691,34 @@ def test_cmake_h_transform_on_upstream_data(tag, rfn, sfn, height):
     assert np.array_equal(r, s), f"{tag} (h={height}): differs from sitk"
 
 
+def test_cmake_reconstruction_by_erosion_on_upstream_data():
+    # Grayscale reconstruction by erosion: marker >= mask, reconstruct down to
+    # the mask. ITK Parity: ReconstructionByErosionImageFilter.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    marker = arr + 25.0
+    rmk = ritk.Image(np.ascontiguousarray(marker[None]))
+    smk = sitk.GetImageFromArray(marker)
+    smk.CopyInformation(si)
+    r = np.squeeze(np.asarray(
+        ritk.filter.morphological_reconstruction(rmk, ri, "erosion").to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.ReconstructionByErosion(smk, si)).astype(np.float64))
+    assert np.array_equal(r, s), "ReconstructionByErosion differs from sitk"
+
+
+def test_cmake_minimum_maximum_on_upstream_data():
+    # ritk.statistics.compute_statistics exposes min/max; compare to the ITK
+    # MinimumMaximumImageFilter. ITK Parity: MinimumMaximumImageFilter.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    stats = ritk.statistics.compute_statistics(ri)
+    f = sitk.MinimumMaximumImageFilter()
+    f.Execute(si)
+    assert abs(stats["min"] - f.GetMinimum()) < 1e-4, "MinimumMaximum min differs from sitk"
+    assert abs(stats["max"] - f.GetMaximum()) < 1e-4, "MinimumMaximum max differs from sitk"
+
+
 # Regional-extrema grayscale morphology (<Filter>.yaml). Flat-zone flood, so
 # bit-exact to SimpleITK on the upstream cthead1 grayscale image.
 _REGIONAL_EXTREMA_CMAKE = [

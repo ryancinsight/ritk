@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.97.2] — 2026-06-17 (Sprint 405: cmake cases for already-exact filters)
+
+### Added
+- `ritk-python` tests: cmake parity cases for two filters ritk already implemented but had not cross-referenced to sitk — `ReconstructionByErosion` (`morphological_reconstruction` erosion mode, **bit-exact** to `sitk.ReconstructionByErosion`; confirms the Sprint-384 erosion-boundary+convergence fix) and `MinimumMaximum` (`statistics.compute_statistics` min/max vs `sitk.MinimumMaximumImageFilter`). Coverage 165/298.
+
+### Notes
+- `BoxMean` (`sitk.BoxMean`) investigated: it is **not** equal to `sitk.Mean` — the two differ by up to 3.28 on cthead (a boundary-accumulator convention difference). ritk's `mean_filter` is float-exact to `sitk.Mean` (the ZeroFluxNeumann mean), so it does not match `BoxMean`; recorded as a convention difference rather than forcing a match. `GrayscaleGeodesicDilate/Erode` are convergence-equivalent to `Reconstruction*` (single-step variant not separately implemented), so not bound as redundant aliases.
+
 ## [0.97.1] — 2026-06-17 (Sprint 404: ZeroFluxNeumannPad)
 
 ### Added
