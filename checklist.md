@@ -2,7 +2,7 @@
 
 ## Sprint 376 — DRY Closure, Build Hardening & Carry-Forward Reconciliation
 **Target version**: 0.70.1
-**Sprint phase**: Foundation — Sprint 375 carry-forward reconciled; DRY-374-01 closed; clippy green; tree re-synced.
+**Sprint phase**: Closure — DRY closure, build hardening, fmt/clippy gating, CPR-PERF-01 all delivered and verified.
 
 ### Delivered (Sprint 376)
 - [x] CARRY [patch]: Concurrent trunk of 25 inline test blocks extracted (`b052c40a refactor(filter): extract 25 inline test blocks to sibling files (SRP) [-3070L]`)
