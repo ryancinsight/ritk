@@ -511,6 +511,8 @@ _AUTO_THRESHOLD_VALUES = [
     ("HuangThreshold", ritk.segmentation.huang_threshold, sitk.HuangThresholdImageFilter),
     ("IntermodesThreshold", ritk.segmentation.intermodes_threshold, sitk.IntermodesThresholdImageFilter),
     ("ShanbhagThreshold", ritk.segmentation.shanbhag_threshold, sitk.ShanbhagThresholdImageFilter),
+    ("KittlerIllingworthThreshold", ritk.segmentation.kittler_illingworth_threshold,
+     sitk.KittlerIllingworthThresholdImageFilter),
 ]
 
 

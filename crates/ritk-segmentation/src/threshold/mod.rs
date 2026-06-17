@@ -18,6 +18,7 @@ pub mod huang;
 pub mod intermodes;
 pub mod isodata;
 pub mod kapur;
+pub mod kittler;
 pub mod li;
 pub mod moments;
 pub mod multi_otsu;
@@ -34,6 +35,7 @@ pub use intermodes::{
 };
 pub use isodata::{compute_isodata_threshold_from_slice, isodata_threshold, IsoDataThreshold};
 pub use shanbhag::{compute_shanbhag_threshold_from_slice, shanbhag_threshold, ShanbhagThreshold};
+pub use kittler::{compute_kittler_illingworth_threshold_from_slice, kittler_illingworth_threshold, KittlerIllingworthThreshold};
 pub use moments::{compute_moments_threshold_from_slice, moments_threshold, MomentsThreshold};
 pub use kapur::compute_kapur_threshold_from_slice;
 pub use kapur::{kapur_threshold, KapurThreshold};
