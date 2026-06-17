@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.73.2] — 2026-06-17 (Sprint 379 Increment 2: LaplacianRecursiveGaussian parity)
+
+### Fixed
+- `ritk-filter`: `laplacian_of_gaussian` is now **float-exact** to SimpleITK `LaplacianRecursiveGaussian`. It computes `∇²(G_σ*I) = Σ_d ∂²/∂x_d²(G_σ*I)` via the per-axis Deriche recursion (the **second-order** Deriche along axis `d`, zero-order smoothing along the others, summed) — the ITK structure — instead of a discrete Gaussian followed by a finite-difference Laplacian (which was ~1% off, `k≈1.009`). The order-2 Deriche coefficients use ITK's `SecondOrder` `SetUp` normalisation (`β`-mixed order-0/order-2 constant sets, `alpha2` moment normalisation). Each per-axis term is divided by `spacing[d]²` so the result is the physical Laplacian under anisotropic spacing (was scaled by `s²`). Interior relative residual vs sitk on cthead1 is ~5e-8 (f32 floor); the Python parity assertion tightens from `<0.06` to `<1e-6`. Added `laplacian_recursive_gaussian_quadratic_is_two` (analytical `∂²/∂x²(G*x²)=2` across spacings {1, 2, 0.5}).
+
+## [0.73.1] — 2026-06-17 (Sprint 376 Increment 2: CPR apply hoisted inverse)
+
+### Performance
+- `ritk-filter 0.2.3`: `CprImageFilter::apply` rewritten to hoist the direction-matrix inverse out of every trilinear sample. The 3×3 inverse is now computed **once per `apply` call** instead of once per cross-section query (default config: 16 384 → 1). A per-path-point index basis `(idx_p0[i], slope[i])` further collapses the inner loop to a single linear-in-offset update `idx_p[i,j] = idx_p0[i] + slope[i] * s`. New private helper `trilinear_sample_from_idx` accepts the precomputed continuous index; the public `trilinear_sample` is preserved unchanged for the single-shot convenience case. Output is bit-equivalent to the previous formulation on identity and non-identity direction matrices (`max |Δ| ≤ 1e-5`, verified by `cpr_apply_matches_brute_force_reference` and `cpr_apply_matches_brute_force_reference_nonidentity_direction` on deterministic 12³ / 10³ volumes). Head-to-head microfarm benchmark on the same machine/session: 16³ 505 µs → 1.00 ms (**1.98×**), 32³ 976 µs → 1.43 ms (**1.47×**), 64³ 4.69 ms → 5.33 ms (**1.14×**). The win is largest for small volumes because the per-call `direction⁻¹` cost is amortised over fewer samples; the 64³ case still nets a 14 % improvement with no algorithmic change.
+
 ## [0.73.0] — 2026-06-17 (Sprint 379: Recursive Gaussian Deriche Parity)
 
 ### Fixed
