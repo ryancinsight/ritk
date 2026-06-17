@@ -95,6 +95,9 @@ _CASES = [
     ("DiscreteGaussian/float", "RA-Float.nrrd",
      lambda ri: ritk.filter.discrete_gaussian(ri, 1.0),
      lambda si: sitk.DiscreteGaussian(si, 1.0), 1e-6),
+    ("DiscreteGaussian/short", "RA-Slice-Short.nrrd",
+     lambda ri: ritk.filter.discrete_gaussian(ri, 1.0),
+     lambda si: sitk.DiscreteGaussian(si, 1.0), 1e-6),
     ("IntensityWindowing/3dFloat", "RA-Float.nrrd",
      lambda ri: ritk.filter.intensity_windowing(ri, 0.0, 255.0, 0.0, 255.0),
      lambda si: sitk.IntensityWindowing(si, 0.0, 255.0, 0.0, 255.0), 1e-6),
@@ -173,6 +176,8 @@ _BINARY_CASES = [
      lambda a, b: ritk.filter.multiply_images(a, b), lambda a, b: sitk.Multiply(a, b), 0.0),
     ("Divide/defaults", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
      lambda a, b: ritk.filter.divide_images(a, b), lambda a, b: sitk.Divide(a, b), 0.0),
+    ("Add/2d", "STAPLE1.png", "STAPLE2.png",
+     lambda a, b: ritk.filter.add_images(a, b), lambda a, b: sitk.Add(a, b), 0.0),
 ]
 
 
@@ -218,9 +223,11 @@ _THRESHOLD_MASK = [
 ]
 
 
+@pytest.mark.parametrize("inp", ["RA-Short.nrrd", "Ramp-Zero-One-Float.nrrd"],
+                         ids=["default", "default_on_float"])
 @pytest.mark.parametrize("tag,rfn,sfilt", _THRESHOLD_MASK, ids=[c[0] for c in _THRESHOLD_MASK])
-def test_cmake_threshold_mask_on_upstream_data(tag, rfn, sfilt):
-    ri, si = _pair("RA-Short.nrrd")
+def test_cmake_threshold_mask_on_upstream_data(tag, rfn, sfilt, inp):
+    ri, si = _pair(inp)
     r = np.squeeze(np.asarray(rfn(ri)[1].to_numpy(), np.float64))
     f = sfilt()
     f.SetInsideValue(1)
