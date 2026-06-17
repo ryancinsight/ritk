@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [0.71.0] — 2026-06-16 (Sprint 377: N4 ANTs Alignment)
+
+### Changed
+- `ritk-filter`: N4 histogram sharpening reimplemented to ITK `SharpenImage` — Wiener deconvolution (`Û = Ĥ·conj(Ĝ)/(|Ĝ|²+wiener_noise)`) followed by the E[v|u] conditional-expectation map `E[i] = conv(U·c, G)/conv(U, G)`, replacing the prior rank-preserving CDF/quantile transfer (which was insensitive to the smoothing width and left N4 behaving like N3). FWHM is range-relative (`fwhm/bin_width`, ITK `scaledFWHM`).
+- `ritk-filter`: N4 B-spline fit reimplemented as the Lee–Wolberg–Shin single-level multilevel B-spline (scattered-data) approximation — the O(N·4³) kernel ITK's `BSplineScatteredDataPointSetToImageFilter` runs at `NumberOfLevels=1`, replacing the dense Tikhonov normal-equations solve (`O(n_s·n_cp²)` per iteration: ~48 s at level 2, ~3 min at the level-4 default). The EM bias estimation now runs on the input shrunk by `shrink_factor` (block averaging) with the log-bias control lattice evaluated at full resolution; the control grid uses a coarse mesh refined per level (`mesh·2^level + order`) instead of an image-size clamp that over-fit the residual.
+- **Result** (64×96×96 phantom, ANTsPy reference): corr-vs-ANTs **0.73 → 0.936** (now at the ANTs-vs-SimpleITK agreement level — ritk is no longer the outlier), CV 0.055 ≈ ANTs 0.056, level-4 runtime **~3 min → seconds**.
+
+### Added
+- `ritk-python`: `filter.n4_bias_correction(..., shrink_factor=4)` parameter (ITK/ANTs `shrinkFactor`); pass `shrink_factor=1` for small volumes where the default shrink leaves too coarse a fitting grid.
+
+### Breaking
+- `ritk-filter`: `N4Config` drops `initial_control_points` and `max_fitting_points`; adds `bspline_mesh: VolumeDims` (default `[1,1,1]`), `bias_field_fwhm: f64` (default 0.15), and `shrink_factor: usize` (default 4). `bspline_fit` drops the `max_fitting_points` parameter.
+
 ## [0.70.1] — 2026-06-16 (Sprint 376: DRY Closure + BilateralFilter Perf)
 
 ### Changed
