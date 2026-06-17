@@ -104,6 +104,17 @@ CASES = [
     ("grayscale_dilation", lambda ri, si: ritk.filter.grayscale_dilation(ri, 1), lambda si: sitk.GrayscaleDilate(si, [1, 1]), 0.0, 2),
     ("grayscale_erosion", lambda ri, si: ritk.filter.grayscale_erosion(ri, 1), lambda si: sitk.GrayscaleErode(si, [1, 1]), 0.0, 2),
     ("median", lambda ri, si: ritk.filter.median_filter(ri, 1), lambda si: sitk.Median(si, [1, 1]), 0.0, 2),
+    # ── Grayscale top-hat (box kernel) — bit-exact ─────────────────────────────
+    ("white_top_hat", lambda ri, si: ritk.filter.white_top_hat(ri, 2),
+     lambda si: sitk.WhiteTopHat(si, [2, 2], sitk.sitkBox), 0.0, 3),
+    ("black_top_hat", lambda ri, si: ritk.filter.black_top_hat(ri, 2),
+     lambda si: sitk.BlackTopHat(si, [2, 2], sitk.sitkBox), 0.0, 3),
+    # ── Binary threshold — bit-exact ───────────────────────────────────────────
+    ("binary_threshold", lambda ri, si: ritk.filter.binary_threshold(ri, 50.0, 150.0, 1.0, 0.0),
+     lambda si: sitk.Cast(sitk.BinaryThreshold(si, 50.0, 150.0, 1, 0), sitk.sitkFloat32), 0.0, 2),
+    # ── Bin-shrink downsampling — bit-exact ────────────────────────────────────
+    ("bin_shrink", lambda ri, si: ritk.filter.bin_shrink(ri, 1, 2, 2),
+     lambda si: sitk.BinShrink(si, [2, 2]), 0.0, 1),
 ]
 
 
@@ -115,3 +126,47 @@ def test_filter_matches_sitk(images, name, rfn, sfn, tol, margin):
         assert rel == 0.0, f"{name}: expected bit-exact, got rel {rel:.2e}"
     else:
         assert rel < tol, f"{name}: rel {rel:.2e} >= {tol:.0e}"
+
+
+# ── 3-D ops that the 2-D cthead slice cannot exercise ──────────────────────────
+
+@pytest.fixture(scope="module")
+def vol3d():
+    rng = np.random.default_rng(3)
+    arr = (rng.standard_normal((12, 16, 20)) * 50 + 100).astype(np.float32)
+    return ritk.Image(np.ascontiguousarray(arr)), sitk.GetImageFromArray(arr), arr
+
+
+# (id, ritk(ri, ax)->PyImage, sitk(si, sdim)->Image, ritk_axis, sitk_dim, tol)
+# ritk projection axis is (z,y,x); sitk projectionDimension is (x,y,z) ⇒ z is dim 2.
+_PROJ = [
+    ("max_projection", ritk.filter.max_intensity_projection, sitk.MaximumProjection, 0.0),
+    ("min_projection", ritk.filter.min_intensity_projection, sitk.MinimumProjection, 0.0),
+    ("mean_projection", ritk.filter.mean_intensity_projection, sitk.MeanProjection, 1e-5),
+    ("sum_projection", ritk.filter.sum_intensity_projection, sitk.SumProjection, 1e-5),
+]
+
+
+@pytest.mark.parametrize("name,rfn,sfn,tol", _PROJ, ids=[c[0] for c in _PROJ])
+@pytest.mark.parametrize("rax,sdim", [(0, 2), (1, 1), (2, 0)], ids=["z", "y", "x"])
+def test_projection_matches_sitk(vol3d, name, rfn, sfn, tol, rax, sdim):
+    ri, si, _ = vol3d
+    r = np.squeeze(np.asarray(rfn(ri, rax).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sfn(si, sdim)).astype(np.float64))
+    assert r.shape == s.shape, f"{name}[{rax}]: shape {r.shape} != {s.shape}"
+    rel = np.abs(r - s).max() / max(np.abs(s).max(), 1e-9)
+    assert rel <= tol, f"{name}[axis={rax}]: rel {rel:.2e} > {tol:.0e}"
+
+
+def test_distance_transform_matches_scipy(vol3d):
+    # Spacing-aware Euclidean distance transform vs scipy's exact reference
+    # (ritk: foreground -> 0, background -> distance to nearest foreground).
+    ndimage = pytest.importorskip("scipy.ndimage")
+    _, _, arr = vol3d
+    mask = (arr > 100).astype(np.float32)
+    for spacing in [(1.0, 1.0, 1.0), (2.0, 1.0, 0.5)]:
+        ri = ritk.Image(np.ascontiguousarray(mask), spacing=list(spacing))
+        r = np.asarray(ritk.filter.distance_transform(ri, foreground_threshold=0.5).to_numpy(), np.float64)
+        ref = ndimage.distance_transform_edt(1.0 - mask, sampling=spacing)
+        rel = np.abs(r - ref).max() / max(np.abs(ref).max(), 1e-9)
+        assert rel < 1e-6, f"distance_transform spacing={spacing}: rel {rel:.2e}"
