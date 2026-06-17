@@ -203,6 +203,15 @@ def less_images(a: Image, b: Image) -> Image:
 def less_equal_images(a: Image, b: Image) -> Image:
     """Pixelwise less-or-equal mask (1 where a<=b). ITK Parity: LessEqualImageFilter."""
     ...
+def ternary_add_images(a: Image, b: Image, c: Image) -> Image:
+    """Pixelwise sum of three images: a+b+c. ITK Parity: TernaryAddImageFilter."""
+    ...
+def ternary_magnitude_images(a: Image, b: Image, c: Image) -> Image:
+    """Pixelwise magnitude: sqrt(a^2+b^2+c^2). ITK Parity: TernaryMagnitudeImageFilter."""
+    ...
+def ternary_magnitude_squared_images(a: Image, b: Image, c: Image) -> Image:
+    """Pixelwise squared magnitude: a^2+b^2+c^2. ITK Parity: TernaryMagnitudeSquaredImageFilter."""
+    ...
 
 def exp_negative_image(image: Image) -> Image:
     """Pixelwise negative exponential: out(x) = exp(-in(x)). ITK Parity: ExpNegativeImageFilter."""

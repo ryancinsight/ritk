@@ -51,6 +51,7 @@ pub use intensity::{
     NotEqualImageFilter, PowImageFilter, RescaleIntensityFilter, RoundImageFilter,
     ShiftScaleImageFilter, SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     SquaredDifferenceImageFilter, SubtractImageFilter, SuvBodyWeightImageFilter, TanImageFilter,
+    TernaryAddImageFilter, TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter,
     ThresholdImageFilter, ThresholdMode, UnaryMinusImageFilter, UnsharpMaskFilter,
     ZeroCrossingImageFilter,
 };

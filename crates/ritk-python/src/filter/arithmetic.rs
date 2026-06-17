@@ -19,7 +19,8 @@ use ritk_filter::{
     LessEqualImageFilter, LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
     MaskNegatedImageFilter, MultiplyImageFilter, NotEqualImageFilter, PowImageFilter,
     RoundImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
-    SquaredDifferenceImageFilter, SubtractImageFilter, TanImageFilter, UnaryMinusImageFilter,
+    SquaredDifferenceImageFilter, SubtractImageFilter, TanImageFilter, TernaryAddImageFilter,
+    TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter, UnaryMinusImageFilter,
 };
 
 /// Pixelwise clamp to `[lower, upper]`. ITK Parity: ClampImageFilter.
@@ -364,6 +365,31 @@ macro_rules! binary_pyfn {
         }
     };
 }
+
+/// Generate a three-image `#[pyfunction]` mirroring an ITK ternary filter.
+macro_rules! ternary_pyfn {
+    ($name:ident, $filter:ident, $itk:literal, $doc:literal) => {
+        #[doc = $doc]
+        #[doc = ""]
+        #[doc = concat!("ITK Parity: ", $itk)]
+        #[pyfunction]
+        pub fn $name(py: Python<'_>, a: &PyImage, b: &PyImage, c: &PyImage) -> RitkResult<PyImage> {
+            let a_arc = std::sync::Arc::clone(&a.inner);
+            let b_arc = std::sync::Arc::clone(&b.inner);
+            let c_arc = std::sync::Arc::clone(&c.inner);
+            py.allow_threads(|| {
+                $filter::new()
+                    .apply(a_arc.as_ref(), b_arc.as_ref(), c_arc.as_ref())
+                    .map_err(|e| RitkPyError::runtime(e.to_string()))
+            })
+            .map(into_py_image)
+        }
+    };
+}
+
+ternary_pyfn!(ternary_add_images, TernaryAddImageFilter, "TernaryAddImageFilter", "Pixelwise sum of three images: out(x) = a + b + c.");
+ternary_pyfn!(ternary_magnitude_images, TernaryMagnitudeImageFilter, "TernaryMagnitudeImageFilter", "Pixelwise magnitude of three images: out(x) = sqrt(a^2 + b^2 + c^2).");
+ternary_pyfn!(ternary_magnitude_squared_images, TernaryMagnitudeSquaredImageFilter, "TernaryMagnitudeSquaredImageFilter", "Pixelwise squared magnitude of three images: out(x) = a^2 + b^2 + c^2.");
 
 binary_pyfn!(
     equal_images,

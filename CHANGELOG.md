@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.93.0] — 2026-06-17 (Sprint 397: ternary-operator filter family)
+
+### Added
+- `ritk-filter` / `ritk-python`: the three-image ternary filters via a new generic `TernaryOpFilter<Op>` seam (mirroring `BinaryOpFilter`) — `TernaryAddImageFilter` (`a+b+c`), `TernaryMagnitudeImageFilter` (`√(a²+b²+c²)`), `TernaryMagnitudeSquaredImageFilter` (`a²+b²+c²`). Exposed as `filter.ternary_{add,magnitude,magnitude_squared}_images`; all **bit/float-exact** to `sitk.Ternary{Add,Magnitude,MagnitudeSquared}` on the upstream Ramp triple. Value-semantic Rust tests + 3 cmake parity cases. `.pyi` stubs; coverage survey reaches **150/298 (>50%)**.
+
 ## [0.92.0] — 2026-06-17 (Sprint 396: Crop + CyclicShift geometric filters)
 
 ### Added

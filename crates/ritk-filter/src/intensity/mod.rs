@@ -22,6 +22,7 @@ pub mod mask;
 pub mod rescale;
 pub mod sigmoid;
 pub mod suv;
+pub mod ternary_ops;
 pub mod threshold;
 pub mod unsharp_mask;
 pub mod windowing;
@@ -42,6 +43,9 @@ pub use binary_ops::{
     SquaredDifferenceImageFilter, SquaredDifferenceOp, SubtractImageFilter, SubtractOp,
 };
 pub use binary_threshold::BinaryThresholdImageFilter;
+pub use ternary_ops::{
+    TernaryAddImageFilter, TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter,
+};
 pub use blend::BlendImageFilter;
 pub use clahe::{ClaheFilter, ClaheScratch};
 pub use clamp::ClampImageFilter;

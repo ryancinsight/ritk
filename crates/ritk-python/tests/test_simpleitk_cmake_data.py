@@ -251,6 +251,26 @@ def test_cmake_binary_case_on_upstream_data(tag, na, nb, rfn, sfn, tol):
         assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e} on {na},{nb}"
 
 
+# Three-input ternary filters (TernaryAdd / TernaryMagnitude{,Squared}).
+@pytest.mark.parametrize("tag,rfn,sfn,tol", [
+    ("TernaryAdd", lambda a, b, c: ritk.filter.ternary_add_images(a, b, c),
+     lambda a, b, c: sitk.TernaryAdd(a, b, c), 0.0),
+    ("TernaryMagnitude", lambda a, b, c: ritk.filter.ternary_magnitude_images(a, b, c),
+     lambda a, b, c: sitk.TernaryMagnitude(a, b, c), 1e-6),
+    ("TernaryMagnitudeSquared", lambda a, b, c: ritk.filter.ternary_magnitude_squared_images(a, b, c),
+     lambda a, b, c: sitk.TernaryMagnitudeSquared(a, b, c), 0.0),
+], ids=["TernaryAdd", "TernaryMagnitude", "TernaryMagnitudeSquared"])
+def test_cmake_ternary_case_on_upstream_data(tag, rfn, sfn, tol):
+    ra, sa = _pair("Ramp-Up-Short.nrrd")
+    rb, sb = _pair("Ramp-Down-Short.nrrd")
+    rc, sc = _pair("Ramp-Up-Short.nrrd")
+    rel = _rel(rfn(ra, rb, rc), sfn(sa, sb, sc))
+    if tol == 0.0:
+        assert rel == 0.0, f"{tag}: expected bit-exact, got rel {rel:.2e}"
+    else:
+        assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e}"
+
+
 # Auto-threshold mask cases (<Filter>.yaml::tag "default" on RA-Short). The
 # upstream baseline is the segmented mask. ITK marks `inside` = below-threshold;
 # ritk marks foreground = at-or-above-threshold, so the masks are exact
