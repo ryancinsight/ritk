@@ -27,8 +27,8 @@
 pub mod unary;
 pub use unary::{
     Abs, AbsImageFilter, Exp, ExpImageFilter, ExpNegative, ExpNegativeImageFilter, Log, Log10,
-    Log10ImageFilter, LogImageFilter, Sqrt, SqrtImageFilter, Square, SquareImageFilter,
-    UnaryImageFilter, UnaryPixelOp,
+    Log10ImageFilter, LogImageFilter, Round, RoundImageFilter, Sqrt, SqrtImageFilter, Square,
+    SquareImageFilter, UnaryImageFilter, UnaryMinus, UnaryMinusImageFilter, UnaryPixelOp,
 };
 
 // ── Test-hosting modules (one per filter; contain only the #[cfg(test)] block) ─

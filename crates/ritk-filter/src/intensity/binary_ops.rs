@@ -101,6 +101,10 @@ pub struct Atan2Op;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PowOp;
 
+/// Binary magnitude: `√(a² + b²)`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BinaryMagnitudeOp;
+
 impl BinaryOp for AddOp {
     #[inline]
     fn apply(a: f32, b: f32) -> f32 {
@@ -173,6 +177,13 @@ impl BinaryOp for PowOp {
     #[inline]
     fn apply(a: f32, b: f32) -> f32 {
         a.powf(b)
+    }
+}
+
+impl BinaryOp for BinaryMagnitudeOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a * a + b * b).sqrt()
     }
 }
 
@@ -302,6 +313,13 @@ pub type Atan2ImageFilter = BinaryOpFilter<Atan2Op>;
 ///
 /// # ITK Parity: `PowImageFilter`
 pub type PowImageFilter = BinaryOpFilter<PowOp>;
+
+/// Pixelwise magnitude of two images.
+///
+/// `out(x) = √(a(x)² + b(x)²)`
+///
+/// # ITK Parity: `BinaryMagnitudeImageFilter`
+pub type BinaryMagnitudeImageFilter = BinaryOpFilter<BinaryMagnitudeOp>;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

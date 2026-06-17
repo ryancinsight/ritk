@@ -204,6 +204,9 @@ _BINARY_CASES = [
     ("Pow/defaults", "Ramp-Zero-One-Float.nrrd", "Ramp-One-Zero-Float.nrrd",
      lambda a, b: ritk.filter.pow_images(a, b),
      lambda a, b: sitk.Pow(a, b), 1e-6),
+    ("BinaryMagnitude/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.binary_magnitude_images(a, b),
+     lambda a, b: sitk.BinaryMagnitude(a, b), 1e-6),
 ]
 
 
@@ -266,6 +269,8 @@ _UNARY_MATH = [
     ("AcosImageFilter", ritk.filter.acos_image, sitk.Acos, 1e-6),
     ("AtanImageFilter", ritk.filter.atan_image, sitk.Atan, 1e-6),
     ("BoundedReciprocalImageFilter", ritk.filter.bounded_reciprocal_image, sitk.BoundedReciprocal, 1e-6),
+    ("UnaryMinusImageFilter", ritk.filter.unary_minus_image, sitk.UnaryMinus, 0.0),
+    ("RoundImageFilter", ritk.filter.round_image, sitk.Round, 0.0),
 ]
 
 

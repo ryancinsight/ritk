@@ -40,18 +40,17 @@ pub mod intensity;
 
 pub use intensity::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
-    AsinImageFilter, Atan2ImageFilter, AtanImageFilter,
-    BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, BlendImageFilter,
+    AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BedSeparationConfig, BedSeparationFilter,
+    BinaryMagnitudeImageFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
     ComponentPolicy, CosImageFilter, DivideImageFilter, ExpImageFilter, ExpNegativeImageFilter,
     HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter, IntensityWindowingFilter,
-    InvertIntensityFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
-    MultiplyImageFilter, NormalizeImageFilter, PowImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter,
-    SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
-    SquaredDifferenceImageFilter, SubtractImageFilter,
-    SuvBodyWeightImageFilter, TanImageFilter, ThresholdImageFilter, ThresholdMode,
-    UnsharpMaskFilter, ZeroCrossingImageFilter,
+    InvertIntensityFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
+    MaskNegatedImageFilter, MultiplyImageFilter, NormalizeImageFilter, PowImageFilter,
+    RescaleIntensityFilter, RoundImageFilter, ShiftScaleImageFilter, SigmoidImageFilter,
+    SinImageFilter, SqrtImageFilter, SquareImageFilter, SquaredDifferenceImageFilter,
+    SubtractImageFilter, SuvBodyWeightImageFilter, TanImageFilter, ThresholdImageFilter,
+    ThresholdMode, UnaryMinusImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
 };
 
 // ── Morphology ────────────────────────────────────────────────────────────────
@@ -60,14 +59,12 @@ pub mod morphology;
 pub use morphology::{
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
     BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter,
-    ClosingByReconstructionFilter, Connectivity,
-    ForegroundValue, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
-    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
-    GrayscaleGrindPeakFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
-    HConcaveFilter, HConvexFilter,
-    HMaximaFilter, HMinimaFilter, HitOrMissTransform, LabelClosing,
-    LabelContourImageFilter, LabelDilation, LabelErosion, LabelOpening,
-    MorphologicalReconstruction, OpeningByReconstructionFilter, ReconstructionMode,
+    ClosingByReconstructionFilter, Connectivity, ForegroundValue, GrayscaleClosingFilter,
+    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
+    GrayscaleGeodesicErosionFilter, GrayscaleGrindPeakFilter, GrayscaleMorphologicalGradientFilter,
+    GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter,
+    HitOrMissTransform, LabelClosing, LabelContourImageFilter, LabelDilation, LabelErosion,
+    LabelOpening, MorphologicalReconstruction, OpeningByReconstructionFilter, ReconstructionMode,
     RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
     ValuedRegionalMinimaFilter, VotingBinaryImageFilter, WhiteTopHatFilter,
 };

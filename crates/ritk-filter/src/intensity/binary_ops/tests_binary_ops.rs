@@ -238,7 +238,10 @@ fn squared_difference_computes_squared_residual() {
     let v = voxels(&out);
     // (3-1)²=4, (10-4)²=36, (-2-1)²=9
     for (got, exp) in v.iter().zip([4.0f32, 36.0, 9.0]) {
-        assert!((got - exp).abs() < 1e-4, "squared diff: got {got}, expected {exp}");
+        assert!(
+            (got - exp).abs() < 1e-4,
+            "squared diff: got {got}, expected {exp}"
+        );
     }
 }
 
@@ -246,15 +249,26 @@ fn squared_difference_computes_squared_residual() {
 fn absolute_value_difference_is_symmetric_and_nonnegative() {
     let a = make_image(vec![3.0, 4.0], [1, 1, 2]);
     let b = make_image(vec![1.0, 7.0], [1, 1, 2]);
-    let ab = voxels(&AbsoluteValueDifferenceImageFilter::new().apply(&a, &b).unwrap());
-    let ba = voxels(&AbsoluteValueDifferenceImageFilter::new().apply(&b, &a).unwrap());
+    let ab = voxels(
+        &AbsoluteValueDifferenceImageFilter::new()
+            .apply(&a, &b)
+            .unwrap(),
+    );
+    let ba = voxels(
+        &AbsoluteValueDifferenceImageFilter::new()
+            .apply(&b, &a)
+            .unwrap(),
+    );
     for (x, y) in ab.iter().zip(ba.iter()) {
         assert_eq!(x, y, "|a-b| must equal |b-a|");
         assert!(*x >= 0.0, "absolute difference must be non-negative");
     }
     // |3-1|=2, |4-7|=3
     for (got, exp) in ab.iter().zip([2.0f32, 3.0]) {
-        assert!((got - exp).abs() < 1e-5, "abs diff: got {got}, expected {exp}");
+        assert!(
+            (got - exp).abs() < 1e-5,
+            "abs diff: got {got}, expected {exp}"
+        );
     }
 }
 
@@ -269,7 +283,10 @@ fn atan2_matches_std_atan2() {
     let yb = [1.0f32, 0.0, 1.0, -1.0];
     for (i, got) in out.iter().enumerate() {
         let exp = ya[i].atan2(yb[i]);
-        assert!((got - exp).abs() < 1e-6, "atan2[{i}]: got {got}, expected {exp}");
+        assert!(
+            (got - exp).abs() < 1e-6,
+            "atan2[{i}]: got {got}, expected {exp}"
+        );
     }
 }
 
@@ -281,5 +298,21 @@ fn pow_matches_std_powf() {
     // 2³=8, 3²=9, 9^0.5=3, 5⁰=1
     for (got, exp) in out.iter().zip([8.0f32, 9.0, 3.0, 1.0]) {
         assert!((got - exp).abs() < 1e-5, "pow: got {got}, expected {exp}");
+    }
+}
+
+// --- BinaryMagnitudeImageFilter ------------------------------------------
+
+#[test]
+fn binary_magnitude_computes_hypotenuse() {
+    let a = make_image(vec![3.0, 5.0, 0.0], [1, 1, 3]);
+    let b = make_image(vec![4.0, 12.0, 0.0], [1, 1, 3]);
+    let out = voxels(&BinaryMagnitudeImageFilter::new().apply(&a, &b).unwrap());
+    // 3-4-5, 5-12-13, 0-0-0
+    for (got, exp) in out.iter().zip([5.0f32, 13.0, 0.0]) {
+        assert!(
+            (got - exp).abs() < 1e-5,
+            "binary magnitude: got {got}, expected {exp}"
+        );
     }
 }

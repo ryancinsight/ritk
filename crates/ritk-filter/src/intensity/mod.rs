@@ -28,14 +28,16 @@ pub mod windowing;
 
 pub use arithmetic::{
     AbsImageFilter, ExpImageFilter, ExpNegativeImageFilter, InvertIntensityFilter,
-    Log10ImageFilter, LogImageFilter, NormalizeImageFilter, SqrtImageFilter, SquareImageFilter,
+    Log10ImageFilter, LogImageFilter, NormalizeImageFilter, RoundImageFilter, SqrtImageFilter,
+    SquareImageFilter, UnaryMinusImageFilter,
 };
 pub use bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPolicy};
 pub use binary_ops::{
     AbsoluteValueDifferenceImageFilter, AbsoluteValueDifferenceOp, AddImageFilter, AddOp,
-    Atan2ImageFilter, Atan2Op, BinaryOp, BinaryOpFilter, DivideImageFilter, DivideOp,
-    ImageMaxFilter, ImageMinFilter, MaxOp, MinOp, MultiplyImageFilter, MultiplyOp, PowImageFilter,
-    PowOp, SquaredDifferenceImageFilter, SquaredDifferenceOp, SubtractImageFilter, SubtractOp,
+    Atan2ImageFilter, Atan2Op, BinaryMagnitudeImageFilter, BinaryMagnitudeOp, BinaryOp,
+    BinaryOpFilter, DivideImageFilter, DivideOp, ImageMaxFilter, ImageMinFilter, MaxOp, MinOp,
+    MultiplyImageFilter, MultiplyOp, PowImageFilter, PowOp, SquaredDifferenceImageFilter,
+    SquaredDifferenceOp, SubtractImageFilter, SubtractOp,
 };
 pub use binary_threshold::BinaryThresholdImageFilter;
 pub use blend::BlendImageFilter;

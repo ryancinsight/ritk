@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.90.0] — 2026-06-17 (Sprint 394: UnaryMinus / Round / BinaryMagnitude)
+
+### Added
+- `ritk-filter` / `ritk-python`: three more pointwise filters from the upstream coverage gap, via the generic `UnaryImageFilter<Op>` / `BinaryOpFilter<Op>` seams — `UnaryMinusImageFilter` (`−x`), `RoundImageFilter` (round half-integer **up**, `⌊x+½⌋`, matching ITK `Math::Round` — note this differs from Rust `f32::round` on negative half-integers), and `BinaryMagnitudeImageFilter` (`√(a²+b²)`). Exposed as `filter.unary_minus_image`, `filter.round_image`, `filter.binary_magnitude_images`; all **bit/float-exact** to `sitk.{UnaryMinus, Round, BinaryMagnitude}`. Value-semantic Rust tests (incl. the round-half-up edge cases) + cmake parity cases. `.pyi` stubs.
+
 ## [Unreleased] — 2026-06-17 (Sprint 393: SimpleITK cmake-suite coverage survey)
 
 ### Added

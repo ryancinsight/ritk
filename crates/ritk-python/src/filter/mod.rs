@@ -97,6 +97,9 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(log_image, &m)?)?;
     m.add_function(wrap_pyfunction!(log10_image, &m)?)?;
     m.add_function(wrap_pyfunction!(exp_negative_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(unary_minus_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(round_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_magnitude_images, &m)?)?;
     m.add_function(wrap_pyfunction!(sin_image, &m)?)?;
     m.add_function(wrap_pyfunction!(cos_image, &m)?)?;
     m.add_function(wrap_pyfunction!(tan_image, &m)?)?;
@@ -111,7 +114,10 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     // Per-component (RGB/vector) filters
     m.add_function(wrap_pyfunction!(crate::color::color_median, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::color_mean, &m)?)?;
-    m.add_function(wrap_pyfunction!(crate::color::color_smoothing_recursive_gaussian, &m)?)?;
+    m.add_function(wrap_pyfunction!(
+        crate::color::color_smoothing_recursive_gaussian,
+        &m
+    )?)?;
     // Morphology
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;

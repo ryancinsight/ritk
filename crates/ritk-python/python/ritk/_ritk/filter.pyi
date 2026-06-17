@@ -173,6 +173,18 @@ def log10_image(image: Image) -> Image:
     """Pixelwise base-10 log: out(x) = log10(in(x)). ITK Parity: Log10ImageFilter."""
     ...
 
+def unary_minus_image(image: Image) -> Image:
+    """Pixelwise negation: out(x) = -in(x). ITK Parity: UnaryMinusImageFilter."""
+    ...
+
+def round_image(image: Image) -> Image:
+    """Pixelwise round to nearest integer (half-up). ITK Parity: RoundImageFilter."""
+    ...
+
+def binary_magnitude_images(a: Image, b: Image) -> Image:
+    """Pixelwise magnitude: out(x) = sqrt(a(x)^2 + b(x)^2). ITK Parity: BinaryMagnitudeImageFilter."""
+    ...
+
 def exp_negative_image(image: Image) -> Image:
     """Pixelwise negative exponential: out(x) = exp(-in(x)). ITK Parity: ExpNegativeImageFilter."""
     ...

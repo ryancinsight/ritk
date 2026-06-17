@@ -68,6 +68,21 @@ pub struct Log10;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ExpNegative;
 
+/// Operation marker for `out(x) = −in(x)`.
+///
+/// Matches ITK `UnaryMinusImageFilter`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct UnaryMinus;
+
+/// Operation marker for `out(x) = round(in(x))` to the nearest integer.
+///
+/// Matches ITK `RoundImageFilter` / `itk::Math::Round` — **round half-integer
+/// up** (toward +∞): `floor(x + 0.5)`. This differs from Rust `f32::round`
+/// (round half away from zero) on negative half-integers (e.g. −2.5 → −2 here,
+/// −3 for `f32::round`).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Round;
+
 impl sealed::Sealed for Abs {}
 impl sealed::Sealed for Sqrt {}
 impl sealed::Sealed for Exp {}
@@ -75,6 +90,8 @@ impl sealed::Sealed for Log {}
 impl sealed::Sealed for Square {}
 impl sealed::Sealed for Log10 {}
 impl sealed::Sealed for ExpNegative {}
+impl sealed::Sealed for UnaryMinus {}
+impl sealed::Sealed for Round {}
 
 impl UnaryPixelOp for Abs {
     #[inline]
@@ -122,6 +139,21 @@ impl UnaryPixelOp for ExpNegative {
     #[inline]
     fn apply(v: f32) -> f32 {
         (-v).exp()
+    }
+}
+
+impl UnaryPixelOp for UnaryMinus {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        -v
+    }
+}
+
+impl UnaryPixelOp for Round {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        // ITK Math::Round = round half-integer up (floor(x + 0.5)).
+        (v + 0.5).floor()
     }
 }
 
@@ -221,6 +253,20 @@ pub type Log10ImageFilter = UnaryImageFilter<Log10>;
 /// - ITK `itk::ExpNegativeImageFilter<TInputImage, TOutputImage>`.
 pub type ExpNegativeImageFilter = UnaryImageFilter<ExpNegative>;
 
+/// Pixelwise unary minus filter.  `out(x) = −in(x)`.
+///
+/// # References
+/// - ITK `itk::UnaryMinusImageFilter<TInputImage, TOutputImage>`.
+pub type UnaryMinusImageFilter = UnaryImageFilter<UnaryMinus>;
+
+/// Pixelwise round-to-nearest-integer filter.  `out(x) = ⌊in(x) + ½⌋`.
+///
+/// Round half-integer up (toward +∞), matching ITK `itk::Math::Round`.
+///
+/// # References
+/// - ITK `itk::RoundImageFilter<TInputImage, TOutputImage>`.
+pub type RoundImageFilter = UnaryImageFilter<Round>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -254,5 +300,24 @@ mod tests {
                 "exp(-{x}): got {got}, expected {expected}"
             );
         }
+    }
+
+    /// Unary minus negates every voxel.
+    #[test]
+    fn unary_minus_negates() {
+        let img = ts::make_image::<B, 3>(vec![0.0, 3.0, -2.5, 7.0], [1, 1, 4]);
+        let out = UnaryMinusImageFilter::new().apply(&img);
+        assert_eq!(out.data_slice().into_owned(), vec![0.0, -3.0, 2.5, -7.0]);
+    }
+
+    /// Round half-integer up (ITK `Math::Round`): note −2.5 → −2, not −3.
+    #[test]
+    fn round_half_integer_up() {
+        let img = ts::make_image::<B, 3>(vec![2.4, 2.5, 2.6, -2.5, -2.4, -0.5], [1, 1, 6]);
+        let out = RoundImageFilter::new().apply(&img);
+        assert_eq!(
+            out.data_slice().into_owned(),
+            vec![2.0, 3.0, 3.0, -2.0, -2.0, 0.0]
+        );
     }
 }
