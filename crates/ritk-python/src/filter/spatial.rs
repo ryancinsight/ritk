@@ -5,7 +5,7 @@ use crate::image::{into_py_image, Backend, PyImage};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use pyo3::prelude::*;
-use ritk_filter::ResampleImageFilter;
+use ritk_filter::{ResampleImageFilter, SignedDistanceTransformImageFilter};
 use ritk_interpolation::LinearInterpolator;
 use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
 use ritk_segmentation::DistanceTransform;
@@ -180,6 +180,33 @@ pub fn distance_transform(
         PyDistanceMetric::Squared => DistanceTransform::squared(arc.as_ref(), foreground_threshold),
     });
     into_py_image(result)
+}
+
+/// Signed Euclidean distance map of a binary image (physical units).
+///
+/// Foreground voxels (value > `foreground_threshold`) receive the **negative**
+/// distance to the nearest background voxel (inside the object); background
+/// voxels receive the **positive** distance to the nearest foreground voxel.
+///
+/// Float-exact to `scipy.ndimage.distance_transform_edt` (signed, voxel-centre
+/// convention). NOTE: this is distance to the nearest opposite-class voxel
+/// **centre** — it does NOT match `sitk.SignedMaurerDistanceMap`, which measures
+/// distance to the object boundary/interface (differs by up to √2 voxel).
+#[pyfunction]
+#[pyo3(signature = (image, foreground_threshold=0.5_f32))]
+pub fn signed_distance_map(
+    py: Python<'_>,
+    image: &PyImage,
+    foreground_threshold: f32,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        SignedDistanceTransformImageFilter::new()
+            .with_threshold(foreground_threshold)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 // ── GAP-SCI-01: rotate_image ─────────────────────────────────────────────────

@@ -2130,6 +2130,28 @@ def test_distance_transform_spacing_aware_matches_scipy() -> None:
         assert rel < 1e-6, f"spacing={spacing}: distance_transform rel {rel:.2e} >= 1e-6"
 
 
+def test_signed_distance_map_matches_scipy() -> None:
+    # ritk.signed_distance_map is the voxel-centre signed EDT: inside (fg) gets
+    # -dist to nearest bg, outside (bg) gets +dist to nearest fg. Float-exact to
+    # scipy.distance_transform_edt per region. (This is NOT sitk's Maurer
+    # boundary-distance convention, which differs by up to sqrt(2) voxel.)
+    from scipy import ndimage
+
+    rng = np.random.default_rng(1)
+    mask = (rng.random((5, 16, 20)) > 0.6).astype(np.float32)
+    for spacing in [(1.0, 1.0, 1.0), (2.0, 1.0, 0.5)]:
+        img = ritk.Image(np.ascontiguousarray(mask), spacing=list(spacing))
+        rd = np.asarray(ritk.filter.signed_distance_map(img, 0.5).to_numpy(), np.float64)
+        m = mask.astype(bool)
+        ref = np.where(
+            m,
+            -ndimage.distance_transform_edt(m, sampling=spacing),
+            ndimage.distance_transform_edt(~m, sampling=spacing),
+        )
+        rel = np.abs(rd - ref).max() / max(np.abs(ref).max(), 1e-9)
+        assert rel < 1e-6, f"spacing={spacing}: signed_distance_map rel {rel:.2e} >= 1e-6"
+
+
 # ==========================================================================
 # Section 6 -- Level-set segmentation parity
 # ==========================================================================

@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.88.0] — 2026-06-17 (Sprint 391: signed distance map binding + false-parity-doc fix)
+
+### Fixed
+- `ritk-filter`: `SignedDistanceTransformImageFilter`'s doc **falsely claimed `SignedMaurerDistanceMapImageFilter` parity**. It computes distance to the nearest opposite-class voxel **centre** (scipy/Danielsson convention), whereas ITK Maurer measures distance to the object **boundary/interface** — verified to differ by up to √2 voxel on cthead1 (maxdiff 1.414, all pixels). Corrected the doc to state the scipy convention and the explicit non-equivalence with sitk.
+
+### Added
+- `ritk-python`: exposed `filter.signed_distance_map(image, foreground_threshold=0.5)` — signed Euclidean distance map (foreground → −dist to nearest background, background → +dist to nearest foreground, physical units). **Float-exact to `scipy.ndimage.distance_transform_edt`** (signed, per-region; rel 3.8e-6 on cthead1, verified at unit and anisotropic spacing). Documented as the voxel-centre convention, explicitly NOT `sitk.SignedMaurerDistanceMap`. `.pyi` stub + scipy-oracle parity test.
+
 ## [0.87.1] — 2026-06-17 (Sprint 390b: RelabelComponent binding)
 
 ### Added

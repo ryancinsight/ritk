@@ -392,6 +392,16 @@ def distance_transform(
     """
     ...
 
+def signed_distance_map(image: Image, foreground_threshold: float = 0.5) -> Image:
+    """Signed Euclidean distance map (voxel-centre convention).
+
+    Foreground voxels get -dist to nearest background; background voxels get
+    +dist to nearest foreground (physical units). Float-exact to scipy signed
+    distance_transform_edt. NOT sitk.SignedMaurerDistanceMap (which measures to
+    the object boundary, differing by up to sqrt(2) voxel).
+    """
+    ...
+
 # -- Noise generators ---------------------------------------------------------
 
 def additive_gaussian_noise(

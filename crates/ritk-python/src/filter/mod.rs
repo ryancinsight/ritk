@@ -154,6 +154,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(shift_image, &m)?)?;
     m.add_function(wrap_pyfunction!(zoom_image, &m)?)?;
     m.add_function(wrap_pyfunction!(distance_transform, &m)?)?;
+    m.add_function(wrap_pyfunction!(signed_distance_map, &m)?)?;
     // FFT / frequency domain
     m.add_function(wrap_pyfunction!(forward_fft, &m)?)?;
     m.add_function(wrap_pyfunction!(inverse_fft, &m)?)?;

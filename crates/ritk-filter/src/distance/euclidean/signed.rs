@@ -7,9 +7,9 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-/// Signed Euclidean distance transform.
+/// Signed Euclidean distance transform (voxel-centre convention).
 ///
-/// Convention (matches ITK `SignedMaurerDistanceMapImageFilter`):
+/// Convention:
 /// - Background voxels: `+dist` (positive = outside the object)
 /// - Foreground voxels: `−dist` (negative = inside the object, distance to nearest background)
 ///
@@ -18,12 +18,17 @@ use ritk_tensor_ops::extract_vec_infallible;
 /// `SEDT(x) = EDT_bg(x)` if `in(x) ≤ threshold` (outside object)
 /// `SEDT(x) = −EDT_fg(x)` if `in(x) > threshold` (inside object)
 ///
-/// where `EDT_bg` = distance to nearest background, `EDT_fg` = distance to nearest foreground.
+/// where `EDT_bg` = distance to nearest background voxel **centre**, `EDT_fg` =
+/// distance to nearest foreground voxel **centre**.
 ///
-/// # ITK Parity
+/// # Parity
 ///
-/// `SignedMaurerDistanceMapImageFilter` with `UseImageSpacing = true`,
-/// `InsideIsPositive = false`.
+/// Float-exact to `scipy.ndimage.distance_transform_edt` applied to each region
+/// (signed: `−edt(mask)` inside, `+edt(¬mask)` outside), with `UseImageSpacing`.
+/// This is **distance to the nearest opposite-class voxel centre** — it does NOT
+/// match ITK `SignedMaurerDistanceMapImageFilter`, which measures distance to the
+/// object *boundary/interface* (the two differ by up to √2 voxel; an earlier doc
+/// claimed Maurer parity in error).
 #[derive(Debug, Clone)]
 pub struct SignedDistanceTransformImageFilter {
     /// Intensity threshold separating background from foreground.
