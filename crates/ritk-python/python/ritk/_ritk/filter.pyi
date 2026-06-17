@@ -197,8 +197,16 @@ def bounded_reciprocal_image(image: Image) -> Image:
     """Pixelwise bounded reciprocal: out(x) = 1 / (1 + in(x)). ITK Parity: BoundedReciprocalImageFilter."""
     ...
 
+def mean_filter(image: Image, radius: int = 1) -> Image:
+    """Mean (box) filter: average over a (2r+1)^3 cube. ITK Parity: MeanImageFilter."""
+    ...
+
 def color_median(image: ColorImage, radius: int = 1) -> ColorImage:
     """Per-component median on an RGB/vector image (box radius). ITK Parity: MedianImageFilter (vector)."""
+    ...
+
+def color_mean(image: ColorImage, radius: int = 1) -> ColorImage:
+    """Per-component mean (box) filter on an RGB/vector image. ITK Parity: MeanImageFilter (vector)."""
     ...
 
 def color_smoothing_recursive_gaussian(image: ColorImage, sigma: float) -> ColorImage:

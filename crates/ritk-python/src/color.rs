@@ -13,7 +13,7 @@ use burn_ndarray::NdArrayDevice;
 use numpy::{ndarray::Array4, IntoPyArray, PyArray4, PyReadonlyArray4, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_filter::{map_color_components, MedianFilter, RecursiveGaussianFilter};
+use ritk_filter::{map_color_components, MeanImageFilter, MedianFilter, RecursiveGaussianFilter};
 use ritk_image::ColorVolume;
 use std::sync::Arc;
 
@@ -94,6 +94,26 @@ pub fn color_median(
                 MedianFilter::new(radius)
                     .apply(img)
                     .expect("median filter is infallible on a valid scalar image")
+            })
+        })
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok(PyColorImage {
+        inner: Arc::new(out),
+    })
+}
+
+/// Per-component mean (box) filter on a color image.
+/// ITK Parity: MeanImageFilter on a vector image.
+#[pyfunction]
+#[pyo3(signature = (image, radius = 1))]
+pub fn color_mean(py: Python<'_>, image: &PyColorImage, radius: usize) -> RitkResult<PyColorImage> {
+    let arc = Arc::clone(&image.inner);
+    let out = py
+        .allow_threads(|| {
+            map_color_components(arc.as_ref(), |img| {
+                MeanImageFilter::new(radius)
+                    .apply(img)
+                    .expect("mean filter is infallible on a valid scalar image")
             })
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;

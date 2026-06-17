@@ -104,6 +104,9 @@ _CASES = [
     ("Median/defaults", "RA-Float.nrrd",
      lambda ri: ritk.filter.median_filter(ri, 1),
      lambda si: sitk.Median(si, [1, 1, 1]), 0.0),
+    ("Mean/defaults", "RA-Float.nrrd",
+     lambda ri: ritk.filter.mean_filter(ri, 1),
+     lambda si: sitk.Mean(si, [1, 1, 1]), 1e-6),
     ("GradientMagnitude/default", "RA-Float.nrrd",
      lambda ri: ritk.filter.gradient_magnitude(ri),
      lambda si: sitk.GradientMagnitude(si), 1e-6),
@@ -307,6 +310,21 @@ def test_cmake_rgb_median_on_upstream_data():
         sitk.Median(sitk.Cast(si, sitk.sitkVectorFloat32), [1, 1])
     ).astype(np.float64)
     assert np.array_equal(r[2:-2, 2:-2], s[2:-2, 2:-2]), "RGB median differs from sitk vector median"
+
+
+def test_cmake_rgb_mean_on_upstream_data():
+    # MeanImageFilter on the upstream RGB image, per-component.
+    path = fetch_input("VM1111Shrink-RGB.png")
+    si = sitk.ReadImage(path)
+    if si.GetNumberOfComponentsPerPixel() != 3:
+        pytest.skip("expected a 3-component RGB input")
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    ci = ritk.ColorImage(np.ascontiguousarray(arr[None]))
+    r = np.squeeze(np.asarray(ritk.filter.color_mean(ci, 1).to_numpy()))
+    s = sitk.GetArrayFromImage(sitk.Mean(sitk.Cast(si, sitk.sitkVectorFloat32), [1, 1])).astype(np.float64)
+    m = 2
+    rel = np.abs(r[m:-m, m:-m] - s[m:-m, m:-m]).max() / max(np.abs(s).max(), 1e-9)
+    assert rel < 1e-6, f"RGB mean rel {rel:.2e}"
 
 
 def test_cmake_rgb_smoothing_recursive_gaussian_on_upstream_data():

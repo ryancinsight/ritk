@@ -82,27 +82,30 @@ impl MeanImageFilter {
 
         let vals: &[f32] = &vals_vec;
 
+        // Boundary: ITK MeanImageFilter uses a ZeroFluxNeumann (edge-replicate)
+        // neighbourhood — the window is always the full (2r+1)³ samples with
+        // out-of-bounds positions clamped to the nearest edge, and the average
+        // divides by the full count. (A shrinking window with a smaller divisor
+        // gives different boundary values; the interior is unaffected.)
+        let ri = r as isize;
+        let (nzi, nyi, nxi) = (nz as isize, ny as isize, nx as isize);
+        let count = ((2 * r + 1) * (2 * r + 1) * (2 * r + 1)) as f64;
         let out: Vec<f32> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz, |iz| {
-            let z0 = iz.saturating_sub(r);
-            let z1 = (iz + r).min(nz - 1);
             (0..ny)
                 .flat_map(move |iy| {
-                    let y0 = iy.saturating_sub(r);
-                    let y1 = (iy + r).min(ny - 1);
                     (0..nx).map(move |ix| {
-                        let x0 = ix.saturating_sub(r);
-                        let x1 = (ix + r).min(nx - 1);
                         let mut sum = 0.0f64;
-                        let mut count = 0u64;
-                        for kz in z0..=z1 {
-                            for ky in y0..=y1 {
-                                for kx in x0..=x1 {
-                                    sum += vals[kz * ny * nx + ky * nx + kx] as f64;
-                                    count += 1;
+                        for kz in -ri..=ri {
+                            let zc = (iz as isize + kz).clamp(0, nzi - 1) as usize;
+                            for ky in -ri..=ri {
+                                let yc = (iy as isize + ky).clamp(0, nyi - 1) as usize;
+                                for kx in -ri..=ri {
+                                    let xc = (ix as isize + kx).clamp(0, nxi - 1) as usize;
+                                    sum += vals[zc * ny * nx + yc * nx + xc] as f64;
                                 }
                             }
                         }
-                        (sum / count as f64) as f32
+                        (sum / count) as f32
                     })
                 })
                 .collect::<Vec<_>>()

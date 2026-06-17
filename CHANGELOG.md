@@ -7,7 +7,11 @@ SimpleITK's vector-image cmake tests become portable. Validated (bit-exact) that
 ITK's vector-image filters apply the scalar filter per component, so the family
 reduces to deinterleave → scalar filter per channel → reinterleave.
 
+### Fixed
+- `ritk-filter`: `MeanImageFilter` boundary now matches ITK's `ZeroFluxNeumann` (edge-replicate) convention — the window is always the full `(2r+1)³` samples with out-of-bounds positions clamped to the edge, divided by the full count. It previously shrank the window at borders and divided by the smaller actual count, diverging from `sitk.Mean` on boundary planes (interior was already exact). Now float-exact to `sitk.Mean` (rel ~3e-8). Exposed as `filter.mean_filter` (was unbound in Python) + per-component `filter.color_mean`.
+
 ### Added
+- `ritk-python`: per-component color filters `filter.color_mean` and `filter.color_smoothing_recursive_gaussian` (float-exact to `sitk.Mean` / `sitk.SmoothingRecursiveGaussian` on vector images), plus the scalar `filter.mean_filter`.
 - `ritk-image`: `ColorVolume::into_component_buffers()` / `from_component_buffers()` — backend-agnostic deinterleave/interleave between the `[depth, rows, cols, channel]` tensor layout and `C` scalar component buffers, the foundation of the per-component filtering adaptor. Roundtrip + validation tests.
 - `ritk-filter`: `map_color_components` — applies any scalar 3-D filter independently to each component of a `ColorVolume`, matching ITK's per-component vector-image filtering.
 - `ritk-python`: `ColorImage` class (RGB/vector `[Z, Y, X, 3]`) with NumPy `__init__`/`to_numpy`, and per-component color filters `filter.color_median` (bit-exact to `sitk.Median` vector) and `filter.color_smoothing_recursive_gaussian` (float-exact to `sitk.SmoothingRecursiveGaussian` vector), both validated on the upstream `VM1111Shrink-RGB` test input — the first RGB/vector cmake parity cases, breaking the prior scalar-only boundary. `.pyi` stubs added.

@@ -47,6 +47,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(gaussian_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(discrete_gaussian, &m)?)?;
     m.add_function(wrap_pyfunction!(median_filter, &m)?)?;
+    m.add_function(wrap_pyfunction!(mean_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(bilateral_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(n4_bias_correction, &m)?)?;
     m.add_function(wrap_pyfunction!(anisotropic_diffusion, &m)?)?;
@@ -101,6 +102,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(mask_negated_image, &m)?)?;
     // Per-component (RGB/vector) filters
     m.add_function(wrap_pyfunction!(crate::color::color_median, &m)?)?;
+    m.add_function(wrap_pyfunction!(crate::color::color_mean, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::color_smoothing_recursive_gaussian, &m)?)?;
     // Morphology
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;

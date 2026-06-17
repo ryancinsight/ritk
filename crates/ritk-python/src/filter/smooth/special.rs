@@ -4,8 +4,24 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::bias::N4Config;
 use ritk_filter::{
-    BilateralFilter, BinShrinkImageFilter, MedianFilter, N4BiasFieldCorrectionFilter,
+    BilateralFilter, BinShrinkImageFilter, MeanImageFilter, MedianFilter,
+    N4BiasFieldCorrectionFilter,
 };
+
+/// Apply a mean (box) filter: each voxel becomes the average of the
+/// axis-aligned cube of half-width `radius` (replicate padding).
+/// ITK Parity: MeanImageFilter.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1))]
+pub fn mean_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        MeanImageFilter::new(radius)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
 
 /// Apply a median (rank) filter for impulse-noise removal.
 ///
