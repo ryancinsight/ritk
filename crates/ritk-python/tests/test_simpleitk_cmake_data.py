@@ -346,6 +346,29 @@ def test_cmake_rgb_smoothing_recursive_gaussian_on_upstream_data():
     assert rel < 1e-6, f"RGB smoothing recursive gaussian rel {rel:.2e}"
 
 
+def test_cmake_registration_meansquares_metric_matches_sitk():
+    # Registration-suite parity (deterministic component): the MeanSquares image
+    # metric evaluated at the identity transform. SimpleITK's
+    # ImageRegistrationMethod MeanSquares == ritk.metrics.compute_mse, float-exact.
+    # (The full optimiser pipeline is convergence-dependent and not exact-matchable;
+    # the metric value at a fixed transform is deterministic and is.)
+    path = fetch_input("RA-Float.nrrd")
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+    sm = sitk.DiscreteGaussian(si, 4.0)
+    ri = ritk.io.read_image(path)
+    rm = ritk.filter.discrete_gaussian(ri, 4.0)
+
+    reg = sitk.ImageRegistrationMethod()
+    reg.SetMetricAsMeanSquares()
+    reg.SetMetricSamplingStrategy(reg.NONE)
+    reg.SetInitialTransform(sitk.Transform(3, sitk.sitkIdentity))
+    reg.SetInterpolator(sitk.sitkLinear)
+    sitk_ms = reg.MetricEvaluate(si, sm)
+    ritk_ms = ritk.metrics.compute_mse(ri, rm)
+    rel = abs(ritk_ms - sitk_ms) / max(abs(sitk_ms), 1e-9)
+    assert rel < 1e-6, f"MeanSquares metric ritk={ritk_ms} sitk={sitk_ms} rel={rel:.2e}"
+
+
 def test_cmake_fft_roundtrip_on_upstream_data():
     # Forward + inverse FFT recovers the input (SimpleITK's ForwardFFT/InverseFFT
     # round-trip test pattern) on an upstream float slice.
