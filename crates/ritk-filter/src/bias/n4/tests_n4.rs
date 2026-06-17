@@ -77,6 +77,7 @@ fn two_class_n4_stability_discrete_histogram() {
         num_iterations: 5,
         convergence_threshold: 1e-4,
         num_histogram_bins: 200,
+        bias_field_fwhm: 0.15,
         initial_control_points: VolumeDims::new([4, 4, 4]),
         noise_estimate: 0.07,
         max_fitting_points: 256,
@@ -124,7 +125,7 @@ fn histogram_sharpen_continuous_bimodal_reduces_spread() {
     }
 
     let mut scratch = HistogramSharpenScratch::new(200, w.len());
-    histogram_sharpen(&w, 200, 0.087, &mut scratch).expect("histogram_sharpen failed");
+    histogram_sharpen(&w, 200, 0.087, 0.01, &mut scratch).expect("histogram_sharpen failed");
     let w_sharp = scratch.w_sharp;
     assert_eq!(w_sharp.len(), w.len());
 
@@ -183,6 +184,7 @@ fn constant_image_stable() {
         num_iterations: 5,
         convergence_threshold: 0.001,
         num_histogram_bins: 50,
+        bias_field_fwhm: 0.15,
         initial_control_points: VolumeDims::new([4, 4, 4]),
         noise_estimate: 0.01,
         max_fitting_points: 512,
@@ -223,6 +225,7 @@ fn output_all_positive() {
         num_iterations: 5,
         convergence_threshold: 0.001,
         num_histogram_bins: 50,
+        bias_field_fwhm: 0.15,
         initial_control_points: VolumeDims::new([4, 4, 4]),
         noise_estimate: 0.01,
         max_fitting_points: 512,
@@ -312,7 +315,7 @@ fn dft_round_trip() {
 fn histogram_sharpen_passthrough_for_constant_input() {
     let w = vec![2.71f32; 64];
     let mut scratch = HistogramSharpenScratch::new(100, w.len());
-    histogram_sharpen(&w, 100, 0.01, &mut scratch).unwrap();
+    histogram_sharpen(&w, 100, 0.01, 0.01, &mut scratch).unwrap();
     let out = scratch.w_sharp;
     for (&o, &i) in out.iter().zip(w.iter()) {
         assert_eq!(o, i);

@@ -20,10 +20,13 @@
 //! Corrected image: exp(v − b).
 //!
 //! # Histogram Sharpening
-//! Models H_observed = H_true ∗ G_noise then recovers H_true via
-//! Wiener deconvolution:
-//! Ĥ_sharp\[k\] = Ĥ\[k\] · Ĝ*\[k\] / (|Ĝ\[k\]|² + σ_noise²)
-//! followed by CDF-based quantile transfer from H_observed to H_sharp.
+//! Faithful to ITK `N4BiasFieldCorrectionImageFilter::SharpenImage`. Models
+//! H_observed = H_true ∗ G_noise, recovers the deconvolved density U via Wiener
+//! deconvolution Û\[k\] = Ĥ\[k\]·Ĝ*\[k\] / (|Ĝ\[k\]|² + wiener_noise), then maps
+//! each intensity through the conditional expectation
+//! E\[i\] = (U·c ⋆ G)\[i\] / (U ⋆ G)\[i\] (c = bin centre). This pulls intensities
+//! toward the sharpened tissue peaks — the actual N4 sharpening, in place of the
+//! earlier rank-preserving CDF/quantile transfer that left N4 behaving like N3.
 
 mod dft;
 mod histogram_sharpen;
@@ -56,10 +59,16 @@ pub struct N4Config {
     pub convergence_threshold: f64,
     /// Number of histogram bins for Wiener-based sharpening.
     pub num_histogram_bins: usize,
+    /// Histogram-sharpening full-width-at-half-maximum in log-intensity units
+    /// (ITK/ANTs `m_BiasFieldFullWidthAtHalfMaximum`, default 0.15). Converted to
+    /// bins via `fwhm / bin_width` (ITK's `scaledFWHM`) to set the Gaussian width
+    /// in the Wiener deconvolution.
+    pub bias_field_fwhm: f64,
     /// Initial control-point count per dimension at level 0.
     /// Doubles each level: cg\[d\] = initial\[d\] * 2^level, clamped to \[4, n/2+2\].
     pub initial_control_points: VolumeDims,
-    /// Noise fraction: σ_bins = max(0.5, noise_estimate · n_bins).
+    /// Wiener filter noise term in the histogram-sharpening deconvolution
+    /// (ITK/ANTs default 0.01): Û = Ĥ·conj(Ĝ) / (|Ĝ|² + wiener_noise).
     pub noise_estimate: f64,
     /// Maximum voxels used in the B-spline fitting step (uniform subsampling).
     pub max_fitting_points: usize,
@@ -72,6 +81,7 @@ impl Default for N4Config {
             num_iterations: 50,
             convergence_threshold: 0.001,
             num_histogram_bins: 200,
+            bias_field_fwhm: 0.15,
             initial_control_points: VolumeDims::new([4, 4, 4]),
             noise_estimate: 0.01,
             max_fitting_points: 10_000,
@@ -140,6 +150,7 @@ impl N4BiasFieldCorrectionFilter {
                 histogram_sharpen(
                     &w,
                     self.config.num_histogram_bins,
+                    self.config.bias_field_fwhm,
                     self.config.noise_estimate,
                     &mut hs_scratch,
                 )?;

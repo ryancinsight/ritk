@@ -90,26 +90,31 @@ impl HistogramSharpenScratch {
     }
 }
 
-/// Histogram sharpening via Wiener deconvolution, followed by CDF-based
-/// quantile transfer from H_observed to H_sharp.
+/// N4 histogram sharpening, faithful to ITK's `N4BiasFieldCorrectionImageFilter`
+/// `SharpenImage` (Tustison 2010).
 ///
-/// Writes the result into `scratch.w_sharp` instead of returning a new `Vec`,
-/// eliminating per-iteration heap allocations in the N4 inner loop.
+/// Writes the sharpened per-voxel log-intensities into `scratch.w_sharp`.
 ///
 /// # Algorithm
-/// 1. Build histogram H of `w` with `n_bins` bins.
-/// 2. σ_bins = max(0.5, noise_fraction · n_bins).
-/// 3. Gaussian kernel G(σ_bins), zero-padded DFT of length N = next_pow2(n_bins).
-/// 4. Wiener deconvolution:
-///    Ĥ_sharp\[k\] = Ĥ\[k\]·Ĝ*\[k\] / (|Ĝ\[k\]|² + σ_noise)
-///    where σ_noise = 0.01 · max_k |Ĥ\[k\]|².
-/// 5. IDFT → H_sharp; clamp negatives to 0.
-/// 6. CDF transfer: each voxel intensity maps to the quantile bin in H_sharp
-///    whose CDF matches the voxel's CDF rank in H.
+/// 1. Histogram `H` of `w` over `[w_min, w_max]`, `n_bins` bins (raw counts).
+/// 2. Circular Gaussian `G` whose width comes from the bias-field FWHM
+///    (`fwhm`, in log-intensity units): `σ = FWHM / (2√(2 ln 2))`,
+///    `σ_bins = σ / bin_width`, with `exp_factor = 4 ln 2 / fwhm_bins²` and the
+///    ITK normalisation `√(exp_factor/π)`.
+/// 3. Wiener deconvolution `Û = Ĥ·conj(Ĝ) / (|Ĝ|² + wiener_noise)` → `U`
+///    (the deconvolved/sharpened density), clamped to ≥ 0.
+/// 4. Expectation mapping `E[v|u]` via two Gaussian convolutions:
+///    `E[i] = (U·c ⋆ G)[i] / (U ⋆ G)[i]`, where `c[i]` is the bin centre. This
+///    pulls each observed intensity toward the deconvolved tissue peaks — the
+///    actual N4 sharpening, replacing the earlier CDF/quantile transfer (which
+///    was rank-preserving, hence insensitive to the smoothing width, leaving the
+///    filter behaving like N3).
+/// 5. Each voxel maps by linear interpolation of `E` at its continuous bin index.
 pub(crate) fn histogram_sharpen(
     w: &[f32],
     n_bins: usize,
-    noise_fraction: f64,
+    fwhm: f64,
+    wiener_noise: f64,
     scratch: &mut HistogramSharpenScratch,
 ) -> anyhow::Result<()> {
     let n_voxels = w.len();
@@ -132,135 +137,120 @@ pub(crate) fn histogram_sharpen(
     }
 
     let bin_width = range / n_bins as f64;
+    let w_min_wide = w_min as f64;
 
-    // Ensure scratch buffers are large enough for current parameters.
-    // Must happen before any &mut slices are taken from scratch fields.
     let n_dft = next_pow2(n_bins.max(2));
     scratch.ensure_bins_capacity(n_bins);
     scratch.ensure_dft_capacity(n_dft);
     scratch.ensure_voxels_capacity(n_voxels);
+    if scratch.g.len() < n_dft {
+        scratch.g.resize(n_dft, 0.0);
+    }
 
-    // ── Build histogram (normalised to probability density) ───────────────
-    // Normalisation is required so that Ĥ[0] = 1 and the Wiener noise_power
-    // is calibrated on a [0, 1] scale. Raw-count histograms have
-    // Ĥ[0] = N_voxels, making noise_power = 0.01·N² which dominates every
-    // non-DC frequency and collapses H_sharp to a constant.
-    let h_raw = &mut scratch.h_raw[..n_bins];
-    h_raw.fill(0.0);
+    // ── 1. Histogram (raw counts) ─────────────────────────────────────────
+    let h = &mut scratch.h[..n_bins];
+    h.fill(0.0);
     for &wi in w {
         let b = (((wi - w_min) as f64 / bin_width).floor() as isize).clamp(0, n_bins as isize - 1)
             as usize;
-        h_raw[b] += 1.0;
-    }
-    let total_raw: f64 = h_raw.iter().sum::<f64>().max(1.0);
-    let h = &mut scratch.h[..n_bins];
-    for (i, &raw) in h_raw.iter().enumerate() {
-        h[i] = raw / total_raw;
+        h[b] += 1.0;
     }
 
-    // ── Gaussian kernel (σ in histogram-bin units) ─────────────────────────
-    let sigma_bins = (noise_fraction * n_bins as f64).max(0.5);
-    scratch.g = crate::gaussian_kernel(sigma_bins, None);
-
-    // ── Wiener deconvolution in DFT domain ─────────────────────────────────
-    let h_hat = &mut scratch.h_hat[..n_dft];
-    dft_real_into(h, n_dft, h_hat);
-
-    let g_hat = &mut scratch.g_hat[..n_dft];
-    dft_real_into(&scratch.g, n_dft, g_hat);
-
-    // noise_power = 0.01 · max_k |Ĥ[k]|²
-    // With the normalised histogram Ĥ[0] = 1, so noise_power ≤ 0.01 and
-    // the Wiener filter can now properly deconvolve non-DC frequency components
-    // where |Ĝ[k]|² is comparable to or greater than noise_power.
-    let noise_power = 0.01
-        * h_hat
-            .iter()
-            .map(|(re, im)| re * re + im * im)
-            .fold(0.0f64, f64::max);
-
-    // Ĥ_sharp\[k\] = Ĥ\[k\]·Ĝ*\[k\] / (|Ĝ\[k\]|² + σ_noise)
-    // where Ĥ·Ĝ* = (hr + i·hi)·(gr − i·gi) = (hr·gr + hi·gi) + i·(hi·gr − hr·gi)
-    let h_sharp_hat = &mut scratch.h_sharp_hat[..n_dft];
-    for ((out, &(hr, hi)), &(gr, gi)) in h_sharp_hat.iter_mut().zip(h_hat.iter()).zip(g_hat.iter())
+    // ── 2. Circular Gaussian G (ITK normalisation) ────────────────────────
+    // FWHM is expressed in the histogram's (log-intensity) units → bins.
+    let fwhm_bins = (fwhm / bin_width).max(1e-3);
+    let exp_factor = 4.0 * std::f64::consts::LN_2 / (fwhm_bins * fwhm_bins); // 1/(2σ²)
+    let scale = (exp_factor / std::f64::consts::PI).sqrt();
     {
-        let num_re = hr * gr + hi * gi;
-        let num_im = hi * gr - hr * gi;
-        let denom = gr * gr + gi * gi + noise_power;
-        if denom < f64::EPSILON {
-            *out = (0.0, 0.0);
-        } else {
+        let g = &mut scratch.g[..n_dft];
+        for (k, gk) in g.iter_mut().enumerate() {
+            // Centre the Gaussian at index 0 with circular wraparound.
+            let arg = if k <= n_dft / 2 {
+                k as f64
+            } else {
+                k as f64 - n_dft as f64
+            };
+            *gk = scale * (-exp_factor * arg * arg).exp();
+        }
+    }
+
+    // ── 3. Wiener deconvolution: Û = Ĥ·conj(Ĝ) / (|Ĝ|² + noise) ────────────
+    dft_real_into(&scratch.h[..n_bins], n_dft, &mut scratch.h_hat[..n_dft]);
+    dft_real_into(&scratch.g[..n_dft], n_dft, &mut scratch.g_hat[..n_dft]);
+    {
+        let (vf, vg, vu) = (&scratch.h_hat, &scratch.g_hat, &mut scratch.h_sharp_hat);
+        for ((out, &(fr, fi)), &(gr, gi)) in
+            vu[..n_dft].iter_mut().zip(vf[..n_dft].iter()).zip(vg[..n_dft].iter())
+        {
+            let num_re = fr * gr + fi * gi; // Vf·conj(Vg)
+            let num_im = fi * gr - fr * gi;
+            let denom = gr * gr + gi * gi + wiener_noise;
             *out = (num_re / denom, num_im / denom);
         }
     }
-
-    // IDFT; clamp negatives — probability density must be ≥ 0.
-    let h_sharp_raw = &mut scratch.h_sharp_raw[..n_dft];
-    idft_real_into(h_sharp_hat, n_bins, h_sharp_raw);
-    let h_sharp = &mut scratch.h_sharp[..n_bins];
-    for (i, &v) in h_sharp_raw[..n_bins].iter().enumerate() {
-        h_sharp[i] = v.max(0.0);
+    idft_real_into(
+        &scratch.h_sharp_hat[..n_dft],
+        n_bins,
+        &mut scratch.h_sharp_raw[..n_dft],
+    );
+    // U = clamp(real(IFFT(Û)), ≥ 0): the deconvolved density.
+    for i in 0..n_bins {
+        scratch.h_sharp[i] = scratch.h_sharp_raw[i].max(0.0);
     }
 
-    // ── CDF construction ───────────────────────────────────────────────────
-    // h is already normalised (sums to ~1); use raw counts for the guard.
-    let total_h: f64 = total_raw;
-    let total_s: f64 = h_sharp.iter().sum();
-
-    // Guard 1: if sharpening collapsed the density to zero, pass through.
-    if total_h < 1.0 || total_s < NEAR_ZERO_WEIGHT {
-        scratch.w_sharp[..n_voxels].copy_from_slice(w);
-        return Ok(());
+    // ── 4. Expectation map E[i] = (U·c ⋆ G)[i] / (U ⋆ G)[i] ────────────────
+    // numerator = conv(U·centre, G); denominator = conv(U, G).
+    // Reuse `h` for (U·centre), then FFT and multiply by Vg (= conv with G).
+    for i in 0..n_bins {
+        let centre = w_min_wide + (i as f64 + 0.5) * bin_width;
+        scratch.h[i] = scratch.h_sharp[i] * centre;
+    }
+    dft_real_into(&scratch.h[..n_bins], n_dft, &mut scratch.h_hat[..n_dft]);
+    dft_real_into(
+        &scratch.h_sharp[..n_bins],
+        n_dft,
+        &mut scratch.h_sharp_hat[..n_dft],
+    );
+    for k in 0..n_dft {
+        let (gr, gi) = scratch.g_hat[k];
+        let (nr, ni) = scratch.h_hat[k];
+        scratch.h_hat[k] = (nr * gr - ni * gi, nr * gi + ni * gr); // numerator ⋆ G
+        let (dr, di) = scratch.h_sharp_hat[k];
+        scratch.h_sharp_hat[k] = (dr * gr - di * gi, dr * gi + di * gr); // denominator ⋆ G
+    }
+    idft_real_into(&scratch.h_hat[..n_dft], n_bins, &mut scratch.cdf_h[..n_bins]);
+    idft_real_into(
+        &scratch.h_sharp_hat[..n_dft],
+        n_bins,
+        &mut scratch.cdf_s[..n_bins],
+    );
+    // E[i] = numerator/denominator (fall back to the bin centre when empty),
+    // stored back into cdf_h.
+    for i in 0..n_bins {
+        let num = scratch.cdf_h[i];
+        let den = scratch.cdf_s[i];
+        scratch.cdf_h[i] = if den.abs() > NEAR_ZERO_WEIGHT {
+            num / den
+        } else {
+            w_min_wide + (i as f64 + 0.5) * bin_width
+        };
     }
 
-    // Guard 2: concentration check.
-    // For a sharpened histogram, peak bins must be more prominent than in the
-    // original. If the maximum normalised bin value in H_sharp is lower than
-    // in H, the Wiener deconvolution broadened the distribution (this happens
-    // for discrete-spike inputs where H_true ≈ H_observed and there is no
-    // G_noise component to invert). Applying the CDF transfer in this case
-    // widens voxel intensities, increasing CoV. Detect and bail out.
-    let max_h: f64 = h.iter().cloned().fold(0.0_f64, f64::max);
-    let max_s: f64 = {
-        let s_sum = total_s.max(NEAR_ZERO_WEIGHT);
-        h_sharp.iter().map(|&v| v / s_sum).fold(0.0_f64, f64::max)
-    };
-    if max_s <= max_h * 1.01 {
-        // Sharpening did not increase peak concentration; return input unchanged.
-        scratch.w_sharp[..n_voxels].copy_from_slice(w);
-        return Ok(());
-    }
-
-    let cdf_h = &mut scratch.cdf_h[..n_bins];
-    {
-        let mut acc = 0.0f64;
-        for (i, &hi) in h.iter().enumerate() {
-            acc += hi;
-            cdf_h[i] = acc / total_h;
-        }
-    }
-
-    let cdf_s = &mut scratch.cdf_s[..n_bins];
-    {
-        let mut acc = 0.0f64;
-        for (i, &si) in h_sharp.iter().enumerate() {
-            acc += si;
-            cdf_s[i] = acc / total_s;
-        }
-    }
-
-    // ── Quantile transfer per voxel ────────────────────────────────────────
-    // For each voxel: find its CDF rank in H, then find the matching bin in H_sharp.
-    // Widen to f64 for accumulation precision; bin boundaries require sub-f32 precision.
-    let w_min_wide = w_min as f64;
-    let w_sharp = &mut scratch.w_sharp[..n_voxels];
+    // ── 5. Per-voxel linear interpolation of E at the continuous bin index ──
+    let HistogramSharpenScratch { w_sharp, cdf_h, .. } = scratch;
     for (i, &wi) in w.iter().enumerate() {
-        let bin_i = (((wi - w_min) as f64 / bin_width).floor() as isize)
-            .clamp(0, n_bins as isize - 1) as usize;
-        let q = cdf_h[bin_i];
-        // First index in the monotone cdf_s where cdf_s[t] ≥ q.
-        let target = cdf_s.partition_point(|&v| v < q).min(n_bins - 1);
-        w_sharp[i] = (w_min_wide + (target as f64 + 0.5) * bin_width) as f32;
+        // Continuous index aligned to bin centres (centre of bin j is at j).
+        let cidx = (wi - w_min) as f64 / bin_width - 0.5;
+        let sharp = if cidx <= 0.0 {
+            cdf_h[0]
+        } else if cidx >= (n_bins - 1) as f64 {
+            cdf_h[n_bins - 1]
+        } else {
+            let lo = cidx.floor() as usize;
+            let frac = cidx - lo as f64;
+            cdf_h[lo] * (1.0 - frac) + cdf_h[lo + 1] * frac
+        };
+        w_sharp[i] = sharp as f32;
     }
 
     Ok(())
