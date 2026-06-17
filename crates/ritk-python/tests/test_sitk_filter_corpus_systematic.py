@@ -115,6 +115,29 @@ CASES = [
     # ── Bin-shrink downsampling — bit-exact ────────────────────────────────────
     ("bin_shrink", lambda ri, si: ritk.filter.bin_shrink(ri, 1, 2, 2),
      lambda si: sitk.BinShrink(si, [2, 2]), 0.0, 1),
+    # ── Intensity clamps — bit-exact (ITK ThresholdImageFilter) ────────────────
+    # threshold_above(t) keeps [0, t] and zeros values above; threshold_below(t)
+    # keeps [t, ∞) and zeros values below — ITK's Threshold(lower, upper, outside).
+    ("threshold_above", lambda ri, si: ritk.filter.threshold_above(ri, 100.0),
+     lambda si: sitk.Threshold(si, 0.0, 100.0, 0.0), 0.0, 2),
+    ("threshold_below", lambda ri, si: ritk.filter.threshold_below(ri, 100.0),
+     lambda si: sitk.Threshold(si, 100.0, 1e9, 0.0), 0.0, 2),
+    # ── Normalize (zero mean, unit variance) — float-exact vs sitk.Normalize ────
+    ("normalize_image", lambda ri, si: ritk.filter.normalize_image(ri),
+     lambda si: sitk.Normalize(si), 1e-6, 2),
+    # ── FFT quadrant shift — bit-exact vs sitk.FFTShift ────────────────────────
+    ("fft_shift", lambda ri, si: ritk.filter.fft_shift(ri),
+     lambda si: sitk.FFTShift(si), 0.0, 1),
+    # ── Median radius 2 — bit-exact (box neighbourhood) ────────────────────────
+    ("median_r2", lambda ri, si: ritk.filter.median_filter(ri, 2),
+     lambda si: sitk.Median(si, [2, 2]), 0.0, 3),
+    # ── Grayscale morphological gradient (dilate − erode, box) ─────────────────
+    # ritk composes grayscale_dilation − grayscale_erosion; bit-exact to ITK's
+    # MorphologicalGradient with a box (flat) structuring element.
+    ("morphological_gradient_box",
+     lambda ri, si: ritk.filter.subtract_images(
+         ritk.filter.grayscale_dilation(ri, 1), ritk.filter.grayscale_erosion(ri, 1)),
+     lambda si: sitk.MorphologicalGradient(si, [1, 1], sitk.sitkBox), 0.0, 2),
 ]
 
 
