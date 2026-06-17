@@ -39,8 +39,9 @@
 //! **Roundness** (ITK `GetRoundness`) = equivalent_spherical_perimeter / perimeter.
 //!
 //! # Complexity
-//! Two serial passes per label (centroid+bbox, then moments), one parallel fold
-//! to group voxel indices, and one parallel map over labels.
+//! Per label: a centroid pass, a second-moment pass, the 13-direction Crofton
+//! perimeter pass (O(N·13)), and the Feret pass over the boundary set (O(B²),
+//! B ≪ N). One parallel fold groups voxel indices; one parallel map over labels.
 
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
@@ -224,24 +225,34 @@ fn crofton_perimeter(
         label_slice[z as usize * yx + y as usize * dims[2] + x as usize] as u32 == k
     };
 
-    let mut sum = 0.0_f64;
-    for &(oz, oy, ox, w) in CROFTON_DIRECTIONS.iter() {
-        let d_phys = ((ox as f64 * sx).powi(2) + (oy as f64 * sy).powi(2) + (oz as f64 * sz).powi(2))
-            .sqrt();
-        let mut intercepts = 0_u64;
-        for &idx in indices {
-            let z = (idx / yx) as i64;
-            let y = ((idx / dims[2]) % dims[1]) as i64;
-            let x = (idx % dims[2]) as i64;
+    // Per-direction physical length, precomputed once.
+    let d_phys: [f64; 13] = std::array::from_fn(|i| {
+        let (oz, oy, ox, _) = CROFTON_DIRECTIONS[i];
+        ((ox as f64 * sx).powi(2) + (oy as f64 * sy).powi(2) + (oz as f64 * sz).powi(2)).sqrt()
+    });
+
+    // Single pass over voxels (each decoded once); accumulate the 13 intercept
+    // counts in their own buckets.
+    let mut intercepts = [0_u64; 13];
+    for &idx in indices {
+        let z = (idx / yx) as i64;
+        let y = ((idx / dims[2]) % dims[1]) as i64;
+        let x = (idx % dims[2]) as i64;
+        for (i, &(oz, oy, ox, _)) in CROFTON_DIRECTIONS.iter().enumerate() {
             if !in_label(z + oz, y + oy, x + ox) {
-                intercepts += 1;
+                intercepts[i] += 1;
             }
             if !in_label(z - oz, y - oy, x - ox) {
-                intercepts += 1;
+                intercepts[i] += 1;
             }
         }
-        sum += intercepts as f64 * w / d_phys;
     }
+
+    let sum: f64 = CROFTON_DIRECTIONS
+        .iter()
+        .enumerate()
+        .map(|(i, &(_, _, _, w))| intercepts[i] as f64 * w / d_phys[i])
+        .sum();
     2.0 * vol * sum
 }
 
