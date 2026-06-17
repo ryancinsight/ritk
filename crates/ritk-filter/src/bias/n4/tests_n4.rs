@@ -78,9 +78,9 @@ fn two_class_n4_stability_discrete_histogram() {
         convergence_threshold: 1e-4,
         num_histogram_bins: 200,
         bias_field_fwhm: 0.15,
-        initial_control_points: VolumeDims::new([4, 4, 4]),
+        bspline_mesh: VolumeDims::new([1, 1, 1]),
         noise_estimate: 0.07,
-        max_fitting_points: 256,
+        shrink_factor: 1,
     };
 
     let out = extract_vals(
@@ -185,9 +185,9 @@ fn constant_image_stable() {
         convergence_threshold: 0.001,
         num_histogram_bins: 50,
         bias_field_fwhm: 0.15,
-        initial_control_points: VolumeDims::new([4, 4, 4]),
+        bspline_mesh: VolumeDims::new([1, 1, 1]),
         noise_estimate: 0.01,
-        max_fitting_points: 512,
+        shrink_factor: 1,
     };
 
     let out = extract_vals(
@@ -226,9 +226,9 @@ fn output_all_positive() {
         convergence_threshold: 0.001,
         num_histogram_bins: 50,
         bias_field_fwhm: 0.15,
-        initial_control_points: VolumeDims::new([4, 4, 4]),
+        bspline_mesh: VolumeDims::new([1, 1, 1]),
         noise_estimate: 0.01,
-        max_fitting_points: 512,
+        shrink_factor: 1,
     };
 
     let out = extract_vals(

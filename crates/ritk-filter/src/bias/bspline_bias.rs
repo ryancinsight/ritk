@@ -24,11 +24,10 @@
 //! **Trivariate surface value** at voxel (iz, iy, ix):
 //! s = Σ_{a,b,c ∈ 0..4} Bz\[a\]·By\[b\]·Bx\[c\]·C\[(kz+a)·cy·cx + (ky+b)·cx + (kx+c)\]
 //!
-//! **Fitting**: minimise ‖Ac − r‖² + λ‖c‖² with λ = 1e-6 via Tikhonov-regularised
-//! normal equations solved by nalgebra full-pivoting LU decomposition.
-//! Each row of A contains exactly 64 nonzero entries (4³ tensor-product evaluations).
-
-use nalgebra::{DMatrix, DVector};
+//! **Fitting**: Lee–Wolberg–Shin multilevel B-spline (scattered-data)
+//! approximation — a single O(N·4³) pass distributing each data value to its 64
+//! surrounding control points, with no global linear solve (the kernel ITK's
+//! `BSplineScatteredDataPointSetToImageFilter` uses for N4). See [`bspline_fit`].
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -79,26 +78,37 @@ pub fn bspline_evaluate(
     result
 }
 
-/// Tikhonov regularization parameter λ for B-spline bias field least-squares fitting.
-const TIKHONOV_LAMBDA: f64 = 1e-6;
+/// Denominator floor below which a control point is treated as unconstrained
+/// (no data in its support) and assigned 0.
+const MIN_SUPPORT_WEIGHT: f64 = 1e-12;
 
-/// Fit a cubic B-spline surface to `residuals` via subsampled Tikhonov-regularised
-/// normal equations.
+/// Fit a cubic B-spline surface to `residuals` via the Lee–Wolberg–Shin
+/// multilevel B-spline (scattered-data) approximation.
 ///
-/// Solves `(AᵀA + λI)c = Aᵀr` with `λ = 1e-6` using nalgebra full-pivoting LU.
-/// Uniform subsampling with step = max(1, n / max_fitting_points).
-/// Each row of A has exactly 64 nonzero entries (4³ tensor-product basis values).
+/// This is the fitting kernel used by ITK's
+/// `BSplineScatteredDataPointSetToImageFilter` (and hence by N4/ANTs): a single
+/// O(N·4³) pass with no global linear solve. For each data point the value is
+/// distributed to its 64 surrounding control points; the lattice value is the
+/// support-weighted average of the local estimates.
+///
+/// # Algorithm
+/// For data point `p` with value `f` and tensor-product basis weights
+/// `B_c = Bz·By·Bx` over the 64 neighbouring control points `c`
+/// (`W² = Σ_c B_c²`):
+///   `numerator[c]   += B_c³ · f / W²`
+///   `denominator[c] += B_c²`
+///   `control[c]      = numerator[c] / denominator[c]`  (0 if no support).
+/// Lee, S., Wolberg, G., Shin, S.Y. (1997). *Scattered Data Interpolation with
+/// Multilevel B-Splines.* IEEE TVCG 3(3):228–244.
 ///
 /// # Arguments
-/// * `residuals`          — z-major flat slice, length `nz·ny·nx`.
-/// * `image_dims`         — `[nz, ny, nx]`.
-/// * `ctrl_grid`          — `[cz, cy, cx]`, each ≥ 4.
-/// * `max_fitting_points` — uniform subsampling target (upper bound on rows of A).
+/// * `residuals` — z-major flat slice, length `nz·ny·nx`.
+/// * `image_dims` — `[nz, ny, nx]`.
+/// * `ctrl_grid` — `[cz, cy, cx]`, each ≥ 4.
 pub fn bspline_fit(
     residuals: &[f32],
     image_dims: [usize; 3],
     ctrl_grid: [usize; 3],
-    max_fitting_points: usize,
 ) -> anyhow::Result<Vec<f64>> {
     let [nz, ny, nx] = image_dims;
     let [cz, cy, cx] = ctrl_grid;
@@ -106,57 +116,56 @@ pub fn bspline_fit(
     let n_cp = cz * cy * cx;
     debug_assert_eq!(residuals.len(), n_total, "residuals length mismatch");
 
-    let step = (n_total / max_fitting_points.max(1)).max(1);
-    let n_samples = n_total / step + 1;
-    let mut samples = Vec::with_capacity(n_samples);
-    for i in (0..n_total).step_by(step) {
-        samples.push(i);
-    }
-    let n_s = samples.len();
+    let mut numerator = vec![0.0f64; n_cp];
+    let mut denominator = vec![0.0f64; n_cp];
 
-    if n_s == 0 {
-        return Ok(vec![0.0f64; n_cp]);
-    }
-
-    // Build design matrix A ∈ ℝ^{n_s × n_cp} (row-major) and target vector r.
-    let mut a_data = vec![0.0f64; n_s * n_cp];
-    let mut r_data = vec![0.0f64; n_s];
-
-    for (si, &vi) in samples.iter().enumerate() {
+    for vi in 0..n_total {
         let iz = vi / (ny * nx);
         let iy = (vi % (ny * nx)) / nx;
         let ix = vi % nx;
-        r_data[si] = residuals[vi] as f64;
+        let f = residuals[vi] as f64;
 
         let (kz, bz) = basis_and_span(iz, nz, cz);
         let (ky, by) = basis_and_span(iy, ny, cy);
         let (kx, bx) = basis_and_span(ix, nx, cx);
 
+        // W² = Σ_c B_c² over the 4³ neighbourhood (separable: (Σbz²)(Σby²)(Σbx²)).
+        let sz: f64 = bz.iter().map(|&b| b * b).sum();
+        let sy: f64 = by.iter().map(|&b| b * b).sum();
+        let sx: f64 = bx.iter().map(|&b| b * b).sum();
+        let w2 = sz * sy * sx;
+        if w2 < MIN_SUPPORT_WEIGHT {
+            continue;
+        }
+        let inv_w2 = 1.0 / w2;
+
         for (a, &bza) in bz.iter().enumerate() {
             for (b, &byb) in by.iter().enumerate() {
                 for (c, &bxc) in bx.iter().enumerate() {
+                    let bc = bza * byb * bxc;
+                    let bc2 = bc * bc;
                     let cp = (kz + a) * cy * cx + (ky + b) * cx + (kx + c);
                     // cp ∈ [0, n_cp) by construction (kz+a ≤ cz-1, etc.)
-                    a_data[si * n_cp + cp] += bza * byb * bxc;
+                    numerator[cp] += bc2 * bc * f * inv_w2;
+                    denominator[cp] += bc2;
                 }
             }
         }
     }
 
-    let a = DMatrix::from_row_slice(n_s, n_cp, &a_data);
-    let r = DVector::from_vec(r_data);
+    let control = numerator
+        .iter()
+        .zip(denominator.iter())
+        .map(|(&num, &den)| {
+            if den > MIN_SUPPORT_WEIGHT {
+                num / den
+            } else {
+                0.0
+            }
+        })
+        .collect();
 
-    // Tikhonov-regularised normal equations: (AᵀA + λI)c = Aᵀr
-    let ata = a.tr_mul(&a);
-    let atr = a.tr_mul(&r);
-    let lhs = ata + DMatrix::<f64>::identity(n_cp, n_cp) * TIKHONOV_LAMBDA;
-
-    let solution = lhs
-        .lu()
-        .solve(&atr)
-        .ok_or_else(|| anyhow::anyhow!("B-spline normal equations singular; LU solve failed"))?;
-
-    Ok(solution.as_slice().to_vec())
+    Ok(control)
 }
 
 // ── Private helpers ────────────────────────────────────────────────────────────
