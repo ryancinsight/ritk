@@ -42,11 +42,25 @@ impl HitOrMissTransform {
     }
 }
 
+/// True if the offset addresses a **degenerate (size-1) axis** off its only
+/// plane — such an axis has no extent, so the structuring element carries no
+/// component along it (a 2-D `z = 1` image uses a 2-D SE). These offsets are
+/// skipped rather than counted as out-of-bounds, which otherwise made every
+/// hit-or-miss query fail on a 2-D image (all-zero output).
+#[inline]
+fn offset_on_degenerate_axis(dz: isize, dy: isize, dx: isize, dims: [usize; 3]) -> bool {
+    let [nz, ny, nx] = dims;
+    (dz != 0 && nz == 1) || (dy != 0 && ny == 1) || (dx != 0 && nx == 1)
+}
+
 fn check_box(data: &[f32], dims: [usize; 3], iz: usize, iy: usize, ix: usize, r: isize) -> bool {
     let [nz, ny, nx] = dims;
     for dz in -r..=r {
         for dy in -r..=r {
             for dx in -r..=r {
+                if offset_on_degenerate_axis(dz, dy, dx, dims) {
+                    continue;
+                }
                 let (zz, yy, xx) = (iz as isize + dz, iy as isize + dy, ix as isize + dx);
                 if zz < 0
                     || zz >= nz as isize
@@ -90,6 +104,9 @@ fn check_ring(data: &[f32], dims: [usize; 3], iz: usize, iy: usize, ix: usize, r
         for dy in -r..=r {
             for dx in -r..=r {
                 if dz == 0 && dy == 0 && dx == 0 {
+                    continue;
+                }
+                if offset_on_degenerate_axis(dz, dy, dx, dims) {
                     continue;
                 }
                 let (zz, yy, xx) = (iz as isize + dz, iy as isize + dy, ix as isize + dx);

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.88.1] — 2026-06-17 (Sprint 391b: hit-or-miss z=1 degenerate-axis fix)
+
+### Fixed
+- `ritk-filter`: `HitOrMissTransform` produced **all-zero output on any 2-D (`z = 1`) image** for `fg_radius ≥ 1`. Its box/ring structuring-element checks treated the out-of-bounds `z = ±1` neighbours of a `z = 1` slab as failures, so every query failed. A 2-D image is a genuine 2-D problem — the SE carries no component along a size-1 axis. Fixed to skip offsets on degenerate (size-1) axes (the SE becomes 2-D) while still failing real-axis out-of-bounds (correct erosion boundary). A 5×5 foreground block now correctly erodes to its 3×3 interior on a `z = 1` image; 3-D behaviour unchanged. Regression test added. Same [[ritk-z1-degenerate-axis]] family as the fill-hole / contour fixes.
+
 ## [0.88.0] — 2026-06-17 (Sprint 391: signed distance map binding + false-parity-doc fix)
 
 ### Fixed
