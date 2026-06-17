@@ -824,6 +824,26 @@ def test_cmake_median_projection_on_upstream_data(axis):
     assert np.array_equal(r, s), f"MedianProjection axis={axis}: differs from sitk"
 
 
+@pytest.mark.parametrize("axis", [1, 2], ids=["y", "x"])
+def test_cmake_binary_projection_on_upstream_data(axis):
+    # BinaryProjection on a thresholded cthead mask; BinaryThresholdProjection on
+    # the raw image. ITK Parity: Binary{,Threshold}ProjectionImageFilter.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    mb = (arr > 40).astype(np.float32)
+    rim = ritk.Image(np.ascontiguousarray(mb[None]))
+    sim = sitk.GetImageFromArray(mb)
+    rb = np.squeeze(np.asarray(ritk.filter.binary_projection(rim, axis, 1.0, 0.0).to_numpy(), np.float64))
+    sb = np.squeeze(sitk.GetArrayFromImage(sitk.BinaryProjection(sim, 2 - axis, 1.0, 0.0)).astype(np.float64))
+    assert np.array_equal(rb, sb), f"BinaryProjection axis={axis}: differs from sitk"
+    rt = np.squeeze(np.asarray(
+        ritk.filter.binary_threshold_projection(ri, axis, 60.0, 1.0, 0.0).to_numpy(), np.float64))
+    st = np.squeeze(sitk.GetArrayFromImage(
+        sitk.BinaryThresholdProjection(si, 2 - axis, 60.0, 1, 0)).astype(np.float64))
+    assert np.array_equal(rt, st), f"BinaryThresholdProjection axis={axis}: differs from sitk"
+
+
 def test_cmake_vector_ops_on_upstream_data():
     # Compose three scalar images into a vector image, then VectorMagnitude /
     # VectorIndexSelectionCast. ITK Parity: Compose / VectorMagnitude /

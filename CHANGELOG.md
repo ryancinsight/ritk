@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.96.0] — 2026-06-17 (Sprint 401: Binary / BinaryThreshold projection)
+
+### Added
+- `ritk-filter` / `ritk-python`: `BinaryProjectionFilter` + `filter.binary_projection(image, axis, foreground, background)` — a result pixel is `foreground` if **any** collapsed-axis voxel equals `foreground` (ITK `BinaryProjectionImageFilter`); and `BinaryThresholdProjectionFilter` + `filter.binary_threshold_projection(image, axis, threshold, foreground, background)` — `foreground` if any voxel is `>= threshold` (ITK `BinaryThresholdProjectionImageFilter`, **single** threshold with `>=`, confirmed against sitk). Both share a `project_any` predicate-projection helper. **Bit-exact** to `sitk.BinaryProjection` / `sitk.BinaryThresholdProjection`. Value-semantic Rust tests + cmake parity cases (y/x). `.pyi` stubs; coverage 160/298. The intensity-projection surface (max/min/mean/sum/stddev/median/binary/binary-threshold) is now complete.
+
 ## [0.95.0] — 2026-06-17 (Sprint 400: MedianProjection)
 
 ### Added

@@ -12,9 +12,9 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::projection::{
-    MaxIntensityProjectionFilter, MeanIntensityProjectionFilter, MedianIntensityProjectionFilter,
-    MinIntensityProjectionFilter, ProjectionAxis, StdDevIntensityProjectionFilter,
-    SumIntensityProjectionFilter,
+    BinaryProjectionFilter, BinaryThresholdProjectionFilter, MaxIntensityProjectionFilter,
+    MeanIntensityProjectionFilter, MedianIntensityProjectionFilter, MinIntensityProjectionFilter,
+    ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
 };
 
 /// Parse an axis integer (0, 1, 2) into `ProjectionAxis`.
@@ -113,6 +113,52 @@ pub fn mean_intensity_projection(
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
         MeanIntensityProjectionFilter::new(ax)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Binary projection: foreground if any voxel along `axis` equals `foreground`.
+///
+/// ITK Parity: BinaryProjectionImageFilter (`sitk.BinaryProjection`).
+#[pyfunction]
+#[pyo3(signature = (image, axis=0, foreground=1.0, background=0.0))]
+pub fn binary_projection(
+    py: Python<'_>,
+    image: &PyImage,
+    axis: usize,
+    foreground: f32,
+    background: f32,
+) -> RitkResult<PyImage> {
+    let ax = parse_axis(axis)?;
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        BinaryProjectionFilter::new(ax, foreground, background)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Binary-threshold projection: foreground if any voxel along `axis` is
+/// `>= threshold`.
+///
+/// ITK Parity: BinaryThresholdProjectionImageFilter (`sitk.BinaryThresholdProjection`).
+#[pyfunction]
+#[pyo3(signature = (image, axis=0, threshold=0.0, foreground=1.0, background=0.0))]
+pub fn binary_threshold_projection(
+    py: Python<'_>,
+    image: &PyImage,
+    axis: usize,
+    threshold: f32,
+    foreground: f32,
+    background: f32,
+) -> RitkResult<PyImage> {
+    let ax = parse_axis(axis)?;
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        BinaryThresholdProjectionFilter::new(ax, threshold, foreground, background)
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

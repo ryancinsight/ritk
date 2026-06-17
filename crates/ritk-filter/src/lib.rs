@@ -113,9 +113,9 @@ pub use cpr::{generate_path, generate_path_batch};
 pub use cpr::{CprConfig, CprImageFilter};
 pub use downsample::DownsampleFilter;
 pub use projection::{
-    MaxIntensityProjectionFilter, MeanIntensityProjectionFilter, MedianIntensityProjectionFilter,
-    MinIntensityProjectionFilter, ProjectionAxis, StdDevIntensityProjectionFilter,
-    SumIntensityProjectionFilter,
+    BinaryProjectionFilter, BinaryThresholdProjectionFilter, MaxIntensityProjectionFilter,
+    MeanIntensityProjectionFilter, MedianIntensityProjectionFilter, MinIntensityProjectionFilter,
+    ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
 };
 pub use pyramid::MultiResolutionPyramid;
 pub use resample::ResampleImageFilter;

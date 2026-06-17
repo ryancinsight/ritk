@@ -171,3 +171,25 @@ fn median_projection_x_values() {
     assert_eq!(out.shape(), [1, 2, 1]);
     assert_eq!(extract_vals(&out), vec![3.0, 5.0]);
 }
+
+/// Binary projection: foreground if any voxel along the axis equals foreground.
+#[test]
+fn binary_projection_x_any_foreground() {
+    // 1×2×3: row0 = [0,1,0] (has fg 1 → 1), row1 = [0,0,0] (no fg → 0)
+    let img = make_volume(vec![0.0, 1.0, 0.0, 0.0, 0.0, 0.0], [1, 2, 3]);
+    let out = BinaryProjectionFilter::new(ProjectionAxis::X, 1.0, 0.0)
+        .apply(&img)
+        .unwrap();
+    assert_eq!(extract_vals(&out), vec![1.0, 0.0]);
+}
+
+/// Binary-threshold projection: foreground if any voxel along the axis ≥ threshold.
+#[test]
+fn binary_threshold_projection_x_any_ge() {
+    // 1×2×3: row0 = [1,2,3] (max 3 ≥ 3 → 1), row1 = [1,1,2] (max 2 < 3 → 0)
+    let img = make_volume(vec![1.0, 2.0, 3.0, 1.0, 1.0, 2.0], [1, 2, 3]);
+    let out = BinaryThresholdProjectionFilter::new(ProjectionAxis::X, 3.0, 1.0, 0.0)
+        .apply(&img)
+        .unwrap();
+    assert_eq!(extract_vals(&out), vec![1.0, 0.0]);
+}

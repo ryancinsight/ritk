@@ -197,6 +197,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(min_intensity_projection, &m)?)?;
     m.add_function(wrap_pyfunction!(mean_intensity_projection, &m)?)?;
     m.add_function(wrap_pyfunction!(median_intensity_projection, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_projection, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_threshold_projection, &m)?)?;
     m.add_function(wrap_pyfunction!(sum_intensity_projection, &m)?)?;
     m.add_function(wrap_pyfunction!(stddev_intensity_projection, &m)?)?;
     // Noise simulation

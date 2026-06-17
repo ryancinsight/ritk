@@ -369,6 +369,110 @@ fn project_median<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
     }
 }
 
+// ── BinaryProjectionFilter ────────────────────────────────────────────────────
+
+/// Binary projection along a chosen axis: a result pixel is `foreground` if
+/// **any** voxel along the collapsed axis equals `foreground`, else `background`.
+///
+/// Matches ITK `BinaryProjectionImageFilter` (`sitk.BinaryProjection`).
+pub struct BinaryProjectionFilter {
+    axis: ProjectionAxis,
+    foreground: f32,
+    background: f32,
+}
+
+impl BinaryProjectionFilter {
+    pub fn new(axis: ProjectionAxis, foreground: f32, background: f32) -> Self {
+        Self {
+            axis,
+            foreground,
+            background,
+        }
+    }
+
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+        let fg = self.foreground;
+        project_any(self.axis, image, self.foreground, self.background, move |v| {
+            v == fg
+        })
+    }
+}
+
+// ── BinaryThresholdProjectionFilter ───────────────────────────────────────────
+
+/// Binary-threshold projection: a result pixel is `foreground` if **any** voxel
+/// along the collapsed axis is `>= threshold`, else `background`.
+///
+/// Matches ITK `BinaryThresholdProjectionImageFilter` (`sitk.BinaryThresholdProjection`).
+pub struct BinaryThresholdProjectionFilter {
+    axis: ProjectionAxis,
+    threshold: f32,
+    foreground: f32,
+    background: f32,
+}
+
+impl BinaryThresholdProjectionFilter {
+    pub fn new(axis: ProjectionAxis, threshold: f32, foreground: f32, background: f32) -> Self {
+        Self {
+            axis,
+            threshold,
+            foreground,
+            background,
+        }
+    }
+
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+        let thr = self.threshold;
+        project_any(self.axis, image, self.foreground, self.background, move |v| {
+            v >= thr
+        })
+    }
+}
+
+/// Project the collapsed axis to `foreground` if any voxel satisfies `pred`,
+/// else `background`.
+fn project_any<B, P>(
+    axis: ProjectionAxis,
+    image: &Image<B, 3>,
+    foreground: f32,
+    background: f32,
+    pred: P,
+) -> Result<Image<B, 3>>
+where
+    B: Backend,
+    P: Fn(f32) -> bool + Sync,
+{
+    let pick = |hit: bool| if hit { foreground } else { background };
+    let [nz, ny, nx] = image.shape();
+    let (vals, _) = extract_vec(image)?;
+    match axis {
+        ProjectionAxis::Z => {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(ny * nx, |idx| {
+                    let (y, x) = (idx / nx, idx % nx);
+                    pick((0..nz).any(|z| pred(vals[z * ny * nx + y * nx + x])))
+                });
+            Ok(rebuild(out, [1, ny, nx], image))
+        }
+        ProjectionAxis::Y => {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * nx, |idx| {
+                    let (z, x) = (idx / nx, idx % nx);
+                    pick((0..ny).any(|y| pred(vals[z * ny * nx + y * nx + x])))
+                });
+            Ok(rebuild(out, [nz, 1, nx], image))
+        }
+        ProjectionAxis::X => {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny, |idx| {
+                    let (z, y) = (idx / ny, idx % ny);
+                    pick((0..nx).any(|x| pred(vals[z * ny * nx + y * nx + x])))
+                });
+            Ok(rebuild(out, [nz, ny, 1], image))
+        }
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
