@@ -14,6 +14,12 @@
 ### Breaking
 - `ritk-statistics`: `LabelShapeStatisticsExtended.perimeter` is now `f64` (physical surface area) instead of `usize`; the Python dict `perimeter` value is now a float. Drops the dead bounding-box tracking and `feret_from_bbox` helper.
 
+### Fixed
+- `ritk-filter`: `NormalizeImageFilter` now divides by the **sample** std (÷(N−1)) to match ITK/SimpleITK `NormalizeImageFilter` (was population std ÷N; max ~2.5e-3 divergence on small volumes, now float-exact to `sitk.Normalize`). `N ≤ 1` maps to the zero output.
+
+### Performance
+- `ritk-statistics`: Crofton perimeter decodes each label voxel's coordinates once (inner direction loop) instead of 13× (once per direction); per-direction physical lengths hoisted out of the scan. Result is unchanged (float-exact).
+
 ## [0.71.0] — 2026-06-16 (Sprint 377: N4 ANTs Alignment)
 
 ### Changed

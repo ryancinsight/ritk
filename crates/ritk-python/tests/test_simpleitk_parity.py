@@ -1101,14 +1101,13 @@ def test_zero_crossing_matches_sitk():
 
 
 def test_normalize_image_matches_sitk():
-    # normalize_image (zero mean, unit variance) matches sitk.Normalize. ritk
-    # uses population std (÷N); sitk uses sample (÷N-1) — the sqrt(N/(N-1)) factor
-    # is ~1e-4 at this size, so compare with a loose tolerance.
+    # normalize_image (zero mean, unit variance) is float-exact to sitk.Normalize:
+    # both divide by the SAMPLE std (÷(N−1), ITK NormalizeImageFilter convention).
     rng = np.random.default_rng(1)
     img = (100 + 20 * rng.standard_normal((10, 18, 22))).astype(np.float32)
     r = np.asarray(ritk.filter.normalize_image(_ritk(img)).to_numpy(), np.float64)
     s = _np(sitk.Normalize(_sitk(img))).astype(np.float64)
-    assert np.abs(r - s).max() / max(abs(s).max(), 1e-9) < 1e-3
+    assert np.abs(r - s).max() / max(abs(s).max(), 1e-9) < 1e-5
 
 
 def test_unsharp_mask_default_matches_sitk():
