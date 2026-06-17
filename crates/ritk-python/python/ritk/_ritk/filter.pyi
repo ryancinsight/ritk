@@ -149,6 +149,54 @@ def minimum_images(a: Image, b: Image) -> Image:
     """Pixelwise minimum: out(x) = min(a(x), b(x)). ITK Parity: MinimumImageFilter."""
     ...
 
+def abs_image(image: Image) -> Image:
+    """Pixelwise absolute value: out(x) = |in(x)|. ITK Parity: AbsImageFilter."""
+    ...
+
+def sqrt_image(image: Image) -> Image:
+    """Pixelwise square root: out(x) = sqrt(in(x)). ITK Parity: SqrtImageFilter."""
+    ...
+
+def square_image(image: Image) -> Image:
+    """Pixelwise square: out(x) = in(x)^2. ITK Parity: SquareImageFilter."""
+    ...
+
+def exp_image(image: Image) -> Image:
+    """Pixelwise exponential: out(x) = exp(in(x)). ITK Parity: ExpImageFilter."""
+    ...
+
+def log_image(image: Image) -> Image:
+    """Pixelwise natural log: out(x) = ln(in(x)). ITK Parity: LogImageFilter."""
+    ...
+
+def sin_image(image: Image) -> Image:
+    """Pixelwise sine: out(x) = sin(in(x)). ITK Parity: SinImageFilter."""
+    ...
+
+def cos_image(image: Image) -> Image:
+    """Pixelwise cosine: out(x) = cos(in(x)). ITK Parity: CosImageFilter."""
+    ...
+
+def tan_image(image: Image) -> Image:
+    """Pixelwise tangent: out(x) = tan(in(x)). ITK Parity: TanImageFilter."""
+    ...
+
+def asin_image(image: Image) -> Image:
+    """Pixelwise arcsine: out(x) = asin(in(x)). ITK Parity: AsinImageFilter."""
+    ...
+
+def acos_image(image: Image) -> Image:
+    """Pixelwise arccosine: out(x) = acos(in(x)). ITK Parity: AcosImageFilter."""
+    ...
+
+def atan_image(image: Image) -> Image:
+    """Pixelwise arctangent: out(x) = atan(in(x)). ITK Parity: AtanImageFilter."""
+    ...
+
+def bounded_reciprocal_image(image: Image) -> Image:
+    """Pixelwise bounded reciprocal: out(x) = 1 / (1 + in(x)). ITK Parity: BoundedReciprocalImageFilter."""
+    ...
+
 def maximum_images(a: Image, b: Image) -> Image:
     """Pixelwise maximum: out(x) = max(a(x), b(x)). ITK Parity: MaximumImageFilter."""
     ...

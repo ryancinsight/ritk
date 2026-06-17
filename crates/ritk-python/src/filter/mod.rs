@@ -82,6 +82,19 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(divide_images, &m)?)?;
     m.add_function(wrap_pyfunction!(minimum_images, &m)?)?;
     m.add_function(wrap_pyfunction!(maximum_images, &m)?)?;
+    // Unary math (ITK Abs/Sqrt/Square/Exp/Log/Sin/Cos/Tan/Asin/Acos/Atan/BoundedReciprocal)
+    m.add_function(wrap_pyfunction!(abs_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(sqrt_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(square_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(exp_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(log_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(sin_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(cos_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(tan_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(asin_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(acos_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(atan_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(bounded_reciprocal_image, &m)?)?;
     // Morphology
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;

@@ -226,6 +226,33 @@ _THRESHOLD_MASK = [
 ]
 
 
+# Unary math filters (<Filter>.yaml "defaults"). Exercised on Ramp-Zero-One-Float
+# whose values lie in [0,1] — a safe domain for log/sqrt/asin/acos.
+_UNARY_MATH = [
+    ("AbsImageFilter", ritk.filter.abs_image, sitk.Abs, 0.0),
+    ("SqrtImageFilter", ritk.filter.sqrt_image, sitk.Sqrt, 0.0),
+    ("SquareImageFilter", ritk.filter.square_image, sitk.Square, 0.0),
+    ("LogImageFilter", ritk.filter.log_image, sitk.Log, 0.0),
+    ("ExpImageFilter", ritk.filter.exp_image, sitk.Exp, 1e-6),
+    ("SinImageFilter", ritk.filter.sin_image, sitk.Sin, 1e-6),
+    ("CosImageFilter", ritk.filter.cos_image, sitk.Cos, 1e-6),
+    ("TanImageFilter", ritk.filter.tan_image, sitk.Tan, 1e-6),
+    ("AsinImageFilter", ritk.filter.asin_image, sitk.Asin, 1e-6),
+    ("AcosImageFilter", ritk.filter.acos_image, sitk.Acos, 1e-6),
+    ("AtanImageFilter", ritk.filter.atan_image, sitk.Atan, 1e-6),
+]
+
+
+@pytest.mark.parametrize("tag,rfn,sfn,tol", _UNARY_MATH, ids=[c[0] for c in _UNARY_MATH])
+def test_cmake_unary_math_on_upstream_data(tag, rfn, sfn, tol):
+    ri, si = _pair("Ramp-Zero-One-Float.nrrd")
+    rel = _rel(rfn(ri), sfn(si), m=2)
+    if tol == 0.0:
+        assert rel == 0.0, f"{tag}: expected bit-exact, got rel {rel:.2e}"
+    else:
+        assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e}"
+
+
 @pytest.mark.parametrize("inp", ["RA-Short.nrrd", "Ramp-Zero-One-Float.nrrd"],
                          ids=["default", "default_on_float"])
 @pytest.mark.parametrize("tag,rfn,sfilt", _THRESHOLD_MASK, ids=[c[0] for c in _THRESHOLD_MASK])

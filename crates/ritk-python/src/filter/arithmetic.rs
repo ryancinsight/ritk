@@ -11,9 +11,41 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    AddImageFilter, DivideImageFilter, ImageMaxFilter, ImageMinFilter, MultiplyImageFilter,
-    SubtractImageFilter,
+    AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
+    BoundedReciprocalImageFilter, CosImageFilter, DivideImageFilter, ExpImageFilter, ImageMaxFilter,
+    ImageMinFilter, LogImageFilter, MultiplyImageFilter, SinImageFilter, SqrtImageFilter,
+    SquareImageFilter, SubtractImageFilter, TanImageFilter,
 };
+
+/// Generate a pixelwise unary-math `#[pyfunction]` that mirrors an ITK unary
+/// math image filter. Each applies `Filter::new().apply` to the input under
+/// `allow_threads`; the operation is infallible (pure elementwise map).
+macro_rules! unary_math_pyfn {
+    ($name:ident, $filter:ident, $itk:literal, $doc:literal) => {
+        #[doc = $doc]
+        #[doc = ""]
+        #[doc = concat!("ITK Parity: ", $itk)]
+        #[pyfunction]
+        pub fn $name(py: Python<'_>, image: &PyImage) -> PyImage {
+            let arc = std::sync::Arc::clone(&image.inner);
+            let out = py.allow_threads(|| $filter::new().apply(arc.as_ref()));
+            into_py_image(out)
+        }
+    };
+}
+
+unary_math_pyfn!(abs_image, AbsImageFilter, "AbsImageFilter", "Pixelwise absolute value: out(x) = |in(x)|.");
+unary_math_pyfn!(sqrt_image, SqrtImageFilter, "SqrtImageFilter", "Pixelwise square root: out(x) = sqrt(in(x)).");
+unary_math_pyfn!(square_image, SquareImageFilter, "SquareImageFilter", "Pixelwise square: out(x) = in(x)^2.");
+unary_math_pyfn!(exp_image, ExpImageFilter, "ExpImageFilter", "Pixelwise exponential: out(x) = exp(in(x)).");
+unary_math_pyfn!(log_image, LogImageFilter, "LogImageFilter", "Pixelwise natural log: out(x) = ln(in(x)).");
+unary_math_pyfn!(sin_image, SinImageFilter, "SinImageFilter", "Pixelwise sine: out(x) = sin(in(x)).");
+unary_math_pyfn!(cos_image, CosImageFilter, "CosImageFilter", "Pixelwise cosine: out(x) = cos(in(x)).");
+unary_math_pyfn!(tan_image, TanImageFilter, "TanImageFilter", "Pixelwise tangent: out(x) = tan(in(x)).");
+unary_math_pyfn!(asin_image, AsinImageFilter, "AsinImageFilter", "Pixelwise arcsine: out(x) = asin(in(x)).");
+unary_math_pyfn!(acos_image, AcosImageFilter, "AcosImageFilter", "Pixelwise arccosine: out(x) = acos(in(x)).");
+unary_math_pyfn!(atan_image, AtanImageFilter, "AtanImageFilter", "Pixelwise arctangent: out(x) = atan(in(x)).");
+unary_math_pyfn!(bounded_reciprocal_image, BoundedReciprocalImageFilter, "BoundedReciprocalImageFilter", "Pixelwise bounded reciprocal: out(x) = 1 / (1 + in(x)).");
 
 /// Pixelwise addition: out(x) = a(x) + b(x).
 ///
