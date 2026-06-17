@@ -346,6 +346,52 @@ def test_cmake_rgb_smoothing_recursive_gaussian_on_upstream_data():
     assert rel < 1e-6, f"RGB smoothing recursive gaussian rel {rel:.2e}"
 
 
+def test_cmake_statistics_matches_sitk():
+    # StatisticsImageFilter (min/max/mean/variance) on an upstream image.
+    path = fetch_input("RA-Float.nrrd")
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+    ri = ritk.io.read_image(path)
+    st = ritk.statistics.compute_statistics(ri)
+    f = sitk.StatisticsImageFilter()
+    f.Execute(si)
+    assert abs(st["mean"] - f.GetMean()) / max(abs(f.GetMean()), 1e-9) < 1e-5
+    assert st["min"] == f.GetMinimum()
+    assert st["max"] == f.GetMaximum()
+    assert abs(st["std"] - f.GetVariance() ** 0.5) / max(f.GetVariance() ** 0.5, 1e-9) < 1e-5
+
+
+def _staple_pair():
+    path = fetch_input("RA-Float.nrrd")
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+    a = sitk.GetArrayFromImage(si).astype(np.float32)
+    m1 = (a > 25000).astype(np.float32)
+    m2 = (a > 26000).astype(np.float32)
+    return (
+        ritk.Image(np.ascontiguousarray(m1)),
+        ritk.Image(np.ascontiguousarray(m2)),
+        sitk.GetImageFromArray(m1.astype(np.uint8)),
+        sitk.GetImageFromArray(m2.astype(np.uint8)),
+    )
+
+
+def test_cmake_dice_matches_sitk():
+    # LabelOverlapMeasuresImageFilter Dice coefficient.
+    r1, r2, s1, s2 = _staple_pair()
+    rd = ritk.statistics.dice_coefficient(r1, r2)
+    f = sitk.LabelOverlapMeasuresImageFilter()
+    f.Execute(s1, s2)
+    assert abs(rd - f.GetDiceCoefficient()) < 1e-5, f"dice ritk={rd} sitk={f.GetDiceCoefficient()}"
+
+
+def test_cmake_hausdorff_matches_sitk():
+    # HausdorffDistanceImageFilter.
+    r1, r2, s1, s2 = _staple_pair()
+    rh = ritk.statistics.hausdorff_distance(r1, r2)
+    f = sitk.HausdorffDistanceImageFilter()
+    f.Execute(s1, s2)
+    assert abs(rh - f.GetHausdorffDistance()) / max(f.GetHausdorffDistance(), 1e-9) < 1e-5
+
+
 def test_cmake_registration_meansquares_metric_matches_sitk():
     # Registration-suite parity (deterministic component): the MeanSquares image
     # metric evaluated at the identity transform. SimpleITK's
