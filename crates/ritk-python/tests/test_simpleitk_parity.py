@@ -103,9 +103,10 @@ def _dice(a, b):
 
 
 def test_discrete_gaussian_interior_agrees_with_sitk():
-    # ITK DiscreteGaussianImageFilter parity: variance=4.0, maximum_error=0.01,
-    # spacing_mode=ritk.filter.PySpacingMode.Voxel; kernel radius=7 voxels; interior crop [8:-8].
-    # Tolerances: interior max diff < 0.01, global mean diff < 0.005.
+    # ITK DiscreteGaussianImageFilter parity (variance=4.0, maximum_error=0.01,
+    # voxel spacing). ritk now uses ITK's discrete Gaussian kernel
+    # g[k]=e^{-t}·I_|k|(t) (modified Bessel), not a sampled continuous Gaussian,
+    # so the result is float-exact to sitk over the whole volume (was ~0.8%).
     arr = _make_gradient()
     sr = _np(
         sitk.DiscreteGaussian(
@@ -116,14 +117,8 @@ def test_discrete_gaussian_interior_agrees_with_sitk():
         _ritk(arr), variance=4.0, maximum_error=0.01, spacing_mode=ritk.filter.PySpacingMode.Voxel
     ).to_numpy()
     assert sr.shape == rr.shape
-    m = 8
-    diff_i = np.abs(sr[m:-m, m:-m, m:-m] - rr[m:-m, m:-m, m:-m])
-    assert float(diff_i.max()) < 0.01, (
-        "DiscreteGaussian interior max diff > 0.01: " + str(float(diff_i.max()))
-    )
-    assert float(np.abs(sr - rr).mean()) < 0.005, (
-        "DiscreteGaussian global mean diff > 0.005"
-    )
+    rel = np.abs(sr - rr).max() / max(np.abs(sr).max(), 1e-9)
+    assert rel < 1e-6, f"DiscreteGaussian rel max diff {rel:.2e} >= 1e-6"
 
 
 def test_discrete_gaussian_constant_image_invariant():
@@ -1111,7 +1106,9 @@ def test_normalize_image_matches_sitk():
 
 
 def test_unsharp_mask_default_matches_sitk():
-    # The default (clamp=False) matches sitk.UnsharpMask out of the box.
+    # Float-exact to sitk.UnsharpMask: ritk now blurs with the recursive
+    # (Deriche) Gaussian — the smoother ITK UnsharpMask uses — not the discrete
+    # Gaussian, so the high-pass mask and output match to f32 precision.
     rng = np.random.default_rng(2)
     z, y, x = np.mgrid[:12, :20, :24]
     img = (80 + 40 * np.sin(0.3 * x) * np.cos(0.25 * y)
@@ -1119,7 +1116,7 @@ def test_unsharp_mask_default_matches_sitk():
     r = np.asarray(ritk.filter.unsharp_mask(_ritk(img), 1.0, 0.5, 0.0).to_numpy(), np.float64)
     s = _np(sitk.UnsharpMask(_sitk(img), [1.0, 1.0, 1.0], 0.5, 0.0)).astype(np.float64)
     c = (slice(2, -2),) * 3
-    assert np.abs(r[c] - s[c]).max() / max(abs(s[c]).max(), 1e-9) < 2e-3
+    assert np.abs(r[c] - s[c]).max() / max(abs(s[c]).max(), 1e-9) < 1e-6
 
 
 def _blob(nz=14, ny=22, nx=26):

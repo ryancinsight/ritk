@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [0.73.4] — 2026-06-17 (Sprint 379 Increment 4: DiscreteGaussian Bessel kernel)
+
+### Fixed
+- `ritk-filter`: `discrete_gaussian` is now **float-exact** to SimpleITK `DiscreteGaussian` (rel ~4e-8 on cthead1, was ~0.8%). It built its kernel by sampling the continuous Gaussian `exp(−k²/2σ²)`; ITK `DiscreteGaussianImageFilter` uses `GaussianOperator` — the discrete analog of the Gaussian (Lindeberg 1990), `g[k]=e^{−t}·I_|k|(t)` with `t` the pixel variance and `I_n` the modified Bessel function — accumulating one-sided taps until the mass reaches `1−maximum_error` (radius capped at 32), then normalising. New `modified_bessel_i0/i1/i` (Abramowitz & Stegun 9.8 polynomials + Miller recurrence, the exact forms ITK uses).
+- `ritk-filter`: `unsharp_mask` is now **float-exact** to SimpleITK `UnsharpMask` (rel ~5e-8). ITK `UnsharpMaskImageFilter` smooths with `SmoothingRecursiveGaussian` (it takes `Sigmas`), not the discrete Gaussian; ritk now blurs with the recursive (Deriche) Gaussian via the new `smoothing_recursive_gaussian` instead of `DiscreteGaussianFilter` (the discrete-Bessel kernel correctly differs ~0.8% from the recursive Gaussian, which surfaced once `discrete_gaussian` was fixed).
+
 ## [0.73.3] — 2026-06-17 (Sprint 379 Increment 3: GradientMagnitudeRecursiveGaussian parity)
 
 ### Fixed

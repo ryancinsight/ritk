@@ -297,8 +297,9 @@ class TestUnsharpMaskParity:
             ritk.filter.unsharp_mask(_ritk(arr), sigma=1.0, amount=0.5, threshold=0.0, clamp=False)
         )
         mae = _mae(actual, expected)
-        # Tolerance: Gaussian truncation/boundary differences ≤ 1e-3
-        assert mae <= 1e-3, f"unsharp_mask MAE vs sitk {mae:.2e} > 1e-3"
+        # Float-exact: ritk blurs with the recursive Gaussian, the same smoother
+        # ITK UnsharpMask uses, so only f32 rounding remains.
+        assert mae <= 1e-4, f"unsharp_mask MAE vs sitk {mae:.2e} > 1e-4"
 
     def test_unsharp_mask_zero_amount_is_identity(self):
         """With amount=0, unsharp mask output must equal input exactly."""
