@@ -8,6 +8,7 @@ use ritk_segmentation::threshold::intermodes::compute_intermodes_threshold_from_
 use ritk_segmentation::threshold::isodata::compute_isodata_threshold_from_slice;
 use ritk_segmentation::threshold::kapur::compute_kapur_threshold_from_slice;
 use ritk_segmentation::threshold::moments::compute_moments_threshold_from_slice;
+use ritk_segmentation::threshold::shanbhag::compute_shanbhag_threshold_from_slice;
 use ritk_segmentation::threshold::li::compute_li_threshold_from_slice;
 use ritk_segmentation::threshold::multi_otsu::compute_multi_otsu_thresholds_from_slice;
 use ritk_segmentation::threshold::otsu::compute_otsu_threshold_from_slice;
@@ -138,6 +139,27 @@ pub fn isodata_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_isodata_threshold_from_slice(slice, 256);
+            let mask_vals: Vec<f32> = slice
+                .iter()
+                .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
+                .collect();
+            (threshold, mask_vals)
+        })
+    });
+    let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
+    (threshold, into_py_image(mask))
+}
+
+/// Compute the Shanbhag threshold and produce a binary mask.
+///
+/// Delegates to `ritk_segmentation::ShanbhagThreshold` (256-bin histogram).
+#[pyfunction]
+pub fn shanbhag_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
+    let arc = Arc::clone(&image.inner);
+    let dims = arc.shape();
+    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+        py.allow_threads(|| {
+            let threshold = compute_shanbhag_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
                 .iter()
                 .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })

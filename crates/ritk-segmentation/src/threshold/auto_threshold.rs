@@ -39,6 +39,7 @@ impl sealed::Sealed for super::isodata::IsoDataThreshold {}
 impl sealed::Sealed for super::moments::MomentsThreshold {}
 impl sealed::Sealed for super::huang::HuangThreshold {}
 impl sealed::Sealed for super::intermodes::IntermodesThreshold {}
+impl sealed::Sealed for super::shanbhag::ShanbhagThreshold {}
 
 // ── Trait ──────────────────────────────────────────────────────────────────────
 
