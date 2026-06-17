@@ -1,5 +1,36 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 377 — Performance Review, Memory Efficiency & Carry-Forward Reconciliation
+**Target version**: 0.91.1
+**Sprint phase**: Foundation → Execution — gate stabilized; performance audit in progress.
+
+### Delivered (Sprint 377 — so far)
+- [x] GATE [patch]: `morphology::window_1d` inline `#[allow(clippy::needless_range_loop)]` with justification (sliding-window genuinely needs index-based outer step)
+- [x] REFACTOR [patch]: `segmentation::threshold::{huang,isodata,renyi}` `for i in 0..n { vec[i] }` → `for (i, &x) in slice.iter().enumerate()` / `for &x in slice` — idiomatic; value-semantic-equivalent.
+- [x] FMT [patch]: `cargo fmt --check` clean on staged files
+- [x] CLIPPY [patch]: `cargo clippy --workspace --all-targets -- -D warnings` 0 warnings
+- [x] COMMIT [patch]: `de26c2fc refactor(segmentation,filter): needless_range_loop -> iterator`
+
+### Verification gate
+- [x] `cargo nextest run -p ritk-segmentation -E 'test(threshold)'` → 120/120 passed
+- [x] `cargo nextest run -p ritk-filter -E 'test(unary_minus)|test(round_half)'` → 2/2 passed
+
+### Deferred / carry-forward (next increments)
+- [ ] PERF-377-01 [patch]: **MedianFilter O(N·n³·log n) → O(N·r²)** via Huang's sliding column histogram — bit-exact equivalence to naive reference; high-value algorithmic reduction.
+- [ ] PERF-377-02 [patch]: **BilateralFilter memory-bandwidth review** — current LUT-optimised (BILAT-PERF-01); headroom: drop `exp` into a second LUT, or explore separable approximation.
+- [ ] PERF-377-03 [patch]: **Rank/Percentile filter** — same naive O(N·n³·log n); co-bundle with PERF-377-01 if algorithm is portable.
+- [ ] DOC-377-01 [patch]: 16 pre-existing intra-doc-link warnings (rustdoc unresolved link, public docs → private items) accumulated from Sprint 393-395 commits; gated but non-blocking.
+- [ ] FMT-377-01 [patch]: 22 working-tree fmt-only diffs from cumulative agent updates (long-line rewraps). Pure whitespace; next `cargo fmt --all` by next agent or this session will close.
+
+### Known WIP in working tree — concurrent agent, do NOT touch
+- `crates/ritk-filter/src/transform/cyclic_shift.rs` — NEW file (untracked)
+- `crates/ritk-filter/src/transform/tests_cyclic_shift.rs` — NEW file (untracked)
+- `crates/ritk-filter/src/transform/mod.rs` — adds `pub mod cyclic_shift;`
+- `crates/ritk-python/src/filter/transform.rs` — adds `crop` PyO3 binding
+- `crates/ritk-python/python/ritk/_ritk/filter.pyi` — type-stubs extension
+- `crates/ritk-python/tests/test_smoke.py` — feature-name additions to public-surface assertions
+Per concurrent_agents policy: preserve these and let the parallel session commit them.
+
 ## Sprint 376 — DRY Closure, Build Hardening & Carry-Forward Reconciliation
 **Target version**: 0.70.1
 **Sprint phase**: Closure — DRY closure, build hardening, fmt/clippy gating, CPR-PERF-01 all delivered and verified.

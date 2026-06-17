@@ -16,6 +16,43 @@
 
 ---
 
+## Sprint 377 — Performance Review, Memory Efficiency & Carry-Forward Reconciliation
+
+**Status**: In Progress
+**Version**: 0.91.1
+
+### Delivered
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| GATE-377-01 | `segmentation::threshold::{huang,isodata,renyi}` `for i in 0..n { vec[i] }` → iterator-with-enumerate (idiomatic); `morphology::window_1d` inline `#[allow]` with justification [patch] | Done (`de26c2fc`) |
+| FMT-377-01 | `cargo fmt --check` clean (staged files); 22 working-tree diffs from cumulative agent updates remain pending rewash | Pending |
+| DOC-377-01 | 16 intra-doc-link warnings accumulated from Sprint 393-395 commits; non-blocking | Pending |
+
+### In Flight
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| PERF-377-01 | **MedianFilter O(N·n³·log n) → O(N·r²)** via Huang's sliding column histogram — bit-exact equivalence to naive reference on every radius | Next |
+| PERF-377-02 | **BilateralFilter memory-bandwidth review** — current LUT/SIMD-friendly; headroom: drop `exp` into a second LUT, separable approximation | Deferred (depends on benchmark) |
+| PERF-377-03 | **Rank/Percentile filter** — same naive O(N·n³·log n) pattern as median; bundle if algorithm portable | Deferred |
+
+### Verification (so far)
+- `cargo fmt --check`: 0 diffs (staged)
+- `cargo clippy --workspace --all-targets -- -D warnings`: 0 warnings
+- `cargo nextest run -p ritk-segmentation -E 'test(threshold)'`: 120/120 passed
+- `cargo nextest run -p ritk-filter -E 'test(unary_minus)|test(round_half)'`: 2/2 passed
+
+### Known WIP in working tree (parallel agent; do NOT touch)
+- `crates/ritk-filter/src/transform/cyclic_shift.rs` (new)
+- `crates/ritk-filter/src/transform/tests_cyclic_shift.rs` (new)
+- `crates/ritk-filter/src/transform/mod.rs` (adds `pub mod cyclic_shift;`)
+- `crates/ritk-python/src/filter/transform.rs` (adds `crop` PyO3 binding)
+- `crates/ritk-python/python/ritk/_ritk/filter.pyi` (type-stub extension)
+- `crates/ritk-python/tests/test_smoke.py` (extends public-surface assertions)
+
+---
+
 ## Sprint 376 — DRY Closure, Build Hardening & Carry-Forward Reconciliation
 
 **Status**: Closure (all in-flight items delivered)
