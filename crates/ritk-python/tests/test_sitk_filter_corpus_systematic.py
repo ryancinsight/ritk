@@ -282,6 +282,25 @@ def test_binary_morphology_matches_sitk(binary_mask, name, rfn, sfn):
     assert rel == 0.0, f"{name}: rel {rel:.2e}"
 
 
+def test_bilateral_matches_sitk_matched_convention(images):
+    # ritk's `spatial_sigma` is in VOXELS; ITK's `domainSigma` is PHYSICAL (mm).
+    # The spacing cancels in the spatial Gaussian's distance/σ ratio, so on a
+    # unit-spacing image ritk(σ=s) corresponds to sitk(domainSigma=s). The small
+    # residual is ITK's narrower 2.5·σ domain radius (vs ritk's 3·σ) plus ITK's
+    # discretised 100-sample range-Gaussian lookup table (ritk uses the exact
+    # exp). Not a bug — a documented convention + ITK discretisation.
+    _, si = images
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    ri1 = ritk.Image(np.ascontiguousarray(arr[None]))  # unit spacing
+    si1 = sitk.GetImageFromArray(arr)
+    r = np.squeeze(np.asarray(ritk.filter.bilateral_filter(
+        ri1, spatial_sigma=2.0, range_sigma=50.0).to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(sitk.Bilateral(si1, domainSigma=2.0, rangeSigma=50.0)).astype(np.float64)
+    m = 12
+    rel = np.abs(r[m:-m, m:-m] - s[m:-m, m:-m]).max() / max(np.abs(s).max(), 1e-9)
+    assert rel < 5e-3, f"bilateral matched-convention rel {rel:.2e} (expected ~2.5e-3)"
+
+
 def test_binary_fill_holes_matches_sitk(binary_mask):
     rim, sim = binary_mask
     r = np.squeeze(np.asarray(ritk.segmentation.binary_fill_holes(rim).to_numpy(), np.int64))
