@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.73.6] — 2026-06-17 (Sprint 379 Increment 6: zero_crossing ITK marking)
+
+### Fixed
+- `ritk-filter`: `zero_crossing_image` now matches ITK `ZeroCrossingImageFilter`. It marked *every* exact-zero voxel as a crossing, so the Laplacian of a flat region flagged the whole area (~31 % over-detection vs `sitk.ZeroCrossing`: 42001 vs 32061 edges on cthead). ITK marks a voxel only when a 6-connected neighbour has a sign change (opposite signs, or exactly one operand is zero) AND the voxel is the side closer to zero; an exact zero is a crossing only with a non-zero neighbour. Now pixel-exact on a synthetic sphere (0 disagreements) and 32060 vs 32061 on cthead (29 voxels / 0.04 % differ only because the upstream Laplacian differs by f32 rounding at near-tie crossings).
+
 ## [0.73.5] — 2026-06-17 (Sprint 379 Increment 5: spacing-aware distance transform)
 
 ### Fixed

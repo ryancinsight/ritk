@@ -1095,6 +1095,22 @@ def test_zero_crossing_matches_sitk():
     assert np.array_equal((rz > 0.5).astype(np.uint8), szc.astype(np.uint8))
 
 
+def test_zero_crossing_flat_region_not_marked():
+    # A constant region makes the discrete Laplacian exactly 0 there. ITK
+    # ZeroCrossing marks an exact-zero voxel only if it has a NON-zero neighbour,
+    # so a flat interior is NOT a crossing. (Regression: ritk used to mark every
+    # exact-zero voxel, flagging the whole flat region — ~31% over-detection.)
+    arr = np.zeros((10, 24, 24), dtype=np.float32)
+    arr[:, :, 12:] = 100.0  # step edge at x=12; large flat regions either side
+    lap = sitk.Laplacian(_sitk(arr))
+    lapa = sitk.GetArrayFromImage(lap).astype(np.float32)
+    rz = np.asarray(ritk.filter.zero_crossing_image(_ritk(lapa)).to_numpy())
+    szc = sitk.GetArrayFromImage(sitk.ZeroCrossing(lap, 1, 0))
+    assert np.array_equal((rz > 0.5).astype(np.uint8), szc.astype(np.uint8))
+    # The flat interior (away from the edge) must be unmarked, not wholesale-flagged.
+    assert (rz[:, :, :10] > 0.5).sum() == 0
+
+
 def test_normalize_image_matches_sitk():
     # normalize_image (zero mean, unit variance) is float-exact to sitk.Normalize:
     # both divide by the SAMPLE std (÷(N−1), ITK NormalizeImageFilter convention).
