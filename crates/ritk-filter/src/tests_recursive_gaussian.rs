@@ -209,6 +209,28 @@ fn gradient_magnitude_recursive_gaussian_ramp_is_slope() {
     }
 }
 
+/// `recursive_gaussian_directional` (order 1) along x returns the signed slope of
+/// a linear ramp `f = a·x` in the interior (≈ a, in index units — no spacing
+/// division, matching the raw ITK single-axis filter). Other axes are untouched.
+#[test]
+fn recursive_gaussian_directional_ramp_slope() {
+    let nx = 96usize;
+    let a = 3.0_f64;
+    let vals: Vec<f32> = (0..nx).map(|ix| (a * ix as f64) as f32).collect();
+    let img = make_image(vals, [1, 1, nx], [1.0, 1.0, 1.0]);
+    let out = extract_vals(
+        &recursive_gaussian_directional(&img, 3.0, DerivativeOrder::First, 2).unwrap(),
+    );
+    let margin = 24;
+    for (i, &v) in out[margin..nx - margin].iter().enumerate() {
+        assert!(
+            ((v as f64) - a).abs() < 0.02,
+            "∂/∂x(G*a·x) must be {a} at interior x={}, got {v}",
+            i + margin
+        );
+    }
+}
+
 /// Smoothing with a large image and small sigma should approximate identity.
 #[test]
 fn test_small_sigma_near_identity() {

@@ -294,6 +294,37 @@ pub fn gradient_magnitude_recursive_gaussian<B: Backend>(
     Ok(image_from_vals(image, out, dims))
 }
 
+/// Single-axis recursive (Deriche) Gaussian or its directional derivative along
+/// one axis only (the other axes are untouched) — matching ITK/SimpleITK
+/// `RecursiveGaussian(sigma, normalizeAcrossScale=false, order, direction)`
+/// (float-exact). `direction` is a ritk axis index (`0 = z, 1 = y, 2 = x`); note
+/// SimpleITK's `direction` is in `(x, y, z)` order, so sitk direction `0` (x) is
+/// ritk axis `2`. Unlike `LaplacianRecursiveGaussian`, the derivative is NOT
+/// divided by the voxel spacing (it matches the raw ITK single-axis filter).
+///
+/// # Errors
+/// Returns `Err` if the data cannot be read as `f32` or `direction > 2`.
+pub fn recursive_gaussian_directional<B: Backend>(
+    image: &Image<B, 3>,
+    sigma: f64,
+    order: DerivativeOrder,
+    direction: usize,
+) -> anyhow::Result<Image<B, 3>> {
+    if direction > 2 {
+        anyhow::bail!("recursive_gaussian_directional: direction must be 0, 1, or 2, got {direction}");
+    }
+    let (vals, dims) = extract_vec(image)?;
+    let spacing = image.spacing();
+    let pixel_sigma = sigma / spacing[direction];
+    let coeffs = match order {
+        DerivativeOrder::Zero => DericheCoefficients::from_sigma(pixel_sigma),
+        DerivativeOrder::First => DericheCoefficients::first_order(pixel_sigma),
+        DerivativeOrder::Second => DericheCoefficients::second_order(pixel_sigma),
+    };
+    let out = apply_deriche_1d(&vals, dims, direction, &coeffs, pixel_sigma);
+    Ok(image_from_vals(image, out, dims))
+}
+
 /// Separable zero-order recursive (Deriche) Gaussian smoothing with a per-axis
 /// physical `sigmas[d]` (broadcast from the last element). This is the blur
 /// ITK/SimpleITK `UnsharpMask` uses (`SmoothingRecursiveGaussian`), as opposed
