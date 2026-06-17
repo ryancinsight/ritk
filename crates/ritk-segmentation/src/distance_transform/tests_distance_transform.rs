@@ -264,6 +264,43 @@ fn test_two_background_voxels_minimum_distance() {
     }
 }
 
+// ── Test 7b: anisotropic spacing scales distances physically ───────────
+
+#[test]
+fn test_anisotropic_spacing_physical_distance() {
+    // 1×1×7 line, fg at x=1..5, bg at x=0 and x=6, with x-spacing = 2.0.
+    // Physical squared distance = (voxel_dist · spacing_x)²:
+    //   x=0 → (1·2)² = 4, x=6 → (1·2)² = 4, fg → 0.
+    let nx = 7;
+    let mut data = vec![1.0f32; nx];
+    data[0] = 0.0;
+    data[6] = 0.0;
+    let device = Default::default();
+    let tensor = Tensor::<TestBackend, 3>::from_data(
+        TensorData::new(data, Shape::new([1, 1, nx])),
+        &device,
+    );
+    let image = Image::new(
+        tensor,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 2.0]), // [sz, sy, sx]
+        Direction::identity(),
+    );
+    let sq = get_values(&distance_transform_squared(&image, 0.5));
+    let expected = [4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 4.0];
+    for x in 0..nx {
+        assert!(
+            (sq[x] - expected[x]).abs() < 1e-5,
+            "physical EDT²(0,0,{x}) = {}, expected {}",
+            sq[x],
+            expected[x]
+        );
+    }
+    // Euclidean (sqrt) → physical distance 2.0 at the boundary background voxels.
+    let euc = get_values(&distance_transform(&image, 0.5));
+    assert!((euc[0] - 2.0).abs() < 1e-5 && (euc[6] - 2.0).abs() < 1e-5);
+}
+
 // ── Test 8: DistanceTransform unit struct API consistency ──────────────
 
 #[test]
