@@ -95,6 +95,10 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(acos_image, &m)?)?;
     m.add_function(wrap_pyfunction!(atan_image, &m)?)?;
     m.add_function(wrap_pyfunction!(bounded_reciprocal_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(clamp_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(invert_intensity, &m)?)?;
+    m.add_function(wrap_pyfunction!(mask_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(mask_negated_image, &m)?)?;
     // Morphology
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;

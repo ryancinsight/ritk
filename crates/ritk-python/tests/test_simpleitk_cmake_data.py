@@ -129,6 +129,12 @@ _CASES = [
     ("Threshold/Threshold1", "RA-Slice-Short.nrrd",
      lambda ri: ritk.filter.threshold_outside(ri, 25000.0, 65535.0),
      lambda si: sitk.Threshold(si, 25000.0, 65535.0, 0.0), 0.0),
+    ("Clamp/default", "RA-Short.nrrd",
+     lambda ri: ritk.filter.clamp_image(ri, 0.0, 20000.0),
+     lambda si: sitk.Clamp(si, sitk.sitkFloat32, 0.0, 20000.0), 0.0),
+    ("InvertIntensity/default", "RA-Short.nrrd",
+     lambda ri: ritk.filter.invert_intensity(ri, 255.0),
+     lambda si: sitk.InvertIntensity(si, 255.0), 0.0),
     # GrayscaleDilate/Erode: upstream uses a radius-1 ball SE, which equals a
     # radius-1 box (ritk's flat SE), so this is bit-exact despite the box/ball
     # convention difference at larger radii.
@@ -266,6 +272,24 @@ def test_cmake_threshold_mask_on_upstream_data(tag, rfn, sfilt, inp):
     inside = np.squeeze(sitk.GetArrayFromImage(f.Execute(si)).astype(np.float64))
     # ritk foreground == ITK outside == 1 - inside.
     assert np.array_equal(r, 1.0 - inside), f"{tag}: mask differs from sitk complement"
+
+
+@pytest.mark.parametrize("negated", [False, True], ids=["Mask", "MaskNegated"])
+def test_cmake_mask_on_upstream_data(negated):
+    # MaskImageFilter / MaskNegatedImageFilter on RA-Short with a thresholded mask.
+    ri, si = _pair("RA-Short.nrrd")
+    arr = sitk.GetArrayFromImage(si).astype(np.float64)
+    mbin = (arr > 10000).astype(np.float32)
+    rim = ritk.Image(np.ascontiguousarray(mbin))
+    sim = sitk.GetImageFromArray((arr > 10000).astype(np.uint8))
+    sim.CopyInformation(si)
+    if negated:
+        r = ritk.filter.mask_negated_image(ri, rim, 0.0)
+        s = sitk.MaskNegated(si, sim, 0.0)
+    else:
+        r = ritk.filter.mask_image(ri, rim, 0.0)
+        s = sitk.Mask(si, sim, 0.0)
+    assert _rel(r, s, m=2) == 0.0
 
 
 def test_cmake_zero_crossing_on_upstream_data():

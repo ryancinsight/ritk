@@ -3,7 +3,8 @@
 ## [0.76.0] — 2026-06-17 (Sprint 379 Increment 10: unary math filter Python bindings)
 
 ### Added
-- `ritk-python`: exposed the unary math image filters (already present in `ritk-filter`) to the Python API — `abs_image`, `sqrt_image`, `square_image`, `exp_image`, `log_image`, `sin_image`, `cos_image`, `tan_image`, `asin_image`, `acos_image`, `atan_image`, `bounded_reciprocal_image`. Each is **float/bit-exact** to its SimpleITK counterpart (`sitk.Abs/Sqrt/Square/Exp/Log/Sin/Cos/Tan/Asin/Acos/Atan`; abs/sqrt/square/log bit-exact, transcendentals ~5e-8) on the canonical SimpleITK test inputs. Closes the unary-math gap in ritk's SimpleITK filter coverage. Includes `.pyi` stubs and 11 new upstream cmake parity cases (`test_simpleitk_cmake_data.py`).
+- `ritk-python`: exposed the unary math image filters (already present in `ritk-filter`) to the Python API — `abs_image`, `sqrt_image`, `square_image`, `exp_image`, `log_image`, `sin_image`, `cos_image`, `tan_image`, `asin_image`, `acos_image`, `atan_image`, `bounded_reciprocal_image`. Each is **float/bit-exact** to its SimpleITK counterpart (`sitk.Abs/Sqrt/Square/Exp/Log/Sin/Cos/Tan/Asin/Acos/Atan`; abs/sqrt/square/log bit-exact, transcendentals ~5e-8) on the canonical SimpleITK test inputs. Closes the unary-math gap in ritk's SimpleITK filter coverage.
+- `ritk-python`: exposed `clamp_image` (ITK `Clamp`), `invert_intensity` (ITK `InvertIntensity`), `mask_image` (ITK `Mask`), `mask_negated_image` (ITK `MaskNegated`) — all bit-exact to SimpleITK. Together with the math family: `.pyi` stubs added, and 15 new upstream cmake parity cases (`test_simpleitk_cmake_data.py`), bringing the data-driven cmake suite to 58 cases (63 upstream cmake cases total).
 
 ## [0.75.1] — 2026-06-17 (Sprint 379 Increment 9: Deriche recursive-Gaussian parallelism)
 

@@ -197,6 +197,22 @@ def bounded_reciprocal_image(image: Image) -> Image:
     """Pixelwise bounded reciprocal: out(x) = 1 / (1 + in(x)). ITK Parity: BoundedReciprocalImageFilter."""
     ...
 
+def clamp_image(image: Image, lower: float, upper: float) -> Image:
+    """Pixelwise clamp to [lower, upper]. ITK Parity: ClampImageFilter."""
+    ...
+
+def invert_intensity(image: Image, maximum: float = 255.0) -> Image:
+    """Invert intensities about maximum: out(x) = maximum - in(x). ITK Parity: InvertIntensityImageFilter."""
+    ...
+
+def mask_image(image: Image, mask: Image, outside_value: float = 0.0) -> Image:
+    """Keep image where mask > 0, else outside_value. ITK Parity: MaskImageFilter."""
+    ...
+
+def mask_negated_image(image: Image, mask: Image, outside_value: float = 0.0) -> Image:
+    """Keep image where mask <= 0, else outside_value. ITK Parity: MaskNegatedImageFilter."""
+    ...
+
 def maximum_images(a: Image, b: Image) -> Image:
     """Pixelwise maximum: out(x) = max(a(x), b(x)). ITK Parity: MaximumImageFilter."""
     ...

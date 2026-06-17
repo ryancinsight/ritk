@@ -12,10 +12,76 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
-    BoundedReciprocalImageFilter, CosImageFilter, DivideImageFilter, ExpImageFilter, ImageMaxFilter,
-    ImageMinFilter, LogImageFilter, MultiplyImageFilter, SinImageFilter, SqrtImageFilter,
+    BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, DivideImageFilter,
+    ExpImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter, LogImageFilter,
+    MaskImageFilter, MaskNegatedImageFilter, MultiplyImageFilter, SinImageFilter, SqrtImageFilter,
     SquareImageFilter, SubtractImageFilter, TanImageFilter,
 };
+
+/// Pixelwise clamp to `[lower, upper]`. ITK Parity: ClampImageFilter.
+#[pyfunction]
+#[pyo3(signature = (image, lower, upper))]
+pub fn clamp_image(py: Python<'_>, image: &PyImage, lower: f32, upper: f32) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        ClampImageFilter::new(lower, upper)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Invert intensities about `maximum`: out(x) = maximum − in(x).
+/// ITK Parity: InvertIntensityImageFilter.
+#[pyfunction]
+#[pyo3(signature = (image, maximum = 255.0))]
+pub fn invert_intensity(py: Python<'_>, image: &PyImage, maximum: f32) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| InvertIntensityFilter::with_maximum(maximum).apply(arc.as_ref()));
+    into_py_image(out)
+}
+
+/// Mask `image` by `mask`: keep where mask > 0, else `outside_value`.
+/// ITK Parity: MaskImageFilter.
+#[pyfunction]
+#[pyo3(signature = (image, mask, outside_value = 0.0))]
+pub fn mask_image(
+    py: Python<'_>,
+    image: &PyImage,
+    mask: &PyImage,
+    outside_value: f32,
+) -> RitkResult<PyImage> {
+    let img = std::sync::Arc::clone(&image.inner);
+    let msk = std::sync::Arc::clone(&mask.inner);
+    py.allow_threads(|| {
+        MaskImageFilter::new()
+            .with_outside_value(outside_value)
+            .apply(img.as_ref(), msk.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Mask `image` by the negation of `mask`: keep where mask ≤ 0, else
+/// `outside_value`. ITK Parity: MaskNegatedImageFilter.
+#[pyfunction]
+#[pyo3(signature = (image, mask, outside_value = 0.0))]
+pub fn mask_negated_image(
+    py: Python<'_>,
+    image: &PyImage,
+    mask: &PyImage,
+    outside_value: f32,
+) -> RitkResult<PyImage> {
+    let img = std::sync::Arc::clone(&image.inner);
+    let msk = std::sync::Arc::clone(&mask.inner);
+    py.allow_threads(|| {
+        MaskNegatedImageFilter::new()
+            .with_outside_value(outside_value)
+            .apply(img.as_ref(), msk.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
 
 /// Generate a pixelwise unary-math `#[pyfunction]` that mirrors an ITK unary
 /// math image filter. Each applies `Filter::new().apply` to the input under
