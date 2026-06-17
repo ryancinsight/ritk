@@ -126,6 +126,27 @@ _CASES = [
     ("Threshold/Threshold1", "RA-Slice-Short.nrrd",
      lambda ri: ritk.filter.threshold_outside(ri, 25000.0, 65535.0),
      lambda si: sitk.Threshold(si, 25000.0, 65535.0, 0.0), 0.0),
+    # GrayscaleDilate/Erode: upstream uses a radius-1 ball SE, which equals a
+    # radius-1 box (ritk's flat SE), so this is bit-exact despite the box/ball
+    # convention difference at larger radii.
+    ("GrayscaleDilate/GrayscaleDilate", "STAPLE1.png",
+     lambda ri: ritk.filter.grayscale_dilation(ri, 1),
+     lambda si: sitk.GrayscaleDilate(si, [1, 1], sitk.sitkBall), 0.0),
+    ("GrayscaleErode/GrayscaleErode", "STAPLE1.png",
+     lambda ri: ritk.filter.grayscale_erosion(ri, 1),
+     lambda si: sitk.GrayscaleErode(si, [1, 1], sitk.sitkBall), 0.0),
+]
+
+# Two-input image-arithmetic cases (<Filter>.yaml::tag with two inputs).
+_BINARY_CASES = [
+    ("Add/3d", "RA-Short.nrrd", "RA-Short.nrrd",
+     lambda a, b: ritk.filter.add_images(a, b), lambda a, b: sitk.Add(a, b), 0.0),
+    ("Subtract/3D", "RA-Short.nrrd", "RA-Short.nrrd",
+     lambda a, b: ritk.filter.subtract_images(a, b), lambda a, b: sitk.Subtract(a, b), 0.0),
+    ("Subtract/2D", "RA-Slice-Float.nrrd", "RA-Slice-Float.nrrd",
+     lambda a, b: ritk.filter.subtract_images(a, b), lambda a, b: sitk.Subtract(a, b), 0.0),
+    ("Multiply/defaults", "Ramp-Zero-One-Float.nrrd", "Ramp-One-Zero-Float.nrrd",
+     lambda a, b: ritk.filter.multiply_images(a, b), lambda a, b: sitk.Multiply(a, b), 0.0),
 ]
 
 
@@ -144,3 +165,14 @@ def test_cmake_case_on_upstream_data(tag, name, rfn, sfn, tol):
         assert rel == 0.0, f"{tag}: expected bit-exact on {name}, got rel {rel:.2e}"
     else:
         assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e} on {name}"
+
+
+@pytest.mark.parametrize("tag,na,nb,rfn,sfn,tol", _BINARY_CASES, ids=[c[0] for c in _BINARY_CASES])
+def test_cmake_binary_case_on_upstream_data(tag, na, nb, rfn, sfn, tol):
+    ra, sa = _pair(na)
+    rb, sb = _pair(nb)
+    rel = _rel(rfn(ra, rb), sfn(sa, sb))
+    if tol == 0.0:
+        assert rel == 0.0, f"{tag}: expected bit-exact on {na},{nb}, got rel {rel:.2e}"
+    else:
+        assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e} on {na},{nb}"
