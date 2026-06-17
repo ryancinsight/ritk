@@ -76,13 +76,21 @@ pub fn bilateral_filter(
 /// RF coil non-uniformity. Based on Tustison et al. (2010),
 /// *IEEE Trans. Med. Imaging* 29(6):1310–1320.
 ///
+/// This is a from-scratch N4 (not a wrapper around ITK), and it effectively
+/// removes bias (it reduces within-tissue coefficient of variation comparably
+/// to ANTsPy's `n4_bias_field_correction` and SimpleITK's `N4BiasFieldCorrection`).
+/// Because N4 is ill-posed, the *estimated bias field* differs from those
+/// reference implementations (ANTs and SimpleITK themselves differ slightly);
+/// ANTsPy is the preferred reference here. `num_iterations` and `noise_estimate`
+/// have limited effect on the result for typical inputs (the fit converges
+/// quickly); exact ANTs parity would require matching ITK's B-spline mesh and
+/// Wiener-sharpening calibration.
+///
 /// Args:
 ///     image: Input PyImage (must be f32, values > 0).
 ///     num_fitting_levels: Number of B-spline refinement levels (default 4).
-///     num_iterations: Iterations per level (default 50).
-///     noise_estimate: Fraction of intensity range modelling noise/bias spread
-///         (default 0.01 for typical MRI; use 0.05–0.10 for
-///         images with large bias fields).
+///     num_iterations: Maximum iterations per level (default 50).
+///     noise_estimate: Histogram-sharpening / Wiener noise term (default 0.01).
 ///
 /// Returns:
 ///     Bias-corrected PyImage with identical shape and spatial metadata.
