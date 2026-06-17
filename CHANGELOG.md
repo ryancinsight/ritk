@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [Unreleased] — 2026-06-17 (Sprint 393: SimpleITK cmake-suite coverage survey)
+
+### Added
+- `ritk-python` (tests): `SITK_CMAKE_COVERAGE.md` — an authoritative cross-reference of ritk's SimpleITK differential-parity coverage against the **full upstream filter set** (the 298 `Code/BasicFilters/yaml/*.yaml` definitions that generate SimpleITK's cmake tests, queried live via `gh`). **135 / 298 covered**; the 163 uncovered are itemised, dominated by filter families ritk does not implement (label-map algebra, complex-FFT component ops, level-set/demons registration variants, image sources). Regenerable via `tests/_gen_sitk_coverage.py`. This makes the gap to exhaustive upstream coverage explicit and trackable.
+- `ritk-python` (tests): `BoundedReciprocalImageFilter` cmake parity case (float-exact to `sitk.BoundedReciprocal`, rel 3e-8) — the binding existed and was unbound from the cmake suite.
+
 ## [0.89.0] — 2026-06-17 (Sprint 392: O(N) separable grayscale morphology)
 
 ### Performance

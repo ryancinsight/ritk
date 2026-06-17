@@ -265,6 +265,7 @@ _UNARY_MATH = [
     ("AsinImageFilter", ritk.filter.asin_image, sitk.Asin, 1e-6),
     ("AcosImageFilter", ritk.filter.acos_image, sitk.Acos, 1e-6),
     ("AtanImageFilter", ritk.filter.atan_image, sitk.Atan, 1e-6),
+    ("BoundedReciprocalImageFilter", ritk.filter.bounded_reciprocal_image, sitk.BoundedReciprocal, 1e-6),
 ]
 
 
