@@ -190,6 +190,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(complex_to_imaginary, &m)?)?;
     m.add_function(wrap_pyfunction!(complex_to_modulus, &m)?)?;
     m.add_function(wrap_pyfunction!(complex_to_phase, &m)?)?;
+    m.add_function(wrap_pyfunction!(real_and_imaginary_to_complex, &m)?)?;
+    m.add_function(wrap_pyfunction!(magnitude_and_phase_to_complex, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_convolve, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_convolve_3d, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_normalized_correlate, &m)?)?;

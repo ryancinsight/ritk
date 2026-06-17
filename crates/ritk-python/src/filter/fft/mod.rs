@@ -63,6 +63,63 @@ fn complex_map(image: &PyImage, f: impl Fn(f32, f32) -> f32) -> RitkResult<PyIma
     )))
 }
 
+/// Build an interleaved complex image `[D, H, 2W]` from two real `[D, H, W]`
+/// inputs `a`, `b`, mapping each pair through `f -> (re, im)`.
+fn build_complex(
+    a: &PyImage,
+    b: &PyImage,
+    f: impl Fn(f32, f32) -> (f32, f32),
+) -> RitkResult<PyImage> {
+    let [d, h, w] = a.inner.shape();
+    if b.inner.shape() != [d, h, w] {
+        return Err(RitkPyError::value(format!(
+            "complex build: shapes differ ({:?} vs {:?})",
+            [d, h, w],
+            b.inner.shape()
+        )));
+    }
+    let da = a.inner.data_slice();
+    let db = b.inner.data_slice();
+    let w2 = w * 2;
+    let mut out = vec![0.0_f32; d * h * w2];
+    for z in 0..d {
+        for y in 0..h {
+            for x in 0..w {
+                let (re, im) = f(da[z * h * w + y * w + x], db[z * h * w + y * w + x]);
+                out[z * h * w2 + y * w2 + 2 * x] = re;
+                out[z * h * w2 + y * w2 + 2 * x + 1] = im;
+            }
+        }
+    }
+    let tensor = Tensor::<Backend, 3>::from_data(
+        TensorData::new(out, Shape::new([d, h, w2])),
+        &NdArrayDevice::default(),
+    );
+    Ok(into_py_image(Image::new(
+        tensor,
+        *a.inner.origin(),
+        *a.inner.spacing(),
+        *a.inner.direction(),
+    )))
+}
+
+/// Build a complex image from real and imaginary parts (interleaved `[D,H,2W]`).
+/// ITK Parity: RealAndImaginaryToComplexImageFilter (`sitk.RealAndImaginaryToComplex`).
+#[pyfunction]
+pub fn real_and_imaginary_to_complex(real: &PyImage, imaginary: &PyImage) -> RitkResult<PyImage> {
+    build_complex(real, imaginary, |re, im| (re, im))
+}
+
+/// Build a complex image from magnitude and phase: `re = m·cos(p)`, `im = m·sin(p)`.
+/// ITK Parity: MagnitudeAndPhaseToComplexImageFilter (`sitk.MagnitudeAndPhaseToComplex`).
+#[pyfunction]
+pub fn magnitude_and_phase_to_complex(
+    magnitude: &PyImage,
+    phase: &PyImage,
+) -> RitkResult<PyImage> {
+    build_complex(magnitude, phase, |m, p| (m * p.cos(), m * p.sin()))
+}
+
 /// Real part of a complex image. ITK Parity: ComplexToRealImageFilter
 /// (`sitk.ComplexToReal`).
 #[pyfunction]

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.98.1] — 2026-06-17 (Sprint 407: complex builders — RealAndImaginary / MagnitudeAndPhase)
+
+### Added
+- `ritk-python`: the inverse complex-component builders — `filter.real_and_imaginary_to_complex(real, imaginary)` and `filter.magnitude_and_phase_to_complex(magnitude, phase)` (`re = m·cos p`, `im = m·sin p`), producing ritk's interleaved `[D,H,2W]` spectrum (ITK `RealAndImaginaryToComplexImageFilter` / `MagnitudeAndPhaseToComplexImageFilter`). Share one `build_complex` interleave helper. Validated against `sitk.RealAndImaginaryToComplex` / `sitk.MagnitudeAndPhaseToComplex` through the now-exact `ComplexToReal`/`ComplexToModulus`. `.pyi` stubs; coverage 171/298 (gives `ritk` its own `RealAndImaginaryToComplex` binding rather than relying on sitk's as a test helper).
+
 ## [0.98.0] — 2026-06-17 (Sprint 406: complex-FFT component ops)
 
 ### Added

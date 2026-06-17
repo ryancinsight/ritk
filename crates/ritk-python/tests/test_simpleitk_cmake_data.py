@@ -902,6 +902,28 @@ def test_cmake_complex_ops_on_upstream_data():
         else:
             assert d < tol, f"ComplexTo{name}: maxdiff {d:.2e} >= {tol:.0e}"
 
+    # Inverse builders: ritk-built complex must agree with sitk-built complex
+    # (compared through the now-validated ComplexToModulus / ComplexToReal).
+    rri = ritk.filter.real_and_imaginary_to_complex(
+        ritk.Image(np.ascontiguousarray(real[None])),
+        ritk.Image(np.ascontiguousarray(imag[None])))
+    assert np.array_equal(
+        np.squeeze(np.asarray(ritk.filter.complex_to_real(rri).to_numpy(), np.float64)),
+        np.squeeze(sitk.GetArrayFromImage(sitk.ComplexToReal(sc)).astype(np.float64)),
+    ), "RealAndImaginaryToComplex differs from sitk"
+    # MagnitudeAndPhaseToComplex: |m·e^{ip}| == m.
+    mag = np.abs(real).astype(np.float32)
+    ph = (real / (np.abs(real).max())).astype(np.float32)
+    rmp = ritk.filter.magnitude_and_phase_to_complex(
+        ritk.Image(np.ascontiguousarray(mag[None])),
+        ritk.Image(np.ascontiguousarray(ph[None])))
+    smp = sitk.MagnitudeAndPhaseToComplex(
+        sitk.GetImageFromArray(mag), sitk.GetImageFromArray(ph))
+    assert np.abs(
+        np.squeeze(np.asarray(ritk.filter.complex_to_modulus(rmp).to_numpy(), np.float64))
+        - np.squeeze(sitk.GetArrayFromImage(sitk.ComplexToModulus(smp)).astype(np.float64))
+    ).max() < 1e-3, "MagnitudeAndPhaseToComplex differs from sitk"
+
 
 def test_cmake_vector_ops_on_upstream_data():
     # Compose three scalar images into a vector image, then VectorMagnitude /
