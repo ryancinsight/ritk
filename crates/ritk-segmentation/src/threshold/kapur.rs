@@ -16,7 +16,8 @@
 //!
 //! The optimal threshold in original intensity units is:
 //!
-//!   t*_intensity = x_min + t* · (x_max − x_min) / (N − 1)
+//!   t*_intensity = centre of the selected bin (ITK histogram geometry; see
+//!   `auto_threshold`)
 //!
 //! # Complexity
 //! Histogram construction: O(n) voxels.
@@ -31,7 +32,7 @@
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 
-use super::auto_threshold::AutoThreshold;
+use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -106,7 +107,7 @@ impl AutoThreshold for KapurThreshold {
     ///    (background and foreground Shannon entropies of their respective
     ///    conditional distributions).
     /// 4. t* = argmax H(t).
-    /// 5. t*_intensity = x_min + t* / (N−1) · (x_max − x_min).
+    /// 5. t*_intensity = centre of the selected bin (ITK `GetMeasurement`).
     fn compute_threshold(&self, hist: &[u32], n_bins: usize, x_min: f32, x_max: f32) -> f32 {
         let n: u64 = hist.iter().map(|&c| c as u64).sum();
         if n == 0 {
@@ -159,8 +160,8 @@ impl AutoThreshold for KapurThreshold {
             }
         }
 
-        // Convert best bin index to intensity units.
-        x_min + best_t as f32 / (n_bins - 1) as f32 * (x_max - x_min)
+        // ITK MaximumEntropyThresholdCalculator reports the centre of the bin.
+        bin_center(x_min, itk_bin_width(x_min, x_max, n_bins), best_t)
     }
 }
 
@@ -172,82 +173,11 @@ pub fn kapur_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
 }
 
 /// Compute the Kapur threshold for a contiguous f32 intensity slice.
+///
+/// Delegates to the shared [`threshold_from_slice`] pipeline so it is
+/// bit-identical to [`KapurThreshold::compute`].
 pub fn compute_kapur_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
-    assert!(num_bins >= 2, "num_bins must be >= 2");
-
-    let n = slice.len();
-    if n == 0 {
-        return 0.0;
-    }
-
-    // ── Intensity range ────────────────────────────────────────────────────────
-    let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
-    let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-    // Degenerate case: constant image has no separable classes.
-    if (x_max - x_min).abs() < f32::EPSILON {
-        return x_min;
-    }
-
-    let range = x_max - x_min;
-    let num_bins_f = (num_bins - 1) as f32;
-
-    // ── Build normalised histogram ─────────────────────────────────────────────
-    let mut counts = vec![0u64; num_bins];
-    for &v in slice {
-        let bin = ((v - x_min) / range * num_bins_f).floor() as usize;
-        let bin = bin.min(num_bins - 1);
-        counts[bin] += 1;
-    }
-    let h: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
-
-    // ── Prefix sums for cumulative probability ─────────────────────────────────
-    let mut cum_prob = vec![0.0_f64; num_bins];
-    cum_prob[0] = h[0];
-    for i in 1..num_bins {
-        cum_prob[i] = cum_prob[i - 1] + h[i];
-    }
-
-    // ── Search for optimal threshold ───────────────────────────────────────────
-    let mut best_entropy = f64::NEG_INFINITY;
-    let mut best_t = 0_usize;
-
-    for (t, &cp_t) in cum_prob.iter().enumerate().take(num_bins - 1) {
-        let p_b = cp_t;
-        let p_f = 1.0 - p_b;
-
-        // Skip degenerate splits where one class is empty.
-        if p_b < super::PROB_ZERO_GUARD || p_f < super::PROB_ZERO_GUARD {
-            continue;
-        }
-
-        // Background entropy: H_b = -Σ_{i=0}^{t} (p(i)/P_b) · ln(p(i)/P_b)
-        let mut h_b = 0.0_f64;
-        for &hi in h.iter().take(t + 1) {
-            if hi > super::PROB_ZERO_GUARD {
-                let q = hi / p_b;
-                h_b -= q * q.ln();
-            }
-        }
-
-        // Foreground entropy: H_f = -Σ_{i=t+1}^{N-1} (p(i)/P_f) · ln(p(i)/P_f)
-        let mut h_f = 0.0_f64;
-        for &hi in h.iter().take(num_bins).skip(t + 1) {
-            if hi > super::PROB_ZERO_GUARD {
-                let q = hi / p_f;
-                h_f -= q * q.ln();
-            }
-        }
-
-        let total_entropy = h_b + h_f;
-        if total_entropy > best_entropy {
-            best_entropy = total_entropy;
-            best_t = t;
-        }
-    }
-
-    // ── Convert best bin index to intensity units ──────────────────────────────
-    x_min + best_t as f32 / num_bins_f * range
+    threshold_from_slice(&KapurThreshold::with_bins(num_bins), slice)
 }
 
 #[cfg(test)]

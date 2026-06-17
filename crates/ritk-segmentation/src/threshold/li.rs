@@ -17,7 +17,8 @@
 //!    t_{n+1} = (μ_b + μ_f) / 2
 //! 4. Converge when |t_{n+1} − t_n| < tolerance (1e-6) or max_iterations reached.
 //! 5. Convert the converged bin index to intensity units:
-//!    t*_intensity = x_min + t* / (N − 1) · range
+//!    t*_intensity = centre of the converged bin under ITK histogram geometry
+//!    (see `auto_threshold`); the iteration runs in measurement space.
 //!
 //! # Complexity
 //!
@@ -33,7 +34,7 @@
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 
-use super::auto_threshold::AutoThreshold;
+use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -95,76 +96,100 @@ impl AutoThreshold for LiThreshold {
         self.num_bins
     }
 
-    /// Li's minimum cross-entropy iterative refinement.
+    /// Li's minimum cross-entropy iterative refinement, faithful to
+    /// `itk::LiThresholdCalculator`.
     ///
     /// # Algorithm
-    /// 1. Normalise `hist` to probabilities `h[i] = count[i] / n_total`.
-    /// 2. Initialise t₀ = global mean bin index.
-    /// 3. Iterate up to `self.max_iterations`:
-    ///    - Compute background mean μ_b (bins [0, ⌊t⌋]).
-    ///    - Compute foreground mean μ_f (bins [⌊t⌋+1, N−1]).
-    ///    - t_{n+1} = (μ_b + μ_f) / 2.
-    /// 4. Converge when |t_{n+1} − t_n| < 1e-6.
-    /// 5. t*_intensity = x_min + t* / (N−1) · (x_max − x_min).
+    /// The iteration runs in **measurement (intensity) space** over the bin
+    /// centres `c[i] = x_min + (i + 0.5)·bin_width`, not bin-index space — the
+    /// `log` in Li's update is non-linear, so index-space and measurement-space
+    /// iterations converge to different thresholds.
+    ///
+    /// 1. `mean = Σ c[i]·f[i] / Σ f[i]`; initialise `new = mean`, `old = NaN`.
+    /// 2. `bin_min = min(x_min, 0)` (shift applied before the logs so they are
+    ///    defined for non-positive intensities).
+    /// 3. Loop while `|new − old| > 0.5` (ITK's fixed tolerance):
+    ///    - `ht` = bin index containing `old`.
+    ///    - `μ_b` = mean centre of bins `[0, ht]`, `μ_f` = mean centre of bins
+    ///      `(ht, N)`; both shifted by `−bin_min`.
+    ///    - `temp = (μ_b − μ_f) / (ln μ_b − ln μ_f)`, **rounded to the nearest
+    ///      integer** (ITK truncates `temp ± 0.5` toward zero), then
+    ///      `new = temp + bin_min`.
+    /// 4. Return the centre of the bin containing the converged `new`
+    ///    (ITK `GetMeasurement(ht)`).
     fn compute_threshold(&self, hist: &[u32], n_bins: usize, x_min: f32, x_max: f32) -> f32 {
-        let n: u64 = hist.iter().map(|&c| c as u64).sum();
-        if n == 0 {
+        let total: f64 = hist.iter().map(|&c| c as f64).sum();
+        if total == 0.0 {
             return x_min;
         }
 
-        // Normalise to probabilities.
-        let h: Vec<f64> = hist.iter().map(|&c| c as f64 / n as f64).collect();
+        let bin_width = itk_bin_width(x_min, x_max, n_bins);
+        let x_lo = x_min as f64;
+        let center = |i: usize| x_lo + (i as f64 + 0.5) * bin_width;
+        let index_of = |v: f64| -> usize {
+            (((v - x_lo) / bin_width).floor().max(0.0) as usize).min(n_bins - 1)
+        };
 
-        // Initialise at global mean bin index.
-        let global_mean: f64 = (0..n_bins).map(|i| i as f64 * h[i]).sum();
-        let mut t = global_mean;
-        let tolerance = 1e-6_f64;
+        // Inclusive prefix sums of frequency and centre-weighted frequency for
+        // O(1) background/foreground means at any split bin.
+        let mut prefix_f = vec![0.0_f64; n_bins];
+        let mut prefix_cf = vec![0.0_f64; n_bins];
+        let mut acc_f = 0.0_f64;
+        let mut acc_cf = 0.0_f64;
+        for i in 0..n_bins {
+            acc_f += hist[i] as f64;
+            acc_cf += center(i) * hist[i] as f64;
+            prefix_f[i] = acc_f;
+            prefix_cf[i] = acc_cf;
+        }
+        let total_cf = acc_cf;
+
+        // ITK shifts means by bin_min = min(x_min, 0) so the logarithms are
+        // defined when intensities are non-positive.
+        let bin_min = x_lo.min(0.0);
+        let eps = f64::EPSILON;
+
+        let mut new_thresh = total_cf / total; // global mean intensity
+        let mut old_thresh = f64::NAN;
 
         for _ in 0..self.max_iterations {
-            let t_floor = (t.floor() as usize).min(n_bins - 1);
-
-            // Background: bins [0, t_floor].
-            let mut w_b = 0.0_f64;
-            let mut sum_b = 0.0_f64;
-            for (i, &hi) in h.iter().enumerate().take(t_floor + 1) {
-                w_b += hi;
-                sum_b += i as f64 * hi;
+            if (new_thresh - old_thresh).abs() <= 0.5 {
+                break;
             }
+            old_thresh = new_thresh;
 
-            // Foreground: bins [t_floor+1, N-1].
-            let mut w_f = 0.0_f64;
-            let mut sum_f = 0.0_f64;
-            for (i, &hi) in h.iter().enumerate().take(n_bins).skip(t_floor + 1) {
-                w_f += hi;
-                sum_f += i as f64 * hi;
-            }
-
-            if w_b < super::PROB_ZERO_GUARD || w_f < super::PROB_ZERO_GUARD {
+            let ht = index_of(old_thresh);
+            let n_back = prefix_f[ht];
+            let s_back = prefix_cf[ht];
+            let n_fore = total - n_back;
+            let s_fore = total_cf - s_back;
+            if n_back == 0.0 || n_fore == 0.0 {
                 break;
             }
 
-            // Li's minimum cross-entropy update is the *logarithmic mean* of the
-            // two class means, not their arithmetic mean — the latter is the
-            // ISODATA/intermeans method and converges to a different threshold.
-            // Means are taken in 1-based bin space so the logarithm is defined
-            // when a class mean sits at bin 0 (matches ITK's LiThresholdCalculator).
-            let mu_b = sum_b / w_b + 1.0;
-            let mu_f = sum_f / w_f + 1.0;
-            let t_new = if (mu_b - mu_f).abs() < super::PROB_ZERO_GUARD {
-                t
+            let mean_back = s_back / n_back - bin_min;
+            let mean_obj = s_fore / n_fore - bin_min;
+            if mean_back <= 0.0 || mean_obj <= 0.0 {
+                break;
+            }
+
+            let temp = if (mean_back - mean_obj).abs() < eps {
+                mean_back
             } else {
-                (mu_b - mu_f) / (mu_b.ln() - mu_f.ln()) - 1.0
+                (mean_back - mean_obj) / (mean_back.ln() - mean_obj.ln())
             };
 
-            if (t_new - t).abs() < tolerance {
-                t = t_new;
-                break;
-            }
-            t = t_new;
+            // ITK rounds toward the nearest integer, truncating ±0.5 toward zero.
+            let temp = if temp < -eps {
+                (temp - 0.5).trunc()
+            } else {
+                (temp + 0.5).trunc()
+            };
+            new_thresh = temp + bin_min;
         }
 
-        // Convert bin index to intensity units.
-        x_min + t as f32 / (n_bins - 1) as f32 * (x_max - x_min)
+        // ITK returns the centre of the bin containing the converged threshold.
+        bin_center(x_min, bin_width, index_of(new_thresh))
     }
 }
 
@@ -176,90 +201,22 @@ pub fn li_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
 }
 
 /// Compute the Li threshold for a contiguous f32 intensity slice.
+///
+/// Delegates to the shared [`threshold_from_slice`] pipeline so it is
+/// bit-identical to [`LiThreshold::compute`].
 pub fn compute_li_threshold_from_slice(
     slice: &[f32],
     num_bins: usize,
     max_iterations: usize,
 ) -> f32 {
     assert!(num_bins >= 2, "num_bins must be >= 2");
-
-    let n = slice.len();
-    if n == 0 {
-        return 0.0;
-    }
-
-    // ── Intensity range ────────────────────────────────────────────────────────
-    let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
-    let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-    // Degenerate case: constant image has no separable classes.
-    if (x_max - x_min).abs() < f32::EPSILON {
-        return x_min;
-    }
-
-    let range = x_max - x_min;
-    let num_bins_f = (num_bins - 1) as f64;
-
-    // ── Build normalised histogram ─────────────────────────────────────────────
-    let mut counts = vec![0u64; num_bins];
-    for &v in slice {
-        let bin = ((v - x_min) / range * num_bins_f as f32).floor() as usize;
-        let bin = bin.min(num_bins - 1);
-        counts[bin] += 1;
-    }
-    let h: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
-
-    // ── Global mean bin index (initialization) ─────────────────────────────────
-    let global_mean: f64 = (0..num_bins).map(|i| i as f64 * h[i]).sum();
-
-    // ── Iterative refinement ───────────────────────────────────────────────────
-    let mut t = global_mean;
-    let tolerance = 1e-6_f64;
-
-    for _ in 0..max_iterations {
-        let t_floor = (t.floor() as usize).min(num_bins - 1);
-
-        // ── Background: bins [0, t_floor] ──────────────────────────────────────
-        let mut w_b = 0.0_f64;
-        let mut sum_b = 0.0_f64;
-        for (i, &hi) in h.iter().enumerate().take(t_floor + 1) {
-            w_b += hi;
-            sum_b += i as f64 * hi;
-        }
-
-        // ── Foreground: bins [t_floor+1, N-1] ─────────────────────────────────
-        let mut w_f = 0.0_f64;
-        let mut sum_f = 0.0_f64;
-        for (i, &hi) in h.iter().enumerate().take(num_bins).skip(t_floor + 1) {
-            w_f += hi;
-            sum_f += i as f64 * hi;
-        }
-
-        // If either class is empty, the threshold is at the boundary.
-        if w_b < super::PROB_ZERO_GUARD || w_f < super::PROB_ZERO_GUARD {
-            break;
-        }
-
-        // Li's minimum cross-entropy update: the logarithmic mean of the class
-        // means (1-based bin space so log is defined at bin 0), not the arithmetic
-        // mean — (mu_b + mu_f)/2 is the ISODATA method and converges elsewhere.
-        let mu_b = sum_b / w_b + 1.0;
-        let mu_f = sum_f / w_f + 1.0;
-        let t_new = if (mu_b - mu_f).abs() < super::PROB_ZERO_GUARD {
-            t
-        } else {
-            (mu_b - mu_f) / (mu_b.ln() - mu_f.ln()) - 1.0
-        };
-
-        if (t_new - t).abs() < tolerance {
-            t = t_new;
-            break;
-        }
-        t = t_new;
-    }
-
-    // ── Convert bin index to intensity units ───────────────────────────────────
-    x_min + (t as f32) / num_bins_f as f32 * range
+    threshold_from_slice(
+        &LiThreshold {
+            num_bins,
+            max_iterations,
+        },
+        slice,
+    )
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

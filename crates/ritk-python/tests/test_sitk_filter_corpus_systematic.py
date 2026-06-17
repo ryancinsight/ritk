@@ -220,3 +220,51 @@ def test_zoom_matches_sitk_magnify(slice2d):
     ref_grid.SetOrigin(si.GetOrigin())
     ref = sitk.Resample(si, ref_grid, sitk.Transform(), sitk.sitkLinear, 0.0)
     assert _rel2d(out, ref) < 1e-6
+
+
+# ── Automatic threshold-selection family vs the ITK histogram calculators ──────
+# Every ritk auto-threshold reproduces the corresponding ITK calculator's value
+# under ITK's 256-bin histogram geometry (MarginalScale=100 upper-edge margin;
+# Otsu/multi-Otsu report a bin edge, Li/Yen/Kapur/Triangle a bin centre).
+
+def _sitk_threshold(filter_cls, si):
+    f = filter_cls()
+    f.SetInsideValue(1)
+    f.SetOutsideValue(0)
+    f.SetNumberOfHistogramBins(256)
+    f.Execute(si)
+    return f.GetThreshold()
+
+
+_AUTO_THRESHOLDS = [
+    ("otsu", ritk.segmentation.otsu_threshold, sitk.OtsuThresholdImageFilter),
+    ("li", ritk.segmentation.li_threshold, sitk.LiThresholdImageFilter),
+    ("yen", ritk.segmentation.yen_threshold, sitk.YenThresholdImageFilter),
+    ("triangle", ritk.segmentation.triangle_threshold, sitk.TriangleThresholdImageFilter),
+    ("kapur", ritk.segmentation.kapur_threshold, sitk.MaximumEntropyThresholdImageFilter),
+]
+
+
+@pytest.mark.parametrize("name,rfn,sfilt", _AUTO_THRESHOLDS, ids=[c[0] for c in _AUTO_THRESHOLDS])
+def test_auto_threshold_matches_sitk(images, name, rfn, sfilt):
+    ri, si = images
+    rt = rfn(ri)[0]
+    st = _sitk_threshold(sfilt, si)
+    # f32 round-trip in the histogram/entropy accumulation; the bin selection and
+    # geometry are identical, so the residual is pure single-precision noise.
+    rel = abs(rt - st) / max(abs(st), 1.0)
+    assert rel < 1e-4, f"{name}: ritk={rt} sitk={st} rel={rel:.2e}"
+
+
+def test_multi_otsu_matches_sitk(images):
+    ri, si = images
+    rt = ritk.segmentation.multi_otsu_threshold(ri, num_classes=3)
+    rv = rt[0] if isinstance(rt, tuple) else rt
+    f = sitk.OtsuMultipleThresholdsImageFilter()
+    f.SetNumberOfThresholds(2)
+    f.SetNumberOfHistogramBins(256)
+    f.Execute(si)
+    sv = f.GetThresholds()
+    assert len(rv) == len(sv) == 2
+    for r, s in zip(sorted(rv), sorted(sv)):
+        assert abs(r - s) / max(abs(s), 1.0) < 1e-4, f"multi_otsu ritk={rv} sitk={sv}"

@@ -85,23 +85,7 @@ pub trait AutoThreshold: sealed::Sealed {
     /// [`compute_threshold`](AutoThreshold::compute_threshold)).
     fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
         let (vals, _) = extract_vec_infallible(image);
-        let slice: &[f32] = &vals;
-
-        if slice.is_empty() {
-            return 0.0;
-        }
-
-        let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
-        let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-        // Degenerate: constant image has no separable classes.
-        if (x_max - x_min).abs() < f32::EPSILON {
-            return x_min;
-        }
-
-        let n_bins = self.num_bins();
-        let hist = build_histogram(slice, n_bins, x_min, x_max);
-        self.compute_threshold(&hist, n_bins, x_min, x_max)
+        threshold_from_slice(self, &vals)
     }
 
     /// Apply the auto-threshold to produce a binary mask.
@@ -135,17 +119,59 @@ pub trait AutoThreshold: sealed::Sealed {
     }
 }
 
+// ── ITK histogram model ─────────────────────────────────────────────────────────
+//
+// ITK's `HistogramThresholdImageFilter` builds its histogram with
+// `itk::Statistics::ImageToHistogramFilter` under `AutoMinimumMaximum`.  For a
+// real-valued image that filter places the lower bin edge at the image minimum
+// and the upper bin edge a *margin* above the image maximum:
+//
+//   max_edge   = x_max + (x_max − x_min) / (n_bins · MARGINAL_SCALE)
+//   bin_width  = (max_edge − x_min) / n_bins
+//   bin(v)     = clamp(⌊(v − x_min) / bin_width⌋, 0, n_bins − 1)
+//
+// with `MarginalScale = 100` (the ITK default).  The threshold calculators then
+// report either the **right edge** of the selected bin (Otsu / multi-Otsu, via
+// `Histogram::GetBinMax`) or the **bin centre** (Li / Yen / Kapur / Triangle, via
+// `Histogram::GetMeasurement`).  This module is the single source of truth for
+// that geometry; every algorithm derives its reported intensity from it so the
+// trait path and the `compute_*_from_slice` path stay bit-identical.
+
+/// ITK `ImageToHistogramFilter` default marginal scale.
+pub(crate) const HISTOGRAM_MARGINAL_SCALE: f64 = 100.0;
+
+/// ITK histogram bin width over `[x_min, x_max]` with `n_bins` bins.
+///
+/// Computed in `f64` to match ITK's `MeasurementType` accumulation, then the
+/// caller maps intensities through it.  `x_max > x_min` and `n_bins >= 2` are
+/// preconditions guaranteed by the degenerate-case guards in
+/// [`threshold_from_slice`].
+pub(crate) fn itk_bin_width(x_min: f32, x_max: f32, n_bins: usize) -> f64 {
+    let (lo, hi) = (x_min as f64, x_max as f64);
+    let max_edge = hi + (hi - lo) / (n_bins as f64 * HISTOGRAM_MARGINAL_SCALE);
+    (max_edge - lo) / n_bins as f64
+}
+
+/// Centre intensity of bin `k`: `x_min + (k + 0.5) · bin_width`.
+///
+/// Matches ITK `Histogram::GetMeasurement(k, 0)` (Li / Yen / Kapur / Triangle).
+pub(crate) fn bin_center(x_min: f32, bin_width: f64, k: usize) -> f32 {
+    (x_min as f64 + (k as f64 + 0.5) * bin_width) as f32
+}
+
+/// Right edge of bin `k`: `x_min + (k + 1) · bin_width`.
+///
+/// Matches ITK `Histogram::GetBinMax(0, k)` (Otsu / multi-Otsu).
+pub(crate) fn bin_right_edge(x_min: f32, bin_width: f64, k: usize) -> f32 {
+    (x_min as f64 + (k as f64 + 1.0) * bin_width) as f32
+}
+
 // ── Histogram construction helper ──────────────────────────────────────────────
 
-/// Build an equally-spaced histogram with `num_bins` bins over `[x_min, x_max]`.
+/// Build the ITK-convention histogram with `num_bins` bins over `[x_min, x_max]`.
 ///
-/// Bin mapping:
-///   `bin(v) = ⌊(v − x_min) / (x_max − x_min) · (num_bins − 1)⌋`
-/// clamped to `[0, num_bins − 1]`.
-///
-/// The formula uses `f32` arithmetic (`(v - x_min) / range * num_bins_m1`) to
-/// match the histogram-building convention used by the existing
-/// `compute_*_from_slice` public utilities.
+/// Bin mapping uses [`itk_bin_width`]:
+///   `bin(v) = clamp(⌊(v − x_min) / bin_width⌋, 0, num_bins − 1)`
 ///
 /// # Preconditions
 /// - `num_bins >= 2`
@@ -154,16 +180,41 @@ pub(crate) fn build_histogram(slice: &[f32], num_bins: usize, x_min: f32, x_max:
     debug_assert!(num_bins >= 2, "invariant: num_bins >= 2");
     debug_assert!(x_max > x_min, "invariant: x_max > x_min");
 
-    let range = x_max - x_min;
-    let num_bins_m1 = (num_bins - 1) as f32;
+    let bin_width = itk_bin_width(x_min, x_max, num_bins);
+    let lo = x_min as f64;
     let mut counts = vec![0u32; num_bins];
 
     for &v in slice {
-        // Formula matches the existing compute_*_from_slice implementations.
-        let bin = ((v - x_min) / range * num_bins_m1).floor() as usize;
+        let bin = ((v as f64 - lo) / bin_width).floor() as usize;
         let bin = bin.min(num_bins - 1);
         counts[bin] += 1;
     }
 
     counts
+}
+
+/// Shared extract→histogram→threshold pipeline over a flat intensity slice.
+///
+/// This is the single entry point behind both [`AutoThreshold::compute`] (which
+/// extracts the slice from an [`Image`]) and the per-algorithm
+/// `compute_*_from_slice` convenience functions, guaranteeing they agree
+/// bit-for-bit.
+///
+/// Returns `0.0` for an empty slice and `x_min` for a constant slice.
+pub(crate) fn threshold_from_slice<A: AutoThreshold + ?Sized>(algo: &A, slice: &[f32]) -> f32 {
+    if slice.is_empty() {
+        return 0.0;
+    }
+
+    let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
+    let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+
+    // Degenerate: constant image has no separable classes.
+    if (x_max - x_min).abs() < f32::EPSILON {
+        return x_min;
+    }
+
+    let n_bins = algo.num_bins();
+    let hist = build_histogram(slice, n_bins, x_min, x_max);
+    algo.compute_threshold(&hist, n_bins, x_min, x_max)
 }

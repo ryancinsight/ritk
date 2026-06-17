@@ -491,20 +491,25 @@ def test_otsu_mask_dice_vs_sitk_exceeds_threshold():
     assert d >= 0.97, "Otsu mask Dice " + str(d) + " < 0.97"
 
 
-def test_li_threshold_produces_valid_segmentation():
-    # Li minimum cross-entropy threshold (Li and Tam 1998).
-    # RITK and SimpleITK diverge significantly on this algorithm
-    # (different convergence criteria and initialisation), so this test
-    # validates RITK independently.
-    # Criterion: threshold in (0.05, 0.95); mask Dice vs ground-truth sphere >= 0.90.
+def test_li_threshold_matches_sitk():
+    # Li minimum cross-entropy threshold (Li & Tam 1998).
+    # RITK now reproduces itk::LiThresholdCalculator exactly: the iteration runs
+    # in measurement (intensity) space with ITK's fixed 0.5 tolerance, integer
+    # rounding of the cross-entropy update, and the ITK 256-bin histogram
+    # geometry. (The prior independent-validation heuristic was calibrated to the
+    # earlier index-space implementation that diverged from ITK.)
     arr = _make_noisy(radius=8)
-    sphere_gt = _make_sphere(radius=8)
-    ritk_t, mask_img = ritk.segmentation.li_threshold(_ritk(arr))
-    t = float(ritk_t)
-    assert 0.05 < t < 0.95, "Li threshold " + str(t) + " outside (0.05, 0.95)"
-    mask = mask_img.to_numpy()
-    d = _dice(mask, sphere_gt)
-    assert d >= 0.90, "Li threshold mask Dice " + str(d) + " < 0.90"
+    ritk_t = float(ritk.segmentation.li_threshold(_ritk(arr))[0])
+    si = sitk.GetImageFromArray(arr.astype(np.float32))
+    f = sitk.LiThresholdImageFilter()
+    f.SetNumberOfHistogramBins(256)
+    f.SetInsideValue(1)
+    f.SetOutsideValue(0)
+    f.Execute(si)
+    sitk_t = f.GetThreshold()
+    assert abs(ritk_t - sitk_t) / max(abs(sitk_t), 1.0) < 1e-4, (
+        "Li threshold ritk=" + str(ritk_t) + " sitk=" + str(sitk_t)
+    )
 
 
 def test_connected_components_count_equals_sitk():

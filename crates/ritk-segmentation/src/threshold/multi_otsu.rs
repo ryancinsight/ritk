@@ -36,13 +36,17 @@
 //!   For K = 2:              O(N) — degenerates to standard Otsu.
 //!
 //! # Threshold Conversion
-//! Bin threshold index t maps to physical intensity:
+//! Each boundary bin index t separates classes [.., t−1] | [t, ..]; ITK reports
+//! the boundary intensity as the left edge of bin t under its histogram geometry
+//! (see `auto_threshold`):
 //!
-//!   t_intensity = x_min + t / (N − 1) · (x_max − x_min)
+//!   t_intensity = x_min + t · bin_width
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
+
+use super::auto_threshold::{build_histogram, itk_bin_width};
 
 /// Multi-Otsu threshold segmentation into K intensity classes.
 ///
@@ -148,13 +152,9 @@ pub fn compute_multi_otsu_thresholds_from_slice(
         return vec![x_min; k_minus_1];
     }
     let range = x_max - x_min;
-    let num_bins_m1 = (num_bins - 1) as f32;
-    let mut counts = vec![0u64; num_bins];
-    for &v in slice {
-        let bin = ((v - x_min) / range * num_bins_m1).floor() as usize;
-        let bin = bin.min(num_bins - 1);
-        counts[bin] += 1;
-    }
+    // ITK histogram geometry (shared with the single-threshold calculators).
+    let bin_width = itk_bin_width(x_min, x_max, num_bins);
+    let counts = build_histogram(slice, num_bins, x_min, x_max);
     let h: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
     let mut prefix_h = vec![0.0_f64; num_bins + 1];
     let mut prefix_m = vec![0.0_f64; num_bins + 1];
@@ -185,9 +185,11 @@ pub fn compute_multi_otsu_thresholds_from_slice(
         &mut current,
         &mut best,
     );
+    // Each boundary bin index t separates classes [.., t−1] | [t, ..]; ITK reports
+    // the boundary intensity = left edge of bin t = x_min + t·bin_width.
     best.1
         .iter()
-        .map(|&t| x_min + t as f32 / num_bins_m1 * range)
+        .map(|&t| (x_min as f64 + t as f64 * bin_width) as f32)
         .collect()
 }
 

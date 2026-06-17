@@ -38,7 +38,7 @@
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 
-use super::auto_threshold::AutoThreshold;
+use super::auto_threshold::{itk_bin_width, threshold_from_slice, AutoThreshold};
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -108,7 +108,7 @@ impl AutoThreshold for TriangleThreshold {
     /// (see the module docs for the percentile-endpoint / +1 / bin-centre rules).
     fn compute_threshold(&self, hist: &[u32], n_bins: usize, x_min: f32, x_max: f32) -> f32 {
         let counts: Vec<u64> = hist.iter().map(|&c| c as u64).collect();
-        let bin_size = (x_max as f64 - x_min as f64) / n_bins as f64;
+        let bin_size = itk_bin_width(x_min, x_max, n_bins);
         triangle_from_counts(&counts, x_min as f64, bin_size)
     }
 }
@@ -199,36 +199,10 @@ pub fn triangle_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f3
 /// Compute the triangle threshold for a contiguous f32 intensity slice,
 /// matching `itk::TriangleThresholdCalculator`.
 ///
-/// The histogram spans `[x_min, x_max]` with `num_bins` equal-width bins
-/// (`bin_size = (x_max − x_min)/num_bins`, ITK's convention), then delegates to
-/// [`triangle_from_counts`] for the percentile-endpoint geometry.
+/// Delegates to the shared [`threshold_from_slice`] pipeline so it is
+/// bit-identical to [`TriangleThreshold::compute`].
 pub fn compute_triangle_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
-    assert!(num_bins >= 2, "num_bins must be >= 2");
-
-    if slice.is_empty() {
-        return 0.0;
-    }
-
-    let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
-    let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-    // Degenerate case: constant image.
-    if (x_max - x_min).abs() < f32::EPSILON {
-        return x_min;
-    }
-
-    let x_min = x_min as f64;
-    let bin_size = (x_max as f64 - x_min) / num_bins as f64;
-
-    // Histogram with the ITK bin convention: bin = ⌊(v − x_min)/bin_size⌋,
-    // clamped to the last bin (so the maximum value lands in bin N−1).
-    let mut counts = vec![0u64; num_bins];
-    for &v in slice {
-        let bin = ((v as f64 - x_min) / bin_size).floor() as usize;
-        counts[bin.min(num_bins - 1)] += 1;
-    }
-
-    triangle_from_counts(&counts, x_min, bin_size)
+    threshold_from_slice(&TriangleThreshold::with_bins(num_bins), slice)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## [0.75.0] — 2026-06-17 (Sprint 379 Increment 8: auto-threshold ITK histogram parity)
+
+### Fixed
+- `ritk-segmentation`: the entire automatic threshold-selection family — `otsu`, `li`, `yen`, `triangle`, `kapur` (MaximumEntropy), and `multi_otsu` — now reproduces the ITK histogram-threshold calculators **float-exactly** (worst relative Δ 1.1e-7 across cthead, unimodal-normal, bimodal, and intensity-offset images; previously off by a systematic sub-bin amount). Two root causes:
+  - **Histogram geometry.** ritk binned with width `range/(N−1)` and no upper margin; ITK's `ImageToHistogramFilter` (`AutoMinimumMaximum`, `MarginalScale=100`) places the upper edge at `x_max + range/(N·100)` and bins with width `(max_edge − x_min)/N`. Consolidated into one source of truth (`auto_threshold::{itk_bin_width, build_histogram, bin_center, bin_right_edge}`).
+  - **Reported value.** Otsu / multi-Otsu report the selected **bin right-edge** (ITK `GetBinMax`); Li / Yen / Kapur / Triangle report the **bin centre** (ITK `GetMeasurement`). ritk previously reported left edges with the wrong width.
+  - **Li iteration.** Reimplemented faithfully to `itk::LiThresholdCalculator`: the cross-entropy fixed-point now iterates in **measurement (intensity) space** over bin centres (not bin-index space — `log(mean)` is non-linear, so the two converge differently), with ITK's fixed `0.5` tolerance, `bin_min = min(x_min, 0)` log-shift, and integer rounding of the update. Bit-exact to `sitk.LiThreshold` including the degenerate low-threshold case on near-binary images.
+
+### Changed
+- `ritk-segmentation`: each `compute_*_threshold_from_slice` now delegates to a single shared `threshold_from_slice` pipeline (extract → ITK histogram → calculator), eliminating the duplicate histogram+search code that previously let the trait path and the slice path drift. The Python binding (which uses the slice path) is therefore guaranteed bit-identical to the trait API.
+
 ## [0.74.0] — 2026-06-17 (Sprint 379 Increment 7: directional recursive Gaussian)
 
 ### Added
