@@ -153,6 +153,9 @@ def test_filter_public_functions_exist():
         "label_closing",
         "morphological_reconstruction",
         "resample_image",
+        "rotate_image",
+        "shift_image",
+        "zoom_image",
         "distance_transform",
         "additive_gaussian_noise",
         "salt_and_pepper_noise",
@@ -180,6 +183,9 @@ def test_filter_public_functions_exist():
         "mean_intensity_projection",
         "sum_intensity_projection",
         "stddev_intensity_projection",
+        "normalize_image",
+        "unsharp_mask",
+        "zero_crossing_image",
     ]
     missing = [fn for fn in required if not callable(getattr(rf, fn, None))]
     assert not missing, f"Missing callable functions in ritk.filter: {missing}"

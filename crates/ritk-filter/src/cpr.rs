@@ -191,7 +191,33 @@ impl CprImageFilter {
         }
 
         // ── 2. Sample cross-sections along the path ───────────────────────────
+        //
+        // Per-call work hoisted out of the per-pixel inner loop (see
+        // OPTIMIZATION.md § Sprint 376 CPR-PERF-01):
+        //
+        // (a) `inv_dir = direction.inverse()` — 3×3 matrix inverse computed
+        //     once instead of once per cross-section sample.
+        // (b) For each path point `p[i]`:
+        //       - `idx_p[i,0] = (inv_dir * (p[i] - origin)) ./ spacing` —
+        //         continuous index at the path centre, computed once per i.
+        //       - `slope[i] = (inv_dir * v_up[i]) ./ spacing` — derivative
+        //         of the continuous index w.r.t. the cross-section offset,
+        //         computed once per i.
+        //     Then per cross-section sample at offset `s`:
+        //       `idx_p[i,j] = idx_p[i,0] + slope[i] * s`.
+        //
+        // Bit-exact equivalence to the prior formulation follows from the
+        // linearity of `direction.inverse() * (a + b*s)` in `s` and the
+        // commutativity of scalar mul with per-component div-by-spacing.
         let mut output = vec![0.0_f32; num_cross * num_path];
+
+        let inv_dir = direction
+            .try_inverse()
+            .expect("Direction matrix must be invertible");
+        let id = inv_dir.inner();
+        let inv_ox = id[(0, 0)] * -origin[0] + id[(0, 1)] * -origin[1] + id[(0, 2)] * -origin[2];
+        let inv_oy = id[(1, 0)] * -origin[0] + id[(1, 1)] * -origin[1] + id[(1, 2)] * -origin[2];
+        let inv_oz = id[(2, 0)] * -origin[0] + id[(2, 1)] * -origin[1] + id[(2, 2)] * -origin[2];
 
         for i in 0..num_path {
             let p = &path_pts[i];
@@ -214,6 +240,20 @@ impl CprImageFilter {
 
             let (v_up, _v_right) = cross_section_basis(&tangent);
 
+            // Precompute per-path-point index basis:
+            // idx_p[i,0] = (id * (p - origin)) ./ spacing.
+            let a0 = id[(0, 0)] * p[0] + id[(0, 1)] * p[1] + id[(0, 2)] * p[2] + inv_ox;
+            let b0 = id[(1, 0)] * p[0] + id[(1, 1)] * p[1] + id[(1, 2)] * p[2] + inv_oy;
+            let c0 = id[(2, 0)] * p[0] + id[(2, 1)] * p[1] + id[(2, 2)] * p[2] + inv_oz;
+            let idx_p0 = [a0 / spacing[0], b0 / spacing[1], c0 / spacing[2]];
+
+            // slope[i] = (id * v_up) ./ spacing — derivative of idx per unit
+            // cross-section offset.
+            let sa = id[(0, 0)] * v_up[0] + id[(0, 1)] * v_up[1] + id[(0, 2)] * v_up[2];
+            let sb = id[(1, 0)] * v_up[0] + id[(1, 1)] * v_up[1] + id[(1, 2)] * v_up[2];
+            let sc = id[(2, 0)] * v_up[0] + id[(2, 1)] * v_up[1] + id[(2, 2)] * v_up[2];
+            let slope = [sa / spacing[0], sb / spacing[1], sc / spacing[2]];
+
             for j in 0..num_cross {
                 let offset = if num_cross > 1 {
                     (j as f64 / (num_cross - 1) as f64 - 0.5) * 2.0 * half_width
@@ -221,15 +261,14 @@ impl CprImageFilter {
                     0.0
                 };
 
-                let sample = [
-                    p[0] + v_up[0] * offset,
-                    p[1] + v_up[1] * offset,
-                    p[2] + v_up[2] * offset,
+                let idx_voxel = [
+                    idx_p0[0] + slope[0] * offset,
+                    idx_p0[1] + slope[1] * offset,
+                    idx_p0[2] + slope[2] * offset,
                 ];
 
                 let idx = j * num_path + i;
-                output[idx] =
-                    trilinear_sample(&vals, [nz, ny, nx], &origin, &spacing, &direction, &sample);
+                output[idx] = trilinear_sample_from_idx(&vals, [nz, ny, nx], idx_voxel);
             }
         }
 

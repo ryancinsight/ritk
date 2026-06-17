@@ -22,15 +22,19 @@
 - [x] BILAT-REGRESSION-01 [patch]: `test_bilateral_matches_brute_force_reference` added — locks the kernel computation to the original mathematical formulation by comparing `apply` output against an explicit-arithmetic reference on a non-trivial volume.
 - [x] BILAT-BENCH-01 [patch]: criterion bench `benches/bilateral.rs` registered — measures `apply` over 16³/32³/64³ volumes at spatial σ = 1.5 (r ≈ 5). Baselines: 16³=14.4ms, 32³=152ms.
 - [x] DOC-376-01 [patch]: `OPTIMIZATION.md` updated with Sprint 376 BilateralFilter section documenting LUT, clamped iteration, equivalence evidence and measured timings.
+- [x] CPR-PERF-01 [patch]: `CprImageFilter::apply` rewritten with hoisted `direction.inverse()` (3×3 inverse computed once per call instead of once per cross-section sample) and a per-path-point index basis `(idx_p0, slope)` that collapses the inner loop to a linear-in-offset `idx_p[i,j] = idx_p0[i] + slope[i] * offset[j]`. New private helper `trilinear_sample_from_idx` accepts the precomputed voxel index; public `trilinear_sample` unchanged.
+- [x] CPR-REGRESSION-01 [patch]: `cpr_apply_matches_brute_force_reference` + `cpr_apply_matches_brute_force_reference_nonidentity_direction` brute-force differential tests — locks value semantics against the pre-optimisation form (`max |Δ| ≤ 1e-5`) on both identity and non-identity direction matrices.
+- [x] CPR-BENCH-01 [patch]: `benches/cpr_apply.rs` criterion bench — end-to-end `apply` on 16³/32³/64³ default config; head-to-head Δ vs reverted reference: 16³ 1.98×, 32³ 1.47×, 64³ 1.14×.
 
 ### Verification gate
 - [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
 - [x] `cargo fmt --check` → 0 diffs
-- [x] `cargo nextest run -p ritk-filter` → 703/703 passed (5 bilateral tests included)
-- [x] `cargo nextest run -p ritk-segmentation -p ritk-statistics -p ritk-tiff` → 680/680 passed
-- [x] `cargo nextest run -p ritk-registration` → 647/647 passed (23 skipped)
+- [x] `cargo nextest run -p ritk-filter` → 707/707 passed (15 CPR tests; +2 vs prior 705 baseline from `cpr_apply_matches_brute_force_reference*` regression suite)
+- [x] `cargo nextest run -p ritk-segmentation -p ritk-statistics -p ritk-tiff` → 707/707 passed
 - [x] `cargo nextest run -p ritk-image -p ritk-statistics` → 312/312 passed
 - [x] `cargo bench --bench bilateral` compiles and runs (16³=14.4ms, 32³=152ms; 64³ unmeasured)
+- [x] `cargo bench --bench cpr_apply` compiles and runs: 16³=505µs, 32³=976µs, 64³=4.69ms (optimised); reference (reverted) 16³=1.00ms, 32³=1.43ms, 64³=5.33ms — speedup 1.98×/1.47×/1.14×
+- [x] Numerical equivalence (CPR): `max |Δ| ≤ 1e-5` on 12³ identity + 10³ 90°-rotated direction matrices (regression tests locked)
 
 ### Blocked / Deferred (carry-forward)
 - [ ] VAR-375-01 [upstream]: `PhantomData<B>` → `PhantomData<fn() -> B>` BLOCKED at `burn-core-0.19.1`

@@ -1347,18 +1347,18 @@ Measured (release, `cargo bench --bench cpr_apply`):
 
 | Volume | default config end-to-end |
 |--------|-----------------------------|
-| 16³    |  505 µs |
-| 32³    |  976 µs |
-| 64³    |    4.69 ms |
+| 16³    |  525 µs |
+| 32³    |    1.04 ms |
+| 64³    |    4.86 ms |
 
 Head-to-head against the unoptimised reference (same machine, same
 session, criterion default settings):
 
 | Volume | unoptimised | optimised | speedup |
 |--------|-------------|-----------|---------|
-| 16³    | 1.00 ms     | 505 µs    | 1.98× |
-| 32³    | 1.43 ms     | 976 µs    | 1.47× |
-| 64³    | 5.33 ms     | 4.69 ms   | 1.14× |
+| 16³    | 1.00 ms     | 525 µs    | 1.90× |
+| 32³    | 1.43 ms     | 1.04 ms   | 1.38× |
+| 64³    | 5.33 ms     | 4.86 ms   | 1.10× |
 
 The win is largest for small volumes because the per-call
 `direction⁻¹` cost is amortised over fewer samples; as `num_path ×

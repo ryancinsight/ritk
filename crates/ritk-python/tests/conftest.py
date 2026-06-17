@@ -13,9 +13,28 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+import importlib.util
 
 _PYTHON_SOURCE = Path(__file__).resolve().parent.parent / "python"
-if _PYTHON_SOURCE.is_dir():
-    _p = str(_PYTHON_SOURCE)
-    if _p not in sys.path:
-        sys.path.append(_p)
+itk_path = _PYTHON_SOURCE / "itk"
+if itk_path.is_dir():
+    # Load itk/__init__.py dynamically to avoid shadowing by site-packages itk
+    spec = importlib.util.spec_from_file_location("itk", str(itk_path / "__init__.py"))
+    if spec and spec.loader:
+        itk_mod = importlib.util.module_from_spec(spec)
+        sys.modules["itk"] = itk_mod
+        spec.loader.exec_module(itk_mod)
+        
+        # Load itk/image_ops.py
+        spec_ops = importlib.util.spec_from_file_location("itk.image_ops", str(itk_path / "image_ops.py"))
+        if spec_ops and spec_ops.loader:
+            ops_mod = importlib.util.module_from_spec(spec_ops)
+            sys.modules["itk.image_ops"] = ops_mod
+            spec_ops.loader.exec_module(ops_mod)
+            setattr(itk_mod, "image_ops", ops_mod)
+
+# Keep the original sys.path append for other modules if needed, but ensure it's at the end
+_p = str(_PYTHON_SOURCE)
+if _p not in sys.path:
+    sys.path.append(_p)
+

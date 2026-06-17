@@ -252,6 +252,12 @@ pub fn cross_section_basis(tangent: &[f64; 3]) -> ([f64; 3], [f64; 3]) {
 /// using the image spatial metadata, following the convention:
 ///
 /// index = D⁻¹ · (point − origin) / spacing   (element-wise)
+///
+/// Currently exercised by `tests_cpr.rs` only (the optimized CPR apply
+/// path uses [`trilinear_sample_from_idx`] with a precomputed inverse);
+/// kept as a public helper for external consumers that need the raw
+/// physical→index transform.
+#[allow(dead_code)]
 pub fn physical_to_index(
     point: &[f64; 3],
     origin: &Point<3>,
@@ -276,6 +282,13 @@ pub fn physical_to_index(
 
 /// Sample the image at `physical_point` using trilinear interpolation with
 /// boundary clamping (edge-value extrapolation).
+///
+/// Convenience wrapper around [`trilinear_sample_from_idx`] that re-runs
+/// the direction-inverse transform on every call. The optimized CPR apply
+/// path uses [`trilinear_sample_from_idx`] directly with a precomputed
+/// inverse to avoid the 3×3 matrix inverse per cross-section sample; this
+/// single-shot form is kept for external consumers and tests.
+#[allow(dead_code)]
 pub fn trilinear_sample(
     vals: &[f32],
     dims: [usize; 3],
@@ -286,6 +299,21 @@ pub fn trilinear_sample(
 ) -> f32 {
     let idx = physical_to_index(physical_point, origin, spacing, direction);
 
+    trilinear_sample_from_idx(vals, dims, idx)
+}
+
+/// Trilinear sample given a precomputed continuous voxel index `(iz, iy, ix)`.
+///
+/// Index-space coordinates come from any caller that has already performed
+/// the `physical → index` transform (including the optimized CPR sampling
+/// path that hoists `direction.try_inverse()` outside the inner loop).
+///
+/// # Performance
+/// Allocation-free: zero per-call cost beyond the eight indexed loads and
+/// the weighting arithmetic. Used by `CprImageFilter::apply` to avoid
+/// recomputing the direction inverse and the per-sample `Point`/`Spacing`
+/// arithmetic.
+pub fn trilinear_sample_from_idx(vals: &[f32], dims: [usize; 3], idx: [f64; 3]) -> f32 {
     let [nz, ny, nx] = dims;
     let iz = idx[0].clamp(0.0, (nz - 1) as f64);
     let iy = idx[1].clamp(0.0, (ny - 1) as f64);
