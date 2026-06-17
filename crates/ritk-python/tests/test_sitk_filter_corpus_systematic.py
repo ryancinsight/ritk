@@ -282,6 +282,42 @@ def test_binary_morphology_matches_sitk(binary_mask, name, rfn, sfn):
     assert rel == 0.0, f"{name}: rel {rel:.2e}"
 
 
+def test_binary_fill_holes_matches_sitk(binary_mask):
+    rim, sim = binary_mask
+    r = np.squeeze(np.asarray(ritk.segmentation.binary_fill_holes(rim).to_numpy(), np.int64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.BinaryFillhole(sim)).astype(np.int64))
+    assert np.array_equal(r, s), "binary_fill_holes differs from sitk.BinaryFillhole"
+
+
+def _partition_equiv(a, b):
+    """Two labellings are equivalent iff they induce the same fg/bg partition
+    (label ids may be permuted)."""
+    fa, fb = {}, {}
+    for ka, kb in zip(a.ravel().tolist(), b.ravel().tolist()):
+        if (ka == 0) != (kb == 0):
+            return False
+        if ka == 0:
+            continue
+        if fa.get(ka, kb) != kb or fb.get(kb, ka) != ka:
+            return False
+        fa[ka], fb[kb] = kb, ka
+    return True
+
+
+@pytest.mark.parametrize("conn,fully", [(6, False), (26, True)], ids=["face", "full"])
+def test_connected_components_matches_sitk(binary_mask, conn, fully):
+    rim, sim = binary_mask
+    r = np.asarray(ritk.segmentation.connected_components(rim, connectivity=conn)[0].to_numpy(),
+                   np.int64)
+    f = sitk.ConnectedComponentImageFilter()
+    f.SetFullyConnected(fully)
+    s = sitk.GetArrayFromImage(f.Execute(sim)).astype(np.int64)
+    if s.ndim == 2:
+        s = s[None]
+    assert int(r.max()) == int(s.max()), f"label count {r.max()} != {s.max()}"
+    assert _partition_equiv(r, s), f"connectivity={conn}: partition differs from sitk"
+
+
 # ── Automatic threshold-selection family vs the ITK histogram calculators ──────
 # Every ritk auto-threshold reproduces the corresponding ITK calculator's value
 # under ITK's 256-bin histogram geometry (MarginalScale=100 upper-edge margin;
