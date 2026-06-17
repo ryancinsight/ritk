@@ -13,7 +13,7 @@ use burn_ndarray::NdArrayDevice;
 use numpy::{ndarray::Array4, IntoPyArray, PyArray4, PyReadonlyArray4, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_filter::{map_color_components, MedianFilter};
+use ritk_filter::{map_color_components, MedianFilter, RecursiveGaussianFilter};
 use ritk_image::ColorVolume;
 use std::sync::Arc;
 
@@ -94,6 +94,29 @@ pub fn color_median(
                 MedianFilter::new(radius)
                     .apply(img)
                     .expect("median filter is infallible on a valid scalar image")
+            })
+        })
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok(PyColorImage {
+        inner: Arc::new(out),
+    })
+}
+
+/// Per-component smoothing recursive (Deriche) Gaussian on a color image.
+/// ITK Parity: SmoothingRecursiveGaussianImageFilter on a vector image.
+#[pyfunction]
+pub fn color_smoothing_recursive_gaussian(
+    py: Python<'_>,
+    image: &PyColorImage,
+    sigma: f64,
+) -> RitkResult<PyColorImage> {
+    let arc = Arc::clone(&image.inner);
+    let out = py
+        .allow_threads(|| {
+            map_color_components(arc.as_ref(), |img| {
+                RecursiveGaussianFilter::new(sigma)
+                    .apply(img)
+                    .expect("recursive Gaussian is infallible on a valid scalar image")
             })
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;

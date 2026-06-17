@@ -309,6 +309,25 @@ def test_cmake_rgb_median_on_upstream_data():
     assert np.array_equal(r[2:-2, 2:-2], s[2:-2, 2:-2]), "RGB median differs from sitk vector median"
 
 
+def test_cmake_rgb_smoothing_recursive_gaussian_on_upstream_data():
+    # SmoothingRecursiveGaussianImageFilter on the upstream RGB image — ITK
+    # filters each component independently; ritk's color_smoothing_recursive_gaussian
+    # matches float-exact (the per-component Deriche IIR).
+    path = fetch_input("VM1111Shrink-RGB.png")
+    si = sitk.ReadImage(path)
+    if si.GetNumberOfComponentsPerPixel() != 3:
+        pytest.skip("expected a 3-component RGB input")
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    ci = ritk.ColorImage(np.ascontiguousarray(arr[None]))
+    r = np.squeeze(np.asarray(ritk.filter.color_smoothing_recursive_gaussian(ci, 2.0).to_numpy()))
+    s = sitk.GetArrayFromImage(
+        sitk.SmoothingRecursiveGaussian(sitk.Cast(si, sitk.sitkVectorFloat32), 2.0)
+    ).astype(np.float64)
+    m = 6
+    rel = np.abs(r[m:-m, m:-m] - s[m:-m, m:-m]).max() / max(np.abs(s).max(), 1e-9)
+    assert rel < 1e-6, f"RGB smoothing recursive gaussian rel {rel:.2e}"
+
+
 def test_cmake_zero_crossing_on_upstream_data():
     # ZeroCrossingImageFilter/defaults on the upstream 2th_cthead1_distance image.
     ri, si = _pair("2th_cthead1_distance.nrrd")

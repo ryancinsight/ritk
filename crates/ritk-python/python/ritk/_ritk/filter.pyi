@@ -201,6 +201,10 @@ def color_median(image: ColorImage, radius: int = 1) -> ColorImage:
     """Per-component median on an RGB/vector image (box radius). ITK Parity: MedianImageFilter (vector)."""
     ...
 
+def color_smoothing_recursive_gaussian(image: ColorImage, sigma: float) -> ColorImage:
+    """Per-component smoothing recursive Gaussian on an RGB/vector image. ITK Parity: SmoothingRecursiveGaussianImageFilter (vector)."""
+    ...
+
 def clamp_image(image: Image, lower: float, upper: float) -> Image:
     """Pixelwise clamp to [lower, upper]. ITK Parity: ClampImageFilter."""
     ...
