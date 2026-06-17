@@ -63,6 +63,7 @@ from ritk._ritk import image as _image_mod  # noqa: F401 (submodule reference)
 # ``ritk.Image(array, spacing=...)`` instead of ``ritk.image.Image(...)``.
 image = _image_mod  # expose ritk.image as top-level attribute
 Image = _image_mod.Image  # extract from already-imported submodule attribute
+ColorImage = _image_mod.ColorImage  # RGB/vector multi-component image
 
 import sys as _sys
 

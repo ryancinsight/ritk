@@ -292,6 +292,23 @@ def test_cmake_mask_on_upstream_data(negated):
     assert _rel(r, s, m=2) == 0.0
 
 
+def test_cmake_rgb_median_on_upstream_data():
+    # MedianImageFilter on the upstream RGB image (VM1111Shrink-RGB). ITK applies
+    # the scalar median per component on a vector image; ritk's color_median does
+    # the same via the per-component adaptor — bit-exact.
+    path = fetch_input("VM1111Shrink-RGB.png")
+    si = sitk.ReadImage(path)
+    if si.GetNumberOfComponentsPerPixel() != 3:
+        pytest.skip("expected a 3-component RGB input")
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)  # (H, W, 3)
+    ci = ritk.ColorImage(np.ascontiguousarray(arr[None]))  # (1, H, W, 3)
+    r = np.squeeze(np.asarray(ritk.filter.color_median(ci, 1).to_numpy()))  # (H, W, 3)
+    s = sitk.GetArrayFromImage(
+        sitk.Median(sitk.Cast(si, sitk.sitkVectorFloat32), [1, 1])
+    ).astype(np.float64)
+    assert np.array_equal(r[2:-2, 2:-2], s[2:-2, 2:-2]), "RGB median differs from sitk vector median"
+
+
 def test_cmake_zero_crossing_on_upstream_data():
     # ZeroCrossingImageFilter/defaults on the upstream 2th_cthead1_distance image.
     ri, si = _pair("2th_cthead1_distance.nrrd")

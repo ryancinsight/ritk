@@ -9,6 +9,8 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 
 ### Added
 - `ritk-image`: `ColorVolume::into_component_buffers()` / `from_component_buffers()` — backend-agnostic deinterleave/interleave between the `[depth, rows, cols, channel]` tensor layout and `C` scalar component buffers, the foundation of the per-component filtering adaptor. Roundtrip + validation tests.
+- `ritk-filter`: `map_color_components` — applies any scalar 3-D filter independently to each component of a `ColorVolume`, matching ITK's per-component vector-image filtering.
+- `ritk-python`: `ColorImage` class (RGB/vector `[Z, Y, X, 3]`) with NumPy `__init__`/`to_numpy`, and `filter.color_median` (per-component median). **Bit-exact** to `sitk.Median` on a `VectorFloat32` image on the upstream `VM1111Shrink-RGB` test input — the first RGB/vector cmake parity case, breaking the prior scalar-only boundary. `.pyi` stubs added.
 
 ## [0.76.0] — 2026-06-17 (Sprint 379 Increment 10: unary math filter Python bindings)
 

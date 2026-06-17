@@ -223,6 +223,7 @@ pub fn vec_to_image(
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new_bound(parent.py(), "image")?;
     m.add_class::<PyImage>()?;
+    m.add_class::<crate::color::PyColorImage>()?;
     parent.add_submodule(&m)?;
     Ok(())
 }

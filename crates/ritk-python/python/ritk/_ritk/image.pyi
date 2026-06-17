@@ -21,3 +21,16 @@ class Image:
     def spacing(self) -> tuple[float, float, float]: ...
     @property
     def origin(self) -> tuple[float, float, float]: ...
+
+class ColorImage:
+    """RGB/vector multi-component image, channel-interleaved as [Z, Y, X, 3]."""
+
+    def __init__(
+        self,
+        array: NDArray[np.float32],
+        spacing: tuple[float, float, float] | None = None,
+        origin: tuple[float, float, float] | None = None,
+    ) -> None: ...
+    def to_numpy(self) -> NDArray[np.float32]: ...
+    @property
+    def shape(self) -> tuple[int, int, int, int]: ...

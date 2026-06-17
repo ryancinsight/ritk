@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ritk._ritk.image import Image
+from ritk._ritk.image import ColorImage, Image
 
 def gaussian_filter(image: Image, sigma: float) -> Image: ...
 def discrete_gaussian(
@@ -195,6 +195,10 @@ def atan_image(image: Image) -> Image:
 
 def bounded_reciprocal_image(image: Image) -> Image:
     """Pixelwise bounded reciprocal: out(x) = 1 / (1 + in(x)). ITK Parity: BoundedReciprocalImageFilter."""
+    ...
+
+def color_median(image: ColorImage, radius: int = 1) -> ColorImage:
+    """Per-component median on an RGB/vector image (box radius). ITK Parity: MedianImageFilter (vector)."""
     ...
 
 def clamp_image(image: Image, lower: float, upper: float) -> Image:
