@@ -37,6 +37,8 @@ impl sealed::Sealed for KapurThreshold {}
 impl sealed::Sealed for TriangleThreshold {}
 impl sealed::Sealed for super::isodata::IsoDataThreshold {}
 impl sealed::Sealed for super::moments::MomentsThreshold {}
+impl sealed::Sealed for super::huang::HuangThreshold {}
+impl sealed::Sealed for super::intermodes::IntermodesThreshold {}
 
 // ── Trait ──────────────────────────────────────────────────────────────────────
 

@@ -7,8 +7,7 @@ SimpleITK's vector-image cmake tests become portable. Validated (bit-exact) that
 ITK's vector-image filters apply the scalar filter per component, so the family
 reduces to deinterleave → scalar filter per channel → reinterleave.
 
-### Added
-- `ritk-segmentation` / `ritk-python`: two new automatic threshold methods — `IsoDataThreshold` (Ridler–Calvard iterative intermeans, faithful to `itk::IsoDataThresholdCalculator`: bin-centre-measurement means, inclusive background, midpoint convergence) and `MomentsThreshold` (Tsai moment-preserving). Both **float/bit-exact** to their SimpleITK counterparts (IsoData 17334.658, Moments 24488.461 on RA-Short). Exposed as `segmentation.isodata_threshold` / `segmentation.moments_threshold` with cmake parity cases.
+- `ritk-segmentation` / `ritk-python`: four new automatic threshold methods, each faithful to its ITK calculator and **float/bit-exact** to SimpleITK on RA-Short — `IsoDataThreshold` (Ridler–Calvard, 17334.658), `MomentsThreshold` (Tsai moment-preserving, 24488.461), `HuangThreshold` (fuzzy-entropy, 28462.795), and `IntermodesThreshold` (Prewitt–Mendelsohn smoothed-bimodal, 14287.667). Exposed as `segmentation.{isodata,moments,huang,intermodes}_threshold` with cmake parity cases. The auto-threshold family now covers 9 ITK methods (Otsu/Li/Yen/Kapur/Triangle + these four).
 
 ### Fixed
 - `ritk-statistics`: `histogram_match` (HistogramMatchingImageFilter) quantile landmarks now **interpolate linearly within the histogram bin** (ITK `Histogram::Quantile`: `binMin + (target − cum_before)/count · binWidth`) instead of using the bin centre. Now **float-exact** to `sitk.HistogramMatching` (rel 1.8e-7, was 2.4e-3) at matched parameters.

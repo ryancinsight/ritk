@@ -508,6 +508,8 @@ def test_cmake_fft_roundtrip_on_upstream_data():
 _AUTO_THRESHOLD_VALUES = [
     ("IsoDataThreshold", ritk.segmentation.isodata_threshold, sitk.IsoDataThresholdImageFilter),
     ("MomentsThreshold", ritk.segmentation.moments_threshold, sitk.MomentsThresholdImageFilter),
+    ("HuangThreshold", ritk.segmentation.huang_threshold, sitk.HuangThresholdImageFilter),
+    ("IntermodesThreshold", ritk.segmentation.intermodes_threshold, sitk.IntermodesThresholdImageFilter),
 ]
 
 

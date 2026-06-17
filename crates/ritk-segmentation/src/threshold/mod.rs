@@ -14,6 +14,8 @@
 
 pub mod auto_threshold;
 pub mod binary;
+pub mod huang;
+pub mod intermodes;
 pub mod isodata;
 pub mod kapur;
 pub mod li;
@@ -25,6 +27,10 @@ pub mod yen;
 
 pub use auto_threshold::AutoThreshold;
 pub use binary::{apply_binary_threshold_to_slice, binary_threshold, BinaryThreshold};
+pub use huang::{compute_huang_threshold_from_slice, huang_threshold, HuangThreshold};
+pub use intermodes::{
+    compute_intermodes_threshold_from_slice, intermodes_threshold, IntermodesThreshold,
+};
 pub use isodata::{compute_isodata_threshold_from_slice, isodata_threshold, IsoDataThreshold};
 pub use moments::{compute_moments_threshold_from_slice, moments_threshold, MomentsThreshold};
 pub use kapur::compute_kapur_threshold_from_slice;

@@ -3,6 +3,8 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, vec_to_image_like, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
+use ritk_segmentation::threshold::huang::compute_huang_threshold_from_slice;
+use ritk_segmentation::threshold::intermodes::compute_intermodes_threshold_from_slice;
 use ritk_segmentation::threshold::isodata::compute_isodata_threshold_from_slice;
 use ritk_segmentation::threshold::kapur::compute_kapur_threshold_from_slice;
 use ritk_segmentation::threshold::moments::compute_moments_threshold_from_slice;
@@ -136,6 +138,48 @@ pub fn isodata_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_isodata_threshold_from_slice(slice, 256);
+            let mask_vals: Vec<f32> = slice
+                .iter()
+                .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
+                .collect();
+            (threshold, mask_vals)
+        })
+    });
+    let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
+    (threshold, into_py_image(mask))
+}
+
+/// Compute the Huang (fuzzy-entropy) threshold and produce a binary mask.
+///
+/// Delegates to `ritk_segmentation::HuangThreshold` (256-bin histogram).
+#[pyfunction]
+pub fn huang_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
+    let arc = Arc::clone(&image.inner);
+    let dims = arc.shape();
+    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+        py.allow_threads(|| {
+            let threshold = compute_huang_threshold_from_slice(slice, 256);
+            let mask_vals: Vec<f32> = slice
+                .iter()
+                .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
+                .collect();
+            (threshold, mask_vals)
+        })
+    });
+    let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
+    (threshold, into_py_image(mask))
+}
+
+/// Compute the Intermodes threshold and produce a binary mask.
+///
+/// Delegates to `ritk_segmentation::IntermodesThreshold` (256-bin histogram).
+#[pyfunction]
+pub fn intermodes_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
+    let arc = Arc::clone(&image.inner);
+    let dims = arc.shape();
+    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+        py.allow_threads(|| {
+            let threshold = compute_intermodes_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
                 .iter()
                 .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
