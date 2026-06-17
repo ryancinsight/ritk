@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.73.0] — 2026-06-17 (Sprint 379: Recursive Gaussian Deriche Parity)
+
+### Fixed
+- `ritk-filter`: the recursive Gaussian (`RecursiveGaussianFilter`, exposed as `recursive_gaussian`) now uses the **Deriche 4th-order** IIR that ITK `RecursiveGaussianImageFilter` / SimpleITK `SmoothingRecursiveGaussian` use, replacing the Young–van Vliet 3rd-order IIR. ritk's YvV was a correct YvV but ~1.4% less accurate than the true Gaussian; the order-0 output is now **float-exact to `sitk.SmoothingRecursiveGaussian`** (rel ~1e-7 over the whole volume, boundaries included, σ ∈ {1,2,3,5}). The recursion accumulates in `f64`; boundaries use constant extension via a σ-scaled pad so the IIR transient settles.
+
 ## [0.72.0] — 2026-06-16 (Sprint 378: LabelShape ITK Parity)
 
 ### Changed

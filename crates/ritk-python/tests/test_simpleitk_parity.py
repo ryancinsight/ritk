@@ -2268,26 +2268,23 @@ def test_laplacian_level_set_segment_produces_nontrivial_binary_mask():
 # ==========================================================================
 
 
-def test_recursive_gaussian_order0_interior_agrees_with_sitk():
-    """Zero-order recursive Gaussian interior agrees with sitk.SmoothingRecursiveGaussian
-    on a LINEAR ramp.
+def test_recursive_gaussian_order0_matches_sitk():
+    """Zero-order recursive Gaussian is float-exact to sitk.SmoothingRecursiveGaussian.
 
-    Note on the tolerance: ritk uses the Young-van Vliet 3rd-order IIR while ITK/SimpleITK
-    uses the Deriche 4th-order IIR. Both have unit DC gain and reproduce a linear ramp
-    exactly, so this linear-gradient input does NOT exercise their accuracy difference
-    (which is ~1.4% on curved/high-frequency content — see the recursive_gaussian entry in
-    the campaign notes; a Deriche port is scoped to close it). The < 0.05 bound here only
-    guards gross regressions on the linear case.
+    Both implement the Deriche 4th-order recursive Gaussian. On high-frequency /
+    curved content (where a less accurate IIR would diverge) and across sigmas,
+    ritk matches sitk to f32 precision over the WHOLE volume (boundaries included).
     """
-    arr = _make_gradient()
-    sr = _np(sitk.SmoothingRecursiveGaussian(_sitk(arr), sigma=1.0))
-    rr = ritk.filter.recursive_gaussian(_ritk(arr), sigma=1.0, order=0).to_numpy()
-    assert sr.shape == rr.shape
-    m = 6
-    diff_i = np.abs(sr[m:-m, m:-m, m:-m] - rr[m:-m, m:-m, m:-m])
-    assert float(diff_i.max()) < 0.05, (
-        f"RecursiveGaussian interior max diff {float(diff_i.max()):.4f} >= 0.05"
-    )
+    rng = np.random.default_rng(7)
+    z, y, x = np.mgrid[:22, :26, :28]
+    arr = (100 + 40 * np.sin(0.25 * x) * np.cos(0.2 * y) + 20 * np.sin(0.15 * z)
+           + 5 * rng.standard_normal((22, 26, 28))).astype(np.float32)
+    for sigma in (1.0, 2.0, 3.5):
+        sr = _np(sitk.SmoothingRecursiveGaussian(_sitk(arr), sigma=sigma)).astype(np.float64)
+        rr = ritk.filter.recursive_gaussian(_ritk(arr), sigma=sigma, order=0).to_numpy().astype(np.float64)
+        assert sr.shape == rr.shape
+        rel = np.abs(rr - sr).max() / max(np.abs(sr).max(), 1e-9)
+        assert rel < 1e-5, f"RecursiveGaussian sigma={sigma} rel max diff {rel:.2e} >= 1e-5"
 
 
 def test_laplacian_of_gaussian_near_zero_in_linear_interior():
