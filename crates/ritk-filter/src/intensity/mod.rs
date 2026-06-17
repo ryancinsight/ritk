@@ -36,7 +36,8 @@ pub use bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPoli
 pub use binary_ops::{
     AbsoluteValueDifferenceImageFilter, AbsoluteValueDifferenceOp, AddImageFilter, AddOp,
     Atan2ImageFilter, Atan2Op, BinaryMagnitudeImageFilter, BinaryMagnitudeOp, BinaryOp,
-    BinaryOpFilter, DivideImageFilter, DivideOp, EqualImageFilter, EqualOp,
+    BinaryOpFilter, DivideFloorImageFilter, DivideFloorOp, DivideImageFilter, DivideOp,
+    DivideRealImageFilter, DivideRealOp, EqualImageFilter, EqualOp,
     GreaterEqualImageFilter, GreaterEqualOp, GreaterImageFilter, GreaterOp, ImageMaxFilter,
     ImageMinFilter, LessEqualImageFilter, LessEqualOp, LessImageFilter, LessOp, MaxOp, MinOp,
     MultiplyImageFilter, MultiplyOp, NotEqualImageFilter, NotEqualOp, PowImageFilter, PowOp,

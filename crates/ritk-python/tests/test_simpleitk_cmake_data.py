@@ -207,6 +207,12 @@ _BINARY_CASES = [
     ("BinaryMagnitude/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
      lambda a, b: ritk.filter.binary_magnitude_images(a, b),
      lambda a, b: sitk.BinaryMagnitude(a, b), 1e-6),
+    ("DivideReal/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.divide_real_images(a, b),
+     lambda a, b: sitk.DivideReal(a, b), 1e-6),
+    ("DivideFloor/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.divide_floor_images(a, b),
+     lambda a, b: sitk.DivideFloor(a, b), 0.0),
     # Comparison filters → 0/1 masks (Ramp-Up vs Ramp-Down cross over mid-volume).
     ("Equal/3d", "Ramp-Up-Short.nrrd", "Ramp-Up-Short.nrrd",
      lambda a, b: ritk.filter.equal_images(a, b), lambda a, b: sitk.Equal(a, b), 0.0),

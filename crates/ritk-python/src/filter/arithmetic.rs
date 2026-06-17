@@ -13,8 +13,9 @@ use pyo3::prelude::*;
 use ritk_filter::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
     AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BinaryMagnitudeImageFilter,
-    BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, DivideImageFilter,
-    EqualImageFilter, ExpImageFilter, ExpNegativeImageFilter, GreaterEqualImageFilter,
+    BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, DivideFloorImageFilter,
+    DivideImageFilter, DivideRealImageFilter, EqualImageFilter, ExpImageFilter,
+    ExpNegativeImageFilter, GreaterEqualImageFilter,
     GreaterImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
     LessEqualImageFilter, LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
     MaskNegatedImageFilter, MultiplyImageFilter, NotEqualImageFilter, PowImageFilter,
@@ -386,6 +387,9 @@ macro_rules! ternary_pyfn {
         }
     };
 }
+
+binary_pyfn!(divide_real_images, DivideRealImageFilter, "DivideRealImageFilter", "Pixelwise real division: out(x) = a/b (FLT_MAX where b==0).");
+binary_pyfn!(divide_floor_images, DivideFloorImageFilter, "DivideFloorImageFilter", "Pixelwise floored division: out(x) = floor(a/b) (FLT_MAX where b==0).");
 
 ternary_pyfn!(ternary_add_images, TernaryAddImageFilter, "TernaryAddImageFilter", "Pixelwise sum of three images: out(x) = a + b + c.");
 ternary_pyfn!(ternary_magnitude_images, TernaryMagnitudeImageFilter, "TernaryMagnitudeImageFilter", "Pixelwise magnitude of three images: out(x) = sqrt(a^2 + b^2 + c^2).");

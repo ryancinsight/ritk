@@ -77,6 +77,16 @@ pub struct MultiplyOp;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DivideOp;
 
+/// Real division: `a / b`, returning `f32::MAX` where `b = 0` (ITK
+/// `Functor::Div` convention, distinct from [`DivideOp`]'s `0` guard).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DivideRealOp;
+
+/// Floored division: `⌊a / b⌋`, returning `f32::MAX` where `b = 0` (ITK
+/// `DivideFloorImageFilter`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DivideFloorOp;
+
 /// Elementwise minimum: `min(a, b)`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct MinOp;
@@ -157,6 +167,28 @@ impl BinaryOp for DivideOp {
             0.0
         } else {
             a / b
+        }
+    }
+}
+
+impl BinaryOp for DivideRealOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        if b == 0.0 {
+            f32::MAX
+        } else {
+            a / b
+        }
+    }
+}
+
+impl BinaryOp for DivideFloorOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        if b == 0.0 {
+            f32::MAX
+        } else {
+            (a / b).floor()
         }
     }
 }
@@ -337,6 +369,14 @@ pub type MultiplyImageFilter = BinaryOpFilter<MultiplyOp>;
 ///
 /// # ITK Parity: `DivideImageFilter`
 pub type DivideImageFilter = BinaryOpFilter<DivideOp>;
+
+/// Pixelwise real division `a/b`, `f32::MAX` where `b = 0`.
+/// # ITK Parity: `DivideRealImageFilter` (`sitk.DivideReal`)
+pub type DivideRealImageFilter = BinaryOpFilter<DivideRealOp>;
+
+/// Pixelwise floored division `⌊a/b⌋`, `f32::MAX` where `b = 0`.
+/// # ITK Parity: `DivideFloorImageFilter` (`sitk.DivideFloor`)
+pub type DivideFloorImageFilter = BinaryOpFilter<DivideFloorOp>;
 
 /// Pixelwise minimum of two images.
 ///

@@ -106,6 +106,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(greater_equal_images, &m)?)?;
     m.add_function(wrap_pyfunction!(less_images, &m)?)?;
     m.add_function(wrap_pyfunction!(less_equal_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(divide_real_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(divide_floor_images, &m)?)?;
     m.add_function(wrap_pyfunction!(ternary_add_images, &m)?)?;
     m.add_function(wrap_pyfunction!(ternary_magnitude_images, &m)?)?;
     m.add_function(wrap_pyfunction!(ternary_magnitude_squared_images, &m)?)?;

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.93.1] — 2026-06-17 (Sprint 397b: DivideReal / DivideFloor)
+
+### Added
+- `ritk-filter` / `ritk-python`: `DivideRealImageFilter` (`a/b`) and `DivideFloorImageFilter` (`⌊a/b⌋`) via the `BinaryOpFilter` seam, both returning `f32::MAX` where `b = 0` (the ITK `Functor::Div` convention). Exposed as `filter.divide_real_images` / `filter.divide_floor_images`, **bit/float-exact** to `sitk.DivideReal` / `sitk.DivideFloor`. These complement the existing `divide_images` (which keeps ritk's `b=0 → 0` guard) by offering the exact-ITK behaviour. `.pyi` stubs + cmake cases; coverage 152/298.
+
 ## [0.93.0] — 2026-06-17 (Sprint 397: ternary-operator filter family)
 
 ### Added
