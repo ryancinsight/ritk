@@ -177,15 +177,15 @@ fn test_small_sigma_near_identity() {
     }
 }
 
-/// Verify coefficient DC-gain invariant: B = 1 - d1 - d2 - d3.
+/// Verify the Deriche DC-gain invariant: (ΣN + ΣM) / (1 + ΣD) = 1.
 #[test]
 fn test_coefficients_dc_gain() {
     for &sigma in &[0.5, 1.0, 2.0, 3.0, 5.0, 10.0] {
-        let c = YvVCoefficients::from_sigma(sigma);
-        let dc = c.b_gain + c.d1 + c.d2 + c.d3;
+        let c = DericheCoefficients::from_sigma(sigma);
+        let dc = (c.n.iter().sum::<f64>() + c.m.iter().sum::<f64>()) / (1.0 + c.d.iter().sum::<f64>());
         assert!(
             (dc - 1.0).abs() < 1e-12,
-            "DC gain invariant violated for sigma={sigma}: B+d1+d2+d3 = {dc}"
+            "Deriche DC gain invariant violated for sigma={sigma}: {dc}"
         );
     }
 }

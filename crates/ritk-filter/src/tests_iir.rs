@@ -47,51 +47,6 @@ fn apply_second_derivative_1d_naive(data: &[f32], dims: [usize; 3], dim: usize, 
     }
 }
 
-fn apply_smooth_1d_naive(
-    data: &[f32],
-    dims: [usize; 3],
-    dim: usize,
-    coeffs: &YvVCoefficients,
-) -> Vec<f32> {
-    let lp = line_params(dims, dim);
-    let mut output = vec![0.0_f32; data.len()];
-    let bg = coeffs.b_gain as f32;
-    let d1 = coeffs.d1 as f32;
-    let d2 = coeffs.d2 as f32;
-    let d3 = coeffs.d3 as f32;
-    let mut x_buf = vec![0.0_f32; lp.len];
-    let mut yf_buf = vec![0.0_f32; lp.len];
-    for li in 0..lp.num_lines {
-        let base = line_base(dims, dim, li);
-        for i in 0..lp.len {
-            x_buf[i] = data[base + i * lp.stride];
-        }
-        let init_fwd = x_buf[0];
-        let mut ym1 = init_fwd;
-        let mut ym2 = init_fwd;
-        let mut ym3 = init_fwd;
-        for i in 0..lp.len {
-            let val = bg * x_buf[i] + d1 * ym1 + d2 * ym2 + d3 * ym3;
-            yf_buf[i] = val;
-            ym3 = ym2;
-            ym2 = ym1;
-            ym1 = val;
-        }
-        let init_bwd = yf_buf[lp.len - 1];
-        let mut yp1 = init_bwd;
-        let mut yp2 = init_bwd;
-        let mut yp3 = init_bwd;
-        for i in (0..lp.len).rev() {
-            let val = bg * yf_buf[i] + d1 * yp1 + d2 * yp2 + d3 * yp3;
-            output[base + i * lp.stride] = val;
-            yp3 = yp2;
-            yp2 = yp1;
-            yp1 = val;
-        }
-    }
-    output
-}
-
 #[test]
 fn test_first_derivative_split_matches_naive() {
     for &dims in &[[4, 4, 4], [3, 5, 7], [1, 1, 16], [8, 1, 1], [1, 10, 1]] {
@@ -145,27 +100,42 @@ fn test_second_derivative_split_matches_naive() {
     }
 }
 
+/// Deriche smoothing has unit DC gain: a constant volume is returned unchanged
+/// (every voxel, every axis, across sigmas).
 #[test]
-fn test_smooth_split_matches_naive() {
+fn test_deriche_smooth_preserves_constant() {
     for &dims in &[[4, 4, 4], [3, 5, 7], [2, 2, 16]] {
         let n = dims[0] * dims[1] * dims[2];
-        let data: Vec<f32> = (0..n).map(|i| (i as f32 * 0.37).sin()).collect();
+        let data = vec![3.7_f32; n];
         for &sigma in &[0.5, 1.0, 2.0, 5.0] {
-            let coeffs = YvVCoefficients::from_sigma(sigma);
+            let coeffs = DericheCoefficients::from_sigma(sigma);
             for dim in 0..3 {
-                let out_split = apply_smooth_1d(&data, dims, dim, &coeffs);
-                let out_naive = apply_smooth_1d_naive(&data, dims, dim, &coeffs);
-                for i in 0..n {
+                let out = apply_smooth_1d(&data, dims, dim, &coeffs, sigma);
+                for (i, &v) in out.iter().enumerate() {
                     assert!(
-                        (out_split[i] - out_naive[i]).abs() < 1e-6,
-                        "smooth mismatch: dims={dims:?} dim={dim} sigma={sigma} idx={i} \
-                         split={} naive={}",
-                        out_split[i],
-                        out_naive[i]
+                        (v - 3.7).abs() < 1e-4,
+                        "constant not preserved: dims={dims:?} dim={dim} sigma={sigma} idx={i} got {v}"
                     );
                 }
             }
         }
+    }
+}
+
+/// Deriche coefficients are DC-normalised: the causal+anticausal passes sum to
+/// unit gain, i.e. (N0+N1+N2+N3 + M1+M2+M3+M4) / (1+D1+D2+D3+D4) = 1.
+#[test]
+fn test_deriche_unit_dc_gain() {
+    for &sigma in &[0.5, 1.0, 2.0, 5.0, 10.0] {
+        let c = DericheCoefficients::from_sigma(sigma);
+        let sn: f64 = c.n.iter().sum();
+        let sm: f64 = c.m.iter().sum();
+        let sd: f64 = 1.0 + c.d.iter().sum::<f64>();
+        let dc = (sn + sm) / sd;
+        assert!(
+            (dc - 1.0).abs() < 1e-12,
+            "Deriche DC gain {dc} ≠ 1 at sigma={sigma}"
+        );
     }
 }
 

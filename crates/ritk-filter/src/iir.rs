@@ -1,57 +1,94 @@
-//! IIR 1-D primitives for recursive Gaussian filtering. //! //! Contains the Young–van Vliet coefficient computation, 1-D line iteration //! helpers, and the two-pass IIR smoothing / finite-difference derivative //! kernels used by the recursive Gaussian filter. //! //! # SIMD boundary/interior split //! //! All 1-D convolution loops are split into: //! 1. **Boundary pass** — processes the 1–2 edge elements per line where //! neighbor indices require clamping. Contains conditionals for edge cases. //! 2. **Interior pass** — processes all remaining elements with uniform stride //! and no conditionals. LLVM can auto-vectorize this loop (contiguous access //! for axis 2, known-in-bounds for axes 0 and 1). //! //! The split is transparent: arithmetic and boundary conditions are identical //! to the original combined loop. Differential verification confirms bitwise //! equivalence for every voxel.
+//! IIR 1-D primitives for recursive Gaussian filtering.
+//!
+//! Contains the Deriche 4th-order coefficient computation (matching ITK
+//! `RecursiveGaussianImageFilter`), 1-D line iteration helpers, the parallel
+//! causal+anticausal smoothing pass, and the finite-difference derivative
+//! kernels used by the recursive Gaussian filter.
+//!
+//! The smoothing recursion is accumulated in `f64` (ITK `RealType`) so the
+//! interior is float-exact to SimpleITK `SmoothingRecursiveGaussian`; the
+//! derivative (finite-difference) loops keep their boundary/interior split for
+//! auto-vectorisation.
 
-// ── Young–van Vliet coefficient set ───────────────────────────────────────────
+// ── Deriche coefficient set ────────────────────────────────────────────────────
 
-/// Precomputed Young–van Vliet IIR coefficients for one 1-D pass.
+/// Precomputed Deriche 4th-order IIR coefficients for the zero-order (smoothing)
+/// recursive Gaussian, matching ITK `RecursiveGaussianImageFilter`.
 ///
-/// The recurrence is:
-/// y[n] = B·x[n] + d1·y[n−1] + d2·y[n−2] + d3·y[n−3]
-///
-/// where B = 1 − d1 − d2 − d3 ensures unit DC gain.
-pub(super) struct YvVCoefficients {
-    /// Feedforward gain.
-    pub(super) b_gain: f64,
-    /// Feedback coefficient for y[n−1] (or y[n+1] in anticausal pass).
-    pub(super) d1: f64,
-    /// Feedback coefficient for y[n−2] (or y[n+2] in anticausal pass).
-    pub(super) d2: f64,
-    /// Feedback coefficient for y[n−3] (or y[n+3] in anticausal pass).
-    pub(super) d3: f64,
+/// The output is the SUM of a causal and an anticausal pass on the same input
+/// (parallel, not cascaded):
+/// causal:     `yc[n] = Σ_{k=0..3} n_k·x[n−k] − Σ_{k=1..4} d_k·yc[n−k]`
+/// anticausal: `ya[n] = Σ_{k=1..4} m_k·x[n+k] − Σ_{k=1..4} d_k·ya[n+k]`
+/// out\[n\] = yc\[n\] + ya\[n\].
+pub(super) struct DericheCoefficients {
+    /// Causal numerator coefficients n0..n3.
+    pub(super) n: [f64; 4],
+    /// Shared denominator (feedback) coefficients d1..d4.
+    pub(super) d: [f64; 4],
+    /// Anticausal numerator coefficients m1..m4.
+    pub(super) m: [f64; 4],
 }
 
-impl YvVCoefficients {
-    /// Compute the Young–van Vliet coefficients from a pixel-space sigma.
+impl DericheCoefficients {
+    /// Compute the Deriche zero-order coefficients from a pixel-space sigma.
     ///
-    /// # Derivation (Young & van Vliet 1995)
-    ///
-    /// Scale parameter q: q = 0.98711σ − 0.96330  (σ ≥ 2.5)
-    ///                   q = 3.97156 − 4.14554√(1−0.26891σ)  (0.5 ≤ σ < 2.5)
-    ///
-    /// Un-normalised: b0 = 1.57825+2.44413q+1.4281q²+0.422205q³,
-    ///                b1 = 2.44413q+2.85619q²+1.26661q³,
-    ///                b2 = −(1.4281q²+1.26661q³),
-    ///                b3 = 0.422205q³.
-    /// Normalised: d_i = b_i / b0.  Feedforward gain: B = 1 − d1 − d2 − d3.
+    /// # Derivation (ITK `RecursiveGaussianImageFilter::SetUp`, Deriche 1993)
+    /// Fits the Gaussian as a sum of two damped sinusoids (4 poles). With
+    /// `Sin_i = sin(W_i/σ)`, `Cos_i = cos(W_i/σ)`, `Exp_i = exp(L_i/σ)`:
+    /// the numerator `N0..N3`, denominator `D1..D4`, the DC normalisation
+    /// `alpha0 = 2·SN/SD − N0` (SN = ΣN, SD = 1 + ΣD), and the symmetric
+    /// anticausal `M_k = N_k − D_k·N0` (`M4 = −D4·N0`). Constants are ITK's
+    /// (Farnebäck/Deriche) order-0 set.
     pub(super) fn from_sigma(sigma: f64) -> Self {
-        let q = if sigma >= 2.5 {
-            0.98711 * sigma - 0.96330
-        } else if sigma >= 0.5 {
-            3.97156 - 4.14554 * (1.0 - 0.26891 * sigma).max(0.0).sqrt()
-        } else {
-            // For very small sigma, linearly interpolate q towards 0
-            0.1 * sigma / 0.5
-        };
-        let q2 = q * q;
-        let q3 = q2 * q;
-        let b0 = 1.57825 + 2.44413 * q + 1.4281 * q2 + 0.422205 * q3;
-        let b1 = 2.44413 * q + 2.85619 * q2 + 1.26661 * q3;
-        let b2 = -(1.4281 * q2 + 1.26661 * q3);
-        let b3 = 0.422205 * q3;
-        let d1 = b1 / b0;
-        let d2 = b2 / b0;
-        let d3 = b3 / b0;
-        let b_gain = 1.0 - d1 - d2 - d3;
-        Self { b_gain, d1, d2, d3 }
+        // ITK Deriche order-0 constants (index [0] of the A/B sets).
+        const A1: f64 = 1.3530;
+        const B1: f64 = 1.8151;
+        const W1: f64 = 0.6681;
+        const L1: f64 = -1.3932;
+        const A2: f64 = -0.3531;
+        const B2: f64 = 0.0902;
+        const W2: f64 = 2.0787;
+        const L2: f64 = -1.3732;
+
+        let (sin1, cos1, exp1) = ((W1 / sigma).sin(), (W1 / sigma).cos(), (L1 / sigma).exp());
+        let (sin2, cos2, exp2) = ((W2 / sigma).sin(), (W2 / sigma).cos(), (L2 / sigma).exp());
+
+        let n0 = A1 + A2;
+        let n1 = exp2 * (B2 * sin2 - (A2 + 2.0 * A1) * cos2)
+            + exp1 * (B1 * sin1 - (A1 + 2.0 * A2) * cos1);
+        let n2 = 2.0
+            * exp1
+            * exp2
+            * ((A1 + A2) * cos2 * cos1 - B1 * cos2 * sin1 - B2 * cos1 * sin2)
+            + A2 * exp1 * exp1
+            + A1 * exp2 * exp2;
+        let n3 = exp2 * exp1 * exp1 * (B2 * sin2 - A2 * cos2)
+            + exp1 * exp2 * exp2 * (B1 * sin1 - A1 * cos1);
+
+        let d4 = exp1 * exp1 * exp2 * exp2;
+        let d3 = -2.0 * cos1 * exp1 * exp2 * exp2 - 2.0 * cos2 * exp2 * exp1 * exp1;
+        let d2 = 4.0 * cos2 * cos1 * exp1 * exp2 + exp1 * exp1 + exp2 * exp2;
+        let d1 = -2.0 * (exp2 * cos2 + exp1 * cos1);
+
+        // DC normalisation so the causal+anticausal sum has unit gain.
+        let sn = n0 + n1 + n2 + n3;
+        let sd = 1.0 + d1 + d2 + d3 + d4;
+        let alpha0 = 2.0 * sn / sd - n0;
+        let n = [n0 / alpha0, n1 / alpha0, n2 / alpha0, n3 / alpha0];
+
+        // Symmetric (smoothing) anticausal coefficients.
+        let m = [
+            n[1] - d1 * n[0],
+            n[2] - d2 * n[0],
+            n[3] - d3 * n[0],
+            -d4 * n[0],
+        ];
+
+        Self {
+            n,
+            d: [d1, d2, d3, d4],
+            m,
+        }
     }
 }
 
@@ -122,116 +159,103 @@ pub(super) fn line_params(dims: [usize; 3], dim: usize) -> LineParams {
 
 // ── Smoothing (order 0): two-pass IIR ─────────────────────────────────────────
 
-/// Apply the Young–van Vliet two-pass IIR smoothing along dimension `dim`.
+/// Apply the Deriche 4th-order recursive Gaussian smoothing along dimension
+/// `dim` (ITK `RecursiveGaussianImageFilter`, zero order).
 ///
-/// Pass 1 (causal/forward on input):
-///   y_f[n] = B·x[n] + d1·y_f[n−1] + d2·y_f[n−2] + d3·y_f[n−3]
+/// The output is the sum of a causal (forward) and an anticausal (backward)
+/// pass over the SAME input:
+///   `yc[n] = Σ n_k·x[n−k] − Σ d_k·yc[n−k]`  (k: n 0..3, d 1..4)
+///   `ya[n] = Σ m_k·x[n+k] − Σ d_k·ya[n+k]`  (k: 1..4)
+///   `out[n] = yc[n] + ya[n]`.
 ///
-/// Pass 2 (anticausal/backward on y_f):
-///   y[n] = B·y_f[n] + d1·y[n+1] + d2·y[n+2] + d3·y[n+3]
-///
-/// Boundary conditions: constant extension (replicate). The steady-state
-/// response of the recursion to a constant input c is c (since B/(1−d1−d2−d3)
-/// = B/B = 1), so we initialise the boundary taps to the first/last sample.
-///
-/// # Boundary/interior split
-///
-/// The forward and backward passes carry a 3-tap IIR recurrence whose
-/// initialisation is inherently sequential (each element depends on the
-/// previous 3). Therefore the boundary/interior split for the IIR is the
-/// **initialisation phase** (first 3 elements of each pass, where the
-/// y[n−k] taps are clamped to the edge value) versus the **steady-state
-/// phase** (all remaining elements, where all taps are valid outputs from
-/// prior iterations). LLVM cannot vectorize the IIR recurrence itself
-/// (sequential dependency), but removing the init-phase conditionals from
-/// the steady-state loop lets the compiler emit tighter loop body code with
-/// fewer branch instructions and reduced register pressure.
+/// Boundary: constant (replicate) extension realised by padding each line with
+/// `pad` edge-valued samples per side, where `pad` scales with `pixel_sigma`
+/// so the IIR transient decays before reaching the real data. The recursion is
+/// accumulated in `f64` to match ITK's `RealType` (the interior is float-exact
+/// to SimpleITK `SmoothingRecursiveGaussian`).
 #[inline]
 pub(super) fn apply_smooth_1d(
     data: &[f32],
     dims: [usize; 3],
     dim: usize,
-    coeffs: &YvVCoefficients,
+    coeffs: &DericheCoefficients,
+    pixel_sigma: f64,
 ) -> Vec<f32> {
     let lp = line_params(dims, dim);
     let mut output = vec![0.0_f32; data.len()];
+    let len = lp.len;
+    if len == 0 {
+        return output;
+    }
 
-    // Cast YvV coefficients to f32 once; f32 accumulation is numerically
-    // sufficient for the 3-tap IIR recursion with coefficients O(1) at σ ≥ 0.5.
-    let bg = coeffs.b_gain as f32;
-    let d1 = coeffs.d1 as f32;
-    let d2 = coeffs.d2 as f32;
-    let d3 = coeffs.d3 as f32;
+    let [n0, n1, n2, n3] = coeffs.n;
+    let [d1, d2, d3, d4] = coeffs.d;
+    let [m1, m2, m3, m4] = coeffs.m;
 
-    // Hoisted line buffers — reused across all lines, eliminating per-line heap
-    // allocations (2 × num_lines allocations per dimension).
-    let mut x_buf = vec![0.0_f32; lp.len];
-    let mut yf_buf = vec![0.0_f32; lp.len];
+    // Pad enough that the dominant pole |exp(L/σ)| (L ≈ −1.37) decays below
+    // ~1e-8 before the data starts: pad ≈ 13·σ (independent of the line length,
+    // so short lines with large σ still settle).
+    let pad = ((13.0 * pixel_sigma).ceil() as usize).max(8);
+    let plen = len + 2 * pad;
+
+    // Padded input line (edge-replicated) and the two recursion scratch lines.
+    let mut xp = vec![0.0_f64; plen];
+    let mut yc = vec![0.0_f64; plen];
+    let mut ya = vec![0.0_f64; plen];
 
     for li in 0..lp.num_lines {
         let base = line_base(dims, dim, li);
 
-        // Read input line into contiguous buffer
-        for i in 0..lp.len {
-            x_buf[i] = data[base + i * lp.stride];
+        // Edge-replicated padded input.
+        let first = data[base] as f64;
+        let last = data[base + (len - 1) * lp.stride] as f64;
+        for x in xp.iter_mut().take(pad) {
+            *x = first;
+        }
+        for i in 0..len {
+            xp[pad + i] = data[base + i * lp.stride] as f64;
+        }
+        for x in xp.iter_mut().skip(pad + len) {
+            *x = last;
         }
 
-        // --- Forward (causal) pass ---
-        // Boundary initialisation: steady-state for constant extension = x[0]
-        let init_fwd = x_buf[0];
-        let mut ym1 = init_fwd;
-        let mut ym2 = init_fwd;
-        let mut ym3 = init_fwd;
-
-        // Boundary phase (first 3 elements): taps ym1/ym2/ym3 are the
-        // clamped-to-edge initialisation values. After element 2, all taps
-        // are valid prior-iteration outputs and the recurrence enters
-        // steady state.
-        let fwd_boundary_end = lp.len.min(3);
-        for i in 0..fwd_boundary_end {
-            let val = bg * x_buf[i] + d1 * ym1 + d2 * ym2 + d3 * ym3;
-            yf_buf[i] = val;
-            ym3 = ym2;
-            ym2 = ym1;
-            ym1 = val;
+        // Causal forward pass (taps before index 0 read the replicated first).
+        for i in 0..plen {
+            let x = xp[i];
+            let xm1 = if i >= 1 { xp[i - 1] } else { first };
+            let xm2 = if i >= 2 { xp[i - 2] } else { first };
+            let xm3 = if i >= 3 { xp[i - 3] } else { first };
+            let ym1 = if i >= 1 { yc[i - 1] } else { 0.0 };
+            let ym2 = if i >= 2 { yc[i - 2] } else { 0.0 };
+            let ym3 = if i >= 3 { yc[i - 3] } else { 0.0 };
+            let ym4 = if i >= 4 { yc[i - 4] } else { 0.0 };
+            yc[i] = n0 * x + n1 * xm1 + n2 * xm2 + n3 * xm3
+                - d1 * ym1
+                - d2 * ym2
+                - d3 * ym3
+                - d4 * ym4;
         }
 
-        // Interior phase (element 3..N): all taps are valid recurrence outputs.
-        // No conditionals — single straight-line code per iteration.
-        for i in 3..lp.len {
-            let val = bg * x_buf[i] + d1 * ym1 + d2 * ym2 + d3 * ym3;
-            yf_buf[i] = val;
-            ym3 = ym2;
-            ym2 = ym1;
-            ym1 = val;
+        // Anticausal backward pass (taps after the end read the replicated last).
+        for i in (0..plen).rev() {
+            let xp1 = if i + 1 < plen { xp[i + 1] } else { last };
+            let xp2 = if i + 2 < plen { xp[i + 2] } else { last };
+            let xp3 = if i + 3 < plen { xp[i + 3] } else { last };
+            let xp4 = if i + 4 < plen { xp[i + 4] } else { last };
+            let yp1 = if i + 1 < plen { ya[i + 1] } else { 0.0 };
+            let yp2 = if i + 2 < plen { ya[i + 2] } else { 0.0 };
+            let yp3 = if i + 3 < plen { ya[i + 3] } else { 0.0 };
+            let yp4 = if i + 4 < plen { ya[i + 4] } else { 0.0 };
+            ya[i] = m1 * xp1 + m2 * xp2 + m3 * xp3 + m4 * xp4
+                - d1 * yp1
+                - d2 * yp2
+                - d3 * yp3
+                - d4 * yp4;
         }
 
-        // --- Backward (anticausal) pass on yf ---
-        // Boundary initialisation: steady-state for constant extension = yf[N-1]
-        let init_bwd = yf_buf[lp.len - 1];
-        let mut yp1 = init_bwd;
-        let mut yp2 = init_bwd;
-        let mut yp3 = init_bwd;
-
-        // Boundary phase (last 3 elements): taps yp1/yp2/yp3 are clamped to
-        // the edge. Process from N-1 down to N-3 (or 0 if len < 3).
-        let bwd_boundary_start = lp.len.saturating_sub(3);
-        for i in (bwd_boundary_start..lp.len).rev() {
-            let val = bg * yf_buf[i] + d1 * yp1 + d2 * yp2 + d3 * yp3;
-            output[base + i * lp.stride] = val;
-            yp3 = yp2;
-            yp2 = yp1;
-            yp1 = val;
-        }
-
-        // Interior phase (element N-4..0): all taps are valid recurrence outputs.
-        // No conditionals — single straight-line code per iteration.
-        for i in (0..bwd_boundary_start).rev() {
-            let val = bg * yf_buf[i] + d1 * yp1 + d2 * yp2 + d3 * yp3;
-            output[base + i * lp.stride] = val;
-            yp3 = yp2;
-            yp2 = yp1;
-            yp1 = val;
+        // Sum the two passes; write the unpadded interior back out.
+        for i in 0..len {
+            output[base + i * lp.stride] = (yc[pad + i] + ya[pad + i]) as f32;
         }
     }
     output

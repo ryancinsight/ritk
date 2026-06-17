@@ -1,21 +1,21 @@
-//! Recursive Gaussian filter using the Young–van Vliet IIR approximation.
+//! Recursive Gaussian filter using the Deriche 4th-order IIR approximation
+//! (matching ITK `RecursiveGaussianImageFilter` / SimpleITK
+//! `SmoothingRecursiveGaussian`).
 //!
 //! # Mathematical Specification
 //!
-//! Implements a separable 3rd-order recursive (IIR) Gaussian filter based on
-//! the Young–van Vliet approximation (Young & van Vliet 1995, van Vliet et al.
-//! 1998). For each dimension the 1-D filter decomposes into a causal (forward)
-//! pass followed by an anticausal (backward) pass applied to the forward
-//! output:
+//! Implements a separable 4th-order recursive (IIR) Gaussian filter via the
+//! Deriche (1993) approximation. For each dimension the 1-D Gaussian is the SUM
+//! of a causal (forward) and an anticausal (backward) pass over the same input:
 //!
-//! Forward: y_f\[n\] = B·x\[n\] + d₁·y_f\[n−1\] + d₂·y_f\[n−2\] + d₃·y_f\[n−3\]
-//! Backward: y\[n\] = B·y_f\[n\] + d₁·y\[n+1\] + d₂·y\[n+2\] + d₃·y\[n+3\]
+//! Causal:     y_c\[n\] = Σ_{k=0..3} n_k·x\[n−k\] − Σ_{k=1..4} d_k·y_c\[n−k\]
+//! Anticausal: y_a\[n\] = Σ_{k=1..4} m_k·x\[n+k\] − Σ_{k=1..4} d_k·y_a\[n+k\]
+//! Output:     y\[n\] = y_c\[n\] + y_a\[n\]
 //!
-//! The cascade H(z)·H(z⁻¹) yields a zero-phase symmetric Gaussian
-//! approximation with unit DC gain.
-//!
-//! The feedback coefficients d₁, d₂, d₃ depend only on σ (in pixel units).
-//! The feedforward gain is B = 1 − (d₁ + d₂ + d₃).
+//! The coefficients (`n_k`, `d_k`, `m_k`) depend only on σ in pixel units and
+//! are DC-normalised so the smoothing has unit gain (see [`iir::DericheCoefficients`]).
+//! The interior is float-exact to SimpleITK; boundaries use constant (replicate)
+//! extension.
 //!
 //! Derivative orders are computed by composing smoothing with finite
 //! differences:
@@ -146,8 +146,8 @@ impl RecursiveGaussianFilter {
             if pixel_sigma < 0.2 {
                 continue;
             }
-            let coeffs = YvVCoefficients::from_sigma(pixel_sigma);
-            vals = apply_smooth_1d(&vals, dims, dim, &coeffs);
+            let coeffs = DericheCoefficients::from_sigma(pixel_sigma);
+            vals = apply_smooth_1d(&vals, dims, dim, &coeffs, pixel_sigma);
         }
 
         // Stage 2: Apply derivative operator across all axes combined.
