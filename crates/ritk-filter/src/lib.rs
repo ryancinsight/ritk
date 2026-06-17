@@ -43,14 +43,16 @@ pub use intensity::{
     AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BedSeparationConfig, BedSeparationFilter,
     BinaryMagnitudeImageFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
-    ComponentPolicy, CosImageFilter, DivideImageFilter, ExpImageFilter, ExpNegativeImageFilter,
+    ComponentPolicy, CosImageFilter, DivideImageFilter, EqualImageFilter, ExpImageFilter,
+    ExpNegativeImageFilter, GreaterEqualImageFilter, GreaterImageFilter,
     HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter, IntensityWindowingFilter,
-    InvertIntensityFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
-    MaskNegatedImageFilter, MultiplyImageFilter, NormalizeImageFilter, PowImageFilter,
-    RescaleIntensityFilter, RoundImageFilter, ShiftScaleImageFilter, SigmoidImageFilter,
-    SinImageFilter, SqrtImageFilter, SquareImageFilter, SquaredDifferenceImageFilter,
-    SubtractImageFilter, SuvBodyWeightImageFilter, TanImageFilter, ThresholdImageFilter,
-    ThresholdMode, UnaryMinusImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
+    InvertIntensityFilter, LessEqualImageFilter, LessImageFilter, Log10ImageFilter, LogImageFilter,
+    MaskImageFilter, MaskNegatedImageFilter, MultiplyImageFilter, NormalizeImageFilter,
+    NotEqualImageFilter, PowImageFilter, RescaleIntensityFilter, RoundImageFilter,
+    ShiftScaleImageFilter, SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
+    SquaredDifferenceImageFilter, SubtractImageFilter, SuvBodyWeightImageFilter, TanImageFilter,
+    ThresholdImageFilter, ThresholdMode, UnaryMinusImageFilter, UnsharpMaskFilter,
+    ZeroCrossingImageFilter,
 };
 
 // ── Morphology ────────────────────────────────────────────────────────────────

@@ -207,6 +207,19 @@ _BINARY_CASES = [
     ("BinaryMagnitude/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
      lambda a, b: ritk.filter.binary_magnitude_images(a, b),
      lambda a, b: sitk.BinaryMagnitude(a, b), 1e-6),
+    # Comparison filters → 0/1 masks (Ramp-Up vs Ramp-Down cross over mid-volume).
+    ("Equal/3d", "Ramp-Up-Short.nrrd", "Ramp-Up-Short.nrrd",
+     lambda a, b: ritk.filter.equal_images(a, b), lambda a, b: sitk.Equal(a, b), 0.0),
+    ("NotEqual/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.not_equal_images(a, b), lambda a, b: sitk.NotEqual(a, b), 0.0),
+    ("Greater/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.greater_images(a, b), lambda a, b: sitk.Greater(a, b), 0.0),
+    ("GreaterEqual/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.greater_equal_images(a, b), lambda a, b: sitk.GreaterEqual(a, b), 0.0),
+    ("Less/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.less_images(a, b), lambda a, b: sitk.Less(a, b), 0.0),
+    ("LessEqual/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.less_equal_images(a, b), lambda a, b: sitk.LessEqual(a, b), 0.0),
 ]
 
 

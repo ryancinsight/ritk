@@ -100,6 +100,12 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(unary_minus_image, &m)?)?;
     m.add_function(wrap_pyfunction!(round_image, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_magnitude_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(equal_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(not_equal_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(greater_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(greater_equal_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(less_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(less_equal_images, &m)?)?;
     m.add_function(wrap_pyfunction!(sin_image, &m)?)?;
     m.add_function(wrap_pyfunction!(cos_image, &m)?)?;
     m.add_function(wrap_pyfunction!(tan_image, &m)?)?;

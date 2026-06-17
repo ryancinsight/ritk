@@ -14,9 +14,11 @@ use ritk_filter::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
     AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BinaryMagnitudeImageFilter,
     BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, DivideImageFilter,
-    ExpImageFilter, ExpNegativeImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
-    Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter, MultiplyImageFilter,
-    PowImageFilter, RoundImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
+    EqualImageFilter, ExpImageFilter, ExpNegativeImageFilter, GreaterEqualImageFilter,
+    GreaterImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
+    LessEqualImageFilter, LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
+    MaskNegatedImageFilter, MultiplyImageFilter, NotEqualImageFilter, PowImageFilter,
+    RoundImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     SquaredDifferenceImageFilter, SubtractImageFilter, TanImageFilter, UnaryMinusImageFilter,
 };
 
@@ -341,6 +343,64 @@ pub fn binary_magnitude_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> Ritk
     })
     .map(into_py_image)
 }
+
+/// Generate a two-image binary `#[pyfunction]` mirroring an ITK binary filter
+/// that returns a fresh image (shape-checked, `allow_threads`).
+macro_rules! binary_pyfn {
+    ($name:ident, $filter:ident, $itk:literal, $doc:literal) => {
+        #[doc = $doc]
+        #[doc = ""]
+        #[doc = concat!("ITK Parity: ", $itk)]
+        #[pyfunction]
+        pub fn $name(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
+            let a_arc = std::sync::Arc::clone(&a.inner);
+            let b_arc = std::sync::Arc::clone(&b.inner);
+            py.allow_threads(|| {
+                $filter::new()
+                    .apply(a_arc.as_ref(), b_arc.as_ref())
+                    .map_err(|e| RitkPyError::runtime(e.to_string()))
+            })
+            .map(into_py_image)
+        }
+    };
+}
+
+binary_pyfn!(
+    equal_images,
+    EqualImageFilter,
+    "EqualImageFilter",
+    "Pixelwise equality mask: out(x) = 1 where a(x) == b(x), else 0."
+);
+binary_pyfn!(
+    not_equal_images,
+    NotEqualImageFilter,
+    "NotEqualImageFilter",
+    "Pixelwise inequality mask: out(x) = 1 where a(x) != b(x), else 0."
+);
+binary_pyfn!(
+    greater_images,
+    GreaterImageFilter,
+    "GreaterImageFilter",
+    "Pixelwise greater-than mask: out(x) = 1 where a(x) > b(x), else 0."
+);
+binary_pyfn!(
+    greater_equal_images,
+    GreaterEqualImageFilter,
+    "GreaterEqualImageFilter",
+    "Pixelwise greater-or-equal mask: out(x) = 1 where a(x) >= b(x), else 0."
+);
+binary_pyfn!(
+    less_images,
+    LessImageFilter,
+    "LessImageFilter",
+    "Pixelwise less-than mask: out(x) = 1 where a(x) < b(x), else 0."
+);
+binary_pyfn!(
+    less_equal_images,
+    LessEqualImageFilter,
+    "LessEqualImageFilter",
+    "Pixelwise less-or-equal mask: out(x) = 1 where a(x) <= b(x), else 0."
+);
 
 /// Pixelwise minimum: out(x) = min(a(x), b(x)).
 ///

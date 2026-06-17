@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.91.0] — 2026-06-17 (Sprint 395: comparison-operator filter family)
+
+### Added
+- `ritk-filter` / `ritk-python`: the six pixelwise comparison filters via the generic `BinaryOpFilter<Op>` seam — `EqualImageFilter`, `NotEqualImageFilter`, `GreaterImageFilter`, `GreaterEqualImageFilter`, `LessImageFilter`, `LessEqualImageFilter` (each `1.0` where the predicate holds, `0.0` elsewhere). Exposed as `filter.{equal,not_equal,greater,greater_equal,less,less_equal}_images`; all **bit-exact** to `sitk.{Equal,NotEqual,Greater,GreaterEqual,Less,LessEqual}` on the upstream Ramp pair. Value-semantic Rust test (incl. complementarity `eq+ne=1`, `gt+le=1`, `lt+ge=1`) + 6 cmake parity cases. `.pyi` stubs; coverage survey advances to 145/298.
+
 ## [0.90.0] — 2026-06-17 (Sprint 394: UnaryMinus / Round / BinaryMagnitude)
 
 ### Added

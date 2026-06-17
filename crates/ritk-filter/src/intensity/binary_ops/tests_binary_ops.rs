@@ -316,3 +316,30 @@ fn binary_magnitude_computes_hypotenuse() {
         );
     }
 }
+
+// --- Comparison filters (Equal/NotEqual/Greater/GreaterEqual/Less/LessEqual) --
+
+#[test]
+fn comparison_filters_produce_binary_masks() {
+    let a = make_image(vec![1.0, 2.0, 3.0, 2.0], [1, 1, 4]);
+    let b = make_image(vec![2.0, 2.0, 1.0, 5.0], [1, 1, 4]);
+    let eq = voxels(&EqualImageFilter::new().apply(&a, &b).unwrap());
+    let ne = voxels(&NotEqualImageFilter::new().apply(&a, &b).unwrap());
+    let gt = voxels(&GreaterImageFilter::new().apply(&a, &b).unwrap());
+    let ge = voxels(&GreaterEqualImageFilter::new().apply(&a, &b).unwrap());
+    let lt = voxels(&LessImageFilter::new().apply(&a, &b).unwrap());
+    let le = voxels(&LessEqualImageFilter::new().apply(&a, &b).unwrap());
+    // a=[1,2,3,2], b=[2,2,1,5]
+    assert_eq!(eq, vec![0.0, 1.0, 0.0, 0.0]);
+    assert_eq!(ne, vec![1.0, 0.0, 1.0, 1.0]);
+    assert_eq!(gt, vec![0.0, 0.0, 1.0, 0.0]);
+    assert_eq!(ge, vec![0.0, 1.0, 1.0, 0.0]);
+    assert_eq!(lt, vec![1.0, 0.0, 0.0, 1.0]);
+    assert_eq!(le, vec![1.0, 1.0, 0.0, 1.0]);
+    // eq + ne == 1 everywhere; gt + le == 1; lt + ge == 1
+    for i in 0..4 {
+        assert_eq!(eq[i] + ne[i], 1.0);
+        assert_eq!(gt[i] + le[i], 1.0);
+        assert_eq!(lt[i] + ge[i], 1.0);
+    }
+}

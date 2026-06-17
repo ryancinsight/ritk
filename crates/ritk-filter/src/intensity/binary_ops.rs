@@ -105,6 +105,30 @@ pub struct PowOp;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BinaryMagnitudeOp;
 
+/// Equality test: `1.0` where `a == b`, else `0.0`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct EqualOp;
+
+/// Inequality test: `1.0` where `a != b`, else `0.0`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct NotEqualOp;
+
+/// Greater-than test: `1.0` where `a > b`, else `0.0`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct GreaterOp;
+
+/// Greater-or-equal test: `1.0` where `a >= b`, else `0.0`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct GreaterEqualOp;
+
+/// Less-than test: `1.0` where `a < b`, else `0.0`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LessOp;
+
+/// Less-or-equal test: `1.0` where `a <= b`, else `0.0`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LessEqualOp;
+
 impl BinaryOp for AddOp {
     #[inline]
     fn apply(a: f32, b: f32) -> f32 {
@@ -184,6 +208,48 @@ impl BinaryOp for BinaryMagnitudeOp {
     #[inline]
     fn apply(a: f32, b: f32) -> f32 {
         (a * a + b * b).sqrt()
+    }
+}
+
+impl BinaryOp for EqualOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a == b) as u8 as f32
+    }
+}
+
+impl BinaryOp for NotEqualOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a != b) as u8 as f32
+    }
+}
+
+impl BinaryOp for GreaterOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a > b) as u8 as f32
+    }
+}
+
+impl BinaryOp for GreaterEqualOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a >= b) as u8 as f32
+    }
+}
+
+impl BinaryOp for LessOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a < b) as u8 as f32
+    }
+}
+
+impl BinaryOp for LessEqualOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a <= b) as u8 as f32
     }
 }
 
@@ -320,6 +386,26 @@ pub type PowImageFilter = BinaryOpFilter<PowOp>;
 ///
 /// # ITK Parity: `BinaryMagnitudeImageFilter`
 pub type BinaryMagnitudeImageFilter = BinaryOpFilter<BinaryMagnitudeOp>;
+
+/// Pixelwise equality mask. `out(x) = 1` where `a(x) == b(x)`, else `0`.
+///
+/// # ITK Parity: `EqualImageFilter`
+pub type EqualImageFilter = BinaryOpFilter<EqualOp>;
+
+/// Pixelwise inequality mask. # ITK Parity: `NotEqualImageFilter`
+pub type NotEqualImageFilter = BinaryOpFilter<NotEqualOp>;
+
+/// Pixelwise greater-than mask. # ITK Parity: `GreaterImageFilter`
+pub type GreaterImageFilter = BinaryOpFilter<GreaterOp>;
+
+/// Pixelwise greater-or-equal mask. # ITK Parity: `GreaterEqualImageFilter`
+pub type GreaterEqualImageFilter = BinaryOpFilter<GreaterEqualOp>;
+
+/// Pixelwise less-than mask. # ITK Parity: `LessImageFilter`
+pub type LessImageFilter = BinaryOpFilter<LessOp>;
+
+/// Pixelwise less-or-equal mask. # ITK Parity: `LessEqualImageFilter`
+pub type LessEqualImageFilter = BinaryOpFilter<LessEqualOp>;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
