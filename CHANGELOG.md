@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.77.0] — 2026-06-17 (Sprint 380: RGB/vector multi-component support — foundation)
+
+User-authorized scope expansion: add RGB/vector multi-component image support so
+SimpleITK's vector-image cmake tests become portable. Validated (bit-exact) that
+ITK's vector-image filters apply the scalar filter per component, so the family
+reduces to deinterleave → scalar filter per channel → reinterleave.
+
+### Added
+- `ritk-image`: `ColorVolume::into_component_buffers()` / `from_component_buffers()` — backend-agnostic deinterleave/interleave between the `[depth, rows, cols, channel]` tensor layout and `C` scalar component buffers, the foundation of the per-component filtering adaptor. Roundtrip + validation tests.
+
 ## [0.76.0] — 2026-06-17 (Sprint 379 Increment 10: unary math filter Python bindings)
 
 ### Added
