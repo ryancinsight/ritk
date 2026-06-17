@@ -364,6 +364,26 @@ def test_cmake_histogram_matching_matches_sitk():
     assert rel < 1e-6, f"HistogramMatching rel {rel:.2e}"
 
 
+def test_cmake_label_shape_statistics_match_sitk():
+    # LabelShapeStatisticsImageFilter on a single connected region. ritk centroid
+    # is [z, y, x]; sitk centroid is physical (x, y, z) — reverse to compare.
+    # (ritk labels by connected component; a single solid blob gives one label,
+    # matching sitk's single label value.)
+    m = np.zeros((20, 30, 40), np.float32)
+    m[5:15, 8:22, 10:30] = 1.0
+    rm = ritk.Image(np.ascontiguousarray(m))
+    sm = sitk.GetImageFromArray(m.astype(np.uint8))
+    rs = ritk.segmentation.label_shape_statistics(rm)
+    f = sitk.LabelShapeStatisticsImageFilter()
+    f.Execute(sm)
+    lab = f.GetLabels()[0]
+    assert len(rs) == 1
+    assert rs[0]["voxel_count"] == f.GetNumberOfPixels(lab)
+    rc = rs[0]["centroid"][::-1]  # [z,y,x] -> (x,y,z)
+    sc = f.GetCentroid(lab)
+    assert max(abs(a - b) for a, b in zip(rc, sc)) < 1e-6
+
+
 def test_cmake_statistics_matches_sitk():
     # StatisticsImageFilter (min/max/mean/variance) on an upstream image.
     path = fetch_input("RA-Float.nrrd")
