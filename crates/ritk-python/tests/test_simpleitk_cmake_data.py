@@ -813,6 +813,17 @@ def test_cmake_geometry_on_upstream_data(tag, rfn, sfn):
     assert _eq(rfn(ri), sfn(si)), f"{tag}: differs from sitk"
 
 
+@pytest.mark.parametrize("axis", [1, 2], ids=["y", "x"])
+def test_cmake_median_projection_on_upstream_data(axis):
+    # MedianProjection along a real axis (cthead is z=1, so project y or x).
+    # ITK Parity: MedianProjectionImageFilter. ritk axis [z,y,x] -> sitk [x,y,z].
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(ritk.filter.median_intensity_projection(ri, axis).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.MedianProjection(si, 2 - axis)).astype(np.float64))
+    assert np.array_equal(r, s), f"MedianProjection axis={axis}: differs from sitk"
+
+
 def test_cmake_vector_ops_on_upstream_data():
     # Compose three scalar images into a vector image, then VectorMagnitude /
     # VectorIndexSelectionCast. ITK Parity: Compose / VectorMagnitude /

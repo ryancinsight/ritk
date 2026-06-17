@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.95.0] — 2026-06-17 (Sprint 400: MedianProjection)
+
+### Added
+- `ritk-filter` / `ritk-python`: `MedianIntensityProjectionFilter` + `filter.median_intensity_projection(image, axis)` — median of the collapsed-axis values via `select_nth_unstable` at `n/2` (the upper-middle for even `n`, matching ITK `MedianProjectionImageFilter`'s `nth_element` at `size/2`). **Bit-exact** to `sitk.MedianProjection`. Value-semantic Rust test (incl. the even-count convention) + cmake parity cases (y/x axes). `.pyi` stub; coverage 158/298.
+
 ## [0.94.1] — 2026-06-17 (Sprint 399: vector-image ops — Compose / VectorMagnitude / VectorIndexSelectionCast)
 
 ### Added

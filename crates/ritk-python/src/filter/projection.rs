@@ -12,8 +12,9 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::projection::{
-    MaxIntensityProjectionFilter, MeanIntensityProjectionFilter, MinIntensityProjectionFilter,
-    ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
+    MaxIntensityProjectionFilter, MeanIntensityProjectionFilter, MedianIntensityProjectionFilter,
+    MinIntensityProjectionFilter, ProjectionAxis, StdDevIntensityProjectionFilter,
+    SumIntensityProjectionFilter,
 };
 
 /// Parse an axis integer (0, 1, 2) into `ProjectionAxis`.
@@ -112,6 +113,26 @@ pub fn mean_intensity_projection(
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
         MeanIntensityProjectionFilter::new(ax)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Median intensity projection along a spatial axis.
+///
+/// ITK Parity: MedianProjectionImageFilter (`sitk.MedianProjection`).
+#[pyfunction]
+#[pyo3(signature = (image, axis=0))]
+pub fn median_intensity_projection(
+    py: Python<'_>,
+    image: &PyImage,
+    axis: usize,
+) -> RitkResult<PyImage> {
+    let ax = parse_axis(axis)?;
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        MedianIntensityProjectionFilter::new(ax)
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

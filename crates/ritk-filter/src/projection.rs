@@ -302,6 +302,73 @@ fn project_stddev<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
     }
 }
 
+// ── MedianIntensityProjectionFilter ───────────────────────────────────────────
+
+/// Median intensity projection along a chosen axis.
+///
+/// For each output pixel the median of the collapsed-axis values is taken via
+/// `select_nth_unstable` at index `n/2` (the upper-middle for even `n`), matching
+/// ITK `MedianProjectionImageFilter` (`std::nth_element` at `size/2`).
+pub struct MedianIntensityProjectionFilter {
+    axis: ProjectionAxis,
+}
+
+impl MedianIntensityProjectionFilter {
+    pub fn new(axis: ProjectionAxis) -> Self {
+        Self { axis }
+    }
+
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+        project_median(self.axis, image)
+    }
+}
+
+/// Median of a slice via `select_nth_unstable` at `len/2` (ITK convention).
+#[inline]
+fn median_at_half(buf: &mut [f32]) -> f32 {
+    let n = buf.len();
+    if n == 0 {
+        return 0.0;
+    }
+    let k = n / 2;
+    let (_, m, _) = buf.select_nth_unstable_by(k, |a, b| a.partial_cmp(b).unwrap());
+    *m
+}
+
+fn project_median<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    let [nz, ny, nx] = image.shape();
+    let (vals, _) = extract_vec(image)?;
+    match axis {
+        ProjectionAxis::Z => {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(ny * nx, |idx| {
+                    let (y, x) = (idx / nx, idx % nx);
+                    let mut col: Vec<f32> = (0..nz).map(|z| vals[z * ny * nx + y * nx + x]).collect();
+                    median_at_half(&mut col)
+                });
+            Ok(rebuild(out, [1, ny, nx], image))
+        }
+        ProjectionAxis::Y => {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * nx, |idx| {
+                    let (z, x) = (idx / nx, idx % nx);
+                    let mut col: Vec<f32> = (0..ny).map(|y| vals[z * ny * nx + y * nx + x]).collect();
+                    median_at_half(&mut col)
+                });
+            Ok(rebuild(out, [nz, 1, nx], image))
+        }
+        ProjectionAxis::X => {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny, |idx| {
+                    let (z, y) = (idx / ny, idx % ny);
+                    let mut col: Vec<f32> = (0..nx).map(|x| vals[z * ny * nx + y * nx + x]).collect();
+                    median_at_half(&mut col)
+                });
+            Ok(rebuild(out, [nz, ny, 1], image))
+        }
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

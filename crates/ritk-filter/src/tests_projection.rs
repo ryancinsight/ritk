@@ -158,3 +158,16 @@ fn stddev_projection_z_values() {
         vals[0]
     );
 }
+
+/// Median projection along X: per row, the median of the row values. For an even
+/// count, ITK's `nth_element` at size/2 takes the upper-middle element.
+#[test]
+fn median_projection_x_values() {
+    // 1×2×4: row0 = [1,2,3,4] (median@2 = 3), row1 = [10,5,5,5] (sorted 5,5,5,10 → @2 = 5)
+    let img = make_volume(vec![1.0, 2.0, 3.0, 4.0, 10.0, 5.0, 5.0, 5.0], [1, 2, 4]);
+    let out = MedianIntensityProjectionFilter::new(ProjectionAxis::X)
+        .apply(&img)
+        .unwrap();
+    assert_eq!(out.shape(), [1, 2, 1]);
+    assert_eq!(extract_vals(&out), vec![3.0, 5.0]);
+}
