@@ -12,11 +12,12 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
-    AsinImageFilter, AtanImageFilter, BoundedReciprocalImageFilter, ClampImageFilter,
-    CosImageFilter, DivideImageFilter, ExpImageFilter, ExpNegativeImageFilter, ImageMaxFilter,
-    ImageMinFilter, InvertIntensityFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
-    MaskNegatedImageFilter, MultiplyImageFilter, SinImageFilter, SqrtImageFilter,
-    SquareImageFilter, SquaredDifferenceImageFilter, SubtractImageFilter, TanImageFilter,
+    AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BoundedReciprocalImageFilter,
+    ClampImageFilter, CosImageFilter, DivideImageFilter, ExpImageFilter, ExpNegativeImageFilter,
+    ImageMaxFilter, ImageMinFilter, InvertIntensityFilter, Log10ImageFilter, LogImageFilter,
+    MaskImageFilter, MaskNegatedImageFilter, MultiplyImageFilter, PowImageFilter, SinImageFilter,
+    SqrtImageFilter, SquareImageFilter, SquaredDifferenceImageFilter, SubtractImageFilter,
+    TanImageFilter,
 };
 
 /// Pixelwise clamp to `[lower, upper]`. ITK Parity: ClampImageFilter.
@@ -208,6 +209,36 @@ pub fn absolute_value_difference_images(
     let b_arc = std::sync::Arc::clone(&b.inner);
     py.allow_threads(|| {
         AbsoluteValueDifferenceImageFilter::new()
+            .apply(a_arc.as_ref(), b_arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Pixelwise four-quadrant arctangent: out(x) = atan2(a(x), b(x)).
+///
+/// ITK Parity: Atan2ImageFilter
+#[pyfunction]
+pub fn atan2_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
+    let a_arc = std::sync::Arc::clone(&a.inner);
+    let b_arc = std::sync::Arc::clone(&b.inner);
+    py.allow_threads(|| {
+        Atan2ImageFilter::new()
+            .apply(a_arc.as_ref(), b_arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Pixelwise power: out(x) = a(x) ^ b(x).
+///
+/// ITK Parity: PowImageFilter
+#[pyfunction]
+pub fn pow_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
+    let a_arc = std::sync::Arc::clone(&a.inner);
+    let b_arc = std::sync::Arc::clone(&b.inner);
+    py.allow_threads(|| {
+        PowImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

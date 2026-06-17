@@ -257,3 +257,29 @@ fn absolute_value_difference_is_symmetric_and_nonnegative() {
         assert!((got - exp).abs() < 1e-5, "abs diff: got {got}, expected {exp}");
     }
 }
+
+// --- Atan2ImageFilter / PowImageFilter ------------------------------------
+
+#[test]
+fn atan2_matches_std_atan2() {
+    let a = make_image(vec![1.0, 1.0, 0.0, -1.0], [1, 1, 4]);
+    let b = make_image(vec![1.0, 0.0, 1.0, -1.0], [1, 1, 4]);
+    let out = voxels(&Atan2ImageFilter::new().apply(&a, &b).unwrap());
+    let ya = [1.0f32, 1.0, 0.0, -1.0];
+    let yb = [1.0f32, 0.0, 1.0, -1.0];
+    for (i, got) in out.iter().enumerate() {
+        let exp = ya[i].atan2(yb[i]);
+        assert!((got - exp).abs() < 1e-6, "atan2[{i}]: got {got}, expected {exp}");
+    }
+}
+
+#[test]
+fn pow_matches_std_powf() {
+    let a = make_image(vec![2.0, 3.0, 9.0, 5.0], [1, 1, 4]);
+    let b = make_image(vec![3.0, 2.0, 0.5, 0.0], [1, 1, 4]);
+    let out = voxels(&PowImageFilter::new().apply(&a, &b).unwrap());
+    // 2³=8, 3²=9, 9^0.5=3, 5⁰=1
+    for (got, exp) in out.iter().zip([8.0f32, 9.0, 3.0, 1.0]) {
+        assert!((got - exp).abs() < 1e-5, "pow: got {got}, expected {exp}");
+    }
+}

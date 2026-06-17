@@ -15,6 +15,8 @@
 //! - `ImageMaxFilter`: `out(x) = max(A(x), B(x))`
 //! - `SquaredDifferenceImageFilter`: `out(x) = (A(x) − B(x))²`
 //! - `AbsoluteValueDifferenceImageFilter`: `out(x) = |A(x) − B(x)|`
+//! - `Atan2ImageFilter`: `out(x) = atan2(A(x), B(x))`
+//! - `PowImageFilter`: `out(x) = A(x)^{B(x)}`
 //!
 //! Spatial metadata (origin, spacing, direction) is taken from the **first** input image.
 //! Both images must have identical shapes; a shape mismatch returns `Err`.
@@ -38,6 +40,8 @@
 //! | `ImageMaxFilter` | `MaximumImageFilter` | Max |
 //! | `SquaredDifferenceImageFilter` | `SquaredDifferenceImageFilter` | — |
 //! | `AbsoluteValueDifferenceImageFilter` | `AbsoluteValueDifferenceImageFilter` | Difference |
+//! | `Atan2ImageFilter` | `Atan2ImageFilter` | — |
+//! | `PowImageFilter` | `PowImageFilter` | — |
 
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
@@ -88,6 +92,14 @@ pub struct SquaredDifferenceOp;
 /// Absolute value of the difference: `|a − b|`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct AbsoluteValueDifferenceOp;
+
+/// Four-quadrant arctangent: `atan2(a, b)`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Atan2Op;
+
+/// Power: `a^b`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PowOp;
 
 impl BinaryOp for AddOp {
     #[inline]
@@ -147,6 +159,20 @@ impl BinaryOp for AbsoluteValueDifferenceOp {
     #[inline]
     fn apply(a: f32, b: f32) -> f32 {
         (a - b).abs()
+    }
+}
+
+impl BinaryOp for Atan2Op {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        a.atan2(b)
+    }
+}
+
+impl BinaryOp for PowOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        a.powf(b)
     }
 }
 
@@ -262,6 +288,20 @@ pub type SquaredDifferenceImageFilter = BinaryOpFilter<SquaredDifferenceOp>;
 ///
 /// # ITK Parity: `AbsoluteValueDifferenceImageFilter`
 pub type AbsoluteValueDifferenceImageFilter = BinaryOpFilter<AbsoluteValueDifferenceOp>;
+
+/// Pixelwise four-quadrant arctangent of two images.
+///
+/// `out(x) = atan2(a(x), b(x))`
+///
+/// # ITK Parity: `Atan2ImageFilter`
+pub type Atan2ImageFilter = BinaryOpFilter<Atan2Op>;
+
+/// Pixelwise power of two images.
+///
+/// `out(x) = a(x)^{b(x)}`
+///
+/// # ITK Parity: `PowImageFilter`
+pub type PowImageFilter = BinaryOpFilter<PowOp>;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

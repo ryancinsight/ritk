@@ -196,6 +196,14 @@ _BINARY_CASES = [
     ("AbsoluteValueDifference/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
      lambda a, b: ritk.filter.absolute_value_difference_images(a, b),
      lambda a, b: sitk.AbsoluteValueDifference(a, b), 0.0),
+    # Transcendental: ritk computes in f32, sitk in double then narrows — tol
+    # is the f32-vs-double evaluation gap, not a fudge factor.
+    ("Atan2/defaults", "Ramp-Zero-One-Float.nrrd", "Ramp-One-Zero-Float.nrrd",
+     lambda a, b: ritk.filter.atan2_images(a, b),
+     lambda a, b: sitk.Atan2(a, b), 1e-6),
+    ("Pow/defaults", "Ramp-Zero-One-Float.nrrd", "Ramp-One-Zero-Float.nrrd",
+     lambda a, b: ritk.filter.pow_images(a, b),
+     lambda a, b: sitk.Pow(a, b), 1e-6),
 ]
 
 

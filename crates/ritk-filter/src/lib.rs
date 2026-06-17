@@ -40,13 +40,14 @@ pub mod intensity;
 
 pub use intensity::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
-    AsinImageFilter, AtanImageFilter,
+    AsinImageFilter, Atan2ImageFilter, AtanImageFilter,
     BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
     ComponentPolicy, CosImageFilter, DivideImageFilter, ExpImageFilter, ExpNegativeImageFilter,
     HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter, IntensityWindowingFilter,
     InvertIntensityFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
-    MultiplyImageFilter, NormalizeImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter,
+    MultiplyImageFilter, NormalizeImageFilter, PowImageFilter, RescaleIntensityFilter,
+    ShiftScaleImageFilter,
     SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     SquaredDifferenceImageFilter, SubtractImageFilter,
     SuvBodyWeightImageFilter, TanImageFilter, ThresholdImageFilter, ThresholdMode,

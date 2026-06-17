@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [0.80.0] — 2026-06-17 (Sprint 383: Atan2 / Pow binary filters)
+
+### Added
+- `ritk-filter`: two new pixelwise two-image filters via the generic `BinaryOpFilter<Op>` seam — `Atan2ImageFilter` (`out = atan2(a, b)`, ITK `Atan2ImageFilter`) and `PowImageFilter` (`out = a^b`, ITK `PowImageFilter`). One closure each. Value-semantic Rust tests vs `f32::atan2` / `f32::powf`.
+- `ritk-python`: exposed `filter.atan2_images` and `filter.pow_images`, **float-exact** (rel <1e-6) to `sitk.Atan2` / `sitk.Pow` on the Ramp-Zero-One / Ramp-One-Zero float pair (transcendental: ritk evaluates in f32, sitk in double then narrows — the tolerance is that evaluation gap). `.pyi` stubs + 2 new cmake parity cases (binary suite now 10 cases).
+
 ## [0.79.0] — 2026-06-17 (Sprint 382: SquaredDifference / AbsoluteValueDifference binary filters)
 
 ### Added
