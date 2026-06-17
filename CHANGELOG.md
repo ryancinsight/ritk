@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [0.72.0] — 2026-06-16 (Sprint 378: LabelShape ITK Parity)
+
+### Changed
+- `ritk-statistics`: `LabelShapeStatisticsExtended` perimeter, feret diameter, and roundness reimplemented to the exact ITK/SimpleITK algorithms (float-exact to `GetPerimeter`/`GetFeretDiameter`/`GetRoundness`):
+  - **Perimeter** is now physical surface area via the 13-direction Crofton estimator (3 axis + 6 face-diagonal + 4 body-diagonal) with the Lindblad/ITK Voronoi weights, intercepts `I_o = Σ_v ([v+o ∉ label] + [v−o ∉ label])`. Was a 6-connected boundary-voxel count.
+  - **Feret diameter** is the max physical distance between surface voxels (6-conn boundary, B ≪ N). Was the bounding-box space diagonal (e.g. sphere r=10: 19.87 now vs 32.9 before; sitk 19.87).
+  - **Roundness** = `equivalent_spherical_perimeter / perimeter`. Was `V/(π/6·feret³)` (sphere roundness 1.003 now vs 0.226 before; sitk 1.003).
+
+### Added
+- `ritk-statistics`: `LabelShapeStatisticsExtended.equivalent_spherical_radius` and `.equivalent_spherical_perimeter` fields; `ritk-python` `extended_label_shape_statistics_py` dict gains both keys.
+
+### Breaking
+- `ritk-statistics`: `LabelShapeStatisticsExtended.perimeter` is now `f64` (physical surface area) instead of `usize`; the Python dict `perimeter` value is now a float. Drops the dead bounding-box tracking and `feret_from_bbox` helper.
+
 ## [0.71.0] — 2026-06-16 (Sprint 377: N4 ANTs Alignment)
 
 ### Changed

@@ -803,6 +803,41 @@ def test_label_shape_elongation_flatness_match_sitk():
         assert abs(rm - sm) / max(abs(sm), 1e-9) < 1e-4
 
 
+def test_label_shape_perimeter_roundness_feret_match_sitk():
+    # ITK GetPerimeter (13-direction Crofton surface area), GetRoundness
+    # (equivSpherePerimeter/perimeter), GetFeretDiameter (max surface-voxel
+    # caliper), and GetEquivalentSphericalPerimeter must match SimpleITK to
+    # float precision on a solid sphere and an anisotropic-axes ellipsoid.
+    def sphere(size, r):
+        z, y, x = np.mgrid[:size, :size, :size]
+        c = (size - 1) / 2
+        return (((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) <= r * r).astype(np.float32)
+
+    def ellipsoid(size, az, ay, ax):
+        z, y, x = np.mgrid[:size, :size, :size]
+        c = (size - 1) / 2
+        return ((((z - c) / az) ** 2 + ((y - c) / ay) ** 2 + ((x - c) / ax) ** 2) <= 1.0).astype(np.float32)
+
+    for arr in (sphere(32, 10), ellipsoid(32, 12, 8, 5)):
+        lsf = sitk.LabelShapeStatisticsImageFilter()
+        lsf.ComputePerimeterOn()
+        lsf.ComputeFeretDiameterOn()
+        lsf.Execute(sitk.Cast(sitk.GetImageFromArray(arr.astype(np.uint8)), sitk.sitkUInt8))
+        m = ritk.statistics.extended_label_shape_statistics_py(_ritk(arr))[0]
+        assert m["count"] == lsf.GetNumberOfPixels(1)
+        # Perimeter: Crofton estimator is float-exact to ITK.
+        assert abs(m["perimeter"] - lsf.GetPerimeter(1)) / lsf.GetPerimeter(1) < 1e-9
+        # Roundness, Feret, equivalent spherical perimeter.
+        assert abs(m["roundness"] - lsf.GetRoundness(1)) < 1e-9
+        assert abs(m["feret_diameter"] - lsf.GetFeretDiameter(1)) < 1e-9
+        assert (
+            abs(m["equivalent_spherical_perimeter"] - lsf.GetEquivalentSphericalPerimeter(1))
+            / lsf.GetEquivalentSphericalPerimeter(1)
+            < 1e-9
+        )
+        assert abs(m["equivalent_spherical_radius"] - lsf.GetEquivalentSphericalRadius(1)) < 1e-9
+
+
 def _cc_blobs():
     # Distinct-size blobs incl. two boxes (C: vc=8, D: vc=12) touching ONLY at a
     # diagonal corner — separate under face (6) connectivity, merged under full (26).
