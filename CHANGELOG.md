@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.98.0] — 2026-06-17 (Sprint 406: complex-FFT component ops)
+
+### Added
+- `ritk-python`: the complex-image component filters on ritk's interleaved `[D,H,2W]` (real,imag) spectrum representation — `filter.complex_to_real`, `complex_to_imaginary`, `complex_to_modulus` (`√(re²+im²)`), `complex_to_phase` (`atan2(im,re)`) (ITK `ComplexTo{Real,Imaginary,Modulus,Phase}ImageFilter`). All deinterleave via one `complex_map` helper; **bit-exact** to `sitk.ComplexToReal`/`ComplexToImaginary` and **float-exact** to `sitk.ComplexToModulus`/`ComplexToPhase` (validated by building the same complex image in both via `sitk.RealAndImaginaryToComplex`). `.pyi` stubs + cmake parity case (covers 5 upstream filters); coverage 170/298.
+
 ## [0.97.2] — 2026-06-17 (Sprint 405: cmake cases for already-exact filters)
 
 ### Added

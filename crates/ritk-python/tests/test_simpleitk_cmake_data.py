@@ -874,6 +874,35 @@ def test_cmake_binary_projection_on_upstream_data(axis):
     assert np.array_equal(rt, st), f"BinaryThresholdProjection axis={axis}: differs from sitk"
 
 
+def test_cmake_complex_ops_on_upstream_data():
+    # Build a complex image from real+imag parts in both ritk (interleaved
+    # [D,H,2W]) and sitk, then compare ComplexTo{Real,Imaginary,Modulus,Phase}.
+    # ITK Parity: ComplexTo*ImageFilter + RealAndImaginaryToComplex.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    real = sitk.GetArrayFromImage(si).astype(np.float32)
+    imag = (real[::-1, :] - 17.0).astype(np.float32)
+    inter = np.zeros((1, real.shape[0], real.shape[1] * 2), np.float32)
+    inter[0, :, 0::2] = real
+    inter[0, :, 1::2] = imag
+    rc = ritk.Image(np.ascontiguousarray(inter))
+    sc = sitk.RealAndImaginaryToComplex(
+        sitk.GetImageFromArray(real), sitk.GetImageFromArray(imag))
+    for name, rfn, sfn, tol in [
+        ("real", ritk.filter.complex_to_real, sitk.ComplexToReal, 0.0),
+        ("imaginary", ritk.filter.complex_to_imaginary, sitk.ComplexToImaginary, 0.0),
+        ("modulus", ritk.filter.complex_to_modulus, sitk.ComplexToModulus, 1e-3),
+        ("phase", ritk.filter.complex_to_phase, sitk.ComplexToPhase, 1e-6),
+    ]:
+        r = np.squeeze(np.asarray(rfn(rc).to_numpy(), np.float64))
+        s = np.squeeze(sitk.GetArrayFromImage(sfn(sc)).astype(np.float64))
+        d = np.abs(r - s).max()
+        if tol == 0.0:
+            assert np.array_equal(r, s), f"ComplexTo{name}: differs from sitk"
+        else:
+            assert d < tol, f"ComplexTo{name}: maxdiff {d:.2e} >= {tol:.0e}"
+
+
 def test_cmake_vector_ops_on_upstream_data():
     # Compose three scalar images into a vector image, then VectorMagnitude /
     # VectorIndexSelectionCast. ITK Parity: Compose / VectorMagnitude /

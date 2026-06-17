@@ -22,10 +22,74 @@ pub use frequency::{
 };
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{into_py_image, Backend, PyImage};
+use burn::tensor::{Shape, Tensor, TensorData};
+use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_filter::{FftShiftFilter, ForwardFftFilter, InverseFftFilter};
+use ritk_image::Image;
 use std::sync::Arc;
+
+/// Deinterleave a complex image `[D, H, 2W]` (real,imag pairs along X) into a
+/// real `[D, H, W]` image by mapping each `(re, im)` pair through `f`.
+fn complex_map(image: &PyImage, f: impl Fn(f32, f32) -> f32) -> RitkResult<PyImage> {
+    let [d, h, w2] = image.inner.shape();
+    if w2 % 2 != 0 {
+        return Err(RitkPyError::value(format!(
+            "complex op: last axis {w2} is odd; expected an interleaved [D,H,2W] complex image"
+        )));
+    }
+    let w = w2 / 2;
+    let data = image.inner.data_slice();
+    let mut out = vec![0.0_f32; d * h * w];
+    for z in 0..d {
+        for y in 0..h {
+            for x in 0..w {
+                let re = data[z * h * w2 + y * w2 + 2 * x];
+                let im = data[z * h * w2 + y * w2 + 2 * x + 1];
+                out[z * h * w + y * w + x] = f(re, im);
+            }
+        }
+    }
+    let tensor = Tensor::<Backend, 3>::from_data(
+        TensorData::new(out, Shape::new([d, h, w])),
+        &NdArrayDevice::default(),
+    );
+    Ok(into_py_image(Image::new(
+        tensor,
+        *image.inner.origin(),
+        *image.inner.spacing(),
+        *image.inner.direction(),
+    )))
+}
+
+/// Real part of a complex image. ITK Parity: ComplexToRealImageFilter
+/// (`sitk.ComplexToReal`).
+#[pyfunction]
+pub fn complex_to_real(image: &PyImage) -> RitkResult<PyImage> {
+    complex_map(image, |re, _| re)
+}
+
+/// Imaginary part of a complex image. ITK Parity: ComplexToImaginaryImageFilter
+/// (`sitk.ComplexToImaginary`).
+#[pyfunction]
+pub fn complex_to_imaginary(image: &PyImage) -> RitkResult<PyImage> {
+    complex_map(image, |_, im| im)
+}
+
+/// Modulus (magnitude) `√(re²+im²)` of a complex image. ITK Parity:
+/// ComplexToModulusImageFilter (`sitk.ComplexToModulus`).
+#[pyfunction]
+pub fn complex_to_modulus(image: &PyImage) -> RitkResult<PyImage> {
+    complex_map(image, |re, im| (re * re + im * im).sqrt())
+}
+
+/// Phase `atan2(im, re)` of a complex image. ITK Parity: ComplexToPhaseImageFilter
+/// (`sitk.ComplexToPhase`).
+#[pyfunction]
+pub fn complex_to_phase(image: &PyImage) -> RitkResult<PyImage> {
+    complex_map(image, |re, im| im.atan2(re))
+}
 
 /// Apply the forward FFT to a 3-D medical image.
 ///
