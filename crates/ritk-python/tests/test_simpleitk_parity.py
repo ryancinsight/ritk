@@ -2269,11 +2269,15 @@ def test_laplacian_level_set_segment_produces_nontrivial_binary_mask():
 
 
 def test_recursive_gaussian_order0_interior_agrees_with_sitk():
-    """Zero-order recursive Gaussian interior must agree with sitk.SmoothingRecursiveGaussian.
+    """Zero-order recursive Gaussian interior agrees with sitk.SmoothingRecursiveGaussian
+    on a LINEAR ramp.
 
-    Mathematical justification: both RITK and SimpleITK implement the Deriche (1992)
-    recursive IIR approximation.  On a linear gradient image with sigma=1.0,
-    interior values (margin crop m=6) should differ by < 0.05 after smoothing.
+    Note on the tolerance: ritk uses the Young-van Vliet 3rd-order IIR while ITK/SimpleITK
+    uses the Deriche 4th-order IIR. Both have unit DC gain and reproduce a linear ramp
+    exactly, so this linear-gradient input does NOT exercise their accuracy difference
+    (which is ~1.4% on curved/high-frequency content — see the recursive_gaussian entry in
+    the campaign notes; a Deriche port is scoped to close it). The < 0.05 bound here only
+    guards gross regressions on the linear case.
     """
     arr = _make_gradient()
     sr = _np(sitk.SmoothingRecursiveGaussian(_sitk(arr), sigma=1.0))
