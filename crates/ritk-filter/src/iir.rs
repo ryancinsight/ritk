@@ -282,6 +282,9 @@ pub(super) fn apply_deriche_1d(
         }
 
         // Causal forward pass (taps before index 0 read the replicated first).
+        // The recursion is serial (yc[i] depends on yc[i−1..i−4]), so this loop
+        // is latency-bound on the 4-FMA recurrence chain, not on the per-element
+        // bounds branches — splitting off the boundary does not help (measured).
         for i in 0..plen {
             let x = xp[i];
             let xm1 = if i >= 1 { xp[i - 1] } else { first };

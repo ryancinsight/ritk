@@ -3,6 +3,35 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
+## Sprint 379 — Deriche recursive Gaussian: analytical bound
+
+Measured single-thread throughput on a 128³ `f32` volume (`externals/perf_measure.py`,
+5-rep median): `recursive_gaussian` order-0 smooth ≈ 15 Mvox/s, order-1
+gradient-magnitude ≈ 6 Mvox/s, `laplacian_of_gaussian` ≈ 7 Mvox/s. The grad-mag /
+LoG paths are ~2.5× slower than smoothing because they run `apply_deriche_1d` once
+per axis **per order** (order-2 + order-0 mixes), not because of the inner loop.
+
+**Binding constraint — latency, not instruction count.** Each Deriche 1-D pass is a
+4th-order IIR recurrence: `yc[i] = N·x… − D1·yc[i−1] − D2·yc[i−2] − D3·yc[i−3] −
+D4·yc[i−4]`. Every output depends on the previous four outputs, so the loop is
+serialised on a ~4-FMA critical-path chain per element and cannot auto-vectorise
+across `i`. Profiling-by-experiment confirmed this: hoisting the first/last-4
+boundary branches out of the steady-state body (so the hot loop is a branchless FMA
+chain) **regressed** grad-mag/LoG by ~15–18% (reverted) — branches were never the
+bottleneck, and the rewrite only perturbed register allocation. The scratch buffers
+(`xp`/`yc`/`ya`) are already hoisted out of the per-line loop, so there is no
+per-line allocation to remove.
+
+**The real lever is cross-line parallelism, not inner-loop tuning.** The
+`for li in 0..num_lines` loop iterates over independent 1-D lines whose recurrences
+are mutually independent and write disjoint output indices (bit-exact under any
+schedule — no reduction). Two unexploited axes of speedup: (a) **multi-line ILP /
+SIMD** — process B lines per iteration so B independent recurrences interleave and
+hide each other's latency; (b) **thread-level parallelism** (rayon over line chunks
+with per-thread scratch). Both are larger structured changes deferred until they can
+be measured on a low-variance host (this machine shows ~5–10% run-to-run drift,
+enough to mask sub-15% gains). Filed as a performance backlog item, not rushed.
+
 ## Current State (v0.51.9)
 
 ### Test Suite Performance
@@ -1247,6 +1276,67 @@ Numerical equivalence vs the pre-optimisation brute-force formulation:
 `max |Δ| = 0` on a `5×6×7` deterministic volume (test
 `test_bilateral_matches_brute_force_reference`). Tests green at
 703/703 across `ritk-filter`.
+
+---
+
+## Sprint 376 (0.70.1) — CPR direction-inverse hoist
+
+### CPR-PERF-01: Hoisted direction inverse + per-path-point sample basis
+
+`ritk-filter/src/cpr.rs::CprImageFilter::apply` previously recomputed the
+direction-matrix inverse inside every [`trilinear_sample`] call, so an
+`apply` of the default config (256 path × 64 cross = 16 384 queries)
+ran a 3×3 matrix inverse 16 384 times per call instead of once.
+
+Two changes, both bit-equal to the pre-optimisation form (verified by
+`test_cpr_apply_matches_brute_force_reference` and
+`test_cpr_apply_matches_brute_force_reference_nonidentity_direction` on
+a 12³ / 10³ deterministic volume — `max |Δ| ≤ 1e-5`):
+
+1. **Hoisted `direction.try_inverse()` once per `apply`** outside the
+   sampling loop. The 3×3 inverse is computed a single time and
+   reused for every cross-section query.
+
+2. **Per-path-point index basis**: for each path point `p[i]`, a
+   precomputed pair `(idx_p0[i], slope[i])` collapses three matrix-
+   vector multiplies + three `Point`/`Spacing` allocations per cross-
+   section into one linear-in-offset update `idx_p[i,j] = idx_p0[i]
+   + slope[i] * s`. Bit equivalence follows from the linearity of
+   `direction⁻¹ * (p + b*s)` in `s`.
+
+The `trilinear_sample` public helper is preserved unchanged for the
+single-shot convenience case; the optimsed path calls a new private
+helper `trilinear_sample_from_idx(vals, dims, idx)` that takes the
+precomputed continuous voxel index `(iz, iy, ix)`.
+
+Measured (release, `cargo bench --bench cpr_apply`):
+
+| Volume | default config end-to-end |
+|--------|-----------------------------|
+| 16³    |  505 µs |
+| 32³    |  976 µs |
+| 64³    |    4.69 ms |
+
+Head-to-head against the unoptimised reference (same machine, same
+session, criterion default settings):
+
+| Volume | unoptimised | optimised | speedup |
+|--------|-------------|-----------|---------|
+| 16³    | 1.00 ms     | 505 µs    | 1.98× |
+| 32³    | 1.43 ms     | 976 µs    | 1.47× |
+| 64³    | 5.33 ms     | 4.69 ms   | 1.14× |
+
+The win is largest for small volumes because the per-call
+`direction⁻¹` cost is amortised over fewer samples; as `num_path ×
+num_cross` grows, the per-sample trilinear weight kernel dominates
+and the proportional gain shrinks. The 16³ case crosses **2×** end-to-end;
+the 64³ case still nets a 14 % improvement with no algorithmic change.
+
+Numerical equivalence: `max |Δ| ≤ 1e-5` against the pre-optimisation
+form on both identity and non-identity direction matrices (tests
+`test_cpr_apply_matches_brute_force_reference`,
+`test_cpr_apply_matches_brute_force_reference_nonidentity_direction`).
+Tests green at 707/707 across `ritk-filter`.
 
 ---
 
