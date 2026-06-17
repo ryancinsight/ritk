@@ -147,7 +147,7 @@ impl RecursiveGaussianFilter {
                 continue;
             }
             let coeffs = DericheCoefficients::from_sigma(pixel_sigma);
-            vals = apply_smooth_1d(&vals, dims, dim, &coeffs, pixel_sigma);
+            vals = apply_deriche_1d(&vals, dims, dim, &coeffs, pixel_sigma);
         }
 
         // Stage 2: Apply derivative operator across all axes combined.
@@ -191,6 +191,55 @@ impl RecursiveGaussianFilter {
         ))
     }
 }
+// ── Laplacian of recursive Gaussian (ITK LaplacianRecursiveGaussian) ──────────
+
+/// Compute ∇²(G_σ * I) = Σ_d ∂²/∂x_d² (G_σ * I) via separable Deriche recursion,
+/// matching ITK / SimpleITK `LaplacianRecursiveGaussian` (float-exact).
+///
+/// For each axis `d` the volume is filtered with the **second-order** Deriche
+/// recursion along `d` and the **zero-order** (smoothing) recursion along the
+/// other two axes; the three per-axis second derivatives are then summed. The
+/// per-axis sigma in pixels (`σ / spacing[d]`) carries the physical-spacing
+/// normalisation through the coefficients.
+///
+/// # Errors
+/// Returns `Err` if the tensor data cannot be extracted as `f32`.
+pub fn laplacian_recursive_gaussian<B: Backend>(
+    image: &Image<B, 3>,
+    sigma: f64,
+) -> anyhow::Result<Image<B, 3>> {
+    let (vals, dims) = extract_vec(image)?;
+    let spacing = image.spacing();
+    let n = vals.len();
+
+    let mut laplacian = vec![0.0f32; n];
+    for d in 0..3 {
+        let mut temp = vals.clone();
+        for ax in 0..3 {
+            let pixel_sigma = sigma / spacing[ax];
+            let coeffs = if ax == d {
+                DericheCoefficients::second_order(pixel_sigma)
+            } else {
+                DericheCoefficients::from_sigma(pixel_sigma)
+            };
+            temp = apply_deriche_1d(&temp, dims, ax, &coeffs, pixel_sigma);
+        }
+        for (acc, t) in laplacian.iter_mut().zip(temp.iter()) {
+            *acc += t;
+        }
+    }
+
+    let device = image.data().device();
+    let out_td = TensorData::new(laplacian, Shape::new(dims));
+    let tensor = Tensor::<B, 3>::from_data(out_td, &device);
+    Ok(Image::new(
+        tensor,
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+    ))
+}
+
 // ── Combined derivative operators (gradient magnitude, Laplacian) ─────────────
 
 /// Compute the gradient magnitude of a 3-D volume:

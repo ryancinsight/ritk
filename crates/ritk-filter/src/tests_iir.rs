@@ -110,7 +110,7 @@ fn test_deriche_smooth_preserves_constant() {
         for &sigma in &[0.5, 1.0, 2.0, 5.0] {
             let coeffs = DericheCoefficients::from_sigma(sigma);
             for dim in 0..3 {
-                let out = apply_smooth_1d(&data, dims, dim, &coeffs, sigma);
+                let out = apply_deriche_1d(&data, dims, dim, &coeffs, sigma);
                 for (i, &v) in out.iter().enumerate() {
                     assert!(
                         (v - 3.7).abs() < 1e-4,

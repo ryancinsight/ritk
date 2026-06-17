@@ -12,8 +12,66 @@
 
 // ── Deriche coefficient set ────────────────────────────────────────────────────
 
-/// Precomputed Deriche 4th-order IIR coefficients for the zero-order (smoothing)
-/// recursive Gaussian, matching ITK `RecursiveGaussianImageFilter`.
+// ITK Deriche pole constants (Farnebäck). Index [0]=zero-order, [2]=second-order.
+const DERICHE_W1: f64 = 0.6681;
+const DERICHE_L1: f64 = -1.3932;
+const DERICHE_W2: f64 = 2.0787;
+const DERICHE_L2: f64 = -1.3732;
+const DERICHE_A1: [f64; 3] = [1.3530, -0.6724, -1.3563];
+const DERICHE_B1: [f64; 3] = [1.8151, -3.4327, 5.2318];
+const DERICHE_A2: [f64; 3] = [-0.3531, 0.6724, 0.3446];
+const DERICHE_B2: [f64; 3] = [0.0902, 0.6100, -2.2355];
+
+/// Denominator coefficients `[D1,D2,D3,D4]` plus the moment sums `(SD, DD, ED)`
+/// used by the order normalisations (ITK `ComputeDCoefficients`).
+fn deriche_d_coefficients(sigma: f64) -> ([f64; 4], f64, f64, f64) {
+    let (cos1, exp1) = ((DERICHE_W1 / sigma).cos(), (DERICHE_L1 / sigma).exp());
+    let (cos2, exp2) = ((DERICHE_W2 / sigma).cos(), (DERICHE_L2 / sigma).exp());
+    let d4 = exp1 * exp1 * exp2 * exp2;
+    let d3 = -2.0 * cos1 * exp1 * exp2 * exp2 - 2.0 * cos2 * exp2 * exp1 * exp1;
+    let d2 = 4.0 * cos2 * cos1 * exp1 * exp2 + exp1 * exp1 + exp2 * exp2;
+    let d1 = -2.0 * (exp2 * cos2 + exp1 * cos1);
+    let sd = 1.0 + d1 + d2 + d3 + d4;
+    let dd = d1 + 2.0 * d2 + 3.0 * d3 + 4.0 * d4;
+    let ed = d1 + 4.0 * d2 + 9.0 * d3 + 16.0 * d4;
+    ([d1, d2, d3, d4], sd, dd, ed)
+}
+
+/// Numerator coefficients `[N0,N1,N2,N3]` plus the moment sums `(SN, DN, EN)`
+/// for one constant set (ITK `ComputeNCoefficients`).
+fn deriche_n_coefficients(sigma: f64, idx: usize) -> ([f64; 4], f64, f64, f64) {
+    let (a1, b1, a2, b2) = (
+        DERICHE_A1[idx],
+        DERICHE_B1[idx],
+        DERICHE_A2[idx],
+        DERICHE_B2[idx],
+    );
+    let (sin1, cos1, exp1) = (
+        (DERICHE_W1 / sigma).sin(),
+        (DERICHE_W1 / sigma).cos(),
+        (DERICHE_L1 / sigma).exp(),
+    );
+    let (sin2, cos2, exp2) = (
+        (DERICHE_W2 / sigma).sin(),
+        (DERICHE_W2 / sigma).cos(),
+        (DERICHE_L2 / sigma).exp(),
+    );
+    let n0 = a1 + a2;
+    let n1 =
+        exp2 * (b2 * sin2 - (a2 + 2.0 * a1) * cos2) + exp1 * (b1 * sin1 - (a1 + 2.0 * a2) * cos1);
+    let n2 = 2.0 * exp1 * exp2 * ((a1 + a2) * cos2 * cos1 - b1 * cos2 * sin1 - b2 * cos1 * sin2)
+        + a2 * exp1 * exp1
+        + a1 * exp2 * exp2;
+    let n3 = exp2 * exp1 * exp1 * (b2 * sin2 - a2 * cos2)
+        + exp1 * exp2 * exp2 * (b1 * sin1 - a1 * cos1);
+    let sn = n0 + n1 + n2 + n3;
+    let dn = n1 + 2.0 * n2 + 3.0 * n3;
+    let en = n1 + 4.0 * n2 + 9.0 * n3;
+    ([n0, n1, n2, n3], sn, dn, en)
+}
+
+/// Precomputed Deriche 4th-order IIR coefficients for the recursive Gaussian (or
+/// its derivatives), matching ITK `RecursiveGaussianImageFilter`.
 ///
 /// The output is the SUM of a causal and an anticausal pass on the same input
 /// (parallel, not cascaded):
@@ -30,65 +88,45 @@ pub(super) struct DericheCoefficients {
 }
 
 impl DericheCoefficients {
-    /// Compute the Deriche zero-order coefficients from a pixel-space sigma.
-    ///
-    /// # Derivation (ITK `RecursiveGaussianImageFilter::SetUp`, Deriche 1993)
-    /// Fits the Gaussian as a sum of two damped sinusoids (4 poles). With
-    /// `Sin_i = sin(W_i/σ)`, `Cos_i = cos(W_i/σ)`, `Exp_i = exp(L_i/σ)`:
-    /// the numerator `N0..N3`, denominator `D1..D4`, the DC normalisation
-    /// `alpha0 = 2·SN/SD − N0` (SN = ΣN, SD = 1 + ΣD), and the symmetric
-    /// anticausal `M_k = N_k − D_k·N0` (`M4 = −D4·N0`). Constants are ITK's
-    /// (Farnebäck/Deriche) order-0 set.
-    pub(super) fn from_sigma(sigma: f64) -> Self {
-        // ITK Deriche order-0 constants (index [0] of the A/B sets).
-        const A1: f64 = 1.3530;
-        const B1: f64 = 1.8151;
-        const W1: f64 = 0.6681;
-        const L1: f64 = -1.3932;
-        const A2: f64 = -0.3531;
-        const B2: f64 = 0.0902;
-        const W2: f64 = 2.0787;
-        const L2: f64 = -1.3732;
-
-        let (sin1, cos1, exp1) = ((W1 / sigma).sin(), (W1 / sigma).cos(), (L1 / sigma).exp());
-        let (sin2, cos2, exp2) = ((W2 / sigma).sin(), (W2 / sigma).cos(), (L2 / sigma).exp());
-
-        let n0 = A1 + A2;
-        let n1 = exp2 * (B2 * sin2 - (A2 + 2.0 * A1) * cos2)
-            + exp1 * (B1 * sin1 - (A1 + 2.0 * A2) * cos1);
-        let n2 = 2.0
-            * exp1
-            * exp2
-            * ((A1 + A2) * cos2 * cos1 - B1 * cos2 * sin1 - B2 * cos1 * sin2)
-            + A2 * exp1 * exp1
-            + A1 * exp2 * exp2;
-        let n3 = exp2 * exp1 * exp1 * (B2 * sin2 - A2 * cos2)
-            + exp1 * exp2 * exp2 * (B1 * sin1 - A1 * cos1);
-
-        let d4 = exp1 * exp1 * exp2 * exp2;
-        let d3 = -2.0 * cos1 * exp1 * exp2 * exp2 - 2.0 * cos2 * exp2 * exp1 * exp1;
-        let d2 = 4.0 * cos2 * cos1 * exp1 * exp2 + exp1 * exp1 + exp2 * exp2;
-        let d1 = -2.0 * (exp2 * cos2 + exp1 * cos1);
-
-        // DC normalisation so the causal+anticausal sum has unit gain.
-        let sn = n0 + n1 + n2 + n3;
-        let sd = 1.0 + d1 + d2 + d3 + d4;
-        let alpha0 = 2.0 * sn / sd - n0;
-        let n = [n0 / alpha0, n1 / alpha0, n2 / alpha0, n3 / alpha0];
-
-        // Symmetric (smoothing) anticausal coefficients.
+    /// Symmetric anticausal coefficients (`M_k = N_k − D_k·N0`, `M4 = −D4·N0`),
+    /// used by the even (zero/second) orders.
+    fn symmetric(n: [f64; 4], d: [f64; 4]) -> Self {
         let m = [
-            n[1] - d1 * n[0],
-            n[2] - d2 * n[0],
-            n[3] - d3 * n[0],
-            -d4 * n[0],
+            n[1] - d[0] * n[0],
+            n[2] - d[1] * n[0],
+            n[3] - d[2] * n[0],
+            -d[3] * n[0],
         ];
+        Self { n, d, m }
+    }
 
-        Self {
-            n,
-            d: [d1, d2, d3, d4],
-            m,
-        }
+    /// Zero-order (smoothing) coefficients from a pixel-space sigma.
+    ///
+    /// DC-normalised by `alpha0 = 2·SN/SD − N0` (ITK `SetUp`, `ZeroOrder`).
+    pub(super) fn from_sigma(sigma: f64) -> Self {
+        let (d, sd, _dd, _ed) = deriche_d_coefficients(sigma);
+        let (n, sn, _dn, _en) = deriche_n_coefficients(sigma, 0);
+        let alpha0 = 2.0 * sn / sd - n[0];
+        let n = n.map(|c| c / alpha0);
+        Self::symmetric(n, d)
+    }
+
+    /// Second-order (∂²/∂x²) coefficients from a pixel-space sigma (ITK `SetUp`,
+    /// `SecondOrder`): mixes the order-0 and order-2 constant sets via `beta`,
+    /// then normalises by `alpha2 = (EN·SD² − ED·SN·SD − 2·DN·DD·SD + 2·DD²·SN)/SD³`.
+    pub(super) fn second_order(sigma: f64) -> Self {
+        let (d, sd, dd, ed) = deriche_d_coefficients(sigma);
+        let (n0c, sn0, dn0, en0) = deriche_n_coefficients(sigma, 0);
+        let (n2c, sn2, dn2, en2) = deriche_n_coefficients(sigma, 2);
+        let beta = -(2.0 * sn2 - sd * n2c[0]) / (2.0 * sn0 - sd * n0c[0]);
+        let n: [f64; 4] = std::array::from_fn(|i| n2c[i] + beta * n0c[i]);
+        let sn = sn2 + beta * sn0;
+        let dn = dn2 + beta * dn0;
+        let en = en2 + beta * en0;
+        let alpha2 =
+            (en * sd * sd - ed * sn * sd - 2.0 * dn * dd * sd + 2.0 * dd * dd * sn) / (sd * sd * sd);
+        let n = n.map(|c| c / alpha2);
+        Self::symmetric(n, d)
     }
 }
 
@@ -157,10 +195,11 @@ pub(super) fn line_params(dims: [usize; 3], dim: usize) -> LineParams {
     }
 }
 
-// ── Smoothing (order 0): two-pass IIR ─────────────────────────────────────────
+// ── Deriche two-pass IIR (order-agnostic) ─────────────────────────────────────
 
-/// Apply the Deriche 4th-order recursive Gaussian smoothing along dimension
-/// `dim` (ITK `RecursiveGaussianImageFilter`, zero order).
+/// Apply a Deriche 4th-order recursive pass along dimension `dim`. The `coeffs`
+/// select the order (zero = smoothing, second = ∂²/∂x²); the recursion is
+/// identical (ITK `RecursiveGaussianImageFilter`).
 ///
 /// The output is the sum of a causal (forward) and an anticausal (backward)
 /// pass over the SAME input:
@@ -171,10 +210,9 @@ pub(super) fn line_params(dims: [usize; 3], dim: usize) -> LineParams {
 /// Boundary: constant (replicate) extension realised by padding each line with
 /// `pad` edge-valued samples per side, where `pad` scales with `pixel_sigma`
 /// so the IIR transient decays before reaching the real data. The recursion is
-/// accumulated in `f64` to match ITK's `RealType` (the interior is float-exact
-/// to SimpleITK `SmoothingRecursiveGaussian`).
+/// accumulated in `f64` to match ITK's `RealType` (float-exact to SimpleITK).
 #[inline]
-pub(super) fn apply_smooth_1d(
+pub(super) fn apply_deriche_1d(
     data: &[f32],
     dims: [usize; 3],
     dim: usize,

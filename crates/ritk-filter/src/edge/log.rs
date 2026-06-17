@@ -40,8 +40,7 @@
 //! - Lindeberg, T. (1994). *Scale-Space Theory in Computer Vision*. Springer.
 
 use super::GaussianSigma;
-use crate::edge::LaplacianFilter;
-use crate::GaussianFilter;
+use crate::recursive_gaussian::laplacian_recursive_gaussian;
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 
@@ -49,9 +48,9 @@ use ritk_image::Image;
 
 /// Laplacian of Gaussian (LoG) filter for 3-D images.
 ///
-/// Computes ∇²(G_σ * I) by first applying Gaussian smoothing with standard
-/// deviation σ in each dimension (respecting physical spacing), then computing
-/// the discrete Laplacian via second-order finite differences.
+/// Computes `∇²(G_σ * I) = Σ_d ∂²/∂x_d² (G_σ * I)` via the separable Deriche
+/// recursive Gaussian (second-order along each axis, zero-order along the
+/// others, summed), matching ITK / SimpleITK `LaplacianRecursiveGaussian`.
 #[derive(Debug, Clone)]
 pub struct LaplacianOfGaussianFilter {
     /// Standard deviation of the Gaussian in physical units (mm).
@@ -72,26 +71,17 @@ impl LaplacianOfGaussianFilter {
 
     /// Apply the LoG filter to a 3-D image.
     ///
-    /// Computes G_σ * ∇²I by:
-    /// 1. Smoothing the image with a Gaussian of standard deviation σ.
-    /// 2. Computing the discrete Laplacian of the smoothed image.
-    ///
-    /// The output has the same shape and spatial metadata as the input.
+    /// Computes `∇²(G_σ * I)` via the separable Deriche recursive Gaussian
+    /// (second-order along each axis, zero-order along the others, summed),
+    /// matching ITK / SimpleITK `LaplacianRecursiveGaussian` (float-exact). The
+    /// output has the same shape and spatial metadata as the input.
     ///
     /// # Errors
     ///
     /// Returns `Err` if the underlying tensor data cannot be extracted as
     /// `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let sp = *image.spacing();
-
-        // Stage 1: Gaussian smoothing
-        let gauss = GaussianFilter::<B>::new(vec![self.sigma, self.sigma, self.sigma]);
-        let smoothed = gauss.apply(image);
-
-        // Stage 2: Laplacian via second-order finite differences
-        let laplacian = LaplacianFilter::new(sp);
-        laplacian.apply(&smoothed)
+        laplacian_recursive_gaussian(image, self.sigma.get())
     }
 }
 
