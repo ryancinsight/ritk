@@ -19,13 +19,24 @@
 //! **Elongation** = √(λ_2/λ_1) ∈ \[1, ∞) (ITK convention); 1.0 when λ_1 ≤ 0.
 //! **Flatness**   = √(λ_1/λ_0) ∈ \[1, ∞) (ITK convention); 1.0 when λ_0 ≤ 0.
 //!
-//! **Feret diameter** (approximate): maximum Euclidean distance between the 8
-//! axis-aligned bounding-box corners in physical units.
+//! **Feret diameter** (ITK `GetFeretDiameter`): maximum Euclidean distance in
+//! physical units between any two surface voxels of the region.
 //!
-//! **Roundness** = clamp( V_phys / (π/6 · d³), 0, 1 );  0.0 when d = 0.
-//! where V_phys = N·sz·sy·sx  and  d = feret_diameter.
+//! **Perimeter** (ITK `GetPerimeter`): physical surface area via the Crofton
+//! formula over the 13 unique directions of the 3-D 26-neighbourhood. For each
+//! direction offset `o`, the intercept count is
+//!   I_o = Σ_{v∈V_k} ( [v+o ∉ V_k] + [v−o ∉ V_k] )
+//! (out-of-bounds counts as background), and
+//!   perimeter = 4 · Σ_o ( vol / |o|_phys · I_o / 2 · w_o ),
+//! with vol = sz·sy·sx, |o|_phys = ‖(o_x·sx, o_y·sy, o_z·sz)‖, and the Voronoi
+//! direction weights w_o (Lindblad/ITK): 0.04577789120476·2 for the 3 axis
+//! directions, 0.03698062787608·2 for the 6 face-diagonals, 0.03519563978232·2
+//! for the 4 body-diagonals. Float-exact match to ITK/SimpleITK `GetPerimeter`.
 //!
-//! **Perimeter** = |{ v ∈ V_k : ∃ 6-connected neighbour n with L\[n\] ≠ k }|.
+//! **Equivalent spherical radius** r_eq = (3·V_phys / 4π)^(1/3);
+//! **equivalent spherical perimeter** (surface area) = 4π·r_eq².
+//!
+//! **Roundness** (ITK `GetRoundness`) = equivalent_spherical_perimeter / perimeter.
 //!
 //! # Complexity
 //! Two serial passes per label (centroid+bbox, then moments), one parallel fold
@@ -47,9 +58,11 @@ pub struct LabelShapeStatisticsExtended {
     pub label: u32,
     /// Voxel count.
     pub count: usize,
-    /// Number of surface voxels (6-connected boundary).
-    pub perimeter: usize,
-    /// V_phys / (π/6 · feret³): ∈ (0,1], 1.0 = sphere. 0.0 if feret = 0.
+    /// Physical surface area via the 13-direction Crofton estimator (ITK
+    /// `GetPerimeter`).
+    pub perimeter: f64,
+    /// equivalent_spherical_perimeter / perimeter (ITK `GetRoundness`); 1.0 for a
+    /// perfect sphere, < 1 otherwise. 0.0 when perimeter = 0.
     pub roundness: f64,
     /// √(λ_1/λ_0): second-smallest/smallest principal moment ratio (ITK
     /// `ShapeLabelObject::GetFlatness`). ∈ \[1, ∞); 1.0 = isotropic.
@@ -57,8 +70,14 @@ pub struct LabelShapeStatisticsExtended {
     /// √(λ_2/λ_1): largest/second-largest principal moment ratio (ITK
     /// `ShapeLabelObject::GetElongation`). ∈ \[1, ∞); 1.0 = isotropic.
     pub elongation: f64,
-    /// Approximate Feret diameter (bounding-box diagonal) in physical units.
+    /// Feret diameter: max physical distance between two surface voxels (ITK
+    /// `GetFeretDiameter`).
     pub feret_diameter: f64,
+    /// Radius of the sphere with the same physical volume: (3·V/4π)^(1/3).
+    pub equivalent_spherical_radius: f64,
+    /// Surface area of the equivalent-volume sphere: 4π·r_eq² (ITK
+    /// `GetEquivalentSphericalPerimeter`).
+    pub equivalent_spherical_perimeter: f64,
     /// Principal moments of inertia [λ_0, λ_1, λ_2] ascending, physical units².
     pub principal_moments: [f64; 3],
     /// Centroid in voxel coordinates.
@@ -154,37 +173,89 @@ fn is_boundary(
     false
 }
 
-/// Maximum Euclidean distance between the 8 axis-aligned bounding-box corners
-/// in physical coordinates.  This is the standard voxel-data approximation of
-/// the Feret (caliper) diameter.
+/// The 13 unique directions of the 3-D 26-neighbourhood (one per antipodal
+/// pair), each as a `(dz, dy, dx)` offset and its Crofton/Voronoi weight: the
+/// 3 axis directions, 6 face-diagonals, then 4 body-diagonals. Weights are the
+/// ITK/Lindblad constants (already including ITK's ×2 factor).
+const CROFTON_DIRECTIONS: [(i64, i64, i64, f64); 13] = {
+    const W_AXIS: f64 = 0.04577789120476 * 2.0;
+    const W_FACE: f64 = 0.03698062787608 * 2.0;
+    const W_BODY: f64 = 0.03519563978232 * 2.0;
+    [
+        (0, 0, 1, W_AXIS),
+        (0, 1, 0, W_AXIS),
+        (1, 0, 0, W_AXIS),
+        (0, 1, 1, W_FACE),
+        (0, 1, -1, W_FACE),
+        (1, 0, 1, W_FACE),
+        (1, 0, -1, W_FACE),
+        (1, 1, 0, W_FACE),
+        (1, -1, 0, W_FACE),
+        (1, 1, 1, W_BODY),
+        (1, 1, -1, W_BODY),
+        (1, -1, 1, W_BODY),
+        (1, -1, -1, W_BODY),
+    ]
+};
+
+/// Physical surface area of label `k` via the 13-direction Crofton estimator
+/// (ITK `GetPerimeter`), float-exact to SimpleITK.
 ///
-/// Corners: {z_min,z_max}·sz × {y_min,y_max}·sy × {x_min,x_max}·sx.
-fn feret_from_bbox(
-    z_min: i64,
-    z_max: i64,
-    y_min: i64,
-    y_max: i64,
-    x_min: i64,
-    x_max: i64,
+/// For each direction offset `o` the intercept count is
+/// `I_o = Σ_{v∈label} ([v+o ∉ label] + [v−o ∉ label])` (out-of-bounds counts as
+/// background), and `perimeter = 2 · vol · Σ_o (I_o · w_o / |o|_phys)`
+/// (the `4 · … · I_o/2` of the ITK formulation folded into `2·`).
+fn crofton_perimeter(
+    indices: &[usize],
+    label_slice: &[f32],
+    dims: [usize; 3],
     spacing: [f64; 3],
+    k: u32,
 ) -> f64 {
+    let [dim_z, dim_y, dim_x] = [dims[0] as i64, dims[1] as i64, dims[2] as i64];
+    let yx = dims[1] * dims[2];
     let [sz, sy, sx] = spacing;
-    let corners: [[f64; 3]; 8] = [
-        [z_min as f64 * sz, y_min as f64 * sy, x_min as f64 * sx],
-        [z_min as f64 * sz, y_min as f64 * sy, x_max as f64 * sx],
-        [z_min as f64 * sz, y_max as f64 * sy, x_min as f64 * sx],
-        [z_min as f64 * sz, y_max as f64 * sy, x_max as f64 * sx],
-        [z_max as f64 * sz, y_min as f64 * sy, x_min as f64 * sx],
-        [z_max as f64 * sz, y_min as f64 * sy, x_max as f64 * sx],
-        [z_max as f64 * sz, y_max as f64 * sy, x_min as f64 * sx],
-        [z_max as f64 * sz, y_max as f64 * sy, x_max as f64 * sx],
-    ];
+    let vol = sz * sy * sx;
+
+    let in_label = |z: i64, y: i64, x: i64| -> bool {
+        if z < 0 || y < 0 || x < 0 || z >= dim_z || y >= dim_y || x >= dim_x {
+            return false;
+        }
+        label_slice[z as usize * yx + y as usize * dims[2] + x as usize] as u32 == k
+    };
+
+    let mut sum = 0.0_f64;
+    for &(oz, oy, ox, w) in CROFTON_DIRECTIONS.iter() {
+        let d_phys = ((ox as f64 * sx).powi(2) + (oy as f64 * sy).powi(2) + (oz as f64 * sz).powi(2))
+            .sqrt();
+        let mut intercepts = 0_u64;
+        for &idx in indices {
+            let z = (idx / yx) as i64;
+            let y = ((idx / dims[2]) % dims[1]) as i64;
+            let x = (idx % dims[2]) as i64;
+            if !in_label(z + oz, y + oy, x + ox) {
+                intercepts += 1;
+            }
+            if !in_label(z - oz, y - oy, x - ox) {
+                intercepts += 1;
+            }
+        }
+        sum += intercepts as f64 * w / d_phys;
+    }
+    2.0 * vol * sum
+}
+
+/// Feret diameter: maximum physical distance between any two surface voxels
+/// (ITK `GetFeretDiameter`). Interior voxels can never be the farthest pair, so
+/// the search is restricted to the 6-connected boundary set (size B ≪ N); the
+/// pairwise scan is O(B²), matching ITK's own complexity.
+fn feret_from_boundary(boundary_phys: &[[f64; 3]]) -> f64 {
     let mut max_sq = 0.0_f64;
-    for i in 0..8 {
-        for j in (i + 1)..8 {
-            let dz = corners[i][0] - corners[j][0];
-            let dy = corners[i][1] - corners[j][1];
-            let dx = corners[i][2] - corners[j][2];
+    for (i, a) in boundary_phys.iter().enumerate() {
+        for b in &boundary_phys[i + 1..] {
+            let dz = a[0] - b[0];
+            let dy = a[1] - b[1];
+            let dx = a[2] - b[2];
             let d2 = dz * dz + dy * dy + dx * dx;
             if d2 > max_sq {
                 max_sq = d2;
@@ -262,35 +333,13 @@ pub fn compute_label_shape_statistics_extended_from_slices(
                 (z, y, x)
             };
 
-            // ── Pass 1: centroid and bounding box ─────────────────────────────
+            // ── Pass 1: centroid ──────────────────────────────────────────────
             let (mut sum_z, mut sum_y, mut sum_x) = (0_i64, 0_i64, 0_i64);
-            let (mut z_min, mut z_max) = (i64::MAX, i64::MIN);
-            let (mut y_min, mut y_max) = (i64::MAX, i64::MIN);
-            let (mut x_min, mut x_max) = (i64::MAX, i64::MIN);
             for &idx in &indices {
                 let (z, y, x) = decode(idx);
-                let (zi, yi, xi) = (z as i64, y as i64, x as i64);
-                sum_z += zi;
-                sum_y += yi;
-                sum_x += xi;
-                if zi < z_min {
-                    z_min = zi;
-                }
-                if zi > z_max {
-                    z_max = zi;
-                }
-                if yi < y_min {
-                    y_min = yi;
-                }
-                if yi > y_max {
-                    y_max = yi;
-                }
-                if xi < x_min {
-                    x_min = xi;
-                }
-                if xi > x_max {
-                    x_max = xi;
-                }
+                sum_z += z as i64;
+                sum_y += y as i64;
+                sum_x += x as i64;
             }
             let cz = sum_z as f64 / n_f;
             let cy = sum_y as f64 / n_f;
@@ -337,23 +386,34 @@ pub fn compute_label_shape_statistics_extended_from_slices(
                 (lambda1 / lambda0).sqrt()
             };
 
-            let feret = feret_from_bbox(z_min, z_max, y_min, y_max, x_min, x_max, spacing);
-
-            let volume_physical = n_f * spc_z * spc_y * spc_x;
-            let roundness = if feret <= 0.0 {
-                0.0
-            } else {
-                (volume_physical / (PI / 6.0 * feret.powi(3))).clamp(0.0, 1.0)
-            };
-
-            // ── Perimeter: count 6-connected surface voxels ───────────────────
-            let perimeter = indices
+            // ── Surface (6-connected boundary) voxels in physical coords ──────
+            // (used by the Feret diameter; B = |boundary| ≪ N).
+            let boundary_phys: Vec<[f64; 3]> = indices
                 .iter()
-                .filter(|&&idx| {
+                .filter_map(|&idx| {
                     let (z, y, x) = decode(idx);
-                    is_boundary(z, y, x, label_slice, dims, label)
+                    if is_boundary(z, y, x, label_slice, dims, label) {
+                        Some([z as f64 * spc_z, y as f64 * spc_y, x as f64 * spc_x])
+                    } else {
+                        None
+                    }
                 })
-                .count();
+                .collect();
+            let feret = feret_from_boundary(&boundary_phys);
+
+            // ── Perimeter (13-direction Crofton surface area, ITK) ────────────
+            let perimeter = crofton_perimeter(&indices, label_slice, dims, spacing, label);
+
+            // ── Equivalent-sphere descriptors and roundness ───────────────────
+            let volume_physical = n_f * spc_z * spc_y * spc_x;
+            let equivalent_spherical_radius = (3.0 * volume_physical / (4.0 * PI)).cbrt();
+            let equivalent_spherical_perimeter =
+                4.0 * PI * equivalent_spherical_radius * equivalent_spherical_radius;
+            let roundness = if perimeter > 0.0 {
+                equivalent_spherical_perimeter / perimeter
+            } else {
+                0.0
+            };
 
             LabelShapeStatisticsExtended {
                 label,
@@ -363,6 +423,8 @@ pub fn compute_label_shape_statistics_extended_from_slices(
                 flatness,
                 elongation,
                 feret_diameter: feret,
+                equivalent_spherical_radius,
+                equivalent_spherical_perimeter,
                 principal_moments: eigs,
                 centroid: Point::new([cz, cy, cx]),
             }

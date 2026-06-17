@@ -67,27 +67,34 @@ fn symmetric_pair_centroid() {
 
 // ── Perimeter ────────────────────────────────────────────────────────────────
 
-/// Isolated single voxel: all 6 faces are boundary → perimeter=1.
+/// Isolated single voxel: Crofton surface-area perimeter matches ITK/SimpleITK
+/// `GetPerimeter` (3.00408..., float-exact reference).
 #[test]
-fn single_voxel_perimeter_is_one() {
+fn single_voxel_perimeter_matches_itk() {
     let mut data = vec![0.0_f32; 27];
     data[13] = 1.0; // center of 3×3×3
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
     let stats = compute_label_shape_statistics_extended(&img);
-    assert_eq!(stats[0].perimeter, 1);
+    assert!(
+        (stats[0].perimeter - 3.0040803078963907).abs() < 1e-9,
+        "single-voxel perimeter {} ≠ ITK 3.00408",
+        stats[0].perimeter
+    );
 }
 
-/// Interior voxel in a 3×3×3 solid block has zero perimeter.
+/// Solid 3×3×3 block: Crofton surface-area perimeter matches ITK/SimpleITK
+/// `GetPerimeter` (41.07017..., float-exact reference).
 #[test]
-fn interior_voxel_perimeter_is_zero() {
+fn solid_block_perimeter_matches_itk() {
     let data = vec![1.0_f32; 27]; // all label=1
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
     let stats = compute_label_shape_statistics_extended(&img);
-    // Center voxel (1,1,1) is interior
-    // Actually, perimeter counts all boundary voxels of the region
-    // For a 3×3×3 solid block: 26 voxels are on the boundary, 1 interior
     assert_eq!(stats[0].count, 27);
-    assert_eq!(stats[0].perimeter, 26);
+    assert!(
+        (stats[0].perimeter - 41.070175434096235).abs() < 1e-9,
+        "3×3×3 perimeter {} ≠ ITK 41.07018",
+        stats[0].perimeter
+    );
 }
 
 // ── Elongation & Flatness ───────────────────────────────────────────────────
@@ -134,26 +141,27 @@ fn line_component_is_highly_elongated() {
 
 // ── Roundness ───────────────────────────────────────────────────────────────
 
-/// 3×3×3 isotropic block: roundness → 1 (sphere-like).
+/// 3×3×3 block: roundness = equivSpherePerimeter/perimeter matches ITK
+/// `GetRoundness` (1.05974..., float-exact). Note ITK roundness is *not* clamped
+/// to ≤ 1: a small blob whose discretised surface area under-estimates the true
+/// boundary can exceed 1.
 #[test]
-fn solid_block_roundness() {
+fn solid_block_roundness_matches_itk() {
     let data = vec![1.0_f32; 27];
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
     let stats = compute_label_shape_statistics_extended(&img);
-    // Cube inscribed in its circumscribed sphere → roundness ≈ 0.37
-    // This is expected for a cubic voxel blob
     assert!(
-        stats[0].roundness > 0.3 && stats[0].roundness <= 1.0,
-        "roundness should be >0.3 for a cube, got {}",
+        (stats[0].roundness - 1.0597418272119552).abs() < 1e-9,
+        "3×3×3 roundness {} ≠ ITK 1.05974",
         stats[0].roundness
     );
 }
 
-/// Single voxel: roundness near 1 (sphere-like at unit scale).
+/// Single voxel: roundness matches ITK `GetRoundness` (1.60980...). Feret is 0
+/// (a single boundary voxel has no opposing pair) but roundness is driven by the
+/// perimeter, so it is non-zero — the old feret-based guard no longer applies.
 #[test]
-fn single_voxel_roundness() {
-    // Single voxel: bounding box is a point → feret_diameter = 0.
-    // Guard clause: roundness = 0.0 when feret = 0.
+fn single_voxel_roundness_matches_itk() {
     let mut data = vec![0.0_f32; 27];
     data[13] = 1.0;
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
@@ -163,26 +171,21 @@ fn single_voxel_roundness() {
         "feret must be 0 for single voxel"
     );
     assert!(
-        (stats[0].roundness).abs() < 1e-9,
-        "roundness = 0 when feret = 0"
+        (stats[0].roundness - 1.6098024574568734).abs() < 1e-9,
+        "single-voxel roundness {} ≠ ITK 1.60980",
+        stats[0].roundness
     );
 }
 
 // ── Feret diameter ──────────────────────────────────────────────────────────
 
-/// 1×1×5 line: Feret ≈ 4×√3 (corner-to-corner of bbox).
+/// 1×1×5 line: Feret = max surface-voxel distance = ‖(0,0,0)−(0,0,4)‖ = 4.
 #[test]
 fn line_feret_diameter() {
-    let mut data = vec![0.0_f32; 5];
-    data[0] = 1.0;
-    data[1] = 1.0;
-    data[2] = 1.0;
-    data[3] = 1.0;
-    data[4] = 1.0;
+    let data = vec![1.0_f32; 5];
     let img = make_label_image(data, [1, 1, 5], [1.0, 1.0, 1.0]);
     let stats = compute_label_shape_statistics_extended(&img);
-    // Bbox: z∈[0,0], y∈[0,0], x∈[0,4] → corners (0,0,0)→(0,0,4) → feret=4
-    assert!((stats[0].feret_diameter - 4.0).abs() < 0.01);
+    assert!((stats[0].feret_diameter - 4.0).abs() < 1e-9);
 }
 
 /// Single voxel: Feret ≈ 0 (point).
@@ -223,7 +226,8 @@ fn empty_image_returns_empty() {
 
 // ── Anisotropic spacing ─────────────────────────────────────────────────────
 
-/// Spacing affects physical moments but not voxel counts.
+/// Spacing affects physical attributes (perimeter is now a physical surface
+/// area, not a voxel count) but not the voxel count itself.
 #[test]
 fn anisotropic_spacing_affects_moments() {
     let data = vec![1.0_f32; 27]; // solid 3×3×3
@@ -233,7 +237,8 @@ fn anisotropic_spacing_affects_moments() {
     let aniso_stats = compute_label_shape_statistics_extended(&aniso);
     // Counts are identical (voxel-space)
     assert_eq!(iso_stats[0].count, aniso_stats[0].count);
-    assert_eq!(iso_stats[0].perimeter, aniso_stats[0].perimeter);
+    // Physical surface area differs under anisotropic spacing.
+    assert!((iso_stats[0].perimeter - aniso_stats[0].perimeter).abs() > 0.01);
     // Physical moments differ
     assert!(iso_stats[0].principal_moments != aniso_stats[0].principal_moments);
     assert!((iso_stats[0].feret_diameter - aniso_stats[0].feret_diameter).abs() > 0.01);
