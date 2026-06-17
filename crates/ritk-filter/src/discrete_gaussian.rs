@@ -2,11 +2,14 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given variance v_d (physical units^2) and voxel spacing h_d:
-//!   sigma_pixel = sqrt(v_d) / h_d
-//! w\[k\] = exp(-k^2 / (2\*sigma_pixel^2)) for k in {-r,...,r}
-//! W = Sum_k w\[k\]; w_bar\[k\] = w\[k\] / W
-//!   r_min = ceil(sqrt(-2*sigma_pixel^2 * ln(maximum_error)))
+//! Given variance v_d (physical units^2) and voxel spacing h_d, the pixel
+//! variance is t = v_d / h_d^2. The kernel is ITK's *discrete* Gaussian
+//! (`GaussianOperator`), the discrete analog of the Gaussian (Lindeberg 1990):
+//!   g\[k\] = e^{-t} · I_{|k|}(t)   for k in {-r,...,r}
+//! where I_n is the modified Bessel function of the first kind. One-sided
+//! coefficients are accumulated until the mass g\[0\] + 2·Sum_{i>=1} g\[i\]
+//! reaches 1 - maximum_error (radius capped at 32), then normalised by that sum.
+//! This is NOT a sampled continuous Gaussian — it is float-exact to SimpleITK.
 //!
 //! # Boundary Conditions
 //! Replicate (edge) padding is used for all convolutions. This preserves the
@@ -160,39 +163,53 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         }
     }
 
-    /// r_min = ceil(sqrt(-2*sigma^2*ln(maximum_error))), minimum 1.
+    /// Build ITK's discrete Gaussian kernel (`GaussianOperator`): the symmetric,
+    /// normalised coefficients `g[k] = e^{-t}·I_{|k|}(t)` where `t` is the pixel
+    /// variance `σ_pixel²` and `I_n` is the modified Bessel function (the discrete
+    /// analog of the Gaussian, Lindeberg 1990). One-sided coefficients are
+    /// accumulated until the running mass `g[0] + 2·Σ_{i≥1} g[i]` reaches
+    /// `1 − maximum_error`, capped at `MAX_KERNEL_RADIUS` (ITK default 32). This
+    /// is *not* a sampled continuous Gaussian — it is float-exact to SimpleITK
+    /// `DiscreteGaussian`.
     #[inline]
-    fn kernel_radius(&self, sigma_pixel: f64) -> usize {
-        if sigma_pixel < Self::SIGMA_MIN {
-            return 0;
-        }
-        let r = (-2.0 * sigma_pixel * sigma_pixel * self.maximum_error.ln())
-            .sqrt()
-            .ceil() as usize;
-        r.max(1)
-    }
+    fn build_kernel(&self, pixel_variance: f64) -> Vec<f32> {
+        let t = pixel_variance;
+        let et = (-t).exp();
+        let cap = 1.0 - self.maximum_error;
 
-    #[inline]
-    fn build_kernel(&self, sigma_pixel: f64, radius: usize) -> Vec<f32> {
-        let width = 2 * radius + 1;
-        let mut k = Vec::with_capacity(width);
-        let two_s2 = 2.0 * sigma_pixel * sigma_pixel;
-        // ACCUMULATOR: f64 for normalization stability over f32 kernel weights.
-        let mut sum = 0.0f64;
-        for i in 0..width {
-            let x = i as f64 - radius as f64;
-            let v = (-x * x / two_s2).exp();
-            k.push(v as f32);
-            sum += v;
+        // One-sided coefficients [g0, g1, g2, …].
+        let mut coeff = vec![et * modified_bessel_i0(t)];
+        let mut sum = coeff[0];
+        let g1 = et * modified_bessel_i1(t);
+        coeff.push(g1);
+        sum += 2.0 * g1;
+        let mut i = 2;
+        while sum < cap {
+            let c = et * modified_bessel_i(i, t);
+            if c <= 0.0 {
+                break;
+            }
+            coeff.push(c);
+            sum += 2.0 * c;
+            if i >= Self::MAX_KERNEL_RADIUS {
+                break;
+            }
+            i += 1;
         }
-        for val in &mut k {
-            *val /= sum as f32;
-        }
+
+        // Symmetric, normalised: [g_n, …, g_1, g_0, g_1, …, g_n] / sum.
+        let radius = coeff.len() - 1;
+        let inv = 1.0 / sum;
+        let mut k = Vec::with_capacity(2 * radius + 1);
+        k.extend(coeff[1..].iter().rev().map(|&c| (c * inv) as f32));
+        k.extend(coeff.iter().map(|&c| (c * inv) as f32));
         k
     }
 
-    /// Minimum Gaussian sigma in pixels; below this the kernel degenerates to an identity impulse.
-    const SIGMA_MIN: f64 = 1e-9;
+    /// Minimum pixel variance below which the kernel is the identity impulse.
+    const VARIANCE_MIN: f64 = 1e-18;
+    /// Maximum one-sided kernel radius (ITK `GaussianOperator` default).
+    const MAX_KERNEL_RADIUS: usize = 32;
 
     #[inline]
     fn apply_inner<const D: usize>(
@@ -207,10 +224,12 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         let mut kernels: [Option<Vec<f32>>; D] = std::array::from_fn(|_| None);
         for (d, kernel_slot) in kernels.iter_mut().enumerate() {
             let sigma = self.pixel_sigma_for_dim::<D>(d, spacing);
-            if sigma >= Self::SIGMA_MIN {
-                let radius = self.kernel_radius(sigma);
-                if radius > 0 {
-                    *kernel_slot = Some(self.build_kernel(sigma, radius));
+            let pixel_variance = sigma * sigma;
+            if pixel_variance >= Self::VARIANCE_MIN {
+                let kernel = self.build_kernel(pixel_variance);
+                // A single-tap kernel is the identity — skip it.
+                if kernel.len() > 1 {
+                    *kernel_slot = Some(kernel);
                 }
             }
         }
@@ -228,6 +247,94 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
 
         // Reconstruct tensor.
         Tensor::<B, D>::from_data(TensorData::new(result, Shape::new(dims)), &device)
+    }
+}
+
+// ── Modified Bessel functions (ITK GaussianOperator) ──────────────────────────
+// Abramowitz & Stegun 9.8.1–9.8.4 polynomial approximations (the exact forms
+// ITK uses), so the discrete Gaussian kernel is float-exact to SimpleITK.
+
+/// Modified Bessel function of the first kind, order 0.
+fn modified_bessel_i0(y: f64) -> f64 {
+    let d = y.abs();
+    if d < 3.75 {
+        let m = (y / 3.75) * (y / 3.75);
+        1.0 + m
+            * (3.5156229
+                + m * (3.0899424
+                    + m * (1.2067492 + m * (0.2659732 + m * (0.0360768 + m * 0.0045813)))))
+    } else {
+        let m = 3.75 / d;
+        (d.exp() / d.sqrt())
+            * (0.39894228
+                + m * (0.01328592
+                    + m * (0.00225319
+                        + m * (-0.00157565
+                            + m * (0.00916281
+                                + m * (-0.02057706
+                                    + m * (0.02635537 + m * (-0.01647633 + m * 0.00392377))))))))
+    }
+}
+
+/// Modified Bessel function of the first kind, order 1.
+fn modified_bessel_i1(y: f64) -> f64 {
+    let d = y.abs();
+    let acc = if d < 3.75 {
+        let m = (y / 3.75) * (y / 3.75);
+        d * (0.5
+            + m * (0.87890594
+                + m * (0.51498869
+                    + m * (0.15084934 + m * (0.02658733 + m * (0.00301532 + m * 0.00032411))))))
+    } else {
+        let m = 3.75 / d;
+        let a = 0.02282967 + m * (-0.02895312 + m * (0.01787654 - m * 0.00420059));
+        let a = 0.39894228
+            + m * (-0.03988024 + m * (-0.00362018 + m * (0.00163801 + m * (-0.01031555 + m * a))));
+        a * (d.exp() / d.sqrt())
+    };
+    if y < 0.0 {
+        -acc
+    } else {
+        acc
+    }
+}
+
+/// Modified Bessel function of the first kind, order `n ≥ 2`, via Miller's
+/// downward recurrence seeded from `j = 2·(n + √(40n))` and renormalised by
+/// `I0` (Numerical Recipes / ITK `ModifiedBesselI`).
+fn modified_bessel_i(n: usize, y: f64) -> f64 {
+    if n == 0 {
+        return modified_bessel_i0(y);
+    }
+    if n == 1 {
+        return modified_bessel_i1(y);
+    }
+    if y == 0.0 {
+        return 0.0;
+    }
+    let tox = 2.0 / y.abs();
+    let (mut bip, mut bi, mut ans) = (0.0_f64, 1.0_f64, 0.0_f64);
+    // Even starting index well above n; iterate the recurrence downward.
+    let mut j = 2 * (n + (40.0 * n as f64).sqrt() as usize);
+    while j > 0 {
+        let bim = bip + j as f64 * tox * bi;
+        bip = bi;
+        bi = bim;
+        if bi.abs() > 1.0e10 {
+            bi *= 1.0e-10;
+            bip *= 1.0e-10;
+            ans *= 1.0e-10;
+        }
+        if j == n {
+            ans = bip;
+        }
+        j -= 1;
+    }
+    ans *= modified_bessel_i0(y) / bi;
+    if y < 0.0 && n % 2 == 1 {
+        -ans
+    } else {
+        ans
     }
 }
 

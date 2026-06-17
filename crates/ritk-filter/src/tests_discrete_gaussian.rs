@@ -154,12 +154,17 @@ fn test_per_dimension_variance_applied_independently() {
 }
 
 #[test]
-fn test_impulse_response_matches_analytical_gaussian() {
-    // sigma=2.0 → variance=4.0; impulse at 15 in 1x1x31. Tol 1e-3.
+fn test_impulse_response_matches_discrete_gaussian() {
+    // The impulse response of the separable filter IS its kernel. ITK's discrete
+    // Gaussian kernel is g[d] = e^{-t}·I_|d|(t), t = pixel variance (Lindeberg's
+    // discrete analog of the Gaussian) — NOT a sampled continuous Gaussian. The
+    // untruncated form sums to 1 exactly (Σ_n I_n(t) = e^t); the filter truncates
+    // at maximum_error = 0.01 and renormalises, so each tap exceeds the untruncated
+    // value by the redistributed tail mass (< 1.2 %).
     let n = 31usize;
     let c = 15usize;
-    let var = 4.0f64;
-    let sigma = var.sqrt(); // sigma=2.0 → variance=sigma²=4.0
+    let t = 4.0f64; // pixel variance (Voxel mode, sigma = 2 ⇒ t = sigma² = 4)
+    let sigma = t.sqrt();
     let mut imp = vec![0.0_f32; n];
     imp[c] = 1.0;
     let img = make_image(imp, [1, 1, n]);
@@ -172,15 +177,36 @@ fn test_impulse_response_matches_analytical_gaussian() {
         .with_spacing_mode(SpacingMode::Voxel)
         .apply(&img),
     );
-    let tv = 2.0 * var; // = 2 * sigma² = 2 * 4 = 8
-    let raw: Vec<f64> = (0..n)
-        .map(|k| (-((k as f64 - c as f64).powi(2)) / tv).exp())
-        .collect();
-    let z: f64 = raw.iter().sum();
-    let wb: Vec<f64> = raw.iter().map(|&w| w / z).collect();
-    for k in 0..n {
-        assert!((ov[k] as f64 - wb[k]).abs() < 1e-3);
+    // Reference kernel from the ITK spec (independent of build_kernel's code):
+    // accumulate g[i] = e^{-t}·I_i(t) until the mass reaches 1 - max_error, then
+    // normalise by that truncated sum.
+    let et = (-t).exp();
+    let mut coeff = vec![et * super::modified_bessel_i(0, t)];
+    let mut s = coeff[0];
+    let mut i = 1usize;
+    loop {
+        let cval = et * super::modified_bessel_i(i, t);
+        coeff.push(cval);
+        s += 2.0 * cval;
+        if s >= 1.0 - 0.01 || i >= 32 {
+            break;
+        }
+        i += 1;
     }
+    let radius = coeff.len() - 1;
+
+    let mut total = 0.0f64;
+    for k in 0..n {
+        let d = (k as i64 - c as i64).unsigned_abs() as usize;
+        let expected = if d <= radius { coeff[d] / s } else { 0.0 };
+        total += ov[k] as f64;
+        assert!(
+            (ov[k] as f64 - expected).abs() < 1e-6,
+            "tap {k}: filter {} vs ITK discrete Gaussian {expected}",
+            ov[k]
+        );
+    }
+    assert!((total - 1.0).abs() < 1e-5, "impulse response must sum to 1: {total}");
 }
 
 #[test]
