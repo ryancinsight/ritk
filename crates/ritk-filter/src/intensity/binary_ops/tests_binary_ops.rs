@@ -227,3 +227,33 @@ fn generic_binary_op_filter_matches_specialized() {
     assert!((max_v[0] - 3.0).abs() < 1e-5);
     assert!((max_v[1] - 7.0).abs() < 1e-5);
 }
+
+// --- SquaredDifferenceImageFilter / AbsoluteValueDifferenceImageFilter ----
+
+#[test]
+fn squared_difference_computes_squared_residual() {
+    let a = make_image(vec![3.0, 10.0, -2.0], [1, 1, 3]);
+    let b = make_image(vec![1.0, 4.0, 1.0], [1, 1, 3]);
+    let out = SquaredDifferenceImageFilter::new().apply(&a, &b).unwrap();
+    let v = voxels(&out);
+    // (3-1)²=4, (10-4)²=36, (-2-1)²=9
+    for (got, exp) in v.iter().zip([4.0f32, 36.0, 9.0]) {
+        assert!((got - exp).abs() < 1e-4, "squared diff: got {got}, expected {exp}");
+    }
+}
+
+#[test]
+fn absolute_value_difference_is_symmetric_and_nonnegative() {
+    let a = make_image(vec![3.0, 4.0], [1, 1, 2]);
+    let b = make_image(vec![1.0, 7.0], [1, 1, 2]);
+    let ab = voxels(&AbsoluteValueDifferenceImageFilter::new().apply(&a, &b).unwrap());
+    let ba = voxels(&AbsoluteValueDifferenceImageFilter::new().apply(&b, &a).unwrap());
+    for (x, y) in ab.iter().zip(ba.iter()) {
+        assert_eq!(x, y, "|a-b| must equal |b-a|");
+        assert!(*x >= 0.0, "absolute difference must be non-negative");
+    }
+    // |3-1|=2, |4-7|=3
+    for (got, exp) in ab.iter().zip([2.0f32, 3.0]) {
+        assert!((got - exp).abs() < 1e-5, "abs diff: got {got}, expected {exp}");
+    }
+}

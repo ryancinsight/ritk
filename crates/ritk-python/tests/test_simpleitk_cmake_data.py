@@ -190,6 +190,12 @@ _BINARY_CASES = [
      lambda a, b: ritk.filter.divide_images(a, b), lambda a, b: sitk.Divide(a, b), 0.0),
     ("Add/2d", "STAPLE1.png", "STAPLE2.png",
      lambda a, b: ritk.filter.add_images(a, b), lambda a, b: sitk.Add(a, b), 0.0),
+    ("SquaredDifference/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.squared_difference_images(a, b),
+     lambda a, b: sitk.SquaredDifference(a, b), 0.0),
+    ("AbsoluteValueDifference/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.absolute_value_difference_images(a, b),
+     lambda a, b: sitk.AbsoluteValueDifference(a, b), 0.0),
 ]
 
 

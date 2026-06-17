@@ -39,14 +39,16 @@ pub use smoothing::MeanImageFilter;
 pub mod intensity;
 
 pub use intensity::{
-    AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
+    AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
+    AsinImageFilter, AtanImageFilter,
     BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
     ComponentPolicy, CosImageFilter, DivideImageFilter, ExpImageFilter, ExpNegativeImageFilter,
     HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter, IntensityWindowingFilter,
     InvertIntensityFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
     MultiplyImageFilter, NormalizeImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter,
-    SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, SubtractImageFilter,
+    SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
+    SquaredDifferenceImageFilter, SubtractImageFilter,
     SuvBodyWeightImageFilter, TanImageFilter, ThresholdImageFilter, ThresholdMode,
     UnsharpMaskFilter, ZeroCrossingImageFilter,
 };

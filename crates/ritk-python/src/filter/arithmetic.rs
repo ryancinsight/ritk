@@ -11,11 +11,12 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
-    BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, DivideImageFilter,
-    ExpImageFilter, ExpNegativeImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
-    Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter, MultiplyImageFilter,
-    SinImageFilter, SqrtImageFilter, SquareImageFilter, SubtractImageFilter, TanImageFilter,
+    AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
+    AsinImageFilter, AtanImageFilter, BoundedReciprocalImageFilter, ClampImageFilter,
+    CosImageFilter, DivideImageFilter, ExpImageFilter, ExpNegativeImageFilter, ImageMaxFilter,
+    ImageMinFilter, InvertIntensityFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
+    MaskNegatedImageFilter, MultiplyImageFilter, SinImageFilter, SqrtImageFilter,
+    SquareImageFilter, SquaredDifferenceImageFilter, SubtractImageFilter, TanImageFilter,
 };
 
 /// Pixelwise clamp to `[lower, upper]`. ITK Parity: ClampImageFilter.
@@ -173,6 +174,40 @@ pub fn divide_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyI
     let b_arc = std::sync::Arc::clone(&b.inner);
     py.allow_threads(|| {
         DivideImageFilter::new()
+            .apply(a_arc.as_ref(), b_arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Pixelwise squared difference: out(x) = (a(x) - b(x))^2.
+///
+/// ITK Parity: SquaredDifferenceImageFilter
+#[pyfunction]
+pub fn squared_difference_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
+    let a_arc = std::sync::Arc::clone(&a.inner);
+    let b_arc = std::sync::Arc::clone(&b.inner);
+    py.allow_threads(|| {
+        SquaredDifferenceImageFilter::new()
+            .apply(a_arc.as_ref(), b_arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Pixelwise absolute difference: out(x) = |a(x) - b(x)|.
+///
+/// ITK Parity: AbsoluteValueDifferenceImageFilter
+#[pyfunction]
+pub fn absolute_value_difference_images(
+    py: Python<'_>,
+    a: &PyImage,
+    b: &PyImage,
+) -> RitkResult<PyImage> {
+    let a_arc = std::sync::Arc::clone(&a.inner);
+    let b_arc = std::sync::Arc::clone(&b.inner);
+    py.allow_threads(|| {
+        AbsoluteValueDifferenceImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

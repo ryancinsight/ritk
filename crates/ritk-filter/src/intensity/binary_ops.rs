@@ -13,16 +13,18 @@
 //! - `DivideImageFilter`: `out(x) = A(x) / B(x)` (division by zero yields 0)
 //! - `ImageMinFilter`: `out(x) = min(A(x), B(x))`
 //! - `ImageMaxFilter`: `out(x) = max(A(x), B(x))`
+//! - `SquaredDifferenceImageFilter`: `out(x) = (A(x) − B(x))²`
+//! - `AbsoluteValueDifferenceImageFilter`: `out(x) = |A(x) − B(x)|`
 //!
 //! Spatial metadata (origin, spacing, direction) is taken from the **first** input image.
 //! Both images must have identical shapes; a shape mismatch returns `Err`.
 //!
 //! # Architecture
 //!
-//! All six filters share a single generic [`BinaryOpFilter<Op>`] implementation
+//! All filters share a single generic [`BinaryOpFilter<Op>`] implementation
 //! parameterized by a ZST operation type implementing [`BinaryOp`]. This
-//! eliminates ~120 lines of duplicated `apply` bodies while producing
-//! monomorphized, zero-cost specializations per operation.
+//! eliminates duplicated `apply` bodies while producing monomorphized,
+//! zero-cost specializations per operation.
 //!
 //! # ITK / SimpleITK / ImageJ Parity
 //!
@@ -34,6 +36,8 @@
 //! | `DivideImageFilter` | `DivideImageFilter` | Divide |
 //! | `ImageMinFilter` | `MinimumImageFilter` | Min |
 //! | `ImageMaxFilter` | `MaximumImageFilter` | Max |
+//! | `SquaredDifferenceImageFilter` | `SquaredDifferenceImageFilter` | — |
+//! | `AbsoluteValueDifferenceImageFilter` | `AbsoluteValueDifferenceImageFilter` | Difference |
 
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
@@ -76,6 +80,14 @@ pub struct MinOp;
 /// Elementwise maximum: `max(a, b)`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct MaxOp;
+
+/// Squared difference: `(a − b)²`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SquaredDifferenceOp;
+
+/// Absolute value of the difference: `|a − b|`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct AbsoluteValueDifferenceOp;
 
 impl BinaryOp for AddOp {
     #[inline]
@@ -120,6 +132,21 @@ impl BinaryOp for MaxOp {
     #[inline]
     fn apply(a: f32, b: f32) -> f32 {
         a.max(b)
+    }
+}
+
+impl BinaryOp for SquaredDifferenceOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        let d = a - b;
+        d * d
+    }
+}
+
+impl BinaryOp for AbsoluteValueDifferenceOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a - b).abs()
     }
 }
 
@@ -221,6 +248,20 @@ pub type ImageMinFilter = BinaryOpFilter<MinOp>;
 ///
 /// # ITK Parity: `MaximumImageFilter`
 pub type ImageMaxFilter = BinaryOpFilter<MaxOp>;
+
+/// Pixelwise squared difference of two images.
+///
+/// `out(x) = (a(x) − b(x))²`
+///
+/// # ITK Parity: `SquaredDifferenceImageFilter`
+pub type SquaredDifferenceImageFilter = BinaryOpFilter<SquaredDifferenceOp>;
+
+/// Pixelwise absolute difference of two images.
+///
+/// `out(x) = |a(x) − b(x)|`
+///
+/// # ITK Parity: `AbsoluteValueDifferenceImageFilter`
+pub type AbsoluteValueDifferenceImageFilter = BinaryOpFilter<AbsoluteValueDifferenceOp>;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

@@ -83,6 +83,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(divide_images, &m)?)?;
     m.add_function(wrap_pyfunction!(minimum_images, &m)?)?;
     m.add_function(wrap_pyfunction!(maximum_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(squared_difference_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(absolute_value_difference_images, &m)?)?;
     // Unary math (ITK Abs/Sqrt/Square/Exp/Log/Sin/Cos/Tan/Asin/Acos/Atan/BoundedReciprocal)
     m.add_function(wrap_pyfunction!(abs_image, &m)?)?;
     m.add_function(wrap_pyfunction!(sqrt_image, &m)?)?;

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [0.79.0] — 2026-06-17 (Sprint 382: SquaredDifference / AbsoluteValueDifference binary filters)
+
+### Added
+- `ritk-filter`: two new pixelwise two-image filters via the generic `BinaryOpFilter<Op>` seam — `SquaredDifferenceImageFilter` (`out = (a−b)²`, ITK `SquaredDifferenceImageFilter`) and `AbsoluteValueDifferenceImageFilter` (`out = |a−b|`, ITK `AbsoluteValueDifferenceImageFilter`). One closure each on the existing seam. Value-semantic Rust tests (squared residual; `|a−b|` symmetry + non-negativity).
+- `ritk-python`: exposed `filter.squared_difference_images` and `filter.absolute_value_difference_images`, both **bit-exact** to `sitk.SquaredDifference` / `sitk.AbsoluteValueDifference` on the upstream Ramp-Up/Ramp-Down-Short pair. `.pyi` stubs + 2 new cmake parity cases (binary suite now 8 cases).
+
 ## [0.78.0] — 2026-06-17 (Sprint 381: Log10 / ExpNegative unary math filters)
 
 ### Added

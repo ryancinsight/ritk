@@ -32,8 +32,10 @@ pub use arithmetic::{
 };
 pub use bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPolicy};
 pub use binary_ops::{
-    AddImageFilter, AddOp, BinaryOp, BinaryOpFilter, DivideImageFilter, DivideOp, ImageMaxFilter,
-    ImageMinFilter, MaxOp, MinOp, MultiplyImageFilter, MultiplyOp, SubtractImageFilter, SubtractOp,
+    AbsoluteValueDifferenceImageFilter, AbsoluteValueDifferenceOp, AddImageFilter, AddOp, BinaryOp,
+    BinaryOpFilter, DivideImageFilter, DivideOp, ImageMaxFilter, ImageMinFilter, MaxOp, MinOp,
+    MultiplyImageFilter, MultiplyOp, SquaredDifferenceImageFilter, SquaredDifferenceOp,
+    SubtractImageFilter, SubtractOp,
 };
 pub use binary_threshold::BinaryThresholdImageFilter;
 pub use blend::BlendImageFilter;
