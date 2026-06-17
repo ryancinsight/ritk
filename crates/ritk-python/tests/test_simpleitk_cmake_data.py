@@ -346,6 +346,16 @@ def test_cmake_rgb_smoothing_recursive_gaussian_on_upstream_data():
     assert rel < 1e-6, f"RGB smoothing recursive gaussian rel {rel:.2e}"
 
 
+def test_cmake_fft_roundtrip_on_upstream_data():
+    # Forward + inverse FFT recovers the input (SimpleITK's ForwardFFT/InverseFFT
+    # round-trip test pattern) on an upstream float slice.
+    ri, _ = _pair("RA-Slice-Float.nrrd")
+    rt = np.asarray(ritk.filter.inverse_fft(ritk.filter.forward_fft(ri)).to_numpy(), np.float64)
+    inp = np.asarray(ri.to_numpy(), np.float64)
+    rel = np.abs(rt - inp).max() / max(np.abs(inp).max(), 1e-9)
+    assert rel < 1e-5, f"FFT round-trip rel {rel:.2e}"
+
+
 def test_cmake_zero_crossing_on_upstream_data():
     # ZeroCrossingImageFilter/defaults on the upstream 2th_cthead1_distance image.
     ri, si = _pair("2th_cthead1_distance.nrrd")
