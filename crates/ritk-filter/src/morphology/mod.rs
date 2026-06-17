@@ -71,6 +71,12 @@ pub use grayscale_geodesic::{GrayscaleGeodesicDilationFilter, GrayscaleGeodesicE
 pub mod h_transform;
 pub use h_transform::{HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter};
 
+pub mod regional_extrema;
+pub use regional_extrema::{
+    RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
+    ValuedRegionalMinimaFilter,
+};
+
 pub mod morphological_laplace;
 pub use morphological_laplace::MorphologicalLaplacian;
 

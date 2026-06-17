@@ -65,7 +65,9 @@ pub use morphology::{
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter,
     HMaximaFilter, HMinimaFilter, HitOrMissTransform, LabelClosing,
     LabelContourImageFilter, LabelDilation, LabelErosion, LabelOpening,
-    MorphologicalReconstruction, ReconstructionMode, VotingBinaryImageFilter, WhiteTopHatFilter,
+    MorphologicalReconstruction, ReconstructionMode, RegionalMaximaFilter, RegionalMinimaFilter,
+    ValuedRegionalMaximaFilter, ValuedRegionalMinimaFilter, VotingBinaryImageFilter,
+    WhiteTopHatFilter,
 };
 
 // ── Edge detection & vesselness ──────────────────────────────────────────────

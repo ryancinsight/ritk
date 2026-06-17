@@ -282,6 +282,18 @@ def h_convex(image: Image, height: float, fully_connected: bool = False) -> Imag
 def h_concave(image: Image, height: float, fully_connected: bool = False) -> Image:
     """H-concave transform: HMinima_h(f) - f. ITK Parity: HConcaveImageFilter."""
     ...
+def regional_maxima(image: Image, foreground: float = 1.0, background: float = 0.0, fully_connected: bool = False) -> Image:
+    """Binary regional maxima. ITK Parity: RegionalMaximaImageFilter."""
+    ...
+def regional_minima(image: Image, foreground: float = 1.0, background: float = 0.0, fully_connected: bool = False) -> Image:
+    """Binary regional minima. ITK Parity: RegionalMinimaImageFilter."""
+    ...
+def valued_regional_maxima(image: Image, fully_connected: bool = False) -> Image:
+    """Valued regional maxima (non-maxima → -FLT_MAX). ITK Parity: ValuedRegionalMaximaImageFilter."""
+    ...
+def valued_regional_minima(image: Image, fully_connected: bool = False) -> Image:
+    """Valued regional minima (non-minima → +FLT_MAX). ITK Parity: ValuedRegionalMinimaImageFilter."""
+    ...
 def resample_image(
     image: Image,
     spacing_z: float = 1.0,

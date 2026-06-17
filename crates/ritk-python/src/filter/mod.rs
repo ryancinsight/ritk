@@ -125,6 +125,10 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(h_minima, &m)?)?;
     m.add_function(wrap_pyfunction!(h_convex, &m)?)?;
     m.add_function(wrap_pyfunction!(h_concave, &m)?)?;
+    m.add_function(wrap_pyfunction!(regional_maxima, &m)?)?;
+    m.add_function(wrap_pyfunction!(regional_minima, &m)?)?;
+    m.add_function(wrap_pyfunction!(valued_regional_maxima, &m)?)?;
+    m.add_function(wrap_pyfunction!(valued_regional_minima, &m)?)?;
     // Spatial transforms
     m.add_function(wrap_pyfunction!(resample_image, &m)?)?;
     m.add_function(wrap_pyfunction!(rotate_image, &m)?)?;

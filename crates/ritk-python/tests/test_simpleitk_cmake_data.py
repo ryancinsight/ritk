@@ -621,3 +621,27 @@ def test_cmake_h_transform_on_upstream_data(tag, rfn, sfn, height):
     r = np.squeeze(np.asarray(rfn(ri, height).to_numpy(), np.float64))
     s = np.squeeze(sitk.GetArrayFromImage(sfn(si, height)).astype(np.float64))
     assert np.array_equal(r, s), f"{tag} (h={height}): differs from sitk"
+
+
+# Regional-extrema grayscale morphology (<Filter>.yaml). Flat-zone flood, so
+# bit-exact to SimpleITK on the upstream cthead1 grayscale image.
+_REGIONAL_EXTREMA_CMAKE = [
+    ("RegionalMaxima/RegionalMaxima", lambda i: ritk.filter.regional_maxima(i),
+     lambda i: sitk.RegionalMaxima(i)),
+    ("RegionalMinima/RegionalMinima", lambda i: ritk.filter.regional_minima(i),
+     lambda i: sitk.RegionalMinima(i)),
+    ("ValuedRegionalMaxima/ValuedRegionalMaxima", lambda i: ritk.filter.valued_regional_maxima(i),
+     lambda i: sitk.ValuedRegionalMaxima(i)),
+    ("ValuedRegionalMinima/ValuedRegionalMinima", lambda i: ritk.filter.valued_regional_minima(i),
+     lambda i: sitk.ValuedRegionalMinima(i)),
+]
+
+
+@pytest.mark.parametrize("tag,rfn,sfn", _REGIONAL_EXTREMA_CMAKE,
+                         ids=[c[0] for c in _REGIONAL_EXTREMA_CMAKE])
+def test_cmake_regional_extrema_on_upstream_data(tag, rfn, sfn):
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(rfn(ri).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sfn(si)).astype(np.float64))
+    assert np.array_equal(r, s), f"{tag}: differs from sitk"

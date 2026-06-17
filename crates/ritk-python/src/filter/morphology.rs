@@ -6,7 +6,9 @@ use pyo3::prelude::*;
 use ritk_filter::{
     BlackTopHatFilter, Connectivity, GrayscaleDilation, GrayscaleErosion, HConcaveFilter,
     HConvexFilter, HMaximaFilter, HMinimaFilter, HitOrMissTransform, LabelClosing, LabelDilation,
-    LabelErosion, LabelOpening, MorphologicalReconstruction, ReconstructionMode, WhiteTopHatFilter,
+    LabelErosion, LabelOpening, MorphologicalReconstruction, ReconstructionMode,
+    RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
+    ValuedRegionalMinimaFilter, WhiteTopHatFilter,
 };
 
 /// Apply grayscale morphological erosion with a flat cubic structuring element.
@@ -281,6 +283,94 @@ pub fn h_concave(
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         HConcaveFilter::new(height)
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Binary regional maxima: `foreground` on regional maxima, `background`
+/// elsewhere. ITK Parity: RegionalMaximaImageFilter (`sitk.RegionalMaxima`).
+#[pyfunction]
+#[pyo3(signature = (image, foreground = 1.0, background = 0.0, fully_connected = false))]
+pub fn regional_maxima(
+    py: Python<'_>,
+    image: &PyImage,
+    foreground: f32,
+    background: f32,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        RegionalMaximaFilter::new()
+            .with_values(foreground, background)
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Binary regional minima. ITK Parity: RegionalMinimaImageFilter
+/// (`sitk.RegionalMinima`).
+#[pyfunction]
+#[pyo3(signature = (image, foreground = 1.0, background = 0.0, fully_connected = false))]
+pub fn regional_minima(
+    py: Python<'_>,
+    image: &PyImage,
+    foreground: f32,
+    background: f32,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        RegionalMinimaFilter::new()
+            .with_values(foreground, background)
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Valued regional maxima: keep the input value on regional maxima, set
+/// non-maxima to −FLT_MAX. ITK Parity: ValuedRegionalMaximaImageFilter
+/// (`sitk.ValuedRegionalMaxima`).
+#[pyfunction]
+#[pyo3(signature = (image, fully_connected = false))]
+pub fn valued_regional_maxima(
+    py: Python<'_>,
+    image: &PyImage,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        ValuedRegionalMaximaFilter::new()
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Valued regional minima: keep the input value on regional minima, set
+/// non-minima to +FLT_MAX. ITK Parity: ValuedRegionalMinimaImageFilter
+/// (`sitk.ValuedRegionalMinima`).
+#[pyfunction]
+#[pyo3(signature = (image, fully_connected = false))]
+pub fn valued_regional_minima(
+    py: Python<'_>,
+    image: &PyImage,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        ValuedRegionalMinimaFilter::new()
             .with_connectivity(conn)
             .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.82.0] — 2026-06-17 (Sprint 385: regional-extrema family)
+
+### Added
+- `ritk-filter` / `ritk-python`: regional-extrema grayscale morphology family — `RegionalMaximaFilter`, `RegionalMinimaFilter` (binary), `ValuedRegionalMaximaFilter`, `ValuedRegionalMinimaFilter` (ITK `{Valued,}Regional{Maxima,Minima}ImageFilter`). Implemented as an exact flat-zone flood (BFS each connected equal-valued component, mark extremal iff no out-of-zone neighbour is strictly more extreme) — correct for arbitrary float contrast, unlike the `f − R^δ_f(f−1)` reconstruction shortcut which merges sub-unit-contrast extrema. Exposed as `filter.{regional_maxima,regional_minima}(image, foreground=1.0, background=0.0, fully_connected=False)` and `filter.valued_regional_{maxima,minima}(image, fully_connected=False)`; valued non-extrema take `∓FLT_MAX` (ITK `NumericTraits`). All four **bit-exact** to `sitk.{Valued,}Regional{Maxima,Minima}` on the upstream cthead1 image. Value-semantic Rust tests (reference masks, sub-unit-contrast detection, constant-image single-extremum, custom fg/bg) + 4 cmake parity cases (suite now 100). `.pyi` stubs added.
+
 ## [0.81.0] — 2026-06-17 (Sprint 384: H-transform family + erosion-reconstruction fix)
 
 ### Fixed
