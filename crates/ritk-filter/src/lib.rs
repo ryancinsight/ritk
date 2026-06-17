@@ -38,6 +38,7 @@ pub use smoothing::MeanImageFilter;
 // ── Intensity & histogram ────────────────────────────────────────────────────
 pub mod intensity;
 
+pub use intensity::binary_ops::{AddOp, BinaryOp, BinaryOpFilter, MaxOp};
 pub use intensity::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
     AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BedSeparationConfig, BedSeparationFilter,

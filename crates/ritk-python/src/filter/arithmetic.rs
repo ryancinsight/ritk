@@ -388,6 +388,48 @@ macro_rules! ternary_pyfn {
     };
 }
 
+/// Fold a binary image operation over a non-empty list of co-shaped images
+/// (`acc = op(op(op(i0, i1), i2), …)`). Used by the N-ary `Add` / `Maximum`.
+fn nary_fold<Op: ritk_filter::BinaryOp>(
+    py: Python<'_>,
+    images: Vec<Py<PyImage>>,
+    what: &str,
+) -> RitkResult<PyImage> {
+    if images.is_empty() {
+        return Err(RitkPyError::value(format!("{what}: needs at least one image")));
+    }
+    let arcs: Vec<_> = images
+        .iter()
+        .map(|p| std::sync::Arc::clone(&p.bind(py).borrow().inner))
+        .collect();
+    py.allow_threads(|| {
+        let mut acc = (*arcs[0]).clone();
+        for img in &arcs[1..] {
+            acc = ritk_filter::BinaryOpFilter::<Op>::new()
+                .apply(&acc, img.as_ref())
+                .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+        }
+        Ok(acc)
+    })
+    .map(into_py_image)
+}
+
+/// Pixelwise sum of any number of images: `out(x) = Σ_i img_i(x)`.
+///
+/// ITK Parity: NaryAddImageFilter (`sitk.NaryAdd`)
+#[pyfunction]
+pub fn nary_add(py: Python<'_>, images: Vec<Py<PyImage>>) -> RitkResult<PyImage> {
+    nary_fold::<ritk_filter::AddOp>(py, images, "nary_add")
+}
+
+/// Pixelwise maximum of any number of images: `out(x) = max_i img_i(x)`.
+///
+/// ITK Parity: NaryMaximumImageFilter (`sitk.NaryMaximum`)
+#[pyfunction]
+pub fn nary_maximum(py: Python<'_>, images: Vec<Py<PyImage>>) -> RitkResult<PyImage> {
+    nary_fold::<ritk_filter::MaxOp>(py, images, "nary_maximum")
+}
+
 binary_pyfn!(divide_real_images, DivideRealImageFilter, "DivideRealImageFilter", "Pixelwise real division: out(x) = a/b (FLT_MAX where b==0).");
 binary_pyfn!(divide_floor_images, DivideFloorImageFilter, "DivideFloorImageFilter", "Pixelwise floored division: out(x) = floor(a/b) (FLT_MAX where b==0).");
 

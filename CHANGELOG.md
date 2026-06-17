@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.94.0] — 2026-06-17 (Sprint 398: N-ary Add / Maximum)
+
+### Added
+- `ritk-python`: `filter.nary_add(images)` and `filter.nary_maximum(images)` — fold `AddImageFilter` / `ImageMaxFilter` over a list of any number of co-shaped images (ITK `NaryAddImageFilter` / `NaryMaximumImageFilter`). **Bit-exact** to `sitk.NaryAdd` / `sitk.NaryMaximum`. `.pyi` stubs + cmake cases; coverage 154/298. `ritk-filter` now re-exports the `BinaryOp`/`BinaryOpFilter`/`AddOp`/`MaxOp` building blocks at the crate root.
+
 ## [0.93.1] — 2026-06-17 (Sprint 397b: DivideReal / DivideFloor)
 
 ### Added

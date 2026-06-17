@@ -257,6 +257,19 @@ def test_cmake_binary_case_on_upstream_data(tag, na, nb, rfn, sfn, tol):
         assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e} on {na},{nb}"
 
 
+# N-ary fold filters (NaryAdd / NaryMaximum) over three images.
+@pytest.mark.parametrize("tag,rfn,sfn", [
+    ("NaryAdd", lambda imgs: ritk.filter.nary_add(imgs), lambda imgs: sitk.NaryAdd(imgs)),
+    ("NaryMaximum", lambda imgs: ritk.filter.nary_maximum(imgs), lambda imgs: sitk.NaryMaximum(imgs)),
+], ids=["NaryAdd", "NaryMaximum"])
+def test_cmake_nary_case_on_upstream_data(tag, rfn, sfn):
+    ra, sa = _pair("Ramp-Up-Short.nrrd")
+    rb, sb = _pair("Ramp-Down-Short.nrrd")
+    rc, sc = _pair("Ramp-Up-Short.nrrd")
+    rel = _rel(rfn([ra, rb, rc]), sfn([sa, sb, sc]))
+    assert rel == 0.0, f"{tag}: expected bit-exact, got rel {rel:.2e}"
+
+
 # Three-input ternary filters (TernaryAdd / TernaryMagnitude{,Squared}).
 @pytest.mark.parametrize("tag,rfn,sfn,tol", [
     ("TernaryAdd", lambda a, b, c: ritk.filter.ternary_add_images(a, b, c),
