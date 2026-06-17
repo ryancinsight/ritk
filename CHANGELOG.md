@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [0.92.0] — 2026-06-17 (Sprint 396: Crop + CyclicShift geometric filters)
+
+### Added
+- `ritk-python`: `filter.crop(image, lower, upper)` — crop `lower`/`upper` `(z,y,x)` voxels off each axis face (ITK `CropImageFilter` / `sitk.Crop`), derived from the existing `RegionOfInterestImageFilter`; bit-exact to sitk.
+- `ritk-filter` / `ritk-python`: `CyclicShiftImageFilter` + `filter.cyclic_shift(image, shift)` — roll the image by an integer per-axis `(z,y,x)` offset with periodic wrap-around, no data loss (ITK `CyclicShiftImageFilter` / `sitk.CyclicShift`). Value-semantic Rust tests (wrap, negative shift, full-period identity, permutation-preserves-values) + cmake parity cases. Both **bit-exact** to sitk on cthead1. `.pyi` stubs; coverage survey advances to 147/298.
+
 ## [0.91.0] — 2026-06-17 (Sprint 395: comparison-operator filter family)
 
 ### Added

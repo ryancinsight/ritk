@@ -760,8 +760,14 @@ def _eq(r, s):
     # Permute: ritk tensor order (0,2,1) swaps y,x <-> sitk PermuteAxes [1,0,2]
     ("PermuteAxes", lambda i: ritk.filter.permute_axes(i, (0, 2, 1)),
      lambda i: sitk.PermuteAxes(i, [1, 0, 2])),
+    # Crop: ritk lower/upper (z,y,x) -> sitk [x,y,z]
+    ("Crop", lambda i: ritk.filter.crop(i, (0, 5, 7), (0, 3, 4)),
+     lambda i: sitk.Crop(i, [7, 5, 0], [4, 3, 0])),
+    # CyclicShift: ritk (z,y,x) -> sitk [x,y,z]
+    ("CyclicShift", lambda i: ritk.filter.cyclic_shift(i, (0, 11, 13)),
+     lambda i: sitk.CyclicShift(i, [13, 11, 0])),
 ], ids=["Flip-x", "Flip-y", "Flip-xy", "ConstantPad", "MirrorPad", "WrapPad",
-        "RegionOfInterest", "PermuteAxes"])
+        "RegionOfInterest", "PermuteAxes", "Crop", "CyclicShift"])
 def test_cmake_geometry_on_upstream_data(tag, rfn, sfn):
     ri, si = _pair("cthead1.png")
     si = sitk.Cast(si, sitk.sitkFloat32)

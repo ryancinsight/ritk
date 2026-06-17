@@ -158,6 +158,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(mirror_pad, &m)?)?;
     m.add_function(wrap_pyfunction!(wrap_pad, &m)?)?;
     m.add_function(wrap_pyfunction!(region_of_interest, &m)?)?;
+    m.add_function(wrap_pyfunction!(crop, &m)?)?;
+    m.add_function(wrap_pyfunction!(cyclic_shift, &m)?)?;
     m.add_function(wrap_pyfunction!(permute_axes, &m)?)?;
     m.add_function(wrap_pyfunction!(paste, &m)?)?;
     // Spatial transforms

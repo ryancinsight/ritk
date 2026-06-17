@@ -9,8 +9,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    ConstantPadImageFilter, FlipImageFilter, MirrorPadImageFilter, Padding, PasteImageFilter,
-    PermuteAxesImageFilter, RegionOfInterestImageFilter, WrapPadImageFilter,
+    ConstantPadImageFilter, CyclicShiftImageFilter, FlipImageFilter, MirrorPadImageFilter, Padding,
+    PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter, WrapPadImageFilter,
 };
 
 /// Flip the image along any combination of the Z, Y, X axes.
@@ -97,6 +97,40 @@ pub fn wrap_pad(
     .map(into_py_image)
 }
 
+/// Crop the image by removing `lower` and `upper` voxels from each axis face.
+/// `lower`/`upper` are `(z, y, x)` voxel counts. ITK Parity:
+/// CropImageFilter (`sitk.Crop`, with `[x,y,z]` boundary sizes).
+#[pyfunction]
+#[pyo3(signature = (image, lower, upper))]
+pub fn crop(
+    py: Python<'_>,
+    image: &PyImage,
+    lower: (usize, usize, usize),
+    upper: (usize, usize, usize),
+) -> RitkResult<PyImage> {
+    let [nz, ny, nx] = image.inner.shape();
+    let start = [lower.0, lower.1, lower.2];
+    let (uz, uy, ux) = upper;
+    if lower.0 + uz >= nz || lower.1 + uy >= ny || lower.2 + ux >= nx {
+        return Err(RitkPyError::value(format!(
+            "crop: lower+upper {:?}+{:?} leaves no extent in shape [{},{},{}]",
+            start,
+            [uz, uy, ux],
+            nz,
+            ny,
+            nx
+        )));
+    }
+    let size = [nz - lower.0 - uz, ny - lower.1 - uy, nx - lower.2 - ux];
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        RegionOfInterestImageFilter::new(start, size)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
 /// Crop to a sub-region: `start` and `size` are `(z, y, x)` voxels. ITK Parity:
 /// RegionOfInterestImageFilter (`sitk.RegionOfInterest` with `[x,y,z]`).
 #[pyfunction]
@@ -114,6 +148,21 @@ pub fn region_of_interest(
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Cyclically roll the image by `shift = (z, y, x)` voxels (periodic wrap-around,
+/// no data loss). ITK Parity: CyclicShiftImageFilter (`sitk.CyclicShift`, `[x,y,z]`).
+#[pyfunction]
+pub fn cyclic_shift(
+    py: Python<'_>,
+    image: &PyImage,
+    shift: (i64, i64, i64),
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        CyclicShiftImageFilter::new([shift.0, shift.1, shift.2]).apply(arc.as_ref())
+    });
+    Ok(into_py_image(out))
 }
 
 /// Permute the tensor axes. `order` is a permutation of `(0, 1, 2)` in `[z,y,x]`
