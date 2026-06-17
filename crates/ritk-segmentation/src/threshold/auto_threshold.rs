@@ -95,19 +95,19 @@ pub trait AutoThreshold: sealed::Sealed {
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
     fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
-        // Use fully-qualified syntax to call the trait method, not any
-        // same-named inherent method on the concrete type.
-        let threshold = <Self as AutoThreshold>::compute(self, image);
-
-        let device = image.data().device();
-        let shape: [usize; D] = image.shape();
-        let (vals, _) = extract_vec_infallible(image);
+        // Extract the volume once and reuse the slice for both threshold
+        // selection and masking. The previous form called `compute` (which
+        // extracts internally) and then extracted a second time, cloning and
+        // copying the whole volume twice per `apply`.
+        let (vals, shape) = extract_vec_infallible(image);
+        let threshold = threshold_from_slice(self, &vals);
 
         let output: Vec<f32> = vals
             .iter()
             .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
             .collect();
 
+        let device = image.data().device();
         let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
 
         Image::new(

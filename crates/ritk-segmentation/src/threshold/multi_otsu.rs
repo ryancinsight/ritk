@@ -104,8 +104,26 @@ impl MultiOtsuThreshold {
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
     pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
-        let thresholds = self.compute(image);
-        apply_multi_otsu_labels(image, &thresholds)
+        // Extract once and reuse the slice for both threshold search and labelling
+        // (the previous compute()-then-label form cloned and copied the whole
+        // volume twice per `apply`).
+        let (vals, shape) = extract_vec_infallible(image);
+        let thresholds =
+            compute_multi_otsu_thresholds_from_slice(&vals, self.num_classes, self.num_bins);
+
+        let output: Vec<f32> = vals
+            .iter()
+            .map(|&v| thresholds.iter().filter(|&&t| v >= t).count() as f32)
+            .collect();
+
+        let device = image.data().device();
+        let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
+        Image::new(
+            tensor,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+        )
     }
 }
 
@@ -342,36 +360,6 @@ fn between_class_variance(
     }
 
     sigma2
-}
-
-/// Apply a sorted list of intensity thresholds to assign class labels.
-///
-/// For each pixel value v:
-///   label(v) = |{t ∈ thresholds : v ≥ t}|
-///
-/// This maps pixels to {0, 1, …, K−1} as f32 values.
-fn apply_multi_otsu_labels<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-    thresholds: &[f32],
-) -> Image<B, D> {
-    let device = image.data().device();
-    let shape: [usize; D] = image.shape();
-    let (img_vals, _shape) = extract_vec_infallible(image);
-    let slice: &[f32] = &img_vals;
-
-    let output: Vec<f32> = slice
-        .iter()
-        .map(|&v| thresholds.iter().filter(|&&t| v >= t).count() as f32)
-        .collect();
-
-    let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
-
-    Image::new(
-        tensor,
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-    )
 }
 
 #[cfg(test)]
