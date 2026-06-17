@@ -869,6 +869,20 @@ def test_cmake_vector_ops_on_upstream_data():
         assert np.array_equal(rsel, ssel), f"VectorIndexSelectionCast[{k}] differs from sitk"
 
 
+def test_cmake_join_series_on_upstream_data():
+    # Stack three 2-D slices (derived from cthead) into a 3-D volume.
+    # ITK Parity: JoinSeriesImageFilter (sitk.JoinSeries).
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)  # (Y, X)
+    slices = [arr, arr * 2.0, arr - 5.0]
+    ris = [ritk.Image(np.ascontiguousarray(s[None])) for s in slices]
+    sis = [sitk.GetImageFromArray(s) for s in slices]
+    r = np.asarray(ritk.filter.join_series(ris).to_numpy(), np.float64)
+    s = sitk.GetArrayFromImage(sitk.JoinSeries(sis)).astype(np.float64)  # (Z, Y, X)
+    assert r.shape == s.shape and np.array_equal(r, s), "JoinSeries differs from sitk"
+
+
 def test_cmake_paste_on_upstream_data():
     # Paste a cropped 40×50 region back into the image at (z,y,x)=(0,60,70).
     # ITK Parity: PasteImageFilter (sitk.Paste, destination index [x,y,z]).

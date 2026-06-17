@@ -6,12 +6,56 @@
 //! caller bridging to sitk reverses the tuple. See the axis-order note.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{into_py_image, Backend, PyImage};
+use burn::tensor::{Shape, Tensor, TensorData};
+use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_filter::{
     ConstantPadImageFilter, CyclicShiftImageFilter, FlipImageFilter, MirrorPadImageFilter, Padding,
     PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter, WrapPadImageFilter,
 };
+use ritk_image::Image;
+
+/// Stack a list of images along the Z axis (concatenate `[zᵢ, Y, X]` volumes
+/// into `[Σzᵢ, Y, X]`). All inputs must share the same `Y`/`X` extent.
+///
+/// ITK Parity: JoinSeriesImageFilter (`sitk.JoinSeries`, which stacks N 2-D
+/// slices into a 3-D volume along the new last axis = ritk's Z).
+#[pyfunction]
+pub fn join_series(py: Python<'_>, images: Vec<Py<PyImage>>) -> RitkResult<PyImage> {
+    if images.is_empty() {
+        return Err(RitkPyError::value("join_series: needs at least one image"));
+    }
+    let arcs: Vec<_> = images
+        .iter()
+        .map(|p| std::sync::Arc::clone(&p.bind(py).borrow().inner))
+        .collect();
+    let [_, ny, nx] = arcs[0].shape();
+    let mut total_z = 0usize;
+    let mut data: Vec<f32> = Vec::new();
+    for (i, a) in arcs.iter().enumerate() {
+        let [zi, yi, xi] = a.shape();
+        if yi != ny || xi != nx {
+            return Err(RitkPyError::value(format!(
+                "join_series: image {i} has Y/X [{yi},{xi}], expected [{ny},{nx}]"
+            )));
+        }
+        total_z += zi;
+        data.extend_from_slice(&a.data_slice());
+    }
+    let device = NdArrayDevice::default();
+    let tensor = Tensor::<Backend, 3>::from_data(
+        TensorData::new(data, Shape::new([total_z, ny, nx])),
+        &device,
+    );
+    let out = Image::new(
+        tensor,
+        *arcs[0].origin(),
+        *arcs[0].spacing(),
+        *arcs[0].direction(),
+    );
+    Ok(into_py_image(out))
+}
 
 /// Flip the image along any combination of the Z, Y, X axes.
 /// ITK Parity: FlipImageFilter (`sitk.Flip` with `flipAxes` reversed to `[x,y,z]`).

@@ -403,6 +403,9 @@ def crop(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int])
 def cyclic_shift(image: Image, shift: tuple[int, int, int]) -> Image:
     """Cyclically roll the image by (z,y,x) voxels (wrap-around). ITK Parity: CyclicShiftImageFilter."""
     ...
+def join_series(images: list[Image]) -> Image:
+    """Stack a list of [zi,Y,X] images along Z into [sum zi, Y, X]. ITK Parity: JoinSeriesImageFilter."""
+    ...
 def permute_axes(image: Image, order: tuple[int, int, int]) -> Image:
     """Permute tensor axes (order is a [z,y,x] permutation). ITK Parity: PermuteAxesImageFilter."""
     ...

@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.96.1] — 2026-06-17 (Sprint 402: JoinSeries; Modulus investigated)
+
+### Added
+- `ritk-python`: `filter.join_series(images)` — stack a list of `[zᵢ, Y, X]` images along Z into `[Σzᵢ, Y, X]` (ITK `JoinSeriesImageFilter` / `sitk.JoinSeries`, which stacks N 2-D slices into a 3-D volume). **Bit-exact** to sitk on cthead-derived slices. `.pyi` stub + cmake parity case; coverage 161/298.
+
+### Notes
+- `Modulus` (`sitk.Modulus`) investigated and **intentionally not implemented**: ITK `ModulusImageFilter` is integer-pixel-only (SimpleITK throws on float input) and returns the *integer-type-specific* `NumericTraits::max()` (e.g. 32767 for `int16`) on division-by-zero — neither faithfully representable in ritk's f32 model. Forcing a match would be a fabricated parity claim; recorded as a representation limitation rather than implemented.
+
 ## [0.96.0] — 2026-06-17 (Sprint 401: Binary / BinaryThreshold projection)
 
 ### Added
