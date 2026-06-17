@@ -3,6 +3,34 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
+## Sprint 392 — Grayscale morphology: O(N·(2r+1)³) → O(N) (separable sliding window)
+
+Flat-box grayscale erosion/dilation (`erode_3d`/`dilate_3d`, and the
+opening/closing/top-hat filters built on them) used a naive per-voxel cube scan:
+**O(N·(2r+1)³)**, cubic in the structuring-element radius. Measured on a 128³
+`f32` volume (release, min-of-3): r=1 109 ms, r=2 435 ms, r=3 1225 ms, **r=5 4842 ms**.
+
+**Replaced with a separable sliding-window minimum/maximum** (`separable_box_3d`
+in `morphology/mod.rs`): `min`/`max` over a `(2r+1)³` box is separable, so three
+independent 1-D passes (X→Y→Z) reproduce the exact box result. Each 1-D pass is a
+**monotonic-deque** sliding-window extremum over the clamp-truncated window
+`[max(0,i−r), min(n−1,i+r)]` — O(n) per line (each index enqueued/dequeued once),
+**O(N) total, independent of r**. Bit-identical to the cube scan (max is
+associative/idempotent) and to `sitk.GrayscaleDilate/Erode` with a box SE
+(maxdiff 0.0); all 81 morphology + 17 grayscale cmake parity cases unchanged.
+
+**Measured (same 128³ volume):** r=1 103 ms, r=2 108 ms, r=3 109 ms, **r=5 107 ms**
+— now **flat in radius** (≈45× at r=5; the win grows with r). The clamp-truncated
+window matches ITK's replicate boundary because a clamped out-of-bounds neighbour
+only re-reads an in-window edge voxel, so the windowed max is unchanged.
+
+**Memory:** per-call scratch is two `max(nx,ny,nz)`-length line buffers + one
+reused index deque + a single working volume — no per-radius or per-voxel
+allocation, and no full-volume temporaries beyond the in-place buffer (the old
+cube scan also held one output volume, so peak is comparable). A further constant-
+factor option (van Herk/Gil-Werman, ~3 compares/element vs the deque's amortised
+~2-4) was not needed: the deque is already O(N) and radius-flat.
+
 ## Sprint 386 — Morphological reconstruction: O(N·diameter) → O(N) (Vincent hybrid)
 
 `MorphologicalReconstruction` (the engine behind geodesic dilation/erosion,

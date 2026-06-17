@@ -113,7 +113,7 @@ impl GrayscaleDilation {
 /// - Output length equals `nz * ny * nx`.
 /// - Each output voxel equals `max_{b ∈ B} data[clamp(x + b)]`.
 pub(crate) fn dilate_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
-    super::morphological_scan_3d(data, dims, radius, f32::NEG_INFINITY, f32::max)
+    super::separable_box_3d(data, dims, radius, super::Extremum::Max)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

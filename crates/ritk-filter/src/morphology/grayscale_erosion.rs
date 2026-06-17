@@ -108,7 +108,7 @@ impl GrayscaleErosion {
 /// - Output length equals `nz * ny * nx`.
 /// - Each output voxel equals `min_{b ∈ B} data[clamp(x + b)]`.
 pub(crate) fn erode_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
-    super::morphological_scan_3d(data, dims, radius, f32::INFINITY, f32::min)
+    super::separable_box_3d(data, dims, radius, super::Extremum::Min)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

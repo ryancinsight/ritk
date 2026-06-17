@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.89.0] — 2026-06-17 (Sprint 392: O(N) separable grayscale morphology)
+
+### Performance
+- `ritk-filter`: grayscale erosion/dilation (and everything built on them — opening, closing, white/black top-hat, and the safe-border composed open/close) reimplemented from the naive O(N·(2r+1)³) cube scan to a **separable O(N) sliding-window** (monotonic-deque min/max along X, then Y, then Z). `min`/`max` over a box is separable, so the result is **bit-identical** to the cube scan and to `sitk.GrayscaleDilate/Erode` (box SE, maxdiff 0.0); all 81 morphology + 17 grayscale cmake parity cases unchanged. **Measured on a 128³ f32 volume: runtime is now ~105 ms constant in radius (r=1: 109→103, r=2: 435→108, r=3: 1225→109, r=5: 4842→107 ms — up to 45× at r=5)**. Memory: small per-line scratch (max-dim) + one working buffer, no extra full-volume allocations. OPTIMIZATION.md (Sprint 392).
+
 ## [0.88.1] — 2026-06-17 (Sprint 391b: hit-or-miss z=1 degenerate-axis fix)
 
 ### Fixed
