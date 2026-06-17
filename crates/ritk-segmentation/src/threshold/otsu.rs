@@ -140,7 +140,11 @@ impl AutoThreshold for OtsuThreshold {
         // ritk's scan marks `best_t` as the first foreground bin (class 1 =
         // [0, best_t−1]).  ITK's OtsuThresholdCalculator reports the right edge of
         // the last background bin (`best_t−1`), i.e. the class boundary.
-        bin_right_edge(x_min, itk_bin_width(x_min, x_max, n_bins), best_t.saturating_sub(1))
+        bin_right_edge(
+            x_min,
+            itk_bin_width(x_min, x_max, n_bins),
+            best_t.saturating_sub(1),
+        )
     }
 }
 

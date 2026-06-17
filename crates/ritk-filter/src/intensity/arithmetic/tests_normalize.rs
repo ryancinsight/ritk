@@ -84,7 +84,7 @@ fn normalize_two_element() {
     let img = make_image(vec![0.0, 2.0], [1, 1, 2]);
     let out = NormalizeImageFilter::new().apply(&img);
     let v = vals(&out);
-    let s = 0.707_106_8_f32; // √2 / 2
+    let s = std::f32::consts::FRAC_1_SQRT_2; // √2 / 2
     assert!(
         (v[0] + s).abs() < 1e-5,
         "normalize([0,2])[0] must be −√2/2; got {}",

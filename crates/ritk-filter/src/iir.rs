@@ -275,7 +275,15 @@ pub(super) fn apply_deriche_1d(
                     let mut scratch = LineScratch::new(plen);
                     for iy in 0..ny {
                         deriche_line(
-                            in_slice, iy * nx, 1, out_slice, iy * nx, 1, len, coeffs, pad,
+                            in_slice,
+                            iy * nx,
+                            1,
+                            out_slice,
+                            iy * nx,
+                            1,
+                            len,
+                            coeffs,
+                            pad,
                             &mut scratch,
                         );
                     }
@@ -293,7 +301,16 @@ pub(super) fn apply_deriche_1d(
                     let mut scratch = LineScratch::new(plen);
                     for ix in 0..nx {
                         deriche_line(
-                            in_slice, ix, nx, out_slice, ix, nx, len, coeffs, pad, &mut scratch,
+                            in_slice,
+                            ix,
+                            nx,
+                            out_slice,
+                            ix,
+                            nx,
+                            len,
+                            coeffs,
+                            pad,
+                            &mut scratch,
                         );
                     }
                 },
@@ -305,7 +322,15 @@ pub(super) fn apply_deriche_1d(
             for li in 0..lp.num_lines {
                 let base = line_base(dims, 0, li);
                 deriche_line(
-                    data, base, lp.stride, &mut output, base, lp.stride, len, coeffs, pad,
+                    data,
+                    base,
+                    lp.stride,
+                    &mut output,
+                    base,
+                    lp.stride,
+                    len,
+                    coeffs,
+                    pad,
                     &mut scratch,
                 );
             }
@@ -396,7 +421,8 @@ fn deriche_line(
         let yp2 = if i + 2 < plen { ya[i + 2] } else { 0.0 };
         let yp3 = if i + 3 < plen { ya[i + 3] } else { 0.0 };
         let yp4 = if i + 4 < plen { ya[i + 4] } else { 0.0 };
-        ya[i] = m1 * xp1 + m2 * xp2 + m3 * xp3 + m4 * xp4 - d1 * yp1 - d2 * yp2 - d3 * yp3 - d4 * yp4;
+        ya[i] =
+            m1 * xp1 + m2 * xp2 + m3 * xp3 + m4 * xp4 - d1 * yp1 - d2 * yp2 - d3 * yp3 - d4 * yp4;
     }
 
     // Sum the two passes; write the unpadded interior back out.

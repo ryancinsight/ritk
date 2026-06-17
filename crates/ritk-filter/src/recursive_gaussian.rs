@@ -318,7 +318,9 @@ pub fn recursive_gaussian_directional<B: Backend>(
     direction: usize,
 ) -> anyhow::Result<Image<B, 3>> {
     if direction > 2 {
-        anyhow::bail!("recursive_gaussian_directional: direction must be 0, 1, or 2, got {direction}");
+        anyhow::bail!(
+            "recursive_gaussian_directional: direction must be 0, 1, or 2, got {direction}"
+        );
     }
     let (vals, dims) = extract_vec(image)?;
     let spacing = image.spacing();

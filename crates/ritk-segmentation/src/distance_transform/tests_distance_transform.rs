@@ -276,10 +276,8 @@ fn test_anisotropic_spacing_physical_distance() {
     data[0] = 0.0;
     data[6] = 0.0;
     let device = Default::default();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data, Shape::new([1, 1, nx])),
-        &device,
-    );
+    let tensor =
+        Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new([1, 1, nx])), &device);
     let image = Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

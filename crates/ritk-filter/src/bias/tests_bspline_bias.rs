@@ -94,7 +94,10 @@ fn mba_preserves_low_frequency_ramp() {
         sfa += df * da;
     }
     let corr = sfa / (sff.sqrt() * saa.sqrt());
-    assert!(corr > 0.96, "ramp reconstruction correlation {corr:.4} ≤ 0.96");
+    assert!(
+        corr > 0.96,
+        "ramp reconstruction correlation {corr:.4} ≤ 0.96"
+    );
 }
 
 /// MBA of a zero residual is exactly zero (mock-detection: the output must be a
@@ -106,7 +109,10 @@ fn mba_fit_of_zero_is_zero() {
     let ctrl = bspline_fit(&vec![0.0f32; 8 * 8 * 8], dims, cg).expect("bspline_fit failed");
     let approx = bspline_evaluate(&ctrl, cg, dims);
     let max_abs = approx.iter().fold(0.0f32, |m, &v| m.max(v.abs()));
-    assert!(max_abs < 1e-6, "fit of zero is non-zero: max |v| = {max_abs}");
+    assert!(
+        max_abs < 1e-6,
+        "fit of zero is non-zero: max |v| = {max_abs}"
+    );
 }
 
 /// Single-level MBA of a constant produces a smooth, bounded, real (non-degenerate)
@@ -128,11 +134,21 @@ fn mba_constant_is_smooth_and_bounded() {
     for &v in &approx {
         lo = lo.min(v);
         hi = hi.max(v);
-        assert!(v.is_finite() && v > 0.0, "non-finite/non-positive value {v}");
+        assert!(
+            v.is_finite() && v > 0.0,
+            "non-finite/non-positive value {v}"
+        );
     }
-    assert!(lo > 2.0 && hi < 4.0, "constant fit band [{lo:.3}, {hi:.3}] outside [2.0, 4.0]");
+    assert!(
+        lo > 2.0 && hi < 4.0,
+        "constant fit band [{lo:.3}, {hi:.3}] outside [2.0, 4.0]"
+    );
     // Real work: the fit is not a degenerate flat lattice.
-    assert!(hi - lo > 1e-3, "constant fit is degenerate (flat): span {:.5}", hi - lo);
+    assert!(
+        hi - lo > 1e-3,
+        "constant fit is degenerate (flat): span {:.5}",
+        hi - lo
+    );
 
     // Smoothness: adjacent voxels along z differ by a small amount (≤ 0.25).
     let mut max_adj = 0.0f32;
@@ -145,5 +161,8 @@ fn mba_constant_is_smooth_and_bounded() {
             }
         }
     }
-    assert!(max_adj < 0.25, "constant fit not smooth: max adjacent Δz = {max_adj:.4}");
+    assert!(
+        max_adj < 0.25,
+        "constant fit not smooth: max adjacent Δz = {max_adj:.4}"
+    );
 }

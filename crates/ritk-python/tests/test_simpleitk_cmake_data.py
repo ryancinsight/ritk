@@ -202,3 +202,38 @@ def test_cmake_binary_case_on_upstream_data(tag, na, nb, rfn, sfn, tol):
         assert rel == 0.0, f"{tag}: expected bit-exact on {na},{nb}, got rel {rel:.2e}"
     else:
         assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e} on {na},{nb}"
+
+
+# Auto-threshold mask cases (<Filter>.yaml::tag "default" on RA-Short). The
+# upstream baseline is the segmented mask. ITK marks `inside` = below-threshold;
+# ritk marks foreground = at-or-above-threshold, so the masks are exact
+# complements when the threshold value matches (it does — see the corpus
+# auto-threshold value tests). This pins the *mask* output bit-exactly.
+_THRESHOLD_MASK = [
+    ("OtsuThreshold/default", ritk.segmentation.otsu_threshold, sitk.OtsuThresholdImageFilter),
+    ("LiThreshold/default", ritk.segmentation.li_threshold, sitk.LiThresholdImageFilter),
+    ("YenThreshold/default", ritk.segmentation.yen_threshold, sitk.YenThresholdImageFilter),
+    ("TriangleThreshold/default", ritk.segmentation.triangle_threshold, sitk.TriangleThresholdImageFilter),
+    ("MaximumEntropyThreshold/default", ritk.segmentation.kapur_threshold, sitk.MaximumEntropyThresholdImageFilter),
+]
+
+
+@pytest.mark.parametrize("tag,rfn,sfilt", _THRESHOLD_MASK, ids=[c[0] for c in _THRESHOLD_MASK])
+def test_cmake_threshold_mask_on_upstream_data(tag, rfn, sfilt):
+    ri, si = _pair("RA-Short.nrrd")
+    r = np.squeeze(np.asarray(rfn(ri)[1].to_numpy(), np.float64))
+    f = sfilt()
+    f.SetInsideValue(1)
+    f.SetOutsideValue(0)
+    f.SetNumberOfHistogramBins(256)
+    inside = np.squeeze(sitk.GetArrayFromImage(f.Execute(si)).astype(np.float64))
+    # ritk foreground == ITK outside == 1 - inside.
+    assert np.array_equal(r, 1.0 - inside), f"{tag}: mask differs from sitk complement"
+
+
+def test_cmake_zero_crossing_on_upstream_data():
+    # ZeroCrossingImageFilter/defaults on the upstream 2th_cthead1_distance image.
+    ri, si = _pair("2th_cthead1_distance.nrrd")
+    r = np.squeeze(np.asarray(ritk.filter.zero_crossing_image(ri).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.ZeroCrossing(si)).astype(np.float64))
+    assert np.array_equal(r, s), "zero_crossing differs from sitk.ZeroCrossing"

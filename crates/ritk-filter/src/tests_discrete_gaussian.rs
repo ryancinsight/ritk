@@ -196,17 +196,20 @@ fn test_impulse_response_matches_discrete_gaussian() {
     let radius = coeff.len() - 1;
 
     let mut total = 0.0f64;
-    for k in 0..n {
+    for (k, &ovk) in ov.iter().enumerate().take(n) {
         let d = (k as i64 - c as i64).unsigned_abs() as usize;
         let expected = if d <= radius { coeff[d] / s } else { 0.0 };
-        total += ov[k] as f64;
+        total += ovk as f64;
         assert!(
-            (ov[k] as f64 - expected).abs() < 1e-6,
+            (ovk as f64 - expected).abs() < 1e-6,
             "tap {k}: filter {} vs ITK discrete Gaussian {expected}",
-            ov[k]
+            ovk
         );
     }
-    assert!((total - 1.0).abs() < 1e-5, "impulse response must sum to 1: {total}");
+    assert!(
+        (total - 1.0).abs() < 1e-5,
+        "impulse response must sum to 1: {total}"
+    );
 }
 
 #[test]
