@@ -76,21 +76,28 @@ pub fn bilateral_filter(
 /// RF coil non-uniformity. Based on Tustison et al. (2010),
 /// *IEEE Trans. Med. Imaging* 29(6):1310–1320.
 ///
-/// This is a from-scratch N4 (not a wrapper around ITK), and it effectively
-/// removes bias (it reduces within-tissue coefficient of variation comparably
-/// to ANTsPy's `n4_bias_field_correction` and SimpleITK's `N4BiasFieldCorrection`).
-/// Because N4 is ill-posed, the *estimated bias field* differs from those
-/// reference implementations (ANTs and SimpleITK themselves differ slightly);
-/// ANTsPy is the preferred reference here. `num_iterations` and `noise_estimate`
-/// have limited effect on the result for typical inputs (the fit converges
-/// quickly); exact ANTs parity would require matching ITK's B-spline mesh and
-/// Wiener-sharpening calibration.
+/// This is a from-scratch N4 (not a wrapper around ITK) that follows the ITK/ANTs
+/// algorithm: ITK `SharpenImage` histogram sharpening (Wiener deconvolution + the
+/// E[v|u] expectation map) and the Lee–Wolberg–Shin multilevel B-spline
+/// (scattered-data) fit, with the bias estimated on the input downsampled by a
+/// shrink factor and the log-bias control lattice evaluated at full resolution.
+/// It reduces within-tissue coefficient of variation comparably to ANTsPy's
+/// `n4_bias_field_correction`. Because N4 is ill-posed the *estimated bias field*
+/// still differs in detail from ANTs/SimpleITK (which themselves differ); ANTsPy
+/// is the preferred reference here.
 ///
 /// Args:
 ///     image: Input PyImage (must be f32, values > 0).
 ///     num_fitting_levels: Number of B-spline refinement levels (default 4).
 ///     num_iterations: Maximum iterations per level (default 50).
 ///     noise_estimate: Histogram-sharpening / Wiener noise term (default 0.01).
+///     shrink_factor: The bias field is estimated on the input downsampled by
+///         this isotropic factor (ITK/ANTs `shrinkFactor`, default 4), then
+///         evaluated at full resolution. The factor is adapted down so the
+///         smallest shrunk dimension stays ≥ 4; for small volumes (≲ 32 voxels
+///         per side) pass ``shrink_factor=1`` — the default 4 is tuned for
+///         clinical-resolution images and, like ANTs at shrink 4, under-corrects
+///         small phantoms.
 ///
 /// Returns:
 ///     Bias-corrected PyImage with identical shape and spatial metadata.
@@ -98,13 +105,14 @@ pub fn bilateral_filter(
 /// Raises:
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
-#[pyo3(signature = (image, num_fitting_levels=4, num_iterations=50, noise_estimate=0.01))]
+#[pyo3(signature = (image, num_fitting_levels=4, num_iterations=50, noise_estimate=0.01, shrink_factor=4))]
 pub fn n4_bias_correction(
     py: Python<'_>,
     image: &PyImage,
     num_fitting_levels: usize,
     num_iterations: usize,
     noise_estimate: f64,
+    shrink_factor: usize,
 ) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
@@ -112,6 +120,7 @@ pub fn n4_bias_correction(
             num_fitting_levels,
             num_iterations,
             noise_estimate,
+            shrink_factor,
             ..Default::default()
         };
         let filter = N4BiasFieldCorrectionFilter::new(config);

@@ -12,6 +12,7 @@ def discrete_gaussian(
     use_image_spacing: bool = True,
 ) -> Image: ...
 def median_filter(image: Image, radius: int = 1) -> Image: ...
+def normalize_image(image: Image) -> Image: ...
 def bilateral_filter(
     image: Image, spatial_sigma: float, range_sigma: float
 ) -> Image: ...
@@ -20,6 +21,7 @@ def n4_bias_correction(
     num_fitting_levels: int = 4,
     num_iterations: int = 50,
     noise_estimate: float = 0.01,
+    shrink_factor: int = 4,
 ) -> Image: ...
 def anisotropic_diffusion(
     image: Image,
@@ -47,6 +49,13 @@ def canny_edge_detect(
 def laplacian_of_gaussian(image: Image, sigma: float = 1.0) -> Image: ...
 def recursive_gaussian(image: Image, sigma: float = 1.0, order: int = 0) -> Image: ...
 def sobel_gradient(image: Image) -> Image: ...
+def unsharp_mask(
+    image: Image,
+    sigma: float = 1.0,
+    amount: float = 0.5,
+    threshold: float = 0.0,
+    clamp: bool = False,
+) -> Image: ...
 def grayscale_erosion(image: Image, radius: int = 1) -> Image: ...
 def grayscale_dilation(image: Image, radius: int = 1) -> Image: ...
 def curvature_anisotropic_diffusion(
@@ -102,6 +111,11 @@ def binary_threshold(
     foreground: float = 1.0,
     background: float = 0.0,
 ) -> Image: ...
+def zero_crossing_image(
+    image: Image,
+    foreground_value: float = 1.0,
+    background_value: float = 0.0,
+) -> Image: ...
 def blend_images(a: Image, b: Image, alpha: float = 0.5) -> Image:
     """Linearly blend two co-registered images.
 
@@ -153,6 +167,29 @@ def resample_image(
     spacing_z: float = 1.0,
     spacing_y: float = 1.0,
     spacing_x: float = 1.0,
+    mode: str = "linear",
+) -> Image: ...
+def rotate_image(
+    image: Image,
+    angle_x: float = 0.0,
+    angle_y: float = 0.0,
+    angle_z: float = 0.0,
+    mode: str = "linear",
+    default_pixel_value: float = 0.0,
+) -> Image: ...
+def shift_image(
+    image: Image,
+    shift_z: float = 0.0,
+    shift_y: float = 0.0,
+    shift_x: float = 0.0,
+    mode: str = "linear",
+    default_pixel_value: float = 0.0,
+) -> Image: ...
+def zoom_image(
+    image: Image,
+    zoom_z: float = 1.0,
+    zoom_y: float = 1.0,
+    zoom_x: float = 1.0,
     mode: str = "linear",
 ) -> Image: ...
 def distance_transform(
