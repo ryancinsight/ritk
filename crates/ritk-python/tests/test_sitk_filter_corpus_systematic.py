@@ -245,6 +245,43 @@ def test_zoom_matches_sitk_magnify(slice2d):
     assert _rel2d(out, ref) < 1e-6
 
 
+# ── Binary morphology vs ITK (box/flat structuring element) ────────────────────
+# ritk binary morphology uses a flat box SE; bit-exact to SimpleITK's Binary*
+# with sitkBox. Run on a thresholded cthead mask.
+
+@pytest.fixture(scope="module")
+def binary_mask(images):
+    _, si = images
+    mask = (sitk.GetArrayFromImage(si) > 80).astype(np.float32)
+    rim = ritk.Image(np.ascontiguousarray(mask[None]))
+    sim = sitk.GetImageFromArray(mask.astype(np.uint8))
+    return rim, sim
+
+
+_BINARY_MORPH = [
+    ("binary_dilation", lambda m: ritk.segmentation.binary_dilation(m, 1),
+     lambda m: sitk.BinaryDilate(m, [1, 1], sitk.sitkBox)),
+    ("binary_erosion", lambda m: ritk.segmentation.binary_erosion(m, 1),
+     lambda m: sitk.BinaryErode(m, [1, 1], sitk.sitkBox)),
+    ("binary_opening", lambda m: ritk.segmentation.binary_opening(m, 1),
+     lambda m: sitk.BinaryMorphologicalOpening(m, [1, 1], sitk.sitkBox)),
+    ("binary_closing", lambda m: ritk.segmentation.binary_closing(m, 1),
+     lambda m: sitk.BinaryMorphologicalClosing(m, [1, 1], sitk.sitkBox)),
+]
+
+
+@pytest.mark.parametrize("name,rfn,sfn", _BINARY_MORPH, ids=[c[0] for c in _BINARY_MORPH])
+def test_binary_morphology_matches_sitk(binary_mask, name, rfn, sfn):
+    rim, sim = binary_mask
+    r = np.squeeze(np.asarray(rfn(rim).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sfn(sim)).astype(np.float64))
+    assert r.shape == s.shape
+    # bit-exact on the interior (box SE, flat); the 1-voxel image border can
+    # differ by ITK's SafeBorder padding convention.
+    rel = np.abs(r[3:-3, 3:-3] - s[3:-3, 3:-3]).max() / max(np.abs(s).max(), 1e-9)
+    assert rel == 0.0, f"{name}: rel {rel:.2e}"
+
+
 # ── Automatic threshold-selection family vs the ITK histogram calculators ──────
 # Every ritk auto-threshold reproduces the corresponding ITK calculator's value
 # under ITK's 256-bin histogram geometry (MarginalScale=100 upper-edge margin;
