@@ -38,6 +38,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(yen_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(kapur_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(triangle_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(isodata_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(moments_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(multi_otsu_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_threshold_segment, &m)?)?;
 

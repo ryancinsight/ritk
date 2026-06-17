@@ -35,6 +35,8 @@ impl sealed::Sealed for LiThreshold {}
 impl sealed::Sealed for YenThreshold {}
 impl sealed::Sealed for KapurThreshold {}
 impl sealed::Sealed for TriangleThreshold {}
+impl sealed::Sealed for super::isodata::IsoDataThreshold {}
+impl sealed::Sealed for super::moments::MomentsThreshold {}
 
 // ── Trait ──────────────────────────────────────────────────────────────────────
 

@@ -505,6 +505,24 @@ def test_cmake_fft_roundtrip_on_upstream_data():
     assert rel < 1e-5, f"FFT round-trip rel {rel:.2e}"
 
 
+_AUTO_THRESHOLD_VALUES = [
+    ("IsoDataThreshold", ritk.segmentation.isodata_threshold, sitk.IsoDataThresholdImageFilter),
+    ("MomentsThreshold", ritk.segmentation.moments_threshold, sitk.MomentsThresholdImageFilter),
+]
+
+
+@pytest.mark.parametrize("tag,rfn,sfilt", _AUTO_THRESHOLD_VALUES, ids=[c[0] for c in _AUTO_THRESHOLD_VALUES])
+def test_cmake_auto_threshold_value_on_upstream_data(tag, rfn, sfilt):
+    # IsoData / Moments threshold *value* on RA-Short vs the ITK calculator.
+    ri, si = _pair("RA-Short.nrrd")
+    rt = rfn(ri)[0]
+    f = sfilt()
+    f.SetNumberOfHistogramBins(256)
+    f.Execute(si)
+    st = f.GetThreshold()
+    assert abs(rt - st) / max(abs(st), 1.0) < 1e-4, f"{tag}: ritk={rt} sitk={st}"
+
+
 def test_cmake_multi_otsu_on_upstream_data():
     # OtsuMultipleThresholdsImageFilter (2 thresholds / 3 classes) on RA-Short.
     ri, si = _pair("RA-Short.nrrd")

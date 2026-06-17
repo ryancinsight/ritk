@@ -7,6 +7,9 @@ SimpleITK's vector-image cmake tests become portable. Validated (bit-exact) that
 ITK's vector-image filters apply the scalar filter per component, so the family
 reduces to deinterleave → scalar filter per channel → reinterleave.
 
+### Added
+- `ritk-segmentation` / `ritk-python`: two new automatic threshold methods — `IsoDataThreshold` (Ridler–Calvard iterative intermeans, faithful to `itk::IsoDataThresholdCalculator`: bin-centre-measurement means, inclusive background, midpoint convergence) and `MomentsThreshold` (Tsai moment-preserving). Both **float/bit-exact** to their SimpleITK counterparts (IsoData 17334.658, Moments 24488.461 on RA-Short). Exposed as `segmentation.isodata_threshold` / `segmentation.moments_threshold` with cmake parity cases.
+
 ### Fixed
 - `ritk-statistics`: `histogram_match` (HistogramMatchingImageFilter) quantile landmarks now **interpolate linearly within the histogram bin** (ITK `Histogram::Quantile`: `binMin + (target − cum_before)/count · binWidth`) instead of using the bin centre. Now **float-exact** to `sitk.HistogramMatching` (rel 1.8e-7, was 2.4e-3) at matched parameters.
 - `ritk-filter`: `MeanImageFilter` boundary now matches ITK's `ZeroFluxNeumann` (edge-replicate) convention — the window is always the full `(2r+1)³` samples with out-of-bounds positions clamped to the edge, divided by the full count. It previously shrank the window at borders and divided by the smaller actual count, diverging from `sitk.Mean` on boundary planes (interior was already exact). Now float-exact to `sitk.Mean` (rel ~3e-8). Exposed as `filter.mean_filter` (was unbound in Python) + per-component `filter.color_mean`.

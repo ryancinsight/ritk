@@ -14,8 +14,10 @@
 
 pub mod auto_threshold;
 pub mod binary;
+pub mod isodata;
 pub mod kapur;
 pub mod li;
+pub mod moments;
 pub mod multi_otsu;
 pub mod otsu;
 pub mod triangle;
@@ -23,6 +25,8 @@ pub mod yen;
 
 pub use auto_threshold::AutoThreshold;
 pub use binary::{apply_binary_threshold_to_slice, binary_threshold, BinaryThreshold};
+pub use isodata::{compute_isodata_threshold_from_slice, isodata_threshold, IsoDataThreshold};
+pub use moments::{compute_moments_threshold_from_slice, moments_threshold, MomentsThreshold};
 pub use kapur::compute_kapur_threshold_from_slice;
 pub use kapur::{kapur_threshold, KapurThreshold};
 pub use li::compute_li_threshold_from_slice;
