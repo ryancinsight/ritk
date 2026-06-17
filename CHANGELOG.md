@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.73.3] — 2026-06-17 (Sprint 379 Increment 3: GradientMagnitudeRecursiveGaussian parity)
+
+### Fixed
+- `ritk-filter`: `recursive_gaussian(order=1)` is now **float-exact** to SimpleITK `GradientMagnitudeRecursiveGaussian` (interior rel ~1e-7 vs ~1.7% before). It computes `|∇(G_σ*I)| = √(Σ_d (∂/∂x_d/s_d)²)` via the per-axis Deriche recursion (first-order along `d`, zero-order along the others) — the ITK structure — instead of smoothing then finite-differencing. `order=2` likewise routes through the `LaplacianRecursiveGaussian` path, so both combined derivative orders share the per-axis Deriche structure. New `DericheCoefficients::first_order` (ITK `FirstOrder` setup: constants index[1], `alpha1=2(SN·DD−DN·SD)/SD²`, antisymmetric anticausal) and public `gradient_magnitude_recursive_gaussian`.
+
+### Removed
+- `ritk-filter`: the obsolete finite-difference derivative machinery (`gradient_magnitude_3d`, `laplacian_3d`, `apply_first/second_derivative_1d_into` and their tests) superseded by the Deriche order-1/2 recursion (net −183 lines).
+
 ## [0.73.2] — 2026-06-17 (Sprint 379 Increment 2: LaplacianRecursiveGaussian parity)
 
 ### Fixed

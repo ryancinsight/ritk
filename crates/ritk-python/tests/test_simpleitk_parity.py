@@ -2287,6 +2287,28 @@ def test_recursive_gaussian_order0_matches_sitk():
         assert rel < 1e-5, f"RecursiveGaussian sigma={sigma} rel max diff {rel:.2e} >= 1e-5"
 
 
+def test_recursive_gaussian_order1_matches_sitk():
+    """First-order recursive Gaussian (gradient magnitude) is float-exact to
+    sitk.GradientMagnitudeRecursiveGaussian.
+
+    ritk now computes |∇(G_σ*I)| = √(Σ_d (∂/∂x_d)²) with the per-axis Deriche
+    recursion (first-order along d, zero-order along the others) — the ITK
+    structure — instead of smoothing then finite-differencing. Matches sitk to
+    f32 precision in the interior across sigmas.
+    """
+    rng = np.random.default_rng(7)
+    z, y, x = np.mgrid[:22, :26, :28]
+    arr = (100 + 40 * np.sin(0.25 * x) * np.cos(0.2 * y) + 20 * np.sin(0.15 * z)
+           + 5 * rng.standard_normal((22, 26, 28))).astype(np.float32)
+    for sigma in (1.0, 2.0, 3.5):
+        sr = _np(sitk.GradientMagnitudeRecursiveGaussian(_sitk(arr), sigma=sigma)).astype(np.float64)
+        rr = ritk.filter.recursive_gaussian(_ritk(arr), sigma=sigma, order=1).to_numpy().astype(np.float64)
+        assert sr.shape == rr.shape
+        m = 4
+        rel = np.abs(rr[m:-m, m:-m, m:-m] - sr[m:-m, m:-m, m:-m]).max() / max(np.abs(sr).max(), 1e-9)
+        assert rel < 1e-6, f"GradientMagnitudeRecursiveGaussian sigma={sigma} rel {rel:.2e} >= 1e-6"
+
+
 def test_laplacian_of_gaussian_near_zero_in_linear_interior():
     """LoG of a linear image must be near-zero in the interior.
 
