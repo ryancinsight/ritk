@@ -2,18 +2,18 @@
 //!
 //! # Mathematical Specification
 //!
-//! Voxel `x` is marked a zero crossing if:
+//! Voxel `x` is marked a zero crossing when some 6-connected neighbour `y` has a
+//! **sign change** — opposite signs (`I(x)·I(y) < 0`) or exactly one of the two
+//! is zero — **and** `x` is the side closer to zero. Per axis the forward (+)
+//! neighbour is accepted with `|I(x)| <= |I(y)|` and the backward (−) neighbour
+//! with the strict `|I(x)| < |I(y)|`, so an exact-magnitude tie is resolved
+//! toward the forward voxel.
 //!
-//! 1. `I(x) == 0.0`, **or**
-//! 2. some 6-connected neighbour `y` has the opposite sign (`I(x)·I(y) < 0`)
-//!    **and** `x` is the side closer to zero. Per axis the forward (+) neighbour
-//!    is accepted with `|I(x)| <= |I(y)|` and the backward (−) neighbour with the
-//!    strict `|I(x)| < |I(y)|`, so an exact-magnitude tie is resolved toward the
-//!    forward voxel.
-//!
-//! This matches ITK `ZeroCrossingImageFilter`, which marks only the voxel on the
-//! near-zero side of each crossing — marking *both* sides (every voxel with any
-//! opposite-sign neighbour) roughly doubles the detected crossings.
+//! This is float-exact to ITK `ZeroCrossingImageFilter`, which marks only the
+//! voxel on the near-zero side of each crossing. An exact zero is a crossing only
+//! when it has a non-zero neighbour — a zero with all-zero neighbours (e.g. the
+//! Laplacian of a flat region) is **not** marked, otherwise whole constant
+//! regions would be flagged.
 //!
 //! ## Invariants
 //!
@@ -86,18 +86,14 @@ impl ZeroCrossingImageFilter {
             for iy in 0..ny {
                 for ix in 0..nx {
                     let v = vals[idx(iz, iy, ix)];
-                    // Case 1: exact zero is always a crossing.
-                    if v == 0.0 {
-                        out[idx(iz, iy, ix)] = fg;
-                        continue;
-                    }
-                    // Case 2: opposite-sign 6-connected neighbour, but mark this
-                    // voxel only on the side *closer to zero* (matching ITK
-                    // ZeroCrossingImageFilter — otherwise both sides of every
-                    // crossing get marked, ~doubling the detections). Per axis the
-                    // forward (+) neighbour uses `|v| <= |nv|` and the backward (−)
-                    // neighbour uses the strict `|v| < |nv|`, so an exact-magnitude
-                    // tie is resolved toward the forward voxel.
+                    // ITK ZeroCrossingImageFilter: a voxel is a crossing if its
+                    // sign differs from a 6-connected neighbour (opposite signs, or
+                    // exactly one of the two is zero) AND it is the side *closer to
+                    // zero* (`|v| < |nv|` strictly; an exact-magnitude tie is broken
+                    // toward the forward `+` neighbour via `<=`). An exact zero is
+                    // NOT a crossing on its own — only when it has a non-zero
+                    // neighbour (otherwise flat zero regions, e.g. the Laplacian of
+                    // constant background, would be marked wholesale).
                     let in_b = |z: isize, y: isize, x: isize| {
                         z >= 0
                             && y >= 0
@@ -106,6 +102,8 @@ impl ZeroCrossingImageFilter {
                             && y < ny as isize
                             && x < nx as isize
                     };
+                    // Sign change: opposite signs, or exactly one operand is zero.
+                    let sign_change = |a: f32, b: f32| (a * b < 0.0) || ((a == 0.0) != (b == 0.0));
                     let av = v.abs();
                     let mut crosses = false;
                     // axis offsets: (dz, dy, dx)
@@ -113,7 +111,7 @@ impl ZeroCrossingImageFilter {
                         let (fz, fy, fx) = (iz as isize + dz, iy as isize + dy, ix as isize + dx);
                         if in_b(fz, fy, fx) {
                             let nv = vals[idx(fz as usize, fy as usize, fx as usize)];
-                            if v * nv < 0.0 && av <= nv.abs() {
+                            if sign_change(v, nv) && av <= nv.abs() {
                                 crosses = true;
                                 break;
                             }
@@ -121,7 +119,7 @@ impl ZeroCrossingImageFilter {
                         let (bz, by, bx) = (iz as isize - dz, iy as isize - dy, ix as isize - dx);
                         if in_b(bz, by, bx) {
                             let nv = vals[idx(bz as usize, by as usize, bx as usize)];
-                            if v * nv < 0.0 && av < nv.abs() {
+                            if sign_change(v, nv) && av < nv.abs() {
                                 crosses = true;
                                 break;
                             }
