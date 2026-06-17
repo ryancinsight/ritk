@@ -376,43 +376,43 @@ fn test_asymmetric_shape_2x3x4() {
 
 #[test]
 fn test_lower_envelope_single_element() {
-    let f = [7i64];
-    let mut dt = [0i64];
+    let f = [7.0f64];
+    let mut dt = [0.0f64];
     let mut v = [0usize];
-    let mut z = [0i64; 2];
-    lower_envelope_transform(&f[..], 1, &mut dt[..], &mut v[..], &mut z[..]);
-    assert_eq!(dt[0], 7, "single element passthrough");
+    let mut z = [0.0f64; 2];
+    lower_envelope_transform(&f[..], 1, 1.0, &mut dt[..], &mut v[..], &mut z[..]);
+    assert_eq!(dt[0], 7.0, "single element passthrough");
 }
 
 #[test]
 fn test_lower_envelope_uniform() {
-    // f = [5, 5, 5, 5]. dt[i] = min_j { (i-j)² + 5 } = 5 (at j=i).
-    let f = [5i64; 4];
-    let mut dt = [0i64; 4];
+    // f = [5, 5, 5, 5]. dt[i] = min_j { (i-j)² + 5 } = 5 (at j=i). scale = 1.
+    let f = [5.0f64; 4];
+    let mut dt = [0.0f64; 4];
     let mut v = [0usize; 4];
-    let mut z = [0i64; 5];
-    lower_envelope_transform(&f[..], 4, &mut dt[..], &mut v[..], &mut z[..]);
+    let mut z = [0.0f64; 5];
+    lower_envelope_transform(&f[..], 4, 1.0, &mut dt[..], &mut v[..], &mut z[..]);
     for i in 0..4 {
-        assert_eq!(dt[i], 5, "uniform f: dt[{i}] = 5, got {}", dt[i]);
+        assert_eq!(dt[i], 5.0, "uniform f: dt[{i}] = 5, got {}", dt[i]);
     }
 }
 
 #[test]
 fn test_lower_envelope_known_case() {
-    // f = [0, INF, INF, INF, 0] where INF = 100.
+    // f = [0, INF, INF, INF, 0] where INF = 100, scale = 1 (voxel units).
     // dt[i] = min(i², (i-4)²) since f[0]=0, f[4]=0.
     // dt[0]=0, dt[1]=1, dt[2]=4, dt[3]=1, dt[4]=0.
-    let inf = 100i64;
-    let f = [0, inf * inf, inf * inf, inf * inf, 0];
-    let mut dt = [0i64; 5];
+    let inf = 100.0f64;
+    let f = [0.0, inf * inf, inf * inf, inf * inf, 0.0];
+    let mut dt = [0.0f64; 5];
     let mut v = [0usize; 5];
-    let mut z = [0i64; 6];
-    lower_envelope_transform(&f[..], 5, &mut dt[..], &mut v[..], &mut z[..]);
-    assert_eq!(dt[0], 0);
-    assert_eq!(dt[1], 1);
-    assert_eq!(dt[2], 4);
-    assert_eq!(dt[3], 1);
-    assert_eq!(dt[4], 0);
+    let mut z = [0.0f64; 6];
+    lower_envelope_transform(&f[..], 5, 1.0, &mut dt[..], &mut v[..], &mut z[..]);
+    assert_eq!(dt[0], 0.0);
+    assert_eq!(dt[1], 1.0);
+    assert_eq!(dt[2], 4.0);
+    assert_eq!(dt[3], 1.0);
+    assert_eq!(dt[4], 0.0);
 }
 
 // ── Test: phase1_row ──────────────────────────────────────────────────

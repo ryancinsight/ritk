@@ -148,12 +148,12 @@ pub fn resample_image(
 /// Compute the Euclidean (or squared Euclidean) distance transform of a binary image.
 ///
 /// For each background voxel the output is the distance to the nearest foreground
-/// voxel **in voxel units** (image spacing is NOT applied); foreground voxels
-/// receive 0.0. Implements the exact O(N) Meijster et al. (2000) algorithm. To
-/// obtain physical distances on an isotropic image, multiply the result by the
-/// voxel spacing. (SimpleITK's `DanielssonDistanceMap` / `SignedMaurerDistanceMap`
-/// instead return physical-unit distances and use the opposite foreground sense;
-/// a spacing-aware, physical-unit mode is a planned addition.)
+/// voxel **in physical units** (image spacing applied per axis); foreground
+/// voxels receive 0.0. Implements the exact O(N) Meijster et al. (2000) algorithm
+/// and is float-exact to scipy `distance_transform_edt(sampling=spacing)` on the
+/// inverted mask. (SimpleITK's `DanielssonDistanceMap` / `SignedMaurerDistanceMap`
+/// also use physical units but the opposite foreground sense, and Danielsson is an
+/// approximate vector transform.)
 ///
 /// Args:
 /// image: Input binary image (foreground > foreground_threshold).

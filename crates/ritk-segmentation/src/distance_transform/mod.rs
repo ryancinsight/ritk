@@ -87,19 +87,23 @@ fn phase1_row(row: &[bool], nx: usize, inf: i64, out: &mut [i64]) {
 
 // ─── Lower-envelope parabola algorithm (shared by phases 2 and 3) ──────────
 
-/// Given a 1D array `f` of length `n` representing parabola heights,
-/// compute `dt[i] = min_j { (i - j)² + f[j] }` for all i in [0, n).
+/// Given a 1D array `f` of length `n` of parabola heights, compute the
+/// anisotropic lower envelope `dt[i] = min_j { scale·(i − j)² + f[j] }` for all
+/// `i ∈ [0, n)`, where `scale` is the squared physical voxel spacing along this
+/// axis (1.0 ⇒ voxel units).
 ///
-/// Uses the lower envelope of parabolas technique from Felzenszwalb & Huttenlocher (2012)
-/// / Meijster et al. (2000). O(n) time and O(n) auxiliary space.
+/// Felzenszwalb & Huttenlocher (2012) / Meijster et al. (2000), in `f64` so the
+/// physical (spacing-weighted) distances are exact (matches scipy
+/// `distance_transform_edt(sampling=spacing)`). O(n) time and space.
 ///
-/// `v`, `z_buf` are caller-provided scratch buffers of length ≥ n+1.
+/// `v`, `z_buf` are caller-provided scratch buffers of length ≥ n and n+1.
 fn lower_envelope_transform(
-    f: &[i64],
+    f: &[f64],
     n: usize,
-    dt: &mut [i64],
+    scale: f64,
+    dt: &mut [f64],
     v: &mut [usize],
-    z_buf: &mut [i64],
+    z_buf: &mut [f64],
 ) {
     debug_assert!(f.len() >= n);
     debug_assert!(dt.len() >= n);
@@ -117,51 +121,29 @@ fn lower_envelope_transform(
     // k = index of rightmost parabola on the lower envelope.
     let mut k: usize = 0;
     v[0] = 0;
-    z_buf[0] = i64::MIN;
-    z_buf[1] = i64::MAX;
+    z_buf[0] = f64::NEG_INFINITY;
+    z_buf[1] = f64::INFINITY;
 
     for q in 1..n {
-        // Intersection of parabola centered at q with parabola centered at v[k]:
-        //   s = ((f[q] + q²) - (f[v[k]] + v[k]²)) / (2q - 2v[k])
-        // We use integer arithmetic and compare with `2 * (q - v[k]) * z_buf[k]`
-        // to avoid division.
+        let qf = q as f64;
         loop {
-            let vk = v[k] as i64;
-            let qq = q as i64;
-            // Numerator of intersection: (f[q] + q²) - (f[v[k]] + v[k]²)
-            let s_num = (f[q] + qq * qq) - (f[v[k]] + vk * vk);
-            let s_den = 2 * (qq - vk); // always > 0 since q > v[k] when they differ
-
-            // Compare s with z_buf[k]. Since z_buf[k] might be MIN/MAX we must be careful.
-            // s = s_num / s_den. We want: s <= z_buf[k]?
-            // Equivalent to: s_num <= z_buf[k] * s_den  (s_den > 0).
-            let remove = if z_buf[k] == i64::MIN || z_buf[k] == i64::MAX {
-                false
-            } else {
-                // Use i128 to avoid overflow in the multiplication.
-                (s_num as i128) <= (z_buf[k] as i128) * (s_den as i128)
-            };
-
-            if remove {
+            let vk = v[k];
+            // Intersection abscissa of the parabolas centred at q and v[k]:
+            //   s = ((f[q] + scale·q²) − (f[vk] + scale·vk²)) / (2·scale·(q − vk))
+            let vkf = vk as f64;
+            let s = ((f[q] + scale * qf * qf) - (f[vk] + scale * vkf * vkf))
+                / (2.0 * scale * (qf - vkf));
+            if s <= z_buf[k] {
                 if k == 0 {
-                    // Replace the sole parabola.
                     v[0] = q;
-                    // z_buf[0] stays MIN, z_buf[1] stays MAX is reset below.
                     break;
                 }
                 k -= 1;
             } else {
                 k += 1;
                 v[k] = q;
-                // Compute the actual intersection point for z_buf[k].
-                let vk_prev = v[k - 1] as i64;
-                let num = (f[q] + qq * qq) - (f[v[k - 1]] + vk_prev * vk_prev);
-                let den = 2 * (qq - vk_prev);
-                // Integer division rounding: we want ceil-like behavior for the
-                // boundary, but floor is fine because we scan left-to-right and
-                // check `q >= z_buf[k]` below.
-                z_buf[k] = div_floor(num, den);
-                z_buf[k + 1] = i64::MAX;
+                z_buf[k] = s;
+                z_buf[k + 1] = f64::INFINITY;
                 break;
             }
         }
@@ -170,22 +152,11 @@ fn lower_envelope_transform(
     // Scan: assign each position to its minimum parabola.
     let mut j = 0;
     for (q, dt_elem) in dt[..n].iter_mut().enumerate() {
-        while j < k && (q as i64) > z_buf[j + 1] {
+        while z_buf[j + 1] < q as f64 {
             j += 1;
         }
-        let diff = q as i64 - v[j] as i64;
-        *dt_elem = diff * diff + f[v[j]];
-    }
-}
-
-/// Integer floor division (towards negative infinity) for signed integers.
-fn div_floor(a: i64, b: i64) -> i64 {
-    let d = a / b;
-    let r = a % b;
-    if (r != 0) && ((r ^ b) < 0) {
-        d - 1
-    } else {
-        d
+        let diff = q as f64 - v[j] as f64;
+        *dt_elem = scale * diff * diff + f[v[j]];
     }
 }
 
@@ -215,9 +186,10 @@ fn idx3(z: usize, y: usize, x: usize, ny: usize, nx: usize) -> usize {
 /// before calling, or threshold with a value that inverts the sense.
 ///
 /// # Output
-/// `Image<B, 3>` with squared Euclidean distances in voxel-unit² (not physical units).
-/// To obtain physical distances, multiply by spacing² per axis or apply spacing correction
-/// after the transform.
+/// `Image<B, 3>` with squared Euclidean distances in **physical units²** (image
+/// spacing applied per axis, matching ITK/SimpleITK and scipy
+/// `distance_transform_edt(sampling=spacing)`). For an isotropic image with unit
+/// spacing this equals the voxel-unit² distance.
 ///
 /// # Edge Cases
 /// - All-background: all output values are 0.0 (no foreground seeds; distance to empty set is defined as 0).
@@ -241,6 +213,11 @@ pub fn distance_transform_squared<B: Backend>(
     let total = nz * ny * nx;
     let inf = inf_dist(&shape);
 
+    // Physical voxel spacing per axis (z, y, x); the EDT is scaled to physical
+    // units, matching ITK/SimpleITK and scipy `distance_transform_edt(sampling)`.
+    let sp = image.spacing();
+    let (sz2, sy2, sx2) = (sp[0] * sp[0], sp[1] * sp[1], sp[2] * sp[2]);
+
     // Short-circuit: EDT(p) = min_{q:B(q)=1}||p-q|| over empty set → return 0 everywhere.
     // Convention: when no foreground exists, all distances are defined as 0 (no seeds = no-op).
     if !binary.iter().any(|&b| b) {
@@ -248,7 +225,7 @@ pub fn distance_transform_squared<B: Backend>(
         return rebuild(zeros, shape, image);
     }
 
-    // ── Phase 1: scan along X for each (z, y) row ──
+    // ── Phase 1: scan along X for each (z, y) row (integer voxel distance) ──
     let mut g = vec![0i64; total];
     for z in 0..nz {
         for y in 0..ny {
@@ -263,42 +240,41 @@ pub fn distance_transform_squared<B: Backend>(
         }
     }
 
-    // ── Phase 2: lower-envelope along Y for each (z, x) column ──
-    // Convert g to g² for parabola input, then transform along Y.
-    for v in g.iter_mut() {
-        *v = (*v) * (*v);
+    // Convert to the physical squared X-distance: (g·sx)².
+    let mut g2 = vec![0.0f64; total];
+    for (out, &gv) in g2.iter_mut().zip(g.iter()) {
+        let gd = gv as f64;
+        *out = gd * gd * sx2;
     }
 
     let max_dim = ny.max(nz);
-    let mut col_f = vec![0i64; max_dim];
-    let mut col_dt = vec![0i64; max_dim];
+    let mut col_f = vec![0.0f64; max_dim];
+    let mut col_dt = vec![0.0f64; max_dim];
     let mut scratch_v = vec![0usize; max_dim];
-    let mut scratch_z = vec![0i64; max_dim + 1];
+    let mut scratch_z = vec![0.0f64; max_dim + 1];
 
-    let mut dt2 = vec![0i64; total];
-
+    // ── Phase 2: lower-envelope along Y for each (z, x) column (scale = sy²) ──
+    let mut dt2 = vec![0.0f64; total];
     for z in 0..nz {
         for x in 0..nx {
-            // Extract column g²[z][*][x] into col_f.
             for y in 0..ny {
-                col_f[y] = g[idx3(z, y, x, ny, nx)];
+                col_f[y] = g2[idx3(z, y, x, ny, nx)];
             }
-            lower_envelope_transform(&col_f, ny, &mut col_dt, &mut scratch_v, &mut scratch_z);
+            lower_envelope_transform(&col_f, ny, sy2, &mut col_dt, &mut scratch_v, &mut scratch_z);
             for y in 0..ny {
                 dt2[idx3(z, y, x, ny, nx)] = col_dt[y];
             }
         }
     }
 
-    // ── Phase 3: lower-envelope along Z for each (y, x) column ──
-    let mut result = vec![0i64; total];
-
+    // ── Phase 3: lower-envelope along Z for each (y, x) column (scale = sz²) ──
+    let mut result = vec![0.0f64; total];
     for y in 0..ny {
         for x in 0..nx {
             for z in 0..nz {
                 col_f[z] = dt2[idx3(z, y, x, ny, nx)];
             }
-            lower_envelope_transform(&col_f, nz, &mut col_dt, &mut scratch_v, &mut scratch_z);
+            lower_envelope_transform(&col_f, nz, sz2, &mut col_dt, &mut scratch_v, &mut scratch_z);
             for z in 0..nz {
                 result[idx3(z, y, x, ny, nx)] = col_dt[z];
             }
