@@ -3,6 +3,41 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
+## Sprint 386 — Morphological reconstruction: O(N·diameter) → O(N) (Vincent hybrid)
+
+`MorphologicalReconstruction` (the engine behind geodesic dilation/erosion,
+grayscale opening/closing-by-reconstruction, the H-transform family, and regional
+extrema) previously used **parallel-raster iteration**: each pass computed a full
+1-step dilation/erosion of the whole volume, then `min`/`max`-ed against the mask,
+repeating until the fixed point stopped moving. Because one pass propagates the
+marker exactly **one voxel** along the geodesic, convergence took O(diameter)
+passes, each O(N) — total **O(N·diameter)**. On a 64×64×128 volume with a 128-deep
+intensity ramp (geodesic path ≈ 128) this measured **4423 ms/call** (debug,
+`externals` ad-hoc timer, min of 5).
+
+**Replaced with Vincent's (1993) hybrid algorithm** (`hybrid_reconstruct<P: Polarity>`
+in `reconstruction.rs`): one forward raster scan (extend over already-visited causal
+neighbours, cap by mask), one anti-raster scan (extend over anti-causal neighbours,
+cap, and seed a FIFO queue at every voxel that can still raise a lower neighbour),
+then a queue-driven propagation that touches each voxel O(1) amortised — total
+**O(N)**, independent of geodesic-path length. Same fixed point, so output is
+**bit-identical** (verified maxdiff 0.0 vs the prior result and vs
+`sitk.ReconstructionBy{Dilation,Erosion}`; all 728 Rust + 100 cmake parity cases
+unchanged).
+
+**Measured (same 64×64×128 ramp):** 4423 ms → **228 ms debug (~19×)**, **26 ms
+release**. The speedup scales with geodesic diameter — flat images already converged
+in few passes, but deep ramps / spirals (and the cthead H-transform cases) were the
+pathological O(diameter) regime. Dilation/erosion polarity is encoded as a ZST
+`Polarity` trait so the one generic kernel monomorphises into two branch-free
+specialisations (no per-voxel mode branch). The dead `max_iter`/`with_max_iter` API
+and the per-step `dilate1_scalar`/`erode1_scalar` full-volume scans were removed.
+
+**Memory:** the hybrid holds one `Vec<f32>` working buffer (the in-place `j`) plus a
+`VecDeque<usize>` queue bounded by N, versus the iterative version's two full
+`Vec<f32>` (`current` + `next`) reallocated every pass — fewer allocations and lower
+peak for the common case.
+
 ## Sprint 379 — Deriche recursive Gaussian: analytical bound
 
 Measured single-thread throughput on a 128³ `f32` volume (`externals/perf_measure.py`,

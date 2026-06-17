@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.83.0] — 2026-06-17 (Sprint 386: O(N) morphological reconstruction)
+
+### Performance
+- `ritk-filter`: `MorphologicalReconstruction` (engine for geodesic dilation/erosion, the H-transform family, regional extrema, and grayscale opening/closing-by-reconstruction) reimplemented from **parallel-raster iteration (O(N·diameter))** to **Vincent's (1993) hybrid algorithm (O(N))** — one forward raster scan, one anti-raster scan seeding a FIFO queue, then queue-driven propagation. On a 64×64×128 volume with a 128-deep ramp: **4423 ms → 228 ms (~19×, same debug profile); 26 ms in release**. Output is **bit-identical** to the prior fixed point and to `sitk.ReconstructionBy{Dilation,Erosion}` (maxdiff 0.0); all 728 Rust + 100 cmake parity cases unchanged. Dilation/erosion polarity is a ZST `Polarity` strategy trait → one generic kernel monomorphised into two branch-free specialisations. **Memory**: one in-place working `Vec<f32>` + an N-bounded `VecDeque` index queue, versus the iterative version's two full `Vec<f32>` reallocated every pass. Removed the now-dead `max_iter`/`with_max_iter` API and the per-step `dilate1_scalar`/`erode1_scalar` full-volume scans. Detailed analysis in OPTIMIZATION.md (Sprint 386).
+
 ## [0.82.0] — 2026-06-17 (Sprint 385: regional-extrema family)
 
 ### Added

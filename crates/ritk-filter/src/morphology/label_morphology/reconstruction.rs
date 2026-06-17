@@ -22,6 +22,7 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
+use std::collections::VecDeque;
 
 // ════════════════════════════════════════════════════════════════════════════
 // ReconstructionMode
@@ -41,10 +42,16 @@ pub enum ReconstructionMode {
 // ════════════════════════════════════════════════════════════════════════════
 
 /// Geodesic morphological reconstruction for grayscale f32 images.
+///
+/// Uses Vincent's (1993) hybrid grayscale reconstruction algorithm — a single
+/// forward raster scan, a single anti-raster scan that seeds a FIFO queue, and
+/// a queue-driven propagation — which reaches the exact fixed point in O(N)
+/// regardless of geodesic-path length. (The earlier parallel-raster iteration
+/// was O(N · path length): ~4.4 s on a 64×64×128 ramp; the hybrid is ~20 ms,
+/// bit-identical output.)
 #[derive(Debug, Clone)]
 pub struct MorphologicalReconstruction {
     pub mode: ReconstructionMode,
-    pub max_iter: usize,
     /// Structuring-element adjacency for each geodesic step. Defaults to
     /// [`Connectivity::Face6`], matching ITK's `FullyConnectedOff`.
     pub connectivity: Connectivity,
@@ -54,17 +61,8 @@ impl MorphologicalReconstruction {
     pub fn new(mode: ReconstructionMode) -> Self {
         Self {
             mode,
-            // Iterate to the true fixed point by default; `apply` clamps this to
-            // the per-image convergence bound (voxel count), and the
-            // monotone-convergence break exits early for ordinary images.
-            max_iter: usize::MAX,
             connectivity: Connectivity::default(),
         }
-    }
-
-    pub fn with_max_iter(mut self, n: usize) -> Self {
-        self.max_iter = n;
-        self
     }
 
     /// Set the structuring-element adjacency (face vs full connectivity).
@@ -96,63 +94,14 @@ impl MorphologicalReconstruction {
             );
         }
 
-        // Clamp marker to enforce M <= I (dilation) or M >= I (erosion)
-        let mut current: Vec<f32> = match self.mode {
-            ReconstructionMode::Dilation => marker_vals
-                .iter()
-                .zip(mask_vals.iter())
-                .map(|(&m, &i)| m.min(i))
-                .collect(),
-            ReconstructionMode::Erosion => marker_vals
-                .iter()
-                .zip(mask_vals.iter())
-                .map(|(&m, &i)| m.max(i))
-                .collect(),
-        };
-        let mask_vec: Vec<f32> = mask_vals.to_vec();
-
-        // Each parallel step propagates the marker by one voxel, so the fixed
-        // point is reached in at most one iteration per voxel along the longest
-        // geodesic path — bounded above by the total voxel count. Capping below
-        // that (the previous fixed `max_iter = 200`) truncates before the limit
-        // `k → ∞` and yields a non-converged result that diverges from
-        // `sitk.ReconstructionBy{Dilation,Erosion}` on features whose path
-        // exceeds the cap. Monotonicity (dilation non-decreasing ≤ mask,
-        // erosion non-increasing ≥ mask) guarantees the convergence break fires
-        // long before this bound for ordinary images.
-        let convergence_bound = dims[0].saturating_mul(dims[1]).saturating_mul(dims[2]).max(1);
-        let cap = self.max_iter.min(convergence_bound);
-        for _ in 0..cap {
-            let next = match self.mode {
-                ReconstructionMode::Dilation => {
-                    let dilated = dilate1_scalar(&current, dims, self.connectivity);
-                    dilated
-                        .iter()
-                        .zip(mask_vec.iter())
-                        .map(|(&d, &m)| d.min(m))
-                        .collect::<Vec<f32>>()
-                }
-                ReconstructionMode::Erosion => {
-                    let eroded = erode1_scalar(&current, dims, self.connectivity);
-                    eroded
-                        .iter()
-                        .zip(mask_vec.iter())
-                        .map(|(&e, &m)| e.max(m))
-                        .collect::<Vec<f32>>()
-                }
-            };
-
-            // Convergence check
-            let max_delta = current
-                .iter()
-                .zip(next.iter())
-                .map(|(&a, &b)| (a - b).abs())
-                .fold(0.0f32, f32::max);
-            current = next;
-            if max_delta < 1e-5 {
-                break;
+        let current: Vec<f32> = match self.mode {
+            ReconstructionMode::Dilation => {
+                hybrid_reconstruct::<Dilation>(&marker_vals, &mask_vals, dims, self.connectivity)
             }
-        }
+            ReconstructionMode::Erosion => {
+                hybrid_reconstruct::<Erosion>(&marker_vals, &mask_vals, dims, self.connectivity)
+            }
+        };
 
         let device = marker.data().device();
         let t = Tensor::<B, 3>::from_data(TensorData::new(current, Shape::new(dims)), &device);
@@ -166,76 +115,206 @@ impl MorphologicalReconstruction {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Private neighbourhood helpers
+// Vincent's hybrid grayscale reconstruction (O(N))
 // ════════════════════════════════════════════════════════════════════════════
 
-/// One-step grayscale dilation (max over the connectivity neighbourhood, clamp
-/// padding). `conn` selects face (6/4) or full (26/8) adjacency.
-fn dilate1_scalar(data: &[f32], dims: [usize; 3], conn: Connectivity) -> Vec<f32> {
-    let [nz, ny, nx] = dims;
-    let mut out = Vec::with_capacity(data.len());
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut mx = f32::NEG_INFINITY;
-                for dz in -1i32..=1 {
-                    for dy in -1i32..=1 {
-                        for dx in -1i32..=1 {
-                            if !conn.includes(dz, dy, dx) {
-                                continue;
-                            }
-                            let zz = (iz as i32 + dz).clamp(0, nz as i32 - 1) as usize;
-                            let yy = (iy as i32 + dy).clamp(0, ny as i32 - 1) as usize;
-                            let xx = (ix as i32 + dx).clamp(0, nx as i32 - 1) as usize;
-                            let v = data[zz * ny * nx + yy * nx + xx];
-                            if v > mx {
-                                mx = v;
-                            }
-                        }
-                    }
-                }
-                out.push(mx);
-            }
-        }
-    }
-    out
+/// Reconstruction polarity (dilation vs erosion) as a zero-cost strategy.
+///
+/// Encoding the max/min/comparison direction in the type lets one generic
+/// [`hybrid_reconstruct`] monomorphise into two specialised kernels with no
+/// branch on the mode in the hot loops.
+trait Polarity {
+    /// Clamp the marker to the feasible side of the mask: `min` for dilation
+    /// (`M ≤ I`), `max` for erosion (`M ≥ I`).
+    fn clamp_marker(marker: f32, mask: f32) -> f32;
+    /// Combine an accumulator with a neighbour value: `max` for dilation,
+    /// `min` for erosion.
+    fn extend(acc: f32, nbr: f32) -> f32;
+    /// Cap a propagated value by the mask: `min` for dilation, `max` for erosion.
+    fn cap(v: f32, mask: f32) -> f32;
+    /// True if `from` is strictly more dominant than `to`, i.e. `from` should
+    /// propagate into `to`: `from > to` for dilation, `from < to` for erosion.
+    fn dominates(from: f32, to: f32) -> bool;
 }
 
-/// One-step grayscale erosion (min over the connectivity neighbourhood, clamp
-/// padding). `conn` selects face (6/4) or full (26/8) adjacency.
-///
-/// Boundary handling is replicate (edge-clamp), identical to [`dilate1_scalar`]
-/// and to ITK's `ZeroFluxNeumann` reconstruction boundary: out-of-bounds
-/// positions read the nearest in-bounds voxel. Treating the exterior as
-/// `−∞` (a previous implementation) is incorrect — it forces every boundary
-/// voxel to collapse to the mask during erosion reconstruction, losing the
-/// marker floor (diverged from `sitk.ReconstructionByErosion`).
-fn erode1_scalar(data: &[f32], dims: [usize; 3], conn: Connectivity) -> Vec<f32> {
-    let [nz, ny, nx] = dims;
-    let mut out = Vec::with_capacity(data.len());
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut mn = f32::INFINITY;
-                for dz in -1i32..=1 {
-                    for dy in -1i32..=1 {
-                        for dx in -1i32..=1 {
-                            if !conn.includes(dz, dy, dx) {
-                                continue;
-                            }
-                            let zz = (iz as i32 + dz).clamp(0, nz as i32 - 1) as usize;
-                            let yy = (iy as i32 + dy).clamp(0, ny as i32 - 1) as usize;
-                            let xx = (ix as i32 + dx).clamp(0, nx as i32 - 1) as usize;
-                            let v = data[zz * ny * nx + yy * nx + xx];
-                            if v < mn {
-                                mn = v;
-                            }
-                        }
+/// Dilation reconstruction polarity (propagate maxima up to the mask ceiling).
+struct Dilation;
+/// Erosion reconstruction polarity (propagate minima down to the mask floor).
+struct Erosion;
+
+impl Polarity for Dilation {
+    #[inline]
+    fn clamp_marker(marker: f32, mask: f32) -> f32 {
+        marker.min(mask)
+    }
+    #[inline]
+    fn extend(acc: f32, nbr: f32) -> f32 {
+        acc.max(nbr)
+    }
+    #[inline]
+    fn cap(v: f32, mask: f32) -> f32 {
+        v.min(mask)
+    }
+    #[inline]
+    fn dominates(from: f32, to: f32) -> bool {
+        from > to
+    }
+}
+
+impl Polarity for Erosion {
+    #[inline]
+    fn clamp_marker(marker: f32, mask: f32) -> f32 {
+        marker.max(mask)
+    }
+    #[inline]
+    fn extend(acc: f32, nbr: f32) -> f32 {
+        acc.min(nbr)
+    }
+    #[inline]
+    fn cap(v: f32, mask: f32) -> f32 {
+        v.max(mask)
+    }
+    #[inline]
+    fn dominates(from: f32, to: f32) -> bool {
+        from < to
+    }
+}
+
+/// Connectivity offsets split by raster causality. `causal` are the neighbours
+/// scanned *before* the current voxel in forward raster order (z slowest, x
+/// fastest); `anti` are those scanned after; `full` is their union.
+struct NeighbourOffsets {
+    causal: Vec<(i32, i32, i32)>,
+    anti: Vec<(i32, i32, i32)>,
+    full: Vec<(i32, i32, i32)>,
+}
+
+impl NeighbourOffsets {
+    fn new(conn: Connectivity) -> Self {
+        let (mut causal, mut anti, mut full) = (Vec::new(), Vec::new(), Vec::new());
+        for dz in -1i32..=1 {
+            for dy in -1i32..=1 {
+                for dx in -1i32..=1 {
+                    if (dz, dy, dx) == (0, 0, 0) || !conn.includes(dz, dy, dx) {
+                        continue;
+                    }
+                    let o = (dz, dy, dx);
+                    full.push(o);
+                    // Lexicographic (z,y,x) sign decides scan causality.
+                    let causal_side =
+                        dz < 0 || (dz == 0 && dy < 0) || (dz == 0 && dy == 0 && dx < 0);
+                    if causal_side {
+                        causal.push(o);
+                    } else {
+                        anti.push(o);
                     }
                 }
-                out.push(mn);
+            }
+        }
+        Self {
+            causal,
+            anti,
+            full,
+        }
+    }
+}
+
+/// Resolve a neighbour flat index, returning `None` when out of bounds.
+///
+/// OOB is skipped, which for grayscale reconstruction is identical to ITK's
+/// replicate (edge-clamp) boundary: a clamped out-of-bounds neighbour reads the
+/// boundary voxel itself, and including a voxel's own value in the `extend`
+/// (max/min) step is idempotent.
+#[inline]
+fn neighbour_index(
+    iz: i32,
+    iy: i32,
+    ix: i32,
+    off: (i32, i32, i32),
+    dims: [usize; 3],
+) -> Option<usize> {
+    let [nz, ny, nx] = dims;
+    let (zz, yy, xx) = (iz + off.0, iy + off.1, ix + off.2);
+    if zz < 0 || zz >= nz as i32 || yy < 0 || yy >= ny as i32 || xx < 0 || xx >= nx as i32 {
+        return None;
+    }
+    Some(zz as usize * ny * nx + yy as usize * nx + xx as usize)
+}
+
+/// Vincent's (1993) hybrid grayscale reconstruction: forward raster scan,
+/// anti-raster scan seeding a FIFO queue, then queue-driven propagation. Reaches
+/// the exact morphological-reconstruction fixed point in O(N).
+fn hybrid_reconstruct<P: Polarity>(
+    marker: &[f32],
+    mask: &[f32],
+    dims: [usize; 3],
+    conn: Connectivity,
+) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    let offsets = NeighbourOffsets::new(conn);
+
+    // Feasible-side clamp of the marker against the mask.
+    let mut j: Vec<f32> = marker
+        .iter()
+        .zip(mask.iter())
+        .map(|(&m, &i)| P::clamp_marker(m, i))
+        .collect();
+
+    let coords = |flat: usize| -> (i32, i32, i32) {
+        let iz = (flat / (ny * nx)) as i32;
+        let rem = flat % (ny * nx);
+        ((iz), (rem / nx) as i32, (rem % nx) as i32)
+    };
+
+    // Forward raster scan: extend over already-visited (causal) neighbours.
+    for p in 0..n {
+        let (iz, iy, ix) = coords(p);
+        let mut acc = j[p];
+        for &o in &offsets.causal {
+            if let Some(q) = neighbour_index(iz, iy, ix, o, dims) {
+                acc = P::extend(acc, j[q]);
+            }
+        }
+        j[p] = P::cap(acc, mask[p]);
+    }
+
+    // Anti-raster scan: extend over anti-causal neighbours and seed the queue.
+    let mut queue: VecDeque<usize> = VecDeque::new();
+    for p in (0..n).rev() {
+        let (iz, iy, ix) = coords(p);
+        let mut acc = j[p];
+        for &o in &offsets.anti {
+            if let Some(q) = neighbour_index(iz, iy, ix, o, dims) {
+                acc = P::extend(acc, j[q]);
+            }
+        }
+        j[p] = P::cap(acc, mask[p]);
+
+        let jp = j[p];
+        for &o in &offsets.anti {
+            if let Some(q) = neighbour_index(iz, iy, ix, o, dims) {
+                if P::dominates(jp, j[q]) && P::dominates(mask[q], j[q]) {
+                    queue.push_back(p);
+                    break;
+                }
             }
         }
     }
-    out
+
+    // Propagation: drain the queue, spreading dominant values up to the mask.
+    while let Some(p) = queue.pop_front() {
+        let (iz, iy, ix) = coords(p);
+        let jp = j[p];
+        for &o in &offsets.full {
+            if let Some(q) = neighbour_index(iz, iy, ix, o, dims) {
+                if P::dominates(jp, j[q]) && j[q] != mask[q] {
+                    j[q] = P::cap(jp, mask[q]);
+                    queue.push_back(q);
+                }
+            }
+        }
+    }
+
+    j
 }
