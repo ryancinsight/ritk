@@ -747,3 +747,15 @@ def test_cmake_geometry_on_upstream_data(tag, rfn, sfn):
     ri, si = _pair("cthead1.png")
     si = sitk.Cast(si, sitk.sitkFloat32)
     assert _eq(rfn(ri), sfn(si)), f"{tag}: differs from sitk"
+
+
+def test_cmake_paste_on_upstream_data():
+    # Paste a cropped 40×50 region back into the image at (z,y,x)=(0,60,70).
+    # ITK Parity: PasteImageFilter (sitk.Paste, destination index [x,y,z]).
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    rsrc = ritk.filter.region_of_interest(ri, (0, 10, 20), (1, 40, 50))
+    ssrc = sitk.RegionOfInterest(si, [50, 40, 1], [20, 10, 0])
+    r = ritk.filter.paste(ri, rsrc, (0, 60, 70))
+    s = sitk.Paste(si, ssrc, [50, 40, 1], [0, 0, 0], [70, 60, 0])
+    assert _eq(r, s), "Paste: differs from sitk"
