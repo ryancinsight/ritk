@@ -266,6 +266,12 @@ fn window_1d(
         Extremum::Min => a <= b,
     };
     let mut next = 0usize; // next index to admit into the window
+                           // Index-based loop is required: `i` indexes into `out` and into slice windows
+                           // (`line[*deque.front()]`, `(i+radius).min(n-1)`, `i.saturating_sub(radius)`),
+                           // and the sliding-window algorithm mutates `next`/`deque` across steps. No
+                           // iterator form preserves the per-step window semantics; per the symmetry
+                           // with `diffusion/curvature.rs`, the inline allow is the idiomatic gesture.
+    #[allow(clippy::needless_range_loop)]
     for i in 0..n {
         let hi = (i + radius).min(n - 1);
         while next <= hi {

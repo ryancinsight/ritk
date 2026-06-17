@@ -74,16 +74,16 @@ impl AutoThreshold for IsoDataThreshold {
             }
 
             let (mut l, mut totl) = (0.0_f64, 0.0_f64);
-            for i in 0..=pos {
-                let f = hist[i] as f64;
+            for (i, &count) in hist[..=pos].iter().enumerate() {
+                let f = count as f64;
                 totl += f;
                 l += meas(i) * f;
             }
             let (mut h, mut toth) = (0.0_f64, 0.0_f64);
-            for i in (pos + 1)..n_bins {
-                let f = hist[i] as f64;
+            for (i, &count) in hist[pos + 1..n_bins].iter().enumerate() {
+                let f = count as f64;
                 toth += f;
-                h += meas(i) * f;
+                h += meas(i + pos + 1) * f;
             }
 
             if totl > eps && toth > eps {
@@ -103,10 +103,9 @@ impl AutoThreshold for IsoDataThreshold {
 
 /// Histogram mean over bin-centre measurements (ITK `Histogram::Mean`).
 fn histogram_mean(hist: &[u32], meas: &impl Fn(usize) -> f64, n_bins: usize) -> f64 {
-    let mut sum = 0.0_f64;
-    let mut total = 0.0_f64;
-    for i in 0..n_bins {
-        let f = hist[i] as f64;
+    let (mut sum, mut total) = (0.0_f64, 0.0_f64);
+    for (i, &count) in hist[..n_bins].iter().enumerate() {
+        let f = count as f64;
         total += f;
         sum += meas(i) * f;
     }

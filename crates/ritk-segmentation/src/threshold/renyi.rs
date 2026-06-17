@@ -51,21 +51,28 @@ impl Default for RenyiEntropyThreshold {
 }
 
 /// Shannon-entropy (α = 1) maximum-entropy threshold.
-fn max_entropy_a1(norm: &[f64], p1: &[f64], p2: &[f64], first: usize, last: usize, n: usize) -> usize {
+fn max_entropy_a1(
+    norm: &[f64],
+    p1: &[f64],
+    p2: &[f64],
+    first: usize,
+    last: usize,
+    n: usize,
+) -> usize {
     let mut threshold = 0;
     let mut max_ent = f64::MIN;
     for it in first..=last {
         let mut ent_back = 0.0;
-        for ih in 0..=it {
-            if norm[ih] > 0.0 {
-                let x = norm[ih] / p1[it];
+        for &nh in norm[..=it].iter() {
+            if nh > 0.0 {
+                let x = nh / p1[it];
                 ent_back -= x * x.ln();
             }
         }
         let mut ent_obj = 0.0;
-        for ih in (it + 1)..n {
-            if norm[ih] > 0.0 {
-                let x = norm[ih] / p2[it];
+        for &nh in norm[it + 1..n].iter() {
+            if nh > 0.0 {
+                let x = nh / p2[it];
                 ent_obj -= x * x.ln();
             }
         }
@@ -79,21 +86,32 @@ fn max_entropy_a1(norm: &[f64], p1: &[f64], p2: &[f64], first: usize, last: usiz
 }
 
 /// Renyi α = ½ maximum-entropy threshold.
-fn max_entropy_a_half(norm: &[f64], p1: &[f64], p2: &[f64], first: usize, last: usize, n: usize) -> usize {
+fn max_entropy_a_half(
+    norm: &[f64],
+    p1: &[f64],
+    p2: &[f64],
+    first: usize,
+    last: usize,
+    n: usize,
+) -> usize {
     let term = 1.0 / (1.0 - 0.5);
     let mut threshold = 0;
     let mut max_ent = f64::MIN;
     for it in first..=last {
         let mut ent_back = 0.0;
-        for ih in 0..=it {
-            ent_back += (norm[ih] / p1[it]).sqrt();
+        for &nh in norm[..=it].iter() {
+            ent_back += (nh / p1[it]).sqrt();
         }
         let mut ent_obj = 0.0;
-        for ih in (it + 1)..n {
-            ent_obj += (norm[ih] / p2[it]).sqrt();
+        for &nh in norm[it + 1..n].iter() {
+            ent_obj += (nh / p2[it]).sqrt();
         }
         let product = ent_back * ent_obj;
-        let tot = if product > 0.0 { term * product.ln() } else { 0.0 };
+        let tot = if product > 0.0 {
+            term * product.ln()
+        } else {
+            0.0
+        };
         if tot > max_ent {
             max_ent = tot;
             threshold = it;
@@ -103,23 +121,34 @@ fn max_entropy_a_half(norm: &[f64], p1: &[f64], p2: &[f64], first: usize, last: 
 }
 
 /// Renyi α = 2 maximum-entropy threshold.
-fn max_entropy_a2(norm: &[f64], p1: &[f64], p2: &[f64], first: usize, last: usize, n: usize) -> usize {
+fn max_entropy_a2(
+    norm: &[f64],
+    p1: &[f64],
+    p2: &[f64],
+    first: usize,
+    last: usize,
+    n: usize,
+) -> usize {
     let term = 1.0 / (1.0 - 2.0);
     let mut threshold = 0;
     let mut max_ent = 0.0_f64;
     for it in first..=last {
         let mut ent_back = 0.0;
-        for ih in 0..=it {
-            let x = norm[ih] / p1[it];
+        for &nh in norm[..=it].iter() {
+            let x = nh / p1[it];
             ent_back += x * x;
         }
         let mut ent_obj = 0.0;
-        for ih in (it + 1)..n {
-            let x = norm[ih] / p2[it];
+        for &nh in norm[it + 1..n].iter() {
+            let x = nh / p2[it];
             ent_obj += x * x;
         }
         let product = ent_back * ent_obj;
-        let tot = if product > 0.0 { term * product.ln() } else { 0.0 };
+        let tot = if product > 0.0 {
+            term * product.ln()
+        } else {
+            0.0
+        };
         if tot > max_ent {
             max_ent = tot;
             threshold = it;

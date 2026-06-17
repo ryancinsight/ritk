@@ -96,16 +96,18 @@ impl AutoThreshold for HuangThreshold {
             // Background class mean → its bin index.
             let mu = (w[threshold] / s[threshold]).round();
             let mu_idx = index_of(mu) as isize;
-            for i in first..=threshold {
+            for (i, &count) in hist[first..=threshold].iter().enumerate() {
+                let i = i + first;
                 let d = (i as isize - mu_idx).unsigned_abs();
-                entropy += smu_at(d) * hist[i] as f64;
+                entropy += smu_at(d) * count as f64;
             }
             // Foreground class mean → its bin index.
             let mu2 = ((w[last] - w[threshold]) / (s[last] - s[threshold])).round();
             let mu2_idx = index_of(mu2) as isize;
-            for i in (threshold + 1)..=last {
+            for (i, &count) in hist[threshold + 1..=last].iter().enumerate() {
+                let i = i + threshold + 1;
                 let d = (i as isize - mu2_idx).unsigned_abs();
-                entropy += smu_at(d) * hist[i] as f64;
+                entropy += smu_at(d) * count as f64;
             }
             if entropy < best_entropy {
                 best_entropy = entropy;
