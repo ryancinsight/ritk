@@ -294,6 +294,32 @@ pub fn gradient_magnitude_recursive_gaussian<B: Backend>(
     Ok(image_from_vals(image, out, dims))
 }
 
+/// Separable zero-order recursive (Deriche) Gaussian smoothing with a per-axis
+/// physical `sigmas[d]` (broadcast from the last element). This is the blur
+/// ITK/SimpleITK `UnsharpMask` uses (`SmoothingRecursiveGaussian`), as opposed
+/// to the discrete Gaussian; it is float-exact to `SmoothingRecursiveGaussian`.
+///
+/// # Errors
+/// Returns `Err` if the tensor data cannot be extracted as `f32`.
+pub fn smoothing_recursive_gaussian<B: Backend>(
+    image: &Image<B, 3>,
+    sigmas: &[f64],
+) -> anyhow::Result<Image<B, 3>> {
+    let (mut vals, dims) = extract_vec(image)?;
+    let spacing = image.spacing();
+    let last = sigmas.last().copied().unwrap_or(0.0);
+    for dim in 0..3 {
+        let sigma = sigmas.get(dim).copied().unwrap_or(last);
+        let pixel_sigma = sigma / spacing[dim];
+        if pixel_sigma < 0.2 {
+            continue;
+        }
+        let coeffs = DericheCoefficients::from_sigma(pixel_sigma);
+        vals = apply_deriche_1d(&vals, dims, dim, &coeffs, pixel_sigma);
+    }
+    Ok(image_from_vals(image, vals, dims))
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

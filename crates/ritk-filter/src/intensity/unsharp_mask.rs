@@ -36,8 +36,9 @@
 //! # Precision
 //!
 //! All arithmetic is performed in `f32` matching the `Image<B,3>` storage type.
-//! The intermediate Gaussian blur uses `DiscreteGaussianFilter` (variance parameterised)
-//! with replicate boundary conditions â€” the same as ITK's discrete Gaussian.
+//! The intermediate Gaussian blur uses the recursive (Deriche) Gaussian
+//! (`smoothing_recursive_gaussian`) â€” the smoother ITK/SimpleITK `UnsharpMask`
+//! uses (`SmoothingRecursiveGaussian`), float-exact to it.
 //!
 //! # Complexity
 //!
@@ -50,8 +51,8 @@
 //!   *Journal of Computing, 2*(3), 8â€“13.
 //! - ITK Software Guide 4th Ed., Â§6.5.2 UnsharpMaskingImageFilter.
 
-use crate::discrete_gaussian::DiscreteGaussianFilter;
 use crate::edge::GaussianSigma;
+use crate::recursive_gaussian::smoothing_recursive_gaussian;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
@@ -152,8 +153,11 @@ impl UnsharpMaskFilter {
         let (input, dims) = extract_vec_infallible(image);
         let n = input.len();
 
-        // Compute blurred image via DiscreteGaussianFilter (variance = sigmaÂ², computed internally).
-        let blur = DiscreteGaussianFilter::<B>::new(self.sigmas.clone()).apply(image);
+        // Blur via the recursive (Deriche) Gaussian — the smoother ITK/SimpleITK
+        // `UnsharpMask` uses (`SmoothingRecursiveGaussian`), not the discrete
+        // Gaussian. Per-dimension physical sigma, broadcast from the last entry.
+        let sigmas: Vec<f64> = self.sigmas.iter().map(|s| s.get()).collect();
+        let blur = smoothing_recursive_gaussian(image, &sigmas)?;
         let (blurred, _) = extract_vec_infallible(&blur);
 
         let amount = self.amount as f32;
