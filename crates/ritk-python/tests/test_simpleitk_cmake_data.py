@@ -135,6 +135,30 @@ _CASES = [
     ("GrayscaleErode/GrayscaleErode", "STAPLE1.png",
      lambda ri: ritk.filter.grayscale_erosion(ri, 1),
      lambda si: sitk.GrayscaleErode(si, [1, 1], sitk.sitkBall), 0.0),
+    ("GradientMagnitudeRecursiveGaussian/default", "RA-Float.nrrd",
+     lambda ri: ritk.filter.recursive_gaussian(ri, sigma=1.0, order=1),
+     lambda si: sitk.GradientMagnitudeRecursiveGaussian(si, 1.0), 1e-6),
+    ("LaplacianRecursiveGaussian/default", "RA-Float.nrrd",
+     lambda ri: ritk.filter.laplacian_of_gaussian(ri, sigma=1.0),
+     lambda si: sitk.LaplacianRecursiveGaussian(si, 1.0), 1e-6),
+    ("BinShrink/by4", "RA-Float.nrrd",
+     lambda ri: ritk.filter.bin_shrink(ri, 4, 4, 4),
+     lambda si: sitk.BinShrink(si, [4, 4, 4]), 0.0),
+    ("WhiteTopHat/WhiteTopHatErode", "STAPLE1.png",
+     lambda ri: ritk.filter.white_top_hat(ri, 1),
+     lambda si: sitk.WhiteTopHat(si, [1, 1], sitk.sitkBall), 0.0),
+    ("BlackTopHat/BlackTopHapErode", "STAPLE1.png",
+     lambda ri: ritk.filter.black_top_hat(ri, 1),
+     lambda si: sitk.BlackTopHat(si, [1, 1], sitk.sitkBall), 0.0),
+    # Anisotropic diffusion: per-iteration f32 accumulation gives a small derived
+    # tolerance (matches the corpus diffusion convention). Upstream TimeStep=0.01,
+    # default 5 iterations / conductance 1.0.
+    ("GradientAnisotropicDiffusion/defaults", "RA-Float.nrrd",
+     lambda ri: ritk.filter.anisotropic_diffusion(ri, 5, 1.0, 0.01),
+     lambda si: sitk.GradientAnisotropicDiffusion(si, 0.01, 1.0, 5), 1e-3),
+    ("CurvatureAnisotropicDiffusion/defaults", "RA-Float.nrrd",
+     lambda ri: ritk.filter.curvature_anisotropic_diffusion(ri, 5, 0.01, 1.0),
+     lambda si: sitk.CurvatureAnisotropicDiffusion(si, 0.01, 1.0, 5), 2e-3),
 ]
 
 # Two-input image-arithmetic cases (<Filter>.yaml::tag with two inputs).
@@ -147,6 +171,8 @@ _BINARY_CASES = [
      lambda a, b: ritk.filter.subtract_images(a, b), lambda a, b: sitk.Subtract(a, b), 0.0),
     ("Multiply/defaults", "Ramp-Zero-One-Float.nrrd", "Ramp-One-Zero-Float.nrrd",
      lambda a, b: ritk.filter.multiply_images(a, b), lambda a, b: sitk.Multiply(a, b), 0.0),
+    ("Divide/defaults", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.divide_images(a, b), lambda a, b: sitk.Divide(a, b), 0.0),
 ]
 
 
