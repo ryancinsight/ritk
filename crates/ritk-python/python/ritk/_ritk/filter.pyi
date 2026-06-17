@@ -169,6 +169,14 @@ def log_image(image: Image) -> Image:
     """Pixelwise natural log: out(x) = ln(in(x)). ITK Parity: LogImageFilter."""
     ...
 
+def log10_image(image: Image) -> Image:
+    """Pixelwise base-10 log: out(x) = log10(in(x)). ITK Parity: Log10ImageFilter."""
+    ...
+
+def exp_negative_image(image: Image) -> Image:
+    """Pixelwise negative exponential: out(x) = exp(-in(x)). ITK Parity: ExpNegativeImageFilter."""
+    ...
+
 def sin_image(image: Image) -> Image:
     """Pixelwise sine: out(x) = sin(in(x)). ITK Parity: SinImageFilter."""
     ...

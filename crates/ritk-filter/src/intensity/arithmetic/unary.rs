@@ -1,10 +1,11 @@
 //! Generic unary pixelwise intensity filter.
 //!
-//! A single generic implementation `UnaryImageFilter<Op>` replaces the five
-//! identical scaffolds (`abs`, `sqrt`, `exp`, `log`, `square`), which differed
-//! only in one closure.  Variation is encoded through the sealed `UnaryPixelOp`
-//! trait; each ZST marker struct implements one operation.  Type aliases
-//! (`AbsImageFilter`, `SqrtImageFilter`, …) preserve the original public API.
+//! A single generic implementation `UnaryImageFilter<Op>` replaces the
+//! identical per-operation scaffolds (`abs`, `sqrt`, `exp`, `log`, `square`,
+//! `log10`, `exp_negative`), which differed only in one closure.  Variation is
+//! encoded through the sealed `UnaryPixelOp` trait; each ZST marker struct
+//! implements one operation.  Type aliases (`AbsImageFilter`, `SqrtImageFilter`,
+//! …) preserve the original public API.
 
 use std::marker::PhantomData;
 
@@ -21,8 +22,8 @@ mod sealed {
 /// Elementwise `f32 → f32` operation applied by [`UnaryImageFilter`].
 ///
 /// This trait is **sealed**: external crates cannot implement it.  Only the
-/// five marker structs defined in this module (`Abs`, `Sqrt`, `Exp`, `Log`,
-/// `Square`) are valid implementations.
+/// marker structs defined in this module (`Abs`, `Sqrt`, `Exp`, `Log`,
+/// `Square`, `Log10`, `ExpNegative`) are valid implementations.
 pub trait UnaryPixelOp: sealed::Sealed {
     /// Apply the operation to a single voxel value.
     fn apply(v: f32) -> f32;
@@ -54,11 +55,26 @@ pub struct Log;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Square;
 
+/// Operation marker for `out(x) = log₁₀(in(x))`.
+///
+/// IEEE 754: `log₁₀(0) = −∞`, `log₁₀(negative) = NaN` (matching ITK
+/// `Log10ImageFilter`).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Log10;
+
+/// Operation marker for `out(x) = e^{−in(x)}`.
+///
+/// Matches ITK `ExpNegativeImageFilter` (`std::exp(-x)`).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ExpNegative;
+
 impl sealed::Sealed for Abs {}
 impl sealed::Sealed for Sqrt {}
 impl sealed::Sealed for Exp {}
 impl sealed::Sealed for Log {}
 impl sealed::Sealed for Square {}
+impl sealed::Sealed for Log10 {}
+impl sealed::Sealed for ExpNegative {}
 
 impl UnaryPixelOp for Abs {
     #[inline]
@@ -92,6 +108,20 @@ impl UnaryPixelOp for Square {
     #[inline]
     fn apply(v: f32) -> f32 {
         v * v
+    }
+}
+
+impl UnaryPixelOp for Log10 {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        v.log10()
+    }
+}
+
+impl UnaryPixelOp for ExpNegative {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        (-v).exp()
     }
 }
 
@@ -176,3 +206,53 @@ pub type LogImageFilter = UnaryImageFilter<Log>;
 /// - ITK `itk::SquareImageFilter<TInputImage, TOutputImage>`.
 /// - ImageJ Process > Math > Square.
 pub type SquareImageFilter = UnaryImageFilter<Square>;
+
+/// Pixelwise base-10 logarithm filter.  `out(x) = log₁₀(in(x))`.
+///
+/// `log₁₀(0) = −∞`, `log₁₀(negative) = NaN` (IEEE 754 / ITK behaviour).
+///
+/// # References
+/// - ITK `itk::Log10ImageFilter<TInputImage, TOutputImage>`.
+pub type Log10ImageFilter = UnaryImageFilter<Log10>;
+
+/// Pixelwise negative-exponential filter.  `out(x) = e^{−in(x)}`.
+///
+/// # References
+/// - ITK `itk::ExpNegativeImageFilter<TInputImage, TOutputImage>`.
+pub type ExpNegativeImageFilter = UnaryImageFilter<ExpNegative>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ritk_image::test_support as ts;
+
+    type B = burn_ndarray::NdArray<f32>;
+
+    /// `log₁₀(10ⁿ) = n` for exact powers of ten, matching ITK `Log10ImageFilter`.
+    #[test]
+    fn log10_of_powers_of_ten() {
+        let img = ts::make_image::<B, 3>(vec![1.0, 10.0, 100.0, 1000.0], [1, 1, 4]);
+        let out = Log10ImageFilter::new().apply(&img);
+        let v = out.data_slice().into_owned();
+        for (got, exp) in v.iter().zip([0.0_f32, 1.0, 2.0, 3.0]) {
+            assert!((got - exp).abs() < 1e-5, "log10: got {got}, expected {exp}");
+        }
+    }
+
+    /// `e^{−0} = 1` and `e^{−x}` is the reciprocal of `e^{x}`, matching ITK
+    /// `ExpNegativeImageFilter`.
+    #[test]
+    fn exp_negative_matches_reciprocal_exp() {
+        let xs = vec![0.0_f32, 1.0, 2.5, -1.0];
+        let img = ts::make_image::<B, 3>(xs.clone(), [1, 1, 4]);
+        let out = ExpNegativeImageFilter::new().apply(&img);
+        let v = out.data_slice().into_owned();
+        for (got, &x) in v.iter().zip(xs.iter()) {
+            let expected = (-x).exp();
+            assert!(
+                (got - expected).abs() <= 1e-6 * expected.abs().max(1.0),
+                "exp(-{x}): got {got}, expected {expected}"
+            );
+        }
+    }
+}

@@ -4,10 +4,10 @@
 //! every voxel in a D-dimensional image. Spatial metadata (origin, spacing,
 //! direction) is preserved identically in every output image.
 //!
-//! The five uniform-scaffold filters (`Abs`, `Sqrt`, `Exp`, `Log`, `Square`)
-//! share a single generic implementation in [`unary`]; type aliases maintain
-//! the original names.  [`invert`] stays separate because it carries state
-//! (`maximum: Option<f32>`).
+//! The uniform-scaffold filters (`Abs`, `Sqrt`, `Exp`, `Log`, `Square`,
+//! `Log10`, `ExpNegative`) share a single generic implementation in [`unary`];
+//! type aliases maintain the original names.  [`invert`] stays separate because
+//! it carries state (`maximum: Option<f32>`).
 //!
 //! # ITK / ImageJ / SimpleITK parity
 //!
@@ -19,13 +19,16 @@
 //! | `SquareImageFilter`          | `SquareImageFilter`                | Square                  |
 //! | `SqrtImageFilter`            | `SqrtImageFilter`                  | Square Root             |
 //! | `LogImageFilter`             | `LogImageFilter`                   | Log                     |
+//! | `Log10ImageFilter`          | `Log10ImageFilter`                 | Log (base 10)           |
 //! | `ExpImageFilter`             | `ExpImageFilter`                   | Exp                     |
+//! | `ExpNegativeImageFilter`    | `ExpNegativeImageFilter`           | —                       |
 
 // ── Generic unary infrastructure ─────────────────────────────────────────────
 pub mod unary;
 pub use unary::{
-    Abs, AbsImageFilter, Exp, ExpImageFilter, Log, LogImageFilter, Sqrt, SqrtImageFilter, Square,
-    SquareImageFilter, UnaryImageFilter, UnaryPixelOp,
+    Abs, AbsImageFilter, Exp, ExpImageFilter, ExpNegative, ExpNegativeImageFilter, Log, Log10,
+    Log10ImageFilter, LogImageFilter, Sqrt, SqrtImageFilter, Square, SquareImageFilter,
+    UnaryImageFilter, UnaryPixelOp,
 };
 
 // ── Test-hosting modules (one per filter; contain only the #[cfg(test)] block) ─

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [0.78.0] — 2026-06-17 (Sprint 381: Log10 / ExpNegative unary math filters)
+
+### Added
+- `ritk-filter`: two new pixelwise unary-math filters via the generic `UnaryImageFilter<Op>` seam — `Log10ImageFilter` (`out = log₁₀(in)`, ITK `Log10ImageFilter`) and `ExpNegativeImageFilter` (`out = e^{−in}`, ITK `ExpNegativeImageFilter`). One closure each, no new scaffolding. Value-semantic tests (`log10(10ⁿ)=n`, `exp(−x)=1/eˣ`).
+- `ritk-python`: exposed `filter.log10_image` and `filter.exp_negative_image`, **bit-exact** to `sitk.Log10` and **float-exact** (rel <1e-6) to `sitk.ExpNegative` on `Ramp-Zero-One-Float`. `.pyi` stubs + 2 new cmake parity cases (unary-math suite now 13 cases). Closes the Log10/ExpNegative gap in ritk's SimpleITK unary-math coverage.
+
 ## [0.77.0] — 2026-06-17 (Sprint 380: RGB/vector multi-component support — foundation)
 
 User-authorized scope expansion: add RGB/vector multi-component image support so

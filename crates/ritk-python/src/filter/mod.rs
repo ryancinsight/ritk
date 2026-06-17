@@ -89,6 +89,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(square_image, &m)?)?;
     m.add_function(wrap_pyfunction!(exp_image, &m)?)?;
     m.add_function(wrap_pyfunction!(log_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(log10_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(exp_negative_image, &m)?)?;
     m.add_function(wrap_pyfunction!(sin_image, &m)?)?;
     m.add_function(wrap_pyfunction!(cos_image, &m)?)?;
     m.add_function(wrap_pyfunction!(tan_image, &m)?)?;

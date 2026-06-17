@@ -13,9 +13,9 @@ use pyo3::prelude::*;
 use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
     BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, DivideImageFilter,
-    ExpImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter, LogImageFilter,
-    MaskImageFilter, MaskNegatedImageFilter, MultiplyImageFilter, SinImageFilter, SqrtImageFilter,
-    SquareImageFilter, SubtractImageFilter, TanImageFilter,
+    ExpImageFilter, ExpNegativeImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
+    Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter, MultiplyImageFilter,
+    SinImageFilter, SqrtImageFilter, SquareImageFilter, SubtractImageFilter, TanImageFilter,
 };
 
 /// Pixelwise clamp to `[lower, upper]`. ITK Parity: ClampImageFilter.
@@ -105,6 +105,8 @@ unary_math_pyfn!(sqrt_image, SqrtImageFilter, "SqrtImageFilter", "Pixelwise squa
 unary_math_pyfn!(square_image, SquareImageFilter, "SquareImageFilter", "Pixelwise square: out(x) = in(x)^2.");
 unary_math_pyfn!(exp_image, ExpImageFilter, "ExpImageFilter", "Pixelwise exponential: out(x) = exp(in(x)).");
 unary_math_pyfn!(log_image, LogImageFilter, "LogImageFilter", "Pixelwise natural log: out(x) = ln(in(x)).");
+unary_math_pyfn!(log10_image, Log10ImageFilter, "Log10ImageFilter", "Pixelwise base-10 log: out(x) = log10(in(x)).");
+unary_math_pyfn!(exp_negative_image, ExpNegativeImageFilter, "ExpNegativeImageFilter", "Pixelwise negative exponential: out(x) = exp(-in(x)).");
 unary_math_pyfn!(sin_image, SinImageFilter, "SinImageFilter", "Pixelwise sine: out(x) = sin(in(x)).");
 unary_math_pyfn!(cos_image, CosImageFilter, "CosImageFilter", "Pixelwise cosine: out(x) = cos(in(x)).");
 unary_math_pyfn!(tan_image, TanImageFilter, "TanImageFilter", "Pixelwise tangent: out(x) = tan(in(x)).");

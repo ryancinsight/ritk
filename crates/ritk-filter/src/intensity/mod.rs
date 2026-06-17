@@ -7,7 +7,8 @@
 //! (ITK `UnsharpMaskingImageFilter` / ImageJ "Unsharp Mask" parity), and
 //! pixelwise arithmetic transforms (ITK `AbsImageFilter`, `InvertIntensityImageFilter`,
 //! `NormalizeImageFilter`, `SquareImageFilter`, `SqrtImageFilter`,
-//! `LogImageFilter`, `ExpImageFilter`).
+//! `LogImageFilter`, `Log10ImageFilter`, `ExpImageFilter`,
+//! `ExpNegativeImageFilter`).
 
 pub mod arithmetic;
 pub mod bed_separation;
@@ -26,8 +27,8 @@ pub mod unsharp_mask;
 pub mod windowing;
 
 pub use arithmetic::{
-    AbsImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter, NormalizeImageFilter,
-    SqrtImageFilter, SquareImageFilter,
+    AbsImageFilter, ExpImageFilter, ExpNegativeImageFilter, InvertIntensityFilter,
+    Log10ImageFilter, LogImageFilter, NormalizeImageFilter, SqrtImageFilter, SquareImageFilter,
 };
 pub use bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPolicy};
 pub use binary_ops::{
