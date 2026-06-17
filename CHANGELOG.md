@@ -8,6 +8,7 @@ ITK's vector-image filters apply the scalar filter per component, so the family
 reduces to deinterleave → scalar filter per channel → reinterleave.
 
 ### Fixed
+- `ritk-statistics`: `histogram_match` (HistogramMatchingImageFilter) quantile landmarks now **interpolate linearly within the histogram bin** (ITK `Histogram::Quantile`: `binMin + (target − cum_before)/count · binWidth`) instead of using the bin centre. Now **float-exact** to `sitk.HistogramMatching` (rel 1.8e-7, was 2.4e-3) at matched parameters.
 - `ritk-filter`: `MeanImageFilter` boundary now matches ITK's `ZeroFluxNeumann` (edge-replicate) convention — the window is always the full `(2r+1)³` samples with out-of-bounds positions clamped to the edge, divided by the full count. It previously shrank the window at borders and divided by the smaller actual count, diverging from `sitk.Mean` on boundary planes (interior was already exact). Now float-exact to `sitk.Mean` (rel ~3e-8). Exposed as `filter.mean_filter` (was unbound in Python) + per-component `filter.color_mean`.
 
 ### Added

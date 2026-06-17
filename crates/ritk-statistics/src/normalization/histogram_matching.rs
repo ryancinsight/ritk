@@ -194,13 +194,23 @@ fn quantile_landmarks(data: &[f32], lo: f32, hi: f32, bins: usize, k: usize) -> 
         *c = acc;
     }
 
-    let centre = |b: usize| lo + (b as f32 + 0.5) * bin_w;
     (1..=k)
         .map(|j| {
             let target = j as f64 / (k as f64 + 1.0) * total as f64;
             // First bin whose cumulative frequency reaches the quantile.
             let bin = cum.partition_point(|&c| (c as f64) < target).min(bins - 1);
-            centre(bin)
+            // ITK's `Histogram::Quantile` interpolates LINEARLY within the bin
+            // from its lower edge (not the bin centre): the fraction is how far
+            // the target sits between the cumulative count before this bin and
+            // after it.
+            let cum_before = (cum[bin] - hist[bin]) as f64;
+            let in_bin = hist[bin] as f64;
+            let frac = if in_bin > 0.0 {
+                ((target - cum_before) / in_bin).clamp(0.0, 1.0)
+            } else {
+                0.5
+            };
+            lo + (bin as f64 + frac) as f32 * bin_w
         })
         .collect()
 }

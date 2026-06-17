@@ -346,6 +346,24 @@ def test_cmake_rgb_smoothing_recursive_gaussian_on_upstream_data():
     assert rel < 1e-6, f"RGB smoothing recursive gaussian rel {rel:.2e}"
 
 
+def test_cmake_histogram_matching_matches_sitk():
+    # HistogramMatchingImageFilter (256 levels, 7 match points, threshold at mean).
+    path = fetch_input("RA-Float.nrrd")
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+    ri = ritk.io.read_image(path)
+    ref_s = sitk.DiscreteGaussian(si, 4.0)
+    ref_r = ritk.filter.discrete_gaussian(ri, 4.0)
+    rh = ritk.statistics.histogram_match(ri, ref_r, num_bins=256, num_match_points=7,
+                                         threshold_at_mean=True)
+    sh = sitk.HistogramMatching(si, ref_s, numberOfHistogramLevels=256,
+                                numberOfMatchPoints=7, thresholdAtMeanIntensity=True)
+    r = np.asarray(rh.to_numpy(), np.float64)
+    s = sitk.GetArrayFromImage(sh).astype(np.float64)
+    m = 4
+    rel = np.abs(r[m:-m, m:-m, m:-m] - s[m:-m, m:-m, m:-m]).max() / max(np.abs(s).max(), 1e-9)
+    assert rel < 1e-6, f"HistogramMatching rel {rel:.2e}"
+
+
 def test_cmake_statistics_matches_sitk():
     # StatisticsImageFilter (min/max/mean/variance) on an upstream image.
     path = fetch_input("RA-Float.nrrd")
