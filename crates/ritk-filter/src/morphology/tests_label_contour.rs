@@ -24,19 +24,16 @@ fn all_background_zero() {
 
 /// Single label region filling entire image: outer shell is border; center is interior.
 #[test]
-fn single_label_all_border() {
+fn single_label_fills_whole_image_has_empty_contour() {
+    // One label filling the whole image has no differing neighbour anywhere;
+    // out-of-bounds (image edge) is NOT a different label, so the contour is
+    // empty — matching `sitk.LabelContour`, which leaves a single full-label
+    // image all-zero.
     let img = make_image(vec![2.0f32; 27], [3, 3, 3]);
     let out = LabelContourImageFilter::default().apply(&img).unwrap();
-    let v = voxels(&out);
-    // Center (1,1,1) = index 13: all 6 neighbors in-bounds and same label → interior → bg.
-    assert_eq!(v[13], 0.0, "center of 3×3×3 single-label is interior");
-    // All other 26 voxels border out-of-bounds (treated as different label) → contour.
     assert!(
-        v.iter()
-            .enumerate()
-            .filter(|&(i, _)| i != 13)
-            .all(|(_, &x)| (x - 2.0).abs() < 1e-5),
-        "outer shell of 3×3×3 single-label must be contour"
+        voxels(&out).iter().all(|&x| x == 0.0),
+        "single full-image label must have an empty contour"
     );
 }
 

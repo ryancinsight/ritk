@@ -105,13 +105,17 @@ impl VotingBinaryImageFilter {
                     let y1 = (iy + r).min(ny - 1);
                     let x0 = ix.saturating_sub(r);
                     let x1 = (ix + r).min(nx - 1);
+                    // Count foreground voxels in the (2r+1)³ neighbourhood
+                    // INCLUDING the centre — ITK `VotingBinaryImageFilter` counts
+                    // the whole neighbourhood, so a foreground centre contributes
+                    // to its own survival count. (Excluding it diverged from
+                    // `sitk.VotingBinary` by 1 on the survival decision.)
+                    // Out-of-bounds positions are background (contribute 0),
+                    // which the clamped window range already encodes.
                     let mut fg_count = 0usize;
                     for kz in z0..=z1 {
                         for ky in y0..=y1 {
                             for kx in x0..=x1 {
-                                if kz == iz && ky == iy && kx == ix {
-                                    continue;
-                                }
                                 let kv = vals[kz * ny * nx + ky * nx + kx];
                                 if (kv - fg).abs() < 1e-5 {
                                     fg_count += 1;

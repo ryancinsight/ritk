@@ -25,20 +25,41 @@ fn all_background_zero() {
 /// All-foreground solid block: only the outer shell is a border.
 /// 3×3×3 all-fg: corner/edge/face voxels are borders; center (1,1,1) is interior (6-conn).
 #[test]
-fn solid_block_all_border() {
+fn fully_solid_block_has_empty_contour() {
+    // A 3×3×3 all-foreground block has NO background voxel anywhere, so no voxel
+    // has an in-bounds background neighbour. Out-of-bounds (image-edge) is NOT
+    // background, so the contour is empty — matching `sitk.BinaryContour`, which
+    // leaves a full-foreground image all-zero.
     let img = make_image(vec![1.0f32; 27], [3, 3, 3]);
     let out = BinaryContourImageFilter::default().apply(&img).unwrap();
-    let v = voxels(&out);
-    // Center voxel (1,1,1) = index 1*9+1*3+1 = 13: has all 6 face-neighbors in-bounds and fg → interior.
-    assert_eq!(v[13], 0.0, "center of 3×3×3 is interior in 6-conn");
-    // All other 26 voxels are on the outer shell and neighbor out-of-bounds → borders.
     assert!(
-        v.iter()
-            .enumerate()
-            .filter(|&(i, _)| i != 13)
-            .all(|(_, &x)| (x - 1.0).abs() < 1e-5),
-        "all non-center voxels of 3×3×3 must be borders"
+        voxels(&out).iter().all(|&x| x == 0.0),
+        "full-foreground block must have an empty contour"
     );
+}
+
+/// A 3×3×3 foreground block surrounded by a background border (5×5×5) yields the
+/// block's outer shell as contour; only its centre is interior.
+#[test]
+fn block_in_background_yields_outer_shell() {
+    let mut data = vec![0.0f32; 125];
+    for z in 1..4 {
+        for y in 1..4 {
+            for x in 1..4 {
+                data[z * 25 + y * 5 + x] = 1.0;
+            }
+        }
+    }
+    let out = BinaryContourImageFilter::default().apply(&make_image(data, [5, 5, 5]));
+    let v = voxels(&out.unwrap());
+    // Block centre (2,2,2) = 62 is interior; the 26 surrounding fg voxels are shell.
+    assert_eq!(v[62], 0.0, "block centre is interior");
+    let shell: f32 = (1..4)
+        .flat_map(|z| (1..4).flat_map(move |y| (1..4).map(move |x| z * 25 + y * 5 + x)))
+        .filter(|&i| i != 62)
+        .map(|i| v[i])
+        .sum();
+    assert_eq!(shell, 26.0, "all 26 shell voxels are contour");
 }
 
 /// 5×5×5 block: all-fg. Center voxel (2,2,2) is interior → 0 (6-connected).

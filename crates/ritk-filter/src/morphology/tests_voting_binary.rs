@@ -35,16 +35,23 @@ fn all_foreground_survives() {
     assert!(voxels(&out).iter().all(|&v| (v - 1.0).abs() < 1e-5));
 }
 
-/// Single isolated foreground voxel with survival_threshold=1 dies (no fg neighbours).
+/// Single isolated foreground voxel: survives at survival_threshold=1 (counts itself),
+/// but dies at survival_threshold=2 (needs at least one neighbor).
 #[test]
-fn isolated_fg_dies_at_survival_threshold_1() {
+fn isolated_fg_behavior() {
     let mut data = vec![0.0f32; 27];
     data[13] = 1.0; // center voxel
     let img = make_image(data, [3, 3, 3]);
-    let filter = VotingBinaryImageFilter::new(1, 1, 1, 1.0, 0.0);
-    let out = filter.apply(&img).unwrap();
-    // Center has fg_count=0 < survival=1 → dies.
-    assert_eq!(voxels(&out)[13], 0.0);
+
+    // survival_threshold = 1 -> survives
+    let filter1 = VotingBinaryImageFilter::new(1, 1, 1, 1.0, 0.0);
+    let out1 = filter1.apply(&img).unwrap();
+    assert_eq!(voxels(&out1)[13], 1.0);
+
+    // survival_threshold = 2 -> dies
+    let filter2 = VotingBinaryImageFilter::new(1, 1, 2, 1.0, 0.0);
+    let out2 = filter2.apply(&img).unwrap();
+    assert_eq!(voxels(&out2)[13], 0.0);
 }
 
 /// Birth: background voxel adjacent to a foreground cluster is born

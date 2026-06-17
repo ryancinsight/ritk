@@ -759,3 +759,42 @@ def test_cmake_paste_on_upstream_data():
     r = ritk.filter.paste(ri, rsrc, (0, 60, 70))
     s = sitk.Paste(si, ssrc, [50, 40, 1], [0, 0, 0], [70, 60, 0])
     assert _eq(r, s), "Paste: differs from sitk"
+
+
+def _cthead_mask():
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    mb = (arr > 40).astype(np.float32)
+    return (ritk.Image(np.ascontiguousarray(mb[None])),
+            sitk.Cast(sitk.GetImageFromArray(mb), sitk.sitkUInt8))
+
+
+@pytest.mark.parametrize("fc", [False, True], ids=["F6", "F26"])
+def test_cmake_binary_contour_on_upstream_data(fc):
+    # BinaryContourImageFilter: object boundary. Bit-exact to sitk.BinaryContour.
+    rim, sim = _cthead_mask()
+    r = ritk.filter.binary_contour(rim, fc, 1.0)
+    s = sitk.BinaryContour(sim, fc, 0.0, 1.0)
+    assert _eq(r, s), f"BinaryContour (fc={fc}): differs from sitk"
+
+
+@pytest.mark.parametrize("fc", [False, True], ids=["F6", "F26"])
+def test_cmake_label_contour_on_upstream_data(fc):
+    # LabelContourImageFilter on the connected components of the mask.
+    _, sim = _cthead_mask()
+    lbl = sitk.ConnectedComponent(sim)
+    ril = ritk.Image(np.ascontiguousarray(
+        sitk.GetArrayFromImage(lbl).astype(np.float32)[None]))
+    r = ritk.filter.label_contour(ril, fc, 0.0)
+    s = sitk.LabelContour(sitk.Cast(lbl, sitk.sitkUInt16), fc, 0.0)
+    assert _eq(r, s), f"LabelContour (fc={fc}): differs from sitk"
+
+
+@pytest.mark.parametrize("thr", [2, 3], ids=["t2", "t3"])
+def test_cmake_voting_binary_on_upstream_data(thr):
+    # VotingBinaryImageFilter (one step, radius 1, birth==survival==thr).
+    rim, sim = _cthead_mask()
+    r = ritk.filter.voting_binary(rim, 1, thr, thr, 1.0, 0.0)
+    s = sitk.VotingBinary(sim, [1, 1, 1], thr, thr, 1, 0)
+    assert _eq(r, s), f"VotingBinary (thr={thr}): differs from sitk"

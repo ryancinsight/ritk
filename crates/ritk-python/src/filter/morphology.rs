@@ -4,13 +4,13 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    BlackTopHatFilter, ClosingByReconstructionFilter, Connectivity, GrayscaleClosingFilter,
-    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGrindPeakFilter,
-    GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter,
-    HitOrMissTransform, LabelClosing, LabelDilation, LabelErosion, LabelOpening,
-    MorphologicalReconstruction, OpeningByReconstructionFilter, ReconstructionMode,
-    RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
-    ValuedRegionalMinimaFilter, WhiteTopHatFilter,
+    BinaryContourImageFilter, BlackTopHatFilter, ClosingByReconstructionFilter, Connectivity,
+    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    GrayscaleGrindPeakFilter, GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter,
+    HMinimaFilter, HitOrMissTransform, LabelClosing, LabelContourImageFilter, LabelDilation,
+    LabelErosion, LabelOpening, MorphologicalReconstruction, OpeningByReconstructionFilter,
+    ReconstructionMode, RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
+    ValuedRegionalMinimaFilter, VotingBinaryImageFilter, WhiteTopHatFilter,
 };
 
 /// Apply grayscale morphological erosion with a flat cubic structuring element.
@@ -482,6 +482,78 @@ pub fn grayscale_grind_peak(
             .with_connectivity(conn)
             .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Binary contour: keep only foreground voxels that touch the background
+/// (the object boundary). ITK Parity: BinaryContourImageFilter
+/// (`sitk.BinaryContour`).
+#[pyfunction]
+#[pyo3(signature = (image, fully_connected = false, foreground_value = 1.0))]
+pub fn binary_contour(
+    py: Python<'_>,
+    image: &PyImage,
+    fully_connected: bool,
+    foreground_value: f32,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        BinaryContourImageFilter::new(conn, foreground_value)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Label contour: mark the boundary voxels of every labelled region (voxels
+/// adjacent to a different label or the background). ITK Parity:
+/// LabelContourImageFilter (`sitk.LabelContour`).
+#[pyfunction]
+#[pyo3(signature = (image, fully_connected = false, background_value = 0.0))]
+pub fn label_contour(
+    py: Python<'_>,
+    image: &PyImage,
+    fully_connected: bool,
+    background_value: f32,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        LabelContourImageFilter::new(conn, background_value)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// One voting (cellular-automaton) step on a binary image: a background voxel
+/// becomes foreground if ≥ `birth_threshold` of its `(2·radius+1)³` neighbours
+/// are foreground; a foreground voxel survives if ≥ `survival_threshold` are.
+/// ITK Parity: VotingBinaryImageFilter (`sitk.VotingBinary`).
+#[pyfunction]
+#[pyo3(signature = (image, radius = 1, birth_threshold = 1, survival_threshold = 1, foreground_value = 1.0, background_value = 0.0))]
+pub fn voting_binary(
+    py: Python<'_>,
+    image: &PyImage,
+    radius: usize,
+    birth_threshold: usize,
+    survival_threshold: usize,
+    foreground_value: f32,
+    background_value: f32,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        VotingBinaryImageFilter::new(
+            radius,
+            birth_threshold,
+            survival_threshold,
+            foreground_value,
+            background_value,
+        )
+        .apply(arc.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
 }

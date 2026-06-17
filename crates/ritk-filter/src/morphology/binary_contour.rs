@@ -112,39 +112,36 @@ impl BinaryContourImageFilter {
                     if (v - fg).abs() > 1e-5 {
                         continue; // background
                     }
+                    // A voxel is a contour voxel iff an IN-BOUNDS neighbour is
+                    // background. Out-of-bounds neighbours are skipped, NOT
+                    // treated as background — ITK/`sitk.BinaryContour` leaves a
+                    // full-foreground image empty, and never marks the image
+                    // border as contour. (Treating OOB as background also broke
+                    // z=1 images, where every fg voxel's OOB z-neighbours wrongly
+                    // flagged the entire foreground.)
+                    let neighbour_is_bg = |dz: i32, dy: i32, dx: i32| -> bool {
+                        let qz = iz as i32 + dz;
+                        let qy = iy as i32 + dy;
+                        let qx = ix as i32 + dx;
+                        if qz < 0
+                            || qy < 0
+                            || qx < 0
+                            || qz >= nz as i32
+                            || qy >= ny as i32
+                            || qx >= nx as i32
+                        {
+                            return false;
+                        }
+                        let nv = vals[qz as usize * ny * nx + qy as usize * nx + qx as usize];
+                        (nv - fg).abs() > 1e-5
+                    };
                     let is_border = match self.connectivity {
-                        Connectivity::Vertex26 => n26.iter().any(|&(dz, dy, dx)| {
-                            let qz = iz as i32 + dz;
-                            let qy = iy as i32 + dy;
-                            let qx = ix as i32 + dx;
-                            if qz < 0
-                                || qy < 0
-                                || qx < 0
-                                || qz >= nz as i32
-                                || qy >= ny as i32
-                                || qx >= nx as i32
-                            {
-                                return true;
-                            }
-                            let nv = vals[qz as usize * ny * nx + qy as usize * nx + qx as usize];
-                            (nv - fg).abs() > 1e-5
-                        }),
-                        Connectivity::Face6 => N6.iter().any(|&(dz, dy, dx)| {
-                            let qz = iz as i32 + dz;
-                            let qy = iy as i32 + dy;
-                            let qx = ix as i32 + dx;
-                            if qz < 0
-                                || qy < 0
-                                || qx < 0
-                                || qz >= nz as i32
-                                || qy >= ny as i32
-                                || qx >= nx as i32
-                            {
-                                return true;
-                            }
-                            let nv = vals[qz as usize * ny * nx + qy as usize * nx + qx as usize];
-                            (nv - fg).abs() > 1e-5
-                        }),
+                        Connectivity::Vertex26 => {
+                            n26.iter().any(|&(dz, dy, dx)| neighbour_is_bg(dz, dy, dx))
+                        }
+                        Connectivity::Face6 => {
+                            N6.iter().any(|&(dz, dy, dx)| neighbour_is_bg(dz, dy, dx))
+                        }
                     };
                     if is_border {
                         out[iz * ny * nx + iy * nx + ix] = fg;

@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [0.87.0] — 2026-06-17 (Sprint 390: contour / voting-binary bindings + three discrepancy fixes)
+
+### Fixed
+- `ritk-filter`: `BinaryContourImageFilter` and `LabelContourImageFilter` treated **out-of-bounds neighbours as background / a different label** (`return true`), so (1) every foreground voxel of a `z = 1` (2-D) image was wrongly flagged as contour, and (2) image-border voxels were always marked. ITK/`sitk.{Binary,Label}Contour` leave a full-foreground / single-label image **empty** and never mark the image edge. Fixed both to skip OOB neighbours (a contour voxel needs an *in-bounds* differing neighbour); now **bit-exact** to sitk (F6 and F26) on cthead1. Two Rust tests that encoded the old OOB-as-background behaviour corrected.
+- `ritk-filter`: `VotingBinaryImageFilter` **excluded the centre voxel** from the neighbourhood count; ITK counts the full `(2r+1)³` neighbourhood **including the centre**, so a foreground centre contributes to its own survival. Diverged from `sitk.VotingBinary` by 1 on the survival decision (15 interior pixels on cthead1). Fixed to include the centre; now bit-exact.
+
+### Added
+- `ritk-python`: exposed `filter.binary_contour`, `filter.label_contour`, `filter.voting_binary` (Rust filters existed, unbound). All **bit-exact** to `sitk.{BinaryContour, LabelContour, VotingBinary}` on cthead1 — 6 cmake parity cases (suite grows past 125). `.pyi` stubs added.
+
 ## [0.86.0] — 2026-06-17 (Sprint 389: geometric transforms + MirrorPad fix)
 
 ### Fixed
