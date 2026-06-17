@@ -54,7 +54,10 @@ impl MorphologicalReconstruction {
     pub fn new(mode: ReconstructionMode) -> Self {
         Self {
             mode,
-            max_iter: 200,
+            // Iterate to the true fixed point by default; `apply` clamps this to
+            // the per-image convergence bound (voxel count), and the
+            // monotone-convergence break exits early for ordinary images.
+            max_iter: usize::MAX,
             connectivity: Connectivity::default(),
         }
     }
@@ -108,7 +111,18 @@ impl MorphologicalReconstruction {
         };
         let mask_vec: Vec<f32> = mask_vals.to_vec();
 
-        for _ in 0..self.max_iter {
+        // Each parallel step propagates the marker by one voxel, so the fixed
+        // point is reached in at most one iteration per voxel along the longest
+        // geodesic path — bounded above by the total voxel count. Capping below
+        // that (the previous fixed `max_iter = 200`) truncates before the limit
+        // `k → ∞` and yields a non-converged result that diverges from
+        // `sitk.ReconstructionBy{Dilation,Erosion}` on features whose path
+        // exceeds the cap. Monotonicity (dilation non-decreasing ≤ mask,
+        // erosion non-increasing ≥ mask) guarantees the convergence break fires
+        // long before this bound for ordinary images.
+        let convergence_bound = dims[0].saturating_mul(dims[1]).saturating_mul(dims[2]).max(1);
+        let cap = self.max_iter.min(convergence_bound);
+        for _ in 0..cap {
             let next = match self.mode {
                 ReconstructionMode::Dilation => {
                     let dilated = dilate1_scalar(&current, dims, self.connectivity);
@@ -187,12 +201,15 @@ fn dilate1_scalar(data: &[f32], dims: [usize; 3], conn: Connectivity) -> Vec<f32
     out
 }
 
-/// One-step grayscale erosion (min in 3x3x3 neighbourhood).
+/// One-step grayscale erosion (min over the connectivity neighbourhood, clamp
+/// padding). `conn` selects face (6/4) or full (26/8) adjacency.
 ///
-/// Out-of-bounds positions contribute f32::NEG_INFINITY so that boundary
-/// voxels erode toward the mask value during geodesic erosion reconstruction.
-/// This is mathematically required: on a finite-support domain the exterior
-/// acts as a strict lower bound, enabling convergence from marker to mask.
+/// Boundary handling is replicate (edge-clamp), identical to [`dilate1_scalar`]
+/// and to ITK's `ZeroFluxNeumann` reconstruction boundary: out-of-bounds
+/// positions read the nearest in-bounds voxel. Treating the exterior as
+/// `−∞` (a previous implementation) is incorrect — it forces every boundary
+/// voxel to collapse to the mask during erosion reconstruction, losing the
+/// marker floor (diverged from `sitk.ReconstructionByErosion`).
 fn erode1_scalar(data: &[f32], dims: [usize; 3], conn: Connectivity) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let mut out = Vec::with_capacity(data.len());
@@ -200,26 +217,16 @@ fn erode1_scalar(data: &[f32], dims: [usize; 3], conn: Connectivity) -> Vec<f32>
         for iy in 0..ny {
             for ix in 0..nx {
                 let mut mn = f32::INFINITY;
-                'outer_e: for dz in -1i32..=1 {
+                for dz in -1i32..=1 {
                     for dy in -1i32..=1 {
                         for dx in -1i32..=1 {
                             if !conn.includes(dz, dy, dx) {
                                 continue;
                             }
-                            let zz = iz as i32 + dz;
-                            let yy = iy as i32 + dy;
-                            let xx = ix as i32 + dx;
-                            if zz < 0
-                                || zz >= nz as i32
-                                || yy < 0
-                                || yy >= ny as i32
-                                || xx < 0
-                                || xx >= nx as i32
-                            {
-                                mn = f32::NEG_INFINITY;
-                                break 'outer_e;
-                            }
-                            let v = data[zz as usize * ny * nx + yy as usize * nx + xx as usize];
+                            let zz = (iz as i32 + dz).clamp(0, nz as i32 - 1) as usize;
+                            let yy = (iy as i32 + dy).clamp(0, ny as i32 - 1) as usize;
+                            let xx = (ix as i32 + dx).clamp(0, nx as i32 - 1) as usize;
+                            let v = data[zz * ny * nx + yy * nx + xx];
                             if v < mn {
                                 mn = v;
                             }

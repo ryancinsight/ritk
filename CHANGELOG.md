@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.81.0] — 2026-06-17 (Sprint 384: H-transform family + erosion-reconstruction fix)
+
+### Fixed
+- `ritk-filter`: `MorphologicalReconstruction` erosion path was wrong on two counts, both diverging from `sitk.ReconstructionByErosion`. (1) **Boundary**: `erode1_scalar` treated every out-of-bounds neighbour as `−∞` and bailed, forcing every boundary voxel to collapse to the mask and losing the marker floor; it now edge-clamps (replicate) identically to the dilation path and to ITK's `ZeroFluxNeumann` boundary. (2) **Convergence**: the iteration was capped at a fixed `max_iter = 200`, truncating the fixed-point limit `k → ∞` on features whose geodesic path exceeds 200 steps (HMinima on cthead1 was off by 1.0 at 6 voxels). The default now iterates to true convergence, bounded above by the voxel count (the monotone-convergence break exits early for ordinary images). The dilation path was already correct; both are now bit/float-exact to SimpleITK.
+
+### Added
+- `ritk-filter` / `ritk-python`: H-transform grayscale morphology family — `HMaximaFilter`, `HMinimaFilter`, `HConvexFilter`, `HConcaveFilter` (ITK `H{Maxima,Minima,Convex,Concave}ImageFilter`), composed on the now-exact morphological reconstruction. Exposed as `filter.h_{maxima,minima,convex,concave}(image, height, fully_connected=False)`, each **bit-exact** to `sitk.H{Maxima,Minima,Convex,Concave}` on the upstream cthead1 grayscale image at h ∈ {20, 50}. Value-semantic Rust tests (peak lowered by exactly h, pit raised by exactly h, ordering invariants) + 8 cmake parity cases (suite now 96). `.pyi` stubs added; `morphological_reconstruction` stub gains the `fully_connected` parameter.
+
 ## [0.80.0] — 2026-06-17 (Sprint 383: Atan2 / Pow binary filters)
 
 ### Added

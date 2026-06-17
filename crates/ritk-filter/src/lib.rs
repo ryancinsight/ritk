@@ -62,7 +62,8 @@ pub use morphology::{
     BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter, Connectivity,
     ForegroundValue, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
     GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
-    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HitOrMissTransform, LabelClosing,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter,
+    HMaximaFilter, HMinimaFilter, HitOrMissTransform, LabelClosing,
     LabelContourImageFilter, LabelDilation, LabelErosion, LabelOpening,
     MorphologicalReconstruction, ReconstructionMode, VotingBinaryImageFilter, WhiteTopHatFilter,
 };

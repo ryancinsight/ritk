@@ -68,6 +68,9 @@ pub use grayscale_opening::GrayscaleOpeningFilter;
 pub mod grayscale_geodesic;
 pub use grayscale_geodesic::{GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter};
 
+pub mod h_transform;
+pub use h_transform::{HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter};
+
 pub mod morphological_laplace;
 pub use morphological_laplace::MorphologicalLaplacian;
 

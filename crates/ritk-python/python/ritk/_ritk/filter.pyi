@@ -268,7 +268,20 @@ def morphological_reconstruction(
     marker: Image,
     mask: Image,
     mode: str = "dilation",
+    fully_connected: bool = False,
 ) -> Image: ...
+def h_maxima(image: Image, height: float, fully_connected: bool = False) -> Image:
+    """H-maxima transform (suppress bright maxima below `height`). ITK Parity: HMaximaImageFilter."""
+    ...
+def h_minima(image: Image, height: float, fully_connected: bool = False) -> Image:
+    """H-minima transform (suppress dark minima below `height`). ITK Parity: HMinimaImageFilter."""
+    ...
+def h_convex(image: Image, height: float, fully_connected: bool = False) -> Image:
+    """H-convex transform: f - HMaxima_h(f). ITK Parity: HConvexImageFilter."""
+    ...
+def h_concave(image: Image, height: float, fully_connected: bool = False) -> Image:
+    """H-concave transform: HMinima_h(f) - f. ITK Parity: HConcaveImageFilter."""
+    ...
 def resample_image(
     image: Image,
     spacing_z: float = 1.0,

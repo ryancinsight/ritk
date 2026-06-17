@@ -4,9 +4,9 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    BlackTopHatFilter, Connectivity, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform,
-    LabelClosing, LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction,
-    ReconstructionMode, WhiteTopHatFilter,
+    BlackTopHatFilter, Connectivity, GrayscaleDilation, GrayscaleErosion, HConcaveFilter,
+    HConvexFilter, HMaximaFilter, HMinimaFilter, HitOrMissTransform, LabelClosing, LabelDilation,
+    LabelErosion, LabelOpening, MorphologicalReconstruction, ReconstructionMode, WhiteTopHatFilter,
 };
 
 /// Apply grayscale morphological erosion with a flat cubic structuring element.
@@ -192,11 +192,7 @@ pub fn morphological_reconstruction(
             )))
         }
     };
-    let connectivity = if fully_connected {
-        Connectivity::Vertex26
-    } else {
-        Connectivity::Face6
-    };
+    let connectivity = connectivity_from(fully_connected);
     let marker_arc = std::sync::Arc::clone(&marker.inner);
     let mask_arc = std::sync::Arc::clone(&mask.inner);
     py.allow_threads(|| {
@@ -206,4 +202,98 @@ pub fn morphological_reconstruction(
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// H-maxima transform: suppress bright regional maxima with contrast below
+/// `height`. ITK Parity: HMaximaImageFilter (`sitk.HMaxima`).
+#[pyfunction]
+#[pyo3(signature = (image, height, fully_connected = false))]
+pub fn h_maxima(
+    py: Python<'_>,
+    image: &PyImage,
+    height: f32,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        HMaximaFilter::new(height)
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// H-minima transform: suppress dark regional minima with contrast below
+/// `height`. ITK Parity: HMinimaImageFilter (`sitk.HMinima`).
+#[pyfunction]
+#[pyo3(signature = (image, height, fully_connected = false))]
+pub fn h_minima(
+    py: Python<'_>,
+    image: &PyImage,
+    height: f32,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        HMinimaFilter::new(height)
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// H-convex transform: `f − HMaxima_h(f)`, the bright dynamic suppressed by
+/// the h-maxima transform. ITK Parity: HConvexImageFilter (`sitk.HConvex`).
+#[pyfunction]
+#[pyo3(signature = (image, height, fully_connected = false))]
+pub fn h_convex(
+    py: Python<'_>,
+    image: &PyImage,
+    height: f32,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        HConvexFilter::new(height)
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// H-concave transform: `HMinima_h(f) − f`, the dark dynamic suppressed by the
+/// h-minima transform. ITK Parity: HConcaveImageFilter (`sitk.HConcave`).
+#[pyfunction]
+#[pyo3(signature = (image, height, fully_connected = false))]
+pub fn h_concave(
+    py: Python<'_>,
+    image: &PyImage,
+    height: f32,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        HConcaveFilter::new(height)
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Map the `fully_connected` flag to the structuring-element adjacency
+/// (ITK's `FullyConnectedOff` → face, `On` → full).
+fn connectivity_from(fully_connected: bool) -> Connectivity {
+    if fully_connected {
+        Connectivity::Vertex26
+    } else {
+        Connectivity::Face6
+    }
 }

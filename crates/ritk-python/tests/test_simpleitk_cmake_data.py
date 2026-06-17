@@ -597,3 +597,27 @@ def test_cmake_binary_morph_on_upstream_data(tag, rfn, sfn):
     s = np.squeeze(sitk.GetArrayFromImage(sfn(sim)).astype(np.float64))
     rel = np.abs(r[2:-2, 2:-2] - s[2:-2, 2:-2]).max() / max(np.abs(s).max(), 1e-9)
     assert rel == 0.0, f"{tag}: rel {rel:.2e}"
+
+
+# H-transform grayscale morphology (<Filter>.yaml). Reconstruction-based, so
+# bit-exact to SimpleITK on the upstream cthead1 grayscale image.
+_H_TRANSFORM_CMAKE = [
+    ("HMaxima/HMaxima", lambda i, h: ritk.filter.h_maxima(i, h),
+     lambda i, h: sitk.HMaxima(i, h)),
+    ("HMinima/HMinima", lambda i, h: ritk.filter.h_minima(i, h),
+     lambda i, h: sitk.HMinima(i, h)),
+    ("HConvex/HConvex", lambda i, h: ritk.filter.h_convex(i, h),
+     lambda i, h: sitk.HConvex(i, h)),
+    ("HConcave/HConcave", lambda i, h: ritk.filter.h_concave(i, h),
+     lambda i, h: sitk.HConcave(i, h)),
+]
+
+
+@pytest.mark.parametrize("height", [20.0, 50.0], ids=["h20", "h50"])
+@pytest.mark.parametrize("tag,rfn,sfn", _H_TRANSFORM_CMAKE, ids=[c[0] for c in _H_TRANSFORM_CMAKE])
+def test_cmake_h_transform_on_upstream_data(tag, rfn, sfn, height):
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(rfn(ri, height).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sfn(si, height)).astype(np.float64))
+    assert np.array_equal(r, s), f"{tag} (h={height}): differs from sitk"
