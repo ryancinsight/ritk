@@ -202,7 +202,9 @@ impl RecursiveGaussianFilter {
 fn laplacian_rg_vals(vals: &[f32], dims: [usize; 3], spacing: [f64; 3], sigma: f64) -> Vec<f32> {
     let mut laplacian = vec![0.0f32; vals.len()];
     for d in 0..3 {
-        let mut temp = vals.to_vec();
+        // First axis reads `vals` directly (no upfront clone); each subsequent
+        // pass consumes the previous result, so exactly one buffer is live.
+        let mut temp: Option<Vec<f32>> = None;
         for (ax, &s) in spacing.iter().enumerate() {
             let pixel_sigma = sigma / s;
             let coeffs = if ax == d {
@@ -210,8 +212,10 @@ fn laplacian_rg_vals(vals: &[f32], dims: [usize; 3], spacing: [f64; 3], sigma: f
             } else {
                 DericheCoefficients::from_sigma(pixel_sigma)
             };
-            temp = apply_deriche_1d(&temp, dims, ax, &coeffs, pixel_sigma);
+            let src = temp.as_deref().unwrap_or(vals);
+            temp = Some(apply_deriche_1d(src, dims, ax, &coeffs, pixel_sigma));
         }
+        let temp = temp.expect("invariant: 3 axes always filtered");
         let inv_s2 = (1.0 / (spacing[d] * spacing[d])) as f32;
         for (acc, t) in laplacian.iter_mut().zip(temp.iter()) {
             *acc += t * inv_s2;
@@ -234,7 +238,8 @@ fn gradient_magnitude_rg_vals(
 ) -> Vec<f32> {
     let mut sum_sq = vec![0.0f32; vals.len()];
     for d in 0..3 {
-        let mut temp = vals.to_vec();
+        // First axis reads `vals` directly (no upfront clone).
+        let mut temp: Option<Vec<f32>> = None;
         for (ax, &s) in spacing.iter().enumerate() {
             let pixel_sigma = sigma / s;
             let coeffs = if ax == d {
@@ -242,8 +247,10 @@ fn gradient_magnitude_rg_vals(
             } else {
                 DericheCoefficients::from_sigma(pixel_sigma)
             };
-            temp = apply_deriche_1d(&temp, dims, ax, &coeffs, pixel_sigma);
+            let src = temp.as_deref().unwrap_or(vals);
+            temp = Some(apply_deriche_1d(src, dims, ax, &coeffs, pixel_sigma));
         }
+        let temp = temp.expect("invariant: 3 axes always filtered");
         let inv_s = (1.0 / spacing[d]) as f32;
         for (acc, t) in sum_sq.iter_mut().zip(temp.iter()) {
             let g = t * inv_s;

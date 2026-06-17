@@ -240,13 +240,8 @@ pub fn distance_transform_squared<B: Backend>(
         }
     }
 
-    // Convert to the physical squared X-distance: (g·sx)².
-    let mut g2 = vec![0.0f64; total];
-    for (out, &gv) in g2.iter_mut().zip(g.iter()) {
-        let gd = gv as f64;
-        *out = gd * gd * sx2;
-    }
-
+    // The physical squared X-distance (g·sx)² is formed on the fly during the
+    // phase-2 column extraction below — no separate full-volume buffer.
     let max_dim = ny.max(nz);
     let mut col_f = vec![0.0f64; max_dim];
     let mut col_dt = vec![0.0f64; max_dim];
@@ -258,7 +253,8 @@ pub fn distance_transform_squared<B: Backend>(
     for z in 0..nz {
         for x in 0..nx {
             for y in 0..ny {
-                col_f[y] = g2[idx3(z, y, x, ny, nx)];
+                let gd = g[idx3(z, y, x, ny, nx)] as f64;
+                col_f[y] = gd * gd * sx2;
             }
             lower_envelope_transform(&col_f, ny, sy2, &mut col_dt, &mut scratch_v, &mut scratch_z);
             for y in 0..ny {
