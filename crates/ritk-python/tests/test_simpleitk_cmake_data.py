@@ -668,3 +668,34 @@ def test_cmake_recon_open_close_on_upstream_data(tag, rfn, sfn, radius):
     r = np.squeeze(np.asarray(rfn(ri, radius).to_numpy(), np.float64))
     s = np.squeeze(sitk.GetArrayFromImage(sfn(si, radius)).astype(np.float64))
     assert np.array_equal(r, s), f"{tag} (r={radius}): differs from sitk"
+
+
+# Grayscale fill-hole / grind-peak (no SE) — bit-exact to sitk on cthead1.
+@pytest.mark.parametrize("tag,rfn,sfn", [
+    ("GrayscaleFillhole/GrayscaleFillhole", lambda i: ritk.filter.grayscale_fillhole(i),
+     lambda i: sitk.GrayscaleFillhole(i)),
+    ("GrayscaleGrindPeak/GrayscaleGrindPeak", lambda i: ritk.filter.grayscale_grind_peak(i),
+     lambda i: sitk.GrayscaleGrindPeak(i)),
+], ids=["GrayscaleFillhole", "GrayscaleGrindPeak"])
+def test_cmake_fillhole_grindpeak_on_upstream_data(tag, rfn, sfn):
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(rfn(ri).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sfn(si)).astype(np.float64))
+    assert np.array_equal(r, s), f"{tag}: differs from sitk"
+
+
+# Grayscale morphological opening/closing (box SE) — bit-exact to sitk on cthead1.
+@pytest.mark.parametrize("radius", [2, 3], ids=["r2", "r3"])
+@pytest.mark.parametrize("tag,rfn,sfn", [
+    ("GrayscaleMorphologicalClosing", lambda i, r: ritk.filter.grayscale_closing(i, r),
+     lambda i, r: sitk.GrayscaleMorphologicalClosing(i, [r, r], sitk.sitkBox)),
+    ("GrayscaleMorphologicalOpening", lambda i, r: ritk.filter.grayscale_opening(i, r),
+     lambda i, r: sitk.GrayscaleMorphologicalOpening(i, [r, r], sitk.sitkBox)),
+], ids=["GrayscaleClosing", "GrayscaleOpening"])
+def test_cmake_grayscale_open_close_on_upstream_data(tag, rfn, sfn, radius):
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(rfn(ri, radius).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sfn(si, radius)).astype(np.float64))
+    assert np.array_equal(r, s), f"{tag} (r={radius}): differs from sitk"

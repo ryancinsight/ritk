@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.85.0] — 2026-06-17 (Sprint 388: grayscale fill-hole / grind-peak / open / close + two boundary fixes)
+
+### Fixed
+- `ritk-filter`: `GrayscaleFillholeFilter` was a **no-op on any 2-D (`z = 1`) image**. Its border test `iz == 0 || iz == nz-1 || …` flags every voxel of a `z = 1` volume as border (since `iz == 0` is always true), so no interior pit was ever filled — diverging from `sitk.GrayscaleFillhole` on every 2-D input (the common case). Introduced a shared degenerate-axis-aware `on_image_border` helper (size-1 axes excluded) used by both fill-hole and the new grind-peak. Regression test: a `z = 1` slab now fills its interior pits.
+- `ritk-filter`: `GrayscaleOpeningFilter` / `GrayscaleClosingFilter` did naive erode→dilate (resp. dilate→erode) with **no safe border**, despite the docs claiming it — so the band within `radius` of the image edge diverged from `sitk.GrayscaleMorphological{Opening,Closing}` (maxdiff 3.0 on cthead1; ITK's composed filter is *not* the naive composition). Fixed to ITK's safe border: replicate-pad by `radius`, run the erode/dilate pair on the padded volume, crop. Now **bit-exact** to sitk (box SE). Shared `pad_replicate_3d`/`crop_border_3d` helpers.
+
+### Added
+- `ritk-filter` / `ritk-python`: `GrayscaleGrindPeakFilter` (ITK `GrayscaleGrindPeakImageFilter`, dual of fill-hole) — grinds bright peaks not connected to the image border, via the O(N) reconstruction with a border/global-min marker. `filter.grayscale_grind_peak(image, fully_connected=False)`.
+- `ritk-python`: exposed the previously-unbound `filter.grayscale_fillhole`, `filter.grayscale_closing`, `filter.grayscale_opening` (the Rust filters already existed). `filter.grayscale_grind_peak` new. All four **bit-exact** to `sitk.{GrayscaleFillhole, GrayscaleGrindPeak, GrayscaleMorphologicalClosing, GrayscaleMorphologicalOpening}` on cthead1 (box SE, r ∈ {2,3}). Value-semantic Rust tests + 6 cmake parity cases (suite now 110). `.pyi` stubs added.
+
 ## [0.84.0] — 2026-06-17 (Sprint 387: opening/closing-by-reconstruction)
 
 ### Added

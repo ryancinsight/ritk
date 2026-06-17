@@ -85,9 +85,14 @@ impl GrayscaleClosingFilter {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
 
-        // C_B(f) = E_B(D_B(f))
-        let dilated = dilate_3d(&vals, dims, self.radius);
-        let closed = erode_3d(&dilated, dims, self.radius);
+        // C_B(f) = E_B(D_B(f)) with ITK's safe border: replicate-pad by `radius`,
+        // run the dilate/erode pair on the padded volume, then crop. Keeps the
+        // border band bit-exact to sitk.GrayscaleMorphologicalClosing.
+        let r = self.radius;
+        let (padded, pdims) = super::pad_replicate_3d(&vals, dims, r);
+        let dilated = dilate_3d(&padded, pdims, r);
+        let eroded = erode_3d(&dilated, pdims, r);
+        let (closed, _) = super::crop_border_3d(&eroded, pdims, r);
 
         let device = image.data().device();
         let out_td = TensorData::new(closed, Shape::new(dims));

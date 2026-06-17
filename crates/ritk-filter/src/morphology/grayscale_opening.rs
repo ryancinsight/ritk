@@ -86,9 +86,15 @@ impl GrayscaleOpeningFilter {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
 
-        // O_B(f) = D_B(E_B(f))
-        let eroded = erode_3d(&vals, dims, self.radius);
-        let opened = dilate_3d(&eroded, dims, self.radius);
+        // O_B(f) = D_B(E_B(f)) with ITK's safe border: replicate-pad by `radius`,
+        // run the erode/dilate pair on the padded volume, then crop. This keeps
+        // the border band bit-exact to sitk.GrayscaleMorphologicalOpening
+        // (naive erode→dilate diverges within `radius` of the edge).
+        let r = self.radius;
+        let (padded, pdims) = super::pad_replicate_3d(&vals, dims, r);
+        let eroded = erode_3d(&padded, pdims, r);
+        let dilated = dilate_3d(&eroded, pdims, r);
+        let (opened, _) = super::crop_border_3d(&dilated, pdims, r);
 
         let device = image.data().device();
         let out_td = TensorData::new(opened, Shape::new(dims));

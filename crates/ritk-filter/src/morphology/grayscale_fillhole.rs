@@ -133,9 +133,7 @@ fn fill_holes_3d(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
     for iz in 0..nz {
         for iy in 0..ny {
             for ix in 0..nx {
-                let on_border =
-                    iz == 0 || iz == nz - 1 || iy == 0 || iy == ny - 1 || ix == 0 || ix == nx - 1;
-                if on_border {
+                if crate::morphology::on_image_border(iz, iy, ix, dims) {
                     let flat = iz * ny * nx + iy * nx + ix;
                     let v = data[flat];
                     h[flat] = v;

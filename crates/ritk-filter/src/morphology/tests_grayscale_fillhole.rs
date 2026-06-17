@@ -191,21 +191,32 @@ fn spatial_metadata_preserved() {
     assert_eq!(out.spacing(), img.spacing());
 }
 
-/// Multi-level landscape: deeper pit fills to higher wall than shallower pit.
-///
-/// Volume: 1×1×7 image: I = [5, 5, 1, 5, 1, 5, 5].
-/// All voxels in a 1×1×N volume ARE on the border (nz=1,ny=1 → every voxel
-/// has iz=0=iz_max and iy=0=iy_max). So output = input exactly.
-///
-/// This test verifies that purely border-connected volumes are unchanged.
+/// A volume in which every voxel lies on the border has no interior to fill, so
+/// fill-hole is the identity. A 2×2×2 volume is all corners (every voxel is an
+/// extremum of all three axes), so output = input exactly.
 #[test]
 fn all_border_volume_unchanged() {
-    let vals = vec![5.0_f32, 5.0, 1.0, 5.0, 1.0, 5.0, 5.0];
-    let dims = [1, 1, 7];
+    let vals = vec![5.0_f32, 1.0, 2.0, 8.0, 3.0, 6.0, 4.0, 7.0];
+    let dims = [2, 2, 2];
     let img = make_image(vals.clone(), dims);
     let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
     let out_vals = extract_vals(&out);
     for (i, (&a, &b)) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!((a - b).abs() < 1e-6, "all-border voxel {i}: {a} ≠ {b}");
+    }
+}
+
+/// A `z = 1` slab is a genuine 2-D image, not an all-border volume: its interior
+/// dark pits must be filled (regression for the degenerate-axis border bug,
+/// where `iz == 0` wrongly flagged every voxel as border, making fill-hole a
+/// no-op on 2-D images). The 1-D signal `[5,5,1,5,1,5,5]` (as `1×1×7`) has its
+/// interior `1`-pits raised to the connecting wall level `5`.
+#[test]
+fn degenerate_axis_interior_pits_are_filled() {
+    let vals = vec![5.0_f32, 5.0, 1.0, 5.0, 1.0, 5.0, 5.0];
+    let out = extract_vals(&GrayscaleFillholeFilter::new().apply(&make_image(vals, [1, 1, 7])).unwrap());
+    let expected = [5.0f32, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0];
+    for (i, (&got, exp)) in out.iter().zip(expected).enumerate() {
+        assert!((got - exp).abs() < 1e-6, "fill-hole 1-D pit {i}: got {got}, expected {exp}");
     }
 }

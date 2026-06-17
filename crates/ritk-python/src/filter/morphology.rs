@@ -4,8 +4,9 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    BlackTopHatFilter, ClosingByReconstructionFilter, Connectivity, GrayscaleDilation,
-    GrayscaleErosion, HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter,
+    BlackTopHatFilter, ClosingByReconstructionFilter, Connectivity, GrayscaleClosingFilter,
+    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGrindPeakFilter,
+    GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter,
     HitOrMissTransform, LabelClosing, LabelDilation, LabelErosion, LabelOpening,
     MorphologicalReconstruction, OpeningByReconstructionFilter, ReconstructionMode,
     RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
@@ -416,6 +417,68 @@ pub fn closing_by_reconstruction(
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         ClosingByReconstructionFilter::new(radius)
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Grayscale morphological closing with a flat cubic (box) SE of half-width
+/// `radius`. ITK Parity: GrayscaleMorphologicalClosingImageFilter
+/// (`sitk.GrayscaleMorphologicalClosing`, box SE).
+#[pyfunction]
+pub fn grayscale_closing(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        GrayscaleClosingFilter::new(radius)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Grayscale morphological opening with a flat cubic (box) SE of half-width
+/// `radius`. ITK Parity: GrayscaleMorphologicalOpeningImageFilter
+/// (`sitk.GrayscaleMorphologicalOpening`, box SE).
+#[pyfunction]
+pub fn grayscale_opening(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        GrayscaleOpeningFilter::new(radius)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Grayscale fill-hole: raise dark regional minima not connected to the image
+/// border. ITK Parity: GrayscaleFillholeImageFilter (`sitk.GrayscaleFillhole`).
+#[pyfunction]
+pub fn grayscale_fillhole(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        GrayscaleFillholeFilter::new()
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Grayscale grind-peak: grind down bright peaks not connected to the image
+/// border (dual of fill-hole). ITK Parity: GrayscaleGrindPeakImageFilter
+/// (`sitk.GrayscaleGrindPeak`).
+#[pyfunction]
+#[pyo3(signature = (image, fully_connected = false))]
+pub fn grayscale_grind_peak(
+    py: Python<'_>,
+    image: &PyImage,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        GrayscaleGrindPeakFilter::new()
             .with_connectivity(conn)
             .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))

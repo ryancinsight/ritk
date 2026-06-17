@@ -300,6 +300,18 @@ def opening_by_reconstruction(image: Image, radius: int, fully_connected: bool =
 def closing_by_reconstruction(image: Image, radius: int, fully_connected: bool = False) -> Image:
     """Closing by reconstruction (box SE). ITK Parity: ClosingByReconstructionImageFilter."""
     ...
+def grayscale_closing(image: Image, radius: int) -> Image:
+    """Grayscale morphological closing (box SE). ITK Parity: GrayscaleMorphologicalClosingImageFilter."""
+    ...
+def grayscale_opening(image: Image, radius: int) -> Image:
+    """Grayscale morphological opening (box SE). ITK Parity: GrayscaleMorphologicalOpeningImageFilter."""
+    ...
+def grayscale_fillhole(image: Image) -> Image:
+    """Grayscale fill-hole. ITK Parity: GrayscaleFillholeImageFilter."""
+    ...
+def grayscale_grind_peak(image: Image, fully_connected: bool = False) -> Image:
+    """Grayscale grind-peak (dual of fill-hole). ITK Parity: GrayscaleGrindPeakImageFilter."""
+    ...
 def resample_image(
     image: Image,
     spacing_z: float = 1.0,
