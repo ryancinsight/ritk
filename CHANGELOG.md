@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.75.1] — 2026-06-17 (Sprint 379 Increment 9: Deriche recursive-Gaussian parallelism)
+
+### Performance
+- `ritk-filter`: the recursive-Gaussian / gradient-magnitude / Laplacian-of-Gaussian path (`apply_deriche_1d`) now parallelises its X and Y 1-D passes across Z-slices via `moirai` (contiguous `nyx`-length output chunks, one scratch set per slice); the per-line Deriche IIR is factored into a shared `deriche_line` so the serial and parallel paths run identical arithmetic. Measured **1.50× (smooth), 1.71× (gradient-magnitude), 1.81× (Laplacian-of-Gaussian)** on a 128³ f32 volume (min-of-20). Output is **bit-identical** to the previous serial implementation (verified by exact array equality on a non-cube volume), so the float-exact SimpleITK parity is unchanged. The Z pass (strided across the whole volume) remains serial; analysis and the remaining headroom are recorded in OPTIMIZATION.md (PERF-379-01). Two earlier single-thread micro-optimizations (boundary branch-hoist, output-buffer recycling) were A/B-measured as 15–28% regressions and rejected — the inner loop is latency-bound on its 4th-order recurrence, so cross-line parallelism is the only real lever.
+
 ## [0.75.0] — 2026-06-17 (Sprint 379 Increment 8: auto-threshold ITK histogram parity)
 
 ### Fixed

@@ -46,6 +46,26 @@ consume-as-you-go pattern is already near-optimal on working set, and recycling 
 pays once the inner loop is no longer the bottleneck (i.e. after cross-line
 parallelism lands).
 
+**Cross-line parallelism — DELIVERED (PERF-379-01, 1.5–1.8×).** `apply_deriche_1d`
+now parallelises the X (dim 2) and Y (dim 1) passes across Z-slices via
+`moirai::for_each_chunk_mut_enumerated_with` over contiguous `nyx`-length output
+chunks, with one `LineScratch` per slice; the per-line IIR is factored into
+`deriche_line(input, in_off, in_stride, output, out_off, out_stride, …)` so the
+serial and parallel paths share identical arithmetic. The Z pass (dim 0) is strided
+across the whole volume (no contiguous chunk) and stays serial. Because each 1-D
+line writes disjoint output indices, the result is **bit-identical** to the serial
+form (verified by exact array equality on a non-cube volume, and the float-exact
+SimpleITK parity suite is unchanged). Min-of-20 on a 128³ `f32` volume:
+
+| op       | serial | parallel | speedup |
+|----------|--------|----------|---------|
+| smooth   | 18.3   | 27.4     | 1.50×   |
+| grad-mag | 7.8    | 13.4     | 1.71×   |
+| LoG      | 7.7    | 13.9     | 1.81×   |
+
+(Mvox/s.) Headroom remains: the Z pass is still serial; a transpose-based or
+multi-line-ILP scheme for dim 0 would lift it further.
+
 ## Current State (v0.51.9)
 
 ### Test Suite Performance

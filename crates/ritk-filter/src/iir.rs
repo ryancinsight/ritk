@@ -235,7 +235,6 @@ pub(super) fn line_params(dims: [usize; 3], dim: usize) -> LineParams {
 /// `pad` edge-valued samples per side, where `pad` scales with `pixel_sigma`
 /// so the IIR transient decays before reaching the real data. The recursion is
 /// accumulated in `f64` to match ITK's `RealType` (float-exact to SimpleITK).
-#[inline]
 pub(super) fn apply_deriche_1d(
     data: &[f32],
     dims: [usize; 3],
@@ -250,77 +249,160 @@ pub(super) fn apply_deriche_1d(
         return output;
     }
 
-    let [n0, n1, n2, n3] = coeffs.n;
-    let [d1, d2, d3, d4] = coeffs.d;
-    let [m1, m2, m3, m4] = coeffs.m;
-
     // Pad enough that the dominant pole |exp(L/σ)| (L ≈ −1.37) decays below
     // ~1e-8 before the data starts: pad ≈ 13·σ (independent of the line length,
     // so short lines with large σ still settle).
     let pad = ((13.0 * pixel_sigma).ceil() as usize).max(8);
     let plen = len + 2 * pad;
+    let [_nz, ny, nx] = dims;
+    let nyx = ny * nx;
 
-    // Padded input line (edge-replicated) and the two recursion scratch lines.
-    let mut xp = vec![0.0_f64; plen];
-    let mut yc = vec![0.0_f64; plen];
-    let mut ya = vec![0.0_f64; plen];
-
-    for li in 0..lp.num_lines {
-        let base = line_base(dims, dim, li);
-
-        // Edge-replicated padded input.
-        let first = data[base] as f64;
-        let last = data[base + (len - 1) * lp.stride] as f64;
-        for x in xp.iter_mut().take(pad) {
-            *x = first;
+    // Each 1-D line is an independent recurrence writing disjoint output indices,
+    // so any per-line schedule is bit-identical. For the X (dim 2) and Y (dim 1)
+    // axes a whole Z-slice is a contiguous `nyx`-length output chunk, so the
+    // work parallelises across Z with one scratch set per slice. The Z axis
+    // (dim 0) has lines strided across the whole volume (no contiguous chunk),
+    // so it stays serial.
+    match dim {
+        2 => {
+            // X-lines: row `iy` within the slice is the contiguous span
+            // `[iy*nx, iy*nx+nx)` (unit stride).
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut output,
+                nyx,
+                |slice_idx, out_slice| {
+                    let in_slice = &data[slice_idx * nyx..slice_idx * nyx + nyx];
+                    let mut scratch = LineScratch::new(plen);
+                    for iy in 0..ny {
+                        deriche_line(
+                            in_slice, iy * nx, 1, out_slice, iy * nx, 1, len, coeffs, pad,
+                            &mut scratch,
+                        );
+                    }
+                },
+            );
         }
-        for i in 0..len {
-            xp[pad + i] = data[base + i * lp.stride] as f64;
+        1 => {
+            // Y-lines: column `ix` within the slice is `[ix, ix+nx, …]`
+            // (stride `nx`, length `ny`).
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut output,
+                nyx,
+                |slice_idx, out_slice| {
+                    let in_slice = &data[slice_idx * nyx..slice_idx * nyx + nyx];
+                    let mut scratch = LineScratch::new(plen);
+                    for ix in 0..nx {
+                        deriche_line(
+                            in_slice, ix, nx, out_slice, ix, nx, len, coeffs, pad, &mut scratch,
+                        );
+                    }
+                },
+            );
         }
-        for x in xp.iter_mut().skip(pad + len) {
-            *x = last;
-        }
-
-        // Causal forward pass (taps before index 0 read the replicated first).
-        // The recursion is serial (yc[i] depends on yc[i−1..i−4]), so this loop
-        // is latency-bound on the 4-FMA recurrence chain, not on the per-element
-        // bounds branches — splitting off the boundary does not help (measured).
-        for i in 0..plen {
-            let x = xp[i];
-            let xm1 = if i >= 1 { xp[i - 1] } else { first };
-            let xm2 = if i >= 2 { xp[i - 2] } else { first };
-            let xm3 = if i >= 3 { xp[i - 3] } else { first };
-            let ym1 = if i >= 1 { yc[i - 1] } else { 0.0 };
-            let ym2 = if i >= 2 { yc[i - 2] } else { 0.0 };
-            let ym3 = if i >= 3 { yc[i - 3] } else { 0.0 };
-            let ym4 = if i >= 4 { yc[i - 4] } else { 0.0 };
-            yc[i] =
-                n0 * x + n1 * xm1 + n2 * xm2 + n3 * xm3 - d1 * ym1 - d2 * ym2 - d3 * ym3 - d4 * ym4;
-        }
-
-        // Anticausal backward pass (taps after the end read the replicated last).
-        for i in (0..plen).rev() {
-            let xp1 = if i + 1 < plen { xp[i + 1] } else { last };
-            let xp2 = if i + 2 < plen { xp[i + 2] } else { last };
-            let xp3 = if i + 3 < plen { xp[i + 3] } else { last };
-            let xp4 = if i + 4 < plen { xp[i + 4] } else { last };
-            let yp1 = if i + 1 < plen { ya[i + 1] } else { 0.0 };
-            let yp2 = if i + 2 < plen { ya[i + 2] } else { 0.0 };
-            let yp3 = if i + 3 < plen { ya[i + 3] } else { 0.0 };
-            let yp4 = if i + 4 < plen { ya[i + 4] } else { 0.0 };
-            ya[i] = m1 * xp1 + m2 * xp2 + m3 * xp3 + m4 * xp4
-                - d1 * yp1
-                - d2 * yp2
-                - d3 * yp3
-                - d4 * yp4;
-        }
-
-        // Sum the two passes; write the unpadded interior back out.
-        for i in 0..len {
-            output[base + i * lp.stride] = (yc[pad + i] + ya[pad + i]) as f32;
+        _ => {
+            // Z-lines: strided by `nyx` across the whole buffer — serial.
+            let mut scratch = LineScratch::new(plen);
+            for li in 0..lp.num_lines {
+                let base = line_base(dims, 0, li);
+                deriche_line(
+                    data, base, lp.stride, &mut output, base, lp.stride, len, coeffs, pad,
+                    &mut scratch,
+                );
+            }
         }
     }
     output
+}
+
+/// Per-line `f64` scratch: padded input line plus the two recursion lines.
+struct LineScratch {
+    xp: Vec<f64>,
+    yc: Vec<f64>,
+    ya: Vec<f64>,
+}
+
+impl LineScratch {
+    #[inline]
+    fn new(plen: usize) -> Self {
+        Self {
+            xp: vec![0.0; plen],
+            yc: vec![0.0; plen],
+            ya: vec![0.0; plen],
+        }
+    }
+}
+
+/// Filter one 1-D line: read `input[in_off + i·in_stride]` for `i ∈ [0, len)`,
+/// run the causal+anticausal Deriche recursion (edge-replicated padding), and
+/// write the sum into `output[out_off + i·out_stride]`.
+///
+/// `scratch.{xp,yc,ya}` must be exactly `len + 2·pad` long. Arithmetic is
+/// identical to the original single-loop form — only the line addressing is
+/// parameterised — so results are bit-identical regardless of how lines are
+/// scheduled across threads.
+#[inline]
+#[allow(clippy::too_many_arguments)]
+fn deriche_line(
+    input: &[f32],
+    in_off: usize,
+    in_stride: usize,
+    output: &mut [f32],
+    out_off: usize,
+    out_stride: usize,
+    len: usize,
+    coeffs: &DericheCoefficients,
+    pad: usize,
+    scratch: &mut LineScratch,
+) {
+    let [n0, n1, n2, n3] = coeffs.n;
+    let [d1, d2, d3, d4] = coeffs.d;
+    let [m1, m2, m3, m4] = coeffs.m;
+    let plen = len + 2 * pad;
+    let (xp, yc, ya) = (&mut scratch.xp, &mut scratch.yc, &mut scratch.ya);
+
+    // Edge-replicated padded input.
+    let first = input[in_off] as f64;
+    let last = input[in_off + (len - 1) * in_stride] as f64;
+    for x in xp.iter_mut().take(pad) {
+        *x = first;
+    }
+    for i in 0..len {
+        xp[pad + i] = input[in_off + i * in_stride] as f64;
+    }
+    for x in xp.iter_mut().take(plen).skip(pad + len) {
+        *x = last;
+    }
+
+    // Causal forward pass (taps before index 0 read the replicated first).
+    for i in 0..plen {
+        let x = xp[i];
+        let xm1 = if i >= 1 { xp[i - 1] } else { first };
+        let xm2 = if i >= 2 { xp[i - 2] } else { first };
+        let xm3 = if i >= 3 { xp[i - 3] } else { first };
+        let ym1 = if i >= 1 { yc[i - 1] } else { 0.0 };
+        let ym2 = if i >= 2 { yc[i - 2] } else { 0.0 };
+        let ym3 = if i >= 3 { yc[i - 3] } else { 0.0 };
+        let ym4 = if i >= 4 { yc[i - 4] } else { 0.0 };
+        yc[i] = n0 * x + n1 * xm1 + n2 * xm2 + n3 * xm3 - d1 * ym1 - d2 * ym2 - d3 * ym3 - d4 * ym4;
+    }
+
+    // Anticausal backward pass (taps after the end read the replicated last).
+    for i in (0..plen).rev() {
+        let xp1 = if i + 1 < plen { xp[i + 1] } else { last };
+        let xp2 = if i + 2 < plen { xp[i + 2] } else { last };
+        let xp3 = if i + 3 < plen { xp[i + 3] } else { last };
+        let xp4 = if i + 4 < plen { xp[i + 4] } else { last };
+        let yp1 = if i + 1 < plen { ya[i + 1] } else { 0.0 };
+        let yp2 = if i + 2 < plen { ya[i + 2] } else { 0.0 };
+        let yp3 = if i + 3 < plen { ya[i + 3] } else { 0.0 };
+        let yp4 = if i + 4 < plen { ya[i + 4] } else { 0.0 };
+        ya[i] = m1 * xp1 + m2 * xp2 + m3 * xp3 + m4 * xp4 - d1 * yp1 - d2 * yp2 - d3 * yp3 - d4 * yp4;
+    }
+
+    // Sum the two passes; write the unpadded interior back out.
+    for i in 0..len {
+        output[out_off + i * out_stride] = (yc[pad + i] + ya[pad + i]) as f32;
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

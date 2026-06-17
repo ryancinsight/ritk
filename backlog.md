@@ -6,17 +6,13 @@
 
 ## Open performance items
 
-- **PERF-379-01 [patch] — Deriche recursive-Gaussian cross-line parallelism.**
-  `iir::apply_deriche_1d` runs a serial `for li in 0..num_lines` loop; lines are
-  independent and write disjoint output indices (bit-exact under any schedule).
-  Single-thread inner loop is latency-bound (see OPTIMIZATION.md "Sprint 379");
-  two micro-opts (branch-hoist, buffer-reuse) both regressed and were reverted.
-  The real lever is parallelism: dims 1 (z-slab, chunk `nyx`) and 2 (x-line, chunk
-  `nx`) map to contiguous `moirai::for_each_chunk_mut` chunks with per-chunk
-  scratch; dim 0 (z-lines, stride `nyx`) needs a transpose or gather/scatter.
-  Acceptance: ≥1.3× on grad-mag/LoG (min-of-N on a low-variance host), output
-  bit-identical to the current float-exact sitk parity. Deferred from this sprint
-  to avoid rushing a non-trivial restructure into a bit-exact path.
+- **PERF-379-01 [patch] — Deriche recursive-Gaussian cross-line parallelism. DONE.**
+  `iir::apply_deriche_1d` now parallelises the X/Y passes across Z-slices via
+  `moirai::for_each_chunk_mut` (contiguous `nyx` chunks, one `LineScratch` per
+  slice); the per-line IIR is factored into `deriche_line`. Output **bit-identical**
+  to the serial form (exact array equality; float-exact sitk parity unchanged).
+  Min-of-20 on 128³: smooth 1.50×, grad-mag 1.71×, LoG 1.81×. Z pass (dim 0,
+  strided) remains serial — residual headroom (transpose / multi-line ILP).
 
 ---
 
