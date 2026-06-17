@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.74.0] — 2026-06-17 (Sprint 379 Increment 7: directional recursive Gaussian)
+
+### Added
+- `ritk-filter` / `ritk-python`: `recursive_gaussian_directional(image, sigma, order, direction)` — the single-axis recursive (Deriche) Gaussian and its **signed** directional derivative along one axis (the others untouched), via the order-0/1/2 Deriche coefficients. **Float-exact** to SimpleITK `RecursiveGaussian(sigma, normalizeAcrossScale=False, order, direction)` for all orders and directions, isotropic and anisotropic (rel ~4e-8). Closes the last recursive-Gaussian gap: `recursive_gaussian` returns the combined gradient-magnitude/Laplacian, this returns the per-axis signed derivative. `direction` is a ritk `(z,y,x)` axis index (SimpleITK's is `(x,y,z)`).
+
 ## [0.73.6] — 2026-06-17 (Sprint 379 Increment 6: zero_crossing ITK marking)
 
 ### Fixed

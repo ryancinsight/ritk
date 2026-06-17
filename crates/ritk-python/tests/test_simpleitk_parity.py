@@ -2341,6 +2341,33 @@ def test_recursive_gaussian_order1_matches_sitk():
         assert rel < 1e-6, f"GradientMagnitudeRecursiveGaussian sigma={sigma} rel {rel:.2e} >= 1e-6"
 
 
+def test_recursive_gaussian_directional_matches_sitk():
+    """Single-axis recursive Gaussian / directional derivative is float-exact to
+    sitk.RecursiveGaussian(sigma, normalizeAcrossScale=False, order, direction)
+    for every order (0/1/2) and direction, isotropic and anisotropic. SimpleITK's
+    direction is (x,y,z); ritk's is (z,y,x), so ritk_axis = 2 - sitk_direction.
+    """
+    rng = np.random.default_rng(11)
+    z, y, x = np.mgrid[:22, :26, :28]
+    img = (100 + 50 * np.sin(0.3 * x) * np.cos(0.2 * y) + 10 * rng.standard_normal((22, 26, 28))).astype(np.float32)
+    for spacing in [None, (1.2, 0.8, 0.5)]:  # sitk (x, y, z)
+        si = _sitk(img)
+        ri = _ritk(img)
+        if spacing is not None:
+            si.SetSpacing(spacing)
+            ri = ritk.Image(np.ascontiguousarray(img), spacing=[spacing[2], spacing[1], spacing[0]])
+        for order in (0, 1, 2):
+            for sdir in (0, 1, 2):
+                s = _np(sitk.RecursiveGaussian(si, 2.0, False, order, sdir)).astype(np.float64)
+                r = np.asarray(
+                    ritk.filter.recursive_gaussian_directional(ri, 2.0, order, 2 - sdir).to_numpy(),
+                    np.float64,
+                )
+                m = 5
+                rel = np.abs(r[m:-m, m:-m, m:-m] - s[m:-m, m:-m, m:-m]).max() / max(np.abs(s).max(), 1e-9)
+                assert rel < 1e-6, f"order={order} sdir={sdir} spacing={spacing}: rel {rel:.2e}"
+
+
 def test_laplacian_of_gaussian_near_zero_in_linear_interior():
     """LoG of a linear image must be near-zero in the interior.
 

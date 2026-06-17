@@ -126,3 +126,63 @@ pub fn recursive_gaussian(
     })
     .map(into_py_image)
 }
+
+/// Apply the single-axis recursive (Deriche) Gaussian or its directional
+/// derivative along one axis only (the other axes are untouched).
+///
+/// Float-exact to SimpleITK
+/// `RecursiveGaussian(image, sigma, normalizeAcrossScale=False, order, direction)`.
+/// Unlike `recursive_gaussian` (which combines all axes into a gradient magnitude
+/// or Laplacian), this returns the **signed** order-`order` derivative along a
+/// single `direction`.
+///
+/// Args:
+///     image: Input PyImage.
+///     sigma: Gaussian σ in physical units (mm).
+///     order: Derivative order — 0 = smoothing, 1 = first, 2 = second derivative.
+///     direction: Axis index in ritk `(z, y, x)` order — 0 = z, 1 = y, 2 = x.
+///         (SimpleITK's `direction` is in `(x, y, z)` order, so sitk direction 0
+///         (x) corresponds to `direction=2` here.)
+///
+/// Returns:
+///     Filtered PyImage with identical shape and spatial metadata.
+///
+/// Raises:
+///     ValueError: if `order ∉ {0,1,2}` or `direction ∉ {0,1,2}`.
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, sigma=1.0, order=0, direction=2))]
+pub fn recursive_gaussian_directional(
+    py: Python<'_>,
+    image: &PyImage,
+    sigma: f64,
+    order: usize,
+    direction: usize,
+) -> RitkResult<PyImage> {
+    let derivative_order = match order {
+        0 => DerivativeOrder::Zero,
+        1 => DerivativeOrder::First,
+        2 => DerivativeOrder::Second,
+        _ => {
+            return Err(RitkPyError::value(format!(
+                "recursive_gaussian_directional: order must be 0, 1, or 2, got {order}"
+            )));
+        }
+    };
+    if direction > 2 {
+        return Err(RitkPyError::value(format!(
+            "recursive_gaussian_directional: direction must be 0, 1, or 2, got {direction}"
+        )));
+    }
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        ritk_filter::recursive_gaussian::recursive_gaussian_directional(
+            image.as_ref(),
+            sigma,
+            derivative_order,
+            direction,
+        )
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
