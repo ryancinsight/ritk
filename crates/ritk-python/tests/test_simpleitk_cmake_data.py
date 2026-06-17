@@ -383,6 +383,16 @@ def test_cmake_dice_matches_sitk():
     assert abs(rd - f.GetDiceCoefficient()) < 1e-5, f"dice ritk={rd} sitk={f.GetDiceCoefficient()}"
 
 
+def test_cmake_label_overlap_measures_match_sitk():
+    # LabelOverlapMeasuresImageFilter: Jaccard + volume similarity.
+    r1, r2, s1, s2 = _staple_pair()
+    lo = ritk.statistics.label_overlap_measures(r1, r2)[0]
+    f = sitk.LabelOverlapMeasuresImageFilter()
+    f.Execute(s1, s2)
+    assert abs(lo["jaccard"] - f.GetJaccardCoefficient()) < 1e-5
+    assert abs(lo["volume_similarity"] - f.GetVolumeSimilarity()) < 1e-5
+
+
 def test_cmake_hausdorff_matches_sitk():
     # HausdorffDistanceImageFilter.
     r1, r2, s1, s2 = _staple_pair()
