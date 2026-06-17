@@ -6,9 +6,9 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
-    BinaryThresholdImageFilter, BlendImageFilter, ClampPolicy, IntensityWindowingFilter,
-    NormalizeImageFilter, RescaleIntensityFilter, SigmoidImageFilter, ThresholdImageFilter,
-    UnsharpMaskFilter, ZeroCrossingImageFilter,
+    BinaryThresholdImageFilter, BlendImageFilter, ClampPolicy, DoubleThresholdImageFilter,
+    IntensityWindowingFilter, NormalizeImageFilter, RescaleIntensityFilter, SigmoidImageFilter,
+    ThresholdImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
 };
 
 /// Linearly rescale image intensity to [out_min, out_max].
@@ -196,6 +196,38 @@ pub fn binary_threshold(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Double-threshold (hysteresis): a voxel is `inside_value` if it is in the inner
+/// band `[t2,t3]`, or in the outer band `[t1,t4]` and connected through it to an
+/// inner-band voxel. ITK Parity: DoubleThresholdImageFilter (`sitk.DoubleThreshold`).
+#[pyfunction]
+#[pyo3(signature = (image, threshold1=0.0, threshold2=1.0, threshold3=254.0, threshold4=255.0, inside_value=1.0, outside_value=0.0))]
+#[allow(clippy::too_many_arguments)]
+pub fn double_threshold(
+    py: Python<'_>,
+    image: &PyImage,
+    threshold1: f32,
+    threshold2: f32,
+    threshold3: f32,
+    threshold4: f32,
+    inside_value: f32,
+    outside_value: f32,
+) -> RitkResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        DoubleThresholdImageFilter::new(
+            threshold1,
+            threshold2,
+            threshold3,
+            threshold4,
+            inside_value,
+            outside_value,
+        )
+        .apply(image.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
 }

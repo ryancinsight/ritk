@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.100.0] — 2026-06-17 (Sprint 410: DoubleThreshold)
+
+### Added
+- `ritk-filter` / `ritk-python`: `DoubleThresholdImageFilter` + `filter.double_threshold(image, t1, t2, t3, t4, inside_value, outside_value)` — hysteresis double-threshold, implemented as a binary morphological reconstruction of the inner band `[t2,t3]` (marker) under the outer band `[t1,t4]` (mask), reusing the O(N) reconstruction engine (ITK `DoubleThresholdImageFilter` / `sitk.DoubleThreshold`). Semantics confirmed by a 1-D sitk probe; **bit-exact** to sitk on cthead. Value-semantic Rust tests + cmake parity case. `.pyi` stub; coverage 176/298.
+
 ## [0.99.1] — 2026-06-17 (Sprint 409: BinaryMedian + ForwardFFT/InverseFFT sitk parity)
 
 ### Added

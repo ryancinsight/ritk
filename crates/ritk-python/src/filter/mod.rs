@@ -74,6 +74,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(threshold_outside, &m)?)?;
     m.add_function(wrap_pyfunction!(sigmoid_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(double_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(blend_images, &m)?)?;
     // Additional intensity transforms
     m.add_function(wrap_pyfunction!(normalize_image, &m)?)?;

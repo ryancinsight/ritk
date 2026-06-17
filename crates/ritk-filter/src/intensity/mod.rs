@@ -15,6 +15,7 @@ pub mod bed_separation;
 pub mod binary_ops;
 pub mod binary_threshold;
 pub mod blend;
+pub mod double_threshold;
 pub mod clahe;
 pub mod clamp;
 pub mod equalization;
@@ -37,16 +38,14 @@ pub use binary_ops::{
     AbsoluteValueDifferenceImageFilter, AbsoluteValueDifferenceOp, AddImageFilter, AddOp,
     Atan2ImageFilter, Atan2Op, BinaryMagnitudeImageFilter, BinaryMagnitudeOp, BinaryOp,
     BinaryOpFilter, DivideFloorImageFilter, DivideFloorOp, DivideImageFilter, DivideOp,
-    DivideRealImageFilter, DivideRealOp, EqualImageFilter, EqualOp,
-    GreaterEqualImageFilter, GreaterEqualOp, GreaterImageFilter, GreaterOp, ImageMaxFilter,
-    ImageMinFilter, LessEqualImageFilter, LessEqualOp, LessImageFilter, LessOp, MaxOp, MinOp,
-    MultiplyImageFilter, MultiplyOp, NotEqualImageFilter, NotEqualOp, PowImageFilter, PowOp,
+    DivideRealImageFilter, DivideRealOp, EqualImageFilter, EqualOp, GreaterEqualImageFilter,
+    GreaterEqualOp, GreaterImageFilter, GreaterOp, ImageMaxFilter, ImageMinFilter,
+    LessEqualImageFilter, LessEqualOp, LessImageFilter, LessOp, MaxOp, MinOp, MultiplyImageFilter,
+    MultiplyOp, NotEqualImageFilter, NotEqualOp, PowImageFilter, PowOp,
     SquaredDifferenceImageFilter, SquaredDifferenceOp, SubtractImageFilter, SubtractOp,
 };
 pub use binary_threshold::BinaryThresholdImageFilter;
-pub use ternary_ops::{
-    TernaryAddImageFilter, TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter,
-};
+pub use double_threshold::DoubleThresholdImageFilter;
 pub use blend::BlendImageFilter;
 pub use clahe::{ClaheFilter, ClaheScratch};
 pub use clamp::ClampImageFilter;
@@ -54,6 +53,9 @@ pub use equalization::HistogramEqualizationFilter;
 pub use mask::{MaskImageFilter, MaskNegatedImageFilter};
 pub use rescale::RescaleIntensityFilter;
 pub use sigmoid::SigmoidImageFilter;
+pub use ternary_ops::{
+    TernaryAddImageFilter, TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter,
+};
 pub use threshold::{ThresholdImageFilter, ThresholdMode};
 pub use unsharp_mask::{ClampPolicy, UnsharpMaskFilter};
 pub use windowing::IntensityWindowingFilter;

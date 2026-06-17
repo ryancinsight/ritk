@@ -743,6 +743,18 @@ def test_cmake_regional_extrema_on_upstream_data(tag, rfn, sfn):
     assert np.array_equal(r, s), f"{tag}: differs from sitk"
 
 
+def test_cmake_double_threshold_on_upstream_data():
+    # Hysteresis double-threshold = reconstruct inner band [t2,t3] under outer
+    # band [t1,t4]. ITK Parity: DoubleThresholdImageFilter.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(
+        ritk.filter.double_threshold(ri, 20.0, 60.0, 120.0, 200.0, 1.0, 0.0).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.DoubleThreshold(si, 20.0, 60.0, 120.0, 200.0, 1, 0)).astype(np.float64))
+    assert np.array_equal(r, s), "DoubleThreshold differs from sitk"
+
+
 @pytest.mark.parametrize("radius", [1, 2], ids=["r1", "r2"])
 def test_cmake_binary_median_on_upstream_data(radius):
     # Grayscale median of a 0/1 image == binary majority == sitk.BinaryMedian.

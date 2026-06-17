@@ -45,7 +45,7 @@ pub use intensity::{
     BinaryMagnitudeImageFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
     ComponentPolicy, CosImageFilter, DivideFloorImageFilter, DivideImageFilter,
-    DivideRealImageFilter, EqualImageFilter, ExpImageFilter, ExpNegativeImageFilter,
+    DivideRealImageFilter, DoubleThresholdImageFilter, EqualImageFilter, ExpImageFilter, ExpNegativeImageFilter,
     GreaterEqualImageFilter, GreaterImageFilter, HistogramEqualizationFilter, ImageMaxFilter,
     ImageMinFilter, IntensityWindowingFilter, InvertIntensityFilter, LessEqualImageFilter,
     LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,

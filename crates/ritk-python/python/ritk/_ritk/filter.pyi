@@ -117,6 +117,17 @@ def binary_threshold(
     foreground: float = 1.0,
     background: float = 0.0,
 ) -> Image: ...
+def double_threshold(
+    image: Image,
+    threshold1: float = 0.0,
+    threshold2: float = 1.0,
+    threshold3: float = 254.0,
+    threshold4: float = 255.0,
+    inside_value: float = 1.0,
+    outside_value: float = 0.0,
+) -> Image:
+    """Hysteresis double-threshold (inner band reconstructed under outer band). ITK Parity: DoubleThresholdImageFilter."""
+    ...
 def zero_crossing_image(
     image: Image,
     foreground_value: float = 1.0,
