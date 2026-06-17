@@ -44,6 +44,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(intermodes_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(shanbhag_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(kittler_illingworth_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(renyi_entropy_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(multi_otsu_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_threshold_segment, &m)?)?;
 

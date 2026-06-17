@@ -41,6 +41,7 @@ impl sealed::Sealed for super::huang::HuangThreshold {}
 impl sealed::Sealed for super::intermodes::IntermodesThreshold {}
 impl sealed::Sealed for super::shanbhag::ShanbhagThreshold {}
 impl sealed::Sealed for super::kittler::KittlerIllingworthThreshold {}
+impl sealed::Sealed for super::renyi::RenyiEntropyThreshold {}
 
 // ── Trait ──────────────────────────────────────────────────────────────────────
 

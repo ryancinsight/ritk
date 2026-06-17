@@ -513,6 +513,8 @@ _AUTO_THRESHOLD_VALUES = [
     ("ShanbhagThreshold", ritk.segmentation.shanbhag_threshold, sitk.ShanbhagThresholdImageFilter),
     ("KittlerIllingworthThreshold", ritk.segmentation.kittler_illingworth_threshold,
      sitk.KittlerIllingworthThresholdImageFilter),
+    ("RenyiEntropyThreshold", ritk.segmentation.renyi_entropy_threshold,
+     sitk.RenyiEntropyThresholdImageFilter),
 ]
 
 
