@@ -224,8 +224,9 @@ pub fn laplacian_recursive_gaussian<B: Backend>(
             };
             temp = apply_deriche_1d(&temp, dims, ax, &coeffs, pixel_sigma);
         }
+        let inv_s2 = (1.0 / (spacing[d] * spacing[d])) as f32;
         for (acc, t) in laplacian.iter_mut().zip(temp.iter()) {
-            *acc += t;
+            *acc += t * inv_s2;
         }
     }
 

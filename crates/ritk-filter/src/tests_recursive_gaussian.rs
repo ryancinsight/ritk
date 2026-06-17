@@ -156,6 +156,34 @@ fn test_second_derivative_of_quadratic() {
     );
 }
 
+/// `laplacian_recursive_gaussian` computes the physical Laplacian:
+/// ∂²/∂x²(G_σ * x²) = 2 exactly (the Gaussian convolution adds a constant σ²
+/// that the second derivative annihilates). This holds independently of voxel
+/// spacing, which locks the per-axis `1/spacing²` normalisation — without it the
+/// anisotropic case would read 2·s² instead of 2.
+#[test]
+fn laplacian_recursive_gaussian_quadratic_is_two() {
+    // nx/margin sized so the IIR boundary transient (≈4·σ/sx pixels, worst at
+    // sx=0.5 → σ_pix=6) has fully decayed in the interior window [48, 112].
+    let nx = 160usize;
+    let margin = 48;
+    for &sx in &[1.0_f64, 2.0, 0.5] {
+        // f(ix) = (ix·sx)² = physical_x², so ∇²f = 2 in physical units. All
+        // values are exact f32 integers (< 2²⁴), so the input carries no error.
+        let vals: Vec<f32> = (0..nx).map(|ix| (ix as f64 * sx).powi(2) as f32).collect();
+        let img = make_image(vals, [1, 1, nx], [1.0, 1.0, sx]);
+        let out = extract_vals(&laplacian_recursive_gaussian(&img, 3.0).unwrap());
+        for (i, &v) in out[margin..nx - margin].iter().enumerate() {
+            assert!(
+                ((v as f64) - 2.0).abs() < 0.02,
+                "∇²(G*x²) must be 2 in physical units (spacing {sx}) at interior \
+                 voxel {}, got {v}",
+                i + margin
+            );
+        }
+    }
+}
+
 /// Smoothing with a large image and small sigma should approximate identity.
 #[test]
 fn test_small_sigma_near_identity() {
@@ -182,7 +210,8 @@ fn test_small_sigma_near_identity() {
 fn test_coefficients_dc_gain() {
     for &sigma in &[0.5, 1.0, 2.0, 3.0, 5.0, 10.0] {
         let c = DericheCoefficients::from_sigma(sigma);
-        let dc = (c.n.iter().sum::<f64>() + c.m.iter().sum::<f64>()) / (1.0 + c.d.iter().sum::<f64>());
+        let dc =
+            (c.n.iter().sum::<f64>() + c.m.iter().sum::<f64>()) / (1.0 + c.d.iter().sum::<f64>());
         assert!(
             (dc - 1.0).abs() < 1e-12,
             "Deriche DC gain invariant violated for sigma={sigma}: {dc}"

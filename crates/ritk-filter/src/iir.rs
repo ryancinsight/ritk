@@ -62,8 +62,8 @@ fn deriche_n_coefficients(sigma: f64, idx: usize) -> ([f64; 4], f64, f64, f64) {
     let n2 = 2.0 * exp1 * exp2 * ((a1 + a2) * cos2 * cos1 - b1 * cos2 * sin1 - b2 * cos1 * sin2)
         + a2 * exp1 * exp1
         + a1 * exp2 * exp2;
-    let n3 = exp2 * exp1 * exp1 * (b2 * sin2 - a2 * cos2)
-        + exp1 * exp2 * exp2 * (b1 * sin1 - a1 * cos1);
+    let n3 =
+        exp2 * exp1 * exp1 * (b2 * sin2 - a2 * cos2) + exp1 * exp2 * exp2 * (b1 * sin1 - a1 * cos1);
     let sn = n0 + n1 + n2 + n3;
     let dn = n1 + 2.0 * n2 + 3.0 * n3;
     let en = n1 + 4.0 * n2 + 9.0 * n3;
@@ -123,8 +123,8 @@ impl DericheCoefficients {
         let sn = sn2 + beta * sn0;
         let dn = dn2 + beta * dn0;
         let en = en2 + beta * en0;
-        let alpha2 =
-            (en * sd * sd - ed * sn * sd - 2.0 * dn * dd * sd + 2.0 * dd * dd * sn) / (sd * sd * sd);
+        let alpha2 = (en * sd * sd - ed * sn * sd - 2.0 * dn * dd * sd + 2.0 * dd * dd * sn)
+            / (sd * sd * sd);
         let n = n.map(|c| c / alpha2);
         Self::symmetric(n, d)
     }
@@ -267,11 +267,8 @@ pub(super) fn apply_deriche_1d(
             let ym2 = if i >= 2 { yc[i - 2] } else { 0.0 };
             let ym3 = if i >= 3 { yc[i - 3] } else { 0.0 };
             let ym4 = if i >= 4 { yc[i - 4] } else { 0.0 };
-            yc[i] = n0 * x + n1 * xm1 + n2 * xm2 + n3 * xm3
-                - d1 * ym1
-                - d2 * ym2
-                - d3 * ym3
-                - d4 * ym4;
+            yc[i] =
+                n0 * x + n1 * xm1 + n2 * xm2 + n3 * xm3 - d1 * ym1 - d2 * ym2 - d3 * ym3 - d4 * ym4;
         }
 
         // Anticausal backward pass (taps after the end read the replicated last).

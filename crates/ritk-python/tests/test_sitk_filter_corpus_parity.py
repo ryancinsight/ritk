@@ -148,13 +148,15 @@ def test_gaussian_filter_preserves_mean(images):
 
 
 def test_laplacian_of_gaussian_matches_sitk(images):
-    """LoG magnitude matches sitk's LaplacianRecursiveGaussian (was ~5× small on
-    the z=1 slice). Residual is ritk's discrete Gaussian+Laplacian vs ITK's
-    recursive-Gaussian second derivative."""
+    """LoG is float-exact to sitk LaplacianRecursiveGaussian: ritk now computes
+    Σ_d ∂²/∂x_d²(G_σ*I) via the per-axis Deriche recursion (second-order along d,
+    zero-order along the others), matching ITK's recursive-Gaussian second
+    derivative rather than a discrete Gaussian + finite-difference Laplacian.
+    Interior relative residual is at the f32 round-off floor (~5e-8)."""
     ri, si = images
     ra = ritk.filter.laplacian_of_gaussian(ri, sigma=2.0).to_numpy()
     sa = _sa(sitk.LaplacianRecursiveGaussian(si, sigma=2.0))
-    assert _interior_absmax(ra, sa) / _rng(sa) < 0.06
+    assert _interior_absmax(ra, sa) / _rng(sa) < 1e-6
 
 
 # ── Morphology (flat box structuring element) ─────────────────────────────────
