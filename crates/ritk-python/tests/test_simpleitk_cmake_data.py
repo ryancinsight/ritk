@@ -890,6 +890,25 @@ def test_cmake_binary_projection_on_upstream_data(axis):
     assert np.array_equal(rt, st), f"BinaryThresholdProjection axis={axis}: differs from sitk"
 
 
+def test_cmake_forward_inverse_fft_on_upstream_data():
+    # ForwardFFT / InverseFFT vs sitk (compared through the complex modulus and
+    # an inverse round-trip). ITK Parity: ForwardFFTImageFilter / InverseFFT.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    rmod = np.squeeze(np.asarray(
+        ritk.filter.complex_to_modulus(ritk.filter.forward_fft(ri)).to_numpy(), np.float64))
+    smod = np.squeeze(sitk.GetArrayFromImage(
+        sitk.ComplexToModulus(sitk.ForwardFFT(si))).astype(np.float64))
+    assert rmod.shape == smod.shape
+    assert np.abs(rmod - smod).max() / max(smod.max(), 1.0) < 1e-6, "ForwardFFT differs from sitk"
+    # InverseFFT recovers the input (sitk inverse of sitk forward as the oracle).
+    rinv = np.squeeze(np.asarray(
+        ritk.filter.inverse_fft(ritk.filter.forward_fft(ri)).to_numpy(), np.float64))
+    sinv = np.squeeze(sitk.GetArrayFromImage(
+        sitk.InverseFFT(sitk.ForwardFFT(si))).astype(np.float64))
+    assert np.abs(rinv - sinv).max() < 1e-3, "InverseFFT differs from sitk"
+
+
 def test_cmake_complex_ops_on_upstream_data():
     # Build a complex image from real+imag parts in both ritk (interleaved
     # [D,H,2W]) and sitk, then compare ComplexTo{Real,Imaginary,Modulus,Phase}.

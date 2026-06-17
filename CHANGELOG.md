@@ -1,9 +1,10 @@
 # CHANGELOG
 
-## [0.99.1] — 2026-06-17 (Sprint 409: BinaryMedian cmake case)
+## [0.99.1] — 2026-06-17 (Sprint 409: BinaryMedian + ForwardFFT/InverseFFT sitk parity)
 
 ### Added
-- `ritk-python` tests: cmake parity case for `BinaryMedian` — the grayscale `median_filter` of a 0/1 image is the binary majority, which is **bit-exact** to `sitk.BinaryMedian` (verified at radius 1 and 2 on a thresholded cthead mask). No new code; `median_filter` already covers it. Coverage 173/298.
+- `ritk-python` tests: cmake parity case for `BinaryMedian` — the grayscale `median_filter` of a 0/1 image is the binary majority, **bit-exact** to `sitk.BinaryMedian` (radius 1 and 2 on a thresholded cthead mask). No new code.
+- `ritk-python` tests: `ForwardFFT` / `InverseFFT` now validated **directly against SimpleITK** (previously only against numpy) — `complex_to_modulus(forward_fft)` is float-exact to `sitk.ComplexToModulus(sitk.ForwardFFT)` (rel 4.9e-8) and `inverse_fft(forward_fft)` matches `sitk.InverseFFT(sitk.ForwardFFT)` (1e-3), using the new complex-component ops as the bridge. Coverage 175/298.
 
 ## [0.99.0] — 2026-06-17 (Sprint 408: CurvatureFlow blow-up fix + binding)
 
