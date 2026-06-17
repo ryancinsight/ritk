@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.99.1] — 2026-06-17 (Sprint 409: BinaryMedian cmake case)
+
+### Added
+- `ritk-python` tests: cmake parity case for `BinaryMedian` — the grayscale `median_filter` of a 0/1 image is the binary majority, which is **bit-exact** to `sitk.BinaryMedian` (verified at radius 1 and 2 on a thresholded cthead mask). No new code; `median_filter` already covers it. Coverage 173/298.
+
 ## [0.99.0] — 2026-06-17 (Sprint 408: CurvatureFlow blow-up fix + binding)
 
 ### Fixed

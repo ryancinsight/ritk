@@ -743,6 +743,22 @@ def test_cmake_regional_extrema_on_upstream_data(tag, rfn, sfn):
     assert np.array_equal(r, s), f"{tag}: differs from sitk"
 
 
+@pytest.mark.parametrize("radius", [1, 2], ids=["r1", "r2"])
+def test_cmake_binary_median_on_upstream_data(radius):
+    # Grayscale median of a 0/1 image == binary majority == sitk.BinaryMedian.
+    # ITK Parity: BinaryMedianImageFilter.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    mb = (arr > 40).astype(np.float32)
+    rim = ritk.Image(np.ascontiguousarray(mb[None]))
+    sim = sitk.Cast(sitk.GetImageFromArray(mb), sitk.sitkUInt8)
+    r = np.squeeze(np.asarray(ritk.filter.median_filter(rim, radius).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.BinaryMedian(sim, [radius, radius, radius], 1, 0)).astype(np.float64))
+    assert np.array_equal(r, s), f"BinaryMedian r={radius}: differs from sitk"
+
+
 # Opening/closing-by-reconstruction grayscale morphology (<Filter>.yaml). Box SE,
 # bit-exact to SimpleITK on the upstream cthead1 image.
 _RECON_OPEN_CLOSE_CMAKE = [
