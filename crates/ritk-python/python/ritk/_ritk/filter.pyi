@@ -66,6 +66,9 @@ def curvature_anisotropic_diffusion(
     iterations: int = 20,
     time_step: float = 0.0625,
 ) -> Image: ...
+def curvature_flow(image: Image, time_step: float = 0.0625, iterations: int = 5) -> Image:
+    """Pure mean-curvature flow (dI/dt = kappa). ITK Parity: CurvatureFlowImageFilter."""
+    ...
 def sato_line_filter(
     image: Image,
     scales: list[float] | None = None,

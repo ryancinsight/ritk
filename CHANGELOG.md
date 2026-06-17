@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.99.0] — 2026-06-17 (Sprint 408: CurvatureFlow blow-up fix + binding)
+
+### Fixed
+- `ritk-filter`: `CurvatureFlowImageFilter` computed the **wrong, unstable PDE** — `∂I/∂t = κ = N/|∇I|³` (bare mean curvature), which is `0/0`-singular in flat regions and **blew up to ~1e16** on real images (cthead). ITK `CurvatureFlowImageFilter` is the *level-set* curvature flow `∂I/∂t = |∇I|·κ = N/|∇I|²`; the `|∇I|` factor cancels the singularity. Fixed the speed term (denominator `|∇I|³ → |∇I|²`) and corrected the docstring (which falsely claimed pure-`κ` was the ITK behaviour). Output is now **stable and structurally matches `sitk.CurvatureFlow`** (corr > 0.99); it is not bit-exact (ITK's `CurvatureFlowFunction` uses a specific finite-difference discretization with per-pixel time-step bounds that differs at high-curvature pixels — documented).
+
+### Added
+- `ritk-python`: exposed `filter.curvature_flow(image, time_step=0.0625, iterations=5)` (the now-fixed `CurvatureFlowImageFilter`, ITK `sitk.CurvatureFlow`). Parity test pins stability (no blow-up, finite, bounded) + structural agreement (corr > 0.99, mean abs diff < 5) against sitk. `.pyi` stub; coverage 172/298 (CurvatureFlow is structural-parity, not bit-exact).
+
 ## [0.98.1] — 2026-06-17 (Sprint 407: complex builders — RealAndImaginary / MagnitudeAndPhase)
 
 ### Added

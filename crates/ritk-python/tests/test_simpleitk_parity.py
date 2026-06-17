@@ -2698,6 +2698,37 @@ def test_curvature_anisotropic_diffusion_smooths_noisy_image():
     )
 
 
+def test_curvature_flow_matches_sitk_structurally():
+    """Mean-curvature flow (dI/dt = |grad I|*kappa) tracks sitk.CurvatureFlow.
+
+    ritk now uses the ITK level-set curvature-flow speed |grad I|*kappa =
+    N/|grad I|^2 (the |grad I| factor cancels the flat-region singularity of the
+    bare curvature kappa = N/|grad I|^3, which previously blew up to ~1e16). The
+    result is STABLE and structurally matches sitk (corr > 0.99), but is not
+    bit-exact: ITK's CurvatureFlowFunction uses a specific finite-difference
+    discretization with per-pixel time-step bounds that differs at high-curvature
+    pixels. This test pins stability + structural agreement, not bit-exactness.
+    """
+    import SimpleITK as sitk
+
+    # Synthetic image: smooth ramps + a bright disc + noise (has both flat
+    # regions, where the old |grad I|^3 form blew up, and edges).
+    yy, xx = np.mgrid[0:80, 0:80].astype(np.float32)
+    img = 40.0 + 0.5 * xx + 0.3 * yy
+    img[(yy - 40) ** 2 + (xx - 40) ** 2 < 15 ** 2] += 120.0
+    rng = np.random.default_rng(0)
+    img = (img + rng.normal(0, 4, img.shape)).astype(np.float32)
+    si = sitk.GetImageFromArray(img)
+    ri = ritk.Image(np.ascontiguousarray(img[None]))
+    r = np.squeeze(np.asarray(ritk.filter.curvature_flow(ri, 0.0625, 5).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.CurvatureFlow(si, 0.0625, 5)).astype(np.float64))
+    assert np.all(np.isfinite(r)), "curvature_flow produced non-finite values (blow-up)"
+    assert r.max() < 1e4, f"curvature_flow output unbounded (max {r.max():.2e})"
+    corr = float(np.corrcoef(r.ravel(), s.ravel())[0, 1])
+    assert corr > 0.99, f"curvature_flow corr {corr:.4f} < 0.99 vs sitk.CurvatureFlow"
+    assert float(np.abs(r - s).mean()) < 5.0, "curvature_flow mean abs diff >= 5 vs sitk"
+
+
 def test_sato_line_filter_responds_to_tube_like_structure():
     """Sato line filter produces higher response on tube-like than background voxels.
 

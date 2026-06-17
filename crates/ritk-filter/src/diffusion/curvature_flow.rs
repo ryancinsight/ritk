@@ -90,13 +90,17 @@ impl Default for CurvatureFlowConfig {
 
 /// Pure mean curvature flow filter.
 ///
-/// Evolves the image by `∂I/∂t = κ` (mean curvature of level sets) for a fixed
-/// number of explicit-Euler iterations. This smooths small structures while
-/// preserving larger geometric features longer than Gaussian smoothing.
+/// Evolves the image by `∂I/∂t = |∇I|·κ` (level-set mean curvature flow,
+/// matching ITK `CurvatureFlowImageFilter`) for a fixed number of explicit-Euler
+/// iterations. The `|∇I|` factor cancels the flat-region singularity of the bare
+/// curvature `κ = div(∇I/|∇I|)`, keeping the evolution stable. This smooths small
+/// structures while preserving larger geometric features longer than Gaussian
+/// smoothing.
 ///
 /// # Differences from `CurvatureAnisotropicDiffusionFilter`
-/// - This filter: `∂I/∂t = κ` (pure curvature, no gradient weighting).
-/// - `CurvatureAnisotropicDiffusionFilter`: `∂I/∂t = |∇I| · κ` (anisotropic).
+/// - This filter: `∂I/∂t = |∇I|·κ` (pure level-set curvature flow).
+/// - `CurvatureAnisotropicDiffusionFilter`: gradient-weighted anisotropic
+///   diffusion with a conductance term.
 ///
 /// # Construction
 /// ```rust,ignore
@@ -184,17 +188,18 @@ impl CurvatureFlowImageFilter {
                             - 2.0 * ix_ * iz_ * ixz
                             - 2.0 * iy_ * iz_ * iyz;
 
-                        // |∇I|³ (denominator)
+                        // ITK CurvatureFlow speed = |∇I|·κ = N / |∇I|², NOT pure
+                        // κ = N / |∇I|³. The |∇I| factor cancels the flat-region
+                        // singularity (κ alone is 0/0 where ∇I → 0 and blows up).
                         let grad_sq = ix_ * ix_ + iy_ * iy_ + iz_ * iz_;
-                        let denom = grad_sq.sqrt().powi(3); // = grad_sq^(3/2)
 
-                        let kappa = if denom > GRAD_MAG_EPSILON {
-                            num / denom
+                        let speed = if grad_sq > GRAD_MAG_EPSILON {
+                            num / grad_sq
                         } else {
                             0.0
                         };
 
-                        next[idx] = c + dt * kappa;
+                        next[idx] = c + dt * speed;
                     }
                 }
             }

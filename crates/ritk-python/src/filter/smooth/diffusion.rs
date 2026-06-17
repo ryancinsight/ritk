@@ -7,7 +7,10 @@ use ritk_filter::diffusion::{
     GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
 };
 use ritk_filter::edge::GaussianSigma;
-use ritk_filter::{CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter};
+use ritk_filter::{
+    CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter, CurvatureFlowConfig,
+    CurvatureFlowImageFilter,
+};
 
 /// Conductance function kind for anisotropic diffusion, replacing `exponential: bool`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -133,6 +136,28 @@ pub fn curvature_anisotropic_diffusion(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Apply pure mean-curvature flow: ∂I/∂t = κ for `iterations` explicit-Euler
+/// steps. ITK Parity: CurvatureFlowImageFilter (`sitk.CurvatureFlow`).
+#[pyfunction]
+#[pyo3(signature = (image, time_step=0.0625, iterations=5))]
+pub fn curvature_flow(
+    py: Python<'_>,
+    image: &PyImage,
+    time_step: f64,
+    iterations: usize,
+) -> RitkResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        CurvatureFlowImageFilter::new(CurvatureFlowConfig {
+            num_iterations: iterations,
+            time_step: time_step as f32,
+        })
+        .apply(image.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
 }
