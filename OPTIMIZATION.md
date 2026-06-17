@@ -32,6 +32,20 @@ with per-thread scratch). Both are larger structured changes deferred until they
 be measured on a low-variance host (this machine shows ~5–10% run-to-run drift,
 enough to mask sub-15% gains). Filed as a performance backlog item, not rushed.
 
+**Buffer-reuse experiment — rejected (memory and throughput loss).** A second attempt
+recycled two ping-pong output buffers + one lazily-sized scratch across the 9 Deriche
+passes in `laplacian_rg_vals`/`gradient_magnitude_rg_vals` (via an
+`apply_deriche_1d_into` in-place variant), cutting the per-call allocation count from
+~36 to ~5. A/B with a low-noise min-of-20 estimator showed it **regressed** LoG/grad-mag/
+smooth by 22–28% — the `&mut scratch[..plen]` slice-reborrow defeats the bounds-check
+codegen the freshly-sized `Vec` enabled, and the inner loop is the bottleneck (above).
+It also *increased* peak working set: the fixed two-buffer ping-pong keeps 4 live
+`N`-sized buffers vs the original consume-as-you-go `temp: Option<Vec>` pattern's 3.
+Reverted. Lesson: the allocator handles these transient `N`-buffers cheaply; the
+consume-as-you-go pattern is already near-optimal on working set, and recycling only
+pays once the inner loop is no longer the bottleneck (i.e. after cross-line
+parallelism lands).
+
 ## Current State (v0.51.9)
 
 ### Test Suite Performance
