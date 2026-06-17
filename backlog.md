@@ -44,12 +44,25 @@
 - `cargo nextest run -p ritk-filter -E 'test(unary_minus)|test(round_half)'`: 2/2 passed
 
 ### Known WIP in working tree (parallel agent; do NOT touch)
-- `crates/ritk-filter/src/transform/cyclic_shift.rs` (new)
-- `crates/ritk-filter/src/transform/tests_cyclic_shift.rs` (new)
-- `crates/ritk-filter/src/transform/mod.rs` (adds `pub mod cyclic_shift;`)
-- `crates/ritk-python/src/filter/transform.rs` (adds `crop` PyO3 binding)
-- `crates/ritk-python/python/ritk/_ritk/filter.pyi` (type-stub extension)
-- `crates/ritk-python/tests/test_smoke.py` (extends public-surface assertions)
+
+**Status at 2026-06-17 session resume**: 22 files modified in working tree (parallel agent); plus 1 build-artifact deletion. Below is the live file set right now.
+
+- `crates/ritk-filter/src/color.rs` (whitespace-fmt)
+- `crates/ritk-filter/src/morphology/{label_contour.rs,label_morphology/reconstruction.rs,regional_extrema.rs,tests_grayscale_fillhole.rs,tests_grayscale_grind_peak.rs,tests_h_transform.rs,tests_hit_or_miss.rs,tests_reconstruction_opening_closing.rs,tests_regional_extrema.rs}` — morphology feature/test batch
+- `crates/ritk-filter/src/tests_color.rs`
+- `crates/ritk-image/src/color.rs`
+- `crates/ritk-python/pyproject.toml`, `src/segmentation/{labeling.rs,threshold.rs}`
+- `crates/ritk-python/tests/{test_smoke.py,test_registration_gap_validation.py,test_registration_side_by_side.py,test_elastix_vs_ritk_rire.py}`
+- `crates/ritk-registration/src/classical/global_mi/cma_mi/helpers.rs`, `src/metric/mutual_information/mod.rs`
+- `crates/ritk-segmentation/src/threshold/{kittler.rs,mod.rs}`
+- `rust_out.exe` (deleted build artifact)
+
+**Recent parallel-agent commits landed in this window**:
+- `271c026c feat(ritk-filter): add MedianProjection filter` (MedianIntensityProjectionFilter, Cargo.toml bump `0.2.23 → 0.2.24`, lib.rs re-export, `projection.rs` +67 lines; uses `select_nth_unstable_by` at `n/2` — naive O(N·n·log n), orthogonal to PERF-377-01).
+
+Per `concurrent_agents`: preserve all of the above untouched.
+
+`crates/ritk-filter/src/median.rs` is **clean** — this session's sole working file (`PERF-377-01 Huang sliding-histogram MedianFilter`).
 
 ---
 
