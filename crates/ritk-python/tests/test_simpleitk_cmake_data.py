@@ -162,6 +162,9 @@ _CASES = [
     ("CurvatureAnisotropicDiffusion/defaults", "RA-Float.nrrd",
      lambda ri: ritk.filter.curvature_anisotropic_diffusion(ri, 5, 0.01, 1.0),
      lambda si: sitk.CurvatureAnisotropicDiffusion(si, 0.01, 1.0, 5), 2e-3),
+    ("GradientAnisotropicDiffusion/longer", "RA-Float.nrrd",
+     lambda ri: ritk.filter.anisotropic_diffusion(ri, 10, 1.0, 0.01),
+     lambda si: sitk.GradientAnisotropicDiffusion(si, 0.01, 1.0, 10), 2e-2),
 ]
 
 # Two-input image-arithmetic cases (<Filter>.yaml::tag with two inputs).
@@ -244,3 +247,33 @@ def test_cmake_zero_crossing_on_upstream_data():
     r = np.squeeze(np.asarray(ritk.filter.zero_crossing_image(ri).to_numpy(), np.float64))
     s = np.squeeze(sitk.GetArrayFromImage(sitk.ZeroCrossing(si)).astype(np.float64))
     assert np.array_equal(r, s), "zero_crossing differs from sitk.ZeroCrossing"
+
+
+def _staple1_mask():
+    """Binarise the upstream STAPLE1 label image (foreground = nonzero)."""
+    _, si = _pair("STAPLE1.png")
+    mask = (sitk.GetArrayFromImage(si).astype(np.float64) > 0).astype(np.float32)
+    return ritk.Image(np.ascontiguousarray(mask[None])), sitk.GetImageFromArray(mask.astype(np.uint8))
+
+
+# Binary morphology on the upstream STAPLE1 (radius-1 box SE), bit-exact interior.
+_BINARY_MORPH_CMAKE = [
+    ("BinaryMorphologicalOpening/BinaryMorphologicalOpening",
+     lambda m: ritk.segmentation.binary_opening(m, 1),
+     lambda m: sitk.BinaryMorphologicalOpening(m, [1, 1], sitk.sitkBox)),
+    ("BinaryMorphologicalClosing/BinaryMorphologicalClosing",
+     lambda m: ritk.segmentation.binary_closing(m, 1),
+     lambda m: sitk.BinaryMorphologicalClosing(m, [1, 1], sitk.sitkBox)),
+    ("BinaryFillhole/BinaryFillhole",
+     lambda m: ritk.segmentation.binary_fill_holes(m),
+     lambda m: sitk.BinaryFillhole(m)),
+]
+
+
+@pytest.mark.parametrize("tag,rfn,sfn", _BINARY_MORPH_CMAKE, ids=[c[0] for c in _BINARY_MORPH_CMAKE])
+def test_cmake_binary_morph_on_upstream_data(tag, rfn, sfn):
+    rim, sim = _staple1_mask()
+    r = np.squeeze(np.asarray(rfn(rim).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sfn(sim)).astype(np.float64))
+    rel = np.abs(r[2:-2, 2:-2] - s[2:-2, 2:-2]).max() / max(np.abs(s).max(), 1e-9)
+    assert rel == 0.0, f"{tag}: rel {rel:.2e}"
