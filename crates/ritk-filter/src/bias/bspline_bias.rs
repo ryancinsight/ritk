@@ -119,11 +119,11 @@ pub fn bspline_fit(
     let mut numerator = vec![0.0f64; n_cp];
     let mut denominator = vec![0.0f64; n_cp];
 
-    for vi in 0..n_total {
+    for (vi, &residual) in residuals.iter().enumerate().take(n_total) {
         let iz = vi / (ny * nx);
         let iy = (vi % (ny * nx)) / nx;
         let ix = vi % nx;
-        let f = residuals[vi] as f64;
+        let f = residual as f64;
 
         let (kz, bz) = basis_and_span(iz, nz, cz);
         let (ky, by) = basis_and_span(iy, ny, cy);

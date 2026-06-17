@@ -179,8 +179,10 @@ pub(crate) fn histogram_sharpen(
     dft_real_into(&scratch.g[..n_dft], n_dft, &mut scratch.g_hat[..n_dft]);
     {
         let (vf, vg, vu) = (&scratch.h_hat, &scratch.g_hat, &mut scratch.h_sharp_hat);
-        for ((out, &(fr, fi)), &(gr, gi)) in
-            vu[..n_dft].iter_mut().zip(vf[..n_dft].iter()).zip(vg[..n_dft].iter())
+        for ((out, &(fr, fi)), &(gr, gi)) in vu[..n_dft]
+            .iter_mut()
+            .zip(vf[..n_dft].iter())
+            .zip(vg[..n_dft].iter())
         {
             let num_re = fr * gr + fi * gi; // Vf·conj(Vg)
             let num_im = fi * gr - fr * gi;
@@ -218,7 +220,11 @@ pub(crate) fn histogram_sharpen(
         let (dr, di) = scratch.h_sharp_hat[k];
         scratch.h_sharp_hat[k] = (dr * gr - di * gi, dr * gi + di * gr); // denominator ⋆ G
     }
-    idft_real_into(&scratch.h_hat[..n_dft], n_bins, &mut scratch.cdf_h[..n_bins]);
+    idft_real_into(
+        &scratch.h_hat[..n_dft],
+        n_bins,
+        &mut scratch.cdf_h[..n_bins],
+    );
     idft_real_into(
         &scratch.h_sharp_hat[..n_dft],
         n_bins,
