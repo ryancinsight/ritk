@@ -869,6 +869,18 @@ def test_cmake_vector_ops_on_upstream_data():
         assert np.array_equal(rsel, ssel), f"VectorIndexSelectionCast[{k}] differs from sitk"
 
 
+@pytest.mark.parametrize("fy,fx", [(2, 2), (1, 3)], ids=["2x2", "1x3"])
+def test_cmake_expand_on_upstream_data(fy, fx):
+    # Expand cthead (z=1) by integer factors. ITK Parity: ExpandImageFilter.
+    # ritk factors (fz,fy,fx) -> sitk expandFactors [fx,fy,fz].
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(ritk.filter.expand(ri, (1, fy, fx)).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.Expand(si, [fx, fy, 1])).astype(np.float64))
+    assert r.shape == s.shape, f"Expand shape {r.shape} != sitk {s.shape}"
+    assert np.abs(r - s).max() < 1e-3, f"Expand fy={fy},fx={fx}: maxdiff {np.abs(r-s).max():.2e}"
+
+
 def test_cmake_join_series_on_upstream_data():
     # Stack three 2-D slices (derived from cthead) into a 3-D volume.
     # ITK Parity: JoinSeriesImageFilter (sitk.JoinSeries).

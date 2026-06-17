@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.97.0] — 2026-06-17 (Sprint 403: Expand — integer upsample)
+
+### Added
+- `ritk-filter` / `ritk-python`: `ExpandImageFilter` + `filter.expand(image, factors)` — integer-factor upsampling matching ITK `ExpandImageFilter` / `sitk.Expand` exactly. The output grid is `size·factor` voxels at `spacing/factor`, with `origin_out = origin − ½·spacing + ½·spacing_out`; output voxel `j` reads the continuous input index `ci(j) = (j+½)/factor − ½` via separable trilinear interpolation with **edge-clamp** boundary handling (derived from probing `sitk.Expand` and verified float-exact on cthead at factors 2×2 and 1×3). Value-semantic Rust tests (the ITK grid values `[0,2.5,7.5,…,30]`, factor-1 identity, spacing/origin update) + cmake parity cases. `.pyi` stub; coverage 162/298.
+
 ## [0.96.1] — 2026-06-17 (Sprint 402: JoinSeries; Modulus investigated)
 
 ### Added

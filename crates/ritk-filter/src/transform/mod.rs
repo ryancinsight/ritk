@@ -8,6 +8,7 @@
 //! - [`ConstantPadImageFilter`], [`MirrorPadImageFilter`], [`WrapPadImageFilter`] — padding
 
 pub mod cyclic_shift;
+pub mod expand;
 pub mod flip;
 pub mod pad;
 pub mod paste;
@@ -16,6 +17,7 @@ pub mod roi;
 pub mod shrink;
 
 pub use cyclic_shift::CyclicShiftImageFilter;
+pub use expand::ExpandImageFilter;
 pub use flip::{FlipImageFilter, FlipPolicy};
 pub use pad::{ConstantPadImageFilter, MirrorPadImageFilter, Padding, WrapPadImageFilter};
 pub use paste::PasteImageFilter;

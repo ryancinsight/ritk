@@ -45,17 +45,16 @@ pub use intensity::{
     BinaryMagnitudeImageFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
     ComponentPolicy, CosImageFilter, DivideFloorImageFilter, DivideImageFilter,
-    DivideRealImageFilter, EqualImageFilter, ExpImageFilter,
-    ExpNegativeImageFilter, GreaterEqualImageFilter, GreaterImageFilter,
-    HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter, IntensityWindowingFilter,
-    InvertIntensityFilter, LessEqualImageFilter, LessImageFilter, Log10ImageFilter, LogImageFilter,
-    MaskImageFilter, MaskNegatedImageFilter, MultiplyImageFilter, NormalizeImageFilter,
-    NotEqualImageFilter, PowImageFilter, RescaleIntensityFilter, RoundImageFilter,
-    ShiftScaleImageFilter, SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
-    SquaredDifferenceImageFilter, SubtractImageFilter, SuvBodyWeightImageFilter, TanImageFilter,
-    TernaryAddImageFilter, TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter,
-    ThresholdImageFilter, ThresholdMode, UnaryMinusImageFilter, UnsharpMaskFilter,
-    ZeroCrossingImageFilter,
+    DivideRealImageFilter, EqualImageFilter, ExpImageFilter, ExpNegativeImageFilter,
+    GreaterEqualImageFilter, GreaterImageFilter, HistogramEqualizationFilter, ImageMaxFilter,
+    ImageMinFilter, IntensityWindowingFilter, InvertIntensityFilter, LessEqualImageFilter,
+    LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
+    MultiplyImageFilter, NormalizeImageFilter, NotEqualImageFilter, PowImageFilter,
+    RescaleIntensityFilter, RoundImageFilter, ShiftScaleImageFilter, SigmoidImageFilter,
+    SinImageFilter, SqrtImageFilter, SquareImageFilter, SquaredDifferenceImageFilter,
+    SubtractImageFilter, SuvBodyWeightImageFilter, TanImageFilter, TernaryAddImageFilter,
+    TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter, ThresholdImageFilter,
+    ThresholdMode, UnaryMinusImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
 };
 
 // ── Morphology ────────────────────────────────────────────────────────────────
@@ -120,7 +119,7 @@ pub use projection::{
 pub use pyramid::MultiResolutionPyramid;
 pub use resample::ResampleImageFilter;
 pub use transform::{
-    ConstantPadImageFilter, CyclicShiftImageFilter, FlipImageFilter, FlipPolicy,
+    ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, FlipPolicy,
     MirrorPadImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
     RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter,
 };

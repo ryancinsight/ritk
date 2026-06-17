@@ -406,6 +406,9 @@ def cyclic_shift(image: Image, shift: tuple[int, int, int]) -> Image:
 def join_series(images: list[Image]) -> Image:
     """Stack a list of [zi,Y,X] images along Z into [sum zi, Y, X]. ITK Parity: JoinSeriesImageFilter."""
     ...
+def expand(image: Image, factors: tuple[int, int, int]) -> Image:
+    """Integer-factor upsample (z,y,x) via linear interpolation. ITK Parity: ExpandImageFilter."""
+    ...
 def permute_axes(image: Image, order: tuple[int, int, int]) -> Image:
     """Permute tensor axes (order is a [z,y,x] permutation). ITK Parity: PermuteAxesImageFilter."""
     ...

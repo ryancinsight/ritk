@@ -11,8 +11,9 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_filter::{
-    ConstantPadImageFilter, CyclicShiftImageFilter, FlipImageFilter, MirrorPadImageFilter, Padding,
-    PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter, WrapPadImageFilter,
+    ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter,
+    MirrorPadImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
+    RegionOfInterestImageFilter, WrapPadImageFilter,
 };
 use ritk_image::Image;
 
@@ -192,6 +193,18 @@ pub fn region_of_interest(
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Expand (upsample) the image by integer per-axis factors `(fz, fy, fx)` using
+/// linear interpolation on the ITK Expand grid (spacing/factor, half-voxel
+/// origin shift, edge-clamp). ITK Parity: ExpandImageFilter (`sitk.Expand`,
+/// factors `[fx,fy,fz]`).
+#[pyfunction]
+pub fn expand(py: Python<'_>, image: &PyImage, factors: (usize, usize, usize)) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py
+        .allow_threads(|| ExpandImageFilter::new([factors.0, factors.1, factors.2]).apply(arc.as_ref()));
+    into_py_image(out)
 }
 
 /// Cyclically roll the image by `shift = (z, y, x)` voxels (periodic wrap-around,
