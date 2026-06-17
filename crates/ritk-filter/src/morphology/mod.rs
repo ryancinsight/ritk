@@ -77,6 +77,11 @@ pub use regional_extrema::{
     ValuedRegionalMinimaFilter,
 };
 
+pub mod reconstruction_opening_closing;
+pub use reconstruction_opening_closing::{
+    ClosingByReconstructionFilter, OpeningByReconstructionFilter,
+};
+
 pub mod morphological_laplace;
 pub use morphological_laplace::MorphologicalLaplacian;
 

@@ -4,9 +4,10 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    BlackTopHatFilter, Connectivity, GrayscaleDilation, GrayscaleErosion, HConcaveFilter,
-    HConvexFilter, HMaximaFilter, HMinimaFilter, HitOrMissTransform, LabelClosing, LabelDilation,
-    LabelErosion, LabelOpening, MorphologicalReconstruction, ReconstructionMode,
+    BlackTopHatFilter, ClosingByReconstructionFilter, Connectivity, GrayscaleDilation,
+    GrayscaleErosion, HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter,
+    HitOrMissTransform, LabelClosing, LabelDilation, LabelErosion, LabelOpening,
+    MorphologicalReconstruction, OpeningByReconstructionFilter, ReconstructionMode,
     RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
     ValuedRegionalMinimaFilter, WhiteTopHatFilter,
 };
@@ -371,6 +372,50 @@ pub fn valued_regional_minima(
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         ValuedRegionalMinimaFilter::new()
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Opening by reconstruction: erode with a box SE of half-width `radius`, then
+/// reconstruct under the input by dilation. ITK Parity:
+/// OpeningByReconstructionImageFilter (`sitk.OpeningByReconstruction`, box SE).
+#[pyfunction]
+#[pyo3(signature = (image, radius, fully_connected = false))]
+pub fn opening_by_reconstruction(
+    py: Python<'_>,
+    image: &PyImage,
+    radius: usize,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        OpeningByReconstructionFilter::new(radius)
+            .with_connectivity(conn)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Closing by reconstruction: dilate with a box SE of half-width `radius`, then
+/// reconstruct under the input by erosion. ITK Parity:
+/// ClosingByReconstructionImageFilter (`sitk.ClosingByReconstruction`, box SE).
+#[pyfunction]
+#[pyo3(signature = (image, radius, fully_connected = false))]
+pub fn closing_by_reconstruction(
+    py: Python<'_>,
+    image: &PyImage,
+    radius: usize,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let conn = connectivity_from(fully_connected);
+    py.allow_threads(|| {
+        ClosingByReconstructionFilter::new(radius)
             .with_connectivity(conn)
             .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))

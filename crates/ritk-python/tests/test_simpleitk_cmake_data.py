@@ -645,3 +645,26 @@ def test_cmake_regional_extrema_on_upstream_data(tag, rfn, sfn):
     r = np.squeeze(np.asarray(rfn(ri).to_numpy(), np.float64))
     s = np.squeeze(sitk.GetArrayFromImage(sfn(si)).astype(np.float64))
     assert np.array_equal(r, s), f"{tag}: differs from sitk"
+
+
+# Opening/closing-by-reconstruction grayscale morphology (<Filter>.yaml). Box SE,
+# bit-exact to SimpleITK on the upstream cthead1 image.
+_RECON_OPEN_CLOSE_CMAKE = [
+    ("OpeningByReconstruction/OpeningByReconstruction",
+     lambda i, r: ritk.filter.opening_by_reconstruction(i, r),
+     lambda i, r: sitk.OpeningByReconstruction(i, [r, r], sitk.sitkBox)),
+    ("ClosingByReconstruction/ClosingByReconstruction",
+     lambda i, r: ritk.filter.closing_by_reconstruction(i, r),
+     lambda i, r: sitk.ClosingByReconstruction(i, [r, r], sitk.sitkBox)),
+]
+
+
+@pytest.mark.parametrize("radius", [2, 3], ids=["r2", "r3"])
+@pytest.mark.parametrize("tag,rfn,sfn", _RECON_OPEN_CLOSE_CMAKE,
+                         ids=[c[0] for c in _RECON_OPEN_CLOSE_CMAKE])
+def test_cmake_recon_open_close_on_upstream_data(tag, rfn, sfn, radius):
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(rfn(ri, radius).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sfn(si, radius)).astype(np.float64))
+    assert np.array_equal(r, s), f"{tag} (r={radius}): differs from sitk"

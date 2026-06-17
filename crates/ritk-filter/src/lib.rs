@@ -59,15 +59,16 @@ pub mod morphology;
 
 pub use morphology::{
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
-    BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter, Connectivity,
+    BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter,
+    ClosingByReconstructionFilter, Connectivity,
     ForegroundValue, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
     GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter,
     HMaximaFilter, HMinimaFilter, HitOrMissTransform, LabelClosing,
     LabelContourImageFilter, LabelDilation, LabelErosion, LabelOpening,
-    MorphologicalReconstruction, ReconstructionMode, RegionalMaximaFilter, RegionalMinimaFilter,
-    ValuedRegionalMaximaFilter, ValuedRegionalMinimaFilter, VotingBinaryImageFilter,
-    WhiteTopHatFilter,
+    MorphologicalReconstruction, OpeningByReconstructionFilter, ReconstructionMode,
+    RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
+    ValuedRegionalMinimaFilter, VotingBinaryImageFilter, WhiteTopHatFilter,
 };
 
 // ── Edge detection & vesselness ──────────────────────────────────────────────

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.84.0] — 2026-06-17 (Sprint 387: opening/closing-by-reconstruction)
+
+### Added
+- `ritk-filter` / `ritk-python`: `OpeningByReconstructionFilter` (`R^δ_f(ε_B(f))`) and `ClosingByReconstructionFilter` (`R^ε_f(δ_B(f))`) — ITK `{Opening,Closing}ByReconstructionImageFilter`. Box SE of half-width `radius` (ritk grayscale erosion/dilation) composed with the O(N) reconstruction. Exposed as `filter.{opening,closing}_by_reconstruction(image, radius, fully_connected=False)`, both **bit-exact** to `sitk.{Opening,Closing}ByReconstruction(image, [r,r], sitk.sitkBox)` on cthead1 at r ∈ {2,3}. Value-semantic Rust tests (spike removed / pit filled with surviving feature contours intact, r=0 identity, anti-extensive/extensive ordering) + 4 cmake parity cases (suite now 104). `.pyi` stubs added.
+
 ## [0.83.0] — 2026-06-17 (Sprint 386: O(N) morphological reconstruction)
 
 ### Performance

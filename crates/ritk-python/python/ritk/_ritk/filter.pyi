@@ -294,6 +294,12 @@ def valued_regional_maxima(image: Image, fully_connected: bool = False) -> Image
 def valued_regional_minima(image: Image, fully_connected: bool = False) -> Image:
     """Valued regional minima (non-minima → +FLT_MAX). ITK Parity: ValuedRegionalMinimaImageFilter."""
     ...
+def opening_by_reconstruction(image: Image, radius: int, fully_connected: bool = False) -> Image:
+    """Opening by reconstruction (box SE). ITK Parity: OpeningByReconstructionImageFilter."""
+    ...
+def closing_by_reconstruction(image: Image, radius: int, fully_connected: bool = False) -> Image:
+    """Closing by reconstruction (box SE). ITK Parity: ClosingByReconstructionImageFilter."""
+    ...
 def resample_image(
     image: Image,
     spacing_z: float = 1.0,
