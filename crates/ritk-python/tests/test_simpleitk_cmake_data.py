@@ -435,6 +435,21 @@ def test_cmake_fft_roundtrip_on_upstream_data():
     assert rel < 1e-5, f"FFT round-trip rel {rel:.2e}"
 
 
+def test_cmake_multi_otsu_on_upstream_data():
+    # OtsuMultipleThresholdsImageFilter (2 thresholds / 3 classes) on RA-Short.
+    ri, si = _pair("RA-Short.nrrd")
+    rt = ritk.segmentation.multi_otsu_threshold(ri, num_classes=3)
+    rv = rt[0] if isinstance(rt, tuple) else rt
+    f = sitk.OtsuMultipleThresholdsImageFilter()
+    f.SetNumberOfThresholds(2)
+    f.SetNumberOfHistogramBins(256)
+    f.SetReturnBinMidpoint(False)
+    f.Execute(si)
+    sv = f.GetThresholds()
+    for r, s in zip(sorted(rv), sorted(sv)):
+        assert abs(r - s) / max(abs(s), 1.0) < 1e-4, f"multi_otsu ritk={rv} sitk={sv}"
+
+
 def test_cmake_zero_crossing_on_upstream_data():
     # ZeroCrossingImageFilter/defaults on the upstream 2th_cthead1_distance image.
     ri, si = _pair("2th_cthead1_distance.nrrd")
