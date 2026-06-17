@@ -793,6 +793,8 @@ def _eq(r, s):
      lambda i: sitk.MirrorPad(i, [5, 3, 0], [4, 2, 0])),
     ("WrapPad", lambda i: ritk.filter.wrap_pad(i, (0, 3, 5), (0, 2, 4)),
      lambda i: sitk.WrapPad(i, [5, 3, 0], [4, 2, 0])),
+    ("ZeroFluxNeumannPad", lambda i: ritk.filter.zero_flux_neumann_pad(i, (0, 3, 5), (0, 2, 4)),
+     lambda i: sitk.ZeroFluxNeumannPad(i, [5, 3, 0], [4, 2, 0])),
     # ROI: ritk start (z,y,x)=(0,10,20) size (1,40,50) -> sitk size [50,40,1] index [20,10,0]
     ("RegionOfInterest", lambda i: ritk.filter.region_of_interest(i, (0, 10, 20), (1, 40, 50)),
      lambda i: sitk.RegionOfInterest(i, [50, 40, 1], [20, 10, 0])),
@@ -806,7 +808,7 @@ def _eq(r, s):
     ("CyclicShift", lambda i: ritk.filter.cyclic_shift(i, (0, 11, 13)),
      lambda i: sitk.CyclicShift(i, [13, 11, 0])),
 ], ids=["Flip-x", "Flip-y", "Flip-xy", "ConstantPad", "MirrorPad", "WrapPad",
-        "RegionOfInterest", "PermuteAxes", "Crop", "CyclicShift"])
+        "ZeroFluxNeumannPad", "RegionOfInterest", "PermuteAxes", "Crop", "CyclicShift"])
 def test_cmake_geometry_on_upstream_data(tag, rfn, sfn):
     ri, si = _pair("cthead1.png")
     si = sitk.Cast(si, sitk.sitkFloat32)

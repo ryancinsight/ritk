@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.97.1] — 2026-06-17 (Sprint 404: ZeroFluxNeumannPad)
+
+### Added
+- `ritk-filter` / `ritk-python`: `ZeroFluxNeumannPadImageFilter` + `filter.zero_flux_neumann_pad(image, lower, upper)` — edge-replicate (clamp) padding, the fourth pad mode alongside constant/mirror/wrap (ITK `ZeroFluxNeumannPadImageFilter` / `sitk.ZeroFluxNeumannPad`). Same per-axis structure as the sibling pads (one `clamp_index` helper). **Bit-exact** to sitk. Value-semantic Rust tests + cmake parity case; coverage 163/298. The pad family (constant/mirror/wrap/zero-flux-Neumann) is now complete.
+
 ## [0.97.0] — 2026-06-17 (Sprint 403: Expand — integer upsample)
 
 ### Added

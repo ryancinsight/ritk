@@ -394,6 +394,9 @@ def mirror_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int,
 def wrap_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]) -> Image:
     """Wrap (periodic) pad; lower/upper are (z,y,x). ITK Parity: WrapPadImageFilter."""
     ...
+def zero_flux_neumann_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]) -> Image:
+    """Edge-replicate (zero-flux Neumann) pad; lower/upper are (z,y,x). ITK Parity: ZeroFluxNeumannPadImageFilter."""
+    ...
 def region_of_interest(image: Image, start: tuple[int, int, int], size: tuple[int, int, int]) -> Image:
     """Crop to a sub-region; start/size are (z,y,x). ITK Parity: RegionOfInterestImageFilter."""
     ...

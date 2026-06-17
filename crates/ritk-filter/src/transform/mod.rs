@@ -19,7 +19,10 @@ pub mod shrink;
 pub use cyclic_shift::CyclicShiftImageFilter;
 pub use expand::ExpandImageFilter;
 pub use flip::{FlipImageFilter, FlipPolicy};
-pub use pad::{ConstantPadImageFilter, MirrorPadImageFilter, Padding, WrapPadImageFilter};
+pub use pad::{
+    ConstantPadImageFilter, MirrorPadImageFilter, Padding, WrapPadImageFilter,
+    ZeroFluxNeumannPadImageFilter,
+};
 pub use paste::PasteImageFilter;
 pub use permute_axes::PermuteAxesImageFilter;
 pub use roi::RegionOfInterestImageFilter;

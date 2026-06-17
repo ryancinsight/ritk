@@ -122,6 +122,7 @@ pub use transform::{
     ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, FlipPolicy,
     MirrorPadImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
     RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter,
+    ZeroFluxNeumannPadImageFilter,
 };
 
 // ── Surface & distance ───────────────────────────────────────────────────────

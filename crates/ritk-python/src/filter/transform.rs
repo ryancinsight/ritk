@@ -13,7 +13,7 @@ use pyo3::prelude::*;
 use ritk_filter::{
     ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter,
     MirrorPadImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
-    RegionOfInterestImageFilter, WrapPadImageFilter,
+    RegionOfInterestImageFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
 };
 use ritk_image::Image;
 
@@ -136,6 +136,27 @@ pub fn wrap_pad(
     let up = Padding([upper.0, upper.1, upper.2]);
     py.allow_threads(|| {
         WrapPadImageFilter::new(lo, up)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Pad the image by replicating the edge voxel (zero-flux Neumann). ITK Parity:
+/// ZeroFluxNeumannPadImageFilter (`sitk.ZeroFluxNeumannPad`).
+#[pyfunction]
+#[pyo3(signature = (image, lower, upper))]
+pub fn zero_flux_neumann_pad(
+    py: Python<'_>,
+    image: &PyImage,
+    lower: (usize, usize, usize),
+    upper: (usize, usize, usize),
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let lo = Padding([lower.0, lower.1, lower.2]);
+    let up = Padding([upper.0, upper.1, upper.2]);
+    py.allow_threads(|| {
+        ZeroFluxNeumannPadImageFilter::new(lo, up)
             .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

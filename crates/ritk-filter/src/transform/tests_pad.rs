@@ -128,3 +128,28 @@ fn wrap_pad_shape() {
         .unwrap();
     assert_eq!(out.shape(), [4, 7, 10]);
 }
+
+// ── ZeroFluxNeumannPadImageFilter tests ───────────────────────────────────────
+
+/// Edge-replicate pad of a 1-D ramp: lower pad repeats the first voxel, upper
+/// pad repeats the last. Matches ITK ZeroFluxNeumannPad.
+#[test]
+fn zero_flux_neumann_pad_replicates_edges() {
+    let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
+    let out = ZeroFluxNeumannPadImageFilter::new(Padding::new([0, 0, 2]), Padding::new([0, 0, 1]))
+        .apply(&img)
+        .unwrap();
+    assert_eq!(out.shape(), [1, 1, 6]);
+    // [1,1] + [1,2,3] + [3] = repeat edges
+    assert_eq!(voxels(&out), vec![1.0, 1.0, 1.0, 2.0, 3.0, 3.0]);
+}
+
+/// Zero padding on every side is the identity.
+#[test]
+fn zero_flux_neumann_pad_zero_is_identity() {
+    let img = make_image((0..24).map(|i| i as f32).collect(), [2, 3, 4]);
+    let out = ZeroFluxNeumannPadImageFilter::new(Padding::new([0, 0, 0]), Padding::new([0, 0, 0]))
+        .apply(&img)
+        .unwrap();
+    assert_eq!(voxels(&out), voxels(&img));
+}
