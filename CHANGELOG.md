@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.73.5] — 2026-06-17 (Sprint 379 Increment 5: spacing-aware distance transform)
+
+### Fixed
+- `ritk-segmentation`: the Euclidean distance transform (`distance_transform`, exposed as `filter.distance_transform`) now applies **image spacing per axis** (physical-unit distances), matching ITK/SimpleITK and float-exact to scipy `distance_transform_edt(sampling=spacing)` (rel ~5e-8 on isotropic, anisotropic, and sub-unit spacings). It previously ignored spacing (voxel-unit distances), contradicting the binding docstring. The Meijster lower-envelope was generalised to the anisotropic form `dt[i] = min_j { spacing[axis]²·(i−j)² + f[j] }` (now `f64`), with phase-1 X-distances scaled by `spacing_x²`. Existing tests use unit spacing (physical == voxel) and are unchanged.
+
 ## [0.73.4] — 2026-06-17 (Sprint 379 Increment 4: DiscreteGaussian Bessel kernel)
 
 ### Fixed

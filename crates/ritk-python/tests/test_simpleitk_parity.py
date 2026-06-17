@@ -2090,6 +2090,25 @@ def test_distance_transform_agrees_with_sitk() -> None:
     assert mae < 0.15, f"DT background MAE vs SITK = {mae:.4f} >= 0.15"
 
 
+def test_distance_transform_spacing_aware_matches_scipy() -> None:
+    # The EDT is now physical-unit (image spacing applied per axis), matching
+    # scipy.distance_transform_edt(sampling=spacing) on the inverted mask
+    # (ritk: foreground -> 0, background -> distance to nearest foreground).
+    from scipy import ndimage
+
+    rng = np.random.default_rng(0)
+    mask = (rng.random((6, 14, 18)) > 0.7).astype(np.float32)
+    for spacing in [(1.0, 1.0, 1.0), (2.0, 1.0, 0.5), (0.3, 0.3, 0.3)]:
+        img = ritk.Image(np.ascontiguousarray(mask), spacing=list(spacing))
+        rd = np.asarray(
+            ritk.filter.distance_transform(img, foreground_threshold=0.5).to_numpy(),
+            np.float64,
+        )
+        ref = ndimage.distance_transform_edt(1.0 - mask, sampling=spacing)
+        rel = np.abs(rd - ref).max() / max(np.abs(ref).max(), 1e-9)
+        assert rel < 1e-6, f"spacing={spacing}: distance_transform rel {rel:.2e} >= 1e-6"
+
+
 # ==========================================================================
 # Section 6 -- Level-set segmentation parity
 # ==========================================================================
