@@ -170,3 +170,53 @@ def test_distance_transform_matches_scipy(vol3d):
         ref = ndimage.distance_transform_edt(1.0 - mask, sampling=spacing)
         rel = np.abs(r - ref).max() / max(np.abs(ref).max(), 1e-9)
         assert rel < 1e-6, f"distance_transform spacing={spacing}: rel {rel:.2e}"
+
+
+# ── Resampling transforms: ritk vs the equivalent SimpleITK Resample ───────────
+# ritk transforms move *content*; ITK transforms map output->input coordinates.
+# The pinned-convention equivalences below are float/bit-exact and lock the sign
+# and rotation-center conventions against drift.
+
+@pytest.fixture(scope="module")
+def slice2d():
+    rng = np.random.default_rng(7)
+    arr = (rng.standard_normal((1, 40, 48)) * 40 + 100).astype(np.float32)
+    return ritk.Image(np.ascontiguousarray(arr)), sitk.GetImageFromArray(arr[0])
+
+
+def _rel2d(r, s, m=8):
+    r = np.squeeze(np.asarray(r.to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(s).astype(np.float64)
+    return np.abs(r[m:-m, m:-m] - s[m:-m, m:-m]).max() / max(np.abs(s).max(), 1e-9)
+
+
+def test_shift_matches_sitk_translation(slice2d):
+    # ritk shifts content by +3 in x; ITK TranslationTransform maps out->in, so
+    # the same image results from translating the sampling coordinate by -3.
+    ri, si = slice2d
+    out = ritk.filter.shift_image(ri, shift_x=3.0, mode="linear")
+    ref = sitk.Resample(si, si, sitk.TranslationTransform(2, (-3.0, 0.0)),
+                        sitk.sitkLinear, 0.0)
+    assert _rel2d(out, ref) == 0.0
+
+
+def test_rotate_matches_sitk_euler2d(slice2d):
+    import math
+    ri, si = slice2d
+    out = ritk.filter.rotate_image(ri, angle_z=math.pi / 2, mode="linear")
+    center = si.TransformContinuousIndexToPhysicalPoint(
+        [(si.GetWidth() - 1) / 2.0, (si.GetHeight() - 1) / 2.0])
+    ref = sitk.Resample(si, si, sitk.Euler2DTransform(center, math.pi / 2),
+                        sitk.sitkLinear, 0.0)
+    assert _rel2d(out, ref) == 0.0
+
+
+def test_zoom_matches_sitk_magnify(slice2d):
+    # 2x zoom == resample onto a 2x-finer grid (half spacing), identity transform.
+    ri, si = slice2d
+    out = ritk.filter.zoom_image(ri, zoom_x=2.0, zoom_y=2.0)
+    ref_grid = sitk.Image([si.GetWidth() * 2, si.GetHeight() * 2], sitk.sitkFloat32)
+    ref_grid.SetSpacing([s / 2.0 for s in si.GetSpacing()])
+    ref_grid.SetOrigin(si.GetOrigin())
+    ref = sitk.Resample(si, ref_grid, sitk.Transform(), sitk.sitkLinear, 0.0)
+    assert _rel2d(out, ref) < 1e-6
