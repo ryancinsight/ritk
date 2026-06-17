@@ -443,6 +443,38 @@ def test_cmake_registration_meansquares_metric_matches_sitk():
     assert rel < 1e-6, f"MeanSquares metric ritk={ritk_ms} sitk={sitk_ms} rel={rel:.2e}"
 
 
+_PROJECTIONS = [
+    ("MinimumProjection", ritk.filter.min_intensity_projection, sitk.MinimumProjection, 0.0),
+    ("SumProjection", ritk.filter.sum_intensity_projection, sitk.SumProjection, 0.0),
+    ("StandardDeviationProjection", ritk.filter.stddev_intensity_projection,
+     sitk.StandardDeviationProjection, 1e-6),
+]
+
+
+@pytest.mark.parametrize("tag,rfn,sfn,tol", _PROJECTIONS, ids=[c[0] for c in _PROJECTIONS])
+def test_cmake_projection_on_upstream_data(tag, rfn, sfn, tol):
+    # ritk projection axis (z,y,x) 0 == sitk projectionDimension (x,y,z) 2.
+    ri, si = _pair("RA-Float.nrrd")
+    r = np.squeeze(np.asarray(rfn(ri, 0).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sfn(si, 2)).astype(np.float64))
+    assert r.shape == s.shape, f"{tag}: {r.shape} != {s.shape}"
+    rel = np.abs(r - s).max() / max(np.abs(s).max(), 1e-9)
+    if tol == 0.0:
+        assert rel == 0.0, f"{tag}: expected bit-exact, got {rel:.2e}"
+    else:
+        assert rel < tol, f"{tag}: rel {rel:.2e}"
+
+
+def test_cmake_squared_difference_on_upstream_data():
+    # SquaredDifferenceImageFilter: (a - b)^2. ritk composes square(subtract).
+    ri, si = _pair("RA-Float.nrrd")
+    ref_r = ritk.filter.discrete_gaussian(ri, 4.0)
+    ref_s = sitk.DiscreteGaussian(si, 4.0)
+    r = ritk.filter.square_image(ritk.filter.subtract_images(ri, ref_r))
+    s = sitk.SquaredDifference(si, ref_s)
+    assert _rel(r, s) < 1e-6
+
+
 def test_cmake_fft_roundtrip_on_upstream_data():
     # Forward + inverse FFT recovers the input (SimpleITK's ForwardFFT/InverseFFT
     # round-trip test pattern) on an upstream float slice.
