@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.87.1] — 2026-06-17 (Sprint 390b: RelabelComponent binding)
+
+### Added
+- `ritk-python`: exposed `segmentation.relabel_components(label_image, minimum_object_size=0)` — the `RelabelComponentFilter` existed in `ritk-segmentation` (sorts components by descending voxel count, label 1 = largest; drops sub-threshold objects) but was unbound. ITK Parity: RelabelComponentImageFilter (`sitk.RelabelComponent`, `sortByObjectSize=True`). `.pyi` stub + cmake parity case (min_size ∈ {0, 50}) on the cthead1 connected components.
+
 ## [0.87.0] — 2026-06-17 (Sprint 390: contour / voting-binary bindings + three discrepancy fixes)
 
 ### Fixed

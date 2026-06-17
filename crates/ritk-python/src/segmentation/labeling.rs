@@ -6,8 +6,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
-    ConnectedComponentsFilter, KMeansSegmentation, MarkerControlledWatershed, SlicConfig,
-    SlicSuperpixelFilter, WatershedSegmentation,
+    ConnectedComponentsFilter, KMeansSegmentation, MarkerControlledWatershed, RelabelComponentFilter,
+    SlicConfig, SlicSuperpixelFilter, WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -49,6 +49,35 @@ pub fn connected_components(
         py.allow_threads(|| core_connected_components(mask.as_ref(), seg_conn))
     };
     Ok((into_py_image(label_image), num_components))
+}
+
+/// Relabel connected components by descending size: the largest object becomes
+/// label 1, the next largest 2, and so on. Components smaller than
+/// `minimum_object_size` voxels are removed (mapped to background 0).
+///
+/// ITK Parity: RelabelComponentImageFilter (`sitk.RelabelComponent` with
+/// `sortByObjectSize=True`).
+///
+/// Args:
+///     label_image: an integer label image (e.g. from `connected_components`).
+///     minimum_object_size: components with fewer voxels are discarded (default 0).
+///
+/// Returns:
+///     the relabelled image.
+#[pyfunction]
+#[pyo3(signature = (label_image, minimum_object_size=0))]
+pub fn relabel_components(
+    py: Python<'_>,
+    label_image: &PyImage,
+    minimum_object_size: usize,
+) -> PyImage {
+    let img = Arc::clone(&label_image.inner);
+    let out = py.allow_threads(|| {
+        RelabelComponentFilter::with_minimum_object_size(minimum_object_size)
+            .apply(img.as_ref())
+            .0
+    });
+    into_py_image(out)
 }
 
 /// Compute per-label shape statistics from a binary mask.

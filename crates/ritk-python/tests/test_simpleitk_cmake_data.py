@@ -798,3 +798,16 @@ def test_cmake_voting_binary_on_upstream_data(thr):
     r = ritk.filter.voting_binary(rim, 1, thr, thr, 1.0, 0.0)
     s = sitk.VotingBinary(sim, [1, 1, 1], thr, thr, 1, 0)
     assert _eq(r, s), f"VotingBinary (thr={thr}): differs from sitk"
+
+
+@pytest.mark.parametrize("min_size", [0, 50], ids=["all", "min50"])
+def test_cmake_relabel_component_on_upstream_data(min_size):
+    # RelabelComponentImageFilter: relabel by descending size. Bit-exact to
+    # sitk.RelabelComponent on the connected components of the cthead1 mask.
+    _, sim = _cthead_mask()
+    lbl = sitk.ConnectedComponent(sim)
+    ril = ritk.Image(np.ascontiguousarray(
+        sitk.GetArrayFromImage(lbl).astype(np.float32)[None]))
+    r = ritk.segmentation.relabel_components(ril, min_size)
+    s = sitk.RelabelComponent(sitk.Cast(lbl, sitk.sitkUInt32), min_size, True)
+    assert _eq(r, s), f"RelabelComponent (min_size={min_size}): differs from sitk"
