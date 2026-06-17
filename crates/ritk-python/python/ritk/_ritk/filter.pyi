@@ -312,6 +312,27 @@ def grayscale_fillhole(image: Image) -> Image:
 def grayscale_grind_peak(image: Image, fully_connected: bool = False) -> Image:
     """Grayscale grind-peak (dual of fill-hole). ITK Parity: GrayscaleGrindPeakImageFilter."""
     ...
+def flip(image: Image, flip_z: bool = False, flip_y: bool = False, flip_x: bool = False) -> Image:
+    """Flip along Z/Y/X axes. ITK Parity: FlipImageFilter (sitk.Flip, axes reversed to [x,y,z])."""
+    ...
+def constant_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int], constant: float = 0.0) -> Image:
+    """Constant-value pad; lower/upper are (z,y,x). ITK Parity: ConstantPadImageFilter."""
+    ...
+def mirror_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]) -> Image:
+    """Mirror (symmetric) pad; lower/upper are (z,y,x). ITK Parity: MirrorPadImageFilter."""
+    ...
+def wrap_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]) -> Image:
+    """Wrap (periodic) pad; lower/upper are (z,y,x). ITK Parity: WrapPadImageFilter."""
+    ...
+def region_of_interest(image: Image, start: tuple[int, int, int], size: tuple[int, int, int]) -> Image:
+    """Crop to a sub-region; start/size are (z,y,x). ITK Parity: RegionOfInterestImageFilter."""
+    ...
+def permute_axes(image: Image, order: tuple[int, int, int]) -> Image:
+    """Permute tensor axes (order is a [z,y,x] permutation). ITK Parity: PermuteAxesImageFilter."""
+    ...
+def paste(dest: Image, source: Image, dest_start: tuple[int, int, int]) -> Image:
+    """Paste source into dest at dest_start (z,y,x). ITK Parity: PasteImageFilter."""
+    ...
 def resample_image(
     image: Image,
     spacing_z: float = 1.0,

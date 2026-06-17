@@ -207,22 +207,23 @@ impl Default for MirrorPadImageFilter {
     }
 }
 
-/// Mirror-reflect index `i` into the range `[0, n)`.
-///
-/// Uses the symmetric extension formula: period = 2*(n-1), then fold.
-/// For n=1 always returns 0.
+/// Mirror-reflect index `i` into the range `[0, n)` using ITK's symmetric
+/// (whole-sample) convention: the boundary voxel **is repeated**, so index `-1`
+/// maps to `0` and `n` maps to `n-1`. The extension is periodic with period
+/// `2n` and fold `r < n ? r : 2n-1-r`, matching `itk::MirrorPadImageFilter` /
+/// numpy `pad(mode="symmetric")`. (The reflect-without-repeat convention,
+/// period `2(n-1)`, is *not* what ITK uses.) For `n = 1` always returns 0.
 #[inline]
 fn mirror_index(i: i64, n: usize) -> usize {
     if n == 1 {
         return 0;
     }
-    let period = 2 * (n as i64 - 1);
-    // Reduce to [0, period).
+    let period = 2 * n as i64;
     let r = ((i % period) + period) % period;
     if r < n as i64 {
         r as usize
     } else {
-        (period - r) as usize
+        (period - 1 - r) as usize
     }
 }
 

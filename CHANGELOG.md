@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [0.86.0] — 2026-06-17 (Sprint 389: geometric transforms + MirrorPad fix)
+
+### Fixed
+- `ritk-filter`: `MirrorPadImageFilter` used the *reflect* convention (period `2(n-1)`, boundary voxel **not** repeated: `[2,1,0,1,2,3,4,3,2]`) despite its doc claiming "symmetric". ITK/`sitk.MirrorPad` is *symmetric* (period `2n`, boundary voxel repeated: `[1,0,0,1,2,3,4,4,3]`). Fixed `mirror_index` to ITK's whole-sample symmetric fold; now **bit-exact** to `sitk.MirrorPad`. Existing 1-D test updated to the (verified) symmetric values.
+
+### Added
+- `ritk-python`: exposed the geometric-transform family (Rust filters already existed, all unbound) — `filter.flip`, `constant_pad`, `mirror_pad`, `wrap_pad`, `region_of_interest`, `permute_axes`, `paste`. Index/size/axis tuples use ritk's `[z,y,x]` tensor order (sitk's `[x,y,z]` reversed). `flip`, `constant_pad`, `mirror_pad` (post-fix), `wrap_pad`, `region_of_interest`, `permute_axes` are **bit-exact** to `sitk.{Flip, ConstantPad, MirrorPad, WrapPad, RegionOfInterest, PermuteAxes}` on cthead1 (8 cmake parity cases). `.pyi` stubs added.
+- `ritk-filter` (decision log): `ShrinkImageFilter` is an **averaging** downsampler (= ITK `BinShrink`, already exposed as `bin_shrink`), *not* ITK `Shrink` (which subsamples with `floor(N/f)` sizing). It is intentionally left unbound to Python to avoid a false `sitk.Shrink` parity claim; a true subsampling `Shrink` + correcting the GUI's "tile averaging" label is a deferred follow-up.
+
 ## [0.85.0] — 2026-06-17 (Sprint 388: grayscale fill-hole / grind-peak / open / close + two boundary fixes)
 
 ### Fixed

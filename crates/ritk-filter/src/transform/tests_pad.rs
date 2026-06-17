@@ -69,7 +69,9 @@ fn constant_pad_origin_updated() {
 
 // ── MirrorPadImageFilter tests ────────────────────────────────────────────
 
-/// Mirror pad: 1×1×3 = [1,2,3], pad 2 on each side → [3,2,1,2,3,2,1].
+/// Mirror pad (ITK symmetric, boundary repeated): 1×1×3 = [1,2,3], pad 2 each
+/// side → [2,1,1,2,3,3,2]. Matches `sitk.MirrorPad` (verified) — the boundary
+/// voxel `1`/`3` is repeated at the fold, period 2n.
 #[test]
 fn mirror_pad_1d() {
     let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
@@ -78,19 +80,11 @@ fn mirror_pad_1d() {
         .unwrap();
     assert_eq!(out.shape(), [1, 1, 7]);
     let v = voxels(&out);
-    // Expected: period=4, mirror extension:
-    // index -2 → mirror_index(-2,3): i=-2, period=4, r=((-2%4)+4)%4=2, r<3 → 2 → val=3
-    // index -1 → r=3, 3>=3 → 4-3=1 → val=2
-    // index 0..2 → original [1,2,3]
-    // index 3 → r=3, 3>=3 → 4-3=1 → val=2
-    // index 4 → r=0 → val=1
-    assert!((v[0] - 3.0).abs() < 1e-5, "v[0]={}", v[0]);
-    assert!((v[1] - 2.0).abs() < 1e-5, "v[1]={}", v[1]);
-    assert!((v[2] - 1.0).abs() < 1e-5, "v[2]={}", v[2]);
-    assert!((v[3] - 2.0).abs() < 1e-5, "v[3]={}", v[3]);
-    assert!((v[4] - 3.0).abs() < 1e-5, "v[4]={}", v[4]);
-    assert!((v[5] - 2.0).abs() < 1e-5, "v[5]={}", v[5]);
-    assert!((v[6] - 1.0).abs() < 1e-5, "v[6]={}", v[6]);
+    // index -2 → 1 (val 2), -1 → 0 (val 1), [1,2,3], +3 → 2 (val 3), +4 → 1 (val 2)
+    let expected = [2.0f32, 1.0, 1.0, 2.0, 3.0, 3.0, 2.0];
+    for (i, (&got, exp)) in v.iter().zip(expected).enumerate() {
+        assert!((got - exp).abs() < 1e-5, "v[{i}]={got}, expected {exp}");
+    }
 }
 
 /// Mirror index formula for n=1 always returns 0.

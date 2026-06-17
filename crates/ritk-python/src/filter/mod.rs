@@ -23,6 +23,7 @@ mod noise;
 mod projection;
 mod smooth;
 mod spatial;
+mod transform;
 mod vessel;
 
 use pyo3::prelude::*;
@@ -37,6 +38,7 @@ pub use noise::*;
 pub use projection::*;
 pub use smooth::*;
 pub use spatial::*;
+pub use transform::*;
 pub use vessel::*;
 
 /// Register the `filter` submodule and all exposed functions.
@@ -135,6 +137,14 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(grayscale_opening, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_fillhole, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_grind_peak, &m)?)?;
+
+    m.add_function(wrap_pyfunction!(flip, &m)?)?;
+    m.add_function(wrap_pyfunction!(constant_pad, &m)?)?;
+    m.add_function(wrap_pyfunction!(mirror_pad, &m)?)?;
+    m.add_function(wrap_pyfunction!(wrap_pad, &m)?)?;
+    m.add_function(wrap_pyfunction!(region_of_interest, &m)?)?;
+    m.add_function(wrap_pyfunction!(permute_axes, &m)?)?;
+    m.add_function(wrap_pyfunction!(paste, &m)?)?;
     // Spatial transforms
     m.add_function(wrap_pyfunction!(resample_image, &m)?)?;
     m.add_function(wrap_pyfunction!(rotate_image, &m)?)?;

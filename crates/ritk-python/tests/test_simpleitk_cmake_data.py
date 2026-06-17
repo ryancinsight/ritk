@@ -531,6 +531,10 @@ _AUTO_THRESHOLD_VALUES = [
      sitk.KittlerIllingworthThresholdImageFilter),
     ("RenyiEntropyThreshold", ritk.segmentation.renyi_entropy_threshold,
      sitk.RenyiEntropyThresholdImageFilter),
+    ("LiThreshold", ritk.segmentation.li_threshold, sitk.LiThresholdImageFilter),
+    ("YenThreshold", ritk.segmentation.yen_threshold, sitk.YenThresholdImageFilter),
+    ("KapurThreshold", ritk.segmentation.kapur_threshold, sitk.MaximumEntropyThresholdImageFilter),
+    ("TriangleThreshold", ritk.segmentation.triangle_threshold, sitk.TriangleThresholdImageFilter),
 ]
 
 
@@ -587,6 +591,12 @@ _BINARY_MORPH_CMAKE = [
     ("BinaryFillhole/BinaryFillhole",
      lambda m: ritk.segmentation.binary_fill_holes(m),
      lambda m: sitk.BinaryFillhole(m)),
+    ("BinaryErode/BinaryErode",
+     lambda m: ritk.segmentation.binary_erosion(m, 1),
+     lambda m: sitk.BinaryErode(m, [1, 1], sitk.sitkBox, 0.0, 1.0)),
+    ("BinaryDilate/BinaryDilate",
+     lambda m: ritk.segmentation.binary_dilation(m, 1),
+     lambda m: sitk.BinaryDilate(m, [1, 1], sitk.sitkBox, 0.0, 1.0)),
 ]
 
 
@@ -699,3 +709,41 @@ def test_cmake_grayscale_open_close_on_upstream_data(tag, rfn, sfn, radius):
     r = np.squeeze(np.asarray(rfn(ri, radius).to_numpy(), np.float64))
     s = np.squeeze(sitk.GetArrayFromImage(sfn(si, radius)).astype(np.float64))
     assert np.array_equal(r, s), f"{tag} (r={radius}): differs from sitk"
+
+
+# Geometric transforms (FlipImageFilter, {Constant,Mirror,Wrap}PadImageFilter,
+# RegionOfInterestImageFilter, PermuteAxesImageFilter). ritk uses tensor-axis
+# order [z,y,x]; sitk uses [x,y,z], so size/index/axis tuples reverse. All
+# bit-exact to SimpleITK on the upstream cthead1 image.
+def _eq(r, s):
+    ra = np.squeeze(np.asarray(r.to_numpy(), np.float64))
+    sa = np.squeeze(sitk.GetArrayFromImage(s).astype(np.float64))
+    return ra.shape == sa.shape and np.array_equal(ra, sa)
+
+
+@pytest.mark.parametrize("tag,rfn,sfn", [
+    ("Flip/x", lambda i: ritk.filter.flip(i, False, False, True),
+     lambda i: sitk.Flip(i, [True, False, False])),
+    ("Flip/y", lambda i: ritk.filter.flip(i, False, True, False),
+     lambda i: sitk.Flip(i, [False, True, False])),
+    ("Flip/xy", lambda i: ritk.filter.flip(i, False, True, True),
+     lambda i: sitk.Flip(i, [True, True, False])),
+    # pads: ritk (z,y,x) lower/upper -> sitk [x,y,z]
+    ("ConstantPad", lambda i: ritk.filter.constant_pad(i, (0, 3, 5), (0, 2, 4), 7.0),
+     lambda i: sitk.ConstantPad(i, [5, 3, 0], [4, 2, 0], 7.0)),
+    ("MirrorPad", lambda i: ritk.filter.mirror_pad(i, (0, 3, 5), (0, 2, 4)),
+     lambda i: sitk.MirrorPad(i, [5, 3, 0], [4, 2, 0])),
+    ("WrapPad", lambda i: ritk.filter.wrap_pad(i, (0, 3, 5), (0, 2, 4)),
+     lambda i: sitk.WrapPad(i, [5, 3, 0], [4, 2, 0])),
+    # ROI: ritk start (z,y,x)=(0,10,20) size (1,40,50) -> sitk size [50,40,1] index [20,10,0]
+    ("RegionOfInterest", lambda i: ritk.filter.region_of_interest(i, (0, 10, 20), (1, 40, 50)),
+     lambda i: sitk.RegionOfInterest(i, [50, 40, 1], [20, 10, 0])),
+    # Permute: ritk tensor order (0,2,1) swaps y,x <-> sitk PermuteAxes [1,0,2]
+    ("PermuteAxes", lambda i: ritk.filter.permute_axes(i, (0, 2, 1)),
+     lambda i: sitk.PermuteAxes(i, [1, 0, 2])),
+], ids=["Flip-x", "Flip-y", "Flip-xy", "ConstantPad", "MirrorPad", "WrapPad",
+        "RegionOfInterest", "PermuteAxes"])
+def test_cmake_geometry_on_upstream_data(tag, rfn, sfn):
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    assert _eq(rfn(ri), sfn(si)), f"{tag}: differs from sitk"
