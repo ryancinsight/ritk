@@ -17,16 +17,20 @@
 //! The interior is float-exact to SimpleITK; boundaries use constant (replicate)
 //! extension.
 //!
-//! Derivative orders are computed by composing smoothing with finite
-//! differences:
+//! Derivative orders use the ITK/SimpleITK separable structure — the
+//! corresponding-order Deriche recursion along the differentiated axis and the
+//! zero-order (smoothing) recursion along the others, combined:
 //!
 //! - **Order 0 (smoothing)**: Two-pass IIR as described above.
-//! - **Order 1 (first derivative)**: Smooth all axes separably, then compute
-//!   gradient magnitude |∇I| = √(Σ_d (∂I/∂x_d)²) via central differences.
-//! - **Order 2 (second derivative)**: Smooth all axes separably, then compute
-//!   Laplacian ∇²I = Σ_d ∂²I/∂x_d² via second-order finite differences.
+//! - **Order 1 (gradient magnitude)**: for each axis `d`, first-order Deriche
+//!   along `d` and zero-order along the others; `|∇I| = √(Σ_d (∂I/∂x_d / s_d)²)`.
+//!   Float-exact to `GradientMagnitudeRecursiveGaussian`.
+//! - **Order 2 (Laplacian)**: for each axis `d`, second-order Deriche along `d`
+//!   and zero-order along the others; `∇²I = Σ_d ∂²I/∂x_d² / s_d²`. Float-exact
+//!   to `LaplacianRecursiveGaussian`.
 //!
-//! Physical spacing is respected: `pixel_sigma = sigma / spacing[dim]`.
+//! Physical spacing is respected: `pixel_sigma = sigma / spacing[dim]`, and the
+//! order-`k` term is divided by `spacing[d]^k` for the physical derivative.
 //!
 //! # Complexity
 //!
@@ -140,30 +144,27 @@ impl RecursiveGaussianFilter {
 
         let spacing = image.spacing();
 
-        // Stage 1: Smooth all axes separably via the two-pass IIR
-        for dim in 0..3 {
-            let pixel_sigma = self.sigma.get() / spacing[dim];
-            if pixel_sigma < 0.2 {
-                continue;
-            }
-            let coeffs = DericheCoefficients::from_sigma(pixel_sigma);
-            vals = apply_deriche_1d(&vals, dims, dim, &coeffs, pixel_sigma);
-        }
-
-        // Stage 2: Apply derivative operator across all axes combined.
-        // Smoothing is already complete; the derivative is computed from
-        // the smoothed data independently along each axis and then
-        // combined (magnitude for order 1, sum for order 2).
+        // Derivative order selects the separable Deriche structure that matches
+        // ITK/SimpleITK: order 0 smooths all axes; orders 1 and 2 apply the
+        // first/second-order Deriche recursion along each axis (zero-order along
+        // the others) and combine — magnitude for order 1, sum for order 2.
         let sp = [spacing[0], spacing[1], spacing[2]];
-        match self.derivative_order {
-            DerivativeOrder::Zero => {}
-            DerivativeOrder::First => {
-                vals = gradient_magnitude_3d(&vals, dims, sp);
+        let sigma = self.sigma.get();
+        vals = match self.derivative_order {
+            DerivativeOrder::Zero => {
+                for dim in 0..3 {
+                    let pixel_sigma = sigma / spacing[dim];
+                    if pixel_sigma < 0.2 {
+                        continue;
+                    }
+                    let coeffs = DericheCoefficients::from_sigma(pixel_sigma);
+                    vals = apply_deriche_1d(&vals, dims, dim, &coeffs, pixel_sigma);
+                }
+                vals
             }
-            DerivativeOrder::Second => {
-                vals = laplacian_3d(&vals, dims, sp);
-            }
-        }
+            DerivativeOrder::First => gradient_magnitude_rg_vals(&vals, dims, sp, sigma),
+            DerivativeOrder::Second => laplacian_rg_vals(&vals, dims, sp, sigma),
+        };
 
         // Scale normalization: multiply by σ^order
         if let ScaleNormalization::Normalize = self.scale_normalization {
@@ -191,32 +192,19 @@ impl RecursiveGaussianFilter {
         ))
     }
 }
-// ── Laplacian of recursive Gaussian (ITK LaplacianRecursiveGaussian) ──────────
+// ── Recursive-Gaussian derivative operators (ITK structure) ───────────────────
 
-/// Compute ∇²(G_σ * I) = Σ_d ∂²/∂x_d² (G_σ * I) via separable Deriche recursion,
-/// matching ITK / SimpleITK `LaplacianRecursiveGaussian` (float-exact).
-///
-/// For each axis `d` the volume is filtered with the **second-order** Deriche
-/// recursion along `d` and the **zero-order** (smoothing) recursion along the
-/// other two axes; the three per-axis second derivatives are then summed. The
-/// per-axis sigma in pixels (`σ / spacing[d]`) carries the physical-spacing
-/// normalisation through the coefficients.
-///
-/// # Errors
-/// Returns `Err` if the tensor data cannot be extracted as `f32`.
-pub fn laplacian_recursive_gaussian<B: Backend>(
-    image: &Image<B, 3>,
-    sigma: f64,
-) -> anyhow::Result<Image<B, 3>> {
-    let (vals, dims) = extract_vec(image)?;
-    let spacing = image.spacing();
-    let n = vals.len();
-
-    let mut laplacian = vec![0.0f32; n];
+/// `∇²(G_σ * I) = Σ_d ∂²/∂x_d²(G_σ * I)` as a flat z-major buffer. For each axis
+/// `d` the volume is filtered with the **second-order** Deriche recursion along
+/// `d` and the **zero-order** (smoothing) recursion along the others; each
+/// per-axis second derivative is divided by `spacing[d]²` (physical units) and
+/// summed. Float-exact to ITK/SimpleITK `LaplacianRecursiveGaussian`.
+fn laplacian_rg_vals(vals: &[f32], dims: [usize; 3], spacing: [f64; 3], sigma: f64) -> Vec<f32> {
+    let mut laplacian = vec![0.0f32; vals.len()];
     for d in 0..3 {
-        let mut temp = vals.clone();
-        for ax in 0..3 {
-            let pixel_sigma = sigma / spacing[ax];
+        let mut temp = vals.to_vec();
+        for (ax, &s) in spacing.iter().enumerate() {
+            let pixel_sigma = sigma / s;
             let coeffs = if ax == d {
                 DericheCoefficients::second_order(pixel_sigma)
             } else {
@@ -229,38 +217,37 @@ pub fn laplacian_recursive_gaussian<B: Backend>(
             *acc += t * inv_s2;
         }
     }
-
-    let device = image.data().device();
-    let out_td = TensorData::new(laplacian, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-    Ok(Image::new(
-        tensor,
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-    ))
+    laplacian
 }
 
-// ── Combined derivative operators (gradient magnitude, Laplacian) ─────────────
-
-/// Compute the gradient magnitude of a 3-D volume:
-///
-///   |∇I| = √(Σ_d (∂I/∂x_d / s_d)²)
-///
-/// Uses central differences at interior points and one-sided differences at
-/// boundaries. Each component is divided by the physical spacing along that
-/// axis so the result is in physical units (intensity / mm).
-#[inline]
-fn gradient_magnitude_3d(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
-    let n = data.len();
-    let mut sum_sq = vec![0.0_f32; n];
-    let mut deriv_buf = vec![0.0_f32; n];
-    for (dim, &s) in spacing.iter().enumerate() {
-        apply_first_derivative_1d_into(data, dims, dim, &mut deriv_buf);
-        let inv_s = (1.0 / s) as f32;
-        for i in 0..n {
-            let d = deriv_buf[i] * inv_s;
-            sum_sq[i] += d * d;
+/// `|∇(G_σ * I)| = √(Σ_d (∂/∂x_d(G_σ * I))²)` as a flat z-major buffer. For each
+/// axis `d` the volume is filtered with the **first-order** Deriche recursion
+/// along `d` and the **zero-order** recursion along the others; each per-axis
+/// first derivative is divided by `spacing[d]` (physical units), squared and
+/// accumulated, then the square root is taken. Float-exact to ITK/SimpleITK
+/// `GradientMagnitudeRecursiveGaussian`.
+fn gradient_magnitude_rg_vals(
+    vals: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    sigma: f64,
+) -> Vec<f32> {
+    let mut sum_sq = vec![0.0f32; vals.len()];
+    for d in 0..3 {
+        let mut temp = vals.to_vec();
+        for (ax, &s) in spacing.iter().enumerate() {
+            let pixel_sigma = sigma / s;
+            let coeffs = if ax == d {
+                DericheCoefficients::first_order(pixel_sigma)
+            } else {
+                DericheCoefficients::from_sigma(pixel_sigma)
+            };
+            temp = apply_deriche_1d(&temp, dims, ax, &coeffs, pixel_sigma);
+        }
+        let inv_s = (1.0 / spacing[d]) as f32;
+        for (acc, t) in sum_sq.iter_mut().zip(temp.iter()) {
+            let g = t * inv_s;
+            *acc += g * g;
         }
     }
     for v in &mut sum_sq {
@@ -269,26 +256,42 @@ fn gradient_magnitude_3d(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> V
     sum_sq
 }
 
-/// Compute the Laplacian of a 3-D volume:
+/// Build an `Image` from a computed buffer, copying `src`'s spatial metadata.
+fn image_from_vals<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+    let device = src.data().device();
+    let out_td = TensorData::new(vals, Shape::new(dims));
+    let tensor = Tensor::<B, 3>::from_data(out_td, &device);
+    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
+}
+
+/// Compute `∇²(G_σ * I)` matching ITK/SimpleITK `LaplacianRecursiveGaussian`
+/// (float-exact). See [`laplacian_rg_vals`].
 ///
-///   ∇²I = Σ_d ∂²I/∂x_d² / s_d²
+/// # Errors
+/// Returns `Err` if the tensor data cannot be extracted as `f32`.
+pub fn laplacian_recursive_gaussian<B: Backend>(
+    image: &Image<B, 3>,
+    sigma: f64,
+) -> anyhow::Result<Image<B, 3>> {
+    let (vals, dims) = extract_vec(image)?;
+    let sp = image.spacing();
+    let out = laplacian_rg_vals(&vals, dims, [sp[0], sp[1], sp[2]], sigma);
+    Ok(image_from_vals(image, out, dims))
+}
+
+/// Compute `|∇(G_σ * I)|` matching ITK/SimpleITK `GradientMagnitudeRecursiveGaussian`
+/// (float-exact). See [`gradient_magnitude_rg_vals`].
 ///
-/// Uses central second-order finite differences at interior points and
-/// one-sided differences at boundaries. Each component is divided by the
-/// squared physical spacing along that axis.
-#[inline]
-fn laplacian_3d(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
-    let n = data.len();
-    let mut result = vec![0.0_f32; n];
-    let mut deriv_buf = vec![0.0_f32; n];
-    for (dim, &s) in spacing.iter().enumerate() {
-        apply_second_derivative_1d_into(data, dims, dim, &mut deriv_buf);
-        let inv_s2 = (1.0 / (s * s)) as f32;
-        for i in 0..n {
-            result[i] += deriv_buf[i] * inv_s2;
-        }
-    }
-    result
+/// # Errors
+/// Returns `Err` if the tensor data cannot be extracted as `f32`.
+pub fn gradient_magnitude_recursive_gaussian<B: Backend>(
+    image: &Image<B, 3>,
+    sigma: f64,
+) -> anyhow::Result<Image<B, 3>> {
+    let (vals, dims) = extract_vec(image)?;
+    let sp = image.spacing();
+    let out = gradient_magnitude_rg_vals(&vals, dims, [sp[0], sp[1], sp[2]], sigma);
+    Ok(image_from_vals(image, out, dims))
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

@@ -184,6 +184,31 @@ fn laplacian_recursive_gaussian_quadratic_is_two() {
     }
 }
 
+/// `gradient_magnitude_recursive_gaussian` is the physical gradient magnitude:
+/// `|∇(G_σ * a·x)| = |a|` exactly (smoothing preserves the linear gradient).
+/// Holds independently of spacing, locking the per-axis `1/spacing` factor —
+/// without it the anisotropic case would read `|a|·s`.
+#[test]
+fn gradient_magnitude_recursive_gaussian_ramp_is_slope() {
+    let nx = 160usize;
+    let margin = 48;
+    let a = 3.0_f64;
+    for &sx in &[1.0_f64, 2.0, 0.5] {
+        // f(ix) = a·(ix·sx) = a·x_phys, so |∇f| = |a| in physical units.
+        let vals: Vec<f32> = (0..nx).map(|ix| (a * ix as f64 * sx) as f32).collect();
+        let img = make_image(vals, [1, 1, nx], [1.0, 1.0, sx]);
+        let out = extract_vals(&gradient_magnitude_recursive_gaussian(&img, 3.0).unwrap());
+        for (i, &v) in out[margin..nx - margin].iter().enumerate() {
+            assert!(
+                ((v as f64) - a).abs() < 0.02,
+                "|∇(G*a·x)| must be {a} in physical units (spacing {sx}) at interior \
+                 voxel {}, got {v}",
+                i + margin
+            );
+        }
+    }
+}
+
 /// Smoothing with a large image and small sigma should approximate identity.
 #[test]
 fn test_small_sigma_near_identity() {

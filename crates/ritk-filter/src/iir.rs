@@ -100,6 +100,19 @@ impl DericheCoefficients {
         Self { n, d, m }
     }
 
+    /// Antisymmetric anticausal coefficients (`M_k = −(N_k − D_k·N0)`,
+    /// `M4 = +D4·N0`), used by the odd (first) order (ITK
+    /// `ComputeRemainingCoefficients(symmetric=false)`).
+    fn antisymmetric(n: [f64; 4], d: [f64; 4]) -> Self {
+        let m = [
+            -(n[1] - d[0] * n[0]),
+            -(n[2] - d[1] * n[0]),
+            -(n[3] - d[2] * n[0]),
+            d[3] * n[0],
+        ];
+        Self { n, d, m }
+    }
+
     /// Zero-order (smoothing) coefficients from a pixel-space sigma.
     ///
     /// DC-normalised by `alpha0 = 2·SN/SD − N0` (ITK `SetUp`, `ZeroOrder`).
@@ -109,6 +122,17 @@ impl DericheCoefficients {
         let alpha0 = 2.0 * sn / sd - n[0];
         let n = n.map(|c| c / alpha0);
         Self::symmetric(n, d)
+    }
+
+    /// First-order (∂/∂x) coefficients from a pixel-space sigma (ITK `SetUp`,
+    /// `FirstOrder`): normalised by `alpha1 = 2·(SN·DD − DN·SD)/SD²`, with the
+    /// antisymmetric anticausal pass. Sign convention is ITK's `direction = +1`.
+    pub(super) fn first_order(sigma: f64) -> Self {
+        let (d, sd, dd, _ed) = deriche_d_coefficients(sigma);
+        let (n, sn, dn, _en) = deriche_n_coefficients(sigma, 1);
+        let alpha1 = 2.0 * (sn * dd - dn * sd) / (sd * sd);
+        let n = n.map(|c| c / alpha1);
+        Self::antisymmetric(n, d)
     }
 
     /// Second-order (∂²/∂x²) coefficients from a pixel-space sigma (ITK `SetUp`,
@@ -294,116 +318,6 @@ pub(super) fn apply_deriche_1d(
         }
     }
     output
-}
-
-// ── First derivative via central difference ───────────────────────────────────
-
-/// Apply central-difference first derivative along dimension `dim`:
-///   d[n] = (x[n+1] − x[n−1]) / 2
-/// Boundary: one-sided differences at edges.
-/// `_into` variant writes into a caller-provided buffer.
-///
-/// # Boundary/interior split
-///
-/// - **Boundary**: i=0 (forward one-sided), i=len−1 (backward one-sided).
-/// - **Interior**: i=1..len−2 (central difference, no conditionals).
-///
-/// The interior loop accesses data at uniform offsets (+stride, −stride)
-/// and contains no branches, enabling LLVM auto-vectorization.
-#[inline]
-pub(super) fn apply_first_derivative_1d_into(
-    data: &[f32],
-    dims: [usize; 3],
-    dim: usize,
-    out: &mut [f32],
-) {
-    let lp = line_params(dims, dim);
-    if lp.len <= 1 {
-        // Degenerate: single-element or empty line — derivative is zero.
-        for li in 0..lp.num_lines {
-            let base = line_base(dims, dim, li);
-            out[base] = 0.0;
-        }
-        return;
-    }
-
-    for li in 0..lp.num_lines {
-        let base = line_base(dims, dim, li);
-        let s = lp.stride;
-
-        // Boundary: i = 0  →  forward one-sided: x[1] − x[0]
-        out[base] = data[base + s] - data[base];
-
-        // Interior: i = 1 .. len-2  →  central difference, no conditionals
-        for i in 1..lp.len - 1 {
-            out[base + i * s] = (data[base + (i + 1) * s] - data[base + (i - 1) * s]) * 0.5;
-        }
-
-        // Boundary: i = len-1  →  backward one-sided: x[N-1] − x[N-2]
-        out[base + (lp.len - 1) * s] =
-            data[base + (lp.len - 1) * s] - data[base + (lp.len - 2) * s];
-    }
-}
-
-// ── Second derivative via second-order finite difference ──────────────────────
-
-/// Apply second-order finite difference along dimension `dim`:
-///   d²[n] = x[n+1] − 2·x[n] + x[n−1]
-/// Boundary: one-sided at edges.
-/// `_into` variant writes into a caller-provided buffer.
-///
-/// # Boundary/interior split
-///
-/// - **Boundary**: i=0 (forward one-sided), i=len−1 (backward one-sided).
-/// - **Interior**: i=1..len−2 (central difference, no conditionals).
-///
-/// The interior loop accesses data at uniform offsets (+stride, −stride)
-/// and contains no branches, enabling LLVM auto-vectorization.
-#[inline]
-pub(super) fn apply_second_derivative_1d_into(
-    data: &[f32],
-    dims: [usize; 3],
-    dim: usize,
-    out: &mut [f32],
-) {
-    let lp = line_params(dims, dim);
-    if lp.len < 3 {
-        // Degenerate: too short for any second-difference — output is zero.
-        for li in 0..lp.num_lines {
-            let base = line_base(dims, dim, li);
-            for i in 0..lp.len {
-                out[base + i * lp.stride] = 0.0;
-            }
-        }
-        return;
-    }
-
-    for li in 0..lp.num_lines {
-        let base = line_base(dims, dim, li);
-        let s = lp.stride;
-
-        // Boundary: i = 0  →  forward one-sided: x[2] - 2x[1] + x[0]
-        let x0 = data[base];
-        let x1 = data[base + s];
-        let x2 = data[base + 2 * s];
-        out[base] = x2 - 2.0 * x1 + x0;
-
-        // Interior: i = 1 .. len-2  →  central: x[i+1] - 2x[i] + x[i-1]
-        // No conditionals — uniform stride, in-bounds access.
-        for i in 1..lp.len - 1 {
-            let xp = data[base + (i + 1) * s];
-            let xc = data[base + i * s];
-            let xm = data[base + (i - 1) * s];
-            out[base + i * s] = xp - 2.0 * xc + xm;
-        }
-
-        // Boundary: i = len-1  →  backward one-sided: x[n] - 2x[n-1] + x[n-2]
-        let n = lp.len - 1;
-        let xn = data[base + n * s];
-        let xn1 = data[base + (n - 1) * s];
-        let xn2 = data[base + (n - 2) * s];
-        out[base + n * s] = xn - 2.0 * xn1 + xn2;
-    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
