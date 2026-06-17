@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.94.1] — 2026-06-17 (Sprint 399: vector-image ops — Compose / VectorMagnitude / VectorIndexSelectionCast)
+
+### Added
+- `ritk-python`: vector-image filters on the `ColorImage` (`ColorVolume`) infrastructure — `filter.compose(c0, c1, c2)` stacks three scalar images into a 3-component vector image (ITK `ComposeImageFilter`); `filter.vector_index_selection_cast(image, index)` extracts one component as a scalar image (ITK `VectorIndexSelectionCastImageFilter`); `filter.vector_magnitude(image)` computes the per-voxel Euclidean magnitude `√(Σ component²)` (ITK `VectorMagnitudeImageFilter`). All **bit/float-exact** to `sitk.Compose` / `sitk.VectorIndexSelectionCast` / `sitk.VectorMagnitude`. `.pyi` stubs + a cmake parity case (compose → magnitude + per-component selection). Coverage 157/298.
+
 ## [0.94.0] — 2026-06-17 (Sprint 398: N-ary Add / Maximum)
 
 ### Added

@@ -272,6 +272,15 @@ def color_mean(image: ColorImage, radius: int = 1) -> ColorImage:
 def color_smoothing_recursive_gaussian(image: ColorImage, sigma: float) -> ColorImage:
     """Per-component smoothing recursive Gaussian on an RGB/vector image. ITK Parity: SmoothingRecursiveGaussianImageFilter (vector)."""
     ...
+def compose(c0: Image, c1: Image, c2: Image) -> ColorImage:
+    """Compose three scalar images into a 3-component vector image. ITK Parity: ComposeImageFilter."""
+    ...
+def vector_index_selection_cast(image: ColorImage, index: int) -> Image:
+    """Extract one component of a vector image as a scalar image. ITK Parity: VectorIndexSelectionCastImageFilter."""
+    ...
+def vector_magnitude(image: ColorImage) -> Image:
+    """Per-voxel Euclidean magnitude of a vector image. ITK Parity: VectorMagnitudeImageFilter."""
+    ...
 
 def clamp_image(image: Image, lower: float, upper: float) -> Image:
     """Pixelwise clamp to [lower, upper]. ITK Parity: ClampImageFilter."""

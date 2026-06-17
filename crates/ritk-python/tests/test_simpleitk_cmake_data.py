@@ -813,6 +813,31 @@ def test_cmake_geometry_on_upstream_data(tag, rfn, sfn):
     assert _eq(rfn(ri), sfn(si)), f"{tag}: differs from sitk"
 
 
+def test_cmake_vector_ops_on_upstream_data():
+    # Compose three scalar images into a vector image, then VectorMagnitude /
+    # VectorIndexSelectionCast. ITK Parity: Compose / VectorMagnitude /
+    # VectorIndexSelectionCast. Bit/float-exact to sitk.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    comps = [arr, arr * 0.5, arr - 30.0]
+    ris = [ritk.Image(np.ascontiguousarray(c[None])) for c in comps]
+    sis = [sitk.GetImageFromArray(c) for c in comps]
+    rvec = ritk.filter.compose(ris[0], ris[1], ris[2])
+    svec = sitk.Compose(sis)
+    # VectorMagnitude
+    rmag = np.squeeze(np.asarray(ritk.filter.vector_magnitude(rvec).to_numpy(), np.float64))
+    smag = np.squeeze(sitk.GetArrayFromImage(sitk.VectorMagnitude(svec)).astype(np.float64))
+    assert np.abs(rmag - smag).max() < 1e-3, "VectorMagnitude differs from sitk"
+    # VectorIndexSelectionCast for each component
+    for k in range(3):
+        rsel = np.squeeze(np.asarray(
+            ritk.filter.vector_index_selection_cast(rvec, k).to_numpy(), np.float64))
+        ssel = np.squeeze(sitk.GetArrayFromImage(
+            sitk.VectorIndexSelectionCast(svec, k)).astype(np.float64))
+        assert np.array_equal(rsel, ssel), f"VectorIndexSelectionCast[{k}] differs from sitk"
+
+
 def test_cmake_paste_on_upstream_data():
     # Paste a cropped 40×50 region back into the image at (z,y,x)=(0,60,70).
     # ITK Parity: PasteImageFilter (sitk.Paste, destination index [x,y,z]).

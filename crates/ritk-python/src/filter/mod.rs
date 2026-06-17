@@ -131,6 +131,9 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
         crate::color::color_smoothing_recursive_gaussian,
         &m
     )?)?;
+    m.add_function(wrap_pyfunction!(crate::color::compose, &m)?)?;
+    m.add_function(wrap_pyfunction!(crate::color::vector_index_selection_cast, &m)?)?;
+    m.add_function(wrap_pyfunction!(crate::color::vector_magnitude, &m)?)?;
     // Morphology
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;

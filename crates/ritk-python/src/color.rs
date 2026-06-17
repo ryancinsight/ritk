@@ -7,15 +7,28 @@
 //! (each component filtered independently).
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::Backend;
+use crate::image::{into_py_image, Backend, PyImage};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use numpy::{ndarray::Array4, IntoPyArray, PyArray4, PyReadonlyArray4, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{map_color_components, MeanImageFilter, MedianFilter, RecursiveGaussianFilter};
-use ritk_image::ColorVolume;
+use ritk_image::{ColorVolume, Image};
 use std::sync::Arc;
+
+/// Build a scalar `Image` from a row-major `[z,y,x]` buffer and spatial metadata.
+fn scalar_image(
+    vals: Vec<f32>,
+    dims: [usize; 3],
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    direction: Direction<3>,
+) -> Image<Backend, 3> {
+    let device = NdArrayDevice::default();
+    let tensor = Tensor::<Backend, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &device);
+    Image::new(tensor, origin, spacing, direction)
+}
 
 type Rgb = ColorVolume<Backend, 3>;
 
@@ -45,8 +58,10 @@ impl PyColorImage {
         }
         let flat: Vec<f32> = array.as_array().iter().copied().collect();
         let device = NdArrayDevice::default();
-        let tensor =
-            Tensor::<Backend, 4>::from_data(TensorData::new(flat, Shape::new([z, y, x, ch])), &device);
+        let tensor = Tensor::<Backend, 4>::from_data(
+            TensorData::new(flat, Shape::new([z, y, x, ch])),
+            &device,
+        );
         let sp = spacing.unwrap_or([1.0, 1.0, 1.0]);
         let orig = origin.unwrap_or([0.0, 0.0, 0.0]);
         let vol = ColorVolume::try_new(
@@ -120,6 +135,82 @@ pub fn color_mean(py: Python<'_>, image: &PyColorImage, radius: usize) -> RitkRe
     Ok(PyColorImage {
         inner: Arc::new(out),
     })
+}
+
+/// Compose three scalar images into a 3-component (RGB) color image.
+///
+/// ITK Parity: ComposeImageFilter (`sitk.Compose`).
+#[pyfunction]
+pub fn compose(c0: &PyImage, c1: &PyImage, c2: &PyImage) -> RitkResult<PyColorImage> {
+    let dims = c0.inner.shape();
+    let (d1, d2) = (c1.inner.shape(), c2.inner.shape());
+    if dims != d1 || dims != d2 {
+        return Err(RitkPyError::value(format!(
+            "compose: component shapes differ ({dims:?} / {d1:?} / {d2:?})"
+        )));
+    }
+    let b0 = c0.inner.data_slice().into_owned();
+    let b1 = c1.inner.data_slice().into_owned();
+    let b2 = c2.inner.data_slice().into_owned();
+    let vol = ColorVolume::<Backend, 3>::from_component_buffers(
+        &[b0, b1, b2],
+        dims,
+        *c0.inner.origin(),
+        *c0.inner.spacing(),
+        *c0.inner.direction(),
+        &NdArrayDevice::default(),
+    )
+    .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok(PyColorImage {
+        inner: Arc::new(vol),
+    })
+}
+
+/// Extract one component (`index` ∈ [0, 2]) of a color image as a scalar image.
+///
+/// ITK Parity: VectorIndexSelectionCastImageFilter (`sitk.VectorIndexSelectionCast`).
+#[pyfunction]
+pub fn vector_index_selection_cast(image: &PyColorImage, index: usize) -> RitkResult<PyImage> {
+    let [d, r, c, ch] = image.inner.shape();
+    if index >= ch {
+        return Err(RitkPyError::value(format!(
+            "vector_index_selection_cast: index {index} out of range for {ch} components"
+        )));
+    }
+    let comp = image.inner.into_component_buffers().swap_remove(index);
+    Ok(into_py_image(scalar_image(
+        comp,
+        [d, r, c],
+        *image.inner.origin(),
+        *image.inner.spacing(),
+        *image.inner.direction(),
+    )))
+}
+
+/// Per-voxel Euclidean magnitude of a color image: `√(Σ_k component_k²)`.
+///
+/// ITK Parity: VectorMagnitudeImageFilter (`sitk.VectorMagnitude`).
+#[pyfunction]
+pub fn vector_magnitude(image: &PyColorImage) -> PyImage {
+    let [d, r, c, _ch] = image.inner.shape();
+    let comps = image.inner.into_component_buffers();
+    let n = d * r * c;
+    let mut mag = vec![0.0_f32; n];
+    for buf in &comps {
+        for (i, &v) in buf.iter().enumerate() {
+            mag[i] += v * v;
+        }
+    }
+    for m in &mut mag {
+        *m = m.sqrt();
+    }
+    into_py_image(scalar_image(
+        mag,
+        [d, r, c],
+        *image.inner.origin(),
+        *image.inner.spacing(),
+        *image.inner.direction(),
+    ))
 }
 
 /// Per-component smoothing recursive (Deriche) Gaussian on a color image.
