@@ -4,7 +4,7 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    BinaryContourImageFilter, BinaryThinningFilter, BlackTopHatFilter,
+    BinaryContourImageFilter, BinaryPruningFilter, BinaryThinningFilter, BlackTopHatFilter,
     ClosingByReconstructionFilter, Connectivity, ErodeObjectMorphologyFilter, GrayscaleClosingFilter,
     GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
     GrayscaleGrindPeakFilter, GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter,
@@ -85,6 +85,25 @@ pub fn grayscale_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> Rit
 pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
     let arc = std::sync::Arc::clone(&image.inner);
     let out = py.allow_threads(|| BinaryThinningFilter::new().apply(arc.as_ref()));
+    into_py_image(out)
+}
+
+/// Prune short spurs from a binary skeleton, matching `SimpleITK.BinaryPruning`
+/// (2-D). Each of `iteration` raster-order in-place sweeps removes foreground
+/// pixels with fewer than two 8-neighbours (endpoints / isolated pixels). Output
+/// is binary; apply to a `z = 1` image. ITK default `iteration = 3`.
+///
+/// Args:
+///     image:     Input binary PyImage.
+///     iteration: Number of pruning sweeps (default 3).
+///
+/// Returns:
+///     Pruned PyImage, same shape and spatial metadata as input.
+#[pyfunction]
+#[pyo3(signature = (image, iteration=3))]
+pub fn binary_pruning(py: Python<'_>, image: &PyImage, iteration: usize) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| BinaryPruningFilter::new(iteration).apply(arc.as_ref()));
     into_py_image(out)
 }
 

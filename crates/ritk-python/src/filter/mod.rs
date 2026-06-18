@@ -164,6 +164,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(erode_object_morphology, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_thinning, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_pruning, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;
     m.add_function(wrap_pyfunction!(label_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(label_opening, &m)?)?;

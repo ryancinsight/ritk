@@ -572,6 +572,22 @@ def test_cmake_binary_thinning_on_upstream_data(thr):
     assert np.array_equal(r, s), "BinaryThinning differs from sitk"
 
 
+@pytest.mark.parametrize("thr,iteration", [(40, 3), (80, 1), (120, 5)],
+                         ids=["t40i3", "t80i1", "t120i5"])
+def test_cmake_binary_pruning_on_upstream_data(thr, iteration):
+    """BinaryPruning (skeleton spur removal): `iteration` in-place raster sweeps,
+    each removing foreground pixels with <2 on-neighbours. ritk
+    `filter.binary_pruning` vs `sitk.BinaryPruning` on the thresholded cthead1
+    mask. Bit-exact — pure binary topology, in-place cascade semantics."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    sm = sitk.Cast(sitk.BinaryThreshold(si, thr, 1e9, 1, 0), sitk.sitkUInt8)
+    rm = ritk.filter.binary_threshold(ri, float(thr), 1e9, 1.0, 0.0)
+    r = np.squeeze(np.asarray(ritk.filter.binary_pruning(rm, iteration).to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(sitk.BinaryPruning(sm, iteration)).astype(np.float64)
+    assert np.array_equal(r, s), "BinaryPruning differs from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).
