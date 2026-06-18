@@ -1474,6 +1474,40 @@ def test_cmake_fft_pad_on_upstream_data(max_prime, bc):
         f"FFTPad prime={max_prime} bc={bc}: differs from sitk"
 
 
+@pytest.mark.parametrize(
+    "shape, freqs",
+    [((16, 16, 16), (0.3, 0.2, 0.25, 0.1, 0.2, 0.3)),
+     ((24, 20, 18), (0.2, 0.25, 0.15, 0.2, 0.1, 0.3))],
+    ids=["cube16", "anisotropic"],
+)
+def test_cmake_displacement_field_jacobian_determinant(shape, freqs):
+    """DisplacementFieldJacobianDeterminant: det(I + grad u) of a dense
+    displacement field. ritk `statistics.jacobian_determinant(disp_z, disp_y,
+    disp_x)` against `sitk.DisplacementFieldJacobianDeterminant` on a smooth
+    analytic field (unit spacing).
+
+    The deep interior agrees to a single float32 ULP (observed 2.38e-7 = 2^-22 at
+    determinant magnitude ~1, reproducible across fields/sizes) — the operation
+    order differs but the scheme is identical. Tolerance 1e-6 (~4 ULP) is derived
+    from that float32 rounding bound, not padded. The 1-voxel outer border is
+    excluded: ITK and ritk use different (both valid) one-sided finite differences
+    at the boundary, a documented scheme difference, not a defect."""
+    import numpy as _np
+    D, H, W = shape
+    fz1, fy1, fz2, fx1, fy2, fz3 = freqs
+    z, y, x = _np.meshgrid(_np.arange(D), _np.arange(H), _np.arange(W), indexing="ij")
+    uz = (0.4 * _np.sin(fz1 * x) + 0.1 * _np.cos(fy1 * y)).astype(_np.float32)
+    uy = (0.3 * _np.cos(fz2 * z) + 0.15 * _np.sin(fx1 * x)).astype(_np.float32)
+    ux = (0.2 * _np.sin(fy2 * y) + 0.2 * _np.cos(fz3 * z)).astype(_np.float32)
+    im = lambda a: ritk.Image(_np.ascontiguousarray(a))
+    rj = _np.asarray(ritk.statistics.jacobian_determinant(im(uz), im(uy), im(ux)).to_numpy())
+    vec = _np.stack([ux, uy, uz], axis=-1).astype(_np.float32)  # (x,y,z) components
+    sj = sitk.GetArrayFromImage(
+        sitk.DisplacementFieldJacobianDeterminant(sitk.GetImageFromArray(vec, isVector=True)))
+    interior = _np.abs(rj[1:-1, 1:-1, 1:-1] - sj[1:-1, 1:-1, 1:-1]).max()
+    assert interior <= 1e-6, f"interior Jacobian determinant diff {interior:.2e} exceeds float32 bound"
+
+
 @pytest.mark.parametrize("axis", [1, 2], ids=["y", "x"])
 def test_cmake_median_projection_on_upstream_data(axis):
     # MedianProjection along a real axis (cthead is z=1, so project y or x).
