@@ -105,6 +105,36 @@ pub fn grid_image_source(
     (out, [nz, ny, nx])
 }
 
+/// Generate a physical-point vector image (`itk::PhysicalPointImageSource`).
+///
+/// Each voxel holds its own physical coordinate as a 3-component vector:
+/// component `d` at index `i` is `origin_d + index_d · spacing_d` (identity
+/// direction). Returns the three channel buffers in sitk axis order `(x, y, z)`
+/// and dims `[nz, ny, nx]`; matches `sitk.PhysicalPointSource`.
+pub fn physical_point_image_source(
+    size_xyz: [usize; 3],
+    origin_xyz: [f64; 3],
+    spacing_xyz: [f64; 3],
+) -> ([Vec<f32>; 3], [usize; 3]) {
+    let [nx, ny, nz] = size_xyz;
+    let n = nx * ny * nz;
+    let (mut cx, mut cy, mut cz) = (vec![0.0f32; n], vec![0.0f32; n], vec![0.0f32; n]);
+    for z in 0..nz {
+        let pz = (origin_xyz[2] + z as f64 * spacing_xyz[2]) as f32;
+        for y in 0..ny {
+            let py = (origin_xyz[1] + y as f64 * spacing_xyz[1]) as f32;
+            let row = (z * ny + y) * nx;
+            for x in 0..nx {
+                let i = row + x;
+                cx[i] = (origin_xyz[0] + x as f64 * spacing_xyz[0]) as f32;
+                cy[i] = py;
+                cz[i] = pz;
+            }
+        }
+    }
+    ([cx, cy, cz], [nz, ny, nx])
+}
+
 #[cfg(test)]
 #[path = "tests_sources.rs"]
 mod tests_sources;

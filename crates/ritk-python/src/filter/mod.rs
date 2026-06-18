@@ -152,6 +152,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::color::scalar_to_rgb_colormap, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::label_to_rgb, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::label_overlay, &m)?)?;
+    m.add_function(wrap_pyfunction!(crate::color::physical_point_image_source, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::vector_index_selection_cast, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::vector_magnitude, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::edge_potential, &m)?)?;

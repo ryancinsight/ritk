@@ -14,9 +14,9 @@ use numpy::{ndarray::Array4, IntoPyArray, PyArray4, PyReadonlyArray4, PyUntypedA
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
-    map_color_components, Colormap, GradientImageFilter, GradientRecursiveGaussianImageFilter,
-    LabelOverlayFilter, LabelToRGBFilter, MeanImageFilter, MedianFilter, RecursiveGaussianFilter,
-    ScalarToRGBColormapFilter,
+    map_color_components, physical_point_image_source as core_physical_point_image_source, Colormap,
+    GradientImageFilter, GradientRecursiveGaussianImageFilter, LabelOverlayFilter, LabelToRGBFilter,
+    MeanImageFilter, MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter,
 };
 use ritk_image::{ColorVolume, Image};
 use std::sync::Arc;
@@ -138,6 +138,39 @@ pub fn color_mean(py: Python<'_>, image: &PyColorImage, radius: usize) -> RitkRe
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
+    })
+}
+
+/// Generate a physical-point vector image: each voxel holds its own physical
+/// coordinate `(origin_d + index_d·spacing_d)` as a 3-component vector (sitk
+/// `(x, y, z)` component order). ITK Parity: PhysicalPointImageSource
+/// (`sitk.PhysicalPointSource`).
+#[pyfunction]
+#[pyo3(signature = (size, origin=(0.0, 0.0, 0.0), spacing=(1.0, 1.0, 1.0)))]
+pub fn physical_point_image_source(
+    py: Python<'_>,
+    size: (usize, usize, usize),
+    origin: (f64, f64, f64),
+    spacing: (f64, f64, f64),
+) -> RitkResult<PyColorImage> {
+    let ([cx, cy, cz], dims) = py.allow_threads(|| {
+        core_physical_point_image_source(
+            [size.0, size.1, size.2],
+            [origin.0, origin.1, origin.2],
+            [spacing.0, spacing.1, spacing.2],
+        )
+    });
+    let vol = ColorVolume::<Backend, 3>::from_component_buffers(
+        &[cx, cy, cz],
+        dims,
+        Point::new([origin.2, origin.1, origin.0]),
+        Spacing::new([spacing.2, spacing.1, spacing.0]),
+        Direction::identity(),
+        &NdArrayDevice::default(),
+    )
+    .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok(PyColorImage {
+        inner: Arc::new(vol),
     })
 }
 

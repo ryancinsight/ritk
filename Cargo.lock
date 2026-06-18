@@ -6529,7 +6529,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-filter"
-version = "0.2.52"
+version = "0.2.53"
 dependencies = [
  "anyhow",
  "burn",
@@ -6782,7 +6782,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-python"
-version = "0.12.63"
+version = "0.12.64"
 dependencies = [
  "anyhow",
  "burn",

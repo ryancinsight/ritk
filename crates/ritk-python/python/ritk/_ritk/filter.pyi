@@ -340,6 +340,9 @@ def label_to_rgb(image: Image, background: int = 0) -> ColorImage:
 def label_overlay(image: Image, label: Image, opacity: float = 0.5, background: int = 0) -> ColorImage:
     """Overlay a label image on grayscale as RGB (alpha-blend with colour table). ITK Parity: LabelOverlayImageFilter."""
     ...
+def physical_point_image_source(size: tuple[int, int, int], origin: tuple[float, float, float] = (0.0, 0.0, 0.0), spacing: tuple[float, float, float] = (1.0, 1.0, 1.0)) -> ColorImage:
+    """Generate a vector image holding each voxel's physical coordinate. ITK Parity: PhysicalPointImageSource."""
+    ...
 def vector_index_selection_cast(image: ColorImage, index: int) -> Image:
     """Extract one component of a vector image as a scalar image. ITK Parity: VectorIndexSelectionCastImageFilter."""
     ...

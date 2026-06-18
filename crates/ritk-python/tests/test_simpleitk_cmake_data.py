@@ -513,6 +513,18 @@ def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     assert np.array_equal(r, s), "BinaryOpeningByReconstruction differs from sitk"
 
 
+def test_cmake_physical_point_image_source():
+    """PhysicalPointImageSource: each voxel holds its physical coordinate as a
+    3-component vector. Bit-exact to ITK's PhysicalPointImageSource."""
+    size, origin, spacing = [5, 4, 3], [1.0, 2.0, 3.0], [0.5, 0.7, 0.9]
+    r = np.asarray(ritk.filter.physical_point_image_source(
+        tuple(size), tuple(origin), tuple(spacing)).to_numpy(), np.float64)
+    s = sitk.GetArrayFromImage(
+        sitk.PhysicalPointSource(sitk.sitkVectorFloat32, size, origin, spacing)).astype(np.float64)
+    assert r.shape == s.shape, f"shape {r.shape} != {s.shape}"
+    assert np.abs(r - s).max() < 1e-4, f"PhysicalPointImageSource max abs diff {np.abs(r - s).max()}"
+
+
 def test_cmake_gaussian_image_source():
     """GaussianImageSource generates a Gaussian blob from parameters (no input
     image); float-exact to ITK's GaussianImageSource / sitk.GaussianSource."""

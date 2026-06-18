@@ -1,4 +1,4 @@
-use super::{gaussian_image_source, grid_image_source};
+use super::{gaussian_image_source, grid_image_source, physical_point_image_source};
 
 /// Peak at the mean voxel, value = scale; symmetric falloff matching
 /// `exp(−½·((p−mean)/sigma)²)`. 1-D along x: size 9, sigma 6, mean 8, scale 100,
@@ -60,4 +60,18 @@ fn grid_source_dark_lines_bright_between() {
     assert!((buf[1] - 220.49).abs() < 0.1, "x=1: {}", buf[1]);
     assert!((buf[2] - 254.83).abs() < 0.1, "x=2: {}", buf[2]);
     assert!(buf[4].abs() < 1e-2, "line x=4 should be ~0, got {}", buf[4]);
+}
+
+/// Physical-point source: component d holds `origin_d + index_d·spacing_d`.
+/// size [3,2,1] (x,y,z), origin (2,3,4), spacing (10,20,30): voxel (z0,y1,x2)
+/// → (2+2·10, 3+1·20, 4) = (22, 23, 4). Pinned by sitk.
+#[test]
+fn physical_point_source_holds_coordinate() {
+    let ([cx, cy, cz], dims) =
+        physical_point_image_source([3, 2, 1], [2.0, 3.0, 4.0], [10.0, 20.0, 30.0]);
+    assert_eq!(dims, [1, 2, 3]);
+    let i = (0 * 2 + 1) * 3 + 2; // z=0, y=1, x=2
+    assert_eq!((cx[i], cy[i], cz[i]), (22.0, 23.0, 4.0));
+    // voxel (0,0,0) holds the origin.
+    assert_eq!((cx[0], cy[0], cz[0]), (2.0, 3.0, 4.0));
 }
