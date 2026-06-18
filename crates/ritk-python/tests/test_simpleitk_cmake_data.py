@@ -1800,6 +1800,27 @@ def test_cmake_forward_inverse_fft_on_upstream_data():
     assert np.abs(rinv - sinv).max() < 1e-3, "InverseFFT differs from sitk"
 
 
+@pytest.mark.parametrize("shape", [(1, 8, 8), (1, 6, 10), (2, 9, 15)],
+                         ids=["8x8", "6x10", "9x15"])
+def test_cmake_real_to_half_hermitian_forward_fft(shape):
+    """RealToHalfHermitianForwardFFT: the non-redundant half (first W/2+1 last-
+    axis columns) of the real-input DFT. ritk
+    `filter.real_to_half_hermitian_forward_fft` vs sitk. Float-exact to the full
+    FFT precision. Sizes use only 2/3/5 prime factors (sitk's VNL FFT constraint;
+    ritk's rustfft has no such limit)."""
+    import numpy as _np
+    _np.random.seed(0)
+    img = (_np.random.rand(*shape).astype(_np.float32)) * 100.0
+    si = sitk.GetImageFromArray(img)
+    sa = sitk.GetArrayFromImage(sitk.RealToHalfHermitianForwardFFT(si))  # complex
+    rf = _np.asarray(
+        ritk.filter.real_to_half_hermitian_forward_fft(ritk.Image(_np.ascontiguousarray(img))).to_numpy())
+    rc = rf[..., 0::2] + 1j * rf[..., 1::2]  # deinterleave [D,H,W/2+1]
+    assert rc.shape == sa.shape, f"half shape {rc.shape} != sitk {sa.shape}"
+    denom = max(float(_np.abs(sa).max()), 1.0)
+    assert float(_np.abs(rc - sa).max()) / denom < 1e-6, "half-Hermitian FFT differs from sitk"
+
+
 def test_cmake_complex_ops_on_upstream_data():
     # Build a complex image from real+imag parts in both ritk (interleaved
     # [D,H,2W]) and sitk, then compare ComplexTo{Real,Imaginary,Modulus,Phase}.

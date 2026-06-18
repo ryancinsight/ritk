@@ -26,7 +26,9 @@ use crate::image::{into_py_image, Backend, PyImage};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
-use ritk_filter::{FftShiftFilter, ForwardFftFilter, InverseFftFilter};
+use ritk_filter::{
+    FftShiftFilter, ForwardFftFilter, InverseFftFilter, RealToHalfHermitianForwardFftFilter,
+};
 use ritk_image::Image;
 use std::sync::Arc;
 
@@ -113,10 +115,7 @@ pub fn real_and_imaginary_to_complex(real: &PyImage, imaginary: &PyImage) -> Rit
 /// Build a complex image from magnitude and phase: `re = m·cos(p)`, `im = m·sin(p)`.
 /// ITK Parity: MagnitudeAndPhaseToComplexImageFilter (`sitk.MagnitudeAndPhaseToComplex`).
 #[pyfunction]
-pub fn magnitude_and_phase_to_complex(
-    magnitude: &PyImage,
-    phase: &PyImage,
-) -> RitkResult<PyImage> {
+pub fn magnitude_and_phase_to_complex(magnitude: &PyImage, phase: &PyImage) -> RitkResult<PyImage> {
     build_complex(magnitude, phase, |m, p| (m * p.cos(), m * p.sin()))
 }
 
@@ -174,6 +173,30 @@ pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         ForwardFftFilter::new()
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Real-to-half-Hermitian forward FFT, matching
+/// `SimpleITK.RealToHalfHermitianForwardFFT`.
+///
+/// The DFT of a real image is Hermitian-symmetric, so only the first `W/2+1`
+/// last-axis columns are independent. This returns that non-redundant half:
+/// input `[D, H, W]` → output `[D, H, 2*(W/2+1)]` interleaved `(Re, Im)`. The
+/// retained values equal `forward_fft`'s leading columns bitwise.
+///
+/// Args:
+///     image: Input PyImage (real-valued, shape [D, H, W]).
+///
+/// Returns:
+///     Half-Hermitian complex PyImage of shape [D, H, 2*(W/2+1)].
+#[pyfunction]
+pub fn real_to_half_hermitian_forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        RealToHalfHermitianForwardFftFilter::new()
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

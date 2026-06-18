@@ -95,6 +95,49 @@ impl Default for ForwardFftFilter {
     }
 }
 
+/// Real-to-half-Hermitian forward FFT (`itk::RealToHalfHermitianForwardFFTImageFilter`).
+///
+/// The DFT of a real signal is Hermitian-symmetric, so the last-axis columns
+/// `W/2+1 .. W-1` are conjugates of the retained columns and carry no new
+/// information. This filter computes the full forward FFT and keeps only the
+/// non-redundant half along the last axis: input `[..., W]` → output
+/// `[..., 2*(W/2 + 1)]` interleaved `(Re, Im)`. The kept values are bitwise the
+/// same as the corresponding columns of [`ForwardFftFilter`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RealToHalfHermitianForwardFftFilter;
+
+impl RealToHalfHermitianForwardFftFilter {
+    /// Create a new filter.
+    #[inline]
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Apply the half-Hermitian forward FFT to a D-dimensional real image.
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Result<Image<B, D>> {
+        let dims = image.shape();
+        let w = dims[D - 1];
+        let half_cols = w / 2 + 1;
+
+        // Full forward FFT, then retain the first `half_cols` complex columns of
+        // every last-axis row (each column is two interleaved f32 values).
+        let full = ForwardFftFilter::apply_inner::<B, D>(image)?;
+        let (full_vals, full_dims) = extract_vec(&full)?;
+        let row = full_dims[D - 1]; // == 2 * w
+        let keep = 2 * half_cols;
+        let rows = full_vals.len() / row;
+        let mut out = Vec::with_capacity(rows * keep);
+        for r in 0..rows {
+            let base = r * row;
+            out.extend_from_slice(&full_vals[base..base + keep]);
+        }
+
+        let mut out_dims = dims;
+        out_dims[D - 1] = keep;
+        Ok(rebuild(out, out_dims, image))
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 #[path = "tests_forward.rs"]

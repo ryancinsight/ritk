@@ -224,6 +224,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(signed_distance_map, &m)?)?;
     // FFT / frequency domain
     m.add_function(wrap_pyfunction!(forward_fft, &m)?)?;
+    m.add_function(wrap_pyfunction!(real_to_half_hermitian_forward_fft, &m)?)?;
     m.add_function(wrap_pyfunction!(inverse_fft, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_shift, &m)?)?;
     m.add_function(wrap_pyfunction!(complex_to_real, &m)?)?;

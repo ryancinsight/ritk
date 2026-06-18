@@ -119,7 +119,7 @@ pub use deconvolution::{
 pub use fft::{
     FftConvolution3DFilter, FftConvolutionFilter, FftFilterKind, FftNormalizedCorrelation3DFilter,
     FftNormalizedCorrelationFilter, FftShiftFilter, ForwardFftFilter, FrequencyDomainFilter,
-    InverseFftFilter,
+    InverseFftFilter, RealToHalfHermitianForwardFftFilter,
 };
 
 // ── Spatial transforms & grid operations ─────────────────────────────────────

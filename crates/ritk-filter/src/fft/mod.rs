@@ -43,7 +43,7 @@ pub use convolution::{
     fft_nd, FftConvolution3DFilter, FftConvolutionFilter, FftNormalizedCorrelation3DFilter,
     FftNormalizedCorrelationFilter,
 };
-pub use forward::ForwardFftFilter;
+pub use forward::{ForwardFftFilter, RealToHalfHermitianForwardFftFilter};
 pub use frequency_filter::{
     ButterworthHighPass, ButterworthLowPass, FftFilterKind, FrequencyDomainFilter,
     FrequencyResponse, IdealHighPass, IdealLowPass,

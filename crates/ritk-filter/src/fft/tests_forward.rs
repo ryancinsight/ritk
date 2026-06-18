@@ -164,3 +164,43 @@ fn all_zero_input_gives_all_zero_output() {
         );
     }
 }
+
+// ── Half-Hermitian forward FFT ───────────────────────────────────────────────
+
+/// The half-Hermitian forward FFT keeps the first `W/2+1` complex columns of the
+/// full forward FFT, bitwise. Shape: `[D, H, W]` → `[D, H, 2*(W/2+1)]`, and the
+/// retained interleaved values equal the full transform's leading columns.
+#[test]
+fn half_hermitian_matches_full_forward_leading_columns() {
+    use crate::fft::RealToHalfHermitianForwardFftFilter;
+    let (d, h, w) = (2usize, 4, 8);
+    let data: Vec<f32> = (0..d * h * w)
+        .map(|i| (i as f32 * 0.37).sin() * 10.0)
+        .collect();
+    let img = make_real_3d(data, d, h, w);
+
+    let full = ForwardFftFilter::new().apply(&img).unwrap();
+    let half = RealToHalfHermitianForwardFftFilter::new()
+        .apply(&img)
+        .unwrap();
+
+    let half_cols = w / 2 + 1;
+    assert_eq!(
+        half.shape(),
+        [d, h, 2 * half_cols],
+        "half-Hermitian output shape must be [D, H, 2*(W/2+1)]"
+    );
+
+    let (fv, _) = extract_vec(&full).unwrap();
+    let (hv, _) = extract_vec(&half).unwrap();
+    let full_row = 2 * w;
+    let keep = 2 * half_cols;
+    let rows = d * h;
+    for r in 0..rows {
+        for c in 0..keep {
+            let got = hv[r * keep + c];
+            let want = fv[r * full_row + c];
+            assert_eq!(got, want, "half col mismatch at row {r}, elem {c}");
+        }
+    }
+}
