@@ -7,6 +7,23 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.45] — 2026-06-18 (Sprint 458: Warp parity)
+
+### Added
+- `ritk-filter`: `warp_image` — resamples a moving image through a dense
+  displacement field, `out(p) = moving(p + D(p))`, with trilinear interpolation
+  and ITK's `IsInsideBuffer` edge gate (out-of-buffer samples → 0). Full physical
+  coordinates (origin / spacing / direction) on both the field and moving grids;
+  the moving direction matrix is pre-inverted out of the hot loop. Matches
+  `itk::WarpImageFilter`. `[minor]`
+- `ritk-python`: `filter.warp(moving, disp_z, disp_y, disp_x)` binding (component
+  convention mirrors `statistics.jacobian_determinant`). `[minor]`
+- Tests: 4 Rust core tests (ramp-shift exactness, out-of-bounds → 0, zero-field
+  identity, shape-mismatch error) plus 2 Python parity cases — matches
+  `sitk.Warp` (linear) to **float precision** (max diff 1.5e-5) over the full
+  image, including boundary handling, on cube and anisotropic fields. Coverage
+  233 → 234/298.
+
 ## [0.102.44] — 2026-06-18 (Sprint 457: InverseDeconvolution parity)
 
 ### Added

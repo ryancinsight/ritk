@@ -147,9 +147,11 @@ pub use transform::{
 pub mod distance;
 pub mod rank;
 pub mod surface;
+pub mod warp;
 
 pub use distance::{
     BinarizationThreshold, DistanceTransformImageFilter, SignedDistanceTransformImageFilter,
 };
+pub use warp::warp_image;
 pub use rank::{PercentileFilter, RankFilter};
 pub use surface::{MarchingCubesFilter, Mesh, MeshBuilder};

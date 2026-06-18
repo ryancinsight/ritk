@@ -209,6 +209,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(paste, &m)?)?;
     // Spatial transforms
     m.add_function(wrap_pyfunction!(resample_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(warp, &m)?)?;
     m.add_function(wrap_pyfunction!(rotate_image, &m)?)?;
     m.add_function(wrap_pyfunction!(shift_image, &m)?)?;
     m.add_function(wrap_pyfunction!(zoom_image, &m)?)?;

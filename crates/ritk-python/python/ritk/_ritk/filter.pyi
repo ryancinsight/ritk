@@ -519,6 +519,11 @@ def resample_image(
     spacing_x: float = 1.0,
     mode: str = "linear",
 ) -> Image: ...
+def warp(
+    moving: Image, disp_z: Image, disp_y: Image, disp_x: Image
+) -> Image:
+    """Warp `moving` through a dense displacement field (trilinear). out(p)=moving(p+D(p)). ITK Parity: WarpImageFilter."""
+    ...
 def rotate_image(
     image: Image,
     angle_x: float = 0.0,

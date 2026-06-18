@@ -1508,6 +1508,40 @@ def test_cmake_displacement_field_jacobian_determinant(shape, freqs):
     assert interior <= 1e-6, f"interior Jacobian determinant diff {interior:.2e} exceeds float32 bound"
 
 
+@pytest.mark.parametrize(
+    "shape, amps",
+    [((16, 16, 16), (0.8, 1.2, 1.5)), ((20, 14, 18), (1.0, 0.5, 2.0))],
+    ids=["cube16", "anisotropic"],
+)
+def test_cmake_warp_on_displacement_field(shape, amps):
+    """Warp a moving image through a dense displacement field:
+    out(p) = moving(p + D(p)), trilinear. ritk `filter.warp(moving, disp_z,
+    disp_y, disp_x)` against `sitk.Warp` (linear interpolator) on a smooth
+    analytic field (unit spacing). Matches to float precision over the full
+    image, including the IsInsideBuffer edge gate (out-of-buffer samples -> 0)."""
+    import numpy as _np
+    D, H, W = shape
+    az, ay, ax = amps
+    img = (_np.sin(_np.arange(D * H * W).reshape(D, H, W) * 0.07) * 50 + 50).astype(_np.float32)
+    z, y, x = _np.meshgrid(_np.arange(D), _np.arange(H), _np.arange(W), indexing="ij")
+    dz = (az * _np.sin(0.2 * x)).astype(_np.float32)
+    dy = (ay * _np.cos(0.15 * z)).astype(_np.float32)
+    dx = (ax * _np.sin(0.1 * y)).astype(_np.float32)
+    vec = _np.stack([dx, dy, dz], axis=-1).astype(_np.float32)  # (x,y,z) components
+    sw = sitk.GetArrayFromImage(
+        sitk.Warp(
+            sitk.GetImageFromArray(img),
+            sitk.GetImageFromArray(vec, isVector=True),
+            interpolator=sitk.sitkLinear,
+            outputSize=[W, H, D],
+        )
+    )
+    im = lambda a: ritk.Image(_np.ascontiguousarray(a))
+    rw = _np.asarray(ritk.filter.warp(im(img), im(dz), im(dy), im(dx)).to_numpy())
+    diff = float(_np.abs(rw - sw).max())
+    assert diff < 1e-3, f"Warp full-image diff {diff:.2e} exceeds float tolerance"
+
+
 @pytest.mark.parametrize("axis", [1, 2], ids=["y", "x"])
 def test_cmake_median_projection_on_upstream_data(axis):
     # MedianProjection along a real axis (cthead is z=1, so project y or x).

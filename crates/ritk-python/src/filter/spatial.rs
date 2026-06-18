@@ -498,3 +498,31 @@ fn euler_zxy_matrix(angle_x: f64, angle_y: f64, angle_z: f64) -> [[f64; 3]; 3] {
     let rz = [[cg, -sg, 0.0], [sg, cg, 0.0], [0.0, 0.0, 1.0]];
     matmul3(rz, matmul3(rx, ry))
 }
+
+// ── Warp (dense displacement field) ────────────────────────────────────────
+
+/// Warp a moving image through a dense displacement field.
+///
+/// `out(p) = moving(p + D(p))` with trilinear interpolation, matching
+/// `SimpleITK.Warp` (linear interpolator). The displacement field is supplied as
+/// three scalar component images `(disp_z, disp_y, disp_x)` on the output grid,
+/// each `[D, H, W]` and in physical units; the output adopts the field geometry.
+/// Samples whose mapped point leaves the moving buffer take 0 (edge padding).
+#[pyfunction]
+pub fn warp(
+    py: Python<'_>,
+    moving: &PyImage,
+    disp_z: &PyImage,
+    disp_y: &PyImage,
+    disp_x: &PyImage,
+) -> RitkResult<PyImage> {
+    let mv = std::sync::Arc::clone(&moving.inner);
+    let dz = std::sync::Arc::clone(&disp_z.inner);
+    let dy = std::sync::Arc::clone(&disp_y.inner);
+    let dx = std::sync::Arc::clone(&disp_x.inner);
+    py.allow_threads(|| {
+        ritk_filter::warp_image(mv.as_ref(), dz.as_ref(), dy.as_ref(), dx.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
