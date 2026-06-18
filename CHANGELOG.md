@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.102.0] — 2026-06-17 (Sprint 413: Derivative)
+
+### Added
+- `ritk-filter` / `ritk-python`: `DerivativeImageFilter` + `filter.derivative(image, direction, order, use_image_spacing)` — directional central-difference derivative of order 1 (`[−½,0,½]`) or 2 (`[1,−2,1]`) along one axis, edge-clamp (zero-flux Neumann) boundary, matching ITK `DerivativeImageFilter` / `sitk.Derivative`. `direction` uses the sitk x/y/z convention (mapped to ritk's `z,y,x` axis internally). **Float-exact** to sitk on cthead for orders 1 and 2, all axes. Value-semantic Rust tests (ramp probe `[5,10,10,10,5]`, `d²/dx²(x²)=2`, spacing scaling). `.pyi` stub + cmake parity cases; coverage 180/298.
+
+### Notes
+- Validation caught a spacing-scaling subtlety: ITK's `DerivativeOperator` divides by `spacing` **once regardless of order** (order-2 with spacing 2 divides by 2, not 4) — confirmed against `sitk.Derivative` and fixed before commit rather than assuming `spacing^order`.
+
 ## [0.101.0] — 2026-06-17 (Sprint 412: NormalizeToConstant)
 
 ### Added

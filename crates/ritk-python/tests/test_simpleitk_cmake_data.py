@@ -773,6 +773,25 @@ def test_cmake_regional_extrema_on_upstream_data(tag, rfn, sfn):
     assert np.array_equal(r, s), f"{tag}: differs from sitk"
 
 
+@pytest.mark.parametrize("direction,order", [(0, 1), (1, 1), (0, 2)],
+                         ids=["dx-o1", "dy-o1", "dx-o2"])
+def test_cmake_derivative_on_upstream_data(direction, order):
+    # Directional central-difference derivative. ITK Parity: DerivativeImageFilter.
+    # ritk direction uses the sitk x/y/z convention directly. Build the ritk
+    # image from the sitk array with matching spacing so useImageSpacing agrees.
+    _, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)  # (Y, X)
+    sx, sy = si.GetSpacing()
+    ri = ritk.Image(np.ascontiguousarray(arr[None]), spacing=[1.0, sy, sx])  # [z,y,x]
+    r = np.squeeze(np.asarray(
+        ritk.filter.derivative(ri, direction, order, True).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.Derivative(si, direction, order, True)).astype(np.float64))
+    assert np.abs(r - s).max() < 1e-3, \
+        f"Derivative dir={direction} order={order}: maxdiff {np.abs(r-s).max():.2e}"
+
+
 @pytest.mark.parametrize("constant", [1.0, 1000.0], ids=["c1", "c1000"])
 def test_cmake_normalize_to_constant_on_upstream_data(constant):
     # Scale so the sum equals `constant`. ITK Parity: NormalizeToConstantImageFilter.

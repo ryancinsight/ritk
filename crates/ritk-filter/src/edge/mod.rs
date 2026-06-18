@@ -1,4 +1,5 @@
 pub mod canny;
+pub mod derivative;
 pub mod gaussian_sigma;
 pub mod gradient_magnitude;
 pub mod laplacian;
@@ -8,6 +9,7 @@ pub mod separable_gradient;
 pub mod sobel;
 
 pub use canny::CannyEdgeDetector;
+pub use derivative::DerivativeImageFilter;
 pub use gaussian_sigma::GaussianSigma;
 pub use gradient_magnitude::GradientMagnitudeFilter;
 pub use laplacian::LaplacianFilter;

@@ -4,9 +4,38 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    edge::GaussianSigma, CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter,
-    LaplacianOfGaussianFilter, SobelFilter,
+    edge::GaussianSigma, CannyEdgeDetector, DerivativeImageFilter, GradientMagnitudeFilter,
+    LaplacianFilter, LaplacianOfGaussianFilter, SobelFilter,
 };
+
+/// Directional derivative (central differences) along `direction` (sitk axis:
+/// 0 = x, 1 = y, 2 = z), of the given `order` (1 or 2). With `use_image_spacing`
+/// the result is divided by `spacing^order`. ITK Parity: DerivativeImageFilter
+/// (`sitk.Derivative`).
+#[pyfunction]
+#[pyo3(signature = (image, direction=0, order=1, use_image_spacing=true))]
+pub fn derivative(
+    py: Python<'_>,
+    image: &PyImage,
+    direction: usize,
+    order: usize,
+    use_image_spacing: bool,
+) -> RitkResult<PyImage> {
+    if direction > 2 {
+        return Err(RitkPyError::value(format!(
+            "derivative: direction must be 0 (x), 1 (y), or 2 (z); got {direction}"
+        )));
+    }
+    // sitk direction [x,y,z] → ritk tensor axis [z,y,x].
+    let axis = 2 - direction;
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        DerivativeImageFilter::new(axis, order, use_image_spacing)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
 
 /// Compute the gradient magnitude |∇I| via central finite differences.
 ///
