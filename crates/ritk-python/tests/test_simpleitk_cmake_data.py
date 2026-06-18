@@ -193,6 +193,13 @@ _CASES = [
     ("GradientRecursiveGaussian/3dFloat", "RA-Float.nrrd",
      lambda ri: ritk.filter.gradient_recursive_gaussian(ri, 1.5),
      lambda si: sitk.GradientRecursiveGaussian(si, 1.5), 1e-6),
+    # True ITK subsample Shrink (no averaging). ritk factors (z,y,x); sitk [x,y,z].
+    ("Shrink/3dFloat", "RA-Float.nrrd",
+     lambda ri: ritk.filter.shrink(ri, 2, 2, 2),
+     lambda si: sitk.Shrink(si, [2, 2, 2]), 0.0),
+    ("Shrink/anisotropic", "RA-Float.nrrd",
+     lambda ri: ritk.filter.shrink(ri, 1, 2, 3),
+     lambda si: sitk.Shrink(si, [3, 2, 1]), 0.0),
 ]
 
 # Two-input image-arithmetic cases (<Filter>.yaml::tag with two inputs).

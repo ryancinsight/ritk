@@ -271,7 +271,7 @@ impl SnapApp {
                     factor_z,
                     factor_y,
                     factor_x,
-                } => ritk_filter::ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x])
+                } => ritk_filter::TileMeanShrinkFilter::new([*factor_z, *factor_y, *factor_x])
                     .apply(&image),
                 crate::FilterKind::ConstantPad {
                     pad_lower_z,

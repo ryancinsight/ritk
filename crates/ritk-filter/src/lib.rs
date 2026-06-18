@@ -125,7 +125,7 @@ pub use resample::ResampleImageFilter;
 pub use transform::{
     ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, FlipPolicy,
     MirrorPadImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
-    RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter,
+    RegionOfInterestImageFilter, ShrinkImageFilter, TileMeanShrinkFilter, WrapPadImageFilter,
     ZeroFluxNeumannPadImageFilter,
 };
 

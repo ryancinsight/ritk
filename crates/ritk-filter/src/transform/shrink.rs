@@ -1,60 +1,50 @@
-//! Shrink (integer downsampling) image filter.
+//! Integer downsampling filters.
 //!
-//! # Mathematical Specification
+//! Two distinct downsampling operations live here, matching two distinct ITK
+//! filters:
 //!
-//! For a 3-D image `I` with shape `[Nz, Ny, Nx]` and spacing `(sz, sy, sx)`,
-//! the shrink filter with integer factors `[fz, fy, fx]` (all ≥ 1) produces an
-//! output image with shape:
-//!
-//! ```text
-//! [oz, oy, ox] = [ceil(Nz/fz), ceil(Ny/fy), ceil(Nx/fx)]
-//! ```
-//!
-//! Each output voxel at `(iz, iy, ix)` is the arithmetic mean of all input voxels
-//! in the axis-aligned tile:
-//!
-//! ```text
-//! tile(iz,iy,ix) = {(kz, ky, kx) : kz ∈ [iz·fz, min((iz+1)·fz−1, Nz−1)],
-//!                                    ky ∈ [iy·fy, min((iy+1)·fy−1, Ny−1)],
-//!                                    kx ∈ [ix·fx, min((ix+1)·fx−1, Nx−1)]}
-//! out(iz,iy,ix) = mean_{(kz,ky,kx) ∈ tile} I(kz, ky, kx)
-//! ```
-//!
-//! The output spacing is updated: `out_spacing[i] = in_spacing[i] × factor[i]`.
-//! The origin is unchanged (corresponds to the center of the first output voxel).
-//!
-//! # ITK Parity
-//!
-//! Corresponds to `itk::ShrinkImageFilter<TInputImage, TOutputImage>`.
-//! ITK uses averaging within each tile. Default factors = [1, 1, 1] (identity).
-//! Note: ITK `ShrinkImageFilter` uses subsampling (single voxel per tile);
-//! this implementation uses averaging for anti-aliasing. For subsampling without
-//! averaging, set `averaging = false`.
-//!
-//! # Reference
-//!
-//! - Gonzalez, R.C. & Woods, R.E. (2008). *Digital Image Processing*, 3rd ed. §4.7.
+//! - [`ShrinkImageFilter`] — **subsampling** (ITK `ShrinkImageFilter` /
+//!   `sitk.Shrink`): keeps one voxel per tile, no averaging, `floor(N/f)` output
+//!   size. The kept voxel is offset `f/2` into each tile and the origin is
+//!   shifted to that tile's centroid.
+//! - [`TileMeanShrinkFilter`] — **tile averaging** (anti-aliased display
+//!   downsample): the arithmetic mean of every voxel in each tile, `ceil(N/f)`
+//!   output size (trailing partial tiles averaged). This is NOT ITK `Shrink`
+//!   (which subsamples); for full-bin averaging with `floor(N/f)` size use
+//!   `BinShrinkImageFilter` (ITK `BinShrink`).
 
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_spatial::Spacing;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 
-/// Integer downsampling filter.
+/// Integer **subsampling** filter — ITK `ShrinkImageFilter` / `sitk.Shrink`.
 ///
-/// Reduces image dimensions by integer factors, computing the mean of each tile.
+/// # Mathematical Specification
+///
+/// For input shape `[Nz, Ny, Nx]` and factors `[fz, fy, fx]` (all ≥ 1):
+///
+/// ```text
+/// out_shape[d] = floor(N[d] / f[d])
+/// offset[d]    = (N[d] mod f[d] + f[d]) / 2            (integer; centers samples)
+/// out(iz,iy,ix) = I(iz·fz + offset_z, iy·fy + offset_y, ix·fx + offset_x)
+/// ```
+///
+/// ITK centers the retained samples within the full extent, so the per-axis
+/// offset depends on the trailing remainder `N mod f` (it equals `f/2` only when
+/// the axis divides evenly). The output spacing is `in_spacing[d] · f[d]`, and
+/// the origin is shifted by the continuous centroid offset
+/// `(N mod f + f − 1)/2` voxels: `out_origin = in_origin + Direction · (in_spacing · shift)`.
+///
+/// No averaging is performed (cf. [`TileMeanShrinkFilter`] / `BinShrink`).
 #[derive(Debug, Clone)]
 pub struct ShrinkImageFilter {
-    /// Downsampling factors per axis `\[fz, fy, fx\]`. All must be ≥ 1. Default \[1,1,1\].
+    /// Subsampling factors per axis `\[fz, fy, fx\]`. All must be ≥ 1. Default \[1,1,1\].
     pub shrink_factors: [usize; 3],
 }
 
 impl ShrinkImageFilter {
-    /// Construct with the given per-axis shrink factors (all ≥ 1).
-    ///
-    /// # Panics
-    ///
-    /// Does not panic, but using factors of 0 is treated as 1 (identity).
+    /// Construct with the given per-axis subsampling factors (0 is treated as 1).
     pub fn new(shrink_factors: [usize; 3]) -> Self {
         Self { shrink_factors }
     }
@@ -67,7 +57,98 @@ impl Default for ShrinkImageFilter {
 }
 
 impl ShrinkImageFilter {
-    /// Apply the shrink filter to a 3-D image.
+    /// Apply the subsampling shrink to a 3-D image.
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+        let [nz, ny, nx] = image.shape();
+        let [fz, fy, fx] = [
+            self.shrink_factors[0].max(1),
+            self.shrink_factors[1].max(1),
+            self.shrink_factors[2].max(1),
+        ];
+
+        // Output shape: floor(N/f).
+        let (oz, oy, ox) = (nz / fz, ny / fy, nx / fx);
+        // ITK centers the retained samples: offset = (N mod f + f) / 2.
+        let (offz, offy, offx) = (
+            (nz % fz + fz) / 2,
+            (ny % fy + fy) / 2,
+            (nx % fx + fx) / 2,
+        );
+
+        let (vals, _) = extract_vec_infallible(image);
+        let mut out = vec![0.0f32; oz * oy * ox];
+        for iz in 0..oz {
+            let kz = iz * fz + offz;
+            for iy in 0..oy {
+                let ky = iy * fy + offy;
+                for ix in 0..ox {
+                    let kx = ix * fx + offx;
+                    out[(iz * oy + iy) * ox + ix] = vals[(kz * ny + ky) * nx + kx];
+                }
+            }
+        }
+
+        let in_s = image.spacing();
+        let out_spacing =
+            Spacing::new([in_s[0] * fz as f64, in_s[1] * fy as f64, in_s[2] * fx as f64]);
+
+        // Origin shifts by the continuous centroid offset (N mod f + f − 1)/2 voxels.
+        let delta = [
+            in_s[0] * ((nz % fz) as f64 + fz as f64 - 1.0) / 2.0,
+            in_s[1] * ((ny % fy) as f64 + fy as f64 - 1.0) / 2.0,
+            in_s[2] * ((nx % fx) as f64 + fx as f64 - 1.0) / 2.0,
+        ];
+        let dir = image.direction();
+        let in_o = image.origin();
+        let mut out_origin = *in_o;
+        for i in 0..3 {
+            let mut acc = in_o[i];
+            for (j, &d) in delta.iter().enumerate() {
+                acc += dir[(i, j)] * d;
+            }
+            out_origin[i] = acc;
+        }
+
+        Ok(rebuild_with_metadata(
+            out,
+            [oz, oy, ox],
+            out_origin,
+            out_spacing,
+            *image.direction(),
+            image,
+        ))
+    }
+}
+
+/// Integer **tile-averaging** downsample (anti-aliased display shrink).
+///
+/// Each output voxel is the arithmetic mean of all input voxels in its tile,
+/// with `ceil(N/f)` output size (trailing partial tiles are averaged over the
+/// voxels that exist). This is NOT ITK `Shrink` (which subsamples — see
+/// [`ShrinkImageFilter`]) nor ITK `BinShrink` (which uses `floor(N/f)` full
+/// bins — see `BinShrinkImageFilter`); it is a display-oriented anti-alias
+/// downsample. Output spacing is `in_spacing[d] · f[d]`; origin is unchanged.
+#[derive(Debug, Clone)]
+pub struct TileMeanShrinkFilter {
+    /// Downsampling factors per axis `\[fz, fy, fx\]`. All must be ≥ 1. Default \[1,1,1\].
+    pub shrink_factors: [usize; 3],
+}
+
+impl TileMeanShrinkFilter {
+    /// Construct with the given per-axis shrink factors (0 is treated as 1).
+    pub fn new(shrink_factors: [usize; 3]) -> Self {
+        Self { shrink_factors }
+    }
+}
+
+impl Default for TileMeanShrinkFilter {
+    fn default() -> Self {
+        Self::new([1, 1, 1])
+    }
+}
+
+impl TileMeanShrinkFilter {
+    /// Apply the tile-averaging shrink to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let [nz, ny, nx] = image.shape();
         let [fz, fy, fx] = [

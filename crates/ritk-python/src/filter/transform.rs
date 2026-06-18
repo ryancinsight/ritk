@@ -13,7 +13,8 @@ use pyo3::prelude::*;
 use ritk_filter::{
     ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter,
     MirrorPadImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
-    RegionOfInterestImageFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
+    RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter,
+    ZeroFluxNeumannPadImageFilter,
 };
 use ritk_image::Image;
 
@@ -398,6 +399,28 @@ pub fn region_of_interest(
     let arc = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
         RegionOfInterestImageFilter::new([start.0, start.1, start.2], [size.0, size.1, size.2])
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Subsample (ITK `Shrink`) by integer per-axis factors. Keeps one voxel per
+/// tile (offset `f/2`, `floor(N/f)` output), scales spacing, and shifts the
+/// origin to the first tile centroid. No averaging (cf. `bin_shrink`).
+/// ITK Parity: ShrinkImageFilter (`sitk.Shrink`, factors `[fx,fy,fz]`).
+#[pyfunction]
+#[pyo3(signature = (image, factor_z=2, factor_y=2, factor_x=2))]
+pub fn shrink(
+    py: Python<'_>,
+    image: &PyImage,
+    factor_z: usize,
+    factor_y: usize,
+    factor_x: usize,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        ShrinkImageFilter::new([factor_z, factor_y, factor_x])
             .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

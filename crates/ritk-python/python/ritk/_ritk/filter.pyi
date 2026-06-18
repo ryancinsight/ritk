@@ -547,6 +547,11 @@ def speckle_noise(image: Image, std: float, seed: int = 42) -> Image: ...
 def bin_shrink(
     image: Image, factor_z: int = 2, factor_y: int = 2, factor_x: int = 2
 ) -> Image: ...
+def shrink(
+    image: Image, factor_z: int = 2, factor_y: int = 2, factor_x: int = 2
+) -> Image:
+    """Subsample (no averaging), ITK Shrink. factors (z,y,x); sitk.Shrink uses [x,y,z]. ITK Parity: ShrinkImageFilter."""
+    ...
 def coherence_enhancing_diffusion(
     image: Image,
     sigma: float = 3.0,

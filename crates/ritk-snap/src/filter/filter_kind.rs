@@ -270,7 +270,8 @@ pub enum FilterKind {
         background_value: f32,
     },
 
-    /// Integer downsampling by tile averaging (ITK `ShrinkImageFilter`).
+    /// Integer downsampling by tile averaging (anti-aliased display shrink;
+    /// `TileMeanShrinkFilter`, not ITK `Shrink` which subsamples).
     Shrink {
         /// Downsampling factor along Z.
         factor_z: usize,

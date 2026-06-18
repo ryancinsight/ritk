@@ -43,7 +43,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK ShrinkImageFilter: integer downsampling by tile averaging. Spacing is updated.",
+                    "Tile-averaging downsample (anti-aliased). Integer factors per axis; spacing is updated.",
                 )
                 .small(),
             );

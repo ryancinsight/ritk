@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.102.12] — 2026-06-17 (Sprint 425: Shrink — ITK subsampling + naming fix)
+
+### Added
+- `ritk-filter` / `ritk-python`: `ShrinkImageFilter` (true ITK subsampling) + `filter.shrink(image, factor_z=2, factor_y=2, factor_x=2)` — keeps one voxel per tile (no averaging), `floor(N/f)` output, scaled spacing, origin shifted to the tile centroid (ITK `ShrinkImageFilter` / `sitk.Shrink`, factors `[fx,fy,fz]`). ITK **centers** the retained samples, so the per-axis offset is `(N mod f + f)/2` (equals `f/2` only when the axis divides evenly) — pinned by sitk probe. **Bit-exact** to sitk on `RA-Float` for isotropic ×2 and anisotropic (1,2,3) factors. Value-semantic Rust tests (ITK offset, centered remainder, origin) + cmake parity cases. `.pyi` stub; coverage 194/298.
+
+### Changed
+- `ritk-filter`: renamed the former averaging `ShrinkImageFilter` → `TileMeanShrinkFilter` (it is a tile-mean anti-alias display downsample, NOT ITK `Shrink` which subsamples, nor `BinShrink` which uses `floor(N/f)` bins). All call sites updated in the same change (ritk-snap GUI now uses `TileMeanShrinkFilter`, preserving its averaging behavior); corrected the GUI's misleading "ITK ShrinkImageFilter" labels. No shim/alias.
+
 ## [0.102.11] — 2026-06-17 (Sprint 424: GradientRecursiveGaussian)
 
 ### Added

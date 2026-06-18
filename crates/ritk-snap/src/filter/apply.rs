@@ -15,8 +15,9 @@ use ritk_filter::{
     InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
     MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter, Padding,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter, ShrinkImageFilter, SignedDistanceTransformImageFilter, SinImageFilter,
-    SqrtImageFilter, SquareImageFilter, TanImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter,
+    ShiftScaleImageFilter, SignedDistanceTransformImageFilter, SinImageFilter,
+    SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
+    VotingBinaryImageFilter,
     WrapPadImageFilter, ZeroCrossingImageFilter,
 };
 use ritk_image::Image;
@@ -256,7 +257,7 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 factor_z,
                 factor_y,
                 factor_x,
-            } => ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x]).apply(&study.image),
+            } => TileMeanShrinkFilter::new([*factor_z, *factor_y, *factor_x]).apply(&study.image),
             FilterKind::ConstantPad {
                 pad_lower_z,
                 pad_lower_y,
