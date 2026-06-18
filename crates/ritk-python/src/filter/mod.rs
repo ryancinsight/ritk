@@ -51,6 +51,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(median_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(mean_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(binomial_blur, &m)?)?;
+    m.add_function(wrap_pyfunction!(box_mean, &m)?)?;
     m.add_function(wrap_pyfunction!(bilateral_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(n4_bias_correction, &m)?)?;
     m.add_function(wrap_pyfunction!(anisotropic_diffusion, &m)?)?;

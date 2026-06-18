@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.20] — 2026-06-17 (Sprint 433: BoxMean)
+
+### Added
+- `ritk-filter` / `ritk-python`: `BoxMeanImageFilter` + `filter.box_mean(image, radius_z=1, radius_y=1, radius_x=1)` — box mean over the `(2r+1)` window **clipped to the image bounds**, dividing by the in-bounds count (ITK `BoxMeanImageFilter` / `sitk.BoxMean`). Distinct from `mean_filter` (ITK `Mean`, which clamps OOB neighbours to the edge and divides by the full `(2r+1)^D` window): they agree on the interior but differ on the boundary (`[10,20,30,40,50]` r=1 → BoxMean[0] = `(10+20)/2` = 15 vs Mean[0] = `(10+10+20)/3` = 13.33; pinned by sitk probe). **Bit-exact** to sitk on `RA-Float` for isotropic and anisotropic radii. Value-semantic Rust tests (shrink boundary, constant, identity) + cmake parity cases. `.pyi` stub; coverage 201/298.
+
 ## [0.102.19] — 2026-06-17 (Sprint 432: LabelOverlay — 200/298)
 
 ### Added

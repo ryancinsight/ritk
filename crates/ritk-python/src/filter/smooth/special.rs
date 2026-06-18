@@ -4,8 +4,8 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::bias::N4Config;
 use ritk_filter::{
-    BilateralFilter, BinShrinkImageFilter, BinomialBlurImageFilter, MeanImageFilter, MedianFilter,
-    N4BiasFieldCorrectionFilter,
+    BilateralFilter, BinShrinkImageFilter, BinomialBlurImageFilter, BoxMeanImageFilter,
+    MeanImageFilter, MedianFilter, N4BiasFieldCorrectionFilter,
 };
 
 /// Apply a mean (box) filter: each voxel becomes the average of the
@@ -21,6 +21,26 @@ pub fn mean_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Apply a box mean filter with per-axis radii: each voxel becomes the average
+/// over the `(2r+1)` window clipped to the image bounds (dividing by the
+/// in-bounds count — shrink boundary, unlike `mean_filter`'s clamped full
+/// window). ITK Parity: BoxMeanImageFilter (`sitk.BoxMean`, radius `[rx,ry,rz]`).
+#[pyfunction]
+#[pyo3(signature = (image, radius_z=1, radius_y=1, radius_x=1))]
+pub fn box_mean(
+    py: Python<'_>,
+    image: &PyImage,
+    radius_z: usize,
+    radius_y: usize,
+    radius_x: usize,
+) -> PyImage {
+    let image = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        BoxMeanImageFilter::new([radius_z, radius_y, radius_x]).apply(image.as_ref())
+    });
+    into_py_image(out)
 }
 
 /// Apply a binomial blur: the separable `[¼,½,¼]` kernel along each axis,

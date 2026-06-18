@@ -301,6 +301,9 @@ def mean_filter(image: Image, radius: int = 1) -> Image:
 def binomial_blur(image: Image, repetitions: int = 1) -> Image:
     """Separable [1/4,1/2,1/4] blur applied `repetitions` times (reflect boundary). ITK Parity: BinomialBlurImageFilter."""
     ...
+def box_mean(image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1) -> Image:
+    """Box mean over a clipped (2r+1) window (shrink boundary). ITK Parity: BoxMeanImageFilter."""
+    ...
 
 def color_median(image: ColorImage, radius: int = 1) -> ColorImage:
     """Per-component median on an RGB/vector image (box radius). ITK Parity: MedianImageFilter (vector)."""
