@@ -588,6 +588,26 @@ def test_cmake_binary_pruning_on_upstream_data(thr, iteration):
     assert np.array_equal(r, s), "BinaryPruning differs from sitk"
 
 
+@pytest.mark.parametrize("minsize", [0, 50, 200], ids=["m0", "m50", "m200"])
+def test_cmake_threshold_maximum_connected_components_on_upstream_data(minsize):
+    """ThresholdMaximumConnectedComponents: binary-search the lower threshold
+    maximizing the number of connected components (size ≥ minsize). ritk
+    `segmentation.threshold_maximum_connected_components` vs sitk on the uint8
+    cthead1. Bit-exact — the integer bisection plus ritk's connected-component
+    counting (itself bit-exact to sitk.ConnectedComponent) selects the same
+    threshold."""
+    _, si = _pair("cthead1.png")
+    si8 = sitk.Cast(si, sitk.sitkUInt8)
+    ri8 = ritk.Image(np.ascontiguousarray(
+        sitk.GetArrayFromImage(si8).astype(np.float32)[None]))
+    s = sitk.GetArrayFromImage(
+        sitk.ThresholdMaximumConnectedComponents(si8, minsize)).astype(np.float64)
+    r = np.squeeze(np.asarray(
+        ritk.segmentation.threshold_maximum_connected_components(ri8, minsize).to_numpy(),
+        np.float64))
+    assert np.array_equal(r, s), "ThresholdMaximumConnectedComponents differs from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).

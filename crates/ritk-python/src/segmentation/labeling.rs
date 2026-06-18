@@ -1,18 +1,18 @@
 //! Labeling, clustering, and watershed segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
+use crate::image::Backend;
 use crate::image::{into_py_image, PyImage};
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
-use crate::image::Backend;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
 use ritk_image::Image;
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components, ConnectedComponentsFilter,
     KMeansSegmentation, MarkerControlledWatershed, RelabelComponentFilter, SlicConfig,
-    SlicSuperpixelFilter, WatershedSegmentation,
+    SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter, WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -84,7 +84,8 @@ pub fn scalar_connected_component(
     let out = py.allow_threads(|| {
         let dims = arc.shape();
         let vals = arc.data_slice().into_owned();
-        let labels = core_scalar_connected_components(&vals, dims, distance_threshold, connectivity);
+        let labels =
+            core_scalar_connected_components(&vals, dims, distance_threshold, connectivity);
         let device = NdArrayDevice::default();
         let tensor =
             Tensor::<Backend, 3>::from_data(TensorData::new(labels, Shape::new(dims)), &device);
@@ -118,6 +119,41 @@ pub fn relabel_components(
         RelabelComponentFilter::with_minimum_object_size(minimum_object_size)
             .apply(img.as_ref())
             .0
+    });
+    into_py_image(out)
+}
+
+/// Threshold an image at the lower value that maximizes the number of connected
+/// components, matching `SimpleITK.ThresholdMaximumConnectedComponents`.
+///
+/// Binary-searches the threshold `T` maximizing the count of connected
+/// components (size ≥ `minimum_object_size`, face connectivity) in the band
+/// `T ≤ I ≤ upper_boundary`, then returns that binary mask (1 inside, 0 outside).
+///
+/// Args:
+///     image: Input (integer-valued) PyImage.
+///     minimum_object_size: Components smaller than this are not counted (default 0).
+///     upper_boundary: Upper threshold bound; `None` uses the image maximum.
+///
+/// Returns:
+///     Binary PyImage (1 inside the selected band, 0 outside).
+#[pyfunction]
+#[pyo3(signature = (image, minimum_object_size=0, upper_boundary=None))]
+pub fn threshold_maximum_connected_components(
+    py: Python<'_>,
+    image: &PyImage,
+    minimum_object_size: usize,
+    upper_boundary: Option<i64>,
+) -> PyImage {
+    let img = Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        ThresholdMaximumConnectedComponentsFilter {
+            minimum_object_size,
+            upper_boundary,
+            inside_value: 1.0,
+            outside_value: 0.0,
+        }
+        .apply(img.as_ref())
     });
     into_py_image(out)
 }

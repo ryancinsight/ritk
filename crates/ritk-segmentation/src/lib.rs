@@ -30,6 +30,7 @@ pub use ensemble::{staple, StapleConvergence, StapleResult};
 pub use labeling::{
     connected_components, scalar_connected_components, ConnectedComponentsFilter, Connectivity,
     LabelStatistics, RelabelComponentFilter, RelabelStatistics,
+    ThresholdMaximumConnectedComponentsFilter,
 };
 pub use level_set::{
     ChanVeseSegmentation, GeodesicActiveContourSegmentation, LaplacianLevelSet,
