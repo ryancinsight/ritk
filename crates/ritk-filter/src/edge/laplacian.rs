@@ -74,7 +74,6 @@ impl LaplacianFilter {
 fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-    let mut out = vec![0.0_f32; n];
 
     let sz2 = (spacing[0] * spacing[0]) as f32;
     let sy2 = (spacing[1] * spacing[1]) as f32;
@@ -82,27 +81,26 @@ fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>) -> Vec<f3
 
     let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * ny * nx + iy * nx + ix };
 
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let flat = idx(iz, iy, ix);
-                let center = data[flat];
+    // Each output voxel depends only on its stencil neighbours, so the grid fans
+    // out over the flat index (moirai) — bitwise identical to the serial sweep.
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |flat| {
+        let iz = flat / (ny * nx);
+        let rem = flat % (ny * nx);
+        let iy = rem / nx;
+        let ix = rem % nx;
+        let center = data[flat];
 
-                // ZeroFluxNeumann: clamp out-of-range neighbours to the edge.
-                let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
-                let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
-                let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
+        // ZeroFluxNeumann: clamp out-of-range neighbours to the edge.
+        let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
+        let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
+        let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
 
-                let d2z = (data[idx(zhi, iy, ix)] - 2.0 * center + data[idx(zlo, iy, ix)]) / sz2;
-                let d2y = (data[idx(iz, yhi, ix)] - 2.0 * center + data[idx(iz, ylo, ix)]) / sy2;
-                let d2x = (data[idx(iz, iy, xhi)] - 2.0 * center + data[idx(iz, iy, xlo)]) / sx2;
+        let d2z = (data[idx(zhi, iy, ix)] - 2.0 * center + data[idx(zlo, iy, ix)]) / sz2;
+        let d2y = (data[idx(iz, yhi, ix)] - 2.0 * center + data[idx(iz, ylo, ix)]) / sy2;
+        let d2x = (data[idx(iz, iy, xhi)] - 2.0 * center + data[idx(iz, iy, xlo)]) / sx2;
 
-                out[flat] = d2z + d2y + d2x;
-            }
-        }
-    }
-
-    out
+        d2z + d2y + d2x
+    })
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
