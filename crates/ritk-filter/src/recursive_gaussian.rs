@@ -334,6 +334,56 @@ pub fn recursive_gaussian_directional<B: Backend>(
     Ok(image_from_vals(image, out, dims))
 }
 
+/// Compute the three first-order recursive-Gaussian gradient components on raw
+/// buffers, returned in **ritk axis order** `[∂/∂(axis0=z), ∂/∂(axis1=y),
+/// ∂/∂(axis2=x)]`, each divided once by its axis spacing.
+///
+/// Component `k` is order-0 (smoothing) Deriche along the two non-`k` axes then
+/// order-1 (derivative) Deriche along axis `k`. Operating directly on `Vec<f32>`
+/// buffers avoids round-tripping each intermediate through an [`Image`] (tensor
+/// rebuild) and re-extracting it, so a full vector gradient does one tensor
+/// extraction instead of nine — float-identical to chaining
+/// [`recursive_gaussian_directional`], but with the per-pass `Image`
+/// alloc/rebuild eliminated.
+///
+/// # Errors
+/// Returns `Err` if the tensor data cannot be read as `f32`.
+pub fn gradient_recursive_gaussian_components<B: Backend>(
+    image: &Image<B, 3>,
+    sigma: f64,
+) -> anyhow::Result<[Vec<f32>; 3]> {
+    let (vals, dims) = extract_vec(image)?;
+    let spacing = image.spacing();
+
+    let pass = |buf: &[f32], axis: usize, order: DerivativeOrder| -> Vec<f32> {
+        let pixel_sigma = sigma / spacing[axis];
+        let coeffs = match order {
+            DerivativeOrder::Zero => DericheCoefficients::from_sigma(pixel_sigma),
+            DerivativeOrder::First => DericheCoefficients::first_order(pixel_sigma),
+            DerivativeOrder::Second => DericheCoefficients::second_order(pixel_sigma),
+        };
+        apply_deriche_1d(buf, dims, axis, &coeffs, pixel_sigma)
+    };
+
+    let component = |axis_k: usize| -> Vec<f32> {
+        let others: [usize; 2] = match axis_k {
+            0 => [1, 2],
+            1 => [0, 2],
+            _ => [0, 1],
+        };
+        let mut buf = pass(&vals, others[0], DerivativeOrder::Zero);
+        buf = pass(&buf, others[1], DerivativeOrder::Zero);
+        buf = pass(&buf, axis_k, DerivativeOrder::First);
+        let inv = 1.0_f32 / spacing[axis_k] as f32;
+        for v in buf.iter_mut() {
+            *v *= inv;
+        }
+        buf
+    };
+
+    Ok([component(0), component(1), component(2)])
+}
+
 /// Separable zero-order recursive (Deriche) Gaussian smoothing with a per-axis
 /// physical `sigmas[d]` (broadcast from the last element). This is the blur
 /// ITK/SimpleITK `UnsharpMask` uses (`SmoothingRecursiveGaussian`), as opposed

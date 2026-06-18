@@ -32,7 +32,10 @@ pub use median::MedianFilter;
 pub use noise::{
     AdditiveGaussianNoiseFilter, SaltAndPepperNoiseFilter, ShotNoiseFilter, SpeckleNoiseFilter,
 };
-pub use recursive_gaussian::{DerivativeOrder, RecursiveGaussianFilter, ScaleNormalization};
+pub use recursive_gaussian::{
+    gradient_recursive_gaussian_components, DerivativeOrder, RecursiveGaussianFilter,
+    ScaleNormalization,
+};
 pub use smoothing::MeanImageFilter;
 
 // ── Intensity & histogram ────────────────────────────────────────────────────

@@ -18,7 +18,7 @@ use ritk_image::{ColorVolume, Image};
 use ritk_tensor_ops::extract_vec;
 
 use super::derivative::DerivativeImageFilter;
-use crate::recursive_gaussian::{recursive_gaussian_directional, DerivativeOrder};
+use crate::recursive_gaussian::gradient_recursive_gaussian_components;
 
 /// Image gradient filter producing a 3-component covariant vector field.
 #[derive(Debug, Clone, Copy)]
@@ -79,30 +79,13 @@ impl GradientRecursiveGaussianImageFilter {
     /// Apply the smoothed gradient, returning a 3-component vector image with
     /// components in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<ColorVolume<B, 3>> {
-        // Component for ritk axis `k`: order-0 smoothing on the other two axes,
-        // order-1 derivative on axis `k`, divided once by spacing[k].
-        let component = |axis_k: usize| -> Result<Vec<f32>> {
-            let others: Vec<usize> = (0..3).filter(|&a| a != axis_k).collect();
-            let mut cur =
-                recursive_gaussian_directional(image, self.sigma, DerivativeOrder::Zero, others[0])?;
-            cur =
-                recursive_gaussian_directional(&cur, self.sigma, DerivativeOrder::Zero, others[1])?;
-            cur = recursive_gaussian_directional(&cur, self.sigma, DerivativeOrder::First, axis_k)?;
-            let inv_spacing = 1.0_f32 / image.spacing()[axis_k] as f32;
-            let (mut vals, _) = extract_vec(&cur)?;
-            for v in vals.iter_mut() {
-                *v *= inv_spacing;
-            }
-            Ok(vals)
-        };
+        // Components in ritk axis order [∂/∂z, ∂/∂y, ∂/∂x] computed on raw
+        // buffers (one tensor extraction, no per-pass Image rebuilds).
+        let [dz, dy, dx] = gradient_recursive_gaussian_components(image, self.sigma)?;
 
-        // sitk components: 0 = ∂/∂x (axis 2), 1 = ∂/∂y (axis 1), 2 = ∂/∂z (axis 0).
-        let bx = component(2)?;
-        let by = component(1)?;
-        let bz = component(0)?;
-
+        // sitk component order: 0 = ∂/∂x, 1 = ∂/∂y, 2 = ∂/∂z.
         ColorVolume::<B, 3>::from_component_buffers(
-            &[bx, by, bz],
+            &[dx, dy, dz],
             image.shape(),
             *image.origin(),
             *image.spacing(),

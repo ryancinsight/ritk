@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.13] — 2026-06-17 (Sprint 426: GradientRecursiveGaussian perf)
+
+### Performance
+- `ritk-filter`: `GradientRecursiveGaussianImageFilter` now computes its three vector components on raw `f32` buffers via the new `gradient_recursive_gaussian_components` (one tensor extraction, nine in-place Deriche passes) instead of nine `recursive_gaussian_directional` calls that each extracted + rebuilt an intermediate `Image`. **2.94× faster** on a 128³ volume (621 → 211 ms/call, release; `examples/bench_gradient_rg.rs`), **bit-identical** output (max |old − new| = 0) — the win is purely the eliminated per-pass tensor alloc/rebuild. SimpleITK parity unchanged (float-exact). [patch]
+
 ## [0.102.12] — 2026-06-17 (Sprint 425: Shrink — ITK subsampling + naming fix)
 
 ### Added
