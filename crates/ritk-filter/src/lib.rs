@@ -154,6 +154,7 @@ pub use transform::{
 pub mod displacement;
 pub mod distance;
 pub mod fractal_dimension;
+pub mod iso_contour;
 pub mod rank;
 pub mod surface;
 pub mod warp;
@@ -163,6 +164,7 @@ pub use distance::{
     BinarizationThreshold, DistanceTransformImageFilter, SignedDistanceTransformImageFilter,
 };
 pub use fractal_dimension::StochasticFractalDimensionFilter;
+pub use iso_contour::IsoContourDistanceFilter;
 pub use warp::warp_image;
 pub use rank::{PercentileFilter, RankFilter};
 pub use surface::{MarchingCubesFilter, Mesh, MeshBuilder};

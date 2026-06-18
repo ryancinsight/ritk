@@ -608,6 +608,26 @@ def test_cmake_threshold_maximum_connected_components_on_upstream_data(minsize):
     assert np.array_equal(r, s), "ThresholdMaximumConnectedComponents differs from sitk"
 
 
+@pytest.mark.parametrize("shape,far", [((1, 12, 14), 10.0), ((8, 10, 9), 10.0), ((1, 16, 16), 5.0)],
+                         ids=["2d", "3d", "2d-far5"])
+def test_cmake_iso_contour_distance(shape, far):
+    """IsoContourDistance: narrow-band signed distance to the zero level set.
+    ritk `filter.iso_contour_distance` vs `sitk.IsoContourDistance`. Bit-exact —
+    the per-edge averaged-gradient interpolation and minimum-magnitude combine are
+    order-independent, so the serial result matches ITK's threaded one."""
+    import numpy as _np
+    D, H, W = shape
+    zz, yy, xx = _np.mgrid[0:D, 0:H, 0:W].astype(_np.float64)
+    img = (((xx - W / 2) ** 2 + (yy - H / 2) ** 2 + (zz - D / 2) ** 2) - 16.0).astype(_np.float32)
+    arr = img if D > 1 else img[0]
+    s = _np.squeeze(sitk.GetArrayFromImage(
+        sitk.IsoContourDistance(sitk.GetImageFromArray(arr), 0.0, far)).astype(_np.float64))
+    r = _np.squeeze(_np.asarray(
+        ritk.filter.iso_contour_distance(ritk.Image(_np.ascontiguousarray(img)), 0.0, far).to_numpy(),
+        _np.float64))
+    assert float(_np.abs(r - s).max()) == 0.0, "IsoContourDistance differs from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).

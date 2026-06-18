@@ -5,8 +5,8 @@ use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     edge::GaussianSigma, CannyEdgeDetector, DerivativeImageFilter, GradientMagnitudeFilter,
-    LaplacianFilter, LaplacianOfGaussianFilter, LaplacianSharpeningFilter, SobelFilter,
-    ZeroCrossingBasedEdgeDetectionFilter,
+    IsoContourDistanceFilter, LaplacianFilter, LaplacianOfGaussianFilter, LaplacianSharpeningFilter,
+    SobelFilter, ZeroCrossingBasedEdgeDetectionFilter,
 };
 
 /// Directional derivative (central differences) along `direction` (sitk axis:
@@ -158,6 +158,35 @@ pub fn zero_crossing_based_edge_detection(
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Narrow-band signed distance to the iso-contour, matching
+/// `SimpleITK.IsoContourDistance`.
+///
+/// Voxels straddling the `level_set_value` iso-surface get a first-order signed
+/// distance estimate (averaged-gradient interpolation, combined by minimum
+/// magnitude); voxels away from it keep `±far_value`.
+///
+/// Args:
+///     image: Input PyImage (a level-set / scalar field).
+///     level_set_value: Iso-contour level (default 0.0).
+///     far_value: Magnitude assigned away from the contour (default 10.0).
+///
+/// Returns:
+///     PyImage of narrow-band signed distances, same shape and metadata.
+#[pyfunction]
+#[pyo3(signature = (image, level_set_value=0.0_f64, far_value=10.0_f64))]
+pub fn iso_contour_distance(
+    py: Python<'_>,
+    image: &PyImage,
+    level_set_value: f64,
+    far_value: f64,
+) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        IsoContourDistanceFilter::new(level_set_value, far_value).apply(arc.as_ref())
+    });
+    into_py_image(out)
 }
 
 /// Apply the Canny edge detector to an image.
