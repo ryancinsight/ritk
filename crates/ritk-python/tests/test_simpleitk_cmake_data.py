@@ -668,6 +668,39 @@ def test_cmake_label_map_overlay_on_upstream_data():
     assert np.array_equal(r, s), "LabelMapOverlay differs from sitk"
 
 
+def test_cmake_area_opening_on_upstream_data():
+    """AreaOpening on a binary mask removes foreground connected components
+    smaller than `area` — exactly `connected_components` → `relabel_components(min
+    size)` → binarize. Bit-exact to sitk on cthead1."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    sm = sitk.Cast(sitk.BinaryThreshold(si, 40, 1e9, 1, 0), sitk.sitkUInt8)
+    rm = ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.AreaOpening(sm, 500, fullyConnected=False)).astype(np.float64))
+    rl, _ = ritk.segmentation.connected_components(rm, 6)
+    rr = ritk.segmentation.relabel_components(rl, 500)
+    r = np.squeeze(np.asarray(ritk.filter.binary_threshold(rr, 0.5, 1e9, 1.0, 0.0).to_numpy(), np.float64))
+    assert np.array_equal(r, s), "AreaOpening differs from sitk"
+
+
+def test_cmake_area_closing_on_upstream_data():
+    """AreaClosing on a binary mask fills background holes smaller than `area` —
+    the dual: invert → remove small (now-foreground) components → invert back.
+    Bit-exact to sitk on cthead1."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    sm = sitk.Cast(sitk.BinaryThreshold(si, 40, 1e9, 1, 0), sitk.sitkUInt8)
+    rm = ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.AreaClosing(sm, 500, fullyConnected=False)).astype(np.float64))
+    inv = ritk.filter.binary_threshold(rm, -0.5, 0.5, 1.0, 0.0)  # background → 1
+    il, _ = ritk.segmentation.connected_components(inv, 6)
+    ir = ritk.segmentation.relabel_components(il, 500)  # keep only large bg holes
+    large_bg = ritk.filter.binary_threshold(ir, 0.5, 1e9, 1.0, 0.0)
+    res = ritk.filter.binary_threshold(large_bg, -0.5, 0.5, 1.0, 0.0)  # invert back
+    r = np.squeeze(np.asarray(res.to_numpy(), np.float64))
+    assert np.array_equal(r, s), "AreaClosing differs from sitk"
+
+
 def test_cmake_label_map_mask_on_upstream_data():
     """LabelMapMask(label=1) keeps the feature image where the label map holds
     label 1, background elsewhere — exactly `mask_image(feature, label==1)`.
