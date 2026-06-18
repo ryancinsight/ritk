@@ -40,7 +40,7 @@
 //! - Propagating through `B(p) = Σw·I / Σw` yields
 //!   `|ΔB| ≤ |δw| · (|max I| + |B|) / w_avg`. With typical imaging-range
 //!   `M ≈ 300` HU and `w_avg ≈ 0.5`:
-//!     `ΔB ≤ (1/σ_r)·exp(-½)·(½/qscale) · 600`
+//!   `ΔB ≤ (1/σ_r)·exp(-½)·(½/qscale) · 600`
 //! - To hold `ΔB < 1e-5` with σ_r = 50: `qscale ≳ 728 000` bins/unit,
 //!   i.e. **millions of f64 entries per σ_r** — not a real trade.
 //!
