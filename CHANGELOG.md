@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.18] — 2026-06-17 (Sprint 431: LabelToRGB)
+
+### Added
+- `ritk-filter` / `ritk-python`: `LabelToRGBFilter` + `filter.label_to_rgb(image, background=0)` — maps a label image to RGB using ITK's default 30-colour table (`itk::LabelToRGBImageFilter` / `sitk.LabelToRGB`): background voxels → black, label `k` → `LABEL_COLORS[(k−1) mod 30]` (the table cycles with period 30). The full table was extracted from a `sitk.LabelToRGB` probe over labels 0–39. **Bit-exact** to sitk on a connected-component label map of `cthead1`. Value-semantic Rust test (table entries + period-30 wrap) + cmake parity test. `.pyi` stub; coverage 199/298.
+
 ## [0.102.17] — 2026-06-17 (Sprint 430: ScalarToRGBColormap — linear LUTs)
 
 ### Added

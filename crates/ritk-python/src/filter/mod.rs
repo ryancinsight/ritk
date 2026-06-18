@@ -147,6 +147,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::color::gradient, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::gradient_recursive_gaussian, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::scalar_to_rgb_colormap, &m)?)?;
+    m.add_function(wrap_pyfunction!(crate::color::label_to_rgb, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::vector_index_selection_cast, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::vector_magnitude, &m)?)?;
     // Morphology

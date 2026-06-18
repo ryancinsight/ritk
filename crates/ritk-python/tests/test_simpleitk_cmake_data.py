@@ -343,6 +343,19 @@ def test_cmake_ternary_case_on_upstream_data(tag, rfn, sfn, tol):
         assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e}"
 
 
+def test_cmake_label_to_rgb_on_upstream_data():
+    """LabelToRGB on a connected-component label map of cthead1, component-wise
+    bit-exact to ITK's default 30-colour LabelToRGBImageFilter table."""
+    _, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0))
+    larr = sitk.GetArrayFromImage(lbl).astype(np.float32)  # (y, x)
+    ril = ritk.Image(np.ascontiguousarray(larr[None]))  # z=1 volume
+    r = np.asarray(ritk.filter.label_to_rgb(ril).to_numpy(), np.float64)  # (1, y, x, 3)
+    s = sitk.GetArrayFromImage(sitk.LabelToRGB(lbl)).astype(np.float64)  # (y, x, 3)
+    assert np.array_equal(np.squeeze(r), s), "LabelToRGB differs from sitk"
+
+
 def test_cmake_scalar_to_rgb_colormap_on_upstream_data():
     """Grey colormap (the ITK default) on RA-Float, compared component-wise to
     ITK's ScalarToRGBColormapImageFilter. Bit-exact (normalize→×255→truncate)."""

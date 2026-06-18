@@ -15,7 +15,8 @@ use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
     map_color_components, Colormap, GradientImageFilter, GradientRecursiveGaussianImageFilter,
-    MeanImageFilter, MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter,
+    LabelToRGBFilter, MeanImageFilter, MedianFilter, RecursiveGaussianFilter,
+    ScalarToRGBColormapFilter,
 };
 use ritk_image::{ColorVolume, Image};
 use std::sync::Arc;
@@ -225,6 +226,21 @@ pub fn scalar_to_rgb_colormap(
     let arc = Arc::clone(&image.inner);
     let out = py
         .allow_threads(|| ScalarToRGBColormapFilter::new(cmap).apply(arc.as_ref()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok(PyColorImage {
+        inner: Arc::new(out),
+    })
+}
+
+/// Map a label image to RGB using ITK's default 30-colour label table
+/// (background voxels → black). ITK Parity: LabelToRGBImageFilter
+/// (`sitk.LabelToRGB`).
+#[pyfunction]
+#[pyo3(signature = (image, background=0))]
+pub fn label_to_rgb(py: Python<'_>, image: &PyImage, background: i64) -> RitkResult<PyColorImage> {
+    let arc = Arc::clone(&image.inner);
+    let out = py
+        .allow_threads(|| LabelToRGBFilter::new(background).apply(arc.as_ref()))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),

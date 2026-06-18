@@ -325,6 +325,9 @@ def gradient_recursive_gaussian(image: Image, sigma: float = 1.0) -> ColorImage:
 def scalar_to_rgb_colormap(image: Image, colormap: str = "grey") -> ColorImage:
     """Map scalar -> RGB via a colormap (grey/red/green/blue). ITK Parity: ScalarToRGBColormapImageFilter."""
     ...
+def label_to_rgb(image: Image, background: int = 0) -> ColorImage:
+    """Map a label image to RGB via ITK's 30-colour table (background->black). ITK Parity: LabelToRGBImageFilter."""
+    ...
 def vector_index_selection_cast(image: ColorImage, index: int) -> Image:
     """Extract one component of a vector image as a scalar image. ITK Parity: VectorIndexSelectionCastImageFilter."""
     ...
