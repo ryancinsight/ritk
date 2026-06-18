@@ -141,6 +141,10 @@ impl GradientMagnitudeFilter {
 /// - Boundary voxels clamp the out-of-range neighbour to the edge voxel
 ///   (ZeroFluxNeumann), matching ITK; a length-1 axis yields a zero component.
 /// - Output lengths equal `nz * ny * nx`.
+///
+/// PERF-378-02: parallelised over the flat voxel index with a single pass that
+/// computes all three components per voxel, then scatters into three output
+/// vectors. One read of `data` per voxel (cache-friendly); scatter is O(n) serial.
 fn gradient_vecs(
     data: &[f32],
     dims: [usize; 3],
@@ -148,32 +152,37 @@ fn gradient_vecs(
 ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-
-    let mut gz = vec![0.0_f32; n];
-    let mut gy = vec![0.0_f32; n];
-    let mut gx = vec![0.0_f32; n];
-
     let sz = spacing[0] as f32;
     let sy = spacing[1] as f32;
     let sx = spacing[2] as f32;
+    let slab = ny * nx;
+    let idx = |iz: usize, iy: usize, ix: usize| iz * slab + iy * nx + ix;
 
-    let idx = |iz: usize, iy: usize, ix: usize| iz * ny * nx + iy * nx + ix;
+    // One parallel pass: compute [gz, gy, gx] per voxel in a single data sweep.
+    let triplets: Vec<[f32; 3]> =
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |flat| {
+            let iz = flat / slab;
+            let iy = (flat / nx) % ny;
+            let ix = flat % nx;
+            let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
+            let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
+            let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
+            [
+                (data[idx(zhi, iy, ix)] - data[idx(zlo, iy, ix)]) / (2.0 * sz),
+                (data[idx(iz, yhi, ix)] - data[idx(iz, ylo, ix)]) / (2.0 * sy),
+                (data[idx(iz, iy, xhi)] - data[idx(iz, iy, xlo)]) / (2.0 * sx),
+            ]
+        });
 
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let flat = idx(iz, iy, ix);
-                let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
-                let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
-                let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
-
-                gz[flat] = (data[idx(zhi, iy, ix)] - data[idx(zlo, iy, ix)]) / (2.0 * sz);
-                gy[flat] = (data[idx(iz, yhi, ix)] - data[idx(iz, ylo, ix)]) / (2.0 * sy);
-                gx[flat] = (data[idx(iz, iy, xhi)] - data[idx(iz, iy, xlo)]) / (2.0 * sx);
-            }
-        }
+    // Scatter into three contiguous component vectors.
+    let mut gz = Vec::with_capacity(n);
+    let mut gy = Vec::with_capacity(n);
+    let mut gx = Vec::with_capacity(n);
+    for [z, y, x] in triplets {
+        gz.push(z);
+        gy.push(y);
+        gx.push(x);
     }
-
     (gz, gy, gx)
 }
 

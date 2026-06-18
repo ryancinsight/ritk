@@ -104,10 +104,13 @@ impl MorphologicalLaplacian {
         let dilated = dilate_3d_reflect(&vals, dims, self.radius);
         let eroded = erode_3d_reflect(&vals, dims, self.radius);
 
-        let mut out = Vec::with_capacity(vals.len());
-        for ((&f, &d), &e) in vals.iter().zip(dilated.iter()).zip(eroded.iter()) {
-            out.push(d + e - 2.0 * f);
-        }
+        // Elementwise combination: auto-vectorised by LLVM (independent per voxel).
+        let out: Vec<f32> = vals
+            .iter()
+            .zip(dilated.iter())
+            .zip(eroded.iter())
+            .map(|((&f, &d), &e)| d + e - 2.0 * f)
+            .collect();
 
         let device = image.data().device();
         let out_td = TensorData::new(out, Shape::new(dims));
@@ -140,75 +143,63 @@ fn reflect_index(i: isize, n: usize) -> usize {
 }
 
 /// Dilation with half-sample symmetric reflection at the boundary.
+///
+/// PERF-378-02: each output voxel reads its neighbourhood from `data` (read-only)
+/// with no inter-voxel write dependency — parallelised over the flat voxel index.
 pub(crate) fn dilate_3d_reflect(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let r = radius as isize;
-    let mut output = vec![0.0_f32; nz * ny * nx];
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut max_val = f32::NEG_INFINITY;
-                let pz = iz as isize;
-                let py = iy as isize;
-                let px = ix as isize;
-
-                for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            let zz = reflect_index(pz + dz, nz);
-                            let yy = reflect_index(py + dy, ny);
-                            let xx = reflect_index(px + dx, nx);
-                            let val = data[zz * ny * nx + yy * nx + xx];
-                            if val > max_val {
-                                max_val = val;
-                            }
-                        }
+    let slab = ny * nx;
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
+        let iz = (flat / slab) as isize;
+        let iy = ((flat / nx) % ny) as isize;
+        let ix = (flat % nx) as isize;
+        let mut max_val = f32::NEG_INFINITY;
+        for dz in -r..=r {
+            let zz = reflect_index(iz + dz, nz);
+            for dy in -r..=r {
+                let yy = reflect_index(iy + dy, ny);
+                for dx in -r..=r {
+                    let xx = reflect_index(ix + dx, nx);
+                    let val = data[zz * slab + yy * nx + xx];
+                    if val > max_val {
+                        max_val = val;
                     }
                 }
-
-                output[iz * ny * nx + iy * nx + ix] = max_val;
             }
         }
-    }
-
-    output
+        max_val
+    })
 }
 
 /// Erosion with half-sample symmetric reflection at the boundary.
+///
+/// PERF-378-02: mirror of `dilate_3d_reflect` — per-voxel min-fold over neighbourhood;
+/// read-only input; parallelised over the flat voxel index.
 pub(crate) fn erode_3d_reflect(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let r = radius as isize;
-    let mut output = vec![0.0_f32; nz * ny * nx];
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut min_val = f32::INFINITY;
-                let pz = iz as isize;
-                let py = iy as isize;
-                let px = ix as isize;
-
-                for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            let zz = reflect_index(pz + dz, nz);
-                            let yy = reflect_index(py + dy, ny);
-                            let xx = reflect_index(px + dx, nx);
-                            let val = data[zz * ny * nx + yy * nx + xx];
-                            if val < min_val {
-                                min_val = val;
-                            }
-                        }
+    let slab = ny * nx;
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
+        let iz = (flat / slab) as isize;
+        let iy = ((flat / nx) % ny) as isize;
+        let ix = (flat % nx) as isize;
+        let mut min_val = f32::INFINITY;
+        for dz in -r..=r {
+            let zz = reflect_index(iz + dz, nz);
+            for dy in -r..=r {
+                let yy = reflect_index(iy + dy, ny);
+                for dx in -r..=r {
+                    let xx = reflect_index(ix + dx, nx);
+                    let val = data[zz * slab + yy * nx + xx];
+                    if val < min_val {
+                        min_val = val;
                     }
                 }
-
-                output[iz * ny * nx + iy * nx + ix] = min_val;
             }
         }
-    }
-
-    output
+        min_val
+    })
 }
 
 #[cfg(test)]
