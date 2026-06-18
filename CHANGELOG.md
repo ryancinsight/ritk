@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.9] — 2026-06-17 (Sprint 422: Gradient — covariant vector field)
+
+### Added
+- `ritk-filter` / `ritk-python`: `GradientImageFilter` + `filter.gradient(image, use_image_spacing=True)` — central-difference image gradient emitting a 3-component vector image with components in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)` (ITK `GradientImageFilter` / `sitk.Gradient`). Each component reuses the order-1 `DerivativeImageFilter` kernel (1/(2·spacing) scale, zero-flux Neumann boundary) as SSOT; the filter assembles them into a `ColorVolume`. **Float-exact** to sitk on `RA-Float` (rel ~7e-8, f32 rounding in the per-axis scale). Value-semantic Rust test (x-ramp) + cmake parity case. `.pyi` stub; coverage 191/298.
+
 ## [0.102.8] — 2026-06-17 (Sprint 421: BinaryNot — label-pair complement)
 
 ### Added

@@ -184,6 +184,11 @@ _CASES = [
     ("BinaryNot/3d", "RA-Float.nrrd",
      lambda ri: ritk.filter.binary_not(ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)),
      lambda si: sitk.BinaryNot(sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0)), 0.0),
+    # Gradient -> 3-component vector (dx,dy,dz). Float-exact (f32 rounding in the
+    # 1/(2·spacing) scale); compared component-wise as a [z,y,x,3] array.
+    ("Gradient/3dFloat", "RA-Float.nrrd",
+     lambda ri: ritk.filter.gradient(ri),
+     lambda si: sitk.Gradient(si), 1e-6),
 ]
 
 # Two-input image-arithmetic cases (<Filter>.yaml::tag with two inputs).

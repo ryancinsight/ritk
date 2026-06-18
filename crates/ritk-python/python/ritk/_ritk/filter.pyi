@@ -310,6 +310,9 @@ def color_smoothing_recursive_gaussian(image: ColorImage, sigma: float) -> Color
 def compose(c0: Image, c1: Image, c2: Image) -> ColorImage:
     """Compose three scalar images into a 3-component vector image. ITK Parity: ComposeImageFilter."""
     ...
+def gradient(image: Image, use_image_spacing: bool = True) -> ColorImage:
+    """Central-difference gradient -> 3-component vector (dx,dy,dz). ITK Parity: GradientImageFilter."""
+    ...
 def vector_index_selection_cast(image: ColorImage, index: int) -> Image:
     """Extract one component of a vector image as a scalar image. ITK Parity: VectorIndexSelectionCastImageFilter."""
     ...

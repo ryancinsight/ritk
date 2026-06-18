@@ -142,6 +142,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
         &m
     )?)?;
     m.add_function(wrap_pyfunction!(crate::color::compose, &m)?)?;
+    m.add_function(wrap_pyfunction!(crate::color::gradient, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::vector_index_selection_cast, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::vector_magnitude, &m)?)?;
     // Morphology
