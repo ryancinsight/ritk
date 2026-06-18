@@ -2114,3 +2114,21 @@ def test_cmake_zero_crossing_based_edge_detection(variance):
     ro = _np.asarray(
         ritk.filter.zero_crossing_based_edge_detection(ri, variance=variance).to_numpy())
     assert int((so != ro).sum()) == 0, "edge map differs from sitk label-for-label"
+
+
+@pytest.mark.parametrize("radius", [1, 2, 3], ids=["r1", "r2", "r3"])
+def test_cmake_noise(radius):
+    """Noise (local noise estimator): per-voxel sample standard deviation over a
+    (2r+1)^3 ZeroFluxNeumann neighborhood. ritk `filter.local_noise` vs
+    `sitk.Noise`. Bit-exact including the boundary — both use the full clamped
+    window with divisor n-1, so every voxel matches (distinct from BoxSigma's
+    clipped-window boundary)."""
+    import numpy as _np
+    _np.random.seed(0)
+    img = (_np.random.rand(8, 10, 9).astype(_np.float32)) * 100.0
+    si = sitk.GetImageFromArray(img)
+    so = sitk.GetArrayFromImage(sitk.Noise(si, [radius, radius, radius]))
+    ri = ritk.Image(_np.ascontiguousarray(img))
+    ro = _np.asarray(ritk.filter.local_noise(ri, radius, radius, radius).to_numpy())
+    diff = float(_np.abs(so.astype(_np.float64) - ro.astype(_np.float64)).max())
+    assert diff == 0.0, f"Noise differs from sitk: maxdiff {diff:.2e}"

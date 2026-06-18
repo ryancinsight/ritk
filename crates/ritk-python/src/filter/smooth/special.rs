@@ -6,7 +6,7 @@ use ritk_filter::bias::N4Config;
 use ritk_filter::{
     BilateralFilter, BinShrinkImageFilter, BinomialBlurImageFilter, BoxMeanImageFilter,
     BoxSigmaImageFilter, MeanImageFilter, MedianFilter, N4BiasFieldCorrectionFilter,
-    RankImageFilter,
+    NoiseImageFilter, RankImageFilter,
 };
 
 /// Apply a mean (box) filter: each voxel becomes the average of the
@@ -64,6 +64,27 @@ pub fn box_sigma(
     into_py_image(out)
 }
 
+/// Estimate local image noise: the per-axis sample standard deviation over the
+/// full `(2r+1)` window under a ZeroFluxNeumann boundary (out-of-bounds
+/// neighbours clamp to the edge, so the window count is constant). Differs from
+/// `box_sigma` only at the border (full clamped window vs clipped window). ITK
+/// Parity: NoiseImageFilter (`sitk.Noise`, radius `[rx,ry,rz]`, default 1).
+#[pyfunction]
+#[pyo3(signature = (image, radius_z=1, radius_y=1, radius_x=1))]
+pub fn local_noise(
+    py: Python<'_>,
+    image: &PyImage,
+    radius_z: usize,
+    radius_y: usize,
+    radius_x: usize,
+) -> PyImage {
+    let image = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        NoiseImageFilter::new([radius_z, radius_y, radius_x]).apply(image.as_ref())
+    });
+    into_py_image(out)
+}
+
 /// Apply a box rank filter: the order statistic at `floor(rank·(n−1))` of the
 /// sorted `(2r+1)` window clipped to the image bounds (`rank=0.5` is the median;
 /// shrink boundary). ITK Parity: RankImageFilter (`sitk.Rank`, radius `[rx,ry,rz]`).
@@ -91,8 +112,7 @@ pub fn rank(
 #[pyo3(signature = (image, repetitions=1))]
 pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> PyImage {
     let image = std::sync::Arc::clone(&image.inner);
-    let out =
-        py.allow_threads(|| BinomialBlurImageFilter::new(repetitions).apply(image.as_ref()));
+    let out = py.allow_threads(|| BinomialBlurImageFilter::new(repetitions).apply(image.as_ref()));
     into_py_image(out)
 }
 

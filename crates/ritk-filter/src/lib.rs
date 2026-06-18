@@ -48,7 +48,7 @@ pub use recursive_gaussian::{
 };
 pub use smoothing::{
     BinomialBlurImageFilter, BoxMeanImageFilter, BoxSigmaImageFilter, MeanImageFilter,
-    RankImageFilter,
+    NoiseImageFilter, RankImageFilter,
 };
 
 // ── Intensity & histogram ────────────────────────────────────────────────────
