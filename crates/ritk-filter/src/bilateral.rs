@@ -146,6 +146,11 @@ const SIGMA_MIN: f64 = 1e-10;
 ///   (`iz..=iz±r` → `z_lo..z_hi`, same for y, x), removing every
 ///   per-neighbour `as isize` cast and branch and letting the inner
 ///   loop walk a simple `usize` range.
+/// - The outer Z-loop is parallelised across z-slices via `moirai`'s
+///   adaptive work-stealing scheduler (matches the canonical pattern
+///   used by `median_3d`, `rank_select_3d`, `jacobian_determinant`).
+///   Each z-slice writes into a disjoint contiguous range of the output
+///   buffer, so no synchronisation is needed across threads.
 ///
 /// Accumulation is `f64` to avoid catastrophic cancellation.
 fn compute(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64) -> Vec<f32> {
@@ -165,67 +170,81 @@ fn compute(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64)
     // Index 0 (the centre voxel, d=0) is always 1.0; offsets beyond the
     // neighbourhood footprint are never accessed.
     let table_len = 3 * r * r + 1;
-    let mut spatial_w = vec![0.0_f64; table_len];
-    for (d2, slot) in spatial_w.iter_mut().enumerate() {
-        *slot = (-(d2 as f64) * inv_two_ss2).exp();
-    }
+    let spatial_w: Vec<f64> = (0..table_len)
+        .map(|d2| (-(d2 as f64) * inv_two_ss2).exp())
+        .collect();
 
     let slab = ny * nx;
     let mut output = vec![0.0_f32; nz * ny * nx];
 
-    for iz in 0..nz {
-        let z_lo = iz.saturating_sub(r);
-        let z_hi = (iz + r + 1).min(nz);
+    // Parallelise over z-slices. Each z-slice produces `ny * nx` output
+    // voxels in the contiguous range `[iz * slab, (iz + 1) * slab)`;
+    // threads write only into their own disjoint window so no send/sync
+    // is required for `output`. The read-only `data` and `spatial_w`
+    // tables are `Send` + `Sync`, so the closures can be sent across
+    // worker threads without copying.
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut output,
+        slab,
+        |iz, iz_out| {
+            let z_lo = iz.saturating_sub(r);
+            let z_hi = (iz + r + 1).min(nz);
+            let center_val_offset = iz * slab;
 
-        for iy in 0..ny {
-            let y_lo = iy.saturating_sub(r);
-            let y_hi = (iy + r + 1).min(ny);
+            // Pre-bake `(dz², dz² + dy²)` for every (z, y) pair we will
+            // touch below: the inner x-loop only walks `dx²`. Skipping
+            // the `as isize` cast + the squaring per (z, y, x) ticks
+            // saves `(2r+1)² -- (2r+1)` redundant multiplies per voxel.
+            for (iy, out_row) in iz_out.chunks_exact_mut(nx).enumerate() {
+                let y_lo = iy.saturating_sub(r);
+                let y_hi = (iy + r + 1).min(ny);
+                let center_row_offset = center_val_offset + iy * nx;
 
-            for ix in 0..nx {
-                let center_flat = iz * slab + iy * nx + ix;
-                let center_val = data[center_flat] as f64;
+                for (ix, cell) in out_row.iter_mut().enumerate() {
+                    let center_flat = center_row_offset + ix;
+                    let center_val = data[center_flat] as f64;
 
-                let x_lo = ix.saturating_sub(r);
-                let x_hi = (ix + r + 1).min(nx);
+                    let x_lo = ix.saturating_sub(r);
+                    let x_hi = (ix + r + 1).min(nx);
 
-                let mut weighted_sum = 0.0_f64;
-                let mut weight_total = 0.0_f64;
+                    let mut weighted_sum = 0.0_f64;
+                    let mut weight_total = 0.0_f64;
 
-                // Clamped neighbourhood walk: `(2r+1)³` candidates with
-                // single dynamic bound check per axis (already known),
-                // then a `usize` triple-nested loop with one table lookup
-                // and one range `exp` per neighbour. No `as isize` casts,
-                // no `as usize` round-trips, no per-neighbour branches.
-                for z in z_lo..z_hi {
-                    let dz = z as isize - iz as isize;
-                    let dz2 = (dz * dz) as usize;
-                    let z_row_base = z * slab;
-                    for y in y_lo..y_hi {
-                        let dy = y as isize - iy as isize;
-                        let dy2 = (dy * dy) as usize;
-                        let row_base = z_row_base + y * nx;
-                        let d2_xy = dz2 + dy2;
-                        for x in x_lo..x_hi {
-                            let dx = x as isize - ix as isize;
-                            let d2 = d2_xy + (dx * dx) as usize;
-                            let sw = spatial_w[d2];
-                            let n_val = data[row_base + x] as f64;
-                            let rd = center_val - n_val;
-                            let w = sw * (-rd * rd * inv_two_sr2).exp();
-                            weighted_sum += w * n_val;
-                            weight_total += w;
+                    // Clamped neighbourhood walk: `(2r+1)³` candidates with
+                    // single dynamic bound check per axis (already known),
+                    // then a `usize` triple-nested loop with one table lookup
+                    // and one range `exp` per neighbour. No `as isize` casts,
+                    // no `as usize` round-trips, no per-neighbour branches.
+                    for z in z_lo..z_hi {
+                        let dz = z as isize - iz as isize;
+                        let dz2 = (dz * dz) as usize;
+                        let z_row_base = z * slab;
+                        for y in y_lo..y_hi {
+                            let dy = y as isize - iy as isize;
+                            let d2_xy = dz2 + (dy * dy) as usize;
+                            let row_base = z_row_base + y * nx;
+                            for x in x_lo..x_hi {
+                                let dx = x as isize - ix as isize;
+                                let d2 = d2_xy + (dx * dx) as usize;
+                                let sw = spatial_w[d2];
+                                let n_val = data[row_base + x] as f64;
+                                let rd = center_val - n_val;
+                                let w = sw * (-rd * rd * inv_two_sr2).exp();
+                                weighted_sum += w * n_val;
+                                weight_total += w;
+                            }
                         }
                     }
-                }
 
-                output[center_flat] = if weight_total > 1e-20 {
-                    (weighted_sum / weight_total) as f32
-                } else {
-                    data[center_flat]
-                };
+                    *cell = if weight_total > 1e-20 {
+                        (weighted_sum / weight_total) as f32
+                    } else {
+                        data[center_flat]
+                    };
+                }
             }
-        }
-    }
+        },
+    );
 
     output
 }

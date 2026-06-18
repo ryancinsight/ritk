@@ -11,9 +11,13 @@
 //!
 //! | Size  | voxels | spatial σ | r | median |
 //! |-------|--------|-----------|---|--------|
-//! | small | 16³=4 096  | 1.5 | 5 |  14.4 ms |
-//! | med   | 32³≈32 768  | 1.5 | 5 |   152 ms |
-//! | large | 64³≈262 K | 1.5 | 5 | unmeasured (run on demand) |
+//! | small | 16³=4 096   | 1.5 | 5 |   ~1.2 ms |
+//! | med   | 32³≈32 768  | 1.5 | 5 |  ~11.4 ms |
+//! | large | 64³≈262 K   | 1.5 | 5 |   ~76 ms  |
+//!
+//! Scaling: 64× voxels → ~63× time at 64³, confirming compute-bound
+//! after z-slice parallelism (PERF-377-02). Prior header reported 152ms
+//! for 32³ (pre-spatial-LUT baseline); current med is ~13.3× faster.
 
 use burn_ndarray::NdArray;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
