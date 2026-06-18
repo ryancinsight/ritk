@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.100.1] — 2026-06-17 (Sprint 411: BinaryReconstructionByDilation + BinaryGrindPeak)
+
+### Added
+- `ritk-python` tests: cmake parity cases for two binary morphology filters ritk already covers via existing engines — `BinaryReconstructionByDilation` (`morphological_reconstruction` dilation on a 0/1 image keeps mask components touching the marker; **bit-exact** to `sitk.BinaryReconstructionByDilation` on cthead, marker = eroded mask) and `BinaryGrindPeak` (`grayscale_grind_peak` on a 0/1 image removes fg objects not connected to the border; **bit-exact** to `sitk.BinaryGrindPeak` on a discriminating border-bar-plus-enclosed-blob case). No new code. Corrects an earlier inconclusive probe that wrongly reported a 1.0 mismatch (a marker/mask setup error — the filters match exactly). Coverage 178/298.
+
 ## [0.100.0] — 2026-06-17 (Sprint 410: DoubleThreshold)
 
 ### Added

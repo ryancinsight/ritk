@@ -691,6 +691,36 @@ def test_cmake_h_transform_on_upstream_data(tag, rfn, sfn, height):
     assert np.array_equal(r, s), f"{tag} (h={height}): differs from sitk"
 
 
+def test_cmake_binary_reconstruction_by_dilation_on_upstream_data():
+    # Binary reconstruction: keep mask components touching the marker. ritk's
+    # morphological_reconstruction(dilation) on 0/1 == sitk.BinaryReconstructionByDilation.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    mb = (sitk.GetArrayFromImage(si).astype(np.float32) > 40).astype(np.float32)
+    sim = sitk.Cast(sitk.GetImageFromArray(mb), sitk.sitkUInt8)
+    smk = sitk.BinaryErode(sim, [3, 3, 0])
+    rmask = ritk.Image(np.ascontiguousarray(mb[None]))
+    rmk = ritk.Image(np.ascontiguousarray(sitk.GetArrayFromImage(smk).astype(np.float32)[None]))
+    r = np.squeeze(np.asarray(
+        ritk.filter.morphological_reconstruction(rmk, rmask, "dilation").to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.BinaryReconstructionByDilation(smk, sim)).astype(np.float64))
+    assert np.array_equal(r, s), "BinaryReconstructionByDilation differs from sitk"
+
+
+def test_cmake_binary_grind_peak_on_upstream_data():
+    # grayscale_grind_peak on a 0/1 image == sitk.BinaryGrindPeak (removes fg
+    # objects not connected to the border). Border bar kept, enclosed blob ground.
+    m = np.zeros((1, 7, 7), np.float32)
+    m[0, :, 0:2] = 1.0
+    m[0, 3:5, 3:5] = 1.0
+    rim = ritk.Image(np.ascontiguousarray(m))
+    sim = sitk.Cast(sitk.GetImageFromArray(m[0]), sitk.sitkUInt8)
+    r = np.squeeze(np.asarray(ritk.filter.grayscale_grind_peak(rim).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.BinaryGrindPeak(sim)).astype(np.float64))
+    assert np.array_equal(r, s), "BinaryGrindPeak differs from sitk"
+
+
 def test_cmake_reconstruction_by_erosion_on_upstream_data():
     # Grayscale reconstruction by erosion: marker >= mask, reconstruct down to
     # the mask. ITK Parity: ReconstructionByErosionImageFilter.
