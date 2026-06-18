@@ -5,8 +5,9 @@ use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     edge::GaussianSigma, CannyEdgeDetector, DerivativeImageFilter, FastMarchingFilter,
-    GradientMagnitudeFilter, IsoContourDistanceFilter, LaplacianFilter, LaplacianOfGaussianFilter,
-    LaplacianSharpeningFilter, SobelFilter, ZeroCrossingBasedEdgeDetectionFilter,
+    CollidingFrontsFilter, GradientMagnitudeFilter, IsoContourDistanceFilter, LaplacianFilter,
+    LaplacianOfGaussianFilter, LaplacianSharpeningFilter, SobelFilter,
+    ZeroCrossingBasedEdgeDetectionFilter,
 };
 
 /// Directional derivative (central differences) along `direction` (sitk axis:
@@ -194,6 +195,46 @@ pub fn fast_marching(
             initial_trial_values,
             normalization_factor,
             stopping_value: stopping_value.unwrap_or(f64::MAX / 2.0),
+        }
+        .apply(arc.as_ref())
+    });
+    into_py_image(out)
+}
+
+/// Colliding-fronts segmentation potential, matching `SimpleITK.CollidingFronts`.
+///
+/// Two fast-marching fronts are propagated from `seeds1` and `seeds2` through the
+/// speed image; the output is the dot product of their upwind gradient fields,
+/// strongly negative where the fronts collide. With `apply_connectivity` the
+/// result is restricted to the connected region of `P ≤ negative_epsilon`
+/// reachable from `seeds1`; elsewhere 0.
+///
+/// Args:
+///     image: Speed image (non-negative).
+///     seeds1: First front's seed voxels, each `[z, y, x]`.
+///     seeds2: Second front's seed voxels, each `[z, y, x]`.
+///     apply_connectivity: Restrict to the connected colliding corridor (default True).
+///     negative_epsilon: Seed / connectivity threshold (default -1e-6).
+///
+/// Returns:
+///     Colliding-fronts potential PyImage, same shape and metadata as input.
+#[pyfunction]
+#[pyo3(signature = (image, seeds1, seeds2, apply_connectivity=true, negative_epsilon=-1e-6_f64))]
+pub fn colliding_fronts(
+    py: Python<'_>,
+    image: &PyImage,
+    seeds1: Vec<[usize; 3]>,
+    seeds2: Vec<[usize; 3]>,
+    apply_connectivity: bool,
+    negative_epsilon: f64,
+) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        CollidingFrontsFilter {
+            seeds1,
+            seeds2,
+            apply_connectivity,
+            negative_epsilon,
         }
         .apply(arc.as_ref())
     });

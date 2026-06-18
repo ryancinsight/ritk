@@ -151,6 +151,7 @@ pub use transform::{
 };
 
 // ── Surface & distance ───────────────────────────────────────────────────────
+pub mod colliding_fronts;
 pub mod displacement;
 pub mod distance;
 pub mod fast_marching;
@@ -164,6 +165,7 @@ pub use displacement::transform_to_displacement_field;
 pub use distance::{
     BinarizationThreshold, DistanceTransformImageFilter, SignedDistanceTransformImageFilter,
 };
+pub use colliding_fronts::CollidingFrontsFilter;
 pub use fast_marching::FastMarchingFilter;
 pub use fractal_dimension::StochasticFractalDimensionFilter;
 pub use iso_contour::IsoContourDistanceFilter;

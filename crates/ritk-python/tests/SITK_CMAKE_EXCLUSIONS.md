@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **43 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **38 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -40,11 +40,12 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 - **FastMarchingBase, FastMarchingUpwindGradient** are also covered: their arrival-time output
   equals `FastMarching`'s (the upwind-gradient secondary output is not the primary image), so
   `filter.fast_marching` matches both float-exactly (≤1e-6).
-- **CollidingFronts** — runs two `FastMarchingUpwindGradient` passes (seeds1→targets2 and
-  seeds2→targets1) with `GenerateGradientImageOn`, then outputs `−(∇T1·∇T2)` (the dot product of
-  the two **upwind** gradient fields, `m_NegativeEpsilon = −1e-6`). Needs the upwind-gradient
-  output added to `FastMarchingFilter` (ITK computes ∇T at each node as it goes alive, not by
-  finite differences), then the dot product. Reachable, deferred.
+- **CollidingFronts** is now shipped float-exact (`filter.colliding_fronts`): two `fast_marching`
+  passes (from `seeds1`, from `seeds2`), the upwind gradient of each arrival-time field
+  (`itk::FastMarchingUpwindGradient`'s per-axis one-sided difference), their dot product `∇T1·∇T2`,
+  seeds pinned to `m_NegativeEpsilon = −1e-6`, and (with `applyConnectivity`) a face-connected
+  flood from `seeds1` over `{P ≤ −1e-6}`. Verified ≤1e-3 (f32 arrival-time rounding) vs
+  `sitk.CollidingFronts` for both connectivity modes.
 
 ## Watershed (RESOLVED, Sprint 489 — MorphologicalWatershed now covered)
 

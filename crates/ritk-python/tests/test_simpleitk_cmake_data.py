@@ -726,6 +726,33 @@ def test_cmake_fast_marching_variants(which):
     assert float(_np.abs(r - s).max()) < 1e-3, f"FastMarching{which} differs from sitk"
 
 
+@pytest.mark.parametrize("connectivity", [True, False], ids=["connected", "raw"])
+def test_cmake_colliding_fronts(connectivity):
+    """CollidingFronts: two fast-marching fronts collide; output is the dot
+    product of their upwind gradient fields (strongly negative at the collision).
+    ritk `filter.colliding_fronts` vs `sitk.CollidingFronts`. Float-exact (f32
+    arrival-time rounding) — the upwind gradient and seed/connectivity handling
+    match ITK exactly."""
+    import numpy as _np
+    H, W = 12, 14
+    _np.random.seed(0)
+    speed = (0.5 + _np.random.rand(H, W)).astype(_np.float32)
+    si = sitk.GetImageFromArray(speed)
+    s1 = [(2, 3)]        # (y, x)
+    s2 = [(9, 11)]       # (y, x)
+    s = sitk.GetArrayFromImage(sitk.CollidingFronts(
+        si, [[x, y] for (y, x) in s1], [[x, y] for (y, x) in s2],
+        connectivity, -1e-6, False)).astype(_np.float64)
+    rseeds1 = [[0, y, x] for (y, x) in s1]
+    rseeds2 = [[0, y, x] for (y, x) in s2]
+    r = _np.squeeze(_np.asarray(ritk.filter.colliding_fronts(
+        ritk.Image(_np.ascontiguousarray(speed[None])), rseeds1, rseeds2,
+        connectivity, -1e-6).to_numpy(), _np.float64))
+    assert r.shape == s.shape, f"shape {r.shape} != {s.shape}"
+    assert float(_np.abs(r - s).max()) < 1e-3, \
+        f"CollidingFronts differs from sitk (max {float(_np.abs(r - s).max())})"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).
