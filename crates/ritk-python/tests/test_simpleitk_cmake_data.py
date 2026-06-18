@@ -1269,6 +1269,31 @@ def test_cmake_binary_reconstruction_by_dilation_on_upstream_data():
     assert np.array_equal(r, s), "BinaryReconstructionByDilation differs from sitk"
 
 
+def test_cmake_binary_reconstruction_by_erosion_on_upstream_data():
+    """BinaryReconstructionByErosion is the morphological dual of
+    BinaryReconstructionByDilation: reconstruct(erosion) of mask from marker ==
+    NOT(reconstruct(dilation) of NOT-mask from NOT-marker). ritk has no native
+    binary-erosion-reconstruction, so it is composed from the verified
+    `morphological_reconstruction(dilation)` on the complements. Differential test
+    vs sitk's native filter (a wrong composition yields a different result, so the
+    match is discriminating). ITK Parity: BinaryReconstructionByErosionImageFilter."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    mb = (sitk.GetArrayFromImage(si).astype(np.float32) > 40).astype(np.float32)
+    sim = sitk.Cast(sitk.GetImageFromArray(mb), sitk.sitkUInt8)
+    # marker >= mask (erosion-reconstruction convention): a dilation of the mask.
+    smk = sitk.BinaryDilate(sim, [3, 3, 0])
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.BinaryReconstructionByErosion(smk, sim)).astype(np.float64))
+    # ritk: NOT( reconstruct_dilation( NOT marker, NOT mask ) ).
+    comp = lambda a: (np.squeeze(a) < 0.5).astype(np.float32)
+    c_mask = ritk.Image(np.ascontiguousarray(comp(mb)[None]))
+    c_marker = ritk.Image(np.ascontiguousarray(comp(sitk.GetArrayFromImage(smk).astype(np.float32))[None]))
+    rec = ritk.filter.morphological_reconstruction(c_marker, c_mask, "dilation", False)
+    r = comp(rec.to_numpy()).astype(np.float64)
+    assert np.array_equal(r, s), "BinaryReconstructionByErosion differs from sitk"
+
+
 def test_cmake_binary_grind_peak_on_upstream_data():
     # grayscale_grind_peak on a 0/1 image == sitk.BinaryGrindPeak (removes fg
     # objects not connected to the border). Border bar kept, enclosed blob ground.
