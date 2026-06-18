@@ -10,17 +10,21 @@
 - [x] FMT [patch]: `cargo fmt --check` clean on staged files
 - [x] CLIPPY [patch]: `cargo clippy --workspace --all-targets -- -D warnings` 0 warnings
 - [x] COMMIT [patch]: `de26c2fc refactor(segmentation,filter): needless_range_loop -> iterator`
+- [x] PERF-377-01 [patch] (partial): **MedianFilter clamp-hoist micro-optimisation** — pre-baked Z-clamp & Y-clamp indices into stack buffers (`zz_buf`/`yy_buf`), eliminating `(2r+1)²` and `(2r+1)` redundant clamps per voxel; `radius==0` identity fast-path; `BUF_CAP=64` stack buffer with `2r+1<64` panic guard. Verified bit-identical to naive reference via two new brute-force equivalence tests (`to_bits()` equality at r=1 / r=3). Huang sliding-histogram full algorithm deferred (`concurrent_agents` and algorithmic scope note below).
+- [x] COMMIT [patch]: PERF-377-01 partial (clamp-hoist + brute-force equivalence tests) — atomic.
 
 ### Verification gate
 - [x] `cargo nextest run -p ritk-segmentation -E 'test(threshold)'` → 120/120 passed
 - [x] `cargo nextest run -p ritk-filter -E 'test(unary_minus)|test(round_half)'` → 2/2 passed
+- [x] `cargo nextest run -p ritk-filter` → 794/794 passed (incl. 9/9 median; 2 new brute-force equivalence tests)
+- [x] `cargo clippy -p ritk-filter --lib -- -D warnings` → 0 warnings (lib clean; test-only WIP files owned by parallel agent)
 
 ### Deferred / carry-forward (next increments)
-- [ ] PERF-377-01 [patch]: **MedianFilter O(N·n³·log n) → O(N·r²)** via Huang's sliding column histogram — bit-exact equivalence to naive reference; high-value algorithmic reduction.
+- [ ] PERF-377-01 (full) [patch→[minor]?]: **Huang sliding-histogram MedianFilter full algorithm** — incremental 2-D XY sliding to reach O(N·r²). Requires `window_hist[n_bins]` maintained across z-steps with row_in/row_out column-hist updates (Perreault-Hebert 2007 §3.2). Defer until parallel agent clears median.rs/Cargo.toml ownership; see PERF-377-01 partial above for delivered clamp-hoist micro-optimisation.
 - [ ] PERF-377-02 [patch]: **BilateralFilter memory-bandwidth review** — current LUT-optimised (BILAT-PERF-01); headroom: drop `exp` into a second LUT, or explore separable approximation.
 - [ ] PERF-377-03 [patch]: **Rank/Percentile filter** — same naive O(N·n³·log n); co-bundle with PERF-377-01 if algorithm is portable.
 - [ ] DOC-377-01 [patch]: 16 pre-existing intra-doc-link warnings (rustdoc unresolved link, public docs → private items) accumulated from Sprint 393-395 commits; gated but non-blocking.
-- [ ] FMT-377-01 [patch]: 22 working-tree fmt-only diffs from cumulative agent updates (long-line rewraps). Pure whitespace; next `cargo fmt --all` by next agent or this session will close.
+- [ ] FMT-377-01 [patch]: working-tree fmt-only diffs from cumulative agent updates (long-line rewraps). Now ~32 files per current `git status`; pure whitespace; next `cargo fmt --all` by next agent or this session will close.
 
 ### Known WIP in working tree — concurrent agent, do NOT touch
 

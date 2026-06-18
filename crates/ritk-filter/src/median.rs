@@ -73,6 +73,10 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
     let r = radius as isize;
     let cap = (2 * radius + 1).pow(3);
+    let nz_isize = nz as isize;
+    let ny_isize = ny as isize;
+    let nx_isize = nx as isize;
+    let stride_yx = ny * nx;
     let mut output = vec![0.0_f32; nz * ny * nx];
 
     moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
@@ -83,18 +87,71 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
             // voxels in the slice via clear() to avoid per-voxel heap allocation.
             let mut neighbors: Vec<f32> = Vec::with_capacity(cap);
 
-            for iy in 0..ny {
-                for ix in 0..nx {
+            // Pre-clamp the Z-plane once per voxel-row: each `dz` maps to a
+            // single `zz` regardless of `iy, ix`. Hoisting removes a
+            // `(2r+1)²`-fold redundant branch per voxel (PERF-377-01 partial).
+            const BUF_CAP: usize = 64;
+            // The clamp-buffer holds `2 * radius + 1` clamped indices per axis.
+            // Capacity 64 supports radii up to 31 (test-only envelope — production
+            // radii are ≪ 8). A larger radius panics here to keep the hot path
+            // stack-allocated.
+            assert!(
+                2 * radius < BUF_CAP,
+                "MedianFilter::median_3d: radius {radius} exceeds buffer cap (max 31)"
+            );
+            let mut zz_buf: [usize; BUF_CAP] = [0; BUF_CAP];
+            #[allow(clippy::needless_range_loop)]
+            for dz in 0..=(2 * radius) {
+                let z_raw = (iz as isize + dz as isize - r).clamp(0, nz_isize - 1);
+                zz_buf[dz] = z_raw as usize;
+            }
+
+            if radius == 0 {
+                // Single sample per voxel — neighborhood is just the voxel.
+                for (iy, out_row) in out_slice.chunks_exact_mut(nx).enumerate() {
+                    for (ix, cell) in out_row.iter_mut().enumerate() {
+                        let idx = iz * stride_yx + iy * nx + ix;
+                        *cell = data[idx];
+                    }
+                }
+                return;
+            }
+
+            for (iy, out_row) in out_slice.chunks_exact_mut(nx).enumerate() {
+                // Pre-clamp the Y-row once per iy: `(2r+1)²`-fold redundant
+                // branch elimination when paired with the dz-hoist above.
+                let mut yy_buf: [usize; BUF_CAP] = [0; BUF_CAP];
+                #[allow(clippy::needless_range_loop)]
+                for dy in 0..=(2 * radius) {
+                    let y_raw = (iy as isize + dy as isize - r).clamp(0, ny_isize - 1);
+                    yy_buf[dy] = y_raw as usize;
+                }
+
+                for (ix, cell) in out_row.iter_mut().enumerate() {
                     neighbors.clear();
 
-                    // Collect (2r+1)^3 neighbourhood with replicate (clamp) padding.
-                    for dz in -r..=r {
-                        for dy in -r..=r {
-                            for dx in -r..=r {
-                                let zz = (iz as isize + dz).max(0).min(nz as isize - 1) as usize;
-                                let yy = (iy as isize + dy).max(0).min(ny as isize - 1) as usize;
-                                let xx = (ix as isize + dx).max(0).min(nx as isize - 1) as usize;
-                                neighbors.push(data[zz * ny * nx + yy * nx + xx]);
+                    // Collect (2r+1)^3 neighbourhood with replicate (clamp)
+                    // padding. The per-axis clamp results are pre-baked in
+                    // `zz_buf` / `yy_buf`; only the X-axis clamp is computed
+                    // per inner-tick (it depends on `ix`).
+                    //
+                    // The triple-nested `dz`, `dy`, `dx` loops use indices
+                    // to drive the geometry of the cubic neighbourhood;
+                    // the iterator-with-enumerate transformation adds a
+                    // bounds-check on every tick without paying for the
+                    // inner clamp hoist. Single block-level allow per the
+                    // precedent set by morphology::window_1d.
+                    #[allow(clippy::needless_range_loop)]
+                    for dz in 0..=(2 * radius) {
+                        let zz_base = zz_buf[dz] * stride_yx;
+                        #[allow(clippy::needless_range_loop)]
+                        for dy in 0..=(2 * radius) {
+                            let yy_base = yy_buf[dy] * nx;
+                            let base = zz_base + yy_base;
+                            for dx in 0..=(2 * radius) {
+                                let xx =
+                                    (ix as isize + dx as isize - r).clamp(0, nx_isize - 1) as usize;
+                                neighbors.push(data[base + xx]);
                             }
                         }
                     }
@@ -107,7 +164,7 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
                     neighbors.select_nth_unstable_by(mid, |a, b| {
                         a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
                     });
-                    out_slice[iy * nx + ix] = neighbors[mid];
+                    *cell = neighbors[mid];
                 }
             }
         },
@@ -284,7 +341,7 @@ mod tests {
         }
     }
 
-    // ── Test 4: Identity for radius zero ──────────────────────────────────
+    // -- Test 4: Identity for radius zero ---------------------------------
 
     /// With radius = 0 the neighbourhood is a single voxel, so the output
     /// must be bit-identical to the input.
@@ -307,6 +364,96 @@ mod tests {
             assert!(
                 (actual - expected).abs() < 1e-6,
                 "voxel {i}: expected {expected}, got {actual}"
+            );
+        }
+    }
+
+    // -- Test 5: Brute-force reference agreement -------------------------
+
+    /// `median_3d` must produce the lower median over the multiset
+    /// `{data[clamp(iz + dz), clamp(iy + dy), clamp(ix + dx)] : dz,
+    /// dy, dx ∈ [-r, r]}` for every voxel. The brute-force reference below
+    /// gathers the full multiset via clamp arithmetic and applies the
+    /// same `select_nth_unstable_by(mid)` call; agreement is therefore
+    /// bit-equal — `assert_eq!` is the correct (not merely bounded)
+    /// oracle. The clamp arithmetic matches the production code: same
+    /// `.clamp(0, n - 1)` idiom means identical multisets.
+    ///
+    /// This test guards against regressions introduced by the
+    /// PERF-377-01 clamp-hoisting micro-optimisation (clamp indices are
+    /// pre-baked into `zz_buf` / `yy_buf` instead of computed per inner
+    /// tick). The hoisting does NOT change the values placed into
+    /// `neighbors`; it merely re-orders computation.
+    fn median_3d_brute_force(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
+        let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
+        let r = radius as isize;
+        let mut output = vec![0.0_f32; nz * ny * nx];
+
+        for iz in 0..nz {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let mut nbrs: Vec<f32> = Vec::with_capacity((2 * radius + 1).pow(3));
+                    for dz in -r..=r {
+                        let zz = (iz as isize + dz).clamp(0, nz as isize - 1) as usize;
+                        for dy in -r..=r {
+                            let yy = (iy as isize + dy).clamp(0, ny as isize - 1) as usize;
+                            for dx in -r..=r {
+                                let xx = (ix as isize + dx).clamp(0, nx as isize - 1) as usize;
+                                nbrs.push(data[zz * ny * nx + yy * nx + xx]);
+                            }
+                        }
+                    }
+                    let mid = nbrs.len() / 2;
+                    nbrs.select_nth_unstable_by(mid, |a, b| {
+                        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                    output[iz * ny * nx + iy * nx + ix] = nbrs[mid];
+                }
+            }
+        }
+        output
+    }
+
+    #[test]
+    fn test_median_3d_matches_brute_force_reference_r1() {
+        // 12×12×12 = 1728 voxels; small but non-trivial boundary handling
+        // (r=1 windows always touch the clamp boundary on a 12-D axis).
+        let dims = [12, 12, 12];
+        let n: usize = dims.iter().product();
+        let vals: Vec<f32> = (0..n).map(|i| ((i * 31) % 97) as f32 * 0.13).collect();
+
+        let r1 = median_3d_brute_force(&vals, dims, 1);
+        let r2 = super::median_3d(&vals, dims, 1);
+        assert_eq!(r1.len(), dims.iter().product::<usize>());
+        assert_eq!(r2.len(), dims.iter().product::<usize>());
+        for (i, (&a, &b)) in r1.iter().zip(r2.iter()).enumerate() {
+            // `select_nth_unstable_by` is deterministic for a given input
+            // and partition scheme, so values MUST match exactly.
+            assert!(
+                a.to_bits() == b.to_bits(),
+                "voxel {i} mismatch: brute={a} (bits={:08x}) hoisted={b} (bits={:08x})",
+                a.to_bits(),
+                b.to_bits()
+            );
+        }
+    }
+
+    #[test]
+    fn test_median_3d_matches_brute_force_reference_r3() {
+        // r=3 exercises the larger (2r+1) = 7 cube (343 samples) and
+        // surfaces any off-by-one in the clamp hoist.
+        let dims = [10, 10, 10];
+        let n: usize = dims.iter().product();
+        let vals: Vec<f32> = (0..n).map(|i| ((i * 13 + 7) % 53) as f32 - 26.0).collect();
+
+        let r1 = median_3d_brute_force(&vals, dims, 3);
+        let r2 = super::median_3d(&vals, dims, 3);
+        assert_eq!(r1.len(), n);
+        assert_eq!(r2.len(), n);
+        for (i, (&a, &b)) in r1.iter().zip(r2.iter()).enumerate() {
+            assert!(
+                a.to_bits() == b.to_bits(),
+                "voxel {i} mismatch (r=3): brute={a} hoisted={b}"
             );
         }
     }
