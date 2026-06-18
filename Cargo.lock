@@ -6782,7 +6782,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-python"
-version = "0.12.72"
+version = "0.12.73"
 dependencies = [
  "anyhow",
  "burn",

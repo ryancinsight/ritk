@@ -484,6 +484,47 @@ def test_cmake_scalar_connected_component_on_upstream_data():
         "ScalarConnectedComponent partition differs from sitk"
 
 
+def test_cmake_grayscale_connected_opening_on_upstream_data():
+    """GrayscaleConnectedOpening enhances the bright structure connected to a
+    seed: geodesic reconstruction by dilation of a marker that holds the input
+    value at the seed and the global minimum elsewhere. Bit-exact to ritk's
+    `morphological_reconstruction(marker, image, 'dilation')` with face
+    connectivity (ITK default). ITK Parity: GrayscaleConnectedOpeningImageFilter."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = np.squeeze(sitk.GetArrayFromImage(si))
+    sy, sx = np.unravel_index(np.argmax(arr), arr.shape)  # bright seed
+    marker = np.full_like(arr, float(arr.min()))
+    marker[sy, sx] = arr[sy, sx]
+    rmk = ritk.Image(np.ascontiguousarray(marker[None].astype(np.float32)))
+    r = np.squeeze(ritk.filter.morphological_reconstruction(rmk, ri, "dilation", False).to_numpy())
+    f = sitk.GrayscaleConnectedOpeningImageFilter()
+    f.SetFullyConnected(False)
+    f.SetSeed([int(sx), int(sy), 0])
+    s = np.squeeze(sitk.GetArrayFromImage(f.Execute(si)))
+    assert np.array_equal(r, s), "GrayscaleConnectedOpening differs from sitk"
+
+
+def test_cmake_grayscale_connected_closing_on_upstream_data():
+    """GrayscaleConnectedClosing is the dual: geodesic reconstruction by erosion
+    of a marker holding the input value at the seed and the global maximum
+    elsewhere. Bit-exact to ritk's `morphological_reconstruction(marker, image,
+    'erosion')`. ITK Parity: GrayscaleConnectedClosingImageFilter."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = np.squeeze(sitk.GetArrayFromImage(si))
+    sy, sx = np.unravel_index(np.argmin(arr), arr.shape)  # dark seed
+    marker = np.full_like(arr, float(arr.max()))
+    marker[sy, sx] = arr[sy, sx]
+    rmk = ritk.Image(np.ascontiguousarray(marker[None].astype(np.float32)))
+    r = np.squeeze(ritk.filter.morphological_reconstruction(rmk, ri, "erosion", False).to_numpy())
+    f = sitk.GrayscaleConnectedClosingImageFilter()
+    f.SetFullyConnected(False)
+    f.SetSeed([int(sx), int(sy), 0])
+    s = np.squeeze(sitk.GetArrayFromImage(f.Execute(si)))
+    assert np.array_equal(r, s), "GrayscaleConnectedClosing differs from sitk"
+
+
 def test_cmake_dilate_object_morphology_on_upstream_data():
     """DilateObjectMorphology (box SE, objectValue=1) on a binary mask == ritk
     grayscale_dilation: for a solid object, dilating its surface equals dilating

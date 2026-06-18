@@ -7,6 +7,17 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.48] — 2026-06-18 (Sprint 461: GrayscaleConnectedOpening / Closing parity)
+
+### Added
+- Tests: cmake parity cases for `GrayscaleConnectedOpening` and
+  `GrayscaleConnectedClosing` — geodesic reconstruction from a seed, **bit-exact**
+  to ritk's existing `morphological_reconstruction(marker, image, 'dilation' |
+  'erosion')` with a seed marker (input value at the seed, global min/max
+  elsewhere) and face connectivity (ITK default). Index-space morphology, so
+  unaffected by the geometry-convention finding above. No code change. Coverage
+  234 → 236/298. `[patch]`
+
 ## [0.102.47] — 2026-06-18 (Sprint 460: geometry-convention audit)
 
 ### Notes
