@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 377 Performance Round (Median + Bilateral + Rank/Percentile)
+
+### Performance
+- `ritk-filter`: `MedianFilter::median_3d` clamp-hoist micro-optimisation — per-voxel `clamp(iz+dz, 0, nz−1)` and `clamp(iy+dy, 0, ny−1)` pre-baked into stack buffers `zz_buf`/`yy_buf` once per iz/iy, eliminating `(2r+1)²` and `(2r+1)` redundant clamps per voxel. Added `radius==0` identity fast path and a bounded `BUF_CAP=64` stack buffer with a `2·radius < 64` panic guard. Two new brute-force equivalence tests assert `to_bits()` equality at r=1 (12³) and r=3 (10³, 343-sample cube) — bit-identical to the naive reference.
+- `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
+- `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
+
 ## [0.102.21] — 2026-06-17 (Sprint 434: BoxSigma)
 
 ### Added

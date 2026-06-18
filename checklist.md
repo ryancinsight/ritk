@@ -11,20 +11,26 @@
 - [x] CLIPPY [patch]: `cargo clippy --workspace --all-targets -- -D warnings` 0 warnings
 - [x] COMMIT [patch]: `de26c2fc refactor(segmentation,filter): needless_range_loop -> iterator`
 - [x] PERF-377-01 [patch] (partial): **MedianFilter clamp-hoist micro-optimisation** — pre-baked Z-clamp & Y-clamp indices into stack buffers (`zz_buf`/`yy_buf`), eliminating `(2r+1)²` and `(2r+1)` redundant clamps per voxel; `radius==0` identity fast-path; `BUF_CAP=64` stack buffer with `2r+1<64` panic guard. Verified bit-identical to naive reference via two new brute-force equivalence tests (`to_bits()` equality at r=1 / r=3). Huang sliding-histogram full algorithm deferred (`concurrent_agents` and algorithmic scope note below).
-- [x] COMMIT [patch]: PERF-377-01 partial (clamp-hoist + brute-force equivalence tests) — atomic.
+- [x] COMMIT [patch]: `c8048c5d perf(ritk-filter): hoist per-voxel clamps in MedianFilter`
+- [x] PERF-377-02 [patch]: **BilateralFilter z-slice parallelism** — replaced serial `for iz in 0..nz` with `moirai::for_each_chunk_mut_enumerated_with` over disjoint output slices. Hoisted dz² + dy² outer-loop arithmetic; tightened spatial_w construction. Verified equivalent via existing brute-force reference test (max_abs < 1e-5). Bench: 32³ 152ms → 11.4ms (~13.3×); 16³ ~1.2ms; 64³ ~76ms (compute-bound linear scaling).
+- [x] COMMIT [patch]: `ca5b49a5 perf(ritk-filter): parallelise BilateralFilter over z-slices`
+- [x] PERF-377-03 [patch]: **Rank/Percentile filter SSOT consolidation** — promoted duplicated `rank_select_3d` / `percentile_3d` algorithm bodies to a single canonical `rank::kernel::neighborhood_rank_3d`; both `RankFilter::apply` and `PercentileFilter::apply` now translate their public parameter to a `usize rank_idx` and delegate. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. All 14 existing rank/percentile tests still pass; behaviour bit-equivalent.
+- [x] COMMIT [patch]: `cb671b64 refactor(ritk-filter): consolidate rank/percentile kernel to SSOT`
 
 ### Verification gate
 - [x] `cargo nextest run -p ritk-segmentation -E 'test(threshold)'` → 120/120 passed
 - [x] `cargo nextest run -p ritk-filter -E 'test(unary_minus)|test(round_half)'` → 2/2 passed
-- [x] `cargo nextest run -p ritk-filter` → 794/794 passed (incl. 9/9 median; 2 new brute-force equivalence tests)
+- [x] `cargo nextest run -p ritk-filter` → 800/800 passed (full crate incl. 9/9 median, 5/5 bilateral, 14/14 rank/percentile)
 - [x] `cargo clippy -p ritk-filter --lib -- -D warnings` → 0 warnings (lib clean; test-only WIP files owned by parallel agent)
+- [x] `cargo bench -p ritk-filter --bench bilateral -- apply/16x16x16` → ~1.2 ms median
+- [x] `cargo bench -p ritk-filter --bench bilateral -- apply/32x32x32` → ~11.4 ms median
+- [x] `cargo bench -p ritk-filter --bench bilateral -- apply/64x64x64` → ~76 ms median (linear scaling confirms compute-bound)
 
 ### Deferred / carry-forward (next increments)
 - [ ] PERF-377-01 (full) [patch→[minor]?]: **Huang sliding-histogram MedianFilter full algorithm** — incremental 2-D XY sliding to reach O(N·r²). Requires `window_hist[n_bins]` maintained across z-steps with row_in/row_out column-hist updates (Perreault-Hebert 2007 §3.2). Defer until parallel agent clears median.rs/Cargo.toml ownership; see PERF-377-01 partial above for delivered clamp-hoist micro-optimisation.
-- [ ] PERF-377-02 [patch]: **BilateralFilter memory-bandwidth review** — current LUT-optimised (BILAT-PERF-01); headroom: drop `exp` into a second LUT, or explore separable approximation.
-- [ ] PERF-377-03 [patch]: **Rank/Percentile filter** — same naive O(N·n³·log n); co-bundle with PERF-377-01 if algorithm is portable.
+- [ ] PERF-377-02 (range LUT) [patch→[minor]?]: **BilateralFilter range LUT** — add a 1-D `range_w[|dr|]` LUT keyed on quantized intensity delta with analytical-exp fallback for |dr| > table_max. Currently commit-time deferred because σ_r quantization error vs the brute-force 1e-5 epsilon bound requires analytical justification; cost model passes only for σ_r > ~50 (where |dr| max is small relative to LUT span). Future tracked separately from the parallelism already landed.
 - [ ] DOC-377-01 [patch]: 16 pre-existing intra-doc-link warnings (rustdoc unresolved link, public docs → private items) accumulated from Sprint 393-395 commits; gated but non-blocking.
-- [ ] FMT-377-01 [patch]: working-tree fmt-only diffs from cumulative agent updates (long-line rewraps). Now ~32 files per current `git status`; pure whitespace; next `cargo fmt --all` by next agent or this session will close.
+- [ ] FMT-377-01 [patch]: working-tree fmt-only diffs from cumulative agent updates (long-line rewraps). Now ~30 files per current `git status`; pure whitespace; next `cargo fmt --all` by next agent or this session will close.
 
 ### Known WIP in working tree — concurrent agent, do NOT touch
 
