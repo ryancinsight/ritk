@@ -307,6 +307,9 @@ def box_mean(image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int =
 def box_sigma(image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1) -> Image:
     """Box sample std-dev over a clipped (2r+1) window (divisor n-1). ITK Parity: BoxSigmaImageFilter."""
     ...
+def rank(image: Image, rank: float = 0.5, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1) -> Image:
+    """Order statistic at floor(rank*(n-1)) of the sorted clipped window. ITK Parity: RankImageFilter."""
+    ...
 
 def color_median(image: ColorImage, radius: int = 1) -> ColorImage:
     """Per-component median on an RGB/vector image (box radius). ITK Parity: MedianImageFilter (vector)."""

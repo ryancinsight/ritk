@@ -6,6 +6,7 @@ use ritk_filter::bias::N4Config;
 use ritk_filter::{
     BilateralFilter, BinShrinkImageFilter, BinomialBlurImageFilter, BoxMeanImageFilter,
     BoxSigmaImageFilter, MeanImageFilter, MedianFilter, N4BiasFieldCorrectionFilter,
+    RankImageFilter,
 };
 
 /// Apply a mean (box) filter: each voxel becomes the average of the
@@ -59,6 +60,26 @@ pub fn box_sigma(
     let image = std::sync::Arc::clone(&image.inner);
     let out = py.allow_threads(|| {
         BoxSigmaImageFilter::new([radius_z, radius_y, radius_x]).apply(image.as_ref())
+    });
+    into_py_image(out)
+}
+
+/// Apply a box rank filter: the order statistic at `floor(rank·(n−1))` of the
+/// sorted `(2r+1)` window clipped to the image bounds (`rank=0.5` is the median;
+/// shrink boundary). ITK Parity: RankImageFilter (`sitk.Rank`, radius `[rx,ry,rz]`).
+#[pyfunction]
+#[pyo3(signature = (image, rank=0.5, radius_z=1, radius_y=1, radius_x=1))]
+pub fn rank(
+    py: Python<'_>,
+    image: &PyImage,
+    rank: f64,
+    radius_z: usize,
+    radius_y: usize,
+    radius_x: usize,
+) -> PyImage {
+    let image = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        RankImageFilter::new([radius_z, radius_y, radius_x], rank).apply(image.as_ref())
     });
     into_py_image(out)
 }

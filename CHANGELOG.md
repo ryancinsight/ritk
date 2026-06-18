@@ -7,6 +7,11 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.22] — 2026-06-17 (Sprint 435: Rank)
+
+### Added
+- `ritk-filter` / `ritk-python`: `RankImageFilter` + `filter.rank(image, rank=0.5, radius_z=1, radius_y=1, radius_x=1)` — order statistic at `floor(rank·(n−1))` of the sorted `(2r+1)` window clipped to the image bounds (ITK `RankImageFilter` / `sitk.Rank`; `rank=0.5` median, `0` min, `1` max). Shrink boundary + floor index pinned by sitk probe (`[10,20,30,40]` n=4 rank 0.5 → 20 = `floor(0.5·3)=1`, not 30). Distinct from the SE-based `PercentileFilter` (replicate padding, full-SE index). **Bit-exact** to sitk on `RA-Float` (median + 25th percentile). Value-semantic Rust tests (median shrink, floor index, min/max extremes) + cmake parity cases. `.pyi` stub; coverage 203/298.
+
 ## [0.102.21] — 2026-06-17 (Sprint 434: BoxSigma)
 
 ### Added
