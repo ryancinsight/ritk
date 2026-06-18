@@ -7,6 +7,24 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.46] — 2026-06-18 (Sprint 459: Warp non-unit-geometry validation)
+
+### Changed
+- Tests: extended the `Warp` parity case with a non-unit-geometry scenario
+  (non-zero origin, anisotropic spacing). `warp_image` matches `sitk.Warp` to
+  float precision (max diff 1.1e-5) over the full image under real physical
+  coordinates, not just the unit-spacing/zero-origin case the prior test covered.
+  This closes a validation gap: the warp filter's `index→world→index` path is now
+  exercised with anisotropic spacing and an offset origin. `[patch]`
+
+### Notes
+- Investigated `TransformToDisplacementField` (affine `D(p) = (A−I)·p + t`). The
+  core is float-exact for unit-spacing / zero-origin / identity-direction
+  references but diverges (~0.1–0.3) under non-unit spacing — an axis-order
+  interaction between the `(x,y,z)` affine matrix and ritk's axis-major
+  `index→world`. Not shipped (integrity: a filter wrong on real geometry is a
+  defect, not a partial win); recorded for a focused follow-up.
+
 ## [0.102.45] — 2026-06-18 (Sprint 458: Warp parity)
 
 ### Added

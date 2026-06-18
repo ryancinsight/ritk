@@ -1509,16 +1509,22 @@ def test_cmake_displacement_field_jacobian_determinant(shape, freqs):
 
 
 @pytest.mark.parametrize(
-    "shape, amps",
-    [((16, 16, 16), (0.8, 1.2, 1.5)), ((20, 14, 18), (1.0, 0.5, 2.0))],
-    ids=["cube16", "anisotropic"],
+    "shape, amps, origin, spacing",
+    [
+        ((16, 16, 16), (0.8, 1.2, 1.5), None, None),
+        ((20, 14, 18), (1.0, 0.5, 2.0), None, None),
+        # Non-unit geometry: origin and anisotropic spacing in sitk (x, y, z).
+        ((12, 14, 16), (0.9, 1.3, 1.1), (3.0, -2.0, 1.0), (1.5, 0.8, 1.2)),
+    ],
+    ids=["cube16", "anisotropic", "nonunit-geometry"],
 )
-def test_cmake_warp_on_displacement_field(shape, amps):
+def test_cmake_warp_on_displacement_field(shape, amps, origin, spacing):
     """Warp a moving image through a dense displacement field:
     out(p) = moving(p + D(p)), trilinear. ritk `filter.warp(moving, disp_z,
     disp_y, disp_x)` against `sitk.Warp` (linear interpolator) on a smooth
-    analytic field (unit spacing). Matches to float precision over the full
-    image, including the IsInsideBuffer edge gate (out-of-buffer samples -> 0)."""
+    analytic field. Matches to float precision over the full image, including the
+    IsInsideBuffer edge gate (out-of-buffer samples -> 0) and full physical
+    coordinates (non-zero origin, anisotropic spacing)."""
     import numpy as _np
     D, H, W = shape
     az, ay, ax = amps
@@ -1528,15 +1534,26 @@ def test_cmake_warp_on_displacement_field(shape, amps):
     dy = (ay * _np.cos(0.15 * z)).astype(_np.float32)
     dx = (ax * _np.sin(0.1 * y)).astype(_np.float32)
     vec = _np.stack([dx, dy, dz], axis=-1).astype(_np.float32)  # (x,y,z) components
-    sw = sitk.GetArrayFromImage(
-        sitk.Warp(
-            sitk.GetImageFromArray(img),
-            sitk.GetImageFromArray(vec, isVector=True),
-            interpolator=sitk.sitkLinear,
-            outputSize=[W, H, D],
-        )
-    )
-    im = lambda a: ritk.Image(_np.ascontiguousarray(a))
+    si = sitk.GetImageFromArray(img)
+    df = sitk.GetImageFromArray(vec, isVector=True)
+    warp_kwargs = dict(interpolator=sitk.sitkLinear, outputSize=[W, H, D])
+    if origin is not None:
+        si.SetOrigin(origin); df.SetOrigin(origin)
+        warp_kwargs["outputOrigin"] = origin
+    if spacing is not None:
+        si.SetSpacing(spacing); df.SetSpacing(spacing)
+        warp_kwargs["outputSpacing"] = spacing
+    sw = sitk.GetArrayFromImage(sitk.Warp(si, df, **warp_kwargs))
+    # ritk origin/spacing are axis-major [z, y, x] — reverse the sitk (x, y, z).
+    ro = None if origin is None else (origin[2], origin[1], origin[0])
+    rs = None if spacing is None else (spacing[2], spacing[1], spacing[0])
+    def im(a):
+        kw = {}
+        if ro is not None:
+            kw["origin"] = ro
+        if rs is not None:
+            kw["spacing"] = rs
+        return ritk.Image(_np.ascontiguousarray(a), **kw)
     rw = _np.asarray(ritk.filter.warp(im(img), im(dz), im(dy), im(dx)).to_numpy())
     diff = float(_np.abs(rw - sw).max())
     assert diff < 1e-3, f"Warp full-image diff {diff:.2e} exceeds float tolerance"
