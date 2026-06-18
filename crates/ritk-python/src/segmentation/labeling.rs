@@ -6,8 +6,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
-    ConnectedComponentsFilter, KMeansSegmentation, MarkerControlledWatershed, RelabelComponentFilter,
-    SlicConfig, SlicSuperpixelFilter, WatershedSegmentation,
+    ConnectedComponentsFilter, KMeansSegmentation, MarkerControlledWatershed,
+    RelabelComponentFilter, SlicConfig, SlicSuperpixelFilter, WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -76,6 +76,50 @@ pub fn relabel_components(
         RelabelComponentFilter::with_minimum_object_size(minimum_object_size)
             .apply(img.as_ref())
             .0
+    });
+    into_py_image(out)
+}
+
+/// Remap label values according to a `{old: new}` change map. Voxels whose
+/// (integral) value is not a key are left unchanged.
+///
+/// ITK Parity: ChangeLabelImageFilter (`sitk.ChangeLabel`).
+///
+/// Args:
+///     label_image: an integer-valued label image.
+///     change_map: dict mapping old label → new label.
+///
+/// Returns:
+///     the remapped image (same shape and spatial metadata).
+#[pyfunction]
+pub fn change_label(
+    py: Python<'_>,
+    label_image: &PyImage,
+    change_map: std::collections::HashMap<i64, i64>,
+) -> PyImage {
+    use burn::tensor::{Shape, Tensor, TensorData};
+    let img = Arc::clone(&label_image.inner);
+    let out = py.allow_threads(|| {
+        let dims = img.shape();
+        let out: Vec<f32> = img
+            .data_slice()
+            .iter()
+            .map(|&v| {
+                let k = v as i64;
+                // Only remap exactly-integral values present in the map.
+                if k as f32 == v {
+                    change_map.get(&k).map(|&nv| nv as f32).unwrap_or(v)
+                } else {
+                    v
+                }
+            })
+            .collect();
+        let device = burn_ndarray::NdArrayDevice::default();
+        let tensor = Tensor::<crate::image::Backend, 3>::from_data(
+            TensorData::new(out, Shape::new(dims)),
+            &device,
+        );
+        ritk_image::Image::new(tensor, *img.origin(), *img.spacing(), *img.direction())
     });
     into_py_image(out)
 }

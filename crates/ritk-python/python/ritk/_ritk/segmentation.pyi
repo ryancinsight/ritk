@@ -41,6 +41,9 @@ def connected_components(mask: Image, connectivity: int = 6) -> tuple[Image, int
 def relabel_components(label_image: Image, minimum_object_size: int = 0) -> Image:
     """Relabel components by descending size. ITK Parity: RelabelComponentImageFilter."""
     ...
+def change_label(label_image: Image, change_map: dict[int, int]) -> Image:
+    """Remap label values per {old: new}; others unchanged. ITK Parity: ChangeLabelImageFilter."""
+    ...
 
 # ── Region growing ──────────────────────────────────────────────────────────
 

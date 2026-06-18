@@ -369,6 +369,20 @@ def test_cmake_mask_on_upstream_data(negated):
     assert _rel(r, s, m=2) == 0.0
 
 
+def test_cmake_change_label_on_upstream_data():
+    # Remap label values per a {old:new} map. ITK Parity: ChangeLabelImageFilter.
+    _, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0))
+    larr = sitk.GetArrayFromImage(lbl).astype(np.float32)
+    ril = ritk.Image(np.ascontiguousarray(larr[None]))
+    cmap = {1: 100, 2: 200, 3: 0}
+    r = np.squeeze(np.asarray(ritk.segmentation.change_label(ril, cmap).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.ChangeLabel(sitk.Cast(lbl, sitk.sitkUInt16), cmap)).astype(np.float64))
+    assert np.array_equal(r, s), "ChangeLabel differs from sitk"
+
+
 def test_cmake_masked_assign_on_upstream_data():
     # Assign a constant where the mask is active, keep the image elsewhere.
     # ITK Parity: MaskedAssignImageFilter (constant form).

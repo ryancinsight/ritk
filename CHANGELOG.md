@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.2] — 2026-06-17 (Sprint 415: ChangeLabel)
+
+### Added
+- `ritk-python`: `segmentation.change_label(label_image, change_map)` — remap label values per a `{old: new}` dict, leaving voxels not in the map unchanged (ITK `ChangeLabelImageFilter` / `sitk.ChangeLabel`). Only exactly-integral voxel values are remapped (label images). **Bit-exact** to sitk on the cthead connected-component labelling. `.pyi` stub + cmake parity case; coverage 182/298.
+
 ## [0.102.1] — 2026-06-17 (Sprint 414: MaskedAssign)
 
 ### Added
