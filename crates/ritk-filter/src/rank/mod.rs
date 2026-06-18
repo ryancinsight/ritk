@@ -59,6 +59,7 @@
 //! - Perreault, S. & Hébert, P. (2007). Median filtering in constant time.
 //!   *IEEE Trans. Image Process.*, 16(9), 2389–2394.
 
+pub mod kernel;
 pub mod percentile_filter;
 pub mod rank_filter;
 
