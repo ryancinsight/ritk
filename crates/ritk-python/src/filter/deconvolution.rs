@@ -8,7 +8,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
+    LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
+    TikhonovDeconvolution, WienerDeconvolution,
 };
 
 /// Apply Wiener deconvolution to a 3-D image.
@@ -155,6 +156,45 @@ pub fn landweber_deconvolution(
             .with_step_size(step_size)
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
+            .apply(img_ref.as_ref(), ker_ref.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+/// Apply projected Landweber deconvolution (non-negativity constraint) to a 3-D
+/// image.
+///
+/// Identical to [`landweber_deconvolution`] but clamps the estimate to `>= 0`
+/// after each iteration. Matches `SimpleITK.ProjectedLandweberDeconvolution`.
+///
+/// Args:
+///     image: Degraded PyImage (any shape [Z, Y, X]).
+///     kernel: 3-D PSF kernel PyImage.
+///     step_size: Gradient descent step size α (default 0.1).
+///     max_iterations: Maximum iterations (default 100).
+///     tolerance: Convergence tolerance (default 1e-6).
+///
+/// Returns:
+///     Restored, non-negative PyImage with the same shape as `image`.
+#[pyfunction]
+#[pyo3(signature = (image, kernel, step_size=0.1_f32, max_iterations=100_usize, tolerance=1e-6_f32))]
+pub fn projected_landweber_deconvolution(
+    py: Python<'_>,
+    image: &PyImage,
+    kernel: &PyImage,
+    step_size: f32,
+    max_iterations: usize,
+    tolerance: f32,
+) -> RitkResult<PyImage> {
+    let img_ref = image.inner.clone();
+    let ker_ref = kernel.inner.clone();
+    let result = py.allow_threads(|| {
+        LandweberDeconvolution::new()
+            .with_step_size(step_size)
+            .with_max_iterations(max_iterations)
+            .with_tolerance(tolerance)
+            .with_projection(LandweberProjection::NonNegative)
             .apply(img_ref.as_ref(), ker_ref.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;

@@ -18,7 +18,8 @@
 //! - Slower than conjugate-gradient methods but simple and analyzable
 
 use super::regularization::{
-    apply_iterative, IterativeAlgorithm, IterativeParams, DEFAULT_ITERATIVE_TOLERANCE,
+    apply_iterative, IterativeAlgorithm, IterativeParams, LandweberProjection,
+    DEFAULT_ITERATIVE_TOLERANCE,
 };
 use anyhow::Result;
 use burn::tensor::backend::Backend;
@@ -50,6 +51,10 @@ pub struct LandweberDeconvolution {
     pub max_iterations: usize,
     /// Convergence tolerance (default: 1e-6).
     pub tolerance: f32,
+    /// Per-iteration projection constraint (default: [`LandweberProjection::None`]).
+    /// Set to [`LandweberProjection::NonNegative`] for ITK
+    /// `ProjectedLandweberDeconvolutionImageFilter` behaviour.
+    pub projection: LandweberProjection,
 }
 
 impl LandweberDeconvolution {
@@ -59,7 +64,15 @@ impl LandweberDeconvolution {
             step_size: 0.1,
             max_iterations: 100,
             tolerance: DEFAULT_ITERATIVE_TOLERANCE,
+            projection: LandweberProjection::None,
         }
+    }
+
+    /// Set the per-iteration projection constraint (non-negativity for the
+    /// projected Landweber variant).
+    pub fn with_projection(mut self, projection: LandweberProjection) -> Self {
+        self.projection = projection;
+        self
     }
 
     /// Set the gradient descent step size α.
@@ -98,6 +111,7 @@ impl LandweberDeconvolution {
                 tolerance: self.tolerance,
                 algorithm: IterativeAlgorithm::Landweber {
                     step_size: self.step_size,
+                    projection: self.projection,
                 },
             },
         );

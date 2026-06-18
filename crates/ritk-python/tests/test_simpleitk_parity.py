@@ -300,6 +300,14 @@ def test_deconvolution_matches_sitk():
     lw_s = _np(sitk.LandweberDeconvolution(blur_s, _sitk(g), 0.5, 20))
     assert _relmax(lw_r, lw_s) < 1e-4, f"Landweber rel {_relmax(lw_r, lw_s):.2e}"
 
+    # Projected Landweber: per-iteration non-negativity constraint. Matches
+    # sitk.ProjectedLandweberDeconvolution to float precision; the output is
+    # everywhere >= 0 (the unconstrained Landweber above goes negative).
+    pl_r = ritk.filter.projected_landweber_deconvolution(rb, rk, step_size=0.5, max_iterations=20).to_numpy()[0]
+    pl_s = _np(sitk.ProjectedLandweberDeconvolution(blur_s, _sitk(g), 0.5, 20))
+    assert _relmax(pl_r, pl_s) < 1e-4, f"ProjectedLandweber rel {_relmax(pl_r, pl_s):.2e}"
+    assert float(np.squeeze(pl_r).min()) >= 0.0, "projected Landweber must be non-negative"
+
     for k in (0.01, 1.0, 10.0):
         # ITK adaptive Wiener: U = G·conj(H)/(|H|² + Pn/(|G|²−Pn)). The adaptive
         # term amplifies tiny power-spectrum differences at weak-signal

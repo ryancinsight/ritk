@@ -167,14 +167,31 @@ fn reversed_kernel<const D: usize>(ker_vals: &[f32], ker_dims: &[usize; D]) -> V
 
 // ── Iterative algorithm types ──────────────────────────────────────────────
 
+/// Per-iteration constraint applied to the Landweber estimate.
+///
+/// `NonNegative` clamps every voxel to `>= 0` after each additive update,
+/// matching ITK `ProjectedLandweberDeconvolutionImageFilter`'s non-negativity
+/// projection; `None` is plain `LandweberDeconvolutionImageFilter`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LandweberProjection {
+    /// No constraint — plain Landweber gradient descent.
+    #[default]
+    None,
+    /// Clamp the estimate to `>= 0` after each iteration.
+    NonNegative,
+}
+
 /// Iterative deconvolution algorithm variant.
 ///
 /// Replaces `is_landweber: bool` to eliminate boolean blindness at call sites.
 pub(super) enum IterativeAlgorithm {
-    /// Landweber gradient descent: additive update `uₖ₊₁ = uₖ + α · correction`.
+    /// Landweber gradient descent: additive update `uₖ₊₁ = uₖ + α · correction`,
+    /// optionally projected onto a constraint set each iteration.
     Landweber {
         /// Step size α (must satisfy `0 < α < 2 / σ_max²` for convergence).
         step_size: f32,
+        /// Per-iteration projection constraint.
+        projection: LandweberProjection,
     },
     /// Richardson-Lucy expectation-maximization: multiplicative update
     /// `uₖ₊₁ = uₖ · correction`.
@@ -226,7 +243,10 @@ pub(super) fn apply_iterative<const D: usize>(
         let forward = convolve::<D>(&estimate, img_dims, params.ker_vals, params.ker_dims);
 
         match &params.algorithm {
-            IterativeAlgorithm::Landweber { step_size } => {
+            IterativeAlgorithm::Landweber {
+                step_size,
+                projection,
+            } => {
                 // Landweber: compute residual, convolve with h*, add α·correction
                 let mut max_residual = 0.0_f32;
                 for ((r_slot, &img), &fwd) in
@@ -239,6 +259,16 @@ pub(super) fn apply_iterative<const D: usize>(
                 let correction = convolve::<D>(&residual, img_dims, &ker_rev, params.ker_dims);
                 for (est, &corr) in estimate.iter_mut().zip(correction.iter()) {
                     *est += *step_size * corr;
+                }
+                // Projected Landweber: enforce the constraint after the update so
+                // the next forward convolution (and the returned estimate) sees the
+                // projected iterate, matching ITK's projection-per-iteration.
+                if let LandweberProjection::NonNegative = projection {
+                    for est in estimate.iter_mut() {
+                        if *est < 0.0 {
+                            *est = 0.0;
+                        }
+                    }
                 }
                 if max_residual < params.tolerance {
                     break;

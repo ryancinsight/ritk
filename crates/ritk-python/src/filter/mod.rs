@@ -252,6 +252,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(tikhonov_deconvolution, &m)?)?;
     m.add_function(wrap_pyfunction!(richardson_lucy_deconvolution, &m)?)?;
     m.add_function(wrap_pyfunction!(landweber_deconvolution, &m)?)?;
+    m.add_function(wrap_pyfunction!(projected_landweber_deconvolution, &m)?)?;
     // Coherence-enhancing diffusion
     m.add_function(wrap_pyfunction!(coherence_enhancing_diffusion, &m)?)?;
     // Bin-shrink downsampling

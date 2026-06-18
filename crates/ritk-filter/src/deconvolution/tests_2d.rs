@@ -8,8 +8,10 @@ use ritk_image::test_support as ts;
 use ritk_image::Image;
 
 use super::{
-    LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
+    LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
+    TikhonovDeconvolution, WienerDeconvolution,
 };
+use ritk_tensor_ops::extract_vec_infallible;
 
 type B = NdArray<f32>;
 
@@ -253,4 +255,68 @@ fn landweber_builder_chain() {
     assert!((filter.step_size - 0.05).abs() < 1e-10);
     assert_eq!(filter.max_iterations, 200);
     assert!((filter.tolerance - 1e-8).abs() < 1e-10);
+}
+
+// ── Projected Landweber (non-negativity) ────────────────────────────────────
+
+/// The non-negativity projection forces every output voxel to be `>= 0`, while
+/// plain Landweber on the same problem produces negative ring artefacts. Both
+/// agree wherever the unconstrained estimate is already non-negative.
+#[test]
+fn projected_landweber_enforces_non_negativity() {
+    // Sharp-edged box convolved with a small blur, then deconvolved: the
+    // unconstrained Landweber overshoots into negatives near the edges.
+    let mut img = vec![0.0f32; 9 * 9];
+    for r in 3..6 {
+        for c in 3..6 {
+            img[r * 9 + c] = 100.0;
+        }
+    }
+    // Normalized 3×3 blur PSF.
+    let ker = vec![1.0f32 / 9.0; 9];
+    let image = make_image_2d(img, [9, 9]);
+    let kernel = make_image_2d(ker, [3, 3]);
+
+    let plain = LandweberDeconvolution::new()
+        .with_step_size(0.5)
+        .with_max_iterations(30)
+        .apply(&image, &kernel)
+        .unwrap();
+    let projected = LandweberDeconvolution::new()
+        .with_step_size(0.5)
+        .with_max_iterations(30)
+        .with_projection(LandweberProjection::NonNegative)
+        .apply(&image, &kernel)
+        .unwrap();
+
+    let (pv, _) = extract_vec_infallible(&plain);
+    let (qv, _) = extract_vec_infallible(&projected);
+    // Plain Landweber must go negative somewhere; projected must not.
+    assert!(
+        pv.iter().any(|&v| v < -1e-3),
+        "plain Landweber expected to overshoot negative"
+    );
+    assert!(
+        qv.iter().all(|&v| v >= 0.0),
+        "projected Landweber must be non-negative"
+    );
+    // Per-iteration projection diverges the trajectory from plain Landweber
+    // (each clamp feeds the next iteration), so the two results genuinely differ.
+    assert!(
+        pv.iter()
+            .zip(qv.iter())
+            .any(|(&p, &q)| (p - q).abs() > 1e-3),
+        "projection must change the result vs plain Landweber"
+    );
+}
+
+/// Default projection is `None` (plain Landweber); the builder switches it on.
+#[test]
+fn landweber_projection_default_and_builder() {
+    assert_eq!(
+        LandweberDeconvolution::new().projection,
+        LandweberProjection::None
+    );
+    let f = LandweberDeconvolution::new().with_projection(LandweberProjection::NonNegative);
+    assert_eq!(f.projection, LandweberProjection::NonNegative);
 }

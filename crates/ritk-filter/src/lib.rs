@@ -107,7 +107,8 @@ pub mod deconvolution;
 pub mod fft;
 
 pub use deconvolution::{
-    LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
+    LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution, TikhonovDeconvolution,
+    WienerDeconvolution,
 };
 pub use fft::{
     FftConvolution3DFilter, FftConvolutionFilter, FftFilterKind, FftNormalizedCorrelation3DFilter,

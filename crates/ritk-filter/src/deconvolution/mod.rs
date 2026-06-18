@@ -38,6 +38,7 @@ mod tikhonov;
 mod wiener;
 
 pub use landweber::LandweberDeconvolution;
+pub use regularization::LandweberProjection;
 pub use rl::RichardsonLucyDeconvolution;
 pub use tikhonov::TikhonovDeconvolution;
 pub use wiener::WienerDeconvolution;

@@ -682,6 +682,15 @@ def landweber_deconvolution(
     max_iterations: int = 100,
     tolerance: float = 1e-06,
 ) -> Image: ...
+def projected_landweber_deconvolution(
+    image: Image,
+    kernel: Image,
+    step_size: float = 0.1,
+    max_iterations: int = 100,
+    tolerance: float = 1e-06,
+) -> Image:
+    """Landweber with a non-negativity projection each iteration. ITK Parity: ProjectedLandweberDeconvolution."""
+    ...
 def wiener_deconvolution(
     image: Image, kernel: Image, noise_to_signal: float = 0.01
 ) -> Image: ...
