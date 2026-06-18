@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.21] — 2026-06-17 (Sprint 434: BoxSigma)
+
+### Added
+- `ritk-filter` / `ritk-python`: `BoxSigmaImageFilter` + `filter.box_sigma(image, radius_z=1, radius_y=1, radius_x=1)` — per-axis **sample** standard deviation (Bessel-corrected, divisor `n−1`) over the `(2r+1)` window clipped to the image bounds (ITK `BoxSigmaImageFilter` / `sitk.BoxSigma`); shares BoxMean's shrink-boundary convention. The sample (not population) divisor was pinned by sitk probe (`[20,30,40]` → `10`, not `8.165`); `n ≤ 1` windows yield `0`. **Float-exact** to sitk on `RA-Float`. Value-semantic Rust tests (sample-std shrink window, constant→0, radius-0→0) + cmake parity case. `.pyi` stub; coverage 202/298.
+
 ## [0.102.20] — 2026-06-17 (Sprint 433: BoxMean)
 
 ### Added

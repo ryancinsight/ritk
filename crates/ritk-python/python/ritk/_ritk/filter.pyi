@@ -304,6 +304,9 @@ def binomial_blur(image: Image, repetitions: int = 1) -> Image:
 def box_mean(image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1) -> Image:
     """Box mean over a clipped (2r+1) window (shrink boundary). ITK Parity: BoxMeanImageFilter."""
     ...
+def box_sigma(image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1) -> Image:
+    """Box sample std-dev over a clipped (2r+1) window (divisor n-1). ITK Parity: BoxSigmaImageFilter."""
+    ...
 
 def color_median(image: ColorImage, radius: int = 1) -> ColorImage:
     """Per-component median on an RGB/vector image (box radius). ITK Parity: MedianImageFilter (vector)."""

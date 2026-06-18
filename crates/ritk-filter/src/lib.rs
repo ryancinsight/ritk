@@ -38,7 +38,9 @@ pub use recursive_gaussian::{
     gradient_recursive_gaussian_components, DerivativeOrder, RecursiveGaussianFilter,
     ScaleNormalization,
 };
-pub use smoothing::{BinomialBlurImageFilter, BoxMeanImageFilter, MeanImageFilter};
+pub use smoothing::{
+    BinomialBlurImageFilter, BoxMeanImageFilter, BoxSigmaImageFilter, MeanImageFilter,
+};
 
 // ── Intensity & histogram ────────────────────────────────────────────────────
 pub mod intensity;
