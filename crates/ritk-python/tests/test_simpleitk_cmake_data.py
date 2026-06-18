@@ -369,6 +369,20 @@ def test_cmake_mask_on_upstream_data(negated):
     assert _rel(r, s, m=2) == 0.0
 
 
+def test_cmake_masked_assign_on_upstream_data():
+    # Assign a constant where the mask is active, keep the image elsewhere.
+    # ITK Parity: MaskedAssignImageFilter (constant form).
+    ri, si = _pair("RA-Short.nrrd")
+    arr = sitk.GetArrayFromImage(si).astype(np.float64)
+    mbin = (arr > 10000).astype(np.float32)
+    rim = ritk.Image(np.ascontiguousarray(mbin))
+    sim = sitk.GetImageFromArray((arr > 10000).astype(np.uint8))
+    sim.CopyInformation(si)
+    r = ritk.filter.masked_assign(ri, rim, 7.0)
+    s = sitk.MaskedAssign(si, sim, 7.0)
+    assert _rel(r, s, m=2) == 0.0
+
+
 def test_cmake_rgb_median_on_upstream_data():
     # MedianImageFilter on the upstream RGB image (VM1111Shrink-RGB). ITK applies
     # the scalar median per component on a vector image; ritk's color_median does

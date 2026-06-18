@@ -129,3 +129,22 @@ fn mask_negated_full_mask_zeros_everything() {
         assert!((val - 0.0).abs() < 1e-5, "expected 0, got {}", val);
     }
 }
+
+// ── MaskedAssignImageFilter ───────────────────────────────────────────────────
+
+#[test]
+fn masked_assign_writes_constant_where_mask_active() {
+    let img = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 1, 4]);
+    let mask = make_image(vec![0.0, 1.0, 0.0, 1.0], [1, 1, 4]);
+    let out = MaskedAssignImageFilter::new(99.0).apply(&img, &mask).unwrap();
+    // mask active at 1,3 → 99; keep image at 0,2.
+    assert_eq!(voxels(&out), vec![1.0, 99.0, 3.0, 99.0]);
+}
+
+#[test]
+fn masked_assign_all_inactive_is_identity() {
+    let img = make_image(vec![5.0, 6.0, 7.0], [1, 1, 3]);
+    let mask = make_image(vec![0.0, 0.0, 0.0], [1, 1, 3]);
+    let out = MaskedAssignImageFilter::new(-1.0).apply(&img, &mask).unwrap();
+    assert_eq!(voxels(&out), voxels(&img));
+}

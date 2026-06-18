@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.1] — 2026-06-17 (Sprint 414: MaskedAssign)
+
+### Added
+- `ritk-filter` / `ritk-python`: `MaskedAssignImageFilter` + `filter.masked_assign(image, mask, assign_value=0.0)` — write `assign_value` where the mask is active (`> 0`), keep the image elsewhere (the role-inverse of `mask_image`), matching ITK `MaskedAssignImageFilter` / `sitk.MaskedAssign` (constant form). **Bit-exact** to sitk on RA-Short with a thresholded mask. Value-semantic Rust tests + cmake parity case. `.pyi` stub; coverage 181/298.
+
 ## [0.102.0] — 2026-06-17 (Sprint 413: Derivative)
 
 ### Added

@@ -128,6 +128,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(invert_intensity, &m)?)?;
     m.add_function(wrap_pyfunction!(mask_image, &m)?)?;
     m.add_function(wrap_pyfunction!(mask_negated_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(masked_assign, &m)?)?;
     // Per-component (RGB/vector) filters
     m.add_function(wrap_pyfunction!(crate::color::color_median, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::color_mean, &m)?)?;

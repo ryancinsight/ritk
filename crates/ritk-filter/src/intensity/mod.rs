@@ -51,7 +51,7 @@ pub use blend::BlendImageFilter;
 pub use clahe::{ClaheFilter, ClaheScratch};
 pub use clamp::ClampImageFilter;
 pub use equalization::HistogramEqualizationFilter;
-pub use mask::{MaskImageFilter, MaskNegatedImageFilter};
+pub use mask::{MaskImageFilter, MaskNegatedImageFilter, MaskedAssignImageFilter};
 pub use rescale::RescaleIntensityFilter;
 pub use sigmoid::SigmoidImageFilter;
 pub use ternary_ops::{

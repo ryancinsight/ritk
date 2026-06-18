@@ -317,6 +317,9 @@ def mask_image(image: Image, mask: Image, outside_value: float = 0.0) -> Image:
 def mask_negated_image(image: Image, mask: Image, outside_value: float = 0.0) -> Image:
     """Keep image where mask <= 0, else outside_value. ITK Parity: MaskNegatedImageFilter."""
     ...
+def masked_assign(image: Image, mask: Image, assign_value: float = 0.0) -> Image:
+    """Assign value where mask>0, keep image elsewhere. ITK Parity: MaskedAssignImageFilter."""
+    ...
 
 def maximum_images(a: Image, b: Image) -> Image:
     """Pixelwise maximum: out(x) = max(a(x), b(x)). ITK Parity: MaximumImageFilter."""

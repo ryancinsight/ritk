@@ -155,6 +155,59 @@ impl MaskNegatedImageFilter {
 
 // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+/// Assign `assign_value` where the mask is **active** (> threshold); keep the
+/// image elsewhere — the role-inverse of [`MaskImageFilter`].
+///
+/// `out(x) = assign_value` if `mask(x) > threshold`, else `image(x)`
+///
+/// # ITK Parity: `MaskedAssignImageFilter` (`sitk.MaskedAssign`, constant form)
+#[derive(Debug, Clone)]
+pub struct MaskedAssignImageFilter {
+    /// Foreground threshold for the mask image. Default: 0.5.
+    pub threshold: BinarizationThreshold,
+    /// Value written where the mask is active. Default: 0.0.
+    pub assign_value: f32,
+}
+
+impl Default for MaskedAssignImageFilter {
+    fn default() -> Self {
+        Self {
+            threshold: BinarizationThreshold::DEFAULT,
+            assign_value: 0.0,
+        }
+    }
+}
+
+impl MaskedAssignImageFilter {
+    /// Construct with the assign value (default threshold 0.5).
+    pub fn new(assign_value: f32) -> Self {
+        Self {
+            threshold: BinarizationThreshold::DEFAULT,
+            assign_value,
+        }
+    }
+
+    /// Apply: write `assign_value` where `mask > threshold`, else keep `image`.
+    pub fn apply<B: Backend>(
+        &self,
+        image: &Image<B, 3>,
+        mask: &Image<B, 3>,
+    ) -> anyhow::Result<Image<B, 3>> {
+        let dims = image.shape();
+        check_shapes(dims, mask.shape())?;
+        let (iv, _) = extract_vec(image)?;
+        let (mv, _) = extract_vec(mask)?;
+        let assign = self.assign_value;
+        let thr = f32::from(self.threshold);
+        let out: Vec<f32> = iv
+            .iter()
+            .zip(mv.iter())
+            .map(|(&img_val, &mask_val)| if mask_val > thr { assign } else { img_val })
+            .collect();
+        Ok(rebuild(out, dims, image))
+    }
+}
+
 #[cfg(test)]
 #[path = "tests_mask.rs"]
 mod tests;
