@@ -115,88 +115,87 @@ impl StochasticFractalDimensionFilter {
             }
         }
 
-        let mut out = vec![0.0f32; vals.len()];
-        // Scratch buffers reused per voxel (the only per-voxel allocation point).
-        let mut members: Vec<([f64; 3], f32)> = Vec::with_capacity(offsets.len());
-        let mut bin_dist: Vec<f64> = Vec::new();
-        let mut bin_freq: Vec<f64> = Vec::new();
-        let mut bin_accum: Vec<f64> = Vec::new();
+        // Each output voxel is independent (read-only neighborhood), so the grid
+        // fans out across threads; per-voxel scratch is thread-local and the
+        // result is deterministic (bitwise identical to a serial run) because no
+        // voxel depends on another's output.
+        let out: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |flat| {
+                let cz = flat / (ny * nx);
+                let rem = flat % (ny * nx);
+                let cy = rem / nx;
+                let cx = rem % nx;
 
-        for cz in 0..nz {
-            for cy in 0..ny {
-                for cx in 0..nx {
-                    members.clear();
-                    for off in &offsets {
-                        let iz = cz as isize + off[0];
-                        let iy = cy as isize + off[1];
-                        let ix = cx as isize + off[2];
-                        if iz < 0
-                            || iy < 0
-                            || ix < 0
-                            || iz >= nz as isize
-                            || iy >= ny as isize
-                            || ix >= nx as isize
-                        {
-                            continue;
-                        }
-                        let v = vals[(iz as usize) * ny * nx + (iy as usize) * nx + ix as usize];
-                        members.push((physical(iz as f64, iy as f64, ix as f64), v));
+                let mut members: Vec<([f64; 3], f32)> = Vec::with_capacity(offsets.len());
+                for off in &offsets {
+                    let iz = cz as isize + off[0];
+                    let iy = cy as isize + off[1];
+                    let ix = cx as isize + off[2];
+                    if iz < 0
+                        || iy < 0
+                        || ix < 0
+                        || iz >= nz as isize
+                        || iy >= ny as isize
+                        || ix >= nx as isize
+                    {
+                        continue;
                     }
-
-                    bin_dist.clear();
-                    bin_freq.clear();
-                    bin_accum.clear();
-                    for (i, &(pi, vi)) in members.iter().enumerate() {
-                        for (j, &(pj, vj)) in members.iter().enumerate() {
-                            if i == j {
-                                continue;
-                            }
-                            // Squared physical distance in ITK's (x, y, z) axis
-                            // order: internal point columns are [z, y, x], so the
-                            // x term is column 2, y is 1, z is 0. Absolute points
-                            // are subtracted (not `spacing·Δ`) to match ITK's
-                            // exact rounding at bin-boundary ties.
-                            let ex = pi[2] - pj[2];
-                            let ey = pi[1] - pj[1];
-                            let ez = pi[0] - pj[0];
-                            let d2 = ex * ex + ey * ey + ez * ez;
-                            let diff = (vi - vj).abs() as f64;
-                            let mut found = false;
-                            for k in 0..bin_dist.len() {
-                                if (bin_dist[k] - d2).abs() < tol {
-                                    bin_freq[k] += 1.0;
-                                    bin_accum[k] += diff;
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if !found {
-                                bin_dist.push(d2);
-                                bin_freq.push(1.0);
-                                bin_accum.push(diff);
-                            }
-                        }
-                    }
-
-                    let (mut sum_x, mut sum_y, mut sum_xx, mut sum_xy) = (0.0, 0.0, 0.0, 0.0);
-                    for k in 0..bin_dist.len() {
-                        if bin_freq[k] == 0.0 {
-                            continue;
-                        }
-                        let mean = bin_accum[k] / bin_freq[k];
-                        let y = mean.ln();
-                        let x = bin_dist[k].sqrt().ln();
-                        sum_y += y;
-                        sum_x += x;
-                        sum_xx += x * x;
-                        sum_xy += y * x;
-                    }
-                    let n = bin_dist.len() as f64;
-                    let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x * sum_x);
-                    out[cz * ny * nx + cy * nx + cx] = (3.0 - slope) as f32;
+                    let v = vals[(iz as usize) * ny * nx + (iy as usize) * nx + ix as usize];
+                    members.push((physical(iz as f64, iy as f64, ix as f64), v));
                 }
-            }
-        }
+
+                let mut bin_dist: Vec<f64> = Vec::new();
+                let mut bin_freq: Vec<f64> = Vec::new();
+                let mut bin_accum: Vec<f64> = Vec::new();
+                for (i, &(pi, vi)) in members.iter().enumerate() {
+                    for (j, &(pj, vj)) in members.iter().enumerate() {
+                        if i == j {
+                            continue;
+                        }
+                        // Squared physical distance in ITK's (x, y, z) axis order:
+                        // internal point columns are [z, y, x], so the x term is
+                        // column 2, y is 1, z is 0. Absolute points are subtracted
+                        // (not `spacing·Δ`) to match ITK's exact rounding at
+                        // bin-boundary ties.
+                        let ex = pi[2] - pj[2];
+                        let ey = pi[1] - pj[1];
+                        let ez = pi[0] - pj[0];
+                        let d2 = ex * ex + ey * ey + ez * ez;
+                        let diff = (vi - vj).abs() as f64;
+                        let mut found = false;
+                        for k in 0..bin_dist.len() {
+                            if (bin_dist[k] - d2).abs() < tol {
+                                bin_freq[k] += 1.0;
+                                bin_accum[k] += diff;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found {
+                            bin_dist.push(d2);
+                            bin_freq.push(1.0);
+                            bin_accum.push(diff);
+                        }
+                    }
+                }
+
+                let (mut sum_x, mut sum_y, mut sum_xx, mut sum_xy) = (0.0, 0.0, 0.0, 0.0);
+                for k in 0..bin_dist.len() {
+                    if bin_freq[k] == 0.0 {
+                        continue;
+                    }
+                    let mean = bin_accum[k] / bin_freq[k];
+                    let y = mean.ln();
+                    let x = bin_dist[k].sqrt().ln();
+                    sum_y += y;
+                    sum_x += x;
+                    sum_xx += x * x;
+                    sum_xy += y * x;
+                }
+                let n = bin_dist.len() as f64;
+                let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x * sum_x);
+                (3.0 - slope) as f32
+            });
 
         rebuild(out, dims, image)
     }
