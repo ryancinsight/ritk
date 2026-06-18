@@ -668,6 +668,35 @@ def test_cmake_label_map_overlay_on_upstream_data():
     assert np.array_equal(r, s), "LabelMapOverlay differs from sitk"
 
 
+def test_cmake_label_map_mask_on_upstream_data():
+    """LabelMapMask(label=1) keeps the feature image where the label map holds
+    label 1, background elsewhere — exactly `mask_image(feature, label==1)`.
+    Bit-exact to sitk on cthead1."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.Cast(sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0)), sitk.sitkUInt16)
+    larr = sitk.GetArrayFromImage(lbl).astype(np.float32)
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.LabelMapMask(
+        sitk.LabelImageToLabelMap(lbl), si, label=1, backgroundValue=0,
+        negated=False, crop=False)).astype(np.float64))
+    mask1 = ritk.Image(np.ascontiguousarray((larr == 1).astype(np.float32)[None]))
+    r = np.squeeze(np.asarray(ritk.filter.mask_image(ri, mask1).to_numpy(), np.float64))
+    assert np.array_equal(r, s), "LabelMapMask differs from sitk"
+
+
+def test_cmake_label_unique_label_map_on_upstream_data():
+    """LabelUniqueLabelMap makes overlapping labels unique; ritk label images are
+    inherently non-overlapping (a unique connected-component labelling), so the
+    operation is the identity — bit-exact to sitk on a non-overlapping map."""
+    _, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.Cast(sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0)), sitk.sitkUInt16)
+    larr = np.squeeze(sitk.GetArrayFromImage(lbl).astype(np.int64))
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.LabelMapToLabel(sitk.LabelUniqueLabelMap(sitk.LabelImageToLabelMap(lbl)))).astype(np.int64))
+    assert np.array_equal(larr, s), "LabelUniqueLabelMap is not identity on a unique map"
+
+
 def test_cmake_label_intensity_statistics_on_upstream_data():
     """LabelIntensityStatistics: per-label intensity mean/min/max/std/count of a
     cthead1 connected-component map, matching ITK's
