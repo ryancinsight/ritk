@@ -2,57 +2,59 @@
 //!
 //! # Mathematical Specification
 //!
-//! Matches `itk::WarpImageFilter`. For every voxel of the output grid (which is
-//! the displacement-field grid) at physical point `p`, the output samples the
-//! moving image at the *displaced* physical point:
+//! Matches `itk::WarpImageFilter`. For every voxel of the output grid (the
+//! displacement-field grid) at physical point `p`, the output samples the moving
+//! image at the displaced physical point:
 //!
 //! ```text
 //! out(p) = moving( p + D(p) )
 //! ```
 //!
-//! where `D(p)` is the (physical-space) displacement stored at that grid point.
-//! The physical point of grid index `i` is `p = O_f + R_f · (S_f ⊙ i)` (field
-//! origin / direction / spacing); the displaced point is mapped back into the
-//! moving image's continuous index space by `c = S_m⁻¹ · R_m⁻¹ · (p + D − O_m)`
-//! and sampled with trilinear interpolation. Samples whose continuous index
-//! falls outside the moving buffer (`c_a ∉ [−0.5, N_a − 0.5)` on any axis) take
-//! the edge-padding value (0), reproducing ITK's `IsInsideBuffer` gate; taps
-//! that reach one voxel past the border are edge-clamped, matching ITK's linear
-//! interpolator.
+//! Coordinate mapping is delegated entirely to the image's canonical
+//! [`Image::index_to_world_tensor`] / [`Image::world_to_index_tensor`] — the same
+//! transforms `ResampleImageFilter` uses and which are verified float-exact to
+//! SimpleITK on loaded anisotropic data. Operating on the tensor directly (rather
+//! than a hand-rolled flat-index loop) makes the filter agnostic to image
+//! construction and honours spacing, origin, and direction (including the
+//! axis-reversal Direction that `ritk.io` assigns NRRD-loaded images). Trilinear
+//! interpolation samples the moving image; samples whose continuous index leaves
+//! the moving buffer (`c_a ∉ [−0.5, N_a − 0.5)` on any axis) take the edge-padding
+//! value 0 (ITK's `IsInsideBuffer`).
 //!
 //! Displacement components are supplied as three scalar images `(D_z, D_y, D_x)`
-//! on the field grid, mirroring [`crate`]'s Jacobian-determinant convention.
+//! on the field grid, assembled into the displacement tensor in the
+//! **innermost-first** `(x, y, z)` column order that `index_to_world_tensor`
+//! produces so the displacement adds to the world points column-wise.
 
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
-use ritk_image::Image;
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
+use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::{generate_grid, Image};
+use ritk_interpolation::{Interpolator, LinearInterpolator};
+use ritk_tensor_ops::extract_vec_infallible;
 
-/// Trilinear sample of `vals` (shape `[nz, ny, nx]`, row-major) at the
-/// axis-major continuous index `c = [cz, cy, cx]`, with taps edge-clamped to the
-/// valid range. The caller is responsible for the `IsInsideBuffer` gate.
-#[inline]
-fn trilinear(vals: &[f32], dims: [usize; 3], c: [f64; 3]) -> f32 {
-    let [nz, ny, nx] = dims;
-    let base = [c[0].floor(), c[1].floor(), c[2].floor()];
-    let frac = [c[0] - base[0], c[1] - base[1], c[2] - base[2]];
-    let clamp = |v: f64, n: usize| (v as i64).clamp(0, n as i64 - 1) as usize;
-    let z0 = clamp(base[0], nz);
-    let y0 = clamp(base[1], ny);
-    let x0 = clamp(base[2], nx);
-    let z1 = clamp(base[0] + 1.0, nz);
-    let y1 = clamp(base[1] + 1.0, ny);
-    let x1 = clamp(base[2] + 1.0, nx);
-    let (fz, fy, fx) = (frac[0] as f32, frac[1] as f32, frac[2] as f32);
-    let at = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
-    // Interpolate x, then y, then z.
-    let c00 = at(z0, y0, x0) * (1.0 - fx) + at(z0, y0, x1) * fx;
-    let c01 = at(z0, y1, x0) * (1.0 - fx) + at(z0, y1, x1) * fx;
-    let c10 = at(z1, y0, x0) * (1.0 - fx) + at(z1, y0, x1) * fx;
-    let c11 = at(z1, y1, x0) * (1.0 - fx) + at(z1, y1, x1) * fx;
-    let c0 = c00 * (1.0 - fy) + c01 * fy;
-    let c1 = c10 * (1.0 - fy) + c11 * fy;
-    c0 * (1.0 - fz) + c1 * fz
+/// Replace interpolated values with 0 wherever the continuous moving index falls
+/// outside the buffer, reproducing ITK's `IsInsideBuffer` (inside iff every axis
+/// lies in `[-0.5, N - 0.5)`). Mirrors `ResampleImageFilter` so warp and resample
+/// share identical edge semantics. `indices` columns are innermost-first
+/// (`column c` ↔ spatial axis `D-1-c`).
+fn apply_inside_buffer_mask<B: Backend>(
+    values: Tensor<B, 1>,
+    indices: Tensor<B, 2>,
+    shape: [usize; 3],
+    device: &<B as Backend>::Device,
+) -> Tensor<B, 1> {
+    let n = indices.dims()[0];
+    let mut mask = Tensor::<B, 1>::ones([n], device);
+    for c in 0..3 {
+        let axis = 3 - 1 - c;
+        let upper = shape[axis] as f64 - 0.5;
+        let col = indices.clone().slice([0..n, c..c + 1]).flatten::<1>(0, 1);
+        let ge_low = col.clone().greater_equal_elem(-0.5).float();
+        let lt_high = col.lower_elem(upper).float();
+        mask = mask * ge_low * lt_high;
+    }
+    values * mask
 }
 
 /// Warp a moving image through a dense displacement field.
@@ -60,8 +62,7 @@ fn trilinear(vals: &[f32], dims: [usize; 3], c: [f64; 3]) -> f32 {
 /// `moving` is the image to sample; `disp_z`, `disp_y`, `disp_x` are the
 /// physical-space displacement components defined on the output (field) grid.
 /// All three field components must share the field's shape; the output adopts the
-/// field's geometry. Returns an error if the moving image's direction matrix is
-/// singular.
+/// field's geometry.
 pub fn warp_image<B: Backend>(
     moving: &Image<B, 3>,
     disp_z: &Image<B, 3>,
@@ -74,71 +75,42 @@ pub fn warp_image<B: Backend>(
             "warp: displacement components must share the field shape {field_dims:?}"
         ));
     }
-    let [nz, ny, nx] = field_dims;
-    let (mov_vals, mov_dims) = extract_vec_infallible(moving);
+    let n: usize = field_dims.iter().product();
+    let device = moving.data().device();
+
+    // Output-grid indices (innermost-first columns, row-major batch order), then
+    // their physical points on the field grid via the canonical transform.
+    let indices = generate_grid::<B, 3>(field_dims, &device);
+    let world = disp_z.index_to_world_tensor(indices);
+
+    // Displacement tensor [N, 3], innermost-first columns [dx, dy, dz] to match
+    // the column order of `index_to_world_tensor`, in the same row-major batch
+    // order as the grid.
     let (dz, _) = extract_vec_infallible(disp_z);
     let (dy, _) = extract_vec_infallible(disp_y);
     let (dx, _) = extract_vec_infallible(disp_x);
-
-    // Field geometry (axis-major [z, y, x]).
-    let fo = disp_z.origin();
-    let fs = disp_z.spacing();
-    let fd = disp_z.direction();
-    // Moving geometry; pre-invert the direction so the per-voxel hot loop only
-    // does matrix-vector products.
-    let mo = moving.origin();
-    let ms = moving.spacing();
-    let md_inv = moving
-        .direction()
-        .try_inverse()
-        .ok_or_else(|| anyhow!("warp: moving image direction matrix is singular"))?;
-
-    let mut out = vec![0.0f32; nz * ny * nx];
-    let lower = -0.5;
-    let upper = [
-        mov_dims[0] as f64 - 0.5,
-        mov_dims[1] as f64 - 0.5,
-        mov_dims[2] as f64 - 0.5,
-    ];
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let flat = iz * ny * nx + iy * nx + ix;
-                let idx = [iz as f64, iy as f64, ix as f64];
-                // Output physical point p = O_f + R_f · (S_f ⊙ idx), plus the
-                // displacement at this grid point (axis-major components).
-                let disp = [dz[flat] as f64, dy[flat] as f64, dx[flat] as f64];
-                let mut p = [0.0f64; 3];
-                for (a, p_a) in p.iter_mut().enumerate() {
-                    let mut acc = fo[a];
-                    for k in 0..3 {
-                        acc += fd[(a, k)] * (idx[k] * fs[k]);
-                    }
-                    *p_a = acc + disp[a];
-                }
-                // Moving continuous index c = S_m⁻¹ · R_m⁻¹ · (p − O_m).
-                let mut c = [0.0f64; 3];
-                let mut inside = true;
-                for (a, c_a) in c.iter_mut().enumerate() {
-                    let mut acc = 0.0;
-                    for k in 0..3 {
-                        acc += md_inv[(a, k)] * (p[k] - mo[k]);
-                    }
-                    let ci = acc / ms[a];
-                    if ci < lower || ci >= upper[a] {
-                        inside = false;
-                    }
-                    *c_a = ci;
-                }
-                if inside {
-                    out[flat] = trilinear(&mov_vals, mov_dims, c);
-                }
-            }
-        }
+    let mut disp_flat = Vec::with_capacity(n * 3);
+    for i in 0..n {
+        disp_flat.push(dx[i]);
+        disp_flat.push(dy[i]);
+        disp_flat.push(dz[i]);
     }
+    let disp = Tensor::<B, 2>::from_data(TensorData::new(disp_flat, Shape::new([n, 3])), &device);
 
-    Ok(rebuild(out, field_dims, disp_z))
+    // Displaced world points → moving continuous indices (innermost-first).
+    let mov_idx = moving.world_to_index_tensor(world + disp);
+
+    // Trilinear sample + ITK IsInsideBuffer gate (out-of-buffer → 0).
+    let values = LinearInterpolator::new().interpolate(moving.data(), mov_idx.clone());
+    let masked = apply_inside_buffer_mask::<B>(values, mov_idx, moving.shape(), &device);
+
+    let out = masked.reshape(Shape::new(field_dims));
+    Ok(Image::new(
+        out,
+        *disp_z.origin(),
+        *disp_z.spacing(),
+        *disp_z.direction(),
+    ))
 }
 
 #[cfg(test)]

@@ -1675,13 +1675,20 @@ def test_cmake_displacement_field_jacobian_determinant(shape, freqs):
     ],
     ids=["cube16", "anisotropic", "nonunit-geometry"],
 )
-def test_cmake_warp_on_displacement_field(shape, amps, origin, spacing):
+def test_cmake_warp_on_displacement_field(shape, amps, origin, spacing, tmp_path):
     """Warp a moving image through a dense displacement field:
     out(p) = moving(p + D(p)), trilinear. ritk `filter.warp(moving, disp_z,
     disp_y, disp_x)` against `sitk.Warp` (linear interpolator) on a smooth
     analytic field. Matches to float precision over the full image, including the
     IsInsideBuffer edge gate (out-of-buffer samples -> 0) and full physical
-    coordinates (non-zero origin, anisotropic spacing)."""
+    coordinates (non-zero origin, anisotropic spacing).
+
+    The moving image and the three displacement components are round-tripped
+    through sitk-written NRRD and reloaded with `ritk.io.read_image`, so every
+    operand carries ritk.io's canonical (axis-reversing) Direction matrix — the
+    real geometry every loaded volume has. This exercises the canonical
+    `index_to_world_tensor`/`world_to_index_tensor` path on anisotropic, non-unit
+    geometry, which constructed (identity-Direction) images do not represent."""
     import numpy as _np
     D, H, W = shape
     az, ay, ax = amps
@@ -1701,17 +1708,26 @@ def test_cmake_warp_on_displacement_field(shape, amps, origin, spacing):
         si.SetSpacing(spacing); df.SetSpacing(spacing)
         warp_kwargs["outputSpacing"] = spacing
     sw = sitk.GetArrayFromImage(sitk.Warp(si, df, **warp_kwargs))
-    # ritk origin/spacing are axis-major [z, y, x] — reverse the sitk (x, y, z).
-    ro = None if origin is None else (origin[2], origin[1], origin[0])
-    rs = None if spacing is None else (spacing[2], spacing[1], spacing[0])
-    def im(a):
-        kw = {}
-        if ro is not None:
-            kw["origin"] = ro
-        if rs is not None:
-            kw["spacing"] = rs
-        return ritk.Image(_np.ascontiguousarray(a), **kw)
-    rw = _np.asarray(ritk.filter.warp(im(img), im(dz), im(dy), im(dx)).to_numpy())
+
+    # Round-trip every operand through a sitk-written NRRD so ritk.io assigns the
+    # canonical axis-reversing Direction (the geometry loaded volumes actually
+    # carry). Each displacement component is written as a scalar volume sharing
+    # the field geometry; its value is a physical-space magnitude (geometry sets
+    # only the sample grid, not the vector value).
+    def loaded(arr):
+        s = sitk.GetImageFromArray(_np.ascontiguousarray(arr.astype(_np.float32)))
+        if origin is not None:
+            s.SetOrigin(origin)
+        if spacing is not None:
+            s.SetSpacing(spacing)
+        p = str(tmp_path / f"op{loaded.n}.nrrd"); loaded.n += 1
+        sitk.WriteImage(s, p)
+        return ritk.io.read_image(p)
+    loaded.n = 0
+
+    rw = _np.asarray(
+        ritk.filter.warp(loaded(img), loaded(dz), loaded(dy), loaded(dx)).to_numpy()
+    )
     diff = float(_np.abs(rw - sw).max())
     assert diff < 1e-3, f"Warp full-image diff {diff:.2e} exceeds float tolerance"
 
