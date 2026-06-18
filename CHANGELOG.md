@@ -7,6 +7,23 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.41] — 2026-06-18 (Sprint 454: FFTPad parity)
+
+### Added
+- `ritk-filter`: `FftPadImageFilter` (`transform::fft_pad`) — pads each axis to the
+  next size whose greatest prime factor is `<= max_prime` (default 5, i.e. a
+  2-3-5-smooth FFT-efficient size), with a symmetric split (smaller half on the
+  lower boundary) and a configurable boundary condition (`FftPadBoundary::{Zero,
+  ZeroFluxNeumann, Periodic}`). Reuses the existing `ConstantPad` / `ZeroFluxNeumann`
+  / `WrapPad` cores — the only new logic is the const-evaluable
+  `greatest_prime_factor` / `next_smooth_size` arithmetic. `[minor]`
+- `ritk-python`: `filter.fft_pad(image, max_prime=5, boundary=1)` binding. `[minor]`
+- Tests: 7 Rust core tests (factorization, smooth-size sequence vs ITK targets,
+  symmetric split, per-boundary apply) plus 4 cmake parity cases — **bit-exact**
+  (metadata included) to `sitk.FFTPad` across all three boundary conditions and
+  `max_prime` 3/5 on a 230×226 cthead1 crop (prime factors 23, 113). Coverage
+  229 → 230/298.
+
 ## [0.102.40] — 2026-06-18 (Sprint 453: AreaOpening / AreaClosing parity)
 
 ### Added

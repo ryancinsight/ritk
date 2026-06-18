@@ -136,10 +136,10 @@ pub use projection::{
 pub use pyramid::MultiResolutionPyramid;
 pub use resample::ResampleImageFilter;
 pub use transform::{
-    ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, FlipPolicy,
-    MirrorPadImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
-    RegionOfInterestImageFilter, ShrinkImageFilter, TileMeanShrinkFilter, WrapPadImageFilter,
-    ZeroFluxNeumannPadImageFilter,
+    ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FftPadBoundary,
+    FftPadImageFilter, FlipImageFilter, FlipPolicy, MirrorPadImageFilter, Padding,
+    PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter,
+    TileMeanShrinkFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
 };
 
 // ── Surface & distance ───────────────────────────────────────────────────────

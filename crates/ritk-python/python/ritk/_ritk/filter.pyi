@@ -477,6 +477,11 @@ def wrap_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, i
 def zero_flux_neumann_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]) -> Image:
     """Edge-replicate (zero-flux Neumann) pad; lower/upper are (z,y,x). ITK Parity: ZeroFluxNeumannPadImageFilter."""
     ...
+def fft_pad(image: Image, max_prime: int = 5, boundary: int = 1) -> Image:
+    """Pad each axis to the next size whose greatest prime factor is <= max_prime
+    (default 5). boundary: 0 zero, 1 zero-flux Neumann (default), 2 periodic.
+    ITK Parity: FFTPadImageFilter."""
+    ...
 def region_of_interest(image: Image, start: tuple[int, int, int], size: tuple[int, int, int]) -> Image:
     """Crop to a sub-region; start/size are (z,y,x). ITK Parity: RegionOfInterestImageFilter."""
     ...

@@ -14,10 +14,10 @@ use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
     gabor_image_source as core_gabor_image_source,
     gaussian_image_source as core_gaussian_image_source,
-    grid_image_source as core_grid_image_source, ConstantPadImageFilter,
-    CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, MirrorPadImageFilter, Padding,
-    PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter,
-    WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
+    grid_image_source as core_grid_image_source, ConstantPadImageFilter, CyclicShiftImageFilter,
+    ExpandImageFilter, FftPadBoundary, FftPadImageFilter, FlipImageFilter, MirrorPadImageFilter,
+    Padding, PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
+    ShrinkImageFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
 };
 use ritk_image::Image;
 
@@ -349,6 +349,37 @@ pub fn zero_flux_neumann_pad(
     let up = Padding([upper.0, upper.1, upper.2]);
     py.allow_threads(|| {
         ZeroFluxNeumannPadImageFilter::new(lo, up)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Pad each axis to the next size whose greatest prime factor is `<= max_prime`
+/// (default 5), for efficient FFT. `boundary` selects the fill: 0 = zero, 1 =
+/// zero-flux Neumann (edge replicate, default), 2 = periodic (wrap). ITK Parity:
+/// FFTPadImageFilter (`sitk.FFTPad`).
+#[pyfunction]
+#[pyo3(signature = (image, max_prime=5, boundary=1))]
+pub fn fft_pad(
+    py: Python<'_>,
+    image: &PyImage,
+    max_prime: usize,
+    boundary: u8,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let bc = match boundary {
+        0 => FftPadBoundary::Zero,
+        1 => FftPadBoundary::ZeroFluxNeumann,
+        2 => FftPadBoundary::Periodic,
+        other => {
+            return Err(RitkPyError::value(format!(
+                "fft_pad: boundary must be 0 (zero), 1 (zero-flux Neumann), or 2 (periodic); got {other}"
+            )))
+        }
+    };
+    py.allow_threads(|| {
+        FftPadImageFilter::new(max_prime, bc)
             .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

@@ -1451,6 +1451,29 @@ def test_cmake_geometry_on_upstream_data(tag, rfn, sfn):
     assert _eq(rfn(ri), sfn(si)), f"{tag}: differs from sitk"
 
 
+@pytest.mark.parametrize(
+    "max_prime, bc",
+    [(5, 0), (5, 1), (5, 2), (3, 1)],
+    ids=["p5-zero", "p5-neumann", "p5-periodic", "p3-neumann"],
+)
+def test_cmake_fft_pad_on_upstream_data(max_prime, bc):
+    """FFTPad enlarges each axis to the next size with greatest prime factor
+    <= max_prime, symmetric split (smaller half low), filling per boundary
+    condition (0 zero, 1 zero-flux Neumann, 2 periodic). Bit-exact to sitk on a
+    cthead1 crop whose 230x226 extent has prime factors 23 and 113. ITK Parity:
+    FFTPadImageFilter."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    # ritk start/size (z,y,x); sitk size/index (x,y,z).
+    rc = ritk.filter.region_of_interest(ri, (0, 5, 3), (1, 226, 230))
+    sc = sitk.RegionOfInterest(si, [230, 226], [3, 5])
+    f = sitk.FFTPadImageFilter()
+    f.SetSizeGreatestPrimeFactor(max_prime)
+    f.SetBoundaryCondition(bc)
+    assert _eq(ritk.filter.fft_pad(rc, max_prime, bc), f.Execute(sc)), \
+        f"FFTPad prime={max_prime} bc={bc}: differs from sitk"
+
+
 @pytest.mark.parametrize("axis", [1, 2], ids=["y", "x"])
 def test_cmake_median_projection_on_upstream_data(axis):
     # MedianProjection along a real axis (cthead is z=1, so project y or x).
