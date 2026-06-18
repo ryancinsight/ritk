@@ -20,6 +20,56 @@
 //!
 //! # Complexity
 //! O(n · (2r+1)³) per image, where `r = ⌈3 · σ_s⌉`.
+//!
+//! # Performance notes (Sprint 377)
+//!
+//! Per-voxel cost is dominated by the inner neighbour loop, which executes
+//! `(2r+1)³` iterations and pays one `f64` `exp` plus four table lookups
+//! (`data[...]` + `spatial_w[d²]` + the spatial-weight is precomputed).
+//!
+//! ## Carry-forward: range-domain LUT (PERF-377-02)
+//!
+//! The remaining `exp` call is `exp(-rd² / (2σ_r²))` where `rd = I(p)−I(q)`.
+//! A 1-D LUT `range_w[k] = exp(-k² / (2σ_r²))` over `k = round(rd·qscale)`
+//! is the natural mirror of the spatial LUT, but a worst-case
+//! quantisation analysis shows it **cannot meet the existing `1e-5`
+//! uniform-image test epsilon** without an unworkably large table:
+//!
+//! - At the kernel knee `|rd| ≈ σ_r` the absolute weight perturbation per
+//!   neighbour is `|δw| ≤ |dw/drd| · Δrd = (1/σ_r)·exp(-½)·(½/qscale)`.
+//! - Propagating through `B(p) = Σw·I / Σw` yields
+//!   `|ΔB| ≤ |δw| · (|max I| + |B|) / w_avg`. With typical imaging-range
+//!   `M ≈ 300` HU and `w_avg ≈ 0.5`:
+//!     `ΔB ≤ (1/σ_r)·exp(-½)·(½/qscale) · 600`
+//! - To hold `ΔB < 1e-5` with σ_r = 50: `qscale ≳ 728 000` bins/unit,
+//!   i.e. **millions of f64 entries per σ_r** — not a real trade.
+//!
+//! Alternative paths and their trade-offs:
+//! 1. **Hybrid**: exact `exp` for `|rd| ≤ 3σ_r` (kernel-sensitive band),
+//!    LUT for the heavily-attenuated tail. Saves only the asymptotic
+//!    `exp` slab; expected speedup ≤ ~2× at typical σ_r.
+//! 2. **Loosen the test tolerance** to a value derived from the analysis
+//!    above (~`0.05` HU for bilateral at σ_r ≥ 50, comparable to scipy /
+//!    ITK defaults). Behaviour-equivalent to a 5–10× faster algorithm
+//!    only after the test contract is updated; a `[minor]`-class change.
+//! 3. **Drop the LUT** and keep the current `exp`-per-neighbour path.
+//!
+//! All three are documented as deferred backlog items; PERF-377-02 (range
+//! LUT) was committed at the parallelism-only stage (`ca5b49a5`) and the
+//! analytical note above is the rationale for leaving the per-neighbour
+//! `exp` in place. Reopen the work item when either (a) a workload
+//! justifies the 2× from option 1, or (b) a test-tolerance re-baselining
+//! is approved by the test contract owner.
+//!
+//! ## Why no Huang-style median sliding histogram here
+//!
+//! The BilateralFilter algorithm has a closed-form per-neighbour cost
+//! (`exp + two multiply-adds + one table lookup`), so the next dominant
+//! cost to amortise is the **neighbour walk itself**, not a sort or
+//! selection. The 5-D weights-vs-radius reduction that Huang offers for
+//! median has no analogue here; the LUT is the correct optimisation.
+//! See `median.rs` (PERF-377-01) for the histogram analysis on the
+//! median path, where the per-voxel cost *is* sort-dominated.
 
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
@@ -148,7 +198,8 @@ const SIGMA_MIN: f64 = 1e-10;
 ///   loop walk a simple `usize` range.
 /// - The outer Z-loop is parallelised across z-slices via `moirai`'s
 ///   adaptive work-stealing scheduler (matches the canonical pattern
-///   used by `median_3d`, `rank_select_3d`, `jacobian_determinant`).
+///   used by `median_3d`, `rank::kernel::neighborhood_rank_3d`,
+///   `jacobian_determinant`).
 ///   Each z-slice writes into a disjoint contiguous range of the output
 ///   buffer, so no synchronisation is needed across threads.
 ///
