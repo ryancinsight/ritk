@@ -299,6 +299,25 @@ def test_distance_transform_matches_sitk_danielsson():
     assert _interior_absmax(ra, sa) / _rng(sa) < 0.02
 
 
+def test_signed_distance_transform_matches_sitk_signed_danielsson():
+    """ritk's exact signed Euclidean DT matches ITK's SignedDanielsson map.
+
+    `signed_distance_map` assigns the foreground negative and the background
+    positive distance to the nearest opposite-class voxel centre — ITK's
+    `SignedDanielssonDistanceMap(insideIsPositive=False)` convention. As with the
+    unsigned Danielsson case, the only disagreement is the half-voxel/voxel-
+    diagonal boundary convention between an exact Euclidean DT and Danielsson's
+    approximate vector propagation, bounded well under 2% of the value range."""
+    path = fetch("2th_cthead1.png")
+    ri = ritk.io.read_image(path)
+    si = sitk.ReadImage(path)
+    ra = ritk.filter.signed_distance_map(ri, foreground_threshold=0.5).to_numpy()
+    binary = sitk.Cast(si > 0, sitk.sitkUInt8)
+    sa = _sa(sitk.SignedDanielssonDistanceMap(
+        binary, insideIsPositive=False, squaredDistance=False, useImageSpacing=True))
+    assert _interior_absmax(ra, sa) / _rng(sa) < 0.02
+
+
 # ── Geometric resampling (z = 1 anisotropic grid) ─────────────────────────────
 
 
