@@ -322,6 +322,9 @@ def gradient(image: Image, use_image_spacing: bool = True) -> ColorImage:
 def gradient_recursive_gaussian(image: Image, sigma: float = 1.0) -> ColorImage:
     """Gaussian-smoothed gradient -> 3-component vector (dx,dy,dz). ITK Parity: GradientRecursiveGaussianImageFilter."""
     ...
+def scalar_to_rgb_colormap(image: Image, colormap: str = "grey") -> ColorImage:
+    """Map scalar -> RGB via a colormap (grey/red/green/blue). ITK Parity: ScalarToRGBColormapImageFilter."""
+    ...
 def vector_index_selection_cast(image: ColorImage, index: int) -> Image:
     """Extract one component of a vector image as a scalar image. ITK Parity: VectorIndexSelectionCastImageFilter."""
     ...

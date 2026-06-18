@@ -343,6 +343,18 @@ def test_cmake_ternary_case_on_upstream_data(tag, rfn, sfn, tol):
         assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e}"
 
 
+def test_cmake_scalar_to_rgb_colormap_on_upstream_data():
+    """Grey colormap (the ITK default) on RA-Float, compared component-wise to
+    ITK's ScalarToRGBColormapImageFilter. Bit-exact (normalize→×255→truncate)."""
+    ri, si = _pair("RA-Float.nrrd")
+    r = np.asarray(ritk.filter.scalar_to_rgb_colormap(ri, "grey").to_numpy(), np.float64)
+    g = sitk.ScalarToRGBColormap(si, sitk.ScalarToRGBColormapImageFilter.Grey)
+    s = sitk.GetArrayFromImage(g).astype(np.float64)  # (z,y,x,3)
+    m = 3
+    d = np.abs(r[:, m:-m, m:-m] - s[:, m:-m, m:-m]).max()
+    assert d == 0.0, f"ScalarToRGBColormap/Grey: max abs diff {d}"
+
+
 def test_cmake_fft_convolution_on_upstream_data():
     """FFT-based convolution with a small box kernel, compared to ITK's
     FFTConvolutionImageFilter. Float-exact (FFT rounding)."""

@@ -8,6 +8,8 @@ pub mod bias;
 pub use bias::N4BiasFieldCorrectionFilter;
 pub mod color;
 pub use color::map_color_components;
+pub mod colormap;
+pub use colormap::{Colormap, ScalarToRGBColormapFilter};
 
 // ── Denoising & smoothing ────────────────────────────────────────────────────
 pub mod bilateral;

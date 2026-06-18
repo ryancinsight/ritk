@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.17] — 2026-06-17 (Sprint 430: ScalarToRGBColormap — linear LUTs)
+
+### Added
+- `ritk-filter` / `ritk-python`: `ScalarToRGBColormapFilter` + `filter.scalar_to_rgb_colormap(image, colormap="grey")` — maps a scalar image to a 3-component RGB image (ITK `ScalarToRGBColormapImageFilter` / `sitk.ScalarToRGBColormap`). Normalizes each voxel to `[0,1]` against the image min/max (`UseInputImageExtremaForScaling`, ITK default), then `floor(t·255)` (C++ uint8 truncation) through the colormap. Implements the **linear LUTs** `grey` (ITK default), `red`, `green`, `blue`; perceptual maps (hot/jet/cool/HSV/…) are rejected explicitly rather than approximated. **Bit-exact** to `sitk.ScalarToRGBColormap(Grey)` on `RA-Float`. Value-semantic Rust tests (grey truncation, channel selection, constant→0, unsupported-rejected) + cmake parity test. `.pyi` stub; coverage 198/298.
+
 ## [0.102.16] — 2026-06-17 (Sprint 429: Modulus)
 
 ### Added

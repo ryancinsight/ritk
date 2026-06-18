@@ -14,8 +14,8 @@ use numpy::{ndarray::Array4, IntoPyArray, PyArray4, PyReadonlyArray4, PyUntypedA
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
-    map_color_components, GradientImageFilter, GradientRecursiveGaussianImageFilter,
-    MeanImageFilter, MedianFilter, RecursiveGaussianFilter,
+    map_color_components, Colormap, GradientImageFilter, GradientRecursiveGaussianImageFilter,
+    MeanImageFilter, MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter,
 };
 use ritk_image::{ColorVolume, Image};
 use std::sync::Arc;
@@ -203,6 +203,28 @@ pub fn gradient_recursive_gaussian(
     let arc = Arc::clone(&image.inner);
     let out = py
         .allow_threads(|| GradientRecursiveGaussianImageFilter::new(sigma).apply(arc.as_ref()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok(PyColorImage {
+        inner: Arc::new(out),
+    })
+}
+
+/// Map a scalar image to a 3-component RGB image via a colormap (channel values
+/// in `[0, 255]`). Only the linear LUTs `grey`/`red`/`green`/`blue` are
+/// supported; perceptual maps (hot/jet/…) raise an error.
+///
+/// ITK Parity: ScalarToRGBColormapImageFilter (`sitk.ScalarToRGBColormap`).
+#[pyfunction]
+#[pyo3(signature = (image, colormap="grey"))]
+pub fn scalar_to_rgb_colormap(
+    py: Python<'_>,
+    image: &PyImage,
+    colormap: &str,
+) -> RitkResult<PyColorImage> {
+    let cmap = Colormap::from_name(colormap).map_err(|e| RitkPyError::value(e.to_string()))?;
+    let arc = Arc::clone(&image.inner);
+    let out = py
+        .allow_threads(|| ScalarToRGBColormapFilter::new(cmap).apply(arc.as_ref()))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
