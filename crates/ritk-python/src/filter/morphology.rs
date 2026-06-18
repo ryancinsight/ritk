@@ -10,7 +10,8 @@ use ritk_filter::{
     HMinimaFilter, HitOrMissTransform, LabelClosing, LabelContourImageFilter, LabelDilation,
     LabelErosion, LabelOpening, MorphologicalReconstruction, OpeningByReconstructionFilter,
     ReconstructionMode, RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
-    ValuedRegionalMinimaFilter, VotingBinaryImageFilter, WhiteTopHatFilter,
+    ValuedRegionalMinimaFilter, VotingBinaryHoleFillingImageFilter, VotingBinaryImageFilter,
+    WhiteTopHatFilter,
 };
 
 /// Apply grayscale morphological erosion with a flat cubic structuring element.
@@ -556,6 +557,33 @@ pub fn voting_binary(
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Fill background holes by majority vote: a background voxel becomes foreground
+/// when ≥ `(W−1)/2 + majority_threshold` of its `(2·radius+1)³` neighbours
+/// (clamp boundary, `W` = full window) are foreground; foreground always
+/// survives. ITK Parity: VotingBinaryHoleFillingImageFilter (`sitk.VotingBinaryHoleFilling`).
+#[pyfunction]
+#[pyo3(signature = (image, radius = 1, majority_threshold = 1, foreground_value = 1.0, background_value = 0.0))]
+pub fn voting_binary_hole_filling(
+    py: Python<'_>,
+    image: &PyImage,
+    radius: usize,
+    majority_threshold: usize,
+    foreground_value: f32,
+    background_value: f32,
+) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        VotingBinaryHoleFillingImageFilter::new(
+            [radius, radius, radius],
+            majority_threshold,
+            foreground_value,
+            background_value,
+        )
+        .apply(arc.as_ref())
+    });
+    into_py_image(out)
 }
 
 /// Map the `fully_connected` flag to the structuring-element adjacency

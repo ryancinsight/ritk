@@ -81,7 +81,8 @@ pub use morphology::{
     HitOrMissTransform, LabelClosing, LabelContourImageFilter, LabelDilation, LabelErosion,
     LabelOpening, MorphologicalReconstruction, OpeningByReconstructionFilter, ReconstructionMode,
     RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
-    ValuedRegionalMinimaFilter, VotingBinaryImageFilter, WhiteTopHatFilter,
+    ValuedRegionalMinimaFilter, VotingBinaryHoleFillingImageFilter, VotingBinaryImageFilter,
+    WhiteTopHatFilter,
 };
 
 // ── Edge detection & vesselness ──────────────────────────────────────────────

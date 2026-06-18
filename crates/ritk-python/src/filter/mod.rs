@@ -182,6 +182,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(binary_contour, &m)?)?;
     m.add_function(wrap_pyfunction!(label_contour, &m)?)?;
     m.add_function(wrap_pyfunction!(voting_binary, &m)?)?;
+    m.add_function(wrap_pyfunction!(voting_binary_hole_filling, &m)?)?;
 
     m.add_function(wrap_pyfunction!(flip, &m)?)?;
     m.add_function(wrap_pyfunction!(constant_pad, &m)?)?;

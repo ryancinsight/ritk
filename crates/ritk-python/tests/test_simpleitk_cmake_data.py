@@ -122,6 +122,13 @@ _CASES = [
     ("Rank/p25", "RA-Float.nrrd",
      lambda ri: ritk.filter.rank(ri, 0.25, 1, 1, 1),
      lambda si: sitk.Rank(si, 0.25, [1, 1, 1]), 0.0),
+    # VotingBinaryHoleFilling on a thresholded cthead mask (clamp boundary, fg
+    # survives). z=1 so the z neighbours clamp onto the plane (3x counting).
+    ("VotingBinaryHoleFilling/cthead", "cthead1.png",
+     lambda ri: ritk.filter.voting_binary_hole_filling(
+         ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)),
+     lambda si: sitk.VotingBinaryHoleFilling(
+         sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0), [1, 1, 1]), 0.0),
     ("BinomialBlur/defaults", "RA-Float.nrrd",
      lambda ri: ritk.filter.binomial_blur(ri, 1),
      lambda si: sitk.BinomialBlur(si, 1), 1e-6),

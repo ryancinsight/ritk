@@ -7,6 +7,11 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.23] — 2026-06-18 (Sprint 436: VotingBinaryHoleFilling)
+
+### Added
+- `ritk-filter` / `ritk-python`: `VotingBinaryHoleFillingImageFilter` + `filter.voting_binary_hole_filling(image, radius=1, majority_threshold=1, foreground_value=1.0, background_value=0.0)` — fills background holes by majority vote (a background voxel becomes foreground when its `(2r+1)` neighbourhood has `≥ (W−1)/2 + majority_threshold` foreground voxels; foreground always survives), matching ITK `VotingBinaryHoleFillingImageFilter` / `sitk.VotingBinaryHoleFilling`. Uses **replicate (clamp) boundary** with the full `(2r+1)^D` window `W` — pinned by sitk probe (a corner hole fills under clamp count 15 ≥ 14, which a zero boundary would not); on a `z=1` slab the `z` neighbours clamp onto the plane (3× counting), unlike the shrink-window `VotingBinaryImageFilter`. **Bit-exact** to sitk on a thresholded cthead1 mask. Value-semantic Rust tests (fill, sparse-no-fill, fg-survives, corner-clamp) + cmake parity case. `.pyi` stub; coverage 204/298.
+
 ## [0.102.22] — 2026-06-17 (Sprint 435: Rank)
 
 ### Added

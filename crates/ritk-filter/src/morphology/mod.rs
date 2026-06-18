@@ -91,11 +91,13 @@ pub mod binary_contour;
 pub mod connectivity;
 pub mod label_contour;
 pub mod voting_binary;
+pub mod voting_hole_filling;
 
 pub use binary_contour::BinaryContourImageFilter;
 pub use connectivity::Connectivity;
 pub use label_contour::LabelContourImageFilter;
 pub use voting_binary::VotingBinaryImageFilter;
+pub use voting_hole_filling::VotingBinaryHoleFillingImageFilter;
 
 pub mod iterate_structure;
 pub use iterate_structure::{iterate_structure, iterate_structure_with_origin, BoolStructure};

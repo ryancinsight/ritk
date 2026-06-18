@@ -450,6 +450,9 @@ def label_contour(image: Image, fully_connected: bool = False, background_value:
 def voting_binary(image: Image, radius: int = 1, birth_threshold: int = 1, survival_threshold: int = 1, foreground_value: float = 1.0, background_value: float = 0.0) -> Image:
     """One binary voting (cellular-automaton) step. ITK Parity: VotingBinaryImageFilter."""
     ...
+def voting_binary_hole_filling(image: Image, radius: int = 1, majority_threshold: int = 1, foreground_value: float = 1.0, background_value: float = 0.0) -> Image:
+    """Fill background holes by majority vote (fg always survives, clamp boundary). ITK Parity: VotingBinaryHoleFillingImageFilter."""
+    ...
 def flip(image: Image, flip_z: bool = False, flip_y: bool = False, flip_x: bool = False) -> Image:
     """Flip along Z/Y/X axes. ITK Parity: FlipImageFilter (sitk.Flip, axes reversed to [x,y,z])."""
     ...
