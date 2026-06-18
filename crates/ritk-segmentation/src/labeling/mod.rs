@@ -37,6 +37,9 @@ use union_find::UnionFind;
 pub mod relabel;
 pub use relabel::{RelabelComponentFilter, RelabelStatistics};
 
+pub mod scalar_cc;
+pub use scalar_cc::scalar_connected_components;
+
 // ── Public types ──────────────────────────────────────────────────────────────
 
 /// Adjacency connectivity model for connected-component labeling.

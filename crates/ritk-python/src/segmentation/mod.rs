@@ -50,6 +50,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Labeling
     m.add_function(wrap_pyfunction!(connected_components, &m)?)?;
+    m.add_function(wrap_pyfunction!(scalar_connected_component, &m)?)?;
     m.add_function(wrap_pyfunction!(relabel_components, &m)?)?;
     m.add_function(wrap_pyfunction!(change_label, &m)?)?;
     m.add_function(wrap_pyfunction!(label_shape_statistics, &m)?)?;

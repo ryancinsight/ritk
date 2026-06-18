@@ -4,10 +4,15 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
+use burn::tensor::{Shape, Tensor, TensorData};
+use burn_ndarray::NdArrayDevice;
+use crate::image::Backend;
+use ritk_image::Image;
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
-    ConnectedComponentsFilter, KMeansSegmentation, MarkerControlledWatershed,
-    RelabelComponentFilter, SlicConfig, SlicSuperpixelFilter, WatershedSegmentation,
+    scalar_connected_components as core_scalar_connected_components, ConnectedComponentsFilter,
+    KMeansSegmentation, MarkerControlledWatershed, RelabelComponentFilter, SlicConfig,
+    SlicSuperpixelFilter, WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -49,6 +54,43 @@ pub fn connected_components(
         py.allow_threads(|| core_connected_components(mask.as_ref(), seg_conn))
     };
     Ok((into_py_image(label_image), num_components))
+}
+
+/// Label scalar connected components: every voxel is labelled, and two
+/// raster-adjacent voxels share a component when their intensities differ by at
+/// most `distance_threshold`. Labels are consecutive `1..=K` in scan order.
+///
+/// ITK Parity: ScalarConnectedComponentImageFilter (`sitk.ScalarConnectedComponent`).
+///
+/// Args:
+///     image:              Scalar PyImage.
+///     distance_threshold: Maximum intensity difference for two neighbours to
+///                         join the same component (default 0.0).
+///     connectivity:       6 (face, default) or 26 (full).
+#[pyfunction]
+#[pyo3(signature = (image, distance_threshold=0.0, connectivity=6))]
+pub fn scalar_connected_component(
+    py: Python<'_>,
+    image: &PyImage,
+    distance_threshold: f32,
+    connectivity: u32,
+) -> RitkResult<PyImage> {
+    if connectivity != 6 && connectivity != 26 {
+        return Err(RitkPyError::value(format!(
+            "connectivity must be 6 or 26, got {connectivity}"
+        )));
+    }
+    let arc = Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        let dims = arc.shape();
+        let vals = arc.data_slice().into_owned();
+        let labels = core_scalar_connected_components(&vals, dims, distance_threshold, connectivity);
+        let device = NdArrayDevice::default();
+        let tensor =
+            Tensor::<Backend, 3>::from_data(TensorData::new(labels, Shape::new(dims)), &device);
+        Image::new(tensor, *arc.origin(), *arc.spacing(), *arc.direction())
+    });
+    Ok(into_py_image(out))
 }
 
 /// Relabel connected components by descending size: the largest object becomes

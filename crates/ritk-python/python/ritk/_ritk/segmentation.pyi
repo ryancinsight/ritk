@@ -38,6 +38,9 @@ def binary_threshold_segment(
 # ── Connected-component labeling ────────────────────────────────────────────
 
 def connected_components(mask: Image, connectivity: int = 6) -> tuple[Image, int]: ...
+def scalar_connected_component(image: Image, distance_threshold: float = 0.0, connectivity: int = 6) -> Image:
+    """Label scalar connected components (neighbours join if |delta value| <= threshold). ITK Parity: ScalarConnectedComponentImageFilter."""
+    ...
 def relabel_components(label_image: Image, minimum_object_size: int = 0) -> Image:
     """Relabel components by descending size. ITK Parity: RelabelComponentImageFilter."""
     ...

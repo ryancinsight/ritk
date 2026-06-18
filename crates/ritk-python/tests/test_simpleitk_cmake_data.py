@@ -451,6 +451,39 @@ def test_cmake_grayscale_geodesic_erode_on_upstream_data():
     assert np.array_equal(r, s), "GrayscaleGeodesicErode differs from sitk"
 
 
+def _canonical_labels(a):
+    """Relabel a label array to consecutive ids in scan order of first encounter,
+    so two labelings of the same partition compare equal (label *integers* are
+    implementation-defined — ITK's ScalarConnectedComponent leaves gaps from its
+    union-find roots; the partition is the semantic contract)."""
+    flat = a.ravel()
+    out = np.zeros_like(flat, dtype=np.int64)
+    seen = {}
+    nxt = 0
+    for i, v in enumerate(flat):
+        lbl = seen.get(v)
+        if lbl is None:
+            nxt += 1
+            seen[v] = lbl = nxt
+        out[i] = lbl
+    return out
+
+
+def test_cmake_scalar_connected_component_on_upstream_data():
+    """ScalarConnectedComponent on cthead1: neighbouring voxels join when their
+    intensities differ by ≤ distance_threshold. The *partition* is bit-exact to
+    ITK (identical component count and membership); raw label integers differ
+    only by ITK's non-consecutive union-find numbering, so both are canonicalised
+    to scan-order ids before comparison."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(
+        ritk.segmentation.scalar_connected_component(ri, 10.0, 6).to_numpy(), np.int64))
+    s = sitk.GetArrayFromImage(sitk.ScalarConnectedComponent(si, 10.0)).astype(np.int64)
+    assert np.array_equal(_canonical_labels(r), _canonical_labels(np.squeeze(s))), \
+        "ScalarConnectedComponent partition differs from sitk"
+
+
 def test_cmake_fft_convolution_on_upstream_data():
     """FFT-based convolution with a small box kernel, compared to ITK's
     FFTConvolutionImageFilter. Float-exact (FFT rounding)."""
