@@ -8,7 +8,7 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
+    InverseDeconvolution, LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
     TikhonovDeconvolution, WienerDeconvolution,
 };
 
@@ -75,6 +75,41 @@ pub fn tikhonov_deconvolution(
     let ker_ref = kernel.inner.clone();
     let result = py.allow_threads(|| {
         TikhonovDeconvolution::new(lambda)
+            .apply(img_ref.as_ref(), ker_ref.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+/// Apply direct inverse-filter deconvolution to a 3-D image.
+///
+/// Matches `SimpleITK.InverseDeconvolution`. In the frequency domain:
+/// ```text
+/// U(ω) = G(ω) / H(ω)   if |H(ω)| >= τ, else 0
+/// ```
+///
+/// Args:
+///     image: Degraded PyImage (any shape [Z, Y, X]).
+///     kernel: 3-D PSF kernel PyImage.
+///     kernel_zero_magnitude_threshold: OTF magnitude threshold τ below which a
+///         frequency is zeroed (sitk `kernelZeroMagnitudeThreshold`, default
+///         1e-4). Parity with sitk is tightest near the default; larger τ may
+///         flip borderline frequencies (|H| ≈ τ) due to FFT-magnitude rounding.
+///
+/// Returns:
+///     Restored PyImage with the same shape as `image`.
+#[pyfunction]
+#[pyo3(signature = (image, kernel, kernel_zero_magnitude_threshold=1e-4_f32))]
+pub fn inverse_deconvolution(
+    py: Python<'_>,
+    image: &PyImage,
+    kernel: &PyImage,
+    kernel_zero_magnitude_threshold: f32,
+) -> RitkResult<PyImage> {
+    let img_ref = image.inner.clone();
+    let ker_ref = kernel.inner.clone();
+    let result = py.allow_threads(|| {
+        InverseDeconvolution::new(kernel_zero_magnitude_threshold)
             .apply(img_ref.as_ref(), ker_ref.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;

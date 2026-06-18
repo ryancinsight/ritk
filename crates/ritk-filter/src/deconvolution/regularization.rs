@@ -125,6 +125,45 @@ impl Regularization for TikhonovRule {
     }
 }
 
+/// Direct inverse filter, matching ITK's `InverseDeconvolutionImageFilter`:
+///
+/// ```text
+/// U(ω) = G(ω) / H(ω) = G(ω)·H*(ω) / |H(ω)|²   if |H(ω)| >= τ, else 0
+/// ```
+///
+/// Unlike Tikhonov (which adds a ridge term `λ`), the inverse filter divides
+/// directly by the OTF and zeros any frequency whose magnitude falls below the
+/// `kernel_zero_magnitude_threshold` `τ` (ITK `KernelZeroMagnitudeThreshold`,
+/// default 1e-3 in ITK; SimpleITK exposes it per call). This prevents unbounded
+/// noise amplification at OTF nulls without smoothing the rest of the spectrum.
+pub struct InverseRule {
+    /// Magnitude threshold `τ` below which an OTF frequency is treated as zero.
+    pub kernel_zero_magnitude_threshold: f32,
+}
+
+impl Regularization for InverseRule {
+    fn apply_rule(
+        &self,
+        img_padded: &mut [Complex<f32>],
+        ker_padded: &[Complex<f32>],
+        _pad_dims: &[usize],
+    ) {
+        let tau = self.kernel_zero_magnitude_threshold;
+        for (g, &h) in img_padded.iter_mut().zip(ker_padded.iter()) {
+            // |H(ω)| compared against τ (ITK uses the complex magnitude, not |H|²).
+            if h.norm() < tau {
+                *g = Complex::new(0.0, 0.0);
+            } else {
+                let scale = 1.0 / h.norm_sqr();
+                *g = Complex::new(
+                    (g.re * h.re + g.im * h.im) * scale,
+                    (g.im * h.re - g.re * h.im) * scale,
+                );
+            }
+        }
+    }
+}
+
 // ── Generic pipelines ──────────────────────────────────────────────────────
 
 /// Single-pass deconvolution: pad → FFT → regularization rule → IFFT → crop.

@@ -308,6 +308,15 @@ def test_deconvolution_matches_sitk():
     assert _relmax(pl_r, pl_s) < 1e-4, f"ProjectedLandweber rel {_relmax(pl_r, pl_s):.2e}"
     assert float(np.squeeze(pl_r).min()) >= 0.0, "projected Landweber must be non-negative"
 
+    # Inverse filter U = G/H, zeroing frequencies with |H| < threshold. At the
+    # sitk default threshold (1e-4) ritk matches to float precision; larger
+    # thresholds may flip borderline (|H| ~ threshold) frequencies.
+    inv_f = sitk.InverseDeconvolutionImageFilter()
+    inv_f.SetKernelZeroMagnitudeThreshold(1e-4)
+    inv_r = ritk.filter.inverse_deconvolution(rb, rk, 1e-4).to_numpy()[0]
+    inv_s = _np(inv_f.Execute(blur_s, _sitk(g)))
+    assert _relmax(inv_r, inv_s) < 1e-4, f"InverseDeconvolution rel {_relmax(inv_r, inv_s):.2e}"
+
     for k in (0.01, 1.0, 10.0):
         # ITK adaptive Wiener: U = G·conj(H)/(|H|² + Pn/(|G|²−Pn)). The adaptive
         # term amplifies tiny power-spectrum differences at weak-signal

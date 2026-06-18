@@ -8,7 +8,7 @@ use ritk_image::test_support as ts;
 use ritk_image::Image;
 
 use super::{
-    LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
+    InverseDeconvolution, LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
     TikhonovDeconvolution, WienerDeconvolution,
 };
 use ritk_tensor_ops::extract_vec_infallible;
@@ -319,4 +319,55 @@ fn landweber_projection_default_and_builder() {
     );
     let f = LandweberDeconvolution::new().with_projection(LandweberProjection::NonNegative);
     assert_eq!(f.projection, LandweberProjection::NonNegative);
+}
+
+// ── Inverse filter ──────────────────────────────────────────────────────────
+
+/// Dirac-delta PSF → inverse filter is the identity (G/1 = G).
+#[test]
+fn inverse_dirac_identity() {
+    let kernel_vals = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+    let image_vals = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+    let img = make_image_2d(image_vals.clone(), [3, 3]);
+    let ker = make_image_2d(kernel_vals, [3, 3]);
+    let result = InverseDeconvolution::new(1e-3).apply(&img, &ker).unwrap();
+    let (vals, _) = extract_vec_infallible(&result);
+    for (i, &v) in vals.iter().enumerate() {
+        assert!(
+            (v - image_vals[i]).abs() < 1e-3,
+            "voxel {i}: expected ~{}, got {v}",
+            image_vals[i]
+        );
+    }
+}
+
+/// A larger zero-magnitude threshold zeros more frequencies → strictly smaller
+/// (in L2) restored signal energy than a tiny threshold, and the output stays
+/// finite (no division blow-up at OTF nulls).
+#[test]
+fn inverse_threshold_suppresses_more_frequencies() {
+    // Normalized 3×3 blur whose OTF has near-zero frequencies.
+    let ker = make_image_2d(vec![1.0f32 / 9.0; 9], [3, 3]);
+    let image_vals: Vec<f32> = (0..25).map(|i| (i as f32 * 1.3).sin() * 10.0).collect();
+    let img = make_image_2d(image_vals, [5, 5]);
+
+    let low = InverseDeconvolution::new(1e-4).apply(&img, &ker).unwrap();
+    let high = InverseDeconvolution::new(0.5).apply(&img, &ker).unwrap();
+    let (lv, _) = extract_vec_infallible(&low);
+    let (hv, _) = extract_vec_infallible(&high);
+    let energy = |v: &[f32]| v.iter().map(|&x| (x as f64) * (x as f64)).sum::<f64>();
+    assert!(
+        lv.iter().all(|v| v.is_finite()),
+        "low-threshold output must be finite"
+    );
+    assert!(
+        hv.iter().all(|v| v.is_finite()),
+        "high-threshold output must be finite"
+    );
+    assert!(
+        energy(&hv) < energy(&lv),
+        "larger threshold must zero more frequencies: high={} low={}",
+        energy(&hv),
+        energy(&lv)
+    );
 }

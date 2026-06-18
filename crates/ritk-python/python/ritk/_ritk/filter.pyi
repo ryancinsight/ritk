@@ -691,6 +691,11 @@ def projected_landweber_deconvolution(
 ) -> Image:
     """Landweber with a non-negativity projection each iteration. ITK Parity: ProjectedLandweberDeconvolution."""
     ...
+def inverse_deconvolution(
+    image: Image, kernel: Image, kernel_zero_magnitude_threshold: float = 1e-4
+) -> Image:
+    """Direct inverse filter U=G/H, zeroing frequencies where |H|<threshold. ITK Parity: InverseDeconvolution."""
+    ...
 def wiener_deconvolution(
     image: Image, kernel: Image, noise_to_signal: float = 0.01
 ) -> Image: ...

@@ -31,12 +31,14 @@
 //! Regularization suppresses this amplification.
 
 mod helpers;
+mod inverse;
 mod landweber;
 mod regularization;
 mod rl;
 mod tikhonov;
 mod wiener;
 
+pub use inverse::InverseDeconvolution;
 pub use landweber::LandweberDeconvolution;
 pub use regularization::LandweberProjection;
 pub use rl::RichardsonLucyDeconvolution;
