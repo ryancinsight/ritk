@@ -654,6 +654,20 @@ def test_cmake_aggregate_label_map_on_upstream_data():
     assert np.array_equal(r, s), "AggregateLabelMap differs from sitk"
 
 
+def test_cmake_label_map_overlay_on_upstream_data():
+    """LabelMapOverlay == ritk label_overlay (alpha-blend a label map over the
+    grayscale) on cthead1. Bit-exact."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.Cast(sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0)), sitk.sitkUInt16)
+    ril = ritk.Image(np.ascontiguousarray(sitk.GetArrayFromImage(lbl).astype(np.float32)[None]))
+    r = np.squeeze(np.asarray(ritk.filter.label_overlay(ri, ril, 0.5).to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(
+        sitk.LabelMapOverlay(sitk.LabelImageToLabelMap(lbl), sitk.Cast(si, sitk.sitkUInt8), 0.5)
+    ).astype(np.float64)
+    assert np.array_equal(r, s), "LabelMapOverlay differs from sitk"
+
+
 def test_cmake_label_intensity_statistics_on_upstream_data():
     """LabelIntensityStatistics: per-label intensity mean/min/max/std/count of a
     cthead1 connected-component map, matching ITK's
