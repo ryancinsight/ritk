@@ -38,3 +38,7 @@ harness = false
 [[bench]]
 name = "bilateral"
 harness = false
+
+[[bench]]
+name = "median"
+harness = false
