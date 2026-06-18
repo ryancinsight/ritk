@@ -12,7 +12,8 @@ use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
-    gaussian_image_source as core_gaussian_image_source, ConstantPadImageFilter,
+    gaussian_image_source as core_gaussian_image_source,
+    grid_image_source as core_grid_image_source, ConstantPadImageFilter,
     CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, MirrorPadImageFilter, Padding,
     PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter,
     WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
@@ -521,6 +522,47 @@ pub fn gaussian_image_source(
     let device = NdArrayDevice::default();
     let tensor = Tensor::<Backend, 3>::from_data(TensorData::new(buf, Shape::new(dims)), &device);
     // ritk metadata is axis-major [z, y, x]; reverse the sitk (x, y, z) tuples.
+    let image = Image::new(
+        tensor,
+        Point::new([origin.2, origin.1, origin.0]),
+        Spacing::new([spacing.2, spacing.1, spacing.0]),
+        Direction::identity(),
+    );
+    into_py_image(image)
+}
+
+/// Generate a grid-pattern image (`itk::GridImageSource` / `sitk.GridSource`):
+/// dark periodic Gaussian lines on a bright background,
+/// `out = scale·Π_{selected d}(1 − Σ_lines exp(−(p_d−line)²/(2σ_d²)))`.
+/// All `(x, y, z)` tuples are in sitk axis order. ITK Parity: GridImageSource.
+#[pyfunction]
+#[pyo3(signature = (size, spacing=(1.0, 1.0, 1.0), origin=(0.0, 0.0, 0.0), sigma=(0.5, 0.5, 0.5), grid_spacing=(4.0, 4.0, 4.0), grid_offset=(0.0, 0.0, 0.0), scale=255.0, which_dimensions=(true, true, true)))]
+#[allow(clippy::too_many_arguments)]
+pub fn grid_image_source(
+    py: Python<'_>,
+    size: (usize, usize, usize),
+    spacing: (f64, f64, f64),
+    origin: (f64, f64, f64),
+    sigma: (f64, f64, f64),
+    grid_spacing: (f64, f64, f64),
+    grid_offset: (f64, f64, f64),
+    scale: f64,
+    which_dimensions: (bool, bool, bool),
+) -> PyImage {
+    let (buf, dims) = py.allow_threads(|| {
+        core_grid_image_source(
+            [size.0, size.1, size.2],
+            [spacing.0, spacing.1, spacing.2],
+            [origin.0, origin.1, origin.2],
+            [sigma.0, sigma.1, sigma.2],
+            [grid_spacing.0, grid_spacing.1, grid_spacing.2],
+            [grid_offset.0, grid_offset.1, grid_offset.2],
+            scale,
+            [which_dimensions.0, which_dimensions.1, which_dimensions.2],
+        )
+    });
+    let device = NdArrayDevice::default();
+    let tensor = Tensor::<Backend, 3>::from_data(TensorData::new(buf, Shape::new(dims)), &device);
     let image = Image::new(
         tensor,
         Point::new([origin.2, origin.1, origin.0]),

@@ -525,6 +525,25 @@ def test_cmake_gaussian_image_source():
     assert np.abs(r - s).max() < 1e-3, f"GaussianImageSource max abs diff {np.abs(r - s).max()}"
 
 
+def test_cmake_grid_image_source():
+    """GridImageSource generates a grid-pattern image (dark Gaussian lines);
+    float-exact to ITK's GridImageSource. Uses the filter object for an
+    unambiguous reference."""
+    size, spacing, sigma, gs, scale = [20, 16, 1], [1.0, 1.0, 1.0], [0.6, 0.5, 0.5], [5.0, 4.0, 4.0], 200.0
+    which = [True, True, False]  # z=1 slab: grid in x,y only
+    f = sitk.GridImageSource()
+    f.SetOutputPixelType(sitk.sitkFloat32)
+    f.SetSize(size); f.SetSpacing(spacing); f.SetOrigin([0.0, 0.0, 0.0])
+    f.SetSigma(sigma); f.SetGridSpacing(gs); f.SetGridOffset([0.0, 0.0, 0.0])
+    f.SetScale(scale); f.SetWhichDimensions(which)
+    s = sitk.GetArrayFromImage(f.Execute()).astype(np.float64)
+    r = np.asarray(ritk.filter.grid_image_source(
+        tuple(size), tuple(spacing), (0.0, 0.0, 0.0), tuple(sigma), tuple(gs),
+        (0.0, 0.0, 0.0), scale, tuple(which)).to_numpy(), np.float64)
+    assert r.shape == s.shape, f"shape {r.shape} != {s.shape}"
+    assert np.abs(r - s).max() < 1e-3, f"GridImageSource max abs diff {np.abs(r - s).max()}"
+
+
 def test_cmake_edge_potential_on_upstream_data():
     """EdgePotential = exp(-|gradient|): applied to the gradient vector field of
     RA-Float, float-exact to ITK's EdgePotentialImageFilter."""

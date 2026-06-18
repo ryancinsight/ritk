@@ -200,6 +200,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(expand, &m)?)?;
     m.add_function(wrap_pyfunction!(shrink, &m)?)?;
     m.add_function(wrap_pyfunction!(gaussian_image_source, &m)?)?;
+    m.add_function(wrap_pyfunction!(grid_image_source, &m)?)?;
     m.add_function(wrap_pyfunction!(zero_flux_neumann_pad, &m)?)?;
     m.add_function(wrap_pyfunction!(permute_axes, &m)?)?;
     m.add_function(wrap_pyfunction!(paste, &m)?)?;

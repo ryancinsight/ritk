@@ -595,6 +595,18 @@ def gaussian_image_source(
 ) -> Image:
     """Generate a Gaussian blob image (params in sitk x,y,z order). ITK Parity: GaussianImageSource."""
     ...
+def grid_image_source(
+    size: tuple[int, int, int],
+    spacing: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    origin: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    sigma: tuple[float, float, float] = (0.5, 0.5, 0.5),
+    grid_spacing: tuple[float, float, float] = (4.0, 4.0, 4.0),
+    grid_offset: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    scale: float = 255.0,
+    which_dimensions: tuple[bool, bool, bool] = (True, True, True),
+) -> Image:
+    """Generate a grid-pattern image (dark Gaussian lines). ITK Parity: GridImageSource."""
+    ...
 def coherence_enhancing_diffusion(
     image: Image,
     sigma: float = 3.0,

@@ -7,6 +7,11 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.32] — 2026-06-18 (Sprint 445: GridImageSource)
+
+### Added
+- `ritk-filter` / `ritk-python`: `grid_image_source` core + `filter.grid_image_source(size, spacing, origin, sigma, grid_spacing, grid_offset, scale, which_dimensions)` — generate a grid-pattern image (dark periodic Gaussian lines on a bright background), `out = scale·Π_{selected d}(1 − Σ_lines exp(−(p_d−line)²/(2σ_d²)))`, matching ITK `GridImageSource` / `sitk.GridSource`. Derived the formula from probes (dark-on-line, product combination across selected dims, periodic line sum — the 1-D `x=2` value `scale·(1−2e⁻⁸)` requires summing both flanking lines). **Float-exact** to sitk (max abs diff < 1e-3 on a 20×16 grid). Value-semantic Rust tests + cmake parity test. `.pyi` stub; coverage 214/298.
+
 ## [0.102.31] — 2026-06-18 (Sprint 444: GaussianImageSource)
 
 ### Added

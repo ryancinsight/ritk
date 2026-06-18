@@ -1,4 +1,4 @@
-use super::gaussian_image_source;
+use super::{gaussian_image_source, grid_image_source};
 
 /// Peak at the mean voxel, value = scale; symmetric falloff matching
 /// `exp(−½·((p−mean)/sigma)²)`. 1-D along x: size 9, sigma 6, mean 8, scale 100,
@@ -39,4 +39,25 @@ fn gaussian_source_3d_peak_is_scale() {
     assert_eq!(dims, [5, 5, 5]);
     let center = (2 * 5 + 2) * 5 + 2;
     assert!((buf[center] - 50.0).abs() < 1e-3, "center {}", buf[center]);
+}
+
+/// 1-D grid: dark on grid lines (x=0,4,8), bright between. Pinned by sitk:
+/// `gridSpacing=4, sigma=0.5, scale=255` → x=0→0, x=1→220.49, x=2→254.83.
+#[test]
+fn grid_source_dark_lines_bright_between() {
+    let (buf, dims) = grid_image_source(
+        [12, 1, 1],
+        [1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0],
+        [0.5, 0.5, 0.5],
+        [4.0, 4.0, 4.0],
+        [0.0, 0.0, 0.0],
+        255.0,
+        [true, false, false],
+    );
+    assert_eq!(dims, [1, 1, 12]);
+    assert!(buf[0].abs() < 1e-2, "line x=0 should be ~0, got {}", buf[0]);
+    assert!((buf[1] - 220.49).abs() < 0.1, "x=1: {}", buf[1]);
+    assert!((buf[2] - 254.83).abs() < 0.1, "x=2: {}", buf[2]);
+    assert!(buf[4].abs() < 1e-2, "line x=4 should be ~0, got {}", buf[4]);
 }
