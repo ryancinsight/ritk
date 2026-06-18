@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.5] — 2026-06-17 (Sprint 418: Slice — strided extract)
+
+### Added
+- `ritk-python`: `filter.slice_image(image, start, stop, step)` — numpy-style strided sub-region extract (`start:stop:step` per `(z,y,x)` axis, clamped to `[0,dim]`, `step ≥ 1`), with the output origin shifted to the first kept voxel (ITK `SliceImageFilter` / `sitk.Slice`, `[x,y,z]` params). **Bit-exact** to sitk on cthead for strided, full, and single-axis slices. `.pyi` stub + cmake parity cases; coverage 185/298.
+
 ## [0.102.4] — 2026-06-17 (Sprint 417: CheckerBoard)
 
 ### Added

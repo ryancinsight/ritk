@@ -17,6 +17,74 @@ use ritk_filter::{
 };
 use ritk_image::Image;
 
+/// Extract a strided sub-region (numpy-style `start:stop:step` per axis).
+/// `start`/`stop`/`step` are `(z, y, x)` in ritk tensor order; each axis keeps
+/// indices `start, start+step, … < stop` (clamped to `[0, dim]`, `step ≥ 1`).
+///
+/// ITK Parity: SliceImageFilter (`sitk.Slice`, with `[x,y,z]` parameters).
+#[pyfunction]
+#[pyo3(signature = (image, start, stop, step))]
+pub fn slice_image(
+    py: Python<'_>,
+    image: &PyImage,
+    start: (i64, i64, i64),
+    stop: (i64, i64, i64),
+    step: (i64, i64, i64),
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let [nz, ny, nx] = arc.shape();
+    let axis_indices = |st: i64, sp: i64, stp: i64, n: usize| -> Vec<usize> {
+        let st = st.clamp(0, n as i64);
+        let sp = sp.clamp(0, n as i64);
+        let stp = stp.max(1);
+        let mut idx = Vec::new();
+        let mut i = st;
+        while i < sp {
+            idx.push(i as usize);
+            i += stp;
+        }
+        idx
+    };
+    let zi = axis_indices(start.0, stop.0, step.0, nz);
+    let yi = axis_indices(start.1, stop.1, step.1, ny);
+    let xi = axis_indices(start.2, stop.2, step.2, nx);
+    let (oz, oy, ox) = (zi.len(), yi.len(), xi.len());
+    if oz == 0 || oy == 0 || ox == 0 {
+        return Err(RitkPyError::value(
+            "slice: empty result (check start/stop/step)".to_string(),
+        ));
+    }
+    let out = py.allow_threads(|| {
+        let data = arc.data_slice();
+        let mut out = vec![0.0_f32; oz * oy * ox];
+        for (a, &z) in zi.iter().enumerate() {
+            for (b, &y) in yi.iter().enumerate() {
+                for (c, &x) in xi.iter().enumerate() {
+                    out[a * oy * ox + b * ox + c] = data[z * ny * nx + y * nx + x];
+                }
+            }
+        }
+        out
+    });
+    // Shift the origin to the first kept voxel (per-axis spacing).
+    let sp = arc.spacing().to_array();
+    let orig = arc.origin().to_array();
+    let new_origin = ritk_core::spatial::Point::new([
+        orig[0] + zi[0] as f64 * sp[0],
+        orig[1] + yi[0] as f64 * sp[1],
+        orig[2] + xi[0] as f64 * sp[2],
+    ]);
+    let device = NdArrayDevice::default();
+    let tensor =
+        Tensor::<Backend, 3>::from_data(TensorData::new(out, Shape::new([oz, oy, ox])), &device);
+    Ok(into_py_image(Image::new(
+        tensor,
+        new_origin,
+        *arc.spacing(),
+        *arc.direction(),
+    )))
+}
+
 /// Combine two same-sized images in a checkerboard pattern: `pattern = (nx, ny,
 /// nz)` gives the number of checker cells per axis (sitk x/y/z). A voxel takes
 /// `image1` where the sum of its cell indices is even, else `image2`.

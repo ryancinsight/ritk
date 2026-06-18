@@ -1097,6 +1097,23 @@ def test_cmake_expand_on_upstream_data(fy, fx):
     assert np.abs(r - s).max() < 1e-3, f"Expand fy={fy},fx={fx}: maxdiff {np.abs(r-s).max():.2e}"
 
 
+@pytest.mark.parametrize("sx,sy,stepx,stepy", [
+    (10, 20, 2, 3), (0, 0, 1, 1), (5, 5, 4, 1),
+], ids=["strided", "full", "x-only"])
+def test_cmake_slice_on_upstream_data(sx, sy, stepx, stepy):
+    # Strided extract. ITK Parity: SliceImageFilter. ritk (z,y,x) <-> sitk [x,y,z].
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    H, W = sitk.GetArrayFromImage(si).shape
+    # ritk start/stop/step in (z,y,x); sitk in [x,y,z].
+    r = np.squeeze(np.asarray(
+        ritk.filter.slice_image(ri, (0, sy, sx), (1, H, W), (1, stepy, stepx)).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.Slice(si, [sx, sy, 0], [W, H, 1], [stepx, stepy, 1])).astype(np.float64))
+    assert r.shape == s.shape and np.array_equal(r, s), \
+        f"Slice: differs from sitk (shapes {r.shape} vs {s.shape})"
+
+
 @pytest.mark.parametrize("pattern", [(4, 4, 1), (8, 1, 1), (2, 2, 1)],
                          ids=["4x4", "8x1", "2x2"])
 def test_cmake_checker_board_on_upstream_data(pattern):

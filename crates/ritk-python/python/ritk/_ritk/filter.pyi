@@ -438,6 +438,9 @@ def tile(images: list[Image], layout: tuple[int, int, int], default_value: float
 def checker_board(image1: Image, image2: Image, pattern: tuple[int, int, int] = (4, 4, 4)) -> Image:
     """Checkerboard-combine two images (pattern = nx,ny,nz cells). ITK Parity: CheckerBoardImageFilter."""
     ...
+def slice_image(image: Image, start: tuple[int, int, int], stop: tuple[int, int, int], step: tuple[int, int, int]) -> Image:
+    """Strided sub-region (start:stop:step per axis, z,y,x order). ITK Parity: SliceImageFilter."""
+    ...
 def expand(image: Image, factors: tuple[int, int, int]) -> Image:
     """Integer-factor upsample (z,y,x) via linear interpolation. ITK Parity: ExpandImageFilter."""
     ...
