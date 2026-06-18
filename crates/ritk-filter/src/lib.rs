@@ -41,7 +41,8 @@ pub mod intensity;
 pub use intensity::binary_ops::{AddOp, BinaryOp, BinaryOpFilter, MaxOp};
 pub use intensity::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
-    AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BedSeparationConfig, BedSeparationFilter,
+    AndImageFilter, AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BedSeparationConfig,
+    BedSeparationFilter,
     BinaryMagnitudeImageFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
     ComponentPolicy, CosImageFilter, DivideFloorImageFilter, DivideImageFilter,
@@ -51,7 +52,7 @@ pub use intensity::{
     LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
     MaskedAssignImageFilter,
     MultiplyImageFilter, NormalizeImageFilter, NormalizeToConstantImageFilter, NotEqualImageFilter,
-    PowImageFilter,
+    OrImageFilter, PowImageFilter, XorImageFilter,
     RescaleIntensityFilter, RoundImageFilter, ShiftScaleImageFilter, SigmoidImageFilter,
     SinImageFilter, SqrtImageFilter, SquareImageFilter, SquaredDifferenceImageFilter,
     SubtractImageFilter, SuvBodyWeightImageFilter, TanImageFilter, TernaryAddImageFilter,

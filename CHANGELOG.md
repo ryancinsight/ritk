@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.6] — 2026-06-17 (Sprint 419: And / Or / Xor — logical masks)
+
+### Added
+- `ritk-filter` / `ritk-python`: `And`/`Or`/`Xor` logical mask ops (`AndOp`/`OrOp`/`XorOp` ZSTs over the generic `BinaryOpFilter<Op>` seam; `And/Or/XorImageFilter` aliases) + `filter.{and,or,xor}_images(a, b)` — pixelwise logical combine of binary masks treating `> 0` as true (ITK `And`/`Or`/`XorImageFilter` / `sitk.And`/`Or`/`Xor`, which require integer pixel types). **Bit-exact** to sitk on `Ramp-Up`/`Ramp-Down` masks built from comparison filters (partially-overlapping operands so each op is discriminating). Value-semantic Rust truth-table test (incl. De Morgan cross-check) + cmake parity cases. `.pyi` stubs; coverage 188/298.
+
 ## [0.102.5] — 2026-06-17 (Sprint 418: Slice — strided extract)
 
 ### Added

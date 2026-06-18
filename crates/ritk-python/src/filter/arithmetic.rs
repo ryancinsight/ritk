@@ -12,16 +12,17 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
-    AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BinaryMagnitudeImageFilter,
+    AndImageFilter, AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BinaryMagnitudeImageFilter,
     BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, DivideFloorImageFilter,
     DivideImageFilter, DivideRealImageFilter, EqualImageFilter, ExpImageFilter,
     ExpNegativeImageFilter, GreaterEqualImageFilter,
     GreaterImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
     LessEqualImageFilter, LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
-    MaskNegatedImageFilter, MultiplyImageFilter, NotEqualImageFilter, PowImageFilter,
+    MaskNegatedImageFilter, MultiplyImageFilter, NotEqualImageFilter, OrImageFilter, PowImageFilter,
     RoundImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     SquaredDifferenceImageFilter, SubtractImageFilter, TanImageFilter, TernaryAddImageFilter,
     TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter, UnaryMinusImageFilter,
+    XorImageFilter,
 };
 
 /// Pixelwise clamp to `[lower, upper]`. ITK Parity: ClampImageFilter.
@@ -492,6 +493,24 @@ binary_pyfn!(
     LessEqualImageFilter,
     "LessEqualImageFilter",
     "Pixelwise less-or-equal mask: out(x) = 1 where a(x) <= b(x), else 0."
+);
+binary_pyfn!(
+    and_images,
+    AndImageFilter,
+    "AndImageFilter",
+    "Pixelwise logical AND of binary masks: out(x) = 1 where a>0 and b>0, else 0."
+);
+binary_pyfn!(
+    or_images,
+    OrImageFilter,
+    "OrImageFilter",
+    "Pixelwise logical OR of binary masks: out(x) = 1 where a>0 or b>0, else 0."
+);
+binary_pyfn!(
+    xor_images,
+    XorImageFilter,
+    "XorImageFilter",
+    "Pixelwise logical XOR of binary masks: out(x) = 1 where exactly one of a,b > 0, else 0."
 );
 
 /// Pixelwise minimum: out(x) = min(a(x), b(x)).

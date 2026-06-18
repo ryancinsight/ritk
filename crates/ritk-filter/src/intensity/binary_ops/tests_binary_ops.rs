@@ -343,3 +343,23 @@ fn comparison_filters_produce_binary_masks() {
         assert_eq!(lt[i] + ge[i], 1.0);
     }
 }
+
+// --- Logical mask filters (And/Or/Xor) -----------------------------------
+
+#[test]
+fn logical_filters_match_itk_truth_tables() {
+    // Binary masks: a=[0,0,1,1], b=[0,1,0,1] (ITK treats >0 as true)
+    let a = make_image(vec![0.0, 0.0, 1.0, 1.0], [1, 1, 4]);
+    let b = make_image(vec![0.0, 1.0, 0.0, 1.0], [1, 1, 4]);
+    let and = voxels(&AndImageFilter::new().apply(&a, &b).unwrap());
+    let or = voxels(&OrImageFilter::new().apply(&a, &b).unwrap());
+    let xor = voxels(&XorImageFilter::new().apply(&a, &b).unwrap());
+    assert_eq!(and, vec![0.0, 0.0, 0.0, 1.0]);
+    assert_eq!(or, vec![0.0, 1.0, 1.0, 1.0]);
+    assert_eq!(xor, vec![0.0, 1.0, 1.0, 0.0]);
+    // De Morgan cross-check: a XOR b == (a OR b) AND NOT(a AND b)
+    for i in 0..4 {
+        let de_morgan = if or[i] > 0.5 && and[i] < 0.5 { 1.0 } else { 0.0 };
+        assert_eq!(xor[i], de_morgan, "xor[{i}] vs (a|b)&!(a&b)");
+    }
+}

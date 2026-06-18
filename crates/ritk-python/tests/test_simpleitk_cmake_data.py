@@ -226,6 +226,22 @@ _BINARY_CASES = [
      lambda a, b: ritk.filter.less_images(a, b), lambda a, b: sitk.Less(a, b), 0.0),
     ("LessEqual/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
      lambda a, b: ritk.filter.less_equal_images(a, b), lambda a, b: sitk.LessEqual(a, b), 0.0),
+    # Logical mask filters (And/Or/Xor). sitk.{And,Or,Xor} require integer pixel
+    # types, so the operands are uint8 masks built from comparison filters; the
+    # mask pairs overlap partially (Greater ⊂ NotEqual; Greater ⊥ Less) so each
+    # op produces a nontrivial, discriminating 0/1 field.
+    ("And/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.and_images(ritk.filter.greater_images(a, b),
+                                          ritk.filter.not_equal_images(a, b)),
+     lambda a, b: sitk.And(sitk.Greater(a, b), sitk.NotEqual(a, b)), 0.0),
+    ("Or/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.or_images(ritk.filter.greater_images(a, b),
+                                        ritk.filter.less_images(a, b)),
+     lambda a, b: sitk.Or(sitk.Greater(a, b), sitk.Less(a, b)), 0.0),
+    ("Xor/3d", "Ramp-Up-Short.nrrd", "Ramp-Down-Short.nrrd",
+     lambda a, b: ritk.filter.xor_images(ritk.filter.greater_images(a, b),
+                                         ritk.filter.not_equal_images(a, b)),
+     lambda a, b: sitk.Xor(sitk.Greater(a, b), sitk.NotEqual(a, b)), 0.0),
 ]
 
 

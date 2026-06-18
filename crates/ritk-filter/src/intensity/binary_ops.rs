@@ -123,6 +123,18 @@ pub struct EqualOp;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct NotEqualOp;
 
+/// Logical AND on binary masks: `1.0` where both `> 0.5`, else `0.0`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct AndOp;
+
+/// Logical OR on binary masks: `1.0` where either `> 0.5`, else `0.0`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct OrOp;
+
+/// Logical XOR on binary masks: `1.0` where exactly one `> 0.5`, else `0.0`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct XorOp;
+
 /// Greater-than test: `1.0` where `a > b`, else `0.0`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct GreaterOp;
@@ -254,6 +266,27 @@ impl BinaryOp for NotEqualOp {
     #[inline]
     fn apply(a: f32, b: f32) -> f32 {
         (a != b) as u8 as f32
+    }
+}
+
+impl BinaryOp for AndOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a > 0.5 && b > 0.5) as u8 as f32
+    }
+}
+
+impl BinaryOp for OrOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        (a > 0.5 || b > 0.5) as u8 as f32
+    }
+}
+
+impl BinaryOp for XorOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        ((a > 0.5) != (b > 0.5)) as u8 as f32
     }
 }
 
@@ -434,6 +467,15 @@ pub type EqualImageFilter = BinaryOpFilter<EqualOp>;
 
 /// Pixelwise inequality mask. # ITK Parity: `NotEqualImageFilter`
 pub type NotEqualImageFilter = BinaryOpFilter<NotEqualOp>;
+
+/// Binary-mask logical AND. # ITK Parity: `AndImageFilter` (binary inputs)
+pub type AndImageFilter = BinaryOpFilter<AndOp>;
+
+/// Binary-mask logical OR. # ITK Parity: `OrImageFilter` (binary inputs)
+pub type OrImageFilter = BinaryOpFilter<OrOp>;
+
+/// Binary-mask logical XOR. # ITK Parity: `XorImageFilter` (binary inputs)
+pub type XorImageFilter = BinaryOpFilter<XorOp>;
 
 /// Pixelwise greater-than mask. # ITK Parity: `GreaterImageFilter`
 pub type GreaterImageFilter = BinaryOpFilter<GreaterOp>;
