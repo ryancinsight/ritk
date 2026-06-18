@@ -484,6 +484,21 @@ def test_cmake_scalar_connected_component_on_upstream_data():
         "ScalarConnectedComponent partition differs from sitk"
 
 
+def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
+    """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
+    mask (the grayscale reconstruction-opening core matches the binary filter).
+    Bit-exact to sitk on a thresholded cthead1 mask."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    sm = sitk.Cast(sitk.BinaryThreshold(si, 40, 1e9, 1, 0), sitk.sitkUInt8)
+    rm = ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)
+    r = np.squeeze(np.asarray(
+        ritk.filter.opening_by_reconstruction(rm, 2).to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(
+        sitk.BinaryOpeningByReconstruction(sm, [2, 2, 2])).astype(np.float64)
+    assert np.array_equal(r, s), "BinaryOpeningByReconstruction differs from sitk"
+
+
 def test_cmake_edge_potential_on_upstream_data():
     """EdgePotential = exp(-|gradient|): applied to the gradient vector field of
     RA-Float, float-exact to ITK's EdgePotentialImageFilter."""
