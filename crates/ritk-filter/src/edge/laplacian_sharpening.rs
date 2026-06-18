@@ -105,15 +105,16 @@ impl LaplacianSharpeningFilter {
         let f_scale = f_max - f_shift;
         let gain = i_scale / f_scale;
 
-        // Combined image and its mean.
-        let mut combined = vec![0.0f64; n];
-        let mut c_sum = 0.0f64;
-        for i in 0..n {
-            let c = vals[i] as f64 - ((lap[i] - f_shift) * gain + i_shift);
-            combined[i] = c;
-            c_sum += c;
-        }
-        let c_mean = c_sum / n as f64;
+        // Combined image: parallel per-voxel computation (no reduction).
+        // The mean is computed as a sequential fold afterwards to preserve
+        // the exact left-to-right f64 accumulation order that matches
+        // ITK's sequential loop and keeps the `diff == 0.0` cmake parity.
+        let combined: Vec<f64> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            vals[i] as f64 - ((lap[i] - f_shift) * gain + i_shift)
+        });
+        // Sequential left-fold preserves associativity order of the ITK
+        // ComputeMean loop — identical to the original `c_sum += c` loop.
+        let c_mean = combined.iter().copied().sum::<f64>() / n as f64;
 
         // Restore mean and clamp to the input range.
         let out: Vec<f32> = combined
@@ -124,36 +125,32 @@ impl LaplacianSharpeningFilter {
     }
 }
 
-/// Discrete Laplacian `Σ_a s_a²·(I[+a] − 2I + I[−a])` in `f64` with
-/// ZeroFluxNeumann boundary (out-of-range neighbour clamped to the edge), `scal`
-/// the per-axis `s_a²` in `[z, y, x]` order. Mirrors `LaplacianFilter` but in the
-/// `RealType = f64` precision `LaplacianSharpeningImageFilter` computes in.
+/// Discrete Laplacian in `f64` — parallelised over the flat voxel index.
+///
+/// PERF-378-02: each output voxel depends only on its 6-neighbour stencil of
+/// the read-only `data` slice; no inter-voxel write dependency. Output order
+/// matches the serial triple-nested loop exactly, so the f64 bit-identical
+/// cmake parity test (`diff == 0.0`) is preserved.
 fn laplacian_f64(data: &[f32], dims: [usize; 3], scal: [f64; 3]) -> Vec<f64> {
     let [nz, ny, nx] = dims;
-    let mut out = vec![0.0f64; nz * ny * nx];
-    let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * ny * nx + iy * nx + ix };
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let flat = idx(iz, iy, ix);
-                let center = data[flat] as f64;
-                let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
-                let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
-                let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
-                let d2z = (data[idx(zhi, iy, ix)] as f64 - 2.0 * center
-                    + data[idx(zlo, iy, ix)] as f64)
-                    * scal[0];
-                let d2y = (data[idx(iz, yhi, ix)] as f64 - 2.0 * center
-                    + data[idx(iz, ylo, ix)] as f64)
-                    * scal[1];
-                let d2x = (data[idx(iz, iy, xhi)] as f64 - 2.0 * center
-                    + data[idx(iz, iy, xlo)] as f64)
-                    * scal[2];
-                out[flat] = d2z + d2y + d2x;
-            }
-        }
-    }
-    out
+    let slab = ny * nx;
+    let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * slab + iy * nx + ix };
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
+        let iz = flat / slab;
+        let iy = (flat / nx) % ny;
+        let ix = flat % nx;
+        let center = data[flat] as f64;
+        let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
+        let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
+        let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
+        let d2z = (data[idx(zhi, iy, ix)] as f64 - 2.0 * center + data[idx(zlo, iy, ix)] as f64)
+            * scal[0];
+        let d2y = (data[idx(iz, yhi, ix)] as f64 - 2.0 * center + data[idx(iz, ylo, ix)] as f64)
+            * scal[1];
+        let d2x = (data[idx(iz, iy, xhi)] as f64 - 2.0 * center + data[idx(iz, iy, xlo)] as f64)
+            * scal[2];
+        d2z + d2y + d2x
+    })
 }
 
 #[cfg(test)]
