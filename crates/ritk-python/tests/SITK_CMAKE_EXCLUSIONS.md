@@ -38,19 +38,16 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   solvers; the arrival-time field is unique but the hierarchical-heap tie-breaking and
   quadratic upwind solve must be replicated exactly. Deferred (substantial, tie-break risk).
 
-## Watershed line-placement divergence (new finding, Sprint 489)
+## Watershed (RESOLVED, Sprint 489 — MorphologicalWatershed now covered)
 
-- **MorphologicalWatershed, IsolatedWatershed** — the sitk decomposition is exact:
-  `MorphologicalWatershed(f, level)` == `MorphologicalWatershedFromMarkers(f,
-  ConnectedComponent(RegionalMinima(HMinima(f, level) if level>0 else f)))`, label-for-label,
-  verified in sitk for level 0/5 and markWatershedLine T/F. ritk has all the pieces
-  (`h_minima`, `regional_minima`, `connected_components`, `marker_watershed_segment`), **but**
-  ritk's `MarkerControlledWatershed` diverges from `sitk.MorphologicalWatershedFromMarkers` by
-  ~5.5 % of watershed-line voxels (3625 / 65536 on the cthead gradient with the regional-minima
-  markers). It is bit-exact only for few/simple markers (the current covered test uses 3 seeds),
-  so the divergence is a line tie-breaking difference that surfaces on complex multi-basin
-  reliefs. Blocked until ritk's watershed flooding matches ITK's hierarchical-FIFO line rule;
-  fixing it would then unlock both via the composition above.
+- **MorphologicalWatershed** is now shipped bit-exact via the composition
+  `MorphologicalWatershedFromMarkers(f, ConnectedComponent(RegionalMinima(HMinima(f, level))))`,
+  after fixing ritk's `MarkerControlledWatershed` to match ITK exactly (collision
+  non-propagation + hierarchical-FIFO flooding; the divergence was ~5.5 % of watershed-line
+  voxels on complex reliefs, now 0).
+- **IsolatedWatershed** remains uncovered: it is the *isolated*-watershed variant (binary-search
+  the flooding level that separates two seeds), not the marker-less filter — needs its own
+  bisection over the marker-watershed, deferred.
 
 ## Label-map / vector-image types ritk lacks
 

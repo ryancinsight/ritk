@@ -41,8 +41,10 @@
 //!   *Signal Processing*, 38(1), 113–125.
 
 pub mod marker_controlled;
+pub mod morphological;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 pub use marker_controlled::MarkerControlledWatershed;
+pub use morphological::MorphologicalWatershed;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 

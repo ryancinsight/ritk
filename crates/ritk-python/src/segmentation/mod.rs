@@ -53,6 +53,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(scalar_connected_component, &m)?)?;
     m.add_function(wrap_pyfunction!(relabel_components, &m)?)?;
     m.add_function(wrap_pyfunction!(threshold_maximum_connected_components, &m)?)?;
+    m.add_function(wrap_pyfunction!(morphological_watershed, &m)?)?;
     m.add_function(wrap_pyfunction!(change_label, &m)?)?;
     m.add_function(wrap_pyfunction!(label_shape_statistics, &m)?)?;
 

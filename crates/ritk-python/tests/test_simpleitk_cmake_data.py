@@ -654,6 +654,26 @@ def test_cmake_isolated_connected(bridge, find_upper):
     assert _np.array_equal(r, s), "IsolatedConnected differs from sitk"
 
 
+@pytest.mark.parametrize("level", [0.0, 5.0, 10.0], ids=["l0", "l5", "l10"])
+def test_cmake_morphological_watershed(level):
+    """MorphologicalWatershed (marker-less): flood the relief from its own
+    regional minima (after h-minima suppression at `level`). ritk
+    `segmentation.morphological_watershed` vs `sitk.MorphologicalWatershed`
+    (markWatershedLine=True, fullyConnected=False) on the cthead1 gradient.
+    Bit-exact, label-for-label — the composition WatershedFromMarkers(
+    label(RegionalMinima(HMinima(f, level)))) and ritk's now-corrected
+    marker-watershed line tie-breaking reproduce ITK exactly."""
+    _, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    g = sitk.GradientMagnitude(si)
+    ga = sitk.GetArrayFromImage(g).astype(np.float32)
+    rg = ritk.Image(np.ascontiguousarray(ga[None]))
+    s = sitk.GetArrayFromImage(sitk.MorphologicalWatershed(g, level, True, False)).astype(np.int64)
+    r = np.squeeze(np.asarray(
+        ritk.segmentation.morphological_watershed(rg, level).to_numpy(), np.int64))
+    assert np.array_equal(r, s), f"{int((r != s).sum())} voxels differ from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).

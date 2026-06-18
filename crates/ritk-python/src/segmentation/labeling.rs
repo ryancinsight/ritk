@@ -11,8 +11,9 @@ use ritk_image::Image;
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components, ConnectedComponentsFilter,
-    KMeansSegmentation, MarkerControlledWatershed, RelabelComponentFilter, SlicConfig,
-    SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter, WatershedSegmentation,
+    KMeansSegmentation, MarkerControlledWatershed, MorphologicalWatershed, RelabelComponentFilter,
+    SlicConfig, SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter,
+    WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -121,6 +122,32 @@ pub fn relabel_components(
             .0
     });
     into_py_image(out)
+}
+
+/// Marker-less morphological watershed, matching
+/// `SimpleITK.MorphologicalWatershed(level, markWatershedLine=True,
+/// fullyConnected=False)`.
+///
+/// Floods the relief from its own regional minima (after suppressing minima
+/// shallower than `level` via h-minima). Watershed-line voxels are label 0; face
+/// connectivity. Bit-exact to sitk for the default markWatershedLine/connectivity.
+///
+/// Args:
+///     image: Input relief (typically a gradient magnitude).
+///     level: Depth below which shallow minima merge (default 0.0).
+///
+/// Returns:
+///     Label PyImage (basin indices ≥ 1; 0 = watershed line / unreachable).
+#[pyfunction]
+#[pyo3(signature = (image, level=0.0_f32))]
+pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> RitkResult<PyImage> {
+    let arc = Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        MorphologicalWatershed::new(level)
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Threshold an image at the lower value that maximizes the number of connected

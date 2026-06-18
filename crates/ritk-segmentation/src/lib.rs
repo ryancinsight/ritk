@@ -49,4 +49,4 @@ pub use threshold::{
     triangle_threshold, yen_threshold, BinaryThreshold, KapurThreshold, LiThreshold,
     MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
 };
-pub use watershed::{MarkerControlledWatershed, WatershedSegmentation};
+pub use watershed::{MarkerControlledWatershed, MorphologicalWatershed, WatershedSegmentation};
