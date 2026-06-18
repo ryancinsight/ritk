@@ -704,6 +704,28 @@ def test_cmake_fast_marching(shape, seeds):
     assert float(_np.abs(r - s).max()) < 1e-3, "FastMarching differs from sitk"
 
 
+@pytest.mark.parametrize("which", ["base", "upwind"], ids=["FastMarchingBase", "UpwindGradient"])
+def test_cmake_fast_marching_variants(which):
+    """FastMarchingBase and FastMarchingUpwindGradient produce the same Eikonal
+    arrival-time field as FastMarching (the upwind-gradient secondary output is
+    not the primary image), so ritk `filter.fast_marching` matches both float-
+    exactly."""
+    import numpy as _np
+    D, H, W = 6, 8, 9
+    speed = _np.ones((D, H, W), _np.float32)
+    si = sitk.GetImageFromArray(speed)
+    tps = [[4, 3, 2]]      # sitk (x, y, z)
+    rseeds = [[2, 3, 4]]   # ritk (z, y, x)
+    if which == "base":
+        s = sitk.GetArrayFromImage(sitk.FastMarchingBase(si, tps, 1.0)).astype(_np.float64)
+    else:
+        s = sitk.GetArrayFromImage(sitk.FastMarchingUpwindGradient(si, tps)).astype(_np.float64)
+    r = _np.asarray(
+        ritk.filter.fast_marching(ritk.Image(_np.ascontiguousarray(speed)), rseeds, 1.0).to_numpy(),
+        _np.float64)
+    assert float(_np.abs(r - s).max()) < 1e-3, f"FastMarching{which} differs from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).

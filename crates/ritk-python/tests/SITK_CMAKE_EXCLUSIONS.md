@@ -37,11 +37,11 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 - **FastMarching** is now shipped float-exact (`filter.fast_marching`): the upwind quadratic
   Eikonal solve + min-heap gives the unique arrival-time field, so heap tie-ordering is
   irrelevant. Verified ≤5e-7 vs sitk on 2-D/3-D and varying speed.
-- **FastMarchingBase, FastMarchingUpwindGradient** — variants over the same core (Base exposes
-  a different node/stopping API; UpwindGradient also outputs the gradient of the arrival time).
-  Reachable by extending `FastMarchingFilter`; deferred.
-- **CollidingFronts** — runs two fast-marching passes from two seed sets and combines them;
-  reachable on top of `FastMarchingFilter`, deferred.
+- **FastMarchingBase, FastMarchingUpwindGradient** are also covered: their arrival-time output
+  equals `FastMarching`'s (the upwind-gradient secondary output is not the primary image), so
+  `filter.fast_marching` matches both float-exactly (≤1e-6).
+- **CollidingFronts** — runs two fast-marching passes from two seed sets and combines them
+  (`−T1·T2` with a stop on collision); reachable on top of `FastMarchingFilter`, deferred.
 
 ## Watershed (RESOLVED, Sprint 489 — MorphologicalWatershed now covered)
 
