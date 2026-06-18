@@ -129,6 +129,11 @@ _CASES = [
          ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)),
      lambda si: sitk.VotingBinaryHoleFilling(
          sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0), [1, 1, 1]), 0.0),
+    ("VotingBinaryIterativeHoleFilling/cthead", "cthead1.png",
+     lambda ri: ritk.filter.voting_binary_iterative_hole_filling(
+         ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0), 1, 5),
+     lambda si: sitk.VotingBinaryIterativeHoleFilling(
+         sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0), [1, 1, 1], 5), 0.0),
     ("BinomialBlur/defaults", "RA-Float.nrrd",
      lambda ri: ritk.filter.binomial_blur(ri, 1),
      lambda si: sitk.BinomialBlur(si, 1), 1e-6),

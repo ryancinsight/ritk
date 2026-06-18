@@ -110,6 +110,34 @@ impl VotingBinaryHoleFillingImageFilter {
         }
         rebuild(out, dims, image)
     }
+
+    /// Apply the hole-filling pass repeatedly, up to `max_iterations` times,
+    /// stopping early when an iteration changes no voxel (ITK
+    /// `VotingBinaryIterativeHoleFillingImageFilter`). `max_iterations = 0`
+    /// returns the input unchanged.
+    pub fn apply_iterative<B: Backend>(
+        &self,
+        image: &Image<B, 3>,
+        max_iterations: usize,
+    ) -> Image<B, 3> {
+        if max_iterations == 0 {
+            let (vals, dims) = extract_vec_infallible(image);
+            return rebuild(vals, dims, image);
+        }
+        let mut current = self.apply(image);
+        let mut prev = extract_vec_infallible(&current).0;
+        for _ in 1..max_iterations {
+            let next = self.apply(&current);
+            let next_vals = extract_vec_infallible(&next).0;
+            let changed = next_vals != prev;
+            current = next;
+            if !changed {
+                break;
+            }
+            prev = next_vals;
+        }
+        current
+    }
 }
 
 #[cfg(test)]

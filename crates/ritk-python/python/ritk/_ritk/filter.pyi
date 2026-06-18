@@ -453,6 +453,9 @@ def voting_binary(image: Image, radius: int = 1, birth_threshold: int = 1, survi
 def voting_binary_hole_filling(image: Image, radius: int = 1, majority_threshold: int = 1, foreground_value: float = 1.0, background_value: float = 0.0) -> Image:
     """Fill background holes by majority vote (fg always survives, clamp boundary). ITK Parity: VotingBinaryHoleFillingImageFilter."""
     ...
+def voting_binary_iterative_hole_filling(image: Image, radius: int = 1, max_iterations: int = 10, majority_threshold: int = 1, foreground_value: float = 1.0, background_value: float = 0.0) -> Image:
+    """Iteratively fill background holes by majority vote. ITK Parity: VotingBinaryIterativeHoleFillingImageFilter."""
+    ...
 def flip(image: Image, flip_z: bool = False, flip_y: bool = False, flip_x: bool = False) -> Image:
     """Flip along Z/Y/X axes. ITK Parity: FlipImageFilter (sitk.Flip, axes reversed to [x,y,z])."""
     ...

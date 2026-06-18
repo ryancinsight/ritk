@@ -586,6 +586,34 @@ pub fn voting_binary_hole_filling(
     into_py_image(out)
 }
 
+/// Iteratively fill background holes by majority vote, repeating the
+/// hole-filling pass up to `max_iterations` times (stopping early when nothing
+/// changes). ITK Parity: VotingBinaryIterativeHoleFillingImageFilter
+/// (`sitk.VotingBinaryIterativeHoleFilling`).
+#[pyfunction]
+#[pyo3(signature = (image, radius = 1, max_iterations = 10, majority_threshold = 1, foreground_value = 1.0, background_value = 0.0))]
+pub fn voting_binary_iterative_hole_filling(
+    py: Python<'_>,
+    image: &PyImage,
+    radius: usize,
+    max_iterations: usize,
+    majority_threshold: usize,
+    foreground_value: f32,
+    background_value: f32,
+) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        VotingBinaryHoleFillingImageFilter::new(
+            [radius, radius, radius],
+            majority_threshold,
+            foreground_value,
+            background_value,
+        )
+        .apply_iterative(arc.as_ref(), max_iterations)
+    });
+    into_py_image(out)
+}
+
 /// Map the `fully_connected` flag to the structuring-element adjacency
 /// (ITK's `FullyConnectedOff` → face, `On` → full).
 fn connectivity_from(fully_connected: bool) -> Connectivity {

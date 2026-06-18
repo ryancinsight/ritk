@@ -51,3 +51,17 @@ fn corner_fills_under_clamp_boundary() {
     let out = filt().apply(&img);
     assert_eq!(out.data_slice().into_owned()[0], 1.0);
 }
+
+/// Iterative filling reaches the same fixed point as a converged single pass and
+/// is idempotent once stable; `max_iterations = 0` is the identity.
+#[test]
+fn iterative_converges_and_zero_iters_is_identity() {
+    let mut v = vec![1.0f32; 25];
+    v[2 * 5 + 2] = 0.0;
+    let img = ts::make_image::<B, 3>(v.clone(), [1, 5, 5]);
+    let once = filt().apply(&img).data_slice().into_owned();
+    let iter = filt().apply_iterative(&img, 10).data_slice().into_owned();
+    assert_eq!(once, iter, "single converged pass == iterative fixed point");
+    let zero = filt().apply_iterative(&img, 0).data_slice().into_owned();
+    assert_eq!(zero, v, "zero iterations is the identity");
+}
