@@ -162,6 +162,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::color::edge_potential, &m)?)?;
     // Morphology
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
+    m.add_function(wrap_pyfunction!(erode_object_morphology, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;
     m.add_function(wrap_pyfunction!(label_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(label_opening, &m)?)?;

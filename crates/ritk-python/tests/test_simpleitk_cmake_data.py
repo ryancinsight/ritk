@@ -539,6 +539,24 @@ def test_cmake_dilate_object_morphology_on_upstream_data():
     assert np.array_equal(r, s), "DilateObjectMorphology differs from sitk"
 
 
+@pytest.mark.parametrize("radius", [1, 2, 3], ids=["r1", "r2", "r3"])
+def test_cmake_erode_object_morphology_on_upstream_data(radius):
+    """ErodeObjectMorphology (box SE, objectValue=1, backgroundValue=0): object
+    boundary voxels paint their (2r+1)^D footprint to background, with out-of-
+    image neighbours treated as non-object. ritk `filter.erode_object_morphology`
+    vs sitk on the thresholded cthead1 mask. Bit-exact, including the z=1 (2-D)
+    handling — the size-1 axis must not be read as a missing border."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    sm = sitk.Cast(sitk.BinaryThreshold(si, 40, 1e9, 1, 0), sitk.sitkUInt8)
+    rm = ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)
+    r = np.squeeze(np.asarray(
+        ritk.filter.erode_object_morphology(rm, radius, 1.0, 0.0).to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(sitk.ErodeObjectMorphology(
+        sm, [radius] * 3, sitk.sitkBox, 1.0, 0.0)).astype(np.float64)
+    assert np.array_equal(r, s), "ErodeObjectMorphology differs from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).

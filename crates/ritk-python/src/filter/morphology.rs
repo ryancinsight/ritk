@@ -5,7 +5,8 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     BinaryContourImageFilter, BlackTopHatFilter, ClosingByReconstructionFilter, Connectivity,
-    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    ErodeObjectMorphologyFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
+    GrayscaleFillholeFilter,
     GrayscaleGrindPeakFilter, GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter,
     HMinimaFilter, HitOrMissTransform, LabelClosing, LabelContourImageFilter, LabelDilation,
     LabelErosion, LabelOpening, MorphologicalReconstruction, OpeningByReconstructionFilter,
@@ -66,6 +67,39 @@ pub fn grayscale_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> Rit
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Erode an object's surface with a box structuring element, matching
+/// `SimpleITK.ErodeObjectMorphology` (box kernel).
+///
+/// Object voxels (== `object_value`) on the object boundary — having any 3×3×3
+/// neighbour that is not the object value, with out-of-image neighbours treated
+/// as non-object — paint their `(2r+1)³` box footprint with `background_value`.
+/// Unlike grayscale erosion, this erodes objects that touch the image border.
+///
+/// Args:
+///     image:            Input PyImage.
+///     radius:           Box structuring-element radius per axis (default 1).
+///     object_value:     Pixel value identifying the object (default 1.0).
+///     background_value: Value written to eroded voxels (default 0.0).
+///
+/// Returns:
+///     Eroded PyImage with identical shape and spatial metadata.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1, object_value=1.0_f32, background_value=0.0_f32))]
+pub fn erode_object_morphology(
+    py: Python<'_>,
+    image: &PyImage,
+    radius: usize,
+    object_value: f32,
+    background_value: f32,
+) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        ErodeObjectMorphologyFilter::new([radius, radius, radius], object_value, background_value)
+            .apply(arc.as_ref())
+    });
+    into_py_image(out)
 }
 
 /// Erode labeled regions in a 3-D label volume.

@@ -82,7 +82,8 @@ pub mod morphology;
 pub use morphology::{
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
     BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter,
-    ClosingByReconstructionFilter, Connectivity, ForegroundValue, GrayscaleClosingFilter,
+    ClosingByReconstructionFilter, Connectivity, ErodeObjectMorphologyFilter, ForegroundValue,
+    GrayscaleClosingFilter,
     GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
     GrayscaleGeodesicErosionFilter, GrayscaleGrindPeakFilter, GrayscaleMorphologicalGradientFilter,
     GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter,
