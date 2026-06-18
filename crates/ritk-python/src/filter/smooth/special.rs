@@ -4,7 +4,7 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::bias::N4Config;
 use ritk_filter::{
-    BilateralFilter, BinShrinkImageFilter, MeanImageFilter, MedianFilter,
+    BilateralFilter, BinShrinkImageFilter, BinomialBlurImageFilter, MeanImageFilter, MedianFilter,
     N4BiasFieldCorrectionFilter,
 };
 
@@ -21,6 +21,18 @@ pub fn mean_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Apply a binomial blur: the separable `[¼,½,¼]` kernel along each axis,
+/// repeated `repetitions` times (reflect boundary). ITK Parity:
+/// BinomialBlurImageFilter (`sitk.BinomialBlur`).
+#[pyfunction]
+#[pyo3(signature = (image, repetitions=1))]
+pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> PyImage {
+    let image = std::sync::Arc::clone(&image.inner);
+    let out =
+        py.allow_threads(|| BinomialBlurImageFilter::new(repetitions).apply(image.as_ref()));
+    into_py_image(out)
 }
 
 /// Apply a median (rank) filter for impulse-noise removal.

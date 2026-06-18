@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.15] — 2026-06-17 (Sprint 428: BinomialBlur)
+
+### Added
+- `ritk-filter` / `ritk-python`: `BinomialBlurImageFilter` + `filter.binomial_blur(image, repetitions=1)` — separable `[¼,½,¼]` kernel along each axis, applied `repetitions` times (ITK `BinomialBlurImageFilter` / `sitk.BinomialBlur`). **Float-exact** to sitk on `RA-Float` for 1 and 5 repetitions. Boundary is ITK's documented **asymmetric** rule (pinned by sitk probe): low end reflects (`I[−1]=I[1]`), high end clamps (`I[N]=I[N−1]`) — neither symmetric reflect nor zero-flux reproduces both edges. Value-semantic Rust tests (interior kernel, both asymmetric edges, constant preservation, identity) + cmake parity cases. `.pyi` stub; coverage 196/298.
+
 ## [0.102.14] — 2026-06-17 (Sprint 427: FFTConvolution parity)
 
 ### Added

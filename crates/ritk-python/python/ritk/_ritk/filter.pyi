@@ -295,6 +295,9 @@ def bounded_reciprocal_image(image: Image) -> Image:
 def mean_filter(image: Image, radius: int = 1) -> Image:
     """Mean (box) filter: average over a (2r+1)^3 cube. ITK Parity: MeanImageFilter."""
     ...
+def binomial_blur(image: Image, repetitions: int = 1) -> Image:
+    """Separable [1/4,1/2,1/4] blur applied `repetitions` times (reflect boundary). ITK Parity: BinomialBlurImageFilter."""
+    ...
 
 def color_median(image: ColorImage, radius: int = 1) -> ColorImage:
     """Per-component median on an RGB/vector image (box radius). ITK Parity: MedianImageFilter (vector)."""
