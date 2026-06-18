@@ -37,6 +37,7 @@
 use super::types::ForegroundValue;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use moirai;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
@@ -115,47 +116,37 @@ pub(crate) fn erode_binary_3d(
     fg: ForegroundValue,
 ) -> Vec<f32> {
     let [nz, ny, nx] = dims;
-    let r = radius as isize;
     let fg: f32 = fg.into();
     let n = nz * ny * nx;
-    let mut output = vec![0.0_f32; n];
 
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut all_fg = true;
-                'outer: for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            let zz = iz as isize + dz;
-                            let yy = iy as isize + dy;
-                            let xx = ix as isize + dx;
-                            // Out-of-bounds → background
-                            if zz < 0
-                                || yy < 0
-                                || xx < 0
-                                || zz >= nz as isize
-                                || yy >= ny as isize
-                                || xx >= nx as isize
-                            {
-                                all_fg = false;
-                                break 'outer;
-                            }
-                            let idx = zz as usize * ny * nx + yy as usize * nx + xx as usize;
-                            if data[idx] != fg {
-                                all_fg = false;
-                                break 'outer;
-                            }
-                        }
-                    }
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |flat| {
+        let iz = flat / (ny * nx);
+        let iy = (flat / nx) % ny;
+        let ix = flat % nx;
+        let r = radius as isize;
+        let all_fg = (-r..=r)
+            .flat_map(|dz| (-r..=r).flat_map(move |dy| (-r..=r).map(move |dx| (dz, dy, dx))))
+            .all(|(dz, dy, dx)| {
+                let zz = iz as isize + dz;
+                let yy = iy as isize + dy;
+                let xx = ix as isize + dx;
+                if zz < 0
+                    || yy < 0
+                    || xx < 0
+                    || zz >= nz as isize
+                    || yy >= ny as isize
+                    || xx >= nx as isize
+                {
+                    return false; // OOB treated as background
                 }
-                if all_fg {
-                    output[iz * ny * nx + iy * nx + ix] = fg;
-                }
-            }
+                data[zz as usize * ny * nx + yy as usize * nx + xx as usize] == fg
+            });
+        if all_fg {
+            fg
+        } else {
+            0.0_f32
         }
-    }
-    output
+    })
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

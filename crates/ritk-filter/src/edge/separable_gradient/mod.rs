@@ -28,6 +28,7 @@ mod kernel;
 pub use kernel::{GradientKernel, PrewittKernel, SobelKernel};
 
 use burn::tensor::backend::Backend;
+use moirai;
 use ritk_core::image::Image;
 use ritk_spatial::Spacing;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -187,7 +188,6 @@ pub fn convolve_1d_axis(
 ) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-    let mut out = vec![0.0_f32; n];
 
     let stride: usize = match axis {
         0 => ny * nx,
@@ -197,53 +197,29 @@ pub fn convolve_1d_axis(
     };
     let dim_len = dims[axis];
 
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let base = iz * ny * nx + iy * nx + ix;
-                let pos = match axis {
-                    0 => iz,
-                    1 => iy,
-                    2 => ix,
-                    _ => unreachable!(),
-                };
-
-                if dim_len <= 1 {
-                    // Degenerate: only 1 element along this axis.
-                    // All neighbors clamp to pos 0, so:
-                    // k[-1]·x + k[0]·x + k[1]·x = (k[-1]+k[0]+k[1])·x
-                    out[base] = (kernel[0] + kernel[1] + kernel[2]) * data[base];
-                    continue;
-                }
-
-                // Boundary: i = 0 → i-1 clamped to 0
-                if pos == 0 {
-                    let n_prev = data[base]; // clamp(−1) → data[0]
-                    let n_curr = data[base];
-                    let n_next = data[base + stride]; // i+1 = 1
-                    out[base] = kernel[0] * n_prev + kernel[1] * n_curr + kernel[2] * n_next;
-                    continue;
-                }
-
-                // Boundary: i = dim_len − 1 → i+1 clamped to dim_len − 1
-                if pos == dim_len - 1 {
-                    let n_prev = data[base - stride]; // i-1
-                    let n_curr = data[base];
-                    let n_next = data[base]; // clamp(dim_len) → data[dim_len-1]
-                    out[base] = kernel[0] * n_prev + kernel[1] * n_curr + kernel[2] * n_next;
-                    continue;
-                }
-
-                // Interior: i ∈ [1, dim_len−2] → i−1 and i+1 in bounds.
-                // No conditionals — uniform stride, 3-tap FMA.
-                let n_prev = data[base - stride];
-                let n_curr = data[base];
-                let n_next = data[base + stride];
-                out[base] = kernel[0] * n_prev + kernel[1] * n_curr + kernel[2] * n_next;
-            }
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |base| {
+        let iz = base / (ny * nx);
+        let iy = (base / nx) % ny;
+        let ix = base % nx;
+        let pos = match axis {
+            0 => iz,
+            1 => iy,
+            2 => ix,
+            _ => unreachable!(),
+        };
+        if dim_len <= 1 {
+            return (kernel[0] + kernel[1] + kernel[2]) * data[base];
         }
-    }
-    out
+        if pos == 0 {
+            kernel[0] * data[base] + kernel[1] * data[base] + kernel[2] * data[base + stride]
+        } else if pos == dim_len - 1 {
+            kernel[0] * data[base - stride] + kernel[1] * data[base] + kernel[2] * data[base]
+        } else {
+            kernel[0] * data[base - stride]
+                + kernel[1] * data[base]
+                + kernel[2] * data[base + stride]
+        }
+    })
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
