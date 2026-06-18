@@ -40,8 +40,11 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 - **FastMarchingBase, FastMarchingUpwindGradient** are also covered: their arrival-time output
   equals `FastMarching`'s (the upwind-gradient secondary output is not the primary image), so
   `filter.fast_marching` matches both float-exactly (≤1e-6).
-- **CollidingFronts** — runs two fast-marching passes from two seed sets and combines them
-  (`−T1·T2` with a stop on collision); reachable on top of `FastMarchingFilter`, deferred.
+- **CollidingFronts** — runs two `FastMarchingUpwindGradient` passes (seeds1→targets2 and
+  seeds2→targets1) with `GenerateGradientImageOn`, then outputs `−(∇T1·∇T2)` (the dot product of
+  the two **upwind** gradient fields, `m_NegativeEpsilon = −1e-6`). Needs the upwind-gradient
+  output added to `FastMarchingFilter` (ITK computes ∇T at each node as it goes alive, not by
+  finite differences), then the dot product. Reachable, deferred.
 
 ## Watershed (RESOLVED, Sprint 489 — MorphologicalWatershed now covered)
 
