@@ -53,7 +53,7 @@ pub use intensity::{
     GreaterEqualImageFilter, GreaterImageFilter, HistogramEqualizationFilter, ImageMaxFilter,
     ImageMinFilter, IntensityWindowingFilter, InvertIntensityFilter, LessEqualImageFilter,
     LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
-    MaskedAssignImageFilter,
+    MaskedAssignImageFilter, ModulusImageFilter,
     MultiplyImageFilter, NormalizeImageFilter, NormalizeToConstantImageFilter, NotEqualImageFilter,
     NotImageFilter, OrImageFilter, PowImageFilter, XorImageFilter,
     RescaleIntensityFilter, RoundImageFilter, ShiftScaleImageFilter, SigmoidImageFilter,

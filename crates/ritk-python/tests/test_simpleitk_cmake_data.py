@@ -110,6 +110,11 @@ _CASES = [
     ("BinomialBlur/defaults", "RA-Float.nrrd",
      lambda ri: ritk.filter.binomial_blur(ri, 1),
      lambda si: sitk.BinomialBlur(si, 1), 1e-6),
+    # Modulus: integer-only in sitk; RA-Float holds integral ramp values so the
+    # int32 cast is lossless and ritk's f32 round-then-% matches bit-exactly.
+    ("Modulus/100", "RA-Float.nrrd",
+     lambda ri: ritk.filter.modulus(ri, 100),
+     lambda si: sitk.Modulus(sitk.Cast(si, sitk.sitkInt32), 100), 0.0),
     ("BinomialBlur/rep5", "RA-Float.nrrd",
      lambda ri: ritk.filter.binomial_blur(ri, 5),
      lambda si: sitk.BinomialBlur(si, 5), 1e-6),

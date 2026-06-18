@@ -42,8 +42,10 @@ pub mod square;
 // ── Filters with unique state ─────────────────────────────────────────────────
 pub mod binary_not;
 pub mod invert;
+pub mod modulus;
 pub mod normalize;
 
 pub use binary_not::BinaryNotImageFilter;
 pub use invert::InvertIntensityFilter;
+pub use modulus::ModulusImageFilter;
 pub use normalize::{NormalizeImageFilter, NormalizeToConstantImageFilter};

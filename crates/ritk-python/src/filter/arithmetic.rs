@@ -19,8 +19,8 @@ use ritk_filter::{
     ExpNegativeImageFilter, GreaterEqualImageFilter,
     GreaterImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
     LessEqualImageFilter, LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
-    MaskNegatedImageFilter, MultiplyImageFilter, NotEqualImageFilter, NotImageFilter, OrImageFilter,
-    PowImageFilter,
+    MaskNegatedImageFilter, ModulusImageFilter, MultiplyImageFilter, NotEqualImageFilter,
+    NotImageFilter, OrImageFilter, PowImageFilter,
     RoundImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     SquaredDifferenceImageFilter, SubtractImageFilter, TanImageFilter, TernaryAddImageFilter,
     TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter, UnaryMinusImageFilter,
@@ -38,6 +38,19 @@ pub fn clamp_image(py: Python<'_>, image: &PyImage, lower: f32, upper: f32) -> R
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Pixelwise modulo: out(x) = in(x) % dividend (integer images; C truncated
+/// remainder). ITK Parity: ModulusImageFilter (`sitk.Modulus`).
+#[pyfunction]
+#[pyo3(signature = (image, dividend))]
+pub fn modulus(py: Python<'_>, image: &PyImage, dividend: i64) -> RitkResult<PyImage> {
+    if dividend == 0 {
+        return Err(RitkPyError::value("modulus: dividend must be non-zero"));
+    }
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| ModulusImageFilter::new(dividend).apply(arc.as_ref()));
+    Ok(into_py_image(out))
 }
 
 /// Binary logical NOT: out(x) = background where in(x) == foreground, else

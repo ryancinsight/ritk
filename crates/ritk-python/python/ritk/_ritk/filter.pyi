@@ -206,6 +206,9 @@ def not_image(image: Image) -> Image:
 def binary_not(image: Image, foreground: float = 1.0, background: float = 0.0) -> Image:
     """Binary logical NOT: background where in==foreground, else foreground. ITK Parity: BinaryNotImageFilter."""
     ...
+def modulus(image: Image, dividend: int) -> Image:
+    """Pixelwise in % dividend (integer images, C truncated remainder). ITK Parity: ModulusImageFilter."""
+    ...
 
 def binary_magnitude_images(a: Image, b: Image) -> Image:
     """Pixelwise magnitude: out(x) = sqrt(a(x)^2 + b(x)^2). ITK Parity: BinaryMagnitudeImageFilter."""

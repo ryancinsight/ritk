@@ -32,7 +32,7 @@ pub use arithmetic::{
     AbsImageFilter, BinaryNotImageFilter, ExpImageFilter, ExpNegativeImageFilter,
     InvertIntensityFilter,
     Log10ImageFilter, LogImageFilter, NormalizeImageFilter, NormalizeToConstantImageFilter,
-    NotImageFilter, RoundImageFilter, SqrtImageFilter,
+    ModulusImageFilter, NotImageFilter, RoundImageFilter, SqrtImageFilter,
     SquareImageFilter, UnaryMinusImageFilter,
 };
 pub use bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPolicy};

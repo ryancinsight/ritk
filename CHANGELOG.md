@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.16] — 2026-06-17 (Sprint 429: Modulus)
+
+### Added
+- `ritk-filter` / `ritk-python`: `ModulusImageFilter` + `filter.modulus(image, dividend)` — pixelwise `out = in % dividend` with C/C++ truncated-toward-zero remainder (`−7 % 3 = −1`), matching ITK `ModulusImageFilter` / `sitk.Modulus` (Rust `i64 %` has the identical truncation rule). Integer-only in ITK; ritk rounds each `f32` voxel to the nearest integer first, exact for the integral pixel values these label/scan images carry. **Bit-exact** to sitk on `RA-Float` (integral ramp, lossless int32 cast). Value-semantic Rust tests (signed remainder, by-1, zero-dividend panic) + cmake parity case. `.pyi` stub; coverage 197/298.
+
 ## [0.102.15] — 2026-06-17 (Sprint 428: BinomialBlur)
 
 ### Added
