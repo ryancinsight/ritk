@@ -1750,6 +1750,36 @@ def test_cmake_warp_on_displacement_field(shape, amps, origin, spacing, tmp_path
     assert diff < 1e-3, f"Warp full-image diff {diff:.2e} exceeds float tolerance"
 
 
+def test_cmake_transform_to_displacement_field(tmp_path):
+    """TransformToDisplacementField for an affine transform: D(p) = T(p) − p,
+    T(p) = M·(p − c) + c + t. ritk `filter.transform_to_displacement_field` vs
+    `sitk.TransformToDisplacementField` on a loaded anisotropic, non-unit-origin
+    reference (round-tripped through a sitk NRRD so ritk.io assigns the canonical
+    Direction). Float-exact in all three physical (x, y, z) components."""
+    import numpy as _np
+    D, H, W = 4, 5, 6
+    _np.random.seed(0)
+    arr = (_np.random.rand(D, H, W).astype(_np.float32))
+    si = sitk.GetImageFromArray(arr)
+    si.SetSpacing((1.5, 0.8, 1.2)); si.SetOrigin((3.0, -2.0, 1.0))
+    M = [[1.0, 0.1, 0.0], [0.0, 1.0, 0.2], [0.1, 0.0, 1.0]]
+    t = [2.0, -1.0, 0.5]
+    c = [1.0, 1.0, 1.0]
+    tx = sitk.AffineTransform(3)
+    tx.SetMatrix(_np.array(M).flatten().tolist()); tx.SetTranslation(t); tx.SetCenter(c)
+    sf = sitk.GetArrayFromImage(sitk.TransformToDisplacementField(
+        tx, sitk.sitkVectorFloat64, [W, H, D],
+        si.GetOrigin(), si.GetSpacing(), si.GetDirection()))  # [D,H,W,3] (x,y,z)
+
+    p = str(tmp_path / "ref.nrrd"); sitk.WriteImage(si, p)
+    ref = ritk.io.read_image(p)
+    dz, dy, dx = ritk.filter.transform_to_displacement_field(ref, M, t, c)
+    rx = _np.asarray(dx.to_numpy()); ry = _np.asarray(dy.to_numpy()); rz = _np.asarray(dz.to_numpy())
+    assert float(_np.abs(rx - sf[..., 0]).max()) < 1e-4, "Dx differs from sitk"
+    assert float(_np.abs(ry - sf[..., 1]).max()) < 1e-4, "Dy differs from sitk"
+    assert float(_np.abs(rz - sf[..., 2]).max()) < 1e-4, "Dz differs from sitk"
+
+
 @pytest.mark.parametrize("axis", [1, 2], ids=["y", "x"])
 def test_cmake_median_projection_on_upstream_data(axis):
     # MedianProjection along a real axis (cthead is z=1, so project y or x).

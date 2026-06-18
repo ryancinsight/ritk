@@ -527,6 +527,39 @@ pub fn warp(
     .map(into_py_image)
 }
 
+// ── TransformToDisplacementField (affine) ──────────────────────────────────
+
+/// Sample an affine transform onto a reference grid as a dense displacement
+/// field, matching `SimpleITK.TransformToDisplacementField` for an
+/// `AffineTransform`.
+///
+/// Returns the field `D(p) = T(p) − p`, `T(p) = M·(p − c) + c + t`, as three
+/// scalar component images `(disp_z, disp_y, disp_x)` on the reference grid —
+/// the order `filter.warp` consumes. `matrix` is row-major 3×3, `translation`
+/// and `center` are length-3, all in the physical `(x, y, z)` frame (SimpleITK's
+/// `AffineTransform` convention).
+///
+/// The reference should carry its loaded geometry (e.g. via `ritk.io.read_image`)
+/// so its Direction matches the file; physical points are taken from the
+/// canonical index→world transform.
+#[pyfunction]
+#[pyo3(signature = (reference, matrix, translation, center=[0.0, 0.0, 0.0]))]
+pub fn transform_to_displacement_field(
+    py: Python<'_>,
+    reference: &PyImage,
+    matrix: [[f64; 3]; 3],
+    translation: [f64; 3],
+    center: [f64; 3],
+) -> RitkResult<(PyImage, PyImage, PyImage)> {
+    let arc = std::sync::Arc::clone(&reference.inner);
+    let (dz, dy, dx) = py
+        .allow_threads(|| {
+            ritk_filter::transform_to_displacement_field(arc.as_ref(), matrix, translation, center)
+                .map_err(|e| RitkPyError::runtime(e.to_string()))
+        })?;
+    Ok((into_py_image(dz), into_py_image(dy), into_py_image(dx)))
+}
+
 // ── StochasticFractalDimension ─────────────────────────────────────────────
 
 /// Per-voxel stochastic fractal dimension, matching

@@ -216,6 +216,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(resample_image, &m)?)?;
     m.add_function(wrap_pyfunction!(warp, &m)?)?;
     m.add_function(wrap_pyfunction!(stochastic_fractal_dimension, &m)?)?;
+    m.add_function(wrap_pyfunction!(transform_to_displacement_field, &m)?)?;
     m.add_function(wrap_pyfunction!(bspline_decomposition, &m)?)?;
     m.add_function(wrap_pyfunction!(rotate_image, &m)?)?;
     m.add_function(wrap_pyfunction!(shift_image, &m)?)?;

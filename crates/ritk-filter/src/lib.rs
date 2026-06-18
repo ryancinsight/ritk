@@ -150,12 +150,14 @@ pub use transform::{
 };
 
 // ── Surface & distance ───────────────────────────────────────────────────────
+pub mod displacement;
 pub mod distance;
 pub mod fractal_dimension;
 pub mod rank;
 pub mod surface;
 pub mod warp;
 
+pub use displacement::transform_to_displacement_field;
 pub use distance::{
     BinarizationThreshold, DistanceTransformImageFilter, SignedDistanceTransformImageFilter,
 };
