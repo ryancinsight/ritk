@@ -1097,6 +1097,22 @@ def test_cmake_expand_on_upstream_data(fy, fx):
     assert np.abs(r - s).max() < 1e-3, f"Expand fy={fy},fx={fx}: maxdiff {np.abs(r-s).max():.2e}"
 
 
+@pytest.mark.parametrize("pattern", [(4, 4, 1), (8, 1, 1), (2, 2, 1)],
+                         ids=["4x4", "8x1", "2x2"])
+def test_cmake_checker_board_on_upstream_data(pattern):
+    # Checkerboard-combine cthead with a shifted copy. ITK Parity: CheckerBoardImageFilter.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    other = arr + 50.0
+    rio = ritk.Image(np.ascontiguousarray(other[None]))
+    sio = sitk.GetImageFromArray(other)
+    sio.CopyInformation(si)
+    r = np.squeeze(np.asarray(ritk.filter.checker_board(ri, rio, pattern).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.CheckerBoard(si, sio, list(pattern))).astype(np.float64))
+    assert np.array_equal(r, s), f"CheckerBoard {pattern}: differs from sitk"
+
+
 @pytest.mark.parametrize("layout", [(2, 1, 1), (1, 2, 1), (2, 2, 1)],
                          ids=["2x1", "1x2", "2x2"])
 def test_cmake_tile_on_upstream_data(layout):

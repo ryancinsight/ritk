@@ -17,6 +17,58 @@ use ritk_filter::{
 };
 use ritk_image::Image;
 
+/// Combine two same-sized images in a checkerboard pattern: `pattern = (nx, ny,
+/// nz)` gives the number of checker cells per axis (sitk x/y/z). A voxel takes
+/// `image1` where the sum of its cell indices is even, else `image2`.
+///
+/// ITK Parity: CheckerBoardImageFilter (`sitk.CheckerBoard`).
+#[pyfunction]
+#[pyo3(signature = (image1, image2, pattern=(4, 4, 4)))]
+pub fn checker_board(
+    py: Python<'_>,
+    image1: &PyImage,
+    image2: &PyImage,
+    pattern: (usize, usize, usize),
+) -> RitkResult<PyImage> {
+    let a = std::sync::Arc::clone(&image1.inner);
+    let b = std::sync::Arc::clone(&image2.inner);
+    let [nz, ny, nx] = a.shape();
+    if b.shape() != [nz, ny, nx] {
+        return Err(RitkPyError::value(format!(
+            "checker_board: shapes differ ({:?} vs {:?})",
+            [nz, ny, nx],
+            b.shape()
+        )));
+    }
+    let (px, py_, pz) = pattern; // sitk x, y, z cells
+    let out = py.allow_threads(|| {
+        let da = a.data_slice();
+        let db = b.data_slice();
+        let mut out = vec![0.0_f32; nz * ny * nx];
+        for z in 0..nz {
+            let cz = z * pz / nz;
+            for y in 0..ny {
+                let cy = y * py_ / ny;
+                for x in 0..nx {
+                    let cx = x * px / nx;
+                    let i = z * ny * nx + y * nx + x;
+                    out[i] = if (cx + cy + cz) % 2 == 0 { da[i] } else { db[i] };
+                }
+            }
+        }
+        out
+    });
+    let device = NdArrayDevice::default();
+    let tensor =
+        Tensor::<Backend, 3>::from_data(TensorData::new(out, Shape::new([nz, ny, nx])), &device);
+    Ok(into_py_image(Image::new(
+        tensor,
+        *a.origin(),
+        *a.spacing(),
+        *a.direction(),
+    )))
+}
+
 /// Tile (montage) a list of same-sized images into a grid. `layout = (nx, ny, nz)`
 /// gives the number of tiles along each axis (sitk x/y/z convention); images fill
 /// the grid in x-then-y-then-z order. Empty cells take `default_value`.

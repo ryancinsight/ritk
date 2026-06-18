@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.4] — 2026-06-17 (Sprint 417: CheckerBoard)
+
+### Added
+- `ritk-python`: `filter.checker_board(image1, image2, pattern=(4,4,4))` — combine two same-sized images in a checkerboard pattern, `pattern = (nx,ny,nz)` cells per axis (sitk x/y/z); a voxel takes `image1` where the sum of its cell indices (`coord·nCells/dim`) is even, else `image2` (ITK `CheckerBoardImageFilter` / `sitk.CheckerBoard`). Cell formula pinned by a sitk probe. **Bit-exact** to sitk on cthead at 4×4, 8×1, and 2×2 patterns. `.pyi` stub + cmake parity cases; coverage 184/298.
+
 ## [0.102.3] — 2026-06-17 (Sprint 416: Tile / montage)
 
 ### Added
