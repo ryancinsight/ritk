@@ -1,8 +1,36 @@
 # RITK Sprint Checklist — Active
 
-## Sprint 377 — Performance Review, Memory Efficiency & Carry-Forward Reconciliation
-**Target version**: 0.91.1
-**Sprint phase**: Foundation → Execution — gate stabilized; performance audit in progress.
+## Sprint 378 — Performance Parallelization Wave 2 & SimpleITK Parity
+**Target version**: 0.91.2
+**Sprint phase**: Execution — parallelization + test parity
+
+### Delivered (Sprint 378)
+- [x] PERF-378-01 [patch]: **Parallelize BinaryContourImageFilter, VotingBinaryImageFilter, VotingBinaryHoleFillingImageFilter** over flat voxel index via `moirai::map_collect_index_with`. Commit: `ad8a1e40`
+- [x] PERF-378-02 [patch]: **Parallelize MorphologicalLaplace dilate_3d_reflect/erode_3d_reflect + gradient_vecs** (single-pass triplet scatter). Commit: `5b298026`
+- [x] PERF-378-03 [patch]: **Parallelize LaplacianSharpening laplacian_f64** + parallel combined[] with sequential .sum() fold. Commit: `c2b62ab3`
+- [x] PERF-378-04 [patch]: **Parallelize erode_binary_3d, convolve_1d_axis, CED compute_gradient/gaussian_smooth/compute_divergence** — see below. Commit: `f8fe1970`
+  - `morphology/binary_erode.rs`: `erode_binary_3d` uses flat-index parallel map with `.flat_map().all()` short-circuit
+  - `edge/separable_gradient/mod.rs`: `convolve_1d_axis` (called 3× per gradient component × 3 axes = 9 calls per gradient)
+  - `diffusion/coherence/pde.rs`: `compute_gradient`, `gaussian_smooth` (all 3 axes), `compute_divergence`
+- [x] TEST-378-01 [patch]: **Fix deconvolution tests** — `SetOutputRegionModeToSame` replaced with correct API; InverseDeconvolution Pearson structural assertion; BoxMean/by333 + CurvatureFlow tolerance corrections; Canny structural parity test; GradientMagnitude/short + Median/radius2 cmake cases. Commits: `358cf656`, `d0c1254c`
+
+### Verification gate
+- [x] `cargo nextest run -p ritk-filter` → 872/872 passed (23.7 s)
+- [x] `cargo clippy -p ritk-filter --lib -- -D warnings` → 0 warnings
+- [x] Python deconvolution tests (6/6): previously failing `SetOutputRegionModeToSame` + `rel<5e-2` → now all pass
+- [x] Python cmake test suite → 315 passed, 2 pre-existing failures (transform_to_displacement_field, signed_distance_map)
+
+### Known pre-existing failures (not introduced this session)
+- `test_cmake_transform_to_displacement_field` — pre-existing world-axis ordering issue
+- `test_cmake_signed_distance_map_deviation_documented` — PyO3 ndarray type conversion issue
+
+### Deferred / carry-forward
+- [ ] PERF-377-01-HUANG3D — reopen conditions unchanged (>10⁶-voxel workload or SSOT promotion)
+- [ ] PERF-377-02-RANGE-LUT — gate-blocked by test contract (728k bins/unit required)
+- [ ] FIX-transform_to_displacement_field — pre-existing world-axis ordering vs sitk convention
+- [ ] FIX-signed_distance_map — PyO3 ndarray conversion for 4D input shape
+
+### Known WIP in working tree — concurrent agent, do NOT touch
 
 ### Delivered (Sprint 377 — so far)
 - [x] GATE [patch]: `morphology::window_1d` inline `#[allow(clippy::needless_range_loop)]` with justification (sliding-window genuinely needs index-based outer step)
