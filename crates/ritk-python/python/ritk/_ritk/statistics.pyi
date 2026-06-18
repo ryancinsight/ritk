@@ -29,6 +29,10 @@ def dice_coefficient(image1: Image, image2: Image) -> float:
     """Sørensen–Dice coefficient between two binary masks. Returns value in [0, 1]."""
     ...
 
+def similarity_index(image1: Image, image2: Image) -> float:
+    """ITK SimilarityIndex: 2|A∩B|/(|A|+|B|), binarizing (nonzero=foreground). ITK Parity: SimilarityIndexImageFilter."""
+    ...
+
 def hausdorff_distance(image1: Image, image2: Image) -> float:
     """Symmetric Hausdorff distance (mm) between two binary masks.
 

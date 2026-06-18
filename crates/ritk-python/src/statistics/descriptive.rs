@@ -11,8 +11,8 @@ use ritk_statistics::noise_estimation::{
 };
 use ritk_statistics::{
     dice_coefficient as core_dice_coefficient, hausdorff_distance as core_hausdorff_distance,
-    mean_surface_distance as core_mean_surface_distance, psnr as core_psnr, ssim as core_ssim,
-    ImageStatistics,
+    mean_surface_distance as core_mean_surface_distance, psnr as core_psnr,
+    similarity_index as core_similarity_index, ssim as core_ssim, ImageStatistics,
 };
 use std::sync::Arc;
 
@@ -108,6 +108,25 @@ pub fn masked_statistics(
 #[pyfunction]
 pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
     core_dice_coefficient(image1.inner.as_ref(), image2.inner.as_ref())
+}
+
+/// Compute the ITK `SimilarityIndexImageFilter` overlap between two images.
+///
+/// Delegates to `ritk_statistics::similarity_index`. Binarizes both inputs (any
+/// nonzero voxel is foreground), so it is correct for multi-valued label maps,
+/// and returns 0.0 when both foreground sets are empty (matching ITK).
+///
+/// Args:
+///     image1: First label/mask PyImage.
+///     image2: Second label/mask PyImage (same shape as image1).
+///
+/// Returns:
+///     Similarity index 2|A∩B|/(|A|+|B|) in [0, 1].
+#[pyfunction]
+pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
+    let arc1 = Arc::clone(&image1.inner);
+    let arc2 = Arc::clone(&image2.inner);
+    py.allow_threads(|| core_similarity_index(arc1.as_ref(), arc2.as_ref()))
 }
 
 /// Compute the symmetric Hausdorff distance between two binary masks.

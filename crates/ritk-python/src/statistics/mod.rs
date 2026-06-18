@@ -28,6 +28,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_statistics, &m)?)?;
     m.add_function(wrap_pyfunction!(masked_statistics, &m)?)?;
     m.add_function(wrap_pyfunction!(dice_coefficient, &m)?)?;
+    m.add_function(wrap_pyfunction!(similarity_index, &m)?)?;
     m.add_function(wrap_pyfunction!(hausdorff_distance, &m)?)?;
     m.add_function(wrap_pyfunction!(mean_surface_distance, &m)?)?;
     m.add_function(wrap_pyfunction!(psnr, &m)?)?;

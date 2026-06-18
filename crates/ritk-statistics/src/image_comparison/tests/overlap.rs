@@ -1,5 +1,5 @@
 use super::*;
-use crate::image_comparison::dice_coefficient;
+use crate::image_comparison::{dice_coefficient, similarity_index};
 
 #[test]
 fn test_dice_identical_masks_is_one() {
@@ -101,4 +101,26 @@ fn test_dice_one_empty_one_nonempty_is_zero() {
         "one empty -> Dice = 0.0, got {}",
         dice
     );
+}
+
+#[test]
+fn test_similarity_index_binarizes_multivalued_labels() {
+    // a nonzero = {0,1,2,4,5}? indices: a=[0,1,1,0,2,2], b=[0,1,0,1,2,0].
+    // A=4 (idx1,2,4,5), B=3 (idx1,3,4), A∩B={idx1,idx4}=2 -> 2*2/(4+3)=4/7.
+    let a: Image<TestBackend, 1> = make_image(vec![0.0, 1.0, 1.0, 0.0, 2.0, 2.0], [6]);
+    let b: Image<TestBackend, 1> = make_image(vec![0.0, 1.0, 0.0, 1.0, 2.0, 0.0], [6]);
+    let si = similarity_index(&a, &b);
+    let expected = 4.0f32 / 7.0;
+    assert!(
+        (si - expected).abs() < F32_TOL,
+        "similarity index = 4/7, got {}",
+        si
+    );
+}
+
+#[test]
+fn test_similarity_index_both_empty_is_zero() {
+    // Distinct from dice_coefficient (which returns 1.0) — ITK convention is 0.0.
+    let z: Image<TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
+    assert_eq!(similarity_index(&z, &z), 0.0);
 }

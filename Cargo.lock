@@ -6782,7 +6782,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-python"
-version = "0.12.43"
+version = "0.12.44"
 dependencies = [
  "anyhow",
  "burn",
@@ -6898,7 +6898,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-statistics"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "burn",

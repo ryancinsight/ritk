@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.10] — 2026-06-17 (Sprint 423: SimilarityIndex — binary Dice metric)
+
+### Added
+- `ritk-statistics` / `ritk-python`: `similarity_index(a, b)` — ITK `SimilarityIndexImageFilter` overlap `2|A∩B|/(|A|+|B|)` binarizing both inputs (any nonzero = foreground), so it is correct for multi-valued label maps and returns `0.0` (not `1.0`) when both foreground sets are empty — distinct from the existing `dice_coefficient`. **Exact** to `sitk.SimilarityIndex` on overlapping RA-Float threshold masks. Value-semantic Rust tests (multi-valued 4/7, empty=0) + cmake parity test. `.pyi` stub; coverage 192/298.
+
 ## [0.102.9] — 2026-06-17 (Sprint 422: Gradient — covariant vector field)
 
 ### Added

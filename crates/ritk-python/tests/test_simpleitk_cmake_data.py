@@ -321,6 +321,22 @@ def test_cmake_ternary_case_on_upstream_data(tag, rfn, sfn, tol):
         assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e}"
 
 
+def test_cmake_similarity_index_on_upstream_data():
+    """SimilarityIndex (binary Dice) between two partially-overlapping masks
+    thresholded from RA-Float, compared to ITK's SimilarityIndexImageFilter."""
+    ri, si = _pair("RA-Float.nrrd")
+    # Two overlapping foreground sets from different thresholds.
+    rm1 = ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)
+    rm2 = ritk.filter.binary_threshold(ri, 60.0, 1e9, 1.0, 0.0)
+    sm1 = sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0)
+    sm2 = sitk.BinaryThreshold(si, 60.0, 1e9, 1, 0)
+    r_si = ritk.statistics.similarity_index(rm1, rm2)
+    f = sitk.SimilarityIndexImageFilter()
+    f.Execute(sm1, sm2)
+    s_si = f.GetSimilarityIndex()
+    assert abs(r_si - s_si) < 1e-6, f"SimilarityIndex: ritk {r_si} vs sitk {s_si}"
+
+
 # Auto-threshold mask cases (<Filter>.yaml::tag "default" on RA-Short). The
 # upstream baseline is the segmented mask. ITK marks `inside` = below-threshold;
 # ritk marks foreground = at-or-above-threshold, so the masks are exact
