@@ -10,11 +10,12 @@ use crate::image::{into_py_image, Backend, PyImage};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
+use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
-    ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter,
-    MirrorPadImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
-    RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter,
-    ZeroFluxNeumannPadImageFilter,
+    gaussian_image_source as core_gaussian_image_source, ConstantPadImageFilter,
+    CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, MirrorPadImageFilter, Padding,
+    PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter,
+    WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
 };
 use ritk_image::Image;
 
@@ -488,4 +489,43 @@ pub fn paste(
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Generate a Gaussian blob image (`itk::GaussianImageSource` / `sitk.GaussianSource`).
+///
+/// `out(index) = scale · exp(−½ · Σ_d ((origin_d + index_d·spacing_d − mean_d)/sigma_d)²)`
+/// (non-normalised; peak value = `scale`). All `(x, y, z)` tuples are in sitk
+/// axis order; the produced image carries the given spacing/origin (identity
+/// direction). ITK Parity: GaussianImageSource.
+#[pyfunction]
+#[pyo3(signature = (size, sigma, mean, scale=255.0, origin=(0.0, 0.0, 0.0), spacing=(1.0, 1.0, 1.0)))]
+pub fn gaussian_image_source(
+    py: Python<'_>,
+    size: (usize, usize, usize),
+    sigma: (f64, f64, f64),
+    mean: (f64, f64, f64),
+    scale: f64,
+    origin: (f64, f64, f64),
+    spacing: (f64, f64, f64),
+) -> PyImage {
+    let (buf, dims) = py.allow_threads(|| {
+        core_gaussian_image_source(
+            [size.0, size.1, size.2],
+            [sigma.0, sigma.1, sigma.2],
+            [mean.0, mean.1, mean.2],
+            scale,
+            [origin.0, origin.1, origin.2],
+            [spacing.0, spacing.1, spacing.2],
+        )
+    });
+    let device = NdArrayDevice::default();
+    let tensor = Tensor::<Backend, 3>::from_data(TensorData::new(buf, Shape::new(dims)), &device);
+    // ritk metadata is axis-major [z, y, x]; reverse the sitk (x, y, z) tuples.
+    let image = Image::new(
+        tensor,
+        Point::new([origin.2, origin.1, origin.0]),
+        Spacing::new([spacing.2, spacing.1, spacing.0]),
+        Direction::identity(),
+    );
+    into_py_image(image)
 }

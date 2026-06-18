@@ -513,6 +513,18 @@ def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     assert np.array_equal(r, s), "BinaryOpeningByReconstruction differs from sitk"
 
 
+def test_cmake_gaussian_image_source():
+    """GaussianImageSource generates a Gaussian blob from parameters (no input
+    image); float-exact to ITK's GaussianImageSource / sitk.GaussianSource."""
+    size, sigma, mean, scale = [40, 48, 32], [12.0, 16.0, 10.0], [18.0, 24.0, 16.0], 200.0
+    r = np.asarray(ritk.filter.gaussian_image_source(
+        tuple(size), tuple(sigma), tuple(mean), scale).to_numpy(), np.float64)
+    s = sitk.GetArrayFromImage(
+        sitk.GaussianSource(sitk.sitkFloat32, size, sigma, mean, scale)).astype(np.float64)
+    assert r.shape == s.shape, f"shape {r.shape} != {s.shape}"
+    assert np.abs(r - s).max() < 1e-3, f"GaussianImageSource max abs diff {np.abs(r - s).max()}"
+
+
 def test_cmake_edge_potential_on_upstream_data():
     """EdgePotential = exp(-|gradient|): applied to the gradient vector field of
     RA-Float, float-exact to ITK's EdgePotentialImageFilter."""

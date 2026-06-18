@@ -47,7 +47,15 @@ def main() -> None:
 
     def covered(cls: str) -> bool:
         p = _proc(cls)
-        return p in tested or cls in tested or (p + "ImageFilter") in tested
+        # Procedural source filters expose a sitk function dropping "Image"
+        # (e.g. yaml `GaussianImageSource` → `sitk.GaussianSource`).
+        src = cls.replace("ImageSource", "Source")
+        return (
+            p in tested
+            or cls in tested
+            or (p + "ImageFilter") in tested
+            or src in tested
+        )
 
     cov = [f for f in sf if covered(f)]
     unc = [f for f in sf if not covered(f)]

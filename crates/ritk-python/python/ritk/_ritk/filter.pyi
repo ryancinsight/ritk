@@ -585,6 +585,16 @@ def shrink(
 ) -> Image:
     """Subsample (no averaging), ITK Shrink. factors (z,y,x); sitk.Shrink uses [x,y,z]. ITK Parity: ShrinkImageFilter."""
     ...
+def gaussian_image_source(
+    size: tuple[int, int, int],
+    sigma: tuple[float, float, float],
+    mean: tuple[float, float, float],
+    scale: float = 255.0,
+    origin: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    spacing: tuple[float, float, float] = (1.0, 1.0, 1.0),
+) -> Image:
+    """Generate a Gaussian blob image (params in sitk x,y,z order). ITK Parity: GaussianImageSource."""
+    ...
 def coherence_enhancing_diffusion(
     image: Image,
     sigma: float = 3.0,

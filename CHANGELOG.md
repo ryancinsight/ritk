@@ -7,6 +7,14 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.31] — 2026-06-18 (Sprint 444: GaussianImageSource)
+
+### Added
+- `ritk-filter` / `ritk-python`: `gaussian_image_source` core + `filter.gaussian_image_source(size, sigma, mean, scale=255.0, origin=(0,0,0), spacing=(1,1,1))` — generate a Gaussian-blob image (the first procedural **image source**), `out(index) = scale·exp(−½·Σ((origin+index·spacing−mean)/sigma)²)` (non-normalised), matching ITK `GaussianImageSource` / `sitk.GaussianSource`. Params in sitk `(x,y,z)` order; reduction in `f64` then narrowed to `f32`. **Float-exact** to sitk (max abs diff < 1e-3 on a 40×48×32 blob). Pinned the coordinate convention after resolving a probe ambiguity (the sitk convenience 6th arg is `origin`, **not** spacing — so it's the standard physical-coordinate Gaussian, not the index-space form I initially suspected). Value-semantic Rust tests + cmake parity test. `.pyi` stub; coverage 213/298.
+
+### Fixed
+- `_gen_sitk_coverage.py`: detect procedural source filters whose sitk function drops "Image" (yaml `GaussianImageSource` → `sitk.GaussianSource`), so the survey counts them.
+
 ## [0.102.30] — 2026-06-18 (Sprint 443: DilateObjectMorphology parity)
 
 ### Added

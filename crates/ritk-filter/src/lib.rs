@@ -10,6 +10,8 @@ pub mod color;
 pub use color::map_color_components;
 pub mod colormap;
 pub use colormap::{Colormap, LabelOverlayFilter, LabelToRGBFilter, ScalarToRGBColormapFilter};
+pub mod sources;
+pub use sources::gaussian_image_source;
 
 // ── Denoising & smoothing ────────────────────────────────────────────────────
 pub mod bilateral;
