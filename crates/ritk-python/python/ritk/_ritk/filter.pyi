@@ -328,6 +328,9 @@ def scalar_to_rgb_colormap(image: Image, colormap: str = "grey") -> ColorImage:
 def label_to_rgb(image: Image, background: int = 0) -> ColorImage:
     """Map a label image to RGB via ITK's 30-colour table (background->black). ITK Parity: LabelToRGBImageFilter."""
     ...
+def label_overlay(image: Image, label: Image, opacity: float = 0.5, background: int = 0) -> ColorImage:
+    """Overlay a label image on grayscale as RGB (alpha-blend with colour table). ITK Parity: LabelOverlayImageFilter."""
+    ...
 def vector_index_selection_cast(image: ColorImage, index: int) -> Image:
     """Extract one component of a vector image as a scalar image. ITK Parity: VectorIndexSelectionCastImageFilter."""
     ...

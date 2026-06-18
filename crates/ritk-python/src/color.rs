@@ -15,7 +15,7 @@ use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
     map_color_components, Colormap, GradientImageFilter, GradientRecursiveGaussianImageFilter,
-    LabelToRGBFilter, MeanImageFilter, MedianFilter, RecursiveGaussianFilter,
+    LabelOverlayFilter, LabelToRGBFilter, MeanImageFilter, MedianFilter, RecursiveGaussianFilter,
     ScalarToRGBColormapFilter,
 };
 use ritk_image::{ColorVolume, Image};
@@ -241,6 +241,28 @@ pub fn label_to_rgb(py: Python<'_>, image: &PyImage, background: i64) -> RitkRes
     let arc = Arc::clone(&image.inner);
     let out = py
         .allow_threads(|| LabelToRGBFilter::new(background).apply(arc.as_ref()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok(PyColorImage {
+        inner: Arc::new(out),
+    })
+}
+
+/// Overlay a `label` image on a grayscale `image` as RGB, alpha-blending each
+/// label with ITK's colour table at `opacity` (background passes grayscale
+/// through). ITK Parity: LabelOverlayImageFilter (`sitk.LabelOverlay`).
+#[pyfunction]
+#[pyo3(signature = (image, label, opacity=0.5, background=0))]
+pub fn label_overlay(
+    py: Python<'_>,
+    image: &PyImage,
+    label: &PyImage,
+    opacity: f64,
+    background: i64,
+) -> RitkResult<PyColorImage> {
+    let img = Arc::clone(&image.inner);
+    let lab = Arc::clone(&label.inner);
+    let out = py
+        .allow_threads(|| LabelOverlayFilter::new(opacity, background).apply(img.as_ref(), lab.as_ref()))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),

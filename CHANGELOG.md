@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.19] — 2026-06-17 (Sprint 432: LabelOverlay — 200/298)
+
+### Added
+- `ritk-filter` / `ritk-python`: `LabelOverlayFilter` + `filter.label_overlay(image, label, opacity=0.5, background=0)` — overlays a label image on a grayscale image as RGB (`itk::LabelOverlayImageFilter` / `sitk.LabelOverlay`): background voxels pass the grayscale value through, labelled voxels alpha-blend `floor((1−opacity)·gray + opacity·LABEL_COLORS[(k−1) mod 30])` (truncated, reusing the LabelToRGB table). Blend rule pinned by sitk probe (`0.5·200+0.5·255 = 227.5 → 227`). **Bit-exact** to sitk on a cthead1 connected-component overlay. Value-semantic Rust tests (blend, full-opacity) + cmake parity test. `.pyi` stub; **coverage 200/298**.
+
 ## [0.102.18] — 2026-06-17 (Sprint 431: LabelToRGB)
 
 ### Added

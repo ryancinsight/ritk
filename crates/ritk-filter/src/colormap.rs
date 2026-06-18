@@ -192,6 +192,77 @@ impl LabelToRGBFilter {
     }
 }
 
+/// Overlay a label image on a grayscale image as RGB
+/// (`itk::LabelOverlayImageFilter` / `sitk.LabelOverlay`).
+///
+/// Background voxels pass the grayscale value through on all three channels;
+/// each labelled voxel `k` is alpha-blended with its colour from the 30-entry
+/// [`LABEL_COLORS`] table:
+///
+/// ```text
+/// out = floor((1 − opacity)·gray + opacity·LABEL_COLORS[(k−1) mod 30])
+/// ```
+///
+/// The blend is truncated (C++ uint8 cast), verified against `sitk.LabelOverlay`
+/// (`gray = 200`, label 2, `opacity = 0.5` → blue channel `0.5·200 + 0.5·255 =
+/// 227.5 → 227`). The grayscale input is assumed already in `[0, 255]`.
+#[derive(Debug, Clone, Copy)]
+pub struct LabelOverlayFilter {
+    opacity: f64,
+    background: i64,
+}
+
+impl LabelOverlayFilter {
+    /// Construct with the given `opacity` (`[0, 1]`, ITK default `0.5`) and
+    /// background label (ITK default `0`).
+    pub fn new(opacity: f64, background: i64) -> Self {
+        Self {
+            opacity,
+            background,
+        }
+    }
+
+    /// Overlay `label` on `image`, returning a 3-component RGB image.
+    pub fn apply<B: Backend>(
+        &self,
+        image: &Image<B, 3>,
+        label: &Image<B, 3>,
+    ) -> Result<ColorVolume<B, 3>> {
+        let (gray, dims) = extract_vec(image)?;
+        let (lab, ldims) = extract_vec(label)?;
+        if dims != ldims {
+            bail!("LabelOverlay: image {dims:?} and label {ldims:?} shapes differ");
+        }
+        let o = self.opacity;
+        let n = gray.len();
+        let (mut r, mut g, mut b) = (vec![0.0f32; n], vec![0.0f32; n], vec![0.0f32; n]);
+        for i in 0..n {
+            let gv = gray[i] as f64;
+            let lbl = lab[i].round() as i64;
+            if lbl == self.background {
+                let v = gray[i];
+                r[i] = v;
+                g[i] = v;
+                b[i] = v;
+            } else {
+                let idx = (lbl - 1).rem_euclid(LABEL_COLORS.len() as i64) as usize;
+                let c = LABEL_COLORS[idx];
+                r[i] = ((1.0 - o) * gv + o * c[0] as f64).floor() as f32;
+                g[i] = ((1.0 - o) * gv + o * c[1] as f64).floor() as f32;
+                b[i] = ((1.0 - o) * gv + o * c[2] as f64).floor() as f32;
+            }
+        }
+        ColorVolume::<B, 3>::from_component_buffers(
+            &[r, g, b],
+            dims,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            &image.data().device(),
+        )
+    }
+}
+
 #[cfg(test)]
 #[path = "tests_colormap.rs"]
 mod tests_colormap;

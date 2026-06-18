@@ -72,3 +72,31 @@ fn label_to_rgb_matches_itk_table_and_cycles() {
     assert_eq!(rgb(5), [255.0, 0.0, 0.0]); // label 30 (table[29])
     assert_eq!(rgb(6), [0.0, 205.0, 0.0]); // label 31 wraps to table[0]
 }
+
+/// LabelOverlay: background passes grayscale through; labels alpha-blend with
+/// the colour table at `opacity=0.5` (floor). Pinned by sitk probe:
+/// gray=[100,100,200,200], label=[0,1,0,2] → [[100,100,100],[50,152,50],
+/// [200,200,200],[100,100,227]].
+#[test]
+fn label_overlay_blends_with_table() {
+    let gray = ts::make_image::<B, 3>(vec![100.0, 100.0, 200.0, 200.0], [1, 1, 4]);
+    let lab = ts::make_image::<B, 3>(vec![0.0, 1.0, 0.0, 2.0], [1, 1, 4]);
+    let out = LabelOverlayFilter::new(0.5, 0).apply(&gray, &lab).unwrap();
+    let c = out.into_component_buffers();
+    let rgb = |i: usize| [c[0][i], c[1][i], c[2][i]];
+    assert_eq!(rgb(0), [100.0, 100.0, 100.0]); // background
+    assert_eq!(rgb(1), [50.0, 152.0, 50.0]); // label1: ½·100+½·[0,205,0]
+    assert_eq!(rgb(2), [200.0, 200.0, 200.0]); // background
+    assert_eq!(rgb(3), [100.0, 100.0, 227.0]); // label2: ½·200+½·[0,0,255], 227.5→227
+}
+
+/// Opacity 1.0 yields the pure label colour over labelled voxels.
+#[test]
+fn label_overlay_full_opacity_is_label_color() {
+    let gray = ts::make_image::<B, 3>(vec![100.0, 200.0], [1, 1, 2]);
+    let lab = ts::make_image::<B, 3>(vec![1.0, 2.0], [1, 1, 2]);
+    let out = LabelOverlayFilter::new(1.0, 0).apply(&gray, &lab).unwrap();
+    let c = out.into_component_buffers();
+    assert_eq!([c[0][0], c[1][0], c[2][0]], [0.0, 205.0, 0.0]);
+    assert_eq!([c[0][1], c[1][1], c[2][1]], [0.0, 0.0, 255.0]);
+}

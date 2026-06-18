@@ -356,6 +356,22 @@ def test_cmake_label_to_rgb_on_upstream_data():
     assert np.array_equal(np.squeeze(r), s), "LabelToRGB differs from sitk"
 
 
+def test_cmake_label_overlay_on_upstream_data():
+    """LabelOverlay: a cthead1 connected-component label map alpha-blended over
+    the grayscale at opacity 0.5, component-wise bit-exact to ITK."""
+    _, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0))
+    garr = sitk.GetArrayFromImage(si).astype(np.float32)  # (y, x), 0..255
+    larr = sitk.GetArrayFromImage(lbl).astype(np.float32)
+    rig = ritk.Image(np.ascontiguousarray(garr[None]))
+    ril = ritk.Image(np.ascontiguousarray(larr[None]))
+    r = np.asarray(ritk.filter.label_overlay(rig, ril, 0.5).to_numpy(), np.float64)
+    sgray = sitk.Cast(si, sitk.sitkUInt8)
+    s = sitk.GetArrayFromImage(sitk.LabelOverlay(sgray, lbl, 0.5)).astype(np.float64)
+    assert np.array_equal(np.squeeze(r), s), "LabelOverlay differs from sitk"
+
+
 def test_cmake_scalar_to_rgb_colormap_on_upstream_data():
     """Grey colormap (the ITK default) on RA-Float, compared component-wise to
     ITK's ScalarToRGBColormapImageFilter. Bit-exact (normalize→×255→truncate)."""
