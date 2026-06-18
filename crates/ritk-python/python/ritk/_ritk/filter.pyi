@@ -203,6 +203,9 @@ def round_image(image: Image) -> Image:
 def not_image(image: Image) -> Image:
     """Pixelwise logical NOT of a mask (1 where in==0, else 0). ITK Parity: NotImageFilter."""
     ...
+def binary_not(image: Image, foreground: float = 1.0, background: float = 0.0) -> Image:
+    """Binary logical NOT: background where in==foreground, else foreground. ITK Parity: BinaryNotImageFilter."""
+    ...
 
 def binary_magnitude_images(a: Image, b: Image) -> Image:
     """Pixelwise magnitude: out(x) = sqrt(a(x)^2 + b(x)^2). ITK Parity: BinaryMagnitudeImageFilter."""

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.8] — 2026-06-17 (Sprint 421: BinaryNot — label-pair complement)
+
+### Added
+- `ritk-filter` / `ritk-python`: `BinaryNotImageFilter` + `filter.binary_not(image, foreground=1.0, background=0.0)` — flip a two-valued label pair: `out = background` where `in == foreground`, else `foreground` (ITK `BinaryNotImageFilter` / `sitk.BinaryNot`). Distinct from `Not` (which treats any nonzero as true); the two agree only for a `{0,1}` mask at default labels. **Bit-exact** to sitk on a thresholded `RA-Float` mask. Value-semantic Rust tests (default + custom labels) + cmake parity case. `.pyi` stub; coverage 190/298.
+
 ## [0.102.7] — 2026-06-17 (Sprint 420: Not — logical mask NOT)
 
 ### Added

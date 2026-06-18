@@ -13,7 +13,8 @@ use pyo3::prelude::*;
 use ritk_filter::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
     AndImageFilter, AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BinaryMagnitudeImageFilter,
-    BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, DivideFloorImageFilter,
+    BinaryNotImageFilter, BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter,
+    DivideFloorImageFilter,
     DivideImageFilter, DivideRealImageFilter, EqualImageFilter, ExpImageFilter,
     ExpNegativeImageFilter, GreaterEqualImageFilter,
     GreaterImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
@@ -37,6 +38,23 @@ pub fn clamp_image(py: Python<'_>, image: &PyImage, lower: f32, upper: f32) -> R
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Binary logical NOT: out(x) = background where in(x) == foreground, else
+/// foreground. ITK Parity: BinaryNotImageFilter.
+#[pyfunction]
+#[pyo3(signature = (image, foreground=1.0, background=0.0))]
+pub fn binary_not(
+    py: Python<'_>,
+    image: &PyImage,
+    foreground: f32,
+    background: f32,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        BinaryNotImageFilter::with_labels(foreground, background).apply(arc.as_ref())
+    });
+    Ok(into_py_image(out))
 }
 
 /// Invert intensities about `maximum`: out(x) = maximum − in(x).

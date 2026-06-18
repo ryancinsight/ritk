@@ -179,6 +179,11 @@ _CASES = [
     ("Not/3d", "RA-Float.nrrd",
      lambda ri: ritk.filter.not_image(ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)),
      lambda si: sitk.Not(sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0)), 0.0),
+    # BinaryNot flips a label pair (fg<->bg). Operand is a uint8 mask; default
+    # labels (fg=1,bg=0) so the test reads as a true binary complement.
+    ("BinaryNot/3d", "RA-Float.nrrd",
+     lambda ri: ritk.filter.binary_not(ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)),
+     lambda si: sitk.BinaryNot(sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0)), 0.0),
 ]
 
 # Two-input image-arithmetic cases (<Filter>.yaml::tag with two inputs).
