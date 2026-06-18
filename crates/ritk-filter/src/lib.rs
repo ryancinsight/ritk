@@ -82,7 +82,8 @@ pub mod vesselness;
 
 pub use edge::{
     CannyEdgeDetector, DerivativeImageFilter, GaussianSigma, GradientImageFilter,
-    GradientMagnitudeFilter, LaplacianFilter, LaplacianOfGaussianFilter, SobelFilter,
+    GradientMagnitudeFilter, GradientRecursiveGaussianImageFilter, LaplacianFilter,
+    LaplacianOfGaussianFilter, SobelFilter,
 };
 pub use vesselness::{
     FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter, VesselPolarity,

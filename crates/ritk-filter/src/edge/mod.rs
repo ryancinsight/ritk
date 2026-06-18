@@ -12,7 +12,7 @@ pub mod sobel;
 pub use canny::CannyEdgeDetector;
 pub use derivative::DerivativeImageFilter;
 pub use gaussian_sigma::GaussianSigma;
-pub use gradient::GradientImageFilter;
+pub use gradient::{GradientImageFilter, GradientRecursiveGaussianImageFilter};
 pub use gradient_magnitude::GradientMagnitudeFilter;
 pub use laplacian::LaplacianFilter;
 pub use log::LaplacianOfGaussianFilter;

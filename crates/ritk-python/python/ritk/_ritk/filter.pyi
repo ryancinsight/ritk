@@ -313,6 +313,9 @@ def compose(c0: Image, c1: Image, c2: Image) -> ColorImage:
 def gradient(image: Image, use_image_spacing: bool = True) -> ColorImage:
     """Central-difference gradient -> 3-component vector (dx,dy,dz). ITK Parity: GradientImageFilter."""
     ...
+def gradient_recursive_gaussian(image: Image, sigma: float = 1.0) -> ColorImage:
+    """Gaussian-smoothed gradient -> 3-component vector (dx,dy,dz). ITK Parity: GradientRecursiveGaussianImageFilter."""
+    ...
 def vector_index_selection_cast(image: ColorImage, index: int) -> Image:
     """Extract one component of a vector image as a scalar image. ITK Parity: VectorIndexSelectionCastImageFilter."""
     ...

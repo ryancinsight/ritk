@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.11] — 2026-06-17 (Sprint 424: GradientRecursiveGaussian)
+
+### Added
+- `ritk-filter` / `ritk-python`: `GradientRecursiveGaussianImageFilter` + `filter.gradient_recursive_gaussian(image, sigma=1.0)` — Gaussian-smoothed image gradient emitting a 3-component vector image `(∂/∂x, ∂/∂y, ∂/∂z)` in sitk axis order (ITK `GradientRecursiveGaussianImageFilter` / `sitk.GradientRecursiveGaussian`). Each component is the float-exact order-1 Deriche recursive-Gaussian derivative along its axis with order-0 smoothing along the others, divided once by `spacing_k`; assembled into a `ColorVolume` (reuses `recursive_gaussian_directional` as SSOT). **Float-exact** to sitk on `RA-Float` (rel ~2e-7). Value-semantic Rust test (smoothed x-ramp) + cmake parity case. `.pyi` stub; coverage 193/298.
+
 ## [0.102.10] — 2026-06-17 (Sprint 423: SimilarityIndex — binary Dice metric)
 
 ### Added

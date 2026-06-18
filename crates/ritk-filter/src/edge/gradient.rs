@@ -18,6 +18,7 @@ use ritk_image::{ColorVolume, Image};
 use ritk_tensor_ops::extract_vec;
 
 use super::derivative::DerivativeImageFilter;
+use crate::recursive_gaussian::{recursive_gaussian_directional, DerivativeOrder};
 
 /// Image gradient filter producing a 3-component covariant vector field.
 #[derive(Debug, Clone, Copy)]
@@ -48,6 +49,61 @@ impl GradientImageFilter {
         ColorVolume::<B, 3>::from_component_buffers(
             &[bx, by, bz],
             dims,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            &image.data().device(),
+        )
+    }
+}
+
+/// Gaussian-smoothed image gradient → 3-component covariant vector field.
+///
+/// Matches ITK `GradientRecursiveGaussianImageFilter` / `sitk.GradientRecursiveGaussian`:
+/// component `k` (sitk axis order `x, y, z`) is the first-order recursive
+/// (Deriche) Gaussian derivative along physical axis `k` with zero-order
+/// (smoothing) recursion along the other axes, divided once by `spacing_k` for a
+/// physical-unit gradient.
+#[derive(Debug, Clone, Copy)]
+pub struct GradientRecursiveGaussianImageFilter {
+    /// Gaussian standard deviation in physical units (mm).
+    pub sigma: f64,
+}
+
+impl GradientRecursiveGaussianImageFilter {
+    /// Construct with the given physical `sigma`.
+    pub fn new(sigma: f64) -> Self {
+        Self { sigma }
+    }
+
+    /// Apply the smoothed gradient, returning a 3-component vector image with
+    /// components in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<ColorVolume<B, 3>> {
+        // Component for ritk axis `k`: order-0 smoothing on the other two axes,
+        // order-1 derivative on axis `k`, divided once by spacing[k].
+        let component = |axis_k: usize| -> Result<Vec<f32>> {
+            let others: Vec<usize> = (0..3).filter(|&a| a != axis_k).collect();
+            let mut cur =
+                recursive_gaussian_directional(image, self.sigma, DerivativeOrder::Zero, others[0])?;
+            cur =
+                recursive_gaussian_directional(&cur, self.sigma, DerivativeOrder::Zero, others[1])?;
+            cur = recursive_gaussian_directional(&cur, self.sigma, DerivativeOrder::First, axis_k)?;
+            let inv_spacing = 1.0_f32 / image.spacing()[axis_k] as f32;
+            let (mut vals, _) = extract_vec(&cur)?;
+            for v in vals.iter_mut() {
+                *v *= inv_spacing;
+            }
+            Ok(vals)
+        };
+
+        // sitk components: 0 = ∂/∂x (axis 2), 1 = ∂/∂y (axis 1), 2 = ∂/∂z (axis 0).
+        let bx = component(2)?;
+        let by = component(1)?;
+        let bz = component(0)?;
+
+        ColorVolume::<B, 3>::from_component_buffers(
+            &[bx, by, bz],
+            image.shape(),
             *image.origin(),
             *image.spacing(),
             *image.direction(),

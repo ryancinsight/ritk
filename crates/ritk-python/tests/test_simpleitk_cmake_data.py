@@ -189,6 +189,10 @@ _CASES = [
     ("Gradient/3dFloat", "RA-Float.nrrd",
      lambda ri: ritk.filter.gradient(ri),
      lambda si: sitk.Gradient(si), 1e-6),
+    # Gaussian-smoothed gradient -> 3-component vector. Float-exact (Deriche IIR).
+    ("GradientRecursiveGaussian/3dFloat", "RA-Float.nrrd",
+     lambda ri: ritk.filter.gradient_recursive_gaussian(ri, 1.5),
+     lambda si: sitk.GradientRecursiveGaussian(si, 1.5), 1e-6),
 ]
 
 # Two-input image-arithmetic cases (<Filter>.yaml::tag with two inputs).

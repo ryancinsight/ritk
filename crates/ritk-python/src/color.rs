@@ -14,8 +14,8 @@ use numpy::{ndarray::Array4, IntoPyArray, PyArray4, PyReadonlyArray4, PyUntypedA
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
-    map_color_components, GradientImageFilter, MeanImageFilter, MedianFilter,
-    RecursiveGaussianFilter,
+    map_color_components, GradientImageFilter, GradientRecursiveGaussianImageFilter,
+    MeanImageFilter, MedianFilter, RecursiveGaussianFilter,
 };
 use ritk_image::{ColorVolume, Image};
 use std::sync::Arc;
@@ -183,6 +183,26 @@ pub fn gradient(
     let arc = Arc::clone(&image.inner);
     let out = py
         .allow_threads(|| GradientImageFilter::new(use_image_spacing).apply(arc.as_ref()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok(PyColorImage {
+        inner: Arc::new(out),
+    })
+}
+
+/// Gaussian-smoothed image gradient → 3-component vector image with components
+/// in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
+///
+/// ITK Parity: GradientRecursiveGaussianImageFilter (`sitk.GradientRecursiveGaussian`).
+#[pyfunction]
+#[pyo3(signature = (image, sigma=1.0))]
+pub fn gradient_recursive_gaussian(
+    py: Python<'_>,
+    image: &PyImage,
+    sigma: f64,
+) -> RitkResult<PyColorImage> {
+    let arc = Arc::clone(&image.inner);
+    let out = py
+        .allow_threads(|| GradientRecursiveGaussianImageFilter::new(sigma).apply(arc.as_ref()))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
