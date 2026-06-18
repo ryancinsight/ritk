@@ -58,6 +58,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Region growing
     m.add_function(wrap_pyfunction!(connected_threshold_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(isolated_connected_segment, &m)?)?;
 
     // Clustering
     m.add_function(wrap_pyfunction!(kmeans_segment, &m)?)?;

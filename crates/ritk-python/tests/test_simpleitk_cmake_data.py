@@ -628,6 +628,32 @@ def test_cmake_iso_contour_distance(shape, far):
     assert float(_np.abs(r - s).max()) == 0.0, "IsoContourDistance differs from sitk"
 
 
+@pytest.mark.parametrize("bridge,find_upper", [(150, True), (40, True), (150, False)],
+                         ids=["bridge150-up", "bridge40-up", "bridge150-low"])
+def test_cmake_isolated_connected(bridge, find_upper):
+    """IsolatedConnected: binary-search the threshold separating two seeds. ritk
+    `segmentation.isolated_connected_segment` vs `sitk.IsolatedConnected` on two
+    blobs joined by an intermediate-intensity bridge. Bit-exact — the bisection
+    plus ritk's connected-threshold flood (itself bit-exact to
+    sitk.ConnectedThreshold) selects the same threshold."""
+    import numpy as _np
+    H, W = 20, 30
+    img = _np.zeros((H, W), _np.float32)
+    img[5:15, 2:12] = 100
+    img[5:15, 18:28] = 100
+    img[9:11, 12:18] = bridge
+    si = sitk.GetImageFromArray(img)
+    seed1, seed2 = (6, 10), (24, 10)  # sitk (x, y)
+    lo, hi = 50.0, 200.0
+    s = sitk.GetArrayFromImage(
+        sitk.IsolatedConnected(si, seed1, seed2, lo, hi, 1, 1.0, find_upper)).astype(_np.float64)
+    ri = ritk.Image(_np.ascontiguousarray(img[None]))
+    r = _np.squeeze(_np.asarray(ritk.segmentation.isolated_connected_segment(
+        ri, [0, seed1[1], seed1[0]], [0, seed2[1], seed2[0]], lo, hi, 1.0, 1.0, find_upper).to_numpy(),
+        _np.float64))
+    assert _np.array_equal(r, s), "IsolatedConnected differs from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).

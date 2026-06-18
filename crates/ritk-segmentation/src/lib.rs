@@ -42,7 +42,7 @@ pub use morphology::{
 };
 pub use region_growing::{
     connected_threshold, growcut, growcut_slice, ConfidenceConnectedFilter,
-    ConnectedThresholdFilter, GrowCutFilter, NeighborhoodConnectedFilter,
+    ConnectedThresholdFilter, GrowCutFilter, IsolatedConnectedFilter, NeighborhoodConnectedFilter,
 };
 pub use threshold::{
     binary_threshold, kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold,
