@@ -332,6 +332,21 @@ def test_cmake_ternary_case_on_upstream_data(tag, rfn, sfn, tol):
         assert rel < tol, f"{tag}: rel {rel:.2e} >= {tol:.0e}"
 
 
+def test_cmake_fft_convolution_on_upstream_data():
+    """FFT-based convolution with a small box kernel, compared to ITK's
+    FFTConvolutionImageFilter. Float-exact (FFT rounding)."""
+    ri, si = _pair("RA-Float.nrrd")
+    k = np.ones((3, 3, 3), np.float32)
+    k /= k.sum()
+    rk = ritk.Image(k)
+    sk = sitk.GetImageFromArray(k)
+    r = np.asarray(ritk.filter.fft_convolve_3d(ri, rk).to_numpy(), np.float64)
+    s = sitk.GetArrayFromImage(sitk.FFTConvolution(si, sk, normalize=False)).astype(np.float64)
+    m = 3
+    rel = np.abs(r[m:-m, m:-m, m:-m] - s[m:-m, m:-m, m:-m]).max() / max(np.abs(s).max(), 1e-9)
+    assert rel < 1e-6, f"FFTConvolution: rel {rel:.2e}"
+
+
 def test_cmake_similarity_index_on_upstream_data():
     """SimilarityIndex (binary Dice) between two partially-overlapping masks
     thresholded from RA-Float, compared to ITK's SimilarityIndexImageFilter."""

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.14] — 2026-06-17 (Sprint 427: FFTConvolution parity)
+
+### Added
+- Test: cmake parity case for `FFTConvolution` — `ritk.filter.fft_convolve_3d` is **float-exact** to `sitk.FFTConvolution(normalize=False)` on `RA-Float` with a box kernel (rel ~4e-7, FFT rounding). No code change: the existing FFT-convolution core already implements the ITK `FFTConvolutionImageFilter` math (it was previously only validated against the spatial `Convolution`). Coverage 195/298.
+
 ## [0.102.13] — 2026-06-17 (Sprint 426: GradientRecursiveGaussian perf)
 
 ### Performance
