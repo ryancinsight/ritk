@@ -583,6 +583,27 @@ def test_cmake_edge_potential_on_upstream_data():
     assert rel < 1e-6, f"EdgePotential: rel {rel:.2e}"
 
 
+def test_cmake_label_intensity_statistics_on_upstream_data():
+    """LabelIntensityStatistics: per-label intensity mean/min/max/std/count of a
+    cthead1 connected-component map, matching ITK's
+    LabelIntensityStatisticsImageFilter (sample std, ddof=1)."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0))
+    larr = sitk.GetArrayFromImage(lbl).astype(np.float32)
+    ril = ritk.Image(np.ascontiguousarray(larr[None]))
+    r = ritk.statistics.compute_label_intensity_statistics(ril, ri, 1)  # ddof=1 = ITK sample std
+    f = sitk.LabelIntensityStatisticsImageFilter()
+    f.Execute(lbl, si)
+    assert len(r) == len(f.GetLabels())
+    for d in r:
+        L = d["label"]
+        assert d["count"] == f.GetNumberOfPixels(L)
+        assert d["min"] == f.GetMinimum(L) and d["max"] == f.GetMaximum(L)
+        assert abs(d["mean"] - f.GetMean(L)) < 1e-3
+        assert abs(d["std"] - f.GetStandardDeviation(L)) < 1e-3, f"label {L} std"
+
+
 def test_cmake_fft_convolution_on_upstream_data():
     """FFT-based convolution with a small box kernel, compared to ITK's
     FFTConvolutionImageFilter. Float-exact (FFT rounding)."""
