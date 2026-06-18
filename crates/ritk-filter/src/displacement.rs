@@ -42,13 +42,15 @@ pub fn transform_to_displacement_field<B: Backend>(
     let n: usize = dims.iter().product();
     let device = reference.data().device();
 
-    // Reference-grid physical points (innermost-first columns [x, y, z]).
+    // Reference-grid physical points. `index_to_world_tensor` returns world
+    // columns in [x, y, z] order (output column c = world component c, paired
+    // with origin[c] and direction[(c, axis)]), matching SimpleITK's frame.
     let indices = generate_grid::<B, 3>(dims, &device);
-    let world = reference.index_to_world_tensor(indices); // [N, 3]
+    let world = reference.index_to_world_tensor(indices); // [N, 3], cols [x, y, z]
 
     // T(p) = M·(p − c) + c + t, computed row-wise as
     // (p − c) · Mᵀ + (c + t). Build Mᵀ so `world_centered.matmul(mt)` applies M
-    // to each row.
+    // to each row in [x, y, z] order.
     let mt_data: Vec<f32> = (0..3)
         .flat_map(|i| (0..3).map(move |j| matrix[j][i] as f32))
         .collect();
@@ -70,16 +72,12 @@ pub fn transform_to_displacement_field<B: Backend>(
         &device,
     );
 
-    let centered = world.clone() - c_row;
-    let transformed = centered.matmul(mt) + ct_row; // T(p), [N, 3]
-    let disp = transformed - world; // D(p) = T(p) − p, columns [Dx, Dy, Dz]
+    let centered_xyz = world.clone() - c_row;
+    let transformed_xyz = centered_xyz.matmul(mt) + ct_row; // T(p) in [x, y, z]
+    let disp_xyz = transformed_xyz - world; // D(p) = T(p) − p, columns [Dx, Dy, Dz]
 
-    // Split columns into (D_z, D_y, D_x): column 0 = Dx, 1 = Dy, 2 = Dz.
-    let component = |col: usize| -> Image<B, 3> {
-        let c = disp
-            .clone()
-            .slice([0..n, col..col + 1])
-            .reshape(Shape::new(dims));
+    let extract_component = |col_tensor: Tensor<B, 2>| -> Image<B, 3> {
+        let c = col_tensor.reshape(Shape::new(dims));
         Image::new(
             c,
             *reference.origin(),
@@ -87,7 +85,12 @@ pub fn transform_to_displacement_field<B: Backend>(
             *reference.direction(),
         )
     };
-    Ok((component(2), component(1), component(0)))
+
+    let dx = extract_component(disp_xyz.clone().slice([0..n, 0..1]));
+    let dy = extract_component(disp_xyz.clone().slice([0..n, 1..2]));
+    let dz = extract_component(disp_xyz.clone().slice([0..n, 2..3]));
+
+    Ok((dz, dy, dx))
 }
 
 #[cfg(test)]
