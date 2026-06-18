@@ -1291,6 +1291,30 @@ def test_cmake_fast_approximate_rank_on_upstream_data(r):
     assert np.array_equal(r_arr, s), f"FastApproximateRank (median, r={r}) differs from sitk"
 
 
+@pytest.mark.parametrize("rad", [2, 3], ids=["r2", "r3"])
+def test_cmake_binary_closing_by_reconstruction_on_upstream_data(rad):
+    """BinaryClosingByReconstruction = dilate the binary image (box SE) then
+    reconstruct it by erosion using the dilation as the marker and the original
+    as the mask. Bit-exact to ritk's `grayscale_dilation` →
+    `morphological_reconstruction(dilated, original, 'erosion')` (face
+    connectivity, ITK default) on a cthead1 mask. Index-space morphology,
+    geometry-insensitive. ITK Parity: BinaryClosingByReconstructionImageFilter."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    mb = (np.squeeze(sitk.GetArrayFromImage(si)) > 40).astype(np.float32)
+    sim = sitk.Cast(sitk.GetImageFromArray(mb), sitk.sitkUInt8)
+    rmask = ritk.Image(np.ascontiguousarray(mb[None]))
+    f = sitk.BinaryClosingByReconstructionImageFilter()
+    f.SetKernelRadius([rad, rad, 0])
+    f.SetKernelType(sitk.sitkBox)
+    f.SetFullyConnected(False)
+    s = np.squeeze(sitk.GetArrayFromImage(f.Execute(sim)).astype(np.float64))
+    dil = ritk.filter.grayscale_dilation(rmask, rad)
+    rec = ritk.filter.morphological_reconstruction(dil, rmask, "erosion", False)
+    r = np.squeeze(np.asarray(rec.to_numpy(), np.float64))
+    assert np.array_equal(r, s), f"BinaryClosingByReconstruction (r={rad}) differs from sitk"
+
+
 def test_cmake_binary_reconstruction_by_erosion_on_upstream_data():
     """BinaryReconstructionByErosion is the morphological dual of
     BinaryReconstructionByDilation: reconstruct(erosion) of mask from marker ==
