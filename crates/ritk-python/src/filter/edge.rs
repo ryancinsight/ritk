@@ -4,9 +4,9 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    edge::GaussianSigma, CannyEdgeDetector, DerivativeImageFilter, GradientMagnitudeFilter,
-    IsoContourDistanceFilter, LaplacianFilter, LaplacianOfGaussianFilter, LaplacianSharpeningFilter,
-    SobelFilter, ZeroCrossingBasedEdgeDetectionFilter,
+    edge::GaussianSigma, CannyEdgeDetector, DerivativeImageFilter, FastMarchingFilter,
+    GradientMagnitudeFilter, IsoContourDistanceFilter, LaplacianFilter, LaplacianOfGaussianFilter,
+    LaplacianSharpeningFilter, SobelFilter, ZeroCrossingBasedEdgeDetectionFilter,
 };
 
 /// Directional derivative (central differences) along `direction` (sitk axis:
@@ -158,6 +158,46 @@ pub fn zero_crossing_based_edge_detection(
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Solve the Eikonal arrival-time field by fast marching, matching
+/// `SimpleITK.FastMarching`.
+///
+/// Propagates a front from `trial_points` (seeds) outward through the `image`
+/// speed field, solving ‖∇T‖·F = 1. Voxels never reached keep a large sentinel
+/// value.
+///
+/// Args:
+///     image: Speed image (non-negative).
+///     trial_points: Seed voxels, each `[z, y, x]`.
+///     normalization_factor: Speed normalization (default 1.0).
+///     stopping_value: Stop once the smallest arrival time exceeds this (default ∞).
+///     initial_trial_values: Initial arrival time per seed; empty ⇒ all 0.
+///
+/// Returns:
+///     Arrival-time PyImage, same shape and metadata as input.
+#[pyfunction]
+#[pyo3(signature = (image, trial_points, normalization_factor=1.0_f64,
+                    stopping_value=None, initial_trial_values=Vec::new()))]
+pub fn fast_marching(
+    py: Python<'_>,
+    image: &PyImage,
+    trial_points: Vec<[usize; 3]>,
+    normalization_factor: f64,
+    stopping_value: Option<f64>,
+    initial_trial_values: Vec<f64>,
+) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        FastMarchingFilter {
+            trial_points,
+            initial_trial_values,
+            normalization_factor,
+            stopping_value: stopping_value.unwrap_or(f64::MAX / 2.0),
+        }
+        .apply(arc.as_ref())
+    });
+    into_py_image(out)
 }
 
 /// Narrow-band signed distance to the iso-contour, matching

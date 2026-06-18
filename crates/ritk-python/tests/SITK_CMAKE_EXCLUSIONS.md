@@ -32,11 +32,16 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 - **DiffeomorphicDemonsRegistration, FastSymmetricForcesDemonsRegistration,
   SymmetricForcesDemonsRegistration** — iterative deformable registration; non-reproducible.
 
-## Fast-marching family (heap tie-breaking)
+## Fast-marching family
 
-- **FastMarching, FastMarchingBase, FastMarchingUpwindGradient, CollidingFronts** — Eikonal
-  solvers; the arrival-time field is unique but the hierarchical-heap tie-breaking and
-  quadratic upwind solve must be replicated exactly. Deferred (substantial, tie-break risk).
+- **FastMarching** is now shipped float-exact (`filter.fast_marching`): the upwind quadratic
+  Eikonal solve + min-heap gives the unique arrival-time field, so heap tie-ordering is
+  irrelevant. Verified ≤5e-7 vs sitk on 2-D/3-D and varying speed.
+- **FastMarchingBase, FastMarchingUpwindGradient** — variants over the same core (Base exposes
+  a different node/stopping API; UpwindGradient also outputs the gradient of the arrival time).
+  Reachable by extending `FastMarchingFilter`; deferred.
+- **CollidingFronts** — runs two fast-marching passes from two seed sets and combines them;
+  reachable on top of `FastMarchingFilter`, deferred.
 
 ## Watershed (RESOLVED, Sprint 489 — MorphologicalWatershed now covered)
 

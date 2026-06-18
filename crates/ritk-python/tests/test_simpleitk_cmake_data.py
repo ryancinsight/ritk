@@ -674,6 +674,36 @@ def test_cmake_morphological_watershed(level):
     assert np.array_equal(r, s), f"{int((r != s).sum())} voxels differ from sitk"
 
 
+@pytest.mark.parametrize("shape,seeds", [
+    ((1, 10, 12), [(0, 3, 4)]),
+    ((1, 14, 16), [(0, 2, 2), (0, 11, 13)]),
+    ((6, 8, 9), [(2, 3, 4)]),
+], ids=["2d", "2d-multiseed", "3d"])
+def test_cmake_fast_marching(shape, seeds):
+    """FastMarching: solve the Eikonal arrival-time field from seed points
+    through a speed image. ritk `filter.fast_marching` vs `sitk.FastMarching`.
+    Float-exact (f32 output rounding) — the upwind quadratic solve and min-heap
+    propagation produce the unique arrival-time solution."""
+    import numpy as _np
+    D, H, W = shape
+    _np.random.seed(0)
+    speed = (0.5 + _np.random.rand(D, H, W)).astype(_np.float32) if len(seeds) > 1 \
+        else _np.ones((D, H, W), _np.float32)
+    arr = speed if D > 1 else speed[0]
+    si = sitk.GetImageFromArray(arr)
+    if D > 1:
+        tps = [[x, y, z] for (z, y, x) in seeds]
+        rseeds = [[z, y, x] for (z, y, x) in seeds]
+    else:
+        tps = [[x, y] for (z, y, x) in seeds]
+        rseeds = [[z, y, x] for (z, y, x) in seeds]
+    s = _np.squeeze(sitk.GetArrayFromImage(sitk.FastMarching(si, tps, 1.0)).astype(_np.float64))
+    r = _np.squeeze(_np.asarray(
+        ritk.filter.fast_marching(ritk.Image(_np.ascontiguousarray(speed)), rseeds, 1.0).to_numpy(),
+        _np.float64))
+    assert float(_np.abs(r - s).max()) < 1e-3, "FastMarching differs from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).
