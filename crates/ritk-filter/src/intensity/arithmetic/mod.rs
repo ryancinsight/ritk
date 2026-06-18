@@ -43,4 +43,4 @@ pub mod invert;
 pub mod normalize;
 
 pub use invert::InvertIntensityFilter;
-pub use normalize::NormalizeImageFilter;
+pub use normalize::{NormalizeImageFilter, NormalizeToConstantImageFilter};

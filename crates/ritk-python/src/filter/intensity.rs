@@ -7,7 +7,8 @@ use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
     BinaryThresholdImageFilter, BlendImageFilter, ClampPolicy, DoubleThresholdImageFilter,
-    IntensityWindowingFilter, NormalizeImageFilter, RescaleIntensityFilter, SigmoidImageFilter,
+    IntensityWindowingFilter, NormalizeImageFilter, NormalizeToConstantImageFilter,
+    RescaleIntensityFilter, SigmoidImageFilter,
     ThresholdImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
 };
 
@@ -271,6 +272,18 @@ pub fn normalize_image(py: Python<'_>, image: &PyImage) -> PyImage {
         let filter = NormalizeImageFilter::new();
         filter.apply(image.as_ref())
     });
+    into_py_image(result)
+}
+
+/// Scale the image so the sum of all voxels equals `constant`
+/// (`out = in · constant / Σin`). ITK Parity: NormalizeToConstantImageFilter
+/// (`sitk.NormalizeToConstant`).
+#[pyfunction]
+#[pyo3(signature = (image, constant=1.0))]
+pub fn normalize_to_constant(py: Python<'_>, image: &PyImage, constant: f64) -> PyImage {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result =
+        py.allow_threads(|| NormalizeToConstantImageFilter::new(constant).apply(image.as_ref()));
     into_py_image(result)
 }
 

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.101.0] — 2026-06-17 (Sprint 412: NormalizeToConstant)
+
+### Added
+- `ritk-filter` / `ritk-python`: `NormalizeToConstantImageFilter` + `filter.normalize_to_constant(image, constant=1.0)` — scale so the sum of all voxels equals `constant` (`out = in · constant / Σin`, f64 accumulation; zero-sum → all zeros), matching ITK `NormalizeToConstantImageFilter` / `sitk.NormalizeToConstant`. Semantics confirmed by a sitk probe; **float-exact** to sitk on cthead at constant ∈ {1, 1000}. Value-semantic Rust tests + cmake parity cases. `.pyi` stub; coverage 179/298.
+
 ## [0.100.1] — 2026-06-17 (Sprint 411: BinaryReconstructionByDilation + BinaryGrindPeak)
 
 ### Added

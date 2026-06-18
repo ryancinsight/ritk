@@ -108,3 +108,22 @@ fn normalize_preserves_metadata() {
     let out = NormalizeImageFilter::new().apply(&img);
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
 }
+
+/// NormalizeToConstant scales so the output sum equals the target (verified
+/// against the sitk.NormalizeToConstant probe).
+#[test]
+fn normalize_to_constant_scales_sum() {
+    let img = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 1, 4]); // sum 10
+    let out = NormalizeToConstantImageFilter::new(5.0).apply(&img);
+    let v = out.data_slice().into_owned();
+    assert_eq!(v, vec![0.5, 1.0, 1.5, 2.0]);
+    assert!((v.iter().sum::<f32>() - 5.0).abs() < 1e-5, "output sum must equal 5");
+}
+
+/// A zero-sum image yields all zeros (no division by zero).
+#[test]
+fn normalize_to_constant_zero_sum_is_zero() {
+    let img = make_image(vec![1.0, -1.0, 2.0, -2.0], [1, 1, 4]); // sum 0
+    let out = NormalizeToConstantImageFilter::new(1.0).apply(&img);
+    assert_eq!(out.data_slice().into_owned(), vec![0.0, 0.0, 0.0, 0.0]);
+}

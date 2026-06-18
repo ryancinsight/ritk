@@ -78,6 +78,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(blend_images, &m)?)?;
     // Additional intensity transforms
     m.add_function(wrap_pyfunction!(normalize_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(normalize_to_constant, &m)?)?;
     m.add_function(wrap_pyfunction!(unsharp_mask, &m)?)?;
     m.add_function(wrap_pyfunction!(zero_crossing_image, &m)?)?;
     // Arithmetic

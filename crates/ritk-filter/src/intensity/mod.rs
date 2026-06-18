@@ -30,7 +30,8 @@ pub mod windowing;
 
 pub use arithmetic::{
     AbsImageFilter, ExpImageFilter, ExpNegativeImageFilter, InvertIntensityFilter,
-    Log10ImageFilter, LogImageFilter, NormalizeImageFilter, RoundImageFilter, SqrtImageFilter,
+    Log10ImageFilter, LogImageFilter, NormalizeImageFilter, NormalizeToConstantImageFilter,
+    RoundImageFilter, SqrtImageFilter,
     SquareImageFilter, UnaryMinusImageFilter,
 };
 pub use bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPolicy};

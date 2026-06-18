@@ -773,6 +773,17 @@ def test_cmake_regional_extrema_on_upstream_data(tag, rfn, sfn):
     assert np.array_equal(r, s), f"{tag}: differs from sitk"
 
 
+@pytest.mark.parametrize("constant", [1.0, 1000.0], ids=["c1", "c1000"])
+def test_cmake_normalize_to_constant_on_upstream_data(constant):
+    # Scale so the sum equals `constant`. ITK Parity: NormalizeToConstantImageFilter.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    r = np.squeeze(np.asarray(ritk.filter.normalize_to_constant(ri, constant).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.NormalizeToConstant(si, constant)).astype(np.float64))
+    assert np.abs(r - s).max() / max(np.abs(s).max(), 1e-12) < 1e-6, \
+        f"NormalizeToConstant({constant}): differs from sitk"
+
+
 def test_cmake_double_threshold_on_upstream_data():
     # Hysteresis double-threshold = reconstruct inner band [t2,t3] under outer
     # band [t1,t4]. ITK Parity: DoubleThresholdImageFilter.

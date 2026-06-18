@@ -67,6 +67,36 @@ impl NormalizeImageFilter {
     }
 }
 
+/// Scale an image so that the sum of all voxels equals a target `constant`.
+///
+/// `out(x) = in(x) · constant / Σ in`. Matches ITK `NormalizeToConstantImageFilter`
+/// (`sitk.NormalizeToConstant`). A zero-sum image yields all zeros.
+#[derive(Debug, Clone, Copy)]
+pub struct NormalizeToConstantImageFilter {
+    /// Target sum of the output image.
+    pub constant: f64,
+}
+
+impl NormalizeToConstantImageFilter {
+    /// Construct with the given target sum.
+    pub fn new(constant: f64) -> Self {
+        Self { constant }
+    }
+
+    /// Apply the normalisation. f64 accumulation for the sum (precision).
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+        let (vals, dims) = extract_vec(image);
+        let sum = vals.iter().map(|&v| v as f64).sum::<f64>();
+        let factor = if sum != 0.0 {
+            (self.constant / sum) as f32
+        } else {
+            0.0
+        };
+        let out: Vec<f32> = vals.into_iter().map(|v| v * factor).collect();
+        rebuild(out, dims, image)
+    }
+}
+
 #[cfg(test)]
 #[path = "tests_normalize.rs"]
 mod tests;
