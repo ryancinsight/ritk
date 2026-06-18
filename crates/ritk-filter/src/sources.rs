@@ -1,5 +1,7 @@
 //! Procedural image sources (generate an image from parameters, no input).
 
+use std::f64::consts::PI;
+
 /// Generate a Gaussian blob image (`itk::GaussianImageSource`).
 ///
 /// Each voxel takes the value of an axis-aligned Gaussian evaluated at the
@@ -133,6 +135,48 @@ pub fn physical_point_image_source(
         }
     }
     ([cx, cy, cz], [nz, ny, nx])
+}
+
+/// Generate a Gabor-wavelet image (`itk::GaborImageSource`).
+///
+/// A Gaussian envelope modulated by a cosine along the **x** axis (the real
+/// part; sitk exposes no imaginary toggle):
+///
+/// ```text
+/// out(index) = exp(−½·Σ_d ((p_d − mean_d)/sigma_d)²) · cos(2π·frequency·(p_x − mean_x))
+/// ```
+///
+/// where `p_d = origin_d + index_d · spacing_d`. The peak (at `mean`) is `1`.
+/// Parameters are in sitk `(x, y, z)` order; output buffer is `[z, y, x]`.
+/// Verified float-exact against `sitk.GaborImageSource`.
+pub fn gabor_image_source(
+    size_xyz: [usize; 3],
+    spacing_xyz: [f64; 3],
+    origin_xyz: [f64; 3],
+    sigma_xyz: [f64; 3],
+    mean_xyz: [f64; 3],
+    frequency: f64,
+) -> (Vec<f32>, [usize; 3]) {
+    let [nx, ny, nz] = size_xyz;
+    let mut out = vec![0.0f32; nx * ny * nz];
+    let two_pi_f = 2.0 * PI * frequency;
+    for z in 0..nz {
+        let pz = origin_xyz[2] + z as f64 * spacing_xyz[2];
+        let ez = ((pz - mean_xyz[2]) / sigma_xyz[2]).powi(2);
+        for y in 0..ny {
+            let py = origin_xyz[1] + y as f64 * spacing_xyz[1];
+            let ey = ((py - mean_xyz[1]) / sigma_xyz[1]).powi(2);
+            let row = (z * ny + y) * nx;
+            for x in 0..nx {
+                let px = origin_xyz[0] + x as f64 * spacing_xyz[0];
+                let ex = ((px - mean_xyz[0]) / sigma_xyz[0]).powi(2);
+                let env = (-0.5 * (ex + ey + ez)).exp();
+                let modulation = (two_pi_f * (px - mean_xyz[0])).cos();
+                out[row + x] = (env * modulation) as f32;
+            }
+        }
+    }
+    (out, [nz, ny, nx])
 }
 
 #[cfg(test)]

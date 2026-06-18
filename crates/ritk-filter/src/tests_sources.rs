@@ -1,4 +1,6 @@
-use super::{gaussian_image_source, grid_image_source, physical_point_image_source};
+use super::{
+    gabor_image_source, gaussian_image_source, grid_image_source, physical_point_image_source,
+};
 
 /// Peak at the mean voxel, value = scale; symmetric falloff matching
 /// `exp(−½·((p−mean)/sigma)²)`. 1-D along x: size 9, sigma 6, mean 8, scale 100,
@@ -74,4 +76,23 @@ fn physical_point_source_holds_coordinate() {
     assert_eq!((cx[i], cy[i], cz[i]), (22.0, 23.0, 4.0));
     // voxel (0,0,0) holds the origin.
     assert_eq!((cx[0], cy[0], cz[0]), (2.0, 3.0, 4.0));
+}
+
+/// Gabor real part: Gaussian envelope × cosine along x. 1-D size 11, sigma 2,
+/// mean 5, freq 0.1 → peak 1 at x=5; x=4 → env·cos = e^-0.125·cos(0.2π) = 0.714.
+/// Pinned by sitk.
+#[test]
+fn gabor_source_envelope_times_cosine() {
+    let (buf, dims) = gabor_image_source(
+        [11, 1, 1],
+        [1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0],
+        [2.0, 2.0, 2.0],
+        [5.0, 0.0, 0.0],
+        0.1,
+    );
+    assert_eq!(dims, [1, 1, 11]);
+    assert!((buf[5] - 1.0).abs() < 1e-4, "peak {}", buf[5]);
+    assert!((buf[4] - 0.714).abs() < 1e-3, "x=4: {}", buf[4]);
+    assert!((buf[0] - (-0.0439)).abs() < 1e-3, "x=0: {}", buf[0]);
 }

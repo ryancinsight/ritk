@@ -525,6 +525,22 @@ def test_cmake_physical_point_image_source():
     assert np.abs(r - s).max() < 1e-4, f"PhysicalPointImageSource max abs diff {np.abs(r - s).max()}"
 
 
+def test_cmake_gabor_image_source():
+    """GaborImageSource generates a Gabor wavelet (Gaussian envelope × cosine
+    along x); float-exact to ITK's GaborImageSource (filter object reference)."""
+    size, sigma, mean, freq = [16, 12, 1], [4.0, 3.0, 3.0], [8.0, 6.0, 0.0], 0.12
+    f = sitk.GaborImageSource()
+    f.SetOutputPixelType(sitk.sitkFloat32)
+    f.SetSize(size); f.SetSpacing([1.0, 1.0, 1.0]); f.SetOrigin([0.0, 0.0, 0.0])
+    f.SetSigma(sigma); f.SetMean(mean); f.SetFrequency(freq)
+    s = sitk.GetArrayFromImage(f.Execute()).astype(np.float64)
+    r = np.asarray(ritk.filter.gabor_image_source(
+        tuple(size), (1.0, 1.0, 1.0), (0.0, 0.0, 0.0), tuple(sigma), tuple(mean), freq).to_numpy(),
+        np.float64)
+    assert r.shape == s.shape, f"shape {r.shape} != {s.shape}"
+    assert np.abs(r - s).max() < 1e-4, f"GaborImageSource max abs diff {np.abs(r - s).max()}"
+
+
 def test_cmake_gaussian_image_source():
     """GaussianImageSource generates a Gaussian blob from parameters (no input
     image); float-exact to ITK's GaussianImageSource / sitk.GaussianSource."""

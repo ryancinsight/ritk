@@ -1,6 +1,6 @@
 [package]
 name = "ritk-python"
-version = "0.12.64"
+version = "0.12.65"
 edition = "2021"
 
 [lib]

@@ -610,6 +610,16 @@ def grid_image_source(
 ) -> Image:
     """Generate a grid-pattern image (dark Gaussian lines). ITK Parity: GridImageSource."""
     ...
+def gabor_image_source(
+    size: tuple[int, int, int],
+    spacing: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    origin: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    sigma: tuple[float, float, float] = (16.0, 16.0, 16.0),
+    mean: tuple[float, float, float] = (32.0, 32.0, 32.0),
+    frequency: float = 0.4,
+) -> Image:
+    """Generate a Gabor-wavelet image (Gaussian envelope * cosine along x). ITK Parity: GaborImageSource."""
+    ...
 def coherence_enhancing_diffusion(
     image: Image,
     sigma: float = 3.0,
