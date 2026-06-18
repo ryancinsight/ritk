@@ -55,36 +55,38 @@ impl NoiseImageFilter {
         let [nz, ny, nx] = dims;
         let [rz, ry, rx] = self.radius;
         let num = ((2 * rz + 1) * (2 * ry + 1) * (2 * rx + 1)) as f64;
-        let mut out = vec![0.0f32; vals.len()];
         if num <= 1.0 {
             // A degenerate single-voxel window has no sample variance.
-            return rebuild(out, dims, image);
+            return rebuild(vec![0.0f32; vals.len()], dims, image);
         }
 
         let clamp = |i: isize, hi: usize| -> usize { i.clamp(0, hi as isize - 1) as usize };
 
-        for z in 0..nz {
-            for y in 0..ny {
-                for x in 0..nx {
-                    let (mut sum, mut sumsq) = (0.0f64, 0.0f64);
-                    for dz in -(rz as isize)..=(rz as isize) {
-                        let kz = clamp(z as isize + dz, nz);
-                        for dy in -(ry as isize)..=(ry as isize) {
-                            let ky = clamp(y as isize + dy, ny);
-                            let base = (kz * ny + ky) * nx;
-                            for dx in -(rx as isize)..=(rx as isize) {
-                                let kx = clamp(x as isize + dx, nx);
-                                let v = vals[base + kx] as f64;
-                                sum += v;
-                                sumsq += v * v;
-                            }
+        // Each output voxel reads only its own neighborhood, so the grid fans out
+        // across threads; the result is bitwise identical to a serial run.
+        let out: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |flat| {
+                let z = flat / (ny * nx);
+                let rem = flat % (ny * nx);
+                let y = rem / nx;
+                let x = rem % nx;
+                let (mut sum, mut sumsq) = (0.0f64, 0.0f64);
+                for dz in -(rz as isize)..=(rz as isize) {
+                    let kz = clamp(z as isize + dz, nz);
+                    for dy in -(ry as isize)..=(ry as isize) {
+                        let ky = clamp(y as isize + dy, ny);
+                        let base = (kz * ny + ky) * nx;
+                        for dx in -(rx as isize)..=(rx as isize) {
+                            let kx = clamp(x as isize + dx, nx);
+                            let v = vals[base + kx] as f64;
+                            sum += v;
+                            sumsq += v * v;
                         }
                     }
-                    let var = (sumsq - sum * sum / num) / (num - 1.0);
-                    out[(z * ny + y) * nx + x] = var.max(0.0).sqrt() as f32;
                 }
-            }
-        }
+                let var = (sumsq - sum * sum / num) / (num - 1.0);
+                var.max(0.0).sqrt() as f32
+            });
         rebuild(out, dims, image)
     }
 }
