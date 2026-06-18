@@ -5,7 +5,7 @@ use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     edge::GaussianSigma, CannyEdgeDetector, DerivativeImageFilter, GradientMagnitudeFilter,
-    LaplacianFilter, LaplacianOfGaussianFilter, SobelFilter,
+    LaplacianFilter, LaplacianOfGaussianFilter, LaplacianSharpeningFilter, SobelFilter,
 };
 
 /// Directional derivative (central differences) along `direction` (sitk axis:
@@ -90,6 +90,33 @@ pub fn laplacian(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Sharpen an image by subtracting its (range-rescaled) Laplacian, matching
+/// `SimpleITK.LaplacianSharpening`.
+///
+/// The Laplacian is rescaled into the input intensity range, subtracted from the
+/// input, mean-restored, and clamped to the input range. With
+/// `use_image_spacing` (default, ITK default) each axis second-derivative is
+/// divided by `spacing²`. All intermediate computation is in f64.
+///
+/// Args:
+///     image: Input PyImage.
+///     use_image_spacing: Scale the Laplacian by `1/spacing²` per axis (default True).
+///
+/// Returns:
+///     Sharpened PyImage, same shape and metadata as input.
+#[pyfunction]
+#[pyo3(signature = (image, use_image_spacing=true))]
+pub fn laplacian_sharpening(
+    py: Python<'_>,
+    image: &PyImage,
+    use_image_spacing: bool,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out =
+        py.allow_threads(|| LaplacianSharpeningFilter::new(use_image_spacing).apply(arc.as_ref()));
+    Ok(into_py_image(out))
 }
 
 /// Apply the Canny edge detector to an image.

@@ -66,6 +66,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(gradient_magnitude, &m)?)?;
     m.add_function(wrap_pyfunction!(derivative, &m)?)?;
     m.add_function(wrap_pyfunction!(laplacian, &m)?)?;
+    m.add_function(wrap_pyfunction!(laplacian_sharpening, &m)?)?;
     m.add_function(wrap_pyfunction!(canny_edge_detect, &m)?)?;
     m.add_function(wrap_pyfunction!(laplacian_of_gaussian, &m)?)?;
     m.add_function(wrap_pyfunction!(sobel_gradient, &m)?)?;

@@ -2063,3 +2063,35 @@ def test_cmake_stochastic_fractal_dimension_clustered_spacing():
     assert float(_np.median(d)) < 1e-4, "bulk SFD must match to float precision"
     assert float(_np.percentile(d, 95)) < 1e-3, "≤5% of voxels may sit on a tie"
     assert float(d.max()) < 2e-2, "tie deviations must stay bounded and small"
+
+
+@pytest.mark.parametrize(
+    "spacing, use_image_spacing",
+    [
+        (None, True),
+        ((1.5, 0.8, 1.2), True),
+        (None, False),
+    ],
+    ids=["iso-spacing", "aniso-spacing", "no-spacing"],
+)
+def test_cmake_laplacian_sharpening(spacing, use_image_spacing):
+    """LaplacianSharpening: O = clamp(I − rescaled(∇²I) − meanshift, minI, maxI).
+    ritk `filter.laplacian_sharpening` vs `sitk.LaplacianSharpening`. Bit-exact:
+    ITK computes the whole pipeline in RealType=f64 (Laplacian, min/max range
+    rescale, mean restoration, clamp), which ritk reproduces in f64."""
+    import numpy as _np
+    _np.random.seed(0)
+    img = (_np.random.rand(8, 10, 9).astype(_np.float32)) * 100.0
+    si = sitk.GetImageFromArray(img)
+    ri_kwargs = {}
+    if spacing is not None:
+        si.SetSpacing(spacing)
+        ri_kwargs["spacing"] = (spacing[2], spacing[1], spacing[0])
+    so = sitk.GetArrayFromImage(
+        sitk.LaplacianSharpening(si, useImageSpacing=use_image_spacing))
+    ri = ritk.Image(_np.ascontiguousarray(img), **ri_kwargs)
+    ro = _np.asarray(
+        ritk.filter.laplacian_sharpening(
+            ri, use_image_spacing=use_image_spacing).to_numpy())
+    diff = float(_np.abs(so.astype(_np.float64) - ro.astype(_np.float64)).max())
+    assert diff == 0.0, f"LaplacianSharpening differs from sitk: maxdiff {diff:.2e}"
