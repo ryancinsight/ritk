@@ -48,8 +48,7 @@
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
-use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::collections::{BTreeMap, VecDeque};
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -115,78 +114,21 @@ impl Default for MarkerControlledWatershed {
     }
 }
 
-// ── Priority-queue entry ───────────────────────────────────────────────────────
-
-/// Min-heap entry ordered by (gradient_value, insertion_sequence).
-///
-/// `BinaryHeap` is a max-heap. We achieve min-heap semantics by reversing the
-/// gradient comparison: for non-negative `f32` values, the IEEE 754 bit
-/// representation (`f32::to_bits()`) preserves total order, so reversing the
-/// `u32` comparison (`other.grad_bits.cmp(&self.grad_bits)`) gives a correct
-/// min-heap without any external crate.
-///
-/// Ties at equal gradient are broken by FIFO insertion order (smaller sequence
-/// number = earlier insertion = higher priority). FIFO within each gradient
-/// level is required for correct boundary placement: without it, a voxel
-/// enqueued later at the same gradient can be processed before a symmetrically
-/// equidistant voxel from the opposite seed, producing incorrect basin labels.
-#[derive(Debug)]
-struct QueueEntry {
-    /// Raw `u32` bits of the (non-negative) `f32` gradient.
-    /// Non-negative IEEE 754 single-precision bit patterns are totally ordered
-    /// the same way as their `u32` representations, so reversing the `u32`
-    /// comparison yields a correct min-heap on gradient value.
-    grad_bits: u32,
-    /// Monotonically increasing insertion sequence number.
-    /// Smaller = inserted earlier = higher FIFO priority at equal gradient.
-    seq: u64,
-    /// Linear voxel index (z*ny*nx + y*nx + x); stored for the caller.
-    idx: usize,
-}
-
-impl QueueEntry {
-    fn new(grad: f32, idx: usize, seq: u64) -> Self {
-        // Clamp NaN / negative gradients to 0.0 so bit ordering stays valid.
-        let g = if grad.is_nan() || grad < 0.0 {
-            0.0_f32
-        } else {
-            grad
-        };
-        Self {
-            grad_bits: g.to_bits(),
-            seq,
-            idx,
-        }
-    }
-}
-
-impl PartialEq for QueueEntry {
-    fn eq(&self, other: &Self) -> bool {
-        self.grad_bits == other.grad_bits && self.seq == other.seq && self.idx == other.idx
-    }
-}
-impl Eq for QueueEntry {}
-
-impl PartialOrd for QueueEntry {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for QueueEntry {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // Min-heap on gradient: smaller grad_bits → higher priority.
-        // In a max-heap, `self` must compare Greater than `other` to be popped first,
-        // so we reverse: other.grad_bits.cmp(&self.grad_bits).
-        // FIFO tie-break: smaller seq → higher priority → also reversed.
-        other
-            .grad_bits
-            .cmp(&self.grad_bits)
-            .then(other.seq.cmp(&self.seq))
-    }
-}
-
 // ── Core implementation ────────────────────────────────────────────────────────
+
+/// Totally-ordered key for an `f32` gradient. Non-negative IEEE-754 single-
+/// precision bit patterns sort identically to their `u32` representation, so the
+/// raw bits give an ascending gray-level key. NaN / negative gradients clamp to
+/// `0.0` so the order stays valid.
+#[inline]
+fn gray_key(grad: f32) -> u32 {
+    let g = if grad.is_nan() || grad < 0.0 {
+        0.0_f32
+    } else {
+        grad
+    };
+    g.to_bits()
+}
 
 /// 6-connected face offsets for a 3D grid (±z, ±y, ±x).
 const FACE_OFFSETS: [(i64, i64, i64); 6] = [
@@ -234,117 +176,93 @@ fn marker_controlled_flooding(
 
     let flat = |z: usize, y: usize, x: usize| z * ny * nx + y * nx + x;
 
-    // ── 1. Initialize priority queue from unlabeled neighbors of seeds ─────────
+    // ── 1. Hierarchical FIFO (`fah`): one FIFO queue per gray level, processed
+    //    in ascending gray order. A voxel's `status` (in_queue) is set when it is
+    //    first enqueued, so each voxel is queued exactly once. Mirrors ITK's
+    //    `itkMorphologicalWatershedFromMarkersImageFilter` priority structure.
     let mut in_queue = vec![false; n];
-    let mut heap: BinaryHeap<QueueEntry> = BinaryHeap::new();
-    // Monotonically increasing insertion counter for FIFO tie-breaking at
-    // equal gradient levels. Earlier-inserted entries have smaller seq and
-    // are popped first, ensuring correct boundary placement on plateaus.
-    let mut seq: u64 = 0;
+    let mut fah: BTreeMap<u32, VecDeque<usize>> = BTreeMap::new();
 
+    // Helper to evaluate a voxel's 6-connected in-bounds neighbours.
+    let neighbors = |idx: usize| -> [Option<usize>; 6] {
+        let z = idx / (ny * nx);
+        let rem = idx % (ny * nx);
+        let y = rem / nx;
+        let x = rem % nx;
+        let mut out = [None; 6];
+        for (k, &(dz, dy, dx)) in FACE_OFFSETS.iter().enumerate() {
+            let (zi, yi, xi) = (z as i64 + dz, y as i64 + dy, x as i64 + dx);
+            if zi >= 0
+                && zi < nz as i64
+                && yi >= 0
+                && yi < ny as i64
+                && xi >= 0
+                && xi < nx as i64
+            {
+                out[k] = Some(flat(zi as usize, yi as usize, xi as usize));
+            }
+        }
+        out
+    };
+
+    // Seed the queue with the unlabeled neighbours of every marker voxel.
     for idx in 0..n {
         if labels[idx] == UNLABELED {
             continue;
         }
-        // Seed voxel — enqueue its unlabeled 6-neighbors.
-        let z = idx / (ny * nx);
-        let rem = idx % (ny * nx);
-        let y = rem / nx;
-        let x = rem % nx;
-
-        for &(dz, dy, dx) in &FACE_OFFSETS {
-            let nz_i = z as i64 + dz;
-            let ny_i = y as i64 + dy;
-            let nx_i = x as i64 + dx;
-            if nz_i < 0
-                || nz_i >= nz as i64
-                || ny_i < 0
-                || ny_i >= ny as i64
-                || nx_i < 0
-                || nx_i >= nx as i64
-            {
-                continue;
-            }
-            let ni = flat(nz_i as usize, ny_i as usize, nx_i as usize);
+        for ni in neighbors(idx).into_iter().flatten() {
             if labels[ni] == UNLABELED && !in_queue[ni] {
                 in_queue[ni] = true;
-                heap.push(QueueEntry::new(grad_vals[ni], ni, seq));
-                seq += 1;
+                fah.entry(gray_key(grad_vals[ni]))
+                    .or_default()
+                    .push_back(ni);
             }
         }
     }
 
-    // ── 2. Priority-queue flooding (ascending gradient) ────────────────────────
-    while let Some(entry) = heap.pop() {
-        let idx = entry.idx;
+    // ── 2. Flood ascending gray levels, FIFO within each level. ────────────────
+    while let Some(&current_key) = fah.keys().next() {
+        let mut current_queue = fah.remove(&current_key).unwrap();
+        while let Some(idx) = current_queue.pop_front() {
+            // Distinct non-zero basin labels among the 6-connected neighbours.
+            let mut nbr_labels: [u32; 6] = [0u32; 6];
+            let mut n_distinct = 0usize;
+            for ni in neighbors(idx).into_iter().flatten() {
+                let lbl = labels[ni];
+                if lbl == UNLABELED || lbl == 0 {
+                    continue;
+                }
+                if !nbr_labels[..n_distinct].contains(&lbl) {
+                    nbr_labels[n_distinct] = lbl;
+                    n_distinct += 1;
+                }
+            }
 
-        // Already labeled by a prior pop (duplicate entries are possible).
-        if labels[idx] != UNLABELED {
-            continue;
-        }
+            labels[idx] = match n_distinct {
+                0 => 0,
+                1 => nbr_labels[0],
+                _ => 0,
+            };
 
-        let z = idx / (ny * nx);
-        let rem = idx % (ny * nx);
-        let y = rem / nx;
-        let x = rem % nx;
-
-        // Collect distinct non-zero basin labels among 6-connected neighbors.
-        let mut nbr_labels: [u32; 6] = [0u32; 6];
-        let mut n_distinct = 0usize;
-
-        for &(dz, dy, dx) in &FACE_OFFSETS {
-            let nz_i = z as i64 + dz;
-            let ny_i = y as i64 + dy;
-            let nx_i = x as i64 + dx;
-            if nz_i < 0
-                || nz_i >= nz as i64
-                || ny_i < 0
-                || ny_i >= ny as i64
-                || nx_i < 0
-                || nx_i >= nx as i64
-            {
+            // ITK collision rule: a watershed-line voxel (≥2 distinct basin
+            // neighbours) does NOT propagate — the line is a flooding barrier.
+            if n_distinct >= 2 {
                 continue;
             }
-            let ni = flat(nz_i as usize, ny_i as usize, nx_i as usize);
-            let lbl = labels[ni];
-            // Ignore unlabeled and boundary (0) neighbors.
-            if lbl == UNLABELED || lbl == 0 {
-                continue;
-            }
-            if !nbr_labels[..n_distinct].contains(&lbl) {
-                nbr_labels[n_distinct] = lbl;
-                n_distinct += 1;
-            }
-        }
 
-        labels[idx] = match n_distinct {
-            0 => {
-                // No labeled neighbor reachable yet; mark boundary/unreachable.
-                0
-            }
-            1 => nbr_labels[0],
-            _ => 0, // Adjacent to two or more distinct basins → watershed boundary.
-        };
-
-        // Enqueue unlabeled 6-neighbors not yet in the queue.
-        for &(dz, dy, dx) in &FACE_OFFSETS {
-            let nz_i = z as i64 + dz;
-            let ny_i = y as i64 + dy;
-            let nx_i = x as i64 + dx;
-            if nz_i < 0
-                || nz_i >= nz as i64
-                || ny_i < 0
-                || ny_i >= ny as i64
-                || nx_i < 0
-                || nx_i >= nx as i64
-            {
-                continue;
-            }
-            let ni = flat(nz_i as usize, ny_i as usize, nx_i as usize);
-            if labels[ni] == UNLABELED && !in_queue[ni] {
-                in_queue[ni] = true;
-                heap.push(QueueEntry::new(grad_vals[ni], ni, seq));
-                seq += 1;
+            // Propagate: a neighbour at gray ≤ the current level is processed in
+            // this level's FIFO (ITK's `GrayVal <= currentValue → currentQueue`);
+            // otherwise it waits in its own (higher) level.
+            for ni in neighbors(idx).into_iter().flatten() {
+                if labels[ni] == UNLABELED && !in_queue[ni] {
+                    in_queue[ni] = true;
+                    let k = gray_key(grad_vals[ni]);
+                    if k <= current_key {
+                        current_queue.push_back(ni);
+                    } else {
+                        fah.entry(k).or_default().push_back(ni);
+                    }
+                }
             }
         }
     }

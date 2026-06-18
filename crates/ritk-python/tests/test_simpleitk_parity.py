@@ -951,6 +951,32 @@ def test_marker_watershed_matches_sitk():
     assert np.array_equal(rm, sm)
 
 
+def test_marker_watershed_matches_sitk_many_basins():
+    # Regression: marker-controlled watershed with THOUSANDS of basins (the
+    # regional minima of a real gradient relief), not just a few seeds. The
+    # 3-seed case above does not exercise the watershed-line tie-breaking that
+    # appears where many basins collide; this pins bit-exact parity there.
+    # (Earlier ritk diverged by ~5.5% of line voxels — fixed by ITK's collision
+    # non-propagation + hierarchical-FIFO flooding order.)
+    nz, ny, nx = 1, 80, 90
+    z, y, x = np.mgrid[:nz, :ny, :nx]
+    img = (50 * np.sin(x * 0.6) * np.cos(y * 0.5)
+           + 30 * np.sin((x + y) * 0.3) + 100).astype(np.float32)
+    grad = sitk.GradientMagnitude(_sitk(img[0]))
+    ga = sitk.GetArrayFromImage(grad).astype(np.float32)
+    rmin = ritk.filter.regional_minima(_ritk(ga[None]), 1.0, 0.0, False)
+    markers, _ = ritk.segmentation.connected_components(rmin, 6)
+    rm = np.squeeze(np.asarray(
+        ritk.segmentation.marker_watershed_segment(_ritk(ga[None]), markers).to_numpy())).astype(int)
+    ma = np.asarray(markers.to_numpy()).squeeze().astype(np.uint32)
+    sm_in = sitk.GetImageFromArray(ma)
+    sm_in.CopyInformation(grad)
+    sm = sitk.GetArrayFromImage(
+        sitk.MorphologicalWatershedFromMarkers(grad, sm_in, markWatershedLine=True, fullyConnected=False)
+    ).astype(int)
+    assert np.array_equal(rm, sm), f"{int((rm != sm).sum())} voxels differ from sitk"
+
+
 def test_staple_matches_sitk():
     # STAPLE EM converges to the same probabilistic truth and per-rater
     # sensitivity/specificity as sitk.STAPLE.
