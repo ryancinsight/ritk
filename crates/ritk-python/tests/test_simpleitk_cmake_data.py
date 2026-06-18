@@ -1269,6 +1269,28 @@ def test_cmake_binary_reconstruction_by_dilation_on_upstream_data():
     assert np.array_equal(r, s), "BinaryReconstructionByDilation differs from sitk"
 
 
+@pytest.mark.parametrize("r", [1, 2, 3], ids=["r1", "r2", "r3"])
+def test_cmake_fast_approximate_rank_on_upstream_data(r):
+    """FastApproximateRank approximates an n-D rank filter by composing 1-D rank
+    filters along each axis. At its default rank (0.5 = median) the separable
+    composition is **bit-exact** to ritk's per-axis `rank(0.5, ...)` applied
+    innermost-first (x then y; cthead1 is z=1 so the z pass is identity). The
+    separable median is order-dependent (it is an approximation, not the true 2-D
+    median), and ITK applies the axes innermost-first — matched here. ITK Parity:
+    FastApproximateRankImageFilter (default rank 0.5)."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    f = sitk.FastApproximateRankImageFilter()
+    f.SetRank(0.5)
+    f.SetRadius([r, r, 0])
+    s = np.squeeze(sitk.GetArrayFromImage(f.Execute(si)))
+    # ritk separable median, x (innermost) then y, matching ITK's axis order.
+    rx = ritk.filter.rank(ri, 0.5, 0, 0, r)
+    rxy = ritk.filter.rank(rx, 0.5, 0, r, 0)
+    r_arr = np.squeeze(rxy.to_numpy())
+    assert np.array_equal(r_arr, s), f"FastApproximateRank (median, r={r}) differs from sitk"
+
+
 def test_cmake_binary_reconstruction_by_erosion_on_upstream_data():
     """BinaryReconstructionByErosion is the morphological dual of
     BinaryReconstructionByDilation: reconstruct(erosion) of mask from marker ==
