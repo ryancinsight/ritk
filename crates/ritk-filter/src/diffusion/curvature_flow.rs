@@ -129,82 +129,79 @@ impl CurvatureFlowImageFilter {
         let (vals_vec, dims) = extract_vec(image)?;
         let vals: &[f32] = &vals_vec;
         let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        let slab = ny * nx;
         let mut cur: Vec<f32> = vals.to_vec();
-        // Pre-allocated double buffer: copy_from_slice + swap eliminates per-iteration
-        // heap allocation (clone → alloc + drop) in favour of a plain memcpy.
-        let mut next = vec![0.0f32; cur.len()];
         let dt = self.config.time_step;
 
         for _ in 0..self.config.num_iterations {
-            next.copy_from_slice(&cur);
+            // Each output voxel reads only from the stencil neighbourhood of
+            // `cur` (the 6 first-neighbours + the 3 mixed second-derivatives).
+            // That makes each iteration a pure Jacobi update over the flat
+            // voxel index — fully data-parallel, bit-exact to the serial
+            // sweep, no per-iteration copy (the original `next.copy_from_slice
+            // (&cur)` was redundant once the inner loop fanned out).
+            cur = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |flat| {
+                let iz = flat / slab;
+                let rem = flat - iz * slab;
+                let iy = rem / nx;
+                let ix = rem - iy * nx;
 
-            for iz in 0..nz {
-                for iy in 0..ny {
-                    for ix in 0..nx {
-                        let idx = iz * ny * nx + iy * nx + ix;
+                let z = iz as isize;
+                let y = iy as isize;
+                let x = ix as isize;
 
-                        // Helper: clamp-boundary neighbour access
-                        let get = |z: isize, y: isize, x: isize| -> f32 {
-                            let zz = z.clamp(0, nz as isize - 1) as usize;
-                            let yy = y.clamp(0, ny as isize - 1) as usize;
-                            let xx = x.clamp(0, nx as isize - 1) as usize;
-                            cur[zz * ny * nx + yy * nx + xx]
-                        };
+                // Helper: clamp-boundary neighbour access
+                let get = |zz: isize, yy: isize, xx: isize| -> f32 {
+                    let zc = zz.clamp(0, nz as isize - 1) as usize;
+                    let yc = yy.clamp(0, ny as isize - 1) as usize;
+                    let xc = xx.clamp(0, nx as isize - 1) as usize;
+                    cur[zc * slab + yc * nx + xc]
+                };
 
-                        let z = iz as isize;
-                        let y = iy as isize;
-                        let x = ix as isize;
+                // First derivatives (central differences, half-step spacing)
+                let ix_ = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5;
+                let iy_ = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5;
+                let iz_ = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5;
 
-                        // First derivatives (central differences, half-step spacing)
-                        let ix_ = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5;
-                        let iy_ = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5;
-                        let iz_ = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5;
+                // Second derivatives
+                let c = cur[flat];
+                let ixx = get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1);
+                let iyy = get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x);
+                let izz = get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x);
 
-                        // Second derivatives
-                        let c = cur[idx];
-                        let ixx = get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1);
-                        let iyy = get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x);
-                        let izz = get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x);
+                // Mixed second derivatives (cross terms)
+                let ixy = (get(z, y + 1, x + 1) - get(z, y + 1, x - 1) - get(z, y - 1, x + 1)
+                    + get(z, y - 1, x - 1))
+                    * 0.25;
+                let ixz = (get(z + 1, y, x + 1) - get(z + 1, y, x - 1) - get(z - 1, y, x + 1)
+                    + get(z - 1, y, x - 1))
+                    * 0.25;
+                let iyz = (get(z + 1, y + 1, x) - get(z + 1, y - 1, x) - get(z - 1, y + 1, x)
+                    + get(z - 1, y - 1, x))
+                    * 0.25;
 
-                        // Mixed second derivatives (cross terms)
-                        let ixy =
-                            (get(z, y + 1, x + 1) - get(z, y + 1, x - 1) - get(z, y - 1, x + 1)
-                                + get(z, y - 1, x - 1))
-                                * 0.25;
-                        let ixz =
-                            (get(z + 1, y, x + 1) - get(z + 1, y, x - 1) - get(z - 1, y, x + 1)
-                                + get(z - 1, y, x - 1))
-                                * 0.25;
-                        let iyz =
-                            (get(z + 1, y + 1, x) - get(z + 1, y - 1, x) - get(z - 1, y + 1, x)
-                                + get(z - 1, y - 1, x))
-                                * 0.25;
+                // Mean curvature numerator N
+                let num = ixx * (iy_ * iy_ + iz_ * iz_)
+                    + iyy * (ix_ * ix_ + iz_ * iz_)
+                    + izz * (ix_ * ix_ + iy_ * iy_)
+                    - 2.0 * ix_ * iy_ * ixy
+                    - 2.0 * ix_ * iz_ * ixz
+                    - 2.0 * iy_ * iz_ * iyz;
 
-                        // Mean curvature numerator N
-                        let num = ixx * (iy_ * iy_ + iz_ * iz_)
-                            + iyy * (ix_ * ix_ + iz_ * iz_)
-                            + izz * (ix_ * ix_ + iy_ * iy_)
-                            - 2.0 * ix_ * iy_ * ixy
-                            - 2.0 * ix_ * iz_ * ixz
-                            - 2.0 * iy_ * iz_ * iyz;
+                // ITK CurvatureFlow speed = |∇I|·κ = N / |∇I|², NOT pure
+                // κ = N / |∇I|³. The |∇I| factor cancels the flat-region
+                // singularity (κ alone is 0/0 where ∇I → 0 and blows up).
+                let grad_sq = ix_ * ix_ + iy_ * iy_ + iz_ * iz_;
 
-                        // ITK CurvatureFlow speed = |∇I|·κ = N / |∇I|², NOT pure
-                        // κ = N / |∇I|³. The |∇I| factor cancels the flat-region
-                        // singularity (κ alone is 0/0 where ∇I → 0 and blows up).
-                        let grad_sq = ix_ * ix_ + iy_ * iy_ + iz_ * iz_;
+                let speed = if grad_sq > GRAD_MAG_EPSILON {
+                    num / grad_sq
+                } else {
+                    0.0
+                };
 
-                        let speed = if grad_sq > GRAD_MAG_EPSILON {
-                            num / grad_sq
-                        } else {
-                            0.0
-                        };
-
-                        next[idx] = c + dt * speed;
-                    }
-                }
-            }
-
-            std::mem::swap(&mut cur, &mut next);
+                c + dt * speed
+            });
         }
 
         Ok(rebuild(cur, dims, image))
