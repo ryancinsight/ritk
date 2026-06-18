@@ -83,6 +83,14 @@ pub struct UnaryMinus;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Round;
 
+/// Operation marker for the logical NOT of a mask: `out(x) = 1` where
+/// `in(x) == 0`, else `0`.
+///
+/// Matches ITK `NotImageFilter` (`!A` in NumericTraits): any nonzero input is
+/// "true" → `0`, only an exact zero is "false" → `1`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Not;
+
 impl sealed::Sealed for Abs {}
 impl sealed::Sealed for Sqrt {}
 impl sealed::Sealed for Exp {}
@@ -92,6 +100,7 @@ impl sealed::Sealed for Log10 {}
 impl sealed::Sealed for ExpNegative {}
 impl sealed::Sealed for UnaryMinus {}
 impl sealed::Sealed for Round {}
+impl sealed::Sealed for Not {}
 
 impl UnaryPixelOp for Abs {
     #[inline]
@@ -154,6 +163,14 @@ impl UnaryPixelOp for Round {
     fn apply(v: f32) -> f32 {
         // ITK Math::Round = round half-integer up (floor(x + 0.5)).
         (v + 0.5).floor()
+    }
+}
+
+impl UnaryPixelOp for Not {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        // ITK `!A`: nonzero → false (0), exact zero → true (1).
+        (v == 0.0) as u8 as f32
     }
 }
 
@@ -267,6 +284,15 @@ pub type UnaryMinusImageFilter = UnaryImageFilter<UnaryMinus>;
 /// - ITK `itk::RoundImageFilter<TInputImage, TOutputImage>`.
 pub type RoundImageFilter = UnaryImageFilter<Round>;
 
+/// Pixelwise logical NOT of a mask.  `out(x) = 1` where `in(x) == 0`, else `0`.
+///
+/// Any nonzero value is treated as "true" (→ `0`); only an exact zero is
+/// "false" (→ `1`).
+///
+/// # References
+/// - ITK `itk::NotImageFilter<TInputImage, TOutputImage>`.
+pub type NotImageFilter = UnaryImageFilter<Not>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -319,5 +345,14 @@ mod tests {
             out.data_slice().into_owned(),
             vec![2.0, 3.0, 3.0, -2.0, -2.0, 0.0]
         );
+    }
+
+    /// Logical NOT (ITK `NotImageFilter`): only exact zero maps to `1`; any
+    /// nonzero value (incl. negatives and fractions) maps to `0`.
+    #[test]
+    fn logical_not_maps_zero_to_one() {
+        let img = ts::make_image::<B, 3>(vec![0.0, 1.0, 2.0, -3.0, 0.5], [1, 1, 5]);
+        let out = NotImageFilter::new().apply(&img);
+        assert_eq!(out.data_slice().into_owned(), vec![1.0, 0.0, 0.0, 0.0, 0.0]);
     }
 }

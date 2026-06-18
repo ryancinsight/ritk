@@ -103,6 +103,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(exp_negative_image, &m)?)?;
     m.add_function(wrap_pyfunction!(unary_minus_image, &m)?)?;
     m.add_function(wrap_pyfunction!(round_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(not_image, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_magnitude_images, &m)?)?;
     m.add_function(wrap_pyfunction!(equal_images, &m)?)?;
     m.add_function(wrap_pyfunction!(not_equal_images, &m)?)?;

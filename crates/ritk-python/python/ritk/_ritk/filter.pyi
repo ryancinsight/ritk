@@ -200,6 +200,9 @@ def unary_minus_image(image: Image) -> Image:
 def round_image(image: Image) -> Image:
     """Pixelwise round to nearest integer (half-up). ITK Parity: RoundImageFilter."""
     ...
+def not_image(image: Image) -> Image:
+    """Pixelwise logical NOT of a mask (1 where in==0, else 0). ITK Parity: NotImageFilter."""
+    ...
 
 def binary_magnitude_images(a: Image, b: Image) -> Image:
     """Pixelwise magnitude: out(x) = sqrt(a(x)^2 + b(x)^2). ITK Parity: BinaryMagnitudeImageFilter."""

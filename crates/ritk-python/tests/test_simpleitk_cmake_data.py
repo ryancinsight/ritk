@@ -174,6 +174,11 @@ _CASES = [
     ("GradientAnisotropicDiffusion/longer", "RA-Float.nrrd",
      lambda ri: ritk.filter.anisotropic_diffusion(ri, 10, 1.0, 0.01),
      lambda si: sitk.GradientAnisotropicDiffusion(si, 0.01, 1.0, 10), 2e-2),
+    # Logical NOT. sitk.Not requires an integer pixel type, so the operand is a
+    # uint8 mask thresholded from the float volume; Not flips the binary field.
+    ("Not/3d", "RA-Float.nrrd",
+     lambda ri: ritk.filter.not_image(ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)),
+     lambda si: sitk.Not(sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0)), 0.0),
 ]
 
 # Two-input image-arithmetic cases (<Filter>.yaml::tag with two inputs).

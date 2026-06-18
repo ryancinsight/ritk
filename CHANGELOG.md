@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.7] — 2026-06-17 (Sprint 420: Not — logical mask NOT)
+
+### Added
+- `ritk-filter` / `ritk-python`: `Not` logical-NOT op (`Not` ZST over the generic `UnaryImageFilter<Op>` seam; `NotImageFilter` alias) + `filter.not_image(image)` — pixelwise `out = 1` where `in == 0`, else `0`; any nonzero value is "true" → `0` (ITK `NotImageFilter` / `sitk.Not`, integer pixel types). **Bit-exact** to sitk on a `RA-Float` volume thresholded to a uint8 mask. Value-semantic Rust test + cmake parity case. `.pyi` stub; coverage 189/298.
+
 ## [0.102.6] — 2026-06-17 (Sprint 419: And / Or / Xor — logical masks)
 
 ### Added

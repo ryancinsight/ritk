@@ -18,7 +18,8 @@ use ritk_filter::{
     ExpNegativeImageFilter, GreaterEqualImageFilter,
     GreaterImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
     LessEqualImageFilter, LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
-    MaskNegatedImageFilter, MultiplyImageFilter, NotEqualImageFilter, OrImageFilter, PowImageFilter,
+    MaskNegatedImageFilter, MultiplyImageFilter, NotEqualImageFilter, NotImageFilter, OrImageFilter,
+    PowImageFilter,
     RoundImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     SquaredDifferenceImageFilter, SubtractImageFilter, TanImageFilter, TernaryAddImageFilter,
     TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter, UnaryMinusImageFilter,
@@ -222,6 +223,12 @@ unary_math_pyfn!(
     RoundImageFilter,
     "RoundImageFilter",
     "Pixelwise round to nearest integer (half-up): out(x) = floor(in(x) + 0.5)."
+);
+unary_math_pyfn!(
+    not_image,
+    NotImageFilter,
+    "NotImageFilter",
+    "Pixelwise logical NOT of a mask: out(x) = 1 where in(x) == 0, else 0."
 );
 
 /// Pixelwise addition: out(x) = a(x) + b(x).
