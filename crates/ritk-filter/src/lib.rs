@@ -81,6 +81,7 @@ pub mod morphology;
 
 pub use morphology::{
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
+    BinaryThinningFilter,
     BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter,
     ClosingByReconstructionFilter, Connectivity, ErodeObjectMorphologyFilter, ForegroundValue,
     GrayscaleClosingFilter,

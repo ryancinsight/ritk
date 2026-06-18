@@ -557,6 +557,21 @@ def test_cmake_erode_object_morphology_on_upstream_data(radius):
     assert np.array_equal(r, s), "ErodeObjectMorphology differs from sitk"
 
 
+@pytest.mark.parametrize("thr", [40, 80, 120], ids=["t40", "t80", "t120"])
+def test_cmake_binary_thinning_on_upstream_data(thr):
+    """BinaryThinning (2-D Gonzalez & Woods skeletonization). ritk
+    `filter.binary_thinning` vs `sitk.BinaryThinning` on the thresholded cthead1
+    mask (a z=1 slice). Bit-exact — the algorithm is pure binary topology, no
+    floating point."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    sm = sitk.Cast(sitk.BinaryThreshold(si, thr, 1e9, 1, 0), sitk.sitkUInt8)
+    rm = ritk.filter.binary_threshold(ri, float(thr), 1e9, 1.0, 0.0)
+    r = np.squeeze(np.asarray(ritk.filter.binary_thinning(rm).to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(sitk.BinaryThinning(sm)).astype(np.float64)
+    assert np.array_equal(r, s), "BinaryThinning differs from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).

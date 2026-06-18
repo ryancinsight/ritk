@@ -4,9 +4,9 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    BinaryContourImageFilter, BlackTopHatFilter, ClosingByReconstructionFilter, Connectivity,
-    ErodeObjectMorphologyFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
-    GrayscaleFillholeFilter,
+    BinaryContourImageFilter, BinaryThinningFilter, BlackTopHatFilter,
+    ClosingByReconstructionFilter, Connectivity, ErodeObjectMorphologyFilter, GrayscaleClosingFilter,
+    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
     GrayscaleGrindPeakFilter, GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter,
     HMinimaFilter, HitOrMissTransform, LabelClosing, LabelContourImageFilter, LabelDilation,
     LabelErosion, LabelOpening, MorphologicalReconstruction, OpeningByReconstructionFilter,
@@ -67,6 +67,25 @@ pub fn grayscale_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> Rit
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Thin a binary image to its 1-pixel-wide skeleton, matching
+/// `SimpleITK.BinaryThinning` (2-D Gonzalez & Woods thinning).
+///
+/// Input is binarized (`≠ 0 → 1`) and iteratively thinned per `z`-plane until
+/// stable. Output is binary (`1.0` skeleton, `0.0` background). 2-D filter:
+/// apply to a `z = 1` image (each plane is thinned independently otherwise).
+///
+/// Args:
+///     image: Input binary PyImage.
+///
+/// Returns:
+///     Skeleton PyImage, same shape and spatial metadata as input.
+#[pyfunction]
+pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let out = py.allow_threads(|| BinaryThinningFilter::new().apply(arc.as_ref()));
+    into_py_image(out)
 }
 
 /// Erode an object's surface with a box structuring element, matching

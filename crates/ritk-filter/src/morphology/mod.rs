@@ -26,10 +26,12 @@
 //! - Serra, J. (1982). *Image Analysis and Mathematical Morphology*. Academic Press.
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer.
 
+pub mod binary_thinning;
 pub mod erode_object;
 pub mod grayscale_dilation;
 pub mod grayscale_erosion;
 
+pub use binary_thinning::BinaryThinningFilter;
 pub use erode_object::ErodeObjectMorphologyFilter;
 pub use grayscale_dilation::GrayscaleDilation;
 pub use grayscale_erosion::GrayscaleErosion;
