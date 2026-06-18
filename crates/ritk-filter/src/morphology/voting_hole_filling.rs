@@ -76,38 +76,39 @@ impl VotingBinaryHoleFillingImageFilter {
 
         let (rz, ry, rx) = (rz as isize, ry as isize, rx as isize);
         let (snz, sny, snx) = (nz as isize, ny as isize, nx as isize);
-        let mut out = vec![0.0f32; vals.len()];
+        let slab = ny * nx;
+        let bg = self.background_value;
+        // PERF-378-01: parallelise over flat voxel index — clamp-boundary window read
+        // is read-only from vals; no inter-voxel write dependency; bit-identical to serial.
+        let out = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |flat| {
+            if vals[flat] == fg {
+                return fg;
+            }
+            let iz = flat / slab;
+            let rem = flat - iz * slab;
+            let iy = rem / nx;
+            let ix = rem - iy * nx;
 
-        for iz in 0..nz {
-            for iy in 0..ny {
-                for ix in 0..nx {
-                    let p = (iz * ny + iy) * nx + ix;
-                    if vals[p] == fg {
-                        out[p] = fg; // foreground always survives
-                        continue;
-                    }
-                    let mut count = 0usize;
-                    for dz in -rz..=rz {
-                        let zz = (iz as isize + dz).clamp(0, snz - 1) as usize;
-                        for dy in -ry..=ry {
-                            let yy = (iy as isize + dy).clamp(0, sny - 1) as usize;
-                            let base = (zz * ny + yy) * nx;
-                            for dx in -rx..=rx {
-                                let xx = (ix as isize + dx).clamp(0, snx - 1) as usize;
-                                if vals[base + xx] == fg {
-                                    count += 1;
-                                }
-                            }
+            let mut count = 0usize;
+            for dz in -rz..=rz {
+                let zz = (iz as isize + dz).clamp(0, snz - 1) as usize;
+                for dy in -ry..=ry {
+                    let yy = (iy as isize + dy).clamp(0, sny - 1) as usize;
+                    let base = (zz * ny + yy) * nx;
+                    for dx in -rx..=rx {
+                        let xx = (ix as isize + dx).clamp(0, snx - 1) as usize;
+                        if vals[base + xx] == fg {
+                            count += 1;
                         }
                     }
-                    out[p] = if count >= threshold {
-                        fg
-                    } else {
-                        self.background_value
-                    };
                 }
             }
-        }
+            if count >= threshold {
+                fg
+            } else {
+                bg
+            }
+        });
         rebuild(out, dims, image)
     }
 

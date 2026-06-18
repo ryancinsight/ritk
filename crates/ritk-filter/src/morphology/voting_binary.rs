@@ -91,55 +91,48 @@ impl VotingBinaryImageFilter {
         let fg = f32::from(self.foreground_value);
         let bg = self.background_value;
 
-        let mut out = vec![bg; nz * ny * nx];
+        let slab = ny * nx;
+        // PERF-378-01: parallelise over flat voxel index — each voxel reads a window from
+        // vals (read-only) with no inter-voxel output dependencies; bit-identical to serial.
+        let out = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
+            let iz = flat / slab;
+            let rem = flat - iz * slab;
+            let iy = rem / nx;
+            let ix = rem - iy * nx;
 
-        for iz in 0..nz {
-            for iy in 0..ny {
-                for ix in 0..nx {
-                    let v = vals[iz * ny * nx + iy * nx + ix];
-                    let is_fg = (v - fg).abs() < 1e-5;
+            let v = vals[flat];
+            let is_fg = (v - fg).abs() < 1e-5;
 
-                    let z0 = iz.saturating_sub(r);
-                    let z1 = (iz + r).min(nz - 1);
-                    let y0 = iy.saturating_sub(r);
-                    let y1 = (iy + r).min(ny - 1);
-                    let x0 = ix.saturating_sub(r);
-                    let x1 = (ix + r).min(nx - 1);
-                    // Count foreground voxels in the (2r+1)³ neighbourhood
-                    // INCLUDING the centre — ITK `VotingBinaryImageFilter` counts
-                    // the whole neighbourhood, so a foreground centre contributes
-                    // to its own survival count. (Excluding it diverged from
-                    // `sitk.VotingBinary` by 1 on the survival decision.)
-                    // Out-of-bounds positions are background (contribute 0),
-                    // which the clamped window range already encodes.
-                    let mut fg_count = 0usize;
-                    for kz in z0..=z1 {
-                        for ky in y0..=y1 {
-                            for kx in x0..=x1 {
-                                let kv = vals[kz * ny * nx + ky * nx + kx];
-                                if (kv - fg).abs() < 1e-5 {
-                                    fg_count += 1;
-                                }
-                            }
+            let z0 = iz.saturating_sub(r);
+            let z1 = (iz + r).min(nz - 1);
+            let y0 = iy.saturating_sub(r);
+            let y1 = (iy + r).min(ny - 1);
+            let x0 = ix.saturating_sub(r);
+            let x1 = (ix + r).min(nx - 1);
+
+            let mut fg_count = 0usize;
+            for kz in z0..=z1 {
+                for ky in y0..=y1 {
+                    for kx in x0..=x1 {
+                        if (vals[kz * slab + ky * nx + kx] - fg).abs() < 1e-5 {
+                            fg_count += 1;
                         }
                     }
-
-                    out[iz * ny * nx + iy * nx + ix] = if !is_fg {
-                        if fg_count >= birth {
-                            fg
-                        } else {
-                            bg
-                        }
-                    } else {
-                        if fg_count >= survival {
-                            fg
-                        } else {
-                            bg
-                        }
-                    };
                 }
             }
-        }
+
+            if !is_fg {
+                if fg_count >= birth {
+                    fg
+                } else {
+                    bg
+                }
+            } else if fg_count >= survival {
+                fg
+            } else {
+                bg
+            }
+        });
 
         let shape = Shape::new([nz, ny, nx]);
         let data = TensorData::new(out, shape);
