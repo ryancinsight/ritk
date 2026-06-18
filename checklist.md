@@ -16,6 +16,11 @@
 - [x] COMMIT [patch]: `ca5b49a5 perf(ritk-filter): parallelise BilateralFilter over z-slices`
 - [x] PERF-377-03 [patch]: **Rank/Percentile filter SSOT consolidation** — promoted duplicated `rank_select_3d` / `percentile_3d` algorithm bodies to a single canonical `rank::kernel::neighborhood_rank_3d`; both `RankFilter::apply` and `PercentileFilter::apply` now translate their public parameter to a `usize rank_idx` and delegate. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. All 14 existing rank/percentile tests still pass; behaviour bit-equivalent.
 - [x] COMMIT [patch]: `cb671b64 refactor(ritk-filter): consolidate rank/percentile kernel to SSOT`
+- [x] PERF-377-BENCH [patch]: **MedianFilter criterion benchmark** — new `crates/ritk-filter/benches/median.rs` with three sizes (16³, 32³, 64³) at r=2. Recorded baselines (release build, sample size 20-30): 197.47 µs / 1.4888 ms / 9.9397 ms. Captures the per-size threshold any future 3-D Huang sliding-histogram must beat before being accepted. Pattern matches `benches/bilateral.rs`.
+- [x] COMMIT [patch]: `47a0e794 perf(ritk-filter): add criterion bench for MedianFilter at r=2`
+- [x] PERF-377-02-LUT-DOC [patch]: **Range-LUT ε-bound derivation** — module-level doc on `bilateral.rs` documents the analytical derivation showing a full quantised range LUT cannot meet the existing `1e-5` test tolerance (would require qscale > 728k bins/unit). Three honest alternatives enumerated (hybrid exp+LUT, loosen test tolerance, or keep current path) with their trade-offs; the parallelism-only implementation at `ca5b49a5` remains the final landing for PERF-377-02.
+- [x] COMMIT [patch]: `462a6b63 docs(ritk-filter): record range-LUT epsilon-bound analysis on BilateralFilter`
+- [x] PERF-377-FULL-DEFER [patch]: **Huang 3-D sliding-histogram MedianFilter** explicitly DOWN-SCOPED to a future backlog item. The 3-D Huang is estimated ~200 LOC of intricate bookkeeping; 2-D Huang is a regression (`O(r²·n_bins)` > current `O(r³)` for typical n_bins), and existing brute-force parallelism already meets 64³ = ~10 ms at r=2 (median bench baseline). Vote-with-feet: future work items may reopen if (a) a >10⁶-voxel workload appears, or (b) the algorithm is migrated into `rank::kernel::neighborhood_rank_3d` where it amortises across rank/percentile filters. PERF-377-01 partial (clamp-hoist) at `c8048c5d` and the median bench at `47a0e794` are the bounded Sprint 377 deliverable.
 
 ### Verification gate
 - [x] `cargo nextest run -p ritk-segmentation -E 'test(threshold)'` → 120/120 passed
@@ -25,10 +30,21 @@
 - [x] `cargo bench -p ritk-filter --bench bilateral -- apply/16x16x16` → ~1.2 ms median
 - [x] `cargo bench -p ritk-filter --bench bilateral -- apply/32x32x32` → ~11.4 ms median
 - [x] `cargo bench -p ritk-filter --bench bilateral -- apply/64x64x64` → ~76 ms median (linear scaling confirms compute-bound)
+- [x] `cargo bench -p ritk-filter --bench median` → recorded baselines:
+  - `median_3d/apply/16x16x16` ~197.47 µs
+  - `median_3d/apply/32x32x32` ~1.4888 ms
+  - `median_3d/apply/64x64x64` ~9.9397 ms
+- [x] `cargo build -p ritk-filter --lib` → clean (1 dead-code warning in `crates/ritk-filter/src/discrete_gaussian.rs` is owned by the parallel agent's `DiscreteGaussianDerivative` port and is not in this session's scope)
+- [x] `cargo test -p ritk-filter --lib 'median::'` → 6/6 median tests pass (brute-force bitwise-equivalence held)
+- [x] `cargo test -p ritk-filter --lib 'bilateral::'` → 5/5 bilateral tests pass (1e-5 ε unchanged)
 
 ### Deferred / carry-forward (next increments)
-- [ ] PERF-377-01 (full) [patch→[minor]?]: **Huang sliding-histogram MedianFilter full algorithm** — incremental 2-D XY sliding to reach O(N·r²). Requires `window_hist[n_bins]` maintained across z-steps with row_in/row_out column-hist updates (Perreault-Hebert 2007 §3.2). Defer until parallel agent clears median.rs/Cargo.toml ownership; see PERF-377-01 partial above for delivered clamp-hoist micro-optimisation.
-- [ ] PERF-377-02 (range LUT) [patch→[minor]?]: **BilateralFilter range LUT** — add a 1-D `range_w[|dr|]` LUT keyed on quantized intensity delta with analytical-exp fallback for |dr| > table_max. Currently commit-time deferred because σ_r quantization error vs the brute-force 1e-5 epsilon bound requires analytical justification; cost model passes only for σ_r > ~50 (where |dr| max is small relative to LUT span). Future tracked separately from the parallelism already landed.
+- [ ] PERF-377-01-HUANG3D [patch→[minor]?] (deferred-with-rationale): **Huang 3-D sliding-histogram MedianFilter** — Perreault-Hebert 2007 §3.2 with `window_hist[n_bins]` + row_in/row_out column-histogram updates. Reopen condition: (a) >10⁶-voxel workload where the algorithm is the bottleneck, or (b) algorithm promotion into the `rank::kernel::neighborhood_rank_3d` SSOT to amortise across rank/percentile. Existing brute-force parallelism is already 10ms at 64³ r=2; 2-D Huang would be a regression (O(r²·n_bins) > current O(r³) at typical n_bins). See `benches/median.rs` for the per-size baseline threshold.
+- [ ] PERF-377-02-RANGE-LUT [patch→[minor]?] (gate-blocked by test contract): **BilateralFilter range LUT** — module-level doc on `bilateral.rs` carries the ε-bound derivation; see commit `462a6b63`. A quantised `range_w[|dr|]` LUT over the full intensity range would need qscale > 728k bins/unit to hold the existing 1e-5 test epsilon for σ_r=50. Three options documented in code:
+  1. Hybrid exp + LUT (≤ 2× at typical σ_r)
+  2. Loosen test tolerance to a derived ~0.05 HU bound (test-contract change, [minor])
+  3. Keep current `exp`-per-neighbour path (default)
+  Reopen when (1) or (2) are justified by an explicit workload or test-contract change.
 - [ ] DOC-377-01 [patch]: 16 pre-existing intra-doc-link warnings (rustdoc unresolved link, public docs → private items) accumulated from Sprint 393-395 commits; gated but non-blocking.
 - [ ] FMT-377-01 [patch]: working-tree fmt-only diffs from cumulative agent updates (long-line rewraps). Now ~30 files per current `git status`; pure whitespace; next `cargo fmt --all` by next agent or this session will close.
 

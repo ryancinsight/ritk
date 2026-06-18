@@ -7,6 +7,15 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+### Added (Sprint 377 bench)
+- `ritk-filter`: criterion benchmark `benches/median.rs` — `MedianFilter::apply` per-size baseline at r=2. Recorded measurements (release build, x86-64 AVX2, sample size 20–30): 16³ ≈ 197.47 µs, 32³ ≈ 1.4888 ms, 64³ ≈ 9.9397 ms. Linear 2³-volume growth gives ~7.5× / 6.7× elapsed-time growth, confirming the z-slice parallelism amortises. Captures the per-size threshold a future 3-D Huang sliding-histogram implementation must beat before being admitted as the new SSOT kernel.
+
+### Documentation
+- `ritk-filter`: module-level performance note on `bilateral.rs` records the analytical ε-bound derivation for the deferred PERF-377-02 range-LUT carry-forward. Quantisation analysis shows `qscale > 728 000` bins/unit is required for the existing `1e-5` uniform-image test epsilon at σ_r = 50 — i.e. millions of f64 entries per σ_r, not a real trade. Three honest alternatives documented: (1) hybrid exp + LUT (≤ 2× speedup), (2) loosen test tolerance to a derived ~0.05 HU bound (test-contract change, `[minor]`), (3) keep the current `exp`-per-neighbour path. PERF-377-02 lands at the parallelism-only stage; the doc is the rationale for leaving the per-neighbour `exp` in place.
+
+### Deferred (vote-with-feet)
+- PERF-377-01-HUANG3D — 3-D Huang sliding-histogram MedianFilter. Empirical 64³ at r=2 is already ~10 ms, well below typical workflow thresholds; 2-D Huang is a regression (`O(r²·n_bins)` > current `O(r³)` at typical n_bins); 3-D Huang costs ~200 LOC of intricate bookkeeping. Reopen condition: >10⁶-voxel workload where the algorithm is the bottleneck, or algorithm promotion into `rank::kernel::neighborhood_rank_3d` to amortise across rank/percentile.
+
 ## [0.102.54] — 2026-06-18 (Sprint 468: DiscreteGaussianDerivative parity)
 
 ### Added
