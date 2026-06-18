@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use ritk_filter::{
     edge::GaussianSigma, CannyEdgeDetector, DerivativeImageFilter, GradientMagnitudeFilter,
     LaplacianFilter, LaplacianOfGaussianFilter, LaplacianSharpeningFilter, SobelFilter,
+    ZeroCrossingBasedEdgeDetectionFilter,
 };
 
 /// Directional derivative (central differences) along `direction` (sitk axis:
@@ -117,6 +118,46 @@ pub fn laplacian_sharpening(
     let out =
         py.allow_threads(|| LaplacianSharpeningFilter::new(use_image_spacing).apply(arc.as_ref()));
     Ok(into_py_image(out))
+}
+
+/// Zero-crossing-based edge detection, matching
+/// `SimpleITK.ZeroCrossingBasedEdgeDetection`.
+///
+/// Pipeline: DiscreteGaussian (isotropic `variance`, `maximum_error`) → Laplacian
+/// → zero-crossing detection. Edge voxels take `foreground_value`, the rest
+/// `background_value`.
+///
+/// Args:
+///     image: Input PyImage.
+///     variance: Isotropic Gaussian variance, physical units (default 1.0).
+///     maximum_error: Gaussian kernel truncation error (default 0.01).
+///     foreground_value: Label for edge voxels (default 1.0).
+///     background_value: Label for non-edge voxels (default 0.0).
+///
+/// Returns:
+///     Binary edge PyImage, same shape and metadata as input.
+#[pyfunction]
+#[pyo3(signature = (image, variance=1.0_f64, maximum_error=0.01_f64, foreground_value=1.0_f32, background_value=0.0_f32))]
+pub fn zero_crossing_based_edge_detection(
+    py: Python<'_>,
+    image: &PyImage,
+    variance: f64,
+    maximum_error: f64,
+    foreground_value: f32,
+    background_value: f32,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        ZeroCrossingBasedEdgeDetectionFilter::new(
+            variance,
+            maximum_error,
+            foreground_value,
+            background_value,
+        )
+        .apply(arc.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Apply the Canny edge detector to an image.

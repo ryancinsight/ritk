@@ -9,6 +9,7 @@ pub mod log;
 pub mod prewitt;
 pub mod separable_gradient;
 pub mod sobel;
+pub mod zero_crossing_based_edge;
 
 pub use canny::CannyEdgeDetector;
 pub use derivative::DerivativeImageFilter;
@@ -23,3 +24,4 @@ pub use separable_gradient::{
     convolve_1d_axis, GradientKernel, PrewittKernel, SeparableGradientFilter, SobelKernel,
 };
 pub use sobel::SobelFilter;
+pub use zero_crossing_based_edge::ZeroCrossingBasedEdgeDetectionFilter;

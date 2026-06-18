@@ -2095,3 +2095,22 @@ def test_cmake_laplacian_sharpening(spacing, use_image_spacing):
             ri, use_image_spacing=use_image_spacing).to_numpy())
     diff = float(_np.abs(so.astype(_np.float64) - ro.astype(_np.float64)).max())
     assert diff == 0.0, f"LaplacianSharpening differs from sitk: maxdiff {diff:.2e}"
+
+
+@pytest.mark.parametrize("variance", [1.0, 2.0, 0.5], ids=["v1", "v2", "v0.5"])
+def test_cmake_zero_crossing_based_edge_detection(variance):
+    """ZeroCrossingBasedEdgeDetection: DiscreteGaussian → Laplacian → ZeroCrossing
+    mini-pipeline. ritk `filter.zero_crossing_based_edge_detection` vs
+    `sitk.ZeroCrossingBasedEdgeDetection`. Bit-exact: each stage is the canonical
+    ritk filter already float-exact to its sitk counterpart, so the composed
+    binary edge map matches exactly (label-for-label)."""
+    import numpy as _np
+    _np.random.seed(0)
+    img = (_np.random.rand(8, 10, 9).astype(_np.float32)) * 100.0
+    si = sitk.GetImageFromArray(img)
+    so = sitk.GetArrayFromImage(
+        sitk.ZeroCrossingBasedEdgeDetection(si, variance, 1, 0, 0.01))
+    ri = ritk.Image(_np.ascontiguousarray(img))
+    ro = _np.asarray(
+        ritk.filter.zero_crossing_based_edge_detection(ri, variance=variance).to_numpy())
+    assert int((so != ro).sum()) == 0, "edge map differs from sitk label-for-label"

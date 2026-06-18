@@ -101,6 +101,7 @@ pub use edge::{
     CannyEdgeDetector, DerivativeImageFilter, GaussianSigma, GradientImageFilter,
     GradientMagnitudeFilter, GradientRecursiveGaussianImageFilter, LaplacianFilter,
     LaplacianOfGaussianFilter, LaplacianSharpeningFilter, SobelFilter,
+    ZeroCrossingBasedEdgeDetectionFilter,
 };
 pub use vesselness::{
     FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter, VesselPolarity,
