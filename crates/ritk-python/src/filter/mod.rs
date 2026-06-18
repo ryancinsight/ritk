@@ -176,6 +176,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crop, &m)?)?;
     m.add_function(wrap_pyfunction!(cyclic_shift, &m)?)?;
     m.add_function(wrap_pyfunction!(join_series, &m)?)?;
+    m.add_function(wrap_pyfunction!(tile, &m)?)?;
     m.add_function(wrap_pyfunction!(expand, &m)?)?;
     m.add_function(wrap_pyfunction!(zero_flux_neumann_pad, &m)?)?;
     m.add_function(wrap_pyfunction!(permute_axes, &m)?)?;

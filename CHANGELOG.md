@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [0.102.3] — 2026-06-17 (Sprint 416: Tile / montage)
+
+### Added
+- `ritk-python`: `filter.tile(images, layout, default_value=0.0)` — tile (montage) same-sized images into a grid, `layout = (nx, ny, nz)` tiles per axis (sitk x/y/z), filled x→y→z with `default_value` in empty cells (ITK `TileImageFilter` / `sitk.Tile`). Layout convention pinned by a sitk probe. **Bit-exact** to sitk on cthead-derived slices at 2×1, 1×2, and 2×2 grids. `.pyi` stub + cmake parity cases; coverage 183/298.
+
 ## [0.102.2] — 2026-06-17 (Sprint 415: ChangeLabel)
 
 ### Added

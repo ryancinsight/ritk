@@ -17,6 +17,74 @@ use ritk_filter::{
 };
 use ritk_image::Image;
 
+/// Tile (montage) a list of same-sized images into a grid. `layout = (nx, ny, nz)`
+/// gives the number of tiles along each axis (sitk x/y/z convention); images fill
+/// the grid in x-then-y-then-z order. Empty cells take `default_value`.
+///
+/// ITK Parity: TileImageFilter (`sitk.Tile`, same-size inputs, explicit layout).
+#[pyfunction]
+#[pyo3(signature = (images, layout, default_value=0.0))]
+pub fn tile(
+    py: Python<'_>,
+    images: Vec<Py<PyImage>>,
+    layout: (usize, usize, usize),
+    default_value: f32,
+) -> RitkResult<PyImage> {
+    if images.is_empty() {
+        return Err(RitkPyError::value("tile: needs at least one image"));
+    }
+    let (nx, ny, nz) = layout;
+    if nx == 0 || ny == 0 || nz == 0 {
+        return Err(RitkPyError::value("tile: layout dimensions must be ≥ 1"));
+    }
+    let arcs: Vec<_> = images
+        .iter()
+        .map(|p| std::sync::Arc::clone(&p.bind(py).borrow().inner))
+        .collect();
+    let [hz, hy, hx] = arcs[0].shape();
+    for (i, a) in arcs.iter().enumerate() {
+        if a.shape() != [hz, hy, hx] {
+            return Err(RitkPyError::value(format!(
+                "tile: image {i} shape {:?} != {:?} (same-size tiling only)",
+                a.shape(),
+                [hz, hy, hx]
+            )));
+        }
+    }
+    // Output grid: nz tiles in z, ny in y, nx in x.
+    let (oz, oy, ox) = (nz * hz, ny * hy, nx * hx);
+    let out = py.allow_threads(|| {
+        let mut out = vec![default_value; oz * oy * ox];
+        for (i, a) in arcs.iter().enumerate() {
+            let tz = i / (nx * ny);
+            if tz >= nz {
+                break; // beyond the grid capacity
+            }
+            let ty = (i / nx) % ny;
+            let tx = i % nx;
+            let data = a.data_slice();
+            for z in 0..hz {
+                for y in 0..hy {
+                    for x in 0..hx {
+                        let oi = (tz * hz + z) * oy * ox + (ty * hy + y) * ox + (tx * hx + x);
+                        out[oi] = data[z * hy * hx + y * hx + x];
+                    }
+                }
+            }
+        }
+        out
+    });
+    let device = NdArrayDevice::default();
+    let tensor =
+        Tensor::<Backend, 3>::from_data(TensorData::new(out, Shape::new([oz, oy, ox])), &device);
+    Ok(into_py_image(Image::new(
+        tensor,
+        *arcs[0].origin(),
+        *arcs[0].spacing(),
+        *arcs[0].direction(),
+    )))
+}
+
 /// Stack a list of images along the Z axis (concatenate `[zᵢ, Y, X]` volumes
 /// into `[Σzᵢ, Y, X]`). All inputs must share the same `Y`/`X` extent.
 ///

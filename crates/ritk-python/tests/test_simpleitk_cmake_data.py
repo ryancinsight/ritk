@@ -1097,6 +1097,23 @@ def test_cmake_expand_on_upstream_data(fy, fx):
     assert np.abs(r - s).max() < 1e-3, f"Expand fy={fy},fx={fx}: maxdiff {np.abs(r-s).max():.2e}"
 
 
+@pytest.mark.parametrize("layout", [(2, 1, 1), (1, 2, 1), (2, 2, 1)],
+                         ids=["2x1", "1x2", "2x2"])
+def test_cmake_tile_on_upstream_data(layout):
+    # Montage same-sized images into a grid. ITK Parity: TileImageFilter.
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    arr = sitk.GetArrayFromImage(si).astype(np.float32)
+    n = layout[0] * layout[1] * layout[2]
+    slices = [arr + 10.0 * k for k in range(n)]
+    ris = [ritk.Image(np.ascontiguousarray(s[None])) for s in slices]
+    sis = [sitk.GetImageFromArray(s) for s in slices]
+    r = np.squeeze(np.asarray(ritk.filter.tile(ris, layout, 0.0).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.Tile(sis, list(layout), 0.0)).astype(np.float64))
+    assert r.shape == s.shape and np.array_equal(r, s), \
+        f"Tile {layout}: differs from sitk (shapes {r.shape} vs {s.shape})"
+
+
 def test_cmake_join_series_on_upstream_data():
     # Stack three 2-D slices (derived from cthead) into a 3-D volume.
     # ITK Parity: JoinSeriesImageFilter (sitk.JoinSeries).

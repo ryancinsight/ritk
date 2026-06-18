@@ -432,6 +432,9 @@ def cyclic_shift(image: Image, shift: tuple[int, int, int]) -> Image:
 def join_series(images: list[Image]) -> Image:
     """Stack a list of [zi,Y,X] images along Z into [sum zi, Y, X]. ITK Parity: JoinSeriesImageFilter."""
     ...
+def tile(images: list[Image], layout: tuple[int, int, int], default_value: float = 0.0) -> Image:
+    """Tile same-sized images into a grid (layout = nx,ny,nz tiles per axis). ITK Parity: TileImageFilter."""
+    ...
 def expand(image: Image, factors: tuple[int, int, int]) -> Image:
     """Integer-factor upsample (z,y,x) via linear interpolation. ITK Parity: ExpandImageFilter."""
     ...
