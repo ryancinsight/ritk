@@ -484,6 +484,17 @@ def test_cmake_scalar_connected_component_on_upstream_data():
         "ScalarConnectedComponent partition differs from sitk"
 
 
+def test_cmake_edge_potential_on_upstream_data():
+    """EdgePotential = exp(-|gradient|): applied to the gradient vector field of
+    RA-Float, float-exact to ITK's EdgePotentialImageFilter."""
+    ri, si = _pair("RA-Float.nrrd")
+    r = np.asarray(ritk.filter.edge_potential(ritk.filter.gradient(ri)).to_numpy(), np.float64)
+    s = sitk.GetArrayFromImage(sitk.EdgePotential(sitk.Gradient(si))).astype(np.float64)
+    m = 3
+    rel = np.abs(r[:, m:-m, m:-m] - s[:, m:-m, m:-m]).max() / max(np.abs(s).max(), 1e-9)
+    assert rel < 1e-6, f"EdgePotential: rel {rel:.2e}"
+
+
 def test_cmake_fft_convolution_on_upstream_data():
     """FFT-based convolution with a small box kernel, compared to ITK's
     FFTConvolutionImageFilter. Float-exact (FFT rounding)."""

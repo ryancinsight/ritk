@@ -154,6 +154,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(crate::color::label_overlay, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::vector_index_selection_cast, &m)?)?;
     m.add_function(wrap_pyfunction!(crate::color::vector_magnitude, &m)?)?;
+    m.add_function(wrap_pyfunction!(crate::color::edge_potential, &m)?)?;
     // Morphology
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;

@@ -296,16 +296,40 @@ pub fn vector_index_selection_cast(image: &PyColorImage, index: usize) -> RitkRe
 #[pyfunction]
 pub fn vector_magnitude(image: &PyColorImage) -> PyImage {
     let [d, r, c, _ch] = image.inner.shape();
-    let comps = image.inner.into_component_buffers();
-    let n = d * r * c;
+    let mag = vector_magnitude_buffer(&image.inner.into_component_buffers(), d * r * c);
+    into_py_image(scalar_image(
+        mag,
+        [d, r, c],
+        *image.inner.origin(),
+        *image.inner.spacing(),
+        *image.inner.direction(),
+    ))
+}
+
+/// Per-voxel Euclidean magnitude `sqrt(Σ_k c_k²)` of the channel buffers.
+fn vector_magnitude_buffer(comps: &[Vec<f32>], n: usize) -> Vec<f32> {
     let mut mag = vec![0.0_f32; n];
-    for buf in &comps {
+    for buf in comps {
         for (i, &v) in buf.iter().enumerate() {
             mag[i] += v * v;
         }
     }
     for m in &mut mag {
         *m = m.sqrt();
+    }
+    mag
+}
+
+/// Edge potential `exp(−|vector|)` of a vector (gradient) image: small where the
+/// gradient is large (edges), near 1 in flat regions.
+///
+/// ITK Parity: EdgePotentialImageFilter (`sitk.EdgePotential`).
+#[pyfunction]
+pub fn edge_potential(image: &PyColorImage) -> PyImage {
+    let [d, r, c, _ch] = image.inner.shape();
+    let mut mag = vector_magnitude_buffer(&image.inner.into_component_buffers(), d * r * c);
+    for m in &mut mag {
+        *m = (-*m).exp();
     }
     into_py_image(scalar_image(
         mag,

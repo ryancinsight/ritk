@@ -343,6 +343,9 @@ def label_overlay(image: Image, label: Image, opacity: float = 0.5, background: 
 def vector_index_selection_cast(image: ColorImage, index: int) -> Image:
     """Extract one component of a vector image as a scalar image. ITK Parity: VectorIndexSelectionCastImageFilter."""
     ...
+def edge_potential(image: ColorImage) -> Image:
+    """Edge potential exp(-|vector|) of a vector (gradient) image. ITK Parity: EdgePotentialImageFilter."""
+    ...
 def vector_magnitude(image: ColorImage) -> Image:
     """Per-voxel Euclidean magnitude of a vector image. ITK Parity: VectorMagnitudeImageFilter."""
     ...
