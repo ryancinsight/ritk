@@ -419,6 +419,38 @@ def test_cmake_scalar_to_rgb_colormap_on_upstream_data():
     assert d == 0.0, f"ScalarToRGBColormap/Grey: max abs diff {d}"
 
 
+def test_cmake_grayscale_geodesic_dilate_on_upstream_data():
+    """GrayscaleGeodesicDilate (full reconstruction, runOneIteration=False, the
+    default) == ritk morphological_reconstruction(mode='dilation'). Bit-exact."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    ga = sitk.GetArrayFromImage(si)
+    marker = np.maximum(ga - 30.0, 0.0).astype(np.float32)  # marker ≤ mask
+    mk = sitk.GetImageFromArray(marker)
+    mk.CopyInformation(si)
+    rmarker = ritk.Image(np.ascontiguousarray(marker[None]))
+    r = np.squeeze(np.asarray(
+        ritk.filter.morphological_reconstruction(rmarker, ri, "dilation").to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(sitk.GrayscaleGeodesicDilate(mk, si, False)).astype(np.float64)
+    assert np.array_equal(r, s), "GrayscaleGeodesicDilate differs from sitk"
+
+
+def test_cmake_grayscale_geodesic_erode_on_upstream_data():
+    """GrayscaleGeodesicErode (full reconstruction, runOneIteration=False) ==
+    ritk morphological_reconstruction(mode='erosion'). Bit-exact."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    ga = sitk.GetArrayFromImage(si)
+    marker = np.minimum(ga + 30.0, 255.0).astype(np.float32)  # marker ≥ mask
+    mk = sitk.GetImageFromArray(marker)
+    mk.CopyInformation(si)
+    rmarker = ritk.Image(np.ascontiguousarray(marker[None]))
+    r = np.squeeze(np.asarray(
+        ritk.filter.morphological_reconstruction(rmarker, ri, "erosion").to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(sitk.GrayscaleGeodesicErode(mk, si, False)).astype(np.float64)
+    assert np.array_equal(r, s), "GrayscaleGeodesicErode differs from sitk"
+
+
 def test_cmake_fft_convolution_on_upstream_data():
     """FFT-based convolution with a small box kernel, compared to ITK's
     FFTConvolutionImageFilter. Float-exact (FFT rounding)."""
