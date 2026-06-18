@@ -134,6 +134,14 @@ _CASES = [
          ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0), 1, 5),
      lambda si: sitk.VotingBinaryIterativeHoleFilling(
          sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0), [1, 1, 1], 5), 0.0),
+    # SimpleContourExtractor == ritk binary_contour with 8-connectivity
+    # (fully_connected=True): a foreground voxel with any background neighbour in
+    # the radius-1 box. No new code — the existing contour core already matches.
+    ("SimpleContourExtractor/cthead", "cthead1.png",
+     lambda ri: ritk.filter.binary_contour(
+         ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0), True),
+     lambda si: sitk.SimpleContourExtractor(
+         sitk.BinaryThreshold(si, 40.0, 1e9, 1, 0)), 0.0),
     ("BinomialBlur/defaults", "RA-Float.nrrd",
      lambda ri: ritk.filter.binomial_blur(ri, 1),
      lambda si: sitk.BinomialBlur(si, 1), 1e-6),
