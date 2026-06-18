@@ -251,3 +251,26 @@ fn test_3d_two_sphere_seeds_produce_two_basins() {
         "seed 2 must be preserved"
     );
 }
+
+/// `mark_watershed_line = false`: collision voxels get a basin label instead of
+/// becoming a 0 line, so a two-basin relief has no label-0 voxels.
+#[test]
+fn test_no_watershed_line_assigns_every_voxel() {
+    // W-shaped 1-D relief; markers at the two minima.
+    let grad = make_image_3d(vec![2.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 2.0], [1, 1, 9]);
+    let markers = make_image_3d(vec![0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0], [1, 1, 9]);
+    let with_line = MarkerControlledWatershed::new()
+        .apply(&grad, &markers)
+        .unwrap();
+    let without = MarkerControlledWatershed::new()
+        .with_mark_watershed_line(false)
+        .apply(&grad, &markers)
+        .unwrap();
+    let wl = get_labels(&with_line);
+    let wo = get_labels(&without);
+    assert!(wl.iter().any(|&v| v == 0.0), "default marks a watershed line");
+    assert!(
+        wo.iter().all(|&v| v == 1.0 || v == 2.0),
+        "no-line mode labels every voxel into a basin"
+    );
+}

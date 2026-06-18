@@ -13,26 +13,26 @@
 //! - Marker image M:   3D label image where M(x) > 0 indicates a seed of basin M(x);
 //!   M(x) = 0 indicates unlabeled voxels.
 //!
-//! 1. **Seed initialization**:
-//!    - Copy all seed labels into the output label map.
-//!    - Enqueue all unlabeled voxels that are 6-adjacent to at least one seed voxel,
-//!      with priority = G(v). Ties in priority broken by linear index (determinism).
+//! Flooding follows `itk::MorphologicalWatershedFromMarkersImageFilter` exactly:
+//! a hierarchical FIFO (`fah`), one FIFO queue per gray level, processed in
+//! ascending gray order, with a neighbour at gray ≤ the current level pushed into
+//! the current level's queue. This is bit-exact to
+//! `sitk.MorphologicalWatershedFromMarkers` across all
+//! (`mark_watershed_line`, `fully_connected`) combinations.
 //!
-//! 2. **Priority-queue flooding** (ascending gradient):
-//!    - Pop voxel v with minimum G(v).
-//!    - If v is already labeled, discard and continue.
-//!    - Collect distinct non-zero labels L among v's labeled 6-connected neighbors.
-//!    - |L| = 1 → assign v = the single label.
-//!    - |L| > 1 → assign v = 0 (watershed boundary).
-//!    - Push all unlabeled 6-neighbors of v into the queue.
+//! 1. **With watershed lines** (`mark_watershed_line = true`, ITK default): the
+//!    queue holds *unlabelled* voxels (the seed neighbours). When popped, a voxel
+//!    takes the single distinct basin label among its neighbours; if two or more
+//!    distinct basins meet it stays label 0 (a watershed line) and does **not**
+//!    propagate, so basins cannot leak across the line.
+//! 2. **Without watershed lines** (`mark_watershed_line = false`): the queue
+//!    holds *labelled* voxels (the seeds). When popped, a voxel propagates its own
+//!    label to unlabelled neighbours — first front to arrive claims a voxel, and
+//!    there are no lines.
 //!
-//! 3. **Output**: label image. Label 0 = watershed boundary or unreachable voxel.
-//!
-//! ## Properties
-//! - Seed labels are preserved: ∀x, M(x) > 0 ⟹ Output(x) = M(x).
-//! - Determinism: (G(v), linear_index(v)) comparison fully orders the queue.
-//! - 6-connectivity: each basin is 6-connected by construction.
-//! - Boundary guarantee: voxels adjacent to two distinct basins become boundaries (0).
+//! Connectivity is face (6-/4-) by default, or full (26-/8-) when
+//! `fully_connected`. Output label 0 = watershed line or unreachable voxel; seed
+//! labels are preserved.
 //!
 //! # Complexity
 //! - O(n log n) dominated by priority-queue operations.
@@ -57,13 +57,36 @@ use std::collections::{BTreeMap, VecDeque};
 /// Floods from explicit seed (marker) regions using a min-heap ordered by
 /// gradient intensity. Regions expand in order of increasing gradient magnitude;
 /// voxels adjacent to two distinct basins become watershed boundaries (label 0).
-#[derive(Debug, Clone)]
-pub struct MarkerControlledWatershed {}
+#[derive(Debug, Clone, Copy)]
+pub struct MarkerControlledWatershed {
+    /// Use 26- (3-D) / 8- (2-D) connectivity instead of face connectivity.
+    /// ITK `FullyConnected`, default `false`.
+    pub fully_connected: bool,
+    /// Mark voxels between two basins as watershed lines (label 0). ITK
+    /// `MarkWatershedLine`, default `true`.
+    pub mark_watershed_line: bool,
+}
 
 impl MarkerControlledWatershed {
-    /// Create a new `MarkerControlledWatershed` filter.
+    /// Create a new `MarkerControlledWatershed` filter (face connectivity,
+    /// watershed lines on).
     pub fn new() -> Self {
-        Self {}
+        Self {
+            fully_connected: false,
+            mark_watershed_line: true,
+        }
+    }
+
+    /// Set 26-/8-connectivity (ITK `FullyConnected`).
+    pub fn with_fully_connected(mut self, fully_connected: bool) -> Self {
+        self.fully_connected = fully_connected;
+        self
+    }
+
+    /// Set whether to mark watershed-line voxels (ITK `MarkWatershedLine`).
+    pub fn with_mark_watershed_line(mut self, mark: bool) -> Self {
+        self.mark_watershed_line = mark;
+        self
     }
 
     /// Apply marker-controlled watershed segmentation.
@@ -94,7 +117,13 @@ impl MarkerControlledWatershed {
 
         let device = gradient.data().device();
 
-        let labels = marker_controlled_flooding(&g_vals, &m_vals, dims_g);
+        let labels = marker_controlled_flooding(
+            &g_vals,
+            &m_vals,
+            dims_g,
+            self.fully_connected,
+            self.mark_watershed_line,
+        );
 
         let tensor =
             Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(dims_g)), &device);
@@ -140,14 +169,39 @@ const FACE_OFFSETS: [(i64, i64, i64); 6] = [
     (0, 0, 1),
 ];
 
+/// All 26 neighbour offsets for a 3D grid (full connectivity); for a `z = 1`
+/// image the `±z` rows are simply out of bounds, reducing to 8-connectivity.
+fn full_offsets() -> Vec<(i64, i64, i64)> {
+    let mut v = Vec::with_capacity(26);
+    for dz in -1..=1 {
+        for dy in -1..=1 {
+            for dx in -1..=1 {
+                if (dz, dy, dx) != (0, 0, 0) {
+                    v.push((dz, dy, dx));
+                }
+            }
+        }
+    }
+    v
+}
+
 /// Marker-controlled watershed flooding on flat voxel arrays.
 ///
 /// Returns a `Vec<f32>` of the same length as `grad_vals` containing integer
 /// labels encoded as `f32`: 0.0 for boundaries/unreachable, ≥1.0 for basins.
+///
+/// Mirrors `itkMorphologicalWatershedFromMarkersImageFilter`: a hierarchical
+/// FIFO (`fah`) per gray level, flooded in ascending gray order. With
+/// `mark_line` the queue holds unlabelled voxels that derive their label from
+/// their neighbours and become a watershed line on collision (and do not
+/// propagate); without it, the queue holds labelled voxels that propagate their
+/// own label, first-front-wins (no lines).
 fn marker_controlled_flooding(
     grad_vals: &[f32],
     marker_vals: &[f32],
     dims: [usize; 3],
+    fully_connected: bool,
+    mark_line: bool,
 ) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
@@ -158,10 +212,8 @@ fn marker_controlled_flooding(
         return Vec::new();
     }
 
-    // Sentinel: u32::MAX = "not yet assigned". 0 = boundary / unreachable.
     const UNLABELED: u32 = u32::MAX;
 
-    // Initialize label map from markers (round f32 label to u32).
     let mut labels: Vec<u32> = marker_vals
         .iter()
         .map(|&v| {
@@ -175,22 +227,20 @@ fn marker_controlled_flooding(
         .collect();
 
     let flat = |z: usize, y: usize, x: usize| z * ny * nx + y * nx + x;
-
-    // ── 1. Hierarchical FIFO (`fah`): one FIFO queue per gray level, processed
-    //    in ascending gray order. A voxel's `status` (in_queue) is set when it is
-    //    first enqueued, so each voxel is queued exactly once. Mirrors ITK's
-    //    `itkMorphologicalWatershedFromMarkersImageFilter` priority structure.
-    let mut in_queue = vec![false; n];
-    let mut fah: BTreeMap<u32, VecDeque<usize>> = BTreeMap::new();
-
-    // Helper to evaluate a voxel's 6-connected in-bounds neighbours.
-    let neighbors = |idx: usize| -> [Option<usize>; 6] {
+    let face;
+    let full;
+    let offsets: &[(i64, i64, i64)] = if fully_connected {
+        full = full_offsets();
+        &full
+    } else {
+        face = FACE_OFFSETS;
+        &face
+    };
+    let for_neighbors = |idx: usize, f: &mut dyn FnMut(usize)| {
         let z = idx / (ny * nx);
         let rem = idx % (ny * nx);
-        let y = rem / nx;
-        let x = rem % nx;
-        let mut out = [None; 6];
-        for (k, &(dz, dy, dx)) in FACE_OFFSETS.iter().enumerate() {
+        let (y, x) = (rem / nx, rem % nx);
+        for &(dz, dy, dx) in offsets {
             let (zi, yi, xi) = (z as i64 + dz, y as i64 + dy, x as i64 + dx);
             if zi >= 0
                 && zi < nz as i64
@@ -199,63 +249,91 @@ fn marker_controlled_flooding(
                 && xi >= 0
                 && xi < nx as i64
             {
-                out[k] = Some(flat(zi as usize, yi as usize, xi as usize));
+                f(flat(zi as usize, yi as usize, xi as usize));
             }
         }
-        out
     };
 
-    // Seed the queue with the unlabeled neighbours of every marker voxel.
-    for idx in 0..n {
-        if labels[idx] == UNLABELED {
-            continue;
-        }
-        for ni in neighbors(idx).into_iter().flatten() {
-            if labels[ni] == UNLABELED && !in_queue[ni] {
-                in_queue[ni] = true;
-                fah.entry(gray_key(grad_vals[ni]))
-                    .or_default()
-                    .push_back(ni);
-            }
-        }
-    }
+    let mut fah: BTreeMap<u32, VecDeque<usize>> = BTreeMap::new();
 
-    // ── 2. Flood ascending gray levels, FIFO within each level. ────────────────
-    while let Some(&current_key) = fah.keys().next() {
-        let mut current_queue = fah.remove(&current_key).unwrap();
-        while let Some(idx) = current_queue.pop_front() {
-            // Distinct non-zero basin labels among the 6-connected neighbours.
-            let mut nbr_labels: [u32; 6] = [0u32; 6];
-            let mut n_distinct = 0usize;
-            for ni in neighbors(idx).into_iter().flatten() {
-                let lbl = labels[ni];
-                if lbl == UNLABELED || lbl == 0 {
-                    continue;
-                }
-                if !nbr_labels[..n_distinct].contains(&lbl) {
-                    nbr_labels[n_distinct] = lbl;
-                    n_distinct += 1;
-                }
-            }
-
-            labels[idx] = match n_distinct {
-                0 => 0,
-                1 => nbr_labels[0],
-                _ => 0,
-            };
-
-            // ITK collision rule: a watershed-line voxel (≥2 distinct basin
-            // neighbours) does NOT propagate — the line is a flooding barrier.
-            if n_distinct >= 2 {
+    if mark_line {
+        // Seed the queue with unlabelled neighbours of every marker voxel.
+        let mut in_queue = vec![false; n];
+        for idx in 0..n {
+            if labels[idx] == UNLABELED {
                 continue;
             }
-
-            // Propagate: a neighbour at gray ≤ the current level is processed in
-            // this level's FIFO (ITK's `GrayVal <= currentValue → currentQueue`);
-            // otherwise it waits in its own (higher) level.
-            for ni in neighbors(idx).into_iter().flatten() {
+            for_neighbors(idx, &mut |ni| {
                 if labels[ni] == UNLABELED && !in_queue[ni] {
                     in_queue[ni] = true;
+                    fah.entry(gray_key(grad_vals[ni])).or_default().push_back(ni);
+                }
+            });
+        }
+
+        while let Some(&current_key) = fah.keys().next() {
+            let mut current_queue = fah.remove(&current_key).unwrap();
+            while let Some(idx) = current_queue.pop_front() {
+                let mut nbr_labels: [u32; 26] = [0u32; 26];
+                let mut n_distinct = 0usize;
+                for_neighbors(idx, &mut |ni| {
+                    let lbl = labels[ni];
+                    if lbl != UNLABELED && lbl != 0 && !nbr_labels[..n_distinct].contains(&lbl) {
+                        nbr_labels[n_distinct] = lbl;
+                        n_distinct += 1;
+                    }
+                });
+
+                labels[idx] = if n_distinct == 1 { nbr_labels[0] } else { 0 };
+
+                // Collision (≥2 basins) → watershed line, does NOT propagate.
+                if n_distinct >= 2 {
+                    continue;
+                }
+                for_neighbors(idx, &mut |ni| {
+                    if labels[ni] == UNLABELED && !in_queue[ni] {
+                        in_queue[ni] = true;
+                        let k = gray_key(grad_vals[ni]);
+                        if k <= current_key {
+                            current_queue.push_back(ni);
+                        } else {
+                            fah.entry(k).or_default().push_back(ni);
+                        }
+                    }
+                });
+            }
+        }
+    } else {
+        // No watershed lines: each marker voxel with an unlabelled neighbour
+        // seeds the queue and propagates its own label; the first front to reach
+        // a voxel claims it.
+        for idx in 0..n {
+            if labels[idx] == UNLABELED {
+                continue;
+            }
+            let mut has_unlabeled = false;
+            for_neighbors(idx, &mut |ni| {
+                if labels[ni] == UNLABELED {
+                    has_unlabeled = true;
+                }
+            });
+            if has_unlabeled {
+                fah.entry(gray_key(grad_vals[idx])).or_default().push_back(idx);
+            }
+        }
+
+        while let Some(&current_key) = fah.keys().next() {
+            let mut current_queue = fah.remove(&current_key).unwrap();
+            while let Some(idx) = current_queue.pop_front() {
+                let marker = labels[idx];
+                let mut to_push: Vec<usize> = Vec::new();
+                for_neighbors(idx, &mut |ni| {
+                    if labels[ni] == UNLABELED {
+                        labels[ni] = marker;
+                        to_push.push(ni);
+                    }
+                });
+                for ni in to_push {
                     let k = gray_key(grad_vals[ni]);
                     if k <= current_key {
                         current_queue.push_back(ni);
@@ -267,16 +345,9 @@ fn marker_controlled_flooding(
         }
     }
 
-    // ── 3. Convert to f32 output (UNLABELED → 0 for unreachable voxels) ────────
     labels
         .iter()
-        .map(|&lbl| {
-            if lbl == UNLABELED {
-                0.0_f32
-            } else {
-                lbl as f32
-            }
-        })
+        .map(|&lbl| if lbl == UNLABELED { 0.0_f32 } else { lbl as f32 })
         .collect()
 }
 

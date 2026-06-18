@@ -375,16 +375,21 @@ pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage>
 ///     RuntimeError: if gradient and markers have different shapes, or if the
 ///                   underlying tensor data cannot be read as f32.
 #[pyfunction]
-#[pyo3(signature = (gradient, markers))]
+#[pyo3(signature = (gradient, markers, mark_watershed_line=true, fully_connected=false))]
 pub fn marker_watershed_segment(
     py: Python<'_>,
     gradient: &PyImage,
     markers: &PyImage,
+    mark_watershed_line: bool,
+    fully_connected: bool,
 ) -> RitkResult<PyImage> {
     let grad_arc = Arc::clone(&gradient.inner);
     let mark_arc = Arc::clone(&markers.inner);
     let result = py.allow_threads(|| {
-        MarkerControlledWatershed::new().apply(grad_arc.as_ref(), mark_arc.as_ref())
+        MarkerControlledWatershed::new()
+            .with_mark_watershed_line(mark_watershed_line)
+            .with_fully_connected(fully_connected)
+            .apply(grad_arc.as_ref(), mark_arc.as_ref())
     });
     result
         .map(into_py_image)

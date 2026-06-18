@@ -966,15 +966,19 @@ def test_marker_watershed_matches_sitk_many_basins():
     ga = sitk.GetArrayFromImage(grad).astype(np.float32)
     rmin = ritk.filter.regional_minima(_ritk(ga[None]), 1.0, 0.0, False)
     markers, _ = ritk.segmentation.connected_components(rmin, 6)
-    rm = np.squeeze(np.asarray(
-        ritk.segmentation.marker_watershed_segment(_ritk(ga[None]), markers).to_numpy())).astype(int)
     ma = np.asarray(markers.to_numpy()).squeeze().astype(np.uint32)
     sm_in = sitk.GetImageFromArray(ma)
     sm_in.CopyInformation(grad)
-    sm = sitk.GetArrayFromImage(
-        sitk.MorphologicalWatershedFromMarkers(grad, sm_in, markWatershedLine=True, fullyConnected=False)
-    ).astype(int)
-    assert np.array_equal(rm, sm), f"{int((rm != sm).sum())} voxels differ from sitk"
+    # All four (markWatershedLine, fullyConnected) combinations must be bit-exact.
+    for ml in (True, False):
+        for fc in (False, True):
+            rm = np.squeeze(np.asarray(ritk.segmentation.marker_watershed_segment(
+                _ritk(ga[None]), markers, ml, fc).to_numpy())).astype(int)
+            sm = sitk.GetArrayFromImage(
+                sitk.MorphologicalWatershedFromMarkers(grad, sm_in, markWatershedLine=ml, fullyConnected=fc)
+            ).astype(int)
+            assert np.array_equal(rm, sm), \
+                f"markLine={ml} fc={fc}: {int((rm != sm).sum())} voxels differ from sitk"
 
 
 def test_staple_matches_sitk():
