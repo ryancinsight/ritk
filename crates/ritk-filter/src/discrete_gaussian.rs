@@ -173,43 +173,11 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     /// `DiscreteGaussian`.
     #[inline]
     fn build_kernel(&self, pixel_variance: f64) -> Vec<f32> {
-        let t = pixel_variance;
-        let et = (-t).exp();
-        let cap = 1.0 - self.maximum_error;
-
-        // One-sided coefficients [g0, g1, g2, …].
-        let mut coeff = vec![et * modified_bessel_i0(t)];
-        let mut sum = coeff[0];
-        let g1 = et * modified_bessel_i1(t);
-        coeff.push(g1);
-        sum += 2.0 * g1;
-        let mut i = 2;
-        while sum < cap {
-            let c = et * modified_bessel_i(i, t);
-            if c <= 0.0 {
-                break;
-            }
-            coeff.push(c);
-            sum += 2.0 * c;
-            if i >= Self::MAX_KERNEL_RADIUS {
-                break;
-            }
-            i += 1;
-        }
-
-        // Symmetric, normalised: [g_n, …, g_1, g_0, g_1, …, g_n] / sum.
-        let radius = coeff.len() - 1;
-        let inv = 1.0 / sum;
-        let mut k = Vec::with_capacity(2 * radius + 1);
-        k.extend(coeff[1..].iter().rev().map(|&c| (c * inv) as f32));
-        k.extend(coeff.iter().map(|&c| (c * inv) as f32));
-        k
+        gaussian_operator_1d(pixel_variance, self.maximum_error)
     }
 
     /// Minimum pixel variance below which the kernel is the identity impulse.
     const VARIANCE_MIN: f64 = 1e-18;
-    /// Maximum one-sided kernel radius (ITK `GaussianOperator` default).
-    const MAX_KERNEL_RADIUS: usize = 32;
 
     #[inline]
     fn apply_inner<const D: usize>(
@@ -248,6 +216,46 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         // Reconstruct tensor.
         Tensor::<B, D>::from_data(TensorData::new(result, Shape::new(dims)), &device)
     }
+}
+
+/// Maximum one-sided kernel radius (ITK `GaussianOperator` default).
+const GAUSSIAN_MAX_KERNEL_RADIUS: usize = 32;
+
+/// Build ITK's discrete Gaussian operator (`GaussianOperator`): the symmetric,
+/// normalised coefficients `g[k] = e^{-t}·I_{|k|}(t)` where `t` is the pixel
+/// variance and `I_n` is the modified Bessel function. One-sided coefficients
+/// accumulate until the running mass reaches `1 − maximum_error`, capped at
+/// radius 32. Float-exact to SimpleITK `DiscreteGaussian`.
+pub(crate) fn gaussian_operator_1d(pixel_variance: f64, maximum_error: f64) -> Vec<f32> {
+    let t = pixel_variance;
+    let et = (-t).exp();
+    let cap = 1.0 - maximum_error;
+
+    let mut coeff = vec![et * modified_bessel_i0(t)];
+    let mut sum = coeff[0];
+    let g1 = et * modified_bessel_i1(t);
+    coeff.push(g1);
+    sum += 2.0 * g1;
+    let mut i = 2;
+    while sum < cap {
+        let c = et * modified_bessel_i(i, t);
+        if c <= 0.0 {
+            break;
+        }
+        coeff.push(c);
+        sum += 2.0 * c;
+        if i >= GAUSSIAN_MAX_KERNEL_RADIUS {
+            break;
+        }
+        i += 1;
+    }
+
+    let radius = coeff.len() - 1;
+    let inv = 1.0 / sum;
+    let mut k = Vec::with_capacity(2 * radius + 1);
+    k.extend(coeff[1..].iter().rev().map(|&c| (c * inv) as f32));
+    k.extend(coeff.iter().map(|&c| (c * inv) as f32));
+    k
 }
 
 // ── Modified Bessel functions (ITK GaussianOperator) ──────────────────────────
@@ -513,7 +521,7 @@ fn convolve_nd_dim_serial(
     }
 }
 
-fn convolve_separable<const D: usize>(
+pub(crate) fn convolve_separable<const D: usize>(
     mut data: Vec<f32>,
     shape: [usize; D],
     kernels: &[Option<Vec<f32>>; D],

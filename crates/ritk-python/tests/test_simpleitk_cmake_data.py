@@ -1291,6 +1291,35 @@ def test_cmake_fast_approximate_rank_on_upstream_data(r):
     assert np.array_equal(r_arr, s), f"FastApproximateRank (median, r={r}) differs from sitk"
 
 
+@pytest.mark.parametrize(
+    "order",
+    [(1, 0, 0), (0, 1, 0), (2, 0, 0), (1, 1, 0), (3, 0, 0), (2, 1, 0)],
+    ids=["dx", "dy", "dxx", "dxy", "dxxx", "dxxy"],
+)
+def test_cmake_discrete_gaussian_derivative_on_upstream_data(order):
+    """DiscreteGaussianDerivative: convolution with the GaussianDerivativeOperator
+    (Bessel discrete Gaussian ⊛ central-difference derivative operator, ITK's
+    clamped-padding construction) along each axis. ritk
+    `filter.discrete_gaussian_derivative` against `sitk.DiscreteGaussianDerivative`
+    (UseImageSpacing False = voxel units) on cthead1 — **float-exact** (rel < 1e-5)
+    across first/second/third and mixed derivative orders. ITK Parity:
+    DiscreteGaussianDerivativeImageFilter."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    ox, oy, oz = order
+    f = sitk.DiscreteGaussianDerivativeImageFilter()
+    f.SetOrder([ox, oy, oz])
+    f.SetVariance(2.0)
+    f.SetMaximumError(0.01)
+    f.SetUseImageSpacing(False)
+    s = np.squeeze(sitk.GetArrayFromImage(f.Execute(si)).astype(np.float64))
+    r = np.squeeze(np.asarray(
+        ritk.filter.discrete_gaussian_derivative(ri, ox, oy, oz, 2.0, 0.01, False).to_numpy(),
+        np.float64))
+    rel = float(np.abs(r - s).max()) / max(float(np.abs(s).max()), 1e-9)
+    assert rel < 1e-5, f"DiscreteGaussianDerivative order={order} rel {rel:.2e}"
+
+
 @pytest.mark.parametrize("img_name", ["cthead1.png", "RA-Float.nrrd"], ids=["2d", "3d"])
 def test_cmake_bspline_decomposition_on_upstream_data(img_name):
     """BSplineDecomposition (cubic, order 3) recovers the B-spline interpolation

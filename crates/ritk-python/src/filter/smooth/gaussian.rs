@@ -81,6 +81,44 @@ pub fn discrete_gaussian(
     into_py_image(result)
 }
 
+/// Apply the discrete Gaussian derivative filter.
+///
+/// Convolves with the 1-D `GaussianDerivativeOperator` of order `order_*` along
+/// each axis (ITK `DiscreteGaussianDerivativeImageFilter`). `order` is given in
+/// SimpleITK `(x, y, z)` order and reversed internally to ritk's axis-major
+/// layout. Float-exact to sitk for `use_image_spacing=False` (voxel units) at all
+/// derivative orders. `use_image_spacing=True` (physical) folds spacing into the
+/// Gaussian width and is verified only for isotropic spacing.
+///
+/// Returns: derivative PyImage with identical shape and spatial metadata.
+#[pyfunction]
+#[pyo3(signature = (image, order_x, order_y, order_z, variance, maximum_error=0.01, use_image_spacing=false))]
+#[allow(clippy::too_many_arguments)]
+pub fn discrete_gaussian_derivative(
+    py: Python<'_>,
+    image: &PyImage,
+    order_x: usize,
+    order_y: usize,
+    order_z: usize,
+    variance: f64,
+    maximum_error: f64,
+    use_image_spacing: bool,
+) -> PyImage {
+    let image = std::sync::Arc::clone(&image.inner);
+    // sitk (x, y, z) → ritk axis-major (z, y, x).
+    let order = [order_z, order_y, order_x];
+    let result = py.allow_threads(|| {
+        ritk_filter::DiscreteGaussianDerivativeFilter::new(
+            variance,
+            order,
+            maximum_error,
+            use_image_spacing,
+        )
+        .apply(image.as_ref())
+    });
+    into_py_image(result)
+}
+
 /// Apply a recursive Gaussian (Young–van Vliet 3rd-order IIR) filter.
 ///
 /// Separable IIR approximation of the Gaussian and its first/second

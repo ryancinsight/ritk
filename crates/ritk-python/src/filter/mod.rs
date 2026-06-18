@@ -48,6 +48,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PySpacingMode>()?;
     m.add_function(wrap_pyfunction!(gaussian_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(discrete_gaussian, &m)?)?;
+    m.add_function(wrap_pyfunction!(discrete_gaussian_derivative, &m)?)?;
     m.add_function(wrap_pyfunction!(median_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(mean_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(binomial_blur, &m)?)?;

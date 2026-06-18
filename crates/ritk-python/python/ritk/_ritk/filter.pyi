@@ -12,6 +12,17 @@ def discrete_gaussian(
     use_image_spacing: bool = True,
 ) -> Image: ...
 def median_filter(image: Image, radius: int = 1) -> Image: ...
+def discrete_gaussian_derivative(
+    image: Image,
+    order_x: int,
+    order_y: int,
+    order_z: int,
+    variance: float,
+    maximum_error: float = 0.01,
+    use_image_spacing: bool = False,
+) -> Image:
+    """Discrete Gaussian derivative (per-axis order, sitk x/y/z). ITK Parity: DiscreteGaussianDerivativeImageFilter."""
+    ...
 def normalize_image(image: Image) -> Image: ...
 def normalize_to_constant(image: Image, constant: float = 1.0) -> Image:
     """Scale so the sum of voxels equals `constant`. ITK Parity: NormalizeToConstantImageFilter."""

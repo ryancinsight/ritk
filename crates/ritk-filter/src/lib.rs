@@ -21,6 +21,7 @@ pub use sources::{
 pub mod bilateral;
 pub mod diffusion;
 pub mod discrete_gaussian;
+pub mod discrete_gaussian_derivative;
 pub mod gaussian;
 pub mod median;
 pub mod noise;
@@ -35,6 +36,7 @@ pub use diffusion::{
     GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, QuadraticConductance,
 };
 pub use discrete_gaussian::{DiscreteGaussianFilter, SpacingMode};
+pub use discrete_gaussian_derivative::DiscreteGaussianDerivativeFilter;
 pub use gaussian::GaussianFilter;
 pub use median::MedianFilter;
 pub use noise::{
