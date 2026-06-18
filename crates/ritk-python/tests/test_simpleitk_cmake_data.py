@@ -614,6 +614,46 @@ def test_cmake_binary_image_to_label_map_on_upstream_data():
         "BinaryImageToLabelMap partition differs from sitk"
 
 
+def test_cmake_label_map_to_rgb_on_upstream_data():
+    """LabelMapToRGB == ritk label_to_rgb (ITK's default 30-colour table) on a
+    cthead1 component map. Bit-exact."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.Cast(sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0)), sitk.sitkUInt16)
+    ril = ritk.Image(np.ascontiguousarray(sitk.GetArrayFromImage(lbl).astype(np.float32)[None]))
+    r = np.squeeze(np.asarray(ritk.filter.label_to_rgb(ril).to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(sitk.LabelMapToRGB(sitk.LabelImageToLabelMap(lbl))).astype(np.float64)
+    assert np.array_equal(r, s), "LabelMapToRGB differs from sitk"
+
+
+def test_cmake_change_label_label_map_on_upstream_data():
+    """ChangeLabelLabelMap == ritk change_label on a cthead1 component map.
+    Bit-exact."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.Cast(sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0)), sitk.sitkUInt16)
+    ril = ritk.Image(np.ascontiguousarray(sitk.GetArrayFromImage(lbl).astype(np.float32)[None]))
+    cmap = {1: 100, 2: 200}
+    r = np.squeeze(np.asarray(ritk.segmentation.change_label(ril, cmap).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.LabelMapToLabel(sitk.ChangeLabelLabelMap(sitk.LabelImageToLabelMap(lbl), cmap))
+    ).astype(np.float64))
+    assert np.array_equal(r, s), "ChangeLabelLabelMap differs from sitk"
+
+
+def test_cmake_aggregate_label_map_on_upstream_data():
+    """AggregateLabelMap merges all labels into one (value 1) — the observable
+    label image equals `binary_threshold(label ≥ 1)`. Bit-exact to sitk."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.Cast(sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0)), sitk.sitkUInt16)
+    ril = ritk.Image(np.ascontiguousarray(sitk.GetArrayFromImage(lbl).astype(np.float32)[None]))
+    r = np.squeeze(np.asarray(ritk.filter.binary_threshold(ril, 0.5, 1e9, 1.0, 0.0).to_numpy(), np.float64))
+    s = np.squeeze(sitk.GetArrayFromImage(
+        sitk.LabelMapToLabel(sitk.AggregateLabelMap(sitk.LabelImageToLabelMap(lbl)))).astype(np.float64))
+    assert np.array_equal(r, s), "AggregateLabelMap differs from sitk"
+
+
 def test_cmake_label_intensity_statistics_on_upstream_data():
     """LabelIntensityStatistics: per-label intensity mean/min/max/std/count of a
     cthead1 connected-component map, matching ITK's
