@@ -583,6 +583,37 @@ def test_cmake_edge_potential_on_upstream_data():
     assert rel < 1e-6, f"EdgePotential: rel {rel:.2e}"
 
 
+def test_cmake_label_map_to_binary_on_upstream_data():
+    """LabelMapToBinary: every labelled (non-background) voxel → foreground. On a
+    label image this is exactly `binary_threshold(label ≥ 1)`; bit-exact to ITK's
+    LabelMapToBinaryImageFilter (via a LabelImageToLabelMap round-trip)."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    lbl = sitk.ConnectedComponent(sitk.BinaryThreshold(si, 40, 1e9, 1, 0))
+    larr = sitk.GetArrayFromImage(lbl).astype(np.float32)
+    ril = ritk.Image(np.ascontiguousarray(larr[None]))
+    r = np.squeeze(np.asarray(
+        ritk.filter.binary_threshold(ril, 0.5, 1e9, 1.0, 0.0).to_numpy(), np.float64))
+    lm = sitk.LabelImageToLabelMap(sitk.Cast(lbl, sitk.sitkUInt16))
+    s = sitk.GetArrayFromImage(sitk.LabelMapToBinary(lm, 0, 1)).astype(np.float64)
+    assert np.array_equal(r, s), "LabelMapToBinary differs from sitk"
+
+
+def test_cmake_binary_image_to_label_map_on_upstream_data():
+    """BinaryImageToLabelMap → LabelMapToLabel produces a connected-component
+    label image; the *partition* is bit-exact to ritk connected_components
+    (label integers are implementation-defined, canonicalised before compare)."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    sm = sitk.Cast(sitk.BinaryThreshold(si, 40, 1e9, 1, 0), sitk.sitkUInt8)
+    rm = ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)
+    s = sitk.GetArrayFromImage(sitk.LabelMapToLabel(sitk.BinaryImageToLabelMap(sm))).astype(np.int64)
+    rl, _ = ritk.segmentation.connected_components(rm, 6)
+    r = np.squeeze(np.asarray(rl.to_numpy(), np.int64))
+    assert np.array_equal(_canonical_labels(r), _canonical_labels(np.squeeze(s))), \
+        "BinaryImageToLabelMap partition differs from sitk"
+
+
 def test_cmake_label_intensity_statistics_on_upstream_data():
     """LabelIntensityStatistics: per-label intensity mean/min/max/std/count of a
     cthead1 connected-component map, matching ITK's
