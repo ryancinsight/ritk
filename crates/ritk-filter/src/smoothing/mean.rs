@@ -30,7 +30,7 @@
 //!
 //! O(N · (2r+1)³) — a separable integral-image approach would be O(N) per
 //! radius, but (2r+1)³ ≤ 125 for default `r=1`, so the direct approach
-//! matches expected workload. Parallelised over Z-slices with Rayon.
+//! matches expected workload. Fanned out over the flat voxel index (moirai).
 //!
 //! # Reference
 //!
@@ -90,29 +90,28 @@ impl MeanImageFilter {
         let ri = r as isize;
         let (nzi, nyi, nxi) = (nz as isize, ny as isize, nx as isize);
         let count = ((2 * r + 1) * (2 * r + 1) * (2 * r + 1)) as f64;
-        let out: Vec<f32> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz, |iz| {
-            (0..ny)
-                .flat_map(move |iy| {
-                    (0..nx).map(move |ix| {
-                        let mut sum = 0.0f64;
-                        for kz in -ri..=ri {
-                            let zc = (iz as isize + kz).clamp(0, nzi - 1) as usize;
-                            for ky in -ri..=ri {
-                                let yc = (iy as isize + ky).clamp(0, nyi - 1) as usize;
-                                for kx in -ri..=ri {
-                                    let xc = (ix as isize + kx).clamp(0, nxi - 1) as usize;
-                                    sum += vals[zc * ny * nx + yc * nx + xc] as f64;
-                                }
-                            }
+        // Fan out over the flat voxel index directly: one output allocation, no
+        // per-slice intermediate `Vec`s. Each output voxel reads only its clamped
+        // window, so the result is bitwise identical to a serial run.
+        let out: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |flat| {
+                let iz = flat / (ny * nx);
+                let rem = flat % (ny * nx);
+                let iy = rem / nx;
+                let ix = rem % nx;
+                let mut sum = 0.0f64;
+                for kz in -ri..=ri {
+                    let zc = (iz as isize + kz).clamp(0, nzi - 1) as usize;
+                    for ky in -ri..=ri {
+                        let yc = (iy as isize + ky).clamp(0, nyi - 1) as usize;
+                        for kx in -ri..=ri {
+                            let xc = (ix as isize + kx).clamp(0, nxi - 1) as usize;
+                            sum += vals[zc * ny * nx + yc * nx + xc] as f64;
                         }
-                        (sum / count) as f32
-                    })
-                })
-                .collect::<Vec<_>>()
-        })
-        .into_iter()
-        .flatten()
-        .collect();
+                    }
+                }
+                (sum / count) as f32
+            });
 
         Ok(rebuild(out, dims, image))
     }
