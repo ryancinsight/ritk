@@ -11,7 +11,9 @@ fn box_sigma_is_sample_std_with_shrink_window() {
     let img = ts::make_image::<B, 3>(vec![10.0, 20.0, 30.0, 40.0, 50.0], [1, 1, 5]);
     let out = BoxSigmaImageFilter::new([0, 0, 1]).apply(&img);
     let v = out.data_slice().into_owned();
-    let expected = [7.0710678f32, 10.0, 10.0, 10.0, 7.0710678];
+    // boundary windows have sample std sqrt(50) = 7.0710678…
+    let edge = 50.0f32.sqrt();
+    let expected = [edge, 10.0, 10.0, 10.0, edge];
     for (got, exp) in v.iter().zip(expected) {
         assert!((got - exp).abs() < 1e-4, "got {got}, expected {exp}");
     }

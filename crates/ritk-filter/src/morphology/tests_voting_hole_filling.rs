@@ -23,9 +23,10 @@ fn fills_surrounded_hole() {
 fn sparse_background_not_filled() {
     // Only 3 foreground voxels near (2,2): 3·3(z) = 9 < threshold 14.
     let mut v = vec![0.0f32; 25];
-    v[1 * 5 + 1] = 1.0;
-    v[1 * 5 + 2] = 1.0;
-    v[2 * 5 + 1] = 1.0;
+    let at = |y: usize, x: usize| y * 5 + x; // z=0 plane, [1, 5, 5]
+    v[at(1, 1)] = 1.0;
+    v[at(1, 2)] = 1.0;
+    v[at(2, 1)] = 1.0;
     let img = ts::make_image::<B, 3>(v, [1, 5, 5]);
     let out = filt().apply(&img);
     assert_eq!(out.data_slice().into_owned()[2 * 5 + 2], 0.0);

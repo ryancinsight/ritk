@@ -32,10 +32,7 @@ fn zero_crossing_edge_output_is_binary() {
         "output must be binary {{0, 1}}"
     );
     // A step edge must produce at least one edge voxel.
-    assert!(
-        ov.iter().any(|&v| v == 1.0),
-        "expected detected edge voxels"
-    );
+    assert!(ov.contains(&1.0), "expected detected edge voxels");
 }
 
 /// Custom foreground/background labels are honoured.

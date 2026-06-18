@@ -72,7 +72,8 @@ fn physical_point_source_holds_coordinate() {
     let ([cx, cy, cz], dims) =
         physical_point_image_source([3, 2, 1], [2.0, 3.0, 4.0], [10.0, 20.0, 30.0]);
     assert_eq!(dims, [1, 2, 3]);
-    let i = (0 * 2 + 1) * 3 + 2; // z=0, y=1, x=2
+    let (z, y, x) = (0usize, 1usize, 2usize);
+    let i = (z * 2 + y) * 3 + x; // flat index into [1, 2, 3]
     assert_eq!((cx[i], cy[i], cz[i]), (22.0, 23.0, 4.0));
     // voxel (0,0,0) holds the origin.
     assert_eq!((cx[0], cy[0], cz[0]), (2.0, 3.0, 4.0));
