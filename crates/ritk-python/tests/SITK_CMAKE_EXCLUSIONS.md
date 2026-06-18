@@ -45,8 +45,12 @@ parity is booked as coverage (integrity: no fabricated parity).
 
 - **AdditiveGaussianNoise, SaltAndPepperNoise, ShotNoise, SpeckleNoise, Noise** — ITK uses
   its `MersenneTwisterRandomVariateGenerator`; ritk's noise RNG differs, so seeded output is
-  not reproducible. Would require reimplementing ITK's MT19937 + normal-variate sequence
-  exactly.
+  not reproducible. **Confirmed (Sprint 467):** a faithful standard MT19937 + polar
+  Box-Muller in numpy does NOT match `sitk.AdditiveGaussianNoise(seed=42)` even on an 8-px
+  image (first value −20.9 vs 12.2) — ITK's generator uses a cached second normal variate, a
+  specific open-range uniform divisor, and the *filter* derives a per-region seed under
+  threading. Reproducing it bit-exact would require porting ITK's exact generator AND its
+  region-split seeding — out of scope and brittle.
 
 ## Geometry-blocked (pending core reconciliation)
 
@@ -58,8 +62,15 @@ parity is booked as coverage (integrity: no fabricated parity).
 
 ## Needs substantial new core (iterative / level-set / template)
 
-AdaptiveHistogramEqualization (no binding), AntiAliasBinary, ApproximateSignedDistanceMap,
-BSplineDecomposition (no binding), Binary/MinMaxCurvatureFlow, CannySegmentationLevelSet,
+Note: `BSplineDecomposition` was moved OUT of this group and shipped (Sprint 466) — ritk's
+B-spline interpolator already contained the validated prefilter; it just needed exposing.
+The "existing-unbound-core" harvest is otherwise exhausted: e.g. ritk's
+`HistogramEqualizationFilter` is global CDF equalization and `ClaheFilter` is tile-clipped
+CLAHE — neither is ITK's α/β `AdaptiveHistogramEqualization` (Stark's contextual method), so
+binding them would not match.
+
+AdaptiveHistogramEqualization (α/β method; ritk has only global-HE + CLAHE), AntiAliasBinary,
+ApproximateSignedDistanceMap, Binary/MinMaxCurvatureFlow, CannySegmentationLevelSet,
 CollidingFronts, ContourExtractor2D, *DemonsRegistration, FastMarching*, IsoContourDistance,
 Isolated{Connected,Watershed}, LaplacianSharpening (nonlinear), LevelSetMotionRegistration,
 MaskedFFTNormalizedCorrelation (no mask support), MergeLabelMap (label packing),
