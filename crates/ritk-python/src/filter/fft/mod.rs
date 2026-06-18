@@ -27,7 +27,8 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_filter::{
-    FftShiftFilter, ForwardFftFilter, InverseFftFilter, RealToHalfHermitianForwardFftFilter,
+    FftShiftFilter, ForwardFftFilter, HalfHermitianToRealInverseFftFilter, InverseFftFilter,
+    RealToHalfHermitianForwardFftFilter,
 };
 use ritk_image::Image;
 use std::sync::Arc;
@@ -197,6 +198,36 @@ pub fn real_to_half_hermitian_forward_fft(py: Python<'_>, image: &PyImage) -> Ri
     let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         RealToHalfHermitianForwardFftFilter::new()
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Half-Hermitian-to-real inverse FFT, matching
+/// `SimpleITK.HalfHermitianToRealInverseFFT`.
+///
+/// Reconstructs the full Hermitian-symmetric spectrum from the half produced by
+/// `real_to_half_hermitian_forward_fft`, then applies the normalized inverse FFT.
+/// `actual_x_is_odd` selects the original last-axis parity (the half alone does
+/// not encode it), mirroring ITK's `SetActualXDimensionIsOdd`.
+///
+/// Args:
+///     image:           Half-Hermitian complex PyImage, shape [D, H, 2*(W/2+1)].
+///     actual_x_is_odd: Whether the original last-axis length W was odd.
+///
+/// Returns:
+///     Real PyImage of shape [D, H, W].
+#[pyfunction]
+#[pyo3(signature = (image, actual_x_is_odd=false))]
+pub fn half_hermitian_to_real_inverse_fft(
+    py: Python<'_>,
+    image: &PyImage,
+    actual_x_is_odd: bool,
+) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        HalfHermitianToRealInverseFftFilter::new(actual_x_is_odd)
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

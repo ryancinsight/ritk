@@ -1821,6 +1821,30 @@ def test_cmake_real_to_half_hermitian_forward_fft(shape):
     assert float(_np.abs(rc - sa).max()) / denom < 1e-6, "half-Hermitian FFT differs from sitk"
 
 
+@pytest.mark.parametrize("shape", [(1, 8, 8), (1, 6, 10), (2, 9, 15)],
+                         ids=["8x8", "6x10-even", "9x15-odd"])
+def test_cmake_half_hermitian_to_real_inverse_fft(shape):
+    """HalfHermitianToRealInverseFFT: reconstruct the full Hermitian spectrum
+    from the half and inverse-transform. ritk
+    `filter.half_hermitian_to_real_inverse_fft` vs sitk, on the half produced by
+    RealToHalfHermitianForwardFFT. Float-exact for both even and odd original
+    widths (the actual_x_is_odd flag selects W's parity). 2/3/5-factor sizes per
+    sitk's VNL constraint."""
+    import numpy as _np
+    _np.random.seed(1)
+    img = (_np.random.rand(*shape).astype(_np.float32)) * 100.0
+    w_odd = shape[-1] % 2 == 1
+    si = sitk.GetImageFromArray(img)
+    sh = sitk.RealToHalfHermitianForwardFFT(si)
+    sinv = _np.squeeze(sitk.GetArrayFromImage(
+        sitk.HalfHermitianToRealInverseFFT(sh, w_odd)).astype(_np.float64))
+    rh = ritk.filter.real_to_half_hermitian_forward_fft(ritk.Image(_np.ascontiguousarray(img)))
+    rinv = _np.squeeze(_np.asarray(
+        ritk.filter.half_hermitian_to_real_inverse_fft(rh, w_odd).to_numpy(), _np.float64))
+    assert rinv.shape == sinv.shape, f"shape {rinv.shape} != sitk {sinv.shape}"
+    assert float(_np.abs(rinv - sinv).max()) < 1e-3, "inverse half-Hermitian differs from sitk"
+
+
 def test_cmake_complex_ops_on_upstream_data():
     # Build a complex image from real+imag parts in both ritk (interleaved
     # [D,H,2W]) and sitk, then compare ComplexTo{Real,Imaginary,Modulus,Phase}.

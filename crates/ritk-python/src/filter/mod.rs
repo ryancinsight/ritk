@@ -225,6 +225,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     // FFT / frequency domain
     m.add_function(wrap_pyfunction!(forward_fft, &m)?)?;
     m.add_function(wrap_pyfunction!(real_to_half_hermitian_forward_fft, &m)?)?;
+    m.add_function(wrap_pyfunction!(half_hermitian_to_real_inverse_fft, &m)?)?;
     m.add_function(wrap_pyfunction!(inverse_fft, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_shift, &m)?)?;
     m.add_function(wrap_pyfunction!(complex_to_real, &m)?)?;

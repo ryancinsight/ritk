@@ -48,5 +48,5 @@ pub use frequency_filter::{
     ButterworthHighPass, ButterworthLowPass, FftFilterKind, FrequencyDomainFilter,
     FrequencyResponse, IdealHighPass, IdealLowPass,
 };
-pub use inverse::InverseFftFilter;
+pub use inverse::{HalfHermitianToRealInverseFftFilter, InverseFftFilter};
 pub use shift::FftShiftFilter;

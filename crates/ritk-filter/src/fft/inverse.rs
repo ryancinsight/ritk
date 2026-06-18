@@ -152,6 +152,98 @@ impl Default for InverseFftFilter {
     }
 }
 
+/// Half-Hermitian-to-real inverse FFT
+/// (`itk::HalfHermitianToRealInverseFFTImageFilter`).
+///
+/// Reconstructs a real image from the non-redundant half spectrum produced by
+/// [`super::forward::RealToHalfHermitianForwardFftFilter`]. The full DFT is
+/// rebuilt from the half via Hermitian symmetry
+/// `F[k] = conj(F[(−k) mod N])` — last-axis columns `W/2+1 .. W−1` are the
+/// conjugates of the retained columns reflected across **every** axis — and then
+/// the standard inverse FFT (normalized by `1/N`) is applied.
+///
+/// The last-axis length `W` cannot be inferred from the half alone
+/// (`half_cols = W/2 + 1` for both `W = 2(half_cols−1)` and
+/// `W = 2(half_cols−1)+1`), so `actual_x_is_odd` selects the original parity,
+/// mirroring ITK's `SetActualXDimensionIsOdd`.
+#[derive(Debug, Clone, Copy)]
+pub struct HalfHermitianToRealInverseFftFilter {
+    /// Whether the original last-axis length `W` was odd.
+    pub actual_x_is_odd: bool,
+}
+
+impl HalfHermitianToRealInverseFftFilter {
+    /// Construct with the original last-axis parity.
+    pub fn new(actual_x_is_odd: bool) -> Self {
+        Self { actual_x_is_odd }
+    }
+
+    /// Apply the half-Hermitian inverse FFT to a D-dimensional half spectrum.
+    ///
+    /// Input shape `[..., 2·(W/2+1)]` (interleaved half) → output `[..., W]` real.
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Result<Image<B, D>> {
+        let dims = image.shape();
+        let half_w2 = dims[D - 1];
+        if !half_w2.is_multiple_of(2) {
+            return Err(anyhow!(
+                "HalfHermitianToRealInverseFft: last dimension {half_w2} must be even \
+                 (interleaved complex layout)"
+            ));
+        }
+        let half_cols = half_w2 / 2;
+        if half_cols == 0 {
+            return Err(anyhow!("HalfHermitianToRealInverseFft: empty spectrum"));
+        }
+        let w = 2 * (half_cols - 1) + usize::from(self.actual_x_is_odd);
+
+        let (half, _) = extract_vec(image)?;
+        let mut outer_dims = [0usize; D];
+        let mut outer_count = 1usize;
+        for (a, od) in outer_dims.iter_mut().enumerate().take(D - 1) {
+            *od = dims[a];
+            outer_count *= dims[a];
+        }
+
+        let hrow = 2 * half_cols;
+        let frow = 2 * w;
+        let mut full = vec![0.0f32; outer_count * frow];
+        for o in 0..outer_count {
+            // Decompose the row-major outer index, reflect every outer axis
+            // (`c → (N−c) mod N`), recompose: the source row for the conjugate-
+            // symmetric tail.
+            let mut coords = [0usize; D];
+            let mut rem = o;
+            for a in (0..D - 1).rev() {
+                coords[a] = rem % outer_dims[a];
+                rem /= outer_dims[a];
+            }
+            let mut o_ref = 0usize;
+            for a in 0..D - 1 {
+                let rc = (outer_dims[a] - coords[a]) % outer_dims[a];
+                o_ref = o_ref * outer_dims[a] + rc;
+            }
+            for wc in 0..w {
+                let (re, im) = if wc < half_cols {
+                    (half[o * hrow + 2 * wc], half[o * hrow + 2 * wc + 1])
+                } else {
+                    let sw = w - wc;
+                    (
+                        half[o_ref * hrow + 2 * sw],
+                        -half[o_ref * hrow + 2 * sw + 1],
+                    )
+                };
+                full[o * frow + 2 * wc] = re;
+                full[o * frow + 2 * wc + 1] = im;
+            }
+        }
+
+        let mut full_dims = dims;
+        full_dims[D - 1] = frow;
+        let full_img = rebuild(full, full_dims, image);
+        InverseFftFilter::apply_inner::<B, D>(&full_img)
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

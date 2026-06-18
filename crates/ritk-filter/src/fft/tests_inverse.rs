@@ -162,3 +162,47 @@ fn dc_only_complex_input_reconstructs_to_constant() {
         );
     }
 }
+
+// ── Half-Hermitian inverse FFT round-trip ────────────────────────────────────
+
+/// Construct a 3-D real image `[d, h, w]`.
+fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
+    let device = Default::default();
+    let td = TensorData::new(data, Shape::new([d, h, w]));
+    let tensor = Tensor::<B, 3>::from_data(td, &device);
+    Image::new(
+        tensor,
+        Point::new([0.0_f64, 0.0, 0.0]),
+        Spacing::new([1.0_f64, 1.0, 1.0]),
+        Direction::identity(),
+    )
+}
+
+/// HalfHermitianToReal ∘ RealToHalfHermitian is the identity (to f32 rounding),
+/// for both even and odd last-axis widths — the Hermitian reconstruction is
+/// exact, so the round-trip equals a full forward/inverse round-trip.
+#[test]
+fn half_hermitian_inverse_round_trip() {
+    use super::HalfHermitianToRealInverseFftFilter;
+    use crate::fft::RealToHalfHermitianForwardFftFilter;
+    for &(d, h, w) in &[(2usize, 4, 8), (2, 3, 7)] {
+        let data: Vec<f32> = (0..d * h * w)
+            .map(|i| (i as f32 * 0.21).cos() * 7.0 + 3.0)
+            .collect();
+        let img = make_real_3d(data.clone(), d, h, w);
+        let half = RealToHalfHermitianForwardFftFilter::new()
+            .apply(&img)
+            .unwrap();
+        let back = HalfHermitianToRealInverseFftFilter::new(w % 2 == 1)
+            .apply(&half)
+            .unwrap();
+        assert_eq!(back.shape(), [d, h, w], "round-trip must restore W={w}");
+        let (bv, _) = extract_vec(&back).unwrap();
+        for (i, (&got, &want)) in bv.iter().zip(data.iter()).enumerate() {
+            assert!(
+                (got - want).abs() < 1e-3,
+                "round-trip voxel {i}: got {got}, want {want} (w={w})"
+            );
+        }
+    }
+}
