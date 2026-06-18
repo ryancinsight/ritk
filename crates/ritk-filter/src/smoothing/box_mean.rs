@@ -43,31 +43,34 @@ impl BoxMeanImageFilter {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         let [rz, ry, rx] = self.radius;
-        let mut out = vec![0.0f32; vals.len()];
 
-        for z in 0..nz {
-            let z0 = z.saturating_sub(rz);
-            let z1 = (z + rz).min(nz - 1);
-            for y in 0..ny {
+        // Per-voxel independent (each output reads only its clipped window), so
+        // the grid fans out across threads; the result is bitwise identical to a
+        // serial run.
+        let out: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |flat| {
+                let z = flat / (ny * nx);
+                let rem = flat % (ny * nx);
+                let y = rem / nx;
+                let x = rem % nx;
+                let z0 = z.saturating_sub(rz);
+                let z1 = (z + rz).min(nz - 1);
                 let y0 = y.saturating_sub(ry);
                 let y1 = (y + ry).min(ny - 1);
-                for x in 0..nx {
-                    let x0 = x.saturating_sub(rx);
-                    let x1 = (x + rx).min(nx - 1);
-                    let mut sum = 0.0f64;
-                    for kz in z0..=z1 {
-                        for ky in y0..=y1 {
-                            let base = (kz * ny + ky) * nx;
-                            for kx in x0..=x1 {
-                                sum += vals[base + kx] as f64;
-                            }
+                let x0 = x.saturating_sub(rx);
+                let x1 = (x + rx).min(nx - 1);
+                let mut sum = 0.0f64;
+                for kz in z0..=z1 {
+                    for ky in y0..=y1 {
+                        let base = (kz * ny + ky) * nx;
+                        for kx in x0..=x1 {
+                            sum += vals[base + kx] as f64;
                         }
                     }
-                    let count = ((z1 - z0 + 1) * (y1 - y0 + 1) * (x1 - x0 + 1)) as f64;
-                    out[(z * ny + y) * nx + x] = (sum / count) as f32;
                 }
-            }
-        }
+                let count = ((z1 - z0 + 1) * (y1 - y0 + 1) * (x1 - x0 + 1)) as f64;
+                (sum / count) as f32
+            });
         rebuild(out, dims, image)
     }
 }
