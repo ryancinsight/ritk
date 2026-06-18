@@ -484,6 +484,20 @@ def test_cmake_scalar_connected_component_on_upstream_data():
         "ScalarConnectedComponent partition differs from sitk"
 
 
+def test_cmake_dilate_object_morphology_on_upstream_data():
+    """DilateObjectMorphology (box SE, objectValue=1) on a binary mask == ritk
+    grayscale_dilation: for a solid object, dilating its surface equals dilating
+    the object. Bit-exact to sitk on a thresholded cthead1 mask."""
+    ri, si = _pair("cthead1.png")
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    sm = sitk.Cast(sitk.BinaryThreshold(si, 40, 1e9, 1, 0), sitk.sitkUInt8)
+    rm = ritk.filter.binary_threshold(ri, 40.0, 1e9, 1.0, 0.0)
+    r = np.squeeze(np.asarray(ritk.filter.grayscale_dilation(rm, 2).to_numpy(), np.float64))
+    s = sitk.GetArrayFromImage(
+        sitk.DilateObjectMorphology(sm, [2, 2, 2], sitk.sitkBox, 1.0)).astype(np.float64)
+    assert np.array_equal(r, s), "DilateObjectMorphology differs from sitk"
+
+
 def test_cmake_binary_opening_by_reconstruction_on_upstream_data():
     """BinaryOpeningByReconstruction == ritk opening_by_reconstruction on a binary
     mask (the grayscale reconstruction-opening core matches the binary filter).

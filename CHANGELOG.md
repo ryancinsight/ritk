@@ -7,13 +7,18 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.30] — 2026-06-18 (Sprint 443: DilateObjectMorphology parity)
+
+### Added
+- Test: cmake parity case for `DilateObjectMorphology` — `ritk.filter.grayscale_dilation(mask, 2)` is **bit-exact** to `sitk.DilateObjectMorphology` (box SE, objectValue=1) on a thresholded cthead1 mask: dilating a solid object's surface equals dilating the object. No code change. Coverage 212/298. (`ErodeObjectMorphology` differs by 1 boundary voxel vs `grayscale_erosion` — the erosion-at-border convention, not yet matched.)
+
 ## [0.102.29] — 2026-06-18 (Sprint 442: BinaryOpeningByReconstruction parity)
 
 ### Added
 - Test: cmake parity case for `BinaryOpeningByReconstruction` — `ritk.filter.opening_by_reconstruction(mask, 2)` is **bit-exact** to `sitk.BinaryOpeningByReconstruction` on a thresholded cthead1 mask (the grayscale reconstruction-opening core already matches the binary filter). No code change. Coverage 211/298.
 
 ### Notes
-- `BinaryClosingByReconstruction` is **not** yet bit-exact (1-voxel boundary difference vs ritk `closing_by_reconstruction`) — the closing dual needs the ITK SafeBorder pad/crop (cf. the `binary_closing` safe-border fix); filed for a follow-up.
+- `BinaryClosingByReconstruction` is **not** yet bit-exact vs ritk `closing_by_reconstruction` — 77 **interior** voxels differ (a small cluster near (127,205) where ritk over-fills, 1 vs sitk 0), NOT a border artifact. So ITK's binary closing-by-reconstruction is a distinct algorithm from the grayscale reconstruction-closing applied to a `{0,1}` mask (even though the opening dual matches bit-exactly); filed for a dedicated investigation rather than a SafeBorder pad/crop.
 
 ## [0.102.28] — 2026-06-18 (Sprint 441: EdgePotential)
 
