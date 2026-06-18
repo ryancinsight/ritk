@@ -6,6 +6,8 @@ pub use ritk_tensor_ops::gaussian_kernel;
 // ── Bias correction ──────────────────────────────────────────────────────────
 pub mod bias;
 pub use bias::N4BiasFieldCorrectionFilter;
+pub mod bspline_decomposition;
+pub use bspline_decomposition::bspline_decomposition;
 pub mod color;
 pub use color::map_color_components;
 pub mod colormap;

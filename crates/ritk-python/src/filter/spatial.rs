@@ -526,3 +526,18 @@ pub fn warp(
     })
     .map(into_py_image)
 }
+
+// ── BSplineDecomposition (cubic) ───────────────────────────────────────────
+
+/// Cubic B-spline decomposition: recover the interpolation coefficients of an
+/// image (mirror boundary), matching `SimpleITK.BSplineDecomposition` at the
+/// default spline order 3.
+#[pyfunction]
+pub fn bspline_decomposition(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        ritk_filter::bspline_decomposition(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}

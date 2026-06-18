@@ -15,6 +15,15 @@ mod prefilter;
 #[cfg(test)]
 mod tests;
 
+/// Recover the separable **cubic** B-spline interpolation coefficients of a flat
+/// row-major volume of shape `dims`, with whole-sample mirror boundary
+/// conditions. This is the standalone decomposition (prefilter) step, matching
+/// ITK's `BSplineDecompositionImageFilter` at spline order 3. A degenerate
+/// (size-1) axis is skipped (its coefficients equal the samples).
+pub fn bspline_decomposition_coefficients(volume: &[f32], dims: &[usize]) -> Vec<f32> {
+    prefilter::compute_coefficients(volume, dims)
+}
+
 /// Cubic B-Spline basis function.
 ///
 /// The cubic B-Spline kernel is defined as:

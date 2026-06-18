@@ -19,7 +19,7 @@ pub use ritk_core::interpolation::Interpolator;
 
 // ── Concrete types defined in this crate ───────────────────────────────────
 pub use fused::{transform_and_interpolate, FusedInterpolationResult};
-pub use kernel::bspline::BSplineInterpolator;
+pub use kernel::bspline::{bspline_decomposition_coefficients, BSplineInterpolator};
 pub use kernel::linear::LinearInterpolator;
 pub use kernel::nearest::NearestNeighborInterpolator;
 pub use kernel::sinc::{

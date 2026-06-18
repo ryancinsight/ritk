@@ -6529,7 +6529,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-filter"
-version = "0.2.58"
+version = "0.2.59"
 dependencies = [
  "anyhow",
  "burn",
@@ -6566,7 +6566,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-interpolation"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "burn",
@@ -6782,7 +6782,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-python"
-version = "0.12.76"
+version = "0.12.77"
 dependencies = [
  "anyhow",
  "burn",

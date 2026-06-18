@@ -1291,6 +1291,22 @@ def test_cmake_fast_approximate_rank_on_upstream_data(r):
     assert np.array_equal(r_arr, s), f"FastApproximateRank (median, r={r}) differs from sitk"
 
 
+@pytest.mark.parametrize("img_name", ["cthead1.png", "RA-Float.nrrd"], ids=["2d", "3d"])
+def test_cmake_bspline_decomposition_on_upstream_data(img_name):
+    """BSplineDecomposition (cubic, order 3) recovers the B-spline interpolation
+    coefficients via the causal+anti-causal recursive prefilter (pole √3−2,
+    whole-sample mirror boundary). ritk `filter.bspline_decomposition` against
+    `sitk.BSplineDecomposition` matches to float precision (relative ~2e-7;
+    coefficient magnitudes are large so the absolute diff scales with them). ITK
+    Parity: BSplineDecompositionImageFilter (default order 3)."""
+    ri, si = _pair(img_name)
+    si = sitk.Cast(si, sitk.sitkFloat32)
+    s = np.squeeze(sitk.GetArrayFromImage(sitk.BSplineDecomposition(si)).astype(np.float64))
+    r = np.squeeze(np.asarray(ritk.filter.bspline_decomposition(ri).to_numpy(), np.float64))
+    rel = float(np.abs(r - s).max()) / max(float(np.abs(s).max()), 1e-9)
+    assert rel < 1e-5, f"BSplineDecomposition rel diff {rel:.2e} exceeds float32 bound"
+
+
 @pytest.mark.parametrize("rad", [2, 3], ids=["r2", "r3"])
 def test_cmake_binary_closing_by_reconstruction_on_upstream_data(rad):
     """BinaryClosingByReconstruction = dilate the binary image (box SE) then

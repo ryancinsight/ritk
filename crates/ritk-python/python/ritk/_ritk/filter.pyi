@@ -524,6 +524,9 @@ def warp(
 ) -> Image:
     """Warp `moving` through a dense displacement field (trilinear). out(p)=moving(p+D(p)). ITK Parity: WarpImageFilter."""
     ...
+def bspline_decomposition(image: Image) -> Image:
+    """Cubic B-spline interpolation coefficients (mirror boundary). ITK Parity: BSplineDecompositionImageFilter (order 3)."""
+    ...
 def rotate_image(
     image: Image,
     angle_x: float = 0.0,

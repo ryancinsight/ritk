@@ -7,6 +7,20 @@
 - `ritk-filter`: `BilateralFilter::compute` parallelised over z-slices via `moirai::for_each_chunk_mut_enumerated_with` (matching the canonical pattern of `median_3d`, `rank::neighborhood_rank_3d`, and `jacobian_determinant`). Hoisted dz² + dy² outer-loop arithmetic; tightened `spatial_w` construction into a single iterator pass. Verified equivalent via the existing `test_bilateral_matches_brute_force_reference` (max_abs < 1e-5). Criterion bench on x86-64 AVX2: 16³ ≈ 1.2 ms, 32³ ≈ 11.4 ms (was 152 ms in pre-spatial-LUT baseline), 64³ ≈ 76 ms — linear 64× scaling confirms compute-bound.
 - `ritk-filter`: `RankFilter` and `PercentileFilter` consolidated to a single canonical `rank::kernel::neighborhood_rank_3d` — the previously-duplicated `rank_select_3d` and `percentile_3d` algorithm bodies are now one entry point. Both filters translate their public parameter (`rank : usize` vs `f32 : percentile`) to a `usize rank_idx` and delegate. Hoisted `nz/ny/nx` to `i32` once outside the closure so the hot tick does `i32 + i32 + clamp + as usize` only. Net: ~56 lines of duplicated API plumbing gone, one canonical site for future Huang / SIMD / sliding-histogram work. Behaviour bit-equivalent — all 14 existing rank/percentile tests still pass.
 
+## [0.102.53] — 2026-06-18 (Sprint 466: BSplineDecomposition parity)
+
+### Added
+- `ritk-interpolation`: `bspline_decomposition_coefficients(volume, dims)` —
+  exposes the existing, validated cubic B-spline prefilter (causal+anti-causal
+  recursion, pole √3−2, whole-sample mirror boundary) as a public function so the
+  decomposition is reusable independent of the interpolator. `[minor]`
+- `ritk-filter`: `bspline_decomposition(image)` — image-level wrapper. `[minor]`
+- `ritk-python`: `filter.bspline_decomposition(image)` binding. `[minor]`
+- Tests: 3 Rust core tests (basis-inversion round-trip, constant fixed point,
+  shape) plus 2 cmake parity cases — matches `sitk.BSplineDecomposition` (default
+  order 3) to **float precision** (relative ~2e-7) on 2-D cthead1 and 3-D
+  RA-Float. Coverage 239 → 240/298.
+
 ## [0.102.52] — 2026-06-18 (Sprint 465: cmake-coverage exclusion audit)
 
 ### Notes
