@@ -183,7 +183,7 @@ fn binary_projection_x_any_foreground() {
     assert_eq!(extract_vals(&out), vec![1.0, 0.0]);
 }
 
-/// Binary-threshold projection: foreground if any voxel along the axis ≥ threshold.
+/// Binary-threshold projection: foreground if any voxel along the axis >= threshold.
 #[test]
 fn binary_threshold_projection_x_any_ge() {
     // 1×2×3: row0 = [1,2,3] (max 3 ≥ 3 → 1), row1 = [1,1,2] (max 2 < 3 → 0)
@@ -192,4 +192,28 @@ fn binary_threshold_projection_x_any_ge() {
         .apply(&img)
         .unwrap();
     assert_eq!(extract_vals(&out), vec![1.0, 0.0]);
+}
+
+// ── T-3: even-axis-length median ───────────────────────────────────────────────────
+
+/// Median along X of a [1, 1, 4] image [1.0, 2.0, 3.0, 4.0].
+///
+/// With n = 4 (even), `median_at_half` uses k = n/2 = 2.
+/// `select_nth_unstable_by(2, …)` on a 4-element sequence returns the
+/// element that ranks at index 2 in sorted order: sorted = [1,2,3,4], so
+/// the result is 3.0 (upper-middle, matching ITK’s nth_element at size/2).
+#[test]
+fn median_projection_x_even_axis_length() {
+    let img = make_volume(vec![1.0_f32, 2.0, 3.0, 4.0], [1, 1, 4]);
+    let out = MedianIntensityProjectionFilter::new(ProjectionAxis::X)
+        .apply(&img)
+        .unwrap();
+    assert_eq!(out.shape(), [1, 1, 1]);
+    let vals = extract_vals(&out);
+    assert_eq!(vals.len(), 1);
+    assert_eq!(
+        vals[0], 3.0_f32,
+        "even-length (n=4) median at n/2=2 must be 3.0, got {}",
+        vals[0]
+    );
 }

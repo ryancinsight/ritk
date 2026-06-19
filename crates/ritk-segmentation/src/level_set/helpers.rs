@@ -12,12 +12,52 @@
 //! |---|---|
 //! | Indexing | [`idx_clamped`] |
 //! | Differential geometry | [`compute_curvature_into`] |
-//! | Gradient operators | [`compute_gradient_magnitude`], [`compute_field_gradient`] |
+//! | Gradient operators | [`compute_gradient_magnitude`], [`compute_field_gradient`], [`compute_field_gradient_into`] |
+//! | Advection | [`upwind_advection`], [`upwind_advection_into`] |
 //! | Edge / speed functions | [`compute_edge_stopping`] |
 //! | Smoothing | [`gaussian_smooth`], [`smooth_or_borrow`] |
 //! | Regularisation | [`regularised_heaviside`], [`regularised_dirac`] |
 
 use std::f64::consts::PI;
+
+// ── Parallel write helper ─────────────────────────────────────────────────────────
+
+/// Send+Sync wrapper enabling safe parallel writes to disjoint `f64` z-slice regions.
+///
+/// Each call to [`slice_mut`](Self::slice_mut) must produce a range disjoint from all
+/// other live calls. Z-slice parallelism satisfies this by construction: thread `iz`
+/// exclusively owns `[iz·ny·nx, (iz+1)·ny·nx)`.
+struct CellSliceF64 {
+    ptr: *mut f64,
+    len: usize,
+}
+
+impl CellSliceF64 {
+    fn from_mut(s: &mut [f64]) -> Self {
+        Self {
+            ptr: s.as_mut_ptr(),
+            len: s.len(),
+        }
+    }
+
+    /// Reconstruct a mutable slice at `offset` with length `chunk_len`.
+    ///
+    /// # Safety
+    /// `[offset, offset + chunk_len)` must lie within `[0, self.len)` and no other
+    /// reference to the same memory range may exist during the lifetime of the
+    /// returned slice.
+    #[inline]
+    #[allow(clippy::mut_from_ref)]
+    unsafe fn slice_mut(&self, offset: usize, chunk_len: usize) -> &mut [f64] {
+        debug_assert!(offset + chunk_len <= self.len);
+        std::slice::from_raw_parts_mut(self.ptr.add(offset), chunk_len)
+    }
+}
+
+// SAFETY: Used exclusively for disjoint z-slice parallel writes; no two threads
+// access the same memory region via this wrapper.
+unsafe impl Send for CellSliceF64 {}
+unsafe impl Sync for CellSliceF64 {}
 
 // ── Indexing ────────────────────────────────────────────────────────────────────────
 
@@ -71,11 +111,18 @@ pub(crate) fn compute_curvature_into(phi: &[f64], dims: [usize; 3], kappa: &mut 
         n
     );
 
-    for iz in 0..nz {
+    let slice_len = ny * nx;
+    let kappa_cell = CellSliceF64::from_mut(kappa);
+    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
+        let base = iz * slice_len;
+        let zz = iz as isize;
+        // SAFETY: each iz writes to its own disjoint z-slice [base, base+slice_len)
+        // of kappa; phi is an immutable shared reference safe to read from any thread.
+        let k_slice = unsafe { kappa_cell.slice_mut(base, slice_len) };
         for iy in 0..ny {
             for ix in 0..nx {
-                let i = iz * ny * nx + iy * nx + ix;
-                let zz = iz as isize;
+                let local = iy * nx + ix;
+                let i = base + local;
                 let yy = iy as isize;
                 let xx = ix as isize;
 
@@ -93,9 +140,10 @@ pub(crate) fn compute_curvature_into(phi: &[f64], dims: [usize; 3], kappa: &mut 
                 let phi_z = (phi_zp - phi_zm) * 0.5;
 
                 // Second derivatives.
-                let phi_xx = phi_xp - 2.0 * phi[i] + phi_xm;
-                let phi_yy = phi_yp - 2.0 * phi[i] + phi_ym;
-                let phi_zz = phi_zp - 2.0 * phi[i] + phi_zm;
+                let phi_c = phi[i];
+                let phi_xx = phi_xp - 2.0 * phi_c + phi_xm;
+                let phi_yy = phi_yp - 2.0 * phi_c + phi_ym;
+                let phi_zz = phi_zp - 2.0 * phi_c + phi_zm;
 
                 // Cross derivatives.
                 let phi_xy = (phi[idx_clamped(zz, yy + 1, xx + 1, nz, ny, nx)]
@@ -127,10 +175,10 @@ pub(crate) fn compute_curvature_into(phi: &[f64], dims: [usize; 3], kappa: &mut 
                     - 2.0 * phi_x * phi_z * phi_xz
                     - 2.0 * phi_y * phi_z * phi_yz;
 
-                kappa[i] = numerator / (grad_sq_safe * grad_mag);
+                k_slice[local] = numerator / (grad_sq_safe * grad_mag);
             }
         }
-    }
+    });
 }
 
 // ── Gradient operators ─────────────────────────────────────────────────────────────
@@ -174,52 +222,86 @@ pub(crate) fn compute_gradient_magnitude(data: &[f64], dims: [usize; 3]) -> Vec<
 
 /// Component-wise gradient of a scalar field via central finite differences.
 ///
-/// Returns `(∂f/∂z, ∂f/∂y, ∂f/∂x)` as three flat vectors in row-major order.
+/// Returns `(∂f/∂z, ∂f/∂y, ∂f/∂x)` as three freshly allocated flat vectors in
+/// row-major order. Delegates to [`compute_field_gradient_into`].
 pub(crate) fn compute_field_gradient(
     data: &[f64],
     dims: [usize; 3],
 ) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
-    let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
+    let n = dims[0] * dims[1] * dims[2];
     let mut gz = vec![0.0_f64; n];
     let mut gy = vec![0.0_f64; n];
     let mut gx = vec![0.0_f64; n];
+    compute_field_gradient_into(data, dims, &mut gz, &mut gy, &mut gx);
+    (gz, gy, gx)
+}
 
-    for iz in 0..nz {
+/// Component-wise gradient of a scalar field, writing into pre-allocated output
+/// buffers to eliminate per-call heap allocation.
+///
+/// Each output Vec is resized to `nz·ny·nx` before writing. Computation
+/// parallelises over z-slices with Adaptive moirai dispatch.
+///
+/// # Output order
+///
+/// `(gz, gy, gx)` matching `(∂f/∂z, ∂f/∂y, ∂f/∂x)` in row-major layout.
+pub(crate) fn compute_field_gradient_into(
+    data: &[f64],
+    dims: [usize; 3],
+    gz: &mut Vec<f64>,
+    gy: &mut Vec<f64>,
+    gx: &mut Vec<f64>,
+) {
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    gz.resize(n, 0.0);
+    gy.resize(n, 0.0);
+    gx.resize(n, 0.0);
+
+    let slice_len = ny * nx;
+    let gz_cell = CellSliceF64::from_mut(gz);
+    let gy_cell = CellSliceF64::from_mut(gy);
+    let gx_cell = CellSliceF64::from_mut(gx);
+
+    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
+        let base = iz * slice_len;
+        let zz = iz as isize;
+        // SAFETY: each iz writes to its own disjoint z-slice [base, base+slice_len)
+        // across all three output buffers; data is an immutable shared reference.
+        let gz_s = unsafe { gz_cell.slice_mut(base, slice_len) };
+        let gy_s = unsafe { gy_cell.slice_mut(base, slice_len) };
+        let gx_s = unsafe { gx_cell.slice_mut(base, slice_len) };
         for iy in 0..ny {
             for ix in 0..nx {
-                let i = iz * ny * nx + iy * nx + ix;
-                let zz = iz as isize;
+                let local = iy * nx + ix;
                 let yy = iy as isize;
                 let xx = ix as isize;
-
-                gz[i] = (data[idx_clamped(zz + 1, yy, xx, nz, ny, nx)]
+                gz_s[local] = (data[idx_clamped(zz + 1, yy, xx, nz, ny, nx)]
                     - data[idx_clamped(zz - 1, yy, xx, nz, ny, nx)])
                     * 0.5;
-                gy[i] = (data[idx_clamped(zz, yy + 1, xx, nz, ny, nx)]
+                gy_s[local] = (data[idx_clamped(zz, yy + 1, xx, nz, ny, nx)]
                     - data[idx_clamped(zz, yy - 1, xx, nz, ny, nx)])
                     * 0.5;
-                gx[i] = (data[idx_clamped(zz, yy, xx + 1, nz, ny, nx)]
+                gx_s[local] = (data[idx_clamped(zz, yy, xx + 1, nz, ny, nx)]
                     - data[idx_clamped(zz, yy, xx - 1, nz, ny, nx)])
                     * 0.5;
             }
         }
-    }
-
-    (gz, gy, gx)
+    });
 }
 
-/// Upwind discretisation of the level-set advection term `∇g·∇φ`.
+/// Upwind discretisation of the level-set advection term `∇a·∇φ`.
 ///
-/// Returns, per voxel, `Σ_d (∂g/∂x_d) · D_upwind^d φ` where the φ difference along
-/// axis `d` is taken from the upwind side of the advection velocity `−∇g`
-/// (Osher & Sethian): a forward difference where `∂g/∂x_d > 0` and a backward
-/// difference where `∂g/∂x_d ≤ 0`. Boundaries clamp to the edge voxel.
+/// Returns, per voxel, `Σ_d (∂a/∂x_d) · D_upwind^d φ` where the φ difference along
+/// axis `d` is taken from the upwind side of the advection velocity `−∇a`
+/// (Osher & Sethian): a forward difference where `∂a/∂x_d > 0` and a backward
+/// difference where `∂a/∂x_d ≤ 0`. Boundaries clamp to the edge voxel.
 ///
 /// The advection term transports the front (it is hyperbolic, not diffusive);
 /// central differencing of it is unconditionally unstable and lets the contour
 /// leak through edges. Callers add `+advection_weight · this` to `∂φ/∂t` so the
-/// front is pulled toward minima of `g` (image edges).
+/// front is pulled toward minima of `a` (image edges). Delegates to
+/// [`upwind_advection_into`].
 pub(crate) fn upwind_advection(
     phi: &[f64],
     dims: [usize; 3],
@@ -227,15 +309,42 @@ pub(crate) fn upwind_advection(
     a_y: &[f64],
     a_x: &[f64],
 ) -> Vec<f64> {
+    let n = dims[0] * dims[1] * dims[2];
+    let mut adv = vec![0.0_f64; n];
+    upwind_advection_into(phi, dims, a_z, a_y, a_x, &mut adv);
+    adv
+}
+
+/// Upwind discretisation of `∇a·∇φ`, writing into a pre-allocated output buffer.
+///
+/// `out` is resized to `nz·ny·nx` before writing. Parallelises over z-slices
+/// with Adaptive moirai dispatch.
+pub(crate) fn upwind_advection_into(
+    phi: &[f64],
+    dims: [usize; 3],
+    a_z: &[f64],
+    a_y: &[f64],
+    a_x: &[f64],
+    out: &mut Vec<f64>,
+) {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-    let mut adv = vec![0.0_f64; n];
+    out.resize(n, 0.0);
 
-    for iz in 0..nz {
+    let slice_len = ny * nx;
+    let out_cell = CellSliceF64::from_mut(out);
+
+    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
+        let base = iz * slice_len;
+        let zz = iz as isize;
+        // SAFETY: each iz writes to its own disjoint z-slice [base, base+slice_len)
+        // of out; phi, a_z, a_y, a_x are immutable shared references.
+        let out_s = unsafe { out_cell.slice_mut(base, slice_len) };
         for iy in 0..ny {
             for ix in 0..nx {
-                let i = iz * ny * nx + iy * nx + ix;
-                let (z, y, x) = (iz as isize, iy as isize, ix as isize);
+                let local = iy * nx + ix;
+                let i = base + local;
+                let (z, y, x) = (zz, iy as isize, ix as isize);
                 let c = phi[i];
 
                 let az = a_z[i];
@@ -259,12 +368,10 @@ pub(crate) fn upwind_advection(
                     c - phi[idx_clamped(z, y, x - 1, nz, ny, nx)]
                 };
 
-                adv[i] = az * dz + ay * dy + ax * dx;
+                out_s[local] = az * dz + ay * dy + ax * dx;
             }
         }
-    }
-
-    adv
+    });
 }
 
 // ── Edge / speed functions ─────────────────────────────────────────────────────────

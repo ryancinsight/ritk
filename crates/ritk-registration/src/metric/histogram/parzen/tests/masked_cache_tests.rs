@@ -60,7 +60,7 @@ fn masked_cache_reuses_weights_on_same_key() {
     // First call WITH caching — should compute and store W_fixed^T
     let first = hist.compute_masked_joint_histogram(
         &fixed_img,
-        all_points.clone(),
+        &all_points,
         &moving_img,
         &translation,
         &interp,
@@ -69,7 +69,7 @@ fn masked_cache_reuses_weights_on_same_key() {
     // Second call WITH same cache_key — should reuse cached W_fixed^T
     let second = hist.compute_masked_joint_histogram(
         &fixed_img,
-        all_points.clone(),
+        &all_points,
         &moving_img,
         &translation,
         &interp,
@@ -165,7 +165,7 @@ fn masked_cache_different_key_recomputes() {
     // First call with key=100
     let _first = hist.compute_masked_joint_histogram(
         &fixed_img,
-        all_points.clone(),
+        &all_points,
         &moving_img,
         &translation,
         &interp,
@@ -174,7 +174,7 @@ fn masked_cache_different_key_recomputes() {
     // Second call with key=200 — different key should cause cache miss
     let second = hist.compute_masked_joint_histogram(
         &fixed_img,
-        all_points.clone(),
+        &all_points,
         &moving_img,
         &translation,
         &interp,
@@ -252,7 +252,7 @@ fn masked_no_cache_key_matches_uncached() {
     // Call with None (no caching) and with a cache key — results should match
     let no_cache_result = hist1.compute_masked_joint_histogram(
         &fixed_img,
-        all_points.clone(),
+        &all_points,
         &moving_img,
         &translation,
         &interp,
@@ -260,7 +260,7 @@ fn masked_no_cache_key_matches_uncached() {
     );
     let cached_result = hist2.compute_masked_joint_histogram(
         &fixed_img,
-        all_points.clone(),
+        &all_points,
         &moving_img,
         &translation,
         &interp,
@@ -437,7 +437,7 @@ fn cache_invalidate_clears_masked_cache() {
     // Populate the masked cache with a cache_key
     let _result = hist.compute_masked_joint_histogram(
         &fixed_img,
-        all_points,
+        &all_points,
         &moving_img,
         &translation,
         &interp,

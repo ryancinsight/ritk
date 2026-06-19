@@ -33,6 +33,59 @@ use ritk_image::grid;
 use ritk_image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_transform::Transform;
+use std::sync::{Arc, Mutex};
+
+// ── FilterSlot (REG-03) ───────────────────────────────────────────────────────
+
+/// Lazy-initialized slot for a `GaussianFilter<B>`, Arc-shared across clones.
+///
+/// Stores the spatial dimension `D` alongside the filter to detect dimension
+/// mismatches and reinitialize when needed. Implements `Clone` and `Debug`
+/// without requiring either trait on `GaussianFilter<B>`.
+struct FilterSlot<B: Backend>(Arc<Mutex<Option<(usize, GaussianFilter<B>)>>>);
+
+impl<B: Backend> FilterSlot<B> {
+    fn empty() -> Self {
+        Self(Arc::new(Mutex::new(None)))
+    }
+
+    /// Returns a locked guard containing `(D, GaussianFilter<B>)`.
+    ///
+    /// Initializes the filter with `D` copies of `sigma` on first access or
+    /// when the cached dimension differs from `D`. The guard must remain alive
+    /// for the duration of filter usage to keep the data valid.
+    fn get_or_init<const D: usize>(
+        &self,
+        sigma: GaussianSigma,
+    ) -> std::sync::MutexGuard<'_, Option<(usize, GaussianFilter<B>)>> {
+        let mut guard = self
+            .0
+            .lock()
+            .expect("invariant: FilterSlot mutex not poisoned");
+        if guard.as_ref().is_none_or(|(d, _)| *d != D) {
+            *guard = Some((D, GaussianFilter::new(vec![sigma; D])));
+        }
+        guard
+    }
+}
+
+impl<B: Backend> Clone for FilterSlot<B> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
+impl<B: Backend> std::fmt::Debug for FilterSlot<B> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let guard = self
+            .0
+            .lock()
+            .expect("invariant: FilterSlot mutex not poisoned");
+        f.debug_struct("FilterSlot")
+            .field("dim", &guard.as_ref().map(|(d, _)| *d))
+            .finish()
+    }
+}
 
 /// Cached local statistics for the stationary fixed image.
 #[derive(Debug, Clone)]
@@ -68,6 +121,8 @@ pub struct LocalNormalizedCrossCorrelation<B: Backend> {
     epsilon: f64,
     // CacheSlot: lazy-initialized, validity-checked per fixed-image geometry, Arc-shared across clones.
     cache: CacheSlot<LnccCacheEntry<B>>,
+    // FilterSlot: GaussianFilter built once per dimension D (REG-03).
+    filter_slot: FilterSlot<B>,
 }
 
 impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
@@ -81,6 +136,7 @@ impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
             kernel_sigma,
             epsilon: 1e-5,
             cache: CacheSlot::empty(),
+            filter_slot: FilterSlot::empty(),
         }
     }
 
@@ -154,15 +210,18 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
         let moving_values = moving_values_flat.reshape(burn::tensor::Shape::new(shape_dims));
         let fixed_values = fixed.data().clone(); // Already spatial [D, H, W]
 
-        // 4. Setup filter
-        let filter = GaussianFilter::new(vec![self.kernel_sigma; D]);
+        // 4. Setup filter (REG-03: get or construct once per dimension D).
+        // The guard holds the Mutex lock for the duration of this forward() call;
+        // filter borrows into the heap-allocated Mutex data (not into self).
+        let filter_guard = self.filter_slot.get_or_init::<D>(self.kernel_sigma);
+        let filter = &filter_guard.as_ref().unwrap().1;
 
         // 5. Compute or load Local Stats for FIXED image (Stationary Cache O(1))
         let entry = self.cache.get_or_reinit_if(
             |e| e.is_valid_for::<D>(fixed),
             || {
                 let (m_f, v_f) =
-                    self.compute_local_stats(fixed_values.clone(), &filter, fixed.spacing());
+                    self.compute_local_stats(fixed_values.clone(), filter, fixed.spacing());
                 LnccCacheEntry {
                     shape: fixed.shape().to_vec(),
                     origin: collect_array::<3>(fixed.origin().0.iter().copied()),
@@ -184,7 +243,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
 
         // Local Stats for MOVING image (computed per forward pass)
         let (mean_m, var_m) =
-            self.compute_local_stats(moving_values.clone(), &filter, fixed.spacing());
+            self.compute_local_stats(moving_values.clone(), filter, fixed.spacing());
 
         // 6. Compute Cross Term
         // Cross = (F * M) * K

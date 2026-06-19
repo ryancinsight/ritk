@@ -81,7 +81,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     pub fn compute_masked_joint_histogram<const D: usize>(
         &self,
         fixed: &Image<B, D>,
-        fixed_world_points: Tensor<B, 2>,
+        fixed_world_points: &Tensor<B, 2>,
         moving: &Image<B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
@@ -104,7 +104,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
             // Apply transform to get moving world coords, then sample moving image.
             let (moving_values, oob_mask): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
-                let moving_world_points = transform.transform_points(fixed_world_points);
+                let moving_world_points = transform.transform_points(fixed_world_points.clone());
                 let moving_voxel_indices = moving.world_to_index_tensor(moving_world_points);
                 let oob = if D == 3 {
                     Some(super::parzen::compute_oob_mask(

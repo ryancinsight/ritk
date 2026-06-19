@@ -110,6 +110,7 @@ impl ThirionDemonsRegistration {
                     y: &mut fy,
                     x: &mut fx,
                 },
+                dims,
             );
 
             // Fluid regularisation

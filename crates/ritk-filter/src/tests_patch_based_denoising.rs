@@ -77,7 +77,32 @@ fn test_patch_denoising_reduces_noise() {
     );
 }
 
-// ── 2. Constant image: output equals input ───────────────────────────────
+// ── 2. kernel_bandwidth_estimation=true returns Err (C-3) ──────────────────
+
+/// `kernel_bandwidth_estimation=true` is not implemented and must return `Err`.
+/// The error message must mention the field name so callers can diagnose.
+#[test]
+fn test_kernel_bandwidth_estimation_returns_err() {
+    let img = make_image(vec![1.0_f32; 4 * 4 * 4], [4, 4, 4]);
+    let filter = PatchBasedDenoisingImageFilter {
+        number_of_iterations: 1,
+        number_of_sample_patches: 10,
+        patch_radius: 1,
+        kernel_bandwidth_estimation: true,
+    };
+    let result = filter.apply(&img);
+    assert!(
+        result.is_err(),
+        "kernel_bandwidth_estimation=true must return Err"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("kernel_bandwidth_estimation"),
+        "error message must mention the field name; got: {msg}"
+    );
+}
+
+// ── 3. Constant image: output equals input ───────────────────────────────
 
 /// For a constant image every patch is identical: d_pq = 0 for all (p, q),
 /// so all weights are equal and the NL-means output is the weighted mean of
@@ -113,4 +138,48 @@ fn test_patch_denoising_constant_image_unchanged() {
             (v - val).abs()
         );
     }
+}
+
+// ── 4. Multi-iteration convergence monotonicity (T-4) ────────────────────────
+
+/// Applying 3 NL-means iterations to a noisy image must not increase variance.
+///
+/// Derivation: NL-means computes a convex combination of input values at each
+/// voxel (all weights are non-negative and sum to 1). A convex combination of
+/// a set contracts towards the mean, so `var(output) ≤ var(input)` holds for
+/// any non-trivial weighting.
+#[test]
+fn test_multi_iteration_convergence_monotonic() {
+    let [nz, ny, nx] = [10usize, 10, 10];
+    let base = 50.0_f32;
+    let noise_amp = 10.0_f32;
+    let n = nz * ny * nx;
+
+    // Same alternating noise as `test_patch_denoising_reduces_noise`.
+    let vals: Vec<f32> = (0..n)
+        .map(|i| {
+            let sign = if i % 2 == 0 { 1.0_f32 } else { -1.0 };
+            base + noise_amp * sign
+        })
+        .collect();
+
+    let input_var = variance(&vals);
+    let img = make_image(vals, [nz, ny, nx]);
+
+    let filter = PatchBasedDenoisingImageFilter {
+        number_of_iterations: 3,
+        number_of_sample_patches: 200,
+        patch_radius: 2,
+        kernel_bandwidth_estimation: false,
+    };
+
+    let out = filter.apply(&img).unwrap();
+    let result = extract_vals(&out);
+
+    let output_var = variance(&result);
+    assert!(
+        output_var <= input_var,
+        "3-iteration NL-means must not increase variance: \
+         input_var={input_var:.4} output_var={output_var:.4}"
+    );
 }

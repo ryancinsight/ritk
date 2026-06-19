@@ -55,7 +55,7 @@ fn masked_cache_fingerprint_detects_collision() {
 
     let _ = hist.compute_masked_joint_histogram(
         &fixed_img,
-        all_points.clone(),
+        &all_points,
         &moving_img,
         &translation,
         &interp,

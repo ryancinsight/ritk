@@ -185,14 +185,21 @@ impl GeodesicActiveContourSegmentation {
         let n = phi.len();
         let mut kappa = vec![0.0_f64; n];
         let mut phi_new = vec![0.0_f64; n];
+        // SEG-01: pre-allocate per-iteration scratch buffers outside the loop so
+        // that compute_field_gradient_into / upwind_advection_into reuse them,
+        // eliminating 4 × N×8 heap allocations per PDE iteration.
+        let mut phi_gz = vec![0.0_f64; n];
+        let mut phi_gy = vec![0.0_f64; n];
+        let mut phi_gx = vec![0.0_f64; n];
+        let mut adv = vec![0.0_f64; n];
 
         for _iter in 0..self.max_iterations {
             // Compute curvature and gradient of phi.
             helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            let (phi_gz, phi_gy, phi_gx) = helpers::compute_field_gradient(&phi, dims);
+            helpers::compute_field_gradient_into(&phi, dims, &mut phi_gz, &mut phi_gy, &mut phi_gx);
             // Upwind discretisation of the advection (transport) term ∇g·∇φ;
             // central differencing it is unstable and leaks the front past edges.
-            let adv = helpers::upwind_advection(&phi, dims, &g_grad_z, &g_grad_y, &g_grad_x);
+            helpers::upwind_advection_into(&phi, dims, &g_grad_z, &g_grad_y, &g_grad_x, &mut adv);
 
             let mut max_change: f64 = 0.0;
 

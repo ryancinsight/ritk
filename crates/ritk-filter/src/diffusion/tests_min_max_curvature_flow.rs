@@ -1,9 +1,3 @@
-//! Differential test for [`MinMaxCurvatureFlowImageFilter`] against SimpleITK.
-//!
-//! The expected output is captured verbatim from `sitk.MinMaxCurvatureFlow`
-//! (timeStep 0.05, 3 iterations, stencilRadius 2) on a deterministic structured
-//! 8×8 (z=1) input — an external oracle.
-
 use super::{
     BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
     MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
@@ -12,6 +6,24 @@ use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;
 
 type B = burn_ndarray::NdArray<f32>;
+
+// ── T-2: stencil_radius=0 guard ─────────────────────────────────────────────────
+
+/// `stencil_radius = 0` is not a valid configuration: the directional
+/// threshold functions divide by `r` (radius as f64), which would produce
+/// Inf/NaN, and the sphere stencil degenerates to a single voxel, making
+/// the gate meaningless.  The guard asserts `stencil_radius >= 1`.
+#[test]
+#[should_panic(expected = "stencil_radius must be >= 1")]
+fn min_max_stencil_radius_zero_panics() {
+    let img = ts::make_image::<B, 3>(vec![1.0_f32; 16], [1, 4, 4]);
+    let _out = MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
+        num_iterations: 1,
+        time_step: 0.05,
+        stencil_radius: 0,
+    })
+    .apply(&img);
+}
 
 #[test]
 fn binary_matches_sitk() {

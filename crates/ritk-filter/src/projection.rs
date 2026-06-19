@@ -339,34 +339,63 @@ fn project_median<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
     let [nz, ny, nx] = image.shape();
     let (vals, _) = extract_vec(image)?;
     match axis {
+        // Z-projection: output [1, ny, nx]. Parallelise over ny output rows
+        // (chunk_size = nx). `col` allocated once per row, reused for all nx
+        // pixels in that row — avoids the per-pixel Vec allocation (P-3).
         ProjectionAxis::Z => {
-            let out: Vec<f32> =
-                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(ny * nx, |idx| {
-                    let (y, x) = (idx / nx, idx % nx);
-                    let mut col: Vec<f32> =
-                        (0..nz).map(|z| vals[z * ny * nx + y * nx + x]).collect();
-                    median_at_half(&mut col)
-                });
+            let mut out = vec![0.0_f32; ny * nx];
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut out,
+                nx,
+                |iy, row_slice| {
+                    let mut col = Vec::with_capacity(nz);
+                    for ix in 0..nx {
+                        col.clear();
+                        for z in 0..nz {
+                            col.push(vals[z * ny * nx + iy * nx + ix]);
+                        }
+                        row_slice[ix] = median_at_half(&mut col);
+                    }
+                },
+            );
             Ok(rebuild(out, [1, ny, nx], image))
         }
+        // Y-projection: output [nz, 1, nx]. Parallelise over nz slices.
         ProjectionAxis::Y => {
-            let out: Vec<f32> =
-                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * nx, |idx| {
-                    let (z, x) = (idx / nx, idx % nx);
-                    let mut col: Vec<f32> =
-                        (0..ny).map(|y| vals[z * ny * nx + y * nx + x]).collect();
-                    median_at_half(&mut col)
-                });
+            let mut out = vec![0.0_f32; nz * nx];
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut out,
+                nx,
+                |iz, row_slice| {
+                    let mut col = Vec::with_capacity(ny);
+                    for ix in 0..nx {
+                        col.clear();
+                        for y in 0..ny {
+                            col.push(vals[iz * ny * nx + y * nx + ix]);
+                        }
+                        row_slice[ix] = median_at_half(&mut col);
+                    }
+                },
+            );
             Ok(rebuild(out, [nz, 1, nx], image))
         }
+        // X-projection: output [nz, ny, 1]. Parallelise over nz slices;
+        // each row vals[iz*ny*nx + iy*nx ..] is contiguous in memory.
         ProjectionAxis::X => {
-            let out: Vec<f32> =
-                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny, |idx| {
-                    let (z, y) = (idx / ny, idx % ny);
-                    let mut col: Vec<f32> =
-                        (0..nx).map(|x| vals[z * ny * nx + y * nx + x]).collect();
-                    median_at_half(&mut col)
-                });
+            let mut out = vec![0.0_f32; nz * ny];
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut out,
+                ny,
+                |iz, col_slice| {
+                    let mut row = Vec::with_capacity(nx);
+                    for (iy, cell) in col_slice.iter_mut().enumerate() {
+                        row.clear();
+                        let base = iz * ny * nx + iy * nx;
+                        row.extend_from_slice(&vals[base..base + nx]);
+                        *cell = median_at_half(&mut row);
+                    }
+                },
+            );
             Ok(rebuild(out, [nz, ny, 1], image))
         }
     }

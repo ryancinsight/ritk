@@ -163,6 +163,7 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                     y: &mut fy_fwd,
                     x: &mut fx_fwd,
                 },
+                dims,
             );
             thirion_forces_into(
                 moving,
@@ -178,6 +179,7 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                     y: &mut fy_bwd,
                     x: &mut fx_bwd,
                 },
+                dims,
             );
 
             let w_fwd = (1.0 - w) as f32;

@@ -209,6 +209,10 @@ pub(crate) enum Extremum {
 ///   `n_cols` independent `nz`-element chunks processed in parallel, then
 ///   transposed back to `[nz, ny, nx]`.
 ///
+/// Scratch buffers are allocated once per thread via `thread_local!` storage and
+/// grown-on-demand via `Vec::resize`, eliminating per-z-slice (X/Y passes) and
+/// per-z-column (Z-pass) allocations (P-6).
+///
 /// Output is **bit-identical** to the serial version — the passes are
 /// embarrassingly parallel with no data sharing within a pass.
 pub(crate) fn separable_box_3d(
@@ -223,27 +227,39 @@ pub(crate) fn separable_box_3d(
     let [nz, ny, nx] = dims;
     let n_total = nz * ny * nx;
 
-    // ── Pass 1: X-axis (contiguous nx-element rows) ──────────────────────────
+    // One scratch tuple per OS thread: (output_buf, input_copy_buf, deque).
+    // `resize` grows the Vec on first use or when the dimension increases;
+    // it never shrinks the allocation, so steady-state is allocation-free.
+    thread_local! {
+        static SCRATCH: std::cell::RefCell<(
+            Vec<f32>,
+            Vec<f32>,
+            std::collections::VecDeque<usize>,
+        )> = const { std::cell::RefCell::new((Vec::new(), Vec::new(), std::collections::VecDeque::new())) };
+    }
+
+    // ── Pass 1: X-axis (contiguous nx-element rows) ──────────────────────────────
     // nz z-slices × ny rows each; chunk = one z-slice (ny*nx elements).
-    // Per-thread scratch: tmp[nx], wout_t[nx], deque_t — allocated once per slice.
+    // Thread-local (wout_t, tmp, deq) reused across all ny rows in the slice.
     let mut buf = data.to_vec();
     moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
         &mut buf,
         ny * nx,
         |_iz, slice| {
-            let mut wout_t = vec![0.0f32; nx];
-            let mut deque_t = std::collections::VecDeque::new();
-            let mut tmp = vec![0.0f32; nx];
-            for iy in 0..ny {
-                let base = iy * nx;
-                tmp.copy_from_slice(&slice[base..base + nx]);
-                window_1d(&tmp, radius, ext, &mut wout_t, &mut deque_t);
-                slice[base..base + nx].copy_from_slice(&wout_t[..nx]);
-            }
+            SCRATCH.with_borrow_mut(|(wout_t, tmp, deq)| {
+                wout_t.resize(nx, 0.0f32);
+                tmp.resize(nx, 0.0f32);
+                for iy in 0..ny {
+                    let base = iy * nx;
+                    tmp.copy_from_slice(&slice[base..base + nx]);
+                    window_1d(tmp, radius, ext, wout_t, deq);
+                    slice[base..base + nx].copy_from_slice(&wout_t[..nx]);
+                }
+            });
         },
     );
 
-    // ── Pass 2: Y-axis (strided ny-element columns within each z-slice) ──────
+    // ── Pass 2: Y-axis (strided ny-element columns within each z-slice) ───────
     // nz z-slices; each thread processes nx Y-columns for its slice.
     // buf_x is the X-processed source, captured immutably; writes go to buf_y
     // (a separate allocation). `buf_x: &[f32]` is Sync; `buf_y` is mutably
@@ -255,18 +271,19 @@ pub(crate) fn separable_box_3d(
         ny * nx,
         |iz, out_slice| {
             let src = &buf_x[iz * ny * nx..(iz + 1) * ny * nx];
-            let mut col = vec![0.0f32; ny];
-            let mut wout_t = vec![0.0f32; ny];
-            let mut deque_t = std::collections::VecDeque::new();
-            for ix in 0..nx {
-                for iy in 0..ny {
-                    col[iy] = src[iy * nx + ix];
+            SCRATCH.with_borrow_mut(|(wout_t, col, deq)| {
+                wout_t.resize(ny, 0.0f32);
+                col.resize(ny, 0.0f32);
+                for ix in 0..nx {
+                    for iy in 0..ny {
+                        col[iy] = src[iy * nx + ix];
+                    }
+                    window_1d(&col[..ny], radius, ext, wout_t, deq);
+                    for iy in 0..ny {
+                        out_slice[iy * nx + ix] = wout_t[iy];
+                    }
                 }
-                window_1d(&col[..ny], radius, ext, &mut wout_t, &mut deque_t);
-                for iy in 0..ny {
-                    out_slice[iy * nx + ix] = wout_t[iy];
-                }
-            }
+            });
         },
     );
 
@@ -289,10 +306,11 @@ pub(crate) fn separable_box_3d(
         &mut buf_zt,
         nz,
         |_col, z_col| {
-            let mut wout_t = vec![0.0f32; nz];
-            let mut deque_t = std::collections::VecDeque::new();
-            window_1d(z_col, radius, ext, &mut wout_t, &mut deque_t);
-            z_col.copy_from_slice(&wout_t[..nz]);
+            SCRATCH.with_borrow_mut(|(wout_t, _, deq)| {
+                wout_t.resize(nz, 0.0f32);
+                window_1d(z_col, radius, ext, wout_t, deq);
+                z_col.copy_from_slice(&wout_t[..nz]);
+            });
         },
     );
     // Inverse transpose: out[iz*n_cols + col] = buf_zt[col*nz + iz]

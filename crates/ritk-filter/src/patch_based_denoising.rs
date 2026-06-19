@@ -5,6 +5,11 @@
 //! Approximates `itk::PatchBasedDenoisingImageFilter` with
 //! `KernelBandwidthEstimation = false` and deterministic grid sampling.
 //!
+//! # Limitations
+//!
+//! `kernel_bandwidth_estimation = true` is **not implemented**. Passing `true`
+//! returns an `Err`; set the field to `false` to use the fixed MAD bandwidth.
+//!
 //! 1. Estimate noise via the MAD estimator: σ = median(|I − median(I)|) / 0.6745
 //! 2. Set bandwidth h² = σ² (fixed bandwidth path; `kernel_bandwidth_estimation = false`)
 //! 3. Sample `number_of_sample_patches` reference positions on a deterministic grid with
@@ -60,9 +65,9 @@ pub struct PatchBasedDenoisingImageFilter {
     pub number_of_sample_patches: usize,
     /// Half-width of the comparison patch in voxels.
     pub patch_radius: usize,
-    /// Ignored when `false` (fixed MAD-based bandwidth). When `true` the same
-    /// MAD bandwidth is used; full iterative bandwidth estimation is not
-    /// implemented.
+    /// Accepted for API compatibility only. Must be `false`; setting `true`
+    /// causes [`apply`](Self::apply) to return `Err` because full iterative
+    /// bandwidth estimation is not implemented.
     pub kernel_bandwidth_estimation: bool,
 }
 
@@ -83,8 +88,16 @@ impl PatchBasedDenoisingImageFilter {
     /// Spatial metadata (origin, spacing, direction) is preserved from `image`.
     ///
     /// # Errors
-    /// Returns `Err` if the underlying tensor data cannot be read as `f32`.
+    /// Returns `Err` if:
+    /// - `kernel_bandwidth_estimation = true` (not implemented); or
+    /// - the underlying tensor data cannot be read as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+        if self.kernel_bandwidth_estimation {
+            anyhow::bail!(
+                "PatchBasedDenoisingImageFilter: kernel_bandwidth_estimation=true is not \
+                 implemented; set kernel_bandwidth_estimation=false to use the fixed MAD bandwidth"
+            );
+        }
         let (data, dims) = extract_vec(image)?;
         let result = self.run(&data, dims);
         Ok(rebuild(result, dims, image))
@@ -136,14 +149,21 @@ fn nl_means_pass(
 
     let mut output = vec![0.0_f32; n];
 
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let p = iz * ny * nx + iy * nx + ix;
+    // Parallelise over z-slices. Each slice writes into a disjoint
+    // contiguous range of `output`; `data` and `samples` are captured
+    // immutably (both `Sync`) so the closure is `Send`.
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut output,
+        ny * nx,
+        |iz, iz_out| {
+            for (rem, cell) in iz_out.iter_mut().enumerate() {
+                let iy = rem / nx;
+                let ix = rem % nx;
+                let p_flat = iz * ny * nx + rem;
                 let mut w_sum = 0.0_f64;
                 let mut val_sum = 0.0_f64;
 
-                for &q_idx in &samples {
+                for &q_idx in samples.as_slice() {
                     let qz = (q_idx / (ny * nx)) as isize;
                     let qy = ((q_idx / nx) % ny) as isize;
                     let qx = (q_idx % nx) as isize;
@@ -170,14 +190,14 @@ fn nl_means_pass(
                     val_sum += w * data[q_idx] as f64;
                 }
 
-                output[p] = if w_sum > 1e-20 {
+                *cell = if w_sum > 1e-20 {
                     (val_sum / w_sum) as f32
                 } else {
-                    data[p]
+                    data[p_flat]
                 };
             }
-        }
-    }
+        },
+    );
 
     output
 }
@@ -237,12 +257,31 @@ fn estimate_noise_mad(data: &[f32]) -> f64 {
         sorted[n / 2] as f64
     };
 
-    let mut devs: Vec<f64> = data.iter().map(|&v| (v as f64 - med).abs()).collect();
-    devs.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    // Repurpose `sorted` for absolute-deviation values |v − med|, then use
+    // select_nth_unstable_by for O(N) median selection — avoids a second
+    // O(N) allocation (P-7).  Deviations stored as f32; precision is
+    // sufficient for noise-sigma estimation.
+    let med_f32 = med as f32;
+    for v in sorted.iter_mut() {
+        *v = (*v - med_f32).abs();
+    }
+    let k = n / 2;
     let mad = if n & 1 == 0 {
-        (devs[n / 2 - 1] + devs[n / 2]) * 0.5
+        // Even n: MAD = (dev[k-1] + dev[k]) / 2.
+        // select_nth_unstable_by at k places dev[k] at index k and partitions
+        // left[0..k] with all values ≤ dev[k].  max(left) = dev[k-1].
+        let (left, upper_elem, _) = sorted.select_nth_unstable_by(k, |a, b| {
+            a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let upper = *upper_elem as f64;
+        let lower = left.iter().copied().fold(f32::NEG_INFINITY, f32::max) as f64;
+        (lower + upper) * 0.5
     } else {
-        devs[n / 2]
+        // Odd n: MAD = dev[k].
+        let (_, m, _) = sorted.select_nth_unstable_by(k, |a, b| {
+            a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        *m as f64
     };
 
     let sigma = mad / 0.6745;

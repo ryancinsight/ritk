@@ -9,9 +9,10 @@
 //! 2. **Gradient computation**: Estimate ∇I via central finite differences,
 //!    yielding gradient magnitude |∇I| and direction θ = atan2(g_y, g_x) at
 //!    each voxel.
-//! 3. **Non-maximum suppression (NMS)**: For each voxel, quantise θ into one
-//!    of four directions {0°, 45°, 90°, 135°} and suppress the voxel if its
-//!    gradient magnitude is not a local maximum along that direction.
+//! 3. **Non-maximum suppression (NMS)**: For each voxel, step ±1 pixel along
+//!    the continuous gradient direction and evaluate the magnitude via
+//!    trilinear interpolation; suppress the voxel if either interpolated
+//!    neighbour exceeds its magnitude (sub-pixel NMS, no direction quantisation).
 //! 4. **Double hysteresis thresholding**: Classify surviving voxels as
 //!    *strong* (|∇I| ≥ T_high) or *weak* (T_low ≤ |∇I| < T_high). Retain
 //!    weak edges only if they are connected to a strong edge via BFS on the
@@ -144,8 +145,8 @@ impl CannyEdgeDetector {
         // ── Stage 2: Gradient magnitude and direction ─────────────────────
         let (mag, dir_z, dir_y, dir_x) = compute_gradient(vals, dims, sp);
 
-        // ── Stage 3: Non-maximum suppression ──────────────────────────────
-        let nms = non_maximum_suppression(&mag, &dir_z, &dir_y, &dir_x, dims);
+        // ── Stage 3: Non-maximum suppression ──────────────────────────────────
+        let nms = non_maximum_suppression(&mag, &dir_x, &dir_y, &dir_z, &dims);
 
         // ── Stage 4: Double hysteresis thresholding with BFS ──────────────
         let edges = hysteresis_threshold(
@@ -169,7 +170,7 @@ const NEAR_ZERO_MAG: f32 = 1e-10;
 // ── Gradient computation ──────────────────────────────────────────────────────
 
 /// Compute gradient magnitude and per-component direction using central
-/// differences with one-sided boundary handling.
+/// differences with one-sided boundary handling, parallelised over z-slices.
 ///
 /// Returns `(magnitude, dir_z, dir_y, dir_x)` where each direction component
 /// is the normalised gradient component (unit vector) at each voxel.
@@ -180,181 +181,190 @@ fn compute_gradient(
 ) -> (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>) {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-
-    let mut mag = vec![0.0_f32; n];
-    let mut dz = vec![0.0_f32; n];
-    let mut dy = vec![0.0_f32; n];
-    let mut dx = vec![0.0_f32; n];
+    let slab = ny * nx;
 
     let sz = spacing[0] as f32;
     let sy = spacing[1] as f32;
     let sx = spacing[2] as f32;
 
-    let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * ny * nx + iy * nx + ix };
+    // Pack [mag, dz, dy, dx] per voxel interleaved; scatter to separate arrays
+    // after the parallel pass.  Each z-slice chunk owns `slab * 4` elements so
+    // chunks are disjoint and can be filled by independent threads.
+    let mut combined = vec![0.0_f32; n * 4];
 
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let flat = idx(iz, iy, ix);
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut combined,
+        slab * 4,
+        |iz, iz_out| {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local_flat = iy * nx + ix;
+                    let flat = iz * slab + local_flat;
 
-                let gz = if nz == 1 {
-                    0.0
-                } else if iz == 0 {
-                    (data[idx(1, iy, ix)] - data[flat]) / sz
-                } else if iz == nz - 1 {
-                    (data[flat] - data[idx(nz - 2, iy, ix)]) / sz
-                } else {
-                    (data[idx(iz + 1, iy, ix)] - data[idx(iz - 1, iy, ix)]) / (2.0 * sz)
-                };
+                    let gz = if nz == 1 {
+                        0.0
+                    } else if iz == 0 {
+                        (data[flat + slab] - data[flat]) / sz
+                    } else if iz == nz - 1 {
+                        (data[flat] - data[flat - slab]) / sz
+                    } else {
+                        (data[flat + slab] - data[flat - slab]) / (2.0 * sz)
+                    };
 
-                let gy = if ny == 1 {
-                    0.0
-                } else if iy == 0 {
-                    (data[idx(iz, 1, ix)] - data[flat]) / sy
-                } else if iy == ny - 1 {
-                    (data[flat] - data[idx(iz, ny - 2, ix)]) / sy
-                } else {
-                    (data[idx(iz, iy + 1, ix)] - data[idx(iz, iy - 1, ix)]) / (2.0 * sy)
-                };
+                    let gy = if ny == 1 {
+                        0.0
+                    } else if iy == 0 {
+                        (data[flat + nx] - data[flat]) / sy
+                    } else if iy == ny - 1 {
+                        (data[flat] - data[flat - nx]) / sy
+                    } else {
+                        (data[flat + nx] - data[flat - nx]) / (2.0 * sy)
+                    };
 
-                let gx = if nx == 1 {
-                    0.0
-                } else if ix == 0 {
-                    (data[idx(iz, iy, 1)] - data[flat]) / sx
-                } else if ix == nx - 1 {
-                    (data[flat] - data[idx(iz, iy, nx - 2)]) / sx
-                } else {
-                    (data[idx(iz, iy, ix + 1)] - data[idx(iz, iy, ix - 1)]) / (2.0 * sx)
-                };
+                    let gx = if nx == 1 {
+                        0.0
+                    } else if ix == 0 {
+                        (data[flat + 1] - data[flat]) / sx
+                    } else if ix == nx - 1 {
+                        (data[flat] - data[flat - 1]) / sx
+                    } else {
+                        (data[flat + 1] - data[flat - 1]) / (2.0 * sx)
+                    };
 
-                let m = (gz * gz + gy * gy + gx * gx).sqrt();
-                mag[flat] = m;
-
-                if m > NEAR_ZERO_MAG {
-                    dz[flat] = gz / m;
-                    dy[flat] = gy / m;
-                    dx[flat] = gx / m;
+                    let m = (gz * gz + gy * gy + gx * gx).sqrt();
+                    let out_base = local_flat * 4;
+                    iz_out[out_base] = m;
+                    if m > NEAR_ZERO_MAG {
+                        iz_out[out_base + 1] = gz / m;
+                        iz_out[out_base + 2] = gy / m;
+                        iz_out[out_base + 3] = gx / m;
+                    }
                 }
             }
-        }
-    }
+        },
+    );
 
+    // Scatter the interleaved combined output to separate arrays.
+    let mut mag = vec![0.0_f32; n];
+    let mut dz = vec![0.0_f32; n];
+    let mut dy = vec![0.0_f32; n];
+    let mut dx = vec![0.0_f32; n];
+    for i in 0..n {
+        let base = i * 4;
+        mag[i] = combined[base];
+        dz[i] = combined[base + 1];
+        dy[i] = combined[base + 2];
+        dx[i] = combined[base + 3];
+    }
     (mag, dz, dy, dx)
 }
 
 // ── Non-maximum suppression ───────────────────────────────────────────────────
 
-/// Suppress voxels whose gradient magnitude is not a local maximum along the
-/// gradient direction.
+/// Trilinearly interpolate `vals` at continuous position `(fz, fy, fx)` within
+/// `dims`, clamped to the valid voxel range.
 ///
-/// For 3-D images, the gradient direction is projected onto the 13 unique axis
-/// directions of the 26-connected neighbourhood. The two neighbours along the
-/// dominant direction are examined; if either has a greater magnitude, the
-/// centre voxel is suppressed to zero.
-fn non_maximum_suppression(
-    mag: &[f32],
-    dir_z: &[f32],
-    dir_y: &[f32],
-    dir_x: &[f32],
-    dims: [usize; 3],
-) -> Vec<f32> {
-    let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
-    let mut out = vec![0.0_f32; n];
-
-    let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * ny * nx + iy * nx + ix };
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let flat = idx(iz, iy, ix);
-                let m = mag[flat];
-                if m < NEAR_ZERO_MAG {
-                    continue;
-                }
-
-                // Quantise gradient direction to the nearest 3-D neighbour offset
-                let (oz, oy, ox) = quantise_direction(dir_z[flat], dir_y[flat], dir_x[flat]);
-
-                // Neighbour in the positive gradient direction
-                let pz = iz as isize + oz;
-                let py = iy as isize + oy;
-                let px = ix as isize + ox;
-                let m_pos = if pz >= 0
-                    && pz < nz as isize
-                    && py >= 0
-                    && py < ny as isize
-                    && px >= 0
-                    && px < nx as isize
-                {
-                    mag[idx(pz as usize, py as usize, px as usize)]
-                } else {
-                    0.0
-                };
-
-                // Neighbour in the negative gradient direction
-                let nz_ = iz as isize - oz;
-                let ny_ = iy as isize - oy;
-                let nx_ = ix as isize - ox;
-                let m_neg = if nz_ >= 0
-                    && nz_ < nz as isize
-                    && ny_ >= 0
-                    && ny_ < ny as isize
-                    && nx_ >= 0
-                    && nx_ < nx as isize
-                {
-                    mag[idx(nz_ as usize, ny_ as usize, nx_ as usize)]
-                } else {
-                    0.0
-                };
-
-                // Suppress if not a local maximum
-                if m >= m_pos && m >= m_neg {
-                    out[flat] = m;
-                }
-            }
-        }
-    }
-
-    out
+/// Used by [`non_maximum_suppression`] to evaluate gradient magnitude at
+/// sub-pixel positions along the continuous gradient direction.
+fn trilinear_interp(vals: &[f32], dims: &[usize; 3], fz: f64, fy: f64, fx: f64) -> f32 {
+    let [nz, ny, nx] = *dims;
+    // Clamp to valid coordinate range; `.max(0.0)` guards the nz/ny/nx == 1 case
+    // where the upper bound would otherwise be negative.
+    let fz = fz.clamp(0.0, (nz as f64 - 1.0).max(0.0));
+    let fy = fy.clamp(0.0, (ny as f64 - 1.0).max(0.0));
+    let fx = fx.clamp(0.0, (nx as f64 - 1.0).max(0.0));
+    let iz0 = fz as usize;
+    let wz1 = fz - iz0 as f64;
+    let wz0 = 1.0 - wz1;
+    let iy0 = fy as usize;
+    let wy1 = fy - iy0 as f64;
+    let wy0 = 1.0 - wy1;
+    let ix0 = fx as usize;
+    let wx1 = fx - ix0 as f64;
+    let wx0 = 1.0 - wx1;
+    let iz1 = (iz0 + 1).min(nz - 1);
+    let iy1 = (iy0 + 1).min(ny - 1);
+    let ix1 = (ix0 + 1).min(nx - 1);
+    let v = |az: usize, ay: usize, ax: usize| vals[az * ny * nx + ay * nx + ax] as f64;
+    let interp = wz0
+        * (wy0 * (wx0 * v(iz0, iy0, ix0) + wx1 * v(iz0, iy0, ix1))
+            + wy1 * (wx0 * v(iz0, iy1, ix0) + wx1 * v(iz0, iy1, ix1)))
+        + wz1
+            * (wy0 * (wx0 * v(iz1, iy0, ix0) + wx1 * v(iz1, iy0, ix1))
+                + wy1 * (wx0 * v(iz1, iy1, ix0) + wx1 * v(iz1, iy1, ix1)));
+    interp as f32
 }
 
-/// Quantise a 3-D unit gradient direction vector to the nearest integer offset
-/// in {-1, 0, 1}³ \ {(0,0,0)}.
+/// Suppress voxels whose gradient magnitude is not a local maximum along the
+/// continuous gradient direction, evaluated via trilinear interpolation.
 ///
-/// This effectively selects one of the 26 directions. We round each component
-/// to the nearest of {-1, 0, 1} using a threshold of 0.4 to bias towards axis-
-/// aligned directions and avoid ambiguity at diagonal boundaries.
-fn quantise_direction(dz: f32, dy: f32, dx: f32) -> (isize, isize, isize) {
-    let snap = |v: f32| -> isize {
-        if v > 0.4 {
-            1
-        } else if v < -0.4 {
-            -1
-        } else {
-            0
-        }
-    };
+/// For each voxel the magnitude at positions ±1 step along the unit gradient
+/// vector `(gx, gy, gz)` is obtained by trilinear interpolation from the
+/// magnitude field; the voxel is suppressed if either interpolated value
+/// exceeds its own magnitude.  Parallelised over z-slices.
+///
+/// # Parameters
+///
+/// * `gx` — x-component of the normalised gradient direction.
+/// * `gy` — y-component of the normalised gradient direction.
+/// * `gz` — z-component of the normalised gradient direction.
+fn non_maximum_suppression(
+    mag: &[f32],
+    gx: &[f32],
+    gy: &[f32],
+    gz: &[f32],
+    dims: &[usize; 3],
+) -> Vec<f32> {
+    let [nz, ny, nx] = *dims;
+    let slab = ny * nx;
+    let mut out = vec![0.0_f32; nz * slab];
 
-    let oz = snap(dz);
-    let oy = snap(dy);
-    let ox = snap(dx);
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut out,
+        slab,
+        |iz, iz_out| {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local = iy * nx + ix;
+                    let flat = iz * slab + local;
+                    let m = mag[flat];
+                    if m < NEAR_ZERO_MAG {
+                        continue;
+                    }
+                    let dgx = gx[flat] as f64;
+                    let dgy = gy[flat] as f64;
+                    let dgz = gz[flat] as f64;
+                    let len = (dgx * dgx + dgy * dgy + dgz * dgz).sqrt();
+                    if len < 1e-10 {
+                        iz_out[local] = m;
+                        continue;
+                    }
+                    let nx_ = dgx / len;
+                    let ny_ = dgy / len;
+                    let nz_ = dgz / len;
+                    let fwd = trilinear_interp(
+                        mag,
+                        dims,
+                        iz as f64 + nz_,
+                        iy as f64 + ny_,
+                        ix as f64 + nx_,
+                    );
+                    let bwd = trilinear_interp(
+                        mag,
+                        dims,
+                        iz as f64 - nz_,
+                        iy as f64 - ny_,
+                        ix as f64 - nx_,
+                    );
+                    if m >= fwd && m >= bwd {
+                        iz_out[local] = m;
+                    }
+                }
+            }
+        },
+    );
 
-    // Fallback: if all components round to 0, pick the dominant axis
-    if oz == 0 && oy == 0 && ox == 0 {
-        let az = dz.abs();
-        let ay = dy.abs();
-        let ax = dx.abs();
-        if az >= ay && az >= ax {
-            return (if dz >= 0.0 { 1 } else { -1 }, 0, 0);
-        } else if ay >= ax {
-            return (0, if dy >= 0.0 { 1 } else { -1 }, 0);
-        } else {
-            return (0, 0, if dx >= 0.0 { 1 } else { -1 });
-        }
-    }
-
-    (oz, oy, ox)
+    out
 }
 
 // ── Double hysteresis thresholding ────────────────────────────────────────────

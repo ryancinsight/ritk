@@ -64,6 +64,7 @@ const GOLDEN_7X7: [f32; 49] = [
 fn test_isolated_watershed_matches_sitk_relief_7x7() {
     let dims = [1_usize, 7, 7];
     // seed1 at (y=1, x=3) → flat 1*7+3 = 10; seed2 at (y=5, x=3) → flat 38.
+    #[allow(clippy::identity_op)]
     let seed1 = 1 * 7 + 3;
     let seed2 = 5 * 7 + 3;
     let config = IsolatedWatershedConfig {

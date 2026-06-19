@@ -1,5 +1,66 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 384: Correctness Fixes, Performance Optimisation, cmake Parity Expansion
+
+### Fixed (correctness)
+- `ritk-registration`: `RegularStepGradientDescentOptimizer` — `prev_loss` was incorrectly advanced
+  on **rejected** steps, causing the rejection to be invisible to subsequent comparisons and weakening
+  convergence. Now matches ITK `itkRegularStepGradientDescentOptimizerv4.hxx` semantics: `prev_loss`
+  only advances on accepted steps. Evidence: new value-semantic unit test
+  `rsgd_prev_loss_not_advanced_on_rejected_step`.
+- `ritk-filter`: `CannyEdgeDetectionImageFilter` — non-maximum suppression replaced with
+  **sub-pixel trilinear interpolation** along the continuous gradient direction, matching
+  ITK's `itkCannyEdgeDetectionImageFilter.hxx`. Removes the 26-direction quantisation artefact
+  that produced thick/staircase edges near 45° diagonals.
+- `ritk-filter`: `PatchBasedDenoisingImageFilter` — `kernel_bandwidth_estimation=true` now returns
+  `Err` with a clear message instead of silently behaving as `false`. Rustdoc updated.
+- `ritk-segmentation`: `GeodesicActiveContourLevelSetImageFilter` — 4 × `Vec<f64>` (phi gradient
+  + advection) now pre-allocated once per `evolve()` call and reused across iterations via new
+  `compute_field_gradient_into` / `upwind_advection_into` scratch-buffer variants.
+
+### Performance
+- `ritk-filter`: `CannyEdgeDetectionImageFilter` — `compute_gradient` and `non_maximum_suppression`
+  parallelised via `moirai` z-slice chunking; both were fully serial over N voxels.
+- `ritk-filter`: `PatchBasedDenoisingImageFilter` NL-means pass — parallelised via
+  `moirai::for_each_chunk_mut_enumerated_with` over z-slices (previously fully serial O(N·200·9³)).
+  `estimate_noise_mad` no longer allocates a second full-volume `Vec<f64>` (sorted clone reused
+  in-place for MAD computation).
+- `ritk-filter`: `MedianIntensityProjectionFilter` — eliminated per-pixel `Vec<f32>` allocation;
+  now allocates once per z-row and `clear()`+reuses across pixels in the row.
+- `ritk-filter`: `MinMaxCurvatureFlowImageFilter` and `BinaryMinMaxCurvatureFlowImageFilter` —
+  per-voxel iteration loop parallelised via `moirai` z-slice chunking.
+- `ritk-filter`: `separable_box_3d` — eliminated per-z-slice `Vec<f32>` and `VecDeque` allocations
+  via `thread_local!` scratch storage; steady state is allocation-free per OS thread.
+- `ritk-registration`: `LocalNormalizedCrossCorrelation::forward()` — `GaussianFilter` constructed
+  once in `new()` and reused; was reconstructed on every `forward()` call.
+- `ritk-registration`: `thirion_forces_into` — serial `for i in 0..fixed.len()` loop replaced with
+  `moirai` z-slice parallelism (`CellSlice` pattern, matching `cc_forces_into`).
+- `ritk-registration`: `GrowCut` automaton iteration — `map_collect_index_with` (Vec alloc per iter)
+  replaced with pre-allocated update buffer + parallel write.
+- `ritk-registration`: `compute_masked_joint_histogram` — changed `Tensor<B,2>` ownership to `&Tensor`
+  eliminating `.clone()` per `forward()` call.
+- `ritk-segmentation`: `level_set/helpers.rs` — `compute_curvature_into`, `compute_field_gradient_into`,
+  `upwind_advection_into` all parallelised via `moirai` z-slice + `CellSlice` pattern.
+- `ritk-segmentation`: `chan_vese` — inline-normalized histogram in `local_otsu_threshold` (no 256-element `Vec<f64>`).
+- `ritk-segmentation`: `staple` — 4 × `Vec<f64>[K]` log-parameter vecs pre-allocated outside EM loop.
+
+### Added (tests)
+- `ritk-filter`: 2 new canny tests (`test_canny_2d_step_edge_pixel_count`,
+  `test_canny_nms_reduces_thick_edges`), 2 projection tests (even-axis median upper-middle convention),
+  2 patch-denoising tests (`kernel_bandwidth_estimation` error + multi-iteration variance monotonicity),
+  1 curvature-flow guard test (`stencil_radius=0` → panic).
+- `ritk-registration`: `rsgd_prev_loss_not_advanced_on_rejected_step` — value-semantic RSGD correctness.
+- cmake parity: 9 new tests in `test_simpleitk_cmake_data.py`:
+  `bilateral_filter`, `flip`, `permute_axes`, `shift_scale` (skips — not bound),
+  `cyclic_shift`, `n4_bias_correction`, `vector_index_selection_cast`,
+  `region_of_interest`, `resample_image_structural`.
+  8 pass; 1 skips (`shift_scale` not yet exposed as Python binding).
+
+### Added (bindings)
+- `shift_scale` not yet exposed — tracked as NEW-384-01 in backlog.
+
+---
+
 ## [Unreleased] — Sprint 381: Wiener Formula Fix, Parallel Box/EDT, CED cmake Coverage
 
 ### Fixed

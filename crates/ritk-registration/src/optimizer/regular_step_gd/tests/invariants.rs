@@ -58,6 +58,75 @@ fn rsgd_set_loss_stores_current_loss() {
 use crate::optimizer::Optimizer;
 use burn::optim::GradientsParams;
 
+/// REG-01: `prev_loss` must not advance on a rejected step.
+///
+/// Scenario:
+///   step 1: set_loss(1.0)  → first step, prev_loss = None → accepted, steps=1
+///   step 2: set_loss(0.5)  → 0.5 ≤ 1.0             → accepted, steps=2, prev_loss=0.5
+///   step 3: set_loss(5.0)  → 5.0 > 0.5             → rejected, steps=2
+///                             BUG would set prev_loss=5.0; CORRECT keeps prev_loss=0.5
+///   step 4: set_loss(2.0)  → BUG: 2.0 ≤ 5.0 → accepted, steps=3
+///                          → CORRECT: 2.0 > 0.5 → rejected, steps stays 2
+/// Assert: steps == 2 after step 4.
+#[test]
+fn rsgd_prev_loss_not_advanced_on_rejected_step() {
+    let device = Default::default();
+    let mut module = Quadratic::<TestBackend>::new(&[1.0], &device);
+
+    let config = RegularStepGdConfig {
+        initial_step_length: 0.01,
+        relaxation_factor: 0.5,
+        minimum_step_length: 1e-100, // never converge on step
+        maximum_step_length: 10.0,
+        gradient_tolerance: 1e-100, // never converge on gradient
+        maximum_iterations: 100,
+        ..Default::default()
+    };
+
+    let mut optimizer: RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend> =
+        RegularStepGradientDescent::new(config);
+
+    let take_step = |opt: &mut RegularStepGradientDescent<Quadratic<TestBackend>, TestBackend>,
+                     module: Quadratic<TestBackend>,
+                     loss: f64|
+     -> Quadratic<TestBackend> {
+        opt.set_loss(loss);
+        let fwd = module.forward();
+        let grads = fwd.backward();
+        let gp = GradientsParams::from_grads(grads, &module);
+        opt.step(module, gp)
+    };
+
+    // Step 1: first call, prev_loss=None → always accepted.
+    module = take_step(&mut optimizer, module, 1.0);
+    assert_eq!(optimizer.steps(), 1, "step 1 must be accepted");
+
+    // Step 2: 0.5 ≤ prev_loss(1.0) → accepted.
+    module = take_step(&mut optimizer, module, 0.5);
+    assert_eq!(optimizer.steps(), 2, "step 2 must be accepted");
+
+    // Step 3: 5.0 > prev_loss(0.5) → rejected; steps stays at 2.
+    module = take_step(&mut optimizer, module, 5.0);
+    assert_eq!(
+        optimizer.steps(),
+        2,
+        "step 3 must be rejected (5.0 > 0.5); steps should stay at 2"
+    );
+
+    // Step 4: 2.0.  With the BUG (prev_loss advanced to 5.0 on rejection),
+    // 2.0 ≤ 5.0 would be accepted (steps→3).  With the CORRECT fix
+    // (prev_loss stays at 0.5), 2.0 > 0.5 → rejected (steps stays at 2).
+    module = take_step(&mut optimizer, module, 2.0);
+    assert_eq!(
+        optimizer.steps(),
+        2,
+        "step 4 must be rejected because prev_loss must still be 0.5 \
+         from the last accepted step, not 5.0 from the rejected step"
+    );
+
+    let _ = module; // suppress unused warning
+}
+
 #[test]
 fn rsgd_returns_module_unchanged_after_convergence() {
     let device = Default::default();

@@ -1,5 +1,81 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 384 — Correctness Fixes, Perf Optimisation, cmake Parity Expansion
+**Target version**: 0.12.79
+**Sprint phase**: Closure — all items delivered and verified
+
+### Delivered (Sprint 384)
+- [x] REG-01 [patch]: **RSGD `prev_loss` not advanced on rejected step** — `optimizer.rs`
+  `!improved` branch no longer sets `prev_loss`. New value-semantic test
+  `rsgd_prev_loss_not_advanced_on_rejected_step` verifies ITK-correct behaviour.
+- [x] C-2 [minor]: **Canny NMS sub-pixel trilinear interpolation** — replaced 26-direction
+  quantisation with bilinear/trilinear interpolation along the continuous gradient direction,
+  matching ITK `itkCannyEdgeDetectionImageFilter.hxx`.
+- [x] C-3 [patch]: **`PatchBasedDenoising` silent `kernel_bandwidth_estimation` flag** — now
+  returns `Err` with clear message; Rustdoc updated.
+- [x] SEG-01 [patch]: **`GeodesicActiveContourLevelSet` 4×Vec alloc per iteration** — pre-allocated
+  scratch buffers via `compute_field_gradient_into` / `upwind_advection_into` variants.
+- [x] P-1 [patch]: **`PatchBasedDenoising` NL-means serial** — parallelised via moirai z-slices.
+- [x] P-3 [patch]: **`MedianProjection` per-pixel Vec alloc** — eliminated; one Vec per z-row.
+- [x] P-4 [patch]: **Canny `compute_gradient` + NMS serial** — parallelised via moirai z-slices.
+- [x] P-5 [patch]: **`MinMaxCurvatureFlow` serial iteration** — parallelised via moirai z-slices.
+- [x] P-6 [patch]: **`separable_box_3d` per-slice scratch allocs** — eliminated via `thread_local!`.
+- [x] P-7 [patch]: **`estimate_noise_mad` double full-volume clone** — MAD computed in-place reusing
+  sorted clone; no second `Vec<f64>` allocation.
+- [x] REG-03 [patch]: **`LNCC::forward()` GaussianFilter construction** — moved to struct field;
+  one construction per `LocalNormalizedCrossCorrelation` instance.
+- [x] REG-04 [patch]: **`thirion_forces_into` serial loop** — parallelised via moirai CellSlice.
+- [x] REG-07 [patch]: **`compute_masked_joint_histogram` `pts.clone()`** — signature changed to
+  `&Tensor<B,2>`; no per-`forward()` clone.
+- [x] SEG-02 [patch]: **Level-set helpers serial loops** — `compute_curvature_into`,
+  `compute_field_gradient_into`, `upwind_advection_into` parallelised via moirai.
+- [x] SEG-05 [patch]: **`local_otsu_threshold` `Vec<f64>[256]` alloc** — eliminated; inline-normalized.
+- [x] SEG-06 [patch]: **STAPLE 4×`Vec<f64>[K]` per EM iter** — pre-allocated outside loop.
+- [x] T-1 [patch]: **Canny value-semantic NMS tests** — `test_canny_2d_step_edge_pixel_count`,
+  `test_canny_nms_reduces_thick_edges`.
+- [x] T-2 [patch]: **`stencil_radius=0` guard** — `assert!` in both curvature-flow filter `apply`
+  methods; panic test added.
+- [x] T-3 [patch]: **Projection even-axis median test** — `median_projection_x_even_axis_length`
+  verifies upper-middle convention (n/2 index) on 4-element sequence.
+- [x] T-4 [patch]: **Patch-denoising multi-iteration convergence test** — variance after 3 iters
+  ≤ input variance.
+- [x] TEST-384-01 [patch]: **9 new cmake parity tests** — bilateral, flip, permute_axes, shift_scale
+  (skip), cyclic_shift, n4_bias_correction, vector_index_selection_cast, region_of_interest,
+  resample_image_structural. 8 pass, 1 skips.
+
+### Verification gate
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 errors, 0 warnings
+- [x] `cargo nextest run -p ritk-filter` → **926/926 passed**
+- [x] `cargo nextest run -p ritk-segmentation` → **1356/1356 passed**
+- [x] `cargo nextest run -p ritk-registration` → **652/652 passed, 23 skipped**
+- [x] `uv run pytest tests/test_simpleitk_cmake_data.py` → **429 passed, 5 skipped**
+- [x] `uv run pytest tests/ -m 'not slow and not registration' --ignore=test_registration_validation.py`
+  → **1077 passed, 11 skipped, 3 xfailed**
+
+### Baseline progression
+| Run | cmake-data | Broad suite | Rust filter | Rust seg | Rust reg | Notes |
+|-----|-----------|------------|------------|---------|---------|-------|
+| Sprint 383 exit | 421 | 1068 | 920 | 431 | 2002 | |
+| Sprint 384 (this) | **429** | **1077** | **926** | **1356** | **652** | +8 cmake, 14 perf+correctness fixes |
+
+### Deferred / carry-forward
+- [ ] NEW-384-01 [minor]: `shift_scale` Python binding not yet exposed. 1 cmake test skips cleanly.
+- [ ] PERF-381-01 [partial]: `cargo bench` baseline timings for separable_box_3d / EDT not yet
+  recorded. Requires `cargo bench` on release build.
+- [ ] CORR-384-01 [major]: Frangi vesselness Hessian via finite-diff on sampled Gaussian vs ITK's
+  2nd-order Deriche IIR. Audit C-1 — fix is to call `recursive_gaussian_directional(Second)` per
+  axis; existing IIR machinery is available. Significant correctness improvement.
+- [ ] CORR-384-02 [major]: `IsolatedWatershed` — 0% label match vs sitk hierarchical gradient
+  watershed. Needs full `itk::WatershedSegmenter` port.
+- [ ] CORR-384-03 [major]: `ScalarChanAndVeseDenseLevelSet` — 19% match; SharedData region-mean
+  propagation + adaptive dt needed.
+- [ ] PERF-384-01 [high]: `window_cc_stats` O(N·w³) 2-pass scan → O(N) centered-residual integral
+  image form. At r=3 default, ~114× reduction. Algorithmic fix, not a parallelism patch.
+- [ ] PERF-384-02 [high]: `geodesic_active_contour` convergence — max|Δφ|/dt vs ITK RMS.
+  Different stopping behavior; ITK RMS is more numerically stable.
+
+---
+
 ## Sprint 383 — cmake Coverage, Perf/Memory, Clippy/Doc Cleanup (Active)
 **Target version**: 0.12.79
 **Sprint phase**: Closure — all items delivered and verified

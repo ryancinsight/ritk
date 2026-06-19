@@ -5945,3 +5945,297 @@ def test_cmake_scalar_chan_and_vese_dense_level_set_structural():
         f"inside mean phi ({inside_mean:.4f}) >= outside mean phi ({outside_mean:.4f}); "
         f"Chan-Vese should drive phi negative inside the feature region"
     )
+
+
+def test_cmake_bilateral_filter_matches_sitk():
+    """BilateralImageFilter: spatial_sigma=3.0, range_sigma=20.0 on cthead1.png.
+    ritk `filter.bilateral_filter` vs `sitk.Bilateral`. Mean absolute difference
+    < 5.0 (pixel values 0–255) and Pearson r > 0.99 — bilateral is a
+    non-linear edge-preserving filter; minor numerical differences from kernel
+    discretisation are expected but the structural output must agree.
+
+    Upstream cmake case mirrors: BilateralImageFilter.yaml.
+    Evidence tier: empirical (MAD and Pearson measured on upstream cthead1)."""
+    path = fetch_input("cthead1.png")
+    ri = ritk.io.read_image(path)
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+
+    ro = np.asarray(
+        ritk.filter.bilateral_filter(ri, 3.0, 20.0).to_numpy(), np.float64
+    ).squeeze()
+    so = sitk.GetArrayFromImage(
+        sitk.Bilateral(
+            si, domainSigma=3.0, rangeSigma=20.0, numberOfRangeGaussianSamples=100
+        )
+    ).astype(np.float64)
+
+    assert ro.shape == so.shape, f"BilateralFilter shape {ro.shape} != sitk {so.shape}"
+    mad = float(np.abs(ro - so).mean())
+    corr = float(np.corrcoef(ro.ravel(), so.ravel())[0, 1])
+    assert mad < 5.0, f"BilateralFilter MAD {mad:.4f} >= 5.0"
+    assert corr > 0.99, f"BilateralFilter Pearson {corr:.6f} < 0.99"
+
+
+def test_cmake_flip_matches_sitk():
+    """FlipImageFilter: flip along x axis on cthead1.png.
+    ritk `filter.flip(flip_x=True)` vs `sitk.Flip([True, False])`. Bitwise-
+    identical — pure coordinate reversal with no interpolation.
+
+    sitk axis order is (x, y); ritk uses named kwargs. flip_x=True corresponds
+    to sitk's first axis (True, False).
+
+    Evidence tier: compile-time (exact arithmetic, no floating-point ops)."""
+    path = fetch_input("cthead1.png")
+    ri = ritk.io.read_image(path)
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+
+    ro = np.asarray(ritk.filter.flip(ri, flip_x=True).to_numpy(), np.float64).squeeze()
+    so = sitk.GetArrayFromImage(sitk.Flip(si, [True, False])).astype(np.float64)
+
+    assert ro.shape == so.shape, f"Flip shape {ro.shape} != sitk {so.shape}"
+    max_diff = float(np.abs(ro - so).max())
+    assert max_diff == 0.0, f"Flip max_diff {max_diff} != 0 (expected bitwise-exact)"
+
+
+def test_cmake_permute_axes_matches_sitk():
+    """PermuteAxesImageFilter: swap x and y on cthead1.png.
+    ritk `filter.permute_axes((0, 2, 1))` vs `sitk.PermuteAxes([1, 0])`.
+    Bitwise-identical — pure index remap, no interpolation.
+
+    Axis-order derivation: sitk uses (x, y) order; ritk uses (z, y, x) numpy
+    order. Swapping x↔y in sitk ([1, 0]) corresponds to swapping numpy dims 1
+    and 2 (y↔x), encoded as ritk order (0, 2, 1).
+
+    Evidence tier: compile-time (exact arithmetic, no floating-point ops)."""
+    path = fetch_input("cthead1.png")
+    ri = ritk.io.read_image(path)
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+
+    ro = np.asarray(
+        ritk.filter.permute_axes(ri, (0, 2, 1)).to_numpy(), np.float64
+    ).squeeze()
+    so = sitk.GetArrayFromImage(sitk.PermuteAxes(si, [1, 0])).astype(np.float64)
+
+    assert ro.shape == so.shape, f"PermuteAxes shape {ro.shape} != sitk {so.shape}"
+    max_diff = float(np.abs(ro - so).max())
+    assert max_diff == 0.0, (
+        f"PermuteAxes max_diff {max_diff} != 0 (expected bitwise-exact)"
+    )
+
+
+def test_cmake_shift_scale_matches_sitk():
+    """ShiftScaleImageFilter: affine intensity remap (shift=-100, scale=1.5).
+    Tests that `ritk.filter.shift_scale` is bound; skips when absent.
+
+    Max absolute difference < 1.0 because the only source of divergence is
+    f32 rounding of the linear transform — no solver, no iteration.
+
+    Evidence tier: analytical (f32 rounding bound on a single multiply-add)."""
+    if not hasattr(ritk.filter, "shift_scale"):
+        pytest.skip("shift_scale not bound in ritk")
+
+    path = fetch_input("cthead1.png")
+    ri = ritk.io.read_image(path)
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+
+    ro = np.asarray(
+        ritk.filter.shift_scale(ri, shift=-100.0, scale=1.5).to_numpy(), np.float64
+    ).squeeze()
+    so = sitk.GetArrayFromImage(sitk.ShiftScale(si, shift=-100.0, scale=1.5)).astype(
+        np.float64
+    )
+
+    assert ro.shape == so.shape, f"ShiftScale shape {ro.shape} != sitk {so.shape}"
+    max_diff = float(np.abs(ro - so).max())
+    assert max_diff < 1.0, (
+        f"ShiftScale max_diff {max_diff:.4f} >= 1.0 (floating-point rounding only)"
+    )
+
+
+def test_cmake_cyclic_shift_matches_sitk():
+    """CyclicShiftImageFilter: wrap-around shift on RA-Short.nrrd.
+    ritk `filter.cyclic_shift` vs `sitk.CyclicShift`. Bitwise-identical —
+    pure modular index remap, no interpolation.
+
+    Axis-order derivation: sitk takes (x, y, z) shift; ritk takes (z, y, x)
+    numpy order. sitk [10, 5, 3] (x=10, y=5, z=3) → ritk (3, 5, 10).
+
+    Evidence tier: compile-time (exact arithmetic, no floating-point ops)."""
+    if not hasattr(ritk.filter, "cyclic_shift"):
+        pytest.skip("cyclic_shift not bound in ritk")
+
+    path = fetch_input("RA-Short.nrrd")
+    ri = ritk.io.read_image(path)
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+
+    ro = np.asarray(ritk.filter.cyclic_shift(ri, (3, 5, 10)).to_numpy(), np.float64)
+    so = sitk.GetArrayFromImage(sitk.CyclicShift(si, [10, 5, 3])).astype(np.float64)
+
+    assert ro.shape == so.shape, f"CyclicShift shape {ro.shape} != sitk {so.shape}"
+    max_diff = float(np.abs(ro - so).max())
+    assert max_diff == 0.0, (
+        f"CyclicShift max_diff {max_diff} != 0 (expected bitwise-exact)"
+    )
+
+
+def test_cmake_n4_bias_correction_structural():
+    """N4BiasFieldCorrectionImageFilter: structural parity vs sitk on a
+    synthetic 16×32×32 float image with 2 fitting levels, 10 iterations.
+
+    N4 is an iterative B-spline solver; bitwise equality is not expected.
+    Pearson r > 0.95 between ritk and sitk outputs confirms both implementations
+    converge to the same bias-corrected result from the same initial conditions.
+
+    Parameters: num_fitting_levels=2, num_iterations=10 (matches
+    SetMaximumNumberOfIterations([10, 10]) in sitk).
+
+    Evidence tier: empirical (Pearson measured on fixed synthetic input,
+    seed 7)."""
+    if not hasattr(ritk.filter, "n4_bias_correction"):
+        pytest.skip("n4_bias_correction not bound in ritk")
+
+    import numpy as _np
+
+    _np.random.seed(7)
+    arr = (_np.random.rand(16, 32, 32) * 200 + 50).astype(_np.float32)
+    ri = ritk.Image(_np.ascontiguousarray(arr))
+    si = sitk.GetImageFromArray(arr)
+
+    ro = _np.asarray(
+        ritk.filter.n4_bias_correction(
+            ri, num_fitting_levels=2, num_iterations=10
+        ).to_numpy(),
+        _np.float64,
+    )
+
+    f = sitk.N4BiasFieldCorrectionImageFilter()
+    f.SetMaximumNumberOfIterations([10, 10])
+    so = sitk.GetArrayFromImage(f.Execute(si)).astype(_np.float64)
+
+    assert ro.shape == so.shape, f"N4BiasCorrection shape {ro.shape} != sitk {so.shape}"
+    corr = float(_np.corrcoef(ro.ravel(), so.ravel())[0, 1])
+    assert corr > 0.95, (
+        f"N4BiasCorrection structural parity: Pearson {corr:.4f} < 0.95 "
+        f"(ritk and sitk must converge to the same bias-corrected result)"
+    )
+
+
+def test_cmake_vector_index_selection_cast_matches_sitk():
+    """VectorIndexSelectionCastImageFilter: extract each channel from a 3-
+    channel vector image built via `ritk.filter.compose` / `sitk.Compose`.
+    ritk `filter.vector_index_selection_cast` vs
+    `sitk.VectorIndexSelectionCast`. Bitwise-identical — pure channel demux,
+    no arithmetic.
+
+    Evidence tier: compile-time (exact arithmetic, no floating-point ops)."""
+    if not hasattr(ritk.filter, "vector_index_selection_cast"):
+        pytest.skip("vector_index_selection_cast not bound in ritk")
+
+    import numpy as _np
+
+    ch0 = _np.arange(12, dtype=_np.float32).reshape(1, 3, 4)
+    ch1 = ch0 * 2.0 + 100.0
+    ch2 = ch0 * 3.0 + 200.0
+
+    ri0 = ritk.Image(_np.ascontiguousarray(ch0))
+    ri1 = ritk.Image(_np.ascontiguousarray(ch1))
+    ri2 = ritk.Image(_np.ascontiguousarray(ch2))
+    vec_ri = ritk.filter.compose(ri0, ri1, ri2)
+
+    si0 = sitk.GetImageFromArray(ch0.squeeze())
+    si1 = sitk.GetImageFromArray(ch1.squeeze())
+    si2 = sitk.GetImageFromArray(ch2.squeeze())
+    vec_si = sitk.Compose(si0, si1, si2)
+
+    for idx in range(3):
+        ro = _np.asarray(
+            ritk.filter.vector_index_selection_cast(vec_ri, idx).to_numpy(), _np.float64
+        ).squeeze()
+        so = sitk.GetArrayFromImage(
+            sitk.VectorIndexSelectionCast(vec_si, index=idx)
+        ).astype(_np.float64)
+        max_diff = float(_np.abs(ro - so).max())
+        assert max_diff == 0.0, (
+            f"VectorIndexSelectionCast index={idx}: max_diff {max_diff} != 0"
+        )
+
+
+def test_cmake_region_of_interest_matches_sitk():
+    """RegionOfInterestImageFilter: extract a 10×50×50 sub-volume from
+    RA-Short.nrrd. ritk `filter.region_of_interest` vs
+    `sitk.RegionOfInterest`. Bitwise-identical — pure index-range copy.
+
+    Axis-order derivation: sitk index/size use (x, y, z) order; ritk start/
+    size use (z, y, x) numpy order. sitk index=[10, 10, 5], size=[50, 50, 10]
+    → ritk start=(5, 10, 10), size=(10, 50, 50).
+
+    Evidence tier: compile-time (exact arithmetic, no floating-point ops)."""
+    if not hasattr(ritk.filter, "region_of_interest"):
+        pytest.skip("region_of_interest not bound in ritk")
+
+    path = fetch_input("RA-Short.nrrd")
+    ri = ritk.io.read_image(path)
+    si = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
+
+    ro = np.asarray(
+        ritk.filter.region_of_interest(ri, (5, 10, 10), (10, 50, 50)).to_numpy(),
+        np.float64,
+    )
+    so = sitk.GetArrayFromImage(
+        sitk.RegionOfInterest(si, size=[50, 50, 10], index=[10, 10, 5])
+    ).astype(np.float64)
+
+    assert ro.shape == so.shape, f"RegionOfInterest shape {ro.shape} != sitk {so.shape}"
+    max_diff = float(np.abs(ro - so).max())
+    assert max_diff == 0.0, (
+        f"RegionOfInterest max_diff {max_diff} != 0 (expected bitwise-exact)"
+    )
+
+
+def test_cmake_resample_image_structural():
+    """ResampleImageFilter: downsample a 1×128×128 synthetic image by factor 2
+    in x and y by setting spacing_y=2.0 and spacing_x=2.0.
+    ritk `filter.resample_image` vs a matching sitk.ResampleImageFilter
+    configured with identical output spacing and size.
+
+    Pearson r >= 0.95 — both implementations use linear interpolation on the
+    same unit-spaced source grid and must agree structurally.
+
+    Evidence tier: empirical (Pearson measured on seed-42 synthetic input)."""
+    if not hasattr(ritk.filter, "resample_image"):
+        pytest.skip("resample_image not bound in ritk")
+
+    import numpy as _np
+
+    _np.random.seed(42)
+    arr = (_np.random.rand(1, 128, 128) * 255).astype(_np.float32)
+
+    ri = ritk.Image(_np.ascontiguousarray(arr))
+    ro = _np.asarray(
+        ritk.filter.resample_image(
+            ri, spacing_z=1.0, spacing_y=2.0, spacing_x=2.0
+        ).to_numpy(),
+        _np.float64,
+    )
+    assert ro.shape == (1, 64, 64), (
+        f"resample_image output shape {ro.shape} != (1, 64, 64)"
+    )
+
+    # Equivalent sitk resample: 3D unit-spacing source → output spacing [2,2,1],
+    # output size [64, 64, 1].  sitk spacing order is (x, y, z).
+    si3 = sitk.GetImageFromArray(arr)
+    si3.SetSpacing([1.0, 1.0, 1.0])
+    si3.SetOrigin([0.0, 0.0, 0.0])
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetOutputSpacing([2.0, 2.0, 1.0])
+    resampler.SetSize([64, 64, 1])
+    resampler.SetInterpolator(sitk.sitkLinear)
+    resampler.SetTransform(sitk.Transform(3, sitk.sitkIdentity))
+    resampler.SetOutputDirection(si3.GetDirection())
+    resampler.SetOutputOrigin(si3.GetOrigin())
+    resampler.SetDefaultPixelValue(0)
+    so = sitk.GetArrayFromImage(resampler.Execute(si3)).astype(_np.float64)
+
+    assert so.shape == (1, 64, 64), f"sitk resample shape {so.shape} != (1, 64, 64)"
+    corr = float(_np.corrcoef(ro.ravel(), so.ravel())[0, 1])
+    assert corr > 0.95, f"ResampleImage structural Pearson {corr:.4f} < 0.95"

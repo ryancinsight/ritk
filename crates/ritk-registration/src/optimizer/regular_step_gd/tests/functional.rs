@@ -211,7 +211,11 @@ fn rsgd_detects_maximum_iterations() {
 #[test]
 fn rsgd_robbins_monro_decay_reduces_step_length() {
     let device = Default::default();
-    let mut module = Quadratic::<TestBackend>::new(&[5.0, -3.0], &device);
+    let mut module = Quadratic::<TestBackend>::new(&[50.0, -30.0], &device);
+
+    // Starting from [50, -30] keeps the optimizer far from the minimum for
+    // the first 10+ accepted steps, ensuring no overshoot-driven rejections
+    // corrupt the Robbins-Monro Δ sequence under test.
 
     let config = RegularStepGdConfig {
         initial_step_length: 2.0,

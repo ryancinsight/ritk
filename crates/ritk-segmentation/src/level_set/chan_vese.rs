@@ -320,15 +320,21 @@ fn local_otsu_threshold(img: &[f64]) -> f64 {
         let bin = ((v - x_min) / range * num_bins_f).floor() as usize;
         counts[bin.min(NUM_BINS - 1)] += 1;
     }
-    let h: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
-    let total_mu: f64 = (0..NUM_BINS).map(|i| i as f64 * h[i]).sum();
+    // SEG-05: inline normalization over `counts` directly, eliminating the
+    // 256-element `Vec<f64>` allocation for `h`.
+    let n_f = n as f64;
+    let total_mu: f64 = counts
+        .iter()
+        .enumerate()
+        .map(|(i, &c)| i as f64 * c as f64 / n_f)
+        .sum();
     let mut best_sigma2 = 0.0_f64;
     let mut best_t = 0_usize;
     let mut w1 = 0.0_f64;
     let mut mu1_partial = 0.0_f64;
     for t in 1..NUM_BINS {
-        w1 += h[t - 1];
-        mu1_partial += (t - 1) as f64 * h[t - 1];
+        w1 += counts[t - 1] as f64 / n_f;
+        mu1_partial += (t - 1) as f64 * counts[t - 1] as f64 / n_f;
         let w2 = 1.0 - w1;
         if w1 < WEIGHT_ZERO_GUARD || w2 < WEIGHT_ZERO_GUARD {
             continue;

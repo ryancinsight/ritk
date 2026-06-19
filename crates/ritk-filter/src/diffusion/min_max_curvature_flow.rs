@@ -65,6 +65,11 @@ impl MinMaxCurvatureFlowImageFilter {
 
     /// Apply min/max curvature flow to a 3-D image (`z = 1` is treated as 2-D).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+        assert!(
+            self.config.stencil_radius >= 1,
+            "MinMaxCurvatureFlowImageFilter: stencil_radius must be >= 1, got {}",
+            self.config.stencil_radius
+        );
         let (vals_vec, dims) = extract_vec(image)?;
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
@@ -88,42 +93,50 @@ impl MinMaxCurvatureFlowImageFilter {
         let mut next: Vec<f64> = vec![0.0f64; n];
         for _ in 0..self.config.num_iterations {
             {
-                let get = |zz: isize, yy: isize, xx: isize| -> f64 {
-                    let zc = zz.clamp(0, nz as isize - 1) as usize;
-                    let yc = yy.clamp(0, ny as isize - 1) as usize;
-                    let xc = xx.clamp(0, nx as isize - 1) as usize;
-                    cur[zc * slab + yc * nx + xc]
-                };
-                for flat in 0..n {
-                    let iz = flat / slab;
-                    let rem = flat - iz * slab;
-                    let iy = rem / nx;
-                    let ix = rem - iy * nx;
-                    let (z, y, x) = (iz as isize, iy as isize, ix as isize);
-                    let c = cur[flat];
-                    let (mut speed, dx_, dy_, dz_) = curvature_speed(&get, z, y, x, c, inv_sp);
+                // Shared borrow of `cur` outlives the moirai scope; moirai
+                // uses scoped threads so non-'static borrows are safe.
+                let cur_ref: &[f64] = &cur;
+                moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                    &mut next,
+                    slab,
+                    |iz, iz_out| {
+                        let get = |zz: isize, yy: isize, xx: isize| -> f64 {
+                            let zc = zz.clamp(0, nz as isize - 1) as usize;
+                            let yc = yy.clamp(0, ny as isize - 1) as usize;
+                            let xc = xx.clamp(0, nx as isize - 1) as usize;
+                            cur_ref[zc * slab + yc * nx + xc]
+                        };
+                        for rem in 0..slab {
+                            let iy = rem / nx;
+                            let ix = rem - iy * nx;
+                            let (z, y, x) = (iz as isize, iy as isize, ix as isize);
+                            let c = cur_ref[iz * slab + rem];
+                            let (mut speed, dx_, dy_, dz_) =
+                                curvature_speed(&get, z, y, x, c, inv_sp);
 
-                    if speed != 0.0 {
-                        let threshold = if two_d {
-                            threshold_2d(&get, z, y, x, dx_, dy_, rf)
-                        } else {
-                            threshold_3d(&get, z, y, x, dx_, dy_, dz_, rf)
-                        };
-                        // Sphere average (normalized inner product).
-                        let mut avg = 0.0;
-                        for o in &sphere {
-                            avg += sphere_w * get(z + o[0], y + o[1], x + o[2]);
+                            if speed != 0.0 {
+                                let threshold = if two_d {
+                                    threshold_2d(&get, z, y, x, dx_, dy_, rf)
+                                } else {
+                                    threshold_3d(&get, z, y, x, dx_, dy_, dz_, rf)
+                                };
+                                // Sphere average (normalized inner product).
+                                let mut avg = 0.0;
+                                for o in &sphere {
+                                    avg += sphere_w * get(z + o[0], y + o[1], x + o[2]);
+                                }
+                                speed = if avg < threshold {
+                                    speed.max(0.0)
+                                } else {
+                                    speed.min(0.0)
+                                };
+                            }
+                            // ITK accumulates in the image pixel type (f32); round each
+                            // iteration to f32 so high-dynamic-range volumes match bit-exactly.
+                            iz_out[rem] = (c + dt * speed) as f32 as f64;
                         }
-                        speed = if avg < threshold {
-                            speed.max(0.0)
-                        } else {
-                            speed.min(0.0)
-                        };
-                    }
-                    // ITK accumulates in the image pixel type (f32); round each
-                    // iteration to f32 so high-dynamic-range volumes match bit-exactly.
-                    next[flat] = (c + dt * speed) as f32 as f64;
-                }
+                    },
+                );
             }
             std::mem::swap(&mut cur, &mut next);
         }
@@ -245,6 +258,11 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
 
     /// Apply binary min/max curvature flow.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+        assert!(
+            self.config.stencil_radius >= 1,
+            "BinaryMinMaxCurvatureFlowImageFilter: stencil_radius must be >= 1, got {}",
+            self.config.stencil_radius
+        );
         let (vals_vec, dims) = extract_vec(image)?;
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
@@ -264,35 +282,40 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
         let mut next: Vec<f64> = vec![0.0f64; n];
         for _ in 0..self.config.num_iterations {
             {
-                let get = |zz: isize, yy: isize, xx: isize| -> f64 {
-                    let zc = zz.clamp(0, nz as isize - 1) as usize;
-                    let yc = yy.clamp(0, ny as isize - 1) as usize;
-                    let xc = xx.clamp(0, nx as isize - 1) as usize;
-                    cur[zc * slab + yc * nx + xc]
-                };
-                for flat in 0..n {
-                    let iz = flat / slab;
-                    let rem = flat - iz * slab;
-                    let iy = rem / nx;
-                    let ix = rem - iy * nx;
-                    let (z, y, x) = (iz as isize, iy as isize, ix as isize);
-                    let c = cur[flat];
-                    let (mut speed, _, _, _) = curvature_speed(&get, z, y, x, c, inv_sp);
-                    if speed != 0.0 {
-                        let mut avg = 0.0;
-                        for o in &sphere {
-                            avg += sphere_w * get(z + o[0], y + o[1], x + o[2]);
-                        }
-                        speed = if avg < thr {
-                            speed.min(0.0)
-                        } else {
-                            speed.max(0.0)
+                let cur_ref: &[f64] = &cur;
+                moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                    &mut next,
+                    slab,
+                    |iz, iz_out| {
+                        let get = |zz: isize, yy: isize, xx: isize| -> f64 {
+                            let zc = zz.clamp(0, nz as isize - 1) as usize;
+                            let yc = yy.clamp(0, ny as isize - 1) as usize;
+                            let xc = xx.clamp(0, nx as isize - 1) as usize;
+                            cur_ref[zc * slab + yc * nx + xc]
                         };
-                    }
-                    // ITK accumulates in the image pixel type (f32); round each
-                    // iteration to f32 so high-dynamic-range volumes match bit-exactly.
-                    next[flat] = (c + dt * speed) as f32 as f64;
-                }
+                        for rem in 0..slab {
+                            let iy = rem / nx;
+                            let ix = rem - iy * nx;
+                            let (z, y, x) = (iz as isize, iy as isize, ix as isize);
+                            let c = cur_ref[iz * slab + rem];
+                            let (mut speed, _, _, _) = curvature_speed(&get, z, y, x, c, inv_sp);
+                            if speed != 0.0 {
+                                let mut avg = 0.0;
+                                for o in &sphere {
+                                    avg += sphere_w * get(z + o[0], y + o[1], x + o[2]);
+                                }
+                                speed = if avg < thr {
+                                    speed.min(0.0)
+                                } else {
+                                    speed.max(0.0)
+                                };
+                            }
+                            // ITK accumulates in the image pixel type (f32); round each
+                            // iteration to f32 so high-dynamic-range volumes match bit-exactly.
+                            iz_out[rem] = (c + dt * speed) as f32 as f64;
+                        }
+                    },
+                );
             }
             std::mem::swap(&mut cur, &mut next);
         }

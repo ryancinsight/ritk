@@ -135,16 +135,25 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
     let mut convergence = StapleConvergence::MaxIterationsReached;
     let mut iterations = 0usize;
 
+    // SEG-06: pre-allocate log-domain parameter vectors before the iteration loop
+    // so that each EM iteration recomputes in-place rather than allocating 4 × K Vecs.
+    let mut log_p = vec![0.0_f64; k];
+    let mut log_1mp = vec![0.0_f64; k];
+    let mut log_q = vec![0.0_f64; k];
+    let mut log_1mq = vec![0.0_f64; k];
+
     for _iter in 0..max_iter {
         iterations += 1;
 
         // Pre-compute log-domain parameter vectors (shared read-only across all voxels).
         let log_f = f.ln();
         let log_1mf = (1.0 - f).ln();
-        let log_p: Vec<f64> = p.iter().map(|&pk| pk.ln()).collect();
-        let log_1mp: Vec<f64> = p.iter().map(|&pk| (1.0 - pk).ln()).collect();
-        let log_q: Vec<f64> = q.iter().map(|&qk| qk.ln()).collect();
-        let log_1mq: Vec<f64> = q.iter().map(|&qk| (1.0 - qk).ln()).collect();
+        for i in 0..k {
+            log_p[i] = p[i].ln();
+            log_1mp[i] = (1.0 - p[i]).ln();
+            log_q[i] = q[i].ln();
+            log_1mq[i] = (1.0 - q[i]).ln();
+        }
 
         // ── E-step: voxels are independent → parallel ────────────────────────
         w = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {

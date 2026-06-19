@@ -132,3 +132,58 @@ fn test_step_edge_produces_edges() {
 fn test_invalid_thresholds() {
     let _ = CannyEdgeDetector::new(GaussianSigma::new_unchecked(1.0), 5.0, 2.0);
 }
+
+/// A 2-D step edge (20×20×1, vertical boundary at x=10) must produce edge
+/// pixels concentrated at the step after sub-pixel NMS and hysteresis.
+///
+/// **Derivation**: The gradient magnitude at the step is
+/// |\u2207I| ≈ 1 / (2·sx) per normalised unit step, which greatly exceeds the
+/// high threshold of 0.15. Sub-pixel NMS retains the single-voxel-wide ridge;
+/// hysteresis BFS connects the whole column.
+#[test]
+fn test_canny_2d_step_edge_pixel_count() {
+    let ny = 20usize;
+    let nx = 20usize;
+    let nz = 1usize;
+    let mut data = vec![0.0f32; nz * ny * nx];
+    for iy in 0..ny {
+        for ix in 10..nx {
+            data[iy * nx + ix] = 1.0;
+        }
+    }
+    let img = make_image(data, [nz, ny, nx], [1.0, 1.0, 1.0]);
+    let detector = CannyEdgeDetector::new(GaussianSigma::new_unchecked(1.0), 0.05, 0.15);
+    let result = detector.apply(&img).unwrap();
+    let out = extract_vals(&result);
+    // Count rows where either x=9 or x=10 is an edge pixel.
+    let edge_count: usize = (0..ny)
+        .filter(|&iy| out[iy * nx + 9] > 0.5 || out[iy * nx + 10] > 0.5)
+        .count();
+    assert!(
+        edge_count >= 15,
+        "Expected >= 15 edge pixels at step, got {edge_count}"
+    );
+}
+
+/// A linear ramp image has a spatially uniform gradient, so after NMS the
+/// surviving voxels form a single-pixel-wide ridge (at most one per row).
+///
+/// **Derivation**: NMS keeps only local maxima along the gradient direction;
+/// a uniform gradient field has at most one local maximum per gradient line,
+/// so fewer than 30 % of voxels should survive.
+#[test]
+fn test_canny_nms_reduces_thick_edges() {
+    let ny = 20usize;
+    let nx = 20usize;
+    let nz = 1usize;
+    let data: Vec<f32> = (0..ny * nx).map(|i| (i % nx) as f32 / nx as f32).collect();
+    let img = make_image(data, [nz, ny, nx], [1.0, 1.0, 1.0]);
+    let detector = CannyEdgeDetector::new(GaussianSigma::new_unchecked(0.5), 0.03, 0.06);
+    let result = detector.apply(&img).unwrap();
+    let out = extract_vals(&result);
+    let edge_count = out.iter().filter(|&&v| v > 0.5).count();
+    assert!(
+        edge_count < (ny * nx * 30) / 100,
+        "Too many edge pixels (NMS not thinning): {edge_count}"
+    );
+}

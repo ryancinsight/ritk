@@ -132,6 +132,7 @@ impl DiffeomorphicDemonsRegistration {
                     y: &mut fy,
                     x: &mut fx,
                 },
+                dims,
             );
 
             for i in 0..n {

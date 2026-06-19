@@ -3,6 +3,45 @@
 > **Full audit history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
 
 
+## Sprint 384 Audit (2026-06-19) — Correctness Fixes, Perf Optimisation, cmake Parity Expansion
+
+### Gaps Identified
+
+**Correctness (via 3-agent parallel audit):**
+- **[C-1 OPEN]** Frangi vesselness: Hessian via finite-diff on sampled Gaussian vs ITK’s 2nd-order Deriche IIR (`HessianRecursiveGaussianImageFilter`). Diverges for σ ≲ 2 px. Fix: use `recursive_gaussian_directional(Second)` per axis. Existing IIR machinery available.
+- **[REG-01 CLOSED]** RSGD `prev_loss` advanced on rejected step: breaks ITK convergence contract. One-line fix.
+- **[C-2 CLOSED]** Canny NMS 26-direction quantisation: ITK uses sub-pixel bilinear/trilinear interpolation along continuous gradient direction.
+- **[C-3 CLOSED]** `PatchBasedDenoising.kernel_bandwidth_estimation=true` silently ignored: now returns `Err`.
+- **[SEG-03 OPEN]** `GeodesicActiveContour` convergence: max|Δφ|/dt vs ITK’s RMS. Different stopping behavior.
+
+**Performance (via same parallel audit):**
+- **[P-1,4,5 CLOSED]** Serial loops in patch_denoising NL-means, Canny gradient/NMS, MinMaxCurvatureFlow iteration — all parallelised with moirai.
+- **[P-3 CLOSED]** `project_median` per-pixel Vec alloc — replaced with one Vec per z-row.
+- **[P-6 CLOSED]** `separable_box_3d` per-slice scratch Vecs — eliminated via `thread_local!`.
+- **[P-7 CLOSED]** `estimate_noise_mad` double full-volume Vec clone — second Vec eliminated.
+- **[REG-03,04,07 CLOSED]** `LNCC` GaussianFilter per-forward(), `thirion_forces_into` serial loop, `pts.clone()` per-forward().
+- **[SEG-01,02 CLOSED]** Level-set `GeodesicActiveContour` 4×Vec per iteration, all helpers serial loops.
+- **[SEG-05,06 CLOSED]** Chan-Vese `Vec<f64>[256]` in local_otsu, STAPLE 4×Vec[K] per EM iter.
+- **[PERF-384-01 OPEN]** `window_cc_stats` O(N·w³) 2-pass scan → O(N) centered-residual integral image. ~114× reduction at default r=3. Algorithmic redesign needed.
+
+**cmake parity:**
+- **[TEST-384-01 CLOSED]** 9 new cmake tests for bilateral, flip, permute_axes, shift_scale (skip), cyclic_shift, n4_bias_correction, vector_index_selection_cast, region_of_interest, resample_image_structural.
+- **[NEW-384-01 OPEN]** `shift_scale` Python binding not exposed; 1 cmake test skips cleanly.
+
+### cmake Filter Coverage (Sprint 384 state)
+- **Closed this sprint**: bilateral, flip, permute_axes, cyclic_shift, n4_bias_correction, vector_index_selection_cast, region_of_interest, resample_image (8 new passing)
+- **Skipped (not bound)**: shift_scale (1 test)
+- **Total cmake parity tests**: **429 passing, 5 skipped** (Sprint 384 exit baseline)
+
+### Residual Risk
+- **[CORR-384-01]**: Frangi Hessian kernel divergence from ITK; parity tests would quantify the magnitude.
+- **[CORR-384-02]**: IsolatedWatershed 0% label match vs sitk hierarchical watershed.
+- **[CORR-384-03]**: ScalarChanAndVese 19% match; SharedData propagation not implemented.
+- **[PERF-384-01]**: `window_cc_stats` O(N·w³) remains unaddressed.
+- **[PERF-381-01]**: Benchmark baselines for `separable_box_3d` and EDT Phase 3 not yet recorded.
+
+---
+
 ## Sprint 383 Audit (2026-06-19) — cmake Coverage, Perf/Memory, Clippy/Doc Cleanup
 
 ### Gaps Identified and Closed

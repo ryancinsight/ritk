@@ -316,7 +316,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         let joint_hist = if let Some(ref pts) = self.fixed_mask_points {
             self.histogram_calculator.compute_masked_joint_histogram(
                 fixed,
-                pts.clone(),
+                pts,
                 moving,
                 transform,
                 &self.interpolator,

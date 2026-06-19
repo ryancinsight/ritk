@@ -142,7 +142,10 @@ where
 
         if !improved {
             self.current_step_length *= self.config.relaxation_factor;
-            self.prev_loss = self.current_loss;
+            // REG-01: prev_loss must NOT advance on a rejected step.
+            // Only the accepted-step branch below advances prev_loss so that
+            // the next comparison uses the last accepted (lower) loss, matching
+            // ITK RegularStepGradientDescentOptimizerv4 semantics.
 
             tracing::debug!(
                 "RSGD: step rejected (L={:.6e} > prev={:.6e}), shrinking Δ → {:.6e}",
