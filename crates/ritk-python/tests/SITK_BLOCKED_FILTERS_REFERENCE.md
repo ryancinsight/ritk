@@ -287,3 +287,19 @@ exact discrete stateful layer propagation. FINAL CONCLUSION: AntiAliasBinary is
 genuinely the faithful-stateful-SparseField port (discrete layer values + linked
 lists), validated end-to-end — no continuous dense prototype reaches 1e-2 max.
 The full algorithm is now specified; the work is the careful stateful Rust port.
+UPDATE (discrete propagation + sign fix → max-err 0.729, corr 0.997 — STRUCTURE
+NOW MATCHES): the 6th prototype adds discrete BFS layer propagation off the
+subvoxel-evolved active layer with the CORRECT sign (fg pixels propagate MORE
+positive +1 per layer, bg MORE negative −1 — the inverted sign gave mean 2.34).
+Result: max-err 1.264 → 0.729, and the layer structure matches sitk exactly
+(row through the flat edge: ref [−2.5,−1.5,−0.5,0.5,1.5,3], mine
+[−2.62,−1.62,−0.62,0.38,1.38,2.38,3]). TWO precise remaining gaps to 1e-2:
+(1) FLAT-EDGE DRIFT — mine reads 0.38 active where ref is exactly 0.5; the
+shifted-stencil bilinear interpolation injects tiny nonzero curvature on flat
+edges (analytic ITK curvature there is exactly 0), drifting the active value over
+50 iters. Fix: compute curvature analytically (no interpolation) so flat edges
+stay 0 — OR only shift where curvature ≠ 0. (2) LAYER-BOUNDARY: ref jumps 1.5→3
+(NumberOfLayers=2 ⇒ far field at layer 3) where mine emits 2.38; needs the exact
+ConstructLayer far-field cutoff. The prototype is converging (0.18→0.083→0.729max
+with correct structure); these two fidelity fixes should reach 1e-2, then port.
+Genuine near-validation — the discrete propagation + sign are now correct.
