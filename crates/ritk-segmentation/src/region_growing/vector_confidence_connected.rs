@@ -37,17 +37,27 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Mean vector + population covariance of a set of channel rows.
 ///
-/// `pixels` is a list of per-voxel channel vectors; returns `(mean, covariance)`
-/// with `cov[i][j] = E[x_i x_j] − E[x_i] E[x_j]` (divided by `N`, biased).
-fn mean_covariance(pixels: &[Vec<f64>], c: usize) -> (Vec<f64>, Vec<Vec<f64>>) {
-    let n = pixels.len() as f64;
+/// Mean and biased covariance (`cov[i][j] = E[x_i x_j] − E[x_i] E[x_j]`, divided
+/// by `N`) over `count` pixels.  `fill(k, row)` writes pixel `k`'s `c` channel
+/// values into `row`; the single `row` scratch is reused across all pixels, so
+/// no per-pixel allocation occurs regardless of source (neighbourhood list or
+/// masked region).  Accumulation order matches the pixel index order produced by
+/// the caller, preserving f64 rounding.
+fn mean_covariance<F: FnMut(usize, &mut [f64])>(
+    count: usize,
+    c: usize,
+    mut fill: F,
+) -> (Vec<f64>, Vec<Vec<f64>>) {
+    let n = count as f64;
     let mut mean = vec![0.0; c];
     let mut cov = vec![vec![0.0; c]; c];
-    for px in pixels {
+    let mut row = vec![0.0; c];
+    for k in 0..count {
+        fill(k, &mut row);
         for i in 0..c {
-            mean[i] += px[i];
+            mean[i] += row[i];
             for j in 0..c {
-                cov[i][j] += px[i] * px[j];
+                cov[i][j] += row[i] * row[j];
             }
         }
     }
@@ -134,19 +144,28 @@ fn inverse_covariance(cov: &[Vec<f64>], c: usize) -> Vec<Vec<f64>> {
     }
 }
 
-/// Squared Mahalanobis distance `(x−μ)ᵀ Σ⁻¹ (x−μ)`.
-fn maha_sq(x: &[f64], mean: &[f64], inv: &[Vec<f64>], c: usize) -> f64 {
-    let mut d = vec![0.0; c];
-    for i in 0..c {
-        d[i] = x[i] - mean[i];
+/// Squared Mahalanobis distance `(x−μ)ᵀ Σ⁻¹ (x−μ)` for the voxel at flat index
+/// `i`, reading channel values directly from `channels`.  `d` is reusable
+/// scratch (length `c`) so the per-voxel flood membership test allocates
+/// nothing.  Arithmetic matches the explicit `(x−μ)` form it replaces.
+fn maha_sq_at(
+    channels: &[Vec<f64>],
+    i: usize,
+    mean: &[f64],
+    inv: &[Vec<f64>],
+    c: usize,
+    d: &mut [f64],
+) -> f64 {
+    for j in 0..c {
+        d[j] = channels[j][i] - mean[j];
     }
     let mut s = 0.0;
-    for i in 0..c {
+    for a in 0..c {
         let mut acc = 0.0;
-        for j in 0..c {
-            acc += inv[i][j] * d[j];
+        for b in 0..c {
+            acc += inv[a][b] * d[b];
         }
-        s += d[i] * acc;
+        s += d[a] * acc;
     }
     s
 }
@@ -175,7 +194,6 @@ pub fn vector_confidence_connected(
     }
     let stride = [yn * xn, xn, 1usize];
     let flat = |z: usize, y: usize, x: usize| z * stride[0] + y * stride[1] + x * stride[2];
-    let pixel = |i: usize| -> Vec<f64> { channels.iter().map(|ch| ch[i]).collect() };
 
     let valid_seeds: Vec<[usize; 3]> = seeds
         .iter()
@@ -190,8 +208,9 @@ pub fn vector_confidence_connected(
     let mut mean = vec![0.0; c];
     let mut cov = vec![vec![0.0; c]; c];
     let r = initial_radius as isize;
+    let mut idx_scratch: Vec<usize> = Vec::new();
     for s in &valid_seeds {
-        let mut pix: Vec<Vec<f64>> = Vec::new();
+        idx_scratch.clear();
         for dz in -r..=r {
             for dy in -r..=r {
                 for dx in -r..=r {
@@ -205,11 +224,16 @@ pub fn vector_confidence_connected(
                     {
                         continue;
                     }
-                    pix.push(pixel(flat(nz as usize, ny as usize, nx as usize)));
+                    idx_scratch.push(flat(nz as usize, ny as usize, nx as usize));
                 }
             }
         }
-        let (m, cv) = mean_covariance(&pix, c);
+        let (m, cv) = mean_covariance(idx_scratch.len(), c, |k, row| {
+            let vi = idx_scratch[k];
+            for (j, r) in row.iter_mut().enumerate() {
+                *r = channels[j][vi];
+            }
+        });
         for i in 0..c {
             mean[i] += m[i];
             for j in 0..c {
@@ -228,8 +252,11 @@ pub fn vector_confidence_connected(
     // ── Threshold: bump multiplier so every seed is included ────────────────
     let mut inv = inverse_covariance(&cov, c);
     let mut threshold = multiplier;
+    let mut d_scratch = vec![0.0; c];
     for s in &valid_seeds {
-        let d = maha_sq(&pixel(flat(s[0], s[1], s[2])), &mean, &inv, c).max(0.0).sqrt();
+        let d = maha_sq_at(channels, flat(s[0], s[1], s[2]), &mean, &inv, c, &mut d_scratch)
+            .max(0.0)
+            .sqrt();
         if d > threshold {
             threshold = d;
         }
@@ -238,11 +265,17 @@ pub fn vector_confidence_connected(
     // ── Flood, then recompute statistics over the region and re-flood ───────
     let mut mask = flood(channels, dims, &valid_seeds, &mean, &inv, threshold, c);
     for _ in 0..iterations {
-        let region_pixels: Vec<Vec<f64>> = (0..n).filter(|&i| mask[i]).map(pixel).collect();
-        if region_pixels.is_empty() {
+        idx_scratch.clear();
+        idx_scratch.extend((0..n).filter(|&i| mask[i]));
+        if idx_scratch.is_empty() {
             break;
         }
-        let (m, cv) = mean_covariance(&region_pixels, c);
+        let (m, cv) = mean_covariance(idx_scratch.len(), c, |k, row| {
+            let vi = idx_scratch[k];
+            for (j, r) in row.iter_mut().enumerate() {
+                *r = channels[j][vi];
+            }
+        });
         mean = m;
         cov = cv;
         inv = inverse_covariance(&cov, c);
@@ -274,11 +307,13 @@ fn flood(
     let stride = [yn * xn, xn, 1usize];
     let flat = |z: usize, y: usize, x: usize| z * stride[0] + y * stride[1] + x * stride[2];
     let thr_sq = threshold * threshold;
-    let inside = |i: usize| -> bool {
-        let x: Vec<f64> = channels.iter().map(|ch| ch[i]).collect();
+    // One scratch buffer reused for every membership test (the flood visits each
+    // voxel's neighbourhood, so this is the dominant allocation hot path).
+    let mut d_scratch = vec![0.0; c];
+    let mut inside = |i: usize| -> bool {
         // Compare squared distances to avoid a sqrt; sqrt is monotone and the
         // membership clamps negatives to 0, which are always ≤ thr_sq.
-        maha_sq(&x, mean, inv, c) <= thr_sq
+        maha_sq_at(channels, i, mean, inv, c, &mut d_scratch) <= thr_sq
     };
     let mut mask = vec![false; n];
     let mut stack: Vec<[usize; 3]> = Vec::new();
@@ -337,7 +372,10 @@ pub fn vector_confidence_connected_image<B: Backend>(
     bufs.push(first.iter().map(|&v| v as f64).collect());
     for img in &channels[1..] {
         let (vals, d) = extract_vec_infallible(*img);
-        assert_eq!(d, dims, "vector_confidence_connected: channels differ in dimensions");
+        assert_eq!(
+            d, dims,
+            "vector_confidence_connected: channels differ in dimensions"
+        );
         bufs.push(vals.iter().map(|&v| v as f64).collect());
     }
     let labels = vector_confidence_connected(
