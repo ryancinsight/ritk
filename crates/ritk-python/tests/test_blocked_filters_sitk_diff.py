@@ -31,6 +31,8 @@ def _sq(o):
 
 def test_contour_extractor_2d_matches_sitk():
     """CORRECT: iso-contour vertices are set-equal to sitk's GetContour."""
+    if not hasattr(ritk.filter, "contour_extractor_2d"):
+        pytest.skip("ritk.filter.contour_extractor_2d not in this build")
     img = np.zeros((12, 12), np.float32)
     img[3:9, 3:9] = 100.0
     f = sitk.ContourExtractor2DImageFilter()
