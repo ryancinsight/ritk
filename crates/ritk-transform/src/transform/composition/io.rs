@@ -2,7 +2,7 @@
 //!
 //! # Design
 //!
-//! The [`Transform<B, D>`](super::super::trait_::Transform) trait is generic over a Burn
+//! The [`Transform<B, D>`](crate::Transform) trait is generic over a Burn
 //! tensor backend `B`, which makes direct serialization of live transform objects
 //! backend-dependent.  This module provides a **parameter-only** representation
 //! ([`TransformDescription`]) that captures each supported transform type as plain

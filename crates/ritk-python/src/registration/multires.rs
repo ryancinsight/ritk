@@ -76,7 +76,7 @@ impl PyMultiresDemonsOptions {
 /// Args:
 ///     fixed: Fixed (reference) image.
 ///     moving: Moving image to register.
-///     opts: [`MultiResDemonsOptions`] controlling pyramid and algorithm variant.
+///     opts: `MultiResDemonsOptions` controlling pyramid and algorithm variant.
 ///
 /// Returns:
 ///     (warped_moving, displacement_field) — same convention as demons_register.

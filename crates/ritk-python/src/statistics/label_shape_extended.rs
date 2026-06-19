@@ -30,8 +30,8 @@ use std::sync::Arc;
 ///         `GetRoundness`); 1.0 ≈ sphere, not clamped
 ///       - flatness (float): √(λ₁/λ₀) — ITK convention, ≥ 1, 1.0 = isotropic
 ///       - elongation (float): √(λ₂/λ₁) — ITK convention, ≥ 1, 1.0 = isotropic
-///       - principal_moments (list[float]): eigenvalues [λ₀, λ₁, λ₂] ascending
-///       - centroid (list[float]): [z, y, x] in voxel index coordinates
+///       - principal_moments (list\[float\]): eigenvalues [λ₀, λ₁, λ₂] ascending
+///       - centroid (list\[float\]): [z, y, x] in voxel index coordinates
 ///       - feret_diameter (float): max physical distance between surface voxels
 ///         (ITK `GetFeretDiameter`)
 ///       - equivalent_spherical_radius (float): (3·V/4π)^(1/3)

@@ -2,13 +2,13 @@
 //!
 //! Delegates all variants to `ritk_statistics::information`:
 //! - "standard":   hard nearest-bin assignment — `mutual_information`
-//! - "normalized": symmetric uncertainty 2·I/(H(A)+H(B)) ∈ [0,1] — `symmetric_uncertainty`
+//! - "normalized": symmetric uncertainty 2·I/(H(A)+H(B)) ∈ `[0, 1]` — `symmetric_uncertainty`
 //! - "mattes":     bilinear soft-binning (Mattes 2003) — `mutual_information_mattes`
 //!
 //! New entrypoints:
 //! - `compute_entropy`: marginal entropy H(X).
 //! - `compute_joint_entropy`: joint entropy H(X,Y).
-//! - `compute_symmetric_uncertainty`: SU = 2·MI/(H(X)+H(Y)) ∈ [0,1].
+//! - `compute_symmetric_uncertainty`: SU = 2·MI/(H(X)+H(Y)) ∈ `[0, 1]`.
 
 use anyhow::Result;
 use pyo3::prelude::*;
@@ -81,7 +81,7 @@ pub fn compute_joint_entropy(
     core_joint_entropy(&a, &b, num_bins).map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
-/// Symmetric uncertainty SU(X,Y) = 2·I(X;Y) / (H(X) + H(Y)) ∈ [0,1].
+/// Symmetric uncertainty SU(X,Y) = 2·I(X;Y) / (H(X) + H(Y)) ∈ \[0,1\].
 ///
 /// Both images must have identical shapes.
 ///

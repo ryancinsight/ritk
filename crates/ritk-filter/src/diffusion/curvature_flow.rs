@@ -61,7 +61,7 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Minimum denominator magnitude below which curvature is clamped to zero.
 /// Prevents division by zero in flat regions.
-const GRAD_MAG_EPSILON: f32 = 1e-12;
+const GRAD_MAG_EPSILON: f32 = 1e-9;
 
 // ── CurvatureFlowConfig ───────────────────────────────────────────────────────
 
@@ -134,6 +134,13 @@ impl CurvatureFlowImageFilter {
         let mut cur: Vec<f32> = vals.to_vec();
         let dt = self.config.time_step;
 
+        let sp = image.spacing();
+        let inv_sp = [
+            (1.0 / sp[2]) as f32,
+            (1.0 / sp[1]) as f32,
+            (1.0 / sp[0]) as f32,
+        ];
+
         for _ in 0..self.config.num_iterations {
             // Each output voxel reads only from the stencil neighbourhood of
             // `cur` (the 6 first-neighbours + the 3 mixed second-derivatives).
@@ -160,26 +167,32 @@ impl CurvatureFlowImageFilter {
                 };
 
                 // First derivatives (central differences, half-step spacing)
-                let ix_ = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5;
-                let iy_ = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5;
-                let iz_ = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5;
+                let ix_ = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5 * inv_sp[0];
+                let iy_ = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5 * inv_sp[1];
+                let iz_ = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5 * inv_sp[2];
 
                 // Second derivatives
                 let c = cur[flat];
-                let ixx = get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1);
-                let iyy = get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x);
-                let izz = get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x);
+                let ixx = (get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1)) * inv_sp[0] * inv_sp[0];
+                let iyy = (get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x)) * inv_sp[1] * inv_sp[1];
+                let izz = (get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x)) * inv_sp[2] * inv_sp[2];
 
                 // Mixed second derivatives (cross terms)
                 let ixy = (get(z, y + 1, x + 1) - get(z, y + 1, x - 1) - get(z, y - 1, x + 1)
                     + get(z, y - 1, x - 1))
-                    * 0.25;
+                    * 0.25
+                    * inv_sp[0]
+                    * inv_sp[1];
                 let ixz = (get(z + 1, y, x + 1) - get(z + 1, y, x - 1) - get(z - 1, y, x + 1)
                     + get(z - 1, y, x - 1))
-                    * 0.25;
+                    * 0.25
+                    * inv_sp[0]
+                    * inv_sp[2];
                 let iyz = (get(z + 1, y + 1, x) - get(z + 1, y - 1, x) - get(z - 1, y + 1, x)
                     + get(z - 1, y - 1, x))
-                    * 0.25;
+                    * 0.25
+                    * inv_sp[1]
+                    * inv_sp[2];
 
                 // Mean curvature numerator N
                 let num = ixx * (iy_ * iy_ + iz_ * iz_)

@@ -91,12 +91,24 @@ def connected_threshold_segment(
 
 def kmeans_segment(image: Image, k: int = 3) -> Image: ...
 
-# ── Watershed ───────────────────────────────────────────────────────────────
+# ── Watershed ────────────────────────────────────────────────────
 
 def watershed_segment(image: Image) -> Image: ...
 def marker_watershed_segment(gradient: Image, markers: Image) -> Image: ...
 def morphological_watershed(image: Image, level: float = 0.0) -> Image:
     """Marker-less morphological watershed. ITK Parity: MorphologicalWatershedImageFilter."""
+    ...
+
+def isolated_watershed_segment(
+    image: Image,
+    seed1: list[int],
+    seed2: list[int],
+    threshold: float = 0.0,
+    isolated_value_tolerance: float = 0.001,
+    upper_value_limit: float = 1.0,
+) -> Image:
+    """Isolated watershed: finds T* separating two seeds. Labels 1, 2, 3.
+    ITK Parity: IsolatedWatershedImageFilter."""
     ...
 
 def toboggan(image: Image) -> Image:
@@ -115,7 +127,9 @@ def slic(
     ...
 
 def vector_connected_component(
-    channels: list[Image], distance_threshold: float = 1.0, fully_connected: bool = False
+    channels: list[Image],
+    distance_threshold: float = 1.0,
+    fully_connected: bool = False,
 ) -> Image:
     """Connected components of a vector image (join if 1-|a.b|<=threshold). ITK Parity: VectorConnectedComponentImageFilter (sitk.VectorConnectedComponent); partition-exact."""
     ...

@@ -5,8 +5,8 @@
 //! 8×8 (z=1) input — an external oracle.
 
 use super::{
-    BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter, MinMaxCurvatureFlowConfig,
-    MinMaxCurvatureFlowImageFilter,
+    BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
+    MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
 };
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;

@@ -65,7 +65,7 @@ pub use nearest::{DispatchNearest3DTyped, DispatchNearestByShape};
 // `sealed` module, so external code cannot name it in an impl.
 
 pub(crate) mod sealed {
-    //! Sealed module — prevents external implementations of [`DispatchByShape`].
+    //! Sealed module — prevents external implementations of [`super::DispatchByShape`].
     //!
     /// `Sealed` is implemented for `Tensor<B, 1>`, `Tensor<B, 2>`,
     /// `Tensor<B, 3>`, and `Tensor<B, 4>` — the only dimensions the

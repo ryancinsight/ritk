@@ -1,7 +1,7 @@
 //! 3-D integer offset type for structuring elements.
 //!
-//! See [`crate::morphology`] for the umbrella module and
-//! [`crate::morphology::structuring_element::StructuringElement`] for the
+//! See the `ritk_morphology` crate root for the umbrella module and
+//! [`StructuringElement`](crate::StructuringElement) for the
 //! consumer type that stores collections of [`Offset3D`].
 
 use std::fmt;

@@ -17,7 +17,7 @@ use crate::error::RegistrationError;
 ///
 /// Use [`register`](ThirionDemonsRegistration::register) for CPU smoothing.
 /// Use [`register_with`](ThirionDemonsRegistration::register_with) to pass
-/// [`GpuFieldSmoother`] or custom [`FieldSmoother`] implementations.
+/// `GpuFieldSmoother` or custom [`FieldSmoother`] implementations.
 #[derive(Debug, Clone)]
 pub struct ThirionDemonsRegistration {
     /// Algorithm configuration.

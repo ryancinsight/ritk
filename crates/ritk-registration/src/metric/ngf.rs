@@ -44,7 +44,7 @@ pub struct NormalizedGradientField;
 
 impl NormalizedGradientField {
     /// Create a new NGF metric (linear interpolation of the moving image, held by
-    /// the per-registration [`NgfFixedPrep`]).
+    /// the per-registration `NgfFixedPrep`).
     #[must_use]
     pub fn new() -> Self {
         Self

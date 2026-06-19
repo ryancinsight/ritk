@@ -174,7 +174,7 @@ pub fn kapur_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
 
 /// Compute the Kapur threshold for a contiguous f32 intensity slice.
 ///
-/// Delegates to the shared [`threshold_from_slice`] pipeline so it is
+/// Delegates to the shared `threshold_from_slice` pipeline so it is
 /// bit-identical to [`KapurThreshold::compute`].
 pub fn compute_kapur_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
     threshold_from_slice(&KapurThreshold::with_bins(num_bins), slice)

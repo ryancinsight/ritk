@@ -14,7 +14,7 @@
 //! `stop_value`.
 //!
 //! `u` is sampled with the shared ITK-faithful vector linear interpolation
-//! ([`interp_component`](crate::invert_displacement::interp_component)); internal
+//! (`interp_component`); internal
 //! arithmetic is `f64`, so the result is float-exact to
 //! `sitk.IterativeInverseDisplacementField`.
 

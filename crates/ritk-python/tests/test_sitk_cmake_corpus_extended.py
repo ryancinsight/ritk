@@ -1567,7 +1567,13 @@ class TestErodeObjectMorphologyParity:
         sitk_filter.SetBackgroundValue(0.0)
         sitk_filter.SetKernelRadius([2, 2, 2])
         sitk_filter.SetKernelType(sitk.sitkBox)
-        expected = _np(sitk_filter.Execute(_sitk(sphere)))
+        sitk_filter.SetNumberOfThreads(1)
+        old_threads = sitk.ProcessObject.GetGlobalDefaultNumberOfThreads()
+        try:
+            sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+            expected = _np(sitk_filter.Execute(_sitk(sphere)))
+        finally:
+            sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(old_threads)
 
         assert np.array_equal(actual, expected), (
             "erode_object_morphology result differs from sitk"

@@ -50,7 +50,7 @@ use ritk_registration::classical::engine::{ClassicalConfig, MutualInformationMet
 use ritk_registration::classical::spatial;
 use ritk_registration::ImageRegistration;
 
-/// CLI-visible Demons variant string, parsed into [`DemonsVariant`] at dispatch.
+/// CLI-visible Demons variant string, parsed into `DemonsVariant` at dispatch.
 fn parse_demons_variant(s: &str) -> Result<ritk_registration::demons::DemonsVariant, String> {
     match s.to_lowercase().as_str() {
         "thirion" | "classic" => Ok(ritk_registration::demons::DemonsVariant::Classic),

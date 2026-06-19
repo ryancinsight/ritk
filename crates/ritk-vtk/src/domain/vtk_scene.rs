@@ -2,7 +2,7 @@
 //!
 //! A scene S = (A_1, ..., A_n) is an ordered list of actors.
 //! Each actor A_i = (data, properties, name, visible).
-//! RenderProperties encodes color (RGB in [0,1]), opacity in [0,1],
+//! RenderProperties encodes color (RGB in \[0,1\]), opacity in \[0,1\],
 //! point_size, and line_width.
 
 use crate::domain::vtk_data_object::VtkDataObject;

@@ -17,7 +17,7 @@ use super::{py_image_to_autodiff_image, AutodiffBackend};
 /// Presets:
 /// - `"brain_default"` — Single-level CMA-ES, shrink=8, NMI, sigma0=0.7, 200 gen.
 /// - `"brain_multiscale"` — 3-level cascade [16→8→4], NMI, recommended for typical brain CT.
-/// - `"brain_multiscale_thin_slab"` — 3-level anisotropic cascade [[1,16,16]→...], NMI,
+/// - `"brain_multiscale_thin_slab"` — 3-level anisotropic cascade [\[1,16,16\]→...], NMI,
 /// recommended for RIRE-style thin CT (≤50 z-slices at ≥2 mm spacing).
 /// - `"fast_exploratory"` — Single-level, shrink=16, Mattes MI, fast but coarse.
 /// - `"custom"` — Build config from individual fields below.

@@ -6,7 +6,7 @@
 //!
 //! The 46-field god struct from Sprint <374 has been partitioned into 15
 //! per-family `#[command(flatten)]` Args structs in this file
-//! (SRP-362-20 [major]). Each filter reads only the fields it needs:
+//! (SRP-362-20 \[major\]). Each filter reads only the fields it needs:
 //!
 //! | Family / Args struct           | Filter kinds                                  |
 //! |--------------------------------|-----------------------------------------------|
@@ -412,7 +412,7 @@ pub struct SigmoidArgs {
 /// Arguments for the `filter` subcommand.
 ///
 /// Composed of input/output + filter kind + 14 per-family `#[command(flatten)]`
-/// Args chunks (SRP-362-20 [major]).
+/// Args chunks (SRP-362-20 \[major\]).
 #[derive(Args, Debug)]
 pub struct FilterArgs {
     /// Input image path. Format is inferred from the file extension.

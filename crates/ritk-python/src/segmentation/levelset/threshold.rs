@@ -67,7 +67,7 @@ impl PyThresholdLevelSetOptions {
 /// Args:
 ///     image: Input PyImage.
 ///     initial_phi: Initial level set function (signed distance).
-///     opts: [`ThresholdLevelSetOptions`] controlling thresholds and PDE parameters.
+///     opts: `ThresholdLevelSetOptions` controlling thresholds and PDE parameters.
 ///
 /// Returns:
 ///     Evolved level set function as PyImage.

@@ -20,7 +20,7 @@
 //! quirk of the filter): the low end reflects (`I[−1] = I[1]`) while the high
 //! end clamps (`I[N] = I[N−1]`). Verified against `sitk.BinomialBlur`: a
 //! constant image is preserved; a low-edge impulse `[4,0,0,0,0]` blurs to
-//! `[2,1,0,0,0]` (out[0] = ½·I₀+½·I₁, reflect) but a high-edge impulse
+//! `[2,1,0,0,0]` (`out[0]` = ½·I₀+½·I₁, reflect) but a high-edge impulse
 //! `[0,0,0,0,4]` blurs to `[0,0,0,1,3]` (out[N−1] = ¼·I_{N−2}+¾·I_{N−1}, clamp).
 //! Zero-flux would give 3 at the low edge, and symmetric reflect would give 2 at
 //! the high edge — only this asymmetric rule reproduces both.

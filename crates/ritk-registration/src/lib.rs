@@ -80,8 +80,8 @@ pub use validation::{NumericalCheck, ShapeValidation, ValidationConfig};
 pub use demons::{
     DemonsConfig, DemonsResult, DiffeomorphicDemonsRegistration, InverseConsistentDemonsConfig,
     InverseConsistentDemonsResult, InverseConsistentDiffeomorphicDemonsRegistration,
-    MultiResDemonsConfig, MultiResDemonsRegistration, SymmetricDemonsRegistration,
-    ThirionDemonsRegistration,
+    LevelSetMotionRegistration, MultiResDemonsConfig, MultiResDemonsRegistration,
+    SymmetricDemonsRegistration, ThirionDemonsRegistration,
 };
 
 // ============================================================================

@@ -245,9 +245,9 @@ fn orthogonalise_against(v: [f64; 3], u: [f64; 3]) -> [f64; 3] {
 /// structure tensor: [D_11, D_12, D_13, D_22, D_23, D_33].
 ///
 /// Eigenvalue assignment (Weickert 1999):
-/// α₁ = α + (1 − α) · (1 − exp(−C · (λ₃ − λ₁)² / (λ₃² + ε))) [coherence dir]
-/// α₂ = α + (1 − α) · (1 − exp(−C · (λ₂ − λ₁)² / (λ₃² + ε))) [intermediate]
-/// α₃ = α [edge dir]
+/// α₁ = α + (1 − α) · (1 − exp(−C · (λ₃ − λ₁)² / (λ₃² + ε))) `[coherence dir]`
+/// α₂ = α + (1 − α) · (1 − exp(−C · (λ₂ − λ₁)² / (λ₃² + ε))) `[intermediate]`
+/// α₃ = α `[edge dir]`
 pub(crate) fn diffusion_tensor(st: [f64; 6], alpha: f64, contrast: f64) -> [f64; 6] {
     let decomp = eigen_3x3_symmetric(st);
     let [lam1, lam2, lam3] = decomp.eigenvalues;

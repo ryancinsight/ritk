@@ -2,7 +2,7 @@
 //!
 //! # Mathematical Specification
 //!
-//! Generalizes binary [`staple`](super::staple) to `L` discrete labels. Given `K`
+//! Generalizes binary [`staple`](super::staple()) to `L` discrete labels. Given `K`
 //! label maps `d_k ∈ {0, …, L−1}^N`, it estimates a per-rater confusion matrix
 //! `θ_k[j][i] = P(rater k says j | true label is i)` by expectation-maximization
 //! and emits the per-voxel maximum-likelihood consensus label.

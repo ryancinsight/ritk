@@ -36,7 +36,7 @@ use tiff::decoder::{Decoder, DecodingResult};
 /// 1. Open the file and create a `tiff::decoder::Decoder`.
 /// 2. Read the first page to obtain `(width, height)`.
 /// 3. Iterate through all IFD pages; each page becomes one Z-slice.
-/// 4. Convert pixel data to `f32` (see [`decode_page_to_scalar`]).
+/// 4. Convert pixel data to `f32` (see `decode_page_to_scalar`).
 /// 5. Validate that every page has the same `(width, height)`.
 /// 6. Stack slices into tensor shape `[nz, ny, nx]`.
 /// 7. Return `Image` with default spatial metadata.

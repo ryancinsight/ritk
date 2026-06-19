@@ -10,8 +10,8 @@ use std::sync::Mutex;
 /// Thread-local histogram buffer pool for parallel reduction.
 ///
 /// Reuses `[num_bins²]` buffers across fold/reduce calls to avoid repeated
-/// allocation + zeroing. Each thread checks out a buffer via [`checkout`],
-/// zero-fills it, and returns it via [`return_buffer`] after the reduce phase.
+/// allocation + zeroing. Each thread checks out a buffer via [`Self::checkout`],
+/// zero-fills it, and returns it via [`Self::return_buffer`] after the reduce phase.
 ///
 /// # Cross-iteration reuse (MEM-317-02)
 ///

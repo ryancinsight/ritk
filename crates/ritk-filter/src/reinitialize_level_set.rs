@@ -12,7 +12,7 @@
 //! trial = 1 / √( Σⱼ 1/distⱼ² )                            (multi-axis crossing distance)
 //! ```
 //!
-//! Then [`FastMarchingFilter`](crate::FastMarchingFilter) propagates unit speed
+//! Then [`FastMarchingFilter`] propagates unit speed
 //! from the *outside* seeds (`centerVal > 0`) and the *inside* seeds
 //! (`centerVal ≤ 0`); the output is `+T_out` on outside voxels and `−T_in` on
 //! inside voxels — a signed distance to the level set. Float-exact to SimpleITK.

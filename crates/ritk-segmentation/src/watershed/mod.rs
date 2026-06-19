@@ -40,10 +40,12 @@
 //! - Meyer, F. (1994). "Topographic distance and watershed lines."
 //!   *Signal Processing*, 38(1), 113–125.
 
+pub mod isolated;
 pub mod marker_controlled;
 pub mod morphological;
 pub mod toboggan;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+pub use isolated::IsolatedWatershed;
 pub use marker_controlled::MarkerControlledWatershed;
 pub use morphological::MorphologicalWatershed;
 use ritk_image::Image;

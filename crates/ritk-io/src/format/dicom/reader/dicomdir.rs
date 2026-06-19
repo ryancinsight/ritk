@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 
 /// Attempt to read file paths from a DICOMDIR file in the given directory.
-/// Returns Ok(Vec<PathBuf>) with resolved absolute paths, or Err if DICOMDIR
+/// Returns Ok(`Vec<PathBuf>`) with resolved absolute paths, or Err if DICOMDIR
 /// is absent or cannot be parsed. Paths are verified to exist as files.
 pub(super) fn try_read_dicomdir(dir: &Path) -> Result<Vec<PathBuf>> {
     let dicomdir_path = dir.join("DICOMDIR");

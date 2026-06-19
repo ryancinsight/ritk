@@ -115,7 +115,7 @@ pub(super) struct LightBlock {
 /// Layout:
 /// - `diffuse` (16 bytes): RGBA diffuse color
 /// - `specular_shine` (16 bytes): xyz = specular RGB, w = shininess exponent
-/// - `opacity_pad` (16 bytes): x = opacity [0,1], yzw = padding
+/// - `opacity_pad` (16 bytes): x = opacity `[0, 1]`, yzw = padding
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(super) struct MaterialUniforms {
@@ -128,8 +128,8 @@ pub(super) struct MaterialUniforms {
 
 /// Parameters for the SSAO compute pass.
 ///
-/// `focal_x`, `focal_y`: perspective focal lengths (proj[0], proj[5]).
-/// `n_samples`: active hemisphere samples in [1, 16].
+/// `focal_x`, `focal_y`: perspective focal lengths (`proj[0]`, `proj[5]`).
+/// `n_samples`: active hemisphere samples in `[1, 16]`.
 /// `strength`: AO blend factor; 0.0 disables occlusion effect.
 ///
 /// std140: 12 scalars × 4 = 48 bytes, align 4 (largest scalar).

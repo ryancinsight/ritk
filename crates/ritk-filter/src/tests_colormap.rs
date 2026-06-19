@@ -13,8 +13,8 @@ fn grey_ramp_matches_itk_truncation() {
         .unwrap();
     let comps = out.into_component_buffers();
     let expected = [0.0f32, 63.0, 127.0, 191.0, 255.0];
-    for c in 0..3 {
-        assert_eq!(comps[c], expected, "channel {c}");
+    for (c, channel) in comps.iter().enumerate().take(3) {
+        assert_eq!(channel.as_slice(), expected.as_slice(), "channel {c}");
     }
 }
 

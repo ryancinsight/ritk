@@ -93,7 +93,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         (sq * (-0.5 / sigma_sq)).exp() // [N, num_bins]
     }
 
-    /// Compute joint histogram from a precomputed W_fixed^T [num_bins, N] and live moving values [N].
+    /// Compute joint histogram from a precomputed W_fixed^T `[num_bins, N]` and live moving values `[N]`.
     ///
     /// `w_fixed_transposed` is the transposed Parzen weight matrix for the fixed image,
     /// precomputed once and cached. `moving_values` carries the autodiff gradient path.

@@ -669,8 +669,11 @@ pub fn inverse_displacement_field(
     let ay = std::sync::Arc::clone(&disp_y.inner);
     let ax = std::sync::Arc::clone(&disp_x.inner);
     let (vx, vy, vz) = py.allow_threads(|| {
-        ritk_filter::InverseDisplacementField { subsampling_factor }
-            .apply(ax.as_ref(), ay.as_ref(), az.as_ref())
+        ritk_filter::InverseDisplacementField { subsampling_factor }.apply(
+            ax.as_ref(),
+            ay.as_ref(),
+            az.as_ref(),
+        )
     });
     (into_py_image(vz), into_py_image(vy), into_py_image(vx))
 }

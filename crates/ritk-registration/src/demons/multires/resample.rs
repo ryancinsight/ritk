@@ -4,7 +4,7 @@
 /// Gaussian pre-smooth then stride-subsample an image.
 ///
 /// Returns (downsampled_image, coarse_dims) where
-/// coarse_dims[i] = max(1, dims[i] / factor).
+/// `coarse_dims[i] = max(1, dims[i] / factor)`.
 ///
 /// # Invariants
 /// - Gaussian blur with sigma = 0.5 * factor before subsampling (anti-aliasing).
@@ -40,7 +40,7 @@ pub(super) fn downsample(image: &[f32], dims: [usize; 3], factor: usize) -> (Vec
 /// into fine-voxel displacement units.
 ///
 /// # Invariants
-/// - scale = fine_dims[i] / coarse_dims[i] for the corresponding axis.
+/// - `scale = fine_dims[i] / coarse_dims[i]` for the corresponding axis.
 /// - Boundary conditions: clamp-to-border via trilinear_interpolate.
 pub(super) fn upsample_displacement(
     coarse: &[f32],

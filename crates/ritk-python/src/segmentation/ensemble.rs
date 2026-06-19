@@ -14,7 +14,7 @@ use std::sync::Arc;
 /// Run the STAPLE algorithm on K binary rater segmentation masks.
 ///
 /// STAPLE (Simultaneous Truth and Performance Level Estimation) by Warfield et al. (2004).
-/// Runs an EM algorithm to estimate the probabilistic ground truth W ∈ [0,1]^N and
+/// Runs an EM algorithm to estimate the probabilistic ground truth W ∈ \[0,1\]^N and
 /// per-rater sensitivity p_k and specificity q_k.
 ///
 /// Args:
@@ -25,9 +25,9 @@ use std::sync::Arc;
 ///
 /// Returns:
 ///     dict with keys:
-///     - `probabilistic_truth`: list[float], length N, values in [0,1].
-///     - `sensitivity`: list[float], length K, per-rater sensitivity p_k.
-///     - `specificity`: list[float], length K, per-rater specificity q_k.
+///     - `probabilistic_truth`: list\[float\], length N, values in \[0,1\].
+///     - `sensitivity`: list\[float\], length K, per-rater sensitivity p_k.
+///     - `specificity`: list\[float\], length K, per-rater specificity q_k.
 ///     - `iterations`: int, number of EM iterations executed.
 ///     - `converged`: bool, True if algorithm converged before max_iter.
 ///
@@ -111,7 +111,7 @@ pub fn staple_ensemble(
 ///                            (max label + 1, the ITK default).
 ///
 /// Returns:
-///     PyImage consensus label map (f32), same shape/spacing/origin as raters[0].
+///     PyImage consensus label map (f32), same shape/spacing/origin as `raters[0]`.
 ///
 /// Raises:
 ///     ValueError: if raters is empty or images have different shapes.

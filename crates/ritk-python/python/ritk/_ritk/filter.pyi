@@ -844,6 +844,49 @@ def coherence_enhancing_diffusion(
     time_step: float = 0.0625,
     iterations: int = 10,
 ) -> Image: ...
+def anti_alias_binary(
+    image: Image,
+    max_rms_error: float = 0.01,
+    number_of_iterations: int = 50,
+) -> Image:
+    """Narrow-band level-set smoothing of binary boundaries via mean curvature flow.
+    Returns the level-set function \u03c6 (negative inside). ITK Parity: AntiAliasBinaryImageFilter."""
+    ...
+
+def scalar_chan_and_vese_dense_level_set(
+    initial_level_set: Image,
+    feature_image: Image,
+    number_of_iterations: int = 20,
+    lambda1: float = 1.0,
+    lambda2: float = 1.0,
+) -> Image:
+    """Dense Chan-Vese level set with user-supplied \u03c6\u2080 and feature image.
+    ITK Parity: ScalarChanAndVeseDenseLevelSetImageFilter."""
+    ...
+
+def canny_segmentation_level_set(
+    initial_level_set: Image,
+    feature_image: Image,
+    canny_threshold: float = 0.1,
+    canny_variance: float = 1.0,
+    number_of_iterations: int = 20,
+    max_rms_error: float = 0.01,
+    propagation_scaling: float = 1.0,
+) -> Image:
+    """Canny-edge-guided level set segmentation.
+    ITK Parity: CannySegmentationLevelSetImageFilter."""
+    ...
+
+def patch_based_denoising(
+    image: Image,
+    number_of_iterations: int = 1,
+    number_of_sample_patches: int = 200,
+    patch_radius: int = 4,
+    kernel_bandwidth_estimation: bool = False,
+) -> Image:
+    """Patch-based non-local-means denoising.
+    ITK Parity: PatchBasedDenoisingImageFilter."""
+    ...
 
 # -- FFT spectral filters -----------------------------------------------------
 

@@ -5,8 +5,8 @@ use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     edge::GaussianSigma, ApproximateSignedDistanceMapFilter, CannyEdgeDetector,
-    CollidingFrontsFilter, DerivativeImageFilter, FastMarchingFilter, GradientMagnitudeFilter,
-    IsoContourDistanceFilter, LaplacianFilter, LaplacianOfGaussianFilter,
+    CannySegmentationLevelSet, CollidingFrontsFilter, DerivativeImageFilter, FastMarchingFilter,
+    GradientMagnitudeFilter, IsoContourDistanceFilter, LaplacianFilter, LaplacianOfGaussianFilter,
     LaplacianSharpeningFilter, ReinitializeLevelSetFilter, SobelFilter,
     ZeroCrossingBasedEdgeDetectionFilter,
 };
@@ -427,4 +427,56 @@ pub fn reinitialize_level_set(
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+// ── CannySegmentationLevelSet ──────────────────────────────────────────────
+
+/// Canny-edge-guided level set segmentation, matching
+/// `SimpleITK.CannySegmentationLevelSetImageFilter`.
+///
+/// Evolves an initial level set `φ₀` guided by Canny edges of `feature_image`.
+/// The edge potential F = exp(-|∇I|^2 / canny_threshold) drives the propagation
+/// term while curvature provides regularisation.
+///
+/// Args:
+///     initial_level_set: Initial φ image (negative inside region of interest).
+///     feature_image:     Image to detect edges in.
+///     canny_threshold:   Edge-stopping scale τ (default 0.1).
+///     canny_variance:    Gaussian smoothing variance before gradient (default 1.0).
+///     number_of_iterations: Maximum PDE steps (default 20).
+///     max_rms_error:     RMS convergence criterion (default 0.01).
+///     propagation_scaling: Weight on the propagation term (default 1.0).
+///
+/// Returns:
+///     Evolved level-set PyImage.
+#[pyfunction]
+#[pyo3(signature = (initial_level_set, feature_image, canny_threshold=0.1, canny_variance=1.0,
+                    number_of_iterations=20, max_rms_error=0.01, propagation_scaling=1.0))]
+#[allow(clippy::too_many_arguments)]
+pub fn canny_segmentation_level_set(
+    py: Python<'_>,
+    initial_level_set: &PyImage,
+    feature_image: &PyImage,
+    canny_threshold: f32,
+    canny_variance: f32,
+    number_of_iterations: usize,
+    max_rms_error: f32,
+    propagation_scaling: f32,
+) -> RitkResult<PyImage> {
+    let arc_init = std::sync::Arc::clone(&initial_level_set.inner);
+    let arc_feat = std::sync::Arc::clone(&feature_image.inner);
+    let result = py.allow_threads(|| {
+        CannySegmentationLevelSet {
+            canny_threshold,
+            canny_variance,
+            number_of_iterations,
+            max_rms_error,
+            propagation_scaling,
+            ..Default::default()
+        }
+        .apply(arc_init.as_ref(), arc_feat.as_ref())
+    });
+    result
+        .map(into_py_image)
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }

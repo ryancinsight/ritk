@@ -13,7 +13,7 @@
 //! Output:     y\[n\] = y_c\[n\] + y_a\[n\]
 //!
 //! The coefficients (`n_k`, `d_k`, `m_k`) depend only on σ in pixel units and
-//! are DC-normalised so the smoothing has unit gain (see [`iir::DericheCoefficients`]).
+//! are DC-normalised so the smoothing has unit gain (see `iir::DericheCoefficients`).
 //! The interior is float-exact to SimpleITK; boundaries use constant (replicate)
 //! extension.
 //!
@@ -272,7 +272,7 @@ fn image_from_vals<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>, dims: [usize; 
 }
 
 /// Compute `∇²(G_σ * I)` matching ITK/SimpleITK `LaplacianRecursiveGaussian`
-/// (float-exact). See [`laplacian_rg_vals`].
+/// (float-exact). See `laplacian_rg_vals`.
 ///
 /// # Errors
 /// Returns `Err` if the tensor data cannot be extracted as `f32`.
@@ -287,7 +287,7 @@ pub fn laplacian_recursive_gaussian<B: Backend>(
 }
 
 /// Compute `|∇(G_σ * I)|` matching ITK/SimpleITK `GradientMagnitudeRecursiveGaussian`
-/// (float-exact). See [`gradient_magnitude_rg_vals`].
+/// (float-exact). See `gradient_magnitude_rg_vals`.
 ///
 /// # Errors
 /// Returns `Err` if the tensor data cannot be extracted as `f32`.

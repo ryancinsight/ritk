@@ -34,7 +34,7 @@ impl super::MultiResSyNRegistration {
     /// Register `moving` to `fixed` using multi-resolution SyN with local CC.
     ///
     /// Convenience wrapper that constructs a [`CpuFieldSmoother`] per resolution
-    /// level and delegates to [`register_with`](MultiResSyNRegistration::register_with).
+    /// level and delegates to [`register_with`](Self::register_with).
     pub fn register(
         &self,
         fixed: &[f32],

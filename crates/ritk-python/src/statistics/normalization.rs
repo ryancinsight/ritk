@@ -96,7 +96,7 @@ pub fn minmax_normalize_range(
 ///            same element count as `image`. Defaults to None (full-image stats).
 ///
 /// Returns:
-///     Normalized PyImage with E[output] ≈ 0, Var[output] ≈ 1.
+///     Normalized PyImage with E\[output\] ≈ 0, Var\[output\] ≈ 1.
 #[pyfunction]
 #[pyo3(signature = (image, mask = None))]
 pub fn zscore_normalize(

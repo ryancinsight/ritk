@@ -76,7 +76,7 @@ pub struct ParzenJointHistogram<B: Backend> {
 
 /// Cloning a [`ParzenJointHistogram`] creates a new handle that **shares** the caches with
 /// the original — both the original and the clone observe each other's cache updates and
-/// invalidations via the shared `Arc` inside each [`CacheSlot`]. This is the intended behavior
+/// invalidations via the shared `Arc` inside each `CacheSlot`. This is the intended behavior
 /// in multi-resolution pipelines, where one metric handle per resolution level is created via
 /// `.clone()` and all levels share a single lazily-built fixed-image cache.
 impl<B: Backend> Clone for ParzenJointHistogram<B> {
@@ -150,7 +150,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         self
     }
 
-    /// Compute the [`ParzenConfig`] for the fixed-image axis (DRY-320-01).
+    /// Compute the [`direct::ParzenConfig`] for the fixed-image axis (DRY-320-01).
     ///
     /// Encapsulates the repeated `ParzenConfig::from_intensity_sigma(
     /// self.parzen_sigma, self.min_intensity, self.max_intensity, self.num_bins)`
@@ -165,7 +165,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         )
     }
 
-    /// Compute the [`ParzenConfig`] for the moving-image axis (DRY-320-01).
+    /// Compute the [`direct::ParzenConfig`] for the moving-image axis (DRY-320-01).
     ///
     /// Uses `moving_parzen_sigma`, `moving_min_intensity`, and
     /// `moving_max_intensity` when set; falls back to the fixed-image

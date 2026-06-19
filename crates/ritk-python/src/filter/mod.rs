@@ -289,6 +289,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(salt_and_pepper_noise, &m)?)?;
     m.add_function(wrap_pyfunction!(shot_noise, &m)?)?;
     m.add_function(wrap_pyfunction!(speckle_noise, &m)?)?;
+    m.add_function(wrap_pyfunction!(patch_based_denoising, &m)?)?;
     // Deconvolution
     m.add_function(wrap_pyfunction!(wiener_deconvolution, &m)?)?;
     m.add_function(wrap_pyfunction!(tikhonov_deconvolution, &m)?)?;
@@ -298,6 +299,11 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(inverse_deconvolution, &m)?)?;
     // Coherence-enhancing diffusion
     m.add_function(wrap_pyfunction!(coherence_enhancing_diffusion, &m)?)?;
+    // Anti-alias binary smoothing and dense Chan-Vese level set
+    m.add_function(wrap_pyfunction!(anti_alias_binary, &m)?)?;
+    m.add_function(wrap_pyfunction!(scalar_chan_and_vese_dense_level_set, &m)?)?;
+    // Canny-guided level set
+    m.add_function(wrap_pyfunction!(canny_segmentation_level_set, &m)?)?;
     // Bin-shrink downsampling
     m.add_function(wrap_pyfunction!(bin_shrink, &m)?)?;
     parent.add_submodule(&m)?;

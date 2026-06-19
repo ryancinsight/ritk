@@ -1,8 +1,8 @@
 //! GPU render pass execution: depth peeling, SSAO, composite, async readback.
 //!
 //! All GPU work is encoded into a single `CommandBuffer` per frame:
-//!  1. Pass 0 (base): geometry → color_array[0] + depth_texes[0] + normal_depth_tex
-//!  2. Passes 1..N-1 (peel): geometry with depth discard → color_array[i] + depth_texes[i]
+//!  1. Pass 0 (base): geometry → `color_array[0]` + `depth_texes[0]` + normal_depth_tex
+//!  2. Passes 1..N-1 (peel): geometry with depth discard → `color_array[i]` + `depth_texes[i]`
 //!  3. SSAO compute: normal_depth_tex → ao_buf
 //!  4. Composite compute: color_array + ao_buf → output_buf
 //!  5. Copy: output_buf → staging_buf (COPY_SRC → COPY_DST)

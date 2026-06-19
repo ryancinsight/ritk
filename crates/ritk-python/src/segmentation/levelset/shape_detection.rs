@@ -97,7 +97,7 @@ impl PyShapeDetectionOptions {
 /// Args:
 ///     image: Input PyImage.
 ///     initial_phi: Initial level set function (signed distance).
-///     opts: [`ShapeDetectionOptions`] controlling PDE parameters.
+///     opts: `ShapeDetectionOptions` controlling PDE parameters.
 ///
 /// Returns:
 ///     Evolved level set function as PyImage.

@@ -202,7 +202,7 @@ pub fn li_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
 
 /// Compute the Li threshold for a contiguous f32 intensity slice.
 ///
-/// Delegates to the shared [`threshold_from_slice`] pipeline so it is
+/// Delegates to the shared `threshold_from_slice` pipeline so it is
 /// bit-identical to [`LiThreshold::compute`].
 pub fn compute_li_threshold_from_slice(
     slice: &[f32],

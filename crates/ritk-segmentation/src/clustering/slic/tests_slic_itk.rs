@@ -181,25 +181,43 @@ fn f(a: &[i32]) -> Vec<f32> {
 
 #[test]
 fn core_2d_matches_sitk() {
-    assert_eq!(slic_itk_impl(&f(&IMG2D), &[12, 12], &[4, 4], 10.0, 10, false, false), f(&CORE2D));
+    assert_eq!(
+        slic_itk_impl(&f(&IMG2D), &[12, 12], &[4, 4], 10.0, 10, false, false),
+        f(&CORE2D)
+    );
 }
 #[test]
 fn full_2d_matches_sitk() {
-    assert_eq!(slic_itk_impl(&f(&IMG2D), &[12, 12], &[4, 4], 10.0, 10, true, true), f(&FULL2D));
+    assert_eq!(
+        slic_itk_impl(&f(&IMG2D), &[12, 12], &[4, 4], 10.0, 10, true, true),
+        f(&FULL2D)
+    );
 }
 #[test]
 fn core_3d_matches_sitk() {
-    assert_eq!(slic_itk_impl(&f(&IMG3D), &[6, 9, 9], &[3, 3, 3], 10.0, 5, false, false), f(&CORE3D));
+    assert_eq!(
+        slic_itk_impl(&f(&IMG3D), &[6, 9, 9], &[3, 3, 3], 10.0, 5, false, false),
+        f(&CORE3D)
+    );
 }
 #[test]
 fn full_3d_matches_sitk() {
-    assert_eq!(slic_itk_impl(&f(&IMG3D), &[6, 9, 9], &[3, 3, 3], 10.0, 5, true, true), f(&FULL3D));
+    assert_eq!(
+        slic_itk_impl(&f(&IMG3D), &[6, 9, 9], &[3, 3, 3], 10.0, 5, true, true),
+        f(&FULL3D)
+    );
 }
 #[test]
 fn core_3d_non_even_matches_sitk() {
-    assert_eq!(slic_itk_impl(&f(&IMGNE), &[6, 8, 8], &[3, 3, 3], 10.0, 5, false, false), f(&CORENE));
+    assert_eq!(
+        slic_itk_impl(&f(&IMGNE), &[6, 8, 8], &[3, 3, 3], 10.0, 5, false, false),
+        f(&CORENE)
+    );
 }
 #[test]
 fn full_3d_non_even_matches_sitk() {
-    assert_eq!(slic_itk_impl(&f(&IMGNE), &[6, 8, 8], &[3, 3, 3], 10.0, 5, true, true), f(&FULLNE));
+    assert_eq!(
+        slic_itk_impl(&f(&IMGNE), &[6, 8, 8], &[3, 3, 3], 10.0, 5, true, true),
+        f(&FULLNE)
+    );
 }

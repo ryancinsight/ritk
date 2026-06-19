@@ -108,8 +108,8 @@ impl GrayscaleFillholeFilter {
 /// # Algorithm
 ///
 /// Dijkstra-like minimax-path sweep from all image border voxels.
-/// Each output voxel h[x] = min over all border-connecting paths of
-/// max(I[q]) along the path.
+/// Each output voxel `h[x]` = min over all border-connecting paths of
+/// `max(I[q])` along the path.
 ///
 /// # Invariants
 ///

@@ -66,7 +66,7 @@ impl PyChanVeseOptions {
 ///
 /// Args:
 ///     image: Input PyImage.
-///     opts: [`ChanVeseOptions`] controlling PDE parameters and stopping criteria.
+///     opts: `ChanVeseOptions` controlling PDE parameters and stopping criteria.
 ///
 /// Returns:
 ///     Binary mask PyImage (1.0 = inside, 0.0 = outside).

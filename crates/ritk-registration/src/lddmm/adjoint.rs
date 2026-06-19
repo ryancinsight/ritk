@@ -42,7 +42,7 @@ pub(super) fn epdiff_adjoint(
     }
 }
 
-/// Zero-allocation variant of [`epdiff_adjoint`].
+/// Zero-allocation variant of `epdiff_adjoint`.
 ///
 /// Writes the result directly into `out` instead of allocating new `Vec`s.
 /// `out` must have the same length as `v.z` (i.e. `dims[0]*dims[1]*dims[2]`).

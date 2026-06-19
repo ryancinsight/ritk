@@ -3,7 +3,7 @@
 //! # Functions
 //! - `compute_entropy`: marginal entropy H(X).
 //! - `compute_joint_entropy`: joint entropy H(X,Y).
-//! - `compute_symmetric_uncertainty`: SU = 2·MI/(H(X)+H(Y)) ∈ [0,1].
+//! - `compute_symmetric_uncertainty`: SU = 2·MI/(H(X)+H(Y)) ∈ \[0,1\].
 //! - `compute_mse`: mean squared error.
 //! - `compute_ncc`: normalized cross-correlation (Pearson r).
 //! - `compute_mutual_information`: histogram-based MI (mattes / standard / normalized).

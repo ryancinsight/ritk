@@ -45,6 +45,17 @@ def multires_demons_register(
     variant: str = "thirion",
     n_squarings: int = 6,
 ) -> tuple[Image, Image]: ...
+def level_set_motion_register(
+    fixed: Image,
+    moving: Image,
+    number_of_iterations: int = 20,
+    smoothing_sigma: float = 1.0,
+    intensity_difference_threshold: float = 0.001,
+) -> tuple[Image, Image]:
+    """Level-set motion registration (Thirion demons variant with fixed-image gradient).
+    ITK Parity: LevelSetMotionRegistrationFilter."""
+    ...
+
 def syn_register(
     fixed: Image,
     moving: Image,

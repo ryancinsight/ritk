@@ -31,6 +31,7 @@
 /// demons/
 /// ├── mod.rs ← this file (re-exports)
 /// ├── config.rs ← DemonsConfig, DemonsResult (SSOT)
+/// ├── level_set_motion.rs ← ITK LevelSetMotionRegistrationFilter variant
 /// ├── thirion/ ← Thirion 1998 classic Demons
 /// ├── diffeomorphic/ ← Vercauteren 2009 diffeomorphic variant
 /// ├── symmetric/  ← Pennec 1999 symmetric-force variant
@@ -51,6 +52,7 @@ pub mod config;
 pub mod diffeomorphic;
 pub mod exact_inverse_diffeomorphic;
 pub mod inverse;
+pub mod level_set_motion;
 pub mod multires;
 pub mod symmetric;
 pub mod thirion;
@@ -62,6 +64,7 @@ pub use exact_inverse_diffeomorphic::{
     InverseConsistentDiffeomorphicDemonsRegistration,
 };
 pub use inverse::{invert_displacement_field, invert_velocity_field, InverseFieldConfig};
+pub use level_set_motion::LevelSetMotionRegistration;
 pub use multires::{MultiResDemonsConfig, MultiResDemonsRegistration};
 pub use symmetric::SymmetricDemonsRegistration;
 pub use thirion::ThirionDemonsRegistration;

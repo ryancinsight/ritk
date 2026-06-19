@@ -8,9 +8,10 @@ use ritk_filter::diffusion::{
 };
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
-    BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
-    CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter, CurvatureFlowConfig,
-    CurvatureFlowImageFilter, MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
+    AntiAliasBinaryImageFilter, BinaryMinMaxCurvatureFlowConfig,
+    BinaryMinMaxCurvatureFlowImageFilter, CoherenceEnhancingDiffusionFilter,
+    CurvatureAnisotropicDiffusionFilter, CurvatureFlowConfig, CurvatureFlowImageFilter,
+    MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter, ScalarChanAndVeseDenseLevelSet,
 };
 
 /// Conductance function kind for anisotropic diffusion, replacing `exponential: bool`.
@@ -259,4 +260,85 @@ pub fn coherence_enhancing_diffusion(
         filter.apply(image.as_ref())
     });
     into_py_image(result)
+}
+
+// ── AntiAliasBinary ─────────────────────────────────────────────────────
+
+/// Narrow-band level-set smoothing of binary image boundaries,
+/// matching `SimpleITK.AntiAliasBinaryImageFilter`.
+///
+/// Evolves a signed-distance level set from the binary image boundary
+/// via mean curvature flow until the RMS change falls below `max_rms_error`
+/// or `number_of_iterations` steps complete. Returns the floating-point
+/// level-set function (negative inside the object).
+///
+/// Args:
+///     image:                Binary float32 PyImage (0.0 or 1.0 values).
+///     max_rms_error:        Convergence threshold on per-voxel RMS change (default 0.01).
+///     number_of_iterations: Maximum mean-curvature-flow steps (default 50).
+///
+/// Returns:
+///     Level-set PyImage (negative inside, positive outside).
+#[pyfunction]
+#[pyo3(signature = (image, max_rms_error=0.01_f32, number_of_iterations=50_usize))]
+pub fn anti_alias_binary(
+    py: Python<'_>,
+    image: &PyImage,
+    max_rms_error: f32,
+    number_of_iterations: usize,
+) -> PyImage {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        AntiAliasBinaryImageFilter {
+            max_rms_error,
+            number_of_iterations,
+        }
+        .apply(arc.as_ref())
+    });
+    into_py_image(result)
+}
+
+// ── ScalarChanAndVeseDenseLevelSet ──────────────────────────────────────
+
+/// Dense Chan-Vese level set segmentation with user-provided initialisation,
+/// matching `SimpleITK.ScalarChanAndVeseDenseLevelSetImageFilter`.
+///
+/// Minimises the Chan-Vese energy (region-based active contour without edges)
+/// starting from a user-supplied signed-distance level set. The `feature_image`
+/// provides the data term (region means c1/c2).
+///
+/// Args:
+///     initial_level_set: φ₀ image; negative = inside region (float32 3-D PyImage).
+///     feature_image:     u₀ for the Chan-Vese energy data term.
+///     number_of_iterations: Euler steps (default 20).
+///     lambda1:           Inside-region data weight (default 1.0).
+///     lambda2:           Outside-region data weight (default 1.0).
+///
+/// Returns:
+///     Evolved level-set PyImage.
+#[pyfunction]
+#[pyo3(signature = (initial_level_set, feature_image, number_of_iterations=20,
+                    lambda1=1.0_f32, lambda2=1.0_f32))]
+pub fn scalar_chan_and_vese_dense_level_set(
+    py: Python<'_>,
+    initial_level_set: &PyImage,
+    feature_image: &PyImage,
+    number_of_iterations: usize,
+    lambda1: f32,
+    lambda2: f32,
+) -> RitkResult<PyImage> {
+    let arc_init = std::sync::Arc::clone(&initial_level_set.inner);
+    let arc_feat = std::sync::Arc::clone(&feature_image.inner);
+    let result = py.allow_threads(|| {
+        ScalarChanAndVeseDenseLevelSet {
+            number_of_iterations,
+            lambda1,
+            lambda2,
+            ..Default::default()
+        }
+        .apply(arc_init.as_ref(), arc_feat.as_ref())
+    });
+    result
+        .map(into_py_image)
+        .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))
 }

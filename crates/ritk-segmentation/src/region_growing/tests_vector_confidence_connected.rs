@@ -53,7 +53,8 @@ fn no_seeds_yields_empty() {
 fn out_of_bounds_seed_ignored() {
     let (channels, dims) = scene();
     // Only the in-bounds seed contributes; region is still the blob.
-    let out = vector_confidence_connected(&channels, dims, &[[0, 5, 5], [0, 99, 99]], 3.0, 4, 1, 1.0);
+    let out =
+        vector_confidence_connected(&channels, dims, &[[0, 5, 5], [0, 99, 99]], 3.0, 4, 1, 1.0);
     assert_eq!(out[5 * 10 + 5], 1.0);
     assert_eq!(out[0], 0.0);
 }

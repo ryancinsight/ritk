@@ -254,9 +254,16 @@ pub fn vector_confidence_connected(
     let mut threshold = multiplier;
     let mut d_scratch = vec![0.0; c];
     for s in &valid_seeds {
-        let d = maha_sq_at(channels, flat(s[0], s[1], s[2]), &mean, &inv, c, &mut d_scratch)
-            .max(0.0)
-            .sqrt();
+        let d = maha_sq_at(
+            channels,
+            flat(s[0], s[1], s[2]),
+            &mean,
+            &inv,
+            c,
+            &mut d_scratch,
+        )
+        .max(0.0)
+        .sqrt();
         if d > threshold {
             threshold = d;
         }

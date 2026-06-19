@@ -1,7 +1,7 @@
 //! Transform traits — the core spatial transform abstraction.
 //!
 //! Concrete transform types (affine, rigid, B-spline, displacement field,
-//! composition) have been extracted to the [`ritk_transform`] crate.
+//! composition) have been extracted to the `ritk_transform` crate.
 //!
 //! This module retains only the foundational traits:
 //! * [`Transform`] — map points from one physical space to another

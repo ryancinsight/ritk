@@ -268,10 +268,7 @@ fn test_no_watershed_line_assigns_every_voxel() {
         .unwrap();
     let wl = get_labels(&with_line);
     let wo = get_labels(&without);
-    assert!(
-        wl.iter().any(|&v| v == 0.0),
-        "default marks a watershed line"
-    );
+    assert!(wl.contains(&0.0), "default marks a watershed line");
     assert!(
         wo.iter().all(|&v| v == 1.0 || v == 2.0),
         "no-line mode labels every voxel into a basin"

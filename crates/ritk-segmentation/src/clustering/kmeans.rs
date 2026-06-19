@@ -237,8 +237,12 @@ fn kmeans_impl(
         centroids.push(data[chosen] as f64);
     }
 
-    // ── Lloyd's iterations ─────────────────────────────────────────────────────
+    // ── Lloyd's iterations ─────────────────────────────────────────────────
     let mut labels = vec![0u32; n];
+    // Pre-allocate accumulator buffers once; reset at the top of each iteration
+    // to avoid effective_k × 2 per-iteration heap allocations.
+    let mut sums = vec![0.0_f64; effective_k];
+    let mut counts = vec![0u64; effective_k];
 
     for _iter in 0..max_iterations {
         // ── Assignment step ─────────────────────────────────────────────────
@@ -257,8 +261,8 @@ fn kmeans_impl(
         }
 
         // ── Update step ────────────────────────────────────────────────────
-        let mut sums = vec![0.0_f64; effective_k];
-        let mut counts = vec![0u64; effective_k];
+        sums.iter_mut().for_each(|v| *v = 0.0);
+        counts.iter_mut().for_each(|v| *v = 0);
 
         for i in 0..n {
             let c = labels[i] as usize;

@@ -22,7 +22,7 @@
 //!
 //! `find_upper_threshold = false` mirrors this, searching the lower threshold in
 //! the band `[guess, upper]` and taking `isolated = hi`. The flood is ritk's
-//! [`connected_threshold`] (face connectivity), bit-exact to
+//! [`connected_threshold()`] (face connectivity), bit-exact to
 //! `sitk.ConnectedThreshold`, so the separating threshold — and the binary output
 //! — is bit-exact to `sitk.IsolatedConnected`.
 

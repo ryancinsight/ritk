@@ -62,7 +62,7 @@ pub trait FieldSmoother {
 
 /// CPU-based Gaussian field smoother.
 ///
-/// Uses [`gaussian_smooth_field_inplace_with_scratch`] internally.
+/// Uses `gaussian_smooth_field_inplace_with_scratch` internally.
 /// Pre-allocates a scratch buffer so the hot path performs zero heap
 /// allocations.
 ///

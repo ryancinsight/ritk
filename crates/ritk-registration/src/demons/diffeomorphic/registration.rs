@@ -19,7 +19,7 @@ use crate::error::RegistrationError;
 ///
 /// Use [`register`](DiffeomorphicDemonsRegistration::register) for CPU
 /// smoothing.  Use [`register_with`](DiffeomorphicDemonsRegistration::register_with)
-/// to pass a [`GpuFieldSmoother`] or custom [`FieldSmoother`].
+/// to pass a `GpuFieldSmoother` or custom [`FieldSmoother`].
 #[derive(Debug, Clone)]
 pub struct DiffeomorphicDemonsRegistration {
     /// Algorithm configuration (shared with Thirion Demons).

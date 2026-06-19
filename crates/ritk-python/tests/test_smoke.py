@@ -310,7 +310,14 @@ def test_filter_public_functions_exist():
         "transform_to_displacement_field",
         "transform_geometry",
         "invert_displacement_field",
+        "inverse_displacement_field",
         "iterative_inverse_displacement_field",
+        "min_max_curvature_flow",
+        "binary_min_max_curvature_flow",
+        "anti_alias_binary",
+        "scalar_chan_and_vese_dense_level_set",
+        "canny_segmentation_level_set",
+        "patch_based_denoising",
         "dicom_orient",
         "adaptive_histogram_equalization",
         "approximate_signed_distance_map",
@@ -377,6 +384,8 @@ def test_segmentation_public_functions_exist():
         "toboggan",
         "vector_connected_component",
         "vector_confidence_connected_segment",
+        "isolated_watershed_segment",
+        "slic",
     ]
     missing = [fn for fn in required if not callable(getattr(rs, fn, None))]
     assert not missing, f"Missing callable functions in ritk.segmentation: {missing}"
@@ -391,6 +400,7 @@ def test_registration_public_functions_exist():
         "symmetric_demons_register",
         "inverse_consistent_demons_register",
         "multires_demons_register",
+        "level_set_motion_register",
         "syn_register",
         "bspline_ffd_register",
         "multires_syn_register",

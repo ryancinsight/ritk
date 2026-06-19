@@ -19,12 +19,13 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _upstream_filters() -> list[str]:
-    out = subprocess.run(
-        ["gh", "api",
-         "repos/SimpleITK/SimpleITK/contents/Code/BasicFilters/yaml?ref=main",
-         "--jq", ".[].name"],
-        capture_output=True, text=True, check=True).stdout
-    return sorted(n[:-5] for n in out.split() if n.endswith(".yaml"))
+    import urllib.request
+    import json
+    url = "https://api.github.com/repos/SimpleITK/SimpleITK/contents/Code/BasicFilters/yaml?ref=main"
+    req = urllib.request.Request(url, headers={"User-Agent": "ritk-coverage-bot"})
+    with urllib.request.urlopen(req) as response:
+        data = json.loads(response.read().decode())
+    return sorted(item["name"][:-5] for item in data if item["name"].endswith(".yaml"))
 
 
 def _tested_names() -> set[str]:

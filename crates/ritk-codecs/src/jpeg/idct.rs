@@ -6,7 +6,7 @@
 //! apply the 1D IDCT across all rows, transpose, apply to columns.
 //!
 //! The 1D 8-point IDCT formula (T.81 Eq. A.3.3):
-//!   f[x] = (1/2) · Σ_{u=0}^{7} C(u) · F[u] · cos((2x+1)·u·π/16)
+//!   `f[x] = (1/2) · Σ_{u=0}^{7} C(u) · F[u] · cos((2x+1)·u·π/16)`
 //! where C(0) = 1/√2, C(u>0) = 1.
 
 use std::f64::consts::{PI, SQRT_2};

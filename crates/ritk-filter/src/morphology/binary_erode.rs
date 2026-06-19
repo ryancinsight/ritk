@@ -107,8 +107,8 @@ impl Default for BinaryErodeFilter {
 /// # Invariants
 ///
 /// - Output length = `nz × ny × nx`.
-/// - Output[i] ∈ {foreground_value, 0.0}.
-/// - Output[i] = foreground_value iff all (2r+1)³ neighbours (clamped-background) = fg.
+/// - `Output[i]` ∈ {foreground_value, 0.0}.
+/// - `Output[i]` = foreground_value iff all (2r+1)³ neighbours (clamped-background) = fg.
 pub(crate) fn erode_binary_3d(
     data: &[f32],
     dims: [usize; 3],

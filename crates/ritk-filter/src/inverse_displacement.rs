@@ -49,43 +49,56 @@ impl Default for InverseDisplacementField {
 }
 
 /// Solve the dense system `a·x = b` by Gaussian elimination with partial
-/// pivoting (`a` is `n×n`, consumed). The TPS matrix is non-singular, so the
-/// solution is unique.
-fn solve_linear(mut a: Vec<Vec<f64>>, mut b: Vec<f64>) -> Vec<f64> {
+/// pivoting. `a` is a **flat row-major** `n×n` matrix (`a[r*n + c]`),
+/// consumed along with `b`. The TPS matrix is non-singular, so the solution
+/// is unique.
+///
+/// Flat layout eliminates the `n` per-row heap allocations of a jagged
+/// `Vec<Vec<f64>>` and improves cache locality for the row-scan operations
+/// in both forward elimination and back-substitution.
+fn solve_linear(mut a: Vec<f64>, mut b: Vec<f64>) -> Vec<f64> {
     let n = b.len();
     for col in 0..n {
-        // Partial pivot.
+        // Partial pivot — find the row ≥ col with the largest absolute value
+        // in column col.
         let mut piv = col;
-        let mut best = a[col][col].abs();
+        let mut best = a[col * n + col].abs();
         for r in (col + 1)..n {
-            if a[r][col].abs() > best {
-                best = a[r][col].abs();
+            let v = a[r * n + col].abs();
+            if v > best {
+                best = v;
                 piv = r;
             }
         }
         if piv != col {
-            a.swap(piv, col);
+            // piv > col is guaranteed (search starts at col+1); swap the two
+            // rows without a temporary Vec using split_at_mut.
+            let (lo, hi) = a.split_at_mut(piv * n);
+            lo[col * n..(col + 1) * n].swap_with_slice(&mut hi[..n]);
             b.swap(piv, col);
         }
-        let d = a[col][col];
+        let diag = a[col * n + col];
         for r in (col + 1)..n {
-            let f = a[r][col] / d;
+            let f = a[r * n + col] / diag;
             if f != 0.0 {
-                for c in col..n {
-                    a[r][c] -= f * a[col][c];
+                // Borrow row r (hi) and row col (lo) simultaneously via
+                // split_at_mut, eliminating the range-loop pattern.
+                let (lo, hi) = a.split_at_mut(r * n);
+                for k in col..n {
+                    hi[k] -= f * lo[col * n + k];
                 }
                 b[r] -= f * b[col];
             }
         }
     }
     // Back-substitution.
-    let mut x = vec![0.0; n];
+    let mut x = vec![0.0_f64; n];
     for i in (0..n).rev() {
         let mut s = b[i];
-        for c in (i + 1)..n {
-            s -= a[i][c] * x[c];
+        for (c, &xc) in x.iter().enumerate().skip(i + 1) {
+            s -= a[i * n + c] * xc;
         }
-        x[i] = s / a[i][i];
+        x[i] = s / a[i * n + i];
     }
     x
 }
@@ -115,8 +128,9 @@ impl InverseDisplacementField {
         let axes: Vec<usize> = if nz == 1 { vec![1, 2] } else { vec![0, 1, 2] };
         let d = axes.len();
         let comps: [&[f64]; 3] = [&uz, &uy, &ux]; // indexed by tensor axis 0/1/2
-        let sp = [spacing[0] as f64, spacing[1] as f64, spacing[2] as f64];
-        let og = [origin[0] as f64, origin[1] as f64, origin[2] as f64];
+                                                  // spacing and origin index as f64; no cast needed.
+        let sp = [spacing[0], spacing[1], spacing[2]];
+        let og = [origin[0], origin[1], origin[2]];
 
         let f = self.subsampling_factor.max(1);
         // World position along active-axis position `k` of axis `axes[t]`.
@@ -132,7 +146,11 @@ impl InverseDisplacementField {
         for t in (0..d - 1).rev() {
             gstride[t] = gstride[t + 1] * counts[t + 1];
         }
-        let mut src = vec![vec![0.0_f64; d]; n_land]; // world source points
+        // Flat row-major layout: src[li * d + t] = world source coordinate of
+        // landmark li along active axis t. Eliminates n_land per-landmark heap
+        // allocations and gives contiguous access in the O(n_land²) K-block loop
+        // and the O(n_voxels × n_land) evaluation loop.
+        let mut src = vec![0.0_f64; n_land * d];
         let mut ymat = vec![0.0_f64; d * (n_land + d + 1)]; // RHS (−d then zeros)
         for li in 0..n_land {
             // Decode landmark grid index → per-active-axis voxel index (×factor).
@@ -148,47 +166,51 @@ impl InverseDisplacementField {
                 let a = axes[t];
                 let p = world(t, full[a]);
                 let disp = comps[a][flat];
-                src[li][t] = p + disp;
+                src[li * d + t] = p + disp;
                 ymat[li * d + t] = -disp;
             }
         }
 
         // ── Assemble L = [[K, P], [Pᵀ, 0]] and solve L·W = Y ─────────────────
+        // Flat row-major layout: l[r * sz + c]. Eliminates sz per-row heap
+        // allocations and gives contiguous row access for forward elimination.
         let sz = d * (n_land + d + 1);
-        let mut l = vec![vec![0.0_f64; sz]; sz];
+        let pcol = n_land * d; // column offset for the P and Pᵀ blocks (constant)
+        let mut l = vec![0.0_f64; sz * sz];
         for i in 0..n_land {
             for j in 0..n_land {
-                let mut r2 = 0.0;
-                for t in 0..d {
-                    let dd = src[i][t] - src[j][t];
-                    r2 += dd * dd;
-                }
+                let r2: f64 = src[i * d..(i + 1) * d]
+                    .iter()
+                    .zip(src[j * d..(j + 1) * d].iter())
+                    .map(|(a, b)| {
+                        let dd = a - b;
+                        dd * dd
+                    })
+                    .sum();
                 let g = r2.sqrt();
                 for k in 0..d {
-                    l[i * d + k][j * d + k] = g;
+                    l[(i * d + k) * sz + (j * d + k)] = g;
                 }
             }
             // P block (rows i·d.., cols n_land·d..).
-            let pcol = n_land * d;
             for j in 0..d {
                 for k in 0..d {
-                    l[i * d + k][pcol + j * d + k] = src[i][j];
+                    l[(i * d + k) * sz + pcol + j * d + k] = src[i * d + j];
                 }
             }
             for k in 0..d {
-                l[i * d + k][pcol + d * d + k] = 1.0;
+                l[(i * d + k) * sz + pcol + d * d + k] = 1.0;
             }
         }
         // Pᵀ block (lower-left).
-        let pcol = n_land * d;
         for i in 0..n_land {
             for j in 0..d {
                 for k in 0..d {
-                    l[pcol + j * d + k][i * d + k] = src[i][j];
+                    l[(pcol + j * d + k) * sz + i * d + k] = src[i * d + j];
                 }
             }
             for k in 0..d {
-                l[pcol + d * d + k][i * d + k] = 1.0;
+                l[(pcol + d * d + k) * sz + i * d + k] = 1.0;
             }
         }
         let w = solve_linear(l, ymat);
@@ -203,53 +225,63 @@ impl InverseDisplacementField {
         let bvec: Vec<f64> = (0..d).map(|k| w[n_land * d + d * d + k]).collect();
 
         // ── Evaluate inverse displacement at every output voxel ──────────────
+        // The per-voxel evaluation (affine part + spline sum) is embarrassingly
+        // parallel over fi: each voxel reads shared immutable data (src, dmat,
+        // amat, bvec) and writes to its own slot. Parallelised via moirai.
+        //
+        // Output layout: Vec<[f64; 3]> indexed [fi][t] where t in 0..d. Using
+        // a stack-allocated [f64; 3] per voxel avoids any per-voxel heap
+        // allocation inside the parallel closure (d is 2 or 3 at runtime).
         let n = nz * ny * nx;
-        let mut out: Vec<Vec<f64>> = vec![vec![0.0; n]; d];
-        let mut q = vec![0.0_f64; d];
-        for fi in 0..n {
-            let iz = fi / stride[0];
-            let iy = (fi % stride[0]) / stride[1];
-            let ix = fi % stride[1];
-            let full = [iz, iy, ix];
-            for t in 0..d {
-                q[t] = og[axes[t]] + full[axes[t]] as f64 * sp[axes[t]];
-            }
-            for t in 0..d {
-                // Affine part A·q + B.
-                let mut acc = bvec[t];
-                for j in 0..d {
-                    acc += amat[t][j] * q[j];
-                }
-                out[t][fi] = acc;
-            }
-            // Spline part Σ_i ‖q − s_i‖ · D[:, i].
-            for i in 0..n_land {
-                let mut r2 = 0.0;
+        let voxel_out: Vec<[f64; 3]> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |fi| {
+                let iz = fi / stride[0];
+                let iy = (fi % stride[0]) / stride[1];
+                let ix = fi % stride[1];
+                let full = [iz, iy, ix];
+                let mut q = [0.0_f64; 3];
                 for t in 0..d {
-                    let dd = q[t] - src[i][t];
-                    r2 += dd * dd;
+                    q[t] = og[axes[t]] + full[axes[t]] as f64 * sp[axes[t]];
                 }
-                let g = r2.sqrt();
-                if g != 0.0 {
-                    for t in 0..d {
-                        out[t][fi] += g * dmat[t][i];
+                // Affine part A·q + B.
+                let mut res = [0.0_f64; 3];
+                for t in 0..d {
+                    let mut acc = bvec[t];
+                    for j in 0..d {
+                        acc += amat[t][j] * q[j];
+                    }
+                    res[t] = acc;
+                }
+                // Spline part Σ_i ‖q − s_i‖ · D[:, i].
+                for i in 0..n_land {
+                    let r2: f64 = (0..d)
+                        .map(|t| {
+                            let dd = q[t] - src[i * d + t];
+                            dd * dd
+                        })
+                        .sum();
+                    let g = r2.sqrt();
+                    if g != 0.0 {
+                        for t in 0..d {
+                            res[t] += g * dmat[t][i];
+                        }
                     }
                 }
-            }
-        }
+                res
+            });
 
         // Scatter active-axis outputs back to (x, y, z) component buffers.
         let mut ox = vec![0.0_f32; n];
         let mut oy = vec![0.0_f32; n];
         let mut oz = vec![0.0_f32; n];
-        for t in 0..d {
-            let target: &mut [f32] = match axes[t] {
-                0 => &mut oz,
-                1 => &mut oy,
-                _ => &mut ox,
-            };
-            for fi in 0..n {
-                target[fi] = out[t][fi] as f32;
+        for (fi, res) in voxel_out.iter().enumerate() {
+            for t in 0..d {
+                let target = match axes[t] {
+                    0 => &mut oz[fi],
+                    1 => &mut oy[fi],
+                    _ => &mut ox[fi],
+                };
+                *target = res[t] as f32;
             }
         }
         (

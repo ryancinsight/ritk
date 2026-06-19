@@ -77,7 +77,7 @@ pub(super) fn build_metric<IB: burn::tensor::backend::Backend>(
 /// Builds a one-level pyramid at `per_axis` shrink factors, strips autodiff,
 /// and minimises `−MI` over the normalised 6-DOF parameter space.
 ///
-/// Returns the raw [`CmaEsResult`] whose `best_x` is in normalised `[−1,1]⁶`
+/// Returns the raw [`crate::optimizer::CmaEsResult`] whose `best_x` is in normalised `[−1,1]⁶`
 /// space; the caller is responsible for denormalising.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn run_cma_level<B: AutodiffBackend>(

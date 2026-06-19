@@ -250,7 +250,7 @@ impl FrequencyDomainFilter {
     /// Generate a D-dimensional frequency mask, dispatching on `FftFilterKind`.
     ///
     /// This is the const-generic entry point that delegates to the appropriate
-    /// [`FrequencyResponse`] implementor's [`compute_mask`] method.
+    /// [`FrequencyResponse`] implementor's [`FrequencyResponse::compute_mask`] method.
     pub(crate) fn generate_mask_generic<const D: usize>(
         spatial_dims: &[usize; D],
         kind: FftFilterKind,

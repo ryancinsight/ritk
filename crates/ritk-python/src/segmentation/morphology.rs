@@ -12,7 +12,7 @@ use std::sync::Arc;
 /// Apply binary erosion with a box structuring element.
 ///
 /// Delegates to `ritk_segmentation::BinaryErosion`. For each voxel p,
-/// output[p] = 1.0 iff all voxels within the axis-aligned hypercube of
+/// `output[p]` = 1.0 iff all voxels within the axis-aligned hypercube of
 /// half-width `radius` centred at p are foreground.
 ///
 /// Args:
@@ -35,7 +35,7 @@ pub fn binary_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage
 /// Apply binary dilation with a box structuring element.
 ///
 /// Delegates to `ritk_segmentation::BinaryDilation`. For each voxel p,
-/// output[p] = 1.0 iff any voxel within the axis-aligned hypercube of
+/// `output[p]` = 1.0 iff any voxel within the axis-aligned hypercube of
 /// half-width `radius` centred at p is foreground.
 ///
 /// Args:

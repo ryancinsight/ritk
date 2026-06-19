@@ -7,7 +7,7 @@
 ///
 /// Sized to `n = nz * ny * nx` voxels. All buffers are 0-initialized.
 ///
-/// The smoothing scratch buffer is handled by [`FieldSmoother`] implementations;
+/// The smoothing scratch buffer is handled by [`crate::deformable_field_ops::FieldSmoother`] implementations;
 /// it is no longer stored here.
 pub(super) struct SyNBuffers {
     // ── Velocity fields v₁, v₂ (output) ──

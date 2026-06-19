@@ -1,9 +1,9 @@
 //! Ensemble segmentation: consensus labeling from multiple raters.
 //!
 //! # Algorithms
-//! - [`staple`]: STAPLE EM algorithm (Warfield et al. 2004). Estimates probabilistic
+//! - [`staple()`]: STAPLE EM algorithm (Warfield et al. 2004). Estimates probabilistic
 //!   ground truth from K binary segmentation masks with per-rater sensitivity/specificity.
-//! - [`multi_label_staple`]: multi-label generalization emitting a hard consensus
+//! - [`multi_label_staple()`]: multi-label generalization emitting a hard consensus
 //!   label map from K integer label maps.
 
 mod multi_label_staple;

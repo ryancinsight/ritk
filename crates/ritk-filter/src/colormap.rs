@@ -200,7 +200,7 @@ impl LabelToRGBFilter {
 ///
 /// Background voxels pass the grayscale value through on all three channels;
 /// each labelled voxel `k` is alpha-blended with its colour from the 30-entry
-/// [`LABEL_COLORS`] table:
+/// `LABEL_COLORS` table:
 ///
 /// ```text
 /// out = floor((1 − opacity)·gray + opacity·LABEL_COLORS[(k−1) mod 30])

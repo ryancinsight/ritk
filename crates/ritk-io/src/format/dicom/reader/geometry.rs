@@ -66,10 +66,10 @@ pub(in crate::format::dicom) enum SliceCoverage {
 /// Result of analyzing per-slice spacing uniformity.
 ///
 /// Derived from sorted projected positions `p[0] ≤ p[1] ≤ … ≤ p[N-1]`:
-/// - gaps[i] = p[i+1] - p[i]
+/// - `gaps[i] = p[i+1] - p[i]`
 /// - nominal_spacing = median(gaps)
-/// - max_relative_deviation = max_i |gaps[i] - nominal| / nominal
-/// - missing_between: indices i where gaps[i] > 1.5 × nominal
+/// - `max_relative_deviation = max_i |gaps[i] - nominal| / nominal`
+/// - `missing_between`: indices `i` where `gaps[i] > 1.5 × nominal`
 #[derive(Debug, Clone)]
 pub(in crate::format::dicom) struct SliceGeometryReport {
     pub nominal_spacing: f64,

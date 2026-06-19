@@ -27,10 +27,13 @@ pub fn build_grid_map(
     let avg_per_cell = centers.len() / total_cells + 1;
     let mut grid_map: Vec<Vec<usize>> = vec![Vec::with_capacity(avg_per_cell); total_cells];
 
-    for (ci, center) in centers.iter().enumerate() {
-        let mut lo_cell = vec![0usize; ndim];
-        let mut hi_cell = vec![0usize; ndim];
+    // Pre-allocate coordinate buffers once; all positions are fully overwritten
+    // per iteration, so no reset is needed.
+    let mut lo_cell = vec![0usize; ndim];
+    let mut hi_cell = vec![0usize; ndim];
+    let mut cell_coords = vec![0usize; ndim];
 
+    for (ci, center) in centers.iter().enumerate() {
         for d in 0..ndim {
             let step = grid_sizes[d] as f64;
             let gs = grid_sizes[d].max(1);
@@ -44,7 +47,6 @@ pub fn build_grid_map(
         }
 
         // Enumerate all cells in [lo_cell, hi_cell]^D and register this center.
-        let mut cell_coords = vec![0usize; ndim];
         enumerate_cells_range(
             &mut cell_coords,
             0,

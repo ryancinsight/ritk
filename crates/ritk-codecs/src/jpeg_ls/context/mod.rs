@@ -67,7 +67,7 @@ impl ContextModel {
     /// Initialize all context states.
     ///
     /// `a_init = max(2, (RANGE + 32) / 64)` where `RANGE = MAXVAL + 1`.
-    /// From ISO 14495-1 §A.4: initial A[q] = a_init for all q.
+    /// From ISO 14495-1 §A.4: initial `A[q]` = a_init for all q.
     pub(crate) fn new(a_init: u32) -> Self {
         let s = ContextState {
             a: a_init,

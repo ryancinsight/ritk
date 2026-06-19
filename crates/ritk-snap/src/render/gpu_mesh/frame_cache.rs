@@ -41,7 +41,7 @@ pub(super) struct GpuMeshFrameCache {
     pub color_array_tex: wgpu::Texture,
     /// Per-layer Depth32Float depth textures (one per peel pass).
     pub depth_texes: Vec<wgpu::Texture>,
-    /// Rgba16Float G-buffer: xyz = view-space normal encoded to [0,1], w = linear depth.
+    /// Rgba16Float G-buffer: xyz = view-space normal encoded to `[0, 1]`, w = linear depth.
     /// Produced only by peel pass 0; read by the SSAO compute pass.
     pub normal_depth_tex: wgpu::Texture,
 

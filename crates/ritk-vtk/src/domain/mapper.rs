@@ -15,7 +15,7 @@
 //! Given scalar range [s_min, s_max] and value v, the normalised parameter is:
 //!   t = clamp((v − s_min) / (s_max − s_min), 0, 1)
 //! The LUT index is:  i = round(t × 255) ∈ {0, …, 255}
-//! The mapped colour is: rgba = lut[i]
+//! The mapped colour is: rgba = lut\[i\]
 
 /// Polygon display mode for surface rendering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -116,7 +116,7 @@ fn sample_colormap(preset: ColormapPreset, t: f32) -> [f32; 3] {
 
 /// MATLAB-style jet colormap: piecewise linear blue→cyan→green→yellow→red.
 ///
-/// Segments (each spanning 1/4 of [0,1]):
+/// Segments (each spanning 1/4 of `[0, 1]`):
 ///   Blue peak at t=0.25, green peak at t=0.5, red peak at t=0.75.
 fn jet_color(t: f32) -> [f32; 3] {
     let r = if t < 3.0 / 8.0 {
@@ -192,7 +192,7 @@ fn rainbow_color(t: f32) -> [f32; 3] {
     hsv_to_rgb(hue, 1.0, 1.0)
 }
 
-/// Convert HSV (hue ∈ [0,360), s ∈ [0,1], v ∈ [0,1]) to RGB.
+/// Convert HSV (hue ∈ `[0, 360)`, s ∈ `[0, 1]`, v ∈ `[0, 1]`) to RGB.
 fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [f32; 3] {
     let h = h.rem_euclid(360.0);
     let i = (h / 60.0) as u32;

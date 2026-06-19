@@ -5,8 +5,8 @@ use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::GaussianSigma;
 use ritk_registration::demons::{
-    DemonsConfig, DiffeomorphicDemonsRegistration, SymmetricDemonsRegistration,
-    ThirionDemonsRegistration,
+    DemonsConfig, DiffeomorphicDemonsRegistration, LevelSetMotionRegistration,
+    SymmetricDemonsRegistration, ThirionDemonsRegistration,
 };
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -145,6 +145,89 @@ pub fn diffeomorphic_demons_register(
         let reg = DiffeomorphicDemonsRegistration {
             config,
             n_squarings,
+        };
+        reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(|result| {
+        let warped_image = vec_to_image(
+            result.warped,
+            fixed_shape,
+            fixed_origin,
+            fixed_spacing,
+            fixed_direction,
+        );
+        let n = nz * ny * nx;
+        let mut disp_packed = Vec::with_capacity(3 * n);
+        disp_packed.extend_from_slice(&result.disp_z);
+        disp_packed.extend_from_slice(&result.disp_y);
+        disp_packed.extend_from_slice(&result.disp_x);
+        let disp_image = vec_to_image(
+            disp_packed,
+            [3 * nz, ny, nx],
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        );
+        (into_py_image(warped_image), into_py_image(disp_image))
+    })
+}
+
+/// Register a moving image to a fixed image using the Level-Set Motion filter.
+///
+/// Implements `itk::LevelSetMotionRegistrationFilter`: a Demons variant where
+/// the update force is `(F − M) · ∇F / (|∇F|² + α²)`.  The constant α²
+/// stabilises forces in flat (near-zero gradient) regions.
+///
+/// Args:
+///     fixed:                         Fixed (reference) image.
+///     moving:                        Moving image to register.
+///     number_of_iterations:          PDE steps (default 20).
+///     smoothing_sigma:               Gaussian regularisation σ in voxels
+///                                    applied after each iteration (default 1.0).
+///     intensity_difference_threshold: α² in the force denominator (default
+///                                    0.001). Must be strictly positive.
+///
+/// Returns:
+///     (warped_moving, displacement_field):
+///     - `warped_moving`: moving image warped by the final displacement.
+///     - `displacement_field`: PyImage with shape [3·Z, Y, X]; the three
+///       Z-stacked planes are (dz, dy, dx).  Recover with
+///       `.to_numpy().reshape(3, Z, Y, X)`.
+///
+/// Raises:
+///     RuntimeError: if image shapes do not match or registration fails.
+#[pyfunction]
+#[pyo3(signature = (fixed, moving, number_of_iterations=20, smoothing_sigma=1.0, intensity_difference_threshold=0.001))]
+pub fn level_set_motion_register(
+    py: Python<'_>,
+    fixed: &PyImage,
+    moving: &PyImage,
+    number_of_iterations: usize,
+    smoothing_sigma: f32,
+    intensity_difference_threshold: f32,
+) -> RitkResult<(PyImage, PyImage)> {
+    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref());
+    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref());
+
+    if fixed_shape != moving_shape {
+        return Err(RitkPyError::runtime(format!(
+            "fixed shape {:?} != moving shape {:?}; images must have identical shapes",
+            fixed_shape, moving_shape
+        )));
+    }
+
+    let fixed_origin = *fixed.inner.origin();
+    let fixed_spacing = *fixed.inner.spacing();
+    let fixed_direction = *fixed.inner.direction();
+    let [nz, ny, nx] = fixed_shape;
+
+    py.allow_threads(|| {
+        let reg = LevelSetMotionRegistration {
+            number_of_iterations,
+            smoothing_sigma,
+            intensity_difference_threshold,
         };
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())

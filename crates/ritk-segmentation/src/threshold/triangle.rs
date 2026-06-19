@@ -199,7 +199,7 @@ pub fn triangle_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f3
 /// Compute the triangle threshold for a contiguous f32 intensity slice,
 /// matching `itk::TriangleThresholdCalculator`.
 ///
-/// Delegates to the shared [`threshold_from_slice`] pipeline so it is
+/// Delegates to the shared `threshold_from_slice` pipeline so it is
 /// bit-identical to [`TriangleThreshold::compute`].
 pub fn compute_triangle_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
     threshold_from_slice(&TriangleThreshold::with_bins(num_bins), slice)

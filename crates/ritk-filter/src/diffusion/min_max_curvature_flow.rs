@@ -27,7 +27,7 @@ use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Denominator floor below which curvature is treated as zero (flat region).
-const GRAD_MAG_EPSILON: f64 = 1e-12;
+const GRAD_MAG_EPSILON: f64 = 1e-9;
 
 /// Configuration for [`MinMaxCurvatureFlowImageFilter`].
 #[derive(Debug, Clone, Copy)]
@@ -71,16 +71,13 @@ impl MinMaxCurvatureFlowImageFilter {
         let slab = ny * nx;
         let r = self.config.stencil_radius as isize;
         let two_d = nz == 1;
-        // ITK-internal CFL scaling: the effective step is time_step / R² (where
-        // R is the stencil radius), independent of image dimension — recovered
-        // from sitk (R=1→/1, R=2→/4, R=3→/9, in both 2-D and 3-D).
         let dt = (self.config.time_step as f64) / (r * r).max(1) as f64;
 
         let (sphere, sphere_w) = sphere_offsets(r, two_d);
         let rf = r as f64;
 
         let sp = image.spacing();
-        let inv_sp = [1.0 / sp[0], 1.0 / sp[1], 1.0 / sp[2]];
+        let inv_sp = [1.0 / sp[2], 1.0 / sp[1], 1.0 / sp[0]];
 
         let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
 
@@ -249,13 +246,12 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
         let slab = ny * nx;
         let r = self.config.stencil_radius as isize;
         let two_d = nz == 1;
-        // ITK CFL scaling: effective step = time_step / R² (see MinMax::apply).
         let dt = (self.config.time_step as f64) / (r * r).max(1) as f64;
         let thr = self.config.threshold;
         let (sphere, sphere_w) = sphere_offsets(r, two_d);
 
         let sp = image.spacing();
-        let inv_sp = [1.0 / sp[0], 1.0 / sp[1], 1.0 / sp[2]];
+        let inv_sp = [1.0 / sp[2], 1.0 / sp[1], 1.0 / sp[0]];
 
         let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
         for _ in 0..self.config.num_iterations {

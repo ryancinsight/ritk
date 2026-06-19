@@ -178,7 +178,7 @@ fn deinterleave(inter: &[i32], sn: usize, out: &mut [i32]) {
 // ── 1-D lifting kernels ───────────────────────────────────────────────────────
 
 /// 1-D inverse 5/3 integer lifting (ISO 15444-1 §F.3.8.2) on an interleaved
-/// buffer (even indices = s[i] lows, odd = d[i] highs). Whole-sample-symmetric
+/// buffer (even indices = `s[i]` lows, odd = `d[i]` highs). Whole-sample-symmetric
 /// boundary extension.
 fn idwt_1d_5_3(buf: &mut [i32]) {
     let n = buf.len();

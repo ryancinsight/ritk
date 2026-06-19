@@ -246,7 +246,7 @@ pub fn n4_bias_correction(
 /// within each non-overlapping bin. This provides anti-aliasing compared
 /// to naive sub-sampling (which just takes every Nth voxel).
 ///
-/// Output shape[d] = floor(input_shape[d] / factor[d]).
+/// Output shape\[d\] = floor(input_shape\[d\] / factor\[d\]).
 /// Spacing is multiplied by the shrink factor.
 ///
 /// Args:

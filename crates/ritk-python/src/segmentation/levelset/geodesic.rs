@@ -69,7 +69,7 @@ impl PyGacOptions {
 ///     image: Input PyImage.
 ///     initial_phi: Initial level set function PyImage (same shape as image).
 ///         φ < 0 inside the initial contour, φ > 0 outside.
-///     opts: [`GeodesicActiveContourOptions`] controlling PDE parameters.
+///     opts: `GeodesicActiveContourOptions` controlling PDE parameters.
 ///
 /// Returns:
 ///     Binary mask PyImage (1.0 where φ < 0, 0.0 elsewhere).

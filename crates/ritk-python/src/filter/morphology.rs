@@ -601,6 +601,37 @@ pub fn label_contour(
     .map(into_py_image)
 }
 
+/// Extract iso-contours at `contour_value` from a 2-D image (`z == 1`) by
+/// marching squares, matching `sitk.ContourExtractor2DImageFilter`.
+///
+/// Returns a list of polyline contours; each contour is a list of `(y, x)`
+/// pixel-coordinate vertices (closed loops repeat the first point at the end).
+///
+/// ITK Parity: ContourExtractor2DImageFilter (`sitk.ContourExtractor2DImageFilter`).
+///
+/// Args:
+///     image:         scalar 2-D image (`z == 1`).
+///     contour_value: iso-value to trace (default 0.0).
+///
+/// Returns:
+///     list[list[tuple[float, float]]] — contours of `(y, x)` vertices.
+#[pyfunction]
+#[pyo3(signature = (image, contour_value = 0.0))]
+pub fn contour_extractor_2d(
+    py: Python<'_>,
+    image: &PyImage,
+    contour_value: f32,
+) -> Vec<Vec<(f64, f64)>> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let contours = py.allow_threads(|| {
+        ritk_filter::ContourExtractor2DImageFilter { contour_value }.apply(arc.as_ref())
+    });
+    contours
+        .into_iter()
+        .map(|c| c.into_iter().map(|p| (p.y as f64, p.x as f64)).collect())
+        .collect()
+}
+
 /// One voting (cellular-automaton) step on a binary image: a background voxel
 /// becomes foreground if ≥ `birth_threshold` of its `(2·radius+1)³` neighbours
 /// are foreground; a foreground voxel survives if ≥ `survival_threshold` are.

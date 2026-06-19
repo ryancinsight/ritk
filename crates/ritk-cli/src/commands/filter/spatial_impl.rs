@@ -220,7 +220,7 @@ pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
 
 // ── Laplacian of Gaussian (LoG) ───────────────────────────────────────────────
 
-/// Apply the Laplacian of Gaussian filter.  Reads σ from [`SmoothingArgs`].
+/// Apply the Laplacian of Gaussian filter.  Reads σ from `SmoothingArgs`.
 pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     use ritk_filter::edge::GaussianSigma;
     use ritk_filter::LaplacianOfGaussianFilter;

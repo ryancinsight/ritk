@@ -6,7 +6,7 @@
 //!
 //! Given K binary segmentation masks D = {D_1, ..., D_K} with D_k ∈ {0,1}^N,
 //! STAPLE estimates via Expectation–Maximisation (EM):
-//! - W ∈ [0,1]^N  probabilistic ground truth
+//! - W ∈ `[0, 1]^N`  probabilistic ground truth
 //! - p ∈ (0,1)^K  per-rater sensitivity
 //! - q ∈ (0,1)^K  per-rater specificity
 //!

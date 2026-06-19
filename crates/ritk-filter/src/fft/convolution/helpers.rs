@@ -39,7 +39,7 @@ impl FftDirection for InverseFft {
 
 /// Dispatch separable N-D FFT based on dimensionality.
 ///
-/// For `D = 2`, delegates to [`fft2d`]; for `D = 3`, delegates to [`fft3d`].
+/// For `D = 2`, delegates to `fft2d`; for `D = 3`, delegates to `fft3d`.
 /// Panics for any other `D` value.
 pub fn fft_nd<const D: usize, Dir: FftDirection>(
     buf: &mut [Complex<f32>],

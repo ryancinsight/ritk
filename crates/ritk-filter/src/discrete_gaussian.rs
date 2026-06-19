@@ -351,7 +351,7 @@ fn modified_bessel_i(n: usize, y: f64) -> f64 {
 /// Convolve a 1-D slice with replicate (edge) boundary padding.
 ///
 /// Reconstructs the output via SAXPY accumulation: for each kernel position kj
-/// (offset = kj - r from the kernel center), add w x input[clamped_pos] to the
+/// (offset = kj - r from the kernel center), add w x `input[clamped_pos]` to the
 /// corresponding output elements. Boundary regions are identified analytically to
 /// eliminate per-element clamping in the interior, enabling LLVM vectorization.
 ///
@@ -394,7 +394,7 @@ fn conv1d_replicate(input: &[f32], kernel: &[f32], output: &mut [f32]) {
     }
 }
 
-/// Convolve flat C-order [NZ,NY,NX] array along one axis. Rayon-parallel.
+/// Convolve flat C-order `[NZ, NY, NX]` array along one axis. Rayon-parallel.
 fn convolve3d_dim(
     src: &[f32],
     dst: &mut [f32],

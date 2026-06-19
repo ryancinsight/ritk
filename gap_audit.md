@@ -2,6 +2,34 @@
 
 > **Full audit history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
 
+
+## Sprint 382 Audit (2026-06-19) — MinMaxCurvatureFlow / CurvatureFlow Spacing & SLIC Parity
+
+### Gaps Identified and Closed
+
+- **[FIX-382-01 CLOSED] (ritk-filter/diffusion/curvature_flow.rs)**: `CurvatureFlowImageFilter`
+  spacing scaling was missing, causing large errors on anisotropic images. Mapped reciprocal spacing axes
+  correctly to apply ITK-exact spacing scaling (`1.0 / spacing`) to all derivatives.
+  Evidence: MAE reduced from 4% to 4.1e-7 (float-exact parity) on `RA-Float.nrrd`.
+
+- **[FIX-382-02 CLOSED] (ritk-filter/diffusion/min_max_curvature_flow.rs)**: `MinMaxCurvatureFlow`
+  and `BinaryMinMaxCurvatureFlow` time-step scaling and spacing corrected. Time-step scaling changed to
+  use generic `time_step / R^2` (resolving to `/ 4.0` for default radius 2) instead of dimension-dependent scaling,
+  and corrected the reciprocal spacing coordinate axis mapping.
+  Evidence: Pass structural parity test within chaotic threshold sensitivity bounds.
+
+- **[TEST-382-01 CLOSED] (ritk-python/tests/test_simpleitk_cmake_data.py)**: Completed SLIC
+  superpixel parity: verified the deterministic core (perturbation + connectivity) matches SimpleITK
+  exactly in 2-D and 3-D (including non-evenly dividing grid remainder cases). Excluded SLIC from
+  investigated exclusions.
+  Evidence: 5/5 SLIC Python parity tests pass successfully.
+
+### cmake Filter Coverage (Sprint 382 state)
+- **Closed this sprint**: MinMaxCurvatureFlow, BinaryMinMaxCurvatureFlow, SLIC (3 filters)
+- **Remaining uncovered** (8 filters): AntiAliasBinary, CannySegmentationLevelSet, CoherenceEnhancingDiffusion, ContourExtractor2D,
+  IsolatedWatershed, LevelSetMotionRegistration, PatchBasedDenoising, ScalarChanAndVeseDenseLevelSet.
+- **Total cmake parity tests**: 414 passing (Sprint 382 exit baseline).
+
 ---
 
 ## Sprint 381 Audit (2026-06-19) — Wiener Formula Fix, Parallel Box/EDT, CoherenceEnhancingDiffusion Coverage

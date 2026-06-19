@@ -74,7 +74,7 @@ impl PyAtlasBuildOptions {
 ///
 /// Args:
 ///     subjects: List of subject images (all must share the same shape).
-///     opts:     [`AtlasBuildOptions`] controlling SyN configuration and stopping criteria.
+///     opts:     `AtlasBuildOptions` controlling SyN configuration and stopping criteria.
 ///
 /// Returns:
 ///     (template, convergence_history):

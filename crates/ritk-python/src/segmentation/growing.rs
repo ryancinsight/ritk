@@ -8,8 +8,9 @@ use pyo3::prelude::*;
 use ritk_image::Image;
 use ritk_segmentation::{
     connected_threshold as core_connected_threshold,
-    vector_confidence_connected_image as core_vector_confidence_connected, ConfidenceConnectedFilter,
-    IsolatedConnectedFilter, NeighborhoodConnectedFilter,
+    vector_confidence_connected_image as core_vector_confidence_connected,
+    ConfidenceConnectedFilter, IsolatedConnectedFilter, IsolatedWatershed,
+    NeighborhoodConnectedFilter,
 };
 use std::sync::Arc;
 
@@ -52,8 +53,7 @@ pub fn vector_confidence_connected_segment(
             "vector_confidence_connected: at least one channel is required",
         ));
     }
-    let arcs: Vec<Arc<Image<Backend, 3>>> =
-        channels.iter().map(|p| Arc::clone(&p.inner)).collect();
+    let arcs: Vec<Arc<Image<Backend, 3>>> = channels.iter().map(|p| Arc::clone(&p.inner)).collect();
     let out = py.allow_threads(|| {
         let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
         core_vector_confidence_connected(
@@ -249,4 +249,55 @@ pub fn neighborhood_connected_segment(
             .apply(inner.as_ref())
     });
     Ok(into_py_image(result))
+}
+
+// ── IsolatedWatershed ────────────────────────────────────────────────────────
+
+/// Isolated watershed segmentation, matching `SimpleITK.IsolatedWatershed`.
+///
+/// Finds the lowest threshold T* such that `seed1` and `seed2` are in separate
+/// 6-connected components of {x : I(x) ≤ T*}, then labels those regions.
+///
+/// Label convention:
+///     1 = region reachable from seed1 at T*
+///     2 = region reachable from seed2 at T*
+///     3 = remaining voxels
+///
+/// Args:
+///     image:                    Input scalar 3-D PyImage (normalised to [0, 1]).
+///     seed1:                    `[z, y, x]` index of the first seed voxel.
+///     seed2:                    `[z, y, x]` index of the second seed voxel.
+///     threshold:                Lower bound for the search (default 0.0).
+///     isolated_value_tolerance: Binary-search convergence precision (default 0.001).
+///     upper_value_limit:        Upper bound for the search (default 1.0).
+///
+/// Returns:
+///     Label PyImage (f32 values 1.0, 2.0, or 3.0).
+#[pyfunction]
+#[pyo3(signature = (image, seed1, seed2, threshold=0.0,
+                    isolated_value_tolerance=0.001, upper_value_limit=1.0))]
+#[allow(clippy::too_many_arguments)]
+pub fn isolated_watershed_segment(
+    py: Python<'_>,
+    image: &PyImage,
+    seed1: [usize; 3],
+    seed2: [usize; 3],
+    threshold: f32,
+    isolated_value_tolerance: f32,
+    upper_value_limit: f32,
+) -> RitkResult<PyImage> {
+    let arc = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        IsolatedWatershed {
+            seed1,
+            seed2,
+            threshold,
+            isolated_value_tolerance,
+            upper_value_limit,
+        }
+        .apply(arc.as_ref())
+    });
+    result
+        .map(into_py_image)
+        .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))
 }

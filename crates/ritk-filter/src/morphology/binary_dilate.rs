@@ -111,8 +111,8 @@ impl Default for BinaryDilateFilter {
 /// # Invariants
 ///
 /// - Output length = `nz × ny × nx`.
-/// - Output[i] ∈ {foreground_value, 0.0}.
-/// - Output[i] = foreground_value iff any (2r+1)³ in-bounds neighbour = fg.
+/// - `Output[i]` ∈ {foreground_value, 0.0}.
+/// - `Output[i]` = foreground_value iff any (2r+1)³ in-bounds neighbour = fg.
 pub(crate) fn dilate_binary_3d(
     data: &[f32],
     dims: [usize; 3],

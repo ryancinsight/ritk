@@ -4,7 +4,7 @@
 //! region growing algorithms for medical image segmentation.
 //!
 //! # Module Structure
-//! - [`connected_threshold`]: Fixed-intensity-bounds flood-fill region growing.
+//! - [`connected_threshold()`]: Fixed-intensity-bounds flood-fill region growing.
 //! - [`confidence_connected`]: Adaptive statistics-based region growing.
 //! - [`neighborhood_connected`]: Neighborhood-admissibility-predicate region growing.
 

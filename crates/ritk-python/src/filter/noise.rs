@@ -4,7 +4,8 @@ use crate::errors::RitkResult;
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    AdditiveGaussianNoiseFilter, SaltAndPepperNoiseFilter, ShotNoiseFilter, SpeckleNoiseFilter,
+    AdditiveGaussianNoiseFilter, PatchBasedDenoisingImageFilter, SaltAndPepperNoiseFilter,
+    ShotNoiseFilter, SpeckleNoiseFilter,
 };
 use std::sync::Arc;
 
@@ -127,4 +128,48 @@ pub fn speckle_noise(py: Python<'_>, image: &PyImage, std: f64, seed: u32) -> Ri
         })
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))?;
     Ok(into_py_image(result))
+}
+
+// ── PatchBasedDenoising ───────────────────────────────────────────────────────
+
+/// Patch-based non-local-means denoising, matching
+/// `SimpleITK.PatchBasedDenoisingImageFilter`.
+///
+/// For each voxel, computes a weighted average of similar patches sampled from
+/// the image. With `kernel_bandwidth_estimation=False`, the bandwidth is
+/// estimated from the image's noise level via the MAD estimator.
+///
+/// Args:
+///     image:                       Input 3-D PyImage.
+///     number_of_iterations:        PDE passes (default 1).
+///     number_of_sample_patches:    Reference patches to compare per voxel (default 200).
+///     patch_radius:                Half-size of each patch per axis (default 4).
+///     kernel_bandwidth_estimation: Adaptively estimate bandwidth (default False).
+///
+/// Returns:
+///     Denoised PyImage.
+#[pyfunction]
+#[pyo3(signature = (image, number_of_iterations=1, number_of_sample_patches=200,
+                    patch_radius=4, kernel_bandwidth_estimation=false))]
+pub fn patch_based_denoising(
+    py: Python<'_>,
+    image: &PyImage,
+    number_of_iterations: usize,
+    number_of_sample_patches: usize,
+    patch_radius: usize,
+    kernel_bandwidth_estimation: bool,
+) -> RitkResult<PyImage> {
+    let arc = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        PatchBasedDenoisingImageFilter {
+            number_of_iterations,
+            number_of_sample_patches,
+            patch_radius,
+            kernel_bandwidth_estimation,
+        }
+        .apply(arc.as_ref())
+    });
+    result
+        .map(into_py_image)
+        .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))
 }

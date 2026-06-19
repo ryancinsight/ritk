@@ -51,7 +51,7 @@ pub(crate) fn cubic_bspline(x: f32) -> f32 {
 /// Provides smooth interpolation using cubic B-Spline basis functions.
 ///
 /// The image is first prefiltered into B-spline coefficients (see
-/// [`prefilter`]), so reconstruction interpolates the samples exactly at the grid
+/// `prefilter`) so reconstruction interpolates the samples exactly at the grid
 /// points rather than smoothing them.
 ///
 /// When [`BoundsPolicy::Extend`] (the default), support taps outside the volume

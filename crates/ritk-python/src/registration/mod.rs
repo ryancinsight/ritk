@@ -29,6 +29,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new_bound(parent.py(), "registration")?;
     m.add_function(wrap_pyfunction!(demons_register, &m)?)?;
     m.add_function(wrap_pyfunction!(diffeomorphic_demons_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(level_set_motion_register, &m)?)?;
     m.add_function(wrap_pyfunction!(symmetric_demons_register, &m)?)?;
     m.add_function(wrap_pyfunction!(inverse_consistent_demons_register, &m)?)?;
     m.add_class::<PyMultiresDemonsOptions>()?;

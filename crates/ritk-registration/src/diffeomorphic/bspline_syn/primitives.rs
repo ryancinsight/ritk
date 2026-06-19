@@ -50,7 +50,7 @@ pub(crate) fn cp_count(dim: usize, spacing: usize) -> usize {
 
 // ── Dense field evaluation ────────────────────────────────────────────────────
 
-/// Zero-allocation variant of [`evaluate_dense`]: writes the dense displacement
+/// Zero-allocation variant of `evaluate_dense`: writes the dense displacement
 /// field into a caller-provided buffer.
 pub(crate) fn evaluate_dense_into(
     cp: &[f32],
@@ -109,7 +109,7 @@ pub(crate) fn evaluate_dense(
 
 // ── Force accumulation ────────────────────────────────────────────────────────
 
-/// Zero-allocation variant of [`accumulate_to_cp`]: reuses caller-provided
+/// Zero-allocation variant of `accumulate_to_cp`: reuses caller-provided
 /// `accum` and `weight` temporaries and writes the result into `out`.
 pub(crate) fn accumulate_to_cp_into(
     force: &[f32],
@@ -186,7 +186,7 @@ pub(crate) fn accumulate_to_cp(
 
 // ── Laplacian regularisation ──────────────────────────────────────────────────
 
-/// Zero-allocation variant of [`cp_laplacian`]: writes the Laplacian into a
+/// Zero-allocation variant of `cp_laplacian`: writes the Laplacian into a
 /// caller-provided buffer.
 pub(crate) fn cp_laplacian_into(cp: &[f32], cp_dims: [usize; 3], out: &mut [f32]) {
     let [cnz, cny, cnx] = cp_dims;

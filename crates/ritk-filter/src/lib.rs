@@ -1,5 +1,8 @@
 // ── Internal ────────────────────────────────────────────────────────────────
 
+// Private level-set numerical primitives shared by the new filter modules.
+pub(crate) mod level_set_helpers;
+
 // ── Re-export gaussian_kernel from ritk-core::filter ────────────────────────────
 pub use ritk_tensor_ops::gaussian_kernel;
 
@@ -173,6 +176,16 @@ pub mod reinitialize_level_set;
 pub mod surface;
 pub mod warp;
 
+// ── New filters ──────────────────────────────────────────────────────────────
+pub mod canny_segmentation_level_set;
+pub use canny_segmentation_level_set::CannySegmentationLevelSet;
+
+pub mod patch_based_denoising;
+pub use patch_based_denoising::PatchBasedDenoisingImageFilter;
+
+pub mod scalar_chan_and_vese;
+pub use scalar_chan_and_vese::ScalarChanAndVeseDenseLevelSet;
+
 pub use colliding_fronts::CollidingFrontsFilter;
 pub use displacement::transform_to_displacement_field;
 pub use distance::{
@@ -191,3 +204,9 @@ pub use rank::{PercentileFilter, RankFilter};
 pub use reinitialize_level_set::ReinitializeLevelSetFilter;
 pub use surface::{MarchingCubesFilter, Mesh, MeshBuilder};
 pub use warp::warp_image;
+
+// ── Anti-alias & contour ─────────────────────────────────────────────────────
+pub mod anti_alias_binary;
+pub use anti_alias_binary::AntiAliasBinaryImageFilter;
+pub mod contour_extractor_2d;
+pub use contour_extractor_2d::{Contour, ContourExtractor2DImageFilter, ContourPoint};

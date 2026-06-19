@@ -496,9 +496,9 @@ pub fn change_label(
 /// Returns:
 ///     list of dicts, one per component, sorted by label ascending, each with keys:
 ///     label (int), voxel_count (int),
-///     centroid (list[float]: [z, y, x] in index coordinates),
-///     bounding_box_min (list[int]: [z, y, x]),
-///     bounding_box_max (list[int]: [z, y, x]).
+///     centroid (list\[float\]: [z, y, x] in index coordinates),
+///     bounding_box_min (list\[int\]: [z, y, x]),
+///     bounding_box_max (list\[int\]: [z, y, x]).
 ///
 /// Raises:
 ///     ValueError: if connectivity is not 6 or 26.

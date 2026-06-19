@@ -122,8 +122,8 @@ impl PyMesh {
 ///     path: File path (str).
 ///
 /// Returns:
-///     Mesh object with `points` (float32 ndarray [N,3]), `polygons` (list of lists),
-///     and optionally `normals` (float32 ndarray [N,3]).
+///     Mesh object with `points` (float32 ndarray \[N,3\]), `polygons` (list of lists),
+///     and optionally `normals` (float32 ndarray \[N,3\]).
 ///
 /// Raises:
 ///     IOError: on read failure or unsupported extension.

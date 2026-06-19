@@ -106,7 +106,7 @@ pub fn connected_threshold<B: Backend>(
 
 /// Perform BFS flood fill on a flat `[nz × ny × nx]` intensity slice.
 ///
-/// Returns a flat binary Vec<f32> of the same length as `data`.
+/// Returns a flat binary `Vec<f32>` of the same length as `data`.
 fn flood_fill(
     data: &[f32],
     dims: [usize; 3],

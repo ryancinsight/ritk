@@ -14,8 +14,8 @@
 //! ## Dose computation invariant
 //!
 //! For voxel index `k = frame * rows * cols + row * cols + col`:
-//!   raw_u32 = u32::from_le_bytes(pixel_bytes[k*4 .. k*4+4])
-//!   dose_gy[k] = raw_u32 as f64 * dose_grid_scaling
+//!   `raw_u32 = u32::from_le_bytes(pixel_bytes[k*4 .. k*4+4])`
+//!   `dose_gy[k] = raw_u32 as f64 * dose_grid_scaling`
 
 mod reader;
 mod types;

@@ -174,9 +174,9 @@ pub fn bspline_fit(
 /// voxel index `i` in a grid of size `n` with `c` control points.
 ///
 /// Invariants enforced:
-/// - k ∈ [0, c − 4]
-/// - u ∈ [0, 1]
-/// - Σⱼ basis[j] = 1 (partition of unity)
+/// - k ∈ `[0, c − 4]`
+/// - u ∈ `[0, 1]`
+/// - Σⱼ `basis[j]` = 1 (partition of unity)
 #[inline]
 fn basis_and_span(i: usize, n: usize, c: usize) -> (usize, [f64; 4]) {
     // Avoid usize underflow: cast to f64 before subtracting 1.

@@ -27,10 +27,10 @@ use crate::optimizer::{CmaEsConfig, CmaEsOptimizer, HistoryPolicy, PopulationEva
 /// Configuration for [`register_rigid_ngf`].
 #[derive(Debug, Clone)]
 pub struct NgfRigidConfig {
-    /// Half-range of the per-axis rotation search [rad] (the normalized `±1`
+    /// Half-range of the per-axis rotation search \[rad\] (the normalized `±1`
     /// parameter maps to `±rotation_range_rad`).
     pub rotation_range_rad: f64,
-    /// Half-range of the per-axis translation search [mm].
+    /// Half-range of the per-axis translation search \[mm\].
     pub translation_range_mm: f64,
     /// Optional brain-centroid Gaussian weighting of the NGF metric. `Some(frac)`
     /// weights each masked voxel by `exp(−‖x−c‖²/(2σ²))`, `σ = frac · r_rms`
@@ -77,10 +77,10 @@ pub struct NgfRigidResult {
     /// Recovered rigid transform as a row-major `4×4` homogeneous matrix
     /// (ritk `[z, y, x]` convention; same layout as `CmaMiResult::matrix`).
     pub matrix: [f64; 16],
-    /// Recovered Euler rotation `[α, β, γ]` [rad] about the x, y, z world axes
+    /// Recovered Euler rotation `[α, β, γ]` \[rad\] about the x, y, z world axes
     /// (`RigidTransform` `R = R_z R_y R_x`).
     pub rotation_rad: [f64; 3],
-    /// Recovered translation `[tx, ty, tz]` [mm] in world (LPS) space.
+    /// Recovered translation `[tx, ty, tz]` \[mm\] in world (LPS) space.
     pub translation_mm: [f64; 3],
     /// NGF edge-alignment at the recovered pose (`−best_f`, in `[0, 1]`).
     pub best_ngf: f64,
@@ -130,7 +130,7 @@ fn build_rigid<B: Backend>(
 }
 
 /// Register `moving` to `fixed` rigidly by maximizing NGF with CMA-ES, seeded at
-/// `initial_rotation` [rad] / `initial_translation` [mm].
+/// `initial_rotation` \[rad\] / `initial_translation` \[mm\].
 ///
 /// Returns the recovered [`RigidTransform`] (mapping fixed → moving space) and a
 /// [`NgfRigidResult`]. Run on whatever resolution you pass — downsample first for

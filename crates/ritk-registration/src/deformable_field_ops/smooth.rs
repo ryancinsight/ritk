@@ -170,7 +170,7 @@ pub struct GpuFieldSmoother<B: Backend> {
     shape: burn::tensor::Shape,
     /// Pre-allocated CPU staging buffers.
     ///
-    /// On each invocation of [`smooth_field_inplace`], the incoming field
+    /// On each invocation of [`Self::smooth_field_inplace`], the incoming field
     /// data is `copy_from_slice`d into these buffers (memcpy, zero alloc)
     /// and then `std::mem::take`n into `TensorData::new`, avoiding the
     /// per-iteration `to_vec()` heap allocation.  After the GPU download
@@ -192,9 +192,9 @@ impl<B: Backend> GpuFieldSmoother<B> {
     ///
     /// Allocates three CPU staging buffers of size `nz * ny * nx` and a
     /// `GaussianFilter` configured with isotropic `sigma` mm.  The filter
-    /// is reused across all [`smooth_field_inplace`] calls.
+    /// is reused across all `smooth_field_inplace` calls.
     ///
-    /// Tensor creation is deferred to the first [`smooth_field_inplace`]
+    /// Tensor creation is deferred to the first `smooth_field_inplace`
     /// call — the struct holds only the shape, not the tensors themselves.
     ///
     /// # Panics

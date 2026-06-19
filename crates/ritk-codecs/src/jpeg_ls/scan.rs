@@ -13,9 +13,9 @@ use super::context::{
     update_context, CodingParams, ContextModel,
 };
 
-/// Golomb run-length table J[0..32] — ISO 14495-1 Table C.1.
+/// Golomb run-length table `J[0..32]` — ISO 14495-1 Table C.1.
 ///
-/// J[i] is the Golomb order: at run index i, a hit extends the run by 2^J[i].
+/// `J[i]` is the Golomb order: at run index i, a hit extends the run by `2^J[i]`.
 /// Shared by the scan decoder and the [`super::encoder`] (single source of truth).
 pub(super) const J: [u32; 32] = [
     0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 10, 11, 12, 13,

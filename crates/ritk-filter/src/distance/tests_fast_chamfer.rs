@@ -59,7 +59,7 @@ fn approximate_signed_distance_preserves_geometry() {
     let dims = [2, 4, 5];
     let n: usize = dims.iter().product();
     let mut data = vec![0.0f32; n];
-    data[1 * 20 + 2 * 5 + 2] = 1.0;
+    data[20 + 2 * 5 + 2] = 1.0; // z=1, y=2, x=2: flat index = 1*20 + 2*5 + 2
     let out = ApproximateSignedDistanceMapFilter::default()
         .apply(&img(data, dims))
         .unwrap();

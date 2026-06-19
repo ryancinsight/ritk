@@ -19,13 +19,13 @@ use burn::tensor::{Shape, Tensor, TensorData};
 pub struct BSplineTransform<B: Backend, const D: usize> {
     /// Control point grid dimensions
     grid_size: [usize; D],
-    /// Physical origin of the grid (index 0,0,0) as tensor [D]
+    /// Physical origin of the grid (index 0,0,0) as tensor `[D]`
     origin: Tensor<B, 1>,
-    /// Physical spacing between control points as tensor [D]
+    /// Physical spacing between control points as tensor `[D]`
     spacing: Tensor<B, 1>,
-    /// Physical orientation of the grid as tensor [D, D] (direction matrix)
+    /// Physical orientation of the grid as tensor `[D, D]` (direction matrix)
     direction: Tensor<B, 2>,
-    /// Control point displacements [num_control_points, D]
+    /// Control point displacements `[num_control_points, D]`
     coefficients: Param<Tensor<B, 2>>,
 }
 

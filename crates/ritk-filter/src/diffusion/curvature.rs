@@ -20,13 +20,13 @@
 //! For each dimension `i`, the gradient magnitude squared at the `±i` faces is
 //! the face-normal difference plus the averaged tangential central differences:
 //!
-//!   gms±  = dx_{fwd,bwd}[i]² + Σ_{j≠i} ¼·(dx[j] + dx[j]^{±i})²
+//!   gms±  = dx_{fwd,bwd}\[i\]² + Σ_{j≠i} ¼·(dx\[j\] + dx\[j\]^{±i})²
 //!
 //! The conductance is `c± = exp(gms± / m_K)` with the average-gradient-magnitude
 //! `m_K = avgGradMagSq · K² · −2` (recomputed each iteration, shared with the
 //! gradient filter), and the normalised flux is
 //!
-//!   speed = Σ_i [ (dx_fwd[i]/√(ε+gms⁺))·c⁺ − (dx_bwd[i]/√(ε+gms⁻))·c⁻ ],  ε = 1e-10
+//!   speed = Σ_i [ (dx_fwd\[i\]/√(ε+gms⁺))·c⁺ − (dx_bwd\[i\]/√(ε+gms⁻))·c⁻ ],  ε = 1e-10
 //!
 //! Finally the update is `√(propagation_gradient) · speed`, where the upwind
 //! `propagation_gradient` selects forward/backward squared differences by the

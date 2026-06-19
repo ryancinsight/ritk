@@ -62,7 +62,7 @@ impl PyLaplacianLevelSetOptions {
 /// Args:
 ///     image: Input PyImage.
 ///     initial_phi: Initial level set function (signed distance).
-///     opts: [`LaplacianLevelSetOptions`] controlling PDE parameters.
+///     opts: `LaplacianLevelSetOptions` controlling PDE parameters.
 ///
 /// Returns:
 ///     Binary mask PyImage (1.0=foreground, 0.0=background).

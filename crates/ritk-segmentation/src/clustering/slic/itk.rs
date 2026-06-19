@@ -205,6 +205,10 @@ pub fn slic_itk_impl(
     let mut idx = vec![0usize; ndim];
     let mut lo = vec![0usize; ndim];
     let mut hi = vec![0usize; ndim];
+    // Per-centre accumulators reused across iterations (cleared, not re-allocated).
+    let mut sum_i = vec![0.0_f64; k];
+    let mut sum_p = vec![0.0_f64; k * ndim];
+    let mut count = vec![0usize; k];
     for _ in 0..max_iterations {
         dist.iter_mut().for_each(|x| *x = f64::MAX);
         labels.iter_mut().for_each(|x| *x = 0);

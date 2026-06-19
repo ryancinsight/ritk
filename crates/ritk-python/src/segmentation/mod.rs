@@ -102,6 +102,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(confidence_connected_segment, &m)?)?;
     m.add_function(wrap_pyfunction!(vector_confidence_connected_segment, &m)?)?;
     m.add_function(wrap_pyfunction!(neighborhood_connected_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(isolated_watershed_segment, &m)?)?;
 
     // Skeletonization
     m.add_function(wrap_pyfunction!(skeletonization, &m)?)?;

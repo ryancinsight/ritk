@@ -40,7 +40,7 @@ pub(super) struct GpuFrameCache {
     pub params_buf: wgpu::Buffer,
     /// 256-entry RGBA f32 colormap LUT — STORAGE | COPY_DST.
     ///
-    /// Layout: `lut[i*4 + c]` = channel `c` ∈ [0,1] for LUT entry `i`.
+    /// Layout: `lut[i*4 + c]` = channel `c` ∈ `[0, 1]` for LUT entry `i`.
     /// Size: 256 × 4 × 4 = 4 096 bytes.
     pub lut_buf: wgpu::Buffer,
 }

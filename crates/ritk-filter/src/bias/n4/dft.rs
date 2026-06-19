@@ -2,7 +2,7 @@
 
 /// Real DFT of `data` zero-padded to length `n`, written into `out` (O(n²), acceptable for n ≤ 512).
 ///
-/// Computes `n` complex coefficients X[k] = Σ_{j=0}^{n-1} x[j]·e^{−2πi·jk/n}.
+/// Computes `n` complex coefficients `X[k] = Σ_{j=0}^{n-1} x[j]·e^{−2πi·jk/n}`.
 /// `out` must have length ≥ `n`.
 pub(crate) fn dft_real_into(data: &[f64], n: usize, out: &mut [(f64, f64)]) {
     debug_assert!(out.len() >= n);
@@ -21,7 +21,7 @@ pub(crate) fn dft_real_into(data: &[f64], n: usize, out: &mut [(f64, f64)]) {
 }
 
 /// Inverse real DFT of `freq` (length N), written into `out` (first `n` real-valued
-/// samples): x[j] = (1/N) Σ_{k=0}^{N-1} X[k]·e^{2πi·jk/N} (real part only).
+/// samples): `x[j] = (1/N) Σ_{k=0}^{N-1} X[k]·e^{2πi·jk/N}` (real part only).
 ///
 /// O(N²) — acceptable for N ≤ 512.
 /// `out` must have length ≥ `n`.

@@ -169,7 +169,7 @@ pub fn otsu_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
 /// The threshold intensity value t* that maximises between-class variance.
 /// For an empty or constant input, returns 0.0 or the uniform intensity respectively.
 ///
-/// Delegates to the shared [`threshold_from_slice`] pipeline so it is
+/// Delegates to the shared `threshold_from_slice` pipeline so it is
 /// bit-identical to [`OtsuThreshold::compute`].
 pub fn compute_otsu_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
     threshold_from_slice(&OtsuThreshold::with_bins(num_bins), slice)
