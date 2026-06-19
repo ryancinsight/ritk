@@ -30,7 +30,10 @@ impl ModulusImageFilter {
     /// # Panics
     /// Panics if `dividend == 0` (modulo by zero is undefined).
     pub fn new(dividend: i64) -> Self {
-        assert!(dividend != 0, "ModulusImageFilter: dividend must be non-zero");
+        assert!(
+            dividend != 0,
+            "ModulusImageFilter: dividend must be non-zero"
+        );
         Self { dividend }
     }
 

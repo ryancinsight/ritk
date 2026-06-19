@@ -42,7 +42,10 @@ fn invert_constant_field_interior_is_negated() {
     );
     let (vyv, _) = extract_vec_infallible(&vy);
     let (vzv, _) = extract_vec_infallible(&vz);
-    assert!(vyv[center].abs() < 1e-4 && vzv[center].abs() < 1e-4, "orthogonal components stay ~0");
+    assert!(
+        vyv[center].abs() < 1e-4 && vzv[center].abs() < 1e-4,
+        "orthogonal components stay ~0"
+    );
 }
 
 /// Output geometry matches the input field.

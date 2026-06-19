@@ -10,8 +10,8 @@
 
 use std::time::Instant;
 
-use burn_ndarray::{NdArray, NdArrayDevice};
 use burn::tensor::{Shape, Tensor, TensorData};
+use burn_ndarray::{NdArray, NdArrayDevice};
 use ritk_filter::{
     gradient_recursive_gaussian_components, recursive_gaussian::recursive_gaussian_directional,
     DerivativeOrder,
@@ -39,7 +39,8 @@ fn old_path(image: &Image<B, 3>, sigma: f64) -> [Vec<f32>; 3] {
         let others: Vec<usize> = (0..3).filter(|&a| a != axis_k).collect();
         let mut cur =
             recursive_gaussian_directional(image, sigma, DerivativeOrder::Zero, others[0]).unwrap();
-        cur = recursive_gaussian_directional(&cur, sigma, DerivativeOrder::Zero, others[1]).unwrap();
+        cur =
+            recursive_gaussian_directional(&cur, sigma, DerivativeOrder::Zero, others[1]).unwrap();
         cur = recursive_gaussian_directional(&cur, sigma, DerivativeOrder::First, axis_k).unwrap();
         let inv = 1.0_f32 / image.spacing()[axis_k] as f32;
         let (mut v, _) = extract_vec_infallible(&cur);

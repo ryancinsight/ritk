@@ -27,14 +27,18 @@ fn gradient_of_x_ramp_is_unit_along_x() {
         for y in 0..ny {
             for x in 1..nx - 1 {
                 let i = z * ny * nx + y * nx + x;
-                assert!((comps[0][i] - 1.0).abs() < 1e-6, "dx interior: {}", comps[0][i]);
+                assert!(
+                    (comps[0][i] - 1.0).abs() < 1e-6,
+                    "dx interior: {}",
+                    comps[0][i]
+                );
             }
         }
     }
     // ∂/∂y and ∂/∂z are identically zero (ramp is constant along y, z).
-    for i in 0..nz * ny * nx {
-        assert!(comps[1][i].abs() < 1e-6, "dy: {}", comps[1][i]);
-        assert!(comps[2][i].abs() < 1e-6, "dz: {}", comps[2][i]);
+    for (&dy, &dz) in comps[1].iter().zip(comps[2].iter()) {
+        assert!(dy.abs() < 1e-6, "dy: {dy}");
+        assert!(dz.abs() < 1e-6, "dz: {dz}");
     }
 }
 

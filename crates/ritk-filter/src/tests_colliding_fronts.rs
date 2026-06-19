@@ -22,9 +22,16 @@ fn colliding_fronts_unit_line_potential_is_minus_one() {
     let (ov, _) = extract_vec_infallible(&out);
     assert!(ov.iter().all(|&v| v <= 1e-6), "potential is ≤ 0");
     for &x in &[2usize, 3, 4] {
-        assert!((ov[x] + 1.0).abs() < 1e-4, "interior potential at {x} = {}, want -1", ov[x]);
+        assert!(
+            (ov[x] + 1.0).abs() < 1e-4,
+            "interior potential at {x} = {}, want -1",
+            ov[x]
+        );
     }
-    assert!((ov[0] - (-1e-6)).abs() < 1e-9, "seed pinned to negative epsilon");
+    assert!(
+        (ov[0] - (-1e-6)).abs() < 1e-9,
+        "seed pinned to negative epsilon"
+    );
 }
 
 /// Without connectivity the raw `∇T1·∇T2` potential is returned (no flood-fill
@@ -40,8 +47,15 @@ fn colliding_fronts_no_connectivity_returns_full_potential() {
         negative_epsilon: -1e-6,
     };
     let (ov, _) = extract_vec_infallible(&f.apply(&speed));
-    assert!((ov[3] + 1.0).abs() < 1e-4, "interior potential = {}, want -1", ov[3]);
-    assert!((ov[6] - (-1e-6)).abs() < 1e-9, "second seed pinned to negative epsilon");
+    assert!(
+        (ov[3] + 1.0).abs() < 1e-4,
+        "interior potential = {}, want -1",
+        ov[3]
+    );
+    assert!(
+        (ov[6] - (-1e-6)).abs() < 1e-9,
+        "second seed pinned to negative epsilon"
+    );
 }
 
 /// Output geometry equals input geometry.

@@ -5,8 +5,8 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     BinaryContourImageFilter, BinaryPruningFilter, BinaryThinningFilter, BlackTopHatFilter,
-    ClosingByReconstructionFilter, Connectivity, ErodeObjectMorphologyFilter, GrayscaleClosingFilter,
-    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    ClosingByReconstructionFilter, Connectivity, ErodeObjectMorphologyFilter,
+    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
     GrayscaleGrindPeakFilter, GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter,
     HMinimaFilter, HitOrMissTransform, LabelClosing, LabelContourImageFilter, LabelDilation,
     LabelErosion, LabelOpening, MorphologicalReconstruction, OpeningByReconstructionFilter,

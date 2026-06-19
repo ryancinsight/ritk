@@ -359,7 +359,11 @@ fn logical_filters_match_itk_truth_tables() {
     assert_eq!(xor, vec![0.0, 1.0, 1.0, 0.0]);
     // De Morgan cross-check: a XOR b == (a OR b) AND NOT(a AND b)
     for i in 0..4 {
-        let de_morgan = if or[i] > 0.5 && and[i] < 0.5 { 1.0 } else { 0.0 };
+        let de_morgan = if or[i] > 0.5 && and[i] < 0.5 {
+            1.0
+        } else {
+            0.0
+        };
         assert_eq!(xor[i], de_morgan, "xor[{i}] vs (a|b)&!(a&b)");
     }
 }

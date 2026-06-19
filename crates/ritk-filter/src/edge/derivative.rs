@@ -85,9 +85,9 @@ impl DerivativeImageFilter {
             for b in 0..n_mid {
                 // Base index of this line at axis position 0.
                 let base = match self.axis {
-                    0 => a * nx + b,             // (y=a, x=b), z varies
-                    1 => a * ny * nx + b,        // (z=a, x=b), y varies
-                    _ => a * ny * nx + b * nx,   // (z=a, y=b), x varies
+                    0 => a * nx + b,           // (y=a, x=b), z varies
+                    1 => a * ny * nx + b,      // (z=a, x=b), y varies
+                    _ => a * ny * nx + b * nx, // (z=a, y=b), x varies
                 };
                 for p in 0..len {
                     let v = match self.order {

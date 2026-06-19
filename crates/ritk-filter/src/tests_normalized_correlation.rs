@@ -22,7 +22,11 @@ fn ncc_self_match_is_one() {
     let out = normalized_correlation(&image, &mask, &template).unwrap();
     let (v, _) = extract_vec_infallible(&out);
     let center = (0 * 3 + 1) * 3 + 1; // (z,y,x) = (0,1,1)
-    assert!((v[center] - 1.0).abs() < 1e-5, "self-match NCC = {}, want 1", v[center]);
+    assert!(
+        (v[center] - 1.0).abs() < 1e-5,
+        "self-match NCC = {}, want 1",
+        v[center]
+    );
 }
 
 /// NCC is invariant to a positive affine transform of the neighbourhood: an
@@ -32,10 +36,18 @@ fn ncc_affine_invariance() {
     let tpl = vec![0.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 0.0];
     let scaled: Vec<f32> = tpl.iter().map(|&t| 3.0 * t + 5.0).collect();
     let dims = [1, 3, 3];
-    let out = normalized_correlation(&img(scaled, dims), &img(vec![1.0; 9], dims), &img(tpl, dims))
-        .unwrap();
+    let out = normalized_correlation(
+        &img(scaled, dims),
+        &img(vec![1.0; 9], dims),
+        &img(tpl, dims),
+    )
+    .unwrap();
     let (v, _) = extract_vec_infallible(&out);
-    assert!((v[4] - 1.0).abs() < 1e-5, "affine-scaled NCC = {}, want 1", v[4]);
+    assert!(
+        (v[4] - 1.0).abs() < 1e-5,
+        "affine-scaled NCC = {}, want 1",
+        v[4]
+    );
 }
 
 /// Masked-out voxels are zero.
@@ -45,8 +57,8 @@ fn ncc_masked_out_is_zero() {
     let dims = [1, 3, 3];
     let mut mask = vec![1.0f32; 9];
     mask[0] = 0.0;
-    let out = normalized_correlation(&img(tpl.clone(), dims), &img(mask, dims), &img(tpl, dims))
-        .unwrap();
+    let out =
+        normalized_correlation(&img(tpl.clone(), dims), &img(mask, dims), &img(tpl, dims)).unwrap();
     let (v, _) = extract_vec_infallible(&out);
     assert_eq!(v[0], 0.0, "masked-out voxel is zero");
 }

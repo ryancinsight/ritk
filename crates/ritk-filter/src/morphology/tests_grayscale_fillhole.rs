@@ -214,9 +214,16 @@ fn all_border_volume_unchanged() {
 #[test]
 fn degenerate_axis_interior_pits_are_filled() {
     let vals = vec![5.0_f32, 5.0, 1.0, 5.0, 1.0, 5.0, 5.0];
-    let out = extract_vals(&GrayscaleFillholeFilter::new().apply(&make_image(vals, [1, 1, 7])).unwrap());
+    let out = extract_vals(
+        &GrayscaleFillholeFilter::new()
+            .apply(&make_image(vals, [1, 1, 7]))
+            .unwrap(),
+    );
     let expected = [5.0f32, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0];
     for (i, (&got, exp)) in out.iter().zip(expected).enumerate() {
-        assert!((got - exp).abs() < 1e-6, "fill-hole 1-D pit {i}: got {got}, expected {exp}");
+        assert!(
+            (got - exp).abs() < 1e-6,
+            "fill-hole 1-D pit {i}: got {got}, expected {exp}"
+        );
     }
 }

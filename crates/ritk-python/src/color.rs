@@ -323,8 +323,7 @@ pub fn label_map_contour_overlay(
     let lab = Arc::clone(&label.inner);
     let out = py
         .allow_threads(|| {
-            LabelMapContourOverlayFilter::new(opacity, background)
-                .apply(img.as_ref(), lab.as_ref())
+            LabelMapContourOverlayFilter::new(opacity, background).apply(img.as_ref(), lab.as_ref())
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {

@@ -122,8 +122,7 @@ impl InvertDisplacementField {
         let mut vy = vec![0.0f64; n];
         let mut vz = vec![0.0f64; n];
 
-        let interp =
-            |cz: f64, cy: f64, cx: f64, ud: &[f64]| interp_component(ud, dims, cz, cy, cx);
+        let interp = |cz: f64, cy: f64, cx: f64, ud: &[f64]| interp_component(ud, dims, cz, cy, cx);
 
         let mut max_err = f64::MAX;
         let mut mean_err = f64::MAX;
@@ -175,12 +174,8 @@ impl InvertDisplacementField {
                 for y in 0..ny {
                     for x in 0..nx {
                         let i = (z * ny + y) * nx + x;
-                        let on_border = z == 0
-                            || z == nz - 1
-                            || y == 0
-                            || y == ny - 1
-                            || x == 0
-                            || x == nx - 1;
+                        let on_border =
+                            z == 0 || z == nz - 1 || y == 0 || y == ny - 1 || x == 0 || x == nx - 1;
                         if self.enforce_boundary && on_border {
                             vx[i] = 0.0;
                             vy[i] = 0.0;

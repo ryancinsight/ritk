@@ -47,7 +47,10 @@ fn approximate_signed_distance_sign_convention() {
     assert!(v[center] < 0.0, "inside is negative, got {}", v[center]);
     assert!(v[corner] > 0.0, "outside is positive, got {}", v[corner]);
     // deepest inside is the most negative interior value
-    assert!(v[center] <= v[2 * 7 + 2] + 1e-6, "blob center is the deepest");
+    assert!(
+        v[center] <= v[2 * 7 + 2] + 1e-6,
+        "blob center is the deepest"
+    );
 }
 
 /// Output geometry matches the input.

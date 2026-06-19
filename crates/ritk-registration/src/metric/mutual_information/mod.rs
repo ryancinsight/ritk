@@ -47,6 +47,8 @@ use ritk_interpolation::LinearInterpolator;
 mod variant;
 pub use variant::{MutualInformationVariant, NormalizationMethod};
 
+static NEXT_MASK_CACHE_KEY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 /// Unified Mutual Information Metric.
 ///
 /// Computes mutual information between two images using differentiable soft histogramming.
@@ -62,6 +64,7 @@ pub struct MutualInformation<B: Backend> {
     sampling: SamplingConfig,
     interpolator: LinearInterpolator,
     fixed_mask_points: Option<Tensor<B, 2>>,
+    fixed_mask_cache_key: Option<u64>,
     /// 350-P1-03: per-`MutualInformation` cache for the fixed-image Parzen weight
     /// matrix `W_fixed^T [num_bins, N]`. Reused across iterations of the same
     /// multi-resolution level when the (fixed image, n) pair is unchanged.
@@ -105,6 +108,7 @@ impl<B: Backend> MutualInformation<B> {
             sampling: SamplingConfig::uniform(1.0),
             interpolator: LinearInterpolator::new_zero_pad(),
             fixed_mask_points: None,
+            fixed_mask_cache_key: None,
             cached_w_fixed_t: CacheSlot::empty(),
         }
     }
@@ -204,6 +208,8 @@ impl<B: Backend> MutualInformation<B> {
     /// used (controlled by `with_sampling`).
     pub fn with_fixed_mask_points(mut self, points: Tensor<B, 2>) -> Self {
         self.fixed_mask_points = Some(points);
+        self.fixed_mask_cache_key =
+            Some(NEXT_MASK_CACHE_KEY.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
         self
     }
 
@@ -314,9 +320,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
                 moving,
                 transform,
                 &self.interpolator,
-                None, // No caching — mask points are constant across iterations;
-                      // callers (e.g., CMA-ES optimizer) may pass Some(key)
-                      // directly to enable caching.
+                self.fixed_mask_cache_key,
             )
         } else {
             self.histogram_calculator.compute_image_joint_histogram(

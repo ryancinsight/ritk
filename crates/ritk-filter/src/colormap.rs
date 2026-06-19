@@ -383,7 +383,14 @@ impl LabelMapContourOverlayFilter {
         let mut contour_labels = vec![0.0_f32; n];
         for (&lbl, coords) in &by_label {
             contour_band(
-                coords, dims, strides, &dil, &thick, margin, lbl, &mut contour_labels,
+                coords,
+                dims,
+                strides,
+                &dil,
+                &thick,
+                margin,
+                lbl,
+                &mut contour_labels,
             );
         }
 
@@ -458,8 +465,7 @@ fn contour_band(
                 let mut v = false;
                 for o in dil {
                     let (nz, ny, nx) = (z as isize + o[0], y as isize + o[1], x as isize + o[2]);
-                    if in_window(nz, ny, nx)
-                        && mask[wlocal(nz as usize, ny as usize, nx as usize)]
+                    if in_window(nz, ny, nx) && mask[wlocal(nz as usize, ny as usize, nx as usize)]
                     {
                         v = true;
                         break;

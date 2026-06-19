@@ -211,11 +211,7 @@ impl NeighbourOffsets {
                 }
             }
         }
-        Self {
-            causal,
-            anti,
-            full,
-        }
+        Self { causal, anti, full }
     }
 }
 

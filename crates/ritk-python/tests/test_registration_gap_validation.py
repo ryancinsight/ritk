@@ -336,6 +336,7 @@ def _ritk_warped(name, fixed, moving, **kwargs):
 # ===========================================================================
 
 
+@pytest.mark.slow
 class TestSyntheticSphere:
     """Validate registration on a 3-voxel x-shifted sphere in a 64^3 volume."""
 
@@ -474,6 +475,7 @@ class TestSyntheticSphere:
 # ===========================================================================
 
 
+@pytest.mark.slow
 class TestSyntheticGaussianBlob:
     """Validate NCC improvement after registration on shifted Gaussian blobs.
 
@@ -578,6 +580,7 @@ _skip_ants = pytest.mark.skipif(
 
 
 @_skip_ants
+@pytest.mark.slow
 class TestColin27VsMNI:
     """Same-modality (T1↔T1) inter-subject registration: Colin27 average ↔ ICBM MNI.
 
@@ -722,6 +725,7 @@ _skip_openneuro = pytest.mark.skipif(
 
 
 @_skip_openneuro
+@pytest.mark.slow
 class TestOpenNeuroT1Pair:
     """Same-modality inter-subject T1↔T1 registration: sub-01 ↔ sub-02 (ds000208).
 
@@ -823,6 +827,7 @@ _skip_rire = pytest.mark.skipif(
 
 
 @_skip_rire
+@pytest.mark.slow
 class TestRIREWithGroundTruth:
     """CT↔MR cross-modal registration using RIRE data with fiducial ground truth.
 
@@ -1094,6 +1099,7 @@ _skip_mni = pytest.mark.skipif(
 
 
 @_skip_mni
+@pytest.mark.slow
 class TestInterSubjectBrainMNI:
     """Inter-subject brain registration using MNI152 and OpenNeuro T1w.
 
@@ -1162,6 +1168,7 @@ class TestInterSubjectBrainMNI:
 
 
 @_skip_rire
+@pytest.mark.slow
 class TestRIREMultiModalVoxel:
     """CT↔MR cross-modal registration in voxel space using RIRE data.
 
@@ -1260,6 +1267,7 @@ _skip_vm = pytest.mark.skipif(
 
 
 @_skip_vm
+@pytest.mark.slow
 class TestVMHeadMultiModal:
     """CT↔MR cross-modal registration using Visible Male head data."""
 
@@ -1316,6 +1324,7 @@ class TestVMHeadMultiModal:
 # ===========================================================================
 
 
+@pytest.mark.slow
 class TestRegistrationQualityReport:
     """Generate a comprehensive quality report comparing all RITK algorithms
     against SimpleITK baselines on synthetic data."""
@@ -1491,6 +1500,7 @@ _skip_ants_direct = pytest.mark.skipif(
 
 
 @_skip_ants_direct
+@pytest.mark.slow
 class TestNiftiDirectReadRegistration:
     """Validate registration using RITK's io.read_image (end-to-end pipeline).
 

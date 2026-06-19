@@ -69,11 +69,7 @@ impl ShrinkImageFilter {
         // Output shape: floor(N/f).
         let (oz, oy, ox) = (nz / fz, ny / fy, nx / fx);
         // ITK centers the retained samples: offset = (N mod f + f) / 2.
-        let (offz, offy, offx) = (
-            (nz % fz + fz) / 2,
-            (ny % fy + fy) / 2,
-            (nx % fx + fx) / 2,
-        );
+        let (offz, offy, offx) = ((nz % fz + fz) / 2, (ny % fy + fy) / 2, (nx % fx + fx) / 2);
 
         let (vals, _) = extract_vec_infallible(image);
         let mut out = vec![0.0f32; oz * oy * ox];
@@ -89,8 +85,11 @@ impl ShrinkImageFilter {
         }
 
         let in_s = image.spacing();
-        let out_spacing =
-            Spacing::new([in_s[0] * fz as f64, in_s[1] * fy as f64, in_s[2] * fx as f64]);
+        let out_spacing = Spacing::new([
+            in_s[0] * fz as f64,
+            in_s[1] * fy as f64,
+            in_s[2] * fx as f64,
+        ]);
 
         // Origin shifts by the continuous centroid offset (N mod f + f − 1)/2 voxels.
         let delta = [

@@ -242,13 +242,7 @@ fn marker_controlled_flooding(
         let (y, x) = (rem / nx, rem % nx);
         for &(dz, dy, dx) in offsets {
             let (zi, yi, xi) = (z as i64 + dz, y as i64 + dy, x as i64 + dx);
-            if zi >= 0
-                && zi < nz as i64
-                && yi >= 0
-                && yi < ny as i64
-                && xi >= 0
-                && xi < nx as i64
-            {
+            if zi >= 0 && zi < nz as i64 && yi >= 0 && yi < ny as i64 && xi >= 0 && xi < nx as i64 {
                 f(flat(zi as usize, yi as usize, xi as usize));
             }
         }
@@ -266,7 +260,9 @@ fn marker_controlled_flooding(
             for_neighbors(idx, &mut |ni| {
                 if labels[ni] == UNLABELED && !in_queue[ni] {
                     in_queue[ni] = true;
-                    fah.entry(gray_key(grad_vals[ni])).or_default().push_back(ni);
+                    fah.entry(gray_key(grad_vals[ni]))
+                        .or_default()
+                        .push_back(ni);
                 }
             });
         }
@@ -318,7 +314,9 @@ fn marker_controlled_flooding(
                 }
             });
             if has_unlabeled {
-                fah.entry(gray_key(grad_vals[idx])).or_default().push_back(idx);
+                fah.entry(gray_key(grad_vals[idx]))
+                    .or_default()
+                    .push_back(idx);
             }
         }
 
@@ -347,7 +345,13 @@ fn marker_controlled_flooding(
 
     labels
         .iter()
-        .map(|&lbl| if lbl == UNLABELED { 0.0_f32 } else { lbl as f32 })
+        .map(|&lbl| {
+            if lbl == UNLABELED {
+                0.0_f32
+            } else {
+                lbl as f32
+            }
+        })
         .collect()
 }
 

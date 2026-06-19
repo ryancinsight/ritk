@@ -56,9 +56,8 @@ impl AutoThreshold for KittlerIllingworthThreshold {
     fn compute_threshold(&self, hist: &[u32], n_bins: usize, x_min: f32, x_max: f32) -> f32 {
         let bw = itk_bin_width(x_min, x_max, n_bins);
         let meas = |i: usize| bin_center(x_min, bw, i) as f64;
-        let index_of = |v: f64| {
-            (((v - x_min as f64) / bw).floor().max(0.0) as usize).min(n_bins - 1) as isize
-        };
+        let index_of =
+            |v: f64| (((v - x_min as f64) / bw).floor().max(0.0) as usize).min(n_bins - 1) as isize;
         let eps = f64::EPSILON;
 
         // Cumulative moment functions A (freq), B (meas·freq), C (meas²·freq).

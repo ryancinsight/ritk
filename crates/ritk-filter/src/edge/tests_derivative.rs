@@ -25,7 +25,10 @@ fn derivative_order2_of_ramp_is_zero_interior() {
     let out = vals(&DerivativeImageFilter::new(2, 2, true).apply(&img).unwrap());
     // interior (indices 1..4) of d²/dx² of a line = 0.
     for &v in &out[1..4] {
-        assert!(v.abs() < 1e-5, "second derivative of a ramp must be 0 in the interior, got {v}");
+        assert!(
+            v.abs() < 1e-5,
+            "second derivative of a ramp must be 0 in the interior, got {v}"
+        );
     }
 }
 
@@ -58,5 +61,9 @@ fn derivative_respects_image_spacing() {
     );
     let out = vals(&DerivativeImageFilter::new(2, 1, true).apply(&img).unwrap());
     // central diff / (2*spacing) = 20/(2*2) = 5 in the interior.
-    assert!((out[2] - 5.0).abs() < 1e-5, "spacing-scaled derivative, got {}", out[2]);
+    assert!(
+        (out[2] - 5.0).abs() < 1e-5,
+        "spacing-scaled derivative, got {}",
+        out[2]
+    );
 }

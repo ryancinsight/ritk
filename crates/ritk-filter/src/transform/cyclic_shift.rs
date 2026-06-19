@@ -35,7 +35,11 @@ impl CyclicShiftImageFilter {
             let n = n as i64;
             (((s % n) + n) % n) as usize
         };
-        let (sz, sy, sx) = (rem(self.shift[0], nz), rem(self.shift[1], ny), rem(self.shift[2], nx));
+        let (sz, sy, sx) = (
+            rem(self.shift[0], nz),
+            rem(self.shift[1], ny),
+            rem(self.shift[2], nx),
+        );
 
         let mut out = vec![0.0_f32; nz * ny * nx];
         for oz in 0..nz {

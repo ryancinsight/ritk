@@ -68,8 +68,11 @@ impl ReinitializeLevelSetFilter {
                     for (j, (d, spj)) in axes.iter().enumerate() {
                         let mut best = f64::MAX;
                         for s in [-1i64, 1] {
-                            let (zz, yy, xx) =
-                                (z as i64 + s * d[0], y as i64 + s * d[1], x as i64 + s * d[2]);
+                            let (zz, yy, xx) = (
+                                z as i64 + s * d[0],
+                                y as i64 + s * d[1],
+                                x as i64 + s * d[2],
+                            );
                             if zz < 0
                                 || yy < 0
                                 || xx < 0

@@ -7,11 +7,9 @@ use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
     AdaptiveHistogramEqualizationFilter, BinaryThresholdImageFilter, BitwiseNotImageFilter,
-    BlendImageFilter, ClampPolicy,
-    DoubleThresholdImageFilter,
-    IntensityWindowingFilter, NormalizeImageFilter, NormalizeToConstantImageFilter,
-    RescaleIntensityFilter, SigmoidImageFilter, ThresholdImageFilter, UnsharpMaskFilter,
-    ZeroCrossingImageFilter,
+    BlendImageFilter, ClampPolicy, DoubleThresholdImageFilter, IntensityWindowingFilter,
+    NormalizeImageFilter, NormalizeToConstantImageFilter, RescaleIntensityFilter,
+    SigmoidImageFilter, ThresholdImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
 };
 
 /// Linearly rescale image intensity to [out_min, out_max].
@@ -438,7 +436,12 @@ pub fn adaptive_histogram_equalization(
 ///     Complemented PyImage, same shape and metadata as input.
 #[pyfunction]
 #[pyo3(signature = (image, bits=8, signed=false))]
-pub fn bitwise_not(py: Python<'_>, image: &PyImage, bits: u32, signed: bool) -> RitkResult<PyImage> {
+pub fn bitwise_not(
+    py: Python<'_>,
+    image: &PyImage,
+    bits: u32,
+    signed: bool,
+) -> RitkResult<PyImage> {
     let arc = std::sync::Arc::clone(&image.inner);
     let filter = if signed {
         BitwiseNotImageFilter::signed()

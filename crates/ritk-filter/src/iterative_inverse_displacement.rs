@@ -94,8 +94,12 @@ impl IterativeInverseDisplacementField {
                 for x in 0..nx {
                     let i = (z * ny + y) * nx + x;
                     let (px, py, pz) = phys(z, y, x);
-                    let (gx, gy, gz) =
-                        eval((&negx, &negy, &negz), px + negx[i], py + negy[i], pz + negz[i]);
+                    let (gx, gy, gz) = eval(
+                        (&negx, &negy, &negz),
+                        px + negx[i],
+                        py + negy[i],
+                        pz + negz[i],
+                    );
                     vx[i] = gx;
                     vy[i] = gy;
                     vz[i] = gz;
@@ -113,7 +117,7 @@ impl IterativeInverseDisplacementField {
                 for x in 0..nx {
                     let i = (z * ny + y) * nx + x;
                     let (ax, ay, az) = phys(z, y, x); // original point
-                    // mapped point p = orig + v.
+                                                      // mapped point p = orig + v.
                     let mut m = [ax + vx[i], ay + vy[i], az + vz[i]];
                     let mut new_p = m;
                     let mut step = step0;

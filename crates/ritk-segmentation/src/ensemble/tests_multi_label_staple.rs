@@ -8,7 +8,10 @@ fn multi_label_staple_unanimous_returns_input() {
     let pattern = vec![0.0f32, 1.0, 2.0, 1.0, 0.0];
     let raters = vec![pattern.clone(), pattern.clone(), pattern.clone()];
     let r = multi_label_staple(&raters, None, TOL, None);
-    assert_eq!(r.labels, pattern, "unanimous consensus must equal the input");
+    assert_eq!(
+        r.labels, pattern,
+        "unanimous consensus must equal the input"
+    );
     assert_eq!(r.label_for_undecided, 3.0); // L = max(2) + 1
 }
 

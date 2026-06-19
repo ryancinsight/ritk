@@ -33,9 +33,14 @@ fn grind_peak_removes_enclosed_peak_keeps_border_connected() {
         10.0, 10.0, 10.0, 10.0, 10.0,
         10.0, 10.0, 10.0, 10.0, 10.0,
     ];
-    let out = GrayscaleGrindPeakFilter::new().apply(&img(f, [1, 5, 5])).unwrap();
+    let out = GrayscaleGrindPeakFilter::new()
+        .apply(&img(f, [1, 5, 5]))
+        .unwrap();
     for (i, (got, exp)) in vals(&out).iter().zip(expected).enumerate() {
-        assert!((got - exp).abs() < 1e-5, "grind_peak[{i}]: got {got}, expected {exp}");
+        assert!(
+            (got - exp).abs() < 1e-5,
+            "grind_peak[{i}]: got {got}, expected {exp}"
+        );
     }
 }
 
@@ -49,7 +54,11 @@ fn grind_peak_is_anti_extensive() {
         1.0, 6.0, 9.0, 3.0,
         5.0, 2.0, 4.0, 1.0,
     ];
-    let out = vals(&GrayscaleGrindPeakFilter::new().apply(&img(f.clone(), [1, 4, 4])).unwrap());
+    let out = vals(
+        &GrayscaleGrindPeakFilter::new()
+            .apply(&img(f.clone(), [1, 4, 4]))
+            .unwrap(),
+    );
     for (&g, &a) in out.iter().zip(f.iter()) {
         assert!(g <= a + 1e-6, "grind_peak must be ≤ input: {g} > {a}");
     }

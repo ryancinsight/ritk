@@ -9,14 +9,14 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_image::Image;
 use ritk_segmentation::{
-    connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
-    scalar_connected_components as core_scalar_connected_components, ConnectedComponentsFilter,
-    label_set_morph as core_label_set_morph, merge_label_maps as core_merge_label_maps,
-    relabel_consecutive as core_relabel_consecutive, toboggan as core_toboggan,
-    vector_connected_components_image as core_vector_connected_components, KMeansSegmentation,
-    LabelSetMorphOp, MarkerControlledWatershed, MergeLabelMethod, MorphologicalWatershed,
-    RelabelComponentFilter, SlicConfig, SlicSuperpixelFilter,
-    ThresholdMaximumConnectedComponentsFilter, WatershedSegmentation,
+    connected_components as core_connected_components, label_set_morph as core_label_set_morph,
+    labeling::Connectivity as SegConnectivity, merge_label_maps as core_merge_label_maps,
+    relabel_consecutive as core_relabel_consecutive,
+    scalar_connected_components as core_scalar_connected_components, toboggan as core_toboggan,
+    vector_connected_components_image as core_vector_connected_components,
+    ConnectedComponentsFilter, KMeansSegmentation, LabelSetMorphOp, MarkerControlledWatershed,
+    MergeLabelMethod, MorphologicalWatershed, RelabelComponentFilter, SlicConfig,
+    SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter, WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -209,7 +209,13 @@ pub fn label_set_dilate(
     radius: Vec<f64>,
     use_image_spacing: bool,
 ) -> RitkResult<PyImage> {
-    label_set_morph_py(py, label_image, radius, use_image_spacing, LabelSetMorphOp::Dilate)
+    label_set_morph_py(
+        py,
+        label_image,
+        radius,
+        use_image_spacing,
+        LabelSetMorphOp::Dilate,
+    )
 }
 
 /// Label-preserving Euclidean erosion, matching `sitk.LabelSetErode`.
@@ -232,7 +238,13 @@ pub fn label_set_erode(
     radius: Vec<f64>,
     use_image_spacing: bool,
 ) -> RitkResult<PyImage> {
-    label_set_morph_py(py, label_image, radius, use_image_spacing, LabelSetMorphOp::Erode)
+    label_set_morph_py(
+        py,
+        label_image,
+        radius,
+        use_image_spacing,
+        LabelSetMorphOp::Erode,
+    )
 }
 
 /// Shared driver for [`label_set_dilate`]/[`label_set_erode`]: normalize the
@@ -292,8 +304,7 @@ pub fn vector_connected_component(
             "vector_connected_component: at least one channel is required",
         ));
     }
-    let arcs: Vec<Arc<Image<Backend, 3>>> =
-        channels.iter().map(|p| Arc::clone(&p.inner)).collect();
+    let arcs: Vec<Arc<Image<Backend, 3>>> = channels.iter().map(|p| Arc::clone(&p.inner)).collect();
     let conn = if fully_connected { 26 } else { 6 };
     let out = py.allow_threads(|| {
         let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();

@@ -68,7 +68,10 @@ impl std::fmt::Display for MergeLabelError {
             Self::NoInputs => write!(f, "merge_label_maps requires at least one input"),
             Self::ShapeMismatch => write!(f, "merge_label_maps inputs differ in dimensions"),
             Self::StrictConflict { label, input } => {
-                write!(f, "Strict merge: label {label} from input {input} is already in use")
+                write!(
+                    f,
+                    "Strict merge: label {label} from input {input} is already in use"
+                )
             }
         }
     }
@@ -168,7 +171,10 @@ pub fn merge_label_maps<B: Backend>(
                             e.insert(px);
                         }
                         std::collections::btree_map::Entry::Occupied(_) if strict => {
-                            return Err(MergeLabelError::StrictConflict { label, input: i + 1 });
+                            return Err(MergeLabelError::StrictConflict {
+                                label,
+                                input: i + 1,
+                            });
                         }
                         std::collections::btree_map::Entry::Occupied(_) => deferred.push(px),
                     }

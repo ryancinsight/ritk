@@ -14,13 +14,11 @@ use ritk_filter::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
     AndImageFilter, AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BinaryMagnitudeImageFilter,
     BinaryNotImageFilter, BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter,
-    DivideFloorImageFilter,
-    DivideImageFilter, DivideRealImageFilter, EqualImageFilter, ExpImageFilter,
-    ExpNegativeImageFilter, GreaterEqualImageFilter,
-    GreaterImageFilter, ImageMaxFilter, ImageMinFilter, InvertIntensityFilter,
-    LessEqualImageFilter, LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter,
-    MaskNegatedImageFilter, ModulusImageFilter, MultiplyImageFilter, NotEqualImageFilter,
-    NotImageFilter, OrImageFilter, PowImageFilter,
+    DivideFloorImageFilter, DivideImageFilter, DivideRealImageFilter, EqualImageFilter,
+    ExpImageFilter, ExpNegativeImageFilter, GreaterEqualImageFilter, GreaterImageFilter,
+    ImageMaxFilter, ImageMinFilter, InvertIntensityFilter, LessEqualImageFilter, LessImageFilter,
+    Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter, ModulusImageFilter,
+    MultiplyImageFilter, NotEqualImageFilter, NotImageFilter, OrImageFilter, PowImageFilter,
     RoundImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     SquaredDifferenceImageFilter, SubtractImageFilter, TanImageFilter, TernaryAddImageFilter,
     TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter, UnaryMinusImageFilter,
@@ -455,7 +453,9 @@ fn nary_fold<Op: ritk_filter::BinaryOp>(
     what: &str,
 ) -> RitkResult<PyImage> {
     if images.is_empty() {
-        return Err(RitkPyError::value(format!("{what}: needs at least one image")));
+        return Err(RitkPyError::value(format!(
+            "{what}: needs at least one image"
+        )));
     }
     let arcs: Vec<_> = images
         .iter()
@@ -489,12 +489,37 @@ pub fn nary_maximum(py: Python<'_>, images: Vec<Py<PyImage>>) -> RitkResult<PyIm
     nary_fold::<ritk_filter::MaxOp>(py, images, "nary_maximum")
 }
 
-binary_pyfn!(divide_real_images, DivideRealImageFilter, "DivideRealImageFilter", "Pixelwise real division: out(x) = a/b (FLT_MAX where b==0).");
-binary_pyfn!(divide_floor_images, DivideFloorImageFilter, "DivideFloorImageFilter", "Pixelwise floored division: out(x) = floor(a/b) (FLT_MAX where b==0).");
+binary_pyfn!(
+    divide_real_images,
+    DivideRealImageFilter,
+    "DivideRealImageFilter",
+    "Pixelwise real division: out(x) = a/b (FLT_MAX where b==0)."
+);
+binary_pyfn!(
+    divide_floor_images,
+    DivideFloorImageFilter,
+    "DivideFloorImageFilter",
+    "Pixelwise floored division: out(x) = floor(a/b) (FLT_MAX where b==0)."
+);
 
-ternary_pyfn!(ternary_add_images, TernaryAddImageFilter, "TernaryAddImageFilter", "Pixelwise sum of three images: out(x) = a + b + c.");
-ternary_pyfn!(ternary_magnitude_images, TernaryMagnitudeImageFilter, "TernaryMagnitudeImageFilter", "Pixelwise magnitude of three images: out(x) = sqrt(a^2 + b^2 + c^2).");
-ternary_pyfn!(ternary_magnitude_squared_images, TernaryMagnitudeSquaredImageFilter, "TernaryMagnitudeSquaredImageFilter", "Pixelwise squared magnitude of three images: out(x) = a^2 + b^2 + c^2.");
+ternary_pyfn!(
+    ternary_add_images,
+    TernaryAddImageFilter,
+    "TernaryAddImageFilter",
+    "Pixelwise sum of three images: out(x) = a + b + c."
+);
+ternary_pyfn!(
+    ternary_magnitude_images,
+    TernaryMagnitudeImageFilter,
+    "TernaryMagnitudeImageFilter",
+    "Pixelwise magnitude of three images: out(x) = sqrt(a^2 + b^2 + c^2)."
+);
+ternary_pyfn!(
+    ternary_magnitude_squared_images,
+    TernaryMagnitudeSquaredImageFilter,
+    "TernaryMagnitudeSquaredImageFilter",
+    "Pixelwise squared magnitude of three images: out(x) = a^2 + b^2 + c^2."
+);
 
 binary_pyfn!(
     equal_images,

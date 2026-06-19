@@ -552,11 +552,10 @@ pub fn transform_to_displacement_field(
     center: [f64; 3],
 ) -> RitkResult<(PyImage, PyImage, PyImage)> {
     let arc = std::sync::Arc::clone(&reference.inner);
-    let (dz, dy, dx) = py
-        .allow_threads(|| {
-            ritk_filter::transform_to_displacement_field(arc.as_ref(), matrix, translation, center)
-                .map_err(|e| RitkPyError::runtime(e.to_string()))
-        })?;
+    let (dz, dy, dx) = py.allow_threads(|| {
+        ritk_filter::transform_to_displacement_field(arc.as_ref(), matrix, translation, center)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })?;
     Ok((into_py_image(dz), into_py_image(dy), into_py_image(dx)))
 }
 

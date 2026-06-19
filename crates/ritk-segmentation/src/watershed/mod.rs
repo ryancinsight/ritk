@@ -46,9 +46,9 @@ pub mod toboggan;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 pub use marker_controlled::MarkerControlledWatershed;
 pub use morphological::MorphologicalWatershed;
-pub use toboggan::toboggan;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
+pub use toboggan::toboggan;
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 

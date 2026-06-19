@@ -180,8 +180,10 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
                 interleaved[i * C + comp] = v;
             }
         }
-        let tensor =
-            Tensor::<B, 4>::from_data(TensorData::new(interleaved, Shape::new([d, r, c, C])), device);
+        let tensor = Tensor::<B, 4>::from_data(
+            TensorData::new(interleaved, Shape::new([d, r, c, C])),
+            device,
+        );
         Self::try_new(tensor, origin, spacing, direction)
     }
 }
@@ -248,7 +250,10 @@ mod tests {
         ];
         let dev = Default::default();
         let vol = RgbVolume::<B>::try_new(
-            Tensor::<B, 4>::from_data(TensorData::new(interleaved.clone(), Shape::new([1, 2, 2, 3])), &dev),
+            Tensor::<B, 4>::from_data(
+                TensorData::new(interleaved.clone(), Shape::new([1, 2, 2, 3])),
+                &dev,
+            ),
             Point::new([1.0, 2.0, 3.0]),
             Spacing::new([4.0, 5.0, 6.0]),
             Direction::identity(),
@@ -280,12 +285,22 @@ mod tests {
         let dev = Default::default();
         let two = vec![vec![0.0; 4], vec![0.0; 4]];
         assert!(RgbVolume::<B>::from_component_buffers(
-            &two, [1, 2, 2], Point::origin(), Spacing::uniform(1.0), Direction::identity(), &dev,
+            &two,
+            [1, 2, 2],
+            Point::origin(),
+            Spacing::uniform(1.0),
+            Direction::identity(),
+            &dev,
         )
         .is_err());
         let bad_len = vec![vec![0.0; 3], vec![0.0; 4], vec![0.0; 4]];
         assert!(RgbVolume::<B>::from_component_buffers(
-            &bad_len, [1, 2, 2], Point::origin(), Spacing::uniform(1.0), Direction::identity(), &dev,
+            &bad_len,
+            [1, 2, 2],
+            Point::origin(),
+            Spacing::uniform(1.0),
+            Direction::identity(),
+            &dev,
         )
         .is_err());
     }

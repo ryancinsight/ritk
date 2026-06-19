@@ -21,7 +21,10 @@ fn hmaxima_lowers_isolated_peak_by_h() {
     let out = HMaximaFilter::new(3.0).apply(&f).unwrap();
     let expected = [0.0f32, 0.0, 7.0, 0.0, 0.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
-        assert!((got - exp).abs() < 1e-5, "hmaxima: got {got}, expected {exp}");
+        assert!(
+            (got - exp).abs() < 1e-5,
+            "hmaxima: got {got}, expected {exp}"
+        );
     }
 }
 
@@ -41,7 +44,10 @@ fn hconvex_extracts_peak_dynamic() {
     let out = HConvexFilter::new(3.0).apply(&f).unwrap();
     let expected = [0.0f32, 0.0, 3.0, 0.0, 0.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
-        assert!((got - exp).abs() < 1e-5, "hconvex: got {got}, expected {exp}");
+        assert!(
+            (got - exp).abs() < 1e-5,
+            "hconvex: got {got}, expected {exp}"
+        );
     }
 }
 
@@ -53,7 +59,10 @@ fn hminima_raises_isolated_pit_by_h() {
     let out = HMinimaFilter::new(3.0).apply(&f).unwrap();
     let expected = [10.0f32, 10.0, 3.0, 10.0, 10.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
-        assert!((got - exp).abs() < 1e-5, "hminima: got {got}, expected {exp}");
+        assert!(
+            (got - exp).abs() < 1e-5,
+            "hminima: got {got}, expected {exp}"
+        );
     }
 }
 
@@ -64,7 +73,10 @@ fn hconcave_extracts_pit_dynamic() {
     let out = HConcaveFilter::new(3.0).apply(&f).unwrap();
     let expected = [0.0f32, 0.0, 3.0, 0.0, 0.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
-        assert!((got - exp).abs() < 1e-5, "hconcave: got {got}, expected {exp}");
+        assert!(
+            (got - exp).abs() < 1e-5,
+            "hconcave: got {got}, expected {exp}"
+        );
     }
 }
 

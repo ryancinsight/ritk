@@ -23,9 +23,17 @@ fn adaptive_eq_rank_remap_alpha_beta_zero() {
     };
     let out = f.apply(&img(vec![0.0, 100.0, 200.0], [1, 1, 3])).unwrap();
     let (v, _) = extract_vec_infallible(&out);
-    assert!((v[0] - 200.0 / 6.0).abs() < 1e-3, "v0 = {}, want 33.33", v[0]);
+    assert!(
+        (v[0] - 200.0 / 6.0).abs() < 1e-3,
+        "v0 = {}, want 33.33",
+        v[0]
+    );
     assert!((v[1] - 100.0).abs() < 1e-3, "v1 = {}, want 100", v[1]);
-    assert!((v[2] - 1000.0 / 6.0).abs() < 1e-3, "v2 = {}, want 166.67", v[2]);
+    assert!(
+        (v[2] - 1000.0 / 6.0).abs() < 1e-3,
+        "v2 = {}, want 166.67",
+        v[2]
+    );
 }
 
 /// A constant image is unchanged (iscale = 0, identity).

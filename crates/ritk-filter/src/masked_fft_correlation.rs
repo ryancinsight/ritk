@@ -168,7 +168,11 @@ impl MaskedFftNormalizedCorrelationFilter {
 }
 
 /// Build the (possibly larger) output image with the fixed image's spacing.
-fn build_output<B: Backend>(values: Vec<f32>, dims: [usize; 3], fixed: &Image<B, 3>) -> Image<B, 3> {
+fn build_output<B: Backend>(
+    values: Vec<f32>,
+    dims: [usize; 3],
+    fixed: &Image<B, 3>,
+) -> Image<B, 3> {
     use burn::tensor::{Shape, Tensor, TensorData};
     let device = fixed.data().device();
     let td = TensorData::new(values, Shape::new(dims));

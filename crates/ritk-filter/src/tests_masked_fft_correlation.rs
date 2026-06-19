@@ -18,13 +18,24 @@ fn masked_fft_ncc_self_correlation_peaks_at_one() {
     let dims = [1, 3, 3];
     let mask = img(vec![1.0; 9], dims);
     let out = MaskedFftNormalizedCorrelationFilter::default()
-        .apply(&img(pat.clone(), dims), &img(pat, dims), &mask, &img(vec![1.0; 9], dims))
+        .apply(
+            &img(pat.clone(), dims),
+            &img(pat, dims),
+            &mask,
+            &img(vec![1.0; 9], dims),
+        )
         .unwrap();
     assert_eq!(out.shape(), [1, 5, 5], "output extent is fixed+moving-1");
     let (v, _) = extract_vec_infallible(&out);
     let max = v.iter().cloned().fold(f32::MIN, f32::max);
-    assert!((max - 1.0).abs() < 1e-3, "self-correlation peak = {max}, want 1");
-    assert!(v.iter().all(|&x| (-1.0..=1.0).contains(&x)), "values in [-1, 1]");
+    assert!(
+        (max - 1.0).abs() < 1e-3,
+        "self-correlation peak = {max}, want 1"
+    );
+    assert!(
+        v.iter().all(|&x| (-1.0..=1.0).contains(&x)),
+        "values in [-1, 1]"
+    );
 }
 
 /// A shape mismatch between an image and its mask is rejected.

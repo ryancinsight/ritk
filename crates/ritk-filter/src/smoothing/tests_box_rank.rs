@@ -31,6 +31,12 @@ fn rank_extremes_are_min_and_max() {
     let img = ts::make_image::<B, 3>(vec![10.0, 20.0, 30.0, 40.0, 50.0], [1, 1, 5]);
     let lo = RankImageFilter::new([0, 0, 1], 0.0).apply(&img);
     let hi = RankImageFilter::new([0, 0, 1], 1.0).apply(&img);
-    assert_eq!(lo.data_slice().into_owned(), vec![10.0, 10.0, 20.0, 30.0, 40.0]);
-    assert_eq!(hi.data_slice().into_owned(), vec![20.0, 30.0, 40.0, 50.0, 50.0]);
+    assert_eq!(
+        lo.data_slice().into_owned(),
+        vec![10.0, 10.0, 20.0, 30.0, 40.0]
+    );
+    assert_eq!(
+        hi.data_slice().into_owned(),
+        vec![20.0, 30.0, 40.0, 50.0, 50.0]
+    );
 }

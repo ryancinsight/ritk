@@ -63,38 +63,39 @@ pub fn normalized_correlation<B: Backend>(
     let idx = |z: usize, y: usize, x: usize| (z * ny + y) * nx + x;
     let clamp = |v: i64, hi: usize| -> usize { v.max(0).min(hi as i64 - 1) as usize };
 
-    let out: Vec<f32> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |i| {
-        if msk[i] == 0.0 {
-            return 0.0f32;
-        }
-        let z = i / (ny * nx);
-        let y = (i % (ny * nx)) / nx;
-        let x = i % nx;
-        let mut numerator = 0.0f64;
-        let mut s = 0.0f64;
-        let mut sq = 0.0f64;
-        let mut ti = 0usize;
-        for dz in 0..tz {
-            let zz = clamp(z as i64 + dz as i64 - rz as i64, nz);
-            for dy in 0..ty {
-                let yy = clamp(y as i64 + dy as i64 - ry as i64, ny);
-                for dx in 0..tx {
-                    let xx = clamp(x as i64 + dx as i64 - rx as i64, nx);
-                    let v = img[idx(zz, yy, xx)] as f64;
-                    numerator += v * nt[ti];
-                    s += v;
-                    sq += v * v;
-                    ti += 1;
+    let out: Vec<f32> =
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |i| {
+            if msk[i] == 0.0 {
+                return 0.0f32;
+            }
+            let z = i / (ny * nx);
+            let y = (i % (ny * nx)) / nx;
+            let x = i % nx;
+            let mut numerator = 0.0f64;
+            let mut s = 0.0f64;
+            let mut sq = 0.0f64;
+            let mut ti = 0usize;
+            for dz in 0..tz {
+                let zz = clamp(z as i64 + dz as i64 - rz as i64, nz);
+                for dy in 0..ty {
+                    let yy = clamp(y as i64 + dy as i64 - ry as i64, ny);
+                    for dx in 0..tx {
+                        let xx = clamp(x as i64 + dx as i64 - rx as i64, nx);
+                        let v = img[idx(zz, yy, xx)] as f64;
+                        numerator += v * nt[ti];
+                        s += v;
+                        sq += v * v;
+                        ti += 1;
+                    }
                 }
             }
-        }
-        let denom = (sq - s * s / num).sqrt();
-        if denom != 0.0 {
-            (numerator / denom) as f32
-        } else {
-            0.0
-        }
-    });
+            let denom = (sq - s * s / num).sqrt();
+            if denom != 0.0 {
+                (numerator / denom) as f32
+            } else {
+                0.0
+            }
+        });
 
     Ok(rebuild(out, dims, image))
 }

@@ -343,7 +343,8 @@ fn project_median<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
             let out: Vec<f32> =
                 moirai::map_collect_index_with::<moirai::Adaptive, _, _>(ny * nx, |idx| {
                     let (y, x) = (idx / nx, idx % nx);
-                    let mut col: Vec<f32> = (0..nz).map(|z| vals[z * ny * nx + y * nx + x]).collect();
+                    let mut col: Vec<f32> =
+                        (0..nz).map(|z| vals[z * ny * nx + y * nx + x]).collect();
                     median_at_half(&mut col)
                 });
             Ok(rebuild(out, [1, ny, nx], image))
@@ -352,7 +353,8 @@ fn project_median<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
             let out: Vec<f32> =
                 moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * nx, |idx| {
                     let (z, x) = (idx / nx, idx % nx);
-                    let mut col: Vec<f32> = (0..ny).map(|y| vals[z * ny * nx + y * nx + x]).collect();
+                    let mut col: Vec<f32> =
+                        (0..ny).map(|y| vals[z * ny * nx + y * nx + x]).collect();
                     median_at_half(&mut col)
                 });
             Ok(rebuild(out, [nz, 1, nx], image))
@@ -361,7 +363,8 @@ fn project_median<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
             let out: Vec<f32> =
                 moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny, |idx| {
                     let (z, y) = (idx / ny, idx % ny);
-                    let mut col: Vec<f32> = (0..nx).map(|x| vals[z * ny * nx + y * nx + x]).collect();
+                    let mut col: Vec<f32> =
+                        (0..nx).map(|x| vals[z * ny * nx + y * nx + x]).collect();
                     median_at_half(&mut col)
                 });
             Ok(rebuild(out, [nz, ny, 1], image))
@@ -392,9 +395,13 @@ impl BinaryProjectionFilter {
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let fg = self.foreground;
-        project_any(self.axis, image, self.foreground, self.background, move |v| {
-            v == fg
-        })
+        project_any(
+            self.axis,
+            image,
+            self.foreground,
+            self.background,
+            move |v| v == fg,
+        )
     }
 }
 
@@ -423,9 +430,13 @@ impl BinaryThresholdProjectionFilter {
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let thr = self.threshold;
-        project_any(self.axis, image, self.foreground, self.background, move |v| {
-            v >= thr
-        })
+        project_any(
+            self.axis,
+            image,
+            self.foreground,
+            self.background,
+            move |v| v >= thr,
+        )
     }
 }
 

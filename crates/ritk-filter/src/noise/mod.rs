@@ -15,8 +15,8 @@
 //! | `SpeckleNoiseFilter` | Multiplicative: `I'(x) = I(x) · (1 + N(0, std))` | `std` |
 
 pub(crate) mod fastnorm;
-pub(crate) mod mersenne;
 pub mod gaussian;
+pub(crate) mod mersenne;
 pub mod salt_pepper;
 pub mod shot;
 pub mod speckle;

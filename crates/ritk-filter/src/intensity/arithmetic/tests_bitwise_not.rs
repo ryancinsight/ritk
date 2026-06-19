@@ -14,7 +14,8 @@ fn img(data: Vec<f32>) -> Image<B, 3> {
 /// Unsigned 8-bit complement: `~x = 255 − x`.
 #[test]
 fn bitwise_not_uint8() {
-    let out = BitwiseNotImageFilter::unsigned(8).apply(&img(vec![0.0, 1.0, 2.0, 5.0, 200.0, 255.0]));
+    let out =
+        BitwiseNotImageFilter::unsigned(8).apply(&img(vec![0.0, 1.0, 2.0, 5.0, 200.0, 255.0]));
     let (v, _) = extract_vec_infallible(&out);
     assert_eq!(v, vec![255.0, 254.0, 253.0, 250.0, 55.0, 0.0]);
 }

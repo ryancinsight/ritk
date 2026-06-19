@@ -42,8 +42,7 @@ where
     let bufs = vol.into_component_buffers();
     let mut out_bufs: Vec<Vec<f32>> = Vec::with_capacity(C);
     for buf in bufs {
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(buf, Shape::new(spatial)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(buf, Shape::new(spatial)), &device);
         let img = Image::<B, 3>::new(tensor, origin, spacing, direction);
         let result = f(&img);
         let (rvals, _) = extract_vec_infallible(&result);

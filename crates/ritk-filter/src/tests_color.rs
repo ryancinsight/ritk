@@ -12,11 +12,14 @@ type B = NdArray<f32>;
 fn rgb(interleaved: Vec<f32>, spatial: [usize; 3]) -> ColorVolume<B, 3> {
     let [d, r, c] = spatial;
     let dev = Default::default();
-    let t = Tensor::<B, 4>::from_data(
-        TensorData::new(interleaved, Shape::new([d, r, c, 3])),
-        &dev,
-    );
-    ColorVolume::try_new(t, Point::origin(), Spacing::uniform(1.0), Direction::identity()).unwrap()
+    let t = Tensor::<B, 4>::from_data(TensorData::new(interleaved, Shape::new([d, r, c, 3])), &dev);
+    ColorVolume::try_new(
+        t,
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+    )
+    .unwrap()
 }
 
 #[test]
@@ -52,7 +55,12 @@ fn per_component_median_matches_independent_channel_median() {
     for (k, ch) in vol.into_component_buffers().into_iter().enumerate() {
         let dev = Default::default();
         let t = Tensor::<B, 3>::from_data(TensorData::new(ch, Shape::new(spatial)), &dev);
-        let img = Image::<B, 3>::new(t, Point::origin(), Spacing::uniform(1.0), Direction::identity());
+        let img = Image::<B, 3>::new(
+            t,
+            Point::origin(),
+            Spacing::uniform(1.0),
+            Direction::identity(),
+        );
         let ref_buf = MedianFilter::new(1)
             .apply(&img)
             .unwrap()

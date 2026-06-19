@@ -90,7 +90,10 @@ pub fn vector_connected_components_image<B: Backend>(
     bufs.push(first);
     for img in &images[1..] {
         let (vals, d) = extract_vec_infallible(*img);
-        assert_eq!(d, dims, "vector_connected_components: channels differ in dimensions");
+        assert_eq!(
+            d, dims,
+            "vector_connected_components: channels differ in dimensions"
+        );
         bufs.push(vals);
     }
     let labels = vector_connected_components(&bufs, dims, distance_threshold, connectivity);

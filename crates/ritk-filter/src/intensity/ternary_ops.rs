@@ -122,7 +122,11 @@ mod tests {
     #[test]
     fn ternary_add_sums_three() {
         let out = TernaryAddImageFilter::new()
-            .apply(&img(vec![1.0, 2.0, 3.0]), &img(vec![10.0, 20.0, 30.0]), &img(vec![100.0, 200.0, 300.0]))
+            .apply(
+                &img(vec![1.0, 2.0, 3.0]),
+                &img(vec![10.0, 20.0, 30.0]),
+                &img(vec![100.0, 200.0, 300.0]),
+            )
             .unwrap();
         assert_eq!(out.data_slice().into_owned(), vec![111.0, 222.0, 333.0]);
     }
@@ -132,14 +136,24 @@ mod tests {
         let a = img(vec![2.0, 1.0, 0.0]);
         let b = img(vec![3.0, 2.0, 0.0]);
         let c = img(vec![6.0, 2.0, 5.0]);
-        let m = TernaryMagnitudeImageFilter::new().apply(&a, &b, &c).unwrap();
-        let s = TernaryMagnitudeSquaredImageFilter::new().apply(&a, &b, &c).unwrap();
+        let m = TernaryMagnitudeImageFilter::new()
+            .apply(&a, &b, &c)
+            .unwrap();
+        let s = TernaryMagnitudeSquaredImageFilter::new()
+            .apply(&a, &b, &c)
+            .unwrap();
         // 2-3-6 → 7; 1-2-2 → 3; 0-0-5 → 5
         for (got, exp) in m.data_slice().into_owned().iter().zip([7.0f32, 3.0, 5.0]) {
-            assert!((got - exp).abs() < 1e-5, "magnitude: got {got}, expected {exp}");
+            assert!(
+                (got - exp).abs() < 1e-5,
+                "magnitude: got {got}, expected {exp}"
+            );
         }
         for (got, exp) in s.data_slice().into_owned().iter().zip([49.0f32, 9.0, 25.0]) {
-            assert!((got - exp).abs() < 1e-5, "magnitude²: got {got}, expected {exp}");
+            assert!(
+                (got - exp).abs() < 1e-5,
+                "magnitude²: got {got}, expected {exp}"
+            );
         }
     }
 }

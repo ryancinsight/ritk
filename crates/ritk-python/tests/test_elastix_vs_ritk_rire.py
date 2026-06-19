@@ -491,6 +491,7 @@ def test_cma_mi_register_all_presets_parse():
 
 
 @_skip_no_rire
+@pytest.mark.slow
 def test_cma_mi_register_binding_on_rire_brain_default():
     """CMA-ES brain_default preset must complete on RIRE data with positive MI.
 
@@ -721,6 +722,7 @@ def test_elastix_vs_ritk_rire_comparison():
 
 
 @_skip_no_rire
+@pytest.mark.slow
 def test_cma_mi_register_with_fixed_mask():
     """cma_mi_register with a brain mask should have positive MI on RIRE data.
 
@@ -780,6 +782,7 @@ def test_cma_mi_register_with_fixed_mask():
 
 
 @_skip_no_rire
+@pytest.mark.slow
 def test_cma_mi_thin_slab_preset_improvements():
     """Brain multiscale thin-slab preset must complete and not diverge worse than identity.
 
@@ -968,6 +971,7 @@ def test_oob_filtering_prevents_false_boundary_peak_synthetic():
 
 
 @_skip_no_rire
+@pytest.mark.slow
 def test_cma_mi_thin_slab_masked():
     """Thin-slab preset with CT foreground mask should converge toward GT on RIRE.
 

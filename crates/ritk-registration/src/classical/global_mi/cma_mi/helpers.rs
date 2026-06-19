@@ -154,11 +154,10 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     let moving_inner = strip_autodiff(&moving_c);
     let inner_device = fixed_inner.data().device();
 
-    // ── Brain mask: downsample to pyramid level, extract foreground points ────
-    // The mask uses zero smoothing (sigma=0) to preserve its binary character.
-    // We threshold at 0.5 to recover a clean binary mask after integer-factor
-    // downsampling (majority-vote behaviour at boundaries).
-    let mask_world_points: Option<Tensor<B::InnerBackend, 2>> = fixed_mask.map(|mask| {
+    // ── Brain mask / Pre-sampling: extract or generate sample points once per level ────
+    // This avoids random noise on every objective function evaluation and enables
+    // caching of the fixed-image Parzen weights for both masked and sampled paths.
+    let mask_world_points: Option<Tensor<B::InnerBackend, 2>> = if let Some(mask) = fixed_mask {
         let mask_shrink: Vec<[usize; 3]> = vec![[per_axis[0], per_axis[1], per_axis[2]]];
         let mask_smooth: Vec<[f64; 3]> = vec![[0.0, 0.0, 0.0]]; // no smoothing
         let mask_pyr = MultiResolutionPyramid::new(mask, &mask_shrink, &mask_smooth);
@@ -168,8 +167,29 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
             "CmaMiRegistration: mask at level — shape {:?}",
             mask_inner.shape()
         );
-        extract_foreground_world_points(&fixed_inner, &mask_inner, config.sampling_percentage)
-    });
+        Some(extract_foreground_world_points(
+            &fixed_inner,
+            &mask_inner,
+            config.sampling_percentage,
+        ))
+    } else if config.sampling_percentage < 1.0 {
+        let total_voxels = fixed_inner.shape().iter().product::<usize>();
+        let num_samples = ((total_voxels as f32 * config.sampling_percentage) as usize).max(32);
+        let fixed_indices = ritk_core::image::grid::generate_random_points(
+            fixed_inner.shape(),
+            num_samples,
+            &inner_device,
+        );
+        Some(fixed_inner.index_to_world_tensor(fixed_indices))
+    } else {
+        None
+    };
+
+    let metric_sampling_pct = if mask_world_points.is_some() {
+        1.0
+    } else {
+        config.sampling_percentage
+    };
 
     // ── Build metric on inner backend ─────────────────────────────────────────
     let metric = build_metric::<B::InnerBackend>(
@@ -177,7 +197,7 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         config.num_mi_bins,
         min_int,
         max_int,
-        config.sampling_percentage,
+        metric_sampling_pct,
         mask_world_points,
         separate_moving_range,
         &inner_device,

@@ -116,7 +116,9 @@ fn label_map_contour_overlay_matches_sitk() {
     }
     let gi = ts::make_image::<B, 3>(gray, [1, 8, 8]);
     let li = ts::make_image::<B, 3>(lab, [1, 8, 8]);
-    let out = LabelMapContourOverlayFilter::new(0.5, 0).apply(&gi, &li).unwrap();
+    let out = LabelMapContourOverlayFilter::new(0.5, 0)
+        .apply(&gi, &li)
+        .unwrap();
     let c = out.into_component_buffers();
     let exp_r: Vec<f32> = [
         0, 1, 2, 3, 2, 5, 6, 7, 8, 9, 10, 11, 6, 13, 14, 15, 16, 17, 18, 19, 10, 21, 22, 23, 24,

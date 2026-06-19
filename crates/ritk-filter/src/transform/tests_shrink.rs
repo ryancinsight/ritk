@@ -103,7 +103,11 @@ fn subsample_centers_samples_on_remainder() {
     assert_eq!(out.shape(), [1, 1, 2]);
     assert_eq!(voxels(&out), vec![3.0, 8.0]);
     // Origin shift = (12 mod 5 + 5 − 1)/2 = (2+4)/2 = 3.0 voxels.
-    assert!((out.origin()[2] - 3.0).abs() < 1e-10, "ox={}", out.origin()[2]);
+    assert!(
+        (out.origin()[2] - 3.0).abs() < 1e-10,
+        "ox={}",
+        out.origin()[2]
+    );
 }
 
 /// Spacing scales by factor; origin shifts to the first tile centroid

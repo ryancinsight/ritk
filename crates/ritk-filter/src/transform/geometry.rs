@@ -37,9 +37,15 @@ pub fn transform_geometry<B: Backend>(
     center: [f64; 3],
 ) -> Result<Image<B, 3>> {
     let a = Matrix3::new(
-        matrix[0][0], matrix[0][1], matrix[0][2], //
-        matrix[1][0], matrix[1][1], matrix[1][2], //
-        matrix[2][0], matrix[2][1], matrix[2][2],
+        matrix[0][0],
+        matrix[0][1],
+        matrix[0][2], //
+        matrix[1][0],
+        matrix[1][1],
+        matrix[1][2], //
+        matrix[2][0],
+        matrix[2][1],
+        matrix[2][2],
     );
     let Some(a_inv) = a.try_inverse() else {
         bail!("transform_geometry: matrix is singular (no inverse)");

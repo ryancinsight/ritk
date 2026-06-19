@@ -28,7 +28,11 @@ fn f(v: &[i32]) -> Vec<f32> {
 /// 7×7 multi-label scene (labels 1, 2, 3).
 fn scene() -> ritk_image::Image<B, 3> {
     let mut a = vec![0i32; 49];
-    a[8] = 1; a[9] = 1; a[32] = 2; a[40] = 2; a[22] = 3;
+    a[8] = 1;
+    a[9] = 1;
+    a[32] = 2;
+    a[40] = 2;
+    a[22] = 3;
     z1(f(&a), 7, 7)
 }
 

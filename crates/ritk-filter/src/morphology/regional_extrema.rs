@@ -194,13 +194,18 @@ impl RegionalMaximaFilter {
     /// Apply the binary regional-maxima transform.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (fg, bg) = (self.foreground, self.background);
-        run(image, self.connectivity, ExtremaKind::Maxima, move |m, _| {
-            if m {
-                fg
-            } else {
-                bg
-            }
-        })
+        run(
+            image,
+            self.connectivity,
+            ExtremaKind::Maxima,
+            move |m, _| {
+                if m {
+                    fg
+                } else {
+                    bg
+                }
+            },
+        )
     }
 }
 
@@ -244,13 +249,18 @@ impl RegionalMinimaFilter {
     /// Apply the binary regional-minima transform.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (fg, bg) = (self.foreground, self.background);
-        run(image, self.connectivity, ExtremaKind::Minima, move |m, _| {
-            if m {
-                fg
-            } else {
-                bg
-            }
-        })
+        run(
+            image,
+            self.connectivity,
+            ExtremaKind::Minima,
+            move |m, _| {
+                if m {
+                    fg
+                } else {
+                    bg
+                }
+            },
+        )
     }
 }
 

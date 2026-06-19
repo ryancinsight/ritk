@@ -57,7 +57,11 @@ fn valued_regional_minima_keeps_value_else_max() {
 fn subunit_contrast_detects_both_maxima() {
     let f = img(vec![0.0, 0.5, 0.0, 0.2, 0.0], [1, 1, 5]);
     let out = vals(&RegionalMaximaFilter::new().apply(&f).unwrap());
-    assert_eq!(out, [0.0, 1.0, 0.0, 1.0, 0.0], "both sub-unit maxima detected");
+    assert_eq!(
+        out,
+        [0.0, 1.0, 0.0, 1.0, 0.0],
+        "both sub-unit maxima detected"
+    );
 }
 
 /// A constant image is one flat zone with no more-extreme neighbour, hence a
@@ -67,15 +71,26 @@ fn constant_image_is_single_extremum() {
     let f = img(vec![3.0; 8], [2, 2, 2]);
     let max = vals(&RegionalMaximaFilter::new().apply(&f).unwrap());
     let min = vals(&RegionalMinimaFilter::new().apply(&f).unwrap());
-    assert!(max.iter().all(|&v| v == 1.0), "constant ⇒ all regional maxima");
-    assert!(min.iter().all(|&v| v == 1.0), "constant ⇒ all regional minima");
+    assert!(
+        max.iter().all(|&v| v == 1.0),
+        "constant ⇒ all regional maxima"
+    );
+    assert!(
+        min.iter().all(|&v| v == 1.0),
+        "constant ⇒ all regional minima"
+    );
 }
 
 /// Custom foreground/background values are honoured.
 #[test]
 fn binary_honours_custom_values() {
     let f = img(SIGNAL.to_vec(), [1, 1, 9]);
-    let out = vals(&RegionalMaximaFilter::new().with_values(7.0, -1.0).apply(&f).unwrap());
+    let out = vals(
+        &RegionalMaximaFilter::new()
+            .with_values(7.0, -1.0)
+            .apply(&f)
+            .unwrap(),
+    );
     let expected = [-1.0f32, -1.0, 7.0, -1.0, 7.0, 7.0, -1.0, -1.0, 7.0];
     assert_eq!(out, expected, "custom fg/bg");
 }

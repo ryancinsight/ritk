@@ -259,6 +259,7 @@ def _sitk_bspline_register(
 # ============================================================================
 
 
+@pytest.mark.slow
 class TestSyntheticSphere:
     """Validate registration on a 3-voxel x-shifted sphere in a 64^3 volume.
 
@@ -453,6 +454,7 @@ class TestSyntheticSphere:
 # ============================================================================
 
 
+@pytest.mark.slow
 class TestSyntheticGaussianBlob:
     """Validate NCC improvement after registration on shifted Gaussian blobs.
 
@@ -554,6 +556,7 @@ _skip_mni = pytest.mark.skipif(
 
 
 @_skip_mni
+@pytest.mark.slow
 class TestInterSubjectBrainMNI:
     """Inter-subject brain registration using MNI152 and OpenNeuro T1w.
 
@@ -643,6 +646,7 @@ _skip_rire = pytest.mark.skipif(
 
 
 @_skip_rire
+@pytest.mark.slow
 class TestRIREMultiModal:
     """CT↔MR cross-modal registration using RIRE data.
 
@@ -737,6 +741,7 @@ _skip_vm = pytest.mark.skipif(
 
 
 @_skip_vm
+@pytest.mark.slow
 class TestVMHeadMultiModal:
     """CT↔MR cross-modal registration using Visible Male head data."""
 
@@ -787,6 +792,7 @@ class TestVMHeadMultiModal:
 # ============================================================================
 
 
+@pytest.mark.slow
 class TestRegistrationQualityReport:
     """Generate a comprehensive quality report comparing all RITK algorithms
     against SimpleITK baselines on synthetic data."""

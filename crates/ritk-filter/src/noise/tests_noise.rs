@@ -460,7 +460,12 @@ fn gaussian_matches_sitk_fastnorm_sequence() {
         .unwrap();
     let vals = out.data_slice().into_owned();
     let expected = [
-        -2.0906951_f32, -1.9422115, -1.6573238, 0.19301039, 0.08058648, 0.00776763,
+        -2.0906951_f32,
+        -1.9422115,
+        -1.6573238,
+        0.19301039,
+        0.08058648,
+        0.00776763,
     ];
     for (g, e) in vals.iter().zip(expected) {
         assert!((g - e).abs() < 1e-5, "noise {g} != sitk {e}");
@@ -488,6 +493,9 @@ fn salt_pepper_matches_sitk_mt19937() {
         );
     }
     // Deterministic for a fixed seed.
-    let out2 = SaltAndPepperNoiseFilter::new(0.3).with_seed(42).apply(&img).unwrap();
+    let out2 = SaltAndPepperNoiseFilter::new(0.3)
+        .with_seed(42)
+        .apply(&img)
+        .unwrap();
     assert_eq!(v, out2.data_slice().into_owned(), "same seed deterministic");
 }

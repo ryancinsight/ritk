@@ -16,8 +16,9 @@ use ritk_filter::{
     gaussian_image_source as core_gaussian_image_source,
     grid_image_source as core_grid_image_source, ConstantPadImageFilter, CyclicShiftImageFilter,
     ExpandImageFilter, FftPadBoundary, FftPadImageFilter, FlipImageFilter, MirrorPadImageFilter,
-    OrientImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
-    ShrinkImageFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
+    OrientImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
+    RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter,
+    ZeroFluxNeumannPadImageFilter,
 };
 use ritk_image::Image;
 

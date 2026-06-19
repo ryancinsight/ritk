@@ -17,7 +17,10 @@ fn vals(image: &Image<B, 3>) -> Vec<f32> {
 /// plain opening, which would also erode the plateau edges. Hand-computed.
 #[test]
 fn opening_by_reconstruction_removes_spike_keeps_plateau() {
-    let f = img(vec![0.0, 0.0, 5.0, 5.0, 5.0, 0.0, 10.0, 0.0, 0.0], [1, 1, 9]);
+    let f = img(
+        vec![0.0, 0.0, 5.0, 5.0, 5.0, 0.0, 10.0, 0.0, 0.0],
+        [1, 1, 9],
+    );
     let out = OpeningByReconstructionFilter::new(1).apply(&f).unwrap();
     let expected = [0.0f32, 0.0, 5.0, 5.0, 5.0, 0.0, 0.0, 0.0, 0.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
@@ -29,7 +32,10 @@ fn opening_by_reconstruction_removes_spike_keeps_plateau() {
 /// dark plateau at its level.
 #[test]
 fn closing_by_reconstruction_fills_pit_keeps_plateau() {
-    let f = img(vec![10.0, 10.0, 5.0, 5.0, 5.0, 10.0, 0.0, 10.0, 10.0], [1, 1, 9]);
+    let f = img(
+        vec![10.0, 10.0, 5.0, 5.0, 5.0, 10.0, 0.0, 10.0, 10.0],
+        [1, 1, 9],
+    );
     let out = ClosingByReconstructionFilter::new(1).apply(&f).unwrap();
     let expected = [10.0f32, 10.0, 5.0, 5.0, 5.0, 10.0, 10.0, 10.0, 10.0];
     for (got, exp) in vals(&out).iter().zip(expected) {

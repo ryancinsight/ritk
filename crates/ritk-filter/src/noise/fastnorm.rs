@@ -125,10 +125,30 @@ impl FastNorm {
             skew = (skew + stride) & mask;
             let mut pe = p0 + skew;
             let (mut p, mut q, mut r, mut s) = match mtype {
-                0 => (-v[pa as usize], -v[pb as usize], v[pc as usize], v[pd as usize]),
-                1 => (-v[pa as usize], v[pb as usize], v[pc as usize], -v[pd as usize]),
-                2 => (v[pa as usize], -v[pb as usize], v[pc as usize], -v[pd as usize]),
-                _ => (v[pa as usize], v[pb as usize], -v[pc as usize], -v[pd as usize]),
+                0 => (
+                    -v[pa as usize],
+                    -v[pb as usize],
+                    v[pc as usize],
+                    v[pd as usize],
+                ),
+                1 => (
+                    -v[pa as usize],
+                    v[pb as usize],
+                    v[pc as usize],
+                    -v[pd as usize],
+                ),
+                2 => (
+                    v[pa as usize],
+                    -v[pb as usize],
+                    v[pc as usize],
+                    -v[pd as usize],
+                ),
+                _ => (
+                    v[pa as usize],
+                    v[pb as usize],
+                    -v[pc as usize],
+                    -v[pd as usize],
+                ),
             };
             let mut t = (p.wrapping_add(q).wrapping_add(r).wrapping_add(s)) >> 1;
             p = t - p;

@@ -101,5 +101,8 @@ fn hit_or_miss_works_on_2d_z1_image() {
     }
     let out = vv(&HitOrMissTransform::new(1, 0).apply(&img(v, dims)).unwrap());
     let hits = out.iter().filter(|&&x| x > 0.5).count();
-    assert_eq!(hits, 9, "2-D hit-or-miss must detect the 3×3 eroded interior");
+    assert_eq!(
+        hits, 9,
+        "2-D hit-or-miss must detect the 3×3 eroded interior"
+    );
 }

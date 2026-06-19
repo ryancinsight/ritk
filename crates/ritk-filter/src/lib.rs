@@ -59,24 +59,25 @@ pub mod intensity;
 
 pub use intensity::binary_ops::{AddOp, BinaryOp, BinaryOpFilter, MaxOp};
 pub use intensity::{
-    AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
-    AndImageFilter, AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BedSeparationConfig,
-    AdaptiveHistogramEqualizationFilter, BedSeparationFilter,
-    BinaryMagnitudeImageFilter, BinaryNotImageFilter, BitwiseNotImageFilter, BinaryThresholdImageFilter, BlendImageFilter,
-    BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
-    ComponentPolicy, CosImageFilter, DivideFloorImageFilter, DivideImageFilter,
-    DivideRealImageFilter, DoubleThresholdImageFilter, EqualImageFilter, ExpImageFilter, ExpNegativeImageFilter,
-    GreaterEqualImageFilter, GreaterImageFilter, HistogramEqualizationFilter, ImageMaxFilter,
-    ImageMinFilter, IntensityWindowingFilter, InvertIntensityFilter, LessEqualImageFilter,
-    LessImageFilter, Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
-    MaskedAssignImageFilter, ModulusImageFilter,
-    MultiplyImageFilter, NormalizeImageFilter, NormalizeToConstantImageFilter, NotEqualImageFilter,
-    NotImageFilter, OrImageFilter, PowImageFilter, XorImageFilter,
-    RescaleIntensityFilter, RoundImageFilter, ShiftScaleImageFilter, SigmoidImageFilter,
-    SinImageFilter, SqrtImageFilter, SquareImageFilter, SquaredDifferenceImageFilter,
-    SubtractImageFilter, SuvBodyWeightImageFilter, TanImageFilter, TernaryAddImageFilter,
-    TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter, ThresholdImageFilter,
-    ThresholdMode, UnaryMinusImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
+    AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter,
+    AdaptiveHistogramEqualizationFilter, AddImageFilter, AndImageFilter, AsinImageFilter,
+    Atan2ImageFilter, AtanImageFilter, BedSeparationConfig, BedSeparationFilter,
+    BinaryMagnitudeImageFilter, BinaryNotImageFilter, BinaryThresholdImageFilter,
+    BitwiseNotImageFilter, BlendImageFilter, BoundedReciprocalImageFilter, ClaheFilter,
+    ClaheScratch, ClampImageFilter, ClampPolicy, ComponentPolicy, CosImageFilter,
+    DivideFloorImageFilter, DivideImageFilter, DivideRealImageFilter, DoubleThresholdImageFilter,
+    EqualImageFilter, ExpImageFilter, ExpNegativeImageFilter, GreaterEqualImageFilter,
+    GreaterImageFilter, HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter,
+    IntensityWindowingFilter, InvertIntensityFilter, LessEqualImageFilter, LessImageFilter,
+    Log10ImageFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
+    MaskedAssignImageFilter, ModulusImageFilter, MultiplyImageFilter, NormalizeImageFilter,
+    NormalizeToConstantImageFilter, NotEqualImageFilter, NotImageFilter, OrImageFilter,
+    PowImageFilter, RescaleIntensityFilter, RoundImageFilter, ShiftScaleImageFilter,
+    SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
+    SquaredDifferenceImageFilter, SubtractImageFilter, SuvBodyWeightImageFilter, TanImageFilter,
+    TernaryAddImageFilter, TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter,
+    ThresholdImageFilter, ThresholdMode, UnaryMinusImageFilter, UnsharpMaskFilter, XorImageFilter,
+    ZeroCrossingImageFilter,
 };
 
 // ── Morphology ────────────────────────────────────────────────────────────────
@@ -84,11 +85,10 @@ pub mod morphology;
 
 pub use morphology::{
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
-    BinaryPruningFilter, BinaryThinningFilter,
-    BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter,
-    ClosingByReconstructionFilter, Connectivity, ErodeObjectMorphologyFilter, ForegroundValue,
-    GrayscaleClosingFilter,
-    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
+    BinaryMorphologicalClosing, BinaryMorphologicalOpening, BinaryPruningFilter,
+    BinaryThinningFilter, BlackTopHatFilter, ClosingByReconstructionFilter, Connectivity,
+    ErodeObjectMorphologyFilter, ForegroundValue, GrayscaleClosingFilter, GrayscaleDilation,
+    GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
     GrayscaleGeodesicErosionFilter, GrayscaleGrindPeakFilter, GrayscaleMorphologicalGradientFilter,
     GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter,
     HitOrMissTransform, LabelClosing, LabelContourImageFilter, LabelDilation, LabelErosion,
@@ -147,43 +147,43 @@ pub use projection::{
 pub use pyramid::MultiResolutionPyramid;
 pub use resample::ResampleImageFilter;
 pub use transform::{
-    ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FftPadBoundary,
-    transform_geometry, FftPadImageFilter, FlipImageFilter, FlipPolicy, MirrorPadImageFilter,
-    OrientImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
-    ShrinkImageFilter,
-    TileMeanShrinkFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
+    transform_geometry, ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter,
+    FftPadBoundary, FftPadImageFilter, FlipImageFilter, FlipPolicy, MirrorPadImageFilter,
+    OrientImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter,
+    RegionOfInterestImageFilter, ShrinkImageFilter, TileMeanShrinkFilter, WrapPadImageFilter,
+    ZeroFluxNeumannPadImageFilter,
 };
 
 // ── Surface & distance ───────────────────────────────────────────────────────
 pub mod colliding_fronts;
 pub mod displacement;
-pub mod invert_displacement;
-pub mod iterative_inverse_displacement;
-pub mod masked_fft_correlation;
-pub mod normalized_correlation;
-pub mod reinitialize_level_set;
 pub mod distance;
 pub mod fast_marching;
 pub mod fractal_dimension;
+pub mod invert_displacement;
 pub mod iso_contour;
+pub mod iterative_inverse_displacement;
+pub mod masked_fft_correlation;
+pub mod normalized_correlation;
 pub mod rank;
+pub mod reinitialize_level_set;
 pub mod surface;
 pub mod warp;
 
+pub use colliding_fronts::CollidingFrontsFilter;
 pub use displacement::transform_to_displacement_field;
 pub use distance::{
     ApproximateSignedDistanceMapFilter, BinarizationThreshold, DistanceTransformImageFilter,
     FastChamferDistanceFilter, SignedDistanceTransformImageFilter,
 };
-pub use colliding_fronts::CollidingFrontsFilter;
 pub use fast_marching::FastMarchingFilter;
+pub use fractal_dimension::StochasticFractalDimensionFilter;
 pub use invert_displacement::InvertDisplacementField;
+pub use iso_contour::IsoContourDistanceFilter;
 pub use iterative_inverse_displacement::IterativeInverseDisplacementField;
 pub use masked_fft_correlation::MaskedFftNormalizedCorrelationFilter;
 pub use normalized_correlation::normalized_correlation;
-pub use reinitialize_level_set::ReinitializeLevelSetFilter;
-pub use fractal_dimension::StochasticFractalDimensionFilter;
-pub use iso_contour::IsoContourDistanceFilter;
-pub use warp::warp_image;
 pub use rank::{PercentileFilter, RankFilter};
+pub use reinitialize_level_set::ReinitializeLevelSetFilter;
 pub use surface::{MarchingCubesFilter, Mesh, MeshBuilder};
+pub use warp::warp_image;

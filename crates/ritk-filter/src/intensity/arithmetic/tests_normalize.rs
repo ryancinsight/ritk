@@ -117,7 +117,10 @@ fn normalize_to_constant_scales_sum() {
     let out = NormalizeToConstantImageFilter::new(5.0).apply(&img);
     let v = out.data_slice().into_owned();
     assert_eq!(v, vec![0.5, 1.0, 1.5, 2.0]);
-    assert!((v.iter().sum::<f32>() - 5.0).abs() < 1e-5, "output sum must equal 5");
+    assert!(
+        (v.iter().sum::<f32>() - 5.0).abs() < 1e-5,
+        "output sum must equal 5"
+    );
 }
 
 /// A zero-sum image yields all zeros (no division by zero).

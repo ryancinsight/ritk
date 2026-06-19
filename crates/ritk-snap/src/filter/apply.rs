@@ -15,10 +15,9 @@ use ritk_filter::{
     InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
     MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter, Padding,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter, SignedDistanceTransformImageFilter, SinImageFilter,
-    SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
-    VotingBinaryImageFilter,
-    WrapPadImageFilter, ZeroCrossingImageFilter,
+    ShiftScaleImageFilter, SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter,
+    SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
+    VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
 };
 use ritk_image::Image;
 use ritk_segmentation::region_growing::{

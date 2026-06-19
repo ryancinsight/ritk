@@ -147,7 +147,14 @@ fn dilate_prop_line(
 
 /// First-pass erosion of a single label run of length `sll`. Ports
 /// `DoLineErodeFirstPass` (writes squared distance into `seg`).
-fn erode_first_run(sll: usize, leftend: f64, rightend: f64, magnitude: f64, sigma: f64, seg: &mut [f64]) {
+fn erode_first_run(
+    sll: usize,
+    leftend: f64,
+    rightend: f64,
+    magnitude: f64,
+    sigma: f64,
+    seg: &mut [f64],
+) {
     for (pos, s) in seg.iter_mut().enumerate() {
         let offset = (sll - pos) as f64;
         let left = leftend - magnitude * (pos as f64 + 1.0) * (pos as f64 + 1.0);
@@ -297,7 +304,11 @@ pub fn label_set_morph<B: Backend>(
     let mut scale = [0.0_f64; 3];
     for (p, s) in scale.iter_mut().enumerate().take(ndim) {
         let r = radius_itk[p];
-        *s = if use_spacing { 0.5 * r * r } else { 0.5 * r * r + 1.0 };
+        *s = if use_spacing {
+            0.5 * r * r
+        } else {
+            0.5 * r * r + 1.0
+        };
     }
     // firstval = first dim with non-zero radius.
     let firstval = match (0..ndim).find(|&p| radius_itk[p] != 0.0) {
@@ -423,7 +434,11 @@ fn erode_first_dim(
     line_dist.copy_from_slice(line);
     if last {
         for i in 0..n {
-            line_lab[i] = if line[i] == base_sigma { line_lab[i] } else { 0.0 };
+            line_lab[i] = if line[i] == base_sigma {
+                line_lab[i]
+            } else {
+                0.0
+            };
         }
     }
 }
@@ -456,7 +471,11 @@ fn erode_subsequent_dim(
     line_dist.copy_from_slice(line);
     if last {
         for i in 0..n {
-            line_lab[i] = if line[i] == base_sigma { line_lab[i] } else { 0.0 };
+            line_lab[i] = if line[i] == base_sigma {
+                line_lab[i]
+            } else {
+                0.0
+            };
         }
     }
 }

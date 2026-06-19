@@ -46,11 +46,18 @@ pub fn multi_label_staple(
     termination_threshold: f64,
     label_for_undecided: Option<f32>,
 ) -> MultiLabelStapleResult {
-    assert!(!raters.is_empty(), "multi_label_staple: raters must be non-empty");
+    assert!(
+        !raters.is_empty(),
+        "multi_label_staple: raters must be non-empty"
+    );
     let k = raters.len();
     let n = raters[0].len();
     for (idx, r) in raters.iter().enumerate() {
-        assert_eq!(r.len(), n, "multi_label_staple: rater {idx} length mismatch");
+        assert_eq!(
+            r.len(),
+            n,
+            "multi_label_staple: rater {idx} length mismatch"
+        );
     }
 
     // Quantize to integer labels in a single voxel-major buffer `d[vox*k + kk]`

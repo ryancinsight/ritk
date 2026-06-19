@@ -79,8 +79,20 @@ fn blur_axis(vals: &[f32], dims: [usize; 3], axis: usize) -> Vec<f32> {
 
     // ITK BinomialBlur boundary (asymmetric): left of index 0 reflects to index
     // 1; right of the last index clamps to itself.
-    let left_idx = |p: usize| -> usize { if p == 0 { 1 } else { p - 1 } };
-    let right_idx = |p: usize| -> usize { if p == len - 1 { len - 1 } else { p + 1 } };
+    let left_idx = |p: usize| -> usize {
+        if p == 0 {
+            1
+        } else {
+            p - 1
+        }
+    };
+    let right_idx = |p: usize| -> usize {
+        if p == len - 1 {
+            len - 1
+        } else {
+            p + 1
+        }
+    };
 
     let mut out = vec![0.0f32; vals.len()];
     let (n_outer, n_mid) = match axis {

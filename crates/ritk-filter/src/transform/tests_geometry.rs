@@ -52,7 +52,10 @@ fn transform_geometry_rotation_inverts_direction() {
     let expected = nalgebra::Matrix3::new(0.0, 1.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0);
     for i in 0..3 {
         for j in 0..3 {
-            assert!((d[(i, j)] - expected[(i, j)]).abs() < 1e-12, "dir[{i}][{j}] mismatch");
+            assert!(
+                (d[(i, j)] - expected[(i, j)]).abs() < 1e-12,
+                "dir[{i}][{j}] mismatch"
+            );
         }
     }
 }

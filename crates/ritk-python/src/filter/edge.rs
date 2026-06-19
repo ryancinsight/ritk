@@ -5,9 +5,9 @@ use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     edge::GaussianSigma, ApproximateSignedDistanceMapFilter, CannyEdgeDetector,
-    DerivativeImageFilter, FastMarchingFilter,
-    CollidingFrontsFilter, GradientMagnitudeFilter, IsoContourDistanceFilter, LaplacianFilter,
-    LaplacianOfGaussianFilter, LaplacianSharpeningFilter, ReinitializeLevelSetFilter, SobelFilter,
+    CollidingFrontsFilter, DerivativeImageFilter, FastMarchingFilter, GradientMagnitudeFilter,
+    IsoContourDistanceFilter, LaplacianFilter, LaplacianOfGaussianFilter,
+    LaplacianSharpeningFilter, ReinitializeLevelSetFilter, SobelFilter,
     ZeroCrossingBasedEdgeDetectionFilter,
 };
 

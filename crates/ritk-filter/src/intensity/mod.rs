@@ -10,10 +10,10 @@
 //! `LogImageFilter`, `Log10ImageFilter`, `ExpImageFilter`,
 //! `ExpNegativeImageFilter`).
 
+pub mod adaptive_equalization;
 pub mod arithmetic;
 pub mod bed_separation;
 pub mod binary_ops;
-pub mod adaptive_equalization;
 pub mod binary_threshold;
 pub mod blend;
 pub mod clahe;
@@ -29,11 +29,12 @@ pub mod threshold;
 pub mod unsharp_mask;
 pub mod windowing;
 
+pub use adaptive_equalization::AdaptiveHistogramEqualizationFilter;
 pub use arithmetic::{
-    AbsImageFilter, BinaryNotImageFilter, BitwiseNotImageFilter, ExpImageFilter, ExpNegativeImageFilter,
-    InvertIntensityFilter, Log10ImageFilter, LogImageFilter, ModulusImageFilter,
-    NormalizeImageFilter, NormalizeToConstantImageFilter, NotImageFilter, RoundImageFilter,
-    SqrtImageFilter, SquareImageFilter, UnaryMinusImageFilter,
+    AbsImageFilter, BinaryNotImageFilter, BitwiseNotImageFilter, ExpImageFilter,
+    ExpNegativeImageFilter, InvertIntensityFilter, Log10ImageFilter, LogImageFilter,
+    ModulusImageFilter, NormalizeImageFilter, NormalizeToConstantImageFilter, NotImageFilter,
+    RoundImageFilter, SqrtImageFilter, SquareImageFilter, UnaryMinusImageFilter,
 };
 pub use bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPolicy};
 pub use binary_ops::{
@@ -49,7 +50,6 @@ pub use binary_ops::{
 };
 pub use binary_threshold::BinaryThresholdImageFilter;
 pub use blend::BlendImageFilter;
-pub use adaptive_equalization::AdaptiveHistogramEqualizationFilter;
 pub use clahe::{ClaheFilter, ClaheScratch};
 pub use clamp::ClampImageFilter;
 pub use double_threshold::DoubleThresholdImageFilter;

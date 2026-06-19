@@ -75,16 +75,16 @@ impl CollidingFrontsFilter {
         let n = nz * ny * nx;
         let sp = [speed.spacing()[0], speed.spacing()[1], speed.spacing()[2]];
 
-        let (t1, _) = extract_vec_infallible(&FastMarchingFilter::new(self.seeds1.clone()).apply(speed));
-        let (t2, _) = extract_vec_infallible(&FastMarchingFilter::new(self.seeds2.clone()).apply(speed));
+        let (t1, _) =
+            extract_vec_infallible(&FastMarchingFilter::new(self.seeds1.clone()).apply(speed));
+        let (t2, _) =
+            extract_vec_infallible(&FastMarchingFilter::new(self.seeds2.clone()).apply(speed));
         let g1 = upwind_gradient(&t1, dims, sp);
         let g2 = upwind_gradient(&t2, dims, sp);
 
         let neg = self.negative_epsilon as f32;
         let mut mult: Vec<f32> = (0..n)
-            .map(|i| {
-                ((g1[i][0] * g2[i][0]) + (g1[i][1] * g2[i][1]) + (g1[i][2] * g2[i][2])) as f32
-            })
+            .map(|i| ((g1[i][0] * g2[i][0]) + (g1[i][1] * g2[i][1]) + (g1[i][2] * g2[i][2])) as f32)
             .collect();
         let idx = |[z, y, x]: [usize; 3]| (z * ny + y) * nx + x;
         for &s in self.seeds1.iter().chain(self.seeds2.iter()) {
@@ -106,7 +106,14 @@ impl CollidingFrontsFilter {
                 queue.push_back(i);
             }
         }
-        let face = [(-1i64, 0i64, 0i64), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)];
+        let face = [
+            (-1i64, 0i64, 0i64),
+            (1, 0, 0),
+            (0, -1, 0),
+            (0, 1, 0),
+            (0, 0, -1),
+            (0, 0, 1),
+        ];
         while let Some(i) = queue.pop_front() {
             out[i] = mult[i];
             let (z, y, x) = (i / (ny * nx), (i % (ny * nx)) / nx, i % nx);

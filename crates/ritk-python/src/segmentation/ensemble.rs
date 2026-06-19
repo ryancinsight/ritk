@@ -1,10 +1,10 @@
 //! Python bindings for ensemble segmentation (STAPLE) and GrowCut.
 
 use crate::errors::RitkResult;
+use crate::image::vec_to_image_like;
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use crate::image::vec_to_image_like;
 use ritk_segmentation::{
     growcut as core_growcut, multi_label_staple as core_multi_label_staple, staple as core_staple,
     StapleConvergence,

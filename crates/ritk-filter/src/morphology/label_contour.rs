@@ -132,9 +132,9 @@ impl LabelContourImageFilter {
                         (nl - label).abs() > 1e-5
                     };
                     let is_contour = match self.connectivity {
-                        Connectivity::Vertex26 => {
-                            n26.iter().any(|&(dz, dy, dx)| neighbour_differs(dz, dy, dx))
-                        }
+                        Connectivity::Vertex26 => n26
+                            .iter()
+                            .any(|&(dz, dy, dx)| neighbour_differs(dz, dy, dx)),
                         Connectivity::Face6 => {
                             N6.iter().any(|&(dz, dy, dx)| neighbour_differs(dz, dy, dx))
                         }
