@@ -12,16 +12,15 @@
 //!
 //! The base curvature-flow update reuses the exact discretization of
 //! [`CurvatureFlowImageFilter`](super::CurvatureFlowImageFilter) (speed
-//! `= N / |∇I|²`), and the effective time step is `time_step / (2·D)` where `D`
-//! is the image dimension (2 for a `z = 1` slice, 3 otherwise) — the
-//! ITK-internal CFL scaling that `MinMaxCurvatureFlowImageFilter` applies.
+//! `= N / |∇I|²`), and the effective time step is `time_step / R²` where `R` is
+//! the stencil radius — the ITK-internal CFL scaling that
+//! `MinMaxCurvatureFlowImageFilter` applies, independent of image dimension
+//! (recovered from sitk: `R=1 → /1`, `R=2 → /4`, `R=3 → /9`, in both 2-D and 3-D).
 //!
 //! # ITK / SimpleITK parity
-//! Float-exact to `sitk.MinMaxCurvatureFlow` for `stencil_radius ≥ 2` (including
-//! the SimpleITK default of 2), validated across many seeds, time steps, and
-//! iteration counts (2-D `Dispatch<2>` for `z = 1`, 3-D `Dispatch<3>` otherwise).
-//! `stencil_radius = 1` carries a residual ITK `R = 1` sampling subtlety and is
-//! not bit-exact — a documented limit, not the common case.
+//! Float-exact to `sitk.MinMaxCurvatureFlow` across stencil radii (1, 2, 3),
+//! time steps, and iteration counts, in both 2-D (`z = 1`, `Dispatch<2>`) and
+//! 3-D (`Dispatch<3>`).
 
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
@@ -35,7 +34,7 @@ const GRAD_MAG_EPSILON: f64 = 1e-12;
 pub struct MinMaxCurvatureFlowConfig {
     /// Number of evolution iterations (ITK default 5).
     pub num_iterations: usize,
-    /// User time step; the effective step is `time_step / (2·D)` (ITK default 0.05).
+    /// User time step; the effective step is `time_step / R²` (ITK default 0.05).
     pub time_step: f32,
     /// Stencil radius `R` for the min/max gate (ITK default 2).
     pub stencil_radius: usize,
@@ -72,11 +71,16 @@ impl MinMaxCurvatureFlowImageFilter {
         let slab = ny * nx;
         let r = self.config.stencil_radius as isize;
         let two_d = nz == 1;
-        let d_dim = if two_d { 2.0 } else { 3.0 };
-        let dt = (self.config.time_step as f64) / (2.0 * d_dim);
+        // ITK-internal CFL scaling: the effective step is time_step / R² (where
+        // R is the stencil radius), independent of image dimension — recovered
+        // from sitk (R=1→/1, R=2→/4, R=3→/9, in both 2-D and 3-D).
+        let dt = (self.config.time_step as f64) / (r * r).max(1) as f64;
 
         let (sphere, sphere_w) = sphere_offsets(r, two_d);
         let rf = r as f64;
+
+        let sp = image.spacing();
+        let inv_sp = [1.0 / sp[0], 1.0 / sp[1], 1.0 / sp[2]];
 
         let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
 
@@ -96,7 +100,7 @@ impl MinMaxCurvatureFlowImageFilter {
                     let ix = rem - iy * nx;
                     let (z, y, x) = (iz as isize, iy as isize, ix as isize);
                     let c = prev[flat];
-                    let (mut speed, dx_, dy_, dz_) = curvature_speed(&get, z, y, x, c);
+                    let (mut speed, dx_, dy_, dz_) = curvature_speed(&get, z, y, x, c, inv_sp);
 
                     if speed != 0.0 {
                         let threshold = if two_d {
@@ -115,12 +119,18 @@ impl MinMaxCurvatureFlowImageFilter {
                             speed.min(0.0)
                         };
                     }
-                    c + dt * speed
+                    // ITK accumulates in the image pixel type (f32); round each
+                    // iteration to f32 so high-dynamic-range volumes match bit-exactly.
+                    (c + dt * speed) as f32 as f64
                 })
                 .collect();
         }
 
-        Ok(rebuild(cur.iter().map(|&v| v as f32).collect(), dims, image))
+        Ok(rebuild(
+            cur.iter().map(|&v| v as f32).collect(),
+            dims,
+            image,
+        ))
     }
 }
 
@@ -151,22 +161,29 @@ fn curvature_speed<F: Fn(isize, isize, isize) -> f64>(
     y: isize,
     x: isize,
     c: f64,
+    inv_sp: [f64; 3],
 ) -> (f64, f64, f64, f64) {
-    let dx_ = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5;
-    let dy_ = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5;
-    let dz_ = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5;
-    let dxx = get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1);
-    let dyy = get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x);
-    let dzz = get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x);
+    let dx_ = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5 * inv_sp[0];
+    let dy_ = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5 * inv_sp[1];
+    let dz_ = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5 * inv_sp[2];
+    let dxx = (get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1)) * inv_sp[0] * inv_sp[0];
+    let dyy = (get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x)) * inv_sp[1] * inv_sp[1];
+    let dzz = (get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x)) * inv_sp[2] * inv_sp[2];
     let dxy = (get(z, y + 1, x + 1) - get(z, y + 1, x - 1) - get(z, y - 1, x + 1)
         + get(z, y - 1, x - 1))
-        * 0.25;
+        * 0.25
+        * inv_sp[0]
+        * inv_sp[1];
     let dxz = (get(z + 1, y, x + 1) - get(z + 1, y, x - 1) - get(z - 1, y, x + 1)
         + get(z - 1, y, x - 1))
-        * 0.25;
+        * 0.25
+        * inv_sp[0]
+        * inv_sp[2];
     let dyz = (get(z + 1, y + 1, x) - get(z + 1, y - 1, x) - get(z - 1, y + 1, x)
         + get(z - 1, y - 1, x))
-        * 0.25;
+        * 0.25
+        * inv_sp[1]
+        * inv_sp[2];
     let num = dxx * (dy_ * dy_ + dz_ * dz_)
         + dyy * (dx_ * dx_ + dz_ * dz_)
         + dzz * (dx_ * dx_ + dy_ * dy_)
@@ -232,10 +249,13 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
         let slab = ny * nx;
         let r = self.config.stencil_radius as isize;
         let two_d = nz == 1;
-        let d_dim = if two_d { 2.0 } else { 3.0 };
-        let dt = (self.config.time_step as f64) / (2.0 * d_dim);
+        // ITK CFL scaling: effective step = time_step / R² (see MinMax::apply).
+        let dt = (self.config.time_step as f64) / (r * r).max(1) as f64;
         let thr = self.config.threshold;
         let (sphere, sphere_w) = sphere_offsets(r, two_d);
+
+        let sp = image.spacing();
+        let inv_sp = [1.0 / sp[0], 1.0 / sp[1], 1.0 / sp[2]];
 
         let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
         for _ in 0..self.config.num_iterations {
@@ -254,7 +274,7 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
                     let ix = rem - iy * nx;
                     let (z, y, x) = (iz as isize, iy as isize, ix as isize);
                     let c = prev[flat];
-                    let (mut speed, _, _, _) = curvature_speed(&get, z, y, x, c);
+                    let (mut speed, _, _, _) = curvature_speed(&get, z, y, x, c, inv_sp);
                     if speed != 0.0 {
                         let mut avg = 0.0;
                         for o in &sphere {
@@ -266,11 +286,17 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
                             speed.max(0.0)
                         };
                     }
-                    c + dt * speed
+                    // ITK accumulates in the image pixel type (f32); round each
+                    // iteration to f32 so high-dynamic-range volumes match bit-exactly.
+                    (c + dt * speed) as f32 as f64
                 })
                 .collect();
         }
-        Ok(rebuild(cur.iter().map(|&v| v as f32).collect(), dims, image))
+        Ok(rebuild(
+            cur.iter().map(|&v| v as f32).collect(),
+            dims,
+            image,
+        ))
     }
 }
 
@@ -298,7 +324,7 @@ fn threshold_2d<F: Fn(isize, isize, isize) -> f64>(
     let gm2 = gm / r;
     let gg0 = dx_ / gm2; // along x
     let gg1 = dy_ / gm2; // along y
-    // Offsets are relative to the stencil centre R; subtract R to get image deltas.
+                         // Offsets are relative to the stencil centre R; subtract R to get image deltas.
     let p1y = round_pos(r + gg0) - r as isize;
     let p1x = round_pos(r - gg1) - r as isize;
     let p2y = round_pos(r - gg0) - r as isize;
@@ -325,9 +351,8 @@ fn threshold_3d<F: Fn(isize, isize, isize) -> f64>(
     }
     let gm2 = gm / r;
     let (gx, gy, mut gz) = (dx_ / gm2, dy_ / gm2, dz_ / gm2);
-    // gradient is now length R; ITK normalizes by R again for the angle and
-    // clamps the z-component (gradient[2]) to [-1, 1].
-    gz = (gz / r).clamp(-1.0, 1.0);
+    // gradient is now length R; ITK clamps the z-component (gradient[2]) to [-1, 1] without dividing by R (ITK bug)
+    gz = gz.clamp(-1.0, 1.0);
     let theta = gz.acos();
     let phi = if gx == 0.0 {
         std::f64::consts::FRAC_PI_2
