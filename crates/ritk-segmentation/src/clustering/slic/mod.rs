@@ -64,6 +64,7 @@ pub mod connectivity;
 pub mod coords;
 pub mod gradient;
 pub mod grid;
+pub mod itk;
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_core::image::Image;
