@@ -21,7 +21,7 @@ fn ncc_self_match_is_one() {
     let mask = img(vec![1.0; 9], dims);
     let out = normalized_correlation(&image, &mask, &template).unwrap();
     let (v, _) = extract_vec_infallible(&out);
-    let center = 1 * 3 + 1; // (z,y,x) = (0,1,1); z=0 means stride*0 = 0
+    let center = 3 + 1; // (z,y,x) = (0,1,1); flat index = 0*9 + 1*3 + 1
     assert!(
         (v[center] - 1.0).abs() < 1e-5,
         "self-match NCC = {}, want 1",
