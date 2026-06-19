@@ -237,3 +237,14 @@ iter: CalculateChange = curvature (CKS) on active layer, UpdateActiveLayerValues
 ∓1), then re-propagate. Build this in numpy → match sitk.AntiAliasBinary to 1e-2
 → port. Still ~500-line stateful port, but the init+propagation are now fully
 specified.
+EXACT PROPAGATION (`PropagateLayerValues`, sf.hxx:937): done layer-by-layer
+(status-tracked), NOT all-at-once over |φ|. For each pixel in the "to" layer,
+scan its neighbours in the adjacent inner "from" layer and pick the one closest
+to zero — OUTWARD (positive side): `value = min(from-neighbour values)`, then
+`+ m_ConstantGradientValue (1)`; INWARD (negative): `value = max(from-neighbour
+values)`, then `− 1`. Signed selection from the SPECIFIC inner layer, not an
+absolute-value city-block over all neighbours (my crude prototype's error).
+Order: layer 1 from layer 0, layer 2 from layer 1, etc. With this + the
+subvoxel active init, the SparseField algorithm is now 100% specified for the
+port — no further source reading needed; the remaining work is the faithful
+stateful implementation + end-to-end validation vs sitk.AntiAliasBinary.
