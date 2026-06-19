@@ -81,22 +81,26 @@ impl MinMaxCurvatureFlowImageFilter {
 
         let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
 
+        // Reusable double buffer: each sweep reads `cur`, writes `next`, then
+        // swaps — avoids the per-iteration `cur.clone()` + `collect()` (two
+        // N-element f64 allocations per iteration). Bit-identical: reading `cur`
+        // after the swap is exactly the previous sweep's `prev` clone.
+        let mut next: Vec<f64> = vec![0.0f64; n];
         for _ in 0..self.config.num_iterations {
-            let prev = cur.clone();
-            let get = |zz: isize, yy: isize, xx: isize| -> f64 {
-                let zc = zz.clamp(0, nz as isize - 1) as usize;
-                let yc = yy.clamp(0, ny as isize - 1) as usize;
-                let xc = xx.clamp(0, nx as isize - 1) as usize;
-                prev[zc * slab + yc * nx + xc]
-            };
-            cur = (0..n)
-                .map(|flat| {
+            {
+                let get = |zz: isize, yy: isize, xx: isize| -> f64 {
+                    let zc = zz.clamp(0, nz as isize - 1) as usize;
+                    let yc = yy.clamp(0, ny as isize - 1) as usize;
+                    let xc = xx.clamp(0, nx as isize - 1) as usize;
+                    cur[zc * slab + yc * nx + xc]
+                };
+                for flat in 0..n {
                     let iz = flat / slab;
                     let rem = flat - iz * slab;
                     let iy = rem / nx;
                     let ix = rem - iy * nx;
                     let (z, y, x) = (iz as isize, iy as isize, ix as isize);
-                    let c = prev[flat];
+                    let c = cur[flat];
                     let (mut speed, dx_, dy_, dz_) = curvature_speed(&get, z, y, x, c, inv_sp);
 
                     if speed != 0.0 {
@@ -118,9 +122,10 @@ impl MinMaxCurvatureFlowImageFilter {
                     }
                     // ITK accumulates in the image pixel type (f32); round each
                     // iteration to f32 so high-dynamic-range volumes match bit-exactly.
-                    (c + dt * speed) as f32 as f64
-                })
-                .collect();
+                    next[flat] = (c + dt * speed) as f32 as f64;
+                }
+            }
+            std::mem::swap(&mut cur, &mut next);
         }
 
         Ok(rebuild(
@@ -254,22 +259,24 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
         let inv_sp = [1.0 / sp[2], 1.0 / sp[1], 1.0 / sp[0]];
 
         let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
+        // Reusable double buffer (see the min/max path above): read `cur`, write
+        // `next`, swap — drops the per-iteration clone + collect allocations.
+        let mut next: Vec<f64> = vec![0.0f64; n];
         for _ in 0..self.config.num_iterations {
-            let prev = cur.clone();
-            let get = |zz: isize, yy: isize, xx: isize| -> f64 {
-                let zc = zz.clamp(0, nz as isize - 1) as usize;
-                let yc = yy.clamp(0, ny as isize - 1) as usize;
-                let xc = xx.clamp(0, nx as isize - 1) as usize;
-                prev[zc * slab + yc * nx + xc]
-            };
-            cur = (0..n)
-                .map(|flat| {
+            {
+                let get = |zz: isize, yy: isize, xx: isize| -> f64 {
+                    let zc = zz.clamp(0, nz as isize - 1) as usize;
+                    let yc = yy.clamp(0, ny as isize - 1) as usize;
+                    let xc = xx.clamp(0, nx as isize - 1) as usize;
+                    cur[zc * slab + yc * nx + xc]
+                };
+                for flat in 0..n {
                     let iz = flat / slab;
                     let rem = flat - iz * slab;
                     let iy = rem / nx;
                     let ix = rem - iy * nx;
                     let (z, y, x) = (iz as isize, iy as isize, ix as isize);
-                    let c = prev[flat];
+                    let c = cur[flat];
                     let (mut speed, _, _, _) = curvature_speed(&get, z, y, x, c, inv_sp);
                     if speed != 0.0 {
                         let mut avg = 0.0;
@@ -284,9 +291,10 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
                     }
                     // ITK accumulates in the image pixel type (f32); round each
                     // iteration to f32 so high-dynamic-range volumes match bit-exactly.
-                    (c + dt * speed) as f32 as f64
-                })
-                .collect();
+                    next[flat] = (c + dt * speed) as f32 as f64;
+                }
+            }
+            std::mem::swap(&mut cur, &mut next);
         }
         Ok(rebuild(
             cur.iter().map(|&v| v as f32).collect(),
