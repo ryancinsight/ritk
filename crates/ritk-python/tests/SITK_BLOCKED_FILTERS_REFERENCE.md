@@ -130,7 +130,38 @@ emerges from the full flooding + `AnalyzeBoundaryFlow` + flat-region merge +
 form, so a faithful prototype requires reimplementing the Segmenter itself. Total
 port ≈ 1900 lines across the two classes; no single-turn path exists.
 
-### PatchBasedDenoising — needs the seeded RNG sampler
+### PatchBasedDenoising — DETERMINISTIC (NOT RNG-blocked); needs the exact entropy-gradient formula
+**RECLASSIFIED (the "seeded RNG" blocker below was WRONG):** verified
+`sitk.PatchBasedDenoising` is fully DETERMINISTIC at the default/blocked-test
+config — run-twice identical, 200 vs 500 samples identical (the sampler covers
+the whole search window so the RNG draw order does not affect output), AND the
+output is SYMMETRIC for a symmetric input (L-R and U-D maxasym 0.0). So the
+earlier "impulse asymmetry ⇒ RNG required" conclusion was a measurement error;
+there is NO RNG dependence to port. The filter is portable deterministically.
+REMAINING GAP = the exact update formula. A plain-NLM prototype
+(`out = v + 0.2·Σ g·(vj−vp)/Σ g`, g = exp(−Σ wt·(vp−vj)²/(2σ²)), σ=400,
+patchRadius=2, cubic-smoothstep patch weights, rescale to [0,100]) gives
+max-err 1.45 / mean 0.37 vs sitk — close but not exact because the real update is
+the Awate–Whitaker JOINT-ENTROPY gradient ascent, not simple NLM. EXACT FORMULA EXTRACTED (itkPatchBasedDenoisingImageFilter.hxx::ComputeGradientJointEntropy,
+line 2092; config verified KernelBandwidthEstimation=OFF, NoiseModelFidelityWeight=0):
+the scalar update IS a gaussian-weighted center-difference (NLM mean-shift), NOT
+the Newton bandwidth-estimation term (that path is OFF):
+  `result = output + 0.2·smoothingWeight·gradientJointEntropy`  (stepSizeSmoothing=0.2)
+  `gradientJointEntropy = Σ_j centerDiff_j·G_j / (Σ_j G_j + minProb)`
+  `G_j = exp(−squaredNorm_j/(2·σ²))`, σ=kernelBandwidthSigma=400 in [0,100] space
+  `squaredNorm_j = Σ_patch wt·(v_p − v_j)²`, computed on IN-BOUNDS patch pixels only
+  (out-of-bounds patch positions skipped, NOT clamped — sf line 2138)
+  `centerDiff_j = v_j[center] − v_p[center]`; rescale to [0,100] then back.
+A prototype with all of this gives **max-err 1.45 / mean 0.37** vs sitk — close,
+deterministic, but not yet 1e-3. Remaining detail (NOT RNG): the exact patch
+weight form (ComputeSignedEuclideanDifferenceAndWeightedSquaredNorm) and/or the
+rescale min/max basis (PIXEL min/max vs patch-norm — UNRESOLVED per the cubic
+smoothstep note). Match that → port (NO RNG, deterministic). **This filter is
+RECLASSIFIED from "needs seeded RNG (hard/unvalidatable)" to "deterministic,
+formula-extracted, tractable port" — a major correction; the prior RNG blocker
+was a measurement error (output is symmetric for symmetric input).
+
+### (superseded) PatchBasedDenoising — needs the seeded RNG sampler
 Scalar default-config update (numberOfIterations=1, noiseModelFidelityWeight=0 ⇒
 no noise term, KernelBandwidthEstimationOff ⇒ fixed σ): rescale intensities to
 `[0,100]` (`v=(I−min)·100/(max−min)`); cubic-smoothstep patch weights
