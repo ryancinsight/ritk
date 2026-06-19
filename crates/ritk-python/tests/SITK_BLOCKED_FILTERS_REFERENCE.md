@@ -19,7 +19,7 @@ Measured by `ritk.<binding>` vs `sitk.<Filter>` on the inputs below
 | IsolatedWatershed | 0.0 label match | ✗ wrong algorithm |
 | PatchBasedDenoising | 25.1 max abs error | ✗ wrong |
 | ScalarChanAndVeseDenseLevelSet | 0.19 segmentation match | ✗ wrong |
-| AntiAliasBinary | corr −0.90, range ±1 vs sitk ±3 | ✗ wrong (no smoothing) |
+| AntiAliasBinary | sign FIXED (corr +0.90, 100% sign-agree); range ±1 vs sitk ±3 | ◐ sign correct, magnitude open |
 | CannySegmentationLevelSet | 6.73 max abs error | ✗ wrong |
 | CoherenceEnhancingDiffusion | — | no sitk oracle in this build |
 
@@ -60,18 +60,47 @@ weights candidates by seeded per-position frequencies. Requires porting that
 sampler bit-for-bit (MT19937 already exists in `noise/mersenne.rs`).
 
 ### ScalarChanAndVeseDenseLevelSet — needs the dense multiphase solver
-Curvature term `κ·δ` with `κ = N/|∇φ|³` (mean curvature numerator), `δ =
-(1/π)·ε/(ε²+φ²)`; region term `δ·[λ1(I−c1)² − λ2(I−c2)²]`; `c1,c2` =
-Heaviside-weighted inside/outside means recomputed per iteration; adaptive global
-`dt = m_DT/max|curvature_term|`, `m_DT = 1/(2·D)`; output is hard-binary; RMS-stop
-at maximumRMSError. A clean prototype reaches only **0.16** — the SharedData mean
-weighting, adaptive dt, Heaviside sign, and RMS iteration count are entangled and
-must all be bit-exact (the boundary is hyper-sensitive). Multi-session.
+Source-verified (`itkScalarChanAndVeseLevelSetFunction.hxx`,
+`itkRegionBasedLevelSetFunction.hxx`, both in Modules/Nonunit/Review/include):
+`ComputeInternalTerm` returns **raw** `(I−c1)²`, `ComputeExternalTerm` raw
+`(I−c2)²` — **no feature normalization anywhere**; `c1 = Σ(I·H)/ΣH`,
+`c2 = Σ(I·(1−H))/Σ(1−H)`. `ComputeGlobalTimeStep` sets `dt = m_DT/m_MaxCurvatureChange`
+(**curvature change only**; `m_MaxGlobalChange` is tracked but never used),
+`m_DT = 1/(2·D)`. Curvature `κ = N/|∇φ|³`, `δ = (1/π)·ε/(ε²+φ²)`, global term
+`δ·[λ1(I−c1)² − λ2(I−c2)²]`; output hard-binary; RMS-stop at maximumRMSError.
+**Two single-layer fix hypotheses empirically FALSIFIED** (this session):
+(1) feature-normalization — sitk does NOT normalize (scale 1 vs 100 give
+different segmentations, and saturate identically for scale ≥ 100, fg 476);
+(2) per-step signed-distance reinit — a full prototype with EDT reinit across
+{globsign ±1}×{reinit on/off} matches at best 0.285 (168 fg vs sitk 476), reinit
+makes it *worse*. The stabilization of raw ~thousand-scale region energy under a
+curvature-only dt comes from the `MultiphaseDenseFiniteDifferenceImageFilter`
+driver's internal mechanics (SharedData incremental c1/c2, reinitSmoothingWeight,
+the exact spacing-aware curvature, area/volume terms) acting together — genuinely
+multi-LAYERED, not a single missing piece. Multi-session; a clean prototype caps
+at ~0.16–0.285 and both single-layer shortcuts are now dead.
 
 ### AntiAliasBinary / CannySegmentationLevelSet — need SparseFieldLevelSet
 Both are `itk::SparseFieldLevelSetImageFilter` narrow-band evolutions
-(1000 iterations, status-layer active-set updates, RMS convergence) — highly
-order-sensitive. AntiAliasBinary smooths a binary image into a level set
-(range ±3, sitk); the agent's output is ±1 and inverted (no curvature-flow
-evolution). CannySegmentationLevelSet adds a Canny edge speed term. Both
-multi-session; the SparseField active-set update order must match ITK exactly.
+(status-layer active-set updates, RMS convergence) — highly order-sensitive.
+
+**AntiAliasBinary sign defect FIXED this session** (commit b17c2292):
+source-verified from `itkAntiAliasBinaryImageFilter.hxx::CalculateUpdateValue`
+— a foreground voxel (`== m_UpperBinaryValue`) is clamped to `max(new,0)` and
+background to `min(new,0)`, so foreground carries the **positive** sign and the
+zero iso-surface sits on the binary boundary. ritk initialised foreground to −1
+and omitted the per-step constraint; corrected to fg=+1/bg=−1 plus the clamp.
+Measured: corr −0.90 → **+0.9022, 100% per-voxel sign agreement**. The old
+fg-negative sign is incompatible with the constraint (collapses to 0).
+
+**Residual is magnitude only** and is genuinely SparseField-bound: ritk emits a
+±1 mean-curvature level set; sitk stores a ±3 narrow-band **signed distance**
+with subvoxel boundary precision (29 distinct values, e.g. ±1.509, ±1.697).
+Best dense approximations measured this session: clamped signed-distance of the
+original binary → corr 0.9947, **mean-err 0.073**; with curvature-flow evolution
+→ 0.18 (over-smooths). Both ≫ the 1e-2 differential threshold → the per-step
+SparseField narrow-band corner-antialiasing + layer quantization must be ported;
+a sign fix or static distance map is insufficient.
+
+CannySegmentationLevelSet adds a Canny edge speed term over the same SparseField.
+Both multi-session; the SparseField active-set update order must match ITK exactly.
