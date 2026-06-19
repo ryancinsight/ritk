@@ -1785,6 +1785,37 @@ def test_cmake_min_max_curvature_flow(time_step, iterations):
     )
 
 
+@pytest.mark.parametrize("threshold,iterations", [(0.0, 5), (0.5, 3)])
+def test_cmake_binary_min_max_curvature_flow(threshold, iterations):
+    """BinaryMinMaxCurvatureFlow: curvature flow gated by sphere-average vs a
+    scalar threshold. ritk `filter.binary_min_max_curvature_flow` vs
+    `sitk.BinaryMinMaxCurvatureFlow` (default stencilRadius=2). Float-exact."""
+    import numpy as _np
+
+    a = (_np.random.RandomState(2).rand(16, 18) * 2 - 1).astype(_np.float32)
+    ref = sitk.GetArrayFromImage(
+        sitk.BinaryMinMaxCurvatureFlow(
+            sitk.GetImageFromArray(a),
+            timeStep=0.05,
+            numberOfIterations=iterations,
+            stencilRadius=2,
+            threshold=threshold,
+        )
+    )
+    got = _np.squeeze(
+        _np.asarray(
+            ritk.filter.binary_min_max_curvature_flow(
+                ritk.Image(_np.ascontiguousarray(a[None])), 0.05, iterations, 2, threshold
+            ).to_numpy()
+        )
+    )
+    assert got.shape == ref.shape
+    assert float(_np.abs(ref - got).max()) < 2e-3, (
+        f"BinaryMinMaxCurvatureFlow(thr={threshold}) differs by "
+        f"{float(_np.abs(ref - got).max())}"
+    )
+
+
 def test_cmake_vector_confidence_connected():
     """VectorConfidenceConnected: Mahalanobis region growing on a vector image.
     ritk `segmentation.vector_confidence_connected_segment` vs

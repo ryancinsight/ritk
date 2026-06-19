@@ -8,6 +8,7 @@ use ritk_filter::diffusion::{
 };
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
+    BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
     CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter, CurvatureFlowConfig,
     CurvatureFlowImageFilter, MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
 };
@@ -181,6 +182,33 @@ pub fn min_max_curvature_flow(
             num_iterations: iterations,
             time_step: time_step as f32,
             stencil_radius,
+        })
+        .apply(image.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Apply binary min/max curvature flow: curvature flow gated by comparing the
+/// stencil-radius sphere average to a fixed `threshold`. ITK Parity:
+/// BinaryMinMaxCurvatureFlowImageFilter (`sitk.BinaryMinMaxCurvatureFlow`).
+#[pyfunction]
+#[pyo3(signature = (image, time_step=0.05, iterations=5, stencil_radius=2, threshold=0.0))]
+pub fn binary_min_max_curvature_flow(
+    py: Python<'_>,
+    image: &PyImage,
+    time_step: f64,
+    iterations: usize,
+    stencil_radius: usize,
+    threshold: f64,
+) -> RitkResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig {
+            num_iterations: iterations,
+            time_step: time_step as f32,
+            stencil_radius,
+            threshold,
         })
         .apply(image.as_ref())
         .map_err(|e| RitkPyError::runtime(e.to_string()))

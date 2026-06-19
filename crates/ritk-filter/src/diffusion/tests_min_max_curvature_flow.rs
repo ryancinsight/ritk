@@ -4,11 +4,55 @@
 //! (timeStep 0.05, 3 iterations, stencilRadius 2) on a deterministic structured
 //! 8×8 (z=1) input — an external oracle.
 
-use super::{MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter};
+use super::{
+    BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter, MinMaxCurvatureFlowConfig,
+    MinMaxCurvatureFlowImageFilter,
+};
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;
 
 type B = burn_ndarray::NdArray<f32>;
+
+#[test]
+fn binary_matches_sitk() {
+    let (h, w) = (8usize, 8usize);
+    let mut data = vec![0.0_f32; h * w];
+    for y in 0..h {
+        for x in 0..w {
+            let base = if (2..6).contains(&y) && (2..6).contains(&x) {
+                1.0
+            } else {
+                -1.0
+            };
+            data[y * w + x] = base + 0.1 * ((x + y) % 3) as f32 - 0.1;
+        }
+    }
+    let img = ts::make_image::<B, 3>(data, [1, h, w]);
+    let out = BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig {
+        num_iterations: 3,
+        time_step: 0.05,
+        stencil_radius: 2,
+        threshold: 0.0,
+    })
+    .apply(&img)
+    .unwrap();
+    let (got, _) = extract_vec(&out).unwrap();
+    let expect: [f32; 64] = [
+        -1.1, -1.0, -0.91031, -1.1, -1.0, -0.91027, -1.1, -1.0, -1.0, -0.92629, -1.1, -1.0,
+        -0.91108, -1.1, -1.0, -0.90996, -0.91031, -1.1, 0.90863, 1.1, 0.90984, 0.9089, -0.90878,
+        -1.1, -1.1, -1.0, 1.1, 0.90858, 1.0, 1.1, -1.1, -1.00515, -1.0, -0.91108, 0.90984, 1.0,
+        1.1, 0.9092, -1.0, -0.91003, -0.91027, -1.1, 0.9089, 1.1, 0.9092, 0.90858, -0.91248, -1.1,
+        -1.1, -1.0, -0.90878, -1.1, -1.0, -0.91248, -1.10998, -1.00526, -1.0, -0.90996, -1.1,
+        -1.00515, -0.91003, -1.1, -1.00526, -0.90376,
+    ];
+    for (i, (&g, &e)) in got.iter().zip(expect.iter()).enumerate() {
+        assert!(
+            (g - e).abs() < 2e-3,
+            "voxel {i}: ritk {g} vs sitk {e} (diff {})",
+            (g - e).abs()
+        );
+    }
+}
 
 #[test]
 fn matches_sitk_min_max_curvature_flow() {

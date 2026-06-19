@@ -36,6 +36,7 @@ pub use diffusion::{
     AnisotropicDiffusionFilter, CoherenceConfig, CoherenceEnhancingDiffusionFilter,
     ConductanceFunction, ConductanceKernel, CurvatureAnisotropicDiffusionFilter, CurvatureConfig,
     CurvatureFlowConfig, CurvatureFlowImageFilter, DiffusionConfig, ExponentialConductance,
+    BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
     GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, MinMaxCurvatureFlowConfig,
     MinMaxCurvatureFlowImageFilter, QuadraticConductance,
 };

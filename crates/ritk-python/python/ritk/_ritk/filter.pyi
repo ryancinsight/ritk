@@ -100,6 +100,16 @@ def min_max_curvature_flow(
     """Min/max curvature flow (curvature flow gated by a stencil min/max threshold). ITK Parity: MinMaxCurvatureFlowImageFilter (sitk.MinMaxCurvatureFlow)."""
     ...
 
+def binary_min_max_curvature_flow(
+    image: Image,
+    time_step: float = 0.05,
+    iterations: int = 5,
+    stencil_radius: int = 2,
+    threshold: float = 0.0,
+) -> Image:
+    """Binary min/max curvature flow (curvature flow gated by sphere-average vs scalar threshold). ITK Parity: BinaryMinMaxCurvatureFlowImageFilter (sitk.BinaryMinMaxCurvatureFlow)."""
+    ...
+
 def sato_line_filter(
     image: Image,
     scales: list[float] | None = None,

@@ -62,6 +62,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(curvature_anisotropic_diffusion, &m)?)?;
     m.add_function(wrap_pyfunction!(curvature_flow, &m)?)?;
     m.add_function(wrap_pyfunction!(min_max_curvature_flow, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_min_max_curvature_flow, &m)?)?;
     m.add_function(wrap_pyfunction!(recursive_gaussian, &m)?)?;
     m.add_function(wrap_pyfunction!(recursive_gaussian_directional, &m)?)?;
     // Edge detection

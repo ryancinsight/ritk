@@ -42,7 +42,10 @@ pub(crate) fn central_diff(
 pub use coherence::{CoherenceConfig, CoherenceEnhancingDiffusionFilter};
 pub use curvature::{CurvatureAnisotropicDiffusionFilter, CurvatureConfig};
 pub use curvature_flow::{CurvatureFlowConfig, CurvatureFlowImageFilter};
-pub use min_max_curvature_flow::{MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter};
+pub use min_max_curvature_flow::{
+    BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
+    MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
+};
 pub use gradient_anisotropic::{GradientAnisotropicDiffusionFilter, GradientDiffusionConfig};
 pub use perona_malik::{
     AnisotropicDiffusionFilter, ConductanceFunction, ConductanceKernel, DiffusionConfig,

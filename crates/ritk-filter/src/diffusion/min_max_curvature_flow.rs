@@ -75,19 +75,7 @@ impl MinMaxCurvatureFlowImageFilter {
         let d_dim = if two_d { 2.0 } else { 3.0 };
         let dt = (self.config.time_step as f64) / (2.0 * d_dim);
 
-        // Normalized sphere stencil offsets (Euclidean ball of radius R).
-        let mut sphere: Vec<[isize; 3]> = Vec::new();
-        let zr = if two_d { 0 } else { r };
-        for dz in -zr..=zr {
-            for dy in -r..=r {
-                for dx in -r..=r {
-                    if dz * dz + dy * dy + dx * dx <= r * r {
-                        sphere.push([dz, dy, dx]);
-                    }
-                }
-            }
-        }
-        let sphere_w = 1.0 / sphere.len() as f64;
+        let (sphere, sphere_w) = sphere_offsets(r, two_d);
         let rf = r as f64;
 
         let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
@@ -108,37 +96,7 @@ impl MinMaxCurvatureFlowImageFilter {
                     let ix = rem - iy * nx;
                     let (z, y, x) = (iz as isize, iy as isize, ix as isize);
                     let c = prev[flat];
-
-                    // First derivatives (central, half-step).
-                    let dx_ = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5;
-                    let dy_ = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5;
-                    let dz_ = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5;
-                    // Second derivatives.
-                    let dxx = get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1);
-                    let dyy = get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x);
-                    let dzz = get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x);
-                    let dxy = (get(z, y + 1, x + 1) - get(z, y + 1, x - 1) - get(z, y - 1, x + 1)
-                        + get(z, y - 1, x - 1))
-                        * 0.25;
-                    let dxz = (get(z + 1, y, x + 1) - get(z + 1, y, x - 1) - get(z - 1, y, x + 1)
-                        + get(z - 1, y, x - 1))
-                        * 0.25;
-                    let dyz = (get(z + 1, y + 1, x) - get(z + 1, y - 1, x) - get(z - 1, y + 1, x)
-                        + get(z - 1, y - 1, x))
-                        * 0.25;
-
-                    let num = dxx * (dy_ * dy_ + dz_ * dz_)
-                        + dyy * (dx_ * dx_ + dz_ * dz_)
-                        + dzz * (dx_ * dx_ + dy_ * dy_)
-                        - 2.0 * dx_ * dy_ * dxy
-                        - 2.0 * dx_ * dz_ * dxz
-                        - 2.0 * dy_ * dz_ * dyz;
-                    let grad_sq = dx_ * dx_ + dy_ * dy_ + dz_ * dz_;
-                    let mut speed = if grad_sq > GRAD_MAG_EPSILON {
-                        num / grad_sq
-                    } else {
-                        0.0
-                    };
+                    let (mut speed, dx_, dy_, dz_) = curvature_speed(&get, z, y, x, c);
 
                     if speed != 0.0 {
                         let threshold = if two_d {
@@ -162,6 +120,156 @@ impl MinMaxCurvatureFlowImageFilter {
                 .collect();
         }
 
+        Ok(rebuild(cur.iter().map(|&v| v as f32).collect(), dims, image))
+    }
+}
+
+/// Build the normalized Euclidean-ball stencil offsets of radius `r` (`z`-axis
+/// omitted when `two_d`).
+fn sphere_offsets(r: isize, two_d: bool) -> (Vec<[isize; 3]>, f64) {
+    let mut sphere = Vec::new();
+    let zr = if two_d { 0 } else { r };
+    for dz in -zr..=zr {
+        for dy in -r..=r {
+            for dx in -r..=r {
+                if dz * dz + dy * dy + dx * dx <= r * r {
+                    sphere.push([dz, dy, dx]);
+                }
+            }
+        }
+    }
+    let w = 1.0 / sphere.len() as f64;
+    (sphere, w)
+}
+
+/// Mean curvature-flow speed `N / |∇I|²` at a voxel, plus the first derivatives
+/// `(dx, dy, dz)` (reused by the directional threshold).  Matches the covered
+/// [`CurvatureFlowImageFilter`](super::CurvatureFlowImageFilter) discretization.
+fn curvature_speed<F: Fn(isize, isize, isize) -> f64>(
+    get: &F,
+    z: isize,
+    y: isize,
+    x: isize,
+    c: f64,
+) -> (f64, f64, f64, f64) {
+    let dx_ = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5;
+    let dy_ = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5;
+    let dz_ = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5;
+    let dxx = get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1);
+    let dyy = get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x);
+    let dzz = get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x);
+    let dxy = (get(z, y + 1, x + 1) - get(z, y + 1, x - 1) - get(z, y - 1, x + 1)
+        + get(z, y - 1, x - 1))
+        * 0.25;
+    let dxz = (get(z + 1, y, x + 1) - get(z + 1, y, x - 1) - get(z - 1, y, x + 1)
+        + get(z - 1, y, x - 1))
+        * 0.25;
+    let dyz = (get(z + 1, y + 1, x) - get(z + 1, y - 1, x) - get(z - 1, y + 1, x)
+        + get(z - 1, y - 1, x))
+        * 0.25;
+    let num = dxx * (dy_ * dy_ + dz_ * dz_)
+        + dyy * (dx_ * dx_ + dz_ * dz_)
+        + dzz * (dx_ * dx_ + dy_ * dy_)
+        - 2.0 * dx_ * dy_ * dxy
+        - 2.0 * dx_ * dz_ * dxz
+        - 2.0 * dy_ * dz_ * dyz;
+    let grad_sq = dx_ * dx_ + dy_ * dy_ + dz_ * dz_;
+    let speed = if grad_sq > GRAD_MAG_EPSILON {
+        num / grad_sq
+    } else {
+        0.0
+    };
+    (speed, dx_, dy_, dz_)
+}
+
+/// Configuration for [`BinaryMinMaxCurvatureFlowImageFilter`].
+#[derive(Debug, Clone, Copy)]
+pub struct BinaryMinMaxCurvatureFlowConfig {
+    /// Number of evolution iterations (ITK default 5).
+    pub num_iterations: usize,
+    /// User time step; effective step is `time_step / (2·D)` (ITK default 0.05).
+    pub time_step: f32,
+    /// Stencil radius `R` (ITK default 2).
+    pub stencil_radius: usize,
+    /// Scalar gate threshold (ITK default 0.0).
+    pub threshold: f64,
+}
+
+impl Default for BinaryMinMaxCurvatureFlowConfig {
+    fn default() -> Self {
+        Self {
+            num_iterations: 5,
+            time_step: 0.05,
+            stencil_radius: 2,
+            threshold: 0.0,
+        }
+    }
+}
+
+/// Binary min/max curvature flow (`itk::BinaryMinMaxCurvatureFlowImageFilter`).
+///
+/// Like [`MinMaxCurvatureFlowImageFilter`] but the speed gate compares the
+/// `R`-sphere average to a fixed scalar `threshold`: `avg < threshold ⇒
+/// min(v, 0)`, else `max(v, 0)` (note the direction is opposite to the
+/// directional-threshold variant).  Float-exact to `sitk.BinaryMinMaxCurvatureFlow`.
+#[derive(Debug, Clone, Copy)]
+pub struct BinaryMinMaxCurvatureFlowImageFilter {
+    /// Filter configuration.
+    pub config: BinaryMinMaxCurvatureFlowConfig,
+}
+
+impl BinaryMinMaxCurvatureFlowImageFilter {
+    /// Construct with the given configuration.
+    pub fn new(config: BinaryMinMaxCurvatureFlowConfig) -> Self {
+        Self { config }
+    }
+
+    /// Apply binary min/max curvature flow.
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+        let (vals_vec, dims) = extract_vec(image)?;
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        let slab = ny * nx;
+        let r = self.config.stencil_radius as isize;
+        let two_d = nz == 1;
+        let d_dim = if two_d { 2.0 } else { 3.0 };
+        let dt = (self.config.time_step as f64) / (2.0 * d_dim);
+        let thr = self.config.threshold;
+        let (sphere, sphere_w) = sphere_offsets(r, two_d);
+
+        let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
+        for _ in 0..self.config.num_iterations {
+            let prev = cur.clone();
+            let get = |zz: isize, yy: isize, xx: isize| -> f64 {
+                let zc = zz.clamp(0, nz as isize - 1) as usize;
+                let yc = yy.clamp(0, ny as isize - 1) as usize;
+                let xc = xx.clamp(0, nx as isize - 1) as usize;
+                prev[zc * slab + yc * nx + xc]
+            };
+            cur = (0..n)
+                .map(|flat| {
+                    let iz = flat / slab;
+                    let rem = flat - iz * slab;
+                    let iy = rem / nx;
+                    let ix = rem - iy * nx;
+                    let (z, y, x) = (iz as isize, iy as isize, ix as isize);
+                    let c = prev[flat];
+                    let (mut speed, _, _, _) = curvature_speed(&get, z, y, x, c);
+                    if speed != 0.0 {
+                        let mut avg = 0.0;
+                        for o in &sphere {
+                            avg += sphere_w * get(z + o[0], y + o[1], x + o[2]);
+                        }
+                        speed = if avg < thr {
+                            speed.min(0.0)
+                        } else {
+                            speed.max(0.0)
+                        };
+                    }
+                    c + dt * speed
+                })
+                .collect();
+        }
         Ok(rebuild(cur.iter().map(|&v| v as f32).collect(), dims, image))
     }
 }
