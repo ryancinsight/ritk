@@ -1329,6 +1329,30 @@ def test_cmake_adaptive_histogram_equalization(alpha, beta):
     )
 
 
+@pytest.mark.parametrize("req_frac", [0.25, 0.5])
+def test_cmake_masked_fft_normalized_correlation(req_frac):
+    """MaskedFFTNormalizedCorrelation (Padfield): masked NCC over all translations
+    via FFTs. ritk `filter.masked_fft_normalized_correlation` vs sitk. Float-exact
+    on the reliable (sufficient-overlap) region — `required_fraction` gates the
+    numerically-degenerate low-overlap edge voxels in both implementations."""
+    import numpy as _np
+    _np.random.seed(0)
+    F = (_np.random.rand(8, 9) * 100).astype(_np.float32)
+    Mf = (_np.random.rand(8, 9) > 0.2).astype(_np.float32)
+    T = (_np.random.rand(5, 6) * 100).astype(_np.float32)
+    Mt = (_np.random.rand(5, 6) > 0.2).astype(_np.float32)
+    so = sitk.GetArrayFromImage(sitk.MaskedFFTNormalizedCorrelation(
+        sitk.GetImageFromArray(F), sitk.GetImageFromArray(T),
+        sitk.GetImageFromArray(Mf), sitk.GetImageFromArray(Mt), 0, req_frac))
+    r = _np.squeeze(_np.asarray(ritk.filter.masked_fft_normalized_correlation(
+        ritk.Image(_np.ascontiguousarray(F[None])), ritk.Image(_np.ascontiguousarray(T[None])),
+        ritk.Image(_np.ascontiguousarray(Mf[None])), ritk.Image(_np.ascontiguousarray(Mt[None])),
+        0, req_frac).to_numpy()))
+    assert r.shape == so.shape, f"shape {r.shape} != {so.shape}"
+    assert float(_np.abs(r - so).max()) < 1e-3, \
+        f"MaskedFFTNormalizedCorrelation differs (max {float(_np.abs(r - so).max())})"
+
+
 @pytest.mark.parametrize("masked", [False, True])
 def test_cmake_normalized_correlation(masked):
     """NormalizedCorrelation: correlation of a locally-centered image neighborhood

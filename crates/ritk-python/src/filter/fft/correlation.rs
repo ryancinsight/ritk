@@ -169,3 +169,46 @@ pub fn normalized_correlation(
     })
     .map(into_py_image)
 }
+
+/// Masked FFT normalized cross-correlation (Padfield 2012), matching
+/// `SimpleITK.MaskedFFTNormalizedCorrelation`.
+///
+/// Correlates `fixed`/`moving` over every translation using their masks, via a
+/// handful of FFTs. Output extent is `fixed + moving − 1` per axis. Voxels with
+/// overlap below `required_number`/`required_fraction·maxOverlap` (or zero
+/// denominator) are 0.
+///
+/// Args:
+///     fixed, moving:           input images.
+///     fixed_mask, moving_mask: their masks (non-zero = valid).
+///     required_number_of_overlapping_pixels: min overlap (default 0).
+///     required_fraction_of_overlapping_pixels: min overlap fraction (default 0.0).
+///
+/// Returns:
+///     NCC PyImage of extent fixed+moving-1.
+#[pyfunction]
+#[pyo3(signature = (fixed, moving, fixed_mask, moving_mask,
+                    required_number_of_overlapping_pixels=0, required_fraction_of_overlapping_pixels=0.0_f32))]
+pub fn masked_fft_normalized_correlation(
+    py: Python<'_>,
+    fixed: &PyImage,
+    moving: &PyImage,
+    fixed_mask: &PyImage,
+    moving_mask: &PyImage,
+    required_number_of_overlapping_pixels: u64,
+    required_fraction_of_overlapping_pixels: f32,
+) -> RitkResult<PyImage> {
+    let f = Arc::clone(&fixed.inner);
+    let m = Arc::clone(&moving.inner);
+    let fm = Arc::clone(&fixed_mask.inner);
+    let mm = Arc::clone(&moving_mask.inner);
+    py.allow_threads(|| {
+        ritk_filter::MaskedFftNormalizedCorrelationFilter {
+            required_number_of_overlapping_pixels,
+            required_fraction_of_overlapping_pixels,
+        }
+        .apply(f.as_ref(), m.as_ref(), fm.as_ref(), mm.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}

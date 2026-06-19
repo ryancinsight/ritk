@@ -16,7 +16,10 @@ mod correlation;
 mod frequency;
 
 pub use convolution::{fft_convolve, fft_convolve_3d};
-pub use correlation::{fft_normalized_correlate, fft_normalized_correlate_3d, normalized_correlation};
+pub use correlation::{
+    fft_normalized_correlate, fft_normalized_correlate_3d, masked_fft_normalized_correlation,
+    normalized_correlation,
+};
 pub use frequency::{
     fft_butterworth_high_pass, fft_butterworth_low_pass, fft_ideal_high_pass, fft_ideal_low_pass,
 };

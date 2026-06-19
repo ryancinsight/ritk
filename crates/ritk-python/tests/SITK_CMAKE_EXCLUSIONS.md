@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **30 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **29 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -81,17 +81,7 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   √(ΣI² − (ΣI)²/N)` over the ZeroFluxNeumann neighbourhood. The earlier non-convergence was for lack of
   ITK's exact functor (the `k` scaling and the local-energy denominator); verified ≤1e-4 vs sitk
   (full + partial mask). The mask must be cast to float32 for `sitk.NormalizedCorrelation`.
-- **MaskedFFTNormalizedCorrelation** — the single remaining *genuinely reachable* filter (deterministic),
-  but it needs a new multi-FFT subsystem ritk lacks. Full algorithm understood from source
-  (`itk::MaskedFFTNormalizedCorrelationImageFilter`, Padfield 2012): rotate the moving image+mask 180°;
-  via ~10 FFTs at an FFTPad good-size (only 2/3/5 prime factors ≥ N₁+N₂−1) compute
-  `numberOfOverlapPixels = round(IFFT(M̂f·M̂t))` (positive-clamped), `numerator = IFFT(F̂·T̂) −
-  IFFT(F̂·M̂t)·IFFT(M̂f·T̂)/overlap`, fixed/moving denominator parts from `IFFT(F̂²·M̂t)` and
-  `IFFT(M̂f·T̂²)` minus their mask-correlation² /overlap, `denominator = √(fixedPart·movingPart)`,
-  `NCC = numerator/denominator` post-processed (0 where `denominator < precisionTolerance` or
-  `overlap < requiredOverlap`; clamp to [−1, 1]). The "full" output layout (size N₁+N₂−1) and the
-  CalculatePrecisionTolerance gating must match exactly. Scoped as a dedicated multi-turn port — not
-  rushed, since a wrong FFTPad size or tolerance would defeat bit-exactness.
+- **MaskedFFTNormalizedCorrelation** is now shipped float-exact (`filter.masked_fft_normalized_correlation`): Padfield 2012's masked NCC via ~10 FFTs (rotate moving 180°, overlap = round(IFFT(M̂f·M̂t)), numerator/denominator from the masked + squared-masked spectra, post-processed). Reuses ritk's `fft_nd`. Verified ≤1e-3 vs sitk on the reliable region; `required_fraction`/`required_number` gate the numerically-degenerate single-overlap edge voxels (zero local variance ⇒ rounding-noise-dependent, not bit-reproducible at fraction 0), exactly as ITK intends. The valid-region linear correlation is FFT-pad-size-independent, so it matches sitk's good-size FFT to rounding.
 
 ## Approximate by design (not bit-exact)
 
