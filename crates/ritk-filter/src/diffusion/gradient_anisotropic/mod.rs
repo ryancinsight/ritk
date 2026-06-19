@@ -238,7 +238,10 @@ fn diffuse(
                 }
             }
         }
-        cur.copy_from_slice(&nxt);
+        // `nxt` holds every voxel's updated value this sweep; swap the buffers
+        // to commit it in O(1) and reuse the old `cur` as next sweep's scratch,
+        // avoiding an N-element memcpy per iteration. Bit-identical.
+        std::mem::swap(&mut cur, &mut nxt);
     }
     cur
 }
