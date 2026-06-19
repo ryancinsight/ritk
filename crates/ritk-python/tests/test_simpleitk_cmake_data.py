@@ -1554,6 +1554,50 @@ def test_cmake_merge_label_map(method):
     )
 
 
+@pytest.mark.parametrize("use_spacing", [True, False])
+@pytest.mark.parametrize("radius", [1, 2])
+@pytest.mark.parametrize("op", ["dilate", "erode"])
+def test_cmake_label_set_morph(op, radius, use_spacing):
+    """LabelSetDilate / LabelSetErode: label-preserving Euclidean morphology
+    (Beare separable parabolic algorithm). ritk `segmentation.label_set_dilate`/
+    `label_set_erode` vs `sitk.LabelSetDilate`/`LabelSetErode`. Bit-exact — the
+    f64 squared-distance propagation and label contact points are ported exactly,
+    covering both world-unit (default) and voxel radius modes."""
+    import numpy as _np
+
+    # multi-label scene + a solid block exercise both spreading and shrinking.
+    a = _np.zeros((9, 9), _np.uint8)
+    a[1, 1] = 1
+    a[1, 2] = 1
+    a[5, 5] = 2
+    a[6, 6] = 2
+    a[3, 1] = 3
+    a[2:7, 3:8] = _np.where(a[2:7, 3:8] == 0, 4, a[2:7, 3:8])
+    sf = sitk.LabelSetDilate if op == "dilate" else sitk.LabelSetErode
+    rf = (
+        ritk.segmentation.label_set_dilate
+        if op == "dilate"
+        else ritk.segmentation.label_set_erode
+    )
+    ref = sitk.GetArrayFromImage(
+        sf(sitk.GetImageFromArray(a), [radius, radius], use_spacing)
+    ).astype(_np.float32)
+    r = _np.squeeze(
+        _np.asarray(
+            rf(
+                ritk.Image(_np.ascontiguousarray(a[None].astype(_np.float32))),
+                [float(radius), float(radius)],
+                use_spacing,
+            ).to_numpy()
+        )
+    )
+    assert r.shape == ref.shape
+    assert _np.array_equal(r, ref), (
+        f"LabelSet{op}(r={radius}, spacing={use_spacing}) differs at "
+        f"{int((r != ref).sum())} voxels"
+    )
+
+
 @pytest.mark.parametrize("req_frac", [0.25, 0.5])
 def test_cmake_masked_fft_normalized_correlation(req_frac):
     """MaskedFFTNormalizedCorrelation (Padfield): masked NCC over all translations

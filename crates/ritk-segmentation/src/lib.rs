@@ -30,9 +30,10 @@ pub use ensemble::{
     multi_label_staple, staple, MultiLabelStapleResult, StapleConvergence, StapleResult,
 };
 pub use labeling::{
-    connected_components, merge_label_maps, relabel_consecutive, scalar_connected_components,
-    ConnectedComponentsFilter, Connectivity, LabelStatistics, MergeLabelError, MergeLabelMethod,
-    RelabelComponentFilter, RelabelStatistics, ThresholdMaximumConnectedComponentsFilter,
+    connected_components, label_set_morph, merge_label_maps, relabel_consecutive,
+    scalar_connected_components, ConnectedComponentsFilter, Connectivity, LabelSetMorphOp,
+    LabelStatistics, MergeLabelError, MergeLabelMethod, RelabelComponentFilter, RelabelStatistics,
+    ThresholdMaximumConnectedComponentsFilter,
 };
 pub use level_set::{
     ChanVeseSegmentation, GeodesicActiveContourSegmentation, LaplacianLevelSet,

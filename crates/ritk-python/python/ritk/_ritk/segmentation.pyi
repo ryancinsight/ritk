@@ -56,6 +56,18 @@ def merge_label_map(label_images: list[Image], method: int = 0) -> Image:
     """Merge label images (0=Keep,1=Aggregate,2=Pack,3=Strict). ITK Parity: MergeLabelMapFilter (sitk.MergeLabelMap)."""
     ...
 
+def label_set_dilate(
+    label_image: Image, radius: list[float] = ..., use_image_spacing: bool = True
+) -> Image:
+    """Label-preserving Euclidean dilation. ITK Parity: LabelSetDilateImageFilter (sitk.LabelSetDilate)."""
+    ...
+
+def label_set_erode(
+    label_image: Image, radius: list[float] = ..., use_image_spacing: bool = True
+) -> Image:
+    """Label-preserving Euclidean erosion. ITK Parity: LabelSetErodeImageFilter (sitk.LabelSetErode)."""
+    ...
+
 def change_label(label_image: Image, change_map: dict[int, int]) -> Image:
     """Remap label values per {old: new}; others unchanged. ITK Parity: ChangeLabelImageFilter."""
     ...
@@ -233,4 +245,24 @@ def multi_label_staple(
 
     ITK Parity: MultiLabelSTAPLEImageFilter.
     """
+    ...
+
+def label_set_dilate(
+    label_image: Image,
+    radius: list[float] = [1.0, 1.0, 1.0],
+    use_image_spacing: bool = True,
+) -> Image:
+    """Label-preserving Euclidean dilation, matching sitk.LabelSetDilate.
+    Expands every label region by a per-axis Euclidean structuring element.
+    ITK Parity: LabelSetDilateImageFilter."""
+    ...
+
+def label_set_erode(
+    label_image: Image,
+    radius: list[float] = [1.0, 1.0, 1.0],
+    use_image_spacing: bool = True,
+) -> Image:
+    """Label-preserving Euclidean erosion, matching sitk.LabelSetErode.
+    Shrinks every label region by a per-axis Euclidean structuring element.
+    ITK Parity: LabelSetErodeImageFilter."""
     ...

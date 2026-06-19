@@ -11,10 +11,11 @@ use ritk_image::Image;
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components, ConnectedComponentsFilter,
-    merge_label_maps as core_merge_label_maps,
-    relabel_consecutive as core_relabel_consecutive, KMeansSegmentation, MarkerControlledWatershed,
-    MergeLabelMethod, MorphologicalWatershed, RelabelComponentFilter, SlicConfig,
-    SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter, WatershedSegmentation,
+    label_set_morph as core_label_set_morph, merge_label_maps as core_merge_label_maps,
+    relabel_consecutive as core_relabel_consecutive, KMeansSegmentation, LabelSetMorphOp,
+    MarkerControlledWatershed, MergeLabelMethod, MorphologicalWatershed, RelabelComponentFilter,
+    SlicConfig, SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter,
+    WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -185,6 +186,77 @@ pub fn merge_label_map(
         let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
         core_merge_label_maps(&refs, m).map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
+    Ok(into_py_image(out))
+}
+
+/// Label-preserving Euclidean dilation, matching `sitk.LabelSetDilate`.
+///
+/// Grows every label region by a Euclidean structuring element of per-axis
+/// `radius` (SimpleITK order `[x, y, z]`); overlaps resolve to the nearer region.
+///
+/// ITK Parity: `LabelSetDilateImageFilter`.
+///
+/// Args:
+///     label_image: integer label image (0 = background).
+///     radius: per-axis radius; scalar broadcast or `[rx, ry, rz]` (default 1).
+///     use_image_spacing: radius in world units (default True) or voxels.
+#[pyfunction]
+#[pyo3(signature = (label_image, radius=vec![1.0, 1.0, 1.0], use_image_spacing=true))]
+pub fn label_set_dilate(
+    py: Python<'_>,
+    label_image: &PyImage,
+    radius: Vec<f64>,
+    use_image_spacing: bool,
+) -> RitkResult<PyImage> {
+    label_set_morph_py(py, label_image, radius, use_image_spacing, LabelSetMorphOp::Dilate)
+}
+
+/// Label-preserving Euclidean erosion, matching `sitk.LabelSetErode`.
+///
+/// Shrinks every label region by a Euclidean structuring element of per-axis
+/// `radius` (SimpleITK order `[x, y, z]`); only voxels at least `radius` from
+/// their region boundary survive.
+///
+/// ITK Parity: `LabelSetErodeImageFilter`.
+///
+/// Args:
+///     label_image: integer label image (0 = background).
+///     radius: per-axis radius; scalar broadcast or `[rx, ry, rz]` (default 1).
+///     use_image_spacing: radius in world units (default True) or voxels.
+#[pyfunction]
+#[pyo3(signature = (label_image, radius=vec![1.0, 1.0, 1.0], use_image_spacing=true))]
+pub fn label_set_erode(
+    py: Python<'_>,
+    label_image: &PyImage,
+    radius: Vec<f64>,
+    use_image_spacing: bool,
+) -> RitkResult<PyImage> {
+    label_set_morph_py(py, label_image, radius, use_image_spacing, LabelSetMorphOp::Erode)
+}
+
+/// Shared driver for [`label_set_dilate`]/[`label_set_erode`]: normalize the
+/// SimpleITK `radius` argument (scalar or 2-/3-vector in `[x, y, z]` order) and
+/// dispatch to the core filter.
+fn label_set_morph_py(
+    py: Python<'_>,
+    label_image: &PyImage,
+    radius: Vec<f64>,
+    use_image_spacing: bool,
+    op: LabelSetMorphOp,
+) -> RitkResult<PyImage> {
+    let radius_itk: [f64; 3] = match radius.len() {
+        1 => [radius[0], radius[0], radius[0]],
+        2 => [radius[0], radius[1], 0.0],
+        3 => [radius[0], radius[1], radius[2]],
+        other => {
+            return Err(RitkPyError::value(format!(
+                "label_set radius must have 1, 2, or 3 elements, got {other}"
+            )))
+        }
+    };
+    let img = Arc::clone(&label_image.inner);
+    let out =
+        py.allow_threads(|| core_label_set_morph(img.as_ref(), radius_itk, use_image_spacing, op));
     Ok(into_py_image(out))
 }
 
