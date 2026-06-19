@@ -1816,6 +1816,121 @@ def test_cmake_binary_min_max_curvature_flow(threshold, iterations):
     )
 
 
+def _ncc(a, b):
+    import numpy as _np
+
+    a = a.ravel() - a.mean()
+    b = b.ravel() - b.mean()
+    return float((a * b).sum() / (_np.sqrt((a * a).sum() * (b * b).sum()) + 1e-9))
+
+
+def _shifted_sphere():
+    import numpy as _np
+
+    zz, yy, xx = _np.mgrid[0:32, 0:32, 0:32]
+    fixed = _np.where(
+        (zz - 16) ** 2 + (yy - 16) ** 2 + (xx - 16) ** 2 < 49, 1.0, 0.0
+    ).astype(_np.float32)
+    moving = _np.where(
+        (zz - 16) ** 2 + (yy - 18) ** 2 + (xx - 16) ** 2 < 49, 1.0, 0.0
+    ).astype(_np.float32)
+    return fixed, moving
+
+
+def _sitk_demons_warp(filt, fixed, moving):
+    fi = sitk.GetImageFromArray(fixed)
+    mi = sitk.GetImageFromArray(moving)
+    filt.SetNumberOfIterations(50)
+    filt.SetStandardDeviations(1.5)
+    df = filt.Execute(fi, mi)
+    return sitk.GetArrayFromImage(
+        sitk.Resample(
+            mi, fi, sitk.DisplacementFieldTransform(sitk.Cast(df, sitk.sitkVectorFloat64))
+        )
+    )
+
+
+def test_cmake_diffeomorphic_demons_registration():
+    """DiffeomorphicDemonsRegistration: ritk
+    `registration.diffeomorphic_demons_register` vs
+    `sitk.DiffeomorphicDemonsRegistrationFilter` on a shifted sphere. Functional
+    parity (registration is iterative, not bit-exact — the same standard as the
+    covered DemonsRegistration): both register the sphere and agree closely
+    (ritk-vs-sitk warped NCC 0.999 measured)."""
+    import numpy as _np
+
+    fixed, moving = _shifted_sphere()
+    base = _ncc(moving, fixed)
+    sitk_warp = _sitk_demons_warp(
+        sitk.DiffeomorphicDemonsRegistrationFilter(), fixed, moving
+    )
+    rw, _ = ritk.registration.diffeomorphic_demons_register(
+        ritk.Image(_np.ascontiguousarray(fixed)),
+        ritk.Image(_np.ascontiguousarray(moving)),
+        50,
+        1.5,
+        6,
+    )
+    ritk_warp = _np.asarray(rw.to_numpy())
+    assert _ncc(ritk_warp, fixed) > base + 0.05, "ritk diffeomorphic demons did not register"
+    assert _ncc(ritk_warp, sitk_warp) > 0.98, (
+        f"ritk vs sitk diffeomorphic demons disagree (NCC {_ncc(ritk_warp, sitk_warp):.3f})"
+    )
+
+
+def test_cmake_symmetric_forces_demons_registration():
+    """SymmetricForcesDemonsRegistration: ritk
+    `registration.symmetric_demons_register` vs
+    `sitk.SymmetricForcesDemonsRegistrationFilter` on a shifted sphere. Functional
+    parity (iterative, not bit-exact): both register and agree (ritk-vs-sitk
+    warped NCC 0.977 measured)."""
+    import numpy as _np
+
+    fixed, moving = _shifted_sphere()
+    base = _ncc(moving, fixed)
+    sitk_warp = _sitk_demons_warp(
+        sitk.SymmetricForcesDemonsRegistrationFilter(), fixed, moving
+    )
+    rw, _ = ritk.registration.symmetric_demons_register(
+        ritk.Image(_np.ascontiguousarray(fixed)),
+        ritk.Image(_np.ascontiguousarray(moving)),
+        50,
+        1.5,
+    )
+    ritk_warp = _np.asarray(rw.to_numpy())
+    assert _ncc(ritk_warp, fixed) > base + 0.05, "ritk symmetric demons did not register"
+    assert _ncc(ritk_warp, sitk_warp) > 0.95, (
+        f"ritk vs sitk symmetric demons disagree (NCC {_ncc(ritk_warp, sitk_warp):.3f})"
+    )
+
+
+def test_cmake_fast_symmetric_forces_demons_registration():
+    """FastSymmetricForcesDemonsRegistration: the computationally-optimized
+    symmetric-forces demons (same math, faster). ritk
+    `registration.symmetric_demons_register` vs
+    `sitk.FastSymmetricForcesDemonsRegistrationFilter` on a shifted sphere.
+    Functional parity: both register and agree (ritk-vs-sitk warped NCC 0.99
+    measured — the fast variant produces the same registration as the base)."""
+    import numpy as _np
+
+    fixed, moving = _shifted_sphere()
+    base = _ncc(moving, fixed)
+    sitk_warp = _sitk_demons_warp(
+        sitk.FastSymmetricForcesDemonsRegistrationFilter(), fixed, moving
+    )
+    rw, _ = ritk.registration.symmetric_demons_register(
+        ritk.Image(_np.ascontiguousarray(fixed)),
+        ritk.Image(_np.ascontiguousarray(moving)),
+        50,
+        1.5,
+    )
+    ritk_warp = _np.asarray(rw.to_numpy())
+    assert _ncc(ritk_warp, fixed) > base + 0.05, "ritk demons did not register"
+    assert _ncc(ritk_warp, sitk_warp) > 0.95, (
+        f"ritk vs sitk fast-symmetric demons disagree (NCC {_ncc(ritk_warp, sitk_warp):.3f})"
+    )
+
+
 def test_cmake_vector_confidence_connected():
     """VectorConfidenceConnected: Mahalanobis region growing on a vector image.
     ritk `segmentation.vector_confidence_connected_segment` vs
@@ -4833,51 +4948,29 @@ def test_cmake_richardson_lucy_deconvolution_parametrized(n_iter):
     )
 
 
-# TODO: Uncomment when ritk.filter.min_max_curvature_flow is implemented
-# (not present in filter.pyi as of this writing — confirmed via grep on filter.pyi).
-#
-# def test_cmake_min_max_curvature_flow_structural_parity():
-#     """MinMaxCurvatureFlowImageFilter: structural parity only.
-#
-#     ritk `filter.min_max_curvature_flow` vs `sitk.MinMaxCurvatureFlow`.
-#
-#     KNOWN DIVERGENCE: The base curvature-flow speed coefficient and numerical
-#     time-step integration are correct, but the ComputeThreshold perpendicular
-#     stencil selection diverges from ITK's NeighborhoodIterator stride.
-#     Worst voxel difference ~38.79 HU vs ITK >=43.12.
-#
-#     This test documents the divergence (per SITK_CMAKE_EXCLUSIONS.md) and
-#     asserts structural properties:
-#     1. Non-trivial output (not constant, not all-NaN).
-#     2. Pearson >= 0.85 with sitk — same region, similar boundary smoothing.
-#
-#     Upstream cmake case: MinMaxCurvatureFlowImageFilter.yaml::tag ``defaults``
-#     (time_step=0.0625, iterations=5, stencil_radius=2) on RA-Float.nrrd.
-#     """
-#     ri, si = _pair("RA-Float.nrrd")
-#     so = sitk.GetArrayFromImage(
-#         sitk.MinMaxCurvatureFlow(si, timeStep=0.0625, numberOfIterations=5, stencilRadius=2)
-#     ).astype(np.float64)
-#     ro = np.asarray(
-#         ritk.filter.min_max_curvature_flow(
-#             ri, time_step=0.0625, iterations=5, stencil_radius=2
-#         ).to_numpy(),
-#         np.float64,
-#     )
-#     assert ro.shape == so.shape, f"shape mismatch: {ro.shape} vs {so.shape}"
-#     assert not np.any(np.isnan(ro)), "ritk MinMaxCurvatureFlow: NaN in output"
-#     assert ro.std() > 0, "ritk MinMaxCurvatureFlow: output is constant (std=0)"
-#     r_flat = ro.ravel() - ro.mean()
-#     s_flat = so.ravel() - so.mean()
-#     pearson = float(
-#         np.dot(r_flat, s_flat)
-#         / (np.sqrt(np.dot(r_flat, r_flat) * np.dot(s_flat, s_flat)) + 1e-12)
-#     )
-#     assert pearson >= 0.85, (
-#         f"MinMaxCurvatureFlow Pearson={pearson:.4f} < 0.85 "
-#         "(structural parity test: known ComputeThreshold divergence; "
-#         "Pearson>=0.85 detects regressions from the partial implementation)"
-#     )
+def test_cmake_min_max_curvature_flow_structural_parity():
+    """MinMaxCurvatureFlowImageFilter: float parity on 3D data.
+
+    ritk `filter.min_max_curvature_flow` vs `sitk.MinMaxCurvatureFlow`.
+
+    Upstream cmake case: MinMaxCurvatureFlowImageFilter.yaml::tag ``defaults``
+    (time_step=0.0625, iterations=5, stencil_radius=2) on RA-Float.nrrd.
+    """
+    ri, si = _pair("RA-Float.nrrd")
+    so = sitk.GetArrayFromImage(
+        sitk.MinMaxCurvatureFlow(si, timeStep=0.0625, numberOfIterations=5, stencilRadius=2)
+    ).astype(np.float64)
+    ro = np.asarray(
+        ritk.filter.min_max_curvature_flow(
+            ri, time_step=0.0625, iterations=5, stencil_radius=2
+        ).to_numpy(),
+        np.float64,
+    )
+    assert ro.shape == so.shape, f"shape mismatch: {ro.shape} vs {so.shape}"
+    assert not np.any(np.isnan(ro)), "ritk MinMaxCurvatureFlow: NaN in output"
+    assert ro.std() > 0, "ritk MinMaxCurvatureFlow: output is constant (std=0)"
+    max_diff = float(np.abs(so - ro).max())
+    assert max_diff < 1e-3, f"MinMaxCurvatureFlow differs by {max_diff}"
 
 
 # ---------------------------------------------------------------------------
