@@ -160,6 +160,19 @@ smoothstep note). Match that → port (NO RNG, deterministic). **This filter is
 RECLASSIFIED from "needs seeded RNG (hard/unvalidatable)" to "deterministic,
 formula-extracted, tractable port" — a major correction; the prior RNG blocker
 was a measurement error (output is symmetric for symmetric input).
+RESIDUAL EXHAUSTIVELY NARROWED (all give max-err ~1.45, ruled OUT): sampler
+radius (=25, covers the whole test image — all patches are candidates), patch
+weights (uniform vs cubic-smoothstep identical), rescale basis ([0,100] vs
+original identical), global σ (=400 CONFIRMED — my denoising strength mean-change
+1.73 ≈ sitk's 1.76), self-inclusion (j==current), and squaredNorm normalization
+(sum vs mean over in-bounds). The strength matches but per-PIXEL values differ by
+≤1.45 → the residual is a deeper formula subtlety NOT among these: candidates are
+(a) the exact patch construction (shifted-neighbourhood like SparseField?), (b)
+the kernel form beyond exp(−sq/2σ²), or (c) a missing per-patch term in
+ComputeGradientJointEntropy. Read lines 2092-2325 + ComputeSignedEuclideanDiffer
+enceAndWeightedSquaredNorm (785) more closely to pin it. The filter remains
+deterministic + tractable (no RNG); this is a focused formula-debugging task, not
+a multi-session subsystem port.
 
 ### (superseded) PatchBasedDenoising — needs the seeded RNG sampler
 Scalar default-config update (numberOfIterations=1, noiseModelFidelityWeight=0 ⇒
