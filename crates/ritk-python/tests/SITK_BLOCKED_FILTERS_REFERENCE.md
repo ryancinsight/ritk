@@ -16,14 +16,15 @@ Measured by `ritk.<binding>` vs `sitk.<Filter>` on the inputs below
 | Filter | ritk vs sitk | Verdict |
 |--------|--------------|---------|
 | ContourExtractor2D | iso-contour vertices set-equal (square 24/24, two-blobs 26/26) | ✓ **correct** |
-| IsolatedWatershed | 0.0 label match | ✗ wrong algorithm |
+| IsolatedWatershed | gradient-watershed merge tree + binary search; sitk-exact | ✓ **FIXED** (commit cede4564) |
 | PatchBasedDenoising | 25.1 max abs error | ✗ wrong |
 | ScalarChanAndVeseDenseLevelSet | 0.19 segmentation match | ✗ wrong |
 | AntiAliasBinary | sign FIXED (corr +0.90, 100% sign-agree); range ±1 vs sitk ±3 | ◐ sign correct, magnitude open |
 | CannySegmentationLevelSet | 6.73 max abs error | ✗ wrong |
 | CoherenceEnhancingDiffusion | — | no sitk oracle in this build |
 
-Real validated-correct coverage is **~292/298**, not the generator's ~297.
+Real validated-correct coverage is **~293/298** (IsolatedWatershed closed this
+session, commit cede4564), not the generator's ~297.
 
 ## Correct algorithm per filter (from prototype-vs-sitk derivation)
 

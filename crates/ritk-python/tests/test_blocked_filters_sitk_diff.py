@@ -50,12 +50,14 @@ def test_contour_extractor_2d_matches_sitk():
     assert sv == rv
 
 
-@pytest.mark.xfail(
-    reason="ritk uses threshold-connectivity, not ITK's hierarchical watershed "
-    "Segmenter on the gradient; 0.0 label match. Needs itk::watershed::Segmenter.",
-    strict=False,
-)
 def test_isolated_watershed_matches_sitk():
+    """CORRECT: gradient-watershed merge tree + binary search matches sitk.
+
+    ritk now runs the hierarchical watershed (plateau-aware regional-minima
+    immersion + boundary-saliency merge, saliency = saddle - max(basin minima))
+    on the gradient magnitude and binary-searches the flood level until the
+    seeds separate, matching sitk.IsolatedWatershed.
+    """
     img = np.array(
         [[1, 1, 2, 5, 2, 1, 1], [1, 1, 2, 5, 2, 1, 1], [2, 2, 3, 6, 3, 2, 2],
          [5, 5, 6, 9, 6, 5, 5], [2, 2, 3, 6, 3, 2, 2], [1, 1, 2, 5, 2, 1, 1],
