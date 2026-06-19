@@ -104,8 +104,14 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   (`filter.iterative_inverse_displacement_field`): a negated-field-warped first guess refined by a
   per-voxel coordinate-descent line search (step-halving, ±step along each physical axis), reusing the
   shared ITK-faithful vector interpolation. Verified ≤1e-4 vs sitk (prototype matched to 2e-15 in f64).
-- **InverseDisplacementField** (scattered-data Landmark inversion via point-set interpolation) remains
-  uncovered — a different algorithm requiring a thin-plate/landmark interpolator, deferred.
+- **InverseDisplacementField** — investigated to source and reclassified as **not bit-exact
+  reproducible**: ITK's `InverseDisplacementFieldImageFilter` subsamples the field into landmark pairs
+  and fits a `ThinPlateSplineKernelTransform`, whose `ComputeWMatrix` solves the dense landmark
+  L-matrix with `vnl_svd` (threshold 1e-8). The result is a continuous field determined by VNL's
+  specific SVD rounding over a moderately ill-conditioned matrix; no independent linear-algebra
+  implementation reproduces that bit-for-bit, so float-exact parity is unattainable (same class as the
+  iterative PDE solvers below). The other two field inversions are covered — they are deterministic
+  interpolation + arithmetic, not a dense solve.
 - **BitwiseNot** — bitwise NOT depends on the integer pixel width (uint8 vs int16 …); ritk's
   scalar-f32 backend carries no bit-width, so the result is undefined.
 
