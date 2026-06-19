@@ -40,17 +40,22 @@ pub enum LabelSetMorphOp {
 /// First-pass dilation along a line: `dist`/`lab` are gathered line buffers
 /// (label values), producing the propagated distance and label.  Ports
 /// `DoLineDilateFirstPass`.
-fn dilate_first_line(lab_in: &[f32], sigma: f64, magnitude: f64, dist: &mut [f64], lab_out: &mut [f32]) {
+fn dilate_first_line(
+    lab_in: &[f32],
+    sigma: f64,
+    magnitude: f64,
+    dist: &mut [f64],
+    lab_out: &mut [f32],
+    line: &mut [f64],
+    tmp: &mut [f64],
+) {
     let n = lab_in.len();
     // line buffer initialized: sigma at labels, 0 at background.
-    let mut line: Vec<f64> = lab_in
-        .iter()
-        .map(|&l| if l != 0.0 { sigma } else { 0.0 })
-        .collect();
-    let mut tmp = vec![0.0_f64; n];
-    let mut new_lab = vec![0.0_f32; n];
+    for (l, &lab) in line.iter_mut().zip(lab_in) {
+        *l = if lab != 0.0 { sigma } else { 0.0 };
+    }
 
-    // left pass
+    // left pass → writes `tmp` and `lab_out`.
     let mut lastcontact: usize = 0;
     let mut lastval = line[0];
     for pos in 0..n {
@@ -61,13 +66,13 @@ fn dilate_first_line(lab_in: &[f32], sigma: f64, magnitude: f64, dist: &mut [f64
             lastval = line[pos];
         }
         tmp[pos] = line[pos].max(thisval);
-        new_lab[pos] = if thisval > line[pos] {
+        lab_out[pos] = if thisval > line[pos] {
             lab_in[lastcontact]
         } else {
             lab_in[pos]
         };
     }
-    // right pass
+    // right pass → reads `tmp`, writes `dist` and conditionally `lab_out`.
     lastcontact = n - 1;
     lastval = tmp[n - 1];
     for pos in (0..n).rev() {
@@ -77,21 +82,24 @@ fn dilate_first_line(lab_in: &[f32], sigma: f64, magnitude: f64, dist: &mut [f64
             lastcontact = pos;
             lastval = tmp[pos];
         }
-        line[pos] = tmp[pos].max(thisval);
+        dist[pos] = tmp[pos].max(thisval);
         if thisval > tmp[pos] {
-            new_lab[pos] = lab_in[lastcontact];
+            lab_out[pos] = lab_in[lastcontact];
         }
     }
-    dist.copy_from_slice(&line);
-    lab_out.copy_from_slice(&new_lab);
 }
 
 /// Subsequent-pass dilation along a line (contact-point label propagation).
 /// Ports `DoLineLabelProp<…, doDilate=true>`.  `dist`/`lab` are updated in place.
-fn dilate_prop_line(dist: &mut [f64], lab: &mut [f32], magnitude: f64, extreme: f64) {
+fn dilate_prop_line(
+    dist: &mut [f64],
+    lab: &mut [f32],
+    magnitude: f64,
+    extreme: f64,
+    tmp: &mut [f64],
+    tmp_lab: &mut [f32],
+) {
     let n = dist.len();
-    let mut tmp = vec![0.0_f64; n];
-    let mut tmp_lab = vec![0.0_f32; n];
 
     // negative half
     let mut koffset: isize = 0;
@@ -304,6 +312,14 @@ pub fn label_set_morph<B: Backend>(
     let mut dist = vec![0.0_f64; n];
     let mut first_pass_done = false;
 
+    // Per-scanline scratch, allocated once and reused across every line of every
+    // axis (sized to the longest axis) — the separable kernels write into slices
+    // of these instead of allocating fresh buffers per line.
+    let maxlen = *dims3.iter().max().unwrap_or(&0);
+    let mut s_line = vec![0.0_f64; maxlen];
+    let mut s_tmp = vec![0.0_f64; maxlen];
+    let mut s_f32 = vec![0.0_f32; maxlen];
+
     for d in 0..ndim {
         if scale[d] <= 0.0 {
             continue;
@@ -317,25 +333,58 @@ pub fn label_set_morph<B: Backend>(
             let magnitude = sign * iscale * iscale / 2.0;
             if do_dilate {
                 for_each_line(dims3, axis, &mut lab, &mut dist, |line_lab, line_dist| {
-                    let src = line_lab.clone();
-                    let mut out_lab = vec![0.0_f32; src.len()];
-                    dilate_first_line(&src, sigma, magnitude, line_dist, &mut out_lab);
-                    line_lab.copy_from_slice(&out_lab);
+                    let len = line_lab.len();
+                    dilate_first_line(
+                        line_lab,
+                        sigma,
+                        magnitude,
+                        line_dist,
+                        &mut s_f32[..len],
+                        &mut s_line[..len],
+                        &mut s_tmp[..len],
+                    );
+                    line_lab.copy_from_slice(&s_f32[..len]);
                 });
             } else {
                 for_each_line(dims3, axis, &mut lab, &mut dist, |line_lab, line_dist| {
-                    erode_first_dim(line_lab, line_dist, sigma, magnitude, base_sigma, last);
+                    let len = line_lab.len();
+                    erode_first_dim(
+                        line_lab,
+                        line_dist,
+                        sigma,
+                        magnitude,
+                        base_sigma,
+                        last,
+                        &mut s_line[..len],
+                    );
                 });
             }
         } else {
             let magnitude = sign * iscale * iscale / (2.0 * sigma);
             if do_dilate {
                 for_each_line(dims3, axis, &mut lab, &mut dist, |line_lab, line_dist| {
-                    dilate_prop_line(line_dist, line_lab, magnitude, extreme);
+                    let len = line_lab.len();
+                    dilate_prop_line(
+                        line_dist,
+                        line_lab,
+                        magnitude,
+                        extreme,
+                        &mut s_tmp[..len],
+                        &mut s_f32[..len],
+                    );
                 });
             } else {
                 for_each_line(dims3, axis, &mut lab, &mut dist, |line_lab, line_dist| {
-                    erode_subsequent_dim(line_lab, line_dist, magnitude, extreme, base_sigma, last);
+                    let len = line_lab.len();
+                    erode_subsequent_dim(
+                        line_lab,
+                        line_dist,
+                        magnitude,
+                        extreme,
+                        base_sigma,
+                        last,
+                        &mut s_line[..len],
+                    );
                 });
             }
         }
@@ -348,14 +397,20 @@ pub fn label_set_morph<B: Backend>(
 /// First erosion dimension: run-length encode, erode each run into the distance
 /// buffer, optionally threshold labels (`last` pass). Ports
 /// `doOneDimensionErodeFirstPass`.
-fn erode_first_dim(line_lab: &mut [f32], line_dist: &mut [f64], sigma: f64, magnitude: f64, base_sigma: f64, last: bool) {
+#[allow(clippy::too_many_arguments)]
+fn erode_first_dim(
+    line_lab: &mut [f32],
+    line_dist: &mut [f64],
+    sigma: f64,
+    magnitude: f64,
+    base_sigma: f64,
+    last: bool,
+    line: &mut [f64],
+) {
     let n = line_lab.len();
     // lineBuf init: 1.0 at labels (per ITK), but the per-run distances overwrite.
-    let mut line = vec![0.0_f64; n];
-    for i in 0..n {
-        if line_lab[i] != 0.0 {
-            line[i] = 1.0;
-        }
+    for (l, &lab) in line.iter_mut().zip(line_lab.iter()) {
+        *l = if lab != 0.0 { 1.0 } else { 0.0 };
     }
     for (first, lastpos) in label_runs(line_lab) {
         let sll = lastpos - first + 1;
@@ -365,7 +420,7 @@ fn erode_first_dim(line_lab: &mut [f32], line_dist: &mut [f64], sigma: f64, magn
         erode_first_run(sll, leftend, rightend, magnitude, sigma, &mut seg);
         line[first..=lastpos].copy_from_slice(&seg);
     }
-    line_dist.copy_from_slice(&line);
+    line_dist.copy_from_slice(line);
     if last {
         for i in 0..n {
             line_lab[i] = if line[i] == base_sigma { line_lab[i] } else { 0.0 };
@@ -375,9 +430,18 @@ fn erode_first_dim(line_lab: &mut [f32], line_dist: &mut [f64], sigma: f64, magn
 
 /// Subsequent erosion dimension: run-length encode, erode padded runs, threshold
 /// on the last pass. Ports `doOneDimensionErode`.
-fn erode_subsequent_dim(line_lab: &mut [f32], line_dist: &mut [f64], magnitude: f64, extreme: f64, base_sigma: f64, last: bool) {
+#[allow(clippy::too_many_arguments)]
+fn erode_subsequent_dim(
+    line_lab: &mut [f32],
+    line_dist: &mut [f64],
+    magnitude: f64,
+    extreme: f64,
+    base_sigma: f64,
+    last: bool,
+    line: &mut [f64],
+) {
     let n = line_lab.len();
-    let mut line = line_dist.to_vec();
+    line.copy_from_slice(line_dist);
     for (first, lastpos) in label_runs(line_lab) {
         let sll = lastpos - first + 1;
         let leftend = if first == 0 { base_sigma } else { 0.0 };
@@ -389,7 +453,7 @@ fn erode_subsequent_dim(line_lab: &mut [f32], line_dist: &mut [f64], magnitude: 
         erode_line_run(&mut buf, magnitude, extreme);
         line[first..=lastpos].copy_from_slice(&buf[1..=sll]);
     }
-    line_dist.copy_from_slice(&line);
+    line_dist.copy_from_slice(line);
     if last {
         for i in 0..n {
             line_lab[i] = if line[i] == base_sigma { line_lab[i] } else { 0.0 };
