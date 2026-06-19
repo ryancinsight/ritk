@@ -216,6 +216,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(zero_flux_neumann_pad, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_pad, &m)?)?;
     m.add_function(wrap_pyfunction!(permute_axes, &m)?)?;
+    m.add_function(wrap_pyfunction!(dicom_orient, &m)?)?;
     m.add_function(wrap_pyfunction!(paste, &m)?)?;
     // Spatial transforms
     m.add_function(wrap_pyfunction!(resample_image, &m)?)?;

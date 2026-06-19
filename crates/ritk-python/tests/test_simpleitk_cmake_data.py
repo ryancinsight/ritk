@@ -1220,6 +1220,49 @@ def test_cmake_fast_marching_variants(which):
     assert float(_np.abs(r - s).max()) < 1e-3, f"FastMarching{which} differs from sitk"
 
 
+def test_image_direction_getter_matches_sitk(tmp_path):
+    """PyImage.direction returns the cosine matrix in SimpleITK's (x, y, z)
+    row-major layout. An identity-LPS image round-tripped through NRRD loads with
+    the canonical (anti-diagonal) core direction that maps back to identity."""
+    import numpy as _np
+    arr = _np.arange(2 * 3 * 4, dtype=_np.float32).reshape(2, 3, 4)
+    si = sitk.GetImageFromArray(arr)
+    si.SetSpacing((3.0, 5.0, 7.0)); si.SetOrigin((10.0, 20.0, 30.0))
+    p = str(tmp_path / "id.nrrd"); sitk.WriteImage(si, p)
+    ri = ritk.io.read_image(p)
+    assert _np.allclose(_np.asarray(ri.direction), _np.asarray(si.GetDirection()), atol=1e-9)
+
+
+@pytest.mark.parametrize("target", ["LPS", "RAI", "RPS", "LAS", "LPI", "PIR", "ASL", "IRP"])
+def test_cmake_dicom_orient(target, tmp_path):
+    """DICOMOrient: relabel axes to a target orientation code, transforming data,
+    spacing, origin, and direction together. ritk `filter.dicom_orient` vs
+    `sitk.DICOMOrient`. Float-exact (the reorientation is a signed axis
+    permutation — no resampling). Input is an identity-LPS image loaded via
+    ritk.io so it carries the canonical direction."""
+    import numpy as _np
+    _np.random.seed(0)
+    arr = _np.random.rand(2, 3, 4).astype(_np.float32)
+    si = sitk.GetImageFromArray(arr)
+    si.SetSpacing((3.0, 5.0, 7.0)); si.SetOrigin((10.0, 20.0, 30.0))
+    p = str(tmp_path / "in.nrrd"); sitk.WriteImage(si, p)
+    ri = ritk.io.read_image(p)
+
+    so = sitk.DICOMOrient(si, target)
+    ro = ritk.filter.dicom_orient(ri, target)
+
+    s_arr = sitk.GetArrayFromImage(so)
+    r_arr = _np.asarray(ro.to_numpy())
+    assert r_arr.shape == s_arr.shape, f"{target}: shape {r_arr.shape} != {s_arr.shape}"
+    assert float(_np.abs(r_arr - s_arr).max()) < 1e-5, f"{target}: data differs"
+    # spacing: ritk (sz,sy,sx) vs sitk (sx,sy,sz)
+    assert _np.allclose(_np.asarray(ro.spacing)[::-1], _np.asarray(so.GetSpacing()), atol=1e-6)
+    # origin: ritk (oz,oy,ox) vs sitk (ox,oy,oz)
+    assert _np.allclose(_np.asarray(ro.origin)[::-1], _np.asarray(so.GetOrigin()), atol=1e-6)
+    # direction: ritk getter uses sitk layout directly
+    assert _np.allclose(_np.asarray(ro.direction), _np.asarray(so.GetDirection()), atol=1e-9)
+
+
 @pytest.mark.parametrize("connectivity", [True, False], ids=["connected", "raw"])
 def test_cmake_colliding_fronts(connectivity):
     """CollidingFronts: two fast-marching fronts collide; output is the dot

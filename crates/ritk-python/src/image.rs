@@ -124,6 +124,27 @@ impl PyImage {
         (o[2], o[1], o[0])
     }
 
+    /// Direction cosine matrix as a row-major 9-tuple in SimpleITK's `(x, y, z)`
+    /// world / image-axis convention — identical layout to
+    /// `sitk.Image.GetDirection()`.
+    ///
+    /// The core stores the matrix with columns indexed by tensor axis `[z, y, x]`
+    /// and rows by world component `[x, y, z]`; SimpleITK indexes image axis `j`
+    /// as `x, y, z` (= tensor axis `2 - j`). Hence `D_sitk[i][j] = D_core[(i, 2 - j)]`,
+    /// which maps the canonical loaded (anti-diagonal) core direction back to
+    /// SimpleITK's identity.
+    #[getter]
+    fn direction(&self) -> [f64; 9] {
+        let d = self.inner.direction();
+        let mut out = [0.0f64; 9];
+        for i in 0..3 {
+            for j in 0..3 {
+                out[i * 3 + j] = d[(i, 2 - j)];
+            }
+        }
+        out
+    }
+
     fn __repr__(&self) -> String {
         let s = self.inner.shape();
         let sp = self.inner.spacing();

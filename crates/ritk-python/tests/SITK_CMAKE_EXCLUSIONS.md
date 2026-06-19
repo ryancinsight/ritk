@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **38 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **37 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -81,9 +81,15 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 
 ## Binding-surface / representation blocked
 
-- **TransformGeometry, DICOMOrient** — both mutate the image Direction matrix, but ritk's Python
-  `Image` exposes no direction setter/getter (constructor takes `array/spacing/origin` only), so
-  the output geometry cannot be represented or validated through the binding.
+- **DICOMOrient** is now shipped float-exact (`filter.dicom_orient`): a signed axis permutation
+  (no resampling) computed from the input direction cosines to the target orientation code,
+  transforming data + spacing + origin + direction together (`OrientImageFilter`). `PyImage.direction`
+  now exposes the cosine matrix in SimpleITK's `(x,y,z)` row-major layout (`D_sitk[i][j] =
+  D_core[(i, 2-j)]`). Verified float-exact (array ≤1e-5, geometry ≤1e-9) across 8 orientation codes.
+- **TransformGeometry** — applies an affine transform to the image's origin and direction (pixels
+  unchanged). Now feasible via the `PyImage.direction` getter: `new_origin = A·origin + offset`,
+  `new_direction.col = A·old_direction.col` (A = the transform's linear part, world `(x,y,z)`).
+  Reachable, deferred (needs the transform's matrix/offset threaded through a thin binding).
 - **InverseDisplacementField, InvertDisplacementField, IterativeInverseDisplacementField** —
   invert a dense displacement field via scattered-data / fixed-point iteration over a vector
   field; needs vector-field warping (per-component) plus iteration, deferred.

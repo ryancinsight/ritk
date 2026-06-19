@@ -16,7 +16,7 @@ use ritk_filter::{
     gaussian_image_source as core_gaussian_image_source,
     grid_image_source as core_grid_image_source, ConstantPadImageFilter, CyclicShiftImageFilter,
     ExpandImageFilter, FftPadBoundary, FftPadImageFilter, FlipImageFilter, MirrorPadImageFilter,
-    Padding, PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
+    OrientImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
     ShrinkImageFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
 };
 use ritk_image::Image;
@@ -124,7 +124,11 @@ pub fn checker_board(
                 for x in 0..nx {
                     let cx = x * px / nx;
                     let i = z * ny * nx + y * nx + x;
-                    out[i] = if (cx + cy + cz) % 2 == 0 { da[i] } else { db[i] };
+                    out[i] = if (cx + cy + cz) % 2 == 0 {
+                        da[i]
+                    } else {
+                        db[i]
+                    };
                 }
             }
         }
@@ -468,8 +472,9 @@ pub fn shrink(
 #[pyfunction]
 pub fn expand(py: Python<'_>, image: &PyImage, factors: (usize, usize, usize)) -> PyImage {
     let arc = std::sync::Arc::clone(&image.inner);
-    let out = py
-        .allow_threads(|| ExpandImageFilter::new([factors.0, factors.1, factors.2]).apply(arc.as_ref()));
+    let out = py.allow_threads(|| {
+        ExpandImageFilter::new([factors.0, factors.1, factors.2]).apply(arc.as_ref())
+    });
     into_py_image(out)
 }
 
@@ -499,6 +504,22 @@ pub fn permute_axes(
     let arc = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
         PermuteAxesImageFilter::new([order.0, order.1, order.2])
+            .apply(arc.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Reorient the image to a target DICOM orientation code (`"LPS"`, `"RAI"`, …),
+/// relabeling the axes consistently across data, spacing, origin, and direction.
+/// ITK Parity: DICOMOrientImageFilter (`sitk.DICOMOrient`).
+#[pyfunction]
+pub fn dicom_orient(py: Python<'_>, image: &PyImage, orientation: &str) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let filter =
+        OrientImageFilter::from_code(orientation).map_err(|e| RitkPyError::value(e.to_string()))?;
+    py.allow_threads(|| {
+        filter
             .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
