@@ -11,7 +11,10 @@ pub use bspline_decomposition::bspline_decomposition;
 pub mod color;
 pub use color::map_color_components;
 pub mod colormap;
-pub use colormap::{Colormap, LabelOverlayFilter, LabelToRGBFilter, ScalarToRGBColormapFilter};
+pub use colormap::{
+    Colormap, LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter,
+    ScalarToRGBColormapFilter,
+};
 pub mod sources;
 pub use sources::{
     gabor_image_source, gaussian_image_source, grid_image_source, physical_point_image_source,

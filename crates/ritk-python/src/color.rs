@@ -14,9 +14,10 @@ use numpy::{ndarray::Array4, IntoPyArray, PyArray4, PyReadonlyArray4, PyUntypedA
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
-    map_color_components, physical_point_image_source as core_physical_point_image_source, Colormap,
-    GradientImageFilter, GradientRecursiveGaussianImageFilter, LabelOverlayFilter, LabelToRGBFilter,
-    MeanImageFilter, MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter,
+    map_color_components, physical_point_image_source as core_physical_point_image_source,
+    Colormap, GradientImageFilter, GradientRecursiveGaussianImageFilter,
+    LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter, MeanImageFilter,
+    MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter,
 };
 use ritk_image::{ColorVolume, Image};
 use std::sync::Arc;
@@ -295,7 +296,36 @@ pub fn label_overlay(
     let img = Arc::clone(&image.inner);
     let lab = Arc::clone(&label.inner);
     let out = py
-        .allow_threads(|| LabelOverlayFilter::new(opacity, background).apply(img.as_ref(), lab.as_ref()))
+        .allow_threads(|| {
+            LabelOverlayFilter::new(opacity, background).apply(img.as_ref(), lab.as_ref())
+        })
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok(PyColorImage {
+        inner: Arc::new(out),
+    })
+}
+
+/// Overlay the contours of a `label` image on a grayscale `image` as RGB,
+/// alpha-blending each label's contour band with ITK's colour table at
+/// `opacity`. ITK Parity: LabelMapContourOverlayImageFilter
+/// (`sitk.LabelMapContourOverlay` with default geometry: dilation radius 1,
+/// contour thickness 1, CONTOUR, HIGH_LABEL_ON_TOP).
+#[pyfunction]
+#[pyo3(signature = (image, label, opacity=0.5, background=0))]
+pub fn label_map_contour_overlay(
+    py: Python<'_>,
+    image: &PyImage,
+    label: &PyImage,
+    opacity: f64,
+    background: i64,
+) -> RitkResult<PyColorImage> {
+    let img = Arc::clone(&image.inner);
+    let lab = Arc::clone(&label.inner);
+    let out = py
+        .allow_threads(|| {
+            LabelMapContourOverlayFilter::new(opacity, background)
+                .apply(img.as_ref(), lab.as_ref())
+        })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),

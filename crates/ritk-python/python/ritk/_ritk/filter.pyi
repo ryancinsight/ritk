@@ -410,6 +410,12 @@ def label_overlay(
     """Overlay a label image on grayscale as RGB (alpha-blend with colour table). ITK Parity: LabelOverlayImageFilter."""
     ...
 
+def label_map_contour_overlay(
+    image: Image, label: Image, opacity: float = 0.5, background: int = 0
+) -> ColorImage:
+    """Overlay label contours on grayscale as RGB. ITK Parity: LabelMapContourOverlayImageFilter (sitk.LabelMapContourOverlay, default geometry)."""
+    ...
+
 def physical_point_image_source(
     size: tuple[int, int, int],
     origin: tuple[float, float, float] = (0.0, 0.0, 0.0),

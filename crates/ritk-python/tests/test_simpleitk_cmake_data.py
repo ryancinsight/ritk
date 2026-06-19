@@ -1604,6 +1604,66 @@ def test_cmake_label_set_morph(op, radius, use_spacing):
     )
 
 
+@pytest.mark.parametrize("opacity", [0.5, 1.0])
+def test_cmake_label_map_contour_overlay_2d(opacity):
+    """LabelMapContourOverlay (2-D): overlay label contour bands on a grayscale
+    image as RGB. ritk `filter.label_map_contour_overlay` vs
+    `sitk.LabelMapContourOverlay` (default geometry: dilation 1, thickness 1,
+    CONTOUR, HIGH_LABEL_ON_TOP). Bit-exact — ITK Ball(1)=3×3 box SE, erode with
+    foreground border, ascending-label priority, LabelOverlay blend."""
+    import numpy as _np
+
+    g = (_np.random.RandomState(4).rand(14, 14) * 255).astype(_np.uint8)
+    lab = _np.zeros((14, 14), _np.uint8)
+    lab[2:6, 2:6] = 1
+    lab[8:12, 8:12] = 2
+    lab[2:5, 9:12] = 3  # overlapping bbox with label 1's dilation region
+    lm = sitk.Cast(sitk.GetImageFromArray(lab), sitk.sitkLabelUInt16)
+    ref = sitk.GetArrayFromImage(
+        sitk.LabelMapContourOverlay(
+            lm, sitk.Cast(sitk.GetImageFromArray(g), sitk.sitkUInt8), opacity
+        )
+    ).astype(_np.float32)
+    rgb = ritk.filter.label_map_contour_overlay(
+        ritk.Image(_np.ascontiguousarray(g[None].astype(_np.float32))),
+        ritk.Image(_np.ascontiguousarray(lab[None].astype(_np.float32))),
+        opacity,
+    )
+    got = _np.squeeze(_np.asarray(rgb.to_numpy())).astype(_np.float32)
+    assert got.shape == ref.shape
+    assert _np.array_equal(got, ref), (
+        f"LabelMapContourOverlay(opacity={opacity}) differs at "
+        f"{int((got != ref).sum())} voxels"
+    )
+
+
+def test_cmake_label_map_contour_overlay_3d():
+    """LabelMapContourOverlay (3-D): exercises ITK Ball(1) = 18-neighborhood
+    (3×3×3 box minus the 8 vertex voxels). ritk vs sitk, bit-exact."""
+    import numpy as _np
+
+    g = (_np.random.RandomState(5).rand(7, 7, 7) * 200).astype(_np.uint8)
+    lab = _np.zeros((7, 7, 7), _np.uint8)
+    lab[1:4, 1:4, 1:4] = 1
+    lab[3:6, 3:6, 3:6] = 2
+    lm = sitk.Cast(sitk.GetImageFromArray(lab), sitk.sitkLabelUInt16)
+    ref = sitk.GetArrayFromImage(
+        sitk.LabelMapContourOverlay(
+            lm, sitk.Cast(sitk.GetImageFromArray(g), sitk.sitkUInt8), 0.5
+        )
+    ).astype(_np.float32)
+    rgb = ritk.filter.label_map_contour_overlay(
+        ritk.Image(_np.ascontiguousarray(g.astype(_np.float32))),
+        ritk.Image(_np.ascontiguousarray(lab.astype(_np.float32))),
+        0.5,
+    )
+    got = _np.asarray(rgb.to_numpy()).astype(_np.float32)
+    assert got.shape == ref.shape
+    assert _np.array_equal(got, ref), (
+        f"LabelMapContourOverlay 3D differs at {int((got != ref).sum())} voxels"
+    )
+
+
 @pytest.mark.parametrize("req_frac", [0.25, 0.5])
 def test_cmake_masked_fft_normalized_correlation(req_frac):
     """MaskedFFTNormalizedCorrelation (Padfield): masked NCC over all translations

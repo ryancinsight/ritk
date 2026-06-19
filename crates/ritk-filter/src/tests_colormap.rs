@@ -56,10 +56,7 @@ fn unsupported_colormap_rejected() {
 /// cycles with period 30 (label 31 == label 1's colour). Pinned by sitk probe.
 #[test]
 fn label_to_rgb_matches_itk_table_and_cycles() {
-    let img = ts::make_image::<B, 3>(
-        vec![0.0, 1.0, 2.0, 5.0, 7.0, 30.0, 31.0],
-        [1, 1, 7],
-    );
+    let img = ts::make_image::<B, 3>(vec![0.0, 1.0, 2.0, 5.0, 7.0, 30.0, 31.0], [1, 1, 7]);
     let out = LabelToRGBFilter::new(0).apply(&img).unwrap();
     let c = out.into_component_buffers();
     // (r,g,b) per voxel.
@@ -99,4 +96,53 @@ fn label_overlay_full_opacity_is_label_color() {
     let c = out.into_component_buffers();
     assert_eq!([c[0][0], c[1][0], c[2][0]], [0.0, 205.0, 0.0]);
     assert_eq!([c[0][1], c[1][1], c[2][1]], [0.0, 0.0, 255.0]);
+}
+
+/// LabelMapContourOverlay default geometry on an 8×8 (z=1) scene, vs the exact
+/// `sitk.LabelMapContourOverlay` RGB output (uint8 feature = arange 0..63).
+#[test]
+fn label_map_contour_overlay_matches_sitk() {
+    let gray: Vec<f32> = (0..64).map(|v| v as f32).collect();
+    let mut lab = vec![0.0_f32; 64];
+    for y in 1..4 {
+        for x in 1..4 {
+            lab[y * 8 + x] = 1.0;
+        }
+    }
+    for y in 4..7 {
+        for x in 4..7 {
+            lab[y * 8 + x] = 2.0;
+        }
+    }
+    let gi = ts::make_image::<B, 3>(gray, [1, 8, 8]);
+    let li = ts::make_image::<B, 3>(lab, [1, 8, 8]);
+    let out = LabelMapContourOverlayFilter::new(0.5, 0).apply(&gi, &li).unwrap();
+    let c = out.into_component_buffers();
+    let exp_r: Vec<f32> = [
+        0, 1, 2, 3, 2, 5, 6, 7, 8, 9, 10, 11, 6, 13, 14, 15, 16, 17, 18, 19, 10, 21, 22, 23, 24,
+        25, 26, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 37, 38, 39, 40, 41, 42, 21, 44, 45, 46, 47,
+        48, 49, 50, 25, 52, 53, 54, 55, 56, 57, 58, 29, 60, 61, 62, 63,
+    ]
+    .iter()
+    .map(|&v| v as f32)
+    .collect();
+    let exp_g: Vec<f32> = [
+        0, 1, 2, 3, 104, 5, 6, 7, 8, 9, 10, 11, 108, 13, 14, 15, 16, 17, 18, 19, 112, 21, 22, 23,
+        24, 25, 26, 13, 14, 14, 15, 15, 118, 119, 119, 17, 120, 37, 38, 39, 40, 41, 42, 21, 44, 45,
+        46, 47, 48, 49, 50, 25, 52, 53, 54, 55, 56, 57, 58, 29, 60, 61, 62, 63,
+    ]
+    .iter()
+    .map(|&v| v as f32)
+    .collect();
+    let exp_b: Vec<f32> = [
+        0, 1, 2, 3, 2, 5, 6, 7, 8, 9, 10, 11, 6, 13, 14, 15, 16, 17, 18, 19, 10, 21, 22, 23, 24,
+        25, 26, 141, 141, 142, 142, 143, 16, 16, 17, 145, 18, 37, 38, 39, 40, 41, 42, 149, 44, 45,
+        46, 47, 48, 49, 50, 153, 52, 53, 54, 55, 56, 57, 58, 157, 60, 61, 62, 63,
+    ]
+    .iter()
+    .map(|&v| v as f32)
+    .collect();
+    assert_eq!(c[0], exp_r, "R channel");
+    assert_eq!(c[1], exp_g, "G channel");
+    assert_eq!(c[2], exp_b, "B channel");
 }

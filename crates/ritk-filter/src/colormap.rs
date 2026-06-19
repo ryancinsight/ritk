@@ -22,7 +22,8 @@
 use anyhow::{bail, Result};
 use burn::tensor::backend::Backend;
 use ritk_image::{ColorVolume, Image};
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
+use std::collections::BTreeMap;
 
 /// Linear-LUT colormaps (those expressible without a piecewise table).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,9 +80,11 @@ impl ScalarToRGBColormapFilter {
     /// `[0, 255]`).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<ColorVolume<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let (min, max) = vals.iter().fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), &v| {
-            (lo.min(v), hi.max(v))
-        });
+        let (min, max) = vals
+            .iter()
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), &v| {
+                (lo.min(v), hi.max(v))
+            });
         let range = max - min;
 
         let n = vals.len();
@@ -260,6 +263,242 @@ impl LabelOverlayFilter {
             *image.direction(),
             &image.data().device(),
         )
+    }
+}
+
+/// Offsets of an ITK `FlatStructuringElement::Ball(radius)`: a neighbour offset
+/// `d` is in the element iff `Σ (d_a)² ≤ (r_a + 0.5)²` per axis combined as an
+/// ellipsoid `Σ (d_a / (r_a + 0.5))² ≤ 1`.  Axes of size 1 (degenerate, e.g. a
+/// 2-D `z = 1` volume) contribute no off-plane offset.
+fn ball_offsets(radius: [usize; 3], dims: [usize; 3]) -> Vec<[isize; 3]> {
+    let mut offs = Vec::new();
+    let r = radius.map(|x| x as isize);
+    let denom: [f64; 3] = std::array::from_fn(|a| {
+        let rr = radius[a] as f64 + 0.5;
+        rr * rr
+    });
+    for dz in -r[0]..=r[0] {
+        if dims[0] == 1 && dz != 0 {
+            continue;
+        }
+        for dy in -r[1]..=r[1] {
+            if dims[1] == 1 && dy != 0 {
+                continue;
+            }
+            for dx in -r[2]..=r[2] {
+                if dims[2] == 1 && dx != 0 {
+                    continue;
+                }
+                let s = (dz * dz) as f64 / denom[0]
+                    + (dy * dy) as f64 / denom[1]
+                    + (dx * dx) as f64 / denom[2];
+                if s <= 1.0 {
+                    offs.push([dz, dy, dx]);
+                }
+            }
+        }
+    }
+    offs
+}
+
+/// Overlay the **contours** of a label image on a grayscale image as RGB
+/// (`itk::LabelMapContourOverlayImageFilter` / `sitk.LabelMapContourOverlay`).
+///
+/// Each label region's contour band is `dilate(Ball(dilation_radius)) −
+/// erode(Ball(contour_thickness))` (binary dilation with a background border,
+/// binary erosion with ITK's default foreground border).  Contours are painted
+/// in ascending-label order so the higher label wins on overlap
+/// (`HIGH_LABEL_ON_TOP`), then alpha-blended onto the feature image with the same
+/// functor as [`LabelOverlayFilter`].
+///
+/// Geometric parameters are in ritk axis order `[z, y, x]`.  SimpleITK's default
+/// (`dilation_radius = contour_thickness = 1`, `CONTOUR`, `HIGH_LABEL_ON_TOP`) is
+/// reproduced bit-for-bit in both 2-D (`z = 1`) and 3-D.
+#[derive(Debug, Clone, Copy)]
+pub struct LabelMapContourOverlayFilter {
+    opacity: f64,
+    background: i64,
+    dilation_radius: [usize; 3],
+    contour_thickness: [usize; 3],
+}
+
+impl LabelMapContourOverlayFilter {
+    /// Construct with SimpleITK's default geometry (`dilation_radius =
+    /// contour_thickness = [1, 1, 1]`).
+    pub fn new(opacity: f64, background: i64) -> Self {
+        Self {
+            opacity,
+            background,
+            dilation_radius: [1, 1, 1],
+            contour_thickness: [1, 1, 1],
+        }
+    }
+
+    /// Override the per-axis dilation radius and contour thickness (ritk `[z, y, x]`).
+    pub fn with_geometry(
+        mut self,
+        dilation_radius: [usize; 3],
+        contour_thickness: [usize; 3],
+    ) -> Self {
+        self.dilation_radius = dilation_radius;
+        self.contour_thickness = contour_thickness;
+        self
+    }
+
+    /// Overlay label contours on `feature`, returning a 3-component RGB image.
+    pub fn apply<B: Backend>(
+        &self,
+        feature: &Image<B, 3>,
+        label: &Image<B, 3>,
+    ) -> Result<ColorVolume<B, 3>> {
+        let (lab, dims) = extract_vec(label)?;
+        let n = lab.len();
+        let [_, dy_n, dx_n] = dims;
+        let strides = [dy_n * dx_n, dx_n, 1usize];
+
+        // Collect each non-background label's voxel coordinates.
+        let mut by_label: BTreeMap<i64, Vec<[usize; 3]>> = BTreeMap::new();
+        for (i, &v) in lab.iter().enumerate() {
+            let l = v.round() as i64;
+            if l == self.background {
+                continue;
+            }
+            let z = i / strides[0];
+            let rem = i % strides[0];
+            let y = rem / strides[1];
+            let x = rem % strides[1];
+            by_label.entry(l).or_default().push([z, y, x]);
+        }
+
+        let dil = ball_offsets(self.dilation_radius, dims);
+        let thick = ball_offsets(self.contour_thickness, dims);
+        // Window margin per axis: dilation reach + thickness reach.
+        let margin = [
+            self.dilation_radius[0] + self.contour_thickness[0],
+            self.dilation_radius[1] + self.contour_thickness[1],
+            self.dilation_radius[2] + self.contour_thickness[2],
+        ];
+
+        // Contour-label image; ascending label order → higher label wins.
+        let mut contour_labels = vec![0.0_f32; n];
+        for (&lbl, coords) in &by_label {
+            contour_band(
+                coords, dims, strides, &dil, &thick, margin, lbl, &mut contour_labels,
+            );
+        }
+
+        let cl_image = rebuild(contour_labels, dims, label);
+        LabelOverlayFilter::new(self.opacity, self.background).apply(feature, &cl_image)
+    }
+}
+
+/// Write the contour band of one label into `out` (flat `[z,y,x]` buffer).
+///
+/// Computes `dilate(dil) − erode(thick)` over a clamped window around the label's
+/// bounding box: dilation treats out-of-image as background, erosion treats it as
+/// foreground (ITK `BinaryErode` default).  Sets `out[idx] = label` on the band.
+#[allow(clippy::too_many_arguments)]
+fn contour_band(
+    coords: &[[usize; 3]],
+    dims: [usize; 3],
+    strides: [usize; 3],
+    dil: &[[isize; 3]],
+    thick: &[[isize; 3]],
+    margin: [usize; 3],
+    label: i64,
+    out: &mut [f32],
+) {
+    // Bounding box.
+    let mut lo = [usize::MAX; 3];
+    let mut hi = [0usize; 3];
+    for c in coords {
+        for a in 0..3 {
+            lo[a] = lo[a].min(c[a]);
+            hi[a] = hi[a].max(c[a]);
+        }
+    }
+    // Clamped window.
+    let wlo: [usize; 3] = std::array::from_fn(|a| lo[a].saturating_sub(margin[a]));
+    let whi: [usize; 3] = std::array::from_fn(|a| (hi[a] + margin[a]).min(dims[a] - 1));
+    let wext: [usize; 3] = std::array::from_fn(|a| whi[a] - wlo[a] + 1);
+    let wn = wext[0] * wext[1] * wext[2];
+    let wstr = [wext[1] * wext[2], wext[2], 1usize];
+
+    let in_window = |z: isize, y: isize, x: isize| -> bool {
+        z >= wlo[0] as isize
+            && z <= whi[0] as isize
+            && y >= wlo[1] as isize
+            && y <= whi[1] as isize
+            && x >= wlo[2] as isize
+            && x <= whi[2] as isize
+    };
+    let in_image = |z: isize, y: isize, x: isize| -> bool {
+        z >= 0
+            && z < dims[0] as isize
+            && y >= 0
+            && y < dims[1] as isize
+            && x >= 0
+            && x < dims[2] as isize
+    };
+    let wlocal = |z: usize, y: usize, x: usize| -> usize {
+        (z - wlo[0]) * wstr[0] + (y - wlo[1]) * wstr[1] + (x - wlo[2]) * wstr[2]
+    };
+
+    // mask grid (label voxels within the window).
+    let mut mask = vec![false; wn];
+    for c in coords {
+        mask[wlocal(c[0], c[1], c[2])] = true;
+    }
+
+    // dilation: OR over `dil` offsets; out-of-window neighbour is background.
+    let mut dilate = vec![false; wn];
+    for z in wlo[0]..=whi[0] {
+        for y in wlo[1]..=whi[1] {
+            for x in wlo[2]..=whi[2] {
+                let mut v = false;
+                for o in dil {
+                    let (nz, ny, nx) = (z as isize + o[0], y as isize + o[1], x as isize + o[2]);
+                    if in_window(nz, ny, nx)
+                        && mask[wlocal(nz as usize, ny as usize, nx as usize)]
+                    {
+                        v = true;
+                        break;
+                    }
+                }
+                dilate[wlocal(z, y, x)] = v;
+            }
+        }
+    }
+
+    // erosion of `dilate` then contour = dilate & !erode.
+    for z in wlo[0]..=whi[0] {
+        for y in wlo[1]..=whi[1] {
+            for x in wlo[2]..=whi[2] {
+                let li = wlocal(z, y, x);
+                if !dilate[li] {
+                    continue;
+                }
+                let mut eroded = true;
+                for o in thick {
+                    let (nz, ny, nx) = (z as isize + o[0], y as isize + o[1], x as isize + o[2]);
+                    let neigh = if in_window(nz, ny, nx) {
+                        dilate[wlocal(nz as usize, ny as usize, nx as usize)]
+                    } else if in_image(nz, ny, nx) {
+                        false // in image, out of window → background of dilate
+                    } else {
+                        true // out of image → ITK foreground border
+                    };
+                    if !neigh {
+                        eroded = false;
+                        break;
+                    }
+                }
+                if !eroded {
+                    let gi = z * strides[0] + y * strides[1] + x * strides[2];
+                    out[gi] = label as f32;
+                }
+            }
+        }
     }
 }
 
