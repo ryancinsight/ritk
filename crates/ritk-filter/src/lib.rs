@@ -154,6 +154,7 @@ pub use transform::{
 // ── Surface & distance ───────────────────────────────────────────────────────
 pub mod colliding_fronts;
 pub mod displacement;
+pub mod invert_displacement;
 pub mod distance;
 pub mod fast_marching;
 pub mod fractal_dimension;
@@ -168,6 +169,7 @@ pub use distance::{
 };
 pub use colliding_fronts::CollidingFrontsFilter;
 pub use fast_marching::FastMarchingFilter;
+pub use invert_displacement::InvertDisplacementField;
 pub use fractal_dimension::StochasticFractalDimensionFilter;
 pub use iso_contour::IsoContourDistanceFilter;
 pub use warp::warp_image;

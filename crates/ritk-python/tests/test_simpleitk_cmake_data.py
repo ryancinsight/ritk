@@ -1252,6 +1252,34 @@ def test_cmake_transform_geometry(which, tmp_path):
     assert _np.allclose(_np.asarray(ro.direction), _np.asarray(so.GetDirection()), atol=1e-9)
 
 
+def test_cmake_invert_displacement_field():
+    """InvertDisplacementField: iterative fixed-point inversion of a dense 3-D
+    displacement field. ritk `filter.invert_displacement_field` vs
+    `sitk.InvertDisplacementField`. Float-exact (f32 rounding) — ITK's Chen et al.
+    scheme with vector linear interpolation, computed internally in f64."""
+    import numpy as _np
+    D, H, W = 5, 6, 7
+    zz, yy, xx = _np.mgrid[0:D, 0:H, 0:W]
+    u = _np.zeros((D, H, W, 3), _np.float32)  # (x, y, z) components
+    u[..., 0] = (1.2 * _np.sin(xx / 3.0) * _np.cos(yy / 4.0)).astype(_np.float32)
+    u[..., 1] = (0.8 * _np.cos(xx / 5.0)).astype(_np.float32)
+    u[..., 2] = (0.5 * _np.sin(zz / 3.0)).astype(_np.float32)
+    sp = (2.0, 3.0, 1.5)  # (sx, sy, sz)
+    field = sitk.GetImageFromArray(u, isVector=True); field.SetSpacing(sp)
+    sinv = sitk.GetArrayFromImage(sitk.InvertDisplacementField(field))  # [D,H,W,3]
+
+    def comp(c):
+        # ritk spacing is [z, y, x]; sitk sp is (sx, sy, sz).
+        return ritk.Image(_np.ascontiguousarray(u[..., c]), spacing=(sp[2], sp[1], sp[0]))
+    # ritk takes (disp_z, disp_y, disp_x) = components (2, 1, 0)
+    rz, ry, rx = ritk.filter.invert_displacement_field(comp(2), comp(1), comp(0))
+    r = _np.stack([_np.asarray(rx.to_numpy()), _np.asarray(ry.to_numpy()),
+                   _np.asarray(rz.to_numpy())], axis=-1)
+    assert r.shape == sinv.shape, f"shape {r.shape} != {sinv.shape}"
+    assert float(_np.abs(r - sinv).max()) < 1e-4, \
+        f"InvertDisplacementField differs (max {float(_np.abs(r - sinv).max())})"
+
+
 @pytest.mark.parametrize("seed", [1, 7, 13])
 def test_cmake_multi_label_staple(seed):
     """MultiLabelSTAPLE: EM consensus of K integer label maps. ritk

@@ -589,6 +589,56 @@ pub fn transform_geometry(
     .map(into_py_image)
 }
 
+// ── InvertDisplacementField ────────────────────────────────────────────────
+
+/// Iteratively invert a dense displacement field, matching
+/// `SimpleITK.InvertDisplacementField`.
+///
+/// The field is given as world components `(disp_z, disp_y, disp_x)` (each a
+/// `[z,y,x]` scalar image, the order `filter.warp` consumes), and the inverse is
+/// returned in the same `(disp_z, disp_y, disp_x)` order. Uses ITK's Chen et al.
+/// fixed-point scheme with vector linear interpolation; internal arithmetic is
+/// f64. Float-exact to sitk.
+///
+/// Args:
+///     disp_z, disp_y, disp_x: forward displacement components (world frame).
+///     max_iterations:         fixed-point iterations (default 10).
+///     max_error_tolerance:    max scaled-residual stopping threshold (default 0.1).
+///     mean_error_tolerance:   mean scaled-residual stopping threshold (default 0.001).
+///     enforce_boundary:       pin the inverse to zero on the border (default True).
+///
+/// Returns:
+///     (inv_disp_z, inv_disp_y, inv_disp_x): inverted components.
+#[pyfunction]
+#[pyo3(signature = (disp_z, disp_y, disp_x, max_iterations=10, max_error_tolerance=0.1,
+                    mean_error_tolerance=0.001, enforce_boundary=true))]
+#[allow(clippy::too_many_arguments)]
+pub fn invert_displacement_field(
+    py: Python<'_>,
+    disp_z: &PyImage,
+    disp_y: &PyImage,
+    disp_x: &PyImage,
+    max_iterations: usize,
+    max_error_tolerance: f64,
+    mean_error_tolerance: f64,
+    enforce_boundary: bool,
+) -> (PyImage, PyImage, PyImage) {
+    let az = std::sync::Arc::clone(&disp_z.inner);
+    let ay = std::sync::Arc::clone(&disp_y.inner);
+    let ax = std::sync::Arc::clone(&disp_x.inner);
+    let (vx, vy, vz) = py.allow_threads(|| {
+        ritk_filter::InvertDisplacementField {
+            max_iterations,
+            max_error_tolerance,
+            mean_error_tolerance,
+            enforce_boundary,
+        }
+        .apply(ax.as_ref(), ay.as_ref(), az.as_ref())
+    });
+    // Return in (disp_z, disp_y, disp_x) order to match the input convention.
+    (into_py_image(vz), into_py_image(vy), into_py_image(vx))
+}
+
 // ── StochasticFractalDimension ─────────────────────────────────────────────
 
 /// Per-voxel stochastic fractal dimension, matching

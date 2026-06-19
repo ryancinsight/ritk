@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **35 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **34 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -95,9 +95,14 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   transform to the image's origin + direction (pixels/spacing unchanged) via ITK's inverse linear
   map `origin' = A⁻¹·(origin − c − t) + c`, `direction'.col = A⁻¹·direction.col`. Verified vs
   `sitk.TransformGeometry` across translation, rotation, and non-identity-direction cases.
-- **InverseDisplacementField, InvertDisplacementField, IterativeInverseDisplacementField** —
-  invert a dense displacement field via scattered-data / fixed-point iteration over a vector
-  field; needs vector-field warping (per-component) plus iteration, deferred.
+- **InvertDisplacementField** is now shipped float-exact (`filter.invert_displacement_field`): ITK's
+  Chen et al. fixed-point scheme over the 3 world components (`v ← v + ε·clamp(−(v + u∘(id+v)))`,
+  ε = 0.75 then 0.5, scaled-norm clamp, boundary pinned). The key to bit-exactness was matching ITK's
+  vector-linear `IsInsideBuffer` edge semantics (continuous index outside `[−0.5, size−0.5]` → zero
+  vector; upper neighbour clamped). Internal f64; verified ≤1e-4 vs sitk on a smooth aniso field.
+- **InverseDisplacementField** (scattered-data Landmark inversion) and
+  **IterativeInverseDisplacementField** (a distinct, simpler back-substitution iteration) remain
+  uncovered — different algorithms from `InvertDisplacementField`, deferred.
 - **BitwiseNot** — bitwise NOT depends on the integer pixel width (uint8 vs int16 …); ritk's
   scalar-f32 backend carries no bit-width, so the result is undefined.
 
