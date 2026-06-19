@@ -96,6 +96,18 @@ saliencies. So the port path: regional-minima + immersion + dynamic merge
 (validated) + binary search over level until seeds separate + label seed1=1,
 seed2=2, rest=0. The hard part (saliency) is solved and validated.
 
+**End-to-end IsolatedWatershed status (honest, partial):** the prototype
+(gradient magnitude + this merge + binary search) matches sitk.IsolatedWatershed
+EXACTLY on symmetric cases (sym7x7 axis 1.0, diagonal 1.0 — where all 6 prior
+prototypes scored 0.0–0.84) but DIVERGES on general cases (two-slab 0.074, random
+0.6–0.9). Remaining gaps, in priority order: (1) the prototype's `np.gradient`
+≠ ITK `GradientMagnitudeImageFilter` (different boundary discretization) — the
+Rust port must use ritk's already-validated `gradient_magnitude`; (2) partition
+tie-breaking (which basin a seed falls in DOES matter for the 2-seed output on
+asymmetric reliefs). So the merge saliency is solved+validated, symmetric
+IsolatedWatershed is exact, but general-case parity still needs the exact
+gradient + tie-break. NOT yet closable; materially de-risked, not done.
+
 **No closed-form shortcut for the raw Segmenter** (`itkWatershedSegmenter.hxx`, 1315 lines):
 `MaxDepth = maximum − minimum` (intensity range), but the per-edge saliency
 emerges from the full flooding + `AnalyzeBoundaryFlow` + flat-region merge +
