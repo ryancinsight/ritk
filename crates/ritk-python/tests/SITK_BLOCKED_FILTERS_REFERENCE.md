@@ -60,7 +60,32 @@ genuinely multi-session. My prototypes (descent, minimax, minimax-reachability,
 catchment, immersion, full-immersion) all fail because none computes the exact
 depth-relative edge saliency + FloodLevel·MaxDepth merge order.
 
-**No closed-form shortcut** (`itkWatershedSegmenter.hxx`, 1315 lines):
+**SALIENCY FORMULA CRACKED + VALIDATED** (this session, prototype vs
+`sitk.MorphologicalWatershed(level)`): the merge algorithm that all 6 prior
+prototype variants missed is now pinned and validated to **exact segment count at
+all 10 levels (0.0–1.0) across 6 images** (sym7x7 + 5 random):
+1. **Basins** = regional minima (plateau-aware: a connected equal-value region
+   with no strictly-lower neighbour is one basin) + priority-queue immersion flood
+   from those minima in increasing value order. Matches sitk at level 0 exactly.
+2. **Saddle** between two basins = min over their shared boundary of
+   `max(value_a, value_b)` (lowest connecting ridge height).
+3. **Saliency** (the crux) = `saddle − max(depth_a, depth_b)` where depth = the
+   basin's MINIMUM value. It is the SHALLOWER basin's persistence (shallower =
+   higher minimum = `max` of the two minima), NOT `saddle − min`. Using `min`
+   under-merges; `max` matches sitk's segment counts exactly.
+4. **Merge** = dynamic/iterative: pop the lowest-saliency edge, union the two
+   basins (merged depth = `min` of the two minima — inherits the deeper), then
+   recompute the saliency of the merged basin's edges (lazy re-push on stale).
+   Stop when the lowest remaining saliency `> level`.
+5. **Level** is the absolute saliency threshold (sitk's `level` param directly;
+   for the normalized form `m_FloodLevel·MaxDepth`).
+REMAINING: only fine **partition tie-breaking** (same segment count, slightly
+different basin grouping / watershed-line pixels) when edges share equal saliency
+— needs ITK's exact immersion FIFO order + merge tie order. The hard part (the
+saliency definition) is solved; this de-risks the port to: regional-minima +
+immersion + this dynamic merge + tie-break + IsolatedWatershed binary search.
+
+**No closed-form shortcut for the raw Segmenter** (`itkWatershedSegmenter.hxx`, 1315 lines):
 `MaxDepth = maximum − minimum` (intensity range), but the per-edge saliency
 emerges from the full flooding + `AnalyzeBoundaryFlow` + flat-region merge +
 `UpdateSegmentTable` pipeline — it cannot be reduced to a boundary-min closed
