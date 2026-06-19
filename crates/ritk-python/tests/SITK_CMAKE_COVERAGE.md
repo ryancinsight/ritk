@@ -39,5 +39,10 @@ with source + live experiments:
 - IsolatedWatershed (binary-searches ITK's hierarchical `WatershedImageFilter`
   level; ritk's `watershed_segment` exposes no level parameter — demonstrated
   that substituting MorphologicalWatershed diverges completely).
-- SLIC (ritk has a generic Achanta variant, not ITK's `SLICImageFilter`; not
-  Python-bound; iterative k-means anyway).
+- SLIC — **deterministic core now ported and validated** in
+  `ritk-segmentation/src/clustering/slic/itk.rs` (`slic_itk_impl`): label-for-label
+  exact vs `sitk.SLIC(enforceConnectivity=False, initializationPerturbation=False)`
+  in 2-D and 3-D for super-grid sizes that evenly divide each axis. Remaining
+  before counting as covered: (a) ITK shrink remainder convention for
+  non-evenly-dividing super-grids; (b) default order-sensitive perturbation +
+  connectivity-enforcement layers; (c) Python binding + cmake differential test.
