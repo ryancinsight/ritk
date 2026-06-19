@@ -111,10 +111,13 @@ impl AntiAliasBinaryImageFilter {
         let n = nz * ny * nx;
         let slab = ny * nx;
 
-        // φ₀: −1.0 inside the object (binary = 1), +1.0 outside.
+        // φ₀: +1.0 inside the object (binary = max), −1.0 outside, matching
+        // ITK's convention where the foreground (== m_UpperBinaryValue) carries
+        // the positive level-set sign and the zero level set sits on the
+        // halfway iso-surface (itkAntiAliasBinaryImageFilter.hxx).
         let mut phi: Vec<f32> = binary
             .iter()
-            .map(|&v| if v > 0.5 { -1.0_f32 } else { 1.0_f32 })
+            .map(|&v| if v > 0.5 { 1.0_f32 } else { -1.0_f32 })
             .collect();
 
         let mut next = vec![0.0_f32; n];
@@ -180,7 +183,17 @@ impl AntiAliasBinaryImageFilter {
                             0.0
                         };
 
-                        let new_val = c + DT * speed;
+                        // ITK CalculateUpdateValue flow constraint: a foreground
+                        // voxel may not cross below the zero iso-surface, and a
+                        // background voxel may not cross above it. This keeps the
+                        // antialiased boundary pinned to the original binary edge
+                        // (itkAntiAliasBinaryImageFilter.hxx::CalculateUpdateValue).
+                        let raw = c + DT * speed;
+                        let new_val = if binary[flat] > 0.5 {
+                            raw.max(0.0)
+                        } else {
+                            raw.min(0.0)
+                        };
                         next[flat] = new_val;
 
                         let diff = (new_val - c) as f64;
@@ -260,19 +273,26 @@ mod tests {
         );
     }
 
-    /// A uniform binary image (all 1.0): φ initialises to −1.0 everywhere.
+    /// A uniform foreground image (all 1.0): φ initialises to +1.0 everywhere.
     /// The gradient is zero at every voxel, so the curvature speed is exactly 0,
-    /// the RMS change is 0.0 < `max_rms_error`, and the output must be all −1.0.
+    /// the RMS change is 0.0 < `max_rms_error`, and the output must be all +1.0.
+    ///
+    /// Sign convention is fixed by ITK source: in
+    /// `itkAntiAliasBinaryImageFilter.hxx::CalculateUpdateValue`, a voxel equal
+    /// to `m_UpperBinaryValue` (the foreground/max value) is clamped to
+    /// `max(new, 0)`, i.e. the foreground carries the *positive* level-set sign.
+    /// The earlier −1.0 expectation encoded the inverted convention and is
+    /// analytically incorrect against the reference filter.
     #[test]
-    fn uniform_binary_image_stays_at_minus_one() {
+    fn uniform_binary_image_stays_at_plus_one() {
         // 4×8×8 = genuinely 3-D to exercise the z-axis stencil path.
         let image = ts::fill_image::<B, 3>([4, 8, 8], 1.0_f32);
         let out = AntiAliasBinaryImageFilter::default().apply(&image);
         let (vals, _) = extract_vec_infallible(&out);
         for (i, &v) in vals.iter().enumerate() {
             assert_eq!(
-                v, -1.0_f32,
-                "voxel {i}: uniform binary should stay at −1.0, got {v}"
+                v, 1.0_f32,
+                "voxel {i}: uniform foreground should stay at +1.0, got {v}"
             );
         }
     }

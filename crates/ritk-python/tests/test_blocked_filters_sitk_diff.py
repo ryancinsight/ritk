@@ -106,8 +106,12 @@ def test_scalar_chan_and_vese_matches_sitk():
 
 
 @pytest.mark.xfail(
-    reason="ritk output is inverted ±1 (no curvature-flow smoothing) vs sitk's "
-    "±3 level set; corr -0.90. Needs SparseFieldLevelSet evolution.",
+    reason="Sign convention fixed (foreground now positive per ITK "
+    "CalculateUpdateValue; corr -0.90 -> +0.90, 100%% sign agreement vs sitk). "
+    "Residual is magnitude only: ritk emits a +-1 mean-curvature level set "
+    "while sitk's SparseField stores a +-3 narrow-band signed distance with "
+    "subvoxel boundary precision; max abs err 2.0. Closing it needs the "
+    "SparseFieldLevelSet narrow-band reinitialisation, not a sign fix.",
     strict=False,
 )
 def test_anti_alias_binary_matches_sitk():
