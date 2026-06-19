@@ -6,12 +6,14 @@
 //! `WienerDeconvolutionImageFilter`:
 //!
 //! ```text
-//! U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn / (|G(ω)|² − Pn) )
+//! U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn/|G(ω)|² )
 //! ```
 //!
-//! where `Pn` is the noise power spectral density (the `noise_variance`
-//! parameter). The regularisation is frequency-adaptive: it estimates the signal
-//! power as `|G(ω)|² − Pn`, so weak-signal frequencies are suppressed more. For a
+//! where `Pn/|G(ω)|²` = `1/snrSquared` is the SNR-based regularisation term
+//! that exactly matches ITK's `WienerDeconvolutionImageFilter::GenerateData()`.
+//! `Pn` is the noise power spectral density (the `noise_variance` parameter).
+//! The regularisation is frequency-adaptive: frequencies where the observed
+//! power `|G(ω)|²` is small receive stronger suppression. For a
 //! *constant*-regularisation inverse filter use [`super::TikhonovDeconvolution`].
 
 use super::regularization::{apply_single_pass, WienerRule};
@@ -27,7 +29,7 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// noise power spectral density `Pn`:
 ///
 /// ```text
-/// U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn / (|G(ω)|² − Pn) )
+/// U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn/|G(ω)|² )
 /// ```
 ///
 /// # Use cases

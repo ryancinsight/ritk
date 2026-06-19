@@ -223,37 +223,43 @@ pub(crate) fn euclidean_dt(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> 
         },
     );
 
-    // Phase 3: parabolic envelope along Z for each (iy, ix) column — serial.
+    // Phase 3: parabolic envelope along Z for each (iy, ix) column — parallel.
     //
-    // Z-columns have stride ny*nx in z-major memory, so there is no disjoint
-    // contiguous-chunk layout for parallel writes without a transposed
-    // intermediate buffer. Parallelisation here would require transposing g2
-    // to a layout where each Z-column is contiguous before the sweep.
-    let mut col_buf = vec![0.0f64; nz];
-    let mut dt_buf = vec![0.0f64; nz];
-    let mut s_stack = vec![0isize; nz];
-    let mut t_stack = vec![0isize; nz];
-    let mut edt2 = vec![INF; n_total];
-    for iy in 0..ny {
-        for ix in 0..nx {
-            // Gather column into pre-allocated buffer
-            for iz in 0..nz {
-                col_buf[iz] = g2[iz * ny * nx + iy * nx + ix];
-            }
-            meijster_row(
-                &col_buf[..nz],
-                nz,
-                sz,
-                &mut s_stack,
-                &mut t_stack,
-                &mut dt_buf,
-            );
-            // Scatter results back
-            for iz in 0..nz {
-                edt2[iz * ny * nx + iy * nx + ix] = dt_buf[iz];
-            }
+    // Strategy: transpose g2 from [nz, ny, nx] to [ny*nx, nz] layout so that
+    // each Z-column is a contiguous nz-element chunk in g2_t. moirai then
+    // processes ny*nx independent columns in parallel. The result is stored in
+    // edt2_t (same layout), then scattered back to z-major order.
+    //
+    // Safety: each closure receives a disjoint nz-element chunk of edt2_t
+    // (assigned by moirai's chunk logic); g2_t is captured immutably.
+    let n_cols = ny * nx;
+    // Forward transpose: g2_t[col*nz + iz] = g2[iz*n_cols + col]
+    let mut g2_t = vec![INF; n_cols * nz];
+    for iz in 0..nz {
+        for col in 0..n_cols {
+            g2_t[col * nz + iz] = g2[iz * n_cols + col];
         }
     }
-
-    edt2.iter().map(|&v| v.sqrt() as f32).collect()
+    // Parallel Z-column processing: output in the same transposed layout (edt2_t)
+    let mut edt2_t = vec![0.0f64; n_cols * nz];
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut edt2_t,
+        nz,
+        |col, out_chunk| {
+            let col_data = &g2_t[col * nz..(col + 1) * nz];
+            let mut dt_buf = vec![0.0f64; nz];
+            let mut s_stack = vec![0isize; nz];
+            let mut t_stack = vec![0isize; nz];
+            meijster_row(col_data, nz, sz, &mut s_stack, &mut t_stack, &mut dt_buf);
+            out_chunk.copy_from_slice(&dt_buf[..nz]);
+        },
+    );
+    // Scatter and sqrt: edt[iz*n_cols + col] = sqrt(edt2_t[col*nz + iz])
+    (0..n_total)
+        .map(|flat| {
+            let iz = flat / n_cols;
+            let col = flat % n_cols;
+            edt2_t[col * nz + iz].sqrt() as f32
+        })
+        .collect()
 }

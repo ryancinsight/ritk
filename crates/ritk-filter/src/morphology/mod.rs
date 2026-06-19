@@ -190,7 +190,8 @@ pub(crate) enum Extremum {
     Max,
 }
 
-/// Flat-box grayscale erosion/dilation via **separable 1-D sliding windows**.
+/// Flat-box grayscale erosion/dilation via **separable 1-D sliding windows**,
+/// parallelised over independent z-slices on all three passes via `moirai`.
 ///
 /// The min/max of a cubic `(2r+1)³` box is separable — `max` over the box equals
 /// `max_z(max_y(max_x))` — so three independent 1-D passes (X, then Y, then Z)
@@ -200,8 +201,16 @@ pub(crate) enum Extremum {
 /// `[max(0,i−r), min(n−1,i+r)]`, which equals the edge-clamped box because a
 /// clamped out-of-bounds neighbour only re-reads an in-window edge voxel.
 ///
-/// Replaces the previous cube scan: measured 4842 ms → ~110 ms for `r = 5` on a
-/// 128³ `f32` volume (≈44×), with `r = 1` unchanged; the speedup grows with `r`.
+/// All three passes are parallelised:
+/// - **X-pass**: `nz` z-slice chunks (each `ny×nx`); per-thread scratch `nx`.
+/// - **Y-pass**: `nz` z-slice chunks; writes to a fresh buffer while reading the
+///   X-processed source immutably (disjoint allocations — borrow-safe).
+/// - **Z-pass**: transposed to `[n_cols, nz]` layout (Z-columns contiguous), then
+///   `n_cols` independent `nz`-element chunks processed in parallel, then
+///   transposed back to `[nz, ny, nx]`.
+///
+/// Output is **bit-identical** to the serial version — the passes are
+/// embarrassingly parallel with no data sharing within a pass.
 pub(crate) fn separable_box_3d(
     data: &[f32],
     dims: [usize; 3],
@@ -212,47 +221,88 @@ pub(crate) fn separable_box_3d(
         return data.to_vec();
     }
     let [nz, ny, nx] = dims;
+    let n_total = nz * ny * nx;
+
+    // ── Pass 1: X-axis (contiguous nx-element rows) ──────────────────────────
+    // nz z-slices × ny rows each; chunk = one z-slice (ny*nx elements).
+    // Per-thread scratch: tmp[nx], wout_t[nx], deque_t — allocated once per slice.
     let mut buf = data.to_vec();
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut buf,
+        ny * nx,
+        |_iz, slice| {
+            let mut wout_t = vec![0.0f32; nx];
+            let mut deque_t = std::collections::VecDeque::new();
+            let mut tmp = vec![0.0f32; nx];
+            for iy in 0..ny {
+                let base = iy * nx;
+                tmp.copy_from_slice(&slice[base..base + nx]);
+                window_1d(&tmp, radius, ext, &mut wout_t, &mut deque_t);
+                slice[base..base + nx].copy_from_slice(&wout_t[..nx]);
+            }
+        },
+    );
 
-    // Reusable per-line scratch (gathered line + windowed output).
-    let max_len = nx.max(ny).max(nz);
-    let mut line = vec![0.0_f32; max_len];
-    let mut wout = vec![0.0_f32; max_len];
-    let mut deque: std::collections::VecDeque<usize> = std::collections::VecDeque::new();
+    // ── Pass 2: Y-axis (strided ny-element columns within each z-slice) ──────
+    // nz z-slices; each thread processes nx Y-columns for its slice.
+    // buf_x is the X-processed source, captured immutably; writes go to buf_y
+    // (a separate allocation). `buf_x: &[f32]` is Sync; `buf_y` is mutably
+    // borrowed by moirai — no aliasing.
+    let buf_x = buf;
+    let mut buf_y = vec![0.0f32; n_total];
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut buf_y,
+        ny * nx,
+        |iz, out_slice| {
+            let src = &buf_x[iz * ny * nx..(iz + 1) * ny * nx];
+            let mut col = vec![0.0f32; ny];
+            let mut wout_t = vec![0.0f32; ny];
+            let mut deque_t = std::collections::VecDeque::new();
+            for ix in 0..nx {
+                for iy in 0..ny {
+                    col[iy] = src[iy * nx + ix];
+                }
+                window_1d(&col[..ny], radius, ext, &mut wout_t, &mut deque_t);
+                for iy in 0..ny {
+                    out_slice[iy * nx + ix] = wout_t[iy];
+                }
+            }
+        },
+    );
 
-    // X axis: contiguous lines of length nx (stride 1).
-    for base in (0..nz * ny).map(|p| p * nx) {
-        window_1d(&buf[base..base + nx], radius, ext, &mut wout, &mut deque);
-        buf[base..base + nx].copy_from_slice(&wout[..nx]);
-    }
-    // Y axis: lines of length ny, stride nx (within each z-slice, per x column).
+    // ── Pass 3: Z-axis (strided nz-element columns; transpose for contiguity) ─
+    // Transpose buf_y from [nz, ny, nx] to [n_cols, nz] layout so Z-columns
+    // are contiguous, run parallel window_1d over nz-element chunks, then
+    // scatter back to [nz, ny, nx].
+    let n_cols = ny * nx;
+    let mut buf_zt = vec![0.0f32; nz * n_cols];
+    // Forward transpose: buf_zt[col*nz + iz] = buf_y[iz*n_cols + col]
     for iz in 0..nz {
-        let slice = iz * ny * nx;
-        for ix in 0..nx {
-            for iy in 0..ny {
-                line[iy] = buf[slice + iy * nx + ix];
-            }
-            window_1d(&line[..ny], radius, ext, &mut wout, &mut deque);
-            for iy in 0..ny {
-                buf[slice + iy * nx + ix] = wout[iy];
-            }
+        for col in 0..n_cols {
+            buf_zt[col * nz + iz] = buf_y[iz * n_cols + col];
         }
     }
-    // Z axis: lines of length nz, stride ny*nx.
-    let zstride = ny * nx;
-    for iy in 0..ny {
-        for ix in 0..nx {
-            let col = iy * nx + ix;
-            for iz in 0..nz {
-                line[iz] = buf[iz * zstride + col];
-            }
-            window_1d(&line[..nz], radius, ext, &mut wout, &mut deque);
-            for iz in 0..nz {
-                buf[iz * zstride + col] = wout[iz];
-            }
+    // Parallel window_1d over Z-columns (each nz contiguous elements).
+    // z_col: &mut [f32] coerces to &[f32] for the read argument; the immutable
+    // reborrow ends before copy_from_slice takes the mutable reborrow.
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut buf_zt,
+        nz,
+        |_col, z_col| {
+            let mut wout_t = vec![0.0f32; nz];
+            let mut deque_t = std::collections::VecDeque::new();
+            window_1d(z_col, radius, ext, &mut wout_t, &mut deque_t);
+            z_col.copy_from_slice(&wout_t[..nz]);
+        },
+    );
+    // Inverse transpose: out[iz*n_cols + col] = buf_zt[col*nz + iz]
+    let mut out = vec![0.0f32; n_total];
+    for col in 0..n_cols {
+        for iz in 0..nz {
+            out[iz * n_cols + col] = buf_zt[col * nz + iz];
         }
     }
-    buf
+    out
 }
 
 /// 1-D sliding-window extremum over the clamp-truncated window

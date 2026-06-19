@@ -47,13 +47,14 @@ pub trait Regularization {
 /// Wiener filter, matching ITK's `WienerDeconvolutionImageFilter`:
 ///
 /// ```text
-/// U(ω) = G(ω)·H*(ω) / ( |H(ω)|² + Pn / (|G(ω)|² − Pn) )
+/// U(ω) = G(ω)·H*(ω) / ( |H(ω)|² + Pn/|G(ω)|² )
 /// ```
 ///
-/// `Pn` is the (constant) noise power spectral density — ITK's `NoiseVariance`.
-/// The regularisation is frequency-adaptive: it uses the input's own power
-/// spectrum `|G(ω)|²` to estimate the signal power `(|G|² − Pn)`, so it suppresses
-/// frequencies where the signal is weak relative to the noise. This differs from
+/// where the regularisation term `Pn/|G(ω)|²` = `1/snrSquared` matches
+/// ITK's `WienerDeconvolutionImageFilter::GenerateData()` exactly.
+/// `Pn` is the noise power spectral density — ITK's `NoiseVariance`.
+/// The regularisation is frequency-adaptive: frequencies where `|G(ω)|²` is
+/// small (weak observed signal) receive stronger suppression. This differs from
 /// a constant-regularisation inverse filter (that is ITK's Tikhonov — see
 /// [`TikhonovRule`]).
 pub struct WienerRule {
@@ -70,11 +71,13 @@ impl Regularization for WienerRule {
     ) {
         let pn = self.noise_variance;
         for (g, &h) in img_padded.iter_mut().zip(ker_padded.iter()) {
-            // |G(ω)|² of the input (G is in `g` on entry). The signal-power
-            // estimate (|G|² − Pn) is clamped away from zero so the noise-to-
-            // signal regularisation stays finite where the spectrum is weak.
+            // SNR-based regularisation matching ITK's WienerDeconvolutionImageFilter:
+            //   snrSquared = |G(ω)|² / Pn
+            //   1/snrSquared = Pn / |G(ω)|²
+            // Clamp denominator away from zero to suppress division-by-zero at DC
+            // or background-only frequencies.
             let pf = g.norm_sqr();
-            let reg = pn / (pf - pn).max(1e-9);
+            let reg = pn / pf.max(1e-20);
             let denom = h.norm_sqr() + reg;
             if denom < 1e-20 {
                 *g = Complex::new(0.0, 0.0);
