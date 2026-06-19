@@ -1329,6 +1329,23 @@ def test_cmake_adaptive_histogram_equalization(alpha, beta):
     )
 
 
+@pytest.mark.parametrize("scale,seed", [(1.0, 42), (0.5, 7), (2.0, 123)])
+def test_cmake_shot_noise(scale, seed):
+    """ShotNoise: Poisson noise. ritk vs `sitk.ShotNoise`, single-threaded.
+    Bit-exact — Knuth Poisson over ITK's MT19937 for λ<50, Normal approximation
+    via FastNorm for λ≥50. The arange image spans the λ=50 threshold (exercises
+    both generators)."""
+    import numpy as _np
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+    img = _np.arange(8 * 9, dtype=_np.float32).reshape(8, 9)  # 0..71 -> in spans 50
+    so = sitk.GetArrayFromImage(sitk.ShotNoise(sitk.GetImageFromArray(img), scale, seed))
+    r = _np.squeeze(_np.asarray(ritk.filter.shot_noise(
+        ritk.Image(_np.ascontiguousarray(img[None])), scale, seed).to_numpy()))
+    assert r.shape == so.shape
+    assert float(_np.abs(r - so).max()) < 1e-3, \
+        f"ShotNoise differs (max {float(_np.abs(r - so).max())})"
+
+
 @pytest.mark.parametrize("std,seed", [(0.3, 42), (0.5, 7), (0.7, 123)])
 def test_cmake_speckle_noise(std, seed):
     """SpeckleNoise: multiplicative Gamma noise. ritk vs `sitk.SpeckleNoise`,

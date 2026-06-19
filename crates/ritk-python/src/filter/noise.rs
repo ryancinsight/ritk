@@ -87,8 +87,8 @@ pub fn salt_and_pepper_noise(
 /// Returns:
 ///     PyImage with Poisson noise.
 #[pyfunction]
-#[pyo3(signature = (image, scale, seed=42_u64))]
-pub fn shot_noise(py: Python<'_>, image: &PyImage, scale: f64, seed: u64) -> RitkResult<PyImage> {
+#[pyo3(signature = (image, scale, seed=42_u32))]
+pub fn shot_noise(py: Python<'_>, image: &PyImage, scale: f64, seed: u32) -> RitkResult<PyImage> {
     let img = Arc::clone(&image.inner);
     let result = py
         .allow_threads(|| {

@@ -29,13 +29,6 @@ pub use speckle::SpeckleNoiseFilter;
 /// Default random seed used by all noise filters for reproducible output.
 pub(crate) const DEFAULT_NOISE_SEED: u64 = 42;
 
-/// Box-Muller transform: given two uniform random variates u1 ∈ (0, 1] and u2 ∈ [0, 1),
-/// returns a standard normal variate Z ~ N(0, 1).
-#[inline]
-pub(crate) fn box_muller(u1: f64, u2: f64) -> f64 {
-    (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt() * (2.0 * std::f64::consts::TAU * u2).cos()
-}
-
 #[cfg(test)]
 #[path = "tests_noise.rs"]
 mod tests_noise;

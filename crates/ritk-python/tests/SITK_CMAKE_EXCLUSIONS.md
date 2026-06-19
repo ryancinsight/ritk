@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **26 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **25 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -15,7 +15,7 @@ BinaryThinning, BinaryPruning, ThresholdMaximumConnectedComponents, IsoContourDi
 IsolatedConnected — have been removed. The `Warp` geometry divergence is **resolved**
 (rewritten on the canonical tensor path, float-exact on loaded anisotropic).
 
-## RNG generators — AdditiveGaussianNoise now SHIPPED (Sprint 493)
+## RNG generators — ALL FOUR SHIPPED (Sprint 493) via exact ITK generator ports
 
 - **AdditiveGaussianNoise** is now shipped float-exact (`filter.additive_gaussian_noise`): the prior
   "non-deterministic, impossible" verdict was WRONG (it assumed `MersenneTwisterRandomVariateGenerator`).
@@ -33,8 +33,10 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 - **SpeckleNoise** is now shipped float-exact (`filter.speckle_noise`): multiplicative Gamma(mean 1, var
   std²) via Marsaglia–Tsang acceptance–rejection over ITK's MT19937 `GetVariateWithOpenUpperRange` stream;
   integer-shape (delta=0) handled by IEEE `1/0→inf` exactly as ITK. ≤1e-3 vs sitk single-threaded.
-- **ShotNoise** remains uncovered but is reachable: Poisson variates (Knuth product for λ<50, Normal
-  approximation via FastNorm for λ≥50) over the same MT19937 — a scoped follow-up.
+- **ShotNoise** is now shipped float-exact (`filter.shot_noise`): Knuth Poisson over the MT19937 stream for
+  λ<50, Normal approximation `in + √in·FastNorm()` for λ≥50 (both generators seeded from the region seed,
+  stepped only on the branch taken). ≤1e-3 vs sitk single-threaded; the arange image spans λ=50.
+  **All four RNG noise filters are now covered** — the "non-deterministic/impossible" verdict was wrong.
   (The deterministic local-noise *estimator* `Noise` is already covered.)
 
 ## Iterative / non-bit-exact convergence
