@@ -1,6 +1,38 @@
 # CHANGELOG
 
-## [Unreleased] — Sprint 378 Parallelization Wave 2 & SimpleITK Parity
+## [Unreleased] — Sprint 379 Python Binding Gap Closure & SimpleITK Parity
+
+### Fixed
+- `ritk-python`: Root-cause of stale `.pyd` in pytest identified — `uv run pytest` resolves
+  `pytest` from miniforge3 (not the venv), loading the old miniforge3 `_ritk.pyd`. Fixed by
+  syncing `python/ritk/_ritk.pyd` and `__init__.py` to miniforge3 after each `maturin develop
+  --release` build. Added `profile = "release"` to `[tool.maturin]` in `pyproject.toml` so
+  any future `maturin develop` call (without `--release` flag) builds in release mode.
+- `ritk-python`: All 23 originally-failing tests now pass (315 → 354 passing). Bindings
+  confirmed live for: `transform_geometry`, `dicom_orient`, `invert_displacement_field`,
+  `iterative_inverse_displacement_field`, `adaptive_histogram_equalization`,
+  `approximate_signed_distance_map`, `normalized_correlation`, `masked_fft_normalized_correlation`,
+  `multi_label_staple`, `Image.direction`.
+- `ritk-python`: `test_cmake_signed_distance_map_deviation_documented` — updated to accurately
+  document ritk's *negative-inside, positive-outside* sign convention vs ITK's
+  `insideIsPositive=True` (*positive-inside, negative-outside*). Assertions now check
+  `ro[mask_int] < 0` (interior negative) and `Pearson ≤ −0.99` (anti-correlated, same
+  magnitude, opposite sign).
+- `ritk-python`: `TestTransformToDisplacementFieldParity.test_transform_to_displacement_field_matches_sitk`
+  — fixed geometry mismatch: ritk.Image defaults to anti-diagonal direction (array-major
+  convention) while `sitk.GetImageFromArray` defaults to identity direction; the two represent
+  different physical spaces and cannot be compared directly. Fix: round-trip through NRRD so
+  both sides share the same on-disk direction matrix.
+
+### Added
+- `ritk-python/python/ritk/_ritk/filter.pyi`: stubs for `adaptive_histogram_equalization`,
+  `approximate_signed_distance_map`, `normalized_correlation`, `masked_fft_normalized_correlation`.
+- `ritk-python/tests/test_smoke.py`: added all newly-registered filter functions
+  (`transform_geometry`, `invert_displacement_field`, `iterative_inverse_displacement_field`,
+  `dicom_orient`, `adaptive_histogram_equalization`, `approximate_signed_distance_map`,
+  `normalized_correlation`, `masked_fft_normalized_correlation`) and `multi_label_staple`
+  (segmentation) to the smoke-test required lists.
+
 
 ### Performance
 - `ritk-filter`: `erode_binary_3d` (BinaryErodeFilter) parallelized via `moirai::map_collect_index_with` over the flat voxel index. Structuring-element scan uses `.flat_map().all()` preserving early-exit short-circuit semantics. Equivalent to serial version; all existing binary erosion tests pass.

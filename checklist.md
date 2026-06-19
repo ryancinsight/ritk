@@ -1,8 +1,36 @@
 # RITK Sprint Checklist — Active
 
-## Sprint 378 — Performance Parallelization Wave 2 & SimpleITK Parity
-**Target version**: 0.91.2
-**Sprint phase**: Execution — parallelization + test parity
+## Sprint 379 — Python Binding Gap Closure & SimpleITK Parity
+**Target version**: 0.12.78
+**Sprint phase**: Closure — all originally-tracked failures resolved
+
+### Delivered (Sprint 379)
+- [x] DIAG-379-01 [patch]: **Root-cause stale-pyd** — `uv run pytest` resolves miniforge3
+  `pytest` (no pytest in venv), loading the old miniforge3 `_ritk.pyd`. Fixed: sync `.pyd` +
+  `__init__.py` to miniforge3 after `maturin develop --release`. Added `profile = "release"` to
+  `[tool.maturin]` so future builds use release mode.
+- [x] FIX-379-01 [patch]: **stub/smoke coverage** — Added stubs for `adaptive_histogram_equalization`,
+  `approximate_signed_distance_map`, `normalized_correlation`, `masked_fft_normalized_correlation`
+  to `filter.pyi`; extended smoke test required lists for filter (8 new) and segmentation
+  (`multi_label_staple`).
+- [x] FIX-379-02 [patch]: **signed_distance_map sign convention** — Updated
+  `test_cmake_signed_distance_map_deviation_documented` to assert ritk's actual convention
+  (negative-inside), Pearson ≤ −0.99 anti-correlation.
+- [x] FIX-379-03 [patch]: **displacement field geometry mismatch** — Fixed
+  `TestTransformToDisplacementFieldParity.test_transform_to_displacement_field_matches_sitk`
+  by round-tripping through NRRD to align physical geometry (direction matrix) before comparing.
+
+### Verification gate
+- [x] `uv run --no-sync pytest tests/test_simpleitk_cmake_data.py` → **354 passed, 0 failed**
+- [x] `uv run --no-sync pytest tests/ (broad, -m not slow, non-registration)` → **983 passed, 0 failed**
+- [x] `test_registered_functions_have_stub_and_smoke_coverage` → 1 passed
+
+### Baseline progression
+| Run | Passed | Failed | Notes |
+|-----|--------|--------|-------|
+| Sprint 378 exit | 315 | 25 | stale-pyd, sign, displacement |
+| Sprint 379 (this) | 354 | 0 | all resolved |
+
 
 ### Delivered (Sprint 378)
 - [x] PERF-378-01 [patch]: **Parallelize BinaryContourImageFilter, VotingBinaryImageFilter, VotingBinaryHoleFillingImageFilter** over flat voxel index via `moirai::map_collect_index_with`. Commit: `ad8a1e40`
