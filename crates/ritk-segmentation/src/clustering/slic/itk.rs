@@ -34,12 +34,13 @@
 //!
 //! # Validation scope
 //!
-//! Validated **label-for-label exact** against `sitk.SLIC` (deterministic core)
-//! in 2-D and 3-D over multiple images, for both evenly- and non-evenly-dividing
-//! super-grids (`tests_slic_itk.rs`) — the centered shrink origin above handles
-//! the remainder case. The default-on `enforceConnectivity` /
-//! `initializationPerturbation` layers (order-sensitive post-processing) are the
-//! remaining surface for full default-config parity and are out of scope here.
+//! Validated **label-for-label exact** against `sitk.SLIC` in 2-D and 3-D over
+//! multiple images, for both evenly- and non-evenly-dividing super-grids and for
+//! **both** the deterministic core and the sitk-default configuration
+//! (`initializationPerturbation` + `enforceConnectivity` on) — see
+//! `tests_slic_itk.rs`. The centered shrink origin handles the remainder case;
+//! perturbation and the two-phase connectivity relabelling reproduce ITK's
+//! order-sensitive post-processing exactly.
 
 /// Round half-integer values up, matching ITK's `Math::RoundHalfIntegerUp`.
 #[inline]
@@ -57,15 +58,22 @@ struct Center {
 /// ITK-convention SLIC core over a flat row-major `f32` buffer.
 ///
 /// `super_grid` holds the per-axis grid step `g_d` (length `shape.len()`);
-/// `proximity_weight` is ITK's `m_SpatialProximityWeight`. Returns a flat label
-/// buffer (`0..K−1` as `f32`) in centre scan order. Reproduces
-/// `sitk.SLIC(enforceConnectivity=False, initializationPerturbation=False)`.
+/// `proximity_weight` is ITK's `m_SpatialProximityWeight`. `perturbation` moves
+/// each initial centre to the lowest-gradient voxel in its 3^D neighbourhood
+/// (ITK `initializationPerturbation`, applied only when every `g_d ≥ 3`);
+/// `enforce_connectivity` relabels sub-threshold connected fragments into an
+/// adjacent super-pixel (ITK `enforceConnectivity`). Returns a flat label buffer
+/// (`0..K−1` as `f32`) in centre scan order, matching `sitk.SLIC` with the
+/// corresponding flags.
+#[allow(clippy::too_many_arguments)]
 pub fn slic_itk_impl(
     data: &[f32],
     shape: &[usize],
     super_grid: &[usize],
     proximity_weight: f64,
     max_iterations: usize,
+    perturbation: bool,
+    enforce_connectivity: bool,
 ) -> Vec<f32> {
     let ndim = shape.len();
     let n: usize = shape.iter().product();
@@ -121,6 +129,73 @@ pub fn slic_itk_impl(
             intensity: data[flat(&sample)] as f64,
             pos,
         });
+    }
+
+    // ── Optional perturbation: move each centre to the lowest-gradient voxel ──
+    // in its 3^D neighbourhood (central differences, ZeroFluxNeumann edge clamp).
+    // ITK gates this on every super-grid factor being ≥ 3.
+    if perturbation && g.iter().all(|&gd| gd >= 3) {
+        let clamp_get = |p: &[i64]| -> f64 {
+            let mut q = vec![0usize; ndim];
+            for d in 0..ndim {
+                q[d] = p[d].clamp(0, shape[d] as i64 - 1) as usize;
+            }
+            data[flat(&q)] as f64
+        };
+        let mut nb = vec![0i64; ndim];
+        let mut p = vec![0i64; ndim];
+        for c in centers.iter_mut() {
+            let center: Vec<i64> = (0..ndim).map(|d| round_half_up(c.pos[d])).collect();
+            let mut min_g = f64::MAX;
+            let mut min_idx: Vec<i64> = center.clone();
+            // Odometer over the 3^D offset cube {-1,0,1}^D.
+            let mut off = vec![-1i64; ndim];
+            loop {
+                let mut in_bounds = true;
+                for d in 0..ndim {
+                    nb[d] = center[d] + off[d];
+                    if nb[d] < 0 || nb[d] >= shape[d] as i64 {
+                        in_bounds = false;
+                    }
+                }
+                if in_bounds {
+                    let mut gnorm = 0.0;
+                    for d in 0..ndim {
+                        p.copy_from_slice(&nb);
+                        p[d] = nb[d] + 1;
+                        let fwd = clamp_get(&p);
+                        p[d] = nb[d] - 1;
+                        let bwd = clamp_get(&p);
+                        let gr = (fwd - bwd) / 2.0;
+                        gnorm += gr * gr;
+                    }
+                    if gnorm < min_g {
+                        min_g = gnorm;
+                        min_idx.copy_from_slice(&nb);
+                    }
+                }
+                let mut d = ndim;
+                let carry = loop {
+                    if d == 0 {
+                        break true;
+                    }
+                    d -= 1;
+                    off[d] += 1;
+                    if off[d] <= 1 {
+                        break false;
+                    }
+                    off[d] = -1;
+                };
+                if carry {
+                    break;
+                }
+            }
+            let mi: Vec<usize> = (0..ndim).map(|d| min_idx[d] as usize).collect();
+            c.intensity = data[flat(&mi)] as f64;
+            for d in 0..ndim {
+                c.pos[d] = min_idx[d] as f64;
+            }
+        }
     }
 
     // ── Fixed-count Lloyd iteration ──────────────────────────────────────────
@@ -205,7 +280,159 @@ pub fn slic_itk_impl(
         }
     }
 
+    if enforce_connectivity {
+        enforce_slic_connectivity(&mut labels, shape, &stride, &g, &centers, k);
+    }
+
     labels.iter().map(|&l| l as f32).collect()
+}
+
+/// Decode a flat row-major index into its multi-index.
+#[inline]
+fn decode(fi: usize, stride: &[usize], out: &mut [usize]) {
+    let mut rem = fi;
+    for d in 0..out.len() {
+        out[d] = rem / stride[d];
+        rem %= stride[d];
+    }
+}
+
+/// ITK `enforceConnectivity`: relabel sub-`minSuperSize` fragments so every
+/// label is a single face-connected region. Phase 1 marks each cluster's main
+/// component (the one reachable from its centroid, kept only if ≥ minSuperSize);
+/// phase 2 raster-scans the unmarked fragments, giving each a fresh label if
+/// large enough else merging it into the previous raster label
+/// (`minSuperSize = ∏ g_d / 4`). Face-connectivity (±1 per axis); flood order
+/// does not affect the labelling (only the member set and raster `prev_label`).
+fn enforce_slic_connectivity(
+    labels: &mut [u32],
+    shape: &[usize],
+    stride: &[usize],
+    g: &[usize],
+    centers: &[Center],
+    k: usize,
+) {
+    let ndim = shape.len();
+    let n = labels.len();
+    let flat = |idx: &[usize]| -> usize { (0..ndim).map(|d| idx[d] * stride[d]).sum() };
+    let min_super = (g.iter().product::<usize>() / 4).max(1);
+    let mut marker = vec![0u8; n];
+    let mut comp: Vec<usize> = Vec::new();
+    let mut p = vec![0usize; ndim];
+    let mut q = vec![0usize; ndim];
+
+    // Flood the face-connected component of voxels with `labels == req` and
+    // `marker == 0` from `seed`, marking them; if `relabel_to` is Some, also set
+    // their label. Returns the component as flat indices in `comp`.
+    macro_rules! flood {
+        ($seed:expr, $req:expr, $relabel_to:expr) => {{
+            comp.clear();
+            marker[$seed] = 1;
+            if let Some(out) = $relabel_to {
+                labels[$seed] = out;
+            }
+            comp.push($seed);
+            let mut head = 0;
+            while head < comp.len() {
+                let cur = comp[head];
+                head += 1;
+                decode(cur, stride, &mut p);
+                for d in 0..ndim {
+                    for s in [1i64, -1] {
+                        let v = p[d] as i64 + s;
+                        if v < 0 || v >= shape[d] as i64 {
+                            continue;
+                        }
+                        q.copy_from_slice(&p);
+                        q[d] = v as usize;
+                        let nf = flat(&q);
+                        if labels[nf] == $req && marker[nf] == 0 {
+                            marker[nf] = 1;
+                            if let Some(out) = $relabel_to {
+                                labels[nf] = out;
+                            }
+                            comp.push(nf);
+                        }
+                    }
+                }
+            }
+        }};
+    }
+
+    // ── Phase 1: mark each cluster's centroid-connected main component ────────
+    let half: Vec<i64> = g.iter().map(|&gd| (gd / 2) as i64).collect();
+    let mut off = vec![0i64; ndim];
+    for ci in 0..k {
+        let cidx: Vec<usize> = (0..ndim)
+            .map(|d| round_half_up(centers[ci].pos[d]).clamp(0, shape[d] as i64 - 1) as usize)
+            .collect();
+        let cf = flat(&cidx);
+        let mut seed: Option<usize> = None;
+        if labels[cf] == ci as u32 {
+            seed = Some(cf);
+        } else {
+            // Search the ±g/2 box (raster order) for the nearest voxel of label ci.
+            off.iter_mut().enumerate().for_each(|(d, o)| *o = -half[d]);
+            'search: loop {
+                let mut in_bounds = true;
+                for d in 0..ndim {
+                    let v = cidx[d] as i64 + off[d];
+                    if v < 0 || v >= shape[d] as i64 {
+                        in_bounds = false;
+                        break;
+                    }
+                    q[d] = v as usize;
+                }
+                if in_bounds && labels[flat(&q)] == ci as u32 {
+                    seed = Some(flat(&q));
+                    break 'search;
+                }
+                let mut d = ndim;
+                let carry = loop {
+                    if d == 0 {
+                        break true;
+                    }
+                    d -= 1;
+                    off[d] += 1;
+                    if off[d] <= half[d] {
+                        break false;
+                    }
+                    off[d] = -half[d];
+                };
+                if carry {
+                    break;
+                }
+            }
+        }
+        if let Some(s) = seed {
+            flood!(s, ci as u32, None::<u32>);
+            if comp.len() < min_super {
+                for &pf in &comp {
+                    marker[pf] = 0;
+                }
+            }
+        }
+    }
+
+    // ── Phase 2: raster-scan unmarked fragments, relabel by size ─────────────
+    let mut next_label = k as u32;
+    let mut prev_label = k as u32;
+    for fi in 0..n {
+        if marker[fi] == 0 {
+            let req = labels[fi];
+            flood!(fi, req, Some(next_label));
+            if comp.len() >= min_super {
+                prev_label = next_label;
+                next_label += 1;
+            } else {
+                for &pf in &comp {
+                    labels[pf] = prev_label;
+                }
+            }
+        } else {
+            prev_label = labels[fi];
+        }
+    }
 }
 
 #[cfg(test)]
