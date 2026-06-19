@@ -15,8 +15,10 @@ dynamic = ["version"]
 python-source = "python"
 module-name = "ritk._ritk"
 features = ["pyo3/extension-module"]
+profile = "release"
 
 [tool.pytest.ini_options]
+timeout = 60
 markers = [
     "slow: registration and deformable transform tests that take >30s",
 ]

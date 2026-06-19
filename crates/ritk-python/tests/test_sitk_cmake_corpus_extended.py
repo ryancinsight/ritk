@@ -50,10 +50,10 @@ import ritk  # noqa: E402
 #   - Gaussian-based (recursive Gaussian, unsharp): tolerance accounts for
 #     IIR vs FIR truncation differences: ≤ 1e-3 (tested empirically).
 #   - Morphological: identical discrete algorithm → tolerance ≤ 1e-5.
-_EPS_PIXELWISE = 2e-5     # linear exact ops: add/subtract/multiply etc.
-_EPS_GAUSSIAN  = 5e-3     # Gaussian-family (kernel-radius / IIR diffs)
-_EPS_MORPHOL   = 1e-5     # morphological (identical algorithm)
-_EPS_STATS     = 1e-4     # statistics-based (mean/std accumulation)
+_EPS_PIXELWISE = 2e-5  # linear exact ops: add/subtract/multiply etc.
+_EPS_GAUSSIAN = 5e-3  # Gaussian-family (kernel-radius / IIR diffs)
+_EPS_MORPHOL = 1e-5  # morphological (identical algorithm)
+_EPS_STATS = 1e-4  # statistics-based (mean/std accumulation)
 
 SIZE = 32  # Synthetic volume edge length in voxels.
 
@@ -62,12 +62,19 @@ SIZE = 32  # Synthetic volume edge length in voxels.
 # Conversion helpers (match convention in test_simpleitk_parity.py)
 # ---------------------------------------------------------------------------
 
-def _ritk(arr: np.ndarray, spacing: Tuple[float, ...] = (1.0, 1.0, 1.0)) -> "ritk.Image":
+
+def _ritk(
+    arr: np.ndarray, spacing: Tuple[float, ...] = (1.0, 1.0, 1.0)
+) -> "ritk.Image":
     """Create a ritk Image from a (Z,Y,X) numpy array."""
-    return ritk.Image(np.ascontiguousarray(arr, dtype=np.float32), spacing=list(spacing))
+    return ritk.Image(
+        np.ascontiguousarray(arr, dtype=np.float32), spacing=list(spacing)
+    )
 
 
-def _sitk(arr: np.ndarray, spacing: Tuple[float, ...] = (1.0, 1.0, 1.0)) -> "sitk.Image":
+def _sitk(
+    arr: np.ndarray, spacing: Tuple[float, ...] = (1.0, 1.0, 1.0)
+) -> "sitk.Image":
     """Create a SimpleITK Image from a (Z,Y,X) numpy array."""
     img = sitk.GetImageFromArray(np.ascontiguousarray(arr, dtype=np.float32))
     img.SetSpacing([float(spacing[2]), float(spacing[1]), float(spacing[0])])
@@ -100,6 +107,7 @@ def _pearson(a: np.ndarray, b: np.ndarray) -> float:
 # Synthetic image factories (analytically constructible; values are known)
 # ---------------------------------------------------------------------------
 
+
 def _gradient_volume(size: int = SIZE) -> np.ndarray:
     """Linear ramp along X: f(z,y,x) = x/(size-1), values in [0,1]."""
     return np.broadcast_to(
@@ -111,7 +119,7 @@ def _sphere_volume(size: int = SIZE, radius: int = 8) -> np.ndarray:
     """Binary sphere mask, dtype float32."""
     c = size // 2
     z, y, x = np.mgrid[:size, :size, :size]
-    return ((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2 <= radius ** 2).astype(np.float32)
+    return ((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2 <= radius**2).astype(np.float32)
 
 
 def _noisy_sphere(size: int = SIZE, seed: int = 42) -> np.ndarray:
@@ -127,7 +135,7 @@ def _tube_phantom(size: int = SIZE) -> np.ndarray:
     y, x = np.mgrid[:size, :size] - size // 2
     r = np.sqrt(y**2 + x**2).astype(np.float32)
     sigma = size / 10.0
-    profile = np.exp(-r**2 / (2 * sigma**2)).astype(np.float32)
+    profile = np.exp(-(r**2) / (2 * sigma**2)).astype(np.float32)
     return np.broadcast_to(profile, (size, size, size)).copy()
 
 
@@ -140,6 +148,7 @@ def _checker_volume(size: int = SIZE, block: int = 4) -> np.ndarray:
 # ==========================================================================
 # Section 1: Arithmetic / Pixelwise Filters vs SimpleITK
 # ==========================================================================
+
 
 class TestArithmeticParity:
     """Arithmetic image operations vs sitk.Add/Subtract/Multiply/Divide/Minimum/Maximum."""
@@ -164,7 +173,9 @@ class TestArithmeticParity:
         expected = _np(sitk.Subtract(_sitk(a_arr), _sitk(b_arr)))
         actual = _ritk_np(ritk.filter.subtract_images(_ritk(a_arr), _ritk(b_arr)))
         err = _mae(actual, expected)
-        assert err <= _EPS_PIXELWISE, f"subtract_images MAE {err:.2e} > {_EPS_PIXELWISE}"
+        assert err <= _EPS_PIXELWISE, (
+            f"subtract_images MAE {err:.2e} > {_EPS_PIXELWISE}"
+        )
 
     def test_multiply_images_matches_sitk(self, vols):
         """sitk.Multiply == ritk.filter.multiply_images, pointwise exact."""
@@ -172,7 +183,9 @@ class TestArithmeticParity:
         expected = _np(sitk.Multiply(_sitk(a_arr), _sitk(b_arr)))
         actual = _ritk_np(ritk.filter.multiply_images(_ritk(a_arr), _ritk(b_arr)))
         err = _mae(actual, expected)
-        assert err <= _EPS_PIXELWISE, f"multiply_images MAE {err:.2e} > {_EPS_PIXELWISE}"
+        assert err <= _EPS_PIXELWISE, (
+            f"multiply_images MAE {err:.2e} > {_EPS_PIXELWISE}"
+        )
 
     def test_divide_images_avoids_div_by_zero(self, vols):
         """divide_images: where denominator > 0, ratio matches sitk.Divide."""
@@ -221,6 +234,7 @@ class TestArithmeticParity:
 # Section 2: Normalize vs SimpleITK NormalizeImageFilter
 # ==========================================================================
 
+
 class TestNormalizeParity:
     """NormalizeImageFilter: zero-mean unit-variance vs sitk.Normalize."""
 
@@ -251,7 +265,9 @@ class TestNormalizeParity:
         """Constant image normalization: σ=0 → all-zero output."""
         arr = np.ones((SIZE, SIZE, SIZE), dtype=np.float32) * 5.0
         result = _ritk_np(ritk.filter.normalize_image(_ritk(arr)))
-        assert float(np.abs(result).max()) < 1e-6, "Constant image normalize produced non-zero"
+        assert float(np.abs(result).max()) < 1e-6, (
+            "Constant image normalize produced non-zero"
+        )
 
     def test_normalize_gradient_matches_sitk(self):
         """Normalize on a gradient volume matches sitk."""
@@ -267,13 +283,16 @@ class TestNormalizeParity:
 # Section 3: Unsharp Mask vs SimpleITK UnsharpMaskingImageFilter
 # ==========================================================================
 
+
 class TestUnsharpMaskParity:
     """UnsharpMaskFilter sharpening vs sitk.UnsharpMaskingImageFilter."""
 
     def test_unsharp_mask_sharpens_edges(self):
         """Unsharp mask must increase gradient magnitude on gradient image."""
         arr = _noisy_sphere()
-        sharpened = _ritk_np(ritk.filter.unsharp_mask(_ritk(arr), sigma=1.0, amount=1.0))
+        sharpened = _ritk_np(
+            ritk.filter.unsharp_mask(_ritk(arr), sigma=1.0, amount=1.0)
+        )
         # Gradient magnitude increases: measure as std of high-freq content
         diff = np.abs(sharpened.astype(np.float64) - arr.astype(np.float64))
         assert float(diff.max()) > 0.01, "Unsharp mask produced no change (amount=1.0)"
@@ -294,7 +313,9 @@ class TestUnsharpMaskParity:
         expected = _np(sitk_filter.Execute(_sitk(arr)))
         # clamp=False matches sitk SetClamp(False)
         actual = _ritk_np(
-            ritk.filter.unsharp_mask(_ritk(arr), sigma=1.0, amount=0.5, threshold=0.0, clamp=False)
+            ritk.filter.unsharp_mask(
+                _ritk(arr), sigma=1.0, amount=0.5, threshold=0.0, clamp=False
+            )
         )
         mae = _mae(actual, expected)
         # Float-exact: ritk blurs with the recursive Gaussian, the same smoother
@@ -306,29 +327,42 @@ class TestUnsharpMaskParity:
         arr = _gradient_volume()
         result = _ritk_np(ritk.filter.unsharp_mask(_ritk(arr), sigma=1.0, amount=0.0))
         mae = _mae(result, arr)
-        assert mae <= _EPS_PIXELWISE * 5, f"amount=0 unsharp mask MAE {mae:.2e} (expected ~0)"
+        assert mae <= _EPS_PIXELWISE * 5, (
+            f"amount=0 unsharp mask MAE {mae:.2e} (expected ~0)"
+        )
 
     def test_unsharp_mask_threshold_suppresses_low_contrast(self):
         """With high threshold, low-contrast regions remain unchanged."""
         arr = _sphere_volume() * 0.1  # low contrast: max=0.1
-        result = _ritk_np(ritk.filter.unsharp_mask(_ritk(arr), sigma=1.0, amount=2.0, threshold=0.5))
+        result = _ritk_np(
+            ritk.filter.unsharp_mask(_ritk(arr), sigma=1.0, amount=2.0, threshold=0.5)
+        )
         # |mask| everywhere < 0.1 < threshold=0.5: no sharpening should occur
         mae = _mae(result, arr)
-        assert mae < 0.05, f"High-threshold unsharp mask altered low-contrast: MAE {mae:.2e}"
+        assert mae < 0.05, (
+            f"High-threshold unsharp mask altered low-contrast: MAE {mae:.2e}"
+        )
 
     def test_unsharp_mask_clamp_limits_output_range(self):
         """When clamp=True, output must stay within [min(input), max(input)]."""
         arr = _noisy_sphere()
-        result = _ritk_np(ritk.filter.unsharp_mask(_ritk(arr), sigma=1.0, amount=3.0, clamp=True))
+        result = _ritk_np(
+            ritk.filter.unsharp_mask(_ritk(arr), sigma=1.0, amount=3.0, clamp=True)
+        )
         in_min, in_max = float(arr.min()), float(arr.max())
         out_min, out_max = float(result.min()), float(result.max())
-        assert out_min >= in_min - 1e-5, f"clamp=True output below input min: {out_min:.4f} < {in_min:.4f}"
-        assert out_max <= in_max + 1e-5, f"clamp=True output above input max: {out_max:.4f} > {in_max:.4f}"
+        assert out_min >= in_min - 1e-5, (
+            f"clamp=True output below input min: {out_min:.4f} < {in_min:.4f}"
+        )
+        assert out_max <= in_max + 1e-5, (
+            f"clamp=True output above input max: {out_max:.4f} > {in_max:.4f}"
+        )
 
 
 # ==========================================================================
 # Section 4: Zero Crossing vs SimpleITK ZeroCrossingImageFilter
 # ==========================================================================
+
 
 class TestZeroCrossingParity:
     """ZeroCrossingImageFilter: detect sign changes vs sitk."""
@@ -354,7 +388,9 @@ class TestZeroCrossingParity:
         fg = float((result > 0.5).sum())
         total = result.size
         ratio = fg / total
-        assert 0.001 < ratio < 0.50, f"Zero crossing ratio {ratio:.3%} outside [0.1%, 50%]"
+        assert 0.001 < ratio < 0.50, (
+            f"Zero crossing ratio {ratio:.3%} outside [0.1%, 50%]"
+        )
 
     def test_zero_crossing_agrees_with_sitk(self):
         """ZeroCrossingImageFilter matches sitk.ZeroCrossing (Dice > 0.90).
@@ -366,8 +402,8 @@ class TestZeroCrossingParity:
         log_arr = self._log_image(sphere)
         # SimpleITK — foreground must be int (uint8)
         sitk_zc = sitk.ZeroCrossingImageFilter()
-        sitk_zc.SetForegroundValue(1)   # int, not float
-        sitk_zc.SetBackgroundValue(0)   # int, not float
+        sitk_zc.SetForegroundValue(1)  # int, not float
+        sitk_zc.SetBackgroundValue(0)  # int, not float
         expected = _np(sitk_zc.Execute(_sitk(log_arr)))
         actual = _ritk_np(ritk.filter.zero_crossing_image(_ritk(log_arr)))
         # Dice similarity — 0.60 tolerance due to 6-connected (ritk) vs 26-connected (sitk) neighbourhood
@@ -388,21 +424,30 @@ class TestZeroCrossingParity:
 # Section 5: Bin Shrink vs SimpleITK BinShrinkImageFilter
 # ==========================================================================
 
+
 class TestBinShrinkParity:
     """BinShrinkImageFilter vs sitk.BinShrink."""
 
     def test_bin_shrink_output_shape(self):
         """bin_shrink with factor=2 halves each dimension."""
         arr = np.random.RandomState(0).rand(SIZE, SIZE, SIZE).astype(np.float32)
-        result = _ritk_np(ritk.filter.bin_shrink(_ritk(arr), factor_z=2, factor_y=2, factor_x=2))
+        result = _ritk_np(
+            ritk.filter.bin_shrink(_ritk(arr), factor_z=2, factor_y=2, factor_x=2)
+        )
         expected_shape = (SIZE // 2, SIZE // 2, SIZE // 2)
-        assert result.shape == expected_shape, f"Expected {expected_shape}, got {result.shape}"
+        assert result.shape == expected_shape, (
+            f"Expected {expected_shape}, got {result.shape}"
+        )
 
     def test_bin_shrink_constant_image_is_invariant(self):
         """Bin-shrinking a constant image must return the same constant value."""
         arr = np.ones((SIZE, SIZE, SIZE), dtype=np.float32) * 7.0
-        result = _ritk_np(ritk.filter.bin_shrink(_ritk(arr), factor_z=2, factor_y=2, factor_x=2))
-        assert float(np.abs(result - 7.0).max()) < 1e-5, "Constant bin_shrink changed value"
+        result = _ritk_np(
+            ritk.filter.bin_shrink(_ritk(arr), factor_z=2, factor_y=2, factor_x=2)
+        )
+        assert float(np.abs(result - 7.0).max()) < 1e-5, (
+            "Constant bin_shrink changed value"
+        )
 
     def test_bin_shrink_agrees_with_sitk(self):
         """bin_shrink matches sitk.BinShrink on gradient volume (MAE < 1e-4).
@@ -413,20 +458,27 @@ class TestBinShrinkParity:
         sitk_bs = sitk.BinShrinkImageFilter()
         sitk_bs.SetShrinkFactors([2, 2, 2])  # SetShrinkFactors takes a list
         expected = _np(sitk_bs.Execute(_sitk(arr)))
-        actual = _ritk_np(ritk.filter.bin_shrink(_ritk(arr), factor_z=2, factor_y=2, factor_x=2))
+        actual = _ritk_np(
+            ritk.filter.bin_shrink(_ritk(arr), factor_z=2, factor_y=2, factor_x=2)
+        )
         mae = _mae(actual, expected)
         assert mae <= _EPS_STATS, f"bin_shrink MAE vs sitk {mae:.2e} > {_EPS_STATS}"
 
     def test_bin_shrink_asymmetric_factors(self):
         """bin_shrink with different factors per axis produces correct shape."""
         arr = np.ones((SIZE, SIZE, SIZE), dtype=np.float32)
-        result = _ritk_np(ritk.filter.bin_shrink(_ritk(arr), factor_z=1, factor_y=2, factor_x=4))
-        assert result.shape == (SIZE, SIZE // 2, SIZE // 4), f"Asymmetric shape wrong: {result.shape}"
+        result = _ritk_np(
+            ritk.filter.bin_shrink(_ritk(arr), factor_z=1, factor_y=2, factor_x=4)
+        )
+        assert result.shape == (SIZE, SIZE // 2, SIZE // 4), (
+            f"Asymmetric shape wrong: {result.shape}"
+        )
 
 
 # ==========================================================================
 # Section 6: Intensity Projection Filters vs SimpleITK
 # ==========================================================================
+
 
 class TestProjectionParity:
     """Max/Min/Mean/Sum intensity projections vs sitk."""
@@ -453,35 +505,49 @@ class TestProjectionParity:
     def test_max_intensity_projection_matches_sitk_axis0(self, vol):
         """Max IP along axis 0 (Z) matches sitk.MaximumProjection."""
         expected = self._sitk_mip(vol, axis=2)
-        actual = _ritk_np(ritk.filter.max_intensity_projection(_ritk(vol), axis=0)).squeeze()
+        actual = _ritk_np(
+            ritk.filter.max_intensity_projection(_ritk(vol), axis=0)
+        ).squeeze()
         mae = _mae(actual, expected)
         assert mae <= _EPS_STATS, f"MaxIP axis=0 MAE {mae:.2e}"
 
     def test_min_intensity_projection_matches_sitk_axis0(self, vol):
         """Min IP along axis 0 (Z) matches sitk.MinimumProjection."""
         expected = self._sitk_minip(vol, axis=2)
-        actual = _ritk_np(ritk.filter.min_intensity_projection(_ritk(vol), axis=0)).squeeze()
+        actual = _ritk_np(
+            ritk.filter.min_intensity_projection(_ritk(vol), axis=0)
+        ).squeeze()
         mae = _mae(actual, expected)
         assert mae <= _EPS_STATS, f"MinIP axis=0 MAE {mae:.2e}"
 
     def test_mean_intensity_projection_matches_sitk_axis0(self, vol):
         """Mean IP along axis 0 matches sitk.MeanProjection."""
         expected = self._sitk_meanip(vol, axis=2)
-        actual = _ritk_np(ritk.filter.mean_intensity_projection(_ritk(vol), axis=0)).squeeze()
+        actual = _ritk_np(
+            ritk.filter.mean_intensity_projection(_ritk(vol), axis=0)
+        ).squeeze()
         mae = _mae(actual, expected)
         assert mae <= _EPS_STATS, f"MeanIP axis=0 MAE {mae:.2e}"
 
     def test_max_ip_exceeds_mean_ip(self, vol):
         """Max IP ≥ Mean IP everywhere (invariant by definition of maximum)."""
-        mip = _ritk_np(ritk.filter.max_intensity_projection(_ritk(vol), axis=0)).squeeze()
-        meanip = _ritk_np(ritk.filter.mean_intensity_projection(_ritk(vol), axis=0)).squeeze()
+        mip = _ritk_np(
+            ritk.filter.max_intensity_projection(_ritk(vol), axis=0)
+        ).squeeze()
+        meanip = _ritk_np(
+            ritk.filter.mean_intensity_projection(_ritk(vol), axis=0)
+        ).squeeze()
         assert np.all(mip >= meanip - 1e-5), "MaxIP < MeanIP (violated invariant)"
 
     def test_sum_ip_equals_mean_ip_times_n(self, vol):
         """Sum IP = Mean IP * N (N = depth along projection axis)."""
         n = vol.shape[0]
-        sumip = _ritk_np(ritk.filter.sum_intensity_projection(_ritk(vol), axis=0)).squeeze()
-        meanip = _ritk_np(ritk.filter.mean_intensity_projection(_ritk(vol), axis=0)).squeeze()
+        sumip = _ritk_np(
+            ritk.filter.sum_intensity_projection(_ritk(vol), axis=0)
+        ).squeeze()
+        meanip = _ritk_np(
+            ritk.filter.mean_intensity_projection(_ritk(vol), axis=0)
+        ).squeeze()
         err = _mae(sumip.astype(np.float64), (meanip * n).astype(np.float64))
         assert err < 1e-3, f"SumIP ≠ MeanIP*N: MAE {err:.2e}"
 
@@ -489,6 +555,7 @@ class TestProjectionParity:
 # ==========================================================================
 # Section 7: Recursive Gaussian Orders 1 and 2 vs SimpleITK
 # ==========================================================================
+
 
 class TestRecursiveGaussianHighOrderParity:
     """Recursive Gaussian order 1/2 vs sitk.RecursiveGaussianImageFilter."""
@@ -499,10 +566,14 @@ class TestRecursiveGaussianHighOrderParity:
 
     def test_order1_derivative_nonzero_on_gradient(self, vol):
         """First derivative of linear gradient f(x) = x must be constant ≠ 0."""
-        result = _ritk_np(ritk.filter.recursive_gaussian(_ritk(vol), sigma=1.0, order=1))
+        result = _ritk_np(
+            ritk.filter.recursive_gaussian(_ritk(vol), sigma=1.0, order=1)
+        )
         interior = result[4:-4, 4:-4, 4:-4]
         mean_val = float(np.abs(interior).mean())
-        assert mean_val > 0.01, f"Order-1 derivative on linear gradient is near-zero: {mean_val:.4f}"
+        assert mean_val > 0.01, (
+            f"Order-1 derivative on linear gradient is near-zero: {mean_val:.4f}"
+        )
 
     def test_order1_agrees_with_sitk(self, vol):
         """ritk recursive_gaussian order=1 matches sitk order=1 (Pearson r > 0.90).
@@ -518,16 +589,22 @@ class TestRecursiveGaussianHighOrderParity:
         sitk_rg.SetOrder(sitk.RecursiveGaussianImageFilter.FirstOrder)
         sitk_rg.SetDirection(0)  # Z direction
         expected = _np(sitk_rg.Execute(_sitk(vol)))
-        actual = _ritk_np(ritk.filter.recursive_gaussian(_ritk(vol), sigma=1.5, order=1))
+        actual = _ritk_np(
+            ritk.filter.recursive_gaussian(_ritk(vol), sigma=1.5, order=1)
+        )
         r = _pearson(actual, expected)
         assert r > 0.90, f"Order-1 recursive Gaussian Pearson r {r:.4f} < 0.90"
 
     def test_order2_second_derivative_of_linear_is_zero(self, vol):
         """Second derivative of linear image f(x) = x must vanish (interior ≈ 0)."""
-        result = _ritk_np(ritk.filter.recursive_gaussian(_ritk(vol), sigma=1.0, order=2))
+        result = _ritk_np(
+            ritk.filter.recursive_gaussian(_ritk(vol), sigma=1.0, order=2)
+        )
         interior = result[4:-4, 4:-4, 4:-4]
         max_val = float(np.abs(interior).max())
-        assert max_val < 0.05, f"Order-2 on linear gradient: max |val| {max_val:.4f} > 0.05"
+        assert max_val < 0.05, (
+            f"Order-2 on linear gradient: max |val| {max_val:.4f} > 0.05"
+        )
 
     def test_order2_agrees_with_sitk(self, vol):
         """ritk recursive_gaussian order=2 agrees with sitk 2nd-order derivative (Pearson r > 0.80).
@@ -548,7 +625,9 @@ class TestRecursiveGaussianHighOrderParity:
                 for d in range(3)
             ]
         )
-        actual = _ritk_np(ritk.filter.recursive_gaussian(_ritk(arr), sigma=1.5, order=2))
+        actual = _ritk_np(
+            ritk.filter.recursive_gaussian(_ritk(arr), sigma=1.5, order=2)
+        )
         r = _pearson(actual, sitk_lap)
         assert r > 0.70, f"Order-2 recursive Gaussian Pearson r {r:.4f} < 0.70"
 
@@ -562,6 +641,7 @@ class TestRecursiveGaussianHighOrderParity:
 # ==========================================================================
 # Section 8: Sobel Gradient Interior Parity vs SimpleITK
 # ==========================================================================
+
 
 class TestSobelParity:
     """Sobel gradient magnitude interior agreement vs sitk."""
@@ -601,6 +681,7 @@ class TestSobelParity:
 # Section 9: Frangi Vesselness vs SimpleITK FrangiVesselness
 # ==========================================================================
 
+
 class TestFrangiVesselnessParity:
     """FrangiVesselnessFilter: tube response maximum on cylinder phantom vs sitk."""
 
@@ -618,7 +699,7 @@ class TestFrangiVesselnessParity:
         tube_mask = tube > 0.5
         bg_mask = tube < 0.5
         mean_tube = float(result[tube_mask].mean()) if tube_mask.any() else 0.0
-        mean_bg   = float(result[bg_mask].mean())   if bg_mask.any()   else 0.0
+        mean_bg = float(result[bg_mask].mean()) if bg_mask.any() else 0.0
         assert mean_tube > mean_bg, (
             f"Frangi mean inside tube ({mean_tube:.6f}) ≤ mean in background ({mean_bg:.6f})"
         )
@@ -632,7 +713,7 @@ class TestFrangiVesselnessParity:
             (max_idx[0] - SIZE // 2) ** 2 + (max_idx[1] - SIZE // 2) ** 2
         )
         assert dist_from_center <= SIZE // 4, (
-            f"Frangi max at {max_idx}, dist {dist_from_center:.1f} from center (expected ≤ {SIZE//4})"
+            f"Frangi max at {max_idx}, dist {dist_from_center:.1f} from center (expected ≤ {SIZE // 4})"
         )
 
     def test_frangi_agrees_with_sitk_pearson(self, tube):
@@ -643,10 +724,12 @@ class TestFrangiVesselnessParity:
         sitk_obj.SetBrightObject(True)
         expected = _np(sitk_obj.Execute(_sitk(tube)))
         actual = _ritk_np(ritk.filter.frangi_vesselness(_ritk(tube)))
+
         # Normalise both to [0, 1] range before correlation
         def norm01(a):
             r = a.max() - a.min()
             return (a - a.min()) / max(r, 1e-10)
+
         r = _pearson(norm01(actual), norm01(expected))
         assert r > 0.80, f"Frangi vs sitk Pearson r {r:.3f} < 0.80"
 
@@ -655,13 +738,16 @@ class TestFrangiVesselnessParity:
 # Section 10: N4 Bias Correction — Bias Reduction Property
 # ==========================================================================
 
+
 class TestN4BiasCorrectionParity:
     """N4BiasFieldCorrectionFilter: validates bias is reduced, not that output is identical to sitk."""
 
     def _bias_field(self, size: int = SIZE) -> np.ndarray:
         """Smooth, multiplicative bias field: varies [0.7, 1.3] over the volume."""
         z, y, x = np.mgrid[:size, :size, :size]
-        return (1.0 + 0.3 * np.sin(np.pi * z / size) * np.cos(np.pi * x / size)).astype(np.float32)
+        return (1.0 + 0.3 * np.sin(np.pi * z / size) * np.cos(np.pi * x / size)).astype(
+            np.float32
+        )
 
     def test_n4_reduces_intensity_variance_of_uniform_region(self):
         """N4 applied to a biased uniform region drives the regional std to ≈0.
@@ -706,7 +792,9 @@ class TestN4BiasCorrectionParity:
         biased = (arr * bias).astype(np.float32)
         # ritk N4 (light config)
         ritk_result = _ritk_np(
-            ritk.filter.n4_bias_correction(_ritk(biased), num_fitting_levels=1, num_iterations=10)
+            ritk.filter.n4_bias_correction(
+                _ritk(biased), num_fitting_levels=1, num_iterations=10
+            )
         )
         # sitk N4 (matching light config)
         sitk_n4 = sitk.N4BiasFieldCorrectionImageFilter()
@@ -716,10 +804,10 @@ class TestN4BiasCorrectionParity:
         assert r > 0.90, f"N4 Pearson r vs sitk {r:.4f} < 0.90"
 
 
-
 # ==========================================================================
 # Section 11: MeanImageFilter vs SimpleITK MeanImageFilter
 # ==========================================================================
+
 
 class TestMeanFilterParity:
     """MeanImageFilter interior agreement vs sitk (SimpleITK CMake test pattern)."""
@@ -736,7 +824,9 @@ class TestMeanFilterParity:
         interior = expected[4:-4, 4:-4, 4:-4]
         arr_interior = arr[4:-4, 4:-4, 4:-4]
         mae = _mae(interior, arr_interior)
-        assert mae <= 0.01, f"Mean of linear ramp interior differs from centre value: MAE {mae:.4f}"
+        assert mae <= 0.01, (
+            f"Mean of linear ramp interior differs from centre value: MAE {mae:.4f}"
+        )
 
     def test_mean_filter_constant_image_is_identity(self):
         """Mean filter on constant image must return the same constant."""
@@ -752,6 +842,7 @@ class TestMeanFilterParity:
 # Section 12: Blend Images — additional edge cases
 # ==========================================================================
 
+
 class TestBlendImagesParity:
     """blend_images: verified against sitk.Add + alpha weighting."""
 
@@ -759,7 +850,9 @@ class TestBlendImagesParity:
         """blend(a, b, alpha=0) == a."""
         a_arr = _gradient_volume()
         b_arr = _sphere_volume()
-        result = _ritk_np(ritk.filter.blend_images(_ritk(a_arr), _ritk(b_arr), alpha=0.0))
+        result = _ritk_np(
+            ritk.filter.blend_images(_ritk(a_arr), _ritk(b_arr), alpha=0.0)
+        )
         mae = _mae(result, a_arr)
         assert mae <= _EPS_PIXELWISE, f"blend alpha=0 != a: MAE {mae:.2e}"
 
@@ -767,7 +860,9 @@ class TestBlendImagesParity:
         """blend(a, b, alpha=1) == b."""
         a_arr = _gradient_volume()
         b_arr = _sphere_volume()
-        result = _ritk_np(ritk.filter.blend_images(_ritk(a_arr), _ritk(b_arr), alpha=1.0))
+        result = _ritk_np(
+            ritk.filter.blend_images(_ritk(a_arr), _ritk(b_arr), alpha=1.0)
+        )
         mae = _mae(result, b_arr)
         assert mae <= _EPS_PIXELWISE, f"blend alpha=1 != b: MAE {mae:.2e}"
 
@@ -776,7 +871,9 @@ class TestBlendImagesParity:
         a_arr = _gradient_volume()
         b_arr = _sphere_volume()
         expected = 0.5 * a_arr + 0.5 * b_arr
-        actual = _ritk_np(ritk.filter.blend_images(_ritk(a_arr), _ritk(b_arr), alpha=0.5))
+        actual = _ritk_np(
+            ritk.filter.blend_images(_ritk(a_arr), _ritk(b_arr), alpha=0.5)
+        )
         mae = _mae(actual, expected)
         assert mae <= _EPS_PIXELWISE, f"blend alpha=0.5 MAE {mae:.2e}"
 
@@ -784,6 +881,7 @@ class TestBlendImagesParity:
 # ==========================================================================
 # Section 13: Histogram Equalization — additional coverage
 # ==========================================================================
+
 
 class TestAdaptiveHistogramEqualizationParity:
     """Adaptive histogram equalization (CLAHE) property tests."""
@@ -794,7 +892,9 @@ class TestAdaptiveHistogramEqualizationParity:
         # test the pure CLAHE output range property which must hold for any CLAHE impl.
         arr = _noisy_sphere().astype(np.float32) * 200  # values in [0, 200]
         # Use rescale_intensity then check
-        rescaled = _ritk_np(ritk.filter.rescale_intensity(_ritk(arr), out_min=0.0, out_max=1.0))
+        rescaled = _ritk_np(
+            ritk.filter.rescale_intensity(_ritk(arr), out_min=0.0, out_max=1.0)
+        )
         assert float(rescaled.min()) >= -1e-5, "rescale_intensity below 0"
         assert float(rescaled.max()) <= 1.0 + 1e-5, "rescale_intensity above 1"
 
@@ -802,6 +902,7 @@ class TestAdaptiveHistogramEqualizationParity:
 # ==========================================================================
 # Section 14: Rotate / Shift / Zoom vs scipy.ndimage / SimpleITK
 # ==========================================================================
+
 
 class TestRotateImageParity:
     """rotate_image (GAP-SCI-01) vs scipy.ndimage.rotate and sitk Euler3DTransform."""
@@ -829,9 +930,7 @@ class TestRotateImageParity:
     def test_rotate_x90_preserves_sphere_volume(self):
         """90° rotation about X: sphere volume must be preserved (count of >0.5 voxels)."""
         sphere = _sphere_volume()
-        rotated = _ritk_np(
-            ritk.filter.rotate_image(_ritk(sphere), angle_x=math.pi / 2)
-        )
+        rotated = _ritk_np(ritk.filter.rotate_image(_ritk(sphere), angle_x=math.pi / 2))
         orig_count = int((sphere > 0.5).sum())
         rot_count = int((rotated > 0.5).sum())
         # Volume must be within 5% (linear interpolation boundary effects)
@@ -885,9 +984,7 @@ class TestShiftImageParity:
         """Shifting sphere by (δz, 0, 0) moves the centroid of its mask by δz voxels."""
         sphere = _sphere_volume()
         delta_z_mm = 4.0  # mm (= 4 voxels at 1mm spacing)
-        shifted = _ritk_np(
-            ritk.filter.shift_image(_ritk(sphere), shift_z=delta_z_mm)
-        )
+        shifted = _ritk_np(ritk.filter.shift_image(_ritk(sphere), shift_z=delta_z_mm))
         # Centroid of original sphere mask along Z
         z_idx = np.arange(SIZE, dtype=np.float64)
         orig_mask = (sphere > 0.5).astype(np.float64)
@@ -947,7 +1044,9 @@ class TestZoomImageParity:
     def test_zoom_identity_is_input(self):
         """zoom_image with zoom=1.0 must reproduce the input (same shape, ≈same values)."""
         arr = _gradient_volume()
-        result = _ritk_np(ritk.filter.zoom_image(_ritk(arr), zoom_z=1.0, zoom_y=1.0, zoom_x=1.0))
+        result = _ritk_np(
+            ritk.filter.zoom_image(_ritk(arr), zoom_z=1.0, zoom_y=1.0, zoom_x=1.0)
+        )
         assert result.shape == arr.shape, f"Identity zoom shape changed: {result.shape}"
         mae = _mae(result, arr)
         assert mae <= _EPS_GAUSSIAN, f"Identity zoom MAE {mae:.2e}"
@@ -955,21 +1054,27 @@ class TestZoomImageParity:
     def test_zoom_halve_produces_half_shape(self):
         """zoom_image with zoom=0.5 must produce half the size on each axis."""
         arr = np.ones((SIZE, SIZE, SIZE), dtype=np.float32)
-        result = _ritk_np(ritk.filter.zoom_image(_ritk(arr), zoom_z=0.5, zoom_y=0.5, zoom_x=0.5))
+        result = _ritk_np(
+            ritk.filter.zoom_image(_ritk(arr), zoom_z=0.5, zoom_y=0.5, zoom_x=0.5)
+        )
         expected_shape = (SIZE // 2, SIZE // 2, SIZE // 2)
         assert result.shape == expected_shape, f"Half zoom shape wrong: {result.shape}"
 
     def test_zoom_double_produces_double_shape(self):
         """zoom_image with zoom=2.0 must produce approximately double the size."""
         arr = _sphere_volume()
-        result = _ritk_np(ritk.filter.zoom_image(_ritk(arr), zoom_z=2.0, zoom_y=2.0, zoom_x=2.0))
+        result = _ritk_np(
+            ritk.filter.zoom_image(_ritk(arr), zoom_z=2.0, zoom_y=2.0, zoom_x=2.0)
+        )
         expected = (SIZE * 2, SIZE * 2, SIZE * 2)
         assert result.shape == expected, f"Double zoom shape wrong: {result.shape}"
 
     def test_zoom_constant_image_is_invariant(self):
         """Zooming a constant image must produce the same constant value."""
         arr = np.ones((SIZE, SIZE, SIZE), dtype=np.float32) * 3.7
-        result = _ritk_np(ritk.filter.zoom_image(_ritk(arr), zoom_z=0.5, zoom_y=0.5, zoom_x=0.5))
+        result = _ritk_np(
+            ritk.filter.zoom_image(_ritk(arr), zoom_z=0.5, zoom_y=0.5, zoom_x=0.5)
+        )
         assert float(np.abs(result - 3.7).max()) < 0.01, "Constant zoom changed value"
 
     def test_zoom_zero_factor_raises(self):
@@ -990,7 +1095,9 @@ class TestZoomImageParity:
         resampler.SetOutputDirection(_sitk(arr).GetDirection())
         resampler.SetInterpolator(sitk.sitkLinear)
         expected = _np(resampler.Execute(_sitk(arr)))
-        actual = _ritk_np(ritk.filter.zoom_image(_ritk(arr), zoom_z=0.5, zoom_y=0.5, zoom_x=0.5))
+        actual = _ritk_np(
+            ritk.filter.zoom_image(_ritk(arr), zoom_z=0.5, zoom_y=0.5, zoom_x=0.5)
+        )
         mae = _mae(actual, expected)
         assert mae < 0.02, f"zoom(0.5) MAE vs sitk {mae:.4f} > 0.02"
 
@@ -998,6 +1105,7 @@ class TestZoomImageParity:
 # ==========================================================================
 # Section 15: Label Statistics vs SimpleITK LabelStatisticsImageFilter
 # ==========================================================================
+
 
 class TestLabelStatisticsParity:
     """Label statistics (descriptive stats per label) vs sitk.LabelStatisticsImageFilter."""
@@ -1014,7 +1122,7 @@ class TestLabelStatisticsParity:
         # SimpleITK
         sitk_ls = sitk.LabelStatisticsImageFilter()
         sitk_ls.Execute(_sitk(intensity), sitk.Cast(_sitk(labels), sitk.sitkUInt32))
-        
+
         # ritk (ddof=1 matches ITK's sample variance standard deviation divisor N-1)
         ritk_stats = ritk.statistics.compute_label_intensity_statistics(
             _ritk(labels), _ritk(intensity), ddof=1
@@ -1032,16 +1140,27 @@ class TestLabelStatisticsParity:
             mean = sitk_ls.GetMean(lbl)
             sigma = sitk_ls.GetSigma(lbl)
 
-            assert s["count"] == count, f"Label {lbl} count mismatch: {s['count']} vs {count}"
-            assert abs(s["min"] - minimum) < 1e-4, f"Label {lbl} min mismatch: {s['min']} vs {minimum}"
-            assert abs(s["max"] - maximum) < 1e-4, f"Label {lbl} max mismatch: {s['max']} vs {maximum}"
-            assert abs(s["mean"] - mean) < 1e-4, f"Label {lbl} mean mismatch: {s['mean']} vs {mean}"
-            assert abs(s["std"] - sigma) < 1e-4, f"Label {lbl} std mismatch: {s['std']} vs {sigma}"
+            assert s["count"] == count, (
+                f"Label {lbl} count mismatch: {s['count']} vs {count}"
+            )
+            assert abs(s["min"] - minimum) < 1e-4, (
+                f"Label {lbl} min mismatch: {s['min']} vs {minimum}"
+            )
+            assert abs(s["max"] - maximum) < 1e-4, (
+                f"Label {lbl} max mismatch: {s['max']} vs {maximum}"
+            )
+            assert abs(s["mean"] - mean) < 1e-4, (
+                f"Label {lbl} mean mismatch: {s['mean']} vs {mean}"
+            )
+            assert abs(s["std"] - sigma) < 1e-4, (
+                f"Label {lbl} std mismatch: {s['std']} vs {sigma}"
+            )
 
 
 # ==========================================================================
 # Section 16: Canny Edge Detection vs SimpleITK CannyEdgeDetectionImageFilter
 # ==========================================================================
+
 
 class TestCannyEdgeDetectionParity:
     """CannyEdgeDetectionImageFilter parity vs sitk."""
@@ -1057,9 +1176,11 @@ class TestCannyEdgeDetectionParity:
         expected = _np(sitk_canny.Execute(_sitk(sphere)))
 
         # ritk Canny
-        actual = _ritk_np(ritk.filter.canny_edge_detect(
-            _ritk(sphere), sigma=1.0, low_threshold=0.1, high_threshold=0.2
-        ))
+        actual = _ritk_np(
+            ritk.filter.canny_edge_detect(
+                _ritk(sphere), sigma=1.0, low_threshold=0.1, high_threshold=0.2
+            )
+        )
 
         inter = float(((actual > 0.5) & (expected > 0.5)).sum())
         denom = float((actual > 0.5).sum()) + float((expected > 0.5).sum())
@@ -1071,6 +1192,7 @@ class TestCannyEdgeDetectionParity:
 # Section 17: Level Set Segmentation (GAC & Shape Detection) vs SimpleITK
 # ==========================================================================
 
+
 class TestLevelSetAdvancedParity:
     """Geodesic Active Contour and Shape Detection level set segmentation vs sitk."""
 
@@ -1079,11 +1201,15 @@ class TestLevelSetAdvancedParity:
         s = SIZE
         c = s // 2
         z, y, x = np.mgrid[:s, :s, :s]
-        speed_image = np.exp(-((z - c)**2 + (y - c)**2 + (x - c)**2) / 32.0).astype(np.float32)
+        speed_image = np.exp(
+            -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / 32.0
+        ).astype(np.float32)
 
         # Initial level set: a small sphere at the centre
         r_init = 5.0
-        phi_init = (np.sqrt((z - c)**2 + (y - c)**2 + (x - c)**2) - r_init).astype(np.float32)
+        phi_init = (
+            np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init
+        ).astype(np.float32)
 
         # SimpleITK
         sitk_sd = sitk.ShapeDetectionLevelSetImageFilter()
@@ -1099,11 +1225,13 @@ class TestLevelSetAdvancedParity:
             curvature_weight=0.05,
             max_iterations=10,
             tolerance=0.0,
-            dt=0.12
+            dt=0.12,
         )
-        actual = _ritk_np(ritk.segmentation.shape_detection_segment(
-            _ritk(speed_image), _ritk(phi_init), opts
-        ))
+        actual = _ritk_np(
+            ritk.segmentation.shape_detection_segment(
+                _ritk(speed_image), _ritk(phi_init), opts
+            )
+        )
 
         # Dice on the final zero-level set mask
         expected_mask = expected < 0.0
@@ -1118,11 +1246,15 @@ class TestLevelSetAdvancedParity:
         s = SIZE
         c = s // 2
         z, y, x = np.mgrid[:s, :s, :s]
-        speed_image = np.exp(-((z - c)**2 + (y - c)**2 + (x - c)**2) / 32.0).astype(np.float32)
-        
+        speed_image = np.exp(
+            -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / 32.0
+        ).astype(np.float32)
+
         # Initial level set
         r_init = 5.0
-        phi_init = (np.sqrt((z - c)**2 + (y - c)**2 + (x - c)**2) - r_init).astype(np.float32)
+        phi_init = (
+            np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init
+        ).astype(np.float32)
 
         # SimpleITK GAC
         sitk_gac = sitk.GeodesicActiveContourLevelSetImageFilter()
@@ -1139,11 +1271,13 @@ class TestLevelSetAdvancedParity:
             curvature_weight=0.05,
             advection_weight=1.0,
             max_iterations=10,
-            dt=0.12
+            dt=0.12,
         )
-        actual = _ritk_np(ritk.segmentation.geodesic_active_contour_segment(
-            _ritk(speed_image), _ritk(phi_init), opts
-        ))
+        actual = _ritk_np(
+            ritk.segmentation.geodesic_active_contour_segment(
+                _ritk(speed_image), _ritk(phi_init), opts
+            )
+        )
 
         expected_mask = expected < 0.0
         actual_mask = actual > 0.5
@@ -1157,6 +1291,7 @@ class TestLevelSetAdvancedParity:
 # Section 18: Level Set Segmentation (Threshold & Laplacian) vs SimpleITK
 # ==========================================================================
 
+
 class TestLevelSetBasicParity:
     """Threshold and Laplacian level set segmentation vs sitk."""
 
@@ -1167,7 +1302,9 @@ class TestLevelSetBasicParity:
         z, y, x = np.mgrid[:s, :s, :s]
         intensity_image = _sphere_volume()
         r_init = 4.0
-        phi_init = (np.sqrt((z - c)**2 + (y - c)**2 + (x - c)**2) - r_init).astype(np.float32)
+        phi_init = (
+            np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init
+        ).astype(np.float32)
 
         # SimpleITK
         sitk_tls = sitk.ThresholdSegmentationLevelSetImageFilter()
@@ -1187,11 +1324,13 @@ class TestLevelSetBasicParity:
             curvature_weight=0.05,
             max_iterations=22,
             tolerance=0.0,
-            dt=0.05
+            dt=0.05,
         )
-        actual = _ritk_np(ritk.segmentation.threshold_level_set_segment(
-            _ritk(intensity_image), _ritk(phi_init), opts
-        ))
+        actual = _ritk_np(
+            ritk.segmentation.threshold_level_set_segment(
+                _ritk(intensity_image), _ritk(phi_init), opts
+            )
+        )
 
         expected_mask = expected < 0.0
         actual_mask = actual > 0.5
@@ -1205,9 +1344,13 @@ class TestLevelSetBasicParity:
         s = SIZE
         c = s // 2
         z, y, x = np.mgrid[:s, :s, :s]
-        intensity_image = np.exp(-((z - c)**2 + (y - c)**2 + (x - c)**2) / 32.0).astype(np.float32)
+        intensity_image = np.exp(
+            -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / 32.0
+        ).astype(np.float32)
         r_init = 4.0
-        phi_init = (np.sqrt((z - c)**2 + (y - c)**2 + (x - c)**2) - r_init).astype(np.float32)
+        phi_init = (
+            np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init
+        ).astype(np.float32)
 
         # SimpleITK
         sitk_lls = sitk.LaplacianSegmentationLevelSetImageFilter()
@@ -1224,11 +1367,13 @@ class TestLevelSetBasicParity:
             sigma=1.0,
             max_iterations=39,
             tolerance=0.0,
-            dt=0.05
+            dt=0.05,
         )
-        actual = _ritk_np(ritk.segmentation.laplacian_level_set_segment(
-            _ritk(intensity_image), _ritk(phi_init), opts
-        ))
+        actual = _ritk_np(
+            ritk.segmentation.laplacian_level_set_segment(
+                _ritk(intensity_image), _ritk(phi_init), opts
+            )
+        )
 
         expected_mask = expected < 0.0
         actual_mask = actual > 0.5
@@ -1241,6 +1386,7 @@ class TestLevelSetBasicParity:
 # ==========================================================================
 # Section 19: Region Growing (Confidence & Neighborhood Connected) vs SimpleITK
 # ==========================================================================
+
 
 class TestRegionGrowingParity:
     """ConfidenceConnected and NeighborhoodConnected region growing vs sitk."""
@@ -1258,9 +1404,16 @@ class TestRegionGrowingParity:
         expected = _np(sitk_cc.Execute(_sitk(sphere)))
 
         # ritk confidence connected (seed, initial_lower, initial_upper, multiplier, max_iterations)
-        actual = _ritk_np(ritk.segmentation.confidence_connected_segment(
-            _ritk(sphere), seed, initial_lower=0.5, initial_upper=1.5, multiplier=2.5, max_iterations=2
-        ))
+        actual = _ritk_np(
+            ritk.segmentation.confidence_connected_segment(
+                _ritk(sphere),
+                seed,
+                initial_lower=0.5,
+                initial_upper=1.5,
+                multiplier=2.5,
+                max_iterations=2,
+            )
+        )
 
         inter = float(((actual > 0.5) & (expected > 0.5)).sum())
         denom = float((actual > 0.5).sum()) + float((expected > 0.5).sum())
@@ -1280,9 +1433,11 @@ class TestRegionGrowingParity:
         expected = _np(sitk_nc.Execute(_sitk(sphere)))
 
         # ritk takes integer scalar radius
-        actual = _ritk_np(ritk.segmentation.neighborhood_connected_segment(
-            _ritk(sphere), seed, lower=0.5, upper=1.5, radius=1
-        ))
+        actual = _ritk_np(
+            ritk.segmentation.neighborhood_connected_segment(
+                _ritk(sphere), seed, lower=0.5, upper=1.5, radius=1
+            )
+        )
 
         inter = float(((actual > 0.5) & (expected > 0.5)).sum())
         denom = float((actual > 0.5).sum()) + float((expected > 0.5).sum())
@@ -1294,6 +1449,7 @@ class TestRegionGrowingParity:
 # Section 20: IO Spatial Preservation Parity vs SimpleITK
 # ==========================================================================
 
+
 class TestIOSpatialPreservationParity:
     """Read/Write spatial metadata round-trip preservation vs sitk."""
 
@@ -1301,22 +1457,513 @@ class TestIOSpatialPreservationParity:
         """Writing and reading a NIfTI volume preserves origin, spacing, and directions cosines."""
         import os
         import tempfile
+
         from _sitk_data import fetch
-        
+
         path = fetch("RA-Float.nrrd")
         ri = ritk.io.read_image(path)
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = os.path.join(tmpdir, "test_io.nii.gz")
             ritk.io.write_image(ri, filepath)
-            
+
             si = sitk.ReadImage(filepath)
             orig_si = sitk.ReadImage(path)
-            
+
             assert np.allclose(si.GetSpacing(), orig_si.GetSpacing(), atol=1e-5)
             assert np.allclose(si.GetOrigin(), orig_si.GetOrigin(), atol=1e-5)
             assert np.allclose(si.GetDirection(), orig_si.GetDirection(), atol=1e-5)
 
 
+# ==========================================================================
+# Section 21: Bilateral Filter Parity vs SimpleITK
+# ==========================================================================
 
 
+class TestBilateralFilterParity:
+    """Edge-preserving Bilateral Filter comparison vs sitk."""
+
+    def test_bilateral_filter_agrees_with_sitk(self):
+        """Bilateral filter on a noisy sphere preserves edges and matches sitk closely."""
+        sphere = _sphere_volume()
+        np.random.seed(42)
+        noisy = sphere + np.random.normal(0, 0.1, sphere.shape).astype(np.float32)
+
+        actual = _ritk_np(ritk.filter.bilateral_filter(_ritk(noisy), 1.5, 0.2))
+        expected = _np(sitk.Bilateral(_sitk(noisy), 1.5, 0.2))
+
+        mae = _mae(actual, expected)
+        assert mae <= 5e-3, f"Bilateral filter MAE vs sitk {mae:.4f} > 0.005"
+        pearson = _pearson(actual, expected)
+        assert pearson >= 0.99, (
+            f"Bilateral filter Pearson correlation vs sitk {pearson:.4f} < 0.99"
+        )
+
+
+# ==========================================================================
+# Section 22: Binary Skeletonization and Pruning Parity
+# ==========================================================================
+
+
+class TestBinarySkeletonAndPruningParity:
+    """Binary thinning and pruning filters comparison vs sitk."""
+
+    def test_binary_thinning_matches_sitk(self):
+        """binary_thinning matches sitk.BinaryThinning."""
+        # Create a 2D cross pattern inside [1, 32, 32]
+        cross = np.zeros((1, SIZE, SIZE), dtype=np.float32)
+        cross[0, SIZE // 2, :] = 1.0
+        cross[0, :, SIZE // 2] = 1.0
+
+        actual = _ritk_np(ritk.filter.binary_thinning(_ritk(cross)))
+
+        # SimpleITK BinaryThinning requires a 2D image for 2D inputs, and UInt8 type
+        cross_sitk = sitk.Cast(sitk.GetImageFromArray(cross[0]), sitk.sitkUInt8)
+        expected_2d = sitk.BinaryThinning(cross_sitk)
+        expected = sitk.GetArrayFromImage(expected_2d)[None].astype(np.float32)
+
+        assert np.array_equal(actual, expected), (
+            "binary_thinning result differs from sitk"
+        )
+
+    def test_binary_pruning_matches_sitk(self):
+        """binary_pruning matches sitk.BinaryPruning."""
+        # Create a 2D cross with small spurs
+        cross = np.zeros((1, SIZE, SIZE), dtype=np.float32)
+        cross[0, SIZE // 2, :] = 1.0
+        cross[0, :, SIZE // 2] = 1.0
+        cross[0, 10, 10] = 1.0  # spur
+
+        actual = _ritk_np(ritk.filter.binary_pruning(_ritk(cross), 3))
+
+        cross_sitk = sitk.Cast(sitk.GetImageFromArray(cross[0]), sitk.sitkUInt8)
+        expected_2d = sitk.BinaryPruning(cross_sitk, 3)
+        expected = sitk.GetArrayFromImage(expected_2d)[None].astype(np.float32)
+
+        assert np.array_equal(actual, expected), (
+            "binary_pruning result differs from sitk"
+        )
+
+
+# ==========================================================================
+# Section 23: Erode Object Morphology Parity
+# ==========================================================================
+
+
+class TestErodeObjectMorphologyParity:
+    """ErodeObjectMorphology filter comparison vs sitk."""
+
+    def test_erode_object_morphology_matches_sitk(self):
+        """erode_object_morphology matches sitk.ErodeObjectMorphology."""
+        sphere = _sphere_volume()
+        actual = _ritk_np(
+            ritk.filter.erode_object_morphology(
+                _ritk(sphere), radius=2, object_value=1.0, background_value=0.0
+            )
+        )
+
+        sitk_filter = sitk.ErodeObjectMorphologyImageFilter()
+        sitk_filter.SetObjectValue(1.0)
+        sitk_filter.SetBackgroundValue(0.0)
+        sitk_filter.SetKernelRadius([2, 2, 2])
+        sitk_filter.SetKernelType(sitk.sitkBox)
+        expected = _np(sitk_filter.Execute(_sitk(sphere)))
+
+        assert np.array_equal(actual, expected), (
+            "erode_object_morphology result differs from sitk"
+        )
+
+
+# ==========================================================================
+# Section 24: Half-Hermitian FFT Parity
+# ==========================================================================
+
+
+def _complex_to_interleaved(arr: np.ndarray) -> np.ndarray:
+    out = np.empty(arr.shape[:-1] + (arr.shape[-1] * 2,), dtype=np.float32)
+    out[..., 0::2] = arr.real
+    out[..., 1::2] = arr.imag
+    return out
+
+
+def _sitk_complex(arr: np.ndarray, spacing=(1.0, 1.0, 1.0)) -> sitk.Image:
+    complex_arr = arr[..., 0::2] + 1j * arr[..., 1::2]
+    img = sitk.GetImageFromArray(complex_arr.astype(np.complex64))
+    img.SetSpacing([float(spacing[2]), float(spacing[1]), float(spacing[0])])
+    return img
+
+
+class TestHalfHermitianFFTParity:
+    """RealToHalfHermitianForwardFFT and HalfHermitianToRealInverseFFT comparison vs sitk."""
+
+    def test_half_hermitian_fft_even_size(self):
+        """Half-Hermitian FFT parity on even-sized volume."""
+        rng = np.random.default_rng(42)
+        vol = rng.standard_normal((8, 8, 8)).astype(np.float32)
+
+        # Forward
+        actual_fwd = _ritk_np(
+            ritk.filter.real_to_half_hermitian_forward_fft(_ritk(vol))
+        )
+        expected_fwd = _complex_to_interleaved(
+            sitk.GetArrayFromImage(sitk.RealToHalfHermitianForwardFFT(_sitk(vol)))
+        )
+        assert _mae(actual_fwd, expected_fwd) <= 1e-5, (
+            "Forward Half-Hermitian FFT differs from sitk"
+        )
+
+        # Inverse (actual_x_is_odd = False)
+        actual_inv = _ritk_np(
+            ritk.filter.half_hermitian_to_real_inverse_fft(
+                _ritk(actual_fwd), actual_x_is_odd=False
+            )
+        )
+        expected_inv = _np(
+            sitk.HalfHermitianToRealInverseFFT(_sitk_complex(expected_fwd), False)
+        )
+        assert _mae(actual_inv, expected_inv) <= 1e-5, (
+            "Inverse Half-Hermitian FFT differs from sitk"
+        )
+
+    def test_half_hermitian_fft_odd_size(self):
+        """Half-Hermitian FFT parity on odd-sized volume."""
+        rng = np.random.default_rng(42)
+        # Size must only have prime factors 2, 3, 5 for VNL FFT library in ITK
+        vol = rng.standard_normal((8, 8, 5)).astype(np.float32)
+
+        # Forward
+        actual_fwd = _ritk_np(
+            ritk.filter.real_to_half_hermitian_forward_fft(_ritk(vol))
+        )
+        expected_fwd = _complex_to_interleaved(
+            sitk.GetArrayFromImage(sitk.RealToHalfHermitianForwardFFT(_sitk(vol)))
+        )
+        assert _mae(actual_fwd, expected_fwd) <= 1e-5, (
+            "Forward Half-Hermitian FFT differs from sitk"
+        )
+
+        # Inverse (actual_x_is_odd = True)
+        actual_inv = _ritk_np(
+            ritk.filter.half_hermitian_to_real_inverse_fft(
+                _ritk(actual_fwd), actual_x_is_odd=True
+            )
+        )
+        expected_inv = _np(
+            sitk.HalfHermitianToRealInverseFFT(_sitk_complex(expected_fwd), True)
+        )
+        assert _mae(actual_inv, expected_inv) <= 1e-5, (
+            "Inverse Half-Hermitian FFT differs from sitk"
+        )
+
+
+# ==========================================================================
+# Section 25: Laplacian Sharpening and Edge Detection Parity
+# ==========================================================================
+
+
+class TestSharpeningAndEdgeDetectionParity:
+    """LaplacianSharpening and ZeroCrossingBasedEdgeDetection filters comparison vs sitk."""
+
+    def test_laplacian_sharpening_matches_sitk(self):
+        """laplacian_sharpening matches sitk.LaplacianSharpening."""
+        sphere = _sphere_volume()
+
+        # Test use_image_spacing = True
+        actual_sp = _ritk_np(
+            ritk.filter.laplacian_sharpening(_ritk(sphere), use_image_spacing=True)
+        )
+        expected_sp = _np(sitk.LaplacianSharpening(_sitk(sphere), useImageSpacing=True))
+        assert _mae(actual_sp, expected_sp) <= 1e-5, (
+            "laplacian_sharpening (with spacing) differs from sitk"
+        )
+
+        # Test use_image_spacing = False
+        actual_no_sp = _ritk_np(
+            ritk.filter.laplacian_sharpening(_ritk(sphere), use_image_spacing=False)
+        )
+        expected_no_sp = _np(
+            sitk.LaplacianSharpening(_sitk(sphere), useImageSpacing=False)
+        )
+        assert _mae(actual_no_sp, expected_no_sp) <= 1e-5, (
+            "laplacian_sharpening (no spacing) differs from sitk"
+        )
+
+    def test_zero_crossing_based_edge_detection_matches_sitk(self):
+        """zero_crossing_based_edge_detection matches sitk.ZeroCrossingBasedEdgeDetection."""
+        sphere = _sphere_volume()
+
+        actual = _ritk_np(
+            ritk.filter.zero_crossing_based_edge_detection(
+                _ritk(sphere),
+                variance=1.5,
+                maximum_error=0.01,
+                foreground_value=1.0,
+                background_value=0.0,
+            )
+        )
+
+        sitk_filter = sitk.ZeroCrossingBasedEdgeDetectionImageFilter()
+        sitk_filter.SetVariance(1.5)
+        sitk_filter.SetMaximumError(0.01)
+        sitk_filter.SetForegroundValue(1)
+        sitk_filter.SetBackgroundValue(0)
+        expected = _np(sitk_filter.Execute(_sitk(sphere)))
+
+        # Edge detection on binary inputs using different kernel approximations can have small variations.
+        # Validate that the resulting edge masks overlap with high Dice coefficient.
+        inter = float(((actual > 0.5) & (expected > 0.5)).sum())
+        denom = float((actual > 0.5).sum()) + float((expected > 0.5).sum())
+        dice = 2.0 * inter / max(denom, 1.0)
+        assert dice >= 0.90, (
+            f"Zero Crossing Edge Detection Dice vs sitk {dice:.3f} < 0.90"
+        )
+
+
+# ==========================================================================
+# Section 26: Iso-Contour Distance Parity
+# ==========================================================================
+
+
+class TestIsoContourDistanceParity:
+    """IsoContourDistance comparison vs sitk."""
+
+    def test_iso_contour_distance_matches_sitk(self):
+        """iso_contour_distance matches sitk.IsoContourDistance."""
+        # Use a sphere level set field (distance map)
+        sphere = _sphere_volume()
+        dt_field = _np(
+            sitk.SignedMaurerDistanceMap(
+                sitk.Cast(_sitk(sphere), sitk.sitkUInt8),
+                insideIsPositive=False,
+                squaredDistance=False,
+                useImageSpacing=True,
+            )
+        )
+
+        actual = _ritk_np(
+            ritk.filter.iso_contour_distance(
+                _ritk(dt_field), level_set_value=0.0, far_value=5.0
+            )
+        )
+        expected = _np(
+            sitk.IsoContourDistance(_sitk(dt_field), levelSetValue=0.0, farValue=5.0)
+        )
+
+        assert _mae(actual, expected) <= 1e-5, "iso_contour_distance differs from sitk"
+
+
+# ==========================================================================
+# Section 27: Local Noise and Stochastic Fractal Dimension Parity
+# ==========================================================================
+
+
+class TestLocalNoiseAndFractalParity:
+    """NoiseImageFilter and StochasticFractalDimensionImageFilter comparison vs sitk."""
+
+    def test_local_noise_matches_sitk(self):
+        """local_noise matches sitk.Noise."""
+        noisy = _noisy_sphere()
+        actual = _ritk_np(
+            ritk.filter.local_noise(_ritk(noisy), radius_z=1, radius_y=1, radius_x=1)
+        )
+        expected = _np(sitk.Noise(_sitk(noisy), [1, 1, 1]))
+
+        # Compare interior voxels, ignoring border padding differences if any
+        border = 2
+        actual_interior = actual[border:-border, border:-border, border:-border]
+        expected_interior = expected[border:-border, border:-border, border:-border]
+        assert _mae(actual_interior, expected_interior) <= 1e-4, (
+            "local_noise interior differs from sitk"
+        )
+
+    def test_stochastic_fractal_dimension_matches_sitk(self):
+        """stochastic_fractal_dimension matches sitk.StochasticFractalDimension."""
+        # Use a small random volume to prevent NaNs from zero differences and keep runtime fast
+        rng = np.random.default_rng(42)
+        vol = rng.standard_normal((8, 8, 8)).astype(np.float32)
+
+        actual = _ritk_np(
+            ritk.filter.stochastic_fractal_dimension(_ritk(vol), radius=2)
+        )
+        expected = _np(sitk.StochasticFractalDimension(_sitk(vol), [2, 2, 2]))
+
+        # Ignore border voxels where boundary handling might slightly differ
+        border = 2
+        actual_interior = actual[border:-border, border:-border, border:-border]
+        expected_interior = expected[border:-border, border:-border, border:-border]
+
+        pearson = _pearson(actual_interior, expected_interior)
+        assert pearson >= 0.99, (
+            f"StochasticFractalDimension Pearson correlation vs sitk {pearson:.4f} < 0.99"
+        )
+
+
+# ==========================================================================
+# Section 28: Transform to Displacement Field Parity
+# ==========================================================================
+
+
+class TestTransformToDisplacementFieldParity:
+    """TransformToDisplacementField comparison vs sitk."""
+
+    def test_transform_to_displacement_field_matches_sitk(self, tmp_path):
+        """transform_to_displacement_field matches sitk.TransformToDisplacementField.
+
+        Both images must share the same physical geometry (origin, spacing,
+        direction) for the comparison to be valid.  We round-trip through NRRD
+        so that ritk.io.read_image and sitk see the same on-disk representation.
+        """
+        sphere = _sphere_volume()
+
+        matrix = [[0.9, 0.1, 0.0], [-0.1, 0.9, 0.0], [0.0, 0.0, 1.0]]
+        translation = [1.5, -0.5, 0.2]
+        center = [16.0, 16.0, 16.0]
+
+        # Build reference image: write via sitk, read back via ritk so both
+        # sides agree on the direction matrix.
+        nrrd_path = str(tmp_path / "ref.nrrd")
+        si_ref = _sitk(sphere)
+        sitk.WriteImage(si_ref, nrrd_path)
+        ri_ref = ritk.io.read_image(nrrd_path)
+
+        # ritk
+        act_dz, act_dy, act_dx = ritk.filter.transform_to_displacement_field(
+            ri_ref, matrix, translation, center
+        )
+
+        # SimpleITK
+        tx = sitk.AffineTransform(3)
+        tx.SetMatrix(
+            [
+                matrix[0][0],
+                matrix[0][1],
+                matrix[0][2],
+                matrix[1][0],
+                matrix[1][1],
+                matrix[1][2],
+                matrix[2][0],
+                matrix[2][1],
+                matrix[2][2],
+            ]
+        )
+        tx.SetTranslation(translation)
+        tx.SetCenter(center)
+
+        sitk_filter = sitk.TransformToDisplacementFieldFilter()
+        sitk_filter.SetReferenceImage(si_ref)
+        sitk_filter.SetOutputPixelType(sitk.sitkVectorFloat64)
+        sitk_field = sitk_filter.Execute(tx)
+        expected = sitk.GetArrayFromImage(sitk_field).astype(np.float32)
+
+        # SimpleITK output shape is [Z, Y, X, 3] in XYZ order.
+        # ritk returns (dz, dy, dx) where dz, dy, dx are components
+        # corresponding to physical Z, Y, X respectively.
+        # Compare: sitk element [..., 0] is X, [..., 1] is Y, [..., 2] is Z.
+        assert _mae(_ritk_np(act_dx), expected[..., 0]) <= 1e-4, (
+            "displacement X differs from sitk"
+        )
+        assert _mae(_ritk_np(act_dy), expected[..., 1]) <= 1e-4, (
+            "displacement Y differs from sitk"
+        )
+        assert _mae(_ritk_np(act_dz), expected[..., 2]) <= 1e-4, (
+            "displacement Z differs from sitk"
+        )
+
+
+# ==========================================================================
+# Section 29: Advanced Segmentation Parity
+# ==========================================================================
+
+
+class TestAdvancedSegmentationParity:
+    """isolated_connected_segment, morphological_watershed, and threshold_maximum_connected_components vs sitk."""
+
+    def test_isolated_connected_segment_matches_sitk(self):
+        """isolated_connected_segment matches sitk.IsolatedConnected."""
+        # Create two spheres
+        s = SIZE
+        z, y, x = np.mgrid[:s, :s, :s]
+        vol = (
+            np.exp(-((z - 10) ** 2 + (y - 16) ** 2 + (x - 16) ** 2) / 30.0)
+            + np.exp(-((z - 22) ** 2 + (y - 16) ** 2 + (x - 16) ** 2) / 30.0)
+        ).astype(np.float32)
+
+        seed1 = [10, 16, 16]
+        seed2 = [22, 16, 16]
+
+        # ritk (seed1, seed2, lower, upper, replace_value, tolerance, find_upper)
+        actual = _ritk_np(
+            ritk.segmentation.isolated_connected_segment(
+                _ritk(vol),
+                seed1,
+                seed2,
+                lower=0.1,
+                upper=2.0,
+                replace_value=1.0,
+                isolated_value_tolerance=0.01,
+                find_upper_threshold=False,
+            )
+        )
+
+        # SimpleITK
+        sitk_ic = sitk.IsolatedConnectedImageFilter()
+        sitk_ic.SetSeed1([seed1[2], seed1[1], seed1[0]])
+        sitk_ic.SetSeed2([seed2[2], seed2[1], seed2[0]])
+        sitk_ic.SetLower(0.1)
+        sitk_ic.SetUpper(2.0)
+        sitk_ic.SetReplaceValue(1)
+        sitk_ic.SetIsolatedValueTolerance(0.01)
+        sitk_ic.SetFindUpperThreshold(False)
+        expected = _np(sitk_ic.Execute(_sitk(vol)))
+
+        inter = float(((actual > 0.5) & (expected > 0.5)).sum())
+        denom = float((actual > 0.5).sum()) + float((expected > 0.5).sum())
+        dice = 2.0 * inter / max(denom, 1.0)
+        assert dice >= 0.95, f"IsolatedConnected Dice vs sitk {dice:.3f} < 0.95"
+
+    def test_morphological_watershed_matches_sitk(self):
+        """morphological_watershed matches sitk.MorphologicalWatershed."""
+        sphere = _sphere_volume()
+        grad = _np(sitk.GradientMagnitude(_sitk(sphere)))
+
+        actual = _ritk_np(
+            ritk.segmentation.morphological_watershed(_ritk(grad), level=0.2)
+        )
+        expected = _np(
+            sitk.MorphologicalWatershed(
+                _sitk(grad), level=0.2, markWatershedLine=True, fullyConnected=False
+            )
+        )
+
+        # Exact match or very high boundary overlap (allowing minor watershed line offsets due to float precision)
+        inter = float(((actual > 0.5) & (expected > 0.5)).sum())
+        denom = float((actual > 0.5).sum()) + float((expected > 0.5).sum())
+        dice = 2.0 * inter / max(denom, 1.0)
+        assert dice >= 0.98, f"MorphologicalWatershed Dice vs sitk {dice:.3f} < 0.98"
+
+    def test_threshold_maximum_connected_components_matches_sitk(self):
+        """threshold_maximum_connected_components matches sitk.ThresholdMaximumConnectedComponents."""
+        sphere = _sphere_volume()
+        noisy = (
+            sphere * 10.0
+            + np.random.default_rng(42).standard_normal(sphere.shape) * 2.0
+        ).astype(np.float32)
+
+        actual = _ritk_np(
+            ritk.segmentation.threshold_maximum_connected_components(
+                _ritk(noisy), minimum_object_size=10, upper_boundary=None
+            )
+        )
+
+        sitk_filter = sitk.ThresholdMaximumConnectedComponentsImageFilter()
+        sitk_filter.SetMinimumObjectSizeInPixels(10)
+        # Convert noisy input to int image matching ITK expectations
+        int_noisy = sitk.Cast(_sitk(noisy), sitk.sitkInt16)
+        expected = _np(sitk_filter.Execute(int_noisy))
+
+        inter = float(((actual > 0.5) & (expected > 0.5)).sum())
+        denom = float((actual > 0.5).sum()) + float((expected > 0.5).sum())
+        dice = 2.0 * inter / max(denom, 1.0)
+        assert dice >= 0.95, (
+            f"ThresholdMaximumConnectedComponents Dice vs sitk {dice:.3f} < 0.95"
+        )

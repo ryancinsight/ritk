@@ -23,13 +23,18 @@ def discrete_gaussian_derivative(
 ) -> Image:
     """Discrete Gaussian derivative (per-axis order, sitk x/y/z). ITK Parity: DiscreteGaussianDerivativeImageFilter."""
     ...
+
 def normalize_image(image: Image) -> Image: ...
 def normalize_to_constant(image: Image, constant: float = 1.0) -> Image:
     """Scale so the sum of voxels equals `constant`. ITK Parity: NormalizeToConstantImageFilter."""
     ...
-def derivative(image: Image, direction: int = 0, order: int = 1, use_image_spacing: bool = True) -> Image:
+
+def derivative(
+    image: Image, direction: int = 0, order: int = 1, use_image_spacing: bool = True
+) -> Image:
     """Directional central-difference derivative (direction sitk x/y/z; order 1 or 2). ITK Parity: DerivativeImageFilter."""
     ...
+
 def bilateral_filter(
     image: Image, spatial_sigma: float, range_sigma: float
 ) -> Image: ...
@@ -83,9 +88,12 @@ def curvature_anisotropic_diffusion(
     iterations: int = 20,
     time_step: float = 0.0625,
 ) -> Image: ...
-def curvature_flow(image: Image, time_step: float = 0.0625, iterations: int = 5) -> Image:
+def curvature_flow(
+    image: Image, time_step: float = 0.0625, iterations: int = 5
+) -> Image:
     """Pure mean-curvature flow (dI/dt = kappa). ITK Parity: CurvatureFlowImageFilter."""
     ...
+
 def sato_line_filter(
     image: Image,
     scales: list[float] | None = None,
@@ -97,6 +105,15 @@ def rescale_intensity(
     out_min: float = 0.0,
     out_max: float = 1.0,
 ) -> Image: ...
+def adaptive_histogram_equalization(
+    image: Image,
+    radius: tuple[int, int, int] = (5, 5, 5),
+    alpha: float = 0.3,
+    beta: float = 0.3,
+) -> Image:
+    """Adaptive histogram equalization (Stark alpha/beta). ITK Parity: AdaptiveHistogramEqualizationImageFilter."""
+    ...
+
 def intensity_windowing(
     image: Image,
     window_min: float,
@@ -145,6 +162,7 @@ def double_threshold(
 ) -> Image:
     """Hysteresis double-threshold (inner band reconstructed under outer band). ITK Parity: DoubleThresholdImageFilter."""
     ...
+
 def zero_crossing_image(
     image: Image,
     foreground_value: float = 1.0,
@@ -211,12 +229,15 @@ def unary_minus_image(image: Image) -> Image:
 def round_image(image: Image) -> Image:
     """Pixelwise round to nearest integer (half-up). ITK Parity: RoundImageFilter."""
     ...
+
 def not_image(image: Image) -> Image:
     """Pixelwise logical NOT of a mask (1 where in==0, else 0). ITK Parity: NotImageFilter."""
     ...
+
 def binary_not(image: Image, foreground: float = 1.0, background: float = 0.0) -> Image:
     """Binary logical NOT: background where in==foreground, else foreground. ITK Parity: BinaryNotImageFilter."""
     ...
+
 def modulus(image: Image, dividend: int) -> Image:
     """Pixelwise in % dividend (integer images, C truncated remainder). ITK Parity: ModulusImageFilter."""
     ...
@@ -228,48 +249,63 @@ def binary_magnitude_images(a: Image, b: Image) -> Image:
 def equal_images(a: Image, b: Image) -> Image:
     """Pixelwise equality mask (1 where a==b). ITK Parity: EqualImageFilter."""
     ...
+
 def not_equal_images(a: Image, b: Image) -> Image:
     """Pixelwise inequality mask (1 where a!=b). ITK Parity: NotEqualImageFilter."""
     ...
+
 def greater_images(a: Image, b: Image) -> Image:
     """Pixelwise greater-than mask (1 where a>b). ITK Parity: GreaterImageFilter."""
     ...
+
 def greater_equal_images(a: Image, b: Image) -> Image:
     """Pixelwise greater-or-equal mask (1 where a>=b). ITK Parity: GreaterEqualImageFilter."""
     ...
+
 def less_images(a: Image, b: Image) -> Image:
     """Pixelwise less-than mask (1 where a<b). ITK Parity: LessImageFilter."""
     ...
+
 def less_equal_images(a: Image, b: Image) -> Image:
     """Pixelwise less-or-equal mask (1 where a<=b). ITK Parity: LessEqualImageFilter."""
     ...
+
 def and_images(a: Image, b: Image) -> Image:
     """Pixelwise logical AND of binary masks (1 where a>0 and b>0). ITK Parity: AndImageFilter."""
     ...
+
 def or_images(a: Image, b: Image) -> Image:
     """Pixelwise logical OR of binary masks (1 where a>0 or b>0). ITK Parity: OrImageFilter."""
     ...
+
 def xor_images(a: Image, b: Image) -> Image:
     """Pixelwise logical XOR of binary masks (1 where exactly one of a,b > 0). ITK Parity: XorImageFilter."""
     ...
+
 def divide_real_images(a: Image, b: Image) -> Image:
     """Pixelwise real division a/b (FLT_MAX where b==0). ITK Parity: DivideRealImageFilter."""
     ...
+
 def nary_add(images: list[Image]) -> Image:
     """Pixelwise sum of any number of images. ITK Parity: NaryAddImageFilter."""
     ...
+
 def nary_maximum(images: list[Image]) -> Image:
     """Pixelwise maximum of any number of images. ITK Parity: NaryMaximumImageFilter."""
     ...
+
 def divide_floor_images(a: Image, b: Image) -> Image:
     """Pixelwise floored division floor(a/b) (FLT_MAX where b==0). ITK Parity: DivideFloorImageFilter."""
     ...
+
 def ternary_add_images(a: Image, b: Image, c: Image) -> Image:
     """Pixelwise sum of three images: a+b+c. ITK Parity: TernaryAddImageFilter."""
     ...
+
 def ternary_magnitude_images(a: Image, b: Image, c: Image) -> Image:
     """Pixelwise magnitude: sqrt(a^2+b^2+c^2). ITK Parity: TernaryMagnitudeImageFilter."""
     ...
+
 def ternary_magnitude_squared_images(a: Image, b: Image, c: Image) -> Image:
     """Pixelwise squared magnitude: a^2+b^2+c^2. ITK Parity: TernaryMagnitudeSquaredImageFilter."""
     ...
@@ -309,16 +345,30 @@ def bounded_reciprocal_image(image: Image) -> Image:
 def mean_filter(image: Image, radius: int = 1) -> Image:
     """Mean (box) filter: average over a (2r+1)^3 cube. ITK Parity: MeanImageFilter."""
     ...
+
 def binomial_blur(image: Image, repetitions: int = 1) -> Image:
     """Separable [1/4,1/2,1/4] blur applied `repetitions` times (reflect boundary). ITK Parity: BinomialBlurImageFilter."""
     ...
-def box_mean(image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1) -> Image:
+
+def box_mean(
+    image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1
+) -> Image:
     """Box mean over a clipped (2r+1) window (shrink boundary). ITK Parity: BoxMeanImageFilter."""
     ...
-def box_sigma(image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1) -> Image:
+
+def box_sigma(
+    image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1
+) -> Image:
     """Box sample std-dev over a clipped (2r+1) window (divisor n-1). ITK Parity: BoxSigmaImageFilter."""
     ...
-def rank(image: Image, rank: float = 0.5, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1) -> Image:
+
+def rank(
+    image: Image,
+    rank: float = 0.5,
+    radius_z: int = 1,
+    radius_y: int = 1,
+    radius_x: int = 1,
+) -> Image:
     """Order statistic at floor(rank*(n-1)) of the sorted clipped window. ITK Parity: RankImageFilter."""
     ...
 
@@ -333,33 +383,49 @@ def color_mean(image: ColorImage, radius: int = 1) -> ColorImage:
 def color_smoothing_recursive_gaussian(image: ColorImage, sigma: float) -> ColorImage:
     """Per-component smoothing recursive Gaussian on an RGB/vector image. ITK Parity: SmoothingRecursiveGaussianImageFilter (vector)."""
     ...
+
 def compose(c0: Image, c1: Image, c2: Image) -> ColorImage:
     """Compose three scalar images into a 3-component vector image. ITK Parity: ComposeImageFilter."""
     ...
+
 def gradient(image: Image, use_image_spacing: bool = True) -> ColorImage:
     """Central-difference gradient -> 3-component vector (dx,dy,dz). ITK Parity: GradientImageFilter."""
     ...
+
 def gradient_recursive_gaussian(image: Image, sigma: float = 1.0) -> ColorImage:
     """Gaussian-smoothed gradient -> 3-component vector (dx,dy,dz). ITK Parity: GradientRecursiveGaussianImageFilter."""
     ...
+
 def scalar_to_rgb_colormap(image: Image, colormap: str = "grey") -> ColorImage:
     """Map scalar -> RGB via a colormap (grey/red/green/blue). ITK Parity: ScalarToRGBColormapImageFilter."""
     ...
+
 def label_to_rgb(image: Image, background: int = 0) -> ColorImage:
     """Map a label image to RGB via ITK's 30-colour table (background->black). ITK Parity: LabelToRGBImageFilter."""
     ...
-def label_overlay(image: Image, label: Image, opacity: float = 0.5, background: int = 0) -> ColorImage:
+
+def label_overlay(
+    image: Image, label: Image, opacity: float = 0.5, background: int = 0
+) -> ColorImage:
     """Overlay a label image on grayscale as RGB (alpha-blend with colour table). ITK Parity: LabelOverlayImageFilter."""
     ...
-def physical_point_image_source(size: tuple[int, int, int], origin: tuple[float, float, float] = (0.0, 0.0, 0.0), spacing: tuple[float, float, float] = (1.0, 1.0, 1.0)) -> ColorImage:
+
+def physical_point_image_source(
+    size: tuple[int, int, int],
+    origin: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    spacing: tuple[float, float, float] = (1.0, 1.0, 1.0),
+) -> ColorImage:
     """Generate a vector image holding each voxel's physical coordinate. ITK Parity: PhysicalPointImageSource."""
     ...
+
 def vector_index_selection_cast(image: ColorImage, index: int) -> Image:
     """Extract one component of a vector image as a scalar image. ITK Parity: VectorIndexSelectionCastImageFilter."""
     ...
+
 def edge_potential(image: ColorImage) -> Image:
     """Edge potential exp(-|vector|) of a vector (gradient) image. ITK Parity: EdgePotentialImageFilter."""
     ...
+
 def vector_magnitude(image: ColorImage) -> Image:
     """Per-voxel Euclidean magnitude of a vector image. ITK Parity: VectorMagnitudeImageFilter."""
     ...
@@ -379,6 +445,7 @@ def mask_image(image: Image, mask: Image, outside_value: float = 0.0) -> Image:
 def mask_negated_image(image: Image, mask: Image, outside_value: float = 0.0) -> Image:
     """Keep image where mask <= 0, else outside_value. ITK Parity: MaskNegatedImageFilter."""
     ...
+
 def masked_assign(image: Image, mask: Image, assign_value: float = 0.0) -> Image:
     """Assign value where mask>0, keep image elsewhere. ITK Parity: MaskedAssignImageFilter."""
     ...
@@ -419,110 +486,209 @@ def morphological_reconstruction(
 def h_maxima(image: Image, height: float, fully_connected: bool = False) -> Image:
     """H-maxima transform (suppress bright maxima below `height`). ITK Parity: HMaximaImageFilter."""
     ...
+
 def h_minima(image: Image, height: float, fully_connected: bool = False) -> Image:
     """H-minima transform (suppress dark minima below `height`). ITK Parity: HMinimaImageFilter."""
     ...
+
 def h_convex(image: Image, height: float, fully_connected: bool = False) -> Image:
     """H-convex transform: f - HMaxima_h(f). ITK Parity: HConvexImageFilter."""
     ...
+
 def h_concave(image: Image, height: float, fully_connected: bool = False) -> Image:
     """H-concave transform: HMinima_h(f) - f. ITK Parity: HConcaveImageFilter."""
     ...
-def regional_maxima(image: Image, foreground: float = 1.0, background: float = 0.0, fully_connected: bool = False) -> Image:
+
+def regional_maxima(
+    image: Image,
+    foreground: float = 1.0,
+    background: float = 0.0,
+    fully_connected: bool = False,
+) -> Image:
     """Binary regional maxima. ITK Parity: RegionalMaximaImageFilter."""
     ...
-def regional_minima(image: Image, foreground: float = 1.0, background: float = 0.0, fully_connected: bool = False) -> Image:
+
+def regional_minima(
+    image: Image,
+    foreground: float = 1.0,
+    background: float = 0.0,
+    fully_connected: bool = False,
+) -> Image:
     """Binary regional minima. ITK Parity: RegionalMinimaImageFilter."""
     ...
+
 def valued_regional_maxima(image: Image, fully_connected: bool = False) -> Image:
     """Valued regional maxima (non-maxima → -FLT_MAX). ITK Parity: ValuedRegionalMaximaImageFilter."""
     ...
+
 def valued_regional_minima(image: Image, fully_connected: bool = False) -> Image:
     """Valued regional minima (non-minima → +FLT_MAX). ITK Parity: ValuedRegionalMinimaImageFilter."""
     ...
-def opening_by_reconstruction(image: Image, radius: int, fully_connected: bool = False) -> Image:
+
+def opening_by_reconstruction(
+    image: Image, radius: int, fully_connected: bool = False
+) -> Image:
     """Opening by reconstruction (box SE). ITK Parity: OpeningByReconstructionImageFilter."""
     ...
-def closing_by_reconstruction(image: Image, radius: int, fully_connected: bool = False) -> Image:
+
+def closing_by_reconstruction(
+    image: Image, radius: int, fully_connected: bool = False
+) -> Image:
     """Closing by reconstruction (box SE). ITK Parity: ClosingByReconstructionImageFilter."""
     ...
+
 def grayscale_closing(image: Image, radius: int) -> Image:
     """Grayscale morphological closing (box SE). ITK Parity: GrayscaleMorphologicalClosingImageFilter."""
     ...
+
 def grayscale_opening(image: Image, radius: int) -> Image:
     """Grayscale morphological opening (box SE). ITK Parity: GrayscaleMorphologicalOpeningImageFilter."""
     ...
+
 def grayscale_fillhole(image: Image) -> Image:
     """Grayscale fill-hole. ITK Parity: GrayscaleFillholeImageFilter."""
     ...
+
 def grayscale_grind_peak(image: Image, fully_connected: bool = False) -> Image:
     """Grayscale grind-peak (dual of fill-hole). ITK Parity: GrayscaleGrindPeakImageFilter."""
     ...
-def binary_contour(image: Image, fully_connected: bool = False, foreground_value: float = 1.0) -> Image:
+
+def binary_contour(
+    image: Image, fully_connected: bool = False, foreground_value: float = 1.0
+) -> Image:
     """Binary object boundary. ITK Parity: BinaryContourImageFilter."""
     ...
-def label_contour(image: Image, fully_connected: bool = False, background_value: float = 0.0) -> Image:
+
+def label_contour(
+    image: Image, fully_connected: bool = False, background_value: float = 0.0
+) -> Image:
     """Per-label boundary voxels. ITK Parity: LabelContourImageFilter."""
     ...
-def voting_binary(image: Image, radius: int = 1, birth_threshold: int = 1, survival_threshold: int = 1, foreground_value: float = 1.0, background_value: float = 0.0) -> Image:
+
+def voting_binary(
+    image: Image,
+    radius: int = 1,
+    birth_threshold: int = 1,
+    survival_threshold: int = 1,
+    foreground_value: float = 1.0,
+    background_value: float = 0.0,
+) -> Image:
     """One binary voting (cellular-automaton) step. ITK Parity: VotingBinaryImageFilter."""
     ...
-def voting_binary_hole_filling(image: Image, radius: int = 1, majority_threshold: int = 1, foreground_value: float = 1.0, background_value: float = 0.0) -> Image:
+
+def voting_binary_hole_filling(
+    image: Image,
+    radius: int = 1,
+    majority_threshold: int = 1,
+    foreground_value: float = 1.0,
+    background_value: float = 0.0,
+) -> Image:
     """Fill background holes by majority vote (fg always survives, clamp boundary). ITK Parity: VotingBinaryHoleFillingImageFilter."""
     ...
-def voting_binary_iterative_hole_filling(image: Image, radius: int = 1, max_iterations: int = 10, majority_threshold: int = 1, foreground_value: float = 1.0, background_value: float = 0.0) -> Image:
+
+def voting_binary_iterative_hole_filling(
+    image: Image,
+    radius: int = 1,
+    max_iterations: int = 10,
+    majority_threshold: int = 1,
+    foreground_value: float = 1.0,
+    background_value: float = 0.0,
+) -> Image:
     """Iteratively fill background holes by majority vote. ITK Parity: VotingBinaryIterativeHoleFillingImageFilter."""
     ...
-def flip(image: Image, flip_z: bool = False, flip_y: bool = False, flip_x: bool = False) -> Image:
+
+def flip(
+    image: Image, flip_z: bool = False, flip_y: bool = False, flip_x: bool = False
+) -> Image:
     """Flip along Z/Y/X axes. ITK Parity: FlipImageFilter (sitk.Flip, axes reversed to [x,y,z])."""
     ...
-def constant_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int], constant: float = 0.0) -> Image:
+
+def constant_pad(
+    image: Image,
+    lower: tuple[int, int, int],
+    upper: tuple[int, int, int],
+    constant: float = 0.0,
+) -> Image:
     """Constant-value pad; lower/upper are (z,y,x). ITK Parity: ConstantPadImageFilter."""
     ...
-def mirror_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]) -> Image:
+
+def mirror_pad(
+    image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]
+) -> Image:
     """Mirror (symmetric) pad; lower/upper are (z,y,x). ITK Parity: MirrorPadImageFilter."""
     ...
-def wrap_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]) -> Image:
+
+def wrap_pad(
+    image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]
+) -> Image:
     """Wrap (periodic) pad; lower/upper are (z,y,x). ITK Parity: WrapPadImageFilter."""
     ...
-def zero_flux_neumann_pad(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]) -> Image:
+
+def zero_flux_neumann_pad(
+    image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]
+) -> Image:
     """Edge-replicate (zero-flux Neumann) pad; lower/upper are (z,y,x). ITK Parity: ZeroFluxNeumannPadImageFilter."""
     ...
+
 def fft_pad(image: Image, max_prime: int = 5, boundary: int = 1) -> Image:
     """Pad each axis to the next size whose greatest prime factor is <= max_prime
     (default 5). boundary: 0 zero, 1 zero-flux Neumann (default), 2 periodic.
     ITK Parity: FFTPadImageFilter."""
     ...
-def region_of_interest(image: Image, start: tuple[int, int, int], size: tuple[int, int, int]) -> Image:
+
+def region_of_interest(
+    image: Image, start: tuple[int, int, int], size: tuple[int, int, int]
+) -> Image:
     """Crop to a sub-region; start/size are (z,y,x). ITK Parity: RegionOfInterestImageFilter."""
     ...
-def crop(image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]) -> Image:
+
+def crop(
+    image: Image, lower: tuple[int, int, int], upper: tuple[int, int, int]
+) -> Image:
     """Crop lower/upper voxels off each axis face (z,y,x). ITK Parity: CropImageFilter."""
     ...
+
 def cyclic_shift(image: Image, shift: tuple[int, int, int]) -> Image:
     """Cyclically roll the image by (z,y,x) voxels (wrap-around). ITK Parity: CyclicShiftImageFilter."""
     ...
+
 def join_series(images: list[Image]) -> Image:
     """Stack a list of [zi,Y,X] images along Z into [sum zi, Y, X]. ITK Parity: JoinSeriesImageFilter."""
     ...
-def tile(images: list[Image], layout: tuple[int, int, int], default_value: float = 0.0) -> Image:
+
+def tile(
+    images: list[Image], layout: tuple[int, int, int], default_value: float = 0.0
+) -> Image:
     """Tile same-sized images into a grid (layout = nx,ny,nz tiles per axis). ITK Parity: TileImageFilter."""
     ...
-def checker_board(image1: Image, image2: Image, pattern: tuple[int, int, int] = (4, 4, 4)) -> Image:
+
+def checker_board(
+    image1: Image, image2: Image, pattern: tuple[int, int, int] = (4, 4, 4)
+) -> Image:
     """Checkerboard-combine two images (pattern = nx,ny,nz cells). ITK Parity: CheckerBoardImageFilter."""
     ...
-def slice_image(image: Image, start: tuple[int, int, int], stop: tuple[int, int, int], step: tuple[int, int, int]) -> Image:
+
+def slice_image(
+    image: Image,
+    start: tuple[int, int, int],
+    stop: tuple[int, int, int],
+    step: tuple[int, int, int],
+) -> Image:
     """Strided sub-region (start:stop:step per axis, z,y,x order). ITK Parity: SliceImageFilter."""
     ...
+
 def expand(image: Image, factors: tuple[int, int, int]) -> Image:
     """Integer-factor upsample (z,y,x) via linear interpolation. ITK Parity: ExpandImageFilter."""
     ...
+
 def permute_axes(image: Image, order: tuple[int, int, int]) -> Image:
     """Permute tensor axes (order is a [z,y,x] permutation). ITK Parity: PermuteAxesImageFilter."""
     ...
+
 def paste(dest: Image, source: Image, dest_start: tuple[int, int, int]) -> Image:
     """Paste source into dest at dest_start (z,y,x). ITK Parity: PasteImageFilter."""
     ...
+
 def resample_image(
     image: Image,
     spacing_z: float = 1.0,
@@ -530,14 +696,14 @@ def resample_image(
     spacing_x: float = 1.0,
     mode: str = "linear",
 ) -> Image: ...
-def warp(
-    moving: Image, disp_z: Image, disp_y: Image, disp_x: Image
-) -> Image:
+def warp(moving: Image, disp_z: Image, disp_y: Image, disp_x: Image) -> Image:
     """Warp `moving` through a dense displacement field (trilinear). out(p)=moving(p+D(p)). ITK Parity: WarpImageFilter."""
     ...
+
 def bspline_decomposition(image: Image) -> Image:
     """Cubic B-spline interpolation coefficients (mirror boundary). ITK Parity: BSplineDecompositionImageFilter (order 3)."""
     ...
+
 def rotate_image(
     image: Image,
     angle_x: float = 0.0,
@@ -612,6 +778,7 @@ def shrink(
 ) -> Image:
     """Subsample (no averaging), ITK Shrink. factors (z,y,x); sitk.Shrink uses [x,y,z]. ITK Parity: ShrinkImageFilter."""
     ...
+
 def gaussian_image_source(
     size: tuple[int, int, int],
     sigma: tuple[float, float, float],
@@ -622,6 +789,7 @@ def gaussian_image_source(
 ) -> Image:
     """Generate a Gaussian blob image (params in sitk x,y,z order). ITK Parity: GaussianImageSource."""
     ...
+
 def grid_image_source(
     size: tuple[int, int, int],
     spacing: tuple[float, float, float] = (1.0, 1.0, 1.0),
@@ -634,6 +802,7 @@ def grid_image_source(
 ) -> Image:
     """Generate a grid-pattern image (dark Gaussian lines). ITK Parity: GridImageSource."""
     ...
+
 def gabor_image_source(
     size: tuple[int, int, int],
     spacing: tuple[float, float, float] = (1.0, 1.0, 1.0),
@@ -644,6 +813,7 @@ def gabor_image_source(
 ) -> Image:
     """Generate a Gabor-wavelet image (Gaussian envelope * cosine along x). ITK Parity: GaborImageSource."""
     ...
+
 def coherence_enhancing_diffusion(
     image: Image,
     sigma: float = 3.0,
@@ -661,25 +831,50 @@ def fft_shift(image: Image) -> Image: ...
 def complex_to_real(image: Image) -> Image:
     """Real part of an interleaved [D,H,2W] complex image. ITK Parity: ComplexToRealImageFilter."""
     ...
+
 def complex_to_imaginary(image: Image) -> Image:
     """Imaginary part of a complex image. ITK Parity: ComplexToImaginaryImageFilter."""
     ...
+
 def complex_to_modulus(image: Image) -> Image:
     """Modulus sqrt(re^2+im^2) of a complex image. ITK Parity: ComplexToModulusImageFilter."""
     ...
+
 def complex_to_phase(image: Image) -> Image:
     """Phase atan2(im,re) of a complex image. ITK Parity: ComplexToPhaseImageFilter."""
     ...
+
 def real_and_imaginary_to_complex(real: Image, imaginary: Image) -> Image:
     """Build interleaved [D,H,2W] complex from real+imag. ITK Parity: RealAndImaginaryToComplexImageFilter."""
     ...
+
 def magnitude_and_phase_to_complex(magnitude: Image, phase: Image) -> Image:
     """Build complex from magnitude+phase (re=m*cos p, im=m*sin p). ITK Parity: MagnitudeAndPhaseToComplexImageFilter."""
     ...
+
 def fft_convolve(image: Image, kernel: Image) -> Image: ...
 def fft_convolve_3d(volume: Image, kernel: Image) -> Image: ...
 def fft_normalized_correlate(image: Image, template: Image) -> Image: ...
 def fft_normalized_correlate_3d(volume: Image, template: Image) -> Image: ...
+def masked_fft_normalized_correlation(
+    fixed: Image,
+    moving: Image,
+    fixed_mask: Image,
+    moving_mask: Image,
+    greatest_prime_factor: int = 0,
+    required_fraction: float = 0.0,
+) -> Image:
+    """Masked FFT normalized cross-correlation. ITK Parity: MaskedFFTNormalizedCorrelationImageFilter."""
+    ...
+
+def normalized_correlation(
+    image: Image,
+    mask: Image,
+    template: Image,
+) -> Image:
+    """Local normalized correlation of image with a template (mask-gated). ITK Parity: NormalizedCorrelationImageFilter."""
+    ...
+
 def fft_ideal_low_pass(image: Image, cutoff: float = 0.3) -> Image: ...
 def fft_ideal_high_pass(image: Image, cutoff: float = 0.3) -> Image: ...
 def fft_butterworth_low_pass(
@@ -710,11 +905,13 @@ def projected_landweber_deconvolution(
 ) -> Image:
     """Landweber with a non-negativity projection each iteration. ITK Parity: ProjectedLandweberDeconvolution."""
     ...
+
 def inverse_deconvolution(
     image: Image, kernel: Image, kernel_zero_magnitude_threshold: float = 1e-4
 ) -> Image:
     """Direct inverse filter U=G/H, zeroing frequencies where |H|<threshold. ITK Parity: InverseDeconvolution."""
     ...
+
 def wiener_deconvolution(
     image: Image, kernel: Image, noise_to_signal: float = 0.01
 ) -> Image: ...
@@ -728,11 +925,159 @@ def max_intensity_projection(image: Image, axis: int = 0) -> Image: ...
 def min_intensity_projection(image: Image, axis: int = 0) -> Image: ...
 def mean_intensity_projection(image: Image, axis: int = 0) -> Image: ...
 def median_intensity_projection(image: Image, axis: int = 0) -> Image: ...
-def binary_projection(image: Image, axis: int = 0, foreground: float = 1.0, background: float = 0.0) -> Image:
+def binary_projection(
+    image: Image, axis: int = 0, foreground: float = 1.0, background: float = 0.0
+) -> Image:
     """Binary projection (foreground if any voxel == foreground). ITK Parity: BinaryProjectionImageFilter."""
     ...
-def binary_threshold_projection(image: Image, axis: int = 0, threshold: float = 0.0, foreground: float = 1.0, background: float = 0.0) -> Image:
+
+def binary_threshold_projection(
+    image: Image,
+    axis: int = 0,
+    threshold: float = 0.0,
+    foreground: float = 1.0,
+    background: float = 0.0,
+) -> Image:
     """Binary-threshold projection (foreground if any voxel >= threshold). ITK Parity: BinaryThresholdProjectionImageFilter."""
     ...
+
 def sum_intensity_projection(image: Image, axis: int = 0) -> Image: ...
 def stddev_intensity_projection(image: Image, axis: int = 0) -> Image: ...
+
+# -- Parity resolution additions ----------------------------------------------
+
+def binary_thinning(image: Image) -> Image:
+    """Thin a binary image to its 1-pixel-wide skeleton. ITK Parity: BinaryThinningImageFilter."""
+    ...
+
+def binary_pruning(image: Image, iteration: int = 3) -> Image:
+    """Prune short spurs from a binary skeleton. ITK Parity: BinaryPruningImageFilter."""
+    ...
+
+def erode_object_morphology(
+    image: Image,
+    radius: int = 1,
+    object_value: float = 1.0,
+    background_value: float = 0.0,
+) -> Image:
+    """Erode an object's surface with a box structuring element. ITK Parity: ErodeObjectMorphologyImageFilter."""
+    ...
+
+def real_to_half_hermitian_forward_fft(image: Image) -> Image:
+    """Real-to-half-Hermitian forward FFT. ITK Parity: RealToHalfHermitianForwardFFTImageFilter."""
+    ...
+
+def half_hermitian_to_real_inverse_fft(
+    image: Image, actual_x_is_odd: bool = False
+) -> Image:
+    """Half-Hermitian-to-real inverse FFT. ITK Parity: HalfHermitianToRealInverseFFTImageFilter."""
+    ...
+
+def laplacian_sharpening(image: Image, use_image_spacing: bool = True) -> Image:
+    """Sharpen an image by subtracting its (range-rescaled) Laplacian. ITK Parity: LaplacianSharpeningImageFilter."""
+    ...
+
+def zero_crossing_based_edge_detection(
+    image: Image,
+    variance: float = 1.0,
+    maximum_error: float = 0.01,
+    foreground_value: float = 1.0,
+    background_value: float = 0.0,
+) -> Image:
+    """Zero-crossing-based edge detection. ITK Parity: ZeroCrossingBasedEdgeDetectionImageFilter."""
+    ...
+
+def iso_contour_distance(
+    image: Image, level_set_value: float = 0.0, far_value: float = 10.0
+) -> Image:
+    """Narrow-band signed distance to the iso-contour. ITK Parity: IsoContourDistanceImageFilter."""
+    ...
+
+def approximate_signed_distance_map(
+    image: Image,
+    inside_value: float = 1.0,
+    outside_value: float = 0.0,
+) -> Image:
+    """Approximate signed distance map via IsoContourDistance + FastChamferDistance.
+    ITK Parity: ApproximateSignedDistanceMapImageFilter."""
+    ...
+
+def local_noise(
+    image: Image, radius_z: int = 1, radius_y: int = 1, radius_x: int = 1
+) -> Image:
+    """Estimate local image noise. ITK Parity: NoiseImageFilter."""
+    ...
+
+def stochastic_fractal_dimension(image: Image, radius: int = 2) -> Image:
+    """Per-voxel stochastic fractal dimension. ITK Parity: StochasticFractalDimensionImageFilter."""
+    ...
+
+def transform_to_displacement_field(
+    reference: Image,
+    matrix: list[list[float]],
+    translation: list[float],
+    center: list[float] = [0.0, 0.0, 0.0],
+) -> tuple[Image, Image, Image]:
+    """Sample an affine transform onto a reference grid as a dense displacement field. ITK Parity: TransformToDisplacementField."""
+    ...
+
+def fast_marching(
+    image: Image,
+    trial_points: list[list[int]],
+    normalization_factor: float = 1.0,
+    stopping_value: float | None = None,
+    initial_trial_values: list[float] = [],
+) -> Image:
+    """Solve the Eikonal arrival-time field by fast marching. ITK Parity: FastMarchingImageFilter."""
+    ...
+
+def colliding_fronts(
+    image: Image,
+    seeds1: list[list[int]],
+    seeds2: list[list[int]],
+    apply_connectivity: bool = True,
+    negative_epsilon: float = -1e-6,
+) -> Image:
+    """Colliding-fronts segmentation potential. ITK Parity: CollidingFrontsImageFilter."""
+    ...
+
+def transform_geometry(
+    image: Image,
+    matrix: list[list[float]],
+    translation: list[float],
+    center: list[float] = [0.0, 0.0, 0.0],
+) -> Image:
+    """Apply an affine transform to the image geometry (origin + direction), leaving
+    voxel data and spacing unchanged. ITK Parity: TransformGeometryImageFilter."""
+    ...
+
+def invert_displacement_field(
+    disp_z: Image,
+    disp_y: Image,
+    disp_x: Image,
+    max_iterations: int = 10,
+    max_error_tolerance: float = 0.1,
+    mean_error_tolerance: float = 0.001,
+    enforce_boundary: bool = True,
+) -> tuple[Image, Image, Image]:
+    """Iteratively invert a dense displacement field (Chen et al. fixed-point scheme).
+    Returns (disp_z, disp_y, disp_x) inverse field components.
+    ITK Parity: InvertDisplacementFieldImageFilter."""
+    ...
+
+def iterative_inverse_displacement_field(
+    disp_z: Image,
+    disp_y: Image,
+    disp_x: Image,
+    number_of_iterations: int = 5,
+    stop_value: float = 0.0,
+) -> tuple[Image, Image, Image]:
+    """Coordinate-descent line-search inversion of a dense displacement field.
+    Returns (disp_z, disp_y, disp_x) inverse field components.
+    ITK Parity: IterativeInverseDisplacementFieldImageFilter."""
+    ...
+
+def dicom_orient(image: Image, orientation: str) -> Image:
+    """Reorient image to the specified DICOM orientation code (e.g. 'LPS', 'RAS').
+    Performs a signed axis permutation — no resampling. ITK Parity: DICOMOrientImageFilter."""
+    ...
