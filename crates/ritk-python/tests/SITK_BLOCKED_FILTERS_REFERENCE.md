@@ -262,3 +262,17 @@ session), AntiAliasBinary's prototype-validate step is itself multi-iteration �
 the SparseField is genuinely the harder multi-session port. The spec above is
 the starting point; closing it needs careful iterative matching of the curvature
 + dt + reconstruction against sitk, then the Rust port.
+KEY SUBTLETY FOUND (the 0.137→1e-2 gap): AntiAliasBinary's difference function is
+`CurvatureFlowFunction` (speed = N/|∇φ|², already in ritk's curvature_flow.rs),
+BUT `SparseFieldLevelSetImageFilter::CalculateChange` (sf.hxx:809) evaluates it on
+a SHIFTED neighbourhood: per axis `offset[i] = offset[i]·centerValue /
+(|∇φ|² + MIN_NORM)`, i.e. the stencil is shifted by the subvoxel zero-crossing
+position `φ(x)·∇φ/|∇φ|²` before `ComputeUpdate`. So curvature is computed at the
+interpolated zero crossing, NOT the raw grid point — my prototype's curvature on
+raw φ is the remaining error source. COMPLETE algorithm now: CurvatureFlowFunction
+speed on the shifted neighbourhood + the subvoxel active init + signed
+layer-by-layer propagation + fg/bg constraint + CFL dt + RMS stop (0.07). The
+reverse-engineering is done; the port is a careful faithful implementation of
+this stateful pipeline validated end-to-end. This is the genuine multi-session
+boundary — the SparseField is intricate (shifted-stencil curvature + layer
+bookkeeping), distinct from IsolatedWatershed's clean prototype-validatable form.
