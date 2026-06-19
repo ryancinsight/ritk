@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **25 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **24 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -41,13 +41,12 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 
 ## Iterative / non-bit-exact convergence
 
-- **ReinitializeLevelSet** — RECLASSIFIED reachable (Sprint 493): it is NOT an iterative PDE. ITK's
+- **ReinitializeLevelSet** is now SHIPPED float-exact (`filter.reinitialize_level_set`): it is NOT an iterative PDE — ITK's
   `ReinitializeLevelSetImageFilter` is deterministic — a `LevelSetNeighborhoodExtractor` finds the
   zero-crossing voxels with sub-pixel trial value `1/√(Σⱼ 1/distⱼ²)` (`distⱼ = centerVal/(centerVal −
   neighVal)·spacingⱼ`, linear interpolation along each grid line), then `FastMarchingImageFilter` (which
   ritk ships, `filter.fast_marching`) propagates from the outside crossing points (→ +distance where
-  `value−level>0`) and inside points (→ −distance where `value−level≤0`). Reachable via the shipped
-  fast-marching + a ~40-line crossing-extractor port. Scoped next target.
+  `value−level>0`) and inside points (→ −distance where `value−level≤0`). Verified ≤1e-4 vs sitk on a scaled sphere level set, reusing the shipped fast-marching + a crossing extractor (`reinitialize_level_set.rs`).
 - **AntiAliasBinary, BinaryMinMaxCurvatureFlow, MinMaxCurvatureFlow, CannySegmentationLevelSet,
   ScalarChanAndVeseDenseLevelSet, LevelSetMotionRegistration,
   PatchBasedDenoising** — genuinely iterative PDE / level-set solvers whose per-step floating-point

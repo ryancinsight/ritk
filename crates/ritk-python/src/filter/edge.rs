@@ -7,7 +7,7 @@ use ritk_filter::{
     edge::GaussianSigma, ApproximateSignedDistanceMapFilter, CannyEdgeDetector,
     DerivativeImageFilter, FastMarchingFilter,
     CollidingFrontsFilter, GradientMagnitudeFilter, IsoContourDistanceFilter, LaplacianFilter,
-    LaplacianOfGaussianFilter, LaplacianSharpeningFilter, SobelFilter,
+    LaplacianOfGaussianFilter, LaplacianSharpeningFilter, ReinitializeLevelSetFilter, SobelFilter,
     ZeroCrossingBasedEdgeDetectionFilter,
 };
 
@@ -396,6 +396,34 @@ pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
         let filter = SobelFilter::new(*spacing);
         filter
             .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Reinitialize a level-set image to a signed distance function, matching
+/// `SimpleITK.ReinitializeLevelSet` (full-band).
+///
+/// Locates the zero level set and fast-marches unit speed outward/inward, giving
+/// `+distance` outside and `-distance` inside.
+///
+/// Args:
+///     image:           Input level-set PyImage.
+///     level_set_value: Iso-value of the zero level set (default 0.0).
+///
+/// Returns:
+///     Signed-distance PyImage, same shape and metadata as input.
+#[pyfunction]
+#[pyo3(signature = (image, level_set_value=0.0_f64))]
+pub fn reinitialize_level_set(
+    py: Python<'_>,
+    image: &PyImage,
+    level_set_value: f64,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        ReinitializeLevelSetFilter::new(level_set_value)
+            .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

@@ -1329,6 +1329,22 @@ def test_cmake_adaptive_histogram_equalization(alpha, beta):
     )
 
 
+def test_cmake_reinitialize_level_set():
+    """ReinitializeLevelSet: reinitialize a level set to a signed distance
+    function. ritk `filter.reinitialize_level_set` vs `sitk.ReinitializeLevelSet`.
+    Float-exact — a deterministic zero-crossing extractor + fast marching (NOT an
+    iterative PDE)."""
+    import numpy as _np
+    zz, yy, xx = _np.mgrid[0:8, 0:12, 0:14]
+    phi = ((_np.sqrt((zz - 4) ** 2 + (yy - 6) ** 2 + (xx - 7) ** 2) - 3.0) * 0.7).astype(_np.float32)
+    so = sitk.GetArrayFromImage(sitk.ReinitializeLevelSet(sitk.GetImageFromArray(phi), 0.0))
+    r = _np.asarray(ritk.filter.reinitialize_level_set(
+        ritk.Image(_np.ascontiguousarray(phi)), 0.0).to_numpy())
+    assert r.shape == so.shape
+    assert float(_np.abs(r - so).max()) < 1e-4, \
+        f"ReinitializeLevelSet differs (max {float(_np.abs(r - so).max())})"
+
+
 @pytest.mark.parametrize("scale,seed", [(1.0, 42), (0.5, 7), (2.0, 123)])
 def test_cmake_shot_noise(scale, seed):
     """ShotNoise: Poisson noise. ritk vs `sitk.ShotNoise`, single-threaded.
