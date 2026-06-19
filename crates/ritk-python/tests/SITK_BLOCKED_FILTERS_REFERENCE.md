@@ -60,6 +60,13 @@ genuinely multi-session. My prototypes (descent, minimax, minimax-reachability,
 catchment, immersion, full-immersion) all fail because none computes the exact
 depth-relative edge saliency + FloodLevel·MaxDepth merge order.
 
+**No closed-form shortcut** (`itkWatershedSegmenter.hxx`, 1315 lines):
+`MaxDepth = maximum − minimum` (intensity range), but the per-edge saliency
+emerges from the full flooding + `AnalyzeBoundaryFlow` + flat-region merge +
+`UpdateSegmentTable` pipeline — it cannot be reduced to a boundary-min closed
+form, so a faithful prototype requires reimplementing the Segmenter itself. Total
+port ≈ 1900 lines across the two classes; no single-turn path exists.
+
 ### PatchBasedDenoising — needs the seeded RNG sampler
 Scalar default-config update (numberOfIterations=1, noiseModelFidelityWeight=0 ⇒
 no noise term, KernelBandwidthEstimationOff ⇒ fixed σ): rescale intensities to
