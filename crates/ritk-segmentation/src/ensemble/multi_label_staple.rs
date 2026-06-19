@@ -53,12 +53,17 @@ pub fn multi_label_staple(
         assert_eq!(r.len(), n, "multi_label_staple: rater {idx} length mismatch");
     }
 
-    // Quantize to integer labels; L = max label + 1.
-    let d: Vec<Vec<usize>> = raters
-        .iter()
-        .map(|r| r.iter().map(|&v| v.round().max(0.0) as usize).collect())
-        .collect();
-    let l = d.iter().flat_map(|r| r.iter().copied()).max().unwrap_or(0) + 1;
+    // Quantize to integer labels in a single voxel-major buffer `d[vox*k + kk]`
+    // (one allocation, 4 B/label, and sequential access in the per-voxel rater
+    // loops below — the E-step/accumulate hot path iterates k for fixed voxel).
+    let mut d = vec![0u32; n * k];
+    for (kk, r) in raters.iter().enumerate() {
+        for (vox, &v) in r.iter().enumerate() {
+            d[vox * k + kk] = v.round().max(0.0) as u32;
+        }
+    }
+    let dl = |vox: usize, kk: usize| d[vox * k + kk] as usize;
+    let l = d.iter().copied().max().unwrap_or(0) as usize + 1;
     let undecided = label_for_undecided.unwrap_or(l as f32);
 
     // Confusion matrices θ_k: (L+1) input-label rows × L output-class columns.
@@ -73,8 +78,8 @@ pub fn multi_label_staple(
         for c in counts.iter_mut() {
             *c = 0;
         }
-        for rater in &d {
-            counts[rater[vox]] += 1;
+        for kk in 0..k {
+            counts[dl(vox, kk)] += 1;
         }
         let maxc = *counts.iter().max().unwrap();
         let winners = counts.iter().filter(|&&c| c == maxc).count();
@@ -84,8 +89,8 @@ pub fn multi_label_staple(
             l // undecided
         };
         if consensus < l {
-            for (kk, rater) in d.iter().enumerate() {
-                conf[cidx(kk, rater[vox], consensus)] += 1.0;
+            for kk in 0..k {
+                conf[cidx(kk, dl(vox, kk), consensus)] += 1.0;
             }
         }
     }
@@ -103,11 +108,10 @@ pub fn multi_label_staple(
 
     // --- Prior from label frequencies (over the L real labels) ---
     let mut prior = vec![0.0f64; l];
-    for rater in &d {
-        for &lab in rater {
-            if lab < l {
-                prior[lab] += 1.0;
-            }
+    for &lab in &d {
+        let lab = lab as usize;
+        if lab < l {
+            prior[lab] += 1.0;
         }
     }
     let total: f64 = prior.iter().sum();
@@ -131,8 +135,8 @@ pub fn multi_label_staple(
         for vox in 0..n {
             // E-step.
             w.copy_from_slice(&prior);
-            for (kk, rater) in d.iter().enumerate() {
-                let j = rater[vox];
+            for kk in 0..k {
+                let j = dl(vox, kk);
                 for ci in 0..l {
                     w[ci] *= conf[cidx(kk, j, ci)];
                 }
@@ -144,8 +148,8 @@ pub fn multi_label_staple(
                 }
             }
             // Accumulate.
-            for (kk, rater) in d.iter().enumerate() {
-                let j = rater[vox];
+            for kk in 0..k {
+                let j = dl(vox, kk);
                 for ci in 0..l {
                     updated[cidx(kk, j, ci)] += w[ci];
                 }
@@ -178,8 +182,8 @@ pub fn multi_label_staple(
     let mut labels = vec![undecided; n];
     for vox in 0..n {
         w.copy_from_slice(&prior);
-        for (kk, rater) in d.iter().enumerate() {
-            let j = rater[vox];
+        for kk in 0..k {
+            let j = dl(vox, kk);
             for ci in 0..l {
                 w[ci] *= conf[cidx(kk, j, ci)];
             }
