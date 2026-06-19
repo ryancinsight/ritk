@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **28 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **27 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -25,9 +25,13 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   scanline order. Verified bit-exact vs the SimpleITK noise sequence (Rust) and ≤1e-3 vs
   `sitk.AdditiveGaussianNoise` single-threaded (`SetGlobalDefaultNumberOfThreads(1)`) across 3 std/mean/seed
   cases. **Must run sitk single-threaded** to match (multi-thread splits into regions with per-region seeds).
-- **SaltAndPepperNoise, ShotNoise, SpeckleNoise** remain uncovered but are now also reachable: SaltAndPepper
-  uses ITK's `MersenneTwisterRandomVariateGenerator` (uniform), Shot/Speckle use Poisson/gamma variates.
-  Each needs the matching exact ITK generator ported (scoped follow-ups, same single-region constraint).
+- **SaltAndPepperNoise** is now shipped bit-exact (`filter.salt_and_pepper_noise`): ITK's
+  `MersenneTwisterRandomVariateGenerator` (MT19937) ported exactly (`noise/mersenne.rs`: ITK seeding
+  `1812433253·(s^(s>>30))+i`, twist M=397, temper, `GetVariate = int/(2³²−1)`), with the two-draw logic
+  (`if v<prob { if v<0.5 salt else pepper }`) and `salt/pepper = ±f32::MAX`. `array_equal` to
+  `sitk.SaltAndPepperNoise` single-threaded across 3 prob/seed cases.
+- **ShotNoise, SpeckleNoise** remain uncovered but are reachable: Shot uses Poisson variates, Speckle uses
+  Normal·input (FastNorm, already ported) — scoped follow-ups, same single-region constraint.
   (The deterministic local-noise *estimator* `Noise` is already covered.)
 
 ## Iterative / non-bit-exact convergence

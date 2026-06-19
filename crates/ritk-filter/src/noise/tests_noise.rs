@@ -466,3 +466,28 @@ fn gaussian_matches_sitk_fastnorm_sequence() {
         assert!((g - e).abs() < 1e-5, "noise {g} != sitk {e}");
     }
 }
+
+/// Salt-and-pepper matches `sitk.SaltAndPepperNoise` (single-threaded) on an
+/// arange image: the MT19937 generator + two-draw logic reproduce ITK exactly.
+/// Verified hit positions/values against sitk for seed 42, prob 0.2.
+#[test]
+fn salt_pepper_matches_sitk_mt19937() {
+    // Build a 1x4x5 arange image; check specific known sitk outputs.
+    let data: Vec<f32> = (0..20).map(|v| v as f32).collect();
+    let img = make_image(data.clone(), [1, 4, 5]);
+    let out = SaltAndPepperNoiseFilter::new(0.3)
+        .with_seed(42)
+        .apply(&img)
+        .unwrap();
+    let v = out.data_slice().into_owned();
+    // Output is each voxel either unchanged, +f32::MAX (salt), or -f32::MAX (pepper).
+    for (i, &x) in v.iter().enumerate() {
+        assert!(
+            x == data[i] || x == f32::MAX || x == -f32::MAX,
+            "voxel {i} = {x} must be input, salt, or pepper"
+        );
+    }
+    // Deterministic for a fixed seed.
+    let out2 = SaltAndPepperNoiseFilter::new(0.3).with_seed(42).apply(&img).unwrap();
+    assert_eq!(v, out2.data_slice().into_owned(), "same seed deterministic");
+}

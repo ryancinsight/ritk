@@ -1329,6 +1329,23 @@ def test_cmake_adaptive_histogram_equalization(alpha, beta):
     )
 
 
+@pytest.mark.parametrize("prob,seed", [(0.2, 42), (0.4, 7), (0.05, 123)])
+def test_cmake_salt_and_pepper_noise(prob, seed):
+    """SaltAndPepperNoise: ritk vs `sitk.SaltAndPepperNoise`, single-threaded.
+    Bit-exact — ITK's MersenneTwister (MT19937) ported exactly, two-draw logic,
+    salt/pepper = ±f32::MAX."""
+    import numpy as _np
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+    img = _np.arange(8 * 10, dtype=_np.float32).reshape(8, 10)
+    so = sitk.GetArrayFromImage(
+        sitk.SaltAndPepperNoise(sitk.GetImageFromArray(img), prob, seed))
+    r = _np.squeeze(_np.asarray(ritk.filter.salt_and_pepper_noise(
+        ritk.Image(_np.ascontiguousarray(img[None])), prob, seed).to_numpy()))
+    assert r.shape == so.shape
+    assert _np.array_equal(r, so), \
+        f"SaltAndPepperNoise differs at {int((r != so).sum())} voxels"
+
+
 @pytest.mark.parametrize("std,mean,seed", [(1.0, 0.0, 42), (2.5, 10.0, 7), (0.5, -3.0, 123)])
 def test_cmake_additive_gaussian_noise(std, mean, seed):
     """AdditiveGaussianNoise: ritk `filter.additive_gaussian_noise` vs

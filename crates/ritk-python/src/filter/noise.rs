@@ -55,12 +55,12 @@ pub fn additive_gaussian_noise(
 /// Returns:
 ///     PyImage with salt-and-pepper noise.
 #[pyfunction]
-#[pyo3(signature = (image, probability, seed=42_u64))]
+#[pyo3(signature = (image, probability, seed=42_u32))]
 pub fn salt_and_pepper_noise(
     py: Python<'_>,
     image: &PyImage,
     probability: f64,
-    seed: u64,
+    seed: u32,
 ) -> RitkResult<PyImage> {
     let img = Arc::clone(&image.inner);
     let result = py
