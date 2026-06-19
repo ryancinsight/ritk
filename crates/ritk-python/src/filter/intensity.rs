@@ -6,7 +6,8 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
-    AdaptiveHistogramEqualizationFilter, BinaryThresholdImageFilter, BlendImageFilter, ClampPolicy,
+    AdaptiveHistogramEqualizationFilter, BinaryThresholdImageFilter, BitwiseNotImageFilter,
+    BlendImageFilter, ClampPolicy,
     DoubleThresholdImageFilter,
     IntensityWindowingFilter, NormalizeImageFilter, NormalizeToConstantImageFilter,
     RescaleIntensityFilter, SigmoidImageFilter, ThresholdImageFilter, UnsharpMaskFilter,
@@ -420,4 +421,30 @@ pub fn adaptive_histogram_equalization(
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// Bitwise complement of an integer-valued image, matching
+/// `SimpleITK.BitwiseNot` for the corresponding pixel type.
+///
+/// `~x = (2**bits - 1) - x` for unsigned, `~x = -x - 1` for signed (two's
+/// complement). ritk's f32 backend carries no integer type, so pass the width.
+///
+/// Args:
+///     image:  Integer-valued PyImage (values rounded to nearest integer).
+///     bits:   Bit width for the unsigned complement (default 8).
+///     signed: Two's-complement signed interpretation (default False).
+///
+/// Returns:
+///     Complemented PyImage, same shape and metadata as input.
+#[pyfunction]
+#[pyo3(signature = (image, bits=8, signed=false))]
+pub fn bitwise_not(py: Python<'_>, image: &PyImage, bits: u32, signed: bool) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let filter = if signed {
+        BitwiseNotImageFilter::signed()
+    } else {
+        BitwiseNotImageFilter::unsigned(bits)
+    };
+    let out = py.allow_threads(|| filter.apply(arc.as_ref()));
+    Ok(into_py_image(out))
 }

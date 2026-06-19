@@ -30,7 +30,7 @@ pub mod unsharp_mask;
 pub mod windowing;
 
 pub use arithmetic::{
-    AbsImageFilter, BinaryNotImageFilter, ExpImageFilter, ExpNegativeImageFilter,
+    AbsImageFilter, BinaryNotImageFilter, BitwiseNotImageFilter, ExpImageFilter, ExpNegativeImageFilter,
     InvertIntensityFilter, Log10ImageFilter, LogImageFilter, ModulusImageFilter,
     NormalizeImageFilter, NormalizeToConstantImageFilter, NotImageFilter, RoundImageFilter,
     SqrtImageFilter, SquareImageFilter, UnaryMinusImageFilter,

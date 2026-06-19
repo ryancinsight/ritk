@@ -59,7 +59,7 @@ pub use intensity::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
     AndImageFilter, AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BedSeparationConfig,
     AdaptiveHistogramEqualizationFilter, BedSeparationFilter,
-    BinaryMagnitudeImageFilter, BinaryNotImageFilter, BinaryThresholdImageFilter, BlendImageFilter,
+    BinaryMagnitudeImageFilter, BinaryNotImageFilter, BitwiseNotImageFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
     ComponentPolicy, CosImageFilter, DivideFloorImageFilter, DivideImageFilter,
     DivideRealImageFilter, DoubleThresholdImageFilter, EqualImageFilter, ExpImageFilter, ExpNegativeImageFilter,

@@ -1329,6 +1329,25 @@ def test_cmake_adaptive_histogram_equalization(alpha, beta):
     )
 
 
+@pytest.mark.parametrize("dtype,bits,signed", [
+    (np.uint8, 8, False), (np.uint16, 16, False), (np.int16, 0, True)])
+def test_cmake_bitwise_not(dtype, bits, signed):
+    """BitwiseNot: bitwise complement of an integer image. ritk
+    `filter.bitwise_not(image, bits, signed)` vs `sitk.BitwiseNot`. Bit-exact for
+    the given pixel type — ritk's f32 carries no integer type, so the width is an
+    explicit parameter (the prior 'undefined for f32' verdict was wrong)."""
+    import numpy as _np
+    info = _np.iinfo(dtype)
+    a = _np.array([[0, 1, 2, 5, 100, info.max if not signed else 50]], dtype)
+    if signed:
+        a = _np.array([[0, 1, -1, 100, -100, 50]], dtype)
+    so = sitk.GetArrayFromImage(sitk.BitwiseNot(sitk.GetImageFromArray(a)))
+    r = _np.asarray(ritk.filter.bitwise_not(
+        ritk.Image(_np.ascontiguousarray(a[None].astype(_np.float32))), bits, signed).to_numpy())
+    assert _np.array_equal(r.ravel().astype(_np.int64), so.ravel().astype(_np.int64)), \
+        f"BitwiseNot differs: ritk {r.ravel().tolist()} vs sitk {so.ravel().tolist()}"
+
+
 def test_cmake_reinitialize_level_set():
     """ReinitializeLevelSet: reinitialize a level set to a signed distance
     function. ritk `filter.reinitialize_level_set` vs `sitk.ReinitializeLevelSet`.

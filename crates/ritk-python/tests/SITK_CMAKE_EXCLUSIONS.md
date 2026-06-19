@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **24 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **23 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -160,8 +160,10 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   implementation reproduces that bit-for-bit, so float-exact parity is unattainable (same class as the
   iterative PDE solvers below). The other two field inversions are covered — they are deterministic
   interpolation + arithmetic, not a dense solve.
-- **BitwiseNot** — bitwise NOT depends on the integer pixel width (uint8 vs int16 …); ritk's
-  scalar-f32 backend carries no bit-width, so the result is undefined.
+- **BitwiseNot** is now shipped bit-exact (`filter.bitwise_not(image, bits, signed)`): the prior
+  "undefined for f32" verdict was wrong — the width/signedness just need to be explicit parameters.
+  `~x = (2^bits-1)-x` (unsigned) or `-x-1` (signed two's complement). `array_equal` to `sitk.BitwiseNot`
+  for uint8/uint16/int16.
 
 ## No usable sitk oracle in this build
 

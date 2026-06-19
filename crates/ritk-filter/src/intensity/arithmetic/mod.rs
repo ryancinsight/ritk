@@ -28,8 +28,8 @@ pub mod unary;
 pub use unary::{
     Abs, AbsImageFilter, Exp, ExpImageFilter, ExpNegative, ExpNegativeImageFilter, Log, Log10,
     Log10ImageFilter, LogImageFilter, Not, NotImageFilter, Round, RoundImageFilter, Sqrt,
-    SqrtImageFilter, Square, SquareImageFilter, UnaryImageFilter, UnaryMinus, UnaryMinusImageFilter,
-    UnaryPixelOp,
+    SqrtImageFilter, Square, SquareImageFilter, UnaryImageFilter, UnaryMinus,
+    UnaryMinusImageFilter, UnaryPixelOp,
 };
 
 // ── Test-hosting modules (one per filter; contain only the #[cfg(test)] block) ─
@@ -41,11 +41,13 @@ pub mod square;
 
 // ── Filters with unique state ─────────────────────────────────────────────────
 pub mod binary_not;
+pub mod bitwise_not;
 pub mod invert;
 pub mod modulus;
 pub mod normalize;
 
 pub use binary_not::BinaryNotImageFilter;
+pub use bitwise_not::BitwiseNotImageFilter;
 pub use invert::InvertIntensityFilter;
 pub use modulus::ModulusImageFilter;
 pub use normalize::{NormalizeImageFilter, NormalizeToConstantImageFilter};
