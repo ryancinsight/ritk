@@ -173,6 +173,18 @@ ComputeGradientJointEntropy. Read lines 2092-2325 + ComputeSignedEuclideanDiffer
 enceAndWeightedSquaredNorm (785) more closely to pin it. The filter remains
 deterministic + tractable (no RNG); this is a focused formula-debugging task, not
 a multi-session subsystem port.
+DIAGNOSTIC — RESIDUAL IS A CONSTANT GRADIENT SCALING (~3.3%): computed sitk's
+implied gradient `(ref_rescaled − v)/0.2` and compared to mine per pixel —
+**sitk_grad / my_grad = 1.0328 CONSTANT** (median and at center (4,4): sitk
+−52.94 vs mine −51.26), uniform across interior pixels, sign agreement 93.8%
+(the 6% are near-zero gradients = sign noise). A CONSTANT ratio proves the
+formula is STRUCTURALLY CORRECT (same direction, same per-patch weighting) and
+the entire residual is a single missing normalization/scaling constant ≈1.0328,
+NOT a structural term. Candidates for the 1.0328: the exact denominator
+(Σg + minProb vs a different normalization), a patch-count factor, or a rescale
+min/max computed over a padded region. Pin that one constant → PatchBasedDenoising
+matches to ~1e-3 and ports (deterministic, no RNG). This is now a SINGLE-CONSTANT
+debugging task — the most tractable of all remaining in-sitk filters.
 
 ### (superseded) PatchBasedDenoising — needs the seeded RNG sampler
 Scalar default-config update (numberOfIterations=1, noiseModelFidelityWeight=0 ⇒
