@@ -376,6 +376,7 @@ def test_segmentation_public_functions_exist():
         "relabel_label_map",
         "toboggan",
         "vector_connected_component",
+        "vector_confidence_connected_segment",
     ]
     missing = [fn for fn in required if not callable(getattr(rs, fn, None))]
     assert not missing, f"Missing callable functions in ritk.segmentation: {missing}"

@@ -42,3 +42,11 @@ harness = false
 [[bench]]
 name = "median"
 harness = false
+
+[[bench]]
+name = "separable_box"
+harness = false
+
+[[bench]]
+name = "euclidean_dt"
+harness = false
