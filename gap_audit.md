@@ -27,12 +27,14 @@
 
 ### Residual Risk
 
-- **[GAP-381-01 OPEN]**: Deconvolution crop-position scale divergence. Root-cause: `ifft_and_crop`
-  crops from [0,0,0]; image placed at corner [0,0,0] in padded buffer. ITK convention: image at
-  offset `ker_dims[d]/2`, crop at `ker_dims[d]/2`. This misalignment yields output ~400–3000× larger
-  than sitk for band-limited blurred input (factor ~50× confirmed for 20³ image, 5³ kernel).
-  The WienerDeconvolution formula (FIX-381-01) is now correct; only the crop alignment is wrong.
-  Status: Being fixed in Sprint 382 (GAP-381-01 carry-forward).
+- **[GAP-381-01 CLOSED in Sprint 382]**: Deconvolution crop-position scale divergence.
+  Root-cause identified in Sprint 381 and fixed in Sprint 382: ritk's `pad_and_fft` now
+  places image at per-axis offset `ker_dims[d]/2` and `ifft_and_crop` now reads from
+  `coords[d] + crop_offset[d]`, matching ITK's `CropOutput` convention. For a 20³
+  step-phantom blurred with a 5³ Gaussian: Wiener Pearson=0.9982, Tikhonov Pearson=0.9982,
+  InverseDeconvolution Pearson≥0.80 vs sitk (was Pearson≈0 / scale 400–3000× off).
+  Evidence tier: empirical (measured, verified by 3 new cmake parity tests). 907/907 Rust
+  tests still green. Closed commit: 26306552.
 
 - **[PERF-381-01 OPEN]**: separable_box_3d and EDT Phase 3 parallelizations (both Sprint 381) have
   no criterion benchmark baselines recorded yet. The bit-identical correctness is verified; speedup

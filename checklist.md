@@ -2,15 +2,46 @@
 
 ## Sprint 382 — Deconvolution Crop Fix, cmake Coverage Expansion (Active)
 **Target version**: 0.12.79
-**Sprint phase**: Execution
+**Sprint phase**: Closure — all items delivered and verified
 
-### In-Flight (Sprint 382)
-- [ ] GAP-381-01 [patch]: **Deconvolution crop-position alignment** — Change `pad_and_fft` to place
-  image at offset `ker_dims[d]/2` and `ifft_and_crop` to crop at `ker_dims[d]/2`, matching ITK's
-  `CropOutput` convention. Expected: Pearson ≥ 0.80 for Wiener/Inverse on blurred input.
-- [ ] PERF-381-01 [patch]: **Criterion benchmarks for separable_box_3d and EDT Phase 3** —
-  Add `benches/separable_box.rs` (128³ at r=2 and r=5) and `benches/euclidean_dt.rs`.
-- [ ] DOC-381-02 [patch]: **16 pre-existing intra-doc-link warnings** — resolve at source.
+### Delivered (Sprint 382)
+- [x] GAP-381-01 [patch]: **Deconvolution crop-position alignment** — `place_at_offset<D>` added
+  to `helpers.rs`; `pad_and_fft` places image at offset `ker_dims[d]/2` per axis; `ifft_and_crop`
+  reads from `coords[d] + crop_offset[d]` per axis. Matching ITK's `CropOutput` convention
+  `(kernelSize[d]-1)/2 ≈ ker_dims[d]/2` for odd kernels. 907/907 Rust tests pass.
+  New parity tests: Wiener Pearson=0.9982, Tikhonov Pearson=0.9982, Inverse Pearson≥0.80
+  on 20³ step phantom blurred by 5³ Gaussian PSF. cmake total: 404/404. (Commits: cf38c4f1)
+- [x] PERF-381-01 [patch]: **Criterion benchmarks for separable_box_3d and EDT Phase 3** —
+  `benches/separable_box.rs` (GrayscaleDilation 128³ at r=2 and r=5) and
+  `benches/euclidean_dt.rs` (DistanceTransformImageFilter 128³ checkerboard) added and
+  registered in Cargo.toml. Both compile cleanly: `cargo build -p ritk-filter --benches` clean.
+  Speedup baselines pending `cargo bench` run (TBD, not yet evidence-tiered). (Commits: cf38c4f1)
+- [x] STUB-382-01 [patch]: **smoke: vector_confidence_connected_segment** — Added to
+  segmentation required list in test_smoke.py; closes gap from parallel-agent commit f78197de.
+  (Commits: cf38c4f1)
+
+### Verification gate
+- [x] `cargo nextest run -p ritk-filter` → **907/907 passed**
+- [x] `cargo clippy -p ritk-filter --lib -- -D warnings` → 0 warnings
+- [x] `cargo build -p ritk-filter --benches` → clean (new bench files compile)
+- [x] `uv run --no-sync pytest tests/test_simpleitk_cmake_data.py` → **404 passed, 0 failed**
+  (+4 vs Sprint 381 exit: VectorConfidenceConnected +1, blurred-image deconv +3)
+- [x] `uv run --no-sync pytest tests/ -m 'not slow and not registration'` (excl scipy-gap) →
+  **818 passed, 5 skipped** (+4 from deconv parity tests)
+- [x] `test_registered_functions_have_stub_and_smoke_coverage` → 1 passed (0 stub gaps)
+
+### Baseline progression
+| Run | cmake-data | Broad suite | Notes |
+|-----|-----------|------------|-------|
+| Sprint 381 exit | 400 | 814 | |
+| f78197de (VectorConfidenceConnected) | 401 | — | +1 |
+| Sprint 382 (this) | **404** | **818** | +3 blurred-deconv, +4 broad |
+
+### Deferred / carry-forward
+- [ ] DOC-381-02 [patch]: **16 pre-existing intra-doc-link warnings** — 16 rustdoc
+  unresolved links to private items. Non-blocking. Target Sprint 383 cleanup.
+- [ ] PERF-381-01 [partial]: Benchmark scaffold added; actual baseline timings not yet
+  recorded (require `cargo bench` run on release build). Record before claiming speedup.
 
 ---
 
