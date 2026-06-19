@@ -193,3 +193,22 @@ curvature-flow variant suffices. Do not re-attempt the dense route.
 
 CannySegmentationLevelSet adds a Canny edge speed term over the same SparseField.
 Both multi-session; the SparseField active-set update order must match ITK exactly.
+
+**SparseField algorithm extracted** (`itkSparseFieldLevelSetImageFilter.hxx`,
+1109 lines) — the port spec (next-session work, same prototype→port method that
+closed IsolatedWatershed): `m_ConstantGradientValue = 1.0` (or minSpacing). The
+ACTIVE layer (layer 0) holds φ ∈ `[−0.5, +0.5]` (`±m_ConstantGradientValue/2`).
+`UpdateActiveLayerValues`: `new = CalculateUpdateValue(old, dt, center, update)`;
+if `new ≥ +0.5` the pixel moves UP one layer with `temp = new − 1.0`; if
+`new < −0.5` moves DOWN with `temp = new + 1.0`; else stays. `CalculateUpdateValue`
+is the AntiAlias fg/bg clamp (already implemented). `PropagateAllLayerValues`
+reconstructs each outer layer L from the adjacent layer L∓1 by `inner ± 1.0`
+(NOT a Euclidean distance — this is why a dense EDT-reinit prototype caps at
+mean-err 0.18; the rigid ±1 propagation off the curvature-evolved active layer
+is the missing mechanism). Far field = `±(max_layer + 1)·1 = ±3` (max_layer=2 ⇒
+5 layers). So the faithful model: init φ = clamped signed distance (±3); each
+iter evolve ONLY `|φ| < 0.5` pixels by mean curvature + the fg/bg constraint,
+then rebuild layers ±1, ±2 by propagation (inner ± 1), not by re-distancing.
+Prototype this active-layer-only + ±1-propagation scheme vs sitk.AntiAliasBinary
+to 1e-2, then port (~500 lines, stateful linked-list layers). Canny reuses it
+with an added edge speed term.
