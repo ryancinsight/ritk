@@ -9,6 +9,7 @@
 
 pub mod chamfer;
 pub mod euclidean;
+pub mod fast_chamfer;
 pub mod types;
 
 pub use chamfer::{
@@ -16,4 +17,5 @@ pub use chamfer::{
     ChamferDistanceTransform, ChamferKernel, ChamferMetric, Chessboard, Taxicab,
 };
 pub use euclidean::{DistanceTransformImageFilter, SignedDistanceTransformImageFilter};
+pub use fast_chamfer::{ApproximateSignedDistanceMapFilter, FastChamferDistanceFilter};
 pub use types::BinarizationThreshold;

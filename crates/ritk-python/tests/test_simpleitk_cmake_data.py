@@ -1226,30 +1226,42 @@ def test_cmake_transform_geometry(which, tmp_path):
     + direction), pixels unchanged. ritk `filter.transform_geometry` vs
     `sitk.TransformGeometry`. ITK applies the inverse linear map; float-exact."""
     import numpy as _np
+
     _np.random.seed(0)
     arr = _np.random.rand(2, 3, 4).astype(_np.float32)
     si = sitk.GetImageFromArray(arr)
-    si.SetSpacing((3.0, 5.0, 7.0)); si.SetOrigin((10.0, 20.0, 30.0))
+    si.SetSpacing((3.0, 5.0, 7.0))
+    si.SetOrigin((10.0, 20.0, 30.0))
     if which == "rot_offdir":
         si.SetDirection((0, 0, 1, 0, 1, 0, 1, 0, 0))
     if which == "translate":
         M = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     else:
         M = [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]  # 90° about z
-    t = [2.0, -1.0, 0.5]; c = [1.0, 2.0, 3.0]
-    p = str(tmp_path / "in.nrrd"); sitk.WriteImage(si, p)
+    t = [2.0, -1.0, 0.5]
+    c = [1.0, 2.0, 3.0]
+    p = str(tmp_path / "in.nrrd")
+    sitk.WriteImage(si, p)
     ri = ritk.io.read_image(p)
 
     tx = sitk.AffineTransform(3)
-    tx.SetMatrix(_np.array(M).flatten().tolist()); tx.SetTranslation(t); tx.SetCenter(c)
+    tx.SetMatrix(_np.array(M).flatten().tolist())
+    tx.SetTranslation(t)
+    tx.SetCenter(c)
     so = sitk.TransformGeometry(si, tx)
     ro = ritk.filter.transform_geometry(ri, M, t, c)
 
     # pixels unchanged
     assert _np.array_equal(_np.asarray(ro.to_numpy()), sitk.GetArrayFromImage(so))
-    assert _np.allclose(_np.asarray(ro.spacing)[::-1], _np.asarray(so.GetSpacing()), atol=1e-9)
-    assert _np.allclose(_np.asarray(ro.origin)[::-1], _np.asarray(so.GetOrigin()), atol=1e-6)
-    assert _np.allclose(_np.asarray(ro.direction), _np.asarray(so.GetDirection()), atol=1e-9)
+    assert _np.allclose(
+        _np.asarray(ro.spacing)[::-1], _np.asarray(so.GetSpacing()), atol=1e-9
+    )
+    assert _np.allclose(
+        _np.asarray(ro.origin)[::-1], _np.asarray(so.GetOrigin()), atol=1e-6
+    )
+    assert _np.allclose(
+        _np.asarray(ro.direction), _np.asarray(so.GetDirection()), atol=1e-9
+    )
 
 
 def test_cmake_invert_displacement_field():
@@ -1258,6 +1270,7 @@ def test_cmake_invert_displacement_field():
     `sitk.InvertDisplacementField`. Float-exact (f32 rounding) — ITK's Chen et al.
     scheme with vector linear interpolation, computed internally in f64."""
     import numpy as _np
+
     D, H, W = 5, 6, 7
     zz, yy, xx = _np.mgrid[0:D, 0:H, 0:W]
     u = _np.zeros((D, H, W, 3), _np.float32)  # (x, y, z) components
@@ -1265,19 +1278,30 @@ def test_cmake_invert_displacement_field():
     u[..., 1] = (0.8 * _np.cos(xx / 5.0)).astype(_np.float32)
     u[..., 2] = (0.5 * _np.sin(zz / 3.0)).astype(_np.float32)
     sp = (2.0, 3.0, 1.5)  # (sx, sy, sz)
-    field = sitk.GetImageFromArray(u, isVector=True); field.SetSpacing(sp)
+    field = sitk.GetImageFromArray(u, isVector=True)
+    field.SetSpacing(sp)
     sinv = sitk.GetArrayFromImage(sitk.InvertDisplacementField(field))  # [D,H,W,3]
 
     def comp(c):
         # ritk spacing is [z, y, x]; sitk sp is (sx, sy, sz).
-        return ritk.Image(_np.ascontiguousarray(u[..., c]), spacing=(sp[2], sp[1], sp[0]))
+        return ritk.Image(
+            _np.ascontiguousarray(u[..., c]), spacing=(sp[2], sp[1], sp[0])
+        )
+
     # ritk takes (disp_z, disp_y, disp_x) = components (2, 1, 0)
     rz, ry, rx = ritk.filter.invert_displacement_field(comp(2), comp(1), comp(0))
-    r = _np.stack([_np.asarray(rx.to_numpy()), _np.asarray(ry.to_numpy()),
-                   _np.asarray(rz.to_numpy())], axis=-1)
+    r = _np.stack(
+        [
+            _np.asarray(rx.to_numpy()),
+            _np.asarray(ry.to_numpy()),
+            _np.asarray(rz.to_numpy()),
+        ],
+        axis=-1,
+    )
     assert r.shape == sinv.shape, f"shape {r.shape} != {sinv.shape}"
-    assert float(_np.abs(r - sinv).max()) < 1e-4, \
+    assert float(_np.abs(r - sinv).max()) < 1e-4, (
         f"InvertDisplacementField differs (max {float(_np.abs(r - sinv).max())})"
+    )
 
 
 @pytest.mark.parametrize("alpha,beta", [(0.3, 0.3), (0.0, 0.0), (1.0, 0.5)])
@@ -1287,16 +1311,48 @@ def test_cmake_adaptive_histogram_equalization(alpha, beta):
     `sitk.AdaptiveHistogramEqualization`. Float-exact (f32 rounding) — a
     deterministic windowed sum, no solver."""
     import numpy as _np
+
     _np.random.seed(0)
     im = (_np.random.rand(3, 14, 16) * 200).astype(_np.float32)
     si = sitk.GetImageFromArray(im)
     so = sitk.GetArrayFromImage(
-        sitk.AdaptiveHistogramEqualization(si, [3, 3, 1], alpha, beta))
-    r = _np.asarray(ritk.filter.adaptive_histogram_equalization(
-        ritk.Image(_np.ascontiguousarray(im)), (1, 3, 3), alpha, beta).to_numpy())
+        sitk.AdaptiveHistogramEqualization(si, [3, 3, 1], alpha, beta)
+    )
+    r = _np.asarray(
+        ritk.filter.adaptive_histogram_equalization(
+            ritk.Image(_np.ascontiguousarray(im)), (1, 3, 3), alpha, beta
+        ).to_numpy()
+    )
     assert r.shape == so.shape
-    assert float(_np.abs(r - so).max()) < 1e-3, \
+    assert float(_np.abs(r - so).max()) < 1e-3, (
         f"AdaptiveHistogramEqualization differs (max {float(_np.abs(r - so).max())})"
+    )
+
+
+def test_cmake_approximate_signed_distance_map():
+    """ApproximateSignedDistanceMap: IsoContourDistance + FastChamferDistance.
+    ritk `filter.approximate_signed_distance_map` vs
+    `sitk.ApproximateSignedDistanceMap`. Float-exact (a deterministic narrow-band
+    + chamfer composition, no solver)."""
+    import numpy as _np
+
+    D, H, W = 6, 12, 14
+    img = _np.zeros((D, H, W), _np.float32)
+    img[2:4, 4:9, 5:10] = 1.0
+    so = sitk.GetArrayFromImage(
+        sitk.ApproximateSignedDistanceMap(
+            sitk.GetImageFromArray(img.astype(_np.uint8)), 1.0, 0.0
+        )
+    )
+    r = _np.asarray(
+        ritk.filter.approximate_signed_distance_map(
+            ritk.Image(_np.ascontiguousarray(img)), 1.0, 0.0
+        ).to_numpy()
+    )
+    assert r.shape == so.shape
+    assert float(_np.abs(r - so).max()) < 1e-4, (
+        f"ApproximateSignedDistanceMap differs (max {float(_np.abs(r - so).max())})"
+    )
 
 
 def test_cmake_iterative_inverse_displacement_field():
@@ -1305,6 +1361,7 @@ def test_cmake_iterative_inverse_displacement_field():
     `filter.iterative_inverse_displacement_field` vs
     `sitk.IterativeInverseDisplacementField`. Float-exact (f32 rounding)."""
     import numpy as _np
+
     D, H, W = 5, 6, 7
     zz, yy, xx = _np.mgrid[0:D, 0:H, 0:W]
     u = _np.zeros((D, H, W, 3), _np.float32)
@@ -1312,17 +1369,30 @@ def test_cmake_iterative_inverse_displacement_field():
     u[..., 1] = (0.6 * _np.cos(yy / 4.0)).astype(_np.float32)
     u[..., 2] = (0.4 * _np.sin(zz / 3.0)).astype(_np.float32)
     sp = (1.5, 1.5, 1.5)
-    field = sitk.GetImageFromArray(u, isVector=True); field.SetSpacing(sp)
+    field = sitk.GetImageFromArray(u, isVector=True)
+    field.SetSpacing(sp)
     sinv = sitk.GetArrayFromImage(sitk.IterativeInverseDisplacementField(field))
 
     def comp(c):
-        return ritk.Image(_np.ascontiguousarray(u[..., c]), spacing=(sp[2], sp[1], sp[0]))
-    rz, ry, rx = ritk.filter.iterative_inverse_displacement_field(comp(2), comp(1), comp(0))
-    r = _np.stack([_np.asarray(rx.to_numpy()), _np.asarray(ry.to_numpy()),
-                   _np.asarray(rz.to_numpy())], axis=-1)
+        return ritk.Image(
+            _np.ascontiguousarray(u[..., c]), spacing=(sp[2], sp[1], sp[0])
+        )
+
+    rz, ry, rx = ritk.filter.iterative_inverse_displacement_field(
+        comp(2), comp(1), comp(0)
+    )
+    r = _np.stack(
+        [
+            _np.asarray(rx.to_numpy()),
+            _np.asarray(ry.to_numpy()),
+            _np.asarray(rz.to_numpy()),
+        ],
+        axis=-1,
+    )
     assert r.shape == sinv.shape, f"shape {r.shape} != {sinv.shape}"
-    assert float(_np.abs(r - sinv).max()) < 1e-4, \
+    assert float(_np.abs(r - sinv).max()) < 1e-4, (
         f"IterativeInverseDisplacementField differs (max {float(_np.abs(r - sinv).max())})"
+    )
 
 
 @pytest.mark.parametrize("seed", [1, 7, 13])
@@ -1331,6 +1401,7 @@ def test_cmake_multi_label_staple(seed):
     `segmentation.multi_label_staple` vs `sitk.MultiLabelSTAPLE`. The output is a
     hard label image, so it is float-exact (argmax of the per-voxel weights)."""
     import numpy as _np
+
     _np.random.seed(seed)
     H, W = 10, 11
     truth = _np.random.randint(0, 3, (H, W))
@@ -1340,13 +1411,17 @@ def test_cmake_multi_label_staple(seed):
         flip = _np.random.rand(H, W) < 0.2
         noisy[flip] = _np.random.randint(0, 3, int(flip.sum()))
         imgs.append(sitk.GetImageFromArray(noisy.astype(_np.uint8)))
-        raters.append(ritk.Image(_np.ascontiguousarray(noisy[None].astype(_np.float32))))
+        raters.append(
+            ritk.Image(_np.ascontiguousarray(noisy[None].astype(_np.float32)))
+        )
     s = sitk.GetArrayFromImage(sitk.MultiLabelSTAPLE(imgs)).astype(_np.int64)
-    r = _np.squeeze(_np.asarray(
-        ritk.segmentation.multi_label_staple(raters).to_numpy(), _np.int64))
+    r = _np.squeeze(
+        _np.asarray(ritk.segmentation.multi_label_staple(raters).to_numpy(), _np.int64)
+    )
     assert r.shape == s.shape, f"shape {r.shape} != {s.shape}"
-    assert _np.array_equal(r, s), \
+    assert _np.array_equal(r, s), (
         f"MultiLabelSTAPLE differs from sitk at {int((r != s).sum())} of {r.size} voxels"
+    )
 
 
 def test_image_direction_getter_matches_sitk(tmp_path):
@@ -1354,15 +1429,22 @@ def test_image_direction_getter_matches_sitk(tmp_path):
     row-major layout. An identity-LPS image round-tripped through NRRD loads with
     the canonical (anti-diagonal) core direction that maps back to identity."""
     import numpy as _np
+
     arr = _np.arange(2 * 3 * 4, dtype=_np.float32).reshape(2, 3, 4)
     si = sitk.GetImageFromArray(arr)
-    si.SetSpacing((3.0, 5.0, 7.0)); si.SetOrigin((10.0, 20.0, 30.0))
-    p = str(tmp_path / "id.nrrd"); sitk.WriteImage(si, p)
+    si.SetSpacing((3.0, 5.0, 7.0))
+    si.SetOrigin((10.0, 20.0, 30.0))
+    p = str(tmp_path / "id.nrrd")
+    sitk.WriteImage(si, p)
     ri = ritk.io.read_image(p)
-    assert _np.allclose(_np.asarray(ri.direction), _np.asarray(si.GetDirection()), atol=1e-9)
+    assert _np.allclose(
+        _np.asarray(ri.direction), _np.asarray(si.GetDirection()), atol=1e-9
+    )
 
 
-@pytest.mark.parametrize("target", ["LPS", "RAI", "RPS", "LAS", "LPI", "PIR", "ASL", "IRP"])
+@pytest.mark.parametrize(
+    "target", ["LPS", "RAI", "RPS", "LAS", "LPI", "PIR", "ASL", "IRP"]
+)
 def test_cmake_dicom_orient(target, tmp_path):
     """DICOMOrient: relabel axes to a target orientation code, transforming data,
     spacing, origin, and direction together. ritk `filter.dicom_orient` vs
@@ -1370,11 +1452,14 @@ def test_cmake_dicom_orient(target, tmp_path):
     permutation — no resampling). Input is an identity-LPS image loaded via
     ritk.io so it carries the canonical direction."""
     import numpy as _np
+
     _np.random.seed(0)
     arr = _np.random.rand(2, 3, 4).astype(_np.float32)
     si = sitk.GetImageFromArray(arr)
-    si.SetSpacing((3.0, 5.0, 7.0)); si.SetOrigin((10.0, 20.0, 30.0))
-    p = str(tmp_path / "in.nrrd"); sitk.WriteImage(si, p)
+    si.SetSpacing((3.0, 5.0, 7.0))
+    si.SetOrigin((10.0, 20.0, 30.0))
+    p = str(tmp_path / "in.nrrd")
+    sitk.WriteImage(si, p)
     ri = ritk.io.read_image(p)
 
     so = sitk.DICOMOrient(si, target)
@@ -1385,11 +1470,17 @@ def test_cmake_dicom_orient(target, tmp_path):
     assert r_arr.shape == s_arr.shape, f"{target}: shape {r_arr.shape} != {s_arr.shape}"
     assert float(_np.abs(r_arr - s_arr).max()) < 1e-5, f"{target}: data differs"
     # spacing: ritk (sz,sy,sx) vs sitk (sx,sy,sz)
-    assert _np.allclose(_np.asarray(ro.spacing)[::-1], _np.asarray(so.GetSpacing()), atol=1e-6)
+    assert _np.allclose(
+        _np.asarray(ro.spacing)[::-1], _np.asarray(so.GetSpacing()), atol=1e-6
+    )
     # origin: ritk (oz,oy,ox) vs sitk (ox,oy,oz)
-    assert _np.allclose(_np.asarray(ro.origin)[::-1], _np.asarray(so.GetOrigin()), atol=1e-6)
+    assert _np.allclose(
+        _np.asarray(ro.origin)[::-1], _np.asarray(so.GetOrigin()), atol=1e-6
+    )
     # direction: ritk getter uses sitk layout directly
-    assert _np.allclose(_np.asarray(ro.direction), _np.asarray(so.GetDirection()), atol=1e-9)
+    assert _np.allclose(
+        _np.asarray(ro.direction), _np.asarray(so.GetDirection()), atol=1e-9
+    )
 
 
 @pytest.mark.parametrize("connectivity", [True, False], ids=["connected", "raw"])
@@ -3837,8 +3928,9 @@ def test_cmake_signed_distance_map_deviation_documented():
     z, y, x = np.mgrid[:s, :s, :s]
     binary = ((z - 16) ** 2 + (y - 16) ** 2 + (x - 16) ** 2 < 8**2).astype(np.float32)
 
-    ri = ritk.Image(np.ascontiguousarray(binary[None]))
-    ro = np.asarray(ritk.filter.signed_distance_map(ri, 0.5).to_numpy()).squeeze()
+    # binary is [32,32,32] (3-D); no [None] promotion needed — ritk.Image takes [Z,Y,X].
+    ri = ritk.Image(np.ascontiguousarray(binary))
+    ro = np.asarray(ritk.filter.signed_distance_map(ri, 0.5).to_numpy())
 
     si = sitk.GetImageFromArray(binary)
     so = sitk.GetArrayFromImage(

@@ -4,7 +4,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    edge::GaussianSigma, CannyEdgeDetector, DerivativeImageFilter, FastMarchingFilter,
+    edge::GaussianSigma, ApproximateSignedDistanceMapFilter, CannyEdgeDetector,
+    DerivativeImageFilter, FastMarchingFilter,
     CollidingFrontsFilter, GradientMagnitudeFilter, IsoContourDistanceFilter, LaplacianFilter,
     LaplacianOfGaussianFilter, LaplacianSharpeningFilter, SobelFilter,
     ZeroCrossingBasedEdgeDetectionFilter,
@@ -268,6 +269,39 @@ pub fn iso_contour_distance(
         IsoContourDistanceFilter::new(level_set_value, far_value).apply(arc.as_ref())
     });
     into_py_image(out)
+}
+
+/// Approximate signed distance map of a binary/label image, matching
+/// `SimpleITK.ApproximateSignedDistanceMap` (inside negative, outside positive).
+///
+/// Composes an iso-contour distance at level `(inside+outside)/2` with a fast
+/// chamfer propagation. `inside_value`/`outside_value` select the foreground.
+///
+/// Args:
+///     image:         Input binary/label PyImage.
+///     inside_value:  Pixel value of the inside region (default 1.0).
+///     outside_value: Pixel value of the outside region (default 0.0).
+///
+/// Returns:
+///     Signed distance PyImage, same shape and metadata as input.
+#[pyfunction]
+#[pyo3(signature = (image, inside_value=1.0_f64, outside_value=0.0_f64))]
+pub fn approximate_signed_distance_map(
+    py: Python<'_>,
+    image: &PyImage,
+    inside_value: f64,
+    outside_value: f64,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        ApproximateSignedDistanceMapFilter {
+            inside_value,
+            outside_value,
+        }
+        .apply(arc.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Apply the Canny edge detector to an image.

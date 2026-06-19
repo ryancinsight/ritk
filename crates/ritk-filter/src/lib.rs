@@ -166,7 +166,8 @@ pub mod warp;
 
 pub use displacement::transform_to_displacement_field;
 pub use distance::{
-    BinarizationThreshold, DistanceTransformImageFilter, SignedDistanceTransformImageFilter,
+    ApproximateSignedDistanceMapFilter, BinarizationThreshold, DistanceTransformImageFilter,
+    FastChamferDistanceFilter, SignedDistanceTransformImageFilter,
 };
 pub use colliding_fronts::CollidingFrontsFilter;
 pub use fast_marching::FastMarchingFilter;

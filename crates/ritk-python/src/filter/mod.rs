@@ -70,6 +70,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(laplacian_sharpening, &m)?)?;
     m.add_function(wrap_pyfunction!(zero_crossing_based_edge_detection, &m)?)?;
     m.add_function(wrap_pyfunction!(iso_contour_distance, &m)?)?;
+    m.add_function(wrap_pyfunction!(approximate_signed_distance_map, &m)?)?;
     m.add_function(wrap_pyfunction!(fast_marching, &m)?)?;
     m.add_function(wrap_pyfunction!(colliding_fronts, &m)?)?;
     m.add_function(wrap_pyfunction!(canny_edge_detect, &m)?)?;

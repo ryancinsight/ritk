@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **32 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **31 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -79,8 +79,12 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 
 ## Approximate by design (not bit-exact)
 
-- **ApproximateSignedDistanceMap** — chamfer / isocontour approximation; 3.4 % off ritk's exact
-  signed EDT (a different algorithm, not a tolerance gap).
+- **ApproximateSignedDistanceMap** is now shipped float-exact (`filter.approximate_signed_distance_map`):
+  composed exactly as ITK's mini-pipeline — `IsoContourDistance(level=(in+out)/2, far=⌊√Σsizeᵢ²⌋+1)`
+  (ritk's iso matches ITK bit-exact) then a `FastChamferDistance` two-pass sweep with weights
+  `[0.92644,1.34065,1.65849]`, on the negated iso (ritk iso is inside-positive, ITK ASDM inside-negative;
+  chamfer is antisymmetric). The earlier "3.4 % off" was comparing ritk's *exact EDT* — the fix was to
+  port ITK's *approximate* algorithm. Verified ≤1e-4 vs sitk.
 - **SLIC** — iterative k-means superpixels with gradient-perturbed seeds; ritk has
   `SlicSuperpixelFilter` but two independent SLIC impls cannot match label-for-label.
 
