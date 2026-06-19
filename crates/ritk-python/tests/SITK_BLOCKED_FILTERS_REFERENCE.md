@@ -223,3 +223,17 @@ STATEFUL SparseField port (active/status layer linked lists + exact propagation)
 directly — there is no dense prototype shortcut to 1e-2. This is the genuine
 multi-session boundary: the port must replicate the layer bookkeeping, then
 validate end-to-end vs sitk.AntiAliasBinary.
+KEY INIT DETAIL (`InitializeActiveLayerValues`, sf.hxx:736): the active-layer
+value is NOT a Euclidean signed distance — it is `shifted_value / length` clamped
+to ±0.5, where `shifted_value` = input − isosurface (binary {0,1} − 0.5 = {∓0.5})
+and `length = sqrt(Σ max(|dx_fwd|, |dx_bwd|)²) + MIN_NORM` (per-axis the LARGER of
+the forward/backward difference of the shifted image). This first-order subvoxel
+distance is the init that both my dense prototypes (EDT-reinit 0.18, city-block
+0.187) lacked. Faithful prototype recipe: (1) shifted = binary − 0.5; (2) active
+layer = pixels with a sign change to a neighbour in `shifted`; (3) active value =
+shifted/length clamped ±0.5; (4) propagate ±1 for layers 1,2 (in/out); (5) each
+iter: CalculateChange = curvature (CKS) on active layer, UpdateActiveLayerValues
+(new = clamp-constrained old+dt·Δ; if |new|>0.5 the pixel changes layer, value
+∓1), then re-propagate. Build this in numpy → match sitk.AntiAliasBinary to 1e-2
+→ port. Still ~500-line stateful port, but the init+propagation are now fully
+specified.
