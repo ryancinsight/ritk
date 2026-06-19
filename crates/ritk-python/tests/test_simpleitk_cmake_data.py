@@ -1707,6 +1707,55 @@ def test_cmake_toboggan_3d():
     )
 
 
+@pytest.mark.parametrize("fully_connected", [False, True])
+@pytest.mark.parametrize("thr", [0.1, 0.3])
+def test_cmake_vector_connected_component(thr, fully_connected):
+    """VectorConnectedComponent: connected components of a normalized vector image
+    where adjacent voxels join when 1-|a.b| <= threshold. ritk
+    `segmentation.vector_connected_component` vs `sitk.VectorConnectedComponent`.
+    Partition-exact (canonicalized labels — the standard connected-component
+    parity convention, since CC label integers are arbitrary)."""
+    import numpy as _np
+
+    def canon(lab):
+        lab = lab.ravel()
+        m = {}
+        k = 0
+        out = _np.zeros_like(lab, dtype=_np.int64)
+        for i, v in enumerate(lab):
+            if v not in m:
+                k += 1
+                m[v] = k
+            out[i] = m[v]
+        return out
+
+    rs = _np.random.RandomState(2)
+    v = rs.randn(7, 8, 3).astype(_np.float32)
+    v /= _np.linalg.norm(v, axis=2, keepdims=True)
+    im = sitk.GetImageFromArray(v, isVector=True)
+    ref = canon(
+        sitk.GetArrayFromImage(
+            sitk.VectorConnectedComponent(im, thr, fully_connected)
+        )
+    )
+    chans = [
+        ritk.Image(_np.ascontiguousarray(v[None, :, :, c])) for c in range(3)
+    ]
+    got = canon(
+        _np.squeeze(
+            _np.asarray(
+                ritk.segmentation.vector_connected_component(
+                    chans, thr, fully_connected
+                ).to_numpy()
+            )
+        )
+    )
+    assert _np.array_equal(ref, got), (
+        f"VectorConnectedComponent(thr={thr}, fc={fully_connected}) partition "
+        f"differs at {int((ref != got).sum())} voxels"
+    )
+
+
 @pytest.mark.parametrize("req_frac", [0.25, 0.5])
 def test_cmake_masked_fft_normalized_correlation(req_frac):
     """MaskedFFTNormalizedCorrelation (Padfield): masked NCC over all translations

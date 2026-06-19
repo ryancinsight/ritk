@@ -12,7 +12,8 @@ use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components, ConnectedComponentsFilter,
     label_set_morph as core_label_set_morph, merge_label_maps as core_merge_label_maps,
-    relabel_consecutive as core_relabel_consecutive, toboggan as core_toboggan, KMeansSegmentation,
+    relabel_consecutive as core_relabel_consecutive, toboggan as core_toboggan,
+    vector_connected_components_image as core_vector_connected_components, KMeansSegmentation,
     LabelSetMorphOp, MarkerControlledWatershed, MergeLabelMethod, MorphologicalWatershed,
     RelabelComponentFilter, SlicConfig, SlicSuperpixelFilter,
     ThresholdMaximumConnectedComponentsFilter, WatershedSegmentation,
@@ -257,6 +258,47 @@ fn label_set_morph_py(
     let img = Arc::clone(&label_image.inner);
     let out =
         py.allow_threads(|| core_label_set_morph(img.as_ref(), radius_itk, use_image_spacing, op));
+    Ok(into_py_image(out))
+}
+
+/// Vector connected-component labeling, matching `sitk.VectorConnectedComponent`.
+///
+/// Labels a multi-channel (vector) image: two face- or fully-connected
+/// neighbours join when `1 − |a · b| ≤ distance_threshold` over their channel
+/// vectors (ITK assumes the vectors are normalized).  The component **partition**
+/// matches SimpleITK; label integers are renumbered consecutively (the standard
+/// connected-component parity convention).
+///
+/// ITK Parity: `VectorConnectedComponentImageFilter`.
+///
+/// Args:
+///     channels: list of scalar component images (one per vector component),
+///         all identical dimensions.
+///     distance_threshold: direction-similarity threshold (default 1.0).
+///     fully_connected: 26-/8-connectivity if True, else face (default False).
+///
+/// Returns:
+///     consecutive label image.
+#[pyfunction]
+#[pyo3(signature = (channels, distance_threshold=1.0, fully_connected=false))]
+pub fn vector_connected_component(
+    py: Python<'_>,
+    channels: Vec<PyRef<'_, PyImage>>,
+    distance_threshold: f32,
+    fully_connected: bool,
+) -> RitkResult<PyImage> {
+    if channels.is_empty() {
+        return Err(RitkPyError::value(
+            "vector_connected_component: at least one channel is required",
+        ));
+    }
+    let arcs: Vec<Arc<Image<Backend, 3>>> =
+        channels.iter().map(|p| Arc::clone(&p.inner)).collect();
+    let conn = if fully_connected { 26 } else { 6 };
+    let out = py.allow_threads(|| {
+        let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
+        core_vector_connected_components(&refs, distance_threshold, conn)
+    });
     Ok(into_py_image(out))
 }
 

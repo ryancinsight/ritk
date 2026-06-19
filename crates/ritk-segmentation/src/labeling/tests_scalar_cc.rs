@@ -1,4 +1,4 @@
-use super::scalar_connected_components;
+use super::{scalar_connected_components, vector_connected_components};
 
 /// `[10,11,50,51,52]` with threshold 5 → two components `[1,1,2,2,2]`
 /// (10–11 and 50–51–52 each within Δ≤5; the 11→50 jump of 39 splits them).
@@ -16,6 +16,27 @@ fn zero_threshold_splits_distinct_values() {
     let v = vec![1.0, 1.0, 2.0, 3.0];
     let out = scalar_connected_components(&v, [1, 1, 4], 0.0, 6);
     assert_eq!(out, vec![1.0, 1.0, 2.0, 3.0]);
+}
+
+/// Vector CC: two orthogonal direction regions split (`1 − |dot| = 1 > 0.1`),
+/// two parallel regions stay joined. Channels are unit vectors.
+#[test]
+fn vector_cc_splits_orthogonal_directions() {
+    // voxels 0,1 = (1,0); voxels 2,3 = (0,1).
+    let ch0 = vec![1.0, 1.0, 0.0, 0.0];
+    let ch1 = vec![0.0, 0.0, 1.0, 1.0];
+    let out = vector_connected_components(&[ch0, ch1], [1, 1, 4], 0.1, 6);
+    assert_eq!(out, vec![1.0, 1.0, 2.0, 2.0]);
+}
+
+/// Vector CC: 180°-opposite vectors are "similar" (|dot| = 1) — they join.
+#[test]
+fn vector_cc_antiparallel_joins() {
+    let ch0 = vec![1.0, -1.0, 0.0];
+    let ch1 = vec![0.0, 0.0, 1.0];
+    // (1,0),(−1,0) join (|dot|=1); (0,1) is orthogonal → separate.
+    let out = vector_connected_components(&[ch0, ch1], [1, 1, 3], 0.1, 6);
+    assert_eq!(out, vec![1.0, 1.0, 2.0]);
 }
 
 /// A constant image is a single component regardless of threshold.

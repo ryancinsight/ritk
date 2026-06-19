@@ -31,9 +31,9 @@ pub use ensemble::{
 };
 pub use labeling::{
     connected_components, label_set_morph, merge_label_maps, relabel_consecutive,
-    scalar_connected_components, ConnectedComponentsFilter, Connectivity, LabelSetMorphOp,
-    LabelStatistics, MergeLabelError, MergeLabelMethod, RelabelComponentFilter, RelabelStatistics,
-    ThresholdMaximumConnectedComponentsFilter,
+    scalar_connected_components, vector_connected_components_image, ConnectedComponentsFilter,
+    Connectivity, LabelSetMorphOp, LabelStatistics, MergeLabelError, MergeLabelMethod,
+    RelabelComponentFilter, RelabelStatistics, ThresholdMaximumConnectedComponentsFilter,
 };
 pub use level_set::{
     ChanVeseSegmentation, GeodesicActiveContourSegmentation, LaplacianLevelSet,

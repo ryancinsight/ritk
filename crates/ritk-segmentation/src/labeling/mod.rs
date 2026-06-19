@@ -44,7 +44,9 @@ pub mod label_set_morph;
 pub use label_set_morph::{label_set_morph, LabelSetMorphOp};
 
 pub mod scalar_cc;
-pub use scalar_cc::scalar_connected_components;
+pub use scalar_cc::{
+    scalar_connected_components, vector_connected_components, vector_connected_components_image,
+};
 
 pub mod threshold_max_cc;
 pub use threshold_max_cc::ThresholdMaximumConnectedComponentsFilter;

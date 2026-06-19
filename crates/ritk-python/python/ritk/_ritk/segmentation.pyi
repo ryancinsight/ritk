@@ -103,6 +103,12 @@ def toboggan(image: Image) -> Image:
     """Toboggan steepest-descent basin labeling (labels >= 2). ITK Parity: TobogganImageFilter (sitk.Toboggan)."""
     ...
 
+def vector_connected_component(
+    channels: list[Image], distance_threshold: float = 1.0, fully_connected: bool = False
+) -> Image:
+    """Connected components of a vector image (join if 1-|a.b|<=threshold). ITK Parity: VectorConnectedComponentImageFilter (sitk.VectorConnectedComponent); partition-exact."""
+    ...
+
 # ── Binary morphology ──────────────────────────────────────────────────────
 
 def binary_erosion(image: Image, radius: int = 1) -> Image: ...
