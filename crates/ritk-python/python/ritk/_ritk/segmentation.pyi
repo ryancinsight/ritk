@@ -52,6 +52,10 @@ def relabel_label_map(label_image: Image) -> Image:
     """Relabel non-zero labels to consecutive 1..K in ascending original-label order. ITK Parity: RelabelLabelMapFilter (sitk.RelabelLabelMap)."""
     ...
 
+def merge_label_map(label_images: list[Image], method: int = 0) -> Image:
+    """Merge label images (0=Keep,1=Aggregate,2=Pack,3=Strict). ITK Parity: MergeLabelMapFilter (sitk.MergeLabelMap)."""
+    ...
+
 def change_label(label_image: Image, change_map: dict[int, int]) -> Image:
     """Remap label values per {old: new}; others unchanged. ITK Parity: ChangeLabelImageFilter."""
     ...

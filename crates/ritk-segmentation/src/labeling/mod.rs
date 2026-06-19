@@ -37,6 +37,9 @@ use union_find::UnionFind;
 pub mod relabel;
 pub use relabel::{relabel_consecutive, RelabelComponentFilter, RelabelStatistics};
 
+pub mod merge_label_map;
+pub use merge_label_map::{merge_label_maps, MergeLabelError, MergeLabelMethod};
+
 pub mod scalar_cc;
 pub use scalar_cc::scalar_connected_components;
 

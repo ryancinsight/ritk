@@ -11,10 +11,10 @@ use ritk_image::Image;
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components, ConnectedComponentsFilter,
+    merge_label_maps as core_merge_label_maps,
     relabel_consecutive as core_relabel_consecutive, KMeansSegmentation, MarkerControlledWatershed,
-    MorphologicalWatershed, RelabelComponentFilter,
-    SlicConfig, SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter,
-    WatershedSegmentation,
+    MergeLabelMethod, MorphologicalWatershed, RelabelComponentFilter, SlicConfig,
+    SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter, WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -144,6 +144,48 @@ pub fn relabel_label_map(py: Python<'_>, label_image: &PyImage) -> PyImage {
     let img = Arc::clone(&label_image.inner);
     let out = py.allow_threads(|| core_relabel_consecutive(img.as_ref()));
     into_py_image(out)
+}
+
+/// Merge several label images into one, matching
+/// `sitk.LabelMapToLabel(sitk.MergeLabelMap([…], method))`.
+///
+/// Each input's distinct non-zero values become label objects; the inputs are
+/// folded into the first under one of four methods.
+///
+/// ITK Parity: `MergeLabelMapFilter` (`sitk.MergeLabelMap`).
+///
+/// Args:
+///     label_images: list of integer label images, identical dimensions.
+///     method: 0 = Keep, 1 = Aggregate, 2 = Pack, 3 = Strict (default 0).
+///
+/// Returns:
+///     the merged label image.
+#[pyfunction]
+#[pyo3(signature = (label_images, method=0))]
+pub fn merge_label_map(
+    py: Python<'_>,
+    label_images: Vec<PyRef<'_, PyImage>>,
+    method: u8,
+) -> RitkResult<PyImage> {
+    let m = match method {
+        0 => MergeLabelMethod::Keep,
+        1 => MergeLabelMethod::Aggregate,
+        2 => MergeLabelMethod::Pack,
+        3 => MergeLabelMethod::Strict,
+        other => {
+            return Err(RitkPyError::value(format!(
+                "merge_label_map: method must be 0..=3, got {other}"
+            )))
+        }
+    };
+    // Clone the Arc handles so the GIL can be released during compute.
+    let arcs: Vec<Arc<Image<Backend, 3>>> =
+        label_images.iter().map(|p| Arc::clone(&p.inner)).collect();
+    let out = py.allow_threads(|| {
+        let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
+        core_merge_label_maps(&refs, m).map_err(|e| RitkPyError::runtime(e.to_string()))
+    })?;
+    Ok(into_py_image(out))
 }
 
 /// Marker-less morphological watershed, matching
