@@ -130,7 +130,32 @@ emerges from the full flooding + `AnalyzeBoundaryFlow` + flat-region merge +
 form, so a faithful prototype requires reimplementing the Segmenter itself. Total
 port ≈ 1900 lines across the two classes; no single-turn path exists.
 
-### PatchBasedDenoising — DETERMINISTIC (NOT RNG-blocked); needs the exact entropy-gradient formula
+### PatchBasedDenoising — RNG-DEPENDENT after all (seeded sampler required); reclassification RE-CORRECTED
+**RE-CORRECTION (the "deterministic, no RNG" reclassification below was WRONG — over-corrected):**
+a controlled IMPULSE test (9×9 const 50, center (4,4)=80) settles it: sitk output
+is DETERMINISTIC (run-twice identical, 200 vs 500 samples identical) BUT
+**ASYMMETRIC for a symmetric input** (maxasym 0.599 about the centre; row4
+pos0=50.513 ≠ pos8=50.171). A symmetric deterministic formula gives symmetric
+output; the asymmetry can ONLY come from the seeded MersenneTwister
+GaussianRandomSpatialNeighborSubsampler's spatially-asymmetric draw frequencies
+(stable for 200 vs 500 = frequencies converge, but seeded-asymmetric). My
+all-patches-uniform prototype gives UNIFORM background (50.072 everywhere) and so
+structurally CANNOT reproduce sitk's distance-structured asymmetric output — THIS
+is the max-1.45 residual (the 12 ruled-out candidates were all on the wrong track
+because the real cause is the RNG candidate SELECTION, not the gradient formula).
+The earlier 11×11 "symmetric output" test was misleading (structured input masked
+the asymmetry below tolerance). So PatchBasedDenoising genuinely REQUIRES the
+exact seeded ITK MersenneTwister + GaussianRandomSpatialNeighborSubsampler ported
+bit-for-bit (ritk HAS MT19937 in noise/mersenne.rs but the sampler's exact draw
+sequence + spatial-Gaussian selection must match). The NLM-entropy gradient
+formula (extracted below) is the EASY part; the seeded sampler is the
+multi-session core. LESSON (4th self-correction this session): an impulse test on
+a SYMMETRIC input is the decisive RNG-vs-deterministic discriminator — a symmetric
+input giving asymmetric output proves seeded-RNG dependence even when run-to-run
+deterministic. The formula extraction below remains valid; it is just NOT
+sufficient without the RNG sampler.
+
+### (superseded) PatchBasedDenoising — DETERMINISTIC (NOT RNG-blocked); needs the exact entropy-gradient formula
 **RECLASSIFIED (the "seeded RNG" blocker below was WRONG):** verified
 `sitk.PatchBasedDenoising` is fully DETERMINISTIC at the default/blocked-test
 config — run-twice identical, 200 vs 500 samples identical (the sampler covers
