@@ -1329,6 +1329,30 @@ def test_cmake_adaptive_histogram_equalization(alpha, beta):
     )
 
 
+@pytest.mark.parametrize("masked", [False, True])
+def test_cmake_normalized_correlation(masked):
+    """NormalizedCorrelation: correlation of a locally-centered image neighborhood
+    with a mean-zero/unit-norm template, mask-gated. ritk
+    `filter.normalized_correlation` vs `sitk.NormalizedCorrelation`. Float-exact
+    (a deterministic neighborhood operator, no solver)."""
+    import numpy as _np
+    _np.random.seed(0)
+    img = (_np.random.rand(1, 10, 12) * 100).astype(_np.float32)
+    tmpl = _np.array([[[0, 1, 0], [1, 2, 1], [0, 1, 0]]], _np.float32)
+    mask = _np.ones((1, 10, 12), _np.float32)
+    if masked:
+        mask[:, :3, :] = 0.0
+    si = sitk.GetImageFromArray(img[0]); st = sitk.GetImageFromArray(tmpl[0])
+    sm = sitk.GetImageFromArray(mask[0])
+    so = sitk.GetArrayFromImage(sitk.NormalizedCorrelation(si, sm, st))
+    r = _np.squeeze(_np.asarray(ritk.filter.normalized_correlation(
+        ritk.Image(_np.ascontiguousarray(img)), ritk.Image(_np.ascontiguousarray(mask)),
+        ritk.Image(_np.ascontiguousarray(tmpl))).to_numpy()))
+    assert r.shape == so.shape
+    assert float(_np.abs(r - so).max()) < 1e-4, \
+        f"NormalizedCorrelation differs (max {float(_np.abs(r - so).max())})"
+
+
 def test_cmake_approximate_signed_distance_map():
     """ApproximateSignedDistanceMap: IsoContourDistance + FastChamferDistance.
     ritk `filter.approximate_signed_distance_map` vs

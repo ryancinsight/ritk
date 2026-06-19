@@ -250,6 +250,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fft_convolve_3d, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_normalized_correlate, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_normalized_correlate_3d, &m)?)?;
+    m.add_function(wrap_pyfunction!(normalized_correlation, &m)?)?;
     // Frequency-domain filters
     m.add_function(wrap_pyfunction!(fft_ideal_low_pass, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_ideal_high_pass, &m)?)?;

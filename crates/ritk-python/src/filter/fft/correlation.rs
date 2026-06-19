@@ -6,7 +6,10 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_core::image::Image;
-use ritk_filter::{FftNormalizedCorrelation3DFilter, FftNormalizedCorrelationFilter};
+use ritk_filter::{
+    normalized_correlation as core_normalized_correlation, FftNormalizedCorrelation3DFilter,
+    FftNormalizedCorrelationFilter,
+};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::sync::Arc;
 
@@ -128,6 +131,40 @@ pub fn fft_normalized_correlate_3d(
             .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         filter
             .apply(vol.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Spatial-domain normalized correlation of an image with a template, gated by a
+/// mask. Matches `SimpleITK.NormalizedCorrelation`.
+///
+/// The template is normalized to mean zero and unit norm; each masked voxel gets
+/// the correlation of its locally-centered neighbourhood with the unit template
+/// (ZeroFluxNeumann boundary). Masked-out voxels are 0.
+///
+/// Args:
+///     image:    Input PyImage.
+///     mask:     Mask PyImage (same shape; non-zero selects the voxel).
+///     template: Odd-sized template PyImage (the neighbourhood operator).
+///
+/// Returns:
+///     Correlation PyImage, same shape and metadata as the input.
+///
+/// Raises:
+///     RuntimeError: on a shape mismatch or an even template extent.
+#[pyfunction]
+pub fn normalized_correlation(
+    py: Python<'_>,
+    image: &PyImage,
+    mask: &PyImage,
+    template: &PyImage,
+) -> RitkResult<PyImage> {
+    let img = Arc::clone(&image.inner);
+    let msk = Arc::clone(&mask.inner);
+    let tpl = Arc::clone(&template.inner);
+    py.allow_threads(|| {
+        core_normalized_correlation(img.as_ref(), msk.as_ref(), tpl.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

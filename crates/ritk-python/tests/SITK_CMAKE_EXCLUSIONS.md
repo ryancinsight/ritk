@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **31 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **30 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -72,8 +72,11 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 
 ## Template / masked correlation
 
-- **NormalizedCorrelation** — spatial template matching: the template is a NeighborhoodOperator
-  and a mask gates pixels; the per-pixel local-norm normalization needs faithful replication.
+- **NormalizedCorrelation** is now shipped float-exact (`filter.normalized_correlation`): the template
+  is normalized to mean-zero/unit-norm (`k = std·√(N−1)`), then per masked voxel `out = Σ I·nt /
+  √(ΣI² − (ΣI)²/N)` over the ZeroFluxNeumann neighbourhood. The earlier non-convergence was for lack of
+  ITK's exact functor (the `k` scaling and the local-energy denominator); verified ≤1e-4 vs sitk
+  (full + partial mask). The mask must be cast to float32 for `sitk.NormalizedCorrelation`.
 - **MaskedFFTNormalizedCorrelation** — Padfield masked NCC via multiple FFTs (no mask support
   in ritk's FFT NCC yet).
 
