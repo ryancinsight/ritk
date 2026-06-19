@@ -276,3 +276,14 @@ reverse-engineering is done; the port is a careful faithful implementation of
 this stateful pipeline validated end-to-end. This is the genuine multi-session
 boundary — the SparseField is intricate (shifted-stencil curvature + layer
 bookkeeping), distinct from IsolatedWatershed's clean prototype-validatable form.
+UPDATE (shifted-neighbourhood prototype: mean-err 0.137→**0.083**, max 1.264):
+adding the subvoxel-shifted-stencil curvature (bilinear-sampled at
+`x − φ·∇φ/|∇φ|²`) drops the mean error near the static-distance baseline (0.073),
+confirming the shifted stencil is a real factor — but max-err stays 1.264, pinned
+at the discrete layer-boundary voxels (the exact ±0.5/±1.5/±2.5 propagated layer
+values a CONTINUOUS prototype cannot reproduce). So across 4 prototypes
+(0.18/0.187/0.137/0.083) the mean converges toward sitk but the max requires the
+exact discrete stateful layer propagation. FINAL CONCLUSION: AntiAliasBinary is
+genuinely the faithful-stateful-SparseField port (discrete layer values + linked
+lists), validated end-to-end — no continuous dense prototype reaches 1e-2 max.
+The full algorithm is now specified; the work is the careful stateful Rust port.
