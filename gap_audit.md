@@ -4,6 +4,56 @@
 
 ---
 
+## Sprint 381 Audit (2026-06-19) — Wiener Formula Fix, Parallel Box/EDT, CoherenceEnhancingDiffusion Coverage
+
+### Gaps Identified and Closed
+
+- **[FIX-381-01 CLOSED] (ritk-filter/deconvolution/regularization.rs)**: `WienerRule::apply_rule`
+  denominator formula was `pn/(|G|²−pn).max(1e-9)` — incorrect subtraction producing inflated reg.
+  Fixed to `pn/|G|².max(1e-20)` matching ITK's `snrSquared = |G|²/Pn; 1/snrSquared = Pn/|G|²`.
+  Evidence: 29/29 deconvolution Rust tests pass; doc comments updated in regularization.rs and wiener.rs.
+
+- **[PERF-380-04 CLOSED] (ritk-filter/distance/euclidean/core.rs)**: EDT Phase 3 Z-column pass
+  parallelized via forward-transpose `[nz,ny,nx]→[ny·nx,nz]` + moirai parallel chunks + scatter+sqrt.
+  Output bit-identical to serial form verified by 9/9 euclidean_dt tests. Closes PERF-380-04.
+
+- **[PERF-380-05 CLOSED] (ritk-filter/morphology/mod.rs)**: `separable_box_3d` all three axis passes
+  parallelized: X/Y via z-slice moirai chunks, Z via transpose+parallel+inverse-transpose.
+  Bit-identical output verified by 42/42 grayscale morphology tests. Closes PERF-380-05.
+
+- **[TEST-381-01 CLOSED] (ritk-python/tests/test_simpleitk_cmake_data.py)**: 6 new cmake parity tests
+  for CoherenceEnhancingDiffusion (3 parametrized structural + 2 upstream-data non-regression
+  + 1 mean-conservation). Closes CoherenceEnhancingDiffusion from 17-filter uncovered list.
+
+### Residual Risk
+
+- **[GAP-381-01 OPEN]**: Deconvolution crop-position scale divergence. Root-cause: `ifft_and_crop`
+  crops from [0,0,0]; image placed at corner [0,0,0] in padded buffer. ITK convention: image at
+  offset `ker_dims[d]/2`, crop at `ker_dims[d]/2`. This misalignment yields output ~400–3000× larger
+  than sitk for band-limited blurred input (factor ~50× confirmed for 20³ image, 5³ kernel).
+  The WienerDeconvolution formula (FIX-381-01) is now correct; only the crop alignment is wrong.
+  Status: Being fixed in Sprint 382 (GAP-381-01 carry-forward).
+
+- **[PERF-381-01 OPEN]**: separable_box_3d and EDT Phase 3 parallelizations (both Sprint 381) have
+  no criterion benchmark baselines recorded yet. The bit-identical correctness is verified; speedup
+  claims are not evidence-tiered. Add benches/separable_box.rs and benches/euclidean_dt.rs with
+  128³ baseline comparisons before claiming speedup in changelog/release notes.
+
+- **[DOC-381-02 OPEN]**: 16 pre-existing intra-doc-link warnings (unresolved links to private items)
+  accumulated from earlier sprint commits. Non-blocking; target cleanup pass in Sprint 382.
+
+### cmake Filter Coverage (Sprint 381 state)
+- **Closed this sprint**: CoherenceEnhancingDiffusion (1 filter)
+- **Remaining uncovered** (16 filters): AntiAliasBinary, BinaryMinMaxCurvatureFlow,
+  CannySegmentationLevelSet, ContourExtractor2D, DiffeomorphicDemonsRegistration,
+  FastSymmetricForcesDemonsRegistration, InverseDisplacementField, IsolatedWatershed,
+  LevelSetMotionRegistration, MinMaxCurvatureFlow, PatchBasedDenoising, SLIC,
+  ScalarChanAndVeseDenseLevelSet, SymmetricForcesDemonsRegistration,
+  VectorConfidenceConnected, VectorConnectedComponent.
+- **Total cmake parity tests**: 400 passing (Sprint 381 exit baseline).
+
+---
+
 ## Sprint 375 Audit (2026-06-15) — Architecture Hardening Round 8: SSOT · DRY · NAMING · ENUM · SRP · COMPAT
 
 ### Gaps Identified (8-crate parallel audit: ritk-io, ritk-vtk, ritk-spatial/morphology/minc/metaimage/nrrd, ritk-snap, ritk-registration/transform, ritk-codecs/image/interpolation, ritk-filter, ritk-segmentation/statistics)
@@ -448,7 +498,7 @@ All 20 gaps above closed. See backlog Sprint 364 → Delivered table.
 
 ---
 
-## Sprint 348 Audit (2026-06-09)
+## Sprint 375 Audit (2026-06-15)
 
 ### Gaps closed
 

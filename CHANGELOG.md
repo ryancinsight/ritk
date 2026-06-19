@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 381: Wiener Formula Fix, Parallel Box/EDT, CED cmake Coverage
+
+### Fixed
+- `ritk-filter`: `WienerDeconvolutionImageFilter` — `WienerRule::apply_rule` denominator corrected
+  from `pn/(|G|²−pn).max(1e-9)` to `pn/|G|².max(1e-20)`, matching ITK's `snrSquared = |G|²/Pn`
+  and `1/snrSquared = Pn/|G|²` formulas exactly. Removes spurious self-subtraction that inflated
+  the regularisation. Doc comments updated in `regularization.rs` and `wiener.rs`.
+
+### Performance
+- `ritk-filter`: `separable_box_3d` (used by GrayscaleDilate/Erode, Opening/Closing, TopHat,
+  H-transforms) — all three axis passes parallelised via `moirai::for_each_chunk_mut_enumerated_with`:
+  X-pass over z-slice chunks, Y-pass over z-slice chunks with immutable `buf_x` + disjoint `buf_y`,
+  Z-pass via forward-transpose `[nz,ny,nx]→[ny·nx,nz]` + parallel column chunks + inverse-transpose.
+  Output bit-identical (verified by 42 grayscale morphology tests).
+- `ritk-filter`: EDT Phase 3 Z-column pass in `euclidean_dt` — parallelised via forward-transpose
+  to column-contiguous layout + moirai parallel chunks + scatter + sqrt. Output bit-identical
+  (verified by 9 euclidean_dt tests).
+
+### Added (tests)
+- `test_cmake_coherence_enhancing_diffusion_*` (6 tests): 3 parametrised structural non-regression
+  tests (synthetic 3-D slab + Gaussian noise; invariants: finite, max_diff > 3.0, std ≤ 1.05×input,
+  Pearson ≥ 0.95) + 2 upstream-data non-regression tests (RA-Float.nrrd) + 1 mean-conservation test
+  (|Δmean|/|mean| < 1%). Closes CoherenceEnhancingDiffusion from the uncovered list.
+
+### Documentation
+- `checklist.md`: Sprint 381 delivery record prepended.
+- `backlog.md`: PERF-381-01 benchmark baseline item, GAP-381-01 crop-fix item added.
+- `gap_audit.md`: Sprint 381 audit section prepended (this entry).
+
+---
+
 ## [Unreleased] — Sprint 380 Performance, Stub Closure & SimpleITK cmake Test Expansion
 
 ### Performance

@@ -76,6 +76,23 @@ fn place_corner<const D: usize>(
     }
 }
 
+/// Place a real-valued image/kernel into a zero-padded complex buffer at
+/// position `offset` (corner + offset per axis).
+fn place_at_offset<const D: usize>(
+    buf: &mut [Complex<f32>],
+    vals: &[f32],
+    dims: &[usize; D],
+    pad: &[usize; D],
+    offset: &[usize; D],
+) {
+    for (flat, &v) in vals.iter().enumerate() {
+        let coords = decode_coords::<D>(flat, dims);
+        let pcoords: [usize; D] = std::array::from_fn(|d| coords[d] + offset[d]);
+        let pflat = encode_flat::<D>(&pcoords, pad);
+        buf[pflat] = Complex::new(v, 0.0);
+    }
+}
+
 /// Place a kernel into a zero-padded complex buffer with zero-phase centering.
 ///
 /// The kernel center `(kd/2, kd/2, …)` is shifted to padded origin `(0, 0, …)`
@@ -106,7 +123,7 @@ fn run_fft<const D: usize, Dir: crate::fft::convolution::FftDirection>(
 
 /// Pad two real-valued arrays into complex buffers, execute forward FFT on both.
 ///
-/// The image is placed at the corner (no shift); the kernel is placed with
+/// The image is placed at `img_offset` per axis; the kernel is placed with
 /// zero-phase centering.
 pub(super) fn pad_and_fft<const D: usize>(
     img_vals: &[f32],
@@ -115,9 +132,10 @@ pub(super) fn pad_and_fft<const D: usize>(
     ker_dims: &[usize; D],
     pad: &[usize; D],
     pad_n: usize,
+    img_offset: &[usize; D],
 ) -> (Vec<Complex<f32>>, Vec<Complex<f32>>) {
     let mut img_padded = vec![Complex::new(0.0_f32, 0.0); pad_n];
-    place_corner::<D>(&mut img_padded, img_vals, img_dims, pad);
+    place_at_offset::<D>(&mut img_padded, img_vals, img_dims, pad, img_offset);
 
     let mut ker_padded = vec![Complex::new(0.0_f32, 0.0); pad_n];
     place_centered::<D>(&mut ker_padded, ker_vals, ker_dims, pad);
@@ -131,12 +149,15 @@ pub(super) fn pad_and_fft<const D: usize>(
 
 /// Execute inverse FFT on `buf` and crop to `out_dims`, returning real values.
 ///
-/// The 1/N scaling factor for the inverse FFT is applied during cropping.
+/// `crop_offset` gives the per-axis starting position in the padded buffer from
+/// which output elements are read (ITK `CropOutput` convention: `ker_dim/2` per
+/// axis). The 1/N scaling factor for the inverse FFT is applied during cropping.
 pub(super) fn ifft_and_crop<const D: usize>(
     buf: &mut [Complex<f32>],
     out_dims: &[usize; D],
     pad: &[usize; D],
     pad_n: usize,
+    crop_offset: &[usize; D],
 ) -> Vec<f32> {
     let mut planner = FftPlanner::<f32>::new();
     run_fft::<D, InverseFft>(buf, pad, &mut planner);
@@ -147,7 +168,8 @@ pub(super) fn ifft_and_crop<const D: usize>(
 
     for (flat, o) in out.iter_mut().enumerate() {
         let coords = decode_coords::<D>(flat, out_dims);
-        let pflat = encode_flat::<D>(&coords, pad);
+        let pcoords: [usize; D] = std::array::from_fn(|d| coords[d] + crop_offset[d]);
+        let pflat = encode_flat::<D>(&pcoords, pad);
         *o = buf[pflat].re * scale;
     }
     out

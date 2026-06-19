@@ -1,10 +1,87 @@
 # RITK Sprint Checklist — Active
 
-## Sprint 380 — Performance, Stub Closure & SimpleITK cmake Test Expansion
+## Sprint 382 — Deconvolution Crop Fix, cmake Coverage Expansion (Active)
+**Target version**: 0.12.79
+**Sprint phase**: Execution
+
+### In-Flight (Sprint 382)
+- [ ] GAP-381-01 [patch]: **Deconvolution crop-position alignment** — Change `pad_and_fft` to place
+  image at offset `ker_dims[d]/2` and `ifft_and_crop` to crop at `ker_dims[d]/2`, matching ITK's
+  `CropOutput` convention. Expected: Pearson ≥ 0.80 for Wiener/Inverse on blurred input.
+- [ ] PERF-381-01 [patch]: **Criterion benchmarks for separable_box_3d and EDT Phase 3** —
+  Add `benches/separable_box.rs` (128³ at r=2 and r=5) and `benches/euclidean_dt.rs`.
+- [ ] DOC-381-02 [patch]: **16 pre-existing intra-doc-link warnings** — resolve at source.
+
+---
+
+## Sprint 381 — Wiener Formula Fix, Parallel Box/EDT, cmake CoherenceEnhancingDiffusion
 **Target version**: 0.12.78
 **Sprint phase**: Closure — all items delivered and verified
 
-### Delivered (Sprint 380)
+### Delivered (Sprint 381)
+- [x] FIX-381-01 [patch]: **WienerDeconvolution formula to match ITK exactly** —
+  `WienerRule::apply_rule` changed from `pn/(|G|²−pn).max(1e-9)` to `pn/|G|².max(1e-20)`.
+  Matches ITK's `snrSquared = |G|²/noiseVariance; denominator = |H|²+1/snrSquared`.
+  Doc comments in `regularization.rs` and `wiener.rs` updated. 29/29 existing deconvolution
+  tests pass; 0 clippy warnings. (Commits: b43afd4e)
+- [x] PERF-380-05 [patch]: **separable_box_3d moirai parallelism** — All three axis passes
+  parallelized with `moirai::for_each_chunk_mut_enumerated_with`. X: z-slice chunks (ny rows
+  each). Y: z-slice chunks (immutable buf_x read, write buf_y — disjoint allocs). Z: forward
+  transpose [nz,ny,nx]→[ny·nx,nz] + parallel nz-column chunks + inverse transpose. Bit-identical
+  output verified by 42 existing grayscale morph tests. Accelerates GrayscaleDilate/Erode,
+  Opening/Closing, TopHat, H-transforms. (Commits: b43afd4e)
+- [x] PERF-380-04 [patch]: **euclidean_dt Phase 3 Z-column parallelism** — Transpose g2 to
+  column-contiguous layout, parallel moirai over ny·nx Z-columns (each nz elements), scatter
+  + sqrt in final iterator. 9/9 existing euclidean_dt tests pass; 0 clippy warnings. (Commits: b43afd4e)
+- [x] TEST-381-01 [patch]: **cmake parity: CoherenceEnhancingDiffusion (6 new tests)** —
+  3 parametrized structural non-regression tests (synthetic slab image + Gaussian noise;
+  invariants: finite, max_diff>3.0, std≤input·1.05, Pearson≥0.95) + 2 upstream-data
+  non-regression tests (RA-Float.nrrd; finite, std not exploding) + 1 mean-conservation
+  test (|mean_change|/|mean| < 1%). Closes CoherenceEnhancingDiffusion from the 17-filter
+  uncovered list. (Commits: b43afd4e)
+- [x] STUB-381-01 [patch]: **smoke list: toboggan + vector_connected_component** —
+  Added `toboggan` and `vector_connected_component` to segmentation smoke required list
+  to catch gaps introduced by concurrent-agent commits 323554d4 and b9ca3275. (Commits: b43afd4e)
+- [x] DOC-381-01 [patch]: **Wiener test docstring correction** — Replaced stale
+  'noise_to_signal (a ratio) vs noiseVariance (added to |H|²)' explanation with correct
+  pipeline-scale-divergence diagnosis: ritk's `ifft_and_crop` crop-position produces
+  output ~400–3000× larger than sitk's for band-limited input. Same root cause as
+  InverseDeconvolution rel≈0.64 / Pearson 0.42–0.66. (Commits: b43afd4e)
+- [x] FMT-381-01 [patch]: **cargo fmt --all** — Clean workspace-wide formatting.
+  0 clippy warnings after fmt. (Commits: b43afd4e)
+
+### Verification gate
+- [x] `cargo nextest run -p ritk-filter` → **907/907 passed** (51.9 s)
+- [x] `cargo clippy --workspace --lib -- -D warnings` → 0 warnings
+- [x] `uv run --no-sync pytest tests/test_simpleitk_cmake_data.py` → **400 passed, 0 failed**
+  (was 394 at Sprint 380→381 boundary after pyd sync; +6 CoherenceEnhancingDiffusion)
+- [x] `uv run --no-sync pytest tests/ -m 'not slow and not registration'` → **814 passed,
+  5 skipped** (scipy env gap is pre-existing — test_simpleitk_parity.py / test_vtk_parity.py
+  / test_registration_validation.py excluded; in-scope tests all green)
+- [x] `test_registered_functions_have_stub_and_smoke_coverage` → 1 passed (0 stub gaps)
+
+### Baseline progression
+| Run | cmake-data | Broad suite | Notes |
+|-----|-----------|------------|-------|
+| Sprint 380 exit | 375 | 1034 | |
+| Sprint 380→381 pyd sync | 394 | — | +19 from Toboggan/LabelMapContourOverlay/MedianProjection |
+| Sprint 381 (this) | **400** | **814** | +6 CED; broad excludes scipy-missing |
+
+### Deferred / carry-forward
+- [ ] GAP-381-01 [patch]: **Wiener/Inverse deconvolution crop-position scale divergence** —
+  Root-cause identified (Sprint 381): `ifft_and_crop` crops from [0,0,0] of the padded
+  IFFT output, yielding values ~400–3000× larger than sitk's for band-limited blurred
+  input. ITK applies a different crop region (or different boundary condition). Fix requires
+  careful analysis of ITK's `FFTConvolutionImageFilter::CropOutput` region computation;
+  would close the Pearson≈0 divergence for WienerDeconvolution and improve
+  InverseDeconvolution from Pearson≈0.42–0.66 to Pearson≥0.90.
+- [ ] PERF-381-01 [patch]: **Verify separable_box_3d and EDT Phase 3 speedups with
+  criterion benchmarks** — Both parallelizations are bit-identical to serial (verified by
+  existing tests) but no benchmark baseline recorded yet for Phase 3 or separable_box_3d.
+  Add benches/separable_box.rs before merging parallel claim.
+- [ ] DOC-381-02 [patch]: 16 pre-existing intra-doc-link warnings (unresolved rustdoc
+  links to private items). Non-blocking; target next sprint cleanup pass.
+
 - [x] FIX-380-01 [patch]: **reinitialize_level_set + bitwise_not stubs** — Added
   `reinitialize_level_set` and `bitwise_not` stubs to `filter.pyi`; extended smoke
   required lists for filter (`reinitialize_level_set`, `bitwise_not`) and segmentation

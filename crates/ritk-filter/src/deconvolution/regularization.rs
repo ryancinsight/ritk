@@ -182,13 +182,17 @@ pub(super) fn apply_single_pass<const D: usize, R: Regularization>(
 ) -> Vec<f32> {
     let pad = pad_dims::<D>(img_dims, ker_dims);
     let pad_n = pad_total::<D>(&pad);
+    // ITK CropOutput convention: crop at (kernelSize[d]-1)/2 ≈ ker_dims[d]/2 per axis.
+    // Place the image at the same offset so IFFT at the crop positions gives the
+    // correctly aligned deconvolved estimate.
+    let offset: [usize; D] = std::array::from_fn(|d| ker_dims[d] / 2);
 
     let (mut img_padded, ker_padded) =
-        pad_and_fft::<D>(img_vals, img_dims, ker_vals, ker_dims, &pad, pad_n);
+        pad_and_fft::<D>(img_vals, img_dims, ker_vals, ker_dims, &pad, pad_n, &offset);
 
     rule.apply_rule(&mut img_padded, &ker_padded, &pad);
 
-    ifft_and_crop::<D>(&mut img_padded, img_dims, &pad, pad_n)
+    ifft_and_crop::<D>(&mut img_padded, img_dims, &pad, pad_n, &offset)
 }
 
 /// Build the spatially-reversed (transposed) kernel for iterative deconvolution.

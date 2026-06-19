@@ -6,16 +6,11 @@
 
 ## Open performance items
 
-- **PERF-380-04 [patch] — euclidean_dt Phase 3 Z-column parallelism.**
-  Phases 1+2 now parallel (Sprint 380). Phase 3 (Z-columns have stride ny·nx in
-  z-major layout) requires a transposed intermediate buffer to make writes
-  contiguous. Reopen when a >256³ EDT workload justifies the transposition overhead.
-
-- **PERF-380-05 [patch] — separable_box_3d moirai parallelism.**
-  Three serial axis passes for grayscale morphology (dilation, erosion, all
-  derived operations). Each X/Y/Z pass has embarrassingly parallel rows/columns.
-  Would accelerate GrayscaleDilate, GrayscaleErode, Opening, Closing, TopHat,
-  HMaxima/HMinima, GrayscaleGradient. Benchmark needed before merge.
+- **PERF-381-01 [patch] — separable_box_3d + EDT Phase 3 benchmark baselines.**
+  Both parallelizations landed in Sprint 381 (commit b43afd4e) and are bit-identical
+  to serial. No criterion baseline has been recorded yet. Add `benches/separable_box.rs`
+  and record `benches/euclidean_dt.rs` Phase-3-only timing to claim the speedup
+  at the evidence tier required by performance_engineering.
 
 - **PERF-379-01 [patch] — Deriche recursive-Gaussian cross-line parallelism. DONE.**
   `iir::apply_deriche_1d` now parallelises the X/Y passes across Z-slices via
@@ -29,18 +24,17 @@
 
 ## Gap items
 
-- **GAP-380-01 [patch] — Wiener deconvolution parameter-semantic investigation.**
-  ritk `filter.wiener_deconvolution(image, kernel, noise_to_signal)` and
-  sitk `WienerDeconvolution(image, kernel, noiseVariance)` appear to parameterise
-  the same Wiener filter with incompatible units (ratio vs absolute power).
-  Measured Pearson ≈ 0 for all tested values. Root-cause: examine ritk's Wiener
-  implementation in `crates/ritk-filter/src/` and compare against ITK's
-  `WienerDeconvolutionImageFilter`. Either align the parameter semantics or
-  document as a permanent divergence with a clear API note.
+- **GAP-381-01 [patch] — Wiener/Inverse deconvolution crop-position scale divergence.**
+  Root-cause identified in Sprint 381: ritk's `ifft_and_crop` crops from [0,0,0] of
+  the padded IFFT output, yielding output values ~400–3000× larger than sitk's for
+  a band-limited blurred input. The divergence is the same root cause that limits
+  InverseDeconvolution to Pearson ~0.42–0.66. Fix requires analysing ITK's
+  `FFTConvolutionImageFilter::CropOutput` region and matching the crop offset.
+  Evidence: Sprint 381 numerical investigation (numpy reference confirms ritk's
+  pipeline scale, sitk gives correct-scale output, factor ~50× for 20³/5³ test case).
+  Formula `reg = Pn/|G|²` (corrected in Sprint 381) is correct; only the crop is wrong.
 
 ---
-
-
 ## Sprint 377 — Performance Review, Memory Efficiency & Carry-Forward Reconciliation
 
 **Status**: In Progress
