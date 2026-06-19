@@ -1280,6 +1280,32 @@ def test_cmake_invert_displacement_field():
         f"InvertDisplacementField differs (max {float(_np.abs(r - sinv).max())})"
 
 
+def test_cmake_iterative_inverse_displacement_field():
+    """IterativeInverseDisplacementField: coordinate-descent line-search inversion
+    of a 3-D displacement field (distinct from InvertDisplacementField). ritk
+    `filter.iterative_inverse_displacement_field` vs
+    `sitk.IterativeInverseDisplacementField`. Float-exact (f32 rounding)."""
+    import numpy as _np
+    D, H, W = 5, 6, 7
+    zz, yy, xx = _np.mgrid[0:D, 0:H, 0:W]
+    u = _np.zeros((D, H, W, 3), _np.float32)
+    u[..., 0] = (0.8 * _np.sin(xx / 3.0)).astype(_np.float32)
+    u[..., 1] = (0.6 * _np.cos(yy / 4.0)).astype(_np.float32)
+    u[..., 2] = (0.4 * _np.sin(zz / 3.0)).astype(_np.float32)
+    sp = (1.5, 1.5, 1.5)
+    field = sitk.GetImageFromArray(u, isVector=True); field.SetSpacing(sp)
+    sinv = sitk.GetArrayFromImage(sitk.IterativeInverseDisplacementField(field))
+
+    def comp(c):
+        return ritk.Image(_np.ascontiguousarray(u[..., c]), spacing=(sp[2], sp[1], sp[0]))
+    rz, ry, rx = ritk.filter.iterative_inverse_displacement_field(comp(2), comp(1), comp(0))
+    r = _np.stack([_np.asarray(rx.to_numpy()), _np.asarray(ry.to_numpy()),
+                   _np.asarray(rz.to_numpy())], axis=-1)
+    assert r.shape == sinv.shape, f"shape {r.shape} != {sinv.shape}"
+    assert float(_np.abs(r - sinv).max()) < 1e-4, \
+        f"IterativeInverseDisplacementField differs (max {float(_np.abs(r - sinv).max())})"
+
+
 @pytest.mark.parametrize("seed", [1, 7, 13])
 def test_cmake_multi_label_staple(seed):
     """MultiLabelSTAPLE: EM consensus of K integer label maps. ritk

@@ -26,6 +26,51 @@ use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
+/// Vector linear interpolation of one displacement component at continuous index
+/// `(cz, cy, cx)`, matching ITK's `VectorLinearInterpolateImageFunction` +
+/// `IsInsideBuffer`: a point outside `[−0.5, size−0.5]` in any axis contributes
+/// the zero vector; otherwise the eight neighbours are clamped to the buffer.
+/// Shared by the displacement-field inversion filters.
+pub(crate) fn interp_component(ud: &[f64], dims: [usize; 3], cz: f64, cy: f64, cx: f64) -> f64 {
+    let [nz, ny, nx] = dims;
+    if cx < -0.5
+        || cx > nx as f64 - 0.5
+        || cy < -0.5
+        || cy > ny as f64 - 0.5
+        || cz < -0.5
+        || cz > nz as f64 - 0.5
+    {
+        return 0.0;
+    }
+    let (x0, y0, z0) = (cx.floor(), cy.floor(), cz.floor());
+    let (fx, fy, fz) = (cx - x0, cy - y0, cz - z0);
+    let clamp = |v: f64, hi: usize| -> usize { (v.max(0.0) as usize).min(hi) };
+    let mut acc = 0.0;
+    for dz_ in 0..2 {
+        let wz = if dz_ == 1 { fz } else { 1.0 - fz };
+        if wz == 0.0 {
+            continue;
+        }
+        let zz = clamp(z0 + dz_ as f64, nz - 1);
+        for dy_ in 0..2 {
+            let wy = if dy_ == 1 { fy } else { 1.0 - fy };
+            if wy == 0.0 {
+                continue;
+            }
+            let yy = clamp(y0 + dy_ as f64, ny - 1);
+            for dx_ in 0..2 {
+                let wx = if dx_ == 1 { fx } else { 1.0 - fx };
+                if wx == 0.0 {
+                    continue;
+                }
+                let xx = clamp(x0 + dx_ as f64, nx - 1);
+                acc += wz * wy * wx * ud[(zz * ny + yy) * nx + xx];
+            }
+        }
+    }
+    acc
+}
+
 /// Parameters and entry point for displacement-field inversion.
 #[derive(Debug, Clone)]
 pub struct InvertDisplacementField {
@@ -77,48 +122,8 @@ impl InvertDisplacementField {
         let mut vy = vec![0.0f64; n];
         let mut vz = vec![0.0f64; n];
 
-        // Vector linear interpolation of u at continuous index (cz, cy, cx),
-        // matching ITK: zero outside [−0.5, size−0.5]; neighbours clamped.
-        let interp = |cz: f64, cy: f64, cx: f64, ud: &[f64]| -> f64 {
-            if cx < -0.5
-                || cx > nx as f64 - 0.5
-                || cy < -0.5
-                || cy > ny as f64 - 0.5
-                || cz < -0.5
-                || cz > nz as f64 - 0.5
-            {
-                return 0.0;
-            }
-            let x0 = cx.floor();
-            let y0 = cy.floor();
-            let z0 = cz.floor();
-            let (fx, fy, fz) = (cx - x0, cy - y0, cz - z0);
-            let clamp = |v: f64, hi: usize| -> usize { (v.max(0.0) as usize).min(hi) };
-            let mut acc = 0.0;
-            for dz_ in 0..2 {
-                let wz = if dz_ == 1 { fz } else { 1.0 - fz };
-                if wz == 0.0 {
-                    continue;
-                }
-                let zz = clamp(z0 + dz_ as f64, nz - 1);
-                for dy_ in 0..2 {
-                    let wy = if dy_ == 1 { fy } else { 1.0 - fy };
-                    if wy == 0.0 {
-                        continue;
-                    }
-                    let yy = clamp(y0 + dy_ as f64, ny - 1);
-                    for dx_ in 0..2 {
-                        let wx = if dx_ == 1 { fx } else { 1.0 - fx };
-                        if wx == 0.0 {
-                            continue;
-                        }
-                        let xx = clamp(x0 + dx_ as f64, nx - 1);
-                        acc += wz * wy * wx * ud[(zz * ny + yy) * nx + xx];
-                    }
-                }
-            }
-            acc
-        };
+        let interp =
+            |cz: f64, cy: f64, cx: f64, ud: &[f64]| interp_component(ud, dims, cz, cy, cx);
 
         let mut max_err = f64::MAX;
         let mut mean_err = f64::MAX;

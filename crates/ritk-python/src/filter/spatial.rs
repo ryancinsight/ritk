@@ -639,6 +639,45 @@ pub fn invert_displacement_field(
     (into_py_image(vz), into_py_image(vy), into_py_image(vx))
 }
 
+// ── IterativeInverseDisplacementField ──────────────────────────────────────
+
+/// Iteratively invert a dense displacement field by coordinate-descent line
+/// search, matching `SimpleITK.IterativeInverseDisplacementField`.
+///
+/// Components are `(disp_z, disp_y, disp_x)` in/out (the order `filter.warp`
+/// uses). A distinct algorithm from `invert_displacement_field` (Chen et al.):
+/// a negated-field first guess refined per voxel. Internal f64; float-exact.
+///
+/// Args:
+///     disp_z, disp_y, disp_x: forward displacement components (world frame).
+///     number_of_iterations:   per-voxel line-search iterations (default 5).
+///     stop_value:             per-voxel early-stop error threshold (default 0.0).
+///
+/// Returns:
+///     (inv_disp_z, inv_disp_y, inv_disp_x): inverted components.
+#[pyfunction]
+#[pyo3(signature = (disp_z, disp_y, disp_x, number_of_iterations=5, stop_value=0.0))]
+pub fn iterative_inverse_displacement_field(
+    py: Python<'_>,
+    disp_z: &PyImage,
+    disp_y: &PyImage,
+    disp_x: &PyImage,
+    number_of_iterations: usize,
+    stop_value: f64,
+) -> (PyImage, PyImage, PyImage) {
+    let az = std::sync::Arc::clone(&disp_z.inner);
+    let ay = std::sync::Arc::clone(&disp_y.inner);
+    let ax = std::sync::Arc::clone(&disp_x.inner);
+    let (vx, vy, vz) = py.allow_threads(|| {
+        ritk_filter::IterativeInverseDisplacementField {
+            number_of_iterations,
+            stop_value,
+        }
+        .apply(ax.as_ref(), ay.as_ref(), az.as_ref())
+    });
+    (into_py_image(vz), into_py_image(vy), into_py_image(vx))
+}
+
 // ── StochasticFractalDimension ─────────────────────────────────────────────
 
 /// Per-voxel stochastic fractal dimension, matching

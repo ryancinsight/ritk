@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **34 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **33 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -100,9 +100,12 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   ε = 0.75 then 0.5, scaled-norm clamp, boundary pinned). The key to bit-exactness was matching ITK's
   vector-linear `IsInsideBuffer` edge semantics (continuous index outside `[−0.5, size−0.5]` → zero
   vector; upper neighbour clamped). Internal f64; verified ≤1e-4 vs sitk on a smooth aniso field.
-- **InverseDisplacementField** (scattered-data Landmark inversion) and
-  **IterativeInverseDisplacementField** (a distinct, simpler back-substitution iteration) remain
-  uncovered — different algorithms from `InvertDisplacementField`, deferred.
+- **IterativeInverseDisplacementField** is now shipped float-exact
+  (`filter.iterative_inverse_displacement_field`): a negated-field-warped first guess refined by a
+  per-voxel coordinate-descent line search (step-halving, ±step along each physical axis), reusing the
+  shared ITK-faithful vector interpolation. Verified ≤1e-4 vs sitk (prototype matched to 2e-15 in f64).
+- **InverseDisplacementField** (scattered-data Landmark inversion via point-set interpolation) remains
+  uncovered — a different algorithm requiring a thin-plate/landmark interpolator, deferred.
 - **BitwiseNot** — bitwise NOT depends on the integer pixel width (uint8 vs int16 …); ritk's
   scalar-f32 backend carries no bit-width, so the result is undefined.
 
