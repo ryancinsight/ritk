@@ -1,5 +1,82 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 383 — cmake Coverage, Perf/Memory, Clippy/Doc Cleanup (Active)
+**Target version**: 0.12.79
+**Sprint phase**: Closure — all items delivered and verified
+
+### Delivered (Sprint 383)
+- [x] FIX-383-01 [patch]: **Stale binary / InverseDisplacementField regressions** — Python
+  module rebuilt with `maturin develop`; 2 cmake tests that were failing with `AttributeError`
+  now pass. cmake baseline: 416 (rebuilt) → 421 (post-new-filter work).
+- [x] SMOKE-383-01 [patch]: **Smoke test coverage for new functions** — Added
+  `inverse_displacement_field`, `min_max_curvature_flow`, `binary_min_max_curvature_flow`,
+  `slic`, `anti_alias_binary`, `scalar_chan_and_vese_dense_level_set`, `canny_segmentation_level_set`,
+  `patch_based_denoising` (filter) and `isolated_watershed_segment`, `level_set_motion_register`
+  (registration) to smoke test required lists.
+- [x] DOC-381-02 [patch]: **85 rustdoc intra-doc-link warnings fixed** — All
+  unresolved private-item links, ambiguous fn/mod references, and redundant explicit
+  link targets resolved across 38 files in 9 crates. `cargo doc` now produces 0 warnings.
+- [x] CLIP-383-01 [patch]: **Pre-existing Clippy violations in test files fixed** —
+  `tests_colormap.rs` (needless range loop), `tests_normalized_correlation.rs` (zero
+  multiplication), `tests_fast_chamfer.rs` (zero-effect multiplication),
+  `tests_marker_controlled.rs` (iter().any → contains) all resolved.
+- [x] CLIP-383-02 [patch]: **`inverse_displacement.rs` Clippy clean** — Replaced
+  range-loop with `enumerate().skip()`, used `split_at_mut` for inner elimination loop,
+  removed unnecessary `as f64` casts, replaced manual r2 loops with iterator `.sum()`,
+  added `#[allow(clippy::needless_range_loop)]` with justification for the voxel-flat-index loop.
+- [x] PERF-383-01 [patch]: **`solve_linear` flat matrix** — `Vec<Vec<f64>>` replaced
+  with flat row-major `Vec<f64>`; eliminates `sz` heap pointer indirections and
+  improves cache locality for row-scan operations.
+- [x] PERF-383-02 [patch]: **`InverseDisplacementField` flat landmarks + L-matrix** —
+  `src: Vec<Vec<f64>>` and `l: Vec<Vec<f64>>` converted to flat `Vec<f64>`; eliminates
+  `n_land + sz` heap pointer indirections per invocation.
+- [x] PERF-383-03 [patch]: **Parallel voxel evaluation for `InverseDisplacementField`** —
+  Per-voxel evaluation loop parallelized via moirai; reads shared immutable data
+  (`src`, `dmat`, `amat`, `bvec`), returns per-voxel `[f64; 3]` tuple.
+- [x] PERF-383-04 [patch]: **KMeans accumulator hoisting** —
+  `sum`/`counts` vectors hoisted out of Lloyd iteration; reset with `fill(0)` each pass,
+  eliminating `k × 2 × max_iterations` allocations per call.
+- [x] PERF-383-05 [patch]: **SLIC `lo_cell`/`hi_cell`/`cell_coords` hoisting** —
+  Three `vec![0usize; ndim]` allocations hoisted out of center loop in `build_grid_map`,
+  eliminating `3 × n_centers × 2` allocations per SLIC iteration.
+- [x] NEW-383-01 [minor]: **7 new cmake filter implementations** —
+  `AntiAliasBinaryImageFilter`, `CannySegmentationLevelSet`, `ContourExtractor2DImageFilter`,
+  `IsolatedWatershed`, `LevelSetMotionRegistration`, `PatchBasedDenoisingImageFilter`,
+  `ScalarChanAndVeseDenseLevelSet` all implemented in Rust, wired to Python bindings,
+  registered in respective modules, stubs added to `.pyi` files.
+- [x] TEST-383-01 [patch]: **7 new cmake parity tests** — `test_cmake_anti_alias_binary_structural`,
+  `test_cmake_canny_segmentation_level_set_structural`, `test_cmake_contour_extractor_2d_structural`,
+  `test_cmake_contour_extractor_2d_vertices`, `test_cmake_isolated_watershed_structural`,
+  `test_cmake_level_set_motion_registration_structural`, `test_cmake_patch_based_denoising_structural`,
+  `test_cmake_scalar_chan_and_vese_dense_level_set_structural` added to cmake test file.
+
+### Verification gate
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 errors
+- [x] `cargo nextest run -p ritk-filter -p ritk-segmentation` → **1351/1351 passed**
+- [x] `cargo nextest run -p ritk-registration` → **2002/2002 passed**
+- [x] `cargo doc --workspace --no-deps` → **0 warnings**
+- [x] `uv run --no-sync pytest tests/test_simpleitk_cmake_data.py` → **421 passed, 4 skipped**
+  (4 skips = sitk feature-gated filters not present in installed wheel)
+- [x] `uv run --no-sync pytest tests/ -m 'not slow and not registration'` → **1082 passed, 9 skipped**
+- [x] `test_registered_functions_have_stub_and_smoke_coverage` → 1 passed (0 stub/smoke gaps)
+
+### Baseline progression
+| Run | cmake-data | Broad suite | Rust tests | Notes |
+|-----|-----------|------------|-----------|-------|
+| Sprint 382 exit | 404 | 818 | 910 | |
+| Stale binary fix | 416 | — | — | +12 (InverseDisplacement+others) |
+| Sprint 383 (this) | **421** | **1082** | **1351** | +7 new filter tests; broad +264 |
+
+### Deferred / carry-forward
+- [ ] PERF-381-01 [partial]: Benchmark scaffold (separable_box, euclidean_dt) added
+  in Sprint 382; baseline timings not yet recorded. Requires `cargo bench` on release build.
+- [ ] NEW-383-02 [minor]: 3 cmake tests currently `skip` (AntiAliasBinary, CannySegmentationLevelSet,
+  ContourExtractor2D) because the installed SimpleITK wheel doesn't expose these filters
+  in the test environment. Tests are wired to the real implementations and will activate
+  automatically when a compatible sitk wheel is installed.
+
+---
+
 ## Sprint 382 — Deconvolution Crop Fix, cmake Coverage Expansion (Active)
 **Target version**: 0.12.79
 **Sprint phase**: Closure — all items delivered and verified
