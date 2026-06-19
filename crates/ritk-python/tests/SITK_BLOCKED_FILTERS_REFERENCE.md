@@ -248,3 +248,17 @@ Order: layer 1 from layer 0, layer 2 from layer 1, etc. With this + the
 subvoxel active init, the SparseField algorithm is now 100% specified for the
 port — no further source reading needed; the remaining work is the faithful
 stateful implementation + end-to-end validation vs sitk.AntiAliasBinary.
+UPDATE (faithful prototype attempt, mean-err 0.137 — still not 1e-2): a numpy
+prototype with the subvoxel init + signed layer-by-layer propagation + active-
+layer curvature evolution reaches mean-err 0.137 (better than the crude 0.187
+but worse than the static signed distance 0.073, with a −3.63 range overshoot
+from unclamped inward propagation). So three prototype attempts (EDT 0.18,
+city-block 0.187, faithful-layer 0.137) all miss 1e-2. Remaining gaps to nail:
+(1) the exact AntiAlias curvature function + its `CalculateChange` dt (CFL), not
+the generic CKS speed used here; (2) clamp layer values to ±3 during propagation;
+(3) the exact active-layer reconstruction/ordering and RMS stop. Conclusion:
+unlike IsolatedWatershed (clean algorithmic form, prototype-validatable in one
+session), AntiAliasBinary's prototype-validate step is itself multi-iteration —
+the SparseField is genuinely the harder multi-session port. The spec above is
+the starting point; closing it needs careful iterative matching of the curvature
++ dt + reconstruction against sitk, then the Rust port.
