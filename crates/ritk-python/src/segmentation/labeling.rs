@@ -12,10 +12,10 @@ use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components, ConnectedComponentsFilter,
     label_set_morph as core_label_set_morph, merge_label_maps as core_merge_label_maps,
-    relabel_consecutive as core_relabel_consecutive, KMeansSegmentation, LabelSetMorphOp,
-    MarkerControlledWatershed, MergeLabelMethod, MorphologicalWatershed, RelabelComponentFilter,
-    SlicConfig, SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter,
-    WatershedSegmentation,
+    relabel_consecutive as core_relabel_consecutive, toboggan as core_toboggan, KMeansSegmentation,
+    LabelSetMorphOp, MarkerControlledWatershed, MergeLabelMethod, MorphologicalWatershed,
+    RelabelComponentFilter, SlicConfig, SlicSuperpixelFilter,
+    ThresholdMaximumConnectedComponentsFilter, WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -258,6 +258,26 @@ fn label_set_morph_py(
     let out =
         py.allow_threads(|| core_label_set_morph(img.as_ref(), radius_itk, use_image_spacing, op));
     Ok(into_py_image(out))
+}
+
+/// Toboggan watershed labeling, matching `sitk.Toboggan`.
+///
+/// Each voxel slides along a face-connected steepest-descent path to a local
+/// minimum; voxels reaching the same minimum share a label (≥ 2, assigned in
+/// raster discovery order).
+///
+/// ITK Parity: `TobogganImageFilter`.
+///
+/// Args:
+///     image: scalar relief image (typically a gradient magnitude).
+///
+/// Returns:
+///     label image (basin indices ≥ 2).
+#[pyfunction]
+pub fn toboggan(py: Python<'_>, image: &PyImage) -> PyImage {
+    let arc = Arc::clone(&image.inner);
+    let out = py.allow_threads(|| core_toboggan(arc.as_ref()));
+    into_py_image(out)
 }
 
 /// Marker-less morphological watershed, matching

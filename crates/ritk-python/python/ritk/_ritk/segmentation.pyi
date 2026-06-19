@@ -99,6 +99,10 @@ def morphological_watershed(image: Image, level: float = 0.0) -> Image:
     """Marker-less morphological watershed. ITK Parity: MorphologicalWatershedImageFilter."""
     ...
 
+def toboggan(image: Image) -> Image:
+    """Toboggan steepest-descent basin labeling (labels >= 2). ITK Parity: TobogganImageFilter (sitk.Toboggan)."""
+    ...
+
 # ── Binary morphology ──────────────────────────────────────────────────────
 
 def binary_erosion(image: Image, radius: int = 1) -> Image: ...

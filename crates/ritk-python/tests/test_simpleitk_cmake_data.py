@@ -1664,6 +1664,49 @@ def test_cmake_label_map_contour_overlay_3d():
     )
 
 
+@pytest.mark.parametrize("seed", [0, 1, 7])
+def test_cmake_toboggan(seed):
+    """Toboggan: face-connected steepest-descent basin labeling. ritk
+    `segmentation.toboggan` vs `sitk.Toboggan`. Bit-exact — the strict-`<` slide,
+    `+x,-x,+y,-y` neighbour order, LIFO plateau flood-fill, and raster discovery
+    labeling (from 2) are ported exactly. Integer reliefs exercise plateaus/ties."""
+    import numpy as _np
+
+    rs = _np.random.RandomState(seed)
+    a = rs.randint(0, 6, (8, 9)).astype(_np.float32)
+    ref = sitk.GetArrayFromImage(sitk.Toboggan(sitk.GetImageFromArray(a))).astype(
+        _np.float32
+    )
+    got = _np.squeeze(
+        _np.asarray(
+            ritk.segmentation.toboggan(
+                ritk.Image(_np.ascontiguousarray(a[None]))
+            ).to_numpy()
+        )
+    ).astype(_np.float32)
+    assert got.shape == ref.shape
+    assert _np.array_equal(got, ref), (
+        f"Toboggan(seed={seed}) differs at {int((got != ref).sum())} voxels"
+    )
+
+
+def test_cmake_toboggan_3d():
+    """Toboggan in 3-D (face connectivity = 6-neighbourhood). ritk vs sitk."""
+    import numpy as _np
+
+    a = _np.random.RandomState(13).randint(0, 5, (4, 5, 6)).astype(_np.float32)
+    ref = sitk.GetArrayFromImage(sitk.Toboggan(sitk.GetImageFromArray(a))).astype(
+        _np.float32
+    )
+    got = _np.asarray(
+        ritk.segmentation.toboggan(ritk.Image(_np.ascontiguousarray(a))).to_numpy()
+    ).astype(_np.float32)
+    assert got.shape == ref.shape
+    assert _np.array_equal(got, ref), (
+        f"Toboggan 3D differs at {int((got != ref).sum())} voxels"
+    )
+
+
 @pytest.mark.parametrize("req_frac", [0.25, 0.5])
 def test_cmake_masked_fft_normalized_correlation(req_frac):
     """MaskedFFTNormalizedCorrelation (Padfield): masked NCC over all translations
