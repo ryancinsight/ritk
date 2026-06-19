@@ -44,8 +44,9 @@ pub use morphology::{
     MorphologicalGradient, MorphologicalOperation, Skeletonization,
 };
 pub use region_growing::{
-    connected_threshold, growcut, growcut_slice, ConfidenceConnectedFilter,
-    ConnectedThresholdFilter, GrowCutFilter, IsolatedConnectedFilter, NeighborhoodConnectedFilter,
+    connected_threshold, growcut, growcut_slice, vector_confidence_connected_image,
+    ConfidenceConnectedFilter, ConnectedThresholdFilter, GrowCutFilter, IsolatedConnectedFilter,
+    NeighborhoodConnectedFilter,
 };
 pub use threshold::{
     binary_threshold, kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold,

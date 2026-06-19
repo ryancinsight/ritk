@@ -1752,6 +1752,51 @@ def test_cmake_vector_connected_component(thr, fully_connected):
     )
 
 
+def test_cmake_vector_confidence_connected():
+    """VectorConfidenceConnected: Mahalanobis region growing on a vector image.
+    ritk `segmentation.vector_confidence_connected_segment` vs
+    `sitk.VectorConfidenceConnected`. Region-exact on a deterministic
+    well-conditioned 2-channel scene (a clear channel-0 blob); the f64 covariance
+    inverse + iterative flood reproduce sitk. (Near-singular covariance at very
+    tight multipliers is a documented cross-implementation numerical limit where
+    ITK's own vnl SVD degenerates — out of scope for this parity test.)"""
+    import numpy as _np
+
+    H, W = 10, 10
+    ch0 = _np.zeros((H, W), _np.float32)
+    ch1 = _np.zeros((H, W), _np.float32)
+    for y in range(H):
+        for x in range(W):
+            ch0[y, x] = 0.1 * (((x + y) % 3) - 1)
+            ch1[y, x] = 0.1 * (((x * y) % 5) - 2)
+    ch0[3:8, 3:8] += 3.0
+    v = _np.stack([ch0, ch1], axis=2)
+    seeds = [(5, 5), (4, 6)]
+    ref = sitk.GetArrayFromImage(
+        sitk.VectorConfidenceConnected(
+            sitk.GetImageFromArray(v, isVector=True),
+            [(int(x), int(y)) for (y, x) in seeds],
+            numberOfIterations=4,
+            multiplier=3.0,
+            initialNeighborhoodRadius=1,
+            replaceValue=1,
+        )
+    ).astype(_np.float32)
+    chans = [ritk.Image(_np.ascontiguousarray(v[None, :, :, c])) for c in range(2)]
+    rseeds = [[0, int(y), int(x)] for (y, x) in seeds]
+    got = _np.squeeze(
+        _np.asarray(
+            ritk.segmentation.vector_confidence_connected_segment(
+                chans, rseeds, 3.0, 4, 1, 1.0
+            ).to_numpy()
+        )
+    ).astype(_np.float32)
+    assert got.shape == ref.shape
+    assert _np.array_equal(got, ref), (
+        f"VectorConfidenceConnected region differs at {int((got != ref).sum())} voxels"
+    )
+
+
 @pytest.mark.parametrize("req_frac", [0.25, 0.5])
 def test_cmake_masked_fft_normalized_correlation(req_frac):
     """MaskedFFTNormalizedCorrelation (Padfield): masked NCC over all translations

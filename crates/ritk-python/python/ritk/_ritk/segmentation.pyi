@@ -109,6 +109,17 @@ def vector_connected_component(
     """Connected components of a vector image (join if 1-|a.b|<=threshold). ITK Parity: VectorConnectedComponentImageFilter (sitk.VectorConnectedComponent); partition-exact."""
     ...
 
+def vector_confidence_connected_segment(
+    channels: list[Image],
+    seeds: list[tuple[int, int, int]],
+    multiplier: float = 2.5,
+    number_of_iterations: int = 4,
+    initial_neighborhood_radius: int = 1,
+    replace_value: float = 1.0,
+) -> Image:
+    """Vector confidence-connected region growing (Mahalanobis). ITK Parity: VectorConfidenceConnectedImageFilter (sitk.VectorConfidenceConnected); region-exact for well-conditioned inputs."""
+    ...
+
 # ── Binary morphology ──────────────────────────────────────────────────────
 
 def binary_erosion(image: Image, radius: int = 1) -> Image: ...

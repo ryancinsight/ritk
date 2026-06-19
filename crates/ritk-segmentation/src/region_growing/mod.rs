@@ -15,12 +15,16 @@ pub mod growcut;
 pub mod isolated_connected;
 #[doc(hidden)]
 pub mod neighborhood_connected;
+pub mod vector_confidence_connected;
 
 pub use confidence_connected::{confidence_connected, ConfidenceConnectedFilter};
 pub use connected_threshold::{connected_threshold, ConnectedThresholdFilter};
-pub use isolated_connected::IsolatedConnectedFilter;
 pub use growcut::{growcut, growcut_slice, GrowCutFilter};
+pub use isolated_connected::IsolatedConnectedFilter;
 pub use neighborhood_connected::{neighborhood_connected, NeighborhoodConnectedFilter};
+pub use vector_confidence_connected::{
+    vector_confidence_connected, vector_confidence_connected_image,
+};
 
 #[cfg(test)]
 mod tests;

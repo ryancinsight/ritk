@@ -2,13 +2,71 @@
 //! and neighbourhood-connected.
 
 use crate::errors::{RitkPyError, RitkResult};
+use crate::image::Backend;
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
+use ritk_image::Image;
 use ritk_segmentation::{
-    connected_threshold as core_connected_threshold, ConfidenceConnectedFilter,
+    connected_threshold as core_connected_threshold,
+    vector_confidence_connected_image as core_vector_confidence_connected, ConfidenceConnectedFilter,
     IsolatedConnectedFilter, NeighborhoodConnectedFilter,
 };
 use std::sync::Arc;
+
+/// Vector confidence-connected region growing, matching
+/// `sitk.VectorConfidenceConnected`.
+///
+/// Grows a region from `seeds` over a multi-channel image: a voxel joins when its
+/// Mahalanobis distance to the region's mean/covariance is within `multiplier`
+/// standard deviations, iterated `number_of_iterations` times.
+///
+/// ITK Parity: `VectorConfidenceConnectedImageFilter`. Region-exact to SimpleITK
+/// for well-conditioned inputs; near-singular covariance (tiny regions at very
+/// tight multipliers) is a documented cross-implementation numerical limit.
+///
+/// Args:
+///     channels: list of scalar component images (one per vector component).
+///     seeds: list of `[z, y, x]` seed indices.
+///     multiplier: confidence-interval width (default 2.5).
+///     number_of_iterations: statistic-recompute passes (default 4).
+///     initial_neighborhood_radius: seed-statistics radius (default 1).
+///     replace_value: in-region label value (default 1.0).
+///
+/// Returns:
+///     binary label image (`replace_value` inside the region).
+#[pyfunction]
+#[pyo3(signature = (channels, seeds, multiplier=2.5, number_of_iterations=4,
+                    initial_neighborhood_radius=1, replace_value=1.0))]
+#[allow(clippy::too_many_arguments)]
+pub fn vector_confidence_connected_segment(
+    py: Python<'_>,
+    channels: Vec<PyRef<'_, PyImage>>,
+    seeds: Vec<[usize; 3]>,
+    multiplier: f64,
+    number_of_iterations: u32,
+    initial_neighborhood_radius: usize,
+    replace_value: f32,
+) -> RitkResult<PyImage> {
+    if channels.is_empty() {
+        return Err(RitkPyError::value(
+            "vector_confidence_connected: at least one channel is required",
+        ));
+    }
+    let arcs: Vec<Arc<Image<Backend, 3>>> =
+        channels.iter().map(|p| Arc::clone(&p.inner)).collect();
+    let out = py.allow_threads(|| {
+        let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
+        core_vector_confidence_connected(
+            &refs,
+            &seeds,
+            multiplier,
+            number_of_iterations,
+            initial_neighborhood_radius,
+            replace_value,
+        )
+    });
+    Ok(into_py_image(out))
+}
 
 /// Segment a region by connected-threshold flood-fill from a seed voxel.
 ///
