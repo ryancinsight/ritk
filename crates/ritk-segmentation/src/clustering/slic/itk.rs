@@ -35,13 +35,11 @@
 //! # Validation scope
 //!
 //! Validated **label-for-label exact** against `sitk.SLIC` (deterministic core)
-//! for super-grid sizes that **evenly divide** each axis — confirmed in 2-D and
-//! 3-D over multiple images (`tests_slic_itk.rs`). When `g_d` does not divide
-//! `shape_d`, ITK's `ShrinkImageFilter` places the trailing cluster centre with
-//! a remainder-handling convention this core does not yet reproduce, so the
-//! partition diverges; that case is the documented open follow-up. Default-on
-//! `enforceConnectivity` / `initializationPerturbation` (order-sensitive
-//! post-processing) are likewise out of scope here.
+//! in 2-D and 3-D over multiple images, for both evenly- and non-evenly-dividing
+//! super-grids (`tests_slic_itk.rs`) — the centered shrink origin above handles
+//! the remainder case. The default-on `enforceConnectivity` /
+//! `initializationPerturbation` layers (order-sensitive post-processing) are the
+//! remaining surface for full default-config parity and are out of scope here.
 
 /// Round half-integer values up, matching ITK's `Math::RoundHalfIntegerUp`.
 #[inline]
@@ -97,6 +95,15 @@ pub fn slic_itk_impl(
     for d in (0..ndim - 1).rev() {
         grid_stride[d] = grid_stride[d + 1] * grid_pts[d + 1];
     }
+    // ITK ShrinkImageFilter places the shrunk grid with a *centered* origin (the
+    // output centre maps to the input centre), so the continuous-index position
+    // of grid point j on axis d is `out_origin_d + j·g_d` with
+    // `out_origin_d = (shape_d−1)/2 − g_d·(grid_pts_d−1)/2`. This reduces to
+    // `(g_d−1)/2` only when g_d divides shape_d; the general form is required
+    // for non-evenly-dividing super-grids.
+    let out_origin: Vec<f64> = (0..ndim)
+        .map(|d| (shape[d] as f64 - 1.0) / 2.0 - g[d] as f64 * (grid_pts[d] as f64 - 1.0) / 2.0)
+        .collect();
     let mut centers: Vec<Center> = Vec::with_capacity(k);
     for ci in 0..k {
         let mut pos = vec![0.0_f64; ndim];
@@ -105,8 +112,10 @@ pub fn slic_itk_impl(
         for d in 0..ndim {
             let gd = rem / grid_stride[d];
             rem %= grid_stride[d];
-            pos[d] = (g[d] as f64 - 1.0) / 2.0 + gd as f64 * g[d] as f64;
-            sample[d] = (gd * g[d] + g[d] / 2).min(shape[d] - 1);
+            pos[d] = out_origin[d] + gd as f64 * g[d] as f64;
+            // Intensity is the shrunk pixel value: input sampled at the nearest
+            // index to the centre's continuous position (ITK RoundHalfIntegerUp).
+            sample[d] = round_half_up(pos[d]).clamp(0, shape[d] as i64 - 1) as usize;
         }
         centers.push(Center {
             intensity: data[flat(&sample)] as f64,
