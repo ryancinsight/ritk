@@ -204,7 +204,11 @@ impl AntiAliasBinaryImageFilter {
 
             // Per-voxel RMS change; test convergence before committing the next buffer.
             let rms = (sum_sq / n as f64).sqrt() as f32;
-            phi.copy_from_slice(&next);
+            // `next` was written for every voxel this sweep, so swapping the
+            // buffers commits it as the current level set without an N-element
+            // memcpy; the old `phi` becomes scratch, fully overwritten next
+            // sweep. Bit-identical to copy_from_slice, O(1) instead of O(N).
+            std::mem::swap(&mut phi, &mut next);
 
             if rms < self.max_rms_error {
                 break;
