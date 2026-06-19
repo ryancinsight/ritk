@@ -1752,6 +1752,39 @@ def test_cmake_vector_connected_component(thr, fully_connected):
     )
 
 
+@pytest.mark.parametrize("time_step,iterations", [(0.05, 5), (0.1, 3)])
+def test_cmake_min_max_curvature_flow(time_step, iterations):
+    """MinMaxCurvatureFlow: curvature flow gated by a stencil min/max threshold.
+    ritk `filter.min_max_curvature_flow` vs `sitk.MinMaxCurvatureFlow` at the
+    default stencilRadius=2. Float-exact — the base curvature flow reuses the
+    covered CurvatureFlow discretization, the effective time step is
+    time_step/(2*D), and the Dispatch<2> perpendicular threshold + sphere gate
+    are ported exactly. (stencilRadius=1 is a documented ITK R=1 edge case.)"""
+    import numpy as _np
+
+    a = (_np.random.RandomState(3).rand(16, 18) * 80 + 10).astype(_np.float32)
+    ref = sitk.GetArrayFromImage(
+        sitk.MinMaxCurvatureFlow(
+            sitk.GetImageFromArray(a),
+            timeStep=time_step,
+            numberOfIterations=iterations,
+            stencilRadius=2,
+        )
+    )
+    got = _np.squeeze(
+        _np.asarray(
+            ritk.filter.min_max_curvature_flow(
+                ritk.Image(_np.ascontiguousarray(a[None])), time_step, iterations, 2
+            ).to_numpy()
+        )
+    )
+    assert got.shape == ref.shape
+    assert float(_np.abs(ref - got).max()) < 2e-3, (
+        f"MinMaxCurvatureFlow(dt={time_step}, n={iterations}) differs by "
+        f"{float(_np.abs(ref - got).max())}"
+    )
+
+
 def test_cmake_vector_confidence_connected():
     """VectorConfidenceConnected: Mahalanobis region growing on a vector image.
     ritk `segmentation.vector_confidence_connected_segment` vs

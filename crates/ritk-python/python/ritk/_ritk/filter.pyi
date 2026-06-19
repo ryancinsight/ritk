@@ -94,6 +94,12 @@ def curvature_flow(
     """Pure mean-curvature flow (dI/dt = kappa). ITK Parity: CurvatureFlowImageFilter."""
     ...
 
+def min_max_curvature_flow(
+    image: Image, time_step: float = 0.05, iterations: int = 5, stencil_radius: int = 2
+) -> Image:
+    """Min/max curvature flow (curvature flow gated by a stencil min/max threshold). ITK Parity: MinMaxCurvatureFlowImageFilter (sitk.MinMaxCurvatureFlow)."""
+    ...
+
 def sato_line_filter(
     image: Image,
     scales: list[float] | None = None,

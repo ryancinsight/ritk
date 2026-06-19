@@ -9,7 +9,7 @@ use ritk_filter::diffusion::{
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
     CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter, CurvatureFlowConfig,
-    CurvatureFlowImageFilter,
+    CurvatureFlowImageFilter, MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
 };
 
 /// Conductance function kind for anisotropic diffusion, replacing `exponential: bool`.
@@ -155,6 +155,32 @@ pub fn curvature_flow(
         CurvatureFlowImageFilter::new(CurvatureFlowConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
+        })
+        .apply(image.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Apply min/max curvature flow for `iterations` steps, gating the
+/// curvature-flow speed by a stencil-radius min/max threshold to suppress
+/// smoothing of features finer than the stencil. ITK Parity:
+/// MinMaxCurvatureFlowImageFilter (`sitk.MinMaxCurvatureFlow`).
+#[pyfunction]
+#[pyo3(signature = (image, time_step=0.05, iterations=5, stencil_radius=2))]
+pub fn min_max_curvature_flow(
+    py: Python<'_>,
+    image: &PyImage,
+    time_step: f64,
+    iterations: usize,
+    stencil_radius: usize,
+) -> RitkResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
+            num_iterations: iterations,
+            time_step: time_step as f32,
+            stencil_radius,
         })
         .apply(image.as_ref())
         .map_err(|e| RitkPyError::runtime(e.to_string()))
