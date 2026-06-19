@@ -179,27 +179,34 @@ pub fn multi_label_staple(
     }
 
     // --- Output consensus (repeat E-step, argmax, ties -> undecided) ---
-    let mut labels = vec![undecided; n];
-    for vox in 0..n {
-        w.copy_from_slice(&prior);
-        for kk in 0..k {
-            let j = dl(vox, kk);
+    // `vox`/`ci` index multiple parallel buffers, and the `!(w < win)` tie test
+    // mirrors ITK's exact branch (equal-or-incomparable maxima -> undecided), so
+    // the index loops and negated partial-order compare are intentional.
+    #[allow(clippy::needless_range_loop, clippy::neg_cmp_op_on_partial_ord)]
+    let labels = {
+        let mut labels = vec![undecided; n];
+        for vox in 0..n {
+            w.copy_from_slice(&prior);
+            for kk in 0..k {
+                let j = dl(vox, kk);
+                for ci in 0..l {
+                    w[ci] *= conf[cidx(kk, j, ci)];
+                }
+            }
+            let mut win = undecided;
+            let mut win_w = 0.0f64;
             for ci in 0..l {
-                w[ci] *= conf[cidx(kk, j, ci)];
+                if w[ci] > win_w {
+                    win_w = w[ci];
+                    win = ci as f32;
+                } else if !(w[ci] < win_w) {
+                    win = undecided;
+                }
             }
+            labels[vox] = win;
         }
-        let mut win = undecided;
-        let mut win_w = 0.0f64;
-        for ci in 0..l {
-            if w[ci] > win_w {
-                win_w = w[ci];
-                win = ci as f32;
-            } else if !(w[ci] < win_w) {
-                win = undecided;
-            }
-        }
-        labels[vox] = win;
-    }
+        labels
+    };
 
     MultiLabelStapleResult {
         labels,
