@@ -212,3 +212,14 @@ then rebuild layers ±1, ±2 by propagation (inner ± 1), not by re-distancing.
 Prototype this active-layer-only + ±1-propagation scheme vs sitk.AntiAliasBinary
 to 1e-2, then port (~500 lines, stateful linked-list layers). Canny reuses it
 with an added edge speed term.
+UPDATE (crude prototype tried, FAILED): a dense active-layer curvature evolution
+(|φ|≤0.5) + a city-block ±1 propagation of |φ| outward gives mean-err **0.187**
+vs sitk — WORSE than the static clamped signed distance (0.073). So the exact
+`PropagateAllLayerValues` (which selects per-pixel min/max from the specific
+adjacent-layer status sets, not a uniform city-block) genuinely matters; a dense
+propagation shortcut does not validate. Unlike IsolatedWatershed (clean
+algorithmic form, prototype-validatable), AntiAliasBinary requires the faithful
+STATEFUL SparseField port (active/status layer linked lists + exact propagation)
+directly — there is no dense prototype shortcut to 1e-2. This is the genuine
+multi-session boundary: the port must replicate the layer bookkeeping, then
+validate end-to-end vs sitk.AntiAliasBinary.
