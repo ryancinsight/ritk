@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **33 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **32 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -117,8 +117,11 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 
 ## No usable sitk oracle in this build
 
-- **AdaptiveHistogramEqualization** — ITK's α/β contextual method (Stark); ritk has global-HE
-  and CLAHE, neither equal to it.
+- **AdaptiveHistogramEqualization** is now shipped float-exact (`filter.adaptive_histogram_equalization`):
+  Stark's α/β contextual method implemented directly as ITK's deterministic windowed cumulative sum
+  (`cumf(u,v) = 0.5·sgn(u−v)·|2(u−v)|^α − 0.5·β·sgn(u−v)·|2(u−v)| + β·u`, box window shrinking at the
+  border). Earlier set aside because ritk's *global*-HE/CLAHE differ — the faithful fix was to port the
+  exact ITK functor. Verified ≤1e-3 vs sitk across (α,β) = (0.3,0.3),(0,0),(1,0.5).
 - **CoherenceEnhancingDiffusion** — ritk has `CoherenceEnhancingDiffusionFilter`, but this
   SimpleITK build does not expose `sitk.CoherenceEnhancingDiffusion`, so there is no oracle.
 - **ContourExtractor2D, Toboggan** — output polylines / an over-segmentation that this build

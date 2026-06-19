@@ -1280,6 +1280,25 @@ def test_cmake_invert_displacement_field():
         f"InvertDisplacementField differs (max {float(_np.abs(r - sinv).max())})"
 
 
+@pytest.mark.parametrize("alpha,beta", [(0.3, 0.3), (0.0, 0.0), (1.0, 0.5)])
+def test_cmake_adaptive_histogram_equalization(alpha, beta):
+    """AdaptiveHistogramEqualization (Stark): local equalization with alpha/beta.
+    ritk `filter.adaptive_histogram_equalization` vs
+    `sitk.AdaptiveHistogramEqualization`. Float-exact (f32 rounding) — a
+    deterministic windowed sum, no solver."""
+    import numpy as _np
+    _np.random.seed(0)
+    im = (_np.random.rand(3, 14, 16) * 200).astype(_np.float32)
+    si = sitk.GetImageFromArray(im)
+    so = sitk.GetArrayFromImage(
+        sitk.AdaptiveHistogramEqualization(si, [3, 3, 1], alpha, beta))
+    r = _np.asarray(ritk.filter.adaptive_histogram_equalization(
+        ritk.Image(_np.ascontiguousarray(im)), (1, 3, 3), alpha, beta).to_numpy())
+    assert r.shape == so.shape
+    assert float(_np.abs(r - so).max()) < 1e-3, \
+        f"AdaptiveHistogramEqualization differs (max {float(_np.abs(r - so).max())})"
+
+
 def test_cmake_iterative_inverse_displacement_field():
     """IterativeInverseDisplacementField: coordinate-descent line-search inversion
     of a 3-D displacement field (distinct from InvertDisplacementField). ritk

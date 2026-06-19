@@ -6,10 +6,11 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
-    BinaryThresholdImageFilter, BlendImageFilter, ClampPolicy, DoubleThresholdImageFilter,
+    AdaptiveHistogramEqualizationFilter, BinaryThresholdImageFilter, BlendImageFilter, ClampPolicy,
+    DoubleThresholdImageFilter,
     IntensityWindowingFilter, NormalizeImageFilter, NormalizeToConstantImageFilter,
-    RescaleIntensityFilter, SigmoidImageFilter,
-    ThresholdImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
+    RescaleIntensityFilter, SigmoidImageFilter, ThresholdImageFilter, UnsharpMaskFilter,
+    ZeroCrossingImageFilter,
 };
 
 /// Linearly rescale image intensity to [out_min, out_max].
@@ -381,6 +382,42 @@ pub fn zero_crossing_image(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Stark adaptive (local) histogram equalization, matching
+/// `SimpleITK.AdaptiveHistogramEqualization`.
+///
+/// `alpha`/`beta` interpolate between classic adaptive equalization (`alpha=0`)
+/// and unsharp masking; `radius` is the per-axis box-window radius `[z, y, x]`.
+///
+/// Args:
+///     image:  Input scalar PyImage.
+///     radius: Box-window radius `(rz, ry, rx)` (default (5, 5, 5)).
+///     alpha:  Equalization exponent (default 0.3).
+///     beta:   Unsharp/identity blend (default 0.3).
+///
+/// Returns:
+///     Equalized PyImage with identical shape and spatial metadata.
+#[pyfunction]
+#[pyo3(signature = (image, radius=(5, 5, 5), alpha=0.3_f64, beta=0.3_f64))]
+pub fn adaptive_histogram_equalization(
+    py: Python<'_>,
+    image: &PyImage,
+    radius: (usize, usize, usize),
+    alpha: f64,
+    beta: f64,
+) -> RitkResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        AdaptiveHistogramEqualizationFilter {
+            radius: [radius.0, radius.1, radius.2],
+            alpha,
+            beta,
+        }
+        .apply(image.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
 }

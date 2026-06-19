@@ -80,6 +80,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sato_line_filter, &m)?)?;
     // Intensity transforms
     m.add_function(wrap_pyfunction!(rescale_intensity, &m)?)?;
+    m.add_function(wrap_pyfunction!(adaptive_histogram_equalization, &m)?)?;
     m.add_function(wrap_pyfunction!(intensity_windowing, &m)?)?;
     m.add_function(wrap_pyfunction!(threshold_below, &m)?)?;
     m.add_function(wrap_pyfunction!(threshold_above, &m)?)?;

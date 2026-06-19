@@ -58,7 +58,7 @@ pub use intensity::binary_ops::{AddOp, BinaryOp, BinaryOpFilter, MaxOp};
 pub use intensity::{
     AbsImageFilter, AbsoluteValueDifferenceImageFilter, AcosImageFilter, AddImageFilter,
     AndImageFilter, AsinImageFilter, Atan2ImageFilter, AtanImageFilter, BedSeparationConfig,
-    BedSeparationFilter,
+    AdaptiveHistogramEqualizationFilter, BedSeparationFilter,
     BinaryMagnitudeImageFilter, BinaryNotImageFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
     ComponentPolicy, CosImageFilter, DivideFloorImageFilter, DivideImageFilter,
