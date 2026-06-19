@@ -1220,6 +1220,38 @@ def test_cmake_fast_marching_variants(which):
     assert float(_np.abs(r - s).max()) < 1e-3, f"FastMarching{which} differs from sitk"
 
 
+@pytest.mark.parametrize("which", ["translate", "rotate", "rot_offdir"])
+def test_cmake_transform_geometry(which, tmp_path):
+    """TransformGeometry: apply an affine transform to the image geometry (origin
+    + direction), pixels unchanged. ritk `filter.transform_geometry` vs
+    `sitk.TransformGeometry`. ITK applies the inverse linear map; float-exact."""
+    import numpy as _np
+    _np.random.seed(0)
+    arr = _np.random.rand(2, 3, 4).astype(_np.float32)
+    si = sitk.GetImageFromArray(arr)
+    si.SetSpacing((3.0, 5.0, 7.0)); si.SetOrigin((10.0, 20.0, 30.0))
+    if which == "rot_offdir":
+        si.SetDirection((0, 0, 1, 0, 1, 0, 1, 0, 0))
+    if which == "translate":
+        M = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    else:
+        M = [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]  # 90° about z
+    t = [2.0, -1.0, 0.5]; c = [1.0, 2.0, 3.0]
+    p = str(tmp_path / "in.nrrd"); sitk.WriteImage(si, p)
+    ri = ritk.io.read_image(p)
+
+    tx = sitk.AffineTransform(3)
+    tx.SetMatrix(_np.array(M).flatten().tolist()); tx.SetTranslation(t); tx.SetCenter(c)
+    so = sitk.TransformGeometry(si, tx)
+    ro = ritk.filter.transform_geometry(ri, M, t, c)
+
+    # pixels unchanged
+    assert _np.array_equal(_np.asarray(ro.to_numpy()), sitk.GetArrayFromImage(so))
+    assert _np.allclose(_np.asarray(ro.spacing)[::-1], _np.asarray(so.GetSpacing()), atol=1e-9)
+    assert _np.allclose(_np.asarray(ro.origin)[::-1], _np.asarray(so.GetOrigin()), atol=1e-6)
+    assert _np.allclose(_np.asarray(ro.direction), _np.asarray(so.GetDirection()), atol=1e-9)
+
+
 def test_image_direction_getter_matches_sitk(tmp_path):
     """PyImage.direction returns the cosine matrix in SimpleITK's (x, y, z)
     row-major layout. An identity-LPS image round-tripped through NRRD loads with

@@ -86,10 +86,10 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   transforming data + spacing + origin + direction together (`OrientImageFilter`). `PyImage.direction`
   now exposes the cosine matrix in SimpleITK's `(x,y,z)` row-major layout (`D_sitk[i][j] =
   D_core[(i, 2-j)]`). Verified float-exact (array ≤1e-5, geometry ≤1e-9) across 8 orientation codes.
-- **TransformGeometry** — applies an affine transform to the image's origin and direction (pixels
-  unchanged). Now feasible via the `PyImage.direction` getter: `new_origin = A·origin + offset`,
-  `new_direction.col = A·old_direction.col` (A = the transform's linear part, world `(x,y,z)`).
-  Reachable, deferred (needs the transform's matrix/offset threaded through a thin binding).
+- **TransformGeometry** is now shipped float-exact (`filter.transform_geometry`): applies an affine
+  transform to the image's origin + direction (pixels/spacing unchanged) via ITK's inverse linear
+  map `origin' = A⁻¹·(origin − c − t) + c`, `direction'.col = A⁻¹·direction.col`. Verified vs
+  `sitk.TransformGeometry` across translation, rotation, and non-identity-direction cases.
 - **InverseDisplacementField, InvertDisplacementField, IterativeInverseDisplacementField** —
   invert a dense displacement field via scattered-data / fixed-point iteration over a vector
   field; needs vector-field warping (per-component) plus iteration, deferred.

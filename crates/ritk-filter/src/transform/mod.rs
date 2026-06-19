@@ -12,6 +12,7 @@ pub mod cyclic_shift;
 pub mod expand;
 pub mod fft_pad;
 pub mod flip;
+pub mod geometry;
 pub mod orient;
 pub mod pad;
 pub mod paste;
@@ -23,6 +24,7 @@ pub use cyclic_shift::CyclicShiftImageFilter;
 pub use expand::ExpandImageFilter;
 pub use fft_pad::{FftPadBoundary, FftPadImageFilter};
 pub use flip::{FlipImageFilter, FlipPolicy};
+pub use geometry::transform_geometry;
 pub use orient::OrientImageFilter;
 pub use pad::{
     ConstantPadImageFilter, MirrorPadImageFilter, Padding, WrapPadImageFilter,

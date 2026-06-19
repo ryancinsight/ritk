@@ -145,8 +145,9 @@ pub use pyramid::MultiResolutionPyramid;
 pub use resample::ResampleImageFilter;
 pub use transform::{
     ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter, FftPadBoundary,
-    FftPadImageFilter, FlipImageFilter, FlipPolicy, MirrorPadImageFilter, OrientImageFilter,
-    Padding, PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter,
+    transform_geometry, FftPadImageFilter, FlipImageFilter, FlipPolicy, MirrorPadImageFilter,
+    OrientImageFilter, Padding, PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
+    ShrinkImageFilter,
     TileMeanShrinkFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
 };
 

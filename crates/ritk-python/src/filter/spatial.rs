@@ -560,6 +560,35 @@ pub fn transform_to_displacement_field(
     Ok((into_py_image(dz), into_py_image(dy), into_py_image(dx)))
 }
 
+// ── TransformGeometry (affine) ─────────────────────────────────────────────
+
+/// Apply an affine transform to an image's geometry (origin + direction),
+/// leaving the voxel data and spacing unchanged. Matches
+/// `SimpleITK.TransformGeometry` for an `AffineTransform`.
+///
+/// ITK applies the inverse linear map: `origin' = A⁻¹·(origin − c − t) + c`,
+/// `direction' = A⁻¹·direction`. `matrix` is row-major 3×3, `translation` and
+/// `center` are length-3, all in the physical `(x, y, z)` frame.
+///
+/// The image should carry its loaded geometry (e.g. via `ritk.io.read_image`) so
+/// its Direction matches the file.
+#[pyfunction]
+#[pyo3(signature = (image, matrix, translation, center=[0.0, 0.0, 0.0]))]
+pub fn transform_geometry(
+    py: Python<'_>,
+    image: &PyImage,
+    matrix: [[f64; 3]; 3],
+    translation: [f64; 3],
+    center: [f64; 3],
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        ritk_filter::transform_geometry(arc.as_ref(), matrix, translation, center)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
 // ── StochasticFractalDimension ─────────────────────────────────────────────
 
 /// Per-voxel stochastic fractal dimension, matching
