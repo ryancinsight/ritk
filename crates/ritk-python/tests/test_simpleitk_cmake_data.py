@@ -1252,6 +1252,30 @@ def test_cmake_transform_geometry(which, tmp_path):
     assert _np.allclose(_np.asarray(ro.direction), _np.asarray(so.GetDirection()), atol=1e-9)
 
 
+@pytest.mark.parametrize("seed", [1, 7, 13])
+def test_cmake_multi_label_staple(seed):
+    """MultiLabelSTAPLE: EM consensus of K integer label maps. ritk
+    `segmentation.multi_label_staple` vs `sitk.MultiLabelSTAPLE`. The output is a
+    hard label image, so it is float-exact (argmax of the per-voxel weights)."""
+    import numpy as _np
+    _np.random.seed(seed)
+    H, W = 10, 11
+    truth = _np.random.randint(0, 3, (H, W))
+    imgs, raters = [], []
+    for _ in range(4):
+        noisy = truth.copy()
+        flip = _np.random.rand(H, W) < 0.2
+        noisy[flip] = _np.random.randint(0, 3, int(flip.sum()))
+        imgs.append(sitk.GetImageFromArray(noisy.astype(_np.uint8)))
+        raters.append(ritk.Image(_np.ascontiguousarray(noisy[None].astype(_np.float32))))
+    s = sitk.GetArrayFromImage(sitk.MultiLabelSTAPLE(imgs)).astype(_np.int64)
+    r = _np.squeeze(_np.asarray(
+        ritk.segmentation.multi_label_staple(raters).to_numpy(), _np.int64))
+    assert r.shape == s.shape, f"shape {r.shape} != {s.shape}"
+    assert _np.array_equal(r, s), \
+        f"MultiLabelSTAPLE differs from sitk at {int((r != s).sum())} of {r.size} voxels"
+
+
 def test_image_direction_getter_matches_sitk(tmp_path):
     """PyImage.direction returns the cosine matrix in SimpleITK's (x, y, z)
     row-major layout. An identity-LPS image round-tripped through NRRD loads with

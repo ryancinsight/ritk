@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **37 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **35 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -60,10 +60,15 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 
 ## Label-map / vector-image types ritk lacks
 
-- **LabelMapContourOverlay, LabelSetDilate, LabelSetErode, MergeLabelMap, RelabelLabelMap,
-  MultiLabelSTAPLE** — ITK LabelMap (run-length object) algebra; ritk has only dense label
-  images. **VectorConfidenceConnected, VectorConnectedComponent** — operate on vector-pixel
-  images, which ritk's scalar-f32 backend does not represent.
+- **LabelMapContourOverlay, LabelSetDilate, LabelSetErode, MergeLabelMap, RelabelLabelMap** — ITK
+  LabelMap (run-length object) algebra; ritk has only dense label images.
+  **VectorConfidenceConnected, VectorConnectedComponent** — operate on vector-pixel images, which
+  ritk's scalar-f32 backend does not represent.
+- **MultiLabelSTAPLE** is now shipped float-exact (`segmentation.multi_label_staple`): it operates on
+  dense label maps (not LabelMap objects), so it was reachable — LabelVoting-seeded confusion-matrix
+  EM (column-stochastic) emitting the per-voxel argmax consensus (ties → undecided = max label + 1).
+  The discrete label output is robust to weight ULP-jitter; verified `array_equal` to
+  `sitk.MultiLabelSTAPLE` across 3 noisy 4-rater cases.
 
 ## Template / masked correlation
 

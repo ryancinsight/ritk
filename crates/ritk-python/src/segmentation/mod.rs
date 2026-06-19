@@ -97,6 +97,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Ensemble
     m.add_function(wrap_pyfunction!(staple_ensemble, &m)?)?;
+    m.add_function(wrap_pyfunction!(multi_label_staple, &m)?)?;
     m.add_function(wrap_pyfunction!(growcut_segment, &m)?)?;
 
     parent.add_submodule(&m)?;

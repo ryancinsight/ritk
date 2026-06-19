@@ -4,7 +4,11 @@ use crate::errors::RitkResult;
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use ritk_segmentation::{growcut as core_growcut, staple as core_staple, StapleConvergence};
+use crate::image::vec_to_image_like;
+use ritk_segmentation::{
+    growcut as core_growcut, multi_label_staple as core_multi_label_staple, staple as core_staple,
+    StapleConvergence,
+};
 use std::sync::Arc;
 
 /// Run the STAPLE algorithm on K binary rater segmentation masks.
@@ -91,6 +95,63 @@ pub fn staple_ensemble(
         result.convergence == StapleConvergence::Converged,
     )?;
     Ok(dict.into())
+}
+
+/// Run multi-label STAPLE on K integer label maps, returning the hard consensus
+/// label image. Matches `SimpleITK.MultiLabelSTAPLE`.
+///
+/// Args:
+///     raters:                list of PyImage, each an integer label map (stored
+///                            as f32). All images must have the same shape.
+///     max_iter:              Maximum EM iterations; 0 ⇒ iterate to convergence
+///                            (default 0).
+///     termination_threshold: Stop when the max confusion-matrix change falls
+///                            below this (default 1e-5).
+///     label_for_undecided:   Label assigned to tie/undecided voxels; None ⇒ L
+///                            (max label + 1, the ITK default).
+///
+/// Returns:
+///     PyImage consensus label map (f32), same shape/spacing/origin as raters[0].
+///
+/// Raises:
+///     ValueError: if raters is empty or images have different shapes.
+#[pyfunction]
+#[pyo3(signature = (raters, max_iter=0, termination_threshold=1e-5, label_for_undecided=None))]
+pub fn multi_label_staple(
+    py: Python<'_>,
+    raters: Vec<PyRef<'_, PyImage>>,
+    max_iter: usize,
+    termination_threshold: f64,
+    label_for_undecided: Option<f32>,
+) -> RitkResult<PyImage> {
+    if raters.is_empty() {
+        return Err(pyo3::exceptions::PyValueError::new_err("raters must not be empty").into());
+    }
+    let reference = Arc::clone(&raters[0].inner);
+    let shape = reference.shape();
+    let rater_vecs: Vec<Vec<f32>> = raters
+        .iter()
+        .map(|r| with_tensor_slice(r.inner.data(), |s| s.to_vec()))
+        .collect();
+    let n = rater_vecs[0].len();
+    for (i, v) in rater_vecs.iter().enumerate().skip(1) {
+        if v.len() != n {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "rater {i} has length {} but rater 0 has length {n}",
+                v.len()
+            ))
+            .into());
+        }
+    }
+    let max = (max_iter != 0).then_some(max_iter);
+    let result = py.allow_threads(move || {
+        core_multi_label_staple(&rater_vecs, max, termination_threshold, label_for_undecided)
+    });
+    Ok(into_py_image(vec_to_image_like(
+        result.labels,
+        shape,
+        reference.as_ref(),
+    )))
 }
 
 /// GrowCut interactive segmentation.
