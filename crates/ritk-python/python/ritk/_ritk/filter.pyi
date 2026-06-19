@@ -1087,6 +1087,17 @@ def invert_displacement_field(
     ITK Parity: InvertDisplacementFieldImageFilter."""
     ...
 
+def inverse_displacement_field(
+    disp_z: Image,
+    disp_y: Image,
+    disp_x: Image,
+    subsampling_factor: int = 16,
+) -> tuple[Image, Image, Image]:
+    """Invert a dense displacement field by thin-plate-spline landmark fitting.
+    Returns (disp_z, disp_y, disp_x) inverse field components; float-exact (z==1 ⇒ 2-D).
+    ITK Parity: InverseDisplacementFieldImageFilter (sitk.InverseDisplacementField)."""
+    ...
+
 def iterative_inverse_displacement_field(
     disp_z: Image,
     disp_y: Image,

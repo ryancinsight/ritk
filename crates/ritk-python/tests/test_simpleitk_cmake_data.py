@@ -1310,6 +1310,56 @@ def test_cmake_invert_displacement_field():
     )
 
 
+def test_cmake_inverse_displacement_field_2d():
+    """InverseDisplacementField (thin-plate spline): ritk
+    `filter.inverse_displacement_field` vs `sitk.InverseDisplacementField`.
+    Subsamples the field into landmarks, fits ITK's KernelTransform (G(r)=r), and
+    evaluates the inverse per voxel. The TPS fit is unique and well-conditioned,
+    so the result is float-exact (NOT a tolerance/SVD-variance case)."""
+    import numpy as _np
+
+    H, W, f = 16, 16, 8
+    yy, xx = _np.mgrid[0:H, 0:W].astype(_np.float64)
+    F = _np.stack([1.2 * _np.sin(xx / 5.0) + 0.3 * yy / H,
+                   0.9 * _np.cos(yy / 4.0) - 0.2 * xx / W], 2)  # non-affine (spline)
+    ref = sitk.GetArrayFromImage(sitk.InverseDisplacementField(
+        sitk.GetImageFromArray(F.astype(_np.float32), isVector=True),
+        size=[W, H], outputOrigin=[0.0, 0.0], outputSpacing=[1.0, 1.0],
+        subsamplingFactor=f)).astype(_np.float64)
+    dz = ritk.Image(_np.ascontiguousarray(_np.zeros((1, H, W), _np.float32)))
+    dy = ritk.Image(_np.ascontiguousarray(F[None, :, :, 1].astype(_np.float32)))
+    dx = ritk.Image(_np.ascontiguousarray(F[None, :, :, 0].astype(_np.float32)))
+    _iz, iy, ix = ritk.filter.inverse_displacement_field(dz, dy, dx, f)
+    gx = _np.squeeze(_np.asarray(ix.to_numpy()))
+    gy = _np.squeeze(_np.asarray(iy.to_numpy()))
+    err = max(float(_np.abs(gx - ref[..., 0]).max()),
+              float(_np.abs(gy - ref[..., 1]).max()))
+    assert err < 1e-4, f"InverseDisplacementField 2D differs (max {err})"
+
+
+def test_cmake_inverse_displacement_field_3d():
+    """InverseDisplacementField in 3-D (TPS over x,y,z landmarks) vs sitk."""
+    import numpy as _np
+
+    D, H, W, f = 16, 16, 16, 8
+    zz, yy, xx = _np.mgrid[0:D, 0:H, 0:W].astype(_np.float64)
+    F = _np.stack([0.6 * _np.sin(xx / 5.0) + 0.1 * zz / D,
+                   0.5 * _np.cos(yy / 4.0),
+                   0.4 * _np.sin(zz / 6.0) - 0.1 * xx / W], 3)
+    ref = sitk.GetArrayFromImage(sitk.InverseDisplacementField(
+        sitk.GetImageFromArray(F.astype(_np.float32), isVector=True),
+        size=[W, H, D], outputOrigin=[0.0, 0.0, 0.0], outputSpacing=[1.0, 1.0, 1.0],
+        subsamplingFactor=f)).astype(_np.float64)
+    dz = ritk.Image(_np.ascontiguousarray(F[..., 2].astype(_np.float32)))
+    dy = ritk.Image(_np.ascontiguousarray(F[..., 1].astype(_np.float32)))
+    dx = ritk.Image(_np.ascontiguousarray(F[..., 0].astype(_np.float32)))
+    _iz, iy, ix = ritk.filter.inverse_displacement_field(dz, dy, dx, f)
+    err = max(float(_np.abs(_np.asarray(ix.to_numpy()) - ref[..., 0]).max()),
+              float(_np.abs(_np.asarray(iy.to_numpy()) - ref[..., 1]).max()),
+              float(_np.abs(_np.asarray(_iz.to_numpy()) - ref[..., 2]).max()))
+    assert err < 1e-4, f"InverseDisplacementField 3D differs (max {err})"
+
+
 @pytest.mark.parametrize("alpha,beta", [(0.3, 0.3), (0.0, 0.0), (1.0, 0.5)])
 def test_cmake_adaptive_histogram_equalization(alpha, beta):
     """AdaptiveHistogramEqualization (Stark): local equalization with alpha/beta.

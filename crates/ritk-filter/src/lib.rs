@@ -33,10 +33,10 @@ pub mod smoothing;
 
 pub use bilateral::{BilateralFilter, RangeSigma, SpatialSigma};
 pub use diffusion::{
-    AnisotropicDiffusionFilter, CoherenceConfig, CoherenceEnhancingDiffusionFilter,
+    AnisotropicDiffusionFilter, BinaryMinMaxCurvatureFlowConfig,
+    BinaryMinMaxCurvatureFlowImageFilter, CoherenceConfig, CoherenceEnhancingDiffusionFilter,
     ConductanceFunction, ConductanceKernel, CurvatureAnisotropicDiffusionFilter, CurvatureConfig,
     CurvatureFlowConfig, CurvatureFlowImageFilter, DiffusionConfig, ExponentialConductance,
-    BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
     GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, MinMaxCurvatureFlowConfig,
     MinMaxCurvatureFlowImageFilter, QuadraticConductance,
 };
@@ -162,6 +162,7 @@ pub mod displacement;
 pub mod distance;
 pub mod fast_marching;
 pub mod fractal_dimension;
+pub mod inverse_displacement;
 pub mod invert_displacement;
 pub mod iso_contour;
 pub mod iterative_inverse_displacement;
@@ -180,6 +181,7 @@ pub use distance::{
 };
 pub use fast_marching::FastMarchingFilter;
 pub use fractal_dimension::StochasticFractalDimensionFilter;
+pub use inverse_displacement::InverseDisplacementField;
 pub use invert_displacement::InvertDisplacementField;
 pub use iso_contour::IsoContourDistanceFilter;
 pub use iterative_inverse_displacement::IterativeInverseDisplacementField;

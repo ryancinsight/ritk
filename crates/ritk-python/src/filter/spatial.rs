@@ -638,6 +638,43 @@ pub fn invert_displacement_field(
     (into_py_image(vz), into_py_image(vy), into_py_image(vx))
 }
 
+// ── InverseDisplacementField (thin-plate spline) ───────────────────────────
+
+/// Invert a dense displacement field by thin-plate-spline fitting, matching
+/// `SimpleITK.InverseDisplacementField`.
+///
+/// Components are `(disp_z, disp_y, disp_x)` in/out (world frame, the order
+/// `filter.warp` uses). Subsamples the field every `subsampling_factor`-th voxel
+/// into landmark pairs, fits ITK's `KernelTransform` (G(r)=r), and evaluates the
+/// inverse at every voxel. A `z==1` field is inverted as a genuine 2-D field.
+/// The TPS fit is unique and well-conditioned, so the result is float-exact to
+/// sitk. Internal arithmetic is f64. Output grid matches the input grid.
+///
+/// Args:
+///     disp_z, disp_y, disp_x: forward displacement components (world frame).
+///     subsampling_factor:     landmark subsampling per axis (default 16).
+///
+/// Returns:
+///     (inv_disp_z, inv_disp_y, inv_disp_x): inverted components.
+#[pyfunction]
+#[pyo3(signature = (disp_z, disp_y, disp_x, subsampling_factor=16))]
+pub fn inverse_displacement_field(
+    py: Python<'_>,
+    disp_z: &PyImage,
+    disp_y: &PyImage,
+    disp_x: &PyImage,
+    subsampling_factor: usize,
+) -> (PyImage, PyImage, PyImage) {
+    let az = std::sync::Arc::clone(&disp_z.inner);
+    let ay = std::sync::Arc::clone(&disp_y.inner);
+    let ax = std::sync::Arc::clone(&disp_x.inner);
+    let (vx, vy, vz) = py.allow_threads(|| {
+        ritk_filter::InverseDisplacementField { subsampling_factor }
+            .apply(ax.as_ref(), ay.as_ref(), az.as_ref())
+    });
+    (into_py_image(vz), into_py_image(vy), into_py_image(vx))
+}
+
 // ── IterativeInverseDisplacementField ──────────────────────────────────────
 
 /// Iteratively invert a dense displacement field by coordinate-descent line
