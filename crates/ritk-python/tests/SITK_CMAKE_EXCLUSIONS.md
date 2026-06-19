@@ -15,13 +15,21 @@ BinaryThinning, BinaryPruning, ThresholdMaximumConnectedComponents, IsoContourDi
 IsolatedConnected — have been removed. The `Warp` geometry divergence is **resolved**
 (rewritten on the canonical tensor path, float-exact on loaded anisotropic).
 
-## Non-deterministic (RNG generators)
+## RNG generators — RECLASSIFIED reachable (Sprint 493): deterministic, exact-port scoped
 
-- **AdditiveGaussianNoise, SaltAndPepperNoise, ShotNoise, SpeckleNoise** — ITK's
-  `MersenneTwisterRandomVariateGenerator` with a cached second normal variate, a specific
-  open-range uniform divisor, and per-region threaded seeding. A faithful MT19937 + polar
-  Box-Muller does not reproduce `sitk.AdditiveGaussianNoise(seed=42)` even on an 8-px image.
-  (The deterministic local-noise *estimator* `Noise` is covered.)
+- **AdditiveGaussianNoise, SaltAndPepperNoise, ShotNoise, SpeckleNoise** — the prior "non-deterministic,
+  impossible" verdict was WRONG: it assumed `MersenneTwisterRandomVariateGenerator`, but the Gaussian
+  noise filter actually uses `itk::Statistics::NormalVariateGenerator` (Marsaglia–MacLaren **FastNorm**,
+  `itkNormalVariateGenerator.cxx`), seeded `Hash(userSeed, Σ regionStartIndex) = userSeed·2654435761u`
+  (Knuth) — for a single work-unit, `region 0 ⇒ seed = userSeed·2654435761u`, then per pixel (scanline
+  order) `out = in + mean + std·GetVariate()`. **Verified reproducible**: `sitk.AdditiveGaussianNoise`
+  with a fixed seed + `SetGlobalDefaultNumberOfThreads(1)` is bit-identical across runs (so it IS
+  reachable, not random). Remaining work is a faithful port of FastNorm — a ~300-line goto-based integer
+  state machine (m_Vec1 table rotations + chi-squared renormalization every 0xFF passes) — plus the Hash
+  and scanline application, and forcing a single work-unit. Scoped as a dedicated port (not rushed: a
+  one-bit FastNorm mismatch breaks reproducibility, and a wrong RNG must not be papered over). SaltAndPepper
+  (uniform), Shot/Speckle (Poisson/gamma) reuse the same generator family once FastNorm lands.
+  (The deterministic local-noise *estimator* `Noise` is already covered.)
 
 ## Iterative / non-bit-exact convergence
 
