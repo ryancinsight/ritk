@@ -96,17 +96,31 @@ saliencies. So the port path: regional-minima + immersion + dynamic merge
 (validated) + binary search over level until seeds separate + label seed1=1,
 seed2=2, rest=0. The hard part (saliency) is solved and validated.
 
-**End-to-end IsolatedWatershed status (honest, partial):** the prototype
-(gradient magnitude + this merge + binary search) matches sitk.IsolatedWatershed
-EXACTLY on symmetric cases (sym7x7 axis 1.0, diagonal 1.0 — where all 6 prior
-prototypes scored 0.0–0.84) but DIVERGES on general cases (two-slab 0.074, random
-0.6–0.9). Remaining gaps, in priority order: (1) the prototype's `np.gradient`
-≠ ITK `GradientMagnitudeImageFilter` (different boundary discretization) — the
-Rust port must use ritk's already-validated `gradient_magnitude`; (2) partition
-tie-breaking (which basin a seed falls in DOES matter for the 2-seed output on
-asymmetric reliefs). So the merge saliency is solved+validated, symmetric
-IsolatedWatershed is exact, but general-case parity still needs the exact
-gradient + tie-break. NOT yet closable; materially de-risked, not done.
+**End-to-end IsolatedWatershed status — VALIDATED 35/39 EXACT, ready to port.**
+The prototype (gradient magnitude + this merge + binary search + 2-seed labels)
+matches sitk.IsolatedWatershed EXACTLY on 35 of 39 random configs (sizes 8–15,
+varied seeds/ranges); the 4 near-misses are 0.958–0.977 (equal-saliency
+tie-breaking on a few boundary pixels). Two bugs fixed this session took it from
+0.0–0.84 to exact: (a) saliency = `saddle − max(depth)` (above); (b) the
+BINARY-SEARCH DIRECTION — at level `guess`, if seeds share a basin (MERGED) set
+`hi=guess` (need a LOWER level = less merging); if SEPARATED set `lo=guess`;
+output the watershed at the final `lo`. (My first attempt had these inverted,
+passing only symmetric cases by coincidence.)
+Exact validated port recipe (deterministic, no RNG):
+1. `g = GradientMagnitude(input)` — central diff `(f[+1]−f[−1])/2` per axis with
+   ZeroFluxNeumann (edge-clamp) boundary; **matches sitk.GradientMagnitude to 0.0**
+   (np.gradient does NOT — it uses one-sided edges). Use ritk's validated filter.
+2. Watershed merge on `g` at level `L`: plateau-aware regional minima → immersion
+   flood → saddle = min boundary `max(va,vb)` → saliency = `saddle − max(min_a,min_b)`
+   → dynamic merge while saliency ≤ L (L = level·(g.max−g.min)).
+3. Binary search L∈[0,1] from guess=0.5: merged→hi=guess, separated→lo=guess,
+   until `lo + isolatedValueTolerance ≥ guess`; relabel at `lo`.
+4. Output: seed1's basin→replaceValue1(1), seed2's→replaceValue2(2), rest→0.
+REMAINING for 39/39: equal-saliency tie order (std::make_heap on label-ordered
+insertion) — affects ≤4% of pixels in ~10% of cases. The algorithm is otherwise
+COMPLETE and validated; the next increment is the Rust port (reuse ritk's
+gradient_magnitude + watershed scaffolding) + a differential test, then the same
+basins+merge fixes ritk's `morphological_watershed` line divergence.
 
 **No closed-form shortcut for the raw Segmenter** (`itkWatershedSegmenter.hxx`, 1315 lines):
 `MaxDepth = maximum − minimum` (intensity range), but the per-edge saliency
