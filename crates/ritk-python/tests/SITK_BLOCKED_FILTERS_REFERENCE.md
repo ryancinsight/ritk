@@ -98,9 +98,14 @@ fg-negative sign is incompatible with the constraint (collapses to 0).
 with subvoxel boundary precision (29 distinct values, e.g. ±1.509, ±1.697).
 Best dense approximations measured this session: clamped signed-distance of the
 original binary → corr 0.9947, **mean-err 0.073**; with curvature-flow evolution
-→ 0.18 (over-smooths). Both ≫ the 1e-2 differential threshold → the per-step
-SparseField narrow-band corner-antialiasing + layer quantization must be ported;
-a sign fix or static distance map is insufficient.
+→ 0.18 (over-smooths). An **exhaustive active-band curvature-flow sweep**
+(band ∈ {1, 1.5, 2, ∞} × dt ∈ {0.05, 0.1, 0.125, 0.25}, 50 iters + EDT reinit +
+constraint) caps at mean-err ≥ 0.09 / max-err ≥ 1.05 — every config *worse* than
+the static distance, with max-err pinned ~1.264 by layer-quantization voxels.
+The dense-approximation space is therefore **exhausted**: all ≫ the 1e-2
+threshold. The per-step SparseField narrow-band corner-antialiasing + exact layer
+value propagation must be ported; no sign fix, static distance map, or dense
+curvature-flow variant suffices. Do not re-attempt the dense route.
 
 CannySegmentationLevelSet adds a Canny edge speed term over the same SparseField.
 Both multi-session; the SparseField active-set update order must match ITK exactly.
