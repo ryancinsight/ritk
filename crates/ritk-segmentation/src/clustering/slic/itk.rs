@@ -254,9 +254,9 @@ pub fn slic_itk_impl(
         }
 
         // ── Update centres to the mean of their members ──────────────────────
-        let mut sum_i = vec![0.0_f64; k];
-        let mut sum_p = vec![0.0_f64; k * ndim];
-        let mut count = vec![0usize; k];
+        sum_i.iter_mut().for_each(|x| *x = 0.0);
+        sum_p.iter_mut().for_each(|x| *x = 0.0);
+        count.iter_mut().for_each(|x| *x = 0);
         // Walk voxels in flat order, tracking the multi-index with an odometer
         // (innermost axis fastest) instead of decoding it with `ndim` divisions
         // per voxel — same accumulation, no per-voxel division.
