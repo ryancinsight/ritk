@@ -103,6 +103,17 @@ def toboggan(image: Image) -> Image:
     """Toboggan steepest-descent basin labeling (labels >= 2). ITK Parity: TobogganImageFilter (sitk.Toboggan)."""
     ...
 
+def slic(
+    image: Image,
+    super_grid_size: int,
+    spatial_proximity_weight: float = 10.0,
+    maximum_number_of_iterations: int = 5,
+    enforce_connectivity: bool = True,
+    initialization_perturbation: bool = True,
+) -> Image:
+    """SLIC super-pixel segmentation. ITK Parity: SLICImageFilter (sitk.SLIC); label-exact at the default config (z==1 treated as 2-D)."""
+    ...
+
 def vector_connected_component(
     channels: list[Image], distance_threshold: float = 1.0, fully_connected: bool = False
 ) -> Image:

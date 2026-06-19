@@ -57,6 +57,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(label_set_dilate, &m)?)?;
     m.add_function(wrap_pyfunction!(label_set_erode, &m)?)?;
     m.add_function(wrap_pyfunction!(toboggan, &m)?)?;
+    m.add_function(wrap_pyfunction!(slic, &m)?)?;
     m.add_function(wrap_pyfunction!(vector_connected_component, &m)?)?;
     m.add_function(wrap_pyfunction!(
         threshold_maximum_connected_components,

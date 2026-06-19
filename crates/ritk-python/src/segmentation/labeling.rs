@@ -12,7 +12,8 @@ use ritk_segmentation::{
     connected_components as core_connected_components, label_set_morph as core_label_set_morph,
     labeling::Connectivity as SegConnectivity, merge_label_maps as core_merge_label_maps,
     relabel_consecutive as core_relabel_consecutive,
-    scalar_connected_components as core_scalar_connected_components, toboggan as core_toboggan,
+    scalar_connected_components as core_scalar_connected_components,
+    slic_itk_segment as core_slic_itk_segment, toboggan as core_toboggan,
     vector_connected_components_image as core_vector_connected_components,
     ConnectedComponentsFilter, KMeansSegmentation, LabelSetMorphOp, MarkerControlledWatershed,
     MergeLabelMethod, MorphologicalWatershed, RelabelComponentFilter, SlicConfig,
@@ -330,6 +331,51 @@ pub fn vector_connected_component(
 pub fn toboggan(py: Python<'_>, image: &PyImage) -> PyImage {
     let arc = Arc::clone(&image.inner);
     let out = py.allow_threads(|| core_toboggan(arc.as_ref()));
+    into_py_image(out)
+}
+
+/// SLIC super-pixel segmentation matching `SimpleITK.SLIC`.
+///
+/// Ports ITK's `SLICImageFilter`: shrink-grid centre initialisation, the
+/// `(I-I_c)^2 + sum((p-c)*m/g)^2` distance, a fixed-count Lloyd iteration, and
+/// the default `initializationPerturbation` + `enforceConnectivity` post-passes.
+/// Label-for-label exact vs sitk for uniform `super_grid_size` (2-D `z==1`
+/// volumes are handled as genuine 2-D images).
+///
+/// Args:
+///     image: scalar image (`z==1` ⇒ 2-D).
+///     super_grid_size: uniform per-axis grid step (sitk `superGridSize`).
+///     spatial_proximity_weight: sitk `spatialProximityWeight` (default 10.0).
+///     maximum_number_of_iterations: sitk `maximumNumberOfIterations` (default 5).
+///     enforce_connectivity: sitk `enforceConnectivity` (default True).
+///     initialization_perturbation: sitk `initializationPerturbation` (default True).
+///
+/// Returns:
+///     label image (super-pixel indices as f32).
+#[pyfunction]
+#[pyo3(signature = (image, super_grid_size, spatial_proximity_weight=10.0,
+    maximum_number_of_iterations=5, enforce_connectivity=true,
+    initialization_perturbation=true))]
+pub fn slic(
+    py: Python<'_>,
+    image: &PyImage,
+    super_grid_size: usize,
+    spatial_proximity_weight: f64,
+    maximum_number_of_iterations: usize,
+    enforce_connectivity: bool,
+    initialization_perturbation: bool,
+) -> PyImage {
+    let arc = Arc::clone(&image.inner);
+    let out = py.allow_threads(|| {
+        core_slic_itk_segment(
+            arc.as_ref(),
+            super_grid_size,
+            spatial_proximity_weight,
+            maximum_number_of_iterations,
+            initialization_perturbation,
+            enforce_connectivity,
+        )
+    });
     into_py_image(out)
 }
 

@@ -190,11 +190,12 @@ pub fn slic_itk_impl(
                     break;
                 }
             }
-            let mi: Vec<usize> = (0..ndim).map(|d| min_idx[d] as usize).collect();
+            let mi: Vec<usize> = min_idx.iter().map(|&v| v as usize).collect();
             c.intensity = data[flat(&mi)] as f64;
-            for d in 0..ndim {
-                c.pos[d] = min_idx[d] as f64;
-            }
+            c.pos
+                .iter_mut()
+                .zip(&min_idx)
+                .for_each(|(p, &m)| *p = m as f64);
         }
     }
 
@@ -362,9 +363,9 @@ fn enforce_slic_connectivity(
     // ── Phase 1: mark each cluster's centroid-connected main component ────────
     let half: Vec<i64> = g.iter().map(|&gd| (gd / 2) as i64).collect();
     let mut off = vec![0i64; ndim];
-    for ci in 0..k {
+    for (ci, center) in centers.iter().enumerate().take(k) {
         let cidx: Vec<usize> = (0..ndim)
-            .map(|d| round_half_up(centers[ci].pos[d]).clamp(0, shape[d] as i64 - 1) as usize)
+            .map(|d| round_half_up(center.pos[d]).clamp(0, shape[d] as i64 - 1) as usize)
             .collect();
         let cf = flat(&cidx);
         let mut seed: Option<usize> = None;

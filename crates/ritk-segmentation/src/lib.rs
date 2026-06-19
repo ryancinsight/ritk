@@ -24,7 +24,9 @@ pub mod region_growing;
 pub mod threshold;
 pub mod watershed;
 
-pub use clustering::{kmeans_segment, KMeansSegmentation, SlicConfig, SlicSuperpixelFilter};
+pub use clustering::{
+    kmeans_segment, slic_itk_segment, KMeansSegmentation, SlicConfig, SlicSuperpixelFilter,
+};
 pub use distance_transform::{distance_transform, distance_transform_squared, DistanceTransform};
 pub use ensemble::{
     multi_label_staple, staple, MultiLabelStapleResult, StapleConvergence, StapleResult,
