@@ -46,6 +46,20 @@ are catchment basins, not threshold/minimax sets** (proven: a basin pixel can
 have gradient > B). Requires porting `itk::watershed::Segmenter` (descent flood +
 boundary-saliency merge tree) — multi-session.
 
+**Source-verified merge spec** (`itkWatershedSegmentTreeGenerator.hxx`): the
+`Level` maps to `threshold = m_FloodLevel · segTable->GetMaximumDepth()`; the
+generator `PruneEdgeLists(threshold)` then merges the lowest-saliency edges first
+through a `OneWayEquivalencyTable` (union-find), where each edge's saliency is the
+boundary height relative to the adjacent basins' **depth** (computed by the
+`Segmenter`'s segment table). So a faithful port is **two** ITK classes —
+`Segmenter` (steepest-descent basins + segment table of per-basin depths and
+inter-basin edge saliencies, ~600 lines) and `SegmentTreeGenerator` (the
+FloodLevel·MaxDepth merge hierarchy, ~583 lines) — plus IsolatedWatershed's
+binary search over `Level`. ~1000 lines across 2 classes; deterministic but
+genuinely multi-session. My prototypes (descent, minimax, minimax-reachability,
+catchment, immersion, full-immersion) all fail because none computes the exact
+depth-relative edge saliency + FloodLevel·MaxDepth merge order.
+
 ### PatchBasedDenoising — needs the seeded RNG sampler
 Scalar default-config update (numberOfIterations=1, noiseModelFidelityWeight=0 ⇒
 no noise term, KernelBandwidthEstimationOff ⇒ fixed σ): rescale intensities to
