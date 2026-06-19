@@ -1329,6 +1329,25 @@ def test_cmake_adaptive_histogram_equalization(alpha, beta):
     )
 
 
+@pytest.mark.parametrize("std,mean,seed", [(1.0, 0.0, 42), (2.5, 10.0, 7), (0.5, -3.0, 123)])
+def test_cmake_additive_gaussian_noise(std, mean, seed):
+    """AdditiveGaussianNoise: ritk `filter.additive_gaussian_noise` vs
+    `sitk.AdditiveGaussianNoise`, single-threaded. Float-exact — ITK's
+    deterministic FastNorm (NormalVariateGenerator) ported bit-for-bit, seeded
+    `userSeed*2654435761` over the whole image as one region."""
+    import numpy as _np
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+    _np.random.seed(0)
+    img = (_np.random.rand(3, 7, 9) * 50).astype(_np.float32)
+    so = sitk.GetArrayFromImage(
+        sitk.AdditiveGaussianNoise(sitk.GetImageFromArray(img), std, mean, seed))
+    r = _np.asarray(ritk.filter.additive_gaussian_noise(
+        ritk.Image(_np.ascontiguousarray(img)), std, mean, seed).to_numpy())
+    assert r.shape == so.shape
+    assert float(_np.abs(r - so).max()) < 1e-3, \
+        f"AdditiveGaussianNoise differs (max {float(_np.abs(r - so).max())})"
+
+
 @pytest.mark.parametrize("req_frac", [0.25, 0.5])
 def test_cmake_masked_fft_normalized_correlation(req_frac):
     """MaskedFFTNormalizedCorrelation (Padfield): masked NCC over all translations
@@ -1336,21 +1355,38 @@ def test_cmake_masked_fft_normalized_correlation(req_frac):
     on the reliable (sufficient-overlap) region — `required_fraction` gates the
     numerically-degenerate low-overlap edge voxels in both implementations."""
     import numpy as _np
+
     _np.random.seed(0)
     F = (_np.random.rand(8, 9) * 100).astype(_np.float32)
     Mf = (_np.random.rand(8, 9) > 0.2).astype(_np.float32)
     T = (_np.random.rand(5, 6) * 100).astype(_np.float32)
     Mt = (_np.random.rand(5, 6) > 0.2).astype(_np.float32)
-    so = sitk.GetArrayFromImage(sitk.MaskedFFTNormalizedCorrelation(
-        sitk.GetImageFromArray(F), sitk.GetImageFromArray(T),
-        sitk.GetImageFromArray(Mf), sitk.GetImageFromArray(Mt), 0, req_frac))
-    r = _np.squeeze(_np.asarray(ritk.filter.masked_fft_normalized_correlation(
-        ritk.Image(_np.ascontiguousarray(F[None])), ritk.Image(_np.ascontiguousarray(T[None])),
-        ritk.Image(_np.ascontiguousarray(Mf[None])), ritk.Image(_np.ascontiguousarray(Mt[None])),
-        0, req_frac).to_numpy()))
+    so = sitk.GetArrayFromImage(
+        sitk.MaskedFFTNormalizedCorrelation(
+            sitk.GetImageFromArray(F),
+            sitk.GetImageFromArray(T),
+            sitk.GetImageFromArray(Mf),
+            sitk.GetImageFromArray(Mt),
+            0,
+            req_frac,
+        )
+    )
+    r = _np.squeeze(
+        _np.asarray(
+            ritk.filter.masked_fft_normalized_correlation(
+                ritk.Image(_np.ascontiguousarray(F[None])),
+                ritk.Image(_np.ascontiguousarray(T[None])),
+                ritk.Image(_np.ascontiguousarray(Mf[None])),
+                ritk.Image(_np.ascontiguousarray(Mt[None])),
+                0,
+                req_frac,
+            ).to_numpy()
+        )
+    )
     assert r.shape == so.shape, f"shape {r.shape} != {so.shape}"
-    assert float(_np.abs(r - so).max()) < 1e-3, \
+    assert float(_np.abs(r - so).max()) < 1e-3, (
         f"MaskedFFTNormalizedCorrelation differs (max {float(_np.abs(r - so).max())})"
+    )
 
 
 @pytest.mark.parametrize("masked", [False, True])
@@ -1360,21 +1396,30 @@ def test_cmake_normalized_correlation(masked):
     `filter.normalized_correlation` vs `sitk.NormalizedCorrelation`. Float-exact
     (a deterministic neighborhood operator, no solver)."""
     import numpy as _np
+
     _np.random.seed(0)
     img = (_np.random.rand(1, 10, 12) * 100).astype(_np.float32)
     tmpl = _np.array([[[0, 1, 0], [1, 2, 1], [0, 1, 0]]], _np.float32)
     mask = _np.ones((1, 10, 12), _np.float32)
     if masked:
         mask[:, :3, :] = 0.0
-    si = sitk.GetImageFromArray(img[0]); st = sitk.GetImageFromArray(tmpl[0])
+    si = sitk.GetImageFromArray(img[0])
+    st = sitk.GetImageFromArray(tmpl[0])
     sm = sitk.GetImageFromArray(mask[0])
     so = sitk.GetArrayFromImage(sitk.NormalizedCorrelation(si, sm, st))
-    r = _np.squeeze(_np.asarray(ritk.filter.normalized_correlation(
-        ritk.Image(_np.ascontiguousarray(img)), ritk.Image(_np.ascontiguousarray(mask)),
-        ritk.Image(_np.ascontiguousarray(tmpl))).to_numpy()))
+    r = _np.squeeze(
+        _np.asarray(
+            ritk.filter.normalized_correlation(
+                ritk.Image(_np.ascontiguousarray(img)),
+                ritk.Image(_np.ascontiguousarray(mask)),
+                ritk.Image(_np.ascontiguousarray(tmpl)),
+            ).to_numpy()
+        )
+    )
     assert r.shape == so.shape
-    assert float(_np.abs(r - so).max()) < 1e-4, \
+    assert float(_np.abs(r - so).max()) < 1e-4, (
         f"NormalizedCorrelation differs (max {float(_np.abs(r - so).max())})"
+    )
 
 
 def test_cmake_approximate_signed_distance_map():
@@ -3962,14 +4007,20 @@ def test_cmake_projected_landweber_deconvolution(n_iter):
 def test_cmake_signed_distance_map_deviation_documented():
     """signed_distance_map: voxel-centre EDT, NOT matching sitk.SignedMaurerDistanceMap.
 
-    ITK's SignedMaurerDistanceMap measures distance to the object BOUNDARY
-    (interface between fg and bg voxels); ritk's signed_distance_map measures
-    distance to the nearest OPPOSITE-CLASS VOXEL CENTRE, agreeing with
-    scipy.ndimage.distance_transform_edt (signed). The two differ by up to
-    sqrt(3) voxels in the interior and by the interface-offset (~0.5 vox) at the
-    boundary. This test documents the known deviation and asserts that:
-    1. The sign pattern (fg positive, bg negative) matches.
-    2. The magnitude at distant voxels is proportional (Pearson r >= 0.99).
+    ritk's ``signed_distance_map`` uses the *negative-inside, positive-outside*
+    convention:
+      - foreground voxels: negative distance to the nearest BACKGROUND voxel centre
+      - background voxels: positive distance to the nearest FOREGROUND voxel centre
+
+    ITK's ``SignedMaurerDistanceMapImageFilter(insideIsPositive=True)`` uses the
+    *positive-inside, negative-outside* convention and measures distance to the
+    object BOUNDARY (fg/bg interface), so the two outputs are sign-inverted and
+    differ in magnitude by up to √3 voxels interior / ~0.5 vox at the boundary.
+
+    This test documents the known deviation and asserts:
+    1. ritk sign pattern: fg → negative, bg → positive.
+    2. sitk sign pattern: fg → positive, bg → negative (with insideIsPositive=True).
+    3. Anti-correlation: Pearson(ritk, sitk) ≤ -0.99 (monotone, opposite sign).
     """
     # 3-D sphere: z in [0,31]
     s = 32
@@ -3990,13 +4041,23 @@ def test_cmake_signed_distance_map_deviation_documented():
         )
     ).astype(np.float64)
 
-    # Sign agreement: interior (binary=1) should be positive in both.
     mask_int = binary.astype(bool)
-    assert np.all(ro[mask_int] > 0), "signed_distance_map interior should be positive"
-    assert np.all(so[mask_int] > 0), "sitk interior should be positive"
+    mask_ext = ~mask_int
 
-    # Pearson correlation over all voxels (both are monotonically related to
-    # Euclidean distance from the sphere surface, just with different offsets).
+    # ritk: negative inside, positive outside
+    assert np.all(ro[mask_int] < 0), (
+        "ritk signed_distance_map: interior voxels should be negative (negative-inside convention)"
+    )
+    assert np.all(ro[mask_ext] >= 0), (
+        "ritk signed_distance_map: exterior voxels should be non-negative"
+    )
+
+    # sitk (insideIsPositive=True): positive inside, negative outside
+    assert np.all(so[mask_int] >= 0), "sitk interior should be non-negative"
+    assert np.all(so[mask_ext] <= 0), "sitk exterior should be non-positive"
+
+    # Anti-correlation: both are monotonically related to distance from surface,
+    # but with opposite signs → Pearson ≤ -0.99.
     r_flat = ro.ravel().astype(np.float64)
     s_flat = so.ravel().astype(np.float64)
     r_c = r_flat - r_flat.mean()
@@ -4004,9 +4065,9 @@ def test_cmake_signed_distance_map_deviation_documented():
     pearson = float(
         np.dot(r_c, s_c) / (np.sqrt(np.dot(r_c, r_c) * np.dot(s_c, s_c)) + 1e-12)
     )
-    assert pearson >= 0.99, (
-        f"signed_distance_map vs sitk Pearson {pearson:.4f} < 0.99 "
-        "(expected high correlation despite different distance convention)"
+    assert pearson <= -0.99, (
+        f"signed_distance_map vs sitk Pearson {pearson:.4f} > -0.99 "
+        "(expected strong anti-correlation: same magnitude, opposite sign convention)"
     )
 
 

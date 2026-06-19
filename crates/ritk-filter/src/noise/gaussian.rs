@@ -1,10 +1,9 @@
 //! Additive Gaussian noise filter.
 
+use super::fastnorm::{hash, FastNorm};
 use super::DEFAULT_NOISE_SEED;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use rand::prelude::*;
-use rand::rngs::StdRng;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
@@ -19,9 +18,10 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// where `N(μ, σ)` is a normally-distributed random variable with mean `μ`
 /// and standard deviation `σ`.
 ///
-/// # Use cases
-/// - Simulate thermal/electronic noise in CT/MR acquisition
-/// - Test registration robustness to Gaussian perturbation
+/// The variates come from an exact port of `itk::Statistics::NormalVariateGenerator`
+/// (FastNorm), so the output is bit-identical to `sitk.AdditiveGaussianNoise`
+/// run single-threaded (whole image = one region, `seed = userSeed·2654435761`,
+/// scanline order).
 ///
 /// # Complexity
 /// O(N) where N is the number of voxels.
@@ -30,8 +30,8 @@ pub struct AdditiveGaussianNoiseFilter {
     pub mean: f64,
     /// Standard deviation of the Gaussian noise distribution.
     pub std: f64,
-    /// Random seed for reproducibility (default: 42).
-    pub seed: u64,
+    /// Random seed (matched against SimpleITK's `uint32` seed; default: 42).
+    pub seed: u32,
 }
 
 impl AdditiveGaussianNoiseFilter {
@@ -42,7 +42,7 @@ impl AdditiveGaussianNoiseFilter {
         Self {
             mean: 0.0,
             std,
-            seed: DEFAULT_NOISE_SEED,
+            seed: DEFAULT_NOISE_SEED as u32,
         }
     }
 
@@ -53,29 +53,21 @@ impl AdditiveGaussianNoiseFilter {
     }
 
     /// Set the random seed (builder pattern).
-    pub fn with_seed(mut self, seed: u64) -> Self {
+    pub fn with_seed(mut self, seed: u32) -> Self {
         self.seed = seed;
         self
     }
 
-    /// Apply additive Gaussian noise to a 3-D image.
+    /// Apply additive Gaussian noise to a 3-D image. The image is treated as a
+    /// single region (start index 0), so `seed = Hash(userSeed, 0)`; the FastNorm
+    /// generator is stepped once per voxel in scanline order.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let mut rng = StdRng::seed_from_u64(self.seed);
-        // Pre-generate all random variates from a single sequential RNG
-        // to guarantee deterministic output for a given seed.
-        let gaussians: Vec<f64> = vals
+        let mut gen = FastNorm::new(hash(self.seed, 0) as i32);
+        let out: Vec<f32> = vals
             .iter()
-            .map(|_| {
-                let u1: f64 = rng.random();
-                let u2: f64 = rng.random();
-                super::box_muller(u1, u2)
-            })
+            .map(|&v| (v as f64 + self.mean + self.std * gen.variate()) as f32)
             .collect();
-        let out: Vec<f32> =
-            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |i| {
-                (vals[i] as f64 + gaussians[i] * self.std + self.mean) as f32
-            });
         Ok(rebuild(out, dims, image))
     }
 }

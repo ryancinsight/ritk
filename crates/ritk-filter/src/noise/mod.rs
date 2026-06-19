@@ -14,6 +14,7 @@
 //! | `ShotNoiseFilter` | Poisson process: `I'(x) ~ Poisson(λ·I(x)) / λ` | `scale` |
 //! | `SpeckleNoiseFilter` | Multiplicative: `I'(x) = I(x) · (1 + N(0, std))` | `std` |
 
+pub(crate) mod fastnorm;
 pub mod gaussian;
 pub mod salt_pepper;
 pub mod shot;

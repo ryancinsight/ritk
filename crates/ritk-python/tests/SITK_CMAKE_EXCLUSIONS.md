@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **29 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **28 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -15,20 +15,19 @@ BinaryThinning, BinaryPruning, ThresholdMaximumConnectedComponents, IsoContourDi
 IsolatedConnected — have been removed. The `Warp` geometry divergence is **resolved**
 (rewritten on the canonical tensor path, float-exact on loaded anisotropic).
 
-## RNG generators — RECLASSIFIED reachable (Sprint 493): deterministic, exact-port scoped
+## RNG generators — AdditiveGaussianNoise now SHIPPED (Sprint 493)
 
-- **AdditiveGaussianNoise, SaltAndPepperNoise, ShotNoise, SpeckleNoise** — the prior "non-deterministic,
-  impossible" verdict was WRONG: it assumed `MersenneTwisterRandomVariateGenerator`, but the Gaussian
-  noise filter actually uses `itk::Statistics::NormalVariateGenerator` (Marsaglia–MacLaren **FastNorm**,
-  `itkNormalVariateGenerator.cxx`), seeded `Hash(userSeed, Σ regionStartIndex) = userSeed·2654435761u`
-  (Knuth) — for a single work-unit, `region 0 ⇒ seed = userSeed·2654435761u`, then per pixel (scanline
-  order) `out = in + mean + std·GetVariate()`. **Verified reproducible**: `sitk.AdditiveGaussianNoise`
-  with a fixed seed + `SetGlobalDefaultNumberOfThreads(1)` is bit-identical across runs (so it IS
-  reachable, not random). Remaining work is a faithful port of FastNorm — a ~300-line goto-based integer
-  state machine (m_Vec1 table rotations + chi-squared renormalization every 0xFF passes) — plus the Hash
-  and scanline application, and forcing a single work-unit. Scoped as a dedicated port (not rushed: a
-  one-bit FastNorm mismatch breaks reproducibility, and a wrong RNG must not be papered over). SaltAndPepper
-  (uniform), Shot/Speckle (Poisson/gamma) reuse the same generator family once FastNorm lands.
+- **AdditiveGaussianNoise** is now shipped float-exact (`filter.additive_gaussian_noise`): the prior
+  "non-deterministic, impossible" verdict was WRONG (it assumed `MersenneTwisterRandomVariateGenerator`).
+  The filter uses `itk::Statistics::NormalVariateGenerator` (Marsaglia–MacLaren **FastNorm**), ported
+  bit-for-bit (`noise/fastnorm.rs`), seeded `Hash(userSeed, Σ regionStartIndex) = userSeed·2654435761`
+  (single region ⇒ `seed = userSeed·2654435761`), then `out = in + mean + std·GetVariate()` per voxel in
+  scanline order. Verified bit-exact vs the SimpleITK noise sequence (Rust) and ≤1e-3 vs
+  `sitk.AdditiveGaussianNoise` single-threaded (`SetGlobalDefaultNumberOfThreads(1)`) across 3 std/mean/seed
+  cases. **Must run sitk single-threaded** to match (multi-thread splits into regions with per-region seeds).
+- **SaltAndPepperNoise, ShotNoise, SpeckleNoise** remain uncovered but are now also reachable: SaltAndPepper
+  uses ITK's `MersenneTwisterRandomVariateGenerator` (uniform), Shot/Speckle use Poisson/gamma variates.
+  Each needs the matching exact ITK generator ported (scoped follow-ups, same single-region constraint).
   (The deterministic local-noise *estimator* `Noise` is already covered.)
 
 ## Iterative / non-bit-exact convergence

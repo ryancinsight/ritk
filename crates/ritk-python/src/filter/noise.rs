@@ -23,13 +23,13 @@ use std::sync::Arc;
 /// Returns:
 ///     PyImage with additive Gaussian noise applied.
 #[pyfunction]
-#[pyo3(signature = (image, std, mean=0.0, seed=42_u64))]
+#[pyo3(signature = (image, std, mean=0.0, seed=42_u32))]
 pub fn additive_gaussian_noise(
     py: Python<'_>,
     image: &PyImage,
     std: f64,
     mean: f64,
-    seed: u64,
+    seed: u32,
 ) -> RitkResult<PyImage> {
     let img = Arc::clone(&image.inner);
     let result = py

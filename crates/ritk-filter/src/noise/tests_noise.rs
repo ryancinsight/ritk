@@ -447,3 +447,22 @@ fn speckle_preserves_metadata() {
         "direction must be preserved"
     );
 }
+
+/// On a zero image, seed 42 (std 1, mean 0) must reproduce the exact
+/// `sitk.AdditiveGaussianNoise` sequence (single-threaded) — the FastNorm
+/// generator ported bit-for-bit from ITK source.
+#[test]
+fn gaussian_matches_sitk_fastnorm_sequence() {
+    let img = make_image(vec![0.0_f32; 6], [1, 1, 6]);
+    let out = AdditiveGaussianNoiseFilter::new(1.0)
+        .with_seed(42)
+        .apply(&img)
+        .unwrap();
+    let vals = out.data_slice().into_owned();
+    let expected = [
+        -2.0906951_f32, -1.9422115, -1.6573238, 0.19301039, 0.08058648, 0.00776763,
+    ];
+    for (g, e) in vals.iter().zip(expected) {
+        assert!((g - e).abs() < 1e-5, "noise {g} != sitk {e}");
+    }
+}
