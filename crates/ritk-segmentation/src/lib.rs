@@ -31,7 +31,7 @@ pub use ensemble::{
 };
 pub use labeling::{
     connected_components, scalar_connected_components, ConnectedComponentsFilter, Connectivity,
-    LabelStatistics, RelabelComponentFilter, RelabelStatistics,
+    relabel_consecutive, LabelStatistics, RelabelComponentFilter, RelabelStatistics,
     ThresholdMaximumConnectedComponentsFilter,
 };
 pub use level_set::{

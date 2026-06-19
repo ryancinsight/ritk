@@ -189,3 +189,17 @@ fn minimum_object_size_one_retains_all() {
     assert_eq!(stats.len(), 3);
     assert!(stats.iter().all(|s| s.new_label > 0));
 }
+
+#[test]
+fn relabel_consecutive_ascending_value_order() {
+    use super::relabel_consecutive;
+    use ritk_image::test_support as ts;
+    use ritk_tensor_ops::extract_vec_infallible;
+    type B = burn_ndarray::NdArray<f32>;
+    // labels 2,5,7,9 -> 1,2,3,4 (ascending original value)
+    let data = vec![0.0, 5.0, 2.0, 9.0, 7.0, 0.0, 5.0, 2.0];
+    let img = ts::make_image::<B, 3>(data, [1, 1, 8]);
+    let out = relabel_consecutive(&img);
+    let (v, _) = extract_vec_infallible(&out);
+    assert_eq!(v, vec![0.0, 2.0, 1.0, 4.0, 3.0, 0.0, 2.0, 1.0]);
+}

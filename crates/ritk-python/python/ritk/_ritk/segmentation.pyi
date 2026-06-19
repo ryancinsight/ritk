@@ -38,14 +38,28 @@ def binary_threshold_segment(
 # ── Connected-component labeling ────────────────────────────────────────────
 
 def connected_components(mask: Image, connectivity: int = 6) -> tuple[Image, int]: ...
-def scalar_connected_component(image: Image, distance_threshold: float = 0.0, connectivity: int = 6) -> Image:
+def scalar_connected_component(
+    image: Image, distance_threshold: float = 0.0, connectivity: int = 6
+) -> Image:
     """Label scalar connected components (neighbours join if |delta value| <= threshold). ITK Parity: ScalarConnectedComponentImageFilter."""
     ...
+
 def relabel_components(label_image: Image, minimum_object_size: int = 0) -> Image:
     """Relabel components by descending size. ITK Parity: RelabelComponentImageFilter."""
     ...
+
+def relabel_label_map(label_image: Image) -> Image:
+    """Relabel non-zero labels to consecutive 1..K in ascending original-label order. ITK Parity: RelabelLabelMapFilter (sitk.RelabelLabelMap)."""
+    ...
+
 def change_label(label_image: Image, change_map: dict[int, int]) -> Image:
     """Remap label values per {old: new}; others unchanged. ITK Parity: ChangeLabelImageFilter."""
+    ...
+
+def threshold_maximum_connected_components(
+    image: Image, minimum_object_size: int = 0, upper_boundary: int | None = None
+) -> Image:
+    """Threshold an image at the lower value that maximizes the number of connected components. ITK Parity: ThresholdMaximumConnectedComponentsImageFilter."""
     ...
 
 # ── Region growing ──────────────────────────────────────────────────────────
@@ -65,6 +79,9 @@ def kmeans_segment(image: Image, k: int = 3) -> Image: ...
 
 def watershed_segment(image: Image) -> Image: ...
 def marker_watershed_segment(gradient: Image, markers: Image) -> Image: ...
+def morphological_watershed(image: Image, level: float = 0.0) -> Image:
+    """Marker-less morphological watershed. ITK Parity: MorphologicalWatershedImageFilter."""
+    ...
 
 # ── Binary morphology ──────────────────────────────────────────────────────
 
@@ -149,6 +166,19 @@ def neighborhood_connected_segment(
     upper: float,
     radius: int = 1,
 ) -> Image: ...
+def isolated_connected_segment(
+    image: Image,
+    seed1: list[int],
+    seed2: list[int],
+    lower: float = 0.0,
+    upper: float = 1.0,
+    replace_value: float = 1.0,
+    isolated_value_tolerance: float = 1.0,
+    find_upper_threshold: bool = True,
+) -> Image:
+    """Isolated-connected segmentation. ITK Parity: IsolatedConnectedImageFilter."""
+    ...
+
 def skeletonization(image: Image) -> Image: ...
 def label_shape_statistics(
     mask: Image,
@@ -174,9 +204,29 @@ def label_shape_statistics(
 
 # -- GrowCut / STAPLE ---------------------------------------------------------
 
-def growcut_segment(
-    image: Image, seeds: Image, max_iter: int = 200
-) -> Image: ...
+def growcut_segment(image: Image, seeds: Image, max_iter: int = 200) -> Image: ...
 def staple_ensemble(
     raters: list[Image], max_iter: int = 100, tol: float = 1e-06
 ) -> dict[str, Any]: ...
+def multi_label_staple(
+    raters: list[Image],
+    max_iter: int = 0,
+    termination_threshold: float = 1e-5,
+    label_for_undecided: float | None = None,
+) -> Image:
+    """Multi-label STAPLE EM consensus of K integer label maps.
+
+    Args:
+        raters:                list of Image, each a label map (f32). All must
+                               have the same shape.
+        max_iter:              Maximum EM iterations; 0 iterates to convergence.
+        termination_threshold: Stop when max confusion-matrix change < threshold.
+        label_for_undecided:   Label for tie voxels; None uses L (max_label+1,
+                               ITK default).
+
+    Returns:
+        Hard consensus label image (f32), same shape/spacing/origin as raters[0].
+
+    ITK Parity: MultiLabelSTAPLEImageFilter.
+    """
+    ...

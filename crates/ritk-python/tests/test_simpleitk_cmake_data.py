@@ -1433,6 +1433,26 @@ def test_cmake_additive_gaussian_noise(std, mean, seed):
         f"AdditiveGaussianNoise differs (max {float(_np.abs(r - so).max())})"
 
 
+def test_cmake_relabel_label_map():
+    """RelabelLabelMap: relabel non-zero labels to consecutive 1..K in ascending
+    original-label order. ritk `segmentation.relabel_label_map` vs the sitk
+    LabelMap round-trip `LabelMapToLabel(RelabelLabelMap(LabelImageToLabelMap(.)))`.
+    Bit-exact — pure deterministic ascending-value remap."""
+    import numpy as _np
+    arr = _np.zeros((6, 6, 6), dtype=_np.float32)
+    # non-consecutive labels {2, 5, 7, 9} -> {1, 2, 3, 4}
+    arr[0, 0, 0] = 2; arr[0, 0, 1] = 5; arr[1, 2, 3] = 7; arr[2, 2, 2] = 9
+    arr[3, 3, 3] = 5; arr[4, 4, 4] = 2; arr[5, 5, 5] = 9; arr[1, 1, 1] = 7
+    lm = sitk.LabelImageToLabelMap(sitk.GetImageFromArray(arr.astype(_np.uint16)))
+    ref = sitk.GetArrayFromImage(
+        sitk.LabelMapToLabel(sitk.RelabelLabelMap(lm))).astype(_np.float32)
+    r = _np.asarray(ritk.segmentation.relabel_label_map(
+        ritk.Image(_np.ascontiguousarray(arr))).to_numpy())
+    assert r.shape == ref.shape
+    assert _np.array_equal(r, ref), \
+        f"RelabelLabelMap differs at {int((r != ref).sum())} voxels"
+
+
 @pytest.mark.parametrize("req_frac", [0.25, 0.5])
 def test_cmake_masked_fft_normalized_correlation(req_frac):
     """MaskedFFTNormalizedCorrelation (Padfield): masked NCC over all translations

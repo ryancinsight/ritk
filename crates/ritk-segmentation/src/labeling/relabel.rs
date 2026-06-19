@@ -31,7 +31,7 @@
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -192,6 +192,42 @@ fn relabel_impl(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatisti
         .collect();
 
     (output, stats)
+}
+
+/// Relabel non-zero labels to consecutive integers `1, 2, …, K` in **ascending
+/// original-label order** (background 0 unchanged).
+///
+/// Matches `sitk.RelabelLabelMap` (via the LabelMap round-trip): unlike
+/// [`RelabelComponentFilter`] (size-descending), the LabelMap relabeling assigns
+/// new labels in the order of the existing (ascending) label values. Values are
+/// rounded to the nearest integer.
+pub fn relabel_consecutive<B: Backend>(label_image: &Image<B, 3>) -> Image<B, 3> {
+    let (vals, dims) = extract_vec_infallible(label_image);
+    let mut uniq: Vec<u32> = vals
+        .iter()
+        .map(|&v| v.round().max(0.0) as u32)
+        .filter(|&l| l != 0)
+        .collect();
+    uniq.sort_unstable();
+    uniq.dedup();
+    // old label → new consecutive label (1-based, ascending original order).
+    let max_label = uniq.last().copied().unwrap_or(0) as usize;
+    let mut remap = vec![0u32; max_label + 1];
+    for (new_minus_1, &old) in uniq.iter().enumerate() {
+        remap[old as usize] = new_minus_1 as u32 + 1;
+    }
+    let out: Vec<f32> = vals
+        .iter()
+        .map(|&v| {
+            let l = v.round().max(0.0) as usize;
+            if l == 0 || l > max_label {
+                0.0
+            } else {
+                remap[l] as f32
+            }
+        })
+        .collect();
+    rebuild(out, dims, label_image)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

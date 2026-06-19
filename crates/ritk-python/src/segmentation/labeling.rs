@@ -11,7 +11,8 @@ use ritk_image::Image;
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components, ConnectedComponentsFilter,
-    KMeansSegmentation, MarkerControlledWatershed, MorphologicalWatershed, RelabelComponentFilter,
+    relabel_consecutive as core_relabel_consecutive, KMeansSegmentation, MarkerControlledWatershed,
+    MorphologicalWatershed, RelabelComponentFilter,
     SlicConfig, SlicSuperpixelFilter, ThresholdMaximumConnectedComponentsFilter,
     WatershedSegmentation,
 };
@@ -121,6 +122,27 @@ pub fn relabel_components(
             .apply(img.as_ref())
             .0
     });
+    into_py_image(out)
+}
+
+/// Relabel non-zero labels to consecutive integers `1, 2, …, K` in ascending
+/// original-label order (background 0 unchanged).
+///
+/// ITK Parity: matches `sitk.RelabelLabelMap` (via the LabelMap round-trip
+/// `LabelMapToLabel(RelabelLabelMap(LabelImageToLabelMap(img)))`). Unlike
+/// [`relabel_components`] (size-descending), this assigns new labels in the
+/// order of ascending existing label values.
+///
+/// Args:
+///     label_image: integer label image (0 = background).
+///
+/// Returns:
+///     the relabelled image.
+#[pyfunction]
+#[pyo3(signature = (label_image))]
+pub fn relabel_label_map(py: Python<'_>, label_image: &PyImage) -> PyImage {
+    let img = Arc::clone(&label_image.inner);
+    let out = py.allow_threads(|| core_relabel_consecutive(img.as_ref()));
     into_py_image(out)
 }
 
