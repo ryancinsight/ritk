@@ -54,8 +54,14 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   plane perpendicular to ∇ at distance `StencilRadius` (default 2); `avg = ⟨neighborhood, sphereStencil⟩`;
   return `max(update,0)` if `avg<threshold` else `min(update,0)`. Deterministic — reachable by extending
   ritk's curvature-flow iteration with the stencil/threshold/clamp (`MinMaxCurvatureFlowFunction`).
-  Binary variant thresholds the result. Scoped next target (the ComputeThreshold perpendicular-plane
-  search is the fiddly part).
+  Binary variant thresholds the result. **Port ATTEMPTED (Sprint 493), NOT YET MATCHING — honestly
+  unfinished**: the base curvature-flow speed reproduces sitk.CurvatureFlow (numpy 3.8e-6) and the
+  normalized sphere-stencil avg is confirmed, but the `ComputeThreshold` perpendicular selection
+  (`|cos∠(offset,∇)| < 0.262 && ‖offset‖ ≥ radius`) yields a threshold diverging from ITK's (worst voxel:
+  mine 38.79 vs ITK ≥43.12 → the `avg<threshold` clamp flips the wrong way), maxdiff 15–45 vs sitk. NOT
+  shipped — no fabricated parity. The discrepancy is isolated to ComputeThreshold; resolving it needs an
+  ITK-instrumented threshold dump or a closer read of the NeighborhoodIterator stride / scale-coefficient
+  handling. Reachable, attempted in good faith, genuinely unsolved at the threshold step.
 - **AntiAliasBinary, CannySegmentationLevelSet, ScalarChanAndVeseDenseLevelSet, LevelSetMotionRegistration,
   PatchBasedDenoising** — iterative PDE / level-set solvers whose per-step floating-point accumulation
   compounds; not bit-exact across independent implementations. (Each still warrants an ITK-source check —
