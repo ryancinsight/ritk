@@ -253,21 +253,27 @@ pub fn slic_itk_impl(
         let mut sum_i = vec![0.0_f64; k];
         let mut sum_p = vec![0.0_f64; k * ndim];
         let mut count = vec![0usize; k];
+        // Walk voxels in flat order, tracking the multi-index with an odometer
+        // (innermost axis fastest) instead of decoding it with `ndim` divisions
+        // per voxel — same accumulation, no per-voxel division.
         let mut p = vec![0usize; ndim];
-        p.iter_mut().for_each(|x| *x = 0);
         for fi in 0..n {
-            // Recover multi-index from flat (row-major).
-            let mut rem = fi;
-            for d in 0..ndim {
-                p[d] = rem / stride[d];
-                rem %= stride[d];
-            }
             let ci = labels[fi] as usize;
             sum_i[ci] += data[fi] as f64;
             for d in 0..ndim {
                 sum_p[ci * ndim + d] += p[d] as f64;
             }
             count[ci] += 1;
+            // Increment the multi-index (row-major: last axis fastest).
+            let mut d = ndim;
+            while d > 0 {
+                d -= 1;
+                p[d] += 1;
+                if p[d] < shape[d] {
+                    break;
+                }
+                p[d] = 0;
+            }
         }
         for ci in 0..k {
             if count[ci] == 0 {
