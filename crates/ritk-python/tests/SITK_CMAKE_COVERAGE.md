@@ -7,6 +7,9 @@ that drive SimpleITK's generated cmake tests
 Regenerate with `tests/_gen_sitk_coverage.py`.
 
 **288 / 298 covered** by a ritk differential parity test (10 not yet covered).
+3 of those 10 are absent from this SimpleITK build (no oracle exists here), so the
+**achievable ceiling in this environment is 295/298** — current coverage is
+288/295 (97.6%) of what is validatable here.
 
 ## Covered (288)
 
@@ -14,10 +17,27 @@ Abs, AbsoluteValueDifference, Acos, AdaptiveHistogramEqualization, AdditiveGauss
 
 ## Not yet covered (10)
 
-Most are filter families not implemented in ritk (label-map algebra, complex-FFT
-component ops, level-set/demons registration variants, image sources, object-
-morphology, projection variants). A minority are implemented but compared against
-a non-sitk oracle (FFT vs numpy; noise filters are non-deterministic; ritk
-`Shrink` is a box-mean = sitk `BinShrink`, not sitk `Shrink`).
+These split into two genuinely distinct buckets.
 
-AntiAliasBinary, CannySegmentationLevelSet, CoherenceEnhancingDiffusion, ContourExtractor2D, InverseDisplacementField, IsolatedWatershed, LevelSetMotionRegistration, PatchBasedDenoising, SLIC, ScalarChanAndVeseDenseLevelSet
+**Absent from this SimpleITK build (3) — uncoverable here at any effort.** No
+`sitk.<Name>` exists to diff against (verified via `hasattr(sitk, ...) == False`),
+so the achievable ceiling in this environment is **295/298**, not 298:
+
+- CoherenceEnhancingDiffusion (ritk *has* `coherence_enhancing_diffusion`, but
+  sitk lacks the filter here), ContourExtractor2D, LevelSetMotionRegistration.
+
+**In sitk but unimplemented in ritk / not bit-reproducible (7).** Each probed
+with source + live experiments:
+
+- Multi-class ITK level-set/iterative framework ports ritk does not implement:
+  AntiAliasBinary + CannySegmentationLevelSet (SparseFieldLevelSet narrow-band),
+  ScalarChanAndVeseDenseLevelSet (dense level set; ritk's `chan_vese` is a
+  *different* algorithm — Dice 1.0 vs sitk's 0.0, does not correspond),
+  PatchBasedDenoising (iterative patch search).
+- InverseDisplacementField (ThinPlateSpline + `vnl_svd` — continuous SVD output,
+  not bit-reproducible across linear-algebra libraries).
+- IsolatedWatershed (binary-searches ITK's hierarchical `WatershedImageFilter`
+  level; ritk's `watershed_segment` exposes no level parameter — demonstrated
+  that substituting MorphologicalWatershed diverges completely).
+- SLIC (ritk has a generic Achanta variant, not ITK's `SLICImageFilter`; not
+  Python-bound; iterative k-means anyway).
