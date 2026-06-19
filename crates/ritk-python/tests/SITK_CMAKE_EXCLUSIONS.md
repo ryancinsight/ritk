@@ -47,12 +47,20 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   neighVal)·spacingⱼ`, linear interpolation along each grid line), then `FastMarchingImageFilter` (which
   ritk ships, `filter.fast_marching`) propagates from the outside crossing points (→ +distance where
   `value−level>0`) and inside points (→ −distance where `value−level≤0`). Verified ≤1e-4 vs sitk on a scaled sphere level set, reusing the shipped fast-marching + a crossing extractor (`reinitialize_level_set.rs`).
-- **AntiAliasBinary, BinaryMinMaxCurvatureFlow, MinMaxCurvatureFlow, CannySegmentationLevelSet,
-  ScalarChanAndVeseDenseLevelSet, LevelSetMotionRegistration,
-  PatchBasedDenoising** — genuinely iterative PDE / level-set solvers whose per-step floating-point
-  accumulation compounds; not bit-exact across independent implementations. (After the RNG and
-  ReinitializeLevelSet corrections, each should be re-verified as truly iterative — some may likewise be
-  deterministic distance/FastMarching compositions.)
+- **MinMaxCurvatureFlow, BinaryMinMaxCurvatureFlow** — RECLASSIFIED reachable (Sprint 493). PROOF the
+  iterative curvature scheme IS reproducible: ritk's `filter.curvature_flow` already matches
+  `sitk.CurvatureFlow` to 1.16e-5 (covered). MinMaxCurvatureFlow = the SAME iteration with a per-voxel
+  speed clamp: `update = CurvatureFlow update`; compute `threshold` = average of the neighborhood on the
+  plane perpendicular to ∇ at distance `StencilRadius` (default 2); `avg = ⟨neighborhood, sphereStencil⟩`;
+  return `max(update,0)` if `avg<threshold` else `min(update,0)`. Deterministic — reachable by extending
+  ritk's curvature-flow iteration with the stencil/threshold/clamp (`MinMaxCurvatureFlowFunction`).
+  Binary variant thresholds the result. Scoped next target (the ComputeThreshold perpendicular-plane
+  search is the fiddly part).
+- **AntiAliasBinary, CannySegmentationLevelSet, ScalarChanAndVeseDenseLevelSet, LevelSetMotionRegistration,
+  PatchBasedDenoising** — iterative PDE / level-set solvers whose per-step floating-point accumulation
+  compounds; not bit-exact across independent implementations. (Each still warrants an ITK-source check —
+  given CurvatureFlow reproduces and ReinitializeLevelSet was deterministic, "level set" in the name is
+  not proof of non-reproducibility.)
 - **DiffeomorphicDemonsRegistration, FastSymmetricForcesDemonsRegistration,
   SymmetricForcesDemonsRegistration** — iterative deformable registration; non-reproducible.
 
