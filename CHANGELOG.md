@@ -1,6 +1,56 @@
 # CHANGELOG
 
-## [Unreleased] — Sprint 379 Python Binding Gap Closure & SimpleITK Parity
+## [Unreleased] — Sprint 380 Performance, Stub Closure & SimpleITK cmake Test Expansion
+
+### Performance
+- `ritk-filter`: `euclidean_dt` phases 1 and 2 parallelized via moirai. Phase 1
+  (X-pass) distributes `nz·ny` contiguous X-rows over threads; Phase 2 (Y-pass)
+  distributes `nz` z-slices, each processing `nx` Y-columns with per-thread
+  scratch buffers. Phase 3 (Z-pass) remains serial (Z-columns are non-contiguous
+  in z-major memory). Output bit-identical. Accelerates `DistanceTransformImageFilter`,
+  `SignedDistanceTransformImageFilter`, and `ApproximateSignedDistanceMapFilter`.
+- `ritk-filter`: `LabelDilateFilter` and `LabelErosionFilter` inner loops
+  parallelized via moirai z-slice chunks with `zz_buf`/`yy_buf` clamp hoists
+  (median_3d pattern). Bit-exact. `LabelOpening`/`LabelClosing` gain double the
+  speedup as they compose two serial passes each.
+- `ritk-filter`: `FastChamferDistanceFilter::offsets()` heap-allocating function
+  eliminated; replaced with `FWD_NEIGHBOURS` and `BWD_NEIGHBOURS` const slice
+  references (13 entries each). Removes two `Vec` allocations per `run()` call.
+
+### Fixed
+- `ritk-python`: `filter.pyi` — Added stubs for `reinitialize_level_set` and
+  `bitwise_not`; closes binding-visibility gap from concurrent-agent commits
+  59b19329 (ReinitializeLevelSet) and 78521373 (BitwiseNot). `segmentation.pyi`
+  — Added stubs for `label_set_dilate`, `label_set_erode` (LabelSetMorph
+  functions bound in concurrent-agent commits).
+- `test_smoke.py`: Updated required filter and segmentation function lists to
+  include all newly-bound functions (`reinitialize_level_set`, `bitwise_not`,
+  `label_set_dilate`, `label_set_erode`, `merge_label_map`, `relabel_label_map`).
+- `test_simpleitk_cmake_data.py`: Wrapped `sitk.ErodeObjectMorphology` call in
+  `SetGlobalDefaultNumberOfThreads(1)` to prevent ITK data race (#4969).
+
+### Added (tests)
+- `test_cmake_signed_maurer_distance_map_outside_positive`: Pearson ≥ 0.98
+  between ritk `signed_distance_map` and sitk `SignedMaurerDistanceMap(isP=False)`;
+  both use negative-inside/positive-outside convention.
+- `test_cmake_landweber_deconvolution_parametrized[iter1_a01|iter5_a01|iter1_a005]`:
+  Interior rel < 0.1 for all 3 parameter combinations.
+- `test_cmake_wiener_deconvolution_parametrized[nv0|nv1e-3|nv1e-2]`: Non-regression
+  (non-NaN, non-Inf, non-constant); documents known parameter-semantic divergence.
+- `test_cmake_tikhonov_deconvolution_parametrized[reg0|reg1e-3|reg1e-2]`:
+  Pearson ≥ 0.30 for reg > 0; non-trivial at reg = 0.
+- `test_cmake_richardson_lucy_deconvolution_parametrized[iter1|iter5|iter10]`:
+  Interior rel < 0.25 for all iteration counts.
+
+### Documentation
+- `backlog.md`: Added PERF-380-04 (EDT Phase 3 parallelism, deferred),
+  PERF-380-05 (separable_box_3d moirai), GAP-380-01 (Wiener parameter semantics).
+- `checklist.md`: Sprint 380 header with full delivery checklist.
+
+---
+
+## [0.12.78] — Sprint 379 Python Binding Gap Closure & SimpleITK Parity
+
 
 ### Fixed
 - `ritk-python`: Root-cause of stale `.pyd` in pytest identified — `uv run pytest` resolves

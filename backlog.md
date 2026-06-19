@@ -6,6 +6,17 @@
 
 ## Open performance items
 
+- **PERF-380-04 [patch] — euclidean_dt Phase 3 Z-column parallelism.**
+  Phases 1+2 now parallel (Sprint 380). Phase 3 (Z-columns have stride ny·nx in
+  z-major layout) requires a transposed intermediate buffer to make writes
+  contiguous. Reopen when a >256³ EDT workload justifies the transposition overhead.
+
+- **PERF-380-05 [patch] — separable_box_3d moirai parallelism.**
+  Three serial axis passes for grayscale morphology (dilation, erosion, all
+  derived operations). Each X/Y/Z pass has embarrassingly parallel rows/columns.
+  Would accelerate GrayscaleDilate, GrayscaleErode, Opening, Closing, TopHat,
+  HMaxima/HMinima, GrayscaleGradient. Benchmark needed before merge.
+
 - **PERF-379-01 [patch] — Deriche recursive-Gaussian cross-line parallelism. DONE.**
   `iir::apply_deriche_1d` now parallelises the X/Y passes across Z-slices via
   `moirai::for_each_chunk_mut` (contiguous `nyx` chunks, one `LineScratch` per
@@ -15,6 +26,20 @@
   strided) remains serial — residual headroom (transpose / multi-line ILP).
 
 ---
+
+## Gap items
+
+- **GAP-380-01 [patch] — Wiener deconvolution parameter-semantic investigation.**
+  ritk `filter.wiener_deconvolution(image, kernel, noise_to_signal)` and
+  sitk `WienerDeconvolution(image, kernel, noiseVariance)` appear to parameterise
+  the same Wiener filter with incompatible units (ratio vs absolute power).
+  Measured Pearson ≈ 0 for all tested values. Root-cause: examine ritk's Wiener
+  implementation in `crates/ritk-filter/src/` and compare against ITK's
+  `WienerDeconvolutionImageFilter`. Either align the parameter semantics or
+  document as a permanent divergence with a clear API note.
+
+---
+
 
 ## Sprint 377 — Performance Review, Memory Efficiency & Carry-Forward Reconciliation
 
