@@ -81,8 +81,17 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   √(ΣI² − (ΣI)²/N)` over the ZeroFluxNeumann neighbourhood. The earlier non-convergence was for lack of
   ITK's exact functor (the `k` scaling and the local-energy denominator); verified ≤1e-4 vs sitk
   (full + partial mask). The mask must be cast to float32 for `sitk.NormalizedCorrelation`.
-- **MaskedFFTNormalizedCorrelation** — Padfield masked NCC via multiple FFTs (no mask support
-  in ritk's FFT NCC yet).
+- **MaskedFFTNormalizedCorrelation** — the single remaining *genuinely reachable* filter (deterministic),
+  but it needs a new multi-FFT subsystem ritk lacks. Full algorithm understood from source
+  (`itk::MaskedFFTNormalizedCorrelationImageFilter`, Padfield 2012): rotate the moving image+mask 180°;
+  via ~10 FFTs at an FFTPad good-size (only 2/3/5 prime factors ≥ N₁+N₂−1) compute
+  `numberOfOverlapPixels = round(IFFT(M̂f·M̂t))` (positive-clamped), `numerator = IFFT(F̂·T̂) −
+  IFFT(F̂·M̂t)·IFFT(M̂f·T̂)/overlap`, fixed/moving denominator parts from `IFFT(F̂²·M̂t)` and
+  `IFFT(M̂f·T̂²)` minus their mask-correlation² /overlap, `denominator = √(fixedPart·movingPart)`,
+  `NCC = numerator/denominator` post-processed (0 where `denominator < precisionTolerance` or
+  `overlap < requiredOverlap`; clamp to [−1, 1]). The "full" output layout (size N₁+N₂−1) and the
+  CalculatePrecisionTolerance gating must match exactly. Scoped as a dedicated multi-turn port — not
+  rushed, since a wrong FFTPad size or tolerance would defeat bit-exactness.
 
 ## Approximate by design (not bit-exact)
 
