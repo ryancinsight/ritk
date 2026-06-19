@@ -79,11 +79,22 @@ all 10 levels (0.0–1.0) across 6 images** (sym7x7 + 5 random):
    Stop when the lowest remaining saliency `> level`.
 5. **Level** is the absolute saliency threshold (sitk's `level` param directly;
    for the normalized form `m_FloodLevel·MaxDepth`).
-REMAINING: only fine **partition tie-breaking** (same segment count, slightly
-different basin grouping / watershed-line pixels) when edges share equal saliency
-— needs ITK's exact immersion FIFO order + merge tie order. The hard part (the
-saliency definition) is solved; this de-risks the port to: regional-minima +
-immersion + this dynamic merge + tie-break + IsolatedWatershed binary search.
+Immersion is EXACT (level-0 partition matches fully across all images); only the
+MERGE tie order for equal saliencies remains. Source-pinned: ITK's per-segment
+saliency = `edge_list.front().height − segment.min` (lowest saddle − own min;
+min over the two directions = `saddle − max(both mins)` = the formula above), and
+the heap comparator `merge_comp` is `b.saliency < a.saliency` — **saliency-only,
+NO secondary tie-break key** (`itkWatershedSegmentTree.h:85`). So equal-saliency
+merges resolve by `std::make_heap`/`pop_heap` equal-element order on
+segment-label-ordered insertion (`CompileMergeList` iterates in label order) —
+deterministic but libstdc++-heap-specific.
+REMAINING for full MorphologicalWatershed partition parity: replicate that heap
+equal-element order. **For IsolatedWatershed specifically** the tie order rarely
+matters — it only needs whether seed1/seed2 share a merged group at the
+binary-searched level, robust to equal-saliency ties except at exact-tie seed
+saliencies. So the port path: regional-minima + immersion + dynamic merge
+(validated) + binary search over level until seeds separate + label seed1=1,
+seed2=2, rest=0. The hard part (saliency) is solved and validated.
 
 **No closed-form shortcut for the raw Segmenter** (`itkWatershedSegmenter.hxx`, 1315 lines):
 `MaxDepth = maximum − minimum` (intensity range), but the per-edge saliency
