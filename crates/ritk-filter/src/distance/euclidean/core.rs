@@ -164,50 +164,75 @@ pub(crate) fn euclidean_dt(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> 
     let [sz, sy, sx] = spacing;
     let n_total = nz * ny * nx;
 
-    // Pre-allocate scratch buffers (one allocation each, reused across all iterations)
-    let max_col = ny.max(nz);
-    let mut col_buf = vec![0.0f64; max_col];
-    let mut dt_buf = vec![0.0f64; max_col];
-    let mut s_stack = vec![0isize; max_col];
-    let mut t_stack = vec![0isize; max_col];
-    let mut phase1_buf = vec![0.0f64; nx];
-
-    // Phase 1: 1-D DT along X for each (iz, iy) row
+    // Phase 1: 1-D DT along X for each (iz, iy) row — parallel over rows.
+    //
+    // Each (iz, iy) row is an independent nx-element contiguous chunk of g1:
+    // chunk_idx = iz * ny + iy, so iz = chunk_idx / ny, iy = chunk_idx % ny.
+    //
+    // Safety: `fg` is `&[bool]` (Sync); each closure writes to a disjoint
+    // nx-element chunk of g1 — no aliasing across threads.
     let mut g1 = vec![INF; n_total];
-    for iz in 0..nz {
-        for iy in 0..ny {
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut g1,
+        nx,
+        |chunk_idx, out_chunk| {
+            let iz = chunk_idx / ny;
+            let iy = chunk_idx % ny;
             let base = iz * ny * nx + iy * nx;
-            // fg row is contiguous — pass the slice directly, no allocation
             let row = &fg[base..(base + nx)];
+            let mut phase1_buf = vec![0.0f64; nx];
             phase1_row(row, nx, sx, &mut phase1_buf);
-            g1[base..(base + nx)].copy_from_slice(&phase1_buf[..nx]);
-        }
-    }
+            out_chunk.copy_from_slice(&phase1_buf[..nx]);
+        },
+    );
 
-    // Phase 2: parabolic envelope along Y for each (iz, ix) column
+    // Phase 2: parabolic envelope along Y for each (iz, ix) column — parallel over z-slices.
+    //
+    // Each z-slice is an independent ny*nx-element contiguous chunk of g2:
+    // chunk_idx = iz; within the closure all nx Y-columns for that slice are processed.
+    //
+    // Safety: `g1` is `&[f64]` (Sync); each closure writes to a disjoint
+    // ny*nx-element chunk of g2 — no aliasing across threads.
     let mut g2 = vec![INF; n_total];
-    for iz in 0..nz {
-        for ix in 0..nx {
-            // Gather column into pre-allocated buffer
-            for iy in 0..ny {
-                col_buf[iy] = g1[iz * ny * nx + iy * nx + ix];
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut g2,
+        ny * nx,
+        |iz, out_slice| {
+            let mut col_buf = vec![0.0f64; ny];
+            let mut dt_buf = vec![0.0f64; ny];
+            let mut s_stack = vec![0isize; ny];
+            let mut t_stack = vec![0isize; ny];
+            for ix in 0..nx {
+                // Gather Y-column from g1 for this (iz, ix)
+                for iy in 0..ny {
+                    col_buf[iy] = g1[iz * ny * nx + iy * nx + ix];
+                }
+                meijster_row(
+                    &col_buf[..ny],
+                    ny,
+                    sy,
+                    &mut s_stack,
+                    &mut t_stack,
+                    &mut dt_buf,
+                );
+                // Scatter results into this z-slice's output chunk
+                for iy in 0..ny {
+                    out_slice[iy * nx + ix] = dt_buf[iy];
+                }
             }
-            meijster_row(
-                &col_buf[..ny],
-                ny,
-                sy,
-                &mut s_stack,
-                &mut t_stack,
-                &mut dt_buf,
-            );
-            // Scatter results back
-            for iy in 0..ny {
-                g2[iz * ny * nx + iy * nx + ix] = dt_buf[iy];
-            }
-        }
-    }
+        },
+    );
 
-    // Phase 3: parabolic envelope along Z for each (iy, ix) column
+    // Phase 3: parabolic envelope along Z for each (iy, ix) column — serial.
+    //
+    // Z-columns have stride ny*nx in z-major memory, so there is no disjoint
+    // contiguous-chunk layout for parallel writes without a transposed
+    // intermediate buffer. Parallelisation here would require transposing g2
+    // to a layout where each Z-column is contiguous before the sweep.
+    let mut col_buf = vec![0.0f64; nz];
+    let mut dt_buf = vec![0.0f64; nz];
+    let mut s_stack = vec![0isize; nz];
+    let mut t_stack = vec![0isize; nz];
     let mut edt2 = vec![INF; n_total];
     for iy in 0..ny {
         for ix in 0..nx {

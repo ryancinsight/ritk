@@ -1081,3 +1081,21 @@ def dicom_orient(image: Image, orientation: str) -> Image:
     """Reorient image to the specified DICOM orientation code (e.g. 'LPS', 'RAS').
     Performs a signed axis permutation — no resampling. ITK Parity: DICOMOrientImageFilter."""
     ...
+
+def reinitialize_level_set(image: Image, level_set_value: float = 0.0) -> Image:
+    """Reinitialize a level-set image to a signed distance function.
+    Deterministic: zero-crossing extractor + fast marching (NOT an iterative PDE).
+    ITK Parity: ReinitializeLevelSetImageFilter."""
+    ...
+
+def bitwise_not(
+    image: Image,
+    bits: int = 8,
+    signed: bool = False,
+) -> Image:
+    """Bitwise complement of an integer image represented as f32.
+    For unsigned width `bits`: result = (2^bits - 1) - round(x).
+    For signed two's complement: result = -round(x) - 1.
+    Bit-exact to sitk.BitwiseNot for uint8/uint16/int16.
+    ITK Parity: BitwiseNotImageFilter."""
+    ...

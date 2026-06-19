@@ -316,6 +316,8 @@ def test_filter_public_functions_exist():
         "approximate_signed_distance_map",
         "normalized_correlation",
         "masked_fft_normalized_correlation",
+        "reinitialize_level_set",
+        "bitwise_not",
     ]
     missing = [fn for fn in required if not callable(getattr(rf, fn, None))]
     assert not missing, f"Missing callable functions in ritk.filter: {missing}"
@@ -368,6 +370,10 @@ def test_segmentation_public_functions_exist():
         "morphological_watershed",
         "threshold_maximum_connected_components",
         "multi_label_staple",
+        "label_set_dilate",
+        "label_set_erode",
+        "merge_label_map",
+        "relabel_label_map",
     ]
     missing = [fn for fn in required if not callable(getattr(rs, fn, None))]
     assert not missing, f"Missing callable functions in ritk.segmentation: {missing}"

@@ -46,28 +46,45 @@ impl Default for FastChamferDistanceFilter {
     }
 }
 
-/// Forward/backward neighbour offsets `(dz, dy, dx, weight)` for the chamfer sweep.
-fn offsets() -> (Vec<Neighbour>, Vec<Neighbour>) {
-    let (mut fwd, mut bwd) = (Vec::new(), Vec::new());
-    for dz in -1i64..=1 {
-        for dy in -1i64..=1 {
-            for dx in -1i64..=1 {
-                let lin = (dz + 1) * 9 + (dy + 1) * 3 + (dx + 1);
-                if lin == 13 {
-                    continue;
-                }
-                let class = (dz.abs() + dy.abs() + dx.abs()) as usize - 1;
-                let entry = (dz, dy, dx, WEIGHTS[class]);
-                if lin > 13 {
-                    fwd.push(entry);
-                } else {
-                    bwd.push(entry);
-                }
-            }
-        }
-    }
-    (fwd, bwd)
-}
+/// Forward neighbour offsets (linear index > 13 in the 3×3×3 kernel).
+///
+/// Each entry is `(dz, dy, dx, weight)`. Linear index: `(dz+1)*9 + (dy+1)*3 + (dx+1)`.
+/// Class: `|dz|+|dy|+|dx| - 1`; weights `[face=0.92644, edge=1.34065, corner=1.65849]`.
+const FWD_NEIGHBOURS: &[Neighbour] = &[
+    (0, 0, 1, 0.92644),   // lin=14 face  class=0
+    (0, 1, -1, 1.34065),  // lin=15 edge  class=1
+    (0, 1, 0, 0.92644),   // lin=16 face  class=0
+    (0, 1, 1, 1.34065),   // lin=17 edge  class=1
+    (1, -1, -1, 1.65849), // lin=18 corner class=2
+    (1, -1, 0, 1.34065),  // lin=19 edge  class=1
+    (1, -1, 1, 1.65849),  // lin=20 corner class=2
+    (1, 0, -1, 1.34065),  // lin=21 edge  class=1
+    (1, 0, 0, 0.92644),   // lin=22 face  class=0
+    (1, 0, 1, 1.34065),   // lin=23 edge  class=1
+    (1, 1, -1, 1.65849),  // lin=24 corner class=2
+    (1, 1, 0, 1.34065),   // lin=25 edge  class=1
+    (1, 1, 1, 1.65849),   // lin=26 corner class=2
+];
+
+/// Backward neighbour offsets (linear index < 13 in the 3×3×3 kernel).
+///
+/// Each entry is `(dz, dy, dx, weight)`. Linear index: `(dz+1)*9 + (dy+1)*3 + (dx+1)`.
+/// Class: `|dz|+|dy|+|dx| - 1`; weights `[face=0.92644, edge=1.34065, corner=1.65849]`.
+const BWD_NEIGHBOURS: &[Neighbour] = &[
+    (-1, -1, -1, 1.65849), // lin=0  corner class=2
+    (-1, -1, 0, 1.34065),  // lin=1  edge   class=1
+    (-1, -1, 1, 1.65849),  // lin=2  corner class=2
+    (-1, 0, -1, 1.34065),  // lin=3  edge   class=1
+    (-1, 0, 0, 0.92644),   // lin=4  face   class=0
+    (-1, 0, 1, 1.34065),   // lin=5  edge   class=1
+    (-1, 1, -1, 1.65849),  // lin=6  corner class=2
+    (-1, 1, 0, 1.34065),   // lin=7  edge   class=1
+    (-1, 1, 1, 1.65849),   // lin=8  corner class=2
+    (0, -1, -1, 1.34065),  // lin=9  edge   class=1
+    (0, -1, 0, 0.92644),   // lin=10 face   class=0
+    (0, -1, 1, 1.34065),   // lin=11 edge   class=1
+    (0, 0, -1, 0.92644),   // lin=12 face   class=0
+];
 
 impl FastChamferDistanceFilter {
     /// Run the chamfer sweep over a signed field (modifies a copy of the values).
@@ -82,7 +99,6 @@ impl FastChamferDistanceFilter {
         let [nz, ny, nx] = dims;
         let md = self.maximum_distance as f32;
         let w0 = WEIGHTS[0];
-        let (fwd, bwd) = offsets();
         let idx = |z: usize, y: usize, x: usize| (z * ny + y) * nx + x;
 
         let n = nz * ny * nx;
@@ -124,8 +140,8 @@ impl FastChamferDistanceFilter {
             }
         };
 
-        sweep(false, &fwd);
-        sweep(true, &bwd);
+        sweep(false, FWD_NEIGHBOURS);
+        sweep(true, BWD_NEIGHBOURS);
     }
 }
 

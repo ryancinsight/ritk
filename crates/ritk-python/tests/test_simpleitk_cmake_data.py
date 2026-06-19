@@ -974,9 +974,15 @@ def test_cmake_erode_object_morphology_on_upstream_data(radius):
             np.float64,
         )
     )
-    s = sitk.GetArrayFromImage(
-        sitk.ErodeObjectMorphology(sm, [radius] * 3, sitk.sitkBox, 1.0, 0.0)
-    ).astype(np.float64)
+    # Configure SimpleITK to run with 1 thread to avoid the ITK multi-threading data race (Issue #4969)
+    old_threads = sitk.ProcessObject.GetGlobalDefaultNumberOfThreads()
+    try:
+        sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+        s = sitk.GetArrayFromImage(
+            sitk.ErodeObjectMorphology(sm, [radius] * 3, sitk.sitkBox, 1.0, 0.0)
+        ).astype(np.float64)
+    finally:
+        sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(old_threads)
     assert np.array_equal(r, s), "ErodeObjectMorphology differs from sitk"
 
 

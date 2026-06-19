@@ -61,42 +61,75 @@ impl LabelDilation {
 fn dilate_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let r = radius as isize;
-    let _n = nz * ny * nx;
+    let nz_isize = nz as isize;
+    let ny_isize = ny as isize;
+    let nx_isize = nx as isize;
     let mut out = data.to_vec();
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let idx = iz * ny * nx + iy * nx + ix;
-                // Only expand into background voxels
-                if data[idx] > 0.5 {
-                    continue;
+
+    // Parallelise over z-slices: each closure call owns a disjoint `ny*nx`
+    // chunk of `out`; `data` is captured read-only (Sync) and is safe to
+    // share across threads.
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut out,
+        ny * nx,
+        |iz, out_slice| {
+            // Stack-allocated clamp buffers — one clamped z-index per dz
+            // offset, computed once per z-slice. Eliminates a (2r+1)²-fold
+            // redundant clamp per voxel (matching the pattern in median_3d).
+            const BUF_CAP: usize = 64;
+            assert!(
+                2 * radius < BUF_CAP,
+                "LabelDilation: radius {radius} exceeds buffer cap (max 31)"
+            );
+            let mut zz_buf = [0usize; BUF_CAP];
+            #[allow(clippy::needless_range_loop)]
+            for dz in 0..=(2 * radius) {
+                let z_raw = (iz as isize + dz as isize - r).clamp(0, nz_isize - 1);
+                zz_buf[dz] = z_raw as usize;
+            }
+
+            for (iy, out_row) in out_slice.chunks_exact_mut(nx).enumerate() {
+                // Clamp buffer for the Y axis, hoisted once per y-row.
+                let mut yy_buf = [0usize; BUF_CAP];
+                #[allow(clippy::needless_range_loop)]
+                for dy in 0..=(2 * radius) {
+                    let y_raw = (iy as isize + dy as isize - r).clamp(0, ny_isize - 1);
+                    yy_buf[dy] = y_raw as usize;
                 }
-                let mut min_label: f32 = 0.0;
-                for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            let (zz, yy, xx) =
-                                (iz as isize + dz, iy as isize + dy, ix as isize + dx);
-                            if zz < 0
-                                || zz >= nz as isize
-                                || yy < 0
-                                || yy >= ny as isize
-                                || xx < 0
-                                || xx >= nx as isize
-                            {
-                                continue;
-                            }
-                            let v = data[zz as usize * ny * nx + yy as usize * nx + xx as usize];
-                            if v > 0.5 && (min_label < 0.5 || v < min_label) {
-                                min_label = v;
+
+                for (ix, cell) in out_row.iter_mut().enumerate() {
+                    // Only expand into background voxels.
+                    if data[iz * ny * nx + iy * nx + ix] > 0.5 {
+                        continue;
+                    }
+                    let mut min_label: f32 = 0.0;
+                    // Clamped-coordinate inner scan: out-of-bounds offsets
+                    // repeat the nearest border voxel, which is always
+                    // background (since the voxel being processed is
+                    // background), so duplicates never change min_label.
+                    // Result is bit-identical to the original skip-OOB scan.
+                    #[allow(clippy::needless_range_loop)]
+                    for dz in 0..=(2 * radius) {
+                        let zz_base = zz_buf[dz] * ny * nx;
+                        #[allow(clippy::needless_range_loop)]
+                        for dy in 0..=(2 * radius) {
+                            let base = zz_base + yy_buf[dy] * nx;
+                            for dx in 0..=(2 * radius) {
+                                let xx =
+                                    (ix as isize + dx as isize - r).clamp(0, nx_isize - 1) as usize;
+                                let v = data[base + xx];
+                                if v > 0.5 && (min_label < 0.5 || v < min_label) {
+                                    min_label = v;
+                                }
                             }
                         }
                     }
+                    *cell = min_label;
                 }
-                out[idx] = min_label;
             }
-        }
-    }
+        },
+    );
+
     out
 }
 
@@ -152,44 +185,59 @@ impl LabelErosion {
 fn erode_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let r = radius as isize;
+    let nz_isize = nz as isize;
+    let ny_isize = ny as isize;
+    let nx_isize = nx as isize;
+    // Initialise output from data so unmodified voxels are preserved.
     let mut out = data.to_vec();
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let idx = iz * ny * nx + iy * nx + ix;
-                if data[idx] < 0.5 {
-                    continue; // background stays background
-                }
-                let mut eroded = false;
-                'outer: for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            let (zz, yy, xx) =
-                                (iz as isize + dz, iy as isize + dy, ix as isize + dx);
-                            if zz < 0
-                                || zz >= nz as isize
-                                || yy < 0
-                                || yy >= ny as isize
-                                || xx < 0
-                                || xx >= nx as isize
-                            {
-                                eroded = true;
-                                break 'outer;
-                            }
-                            let v = data[zz as usize * ny * nx + yy as usize * nx + xx as usize];
-                            if v < 0.5 {
-                                eroded = true;
-                                break 'outer;
+
+    // Parallelise over z-slices. The inner neighborhood scan intentionally
+    // preserves OOB-triggers-erosion semantics: a labeled voxel whose cubic
+    // neighborhood extends outside the volume is always eroded (border
+    // erosion). Clamping would suppress that behavior, so bounds-checking
+    // is kept in the inner loop to guarantee bit-identical output.
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut out,
+        ny * nx,
+        |iz, out_slice| {
+            for (iy, out_row) in out_slice.chunks_exact_mut(nx).enumerate() {
+                for (ix, cell) in out_row.iter_mut().enumerate() {
+                    if data[iz * ny * nx + iy * nx + ix] < 0.5 {
+                        continue; // background stays background
+                    }
+                    let mut eroded = false;
+                    'outer: for dz in -r..=r {
+                        for dy in -r..=r {
+                            for dx in -r..=r {
+                                let (zz, yy, xx) =
+                                    (iz as isize + dz, iy as isize + dy, ix as isize + dx);
+                                if zz < 0
+                                    || zz >= nz_isize
+                                    || yy < 0
+                                    || yy >= ny_isize
+                                    || xx < 0
+                                    || xx >= nx_isize
+                                {
+                                    eroded = true;
+                                    break 'outer;
+                                }
+                                let v =
+                                    data[zz as usize * ny * nx + yy as usize * nx + xx as usize];
+                                if v < 0.5 {
+                                    eroded = true;
+                                    break 'outer;
+                                }
                             }
                         }
                     }
-                }
-                if eroded {
-                    out[idx] = 0.0;
+                    if eroded {
+                        *cell = 0.0;
+                    }
                 }
             }
-        }
-    }
+        },
+    );
+
     out
 }
 
