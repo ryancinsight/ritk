@@ -54,9 +54,13 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   after fixing ritk's `MarkerControlledWatershed` to match ITK exactly (collision
   non-propagation + hierarchical-FIFO flooding; the divergence was ~5.5 % of watershed-line
   voxels on complex reliefs, now 0).
-- **IsolatedWatershed** remains uncovered: it is the *isolated*-watershed variant (binary-search
-  the flooding level that separates two seeds), not the marker-less filter — needs its own
-  bisection over the marker-watershed, deferred.
+- **IsolatedWatershed** — investigated to source and reclassified as **not bit-exact reproducible**:
+  `itk::IsolatedWatershedImageFilter` binary-searches the `Level` of `itk::WatershedImageFilter`
+  (Vincent–Soille hierarchical *segmentation* — a saliency merge-tree over flooded basins, NOT ritk's
+  marker/Meyer flooding) until two seeds separate, then relabels. The basin labeling and merge order of
+  that watershed are implementation-specific (order-sensitive, like Toboggan), so a different watershed
+  engine cannot reproduce the seed labels — and the binary search amplifies any divergence. Needs an
+  exact ITK WatershedImageFilter port, which is not bit-reproducible.
 
 ## Label-map / vector-image types ritk lacks
 
