@@ -41,10 +41,19 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
 
 ## Iterative / non-bit-exact convergence
 
+- **ReinitializeLevelSet** — RECLASSIFIED reachable (Sprint 493): it is NOT an iterative PDE. ITK's
+  `ReinitializeLevelSetImageFilter` is deterministic — a `LevelSetNeighborhoodExtractor` finds the
+  zero-crossing voxels with sub-pixel trial value `1/√(Σⱼ 1/distⱼ²)` (`distⱼ = centerVal/(centerVal −
+  neighVal)·spacingⱼ`, linear interpolation along each grid line), then `FastMarchingImageFilter` (which
+  ritk ships, `filter.fast_marching`) propagates from the outside crossing points (→ +distance where
+  `value−level>0`) and inside points (→ −distance where `value−level≤0`). Reachable via the shipped
+  fast-marching + a ~40-line crossing-extractor port. Scoped next target.
 - **AntiAliasBinary, BinaryMinMaxCurvatureFlow, MinMaxCurvatureFlow, CannySegmentationLevelSet,
-  ScalarChanAndVeseDenseLevelSet, ReinitializeLevelSet, LevelSetMotionRegistration,
-  PatchBasedDenoising** — iterative PDE / level-set solvers whose per-step floating-point
-  accumulation compounds; not bit-exact across independent implementations.
+  ScalarChanAndVeseDenseLevelSet, LevelSetMotionRegistration,
+  PatchBasedDenoising** — genuinely iterative PDE / level-set solvers whose per-step floating-point
+  accumulation compounds; not bit-exact across independent implementations. (After the RNG and
+  ReinitializeLevelSet corrections, each should be re-verified as truly iterative — some may likewise be
+  deterministic distance/FastMarching compositions.)
 - **DiffeomorphicDemonsRegistration, FastSymmetricForcesDemonsRegistration,
   SymmetricForcesDemonsRegistration** — iterative deformable registration; non-reproducible.
 
