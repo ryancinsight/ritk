@@ -1,6 +1,6 @@
 # SimpleITK cmake-coverage: investigated exclusions
 
-Per-filter reasons the **27 still-uncovered** SimpleITK cmake filters are not booked
+Per-filter reasons the **26 still-uncovered** SimpleITK cmake filters are not booked
 as ritk parity. Each was probed against sitk and found to have a genuine
 algorithmic / determinism / type-system difference, or a binding-surface blocker —
 not a fixable bit-exact composition. No approximate or partial-parameter parity is
@@ -30,8 +30,11 @@ IsolatedConnected — have been removed. The `Warp` geometry divergence is **res
   `1812433253·(s^(s>>30))+i`, twist M=397, temper, `GetVariate = int/(2³²−1)`), with the two-draw logic
   (`if v<prob { if v<0.5 salt else pepper }`) and `salt/pepper = ±f32::MAX`. `array_equal` to
   `sitk.SaltAndPepperNoise` single-threaded across 3 prob/seed cases.
-- **ShotNoise, SpeckleNoise** remain uncovered but are reachable: Shot uses Poisson variates, Speckle uses
-  Normal·input (FastNorm, already ported) — scoped follow-ups, same single-region constraint.
+- **SpeckleNoise** is now shipped float-exact (`filter.speckle_noise`): multiplicative Gamma(mean 1, var
+  std²) via Marsaglia–Tsang acceptance–rejection over ITK's MT19937 `GetVariateWithOpenUpperRange` stream;
+  integer-shape (delta=0) handled by IEEE `1/0→inf` exactly as ITK. ≤1e-3 vs sitk single-threaded.
+- **ShotNoise** remains uncovered but is reachable: Poisson variates (Knuth product for λ<50, Normal
+  approximation via FastNorm for λ≥50) over the same MT19937 — a scoped follow-up.
   (The deterministic local-noise *estimator* `Noise` is already covered.)
 
 ## Iterative / non-bit-exact convergence

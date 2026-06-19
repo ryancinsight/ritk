@@ -75,4 +75,11 @@ impl MersenneTwister {
     pub(crate) fn variate(&mut self) -> f64 {
         self.integer() as f64 * (1.0 / 4_294_967_295.0)
     }
+
+    /// Half-open uniform variate in `[0, 1)` (ITK `GetVariateWithOpenUpperRange`),
+    /// `int / 2³²`.
+    #[inline]
+    pub(crate) fn variate_open_upper(&mut self) -> f64 {
+        self.integer() as f64 / 4_294_967_296.0
+    }
 }

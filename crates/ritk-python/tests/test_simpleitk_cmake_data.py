@@ -1329,6 +1329,22 @@ def test_cmake_adaptive_histogram_equalization(alpha, beta):
     )
 
 
+@pytest.mark.parametrize("std,seed", [(0.3, 42), (0.5, 7), (0.7, 123)])
+def test_cmake_speckle_noise(std, seed):
+    """SpeckleNoise: multiplicative Gamma noise. ritk vs `sitk.SpeckleNoise`,
+    single-threaded. Float-exact — Marsaglia–Tsang gamma over ITK's MT19937
+    uniform stream. `std=0.5` exercises the integer-shape (delta=0) IEEE path."""
+    import numpy as _np
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+    img = (_np.arange(6 * 8, dtype=_np.float32).reshape(6, 8) + 1.0)
+    so = sitk.GetArrayFromImage(sitk.SpeckleNoise(sitk.GetImageFromArray(img), std, seed))
+    r = _np.squeeze(_np.asarray(ritk.filter.speckle_noise(
+        ritk.Image(_np.ascontiguousarray(img[None])), std, seed).to_numpy()))
+    assert r.shape == so.shape
+    assert float(_np.abs(r - so).max()) < 1e-3, \
+        f"SpeckleNoise differs (max {float(_np.abs(r - so).max())})"
+
+
 @pytest.mark.parametrize("prob,seed", [(0.2, 42), (0.4, 7), (0.05, 123)])
 def test_cmake_salt_and_pepper_noise(prob, seed):
     """SaltAndPepperNoise: ritk vs `sitk.SaltAndPepperNoise`, single-threaded.
