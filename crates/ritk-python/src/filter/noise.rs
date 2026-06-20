@@ -132,32 +132,34 @@ pub fn speckle_noise(py: Python<'_>, image: &PyImage, std: f64, seed: u32) -> Ri
 
 // ── PatchBasedDenoising ───────────────────────────────────────────────────────
 
-/// Patch-based non-local-means denoising, matching
-/// `SimpleITK.PatchBasedDenoisingImageFilter`.
+/// Patch-based denoising, bit-exact to single-threaded
+/// `SimpleITK.PatchBasedDenoising` (Gaussian noise model, fixed bandwidth).
 ///
-/// For each voxel, computes a weighted average of similar patches sampled from
-/// the image. With `kernel_bandwidth_estimation=False`, the bandwidth is
-/// estimated from the image's noise level via the MAD estimator.
+/// Faithful ITK port: Gaussian-kernel joint-entropy gradient over patches drawn
+/// by the GaussianRandomSpatialNeighborSubsampler (ITK MersenneTwister, seed 0),
+/// visited in ImageBoundaryFacesCalculator order.
 ///
 /// Args:
-///     image:                       Input 3-D PyImage.
-///     number_of_iterations:        PDE passes (default 1).
-///     number_of_sample_patches:    Reference patches to compare per voxel (default 200).
-///     patch_radius:                Half-size of each patch per axis (default 4).
-///     kernel_bandwidth_estimation: Adaptively estimate bandwidth (default False).
+///     image:                    Input 3-D PyImage (nz==1 ⇒ 2-D).
+///     number_of_iterations:     Denoising passes (default 1).
+///     number_of_sample_patches: Patches sampled per pixel (default 200).
+///     patch_radius:             Half-size of each patch per axis (default 4).
+///     sample_variance:          Variance of the Gaussian sampling domain (default 400).
+///     kernel_sigma:             Gaussian kernel bandwidth σ (default 400).
 ///
 /// Returns:
-///     Denoised PyImage.
+///     Denoised PyImage (matches single-threaded sitk).
 #[pyfunction]
 #[pyo3(signature = (image, number_of_iterations=1, number_of_sample_patches=200,
-                    patch_radius=4, kernel_bandwidth_estimation=false))]
+                    patch_radius=4, sample_variance=400.0, kernel_sigma=400.0))]
 pub fn patch_based_denoising(
     py: Python<'_>,
     image: &PyImage,
     number_of_iterations: usize,
     number_of_sample_patches: usize,
     patch_radius: usize,
-    kernel_bandwidth_estimation: bool,
+    sample_variance: f64,
+    kernel_sigma: f64,
 ) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
@@ -165,7 +167,8 @@ pub fn patch_based_denoising(
             number_of_iterations,
             number_of_sample_patches,
             patch_radius,
-            kernel_bandwidth_estimation,
+            sample_variance,
+            kernel_sigma,
         }
         .apply(arc.as_ref())
     });

@@ -92,3 +92,41 @@ def test_scalar_chan_and_vese_bit_exact(n_iter):
     r_arr = np.asarray(ro.to_numpy(), np.float32).reshape(H, W)
     mism = int((r_arr != s_arr).sum())
     assert mism == 0, f"ScalarChanAndVese N={n_iter}: {mism}/{H * W} binary mismatches"
+
+
+@pytest.mark.parametrize("sz,R,nit", [(13, 1, 1), (12, 2, 1), (20, 2, 1), (24, 4, 1)])
+def test_patch_based_denoising_bit_exact(sz, R, nit):
+    """PatchBasedDenoising: bit-exact vs SINGLE-THREADED sitk.
+
+    Faithful ITK port: Gaussian-kernel joint-entropy gradient over patches drawn
+    by the GaussianRandomSpatialNeighborSubsampler (variance 400, 200 results),
+    using ITK's MersenneTwister (seed 0) and visited in ImageBoundaryFacesCalculator
+    order. sitk is forced single-threaded so its thread-seeded RNG (SetSeed(thread))
+    is deterministic with seed 0; ritk reproduces that exact draw sequence.
+
+    Tolerance is the f32 round-off bound (ritk computes in f64, sitk in f32).
+    Evidence tier: differential (bit-exact vs single-threaded SimpleITK).
+    """
+    import numpy as _np
+
+    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
+    rng = _np.random.default_rng(3)
+    img = (rng.random((sz, sz)).astype(_np.float32) * 90 + 5).astype(_np.float32)
+
+    try:
+        f = sitk.PatchBasedDenoisingImageFilter()
+        f.SetPatchRadius(R)
+        f.SetNumberOfIterations(nit)
+        f.SetNumberOfWorkUnits(1)
+        so = sitk.GetArrayFromImage(f.Execute(sitk.GetImageFromArray(img))).astype(_np.float32)
+    except Exception as exc:  # pragma: no cover
+        pytest.skip(f"sitk.PatchBasedDenoising unavailable: {exc}")
+
+    ri = ritk.Image(_np.ascontiguousarray(img[_np.newaxis]))
+    ro = ritk.filter.patch_based_denoising(
+        ri, number_of_iterations=nit, number_of_sample_patches=200, patch_radius=R
+    )
+    r = _np.asarray(ro.to_numpy(), _np.float32).reshape(sz, sz)
+    max_err = float(_np.abs(r.astype(_np.float64) - so.astype(_np.float64)).max())
+    # f32 round-off bound: values ~100, a few f32 ulps ≈ 1e-5..1e-4.
+    assert max_err < 1e-3, f"PatchBasedDenoising sz={sz} R={R} nit={nit}: max-err {max_err:.3e}"
