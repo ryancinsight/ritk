@@ -120,29 +120,34 @@ pub(crate) fn compute_gradient_magnitude(data: &[f64], dims: [usize; 3]) -> Vec<
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let mut grad = vec![0.0_f64; n];
+    let slice_len = ny * nx;
 
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let i = iz * ny * nx + iy * nx + ix;
-                let zz = iz as isize;
-                let yy = iy as isize;
-                let xx = ix as isize;
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut grad,
+        slice_len,
+        |iz, grad_s| {
+            let zz = iz as isize;
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local = iy * nx + ix;
+                    let yy = iy as isize;
+                    let xx = ix as isize;
 
-                let dz = (data[idx_clamped(zz + 1, yy, xx, nz, ny, nx)]
-                    - data[idx_clamped(zz - 1, yy, xx, nz, ny, nx)])
-                    * 0.5;
-                let dy = (data[idx_clamped(zz, yy + 1, xx, nz, ny, nx)]
-                    - data[idx_clamped(zz, yy - 1, xx, nz, ny, nx)])
-                    * 0.5;
-                let dx = (data[idx_clamped(zz, yy, xx + 1, nz, ny, nx)]
-                    - data[idx_clamped(zz, yy, xx - 1, nz, ny, nx)])
-                    * 0.5;
+                    let dz = (data[idx_clamped(zz + 1, yy, xx, nz, ny, nx)]
+                        - data[idx_clamped(zz - 1, yy, xx, nz, ny, nx)])
+                        * 0.5;
+                    let dy = (data[idx_clamped(zz, yy + 1, xx, nz, ny, nx)]
+                        - data[idx_clamped(zz, yy - 1, xx, nz, ny, nx)])
+                        * 0.5;
+                    let dx = (data[idx_clamped(zz, yy, xx + 1, nz, ny, nx)]
+                        - data[idx_clamped(zz, yy, xx - 1, nz, ny, nx)])
+                        * 0.5;
 
-                grad[i] = (dz * dz + dy * dy + dx * dx).sqrt();
+                    grad_s[local] = (dz * dz + dy * dy + dx * dx).sqrt();
+                }
             }
-        }
-    }
+        },
+    );
 
     grad
 }
@@ -220,30 +225,6 @@ pub(crate) fn compute_field_gradient_into(
 }
 
 /// Upwind discretisation of the level-set advection term `∇a·∇φ`.
-///
-/// Returns, per voxel, `Σ_d (∂a/∂x_d) · D_upwind^d φ` where the φ difference along
-/// axis `d` is taken from the upwind side of the advection velocity `−∇a`
-/// (Osher & Sethian): a forward difference where `∂a/∂x_d > 0` and a backward
-/// difference where `∂a/∂x_d ≤ 0`. Boundaries clamp to the edge voxel.
-///
-/// The advection term transports the front (it is hyperbolic, not diffusive);
-/// central differencing of it is unconditionally unstable and lets the contour
-/// leak through edges. Callers add `+advection_weight · this` to `∂φ/∂t` so the
-/// front is pulled toward minima of `a` (image edges). Delegates to
-/// [`upwind_advection_into`].
-pub(crate) fn upwind_advection(
-    phi: &[f64],
-    dims: [usize; 3],
-    a_z: &[f64],
-    a_y: &[f64],
-    a_x: &[f64],
-) -> Vec<f64> {
-    let n = dims[0] * dims[1] * dims[2];
-    let mut adv = vec![0.0_f64; n];
-    upwind_advection_into(phi, dims, a_z, a_y, a_x, &mut adv);
-    adv
-}
-
 /// Upwind discretisation of `∇a·∇φ`, writing into a pre-allocated output buffer.
 ///
 /// `out` is resized to `nz·ny·nx` before writing. Parallelises over z-slices

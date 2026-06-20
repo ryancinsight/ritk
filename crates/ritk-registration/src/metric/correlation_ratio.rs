@@ -120,15 +120,15 @@ impl<B: Backend> CorrelationRatio<B> {
 
         if axis == 0 {
             // P(m|f) -> compute mean of m for each f
-            // Weighted sum: sum(hist * j)
-            let indices_2d = indices.unsqueeze_dim(0).repeat(&[num_bins, 1]); // [bins, bins]
+            // Weighted sum: sum(hist * j). Native broadcasting applies across dims.
+            let indices_2d = indices.unsqueeze_dim(0); // [1, bins]
             let weighted = jh.mul(indices_2d);
             let weighted_sum = weighted.sum_dim(1).squeeze::<1>(); // [bins]
 
             weighted_sum / safe_marginal.clone()
         } else {
             // Axis 1: Moving. E[X|Y=y].
-            let indices_2d = indices.unsqueeze_dim(1).repeat(&[1, num_bins]); // [bins, bins]
+            let indices_2d = indices.unsqueeze_dim(1); // [bins, 1]
             let weighted = jh.mul(indices_2d);
             let weighted_sum = weighted.sum_dim(0).squeeze::<1>();
 
@@ -158,13 +158,8 @@ impl<B: Backend> CorrelationRatio<B> {
 
         if axis == 0 {
             // Var(Y|X=x) = E[(Y - E[Y|X])^2 | X=x]
-            // Expand mean to [bins, bins] (repeat across cols)
-            let mean_2d = conditional_mean.unsqueeze_dim(1).repeat(&[1, num_bins]);
-
-            // Expand indices to [bins, bins] (0..N across cols)
-            let indices_2d = indices.unsqueeze_dim(0).repeat(&[num_bins, 1]);
-
-            let diff = indices_2d - mean_2d;
+            // Outer difference with native broadcasting: [1, bins] - [bins, 1] -> [bins, bins]
+            let diff = indices.unsqueeze_dim(0) - conditional_mean.unsqueeze_dim(1);
             let diff_sq = diff.powf_scalar(2.0);
 
             let weighted = diff_sq.mul(jh);
@@ -172,10 +167,9 @@ impl<B: Backend> CorrelationRatio<B> {
 
             sum_sq / safe_marginal.clone()
         } else {
-            let mean_2d = conditional_mean.unsqueeze_dim(0).repeat(&[num_bins, 1]);
-            let indices_2d = indices.unsqueeze_dim(1).repeat(&[1, num_bins]);
-
-            let diff = indices_2d - mean_2d;
+            // Var(X|Y=y) = E[(X - E[X|Y])^2 | Y=y]
+            // Outer difference with native broadcasting: [bins, 1] - [1, bins] -> [bins, bins]
+            let diff = indices.unsqueeze_dim(1) - conditional_mean.unsqueeze_dim(0);
             let diff_sq = diff.powf_scalar(2.0);
 
             let weighted = diff_sq.mul(jh);

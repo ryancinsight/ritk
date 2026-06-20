@@ -45,8 +45,9 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
         let fixed_indices = grid::generate_grid(fixed_shape, &device); // [N, D]
         let [n, _] = fixed_indices.dims();
 
-        // 2. Transform and interpolate with chunking to avoid WGPU dispatch limits
-        let moving_values = if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
+        // 2. Transform, interpolate, and accumulate squared differences chunk-by-chunk
+        // to avoid allocating massive concatenated tensors on the heap.
+        let sum_sq_diff = if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
             // Transform fixed indices to physical points
             let fixed_points = fixed.index_to_world_tensor(fixed_indices); // [N, D]
 
@@ -57,35 +58,39 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
             let moving_indices = moving.world_to_index_tensor(moving_points); // [N, D]
 
             // Sample moving image at moving_indices
-            self.interpolator.interpolate(moving.data(), moving_indices) // [N]
+            let m = self.interpolator.interpolate(moving.data(), moving_indices); // [N]
+            let f = fixed.data().clone().reshape([n]); // [N]
+
+            let diff = m - f;
+            diff.powf_scalar(2.0).sum()
         } else {
             let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
-            let mut chunks = Vec::with_capacity(num_chunks);
+            let mut acc_sq_diff = Tensor::zeros([1], &device);
+            let fixed_values_flat = fixed.data().clone().reshape([n]);
 
             for i in 0..num_chunks {
                 let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
                 let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n);
 
                 let chunk_range = start..end;
-                let chunk_indices = fixed_indices.clone().slice([chunk_range]);
+                let chunk_indices = fixed_indices.clone().slice([chunk_range.clone()]);
+                let f = fixed_values_flat.clone().slice([chunk_range]);
+
                 let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices);
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
-                let chunk_values = self
+                let m = self
                     .interpolator
                     .interpolate(moving.data(), chunk_moving_indices);
-                chunks.push(chunk_values);
+
+                let diff = m - f;
+                acc_sq_diff = acc_sq_diff + diff.powf_scalar(2.0).sum();
             }
-            Tensor::cat(chunks, 0)
+            acc_sq_diff
         };
 
-        // 3. Get fixed image values
-        // Flatten fixed data to match grid order [N]
-        let fixed_values = fixed.data().clone().reshape([n]);
-
-        // 4. Calculate MSE
-        let diff = moving_values - fixed_values;
-        diff.powf_scalar(2.0).mean()
+        // 3. Return mean squared error
+        sum_sq_diff / (n as f32)
     }
 
     fn name(&self) -> &'static str {

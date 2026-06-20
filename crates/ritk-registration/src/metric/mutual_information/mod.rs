@@ -347,12 +347,13 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
             // Populate once per level.  Staleness (fixed image change) is
             // detected in `forward_with_cache`, which calls `invalidate()`
             // before falling back here, leaving the slot empty for this check.
-            if !self.cached_w_fixed_t.is_populated() {
-                if let Some(new_cache) = self.histogram_calculator.extract_w_fixed_t_cache(fixed, n)
-                {
-                    self.cached_w_fixed_t.get_or_init(|| new_cache);
+            self.cached_w_fixed_t.with_mut(|opt| {
+                if opt.is_none() {
+                    if let Some(new_cache) = self.histogram_calculator.extract_w_fixed_t_cache(fixed, n) {
+                        *opt = Some(new_cache);
+                    }
                 }
-            }
+            });
         }
 
         result
@@ -384,15 +385,16 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
 
         // Check the per-instance cache.
         //
-        // `is_populated()` releases its lock before `get_or_init` re-acquires
-        // it; concurrent invalidation is not possible in this usage, so the
-        // panic closure is a defensive sentinel for unexpected TOCTOU.
-        let cached_w_fixed_t = if self.cached_w_fixed_t.is_populated() {
-            let entry = self.cached_w_fixed_t.get_or_init(|| {
-                panic!("invariant: CacheSlot was populated when checked (unexpected TOCTOU)")
-            });
-            if entry.matches(fixed, n) {
-                Some(entry.w_fixed_t.clone())
+        // Query the slot atomically using `with_ref` to retrieve a clone of the
+        // entry if populated. This avoids double-locking and eliminates the TOCTOU
+        // race window between checking and retrieving.
+        let cached_w_fixed_t = self.cached_w_fixed_t.with_ref(|opt| {
+            opt.as_ref().map(|entry| (entry.matches(fixed, n), entry.w_fixed_t.clone()))
+        });
+
+        let cached_w_fixed_t = if let Some((matches, w_fixed_t)) = cached_w_fixed_t {
+            if matches {
+                Some(w_fixed_t)
             } else {
                 // Stale entry (fixed image changed): clear so `forward()` repopulates.
                 self.cached_w_fixed_t.invalidate();

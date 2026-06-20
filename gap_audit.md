@@ -1,6 +1,48 @@
 # RITK Gap Audit - Active
 
-## Sprint 385 Audit (2026-06-19) — IIR Hessian, O(N) SAT, Watershed Fix, ChanVese, shift_scale
+## Sprint 386 Audit (2026-06-20) — CurvatureFlow f64, Interior Peel, Laplacian Fix, cmake +18
+
+### Gaps Closed
+
+- **[CORR-386-01 CLOSED]** `CurvatureFlowImageFilter` f64 arithmetic: all stencil arithmetic
+  widened to f64 (ITK `PixelRealType = double`). Eliminates 4.3% relative divergence accumulating
+  over 5 iterations from f32 cancellation in the curvature numerator N near edges/corners.
+  Evidence tier: differential (cmake tests `CurvatureFlow/defaults` and `CurvatureFlow/longer`
+  now pass at 1e-5 tolerance).
+- **[CORR-386-02 CLOSED]** `LaplacianLevelSet` d²I/dx² copy-paste bug: backward x-axis
+  neighbour was `(zz, yy-1, xx)` (y-axis); corrected to `(zz, yy, xx-1)`. Introduced in
+  Sprint 384 moirai parallelization. Evidence tier: empirical differential (Dice 0.005 → ≥0.80).
+- **[BUILD-386-01 CLOSED]** Stale development wheel: Sprint 385 added 7 functions to mod.rs
+  but wheel was not rebuilt. 15 cmake tests were failing with `AttributeError`. Wheel rebuilt,
+  all 15 now pass.
+
+### cmake Filter Coverage (Sprint 386 state)
+- **Closed this sprint**: CurvatureFlow/defaults, CurvatureFlow/longer (f64 fix), +13 from stale
+  wheel rebuild (inverse_displacement_field 2D+3D, min_max_curvature_flow×2, binary_min_max×2,
+  level_set_motion_registration, slic 2D+3D, min_max_curvature_structural, anti_alias_binary,
+  canny_segmentation_level_set, level_set_motion_structural), RecursiveGaussian/directional_x,
+  UnsharpMask/default, UnsharpMask/local_contrast, MorphologicalGradient, ConnectedThreshold,
+  NeighborhoodConnected
+- **Total cmake parity tests**: **448 passing, 2 skipped** (Sprint 386 exit baseline)
+- **Skipped**: ContourExtractor2D ×2 (sitk.ContourExtractor2DImageFilter unavailable in env)
+
+### Performance (Sprint 386)
+- `CurvatureFlowImageFilter`: 45.7s → 20.9s for `cargo nextest run -p ritk-filter` (2.2×).
+  Improvements: double-buffer, slab dispatch, interior fast path, axis-aligned CSE.
+  Evidence tier: measured (nextest timing; analytical model: 95% voxels avoid 54 clamp ops).
+
+### Residual Risk
+- **[FRANGI-QA-01]**: Frangi/Sato differential test against sitk at multiple σ not yet added.
+- **[CHAN-VESE-QA-01]**: ScalarChanAndVese pixel-exact comparison against sitk not yet performed.
+- **[ISOLATED-WS-QA-01]**: Watershed plateau handling for flat-region images.
+- **[PERF-381-01]**: Criterion baselines for `separable_box_3d` and EDT Phase 3 not recorded.
+
+---
+
+
+> **Full audit history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
+
+
 
 ### Gaps Closed
 

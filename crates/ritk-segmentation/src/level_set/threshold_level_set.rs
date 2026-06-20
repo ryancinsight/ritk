@@ -125,49 +125,57 @@ impl ThresholdLevelSet {
             })
             .collect();
 
-        // Scratch buffer.
+        // Scratch buffers.
         let mut kappa = vec![0.0_f64; n];
+        let mut phi_new = phi.clone();
+        let mut phi_z = vec![0.0_f64; n];
+        let mut phi_y = vec![0.0_f64; n];
+        let mut phi_x = vec![0.0_f64; n];
+
+        let slice_len = ny * nx;
+        let mut max_changes = vec![0.0_f64; nz];
 
         // PDE evolution loop.
         for _iter in 0..self.max_iterations {
             helpers::compute_curvature_into(&phi, dims, &mut kappa);
+            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
 
-            let mut max_change: f64 = 0.0;
+            let mut zipped: Vec<(&mut [f64], &mut f64)> = phi_new
+                .chunks_exact_mut(slice_len)
+                .zip(max_changes.iter_mut())
+                .collect();
 
-            for iz in 0..nz {
-                for iy in 0..ny {
-                    for ix in 0..nx {
-                        let i = iz * ny * nx + iy * nx + ix;
-                        let zz = iz as isize;
-                        let yy = iy as isize;
-                        let xx = ix as isize;
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut zipped,
+                1,
+                |iz, chunk| {
+                    let (phi_new_s, max_change_ref) = &mut chunk[0];
+                    let base = iz * slice_len;
+                    let mut local_max = 0.0_f64;
+                    for i in 0..slice_len {
+                        let idx = base + i;
+                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
+                            + phi_y[idx] * phi_y[idx]
+                            + phi_x[idx] * phi_x[idx])
+                            .sqrt();
 
-                        // Central-difference gradient of phi.
-                        let dphi_z = (phi[helpers::idx_clamped(zz + 1, yy, xx, nz, ny, nx)]
-                            - phi[helpers::idx_clamped(zz - 1, yy, xx, nz, ny, nx)])
-                            * 0.5;
-                        let dphi_y = (phi[helpers::idx_clamped(zz, yy + 1, xx, nz, ny, nx)]
-                            - phi[helpers::idx_clamped(zz, yy - 1, xx, nz, ny, nx)])
-                            * 0.5;
-                        let dphi_x = (phi[helpers::idx_clamped(zz, yy, xx + 1, nz, ny, nx)]
-                            - phi[helpers::idx_clamped(zz, yy, xx - 1, nz, ny, nx)])
-                            * 0.5;
-                        let grad_phi_mag =
-                            (dphi_z * dphi_z + dphi_y * dphi_y + dphi_x * dphi_x).sqrt();
-
-                        let speed = self.curvature_weight * kappa[i]
-                            - self.propagation_weight * threshold_speed[i];
+                        let speed = self.curvature_weight * kappa[idx]
+                            - self.propagation_weight * threshold_speed[idx];
                         let dphi = self.dt * grad_phi_mag * speed;
-                        phi[i] += dphi;
+                        phi_new_s[i] = phi[idx] + dphi;
 
                         let change = dphi.abs() / self.dt;
-                        if change > max_change {
-                            max_change = change;
+                        if change > local_max {
+                            local_max = change;
                         }
                     }
-                }
-            }
+                    **max_change_ref = local_max;
+                },
+            );
 
+            std::mem::swap(&mut phi, &mut phi_new);
+
+            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
             if max_change < self.tolerance {
                 break;
             }

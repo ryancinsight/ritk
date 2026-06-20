@@ -30,6 +30,7 @@ impl<T: Clone> CacheSlot<T> {
     ///
     /// # Panics
     /// Panics if the mutex has been poisoned (invariant: never poison the lock).
+    #[allow(dead_code)]
     pub(crate) fn get_or_init<F: FnOnce() -> T>(&self, init: F) -> T {
         let mut guard = self
             .0
@@ -59,23 +60,18 @@ impl<T: Clone> CacheSlot<T> {
         F: FnOnce() -> T,
         P: FnOnce(&T) -> bool,
     {
-        {
-            let guard = self
-                .0
-                .lock()
-                .expect("invariant: CacheSlot mutex is not poisoned");
-            if let Some(ref v) = *guard {
-                if valid(v) {
-                    return v.clone();
-                }
+        let mut guard = self
+            .0
+            .lock()
+            .expect("invariant: CacheSlot mutex is not poisoned");
+        if let Some(ref v) = *guard {
+            if valid(v) {
+                return v.clone();
             }
         }
         // Either empty or the validity predicate rejected the cached entry.
         let val = init();
-        *self
-            .0
-            .lock()
-            .expect("invariant: CacheSlot mutex is not poisoned") = Some(val.clone());
+        *guard = Some(val.clone());
         val
     }
 
@@ -123,6 +119,7 @@ impl<T: Clone> CacheSlot<T> {
     }
 
     /// Returns `true` if a value has been cached (without mutating the slot).
+    #[allow(dead_code)]
     pub(crate) fn is_populated(&self) -> bool {
         self.0
             .lock()

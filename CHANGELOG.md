@@ -1,6 +1,67 @@
 # CHANGELOG
 
-## [Unreleased] — Sprint 385: Frangi IIR Hessian, O(N) SAT LNCC, IsolatedWatershed BFS→Watershed, ChanVese mu fix, shift_scale binding
+## [Unreleased] — Sprint 386: CurvatureFlow f64 precision, interior-peel perf, Laplacian bug fix, +18 cmake parity tests
+
+### Fixed (correctness)
+- `ritk-filter`: **`CurvatureFlowImageFilter` f64 arithmetic** — all stencil arithmetic now executes
+  in f64, matching ITK's `PixelRealType = double` (`itkFiniteDifferenceFunction.h`). The curvature
+  numerator N involves signed sums of quadratic cross-products that partially cancel near edges;
+  in f32 (~7 significant digits), this cancellation left only 2–4 significant digits, accumulating
+  ~4.3% relative error over 5 iterations. With f64, the `CurvatureFlow/defaults` and
+  `CurvatureFlow/longer` cmake tests now pass at tolerance 1e-5 (previously failing at that
+  tolerance). The comment "per-pixel CFL clamping" was incorrect; ITK's `ComputeGlobalTimeStep`
+  has a `\todo CFL` note and returns the configured time step unchanged.
+- `ritk-segmentation`: **`LaplacianLevelSet` d²I/dx² copy-paste bug** — the Sprint 384
+  parallelisation of the Laplacian kernel introduced a copy-paste error: the backward x-axis
+  neighbour was `idx_clamped(zz, yy - 1, xx, ...)` (y-axis) instead of
+  `idx_clamped(zz, yy, xx - 1, ...)` (x-axis). This made the Laplacian incorrect, collapsing
+  the level-set Dice score from ~0.9 to 0.005. Fixed to `(zz, yy, xx - 1, ...)`.
+  Evidence tier: empirical differential (Dice 0.005 → confirmed fix; regression test added).
+- `ritk-python` (stale wheel): `anti_alias_binary`, `canny_segmentation_level_set`,
+  `inverse_displacement_field`, `level_set_motion_register`, `min_max_curvature_flow`,
+  `binary_min_max_curvature_flow`, `slic` — functions were registered in mod.rs in Sprint 385
+  but the development wheel had not been rebuilt; rebuilt to include all registered functions.
+  All 15 previously-failing cmake tests now pass.
+
+### Performance
+- `ritk-filter`: **`CurvatureFlowImageFilter` interior-peel + double-buffer** — three orthogonal
+  improvements:
+  1. **Double buffer**: pre-allocate `next: Vec<f32>` before the iteration loop; `std::mem::swap`
+     rotates buffers at zero cost, eliminating one `n × 4` byte heap allocation per iteration
+     (matches `MinMaxCurvatureFlowImageFilter` pattern).
+  2. **Slab dispatch**: switched from `map_collect_index_with` (per-voxel tasks) to
+     `for_each_chunk_mut_enumerated_with` (per-z-slab tasks) for better output-write cache
+     locality and reduced task-queue overhead.
+  3. **Interior fast path**: ~95% of voxels in any volume > 3×3×3 are strictly interior. For
+     these, all 18 stencil reads use direct flat-index arithmetic (zero clamp overhead). The
+     6 axis-aligned neighbours are loaded once via explicit `let` bindings and reused for both
+     first and second derivatives (CSE guaranteed, not relying on LLVM). Boundary shell (~5%)
+     falls through to the clamped `get` path unchanged.
+  Measured filter test-suite time: 45.7s → 20.9s (2.2× speedup on `cargo nextest run -p ritk-filter`).
+
+### Added (cmake parity)
+- `test_simpleitk_cmake_data.py`: **+6 new parametrized cases** in `_CASES`:
+  - `RecursiveGaussian/directional_x` — `recursive_gaussian_directional` direction=2 (x-axis)
+    vs `sitk.RecursiveGaussian`; tol 1e-6.
+  - `UnsharpMask/default` — `unsharp_mask(sigma=1.0, amount=0.5, clamp=False)` vs sitk; tol 1e-6.
+  - `UnsharpMask/local_contrast` — `unsharp_mask(sigma=30.0, amount=0.2, clamp=False)` vs sitk;
+    tol 1e-6.
+- `test_simpleitk_cmake_data.py`: **+3 new standalone tests**:
+  - `test_cmake_morphological_gradient_matches_sitk` — `segmentation.morphological_gradient`
+    radius=1 box vs `sitk.MorphologicalGradient` radius-1 ball (equal at r=1); bit-exact.
+  - `test_cmake_connected_threshold_matches_sitk` — `connected_threshold_segment` from
+    STAPLE1.png seed (0,100,100) vs `sitk.ConnectedThreshold`; bit-exact.
+  - `test_cmake_neighborhood_connected_matches_sitk` — `neighborhood_connected_segment`
+    radius=1 from STAPLE1.png vs `sitk.NeighborhoodConnected`; bit-exact.
+
+### Baseline progression
+| Run | cmake-data | Broad suite | Rust filter | Rust seg | Rust reg |
+|-----|-----------|------------|------------|---------|--------|
+| Sprint 385 exit | 430 | 1078 | 928 | 430 | 654 |
+| Sprint 386 (this) | **448** | **1096** | **928** | **431** | **654** |
+
+---
+
 
 ### Fixed (correctness)
 - `ritk-filter`: **Frangi vesselness + Sato line filter** — Hessian was computed via discrete sampled-Gaussian blur followed by finite-difference second derivatives, diverging from ITK for σ ≲ 2 px. Replaced with `compute_hessian_iir`: all 6 Hessian components (`H_{dd}`, `H_{di}`) now computed via Deriche IIR recursion (matching ITK `HessianRecursiveGaussianImageFilter`). New test `test_hessian_iir_laplacian_consistency` verifies algebraic identity `H_{zz}+H_{yy}+H_{xx} = ∇²G` to 1e-3. Closes CORR-384-01.

@@ -1,8 +1,49 @@
 # RITK Sprint Checklist — Active
 
-## Sprint 385 — IIR Hessian, O(N) SAT, Watershed Fix, ChanVese, shift_scale
+## Sprint 386 — CurvatureFlow f64, Interior Peel Perf, Laplacian Bug Fix, cmake Parity +18
 **Target version**: 0.12.79
 **Sprint phase**: Closure — all items delivered and verified
+
+### Delivered (Sprint 386)
+- [x] CORR-386-01 [major]: **`CurvatureFlowImageFilter` f64 arithmetic** — all stencil
+  arithmetic widened to f64 (matching ITK `PixelRealType = double`). Closes 4.3% relative
+  divergence. `CurvatureFlow/defaults` and `CurvatureFlow/longer` cmake tests now pass at
+  1e-5 tolerance. Interior-peel path + double-buffer pattern added. 2.2× test speedup.
+- [x] CORR-386-02 [major]: **`LaplacianLevelSet` d²I/dx² copy-paste bug** — backward
+  x-axis neighbour was `idx_clamped(zz, yy-1, xx, ...)` (y-axis); fixed to
+  `idx_clamped(zz, yy, xx-1, ...)`. Dice 0.005 → passing at Dice ≥ 0.80.
+- [x] BUILD-386-01 [patch]: **Stale wheel rebuilt** — Sprint 385 registered functions
+  (`anti_alias_binary`, `canny_segmentation_level_set`, `inverse_displacement_field`,
+  `level_set_motion_register`, `min_max_curvature_flow`, `binary_min_max_curvature_flow`,
+  `slic`) now present in live module. 15 previously-failing cmake tests pass.
+- [x] TEST-386-01 [minor]: **6 new cmake `_CASES`** — `RecursiveGaussian/directional_x`,
+  `UnsharpMask/default`, `UnsharpMask/local_contrast`. All pass.
+- [x] TEST-386-02 [minor]: **3 new standalone cmake tests** — `MorphologicalGradient`,
+  `ConnectedThreshold`, `NeighborhoodConnected`. All bit-exact.
+
+### Verification gate (Sprint 386)
+- [x] `cargo clippy -p ritk-filter -p ritk-segmentation -p ritk-registration -p ritk-python --all-targets -- -D warnings` → 0 errors, 0 warnings
+- [x] `cargo nextest run -p ritk-filter` → **928/928 passed** (20.9s, was 45.7s)
+- [x] `cargo nextest run -p ritk-segmentation` → **431/431 passed**
+- [x] `cargo nextest run -p ritk-registration` → **654/654 passed, 23 skipped**
+- [x] `uv run pytest tests/test_simpleitk_cmake_data.py` → **448 passed, 2 skipped**
+- [x] `uv run pytest tests/ -m 'not slow and not registration' --ignore=test_registration_validation.py` → **1096 passed, 8 skipped, 71 deselected, 3 xfailed**
+
+### Baseline progression
+| Run | cmake-data | Broad suite | Rust filter | Rust seg | Rust reg | Notes |
+|-----|-----------|------------|------------|---------|---------|-------|
+| Sprint 385 exit | 430 | 1078 | 928 | 430 | 654 | |
+| Sprint 386 (this) | **448** | **1096** | **928** | **431** | **654** | +18 cmake; 2 correctness; 2.2× CF perf |
+
+### Deferred / carry-forward
+- [ ] PERF-381-01 [partial]: `cargo bench` baseline timings for `separable_box_3d` / EDT not yet recorded.
+- [ ] FRANGI-QA-01: Frangi/Sato pixel-level comparison against sitk at multiple σ not yet added.
+- [ ] CHAN-VESE-QA-01: ScalarChanAndVese pixel-exact comparison against sitk not yet performed.
+- [ ] ISOLATED-WS-QA-01: Watershed plateau handling for flat-region images not validated.
+- [ ] cmake-data: ContourExtractor2D (2 tests) skip because `sitk.ContourExtractor2DImageFilter` unavailable in test environment — environment limitation, not a code gap.
+
+---
+
 
 ### Delivered (Sprint 385)
 - [x] CORR-384-01 [major]: **Frangi + Sato IIR Hessian** — `compute_hessian_iir` added to

@@ -124,14 +124,19 @@ fn step_edge_range_decreases() {
     );
 }
 
-/// ITK default configuration values match documented standard.
+/// `CurvatureFlowConfig::default()` values: `num_iterations = 5`,
+/// `time_step = 0.0625`.
+///
+/// Note: ITK's *constructor* defaults are `time_step = 0.05` and
+/// `num_iterations = 0` (no-op). Our defaults are the commonly cited
+/// ITK-compatible working values, not the ITK constructor defaults.
 #[test]
-fn default_config_matches_itk() {
+fn default_config_values() {
     let cfg = CurvatureFlowConfig::default();
-    assert_eq!(cfg.num_iterations, 5, "ITK default iterations = 5");
+    assert_eq!(cfg.num_iterations, 5, "default iterations");
     assert!(
         (cfg.time_step - 0.0625f32).abs() < 1e-7,
-        "ITK default dt = 0.0625"
+        "default dt = 0.0625"
     );
     // Stability: dt ≤ 1/6 ≈ 0.1667
     assert!(

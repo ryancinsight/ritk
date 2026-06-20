@@ -142,58 +142,83 @@ impl LaplacianLevelSet {
         };
 
         // L(I)[i] = d2I/dz2 + d2I/dy2 + d2I/dx2  (central diffs, clamped BC).
-        let mut laplacian = vec![0.0_f64; n];
-        for iz in 0..nz {
-            for iy in 0..ny {
-                for ix in 0..nx {
-                    let i = iz * ny * nx + iy * nx + ix;
-                    let zz = iz as isize;
-                    let yy = iy as isize;
-                    let xx = ix as isize;
+        // Parallelised over all elements using moirai.
+        let laplacian = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            let iz = i / (ny * nx);
+            let rem = i % (ny * nx);
+            let iy = rem / nx;
+            let ix = rem % nx;
+            let zz = iz as isize;
+            let yy = iy as isize;
+            let xx = ix as isize;
 
-                    let d2z = smoothed[helpers::idx_clamped(zz + 1, yy, xx, nz, ny, nx)]
-                        - 2.0 * smoothed[i]
-                        + smoothed[helpers::idx_clamped(zz - 1, yy, xx, nz, ny, nx)];
-                    let d2y = smoothed[helpers::idx_clamped(zz, yy + 1, xx, nz, ny, nx)]
-                        - 2.0 * smoothed[i]
-                        + smoothed[helpers::idx_clamped(zz, yy - 1, xx, nz, ny, nx)];
-                    let d2x = smoothed[helpers::idx_clamped(zz, yy, xx + 1, nz, ny, nx)]
-                        - 2.0 * smoothed[i]
-                        + smoothed[helpers::idx_clamped(zz, yy, xx - 1, nz, ny, nx)];
+            let d2z = smoothed[helpers::idx_clamped(zz + 1, yy, xx, nz, ny, nx)]
+                - 2.0 * smoothed[i]
+                + smoothed[helpers::idx_clamped(zz - 1, yy, xx, nz, ny, nx)];
+            let d2y = smoothed[helpers::idx_clamped(zz, yy + 1, xx, nz, ny, nx)]
+                - 2.0 * smoothed[i]
+                + smoothed[helpers::idx_clamped(zz, yy - 1, xx, nz, ny, nx)];
+            let d2x = smoothed[helpers::idx_clamped(zz, yy, xx + 1, nz, ny, nx)]
+                - 2.0 * smoothed[i]
+                + smoothed[helpers::idx_clamped(zz, yy, xx - 1, nz, ny, nx)];
 
-                    laplacian[i] = d2z + d2y + d2x;
-                }
-            }
-        }
+            d2z + d2y + d2x
+        });
 
         // F[i] = L[i] / (1.0 + |L[i]|) maps L into (-1, +1).
         let speed_field: Vec<f64> = laplacian.iter().map(|&l| l / (1.0 + l.abs())).collect();
 
-        // PDE scratch buffer for mean curvature kappa.
+        // PDE scratch buffers.
         let mut kappa = vec![0.0_f64; n];
+        let mut phi_new = phi.clone();
+        let mut phi_z = vec![0.0_f64; n];
+        let mut phi_y = vec![0.0_f64; n];
+        let mut phi_x = vec![0.0_f64; n];
+
+        let slice_len = ny * nx;
+        let mut max_changes = vec![0.0_f64; nz];
 
         // dphi/dt = [w_p * F(x) + w_c * kappa] * |grad phi|
         for _iter in 0..self.max_iterations {
             helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            let (phi_z, phi_y, phi_x) = helpers::compute_field_gradient(&phi, dims);
+            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
 
-            let mut max_change = 0.0_f64;
+            let mut zipped: Vec<(&mut [f64], &mut f64)> = phi_new
+                .chunks_exact_mut(slice_len)
+                .zip(max_changes.iter_mut())
+                .collect();
 
-            for i in 0..n {
-                let grad_phi_mag =
-                    (phi_z[i] * phi_z[i] + phi_y[i] * phi_y[i] + phi_x[i] * phi_x[i]).sqrt();
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut zipped,
+                1,
+                |iz, chunk| {
+                    let (phi_new_s, max_change_ref) = &mut chunk[0];
+                    let base = iz * slice_len;
+                    let mut local_max = 0.0_f64;
+                    for i in 0..slice_len {
+                        let idx = base + i;
+                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
+                            + phi_y[idx] * phi_y[idx]
+                            + phi_x[idx] * phi_x[idx])
+                            .sqrt();
 
-                let speed =
-                    self.propagation_weight * speed_field[i] + self.curvature_weight * kappa[i];
-                let dphi = self.dt * speed * grad_phi_mag;
-                phi[i] += dphi;
+                        let speed = self.propagation_weight * speed_field[idx]
+                            + self.curvature_weight * kappa[idx];
+                        let dphi = self.dt * speed * grad_phi_mag;
+                        phi_new_s[i] = phi[idx] + dphi;
 
-                let change = dphi.abs() / self.dt;
-                if change > max_change {
-                    max_change = change;
-                }
-            }
+                        let change = dphi.abs() / self.dt;
+                        if change > local_max {
+                            local_max = change;
+                        }
+                    }
+                    **max_change_ref = local_max;
+                },
+            );
 
+            std::mem::swap(&mut phi, &mut phi_new);
+
+            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
             if max_change < self.tolerance {
                 break;
             }

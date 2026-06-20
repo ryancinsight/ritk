@@ -44,7 +44,8 @@
 //! ## Convergence
 //!
 //! The iteration terminates when:
-//! - `max |φ^{n+1} − φ^n| / dt < tolerance`, or
+//! - `RMS(Δφ) = sqrt(sum(Δφ²) / N) < tolerance` (matches ITK's
+//!   `FiniteDifferenceImageFilter::GetRMSChange()` criterion), or
 //! - `iteration == max_iterations`.
 //!
 //! ## Output
@@ -90,7 +91,7 @@ use ritk_tensor_ops::extract_vec;
 /// | `sigma`              | σ      | Gaussian pre-smoothing for gradient        |
 /// | `dt`                 | Δt     | Euler time step                           |
 /// | `max_iterations`     | —      | Upper bound on PDE iterations             |
-/// | `tolerance`          | —      | Convergence: max |Δφ|/dt < tol ⇒ stop    |
+/// | `tolerance`          | —      | Convergence: RMS(Δφ) < tol ⇒ stop        |
 #[derive(Debug, Clone)]
 pub struct GeodesicActiveContourSegmentation {
     /// Balloon (propagation) force ν. Positive expands, negative contracts.
@@ -108,7 +109,8 @@ pub struct GeodesicActiveContourSegmentation {
     pub dt: f64,
     /// Maximum number of PDE iterations.
     pub max_iterations: usize,
-    /// Convergence tolerance on max |Δφ|/dt.
+    /// Convergence: RMS(Δφ) < tol ⇒ stop (matches ITK's
+    /// `FiniteDifferenceImageFilter::GetRMSChange()` criterion).
     pub tolerance: f64,
 }
 
@@ -156,6 +158,7 @@ impl GeodesicActiveContourSegmentation {
         initial_phi: &Image<B, 3>,
     ) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
+        let [nz, ny, nx] = dims;
         let phi_dims = initial_phi.shape();
         if dims != phi_dims {
             anyhow::bail!(
@@ -184,7 +187,7 @@ impl GeodesicActiveContourSegmentation {
 
         let n = phi.len();
         let mut kappa = vec![0.0_f64; n];
-        let mut phi_new = vec![0.0_f64; n];
+        let mut phi_new = phi.clone();
         // SEG-01: pre-allocate per-iteration scratch buffers outside the loop so
         // that compute_field_gradient_into / upwind_advection_into reuse them,
         // eliminating 4 × N×8 heap allocations per PDE iteration.
@@ -201,34 +204,54 @@ impl GeodesicActiveContourSegmentation {
             // central differencing it is unstable and leaks the front past edges.
             helpers::upwind_advection_into(&phi, dims, &g_grad_z, &g_grad_y, &g_grad_x, &mut adv);
 
-            let mut max_change: f64 = 0.0;
+            let slice_len = ny * nx;
+            let mut sum_sqs = vec![0.0_f64; nz];
 
-            for i in 0..n {
-                let grad_phi_mag =
-                    (phi_gz[i] * phi_gz[i] + phi_gy[i] * phi_gy[i] + phi_gx[i] * phi_gx[i]).sqrt();
+            let mut zipped: Vec<(&mut [f64], &mut f64)> = phi_new
+                .chunks_exact_mut(slice_len)
+                .zip(sum_sqs.iter_mut())
+                .collect();
 
-                // Curvature term (positive κ for convex → contracts): w_c·g·κ·|∇φ|
-                let curv = self.curvature_weight * g[i] * kappa[i] * grad_phi_mag;
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut zipped,
+                1,
+                |iz, chunk| {
+                    let (phi_new_s, sum_sq_ref) = &mut chunk[0];
+                    let base = iz * slice_len;
+                    let mut local_sum_sq = 0.0_f64;
+                    for i in 0..slice_len {
+                        let idx = base + i;
+                        let grad_phi_mag = (phi_gz[idx] * phi_gz[idx]
+                            + phi_gy[idx] * phi_gy[idx]
+                            + phi_gx[idx] * phi_gx[idx])
+                            .sqrt();
 
-                // Propagation term (positive w_p → expansion): −w_p·g·|∇φ|
-                let prop = self.propagation_weight * g[i] * grad_phi_mag;
+                        // Curvature term (positive κ for convex → contracts): w_c·g·κ·|∇φ|
+                        let curv = self.curvature_weight * g[idx] * kappa[idx] * grad_phi_mag;
 
-                // Advection term (attracts the front toward edges): +w_a·∇g·∇φ,
-                // upwind-discretised for stability.
-                let advection = self.advection_weight * adv[i];
+                        // Propagation term (positive w_p → expansion): −w_p·g·|∇φ|
+                        let prop = self.propagation_weight * g[idx] * grad_phi_mag;
 
-                let dphi = self.dt * (curv - prop + advection);
-                phi_new[i] = phi[i] + dphi;
+                        // Advection term (attracts the front toward edges): +w_a·∇g·∇φ,
+                        // upwind-discretised for stability.
+                        let advection = self.advection_weight * adv[idx];
 
-                let change = dphi.abs() / self.dt;
-                if change > max_change {
-                    max_change = change;
-                }
-            }
+                        let dphi = self.dt * (curv - prop + advection);
+                        phi_new_s[i] = phi[idx] + dphi;
+
+                        // Accumulate squared change for RMS convergence criterion.
+                        local_sum_sq += dphi * dphi;
+                    }
+                    **sum_sq_ref = local_sum_sq;
+                },
+            );
 
             std::mem::swap(&mut phi, &mut phi_new);
 
-            if max_change < self.tolerance {
+            // ITK RMS criterion: sqrt(sum(Δφ²) / N) < tolerance.
+            let sum_sq: f64 = sum_sqs.iter().sum();
+            let rms = (sum_sq / n as f64).sqrt();
+            if rms < self.tolerance {
                 break;
             }
         }

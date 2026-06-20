@@ -397,7 +397,66 @@ fn test_gaussian_kernel_normalised() {
     }
 }
 
-// ── Test 8: Default construction ───────────────────────────────────────────
+// ── Test 9: RMS convergence criterion — zero-force early termination ──────
+
+/// Verifies the RMS convergence criterion:
+/// with all force weights = 0 every per-voxel update dphi = 0, so
+/// RMS(Δφ) = 0 < tolerance on the first iteration and the filter breaks
+/// before reaching max_iterations. The output mask must equal the initial
+/// phi < 0 thresholding because the level set never moves.
+///
+/// # Evidence
+/// dphi = dt × (0 × g × κ × |∇φ| − 0 × g × |∇φ| + 0 × adv) = 0 for every voxel.
+/// ∴ sum_sq = 0, rms = 0 < tolerance, break on iteration 1.
+/// phi_new[i] = phi[i] + 0 = phi[i], so the output mask equals the initial phi < 0 mask.
+#[test]
+fn rms_convergence_terminates_early_on_zero_force() {
+    let dims = [8, 8, 8];
+    let n: usize = dims.iter().product();
+
+    // Non-trivial image: gradient will yield a non-trivial g, but forces are zero.
+    let img_data: Vec<f32> = (0..n).map(|i| ((i * 17 + 3) % 200) as f32).collect();
+    let image = make_image(img_data, dims);
+
+    // Sphere-like initial phi: negative inside a radius-3 sphere.
+    let init_phi = sphere_phi(dims, [4.0, 4.0, 4.0], 3.0);
+    let phi_image = make_image(init_phi.clone(), dims);
+
+    // All force weights zero: dphi = 0 at every voxel every iteration.
+    // Generous tolerance (1.0) and large max_iterations so that if the RMS
+    // criterion is broken the test still completes — it would just return the
+    // same mask regardless.
+    let mut gac = GeodesicActiveContourSegmentation::new();
+    gac.propagation_weight = 0.0;
+    gac.curvature_weight = 0.0;
+    gac.advection_weight = 0.0;
+    gac.dt = 0.05;
+    gac.max_iterations = 500;
+    gac.tolerance = 1.0;
+
+    let result = gac.apply(&image, &phi_image).unwrap();
+    let mask = get_values(&result);
+
+    // The expected mask is simply phi < 0 from the initial level set.
+    let expected_mask: Vec<f32> = init_phi
+        .iter()
+        .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
+        .collect();
+
+    for (i, (&got, &expected)) in mask.iter().zip(expected_mask.iter()).enumerate() {
+        assert_eq!(
+            got, expected,
+            "voxel {i}: zero-force GAC must preserve the initial mask (got {got}, expected {expected})"
+        );
+    }
+
+    // Non-zero count verifies the test isn't vacuously trivial.
+    let inside_count = expected_mask.iter().filter(|&&v| v == 1.0).count();
+    assert!(
+        inside_count > 0,
+        "initial sphere must have at least one inside voxel"
+    );
+}
 
 #[test]
 fn test_default_matches_new() {

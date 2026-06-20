@@ -213,25 +213,44 @@ impl ChanVeseSegmentation {
             compute_curvature_into(&phi, dims, &mut kappa);
 
             // ── 3. Evolve φ ──────────────────────────────────────────────
-            let mut max_dphi = 0.0_f64;
+            let slice_len = ny * nx;
+            let mut max_dphis = vec![0.0_f64; nz];
 
-            for i in 0..n {
-                let dirac = regularised_dirac(phi[i], eps);
+            let mut zipped: Vec<(&mut [f64], &mut f64)> = phi
+                .chunks_exact_mut(slice_len)
+                .zip(max_dphis.iter_mut())
+                .collect();
 
-                let diff1 = img_f64[i] - c1;
-                let diff2 = img_f64[i] - c2;
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut zipped,
+                1,
+                |iz, chunk| {
+                    let (phi_s, max_dphi_ref) = &mut chunk[0];
+                    let base = iz * slice_len;
+                    let mut local_max = 0.0_f64;
+                    for i in 0..slice_len {
+                        let idx = base + i;
+                        let dirac = regularised_dirac(phi_s[i], eps);
 
-                let force = self.mu * kappa[i] - self.nu - self.lambda1 * diff1 * diff1
-                    + self.lambda2 * diff2 * diff2;
+                        let diff1 = img_f64[idx] - c1;
+                        let diff2 = img_f64[idx] - c2;
 
-                let dphi = self.dt * dirac * force;
-                phi[i] += dphi;
+                        let force = self.mu * kappa[idx] - self.nu - self.lambda1 * diff1 * diff1
+                            + self.lambda2 * diff2 * diff2;
 
-                let abs_dphi = dphi.abs();
-                if abs_dphi > max_dphi {
-                    max_dphi = abs_dphi;
-                }
-            }
+                        let dphi = self.dt * dirac * force;
+                        phi_s[i] += dphi;
+
+                        let abs_dphi = dphi.abs();
+                        if abs_dphi > local_max {
+                            local_max = abs_dphi;
+                        }
+                    }
+                    **max_dphi_ref = local_max;
+                },
+            );
+
+            let max_dphi = max_dphis.iter().copied().fold(0.0_f64, f64::max);
 
             // ── 4. Convergence check ─────────────────────────────────────
             if max_dphi / self.dt < self.tolerance {
@@ -258,19 +277,19 @@ impl ChanVeseSegmentation {
 /// If either denominator is zero (degenerate partition), the corresponding
 /// mean is set to 0.0 to avoid division by zero.
 fn compute_region_means(img: &[f64], phi: &[f64], eps: f64) -> (f64, f64) {
-    let mut sum_h = 0.0_f64;
-    let mut sum_uh = 0.0_f64;
-    let mut sum_1mh = 0.0_f64;
-    let mut sum_u1mh = 0.0_f64;
-
-    for i in 0..img.len() {
-        let h = regularised_heaviside(phi[i], eps);
-        sum_h += h;
-        sum_uh += img[i] * h;
-        let omh = 1.0 - h;
-        sum_1mh += omh;
-        sum_u1mh += img[i] * omh;
-    }
+    let n = img.len();
+    let (sum_h, sum_uh, sum_1mh, sum_u1mh) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        n,
+        || (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
+        |(sh, suh, s1mh, su1mh), i| {
+            let h = regularised_heaviside(phi[i], eps);
+            let omh = 1.0 - h;
+            (sh + h, suh + img[i] * h, s1mh + omh, su1mh + img[i] * omh)
+        },
+        |(ah, auh, a1mh, au1mh), (bh, buh, b1mh, bu1mh)| {
+            (ah + bh, auh + buh, a1mh + b1mh, au1mh + bu1mh)
+        },
+    );
 
     let c1 = if sum_h > 1e-15 { sum_uh / sum_h } else { 0.0 };
     let c2 = if sum_1mh > 1e-15 {

@@ -1,7 +1,7 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::metric::cache_slot::CacheSlot;
 
@@ -68,10 +68,9 @@ pub struct ParzenJointHistogram<B: Backend> {
     _phantom: PhantomData<fn() -> B>,
     /// Reusable histogram buffer pool, allocated once in `new()` and reused
     /// across CMA-ES iterations to avoid repeated O(num_bins²) allocations.
-    /// Wrapped in `Arc<Mutex<...>>` so that `Clone` shares the pool across
-    /// multi-resolution clones rather than deep-copying the buffer allocation.
+    /// Shared directly via `Arc` across clones.
     #[cfg(feature = "direct-parzen")]
-    pub(super) histogram_pool: Arc<Mutex<HistogramPool>>,
+    pub(super) histogram_pool: Arc<HistogramPool>,
 }
 
 /// Cloning a [`ParzenJointHistogram`] creates a new handle that **shares** the caches with
@@ -125,12 +124,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
             masked_cache: CacheSlot::empty(),
             _phantom: PhantomData,
             #[cfg(feature = "direct-parzen")]
-            histogram_pool: Arc::new(Mutex::new({
+            histogram_pool: Arc::new({
                 let buffer_count = std::thread::available_parallelism()
                     .map(|n| n.get())
                     .unwrap_or(1);
                 HistogramPool::new_with_capacity(num_bins * num_bins, buffer_count)
-            })),
+            }),
         }
     }
 

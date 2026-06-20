@@ -47,6 +47,7 @@
 //! - ITK `itkAntiAliasBinaryImageFilter.hxx`.
 
 use burn::tensor::backend::Backend;
+use moirai;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
@@ -123,91 +124,103 @@ impl AntiAliasBinaryImageFilter {
         let mut next = vec![0.0_f32; n];
 
         for _ in 0..self.number_of_iterations {
-            let mut sum_sq = 0.0_f64;
-
-            for iz in 0..nz {
-                for iy in 0..ny {
-                    for ix in 0..nx {
-                        let flat = iz * slab + iy * nx + ix;
-                        let z = iz as isize;
+            // Parallel: fill each z-slab of `next` independently.
+            // `phi` and `binary` are read-only across all threads (both &[f32] are Sync).
+            // `next` is split into disjoint `slab`-sized chunks by the moirai scheduler.
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut next,
+                slab,
+                |iz, iz_out| {
+                    let z = iz as isize;
+                    // ZeroFluxNeumann neighbour accessor captured once per z-slice.
+                    let get = |zz: isize, yy: isize, xx: isize| -> f32 {
+                        let zc = zz.clamp(0, nz as isize - 1) as usize;
+                        let yc = yy.clamp(0, ny as isize - 1) as usize;
+                        let xc = xx.clamp(0, nx as isize - 1) as usize;
+                        phi[zc * slab + yc * nx + xc]
+                    };
+                    for iy in 0..ny {
                         let y = iy as isize;
-                        let x = ix as isize;
+                        for ix in 0..nx {
+                            let x = ix as isize;
+                            let flat = iz * slab + iy * nx + ix;
 
-                        // ZeroFluxNeumann neighbour accessor (clamp-at-boundary).
-                        let get = |zz: isize, yy: isize, xx: isize| -> f32 {
-                            let zc = zz.clamp(0, nz as isize - 1) as usize;
-                            let yc = yy.clamp(0, ny as isize - 1) as usize;
-                            let xc = xx.clamp(0, nx as isize - 1) as usize;
-                            phi[zc * slab + yc * nx + xc]
-                        };
+                            let c = phi[flat];
 
-                        let c = phi[flat];
+                            // First-order central differences (unit spacing).
+                            let phi_x = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5;
+                            let phi_y = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5;
+                            let phi_z = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5;
 
-                        // First-order central differences (unit spacing).
-                        let phi_x = (get(z, y, x + 1) - get(z, y, x - 1)) * 0.5;
-                        let phi_y = (get(z, y + 1, x) - get(z, y - 1, x)) * 0.5;
-                        let phi_z = (get(z + 1, y, x) - get(z - 1, y, x)) * 0.5;
+                            // Second-order central differences.
+                            let phi_xx = get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1);
+                            let phi_yy = get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x);
+                            let phi_zz = get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x);
 
-                        // Second-order central differences.
-                        let phi_xx = get(z, y, x + 1) - 2.0 * c + get(z, y, x - 1);
-                        let phi_yy = get(z, y + 1, x) - 2.0 * c + get(z, y - 1, x);
-                        let phi_zz = get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x);
-
-                        // Mixed (cross) second-order central differences.
-                        let phi_xy =
-                            (get(z, y + 1, x + 1) - get(z, y + 1, x - 1) - get(z, y - 1, x + 1)
+                            // Mixed (cross) second-order central differences.
+                            let phi_xy = (get(z, y + 1, x + 1)
+                                - get(z, y + 1, x - 1)
+                                - get(z, y - 1, x + 1)
                                 + get(z, y - 1, x - 1))
                                 * 0.25;
-                        let phi_xz =
-                            (get(z + 1, y, x + 1) - get(z + 1, y, x - 1) - get(z - 1, y, x + 1)
+                            let phi_xz = (get(z + 1, y, x + 1)
+                                - get(z + 1, y, x - 1)
+                                - get(z - 1, y, x + 1)
                                 + get(z - 1, y, x - 1))
                                 * 0.25;
-                        let phi_yz =
-                            (get(z + 1, y + 1, x) - get(z + 1, y - 1, x) - get(z - 1, y + 1, x)
+                            let phi_yz = (get(z + 1, y + 1, x)
+                                - get(z + 1, y - 1, x)
+                                - get(z - 1, y + 1, x)
                                 + get(z - 1, y - 1, x))
                                 * 0.25;
 
-                        // Mean curvature numerator N (Caselles–Kimmel–Sapiro 1997).
-                        let num = phi_xx * (phi_y * phi_y + phi_z * phi_z)
-                            + phi_yy * (phi_x * phi_x + phi_z * phi_z)
-                            + phi_zz * (phi_x * phi_x + phi_y * phi_y)
-                            - 2.0 * phi_x * phi_y * phi_xy
-                            - 2.0 * phi_x * phi_z * phi_xz
-                            - 2.0 * phi_y * phi_z * phi_yz;
+                            // Mean curvature numerator N (Caselles–Kimmel–Sapiro 1997).
+                            let num = phi_xx * (phi_y * phi_y + phi_z * phi_z)
+                                + phi_yy * (phi_x * phi_x + phi_z * phi_z)
+                                + phi_zz * (phi_x * phi_x + phi_y * phi_y)
+                                - 2.0 * phi_x * phi_y * phi_xy
+                                - 2.0 * phi_x * phi_z * phi_xz
+                                - 2.0 * phi_y * phi_z * phi_yz;
 
-                        // speed = |∇φ|·κ = N / |∇φ|²  (regularised to avoid 0/0).
-                        let grad_sq = phi_x * phi_x + phi_y * phi_y + phi_z * phi_z;
-                        let speed = if grad_sq > GRAD_SQ_EPS {
-                            num / grad_sq
-                        } else {
-                            0.0
-                        };
+                            // speed = |∇φ|·κ = N / |∇φ|²  (regularised to avoid 0/0).
+                            let grad_sq = phi_x * phi_x + phi_y * phi_y + phi_z * phi_z;
+                            let speed = if grad_sq > GRAD_SQ_EPS {
+                                num / grad_sq
+                            } else {
+                                0.0
+                            };
 
-                        // ITK CalculateUpdateValue flow constraint: a foreground
-                        // voxel may not cross below the zero iso-surface, and a
-                        // background voxel may not cross above it. This keeps the
-                        // antialiased boundary pinned to the original binary edge
-                        // (itkAntiAliasBinaryImageFilter.hxx::CalculateUpdateValue).
-                        let raw = c + DT * speed;
-                        let new_val = if binary[flat] > 0.5 {
-                            raw.max(0.0)
-                        } else {
-                            raw.min(0.0)
-                        };
-                        next[flat] = new_val;
-
-                        let diff = (new_val - c) as f64;
-                        sum_sq += diff * diff;
+                            // ITK CalculateUpdateValue flow constraint: a foreground
+                            // voxel may not cross below the zero iso-surface, and a
+                            // background voxel may not cross above it.
+                            let raw = c + DT * speed;
+                            let new_val = if binary[flat] > 0.5 {
+                                raw.max(0.0)
+                            } else {
+                                raw.min(0.0)
+                            };
+                            iz_out[iy * nx + ix] = new_val;
+                        }
                     }
-                }
-            }
+                },
+            );
 
-            // Per-voxel RMS change; test convergence before committing the next buffer.
-            let rms = (sum_sq / n as f64).sqrt() as f32;
+            // Per-voxel RMS change: O(N) serial reduction.
+            // `next` holds the just-computed values; `phi` holds the previous
+            // values. The diff is identical to the serial inline version.
+            let sum_sq: f64 = next
+                .iter()
+                .zip(phi.iter())
+                .map(|(&nv, &ov)| {
+                    let d = nv as f64 - ov as f64;
+                    d * d
+                })
+                .sum();
+
             // `next` was written for every voxel this sweep, so swapping the
             // buffers commits it as the current level set without an N-element
-            // memcpy; the old `phi` becomes scratch, fully overwritten next
-            // sweep. Bit-identical to copy_from_slice, O(1) instead of O(N).
+            // memcpy; the old `phi` becomes scratch, fully overwritten next sweep.
+            let rms = (sum_sq / n as f64).sqrt() as f32;
             std::mem::swap(&mut phi, &mut next);
 
             if rms < self.max_rms_error {
