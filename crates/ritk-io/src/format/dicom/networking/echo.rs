@@ -142,3 +142,43 @@ pub(super) fn receive_data_pdv(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::TcpListener;
+    use std::time::Duration;
+
+    /// A C-ECHO to a refused localhost port must return a typed `Err`, never
+    /// panic or abort the process.
+    ///
+    /// This pins the DICOM client's graceful-failure contract on
+    /// connection-refused. The ritk-snap pacs worker's state-transition tests
+    /// connect to an unbound `127.0.0.1` port; if `establish` faulted on
+    /// refusal the worker thread would take the process down. (The 0xc0000005
+    /// aborts observed under parallel `nextest` were a separate native
+    /// process-init race — see `.config/nextest.toml` — not this path: a
+    /// no-network test aborted identically, and `-j1` passes. This test proves
+    /// the connect path itself is safe.)
+    #[test]
+    fn echo_to_refused_port_returns_err_not_panic() {
+        // Bind then immediately drop to obtain a port guaranteed to be closed,
+        // so the connect is deterministically refused (no flaky live port).
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().expect("read local addr").port();
+        drop(listener);
+
+        let config = AssociationConfig {
+            host: "127.0.0.1".into(),
+            port,
+            timeout: Duration::from_secs(2),
+            ..AssociationConfig::default()
+        };
+
+        let result = echo(&config);
+        assert!(
+            result.is_err(),
+            "C-ECHO to a refused port must return a typed Err, got Ok"
+        );
+    }
+}
