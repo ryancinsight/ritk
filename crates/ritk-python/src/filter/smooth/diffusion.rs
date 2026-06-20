@@ -265,22 +265,24 @@ pub fn coherence_enhancing_diffusion(
 // ── AntiAliasBinary ─────────────────────────────────────────────────────
 
 /// Narrow-band level-set smoothing of binary image boundaries,
-/// matching `SimpleITK.AntiAliasBinaryImageFilter`.
+/// matching `SimpleITK.AntiAliasBinaryImageFilter` (bit-exact).
 ///
-/// Evolves a signed-distance level set from the binary image boundary
-/// via mean curvature flow until the RMS change falls below `max_rms_error`
-/// or `number_of_iterations` steps complete. Returns the floating-point
-/// level-set function (negative inside the object).
+/// Evolves a signed-distance level set from the binary image boundary via the
+/// ITK SparseField mean-curvature solver until the RMS change falls below
+/// `max_rms_error` or `number_of_iterations` steps complete. Returns the
+/// floating-point level set: **positive inside** the (foreground) object,
+/// negative outside, with the zero crossing at the anti-aliased sub-voxel
+/// boundary — the per-voxel sign is locked to the input binary.
 ///
 /// Args:
-///     image:                Binary float32 PyImage (0.0 or 1.0 values).
-///     max_rms_error:        Convergence threshold on per-voxel RMS change (default 0.01).
-///     number_of_iterations: Maximum mean-curvature-flow steps (default 50).
+///     image:                Binary float32 PyImage (foreground = max value).
+///     max_rms_error:        Convergence threshold on per-voxel RMS change (ITK default 0.07).
+///     number_of_iterations: Maximum SparseField evolution steps (ITK default 1000).
 ///
 /// Returns:
-///     Level-set PyImage (negative inside, positive outside).
+///     Level-set PyImage (positive inside the object, negative outside).
 #[pyfunction]
-#[pyo3(signature = (image, max_rms_error=0.01_f32, number_of_iterations=50_usize))]
+#[pyo3(signature = (image, max_rms_error=0.07_f32, number_of_iterations=1000_usize))]
 pub fn anti_alias_binary(
     py: Python<'_>,
     image: &PyImage,

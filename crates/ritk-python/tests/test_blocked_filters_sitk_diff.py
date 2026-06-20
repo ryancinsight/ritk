@@ -107,19 +107,30 @@ def test_scalar_chan_and_vese_matches_sitk():
     assert (((_sq(out) > 0.5) == (ref > 0.5)).mean()) > 0.99
 
 
-@pytest.mark.xfail(
-    reason="Sign convention fixed (foreground now positive per ITK "
-    "CalculateUpdateValue; corr -0.90 -> +0.90, 100%% sign agreement vs sitk). "
-    "Residual is magnitude only: ritk emits a +-1 mean-curvature level set "
-    "while sitk's SparseField stores a +-3 narrow-band signed distance with "
-    "subvoxel boundary precision; max abs err 2.0. Closing it needs the "
-    "SparseFieldLevelSet narrow-band reinitialisation, not a sign fix.",
-    strict=False,
+@pytest.mark.parametrize(
+    "shape_fn, max_rms, iters",
+    [
+        ("square", 0.07, 50),
+        ("circle", 0.07, 50),
+        ("lshape", 0.07, 50),
+        ("jagged", 0.01, 100),
+        ("jagged", 0.002, 100),
+    ],
 )
-def test_anti_alias_binary_matches_sitk():
-    b = np.zeros((24, 24), np.int16)
-    b[6:18, 6:18] = 1
-    ref = sitk.GetArrayFromImage(sitk.AntiAliasBinary(sitk.GetImageFromArray(b), 0.07, 50))
+def test_anti_alias_binary_matches_sitk(shape_fn, max_rms, iters):
+    """Bit-exact vs sitk.AntiAliasBinary: the ITK SparseField solver (ZeroCrossing
+    init + InitializeActiveLayerValues + dynamic ApplyUpdate cascade + RMS-stop)
+    is ported faithfully. Validated across shapes and iteration counts."""
+    if shape_fn == "square":
+        b = np.zeros((24, 24), np.uint8); b[6:18, 6:18] = 1
+    elif shape_fn == "circle":
+        yy, xx = np.mgrid[0:32, 0:32]; b = ((yy - 16) ** 2 + (xx - 16) ** 2 < 100).astype(np.uint8)
+    elif shape_fn == "lshape":
+        b = np.zeros((28, 28), np.uint8); b[5:23, 5:12] = 1; b[16:23, 5:23] = 1
+    else:  # jagged
+        b = np.zeros((30, 30), np.uint8); b[8:22, 8:22] = 1
+        b[7, 9:21:2] = 1; b[22, 9:21:2] = 1; b[9:21:2, 7] = 1; b[9:21:2, 22] = 1
+    ref = sitk.GetArrayFromImage(sitk.AntiAliasBinary(sitk.GetImageFromArray(b), max_rms, iters))
     out = ritk.filter.anti_alias_binary(
-        ritk.Image(np.ascontiguousarray(b[None].astype(np.float32))), 0.07, 50)
-    assert float(np.abs(_sq(out) - ref).max()) < 1e-2
+        ritk.Image(np.ascontiguousarray(b[None].astype(np.float32))), max_rms, iters)
+    assert float(np.abs(_sq(out) - ref).max()) < 1e-4, "ritk SparseField must match sitk bit-exact"
