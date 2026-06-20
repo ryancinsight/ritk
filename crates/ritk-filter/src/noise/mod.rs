@@ -30,5 +30,5 @@ pub use speckle::SpeckleNoiseFilter;
 pub(crate) const DEFAULT_NOISE_SEED: u64 = 42;
 
 #[cfg(test)]
-#[path = "tests_noise.rs"]
-mod tests_noise;
+mod tests;
+

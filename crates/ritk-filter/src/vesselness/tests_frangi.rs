@@ -257,6 +257,44 @@ fn test_frangi_tube_exceeds_sphere() {
     );
 }
 
+/// **Test 6 — IIR Hessian diagonal sum equals the IIR Laplacian.**
+///
+/// By linearity of differentiation, the trace of the Hessian
+/// `H_{zz} + H_{yy} + H_{xx}` equals the Laplacian `∇²I`.
+/// Both paths use the same Deriche IIR recursion internally, so the values
+/// must be float-close at every voxel (differs only in axis application order,
+/// which is associative for separable filters).
+///
+/// Evidence tier: algebraic — `∇²G = H_{zz} + H_{yy} + H_{xx}` by linearity.
+#[test]
+fn test_hessian_iir_laplacian_consistency() {
+    let dims = [8_usize, 8, 8];
+    let n = 8 * 8 * 8;
+    let vals: Vec<f32> = (0..n).map(|i| (i as f32 * 0.01) % 1.0).collect();
+    let spacing = [1.0_f64, 1.0, 1.0];
+    let sigma = 1.5_f64;
+
+    let hessians = crate::recursive_gaussian::compute_hessian_iir(&vals, dims, spacing, sigma);
+    // Trace = H_{zz}[0] + H_{yy}[3] + H_{xx}[5].
+    let diag_sum: Vec<f32> = hessians.iter().map(|h| h[0] + h[3] + h[5]).collect();
+
+    let img = ts::make_image::<B, 3>(vals, dims);
+    let lap = crate::recursive_gaussian::laplacian_recursive_gaussian(&img, sigma)
+        .expect("laplacian_recursive_gaussian failed");
+    let (lap_vals, _) = extract_vec_infallible(&lap);
+
+    // Interior voxel at (4,4,4) is far from boundary transients.
+    let ci = 4 * 8 * 8 + 4 * 8 + 4;
+    let diff = (diag_sum[ci] - lap_vals[ci]).abs();
+    assert!(
+        diff < 1e-3,
+        "Hessian diagonal sum diverges from Laplacian by {diff:.6} at center voxel \
+         (trace = {:.6}, laplacian = {:.6})",
+        diag_sum[ci],
+        lap_vals[ci]
+    );
+}
+
 /// **Test 5 — Dark vessel polarity gate.**
 ///
 /// With `bright_vessels = false`, a bright tube returns zero vesselness

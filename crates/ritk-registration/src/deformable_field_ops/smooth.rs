@@ -17,7 +17,6 @@ use burn::tensor::Tensor;
 
 use super::flat;
 use super::FieldSmoother;
-use crate::parallel::CellSlice;
 use ritk_filter::gaussian_kernel;
 use ritk_spatial::{Spacing, VolumeDims};
 
@@ -34,39 +33,38 @@ pub(super) fn convolve_axis<const AXIS: usize>(
     kernel: &[f64],
     output: &mut [f32],
 ) {
-    let [nz, ny, nx] = dims.0;
+    let [_nz, ny, nx] = dims.0;
     let r = kernel.len() / 2;
     let max_coord = dims.0[AXIS];
     // Parallelize over z-slices: each slice writes to a disjoint contiguous
     // range in `output`; all reads are from the immutable `data` input
     // (including cross-slice reads along the Z axis).
     let slice_len = ny * nx;
-    let output = CellSlice::from_mut(output);
-    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
-        let base = iz * slice_len;
-        // SAFETY: `output` has length nz*ny*nx; each thread writes only to
-        // its own disjoint [base, base + slice_len) range.
-        let out_s = unsafe { output.slice_mut(base, slice_len) };
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let local = iy * nx + ix;
-                let coord = [iz, iy, ix][AXIS];
-                let mut acc = 0.0_f64;
-                for (ki, &kv) in kernel.iter().enumerate() {
-                    let src_coord = (coord as isize + ki as isize - r as isize)
-                        .max(0)
-                        .min(max_coord as isize - 1) as usize;
-                    let src_fi = match AXIS {
-                        0 => flat(src_coord, iy, ix, ny, nx),
-                        1 => flat(iz, src_coord, ix, ny, nx),
-                        _ => flat(iz, iy, src_coord, ny, nx),
-                    };
-                    acc += kv * data[src_fi] as f64;
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        output,
+        slice_len,
+        |iz, out_s| {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local = iy * nx + ix;
+                    let coord = [iz, iy, ix][AXIS];
+                    let mut acc = 0.0_f64;
+                    for (ki, &kv) in kernel.iter().enumerate() {
+                        let src_coord = (coord as isize + ki as isize - r as isize)
+                            .max(0)
+                            .min(max_coord as isize - 1) as usize;
+                        let src_fi = match AXIS {
+                            0 => flat(src_coord, iy, ix, ny, nx),
+                            1 => flat(iz, src_coord, ix, ny, nx),
+                            _ => flat(iz, iy, src_coord, ny, nx),
+                        };
+                        acc += kv * data[src_fi] as f64;
+                    }
+                    out_s[local] = acc as f32;
                 }
-                out_s[local] = acc as f32;
             }
-        }
-    });
+        },
+    );
 }
 
 /// Apply separable 3-D Gaussian smoothing to `data` **in place**.

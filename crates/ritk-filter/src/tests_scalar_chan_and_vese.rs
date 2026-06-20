@@ -152,3 +152,91 @@ fn test_chan_and_vese_stays_finite() {
     // Output shape must be preserved.
     assert_eq!(out.shape(), [nz, ny, nx]);
 }
+
+// ── 3. μ = 1.0 default and adaptive dt: level set converges on synthetic circle ─
+
+/// After the μ = 1.0 default fix and adaptive dt, the evolved level set must
+/// show that the interior region (φ < 0) correctly encompasses the foreground
+/// circle: mean φ inside the ground-truth circle must be strictly less than
+/// mean φ outside.
+///
+/// Evidence tier: structural convergence — correct topological behaviour on a
+/// synthetic circle ground truth, not a pixel-exact ITK comparison.
+///
+/// Initialisation: signed-distance level set aligned to the circle boundary
+/// (the exact steady state for a perfect binary feature image). The filter must
+/// at minimum preserve that configuration; in practice it stays or tightens it.
+#[test]
+fn test_scalar_chan_and_vese_mu_default_convergence() {
+    let nz = 1_usize;
+    let ny = 16_usize;
+    let nx = 16_usize;
+    let n = nz * ny * nx;
+
+    // Synthetic feature: bright filled circle (radius 5) on dark background.
+    let cx = nx as f64 / 2.0 - 0.5;
+    let cy = ny as f64 / 2.0 - 0.5;
+    let radius = 5.0_f64;
+
+    let feat_vals: Vec<f32> = (0..n)
+        .map(|i| {
+            let iy = (i / nx) % ny;
+            let ix = i % nx;
+            let dx = ix as f64 - cx;
+            let dy = iy as f64 - cy;
+            if (dx * dx + dy * dy).sqrt() <= radius {
+                1.0_f32
+            } else {
+                0.0
+            }
+        })
+        .collect();
+
+    // φ₀ = signed-distance to circle boundary: negative inside (φ < 0 = inside).
+    let phi_init: Vec<f32> = (0..n)
+        .map(|i| {
+            let iy = (i / nx) % ny;
+            let ix = i % nx;
+            let dx = ix as f64 - cx;
+            let dy = iy as f64 - cy;
+            ((dx * dx + dy * dy).sqrt() - radius) as f32
+        })
+        .collect();
+
+    let feat_img = make_image(feat_vals, [nz, ny, nx]);
+    let phi_img = make_image(phi_init, [nz, ny, nx]);
+
+    // Default parameters: mu = 1.0 (corrected), dt = 0.25 (adaptive max step).
+    let filter = ScalarChanAndVeseDenseLevelSet {
+        number_of_iterations: 50,
+        ..Default::default()
+    };
+
+    let out = filter.apply(&phi_img, &feat_img).unwrap();
+    let result = extract_vals(&out);
+
+    // Mean φ inside the ground-truth circle must be strictly less than outside.
+    let (mut sum_in, mut cnt_in) = (0.0_f64, 0_usize);
+    let (mut sum_out, mut cnt_out) = (0.0_f64, 0_usize);
+    for (i, &rv) in result.iter().enumerate() {
+        let iy = (i / nx) % ny;
+        let ix = i % nx;
+        let dx = ix as f64 - cx;
+        let dy = iy as f64 - cy;
+        if (dx * dx + dy * dy).sqrt() <= radius {
+            sum_in += rv as f64;
+            cnt_in += 1;
+        } else {
+            sum_out += rv as f64;
+            cnt_out += 1;
+        }
+    }
+
+    let mean_in = sum_in / cnt_in as f64;
+    let mean_out = sum_out / cnt_out as f64;
+    assert!(
+        mean_in < mean_out,
+        "mean φ inside circle ({mean_in:.4}) must be less than outside ({mean_out:.4}) \
+         after Chan-Vese convergence (μ=1.0, adaptive dt)"
+    );
+}

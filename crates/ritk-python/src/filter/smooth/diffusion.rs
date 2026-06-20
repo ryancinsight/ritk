@@ -313,12 +313,14 @@ pub fn anti_alias_binary(
 ///     number_of_iterations: Euler steps (default 20).
 ///     lambda1:           Inside-region data weight (default 1.0).
 ///     lambda2:           Outside-region data weight (default 1.0).
+///     mu:                Curvature (length) penalty weight μ (default 1.0;
+///                        matches ITK's `CurvatureWeight`).
 ///
 /// Returns:
 ///     Evolved level-set PyImage.
 #[pyfunction]
 #[pyo3(signature = (initial_level_set, feature_image, number_of_iterations=20,
-                    lambda1=1.0_f32, lambda2=1.0_f32))]
+                    lambda1=1.0_f32, lambda2=1.0_f32, mu=1.0_f32))]
 pub fn scalar_chan_and_vese_dense_level_set(
     py: Python<'_>,
     initial_level_set: &PyImage,
@@ -326,6 +328,7 @@ pub fn scalar_chan_and_vese_dense_level_set(
     number_of_iterations: usize,
     lambda1: f32,
     lambda2: f32,
+    mu: f32,
 ) -> RitkResult<PyImage> {
     let arc_init = std::sync::Arc::clone(&initial_level_set.inner);
     let arc_feat = std::sync::Arc::clone(&feature_image.inner);
@@ -334,6 +337,7 @@ pub fn scalar_chan_and_vese_dense_level_set(
             number_of_iterations,
             lambda1,
             lambda2,
+            mu,
             ..Default::default()
         }
         .apply(arc_init.as_ref(), arc_feat.as_ref())

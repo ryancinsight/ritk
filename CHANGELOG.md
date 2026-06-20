@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 385: Frangi IIR Hessian, O(N) SAT LNCC, IsolatedWatershed BFS→Watershed, ChanVese mu fix, shift_scale binding
+
+### Fixed (correctness)
+- `ritk-filter`: **Frangi vesselness + Sato line filter** — Hessian was computed via discrete sampled-Gaussian blur followed by finite-difference second derivatives, diverging from ITK for σ ≲ 2 px. Replaced with `compute_hessian_iir`: all 6 Hessian components (`H_{dd}`, `H_{di}`) now computed via Deriche IIR recursion (matching ITK `HessianRecursiveGaussianImageFilter`). New test `test_hessian_iir_laplacian_consistency` verifies algebraic identity `H_{zz}+H_{yy}+H_{xx} = ∇²G` to 1e-3. Closes CORR-384-01.
+- `ritk-filter`: **`ScalarChanAndVeseDenseLevelSet`** — `mu` default was 0.5 instead of ITK's `CurvatureWeight=1.0`; fixed to 1.0. Added adaptive per-iteration dt: `actual_dt = dt / max|δ(φ)·force|` (stability criterion matching ITK's `DenseFiniteDifferenceImageFilter`). Python binding now exposes `mu` kwarg. Closes CORR-384-03.
+- `ritk-segmentation`: **`IsolatedWatershed`** — replaced incorrect ConnectedThreshold BFS with a proper steepest-descent gradient-descent watershed matching ITK `WatershedImageFilter` semantics. Each voxel drains to its gradient-magnitude local minimum via O(N) path-compressed descent tracing. Achieves pixel-perfect match (1.0) on the 7×7 reference test vs sitk. Closes CORR-384-02.
+
+### Added
+- `ritk-python`: **`ritk.filter.shift_scale(image, shift=0.0, scale=1.0)`** — PyO3 binding for `ShiftScaleImageFilter` (`out(x) = (in(x) + shift) * scale`), matching `SimpleITK.ShiftScale`. Stub and smoke-test entries added. cmake parity test `test_cmake_shift_scale_matches_sitk` now passes (was skipped). Closes NEW-384-01.
+
+### Performance
+- `ritk-registration`: **`window_cc_stats` O(N·w³) → O(N) SAT** — replaced the per-voxel two-pass loop (2×343 iterations at r=3) with `CcSats`: 5 f64 summed-area tables built once per `(i_w, j_w)` pair via 3-pass prefix sums, then O(1) König–Huygens query per voxel. Numerical contract: f64 SATs on [0,1]-normalized data; cancellation error ~1.5×10⁻¹³, well below the 1×10⁻¹⁰ force guard. SAT differentially verified against two-pass reference to 1e-9 for both interior and boundary voxels. `cc_forces_into`, `cc_forces`, and `mean_local_cc` all use SATs. Closes PERF-384-01.
+
+### Baseline progression
+| Run | cmake-data | Broad suite | Rust filter | Rust seg | Rust reg |
+|-----|-----------|------------|------------|---------|--------|
+| Sprint 384 exit | 429 | 1077 | 928 | 430 | 654 |
+| Sprint 385 (this) | **430** | **1078** | **928** | **430** | **654** |
+
+---
+
 ## [Unreleased] — Sprint 384: Correctness Fixes, Performance Optimisation, cmake Parity Expansion
 
 ### Fixed (correctness)

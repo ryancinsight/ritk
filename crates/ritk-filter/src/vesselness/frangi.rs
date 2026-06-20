@@ -4,7 +4,8 @@
 //!
 //! Given a 3-D image `I`, for each scale σ:
 //! 1. Smooth `I` with a Gaussian of standard deviation σ (physical units).
-//! 2. Compute the Hessian `H` at every voxel via second-order finite differences.
+//! 2. Compute the Hessian `H` at every voxel via the second-order Deriche IIR
+//!    recursion (matching ITK HessianRecursiveGaussianImageFilter).
 //! 3. Compute eigenvalues `|λ₁| ≤ |λ₂| ≤ |λ₃|` of `H`.
 //! 4. Apply the Frangi vesselness measure:
 //!
@@ -27,8 +28,9 @@
 //! Frangi, A. F., Niessen, W. J., Vincken, K. L., & Viergever, M. A. (1998).
 //! Multiscale vessel enhancement filtering. MICCAI, LNCS 1496, 130–137.
 
-use super::hessian::{compute_hessian, symmetric_3x3_eigenvalues};
+use super::hessian::symmetric_3x3_eigenvalues;
 use super::VesselPolarity;
+use crate::recursive_gaussian::compute_hessian_iir;
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -111,13 +113,11 @@ impl FrangiVesselnessFilter {
 
         // ── Max over scales ───────────────────────────────────────────────────
         for &sigma in &self.config.scales {
-            // 1. Gaussian-blur the image at the current scale.
-            let blurred = gaussian_blur_vec(vals, dims, sigma, spacing);
+            // Compute Hessian via second-order Deriche IIR recursion —
+            // matching ITK HessianRecursiveGaussianImageFilter.
+            let hessians = compute_hessian_iir(vals, dims, spacing, sigma);
 
-            // 2. Compute Hessian at every voxel.
-            let hessians = compute_hessian(&blurred, dims, spacing);
-
-            // 3. Compute Frangi vesselness at every voxel.
+            // Compute Frangi vesselness at every voxel.
             for i in 0..n {
                 let [lambda1, lambda2, lambda3] = symmetric_3x3_eigenvalues(hessians[i]);
                 let v = self.voxel_vesselness(lambda1, lambda2, lambda3);
@@ -188,15 +188,16 @@ impl FrangiVesselnessFilter {
     }
 }
 
-// ── Separable Gaussian blur on Vec<f32> ───────────────────────────────────────
+// ── Separable Gaussian blur on Vec<f32> (test helper) ─────────────────────
 
 /// Apply separable 3-D Gaussian smoothing to a flat voxel buffer.
 ///
 /// Convolves sequentially along the Z, Y, and X axes.  Each axis uses a
-/// normalised Gaussian kernel of radius `⌈3·σ_px⌉` voxels where
+/// normalised Gaussian kernel of radius `⌈ 3·σ_px⌉` voxels where
 /// `σ_px = sigma_mm / spacing[axis]`.
 ///
 /// Boundary condition: replicate (clamp-to-edge).
+#[cfg(test)]
 pub(crate) fn gaussian_blur_vec(
     data: &[f32],
     dims: [usize; 3],

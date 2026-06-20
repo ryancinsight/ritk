@@ -56,7 +56,6 @@ pub mod metric;
 pub mod multires;
 pub mod ngf_rigid;
 pub mod optimizer;
-pub(crate) mod parallel;
 pub mod progress;
 pub mod registration;
 pub mod regularization;

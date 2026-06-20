@@ -81,7 +81,7 @@ use crate::level_set_helpers::compute_curvature_into;
 /// | `number_of_iterations` | 100 |
 /// | `lambda1` | 1.0 |
 /// | `lambda2` | 1.0 |
-/// | `mu` | 0.5 |
+/// | `mu` | 1.0 |
 /// | `nu` | 0.0 |
 /// | `dt` | 0.25 |
 /// | `epsilon` | 1.0 |
@@ -97,7 +97,11 @@ pub struct ScalarChanAndVeseDenseLevelSet {
     pub mu: f32,
     /// Area penalty weight ν. Positive values penalise large inside regions.
     pub nu: f32,
-    /// Euler forward time step Δt.
+    /// Maximum per-voxel step size per iteration.
+    ///
+    /// The adaptive time step scales per iteration as `dt / max|δ_ε(φ)·force|`,
+    /// so no voxel advances more than `dt` in a single step. Matches ITK's
+    /// `TimeStep` default of `0.25`.
     pub dt: f32,
     /// Regularisation width ε for Heaviside and Dirac approximations.
     pub epsilon: f32,
@@ -109,7 +113,7 @@ impl Default for ScalarChanAndVeseDenseLevelSet {
             number_of_iterations: 100,
             lambda1: 1.0,
             lambda2: 1.0,
-            mu: 0.5,
+            mu: 1.0,
             nu: 0.0,
             dt: 0.25,
             epsilon: 1.0,
@@ -179,15 +183,30 @@ impl ScalarChanAndVeseDenseLevelSet {
             // ── 2. Curvature κ = div(∇φ/|∇φ|) ─────────────────────────────
             compute_curvature_into(phi, dims, &mut kappa);
 
-            // ── 3. PDE step ───────────────────────────────────────────────────
+            // ── 3. PDE step (adaptive dt) ─────────────────────────────────────
+            //
+            // Compute per-voxel update values first to find the global maximum,
+            // then scale so the largest step equals `dt` (ITK stability criterion:
+            // actual_dt = dt / max|δ_ε(φ)·force|).
+            let mut delta = vec![0.0_f64; n];
+            let mut max_abs = 0.0_f64;
             for i in 0..n {
                 let d = dirac(phi[i], eps);
                 let diff1 = feat[i] - c1;
                 let diff2 = feat[i] - c2;
-
                 // ∂φ/∂t = δ_ε(φ)[μ·κ + ν + λ₁(u₀−c₁)² − λ₂(u₀−c₂)²]
                 let force = mu * kappa[i] + nu + lam1 * diff1 * diff1 - lam2 * diff2 * diff2;
-                phi[i] += dt * d * force;
+                let dv = d * force;
+                delta[i] = dv;
+                let abs_val = dv.abs();
+                if abs_val > max_abs {
+                    max_abs = abs_val;
+                }
+            }
+            // Scale so no voxel moves more than `dt` per iteration.
+            let actual_dt = if max_abs > 1e-10 { dt / max_abs } else { dt };
+            for i in 0..n {
+                phi[i] += actual_dt * delta[i];
             }
         }
     }

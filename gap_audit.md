@@ -1,5 +1,28 @@
 # RITK Gap Audit - Active
 
+## Sprint 385 Audit (2026-06-19) — IIR Hessian, O(N) SAT, Watershed Fix, ChanVese, shift_scale
+
+### Gaps Closed
+
+- **[CORR-384-01 CLOSED]** Frangi + Sato IIR Hessian: `compute_hessian_iir` replaces discrete-kernel blur + FD stencil. IIR matches ITK `HessianRecursiveGaussianImageFilter`. Evidence: algebraic identity H_zz+H_yy+H_xx = ∇²G verified to 1e-3 in `test_hessian_iir_laplacian_consistency`.
+- **[CORR-384-02 CLOSED]** IsolatedWatershed: replaced ConnectedThreshold BFS with `watershed_basins_gd` (steepest-descent path compression). Pixel-perfect (1.0) match vs sitk on reference test. ConnectedThreshold BFS was incorrect — the ITK result includes voxels with g > upper_value_limit because watershed assigns basin membership by gradient flow, not by gradient threshold.
+- **[CORR-384-03 CLOSED]** ScalarChanAndVeseDenseLevelSet: `mu` default 0.5→1.0; adaptive dt (`actual_dt = dt / max|δ·force|`); Python binding exposes `mu` kwarg.
+- **[NEW-384-01 CLOSED]** `shift_scale` Python binding + stub + smoke test; cmake parity test `test_cmake_shift_scale_matches_sitk` passes.
+- **[PERF-384-01 CLOSED]** `window_cc_stats` O(N·w³) → O(N) `CcSats` SAT. f64 König–Huygens; replicate-pad boundary reproduces clamp semantics; differential test to 1e-9.
+
+### cmake Filter Coverage (Sprint 385 state)
+- **Closed this sprint**: `shift_scale` (1 test, was skipping)  
+- **Total cmake parity tests**: **430 passing, 4 skipped** (Sprint 385 exit baseline)
+
+### Residual Risk
+- **[FRANGI-QA-01]**: Frangi/Sato pixel-level comparison against sitk at multiple σ not yet added; correction confirmed algebraically but not differentially against sitk outputs.
+- **[CHAN-VESE-QA-01]**: ScalarChanAndVese parity test is structural (convergence direction); pixel-exact comparison against sitk not yet performed.
+- **[ISOLATED-WS-QA-01]**: Gradient-descent watershed plateau handling uses arbitrary tie-breaking for equal-g flat regions; may diverge from ITK on images with large flat zones in the gradient magnitude.
+- **[PERF-381-01]**: Criterion baselines for `separable_box_3d` / EDT Phase 3 not recorded.
+
+---
+
+
 > **Full audit history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
 
 

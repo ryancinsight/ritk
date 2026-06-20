@@ -86,6 +86,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rescale_intensity, &m)?)?;
     m.add_function(wrap_pyfunction!(adaptive_histogram_equalization, &m)?)?;
     m.add_function(wrap_pyfunction!(intensity_windowing, &m)?)?;
+    m.add_function(wrap_pyfunction!(shift_scale, &m)?)?;
     m.add_function(wrap_pyfunction!(threshold_below, &m)?)?;
     m.add_function(wrap_pyfunction!(threshold_above, &m)?)?;
     m.add_function(wrap_pyfunction!(threshold_outside, &m)?)?;

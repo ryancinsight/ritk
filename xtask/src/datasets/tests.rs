@@ -1,4 +1,4 @@
-use super::catalog::{is_html_payload, looks_like_nifti_header, validate_nifti_payload};
+use super::catalog::utils::{is_html_payload, looks_like_nifti_header, validate_nifti_payload};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::io::Write;

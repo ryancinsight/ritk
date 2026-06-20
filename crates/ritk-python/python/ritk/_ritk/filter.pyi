@@ -121,6 +121,7 @@ def rescale_intensity(
     out_min: float = 0.0,
     out_max: float = 1.0,
 ) -> Image: ...
+def shift_scale(image: Image, shift: float = ..., scale: float = ...) -> Image: ...
 def adaptive_histogram_equalization(
     image: Image,
     radius: tuple[int, int, int] = (5, 5, 5),

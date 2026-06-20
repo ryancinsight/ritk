@@ -1,7 +1,4 @@
-//! CC force computation primitives for diffeomorphic registration.
 
-use super::*;
-use crate::parallel::CellSlice;
 
 // ── Force computation ────────────────────────────────────────────────────────
 
@@ -26,13 +23,13 @@ pub(crate) fn cc_forces(
 ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-    let r = radius as isize;
+    let sats = super::CcSats::build(i_w, j_w, dims, radius);
     let forces: Vec<(f32, f32, f32)> =
         moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |fi| {
             let ix = fi % nx;
             let iy = (fi / nx) % ny;
             let iz = fi / (ny * nx);
-            let (mu_i, mu_j, num, vi, vj, _) = window_cc_stats(i_w, j_w, dims, iz, iy, ix, r);
+            let (mu_i, mu_j, num, vi, vj, _) = sats.query_at(iz, iy, ix);
             if vi < 1e-10 {
                 return (0.0_f32, 0.0_f32, 0.0_f32);
             }
@@ -80,50 +77,48 @@ pub(crate) fn cc_forces_into(
     fy: &mut [f32],
     fx: &mut [f32],
 ) {
-    let [nz, _ny, nx] = dims;
-    let r = radius as isize;
+    let [_nz, _ny, nx] = dims;
+    let sats = super::CcSats::build(i_w, j_w, dims, radius);
     let slice_len = dims[1] * nx;
     // Zero-initialize outputs.
     fz.iter_mut().for_each(|v| *v = 0.0);
     fy.iter_mut().for_each(|v| *v = 0.0);
     fx.iter_mut().for_each(|v| *v = 0.0);
-    // Convert &mut [f32] to (ptr, len) pairs and wrap the pointers in
-    // CellSlice — a Send+Sync wrapper. The Fn closure cannot capture
-    // &mut references; CellSlice allows Rayon to share the pointer across
-    // threads. Each thread reconstructs only its own disjoint slice via
-    // offset arithmetic.
-    let fz = CellSlice::from_mut(fz);
-    let fy = CellSlice::from_mut(fy);
-    let fx = CellSlice::from_mut(fx);
-    // Process in parallel by z-slice. Each z-slice writes to a disjoint
-    // contiguous range in the output buffers.
-    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
-        let base = iz * slice_len;
-        // SAFETY: fz, fy, fx have identical length and are split at the
-        // same chunk boundaries. Each thread writes to a disjoint region.
-        let fz_s = unsafe { fz.slice_mut(base, slice_len) };
-        let fy_s = unsafe { fy.slice_mut(base, slice_len) };
-        let fx_s = unsafe { fx.slice_mut(base, slice_len) };
-        let ny = slice_len / nx;
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let local = iy * nx + ix;
-                let fi = base + local;
-                let (mu_i, mu_j, num, vi, vj, _) = window_cc_stats(i_w, j_w, dims, iz, iy, ix, r);
-                if vi < 1e-10 {
-                    continue; // already zeroed
+
+    let mut zipped: Vec<(&mut [f32], &mut [f32], &mut [f32])> = fz
+        .chunks_exact_mut(slice_len)
+        .zip(fy.chunks_exact_mut(slice_len))
+        .zip(fx.chunks_exact_mut(slice_len))
+        .map(|((z, y), x)| (z, y, x))
+        .collect();
+
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut zipped,
+        1,
+        |iz, chunk| {
+            let (fz_s, fy_s, fx_s) = &mut chunk[0];
+            let base = iz * slice_len;
+            let ny = slice_len / nx;
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local = iy * nx + ix;
+                    let fi = base + local;
+                    let (mu_i, mu_j, num, vi, vj, _) = sats.query_at(iz, iy, ix);
+                    if vi < 1e-10 {
+                        continue; // already zeroed
+                    }
+                    let iw_c = i_w[fi] as f64 - mu_i;
+                    let jw_c = j_w[fi] as f64 - mu_j;
+                    let denom = (vi * vj).sqrt() + 1e-10;
+                    let cc = num / denom;
+                    let force_scale = jw_c / denom - cc * iw_c / (vi + 1e-10);
+                    fz_s[local] = (force_scale * gi_z[fi] as f64) as f32;
+                    fy_s[local] = (force_scale * gi_y[fi] as f64) as f32;
+                    fx_s[local] = (force_scale * gi_x[fi] as f64) as f32;
                 }
-                let iw_c = i_w[fi] as f64 - mu_i;
-                let jw_c = j_w[fi] as f64 - mu_j;
-                let denom = (vi * vj).sqrt() + 1e-10;
-                let cc = num / denom;
-                let force_scale = jw_c / denom - cc * iw_c / (vi + 1e-10);
-                fz_s[local] = (force_scale * gi_z[fi] as f64) as f32;
-                fy_s[local] = (force_scale * gi_y[fi] as f64) as f32;
-                fx_s[local] = (force_scale * gi_x[fi] as f64) as f32;
             }
-        }
-    });
+        },
+    );
 }
 
 // ── Utility ──────────────────────────────────────────────────────────────────

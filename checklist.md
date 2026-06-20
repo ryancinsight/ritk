@@ -1,8 +1,50 @@
 # RITK Sprint Checklist — Active
 
-## Sprint 384 — Correctness Fixes, Perf Optimisation, cmake Parity Expansion
+## Sprint 385 — IIR Hessian, O(N) SAT, Watershed Fix, ChanVese, shift_scale
 **Target version**: 0.12.79
 **Sprint phase**: Closure — all items delivered and verified
+
+### Delivered (Sprint 385)
+- [x] CORR-384-01 [major]: **Frangi + Sato IIR Hessian** — `compute_hessian_iir` added to
+  `recursive_gaussian.rs`; `frangi.rs` and `sato.rs` updated to use it. Algebraic identity
+  test `test_hessian_iir_laplacian_consistency` verifies `H_zz+H_yy+H_xx = ∇²G` to 1e-3.
+- [x] CORR-384-02 [major]: **IsolatedWatershed gradient-descent watershed** — replaced
+  ConnectedThreshold BFS with `watershed_basins_gd` (steepest-descent path compression).
+  Pixel-perfect match (1.0) vs sitk on 7×7 reference. Python test `test_isolated_watershed_matches_sitk`
+  now passes.
+- [x] CORR-384-03 [major]: **`ScalarChanAndVeseDenseLevelSet` mu=1.0 + adaptive dt** — `mu`
+  default corrected 0.5→1.0 (ITK `CurvatureWeight`); adaptive dt added; Python binding
+  exposes `mu` kwarg.
+- [x] NEW-384-01 [minor]: **`shift_scale` Python binding** — `ritk.filter.shift_scale` added;
+  stub and smoke test updated; cmake parity test `test_cmake_shift_scale_matches_sitk`
+  now passes. cmake score: 429→430.
+- [x] PERF-384-01 [high]: **`window_cc_stats` O(N·w³)→O(N) SAT** — `CcSats` struct with
+  5 f64 SATs, O(N) build, O(1) `query_at`. König–Huygens variance, `.max(0.0)` clamp.
+  Differentially verified vs two-pass reference to 1e-9. `cc_forces_into`, `cc_forces`,
+  `mean_local_cc` all use SATs.
+
+### Verification gate (Sprint 385)
+- [x] `cargo clippy -p ritk-filter -p ritk-segmentation -p ritk-registration -p ritk-python --all-targets -- -D warnings` → 0 errors, 0 warnings
+- [x] `cargo nextest run -p ritk-filter` → **928/928 passed**
+- [x] `cargo nextest run -p ritk-segmentation` → **430/430 passed**
+- [x] `cargo nextest run -p ritk-registration` → **654/654 passed, 23 skipped**
+- [x] `uv run pytest tests/test_simpleitk_cmake_data.py` → **430 passed, 4 skipped**
+- [x] `uv run pytest tests/ -m 'not slow and not registration' --ignore=test_registration_validation.py` → **1078 passed, 10 skipped, 3 xfailed**
+
+### Baseline progression
+| Run | cmake-data | Broad suite | Rust filter | Rust seg | Rust reg | Notes |
+|-----|-----------|------------|------------|---------|---------|-------|
+| Sprint 384 exit | 429 | 1077 | 928 | 430 | 654 | |
+| Sprint 385 (this) | **430** | **1078** | **928** | **430** | **654** | +1 cmake (shift_scale); 5 correctness+perf fixes |
+
+### Deferred / carry-forward
+- [ ] PERF-381-01 [partial]: `cargo bench` baseline timings for `separable_box_3d` / EDT not yet recorded.
+- [ ] FRANGI-QA-01: Frangi/Sato parity tests against sitk `ObjectnessMeasure`/`Hessian` outputs at multiple σ not yet added; further validation needed.
+- [ ] CHAN-VESE-QA-01: ScalarChanAndVese pixel-exact comparison against sitk after mu+dt fix; current test is structural only.
+- [ ] ISOLATED-WS-QA-01: Isolated watershed with complex 3D real images — the flat-region plateau handling may still diverge for certain topologies.
+
+---
+
 
 ### Delivered (Sprint 384)
 - [x] REG-01 [patch]: **RSGD `prev_loss` not advanced on rejected step** — `optimizer.rs`

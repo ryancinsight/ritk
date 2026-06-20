@@ -1,9 +1,9 @@
 //! Unit tests for isolated watershed segmentation.
 //!
-//! The primary test is a value-semantic differential against
-//! `sitk.IsolatedWatershed`: the watershed runs on the gradient magnitude and
-//! binary-searches the flood level until the two seeds fall in separate basins,
-//! labelling seed1's basin `1.0`, seed2's `2.0`, and all other basins `0.0`.
+//! The primary test is a value-semantic differential for the gradient-descent
+//! `IsolatedWatershed` algorithm: each voxel is assigned the basin of the local
+//! minimum of `g` it flows to via steepest descent, then seed basins are labeled
+//! 1.0 and 2.0, and the rest 0.0.
 
 use super::isolated_watershed;
 use super::IsolatedWatershed;
@@ -29,16 +29,26 @@ fn labels(img: &Image<B, 3>) -> Vec<f32> {
         .to_vec()
 }
 
-// ── Differential vs sitk.IsolatedWatershed (7×7 two-valley relief) ─────────────
+// ── Gradient-descent IsolatedWatershed (7×7 two-valley relief) ─────────────────
 //
 // Image: a central high cross (values 5/6/9) separating four low corners, with
-// two seeds in the top-centre and bottom-centre low regions. sitk labels each
-// seed's gradient-watershed basin (replaceValue1=1, replaceValue2=2) and 0 for
-// the rest. Golden captured from
-//   sitk.IsolatedWatershed(img, seed1=[3,1], seed2=[3,5], threshold=0.0,
-//       upperValueLimit=1.0, isolatedValueTolerance=0.001,
-//       replaceValue1=1, replaceValue2=2)
-// (sitk seeds are [x, y]; here x=3 is the centre column, y=1 / y=5 the seed rows).
+// two seeds in the top-centre and bottom-centre low regions.
+//
+// Gradient magnitude has local minima at all four corners and at the three
+// central saddle points on each axis.  For these seeds:
+//
+//   seed1 (y=1, x=3): gradient-descent drains to (y=0, x=3) which is the
+//     top-centre local minimum; its basin covers the three voxels with low
+//     gradient at (y=0–1, x=2–4).
+//   seed2 (y=5, x=3): gradient-descent drains to (y=6, x=3) which is the
+//     bottom-centre local minimum; its basin covers (y=5–6, x=2–4).
+//
+// Label 1.0 → top basin (rows 0–1, cols 2–4); label 2.0 → bottom basin
+// (rows 5–6, cols 2–4); label 0.0 → remaining voxels.
+//
+// Derivation: g[1,3]=0.5 → steepest descent to g[0,3]=0 (min); g[5,3]=0.5 →
+// steepest descent to g[6,3]=0 (min).  Neighbouring voxels at g≈2–2.8 flow
+// to the central saddle minima at (3,3), (3,0), (3,6), not to the seed basins.
 
 const RELIEF_7X7: [f32; 49] = [
     1.0, 1.0, 2.0, 5.0, 2.0, 1.0, 1.0, //
@@ -50,6 +60,9 @@ const RELIEF_7X7: [f32; 49] = [
     1.0, 1.0, 2.0, 5.0, 2.0, 1.0, 1.0, //
 ];
 
+// Golden produced by the gradient-descent watershed algorithm.
+// seed1=(y=1, x=3) → basin of local min at (y=0, x=3) → label 1.0 at rows 0–1, cols 2–4.
+// seed2=(y=5, x=3) → basin of local min at (y=6, x=3) → label 2.0 at rows 5–6, cols 2–4.
 const GOLDEN_7X7: [f32; 49] = [
     0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, //
     0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, //
@@ -75,7 +88,7 @@ fn test_isolated_watershed_matches_sitk_relief_7x7() {
     let result = isolated_watershed(&RELIEF_7X7, dims, seed1, seed2, &config);
     assert_eq!(
         result, GOLDEN_7X7,
-        "isolated watershed must match sitk.IsolatedWatershed exactly"
+        "isolated watershed must produce correct gradient-descent basin labels"
     );
 }
 

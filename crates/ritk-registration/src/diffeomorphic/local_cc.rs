@@ -18,28 +18,34 @@
 //! window reads are independent (read-only access, no data races).
 
 mod forces;
+mod sat;
 #[cfg(test)]
 pub(crate) use forces::cc_forces;
 pub(crate) use forces::cc_forces_into;
 #[cfg(test)]
 pub(crate) use forces::field_rms;
+pub(crate) use sat::CcSats;
 
 // ── Window statistics ─────────────────────────────────────────────────────────
 
-/// Local CC window statistics at voxel `(iz, iy, ix)` with radius `r`.
+/// Reference implementation of local CC window statistics, used for
+/// differential testing of [`CcSats`].
 ///
 /// Returns `(mu_i, mu_j, cc_numerator, var_i, var_j, count)`.
 ///
 /// Two-pass computation: first pass computes window means, second pass
-/// computes covariance and variances using the means.
+/// computes covariance and variances using the means. Production callers
+/// use [`CcSats`] instead.
 ///
-/// The two-pass mean-subtracted form is numerically stable for the Avants 2008
-/// CC force, whose `1/var` term is hypersensitive near zero-variance windows.
-/// A single-pass raw-moment box-sum (`var = ΣI² − (ΣI)²/cnt`) was evaluated as
-/// an `O(N)` replacement but reverted: its cancellation error pushes
-/// small-variance windows across the force guard, diverging registration. A
-/// safe `O(N)` form would need a stable streaming variance, not separable
-/// box-sums.
+/// SAT-based O(N) implementation: 5 summed-area tables are built once per
+/// `(i_w, j_w)` pair via `CcSats::build`, then each voxel's statistics are
+/// retrieved in O(1) via `CcSats::query_at`.
+///
+/// # Numerical contract
+/// Inputs must be [0, 1]-normalized. For f64 SATs, the König–Huygens
+/// cancellation error is bounded by 2·cnt·ε_f64 ≈ 1.5×10⁻¹³, well below
+/// the 1×10⁻¹⁰ force guard. See `sat::CcSats` for details.
+#[cfg(test)]
 #[inline]
 pub(crate) fn window_cc_stats(
     i_w: &[f32],
@@ -99,7 +105,7 @@ pub(crate) fn window_cc_stats(
 pub(crate) fn mean_local_cc(i_w: &[f32], j_w: &[f32], dims: [usize; 3], radius: usize) -> f64 {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-    let r = radius as isize;
+    let sats = CcSats::build(i_w, j_w, dims, radius);
     let (total_cc, count) = moirai::reduce_index_with::<moirai::Adaptive, _, _, _>(
         n,
         (0.0_f64, 0usize),
@@ -107,7 +113,7 @@ pub(crate) fn mean_local_cc(i_w: &[f32], j_w: &[f32], dims: [usize; 3], radius: 
             let ix = fi % nx;
             let iy = (fi / nx) % ny;
             let iz = fi / (ny * nx);
-            let (_, _, num, di2, dj2, _) = window_cc_stats(i_w, j_w, dims, iz, iy, ix, r);
+            let (_, _, num, di2, dj2, _) = sats.query_at(iz, iy, ix);
             let d = (di2 * dj2).sqrt();
             if d > 1e-10 {
                 (num / d, 1usize)

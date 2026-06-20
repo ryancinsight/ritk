@@ -37,9 +37,9 @@
 //!
 //! The final output is the **maximum** response over all scales σ.
 
-use super::frangi::gaussian_blur_vec;
-use super::hessian::{compute_hessian, symmetric_3x3_eigenvalues};
+use super::hessian::symmetric_3x3_eigenvalues;
 use super::VesselPolarity;
+use crate::recursive_gaussian::compute_hessian_iir;
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -126,11 +126,9 @@ fn compute_sato_multiscale(
     let mut max_response = vec![0.0_f32; n];
 
     for &sigma in &config.scales {
-        // Gaussian-blur the image at scale σ.
-        let blurred = gaussian_blur_vec(data, dims, sigma, spacing);
-
-        // Compute physical-space Hessian components at all voxels.
-        let hessian = compute_hessian(&blurred, dims, spacing);
+        // Compute Hessian via second-order Deriche IIR recursion —
+        // matching ITK HessianRecursiveGaussianImageFilter.
+        let hessian = compute_hessian_iir(data, dims, spacing, sigma);
 
         // Per-voxel line response (scale-normalised by σ²).
         let sigma2 = (sigma * sigma) as f32;

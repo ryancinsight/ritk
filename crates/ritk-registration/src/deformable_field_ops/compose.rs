@@ -3,7 +3,6 @@
 #[cfg(test)]
 use super::VelocityField;
 use super::{trilinear_interpolate, VectorField, VectorFieldMut};
-use crate::parallel::CellSlice;
 use ritk_spatial::VolumeDims;
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂` into caller-provided buffers.
@@ -19,7 +18,7 @@ pub(crate) fn compose_fields_into(
     dims: VolumeDims,
     out: VectorFieldMut<'_>,
 ) {
-    let [nz, ny, nx] = dims.0;
+    let [_nz, ny, nx] = dims.0;
     let VectorField {
         z: phi1_z,
         y: phi1_y,
@@ -39,34 +38,37 @@ pub(crate) fn compose_fields_into(
     // Parallelize over z-slices: each slice writes to a disjoint contiguous
     // range in the output buffers; all reads are from immutable inputs.
     let slice_len = ny * nx;
-    let out_z = CellSlice::from_mut(out_z);
-    let out_y = CellSlice::from_mut(out_y);
-    let out_x = CellSlice::from_mut(out_x);
-    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
-        let base = iz * slice_len;
-        // SAFETY: out_z/out_y/out_x each have length nz*ny*nx and are split
-        // at identical disjoint z-slice boundaries; each thread writes only
-        // to its own [base, base + slice_len) range.
-        let out_z_s = unsafe { out_z.slice_mut(base, slice_len) };
-        let out_y_s = unsafe { out_y.slice_mut(base, slice_len) };
-        let out_x_s = unsafe { out_x.slice_mut(base, slice_len) };
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let local = iy * nx + ix;
-                let fi = base + local;
+    let mut zipped: Vec<(&mut [f32], &mut [f32], &mut [f32])> = out_z
+        .chunks_exact_mut(slice_len)
+        .zip(out_y.chunks_exact_mut(slice_len))
+        .zip(out_x.chunks_exact_mut(slice_len))
+        .map(|((z, y), x)| (z, y, x))
+        .collect();
 
-                // Displaced position x + φ₂(x).
-                let wz = iz as f32 + phi2_z[fi];
-                let wy = iy as f32 + phi2_y[fi];
-                let wx = ix as f32 + phi2_x[fi];
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut zipped,
+        1,
+        |iz, chunk| {
+            let (out_z_s, out_y_s, out_x_s) = &mut chunk[0];
+            let base = iz * slice_len;
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local = iy * nx + ix;
+                    let fi = base + local;
 
-                // Sample φ₁ at the displaced position.
-                out_z_s[local] = phi2_z[fi] + trilinear_interpolate(phi1_z, dims, wz, wy, wx);
-                out_y_s[local] = phi2_y[fi] + trilinear_interpolate(phi1_y, dims, wz, wy, wx);
-                out_x_s[local] = phi2_x[fi] + trilinear_interpolate(phi1_x, dims, wz, wy, wx);
+                    // Displaced position x + φ₂(x).
+                    let wz = iz as f32 + phi2_z[fi];
+                    let wy = iy as f32 + phi2_y[fi];
+                    let wx = ix as f32 + phi2_x[fi];
+
+                    // Sample φ₁ at the displaced position.
+                    out_z_s[local] = phi2_z[fi] + trilinear_interpolate(phi1_z, dims, wz, wy, wx);
+                    out_y_s[local] = phi2_y[fi] + trilinear_interpolate(phi1_y, dims, wz, wy, wx);
+                    out_x_s[local] = phi2_x[fi] + trilinear_interpolate(phi1_x, dims, wz, wy, wx);
+                }
             }
-        }
-    });
+        },
+    );
 }
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂`.

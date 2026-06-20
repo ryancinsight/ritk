@@ -1,7 +1,6 @@
 //! Image warping and streaming MSE under displacement fields.
 
 use super::trilinear_interpolate;
-use crate::parallel::CellSlice;
 use ritk_spatial::VolumeDims;
 
 /// Interpolation mode for [`warp_image`].
@@ -45,27 +44,27 @@ pub(crate) fn warp_image_into(
     dx: &[f32],
     output: &mut [f32],
 ) {
-    let [nz, ny, nx] = dims.0;
+    let [_nz, ny, nx] = dims.0;
     // Parallelize over z-slices: each slice writes to a disjoint contiguous
     // range in `output`; all reads are from immutable inputs.
     let slice_len = ny * nx;
-    let output = CellSlice::from_mut(output);
-    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
-        let base = iz * slice_len;
-        // SAFETY: `output` has length nz*ny*nx; each thread writes only to
-        // its own disjoint [base, base + slice_len) range.
-        let out_s = unsafe { output.slice_mut(base, slice_len) };
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let local = iy * nx + ix;
-                let fi = base + local;
-                let wz = iz as f32 + dz[fi];
-                let wy = iy as f32 + dy[fi];
-                let wx = ix as f32 + dx[fi];
-                out_s[local] = trilinear_interpolate(moving, dims, wz, wy, wx);
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        output,
+        slice_len,
+        |iz, out_s| {
+            let base = iz * slice_len;
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local = iy * nx + ix;
+                    let fi = base + local;
+                    let wz = iz as f32 + dz[fi];
+                    let wy = iy as f32 + dy[fi];
+                    let wx = ix as f32 + dx[fi];
+                    out_s[local] = trilinear_interpolate(moving, dims, wz, wy, wx);
+                }
             }
-        }
-    });
+        },
+    );
 }
 
 /// Warp `moving` by the displacement field `(dz, dy, dx)` into a caller-provided
@@ -80,25 +79,25 @@ pub(crate) fn warp_image_nearest_into(
     dx: &[f32],
     output: &mut [f32],
 ) {
-    let [nz, ny, nx] = dims.0;
+    let [_nz, ny, nx] = dims.0;
     let slice_len = ny * nx;
-    let output = CellSlice::from_mut(output);
-    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
-        let base = iz * slice_len;
-        // SAFETY: `output` has length nz*ny*nx; each thread writes only to its
-        // own disjoint [base, base + slice_len) range.
-        let out_s = unsafe { output.slice_mut(base, slice_len) };
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let local = iy * nx + ix;
-                let fi = base + local;
-                let wz = iz as f32 + dz[fi];
-                let wy = iy as f32 + dy[fi];
-                let wx = ix as f32 + dx[fi];
-                out_s[local] = nearest_sample(moving, dims, wz, wy, wx);
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        output,
+        slice_len,
+        |iz, out_s| {
+            let base = iz * slice_len;
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local = iy * nx + ix;
+                    let fi = base + local;
+                    let wz = iz as f32 + dz[fi];
+                    let wy = iy as f32 + dy[fi];
+                    let wx = ix as f32 + dx[fi];
+                    out_s[local] = nearest_sample(moving, dims, wz, wy, wx);
+                }
             }
-        }
-    });
+        },
+    );
 }
 
 /// Warp `moving` by the displacement field `(dz, dy, dx)` with the chosen

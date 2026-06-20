@@ -49,15 +49,15 @@ impl<B: Backend> FilterSlot<B> {
         Self(Arc::new(Mutex::new(None)))
     }
 
-    /// Returns a locked guard containing `(D, GaussianFilter<B>)`.
+    /// Returns a cloned `GaussianFilter<B>`.
     ///
     /// Initializes the filter with `D` copies of `sigma` on first access or
-    /// when the cached dimension differs from `D`. The guard must remain alive
-    /// for the duration of filter usage to keep the data valid.
+    /// when the cached dimension differs from `D`. The Mutex lock is dropped
+    /// immediately after cloning.
     fn get_or_init<const D: usize>(
         &self,
         sigma: GaussianSigma,
-    ) -> std::sync::MutexGuard<'_, Option<(usize, GaussianFilter<B>)>> {
+    ) -> GaussianFilter<B> {
         let mut guard = self
             .0
             .lock()
@@ -65,7 +65,7 @@ impl<B: Backend> FilterSlot<B> {
         if guard.as_ref().is_none_or(|(d, _)| *d != D) {
             *guard = Some((D, GaussianFilter::new(vec![sigma; D])));
         }
-        guard
+        guard.as_ref().unwrap().1.clone()
     }
 }
 
@@ -211,17 +211,16 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
         let fixed_values = fixed.data().clone(); // Already spatial [D, H, W]
 
         // 4. Setup filter (REG-03: get or construct once per dimension D).
-        // The guard holds the Mutex lock for the duration of this forward() call;
-        // filter borrows into the heap-allocated Mutex data (not into self).
-        let filter_guard = self.filter_slot.get_or_init::<D>(self.kernel_sigma);
-        let filter = &filter_guard.as_ref().unwrap().1;
+        // The filter is cloned and the Mutex lock is dropped immediately,
+        // eliminating lock contention during metric evaluation.
+        let filter = self.filter_slot.get_or_init::<D>(self.kernel_sigma);
 
         // 5. Compute or load Local Stats for FIXED image (Stationary Cache O(1))
         let entry = self.cache.get_or_reinit_if(
             |e| e.is_valid_for::<D>(fixed),
             || {
                 let (m_f, v_f) =
-                    self.compute_local_stats(fixed_values.clone(), filter, fixed.spacing());
+                    self.compute_local_stats(fixed_values.clone(), &filter, fixed.spacing());
                 LnccCacheEntry {
                     shape: fixed.shape().to_vec(),
                     origin: collect_array::<3>(fixed.origin().0.iter().copied()),
@@ -243,7 +242,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
 
         // Local Stats for MOVING image (computed per forward pass)
         let (mean_m, var_m) =
-            self.compute_local_stats(moving_values.clone(), filter, fixed.spacing());
+            self.compute_local_stats(moving_values.clone(), &filter, fixed.spacing());
 
         // 6. Compute Cross Term
         // Cross = (F * M) * K

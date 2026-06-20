@@ -16,6 +16,16 @@ pub struct GaussianFilter<B: Backend> {
     _b: std::marker::PhantomData<fn() -> B>,
 }
 
+impl<B: Backend> Clone for GaussianFilter<B> {
+    fn clone(&self) -> Self {
+        Self {
+            sigmas: self.sigmas.clone(),
+            max_kernel_width: self.max_kernel_width,
+            _b: std::marker::PhantomData,
+        }
+    }
+}
+
 impl<B: Backend> GaussianFilter<B> {
     /// Create a new Gaussian filter with the given standard deviation (in physical units).
     ///

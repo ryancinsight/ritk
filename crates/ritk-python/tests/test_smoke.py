@@ -134,6 +134,7 @@ def test_filter_public_functions_exist():
         "curvature_anisotropic_diffusion",
         "sato_line_filter",
         "rescale_intensity",
+        "shift_scale",
         "intensity_windowing",
         "threshold_below",
         "threshold_above",

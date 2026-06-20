@@ -1,0 +1,40 @@
+//! Intensity projection filters for 3-D images.
+//!
+//! # Shape convention
+//! All operations follow the RITK convention: `shape = [Z, Y, X]`
+//! (axis 0 = Z, axis 1 = Y, axis 2 = X). The projected axis is collapsed
+//! to size 1 in the output while all other axes are unchanged.
+//!
+//! # Precision
+//! Max and min accumulation uses native `f32`. Mean, sum, and std-dev
+//! accumulation uses `f64` to prevent catastrophic cancellation across
+//! large slabs.
+//!
+//! # Parallelization
+//! Each filter parallelises over the output pixels (the non-collapsed axes)
+//! using `rayon::into_par_iter`. The inner reduction over the collapsed axis
+//! is a sequential `fold` per output pixel.
+
+mod filters;
+mod ops;
+
+pub use filters::{
+    BinaryProjectionFilter, BinaryThresholdProjectionFilter, MaxIntensityProjectionFilter,
+    MeanIntensityProjectionFilter, MedianIntensityProjectionFilter, MinIntensityProjectionFilter,
+    StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
+};
+
+/// Axis along which the projection is performed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProjectionAxis {
+    /// Project along axis 0 (Z): output shape `[1, Y, X]`.
+    Z = 0,
+    /// Project along axis 1 (Y): output shape `[Z, 1, X]`.
+    Y = 1,
+    /// Project along axis 2 (X): output shape `[Z, Y, 1]`.
+    X = 2,
+}
+
+#[cfg(test)]
+#[path = "../tests_projection.rs"]
+mod tests;

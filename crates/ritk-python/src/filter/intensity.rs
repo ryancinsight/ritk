@@ -9,7 +9,8 @@ use ritk_filter::{
     AdaptiveHistogramEqualizationFilter, BinaryThresholdImageFilter, BitwiseNotImageFilter,
     BlendImageFilter, ClampPolicy, DoubleThresholdImageFilter, IntensityWindowingFilter,
     NormalizeImageFilter, NormalizeToConstantImageFilter, RescaleIntensityFilter,
-    SigmoidImageFilter, ThresholdImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
+    ShiftScaleImageFilter, SigmoidImageFilter, ThresholdImageFilter, UnsharpMaskFilter,
+    ZeroCrossingImageFilter,
 };
 
 /// Linearly rescale image intensity to [out_min, out_max].
@@ -450,4 +451,34 @@ pub fn bitwise_not(
     };
     let out = py.allow_threads(|| filter.apply(arc.as_ref()));
     Ok(into_py_image(out))
+}
+
+/// Apply a linear shift-then-scale to every voxel.
+///
+/// `out(x) = (in(x) + shift) * scale`
+///
+/// Matches `SimpleITK.ShiftScale` (`sitk.ShiftScale`). The only divergence
+/// from ITK is f32 rounding of the multiply-add; max absolute error < 1.0
+/// on typical medical images (single-precision rounding, no accumulation).
+///
+/// Args:
+///     image: Input PyImage.
+///     shift: Added to each voxel before multiplication (default 0.0).
+///     scale: Multiplied after shift (default 1.0).
+///
+/// Returns:
+///     Transformed PyImage with identical shape and spatial metadata.
+///
+/// Raises:
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, shift = 0.0_f32, scale = 1.0_f32))]
+pub fn shift_scale(py: Python<'_>, image: &PyImage, shift: f32, scale: f32) -> RitkResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        ShiftScaleImageFilter::new(shift, scale)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
