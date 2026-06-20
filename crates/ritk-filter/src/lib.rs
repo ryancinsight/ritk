@@ -1,8 +1,3 @@
-// ── Internal ────────────────────────────────────────────────────────────────
-
-// Private level-set numerical primitives shared by the new filter modules.
-pub(crate) mod level_set_helpers;
-
 // ── Re-export gaussian_kernel from ritk-core::filter ────────────────────────────
 pub use ritk_tensor_ops::gaussian_kernel;
 
@@ -192,7 +187,9 @@ pub use displacement::transform_to_displacement_field;
 pub use distance::{
     ApproximateSignedDistanceMapFilter, BinarizationThreshold, DistanceTransformImageFilter,
     FastChamferDistanceFilter, SignedDistanceTransformImageFilter,
+    SignedMaurerDistanceMapImageFilter,
 };
+pub(crate) use distance::signed_maurer_core;
 pub use fast_marching::FastMarchingFilter;
 pub use fractal_dimension::StochasticFractalDimensionFilter;
 pub use inverse_displacement::InverseDisplacementField;

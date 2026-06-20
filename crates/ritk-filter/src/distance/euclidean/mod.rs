@@ -29,14 +29,18 @@
 //! | Filter | ITK class |
 //! |----------------------------------------|------------------------------------------|
 //! | `DistanceTransformImageFilter` | `DanielssonDistanceMapImageFilter` |
-//! | `SignedDistanceTransformImageFilter` | `SignedMaurerDistanceMapImageFilter` |
+//! | `SignedMaurerDistanceMapImageFilter` | `SignedMaurerDistanceMapImageFilter` |
+//! | `SignedDistanceTransformImageFilter` | (centre-distance; *not* Maurer — see its docs) |
 
 mod core;
+mod maurer;
 mod signed;
 mod unsigned;
 
 #[cfg(test)]
 pub(crate) use core::euclidean_dt;
+pub(crate) use maurer::signed_maurer_core;
+pub use maurer::SignedMaurerDistanceMapImageFilter;
 pub use signed::SignedDistanceTransformImageFilter;
 pub use unsigned::DistanceTransformImageFilter;
 

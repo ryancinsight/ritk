@@ -302,27 +302,30 @@ pub fn anti_alias_binary(
 
 // ── ScalarChanAndVeseDenseLevelSet ──────────────────────────────────────
 
-/// Dense Chan-Vese level set segmentation with user-provided initialisation,
-/// matching `SimpleITK.ScalarChanAndVeseDenseLevelSetImageFilter`.
+/// Dense Chan-Vese level set segmentation, bit-exact to
+/// `SimpleITK.ScalarChanAndVeseDenseLevelSet`.
 ///
 /// Minimises the Chan-Vese energy (region-based active contour without edges)
-/// starting from a user-supplied signed-distance level set. The `feature_image`
-/// provides the data term (region means c1/c2).
+/// from a user-supplied signed-distance level set with per-iteration Maurer
+/// reinitialization. Returns the **binary segmentation** (`1` where φ < 0).
 ///
 /// Args:
 ///     initial_level_set: φ₀ image; negative = inside region (float32 3-D PyImage).
 ///     feature_image:     u₀ for the Chan-Vese energy data term.
-///     number_of_iterations: Euler steps (default 20).
+///     number_of_iterations: dense PDE steps (default 20).
 ///     lambda1:           Inside-region data weight (default 1.0).
 ///     lambda2:           Outside-region data weight (default 1.0).
-///     mu:                Curvature (length) penalty weight μ (default 1.0;
-///                        matches ITK's `CurvatureWeight`).
+///     curvature_weight:  Curvature (length) penalty μ (default 1.0).
+///     area_weight:       Area penalty subtracted from the data term (default 0.0).
+///     epsilon:           Heaviside/Dirac regularisation width (default 1.0).
 ///
 /// Returns:
-///     Evolved level-set PyImage.
+///     Binary segmentation PyImage (`1.0` inside, `0.0` outside).
 #[pyfunction]
 #[pyo3(signature = (initial_level_set, feature_image, number_of_iterations=20,
-                    lambda1=1.0_f32, lambda2=1.0_f32, mu=1.0_f32))]
+                    lambda1=1.0_f32, lambda2=1.0_f32, curvature_weight=1.0_f32,
+                    area_weight=0.0_f32, epsilon=1.0_f32))]
+#[allow(clippy::too_many_arguments)]
 pub fn scalar_chan_and_vese_dense_level_set(
     py: Python<'_>,
     initial_level_set: &PyImage,
@@ -330,7 +333,9 @@ pub fn scalar_chan_and_vese_dense_level_set(
     number_of_iterations: usize,
     lambda1: f32,
     lambda2: f32,
-    mu: f32,
+    curvature_weight: f32,
+    area_weight: f32,
+    epsilon: f32,
 ) -> RitkResult<PyImage> {
     let arc_init = std::sync::Arc::clone(&initial_level_set.inner);
     let arc_feat = std::sync::Arc::clone(&feature_image.inner);
@@ -339,8 +344,9 @@ pub fn scalar_chan_and_vese_dense_level_set(
             number_of_iterations,
             lambda1,
             lambda2,
-            mu,
-            ..Default::default()
+            mu: curvature_weight,
+            nu: area_weight,
+            epsilon,
         }
         .apply(arc_init.as_ref(), arc_feat.as_ref())
     });

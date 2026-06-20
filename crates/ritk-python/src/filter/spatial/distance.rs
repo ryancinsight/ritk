@@ -1,7 +1,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_filter::SignedDistanceTransformImageFilter;
+use ritk_filter::{SignedDistanceTransformImageFilter, SignedMaurerDistanceMapImageFilter};
 use ritk_segmentation::DistanceTransform;
 
 /// Distance metric variant for distance transform, replacing `squared: bool`.
@@ -90,6 +90,43 @@ pub fn signed_distance_map(
             .with_threshold(foreground_threshold)
             .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Signed Maurer distance map, bit-exact to `sitk.SignedMaurerDistanceMap`.
+///
+/// Exact signed Euclidean distance to the object **border** (foreground voxels
+/// with a fully-connected background neighbour). With `inside_is_positive=False`
+/// (default) foreground voxels are negative, background positive.
+///
+/// Args:
+///     image: Input image; background is `== background_value`.
+///     inside_is_positive: If True, inside (foreground) distances are positive.
+///     squared_distance: If True (default, matching ITK), return signed `d²`.
+///     use_image_spacing: If True (default), use the image spacing.
+///     background_value: Pixel value identifying background (default 0.0).
+#[pyfunction]
+#[pyo3(signature = (image, inside_is_positive=false, squared_distance=true,
+                    use_image_spacing=true, background_value=0.0_f32))]
+pub fn signed_maurer_distance_map(
+    py: Python<'_>,
+    image: &PyImage,
+    inside_is_positive: bool,
+    squared_distance: bool,
+    use_image_spacing: bool,
+    background_value: f32,
+) -> RitkResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        SignedMaurerDistanceMapImageFilter {
+            background_value,
+            inside_is_positive,
+            squared_distance,
+            use_image_spacing,
+        }
+        .apply(arc.as_ref())
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
 }

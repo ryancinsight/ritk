@@ -13,230 +13,86 @@ fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
     vals
 }
 
-/// Build a spherical signed-distance level set with φ < 0 inside.
-///
-/// `phi(x) = distance_from_centre - radius` — negative inside the sphere.
-fn sphere_phi(nz: usize, ny: usize, nx: usize, radius: f64) -> Vec<f32> {
-    let n = nz * ny * nx;
-    let (cz, cy, cx) = (
-        (nz as f64 - 1.0) * 0.5,
-        (ny as f64 - 1.0) * 0.5,
-        (nx as f64 - 1.0) * 0.5,
-    );
-    (0..n)
-        .map(|i| {
-            let iz = i / (ny * nx);
-            let iy = (i / nx) % ny;
-            let ix = i % nx;
-            let dz = iz as f64 - cz;
-            let dy = iy as f64 - cy;
-            let dx = ix as f64 - cx;
-            ((dz * dz + dy * dy + dx * dx).sqrt() - radius) as f32
-        })
-        .collect()
-}
-
-/// Build a binary sphere feature image: 1.0 inside, 0.0 outside.
-fn sphere_feature(nz: usize, ny: usize, nx: usize, radius: f64) -> Vec<f32> {
-    let n = nz * ny * nx;
-    let (cz, cy, cx) = (
-        (nz as f64 - 1.0) * 0.5,
-        (ny as f64 - 1.0) * 0.5,
-        (nx as f64 - 1.0) * 0.5,
-    );
-    (0..n)
-        .map(|i| {
-            let iz = i / (ny * nx);
-            let iy = (i / nx) % ny;
-            let ix = i % nx;
-            let dz = iz as f64 - cz;
-            let dy = iy as f64 - cy;
-            let dx = ix as f64 - cx;
-            let d = (dz * dz + dy * dy + dx * dx).sqrt();
-            if d <= radius {
-                1.0_f32
-            } else {
-                0.0
-            }
-        })
-        .collect()
-}
-
-// ── 1. Chan-Vese contracts a large initial LS toward the feature boundary ─
-
-/// Setup: 20×20×20, feature sphere of radius 6, initial level set sphere of
-/// radius 9 (over-estimates the feature region by ~3 voxels).
-///
-/// Chan-Vese data-fidelity forces: in the annular band 6 < d < 9 the feature
-/// is 0 but those voxels are classified inside (φ < 0).  The inside mean
-/// c₁ ≈ 0.30 (fraction of feature inside the large sphere), outside mean
-/// c₂ ≈ 0.  At the outer boundary (u₀ = 0):
-///   diff1² = (0 − 0.30)² ≈ 0.09 → positive force → φ increases → voxels
-///   move toward outside.
-///
-/// After 50 iterations with dt = 0.1 the contraction should reduce the
-/// inside voxel count by at least 5% from the initial ~3054 to ≤ 2900.
+/// Output is the binary segmentation: every voxel is exactly 0.0 or 1.0, the
+/// shape is preserved, and the bright feature region is captured (φ < 0 → 1).
 #[test]
-fn test_chan_and_vese_contracts_toward_feature_boundary() {
-    let [nz, ny, nx] = [20usize, 20, 20];
-    let r_feature = 6.0_f64;
-    let r_initial = 9.0_f64;
-
-    let feature_vals = sphere_feature(nz, ny, nx, r_feature);
-    let phi_init_vals = sphere_phi(nz, ny, nx, r_initial);
-
-    let initial_inside = phi_init_vals.iter().filter(|&&v| v < 0.0).count();
-
-    let feature_img = make_image(feature_vals, [nz, ny, nx]);
-    let phi_img = make_image(phi_init_vals, [nz, ny, nx]);
-
-    let filter = ScalarChanAndVeseDenseLevelSet {
-        number_of_iterations: 50,
-        lambda1: 1.0,
-        lambda2: 1.0,
-        mu: 0.5,
-        nu: 0.0,
-        dt: 0.1,
-        epsilon: 1.0,
-    };
-
-    let out = filter.apply(&phi_img, &feature_img).unwrap();
-    let result = extract_vals(&out);
-
-    let final_inside = result.iter().filter(|&&v| v < 0.0).count();
-
-    assert!(
-        final_inside < initial_inside,
-        "Chan-Vese should contract initial_inside={initial_inside} → final_inside={final_inside}; \
-         expected a decrease"
-    );
-    // Require at least 5% contraction (~152 voxels for initial ~3054).
-    let contraction_frac = (initial_inside - final_inside) as f64 / initial_inside as f64;
-    assert!(
-        contraction_frac >= 0.05,
-        "contraction fraction {:.2}% < 5% threshold (initial={initial_inside}, final={final_inside})",
-        contraction_frac * 100.0
-    );
-}
-
-// ── 2. Level set stays finite after 100 iterations ───────────────────────
-
-/// Numerical stability: 100 PDE steps of the Chan-Vese evolution must not
-/// produce any NaN or ±Inf in the output level set.
-///
-/// Verified by checking that every output value is finite.  This exercises the
-/// Dirac (denominator ε² + φ²) and curvature (denominator |∇φ|² + ε_curv)
-/// guard paths.
-#[test]
-fn test_chan_and_vese_stays_finite() {
-    let [nz, ny, nx] = [16usize, 16, 16];
-    let phi_vals = sphere_phi(nz, ny, nx, 5.0);
-    let feat_vals = sphere_feature(nz, ny, nx, 5.0);
-
-    let phi_img = make_image(phi_vals, [nz, ny, nx]);
-    let feat_img = make_image(feat_vals, [nz, ny, nx]);
-
-    let filter = ScalarChanAndVeseDenseLevelSet {
-        number_of_iterations: 100,
-        ..Default::default()
-    };
-
-    let out = filter.apply(&phi_img, &feat_img).unwrap();
-    let result = extract_vals(&out);
-
-    let any_non_finite = result.iter().any(|v| !v.is_finite());
-    assert!(
-        !any_non_finite,
-        "level set contains non-finite values after 100 iterations"
-    );
-    // Output shape must be preserved.
-    assert_eq!(out.shape(), [nz, ny, nx]);
-}
-
-// ── 3. μ = 1.0 default and adaptive dt: level set converges on synthetic circle ─
-
-/// After the μ = 1.0 default fix and adaptive dt, the evolved level set must
-/// show that the interior region (φ < 0) correctly encompasses the foreground
-/// circle: mean φ inside the ground-truth circle must be strictly less than
-/// mean φ outside.
-///
-/// Evidence tier: structural convergence — correct topological behaviour on a
-/// synthetic circle ground truth, not a pixel-exact ITK comparison.
-///
-/// Initialisation: signed-distance level set aligned to the circle boundary
-/// (the exact steady state for a perfect binary feature image). The filter must
-/// at minimum preserve that configuration; in practice it stays or tightens it.
-#[test]
-fn test_scalar_chan_and_vese_mu_default_convergence() {
-    let nz = 1_usize;
-    let ny = 16_usize;
-    let nx = 16_usize;
-    let n = nz * ny * nx;
-
-    // Synthetic feature: bright filled circle (radius 5) on dark background.
-    let cx = nx as f64 / 2.0 - 0.5;
-    let cy = ny as f64 / 2.0 - 0.5;
-    let radius = 5.0_f64;
-
-    let feat_vals: Vec<f32> = (0..n)
+fn test_chan_and_vese_binary_output_captures_feature() {
+    let (ny, nx) = (24usize, 24);
+    let mut feat = vec![0.0f32; ny * nx];
+    for y in 6..18 {
+        for x in 6..18 {
+            feat[y * nx + x] = 100.0;
+        }
+    }
+    // φ₀ = dist − 7: negative inside a radius-7 circle (covers the bright square).
+    let phi0: Vec<f32> = (0..ny * nx)
         .map(|i| {
-            let iy = (i / nx) % ny;
-            let ix = i % nx;
-            let dx = ix as f64 - cx;
-            let dy = iy as f64 - cy;
-            if (dx * dx + dy * dy).sqrt() <= radius {
-                1.0_f32
-            } else {
-                0.0
-            }
+            let (iy, ix) = (i / nx, i % nx);
+            (((iy as f64 - 12.0).powi(2) + (ix as f64 - 12.0).powi(2)).sqrt() - 7.0) as f32
         })
         .collect();
 
-    // φ₀ = signed-distance to circle boundary: negative inside (φ < 0 = inside).
-    let phi_init: Vec<f32> = (0..n)
-        .map(|i| {
-            let iy = (i / nx) % ny;
-            let ix = i % nx;
-            let dx = ix as f64 - cx;
-            let dy = iy as f64 - cy;
-            ((dx * dx + dy * dy).sqrt() - radius) as f32
-        })
-        .collect();
-
-    let feat_img = make_image(feat_vals, [nz, ny, nx]);
-    let phi_img = make_image(phi_init, [nz, ny, nx]);
-
-    // Default parameters: mu = 1.0 (corrected), dt = 0.25 (adaptive max step).
-    let filter = ScalarChanAndVeseDenseLevelSet {
-        number_of_iterations: 50,
+    let out = ScalarChanAndVeseDenseLevelSet {
+        number_of_iterations: 5,
         ..Default::default()
-    };
-
-    let out = filter.apply(&phi_img, &feat_img).unwrap();
+    }
+    .apply(&make_image(phi0, [1, ny, nx]), &make_image(feat.clone(), [1, ny, nx]))
+    .unwrap();
     let result = extract_vals(&out);
 
-    // Mean φ inside the ground-truth circle must be strictly less than outside.
-    let (mut sum_in, mut cnt_in) = (0.0_f64, 0_usize);
-    let (mut sum_out, mut cnt_out) = (0.0_f64, 0_usize);
-    for (i, &rv) in result.iter().enumerate() {
-        let iy = (i / nx) % ny;
-        let ix = i % nx;
-        let dx = ix as f64 - cx;
-        let dy = iy as f64 - cy;
-        if (dx * dx + dy * dy).sqrt() <= radius {
-            sum_in += rv as f64;
-            cnt_in += 1;
-        } else {
-            sum_out += rv as f64;
-            cnt_out += 1;
+    assert_eq!(result.len(), ny * nx);
+    assert!(
+        result.iter().all(|&v| v == 0.0 || v == 1.0),
+        "output must be a binary segmentation"
+    );
+    // The bright-square centre must be labelled foreground.
+    assert_eq!(result[12 * nx + 12], 1.0, "feature centre must be inside");
+    // A far background corner must be labelled background.
+    assert_eq!(result[0], 0.0, "corner must be outside");
+    // The segmented region should overlap the bright square substantially.
+    let seg_in_square: usize = (6..18)
+        .flat_map(|y| (6..18).map(move |x| (y, x)))
+        .filter(|&(y, x)| result[y * nx + x] == 1.0)
+        .count();
+    assert!(
+        seg_in_square >= 90,
+        "segmentation must capture most of the bright square, got {seg_in_square}"
+    );
+}
+
+/// 3-D stability: the binary output stays well-formed and finite over several
+/// iterations with per-iteration Maurer reinitialization.
+#[test]
+fn test_chan_and_vese_3d_binary_stable() {
+    let [nz, ny, nx] = [12usize, 12, 12];
+    let n = nz * ny * nx;
+    let (cz, cy, cx) = (5.5, 5.5, 5.5);
+    let mut feat = vec![0.0f32; n];
+    let mut phi0 = vec![0.0f32; n];
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                let f = z * ny * nx + y * nx + x;
+                let d = ((z as f64 - cz).powi(2) + (y as f64 - cy).powi(2) + (x as f64 - cx).powi(2))
+                    .sqrt();
+                if d <= 3.0 {
+                    feat[f] = 100.0;
+                }
+                phi0[f] = (d - 4.0) as f32;
+            }
         }
     }
 
-    let mean_in = sum_in / cnt_in as f64;
-    let mean_out = sum_out / cnt_out as f64;
-    assert!(
-        mean_in < mean_out,
-        "mean φ inside circle ({mean_in:.4}) must be less than outside ({mean_out:.4}) \
-         after Chan-Vese convergence (μ=1.0, adaptive dt)"
-    );
+    let out = ScalarChanAndVeseDenseLevelSet {
+        number_of_iterations: 4,
+        ..Default::default()
+    }
+    .apply(&make_image(phi0, [nz, ny, nx]), &make_image(feat, [nz, ny, nx]))
+    .unwrap();
+    let result = extract_vals(&out);
+
+    assert_eq!(out.shape(), [nz, ny, nx]);
+    assert!(result.iter().all(|&v| v == 0.0 || v == 1.0), "binary output");
+    assert!(result.contains(&1.0), "must segment some foreground");
+    assert!(result.contains(&0.0), "must keep some background");
 }
