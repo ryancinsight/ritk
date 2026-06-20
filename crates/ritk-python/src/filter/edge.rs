@@ -4,7 +4,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    edge::GaussianSigma, ApproximateSignedDistanceMapFilter, CannyEdgeDetector,
+    edge::GaussianSigma, ApproximateSignedDistanceMapFilter, CannyEdgeDetectionImageFilter,
+    CannyEdgeDetector,
     CannySegmentationLevelSet, CollidingFrontsFilter, DerivativeImageFilter, FastMarchingFilter,
     GradientMagnitudeFilter, IsoContourDistanceFilter, LaplacianFilter, LaplacianOfGaussianFilter,
     LaplacianSharpeningFilter, ReinitializeLevelSetFilter, SobelFilter,
@@ -342,6 +343,47 @@ pub fn canny_edge_detect(
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
+}
+
+/// ITK-exact Canny edge detection, matching `SimpleITK.CannyEdgeDetection`
+/// (`itk::CannyEdgeDetectionImageFilter`).
+///
+/// Unlike `canny_edge_detect` (a generic gradient-non-maximum-suppression Canny),
+/// this is ITK's zero-crossing-of-the-second-directional-derivative formulation:
+/// DiscreteGaussian smoothing → 2nd directional derivative → gradient-maximum mask
+/// × magnitude → zero crossing → multiply → hysteresis thresholding. Bit-exact to
+/// sitk.
+///
+/// Args:
+///     image:           Float32 PyImage (z==1 ⇒ 2-D).
+///     lower_threshold: Lower hysteresis threshold on edge strength (default 0.0).
+///     upper_threshold: Upper hysteresis threshold on edge strength (default 0.0).
+///     variance:        Gaussian smoothing variance σ² (default 0.0).
+///     maximum_error:   Discrete-Gaussian truncation error (default 0.01).
+///
+/// Returns:
+///     Binary edge PyImage (1.0 = edge, 0.0 = non-edge).
+#[pyfunction]
+#[pyo3(signature = (image, lower_threshold=0.0, upper_threshold=0.0, variance=0.0, maximum_error=0.01))]
+pub fn canny_edge_detection(
+    py: Python<'_>,
+    image: &PyImage,
+    lower_threshold: f32,
+    upper_threshold: f32,
+    variance: f64,
+    maximum_error: f64,
+) -> PyImage {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        CannyEdgeDetectionImageFilter {
+            variance,
+            maximum_error,
+            lower_threshold,
+            upper_threshold,
+        }
+        .apply(image.as_ref())
+    });
+    into_py_image(result)
 }
 
 /// Apply the Laplacian of Gaussian (LoG) filter.

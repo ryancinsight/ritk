@@ -5035,14 +5035,37 @@ def test_cmake_canny_edge_detection_structural_parity():
         "output is trivial (all-edge or all-non-edge)"
     )
 
-    # Structural parity: Dice coefficient between the two binary edge maps
-    intersection = float((r_arr & s_arr).sum())
-    union_sum = float(r_arr.sum()) + float(s_arr.sum())
-    dice = 2.0 * intersection / (union_sum + 1e-9)
-    assert dice >= 0.20, (
-        f"Canny Dice={dice:.4f} < 0.20 "
-        "(ritk NMS vs sitk NMS: different implementations; "
-        "measured Dice≈0.30; threshold=0.20 detects regressions to empty/random output)"
+
+@pytest.mark.parametrize(
+    "shape, variance, lower, upper",
+    [
+        ("square", 2.0, 2.0, 8.0),
+        ("square", 1.0, 1.0, 5.0),
+        ("circle", 2.0, 1.0, 6.0),
+        ("noisy", 1.5, 3.0, 10.0),
+    ],
+)
+def test_cmake_canny_edge_detection_bit_exact(shape, variance, lower, upper):
+    """ITK-exact CannyEdgeDetection (filter.canny_edge_detection) is bit-exact to
+    sitk.CannyEdgeDetection: DiscreteGaussian → 2nd directional derivative →
+    gradient-maximum mask × magnitude → zero crossing → multiply → hysteresis."""
+    if shape == "square":
+        f = np.zeros((24, 24), np.float32); f[6:18, 6:18] = 100.0
+    elif shape == "circle":
+        yy, xx = np.mgrid[0:32, 0:32]; f = ((yy - 16) ** 2 + (xx - 16) ** 2 < 64).astype(np.float32) * 50.0
+    else:  # noisy
+        rng = np.random.default_rng(0)
+        base = np.where(np.mgrid[0:28, 0:28][0] > 14, 80.0, 10.0)
+        f = (rng.random((28, 28)) * 40.0 + base).astype(np.float32)
+    si = sitk.GetImageFromArray(f)
+    so = sitk.GetArrayFromImage(
+        sitk.CannyEdgeDetection(si, lowerThreshold=lower, upperThreshold=upper,
+                                variance=[variance, variance], maximumError=[0.01, 0.01]))
+    ro = ritk.filter.canny_edge_detection(
+        ritk.Image(np.ascontiguousarray(f[None])), lower, upper, variance, 0.01)
+    r = np.squeeze(np.asarray(ro.to_numpy()))
+    assert np.array_equal(r, so), (
+        f"canny_edge_detection must match sitk bit-exact (mismatch {int((r != so).sum())})"
     )
 
 

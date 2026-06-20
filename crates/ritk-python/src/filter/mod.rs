@@ -77,6 +77,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fast_marching, &m)?)?;
     m.add_function(wrap_pyfunction!(colliding_fronts, &m)?)?;
     m.add_function(wrap_pyfunction!(canny_edge_detect, &m)?)?;
+    m.add_function(wrap_pyfunction!(canny_edge_detection, &m)?)?;
     m.add_function(wrap_pyfunction!(laplacian_of_gaussian, &m)?)?;
     m.add_function(wrap_pyfunction!(sobel_gradient, &m)?)?;
     // Vesselness
@@ -259,6 +260,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(half_hermitian_to_real_inverse_fft, &m)?)?;
     m.add_function(wrap_pyfunction!(inverse_fft, &m)?)?;
     m.add_function(wrap_pyfunction!(fft_shift, &m)?)?;
+    m.add_function(wrap_pyfunction!(real_fft_shift, &m)?)?;
     m.add_function(wrap_pyfunction!(complex_to_real, &m)?)?;
     m.add_function(wrap_pyfunction!(complex_to_imaginary, &m)?)?;
     m.add_function(wrap_pyfunction!(complex_to_modulus, &m)?)?;
@@ -307,6 +309,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(canny_segmentation_level_set, &m)?)?;
     // Bin-shrink downsampling
     m.add_function(wrap_pyfunction!(bin_shrink, &m)?)?;
+    // Spatial convolution
+    m.add_function(wrap_pyfunction!(spatial_convolve, &m)?)?;
     parent.add_submodule(&m)?;
     Ok(())
 }

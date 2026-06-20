@@ -1,4 +1,5 @@
 pub mod canny;
+pub mod canny_edge_detection;
 pub mod derivative;
 pub mod gaussian_sigma;
 pub mod gradient;
@@ -12,6 +13,7 @@ pub mod sobel;
 pub mod zero_crossing_based_edge;
 
 pub use canny::CannyEdgeDetector;
+pub use canny_edge_detection::CannyEdgeDetectionImageFilter;
 pub use derivative::DerivativeImageFilter;
 pub use gaussian_sigma::GaussianSigma;
 pub use gradient::{GradientImageFilter, GradientRecursiveGaussianImageFilter};

@@ -56,7 +56,7 @@ pub use recursive_gaussian::{
 };
 pub use smoothing::{
     BinomialBlurImageFilter, BoxMeanImageFilter, BoxSigmaImageFilter, MeanImageFilter,
-    NoiseImageFilter, RankImageFilter,
+    NoiseImageFilter, RankImageFilter, SpatialConvolutionFilter,
 };
 
 // ── Intensity & histogram ────────────────────────────────────────────────────
@@ -108,9 +108,9 @@ pub mod edge;
 pub mod vesselness;
 
 pub use edge::{
-    CannyEdgeDetector, DerivativeImageFilter, GaussianSigma, GradientImageFilter,
-    GradientMagnitudeFilter, GradientRecursiveGaussianImageFilter, LaplacianFilter,
-    LaplacianOfGaussianFilter, LaplacianSharpeningFilter, SobelFilter,
+    CannyEdgeDetectionImageFilter, CannyEdgeDetector, DerivativeImageFilter, GaussianSigma,
+    GradientImageFilter, GradientMagnitudeFilter, GradientRecursiveGaussianImageFilter,
+    LaplacianFilter, LaplacianOfGaussianFilter, LaplacianSharpeningFilter, SobelFilter,
     ZeroCrossingBasedEdgeDetectionFilter,
 };
 pub use vesselness::{
@@ -128,7 +128,8 @@ pub use deconvolution::{
 pub use fft::{
     FftConvolution3DFilter, FftConvolutionFilter, FftFilterKind, FftNormalizedCorrelation3DFilter,
     FftNormalizedCorrelationFilter, FftShiftFilter, ForwardFftFilter, FrequencyDomainFilter,
-    HalfHermitianToRealInverseFftFilter, InverseFftFilter, RealToHalfHermitianForwardFftFilter,
+    HalfHermitianToRealInverseFftFilter, InverseFftFilter, RealFftShiftFilter,
+    RealToHalfHermitianForwardFftFilter,
 };
 
 // ── Spatial transforms & grid operations ─────────────────────────────────────
