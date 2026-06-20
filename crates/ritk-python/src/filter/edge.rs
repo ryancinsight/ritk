@@ -477,44 +477,53 @@ pub fn reinitialize_level_set(
 /// `SimpleITK.CannySegmentationLevelSetImageFilter`.
 ///
 /// Evolves an initial level set `φ₀` guided by Canny edges of `feature_image`.
-/// The edge potential F = exp(-|∇I|^2 / canny_threshold) drives the propagation
-/// term while curvature provides regularisation.
+/// Evolves the initial level set toward Canny edges of the feature image via the
+/// ITK SparseField solver, bit-exact to `sitk.CannySegmentationLevelSet`.
 ///
 /// Args:
 ///     initial_level_set: Initial φ image (negative inside region of interest).
 ///     feature_image:     Image to detect edges in.
-///     canny_threshold:   Edge-stopping scale τ (default 0.1).
-///     canny_variance:    Gaussian smoothing variance before gradient (default 1.0).
-///     number_of_iterations: Maximum PDE steps (default 20).
-///     max_rms_error:     RMS convergence criterion (default 0.01).
-///     propagation_scaling: Weight on the propagation term (default 1.0).
+///     threshold:         Upper hysteresis threshold of the internal Canny detector.
+///     variance:          Gaussian variance of the internal Canny detector.
+///     propagation_scaling:  Weight on the propagation (balloon) term (default 1.0).
+///     curvature_scaling:    Weight on the curvature regularisation (default 1.0).
+///     advection_scaling:    Weight on the edge-attraction advection (default 1.0).
+///     maximum_rms_error:    RMS convergence criterion (default 0.02).
+///     number_of_iterations: Maximum PDE steps (default 1000).
+///     iso_surface_value:    Iso value of the initial level set treated as φ=0.
 ///
 /// Returns:
-///     Evolved level-set PyImage.
+///     Evolved level-set PyImage (φ < 0 inside the segmented region).
 #[pyfunction]
-#[pyo3(signature = (initial_level_set, feature_image, canny_threshold=0.1, canny_variance=1.0,
-                    number_of_iterations=20, max_rms_error=0.01, propagation_scaling=1.0))]
+#[pyo3(signature = (initial_level_set, feature_image, threshold=0.0, variance=0.0,
+                    propagation_scaling=1.0, curvature_scaling=1.0, advection_scaling=1.0,
+                    maximum_rms_error=0.02, number_of_iterations=1000, iso_surface_value=0.0))]
 #[allow(clippy::too_many_arguments)]
 pub fn canny_segmentation_level_set(
     py: Python<'_>,
     initial_level_set: &PyImage,
     feature_image: &PyImage,
-    canny_threshold: f32,
-    canny_variance: f32,
-    number_of_iterations: usize,
-    max_rms_error: f32,
+    threshold: f32,
+    variance: f32,
     propagation_scaling: f32,
+    curvature_scaling: f32,
+    advection_scaling: f32,
+    maximum_rms_error: f32,
+    number_of_iterations: usize,
+    iso_surface_value: f32,
 ) -> RitkResult<PyImage> {
     let arc_init = std::sync::Arc::clone(&initial_level_set.inner);
     let arc_feat = std::sync::Arc::clone(&feature_image.inner);
     let result = py.allow_threads(|| {
         CannySegmentationLevelSet {
-            canny_threshold,
-            canny_variance,
+            canny_threshold: threshold,
+            canny_variance: variance,
             number_of_iterations,
-            max_rms_error,
+            max_rms_error: maximum_rms_error,
             propagation_scaling,
-            ..Default::default()
+            curvature_scaling,
+            advection_scaling,
+            iso_surface_value,
         }
         .apply(arc_init.as_ref(), arc_feat.as_ref())
     });

@@ -5645,75 +5645,72 @@ def test_cmake_anti_alias_binary_structural():
     )
 
 
-def test_cmake_canny_segmentation_level_set_structural():
-    """CannySegmentationLevelSetImageFilter: Pearson >= 0.85 vs sitk.
+@pytest.mark.parametrize("n_iter", [1, 2, 3, 5])
+def test_cmake_canny_segmentation_level_set_bit_exact(n_iter):
+    """CannySegmentationLevelSet: bit-exact phi vs sitk over iterations 1..5.
 
-    CannySegmentationLevelSetImageFilter evolves a level set guided by Canny
-    edges of a feature image.  Both ritk and sitk receive the same circular
-    signed-distance initial level set and the same feature image (cthead1.png
-    cast to float32), so the outputs should be structurally correlated.
+    ritk ports the ITK SparseField solver faithfully: Canny edges ->
+    DanielssonDistanceMap speed P -> advection A = P*grad(P) -> narrow-band
+    evolution with the segmentation difference function (curvature - Godunov
+    propagation - upwind advection) and the InterpolateSurfaceLocation sub-voxel
+    offset (sampling P/A at idx - offset via linear interpolation).  The global
+    time step dt = min(waveDT/(maxAdv+maxProp), DT/maxCurv), waveDT = DT =
+    1/(2*dim), is recomputed each iteration.
 
-    Parameters: CannyLowerThreshold=0.1, CannyUpperThreshold=0.1,
-    CannyVariance=[1.0,...], NumberOfIterations=20, MaximumRMSError=0.01,
-    PropagationScaling=1.0.
-    Assertion: Pearson r >= 0.85 (structural).
+    Square feature (a constant block) with a circular initial level set.  The
+    evolved phi (band values plus a +/-(NumberOfLayers+1) far field) must match
+    sitk exactly.  The numpy-f64 prototype reproduces sitk to max-err 0.0; ritk
+    computes in f64 and casts the result to f32, so the only divergence is the
+    final f32 round-off, bounded by far-field 3 * f32 eps ~= 3.6e-7.
 
-    Upstream cmake case mirrors: CannySegmentationLevelSetImageFilter.yaml.
-
-    Evidence tier: empirical (failing — ritk.filter.canny_segmentation_level_set
-    not yet implemented; expected: AttributeError).
+    Evidence tier: differential (bit-exact, tolerance = f32 round-off bound).
     """
     import numpy as _np
 
-    _, si_feat = _pair("cthead1.png")
-    si_feat = sitk.Cast(si_feat, sitk.sitkFloat32)
-    feat_arr = sitk.GetArrayFromImage(si_feat).astype(_np.float32)  # (H, W)
-
-    H, W = feat_arr.shape[-2], feat_arr.shape[-1]
-    cy, cx = H // 2, W // 2
-    r0 = min(H, W) // 4
+    H = W = 30
+    feat_arr = _np.zeros((H, W), _np.float32)
+    feat_arr[8:22, 8:22] = 100.0
     yy, xx = _np.mgrid[0:H, 0:W].astype(_np.float32)
-    # Signed-distance initial level set (negative inside the circle).
-    init_arr = (_np.sqrt((yy - cy) ** 2 + (xx - cx) ** 2) - r0).astype(_np.float32)
+    init_arr = -(_np.sqrt((yy - 15.0) ** 2 + (xx - 15.0) ** 2) - 4.0).astype(_np.float32)
 
+    si_feat = sitk.GetImageFromArray(feat_arr)
     si_init = sitk.GetImageFromArray(init_arr)
-    si_init.CopyInformation(si_feat)
 
     try:
-        f = sitk.CannySegmentationLevelSetImageFilter()
-        f.SetThreshold(0.1)  # sitk 2.5.5: single threshold (not lower/upper)
-        f.SetVariance(1.0)  # sitk 2.5.5: scalar variance (not list)
-        f.SetNumberOfIterations(20)
-        f.SetMaximumRMSError(0.01)
-        f.SetPropagationScaling(1.0)
-        so = f.Execute(si_init, si_feat)
+        so = sitk.CannySegmentationLevelSet(
+            si_init,
+            si_feat,
+            threshold=10.0,
+            variance=1.0,
+            propagationScaling=1.0,
+            curvatureScaling=1.0,
+            advectionScaling=1.0,
+            maximumRMSError=0.0,
+            numberOfIterations=n_iter,
+        )
     except Exception as exc:
-        pytest.skip(f"sitk.CannySegmentationLevelSetImageFilter unavailable: {exc}")
+        pytest.skip(f"sitk.CannySegmentationLevelSet unavailable: {exc}")
 
     ri_feat = ritk.Image(_np.ascontiguousarray(feat_arr[_np.newaxis]))
     ri_init = ritk.Image(_np.ascontiguousarray(init_arr[_np.newaxis]))
     ro = ritk.filter.canny_segmentation_level_set(
         ri_init,
         ri_feat,
-        canny_threshold=0.1,
-        canny_variance=1.0,
-        number_of_iterations=20,
-        max_rms_error=0.01,
+        threshold=10.0,
+        variance=1.0,
         propagation_scaling=1.0,
+        curvature_scaling=1.0,
+        advection_scaling=1.0,
+        maximum_rms_error=0.0,
+        number_of_iterations=n_iter,
     )
 
-    r_arr = _np.asarray(ro.to_numpy(), _np.float64).ravel()
-    s_arr = sitk.GetArrayFromImage(so).astype(_np.float64).ravel()
-    r_c = r_arr - r_arr.mean()
-    s_c = s_arr - s_arr.mean()
-    pearson = float(
-        _np.dot(r_c, s_c) / (_np.sqrt(_np.dot(r_c, r_c) * _np.dot(s_c, s_c)) + 1e-12)
-    )
-    assert pearson >= 0.65, (
-        f"CannySegmentationLevelSet Pearson={pearson:.4f} < 0.65 "
-        "(structural parity; ritk evolves the raw signed-distance without reinit so "
-        "output range ~[-64, 115] vs sitk's \u00b11 normalised level set; "
-        "Pearson empirically ~0.77 on cthead1.png)"
+    r_arr = _np.asarray(ro.to_numpy(), _np.float32).reshape(H, W)
+    s_arr = sitk.GetArrayFromImage(so).astype(_np.float32)
+    max_err = float(_np.abs(r_arr.astype(_np.float64) - s_arr.astype(_np.float64)).max())
+    assert max_err < 1e-5, (
+        f"CannySegmentationLevelSet N={n_iter}: max|phi_ritk - phi_sitk|={max_err:.3e} "
+        "exceeds the f32 round-off bound (expected bit-exact)"
     )
 
 
