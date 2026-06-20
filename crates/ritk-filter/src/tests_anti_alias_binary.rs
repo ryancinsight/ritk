@@ -26,9 +26,7 @@ fn straight_edge_is_half_integer_signed_distance() {
     // 2-D (nz==1): left half background (0), right half foreground (1).
     let (ny, nx) = (1usize, 8usize);
     let mut b = vec![0.0f32; ny * nx];
-    for x in 4..nx {
-        b[x] = 1.0;
-    }
+    b[4..nx].fill(1.0);
     let img = make(&b, [1, ny, nx]);
     let out = AntiAliasBinaryImageFilter::default().apply(&img);
     let v = voxels(&out);
@@ -46,7 +44,7 @@ fn straight_edge_is_half_integer_signed_distance() {
 #[test]
 fn uniform_image_has_no_boundary() {
     let dims = [1usize, 4, 4];
-    let out = AntiAliasBinaryImageFilter::default().apply(&make(&vec![1.0; 16], dims));
+    let out = AntiAliasBinaryImageFilter::default().apply(&make(&[1.0; 16], dims));
     let v = voxels(&out);
     // 2-D ⇒ NumberOfLayers = 2 ⇒ outermost background level = −3.
     for &x in &v {

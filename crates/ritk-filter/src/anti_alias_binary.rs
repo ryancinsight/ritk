@@ -107,7 +107,7 @@ impl AntiAliasBinaryImageFilter {
             return Vec::new();
         }
         let ndim = if nz == 1 { 2 } else { 3 };
-        let nl = ndim as i32; // NumberOfLayers
+        let nl = ndim; // NumberOfLayers
         let num = 2 * nl + 1; // m_Layers.size()
         let bg_val = (nl + 1) as f32;
 
@@ -351,7 +351,7 @@ impl AntiAliasBinaryImageFilter {
                 let mut nv = old + DT * update[k];
                 nv = if binary[f] == upper_bin { nv.max(0.0) } else { nv.min(0.0) };
                 if nv >= cf {
-                    if offsets.iter().any(|&o| neighbor(f, o).map_or(false, |g| status[g] == ST_CDN)) {
+                    if offsets.iter().any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CDN)) {
                         keep.push(f);
                         continue;
                     }
@@ -369,7 +369,7 @@ impl AntiAliasBinaryImageFilter {
                     status[f] = ST_CUP;
                     up[0].insert(0, f);
                 } else if nv < -cf {
-                    if offsets.iter().any(|&o| neighbor(f, o).map_or(false, |g| status[g] == ST_CUP)) {
+                    if offsets.iter().any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CUP)) {
                         keep.push(f);
                         continue;
                     }
