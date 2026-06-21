@@ -15,8 +15,7 @@ use super::super::ParzenJointHistogram;
 use super::SamplingMode;
 use crate::metric::histogram::cache;
 use crate::metric::histogram::parzen::compute_oob_mask;
-#[cfg(feature = "direct-parzen")]
-use crate::metric::histogram::parzen::direct;
+
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
@@ -172,9 +171,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
             #[cfg(feature = "direct-parzen")]
             let chunk_hist = if let Some(ref sparse) = cached_sparse {
                 if !chunk_moving_values.is_require_grad() {
-                    let chunk_sparse: direct::SparseWFixedT = sparse[start..end].to_vec();
+                    let chunk_sparse = &sparse[start..end];
                     self.compute_joint_histogram_from_cache_sparse_dispatch(
-                        &chunk_sparse,
+                        chunk_sparse,
                         &chunk_moving_values,
                         chunk_oob.as_ref(),
                     )

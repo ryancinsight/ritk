@@ -1,7 +1,7 @@
 use crate::edge::GaussianSigma;
 use moirai::prelude::ParallelSliceMut;
 
-use super::pde::{compute_divergence_into, gaussian_smooth};
+use super::pde::compute_divergence_into;
 
 // ── Gradient buffer ──────────────────────────────────────────────────────────
 
@@ -91,6 +91,12 @@ pub struct CedScratch {
     /// in `smooth_structure_tensor_into` to avoid per-component allocation.
     smooth_buf: Vec<f64>,
 
+    /// Second scratch buffer for in-place Gaussian smoothing passes.
+    smooth_buf2: Vec<f64>,
+
+    /// Pre-allocated diffusion tensors.
+    d_tensors: Vec<[f64; 6]>,
+
     /// Cached sigma from the last kernel build; `None` until first `ensure_capacity` call.
     cached_sigma: Option<GaussianSigma>,
 }
@@ -117,6 +123,12 @@ impl CedScratch {
         }
         if self.smooth_buf.len() != n {
             self.smooth_buf = vec![0.0; n];
+        }
+        if self.smooth_buf2.len() != n {
+            self.smooth_buf2 = vec![0.0; n];
+        }
+        if self.d_tensors.len() != n {
+            self.d_tensors = vec![[0.0; 6]; n];
         }
         if self.cached_sigma != Some(sigma) || self.kernel.is_empty() {
             self.kernel = crate::gaussian_kernel(sigma.get(), None);
@@ -163,6 +175,7 @@ impl CedScratch {
                 dims,
                 &self.kernel,
                 &mut self.smooth_buf,
+                &mut self.smooth_buf2,
                 &mut self.st_smooth,
             );
 
@@ -173,6 +186,73 @@ impl CedScratch {
                 dims,
                 config.alpha,
                 config.contrast,
+                &mut self.d_tensors,
+                &mut self.divergence,
+            );
+
+            // Step 5: explicit Euler update
+            let dt = config.time_step;
+            for i in 0..n {
+                self.current[i] += dt * self.divergence[i];
+            }
+        }
+
+        &self.current[..n]
+    }
+
+    /// Run the full CED loop using these scratch buffers, accepting f32 input data.
+    pub fn run_f32(
+        &mut self,
+        data: &[f32],
+        dims: [usize; 3],
+        config: &super::filter::CoherenceConfig,
+    ) -> &[f64] {
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        self.ensure_capacity(n, config.sigma);
+
+        // Copy input into current buffer, casting f32 to f64 directly.
+        for i in 0..n {
+            self.current[i] = data[i] as f64;
+        }
+
+        for _ in 0..config.n_iterations {
+            // Step 1: gradient into scratch buffers
+            compute_gradient_into(
+                &self.current,
+                dims,
+                &mut self.grad_z,
+                &mut self.grad_y,
+                &mut self.grad_x,
+            );
+
+            // Step 2: structure tensor products (zero-copy via slices)
+            compute_structure_tensor_products_into(
+                &self.grad_z,
+                &self.grad_y,
+                &self.grad_x,
+                dims,
+                &mut self.st_products,
+            );
+
+            // Step 3: smooth structure tensor
+            smooth_structure_tensor_into(
+                &self.st_products,
+                dims,
+                &self.kernel,
+                &mut self.smooth_buf,
+                &mut self.smooth_buf2,
+                &mut self.st_smooth,
+            );
+
+            // Step 4: divergence
+            compute_divergence_into(
+                &self.current,
+                &self.st_smooth,
+                dims,
+                config.alpha,
+                config.contrast,
+                &mut self.d_tensors,
                 &mut self.divergence,
             );
 
@@ -201,6 +281,8 @@ impl Default for CedScratch {
             divergence: Vec::with_capacity(0),
             current: Vec::with_capacity(0),
             smooth_buf: Vec::with_capacity(0),
+            smooth_buf2: Vec::with_capacity(0),
+            d_tensors: Vec::with_capacity(0),
             kernel: Vec::with_capacity(0),
             cached_sigma: None,
         }
@@ -282,23 +364,32 @@ fn compute_structure_tensor_products_into(
 ///
 /// Processes each of the 6 components sequentially, writing directly into
 /// `out` to avoid allocating an outer container (`Vec<Vec<f64>>`). The
-/// caller-provided `buf` is reused across components to avoid per-component
-/// heap allocation.
+/// caller-provided `buf` and `buf2` are reused across components to avoid
+/// per-component heap allocation.
 fn smooth_structure_tensor_into(
     st_products: &[[f64; 6]],
     dims: [usize; 3],
     kernel: &[f64],
     buf: &mut Vec<f64>,
+    buf2: &mut Vec<f64>,
     out: &mut [[f64; 6]],
 ) {
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
     for c in 0..6 {
         buf.clear();
         buf.extend(st_products.iter().map(|v| v[c]));
-        *buf = gaussian_smooth(buf, dims, 0, kernel);
-        *buf = gaussian_smooth(buf, dims, 1, kernel);
-        *buf = gaussian_smooth(buf, dims, 2, kernel);
-        for (i, &v) in buf.iter().enumerate() {
-            out[i][c] = v;
+        buf2.resize(n, 0.0);
+        
+        // Z-axis smoothing
+        crate::diffusion::coherence::pde::gaussian_smooth_into(buf, buf2, dims, 0, kernel);
+        // Y-axis smoothing
+        crate::diffusion::coherence::pde::gaussian_smooth_into(buf2, buf, dims, 1, kernel);
+        // X-axis smoothing
+        crate::diffusion::coherence::pde::gaussian_smooth_into(buf, buf2, dims, 2, kernel);
+
+        for i in 0..n {
+            out[i][c] = buf2[i];
         }
     }
 }

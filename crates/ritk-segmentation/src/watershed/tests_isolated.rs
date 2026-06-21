@@ -137,3 +137,20 @@ fn test_isolated_watershed_spatial_metadata_preserved() {
     assert_eq!(result.spacing(), image.spacing());
     assert_eq!(result.direction(), image.direction());
 }
+
+// ── Plateau / flat region validation ──────────────────────────────────────────
+
+#[test]
+fn test_isolated_watershed_flat_plateau() {
+    // 1-D image with a flat plateau:
+    // Intensities: [4.0, 3.0, 2.0, 2.0, 2.0, 1.0, 0.0]
+    let data = vec![4.0_f32, 3.0, 2.0, 2.0, 2.0, 1.0, 0.0];
+    let dims = [1_usize, 1, 7];
+    let config = IsolatedWatershedConfig::default();
+    let result = isolated_watershed(&data, dims, 0, 6, &config);
+    // Verify successful execution (no panic or cycle) and that the seed basins
+    // receive the correct labels.
+    assert_eq!(result.len(), 7);
+    assert_eq!(result[0], 1.0);
+    assert_eq!(result[6], 2.0);
+}

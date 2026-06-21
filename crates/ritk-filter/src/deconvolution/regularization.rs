@@ -16,9 +16,11 @@
 //! - `apply_iterative` — generic iterative pipeline
 
 use super::helpers::{
-    convolve, decode_coords, encode_flat, ifft_and_crop, pad_and_fft, pad_dims, pad_total,
+    decode_coords, encode_flat, ifft_and_crop, pad_and_fft, pad_dims, pad_total,
+    place_corner, run_fft,
 };
-use rustfft::num_complex::Complex;
+use crate::fft::convolution::{ForwardFft, InverseFft};
+use rustfft::{num_complex::Complex, FftPlanner};
 
 /// Default convergence tolerance for iterative deconvolution algorithms.
 pub(crate) const DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6;
@@ -230,7 +232,7 @@ pub enum LandweberProjection {
 /// Iterative deconvolution algorithm variant.
 ///
 /// Replaces `is_landweber: bool` to eliminate boolean blindness at call sites.
-pub(super) enum IterativeAlgorithm {
+pub enum IterativeAlgorithm {
     /// Landweber gradient descent: additive update `uₖ₊₁ = uₖ + α · correction`,
     /// optionally projected onto a constraint set each iteration.
     Landweber {
@@ -248,7 +250,7 @@ pub(super) enum IterativeAlgorithm {
 ///
 /// Groups the kernel values/dimensions with algorithm parameters to stay
 /// under the 7-argument clippy limit while keeping call sites readable.
-pub(super) struct IterativeParams<'a, const D: usize> {
+pub struct IterativeParams<'a, const D: usize> {
     /// Row-major kernel values.
     pub ker_vals: &'a [f32],
     /// Kernel dimensions.
@@ -261,54 +263,194 @@ pub(super) struct IterativeParams<'a, const D: usize> {
     pub algorithm: IterativeAlgorithm,
 }
 
-/// Iterative deconvolution: Landweber or Richardson-Lucy.
-///
-/// The two methods share the same outer loop structure but differ in
-/// how they compute the correction and update the estimate:
-///
-/// - **Landweber**: residual `g − h⋆uₖ`, convolve residual with `h*`,
-///   additive update `uₖ₊₁ = uₖ + α · correction`
-/// - **R-L**: ratio `g / (h⋆uₖ)`, convolve ratio with `h*`,
-///   multiplicative update `uₖ₊₁ = uₖ · correction`
-pub(super) fn apply_iterative<const D: usize>(
+/// Pre-allocated scratch buffers and cached kernel FFTs for iterative deconvolution.
+pub struct DeconvolutionScratch<const D: usize> {
+    img_dims: [usize; D],
+    ker_dims: [usize; D],
+    pad_dims: [usize; D],
+    pad_n: usize,
+    img_pad: Vec<Complex<f32>>,
+    ker_fft: Vec<Complex<f32>>,
+    ker_rev_fft: Vec<Complex<f32>>,
+    planner: FftPlanner<f32>,
+    pub(super) forward: Vec<f32>,
+    pub(super) correction: Vec<f32>,
+    pub(super) residual: Vec<f32>,
+    pub(super) ratio: Vec<f32>,
+}
+
+impl<const D: usize> DeconvolutionScratch<D> {
+    /// Create a new deconvolution scratch structure.
+    pub fn new() -> Self {
+        Self {
+            img_dims: [0; D],
+            ker_dims: [0; D],
+            pad_dims: [0; D],
+            pad_n: 0,
+            img_pad: Vec::new(),
+            ker_fft: Vec::new(),
+            ker_rev_fft: Vec::new(),
+            planner: FftPlanner::new(),
+            forward: Vec::new(),
+            correction: Vec::new(),
+            residual: Vec::new(),
+            ratio: Vec::new(),
+        }
+    }
+
+    /// Initialize the scratch space for specific dimensions and kernels.
+    ///
+    /// Pre-pads and computes the forward FFT of the kernel and the reversed kernel,
+    /// storing them inside `self.ker_fft` and `self.ker_rev_fft`.
+    pub fn init(
+        &mut self,
+        img_dims: [usize; D],
+        ker_vals: &[f32],
+        ker_dims: [usize; D],
+        ker_rev: &[f32],
+    ) {
+        self.img_dims = img_dims;
+        self.ker_dims = ker_dims;
+        self.pad_dims = pad_dims::<D>(&img_dims, &ker_dims);
+        self.pad_n = pad_total::<D>(&self.pad_dims);
+
+        self.img_pad.resize(self.pad_n, Complex::new(0.0, 0.0));
+        self.ker_fft.resize(self.pad_n, Complex::new(0.0, 0.0));
+        self.ker_rev_fft.resize(self.pad_n, Complex::new(0.0, 0.0));
+
+        let out_n: usize = img_dims.iter().product();
+        self.forward.resize(out_n, 0.0);
+        self.correction.resize(out_n, 0.0);
+        self.residual.resize(out_n, 0.0);
+        self.ratio.resize(out_n, 1.0);
+
+        // Precompute ker_fft
+        self.img_pad.fill(Complex::new(0.0, 0.0));
+        place_corner::<D>(&mut self.img_pad, ker_vals, &self.ker_dims, &self.pad_dims);
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        self.ker_fft.copy_from_slice(&self.img_pad);
+
+        // Precompute ker_rev_fft
+        self.img_pad.fill(Complex::new(0.0, 0.0));
+        place_corner::<D>(&mut self.img_pad, ker_rev, &self.ker_dims, &self.pad_dims);
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        self.ker_rev_fft.copy_from_slice(&self.img_pad);
+    }
+
+    /// Perform FFT-based convolution of `image` with the forward kernel.
+    ///
+    /// Writes the result directly into `self.forward` with zero allocations.
+    pub fn convolve_forward(&mut self, image: &[f32]) {
+        self.img_pad.fill(Complex::new(0.0, 0.0));
+        place_corner::<D>(&mut self.img_pad, image, &self.img_dims, &self.pad_dims);
+
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+
+        for (a, &b) in self.img_pad.iter_mut().zip(self.ker_fft.iter()) {
+            *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+        }
+
+        run_fft::<D, InverseFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+
+        let scale = 1.0_f32 / self.pad_n as f32;
+        for (flat, r) in self.forward.iter_mut().enumerate() {
+            let coords = decode_coords::<D>(flat, &self.img_dims);
+            let pcoords: [usize; D] = std::array::from_fn(|d| coords[d] + self.ker_dims[d] / 2);
+            let pflat = encode_flat::<D>(&pcoords, &self.pad_dims);
+            *r = self.img_pad[pflat].re * scale;
+        }
+    }
+
+    /// Perform FFT-based convolution of `self.residual` with the reversed kernel.
+    ///
+    /// Writes the result directly into `self.correction` with zero allocations.
+    pub fn convolve_backward_residual(&mut self) {
+        self.img_pad.fill(Complex::new(0.0, 0.0));
+        place_corner::<D>(&mut self.img_pad, &self.residual, &self.img_dims, &self.pad_dims);
+
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+
+        for (a, &b) in self.img_pad.iter_mut().zip(self.ker_rev_fft.iter()) {
+            *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+        }
+
+        run_fft::<D, InverseFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+
+        let scale = 1.0_f32 / self.pad_n as f32;
+        for (flat, r) in self.correction.iter_mut().enumerate() {
+            let coords = decode_coords::<D>(flat, &self.img_dims);
+            let pcoords: [usize; D] = std::array::from_fn(|d| coords[d] + self.ker_dims[d] / 2);
+            let pflat = encode_flat::<D>(&pcoords, &self.pad_dims);
+            *r = self.img_pad[pflat].re * scale;
+        }
+    }
+
+    /// Perform FFT-based convolution of `self.ratio` with the reversed kernel.
+    ///
+    /// Writes the result directly into `self.correction` with zero allocations.
+    pub fn convolve_backward_ratio(&mut self) {
+        self.img_pad.fill(Complex::new(0.0, 0.0));
+        place_corner::<D>(&mut self.img_pad, &self.ratio, &self.img_dims, &self.pad_dims);
+
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+
+        for (a, &b) in self.img_pad.iter_mut().zip(self.ker_rev_fft.iter()) {
+            *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+        }
+
+        run_fft::<D, InverseFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+
+        let scale = 1.0_f32 / self.pad_n as f32;
+        for (flat, r) in self.correction.iter_mut().enumerate() {
+            let coords = decode_coords::<D>(flat, &self.img_dims);
+            let pcoords: [usize; D] = std::array::from_fn(|d| coords[d] + self.ker_dims[d] / 2);
+            let pflat = encode_flat::<D>(&pcoords, &self.pad_dims);
+            *r = self.img_pad[pflat].re * scale;
+        }
+    }
+}
+
+impl<const D: usize> Default for DeconvolutionScratch<D> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Iterative deconvolution: Landweber or Richardson-Lucy using scratch storage.
+pub fn apply_iterative_with_scratch<const D: usize>(
     img_vals: &[f32],
     img_dims: &[usize; D],
     params: &IterativeParams<'_, D>,
+    scratch: &mut DeconvolutionScratch<D>,
 ) -> Vec<f32> {
     let ker_rev = reversed_kernel::<D>(params.ker_vals, params.ker_dims);
-    let mut estimate: Vec<f32> = img_vals.to_vec();
-    let n = estimate.len();
+    scratch.init(*img_dims, params.ker_vals, *params.ker_dims, &ker_rev);
 
-    // Pre-allocate scratch buffers outside the iteration loop to avoid
-    // per-iteration heap allocation. The active buffer is selected per
-    // algorithm variant; the other remains allocated but unused.
-    let mut residual = vec![0.0_f32; n];
-    let mut ratio = vec![1.0_f32; n];
+    let mut estimate = img_vals.to_vec();
 
     for _iter in 0..params.max_iterations {
-        let forward = convolve::<D>(&estimate, img_dims, params.ker_vals, params.ker_dims);
+        scratch.convolve_forward(&estimate);
 
         match &params.algorithm {
             IterativeAlgorithm::Landweber {
                 step_size,
                 projection,
             } => {
-                // Landweber: compute residual, convolve with h*, add α·correction
                 let mut max_residual = 0.0_f32;
                 for ((r_slot, &img), &fwd) in
-                    residual.iter_mut().zip(img_vals.iter()).zip(forward.iter())
+                    scratch.residual.iter_mut().zip(img_vals.iter()).zip(scratch.forward.iter())
                 {
                     let r = img - fwd;
                     *r_slot = r;
                     max_residual = max_residual.max(r.abs());
                 }
-                let correction = convolve::<D>(&residual, img_dims, &ker_rev, params.ker_dims);
-                for (est, &corr) in estimate.iter_mut().zip(correction.iter()) {
+
+                scratch.convolve_backward_residual();
+
+                for (est, &corr) in estimate.iter_mut().zip(scratch.correction.iter()) {
                     *est += *step_size * corr;
                 }
-                // Projected Landweber: enforce the constraint after the update so
-                // the next forward convolution (and the returned estimate) sees the
-                // projected iterate, matching ITK's projection-per-iteration.
+
                 if let LandweberProjection::NonNegative = projection {
                     for est in estimate.iter_mut() {
                         if *est < 0.0 {
@@ -321,11 +463,10 @@ pub(super) fn apply_iterative<const D: usize>(
                 }
             }
             IterativeAlgorithm::RichardsonLucy => {
-                // Richardson-Lucy: compute ratio, convolve with h*, multiply
                 let mut max_ratio = 0.0_f32;
-                ratio.fill(1.0);
+                scratch.ratio.fill(1.0);
                 for ((r_slot, &img), &fwd) in
-                    ratio.iter_mut().zip(img_vals.iter()).zip(forward.iter())
+                    scratch.ratio.iter_mut().zip(img_vals.iter()).zip(scratch.forward.iter())
                 {
                     if fwd > 1e-20 {
                         let r = img / fwd;
@@ -333,8 +474,10 @@ pub(super) fn apply_iterative<const D: usize>(
                         max_ratio = max_ratio.max((r - 1.0).abs());
                     }
                 }
-                let correction = convolve::<D>(&ratio, img_dims, &ker_rev, params.ker_dims);
-                for (est, &corr) in estimate.iter_mut().zip(correction.iter()) {
+
+                scratch.convolve_backward_ratio();
+
+                for (est, &corr) in estimate.iter_mut().zip(scratch.correction.iter()) {
                     *est *= corr;
                 }
                 if max_ratio < params.tolerance {
@@ -345,4 +488,14 @@ pub(super) fn apply_iterative<const D: usize>(
     }
 
     estimate
+}
+
+/// Iterative deconvolution: Landweber or Richardson-Lucy.
+pub(super) fn apply_iterative<const D: usize>(
+    img_vals: &[f32],
+    img_dims: &[usize; D],
+    params: &IterativeParams<'_, D>,
+) -> Vec<f32> {
+    let mut scratch = DeconvolutionScratch::new();
+    apply_iterative_with_scratch(img_vals, img_dims, params, &mut scratch)
 }

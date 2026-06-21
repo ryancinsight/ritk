@@ -171,25 +171,61 @@ pub(crate) fn lanczos_kernel<const A: usize>(x: f32) -> f32 {
 /// # Returns
 ///
 /// Vector of exactly `2A` (clamped_index, weight) pairs.
+/// Precomputed Lanczos kernel weights for a single dimension.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LanczosWeights {
+    /// Stack-allocated taps `(clamped_index, weight)`. Support is up to A=8 (16 taps).
+    pub taps: [(i64, f32); 16],
+    /// Actual number of taps (`2 * A`).
+    pub len: usize,
+}
+
+/// Precompute Lanczos kernel weights for a single dimension.
+///
+/// Given a continuous coordinate, computes the full `2A` (index, weight) taps
+/// spanning `center - A + 1 ..= center + A`. Taps whose index leaves
+/// `[0, dim_size - 1]` are **edge-clamped** to the nearest in-bounds voxel and
+/// keep their kernel weight — matching ITK's `WindowedSincInterpolateImageFunction`
+/// with a `ZeroFluxNeumann` boundary. The weights are deliberately **not**
+/// renormalized: ITK relies on the windowed-sinc kernel being an approximate
+/// partition of unity (sum-of-weights deviates from 1 by the radius-dependent
+/// window defect, ~5.7e-3 for `A = 3`, ~1.3e-3 for `A = 5`). Renormalizing here
+/// would shift every sample by that defect and break differential parity with
+/// `sitk.Resample(..., sitkLanczosWindowedSinc)`.
+///
+/// # Arguments
+///
+/// * `coord` - Continuous coordinate (may be fractional)
+/// * `dim_size` - Size of the dimension (for edge clamping)
+///
+/// # Returns
+///
+/// `LanczosWeights` containing the stack-allocated taps.
+#[inline]
 pub(crate) fn compute_lanczos_weights<const A: usize>(
     coord: f32,
     dim_size: usize,
-) -> Vec<(i64, f32)> {
+) -> LanczosWeights {
     let center = coord.floor() as i64;
     let frac = coord - center as f32;
     let max_idx = dim_size as i64 - 1;
+    let len = 2 * A;
 
-    let mut weights = Vec::with_capacity(2 * A);
+    let mut taps = [(0, 0.0f32); 16];
+    debug_assert!(len <= 16, "Lanczos window size A={} exceeds maximum support of 8", A);
 
     // Sample from center - A + 1 to center + A (all positions where the kernel
     // is non-zero), edge-clamping indices that fall outside the buffer.
-    for k in -(A as i64 - 1)..=(A as i64) {
+    for (i, k) in (-(A as i64 - 1)..=(A as i64)).enumerate() {
+        if i >= len || i >= 16 {
+            break;
+        }
         let idx = (center + k).clamp(0, max_idx);
         let x = k as f32 - frac;
-        weights.push((idx, lanczos_kernel::<A>(x)));
+        taps[i] = (idx, lanczos_kernel::<A>(x));
     }
 
-    weights
+    LanczosWeights { taps, len }
 }
 
 /// Interpolate a single point in a 3D volume using Lanczos kernel.
@@ -226,12 +262,15 @@ fn interpolate_point_3d_flat<const A: usize>(
     // L(x,y,z) = Σᵢ Σⱼ Σₖ L_x(i) · L_y(j) · L_z(k) · f[i,j,k]
     let mut result = 0.0;
 
-    for (iz, wz) in &weights_z {
-        for (iy, wy) in &weights_y {
-            for (ix, wx) in &weights_x {
+    for i in 0..weights_z.len {
+        let (iz, wz) = weights_z.taps[i];
+        for j in 0..weights_y.len {
+            let (iy, wy) = weights_y.taps[j];
+            for k in 0..weights_x.len {
+                let (ix, wx) = weights_x.taps[k];
                 let w = wz * wy * wx;
                 // Linear index: data is [Z, Y, X] layout.
-                let idx = (*iz as usize) * (d1 * d2) + (*iy as usize) * d2 + (*ix as usize);
+                let idx = (iz as usize) * (d1 * d2) + (iy as usize) * d2 + (ix as usize);
                 result += w * flat_slice[idx];
             }
         }
@@ -268,11 +307,13 @@ fn interpolate_point_2d_flat<const A: usize>(
     // Separable weighted sum, no renormalization (see `compute_lanczos_weights`).
     let mut result = 0.0;
 
-    for (iy, wy) in &weights_y {
-        for (ix, wx) in &weights_x {
+    for i in 0..weights_y.len {
+        let (iy, wy) = weights_y.taps[i];
+        for j in 0..weights_x.len {
+            let (ix, wx) = weights_x.taps[j];
             let w = wy * wx;
             // Linear index: data is [Y, X] layout.
-            let idx = (*iy as usize) * d1 + (*ix as usize);
+            let idx = (iy as usize) * d1 + (ix as usize);
             result += w * flat_slice[idx];
         }
     }

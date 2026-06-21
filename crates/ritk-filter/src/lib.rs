@@ -117,7 +117,8 @@ pub mod deconvolution;
 pub mod fft;
 
 pub use deconvolution::{
-    InverseDeconvolution, LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
+    apply_iterative_with_scratch, DeconvolutionScratch, InverseDeconvolution,
+    LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
     TikhonovDeconvolution, WienerDeconvolution,
 };
 pub use fft::{

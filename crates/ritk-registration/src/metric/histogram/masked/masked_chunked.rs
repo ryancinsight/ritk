@@ -12,7 +12,7 @@ use ritk_core::transform::Transform;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 
 #[cfg(feature = "direct-parzen")]
-use crate::metric::histogram::parzen::direct::SparseWFixedT;
+use crate::metric::histogram::parzen::direct::SparseWFixedEntry;
 
 impl<B: Backend> ParzenJointHistogram<B> {
     /// Chunked histogram computation using a cached dense W_fixed^T.
@@ -58,7 +58,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     #[cfg(feature = "direct-parzen")]
     pub(in crate::metric::histogram) fn compute_masked_chunked_from_sparse_cache<const D: usize>(
         &self,
-        sparse_w_fixed: &SparseWFixedT,
+        sparse_w_fixed: &[(Vec<SparseWFixedEntry>, f32)],
         _fixed: &Image<B, D>,
         fixed_world_points: &Tensor<B, 2>,
         moving: &Image<B, D>,
@@ -73,14 +73,14 @@ impl<B: Backend> ParzenJointHistogram<B> {
         for i in 0..num_chunks {
             let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
             let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n);
-            let chunk_sparse: SparseWFixedT = sparse_w_fixed[start..end].to_vec();
+            let chunk_sparse = &sparse_w_fixed[start..end];
             #[allow(clippy::single_range_in_vec_init)]
             let chunk_fixed_world = fixed_world_points.clone().slice([start..end]);
             let (chunk_moving_vals, chunk_oob) =
                 sample_moving_chunk(&chunk_fixed_world, moving, transform, interpolator);
             joint_hist_acc = joint_hist_acc
                 + self.compute_joint_histogram_from_cache_sparse_dispatch(
-                    &chunk_sparse,
+                    chunk_sparse,
                     &chunk_moving_vals,
                     chunk_oob.as_ref(),
                 );

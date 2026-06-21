@@ -114,34 +114,52 @@ pub fn compute_from_values(values: &[f32], ddof: usize) -> ImageStatistics {
     let n = values.len();
     debug_assert!(n > 0, "compute_from_values requires non-empty input");
 
-    // Fused pass: min, max, and the f64 sum. NaN compares `Equal` (the
-    // `partial_cmp` fallback) so it never displaces a real extremum, matching
-    // the prior sorted-array semantics; it still propagates into the f64 sum.
-    let mut min = values[0];
-    let mut max = values[0];
-    let mut sum_wide = 0.0_f64;
-    for &v in values.iter() {
-        sum_wide += v as f64;
-        if matches!(v.partial_cmp(&min), Some(std::cmp::Ordering::Less)) {
-            min = v;
-        }
-        if matches!(v.partial_cmp(&max), Some(std::cmp::Ordering::Greater)) {
-            max = v;
-        }
-    }
+    // Fused pass: min, max, and the f64 sum in parallel.
+    let (min, max, sum_wide) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        n,
+        || (values[0], values[0], 0.0_f64),
+        |(min_acc, max_acc, sum_acc), i| {
+            let v = values[i];
+            let new_min = if matches!(v.partial_cmp(&min_acc), Some(std::cmp::Ordering::Less)) {
+                v
+            } else {
+                min_acc
+            };
+            let new_max = if matches!(v.partial_cmp(&max_acc), Some(std::cmp::Ordering::Greater)) {
+                v
+            } else {
+                max_acc
+            };
+            (new_min, new_max, sum_acc + v as f64)
+        },
+        |(amin, amax, asum), (bmin, bmax, bsum)| {
+            let rmin = if matches!(bmin.partial_cmp(&amin), Some(std::cmp::Ordering::Less)) {
+                bmin
+            } else {
+                amin
+            };
+            let rmax = if matches!(bmax.partial_cmp(&amax), Some(std::cmp::Ordering::Greater)) {
+                bmax
+            } else {
+                amax
+            };
+            (rmin, rmax, asum + bsum)
+        },
+    );
 
     let mean_wide: f64 = sum_wide / n as f64;
     let mean: f32 = mean_wide as f32;
 
-    // Two-pass f64 variance: squared deviations sum to ~10^13 for CT-scale
-    // data, exceeding f32 representable precision per element at n > ~10^7.
-    let sum_sq_dev: f64 = values
-        .iter()
-        .map(|&v| {
-            let d = v as f64 - mean_wide;
-            d * d
-        })
-        .sum::<f64>();
+    // Two-pass f64 variance in parallel.
+    let sum_sq_dev: f64 = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        n,
+        || 0.0_f64,
+        |acc, i| {
+            let d = values[i] as f64 - mean_wide;
+            acc + d * d
+        },
+        |a, b| a + b,
+    );
     // numpy-style ddof: divisor = n − ddof. n ≤ ddof (e.g. sample std of a single
     // voxel) yields a degenerate 0.0 rather than a NaN/∞.
     let denom = n.saturating_sub(ddof);

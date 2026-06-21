@@ -202,15 +202,7 @@ impl DiffusionConfig {
 ///
 /// Neumann (zero-flux) boundary conditions: at the image edge the neighbour
 /// index is clamped to the same voxel, so the difference Δ is zero and the
-/// matched flux term contributes nothing. Each iteration is data-parallel
-/// over the flat voxel index — every output voxel reads only its 6-neighbour
-/// stencil of `cur`, so the iteration is a Jacobi update and the fanned-
-/// out computation is bitwise identical to the serial sweep.
-///
-/// Iteration is performed as a fresh-allocate per step: `moirai::map_collect_index_with`
-/// returns a `Vec<f32>` of length `n` whose drop-and-replace sequence lets
-/// the allocator re-use the previous `cur`'s storage as the next iteration's
-/// scratch, keeping steady-state heap traffic at one block per iteration.
+/// matched flux term contributes nothing.
 fn diffuse<K: ConductanceKernel>(
     data: &[f32],
     dims: [usize; 3],
@@ -221,6 +213,7 @@ fn diffuse<K: ConductanceKernel>(
     let n = nz * ny * nx;
     let slab = ny * nx;
     let mut cur = data.to_vec();
+    let mut next = vec![0.0_f32; n];
 
     let sz = spacing[0];
     let sy = spacing[1];
@@ -231,28 +224,23 @@ fn diffuse<K: ConductanceKernel>(
 
     let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * slab + iy * nx + ix };
 
-    for _iter in 0..config.num_iterations {
-        // Each output voxel depends only on its 6-neighbour stencil of
-        // `cur` — no inter-voxel coupling within an iteration. Fanning
-        // out over the flat voxel index (matching the canonical
-        // smoothing/edge pattern: `MeanImageFilter`, `LaplacianFilter`,
-        // `NoiseImageFilter`) gives one output allocation per iteration,
-        // no per-slice intermediates, bit-exact result.
-        cur = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |flat| {
+    use moirai::prelude::ParallelSliceMut;
+
+    for iter in 0..config.num_iterations {
+        let (src, dst) = if iter % 2 == 0 {
+            (&cur, &mut next)
+        } else {
+            (&next, &mut cur)
+        };
+
+        dst[..n].par_mut().enumerate(|flat, val| {
             let iz = flat / slab;
             let rem = flat - iz * slab;
             let iy = rem / nx;
             let ix = rem - iy * nx;
 
-            let v = cur[flat];
+            let v = src[flat];
 
-            // Clamp-boundary neighbour access: at the image edge the
-            // clamped neighbour equals the centre voxel, so Δ = 0 and
-            // the flux is zero — Neumann BC by construction. The
-            // branch-with-clamp pattern preserves the exact behaviour
-            // of the original serial loop (test-suite bit-exact) while
-            // allowing full data-parallel fan-out across the flat
-            // voxel index.
             let iz_p = if iz + 1 < nz { iz + 1 } else { iz };
             let iz_m = if iz > 0 { iz - 1 } else { iz };
             let iy_p = if iy + 1 < ny { iy + 1 } else { iy };
@@ -261,28 +249,32 @@ fn diffuse<K: ConductanceKernel>(
             let ix_m = if ix > 0 { ix - 1 } else { ix };
 
             // ── z-axis fluxes ────────────────────────────────────────
-            let delta_zp = (cur[idx(iz_p, iy, ix)] - v) / sz;
+            let delta_zp = (src[idx(iz_p, iy, ix)] - v) / sz;
             let fluxz_pos = K::conductance(delta_zp.abs(), k) * delta_zp / sz;
-            let delta_zn = (cur[idx(iz_m, iy, ix)] - v) / sz;
+            let delta_zn = (src[idx(iz_m, iy, ix)] - v) / sz;
             let fluxz_neg = K::conductance(delta_zn.abs(), k) * delta_zn / sz;
 
             // ── y-axis fluxes ────────────────────────────────────────
-            let delta_yp = (cur[idx(iz, iy_p, ix)] - v) / sy;
+            let delta_yp = (src[idx(iz, iy_p, ix)] - v) / sy;
             let fluxy_pos = K::conductance(delta_yp.abs(), k) * delta_yp / sy;
-            let delta_yn = (cur[idx(iz, iy_m, ix)] - v) / sy;
+            let delta_yn = (src[idx(iz, iy_m, ix)] - v) / sy;
             let fluxy_neg = K::conductance(delta_yn.abs(), k) * delta_yn / sy;
 
             // ── x-axis fluxes ────────────────────────────────────────
-            let delta_xp = (cur[idx(iz, iy, ix_p)] - v) / sx;
+            let delta_xp = (src[idx(iz, iy, ix_p)] - v) / sx;
             let fluxx_pos = K::conductance(delta_xp.abs(), k) * delta_xp / sx;
-            let delta_xn = (cur[idx(iz, iy, ix_m)] - v) / sx;
+            let delta_xn = (src[idx(iz, iy, ix_m)] - v) / sx;
             let fluxx_neg = K::conductance(delta_xn.abs(), k) * delta_xn / sx;
 
-            v + dt * (fluxz_pos + fluxz_neg + fluxy_pos + fluxy_neg + fluxx_pos + fluxx_neg)
+            *val = v + dt * (fluxz_pos + fluxz_neg + fluxy_pos + fluxy_neg + fluxx_pos + fluxx_neg);
         });
     }
 
-    cur
+    if config.num_iterations % 2 == 0 {
+        cur
+    } else {
+        next
+    }
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────

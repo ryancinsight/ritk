@@ -208,6 +208,13 @@ impl VelocityField {
     pub fn is_empty(&self) -> bool {
         self.z.is_empty()
     }
+
+    /// Resize all three components to `n`, zero-filling new elements.
+    pub fn resize(&mut self, n: usize) {
+        self.z.resize(n, 0.0);
+        self.y.resize(n, 0.0);
+        self.x.resize(n, 0.0);
+    }
 }
 
 // ── Indexing ──────────────────────────────────────────────────────────────────

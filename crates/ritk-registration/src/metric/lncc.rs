@@ -33,7 +33,7 @@ use ritk_image::grid;
 use ritk_image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_transform::Transform;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 // ── FilterSlot (REG-03) ───────────────────────────────────────────────────────
 
@@ -42,23 +42,34 @@ use std::sync::{Arc, Mutex};
 /// Stores the spatial dimension `D` alongside the filter to detect dimension
 /// mismatches and reinitialize when needed. Implements `Clone` and `Debug`
 /// without requiring either trait on `GaussianFilter<B>`.
-struct FilterSlot<B: Backend>(Arc<Mutex<Option<(usize, GaussianFilter<B>)>>>);
+struct FilterSlot<B: Backend>(Arc<RwLock<Option<(usize, GaussianFilter<B>)>>>);
 
 impl<B: Backend> FilterSlot<B> {
     fn empty() -> Self {
-        Self(Arc::new(Mutex::new(None)))
+        Self(Arc::new(RwLock::new(None)))
     }
 
     /// Returns a cloned `GaussianFilter<B>`.
     ///
     /// Initializes the filter with `D` copies of `sigma` on first access or
-    /// when the cached dimension differs from `D`. The Mutex lock is dropped
-    /// immediately after cloning.
+    /// when the cached dimension differs from `D`. The RwLock read lock is checked
+    /// first, dropping immediately on cache hit to eliminate contention.
     fn get_or_init<const D: usize>(&self, sigma: GaussianSigma) -> GaussianFilter<B> {
+        {
+            let guard = self
+                .0
+                .read()
+                .expect("invariant: FilterSlot rwlock not poisoned");
+            if let Some((d, ref filter)) = *guard {
+                if d == D {
+                    return filter.clone();
+                }
+            }
+        }
         let mut guard = self
             .0
-            .lock()
-            .expect("invariant: FilterSlot mutex not poisoned");
+            .write()
+            .expect("invariant: FilterSlot rwlock not poisoned");
         if guard.as_ref().is_none_or(|(d, _)| *d != D) {
             *guard = Some((D, GaussianFilter::new(vec![sigma; D])));
         }
@@ -76,8 +87,8 @@ impl<B: Backend> std::fmt::Debug for FilterSlot<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let guard = self
             .0
-            .lock()
-            .expect("invariant: FilterSlot mutex not poisoned");
+            .read()
+            .expect("invariant: FilterSlot rwlock not poisoned");
         f.debug_struct("FilterSlot")
             .field("dim", &guard.as_ref().map(|(d, _)| *d))
             .finish()

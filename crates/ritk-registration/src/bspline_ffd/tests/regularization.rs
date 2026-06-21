@@ -63,3 +63,22 @@ fn bending_energy_positive_for_nonlinear_field() {
         be
     );
 }
+
+#[test]
+fn bending_energy_gradient_of_zero_field_is_zero() {
+    use super::super::regularization::bending_energy_gradient;
+    let ctrl_dims = [6, 6, 6];
+    let ctrl_spacing = [4.0, 4.0, 4.0];
+    let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
+
+    let cp_z = vec![0.0_f32; cn];
+    let cp_y = vec![0.0_f32; cn];
+    let cp_x = vec![0.0_f32; cn];
+
+    let be_grad = bending_energy_gradient(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
+    for i in 0..cn {
+        assert!(be_grad.z[i].abs() < 1e-12);
+        assert!(be_grad.y[i].abs() < 1e-12);
+        assert!(be_grad.x[i].abs() < 1e-12);
+    }
+}

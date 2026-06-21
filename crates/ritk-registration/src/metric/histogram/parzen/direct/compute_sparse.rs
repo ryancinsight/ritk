@@ -81,7 +81,7 @@ pub fn build_sparse_w_fixed_transposed(
 /// * `oob_mask` — Optional OOB mask `[N]` (1.0 = in-bounds, 0.0 = OOB)
 #[allow(private_interfaces)]
 pub fn compute_joint_histogram_from_cache_sparse(
-    sparse_w_fixed: &SparseWFixedT,
+    sparse_w_fixed: &[(Vec<SparseWFixedEntry>, f32)],
     moving_norm: &[f32],
     num_bins: usize,
     sigma_sq_mov: f32,

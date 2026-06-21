@@ -103,7 +103,7 @@ impl CannySegmentationLevelSet {
             }
         }
         // InitializeActiveLayerValues: clamp(shifted / upwind_len, ±½).
-        for &f in &layers[0].clone() {
+        for &f in &layers[0] {
             let c = shifted[f];
             let mut l2 = 0.0f64;
             for &off in &offsets {

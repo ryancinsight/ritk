@@ -100,20 +100,44 @@ pub fn bending_energy(
     }
 }
 
-/// Compute the gradient of the bending energy w.r.t. control-point displacements.
+/// Pre-allocated scratch buffers for [`bending_energy_gradient_into`].
 ///
-/// Derivative of `bending_energy` w.r.t. each control-point component,
-/// computed via the chain rule on the finite-difference operators.
-/// Applies the discretized biharmonic operator (Laplacian of Laplacian) to
-/// each control point as an efficient approximation.
+/// Eliminates 3 per-iteration heap allocations of `Vec<f64>` temporary Laplacian buffers
+/// inside `bending_energy_gradient`.
+#[derive(Clone, Debug)]
+pub(super) struct BendingEnergyScratch {
+    /// Temporary buffer for the Laplacian computation `[cn]`.
+    pub lap: Vec<f64>,
+}
+
+impl BendingEnergyScratch {
+    /// Allocate scratch buffers for a control grid with `cn` nodes.
+    pub fn new(cn: usize) -> Self {
+        Self {
+            lap: vec![0.0_f64; cn],
+        }
+    }
+
+    /// Resize scratch buffers when the control grid changes.
+    pub fn resize(&mut self, cn: usize) {
+        self.lap.resize(cn, 0.0);
+    }
+}
+
+/// Compute the gradient of the bending energy w.r.t. control-point displacements,
+/// writing the result into a pre-allocated `VelocityField`.
+///
+/// Zero-allocation variant of [`bending_energy_gradient`].
 #[inline]
-pub(super) fn bending_energy_gradient(
+pub(super) fn bending_energy_gradient_into(
     cp_z: &[f32],
     cp_y: &[f32],
     cp_x: &[f32],
     ctrl_dims: &[usize; 3],
     ctrl_spacing: &[f64; 3],
-) -> VelocityField {
+    scratch: &mut BendingEnergyScratch,
+    be_grad: &mut VelocityField,
+) {
     let [cnz, cny, cnx] = *ctrl_dims;
     let cn = cnz * cny * cnx;
     let count = count_interior(ctrl_dims);
@@ -123,15 +147,20 @@ pub(super) fn bending_energy_gradient(
     let sy2 = ctrl_spacing[1] * ctrl_spacing[1];
     let sx2 = ctrl_spacing[2] * ctrl_spacing[2];
 
-    let mut out_z = vec![0.0_f32; cn];
-    let mut out_y = vec![0.0_f32; cn];
-    let mut out_x = vec![0.0_f32; cn];
+    be_grad.z.fill(0.0);
+    be_grad.y.fill(0.0);
+    be_grad.x.fill(0.0);
 
-    for (comp, out) in [(cp_z, &mut out_z), (cp_y, &mut out_y), (cp_x, &mut out_x)] {
-        // Apply the biharmonic stencil: gradient of ∫ (∂²c/∂d²)² dd is
-        // the fourth-order finite difference operator. Compute as the
-        // Laplacian of the Laplacian on the interior.
-        let mut lap = vec![0.0_f64; cn];
+    debug_assert_eq!(be_grad.z.len(), cn);
+    debug_assert_eq!(be_grad.y.len(), cn);
+    debug_assert_eq!(be_grad.x.len(), cn);
+
+    for (comp, out) in [
+        (cp_z, &mut be_grad.z),
+        (cp_y, &mut be_grad.y),
+        (cp_x, &mut be_grad.x),
+    ] {
+        scratch.lap.fill(0.0);
         for iz in 1..cnz.saturating_sub(1) {
             for iy in 1..cny.saturating_sub(1) {
                 for ix in 1..cnx.saturating_sub(1) {
@@ -146,7 +175,7 @@ pub(super) fn bending_energy_gradient(
                     let dxx = (comp[flat(iz, iy, ix + 1, cny, cnx)] as f64 - 2.0 * c
                         + comp[flat(iz, iy, ix - 1, cny, cnx)] as f64)
                         / sx2;
-                    lap[ci] = dzz + dyy + dxx;
+                    scratch.lap[ci] = dzz + dyy + dxx;
                 }
             }
         }
@@ -155,27 +184,51 @@ pub(super) fn bending_energy_gradient(
             for iy in 2..cny.saturating_sub(2) {
                 for ix in 2..cnx.saturating_sub(2) {
                     let ci = flat(iz, iy, ix, cny, cnx);
-                    let l = lap[ci];
-                    let lzz = (lap[flat(iz + 1, iy, ix, cny, cnx)] - 2.0 * l
-                        + lap[flat(iz - 1, iy, ix, cny, cnx)])
+                    let l = scratch.lap[ci];
+                    let lzz = (scratch.lap[flat(iz + 1, iy, ix, cny, cnx)] - 2.0 * l
+                        + scratch.lap[flat(iz - 1, iy, ix, cny, cnx)])
                         / sz2;
-                    let lyy = (lap[flat(iz, iy + 1, ix, cny, cnx)] - 2.0 * l
-                        + lap[flat(iz, iy - 1, ix, cny, cnx)])
+                    let lyy = (scratch.lap[flat(iz, iy + 1, ix, cny, cnx)] - 2.0 * l
+                        + scratch.lap[flat(iz, iy - 1, ix, cny, cnx)])
                         / sy2;
-                    let lxx = (lap[flat(iz, iy, ix + 1, cny, cnx)] - 2.0 * l
-                        + lap[flat(iz, iy, ix - 1, cny, cnx)])
+                    let lxx = (scratch.lap[flat(iz, iy, ix + 1, cny, cnx)] - 2.0 * l
+                        + scratch.lap[flat(iz, iy - 1, ix, cny, cnx)])
                         / sx2;
                     out[ci] = (norm * (lzz + lyy + lxx)) as f32;
                 }
             }
         }
     }
+}
 
-    VelocityField {
-        z: out_z,
-        y: out_y,
-        x: out_x,
-    }
+/// Compute the gradient of the bending energy w.r.t. control-point displacements.
+///
+/// Derivative of `bending_energy` w.r.t. each control-point component,
+/// computed via the chain rule on the finite-difference operators.
+/// Applies the discretized biharmonic operator (Laplacian of Laplacian) to
+/// each control point as an efficient approximation.
+#[allow(dead_code)]
+#[inline]
+pub(super) fn bending_energy_gradient(
+    cp_z: &[f32],
+    cp_y: &[f32],
+    cp_x: &[f32],
+    ctrl_dims: &[usize; 3],
+    ctrl_spacing: &[f64; 3],
+) -> VelocityField {
+    let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
+    let mut scratch = BendingEnergyScratch::new(cn);
+    let mut be_grad = VelocityField::zeros(cn);
+    bending_energy_gradient_into(
+        cp_z,
+        cp_y,
+        cp_x,
+        ctrl_dims,
+        ctrl_spacing,
+        &mut scratch,
+        &mut be_grad,
+    );
+    be_grad
 }
 
 /// Count interior control points (those with at least 1 neighbor in each

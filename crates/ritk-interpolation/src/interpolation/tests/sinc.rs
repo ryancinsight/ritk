@@ -51,9 +51,9 @@ fn test_lanczos_kernel_zeros() {
 #[test]
 fn test_lanczos_weights_bounds() {
     let weights = compute_lanczos_weights::<3>(5.5, 10);
-    for (idx, _w) in &weights {
-        assert!(*idx >= 0, "Negative index in weights");
-        assert!((*idx as usize) < 10, "Index out of bounds in weights");
+    for &(idx, _w) in &weights.taps[..weights.len] {
+        assert!(idx >= 0, "Negative index in weights");
+        assert!((idx as usize) < 10, "Index out of bounds in weights");
     }
 }
 

@@ -95,8 +95,7 @@ impl CoherenceEnhancingDiffusionFilter {
         let result = if D >= 3 && dims.iter().all(|&d| d >= 3) {
             let d3 = [dims[0], dims[1], dims[2]];
             let n3 = d3[0] * d3[1] * d3[2];
-            let vals3: Vec<f64> = vals_vec[..n3].iter().map(|&v| v as f64).collect();
-            let out3 = scratch.run(&vals3, d3, &self.config);
+            let out3 = scratch.run_f32(&vals_vec[..n3], d3, &self.config);
             let mut result = vals_vec;
             for i in 0..n3 {
                 result[i] = out3[i] as f32;

@@ -134,7 +134,7 @@ impl AntiAliasBinaryImageFilter {
         }
         // InitializeActiveLayerValues: clamp(shifted/upwind_len, ±CGV/2).
         let cf = CGV / 2.0;
-        for &f in &layers[0].clone() {
+        for &f in &layers[0] {
             let c = shifted[f];
             let mut l2 = 0.0f32;
             for &off in &offsets {

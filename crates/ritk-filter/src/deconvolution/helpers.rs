@@ -63,7 +63,7 @@ pub(super) fn encode_flat<const D: usize>(coords: &[usize; D], dims: &[usize; D]
 
 /// Place a real-valued image/kernel into a zero-padded complex buffer at
 /// position (0, 0, …, 0) (corner placement, no centering).
-fn place_corner<const D: usize>(
+pub(super) fn place_corner<const D: usize>(
     buf: &mut [Complex<f32>],
     vals: &[f32],
     dims: &[usize; D],
@@ -97,7 +97,7 @@ fn place_at_offset<const D: usize>(
 ///
 /// The kernel center `(kd/2, kd/2, …)` is shifted to padded origin `(0, 0, …)`
 /// via modular arithmetic (circular shift), eliminating linear-phase delay.
-fn place_centered<const D: usize>(
+pub(super) fn place_centered<const D: usize>(
     buf: &mut [Complex<f32>],
     vals: &[f32],
     dims: &[usize; D],
@@ -113,7 +113,7 @@ fn place_centered<const D: usize>(
 }
 
 /// Execute a forward or inverse FFT on a padded complex buffer.
-fn run_fft<const D: usize, Dir: crate::fft::convolution::FftDirection>(
+pub(super) fn run_fft<const D: usize, Dir: crate::fft::convolution::FftDirection>(
     buf: &mut [Complex<f32>],
     pad: &[usize; D],
     planner: &mut FftPlanner<f32>,
@@ -188,6 +188,7 @@ pub(super) fn ifft_and_crop<const D: usize>(
 ///
 /// # Invariant
 /// Output length equals the product of `img_dims`.
+#[allow(dead_code)]
 pub(super) fn convolve<const D: usize>(
     image: &[f32],
     img_dims: &[usize; D],

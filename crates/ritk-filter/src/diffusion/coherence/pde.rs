@@ -87,52 +87,60 @@ pub fn compute_gradient(data: &[f64], dims: [usize; 3]) -> Gradient {
 
 // ── Gaussian smoothing ────────────────────────────────────────────────────────
 
+/// Separable Gaussian smoothing along a single axis writing into a preallocated buffer.
+pub fn gaussian_smooth_into(
+    input: &[f64],
+    output: &mut [f64],
+    dims: [usize; 3],
+    axis: usize,
+    kernel: &[f64],
+) {
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    let radius = (kernel.len() / 2) as i64;
+    use moirai::prelude::ParallelSliceMut;
+    output[..n].par_mut().enumerate(|i, val| {
+        let iz = i / (ny * nx);
+        let iy = (i / nx) % ny;
+        let ix = i % nx;
+        let mut sum = 0.0f64;
+        match axis {
+            0 => {
+                for (ki, &kw) in kernel.iter().enumerate() {
+                    let k = ki as i64 - radius;
+                    let sz = (iz as i64 + k).clamp(0, nz as i64 - 1) as usize;
+                    sum += kw * input[sz * ny * nx + iy * nx + ix];
+                }
+            }
+            1 => {
+                for (ki, &kw) in kernel.iter().enumerate() {
+                    let k = ki as i64 - radius;
+                    let sy = (iy as i64 + k).clamp(0, ny as i64 - 1) as usize;
+                    sum += kw * input[iz * ny * nx + sy * nx + ix];
+                }
+            }
+            2 => {
+                for (ki, &kw) in kernel.iter().enumerate() {
+                    let k = ki as i64 - radius;
+                    let sx = (ix as i64 + k).clamp(0, nx as i64 - 1) as usize;
+                    sum += kw * input[iz * ny * nx + iy * nx + sx];
+                }
+            }
+            _ => unreachable!("axis must be 0, 1, or 2"),
+        }
+        *val = sum;
+    });
+}
+
 /// Separable Gaussian smoothing along a single axis.
 ///
 /// `axis` is 0 (z), 1 (y), or 2 (x). Boundary: replicate (Neumann).
 pub fn gaussian_smooth(input: &[f64], dims: [usize; 3], axis: usize, kernel: &[f64]) -> Vec<f64> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-    let radius = (kernel.len() / 2) as i64;
-    match axis {
-        0 => moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
-            let iz = i / (ny * nx);
-            let iy = (i / nx) % ny;
-            let ix = i % nx;
-            let mut val = 0.0f64;
-            for (ki, &kw) in kernel.iter().enumerate() {
-                let k = ki as i64 - radius;
-                let sz = (iz as i64 + k).clamp(0, nz as i64 - 1) as usize;
-                val += kw * input[sz * ny * nx + iy * nx + ix];
-            }
-            val
-        }),
-        1 => moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
-            let iz = i / (ny * nx);
-            let iy = (i / nx) % ny;
-            let ix = i % nx;
-            let mut val = 0.0f64;
-            for (ki, &kw) in kernel.iter().enumerate() {
-                let k = ki as i64 - radius;
-                let sy = (iy as i64 + k).clamp(0, ny as i64 - 1) as usize;
-                val += kw * input[iz * ny * nx + sy * nx + ix];
-            }
-            val
-        }),
-        2 => moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
-            let iz = i / (ny * nx);
-            let iy = (i / nx) % ny;
-            let ix = i % nx;
-            let mut val = 0.0f64;
-            for (ki, &kw) in kernel.iter().enumerate() {
-                let k = ki as i64 - radius;
-                let sx = (ix as i64 + k).clamp(0, nx as i64 - 1) as usize;
-                val += kw * input[iz * ny * nx + iy * nx + sx];
-            }
-            val
-        }),
-        _ => unreachable!("axis must be 0, 1, or 2"),
-    }
+    let mut output = vec![0.0; n];
+    gaussian_smooth_into(input, &mut output, dims, axis, kernel);
+    output
 }
 
 /// Smooth each of the 6 structure tensor components with a separable 3-D Gaussian.
@@ -246,10 +254,62 @@ pub fn compute_divergence_into(
     dims: [usize; 3],
     alpha: f64,
     contrast: f64,
+    d_tensors: &mut [[f64; 6]],
     div: &mut [f64],
 ) {
-    let result = compute_divergence(data, st_smooth, dims, alpha, contrast);
-    div.copy_from_slice(&result);
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+
+    // Compute diffusion tensor at every voxel (parallel) in-place in d_tensors
+    use moirai::prelude::ParallelSliceMut;
+    d_tensors[..n].par_mut().enumerate(|i, dt| {
+        *dt = diffusion_tensor(st_smooth[i], alpha, contrast);
+    });
+
+    // Compute divergence into div
+    div[..n].par_mut().enumerate(|i, val| {
+        let iz = i / (ny * nx);
+        let iy = (i / nx) % ny;
+        let ix = i % nx;
+        let mut delta = 0.0f64;
+        // +z face
+        if iz + 1 < nz {
+            let j = (iz + 1) * ny * nx + iy * nx + ix;
+            let d_face = avg_tensor(d_tensors[i], d_tensors[j]);
+            delta += d_face[0] * (data[j] - data[i]);
+        }
+        // -z face
+        if iz > 0 {
+            let j = (iz - 1) * ny * nx + iy * nx + ix;
+            let d_face = avg_tensor(d_tensors[i], d_tensors[j]);
+            delta += d_face[0] * (data[j] - data[i]);
+        }
+        // +y face
+        if iy + 1 < ny {
+            let j = iz * ny * nx + (iy + 1) * nx + ix;
+            let d_face = avg_tensor(d_tensors[i], d_tensors[j]);
+            delta += d_face[3] * (data[j] - data[i]);
+        }
+        // -y face
+        if iy > 0 {
+            let j = iz * ny * nx + (iy - 1) * nx + ix;
+            let d_face = avg_tensor(d_tensors[i], d_tensors[j]);
+            delta += d_face[3] * (data[j] - data[i]);
+        }
+        // +x face
+        if ix + 1 < nx {
+            let j = iz * ny * nx + iy * nx + (ix + 1);
+            let d_face = avg_tensor(d_tensors[i], d_tensors[j]);
+            delta += d_face[5] * (data[j] - data[i]);
+        }
+        // -x face
+        if ix > 0 {
+            let j = iz * ny * nx + iy * nx + (ix - 1);
+            let d_face = avg_tensor(d_tensors[i], d_tensors[j]);
+            delta += d_face[5] * (data[j] - data[i]);
+        }
+        *val = delta;
+    });
 }
 
 /// Element-wise average of two symmetric 3×3 tensor component vectors.

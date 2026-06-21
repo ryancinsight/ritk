@@ -40,6 +40,7 @@
 //! - ITK `itk::IsolatedWatershedImageFilter`
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use moirai::prelude::ParallelSliceMut;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
@@ -79,21 +80,25 @@ fn neighbours(idx: usize, dims: [usize; 3]) -> impl Iterator<Item = usize> {
 /// yields `dz == 0` via the clamp, reducing to the 2-D gradient.
 fn gradient_magnitude(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
-    let at = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
     let mut out = vec![0.0_f32; nz * ny * nx];
-    for z in 0..nz {
-        let (zm, zp) = (z.saturating_sub(1), (z + 1).min(nz - 1));
-        for y in 0..ny {
-            let (ym, yp) = (y.saturating_sub(1), (y + 1).min(ny - 1));
-            for x in 0..nx {
-                let (xm, xp) = (x.saturating_sub(1), (x + 1).min(nx - 1));
-                let dz = (at(zp, y, x) - at(zm, y, x)) * 0.5;
-                let dy = (at(z, yp, x) - at(z, ym, x)) * 0.5;
-                let dx = (at(z, y, xp) - at(z, y, xm)) * 0.5;
-                out[z * ny * nx + y * nx + x] = (dz * dz + dy * dy + dx * dx).sqrt();
-            }
-        }
-    }
+    out.par_mut().enumerate(|i, val| {
+        let z = i / (ny * nx);
+        let rem = i % (ny * nx);
+        let y = rem / nx;
+        let x = rem % nx;
+
+        let zm = z.saturating_sub(1);
+        let zp = (z + 1).min(nz - 1);
+        let ym = y.saturating_sub(1);
+        let yp = (y + 1).min(ny - 1);
+        let xm = x.saturating_sub(1);
+        let xp = (x + 1).min(nx - 1);
+
+        let dz = (vals[zp * ny * nx + y * nx + x] - vals[zm * ny * nx + y * nx + x]) * 0.5;
+        let dy = (vals[z * ny * nx + yp * nx + x] - vals[z * ny * nx + ym * nx + x]) * 0.5;
+        let dx = (vals[z * ny * nx + y * nx + xp] - vals[z * ny * nx + y * nx + xm]) * 0.5;
+        *val = (dz * dz + dy * dy + dx * dx).sqrt();
+    });
     out
 }
 
@@ -125,12 +130,12 @@ fn watershed_basins_gd(g: &[f32], dims: [usize; 3]) -> Vec<usize> {
     let mut basin = vec![usize::MAX; n];
 
     // First pass: label all strict local minima (no neighbour with g < g[i]).
-    for i in 0..n {
+    basin.par_mut().enumerate(|i, val| {
         let gi = g[i];
         if neighbours(i, dims).all(|j| g[j] >= gi) {
-            basin[i] = i;
+            *val = i;
         }
-    }
+    });
 
     // Second pass: trace steepest descent for each unlabeled voxel with path
     // compression.  Re-use a single path buffer across starts to avoid

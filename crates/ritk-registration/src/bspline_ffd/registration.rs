@@ -9,9 +9,9 @@ use super::metric::{
     compute_metric_gradient_fast_into, compute_ncc, MetricGradientScratch, NCC_SIGMA_GUARD,
 };
 use super::pyramid::refine_control_grid;
-use super::regularization::bending_energy_gradient;
+use super::regularization::{bending_energy_gradient_into, BendingEnergyScratch};
 use super::volume_dims::VolumeDims;
-use crate::deformable_field_ops::{warp_image, warp_image_into, WarpInterpolation};
+use crate::deformable_field_ops::{warp_image, warp_image_into, VelocityField, WarpInterpolation};
 use crate::error::RegistrationError;
 
 /// B-Spline FFD registration engine.
@@ -93,6 +93,8 @@ impl BSplineFFDRegistration {
         let mut disp_x = vec![0.0_f32; n];
         let mut warped = vec![0.0_f32; n];
         let mut metric_scratch = MetricGradientScratch::new(dims, ctrl_dims.into());
+        let mut be_scratch = BendingEnergyScratch::new(ctrl_n);
+        let mut be_grad = VelocityField::zeros(ctrl_n);
 
         // ── Multi-resolution loop ─────────────────────────────────────────
         for level in 0..config.num_levels {
@@ -109,6 +111,9 @@ impl BSplineFFDRegistration {
 
             // Re-size scratch buffers when the control grid changed at a level boundary.
             metric_scratch.resize(dims, ctrl_dims.into());
+            let current_ctrl_n = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
+            be_scratch.resize(current_ctrl_n);
+            be_grad.resize(current_ctrl_n);
 
             let mut prev_metric = f64::NEG_INFINITY;
 
@@ -160,8 +165,15 @@ impl BSplineFFDRegistration {
                 );
 
                 // 6. Compute bending-energy gradients w.r.t. control points.
-                let be_grad =
-                    bending_energy_gradient(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
+                bending_energy_gradient_into(
+                    &cp_z,
+                    &cp_y,
+                    &cp_x,
+                    &ctrl_dims,
+                    &ctrl_spacing,
+                    &mut be_scratch,
+                    &mut be_grad,
+                );
 
                 // 7. Gradient descent update.
                 let lr = config.learning_rate as f32;
