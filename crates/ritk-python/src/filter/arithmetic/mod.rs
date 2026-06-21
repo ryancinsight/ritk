@@ -51,12 +51,12 @@ macro_rules! ternary_pyfn {
     };
 }
 
-mod unary;
 mod binary;
-mod ternary;
 mod mask;
+mod ternary;
+mod unary;
 
-pub use unary::*;
 pub use binary::*;
-pub use ternary::*;
 pub use mask::*;
+pub use ternary::*;
+pub use unary::*;

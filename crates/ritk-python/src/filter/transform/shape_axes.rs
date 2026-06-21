@@ -2,8 +2,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    FlipImageFilter, ShrinkImageFilter, ExpandImageFilter, CyclicShiftImageFilter,
-    PermuteAxesImageFilter, OrientImageFilter,
+    CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, OrientImageFilter,
+    PermuteAxesImageFilter, ShrinkImageFilter,
 };
 
 /// Flip the image along any combination of the Z, Y, X axes.

@@ -118,13 +118,23 @@ impl FrangiVesselnessFilter {
             let hessians = compute_hessian_iir(vals, dims, spacing, sigma);
 
             // Compute Frangi vesselness at every voxel.
-            for i in 0..n {
-                let [lambda1, lambda2, lambda3] = symmetric_3x3_eigenvalues(hessians[i]);
-                let v = self.voxel_vesselness(lambda1, lambda2, lambda3);
-                if v > vesselness_max[i] {
-                    vesselness_max[i] = v;
-                }
-            }
+            let hessians_ref = &hessians;
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut vesselness_max,
+                4096,
+                |chunk_idx, slice| {
+                    let start_idx = chunk_idx * 4096;
+                    for (offset, max_val) in slice.iter_mut().enumerate() {
+                        let i = start_idx + offset;
+                        let [lambda1, lambda2, lambda3] =
+                            symmetric_3x3_eigenvalues(hessians_ref[i]);
+                        let v = self.voxel_vesselness(lambda1, lambda2, lambda3);
+                        if v > *max_val {
+                            *max_val = v;
+                        }
+                    }
+                },
+            );
         }
 
         // ── Rebuild image ─────────────────────────────────────────────────────

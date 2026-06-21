@@ -1,4 +1,4 @@
-﻿//! Unsharp mask filter (ITK `UnsharpMaskingImageFilter` / ImageJ "Unsharp Mask" parity).
+//! Unsharp mask filter (ITK `UnsharpMaskingImageFilter` / ImageJ "Unsharp Mask" parity).
 //!
 //! # Mathematical Specification
 //!
@@ -166,14 +166,19 @@ impl UnsharpMaskFilter {
         // Derive input intensity range for optional clamping.
         let (v_min, v_max) = match self.clamp {
             ClampPolicy::ClampToInputRange => {
-                let mut mn = f32::INFINITY;
-                let mut mx = f32::NEG_INFINITY;
-                for &v in &input {
-                    if v.is_finite() {
-                        mn = mn.min(v);
-                        mx = mx.max(v);
-                    }
-                }
+                let (mn, mx) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+                    n,
+                    || (f32::INFINITY, f32::NEG_INFINITY),
+                    |(mn, mx), i| {
+                        let v = input[i];
+                        if v.is_finite() {
+                            (mn.min(v), mx.max(v))
+                        } else {
+                            (mn, mx)
+                        }
+                    },
+                    |(a_mn, a_mx), (b_mn, b_mx)| (a_mn.min(b_mn), a_mx.max(b_mx)),
+                );
                 (mn, mx)
             }
             ClampPolicy::NoClamp => (f32::NEG_INFINITY, f32::INFINITY),
@@ -182,23 +187,24 @@ impl UnsharpMaskFilter {
         // Apply unsharp mask formula.
         //
         // For each voxel p:
-        //   mask = I(p) âˆ’ B(p)
-        //   |mask| < threshold  â†’ output = I(p)
-        //   |mask| â‰¥ threshold  â†’ output = I(p) + amount Â· (|mask| âˆ’ threshold) Â· sign(mask)
+        //   mask = I(p) − B(p)
+        //   |mask| < threshold  → output = I(p)
+        //   |mask| ≥ threshold  → output = I(p) + amount · (|mask| − threshold) · sign(mask)
         //
         // Then clamp to [v_min, v_max] if requested.
-        let mut output: Vec<f32> = Vec::with_capacity(n);
-        for i in 0..n {
-            let inp = input[i];
-            let mask = inp - blurred[i];
+        let input_ref = &input;
+        let blurred_ref = &blurred;
+        let output = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            let inp = input_ref[i];
+            let mask = inp - blurred_ref[i];
             let abs_mask = mask.abs();
             let sharpened = if abs_mask < threshold {
                 inp
             } else {
                 inp + amount * (abs_mask - threshold) * mask.signum()
             };
-            output.push(sharpened.clamp(v_min, v_max));
-        }
+            sharpened.clamp(v_min, v_max)
+        });
 
         Ok(rebuild(output, dims, image))
     }

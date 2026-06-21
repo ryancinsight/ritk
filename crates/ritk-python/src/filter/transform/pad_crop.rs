@@ -2,8 +2,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    ConstantPadImageFilter, FftPadBoundary, FftPadImageFilter, MirrorPadImageFilter,
-    Padding, RegionOfInterestImageFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
+    ConstantPadImageFilter, FftPadBoundary, FftPadImageFilter, MirrorPadImageFilter, Padding,
+    RegionOfInterestImageFilter, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
 };
 
 /// Pad the image with a constant value. `lower`/`upper` are `(z, y, x)` voxel

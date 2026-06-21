@@ -184,12 +184,12 @@ pub use scalar_chan_and_vese::ScalarChanAndVeseDenseLevelSet;
 
 pub use colliding_fronts::CollidingFrontsFilter;
 pub use displacement::transform_to_displacement_field;
+pub(crate) use distance::signed_maurer_core;
 pub use distance::{
     ApproximateSignedDistanceMapFilter, BinarizationThreshold, DistanceTransformImageFilter,
     FastChamferDistanceFilter, SignedDistanceTransformImageFilter,
     SignedMaurerDistanceMapImageFilter,
 };
-pub(crate) use distance::signed_maurer_core;
 pub use fast_marching::FastMarchingFilter;
 pub use fractal_dimension::StochasticFractalDimensionFilter;
 pub use inverse_displacement::InverseDisplacementField;

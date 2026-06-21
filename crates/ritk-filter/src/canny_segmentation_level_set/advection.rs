@@ -13,11 +13,35 @@ pub(crate) fn advection_field(p: &[f64], dims: [usize; 3]) -> Vec<Vec<f64>> {
                 let f = idx(z, y, x);
                 let pv = p[f];
                 // x-derivative (axis 0).
-                adv[0][f] = pv * grad_1d(p, idx(z, y, x.saturating_sub(1)), f, idx(z, y, (x + 1).min(nx - 1)), x, nx);
+                adv[0][f] = pv
+                    * grad_1d(
+                        p,
+                        idx(z, y, x.saturating_sub(1)),
+                        f,
+                        idx(z, y, (x + 1).min(nx - 1)),
+                        x,
+                        nx,
+                    );
                 // y-derivative (axis 1).
-                adv[1][f] = pv * grad_1d(p, idx(z, y.saturating_sub(1), x), f, idx(z, (y + 1).min(ny - 1), x), y, ny);
+                adv[1][f] = pv
+                    * grad_1d(
+                        p,
+                        idx(z, y.saturating_sub(1), x),
+                        f,
+                        idx(z, (y + 1).min(ny - 1), x),
+                        y,
+                        ny,
+                    );
                 if ndim == 3 {
-                    adv[2][f] = pv * grad_1d(p, idx(z.saturating_sub(1), y, x), f, idx((z + 1).min(nz - 1), y, x), z, nz);
+                    adv[2][f] = pv
+                        * grad_1d(
+                            p,
+                            idx(z.saturating_sub(1), y, x),
+                            f,
+                            idx((z + 1).min(nz - 1), y, x),
+                            z,
+                            nz,
+                        );
                 }
             }
         }

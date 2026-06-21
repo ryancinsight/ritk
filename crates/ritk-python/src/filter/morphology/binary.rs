@@ -2,8 +2,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    BinaryThinningFilter, BinaryPruningFilter, ErodeObjectMorphologyFilter, HitOrMissTransform,
-    VotingBinaryImageFilter, VotingBinaryHoleFillingImageFilter,
+    BinaryPruningFilter, BinaryThinningFilter, ErodeObjectMorphologyFilter, HitOrMissTransform,
+    VotingBinaryHoleFillingImageFilter, VotingBinaryImageFilter,
 };
 
 /// Thin a binary image to its 1-pixel-wide skeleton, matching

@@ -58,7 +58,11 @@ impl ItkMt {
                 .wrapping_mul(prev ^ (prev >> 30))
                 .wrapping_add(i as u32);
         }
-        let mut mt = Self { state, left: 0, next: 0 };
+        let mut mt = Self {
+            state,
+            left: 0,
+            next: 0,
+        };
         mt.reload();
         mt
     }
@@ -260,7 +264,12 @@ impl PatchBasedDenoisingImageFilter {
                 let mut sq = 0.0f64;
                 for &(dz, dy, dx, wi) in &offsets {
                     let (px, py, pz) = (x + dx, y + dy, z + dz);
-                    if px < 0 || py < 0 || pz < 0 || px >= sizes[0] || py >= sizes[1] || pz >= sizes[2]
+                    if px < 0
+                        || py < 0
+                        || pz < 0
+                        || px >= sizes[0]
+                        || py >= sizes[1]
+                        || pz >= sizes[2]
                     {
                         continue; // current-patch pixel out of bounds: skipped
                     }

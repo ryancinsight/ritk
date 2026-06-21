@@ -7,7 +7,6 @@
 use anyhow::Result;
 use tracing::info;
 
-
 pub(crate) use super::Backend;
 use super::{read_image, write_image_inferred};
 
@@ -90,7 +89,6 @@ pub fn run(args: FilterArgs) -> Result<()> {
 use ritk_core::image::Image;
 #[cfg(test)]
 use std::path::PathBuf;
-
 
 /// Default `FilterArgs` builder — sets every per-family field to its
 /// reasonable default and lets the caller override what is needed.

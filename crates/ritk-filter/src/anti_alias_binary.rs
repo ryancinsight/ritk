@@ -130,14 +130,12 @@ impl AntiAliasBinaryImageFilter {
         // Neighbour flat index if in bounds.
         let neighbor = |f: usize, off: (isize, isize, isize)| -> Option<usize> {
             let (iz, iy, ix) = decode(f);
-            let (z, y, x) = (iz as isize + off.0, iy as isize + off.1, ix as isize + off.2);
-            if z >= 0
-                && y >= 0
-                && x >= 0
-                && z < nz as isize
-                && y < ny as isize
-                && x < nx as isize
-            {
+            let (z, y, x) = (
+                iz as isize + off.0,
+                iy as isize + off.1,
+                ix as isize + off.2,
+            );
+            if z >= 0 && y >= 0 && x >= 0 && z < nz as isize && y < ny as isize && x < nx as isize {
                 Some(idx(z as usize, y as usize, x as usize))
             } else {
                 None
@@ -167,7 +165,12 @@ impl AntiAliasBinaryImageFilter {
                 if let Some(g) = neighbor(f, off) {
                     let nv = shifted[g];
                     let forward = off.0 + off.1 + off.2 > 0;
-                    if sign_change(v, nv) && (if forward { av <= nv.abs() } else { av < nv.abs() })
+                    if sign_change(v, nv)
+                        && (if forward {
+                            av <= nv.abs()
+                        } else {
+                            av < nv.abs()
+                        })
                     {
                         crosses = true;
                         break;
@@ -179,7 +182,10 @@ impl AntiAliasBinaryImageFilter {
 
         // State.
         let mut status = vec![ST_NULL; n];
-        let mut phi: Vec<f32> = shifted.iter().map(|&s| if s > 0.0 { bg_val } else { -bg_val }).collect();
+        let mut phi: Vec<f32> = shifted
+            .iter()
+            .map(|&s| if s > 0.0 { bg_val } else { -bg_val })
+            .collect();
         let mut layers: Vec<Vec<usize>> = vec![Vec::new(); num as usize];
 
         // add: set status + push-front into its layer list.
@@ -229,7 +235,9 @@ impl AntiAliasBinaryImageFilter {
             for &off in &offsets {
                 // forward/backward one-sided differences, larger magnitude wins.
                 let fwd = neighbor(f, off).map(|g| shifted[g]).unwrap_or(c) - c;
-                let back = c - neighbor(f, (-off.0, -off.1, -off.2)).map(|g| shifted[g]).unwrap_or(c);
+                let back = c - neighbor(f, (-off.0, -off.1, -off.2))
+                    .map(|g| shifted[g])
+                    .unwrap_or(c);
                 let d = if fwd.abs() > back.abs() { fwd } else { back };
                 // Only count each axis once: the offsets list has +/- pairs; use
                 // forward offsets (positive direction) to avoid double-counting.
@@ -243,12 +251,12 @@ impl AntiAliasBinaryImageFilter {
 
         // PropagateLayerValues / PropagateAllLayerValues.
         let propagate_layer = |layers: &mut Vec<Vec<usize>>,
-                                   phi: &mut [f32],
-                                   status: &mut [i32],
-                                   frm: i32,
-                                   to: i32,
-                                   promote: i32,
-                                   inout: i32| {
+                               phi: &mut [f32],
+                               status: &mut [i32],
+                               frm: i32,
+                               to: i32,
+                               promote: i32,
+                               inout: i32| {
             let delta = if inout == 1 { -CGV } else { CGV };
             let mut survivors: Vec<usize> = Vec::new();
             let cur: Vec<usize> = layers[to as usize].clone();
@@ -290,7 +298,15 @@ impl AntiAliasBinaryImageFilter {
                 propagate_layer(&mut layers, &mut phi, &mut status, 0, 1, 3, 1);
                 propagate_layer(&mut layers, &mut phi, &mut status, 0, 2, 4, 2);
                 for i in 1..(num - 2) {
-                    propagate_layer(&mut layers, &mut phi, &mut status, i, i + 2, i + 4, (i + 2) % 2);
+                    propagate_layer(
+                        &mut layers,
+                        &mut phi,
+                        &mut status,
+                        i,
+                        i + 2,
+                        i + 4,
+                        (i + 2) % 2,
+                    );
                 }
             }};
         }
@@ -327,9 +343,7 @@ impl AntiAliasBinaryImageFilter {
                 if msq < MSQ_EPS {
                     return 0.0;
                 }
-                (fx * fx * (fyy + fzz)
-                    + fy * fy * (fxx + fzz)
-                    + fz * fz * (fxx + fyy)
+                (fx * fx * (fyy + fzz) + fy * fy * (fxx + fzz) + fz * fz * (fxx + fyy)
                     - 2.0 * fx * fy * fxy
                     - 2.0 * fx * fz * fxz
                     - 2.0 * fy * fz * fyz)
@@ -349,9 +363,16 @@ impl AntiAliasBinaryImageFilter {
             for (k, &f) in al.iter().enumerate() {
                 let old = phi[f];
                 let mut nv = old + DT * update[k];
-                nv = if binary[f] == upper_bin { nv.max(0.0) } else { nv.min(0.0) };
+                nv = if binary[f] == upper_bin {
+                    nv.max(0.0)
+                } else {
+                    nv.min(0.0)
+                };
                 if nv >= cf {
-                    if offsets.iter().any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CDN)) {
+                    if offsets
+                        .iter()
+                        .any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CDN))
+                    {
                         keep.push(f);
                         continue;
                     }
@@ -369,7 +390,10 @@ impl AntiAliasBinaryImageFilter {
                     status[f] = ST_CUP;
                     up[0].insert(0, f);
                 } else if nv < -cf {
-                    if offsets.iter().any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CUP)) {
+                    if offsets
+                        .iter()
+                        .any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CUP))
+                    {
                         keep.push(f);
                         continue;
                     }

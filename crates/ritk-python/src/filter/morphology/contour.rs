@@ -1,7 +1,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_filter::{BinaryContourImageFilter, LabelContourImageFilter, Connectivity};
+use ritk_filter::{BinaryContourImageFilter, Connectivity, LabelContourImageFilter};
 
 /// Binary contour: keep only foreground voxels that touch the background
 /// (the object boundary). ITK Parity: BinaryContourImageFilter

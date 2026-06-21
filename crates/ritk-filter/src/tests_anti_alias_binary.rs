@@ -31,7 +31,11 @@ fn straight_edge_is_half_integer_signed_distance() {
     let out = AntiAliasBinaryImageFilter::default().apply(&img);
     let v = voxels(&out);
     // Boundary between x=3 (bg) and x=4 (fg): values straddle at ±0.5.
-    assert!((v[3] - (-0.5)).abs() < 1e-4, "x3 = {} (expected -0.5)", v[3]);
+    assert!(
+        (v[3] - (-0.5)).abs() < 1e-4,
+        "x3 = {} (expected -0.5)",
+        v[3]
+    );
     assert!((v[4] - 0.5).abs() < 1e-4, "x4 = {} (expected 0.5)", v[4]);
     // Foreground is positive, background negative.
     assert!(v[7] > 0.0, "interior fg must be positive, got {}", v[7]);
@@ -48,7 +52,11 @@ fn uniform_image_has_no_boundary() {
     let v = voxels(&out);
     // 2-D ⇒ NumberOfLayers = 2 ⇒ outermost background level = −3.
     for &x in &v {
-        assert!((x - (-3.0)).abs() < 1e-4, "uniform voxel = {} (expected -3.0)", x);
+        assert!(
+            (x - (-3.0)).abs() < 1e-4,
+            "uniform voxel = {} (expected -3.0)",
+            x
+        );
     }
 }
 

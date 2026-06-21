@@ -82,7 +82,13 @@ impl SignedMaurerDistanceMapImageFilter {
             [1.0, 1.0, 1.0]
         };
 
-        let signed = signed_maurer_core(&fg, dims, spacing, self.inside_is_positive, self.squared_distance);
+        let signed = signed_maurer_core(
+            &fg,
+            dims,
+            spacing,
+            self.inside_is_positive,
+            self.squared_distance,
+        );
 
         let device = image.data().device();
         let td_out = TensorData::new(signed, Shape::new([nz, ny, nx]));

@@ -157,8 +157,7 @@ fn sampled_ngf_matches_dense() {
     ));
     let dense = NgfFixedPrep::<B, 2>::new(&img, None, None).eval(&img, &ident);
     let full = NgfFixedPrep::<B, 2>::new_sampled(&img, None, None, w * h).eval(&img, &ident);
-    let half =
-        NgfFixedPrep::<B, 2>::new_sampled(&img, None, None, w * h / 2).eval(&img, &ident);
+    let half = NgfFixedPrep::<B, 2>::new_sampled(&img, None, None, w * h / 2).eval(&img, &ident);
     assert!(
         dense > 0.0,
         "dense self-NGF should be positive, got {dense}"

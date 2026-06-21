@@ -132,22 +132,32 @@ fn compute_sato_multiscale(
 
         // Per-voxel line response (scale-normalised by σ²).
         let sigma2 = (sigma * sigma) as f32;
-        for (i, h) in hessian.iter().enumerate() {
-            // Scale-normalise Hessian (σ² · H_σ convention).
-            let h_scaled = [
-                h[0] * sigma2,
-                h[1] * sigma2,
-                h[2] * sigma2,
-                h[3] * sigma2,
-                h[4] * sigma2,
-                h[5] * sigma2,
-            ];
-            let eigs = symmetric_3x3_eigenvalues(h_scaled);
-            let v = sato_response(eigs, config.alpha, config.polarity);
-            if v > max_response[i] {
-                max_response[i] = v;
-            }
-        }
+        let hessian_ref = &hessian;
+        moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+            &mut max_response,
+            4096,
+            |chunk_idx, slice| {
+                let start_idx = chunk_idx * 4096;
+                for (offset, max_val) in slice.iter_mut().enumerate() {
+                    let i = start_idx + offset;
+                    let h = hessian_ref[i];
+                    // Scale-normalise Hessian (σ² · H_σ convention).
+                    let h_scaled = [
+                        h[0] * sigma2,
+                        h[1] * sigma2,
+                        h[2] * sigma2,
+                        h[3] * sigma2,
+                        h[4] * sigma2,
+                        h[5] * sigma2,
+                    ];
+                    let eigs = symmetric_3x3_eigenvalues(h_scaled);
+                    let v = sato_response(eigs, config.alpha, config.polarity);
+                    if v > *max_val {
+                        *max_val = v;
+                    }
+                }
+            },
+        );
     }
 
     max_response

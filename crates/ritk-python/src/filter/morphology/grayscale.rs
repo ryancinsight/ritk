@@ -2,8 +2,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    GrayscaleErosion, GrayscaleDilation, GrayscaleClosingFilter, GrayscaleOpeningFilter,
-    WhiteTopHatFilter, BlackTopHatFilter,
+    BlackTopHatFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
+    GrayscaleOpeningFilter, WhiteTopHatFilter,
 };
 
 /// Apply grayscale morphological erosion with a flat cubic structuring element.

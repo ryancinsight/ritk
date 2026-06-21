@@ -52,7 +52,8 @@ pub(super) fn convolve_axis<const AXIS: usize>(
                     for (ki, &kv) in kernel.iter().enumerate() {
                         let src_coord = (coord as isize + ki as isize - r as isize)
                             .max(0)
-                            .min(max_coord as isize - 1) as usize;
+                            .min(max_coord as isize - 1)
+                            as usize;
                         let src_fi = match AXIS {
                             0 => flat(src_coord, iy, ix, ny, nx),
                             1 => flat(iz, src_coord, ix, ny, nx),

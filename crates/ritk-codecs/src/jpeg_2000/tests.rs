@@ -287,9 +287,8 @@ fn decode_jpeg2000_multi_codeblock_two_levels_16bit() {
         2,
         WaveletTransform::Reversible,
     );
-    let decoded =
-        decode_jpeg2000_fragment(&j2k, layout(100, 150, 16, PixelSignedness::Unsigned))
-            .expect("multi-code-block 2-level round-trip must succeed");
+    let decoded = decode_jpeg2000_fragment(&j2k, layout(100, 150, 16, PixelSignedness::Unsigned))
+        .expect("multi-code-block 2-level round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
     assert_eq!(decoded, expected, "multi-code-block DWT must be lossless");
 }

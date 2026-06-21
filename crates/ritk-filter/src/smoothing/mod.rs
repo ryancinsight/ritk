@@ -17,4 +17,3 @@ pub use mean::MeanImageFilter;
 
 #[cfg(test)]
 mod tests_convolution;
-

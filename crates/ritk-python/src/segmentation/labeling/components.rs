@@ -6,8 +6,7 @@ use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_image::Image;
 use ritk_segmentation::{
-    connected_components as core_connected_components,
-    labeling::Connectivity as SegConnectivity,
+    connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components,
     vector_connected_components_image as core_vector_connected_components,
     ThresholdMaximumConnectedComponentsFilter,

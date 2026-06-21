@@ -136,32 +136,50 @@ impl MaskedFftNormalizedCorrelationFilter {
         let fixed_dc = corr(&f2_fft, &mt_fft, dims, p);
         let moving_dc = corr(&mf_fft, &t2_fft, dims, p);
 
-        let mut numerator = vec![0.0f32; n];
-        let mut denominator = vec![0.0f32; n];
-        for i in 0..n {
-            let ov = if overlap[i] > 0.0 { overlap[i] } else { 1.0 };
-            numerator[i] = corr_ft[i] - mask_corr_f[i] * mask_corr_m[i] / ov;
-            let fixed_d = (fixed_dc[i] - mask_corr_f[i] * mask_corr_f[i] / ov).max(0.0);
-            let moving_d = (moving_dc[i] - mask_corr_m[i] * mask_corr_m[i] / ov).max(0.0);
-            denominator[i] = (fixed_d * moving_d).sqrt();
-        }
+        let overlap_ref = &overlap;
+        let corr_ft_ref = &corr_ft;
+        let mask_corr_f_ref = &mask_corr_f;
+        let mask_corr_m_ref = &mask_corr_m;
+        let fixed_dc_ref = &fixed_dc;
+        let moving_dc_ref = &moving_dc;
 
-        let max_denom = denominator.iter().cloned().fold(0.0f32, f32::max);
+        let (max_denom, max_overlap) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+            n,
+            || (0.0_f32, 0.0_f32),
+            |(mx_d, mx_ov), i| {
+                let ov = overlap_ref[i];
+                let ov_div = if ov > 0.0 { ov } else { 1.0 };
+                let fixed_d =
+                    (fixed_dc_ref[i] - mask_corr_f_ref[i] * mask_corr_f_ref[i] / ov_div).max(0.0);
+                let moving_d =
+                    (moving_dc_ref[i] - mask_corr_m_ref[i] * mask_corr_m_ref[i] / ov_div).max(0.0);
+                let denom = (fixed_d * moving_d).sqrt();
+                (mx_d.max(denom), mx_ov.max(ov))
+            },
+            |(a_d, a_ov), (b_d, b_ov)| (a_d.max(b_d), a_ov.max(b_ov)),
+        );
+
         let tol = 1000.0 * f32::EPSILON * max_denom;
-        let max_overlap = overlap.iter().cloned().fold(0.0f32, f32::max);
         let req = (self.required_fraction_of_overlapping_pixels * max_overlap)
             .max(self.required_number_of_overlapping_pixels as f32)
             .max(1.0);
 
-        let out: Vec<f32> = (0..n)
-            .map(|i| {
-                if overlap[i] >= req && denominator[i] >= tol {
-                    (numerator[i] / denominator[i]).clamp(-1.0, 1.0)
-                } else {
-                    0.0
+        let out = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            let ov = overlap_ref[i];
+            if ov >= req {
+                let ov_div = if ov > 0.0 { ov } else { 1.0 };
+                let fixed_d =
+                    (fixed_dc_ref[i] - mask_corr_f_ref[i] * mask_corr_f_ref[i] / ov_div).max(0.0);
+                let moving_d =
+                    (moving_dc_ref[i] - mask_corr_m_ref[i] * mask_corr_m_ref[i] / ov_div).max(0.0);
+                let denom = (fixed_d * moving_d).sqrt();
+                if denom >= tol {
+                    let num = corr_ft_ref[i] - mask_corr_f_ref[i] * mask_corr_m_ref[i] / ov_div;
+                    return (num / denom).clamp(-1.0, 1.0);
                 }
-            })
-            .collect();
+            }
+            0.0
+        });
 
         Ok(build_output(out, dims, fixed))
     }

@@ -3,7 +3,13 @@
 use super::{CannySegmentationLevelSet, CGV, GRAD_EPS, MIN_NORM, ST_CDN, ST_CHG, ST_CUP, ST_NULL};
 
 impl CannySegmentationLevelSet {
-    pub(crate) fn run(&self, shifted: &[f64], p: &[f64], adv: &[Vec<f64>], dims: [usize; 3]) -> Vec<f64> {
+    pub(crate) fn run(
+        &self,
+        shifted: &[f64],
+        p: &[f64],
+        adv: &[Vec<f64>],
+        dims: [usize; 3],
+    ) -> Vec<f64> {
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
         let ndim = if nz == 1 { 2 } else { 3 };
@@ -34,7 +40,11 @@ impl CannySegmentationLevelSet {
         };
         let neighbor = |f: usize, off: (isize, isize, isize)| -> Option<usize> {
             let (iz, iy, ix) = decode(f);
-            let (z, y, x) = (iz as isize + off.0, iy as isize + off.1, ix as isize + off.2);
+            let (z, y, x) = (
+                iz as isize + off.0,
+                iy as isize + off.1,
+                ix as isize + off.2,
+            );
             if z >= 0 && y >= 0 && x >= 0 && z < nz as isize && y < ny as isize && x < nx as isize {
                 Some(idx(z as usize, y as usize, x as usize))
             } else {
@@ -52,8 +62,16 @@ impl CannySegmentationLevelSet {
         let interp = |arr: &[f64], cz: f64, cy: f64, cx: f64| -> f64 {
             let cl = |v: f64, hi: usize| v.clamp(0.0, hi as f64 - 1.0);
             let (cz, cy, cx) = (cl(cz, nz), cl(cy, ny), cl(cx, nx));
-            let (z0, y0, x0) = (cz.floor() as usize, cy.floor() as usize, cx.floor() as usize);
-            let (z1, y1, x1) = ((z0 + 1).min(nz - 1), (y0 + 1).min(ny - 1), (x0 + 1).min(nx - 1));
+            let (z0, y0, x0) = (
+                cz.floor() as usize,
+                cy.floor() as usize,
+                cx.floor() as usize,
+            );
+            let (z1, y1, x1) = (
+                (z0 + 1).min(nz - 1),
+                (y0 + 1).min(ny - 1),
+                (x0 + 1).min(nx - 1),
+            );
             let (fz, fy, fx) = (cz - z0 as f64, cy - y0 as f64, cx - x0 as f64);
             let lerp = |a: f64, b: f64, t: f64| a + (b - a) * t;
             let c00 = lerp(arr[idx(z0, y0, x0)], arr[idx(z0, y0, x1)], fx);
@@ -75,7 +93,13 @@ impl CannySegmentationLevelSet {
                 if let Some(g) = neighbor(f, off) {
                     let nv = shifted[g];
                     let forward = off.0 + off.1 + off.2 > 0;
-                    if sign_change(v, nv) && (if forward { av <= nv.abs() } else { av < nv.abs() }) {
+                    if sign_change(v, nv)
+                        && (if forward {
+                            av <= nv.abs()
+                        } else {
+                            av < nv.abs()
+                        })
+                    {
                         crosses = true;
                         break;
                     }
@@ -85,7 +109,10 @@ impl CannySegmentationLevelSet {
         }
 
         let mut status = vec![ST_NULL; n];
-        let mut phi: Vec<f64> = shifted.iter().map(|&s| if s > 0.0 { bg_val } else { -bg_val }).collect();
+        let mut phi: Vec<f64> = shifted
+            .iter()
+            .map(|&s| if s > 0.0 { bg_val } else { -bg_val })
+            .collect();
         let mut layers: Vec<Vec<usize>> = vec![Vec::new(); num as usize];
 
         macro_rules! push_layer {
@@ -131,7 +158,9 @@ impl CannySegmentationLevelSet {
             let mut l2 = 0.0f64;
             for &off in &offsets {
                 let fwd = neighbor(f, off).map(|g| shifted[g]).unwrap_or(c) - c;
-                let back = c - neighbor(f, (-off.0, -off.1, -off.2)).map(|g| shifted[g]).unwrap_or(c);
+                let back = c - neighbor(f, (-off.0, -off.1, -off.2))
+                    .map(|g| shifted[g])
+                    .unwrap_or(c);
                 let d = if fwd.abs() > back.abs() { fwd } else { back };
                 if off.0 + off.1 + off.2 > 0 {
                     l2 += d * d;
@@ -190,7 +219,15 @@ impl CannySegmentationLevelSet {
                 propagate_layer(&mut layers, &mut phi, &mut status, 0, 1, 3, 1);
                 propagate_layer(&mut layers, &mut phi, &mut status, 0, 2, 4, 2);
                 for i in 1..(num - 2) {
-                    propagate_layer(&mut layers, &mut phi, &mut status, i, i + 2, i + 4, (i + 2) % 2);
+                    propagate_layer(
+                        &mut layers,
+                        &mut phi,
+                        &mut status,
+                        i,
+                        i + 2,
+                        i + 4,
+                        (i + 2) % 2,
+                    );
                 }
             }};
         }
@@ -219,7 +256,11 @@ impl CannySegmentationLevelSet {
                 if fwd * bwd >= 0.0 {
                     let df = fwd - c;
                     let db = c - bwd;
-                    if df.abs() > db.abs() { df } else { db }
+                    if df.abs() > db.abs() {
+                        df
+                    } else {
+                        db
+                    }
                 } else if fwd * c < 0.0 {
                     fwd - c
                 } else {
@@ -231,7 +272,11 @@ impl CannySegmentationLevelSet {
             if c != 0.0 {
                 let ox = off_axis(g(0, 0, 1), g(0, 0, -1));
                 let oy = off_axis(g(0, 1, 0), g(0, -1, 0));
-                let oz = if ndim == 3 { off_axis(g(1, 0, 0), g(-1, 0, 0)) } else { 0.0 };
+                let oz = if ndim == 3 {
+                    off_axis(g(1, 0, 0), g(-1, 0, 0))
+                } else {
+                    0.0
+                };
                 let norm = ox * ox + oy * oy + oz * oz + MIN_NORM;
                 cx = ix as f64 - ox * c / norm;
                 cy = iy as f64 - oy * c / norm;
@@ -244,7 +289,11 @@ impl CannySegmentationLevelSet {
             let prop = interp(p, cz, cy, cx);
             let ax = interp(&adv[0], cz, cy, cx);
             let ay = interp(&adv[1], cz, cy, cx);
-            let az = if ndim == 3 { interp(&adv[2], cz, cy, cx) } else { 0.0 };
+            let az = if ndim == 3 {
+                interp(&adv[2], cz, cy, cx)
+            } else {
+                0.0
+            };
 
             // ── Curvature term (ComputeCurvatureTerm) ────────────────────────
             let (curv, dzf, dzb);
@@ -272,26 +321,34 @@ impl CannySegmentationLevelSet {
             // ── Propagation term (Godunov upwind in sign of P) ───────────────
             let prop_term = prop_w * prop;
             let pg = if prop_term > 0.0 {
-                dxb.max(0.0).powi(2) + dxf.min(0.0).powi(2)
-                    + dyb.max(0.0).powi(2) + dyf.min(0.0).powi(2)
-                    + dzb.max(0.0).powi(2) + dzf.min(0.0).powi(2)
+                dxb.max(0.0).powi(2)
+                    + dxf.min(0.0).powi(2)
+                    + dyb.max(0.0).powi(2)
+                    + dyf.min(0.0).powi(2)
+                    + dzb.max(0.0).powi(2)
+                    + dzf.min(0.0).powi(2)
             } else {
-                dxb.min(0.0).powi(2) + dxf.max(0.0).powi(2)
-                    + dyb.min(0.0).powi(2) + dyf.max(0.0).powi(2)
-                    + dzb.min(0.0).powi(2) + dzf.max(0.0).powi(2)
+                dxb.min(0.0).powi(2)
+                    + dxf.max(0.0).powi(2)
+                    + dyb.min(0.0).powi(2)
+                    + dyf.max(0.0).powi(2)
+                    + dzb.min(0.0).powi(2)
+                    + dzf.max(0.0).powi(2)
             };
             let propagation = prop_term * pg.sqrt();
 
             // ── Advection term (simple upwind per component) ─────────────────
-            let mut adv_term = ax * (if ax > 0.0 { dxb } else { dxf })
-                + ay * (if ay > 0.0 { dyb } else { dyf });
+            let mut adv_term =
+                ax * (if ax > 0.0 { dxb } else { dxf }) + ay * (if ay > 0.0 { dyb } else { dyf });
             if ndim == 3 {
                 adv_term += az * (if az > 0.0 { dzb } else { dzf });
             }
             adv_term *= adv_w;
 
             let update = curv_term - propagation - adv_term;
-            let max_adv = (adv_w * ax.abs()).max(adv_w * ay.abs()).max(adv_w * az.abs());
+            let max_adv = (adv_w * ax.abs())
+                .max(adv_w * ay.abs())
+                .max(adv_w * az.abs());
             (update, curv_term.abs(), prop_term.abs(), max_adv)
         };
 
@@ -330,7 +387,10 @@ impl CannySegmentationLevelSet {
                 let old = phi[f];
                 let nv = old + dt * sp[k].0;
                 if nv >= cf {
-                    if offsets.iter().any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CDN)) {
+                    if offsets
+                        .iter()
+                        .any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CDN))
+                    {
                         keep.push(f);
                         continue;
                     }
@@ -347,7 +407,10 @@ impl CannySegmentationLevelSet {
                     status[f] = ST_CUP;
                     up[0].insert(0, f);
                 } else if nv < -cf {
-                    if offsets.iter().any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CUP)) {
+                    if offsets
+                        .iter()
+                        .any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CUP))
+                    {
                         keep.push(f);
                         continue;
                     }

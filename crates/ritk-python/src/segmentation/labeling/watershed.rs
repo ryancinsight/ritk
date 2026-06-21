@@ -2,8 +2,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::{
-    toboggan as core_toboggan, MorphologicalWatershed, WatershedSegmentation,
-    MarkerControlledWatershed,
+    toboggan as core_toboggan, MarkerControlledWatershed, MorphologicalWatershed,
+    WatershedSegmentation,
 };
 use std::sync::Arc;
 

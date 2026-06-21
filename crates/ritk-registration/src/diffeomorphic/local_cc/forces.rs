@@ -1,5 +1,3 @@
-
-
 // ── Force computation ────────────────────────────────────────────────────────
 
 /// Compute local CC gradient forces (Avants 2008, eq. 10).

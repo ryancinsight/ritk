@@ -134,7 +134,10 @@ impl ScalarChanAndVeseDenseLevelSet {
         self.evolve(&mut phi, &feat_f64, dims);
 
         // Output: binary segmentation (φ < 0 → 1).
-        let result: Vec<f32> = phi.iter().map(|&v| if v < 0.0 { 1.0 } else { 0.0 }).collect();
+        let result: Vec<f32> = phi
+            .iter()
+            .map(|&v| if v < 0.0 { 1.0 } else { 0.0 })
+            .collect();
         Ok(rebuild(result, dims, initial_level_set))
     }
 }
@@ -299,8 +302,16 @@ fn region_means(feat: &[f64], phi: &[f64], eps: f64) -> (f64, f64) {
         sum_u_out += feat[i] * h;
     }
 
-    let c_in = if sum_in > 1e-15 { sum_u_in / sum_in } else { 0.0 };
-    let c_out = if sum_out > 1e-15 { sum_u_out / sum_out } else { 0.0 };
+    let c_in = if sum_in > 1e-15 {
+        sum_u_in / sum_in
+    } else {
+        0.0
+    };
+    let c_out = if sum_out > 1e-15 {
+        sum_u_out / sum_out
+    } else {
+        0.0
+    };
     (c_in, c_out)
 }
 

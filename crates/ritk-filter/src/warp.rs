@@ -89,12 +89,23 @@ pub fn warp_image<B: Backend>(
     let (dz, _) = extract_vec_infallible(disp_z);
     let (dy, _) = extract_vec_infallible(disp_y);
     let (dx, _) = extract_vec_infallible(disp_x);
-    let mut disp_flat = Vec::with_capacity(n * 3);
-    for i in 0..n {
-        disp_flat.push(dx[i]);
-        disp_flat.push(dy[i]);
-        disp_flat.push(dz[i]);
-    }
+    let mut disp_flat = vec![0.0f32; n * 3];
+    let dx_ref = &dx;
+    let dy_ref = &dy;
+    let dz_ref = &dz;
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut disp_flat,
+        3000,
+        |chunk_idx, slice| {
+            let start_triplet = chunk_idx * 1000;
+            for (offset, triplet) in slice.chunks_exact_mut(3).enumerate() {
+                let i = start_triplet + offset;
+                triplet[0] = dx_ref[i];
+                triplet[1] = dy_ref[i];
+                triplet[2] = dz_ref[i];
+            }
+        },
+    );
     let disp = Tensor::<B, 2>::from_data(TensorData::new(disp_flat, Shape::new([n, 3])), &device);
 
     // Displaced world points → moving continuous indices (innermost-first).

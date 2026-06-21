@@ -349,7 +349,9 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
             // before falling back here, leaving the slot empty for this check.
             self.cached_w_fixed_t.with_mut(|opt| {
                 if opt.is_none() {
-                    if let Some(new_cache) = self.histogram_calculator.extract_w_fixed_t_cache(fixed, n) {
+                    if let Some(new_cache) =
+                        self.histogram_calculator.extract_w_fixed_t_cache(fixed, n)
+                    {
                         *opt = Some(new_cache);
                     }
                 }
@@ -389,7 +391,8 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         // entry if populated. This avoids double-locking and eliminates the TOCTOU
         // race window between checking and retrieving.
         let cached_w_fixed_t = self.cached_w_fixed_t.with_ref(|opt| {
-            opt.as_ref().map(|entry| (entry.matches(fixed, n), entry.w_fixed_t.clone()))
+            opt.as_ref()
+                .map(|entry| (entry.matches(fixed, n), entry.w_fixed_t.clone()))
         });
 
         let cached_w_fixed_t = if let Some((matches, w_fixed_t)) = cached_w_fixed_t {

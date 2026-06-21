@@ -4,7 +4,7 @@ use crate::jpeg_2000::subband::{resolution_band_range, subband_layout};
 use crate::jpeg_2000::wavelet::forward_dwt_5_3;
 use crate::jpeg_2000::wavelet_9_7::forward_dwt_9_7;
 
-use super::{WaveletTransform, band_cblks, CblkRef, band_trees, lblock_extra_bits};
+use super::{band_cblks, band_trees, lblock_extra_bits, CblkRef, WaveletTransform};
 
 /// Write individual bits, MSB first, into a byte buffer.
 ///

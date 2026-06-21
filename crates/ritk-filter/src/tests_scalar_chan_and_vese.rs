@@ -36,7 +36,10 @@ fn test_chan_and_vese_binary_output_captures_feature() {
         number_of_iterations: 5,
         ..Default::default()
     }
-    .apply(&make_image(phi0, [1, ny, nx]), &make_image(feat.clone(), [1, ny, nx]))
+    .apply(
+        &make_image(phi0, [1, ny, nx]),
+        &make_image(feat.clone(), [1, ny, nx]),
+    )
     .unwrap();
     let result = extract_vals(&out);
 
@@ -73,8 +76,9 @@ fn test_chan_and_vese_3d_binary_stable() {
         for y in 0..ny {
             for x in 0..nx {
                 let f = z * ny * nx + y * nx + x;
-                let d = ((z as f64 - cz).powi(2) + (y as f64 - cy).powi(2) + (x as f64 - cx).powi(2))
-                    .sqrt();
+                let d =
+                    ((z as f64 - cz).powi(2) + (y as f64 - cy).powi(2) + (x as f64 - cx).powi(2))
+                        .sqrt();
                 if d <= 3.0 {
                     feat[f] = 100.0;
                 }
@@ -87,12 +91,18 @@ fn test_chan_and_vese_3d_binary_stable() {
         number_of_iterations: 4,
         ..Default::default()
     }
-    .apply(&make_image(phi0, [nz, ny, nx]), &make_image(feat, [nz, ny, nx]))
+    .apply(
+        &make_image(phi0, [nz, ny, nx]),
+        &make_image(feat, [nz, ny, nx]),
+    )
     .unwrap();
     let result = extract_vals(&out);
 
     assert_eq!(out.shape(), [nz, ny, nx]);
-    assert!(result.iter().all(|&v| v == 0.0 || v == 1.0), "binary output");
+    assert!(
+        result.iter().all(|&v| v == 0.0 || v == 1.0),
+        "binary output"
+    );
     assert!(result.contains(&1.0), "must segment some foreground");
     assert!(result.contains(&0.0), "must keep some background");
 }

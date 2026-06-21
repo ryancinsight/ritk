@@ -5,8 +5,8 @@ use ritk_filter::{
     AbsoluteValueDifferenceImageFilter, AddImageFilter, AndImageFilter, Atan2ImageFilter,
     BinaryMagnitudeImageFilter, DivideFloorImageFilter, DivideImageFilter, DivideRealImageFilter,
     EqualImageFilter, GreaterEqualImageFilter, GreaterImageFilter, ImageMaxFilter, ImageMinFilter,
-    LessEqualImageFilter, LessImageFilter, MultiplyImageFilter, NotEqualImageFilter,
-    OrImageFilter, PowImageFilter, SquaredDifferenceImageFilter, SubtractImageFilter, XorImageFilter,
+    LessEqualImageFilter, LessImageFilter, MultiplyImageFilter, NotEqualImageFilter, OrImageFilter,
+    PowImageFilter, SquaredDifferenceImageFilter, SubtractImageFilter, XorImageFilter,
 };
 
 /// Pixelwise addition: out(x) = a(x) + b(x).

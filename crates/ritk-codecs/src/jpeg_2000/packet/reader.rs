@@ -7,7 +7,7 @@ use crate::jpeg_2000::tag_tree::TagTree;
 use crate::jpeg_2000::wavelet::inverse_dwt_5_3;
 use crate::jpeg_2000::wavelet_9_7::inverse_dwt_9_7;
 
-use super::{WaveletTransform, cblk_grid, band_cblks, CblkRef, lblock_extra_bits};
+use super::{band_cblks, cblk_grid, lblock_extra_bits, CblkRef, WaveletTransform};
 
 /// Read individual bits (MSB first) from a §B.10.1 bit-stuffed header: after
 /// a 0xFF byte, the following byte contributes only its low 7 bits

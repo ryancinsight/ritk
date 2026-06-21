@@ -3,8 +3,8 @@ use crate::image::{into_py_image, Backend, PyImage};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
-use ritk_image::Image;
 use ritk_filter::PasteImageFilter;
+use ritk_image::Image;
 
 /// Extract a strided sub-region (numpy-style `start:stop:step` per axis).
 /// `start`/`stop`/`step` are `(z, y, x)` in ritk tensor order; each axis keeps

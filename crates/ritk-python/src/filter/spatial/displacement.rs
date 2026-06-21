@@ -1,5 +1,5 @@
-use crate::errors::RitkResult;
 use crate::errors::RitkPyError;
+use crate::errors::RitkResult;
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 

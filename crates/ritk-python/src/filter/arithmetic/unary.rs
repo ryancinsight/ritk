@@ -3,10 +3,10 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BinaryNotImageFilter,
-    ClampImageFilter, CosImageFilter, ExpImageFilter, ExpNegativeImageFilter, InvertIntensityFilter,
-    Log10ImageFilter, LogImageFilter, ModulusImageFilter, NotImageFilter, RoundImageFilter,
-    SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter, UnaryMinusImageFilter,
-    BoundedReciprocalImageFilter,
+    BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, ExpImageFilter,
+    ExpNegativeImageFilter, InvertIntensityFilter, Log10ImageFilter, LogImageFilter,
+    ModulusImageFilter, NotImageFilter, RoundImageFilter, SinImageFilter, SqrtImageFilter,
+    SquareImageFilter, TanImageFilter, UnaryMinusImageFilter,
 };
 
 /// Pixelwise clamp to `[lower, upper]`. ITK Parity: ClampImageFilter.

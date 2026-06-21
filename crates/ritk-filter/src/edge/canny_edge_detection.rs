@@ -104,15 +104,18 @@ impl CannyEdgeDetectionImageFilter {
                     let fyy = at(&sm, zi, yi + 1, xi) - 2.0 * c + at(&sm, zi, yi - 1, xi);
                     let fzz = at(&sm, zi + 1, yi, xi) - 2.0 * c + at(&sm, zi - 1, yi, xi);
                     let fxy = 0.25
-                        * (at(&sm, zi, yi - 1, xi - 1) - at(&sm, zi, yi - 1, xi + 1)
+                        * (at(&sm, zi, yi - 1, xi - 1)
+                            - at(&sm, zi, yi - 1, xi + 1)
                             - at(&sm, zi, yi + 1, xi - 1)
                             + at(&sm, zi, yi + 1, xi + 1));
                     let fxz = 0.25
-                        * (at(&sm, zi - 1, yi, xi - 1) - at(&sm, zi - 1, yi, xi + 1)
+                        * (at(&sm, zi - 1, yi, xi - 1)
+                            - at(&sm, zi - 1, yi, xi + 1)
                             - at(&sm, zi + 1, yi, xi - 1)
                             + at(&sm, zi + 1, yi, xi + 1));
                     let fyz = 0.25
-                        * (at(&sm, zi - 1, yi - 1, xi) - at(&sm, zi - 1, yi + 1, xi)
+                        * (at(&sm, zi - 1, yi - 1, xi)
+                            - at(&sm, zi - 1, yi + 1, xi)
                             - at(&sm, zi + 1, yi - 1, xi)
                             + at(&sm, zi + 1, yi + 1, xi));
                     let num = fx * fx * fxx

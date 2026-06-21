@@ -54,10 +54,7 @@ impl<B: Backend> FilterSlot<B> {
     /// Initializes the filter with `D` copies of `sigma` on first access or
     /// when the cached dimension differs from `D`. The Mutex lock is dropped
     /// immediately after cloning.
-    fn get_or_init<const D: usize>(
-        &self,
-        sigma: GaussianSigma,
-    ) -> GaussianFilter<B> {
+    fn get_or_init<const D: usize>(&self, sigma: GaussianSigma) -> GaussianFilter<B> {
         let mut guard = self
             .0
             .lock()

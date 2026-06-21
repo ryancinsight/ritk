@@ -31,4 +31,3 @@ pub(crate) const DEFAULT_NOISE_SEED: u64 = 42;
 
 #[cfg(test)]
 mod tests;
-

@@ -74,8 +74,17 @@ impl AdaptiveHistogramEqualizationFilter {
         let (rz, ry, rx) = (self.radius[0], self.radius[1], self.radius[2]);
         let (alpha, beta) = (self.alpha, self.beta);
 
-        let min = vals.iter().copied().fold(f32::INFINITY, f32::min) as f64;
-        let max = vals.iter().copied().fold(f32::NEG_INFINITY, f32::max) as f64;
+        let (min_f32, max_f32) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+            n,
+            || (f32::INFINITY, f32::NEG_INFINITY),
+            |(mn, mx), i| {
+                let v = vals[i];
+                (mn.min(v), mx.max(v))
+            },
+            |(a_mn, a_mx), (b_mn, b_mx)| (a_mn.min(b_mn), a_mx.max(b_mx)),
+        );
+        let min = min_f32 as f64;
+        let max = max_f32 as f64;
         let iscale = max - min;
         if iscale == 0.0 {
             // Constant image: the equalization is the identity.

@@ -1,11 +1,9 @@
-use super::contexts::{
-    mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI,
-};
-use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder};
+use super::contexts::{mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI};
 use super::{
     any_neighbour_sig, neighbour_sig_counts, neighbour_sig_total, sign_contributions, trace,
     SampleState,
 };
+use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder};
 
 // ── Decoded code-block result ─────────────────────────────────────────────────
 

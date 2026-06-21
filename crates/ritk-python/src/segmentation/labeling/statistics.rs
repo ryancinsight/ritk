@@ -1,11 +1,10 @@
-use crate::errors::RitkResult;
 use crate::errors::RitkPyError;
+use crate::errors::RitkResult;
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_segmentation::{
-    labeling::Connectivity as SegConnectivity,
-    ConnectedComponentsFilter, KMeansSegmentation,
+    labeling::Connectivity as SegConnectivity, ConnectedComponentsFilter, KMeansSegmentation,
 };
 use std::sync::Arc;
 

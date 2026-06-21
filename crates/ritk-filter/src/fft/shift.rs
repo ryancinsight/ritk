@@ -203,7 +203,8 @@ impl RealFftShiftFilter {
                 let src_z_offset = src_z * chunk_size;
                 for y in 0..dy {
                     let src_y = (y + sy) % dy;
-                    let src_row = &vals_ref[src_z_offset + src_y * dx..src_z_offset + src_y * dx + dx];
+                    let src_row =
+                        &vals_ref[src_z_offset + src_y * dx..src_z_offset + src_y * dx + dx];
                     let out_row_idx = y * dx;
 
                     // Copy first segment: out_row[0..dx-sx] = src_row[sx..dx]

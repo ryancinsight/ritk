@@ -1,7 +1,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_filter::{LabelErosion, LabelOpening, LabelClosing, LabelDilation};
+use ritk_filter::{LabelClosing, LabelDilation, LabelErosion, LabelOpening};
 
 /// Erode labeled regions in a 3-D label volume.
 #[pyfunction]

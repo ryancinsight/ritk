@@ -2,10 +2,10 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
-    MorphologicalReconstruction, ReconstructionMode, HMaximaFilter, HMinimaFilter, HConvexFilter,
-    HConcaveFilter, RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
-    ValuedRegionalMinimaFilter, OpeningByReconstructionFilter, ClosingByReconstructionFilter,
-    GrayscaleFillholeFilter, GrayscaleGrindPeakFilter,
+    ClosingByReconstructionFilter, GrayscaleFillholeFilter, GrayscaleGrindPeakFilter,
+    HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter, MorphologicalReconstruction,
+    OpeningByReconstructionFilter, ReconstructionMode, RegionalMaximaFilter, RegionalMinimaFilter,
+    ValuedRegionalMaximaFilter, ValuedRegionalMinimaFilter,
 };
 
 use super::contour::connectivity_from;

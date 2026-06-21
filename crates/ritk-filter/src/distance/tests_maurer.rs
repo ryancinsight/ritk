@@ -35,7 +35,11 @@ fn test_signed_maurer_3x3_block_values() {
     // Background adjacent to the block face: +1.
     assert!((at(3, 2) - 1.0).abs() < 1e-5, "face bg = {}", at(3, 2));
     // Far corner: √18 = 4.242641.
-    assert!((at(0, 0) - 18.0_f32.sqrt()).abs() < 1e-5, "corner = {}", at(0, 0));
+    assert!(
+        (at(0, 0) - 18.0_f32.sqrt()).abs() < 1e-5,
+        "corner = {}",
+        at(0, 0)
+    );
 }
 
 /// Squared-distance mode returns the signed square of the distance.
@@ -58,7 +62,11 @@ fn test_signed_maurer_squared() {
     // Far corner squared: 18; sign positive (background).
     assert!((d[0] - 18.0).abs() < 1e-4, "corner² = {}", d[0]);
     // Centre squared: 1; sign negative (foreground).
-    assert!((d[4 * nx + 4] - (-1.0)).abs() < 1e-5, "centre² = {}", d[4 * nx + 4]);
+    assert!(
+        (d[4 * nx + 4] - (-1.0)).abs() < 1e-5,
+        "centre² = {}",
+        d[4 * nx + 4]
+    );
 }
 
 /// `inside_is_positive = true` flips the sign convention.
@@ -80,7 +88,15 @@ fn test_signed_maurer_inside_positive() {
     .unwrap();
     let (d, _) = extract_vec(&out).unwrap();
     // Foreground centre now positive.
-    assert!((d[4 * nx + 4] - 1.0).abs() < 1e-5, "centre = {}", d[4 * nx + 4]);
+    assert!(
+        (d[4 * nx + 4] - 1.0).abs() < 1e-5,
+        "centre = {}",
+        d[4 * nx + 4]
+    );
     // Background corner now negative.
-    assert!((d[0] - (-(18.0_f32.sqrt()))).abs() < 1e-5, "corner = {}", d[0]);
+    assert!(
+        (d[0] - (-(18.0_f32.sqrt()))).abs() < 1e-5,
+        "corner = {}",
+        d[0]
+    );
 }

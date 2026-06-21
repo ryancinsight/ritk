@@ -39,7 +39,11 @@ fn square_produces_binary_edge_ring() {
     }
     // There is a non-trivial number of edges (the square boundary).
     let edges: usize = v.iter().filter(|&&x| x > 0.5).count();
-    assert!(edges > 8, "expected an edge ring, got {} edge voxels", edges);
+    assert!(
+        edges > 8,
+        "expected an edge ring, got {} edge voxels",
+        edges
+    );
 }
 
 /// A uniform image has no gradient, hence no edges.
@@ -50,5 +54,8 @@ fn uniform_image_has_no_edges() {
         ..Default::default()
     }
     .apply(&make(vec![50.0; 16], [1, 4, 4]));
-    assert!(voxels(&out).iter().all(|&x| x == 0.0), "uniform image must have no edges");
+    assert!(
+        voxels(&out).iter().all(|&x| x == 0.0),
+        "uniform image must have no edges"
+    );
 }

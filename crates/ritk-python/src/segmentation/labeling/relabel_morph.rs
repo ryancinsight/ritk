@@ -2,10 +2,9 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::{
-    relabel_consecutive as core_relabel_consecutive,
-    merge_label_maps as core_merge_label_maps,
-    label_set_morph as core_label_set_morph,
-    RelabelComponentFilter, MergeLabelMethod, LabelSetMorphOp,
+    label_set_morph as core_label_set_morph, merge_label_maps as core_merge_label_maps,
+    relabel_consecutive as core_relabel_consecutive, LabelSetMorphOp, MergeLabelMethod,
+    RelabelComponentFilter,
 };
 use std::sync::Arc;
 
@@ -95,7 +94,8 @@ pub fn merge_label_map(
     let arcs: Vec<Arc<ritk_image::Image<crate::image::Backend, 3>>> =
         label_images.iter().map(|p| Arc::clone(&p.inner)).collect();
     let out = py.allow_threads(|| {
-        let refs: Vec<&ritk_image::Image<crate::image::Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
+        let refs: Vec<&ritk_image::Image<crate::image::Backend, 3>> =
+            arcs.iter().map(|a| a.as_ref()).collect();
         core_merge_label_maps(&refs, m).map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(out))

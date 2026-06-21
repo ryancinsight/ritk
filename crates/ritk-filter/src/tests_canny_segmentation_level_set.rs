@@ -105,8 +105,9 @@ fn test_canny_seg_level_set_3d_finite() {
                 if (3..9).contains(&z) && (3..9).contains(&y) && (3..9).contains(&x) {
                     feat[f] = 100.0;
                 }
-                let d = ((z as f64 - cz).powi(2) + (y as f64 - cy).powi(2) + (x as f64 - cx).powi(2))
-                    .sqrt();
+                let d =
+                    ((z as f64 - cz).powi(2) + (y as f64 - cy).powi(2) + (x as f64 - cx).powi(2))
+                        .sqrt();
                 phi0[f] = (d - 2.0) as f32; // φ<0 inside a radius-2 sphere
             }
         }

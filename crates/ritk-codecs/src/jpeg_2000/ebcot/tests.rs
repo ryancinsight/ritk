@@ -1,8 +1,8 @@
 use super::contexts::{
-    zc_context, sc_context, mr_context, SubbandOrientation, CTX_ZC_BASE, CTX_SC_BASE, zc_ll_lh,
+    mr_context, sc_context, zc_context, zc_ll_lh, SubbandOrientation, CTX_SC_BASE, CTX_ZC_BASE,
 };
 use super::*;
-use crate::jpeg_2000::mq_coder::{initial_contexts, MqEncoder, MqDecoder};
+use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder, MqEncoder};
 
 fn enc_dec_roundtrip(samples: &[i32], w: usize, h: usize, orient: SubbandOrientation) {
     let enc = encode_code_block(samples, w, h, orient);
