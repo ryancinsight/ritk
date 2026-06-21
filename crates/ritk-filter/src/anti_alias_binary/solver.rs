@@ -1,106 +1,11 @@
-//! Anti-alias binary image filter via the ITK SparseField level-set solver.
-//!
-//! # Mathematical Specification
-//!
-//! Ports `sitk.AntiAliasBinaryImageFilter` / `itk::AntiAliasBinaryImageFilter`,
-//! which derives from `itk::SparseFieldLevelSetImageFilter` with a
-//! `CurvatureFlowFunction` difference function. The boundary of a binary object
-//! is smoothed by evolving a narrow-band signed level-set under mean curvature
-//! flow, constrained so the zero crossing never leaves the original boundary
-//! band (the per-pixel sign is locked to the input binary).
-//!
-//! ## Algorithm (faithful SparseField port — bit-exact to sitk)
-//!
-//! 1. **CopyInputToOutput**: `shifted = input − iso` with `iso = (max+min)/2`;
-//!    the active layer is the `ZeroCrossing(shifted)` set (the voxels on the
-//!    near-zero side of the boundary, float-exact to `itk::ZeroCrossingImageFilter`).
-//! 2. **Initialize**: active-layer values = `clamp(shifted / |∇shifted|_upwind, ±½)`
-//!    (`InitializeActiveLayerValues`); outer layers ±1, ±2 are constructed
-//!    (`ConstructLayer`) and value-propagated from the active seed
-//!    (`PropagateLayerValues`, value = nearest-to-zero neighbour ∓ 1).
-//! 3. **Iterate** (`ApplyUpdate`) until `rms < max_rms_error` or `number_of_iterations`:
-//!    - `CalculateChange`: per active voxel, `CurvatureFlowFunction::ComputeUpdate`
-//!      = `(Σ_i φ_i²·(Σ_{j≠i} φ_jj) − 2·Σ_{i<j} φ_i·φ_j·φ_ij) / |∇φ|²` (0 if `|∇φ|² < ε`).
-//!    - `UpdateActiveLayerValues`: `new = constraint(φ + Δt·change)` with the
-//!      AntiAlias constraint (foreground → `max(new,0)`, background → `min(new,0)`);
-//!      voxels whose new value crosses ±½ are promoted/demoted, pulling their
-//!      inner/outer neighbours into the active set.
-//!    - `ProcessStatusList` cascade moves voxels between layers (consuming the
-//!      work lists), `PropagateAllLayerValues` re-seeds the outer layers, and
-//!      orphaned outer voxels are node-deleted (status → background).
-//! 4. **PostProcessOutput**: background voxels → `±(NumberOfLayers+1)`.
-//!
-//! `NumberOfLayers` is 2 for 2-D inputs (`nz == 1`) and 3 for 3-D, matching ITK.
-//! `Δt = 0.05` is the ITK `CurvatureFlowImageFilter` default time step.
-//!
-//! Validated bit-exact (max-err 0.0) against `sitk.AntiAliasBinary` across square,
-//! circle, L-shape and jagged inputs over 1–27 iterations / varying `maxRMSError`.
-//!
-//! ## References
-//! - Whitaker, R.T. (2000). "Reducing aliasing artifacts in iso-surfaces of binary
-//!   volumes." *Proc. IEEE Vis. Symp. Vol. Vis.*, pp. 23–32.
-//! - ITK `itkAntiAliasBinaryImageFilter.hxx`, `itkSparseFieldLevelSetImageFilter.hxx`,
-//!   `itkCurvatureFlowFunction.hxx`, `itkZeroCrossingImageFilter.hxx`.
+//! The core SparseField solver loop for the Anti-Alias Binary filter.
 
-use burn::tensor::backend::Backend;
-use ritk_image::Image;
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-/// ITK `CurvatureFlowImageFilter` default explicit-Euler time step.
-const DT: f32 = 0.05;
-/// `m_ConstantGradientValue` (unit spacing).
-const CGV: f32 = 1.0;
-/// Gradient-magnitude-squared floor preventing 0/0 in flat regions.
-const MSQ_EPS: f32 = 1e-9;
-
-// Status sentinels (non-layer states are negative; layer indices are 0..num).
-const ST_NULL: i32 = -1;
-const ST_CHG: i32 = -2;
-const ST_CUP: i32 = -3;
-const ST_CDN: i32 = -4;
-
-// ── Filter ────────────────────────────────────────────────────────────────────
-
-/// Anti-alias binary image filter (faithful ITK SparseField solver).
-///
-/// Smooths the boundary of a binary object, returning the signed level-set φ
-/// (negative inside the smoothed object, positive outside; the zero crossing is
-/// the anti-aliased sub-voxel boundary). Bit-exact to `sitk.AntiAliasBinary`.
-///
-/// # Defaults
-/// - `max_rms_error = 0.07` (ITK default)
-/// - `number_of_iterations = 1000` (ITK default)
-#[derive(Debug, Clone)]
-pub struct AntiAliasBinaryImageFilter {
-    /// Per-voxel RMS change threshold for early termination (ITK default 0.07).
-    pub max_rms_error: f32,
-    /// Maximum number of level-set evolution iterations (ITK default 1000).
-    pub number_of_iterations: usize,
-}
-
-impl Default for AntiAliasBinaryImageFilter {
-    fn default() -> Self {
-        Self {
-            max_rms_error: 0.07,
-            number_of_iterations: 1000,
-        }
-    }
-}
+use super::{
+    curvature::curvature, AntiAliasBinaryImageFilter, CGV, DT, ST_CDN, ST_CHG, ST_CUP, ST_NULL,
+};
 
 impl AntiAliasBinaryImageFilter {
-    /// Evolve the binary boundary under the SparseField mean-curvature solver.
-    ///
-    /// `image`: binary float32 (foreground == max value, background == min),
-    /// shape `[nz, ny, nx]` (`nz == 1` is treated as a 2-D image, matching sitk).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
-        let (binary, dims) = extract_vec_infallible(image);
-        let out = self.run(&binary, dims);
-        rebuild(out, dims, image)
-    }
-
-    fn run(&self, binary: &[f32], dims: [usize; 3]) -> Vec<f32> {
+    pub(super) fn run(&self, binary: &[f32], dims: [usize; 3]) -> Vec<f32> {
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
         if n == 0 {
@@ -312,49 +217,13 @@ impl AntiAliasBinaryImageFilter {
         }
         propagate_all!();
 
-        // CurvatureFlowFunction::ComputeUpdate at flat index f (clamped Neumann).
-        let curvature = |phi: &[f32], f: usize| -> f32 {
-            let (iz, iy, ix) = decode(f);
-            let g = |dz: isize, dy: isize, dx: isize| -> f32 {
-                let z = (iz as isize + dz).clamp(0, nz as isize - 1) as usize;
-                let y = (iy as isize + dy).clamp(0, ny as isize - 1) as usize;
-                let x = (ix as isize + dx).clamp(0, nx as isize - 1) as usize;
-                phi[idx(z, y, x)]
-            };
-            let c = phi[f];
-            // first derivatives, second derivatives, cross derivatives (axes y,x[,z]).
-            let fx = 0.5 * (g(0, 0, 1) - g(0, 0, -1));
-            let fy = 0.5 * (g(0, 1, 0) - g(0, -1, 0));
-            let fxx = g(0, 0, 1) - 2.0 * c + g(0, 0, -1);
-            let fyy = g(0, 1, 0) - 2.0 * c + g(0, -1, 0);
-            let fxy = 0.25 * (g(0, -1, -1) - g(0, -1, 1) - g(0, 1, -1) + g(0, 1, 1));
-            if ndim == 2 {
-                let msq = fx * fx + fy * fy;
-                if msq < MSQ_EPS {
-                    return 0.0;
-                }
-                (fx * fx * fyy + fy * fy * fxx - 2.0 * fx * fy * fxy) / msq
-            } else {
-                let fz = 0.5 * (g(1, 0, 0) - g(-1, 0, 0));
-                let fzz = g(1, 0, 0) - 2.0 * c + g(-1, 0, 0);
-                let fxz = 0.25 * (g(-1, 0, -1) - g(-1, 0, 1) - g(1, 0, -1) + g(1, 0, 1));
-                let fyz = 0.25 * (g(-1, -1, 0) - g(-1, 1, 0) - g(1, -1, 0) + g(1, 1, 0));
-                let msq = fx * fx + fy * fy + fz * fz;
-                if msq < MSQ_EPS {
-                    return 0.0;
-                }
-                (fx * fx * (fyy + fzz) + fy * fy * (fxx + fzz) + fz * fz * (fxx + fyy)
-                    - 2.0 * fx * fy * fxy
-                    - 2.0 * fx * fz * fxz
-                    - 2.0 * fy * fz * fyz)
-                    / msq
-            }
-        };
-
         // ── ApplyUpdate loop ──
         for _ in 0..self.number_of_iterations {
             let al: Vec<usize> = layers[0].clone();
-            let update: Vec<f32> = al.iter().map(|&f| curvature(&phi, f)).collect();
+            let update: Vec<f32> = al
+                .iter()
+                .map(|&f| curvature(&phi, f, dims, ndim as usize))
+                .collect();
             let mut up: [Vec<usize>; 2] = [Vec::new(), Vec::new()];
             let mut dn: [Vec<usize>; 2] = [Vec::new(), Vec::new()];
             let mut keep: Vec<usize> = Vec::new();
@@ -502,9 +371,3 @@ impl AntiAliasBinaryImageFilter {
         phi
     }
 }
-
-// ── Tests ──────────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-#[path = "tests_anti_alias_binary.rs"]
-mod tests_anti_alias_binary;

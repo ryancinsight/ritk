@@ -55,6 +55,7 @@
 //!   `itkSparseFieldLevelSetImageFilter.hxx`.
 
 mod advection;
+mod helpers;
 mod solver;
 
 use burn::tensor::backend::Backend;
