@@ -161,8 +161,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .to_vec();
 
     let write_raw = |name: &str, data: &[f32]| {
-        let bytes: &[u8] =
-            unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 4) };
+        let bytes: &[u8] = bytemuck::cast_slice(data);
         std::fs::write(name, bytes).unwrap();
         println!("Wrote {}", name);
     };

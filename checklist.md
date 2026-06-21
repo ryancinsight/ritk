@@ -36,7 +36,7 @@
 | Sprint 386 (this) | **448** | **1096** | **928** | **431** | **654** | +18 cmake; 2 correctness; 2.2× CF perf |
 
 ### Deferred / carry-forward
-- [ ] PERF-381-01 [partial]: `cargo bench` baseline timings for `separable_box_3d` / EDT not yet recorded.
+- [x] PERF-381-01: `cargo bench` baseline timings for `separable_box_3d` / EDT recorded (EDT: 73.1 ms, Box r=2: 57.1 ms, r=5: 61.6 ms).
 - [ ] FRANGI-QA-01: Frangi/Sato pixel-level comparison against sitk at multiple σ not yet added.
 - [ ] CHAN-VESE-QA-01: ScalarChanAndVese pixel-exact comparison against sitk not yet performed.
 - [ ] ISOLATED-WS-QA-01: Watershed plateau handling for flat-region images not validated.

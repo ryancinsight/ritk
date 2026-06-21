@@ -125,6 +125,7 @@ def test_filter_public_functions_exist():
         "laplacian",
         "frangi_vesselness",
         "canny_edge_detect",
+        "canny_edge_detection",
         "laplacian_of_gaussian",
         "recursive_gaussian",
         "recursive_gaussian_directional",
@@ -161,6 +162,7 @@ def test_filter_public_functions_exist():
         "not_equal_images",
         "round_image",
         "signed_distance_map",
+        "signed_maurer_distance_map",
         "ternary_add_images",
         "ternary_magnitude_images",
         "ternary_magnitude_squared_images",
@@ -326,6 +328,8 @@ def test_filter_public_functions_exist():
         "masked_fft_normalized_correlation",
         "reinitialize_level_set",
         "bitwise_not",
+        "real_fft_shift",
+        "spatial_convolve",
     ]
     missing = [fn for fn in required if not callable(getattr(rf, fn, None))]
     assert not missing, f"Missing callable functions in ritk.filter: {missing}"

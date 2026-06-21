@@ -3,7 +3,7 @@
 //! Verification chain:
 //!   shape invariant → self-inverse property → DC-to-centre mapping → 3-D shape invariant
 
-use crate::fft::FftShiftFilter;
+use crate::fft::{FftShiftFilter, RealFftShiftFilter};
 use burn::tensor::{Shape, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::Image;
@@ -224,3 +224,37 @@ fn odd_dimension_volume_shifts_correctly() {
         assert!(v.is_finite(), "3-D shift value at index {i} must be finite");
     }
 }
+
+// ── RealFftShiftFilter Tests ──────────────────────────────────────────────────
+
+#[test]
+fn real_fft_shift_even_dims_is_identity_twice() {
+    let vals: Vec<f32> = (0..64).map(|i| i as f32).collect();
+    let img = make_complex_3d(&vals, 4, 4, 4);
+
+    let once = RealFftShiftFilter::new().apply(&img).unwrap();
+    let twice = RealFftShiftFilter::new().apply(&once).unwrap();
+
+    let (res, _) = ritk_tensor_ops::extract_vec(&twice).unwrap();
+    assert_eq!(res, vals);
+}
+
+#[test]
+fn real_fft_shift_odd_dims_correct() {
+    let vals: Vec<f32> = (0..27).map(|i| i as f32).collect();
+    let img = make_complex_3d(&vals, 3, 3, 3);
+
+    let once = RealFftShiftFilter::new().apply(&img).unwrap();
+    let (res, _) = ritk_tensor_ops::extract_vec(&once).unwrap();
+
+    for z in 0..3 {
+        for y in 0..3 {
+            for x in 0..3 {
+                let out_val = res[z * 9 + y * 3 + x];
+                let in_val = vals[((z + 2) % 3) * 9 + ((y + 2) % 3) * 3 + ((x + 2) % 3)];
+                assert_eq!(out_val, in_val);
+            }
+        }
+    }
+}
+

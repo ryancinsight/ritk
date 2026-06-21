@@ -85,8 +85,8 @@ def test_scalar_chan_and_vese_bit_exact(n_iter):
         number_of_iterations=n_iter,
         lambda1=1.0,
         lambda2=1.0,
-        curvature_weight=1.0,
-        area_weight=0.0,
+        mu=1.0,
+        nu=0.0,
         epsilon=1.0,
     )
     r_arr = np.asarray(ro.to_numpy(), np.float32).reshape(H, W)

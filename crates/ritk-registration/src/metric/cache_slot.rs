@@ -47,11 +47,10 @@ impl<T: Clone> CacheSlot<T> {
 
     /// Returns the cached value if present **and** valid; otherwise (re-)initialises.
     ///
-    /// If the slot is populated but `valid` returns `false`, the stale value is
-    /// discarded. Then `init` is called (outside the lock) and the result is
-    /// stored. Concurrent reinitializations are possible if two threads both
-    /// observe a stale value; last-writer-wins, which is correct for deterministic
-    /// caches where every thread computes the same result.
+    /// If the slot is empty or the cached value is stale (i.e. `valid` returns `false`),
+    /// `init` is evaluated while holding the lock. This enforces serialisation
+    /// and prevents concurrent threads from executing the expensive initialization code
+    /// redundantly on a cache miss.
     ///
     /// # Panics
     /// Panics if the mutex has been poisoned.

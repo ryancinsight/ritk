@@ -25,7 +25,7 @@
 //! hardcoded constant `Δt = 0.08` (`itkMultiphaseDenseFiniteDifferenceImageFilter`
 //! `CalculateChange`). After each `φ += 0.08·update`, the level set is
 //! **reinitialized every iteration** (`ReinitializeCounter = 1`): threshold at
-//! φ ≤ 0 then [`SignedMaurerDistanceMapImageFilter`] (`insideIsPositive = false`),
+//! φ ≤ 0 then [`crate::SignedMaurerDistanceMapImageFilter`] (`insideIsPositive = false`),
 //! so φ becomes the signed Maurer distance to the region boundary.
 //!
 //! Output is the **binary segmentation** `(φ < 0) → 1` (matching sitk), not the

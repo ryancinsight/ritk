@@ -151,7 +151,8 @@ pub fn speckle_noise(py: Python<'_>, image: &PyImage, std: f64, seed: u32) -> Ri
 ///     Denoised PyImage (matches single-threaded sitk).
 #[pyfunction]
 #[pyo3(signature = (image, number_of_iterations=1, number_of_sample_patches=200,
-                    patch_radius=4, sample_variance=400.0, kernel_sigma=400.0))]
+                    patch_radius=4, sample_variance=400.0, kernel_sigma=400.0,
+                    kernel_bandwidth_estimation=false))]
 pub fn patch_based_denoising(
     py: Python<'_>,
     image: &PyImage,
@@ -160,7 +161,13 @@ pub fn patch_based_denoising(
     patch_radius: usize,
     sample_variance: f64,
     kernel_sigma: f64,
+    kernel_bandwidth_estimation: bool,
 ) -> RitkResult<PyImage> {
+    if kernel_bandwidth_estimation {
+        return Err(crate::errors::RitkPyError::runtime(
+            "Kernel bandwidth estimation is not implemented in ritk; set kernel_bandwidth_estimation=False".to_string()
+        ));
+    }
     let arc = Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
         PatchBasedDenoisingImageFilter {

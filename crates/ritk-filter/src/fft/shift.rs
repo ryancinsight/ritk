@@ -130,6 +130,100 @@ impl Default for FftShiftFilter {
     }
 }
 
+// ── RealFftShiftFilter ────────────────────────────────────────────────────────
+
+/// Shifts a real (spatial-domain) image so that the zero-frequency component
+/// would appear at the centre after a forward FFT.
+///
+/// For each axis of length `N`, performs a cyclic roll that matches ITK's
+/// `FFTShiftImageFilter` convention:
+///
+/// ```text
+/// output[j] = input[(j + N - N/2) % N]
+/// ```
+///
+/// where `N/2` is floor integer division. For even `N`, `N - N/2 = N/2`. For
+/// odd `N`, `N - N/2 = ceil(N/2)`. This matches ITK's computed input index
+/// `inputIndex = (outputIndex - half + N) % N` where `half = N/2`.
+///
+/// # Mathematical contract
+///
+/// Let `shift_a = dims[a] - dims[a] / 2` for each axis `a`. Then:
+///
+/// ```text
+/// out[z, y, x] = in[(z + shift_z) % dz,
+///                    (y + shift_y) % dy,
+///                    (x + shift_x) % dx]
+/// ```
+///
+/// For even dims this is self-inverse; for odd dims apply twice to get the
+/// identity (equivalent to two-step inverse).
+///
+/// # ITK Parity
+///
+/// `FFTShiftImageFilter` (`sitk.FFTShift`) applied to a real-valued image.
+pub struct RealFftShiftFilter;
+
+impl RealFftShiftFilter {
+    /// Construct a new `RealFftShiftFilter`.
+    #[inline]
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Apply the real-image FFT shift to a 3-D real-valued image.
+    ///
+    /// Performs a cyclic roll by `(dz - dz/2, dy - dy/2, dx - dx/2)` so that
+    /// voxel `(z, y, x)` of the output receives the value from voxel
+    /// `((z + dz-dz/2) % dz, (y + dy-dy/2) % dy, (x + dx-dx/2) % dx)` of
+    /// the input, matching ITK's `FFTShiftImageFilter` on real images.
+    ///
+    /// # Errors
+    /// Returns `Err` when the tensor data cannot be extracted as `f32`.
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+        let (vals, dims) = extract_vec(image)?;
+        let [dz, dy, dx] = dims;
+        // ITK formula: inputIndex = (outputIndex - half + N) % N
+        // where half = N/2 (floor).  Equivalently: shift = N - N/2.
+        // For even N this equals N/2; for odd N this equals ceil(N/2).
+        let sz = dz - dz / 2;
+        let sy = dy - dy / 2;
+        let sx = dx - dx / 2;
+
+        let chunk_size = dy * dx;
+        let mut out = vec![0.0_f32; dz * chunk_size];
+
+        let vals_ref = &vals;
+
+        moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+            &mut out,
+            chunk_size,
+            |z, slice| {
+                let src_z = (z + sz) % dz;
+                let src_z_offset = src_z * chunk_size;
+                for y in 0..dy {
+                    let src_y = (y + sy) % dy;
+                    let src_row = &vals_ref[src_z_offset + src_y * dx..src_z_offset + src_y * dx + dx];
+                    let out_row_idx = y * dx;
+
+                    // Copy first segment: out_row[0..dx-sx] = src_row[sx..dx]
+                    slice[out_row_idx..out_row_idx + dx - sx].copy_from_slice(&src_row[sx..dx]);
+                    // Copy second segment: out_row[dx-sx..dx] = src_row[0..sx]
+                    slice[out_row_idx + dx - sx..out_row_idx + dx].copy_from_slice(&src_row[0..sx]);
+                }
+            },
+        );
+
+        Ok(rebuild(out, dims, image))
+    }
+}
+
+impl Default for RealFftShiftFilter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 #[path = "tests_shift.rs"]

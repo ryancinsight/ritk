@@ -602,6 +602,7 @@ def test_1a_shifted_sphere_translation_recovery():
     )
 
 
+@pytest.mark.slow
 def test_1b_gaussian_blob_local_deformation():
     """RITK SyN and SimpleITK BSpline must recover a local deformation on a Gaussian blob.
 

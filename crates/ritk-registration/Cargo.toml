@@ -24,6 +24,7 @@ ritk-filter = { path = "../ritk-filter" }
 ritk-segmentation = { path = "../ritk-segmentation" }
 ritk-model = { path = "../ritk-model" }
 burn = { workspace = true }
+bytemuck = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

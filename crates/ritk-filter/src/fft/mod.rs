@@ -10,6 +10,7 @@
 //! | [`ForwardFftFilter`] | Transform image to frequency domain (R² → C²) |
 //! | [`InverseFftFilter`] | Transform frequency domain back to spatial (C² → R²) |
 //! | [`FftShiftFilter`] | Swap quadrants of frequency-domain data for display/analysis |
+//! | [`RealFftShiftFilter`] | Cyclic roll of a real image so the DC component is centred after FFT |
 //! | [`FftConvolutionFilter`] | FFT-based convolution: O(N log N) via frequency multiplication |
 //! | [`FftNormalizedCorrelationFilter`] | FFT-based normalized cross-correlation for template matching |
 //!
@@ -49,4 +50,4 @@ pub use frequency_filter::{
     FrequencyResponse, IdealHighPass, IdealLowPass,
 };
 pub use inverse::{HalfHermitianToRealInverseFftFilter, InverseFftFilter};
-pub use shift::FftShiftFilter;
+pub use shift::{FftShiftFilter, RealFftShiftFilter};

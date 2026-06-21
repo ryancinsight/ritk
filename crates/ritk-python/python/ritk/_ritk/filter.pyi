@@ -68,6 +68,13 @@ def canny_edge_detect(
     low_threshold: float = 0.1,
     high_threshold: float = 0.2,
 ) -> Image: ...
+def canny_edge_detection(
+    image: Image,
+    lower_threshold: float = 0.0,
+    upper_threshold: float = 0.0,
+    variance: float = 0.0,
+    maximum_error: float = 0.01,
+) -> Image: ...
 def laplacian_of_gaussian(image: Image, sigma: float = 1.0) -> Image: ...
 def recursive_gaussian(image: Image, sigma: float = 1.0, order: int = 0) -> Image: ...
 def recursive_gaussian_directional(
@@ -365,6 +372,10 @@ def mean_filter(image: Image, radius: int = 1) -> Image:
 
 def binomial_blur(image: Image, repetitions: int = 1) -> Image:
     """Separable [1/4,1/2,1/4] blur applied `repetitions` times (reflect boundary). ITK Parity: BinomialBlurImageFilter."""
+    ...
+
+def spatial_convolve(image: Image, kernel: Image) -> Image:
+    """Convolve a 3-D image with a kernel using zero-flux Neumann boundary conditions. ITK Parity: ConvolutionImageFilter."""
     ...
 
 def box_mean(
@@ -780,6 +791,16 @@ def signed_distance_map(image: Image, foreground_threshold: float = 0.5) -> Imag
     """
     ...
 
+def signed_maurer_distance_map(
+    image: Image,
+    inside_is_positive: bool = False,
+    squared_distance: bool = True,
+    use_image_spacing: bool = True,
+    background_value: float = 0.0,
+) -> Image:
+    """Signed Maurer distance map (respects image spacing and evaluates to boundary)."""
+    ...
+
 # -- Noise generators ---------------------------------------------------------
 
 def additive_gaussian_noise(
@@ -860,6 +881,9 @@ def scalar_chan_and_vese_dense_level_set(
     number_of_iterations: int = 20,
     lambda1: float = 1.0,
     lambda2: float = 1.0,
+    mu: float = 1.0,
+    nu: float = 0.0,
+    epsilon: float = 1.0,
 ) -> Image:
     """Dense Chan-Vese level set with user-supplied \u03c6\u2080 and feature image.
     ITK Parity: ScalarChanAndVeseDenseLevelSetImageFilter."""
@@ -883,6 +907,8 @@ def patch_based_denoising(
     number_of_iterations: int = 1,
     number_of_sample_patches: int = 200,
     patch_radius: int = 4,
+    sample_variance: float = 400.0,
+    kernel_sigma: float = 400.0,
     kernel_bandwidth_estimation: bool = False,
 ) -> Image:
     """Patch-based non-local-means denoising.
@@ -894,6 +920,9 @@ def patch_based_denoising(
 def forward_fft(image: Image) -> Image: ...
 def inverse_fft(image: Image) -> Image: ...
 def fft_shift(image: Image) -> Image: ...
+def real_fft_shift(image: Image) -> Image:
+    """Cyclic roll of a real-valued spatial image so the DC component is centred. ITK Parity: FFTShiftImageFilter."""
+    ...
 def complex_to_real(image: Image) -> Image:
     """Real part of an interleaved [D,H,2W] complex image. ITK Parity: ComplexToRealImageFilter."""
     ...

@@ -364,7 +364,7 @@ pub struct SigmoidArgs {
 /// Arguments for the `filter` subcommand.
 ///
 /// Composed of input/output + filter kind + 14 per-family `#[command(flatten)]`
-/// Args chunks (SRP-362-20 [major]).
+/// Args chunks (SRP-362-20: major).
 #[derive(Args, Debug)]
 pub struct FilterArgs {
     /// Input image path. Format is inferred from the file extension.

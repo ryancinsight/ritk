@@ -323,8 +323,8 @@ pub fn anti_alias_binary(
 ///     Binary segmentation PyImage (`1.0` inside, `0.0` outside).
 #[pyfunction]
 #[pyo3(signature = (initial_level_set, feature_image, number_of_iterations=20,
-                    lambda1=1.0_f32, lambda2=1.0_f32, curvature_weight=1.0_f32,
-                    area_weight=0.0_f32, epsilon=1.0_f32))]
+                    lambda1=1.0_f32, lambda2=1.0_f32, mu=1.0_f32,
+                    nu=0.0_f32, epsilon=1.0_f32))]
 #[allow(clippy::too_many_arguments)]
 pub fn scalar_chan_and_vese_dense_level_set(
     py: Python<'_>,
@@ -333,8 +333,8 @@ pub fn scalar_chan_and_vese_dense_level_set(
     number_of_iterations: usize,
     lambda1: f32,
     lambda2: f32,
-    curvature_weight: f32,
-    area_weight: f32,
+    mu: f32,
+    nu: f32,
     epsilon: f32,
 ) -> RitkResult<PyImage> {
     let arc_init = std::sync::Arc::clone(&initial_level_set.inner);
@@ -344,8 +344,8 @@ pub fn scalar_chan_and_vese_dense_level_set(
             number_of_iterations,
             lambda1,
             lambda2,
-            mu: curvature_weight,
-            nu: area_weight,
+            mu,
+            nu,
             epsilon,
         }
         .apply(arc_init.as_ref(), arc_feat.as_ref())

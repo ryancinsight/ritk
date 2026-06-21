@@ -31,7 +31,7 @@ use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_filter::{
     FftShiftFilter, ForwardFftFilter, HalfHermitianToRealInverseFftFilter, InverseFftFilter,
-    RealToHalfHermitianForwardFftFilter,
+    RealFftShiftFilter, RealToHalfHermitianForwardFftFilter,
 };
 use ritk_image::Image;
 use std::sync::Arc;
@@ -286,6 +286,39 @@ pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         FftShiftFilter::new()
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Shift a real-valued spatial-domain image so that the zero-frequency
+/// component would appear at the centre after a forward FFT.
+///
+/// Performs a cyclic roll by `N//2` along each axis, matching ITK's
+/// `FFTShiftImageFilter` (`sitk.FFTShift`) on real images. For each axis of
+/// length `N` the shift amount is `N / 2` (floor division):
+///
+/// ```text
+/// output[j] = input[(j + N/2) % N]
+/// ```
+///
+/// This is distinct from `fft_shift`, which operates on complex
+/// (frequency-domain) images in interleaved `[D, H, 2*W]` format.
+///
+/// Args:
+///     image: Input real PyImage of shape [D, H, W].
+///
+/// Returns:
+///     Shifted real PyImage of shape [D, H, W].
+///
+/// Raises:
+///     RuntimeError: on internal tensor extraction failure.
+#[pyfunction]
+pub fn real_fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        RealFftShiftFilter::new()
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

@@ -1,12 +1,12 @@
 //! Special-purpose filters: median, bilateral, N4 bias correction, and bin-shrink downsampling.
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{image_to_vec, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::bias::N4Config;
 use ritk_filter::{
     BilateralFilter, BinShrinkImageFilter, BinomialBlurImageFilter, BoxMeanImageFilter,
     BoxSigmaImageFilter, MeanImageFilter, MedianFilter, N4BiasFieldCorrectionFilter,
-    NoiseImageFilter, RankImageFilter,
+    NoiseImageFilter, RankImageFilter, SpatialConvolutionFilter,
 };
 
 /// Apply a mean (box) filter: each voxel becomes the average of the
@@ -272,4 +272,48 @@ pub fn bin_shrink(
         filter.apply(image.as_ref())
     });
     into_py_image(result)
+}
+
+/// Convolve a 3-D image with a kernel image using zero-flux Neumann boundary
+/// conditions.
+///
+/// Matches `sitk.Convolve` (`ConvolutionImageFilter`). The kernel is centred
+/// on each output voxel; boundary voxels clamp to the nearest edge value
+/// (zero-flux Neumann). The caller is responsible for kernel normalisation.
+///
+/// # Mathematical contract
+///
+/// For kernel shape `[Kz, Ky, Kx]` and half-extents `hz = Kz/2` etc.:
+///
+/// ```text
+/// output[z, y, x] =
+///     Σ_{kz,ky,kx}  kernel[kz, ky, kx]
+///     · image[clamp(z + kz − hz, 0, Dz−1),
+///              clamp(y + ky − hy, 0, Dy−1),
+///              clamp(x + kx − hx, 0, Dx−1)]
+/// ```
+///
+/// Args:
+///     image:  Input 3-D PyImage.
+///     kernel: Kernel 3-D PyImage (odd dimensions recommended for exact
+///             centring). Must be non-empty.
+///
+/// Returns:
+///     Convolved PyImage of the same shape as `image`.
+///
+/// Raises:
+///     ValueError:    when the kernel shape is incompatible with its buffer.
+///     RuntimeError:  on internal tensor extraction failure.
+#[pyfunction]
+pub fn spatial_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkResult<PyImage> {
+    let image_inner = std::sync::Arc::clone(&image.inner);
+    let (kernel_vals, kernel_dims) = image_to_vec(kernel.inner.as_ref());
+    py.allow_threads(|| {
+        let filter = SpatialConvolutionFilter::new(kernel_vals, kernel_dims)
+            .map_err(|e| RitkPyError::value(e.to_string()))?;
+        filter
+            .apply(image_inner.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }

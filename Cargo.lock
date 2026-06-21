@@ -6808,6 +6808,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "bytemuck",
  "criterion",
  "image 0.24.9",
  "moirai",
