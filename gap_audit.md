@@ -12,6 +12,10 @@
 - **[CORR-386-02 CLOSED]** `LaplacianLevelSet` d²I/dx² copy-paste bug: backward x-axis
   neighbour was `(zz, yy-1, xx)` (y-axis); corrected to `(zz, yy, xx-1)`. Introduced in
   Sprint 384 moirai parallelization. Evidence tier: empirical differential (Dice 0.005 → ≥0.80).
+- **[CORR-386-03 CLOSED]** (formerly **[ISOLATED-WS-QA-01]**) `IsolatedWatershed` plateau flow resolution:
+  implemented exit-distance BFS and plateau minimum component grouping. Plateau regions are
+  correctly bisected at flow midpoints without fragmentation. Evidence tier: value-semantic
+  unit tested (`test_isolated_watershed_plateau_flow` bisections verify exact label boundaries).
 - **[BUILD-386-01 CLOSED]** Stale development wheel: Sprint 385 added 7 functions to mod.rs
   but wheel was not rebuilt. 15 cmake tests were failing with `AttributeError`. Wheel rebuilt,
   all 15 now pass.
@@ -34,7 +38,6 @@
 ### Residual Risk
 - **[FRANGI-QA-01]**: Frangi/Sato differential test against sitk at multiple σ not yet added.
 - **[CHAN-VESE-QA-01]**: ScalarChanAndVese pixel-exact comparison against sitk not yet performed.
-- **[ISOLATED-WS-QA-01]**: Watershed plateau handling for flat-region images.
 - **[PERF-381-01]**: Criterion baselines for `separable_box_3d` and EDT Phase 3 not recorded.
 
 ---
