@@ -126,20 +126,67 @@ fn gradient_magnitude(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
 /// O(n) expected: each voxel enters a path at most once before being labeled.
 fn watershed_basins_gd(g: &[f32], dims: [usize; 3]) -> Vec<usize> {
     let n: usize = dims.iter().product();
-    // usize::MAX is the sentinel for "unlabeled".
-    let mut basin = vec![usize::MAX; n];
 
-    // First pass: label all strict local minima (no neighbour with g < g[i]).
-    basin.par_mut().enumerate(|i, val| {
+    // Step 1: Compute distance-to-exit for all voxels using multi-source BFS.
+    // An exit is a voxel with at least one neighbour of strictly lower gradient magnitude.
+    let mut dist = vec![usize::MAX; n];
+    let mut q = std::collections::VecDeque::new();
+
+    for i in 0..n {
         let gi = g[i];
-        if neighbours(i, dims).all(|j| g[j] >= gi) {
-            *val = i;
+        if neighbours(i, dims).any(|j| g[j] < gi) {
+            dist[i] = 0;
+            q.push_back(i);
         }
-    });
+    }
 
-    // Second pass: trace steepest descent for each unlabeled voxel with path
-    // compression.  Re-use a single path buffer across starts to avoid
-    // repeated allocation.
+    // Propagate distances across equal-value plateaus
+    while let Some(u) = q.pop_front() {
+        let du = dist[u];
+        let gu = g[u];
+        for v in neighbours(u, dims) {
+            if g[v] == gu && dist[v] == usize::MAX {
+                dist[v] = du + 1;
+                q.push_back(v);
+            }
+        }
+    }
+
+    // Step 2: Unify plateau minima (plateaus where dist[i] == usize::MAX) into single basins.
+    let mut basin = vec![usize::MAX; n];
+    let mut component = Vec::new();
+    for start in 0..n {
+        if dist[start] == usize::MAX && basin[start] == usize::MAX {
+            component.clear();
+            component.push(start);
+            basin[start] = start; // Temporary label to mark visited
+            let mut q_comp = std::collections::VecDeque::new();
+            q_comp.push_back(start);
+            let gs = g[start];
+            let mut min_idx = start;
+
+            while let Some(u) = q_comp.pop_front() {
+                for v in neighbours(u, dims) {
+                    if g[v] == gs && basin[v] == usize::MAX {
+                        basin[v] = start; // Mark as visited with start label
+                        component.push(v);
+                        if v < min_idx {
+                            min_idx = v;
+                        }
+                        q_comp.push_back(v);
+                    }
+                }
+            }
+
+            // Assign the entire plateau minimum component to its representative index
+            for &v in &component {
+                basin[v] = min_idx;
+            }
+        }
+    }
+
+    // Step 3: Trace steepest descent for each unlabeled voxel.
+    // Re-use a single path buffer to prevent heap allocations inside the loop.
     let mut path: Vec<usize> = Vec::with_capacity(64);
     for start in 0..n {
         if basin[start] != usize::MAX {
@@ -150,30 +197,39 @@ fn watershed_basins_gd(g: &[f32], dims: [usize; 3]) -> Vec<usize> {
         let mut cur = start;
         loop {
             let gc = g[cur];
-            // Steepest strictly-descending neighbour; ties broken by first
-            // occurrence in NEIGHBOUR_OFFSETS iteration order.
+            let dc = dist[cur];
+
+            // Next step: lexicographical minimum of (g[j], dist[j]).
+            // Must step down in g, or step to same g with smaller dist to exit.
             let next = neighbours(cur, dims)
-                .filter(|&j| g[j] < gc)
-                .min_by(|&a, &b| g[a].total_cmp(&g[b]));
+                .filter(|&j| {
+                    g[j] < gc || (g[j] == gc && dc != usize::MAX && dist[j] < dc)
+                })
+                .min_by(|&a, &b| {
+                    let ga = g[a];
+                    let gb = g[b];
+                    match ga.total_cmp(&gb) {
+                        std::cmp::Ordering::Equal => {
+                            dist[a].cmp(&dist[b])
+                        }
+                        ord => ord,
+                    }
+                });
+
             match next {
                 Some(j) => {
                     if basin[j] != usize::MAX {
-                        // Reached a labeled node — propagate its basin to the
-                        // entire traced path.
                         let b = basin[j];
                         for &p in &path {
                             basin[p] = b;
                         }
                         break;
                     }
-                    // Continue descent; g is strictly decreasing so no cycle
-                    // is possible.
                     path.push(j);
                     cur = j;
                 }
                 None => {
-                    // `cur` has no strictly-lower neighbour: treat as a local
-                    // minimum (safety net for floating-point plateaus).
+                    // Safety fallback: treat cur as its own local minimum
                     basin[cur] = cur;
                     let b = cur;
                     for &p in &path {

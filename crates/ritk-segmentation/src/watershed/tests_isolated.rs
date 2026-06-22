@@ -154,3 +154,29 @@ fn test_isolated_watershed_flat_plateau() {
     assert_eq!(result[0], 1.0);
     assert_eq!(result[6], 2.0);
 }
+
+#[test]
+fn test_isolated_watershed_plateau_flow() {
+    // Linear ramp with flat gradient magnitude in the middle:
+    // Intensities: [6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0]
+    // g: [0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5]
+    // Local minima in g are at 0 and 6.
+    // The plateau [1..=5] should flow to the nearest minimum:
+    // {0, 1, 2, 3} flow to 0 (Label 1).
+    // {4, 5, 6} flow to 6 (Label 2).
+    let data = vec![6.0_f32, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0];
+    let dims = [1_usize, 1, 7];
+    let config = IsolatedWatershedConfig::default();
+    let result = isolated_watershed(&data, dims, 0, 6, &config);
+
+    assert_eq!(result.len(), 7);
+    // {0, 1, 2, 3} should be labeled 1.0
+    assert_eq!(result[0], 1.0);
+    assert_eq!(result[1], 1.0);
+    assert_eq!(result[2], 1.0);
+    assert_eq!(result[3], 1.0);
+    // {4, 5, 6} should be labeled 2.0
+    assert_eq!(result[4], 2.0);
+    assert_eq!(result[5], 2.0);
+    assert_eq!(result[6], 2.0);
+}
