@@ -258,11 +258,12 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
     // ── Iterative assignment + update ─────────────────────────────────────────
     let mut labels = vec![0u32; n];
     let mut distances = vec![f64::MAX; n];
+    let mut grid_map = Vec::new();
 
     for _iter in 0..config.max_iterations {
         distances.iter_mut().for_each(|d| *d = f64::MAX);
 
-        let grid_map = assign::build_grid_map(&centers, &grid_sizes, shape, ndim);
+        assign::build_grid_map_into(&centers, &grid_sizes, shape, ndim, &mut grid_map);
 
         // ── Assignment step ──────────────────────────────────────────────────
         assign::assign_voxels(
@@ -289,7 +290,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
 
     // ── Final assignment (ensure labels match final centers) ──────────────────
     distances.iter_mut().for_each(|d| *d = f64::MAX);
-    let grid_map = assign::build_grid_map(&centers, &grid_sizes, shape, ndim);
+    assign::build_grid_map_into(&centers, &grid_sizes, shape, ndim, &mut grid_map);
     assign::assign_voxels(
         &intensities,
         shape,

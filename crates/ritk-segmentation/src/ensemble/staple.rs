@@ -115,14 +115,13 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
     }
 
     // Threshold input masks at 0.5 → bool (avoids repeated f32 comparisons in the hot path).
-    let d: Vec<Vec<bool>> = raters
-        .iter()
-        .map(|r| {
-            r.iter()
-                .map(|&v| v > crate::morphology::FOREGROUND_THRESHOLD)
-                .collect()
-        })
-        .collect();
+    // Flat vector representation (O(1) total allocations instead of O(K) separate heap allocations).
+    let mut d = vec![false; k * n];
+    for (k_idx, r) in raters.iter().enumerate() {
+        for (i, &v) in r.iter().enumerate() {
+            d[k_idx * n + i] = v > crate::morphology::FOREGROUND_THRESHOLD;
+        }
+    }
 
     // ── Initialise parameters ────────────────────────────────────────────────
     let mut p = vec![0.99_f64; k];
@@ -156,11 +155,12 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
         }
 
         // ── E-step: voxels are independent → parallel ────────────────────────
-        w = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+        use moirai::prelude::ParallelSliceMut;
+        w.par_mut().enumerate(|i, val| {
             let mut log_alpha = log_f;
             let mut log_beta = log_1mf;
             for k_idx in 0..k {
-                if d[k_idx][i] {
+                if d[k_idx * n + i] {
                     log_alpha += log_p[k_idx];
                     log_beta += log_1mq[k_idx];
                 } else {
@@ -168,7 +168,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
                     log_beta += log_q[k_idx];
                 }
             }
-            sigmoid_log_domain(log_alpha, log_beta)
+            *val = sigmoid_log_domain(log_alpha, log_beta);
         });
 
         // ── M-step: update prevalence and per-rater parameters ───────────────
@@ -192,7 +192,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
                 w.len(),
                 (0.0_f64, 0.0_f64),
                 |i| {
-                    let (wi, dki) = (w[i], d[k_idx][i]);
+                    let (wi, dki) = (w[i], d[k_idx * n + i]);
                     if dki {
                         (wi, 0.0_f64)
                     } else {

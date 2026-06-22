@@ -107,7 +107,6 @@ pub fn growcut_slice(
     max_iter: usize,
 ) -> Vec<f32> {
     let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
-    let n = nz * ny * nx;
 
     // Compute intensity range for adjacency weight denominator.
     let (i_min, i_max) = image_slice
@@ -141,63 +140,84 @@ pub fn growcut_slice(
 
     let img = image_slice; // convenience alias
 
+    let mut next_labels = labels.clone();
+    let mut next_strengths = strengths.clone();
+
+    use moirai::prelude::ParallelSliceMut;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
     for _ in 0..max_iter {
-        // Parallel computation of (new_label, new_strength) per voxel.
-        let updates: Vec<(u32, f64)> =
-            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |idx| {
-                // If seed, keep immutable.
-                if is_seed[idx] {
-                    return (labels[idx], strengths[idx]);
-                }
+        let changed = AtomicBool::new(false);
 
-                let iz = idx / (ny * nx);
-                let rem = idx % (ny * nx);
-                let iy = rem / nx;
-                let ix = rem % nx;
-
-                let mut best_label = labels[idx];
-                let mut best_strength = strengths[idx];
-
-                for &(dz, dy, dx) in &OFFSETS {
-                    let jz = iz as isize + dz;
-                    let jy = iy as isize + dy;
-                    let jx = ix as isize + dx;
-                    if jz < 0
-                        || jz >= nz as isize
-                        || jy < 0
-                        || jy >= ny as isize
-                        || jx < 0
-                        || jx >= nx as isize
-                    {
-                        continue;
-                    }
-                    let j = flat(jz as usize, jy as usize, jx as usize);
-                    if labels[j] == 0 {
-                        continue; // unlabeled neighbor cannot attack
-                    }
-                    let diff = (img[j] as f64 - img[idx] as f64).abs();
-                    let g = 1.0 - diff / max_diff;
-                    let attack = strengths[j] * g;
-                    if attack > best_strength {
-                        best_strength = attack;
-                        best_label = labels[j];
-                    }
-                }
-                (best_label, best_strength)
-            });
-
-        // Check convergence and apply updates.
-        let mut changed = false;
-        for (idx, (new_l, new_c)) in updates.into_iter().enumerate() {
-            if !is_seed[idx] && new_l != labels[idx] {
-                changed = true;
-                labels[idx] = new_l;
-                strengths[idx] = new_c;
+        struct SendPtr<T>(*mut T);
+        unsafe impl<T> Send for SendPtr<T> {}
+        unsafe impl<T> Sync for SendPtr<T> {}
+        impl<T> SendPtr<T> {
+            unsafe fn write(&self, offset: usize, val: T) {
+                *self.0.add(offset) = val;
             }
         }
-        if !changed {
+
+        let labels_old = &labels;
+        let strengths_old = &strengths;
+        let changed_ref = &changed;
+        let labels_ptr = SendPtr(next_labels.as_mut_ptr());
+
+        next_strengths.par_mut().enumerate(|idx, strength_mut| {
+            if is_seed[idx] {
+                *strength_mut = strengths_old[idx];
+                return;
+            }
+
+            let iz = idx / (ny * nx);
+            let rem = idx % (ny * nx);
+            let iy = rem / nx;
+            let ix = rem % nx;
+
+            let mut best_label = labels_old[idx];
+            let mut best_strength = strengths_old[idx];
+
+            for &(dz, dy, dx) in &OFFSETS {
+                let jz = iz as isize + dz;
+                let jy = iy as isize + dy;
+                let jx = ix as isize + dx;
+                if jz < 0
+                    || jz >= nz as isize
+                    || jy < 0
+                    || jy >= ny as isize
+                    || jx < 0
+                    || jx >= nx as isize
+                {
+                    continue;
+                }
+                let j = flat(jz as usize, jy as usize, jx as usize);
+                if labels_old[j] == 0 {
+                    continue; // unlabeled neighbor cannot attack
+                }
+                let diff = (img[j] as f64 - img[idx] as f64).abs();
+                let g = 1.0 - diff / max_diff;
+                let attack = strengths_old[j] * g;
+                if attack > best_strength {
+                    best_strength = attack;
+                    best_label = labels_old[j];
+                }
+            }
+
+            *strength_mut = best_strength;
+            unsafe {
+                labels_ptr.write(idx, best_label);
+            }
+            if best_label != labels_old[idx] {
+                changed_ref.store(true, Ordering::Relaxed);
+            }
+        });
+
+        if !changed.load(Ordering::Relaxed) {
             break;
         }
+
+        std::mem::swap(&mut labels, &mut next_labels);
+        std::mem::swap(&mut strengths, &mut next_strengths);
     }
 
     labels.into_iter().map(|l| l as f32).collect()

@@ -183,16 +183,20 @@ impl LaplacianLevelSet {
             helpers::compute_curvature_into(&phi, dims, &mut kappa);
             helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
 
-            let mut zipped: Vec<(&mut [f64], &mut f64)> = phi_new
-                .chunks_exact_mut(slice_len)
-                .zip(max_changes.iter_mut())
-                .collect();
+            struct SendPtr<T>(*mut T);
+            unsafe impl<T> Send for SendPtr<T> {}
+            unsafe impl<T> Sync for SendPtr<T> {}
+            impl<T> SendPtr<T> {
+                unsafe fn write(&self, offset: usize, val: T) {
+                    *self.0.add(offset) = val;
+                }
+            }
+            let max_changes_ptr = SendPtr(max_changes.as_mut_ptr());
 
             moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-                &mut zipped,
-                1,
-                |iz, chunk| {
-                    let (phi_new_s, max_change_ref) = &mut chunk[0];
+                &mut phi_new,
+                slice_len,
+                |iz, phi_new_s| {
                     let base = iz * slice_len;
                     let mut local_max = 0.0_f64;
                     for i in 0..slice_len {
@@ -212,7 +216,9 @@ impl LaplacianLevelSet {
                             local_max = change;
                         }
                     }
-                    **max_change_ref = local_max;
+                    unsafe {
+                        max_changes_ptr.write(iz, local_max);
+                    }
                 },
             );
 

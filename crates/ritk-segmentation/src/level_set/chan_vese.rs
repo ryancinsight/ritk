@@ -204,6 +204,7 @@ impl ChanVeseSegmentation {
 
         // Scratch buffers (reused across iterations).
         let mut kappa = vec![0.0_f64; n];
+        let mut max_dphis = vec![0.0_f64; nz];
 
         for _iter in 0..self.max_iterations {
             // ── 1. Compute region means c1, c2 ────────────────────────────
@@ -214,18 +215,21 @@ impl ChanVeseSegmentation {
 
             // ── 3. Evolve φ ──────────────────────────────────────────────
             let slice_len = ny * nx;
-            let mut max_dphis = vec![0.0_f64; nz];
 
-            let mut zipped: Vec<(&mut [f64], &mut f64)> = phi
-                .chunks_exact_mut(slice_len)
-                .zip(max_dphis.iter_mut())
-                .collect();
+            struct SendPtr<T>(*mut T);
+            unsafe impl<T> Send for SendPtr<T> {}
+            unsafe impl<T> Sync for SendPtr<T> {}
+            impl<T> SendPtr<T> {
+                unsafe fn write(&self, offset: usize, val: T) {
+                    *self.0.add(offset) = val;
+                }
+            }
+            let max_dphis_ptr = SendPtr(max_dphis.as_mut_ptr());
 
             moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-                &mut zipped,
-                1,
-                |iz, chunk| {
-                    let (phi_s, max_dphi_ref) = &mut chunk[0];
+                &mut phi,
+                slice_len,
+                |iz, phi_s| {
                     let base = iz * slice_len;
                     let mut local_max = 0.0_f64;
                     for i in 0..slice_len {
@@ -246,7 +250,9 @@ impl ChanVeseSegmentation {
                             local_max = abs_dphi;
                         }
                     }
-                    **max_dphi_ref = local_max;
+                    unsafe {
+                        max_dphis_ptr.write(iz, local_max);
+                    }
                 },
             );
 
