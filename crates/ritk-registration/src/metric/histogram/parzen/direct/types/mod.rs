@@ -55,6 +55,8 @@ pub struct CompactionSizes {
     pub sample_window: usize,
     /// `SparseWFixedEntry` — 8 bytes with `u16` bin (was 16 with `usize`).
     pub sparse_fixed_entry: usize,
+    /// `SparseSampleCache` — 260 bytes stack cache.
+    pub sparse_sample_cache: usize,
 }
 
 /// Return `size_of` for key direct-Parzen types (benchmark regression guard).
@@ -67,5 +69,6 @@ pub fn compaction_sizes() -> CompactionSizes {
         parzen_config: std::mem::size_of::<ParzenConfig>(),
         sample_window: std::mem::size_of::<super::sample::SampleWindow>(),
         sparse_fixed_entry: std::mem::size_of::<super::sample::SparseWFixedEntry>(),
+        sparse_sample_cache: std::mem::size_of::<super::sample::SparseSampleCache>(),
     }
 }

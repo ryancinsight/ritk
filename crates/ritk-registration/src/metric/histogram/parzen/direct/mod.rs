@@ -127,7 +127,8 @@ pub(crate) use accumulate::{
 pub use pool::HistogramPool;
 #[cfg(test)]
 pub(crate) use sample::SampleWindow;
-pub use sample::{SparseWFixedEntry, SparseWFixedT};
+#[allow(unused_imports)]
+pub use sample::{SparseSampleCache, SparseWFixedEntry, SparseWFixedT};
 
 // Re-export CompactionSizes and compaction_sizes from types module.
 pub use types::{compaction_sizes, CompactionSizes};

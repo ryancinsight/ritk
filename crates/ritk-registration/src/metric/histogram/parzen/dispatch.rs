@@ -180,7 +180,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     #[cfg(feature = "direct-parzen")]
     pub(crate) fn compute_joint_histogram_from_cache_sparse_dispatch(
         &self,
-        sparse_w_fixed: &[(Vec<super::direct::SparseWFixedEntry>, f32)],
+        sparse_w_fixed: &[(super::direct::SparseSampleCache, f32)],
         moving_values: &Tensor<B, 1>,
         oob_mask: Option<&Tensor<B, 1>>,
     ) -> Tensor<B, 2> {

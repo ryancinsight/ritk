@@ -8,4 +8,4 @@ mod sample_window;
 mod sparse_entry;
 
 pub(crate) use sample_window::SampleWindow;
-pub use sparse_entry::{SparseWFixedEntry, SparseWFixedT};
+pub use sparse_entry::{SparseSampleCache, SparseWFixedEntry, SparseWFixedT};

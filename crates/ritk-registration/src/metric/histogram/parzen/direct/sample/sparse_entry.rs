@@ -17,7 +17,7 @@
 ///
 /// Used by the **sparse-cache path** only; the direct path uses `StackWeights`
 /// for both axes and never constructs `SparseWFixedEntry` values.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SparseWFixedEntry {
     /// Histogram bin index on the fixed-image axis (`u16` since num_bins ≤ 65535).
     pub bin: u16,
@@ -33,10 +33,103 @@ impl SparseWFixedEntry {
     }
 }
 
+// ── SparseSampleCache ──────────────────────────────────────────────────────
+
+/// A stack-allocated collection of sparse fixed-image entries.
+///
+/// Avoids heap allocating a `Vec` for each voxel sample (OPT-5/MEM-330-x).
+/// Uses a fixed-capacity array of 32 `SparseWFixedEntry` and a `u8` length tracker,
+/// collapsing the per-sample cache into a single contiguous allocation within `SparseWFixedT`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SparseSampleCache {
+    entries: [SparseWFixedEntry; 32],
+    /// Number of active entries. `u8` is sufficient for max capacity 32.
+    len: u8,
+}
+
+impl Default for SparseSampleCache {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            entries: [SparseWFixedEntry::default(); 32],
+            len: 0,
+        }
+    }
+}
+
+impl SparseSampleCache {
+    /// Construct a new empty sparse sample cache.
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Push an entry onto the stack cache.
+    ///
+    /// # Panics
+    ///
+    /// Panics in debug mode if capacity is exceeded.
+    #[inline]
+    pub fn push(&mut self, entry: SparseWFixedEntry) {
+        let index = self.len as usize;
+        debug_assert!(index < 32, "SparseSampleCache capacity exceeded");
+        if index < 32 {
+            self.entries[index] = entry;
+            self.len += 1;
+        }
+    }
+
+    /// Get a slice containing the active entries.
+    #[inline]
+    pub fn as_slice(&self) -> &[SparseWFixedEntry] {
+        &self.entries[..self.len as usize]
+    }
+
+    /// Get a mutable slice containing the active entries.
+    #[inline]
+    pub fn as_slice_mut(&mut self) -> &mut [SparseWFixedEntry] {
+        &mut self.entries[..self.len as usize]
+    }
+
+    /// Iterate over active entries.
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<'_, SparseWFixedEntry> {
+        self.as_slice().iter()
+    }
+
+    /// Returns the number of active entries.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.len as usize
+    }
+
+    /// Returns true if there are no active entries.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+}
+
+impl std::ops::Deref for SparseSampleCache {
+    type Target = [SparseWFixedEntry];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+
+impl std::ops::DerefMut for SparseSampleCache {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_slice_mut()
+    }
+}
+
 /// Sparse representation of W_fixed^T, with per-sample normalization.
 ///
-/// Each element is a `(Vec<SparseWFixedEntry>, inv_sum_f)` pair:
-/// - The `Vec<SparseWFixedEntry>` contains the non-zero fixed-axis bin entries
+/// Each element is a `(SparseSampleCache, inv_sum_f)` pair:
+/// - The `SparseSampleCache` contains the non-zero fixed-axis bin entries
 ///   within ±3σ (typically ~7 for σ ≈ 1 bin-width).
 /// - `inv_sum_f` is `1/sum_f` for this sample (SPARSE-329-01), enabling full
 ///   joint normalization `inv_norm = inv_sum_f × inv_sum_m` in the sparse path,
@@ -48,8 +141,9 @@ impl SparseWFixedEntry {
 ///
 /// # Memory layout
 ///
-/// Per sample: `Vec<SparseWFixedEntry>` (~56 bytes for 7 entries × 8 bytes)
-/// + `f32` inv_sum_f (4 bytes). Total ≈ 60 bytes/sample. For 32K samples:
+/// Per sample: `SparseSampleCache` (260 bytes) + `f32` inv_sum_f (4 bytes).
+/// Total 264 bytes/sample. For 32K samples:
 ///
-/// ~1.875 MB, of which inv_sum_f adds only 128 KB overhead.
-pub type SparseWFixedT = Vec<(Vec<SparseWFixedEntry>, f32)>;
+/// ~8.25 MB, allocated contiguously in a single heap vector allocation,
+/// dropping allocations from 32K+ individual heap arrays to exactly 1.
+pub type SparseWFixedT = Vec<(SparseSampleCache, f32)>;

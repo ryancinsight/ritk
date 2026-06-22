@@ -10,7 +10,7 @@ use moirai::prelude::ParallelSliceMut;
 
 use super::accumulate::{accumulate_sample_sparse, merge_histograms, validate_inputs};
 use super::pool::HistogramPool;
-use super::sample::{SampleWindow, SparseWFixedEntry, SparseWFixedT};
+use super::sample::{SampleWindow, SparseSampleCache, SparseWFixedEntry, SparseWFixedT};
 use super::types::ParzenConfig;
 
 /// Build the sparse W_fixed^T cache from normalized fixed-image values.
@@ -39,7 +39,7 @@ pub fn build_sparse_w_fixed_transposed(
     let fix_cfg = ParzenConfig::new(sigma_sq_fix);
 
     // SPARSE-329-01: each element is (entries, inv_sum_f)
-    let mut entries: SparseWFixedT = (0..n).map(|_| (Vec::with_capacity(7), 0.0f32)).collect();
+    let mut entries: SparseWFixedT = (0..n).map(|_| (SparseSampleCache::new(), 0.0f32)).collect();
     entries.par_mut().enumerate(|i, entry| {
         // OOB check — reuse SampleWindow::mask_val (ARCH-321-04)
         if SampleWindow::mask_val(i, oob_mask).is_none() {
@@ -81,7 +81,7 @@ pub fn build_sparse_w_fixed_transposed(
 /// * `oob_mask` — Optional OOB mask `[N]` (1.0 = in-bounds, 0.0 = OOB)
 #[allow(private_interfaces)]
 pub fn compute_joint_histogram_from_cache_sparse(
-    sparse_w_fixed: &[(Vec<SparseWFixedEntry>, f32)],
+    sparse_w_fixed: &[(SparseSampleCache, f32)],
     moving_norm: &[f32],
     num_bins: usize,
     sigma_sq_mov: f32,

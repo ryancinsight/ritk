@@ -232,6 +232,8 @@ fn compaction_sizes_unchanged_after_decomposition() {
     assert_eq!(sizes.bin_range, 4);
     // SparseWFixedEntry: u16 + 2pad + f32 = 8 bytes
     assert_eq!(sizes.sparse_fixed_entry, 8);
+    // SparseSampleCache: 32 * 8 + 1 + padding = 260 bytes
+    assert_eq!(sizes.sparse_sample_cache, 260);
     // StackWeights: 32×f32 + u8 len + padding = 128-136 bytes
     assert!(
         sizes.stack_weights >= 128 && sizes.stack_weights <= 136,
@@ -265,6 +267,12 @@ fn bin_range_size_unchanged() {
 fn sparse_fixed_entry_size_unchanged() {
     let size = std::mem::size_of::<SparseWFixedEntry>();
     assert_eq!(size, 8, "SparseWFixedEntry must be 8 bytes, got {size}");
+}
+
+#[test]
+fn sparse_sample_cache_size_unchanged() {
+    let size = std::mem::size_of::<SparseSampleCache>();
+    assert_eq!(size, 260, "SparseSampleCache must be 260 bytes, got {size}");
 }
 
 // ── ARCH-330-03: inv_2sigma_sq used in production weight computation ───

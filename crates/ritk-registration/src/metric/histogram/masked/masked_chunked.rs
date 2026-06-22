@@ -12,7 +12,7 @@ use ritk_core::transform::Transform;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 
 #[cfg(feature = "direct-parzen")]
-use crate::metric::histogram::parzen::direct::SparseWFixedEntry;
+use crate::metric::histogram::parzen::direct::SparseSampleCache;
 
 impl<B: Backend> ParzenJointHistogram<B> {
     /// Chunked histogram computation using a cached dense W_fixed^T.
@@ -58,7 +58,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     #[cfg(feature = "direct-parzen")]
     pub(in crate::metric::histogram) fn compute_masked_chunked_from_sparse_cache<const D: usize>(
         &self,
-        sparse_w_fixed: &[(Vec<SparseWFixedEntry>, f32)],
+        sparse_w_fixed: &[(SparseSampleCache, f32)],
         _fixed: &Image<B, D>,
         fixed_world_points: &Tensor<B, 2>,
         moving: &Image<B, D>,
