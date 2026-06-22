@@ -18,8 +18,8 @@
 //!
 //! | Size  | r | Expected median (release, 8-core) |
 //! |-------|---|-----------------------------------|
-//! | 128³  | 2 | TBD — first run records the baseline |
-//! | 128³  | 5 | TBD — first run records the baseline |
+//! | 128³  | 2 | ~61.8 ms (this runner baseline)    |
+//! | 128³  | 5 | ~63.8 ms (this runner baseline)    |
 //!
 //! # Evidence tier
 //!

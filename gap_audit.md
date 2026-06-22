@@ -16,6 +16,9 @@
   implemented exit-distance BFS and plateau minimum component grouping. Plateau regions are
   correctly bisected at flow midpoints without fragmentation. Evidence tier: value-semantic
   unit tested (`test_isolated_watershed_plateau_flow` bisections verify exact label boundaries).
+- **[PERF-381-01 CLOSED]** `cargo bench` baseline timings for `separable_box_3d` and EDT Phase 3 recorded:
+  EDT Z-column pass: ~80.2 ms, Box r=2: ~61.8 ms, r=5: ~63.8 ms. Confirms parallelization baselines.
+  Evidence tier: measured (Criterion benchmark execution).
 - **[BUILD-386-01 CLOSED]** Stale development wheel: Sprint 385 added 7 functions to mod.rs
   but wheel was not rebuilt. 15 cmake tests were failing with `AttributeError`. Wheel rebuilt,
   all 15 now pass.
@@ -38,7 +41,6 @@
 ### Residual Risk
 - **[FRANGI-QA-01]**: Frangi/Sato differential test against sitk at multiple σ not yet added.
 - **[CHAN-VESE-QA-01]**: ScalarChanAndVese pixel-exact comparison against sitk not yet performed.
-- **[PERF-381-01]**: Criterion baselines for `separable_box_3d` and EDT Phase 3 not recorded.
 
 ---
 
