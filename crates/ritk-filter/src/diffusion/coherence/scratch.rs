@@ -192,8 +192,8 @@ impl CedScratch {
 
             // Step 5: explicit Euler update
             let dt = config.time_step;
-            for i in 0..n {
-                self.current[i] += dt * self.divergence[i];
+            for (cur, &div) in self.current.iter_mut().zip(self.divergence.iter()).take(n) {
+                *cur += dt * div;
             }
         }
 
@@ -212,8 +212,8 @@ impl CedScratch {
         self.ensure_capacity(n, config.sigma);
 
         // Copy input into current buffer, casting f32 to f64 directly.
-        for i in 0..n {
-            self.current[i] = data[i] as f64;
+        for (cur, &val) in self.current.iter_mut().zip(data.iter()).take(n) {
+            *cur = val as f64;
         }
 
         for _ in 0..config.n_iterations {

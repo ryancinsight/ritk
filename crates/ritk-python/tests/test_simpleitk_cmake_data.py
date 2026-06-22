@@ -7624,3 +7624,236 @@ def test_cmake_scalar_chan_and_vese_convergence():
         pytest.skip(
             f"sitk.ScalarChanAndVeseDenseLevelSetImageFilter unavailable: {exc}"
         )
+
+
+# ---------------------------------------------------------------------------
+# FRANGI-QA-01  Multi-scale Frangi and Sato line filter parity tests
+# ---------------------------------------------------------------------------
+
+
+def test_cmake_sato_line_filter_parity_vs_numpy():
+    """SatoLineFilter (FRANGI-QA-01): parity vs NumPy analytical response.
+
+    Computes eigenvalues on a synthetic 3-D Gaussian tube using SimpleITK's
+    HessianRecursiveGaussian, then implements the Sato line response
+    equations in NumPy and compares against ritk.filter.sato_line_filter.
+    """
+    if not hasattr(ritk.filter, "sato_line_filter"):
+        pytest.skip("sato_line_filter not bound in ritk")
+
+    import numpy as _np
+
+    nz, ny, nx = 32, 32, 32
+    zz, yy = _np.mgrid[0:nz, 0:ny]
+    profile = _np.exp(-0.5 * ((yy - 16) ** 2 + (zz - 16) ** 2) / 2.0**2).astype(
+        _np.float32
+    )
+    arr = _np.broadcast_to(profile[:, :, _np.newaxis], (nz, ny, nx)).copy()
+
+    # Compute Hessian manually using SimpleITK RecursiveGaussianImageFilter
+    try:
+        si = sitk.GetImageFromArray(arr)
+        sigma = 2.0
+
+        def pass_iir(img, direction, order):
+            f = sitk.RecursiveGaussianImageFilter()
+            f.SetSigma(sigma)
+            f.SetOrder(order)
+            f.SetDirection(direction)
+            f.SetNormalizeAcrossScale(False)
+            return f.Execute(img)
+
+        # Compute each Hessian component (0=X, 1=Y, 2=Z)
+        hxx_img = pass_iir(pass_iir(pass_iir(si, 0, 2), 1, 0), 2, 0)
+        hxy_img = pass_iir(pass_iir(pass_iir(si, 0, 1), 1, 1), 2, 0)
+        hxz_img = pass_iir(pass_iir(pass_iir(si, 0, 1), 1, 0), 2, 1)
+        hyy_img = pass_iir(pass_iir(pass_iir(si, 0, 0), 1, 2), 2, 0)
+        hyz_img = pass_iir(pass_iir(pass_iir(si, 0, 0), 1, 1), 2, 1)
+        hzz_img = pass_iir(pass_iir(pass_iir(si, 0, 0), 1, 0), 2, 2)
+
+        hxx = sitk.GetArrayFromImage(hxx_img).astype(_np.float64).ravel()
+        hxy = sitk.GetArrayFromImage(hxy_img).astype(_np.float64).ravel()
+        hxz = sitk.GetArrayFromImage(hxz_img).astype(_np.float64).ravel()
+        hyy = sitk.GetArrayFromImage(hyy_img).astype(_np.float64).ravel()
+        hyz = sitk.GetArrayFromImage(hyz_img).astype(_np.float64).ravel()
+        hzz = sitk.GetArrayFromImage(hzz_img).astype(_np.float64).ravel()
+    except Exception as exc:
+        pytest.skip(f"sitk Hessian computation failed: {exc}")
+
+    # Build H_matrix shape (N, 3, 3)
+    H_matrix = _np.zeros((hxx.size, 3, 3), dtype=_np.float64)
+    H_matrix[:, 0, 0] = hxx
+    H_matrix[:, 0, 1] = hxy
+    H_matrix[:, 1, 0] = hxy
+    H_matrix[:, 0, 2] = hxz
+    H_matrix[:, 2, 0] = hxz
+    H_matrix[:, 1, 1] = hyy
+    H_matrix[:, 1, 2] = hyz
+    H_matrix[:, 2, 1] = hyz
+    H_matrix[:, 2, 2] = hzz
+
+    # Solve eigenvalues analytically using numpy (ascending order)
+    eigs = _np.linalg.eigvalsh(H_matrix)  # shape (N, 3)
+
+    # Sort by absolute values ascending: |λ₁| <= |λ₂| <= |λ₃|
+    sort_idx = _np.argsort(_np.abs(eigs), axis=1)
+    eigs_abs_sorted = _np.take_along_axis(eigs, sort_idx, axis=1)
+    lam1, lam2, lam3 = eigs_abs_sorted[:, 0], eigs_abs_sorted[:, 1], eigs_abs_sorted[:, 2]
+
+    # Scale-normalize by σ²
+    sigma2 = sigma * sigma
+    lam1 = lam1 * sigma2
+    lam2 = lam2 * sigma2
+    lam3 = lam3 * sigma2
+
+    # Sato response calculation: alpha = 0.5, polarity = "bright"
+    alpha = 0.5
+    valid = (lam2 < 0.0) & (lam3 < 0.0)
+    sato_ref = _np.zeros_like(lam3)
+
+    l1 = lam1[valid]
+    l2 = lam2[valid]
+    l3 = lam3[valid]
+
+    abs_l3 = _np.abs(l3)
+    ratio = l2 / l3
+    shape_term = _np.power(ratio, alpha)
+
+    perp_term = _np.ones_like(l1)
+    pos_l1 = l1 > 0
+    if _np.any(pos_l1):
+        denom = 2.0 * (alpha * l2[pos_l1]) ** 2
+        val = _np.zeros_like(l1[pos_l1])
+        nz_denom = denom > 1e-30
+        val[nz_denom] = _np.exp(- (l1[pos_l1][nz_denom] ** 2) / denom[nz_denom])
+        perp_term[pos_l1] = val
+
+    sato_ref[valid] = abs_l3 * shape_term * perp_term
+
+    # ritk Sato line filter execution
+    ri = ritk.Image(_np.ascontiguousarray(arr))
+    ro = ritk.filter.sato_line_filter(ri, scales=[sigma], alpha=alpha, polarity="bright")
+    r_arr = _np.asarray(ro.to_numpy(), _np.float64).ravel()
+
+    # Compare
+    r_c = r_arr - r_arr.mean()
+    s_c = sato_ref - sato_ref.mean()
+    pearson = float(
+        _np.dot(r_c, s_c)
+        / (_np.sqrt(_np.dot(r_c, r_c) * _np.dot(s_c, s_c)) + 1e-12)
+    )
+    assert pearson >= 0.99, (
+        f"SatoLineFilter vs NumPy-reference Pearson={pearson:.4f} < 0.99"
+    )
+
+
+def test_cmake_frangi_vesselness_multiscale_max_parity():
+    """FrangiVesselness (FRANGI-QA-01): multi-scale maximum parity vs sitk.
+
+    Validates that ritk.filter.frangi_vesselness correctly aggregates responses
+    across multiple scales (taking the maximum response per voxel).
+    """
+    if not hasattr(ritk.filter, "frangi_vesselness"):
+        pytest.skip("frangi_vesselness not bound in ritk")
+
+    import numpy as _np
+
+    if not hasattr(sitk, "ObjectnessMeasureImageFilter"):
+        pytest.skip("sitk.ObjectnessMeasureImageFilter unavailable")
+
+    nz, ny, nx = 32, 32, 32
+    zz, yy = _np.mgrid[0:nz, 0:ny]
+    tube_profile = _np.exp(-0.5 * ((yy - 16) ** 2 + (zz - 16) ** 2) / 2.0**2).astype(
+        _np.float32
+    )
+    arr = _np.broadcast_to(tube_profile[:, :, _np.newaxis], (nz, ny, nx)).copy()
+    si = sitk.GetImageFromArray(arr)
+    ri = ritk.Image(_np.ascontiguousarray(arr))
+
+    scales = [1.5, 2.5]
+    sitk_responses = []
+
+    for sigma in scales:
+        try:
+            # 1. Smooth image at scale sigma in SimpleITK
+            blurred = sitk.SmoothingRecursiveGaussian(si, sigma)
+            # 2. Run objectness
+            f_sitk = sitk.ObjectnessMeasureImageFilter()
+            f_sitk.SetObjectDimension(1)
+            f_sitk.SetAlpha(0.5)
+            f_sitk.SetBeta(0.5)
+            f_sitk.SetGamma(5.0)
+            f_sitk.BrightObjectOn()
+            f_sitk.ScaleObjectnessMeasureOn()
+            so = f_sitk.Execute(blurred)
+            s_arr = sitk.GetArrayFromImage(so).astype(_np.float64)
+            sitk_responses.append(s_arr)
+        except Exception as exc:
+            pytest.skip(f"sitk multiscale Frangi at sigma={sigma} failed: {exc}")
+
+    # Maximum response across scales in SimpleITK
+    sitk_max = _np.maximum(sitk_responses[0], sitk_responses[1]).ravel()
+
+    # Compute single-scale responses in ritk
+    ro1 = ritk.filter.frangi_vesselness(ri, scales=[scales[0]], alpha=0.5, beta=0.5, gamma=5.0, polarity="bright")
+    ro2 = ritk.filter.frangi_vesselness(ri, scales=[scales[1]], alpha=0.5, beta=0.5, gamma=5.0, polarity="bright")
+    r1_arr = _np.asarray(ro1.to_numpy(), _np.float64)
+    r2_arr = _np.asarray(ro2.to_numpy(), _np.float64)
+
+    # Compute multi-scale response in ritk
+    rom = ritk.filter.frangi_vesselness(ri, scales=scales, alpha=0.5, beta=0.5, gamma=5.0, polarity="bright")
+    rm_arr = _np.asarray(rom.to_numpy(), _np.float64)
+
+    # 1. Verify self-consistency (multi-scale is exactly max of single-scales)
+    expected_max = _np.maximum(r1_arr, r2_arr)
+    max_diff = float(_np.abs(rm_arr - expected_max).max())
+    assert max_diff < 1e-5, f"Frangi multiscale max aggregation self-consistency failed: diff={max_diff:.3e}"
+
+    # 2. Verify correlation with SimpleITK maximum
+    r_c = rm_arr.ravel() - rm_arr.mean()
+    s_c = sitk_max - sitk_max.mean()
+    pearson = float(
+        _np.dot(r_c, s_c)
+        / (_np.sqrt(_np.dot(r_c, r_c) * _np.dot(s_c, s_c)) + 1e-12)
+    )
+    assert pearson >= 0.85, (
+        f"Frangi multiscale vs sitk-max-smoothed Pearson={pearson:.4f} < 0.85"
+    )
+
+
+def test_cmake_sato_line_filter_multiscale_max_parity():
+    """SatoLineFilter (FRANGI-QA-01): multi-scale maximum parity vs NumPy.
+
+    Validates that ritk.filter.sato_line_filter correctly aggregates responses
+    across multiple scales (taking the maximum response per voxel).
+    """
+    if not hasattr(ritk.filter, "sato_line_filter"):
+        pytest.skip("sato_line_filter not bound in ritk")
+
+    import numpy as _np
+
+    nz, ny, nx = 32, 32, 32
+    zz, yy = _np.mgrid[0:nz, 0:ny]
+    tube_profile = _np.exp(-0.5 * ((yy - 16) ** 2 + (zz - 16) ** 2) / 2.0**2).astype(
+        _np.float32
+    )
+    arr = _np.broadcast_to(tube_profile[:, :, _np.newaxis], (nz, ny, nx)).copy()
+    ri = ritk.Image(_np.ascontiguousarray(arr))
+
+    scales = [1.5, 2.5]
+
+    # Compute single-scale responses in ritk
+    ro1 = ritk.filter.sato_line_filter(ri, scales=[scales[0]], alpha=0.5, polarity="bright")
+    ro2 = ritk.filter.sato_line_filter(ri, scales=[scales[1]], alpha=0.5, polarity="bright")
+    r1_arr = _np.asarray(ro1.to_numpy(), _np.float64)
+    r2_arr = _np.asarray(ro2.to_numpy(), _np.float64)
+
+    # Compute multi-scale response in ritk
+    rom = ritk.filter.sato_line_filter(ri, scales=scales, alpha=0.5, polarity="bright")
+    rm_arr = _np.asarray(rom.to_numpy(), _np.float64)
+
+    # Verify self-consistency (multi-scale is exactly max of single-scales)
+    expected_max = _np.maximum(r1_arr, r2_arr)
+    max_diff = float(_np.abs(rm_arr - expected_max).max())
+    assert max_diff < 1e-5, f"Sato multiscale max aggregation self-consistency failed: diff={max_diff:.3e}"
+

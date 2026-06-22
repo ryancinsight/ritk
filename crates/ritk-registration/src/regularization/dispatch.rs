@@ -10,12 +10,22 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
+struct RegularizerDimGuard<const D: usize>;
+
+impl<const D: usize> RegularizerDimGuard<D> {
+    const _SUPPORTED_DIM: () = assert!(
+        matches!(D, 4 | 5),
+        "Regularizers only support displacement fields of rank D ∈ {{4, 5}} (representing 2D and 3D)"
+    );
+}
+
 /// Shared implementation for bending-energy and curvature: Laplacian squared, averaged, weighted.
 #[inline]
 fn dispatch_laplacian_squared<B: Backend, const D: usize>(
     displacement: Tensor<B, D>,
     weight: f64,
 ) -> Tensor<B, 1> {
+    let _: () = RegularizerDimGuard::<D>::_SUPPORTED_DIM;
     match D {
         4 => {
             let shape = displacement.shape();
@@ -73,6 +83,7 @@ pub fn dispatch_diffusion<B: Backend, const D: usize>(
     displacement: Tensor<B, D>,
     weight: f64,
 ) -> Tensor<B, 1> {
+    let _: () = RegularizerDimGuard::<D>::_SUPPORTED_DIM;
     match D {
         4 => {
             let shape = displacement.shape();
@@ -110,6 +121,7 @@ pub fn dispatch_elastic<B: Backend, const D: usize>(
     alpha: f64,
     beta: f64,
 ) -> Tensor<B, 1> {
+    let _: () = RegularizerDimGuard::<D>::_SUPPORTED_DIM;
     match D {
         4 => {
             // NOTE: Each gradient tensor is consumed twice: once by powf_scalar (membrane)
@@ -156,6 +168,7 @@ pub fn dispatch_total_variation<B: Backend, const D: usize>(
     displacement: Tensor<B, D>,
     weight: f64,
 ) -> Tensor<B, 1> {
+    let _: () = RegularizerDimGuard::<D>::_SUPPORTED_DIM;
     match D {
         4 => {
             let shape = displacement.shape();

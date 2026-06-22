@@ -270,7 +270,7 @@ fn diffuse<K: ConductanceKernel>(
         });
     }
 
-    if config.num_iterations % 2 == 0 {
+    if config.num_iterations.is_multiple_of(2) {
         cur
     } else {
         next

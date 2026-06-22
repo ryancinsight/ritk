@@ -91,7 +91,7 @@ fn test_diffeomorphic_ssmmorph_integration() {
         let dims = c.dims();
         assert_eq!(dims, [16, 16, 16], "Component dimensions mismatch");
 
-        let data = c.into_data();
+        let data = c.clone().into_data();
         let slice = data.as_slice::<f32>().unwrap();
         // Explicit types to satisfy compiler
         let comp_max = slice.iter().fold(0.0f32, |a: f32, &b: &f32| a.max(b.abs()));

@@ -99,8 +99,8 @@ impl<B: Backend, const D: usize> StaticDisplacementField<B, D> {
     }
 
     /// Get the components.
-    pub fn components(&self) -> Vec<Tensor<B, D>> {
-        self.components.to_vec()
+    pub fn components(&self) -> &[Tensor<B, D>] {
+        &self.components
     }
 
     /// Get the origin.

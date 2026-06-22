@@ -218,7 +218,7 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
         // For exact inverse, would need to solve fixed-point equation
         let forward_disp = forward_transform.field();
         let components = forward_disp.components();
-        let neg_components: Vec<Tensor<B, 3>> = components.into_iter().map(|v| -v).collect();
+        let neg_components: Vec<Tensor<B, 3>> = components.iter().map(|v| -v.clone()).collect();
 
         // Create new field with negated components
         let inverse_disp = StaticDisplacementField::new(

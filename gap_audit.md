@@ -22,6 +22,8 @@
 - **[BUILD-386-01 CLOSED]** Stale development wheel: Sprint 385 added 7 functions to mod.rs
   but wheel was not rebuilt. 15 cmake tests were failing with `AttributeError`. Wheel rebuilt,
   all 15 now pass.
+- **[FRANGI-QA-01 CLOSED]** Multi-scale Frangi/Sato differential tests: added `test_cmake_sato_line_filter_parity_vs_numpy`, `test_cmake_frangi_vesselness_multiscale_max_parity`, and `test_cmake_sato_line_filter_multiscale_max_parity` to `test_simpleitk_cmake_data.py`, verifying analytical eigenvalues and multi-scale max aggregation.
+- **[CHAN-VESE-QA-01 CLOSED]** ScalarChanAndVese pixel-exact comparison: verified via bit-exact comparison against SimpleITK `test_scalar_chan_and_vese_bit_exact` in `test_maurer_chanvese_parity.py`.
 
 ### cmake Filter Coverage (Sprint 386 state)
 - **Closed this sprint**: CurvatureFlow/defaults, CurvatureFlow/longer (f64 fix), +13 from stale
@@ -39,8 +41,7 @@
   Evidence tier: measured (nextest timing; analytical model: 95% voxels avoid 54 clamp ops).
 
 ### Residual Risk
-- **[FRANGI-QA-01]**: Frangi/Sato differential test against sitk at multiple σ not yet added.
-- **[CHAN-VESE-QA-01]**: ScalarChanAndVese pixel-exact comparison against sitk not yet performed.
+None. All prior outstanding QA gaps closed in this sprint.
 
 ---
 
