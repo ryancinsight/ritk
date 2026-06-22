@@ -128,7 +128,7 @@ pub struct LocalNormalizedCrossCorrelation<B: Backend> {
     kernel_sigma: GaussianSigma,
     epsilon: f64,
     // CacheSlot: lazy-initialized, validity-checked per fixed-image geometry, Arc-shared across clones.
-    cache: CacheSlot<LnccCacheEntry<B>>,
+    cache: CacheSlot<Arc<LnccCacheEntry<B>>>,
     // FilterSlot: GaussianFilter built once per dimension D (REG-03).
     filter_slot: FilterSlot<B>,
 }
@@ -229,14 +229,14 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
             || {
                 let (m_f, v_f) =
                     self.compute_local_stats(fixed_values.clone(), &filter, fixed.spacing());
-                LnccCacheEntry {
+                Arc::new(LnccCacheEntry {
                     shape: fixed.shape().to_vec(),
                     origin: collect_array::<3>(fixed.origin().0.iter().copied()),
                     spacing: collect_array::<3>(fixed.spacing().0.iter().copied()),
                     direction: collect_array::<9>(fixed.direction().0.iter().copied()),
                     mean_f_flat: m_f.flatten(0, D - 1),
                     var_f_flat: v_f.flatten(0, D - 1),
-                }
+                })
             },
         );
         let mean_f = entry

@@ -23,8 +23,16 @@ pub(crate) fn get_shared_device_queue() -> Option<(Arc<Device>, Arc<Queue>)> {
     SHARED_DEVICE_QUEUE
         .get_or_init(|| {
             pollster::block_on(async {
+                let backends = match std::env::var("WGPU_BACKEND").as_deref() {
+                    Ok("dx12") => wgpu::Backends::DX12,
+                    Ok("vulkan") => wgpu::Backends::VULKAN,
+                    Ok("metal") => wgpu::Backends::METAL,
+                    Ok("gl") => wgpu::Backends::GL,
+                    Ok("browser") => wgpu::Backends::BROWSER_WEBGPU,
+                    _ => wgpu::Backends::all(),
+                };
                 let instance = wgpu::Instance::new(InstanceDescriptor {
-                    backends: wgpu::Backends::all(),
+                    backends,
                     ..Default::default()
                 });
                 let adapter = instance

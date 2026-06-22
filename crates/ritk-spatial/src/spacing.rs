@@ -106,6 +106,13 @@ impl<const D: usize> Spacing<D> {
     /// coordinate transforms, resampling, distance computations).
     #[inline]
     pub unsafe fn new_unchecked(components: [f64; D]) -> Self {
+        #[cfg(debug_assertions)]
+        for (i, &v) in components.iter().enumerate() {
+            debug_assert!(
+                v.is_finite() && v > 0.0,
+                "Spacing::new_unchecked: component [{i}] must be positive and finite, got {v}"
+            );
+        }
         Self(Vector::new(components))
     }
 
