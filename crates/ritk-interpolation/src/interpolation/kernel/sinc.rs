@@ -331,10 +331,15 @@ impl<B: Backend, const A: usize> Interpolator<B> for LanczosInterpolator<A> {
         let [n_points, rank] = indices.dims();
 
         assert_eq!(rank, D, "Indices rank must match data dimensionality");
-        assert!(
-            D == 2 || D == 3,
-            "Lanczos interpolation only supports 2D and 3D tensors"
-        );
+
+        struct SincDimGuard<const D: usize>;
+        impl<const D: usize> SincDimGuard<D> {
+            const _SUPPORTED_DIM: () = assert!(
+                matches!(D, 2 | 3),
+                "Lanczos interpolation only supports 2D and 3D tensors"
+            );
+        }
+        let _: () = SincDimGuard::<D>::_SUPPORTED_DIM;
 
         let shape = data.shape();
         let dims: Vec<usize> = shape.dims;

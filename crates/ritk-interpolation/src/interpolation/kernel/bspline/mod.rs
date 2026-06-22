@@ -104,10 +104,15 @@ impl<B: Backend> Interpolator<B> for BSplineInterpolator {
         let device = indices.device();
         let [n_points, rank] = indices.dims();
         assert_eq!(rank, D, "Indices rank must match data dimensionality");
-        assert!(
-            D == 2 || D == 3,
-            "B-Spline interpolation only supports 2D and 3D"
-        );
+
+        struct BSplineDimGuard<const D: usize>;
+        impl<const D: usize> BSplineDimGuard<D> {
+            const _SUPPORTED_DIM: () = assert!(
+                matches!(D, 2 | 3),
+                "B-Spline interpolation only supports 2D and 3D"
+            );
+        }
+        let _: () = BSplineDimGuard::<D>::_SUPPORTED_DIM;
 
         let shape = data.shape();
         let dims: Vec<usize> = shape.dims;
