@@ -8,8 +8,8 @@
 //!
 //! Reference: Kabsch (1976), *Acta Crystallogr.* A32:922–923.
 
+use leto::Array2;
 use nalgebra::{Matrix3, Vector3};
-use ndarray::Array2;
 
 use super::error::SpatialError;
 
@@ -22,25 +22,34 @@ pub(crate) fn kabsch_algorithm(
     fixed_centered: &Array2<f64>,
     moving_centered: &Array2<f64>,
 ) -> Result<[f64; 9], SpatialError> {
-    if fixed_centered.nrows() != moving_centered.nrows() {
+    let shape_f = fixed_centered.shape();
+    let shape_m = moving_centered.shape();
+
+    if shape_f[0] != shape_m[0] {
         return Err(SpatialError::InvalidPointSet(
             "Point sets must have same number of rows".to_string(),
         ));
     }
-    if fixed_centered.ncols() != 3 || moving_centered.ncols() != 3 {
+    if shape_f[1] != 3 || shape_m[1] != 3 {
         return Err(SpatialError::InvalidPointSet(
             "Points must have 3 columns".to_string(),
         ));
     }
 
     let mut h = Matrix3::zeros();
-    for i in 0..fixed_centered.nrows() {
-        let pf = fixed_centered.row(i);
-        let pm = moving_centered.row(i);
+    for i in 0..shape_f[0] {
+        let pf0 = *fixed_centered.get([i, 0]).unwrap();
+        let pf1 = *fixed_centered.get([i, 1]).unwrap();
+        let pf2 = *fixed_centered.get([i, 2]).unwrap();
+
+        let pm0 = *moving_centered.get([i, 0]).unwrap();
+        let pm1 = *moving_centered.get([i, 1]).unwrap();
+        let pm2 = *moving_centered.get([i, 2]).unwrap();
+
         h += Matrix3::new(
-            pm[0] * pf[0], pm[0] * pf[1], pm[0] * pf[2],
-            pm[1] * pf[0], pm[1] * pf[1], pm[1] * pf[2],
-            pm[2] * pf[0], pm[2] * pf[1], pm[2] * pf[2],
+            pm0 * pf0, pm0 * pf1, pm0 * pf2,
+            pm1 * pf0, pm1 * pf1, pm1 * pf2,
+            pm2 * pf0, pm2 * pf1, pm2 * pf2,
         );
     }
 
@@ -85,12 +94,21 @@ pub(crate) fn compute_fre(
     );
     let t = Vector3::new(translation[0], translation[1], translation[2]);
 
+    let shape = fixed.shape();
     let mut sum_sq = 0.0_f64;
-    for i in 0..fixed.nrows() {
-        let pf = Vector3::new(fixed.row(i)[0], fixed.row(i)[1], fixed.row(i)[2]);
-        let pm = Vector3::new(moving.row(i)[0], moving.row(i)[1], moving.row(i)[2]);
+    for i in 0..shape[0] {
+        let pf = Vector3::new(
+            *fixed.get([i, 0]).unwrap(),
+            *fixed.get([i, 1]).unwrap(),
+            *fixed.get([i, 2]).unwrap(),
+        );
+        let pm = Vector3::new(
+            *moving.get([i, 0]).unwrap(),
+            *moving.get([i, 1]).unwrap(),
+            *moving.get([i, 2]).unwrap(),
+        );
         let err = pf - (r * pm + t);
         sum_sq += err.dot(&err);
     }
-    (sum_sq / fixed.nrows() as f64).sqrt()
+    (sum_sq / shape[0] as f64).sqrt()
 }

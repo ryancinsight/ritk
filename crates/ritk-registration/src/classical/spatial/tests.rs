@@ -1,11 +1,11 @@
 use super::transform::transform_point;
 use super::*;
 use crate::types::AffineTransform;
-use ndarray::Array2;
+use leto::Array2;
 
 #[test]
 fn test_kabsch_identity() {
-    let fixed = Array2::from_shape_vec((3, 3), vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).unwrap();
+    let fixed = Array2::from_vec([3, 3], vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).unwrap();
     let rotation = kabsch_algorithm(&fixed, &fixed).unwrap();
 
     let expected = [1., 0., 0., 0., 1., 0., 0., 0., 1.];

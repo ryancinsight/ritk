@@ -4,7 +4,7 @@
 //! module lives next to the code it tests without bloating the public
 //! module surface.
 
-use ndarray::Array1;
+use leto::Array1;
 
 use super::config::TemporalSyncConfig;
 use super::sync::TemporalSync;
@@ -12,7 +12,7 @@ use super::sync::TemporalSync;
 #[test]
 fn test_sync_identical_signals() {
     let sync = TemporalSync::default();
-    let signal = Array1::from_vec((0..100).map(|i| (i as f64).sin()).collect());
+    let signal = Array1::from_vec([100], (0..100).map(|i| (i as f64).sin()).collect()).unwrap();
 
     let (shift, metrics) = sync.synchronize(&signal, &signal).unwrap();
 
@@ -38,13 +38,13 @@ fn test_sync_lagged_signal() {
     let n = 100;
 
     // Create two signals with known offset (5 frames)
-    let mut signal1 = Array1::zeros(n);
-    let mut signal2 = Array1::zeros(n);
+    let mut signal1 = Array1::zeros([n]);
+    let mut signal2 = Array1::zeros([n]);
 
     for i in 0..n {
-        signal1[i] = (i as f64 * 0.1).sin();
+        *signal1.get_mut([i]).unwrap() = (i as f64 * 0.1).sin();
         if i >= 5 {
-            signal2[i] = ((i - 5) as f64 * 0.1).sin();
+            *signal2.get_mut([i]).unwrap() = ((i - 5) as f64 * 0.1).sin();
         }
     }
 
@@ -63,8 +63,8 @@ fn test_sync_lagged_signal() {
 #[test]
 fn test_sync_constant_signals() {
     let sync = TemporalSync::default();
-    let signal1 = Array1::from_elem(100, 1.0);
-    let signal2 = Array1::from_elem(100, 1.0);
+    let signal1 = Array1::from_elem([100], 1.0);
+    let signal2 = Array1::from_elem([100], 1.0);
 
     let (shift, metrics) = sync.synchronize(&signal1, &signal2).unwrap();
 
@@ -79,8 +79,8 @@ fn test_sync_constant_signals() {
 #[test]
 fn test_sync_length_mismatch() {
     let sync = TemporalSync::default();
-    let signal1 = Array1::zeros(100);
-    let signal2 = Array1::zeros(50);
+    let signal1 = Array1::zeros([100]);
+    let signal2 = Array1::zeros([50]);
 
     let result = sync.synchronize(&signal1, &signal2);
     assert!(result.is_err());
@@ -89,8 +89,8 @@ fn test_sync_length_mismatch() {
 #[test]
 fn test_sync_too_short() {
     let sync = TemporalSync::default();
-    let signal1 = Array1::zeros(2);
-    let signal2 = Array1::zeros(2);
+    let signal1 = Array1::zeros([2]);
+    let signal2 = Array1::zeros([2]);
 
     let result = sync.synchronize(&signal1, &signal2);
     assert!(result.is_err());
@@ -106,8 +106,8 @@ fn test_success_rate_thresholds() {
     let sync = TemporalSync::with_config(config);
 
     // Both signals constant - should have high stability
-    let signal1 = Array1::from_vec((0..100).map(|i| i as f64).collect());
-    let signal2 = Array1::from_vec((0..100).map(|i| i as f64).collect());
+    let signal1 = Array1::from_vec([100], (0..100).map(|i| i as f64).collect()).unwrap();
+    let signal2 = Array1::from_vec([100], (0..100).map(|i| i as f64).collect()).unwrap();
 
     let (_, metrics) = sync.synchronize(&signal1, &signal2).unwrap();
     assert!(

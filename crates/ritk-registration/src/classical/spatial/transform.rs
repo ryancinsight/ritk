@@ -1,6 +1,6 @@
 //! `SpatialTransform` variants and 4×4 homogeneous-matrix helpers.
 
-use ndarray::Array3;
+use leto::Array3;
 
 use super::error::SpatialError;
 use crate::types::AffineTransform;

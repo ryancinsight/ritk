@@ -4,7 +4,7 @@
 //! and the success-rate threshold logic live in their own bounded context,
 //! independent of the core cross-correlation synchronization algorithm.
 
-use ndarray::Array1;
+use leto::Array1;
 
 use super::config::TemporalSyncConfig;
 
@@ -37,7 +37,7 @@ pub(crate) fn compute_timing_errors(
     signal2: &Array1<f64>,
     shift_frames: f64,
 ) -> (f64, f64) {
-    let n = signal1.len();
+    let n = signal1.size();
     let mut squared_errors = 0.0;
     let mut max_deviation = 0.0;
 
@@ -47,8 +47,8 @@ pub(crate) fn compute_timing_errors(
         let nearest_idx = expected_idx.round() as isize;
 
         if nearest_idx >= 0 && nearest_idx < n as isize {
-            let s2_val = signal2[nearest_idx as usize];
-            let error = signal1[i] - s2_val;
+            let s2_val = *signal2.get([nearest_idx as usize]).expect("bounds checked");
+            let error = *signal1.get([i]).expect("bounds checked") - s2_val;
             squared_errors += error * error;
             let abs_error = error.abs();
             if abs_error > max_deviation {

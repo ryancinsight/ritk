@@ -1,4 +1,4 @@
-﻿use super::super::error::{RegistrationError, Result};
+use super::super::error::{RegistrationError, Result};
 use super::super::spatial::{
     apply_affine_perturbation, apply_transform_perturbation, build_homogeneous_matrix,
     center_points, compute_centroid, compute_fre, extract_spatial_transform,
@@ -10,8 +10,8 @@ use super::metric::MutualInformationMetric;
 use super::result::RegistrationResult;
 use crate::types::AffineTransform;
 use crate::validation::{ConvergenceStatus, RegistrationQualityMetrics, TemporalQualityMetrics};
+use leto::{Array1, Array2, Array3};
 use nalgebra::Matrix3;
-use ndarray::{Array2, Array3};
 
 /// Orchestrator for classical (non-ML) image registration algorithms.
 ///
@@ -47,12 +47,12 @@ impl ImageRegistration {
         fixed: &Array2<f64>,
         moving: &Array2<f64>,
     ) -> Result<RegistrationResult> {
-        if fixed.nrows() != moving.nrows() {
+        if fixed.shape()[0] != moving.shape()[0] {
             return Err(RegistrationError::InvalidInput(
                 "Point sets must have same number of points".to_string(),
             ));
         }
-        if fixed.ncols() != 3 || moving.ncols() != 3 {
+        if fixed.shape()[1] != 3 || moving.shape()[1] != 3 {
             return Err(RegistrationError::InvalidInput(
                 "Points must be 3D (3 columns)".to_string(),
             ));
@@ -253,8 +253,8 @@ impl ImageRegistration {
     /// Uses cross-correlation phase estimation to find optimal temporal shift.
     pub fn temporal_synchronization(
         &self,
-        signal1: &ndarray::Array1<f64>,
-        signal2: &ndarray::Array1<f64>,
+        signal1: &Array1<f64>,
+        signal2: &Array1<f64>,
     ) -> Result<(f64, TemporalQualityMetrics)> {
         use super::super::temporal::TemporalSync;
         let sync = TemporalSync::new();

@@ -7163,6 +7163,7 @@ dependencies = [
  "bytemuck",
  "criterion",
  "image 0.24.9",
+ "leto",
  "moirai",
  "nalgebra",
  "ndarray 0.16.1",

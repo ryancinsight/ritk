@@ -78,10 +78,10 @@ coeus-core = { path = "../coeus/coeus-core", version = "0.2.0" }
 coeus-tensor = { path = "../coeus/coeus-tensor", version = "0.2.0" }
 coeus-ops = { path = "../coeus/coeus-ops", version = "0.2.0" }
 coeus-leto = { path = "../coeus/coeus-leto", version = "0.2.0" }
-leto = { path = "../leto/crates/leto", version = "0.2.0" }
-leto-ops = { path = "../leto/crates/leto-ops", version = "0.2.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.2.0" }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.2.0" }
+leto = { path = "../leto/crates/leto", version = "0.35.1" }
+leto-ops = { path = "../leto/crates/leto-ops", version = "0.35.1" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.10.0" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.10.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.14.0" }
 num-complex = { version = "0.4.6", features = ["bytemuck"] }
 ndarray = { version = "0.16" }

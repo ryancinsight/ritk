@@ -1,6 +1,6 @@
 //! Mutual Information similarity metric for classical registration.
 
-use ndarray::{Array2, Array3, Axis};
+use leto::{Array2, Array3, Storage};
 
 /// Mutual Information similarity metric using histogram density estimation.
 ///
@@ -34,9 +34,9 @@ impl MutualInformationMetric {
 
     /// Compute joint histogram between two volumes.
     fn compute_joint_histogram(&self, fixed: &Array3<f64>, moving: &Array3<f64>) -> Array2<f64> {
-        let mut joint_hist = Array2::<f64>::zeros((self.num_bins, self.num_bins));
+        let mut joint_hist = Array2::<f64>::zeros([self.num_bins, self.num_bins]);
 
-        let step = std::cmp::max(1, fixed.len() / 10000);
+        let step = std::cmp::max(1, fixed.size() / 10000);
 
         // Iterate using direct iteration over the arrays
         let fixed_iter = fixed.iter().copied();
@@ -47,7 +47,9 @@ impl MutualInformationMetric {
             let m_bin = ((m_val - self.min_intensity) / self.bin_width).floor() as usize;
 
             if f_bin < self.num_bins && m_bin < self.num_bins {
-                joint_hist[[f_bin, m_bin]] += 1.0;
+                if let Ok(val) = joint_hist.get_mut([f_bin, m_bin]) {
+                    *val += 1.0;
+                }
             }
         }
 
@@ -58,19 +60,19 @@ impl MutualInformationMetric {
     /// where MI = sum p(x,y) * log(p(x,y) / (p(x) * p(y)))
     pub fn compute(&self, fixed: &Array3<f64>, moving: &Array3<f64>) -> f64 {
         let joint_hist = self.compute_joint_histogram(fixed, moving);
-        let total = joint_hist.sum();
+        let total = leto::sum_all(&joint_hist).unwrap_or(0.0);
         if total == 0.0 {
             return 0.0;
         }
 
         // Compute joint and marginal probabilities
         let p_joint = &joint_hist / total;
-        let p_x = p_joint.sum_axis(Axis(1));
-        let p_y = p_joint.sum_axis(Axis(0));
+        let p_x = leto::sum_axis::<f64, _, 2, 1>(&p_joint, 1).unwrap();
+        let p_y = leto::sum_axis::<f64, _, 2, 1>(&p_joint, 0).unwrap();
 
         // Compute entropies - pass slices for 1D arrays
-        let h_x = self.compute_entropy(p_x.as_slice().unwrap_or(&[]));
-        let h_y = self.compute_entropy(p_y.as_slice().unwrap_or(&[]));
+        let h_x = self.compute_entropy(p_x.storage().as_slice());
+        let h_y = self.compute_entropy(p_y.storage().as_slice());
         let h_xy = self.compute_joint_entropy(&p_joint);
 
         // Normalized MI

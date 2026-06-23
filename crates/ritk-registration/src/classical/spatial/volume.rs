@@ -1,6 +1,6 @@
 //! Volume warping via 4×4 homogeneous transforms (nearest-neighbour interpolation).
 
-use ndarray::Array3;
+use leto::Array3;
 
 use super::transform::transform_point;
 use crate::types::AffineTransform;
@@ -10,8 +10,11 @@ use crate::types::AffineTransform;
 /// Each output voxel (z, y, x) is filled from the nearest source voxel at
 /// `transform_point([x, y, z], transform)`, with zero padding outside bounds.
 pub fn apply_transform(volume: &Array3<f64>, transform: &AffineTransform) -> Array3<f64> {
-    let (depth, height, width) = volume.dim();
-    let mut result = Array3::zeros((depth, height, width));
+    let shape = volume.shape();
+    let depth = shape[0];
+    let height = shape[1];
+    let width = shape[2];
+    let mut result = Array3::zeros([depth, height, width]);
 
     for z in 0..depth {
         for y in 0..height {
@@ -28,7 +31,8 @@ pub fn apply_transform(volume: &Array3<f64>, transform: &AffineTransform) -> Arr
                     && sz >= 0
                     && sz < depth as isize
                 {
-                    result[[z, y, x]] = volume[[sz as usize, sy as usize, sx as usize]];
+                    let val = *volume.get([sz as usize, sy as usize, sx as usize]).unwrap();
+                    *result.get_mut([z, y, x]).unwrap() = val;
                 }
             }
         }

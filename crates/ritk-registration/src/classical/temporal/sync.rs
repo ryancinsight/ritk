@@ -23,7 +23,7 @@
 //! - Fowler, J., et al. (2010). Cross-correlation-based image alignment for
 //!   medical imaging. *IEEE Trans. Med. Imaging* 29(3): 597-606.
 
-use ndarray::Array1;
+use leto::Array1;
 
 use super::super::error::{RegistrationError, Result};
 use super::config::TemporalSyncConfig;
@@ -72,13 +72,13 @@ impl TemporalSync {
         signal1: &Array1<f64>,
         signal2: &Array1<f64>,
     ) -> Result<(f64, TemporalQualityMetrics)> {
-        if signal1.len() != signal2.len() {
+        if signal1.size() != signal2.size() {
             return Err(RegistrationError::InvalidInput(
                 "Signals must have equal length".to_string(),
             ));
         }
 
-        if signal1.len() < 3 {
+        if signal1.size() < 3 {
             return Err(RegistrationError::InvalidInput(
                 "Signals must have at least 3 samples".to_string(),
             ));
@@ -88,19 +88,19 @@ impl TemporalSync {
         // Constant signals have zero variance; normalized cross-correlation is
         // undefined.  Treat two identical constants as perfectly synchronized.
         let variance1: f64 = {
-            let n = signal1.len() as f64;
-            let mean = signal1.sum() / n;
+            let n = signal1.size() as f64;
+            let mean = leto::sum_all(signal1).unwrap_or(0.0) / n;
             signal1.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / n
         };
         let variance2: f64 = {
-            let n = signal2.len() as f64;
-            let mean = signal2.sum() / n;
+            let n = signal2.size() as f64;
+            let mean = leto::sum_all(signal2).unwrap_or(0.0) / n;
             signal2.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / n
         };
         if variance1 < SIGNAL_VARIANCE_GUARD && variance2 < SIGNAL_VARIANCE_GUARD {
             // Both constant: synchronization is trivially zero shift.
             // Success = 1.0 iff both are the same constant value.
-            let identical = (signal1[0] - signal2[0]).abs() < SIGNAL_VARIANCE_GUARD;
+            let identical = (*signal1.get([0]).unwrap_or(&0.0) - *signal2.get([0]).unwrap_or(&0.0)).abs() < SIGNAL_VARIANCE_GUARD;
             let rate = if identical { 1.0 } else { 0.0 };
             return Ok((
                 0.0,
@@ -129,20 +129,20 @@ impl TemporalSync {
             })?;
 
         // Parabolic sub-sample refinement around peak
-        let shift_frames = if peak_idx > 0 && peak_idx < correlations.len() - 1 {
-            let r_m1 = correlations[peak_idx - 1];
-            let r_0 = correlations[peak_idx];
-            let r_p1 = correlations[peak_idx + 1];
+        let shift_frames = if peak_idx > 0 && peak_idx < correlations.size() - 1 {
+            let r_m1 = *correlations.get([peak_idx - 1]).unwrap();
+            let r_0 = *correlations.get([peak_idx]).unwrap();
+            let r_p1 = *correlations.get([peak_idx + 1]).unwrap();
 
             let denom = r_m1 - 2.0 * r_0 + r_p1;
             if denom.abs() > SIGNAL_VARIANCE_GUARD {
                 let delta = (r_m1 - r_p1) / (2.0 * denom);
-                lags[peak_idx] as f64 + delta
+                (*lags.get([peak_idx]).unwrap() as f64) + delta
             } else {
-                lags[peak_idx] as f64
+                *lags.get([peak_idx]).unwrap() as f64
             }
         } else {
-            lags[peak_idx] as f64
+            *lags.get([peak_idx]).unwrap() as f64
         };
 
         let shift_seconds = shift_frames * self.config.frame_spacing;
@@ -153,7 +153,7 @@ impl TemporalSync {
         // Phase lock stability: the peak normalized cross-correlation value.
         // For perfectly identical non-constant signals this equals 1.0.
         // For partially correlated signals it falls in [0, 1).
-        let stability = correlations[peak_idx].max(0.0);
+        let stability = (*correlations.get([peak_idx]).unwrap()).max(0.0);
 
         // Success rate based on stability and deviation thresholds (delegated)
         let sync_success_rate = compute_success_rate(stability, max_deviation, &self.config);
@@ -174,7 +174,7 @@ impl TemporalSync {
         signal1: &Array1<f64>,
         signal2: &Array1<f64>,
     ) -> (Array1<i32>, Array1<f64>) {
-        let n = signal1.len();
+        let n = signal1.size();
         let search = self.config.search_range.min(n / 2);
 
         let mut lags = Vec::with_capacity(2 * search + 1);
@@ -193,25 +193,30 @@ impl TemporalSync {
             correlations.push(corr);
         }
 
-        (Array1::from(lags), Array1::from(correlations))
+        let lags_len = lags.len();
+        let corr_len = correlations.len();
+        (
+            Array1::from_vec([lags_len], lags).unwrap(),
+            Array1::from_vec([corr_len], correlations).unwrap(),
+        )
     }
 
     /// Compute normalized cross-correlation between two signals.
     ///
     /// R = Σ(S1 - μ1)(S2 - μ2) / (N · σ1 · σ2)
     fn compute_normalized_correlation(&self, s1: &Array1<f64>, s2: &Array1<f64>) -> f64 {
-        let n = s1.len() as f64;
+        let n = s1.size() as f64;
 
-        let mean1 = s1.sum() / n;
-        let mean2 = s2.sum() / n;
+        let mean1 = leto::sum_all(s1).unwrap_or(0.0) / n;
+        let mean2 = leto::sum_all(s2).unwrap_or(0.0) / n;
 
         let mut cov = 0.0;
         let mut var1 = 0.0;
         let mut var2 = 0.0;
 
-        for i in 0..s1.len() {
-            let d1 = s1[i] - mean1;
-            let d2 = s2[i] - mean2;
+        for i in 0..s1.size() {
+            let d1 = *s1.get([i]).unwrap() - mean1;
+            let d2 = *s2.get([i]).unwrap() - mean2;
             cov += d1 * d2;
             var1 += d1 * d1;
             var2 += d2 * d2;
@@ -227,7 +232,7 @@ impl TemporalSync {
 
     /// Compute normalized cross-correlation with a temporal lag.
     fn compute_lagged_correlation(&self, s1: &Array1<f64>, s2: &Array1<f64>, lag: usize) -> f64 {
-        let n = s1.len() - lag;
+        let n = s1.size() - lag;
         if n == 0 {
             return 0.0;
         }
@@ -238,8 +243,8 @@ impl TemporalSync {
         let mut sum1 = 0.0;
         let mut sum2 = 0.0;
         for i in 0..n {
-            sum1 += s1[i];
-            sum2 += s2[i + lag];
+            sum1 += *s1.get([i]).unwrap();
+            sum2 += *s2.get([i + lag]).unwrap();
         }
         let mean1 = sum1 / n_f;
         let mean2 = sum2 / n_f;
@@ -249,8 +254,8 @@ impl TemporalSync {
         let mut var1 = 0.0;
         let mut var2 = 0.0;
         for i in 0..n {
-            let d1 = s1[i] - mean1;
-            let d2 = s2[i + lag] - mean2;
+            let d1 = *s1.get([i]).unwrap() - mean1;
+            let d2 = *s2.get([i + lag]).unwrap() - mean2;
             cov += d1 * d2;
             var1 += d1 * d1;
             var2 += d2 * d2;
