@@ -20,7 +20,7 @@ use super::helpers::{
     place_corner, run_fft,
 };
 use crate::fft::convolution::{ForwardFft, InverseFft};
-use rustfft::{num_complex::Complex, FftPlanner};
+use num_complex::Complex;
 
 /// Default convergence tolerance for iterative deconvolution algorithms.
 pub(crate) const DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6;
@@ -272,7 +272,6 @@ pub struct DeconvolutionScratch<const D: usize> {
     img_pad: Vec<Complex<f32>>,
     ker_fft: Vec<Complex<f32>>,
     ker_rev_fft: Vec<Complex<f32>>,
-    planner: FftPlanner<f32>,
     pub(super) forward: Vec<f32>,
     pub(super) correction: Vec<f32>,
     pub(super) residual: Vec<f32>,
@@ -290,7 +289,6 @@ impl<const D: usize> DeconvolutionScratch<D> {
             img_pad: Vec::new(),
             ker_fft: Vec::new(),
             ker_rev_fft: Vec::new(),
-            planner: FftPlanner::new(),
             forward: Vec::new(),
             correction: Vec::new(),
             residual: Vec::new(),
@@ -327,13 +325,13 @@ impl<const D: usize> DeconvolutionScratch<D> {
         // Precompute ker_fft
         self.img_pad.fill(Complex::new(0.0, 0.0));
         place_corner::<D>(&mut self.img_pad, ker_vals, &self.ker_dims, &self.pad_dims);
-        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
         self.ker_fft.copy_from_slice(&self.img_pad);
 
         // Precompute ker_rev_fft
         self.img_pad.fill(Complex::new(0.0, 0.0));
         place_corner::<D>(&mut self.img_pad, ker_rev, &self.ker_dims, &self.pad_dims);
-        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
         self.ker_rev_fft.copy_from_slice(&self.img_pad);
     }
 
@@ -344,13 +342,13 @@ impl<const D: usize> DeconvolutionScratch<D> {
         self.img_pad.fill(Complex::new(0.0, 0.0));
         place_corner::<D>(&mut self.img_pad, image, &self.img_dims, &self.pad_dims);
 
-        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
 
         for (a, &b) in self.img_pad.iter_mut().zip(self.ker_fft.iter()) {
             *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
-        run_fft::<D, InverseFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        run_fft::<D, InverseFft>(&mut self.img_pad, &self.pad_dims);
 
         let scale = 1.0_f32 / self.pad_n as f32;
         for (flat, r) in self.forward.iter_mut().enumerate() {
@@ -368,13 +366,13 @@ impl<const D: usize> DeconvolutionScratch<D> {
         self.img_pad.fill(Complex::new(0.0, 0.0));
         place_corner::<D>(&mut self.img_pad, &self.residual, &self.img_dims, &self.pad_dims);
 
-        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
 
         for (a, &b) in self.img_pad.iter_mut().zip(self.ker_rev_fft.iter()) {
             *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
-        run_fft::<D, InverseFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        run_fft::<D, InverseFft>(&mut self.img_pad, &self.pad_dims);
 
         let scale = 1.0_f32 / self.pad_n as f32;
         for (flat, r) in self.correction.iter_mut().enumerate() {
@@ -392,13 +390,13 @@ impl<const D: usize> DeconvolutionScratch<D> {
         self.img_pad.fill(Complex::new(0.0, 0.0));
         place_corner::<D>(&mut self.img_pad, &self.ratio, &self.img_dims, &self.pad_dims);
 
-        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
 
         for (a, &b) in self.img_pad.iter_mut().zip(self.ker_rev_fft.iter()) {
             *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
-        run_fft::<D, InverseFft>(&mut self.img_pad, &self.pad_dims, &mut self.planner);
+        run_fft::<D, InverseFft>(&mut self.img_pad, &self.pad_dims);
 
         let scale = 1.0_f32 / self.pad_n as f32;
         for (flat, r) in self.correction.iter_mut().enumerate() {

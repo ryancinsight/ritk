@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use rustfft::num_complex::Complex;
+use num_complex::Complex;
 use std::marker::PhantomData;
 
 // ── FftConvolution3DFilter ────────────────────────────────────────────────────
@@ -151,9 +151,8 @@ impl<B: Backend> FftConvolution3DFilter<B> {
             }
         }
 
-        let mut planner = rustfft::FftPlanner::<f32>::new();
-        fft3d::<ForwardFft>(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner);
-        fft3d::<ForwardFft>(&mut ker_buf, pad_d, pad_h, pad_w, &mut planner);
+        fft3d::<ForwardFft>(&mut vol_buf, pad_d, pad_h, pad_w);
+        fft3d::<ForwardFft>(&mut ker_buf, pad_d, pad_h, pad_w);
 
         // Point-wise complex multiply: vol_buf[i] *= ker_buf[i].
         // (a + bi)(c + di) = (ac − bd) + (ad + bc)i
@@ -163,7 +162,7 @@ impl<B: Backend> FftConvolution3DFilter<B> {
             vol_buf[i] = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
-        fft3d::<InverseFft>(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner);
+        fft3d::<InverseFft>(&mut vol_buf, pad_d, pad_h, pad_w);
 
         // Normalize by 1/pad_n and extract "same" window at
         // (⌊KD/2⌋, ⌊KH/2⌋, ⌊KW/2⌋).

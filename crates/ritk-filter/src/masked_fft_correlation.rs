@@ -33,8 +33,7 @@ use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
-use rustfft::num_complex::Complex;
-use rustfft::FftPlanner;
+use num_complex::Complex;
 
 use crate::fft::convolution::{fft_nd, ForwardFft, InverseFft};
 
@@ -69,8 +68,8 @@ fn pad(src: &[f32], sdims: [usize; 3], dims: [usize; 3], rotate: bool) -> Vec<Co
     buf
 }
 
-fn fwd(mut buf: Vec<Complex<f32>>, dims: [usize; 3], p: &mut FftPlanner<f32>) -> Vec<Complex<f32>> {
-    fft_nd::<3, ForwardFft>(&mut buf, &dims, p);
+fn fwd(mut buf: Vec<Complex<f32>>, dims: [usize; 3]) -> Vec<Complex<f32>> {
+    fft_nd::<3, ForwardFft>(&mut buf, &dims);
     buf
 }
 
@@ -80,11 +79,10 @@ fn corr(
     a: &[Complex<f32>],
     b: &[Complex<f32>],
     dims: [usize; 3],
-    p: &mut FftPlanner<f32>,
 ) -> Vec<f32> {
     let n = (dims[0] * dims[1] * dims[2]) as f32;
     let mut prod: Vec<Complex<f32>> = a.iter().zip(b).map(|(x, y)| x * y).collect();
-    fft_nd::<3, InverseFft>(&mut prod, &dims, p);
+    fft_nd::<3, InverseFft>(&mut prod, &dims);
     prod.iter().map(|c| c.re / n).collect()
 }
 
@@ -117,24 +115,22 @@ impl MaskedFftNormalizedCorrelationFilter {
         let tm: Vec<f32> = t.iter().zip(&mt).map(|(a, b)| a * b).collect();
         let t2m: Vec<f32> = t.iter().zip(&mt).map(|(a, b)| a * a * b).collect();
 
-        let mut planner = FftPlanner::<f32>::new();
-        let p = &mut planner;
-        let f_fft = fwd(pad(&fm, fd, dims, false), dims, p);
-        let mf_fft = fwd(pad(&mf, fd, dims, false), dims, p);
-        let f2_fft = fwd(pad(&f2m, fd, dims, false), dims, p);
-        let t_fft = fwd(pad(&tm, td, dims, true), dims, p);
-        let mt_fft = fwd(pad(&mt, td, dims, true), dims, p);
-        let t2_fft = fwd(pad(&t2m, td, dims, true), dims, p);
+        let f_fft = fwd(pad(&fm, fd, dims, false), dims);
+        let mf_fft = fwd(pad(&mf, fd, dims, false), dims);
+        let f2_fft = fwd(pad(&f2m, fd, dims, false), dims);
+        let t_fft = fwd(pad(&tm, td, dims, true), dims);
+        let mt_fft = fwd(pad(&mt, td, dims, true), dims);
+        let t2_fft = fwd(pad(&t2m, td, dims, true), dims);
 
-        let overlap: Vec<f32> = corr(&mt_fft, &mf_fft, dims, p)
+        let overlap: Vec<f32> = corr(&mt_fft, &mf_fft, dims)
             .iter()
             .map(|v| v.round().max(0.0))
             .collect();
-        let mask_corr_f = corr(&f_fft, &mt_fft, dims, p);
-        let mask_corr_m = corr(&t_fft, &mf_fft, dims, p);
-        let corr_ft = corr(&f_fft, &t_fft, dims, p);
-        let fixed_dc = corr(&f2_fft, &mt_fft, dims, p);
-        let moving_dc = corr(&mf_fft, &t2_fft, dims, p);
+        let mask_corr_f = corr(&f_fft, &mt_fft, dims);
+        let mask_corr_m = corr(&t_fft, &mf_fft, dims);
+        let corr_ft = corr(&f_fft, &t_fft, dims);
+        let fixed_dc = corr(&f2_fft, &mt_fft, dims);
+        let moving_dc = corr(&mf_fft, &t2_fft, dims);
 
         let overlap_ref = &overlap;
         let corr_ft_ref = &corr_ft;

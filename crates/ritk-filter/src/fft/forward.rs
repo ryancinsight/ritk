@@ -29,7 +29,7 @@ use anyhow::Result;
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use rustfft::{num_complex::Complex, FftPlanner};
+use num_complex::Complex;
 
 /// Forward Fast Fourier Transform filter.
 ///
@@ -71,8 +71,7 @@ impl ForwardFftFilter {
         let (vals, _) = extract_vec(image)?;
 
         let mut buf: Vec<Complex<f32>> = vals.into_iter().map(|v| Complex::new(v, 0.0)).collect();
-        let mut planner = FftPlanner::<f32>::new();
-        fft_nd::<D, ForwardFft>(&mut buf, &dims, &mut planner);
+        fft_nd::<D, ForwardFft>(&mut buf, &dims);
 
         // Interleave (Re, Im) pairs into a flat output buffer.
         // The last spatial dimension W becomes 2*W in output.

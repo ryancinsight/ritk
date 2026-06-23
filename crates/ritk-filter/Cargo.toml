@@ -17,7 +17,8 @@ ritk-interpolation = { path = "../ritk-interpolation" }
 ritk-transform = { path = "../ritk-transform" }
 anyhow = { workspace = true }
 nalgebra = { workspace = true }
-rustfft = { workspace = true }
+apollo-fft = { workspace = true }
+num-complex = { workspace = true }
 gaia = { workspace = true }
 rand = { workspace = true }
 moirai = { workspace = true }

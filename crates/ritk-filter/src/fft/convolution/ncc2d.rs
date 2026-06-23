@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use rustfft::num_complex::Complex;
+use num_complex::Complex;
 use std::marker::PhantomData;
 
 /// Minimum NCC denominator; below this the correlation output is clamped to 0.
@@ -109,11 +109,10 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
             }
         }
 
-        let mut planner = rustfft::FftPlanner::<f32>::new();
-        fft2d::<ForwardFft>(&mut img_buf, pad_r, pad_c, &mut planner);
-        fft2d::<ForwardFft>(&mut img2_buf, pad_r, pad_c, &mut planner);
-        fft2d::<ForwardFft>(&mut tmpl_buf, pad_r, pad_c, &mut planner);
-        fft2d::<ForwardFft>(&mut box_buf, pad_r, pad_c, &mut planner);
+        fft2d::<ForwardFft>(&mut img_buf, pad_r, pad_c);
+        fft2d::<ForwardFft>(&mut img2_buf, pad_r, pad_c);
+        fft2d::<ForwardFft>(&mut tmpl_buf, pad_r, pad_c);
+        fft2d::<ForwardFft>(&mut box_buf, pad_r, pad_c);
 
         // Three correlations share the image/template/box spectra. Correlation
         // multiplies by the conjugate of the kernel spectrum:
@@ -129,9 +128,9 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
             sum_buf[i] = corr(img_buf[i], box_buf[i]);
             sumsq_buf[i] = corr(img2_buf[i], box_buf[i]);
         }
-        fft2d::<InverseFft>(&mut num_buf, pad_r, pad_c, &mut planner);
-        fft2d::<InverseFft>(&mut sum_buf, pad_r, pad_c, &mut planner);
-        fft2d::<InverseFft>(&mut sumsq_buf, pad_r, pad_c, &mut planner);
+        fft2d::<InverseFft>(&mut num_buf, pad_r, pad_c);
+        fft2d::<InverseFft>(&mut sum_buf, pad_r, pad_c);
+        fft2d::<InverseFft>(&mut sumsq_buf, pad_r, pad_c);
 
         // rustfft's inverse is unnormalized; divide each correlation by pad_n.
         let inv_pad = 1.0_f32 / pad_n as f32;

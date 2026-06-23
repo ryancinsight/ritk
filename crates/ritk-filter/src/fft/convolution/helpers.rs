@@ -1,5 +1,6 @@
-use rustfft::num_complex::Complex;
-use rustfft::FftPlanner;
+use num_complex::Complex;
+use apollo_fft::FftPlan1D;
+use apollo_fft::domain::metadata::shape::Shape1D;
 
 // ── ZST FFT direction strategy ──────────────────────────────────────────────
 
@@ -10,7 +11,10 @@ use rustfft::FftPlanner;
 /// eliminated — zero runtime overhead versus a hand-written variant.
 pub trait FftDirection: Default {
     /// Create an FFT plan for the given transform length.
-    fn plan(planner: &mut FftPlanner<f32>, len: usize) -> std::sync::Arc<dyn rustfft::Fft<f32>>;
+    fn plan(len: usize) -> FftPlan1D<f32>;
+
+    /// Process the slice in-place.
+    fn process(plan: &FftPlan1D<f32>, slice: &mut [Complex<f32>]);
 }
 
 /// Forward FFT direction: spatial → frequency domain.
@@ -19,8 +23,13 @@ pub struct ForwardFft;
 
 impl FftDirection for ForwardFft {
     #[inline]
-    fn plan(planner: &mut FftPlanner<f32>, len: usize) -> std::sync::Arc<dyn rustfft::Fft<f32>> {
-        planner.plan_fft_forward(len)
+    fn plan(len: usize) -> FftPlan1D<f32> {
+        FftPlan1D::<f32>::new(Shape1D::new(len).expect("FFT length must be > 0"))
+    }
+
+    #[inline]
+    fn process(plan: &FftPlan1D<f32>, slice: &mut [Complex<f32>]) {
+        plan.forward_complex_slice_inplace(slice);
     }
 }
 
@@ -30,8 +39,13 @@ pub struct InverseFft;
 
 impl FftDirection for InverseFft {
     #[inline]
-    fn plan(planner: &mut FftPlanner<f32>, len: usize) -> std::sync::Arc<dyn rustfft::Fft<f32>> {
-        planner.plan_fft_inverse(len)
+    fn plan(len: usize) -> FftPlan1D<f32> {
+        FftPlan1D::<f32>::new(Shape1D::new(len).expect("FFT length must be > 0"))
+    }
+
+    #[inline]
+    fn process(plan: &FftPlan1D<f32>, slice: &mut [Complex<f32>]) {
+        plan.inverse_complex_slice_unnorm_inplace(slice);
     }
 }
 
@@ -44,11 +58,10 @@ impl FftDirection for InverseFft {
 pub fn fft_nd<const D: usize, Dir: FftDirection>(
     buf: &mut [Complex<f32>],
     dims: &[usize; D],
-    planner: &mut FftPlanner<f32>,
 ) {
     match D {
-        2 => fft2d::<Dir>(buf, dims[0], dims[1], planner),
-        3 => fft3d::<Dir>(buf, dims[0], dims[1], dims[2], planner),
+        2 => fft2d::<Dir>(buf, dims[0], dims[1]),
+        3 => fft3d::<Dir>(buf, dims[0], dims[1], dims[2]),
         _ => panic!("fft_nd: only D=2 and D=3 are supported, got D={D}"),
     }
 }
@@ -59,21 +72,17 @@ pub fn fft_nd<const D: usize, Dir: FftDirection>(
 /// Pass 1: 1-D transform along each row (transform length = `cols`).
 /// Pass 2: 1-D transform along each column via a scratch column buffer
 /// (transform length = `rows`).
-///
-/// `rustfft`'s `process` method performs the transform in-place and allocates
-/// scratch space internally.
 pub fn fft2d<Dir: FftDirection>(
     buf: &mut [Complex<f32>],
     rows: usize,
     cols: usize,
-    planner: &mut FftPlanner<f32>,
 ) {
-    let row_fft = Dir::plan(planner, cols);
-    let col_fft = Dir::plan(planner, rows);
+    let row_fft = Dir::plan(cols);
+    let col_fft = Dir::plan(rows);
 
     // Row-wise pass.
     for r in 0..rows {
-        row_fft.process(&mut buf[r * cols..(r + 1) * cols]);
+        Dir::process(&row_fft, &mut buf[r * cols..(r + 1) * cols]);
     }
 
     // Column-wise pass via scratch buffer.
@@ -82,7 +91,7 @@ pub fn fft2d<Dir: FftDirection>(
         for r in 0..rows {
             col_buf[r] = buf[r * cols + c];
         }
-        col_fft.process(&mut col_buf);
+        Dir::process(&col_fft, &mut col_buf);
         for r in 0..rows {
             buf[r * cols + c] = col_buf[r];
         }
@@ -95,26 +104,22 @@ pub fn fft2d<Dir: FftDirection>(
 /// Pass 1: 1-D transform along each row (transform length = `cols`).
 /// Pass 2: 1-D transform along each column (transform length = `rows`).
 /// Pass 3: 1-D transform along the depth axis (transform length = `depth`).
-///
-/// `rustfft`'s `process` method performs the transform in-place and allocates
-/// scratch space internally.
 pub fn fft3d<Dir: FftDirection>(
     buf: &mut [Complex<f32>],
     depth: usize,
     rows: usize,
     cols: usize,
-    planner: &mut FftPlanner<f32>,
 ) {
-    let row_fft = Dir::plan(planner, cols);
-    let col_fft = Dir::plan(planner, rows);
-    let depth_fft = Dir::plan(planner, depth);
+    let row_fft = Dir::plan(cols);
+    let col_fft = Dir::plan(rows);
+    let depth_fft = Dir::plan(depth);
 
     let slice = rows * cols;
 
     // Row-wise pass: for each (depth, row), transform along cols.
     for d in 0..depth {
         for r in 0..rows {
-            row_fft.process(&mut buf[d * slice + r * cols..d * slice + (r + 1) * cols]);
+            Dir::process(&row_fft, &mut buf[d * slice + r * cols..d * slice + (r + 1) * cols]);
         }
     }
 
@@ -125,7 +130,7 @@ pub fn fft3d<Dir: FftDirection>(
             for r in 0..rows {
                 col_buf[r] = buf[d * slice + r * cols + c];
             }
-            col_fft.process(&mut col_buf);
+            Dir::process(&col_fft, &mut col_buf);
             for r in 0..rows {
                 buf[d * slice + r * cols + c] = col_buf[r];
             }
@@ -139,7 +144,7 @@ pub fn fft3d<Dir: FftDirection>(
             for d in 0..depth {
                 depth_buf[d] = buf[d * slice + r * cols + c];
             }
-            depth_fft.process(&mut depth_buf);
+            Dir::process(&depth_fft, &mut depth_buf);
             for d in 0..depth {
                 buf[d * slice + r * cols + c] = depth_buf[d];
             }

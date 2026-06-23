@@ -40,7 +40,7 @@ use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use rustfft::{num_complex::Complex, FftPlanner};
+use num_complex::Complex;
 
 // ── Struct ────────────────────────────────────────────────────────────────────
 
@@ -133,8 +133,7 @@ impl InverseFftFilter {
             }
         }
 
-        let mut planner = FftPlanner::<f32>::new();
-        fft_nd::<D, InverseFft>(&mut buf, &out_dims, &mut planner);
+        fft_nd::<D, InverseFft>(&mut buf, &out_dims);
 
         // Normalize after all IFFT passes.
         // rustfft's IFFT is unnormalized; the factor 1/N accounts for

@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use rustfft::num_complex::Complex;
+use num_complex::Complex;
 use std::marker::PhantomData;
 
 /// Minimum NCC denominator; below this the correlation output is clamped to 0.
@@ -120,11 +120,10 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
             }
         }
 
-        let mut planner = rustfft::FftPlanner::<f32>::new();
-        fft3d::<ForwardFft>(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner);
-        fft3d::<ForwardFft>(&mut vol2_buf, pad_d, pad_h, pad_w, &mut planner);
-        fft3d::<ForwardFft>(&mut tmpl_buf, pad_d, pad_h, pad_w, &mut planner);
-        fft3d::<ForwardFft>(&mut box_buf, pad_d, pad_h, pad_w, &mut planner);
+        fft3d::<ForwardFft>(&mut vol_buf, pad_d, pad_h, pad_w);
+        fft3d::<ForwardFft>(&mut vol2_buf, pad_d, pad_h, pad_w);
+        fft3d::<ForwardFft>(&mut tmpl_buf, pad_d, pad_h, pad_w);
+        fft3d::<ForwardFft>(&mut box_buf, pad_d, pad_h, pad_w);
 
         // Correlation multiplies by the conjugate of the kernel spectrum:
         // (a + bi)·conj(c + di) = (ac + bd) + (bc − ad)i.
@@ -139,9 +138,9 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
             sum_buf[i] = corr(vol_buf[i], box_buf[i]);
             sumsq_buf[i] = corr(vol2_buf[i], box_buf[i]);
         }
-        fft3d::<InverseFft>(&mut num_buf, pad_d, pad_h, pad_w, &mut planner);
-        fft3d::<InverseFft>(&mut sum_buf, pad_d, pad_h, pad_w, &mut planner);
-        fft3d::<InverseFft>(&mut sumsq_buf, pad_d, pad_h, pad_w, &mut planner);
+        fft3d::<InverseFft>(&mut num_buf, pad_d, pad_h, pad_w);
+        fft3d::<InverseFft>(&mut sum_buf, pad_d, pad_h, pad_w);
+        fft3d::<InverseFft>(&mut sumsq_buf, pad_d, pad_h, pad_w);
 
         // rustfft's inverse is unnormalized; divide each correlation by pad_n.
         let inv_pad = 1.0_f32 / pad_n as f32;

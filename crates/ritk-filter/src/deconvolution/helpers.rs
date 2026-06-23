@@ -8,7 +8,7 @@
 //! and crop logic is shared across all supported dimensionalities.
 
 use crate::fft::convolution::{fft_nd, ForwardFft, InverseFft};
-use rustfft::{num_complex::Complex, FftPlanner};
+use num_complex::Complex;
 
 // ── Padding & FFT ───────────────────────────────────────────────────────────
 
@@ -116,9 +116,8 @@ pub(super) fn place_centered<const D: usize>(
 pub(super) fn run_fft<const D: usize, Dir: crate::fft::convolution::FftDirection>(
     buf: &mut [Complex<f32>],
     pad: &[usize; D],
-    planner: &mut FftPlanner<f32>,
 ) {
-    fft_nd::<D, Dir>(buf, pad, planner);
+    fft_nd::<D, Dir>(buf, pad);
 }
 
 /// Pad two real-valued arrays into complex buffers, execute forward FFT on both.
@@ -140,9 +139,8 @@ pub(super) fn pad_and_fft<const D: usize>(
     let mut ker_padded = vec![Complex::new(0.0_f32, 0.0); pad_n];
     place_centered::<D>(&mut ker_padded, ker_vals, ker_dims, pad);
 
-    let mut planner = FftPlanner::<f32>::new();
-    run_fft::<D, ForwardFft>(&mut img_padded, pad, &mut planner);
-    run_fft::<D, ForwardFft>(&mut ker_padded, pad, &mut planner);
+    run_fft::<D, ForwardFft>(&mut img_padded, pad);
+    run_fft::<D, ForwardFft>(&mut ker_padded, pad);
 
     (img_padded, ker_padded)
 }
@@ -159,8 +157,7 @@ pub(super) fn ifft_and_crop<const D: usize>(
     pad_n: usize,
     crop_offset: &[usize; D],
 ) -> Vec<f32> {
-    let mut planner = FftPlanner::<f32>::new();
-    run_fft::<D, InverseFft>(buf, pad, &mut planner);
+    run_fft::<D, InverseFft>(buf, pad);
 
     let scale = 1.0_f32 / pad_n as f32;
     let out_n: usize = out_dims.iter().product();
@@ -204,16 +201,15 @@ pub(super) fn convolve<const D: usize>(
     let mut ker_pad = vec![Complex::new(0.0_f32, 0.0); pad_n];
     place_corner::<D>(&mut ker_pad, kernel, ker_dims, &pad);
 
-    let mut planner = FftPlanner::<f32>::new();
-    run_fft::<D, ForwardFft>(&mut img_pad, &pad, &mut planner);
-    run_fft::<D, ForwardFft>(&mut ker_pad, &pad, &mut planner);
+    run_fft::<D, ForwardFft>(&mut img_pad, &pad);
+    run_fft::<D, ForwardFft>(&mut ker_pad, &pad);
 
     // Pointwise multiplication in frequency domain
     for (a, b) in img_pad.iter_mut().zip(ker_pad.iter()) {
         *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
     }
 
-    run_fft::<D, InverseFft>(&mut img_pad, &pad, &mut planner);
+    run_fft::<D, InverseFft>(&mut img_pad, &pad);
 
     // Crop to "same" size with center offset for convolution alignment
     let scale = 1.0_f32 / pad_n as f32;

@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use rustfft::num_complex::Complex;
+use num_complex::Complex;
 use std::marker::PhantomData;
 
 // ── FftConvolutionFilter ───────────────────────────────────────────────────────
@@ -117,9 +117,8 @@ impl<B: Backend> FftConvolutionFilter<B> {
             }
         }
 
-        let mut planner = rustfft::FftPlanner::<f32>::new();
-        fft2d::<ForwardFft>(&mut img_buf, pad_r, pad_c, &mut planner);
-        fft2d::<ForwardFft>(&mut ker_buf, pad_r, pad_c, &mut planner);
+        fft2d::<ForwardFft>(&mut img_buf, pad_r, pad_c);
+        fft2d::<ForwardFft>(&mut ker_buf, pad_r, pad_c);
 
         // Point-wise complex multiply: img_buf[i] *= ker_buf[i].
         // (a + bi)(c + di) = (ac − bd) + (ad + bc)i
@@ -129,7 +128,7 @@ impl<B: Backend> FftConvolutionFilter<B> {
             img_buf[i] = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
-        fft2d::<InverseFft>(&mut img_buf, pad_r, pad_c, &mut planner);
+        fft2d::<InverseFft>(&mut img_buf, pad_r, pad_c);
 
         // Normalize by 1/pad_n and extract "same" window at (⌊kr/2⌋, ⌊kc/2⌋).
         let scale = 1.0_f32 / pad_n as f32;
