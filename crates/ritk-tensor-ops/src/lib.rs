@@ -228,3 +228,7 @@ where
 #[cfg(test)]
 #[path = "tests_tensor_ops.rs"]
 mod tests;
+
+#[cfg(test)]
+mod tests_coeus;
+

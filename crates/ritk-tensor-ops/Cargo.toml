@@ -4,12 +4,20 @@ version = "0.1.0"
 edition = "2021"
 description = "Shared tensor extract/rebuild helpers — bridges burn::Tensor ↔ flat Vec<f32> for CPU-side filter and statistics paths"
 
+[features]
+default = []
+coeus = ["dep:coeus-core", "dep:coeus-tensor", "dep:coeus-leto", "dep:coeus-ops"]
+
 [dependencies]
 burn = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-spatial = { path = "../ritk-spatial" }
 anyhow = { workspace = true }
 num-traits = { workspace = true }
+coeus-core = { workspace = true, optional = true }
+coeus-tensor = { workspace = true, optional = true }
+coeus-ops = { workspace = true, optional = true }
+coeus-leto = { workspace = true, optional = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }
