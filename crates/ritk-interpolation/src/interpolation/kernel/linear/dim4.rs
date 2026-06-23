@@ -8,38 +8,9 @@
 //! file supplies only the gather + quadrilinear lerp cascade body
 //! with the inline `B::ad_enabled()` const-generic dispatch.
 
-use burn::tensor::{backend::Backend, Int, Tensor};
+use burn::tensor::Tensor;
 
-/// 4-D gather with borrowed coordinates — used by the autodiff path.
-#[inline]
-fn gather_4d<B: Backend>(
-    flat_data: &Tensor<B, 1>,
-    xi: &Tensor<B, 1, Int>,
-    yi: &Tensor<B, 1, Int>,
-    zi: &Tensor<B, 1, Int>,
-    wi: &Tensor<B, 1, Int>,
-    strides: [i32; 3],
-) -> Tensor<B, 1> {
-    let [stride_y, stride_z, stride_w] = strides;
-    let idx = wi.clone() * stride_w + zi.clone() * stride_z + yi.clone() * stride_y + xi.clone();
-    flat_data.clone().gather(0, idx)
-}
 
-/// 4-D gather consuming the coordinate tensors — used by the non-autodiff
-/// fast path.
-#[inline]
-fn gather_4d_owned<B: Backend>(
-    flat_data: &Tensor<B, 1>,
-    xi: Tensor<B, 1, Int>,
-    yi: Tensor<B, 1, Int>,
-    zi: Tensor<B, 1, Int>,
-    wi: Tensor<B, 1, Int>,
-    strides: [i32; 3],
-) -> Tensor<B, 1> {
-    let [stride_y, stride_z, stride_w] = strides;
-    let idx = wi * stride_w + zi * stride_z + yi * stride_y + xi;
-    flat_data.clone().gather(0, idx)
-}
 
 ritk_macros::interp_dim_template!(
     4,
@@ -60,6 +31,7 @@ ritk_macros::interp_dim_template!(
         let flat_data = data.clone().reshape([d0 * d1 * d2 * d3]);
 
         // ── Const-generic dispatch (Sprint 355) ────────────────────────
+        let [stride_y, stride_z, stride_w] = strides;
         let (
             v0000,
             v0001,
@@ -78,147 +50,104 @@ ritk_macros::interp_dim_template!(
             v1110,
             v1111,
         ) = if B::ad_enabled() {
+            let idx0000 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0001 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0010 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0011 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0100 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0101 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0110 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0111 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx1000 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1001 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1010 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1011 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1100 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1101 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1110 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1111 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+
+            let all_indices = Tensor::cat(
+                vec![
+                    idx0000, idx0001, idx0010, idx0011,
+                    idx0100, idx0101, idx0110, idx0111,
+                    idx1000, idx1001, idx1010, idx1011,
+                    idx1100, idx1101, idx1110, idx1111,
+                ],
+                0,
+            );
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v0000 = all_values.clone().slice([0..batch_size]);
+            let v0001 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v0010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v0011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
+            let v0100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
+            let v0101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
+            let v0110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
+            let v0111 = all_values.clone().slice([7 * batch_size..8 * batch_size]);
+            let v1000 = all_values.clone().slice([8 * batch_size..9 * batch_size]);
+            let v1001 = all_values.clone().slice([9 * batch_size..10 * batch_size]);
+            let v1010 = all_values.clone().slice([10 * batch_size..11 * batch_size]);
+            let v1011 = all_values.clone().slice([11 * batch_size..12 * batch_size]);
+            let v1100 = all_values.clone().slice([12 * batch_size..13 * batch_size]);
+            let v1101 = all_values.clone().slice([13 * batch_size..14 * batch_size]);
+            let v1110 = all_values.clone().slice([14 * batch_size..15 * batch_size]);
+            let v1111 = all_values.slice([15 * batch_size..16 * batch_size]);
+
             (
-                gather_4d(&flat_data, &x0_i, &y0_i, &z0_i, &w0_i, strides),
-                gather_4d(&flat_data, &x0_i, &y0_i, &z0_i, &w1_i, strides),
-                gather_4d(&flat_data, &x0_i, &y0_i, &z1_i, &w0_i, strides),
-                gather_4d(&flat_data, &x0_i, &y0_i, &z1_i, &w1_i, strides),
-                gather_4d(&flat_data, &x0_i, &y1_i, &z0_i, &w0_i, strides),
-                gather_4d(&flat_data, &x0_i, &y1_i, &z0_i, &w1_i, strides),
-                gather_4d(&flat_data, &x0_i, &y1_i, &z1_i, &w0_i, strides),
-                gather_4d(&flat_data, &x0_i, &y1_i, &z1_i, &w1_i, strides),
-                gather_4d(&flat_data, &x1_i, &y0_i, &z0_i, &w0_i, strides),
-                gather_4d(&flat_data, &x1_i, &y0_i, &z0_i, &w1_i, strides),
-                gather_4d(&flat_data, &x1_i, &y0_i, &z1_i, &w0_i, strides),
-                gather_4d(&flat_data, &x1_i, &y0_i, &z1_i, &w1_i, strides),
-                gather_4d(&flat_data, &x1_i, &y1_i, &z0_i, &w0_i, strides),
-                gather_4d(&flat_data, &x1_i, &y1_i, &z0_i, &w1_i, strides),
-                gather_4d(&flat_data, &x1_i, &y1_i, &z1_i, &w0_i, strides),
-                gather_4d(&flat_data, &x1_i, &y1_i, &z1_i, &w1_i, strides),
+                v0000, v0001, v0010, v0011, v0100, v0101, v0110, v0111,
+                v1000, v1001, v1010, v1011, v1100, v1101, v1110, v1111,
             )
         } else {
+            let idx0000 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0001 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0010 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0011 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0100 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0101 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0110 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0111 = w1_i.clone() * stride_w + z1_i.clone() * stride_y + x0_i;
+            let idx1000 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1001 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1010 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1011 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i * stride_y + x1_i.clone();
+            let idx1100 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1101 = w1_i.clone() * stride_w + z0_i * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1110 = w0_i * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1111 = w1_i * stride_w + z1_i * stride_z + y1_i * stride_y + x1_i;
+
+            let all_indices = Tensor::cat(
+                vec![
+                    idx0000, idx0001, idx0010, idx0011,
+                    idx0100, idx0101, idx0110, idx0111,
+                    idx1000, idx1001, idx1010, idx1011,
+                    idx1100, idx1101, idx1110, idx1111,
+                ],
+                0,
+            );
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v0000 = all_values.clone().slice([0..batch_size]);
+            let v0001 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v0010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v0011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
+            let v0100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
+            let v0101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
+            let v0110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
+            let v0111 = all_values.clone().slice([7 * batch_size..8 * batch_size]);
+            let v1000 = all_values.clone().slice([8 * batch_size..9 * batch_size]);
+            let v1001 = all_values.clone().slice([9 * batch_size..10 * batch_size]);
+            let v1010 = all_values.clone().slice([10 * batch_size..11 * batch_size]);
+            let v1011 = all_values.clone().slice([11 * batch_size..12 * batch_size]);
+            let v1100 = all_values.clone().slice([12 * batch_size..13 * batch_size]);
+            let v1101 = all_values.clone().slice([13 * batch_size..14 * batch_size]);
+            let v1110 = all_values.clone().slice([14 * batch_size..15 * batch_size]);
+            let v1111 = all_values.slice([15 * batch_size..16 * batch_size]);
+
             (
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y1_i.clone(),
-                    z1_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i,
-                    y1_i.clone(),
-                    z1_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y1_i.clone(),
-                    z1_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(&flat_data, x1_i, y1_i, z1_i, w1_i, strides),
+                v0000, v0001, v0010, v0011, v0100, v0101, v0110, v0111,
+                v1000, v1001, v1010, v1011, v1100, v1101, v1110, v1111,
             )
         };
 
@@ -281,6 +210,7 @@ ritk_macros::interp_dim_template_typed!(
         let flat_data = data.clone().reshape([d0 * d1 * d2 * d3]);
 
         // ── Const-generic dispatch (Sprint 355) ────────────────────────
+        let [stride_y, stride_z, stride_w] = strides;
         let (
             v0000,
             v0001,
@@ -299,147 +229,104 @@ ritk_macros::interp_dim_template_typed!(
             v1110,
             v1111,
         ) = if B::ad_enabled() {
+            let idx0000 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0001 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0010 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0011 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0100 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0101 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0110 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0111 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx1000 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1001 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1010 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1011 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1100 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1101 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1110 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1111 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+
+            let all_indices = Tensor::cat(
+                vec![
+                    idx0000, idx0001, idx0010, idx0011,
+                    idx0100, idx0101, idx0110, idx0111,
+                    idx1000, idx1001, idx1010, idx1011,
+                    idx1100, idx1101, idx1110, idx1111,
+                ],
+                0,
+            );
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v0000 = all_values.clone().slice([0..batch_size]);
+            let v0001 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v0010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v0011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
+            let v0100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
+            let v0101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
+            let v0110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
+            let v0111 = all_values.clone().slice([7 * batch_size..8 * batch_size]);
+            let v1000 = all_values.clone().slice([8 * batch_size..9 * batch_size]);
+            let v1001 = all_values.clone().slice([9 * batch_size..10 * batch_size]);
+            let v1010 = all_values.clone().slice([10 * batch_size..11 * batch_size]);
+            let v1011 = all_values.clone().slice([11 * batch_size..12 * batch_size]);
+            let v1100 = all_values.clone().slice([12 * batch_size..13 * batch_size]);
+            let v1101 = all_values.clone().slice([13 * batch_size..14 * batch_size]);
+            let v1110 = all_values.clone().slice([14 * batch_size..15 * batch_size]);
+            let v1111 = all_values.slice([15 * batch_size..16 * batch_size]);
+
             (
-                gather_4d(&flat_data, &x0_i, &y0_i, &z0_i, &w0_i, strides),
-                gather_4d(&flat_data, &x0_i, &y0_i, &z0_i, &w1_i, strides),
-                gather_4d(&flat_data, &x0_i, &y0_i, &z1_i, &w0_i, strides),
-                gather_4d(&flat_data, &x0_i, &y0_i, &z1_i, &w1_i, strides),
-                gather_4d(&flat_data, &x0_i, &y1_i, &z0_i, &w0_i, strides),
-                gather_4d(&flat_data, &x0_i, &y1_i, &z0_i, &w1_i, strides),
-                gather_4d(&flat_data, &x0_i, &y1_i, &z1_i, &w0_i, strides),
-                gather_4d(&flat_data, &x0_i, &y1_i, &z1_i, &w1_i, strides),
-                gather_4d(&flat_data, &x1_i, &y0_i, &z0_i, &w0_i, strides),
-                gather_4d(&flat_data, &x1_i, &y0_i, &z0_i, &w1_i, strides),
-                gather_4d(&flat_data, &x1_i, &y0_i, &z1_i, &w0_i, strides),
-                gather_4d(&flat_data, &x1_i, &y0_i, &z1_i, &w1_i, strides),
-                gather_4d(&flat_data, &x1_i, &y1_i, &z0_i, &w0_i, strides),
-                gather_4d(&flat_data, &x1_i, &y1_i, &z0_i, &w1_i, strides),
-                gather_4d(&flat_data, &x1_i, &y1_i, &z1_i, &w0_i, strides),
-                gather_4d(&flat_data, &x1_i, &y1_i, &z1_i, &w1_i, strides),
+                v0000, v0001, v0010, v0011, v0100, v0101, v0110, v0111,
+                v1000, v1001, v1010, v1011, v1100, v1101, v1110, v1111,
             )
         } else {
+            let idx0000 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0001 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0010 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0011 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx0100 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0101 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0110 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx0111 = w1_i.clone() * stride_w + z1_i.clone() * stride_y + x0_i;
+            let idx1000 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1001 = w1_i.clone() * stride_w + z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1010 = w0_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx1011 = w1_i.clone() * stride_w + z1_i.clone() * stride_z + y0_i * stride_y + x1_i.clone();
+            let idx1100 = w0_i.clone() * stride_w + z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1101 = w1_i.clone() * stride_w + z0_i * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1110 = w0_i * stride_w + z1_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx1111 = w1_i * stride_w + z1_i * stride_z + y1_i * stride_y + x1_i;
+
+            let all_indices = Tensor::cat(
+                vec![
+                    idx0000, idx0001, idx0010, idx0011,
+                    idx0100, idx0101, idx0110, idx0111,
+                    idx1000, idx1001, idx1010, idx1011,
+                    idx1100, idx1101, idx1110, idx1111,
+                ],
+                0,
+            );
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v0000 = all_values.clone().slice([0..batch_size]);
+            let v0001 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v0010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v0011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
+            let v0100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
+            let v0101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
+            let v0110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
+            let v0111 = all_values.clone().slice([7 * batch_size..8 * batch_size]);
+            let v1000 = all_values.clone().slice([8 * batch_size..9 * batch_size]);
+            let v1001 = all_values.clone().slice([9 * batch_size..10 * batch_size]);
+            let v1010 = all_values.clone().slice([10 * batch_size..11 * batch_size]);
+            let v1011 = all_values.clone().slice([11 * batch_size..12 * batch_size]);
+            let v1100 = all_values.clone().slice([12 * batch_size..13 * batch_size]);
+            let v1101 = all_values.clone().slice([13 * batch_size..14 * batch_size]);
+            let v1110 = all_values.clone().slice([14 * batch_size..15 * batch_size]);
+            let v1111 = all_values.slice([15 * batch_size..16 * batch_size]);
+
             (
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y1_i.clone(),
-                    z1_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x0_i,
-                    y1_i.clone(),
-                    z1_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    w1_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y1_i.clone(),
-                    z1_i.clone(),
-                    w0_i.clone(),
-                    strides,
-                ),
-                gather_4d_owned(&flat_data, x1_i, y1_i, z1_i, w1_i, strides),
+                v0000, v0001, v0010, v0011, v0100, v0101, v0110, v0111,
+                v1000, v1001, v1010, v1011, v1100, v1101, v1110, v1111,
             )
         };
 

@@ -7,51 +7,43 @@
 //! The proc-macro generates the prelude and mask application; this
 //! file supplies only the gather + bilinear lerp cascade body.
 
-use burn::tensor::{backend::Backend, Int, Tensor};
+use burn::tensor::Tensor;
 
-/// 2-D gather with borrowed coordinates — used by the autodiff path.
-#[inline]
-fn gather_2d<B: Backend>(
-    flat_data: &Tensor<B, 1>,
-    xi: &Tensor<B, 1, Int>,
-    yi: &Tensor<B, 1, Int>,
-    stride_y: i32,
-) -> Tensor<B, 1> {
-    let idx = yi.clone() * stride_y + xi.clone();
-    flat_data.clone().gather(0, idx)
-}
-
-/// 2-D gather consuming the coordinate tensors — used by the non-autodiff
-/// fast path.
-#[inline]
-fn gather_2d_owned<B: Backend>(
-    flat_data: &Tensor<B, 1>,
-    xi: Tensor<B, 1, Int>,
-    yi: Tensor<B, 1, Int>,
-    stride_y: i32,
-) -> Tensor<B, 1> {
-    let idx = yi * stride_y + xi;
-    flat_data.clone().gather(0, idx)
-}
 
 ritk_macros::interp_dim_template!(2, interpolate_2d, x, y, wx, wy, d1 - 1, d0 - 1, {
     let flat_data = data.clone().reshape([d0 * d1]);
 
     // ── Const-generic dispatch (Sprint 355) ────────────────────────
     let (v00, v01, v10, v11) = if B::ad_enabled() {
-        (
-            gather_2d(&flat_data, &x0_i, &y0_i, stride_y),
-            gather_2d(&flat_data, &x0_i, &y1_i, stride_y),
-            gather_2d(&flat_data, &x1_i, &y0_i, stride_y),
-            gather_2d(&flat_data, &x1_i, &y1_i, stride_y),
-        )
+        let idx00 = y0_i.clone() * stride_y + x0_i.clone();
+        let idx01 = y1_i.clone() * stride_y + x0_i.clone();
+        let idx10 = y0_i.clone() * stride_y + x1_i.clone();
+        let idx11 = y1_i.clone() * stride_y + x1_i.clone();
+
+        let all_indices = Tensor::cat(vec![idx00, idx01, idx10, idx11], 0);
+        let all_values = flat_data.clone().gather(0, all_indices);
+
+        let v00 = all_values.clone().slice([0..batch_size]);
+        let v01 = all_values.clone().slice([batch_size..2 * batch_size]);
+        let v10 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+        let v11 = all_values.slice([3 * batch_size..4 * batch_size]);
+
+        (v00, v01, v10, v11)
     } else {
-        (
-            gather_2d_owned(&flat_data, x0_i.clone(), y0_i.clone(), stride_y),
-            gather_2d_owned(&flat_data, x0_i, y1_i.clone(), stride_y),
-            gather_2d_owned(&flat_data, x1_i.clone(), y0_i, stride_y),
-            gather_2d_owned(&flat_data, x1_i, y1_i, stride_y),
-        )
+        let idx00 = y0_i.clone() * stride_y + x0_i.clone();
+        let idx01 = y1_i.clone() * stride_y + x0_i.clone();
+        let idx10 = y0_i.clone() * stride_y + x1_i.clone();
+        let idx11 = y1_i * stride_y + x1_i;
+
+        let all_indices = Tensor::cat(vec![idx00, idx01, idx10, idx11], 0);
+        let all_values = flat_data.clone().gather(0, all_indices);
+
+        let v00 = all_values.clone().slice([0..batch_size]);
+        let v01 = all_values.clone().slice([batch_size..2 * batch_size]);
+        let v10 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+        let v11 = all_values.slice([3 * batch_size..4 * batch_size]);
+
+        (v00, v01, v10, v11)
     };
 
     // Bilinear lerp cascade.
@@ -88,19 +80,35 @@ ritk_macros::interp_dim_template_typed!(
 
         // ── Const-generic dispatch (Sprint 355) ────────────────────────
         let (v00, v01, v10, v11) = if B::ad_enabled() {
-            (
-                gather_2d(&flat_data, &x0_i, &y0_i, stride_y),
-                gather_2d(&flat_data, &x0_i, &y1_i, stride_y),
-                gather_2d(&flat_data, &x1_i, &y0_i, stride_y),
-                gather_2d(&flat_data, &x1_i, &y1_i, stride_y),
-            )
+            let idx00 = y0_i.clone() * stride_y + x0_i.clone();
+            let idx01 = y1_i.clone() * stride_y + x0_i.clone();
+            let idx10 = y0_i.clone() * stride_y + x1_i.clone();
+            let idx11 = y1_i.clone() * stride_y + x1_i.clone();
+
+            let all_indices = Tensor::cat(vec![idx00, idx01, idx10, idx11], 0);
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v00 = all_values.clone().slice([0..batch_size]);
+            let v01 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v10 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v11 = all_values.slice([3 * batch_size..4 * batch_size]);
+
+            (v00, v01, v10, v11)
         } else {
-            (
-                gather_2d_owned(&flat_data, x0_i.clone(), y0_i.clone(), stride_y),
-                gather_2d_owned(&flat_data, x0_i, y1_i.clone(), stride_y),
-                gather_2d_owned(&flat_data, x1_i.clone(), y0_i, stride_y),
-                gather_2d_owned(&flat_data, x1_i, y1_i, stride_y),
-            )
+            let idx00 = y0_i.clone() * stride_y + x0_i.clone();
+            let idx01 = y1_i.clone() * stride_y + x0_i.clone();
+            let idx10 = y0_i.clone() * stride_y + x1_i.clone();
+            let idx11 = y1_i * stride_y + x1_i;
+
+            let all_indices = Tensor::cat(vec![idx00, idx01, idx10, idx11], 0);
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v00 = all_values.clone().slice([0..batch_size]);
+            let v01 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v10 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v11 = all_values.slice([3 * batch_size..4 * batch_size]);
+
+            (v00, v01, v10, v11)
         };
 
         // Bilinear lerp cascade.

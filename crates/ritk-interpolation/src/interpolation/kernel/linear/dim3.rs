@@ -8,36 +8,8 @@
 //! file supplies only the gather + trilinear lerp cascade body with
 //! the inline `B::ad_enabled()` const-generic dispatch.
 
-use burn::tensor::{backend::Backend, Int, Tensor};
+use burn::tensor::Tensor;
 
-/// 3-D gather with borrowed coordinates — used by the autodiff path.
-#[inline]
-fn gather_3d<B: Backend>(
-    flat_data: &Tensor<B, 1>,
-    xi: &Tensor<B, 1, Int>,
-    yi: &Tensor<B, 1, Int>,
-    zi: &Tensor<B, 1, Int>,
-    stride_y: i32,
-    stride_z: i32,
-) -> Tensor<B, 1> {
-    let idx = zi.clone() * stride_z + yi.clone() * stride_y + xi.clone();
-    flat_data.clone().gather(0, idx)
-}
-
-/// 3-D gather consuming the coordinate tensors — used by the non-autodiff
-/// fast path.
-#[inline]
-fn gather_3d_owned<B: Backend>(
-    flat_data: &Tensor<B, 1>,
-    xi: Tensor<B, 1, Int>,
-    yi: Tensor<B, 1, Int>,
-    zi: Tensor<B, 1, Int>,
-    stride_y: i32,
-    stride_z: i32,
-) -> Tensor<B, 1> {
-    let idx = zi * stride_z + yi * stride_y + xi;
-    flat_data.clone().gather(0, idx)
-}
 
 ritk_macros::interp_dim_template!(
     3,
@@ -56,76 +28,63 @@ ritk_macros::interp_dim_template!(
 
         // ── Const-generic dispatch (Sprint 355) ────────────────────────
         let (v000, v001, v010, v011, v100, v101, v110, v111) = if B::ad_enabled() {
-            (
-                gather_3d(&flat_data, &x0_i, &y0_i, &z0_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x0_i, &y0_i, &z1_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x0_i, &y1_i, &z0_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x0_i, &y1_i, &z1_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x1_i, &y0_i, &z0_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x1_i, &y0_i, &z1_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x1_i, &y1_i, &z0_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x1_i, &y1_i, &z1_i, stride_y, stride_z),
-            )
+            let idx000 = z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx001 = z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx010 = z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx011 = z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx100 = z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx101 = z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx110 = z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx111 = z1_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+
+            let all_indices = Tensor::cat(
+                vec![
+                    idx000, idx001, idx010, idx011,
+                    idx100, idx101, idx110, idx111,
+                ],
+                0,
+            );
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v000 = all_values.clone().slice([0..batch_size]);
+            let v001 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
+            let v100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
+            let v101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
+            let v110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
+            let v111 = all_values.slice([7 * batch_size..8 * batch_size]);
+
+            (v000, v001, v010, v011, v100, v101, v110, v111)
         } else {
-            (
-                gather_3d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x0_i,
-                    y1_i.clone(),
-                    z1_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i,
-                    z1_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y1_i.clone(),
-                    z0_i,
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(&flat_data, x1_i, y1_i, z1_i, stride_y, stride_z),
-            )
+            let idx000 = z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx001 = z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx010 = z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx011 = z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx100 = z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx101 = z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx110 = z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx111 = z1_i * stride_z + y1_i * stride_y + x1_i;
+
+            let all_indices = Tensor::cat(
+                vec![
+                    idx000, idx001, idx010, idx011,
+                    idx100, idx101, idx110, idx111,
+                ],
+                0,
+            );
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v000 = all_values.clone().slice([0..batch_size]);
+            let v001 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
+            let v100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
+            let v101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
+            let v110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
+            let v111 = all_values.slice([7 * batch_size..8 * batch_size]);
+
+            (v000, v001, v010, v011, v100, v101, v110, v111)
         };
 
         // Trilinear lerp cascade.
@@ -187,76 +146,63 @@ ritk_macros::interp_dim_template_typed!(
 
         // ── Const-generic dispatch (Sprint 355) ────────────────────────
         let (v000, v001, v010, v011, v100, v101, v110, v111) = if B::ad_enabled() {
-            (
-                gather_3d(&flat_data, &x0_i, &y0_i, &z0_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x0_i, &y0_i, &z1_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x0_i, &y1_i, &z0_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x0_i, &y1_i, &z1_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x1_i, &y0_i, &z0_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x1_i, &y0_i, &z1_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x1_i, &y1_i, &z0_i, stride_y, stride_z),
-                gather_3d(&flat_data, &x1_i, &y1_i, &z1_i, stride_y, stride_z),
-            )
+            let idx000 = z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx001 = z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx010 = z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx011 = z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx100 = z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx101 = z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx110 = z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx111 = z1_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+
+            let all_indices = Tensor::cat(
+                vec![
+                    idx000, idx001, idx010, idx011,
+                    idx100, idx101, idx110, idx111,
+                ],
+                0,
+            );
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v000 = all_values.clone().slice([0..batch_size]);
+            let v001 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
+            let v100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
+            let v101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
+            let v110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
+            let v111 = all_values.slice([7 * batch_size..8 * batch_size]);
+
+            (v000, v001, v010, v011, v100, v101, v110, v111)
         } else {
-            (
-                gather_3d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y0_i.clone(),
-                    z1_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x0_i.clone(),
-                    y1_i.clone(),
-                    z0_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x0_i,
-                    y1_i.clone(),
-                    z1_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i.clone(),
-                    z0_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y0_i,
-                    z1_i.clone(),
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(
-                    &flat_data,
-                    x1_i.clone(),
-                    y1_i.clone(),
-                    z0_i,
-                    stride_y,
-                    stride_z,
-                ),
-                gather_3d_owned(&flat_data, x1_i, y1_i, z1_i, stride_y, stride_z),
-            )
+            let idx000 = z0_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx001 = z1_i.clone() * stride_z + y0_i.clone() * stride_y + x0_i.clone();
+            let idx010 = z0_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx011 = z1_i.clone() * stride_z + y1_i.clone() * stride_y + x0_i.clone();
+            let idx100 = z0_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx101 = z1_i.clone() * stride_z + y0_i.clone() * stride_y + x1_i.clone();
+            let idx110 = z0_i.clone() * stride_z + y1_i.clone() * stride_y + x1_i.clone();
+            let idx111 = z1_i * stride_z + y1_i * stride_y + x1_i;
+
+            let all_indices = Tensor::cat(
+                vec![
+                    idx000, idx001, idx010, idx011,
+                    idx100, idx101, idx110, idx111,
+                ],
+                0,
+            );
+            let all_values = flat_data.clone().gather(0, all_indices);
+
+            let v000 = all_values.clone().slice([0..batch_size]);
+            let v001 = all_values.clone().slice([batch_size..2 * batch_size]);
+            let v010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
+            let v011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
+            let v100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
+            let v101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
+            let v110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
+            let v111 = all_values.slice([7 * batch_size..8 * batch_size]);
+
+            (v000, v001, v010, v011, v100, v101, v110, v111)
         };
 
         // Trilinear lerp cascade.
