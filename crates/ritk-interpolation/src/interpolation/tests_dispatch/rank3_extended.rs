@@ -10,16 +10,11 @@
 use super::*;
 
 fn build_rect(dims: [usize; 3]) -> Tensor<TestBackend, 3> {
-    // Fill with 0.0 except a single 1.0 at the center voxel.
-    let mut data = vec![0.0_f32; dims[0] * dims[1] * dims[2]];
-    let mid = [dims[0] / 2, dims[1] / 2, dims[2] / 2];
-    let idx = mid[0] * dims[1] * dims[2] + mid[1] * dims[2] + mid[2];
-    data[idx] = 1.0;
     let device = Default::default();
-    Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data, burn::tensor::Shape::new(dims)),
-        &device,
-    )
+    let data = Tensor::<TestBackend, 3>::zeros(dims, &device);
+    let mid = [dims[0] / 2, dims[1] / 2, dims[2] / 2];
+    let ones = Tensor::<TestBackend, 3>::ones([1, 1, 1], &device);
+    data.slice_assign([mid[0]..mid[0]+1, mid[1]..mid[1]+1, mid[2]..mid[2]+1], ones)
 }
 
 fn query_rect_center(dims: [usize; 3]) -> Tensor<TestBackend, 2> {

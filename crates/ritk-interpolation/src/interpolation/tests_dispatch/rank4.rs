@@ -8,15 +8,11 @@ use super::*;
 use crate::interpolation::dispatch::Dispatch4DTyped;
 
 fn build_4d(side: usize) -> Tensor<TestBackend, 4> {
-    // Fill with 0.0 except a single 1.0 at the center voxel.
-    let mut data = vec![0.0_f32; side * side * side * side];
-    let mid = side / 2;
-    data[mid * side * side * side + mid * side * side + mid * side + mid] = 1.0;
     let device = Default::default();
-    Tensor::<TestBackend, 4>::from_data(
-        TensorData::new(data, burn::tensor::Shape::new([side, side, side, side])),
-        &device,
-    )
+    let data = Tensor::<TestBackend, 4>::zeros([side, side, side, side], &device);
+    let mid = side / 2;
+    let ones = Tensor::<TestBackend, 4>::ones([1, 1, 1, 1], &device);
+    data.slice_assign([mid..mid+1, mid..mid+1, mid..mid+1, mid..mid+1], ones)
 }
 
 fn query_4d(side: usize) -> Tensor<TestBackend, 2> {

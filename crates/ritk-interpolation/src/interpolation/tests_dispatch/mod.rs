@@ -13,16 +13,11 @@ use burn_ndarray::NdArray;
 type TestBackend = NdArray<f32>;
 
 fn build_cube(side: usize) -> Tensor<TestBackend, 3> {
-    // Fill with 0.0 except a single 1.0 at the center voxel — easy
-    // to spot-check after interpolation.
-    let mut data = vec![0.0_f32; side * side * side];
-    let mid = side / 2;
-    data[mid * side * side + mid * side + mid] = 1.0;
     let device = Default::default();
-    Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data, burn::tensor::Shape::new([side, side, side])),
-        &device,
-    )
+    let data = Tensor::<TestBackend, 3>::zeros([side, side, side], &device);
+    let mid = side / 2;
+    let ones = Tensor::<TestBackend, 3>::ones([1, 1, 1], &device);
+    data.slice_assign([mid..mid+1, mid..mid+1, mid..mid+1], ones)
 }
 
 fn query_near_center(side: usize) -> Tensor<TestBackend, 2> {
