@@ -1,5 +1,31 @@
 # RITK Gap Audit - Active
 
+## Sprint 403 Audit (2026-06-24) — Vector Confidence Fallibility
+
+### Gaps Closed
+
+- **[SAFE-403-01 CLOSED]** `ritk-segmentation` vector confidence-connected boundary:
+  slice-level channel buffers now validate voxel-count overflow and exact per-channel
+  sample counts before indexing. The image-level wrapper now returns `Result<Image<_>>`
+  instead of panicking on empty channel lists or dimension mismatches, and the Python binding
+  maps those validation errors to `ValueError`. Evidence tier: compile/lint plus
+  value-semantic malformed-channel tests (`cargo clippy -p ritk-segmentation --all-targets
+  -- -D warnings` passed; `cargo clippy -p ritk-python --all-targets -- -D warnings`
+  passed; `cargo nextest run -p ritk-segmentation` -> 435/435 passed; `cargo nextest run
+  -p ritk-python` -> 47/47 passed; doctests/docs passed for both crates).
+
+### Residual Risk
+
+- This is a breaking Rust API correction: `vector_confidence_connected` and
+  `vector_confidence_connected_image` now return `Result`. `ritk-segmentation` is bumped to
+  `0.2.0`; `ritk-python` is bumped to `0.12.79` for the binding adjustment.
+- This closes unchecked malformed-channel indexing, not the broader public channel-buffer
+  model. A future layout change should be driven by an ADR and differential tests.
+- Broad Atlas dependency migration remains open under MIG-387-01 and requires
+  per-operation contract tests before replacing `nalgebra`/`ndarray`/`burn` surfaces.
+
+---
+
 ## Sprint 402 Audit (2026-06-24) — VTU Exact Cell Arrays
 
 ### Gaps Closed

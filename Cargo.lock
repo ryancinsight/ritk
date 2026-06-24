@@ -7142,7 +7142,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-python"
-version = "0.12.78"
+version = "0.12.79"
 dependencies = [
  "anyhow",
  "burn",
@@ -7197,7 +7197,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-segmentation"
-version = "0.1.5"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "burn",

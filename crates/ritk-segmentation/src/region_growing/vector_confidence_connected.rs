@@ -31,6 +31,7 @@
 // gymnastics that obscure the linear algebra.
 #![allow(clippy::needless_range_loop)]
 
+use anyhow::{bail, Result};
 use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -178,7 +179,8 @@ fn maha_sq_at(
 ///
 /// `channels` holds one flat `Z×Y×X` buffer per vector component; `seeds` are
 /// `[z, y, x]` indices.  Returns a flat label buffer (`replace_value` inside the
-/// region, `0` outside).
+/// region, `0` outside).  Every channel must have exactly `dims[0] * dims[1] *
+/// dims[2]` samples.
 #[allow(clippy::too_many_arguments)]
 pub fn vector_confidence_connected(
     channels: &[Vec<f64>],
@@ -188,15 +190,19 @@ pub fn vector_confidence_connected(
     iterations: u32,
     initial_radius: usize,
     replace_value: f32,
-) -> Vec<f32> {
+) -> Result<Vec<f32>> {
     let [zn, yn, xn] = dims;
-    let n = zn * yn * xn;
+    let n = voxel_count(dims)?;
     let c = channels.len();
     let mut out = vec![0.0_f32; n];
     if c == 0 || n == 0 {
-        return out;
+        return Ok(out);
     }
-    let stride = [yn * xn, xn, 1usize];
+    validate_channel_lengths(channels, n)?;
+    let yz = yn
+        .checked_mul(xn)
+        .ok_or_else(|| anyhow::anyhow!("vector_confidence_connected: y*x stride overflows"))?;
+    let stride = [yz, xn, 1usize];
     let flat = |z: usize, y: usize, x: usize| z * stride[0] + y * stride[1] + x * stride[2];
 
     let valid_seeds: Vec<[usize; 3]> = seeds
@@ -205,13 +211,15 @@ pub fn vector_confidence_connected(
         .filter(|s| s[0] < zn && s[1] < yn && s[2] < xn)
         .collect();
     if valid_seeds.is_empty() {
-        return out;
+        return Ok(out);
     }
 
     // ── Initial statistics over each seed's neighbourhood (averaged) ────────
     let mut mean = vec![0.0; c];
     let mut cov = vec![0.0; c * c];
-    let r = initial_radius as isize;
+    let r = isize::try_from(initial_radius).map_err(|_| {
+        anyhow::anyhow!("vector_confidence_connected: initial radius exceeds isize::MAX")
+    })?;
     let mut idx_scratch: Vec<usize> = Vec::new();
     for s in &valid_seeds {
         idx_scratch.clear();
@@ -274,7 +282,7 @@ pub fn vector_confidence_connected(
     }
 
     // ── Flood, then recompute statistics over the region and re-flood ───────
-    let mut mask = flood(channels, dims, &valid_seeds, &mean, &inv, threshold, c);
+    let mut mask = flood(channels, dims, &valid_seeds, &mean, &inv, threshold, c)?;
     for _ in 0..iterations {
         idx_scratch.clear();
         idx_scratch.extend((0..n).filter(|&i| mask[i]));
@@ -290,7 +298,7 @@ pub fn vector_confidence_connected(
         mean = m;
         cov = cv;
         inv = inverse_covariance(&cov, c);
-        mask = flood(channels, dims, &valid_seeds, &mean, &inv, threshold, c);
+        mask = flood(channels, dims, &valid_seeds, &mean, &inv, threshold, c)?;
     }
 
     for i in 0..n {
@@ -298,7 +306,28 @@ pub fn vector_confidence_connected(
             out[i] = replace_value;
         }
     }
-    out
+    Ok(out)
+}
+
+fn voxel_count(dims: [usize; 3]) -> Result<usize> {
+    dims.into_iter().try_fold(1usize, |acc, dim| {
+        acc.checked_mul(dim)
+            .ok_or_else(|| anyhow::anyhow!("vector_confidence_connected: voxel count overflows"))
+    })
+}
+
+fn validate_channel_lengths(channels: &[Vec<f64>], n: usize) -> Result<()> {
+    for (channel_index, channel) in channels.iter().enumerate() {
+        if channel.len() != n {
+            bail!(
+                "vector_confidence_connected: channel {} length {} != voxel count {}",
+                channel_index,
+                channel.len(),
+                n
+            );
+        }
+    }
+    Ok(())
 }
 
 /// Face-connected flood from `seeds`, including voxels whose Mahalanobis distance
@@ -312,10 +341,13 @@ fn flood(
     inv: &[f64],
     threshold: f64,
     c: usize,
-) -> Vec<bool> {
+) -> Result<Vec<bool>> {
     let [zn, yn, xn] = dims;
-    let n = zn * yn * xn;
-    let stride = [yn * xn, xn, 1usize];
+    let n = voxel_count(dims)?;
+    let yz = yn
+        .checked_mul(xn)
+        .ok_or_else(|| anyhow::anyhow!("vector_confidence_connected: y*x stride overflows"))?;
+    let stride = [yz, xn, 1usize];
     let flat = |z: usize, y: usize, x: usize| z * stride[0] + y * stride[1] + x * stride[2];
     let thr_sq = threshold * threshold;
     // One scratch buffer reused for every membership test (the flood visits each
@@ -362,14 +394,11 @@ fn flood(
             }
         }
     }
-    mask
+    Ok(mask)
 }
 
 /// Image-level wrapper: extract channels, run [`vector_confidence_connected`],
 /// rebuild the label image carrying `channels[0]`'s spatial metadata.
-///
-/// # Panics
-/// If `channels` is empty or the channel images differ in dimensions.
 pub fn vector_confidence_connected_image<B: Backend>(
     channels: &[&Image<B, 3>],
     seeds: &[[usize; 3]],
@@ -377,16 +406,22 @@ pub fn vector_confidence_connected_image<B: Backend>(
     iterations: u32,
     initial_radius: usize,
     replace_value: f32,
-) -> Image<B, 3> {
+) -> Result<Image<B, 3>> {
+    if channels.is_empty() {
+        bail!("vector_confidence_connected: at least one channel is required");
+    }
     let (first, dims) = extract_vec_infallible(channels[0]);
     let mut bufs: Vec<Vec<f64>> = Vec::with_capacity(channels.len());
     bufs.push(first.iter().map(|&v| v as f64).collect());
     for img in &channels[1..] {
         let (vals, d) = extract_vec_infallible(*img);
-        assert_eq!(
-            d, dims,
-            "vector_confidence_connected: channels differ in dimensions"
-        );
+        if d != dims {
+            bail!(
+                "vector_confidence_connected: channel dimensions {:?} != {:?}",
+                d,
+                dims
+            );
+        }
         bufs.push(vals.iter().map(|&v| v as f64).collect());
     }
     let labels = vector_confidence_connected(
@@ -397,8 +432,8 @@ pub fn vector_confidence_connected_image<B: Backend>(
         iterations,
         initial_radius,
         replace_value,
-    );
-    rebuild(labels, dims, channels[0])
+    )?;
+    Ok(rebuild(labels, dims, channels[0]))
 }
 
 #[cfg(test)]

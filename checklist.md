@@ -1,5 +1,41 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 403 — Vector Confidence Fallibility
+**Target version**: ritk-segmentation 0.2.0 / ritk-python 0.12.79
+**Sprint phase**: Closure — input-boundary hardening delivered and focused verification passed
+
+### Delivered (Sprint 403)
+- [x] SAFE-403-01 [major]: **Vector confidence-connected validates channel layout** —
+  the slice-level and image-level vector confidence-connected entry points now return
+  `Result` instead of panicking or indexing unchecked malformed channel layouts. The core
+  validates voxel-count overflow, exact per-channel sample counts, radius conversion, and
+  image-channel dimension equality before allocation/indexing. The Python binding maps the
+  Rust validation error to `ValueError`.
+  Evidence tier: compile/lint plus value-semantic malformed-channel tests.
+
+### Verification gate (Sprint 403)
+- [x] `rustfmt crates\ritk-segmentation\src\region_growing\vector_confidence_connected.rs crates\ritk-segmentation\src\region_growing\tests_vector_confidence_connected.rs crates\ritk-python\src\segmentation\growing.rs --check`
+- [x] `cargo clippy -p ritk-segmentation --all-targets -- -D warnings` -> passed
+- [x] `cargo clippy -p ritk-python --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-segmentation` -> **435/435 passed**
+- [x] `cargo nextest run -p ritk-python` -> **47/47 passed**
+- [x] `cargo test --doc -p ritk-segmentation` -> passed
+- [x] `cargo test --doc -p ritk-python` -> passed
+- [x] `cargo doc -p ritk-segmentation --no-deps` -> passed
+- [x] `cargo doc -p ritk-python --no-deps` -> passed
+- [ ] `cargo semver-checks -p ritk-segmentation` -> blocked because
+  `ritk-segmentation` is not published on crates.io for registry baseline comparison
+
+### Deferred / carry-forward
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with public VTK cell-list storage
+  only after an ADR/migration plan, because `VtkPolyData`/`VtkUnstructuredGrid` expose
+  nested cell vectors as public fields.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 402 — VTU Exact Cell Arrays
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped VTU parser-safety slice delivered and focused verification passed

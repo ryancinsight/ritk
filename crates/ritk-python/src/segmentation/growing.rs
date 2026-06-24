@@ -54,17 +54,19 @@ pub fn vector_confidence_connected_segment(
         ));
     }
     let arcs: Vec<Arc<Image<Backend, 3>>> = channels.iter().map(|p| Arc::clone(&p.inner)).collect();
-    let out = py.allow_threads(|| {
-        let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
-        core_vector_confidence_connected(
-            &refs,
-            &seeds,
-            multiplier,
-            number_of_iterations,
-            initial_neighborhood_radius,
-            replace_value,
-        )
-    });
+    let out = py
+        .allow_threads(|| {
+            let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
+            core_vector_confidence_connected(
+                &refs,
+                &seeds,
+                multiplier,
+                number_of_iterations,
+                initial_neighborhood_radius,
+                replace_value,
+            )
+        })
+        .map_err(RitkPyError::value)?;
     Ok(into_py_image(out))
 }
 

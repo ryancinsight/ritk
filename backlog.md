@@ -17,7 +17,10 @@
   `vector_confidence_connected` channel buffer layout, public VTK cell-list storage, and
   remaining nested small matrices where a row-major buffer preserves public contracts.
   Sprint 401 removed the VTK unstructured-grid writers' internal per-cell string vector and
-  duplicate VTU connectivity/offset staging; only the public nested cell model remains.
+  duplicate VTU connectivity/offset staging. Sprint 403 made vector-confidence channel
+  buffers fallible at the boundary, closing unchecked malformed channel-length indexing;
+  remaining layout work is now public-model/API design rather than hidden unchecked access.
+  Only the public nested VTK cell model remains.
 
 - **SAFE-393-02 [patch] — Continue hostile format-header parser audit. IN PROGRESS.**
   Sprint 393 hardened NRRD spatial vector parsing so unterminated parenthesized groups return

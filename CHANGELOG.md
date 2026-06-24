@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 403: Vector confidence fallibility
+
+### Changed
+- `ritk-segmentation`: `vector_confidence_connected` and
+  `vector_confidence_connected_image` now return `Result` and validate channel layout before
+  indexing. Malformed channel lengths, voxel-count overflow, empty image-channel lists, and
+  image-channel dimension mismatches are reported as errors instead of panics or unchecked
+  indexing.
+- `ritk-python`: `vector_confidence_connected_segment` now maps the Rust validation error to
+  `ValueError`.
+
+### Breaking
+- Rust callers must handle `Result<Vec<f32>>` from `vector_confidence_connected` and
+  `Result<Image<_, 3>>` from `vector_confidence_connected_image`.
+
+### Migration
+- Replace direct value usage with `?` or explicit error handling at the call site:
+  `let mask = vector_confidence_connected(...)?;`.
+
+### Version
+- `ritk-segmentation`: `0.1.5` -> `0.2.0`.
+- `ritk-python`: `0.12.78` -> `0.12.79`.
+
+### Evidence
+- Evidence tier: compile/lint plus value-semantic malformed-channel tests (`cargo clippy -p
+  ritk-segmentation --all-targets -- -D warnings`; `cargo clippy -p ritk-python
+  --all-targets -- -D warnings`; `cargo nextest run -p ritk-segmentation` -> 435/435
+  passed; `cargo nextest run -p ritk-python` -> 47/47 passed; doctests/docs passed for both
+  crates).
+
+---
+
 ## [Unreleased] — Sprint 402: VTU exact cell arrays
 
 ### Fixed

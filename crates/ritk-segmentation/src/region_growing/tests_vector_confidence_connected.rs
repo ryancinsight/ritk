@@ -30,7 +30,8 @@ fn scene() -> (Vec<Vec<f64>>, [usize; 3]) {
 fn matches_sitk_blob_region() {
     let (channels, dims) = scene();
     let seeds = [[0usize, 5, 5], [0, 4, 6]];
-    let out = vector_confidence_connected(&channels, dims, &seeds, 3.0, 4, 1, 1.0);
+    let out = vector_confidence_connected(&channels, dims, &seeds, 3.0, 4, 1, 1.0)
+        .expect("valid vector scene must segment");
 
     // sitk reference: the 5×5 blob (rows/cols 3..8) is the region.
     let mut expect = vec![0.0_f32; 100];
@@ -45,7 +46,8 @@ fn matches_sitk_blob_region() {
 #[test]
 fn no_seeds_yields_empty() {
     let (channels, dims) = scene();
-    let out = vector_confidence_connected(&channels, dims, &[], 2.5, 4, 1, 1.0);
+    let out = vector_confidence_connected(&channels, dims, &[], 2.5, 4, 1, 1.0)
+        .expect("valid vector scene with no seeds must return an empty mask");
     assert!(out.iter().all(|&v| v == 0.0));
 }
 
@@ -54,7 +56,42 @@ fn out_of_bounds_seed_ignored() {
     let (channels, dims) = scene();
     // Only the in-bounds seed contributes; region is still the blob.
     let out =
-        vector_confidence_connected(&channels, dims, &[[0, 5, 5], [0, 99, 99]], 3.0, 4, 1, 1.0);
+        vector_confidence_connected(&channels, dims, &[[0, 5, 5], [0, 99, 99]], 3.0, 4, 1, 1.0)
+            .expect("valid vector scene with an out-of-bounds seed must segment");
     assert_eq!(out[5 * 10 + 5], 1.0);
     assert_eq!(out[0], 0.0);
+}
+
+#[test]
+fn channel_length_mismatch_returns_error() {
+    let channels = vec![vec![0.0_f64; 4], vec![1.0_f64; 3]];
+    let err = vector_confidence_connected(&channels, [1, 2, 2], &[[0, 0, 0]], 2.5, 1, 0, 1.0)
+        .unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("channel 1 length 3") && msg.contains("voxel count 4"),
+        "error must identify mismatched channel length: {}",
+        msg
+    );
+}
+
+#[test]
+fn overflowing_dims_return_error() {
+    let channels = vec![Vec::<f64>::new()];
+    let err = vector_confidence_connected(
+        &channels,
+        [usize::MAX, usize::MAX, usize::MAX],
+        &[[0, 0, 0]],
+        2.5,
+        1,
+        0,
+        1.0,
+    )
+    .unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("voxel count overflows"),
+        "error must identify voxel-count overflow: {}",
+        msg
+    );
 }
