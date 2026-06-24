@@ -19,6 +19,15 @@ use burn::tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
 use serde::{Deserialize, Serialize};
 
+#[inline]
+pub(super) fn slice_batch<B: Backend>(
+    values: Tensor<B, 1>,
+    start: usize,
+    end: usize,
+) -> Tensor<B, 1> {
+    values.slice_dim(0, start..end)
+}
+
 /// Linear Interpolator.
 ///
 /// Performs linear interpolation natively.

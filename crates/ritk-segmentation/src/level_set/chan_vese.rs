@@ -232,9 +232,9 @@ impl ChanVeseSegmentation {
                 |iz, phi_s| {
                     let base = iz * slice_len;
                     let mut local_max = 0.0_f64;
-                    for i in 0..slice_len {
+                    for (i, phi_val) in phi_s.iter_mut().enumerate() {
                         let idx = base + i;
-                        let dirac = regularised_dirac(phi_s[i], eps);
+                        let dirac = regularised_dirac(*phi_val, eps);
 
                         let diff1 = img_f64[idx] - c1;
                         let diff2 = img_f64[idx] - c2;
@@ -243,7 +243,7 @@ impl ChanVeseSegmentation {
                             + self.lambda2 * diff2 * diff2;
 
                         let dphi = self.dt * dirac * force;
-                        phi_s[i] += dphi;
+                        *phi_val += dphi;
 
                         let abs_dphi = dphi.abs();
                         if abs_dphi > local_max {

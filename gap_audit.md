@@ -1,5 +1,39 @@
 # RITK Gap Audit - Active
 
+## Sprint 388 Audit (2026-06-24) — Linear Kernel Slice Semantics
+
+### Gaps Closed
+
+- **[CLIPPY-387-01 CLOSED]** `ritk-interpolation` linear-kernel gathered batch splitting:
+  `dim2.rs`, `dim3.rs`, and `dim4.rs` no longer construct single-range array slices for
+  one-dimensional tensors. The shared `linear::slice_batch` helper calls Burn's
+  `Tensor::slice_dim(0, start..end)`, making the rank-specific intent explicit and preserving
+  the existing corner gather and interpolation cascade. Evidence tier: compile/lint plus
+  value-semantic focused tests (`cargo clippy -p ritk-interpolation --all-targets -- -D warnings`
+  passed; `cargo nextest run -p ritk-interpolation linear` → 29/29 passed).
+- **[CLIPPY-388-02 CLOSED]** `ritk-segmentation` level-set Moirai chunk loops:
+  Chan-Vese, geodesic active contour, shape detection, threshold level set, and Laplacian update
+  kernels now iterate the mutable chunk slices directly with `iter_mut().enumerate()`. Global
+  indices remain only for read-only companion buffers, preserving the update equations and
+  chunk partitioning. Evidence tier: compile/lint plus value-semantic focused tests
+  (`cargo clippy -p ritk-segmentation -p ritk-interpolation --all-targets -- -D warnings`
+  passed; `cargo nextest run -p ritk-segmentation level_set` → 62/62 passed).
+- **[ATLAS-388-01 CLOSED]** Coeus autograd shape-stack integration drift:
+  `D:\atlas\repos\coeus\coeus-autograd\src\ops\shape\stack.rs` no longer passes obsolete
+  backend arguments to `coeus_ops::split` and `coeus_ops::stack`. Evidence tier: direct
+  package compile/lint and tests (`cargo clippy -p coeus-autograd --all-targets -- -D warnings`
+  passed; `cargo nextest run -p coeus-autograd` → 22/22 passed) plus RITK dependency gate.
+
+### Residual Risk
+
+- Workspace `cargo fmt --check` still reports pre-existing formatting drift outside the Sprint 388
+  touched files. This slice verified the changed linear files with `rustfmt --check` and did not
+  reformat unrelated modules.
+- Remaining Atlas migration surfaces are broad (`burn`, `nalgebra`, `ndarray`) and require verified
+  one-for-one contracts before replacement. No dependency replacement is claimed in Sprint 388.
+
+---
+
 ## Sprint 387 Audit (2026-06-24) — Region-Growing Matrix Flattening + Legacy Cleanup
 
 ### Gaps Closed
@@ -20,9 +54,9 @@
 
 - Workspace `cargo fmt --check` still reports pre-existing formatting drift outside the files touched
   by Sprint 387. This slice formatted only changed Rust files to avoid unrelated churn.
-- Focused Clippy is blocked before this slice by `ritk-interpolation` linear-kernel
-  `clippy::single_range_in_vec_init` diagnostics in `dim2.rs`, `dim3.rs`, and `dim4.rs`.
-  The B-spline deletion itself compiles and passes focused nextest.
+- The Sprint 387 B-spline deletion itself compiles and passes focused nextest. The then-open
+  `ritk-interpolation` linear-kernel `clippy::single_range_in_vec_init` blocker was closed in
+  Sprint 388.
 - Remaining Atlas migration surfaces are broad (`burn`, `nalgebra`, `ndarray`) and require verified
   one-for-one contracts before replacement. No stronger evidence than the current audit scan is claimed.
 

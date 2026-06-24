@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 388: Linear kernel slice semantics
+
+### Fixed
+- `ritk-interpolation`: 2-D, 3-D, and 4-D linear interpolation kernels now split gathered
+  corner batches through one private `linear::slice_batch` helper backed by
+  `Tensor::slice_dim(0, start..end)`. This removes the prior
+  `clippy::single_range_in_vec_init` blocker without changing the gather/lerp semantics or
+  introducing allocation-backed range vectors. Evidence tier: compile/lint and value-semantic
+  focused tests (`cargo clippy -p ritk-interpolation --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-interpolation linear` → 29/29 passed).
+- `ritk-segmentation`: level-set Moirai chunk update loops now iterate mutable chunk slices
+  directly with `iter_mut().enumerate()` and use global indices only for read-only companion
+  buffers. This removes five `needless_range_loop` diagnostics without changing the update
+  equations. Evidence tier: compile/lint and value-semantic focused tests
+  (`cargo clippy -p ritk-segmentation -p ritk-interpolation --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-segmentation level_set` → 62/62 passed).
+- `coeus-autograd` integration: local Atlas Coeus stack/split autograd now calls the current
+  backend-owning `coeus_ops::{split,stack}` signatures, unblocking RITK's dependency graph.
+  Evidence tier: direct Coeus package validation (`cargo clippy -p coeus-autograd --all-targets
+  -- -D warnings`; `cargo nextest run -p coeus-autograd` → 22/22 passed).
+
+---
+
 ## [Unreleased] — Sprint 387: Region-growing memory layout and B-spline cleanup
 
 ### Performance

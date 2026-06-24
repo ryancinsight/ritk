@@ -156,7 +156,7 @@ impl ThresholdLevelSet {
                 |iz, phi_new_s| {
                     let base = iz * slice_len;
                     let mut local_max = 0.0_f64;
-                    for i in 0..slice_len {
+                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
                         let idx = base + i;
                         let grad_phi_mag = (phi_z[idx] * phi_z[idx]
                             + phi_y[idx] * phi_y[idx]
@@ -166,7 +166,7 @@ impl ThresholdLevelSet {
                         let speed = self.curvature_weight * kappa[idx]
                             - self.propagation_weight * threshold_speed[idx];
                         let dphi = self.dt * grad_phi_mag * speed;
-                        phi_new_s[i] = phi[idx] + dphi;
+                        *phi_new_val = phi[idx] + dphi;
 
                         let change = dphi.abs() / self.dt;
                         if change > local_max {

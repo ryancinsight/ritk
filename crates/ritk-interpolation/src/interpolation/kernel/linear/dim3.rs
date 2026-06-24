@@ -8,8 +8,8 @@
 //! file supplies only the gather + trilinear lerp cascade body with
 //! the inline `B::ad_enabled()` const-generic dispatch.
 
+use super::slice_batch;
 use burn::tensor::Tensor;
-
 
 ritk_macros::interp_dim_template!(
     3,
@@ -39,21 +39,20 @@ ritk_macros::interp_dim_template!(
 
             let all_indices = Tensor::cat(
                 vec![
-                    idx000, idx001, idx010, idx011,
-                    idx100, idx101, idx110, idx111,
+                    idx000, idx001, idx010, idx011, idx100, idx101, idx110, idx111,
                 ],
                 0,
             );
             let all_values = flat_data.clone().gather(0, all_indices);
 
-            let v000 = all_values.clone().slice([0..batch_size]);
-            let v001 = all_values.clone().slice([batch_size..2 * batch_size]);
-            let v010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
-            let v011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
-            let v100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
-            let v101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
-            let v110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
-            let v111 = all_values.slice([7 * batch_size..8 * batch_size]);
+            let v000 = slice_batch(all_values.clone(), 0, batch_size);
+            let v001 = slice_batch(all_values.clone(), batch_size, 2 * batch_size);
+            let v010 = slice_batch(all_values.clone(), 2 * batch_size, 3 * batch_size);
+            let v011 = slice_batch(all_values.clone(), 3 * batch_size, 4 * batch_size);
+            let v100 = slice_batch(all_values.clone(), 4 * batch_size, 5 * batch_size);
+            let v101 = slice_batch(all_values.clone(), 5 * batch_size, 6 * batch_size);
+            let v110 = slice_batch(all_values.clone(), 6 * batch_size, 7 * batch_size);
+            let v111 = slice_batch(all_values, 7 * batch_size, 8 * batch_size);
 
             (v000, v001, v010, v011, v100, v101, v110, v111)
         } else {
@@ -68,21 +67,20 @@ ritk_macros::interp_dim_template!(
 
             let all_indices = Tensor::cat(
                 vec![
-                    idx000, idx001, idx010, idx011,
-                    idx100, idx101, idx110, idx111,
+                    idx000, idx001, idx010, idx011, idx100, idx101, idx110, idx111,
                 ],
                 0,
             );
             let all_values = flat_data.clone().gather(0, all_indices);
 
-            let v000 = all_values.clone().slice([0..batch_size]);
-            let v001 = all_values.clone().slice([batch_size..2 * batch_size]);
-            let v010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
-            let v011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
-            let v100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
-            let v101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
-            let v110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
-            let v111 = all_values.slice([7 * batch_size..8 * batch_size]);
+            let v000 = slice_batch(all_values.clone(), 0, batch_size);
+            let v001 = slice_batch(all_values.clone(), batch_size, 2 * batch_size);
+            let v010 = slice_batch(all_values.clone(), 2 * batch_size, 3 * batch_size);
+            let v011 = slice_batch(all_values.clone(), 3 * batch_size, 4 * batch_size);
+            let v100 = slice_batch(all_values.clone(), 4 * batch_size, 5 * batch_size);
+            let v101 = slice_batch(all_values.clone(), 5 * batch_size, 6 * batch_size);
+            let v110 = slice_batch(all_values.clone(), 6 * batch_size, 7 * batch_size);
+            let v111 = slice_batch(all_values, 7 * batch_size, 8 * batch_size);
 
             (v000, v001, v010, v011, v100, v101, v110, v111)
         };
@@ -157,21 +155,20 @@ ritk_macros::interp_dim_template_typed!(
 
             let all_indices = Tensor::cat(
                 vec![
-                    idx000, idx001, idx010, idx011,
-                    idx100, idx101, idx110, idx111,
+                    idx000, idx001, idx010, idx011, idx100, idx101, idx110, idx111,
                 ],
                 0,
             );
             let all_values = flat_data.clone().gather(0, all_indices);
 
-            let v000 = all_values.clone().slice([0..batch_size]);
-            let v001 = all_values.clone().slice([batch_size..2 * batch_size]);
-            let v010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
-            let v011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
-            let v100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
-            let v101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
-            let v110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
-            let v111 = all_values.slice([7 * batch_size..8 * batch_size]);
+            let v000 = slice_batch(all_values.clone(), 0, batch_size);
+            let v001 = slice_batch(all_values.clone(), batch_size, 2 * batch_size);
+            let v010 = slice_batch(all_values.clone(), 2 * batch_size, 3 * batch_size);
+            let v011 = slice_batch(all_values.clone(), 3 * batch_size, 4 * batch_size);
+            let v100 = slice_batch(all_values.clone(), 4 * batch_size, 5 * batch_size);
+            let v101 = slice_batch(all_values.clone(), 5 * batch_size, 6 * batch_size);
+            let v110 = slice_batch(all_values.clone(), 6 * batch_size, 7 * batch_size);
+            let v111 = slice_batch(all_values, 7 * batch_size, 8 * batch_size);
 
             (v000, v001, v010, v011, v100, v101, v110, v111)
         } else {
@@ -186,21 +183,20 @@ ritk_macros::interp_dim_template_typed!(
 
             let all_indices = Tensor::cat(
                 vec![
-                    idx000, idx001, idx010, idx011,
-                    idx100, idx101, idx110, idx111,
+                    idx000, idx001, idx010, idx011, idx100, idx101, idx110, idx111,
                 ],
                 0,
             );
             let all_values = flat_data.clone().gather(0, all_indices);
 
-            let v000 = all_values.clone().slice([0..batch_size]);
-            let v001 = all_values.clone().slice([batch_size..2 * batch_size]);
-            let v010 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
-            let v011 = all_values.clone().slice([3 * batch_size..4 * batch_size]);
-            let v100 = all_values.clone().slice([4 * batch_size..5 * batch_size]);
-            let v101 = all_values.clone().slice([5 * batch_size..6 * batch_size]);
-            let v110 = all_values.clone().slice([6 * batch_size..7 * batch_size]);
-            let v111 = all_values.slice([7 * batch_size..8 * batch_size]);
+            let v000 = slice_batch(all_values.clone(), 0, batch_size);
+            let v001 = slice_batch(all_values.clone(), batch_size, 2 * batch_size);
+            let v010 = slice_batch(all_values.clone(), 2 * batch_size, 3 * batch_size);
+            let v011 = slice_batch(all_values.clone(), 3 * batch_size, 4 * batch_size);
+            let v100 = slice_batch(all_values.clone(), 4 * batch_size, 5 * batch_size);
+            let v101 = slice_batch(all_values.clone(), 5 * batch_size, 6 * batch_size);
+            let v110 = slice_batch(all_values.clone(), 6 * batch_size, 7 * batch_size);
+            let v111 = slice_batch(all_values, 7 * batch_size, 8 * batch_size);
 
             (v000, v001, v010, v011, v100, v101, v110, v111)
         };

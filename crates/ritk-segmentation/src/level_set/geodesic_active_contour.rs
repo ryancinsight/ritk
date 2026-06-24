@@ -223,7 +223,7 @@ impl GeodesicActiveContourSegmentation {
                 |iz, phi_new_s| {
                     let base = iz * slice_len;
                     let mut local_sum_sq = 0.0_f64;
-                    for i in 0..slice_len {
+                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
                         let idx = base + i;
                         let grad_phi_mag = (phi_gz[idx] * phi_gz[idx]
                             + phi_gy[idx] * phi_gy[idx]
@@ -241,7 +241,7 @@ impl GeodesicActiveContourSegmentation {
                         let advection = self.advection_weight * adv[idx];
 
                         let dphi = self.dt * (curv - prop + advection);
-                        phi_new_s[i] = phi[idx] + dphi;
+                        *phi_new_val = phi[idx] + dphi;
 
                         // Accumulate squared change for RMS convergence criterion.
                         local_sum_sq += dphi * dphi;

@@ -1,5 +1,46 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 388 — Linear Kernel Slice Semantics
+**Target version**: 0.12.80
+**Sprint phase**: Closure — lint blocker removed and focused verification passed
+
+### Delivered (Sprint 388)
+- [x] CLIPPY-387-01 [patch]: **Linear kernel batch slicing uses Burn's dimension slice API** —
+  2-D, 3-D, and 4-D linear interpolation kernels now split gathered corner batches through
+  one parent-module `slice_batch` helper backed by `Tensor::slice_dim(0, start..end)`.
+  This preserves the existing gather/lerp computation while removing the `single_range_in_vec_init`
+  lint source without allocation or compatibility shims. Evidence tier: compile/lint plus
+  value-semantic focused tests.
+- [x] CLIPPY-388-02 [patch]: **Level-set chunk loops iterate mutable slices directly** —
+  Chan-Vese, geodesic active contour, shape detection, threshold level set, and Laplacian
+  update kernels now use `iter_mut().enumerate()` over Moirai-provided chunk slices while
+  retaining global indices only for read-only companion buffers. Evidence tier: compile/lint
+  plus value-semantic focused tests.
+- [x] ATLAS-388-01 [patch]: **Coeus autograd stack/split call-site drift fixed upstream** —
+  `D:\atlas\repos\coeus\coeus-autograd\src\ops\shape\stack.rs` now calls
+  `coeus_ops::{split,stack}` through their current backend-owning signatures. Evidence tier:
+  direct Coeus package Clippy and nextest plus RITK dependency-gate compilation.
+
+### Verification gate (Sprint 388)
+- [x] `rustfmt --check crates\ritk-interpolation\src\interpolation\kernel\linear\mod.rs crates\ritk-interpolation\src\interpolation\kernel\linear\dim2.rs crates\ritk-interpolation\src\interpolation\kernel\linear\dim3.rs crates\ritk-interpolation\src\interpolation\kernel\linear\dim4.rs`
+- [x] `cargo clippy -p ritk-segmentation -p ritk-interpolation --all-targets -- -D warnings` → passed
+- [x] `cargo nextest run -p ritk-interpolation linear` → **29/29 passed**
+- [x] `cargo nextest run -p ritk-segmentation level_set` → **62/62 passed**
+- [x] `D:\atlas\repos\coeus`: `cargo clippy -p coeus-autograd --all-targets -- -D warnings` → passed
+- [x] `D:\atlas\repos\coeus`: `cargo nextest run -p coeus-autograd` → **22/22 passed**
+- [ ] `cargo fmt --check` workspace gate still blocked by pre-existing unrelated formatting drift
+  in `ritk-core`, `ritk-filter`, non-linear `ritk-interpolation`, `ritk-registration`,
+  `ritk-segmentation`, and `ritk-tensor-ops` files.
+
+### Deferred / carry-forward
+- [ ] PERF-387-02 [patch]: Continue flattening small matrix/vector hot paths where API-compatible:
+  `vector_confidence_connected` channel buffers, `inverse_displacement` derivative matrices, and
+  VTK cell lists remain next audit candidates.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
+  with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
+
+---
+
 ## Sprint 387 — Region-Growing Matrix Flattening + Legacy Cleanup
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed
@@ -22,15 +63,14 @@
 - [x] `cargo nextest run -p ritk-interpolation bspline` → **25/25 passed**
 - [x] `cargo check -p ritk-interpolation` → passed
 - [ ] `cargo fmt --check` workspace gate blocked by pre-existing formatting drift in unrelated files; not applied to avoid unrelated churn.
-- [ ] `cargo clippy -p ritk-segmentation -p ritk-interpolation --all-targets -- -D warnings` blocked by pre-existing
-  `clippy::single_range_in_vec_init` errors in `ritk-interpolation/src/interpolation/kernel/linear/{dim2,dim3,dim4}.rs`.
+- [x] `cargo clippy -p ritk-interpolation --all-targets -- -D warnings` unblocked in Sprint 388
+  by replacing the linear-kernel single-range `slice` calls with `Tensor::slice_dim`.
 
 ### Deferred / carry-forward
 - [ ] PERF-387-02 [patch]: Continue flattening small matrix/vector hot paths where API-compatible:
   `vector_confidence_connected` channel buffers, `inverse_displacement` derivative matrices, and
   VTK cell lists are the next audit candidates.
-- [ ] CLIPPY-387-01 [patch]: Fix `ritk-interpolation` linear-kernel `single_range_in_vec_init`
-  lint failures without changing tensor slice semantics.
+- [x] CLIPPY-387-01 [patch]: Fixed in Sprint 388 without changing tensor slice semantics.
 - [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
   with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
 

@@ -12,10 +12,11 @@
   buffer layout, `inverse_displacement` derivative matrices, VTK cell-list storage, and
   remaining nested small matrices where a row-major buffer preserves public contracts.
 
-- **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup.**
-  Focused Clippy is currently blocked by `clippy::single_range_in_vec_init` in
-  `interpolation/kernel/linear/{dim2,dim3,dim4}.rs`. Fix without allocating range vectors
-  or changing Burn tensor slice semantics.
+- **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**
+  Focused Clippy was blocked by `clippy::single_range_in_vec_init` in
+  `interpolation/kernel/linear/{dim2,dim3,dim4}.rs`; the kernels now route gathered 1-D
+  corner-batch splits through the shared `linear::slice_batch` helper backed by
+  `Tensor::slice_dim`. Evidence tier: compile/lint and value-semantic focused tests.
 
 - **PERF-379-01 [patch] — Deriche recursive-Gaussian cross-line parallelism. DONE.**
   `iir::apply_deriche_1d` now parallelises the X/Y passes across Z-slices via

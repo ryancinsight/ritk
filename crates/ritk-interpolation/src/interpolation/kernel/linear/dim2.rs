@@ -7,8 +7,8 @@
 //! The proc-macro generates the prelude and mask application; this
 //! file supplies only the gather + bilinear lerp cascade body.
 
+use super::slice_batch;
 use burn::tensor::Tensor;
-
 
 ritk_macros::interp_dim_template!(2, interpolate_2d, x, y, wx, wy, d1 - 1, d0 - 1, {
     let flat_data = data.clone().reshape([d0 * d1]);
@@ -23,10 +23,10 @@ ritk_macros::interp_dim_template!(2, interpolate_2d, x, y, wx, wy, d1 - 1, d0 - 
         let all_indices = Tensor::cat(vec![idx00, idx01, idx10, idx11], 0);
         let all_values = flat_data.clone().gather(0, all_indices);
 
-        let v00 = all_values.clone().slice([0..batch_size]);
-        let v01 = all_values.clone().slice([batch_size..2 * batch_size]);
-        let v10 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
-        let v11 = all_values.slice([3 * batch_size..4 * batch_size]);
+        let v00 = slice_batch(all_values.clone(), 0, batch_size);
+        let v01 = slice_batch(all_values.clone(), batch_size, 2 * batch_size);
+        let v10 = slice_batch(all_values.clone(), 2 * batch_size, 3 * batch_size);
+        let v11 = slice_batch(all_values, 3 * batch_size, 4 * batch_size);
 
         (v00, v01, v10, v11)
     } else {
@@ -38,10 +38,10 @@ ritk_macros::interp_dim_template!(2, interpolate_2d, x, y, wx, wy, d1 - 1, d0 - 
         let all_indices = Tensor::cat(vec![idx00, idx01, idx10, idx11], 0);
         let all_values = flat_data.clone().gather(0, all_indices);
 
-        let v00 = all_values.clone().slice([0..batch_size]);
-        let v01 = all_values.clone().slice([batch_size..2 * batch_size]);
-        let v10 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
-        let v11 = all_values.slice([3 * batch_size..4 * batch_size]);
+        let v00 = slice_batch(all_values.clone(), 0, batch_size);
+        let v01 = slice_batch(all_values.clone(), batch_size, 2 * batch_size);
+        let v10 = slice_batch(all_values.clone(), 2 * batch_size, 3 * batch_size);
+        let v11 = slice_batch(all_values, 3 * batch_size, 4 * batch_size);
 
         (v00, v01, v10, v11)
     };
@@ -88,10 +88,10 @@ ritk_macros::interp_dim_template_typed!(
             let all_indices = Tensor::cat(vec![idx00, idx01, idx10, idx11], 0);
             let all_values = flat_data.clone().gather(0, all_indices);
 
-            let v00 = all_values.clone().slice([0..batch_size]);
-            let v01 = all_values.clone().slice([batch_size..2 * batch_size]);
-            let v10 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
-            let v11 = all_values.slice([3 * batch_size..4 * batch_size]);
+            let v00 = slice_batch(all_values.clone(), 0, batch_size);
+            let v01 = slice_batch(all_values.clone(), batch_size, 2 * batch_size);
+            let v10 = slice_batch(all_values.clone(), 2 * batch_size, 3 * batch_size);
+            let v11 = slice_batch(all_values, 3 * batch_size, 4 * batch_size);
 
             (v00, v01, v10, v11)
         } else {
@@ -103,10 +103,10 @@ ritk_macros::interp_dim_template_typed!(
             let all_indices = Tensor::cat(vec![idx00, idx01, idx10, idx11], 0);
             let all_values = flat_data.clone().gather(0, all_indices);
 
-            let v00 = all_values.clone().slice([0..batch_size]);
-            let v01 = all_values.clone().slice([batch_size..2 * batch_size]);
-            let v10 = all_values.clone().slice([2 * batch_size..3 * batch_size]);
-            let v11 = all_values.slice([3 * batch_size..4 * batch_size]);
+            let v00 = slice_batch(all_values.clone(), 0, batch_size);
+            let v01 = slice_batch(all_values.clone(), batch_size, 2 * batch_size);
+            let v10 = slice_batch(all_values.clone(), 2 * batch_size, 3 * batch_size);
+            let v11 = slice_batch(all_values, 3 * batch_size, 4 * batch_size);
 
             (v00, v01, v10, v11)
         };
