@@ -115,3 +115,27 @@ fn test_unstructured_grid_validate_rejects_out_of_range_index() {
     let tmp = NamedTempFile::new().expect("temp");
     assert!(write_vtk_unstructured_grid(tmp.path(), &grid).is_err());
 }
+
+#[test]
+fn test_unstructured_grid_reader_rejects_bad_cell_index() {
+    let input = b"# vtk DataFile Version 3.0
+bad cell index
+ASCII
+DATASET UNSTRUCTURED_GRID
+POINTS 3 float
+0 0 0 1 0 0 0 1 0
+CELLS 1 4
+3 0 not_an_index 2
+CELL_TYPES 1
+5
+";
+    let mut reader = std::io::Cursor::new(input.as_slice());
+    let err = parse_unstructured_grid(&mut reader)
+        .expect_err("malformed ASCII cell point index must return Err");
+
+    let message = err.to_string();
+    assert!(
+        message.contains("bad CELLS point index"),
+        "error must name malformed cell index: {message}"
+    );
+}

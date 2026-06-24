@@ -1,5 +1,37 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 401 — VTK Cell Streaming and Parse Errors
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped VTK memory/safety slice delivered and focused verification passed
+
+### Delivered (Sprint 401)
+- [x] PERF-392-02 [patch]: **VTK unstructured cell writers stream from source cells** —
+  legacy VTK writing no longer allocates a `Vec<String>` for every cell row, and VTU
+  XML writing no longer materializes duplicate flat `connectivity` and `offsets` vectors.
+  Both writers emit directly from `VtkUnstructuredGrid::cells`, preserving the public
+  `Vec<Vec<u32>>` data model while reducing transient allocation on export.
+- [x] SAFE-401-01 [patch]: **Malformed legacy ASCII cell indices are fallible** —
+  the legacy unstructured-grid reader now reports malformed `CELLS` point indices with
+  cell/position context instead of panicking through `unwrap()`.
+  Evidence tier: compile/lint plus value-semantic VTK round-trip and malformed-cell tests.
+
+### Verification gate (Sprint 401)
+- [x] `rustfmt crates\ritk-vtk\src\io\unstruct_grid\mod.rs crates\ritk-vtk\src\io\unstruct_grid\tests.rs crates\ritk-vtk\src\io\unstructured_xml\writer.rs --check`
+- [x] `cargo clippy -p ritk-vtk --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-vtk` -> **243/243 passed**
+- [x] `cargo test --doc -p ritk-vtk` -> passed (0 run, 1 ignored)
+- [x] `cargo doc -p ritk-vtk --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with public VTK cell-list storage
+  only after an ADR/migration plan, because `VtkPolyData`/`VtkUnstructuredGrid` expose
+  nested cell vectors as public fields.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 400 — NIfTI Spatial Field Validation
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed

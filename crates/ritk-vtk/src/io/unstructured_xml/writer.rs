@@ -80,19 +80,6 @@ pub fn write_vtu_str(grid: &VtkUnstructuredGrid) -> String {
     writeln!(s, "        </DataArray>").unwrap();
     writeln!(s, "      </Points>").unwrap();
 
-    // ── <Cells> ──────────────────────────────────────────────────────────────
-    // connectivity: flat list of all point indices across all cells.
-    // offsets[i]  : cumulative sum of cell sizes through cell i (1-based).
-    // types       : u8::from(cell_type) for each cell.
-    let mut conn: Vec<u32> = Vec::new();
-    let mut offs: Vec<u32> = Vec::new();
-    let mut cum: u32 = 0;
-    for cell in &grid.cells {
-        conn.extend_from_slice(cell);
-        cum += cell.len() as u32;
-        offs.push(cum);
-    }
-
     writeln!(s, "      <Cells>").unwrap();
 
     // connectivity
@@ -102,8 +89,10 @@ pub fn write_vtu_str(grid: &VtkUnstructuredGrid) -> String {
     )
     .unwrap();
     write!(s, "       ").unwrap();
-    for v in &conn {
-        write!(s, " {}", v).unwrap();
+    for cell in &grid.cells {
+        for index in cell {
+            write!(s, " {index}").unwrap();
+        }
     }
     writeln!(s).unwrap();
     writeln!(s, "        </DataArray>").unwrap();
@@ -115,8 +104,10 @@ pub fn write_vtu_str(grid: &VtkUnstructuredGrid) -> String {
     )
     .unwrap();
     write!(s, "       ").unwrap();
-    for v in &offs {
-        write!(s, " {}", v).unwrap();
+    let mut offset = 0usize;
+    for cell in &grid.cells {
+        offset += cell.len();
+        write!(s, " {offset}").unwrap();
     }
     writeln!(s).unwrap();
     writeln!(s, "        </DataArray>").unwrap();

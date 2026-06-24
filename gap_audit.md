@@ -1,5 +1,34 @@
 # RITK Gap Audit - Active
 
+## Sprint 401 Audit (2026-06-24) — VTK Cell Streaming and Parse Errors
+
+### Gaps Closed
+
+- **[PERF-392-02 PARTIAL]** `ritk-vtk` unstructured-grid cell export staging:
+  legacy VTK writing now streams each cell row directly to the writer instead of building a
+  `Vec<String>` and joining it. VTU XML writing now streams `connectivity` and cumulative
+  `offsets` directly from `VtkUnstructuredGrid::cells` instead of allocating duplicate flat
+  vectors before formatting. Evidence tier: compile/lint plus value-semantic VTK writer and
+  round-trip tests (`cargo clippy -p ritk-vtk --all-targets -- -D warnings` passed; `cargo
+  nextest run -p ritk-vtk` -> 243/243 passed; `cargo test --doc -p ritk-vtk` passed; `cargo
+  doc -p ritk-vtk --no-deps` passed).
+- **[SAFE-401-01 CLOSED]** `ritk-vtk` legacy ASCII unstructured-grid `CELLS` parsing:
+  malformed point-index tokens now return a contextual error naming the cell and index
+  position instead of panicking through `unwrap()`. Evidence tier: value-semantic malformed
+  parser regression test plus the same focused VTK gate.
+
+### Residual Risk
+
+- This removes internal writer staging but intentionally preserves the public
+  `VtkPolyData`/`VtkUnstructuredGrid` nested cell-vector model. Flattening those public fields
+  remains a separate API/model change requiring ADR coverage and downstream call-site updates.
+- This is allocation-reduction and parser-safety evidence, not benchmark evidence. No speedup
+  is claimed.
+- Broad Atlas dependency migration remains open under MIG-387-01 and requires per-operation
+  contract tests before replacing `nalgebra`/`ndarray`/`burn` surfaces.
+
+---
+
 ## Sprint 400 Audit (2026-06-24) — NIfTI Spatial Field Validation
 
 ### Gaps Closed

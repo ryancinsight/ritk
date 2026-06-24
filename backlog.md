@@ -14,8 +14,10 @@
   writer's duplicate flattened attribute buffers and streams appended blocks from source
   storage. Sprint 392 changed NRRD spatial header vector parsing from per-vector heap
   `Vec<f64>` buffers to const-generic fixed arrays. Remaining candidates are
-  `vector_confidence_connected` channel buffer layout, VTK cell-list storage, and remaining
-  nested small matrices where a row-major buffer preserves public contracts.
+  `vector_confidence_connected` channel buffer layout, public VTK cell-list storage, and
+  remaining nested small matrices where a row-major buffer preserves public contracts.
+  Sprint 401 removed the VTK unstructured-grid writers' internal per-cell string vector and
+  duplicate VTU connectivity/offset staging; only the public nested cell model remains.
 
 - **SAFE-393-02 [patch] — Continue hostile format-header parser audit. IN PROGRESS.**
   Sprint 393 hardened NRRD spatial vector parsing so unterminated parenthesized groups return

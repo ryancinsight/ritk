@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 401: VTK cell streaming and parse errors
+
+### Fixed
+- `ritk-vtk`: Legacy unstructured-grid writing now streams cell rows directly instead of
+  allocating a temporary `Vec<String>` per cell, and VTU XML writing streams connectivity
+  and offsets directly from `VtkUnstructuredGrid::cells` instead of allocating duplicate flat
+  staging vectors. The legacy ASCII `CELLS` parser now rejects malformed point-index tokens
+  with contextual `Err` output instead of panicking. Evidence tier: compile/lint plus
+  value-semantic writer, round-trip, and malformed parser tests (`cargo clippy -p ritk-vtk
+  --all-targets -- -D warnings`; `cargo nextest run -p ritk-vtk` -> 243/243 passed;
+  `cargo test --doc -p ritk-vtk`; `cargo doc -p ritk-vtk --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 400: NIfTI spatial field validation
 
 ### Fixed

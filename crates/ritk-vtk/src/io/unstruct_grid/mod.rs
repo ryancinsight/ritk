@@ -163,18 +163,24 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
                 parse_cells_from_ints(&read_binary_be::<i32>(reader, sz, "i32")?, nc)?
             } else {
                 let mut cells = Vec::with_capacity(nc);
-                for _ in 0..nc {
+                for cell_idx in 0..nc {
                     let cl = read_line(reader)?.with_context(|| "EOF CELLS")?;
                     let p: Vec<&str> = cl.split_whitespace().collect();
                     let cnt: usize = p[0].parse().with_context(|| format!("bad count: {}", cl))?;
                     if p.len() < 1 + cnt {
                         bail!("short cell: {}", cl);
                     }
-                    cells.push(
-                        (1..=cnt)
-                            .map(|i| p[i].parse::<u32>().unwrap())
-                            .collect::<Vec<_>>(),
-                    );
+                    let mut cell = Vec::with_capacity(cnt);
+                    for index_pos in 0..cnt {
+                        let value = p[1 + index_pos].parse::<u32>().with_context(|| {
+                            format!(
+                                "bad CELLS point index at cell {cell_idx}, position {index_pos}: {}",
+                                p[1 + index_pos]
+                            )
+                        })?;
+                        cell.push(value);
+                    }
+                    cells.push(cell);
                 }
                 cells
             };
@@ -249,10 +255,11 @@ fn write_unstructured_grid(w: &mut dyn Write, grid: &VtkUnstructuredGrid) -> Res
     let sz: usize = grid.cells.iter().map(|c| 1 + c.len()).sum();
     writeln!(w, "CELLS {} {}", nc, sz)?;
     for cell in &grid.cells {
-        let p: Vec<String> = std::iter::once(cell.len().to_string())
-            .chain(cell.iter().map(|i| i.to_string()))
-            .collect();
-        writeln!(w, "{}", p.join(" "))?;
+        write!(w, "{}", cell.len())?;
+        for index in cell {
+            write!(w, " {index}")?;
+        }
+        writeln!(w)?;
     }
 
     writeln!(w, "CELL_TYPES {}", nc)?;
