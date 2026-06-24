@@ -1481,7 +1481,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-autograd"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "coeus-core",
  "coeus-ops",
@@ -1494,11 +1494,12 @@ dependencies = [
 
 [[package]]
 name = "coeus-core"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "bytemuck",
  "half",
  "hermes-simd 0.3.0",
+ "libm",
  "mnemosyne",
  "moirai",
  "num-traits",
@@ -1508,7 +1509,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-leto"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "coeus-core",
  "leto",
@@ -1517,7 +1518,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-ops"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -1526,6 +1527,7 @@ dependencies = [
  "coeus-tensor",
  "half",
  "leto-ops",
+ "melinoe 0.7.0",
  "num-traits",
  "smallvec",
  "thiserror 2.0.18",
@@ -1533,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-sparse"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -1543,7 +1545,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-tensor"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -4820,6 +4822,10 @@ checksum = "ae960838283323069879657ca3de837e9f7bbb4c7bf6ea7f1b290d5e9476d2e0"
 [[package]]
 name = "melinoe"
 version = "0.7.0"
+
+[[package]]
+name = "melinoe"
+version = "0.7.0"
 source = "git+https://github.com/ryancinsight/melinoe.git#6aa1e0ee6299d48c74d02815d80d74464f6974e7"
 
 [[package]]
@@ -4968,7 +4974,7 @@ dependencies = [
 name = "mnemosyne-heap"
 version = "0.1.0"
 dependencies = [
- "melinoe",
+ "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-core",
@@ -4980,7 +4986,7 @@ dependencies = [
 name = "mnemosyne-local"
 version = "0.1.0"
 dependencies = [
- "melinoe",
+ "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-core",
@@ -5032,7 +5038,7 @@ checksum = "4a0b3262dc837d2513fe2ef31ff8461352ef932dcca31ba0c0abe33547cf6b9b"
 name = "moirai"
 version = "0.2.0"
 dependencies = [
- "melinoe",
+ "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "mnemosyne",
  "moirai-async",
  "moirai-core",
@@ -5073,7 +5079,7 @@ dependencies = [
 name = "moirai-executor"
 version = "0.2.0"
 dependencies = [
- "melinoe",
+ "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "mnemosyne",
  "moirai-core",
  "moirai-pal",
@@ -5102,7 +5108,7 @@ version = "0.2.0"
 dependencies = [
  "js-sys",
  "libc",
- "melinoe",
+ "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "moirai-core",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5114,7 +5120,7 @@ dependencies = [
 name = "moirai-parallel"
 version = "0.2.0"
 dependencies = [
- "melinoe",
+ "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "moirai-executor",
 ]
 
@@ -8121,7 +8127,7 @@ name = "themis"
 version = "0.9.17"
 source = "git+https://github.com/ryancinsight/themis#fba0dc79c7a92eb33dbaf646495d1f7d9306fd3a"
 dependencies = [
- "melinoe",
+ "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
 ]
 
 [[package]]

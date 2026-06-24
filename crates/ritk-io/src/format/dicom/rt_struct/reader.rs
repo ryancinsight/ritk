@@ -21,7 +21,8 @@ use super::utils::{parse_color, parse_contour_data};
 ///
 /// # Invariants
 /// 1. ROIs are sorted ascending by `roi_number`.
-/// 2. All contour data is fully parsed; partial triples are discarded.
+/// 2. All present contour data is fully parsed or rejected; partial triples
+///    and invalid numeric components are errors.
 /// 3. `structure_set_name` is `None` when the tag is absent or empty.
 pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
     let path = path.as_ref();
@@ -146,12 +147,17 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
                                 .and_then(|s| ContourGeometricType::from_dicom_str(s.trim()))
                                 .unwrap_or(ContourGeometricType::ClosedPlanar);
 
-                            let points = ci
-                                .element(Tag(0x3006, 0x0050))
-                                .ok()
-                                .and_then(|e| e.to_str().ok())
-                                .map(|s| parse_contour_data(s.trim()))
-                                .unwrap_or_default();
+                            let points = match ci.element(Tag(0x3006, 0x0050)) {
+                                Ok(element) => {
+                                    let raw = element.to_str().with_context(|| {
+                                        format!("Read ContourData for ROI {}", ref_roi)
+                                    })?;
+                                    parse_contour_data(raw.trim()).with_context(|| {
+                                        format!("Invalid ContourData for ROI {}", ref_roi)
+                                    })?
+                                }
+                                Err(_) => Vec::new(),
+                            };
 
                             contours.push(RtContour {
                                 geometric_type,

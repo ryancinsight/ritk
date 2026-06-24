@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 395: RT Struct exact contour data
+
+### Fixed
+- `ritk-io`: DICOM RT Structure Set `ContourData` now rejects non-numeric components and
+  partial trailing coordinate triples instead of silently discarding malformed values. The
+  parser streams directly into `[f64; 3]` point buffers, removing the previous intermediate
+  scalar coordinate allocation. Evidence tier: compile/lint and value-semantic reader tests
+  (`cargo clippy -p ritk-io --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-io` -> 333/333 passed; `cargo test --doc -p ritk-io`;
+  `cargo doc -p ritk-io --no-deps`).
+
+### Changed
+- `Cargo.lock`: refreshed to the current local Coeus `0.2.3` provider graph after the
+  Apollo Coeus autograd compatibility fix. Evidence tier: integration build/lint against the
+  refreshed graph.
+
+---
+
 ## [Unreleased] — Sprint 394: NRRD exact vector fields
 
 ### Fixed

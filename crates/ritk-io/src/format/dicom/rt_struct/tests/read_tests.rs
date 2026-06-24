@@ -63,6 +63,47 @@ fn test_read_rt_struct_single_roi_closed_planar() {
     assert_eq!(contour.points[3], [0.0, 1.0, 0.0], "point[3]");
 }
 
+/// Invariant: present ContourData must contain a whole number of `[X,Y,Z]`
+/// triples. A partial trailing point is malformed input, not a shortened
+/// contour.
+#[test]
+fn test_read_rt_struct_rejects_partial_contour_triple() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("partial_contour.dcm");
+    write_rt_struct_file(
+        build_single_roi_obj_with_contour_data("0.0\\0.0\\0.0\\1.0"),
+        &path,
+    );
+
+    let result = read_rt_struct(&path);
+    assert!(result.is_err(), "partial ContourData triple must fail");
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("ContourData") && msg.contains("divisible by 3"),
+        "error must name the exact ContourData cardinality violation; got: {msg}"
+    );
+}
+
+/// Invariant: every present ContourData component must parse as a numeric DS
+/// value. Invalid components are rejected instead of silently discarded.
+#[test]
+fn test_read_rt_struct_rejects_invalid_contour_component() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("invalid_contour_component.dcm");
+    write_rt_struct_file(
+        build_single_roi_obj_with_contour_data("0.0\\not-a-number\\0.0"),
+        &path,
+    );
+
+    let result = read_rt_struct(&path);
+    assert!(result.is_err(), "invalid ContourData component must fail");
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("Invalid ContourData"),
+        "error must name the invalid ContourData component; got: {msg}"
+    );
+}
+
 /// Invariant: when two ROIs are present, both are returned sorted ascending
 /// by roi_number regardless of insertion order in the DICOM sequence.
 #[test]

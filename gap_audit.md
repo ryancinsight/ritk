@@ -1,5 +1,34 @@
 # RITK Gap Audit - Active
 
+## Sprint 395 Audit (2026-06-24) — RT Struct Exact ContourData
+
+### Gaps Closed
+
+- **[SAFE-394-01 ADVANCED]** `ritk-io` DICOM RT Structure Set ContourData parsing:
+  `rt_struct::utils::parse_contour_data` now rejects malformed present contour data instead
+  of silently discarding non-numeric components or dropping partial trailing coordinate
+  triples. The parser also streams directly into `[f64; 3]` point buffers, removing the
+  previous intermediate scalar `Vec<f64>` allocation for large contours. Evidence tier:
+  compile/lint plus value-semantic public-reader tests (`cargo clippy -p ritk-io
+  --all-targets -- -D warnings` passed; `cargo nextest run -p ritk-io` -> 333/333
+  passed; `cargo test --doc -p ritk-io` passed; `cargo doc -p ritk-io --no-deps`
+  passed).
+- **[ATLAS-395-01 CLOSED]** Apollo provider compatibility for the current Coeus autograd
+  contract: `apollo-fft` Coeus nodes now use `GradBuffer` instead of raw mutex-backed
+  tensor gradients. This was required because RITK's local Atlas provider graph refreshed
+  Coeus to `0.2.3`. Evidence tier: compile/lint plus provider tests (`cargo clippy -p
+  apollo-fft --all-targets -- -D warnings` passed; `cargo nextest run -p apollo-fft`
+  -> 397/397 passed; doctest/doc passed).
+
+### Residual Risk
+
+- RT Struct ContourData exactness is now covered for present contour coordinate fields.
+  Other sibling format and RT modality parsers still need hostile-field review.
+- This is allocation-reduction evidence, not benchmark evidence. No speedup is claimed.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 394 Audit (2026-06-24) — NRRD Exact Vector Fields
 
 ### Gaps Closed

@@ -42,7 +42,10 @@ pub(super) fn write_wrong_sop_file(sop: &str, path: &std::path::Path) {
 /// - 1 CLOSED_PLANAR contour: [[0,0,0],[1,0,0],[1,1,0],[0,1,0]]
 pub(super) fn build_single_roi_obj() -> InMemDicomObject {
     let contour_data = "0.0\\0.0\\0.0\\1.0\\0.0\\0.0\\1.0\\1.0\\0.0\\0.0\\1.0\\0.0";
+    build_single_roi_obj_with_contour_data(contour_data)
+}
 
+pub(super) fn build_single_roi_obj_with_contour_data(contour_data: &str) -> InMemDicomObject {
     let mut contour_item = InMemDicomObject::new_empty();
     contour_item.put(DataElement::new(
         Tag(0x3006, 0x0042),

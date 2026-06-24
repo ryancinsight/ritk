@@ -1,5 +1,45 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 395 — RT Struct Exact ContourData
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
+
+### Delivered (Sprint 395)
+- [x] SAFE-394-01 [patch]: **DICOM RT Structure Set ContourData is exact and fallible** —
+  `ritk-io` now rejects non-numeric contour components and partial trailing `[X,Y,Z]`
+  triples instead of silently discarding malformed tokens or shortening the contour. The
+  parser streams components directly into `[f64; 3]` points, removing the previous
+  intermediate scalar `Vec<f64>` allocation. Evidence tier: compile/lint plus
+  value-semantic reader tests.
+- [x] ATLAS-395-01 [patch]: **Apollo provider compatibility unblocked current Coeus graph** —
+  `apollo-fft` Coeus autograd nodes now use `coeus_autograd::GradBuffer` instead of raw
+  `Arc<Mutex<Tensor<_>>>`, matching the current local Coeus `0.2.3` provider contract used
+  by the RITK dependency graph. Evidence tier: provider compile/lint plus nextest.
+
+### Verification gate (Sprint 395)
+- [x] `rustfmt crates\ritk-io\src\format\dicom\rt_struct\utils.rs crates\ritk-io\src\format\dicom\rt_struct\reader.rs crates\ritk-io\src\format\dicom\rt_struct\tests\helpers.rs crates\ritk-io\src\format\dicom\rt_struct\tests\read_tests.rs --check`
+- [x] `cargo clippy -p ritk-io --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-io` -> **333/333 passed**
+- [x] `cargo test --doc -p ritk-io` -> passed (0 run, 4 ignored)
+- [x] `cargo doc -p ritk-io --no-deps` -> passed
+- [x] `git diff --check` -> passed
+- [x] `apollo-fft` provider gate: `cargo clippy -p apollo-fft --all-targets -- -D warnings`;
+  `cargo nextest run -p apollo-fft` -> **397/397 passed**; `cargo test --doc -p apollo-fft`;
+  `cargo doc -p apollo-fft --no-deps`; `git diff --check`.
+- [ ] `cargo fmt --check` workspace gate still blocked by pre-existing unrelated formatting drift
+  recorded in Sprint 388.
+
+### Deferred / carry-forward
+- [ ] SAFE-395-01 [patch]: Continue hostile-header/value audit in sibling image and RT parsers
+  (MetaImage, MINC, NIfTI, RT Dose/Plan) for exact vector/matrix field consumption and
+  bounded allocation on malformed fields.
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected` channel
+  buffers and VTK public cell-list storage. VTK cell-list storage remains a public model change.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
+  with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
+
+---
+
 ## Sprint 394 — NRRD Exact Vector Fields
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
