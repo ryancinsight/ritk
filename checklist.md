@@ -1,5 +1,41 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 387 — Region-Growing Matrix Flattening + Legacy Cleanup
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed
+
+### Delivered (Sprint 387)
+- [x] PERF-387-01 [patch]: **`VectorConfidenceConnected` row-major covariance/inverse** —
+  internal covariance, augmented Gauss-Jordan state, inverse covariance, and singular fallback
+  now use flat row-major `Vec<f64>` buffers instead of nested `Vec<Vec<f64>>` matrices. Public
+  channel input remains unchanged. Evidence tier: differential/value-semantic tests.
+- [x] CLEAN-387-01 [patch]: **B-spline dead legacy module removed** — deleted the placeholder
+  `bspline/legacy.rs` module and its parent `mod legacy;` declaration. No compatibility shim remains.
+- [x] BUILD-387-01 [patch]: **Cargo.lock synchronized with local `moirai` graph** — Cargo now records
+  `bytemuck` for local `moirai-core` and `moirai-transport`, matching the current Atlas checkout.
+- [x] DOC-387-01 [patch]: **Atlas dependency table reconciled** — README now names `moirai`,
+  `mnemosyne`, `apollo-fft`, and Atlas migration targets instead of stale `rayon` guidance.
+
+### Verification gate (Sprint 387)
+- [x] `rustfmt crates\ritk-segmentation\src\region_growing\vector_confidence_connected.rs crates\ritk-interpolation\src\interpolation\kernel\bspline\mod.rs`
+- [x] `cargo nextest run -p ritk-segmentation vector_confidence_connected` → **3/3 passed**
+- [x] `cargo nextest run -p ritk-interpolation bspline` → **25/25 passed**
+- [x] `cargo check -p ritk-interpolation` → passed
+- [ ] `cargo fmt --check` workspace gate blocked by pre-existing formatting drift in unrelated files; not applied to avoid unrelated churn.
+- [ ] `cargo clippy -p ritk-segmentation -p ritk-interpolation --all-targets -- -D warnings` blocked by pre-existing
+  `clippy::single_range_in_vec_init` errors in `ritk-interpolation/src/interpolation/kernel/linear/{dim2,dim3,dim4}.rs`.
+
+### Deferred / carry-forward
+- [ ] PERF-387-02 [patch]: Continue flattening small matrix/vector hot paths where API-compatible:
+  `vector_confidence_connected` channel buffers, `inverse_displacement` derivative matrices, and
+  VTK cell lists are the next audit candidates.
+- [ ] CLIPPY-387-01 [patch]: Fix `ritk-interpolation` linear-kernel `single_range_in_vec_init`
+  lint failures without changing tensor slice semantics.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
+  with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
+
+---
+
 ## Sprint 386 — CurvatureFlow f64, Interior Peel Perf, Laplacian Bug Fix, cmake Parity +18
 **Target version**: 0.12.79
 **Sprint phase**: Closure — all items delivered and verified
@@ -37,9 +73,9 @@
 
 ### Deferred / carry-forward
 - [x] PERF-381-01: `cargo bench` baseline timings for `separable_box_3d` / EDT recorded (EDT: 73.1 ms, Box r=2: 57.1 ms, r=5: 61.6 ms).
-- [ ] FRANGI-QA-01: Frangi/Sato pixel-level comparison against sitk at multiple σ not yet added.
-- [ ] CHAN-VESE-QA-01: ScalarChanAndVese pixel-exact comparison against sitk not yet performed.
-- [ ] ISOLATED-WS-QA-01: Watershed plateau handling for flat-region images not validated.
+- [x] FRANGI-QA-01: Frangi/Sato pixel-level comparison against sitk at multiple sigma added.
+- [x] CHAN-VESE-QA-01: ScalarChanAndVese pixel-exact comparison against sitk completed.
+- [x] ISOLATED-WS-QA-01: Watershed plateau handling validated with exact label-boundary tests.
 - [ ] cmake-data: ContourExtractor2D (2 tests) skip because `sitk.ContourExtractor2DImageFilter` unavailable in test environment — environment limitation, not a code gap.
 
 ---

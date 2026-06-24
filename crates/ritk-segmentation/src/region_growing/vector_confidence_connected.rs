@@ -35,9 +35,9 @@ use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
-/// Mean vector + population covariance of a set of channel rows.
+/// Mean vector + row-major population covariance of a set of channel rows.
 ///
-/// Mean and biased covariance (`cov[i][j] = E[x_i x_j] − E[x_i] E[x_j]`, divided
+/// Mean and biased covariance (`cov[i,j] = E[x_i x_j] - E[x_i] E[x_j]`, divided
 /// by `N`) over `count` pixels.  `fill(k, row)` writes pixel `k`'s `c` channel
 /// values into `row`; the single `row` scratch is reused across all pixels, so
 /// no per-pixel allocation occurs regardless of source (neighbourhood list or
@@ -47,17 +47,17 @@ fn mean_covariance<F: FnMut(usize, &mut [f64])>(
     count: usize,
     c: usize,
     mut fill: F,
-) -> (Vec<f64>, Vec<Vec<f64>>) {
+) -> (Vec<f64>, Vec<f64>) {
     let n = count as f64;
     let mut mean = vec![0.0; c];
-    let mut cov = vec![vec![0.0; c]; c];
+    let mut cov = vec![0.0; c * c];
     let mut row = vec![0.0; c];
     for k in 0..count {
         fill(k, &mut row);
         for i in 0..c {
             mean[i] += row[i];
             for j in 0..c {
-                cov[i][j] += row[i] * row[j];
+                cov[i * c + j] += row[i] * row[j];
             }
         }
     }
@@ -66,7 +66,7 @@ fn mean_covariance<F: FnMut(usize, &mut [f64])>(
     }
     for i in 0..c {
         for j in 0..c {
-            cov[i][j] = cov[i][j] / n - mean[i] * mean[j];
+            cov[i * c + j] = cov[i * c + j] / n - mean[i] * mean[j];
         }
     }
     (mean, cov)
@@ -74,54 +74,58 @@ fn mean_covariance<F: FnMut(usize, &mut [f64])>(
 
 /// Inverse of a small symmetric matrix via Gauss–Jordan elimination, plus its
 /// determinant magnitude.  Returns `(inverse, |det|)`.
-fn invert(mat: &[Vec<f64>], c: usize) -> (Vec<Vec<f64>>, f64) {
+fn invert(mat: &[f64], c: usize) -> (Vec<f64>, f64) {
     // Augment [mat | I] and reduce.
-    let mut a = vec![vec![0.0; 2 * c]; c];
+    let aug_cols = 2 * c;
+    let mut a = vec![0.0; c * aug_cols];
     for i in 0..c {
         for j in 0..c {
-            a[i][j] = mat[i][j];
+            a[i * aug_cols + j] = mat[i * c + j];
         }
-        a[i][c + i] = 1.0;
+        a[i * aug_cols + c + i] = 1.0;
     }
     let mut det = 1.0;
     for col in 0..c {
         // Partial pivot.
         let mut piv = col;
-        let mut best = a[col][col].abs();
+        let mut best = a[col * aug_cols + col].abs();
         for r in (col + 1)..c {
-            if a[r][col].abs() > best {
-                best = a[r][col].abs();
+            let candidate = a[r * aug_cols + col].abs();
+            if candidate > best {
+                best = candidate;
                 piv = r;
             }
         }
         if piv != col {
-            a.swap(piv, col);
+            for j in 0..aug_cols {
+                a.swap(piv * aug_cols + j, col * aug_cols + j);
+            }
             det = -det;
         }
-        let p = a[col][col];
+        let p = a[col * aug_cols + col];
         det *= p;
         if p == 0.0 {
-            return (vec![vec![0.0; c]; c], 0.0);
+            return (vec![0.0; c * c], 0.0);
         }
         let inv_p = 1.0 / p;
-        for j in 0..(2 * c) {
-            a[col][j] *= inv_p;
+        for j in 0..aug_cols {
+            a[col * aug_cols + j] *= inv_p;
         }
         for r in 0..c {
             if r != col {
-                let f = a[r][col];
+                let f = a[r * aug_cols + col];
                 if f != 0.0 {
-                    for j in 0..(2 * c) {
-                        a[r][j] -= f * a[col][j];
+                    for j in 0..aug_cols {
+                        a[r * aug_cols + j] -= f * a[col * aug_cols + j];
                     }
                 }
             }
         }
     }
-    let mut inv = vec![vec![0.0; c]; c];
+    let mut inv = vec![0.0; c * c];
     for i in 0..c {
         for j in 0..c {
-            inv[i][j] = a[i][c + j];
+            inv[i * c + j] = a[i * aug_cols + c + j];
         }
     }
     (inv, det.abs())
@@ -130,15 +134,15 @@ fn invert(mat: &[Vec<f64>], c: usize) -> (Vec<Vec<f64>>, f64) {
 /// Build the inverse-covariance used for the Mahalanobis distance, following
 /// ITK's singular-threshold rule (`|det| > 1e-6` ⇒ true inverse, else a large
 /// diagonal `I · f64::MAX^{1/3} / D`).
-fn inverse_covariance(cov: &[Vec<f64>], c: usize) -> Vec<Vec<f64>> {
+fn inverse_covariance(cov: &[f64], c: usize) -> Vec<f64> {
     let (inv, det) = invert(cov, c);
     if det > 1.0e-6 {
         inv
     } else {
         let large = f64::MAX.powf(1.0 / 3.0) / c as f64;
-        let mut d = vec![vec![0.0; c]; c];
+        let mut d = vec![0.0; c * c];
         for i in 0..c {
-            d[i][i] = large;
+            d[i * c + i] = large;
         }
         d
     }
@@ -152,7 +156,7 @@ fn maha_sq_at(
     channels: &[Vec<f64>],
     i: usize,
     mean: &[f64],
-    inv: &[Vec<f64>],
+    inv: &[f64],
     c: usize,
     d: &mut [f64],
 ) -> f64 {
@@ -163,7 +167,7 @@ fn maha_sq_at(
     for a in 0..c {
         let mut acc = 0.0;
         for b in 0..c {
-            acc += inv[a][b] * d[b];
+            acc += inv[a * c + b] * d[b];
         }
         s += d[a] * acc;
     }
@@ -206,7 +210,7 @@ pub fn vector_confidence_connected(
 
     // ── Initial statistics over each seed's neighbourhood (averaged) ────────
     let mut mean = vec![0.0; c];
-    let mut cov = vec![vec![0.0; c]; c];
+    let mut cov = vec![0.0; c * c];
     let r = initial_radius as isize;
     let mut idx_scratch: Vec<usize> = Vec::new();
     for s in &valid_seeds {
@@ -237,7 +241,7 @@ pub fn vector_confidence_connected(
         for i in 0..c {
             mean[i] += m[i];
             for j in 0..c {
-                cov[i][j] += cv[i][j];
+                cov[i * c + j] += cv[i * c + j];
             }
         }
     }
@@ -245,7 +249,7 @@ pub fn vector_confidence_connected(
     for i in 0..c {
         mean[i] /= sc;
         for j in 0..c {
-            cov[i][j] /= sc;
+            cov[i * c + j] /= sc;
         }
     }
 
@@ -305,7 +309,7 @@ fn flood(
     dims: [usize; 3],
     seeds: &[[usize; 3]],
     mean: &[f64],
-    inv: &[Vec<f64>],
+    inv: &[f64],
     threshold: f64,
     c: usize,
 ) -> Vec<bool> {

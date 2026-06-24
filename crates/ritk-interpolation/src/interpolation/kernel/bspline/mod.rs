@@ -9,7 +9,6 @@ use burn::tensor::{Tensor, TensorData};
 use ritk_core::interpolation::Interpolator;
 
 mod flat;
-mod legacy;
 mod prefilter;
 
 #[cfg(test)]

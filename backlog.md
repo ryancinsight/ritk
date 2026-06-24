@@ -6,11 +6,16 @@
 
 ## Open performance items
 
-- **PERF-381-01 [patch] — separable_box_3d + EDT Phase 3 benchmark baselines.**
-  Both parallelizations landed in Sprint 381 (commit b43afd4e) and are bit-identical
-  to serial. No criterion baseline has been recorded yet. Add `benches/separable_box.rs`
-  and record `benches/euclidean_dt.rs` Phase-3-only timing to claim the speedup
-  at the evidence tier required by performance_engineering.
+- **PERF-387-02 [patch] — Continue flat-buffer memory-efficiency audit.**
+  Sprint 387 flattened `VectorConfidenceConnected` covariance/inverse matrices and removed
+  the B-spline legacy placeholder. Next candidates are `vector_confidence_connected` channel
+  buffer layout, `inverse_displacement` derivative matrices, VTK cell-list storage, and
+  remaining nested small matrices where a row-major buffer preserves public contracts.
+
+- **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup.**
+  Focused Clippy is currently blocked by `clippy::single_range_in_vec_init` in
+  `interpolation/kernel/linear/{dim2,dim3,dim4}.rs`. Fix without allocating range vectors
+  or changing Burn tensor slice semantics.
 
 - **PERF-379-01 [patch] — Deriche recursive-Gaussian cross-line parallelism. DONE.**
   `iir::apply_deriche_1d` now parallelises the X/Y passes across Z-slices via
@@ -24,15 +29,11 @@
 
 ## Gap items
 
-- **GAP-381-01 [patch] — Wiener/Inverse deconvolution crop-position scale divergence.**
-  Root-cause identified in Sprint 381: ritk's `ifft_and_crop` crops from [0,0,0] of
-  the padded IFFT output, yielding output values ~400–3000× larger than sitk's for
-  a band-limited blurred input. The divergence is the same root cause that limits
-  InverseDeconvolution to Pearson ~0.42–0.66. Fix requires analysing ITK's
-  `FFTConvolutionImageFilter::CropOutput` region and matching the crop offset.
-  Evidence: Sprint 381 numerical investigation (numpy reference confirms ritk's
-  pipeline scale, sitk gives correct-scale output, factor ~50× for 20³/5³ test case).
-  Formula `reg = Pn/|G|²` (corrected in Sprint 381) is correct; only the crop is wrong.
+- **MIG-387-01 [arch] — Atlas crate migration audit.**
+  Continue replacing production `nalgebra`/`ndarray`/`burn` surfaces with `leto`/`coeus`/
+  `hephaestus` only after each target operation has a verified equivalent contract and focused
+  differential tests. Do not remove boundary dependencies used only for file-format interop or
+  external framework contracts until the replacement can preserve the same behavior.
 
 ---
 ## Sprint 377 — Performance Review, Memory Efficiency & Carry-Forward Reconciliation

@@ -5063,6 +5063,7 @@ dependencies = [
 name = "moirai-core"
 version = "0.2.0"
 dependencies = [
+ "bytemuck",
  "libc",
  "mnemosyne",
  "moirai-utils",
@@ -5141,6 +5142,7 @@ dependencies = [
 name = "moirai-transport"
 version = "0.2.0"
 dependencies = [
+ "bytemuck",
  "moirai-core",
  "moirai-scheduler",
  "moirai-utils",

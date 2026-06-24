@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 387: Region-growing memory layout and B-spline cleanup
+
+### Performance
+- `ritk-segmentation`: `VectorConfidenceConnected` now stores covariance, augmented
+  Gauss-Jordan state, inverse covariance, and singular fallback as flat row-major
+  `Vec<f64>` buffers instead of nested `Vec<Vec<f64>>` matrices. This removes
+  per-row heap allocations while preserving f64 arithmetic and the public channel
+  input contract. Evidence tier: differential/value-semantic (`cargo nextest run
+  -p ritk-segmentation vector_confidence_connected` → 3/3 passed).
+
+### Removed
+- `ritk-interpolation`: deleted the empty `bspline/legacy.rs` placeholder module
+  and its parent declaration. The active B-spline implementation remains the
+  flat-slice coefficient path. Evidence tier: compile/test (`cargo nextest run
+  -p ritk-interpolation bspline` → 25/25 passed).
+
+### Documentation
+- README dependency table now reflects current Atlas migration dependencies:
+  `moirai`, `mnemosyne`, `apollo-fft`, and the `coeus`/`leto`/`hephaestus`
+  migration targets replace stale `rayon` guidance.
+
+### Build
+- `Cargo.lock` now records the current local Atlas `moirai` dependency graph
+  by adding `bytemuck` to `moirai-core` and `moirai-transport`.
+
+---
+
 ## [Unreleased] — Sprint 386: CurvatureFlow f64 precision, interior-peel perf, Laplacian bug fix, +18 cmake parity tests
 
 ### Fixed (correctness)

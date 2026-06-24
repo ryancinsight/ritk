@@ -1,5 +1,33 @@
 # RITK Gap Audit - Active
 
+## Sprint 387 Audit (2026-06-24) — Region-Growing Matrix Flattening + Legacy Cleanup
+
+### Gaps Closed
+
+- **[PERF-387-01 CLOSED]** `VectorConfidenceConnected` covariance and inverse-covariance storage:
+  internal small matrices are now flat row-major `Vec<f64>` buffers instead of nested `Vec<Vec<f64>>`.
+  This removes per-row heap allocations in covariance accumulation, Gauss-Jordan augmentation,
+  inverse extraction, and singular fallback while preserving f64 arithmetic order inside each
+  row-major loop. Evidence tier: differential/value-semantic (`cargo nextest run -p ritk-segmentation vector_confidence_connected` → 3/3 passed).
+- **[CLEAN-387-01 CLOSED]** B-spline interpolation dead placeholder: removed `bspline/legacy.rs` and
+  the parent `mod legacy;` declaration. The module contained no functions or types and existed only
+  to satisfy an obsolete declaration. Evidence tier: compile/test (`cargo nextest run -p ritk-interpolation bspline` → 25/25 passed).
+- **[BUILD-387-01 CLOSED]** RITK lockfile synchronized with the current local Atlas `moirai`
+  dependency graph: `moirai-core` and `moirai-transport` now include `bytemuck` in `Cargo.lock`.
+  Evidence tier: compile (`cargo check -p ritk-interpolation` passed after lock synchronization).
+
+### Residual Risk
+
+- Workspace `cargo fmt --check` still reports pre-existing formatting drift outside the files touched
+  by Sprint 387. This slice formatted only changed Rust files to avoid unrelated churn.
+- Focused Clippy is blocked before this slice by `ritk-interpolation` linear-kernel
+  `clippy::single_range_in_vec_init` diagnostics in `dim2.rs`, `dim3.rs`, and `dim4.rs`.
+  The B-spline deletion itself compiles and passes focused nextest.
+- Remaining Atlas migration surfaces are broad (`burn`, `nalgebra`, `ndarray`) and require verified
+  one-for-one contracts before replacement. No stronger evidence than the current audit scan is claimed.
+
+---
+
 ## Sprint 386 Audit (2026-06-20) — CurvatureFlow f64, Interior Peel, Laplacian Fix, cmake +18
 
 ### Gaps Closed

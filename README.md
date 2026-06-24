@@ -346,7 +346,10 @@ let result = registration.execute(&fixed, &moving, transform, 100, 0.01);
 | `nalgebra` | Linear algebra, spatial types |
 | `dicom` | DICOM format support |
 | `nifti` | NIfTI format support |
-| `rayon` | CPU parallelism |
+| `moirai` | CPU parallelism and task execution |
+| `mnemosyne` | Optional workspace allocator |
+| `apollo-fft` | FFT planning and execution |
+| `coeus` / `leto` / `hephaestus` | Atlas tensor, linear algebra, and GPU migration targets |
 | `pyo3` / `numpy` | Python bindings |
 | `serde` | Serialization (transform I/O) |
 | `anyhow` / `thiserror` | Error handling |
@@ -358,8 +361,8 @@ let result = registration.execute(&fixed, &moving, transform, 100, 0.01);
 # Build all crates (release)
 cargo build --release
 
-# Run all tests
-cargo test --all
+# Run all tests through the committed nextest profile
+cargo nextest run --workspace
 
 # Build Python extension / install into current environment
 cd crates/ritk-python && maturin develop --release
