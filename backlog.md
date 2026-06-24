@@ -6,11 +6,12 @@
 
 ## Open performance items
 
-- **PERF-387-02 [patch] — Continue flat-buffer memory-efficiency audit.**
+- **PERF-387-02 [patch] — Continue flat-buffer memory-efficiency audit. IN PROGRESS.**
   Sprint 387 flattened `VectorConfidenceConnected` covariance/inverse matrices and removed
-  the B-spline legacy placeholder. Next candidates are `vector_confidence_connected` channel
-  buffer layout, `inverse_displacement` derivative matrices, VTK cell-list storage, and
-  remaining nested small matrices where a row-major buffer preserves public contracts.
+  the B-spline legacy placeholder. Sprint 389 flattened `InverseDisplacementField` TPS
+  spline/affine coefficient blocks after the solve. Remaining candidates are
+  `vector_confidence_connected` channel buffer layout, VTK cell-list storage, and remaining
+  nested small matrices where a row-major buffer preserves public contracts.
 
 - **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**
   Focused Clippy was blocked by `clippy::single_range_in_vec_init` in

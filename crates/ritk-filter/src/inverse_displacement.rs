@@ -216,18 +216,26 @@ impl InverseDisplacementField {
         let w = solve_linear(l, ymat);
 
         // Reorganise W → spline D (d×N), affine A (d×d), translation B (d).
-        let dmat: Vec<Vec<f64>> = (0..d)
-            .map(|k| (0..n_land).map(|i| w[i * d + k]).collect())
-            .collect();
-        let amat: Vec<Vec<f64>> = (0..d)
-            .map(|i| (0..d).map(|j| w[n_land * d + j * d + i]).collect())
-            .collect();
+        // Flat row-major coefficient blocks keep the read-heavy Moirai
+        // evaluation path contiguous and avoid d + d per-row heap allocations.
+        let mut dmat = Vec::with_capacity(d * n_land);
+        for k in 0..d {
+            for i in 0..n_land {
+                dmat.push(w[i * d + k]);
+            }
+        }
+        let mut amat = Vec::with_capacity(d * d);
+        for i in 0..d {
+            for j in 0..d {
+                amat.push(w[n_land * d + j * d + i]);
+            }
+        }
         let bvec: Vec<f64> = (0..d).map(|k| w[n_land * d + d * d + k]).collect();
 
         // ── Evaluate inverse displacement at every output voxel ──────────────
         // The per-voxel evaluation (affine part + spline sum) is embarrassingly
-        // parallel over fi: each voxel reads shared immutable data (src, dmat,
-        // amat, bvec) and writes to its own slot. Parallelised via moirai.
+        // parallel over fi: each voxel reads shared immutable flat data (src,
+        // dmat, amat, bvec) and writes to its own slot. Parallelised via moirai.
         //
         // Output layout: Vec<[f64; 3]> indexed [fi][t] where t in 0..d. Using
         // a stack-allocated [f64; 3] per voxel avoids any per-voxel heap
@@ -248,7 +256,7 @@ impl InverseDisplacementField {
                 for t in 0..d {
                     let mut acc = bvec[t];
                     for j in 0..d {
-                        acc += amat[t][j] * q[j];
+                        acc += amat[t * d + j] * q[j];
                     }
                     res[t] = acc;
                 }
@@ -263,7 +271,7 @@ impl InverseDisplacementField {
                     let g = r2.sqrt();
                     if g != 0.0 {
                         for t in 0..d {
-                            res[t] += g * dmat[t][i];
+                            res[t] += g * dmat[t * n_land + i];
                         }
                     }
                 }

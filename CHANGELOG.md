@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 389: Inverse-displacement coefficient layout
+
+### Performance
+- `ritk-filter`: `InverseDisplacementField` now stores the post-solve TPS spline
+  coefficient block `D` and affine block `A` as flat row-major `Vec<f64>` buffers instead
+  of rebuilding them as `Vec<Vec<f64>>`. The Moirai evaluation loop reads contiguous
+  coefficient storage via `dmat[t * n_land + i]` and `amat[t * d + j]`, removing the
+  remaining per-row heap allocations from this inverse-displacement coefficient path while
+  preserving the f64 arithmetic and public image contract. Evidence tier: compile/lint and
+  value-semantic focused tests (`cargo clippy -p ritk-filter --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-filter inverse_displacement` → 4/4 passed).
+
+---
+
 ## [Unreleased] — Sprint 388: Linear kernel slice semantics
 
 ### Fixed

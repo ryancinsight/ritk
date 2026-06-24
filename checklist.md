@@ -1,5 +1,32 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 389 — Inverse Displacement Coefficient Flattening
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed
+
+### Delivered (Sprint 389)
+- [x] PERF-387-02 [patch]: **`InverseDisplacementField` flat TPS coefficient blocks** —
+  the spline coefficient matrix `D` and affine matrix `A` are now stored as flat row-major
+  `Vec<f64>` buffers after solving the TPS system. The Moirai evaluation loop reads
+  `dmat[t * n_land + i]` and `amat[t * d + j]`, removing the remaining per-row heap
+  allocations from this inverse-displacement hot path while preserving f64 arithmetic and
+  public image contracts. Evidence tier: compile/lint plus value-semantic focused tests.
+
+### Verification gate (Sprint 389)
+- [x] `rustfmt crates\ritk-filter\src\inverse_displacement.rs`
+- [x] `cargo clippy -p ritk-filter --all-targets -- -D warnings` → passed
+- [x] `cargo nextest run -p ritk-filter inverse_displacement` → **4/4 passed**
+- [ ] `cargo fmt --check` workspace gate still blocked by pre-existing unrelated formatting drift
+  recorded in Sprint 388.
+
+### Deferred / carry-forward
+- [ ] PERF-389-01 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected` channel
+  buffers and VTK cell-list storage as next candidates.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
+  with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
+
+---
+
 ## Sprint 388 — Linear Kernel Slice Semantics
 **Target version**: 0.12.80
 **Sprint phase**: Closure — lint blocker removed and focused verification passed

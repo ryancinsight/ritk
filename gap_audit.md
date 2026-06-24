@@ -1,5 +1,26 @@
 # RITK Gap Audit - Active
 
+## Sprint 389 Audit (2026-06-24) — Inverse Displacement Coefficient Flattening
+
+### Gaps Closed
+
+- **[PERF-387-02 PARTIAL]** `InverseDisplacementField` TPS coefficient storage:
+  after the flat TPS solve, the spline `D` block and affine `A` block no longer rebuild as
+  `Vec<Vec<f64>>`. They are flat row-major `Vec<f64>` buffers read by the Moirai evaluation
+  loop as `dmat[t * n_land + i]` and `amat[t * d + j]`. This removes the remaining d + d
+  inner heap allocations in the inverse-displacement coefficient path while preserving the
+  f64 TPS arithmetic and public image output contract. Evidence tier: compile/lint plus
+  value-semantic focused tests (`cargo clippy -p ritk-filter --all-targets -- -D warnings`
+  passed; `cargo nextest run -p ritk-filter inverse_displacement` → 4/4 passed).
+
+### Residual Risk
+
+- This closes the inverse-displacement sub-item of the broader flat-buffer audit, not every
+  nested container in RITK. VTK cell lists and selected channel-buffer layouts remain open.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 388 Audit (2026-06-24) — Linear Kernel Slice Semantics
 
 ### Gaps Closed
