@@ -5,6 +5,8 @@ use anyhow::{anyhow, Context, Result};
 use std::fmt::Write;
 use std::path::Path;
 
+const APPENDED_CLOSING_TAG: &[u8] = b"\n  </AppendedData>\n</VTKFile>\n";
+
 fn attr_ncomp(attr: &AttributeArray) -> usize {
     match attr {
         AttributeArray::Scalars { num_components, .. } => *num_components,
@@ -13,20 +15,35 @@ fn attr_ncomp(attr: &AttributeArray) -> usize {
     }
 }
 
-fn flatten_attr(attr: &AttributeArray) -> Vec<f32> {
+fn attr_value_len(attr: &AttributeArray) -> Result<usize> {
     match attr {
-        AttributeArray::Scalars { values, .. } => values.clone(),
-        AttributeArray::Vectors { values } => {
-            values.iter().flat_map(|v| v.iter().copied()).collect()
+        AttributeArray::Scalars { values, .. } | AttributeArray::TextureCoords { values, .. } => {
+            Ok(values.len())
         }
-        AttributeArray::Normals { values } => {
-            values.iter().flat_map(|v| v.iter().copied()).collect()
-        }
-        AttributeArray::TextureCoords { values, .. } => values.clone(),
+        AttributeArray::Vectors { values } | AttributeArray::Normals { values } => values
+            .len()
+            .checked_mul(3)
+            .ok_or_else(|| anyhow!("VTI appended vector component count overflow")),
     }
 }
 
-fn write_da_appended_tag(s: &mut String, name: &str, ncomp: usize, offset: usize) {
+fn attr_block_len(attr: &AttributeArray) -> Result<usize> {
+    let value_bytes = attr_value_len(attr)?
+        .checked_mul(std::mem::size_of::<f32>())
+        .ok_or_else(|| anyhow!("VTI appended DataArray byte count overflow"))?;
+    if value_bytes > u32::MAX as usize {
+        return Err(anyhow!(
+            "VTI appended DataArray has {} bytes, exceeding UInt32 header limit {}",
+            value_bytes,
+            u32::MAX
+        ));
+    }
+    value_bytes
+        .checked_add(std::mem::size_of::<u32>())
+        .ok_or_else(|| anyhow!("VTI appended DataArray block length overflow"))
+}
+
+fn write_da_appended_tag(s: &mut String, name: &str, ncomp: usize, offset: usize) -> Result<()> {
     let dq = '"';
     s.push_str("        <DataArray type=");
     s.push(dq);
@@ -38,7 +55,7 @@ fn write_da_appended_tag(s: &mut String, name: &str, ncomp: usize, offset: usize
     s.push(dq);
     s.push_str(" NumberOfComponents=");
     s.push(dq);
-    write!(s, "{}", ncomp).unwrap();
+    write!(s, "{}", ncomp)?;
     s.push(dq);
     s.push_str(" format=");
     s.push(dq);
@@ -46,9 +63,41 @@ fn write_da_appended_tag(s: &mut String, name: &str, ncomp: usize, offset: usize
     s.push(dq);
     s.push_str(" offset=");
     s.push(dq);
-    write!(s, "{}", offset).unwrap();
+    write!(s, "{}", offset)?;
     s.push(dq);
     s.push_str("/>\n");
+    Ok(())
+}
+
+fn write_attr_appended_block(out: &mut Vec<u8>, attr: &AttributeArray) -> Result<()> {
+    let value_bytes = attr_value_len(attr)?
+        .checked_mul(std::mem::size_of::<f32>())
+        .ok_or_else(|| anyhow!("VTI appended DataArray byte count overflow"))?;
+    let value_bytes_u32 = u32::try_from(value_bytes).map_err(|_| {
+        anyhow!(
+            "VTI appended DataArray has {} bytes, exceeding UInt32 header limit {}",
+            value_bytes,
+            u32::MAX
+        )
+    })?;
+    out.extend_from_slice(&value_bytes_u32.to_le_bytes());
+    match attr {
+        AttributeArray::Scalars { values, .. } | AttributeArray::TextureCoords { values, .. } => {
+            write_f32_values(out, values.iter().copied());
+        }
+        AttributeArray::Vectors { values } | AttributeArray::Normals { values } => {
+            for value in values {
+                write_f32_values(out, value.iter().copied());
+            }
+        }
+    }
+    Ok(())
+}
+
+fn write_f32_values(out: &mut Vec<u8>, values: impl IntoIterator<Item = f32>) {
+    for value in values {
+        out.extend_from_slice(&value.to_le_bytes());
+    }
 }
 
 /// Serialize a [`VtkImageData`] to a binary-appended VTI byte buffer.
@@ -63,7 +112,10 @@ fn write_da_appended_tag(s: &mut String, name: &str, ncomp: usize, offset: usize
 /// - DataArrays within each section are sorted by name (lexicographic) for
 ///   deterministic offset computation and reproducible output.
 /// - Offsets satisfy: `offset[0] = 0`,
-///   `offset[i+1] = offset[i] + 4 + flat_values[i].len() * 4`.
+///   `offset[i+1] = offset[i] + 4 + value_count[i] * 4`.
+/// - Appended blocks are streamed from the source attribute arrays; no
+///   duplicate flattened `Vec<f32>` is allocated for offset computation or
+///   binary emission.
 pub fn write_vti_binary_appended_bytes(grid: &VtkImageData) -> Result<Vec<u8>> {
     grid.validate().map_err(|e| anyhow!("{}", e))?;
 
@@ -93,13 +145,16 @@ pub fn write_vti_binary_appended_bytes(grid: &VtkImageData) -> Result<Vec<u8>> {
     cd.sort_unstable_by(|a, b| a.0.cmp(b.0));
 
     let all: Vec<(&str, &AttributeArray)> = pd.iter().chain(cd.iter()).copied().collect();
-    let flat: Vec<Vec<f32>> = all.iter().map(|(_, a)| flatten_attr(a)).collect();
     let mut offsets: Vec<usize> = Vec::with_capacity(all.len() + 1);
     offsets.push(0);
-    for fv in &flat {
+    for (_, attr) in &all {
         let prev = *offsets.last().unwrap();
-        offsets.push(prev + 4 + fv.len() * 4);
+        let next = prev
+            .checked_add(attr_block_len(attr)?)
+            .ok_or_else(|| anyhow!("VTI appended offset overflow"))?;
+        offsets.push(next);
     }
+    let appended_len = *offsets.last().unwrap_or(&0);
 
     let mut xml = String::new();
     writeln!(xml, "<?xml version=\"1.0\"?>").unwrap();
@@ -120,7 +175,7 @@ pub fn write_vti_binary_appended_bytes(grid: &VtkImageData) -> Result<Vec<u8>> {
     if !pd.is_empty() {
         writeln!(xml, "      <PointData>").unwrap();
         for (i, (name, attr)) in pd.iter().enumerate() {
-            write_da_appended_tag(&mut xml, name, attr_ncomp(attr), offsets[i]);
+            write_da_appended_tag(&mut xml, name, attr_ncomp(attr), offsets[i])?;
         }
         writeln!(xml, "      </PointData>").unwrap();
     }
@@ -128,7 +183,7 @@ pub fn write_vti_binary_appended_bytes(grid: &VtkImageData) -> Result<Vec<u8>> {
     if !cd.is_empty() {
         writeln!(xml, "      <CellData>").unwrap();
         for (i, (name, attr)) in cd.iter().enumerate() {
-            write_da_appended_tag(&mut xml, name, attr_ncomp(attr), offsets[pd_len + i]);
+            write_da_appended_tag(&mut xml, name, attr_ncomp(attr), offsets[pd_len + i])?;
         }
         writeln!(xml, "      </CellData>").unwrap();
     }
@@ -137,16 +192,14 @@ pub fn write_vti_binary_appended_bytes(grid: &VtkImageData) -> Result<Vec<u8>> {
     writeln!(xml, "  </ImageData>").unwrap();
     writeln!(xml, "  <AppendedData encoding=\"raw\">").unwrap();
 
-    let mut result: Vec<u8> = xml.into_bytes();
+    let mut result: Vec<u8> =
+        Vec::with_capacity(xml.len() + 1 + appended_len + APPENDED_CLOSING_TAG.len());
+    result.extend_from_slice(xml.as_bytes());
     result.push(b'_');
-    for fv in &flat {
-        let n_bytes = (fv.len() * 4) as u32;
-        result.extend_from_slice(&n_bytes.to_le_bytes());
-        for &v in fv {
-            result.extend_from_slice(&v.to_le_bytes());
-        }
+    for (_, attr) in &all {
+        write_attr_appended_block(&mut result, attr)?;
     }
-    result.extend_from_slice(b"\n  </AppendedData>\n</VTKFile>\n");
+    result.extend_from_slice(APPENDED_CLOSING_TAG);
 
     Ok(result)
 }

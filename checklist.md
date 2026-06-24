@@ -1,5 +1,36 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 391 — Binary VTI Appended Streaming
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed
+
+### Delivered (Sprint 391)
+- [x] PERF-391-01 [patch]: **Binary VTI writer streams appended attributes** —
+  `ritk-vtk` no longer builds a duplicate `Vec<Vec<f32>>` of flattened DataArray payloads
+  before writing binary-appended VTI output. Offset computation now uses checked byte-count
+  helpers, the result buffer is pre-sized from the appended payload length, and scalar,
+  vector, normal, and texture-coordinate blocks are emitted directly from source attribute
+  storage. Evidence tier: compile/lint plus value-semantic round-trip tests.
+
+### Verification gate (Sprint 391)
+- [x] `rustfmt crates\ritk-vtk\src\io\image_xml\writer\binary.rs crates\ritk-vtk\src\io\image_xml\writer\tests\binary.rs`
+- [x] `cargo clippy -p ritk-vtk --all-targets -- -D warnings` → passed
+- [x] `cargo nextest run -p ritk-vtk` → **242/242 passed**
+- [x] `cargo test --doc -p ritk-vtk` → passed (0 run, 1 ignored)
+- [x] `cargo doc -p ritk-vtk --no-deps` → passed
+- [x] `git diff --check` → passed
+- [ ] `cargo fmt --check` workspace gate still blocked by pre-existing unrelated formatting drift
+  recorded in Sprint 388.
+
+### Deferred / carry-forward
+- [ ] PERF-391-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected` channel
+  buffers and VTK public cell-list storage. The VTK cell-list model remains a broader public
+  API/storage change and needs an ADR before breaking `Vec<Vec<u32>>` fields.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
+  with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
+
+---
+
 ## Sprint 390 — TIFF Flat Page Accumulation
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed

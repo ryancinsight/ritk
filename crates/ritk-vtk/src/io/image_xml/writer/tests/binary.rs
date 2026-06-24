@@ -341,6 +341,59 @@ fn test_write_vti_binary_appended_mixed_point_and_cell_data() {
     );
 }
 
+/// Invariant: non-scalar point data is emitted from component storage without
+/// changing component order; vectors remain vectors and normal-named arrays
+/// remain normals after a binary-appended round-trip.
+#[test]
+fn test_write_vti_binary_appended_vector_and_normal_roundtrip() {
+    let grid = VtkImageData {
+        whole_extent: [0, 1, 0, 0, 0, 0],
+        origin: [0.0, 0.0, 0.0],
+        spacing: [1.0, 1.0, 1.0],
+        point_data: {
+            let mut m = std::collections::HashMap::new();
+            m.insert(
+                "Normals".to_string(),
+                AttributeArray::Normals {
+                    values: vec![[0.0f32, 1.0, 0.0], [0.0, 0.0, 1.0]],
+                },
+            );
+            m.insert(
+                "velocity".to_string(),
+                AttributeArray::Vectors {
+                    values: vec![[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                },
+            );
+            m
+        },
+        cell_data: std::collections::HashMap::new(),
+    };
+
+    let bytes =
+        write_vti_binary_appended_bytes(&grid).expect("write must succeed for vector point data");
+    let parsed = read_vti_binary_appended_bytes(&bytes).expect("read must parse vector point data");
+
+    let velocity = match parsed.point_data.get("velocity") {
+        Some(AttributeArray::Vectors { values }) => values,
+        other => panic!("expected velocity vectors, got {:?}", other),
+    };
+    assert_eq!(
+        velocity,
+        &vec![[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]],
+        "velocity vectors must round-trip in component order"
+    );
+
+    let normals = match parsed.point_data.get("Normals") {
+        Some(AttributeArray::Normals { values }) => values,
+        other => panic!("expected normal vectors, got {:?}", other),
+    };
+    assert_eq!(
+        normals,
+        &vec![[0.0f32, 1.0, 0.0], [0.0, 0.0, 1.0]],
+        "normal vectors must round-trip in component order"
+    );
+}
+
 /// Invariant: when both PointData and CellData are present, the CellData
 /// array's offset equals the total byte size of all PointData blocks.
 #[test]

@@ -1,5 +1,28 @@
 # RITK Gap Audit - Active
 
+## Sprint 391 Audit (2026-06-24) — Binary VTI Appended Streaming
+
+### Gaps Closed
+
+- **[PERF-391-01 CLOSED]** `ritk-vtk` binary-appended VTI writer:
+  `write_vti_binary_appended_bytes` no longer clones scalar/texture arrays or flattens
+  vector/normal arrays into a duplicate `Vec<Vec<f32>>` before emitting the appended binary
+  section. Offsets are computed from checked per-attribute byte counts, the output vector is
+  pre-sized from the final appended length, and each block is streamed directly from the
+  source `AttributeArray` storage. Evidence tier: compile/lint plus value-semantic round-trip
+  tests (`cargo clippy -p ritk-vtk --all-targets -- -D warnings` passed;
+  `cargo nextest run -p ritk-vtk` → 242/242 passed; `cargo test --doc -p ritk-vtk` passed;
+  `cargo doc -p ritk-vtk --no-deps` passed).
+
+### Residual Risk
+
+- This is allocation-reduction evidence, not benchmark evidence. No speedup is claimed.
+- VTK public cell-list storage still uses `Vec<Vec<u32>>`; changing it requires an ADR because
+  those fields are part of the public `VtkPolyData`/`VtkUnstructuredGrid` model.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 390 Audit (2026-06-24) — TIFF Flat Page Accumulation
 
 ### Gaps Closed

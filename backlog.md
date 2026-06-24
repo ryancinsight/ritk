@@ -10,9 +10,11 @@
   Sprint 387 flattened `VectorConfidenceConnected` covariance/inverse matrices and removed
   the B-spline legacy placeholder. Sprint 389 flattened `InverseDisplacementField` TPS
   spline/affine coefficient blocks after the solve. Sprint 390 flattened TIFF grayscale/RGB
-  page accumulation by removing `Vec<Vec<f32>>` staging. Remaining candidates are
-  `vector_confidence_connected` channel buffer layout, VTK cell-list storage, and remaining
-  nested small matrices where a row-major buffer preserves public contracts.
+  page accumulation by removing `Vec<Vec<f32>>` staging. Sprint 391 removed the binary VTI
+  writer's duplicate flattened attribute buffers and streams appended blocks from source
+  storage. Remaining candidates are `vector_confidence_connected` channel buffer layout,
+  VTK cell-list storage, and remaining nested small matrices where a row-major buffer
+  preserves public contracts.
 
 - **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**
   Focused Clippy was blocked by `clippy::single_range_in_vec_init` in

@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 391: Binary VTI appended streaming
+
+### Performance
+- `ritk-vtk`: binary-appended VTI writing now computes DataArray offsets from checked
+  byte counts and streams appended blocks directly from `AttributeArray` storage instead of
+  staging every payload in a duplicate flattened `Vec<Vec<f32>>`. The emitted XML offsets,
+  scalar payloads, vectors, and normals preserve the existing public VTI contract. Evidence
+  tier: compile/lint and value-semantic round-trip tests
+  (`cargo clippy -p ritk-vtk --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-vtk` → 242/242 passed; `cargo test --doc -p ritk-vtk`;
+  `cargo doc -p ritk-vtk --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 390: TIFF page-buffer layout
 
 ### Performance
