@@ -1,5 +1,39 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 405 — FFT Padding Bounds
+**Target version**: 0.12.81
+**Sprint phase**: Closure — checked FFT/boundary padding arithmetic delivered and focused verification passed
+
+### Delivered (Sprint 405)
+- [x] SAFE-405-01 [patch]: **FFT convolution padding is checked before allocation** —
+  centralize 2-D/3-D boundary-padding and FFT-padding shape arithmetic for convolution and
+  normalized cross-correlation. The shared helper rejects zero input dimensions,
+  `usize` addition/multiplication overflow, and non-representable power-of-two FFT extents
+  before allocating complex buffers. Edge-replication indexing no longer casts `usize` to
+  `isize`; it uses bounded `usize` arithmetic.
+  Evidence tier: compile/lint/docs plus value-semantic helper and FFT regression tests.
+
+### Verification gate (Sprint 405)
+- [ ] `cargo fmt --check` -> blocked by pre-existing unrelated formatting drift outside this
+  slice (`ritk-core`, `ritk-filter` deconvolution/diffusion, `ritk-interpolation`,
+  `ritk-segmentation`, `ritk-tensor-ops`)
+- [x] `rustfmt --check` on touched FFT convolution files -> passed
+- [x] `cargo clippy -p ritk-filter --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-filter -E 'test(padding) | test(fft)'` -> **62/62 passed**
+- [x] `cargo test --doc -p ritk-filter` -> passed (2 passed, 11 ignored)
+- [x] `cargo doc -p ritk-filter --no-deps` -> passed
+- [x] `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with public VTK cell-list storage
+  only after an ADR/migration plan, because `VtkPolyData`/`VtkUnstructuredGrid` expose
+  nested cell vectors as public fields.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 404 — Apollo FFT Dependency Cleanup
 **Target version**: 0.12.80
 **Sprint phase**: Closure — unused `rustfft` workspace dependency removed and FFT docs reconciled

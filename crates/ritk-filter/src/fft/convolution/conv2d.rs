@@ -1,9 +1,12 @@
 use crate::fft::convolution::helpers::{fft2d, ForwardFft, InverseFft};
+use crate::fft::convolution::padding::{
+    checked_edge_shape_2d, checked_fft_shape_2d, edge_source_index,
+};
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
+use num_complex::Complex;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use num_complex::Complex;
 use std::marker::PhantomData;
 
 // ── FftConvolutionFilter ───────────────────────────────────────────────────────
@@ -67,17 +70,18 @@ impl<B: Backend> FftConvolutionFilter<B> {
         // kernel radius, convolve the larger image with zero padding, then crop
         // the central window so each original-border pixel sees a full
         // edge-clamped kernel footprint.
-        let (ph, pw) = (h + 2 * off_r, w + 2 * off_c);
-        let mut padded = vec![0.0_f32; ph * pw];
+        let padded_shape = checked_edge_shape_2d([h, w], [off_r, off_c], "FftConvolutionFilter")?;
+        let (ph, pw) = (padded_shape.rows, padded_shape.cols);
+        let mut padded = vec![0.0_f32; padded_shape.len];
         for r in 0..ph {
-            let sr = (r as isize - off_r as isize).clamp(0, h as isize - 1) as usize;
+            let sr = edge_source_index(r, off_r, h);
             for c in 0..pw {
-                let sc = (c as isize - off_c as isize).clamp(0, w as isize - 1) as usize;
+                let sc = edge_source_index(c, off_c, w);
                 padded[r * pw + c] = vals[sr * w + sc];
             }
         }
 
-        let conv = self.convolve_same(&padded, [ph, pw]);
+        let conv = self.convolve_same(&padded, [ph, pw])?;
 
         let mut out = vec![0.0_f32; h * w];
         for r in 0..h {
@@ -91,15 +95,14 @@ impl<B: Backend> FftConvolutionFilter<B> {
 
     /// FFT linear convolution with "same" output (zero padding, no boundary
     /// extension). `dims` is the input shape `[h, w]`.
-    fn convolve_same(&self, vals: &[f32], dims: [usize; 2]) -> Vec<f32> {
+    fn convolve_same(&self, vals: &[f32], dims: [usize; 2]) -> Result<Vec<f32>> {
         let [h, w] = dims;
         let kr = self.kernel_rows;
         let kc = self.kernel_cols;
 
         // Padding must be >= h + kr − 1 to suppress circular aliasing.
-        let pad_r = (h + kr - 1).next_power_of_two();
-        let pad_c = (w + kc - 1).next_power_of_two();
-        let pad_n = pad_r * pad_c;
+        let fft_shape = checked_fft_shape_2d(dims, [kr, kc], "FftConvolutionFilter")?;
+        let (pad_r, pad_c, pad_n) = (fft_shape.rows, fft_shape.cols, fft_shape.len);
 
         // Zero-padded image: placed at top-left (origin).
         let mut img_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
@@ -142,6 +145,6 @@ impl<B: Backend> FftConvolutionFilter<B> {
             }
         }
 
-        out
+        Ok(out)
     }
 }

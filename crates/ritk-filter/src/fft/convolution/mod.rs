@@ -38,6 +38,7 @@ mod conv3d;
 mod helpers;
 mod ncc2d;
 mod ncc3d;
+mod padding;
 
 pub use conv2d::FftConvolutionFilter;
 pub use conv3d::FftConvolution3DFilter;

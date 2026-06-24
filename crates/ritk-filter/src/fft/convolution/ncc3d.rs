@@ -1,9 +1,10 @@
 use crate::fft::convolution::helpers::{fft3d, ForwardFft, InverseFft};
+use crate::fft::convolution::padding::checked_fft_shape_3d;
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
+use num_complex::Complex;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use num_complex::Complex;
 use std::marker::PhantomData;
 
 /// Minimum NCC denominator; below this the correlation output is clamped to 0.
@@ -88,11 +89,15 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
         let window_n = (td * tr * tc) as f32;
 
         // Padding must be >= dim + tmpl − 1 to suppress circular aliasing.
-        let pad_d = (d + td - 1).next_power_of_two();
-        let pad_h = (h + tr - 1).next_power_of_two();
-        let pad_w = (w + tc - 1).next_power_of_two();
-        let pad_n = pad_d * pad_h * pad_w;
-        let slice = pad_h * pad_w;
+        let fft_shape =
+            checked_fft_shape_3d([d, h, w], [td, tr, tc], "FftNormalizedCorrelation3DFilter")?;
+        let (pad_d, pad_h, pad_w, pad_n, slice) = (
+            fft_shape.depth,
+            fft_shape.rows,
+            fft_shape.cols,
+            fft_shape.len,
+            fft_shape.slice_len,
+        );
 
         // Zero-padded buffers: volume V, its square V², mean-centred template T̂,
         // and a box of ones (template footprint) for window sums.

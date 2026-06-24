@@ -41,6 +41,12 @@
   pass is closed for the named sibling medical-image parsers; reopen only with a concrete
   malformed-input finding.
 
+- **SAFE-405-01 [patch] — FFT convolution padding bounds. DONE.**
+  Sprint 405 centralizes 2-D/3-D FFT padding and boundary-extension shape arithmetic for
+  `ritk-filter` convolution and normalized cross-correlation. The target is checked
+  `usize` addition/multiplication and power-of-two extent validation before allocation,
+  plus removal of `usize as isize` source-index casts in edge replication.
+
 - **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**
   Focused Clippy was blocked by `clippy::single_range_in_vec_init` in
   `interpolation/kernel/linear/{dim2,dim3,dim4}.rs`; the kernels now route gathered 1-D

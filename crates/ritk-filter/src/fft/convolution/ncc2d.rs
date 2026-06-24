@@ -1,9 +1,10 @@
 use crate::fft::convolution::helpers::{fft2d, ForwardFft, InverseFft};
+use crate::fft::convolution::padding::checked_fft_shape_2d;
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
+use num_complex::Complex;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use num_complex::Complex;
 use std::marker::PhantomData;
 
 /// Minimum NCC denominator; below this the correlation output is clamped to 0.
@@ -84,9 +85,8 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
         let tc = self.template_cols;
         let window_n = (tr * tc) as f32;
 
-        let pad_r = (h + tr - 1).next_power_of_two();
-        let pad_c = (w + tc - 1).next_power_of_two();
-        let pad_n = pad_r * pad_c;
+        let fft_shape = checked_fft_shape_2d([h, w], [tr, tc], "FftNormalizedCorrelationFilter")?;
+        let (pad_r, pad_c, pad_n) = (fft_shape.rows, fft_shape.cols, fft_shape.len);
 
         // Zero-padded buffers: image I, its square I², the mean-centred template
         // T̂, and a box of ones (template footprint) for window sums.

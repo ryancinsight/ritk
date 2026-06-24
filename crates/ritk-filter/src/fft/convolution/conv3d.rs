@@ -1,9 +1,12 @@
 use crate::fft::convolution::helpers::{fft3d, ForwardFft, InverseFft};
+use crate::fft::convolution::padding::{
+    checked_edge_shape_3d, checked_fft_shape_3d, edge_source_index,
+};
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
+use num_complex::Complex;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
-use num_complex::Complex;
 use std::marker::PhantomData;
 
 // ── FftConvolution3DFilter ────────────────────────────────────────────────────
@@ -85,20 +88,22 @@ impl<B: Backend> FftConvolution3DFilter<B> {
         // linear (zero-padded) FFT convolution on the larger volume, then crop
         // the central window. Each original-border voxel then sees a full
         // edge-clamped kernel footprint instead of zero padding.
-        let (pd, ph, pw) = (d + 2 * off_d, h + 2 * off_h, w + 2 * off_w);
-        let mut padded = vec![0.0_f32; pd * ph * pw];
+        let padded_shape =
+            checked_edge_shape_3d([d, h, w], [off_d, off_h, off_w], "FftConvolution3DFilter")?;
+        let (pd, ph, pw) = (padded_shape.depth, padded_shape.rows, padded_shape.cols);
+        let mut padded = vec![0.0_f32; padded_shape.len];
         for z in 0..pd {
-            let sz = (z as isize - off_d as isize).clamp(0, d as isize - 1) as usize;
+            let sz = edge_source_index(z, off_d, d);
             for r in 0..ph {
-                let sr = (r as isize - off_h as isize).clamp(0, h as isize - 1) as usize;
+                let sr = edge_source_index(r, off_h, h);
                 for c in 0..pw {
-                    let sc = (c as isize - off_w as isize).clamp(0, w as isize - 1) as usize;
+                    let sc = edge_source_index(c, off_w, w);
                     padded[z * ph * pw + r * pw + c] = vals[sz * h * w + sr * w + sc];
                 }
             }
         }
 
-        let conv = self.convolve_same(&padded, [pd, ph, pw]);
+        let conv = self.convolve_same(&padded, [pd, ph, pw])?;
 
         // Crop the central [off..off+orig] window back to the original shape.
         let mut out = vec![0.0_f32; d * h * w];
@@ -116,18 +121,21 @@ impl<B: Backend> FftConvolution3DFilter<B> {
 
     /// FFT linear convolution with "same" output (zero padding, no boundary
     /// extension). `dims` is the input shape `[d, h, w]`.
-    fn convolve_same(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
+    fn convolve_same(&self, vals: &[f32], dims: [usize; 3]) -> Result<Vec<f32>> {
         let [d, h, w] = dims;
         let kd = self.kernel_depth;
         let kh = self.kernel_rows;
         let kw = self.kernel_cols;
 
         // Padding must be >= dim + krn − 1 to suppress circular aliasing.
-        let pad_d = (d + kd - 1).next_power_of_two();
-        let pad_h = (h + kh - 1).next_power_of_two();
-        let pad_w = (w + kw - 1).next_power_of_two();
-        let pad_n = pad_d * pad_h * pad_w;
-        let slice = pad_h * pad_w; // size of one depth slice in padded buffer
+        let fft_shape = checked_fft_shape_3d(dims, [kd, kh, kw], "FftConvolution3DFilter")?;
+        let (pad_d, pad_h, pad_w, pad_n, slice) = (
+            fft_shape.depth,
+            fft_shape.rows,
+            fft_shape.cols,
+            fft_shape.len,
+            fft_shape.slice_len,
+        );
 
         // Zero-padded volume: placed at top-left (origin).
         let mut vol_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
@@ -181,6 +189,6 @@ impl<B: Backend> FftConvolution3DFilter<B> {
             }
         }
 
-        out
+        Ok(out)
     }
 }

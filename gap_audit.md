@@ -1,5 +1,35 @@
 # RITK Gap Audit - Active
 
+## Sprint 405 Audit (2026-06-24) — FFT Padding Bounds
+
+### Gaps Closed
+
+- **[SAFE-405-01 CLOSED]** `ritk-filter` FFT convolution allocation boundary:
+  2-D/3-D convolution and normalized cross-correlation now share checked padding-shape
+  arithmetic before allocating real or complex FFT buffers. The checked path rejects zero
+  input dimensions, `usize` overflow in edge padding, `usize` overflow in linear
+  convolution extents, non-representable power-of-two FFT padding, and total element-count
+  overflow. 2-D/3-D edge replication no longer casts `usize` dimensions through `isize`;
+  it clamps source coordinates with bounded `usize` arithmetic.
+  Evidence tier: compile/lint/docs plus value-semantic helper and FFT regression tests
+  (`rustfmt --check` on touched FFT files passed; `cargo clippy -p ritk-filter
+  --all-targets -- -D warnings` passed; `cargo nextest run -p ritk-filter
+  -E 'test(padding) | test(fft)'` -> 62/62 passed; doctests/docs passed; `git diff
+  --check` passed).
+
+### Residual Risk
+
+- This is safety and bounded-allocation validation, not a benchmarked speedup.
+- Global `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift outside
+  this slice; touched FFT files passed `rustfmt --check`.
+- The public FFT filters still operate on `f32` because the surrounding Burn-backed image
+  extraction/rebuild contract is currently `f32`; broad scalar generalization remains a
+  separate MIG-387-01 item requiring an Atlas-backed numeric contract and differential tests.
+- Remaining MIG-387-01 work should target concrete `nalgebra`/`ndarray`/`burn` production
+  surfaces only when an Atlas replacement has a verified equivalent contract.
+
+---
+
 ## Sprint 404 Audit (2026-06-24) — Apollo FFT Dependency Cleanup
 
 ### Gaps Closed

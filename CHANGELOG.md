@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 405: FFT padding bounds
+
+### Fixed
+- `ritk-filter`: FFT convolution and normalized cross-correlation now compute boundary
+  padding, linear convolution padding, power-of-two FFT extents, and total buffer lengths
+  through one checked helper before allocation. Edge-replication padding no longer casts
+  `usize` coordinates through `isize`.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic helper and FFT regression tests
+  (`rustfmt --check` on touched FFT files; `cargo clippy -p ritk-filter --all-targets
+  -- -D warnings`; `cargo nextest run -p ritk-filter -E 'test(padding) | test(fft)'`
+  -> 62/62 passed; `cargo test --doc -p ritk-filter`; `cargo doc -p ritk-filter
+  --no-deps`; `git diff --check`). Full `cargo fmt --check` is blocked by pre-existing
+  unrelated formatting drift outside this slice.
+
+---
+
 ## [Unreleased] — Sprint 404: Apollo FFT dependency cleanup
 
 ### Changed

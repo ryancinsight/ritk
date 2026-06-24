@@ -1,6 +1,6 @@
-use num_complex::Complex;
-use apollo_fft::FftPlan1D;
 use apollo_fft::domain::metadata::shape::Shape1D;
+use apollo_fft::FftPlan1D;
+use num_complex::Complex;
 
 // ── ZST FFT direction strategy ──────────────────────────────────────────────
 
@@ -55,10 +55,7 @@ impl FftDirection for InverseFft {
 ///
 /// For `D = 2`, delegates to `fft2d`; for `D = 3`, delegates to `fft3d`.
 /// Panics for any other `D` value.
-pub fn fft_nd<const D: usize, Dir: FftDirection>(
-    buf: &mut [Complex<f32>],
-    dims: &[usize; D],
-) {
+pub fn fft_nd<const D: usize, Dir: FftDirection>(buf: &mut [Complex<f32>], dims: &[usize; D]) {
     match D {
         2 => fft2d::<Dir>(buf, dims[0], dims[1]),
         3 => fft3d::<Dir>(buf, dims[0], dims[1], dims[2]),
@@ -72,11 +69,7 @@ pub fn fft_nd<const D: usize, Dir: FftDirection>(
 /// Pass 1: 1-D transform along each row (transform length = `cols`).
 /// Pass 2: 1-D transform along each column via a scratch column buffer
 /// (transform length = `rows`).
-pub fn fft2d<Dir: FftDirection>(
-    buf: &mut [Complex<f32>],
-    rows: usize,
-    cols: usize,
-) {
+pub fn fft2d<Dir: FftDirection>(buf: &mut [Complex<f32>], rows: usize, cols: usize) {
     let row_fft = Dir::plan(cols);
     let col_fft = Dir::plan(rows);
 
@@ -104,12 +97,7 @@ pub fn fft2d<Dir: FftDirection>(
 /// Pass 1: 1-D transform along each row (transform length = `cols`).
 /// Pass 2: 1-D transform along each column (transform length = `rows`).
 /// Pass 3: 1-D transform along the depth axis (transform length = `depth`).
-pub fn fft3d<Dir: FftDirection>(
-    buf: &mut [Complex<f32>],
-    depth: usize,
-    rows: usize,
-    cols: usize,
-) {
+pub fn fft3d<Dir: FftDirection>(buf: &mut [Complex<f32>], depth: usize, rows: usize, cols: usize) {
     let row_fft = Dir::plan(cols);
     let col_fft = Dir::plan(rows);
     let depth_fft = Dir::plan(depth);
@@ -119,7 +107,10 @@ pub fn fft3d<Dir: FftDirection>(
     // Row-wise pass: for each (depth, row), transform along cols.
     for d in 0..depth {
         for r in 0..rows {
-            Dir::process(&row_fft, &mut buf[d * slice + r * cols..d * slice + (r + 1) * cols]);
+            Dir::process(
+                &row_fft,
+                &mut buf[d * slice + r * cols..d * slice + (r + 1) * cols],
+            );
         }
     }
 
