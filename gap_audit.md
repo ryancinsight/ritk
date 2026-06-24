@@ -1,5 +1,31 @@
 # RITK Gap Audit - Active
 
+## Sprint 400 Audit (2026-06-24) — NIfTI Spatial Field Validation
+
+### Gaps Closed
+
+- **[SAFE-399-01 CLOSED]** `ritk-nifti` spatial metadata and allocation boundary:
+  affine conversion now rejects non-finite entries and zero-length columns instead of
+  synthesizing fallback axes. Qform parsing now rejects impossible quaternion vector
+  norms, non-standard qfac values, and non-positive/non-finite spatial `pixdim` values.
+  Image and label readers now compute voxel counts with checked multiplication before
+  allocating output buffers. Evidence tier: compile/lint plus value-semantic malformed-field
+  tests (`cargo clippy -p ritk-nifti --all-targets -- -D warnings` passed; `cargo nextest
+  run -p ritk-nifti` -> 22/22 passed; `cargo test --doc -p ritk-nifti` passed; `cargo doc
+  -p ritk-nifti --no-deps` passed).
+
+### Residual Risk
+
+- This closes the tracked hostile-header pass for NRRD, DICOM RT, MetaImage, MINC, and
+  NIfTI fields covered by SAFE-393-02. Further format hardening should be driven by a new
+  concrete malformed-input finding, not by duplicating wrappers around already-validated
+  boundaries.
+- This is parser-safety evidence, not benchmark evidence. No speedup is claimed.
+- Broad Atlas dependency migration remains open under MIG-387-01 and requires per-operation
+  contract tests before replacing `nalgebra`/`ndarray`/`burn` surfaces.
+
+---
+
 ## Sprint 399 Audit (2026-06-24) — MINC Exact Dimension Attributes
 
 ### Gaps Closed

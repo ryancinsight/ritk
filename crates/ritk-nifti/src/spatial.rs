@@ -11,6 +11,7 @@
 //! A_lps_internal[:, col]   = ras_to_lps(A_ras_nifti[:, x])
 //! ```
 
+use anyhow::{anyhow, bail, Result};
 use nalgebra::{SMatrix, Vector3};
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -30,7 +31,11 @@ pub(crate) struct NiftiSformRows {
 
 /// Convert a NIfTI RAS affine into RITK LPS metadata for internal `[z,y,x]`
 /// tensor axes.
-pub(crate) fn metadata_from_nifti_ras_affine(affine: [[f32; 4]; 4]) -> InternalSpatialMetadata {
+pub(crate) fn metadata_from_nifti_ras_affine(
+    affine: [[f32; 4]; 4],
+) -> Result<InternalSpatialMetadata> {
+    ensure_finite_affine(affine)?;
+
     let lps_file = ras_affine_to_lps_file_axes(affine);
     let origin = Point::new([lps_file[0][3], lps_file[1][3], lps_file[2][3]]);
 
@@ -43,35 +48,24 @@ pub(crate) fn metadata_from_nifti_ras_affine(affine: [[f32; 4]; 4]) -> InternalS
         Vector3::new(lps_file[0][0], lps_file[1][0], lps_file[2][0]),
     ];
 
-    let spacing = Spacing::new([
+    let spacing = Spacing::try_new([
         scaled_columns[0].norm(),
         scaled_columns[1].norm(),
         scaled_columns[2].norm(),
-    ]);
+    ])
+    .map_err(|e| anyhow!("invalid NIfTI affine spacing: {e}"))?;
 
     let direction_columns = [
-        normalized_or_axis(
-            scaled_columns[0],
-            spacing[0],
-            Vector3::z_axis().into_inner(),
-        ),
-        normalized_or_axis(
-            scaled_columns[1],
-            spacing[1],
-            Vector3::y_axis().into_inner(),
-        ),
-        normalized_or_axis(
-            scaled_columns[2],
-            spacing[2],
-            Vector3::x_axis().into_inner(),
-        ),
+        normalized_column(scaled_columns[0], spacing[0], "depth")?,
+        normalized_column(scaled_columns[1], spacing[1], "row")?,
+        normalized_column(scaled_columns[2], spacing[2], "column")?,
     ];
 
-    InternalSpatialMetadata {
+    Ok(InternalSpatialMetadata {
         origin,
         spacing,
         direction: Direction(SMatrix::<f64, 3, 3>::from_columns(&direction_columns)),
-    }
+    })
 }
 
 /// Build NIfTI RAS sform rows from RITK LPS metadata whose axes are ordered
@@ -141,11 +135,23 @@ fn ras_affine_to_lps_file_axes(affine: [[f32; 4]; 4]) -> [[f64; 4]; 3] {
     ]
 }
 
-fn normalized_or_axis(vector: Vector3<f64>, norm: f64, fallback: Vector3<f64>) -> Vector3<f64> {
-    if norm > 1e-9 {
-        vector / norm
+fn ensure_finite_affine(affine: [[f32; 4]; 4]) -> Result<()> {
+    for (row_idx, row) in affine.iter().enumerate() {
+        for (col_idx, &value) in row.iter().enumerate() {
+            if !value.is_finite() {
+                bail!("NIfTI affine entry [{row_idx},{col_idx}] must be finite, got {value}");
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn normalized_column(vector: Vector3<f64>, norm: f64, axis: &str) -> Result<Vector3<f64>> {
+    if norm.is_finite() && norm > 0.0 {
+        Ok(vector / norm)
     } else {
-        fallback
+        bail!("NIfTI affine {axis} column must have positive finite norm, got {norm}")
     }
 }
 
@@ -183,7 +189,8 @@ mod tests {
             [0.0, 0.0, 0.0, 1.0],
         ];
 
-        let metadata = metadata_from_nifti_ras_affine(affine);
+        let metadata = metadata_from_nifti_ras_affine(affine)
+            .expect("positive finite affine must produce spatial metadata");
 
         assert_close(metadata.origin[0], 10.0);
         assert_close(metadata.origin[1], 20.0);
@@ -195,6 +202,42 @@ mod tests {
         let expected =
             SMatrix::<f64, 3, 3>::from_row_slice(&[0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
         assert_eq!(metadata.direction.0, expected);
+    }
+
+    #[test]
+    fn zero_affine_column_is_rejected() {
+        let affine = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+
+        let err = metadata_from_nifti_ras_affine(affine)
+            .expect_err("zero NIfTI z column must be rejected");
+
+        assert!(
+            err.to_string().contains("invalid NIfTI affine spacing"),
+            "error must name invalid spacing: {err}"
+        );
+    }
+
+    #[test]
+    fn non_finite_affine_entry_is_rejected() {
+        let affine = [
+            [1.0, 0.0, 0.0, f32::NAN],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+
+        let err = metadata_from_nifti_ras_affine(affine)
+            .expect_err("non-finite NIfTI affine entry must be rejected");
+
+        assert!(
+            err.to_string().contains("must be finite"),
+            "error must name finite affine invariant: {err}"
+        );
     }
 
     #[test]

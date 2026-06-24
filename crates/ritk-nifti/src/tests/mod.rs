@@ -3,7 +3,7 @@ use anyhow::Result;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use nalgebra::SMatrix;
-use nifti::NiftiObject;
+use nifti::{NiftiHeader, NiftiObject};
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -325,6 +325,37 @@ fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
     assert!(
         (header.srow_z[3] - 3.0).abs() < 1e-6,
         "srow_z[3] must encode z origin"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn read_nifti_rejects_zero_sform_column() -> Result<()> {
+    use ndarray::Array3;
+    use nifti::writer::WriterOptions;
+
+    let dir = tempdir()?;
+    let file_path = dir.path().join("zero_sform_column.nii");
+    let device = Default::default();
+
+    let header = NiftiHeader {
+        sform_code: 1,
+        qform_code: 0,
+        srow_z: [0.0, 0.0, 0.0, 0.0],
+        ..NiftiHeader::default()
+    };
+    let data = Array3::<f32>::zeros((2, 2, 2));
+    WriterOptions::new(&file_path)
+        .reference_header(&header)
+        .write_nifti(&data)?;
+
+    let err = read_nifti::<TestBackend, _>(&file_path, &device)
+        .expect_err("zero sform column must be rejected");
+
+    assert!(
+        format!("{err:#}").contains("Invalid NIfTI spatial metadata"),
+        "error must preserve public reader context: {err:#}"
     );
 
     Ok(())

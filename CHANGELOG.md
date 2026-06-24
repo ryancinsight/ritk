@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 400: NIfTI spatial field validation
+
+### Fixed
+- `ritk-nifti`: NIfTI reading now rejects malformed spatial metadata before constructing
+  an `Image`: non-finite affine entries, zero affine columns, non-positive/non-finite
+  spatial `pixdim` values, non-standard qfac values, impossible qform quaternion vector
+  norms, and overflowing shape products before allocation. Evidence tier: compile/lint
+  and value-semantic malformed-field tests (`cargo clippy -p ritk-nifti --all-targets
+  -- -D warnings`; `cargo nextest run -p ritk-nifti` -> 22/22 passed; `cargo test --doc
+  -p ritk-nifti`; `cargo doc -p ritk-nifti --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 399: MINC exact dimension attributes
 
 ### Fixed

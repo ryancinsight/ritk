@@ -29,9 +29,10 @@
   non-sequence sequence tags are rejected instead of collapsed to zero or empty lists.
   Sprint 398 hardened MetaImage payload sizing so `DimSize` multiplication and payload byte
   counts are checked and exact. Sprint 399 hardened MINC dimension attributes so
-  direction-cosine vectors and dimension lengths are exact and fallible. Continue with
-  sibling medical-image parsers, preserving permissive parsing only where compatibility
-  tests prove it is required.
+  direction-cosine vectors and dimension lengths are exact and fallible. Sprint 400 hardened
+  NIfTI spatial metadata so affine/qform/pixdim fields and voxel-count products are exact and
+  fallible. This tracked pass is closed for the named sibling medical-image parsers; reopen
+  only with a concrete malformed-input finding.
 
 - **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**
   Focused Clippy was blocked by `clippy::single_range_in_vec_init` in

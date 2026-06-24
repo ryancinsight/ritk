@@ -51,13 +51,9 @@ fn image_from_nifti_object<B: Backend>(
         let b = header.quatern_b;
         let c = header.quatern_c;
         let d = header.quatern_d;
-        let a = (1.0 - (b * b + c * c + d * d).min(1.0)).sqrt();
+        let a = qform_quaternion_scalar(b, c, d)?;
 
-        let qfac = if header.pixdim[0] == 0.0 {
-            1.0
-        } else {
-            header.pixdim[0]
-        };
+        let qfac = qfac_from_pixdim(header.pixdim[0])?;
 
         let r11 = a * a + b * b - c * c - d * d;
         let r12 = 2.0 * b * c - 2.0 * a * d;
@@ -71,9 +67,8 @@ fn image_from_nifti_object<B: Backend>(
         let r32 = 2.0 * c * d + 2.0 * a * b;
         let r33 = a * a + d * d - c * c - b * b;
 
-        let dx = header.pixdim[1];
-        let dy = header.pixdim[2];
-        let dz = header.pixdim[3] * qfac;
+        let [dx, dy, dz_abs] = checked_spatial_pixdim(header.pixdim)?;
+        let dz = dz_abs * qfac;
 
         let qx = header.quatern_x;
         let qy = header.quatern_y;
@@ -87,9 +82,7 @@ fn image_from_nifti_object<B: Backend>(
         ]
     } else {
         // Fallback: use pixdim scaling only
-        let dx = header.pixdim[1];
-        let dy = header.pixdim[2];
-        let dz = header.pixdim[3];
+        let [dx, dy, dz] = checked_spatial_pixdim(header.pixdim)?;
         [
             [dx, 0.0, 0.0, 0.0],
             [0.0, dy, 0.0, 0.0],
@@ -98,7 +91,8 @@ fn image_from_nifti_object<B: Backend>(
         ]
     };
 
-    let spatial = metadata_from_nifti_ras_affine(affine);
+    let spatial =
+        metadata_from_nifti_ras_affine(affine).context("Invalid NIfTI spatial metadata")?;
 
     // Load voxel data
     let volume = obj.into_volume();
@@ -125,7 +119,8 @@ fn image_from_nifti_object<B: Backend>(
         .into_dimensionality::<Ix3>()
         .context("Failed to convert NIfTI ndarray to Ix3")?;
 
-    let mut data_vec = vec![0.0_f32; dim0 * dim1 * dim2];
+    let voxel_count = checked_voxel_count(dim0, dim1, dim2)?;
+    let mut data_vec = vec![0.0_f32; voxel_count];
     for z in 0..dim2 {
         for y in 0..dim1 {
             for x in 0..dim0 {
@@ -196,7 +191,8 @@ pub fn read_nifti_labels<P: AsRef<Path>>(path: P) -> Result<(Vec<u32>, [usize; 3
         .into_dimensionality::<Ix3>()
         .map_err(|e| anyhow::anyhow!("read_nifti_labels: dimensionality error: {e}"))?;
 
-    let mut labels = vec![0u32; nz * ny * nx];
+    let voxel_count = checked_voxel_count(nx, ny, nz)?;
+    let mut labels = vec![0u32; voxel_count];
     for z in 0..nz {
         for y in 0..ny {
             for x in 0..nx {
@@ -207,4 +203,118 @@ pub fn read_nifti_labels<P: AsRef<Path>>(path: P) -> Result<(Vec<u32>, [usize; 3
     }
 
     Ok((labels, [nz, ny, nx]))
+}
+
+fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize> {
+    nx.checked_mul(ny)
+        .and_then(|xy| xy.checked_mul(nz))
+        .ok_or_else(|| anyhow!("NIfTI voxel count overflows usize: nx={nx}, ny={ny}, nz={nz}"))
+}
+
+fn checked_spatial_pixdim(pixdim: [f32; 8]) -> Result<[f32; 3]> {
+    let spatial = [pixdim[1], pixdim[2], pixdim[3]];
+    for (offset, value) in spatial.iter().enumerate() {
+        let index = offset + 1;
+        if !value.is_finite() || *value <= 0.0 {
+            anyhow::bail!("NIfTI pixdim[{index}] must be positive and finite, got {value}");
+        }
+    }
+
+    Ok(spatial)
+}
+
+fn qfac_from_pixdim(value: f32) -> Result<f32> {
+    if !value.is_finite() {
+        anyhow::bail!("NIfTI pixdim[0] qfac must be finite, got {value}");
+    }
+
+    if value == 0.0 || value == 1.0 {
+        Ok(1.0)
+    } else if value == -1.0 {
+        Ok(-1.0)
+    } else {
+        anyhow::bail!("NIfTI pixdim[0] qfac must be -1, 0, or 1, got {value}");
+    }
+}
+
+fn qform_quaternion_scalar(b: f32, c: f32, d: f32) -> Result<f32> {
+    for (name, value) in [("b", b), ("c", c), ("d", d)] {
+        if !value.is_finite() {
+            anyhow::bail!("NIfTI qform quaternion {name} must be finite, got {value}");
+        }
+    }
+
+    let squared_vector_norm = b.mul_add(b, c.mul_add(c, d * d));
+    if squared_vector_norm > 1.0 + 1.0e-5 {
+        anyhow::bail!(
+            "NIfTI qform quaternion vector norm squared must be <= 1, got {squared_vector_norm}"
+        );
+    }
+
+    Ok((1.0 - squared_vector_norm).max(0.0).sqrt())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        checked_spatial_pixdim, checked_voxel_count, qfac_from_pixdim, qform_quaternion_scalar,
+    };
+
+    #[test]
+    fn checked_voxel_count_multiplies_dimensions() {
+        assert_eq!(
+            checked_voxel_count(4, 3, 2).expect("small dimensions must multiply"),
+            24
+        );
+    }
+
+    #[test]
+    fn checked_voxel_count_rejects_overflow() {
+        let err = checked_voxel_count(usize::MAX, 2, 1)
+            .expect_err("overflowing NIfTI dimensions must be rejected");
+
+        assert!(
+            err.to_string().contains("overflows usize"),
+            "error must name overflow invariant: {err}"
+        );
+    }
+
+    #[test]
+    fn checked_spatial_pixdim_rejects_zero() {
+        let err = checked_spatial_pixdim([1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+            .expect_err("zero NIfTI spacing must be rejected");
+
+        assert!(
+            err.to_string().contains("pixdim[2]"),
+            "error must name offending pixdim index: {err}"
+        );
+    }
+
+    #[test]
+    fn qfac_accepts_standard_values() {
+        assert_eq!(qfac_from_pixdim(0.0).expect("0 qfac maps to +1"), 1.0);
+        assert_eq!(qfac_from_pixdim(1.0).expect("+1 qfac is valid"), 1.0);
+        assert_eq!(qfac_from_pixdim(-1.0).expect("-1 qfac is valid"), -1.0);
+    }
+
+    #[test]
+    fn qfac_rejects_non_standard_value() {
+        let err = qfac_from_pixdim(2.0).expect_err("non-standard qfac must be rejected");
+
+        assert!(
+            err.to_string().contains("qfac"),
+            "error must name qfac invariant: {err}"
+        );
+    }
+
+    #[test]
+    fn qform_quaternion_rejects_impossible_norm() {
+        let err = qform_quaternion_scalar(1.0, 1.0, 0.0)
+            .expect_err("impossible qform quaternion must be rejected");
+
+        assert!(
+            err.to_string().contains("norm squared"),
+            "error must name quaternion norm invariant: {err}"
+        );
+    }
 }

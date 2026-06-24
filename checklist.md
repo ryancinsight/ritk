@@ -1,5 +1,35 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 400 — NIfTI Spatial Field Validation
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
+
+### Delivered (Sprint 400)
+- [x] SAFE-399-01 [patch]: **NIfTI spatial fields are exact and fallible** —
+  `ritk-nifti` now rejects non-finite affine entries, zero affine columns, non-positive
+  or non-finite spatial `pixdim` values, non-standard qfac values, impossible qform
+  quaternion vector norms, and overflowing shape products before allocation. This removes
+  silent qform clamping, fallback-axis synthesis, invalid spacing acceptance, and unchecked
+  voxel-count multiplication from the NIfTI boundary. Evidence tier: compile/lint plus
+  value-semantic malformed-field tests.
+
+### Verification gate (Sprint 400)
+- [x] `rustfmt crates\ritk-nifti\src\reader.rs crates\ritk-nifti\src\spatial.rs crates\ritk-nifti\src\tests\mod.rs --check`
+- [x] `cargo clippy -p ritk-nifti --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-nifti` -> **22/22 passed**
+- [x] `cargo test --doc -p ritk-nifti` -> passed (0 run, 1 ignored)
+- [x] `cargo doc -p ritk-nifti --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected`
+  channel buffers and VTK public cell-list storage. VTK cell-list storage remains a
+  public model change.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 399 — MINC Exact Dimension Attributes
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
