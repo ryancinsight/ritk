@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 394 — NRRD Exact Vector Fields
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
+
+### Delivered (Sprint 394)
+- [x] SAFE-393-02 [patch]: **NRRD vector fields consume the complete header value** —
+  `ritk-nrrd` now rejects non-whitespace text before, between, or after parenthesized
+  `space directions` / `space origin` vectors instead of searching for valid vector
+  prefixes inside malformed values. `space origin` also enforces its documented
+  exactly-one-vector contract. Evidence tier: compile/lint plus value-semantic parser
+  and reader tests.
+
+### Verification gate (Sprint 394)
+- [x] `rustfmt crates\ritk-nrrd\src\reader\decode.rs crates\ritk-nrrd\src\tests\reader.rs`
+- [x] `cargo clippy -p ritk-nrrd --all-targets -- -D warnings` → passed
+- [x] `cargo nextest run -p ritk-nrrd` → **33/33 passed**
+- [x] `cargo test --doc -p ritk-nrrd` → passed (0 run, 1 ignored)
+- [x] `cargo doc -p ritk-nrrd --no-deps` → passed
+- [x] `git diff --check` → passed
+- [ ] `cargo fmt --check` workspace gate still blocked by pre-existing unrelated formatting drift
+  recorded in Sprint 388.
+
+### Deferred / carry-forward
+- [ ] SAFE-394-01 [patch]: Continue hostile-header audit in sibling image format parsers
+  (MetaImage, MGH, MINC, NIfTI) for exact vector/matrix field consumption and bounded
+  allocation on malformed fields.
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected` channel
+  buffers and VTK public cell-list storage. VTK cell-list storage remains a public model change.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
+  with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
+
+---
+
 ## Sprint 393 — NRRD Unterminated Vector Rejection
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed

@@ -48,10 +48,10 @@ pub(super) fn parse_space_directions_planar(s: &str) -> Result<[[f64; 3]; 3]> {
 /// The field value must contain exactly one `(v0,v1,v2)` group.
 pub(super) fn parse_nrrd_point(s: &str) -> Result<Point<3>> {
     let vecs = parse_parenthesized_vectors(s)?;
-    if vecs.is_empty() {
+    if vecs.len() != 1 {
         return Err(anyhow!(
-            "Invalid 'space origin' format: no parenthesised vector found in '{}'",
-            s
+            "'space origin' must contain exactly 1 vector, found {}",
+            vecs.len()
         ));
     }
     Ok(Point::new([vecs[0][0], vecs[0][1], vecs[0][2]]))
@@ -60,10 +60,10 @@ pub(super) fn parse_nrrd_point(s: &str) -> Result<Point<3>> {
 /// Parse a 2-D `space origin` "(x,y)" and promote it to the 3-D point `[x,y,0]`.
 pub(super) fn parse_nrrd_point_planar(s: &str) -> Result<Point<3>> {
     let vecs = parse_vectors::<2>(s)?;
-    if vecs.is_empty() {
+    if vecs.len() != 1 {
         return Err(anyhow!(
-            "Invalid 2-D 'space origin' format: no parenthesised vector found in '{}'",
-            s
+            "2-D 'space origin' must contain exactly 1 vector, found {}",
+            vecs.len()
         ));
     }
     Ok(Point::new([vecs[0][0], vecs[0][1], 0.0]))
@@ -75,19 +75,26 @@ pub(super) fn parse_parenthesized_vectors(s: &str) -> Result<Vec<[f64; 3]>> {
 }
 
 /// Extract all parenthesised groups of exactly `N` comma-separated f64
-/// components from `s`. Handles spaces inside or between components; stops at
-/// any unterminated group.
+/// components from `s`. Handles spaces inside or between components and
+/// rejects non-whitespace text outside the vector groups.
 fn parse_vectors<const N: usize>(s: &str) -> Result<Vec<[f64; N]>> {
     let mut vecs: Vec<[f64; N]> = Vec::new();
     let mut rest = s.trim();
-    while let Some(start) = rest.find('(') {
-        rest = &rest[start + 1..];
+    while !rest.is_empty() {
+        let Some(after_open) = rest.strip_prefix('(') else {
+            return Err(anyhow!(
+                "Unexpected text outside vector group in '{}': '{}'",
+                s,
+                rest
+            ));
+        };
+        rest = after_open;
         let Some(end) = rest.find(')') else {
             return Err(anyhow!("Unterminated vector group in '{}'", s));
         };
         let inner = &rest[..end];
         vecs.push(parse_vector_components::<N>(inner)?);
-        rest = &rest[end + 1..];
+        rest = rest[end + 1..].trim_start();
     }
     Ok(vecs)
 }
@@ -157,8 +164,8 @@ pub(super) fn decode_element_bytes(
 #[cfg(test)]
 mod tests {
     use super::{
-        parse_nrrd_point_planar, parse_parenthesized_vectors, parse_space_directions,
-        parse_space_directions_planar,
+        parse_nrrd_point, parse_nrrd_point_planar, parse_parenthesized_vectors,
+        parse_space_directions, parse_space_directions_planar,
     };
 
     #[test]
@@ -217,6 +224,30 @@ mod tests {
             err.to_string()
                 .contains("Unterminated vector group in '(1, 0, 0) (0, 1, 0'"),
             "unterminated vector error must name the rejected field value, got {err}"
+        );
+    }
+
+    #[test]
+    fn parse_parenthesized_vectors_rejects_trailing_tokens() {
+        let err = parse_parenthesized_vectors("(1, 0, 0) junk")
+            .expect_err("trailing token is not part of a vector list");
+
+        assert!(
+            err.to_string()
+                .contains("Unexpected text outside vector group in '(1, 0, 0) junk': 'junk'"),
+            "trailing token error must name the rejected suffix, got {err}"
+        );
+    }
+
+    #[test]
+    fn parse_space_origin_rejects_multiple_vectors() {
+        let err = parse_nrrd_point("(1, 2, 3) (4, 5, 6)")
+            .expect_err("space origin must contain one vector");
+
+        assert!(
+            err.to_string()
+                .contains("'space origin' must contain exactly 1 vector, found 2"),
+            "space origin error must name the vector-count contract, got {err}"
         );
     }
 }

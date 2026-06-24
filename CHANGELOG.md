@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 394: NRRD exact vector fields
+
+### Fixed
+- `ritk-nrrd`: spatial vector fields now reject non-whitespace text outside parenthesized
+  vector groups instead of accepting a valid prefix inside a malformed value. `space origin`
+  also now rejects multiple point vectors rather than taking the first and ignoring the rest.
+  Evidence tier: compile/lint and value-semantic parser/reader tests
+  (`cargo clippy -p ritk-nrrd --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-nrrd` → 33/33 passed; `cargo test --doc -p ritk-nrrd`;
+  `cargo doc -p ritk-nrrd --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 393: NRRD malformed vector rejection
 
 ### Fixed

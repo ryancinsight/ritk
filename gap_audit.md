@@ -1,5 +1,27 @@
 # RITK Gap Audit - Active
 
+## Sprint 394 Audit (2026-06-24) — NRRD Exact Vector Fields
+
+### Gaps Closed
+
+- **[SAFE-393-02 CLOSED]** `ritk-nrrd` trailing-token and multi-origin vector parsing:
+  `reader::decode::parse_vectors` now consumes the whole trimmed vector field and rejects
+  non-whitespace text outside parenthesized vector groups. This prevents malformed values
+  such as `(1,0,0) (0,1,0) (0,0,1) junk` from being accepted as valid spatial metadata.
+  `space origin` also now enforces the documented exactly-one-vector contract instead of
+  taking the first vector and ignoring the rest. Evidence tier: compile/lint plus
+  value-semantic parser and public-reader tests (`cargo clippy -p ritk-nrrd --all-targets
+  -- -D warnings` passed; `cargo nextest run -p ritk-nrrd` → 33/33 passed;
+  `cargo test --doc -p ritk-nrrd` passed; `cargo doc -p ritk-nrrd --no-deps` passed).
+
+### Residual Risk
+
+- NRRD vector-list exactness is now covered for the current spatial fields. Sibling medical-image
+  header parsers still need the same hostile-header review.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 393 Audit (2026-06-24) — NRRD Unterminated Vector Rejection
 
 ### Gaps Closed
@@ -15,9 +37,8 @@
 
 ### Residual Risk
 
-- This closes the unterminated-parenthesis case only. A follow-up hostile-header audit should
-  decide where trailing unparsed tokens must be rejected exactly and where permissive parsing is
-  compatibility behavior.
+- Sprint 394 closes trailing-token exactness for NRRD spatial vectors. Sibling image format
+  parsers still need the same hostile-header review.
 - Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
 
 ---
