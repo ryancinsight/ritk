@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 404: Apollo FFT dependency cleanup
+
+### Changed
+- `ritk-filter`: Removed the unused workspace `rustfft` dependency and updated stale FFT
+  documentation/comments to describe Apollo's unnormalized inverse FFT convention. The
+  production FFT helper path was already using `apollo_fft::FftPlan1D`; this is dependency
+  and documentation cleanup, not an algorithm change.
+
+### Evidence
+- Evidence tier: compile/lint plus dependency graph/search verification (`rg -n
+  "rustfft|FftPlanner" crates Cargo.toml Cargo.lock` -> no matches; `cargo metadata
+  --locked --format-version 1`; `cargo clippy -p ritk-filter --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-filter -E 'test(fft)'`; `cargo test --doc -p ritk-filter`;
+  `cargo doc -p ritk-filter --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 403: Vector confidence fallibility
 
 ### Changed

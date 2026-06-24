@@ -14,7 +14,7 @@
 //! The transform is applied separably: 1-D IFFT along rows, then along columns.
 //! For 3-D images an additional 1-D IFFT is applied along the depth axis.
 //!
-//! `rustfft` computes the unnormalized IFFT:
+//! Apollo's inverse complex FFT path computes the unnormalized IFFT:
 //!
 //! ```text
 //! IFFT_unnorm(F)[n] = Σ_{k} F[k] · e^{+2πi·k·n/N}
@@ -136,7 +136,7 @@ impl InverseFftFilter {
         fft_nd::<D, InverseFft>(&mut buf, &out_dims);
 
         // Normalize after all IFFT passes.
-        // rustfft's IFFT is unnormalized; the factor 1/N accounts for
+        // Apollo's inverse FFT path is unnormalized; the factor 1/N accounts for
         // every axis pass combined.
         let scale = 1.0 / n_spatial as f32;
         let out: Vec<f32> = buf.iter().map(|z| z.re * scale).collect();

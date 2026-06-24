@@ -132,7 +132,7 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
         fft2d::<InverseFft>(&mut sum_buf, pad_r, pad_c);
         fft2d::<InverseFft>(&mut sumsq_buf, pad_r, pad_c);
 
-        // rustfft's inverse is unnormalized; divide each correlation by pad_n.
+        // Apollo's inverse FFT path is unnormalized; divide each correlation by pad_n.
         let inv_pad = 1.0_f32 / pad_n as f32;
         let t_norm = self.template_norm;
         let mut out = vec![0.0_f32; h * w];

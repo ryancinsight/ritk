@@ -1,5 +1,27 @@
 # RITK Gap Audit - Active
 
+## Sprint 404 Audit (2026-06-24) — Apollo FFT Dependency Cleanup
+
+### Gaps Closed
+
+- **[MIG-387-01 ADVANCED]** `ritk-filter` FFT dependency SSOT:
+  the unused workspace `rustfft` dependency is removed, and stale FFT docs/comments now name
+  Apollo's unnormalized inverse FFT convention. Repository search verifies no remaining
+  `rustfft` or `FftPlanner` references under `crates`, `Cargo.toml`, or `Cargo.lock`.
+  Evidence tier: compile/lint plus dependency graph/search verification (`cargo metadata
+  --locked --format-version 1` passed; `cargo clippy -p ritk-filter --all-targets
+  -- -D warnings` passed; `cargo nextest run -p ritk-filter -E 'test(fft)'` passed;
+  doctests/docs passed).
+
+### Residual Risk
+
+- This is dependency and documentation cleanup, not a new FFT numerical implementation.
+  The production FFT helper path was already Apollo-backed through `apollo_fft::FftPlan1D`.
+- Remaining MIG-387-01 work should target concrete `nalgebra`/`ndarray`/`burn` production
+  surfaces only when an Atlas replacement has a verified equivalent contract.
+
+---
+
 ## Sprint 403 Audit (2026-06-24) — Vector Confidence Fallibility
 
 ### Gaps Closed

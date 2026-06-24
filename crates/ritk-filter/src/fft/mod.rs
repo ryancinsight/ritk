@@ -16,7 +16,7 @@
 //!
 //! # Implementation notes
 //!
-//! - Uses `rustfft` for pure-Rust FFT (no external C/Fortran dependencies)
+//! - Uses `apollo-fft` for pure-Rust FFT execution (no external C/Fortran dependencies)
 //! - Composite (non-power-of-two) dimensions are handled by padding to the next
 //!   power-of-two in each axis, computing the transform, then cropping back
 //! - In-place transforms are used wherever possible to minimize memory allocations

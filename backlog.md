@@ -63,7 +63,9 @@
   Continue replacing production `nalgebra`/`ndarray`/`burn` surfaces with `leto`/`coeus`/
   `hephaestus` only after each target operation has a verified equivalent contract and focused
   differential tests. Do not remove boundary dependencies used only for file-format interop or
-  external framework contracts until the replacement can preserve the same behavior.
+  external framework contracts until the replacement can preserve the same behavior. Sprint 404
+  removed the unused `rustfft` workspace dependency and reconciled stale FFT docs after verifying
+  RITK's FFT execution path already uses `apollo_fft::FftPlan1D`.
 
 ---
 ## Sprint 377 — Performance Review, Memory Efficiency & Carry-Forward Reconciliation

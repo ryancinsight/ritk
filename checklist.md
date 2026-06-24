@@ -1,5 +1,36 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 404 — Apollo FFT Dependency Cleanup
+**Target version**: 0.12.80
+**Sprint phase**: Closure — unused `rustfft` workspace dependency removed and FFT docs reconciled
+
+### Delivered (Sprint 404)
+- [x] MIG-387-01 [patch]: **FFT stack names Apollo as the canonical backend** —
+  removed the unused workspace `rustfft` dependency and replaced stale RITK FFT docs/comments
+  that still described `rustfft` semantics. Production FFT helpers already route through
+  `apollo_fft::FftPlan1D`, so this slice is dependency and documentation cleanup with
+  locked-metadata verification rather than an algorithm rewrite.
+  Evidence tier: compile/lint plus dependency graph/search verification.
+
+### Verification gate (Sprint 404)
+- [x] `rg -n "rustfft|FftPlanner" crates Cargo.toml Cargo.lock` -> no matches
+- [x] `cargo metadata --offline --format-version 1` -> lockfile refreshed
+- [x] `cargo metadata --locked --format-version 1` -> passed
+- [x] `cargo clippy -p ritk-filter --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-filter -E 'test(fft)'` -> passed
+- [x] `cargo test --doc -p ritk-filter` -> passed
+- [x] `cargo doc -p ritk-filter --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with public VTK cell-list storage
+  only after an ADR/migration plan, because `VtkPolyData`/`VtkUnstructuredGrid` expose
+  nested cell vectors as public fields.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 403 — Vector Confidence Fallibility
 **Target version**: ritk-segmentation 0.2.0 / ritk-python 0.12.79
 **Sprint phase**: Closure — input-boundary hardening delivered and focused verification passed

@@ -96,7 +96,6 @@ serde_json = "1.0"
 tempfile = "3.10" # For testing
 proptest = "1.0"
 walkdir = "2.4"
-rustfft = "6.2"
 rand = "0.9"
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.11", features = ["blocking", "stream", "json"] }
@@ -149,4 +148,3 @@ leto-ops = { path = "../leto/crates/leto-ops" }
 [patch."https://github.com/ryancinsight/hephaestus.git"]
 hephaestus-core = { path = "../hephaestus/crates/hephaestus-core" }
 hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
-

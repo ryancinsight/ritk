@@ -4401,7 +4401,7 @@ def test_cmake_real_to_half_hermitian_forward_fft(shape):
     axis columns) of the real-input DFT. ritk
     `filter.real_to_half_hermitian_forward_fft` vs sitk. Float-exact to the full
     FFT precision. Sizes use only 2/3/5 prime factors (sitk's VNL FFT constraint;
-    ritk's rustfft has no such limit)."""
+    ritk's Apollo FFT path has no such limit)."""
     import numpy as _np
 
     _np.random.seed(0)

@@ -10,7 +10,7 @@
 //!
 //! # DC derivation (invariant 3)
 //!
-//! rustfft unnormalized row IFFT of `[H*W, 0, 0, 0]` (length W):
+//! Apollo unnormalized row IFFT of `[H*W, 0, 0, 0]` (length W):
 //!   `IFFT_row[c] = H*W  for all c`  (DC only -> constant along row)
 //!
 //! After row pass: `buf[0,c] = H*W` for all c; `buf[r>0,c] = 0`.
