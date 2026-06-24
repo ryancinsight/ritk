@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 397: RT Plan exact sequence numerics
+
+### Fixed
+- `ritk-io`: DICOM RT Plan reading now rejects malformed present sequence integer fields
+  (`BeamNumber`, `NumberOfControlPoints`, `FractionGroupNumber`,
+  `NumberOfFractionsPlanned`, `ReferencedBeamNumber`) and present non-sequence
+  `BeamSequence`, `FractionGroupSequence`, or `ReferencedBeamSequence` values instead of
+  defaulting to zero or empty lists. Evidence tier: compile/lint and value-semantic reader
+  tests (`cargo clippy -p ritk-io --all-targets -- -D warnings`; `cargo nextest run -p
+  ritk-io` -> 340/340 passed; `cargo test --doc -p ritk-io`; `cargo doc -p ritk-io
+  --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 396: RT Dose exact grid fields
 
 ### Fixed

@@ -248,6 +248,195 @@ fn test_read_rt_plan_synthetic_plan() {
     );
 }
 
+/// Invariant: a present BeamNumber must be a numeric DICOM integer string.
+/// Malformed values are input errors, not beam number zero.
+#[test]
+fn test_read_rt_plan_rejects_invalid_beam_number() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let path = tmp.path().join("rt_plan_invalid_beam_number.dcm");
+
+    let mut beam = make_beam_item(1, "FIELD_1", "PHOTON", 2);
+    beam.put(DataElement::new(
+        Tag(0x300A, 0x00C0),
+        VR::IS,
+        PrimitiveValue::from("not-a-number"),
+    ));
+    let beam_seq = DataSetSequence::new(vec![beam], Length::UNDEFINED);
+
+    let mut obj = InMemDicomObject::new_empty();
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x0002),
+        VR::LO,
+        PrimitiveValue::from("PLAN_BAD_BEAM"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x00B0),
+        VR::SQ,
+        Value::from(beam_seq),
+    ));
+    write_rt_plan_file(obj, &path);
+
+    let result = read_rt_plan(&path);
+    assert!(result.is_err(), "invalid BeamNumber must fail");
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("BeamNumber") && msg.contains("not-a-number"),
+        "error must name the invalid BeamNumber component; got: {msg}"
+    );
+}
+
+/// Invariant: a present BeamSequence must be a DICOM sequence. A scalar value
+/// must not be silently interpreted as an empty beam list.
+#[test]
+fn test_read_rt_plan_rejects_non_sequence_beam_sequence() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let path = tmp.path().join("rt_plan_non_sequence_beams.dcm");
+
+    let mut obj = InMemDicomObject::new_empty();
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x0002),
+        VR::LO,
+        PrimitiveValue::from("PLAN_BAD_SEQUENCE"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x00B0),
+        VR::LO,
+        PrimitiveValue::from("not-a-sequence"),
+    ));
+    write_rt_plan_file(obj, &path);
+
+    let result = read_rt_plan(&path);
+    assert!(result.is_err(), "non-sequence BeamSequence must fail");
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("BeamSequence") && msg.contains("not a sequence"),
+        "error must name the non-sequence BeamSequence violation; got: {msg}"
+    );
+}
+
+/// Invariant: a present ReferencedBeamNumber must be numeric. Malformed values
+/// are input errors, not a reference to beam zero.
+#[test]
+fn test_read_rt_plan_rejects_invalid_referenced_beam_number() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let path = tmp
+        .path()
+        .join("rt_plan_invalid_referenced_beam_number.dcm");
+
+    let beam = make_beam_item(1, "FIELD_1", "PHOTON", 2);
+    let beam_seq = DataSetSequence::new(vec![beam], Length::UNDEFINED);
+
+    let mut ref_item = InMemDicomObject::new_empty();
+    ref_item.put(DataElement::new(
+        Tag(0x300A, 0x00C0),
+        VR::IS,
+        PrimitiveValue::from("bad-ref"),
+    ));
+    let ref_beam_seq = DataSetSequence::new(vec![ref_item], Length::UNDEFINED);
+
+    let mut fg = InMemDicomObject::new_empty();
+    fg.put(DataElement::new(
+        Tag(0x300A, 0x0071),
+        VR::IS,
+        PrimitiveValue::from("1"),
+    ));
+    fg.put(DataElement::new(
+        Tag(0x300A, 0x0078),
+        VR::IS,
+        PrimitiveValue::from("30"),
+    ));
+    fg.put(DataElement::new(
+        Tag(0x300A, 0x00B6),
+        VR::SQ,
+        Value::from(ref_beam_seq),
+    ));
+    let fg_seq = DataSetSequence::new(vec![fg], Length::UNDEFINED);
+
+    let mut obj = InMemDicomObject::new_empty();
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x0002),
+        VR::LO,
+        PrimitiveValue::from("PLAN_BAD_REF"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x00B0),
+        VR::SQ,
+        Value::from(beam_seq),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x0070),
+        VR::SQ,
+        Value::from(fg_seq),
+    ));
+    write_rt_plan_file(obj, &path);
+
+    let result = read_rt_plan(&path);
+    assert!(result.is_err(), "invalid ReferencedBeamNumber must fail");
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("ReferencedBeamNumber") && msg.contains("bad-ref"),
+        "error must name the invalid ReferencedBeamNumber component; got: {msg}"
+    );
+}
+
+/// Invariant: a present ReferencedBeamSequence must be a DICOM sequence. A
+/// scalar value must not be silently interpreted as no beam references.
+#[test]
+fn test_read_rt_plan_rejects_non_sequence_referenced_beam_sequence() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let path = tmp.path().join("rt_plan_non_sequence_referenced_beams.dcm");
+
+    let beam = make_beam_item(1, "FIELD_1", "PHOTON", 2);
+    let beam_seq = DataSetSequence::new(vec![beam], Length::UNDEFINED);
+
+    let mut fg = InMemDicomObject::new_empty();
+    fg.put(DataElement::new(
+        Tag(0x300A, 0x0071),
+        VR::IS,
+        PrimitiveValue::from("1"),
+    ));
+    fg.put(DataElement::new(
+        Tag(0x300A, 0x0078),
+        VR::IS,
+        PrimitiveValue::from("30"),
+    ));
+    fg.put(DataElement::new(
+        Tag(0x300A, 0x00B6),
+        VR::LO,
+        PrimitiveValue::from("not-a-sequence"),
+    ));
+    let fg_seq = DataSetSequence::new(vec![fg], Length::UNDEFINED);
+
+    let mut obj = InMemDicomObject::new_empty();
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x0002),
+        VR::LO,
+        PrimitiveValue::from("PLAN_BAD_REF_SEQUENCE"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x00B0),
+        VR::SQ,
+        Value::from(beam_seq),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x300A, 0x0070),
+        VR::SQ,
+        Value::from(fg_seq),
+    ));
+    write_rt_plan_file(obj, &path);
+
+    let result = read_rt_plan(&path);
+    assert!(
+        result.is_err(),
+        "non-sequence ReferencedBeamSequence must fail"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("ReferencedBeamSequence") && msg.contains("not a sequence"),
+        "error must name the non-sequence ReferencedBeamSequence violation; got: {msg}"
+    );
+}
+
 // ── Test D: empty plan writes and reads back ──────────────────────────────────
 
 /// Invariant: write_rt_plan with empty beams and fraction_groups must succeed;

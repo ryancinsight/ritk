@@ -10,11 +10,23 @@ use std::path::Path;
 use super::types::{RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID};
 use crate::format::dicom::reader::types::truncate_arraystring;
 
+fn parse_u32_is(raw: &str, field: &str) -> Result<u32> {
+    let token = raw.trim();
+    if token.is_empty() {
+        bail!("{field} is present but empty");
+    }
+    token
+        .parse::<u32>()
+        .with_context(|| format!("Invalid {field}: '{token}'"))
+}
+
 /// Read an RT Plan Storage DICOM file at `path` into an [`RtPlanInfo`].
 ///
 /// # Errors
 /// - `path` does not exist or is not readable.
 /// - The file's `MediaStorageSOPClassUID` ≠ `1.2.840.10008.5.1.4.1.1.481.5`.
+/// - Present RT Plan sequence integer fields are malformed.
+/// - Present beam or fraction-group sequence elements are not DICOM sequences.
 pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
     let path = path.as_ref();
     let obj = parse_file_with::<DicomRsBackend, _>(path)
@@ -79,11 +91,15 @@ pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
             Value::Sequence(seq) => seq
                 .items()
                 .iter()
-                .map(|item| {
+                .map(|item| -> Result<RtBeamInfo> {
                     let beam_number: u32 = item
                         .element(Tag(0x300A, 0x00C0))
                         .ok()
-                        .and_then(|e| e.to_str().ok().and_then(|s| s.trim().parse().ok()))
+                        .map(|e| {
+                            let raw = e.to_str().context("Read BeamNumber (300A,00C0)")?;
+                            parse_u32_is(&raw, "BeamNumber (300A,00C0)")
+                        })
+                        .transpose()?
                         .unwrap_or(0);
                     let beam_name = item
                         .element(Tag(0x300A, 0x00C2))
@@ -128,19 +144,25 @@ pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
                     let n_control_points: u32 = item
                         .element(Tag(0x300A, 0x0110))
                         .ok()
-                        .and_then(|e| e.to_str().ok().and_then(|s| s.trim().parse().ok()))
+                        .map(|e| {
+                            let raw = e
+                                .to_str()
+                                .context("Read NumberOfControlPoints (300A,0110)")?;
+                            parse_u32_is(&raw, "NumberOfControlPoints (300A,0110)")
+                        })
+                        .transpose()?
                         .unwrap_or(0);
-                    RtBeamInfo {
+                    Ok(RtBeamInfo {
                         beam_number,
                         beam_name,
                         beam_description,
                         radiation_type,
                         treatment_delivery_type,
                         n_control_points,
-                    }
+                    })
                 })
-                .collect(),
-            _ => Vec::new(),
+                .collect::<Result<Vec<_>>>()?,
+            _ => bail!("BeamSequence (300A,00B0) is present but is not a sequence"),
         },
         Err(_) => Vec::new(),
     };
@@ -150,49 +172,65 @@ pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
             Value::Sequence(seq) => seq
                 .items()
                 .iter()
-                .map(|item| {
+                .map(|item| -> Result<RtFractionGroup> {
                     let fraction_group_number: u32 = item
                         .element(Tag(0x300A, 0x0071))
                         .ok()
-                        .and_then(|e| e.to_str().ok().and_then(|s| s.trim().parse().ok()))
+                        .map(|e| {
+                            let raw = e.to_str().context("Read FractionGroupNumber (300A,0071)")?;
+                            parse_u32_is(&raw, "FractionGroupNumber (300A,0071)")
+                        })
+                        .transpose()?
                         .unwrap_or(0);
                     let n_fractions_planned: u32 = item
                         .element(Tag(0x300A, 0x0078))
                         .ok()
-                        .and_then(|e| e.to_str().ok().and_then(|s| s.trim().parse().ok()))
+                        .map(|e| {
+                            let raw = e
+                                .to_str()
+                                .context("Read NumberOfFractionsPlanned (300A,0078)")?;
+                            parse_u32_is(&raw, "NumberOfFractionsPlanned (300A,0078)")
+                        })
+                        .transpose()?
                         .unwrap_or(0);
 
-                    let referenced_beam_numbers: Vec<u32> = item
-                        .element(Tag(0x300A, 0x00B6))
-                        .ok()
-                        .and_then(|e| match e.value() {
-                            Value::Sequence(s) => Some(
-                                s.items()
+                    let referenced_beam_numbers: Vec<u32> =
+                        match item.element(Tag(0x300A, 0x00B6)) {
+                            Ok(e) => match e.value() {
+                                Value::Sequence(s) => s
+                                    .items()
                                     .iter()
-                                    .map(|bi| {
+                                    .map(|bi| -> Result<u32> {
                                         bi.element(Tag(0x300A, 0x00C0))
                                             .ok()
-                                            .and_then(|be| {
-                                                be.to_str()
-                                                    .ok()
-                                                    .and_then(|sv| sv.trim().parse().ok())
+                                            .map(|be| {
+                                                let raw = be.to_str().context(
+                                                    "Read ReferencedBeamNumber (300A,00C0)",
+                                                )?;
+                                                parse_u32_is(
+                                                    &raw,
+                                                    "ReferencedBeamNumber (300A,00C0)",
+                                                )
                                             })
-                                            .unwrap_or(0)
+                                            .transpose()
+                                            .map(|value| value.unwrap_or(0))
                                     })
-                                    .collect(),
-                            ),
-                            _ => None,
-                        })
-                        .unwrap_or_default();
+                                    .collect::<Result<Vec<_>>>()?,
+                                _ => bail!(
+                                    "ReferencedBeamSequence (300A,00B6) is present but is not a sequence"
+                                ),
+                            },
+                            Err(_) => Vec::new(),
+                        };
 
-                    RtFractionGroup {
+                    Ok(RtFractionGroup {
                         fraction_group_number,
                         n_fractions_planned,
                         referenced_beam_numbers,
-                    }
+                    })
                 })
-                .collect(),
-            _ => Vec::new(),
+                .collect::<Result<Vec<_>>>()?,
+            _ => bail!("FractionGroupSequence (300A,0070) is present but is not a sequence"),
         },
         Err(_) => Vec::new(),
     };

@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 397 — RT Plan Exact Sequence Numerics
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
+
+### Delivered (Sprint 397)
+- [x] SAFE-396-01 [patch]: **DICOM RT Plan sequence numerics are exact and fallible** —
+  `ritk-io` now rejects malformed present `BeamNumber`, `NumberOfControlPoints`,
+  `FractionGroupNumber`, `NumberOfFractionsPlanned`, and `ReferencedBeamNumber` values
+  instead of silently defaulting them to zero. Present `BeamSequence`,
+  `FractionGroupSequence`, and nested `ReferencedBeamSequence` values must be DICOM
+  sequences. Evidence tier: compile/lint plus value-semantic reader tests.
+
+### Verification gate (Sprint 397)
+- [x] `rustfmt crates\ritk-io\src\format\dicom\rt_plan\reader.rs crates\ritk-io\src\format\dicom\rt_plan\tests\mod.rs --check`
+- [x] `cargo clippy -p ritk-io --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-io` -> **340/340 passed**
+- [x] `cargo test --doc -p ritk-io` -> passed (0 run, 4 ignored)
+- [x] `cargo doc -p ritk-io --no-deps` -> passed
+- [x] `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] SAFE-397-01 [patch]: Continue hostile-header/value audit in remaining sibling image
+  parsers (MetaImage, MINC, NIfTI) for exact vector/matrix field consumption and bounded
+  allocation on malformed fields.
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected`
+  channel buffers and VTK public cell-list storage. VTK cell-list storage remains a
+  public model change.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 396 — RT Dose Exact Grid Fields
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed

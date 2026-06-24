@@ -24,8 +24,10 @@
   hardened DICOM RT Structure Set `ContourData` so present contour coordinates reject
   non-numeric components and partial trailing triples, while removing the intermediate scalar
   coordinate buffer. Sprint 396 hardened DICOM RT Dose grid fields so present frame offsets,
-  DS vectors, frame counts, and pixel payload lengths are exact and fallible. Continue with
-  sibling medical-image and RT modality parsers, preserving permissive parsing only where
+  DS vectors, frame counts, and pixel payload lengths are exact and fallible. Sprint 397
+  hardened DICOM RT Plan sequence numerics so malformed present integer strings and
+  non-sequence sequence tags are rejected instead of collapsed to zero or empty lists.
+  Continue with sibling medical-image parsers, preserving permissive parsing only where
   compatibility tests prove it is required.
 
 - **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**

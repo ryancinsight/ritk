@@ -1,5 +1,29 @@
 # RITK Gap Audit - Active
 
+## Sprint 397 Audit (2026-06-24) — RT Plan Exact Sequence Numerics
+
+### Gaps Closed
+
+- **[SAFE-396-01 ADVANCED]** `ritk-io` DICOM RT Plan sequence numeric parsing:
+  present `BeamNumber`, `NumberOfControlPoints`, `FractionGroupNumber`,
+  `NumberOfFractionsPlanned`, and `ReferencedBeamNumber` values now fail on malformed
+  integer strings instead of collapsing to zero. Present `BeamSequence`,
+  `FractionGroupSequence`, and nested `ReferencedBeamSequence` values now fail when they
+  are not DICOM sequences. Evidence tier: compile/lint plus value-semantic public-reader
+  tests (`cargo clippy -p ritk-io --all-targets -- -D warnings` passed; `cargo nextest
+  run -p ritk-io` -> 340/340 passed; `cargo test --doc -p ritk-io` passed; `cargo doc
+  -p ritk-io --no-deps` passed).
+
+### Residual Risk
+
+- RT Plan exactness is now covered for present sequence numeric and sequence-shape fields
+  touched in Sprint 397. MetaImage, MINC, and NIfTI parsers still need hostile-field
+  review.
+- This is parser-safety evidence, not benchmark evidence. No speedup is claimed.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 396 Audit (2026-06-24) — RT Dose Exact Grid Fields
 
 ### Gaps Closed
