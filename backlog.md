@@ -23,8 +23,10 @@
   trailing non-vector tokens and multiple `space origin` vectors are rejected. Sprint 395
   hardened DICOM RT Structure Set `ContourData` so present contour coordinates reject
   non-numeric components and partial trailing triples, while removing the intermediate scalar
-  coordinate buffer. Continue with sibling medical-image and RT modality parsers, preserving
-  permissive parsing only where compatibility tests prove it is required.
+  coordinate buffer. Sprint 396 hardened DICOM RT Dose grid fields so present frame offsets,
+  DS vectors, frame counts, and pixel payload lengths are exact and fallible. Continue with
+  sibling medical-image and RT modality parsers, preserving permissive parsing only where
+  compatibility tests prove it is required.
 
 - **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**
   Focused Clippy was blocked by `clippy::single_range_in_vec_init` in

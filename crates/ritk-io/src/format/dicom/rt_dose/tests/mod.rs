@@ -194,6 +194,82 @@ fn test_read_rt_dose_synthetic_grid() {
     );
 }
 
+/// Invariant: a present GridFrameOffsetVector must contain one numeric DS
+/// component per frame. Invalid tokens are malformed input, not skipped values.
+#[test]
+fn test_read_rt_dose_rejects_invalid_frame_offset() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let path = tmp.path().join("rt_dose_invalid_offset.dcm");
+
+    let mut obj = build_rt_dose_obj(2, 2, 2, 0.001, 1000);
+    obj.put(DataElement::new(
+        Tag(0x3004, 0x000C),
+        VR::DS,
+        PrimitiveValue::from("0\\not-a-number"),
+    ));
+    write_rt_dose_file(obj, &path);
+
+    let result = read_rt_dose(&path);
+    assert!(result.is_err(), "invalid frame offset must fail");
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("GridFrameOffsetVector") && msg.contains("not-a-number"),
+        "error must name the invalid frame-offset component; got: {msg}"
+    );
+}
+
+/// Invariant: GridFrameOffsetVector length must match NumberOfFrames exactly.
+#[test]
+fn test_read_rt_dose_rejects_frame_offset_count_mismatch() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let path = tmp.path().join("rt_dose_offset_count.dcm");
+
+    let mut obj = build_rt_dose_obj(2, 2, 2, 0.001, 1000);
+    obj.put(DataElement::new(
+        Tag(0x3004, 0x000C),
+        VR::DS,
+        PrimitiveValue::from("0\\1\\2"),
+    ));
+    write_rt_dose_file(obj, &path);
+
+    let result = read_rt_dose(&path);
+    assert!(result.is_err(), "frame-offset count mismatch must fail");
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("GridFrameOffsetVector") && msg.contains("exactly 2"),
+        "error must name the exact frame-offset count violation; got: {msg}"
+    );
+}
+
+/// Invariant: PixelData must contain exactly one little-endian u32 per dose
+/// voxel. Extra trailing bytes are malformed input, not ignored payload.
+#[test]
+fn test_read_rt_dose_rejects_extra_pixel_bytes() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let path = tmp.path().join("rt_dose_extra_pixel_bytes.dcm");
+
+    let mut obj = build_rt_dose_obj(2, 2, 1, 0.001, 1000);
+    let mut pixel_bytes: Vec<u8> = Vec::with_capacity(20);
+    for _ in 0..4 {
+        pixel_bytes.extend_from_slice(&1000u32.to_le_bytes());
+    }
+    pixel_bytes.extend_from_slice(&9999u32.to_le_bytes());
+    obj.put(DataElement::new(
+        Tag(0x7FE0, 0x0010),
+        VR::OW,
+        PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(pixel_bytes)),
+    ));
+    write_rt_dose_file(obj, &path);
+
+    let result = read_rt_dose(&path);
+    assert!(result.is_err(), "extra PixelData bytes must fail");
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("PixelData length mismatch") && msg.contains("expected 16"),
+        "error must name the exact pixel byte length violation; got: {msg}"
+    );
+}
+
 // ── Test D: validation rejects mismatched voxel count ────────────────────────
 
 /// Invariant: write_rt_dose must return Err when dose_gy.len() ≠ n_frames * rows * cols.

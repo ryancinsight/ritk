@@ -1,5 +1,30 @@
 # RITK Gap Audit - Active
 
+## Sprint 396 Audit (2026-06-24) — RT Dose Exact Grid Fields
+
+### Gaps Closed
+
+- **[SAFE-395-01 ADVANCED]** `ritk-io` DICOM RT Dose grid parsing:
+  `GridFrameOffsetVector` now rejects invalid components and enforces exactly one offset
+  per frame. Present `ImagePositionPatient`, `ImageOrientationPatient`, and `PixelSpacing`
+  now reject invalid or wrong-count DS components. Present `NumberOfFrames` must be
+  positive. Pixel payload sizing now uses checked voxel/byte arithmetic and requires the
+  `PixelData` byte length to match exactly, so extra trailing bytes are not ignored.
+  Evidence tier: compile/lint plus value-semantic public-reader tests (`cargo clippy -p
+  ritk-io --all-targets -- -D warnings` passed; `cargo nextest run -p ritk-io` ->
+  336/336 passed; `cargo test --doc -p ritk-io` passed; `cargo doc -p ritk-io --no-deps`
+  passed).
+
+### Residual Risk
+
+- RT Dose exactness is now covered for the grid fields touched in Sprint 396. RT Plan,
+  MetaImage, MINC, and NIfTI parsers still need hostile-field review.
+- This is safety and bounded-consumption evidence, not benchmark evidence. No speedup is
+  claimed.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 395 Audit (2026-06-24) — RT Struct Exact ContourData
 
 ### Gaps Closed

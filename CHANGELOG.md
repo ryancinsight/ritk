@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 396: RT Dose exact grid fields
+
+### Fixed
+- `ritk-io`: DICOM RT Dose reading now rejects malformed present `GridFrameOffsetVector`
+  values, frame-offset count mismatches, invalid present DS vector fields, non-positive
+  present `NumberOfFrames`, voxel/byte-count overflow, and extra trailing `PixelData`
+  bytes. Evidence tier: compile/lint and value-semantic reader tests (`cargo clippy -p
+  ritk-io --all-targets -- -D warnings`; `cargo nextest run -p ritk-io` -> 336/336
+  passed; `cargo test --doc -p ritk-io`; `cargo doc -p ritk-io --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 395: RT Struct exact contour data
 
 ### Fixed

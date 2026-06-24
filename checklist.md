@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 396 — RT Dose Exact Grid Fields
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
+
+### Delivered (Sprint 396)
+- [x] SAFE-395-01 [patch]: **DICOM RT Dose grid fields are exact and fallible** —
+  `ritk-io` now rejects malformed present `GridFrameOffsetVector` values, frame-offset
+  count mismatches, invalid present DS vector fields, non-positive present
+  `NumberOfFrames`, voxel/byte-count overflow, and extra trailing `PixelData` bytes.
+  The reader no longer silently skips bad frame offsets or accepts pixel payload
+  over-read candidates. Evidence tier: compile/lint plus value-semantic reader tests.
+
+### Verification gate (Sprint 396)
+- [x] `rustfmt crates\ritk-io\src\format\dicom\rt_dose\utils.rs crates\ritk-io\src\format\dicom\rt_dose\reader.rs crates\ritk-io\src\format\dicom\rt_dose\tests\mod.rs --check`
+- [x] `cargo clippy -p ritk-io --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-io` -> **336/336 passed**
+- [x] `cargo test --doc -p ritk-io` -> passed (0 run, 4 ignored)
+- [x] `cargo doc -p ritk-io --no-deps` -> passed
+- [x] `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] SAFE-396-01 [patch]: Continue hostile-header/value audit in remaining sibling image
+  and RT parsers (MetaImage, MINC, NIfTI, RT Plan) for exact vector/matrix field
+  consumption and bounded allocation on malformed fields.
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected`
+  channel buffers and VTK public cell-list storage. VTK cell-list storage remains a
+  public model change.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 395 — RT Struct Exact ContourData
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed

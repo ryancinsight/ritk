@@ -8,7 +8,7 @@ use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 
 use super::types::{RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID};
-use super::utils::parse_ds_backslash;
+use super::utils::{parse_ds_backslash, parse_frame_offsets};
 use crate::format::dicom::reader::types::truncate_arraystring;
 
 /// Read an RT Dose Storage DICOM file at `path` into an [`RtDoseGrid`].
@@ -17,7 +17,8 @@ use crate::format::dicom::reader::types::truncate_arraystring;
 /// - `path` does not exist or is not readable.
 /// - The file's `MediaStorageSOPClassUID` ≠ `1.2.840.10008.5.1.4.1.1.481.2`.
 /// - Required tags (Rows, Columns, PixelData) are absent.
-/// - `PixelData` length < `n_frames * rows * cols * 4` bytes.
+/// - `PixelData` length is not exactly `n_frames * rows * cols * 4` bytes.
+/// - Present DS vector fields have the wrong component count or invalid components.
 pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
     let path = path.as_ref();
     let obj = parse_file_with::<DicomRsBackend, _>(path)
@@ -48,8 +49,16 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
     let n_frames: usize = obj
         .element(Tag(0x0028, 0x0008))
         .ok()
-        .and_then(|e| e.to_int::<i32>().ok())
-        .map(|v| v.max(1) as usize)
+        .map(|e| {
+            let value = e
+                .to_int::<i32>()
+                .context("unparseable NumberOfFrames (0028,0008)")?;
+            if value <= 0 {
+                bail!("NumberOfFrames (0028,0008) must be positive, got {value}");
+            }
+            Ok(value as usize)
+        })
+        .transpose()?
         .unwrap_or(1);
 
     let dose_grid_scaling: f64 = obj
@@ -72,24 +81,17 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
         .map(|s| RtDoseType::from_dicom_str(&s))
         .unwrap_or(RtDoseType::Physical);
 
-    let frame_offsets: Vec<f64> = {
-        let raw: Vec<f64> = obj
-            .element(Tag(0x3004, 0x000C))
-            .ok()
-            .and_then(|e| e.to_str().ok())
-            .map(|s| {
-                s.trim()
-                    .split('\\')
-                    .filter_map(|t| t.trim().parse::<f64>().ok())
-                    .collect()
-            })
-            .unwrap_or_default();
-        if raw.is_empty() {
-            (0..n_frames).map(|i| i as f64).collect()
-        } else {
-            raw
-        }
-    };
+    let frame_offsets: Vec<f64> = obj
+        .element(Tag(0x3004, 0x000C))
+        .ok()
+        .map(|e| {
+            let raw = e
+                .to_str()
+                .context("Read GridFrameOffsetVector (3004,000C)")?;
+            parse_frame_offsets(raw.trim(), n_frames)
+        })
+        .transpose()?
+        .unwrap_or_else(|| (0..n_frames).map(|i| i as f64).collect());
 
     let px_bytes = obj
         .element(Tag(0x7FE0, 0x0010))
@@ -97,11 +99,23 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
         .to_bytes()
         .context("PixelData to_bytes")?;
 
-    let n_voxels = n_frames * rows * cols;
-    let expected_bytes = n_voxels * 4;
-    if px_bytes.len() < expected_bytes {
+    let n_voxels = n_frames
+        .checked_mul(rows)
+        .and_then(|value| value.checked_mul(cols))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "RT Dose voxel count overflow: n_frames={} rows={} cols={}",
+                n_frames,
+                rows,
+                cols
+            )
+        })?;
+    let expected_bytes = n_voxels.checked_mul(4).ok_or_else(|| {
+        anyhow::anyhow!("RT Dose byte count overflow: {} voxels × 4 bytes", n_voxels)
+    })?;
+    if px_bytes.len() != expected_bytes {
         bail!(
-            "PixelData too short for RT Dose: got {} bytes, need {} ({} voxels × 4 bytes)",
+            "PixelData length mismatch for RT Dose: got {} bytes, expected {} ({} voxels × 4 bytes)",
             px_bytes.len(),
             expected_bytes,
             n_voxels
@@ -117,20 +131,33 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
     let image_position: Option<[f64; 3]> = obj
         .element(Tag(0x0020, 0x0032))
         .ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| parse_ds_backslash::<3>(&s));
+        .map(|e| {
+            let raw = e
+                .to_str()
+                .context("Read ImagePositionPatient (0020,0032)")?;
+            parse_ds_backslash::<3>(&raw, "ImagePositionPatient (0020,0032)")
+        })
+        .transpose()?;
 
     let image_orientation: Option<[f64; 6]> = obj
         .element(Tag(0x0020, 0x0037))
         .ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| parse_ds_backslash::<6>(&s));
+        .map(|e| {
+            let raw = e
+                .to_str()
+                .context("Read ImageOrientationPatient (0020,0037)")?;
+            parse_ds_backslash::<6>(&raw, "ImageOrientationPatient (0020,0037)")
+        })
+        .transpose()?;
 
     let pixel_spacing: Option<[f64; 2]> = obj
         .element(Tag(0x0028, 0x0030))
         .ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| parse_ds_backslash::<2>(&s));
+        .map(|e| {
+            let raw = e.to_str().context("Read PixelSpacing (0028,0030)")?;
+            parse_ds_backslash::<2>(&raw, "PixelSpacing (0028,0030)")
+        })
+        .transpose()?;
 
     let referenced_rt_plan_sop_instance_uid: Option<ArrayString<64>> = obj
         .element(Tag(0x300C, 0x0002))
