@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 398: MetaImage exact payload bounds
+
+### Fixed
+- `ritk-metaimage`: MetaImage reading now checks `DimSize` voxel-count and payload byte
+  arithmetic before allocation/decode, and rejects raw or inflated payloads whose byte
+  length does not exactly match `DimSize × sizeof(ElementType)`. Evidence tier:
+  compile/lint and value-semantic reader tests (`cargo clippy -p ritk-metaimage
+  --all-targets -- -D warnings`; `cargo nextest run -p ritk-metaimage` -> 21/21 passed;
+  `cargo test --doc -p ritk-metaimage`; `cargo doc -p ritk-metaimage --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 397: RT Plan exact sequence numerics
 
 ### Fixed

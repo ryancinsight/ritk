@@ -155,6 +155,7 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         .get("ElementType")
         .ok_or_else(|| anyhow!("Missing 'ElementType' in MetaImage header"))?
         .clone();
+    let (elem_size, signed, is_float) = element_type_spec(&element_type)?;
 
     // BinaryDataByteOrderMSB = True → big-endian; default is little-endian.
     let byte_order = ByteOrder::from_metaimage_msb(
@@ -176,7 +177,14 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         .clone();
 
     // ── Binary data ───────────────────────────────────────────────────────
-    let total_voxels = nx * ny * nz;
+    let total_voxels = checked_voxel_count(nx, ny, nz)?;
+    let expected_payload_bytes = total_voxels.checked_mul(elem_size).ok_or_else(|| {
+        anyhow!(
+            "MetaImage byte count overflow: {} voxels × {} bytes",
+            total_voxels,
+            elem_size
+        )
+    })?;
 
     // Read the payload bytes (still zlib-deflated when `compressed`) from the
     // inline LOCAL stream or the detached raw file, then inflate if needed.
@@ -203,7 +211,7 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     };
 
     let raw_bytes: Vec<u8> = if compressed {
-        let mut out = Vec::with_capacity(total_voxels * 4);
+        let mut out = Vec::with_capacity(expected_payload_bytes);
         flate2::read::ZlibDecoder::new(&payload[..])
             .read_to_end(&mut out)
             .context("Failed to inflate zlib-compressed MetaImage payload")?;
@@ -211,9 +219,26 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     } else {
         payload
     };
+    if raw_bytes.len() != expected_payload_bytes {
+        return Err(anyhow!(
+            "MetaImage payload length mismatch: expected {} bytes from DimSize ({} voxels × {} bytes for {}), got {} bytes",
+            expected_payload_bytes,
+            total_voxels,
+            elem_size,
+            element_type,
+            raw_bytes.len()
+        ));
+    }
 
-    let f32_data: Vec<f32> =
-        decode_metaimage_bytes(&raw_bytes, &element_type, total_voxels, byte_order)?;
+    let f32_data: Vec<f32> = decode_bytes_to_f32(
+        &raw_bytes,
+        elem_size,
+        signed,
+        is_float,
+        byte_order,
+        total_voxels,
+        &element_type,
+    )?;
 
     if f32_data.len() != total_voxels {
         return Err(anyhow!(
@@ -249,16 +274,22 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-/// Decode a raw byte buffer into `Vec<f32>` according to the MetaImage
-/// `ElementType` name. Translates the string to a (size, signed, is_float)
-/// triple and delegates to [`ritk_codecs::decode_bytes_to_f32`].
-fn decode_metaimage_bytes(
-    bytes: &[u8],
-    element_type: &str,
-    count: usize,
-    byte_order: ByteOrder,
-) -> Result<Vec<f32>> {
-    let (elem_size, signed, is_float) = match element_type {
+fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize> {
+    nx.checked_mul(ny)
+        .and_then(|xy| xy.checked_mul(nz))
+        .ok_or_else(|| {
+            anyhow!(
+                "MetaImage voxel count overflow: DimSize = {} {} {}",
+                nx,
+                ny,
+                nz
+            )
+        })
+}
+
+/// Translate a MetaImage `ElementType` name into the shared byte-decoder spec.
+fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
+    let spec = match element_type {
         "MET_UCHAR" => (1_usize, false, false),
         "MET_SHORT" => (2, true, false),
         "MET_USHORT" => (2, false, false),
@@ -268,15 +299,7 @@ fn decode_metaimage_bytes(
         "MET_DOUBLE" => (8, false, true),
         other => return Err(anyhow!("Unsupported MetaImage ElementType: '{}'", other)),
     };
-    decode_bytes_to_f32(
-        bytes,
-        elem_size,
-        signed,
-        is_float,
-        byte_order,
-        count,
-        element_type,
-    )
+    Ok(spec)
 }
 
 // ── Public reader struct ──────────────────────────────────────────────────────

@@ -1,5 +1,28 @@
 # RITK Gap Audit - Active
 
+## Sprint 398 Audit (2026-06-24) — MetaImage Exact Payload Bounds
+
+### Gaps Closed
+
+- **[SAFE-397-01 ADVANCED]** `ritk-metaimage` payload sizing:
+  `DimSize` voxel counts and element byte counts now use checked arithmetic before any
+  payload capacity or decode count is derived. Raw or inflated payload length must match
+  `DimSize × sizeof(ElementType)` exactly, so extra trailing bytes are rejected instead of
+  ignored by prefix decoding. Evidence tier: compile/lint plus value-semantic reader tests
+  (`cargo clippy -p ritk-metaimage --all-targets -- -D warnings` passed; `cargo nextest
+  run -p ritk-metaimage` -> 21/21 passed; `cargo test --doc -p ritk-metaimage` passed;
+  `cargo doc -p ritk-metaimage --no-deps` passed).
+
+### Residual Risk
+
+- MetaImage exactness is now covered for payload byte counts and `DimSize` overflow. MINC
+  and NIfTI parsers still need hostile-field review.
+- This is parser-safety and bounded-allocation evidence, not benchmark evidence. No speedup
+  is claimed.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 397 Audit (2026-06-24) — RT Plan Exact Sequence Numerics
 
 ### Gaps Closed

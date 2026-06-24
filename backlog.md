@@ -27,8 +27,9 @@
   DS vectors, frame counts, and pixel payload lengths are exact and fallible. Sprint 397
   hardened DICOM RT Plan sequence numerics so malformed present integer strings and
   non-sequence sequence tags are rejected instead of collapsed to zero or empty lists.
-  Continue with sibling medical-image parsers, preserving permissive parsing only where
-  compatibility tests prove it is required.
+  Sprint 398 hardened MetaImage payload sizing so `DimSize` multiplication and payload byte
+  counts are checked and exact. Continue with sibling medical-image parsers, preserving
+  permissive parsing only where compatibility tests prove it is required.
 
 - **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**
   Focused Clippy was blocked by `clippy::single_range_in_vec_init` in

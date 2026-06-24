@@ -1,5 +1,37 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 398 — MetaImage Exact Payload Bounds
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
+
+### Delivered (Sprint 398)
+- [x] SAFE-397-01 [patch]: **MetaImage payload byte counts are exact and checked** —
+  `ritk-metaimage` now computes `DimSize` voxel counts and payload byte counts with
+  checked arithmetic, rejects overflow before allocation/decode, and rejects extra or
+  short payload bytes instead of relying on the shared decoder's prefix consumption.
+  Evidence tier: compile/lint plus value-semantic reader tests.
+
+### Verification gate (Sprint 398)
+- [x] `rustfmt crates\ritk-metaimage\src\reader.rs crates\ritk-metaimage\src\tests\reader.rs --check`
+- [x] `cargo clippy -p ritk-metaimage --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-metaimage` -> **21/21 passed**
+- [x] `cargo test --doc -p ritk-metaimage` -> passed (0 run)
+- [x] `cargo doc -p ritk-metaimage --no-deps` -> passed
+- [x] `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] SAFE-398-01 [patch]: Continue hostile-header/value audit in remaining sibling image
+  parsers (MINC, NIfTI) for exact vector/matrix field consumption and bounded allocation on
+  malformed fields.
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected`
+  channel buffers and VTK public cell-list storage. VTK cell-list storage remains a
+  public model change.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 397 — RT Plan Exact Sequence Numerics
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed

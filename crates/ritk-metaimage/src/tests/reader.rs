@@ -267,6 +267,74 @@ fn test_unsupported_element_type_returns_error() -> Result<()> {
     Ok(())
 }
 
+/// Extra trailing payload bytes are malformed input, not ignored data.
+#[test]
+fn test_extra_payload_bytes_return_error() -> Result<()> {
+    use std::io::Write;
+    let dir = tempdir()?;
+    let path = dir.path().join("extra_payload.mha");
+    {
+        let mut f = std::fs::File::create(&path)?;
+        writeln!(f, "ObjectType = Image")?;
+        writeln!(f, "NDims = 3")?;
+        writeln!(f, "BinaryData = True")?;
+        writeln!(f, "BinaryDataByteOrderMSB = False")?;
+        writeln!(f, "CompressedData = False")?;
+        writeln!(f, "TransformMatrix = 1 0 0 0 1 0 0 0 1")?;
+        writeln!(f, "Offset = 0 0 0")?;
+        writeln!(f, "ElementSpacing = 1 1 1")?;
+        writeln!(f, "DimSize = 2 2 1")?;
+        writeln!(f, "ElementType = MET_FLOAT")?;
+        writeln!(f, "ElementDataFile = LOCAL")?;
+        for value in [1.0_f32, 2.0, 3.0, 4.0, 5.0] {
+            f.write_all(&value.to_le_bytes())?;
+        }
+    }
+
+    let device: <TestBackend as Backend>::Device = Default::default();
+    let result = read_metaimage::<TestBackend, _>(&path, &device);
+    assert!(result.is_err(), "extra payload bytes must fail");
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("payload length mismatch") && msg.contains("expected") && msg.contains("16"),
+        "error must name the exact payload length violation; got: {msg}"
+    );
+    Ok(())
+}
+
+/// `DimSize` multiplication must be checked before it can drive allocation or
+/// byte-count arithmetic.
+#[test]
+fn test_dim_size_overflow_returns_error() -> Result<()> {
+    use std::io::Write;
+    let dir = tempdir()?;
+    let path = dir.path().join("overflow_dimsize.mha");
+    {
+        let mut f = std::fs::File::create(&path)?;
+        writeln!(f, "ObjectType = Image")?;
+        writeln!(f, "NDims = 3")?;
+        writeln!(f, "BinaryData = True")?;
+        writeln!(f, "BinaryDataByteOrderMSB = False")?;
+        writeln!(f, "CompressedData = False")?;
+        writeln!(f, "TransformMatrix = 1 0 0 0 1 0 0 0 1")?;
+        writeln!(f, "Offset = 0 0 0")?;
+        writeln!(f, "ElementSpacing = 1 1 1")?;
+        writeln!(f, "DimSize = {} 2 1", usize::MAX)?;
+        writeln!(f, "ElementType = MET_FLOAT")?;
+        writeln!(f, "ElementDataFile = LOCAL")?;
+    }
+
+    let device: <TestBackend as Backend>::Device = Default::default();
+    let result = read_metaimage::<TestBackend, _>(&path, &device);
+    assert!(result.is_err(), "overflowing DimSize must fail");
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("voxel count overflow") && msg.contains("DimSize"),
+        "error must name the DimSize overflow; got: {msg}"
+    );
+    Ok(())
+}
+
 /// External `.raw` file referenced from a `.mhd` header must be read.
 #[test]
 fn test_mhd_external_raw_file() -> Result<()> {
