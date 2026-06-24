@@ -17,6 +17,12 @@
   `vector_confidence_connected` channel buffer layout, VTK cell-list storage, and remaining
   nested small matrices where a row-major buffer preserves public contracts.
 
+- **SAFE-393-02 [patch] — Continue hostile format-header parser audit. IN PROGRESS.**
+  Sprint 393 hardened NRRD spatial vector parsing so unterminated parenthesized groups return
+  an error instead of accepting a parsed prefix. Continue with exact trailing-token validation
+  for NRRD and sibling medical-image header parsers, preserving permissive parsing only where
+  compatibility tests prove it is required.
+
 - **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**
   Focused Clippy was blocked by `clippy::single_range_in_vec_init` in
   `interpolation/kernel/linear/{dim2,dim3,dim4}.rs`; the kernels now route gathered 1-D

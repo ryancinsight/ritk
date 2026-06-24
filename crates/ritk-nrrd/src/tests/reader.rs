@@ -229,6 +229,41 @@ fn test_direction_from_scaled_space_directions() -> Result<()> {
     Ok(())
 }
 
+/// Malformed `space directions` with an unterminated vector must fail at the
+/// header boundary instead of accepting the already parsed prefix.
+#[test]
+fn test_unterminated_space_directions_returns_error() -> Result<()> {
+    use std::io::Write;
+    let dir = tempdir()?;
+    let path = dir.path().join("unterminated_space_directions.nrrd");
+    {
+        let mut f = std::fs::File::create(&path)?;
+        writeln!(f, "NRRD0004")?;
+        writeln!(f, "type: float")?;
+        writeln!(f, "dimension: 3")?;
+        writeln!(f, "sizes: 2 2 2")?;
+        writeln!(f, "space directions: (1,0,0) (0,1,0) (0,0,1")?;
+        writeln!(f, "endian: little")?;
+        writeln!(f, "encoding: raw")?;
+        writeln!(f)?;
+        for i in 0u32..8 {
+            f.write_all(&(i as f32).to_le_bytes())?;
+        }
+    }
+
+    let device: <TestBackend as Backend>::Device = Default::default();
+    let err = read_nrrd::<TestBackend, _>(&path, &device)
+        .expect_err("unterminated space directions must reject the header");
+
+    assert!(
+        err.to_string()
+            .contains("Unterminated vector group in '(1,0,0) (0,1,0) (0,0,1'"),
+        "error must name the rejected space directions field, got {err}"
+    );
+
+    Ok(())
+}
+
 // ── Round-trip ─────────────────────────────────────────────────────────
 
 /// Write an Image via `write_nrrd` and read it back; verify shape,

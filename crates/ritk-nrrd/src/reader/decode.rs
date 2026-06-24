@@ -82,7 +82,9 @@ fn parse_vectors<const N: usize>(s: &str) -> Result<Vec<[f64; N]>> {
     let mut rest = s.trim();
     while let Some(start) = rest.find('(') {
         rest = &rest[start + 1..];
-        let Some(end) = rest.find(')') else { break };
+        let Some(end) = rest.find(')') else {
+            return Err(anyhow!("Unterminated vector group in '{}'", s));
+        };
         let inner = &rest[..end];
         vecs.push(parse_vector_components::<N>(inner)?);
         rest = &rest[end + 1..];
@@ -203,6 +205,18 @@ mod tests {
             err.to_string()
                 .contains("Expected 3 components in vector '(1, 2)'; got 2"),
             "wrong component count error must name the violated vector contract, got {err}"
+        );
+    }
+
+    #[test]
+    fn parse_parenthesized_vectors_rejects_unterminated_group() {
+        let err = parse_parenthesized_vectors("(1, 0, 0) (0, 1, 0")
+            .expect_err("second vector is unterminated");
+
+        assert!(
+            err.to_string()
+                .contains("Unterminated vector group in '(1, 0, 0) (0, 1, 0'"),
+            "unterminated vector error must name the rejected field value, got {err}"
         );
     }
 }

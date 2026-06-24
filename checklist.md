@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 393 — NRRD Unterminated Vector Rejection
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
+
+### Delivered (Sprint 393)
+- [x] SAFE-393-01 [patch]: **NRRD spatial vectors reject unterminated groups** —
+  `ritk-nrrd` no longer accepts the parsed prefix of a malformed `space directions` or
+  `space origin` vector list when a parenthesized group is missing its closing `)`.
+  The fixed-array parser now returns a typed error naming the rejected field value, and
+  public `read_nrrd` coverage asserts malformed spatial metadata is rejected at the header
+  boundary. Evidence tier: compile/lint plus value-semantic parser and reader tests.
+
+### Verification gate (Sprint 393)
+- [x] `rustfmt crates\ritk-nrrd\src\reader\decode.rs crates\ritk-nrrd\src\tests\reader.rs`
+- [x] `cargo clippy -p ritk-nrrd --all-targets -- -D warnings` → passed
+- [x] `cargo nextest run -p ritk-nrrd` → **29/29 passed**
+- [x] `cargo test --doc -p ritk-nrrd` → passed (0 run, 1 ignored)
+- [x] `cargo doc -p ritk-nrrd --no-deps` → passed
+- [x] `git diff --check` → passed
+- [ ] `cargo fmt --check` workspace gate still blocked by pre-existing unrelated formatting drift
+  recorded in Sprint 388.
+
+### Deferred / carry-forward
+- [ ] SAFE-393-02 [patch]: Continue hostile-header audit for NRRD and sibling format parsers:
+  reject trailing unparsed tokens where the file format requires an exact vector list, and
+  preserve existing permissive behavior only where a compatibility contract requires it.
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected` channel
+  buffers and VTK public cell-list storage. VTK cell-list storage remains a public model change.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
+  with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
+
+---
+
 ## Sprint 392 — NRRD Fixed-Vector Header Parsing
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed

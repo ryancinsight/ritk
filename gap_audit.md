@@ -1,5 +1,27 @@
 # RITK Gap Audit - Active
 
+## Sprint 393 Audit (2026-06-24) — NRRD Unterminated Vector Rejection
+
+### Gaps Closed
+
+- **[SAFE-393-01 CLOSED]** `ritk-nrrd` malformed spatial header vectors:
+  `reader::decode::parse_vectors` now returns an error when a parenthesized vector group
+  has no closing `)` instead of silently stopping at the parsed prefix. This prevents a
+  truncated `space directions` or `space origin` field from being accepted as if the missing
+  vector group did not exist. Evidence tier: compile/lint plus value-semantic parser and
+  public-reader tests (`cargo clippy -p ritk-nrrd --all-targets -- -D warnings` passed;
+  `cargo nextest run -p ritk-nrrd` → 29/29 passed; `cargo test --doc -p ritk-nrrd` passed;
+  `cargo doc -p ritk-nrrd --no-deps` passed).
+
+### Residual Risk
+
+- This closes the unterminated-parenthesis case only. A follow-up hostile-header audit should
+  decide where trailing unparsed tokens must be rejected exactly and where permissive parsing is
+  compatibility behavior.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 392 Audit (2026-06-24) — NRRD Fixed-Vector Header Parsing
 
 ### Gaps Closed
@@ -18,8 +40,8 @@
 ### Residual Risk
 
 - This is allocation-reduction evidence, not benchmark evidence. No speedup is claimed.
-- The parser still stops at an unterminated vector group to preserve existing behavior; hostile
-  malformed-header hardening remains a separate parser-contract audit item.
+- Hostile malformed-header hardening remains broader than fixed-width allocation cleanup; Sprint
+  393 closes the unterminated-vector case, while trailing-token exactness remains open.
 - Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
 
 ---

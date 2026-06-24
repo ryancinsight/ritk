@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 393: NRRD malformed vector rejection
+
+### Fixed
+- `ritk-nrrd`: spatial header vector parsing now rejects an unterminated parenthesized
+  vector group instead of accepting the parsed prefix. Malformed `space directions` values
+  now fail at the reader boundary with an error naming the rejected field value. Evidence
+  tier: compile/lint and value-semantic parser/reader tests
+  (`cargo clippy -p ritk-nrrd --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-nrrd` → 29/29 passed; `cargo test --doc -p ritk-nrrd`;
+  `cargo doc -p ritk-nrrd --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 392: NRRD fixed-vector header parsing
 
 ### Performance
