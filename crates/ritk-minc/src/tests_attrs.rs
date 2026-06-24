@@ -43,9 +43,23 @@ fn extract_i64_from_uint() {
 }
 
 #[test]
-fn extract_i64_from_float_truncates() {
+fn extract_i64_rejects_float() {
     let val = AttributeValue::Float(3.9);
-    assert_eq!(extract_i64(&val).unwrap(), 3);
+    let err = extract_i64(&val).unwrap_err().to_string();
+    assert!(
+        err.contains("Expected scalar integer"),
+        "error must reject non-integer length values; got: {err}"
+    );
+}
+
+#[test]
+fn extract_i64_rejects_uint_overflow() {
+    let val = AttributeValue::Uint(i64::MAX as u64 + 1);
+    let err = extract_i64(&val).unwrap_err().to_string();
+    assert!(
+        err.contains("exceeds i64::MAX"),
+        "error must name unsigned integer overflow; got: {err}"
+    );
 }
 
 #[test]
@@ -58,12 +72,13 @@ fn extract_float_array_3_from_exact() {
 }
 
 #[test]
-fn extract_float_array_3_from_longer() {
+fn extract_float_array_3_rejects_longer() {
     let val = AttributeValue::FloatArray(vec![1.0, 2.0, 3.0, 4.0]);
-    let arr = extract_float_array_3(&val).unwrap();
-    assert!((arr[0] - 1.0).abs() < 1e-10);
-    assert!((arr[1] - 2.0).abs() < 1e-10);
-    assert!((arr[2] - 3.0).abs() < 1e-10);
+    let err = extract_float_array_3(&val).unwrap_err().to_string();
+    assert!(
+        err.contains("exactly 3") && err.contains("4"),
+        "error must reject extra direction_cosines components; got: {err}"
+    );
 }
 
 #[test]
@@ -73,12 +88,13 @@ fn extract_float_array_3_too_short_errors() {
 }
 
 #[test]
-fn extract_float_array_3_from_scalar_replicates() {
+fn extract_float_array_3_rejects_scalar() {
     let val = AttributeValue::Float(0.707);
-    let arr = extract_float_array_3(&val).unwrap();
-    assert!((arr[0] - 0.707).abs() < 1e-10);
-    assert!((arr[1] - 0.707).abs() < 1e-10);
-    assert!((arr[2] - 0.707).abs() < 1e-10);
+    let err = extract_float_array_3(&val).unwrap_err().to_string();
+    assert!(
+        err.contains("exactly 3"),
+        "error must reject scalar direction_cosines replication; got: {err}"
+    );
 }
 
 #[test]

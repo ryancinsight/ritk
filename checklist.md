@@ -1,5 +1,37 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 399 — MINC Exact Dimension Attributes
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed
+
+### Delivered (Sprint 399)
+- [x] SAFE-398-01 [patch]: **MINC dimension attributes are exact and fallible** —
+  `ritk-minc` now rejects floating-point dimension lengths, unsigned lengths that exceed
+  `i64::MAX`, scalar `direction_cosines`, and `direction_cosines` arrays with any count
+  other than exactly three components. This removes silent truncation, unchecked narrowing,
+  vector-prefix parsing, and scalar replication from the MINC spatial metadata boundary.
+  Evidence tier: compile/lint plus value-semantic attribute tests.
+
+### Verification gate (Sprint 399)
+- [x] `rustfmt crates\ritk-minc\src\attrs.rs crates\ritk-minc\src\tests_attrs.rs --check`
+- [x] `cargo clippy -p ritk-minc --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-minc` -> **35/35 passed**
+- [x] `cargo test --doc -p ritk-minc` -> passed (0 run)
+- [x] `cargo doc -p ritk-minc --no-deps` -> passed
+- [x] `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] SAFE-399-01 [patch]: Continue hostile-header/value audit in the remaining NIfTI parser
+  for exact shape/affine field consumption and bounded allocation on malformed fields.
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected`
+  channel buffers and VTK public cell-list storage. VTK cell-list storage remains a
+  public model change.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 398 — MetaImage Exact Payload Bounds
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped parser-safety slice delivered and focused verification passed

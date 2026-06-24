@@ -1,5 +1,27 @@
 # RITK Gap Audit - Active
 
+## Sprint 399 Audit (2026-06-24) — MINC Exact Dimension Attributes
+
+### Gaps Closed
+
+- **[SAFE-398-01 ADVANCED]** `ritk-minc` dimension attribute extraction:
+  `length` no longer accepts floating-point truncation or unchecked unsigned narrowing, and
+  `direction_cosines` now requires exactly three float-array components. Scalar
+  replication and longer-array prefix parsing are rejected at the attribute boundary.
+  Evidence tier: compile/lint plus value-semantic attribute tests (`cargo clippy -p
+  ritk-minc --all-targets -- -D warnings` passed; `cargo nextest run -p ritk-minc` ->
+  35/35 passed; `cargo test --doc -p ritk-minc` passed; `cargo doc -p ritk-minc
+  --no-deps` passed).
+
+### Residual Risk
+
+- MINC exactness is now covered for dimension length and direction-cosine attribute
+  extraction. NIfTI remains the last tracked hostile-field review target in this sequence.
+- This is parser-safety evidence, not benchmark evidence. No speedup is claimed.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 398 Audit (2026-06-24) — MetaImage Exact Payload Bounds
 
 ### Gaps Closed

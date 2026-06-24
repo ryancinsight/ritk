@@ -25,8 +25,8 @@ pub fn extract_scalar_float(val: &AttributeValue) -> Result<f64> {
 pub fn extract_i64(val: &AttributeValue) -> Result<i64> {
     match val {
         AttributeValue::Int(v) => Ok(*v),
-        AttributeValue::Uint(v) => Ok(*v as i64),
-        AttributeValue::Float(v) => Ok(*v as i64),
+        AttributeValue::Uint(v) => i64::try_from(*v)
+            .with_context(|| format!("Unsigned integer value {} exceeds i64::MAX", v)),
         other => bail!("Expected scalar integer, got {:?}", other),
     }
 }
@@ -34,12 +34,14 @@ pub fn extract_i64(val: &AttributeValue) -> Result<i64> {
 /// Extract a 3-element `f64` array from an `AttributeValue`.
 pub fn extract_float_array_3(val: &AttributeValue) -> Result<[f64; 3]> {
     match val {
-        AttributeValue::FloatArray(arr) if arr.len() >= 3 => Ok([arr[0], arr[1], arr[2]]),
-        AttributeValue::Float(v) => {
-            // Scalar: replicate (unusual but handled gracefully).
-            Ok([*v, *v, *v])
+        AttributeValue::FloatArray(arr) if arr.len() == 3 => Ok([arr[0], arr[1], arr[2]]),
+        AttributeValue::FloatArray(arr) => {
+            bail!(
+                "Expected float array of length exactly 3, got {}",
+                arr.len()
+            )
         }
-        other => bail!("Expected float array of length >= 3, got {:?}", other),
+        other => bail!("Expected float array of length exactly 3, got {:?}", other),
     }
 }
 

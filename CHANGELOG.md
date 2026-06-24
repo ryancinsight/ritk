@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 399: MINC exact dimension attributes
+
+### Fixed
+- `ritk-minc`: MINC dimension metadata parsing now rejects floating-point `length`
+  attributes, unsigned lengths above `i64::MAX`, scalar `direction_cosines`, and
+  `direction_cosines` arrays whose length is not exactly three. Evidence tier:
+  compile/lint and value-semantic attribute tests (`cargo clippy -p ritk-minc
+  --all-targets -- -D warnings`; `cargo nextest run -p ritk-minc` -> 35/35 passed;
+  `cargo test --doc -p ritk-minc`; `cargo doc -p ritk-minc --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 398: MetaImage exact payload bounds
 
 ### Fixed
