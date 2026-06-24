@@ -12,9 +12,10 @@
   spline/affine coefficient blocks after the solve. Sprint 390 flattened TIFF grayscale/RGB
   page accumulation by removing `Vec<Vec<f32>>` staging. Sprint 391 removed the binary VTI
   writer's duplicate flattened attribute buffers and streams appended blocks from source
-  storage. Remaining candidates are `vector_confidence_connected` channel buffer layout,
-  VTK cell-list storage, and remaining nested small matrices where a row-major buffer
-  preserves public contracts.
+  storage. Sprint 392 changed NRRD spatial header vector parsing from per-vector heap
+  `Vec<f64>` buffers to const-generic fixed arrays. Remaining candidates are
+  `vector_confidence_connected` channel buffer layout, VTK cell-list storage, and remaining
+  nested small matrices where a row-major buffer preserves public contracts.
 
 - **CLIPPY-387-01 [patch] — `ritk-interpolation` linear-kernel slice lint cleanup. DONE.**
   Focused Clippy was blocked by `clippy::single_range_in_vec_init` in

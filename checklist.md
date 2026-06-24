@@ -1,5 +1,34 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 392 — NRRD Fixed-Vector Header Parsing
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed
+
+### Delivered (Sprint 392)
+- [x] PERF-392-01 [patch]: **NRRD spatial header vectors parse into fixed arrays** —
+  `ritk-nrrd` no longer allocates one `Vec<f64>` per `(x,y,z)` or `(x,y)` header vector.
+  The parser now uses a const-generic fixed-array component parser, preserving dynamic
+  vector count while making each vector stack-resident and fixed-width. Evidence tier:
+  compile/lint plus value-semantic parser and reader/writer tests.
+
+### Verification gate (Sprint 392)
+- [x] `rustfmt crates\ritk-nrrd\src\reader\decode.rs`
+- [x] `cargo clippy -p ritk-nrrd --all-targets -- -D warnings` → passed
+- [x] `cargo nextest run -p ritk-nrrd` → **27/27 passed**
+- [x] `cargo test --doc -p ritk-nrrd` → passed (0 run, 1 ignored)
+- [x] `cargo doc -p ritk-nrrd --no-deps` → passed
+- [x] `git diff --check` → passed
+- [ ] `cargo fmt --check` workspace gate still blocked by pre-existing unrelated formatting drift
+  recorded in Sprint 388.
+
+### Deferred / carry-forward
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected` channel
+  buffers and VTK public cell-list storage. VTK cell-list storage remains a public model change.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
+  with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
+
+---
+
 ## Sprint 391 — Binary VTI Appended Streaming
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed

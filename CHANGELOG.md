@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 392: NRRD fixed-vector header parsing
+
+### Performance
+- `ritk-nrrd`: spatial header vector parsing now uses a const-generic fixed-array parser
+  for 2-D and 3-D parenthesized vectors instead of allocating a `Vec<f64>` for each small
+  vector. Existing NRRD space-direction, planar promotion, and origin semantics are
+  preserved. Evidence tier: compile/lint and value-semantic parser/reader tests
+  (`cargo clippy -p ritk-nrrd --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-nrrd` → 27/27 passed; `cargo test --doc -p ritk-nrrd`;
+  `cargo doc -p ritk-nrrd --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 391: Binary VTI appended streaming
 
 ### Performance

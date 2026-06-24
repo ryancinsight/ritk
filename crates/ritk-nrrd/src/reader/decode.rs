@@ -29,7 +29,7 @@ pub(super) fn parse_space_directions(s: &str) -> Result<[[f64; 3]; 3]> {
 /// keep their cosines and an identity through-plane z-axis is appended (the
 /// 2-D-as-z=1 convention).
 pub(super) fn parse_space_directions_planar(s: &str) -> Result<[[f64; 3]; 3]> {
-    let vecs = parse_vectors(s, 2)?;
+    let vecs = parse_vectors::<2>(s)?;
     if vecs.len() != 2 {
         return Err(anyhow!(
             "2-D 'space directions' must contain 2 vectors, found {}",
@@ -59,7 +59,7 @@ pub(super) fn parse_nrrd_point(s: &str) -> Result<Point<3>> {
 
 /// Parse a 2-D `space origin` "(x,y)" and promote it to the 3-D point `[x,y,0]`.
 pub(super) fn parse_nrrd_point_planar(s: &str) -> Result<Point<3>> {
-    let vecs = parse_vectors(s, 2)?;
+    let vecs = parse_vectors::<2>(s)?;
     if vecs.is_empty() {
         return Err(anyhow!(
             "Invalid 2-D 'space origin' format: no parenthesised vector found in '{}'",
@@ -71,44 +71,52 @@ pub(super) fn parse_nrrd_point_planar(s: &str) -> Result<Point<3>> {
 
 /// Extract all `(v0,v1,v2)` groups from `s` as `Vec<[f64;3]>`.
 pub(super) fn parse_parenthesized_vectors(s: &str) -> Result<Vec<[f64; 3]>> {
-    parse_vectors(s, 3).map(|vs| {
-        vs.into_iter()
-            .map(|v| [v[0], v[1], v[2]])
-            .collect::<Vec<_>>()
-    })
+    parse_vectors::<3>(s)
 }
 
-/// Extract all parenthesised groups of exactly `n` comma-separated f64
-/// components from `s`.  Handles spaces inside or between components; stops at
+/// Extract all parenthesised groups of exactly `N` comma-separated f64
+/// components from `s`. Handles spaces inside or between components; stops at
 /// any unterminated group.
-fn parse_vectors(s: &str, n: usize) -> Result<Vec<Vec<f64>>> {
-    let mut vecs: Vec<Vec<f64>> = Vec::new();
+fn parse_vectors<const N: usize>(s: &str) -> Result<Vec<[f64; N]>> {
+    let mut vecs: Vec<[f64; N]> = Vec::new();
     let mut rest = s.trim();
     while let Some(start) = rest.find('(') {
         rest = &rest[start + 1..];
         let Some(end) = rest.find(')') else { break };
         let inner = &rest[..end];
-        let parts: Vec<&str> = inner.split(',').collect();
-        if parts.len() != n {
-            return Err(anyhow!(
-                "Expected {} components in vector '({})'; got {}",
-                n,
-                inner,
-                parts.len()
-            ));
-        }
-        let mut v = Vec::with_capacity(n);
-        for p in parts {
-            v.push(
-                p.trim()
-                    .parse::<f64>()
-                    .with_context(|| format!("Cannot parse '{}' as f64", p.trim()))?,
-            );
-        }
-        vecs.push(v);
+        vecs.push(parse_vector_components::<N>(inner)?);
         rest = &rest[end + 1..];
     }
     Ok(vecs)
+}
+
+fn parse_vector_components<const N: usize>(inner: &str) -> Result<[f64; N]> {
+    let mut values = [0.0_f64; N];
+    let mut count = 0usize;
+    for part in inner.split(',') {
+        if count == N {
+            return Err(anyhow!(
+                "Expected {} components in vector '({})'; got more than {}",
+                N,
+                inner,
+                N
+            ));
+        }
+        let trimmed = part.trim();
+        values[count] = trimmed
+            .parse::<f64>()
+            .with_context(|| format!("Cannot parse '{}' as f64", trimmed))?;
+        count += 1;
+    }
+    if count != N {
+        return Err(anyhow!(
+            "Expected {} components in vector '({})'; got {}",
+            N,
+            inner,
+            count
+        ));
+    }
+    Ok(values)
 }
 
 /// Decode a raw byte buffer into `Vec<f32>` according to the NRRD `type`.
@@ -142,4 +150,59 @@ pub(super) fn decode_element_bytes(
         count,
         element_type,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        parse_nrrd_point_planar, parse_parenthesized_vectors, parse_space_directions,
+        parse_space_directions_planar,
+    };
+
+    #[test]
+    fn parse_space_directions_returns_fixed_vectors() {
+        let directions =
+            parse_space_directions("(1, 0, 0) (0, 2, 0) (0, 0, 3)").expect("valid vectors");
+
+        assert_eq!(
+            directions,
+            [[1.0_f64, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]],
+            "3-D space directions must preserve vector component order"
+        );
+    }
+
+    #[test]
+    fn parse_planar_directions_promotes_z_axis() {
+        let directions =
+            parse_space_directions_planar("(0.5, 0) (0, 0.25)").expect("valid planar vectors");
+
+        assert_eq!(
+            directions,
+            [[0.5_f64, 0.0, 0.0], [0.0, 0.25, 0.0], [0.0, 0.0, 1.0]],
+            "2-D directions must promote to identity through-plane z-axis"
+        );
+    }
+
+    #[test]
+    fn parse_planar_origin_promotes_zero_z() {
+        let origin = parse_nrrd_point_planar("(4.5, -2.0)").expect("valid planar origin");
+
+        assert_eq!(
+            origin.to_array(),
+            [4.5_f64, -2.0, 0.0],
+            "2-D origin must promote to z = 0"
+        );
+    }
+
+    #[test]
+    fn parse_parenthesized_vectors_rejects_wrong_component_count() {
+        let err = parse_parenthesized_vectors("(1, 2) (3, 4, 5)")
+            .expect_err("first vector has only two components");
+
+        assert!(
+            err.to_string()
+                .contains("Expected 3 components in vector '(1, 2)'; got 2"),
+            "wrong component count error must name the violated vector contract, got {err}"
+        );
+    }
 }

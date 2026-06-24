@@ -1,5 +1,29 @@
 # RITK Gap Audit - Active
 
+## Sprint 392 Audit (2026-06-24) — NRRD Fixed-Vector Header Parsing
+
+### Gaps Closed
+
+- **[PERF-392-01 CLOSED]** `ritk-nrrd` spatial header vector parsing:
+  `reader::decode::parse_vectors` now returns `Vec<[f64; N]>` via a const-generic
+  component parser instead of allocating a `Vec<f64>` for every parsed `(x,y,z)` or
+  `(x,y)` vector. `parse_parenthesized_vectors`, 2-D space directions, and 2-D origin
+  promotion reuse the same fixed-array parser, preserving the existing NRRD reader
+  behavior while removing per-vector heap buffers from this header path. Evidence tier:
+  compile/lint plus value-semantic parser and reader/writer tests
+  (`cargo clippy -p ritk-nrrd --all-targets -- -D warnings` passed;
+  `cargo nextest run -p ritk-nrrd` → 27/27 passed; `cargo test --doc -p ritk-nrrd` passed;
+  `cargo doc -p ritk-nrrd --no-deps` passed).
+
+### Residual Risk
+
+- This is allocation-reduction evidence, not benchmark evidence. No speedup is claimed.
+- The parser still stops at an unterminated vector group to preserve existing behavior; hostile
+  malformed-header hardening remains a separate parser-contract audit item.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 391 Audit (2026-06-24) — Binary VTI Appended Streaming
 
 ### Gaps Closed
