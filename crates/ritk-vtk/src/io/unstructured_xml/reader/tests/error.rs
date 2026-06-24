@@ -131,6 +131,78 @@ fn test_offset_exceeds_connectivity_error() {
 }
 
 #[test]
+fn test_negative_connectivity_rejected() {
+    let s = minimal_vtu(4, 1, "0 0 0  1 0 0  0 1 0  0 0 1", "-1 1 2", "3", "5");
+    let r = parse_vtu(&s);
+    assert!(r.is_err(), "negative connectivity must return Err");
+    let msg = r.unwrap_err().to_string();
+    assert!(
+        msg.contains("connectivity") && msg.contains("non-negative"),
+        "error must mention non-negative connectivity: {}",
+        msg
+    );
+}
+
+#[test]
+fn test_negative_offset_rejected() {
+    let s = minimal_vtu(4, 1, "0 0 0  1 0 0  0 1 0  0 0 1", "0 1 2", "-1", "5");
+    let r = parse_vtu(&s);
+    assert!(r.is_err(), "negative offset must return Err");
+    let msg = r.unwrap_err().to_string();
+    assert!(
+        msg.contains("offsets") && msg.contains("non-negative"),
+        "error must mention non-negative offsets: {}",
+        msg
+    );
+}
+
+#[test]
+fn test_decreasing_offsets_rejected() {
+    let s = minimal_vtu(
+        4,
+        2,
+        "0 0 0  1 0 0  0 1 0  0 0 1",
+        "0 1 2  0 1 2",
+        "3 2",
+        "5 5",
+    );
+    let r = parse_vtu(&s);
+    assert!(r.is_err(), "decreasing offsets must return Err");
+    let msg = r.unwrap_err().to_string();
+    assert!(
+        msg.contains("offset") && msg.contains("previous"),
+        "error must mention offset ordering: {}",
+        msg
+    );
+}
+
+#[test]
+fn test_trailing_connectivity_rejected() {
+    let s = minimal_vtu(4, 1, "0 0 0  1 0 0  0 1 0  0 0 1", "0 1 2 99", "3", "5");
+    let r = parse_vtu(&s);
+    assert!(r.is_err(), "trailing connectivity must return Err");
+    let msg = r.unwrap_err().to_string();
+    assert!(
+        msg.contains("final offset") && msg.contains("connectivity"),
+        "error must mention exact connectivity consumption: {}",
+        msg
+    );
+}
+
+#[test]
+fn test_negative_type_code_rejected() {
+    let s = minimal_vtu(4, 1, "0 0 0  1 0 0  0 1 0  0 0 1", "0 1 2", "3", "-1");
+    let r = parse_vtu(&s);
+    assert!(r.is_err(), "negative cell type code must return Err");
+    let msg = r.unwrap_err().to_string();
+    assert!(
+        msg.contains("types") && msg.contains("UInt8"),
+        "error must mention UInt8 cell type code: {}",
+        msg
+    );
+}
+
+#[test]
 fn test_types_count_mismatch_error() {
     // NumberOfCells=2 but only one type provided.
     let s = minimal_vtu(

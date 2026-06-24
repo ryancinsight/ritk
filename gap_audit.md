@@ -1,5 +1,32 @@
 # RITK Gap Audit - Active
 
+## Sprint 402 Audit (2026-06-24) — VTU Exact Cell Arrays
+
+### Gaps Closed
+
+- **[SAFE-402-01 CLOSED]** `ritk-vtk` VTU XML cell-array parsing:
+  `connectivity`, `offsets`, and `types` values are now validated before narrowing so
+  negative signed XML values cannot wrap into `u32`, `usize`, or `u8`. Offsets must be
+  monotonic before slicing and the final offset must exactly consume the connectivity
+  array, rejecting both panic-capable decreasing offsets and trailing unused connectivity.
+  Evidence tier: compile/lint plus value-semantic malformed-cell-array tests (`cargo
+  clippy -p ritk-vtk --all-targets -- -D warnings` passed; `cargo nextest run -p
+  ritk-vtk` passed; `cargo test --doc -p ritk-vtk` passed; `cargo doc -p ritk-vtk
+  --no-deps` passed).
+
+### Residual Risk
+
+- This hardens the VTU XML reader boundary without changing the public
+  `VtkPolyData`/`VtkUnstructuredGrid` nested cell-vector model. Flattening those public
+  fields remains a separate API/model change requiring ADR coverage and downstream
+  call-site updates.
+- This is parser-safety and exact-allocation-boundary evidence, not benchmark evidence.
+  No speedup is claimed.
+- Broad Atlas dependency migration remains open under MIG-387-01 and requires
+  per-operation contract tests before replacing `nalgebra`/`ndarray`/`burn` surfaces.
+
+---
+
 ## Sprint 401 Audit (2026-06-24) — VTK Cell Streaming and Parse Errors
 
 ### Gaps Closed

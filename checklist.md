@@ -1,5 +1,34 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 402 — VTU Exact Cell Arrays
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped VTU parser-safety slice delivered and focused verification passed
+
+### Delivered (Sprint 402)
+- [x] SAFE-402-01 [patch]: **VTU cell arrays are exact and fallible** —
+  VTU XML parsing now rejects negative `connectivity`, `offsets`, and cell-type values
+  before narrowing; rejects decreasing offsets before slice indexing; and requires the
+  final offset to consume the connectivity array exactly. This removes signed wraparound,
+  malformed-offset panics, and trailing connectivity acceptance at the XML trust boundary.
+  Evidence tier: compile/lint plus value-semantic malformed-cell-array tests.
+
+### Verification gate (Sprint 402)
+- [x] `rustfmt crates\ritk-vtk\src\io\unstructured_xml\reader\parse.rs crates\ritk-vtk\src\io\unstructured_xml\reader\tests\error.rs --check`
+- [x] `cargo clippy -p ritk-vtk --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-vtk` -> passed
+- [x] `cargo test --doc -p ritk-vtk` -> passed
+- [x] `cargo doc -p ritk-vtk --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with public VTK cell-list storage
+  only after an ADR/migration plan, because `VtkPolyData`/`VtkUnstructuredGrid` expose
+  nested cell vectors as public fields.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+
+---
+
 ## Sprint 401 — VTK Cell Streaming and Parse Errors
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped VTK memory/safety slice delivered and focused verification passed

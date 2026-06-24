@@ -48,14 +48,9 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
     let types_da = named_da(&cells_sec, "types")
         .ok_or_else(|| anyhow::anyhow!("missing types DataArray in <Cells>"))?;
 
-    let connectivity: Vec<u32> = parse_ints(&extract_da_content(&conn_da))
-        .into_iter()
-        .map(|v| v as u32)
-        .collect();
-    let offsets: Vec<usize> = parse_ints(&extract_da_content(&offs_da))
-        .into_iter()
-        .map(|v| v as usize)
-        .collect();
+    let connectivity =
+        parse_non_negative_u32_values(&extract_da_content(&conn_da), "connectivity")?;
+    let offsets = parse_non_negative_usize_values(&extract_da_content(&offs_da), "offsets")?;
     let type_codes: Vec<i32> = parse_ints(&extract_da_content(&types_da));
 
     if offsets.len() != n_cells {
@@ -76,7 +71,15 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
     // Reconstruct cells: cell i = connectivity[offsets[i-1]..offsets[i]].
     let mut cells: Vec<Vec<u32>> = Vec::with_capacity(n_cells);
     let mut prev: usize = 0;
-    for &off in &offsets {
+    for (cell_index, &off) in offsets.iter().enumerate() {
+        if off < prev {
+            bail!(
+                "offset {} at cell {} is less than previous offset {}",
+                off,
+                cell_index,
+                prev
+            );
+        }
         if off > connectivity.len() {
             bail!(
                 "offset {} exceeds connectivity length {}",
@@ -87,19 +90,29 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
         cells.push(connectivity[prev..off].to_vec());
         prev = off;
     }
+    if prev != connectivity.len() {
+        bail!(
+            "final offset {} does not consume connectivity length {}",
+            prev,
+            connectivity.len()
+        );
+    }
 
     let cell_types: Vec<VtkCellType> = type_codes
         .iter()
         .map(|&v| {
-            VtkCellType::try_from(v as u8).unwrap_or_else(|_| {
+            let code = u8::try_from(v).with_context(|| {
+                format!("types value {v} must be a non-negative UInt8 cell type code")
+            })?;
+            Ok(VtkCellType::try_from(code).unwrap_or_else(|_| {
                 tracing::warn!(
                     code = v,
                     "unknown VTK cell type code in VTU; mapped to Vertex"
                 );
                 VtkCellType::Vertex
-            })
+            }))
         })
-        .collect();
+        .collect::<Result<_>>()?;
 
     // ── Attribute sections ───────────────────────────────────────────────────
     let point_data = find_section(input, "PointData")
@@ -118,4 +131,24 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
     };
     grid.validate().map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(grid)
+}
+
+fn parse_non_negative_u32_values(content: &str, field: &str) -> Result<Vec<u32>> {
+    parse_ints(content)
+        .into_iter()
+        .map(|value| {
+            u32::try_from(value)
+                .with_context(|| format!("{field} value {value} must be non-negative"))
+        })
+        .collect()
+}
+
+fn parse_non_negative_usize_values(content: &str, field: &str) -> Result<Vec<usize>> {
+    parse_ints(content)
+        .into_iter()
+        .map(|value| {
+            usize::try_from(value)
+                .with_context(|| format!("{field} value {value} must be non-negative"))
+        })
+        .collect()
 }

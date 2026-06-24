@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 402: VTU exact cell arrays
+
+### Fixed
+- `ritk-vtk`: VTU XML parsing now rejects negative `connectivity`, `offsets`, and
+  cell-type values before narrowing; rejects decreasing offsets before slice indexing; and
+  requires the final offset to consume the connectivity array exactly. Evidence tier:
+  compile/lint and value-semantic malformed-cell-array tests (`cargo clippy -p ritk-vtk
+  --all-targets -- -D warnings`; `cargo nextest run -p ritk-vtk`; `cargo test --doc -p
+  ritk-vtk`; `cargo doc -p ritk-vtk --no-deps`).
+
+---
+
 ## [Unreleased] — Sprint 401: VTK cell streaming and parse errors
 
 ### Fixed
