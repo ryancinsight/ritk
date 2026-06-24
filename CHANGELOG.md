@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 390: TIFF page-buffer layout
+
+### Performance
+- `ritk-tiff`: grayscale and RGB readers now append decoded page samples directly into one
+  flat tensor payload instead of staging pages in `Vec<Vec<f32>>` and copying them into a
+  second buffer after the read loop. Page order, shape, and error page indices are preserved.
+  Evidence tier: compile/lint and value-semantic round-trip tests
+  (`cargo clippy -p ritk-tiff --all-targets -- -D warnings`;
+  `cargo nextest run -p ritk-tiff` → 16/16 passed).
+
+---
+
 ## [Unreleased] — Sprint 389: Inverse-displacement coefficient layout
 
 ### Performance

@@ -1,5 +1,31 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 390 — TIFF Flat Page Accumulation
+**Target version**: 0.12.80
+**Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed
+
+### Delivered (Sprint 390)
+- [x] PERF-390-01 [patch]: **TIFF grayscale/RGB readers append into flat tensor buffers** —
+  `ritk-tiff` no longer stages decoded pages in `Vec<Vec<f32>>` before copying into the final
+  tensor payload. Grayscale and RGB readers now append each owned decoded page directly into one
+  flat `Vec<f32>` and derive `nz`/`depth` from the page counter, preserving IFD order and error
+  page indices. Evidence tier: compile/lint plus value-semantic round-trip tests.
+
+### Verification gate (Sprint 390)
+- [x] `rustfmt crates\ritk-tiff\src\reader.rs crates\ritk-tiff\src\color.rs`
+- [x] `cargo clippy -p ritk-tiff --all-targets -- -D warnings` → passed
+- [x] `cargo nextest run -p ritk-tiff` → **16/16 passed**
+- [ ] `cargo fmt --check` workspace gate still blocked by pre-existing unrelated formatting drift
+  recorded in Sprint 388.
+
+### Deferred / carry-forward
+- [ ] PERF-390-02 [patch]: Continue flat-buffer audit with `VectorConfidenceConnected` channel
+  buffers and VTK cell-list storage as next candidates.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn` production surfaces
+  with `leto`/`coeus`/`hephaestus` only where the Atlas crate has an equivalent verified contract.
+
+---
+
 ## Sprint 389 — Inverse Displacement Coefficient Flattening
 **Target version**: 0.12.80
 **Sprint phase**: Closure — scoped memory-efficiency slice delivered and focused verification passed

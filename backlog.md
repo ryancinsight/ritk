@@ -9,7 +9,8 @@
 - **PERF-387-02 [patch] — Continue flat-buffer memory-efficiency audit. IN PROGRESS.**
   Sprint 387 flattened `VectorConfidenceConnected` covariance/inverse matrices and removed
   the B-spline legacy placeholder. Sprint 389 flattened `InverseDisplacementField` TPS
-  spline/affine coefficient blocks after the solve. Remaining candidates are
+  spline/affine coefficient blocks after the solve. Sprint 390 flattened TIFF grayscale/RGB
+  page accumulation by removing `Vec<Vec<f32>>` staging. Remaining candidates are
   `vector_confidence_connected` channel buffer layout, VTK cell-list storage, and remaining
   nested small matrices where a row-major buffer preserves public contracts.
 

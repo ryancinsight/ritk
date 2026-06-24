@@ -62,10 +62,11 @@ fn read_tiff_color_from_reader<B: Backend, R: Read + Seek>(
         ));
     }
 
-    let mut slices: Vec<Vec<f32>> = Vec::new();
+    let mut data = Vec::with_capacity(samples_per_page);
+    let mut depth = 0usize;
 
     loop {
-        let page_index = slices.len();
+        let page_index = depth;
         validate_rgb_page(&mut decoder, page_index)?;
 
         let result = decoder
@@ -84,7 +85,8 @@ fn read_tiff_color_from_reader<B: Backend, R: Read + Seek>(
             ));
         }
 
-        slices.push(page_data);
+        data.extend(page_data);
+        depth += 1;
 
         if !decoder.more_images() {
             break;
@@ -92,33 +94,22 @@ fn read_tiff_color_from_reader<B: Backend, R: Read + Seek>(
 
         decoder
             .next_image()
-            .map_err(|e| anyhow!("Failed to advance to TIFF page {}: {}", slices.len(), e))?;
+            .map_err(|e| anyhow!("Failed to advance to TIFF page {}: {}", depth, e))?;
 
-        let (w, h) = decoder.dimensions().map_err(|e| {
-            anyhow!(
-                "Failed to read TIFF page {} dimensions: {}",
-                slices.len(),
-                e
-            )
-        })?;
+        let (w, h) = decoder
+            .dimensions()
+            .map_err(|e| anyhow!("Failed to read TIFF page {} dimensions: {}", depth, e))?;
 
         if w != width || h != height {
             return Err(anyhow!(
                 "TIFF page {} has dimensions {}x{}, expected {}x{} (must match first page)",
-                slices.len(),
+                depth,
                 w,
                 h,
                 width,
                 height,
             ));
         }
-    }
-
-    let depth = slices.len();
-    let total_samples = depth * samples_per_page;
-    let mut data = Vec::with_capacity(total_samples);
-    for slice in &slices {
-        data.extend_from_slice(slice);
     }
 
     let tensor_data = TensorData::new(data, Shape::new([depth, ny, nx, RGB_CHANNELS]));

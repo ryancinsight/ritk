@@ -1,5 +1,25 @@
 # RITK Gap Audit - Active
 
+## Sprint 390 Audit (2026-06-24) — TIFF Flat Page Accumulation
+
+### Gaps Closed
+
+- **[PERF-390-01 CLOSED]** `ritk-tiff` grayscale/RGB page staging:
+  `reader.rs` and `color.rs` no longer store decoded pages in a `Vec<Vec<f32>>` and then copy
+  every page into a second flat payload. Each page's owned `Vec<f32>` is consumed directly into
+  the final tensor buffer with `data.extend(page_data)`, while `nz`/`depth` tracks IFD order and
+  error page indices. Evidence tier: compile/lint plus value-semantic round-trip tests
+  (`cargo clippy -p ritk-tiff --all-targets -- -D warnings` passed;
+  `cargo nextest run -p ritk-tiff` → 16/16 passed).
+
+### Residual Risk
+
+- This closes TIFF page staging only. VTK cell lists and selected channel-buffer layouts remain
+  open flat-buffer audit candidates.
+- Workspace `cargo fmt --check` remains blocked by pre-existing unrelated formatting drift.
+
+---
+
 ## Sprint 389 Audit (2026-06-24) — Inverse Displacement Coefficient Flattening
 
 ### Gaps Closed

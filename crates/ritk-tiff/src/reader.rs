@@ -38,7 +38,7 @@ use tiff::decoder::{Decoder, DecodingResult};
 /// 3. Iterate through all IFD pages; each page becomes one Z-slice.
 /// 4. Convert pixel data to `f32` (see `decode_page_to_scalar`).
 /// 5. Validate that every page has the same `(width, height)`.
-/// 6. Stack slices into tensor shape `[nz, ny, nx]`.
+/// 6. Append page samples into one flat tensor buffer with shape `[nz, ny, nx]`.
 /// 7. Return `Image` with default spatial metadata.
 ///
 /// # Errors
@@ -84,10 +84,11 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
         ));
     }
 
-    let mut slices: Vec<Vec<f32>> = Vec::new();
+    let mut data = Vec::with_capacity(pixels_per_page);
+    let mut nz = 0usize;
 
     loop {
-        let page_index = slices.len();
+        let page_index = nz;
 
         let result = decoder
             .read_image()
@@ -107,7 +108,8 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
             ));
         }
 
-        slices.push(page_data);
+        data.extend(page_data);
+        nz += 1;
 
         if !decoder.more_images() {
             break;
@@ -115,34 +117,22 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
 
         decoder
             .next_image()
-            .map_err(|e| anyhow!("Failed to advance to TIFF page {}: {}", slices.len(), e))?;
+            .map_err(|e| anyhow!("Failed to advance to TIFF page {}: {}", nz, e))?;
 
-        let (w, h) = decoder.dimensions().map_err(|e| {
-            anyhow!(
-                "Failed to read TIFF page {} dimensions: {}",
-                slices.len(),
-                e
-            )
-        })?;
+        let (w, h) = decoder
+            .dimensions()
+            .map_err(|e| anyhow!("Failed to read TIFF page {} dimensions: {}", nz, e))?;
 
         if w != width || h != height {
             return Err(anyhow!(
                 "TIFF page {} has dimensions {}x{}, expected {}x{} (must match first page)",
-                slices.len(),
+                nz,
                 w,
                 h,
                 width,
                 height,
             ));
         }
-    }
-
-    let nz = slices.len();
-    let total_voxels = nz * ny * nx;
-
-    let mut data = Vec::with_capacity(total_voxels);
-    for slice in &slices {
-        data.extend_from_slice(slice);
     }
 
     let tensor_data = TensorData::new(data, Shape::new([nz, ny, nx]));
