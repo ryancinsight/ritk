@@ -6,6 +6,15 @@
 
 ## Open performance items
 
+- **MIG-417-01 [patch] — Level-set safe Moirai convergence metrics. DONE.**
+  Replace the five level-set raw-pointer `SendPtr` convergence-metric side writes
+  with one shared helper that pairs each mutable z-slice with its metric slot
+  under Moirai dispatch. This removes RITK-local unsafe code from Chan-Vese,
+  geodesic active contour, shape detection, Laplacian, and threshold level-set
+  PDE loops while preserving per-slice convergence semantics. Evidence tier:
+  compile/lint/docs plus value-semantic tests (`cargo nextest run -p ritk-segmentation`
+  -> 435/435 passed).
+
 - **MIG-416-01 [patch] — GrowCut safe Moirai paired assignment. DONE.**
   Replace `ritk-segmentation` GrowCut's raw-pointer `SendPtr` side-write pattern
   with Moirai paired mutable chunk dispatch over `next_strengths` and

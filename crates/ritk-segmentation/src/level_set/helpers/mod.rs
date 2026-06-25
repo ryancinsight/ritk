@@ -11,7 +11,7 @@ pub(crate) use math::{
 };
 pub(crate) use ops::{
     compute_curvature_into, compute_field_gradient, compute_field_gradient_into,
-    compute_gradient_magnitude, upwind_advection_into,
+    compute_gradient_magnitude, evolve_slices_with_metric, upwind_advection_into,
 };
 
 #[cfg(test)]

@@ -207,18 +207,9 @@ impl GeodesicActiveContourSegmentation {
 
             let slice_len = ny * nx;
 
-            struct SendPtr<T>(*mut T);
-            unsafe impl<T> Send for SendPtr<T> {}
-            unsafe impl<T> Sync for SendPtr<T> {}
-            impl<T> SendPtr<T> {
-                unsafe fn write(&self, offset: usize, val: T) {
-                    *self.0.add(offset) = val;
-                }
-            }
-            let sum_sqs_ptr = SendPtr(sum_sqs.as_mut_ptr());
-
-            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+            helpers::evolve_slices_with_metric(
                 &mut phi_new,
+                &mut sum_sqs,
                 slice_len,
                 |iz, phi_new_s| {
                     let base = iz * slice_len;
@@ -246,9 +237,7 @@ impl GeodesicActiveContourSegmentation {
                         // Accumulate squared change for RMS convergence criterion.
                         local_sum_sq += dphi * dphi;
                     }
-                    unsafe {
-                        sum_sqs_ptr.write(iz, local_sum_sq);
-                    }
+                    local_sum_sq
                 },
             );
 

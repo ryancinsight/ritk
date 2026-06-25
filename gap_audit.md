@@ -1,5 +1,32 @@
 # RITK Gap Audit - Active
 
+## Sprint 417 Audit (2026-06-25) — Level-set Safe Moirai Metrics
+
+### Gaps Closed
+
+- **[MIG-417-01 CLOSED]** level-set convergence-metric raw-pointer side writes:
+  audit found Chan-Vese, geodesic active contour, shape detection, Laplacian,
+  and threshold level-set PDE loops writing per-slice convergence metrics through
+  local `SendPtr` wrappers while Moirai parallelized over mutable field slices.
+  The loops now call one `level_set::helpers` SSOT that pairs each mutable
+  z-slice with its metric slot under Moirai dispatch, removing RITK-local unsafe
+  code from those kernels. Evidence tier: compile/lint/docs plus value-semantic
+  segmentation tests (`cargo nextest run -p ritk-segmentation` -> 435 passed).
+- **[PROVIDER-GRAPH CLOSED]** Coeus path lock drift:
+  Cargo refreshed the RITK lockfile from local Coeus `0.2.17` entries to
+  `0.2.19`, matching the current local provider graph exercised by the focused
+  segmentation gates.
+
+### Residual Risk
+
+- Remaining `ParallelSliceMut` use in watershed/STAPLE is safe Moirai API use,
+  but still needs a contention/performance audit for whether a chunk helper
+  would reduce hidden side effects or allocation.
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
+- This is not an `ndarray` boundary removal.
+
+---
+
 ## Sprint 416 Audit (2026-06-25) — GrowCut Safe Moirai Assignment
 
 ### Gaps Closed
@@ -18,8 +45,8 @@
 
 ### Residual Risk
 
-- This does not remove similar raw-pointer side-write patterns in level-set
-  kernels; those remain separate focused slices.
+- Similar raw-pointer side-write patterns in level-set kernels were removed in
+  Sprint 417.
 - This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
 - This is not an `ndarray` boundary removal.
 
