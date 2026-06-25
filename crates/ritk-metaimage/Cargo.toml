@@ -13,7 +13,6 @@ ritk-codecs = { path = "../ritk-codecs" }
 burn = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }
-nalgebra = { workspace = true }
 flate2 = { workspace = true }
 
 [dev-dependencies]

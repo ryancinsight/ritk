@@ -2,7 +2,6 @@ use anyhow::Result;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use nalgebra::SMatrix;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -356,7 +355,7 @@ fn test_round_trip_nrrd() -> Result<()> {
     );
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([0.9, 0.75, 1.5]);
-    let direction = Direction(SMatrix::identity());
+    let direction = Direction::identity();
     let image = Image::new(tensor, origin, spacing, direction);
 
     write_nrrd(&path, &image)?;

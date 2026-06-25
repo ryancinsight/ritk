@@ -94,6 +94,13 @@
   `leto-ops`; remaining `nalgebra` is concentrated in `ritk-spatial`, DICOM IO
   geometry, and format spatial metadata and needs a spatial-SSOT migration slice.
 
+- **MIG-387-02 [arch] — Spatial Leto SSOT migration. IN PROGRESS.**
+  Sprint 408 migrates `ritk-spatial` storage to Leto fixed vectors/matrices and removes
+  direct `nalgebra` dependencies from `ritk-core`, `ritk-metaimage`, `ritk-nrrd`,
+  `ritk-nifti`, and `ritk-mgh` spatial direction setup. Remaining spatial call sites
+  in DICOM IO, MINC, PNG/SNAP/filter code, and any mesh-only nalgebra use must be
+  handled in follow-up slices scoped to their bounded contexts.
+
 ---
 ## Sprint 377 — Performance Review, Memory Efficiency & Carry-Forward Reconciliation
 

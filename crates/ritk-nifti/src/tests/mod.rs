@@ -2,7 +2,6 @@ use super::*;
 use anyhow::Result;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use nalgebra::SMatrix;
 use nifti::{NiftiHeader, NiftiObject};
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -24,7 +23,7 @@ fn test_read_write_nifti_cycle() -> Result<()> {
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([0.5, 0.5, 2.0]);
     // Simple identity direction
-    let direction = Direction(SMatrix::identity());
+    let direction = Direction::identity();
 
     let image = Image::new(tensor, origin, spacing, direction);
 
@@ -65,7 +64,7 @@ fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
         tensor,
         Point::new([4.0, 5.0, 6.0]),
         Spacing::new([1.0, 0.7, 2.3]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_nifti(&file_path, &image)?;
@@ -100,9 +99,8 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
     let spacing = Spacing::new([2.0, 1.5, 0.75]);
     let cosine = FRAC_PI_6.cos();
     let sine = FRAC_PI_6.sin();
-    let direction = Direction(SMatrix::from_row_slice(&[
-        cosine, -sine, 0.0, sine, cosine, 0.0, 0.0, 0.0, 1.0,
-    ]));
+    let direction =
+        Direction::from_row_major([cosine, -sine, 0.0, sine, cosine, 0.0, 0.0, 0.0, 1.0]);
 
     let image = Image::new(tensor, origin, spacing, direction);
 
@@ -243,9 +241,7 @@ fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
 
     let origin = Point::new([11.5, -7.25, 3.0]);
     let spacing = Spacing::new([0.8, 1.2, 2.5]);
-    let direction = Direction(SMatrix::from_row_slice(&[
-        0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
-    ]));
+    let direction = Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
 
     let image = Image::new(tensor, origin, spacing, direction);
 

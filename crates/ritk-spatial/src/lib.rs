@@ -1,6 +1,6 @@
 //! Spatial types: Point, Direction, Spacing, Vector, VoxelIndex, VolumeDims.
 //!
-//! Leaf crate with no ritk-internal dependencies — only nalgebra, burn, and serde.
+//! Leaf crate with no ritk-internal dependencies — only Leto, burn, and serde.
 
 pub mod direction;
 pub mod point;

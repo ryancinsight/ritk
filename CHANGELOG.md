@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 408: Spatial Leto SSOT slice
+
+### Changed
+- `ritk-spatial`: `Point`, `Vector`, and `Direction` now store Leto
+  stack-backed fixed vectors/matrices instead of nalgebra types. Direction
+  determinant, inverse, axis extraction, 3-D row/column-major conversion, and
+  serde boundary conversion remain implemented in RITK/Leto.
+- `ritk-core`, `ritk-metaimage`, `ritk-nrrd`, `ritk-nifti`, and `ritk-mgh`:
+  spatial direction construction now routes through `ritk_spatial::Direction`,
+  removing their direct nalgebra dependencies for this path.
+- Refreshed Coeus path-package lock entries to `0.2.10` during verification.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. Provider gate:
+  `cargo clippy -p leto --all-targets -- -D warnings`; `cargo nextest run
+  -p leto fixed` -> 6/6 passed; Leto doctests/docs passed. RITK gate progress:
+  all-target compile, clippy, format, doctests, and docs passed for
+  `ritk-spatial`, `ritk-core`, `ritk-metaimage`, `ritk-nrrd`, `ritk-nifti`,
+  and `ritk-mgh`; focused `cargo nextest run` -> 147/147 passed.
+
+---
+
 ## [Unreleased] — Sprint 407: Leto classical registration slice
 
 ### Changed

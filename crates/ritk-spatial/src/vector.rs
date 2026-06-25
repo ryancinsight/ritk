@@ -5,18 +5,41 @@
 use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
 use burn::record::{PrecisionSettings, Record};
 use burn::tensor::backend::{AutodiffBackend, Backend};
-use nalgebra::SVector;
-use serde::{Deserialize, Serialize};
+use leto::FixedVector;
+use serde::ser::SerializeSeq;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// A vector in D-dimensional space.
 ///
 /// Vectors represent displacements, directions, and other vector quantities.
 /// Used for spacing, offsets, and spatial transformations.
 ///
-/// This is a thin wrapper around nalgebra's SVector to provide
-/// domain-specific functionality while maintaining all nalgebra operations.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct Vector<const D: usize>(pub SVector<f64, D>);
+/// This is a stack-backed wrapper around Leto's fixed vector primitive.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Vector<const D: usize>(pub FixedVector<f64, D>);
+
+impl<const D: usize> Serialize for Vector<D> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut seq = serializer.serialize_seq(Some(D))?;
+        for value in self.as_slice() {
+            seq.serialize_element(value)?;
+        }
+        seq.end()
+    }
+}
+
+impl<'de, const D: usize> Deserialize<'de> for Vector<D> {
+    fn deserialize<De: Deserializer<'de>>(deserializer: De) -> Result<Self, De::Error> {
+        let components = Vec::<f64>::deserialize(deserializer)?;
+        if components.len() != D {
+            return Err(serde::de::Error::invalid_length(
+                components.len(),
+                &"component count matching the vector dimension",
+            ));
+        }
+        Ok(Self::from_slice(&components))
+    }
+}
 
 impl<B: Backend, const D: usize> Record<B> for Vector<D> {
     type Item<S: PrecisionSettings> = Vector<D>;
@@ -81,12 +104,12 @@ impl<const D: usize> ModuleDisplay for Vector<D> {}
 impl<const D: usize> Vector<D> {
     /// Create a new vector from components.
     pub fn new(components: [f64; D]) -> Self {
-        Self(SVector::from(components))
+        Self(FixedVector::new(components))
     }
 
     /// Create a zero vector.
     pub fn zeros() -> Self {
-        Self(SVector::zeros())
+        Self(FixedVector::zeros())
     }
 
     /// Create a new vector from a slice of components.
@@ -104,12 +127,17 @@ impl<const D: usize> Vector<D> {
 
     /// Convert vector to a fixed-size array of components (zero-allocation).
     pub fn to_array(&self) -> [f64; D] {
-        std::array::from_fn(|i| self.0[i])
+        self.0.into_array()
     }
 
     /// Borrow the vector components as a slice without allocation.
     pub fn as_slice(&self) -> &[f64] {
-        self.0.as_slice()
+        self.0.as_array()
+    }
+
+    /// Compute the Euclidean norm.
+    pub fn norm(&self) -> f64 {
+        self.0.dot(&self.0).sqrt()
     }
 
     /// Create a unit vector along the x-axis.
@@ -133,13 +161,13 @@ impl<const D: usize> Vector<D> {
         v
     }
 
-    /// Get the inner nalgebra vector.
-    pub fn inner(&self) -> &SVector<f64, D> {
+    /// Get the inner fixed vector.
+    pub fn inner(&self) -> &FixedVector<f64, D> {
         &self.0
     }
 
-    /// Get mutable reference to inner nalgebra vector.
-    pub fn inner_mut(&mut self) -> &mut SVector<f64, D> {
+    /// Get mutable reference to inner fixed vector.
+    pub fn inner_mut(&mut self) -> &mut FixedVector<f64, D> {
         &mut self.0
     }
 }

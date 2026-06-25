@@ -12,7 +12,6 @@ ritk-spatial = { path = "../ritk-spatial" }
 ritk-codecs = { path = "../ritk-codecs" }
 burn = { workspace = true }
 anyhow = { workspace = true }
-nalgebra = { workspace = true }
 bytemuck = { workspace = true }
 flate2 = { workspace = true }
 

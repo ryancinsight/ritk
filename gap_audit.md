@@ -1,5 +1,33 @@
 # RITK Gap Audit - Active
 
+## Sprint 408 Audit (2026-06-25) — Spatial Leto SSOT Slice
+
+### Gaps Closed
+
+- **[MIG-387-02 ADVANCED]** `ritk-spatial` storage:
+  `Point`, `Vector`, and `Direction` now store Leto stack-backed fixed primitives
+  instead of `nalgebra` point/vector/matrix types. Direction determinant, inverse,
+  storage-order conversion, axis extraction, and serde boundary conversion remain
+  input-sensitive implementations. Evidence tier: compile/lint/docs plus
+  value-semantic spatial and format tests (`cargo clippy` passed; focused
+  `cargo nextest run` -> 147/147 passed; doctests/docs passed).
+- **[MIG-408-01 ADVANCED]** medical-image spatial adapter call sites:
+  `ritk-core`, `ritk-metaimage`, `ritk-nrrd`, `ritk-nifti`, and `ritk-mgh` tests
+  and spatial adapters construct directions through `ritk_spatial::Direction`.
+  Those crates no longer declare direct `nalgebra` dependencies for this spatial path.
+  Evidence tier: dependency graph/source search plus compile/lint/test gates.
+
+### Residual Risk
+
+- This is not a full `nalgebra` removal from RITK. Remaining direct use is expected
+  in DICOM IO geometry, MINC/PNG/SNAP/filter spatial consumers, VTK mesh geometry,
+  and possibly tests outside the Sprint 408 touched package set.
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
+- This is not an `ndarray` boundary removal. File-format and Python/numpy boundary
+  dependencies remain until equivalent Atlas contracts preserve their behavior.
+
+---
+
 ## Sprint 407 Audit (2026-06-25) — Leto Classical Registration Slice
 
 ### Gaps Closed

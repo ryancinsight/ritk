@@ -12,8 +12,7 @@
 //! ```
 
 use anyhow::{anyhow, bail, Result};
-use nalgebra::{SMatrix, Vector3};
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing, Vector};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct InternalSpatialMetadata {
@@ -41,11 +40,11 @@ pub(crate) fn metadata_from_nifti_ras_affine(
 
     let scaled_columns = [
         // Internal depth axis corresponds to NIfTI z.
-        Vector3::new(lps_file[0][2], lps_file[1][2], lps_file[2][2]),
+        Vector::new([lps_file[0][2], lps_file[1][2], lps_file[2][2]]),
         // Internal row axis corresponds to NIfTI y.
-        Vector3::new(lps_file[0][1], lps_file[1][1], lps_file[2][1]),
+        Vector::new([lps_file[0][1], lps_file[1][1], lps_file[2][1]]),
         // Internal column axis corresponds to NIfTI x.
-        Vector3::new(lps_file[0][0], lps_file[1][0], lps_file[2][0]),
+        Vector::new([lps_file[0][0], lps_file[1][0], lps_file[2][0]]),
     ];
 
     let spacing = Spacing::try_new([
@@ -64,7 +63,7 @@ pub(crate) fn metadata_from_nifti_ras_affine(
     Ok(InternalSpatialMetadata {
         origin,
         spacing,
-        direction: Direction(SMatrix::<f64, 3, 3>::from_columns(&direction_columns)),
+        direction: Direction::from_columns(direction_columns),
     })
 }
 
@@ -147,7 +146,7 @@ fn ensure_finite_affine(affine: [[f32; 4]; 4]) -> Result<()> {
     Ok(())
 }
 
-fn normalized_column(vector: Vector3<f64>, norm: f64, axis: &str) -> Result<Vector3<f64>> {
+fn normalized_column(vector: Vector<3>, norm: f64, axis: &str) -> Result<Vector<3>> {
     if norm.is_finite() && norm > 0.0 {
         Ok(vector / norm)
     } else {
@@ -199,9 +198,8 @@ mod tests {
         assert_close(metadata.spacing[1], 3.0);
         assert_close(metadata.spacing[2], 4.0);
 
-        let expected =
-            SMatrix::<f64, 3, 3>::from_row_slice(&[0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
-        assert_eq!(metadata.direction.0, expected);
+        let expected = Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
+        assert_eq!(metadata.direction, expected);
     }
 
     #[test]
