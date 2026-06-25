@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 407: Leto classical registration slice
+
+### Changed
+- `ritk-registration`: Removed the crate's direct `nalgebra` dependency. Classical
+  rigid/affine perturbation composition, centroid/translation math, Kabsch rotation
+  assembly, and FRE now use Leto stack fixed matrices/vectors; Kabsch singular
+  vectors route through `leto-ops`.
+- `ritk-registration`: Exact identical centered landmark sets return the identity
+  rotation before SVD, avoiding non-determinism from rank-deficient SVD nullspace
+  basis choices while preserving the exact zero-residual solution.
+- Refreshed Coeus path-package lock entries to `0.2.8` during verification.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus focused value-semantic tests (`cargo clippy
+  -p ritk-registration --all-targets -- -D warnings`; focused `cargo nextest run
+  -p ritk-registration -E 'test(kabsch) | test(landmark) |
+  test(rigid_registration_landmarks) | test(classical)'` -> 45/45 passed;
+  `cargo test --doc -p ritk-registration`; `cargo doc -p ritk-registration
+  --no-deps`). Provider gate: `cargo clippy -p leto --all-targets -- -D warnings`;
+  `cargo nextest run -p leto fixed` -> 3/3 passed; Leto doctests/docs passed.
+
+---
+
 ## [Unreleased] — Sprint 406: Global format gate
 
 ### Changed

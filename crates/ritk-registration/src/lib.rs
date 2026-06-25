@@ -16,13 +16,13 @@
 //! # Quick Start
 //!
 //! ```no_run
+//! use leto::Array2;
 //! use ritk_registration::classical::ImageRegistration;
-//! use ndarray::Array2;
 //!
 //! // Landmark-based rigid registration
 //! let reg = ImageRegistration::default();
-//! let fixed = Array2::from_shape_vec((3, 3), vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).unwrap();
-//! let moving = Array2::from_shape_vec((3, 3), vec![1., 2., 3., 2., 2., 3., 1., 3., 3.]).unwrap();
+//! let fixed = Array2::from_vec([3, 3], vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).unwrap();
+//! let moving = Array2::from_vec([3, 3], vec![1., 2., 3., 2., 2., 3., 1., 3., 3.]).unwrap();
 //! let result = reg.rigid_registration_landmarks(&fixed, &moving).unwrap();
 //! ```
 //!

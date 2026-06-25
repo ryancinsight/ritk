@@ -10,8 +10,9 @@ use super::metric::MutualInformationMetric;
 use super::result::RegistrationResult;
 use crate::types::AffineTransform;
 use crate::validation::{ConvergenceStatus, RegistrationQualityMetrics, TemporalQualityMetrics};
-use leto::{Array1, Array2, Array3};
-use nalgebra::Matrix3;
+use leto::{Array1, Array2, Array3, FixedMatrix};
+
+type Matrix3 = FixedMatrix<f64, 3, 3>;
 
 /// Orchestrator for classical (non-ML) image registration algorithms.
 ///
@@ -68,17 +69,11 @@ impl ImageRegistration {
         let rotation = kabsch_algorithm(&fixed_centered, &moving_centered)?;
 
         // Translation: t = centroid_fixed - R * centroid_moving
-        let r = Matrix3::new(
-            rotation[0],
-            rotation[1],
-            rotation[2],
-            rotation[3],
-            rotation[4],
-            rotation[5],
-            rotation[6],
-            rotation[7],
-            rotation[8],
-        );
+        let r = Matrix3::from_rows([
+            [rotation[0], rotation[1], rotation[2]],
+            [rotation[3], rotation[4], rotation[5]],
+            [rotation[6], rotation[7], rotation[8]],
+        ]);
         let t = centroid_fixed - r * centroid_moving;
         let translation = [t[0], t[1], t[2]];
 
