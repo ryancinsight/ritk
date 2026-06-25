@@ -6,6 +6,14 @@
 
 ## Open performance items
 
+- **MIG-416-01 [patch] — GrowCut safe Moirai paired assignment. DONE.**
+  Replace `ritk-segmentation` GrowCut's raw-pointer `SendPtr` side-write pattern
+  with Moirai paired mutable chunk dispatch over `next_strengths` and
+  `next_labels`. This removes unsafe code from the GrowCut assignment loop while
+  preserving disjoint per-voxel writes and seed label stability. Evidence tier:
+  compile/lint/docs plus value-semantic tests (`cargo nextest run -p ritk-segmentation`
+  -> 435/435 passed).
+
 - **MIG-415-01 [patch] — SLIC safe Moirai paired assignment. DONE.**
   Replace `ritk-segmentation` SLIC assignment's raw-pointer `SendPtr` side-write
   pattern with Moirai paired mutable chunk dispatch over `distances` and `labels`.

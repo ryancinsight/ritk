@@ -106,6 +106,8 @@ pub fn growcut_slice(
     dims: [usize; 3],
     max_iter: usize,
 ) -> Vec<f32> {
+    const GROWCUT_CHUNK_LEN: usize = 1024;
+
     let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
 
     // Compute intensity range for adjacency weight denominator.
@@ -143,74 +145,75 @@ pub fn growcut_slice(
     let mut next_labels = labels.clone();
     let mut next_strengths = strengths.clone();
 
-    use moirai::prelude::ParallelSliceMut;
     use std::sync::atomic::{AtomicBool, Ordering};
 
     for _ in 0..max_iter {
         let changed = AtomicBool::new(false);
 
-        struct SendPtr<T>(*mut T);
-        unsafe impl<T> Send for SendPtr<T> {}
-        unsafe impl<T> Sync for SendPtr<T> {}
-        impl<T> SendPtr<T> {
-            unsafe fn write(&self, offset: usize, val: T) {
-                *self.0.add(offset) = val;
-            }
-        }
-
         let labels_old = &labels;
         let strengths_old = &strengths;
         let changed_ref = &changed;
-        let labels_ptr = SendPtr(next_labels.as_mut_ptr());
 
-        next_strengths.par_mut().enumerate(|idx, strength_mut| {
-            if is_seed[idx] {
-                *strength_mut = strengths_old[idx];
-                return;
-            }
-
-            let iz = idx / (ny * nx);
-            let rem = idx % (ny * nx);
-            let iy = rem / nx;
-            let ix = rem % nx;
-
-            let mut best_label = labels_old[idx];
-            let mut best_strength = strengths_old[idx];
-
-            for &(dz, dy, dx) in &OFFSETS {
-                let jz = iz as isize + dz;
-                let jy = iy as isize + dy;
-                let jx = ix as isize + dx;
-                if jz < 0
-                    || jz >= nz as isize
-                    || jy < 0
-                    || jy >= ny as isize
-                    || jx < 0
-                    || jx >= nx as isize
+        moirai::for_each_chunk_pair_mut_enumerated_with::<moirai::Adaptive, _, _, _>(
+            &mut next_strengths,
+            &mut next_labels,
+            GROWCUT_CHUNK_LEN,
+            |chunk_idx, strength_chunk, label_chunk| {
+                let base = chunk_idx * GROWCUT_CHUNK_LEN;
+                for (local, (strength_mut, label_mut)) in strength_chunk
+                    .iter_mut()
+                    .zip(label_chunk.iter_mut())
+                    .enumerate()
                 {
-                    continue;
-                }
-                let j = flat(jz as usize, jy as usize, jx as usize);
-                if labels_old[j] == 0 {
-                    continue; // unlabeled neighbor cannot attack
-                }
-                let diff = (img[j] as f64 - img[idx] as f64).abs();
-                let g = 1.0 - diff / max_diff;
-                let attack = strengths_old[j] * g;
-                if attack > best_strength {
-                    best_strength = attack;
-                    best_label = labels_old[j];
-                }
-            }
+                    let idx = base + local;
+                    if is_seed[idx] {
+                        *strength_mut = strengths_old[idx];
+                        *label_mut = labels_old[idx];
+                        continue;
+                    }
 
-            *strength_mut = best_strength;
-            unsafe {
-                labels_ptr.write(idx, best_label);
-            }
-            if best_label != labels_old[idx] {
-                changed_ref.store(true, Ordering::Relaxed);
-            }
-        });
+                    let iz = idx / (ny * nx);
+                    let rem = idx % (ny * nx);
+                    let iy = rem / nx;
+                    let ix = rem % nx;
+
+                    let mut best_label = labels_old[idx];
+                    let mut best_strength = strengths_old[idx];
+
+                    for &(dz, dy, dx) in &OFFSETS {
+                        let jz = iz as isize + dz;
+                        let jy = iy as isize + dy;
+                        let jx = ix as isize + dx;
+                        if jz < 0
+                            || jz >= nz as isize
+                            || jy < 0
+                            || jy >= ny as isize
+                            || jx < 0
+                            || jx >= nx as isize
+                        {
+                            continue;
+                        }
+                        let j = flat(jz as usize, jy as usize, jx as usize);
+                        if labels_old[j] == 0 {
+                            continue; // unlabeled neighbor cannot attack
+                        }
+                        let diff = (img[j] as f64 - img[idx] as f64).abs();
+                        let g = 1.0 - diff / max_diff;
+                        let attack = strengths_old[j] * g;
+                        if attack > best_strength {
+                            best_strength = attack;
+                            best_label = labels_old[j];
+                        }
+                    }
+
+                    *strength_mut = best_strength;
+                    *label_mut = best_label;
+                    if best_label != labels_old[idx] {
+                        changed_ref.store(true, Ordering::Relaxed);
+                    }
+                }
+            },
+        );
 
         if !changed.load(Ordering::Relaxed) {
             break;

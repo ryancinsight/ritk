@@ -1,5 +1,37 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 416 — GrowCut Safe Moirai Assignment
+**Target version**: 0.12.91
+**Sprint phase**: Closure — GrowCut unsafe side-write removal is verified
+
+### In-flight plan (Sprint 416)
+- [x] MIG-416-01 [patch]: Audit remaining segmentation `SendPtr` side-write
+  sites and select GrowCut as the next bounded two-output Moirai loop.
+- [x] MIG-416-02 [patch]: Replace GrowCut's raw-pointer `next_labels` write with
+  Moirai paired mutable chunk dispatch over `next_strengths` and `next_labels`.
+- [x] MIG-416-03 [patch]: Verify focused segmentation compile, format, clippy,
+  nextest, doctest, docs, and structural audits.
+
+### Verification gate (Sprint 416)
+- [x] RITK: `cargo fmt --check -p ritk-segmentation` -> passed
+- [x] RITK: `cargo check -p ritk-segmentation --all-targets` -> passed
+- [x] RITK: `cargo clippy -p ritk-segmentation --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-segmentation` -> 435 passed
+- [x] RITK: `cargo test --doc -p ritk-segmentation` -> 0 doctests
+- [x] RITK: `cargo doc -p ritk-segmentation --no-deps` -> passed
+- [x] Structural audit: `rg "unsafe|SendPtr|ParallelSliceMut"
+  crates/ritk-segmentation/src/region_growing/growcut.rs -n` -> no matches
+
+### Deferred / carry-forward
+- [ ] MIG-416-04 [patch]: Continue removing raw-pointer side-write patterns from
+  level-set kernels with focused value-semantic gates.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+
+---
+
 ## Sprint 415 — SLIC Safe Moirai Assignment
 **Target version**: 0.12.90
 **Sprint phase**: Closure — SLIC assignment unsafe side-write removal is verified
@@ -26,8 +58,10 @@
   crates/ritk-segmentation/src/clustering/slic/assign.rs -n` -> no matches
 
 ### Deferred / carry-forward
-- [ ] MIG-415-05 [patch]: Continue removing the same raw-pointer side-write
-  pattern from level-set and GrowCut kernels with focused value-semantic gates.
+- [x] MIG-415-05 [patch]: Continue removing the same raw-pointer side-write
+  pattern from GrowCut with focused value-semantic gates.
+- [ ] MIG-415-06 [patch]: Continue removing the same raw-pointer side-write
+  pattern from level-set kernels with focused value-semantic gates.
 - [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
   contract-preserving slice.
 - [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
