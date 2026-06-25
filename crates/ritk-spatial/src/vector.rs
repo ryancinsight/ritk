@@ -140,6 +140,24 @@ impl<const D: usize> Vector<D> {
         self.0.dot(&self.0).sqrt()
     }
 
+    /// Compute the dot product with another vector.
+    pub fn dot(&self, other: &Self) -> f64 {
+        self.0.dot(&other.0)
+    }
+
+    /// Return the unit-length direction of this vector.
+    ///
+    /// Returns `None` when the vector is zero-length or non-finite, because no
+    /// direction cosine is defined for that input.
+    pub fn normalized(&self) -> Option<Self> {
+        let norm = self.norm();
+        if norm.is_finite() && norm > 0.0 {
+            Some(*self / norm)
+        } else {
+            None
+        }
+    }
+
     /// Create a unit vector along the x-axis.
     pub fn x_axis() -> Self {
         let mut v = Self::zeros();
@@ -169,6 +187,17 @@ impl<const D: usize> Vector<D> {
     /// Get mutable reference to inner fixed vector.
     pub fn inner_mut(&mut self) -> &mut FixedVector<f64, D> {
         &mut self.0
+    }
+}
+
+impl Vector<3> {
+    /// Compute the 3D cross product.
+    pub fn cross(&self, other: &Self) -> Self {
+        Self::new([
+            self[1] * other[2] - self[2] * other[1],
+            self[2] * other[0] - self[0] * other[2],
+            self[0] * other[1] - self[1] * other[0],
+        ])
     }
 }
 
@@ -288,5 +317,30 @@ mod tests {
 
         let negated = -v1;
         assert_eq!(negated, Vector3::new([-1.0, -2.0, -3.0]));
+    }
+
+    #[test]
+    fn test_vector_dot_norm_and_normalized() {
+        let v = Vector3::new([3.0, 4.0, 0.0]);
+        assert_eq!(v.dot(&Vector3::new([1.0, 2.0, 3.0])), 11.0);
+        assert_eq!(v.norm(), 5.0);
+        assert_eq!(v.normalized(), Some(Vector3::new([0.6, 0.8, 0.0])));
+        assert_eq!(Vector3::zeros().normalized(), None);
+    }
+
+    #[test]
+    fn test_vector_cross_product() {
+        assert_eq!(
+            Vector3::x_axis().cross(&Vector3::y_axis()),
+            Vector3::z_axis()
+        );
+        assert_eq!(
+            Vector3::y_axis().cross(&Vector3::x_axis()),
+            -Vector3::z_axis()
+        );
+        assert_eq!(
+            Vector3::new([2.0, 3.0, 4.0]).cross(&Vector3::new([5.0, 6.0, 7.0])),
+            Vector3::new([-3.0, 6.0, -3.0])
+        );
     }
 }

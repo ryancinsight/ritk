@@ -7,7 +7,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use nalgebra::SMatrix;
 use std::path::Path;
 
 use ritk_core::image::Image;
@@ -287,7 +286,7 @@ pub(crate) fn load_from_series<B: Backend>(
         tensor,
         Point::new(metadata.origin),
         Spacing::new(metadata.spacing),
-        Direction(SMatrix::<f64, 3, 3>::from_column_slice(&metadata.direction)),
+        Direction::from_column_major(metadata.direction),
     );
 
     metadata.slices = slices;

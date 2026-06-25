@@ -2,7 +2,7 @@ use super::transform_geometry;
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
-use ritk_spatial::Point;
+use ritk_spatial::{Direction, Point};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type B = NdArray<f32>;
@@ -49,7 +49,7 @@ fn transform_geometry_rotation_inverts_direction() {
     let out = transform_geometry(&img, rot, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]).unwrap();
     let d = out.direction().0;
     // A⁻¹ = Aᵀ = [[0,1,0],[-1,0,0],[0,0,1]]
-    let expected = nalgebra::Matrix3::new(0.0, 1.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+    let expected = Direction::from_rows([[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
     for i in 0..3 {
         for j in 0..3 {
             assert!(

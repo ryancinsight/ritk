@@ -1,7 +1,6 @@
 use super::*;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use nalgebra::SMatrix;
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -21,8 +20,7 @@ fn make_test_image(
     let tensor = Tensor::<B, 3>::from_data(data, &device);
     let origin = Point::new(start);
     let spacing = Spacing::new(step);
-    let dir_matrix = SMatrix::<f64, 3, 3>::identity();
-    let direction = Direction(dir_matrix);
+    let direction = Direction::identity();
     Image::new(tensor, origin, spacing, direction)
 }
 

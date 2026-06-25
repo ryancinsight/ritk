@@ -12,6 +12,7 @@
 
 use anyhow::Result;
 use consus_io::WriteAt;
+use ritk_spatial::Direction;
 
 /// Geometry parameters for a MINC2 volume.
 #[derive(Debug, Clone, Copy)]
@@ -19,7 +20,7 @@ struct Minc2VolumeGeometry {
     shape: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
-    direction: nalgebra::SMatrix<f64, 3, 3>,
+    direction: Direction<3>,
 }
 
 /// Construct a MINC2-compliant HDF5 file at `path`.
@@ -38,7 +39,7 @@ pub fn write_minc2_hdf5(
     shape: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
-    direction: &nalgebra::SMatrix<f64, 3, 3>,
+    direction: &Direction<3>,
 ) -> Result<()> {
     let mut file = std::fs::File::create(path)
         .map_err(|e| anyhow::anyhow!("Cannot create MINC2 file {:?}: {}", path, e))?;

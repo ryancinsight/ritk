@@ -154,13 +154,12 @@ fn no_clamp_allows_overshoot() {
 /// Invariant: spatial metadata (origin, spacing, direction) is preserved.
 #[test]
 fn spatial_metadata_preserved() {
-    use nalgebra::SMatrix;
     let device = burn_ndarray::NdArrayDevice::Cpu;
     let td = TensorData::new(vec![1.0_f32; 2 * 3 * 3], Shape::new([2, 3, 3]));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([1.5, 2.0, 0.75]);
-    let dir = Direction::<3>(SMatrix::<f64, 3, 3>::identity());
+    let dir = Direction::<3>::identity();
     let img = Image::new(tensor, origin, spacing, dir);
     let filter = UnsharpMaskFilter::default();
     let out = filter.apply::<B>(&img).expect("apply failed");

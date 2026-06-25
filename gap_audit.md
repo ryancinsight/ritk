@@ -1,5 +1,40 @@
 # RITK Gap Audit - Active
 
+## Sprint 409 Audit (2026-06-25) — DICOM/MINC/Filter Spatial Leto Slice
+
+### Gaps Closed
+
+- **[MIG-387-02 ADVANCED]** DICOM spatial metadata:
+  scalar, color, multiframe, and series DICOM loaders no longer construct
+  direction matrices through `nalgebra::SMatrix`/`Matrix3`. Column-major
+  metadata routes through `Direction::from_column_major`; orientation-derived
+  series geometry uses `Point`, `Vector`, and `Direction::from_columns`.
+  Evidence tier: compile/lint/docs plus value-semantic DICOM/filter/spatial tests
+  (`cargo nextest run -p ritk-spatial -p ritk-minc -p ritk-filter -p ritk-io`
+  -> 1359/1359 passed).
+- **[MIG-409-01 CLOSED]** spatial vector operations:
+  `Vector` now exposes `dot`, `normalized`, and `Vector<3>::cross` over the
+  Leto-backed storage. Tests assert exact dot/cross values and zero-vector
+  normalization rejection.
+- **[MIG-409-02 CLOSED]** MINC spatial metadata:
+  `ritk-minc` no longer declares a direct `nalgebra` dependency. Reader metadata
+  construction and the low-level HDF5 writer use `Direction<3>` directly.
+- **[MIG-409-03 CLOSED]** filter spatial transforms:
+  transform geometry, DICOM orientation, axis permutation, ROI origin update, and
+  unsharp-mask metadata fixtures no longer mix `nalgebra` matrices with the
+  Leto-backed `Direction` representation.
+
+### Residual Risk
+
+- This is not a full `nalgebra` removal from RITK. `ritk-io` still keeps its
+  manifest dependency for VTK mesh test geometry; additional PNG/SNAP and
+  mesh-only spatial cleanup remains scoped to separate bounded-context slices.
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
+- This is not an `ndarray` boundary removal. File-format and Python/numpy boundary
+  dependencies remain until equivalent Atlas contracts preserve their behavior.
+
+---
+
 ## Sprint 408 Audit (2026-06-25) — Spatial Leto SSOT Slice
 
 ### Gaps Closed

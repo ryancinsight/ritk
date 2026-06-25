@@ -83,19 +83,19 @@ fn roi_updates_origin_with_identity_direction() {
         .unwrap();
     let o = out.origin();
     assert!(
-        (o.0.coords[0] - 2.0).abs() < 1e-9,
+        (o[0] - 2.0).abs() < 1e-9,
         "origin[0] expected 2.0 got {}",
-        o.0.coords[0]
+        o[0]
     );
     assert!(
-        (o.0.coords[1] - 3.0).abs() < 1e-9,
+        (o[1] - 3.0).abs() < 1e-9,
         "origin[1] expected 3.0 got {}",
-        o.0.coords[1]
+        o[1]
     );
     assert!(
-        (o.0.coords[2] - 4.0).abs() < 1e-9,
+        (o[2] - 4.0).abs() < 1e-9,
         "origin[2] expected 4.0 got {}",
-        o.0.coords[2]
+        o[2]
     );
 }
 

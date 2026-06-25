@@ -1,5 +1,43 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 409 — DICOM/MINC/Filter Spatial Leto Slice
+**Target version**: 0.12.84
+**Sprint phase**: Closure — DICOM, MINC, and filter spatial metadata paths now use the Leto-backed spatial SSOT
+
+### Delivered (Sprint 409)
+- [x] MIG-387-02 [arch]: **DICOM spatial metadata no longer constructs directions through `nalgebra`** —
+  scalar, RGB, multiframe, and series loaders now route column-major metadata and
+  orientation-derived axes through `ritk_spatial::Direction`, `Point`, and `Vector`.
+- [x] MIG-409-01 [patch]: **`ritk-spatial::Vector` owns 3-D direction math needed by format readers** —
+  added value-semantic `dot`, `normalized`, and 3-D `cross` operations over the
+  existing Leto-backed storage.
+- [x] MIG-409-02 [patch]: **MINC spatial read/write paths use `Direction<3>` directly** —
+  removed the direct `nalgebra` dependency from `ritk-minc`; the HDF5 writer now
+  accepts `Direction<3>` and writes direction cosines from the spatial SSOT.
+- [x] MIG-409-03 [patch]: **Filter spatial transforms stop mixing nalgebra with `Direction`** —
+  transform-geometry, DICOM-orient, permute-axes, ROI, and unsharp-mask metadata
+  fixtures now use `Direction`, `Point`, and `Vector` directly.
+
+### Verification gate (Sprint 409)
+- [x] RITK: `cargo check -p ritk-spatial -p ritk-minc -p ritk-filter -p ritk-io --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-spatial -p ritk-minc -p ritk-filter -p ritk-io` -> passed
+- [x] RITK: `cargo clippy -p ritk-spatial -p ritk-minc -p ritk-filter -p ritk-io --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-spatial -p ritk-minc -p ritk-filter -p ritk-io` -> **1359/1359 passed**
+- [x] RITK: `cargo test --doc -p ritk-spatial -p ritk-minc -p ritk-filter -p ritk-io` -> passed (2 passed, 15 ignored)
+- [x] RITK: `cargo doc -p ritk-spatial -p ritk-minc -p ritk-filter -p ritk-io --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-387-02 [arch]: Continue PNG/SNAP and mesh-only spatial cleanup in
+  separate bounded-context slices; `ritk-io` still has VTK mesh test `nalgebra`
+  use and keeps its manifest dependency until that mesh slice is migrated.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus migration as a separate tensor-boundary
+  redesign; Burn remains a public backend/tensor contract across image, filter,
+  registration, model, IO, and Python crates.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary audit for NIfTI/file-format
+  conversion and Python/numpy boundary code.
+
+---
+
 ## Sprint 408 — Spatial Leto SSOT Slice
 **Target version**: 0.12.83
 **Sprint phase**: Execution — `ritk-spatial` storage migrated to Leto fixed primitives; format/core call sites updated

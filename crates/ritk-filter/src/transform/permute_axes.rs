@@ -106,13 +106,12 @@ impl PermuteAxesImageFilter {
 
         // Permute direction columns: new_dir.col(j) = old_dir.col(order[j])
         let old_dir = image.direction();
-        let mut new_dir_mat = nalgebra::Matrix3::zeros();
+        let mut new_dir = Direction::zeros();
         for j in 0..3 {
             for row in 0..3 {
-                new_dir_mat[(row, j)] = old_dir.0[(row, order[j])];
+                new_dir[(row, j)] = old_dir[(row, order[j])];
             }
         }
-        let new_dir = Direction(new_dir_mat);
 
         Ok(rebuild_with_metadata(
             out,
