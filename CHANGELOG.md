@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 415: SLIC safe Moirai assignment
+
+### Changed
+- `ritk-segmentation`: SLIC assignment now updates `distances` and `labels`
+  through Moirai paired mutable chunk dispatch instead of a raw-pointer side-write
+  wrapper.
+- `ritk-segmentation`: Removed stale Rayon wording from SLIC assignment docs.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-segmentation`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-segmentation` -> 435/435 passed on the refreshed
+  local Coeus `0.2.15` provider graph.
+
+---
+
 ## [Unreleased] — Sprint 414: Gaia MeshBuilder array API migration
 
 ### Changed

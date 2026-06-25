@@ -6,6 +6,14 @@
 
 ## Open performance items
 
+- **MIG-415-01 [patch] — SLIC safe Moirai paired assignment. DONE.**
+  Replace `ritk-segmentation` SLIC assignment's raw-pointer `SendPtr` side-write
+  pattern with Moirai paired mutable chunk dispatch over `distances` and `labels`.
+  This removes unsafe code from the SLIC assignment hot path while preserving
+  disjoint per-voxel writes and the existing SLIC distance contract. Evidence tier:
+  compile/lint/docs plus value-semantic tests (`cargo nextest run -p ritk-segmentation`
+  -> 435/435 passed).
+
 - **MIG-414-01 [patch] — Gaia MeshBuilder array API migration. DONE.**
   Extend Gaia's `MeshBuilder` with coordinate-array and explicit xyz insertion APIs,
   then migrate RITK mesh construction sites to those provider APIs. Target outcome:
