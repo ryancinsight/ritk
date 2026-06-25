@@ -15,21 +15,11 @@ fn make_rotation(angle_x: f64, angle_y: f64, angle_z: f64) -> Direction<D> {
     let cz = angle_z.cos();
     let sz = angle_z.sin();
 
-    // Rx * Ry * Rz
-    let mut rot = Direction::<D>::identity();
-    let m = rot.inner_mut();
+    let rz = Direction::from_row_major([cz, -sz, 0.0, sz, cz, 0.0, 0.0, 0.0, 1.0]);
+    let ry = Direction::from_row_major([cy, 0.0, sy, 0.0, 1.0, 0.0, -sy, 0.0, cy]);
+    let rx = Direction::from_row_major([1.0, 0.0, 0.0, 0.0, cx, -sx, 0.0, sx, cx]);
 
-    // Rz
-    let rz = nalgebra::SMatrix::<f64, 3, 3>::new(cz, -sz, 0.0, sz, cz, 0.0, 0.0, 0.0, 1.0);
-
-    // Ry
-    let ry = nalgebra::SMatrix::<f64, 3, 3>::new(cy, 0.0, sy, 0.0, 1.0, 0.0, -sy, 0.0, cy);
-
-    // Rx
-    let rx = nalgebra::SMatrix::<f64, 3, 3>::new(1.0, 0.0, 0.0, 0.0, cx, -sx, 0.0, sx, cx);
-
-    *m = rx * ry * rz;
-    rot
+    rx * ry * rz
 }
 
 proptest! {

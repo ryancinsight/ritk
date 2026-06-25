@@ -1,9 +1,7 @@
 use burn::tensor::Tensor;
 use burn_ndarray::NdArray;
-use nalgebra::{Rotation3, Vector3};
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
-use std::f64::consts::PI;
 
 type Backend = NdArray<f32>;
 type Point3 = Point<3>;
@@ -18,8 +16,7 @@ fn test_rotated_image_transform() {
 
     // Rotate 90 degrees around Z axis
     // X -> Y, Y -> -X, Z -> Z
-    let rotation = Rotation3::from_axis_angle(&Vector3::z_axis(), PI / 2.0);
-    let direction = Direction(rotation.into_inner());
+    let direction = Direction::from_row_major([0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
 
     let image = Image::new(data, origin, spacing, direction);
 

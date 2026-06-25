@@ -6,18 +6,41 @@ use crate::vector::Vector;
 use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
 use burn::record::{PrecisionSettings, Record};
 use burn::tensor::backend::{AutodiffBackend, Backend};
-use nalgebra::Point as NaPoint;
-use serde::{Deserialize, Serialize};
+use leto::FixedVector;
+use serde::ser::SerializeSeq;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// A point in D-dimensional space.
 ///
 /// Points represent positions in physical coordinate systems.
 /// Used for image origins, physical coordinates, and spatial transformations.
 ///
-/// This is a thin wrapper around nalgebra's Point to provide
-/// domain-specific functionality while maintaining all nalgebra operations.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct Point<const D: usize>(pub NaPoint<f64, D>);
+/// This is a stack-backed wrapper around Leto's fixed vector primitive.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Point<const D: usize>(pub FixedVector<f64, D>);
+
+impl<const D: usize> Serialize for Point<D> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut seq = serializer.serialize_seq(Some(D))?;
+        for value in self.as_slice() {
+            seq.serialize_element(value)?;
+        }
+        seq.end()
+    }
+}
+
+impl<'de, const D: usize> Deserialize<'de> for Point<D> {
+    fn deserialize<De: Deserializer<'de>>(deserializer: De) -> Result<Self, De::Error> {
+        let coords = Vec::<f64>::deserialize(deserializer)?;
+        if coords.len() != D {
+            return Err(serde::de::Error::invalid_length(
+                coords.len(),
+                &"coordinate count matching the point dimension",
+            ));
+        }
+        Ok(Self::from_slice(&coords))
+    }
+}
 
 impl<B: Backend, const D: usize> Record<B> for Point<D> {
     type Item<S: PrecisionSettings> = Point<D>;
@@ -82,12 +105,12 @@ impl<const D: usize> ModuleDisplay for Point<D> {}
 impl<const D: usize> Point<D> {
     /// Create a new point from coordinates.
     pub fn new(coords: [f64; D]) -> Self {
-        Self(NaPoint::from(coords))
+        Self(FixedVector::new(coords))
     }
 
     /// Create a point at the origin (all coordinates zero).
     pub fn origin() -> Self {
-        Self(NaPoint::origin())
+        Self(FixedVector::zeros())
     }
 
     /// Create a new point from a slice of coordinates.
@@ -98,28 +121,28 @@ impl<const D: usize> Point<D> {
         );
         let mut point = Self::origin();
         for (i, &c) in coords.iter().enumerate().take(D) {
-            point.0.coords[i] = c;
+            point.0[i] = c;
         }
         point
     }
 
     /// Convert point to a fixed-size array of coordinates (zero-allocation).
     pub fn to_array(&self) -> [f64; D] {
-        std::array::from_fn(|i| self.0.coords[i])
+        self.0.into_array()
     }
 
     /// Borrow the point coordinates as a slice without allocation.
     pub fn as_slice(&self) -> &[f64] {
-        self.0.coords.as_slice()
+        self.0.as_array()
     }
 
-    /// Get the inner nalgebra point.
-    pub fn inner(&self) -> &NaPoint<f64, D> {
+    /// Get the inner fixed vector.
+    pub fn inner(&self) -> &FixedVector<f64, D> {
         &self.0
     }
 
-    /// Get mutable reference to inner nalgebra point.
-    pub fn inner_mut(&mut self) -> &mut NaPoint<f64, D> {
+    /// Get mutable reference to inner fixed vector.
+    pub fn inner_mut(&mut self) -> &mut FixedVector<f64, D> {
         &mut self.0
     }
 }
@@ -128,7 +151,7 @@ impl<const D: usize> std::ops::Index<usize> for Point<D> {
     type Output = f64;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.0.coords[index]
+        &self.0[index]
     }
 }
 
@@ -152,7 +175,7 @@ impl From<Point<3>> for [f64; 3] {
 
 impl<const D: usize> std::ops::IndexMut<usize> for Point<D> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0.coords[index]
+        &mut self.0[index]
     }
 }
 
@@ -160,7 +183,7 @@ impl<const D: usize> std::ops::Sub for Point<D> {
     type Output = Vector<D>;
 
     fn sub(self, other: Self) -> Self::Output {
-        Vector(self.0.coords - other.0.coords)
+        Vector(self.0 - other.0)
     }
 }
 

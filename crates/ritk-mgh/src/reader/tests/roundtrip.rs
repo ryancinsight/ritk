@@ -60,10 +60,10 @@ fn test_round_trip_nondefault_spatial() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("spatial_rt.mgh");
     let device: <TestBackend as Backend>::Device = Default::default();
-    let mut dir_mat = nalgebra::SMatrix::<f64, 3, 3>::zeros();
-    dir_mat[(0, 1)] = -1.0;
-    dir_mat[(1, 0)] = 1.0;
-    dir_mat[(2, 2)] = 1.0;
+    let mut direction = Direction::zeros();
+    direction[(0, 1)] = -1.0;
+    direction[(1, 0)] = 1.0;
+    direction[(2, 2)] = 1.0;
     let data_vec: Vec<f32> = (0..(2 * 3 * 4) as u32)
         .map(|i| i as f32 * 0.1 + 1.0)
         .collect();
@@ -74,7 +74,7 @@ fn test_round_trip_nondefault_spatial() -> Result<()> {
         4,
         Point::new([10.75, 19.25, 29.375]),
         Spacing::new([0.5, 0.75, 1.25]),
-        Direction(dir_mat),
+        direction,
     );
 
     crate::write_mgh(&image, &path)?;

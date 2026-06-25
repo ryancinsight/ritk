@@ -1,5 +1,46 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 408 — Spatial Leto SSOT Slice
+**Target version**: 0.12.83
+**Sprint phase**: Execution — `ritk-spatial` storage migrated to Leto fixed primitives; format/core call sites updated
+
+### Delivered (Sprint 408)
+- [x] MIG-387-02 [arch]: **`ritk-spatial` no longer depends on `nalgebra`** —
+  `Point`, `Vector`, and `Direction` now store Leto stack-backed
+  `FixedVector`/`FixedMatrix` values. Direction determinant, inverse, column
+  extraction, row-major/column-major 3-D conversion, and serde boundary
+  serialization remain real implementations with value-semantic tests.
+- [x] MIG-408-01 [patch]: **Medical-image spatial adapters use the spatial SSOT** —
+  `ritk-core`, `ritk-metaimage`, `ritk-nrrd`, `ritk-nifti`, and `ritk-mgh`
+  no longer declare direct `nalgebra` dependencies for spatial direction setup.
+  Their tests now construct directions through `ritk_spatial::Direction`.
+- [x] LOCK-408-01 [patch]: **RITK lockfile matches the current local Coeus provider** —
+  verification refreshed Coeus path-package lock entries from `0.2.8` to `0.2.10`.
+
+### Verification gate (Sprint 408)
+- [x] Leto provider: `cargo clippy -p leto --all-targets -- -D warnings` -> passed
+- [x] Leto provider: `cargo nextest run -p leto fixed` -> **6/6 passed**
+- [x] Leto provider: `cargo fmt --check -p leto` -> passed after formatter application
+- [x] Leto provider: `cargo test --doc -p leto` -> passed (0 doctests)
+- [x] Leto provider: `cargo doc -p leto --no-deps` -> passed
+- [x] RITK: `cargo check -p ritk-spatial -p ritk-core -p ritk-metaimage -p ritk-nrrd -p ritk-nifti -p ritk-mgh --all-targets` -> passed
+- [x] RITK: `cargo clippy -p ritk-spatial -p ritk-core -p ritk-metaimage -p ritk-nrrd -p ritk-nifti -p ritk-mgh --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-spatial -p ritk-core -p ritk-metaimage -p ritk-nrrd -p ritk-nifti -p ritk-mgh` -> **147/147 passed**
+- [x] RITK: `cargo fmt --check -p ritk-spatial -p ritk-core -p ritk-metaimage -p ritk-nrrd -p ritk-nifti -p ritk-mgh` -> passed
+- [x] RITK: `cargo test --doc -p ritk-spatial -p ritk-core -p ritk-metaimage -p ritk-nrrd -p ritk-nifti -p ritk-mgh` -> passed (0 run, 3 ignored)
+- [x] RITK: `cargo doc -p ritk-spatial -p ritk-core -p ritk-metaimage -p ritk-nrrd -p ritk-nifti -p ritk-mgh --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-387-02 [arch]: Continue DICOM IO geometry, MINC, PNG/SNAP/filter
+  spatial call-site cleanup in a separate slice after this spatial SSOT merge.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus migration as a separate tensor-boundary
+  redesign; Burn remains a public backend/tensor contract across image, filter,
+  registration, model, IO, and Python crates.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary audit; current remaining direct
+  use includes NIfTI/file-format conversion and Python/numpy boundary code.
+
+---
+
 ## Sprint 407 — Leto Classical Registration Slice
 **Target version**: 0.12.82
 **Sprint phase**: Closure — classical registration nalgebra island migrated to Leto fixed math and Leto-ops SVD

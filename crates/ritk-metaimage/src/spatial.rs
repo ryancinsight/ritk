@@ -11,8 +11,7 @@
 //! A_internal[:, col]   = A_metaimage[:, x]
 //! ```
 
-use nalgebra::{SMatrix, Vector3};
-use ritk_spatial::{Direction, Spacing};
+use ritk_spatial::{Direction, Spacing, Vector};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct InternalSpatialMetadata {
@@ -78,7 +77,7 @@ pub(crate) fn file_spatial_fields_from_internal(
 }
 
 fn metadata_from_internal_scaled_columns(
-    scaled_columns: [Vector3<f64>; 3],
+    scaled_columns: [Vector<3>; 3],
 ) -> InternalSpatialMetadata {
     let spacing = Spacing::new([
         scaled_columns[0].norm(),
@@ -87,26 +86,14 @@ fn metadata_from_internal_scaled_columns(
     ]);
 
     let direction_columns = [
-        normalized_or_axis(
-            scaled_columns[0],
-            spacing[0],
-            Vector3::z_axis().into_inner(),
-        ),
-        normalized_or_axis(
-            scaled_columns[1],
-            spacing[1],
-            Vector3::y_axis().into_inner(),
-        ),
-        normalized_or_axis(
-            scaled_columns[2],
-            spacing[2],
-            Vector3::x_axis().into_inner(),
-        ),
+        normalized_or_axis(scaled_columns[0], spacing[0], Vector::z_axis()),
+        normalized_or_axis(scaled_columns[1], spacing[1], Vector::y_axis()),
+        normalized_or_axis(scaled_columns[2], spacing[2], Vector::x_axis()),
     ];
 
     InternalSpatialMetadata {
         spacing,
-        direction: Direction(SMatrix::<f64, 3, 3>::from_columns(&direction_columns)),
+        direction: Direction::from_columns(direction_columns),
     }
 }
 
@@ -122,12 +109,12 @@ fn scaled_file_direction_column(
     transform_matrix_row_major: [f64; 9],
     file_spacing: [f64; 3],
     axis: usize,
-) -> Vector3<f64> {
-    Vector3::new(
+) -> Vector<3> {
+    Vector::new([
         transform_matrix_row_major[3 * axis] * file_spacing[axis],
         transform_matrix_row_major[3 * axis + 1] * file_spacing[axis],
         transform_matrix_row_major[3 * axis + 2] * file_spacing[axis],
-    )
+    ])
 }
 
 fn direction_column(direction_row_major: [f64; 9], column: usize) -> [f64; 3] {
@@ -138,7 +125,7 @@ fn direction_column(direction_row_major: [f64; 9], column: usize) -> [f64; 3] {
     ]
 }
 
-fn normalized_or_axis(vector: Vector3<f64>, norm: f64, fallback: Vector3<f64>) -> Vector3<f64> {
+fn normalized_or_axis(vector: Vector<3>, norm: f64, fallback: Vector<3>) -> Vector<3> {
     if norm > 1e-9 {
         vector / norm
     } else {
@@ -170,9 +157,8 @@ mod tests {
         assert_close(metadata.spacing[1], 3.0);
         assert_close(metadata.spacing[2], 4.0);
 
-        let expected =
-            SMatrix::<f64, 3, 3>::from_row_slice(&[0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
-        assert_eq!(metadata.direction.0, expected);
+        let expected = Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
+        assert_eq!(metadata.direction, expected);
     }
 
     #[test]

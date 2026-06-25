@@ -3,8 +3,8 @@
 //! `Spacing<D>` is a `#[repr(transparent)]` newtype over `Vector<D>` that
 //! enforces domain separation: spacing values represent positive physical
 //! distances (mm, µm, etc.), not general displacements. The zero-cost
-//! wrapper preserves `Vector`'s `Copy`, `PartialEq`, arithmetic, and
-//! `nalgebra` access through `Deref<Target = Vector<D>>`.
+//! wrapper preserves `Vector`'s `Copy`, `PartialEq`, arithmetic, and component
+//! access through `Deref<Target = Vector<D>>`.
 //!
 //! # Invariant
 //!

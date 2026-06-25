@@ -2,7 +2,6 @@ use crate::{read_metaimage, write_metaimage};
 use anyhow::Result;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use nalgebra::SMatrix;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -120,8 +119,7 @@ fn test_file_identity_direction_reordered_to_internal_axes() -> Result<()> {
     let image = read_metaimage::<TestBackend, _>(&path, &device)?;
 
     let d = image.direction().0;
-    let expected =
-        SMatrix::<f64, 3, 3>::from_row_slice(&[0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
+    let expected = Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
     for row in 0..3usize {
         for col in 0..3usize {
             assert!(
@@ -155,7 +153,7 @@ fn test_round_trip_mha() -> Result<()> {
     );
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([0.9, 0.8, 1.5]);
-    let direction = Direction(SMatrix::identity());
+    let direction = Direction::identity();
     let image = Image::new(tensor, origin, spacing, direction);
 
     write_metaimage(&path, &image)?;

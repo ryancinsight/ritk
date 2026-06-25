@@ -1,7 +1,6 @@
 use anyhow::Result;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use nalgebra::SMatrix;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -19,9 +18,7 @@ fn bytes_contain(haystack: &[u8], needle: &str) -> bool {
 }
 
 fn axial_direction() -> Direction<3> {
-    Direction(SMatrix::<f64, 3, 3>::from_row_slice(&[
-        0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
-    ]))
+    Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0])
 }
 
 fn nrrd_payload(bytes: &[u8]) -> &[u8] {
@@ -58,7 +55,7 @@ fn test_mandatory_header_fields_present() -> Result<()> {
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_nrrd(&path, &image)?;
@@ -99,7 +96,7 @@ fn test_sizes_written_in_xyz_order() -> Result<()> {
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_nrrd(&path, &image)?;
@@ -164,7 +161,7 @@ fn test_space_origin_written_correctly() -> Result<()> {
         tensor,
         Point::new([10.5, 20.25, 30.125]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_nrrd(&path, &image)?;
@@ -207,7 +204,7 @@ fn test_payload_size_correct() -> Result<()> {
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_nrrd(&path, &image)?;
@@ -280,7 +277,7 @@ fn test_writer_struct_creates_file() -> Result<()> {
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     let writer = NrrdWriter;
@@ -310,25 +307,25 @@ fn test_rotated_direction_in_space_directions() -> Result<()> {
 
     let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
 
-    let mut mat = SMatrix::<f64, 3, 3>::zeros();
+    let mut direction = Direction::zeros();
     // Column 0 = internal depth axis = physical Z.
-    mat[(0, 0)] = 0.0;
-    mat[(1, 0)] = 0.0;
-    mat[(2, 0)] = 1.0;
+    direction[(0, 0)] = 0.0;
+    direction[(1, 0)] = 0.0;
+    direction[(2, 0)] = 1.0;
     // Column 1 = internal row axis = physical -X.
-    mat[(0, 1)] = -1.0;
-    mat[(1, 1)] = 0.0;
-    mat[(2, 1)] = 0.0;
+    direction[(0, 1)] = -1.0;
+    direction[(1, 1)] = 0.0;
+    direction[(2, 1)] = 0.0;
     // Column 2 = internal column axis = physical Y.
-    mat[(0, 2)] = 0.0;
-    mat[(1, 2)] = 1.0;
-    mat[(2, 2)] = 0.0;
+    direction[(0, 2)] = 0.0;
+    direction[(1, 2)] = 1.0;
+    direction[(2, 2)] = 0.0;
 
     let image = Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([2.0, 3.0, 4.0]),
-        Direction(mat),
+        direction,
     );
 
     write_nrrd(&path, &image)?;
@@ -369,7 +366,7 @@ fn test_round_trip_nrrd() -> Result<()> {
     );
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([0.9, 0.75, 1.5]);
-    let direction = Direction(SMatrix::identity());
+    let direction = Direction::identity();
     let image = Image::new(tensor, origin, spacing, direction);
 
     write_nrrd(&path, &image)?;

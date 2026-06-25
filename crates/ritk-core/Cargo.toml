@@ -20,6 +20,4 @@ mnemosyne = { workspace = true, optional = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }
-nalgebra = { workspace = true }
 proptest = { workspace = true }
-

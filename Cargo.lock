@@ -1481,7 +1481,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-autograd"
-version = "0.2.8"
+version = "0.2.10"
 dependencies = [
  "coeus-core",
  "coeus-ops",
@@ -1494,7 +1494,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-core"
-version = "0.2.8"
+version = "0.2.10"
 dependencies = [
  "bytemuck",
  "half",
@@ -1509,7 +1509,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-leto"
-version = "0.2.8"
+version = "0.2.10"
 dependencies = [
  "coeus-core",
  "leto",
@@ -1518,7 +1518,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-ops"
-version = "0.2.8"
+version = "0.2.10"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -1535,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-sparse"
-version = "0.2.8"
+version = "0.2.10"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -1545,7 +1545,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-tensor"
-version = "0.2.8"
+version = "0.2.10"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -6861,7 +6861,6 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "mnemosyne",
- "nalgebra",
  "proptest",
  "ritk-annotation",
  "ritk-image",
@@ -7024,7 +7023,6 @@ dependencies = [
  "burn-ndarray",
  "bytemuck",
  "flate2",
- "nalgebra",
  "ritk-codecs",
  "ritk-core",
  "ritk-image",
@@ -7040,7 +7038,6 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "flate2",
- "nalgebra",
  "ritk-core",
  "ritk-image",
  "ritk-spatial",
@@ -7098,7 +7095,6 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
- "nalgebra",
  "ndarray 0.16.1",
  "nifti",
  "ritk-core",
@@ -7117,7 +7113,6 @@ dependencies = [
  "burn-ndarray",
  "bytemuck",
  "flate2",
- "nalgebra",
  "ritk-codecs",
  "ritk-core",
  "ritk-image",
@@ -7254,7 +7249,7 @@ name = "ritk-spatial"
 version = "0.1.0"
 dependencies = [
  "burn",
- "nalgebra",
+ "leto",
  "serde",
 ]
 

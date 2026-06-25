@@ -6,12 +6,16 @@ use crate::vector::Vector;
 use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
 use burn::record::{PrecisionSettings, Record};
 use burn::tensor::backend::{AutodiffBackend, Backend};
-use nalgebra::SMatrix;
-use serde::{Deserialize, Serialize};
+use leto::FixedMatrix;
+use serde::ser::SerializeSeq;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Tolerance for checking whether a matrix row/column is orthogonal.
 /// Derived from f64 machine epsilon (~2.2e-16) with a 10-order practical margin.
 const ORTHOGONALITY_TOLERANCE: f64 = 1e-6;
+
+/// Threshold below which a pivot value is treated as singular in direction normalization.
+const PIVOT_SINGULARITY_THRESHOLD: f64 = 1e-10;
 
 /// Direction matrix representing image orientation.
 ///
@@ -19,10 +23,50 @@ const ORTHOGONALITY_TOLERANCE: f64 = 1e-6;
 /// direction of the corresponding image axis in physical space.
 /// Column i represents the direction of the i-th image axis.
 ///
-/// This is a thin wrapper around nalgebra's SMatrix to provide
-/// domain-specific functionality while maintaining all nalgebra operations.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct Direction<const D: usize>(pub SMatrix<f64, D, D>);
+/// This is a stack-backed wrapper around Leto's fixed matrix primitive.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Direction<const D: usize>(pub FixedMatrix<f64, D, D>);
+
+impl<const D: usize> Serialize for Direction<D> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut rows = serializer.serialize_seq(Some(D))?;
+        for row in 0..D {
+            let mut values = Vec::with_capacity(D);
+            for column in 0..D {
+                values.push(self[(row, column)]);
+            }
+            rows.serialize_element(&values)?;
+        }
+        rows.end()
+    }
+}
+
+impl<'de, const D: usize> Deserialize<'de> for Direction<D> {
+    fn deserialize<De: Deserializer<'de>>(deserializer: De) -> Result<Self, De::Error> {
+        let rows = Vec::<Vec<f64>>::deserialize(deserializer)?;
+        if rows.len() != D {
+            return Err(serde::de::Error::invalid_length(
+                rows.len(),
+                &"row count matching the direction dimension",
+            ));
+        }
+
+        let mut matrix = FixedMatrix::zeros();
+        for (row_index, row) in rows.iter().enumerate() {
+            if row.len() != D {
+                return Err(serde::de::Error::invalid_length(
+                    row.len(),
+                    &"column count matching the direction dimension",
+                ));
+            }
+            for (column_index, value) in row.iter().copied().enumerate() {
+                matrix[(row_index, column_index)] = value;
+            }
+        }
+
+        Ok(Self(matrix))
+    }
+}
 
 impl<B: Backend, const D: usize> Record<B> for Direction<D> {
     type Item<S: PrecisionSettings> = Direction<D>;
@@ -87,12 +131,27 @@ impl<const D: usize> ModuleDisplay for Direction<D> {}
 impl<const D: usize> Direction<D> {
     /// Create an identity direction matrix (no rotation).
     pub fn identity() -> Self {
-        Self(SMatrix::identity())
+        Self(FixedMatrix::identity())
     }
 
     /// Create a zero matrix.
     pub fn zeros() -> Self {
-        Self(SMatrix::zeros())
+        Self(FixedMatrix::zeros())
+    }
+
+    /// Create a direction matrix from row-major rows.
+    pub const fn from_rows(rows: [[f64; D]; D]) -> Self {
+        Self(FixedMatrix::from_rows(rows))
+    }
+
+    /// Create a direction matrix from axis direction columns.
+    pub fn from_columns(columns: [Vector<D>; D]) -> Self {
+        Self(FixedMatrix::from_columns(columns.map(|column| column.0)))
+    }
+
+    /// Iterate over entries in row-major order.
+    pub fn iter(&self) -> impl Iterator<Item = &f64> {
+        self.0.iter()
     }
 
     /// Check if direction matrix is orthogonal (rotation matrix).
@@ -130,20 +189,16 @@ impl<const D: usize> Direction<D> {
                 a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
             }
             _ => {
-                // General implementation using Gaussian elimination
-                let mut m = self.0;
+                let mut m = self.0.into_rows();
                 let mut det = 1.0;
 
                 for i in 0..D {
                     // Find pivot
                     let mut pivot_idx = i;
-                    let mut pivot_val = m[(i, i)].abs();
+                    let mut pivot_val = m[i][i].abs();
 
-                    /// Threshold below which a pivot value is treated as singular in direction normalization.
-                    const PIVOT_SINGULARITY_THRESHOLD: f64 = 1e-10;
-
-                    for k in (i + 1)..D {
-                        let val = m[(k, i)].abs();
+                    for (k, row) in m.iter().enumerate().take(D).skip(i + 1) {
+                        let val = row[i].abs();
                         if val > pivot_val {
                             pivot_val = val;
                             pivot_idx = k;
@@ -155,16 +210,18 @@ impl<const D: usize> Direction<D> {
                     }
 
                     if pivot_idx != i {
-                        m.swap_rows(i, pivot_idx);
+                        m.swap(i, pivot_idx);
                         det = -det;
                     }
 
-                    det *= m[(i, i)];
+                    det *= m[i][i];
 
-                    for j in (i + 1)..D {
-                        let factor = m[(j, i)] / m[(i, i)];
-                        for k in i..D {
-                            m[(j, k)] -= factor * m[(i, k)];
+                    let pivot_row = m[i];
+                    let pivot = m[i][i];
+                    for row in m.iter_mut().take(D).skip(i + 1) {
+                        let factor = row[i] / pivot;
+                        for (k, value) in row.iter_mut().enumerate().take(D).skip(i) {
+                            *value -= factor * pivot_row[k];
                         }
                     }
                 }
@@ -176,7 +233,48 @@ impl<const D: usize> Direction<D> {
 
     /// Try to compute the inverse of the direction matrix.
     pub fn try_inverse(&self) -> Option<Self> {
-        self.0.try_inverse().map(Self)
+        let mut matrix = self.0.into_rows();
+        let mut inverse = FixedMatrix::<f64, D, D>::identity().into_rows();
+
+        for column in 0..D {
+            let mut pivot_row = column;
+            let mut pivot_value = matrix[column][column].abs();
+            for (row, values) in matrix.iter().enumerate().take(D).skip(column + 1) {
+                let value = values[column].abs();
+                if value > pivot_value {
+                    pivot_value = value;
+                    pivot_row = row;
+                }
+            }
+
+            if pivot_value < PIVOT_SINGULARITY_THRESHOLD {
+                return None;
+            }
+
+            if pivot_row != column {
+                matrix.swap(column, pivot_row);
+                inverse.swap(column, pivot_row);
+            }
+
+            let pivot = matrix[column][column];
+            for col in 0..D {
+                matrix[column][col] /= pivot;
+                inverse[column][col] /= pivot;
+            }
+
+            for row in 0..D {
+                if row == column {
+                    continue;
+                }
+                let factor = matrix[row][column];
+                for col in 0..D {
+                    matrix[row][col] -= factor * matrix[column][col];
+                    inverse[row][col] -= factor * inverse[column][col];
+                }
+            }
+        }
+
+        Some(Self(FixedMatrix::from_rows(inverse)))
     }
 
     /// Get the axis directions as a fixed-size array (zero-allocation).
@@ -190,13 +288,13 @@ impl<const D: usize> Direction<D> {
         })
     }
 
-    /// Get the inner nalgebra matrix.
-    pub fn inner(&self) -> &SMatrix<f64, D, D> {
+    /// Get the inner fixed matrix.
+    pub fn inner(&self) -> &FixedMatrix<f64, D, D> {
         &self.0
     }
 
-    /// Get mutable reference to inner nalgebra matrix.
-    pub fn inner_mut(&mut self) -> &mut SMatrix<f64, D, D> {
+    /// Get mutable reference to inner fixed matrix.
+    pub fn inner_mut(&mut self) -> &mut FixedMatrix<f64, D, D> {
         &mut self.0
     }
 }
@@ -228,6 +326,28 @@ impl<const D: usize> std::ops::Mul<Vector<D>> for Direction<D> {
 
     fn mul(self, vector: Vector<D>) -> Self::Output {
         Vector(self.0 * vector.0)
+    }
+}
+
+impl Direction<3> {
+    /// Create a 3D direction matrix from row-major entries.
+    pub const fn from_row_major(entries: [f64; 9]) -> Self {
+        Self(FixedMatrix::from_row_major(entries))
+    }
+
+    /// Create a 3D direction matrix from column-major entries.
+    pub const fn from_column_major(entries: [f64; 9]) -> Self {
+        Self(FixedMatrix::from_column_major(entries))
+    }
+
+    /// Return the 3D direction matrix in row-major order.
+    pub fn to_row_major(self) -> [f64; 9] {
+        self.0.into_row_major()
+    }
+
+    /// Return the 3D direction matrix in column-major order.
+    pub fn to_column_major(self) -> [f64; 9] {
+        self.0.into_column_major()
     }
 }
 
@@ -284,5 +404,34 @@ mod tests {
         assert_eq!(axes[0], Vector3::new([1.0, 0.0, 0.0]));
         assert_eq!(axes[1], Vector3::new([0.0, 1.0, 0.0]));
         assert_eq!(axes[2], Vector3::new([0.0, 0.0, 1.0]));
+    }
+
+    #[test]
+    fn test_direction_inverse_multiplies_to_identity() {
+        let direction = Direction3::from_rows([[2.0, 1.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 1.0]]);
+
+        let inverse = direction
+            .try_inverse()
+            .expect("invariant: matrix is nonsingular");
+        let product = direction * inverse;
+
+        for row in 0..3 {
+            for col in 0..3 {
+                let expected = if row == col { 1.0 } else { 0.0 };
+                assert!((product[(row, col)] - expected).abs() < 1e-12);
+            }
+        }
+    }
+
+    #[test]
+    fn test_direction_storage_order_conversions() {
+        let row_major = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+        let column_major = [1.0, 4.0, 7.0, 2.0, 5.0, 8.0, 3.0, 6.0, 9.0];
+
+        let direction = Direction3::from_row_major(row_major);
+
+        assert_eq!(direction.to_row_major(), row_major);
+        assert_eq!(direction.to_column_major(), column_major);
+        assert_eq!(Direction3::from_column_major(column_major), direction);
     }
 }

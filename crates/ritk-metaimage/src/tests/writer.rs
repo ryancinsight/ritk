@@ -2,7 +2,6 @@ use crate::{write_metaimage, MetaImageWriter};
 use anyhow::Result;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use nalgebra::SMatrix;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -44,7 +43,7 @@ fn test_header_fields_present() -> Result<()> {
     );
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
-    let direction = Direction(SMatrix::identity());
+    let direction = Direction::identity();
     let image = Image::new(tensor, origin, spacing, direction);
 
     write_metaimage(&path, &image)?;
@@ -90,7 +89,7 @@ fn test_dimsize_written_in_xyz_order() -> Result<()> {
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_metaimage(&path, &image)?;
@@ -116,7 +115,7 @@ fn test_spatial_metadata_in_header() -> Result<()> {
         tensor,
         Point::new([10.5, 20.25, 30.125]),
         Spacing::new([0.9, 0.75, 1.5]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_metaimage(&path, &image)?;
@@ -149,7 +148,7 @@ fn test_internal_identity_direction_written_as_file_axis_reorder() -> Result<()>
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_metaimage(&path, &image)?;
@@ -184,7 +183,7 @@ fn test_payload_size_correct() -> Result<()> {
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_metaimage(&path, &image)?;
@@ -228,7 +227,7 @@ fn test_payload_values_written_without_permutation() -> Result<()> {
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     write_metaimage(&path, &image)?;
@@ -251,7 +250,7 @@ fn test_writer_struct_creates_file() -> Result<()> {
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(SMatrix::identity()),
+        Direction::identity(),
     );
 
     let writer = MetaImageWriter;
@@ -275,22 +274,22 @@ fn test_non_identity_direction_reordered_in_header() -> Result<()> {
 
     let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
     // 90-degree rotation around Z: X→Y, Y→−X, Z→Z
-    let mut mat = SMatrix::<f64, 3, 3>::zeros();
-    mat[(0, 0)] = 0.0;
-    mat[(0, 1)] = -1.0;
-    mat[(0, 2)] = 0.0;
-    mat[(1, 0)] = 1.0;
-    mat[(1, 1)] = 0.0;
-    mat[(1, 2)] = 0.0;
-    mat[(2, 0)] = 0.0;
-    mat[(2, 1)] = 0.0;
-    mat[(2, 2)] = 1.0;
+    let mut direction = Direction::zeros();
+    direction[(0, 0)] = 0.0;
+    direction[(0, 1)] = -1.0;
+    direction[(0, 2)] = 0.0;
+    direction[(1, 0)] = 1.0;
+    direction[(1, 1)] = 0.0;
+    direction[(1, 2)] = 0.0;
+    direction[(2, 0)] = 0.0;
+    direction[(2, 1)] = 0.0;
+    direction[(2, 2)] = 1.0;
 
     let image = Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction(mat),
+        direction,
     );
 
     write_metaimage(&path, &image)?;
@@ -312,10 +311,10 @@ fn test_non_identity_direction_reordered_in_header() -> Result<()> {
     for i in 0..3 {
         for j in 0..3 {
             assert!(
-                (got[(i, j)] - mat[(i, j)]).abs() < 1e-9,
+                (got[(i, j)] - direction[(i, j)]).abs() < 1e-9,
                 "direction round-trip mismatch at ({i},{j}): got {} want {}",
                 got[(i, j)],
-                mat[(i, j)]
+                direction[(i, j)]
             );
         }
     }

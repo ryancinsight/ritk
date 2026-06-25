@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 burn = { workspace = true }
-nalgebra = { workspace = true }
+leto = { workspace = true }
 serde = { workspace = true }
