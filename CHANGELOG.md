@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 416: GrowCut safe Moirai assignment
+
+### Changed
+- `ritk-segmentation`: GrowCut now updates `next_strengths` and `next_labels`
+  through Moirai paired mutable chunk dispatch instead of a raw-pointer side-write
+  wrapper.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-segmentation`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-segmentation` -> 435/435 passed on the refreshed
+  local Coeus `0.2.17` provider graph.
+
+---
+
 ## [Unreleased] — Sprint 415: SLIC safe Moirai assignment
 
 ### Changed

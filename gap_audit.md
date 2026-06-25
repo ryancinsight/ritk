@@ -1,5 +1,30 @@
 # RITK Gap Audit - Active
 
+## Sprint 416 Audit (2026-06-25) — GrowCut Safe Moirai Assignment
+
+### Gaps Closed
+
+- **[MIG-416-01 CLOSED]** GrowCut raw-pointer side write:
+  audit found `ritk-segmentation::region_growing::growcut` updating
+  `next_labels` through a local `SendPtr` wrapper while Moirai parallelized over
+  `next_strengths`. The loop now uses Moirai paired mutable chunks, making each
+  task own disjoint strength and label windows without RITK-local unsafe code.
+  Evidence tier: compile/lint/docs plus value-semantic segmentation tests
+  (`cargo nextest run -p ritk-segmentation` -> 435 passed).
+- **[PROVIDER-GRAPH CLOSED]** Coeus path lock drift:
+  Cargo refreshed the RITK lockfile from local Coeus `0.2.15` entries to
+  `0.2.17`, matching the current local provider graph exercised by the focused
+  segmentation gates.
+
+### Residual Risk
+
+- This does not remove similar raw-pointer side-write patterns in level-set
+  kernels; those remain separate focused slices.
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
+- This is not an `ndarray` boundary removal.
+
+---
+
 ## Sprint 415 Audit (2026-06-25) — SLIC Safe Moirai Assignment
 
 ### Gaps Closed
@@ -18,8 +43,8 @@
 
 ### Residual Risk
 
-- This does not remove similar raw-pointer side-write patterns in level-set and
-  GrowCut kernels; those remain separate focused slices.
+- This does not remove similar raw-pointer side-write patterns in level-set
+  kernels; those remain separate focused slices.
 - This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
 - This is not an `ndarray` boundary removal.
 
