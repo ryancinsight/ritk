@@ -7258,7 +7258,6 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "moirai",
- "nalgebra",
  "ritk-image",
  "ritk-spatial",
  "ritk-tensor-ops",

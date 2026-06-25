@@ -6,6 +6,14 @@
 
 ## Open performance items
 
+- **MIG-412-01 [patch] — Statistics Atlas dependency cleanup. DONE.**
+  Remove `ritk-statistics`' stale direct `nalgebra` dependency and correct Jacobian
+  comments that still described Rayon even though the implementation already uses
+  Moirai adaptive execution helpers. This is a dependency-surface and documentation
+  cleanup only; it does not claim Burn/Coeus tensor migration or ndarray removal.
+  Evidence tier: compile/lint/docs plus value-semantic tests
+  (`cargo nextest run -p ritk-statistics` -> 287/287 passed).
+
 - **FMT-406-01 [patch] — Restore full-repo rustfmt gate. DONE.**
   Sprint 406 applies the committed rustfmt style to the formatting drift that blocked
   `cargo fmt --check` after Sprint 405. This is mechanical hygiene only; no behavior,

@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 412: Statistics Atlas dependency cleanup
+
+### Changed
+- `ritk-statistics`: Removed the crate's stale direct `nalgebra` dependency.
+- `ritk-statistics`: Updated Jacobian determinant comments to describe the
+  existing Moirai adaptive execution path instead of Rayon.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-statistics`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-statistics` -> 287/287 passed.
+
+---
+
 ## [Unreleased] — Sprint 411: SNAP spatial dependency cleanup
 
 ### Changed

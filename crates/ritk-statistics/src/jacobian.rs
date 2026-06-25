@@ -36,7 +36,7 @@
 //!
 //! ## Parallelism
 //!
-//! The outer Z loop is parallelised with \[`rayon`\]; each Z-slice is independent.
+//! The outer Z loop is parallelised with `moirai::Adaptive`; each Z-slice is independent.
 
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
@@ -314,9 +314,9 @@ pub fn analyze_jacobian<B: Backend>(jac: &Image<B, 3>) -> Result<JacobianStats> 
         return Err(anyhow!("analyze_jacobian: image contains no voxels"));
     }
 
-    // Parallel reduction using rayon: each thread maintains a local accumulator
-    // and the results are combined with `.reduce()`. This scales linearly with
-    // available CPU cores for large volumes.
+    // Parallel reduction through Moirai: each worker maintains a local accumulator
+    // and the results are combined through the policy reduction. This scales with
+    // the selected execution policy without coupling statistics to Rayon.
     let (min, max, sum, num_folded, num_compressed, num_expanded) =
         moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
             vals.len(),

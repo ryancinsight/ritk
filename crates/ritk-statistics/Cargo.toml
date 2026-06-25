@@ -10,7 +10,6 @@ ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 ritk-spatial = { path = "../ritk-spatial" }
 moirai = { workspace = true }
-nalgebra = { workspace = true }
 anyhow = { workspace = true }
 
 

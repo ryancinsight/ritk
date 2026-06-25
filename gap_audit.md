@@ -1,5 +1,26 @@
 # RITK Gap Audit - Active
 
+## Sprint 412 Audit (2026-06-25) — Statistics Atlas Dependency Cleanup
+
+### Gaps Closed
+
+- **[MIG-412-01 CLOSED]** `ritk-statistics` manifest and Jacobian docs:
+  source audit found no live `nalgebra` imports in `ritk-statistics`; the direct
+  manifest dependency was stale. Jacobian documentation now names the existing
+  `moirai::Adaptive` parallel execution path instead of Rayon. Evidence tier:
+  compile/lint/docs plus value-semantic package tests
+  (`cargo nextest run -p ritk-statistics` -> 287/287 passed).
+
+### Residual Risk
+
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
+- This is not an `ndarray` boundary removal.
+- This is not a full `nalgebra` removal from RITK. Gaia/VTK mesh paths still
+  depend on Gaia's public `Point3r`/`nalgebra::Point3` contract, and remaining
+  non-statistics packages require separate bounded migration slices.
+
+---
+
 ## Sprint 411 Audit (2026-06-25) — SNAP Spatial Dependency Cleanup
 
 ### Gaps Closed
