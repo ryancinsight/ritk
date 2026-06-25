@@ -252,10 +252,7 @@ mod tests {
             [image.spacing()[0], image.spacing()[1], image.spacing()[2]],
             [1.0, 1.0, 1.0]
         );
-        assert_eq!(
-            image.direction().0,
-            nalgebra::SMatrix::<f64, 3, 3>::identity()
-        );
+        assert_eq!(*image.direction(), ritk_spatial::Direction::<3>::identity());
 
         Ok(())
     }

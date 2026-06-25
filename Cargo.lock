@@ -7127,7 +7127,6 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "image 0.24.9",
- "nalgebra",
  "ritk-core",
  "ritk-image",
  "ritk-spatial",

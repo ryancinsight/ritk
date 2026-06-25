@@ -1,5 +1,26 @@
 # RITK Gap Audit - Active
 
+## Sprint 410 Audit (2026-06-25) — PNG Spatial Dependency Cleanup
+
+### Gaps Closed
+
+- **[MIG-387-02 CLOSED]** `ritk-png` default spatial metadata tests:
+  the crate no longer declares a direct `nalgebra` dev-dependency. Default
+  direction assertions compare against `ritk_spatial::Direction::identity()`,
+  preserving value semantics through the spatial SSOT. Evidence tier:
+  compile/lint/docs plus value-semantic tests (`cargo nextest run -p ritk-png`
+  -> 9/9 passed).
+
+### Residual Risk
+
+- This is not a full `nalgebra` removal from RITK. Remaining direct use includes
+  SNAP spatial setup and Gaia/VTK mesh paths, which currently depend on Gaia's
+  public `Point3r`/`nalgebra::Point3` contract.
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
+- This is not an `ndarray` boundary removal.
+
+---
+
 ## Sprint 409 Audit (2026-06-25) — DICOM/MINC/Filter Spatial Leto Slice
 
 ### Gaps Closed

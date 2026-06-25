@@ -41,8 +41,8 @@ fn read_png_to_image_preserves_shape_values_and_default_metadata() -> anyhow::Re
         [1.0, 1.0, 1.0]
     );
     assert_eq!(
-        image.direction().0,
-        nalgebra::SMatrix::<f64, 3, 3>::identity()
+        *image.direction(),
+        ritk_spatial::Direction::<3>::identity()
     );
 
     Ok(())

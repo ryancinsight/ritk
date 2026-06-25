@@ -1,5 +1,32 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 410 — PNG Spatial Dependency Cleanup
+**Target version**: 0.12.85
+**Sprint phase**: Closure — PNG default spatial metadata tests now use the spatial SSOT
+
+### Delivered (Sprint 410)
+- [x] MIG-387-02 [patch]: **`ritk-png` no longer depends on `nalgebra`** —
+  PNG grayscale default-metadata tests now compare against
+  `ritk_spatial::Direction::identity()` instead of `nalgebra::SMatrix`, and the
+  crate's dev-dependency plus lockfile edge were removed.
+
+### Verification gate (Sprint 410)
+- [x] RITK: `cargo check -p ritk-png --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-png` -> passed
+- [x] RITK: `cargo clippy -p ritk-png --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-png` -> **9/9 passed**
+- [x] RITK: `cargo test --doc -p ritk-png` -> passed (0 doctests)
+- [x] RITK: `cargo doc -p ritk-png --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-387-02 [arch]: Continue SNAP and mesh-only spatial cleanup. Gaia-backed
+  mesh paths still use Gaia's current `Point3r`/`nalgebra::Point3` public contract,
+  so those require either a Gaia API extension or a mesh-bounded RITK slice.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus and `ndarray` boundary migration as
+  separate contract-preserving slices.
+
+---
+
 ## Sprint 409 — DICOM/MINC/Filter Spatial Leto Slice
 **Target version**: 0.12.84
 **Sprint phase**: Closure — DICOM, MINC, and filter spatial metadata paths now use the Leto-backed spatial SSOT
