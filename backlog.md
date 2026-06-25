@@ -6,6 +6,13 @@
 
 ## Open performance items
 
+- **MIG-413-01 [patch] — BinShrink direct Moirai output writes. DONE.**
+  Replace `ritk-filter::bin_shrink`'s intermediate `(offset, value)` result staging
+  with direct disjoint output-chunk writes through Moirai. This preserves the
+  row-major bin-average contract while removing an allocation proportional to the
+  output voxel count and avoiding a scatter pass. Evidence tier: compile/lint/docs
+  plus value-semantic tests (`cargo nextest run -p ritk-filter` -> 944/944 passed).
+
 - **MIG-412-01 [patch] — Statistics Atlas dependency cleanup. DONE.**
   Remove `ritk-statistics`' stale direct `nalgebra` dependency and correct Jacobian
   comments that still described Rayon even though the implementation already uses
