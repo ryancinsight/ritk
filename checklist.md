@@ -1,5 +1,40 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 411 — SNAP Spatial Dependency Cleanup
+**Target version**: 0.12.86
+**Sprint phase**: Closure — SNAP volume spatial metadata now routes through the spatial SSOT
+
+### In-flight plan (Sprint 411)
+- [x] MIG-387-02 [patch]: Audit `ritk-snap` for direct `nalgebra` usage and confirm
+  it is limited to spatial direction construction.
+- [x] MIG-411-01 [patch]: Replace SNAP direction construction and identity fixtures
+  with `ritk_spatial::Direction` APIs.
+- [x] MIG-411-02 [patch]: Remove `ritk-snap`'s direct `nalgebra` manifest dependency.
+- [x] MIG-411-03 [patch]: Run the focused SNAP compile, format, clippy, nextest,
+  doctest, and docs gates.
+
+### Verification gate (Sprint 411)
+- [x] Provider: `cargo check -p coeus-autograd --all-targets` -> passed
+- [x] Provider: `cargo clippy -p coeus-autograd --all-targets -- -D warnings` -> passed
+- [x] Provider: `cargo nextest run -p coeus-autograd` -> **27/27 passed**
+- [x] Provider: `cargo test --doc -p coeus-autograd` -> passed (0 doctests)
+- [x] Provider: `cargo doc -p coeus-autograd --no-deps` -> passed
+- [x] RITK: `cargo check -p ritk-snap --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-snap` -> passed
+- [x] RITK: `cargo clippy -p ritk-snap --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-snap` -> **633/633 passed**
+- [x] RITK: `cargo test --doc -p ritk-snap` -> passed (2 passed, 2 ignored)
+- [x] RITK: `cargo doc -p ritk-snap --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-387-02 [arch]: Continue mesh-only spatial cleanup. Gaia-backed mesh paths
+  still use Gaia's current `Point3r`/`nalgebra::Point3` public contract, so those
+  require either a Gaia API extension or a mesh-bounded RITK slice.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus and `ndarray` boundary migration as
+  separate contract-preserving slices.
+
+---
+
 ## Sprint 410 — PNG Spatial Dependency Cleanup
 **Target version**: 0.12.85
 **Sprint phase**: Closure — PNG default spatial metadata tests now use the spatial SSOT

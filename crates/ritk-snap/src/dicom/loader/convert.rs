@@ -28,18 +28,7 @@ pub(super) fn extract_spatial_metadata(
 
     let spacing = [sp[0], sp[1], sp[2]];
     let origin = [orig.0[0], orig.0[1], orig.0[2]];
-    let dir_slice = dir.0.as_slice();
-    let direction: [f64; 9] = [
-        dir_slice[0],
-        dir_slice[1],
-        dir_slice[2],
-        dir_slice[3],
-        dir_slice[4],
-        dir_slice[5],
-        dir_slice[6],
-        dir_slice[7],
-        dir_slice[8],
-    ];
+    let direction = dir.to_row_major();
 
     (spacing, origin, direction)
 }

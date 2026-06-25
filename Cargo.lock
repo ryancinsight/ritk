@@ -7221,7 +7221,6 @@ dependencies = [
  "image 0.24.9",
  "js-sys",
  "moirai",
- "nalgebra",
  "pollster",
  "rfd",
  "ritk-annotation",

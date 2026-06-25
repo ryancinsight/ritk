@@ -1,5 +1,34 @@
 # RITK Gap Audit - Active
 
+## Sprint 411 Audit (2026-06-25) — SNAP Spatial Dependency Cleanup
+
+### Gaps Closed
+
+- **[MIG-387-02 ADVANCED]** `ritk-snap` spatial metadata setup:
+  volume filter reconstruction and NIfTI roundtrip fixtures no longer construct
+  direction matrices through `nalgebra::SMatrix`. They now use
+  `ritk_spatial::Direction::from_rows` and `Direction::identity`, preserving the
+  spatial SSOT across the SNAP application boundary. Loaded-volume extraction
+  also uses `Direction::to_row_major` instead of reaching into fixed-matrix
+  storage. Evidence tier: compile/lint/docs plus value-semantic tests
+  (`cargo nextest run -p ritk-snap` -> 633/633 passed).
+- **[COEUS-406-01 ADVANCED]** local Coeus provider gate:
+  the local `coeus-autograd` provider passed all-target compile, clippy,
+  doctests, docs, and `cargo nextest run -p coeus-autograd` -> 27/27 passed
+  after the provider branch's tracked `conv_transpose1d` autograd surface was
+  validated with exact input/weight/bias-gradient coverage.
+
+### Residual Risk
+
+- This is not a full `nalgebra` removal from RITK. Gaia/VTK mesh paths still
+  depend on Gaia's public `Point3r`/`nalgebra::Point3` contract.
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
+- This is not an `ndarray` boundary removal.
+- Coeus remains on its own `test/cuda-parity-suite` branch with unrelated
+  staged CUDA/benchmark work outside this RITK commit.
+
+---
+
 ## Sprint 410 Audit (2026-06-25) — PNG Spatial Dependency Cleanup
 
 ### Gaps Closed
