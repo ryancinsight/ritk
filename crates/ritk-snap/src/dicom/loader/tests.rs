@@ -115,7 +115,7 @@ fn test_load_volume_from_bytes_nifti_roundtrip_shape() {
         tensor,
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.8, 0.9, 1.7]),
-        Direction(nalgebra::SMatrix::identity()),
+        Direction::identity(),
     );
     ritk_io::write_nifti(&path, &image).expect("write synthetic nifti");
     let bytes = std::fs::read(&path).expect("read written nifti bytes");

@@ -30,7 +30,6 @@ eframe = { version = "0.28", default-features = true }
 egui = "0.28"
 rfd = "0.14"
 image = { workspace = true }
-nalgebra = { workspace = true }
 gaia = { workspace = true }
 walkdir = { workspace = true }
 bytemuck = { workspace = true }

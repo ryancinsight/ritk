@@ -23,6 +23,13 @@
   the 30s slow budget, including 93s, 129s, and 183s rows. Treat this as a real
   performance defect to profile; do not weaken or skip those tests.
 
+- **MIG-411-01 [patch] — SNAP spatial metadata Leto cleanup. DONE.**
+  Remove `ritk-snap`'s direct `nalgebra` dependency where the crate only needs
+  default and row-major direction construction. Route those sites through
+  `ritk_spatial::Direction` so Leto-backed spatial metadata remains the single
+  RITK-owned API. This does not claim the broader Burn/Coeus, ndarray, or mesh
+  migration complete.
+
 - **PERF-387-02 [patch] — Continue flat-buffer memory-efficiency audit. IN PROGRESS.**
   Sprint 387 flattened `VectorConfidenceConnected` covariance/inverse matrices and removed
   the B-spline legacy placeholder. Sprint 389 flattened `InverseDisplacementField` TPS

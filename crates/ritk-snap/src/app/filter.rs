@@ -33,13 +33,11 @@ impl SnapApp {
 
         let origin = Point::new(vol.origin);
         let spacing = Spacing::new(vol.spacing);
-        let mut dir_mat = nalgebra::SMatrix::<f64, 3, 3>::identity();
-        for r in 0..3 {
-            for c in 0..3 {
-                dir_mat[(r, c)] = vol.direction[r * 3 + c];
-            }
-        }
-        let direction = Direction(dir_mat);
+        let direction = Direction::from_rows([
+            [vol.direction[0], vol.direction[1], vol.direction[2]],
+            [vol.direction[3], vol.direction[4], vol.direction[5]],
+            [vol.direction[6], vol.direction[7], vol.direction[8]],
+        ]);
         let image: Image<LoadBackend, 3> = Image::new(tensor, origin, spacing, direction);
 
         // Apply the selected filter.

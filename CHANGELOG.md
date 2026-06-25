@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 411: SNAP spatial dependency cleanup
+
+### Changed
+- `ritk-snap`: Removed direct `nalgebra` use from volume spatial metadata
+  reconstruction and NIfTI roundtrip fixtures. Direction metadata now routes
+  through `ritk_spatial::Direction`.
+- `ritk-snap`: Loaded-volume metadata extraction now uses
+  `Direction::to_row_major()` instead of accessing fixed-matrix storage internals.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. Provider gate:
+  `coeus-autograd` passed all-target compile, clippy with `-D warnings`, doctests,
+  docs, and `cargo nextest run -p coeus-autograd` -> 27/27 passed. RITK gate:
+  `ritk-snap` passed all-target compile, rustfmt, clippy with `-D warnings`,
+  doctests, docs, and `cargo nextest run -p ritk-snap` -> 633/633 passed.
+
+---
+
 ## [Unreleased] — Sprint 410: PNG spatial dependency cleanup
 
 ### Changed
