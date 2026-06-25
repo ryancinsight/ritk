@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 413: BinShrink Moirai chunk write cleanup
+
+### Changed
+- `ritk-filter`: `BinShrink` now writes averaged values directly into disjoint
+  Moirai output chunks instead of collecting intermediate `(offset, value)` pairs
+  and scattering them in a second pass.
+- `ritk-filter`: Removed stale Rayon wording from `BinShrink` documentation.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-filter`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-filter` -> 944/944 passed on the refreshed
+  local Coeus `0.2.11` provider graph.
+
+---
+
 ## [Unreleased] — Sprint 412: Statistics Atlas dependency cleanup
 
 ### Changed

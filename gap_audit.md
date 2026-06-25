@@ -1,5 +1,34 @@
 # RITK Gap Audit - Active
 
+## Sprint 413 Audit (2026-06-25) — BinShrink Moirai Chunk Write Cleanup
+
+### Gaps Closed
+
+- **[MIG-413-01 CLOSED]** `ritk-filter::bin_shrink` output staging:
+  audit found a Moirai-parallel path that still collected `(offset, value)` pairs
+  into an intermediate result buffer before scattering into the output image.
+  The selected cleanup writes directly into disjoint output chunks and keeps the
+  row-major index mapping in one helper. Evidence tier: compile/lint/docs plus
+  value-semantic filter tests (`cargo nextest run -p ritk-filter` -> 944/944
+  passed).
+- **[PROVIDER-GRAPH CLOSED]** Coeus path lock drift:
+  Cargo refreshed the RITK lockfile from local Coeus `0.2.10` entries to
+  `0.2.11`, matching `D:\atlas\repos\coeus\Cargo.toml`. The focused filter
+  compile, clippy, nextest, doctest, and docs gates were re-run after this
+  refresh.
+
+### Residual Risk
+
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
+- This is not an `ndarray` boundary removal.
+- This is not a full Rayon-doc cleanup. Registration Parzen/CMA-ES comments still
+  need a separate source-verified pass so documentation does not overstate the
+  execution backend.
+- This is not a full `nalgebra` removal from RITK. Gaia/VTK mesh paths still
+  depend on Gaia's public `Point3r`/`nalgebra::Point3` contract.
+
+---
+
 ## Sprint 412 Audit (2026-06-25) — Statistics Atlas Dependency Cleanup
 
 ### Gaps Closed

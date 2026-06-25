@@ -129,9 +129,8 @@ impl BinShrinkImageFilter {
 /// `input[o*factor .. (o+1)*factor]` along that dimension, with all other
 /// indices held fixed.
 ///
-/// Uses `rayon::par_iter` over independent "slabs" (1-D slices along `dim`)
-/// for parallelism. Each slab is a contiguous or strided run of
-/// `shape[dim]` elements, and averaging within a slab is sequential.
+/// Uses Moirai over disjoint output chunks. Each output voxel is written exactly
+/// once, and averaging within a bin is sequential over `factor` input samples.
 fn shrink_along_dim<const D: usize>(
     data: &[f32],
     shape: &[usize; D],
@@ -144,60 +143,68 @@ fn shrink_along_dim<const D: usize>(
     let out_size: usize = out_shape.iter().product();
     let mut out_data = vec![0.0f32; out_size];
 
-    // Number of "slabs" — independent parallel units.
-    // Each slab is a 1-D slice along `dim` with all other indices fixed.
-    let n_slabs: usize = (0..D).filter(|&d| d != dim).map(|d| shape[d]).product();
-
-    let out_size_dim = out_shape[dim];
-
     // Compute row-major strides for input and output shapes.
     let in_strides = row_major_strides(shape);
     let out_strides = row_major_strides(&out_shape);
+    let geometry = ShrinkGeometry {
+        shape,
+        out_shape: &out_shape,
+        in_strides: &in_strides,
+        out_strides: &out_strides,
+        dim,
+        factor,
+    };
 
-    // For each slab, we need to:
-    // 1. Find the base input/output offsets (at index 0 along `dim`)
-    // 2. Walk along `dim`, accumulating and averaging
-
-    // Collect (out_offset, value) pairs in parallel, then scatter.
-    // This avoids FnMut borrow issues with rayon.
-    let results: Vec<(usize, f32)> =
-        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n_slabs, |slab_idx| {
-            // Decode slab_idx into multi-index with dim fixed at 0.
-            // We enumerate non-dim dimensions in order d₀, d₁, … (skipping `dim`).
-            let mut in_base = 0usize;
-            let mut out_base = 0usize;
-            let mut rem = slab_idx;
-            for d in 0..D {
-                if d == dim {
-                    continue;
-                }
-                let idx = rem % shape[d];
-                rem /= shape[d];
-                in_base += idx * in_strides[d];
-                out_base += idx * out_strides[d];
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut out_data,
+        1024,
+        |chunk_idx, chunk| {
+            let base_out = chunk_idx * 1024;
+            for (local_idx, out) in chunk.iter_mut().enumerate() {
+                let out_flat = base_out + local_idx;
+                *out = bin_mean_at_output(data, &geometry, out_flat);
             }
-
-            // Walk along `dim` for this slab.
-            (0..out_size_dim)
-                .map(move |o| {
-                    let mut sum = 0.0f32;
-                    for b in 0..factor {
-                        let in_offset = in_base + (o * factor + b) * in_strides[dim];
-                        sum += data[in_offset];
-                    }
-                    (out_base + o * out_strides[dim], sum / factor as f32)
-                })
-                .collect::<Vec<_>>()
-        })
-        .into_iter()
-        .flatten()
-        .collect();
-
-    for (offset, val) in results {
-        out_data[offset] = val;
-    }
+        },
+    );
 
     out_data
+}
+
+struct ShrinkGeometry<'a, const D: usize> {
+    shape: &'a [usize; D],
+    out_shape: &'a [usize; D],
+    in_strides: &'a [usize; D],
+    out_strides: &'a [usize; D],
+    dim: usize,
+    factor: usize,
+}
+
+#[inline(always)]
+fn bin_mean_at_output<const D: usize>(
+    data: &[f32],
+    geometry: &ShrinkGeometry<'_, D>,
+    out_flat: usize,
+) -> f32 {
+    let mut input_base = 0usize;
+    let mut rem = out_flat;
+    for d in 0..D {
+        let coord = rem / geometry.out_strides[d];
+        rem %= geometry.out_strides[d];
+        debug_assert!(coord < geometry.out_shape[d]);
+        let input_coord = if d == geometry.dim {
+            coord * geometry.factor
+        } else {
+            coord
+        };
+        debug_assert!(input_coord < geometry.shape[d]);
+        input_base += input_coord * geometry.in_strides[d];
+    }
+
+    let mut sum = 0.0f32;
+    for b in 0..geometry.factor {
+        sum += data[input_base + b * geometry.in_strides[geometry.dim]];
+    }
+    sum / geometry.factor as f32
 }
 
 /// Compute column-major (Fortran-order) strides for a D-dimensional shape.

@@ -1,5 +1,42 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 413 — BinShrink Moirai Chunk Write Cleanup
+**Target version**: 0.12.88
+**Sprint phase**: Closure — BinShrink output staging removal is verified
+
+### In-flight plan (Sprint 413)
+- [x] MIG-413-01 [patch]: Audit remaining Rayon wording and identify a real
+  Moirai memory-efficiency target in `ritk-filter::bin_shrink`.
+- [x] MIG-413-02 [patch]: Replace `BinShrink`'s intermediate `(offset, value)`
+  result staging with direct disjoint Moirai output-chunk writes.
+- [x] MIG-413-03 [patch]: Keep row-major stride math authoritative through a
+  single `ShrinkGeometry` helper and remove stale Rayon documentation.
+- [x] MIG-413-04 [patch]: Run the focused filter compile, format, clippy,
+  nextest, doctest, and docs gates.
+
+### Verification gate (Sprint 413)
+- [x] RITK: `cargo check -p ritk-filter --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-filter` -> passed
+- [x] RITK: `cargo clippy -p ritk-filter --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-filter` -> **944/944 passed**
+- [x] RITK: `cargo test --doc -p ritk-filter` -> passed (2 passed, 11 ignored)
+- [x] RITK: `cargo doc -p ritk-filter --no-deps` -> passed
+- [x] Provider graph: Coeus path lock refreshed from `0.2.10` to `0.2.11`,
+  matching `D:\atlas\repos\coeus\Cargo.toml`; focused filter gates above were
+  re-run after the lock refresh.
+
+### Deferred / carry-forward
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+- [ ] MIG-387-02 [arch]: Continue mesh-only spatial cleanup where Gaia-backed mesh
+  paths still expose `nalgebra::Point3` through the Gaia contract.
+- [ ] MIG-413-05 [patch]: Continue stale Rayon wording cleanup in registration
+  Parzen/CMA-ES docs after verifying each path's Moirai execution surface.
+
+---
+
 ## Sprint 412 — Statistics Atlas Dependency Cleanup
 **Target version**: 0.12.87
 **Sprint phase**: Closure — `ritk-statistics` dependency and docs cleanup is verified
