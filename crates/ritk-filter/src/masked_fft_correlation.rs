@@ -30,10 +30,10 @@
 
 use anyhow::{bail, Result};
 use burn::tensor::backend::Backend;
+use num_complex::Complex;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
-use num_complex::Complex;
 
 use crate::fft::convolution::{fft_nd, ForwardFft, InverseFft};
 
@@ -75,11 +75,7 @@ fn fwd(mut buf: Vec<Complex<f32>>, dims: [usize; 3]) -> Vec<Complex<f32>> {
 
 /// Element-wise product of two spectra, inverse-FFT'd and normalized to the real
 /// circular correlation.
-fn corr(
-    a: &[Complex<f32>],
-    b: &[Complex<f32>],
-    dims: [usize; 3],
-) -> Vec<f32> {
+fn corr(a: &[Complex<f32>], b: &[Complex<f32>], dims: [usize; 3]) -> Vec<f32> {
     let n = (dims[0] * dims[1] * dims[2]) as f32;
     let mut prod: Vec<Complex<f32>> = a.iter().zip(b).map(|(x, y)| x * y).collect();
     fft_nd::<3, InverseFft>(&mut prod, &dims);

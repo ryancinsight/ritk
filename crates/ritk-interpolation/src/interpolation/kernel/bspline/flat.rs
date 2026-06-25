@@ -113,7 +113,12 @@ pub(super) fn interpolate_point_3d_flat(
                 let wx = cubic_bspline(x - xt as f32);
                 // SAFETY: mirror() returns an index in [0, d_k); the zero-pad
                 // branch `continue`s on out-of-bounds taps, so byz + xi < len.
-                debug_assert!(byz + xi < coeff_slice.len(), "Index {} out of bounds for len {}", byz + xi, coeff_slice.len());
+                debug_assert!(
+                    byz + xi < coeff_slice.len(),
+                    "Index {} out of bounds for len {}",
+                    byz + xi,
+                    coeff_slice.len()
+                );
                 result += unsafe { *coeff_slice.get_unchecked(byz + xi) } * wx * wy * wz;
             }
         }
@@ -176,7 +181,12 @@ pub(super) fn interpolate_point_2d_flat(
             };
             let wx = cubic_bspline(x - xt as f32);
             // SAFETY: see the 3-D variant.
-            debug_assert!(by + xi < coeff_slice.len(), "Index {} out of bounds for len {}", by + xi, coeff_slice.len());
+            debug_assert!(
+                by + xi < coeff_slice.len(),
+                "Index {} out of bounds for len {}",
+                by + xi,
+                coeff_slice.len()
+            );
             result += unsafe { *coeff_slice.get_unchecked(by + xi) } * wx * wy;
         }
     }

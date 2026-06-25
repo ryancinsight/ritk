@@ -1,10 +1,10 @@
 #![cfg(feature = "coeus")]
 
-use coeus_core::MoiraiBackend;
-use coeus_tensor::Tensor as CoeusTensor;
 use burn::tensor::Tensor as BurnTensor;
 use burn::tensor::TensorData;
 use burn_ndarray::NdArray;
+use coeus_core::MoiraiBackend;
+use coeus_tensor::Tensor as CoeusTensor;
 
 type BurnB = NdArray<f32>;
 
@@ -32,8 +32,14 @@ fn differential_elementwise_add() {
 
     // Burn
     let device = Default::default();
-    let a_burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(a_vals, burn::tensor::Shape::new(shape)), &device);
-    let b_burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(b_vals, burn::tensor::Shape::new(shape)), &device);
+    let a_burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(a_vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
+    let b_burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(b_vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
     let res_burn = a_burn.add(b_burn);
     let got_burn = get_burn_data(res_burn);
 
@@ -55,8 +61,14 @@ fn differential_elementwise_sub() {
 
     // Burn
     let device = Default::default();
-    let a_burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(a_vals, burn::tensor::Shape::new(shape)), &device);
-    let b_burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(b_vals, burn::tensor::Shape::new(shape)), &device);
+    let a_burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(a_vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
+    let b_burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(b_vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
     let res_burn = a_burn.sub(b_burn);
     let got_burn = get_burn_data(res_burn);
 
@@ -78,8 +90,14 @@ fn differential_elementwise_mul() {
 
     // Burn
     let device = Default::default();
-    let a_burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(a_vals, burn::tensor::Shape::new(shape)), &device);
-    let b_burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(b_vals, burn::tensor::Shape::new(shape)), &device);
+    let a_burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(a_vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
+    let b_burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(b_vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
     let res_burn = a_burn.mul(b_burn);
     let got_burn = get_burn_data(res_burn);
 
@@ -101,8 +119,14 @@ fn differential_elementwise_div() {
 
     // Burn
     let device = Default::default();
-    let a_burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(a_vals, burn::tensor::Shape::new(shape)), &device);
-    let b_burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(b_vals, burn::tensor::Shape::new(shape)), &device);
+    let a_burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(a_vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
+    let b_burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(b_vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
     let res_burn = a_burn.div(b_burn);
     let got_burn = get_burn_data(res_burn);
 
@@ -124,7 +148,10 @@ fn differential_shape_ops() {
 
     // Burn reshape & transpose
     let device = Default::default();
-    let burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(vals, burn::tensor::Shape::new(shape)), &device);
+    let burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
     let reshaped_burn = burn.clone().reshape([3, 2]);
     assert_eq!(reshaped_burn.shape().dims, [3, 2]);
     let transposed_burn = burn.transpose();
@@ -144,7 +171,10 @@ fn differential_reductions() {
 
     // Burn sum & mean
     let device = Default::default();
-    let burn = BurnTensor::<BurnB, 2>::from_data(TensorData::new(vals, burn::tensor::Shape::new(shape)), &device);
+    let burn = BurnTensor::<BurnB, 2>::from_data(
+        TensorData::new(vals, burn::tensor::Shape::new(shape)),
+        &device,
+    );
     let sum_burn = burn.clone().sum();
     let got_sum_burn = sum_burn.into_data().into_vec::<f32>().unwrap()[0];
     let mean_burn = burn.mean();

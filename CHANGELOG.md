@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 406: Global format gate
+
+### Changed
+- Applied committed `rustfmt` formatting across the files that blocked full-repo
+  `cargo fmt --check`. This is a mechanical hygiene change with no behavior or performance
+  claim.
+- Refreshed Coeus path-package lock entries to `0.2.6` so `Cargo.lock` matches the current
+  local Atlas provider checkout and `cargo metadata --locked` succeeds.
+
+### Evidence
+- Evidence tier: formatter, dependency metadata, clippy, and nextest validation (`cargo fmt
+  --check`; `git diff --check`; `cargo metadata --locked --format-version 1`;
+  touched-package `cargo clippy --all-targets -- -D warnings`; touched-package
+  `cargo nextest run` -> 2168/2168 passed, 26 skipped). Doctests/docs are blocked by dirty
+  `D:\atlas\repos\coeus` provider compile errors in `coeus-autograd`.
+
+---
+
 ## [Unreleased] — Sprint 405: FFT padding bounds
 
 ### Fixed

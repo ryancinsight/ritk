@@ -40,9 +40,7 @@ mod wiener;
 
 pub use inverse::InverseDeconvolution;
 pub use landweber::LandweberDeconvolution;
-pub use regularization::{
-    apply_iterative_with_scratch, DeconvolutionScratch, LandweberProjection,
-};
+pub use regularization::{apply_iterative_with_scratch, DeconvolutionScratch, LandweberProjection};
 pub use rl::RichardsonLucyDeconvolution;
 pub use tikhonov::TikhonovDeconvolution;
 pub use wiener::WienerDeconvolution;

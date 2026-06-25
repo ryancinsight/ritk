@@ -37,13 +37,13 @@ pub fn build_grid_map_into(
         .collect();
 
     let total_cells: usize = n_cells_per_axis.iter().copied().product::<usize>().max(1);
-    
+
     if grid_map.len() < total_cells {
         grid_map.resize(total_cells, Vec::new());
     } else {
         grid_map.truncate(total_cells);
     }
-    
+
     for buf in grid_map.iter_mut() {
         buf.clear();
     }
@@ -230,7 +230,10 @@ fn assign_voxels_impl<const D: usize>(
         unsafe fn write(&self, offset: usize, val: T) {
             *self.0.add(offset) = val;
         }
-        unsafe fn read(&self, offset: usize) -> T where T: Copy {
+        unsafe fn read(&self, offset: usize) -> T
+        where
+            T: Copy,
+        {
             *self.0.add(offset)
         }
     }

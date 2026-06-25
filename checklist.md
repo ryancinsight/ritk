@@ -1,5 +1,45 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 406 — Global Format Gate
+**Target version**: 0.12.81
+**Sprint phase**: Closure — repo-wide rustfmt drift corrected; doc gate blocked by dirty Coeus provider
+
+### Delivered (Sprint 406)
+- [x] FMT-406-01 [patch]: **Repo-wide `cargo fmt --check` gate is restored** —
+  apply the committed `rustfmt` style to the stale formatting drift previously blocking
+  full-repo format verification across `ritk-core`, `ritk-filter`, `ritk-interpolation`,
+  `ritk-registration`, `ritk-segmentation`, and `ritk-tensor-ops`.
+- [x] LOCK-406-01 [patch]: **RITK lockfile matches the current local Coeus provider** —
+  refresh Coeus path-package lock entries from `0.2.4` to `0.2.6` so
+  `cargo metadata --locked` is consistent with `D:\atlas\repos\coeus`.
+  Evidence tier: dependency metadata verification.
+
+### Verification gate (Sprint 406)
+- [x] `cargo fmt --check` -> passed
+- [x] `git diff --check` -> passed
+- [x] `cargo metadata --locked --format-version 1` -> passed
+- [x] `cargo clippy -p ritk-core -p ritk-filter -p ritk-interpolation -p ritk-registration -p ritk-segmentation -p ritk-tensor-ops --all-targets -- -D warnings` -> passed
+- [x] `cargo nextest run -p ritk-core -p ritk-filter -p ritk-interpolation -p ritk-registration -p ritk-segmentation -p ritk-tensor-ops` -> **2168/2168 passed, 26 skipped**
+- [ ] `cargo test --doc -p ritk-core -p ritk-filter -p ritk-interpolation -p ritk-registration -p ritk-segmentation -p ritk-tensor-ops` -> blocked by dirty `D:\atlas\repos\coeus` provider compile errors in `coeus-autograd`
+- [ ] `cargo doc -p ritk-core -p ritk-filter -p ritk-interpolation -p ritk-registration -p ritk-segmentation -p ritk-tensor-ops --no-deps` -> blocked by the same `coeus-autograd` compile errors
+
+### Deferred / carry-forward
+- [ ] PERF-406-02 [patch]: Profile and reduce slow registration tests observed in Sprint 406
+  (`test_bspline_cr_registration_small` 183s, `test_multires_cr_registration` 129s,
+  `bspline_registers_offset_sphere` 93s, plus several 40s rigid/affine/versor rows).
+- [ ] PERF-392-02 [patch]: Continue flat-buffer audit with public VTK cell-list storage
+  only after an ADR/migration plan, because `VtkPolyData`/`VtkUnstructuredGrid` expose
+  nested cell vectors as public fields.
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra`/`ndarray`/`burn`
+  production surfaces with `leto`/`coeus`/`hephaestus` only where the Atlas crate has
+  an equivalent verified contract.
+- [ ] MIG-406-01 [patch]: Remove stale `rayon` wording from comments/docs where production
+  paths already use Moirai-backed helpers.
+- [ ] COEUS-406-01 [patch]: Fix dirty `coeus-autograd` provider compile errors blocking
+  RITK doctest/doc gates after the Coeus `0.2.6` lock refresh.
+
+---
+
 ## Sprint 405 — FFT Padding Bounds
 **Target version**: 0.12.81
 **Sprint phase**: Closure — checked FFT/boundary padding arithmetic delivered and focused verification passed

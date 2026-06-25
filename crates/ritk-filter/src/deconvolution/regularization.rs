@@ -16,8 +16,8 @@
 //! - `apply_iterative` — generic iterative pipeline
 
 use super::helpers::{
-    decode_coords, encode_flat, ifft_and_crop, pad_and_fft, pad_dims, pad_total,
-    place_corner, run_fft,
+    decode_coords, encode_flat, ifft_and_crop, pad_and_fft, pad_dims, pad_total, place_corner,
+    run_fft,
 };
 use crate::fft::convolution::{ForwardFft, InverseFft};
 use num_complex::Complex;
@@ -364,7 +364,12 @@ impl<const D: usize> DeconvolutionScratch<D> {
     /// Writes the result directly into `self.correction` with zero allocations.
     pub fn convolve_backward_residual(&mut self) {
         self.img_pad.fill(Complex::new(0.0, 0.0));
-        place_corner::<D>(&mut self.img_pad, &self.residual, &self.img_dims, &self.pad_dims);
+        place_corner::<D>(
+            &mut self.img_pad,
+            &self.residual,
+            &self.img_dims,
+            &self.pad_dims,
+        );
 
         run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
 
@@ -388,7 +393,12 @@ impl<const D: usize> DeconvolutionScratch<D> {
     /// Writes the result directly into `self.correction` with zero allocations.
     pub fn convolve_backward_ratio(&mut self) {
         self.img_pad.fill(Complex::new(0.0, 0.0));
-        place_corner::<D>(&mut self.img_pad, &self.ratio, &self.img_dims, &self.pad_dims);
+        place_corner::<D>(
+            &mut self.img_pad,
+            &self.ratio,
+            &self.img_dims,
+            &self.pad_dims,
+        );
 
         run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
 
@@ -435,8 +445,11 @@ pub fn apply_iterative_with_scratch<const D: usize>(
                 projection,
             } => {
                 let mut max_residual = 0.0_f32;
-                for ((r_slot, &img), &fwd) in
-                    scratch.residual.iter_mut().zip(img_vals.iter()).zip(scratch.forward.iter())
+                for ((r_slot, &img), &fwd) in scratch
+                    .residual
+                    .iter_mut()
+                    .zip(img_vals.iter())
+                    .zip(scratch.forward.iter())
                 {
                     let r = img - fwd;
                     *r_slot = r;
@@ -463,8 +476,11 @@ pub fn apply_iterative_with_scratch<const D: usize>(
             IterativeAlgorithm::RichardsonLucy => {
                 let mut max_ratio = 0.0_f32;
                 scratch.ratio.fill(1.0);
-                for ((r_slot, &img), &fwd) in
-                    scratch.ratio.iter_mut().zip(img_vals.iter()).zip(scratch.forward.iter())
+                for ((r_slot, &img), &fwd) in scratch
+                    .ratio
+                    .iter_mut()
+                    .zip(img_vals.iter())
+                    .zip(scratch.forward.iter())
                 {
                     if fwd > 1e-20 {
                         let r = img / fwd;

@@ -212,7 +212,11 @@ pub(crate) fn compute_lanczos_weights<const A: usize>(
     let len = 2 * A;
 
     let mut taps = [(0, 0.0f32); 16];
-    debug_assert!(len <= 16, "Lanczos window size A={} exceeds maximum support of 8", A);
+    debug_assert!(
+        len <= 16,
+        "Lanczos window size A={} exceeds maximum support of 8",
+        A
+    );
 
     // Sample from center - A + 1 to center + A (all positions where the kernel
     // is non-zero), edge-clamping indices that fall outside the buffer.

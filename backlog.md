@@ -6,6 +6,23 @@
 
 ## Open performance items
 
+- **FMT-406-01 [patch] — Restore full-repo rustfmt gate. DONE.**
+  Sprint 406 applies the committed rustfmt style to the formatting drift that blocked
+  `cargo fmt --check` after Sprint 405. This is mechanical hygiene only; no behavior,
+  allocation, or performance change is claimed.
+
+- **COEUS-406-01 [patch] — Fix dirty Coeus autograd provider compile break. OPEN.**
+  RITK doctest/doc gates against the current local Atlas stack are blocked after refreshing
+  Coeus path packages to `0.2.6`: `D:\atlas\repos\coeus` is dirty on
+  `test/cuda-parity-suite`, and `coeus-autograd` fails to compile in shape/reduction ops.
+  This must be fixed in Coeus before RITK can claim docs/doctests clean on the current
+  provider graph.
+
+- **PERF-406-02 [patch] — Registration test runtime budget breach. OPEN.**
+  Sprint 406's touched-package `nextest` gate passed but exposed registration tests above
+  the 30s slow budget, including 93s, 129s, and 183s rows. Treat this as a real
+  performance defect to profile; do not weaken or skip those tests.
+
 - **PERF-387-02 [patch] — Continue flat-buffer memory-efficiency audit. IN PROGRESS.**
   Sprint 387 flattened `VectorConfidenceConnected` covariance/inverse matrices and removed
   the B-spline legacy placeholder. Sprint 389 flattened `InverseDisplacementField` TPS

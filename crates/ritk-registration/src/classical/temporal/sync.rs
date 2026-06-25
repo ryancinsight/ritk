@@ -100,7 +100,9 @@ impl TemporalSync {
         if variance1 < SIGNAL_VARIANCE_GUARD && variance2 < SIGNAL_VARIANCE_GUARD {
             // Both constant: synchronization is trivially zero shift.
             // Success = 1.0 iff both are the same constant value.
-            let identical = (*signal1.get([0]).unwrap_or(&0.0) - *signal2.get([0]).unwrap_or(&0.0)).abs() < SIGNAL_VARIANCE_GUARD;
+            let identical = (*signal1.get([0]).unwrap_or(&0.0) - *signal2.get([0]).unwrap_or(&0.0))
+                .abs()
+                < SIGNAL_VARIANCE_GUARD;
             let rate = if identical { 1.0 } else { 0.0 };
             return Ok((
                 0.0,

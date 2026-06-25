@@ -17,7 +17,7 @@ fn build_cube(side: usize) -> Tensor<TestBackend, 3> {
     let data = Tensor::<TestBackend, 3>::zeros([side, side, side], &device);
     let mid = side / 2;
     let ones = Tensor::<TestBackend, 3>::ones([1, 1, 1], &device);
-    data.slice_assign([mid..mid+1, mid..mid+1, mid..mid+1], ones)
+    data.slice_assign([mid..mid + 1, mid..mid + 1, mid..mid + 1], ones)
 }
 
 fn query_near_center(side: usize) -> Tensor<TestBackend, 2> {

@@ -1,5 +1,37 @@
 # RITK Gap Audit - Active
 
+## Sprint 406 Audit (2026-06-25) — Global Format Gate
+
+### Gaps Closed
+
+- **[FMT-406-01 CLOSED]** repository format gate:
+  full-repo `cargo fmt --check` was blocked by committed formatting drift across
+  `ritk-core`, `ritk-filter`, `ritk-interpolation`, `ritk-registration`,
+  `ritk-segmentation`, and `ritk-tensor-ops`. Sprint 406 applies rustfmt mechanically so
+  later safety/performance slices can rely on the standard pre-merge gate.
+- **[LOCK-406-01 CLOSED]** Coeus path dependency lock sync:
+  RITK's lockfile now records the current local Coeus path package version `0.2.6`, restoring
+  `cargo metadata --locked` consistency with `D:\atlas\repos\coeus`.
+  Evidence tier: formatter, dependency metadata, clippy, and nextest validation (`cargo fmt
+  --check` passed; `git diff --check` passed; `cargo metadata --locked --format-version 1`
+  passed; touched-package clippy passed; touched-package `cargo nextest run` passed
+  2168/2168 with 26 skipped).
+
+### Residual Risk
+
+- This is mechanical formatting and lock consistency only. It does not close the remaining
+  Atlas migration comments/docs that still mention `rayon`, nor does it change execution
+  policy.
+- `cargo test --doc` and `cargo doc --no-deps` for the touched package set are blocked by
+  dirty `D:\atlas\repos\coeus` provider compile errors in `coeus-autograd` after the local
+  Coeus `0.2.6` lock refresh.
+- The touched-package `nextest` run passed but exposed registration tests above the 30s slow
+  budget, including `test_bspline_cr_registration_small` at 183s,
+  `test_multires_cr_registration` at 129s, and `bspline_registers_offset_sphere` at 93s.
+  These are performance defects for the next registration-focused sprint.
+
+---
+
 ## Sprint 405 Audit (2026-06-24) — FFT Padding Bounds
 
 ### Gaps Closed

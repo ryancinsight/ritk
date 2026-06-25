@@ -202,16 +202,12 @@ fn watershed_basins_gd(g: &[f32], dims: [usize; 3]) -> Vec<usize> {
             // Next step: lexicographical minimum of (g[j], dist[j]).
             // Must step down in g, or step to same g with smaller dist to exit.
             let next = neighbours(cur, dims)
-                .filter(|&j| {
-                    g[j] < gc || (g[j] == gc && dc != usize::MAX && dist[j] < dc)
-                })
+                .filter(|&j| g[j] < gc || (g[j] == gc && dc != usize::MAX && dist[j] < dc))
                 .min_by(|&a, &b| {
                     let ga = g[a];
                     let gb = g[b];
                     match ga.total_cmp(&gb) {
-                        std::cmp::Ordering::Equal => {
-                            dist[a].cmp(&dist[b])
-                        }
+                        std::cmp::Ordering::Equal => dist[a].cmp(&dist[b]),
                         ord => ord,
                     }
                 });

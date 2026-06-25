@@ -12,7 +12,10 @@ fn build_4d(side: usize) -> Tensor<TestBackend, 4> {
     let data = Tensor::<TestBackend, 4>::zeros([side, side, side, side], &device);
     let mid = side / 2;
     let ones = Tensor::<TestBackend, 4>::ones([1, 1, 1, 1], &device);
-    data.slice_assign([mid..mid+1, mid..mid+1, mid..mid+1, mid..mid+1], ones)
+    data.slice_assign(
+        [mid..mid + 1, mid..mid + 1, mid..mid + 1, mid..mid + 1],
+        ones,
+    )
 }
 
 fn query_4d(side: usize) -> Tensor<TestBackend, 2> {

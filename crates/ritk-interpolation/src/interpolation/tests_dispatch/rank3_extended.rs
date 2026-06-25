@@ -14,7 +14,10 @@ fn build_rect(dims: [usize; 3]) -> Tensor<TestBackend, 3> {
     let data = Tensor::<TestBackend, 3>::zeros(dims, &device);
     let mid = [dims[0] / 2, dims[1] / 2, dims[2] / 2];
     let ones = Tensor::<TestBackend, 3>::ones([1, 1, 1], &device);
-    data.slice_assign([mid[0]..mid[0]+1, mid[1]..mid[1]+1, mid[2]..mid[2]+1], ones)
+    data.slice_assign(
+        [mid[0]..mid[0] + 1, mid[1]..mid[1] + 1, mid[2]..mid[2] + 1],
+        ones,
+    )
 }
 
 fn query_rect_center(dims: [usize; 3]) -> Tensor<TestBackend, 2> {

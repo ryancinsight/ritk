@@ -380,7 +380,7 @@ fn smooth_structure_tensor_into(
         buf.clear();
         buf.extend(st_products.iter().map(|v| v[c]));
         buf2.resize(n, 0.0);
-        
+
         // Z-axis smoothing
         crate::diffusion::coherence::pde::gaussian_smooth_into(buf, buf2, dims, 0, kernel);
         // Y-axis smoothing
