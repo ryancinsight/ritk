@@ -152,6 +152,44 @@ pub(crate) fn compute_gradient_magnitude(data: &[f64], dims: [usize; 3]) -> Vec<
     grad
 }
 
+/// Evolve mutable z-slices and write one convergence metric per slice.
+///
+/// The field is partitioned into `slice_len`-element z-slices and paired with
+/// `metrics`, one scalar per slice. This keeps the per-slice metric write inside
+/// the same disjoint Moirai task that owns the corresponding field slice.
+pub(crate) fn evolve_slices_with_metric<F>(
+    field: &mut [f64],
+    metrics: &mut [f64],
+    slice_len: usize,
+    evolve: F,
+) where
+    F: Fn(usize, &mut [f64]) -> f64 + Send + Sync,
+{
+    if field.is_empty() || slice_len == 0 {
+        return;
+    }
+
+    debug_assert_eq!(
+        field.len().div_ceil(slice_len),
+        metrics.len(),
+        "one metric slot is required for each field slice"
+    );
+
+    let mut slices: Vec<(&mut [f64], &mut f64)> = field
+        .chunks_mut(slice_len)
+        .zip(metrics.iter_mut())
+        .collect();
+
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut slices,
+        1,
+        |slice_idx, chunk| {
+            let (field_slice, metric) = &mut chunk[0];
+            **metric = evolve(slice_idx, field_slice);
+        },
+    );
+}
+
 /// Component-wise gradient of a scalar field via central finite differences.
 ///
 /// Returns `(∂f/∂z, ∂f/∂y, ∂f/∂x)` as three freshly allocated flat vectors in

@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 417: Level-set safe Moirai metrics
+
+### Changed
+- `ritk-segmentation`: Chan-Vese, geodesic active contour, shape detection,
+  Laplacian, and threshold level-set loops now write per-slice convergence
+  metrics through a shared safe Moirai slice helper instead of local raw-pointer
+  `SendPtr` wrappers.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-segmentation`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-segmentation` -> 435/435 passed on the refreshed
+  local Coeus `0.2.19` provider graph.
+
+---
+
 ## [Unreleased] — Sprint 416: GrowCut safe Moirai assignment
 
 ### Changed

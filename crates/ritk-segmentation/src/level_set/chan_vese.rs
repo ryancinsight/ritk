@@ -73,7 +73,7 @@
 //! - Chan, T. F. & Vese, L. A. (2001). "Active Contours Without Edges."
 //!   *IEEE Transactions on Image Processing*, 10(2), 266–277.
 
-use super::helpers::{compute_curvature_into, regularised_dirac, regularised_heaviside};
+use super::helpers::{self, compute_curvature_into, regularised_dirac, regularised_heaviside};
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
@@ -216,45 +216,29 @@ impl ChanVeseSegmentation {
             // ── 3. Evolve φ ──────────────────────────────────────────────
             let slice_len = ny * nx;
 
-            struct SendPtr<T>(*mut T);
-            unsafe impl<T> Send for SendPtr<T> {}
-            unsafe impl<T> Sync for SendPtr<T> {}
-            impl<T> SendPtr<T> {
-                unsafe fn write(&self, offset: usize, val: T) {
-                    *self.0.add(offset) = val;
+            helpers::evolve_slices_with_metric(&mut phi, &mut max_dphis, slice_len, |iz, phi_s| {
+                let base = iz * slice_len;
+                let mut local_max = 0.0_f64;
+                for (i, phi_val) in phi_s.iter_mut().enumerate() {
+                    let idx = base + i;
+                    let dirac = regularised_dirac(*phi_val, eps);
+
+                    let diff1 = img_f64[idx] - c1;
+                    let diff2 = img_f64[idx] - c2;
+
+                    let force = self.mu * kappa[idx] - self.nu - self.lambda1 * diff1 * diff1
+                        + self.lambda2 * diff2 * diff2;
+
+                    let dphi = self.dt * dirac * force;
+                    *phi_val += dphi;
+
+                    let abs_dphi = dphi.abs();
+                    if abs_dphi > local_max {
+                        local_max = abs_dphi;
+                    }
                 }
-            }
-            let max_dphis_ptr = SendPtr(max_dphis.as_mut_ptr());
-
-            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-                &mut phi,
-                slice_len,
-                |iz, phi_s| {
-                    let base = iz * slice_len;
-                    let mut local_max = 0.0_f64;
-                    for (i, phi_val) in phi_s.iter_mut().enumerate() {
-                        let idx = base + i;
-                        let dirac = regularised_dirac(*phi_val, eps);
-
-                        let diff1 = img_f64[idx] - c1;
-                        let diff2 = img_f64[idx] - c2;
-
-                        let force = self.mu * kappa[idx] - self.nu - self.lambda1 * diff1 * diff1
-                            + self.lambda2 * diff2 * diff2;
-
-                        let dphi = self.dt * dirac * force;
-                        *phi_val += dphi;
-
-                        let abs_dphi = dphi.abs();
-                        if abs_dphi > local_max {
-                            local_max = abs_dphi;
-                        }
-                    }
-                    unsafe {
-                        max_dphis_ptr.write(iz, local_max);
-                    }
-                },
-            );
+                local_max
+            });
 
             let max_dphi = max_dphis.iter().copied().fold(0.0_f64, f64::max);
 

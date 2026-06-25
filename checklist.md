@@ -1,5 +1,43 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 417 — Level-set Safe Moirai Metrics
+**Target version**: 0.12.92
+**Sprint phase**: Closure — level-set unsafe metric side-write removal is verified
+
+### In-flight plan (Sprint 417)
+- [x] MIG-417-01 [patch]: Audit remaining segmentation `SendPtr` side-write
+  sites and select the five level-set convergence-metric loops as one shared
+  helper slice.
+- [x] MIG-417-02 [patch]: Add the level-set helper SSOT for safe Moirai
+  z-slice evolution plus one metric slot per slice.
+- [x] MIG-417-03 [patch]: Replace Chan-Vese, geodesic active contour, shape
+  detection, Laplacian, and threshold level-set local raw-pointer wrappers.
+- [x] MIG-417-04 [patch]: Verify focused segmentation compile, format, clippy,
+  nextest, doctest, docs, and structural audits.
+
+### Verification gate (Sprint 417)
+- [x] RITK: `cargo fmt --check -p ritk-segmentation` -> passed
+- [x] RITK: `cargo check -p ritk-segmentation --all-targets` -> passed
+- [x] RITK: `cargo clippy -p ritk-segmentation --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-segmentation` -> 435 passed
+- [x] RITK: `cargo test --doc -p ritk-segmentation` -> 0 doctests
+- [x] RITK: `cargo doc -p ritk-segmentation --no-deps` -> passed
+- [x] Structural audit: `rg "unsafe|SendPtr|ParallelSliceMut"
+  crates/ritk-segmentation/src/level_set
+  crates/ritk-segmentation/src/clustering/slic
+  crates/ritk-segmentation/src/region_growing/growcut.rs` -> no matches
+
+### Deferred / carry-forward
+- [ ] MIG-417-05 [patch]: Audit remaining `ParallelSliceMut` users in
+  watershed/STAPLE and replace with Moirai owned chunk helpers where a second
+  mutable side effect or reduction metric appears.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+
+---
+
 ## Sprint 416 — GrowCut Safe Moirai Assignment
 **Target version**: 0.12.91
 **Sprint phase**: Closure — GrowCut unsafe side-write removal is verified
@@ -23,7 +61,7 @@
   crates/ritk-segmentation/src/region_growing/growcut.rs -n` -> no matches
 
 ### Deferred / carry-forward
-- [ ] MIG-416-04 [patch]: Continue removing raw-pointer side-write patterns from
+- [x] MIG-416-04 [patch]: Continue removing raw-pointer side-write patterns from
   level-set kernels with focused value-semantic gates.
 - [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
   contract-preserving slice.

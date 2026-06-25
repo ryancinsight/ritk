@@ -140,18 +140,9 @@ impl ThresholdLevelSet {
             helpers::compute_curvature_into(&phi, dims, &mut kappa);
             helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
 
-            struct SendPtr<T>(*mut T);
-            unsafe impl<T> Send for SendPtr<T> {}
-            unsafe impl<T> Sync for SendPtr<T> {}
-            impl<T> SendPtr<T> {
-                unsafe fn write(&self, offset: usize, val: T) {
-                    *self.0.add(offset) = val;
-                }
-            }
-            let max_changes_ptr = SendPtr(max_changes.as_mut_ptr());
-
-            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+            helpers::evolve_slices_with_metric(
                 &mut phi_new,
+                &mut max_changes,
                 slice_len,
                 |iz, phi_new_s| {
                     let base = iz * slice_len;
@@ -173,9 +164,7 @@ impl ThresholdLevelSet {
                             local_max = change;
                         }
                     }
-                    unsafe {
-                        max_changes_ptr.write(iz, local_max);
-                    }
+                    local_max
                 },
             );
 
