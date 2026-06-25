@@ -1,5 +1,49 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 407 — Leto Classical Registration Slice
+**Target version**: 0.12.82
+**Sprint phase**: Closure — classical registration nalgebra island migrated to Leto fixed math and Leto-ops SVD
+
+### Delivered (Sprint 407)
+- [x] MIG-387-01 [patch]: **Classical landmark registration no longer depends on
+  `nalgebra`** — `ritk-registration` rigid/affine perturbation composition,
+  point-cloud centroids, Kabsch rotation construction, landmark translation, and FRE
+  now use Leto stack-backed `FixedMatrix`/`FixedVector` primitives. Kabsch singular
+  vectors route through `leto_ops::svd_rank_revealing`, preserving the real SVD
+  computation while removing the production `nalgebra` dependency from this crate.
+- [x] MIG-407-01 [patch]: **Degenerate identical landmark sets are deterministic** —
+  exact identical centered point sets now return the identity rotation before SVD.
+  This records the mathematically exact zero-residual solution instead of relying on
+  a non-unique rank-deficient SVD nullspace basis.
+- [x] LOCK-407-01 [patch]: **RITK lockfile matches the current local Coeus provider** —
+  verification refreshed Coeus path-package lock entries from `0.2.6` to `0.2.8`.
+  Evidence tier: dependency metadata plus compile/lint/doc/test gates.
+
+### Verification gate (Sprint 407)
+- [x] Leto provider: `cargo clippy -p leto --all-targets -- -D warnings` -> passed
+- [x] Leto provider: `cargo nextest run -p leto fixed` -> **3/3 passed**
+- [x] Leto provider: `cargo fmt --check -p leto` -> passed
+- [x] Leto provider: `cargo test --doc -p leto` -> passed (0 doctests)
+- [x] Leto provider: `cargo doc -p leto --no-deps` -> passed
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-registration -E 'test(kabsch) | test(landmark) | test(rigid_registration_landmarks) | test(classical)'` -> **45/45 passed**
+- [x] RITK: `cargo fmt --check -p ritk-registration` -> passed
+- [x] RITK: `cargo test --doc -p ritk-registration` -> passed (3 passed, 14 ignored)
+- [x] RITK: `cargo doc -p ritk-registration --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-387-01 [arch]: Continue replacing remaining `nalgebra` surfaces in
+  `ritk-spatial`, DICOM IO geometry, and medical-image spatial metadata only after
+  the spatial SSOT has a provider-backed fixed-math representation and all call sites
+  are migrated in one slice.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus migration as a separate tensor-boundary
+  redesign; Burn remains a public backend/tensor contract across image, filter,
+  registration, model, IO, and Python crates.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary audit; current remaining direct
+  use includes NIfTI/file-format conversion and Python/numpy boundary code.
+
+---
+
 ## Sprint 406 — Global Format Gate
 **Target version**: 0.12.81
 **Sprint phase**: Closure — repo-wide rustfmt drift corrected; doc gate blocked by dirty Coeus provider

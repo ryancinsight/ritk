@@ -1,5 +1,41 @@
 # RITK Gap Audit - Active
 
+## Sprint 407 Audit (2026-06-25) — Leto Classical Registration Slice
+
+### Gaps Closed
+
+- **[MIG-387-01 ADVANCED]** `ritk-registration` classical spatial math:
+  the crate no longer has a direct `nalgebra` dependency. Rigid and affine
+  perturbation composition, point-cloud centroids, landmark translation, FRE,
+  and the Kabsch covariance/rotation path now use Leto stack-backed
+  `FixedMatrix`/`FixedVector` primitives. The Kabsch SVD still performs a real
+  singular-vector decomposition through `leto_ops::svd_rank_revealing`.
+  Evidence tier: compile/lint/docs plus focused value-semantic registration tests
+  (`cargo clippy -p ritk-registration --all-targets -- -D warnings` passed;
+  focused `cargo nextest run -p ritk-registration -E 'test(kabsch) | test(landmark)
+  | test(rigid_registration_landmarks) | test(classical)'` -> 45/45 passed;
+  doctests/docs passed).
+- **[MIG-407-01 CLOSED]** Kabsch rank-deficient identity determinism:
+  the first Leto-backed SVD run failed `test_kabsch_identity` because identical
+  centered landmark sets are rank-deficient and the SVD nullspace basis is not
+  unique. The algorithm now returns the exact identity rotation for exact
+  identical centered inputs before SVD, which is the zero-residual rigid solution.
+
+### Residual Risk
+
+- This is not a full `nalgebra` removal from RITK. Remaining production/direct
+  `nalgebra` surfaces include `ritk-spatial`, DICOM IO geometry, MGH/NIfTI/NRRD/
+  MetaImage spatial metadata, and some tests. Those should move through a single
+  spatial-SSOT migration, not one-off aliases.
+- This is not a Burn/Coeus tensor replacement. Burn remains a public backend and
+  tensor contract across image, filters, registration, model, IO, and Python
+  bindings; replacing it requires a separate boundary design and consumer tests.
+- This is not an `ndarray` boundary removal. Remaining direct use includes
+  NIfTI/file-format conversion and Python/numpy interop. Those are boundary
+  dependencies until equivalent Leto/Coeus contracts preserve file and FFI behavior.
+
+---
+
 ## Sprint 406 Audit (2026-06-25) — Global Format Gate
 
 ### Gaps Closed

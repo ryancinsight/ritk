@@ -29,8 +29,8 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 ndarray = { workspace = true }
-nalgebra = { workspace = true }
 leto = { workspace = true }
+leto-ops = { workspace = true }
 moirai = { workspace = true }
 serde = { workspace = true, optional = true }
 
