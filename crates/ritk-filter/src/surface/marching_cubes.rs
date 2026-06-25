@@ -28,7 +28,6 @@
 //! Emission is streamed directly into the builder (no temporary global soup buffer),
 //! reducing peak memory to O(1) additional storage per active cube.
 
-use nalgebra::Point3;
 use ritk_spatial::Point;
 
 use super::mesh::{Mesh, MeshBuilder};
@@ -157,23 +156,27 @@ impl MarchingCubesFilter {
         let mut builder = MeshBuilder::new();
 
         // Physical position of a voxel corner (iz, iy, ix) in mm.
-        let phys = |iz: usize, iy: usize, ix: usize| -> Point3<f64> {
-            Point3::new(
+        let phys = |iz: usize, iy: usize, ix: usize| -> [f64; 3] {
+            [
                 self.origin[0] + ix as f64 * self.spacing[0],
                 self.origin[1] + iy as f64 * self.spacing[1],
                 self.origin[2] + iz as f64 * self.spacing[2],
-            )
+            ]
         };
 
         // Linear interpolation between physical positions pa and pb
         // at the isovalue crossing between scalar values va and vb.
-        let interp = |pa: Point3<f64>, va: f32, pb: Point3<f64>, vb: f32| -> Point3<f64> {
+        let interp = |pa: [f64; 3], va: f32, pb: [f64; 3], vb: f32| -> [f64; 3] {
             let dv = (vb - va) as f64;
             if dv.abs() < f64::EPSILON {
                 return pa;
             }
             let t = (iso as f64 - va as f64) / dv;
-            pa + (pb - pa) * t
+            [
+                pa[0] + (pb[0] - pa[0]) * t,
+                pa[1] + (pb[1] - pa[1]) * t,
+                pa[2] + (pb[2] - pa[2]) * t,
+            ]
         };
 
         for iz in 0..nz - 1 {
@@ -200,13 +203,13 @@ impl MarchingCubesFilter {
                     }
 
                     // Compute the 3D physical positions of the 8 corners.
-                    let mut cpos = [Point3::<f64>::origin(); 8];
+                    let mut cpos = [[0.0f64; 3]; 8];
                     for (ci, &[dz, dy, dx]) in CORNERS.iter().enumerate() {
                         cpos[ci] = phys(iz + dz, iy + dy, ix + dx);
                     }
 
                     // Compute the at most 12 edge-crossing vertex positions.
-                    let mut edge_verts = [Point3::<f64>::origin(); 12];
+                    let mut edge_verts = [[0.0f64; 3]; 12];
                     for edge in 0..12usize {
                         if edge_mask & (1 << edge) != 0 {
                             let [a, b] = EDGES[edge];
@@ -221,9 +224,9 @@ impl MarchingCubesFilter {
                         let i0 = tris[ti] as usize;
                         let i1 = tris[ti + 1] as usize;
                         let i2 = tris[ti + 2] as usize;
-                        let v0 = builder.vertex(edge_verts[i0]);
-                        let v1 = builder.vertex(edge_verts[i1]);
-                        let v2 = builder.vertex(edge_verts[i2]);
+                        let v0 = builder.vertex_array(edge_verts[i0]);
+                        let v1 = builder.vertex_array(edge_verts[i1]);
+                        let v2 = builder.vertex_array(edge_verts[i2]);
                         builder.triangle(v0, v1, v2);
                         ti += 3;
                     }

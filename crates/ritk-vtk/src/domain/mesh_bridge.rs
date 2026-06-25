@@ -30,7 +30,6 @@
 
 use gaia::domain::core::index::VertexId;
 use gaia::{IndexedMesh, MeshBuilder};
-use nalgebra::Point3;
 
 use super::vtk_data_object::{AttributeArray, VtkPolyData};
 
@@ -91,26 +90,22 @@ pub fn indexed_mesh_to_poly(mesh: &IndexedMesh) -> VtkPolyData {
 /// silently skipped rather than panicking.
 pub fn poly_to_indexed_mesh(poly: &VtkPolyData) -> IndexedMesh {
     let n_points = poly.points.len();
-    let tris: Vec<(Point3<f64>, Point3<f64>, Point3<f64>)> = poly
-        .polygons
-        .iter()
-        .filter(|tri| {
-            tri.len() == 3
-                && (tri[0] as usize) < n_points
-                && (tri[1] as usize) < n_points
-                && (tri[2] as usize) < n_points
-        })
-        .map(|tri| {
-            let p = |i: u32| {
-                let v = poly.points[i as usize];
-                Point3::new(v[0] as f64, v[1] as f64, v[2] as f64)
-            };
-            (p(tri[0]), p(tri[1]), p(tri[2]))
-        })
-        .collect();
-
     let mut builder = MeshBuilder::new();
-    builder.add_triangle_soup(&tris);
+    for tri in poly.polygons.iter().filter(|tri| {
+        tri.len() == 3
+            && (tri[0] as usize) < n_points
+            && (tri[1] as usize) < n_points
+            && (tri[2] as usize) < n_points
+    }) {
+        let p = |i: u32| {
+            let v = poly.points[i as usize];
+            [v[0] as f64, v[1] as f64, v[2] as f64]
+        };
+        let v0 = builder.vertex_array(p(tri[0]));
+        let v1 = builder.vertex_array(p(tri[1]));
+        let v2 = builder.vertex_array(p(tri[2]));
+        builder.triangle(v0, v1, v2);
+    }
     builder.build()
 }
 
@@ -123,27 +118,11 @@ mod tests {
     /// Analytically derived unit tetrahedron (4 faces, 4 unique vertices).
     fn unit_tet_mesh() -> IndexedMesh {
         let mut b = MeshBuilder::new();
-        b.add_triangle_soup(&[
-            (
-                Point3::new(0.0, 0.0, 0.0),
-                Point3::new(1.0, 0.0, 0.0),
-                Point3::new(0.5, 1.0, 0.0),
-            ),
-            (
-                Point3::new(0.0, 0.0, 0.0),
-                Point3::new(1.0, 0.0, 0.0),
-                Point3::new(0.5, 0.5, 1.0),
-            ),
-            (
-                Point3::new(0.0, 0.0, 0.0),
-                Point3::new(0.5, 1.0, 0.0),
-                Point3::new(0.5, 0.5, 1.0),
-            ),
-            (
-                Point3::new(1.0, 0.0, 0.0),
-                Point3::new(0.5, 1.0, 0.0),
-                Point3::new(0.5, 0.5, 1.0),
-            ),
+        b.add_triangle_soup_arrays(&[
+            ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]),
+            ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 0.5, 1.0]),
+            ([0.0, 0.0, 0.0], [0.5, 1.0, 0.0], [0.5, 0.5, 1.0]),
+            ([1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [0.5, 0.5, 1.0]),
         ]);
         b.build()
     }

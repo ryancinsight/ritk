@@ -28,7 +28,6 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 burn = { workspace = true }
-nalgebra = { workspace = true }
 moirai = { workspace = true }
 ndarray = { workspace = true }
 image = { workspace = true }

@@ -6,6 +6,14 @@
 
 ## Open performance items
 
+- **MIG-414-01 [patch] — Gaia MeshBuilder array API migration. DONE.**
+  Extend Gaia's `MeshBuilder` with coordinate-array and explicit xyz insertion APIs,
+  then migrate RITK mesh construction sites to those provider APIs. Target outcome:
+  `ritk-filter`, `ritk-vtk`, and `ritk-io` no longer declare direct `nalgebra`
+  dependencies for Gaia mesh construction. Evidence tier: compile/lint/docs plus
+  value-semantic provider and consumer tests (Gaia `cargo nextest run` -> 922
+  passed, 1 skipped; RITK focused `cargo nextest run` -> 1532 passed).
+
 - **MIG-413-01 [patch] — BinShrink direct Moirai output writes. DONE.**
   Replace `ritk-filter::bin_shrink`'s intermediate `(offset, value)` result staging
   with direct disjoint output-chunk writes through Moirai. This preserves the

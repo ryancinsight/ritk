@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 414: Gaia MeshBuilder array API migration
+
+### Changed
+- `ritk-filter`, `ritk-vtk`, `ritk-io`: Mesh construction now uses Gaia's
+  coordinate-array/xyz `MeshBuilder` API instead of importing `nalgebra::Point3`
+  directly.
+- Workspace: Gaia is routed through the local Atlas provider dependency for this
+  coordinated provider/consumer migration.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic provider and consumer tests.
+  Gaia passed format, all-target check, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run` -> 922 passed, 1 skipped. RITK `ritk-filter`,
+  `ritk-vtk`, and `ritk-io` passed focused all-target check, rustfmt, clippy with
+  `-D warnings`, doctests, docs, and `cargo nextest run` -> 1532 passed.
+
+---
+
 ## [Unreleased] — Sprint 413: BinShrink Moirai chunk write cleanup
 
 ### Changed

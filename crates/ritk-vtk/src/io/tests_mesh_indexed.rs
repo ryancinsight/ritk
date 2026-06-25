@@ -1,16 +1,11 @@
 use super::*;
 use gaia::MeshBuilder;
-use nalgebra::Point3;
 use tempfile::NamedTempFile;
 
 /// A single equilateral-ish triangle for smoke tests.
 fn single_triangle() -> IndexedMesh {
     let mut b = MeshBuilder::new();
-    b.add_triangle_soup(&[(
-        Point3::new(0.0, 0.0, 0.0),
-        Point3::new(1.0, 0.0, 0.0),
-        Point3::new(0.5, 1.0, 0.0),
-    )]);
+    b.add_triangle_soup_arrays(&[([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0])]);
     b.build()
 }
 
