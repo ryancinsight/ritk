@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 410: PNG spatial dependency cleanup
+
+### Changed
+- `ritk-png`: Removed the crate's direct `nalgebra` dev-dependency. PNG default
+  spatial metadata tests now assert against `ritk_spatial::Direction::identity()`.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-png` passed
+  all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs, and
+  `cargo nextest run -p ritk-png` -> 9/9 passed.
+
+---
+
 ## [Unreleased] — Sprint 409: DICOM/MINC/filter spatial Leto slice
 
 ### Changed

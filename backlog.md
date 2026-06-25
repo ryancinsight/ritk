@@ -93,16 +93,18 @@
   math through Leto stack fixed matrices/vectors and Kabsch singular vectors through
   `leto-ops`. Sprint 408 migrates `ritk-spatial` storage to Leto. Sprint 409
   removes DICOM/MINC/filter spatial metadata construction from direct `nalgebra`
-  interop; remaining `nalgebra` work should be handled by bounded contexts such
-  as PNG/SNAP spatial consumers and mesh-only geometry.
+  interop. Sprint 410 removes the `ritk-png` test-only `nalgebra` edge; remaining
+  `nalgebra` work should be handled by bounded contexts such as SNAP spatial
+  consumers and mesh-only geometry.
 
 - **MIG-387-02 [arch] — Spatial Leto SSOT migration. IN PROGRESS.**
   Sprint 408 migrates `ritk-spatial` storage to Leto fixed vectors/matrices and removes
   direct `nalgebra` dependencies from `ritk-core`, `ritk-metaimage`, `ritk-nrrd`,
   `ritk-nifti`, and `ritk-mgh` spatial direction setup. Sprint 409 moves DICOM IO,
   MINC, and filter spatial-transform consumers onto `Direction`, `Point`, and
-  `Vector`. Remaining spatial call sites in PNG/SNAP and mesh-only geometry must
-  be handled in follow-up slices scoped to their bounded contexts.
+  `Vector`. Sprint 410 removes `ritk-png`'s test-only `nalgebra` dependency.
+  Remaining spatial call sites in SNAP and mesh-only geometry must be handled in
+  follow-up slices scoped to their bounded contexts.
 
 ---
 ## Sprint 377 — Performance Review, Memory Efficiency & Carry-Forward Reconciliation
