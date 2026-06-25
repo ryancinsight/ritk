@@ -1,5 +1,50 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 414 — Gaia MeshBuilder Array API Migration
+**Target version**: 0.12.89
+**Sprint phase**: Closure — mesh-only direct `nalgebra` removal is verified
+
+### In-flight plan (Sprint 414)
+- [x] MIG-414-01 [patch]: Audit remaining live `nalgebra` imports and confirm the
+  non-Python RITK surface is limited to Gaia mesh construction.
+- [x] MIG-414-02 [minor/provider]: Extend Gaia `MeshBuilder` with coordinate-array
+  and explicit xyz insertion APIs.
+- [x] MIG-414-03 [patch]: Migrate RITK marching-cubes, VTK mesh bridge, and mesh
+  writer tests to Gaia's array/xyz API.
+- [x] MIG-414-04 [patch]: Remove direct `nalgebra` dependencies from
+  `ritk-filter`, `ritk-vtk`, and `ritk-io`; route Gaia through the local Atlas
+  provider dependency.
+- [x] MIG-414-05 [patch]: Run provider and focused RITK consumer compile, format,
+  clippy, nextest, doctest, and docs gates.
+
+### Verification gate (Sprint 414)
+- [x] Provider Gaia: `cargo fmt --check` -> passed
+- [x] Provider Gaia: `cargo check --all-targets` -> passed
+- [x] Provider Gaia: `cargo clippy --all-targets --all-features -- -D warnings` -> passed
+- [x] Provider Gaia: `cargo nextest run` -> 922 passed, 1 skipped
+- [x] Provider Gaia: `cargo test --doc` -> 5 passed, 39 ignored
+- [x] Provider Gaia: `cargo doc --no-deps` -> passed
+- [x] RITK: `cargo check -p ritk-filter -p ritk-vtk -p ritk-io --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-filter -p ritk-vtk -p ritk-io` -> passed
+- [x] RITK: `cargo clippy -p ritk-filter -p ritk-vtk -p ritk-io --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-filter -p ritk-vtk -p ritk-io` -> 1532 passed
+- [x] RITK: `cargo test --doc -p ritk-filter -p ritk-vtk -p ritk-io` -> 2 passed, 16 ignored
+- [x] RITK: `cargo doc -p ritk-filter -p ritk-vtk -p ritk-io --no-deps` -> passed
+- [x] Targeted mesh audit: `rg "nalgebra|Point3" crates/ritk-filter/src/surface
+  crates/ritk-vtk/src crates/ritk-io/src/format/vtk crates/ritk-filter/Cargo.toml
+  crates/ritk-vtk/Cargo.toml crates/ritk-io/Cargo.toml -n` -> no matches
+
+### Deferred / carry-forward
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+- [x] MIG-414-06 [patch]: Re-audit workspace-level `nalgebra` after mesh-package
+  gates. Remaining direct workspace hits are outside this mesh slice and remain
+  covered by the Burn/Coeus and `ndarray` carry-forward items.
+
+---
+
 ## Sprint 413 — BinShrink Moirai Chunk Write Cleanup
 **Target version**: 0.12.88
 **Sprint phase**: Closure — BinShrink output staging removal is verified

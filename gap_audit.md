@@ -1,5 +1,33 @@
 # RITK Gap Audit - Active
 
+## Sprint 414 Audit (2026-06-25) — Gaia MeshBuilder Array API Migration
+
+### Gaps Closed
+
+- **[MIG-414-01 CLOSED]** mesh-only direct `nalgebra` imports:
+  audit found live non-Python direct `nalgebra` use limited to Gaia mesh construction
+  in `ritk-filter`, `ritk-vtk`, and `ritk-io`. Gaia now exposes coordinate-array
+  and xyz builder APIs; RITK mesh paths now use those APIs so direct RITK mesh
+  crates do not import `nalgebra::Point3`. Evidence tier: compile/lint/docs plus
+  value-semantic provider and consumer tests (Gaia `cargo nextest run` -> 922
+  passed, 1 skipped; RITK focused `cargo nextest run` -> 1532 passed).
+- **[PROVIDER-GRAPH CLOSED]** Coeus path lock drift:
+  Cargo refreshed the RITK lockfile from local Coeus `0.2.11` entries to
+  `0.2.12`, matching the current local provider graph exercised by the focused
+  RITK gates.
+
+### Residual Risk
+
+- This does not remove Gaia's internal `nalgebra` representation; it removes RITK's
+  direct dependency on it for mesh construction.
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
+- This is not an `ndarray` boundary removal.
+- Broad repo audit still shows direct Burn and `ndarray` usage in image, I/O,
+  registration, and Python-boundary surfaces; those remain separate migration
+  slices.
+
+---
+
 ## Sprint 413 Audit (2026-06-25) — BinShrink Moirai Chunk Write Cleanup
 
 ### Gaps Closed

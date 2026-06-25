@@ -63,25 +63,16 @@ pub fn mesh_to_vtk_string(mesh: &Mesh) -> String {
 mod tests {
     use super::*;
     use gaia::MeshBuilder;
-    use nalgebra::Point3;
 
     fn single_triangle_mesh() -> Mesh {
         let mut b = MeshBuilder::new();
-        b.add_triangle_soup(&[(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 0.0, 0.0),
-            Point3::new(0.0, 1.0, 0.0),
-        )]);
+        b.add_triangle_soup_arrays(&[([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])]);
         b.build()
     }
 
     fn three_vertex_mesh() -> Mesh {
         let mut b = MeshBuilder::new();
-        b.add_triangle_soup(&[(
-            Point3::new(1.0, 2.0, 3.0),
-            Point3::new(4.0, 5.0, 6.0),
-            Point3::new(7.0, 8.0, 9.0),
-        )]);
+        b.add_triangle_soup_arrays(&[([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0])]);
         b.build()
     }
 
