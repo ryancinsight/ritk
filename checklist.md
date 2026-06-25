@@ -1,5 +1,37 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 412 — Statistics Atlas Dependency Cleanup
+**Target version**: 0.12.87
+**Sprint phase**: Closure — `ritk-statistics` dependency and docs cleanup is verified
+
+### In-flight plan (Sprint 412)
+- [x] MIG-412-01 [patch]: Audit `ritk-statistics` for live `nalgebra` imports and
+  confirm the manifest dependency is stale.
+- [x] MIG-412-02 [patch]: Remove the unused `nalgebra` dependency from
+  `ritk-statistics`.
+- [x] MIG-412-03 [patch]: Replace stale Rayon Jacobian comments with the existing
+  Moirai adaptive execution-policy wording.
+- [x] MIG-412-04 [patch]: Run the focused statistics compile, format, clippy,
+  nextest, doctest, and docs gates.
+
+### Verification gate (Sprint 412)
+- [x] RITK: `cargo check -p ritk-statistics --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-statistics` -> passed
+- [x] RITK: `cargo clippy -p ritk-statistics --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-statistics` -> **287/287 passed**
+- [x] RITK: `cargo test --doc -p ritk-statistics` -> passed (1 passed, 3 ignored)
+- [x] RITK: `cargo doc -p ritk-statistics --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+- [ ] MIG-387-02 [arch]: Continue mesh-only spatial cleanup where Gaia-backed mesh
+  paths still expose `nalgebra::Point3` through the Gaia contract.
+
+---
+
 ## Sprint 411 — SNAP Spatial Dependency Cleanup
 **Target version**: 0.12.86
 **Sprint phase**: Closure — SNAP volume spatial metadata now routes through the spatial SSOT
