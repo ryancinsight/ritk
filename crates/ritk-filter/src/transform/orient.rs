@@ -87,7 +87,7 @@ impl OrientImageFilter {
         // Find the input tensor axis most parallel to it.
         let mut perm = [0usize; 3]; // perm[o] = input tensor axis
         let mut flip = [false; 3]; // reverse that axis?
-        let mut out_dir = nalgebra::Matrix3::<f64>::zeros();
+        let mut out_dir = Direction::zeros();
         for o in 0..3 {
             let j = 2 - o;
             let (world_axis, sign) = self.target[j];
@@ -174,7 +174,7 @@ impl OrientImageFilter {
             out_dims,
             Point::new(org_out),
             sp_out,
-            Direction(out_dir),
+            out_dir,
             image,
         ))
     }

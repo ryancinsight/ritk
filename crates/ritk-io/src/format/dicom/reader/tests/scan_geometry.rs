@@ -319,7 +319,6 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     // Δz along the slice normal N̂. With spacing=[Δz, ΔRow, ΔCol] and direction
     // cols=[N̂, F_c, F_r]: point(1,0,0) = origin + 1*Δz*N̂.
     use burn::tensor::{Shape, Tensor, TensorData};
-    use nalgebra::SMatrix;
     use ritk_spatial::{Direction, Point, Spacing};
     type B = burn_ndarray::NdArray<f32>;
     const TOL: f64 = 1e-10;
@@ -332,12 +331,12 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     // Axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0], Δz=2.5, ΔRow=0.8, ΔCol=0.8
     let origin = Point::new([10.0, 20.0, -50.0]);
     let spacing = Spacing::new([2.5, 0.8, 0.8]);
-    // direction from_column_slice([0,0,1, 0,1,0, 1,0,0]) — axial RITK convention
-    let dir = Direction(SMatrix::<f64, 3, 3>::from_column_slice(&[
+    // direction from_column_major([0,0,1, 0,1,0, 1,0,0]) — axial RITK convention
+    let dir = Direction::from_column_major([
         0.0, 0.0, 1.0, // col 0 = N̂
         0.0, 1.0, 0.0, // col 1 = F_c
         1.0, 0.0, 0.0, // col 2 = F_r
-    ]));
+    ]);
     let image = ritk_core::image::Image::new(tensor, origin, spacing, dir);
 
     // Voxel (0,0,0): must be at origin

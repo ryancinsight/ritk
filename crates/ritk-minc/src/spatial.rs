@@ -11,8 +11,7 @@ use crate::{
     MincDimension, DIMENSIONS_PATH, SPATIAL_DIM_NAMES,
 };
 use anyhow::{bail, Result};
-use nalgebra::SMatrix;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing, Vector};
 
 // â”€â”€ Canonical direction cosines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -169,12 +168,11 @@ pub fn build_spatial_metadata(
     let origin = Point::new(origin_arr);
     let spacing = Spacing::new(spacing_arr);
 
-    let dir_matrix = SMatrix::<f64, 3, 3>::from_columns(&[
-        nalgebra::Vector3::new(dir_columns[0][0], dir_columns[0][1], dir_columns[0][2]),
-        nalgebra::Vector3::new(dir_columns[1][0], dir_columns[1][1], dir_columns[1][2]),
-        nalgebra::Vector3::new(dir_columns[2][0], dir_columns[2][1], dir_columns[2][2]),
+    let direction = Direction::from_columns([
+        Vector::new(dir_columns[0]),
+        Vector::new(dir_columns[1]),
+        Vector::new(dir_columns[2]),
     ]);
-    let direction = Direction(dir_matrix);
 
     (origin, spacing, direction)
 }

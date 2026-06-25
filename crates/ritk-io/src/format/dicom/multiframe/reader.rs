@@ -5,7 +5,6 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::core::Tag;
 use dicom::object::InMemDicomObject;
-use nalgebra::SMatrix;
 use ritk_core::image::Image;
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
@@ -393,7 +392,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         let nz = rx * cy - ry * cx;
         let n = super::super::reader::normalize([nx, ny, nz]).unwrap_or([0.0, 0.0, 1.0]);
         let col_data: [f64; 9] = [n[0], n[1], n[2], cx, cy, cz, rx, ry, rz];
-        Direction(SMatrix::<f64, 3, 3>::from_column_slice(&col_data))
+        Direction::from_column_major(col_data)
     } else {
         Direction::identity()
     };

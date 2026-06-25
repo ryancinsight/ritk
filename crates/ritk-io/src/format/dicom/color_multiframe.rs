@@ -9,7 +9,6 @@ use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::core::Tag;
-use nalgebra::SMatrix;
 use ritk_core::image::RgbVolume;
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
@@ -261,9 +260,9 @@ fn direction_from_info(info: &MultiFrameInfo) -> Direction<3> {
     let normal =
         super::reader::normalize([ry * cz - rz * cy, rz * cx - rx * cz, rx * cy - ry * cx])
             .unwrap_or([0.0, 0.0, 1.0]);
-    Direction(SMatrix::<f64, 3, 3>::from_column_slice(&[
+    Direction::from_column_major([
         normal[0], normal[1], normal[2], cx, cy, cz, rx, ry, rz,
-    ]))
+    ])
 }
 
 #[cfg(test)]

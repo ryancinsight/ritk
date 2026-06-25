@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 409: DICOM/MINC/filter spatial Leto slice
+
+### Changed
+- `ritk-io`: DICOM scalar, RGB, multiframe, and series spatial metadata now
+  constructs directions through `ritk_spatial::Direction` instead of
+  `nalgebra::SMatrix`/`Matrix3`.
+- `ritk-spatial`: `Vector` now exposes `dot`, `normalized`, and 3-D `cross`
+  operations over the existing Leto-backed storage for format-reader geometry.
+- `ritk-minc`: Removed the direct `nalgebra` dependency; MINC read/write spatial
+  metadata now passes `Direction<3>` through to the HDF5 writer.
+- `ritk-filter`: Spatial transform helpers now use `Direction`, `Point`, and
+  `Vector` directly instead of mixing nalgebra matrices with spatial metadata.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. RITK gate passed for
+  `ritk-spatial`, `ritk-minc`, `ritk-filter`, and `ritk-io`: all-target compile,
+  rustfmt, clippy with `-D warnings`, doctests, docs, and `cargo nextest run`
+  -> 1359/1359 passed.
+
+---
+
 ## [Unreleased] — Sprint 408: Spatial Leto SSOT slice
 
 ### Changed

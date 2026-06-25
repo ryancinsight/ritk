@@ -7055,7 +7055,6 @@ dependencies = [
  "consus-core",
  "consus-hdf5",
  "consus-io",
- "nalgebra",
  "ritk-core",
  "ritk-image",
  "ritk-spatial",

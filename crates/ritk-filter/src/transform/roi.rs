@@ -142,10 +142,10 @@ impl RegionOfInterestImageFilter {
         let dir = image.direction();
         let mut new_coords = [0.0f64; 3];
         for (k, coord) in new_coords.iter_mut().enumerate() {
-            *coord = old_origin.0.coords[k]
-                + self.start_z as f64 * spacing[0] * dir.0[(k, 0)]
-                + self.start_y as f64 * spacing[1] * dir.0[(k, 1)]
-                + self.start_x as f64 * spacing[2] * dir.0[(k, 2)];
+            *coord = old_origin[k]
+                + self.start_z as f64 * spacing[0] * dir[(k, 0)]
+                + self.start_y as f64 * spacing[1] * dir[(k, 1)]
+                + self.start_x as f64 * spacing[2] * dir[(k, 2)];
         }
         let new_origin = Point::new(new_coords);
 

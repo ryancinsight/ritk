@@ -6,13 +6,12 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::dictionary_std::tags;
 use dicom::object::{FileDicomObject, InMemDicomObject};
 use moirai::prelude::ParallelSlice;
-use nalgebra::{Matrix3, Point3 as NaPoint3, Vector3 as NaVector3};
 use ritk_core::image::Image;
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness,
 };
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::path::{Path, PathBuf};
 
 use crate::format::dicom::transfer_syntax::TransferSyntaxKind;
@@ -55,22 +54,29 @@ pub fn load_dicom_series<B: Backend>(
         );
     }
 
-    let dir_x = NaVector3::new(orientation[0], orientation[1], orientation[2]);
-    let dir_y = NaVector3::new(orientation[3], orientation[4], orientation[5]);
+    let dir_x = Vector::new([orientation[0], orientation[1], orientation[2]]);
+    let dir_y = Vector::new([orientation[3], orientation[4], orientation[5]]);
 
     // Normalize to ensure valid direction cosines
-    let dir_x = dir_x.normalize();
-    let dir_y = dir_y.normalize();
+    let dir_x = dir_x
+        .normalized()
+        .context("Invalid zero-length ImageOrientationPatient row direction")?;
+    let dir_y = dir_y
+        .normalized()
+        .context("Invalid zero-length ImageOrientationPatient column direction")?;
 
-    let dir_z = dir_x.cross(&dir_y).normalize(); // Assuming orthogonal Z for sorting logic
+    let dir_z = dir_x
+        .cross(&dir_y)
+        .normalized()
+        .context("Invalid parallel ImageOrientationPatient directions")?;
 
     // 3. Sort slices by projection onto normal vector
     slices.sort_by(|a, b| {
-        let pos_a = get_position(&a.1).unwrap_or(NaPoint3::origin());
-        let pos_b = get_position(&b.1).unwrap_or(NaPoint3::origin());
+        let pos_a = get_position(&a.1).unwrap_or(Point::origin());
+        let pos_b = get_position(&b.1).unwrap_or(Point::origin());
 
-        let dist_a = pos_a.coords.dot(&dir_z);
-        let dist_b = pos_b.coords.dot(&dir_z);
+        let dist_a = Vector::new(pos_a.to_array()).dot(&dir_z);
+        let dist_b = Vector::new(pos_b.to_array()).dot(&dir_z);
 
         dist_a
             .partial_cmp(&dist_b)
@@ -114,8 +120,12 @@ pub fn load_dicom_series<B: Backend>(
             let current_orient = get_scalar_vec(&slices[i + 1].1, tags::IMAGE_ORIENTATION_PATIENT)
                 .unwrap_or_default();
             if current_orient.len() == 6 {
-                let cx = NaVector3::new(current_orient[0], current_orient[1], current_orient[2]);
-                let cy = NaVector3::new(current_orient[3], current_orient[4], current_orient[5]);
+                let cx = Vector::new([current_orient[0], current_orient[1], current_orient[2]])
+                    .normalized()
+                    .context("Invalid zero-length ImageOrientationPatient row direction")?;
+                let cy = Vector::new([current_orient[3], current_orient[4], current_orient[5]])
+                    .normalized()
+                    .context("Invalid zero-length ImageOrientationPatient column direction")?;
                 if (cx - dir_x).norm() > 1e-3 || (cy - dir_y).norm() > 1e-3 {
                     bail!("Inconsistent ImageOrientationPatient in series");
                 }
@@ -141,9 +151,8 @@ pub fn load_dicom_series<B: Backend>(
 
     // 5. Build Spatial Metadata
     let spacing = Spacing::new([dx, dy, dz]);
-    let origin = Point::new([origin_pos.x, origin_pos.y, origin_pos.z]);
-    let direction_mat = Matrix3::from_columns(&[dir_x, dir_y, dir_z]);
-    let direction = Direction(direction_mat);
+    let origin = Point::new(origin_pos.to_array());
+    let direction = Direction::from_columns([dir_x, dir_y, dir_z]);
 
     // 6. Load Pixel Data in Parallel
     let slice_pixels: Vec<Vec<f32>> = slices
@@ -247,10 +256,10 @@ fn get_scalar_vec(
     obj.element(tag).ok()?.to_multi_float64().ok()
 }
 
-fn get_position(obj: &FileDicomObject<InMemDicomObject>) -> Option<NaPoint3<f64>> {
+fn get_position(obj: &FileDicomObject<InMemDicomObject>) -> Option<Point<3>> {
     let v = get_scalar_vec(obj, tags::IMAGE_POSITION_PATIENT)?;
     if v.len() == 3 {
-        Some(NaPoint3::new(v[0], v[1], v[2]))
+        Some(Point::new([v[0], v[1], v[2]]))
     } else {
         None
     }

@@ -11,7 +11,6 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
-use nalgebra::SMatrix;
 use ritk_core::image::RgbVolume;
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
@@ -170,7 +169,7 @@ fn load_color_from_series<B: Backend>(
         tensor,
         Point::new(metadata.origin),
         Spacing::new(metadata.spacing),
-        Direction(SMatrix::<f64, 3, 3>::from_column_slice(&metadata.direction)),
+        Direction::from_column_major(metadata.direction),
     )?;
 
     Ok((image, metadata))

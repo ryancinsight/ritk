@@ -96,7 +96,7 @@ pub fn write_minc<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> R
         [nz, ny, nx],
         [origin[0], origin[1], origin[2]],
         [spacing[0], spacing[1], spacing[2]],
-        &direction.0,
+        direction,
     )?;
 
     Ok(())
