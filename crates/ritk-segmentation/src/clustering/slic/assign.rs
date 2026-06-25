@@ -7,7 +7,8 @@
 
 use super::coords::{decode_coords, encode_coords, encode_coords_dyn};
 use super::grid::Center;
-use moirai::prelude::ParallelSliceMut;
+
+const ASSIGN_CHUNK_LEN: usize = 1024;
 
 /// Build a mapping from grid cell index to the list of center indices whose
 /// search region (±2S per axis) overlaps that cell.
@@ -126,7 +127,7 @@ fn enumerate_cells_range(
 /// Assign each voxel to the nearest cluster center within a 2S search window.
 ///
 /// Uses the grid-based index for O(2^D) amortized cost per voxel.
-/// Parallelized via rayon with safe per-voxel result collection.
+/// Parallelized via Moirai over disjoint `distances`/`labels` chunks.
 ///
 /// Dispatches to a const-generic implementation for D ∈ {2, 3} to
 /// eliminate per-voxel heap allocations (SLIC is only meaningful in 2-D/3-D).
@@ -222,79 +223,70 @@ fn assign_voxels_impl<const D: usize>(
     let inv_m_s_sq = 1.0 / (m_s * m_s);
     let k = centers.len();
 
-    // Parallel assignment over flat voxel indices; each index is independent.
-    struct SendPtr<T>(*mut T);
-    unsafe impl<T> Send for SendPtr<T> {}
-    unsafe impl<T> Sync for SendPtr<T> {}
-    impl<T> SendPtr<T> {
-        unsafe fn write(&self, offset: usize, val: T) {
-            *self.0.add(offset) = val;
-        }
-        unsafe fn read(&self, offset: usize) -> T
-        where
-            T: Copy,
-        {
-            *self.0.add(offset)
-        }
-    }
-    let labels_ptr = SendPtr(labels.as_mut_ptr());
+    moirai::for_each_chunk_pair_mut_enumerated_with::<moirai::Adaptive, _, _, _>(
+        distances,
+        labels,
+        ASSIGN_CHUNK_LEN,
+        |chunk_idx, dist_chunk, label_chunk| {
+            let base = chunk_idx * ASSIGN_CHUNK_LEN;
+            for (local, (dist_mut, label_mut)) in dist_chunk
+                .iter_mut()
+                .zip(label_chunk.iter_mut())
+                .enumerate()
+            {
+                let i = base + local;
+                let coords = decode_coords(i, shape_arr);
+                let intensity = intensities[i];
 
-    distances.par_mut().enumerate(|i, dist_mut| {
-        let coords = decode_coords(i, shape_arr);
-        let intensity = intensities[i];
-
-        // Determine grid cell for this voxel.
-        let mut cell = [0usize; D];
-        for d in 0..D {
-            cell[d] = (coords[d] / grid_sizes_arr[d].max(1)).min(n_cells_per_axis[d] - 1);
-        }
-
-        let cell_flat = encode_coords(&cell, n_cells_per_axis);
-
-        let mut best_dist = *dist_mut;
-        let mut best_label = unsafe { labels_ptr.read(i) };
-
-        if cell_flat < grid_map.len() {
-            for &ci in &grid_map[cell_flat] {
-                if ci >= k {
-                    continue;
-                }
-                let center = &centers[ci];
-
-                // Check spatial proximity: each coordinate must be within 2*step.
-                let mut in_range = true;
+                let mut cell = [0usize; D];
                 for d in 0..D {
-                    let diff = coords[d] as f64 - center.pos[d];
-                    let step = grid_sizes_arr[d] as f64;
-                    if diff.abs() > 2.0 * step + 0.5 {
-                        in_range = false;
-                        break;
+                    cell[d] = (coords[d] / grid_sizes_arr[d].max(1)).min(n_cells_per_axis[d] - 1);
+                }
+
+                let cell_flat = encode_coords(&cell, n_cells_per_axis);
+
+                let mut best_dist = *dist_mut;
+                let mut best_label = *label_mut;
+
+                if cell_flat < grid_map.len() {
+                    for &ci in &grid_map[cell_flat] {
+                        if ci >= k {
+                            continue;
+                        }
+                        let center = &centers[ci];
+
+                        let mut in_range = true;
+                        for d in 0..D {
+                            let diff = coords[d] as f64 - center.pos[d];
+                            let step = grid_sizes_arr[d] as f64;
+                            if diff.abs() > 2.0 * step + 0.5 {
+                                in_range = false;
+                                break;
+                            }
+                        }
+                        if !in_range {
+                            continue;
+                        }
+
+                        let di = intensity - center.intensity;
+                        let mut d_sq = di * di * inv_m_c_sq;
+                        for (&coord_d, &pos_d) in coords.iter().zip(center.pos.iter()) {
+                            let dp = coord_d as f64 - pos_d;
+                            d_sq += compactness_sq * dp * dp * inv_m_s_sq;
+                        }
+
+                        if d_sq < best_dist {
+                            best_dist = d_sq;
+                            best_label = ci as u32;
+                        }
                     }
                 }
-                if !in_range {
-                    continue;
-                }
 
-                // Compute SLIC distance squared.
-                let di = intensity - center.intensity;
-                let mut d_sq = di * di * inv_m_c_sq;
-                for (&coord_d, &pos_d) in coords.iter().zip(center.pos.iter()) {
-                    let dp = coord_d as f64 - pos_d;
-                    d_sq += compactness_sq * dp * dp * inv_m_s_sq;
-                }
-
-                if d_sq < best_dist {
-                    best_dist = d_sq;
-                    best_label = ci as u32;
-                }
+                *dist_mut = best_dist;
+                *label_mut = best_label;
             }
-        }
-
-        *dist_mut = best_dist;
-        unsafe {
-            labels_ptr.write(i, best_label);
-        }
-    });
+        },
+    );
 }
 
 /// Recompute each cluster center as the mean of all assigned voxels.

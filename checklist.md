@@ -1,5 +1,40 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 415 — SLIC Safe Moirai Assignment
+**Target version**: 0.12.90
+**Sprint phase**: Closure — SLIC assignment unsafe side-write removal is verified
+
+### In-flight plan (Sprint 415)
+- [x] MIG-415-01 [patch]: Audit remaining Rayon/Tokio and unsafe segmentation
+  surfaces; select the SLIC assignment raw-pointer side-write as the bounded
+  safety and contention-free performance slice.
+- [x] MIG-415-02 [patch]: Replace the SLIC `SendPtr` raw pointer wrapper with
+  Moirai paired mutable chunk dispatch over `distances` and `labels`.
+- [x] MIG-415-03 [patch]: Remove stale Rayon wording from the touched SLIC
+  assignment documentation.
+- [x] MIG-415-04 [patch]: Verify focused segmentation compile, format, clippy,
+  nextest, doctest, docs, and structural audits.
+
+### Verification gate (Sprint 415)
+- [x] RITK: `cargo fmt --check -p ritk-segmentation` -> passed
+- [x] RITK: `cargo check -p ritk-segmentation --all-targets` -> passed
+- [x] RITK: `cargo clippy -p ritk-segmentation --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-segmentation` -> 435 passed
+- [x] RITK: `cargo test --doc -p ritk-segmentation` -> 0 doctests
+- [x] RITK: `cargo doc -p ritk-segmentation --no-deps` -> passed
+- [x] Structural audit: `rg "unsafe|rayon|SendPtr|ParallelSliceMut"
+  crates/ritk-segmentation/src/clustering/slic/assign.rs -n` -> no matches
+
+### Deferred / carry-forward
+- [ ] MIG-415-05 [patch]: Continue removing the same raw-pointer side-write
+  pattern from level-set and GrowCut kernels with focused value-semantic gates.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+
+---
+
 ## Sprint 414 — Gaia MeshBuilder Array API Migration
 **Target version**: 0.12.89
 **Sprint phase**: Closure — mesh-only direct `nalgebra` removal is verified
