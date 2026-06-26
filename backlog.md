@@ -6,6 +6,29 @@
 
 ## Open performance items
 
+- **MIG-419-01 [patch] — Direct Moirai registration enumeration. DONE.**
+  Replace `ritk-registration` Parzen direct sparse-entry initialization and
+  CMA-ES population fitness writes with direct
+  `moirai::enumerate_mut_with::<moirai::Adaptive>` calls instead of the
+  `ParallelSliceMut` extension trait. The touched registration contexts now have
+  no `ParallelSliceMut`, `par_mut`, or stale Rayon wording. Evidence tier:
+  compile/lint/docs plus value-semantic tests (`cargo nextest run -p
+  ritk-registration` -> 656 passed, 23 skipped).
+
+- **COEUS-419-01 [patch] — Fix local Coeus provider blockers. DONE.**
+  Repair the dirty local Coeus provider graph required by the RITK registration
+  gate: restore the shape root `flat_to_nd` export for moved shape leaves,
+  restore the real `embedding_backward_with_padding_idx` accumulation path, and
+  restore the autograd reshape contiguous-function import. Evidence tier:
+  compile plus value-semantic provider tests (`cargo nextest run -p coeus-ops`
+  -> 147 passed).
+
+- **PERF-419-01 [patch] — Registration test runtime budget breach. OPEN.**
+  Sprint 419's `ritk-registration` nextest gate passed but exposed integration
+  tests above the 30s slow budget, including 100s, 146s, and 193s rows. Treat
+  this as a real performance defect to profile; do not weaken or skip those
+  tests.
+
 - **MIG-418-01 [patch] — Direct Moirai segmentation enumeration. DONE.**
   Replace the last `ritk-segmentation` `ParallelSliceMut` extension-trait call
   sites in isolated watershed and STAPLE with direct

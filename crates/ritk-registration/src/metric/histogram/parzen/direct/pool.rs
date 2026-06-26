@@ -1,6 +1,6 @@
 //! Histogram buffer pool for the direct Parzen histogram computation path.
 //!
-//! [`HistogramPool`] provides thread-local buffer reuse across rayon
+//! [`HistogramPool`] provides thread-local buffer reuse across Moirai
 //! fold/reduce calls, avoiding repeated O(num_bins²) allocations.
 
 use std::sync::Mutex;
@@ -45,7 +45,7 @@ impl HistogramPool {
     /// Create a pool pre-allocated with `buffer_count` zeroed buffers.
     ///
     /// Pre-allocating avoids the first-iteration allocation latency when
-    /// using rayon's `fold().reduce()`: each thread can immediately
+    /// using Moirai fold/reduce: each worker can immediately
     /// check out a buffer without hitting the allocator. The pool will
     /// still grow beyond `buffer_count` if needed (subsequent checkouts
     /// allocate new buffers as before).

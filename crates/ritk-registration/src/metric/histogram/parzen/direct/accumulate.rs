@@ -97,7 +97,7 @@ pub(crate) fn accumulate_sample_sparse(
 
 /// Merge `src` into `dst` element-wise (PERF-324-05, PERF-325-03).
 ///
-/// Extracted from rayon reduce closure for inlining/auto-vectorization.
+/// Extracted from the Moirai reduce closure for inlining/auto-vectorization.
 /// PERF-325-03: `iter_mut().zip(iter())` is the idiomatic form LLVM
 /// auto-vectorizes most reliably (AVX2 `vmovups`/`vaddps`/`vmovups`
 /// when slice len is a multiple of 8).

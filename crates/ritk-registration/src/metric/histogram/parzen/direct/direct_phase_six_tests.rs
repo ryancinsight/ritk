@@ -113,12 +113,12 @@ fn direct_histogram_pool_reuse() {
 #[test]
 fn direct_histogram_pool_multiple_buffers() {
     // TEST-319-08: Multiple threads can checkout and return concurrently.
-    // This test simulates the pattern used by rayon fold/reduce.
+    // This test simulates the pattern used by Moirai fold/reduce.
     use super::HistogramPool;
 
     let pool = HistogramPool::new(64);
 
-    // Simulate rayon fold: each "thread" checks out a buffer
+    // Simulate Moirai fold: each worker checks out a buffer.
     let mut b1 = pool.checkout();
     let mut b2 = pool.checkout(); // second checkout — allocates new since pool was empty
     assert_eq!(b1.len(), 64);

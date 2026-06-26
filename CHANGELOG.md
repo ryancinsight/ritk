@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 419: Direct Moirai registration enumeration
+
+### Changed
+- `ritk-registration`: CMA-ES population fitness writes and Parzen direct
+  sparse-entry initialization now use direct
+  `moirai::enumerate_mut_with::<moirai::Adaptive>` calls instead of importing
+  the `ParallelSliceMut` extension trait.
+- `ritk-registration`: Removed stale Rayon wording from the touched CMA-ES and
+  Parzen direct-histogram documentation/comments.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-registration`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-registration` -> 656 passed, 23 skipped.
+- Provider evidence: local Coeus `coeus-ops` passed rustfmt, all-target check,
+  and `cargo nextest run -p coeus-ops` -> 147 passed after the provider graph
+  fixes needed by this RITK gate.
+- Residual risk: registration integration tests still exceed the 30s slow-test
+  budget; this change is not a measured performance win.
+
+---
+
 ## [Unreleased] — Sprint 418: Direct Moirai segmentation enumeration
 
 ### Changed
