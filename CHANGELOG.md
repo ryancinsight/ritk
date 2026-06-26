@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 420: Direct Moirai filter diffusion enumeration
+
+### Changed
+- `ritk-filter`: Perona-Malik diffusion and coherence diffusion scratch/PDE
+  buffers now use direct `moirai::enumerate_mut_with::<moirai::Adaptive>` or
+  indexed collection calls instead of importing the `ParallelSliceMut`
+  extension trait.
+- `ritk-filter`: Projection parallelization docs now describe Moirai indexed
+  collection instead of stale Rayon wording.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-filter`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-filter` -> 944 passed.
+- Provider evidence: local Hermes `hermes-simd` passed
+  `cargo check -p hermes-simd --all-targets` after carrying the complex
+  `Neg` bound through the runtime dispatch surface.
+- Residual risk: full `hermes-simd` rustfmt is blocked by unrelated pre-existing
+  `axpy.rs` formatting drift in the dirty local provider tree. This change is
+  not a measured performance win.
+
+---
+
 ## [Unreleased] — Sprint 419: Direct Moirai registration enumeration
 
 ### Changed

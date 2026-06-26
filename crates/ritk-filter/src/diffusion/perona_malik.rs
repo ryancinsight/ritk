@@ -224,8 +224,6 @@ fn diffuse<K: ConductanceKernel>(
 
     let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * slab + iy * nx + ix };
 
-    use moirai::prelude::ParallelSliceMut;
-
     for iter in 0..config.num_iterations {
         let (src, dst) = if iter % 2 == 0 {
             (&cur, &mut next)
@@ -233,7 +231,7 @@ fn diffuse<K: ConductanceKernel>(
             (&next, &mut cur)
         };
 
-        dst[..n].par_mut().enumerate(|flat, val| {
+        moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut dst[..n], |flat, val| {
             let iz = flat / slab;
             let rem = flat - iz * slab;
             let iy = rem / nx;

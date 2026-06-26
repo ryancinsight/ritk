@@ -1,5 +1,3 @@
-use moirai::prelude::ParallelSlice;
-
 use super::filter::CoherenceConfig;
 use super::scratch::{compute_structure_tensor_products, Gradient, StructureTensorProducts};
 use super::tensor::diffusion_tensor;
@@ -98,8 +96,7 @@ pub fn gaussian_smooth_into(
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let radius = (kernel.len() / 2) as i64;
-    use moirai::prelude::ParallelSliceMut;
-    output[..n].par_mut().enumerate(|i, val| {
+    moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut output[..n], |i, val| {
         let iz = i / (ny * nx);
         let iy = (i / nx) % ny;
         let ix = i % nx;
@@ -198,9 +195,10 @@ pub fn compute_divergence(
     let n = nz * ny * nx;
 
     // Compute diffusion tensor at every voxel (parallel).
-    let d_tensors: Vec<[f64; 6]> = st_smooth
-        .par()
-        .map_collect(|&st| diffusion_tensor(st, alpha, contrast));
+    let d_tensors: Vec<[f64; 6]> =
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            diffusion_tensor(st_smooth[i], alpha, contrast)
+        });
 
     moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
         let iz = i / (ny * nx);
@@ -260,14 +258,13 @@ pub fn compute_divergence_into(
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
 
-    // Compute diffusion tensor at every voxel (parallel) in-place in d_tensors
-    use moirai::prelude::ParallelSliceMut;
-    d_tensors[..n].par_mut().enumerate(|i, dt| {
+    // Compute diffusion tensor at every voxel in-place in d_tensors.
+    moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut d_tensors[..n], |i, dt| {
         *dt = diffusion_tensor(st_smooth[i], alpha, contrast);
     });
 
-    // Compute divergence into div
-    div[..n].par_mut().enumerate(|i, val| {
+    // Compute divergence into div.
+    moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut div[..n], |i, val| {
         let iz = i / (ny * nx);
         let iy = (i / nx) % ny;
         let ix = i % nx;

@@ -1,5 +1,4 @@
 use crate::edge::GaussianSigma;
-use moirai::prelude::ParallelSliceMut;
 
 use super::pde::compute_divergence_into;
 
@@ -44,7 +43,7 @@ pub fn compute_structure_tensor_products_from_slices(
     let mut st = StructureTensorProducts {
         data: vec![[0.0f64; 6]; n],
     };
-    st.data.par_mut().enumerate(|i, out| {
+    moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut st.data, |i, out| {
         let gz = gz[i];
         let gy = gy[i];
         let gx = gx[i];
@@ -347,7 +346,7 @@ fn compute_structure_tensor_products_into(
     out: &mut [[f64; 6]],
 ) {
     let n = dims[0] * dims[1] * dims[2];
-    out[..n].par_mut().enumerate(|i, row| {
+    moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut out[..n], |i, row| {
         let gzi = gz[i];
         let gyi = gy[i];
         let gxi = gx[i];
