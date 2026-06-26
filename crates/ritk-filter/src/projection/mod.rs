@@ -12,7 +12,7 @@
 //!
 //! # Parallelization
 //! Each filter parallelises over the output pixels (the non-collapsed axes)
-//! using `rayon::into_par_iter`. The inner reduction over the collapsed axis
+//! using Moirai indexed collection. The inner reduction over the collapsed axis
 //! is a sequential `fold` per output pixel.
 
 mod filters;

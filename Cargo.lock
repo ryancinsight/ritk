@@ -1481,7 +1481,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-autograd"
-version = "0.2.26"
+version = "0.2.28"
 dependencies = [
  "coeus-core",
  "coeus-ops",
@@ -1494,7 +1494,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-core"
-version = "0.2.26"
+version = "0.2.28"
 dependencies = [
  "bytemuck",
  "half",
@@ -1509,7 +1509,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-leto"
-version = "0.2.26"
+version = "0.2.28"
 dependencies = [
  "coeus-core",
  "leto",
@@ -1518,7 +1518,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-ops"
-version = "0.2.26"
+version = "0.2.28"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -1535,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-sparse"
-version = "0.2.26"
+version = "0.2.28"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -1545,7 +1545,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-tensor"
-version = "0.2.26"
+version = "0.2.28"
 dependencies = [
  "bytemuck",
  "coeus-core",

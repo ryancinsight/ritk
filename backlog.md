@@ -6,6 +6,23 @@
 
 ## Open performance items
 
+- **MIG-420-01 [patch] — Direct Moirai filter diffusion enumeration. DONE.**
+  Replace `ritk-filter` Perona-Malik and coherence diffusion
+  `ParallelSliceMut` extension-trait call sites with direct
+  `moirai::enumerate_mut_with::<moirai::Adaptive>` and indexed collection
+  calls. The touched filter source now has no `ParallelSliceMut`, `par_mut`,
+  Rayon, or Tokio matches, and projection docs no longer describe Rayon.
+  Evidence tier: compile/lint/docs plus value-semantic tests
+  (`cargo nextest run -p ritk-filter` -> 944/944 passed).
+
+- **PROVIDER-420-01 [patch] — Hermes complex dispatch bound cleanup. OPEN.**
+  The local Atlas provider graph exposed that Hermes complex SIMD operations
+  still require `Neg` at the complex-operation dispatch surface after broader
+  unsigned scalar support. A minimal local fix passes `cargo check -p
+  hermes-simd --all-targets`; full provider rustfmt is still blocked by
+  unrelated pre-existing `crates/hermes-simd/src/dispatch/axpy.rs` formatting
+  drift and should land in Hermes separately.
+
 - **MIG-419-01 [patch] — Direct Moirai registration enumeration. DONE.**
   Replace `ritk-registration` Parzen direct sparse-entry initialization and
   CMA-ES population fitness writes with direct

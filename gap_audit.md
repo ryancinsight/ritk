@@ -1,5 +1,33 @@
 # RITK Gap Audit - Active
 
+## Sprint 420 Audit (2026-06-26) — Direct Moirai Filter Diffusion Enumeration
+
+### Gaps Closed
+
+- **[MIG-420-01 CLOSED]** filter diffusion `ParallelSliceMut` imports:
+  audit found the selected live extension-trait uses in Perona-Malik diffusion,
+  coherence Gaussian smoothing, structure-tensor scratch construction, and
+  coherence divergence buffers. These are independent mutable enumeration loops,
+  so they now call `moirai::enumerate_mut_with::<moirai::Adaptive>` directly or
+  use Moirai indexed collection when constructing diffusion tensors. Evidence
+  tier: compile/lint/docs plus value-semantic filter tests
+  (`cargo nextest run -p ritk-filter` -> 944 passed).
+- **[DOC-DRIFT CLOSED]** projection parallelization wording:
+  stale Rayon wording in `ritk-filter` projection docs now describes Moirai
+  indexed collection rather than `rayon::into_par_iter`.
+
+### Residual Risk
+
+- This is a call-site cleanup and does not change the broader Burn/Coeus tensor
+  surface or image tensor storage.
+- This is not an `ndarray` boundary removal.
+- Local verification required a Hermes provider dispatch-bound cleanup in a
+  dirty provider tree. `cargo check -p hermes-simd --all-targets` passed, but
+  full `hermes-simd` rustfmt remains blocked by unrelated pre-existing
+  `axpy.rs` formatting drift.
+
+---
+
 ## Sprint 419 Audit (2026-06-26) — Direct Moirai Registration Enumeration
 
 ### Gaps Closed

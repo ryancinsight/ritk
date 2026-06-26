@@ -1,5 +1,45 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 420 — Direct Moirai Filter Diffusion Enumeration
+**Target version**: 0.12.95
+**Sprint phase**: Closure — filter diffusion `ParallelSliceMut` use is removed
+
+### In-flight plan (Sprint 420)
+- [x] MIG-420-01 [patch]: Audit `ritk-filter` diffusion and projection
+  call sites for remaining Rayon/Tokio/`ParallelSliceMut` drift.
+- [x] MIG-420-02 [patch]: Replace Perona-Malik and coherence diffusion
+  extension-trait calls with direct `moirai::enumerate_mut_with` or indexed
+  collection calls.
+- [x] MIG-420-03 [patch]: Remove stale Rayon wording from the touched filter
+  documentation.
+- [x] MIG-420-04 [patch]: Verify focused filter compile, format, clippy,
+  nextest, doctest, docs, and structural audits.
+
+### Verification gate (Sprint 420)
+- [x] Provider: `cargo check -p hermes-simd --all-targets` -> passed after
+  carrying the complex-operation `Neg` bound through the `SimdOps` dispatch
+  surface.
+- [x] RITK: `cargo check -p ritk-filter --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-filter` -> passed
+- [x] RITK: `cargo clippy -p ritk-filter --all-targets -- -D warnings` ->
+  passed
+- [x] RITK: `cargo nextest run -p ritk-filter` -> 944 passed
+- [x] RITK: `cargo test --doc -p ritk-filter` -> 2 passed, 11 ignored
+- [x] RITK: `cargo doc -p ritk-filter --no-deps` -> passed
+- [x] Structural audit: `rg "\brayon\b|\btokio\b|ParallelSliceMut|\.par_iter|\.par_iter_mut|\.par_chunks|\.par_bridge|\.par\(\)|par_mut\("
+  crates/ritk-filter/src --glob '*.rs'` -> no matches
+
+### Deferred / carry-forward
+- [ ] PROVIDER-420-01 [patch]: Land the Hermes provider dispatch-bound cleanup
+  separately; the local Hermes tree is already dirty, and full `hermes-simd`
+  rustfmt is blocked by unrelated pre-existing `axpy.rs` formatting drift.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+
+---
+
 ## Sprint 419 — Direct Moirai Registration Enumeration
 **Target version**: 0.12.94
 **Sprint phase**: Closure — registration `ParallelSliceMut` use is removed from the selected paths
