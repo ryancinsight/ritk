@@ -5,14 +5,15 @@
 //!
 //! Each call to [`spawn_pacs_request`] spawns a new OS thread that runs the
 //! blocking DIMSE SCU call and sends exactly one [`PacsResponse`] back through
-//! a `sync_channel(1)`.  The channel capacity of 1 enforces backpressure: the
-//! render loop cannot queue a second request while one is in-flight.
+//! a `sync_channel(1)`.  The channel capacity of 1 bounds the completed-response
+//! handoff; viewer state owns at most one worker handle while a request is
+//! in-flight.
 //!
 //! # Async-contagion prohibition
 //!
 //! The DIMSE SCU functions (`dicom_echo`, `dicom_find`, `dicom_retrieve`)
-//! perform blocking TCP I/O via `std::net::TcpStream`.  Wrapping them in
-//! `tokio::spawn_blocking` or `async fn` would propagate async coloring into
+//! perform blocking TCP I/O via `std::net::TcpStream`.  Routing them through a
+//! runtime blocking-task API or `async fn` would propagate async coloring into
 //! the viewer domain.  `std::thread::spawn` keeps all callers synchronous and
 //! the domain layer free of runtime coupling.
 //!
@@ -68,9 +69,20 @@ pub fn spawn_pacs_request(config: PacsConfig, request: PacsRequest) -> PacsWorke
     let (tx, rx) = mpsc::sync_channel::<PacsResponse>(1);
     std::thread::spawn(move || {
         let resp = execute_request(&config, request);
-        let _ = tx.send(resp); // discard send error if receiver was already dropped
+        send_worker_response(tx, resp);
     });
     PacsWorkerHandle { rx }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn send_worker_response(tx: mpsc::SyncSender<PacsResponse>, resp: PacsResponse) -> bool {
+    match tx.send(resp) {
+        Ok(()) => true,
+        Err(_) => {
+            tracing::debug!("PACS worker response receiver dropped before completion");
+            false
+        }
+    }
 }
 
 // ── Execution helpers (non-WASM only) ────────────────────────────────────────
@@ -196,5 +208,32 @@ fn execute_retrieve_series(
     match dicom_retrieve_series(&assoc_cfg, &destination, study_uid, series_uid) {
         Ok(rsp) => PacsResponse::RetrieveSeriesOk(rsp),
         Err(e) => PacsResponse::RetrieveSeriesErr(e.to_string()),
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn send_worker_response_reports_delivered_response() {
+        let (tx, rx) = mpsc::sync_channel(1);
+
+        assert!(send_worker_response(tx, PacsResponse::EchoOk { status: 0 }));
+        assert!(matches!(
+            rx.try_recv(),
+            Ok(PacsResponse::EchoOk { status: 0 })
+        ));
+    }
+
+    #[test]
+    fn send_worker_response_reports_dropped_receiver() {
+        let (tx, rx) = mpsc::sync_channel(1);
+        drop(rx);
+
+        assert!(!send_worker_response(
+            tx,
+            PacsResponse::EchoErr("dropped".to_owned())
+        ));
     }
 }

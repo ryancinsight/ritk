@@ -6,6 +6,15 @@
 
 ## Open performance items
 
+- **MIG-422-01 [patch] — PACS worker send signal and Tokio drift cleanup. DONE.**
+  Remove the final stale Tokio reference from `ritk-snap` PACS worker docs,
+  correct completed-response backpressure wording, and replace the discarded
+  `SyncSender::send` result with one send-status helper covered by delivered
+  and receiver-dropped value-semantic tests. The RITK source/manifests now have
+  no `rayon`, `tokio`, `ParallelSlice`, `ParallelSliceMut`, `.par()`,
+  `par_mut`, or `map_collect` matches. Evidence tier: compile/lint/docs plus
+  value-semantic tests (`cargo nextest run -p ritk-snap` -> 635/635 passed).
+
 - **MIG-421-01 [patch] — Direct Moirai DICOM series loading. DONE.**
   Replace `ritk-io` DICOM directory scan, series header parse, and pixel decode
   `ParallelSlice` extension-trait call sites with direct

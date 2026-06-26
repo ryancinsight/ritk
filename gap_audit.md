@@ -1,5 +1,35 @@
 # RITK Gap Audit - Active
 
+## Sprint 422 Audit (2026-06-26) — PACS Worker Send Signal
+
+### Gaps Closed
+
+- **[MIG-422-01 CLOSED]** PACS worker send-drop signal:
+  audit found the selected PACS worker still discarded the completed-response
+  `SyncSender::send` result. The worker now routes every response through one
+  send-status helper that returns `true` only when the response is delivered and
+  emits a structured debug event when the receiver has already been dropped.
+  Evidence tier: compile/lint/docs plus value-semantic SNAP tests
+  (`cargo nextest run -p ritk-snap` -> 635 passed).
+- **[DOC-DRIFT CLOSED]** final Rayon/Tokio wording:
+  RITK source and package manifests no longer contain `rayon`, `tokio`,
+  `ParallelSlice`, `ParallelSliceMut`, `.par()`, `par_mut`, or `map_collect`
+  matches. The PACS worker documentation no longer describes Tokio or claims
+  backpressure over running worker requests that the current one-shot handle
+  ownership model does not enforce.
+
+### Residual Risk
+
+- This is a worker-signal and documentation cleanup, not a measured performance
+  win.
+- This is not a Burn/Coeus tensor replacement and does not alter image tensor
+  storage.
+- This is not an `ndarray` boundary removal.
+- Cargo refreshed local Coeus path packages from `0.2.29` to `0.2.30` while
+  verifying the current Atlas provider graph.
+
+---
+
 ## Sprint 421 Audit (2026-06-26) — Direct Moirai DICOM Series Loading
 
 ### Gaps Closed
