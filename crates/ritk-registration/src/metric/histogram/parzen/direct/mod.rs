@@ -65,14 +65,14 @@
 //! - **Stack weights (OPT-5):** `[f32; 32]` SIMD-aligned, `Copy`, no heap. σ ≤ ~5.2 bins.
 //! - **Precomputed bin ranges (MEM-316-01):** `SampleWindow` computes once.
 //! - **Lock-free checkout (PERF-319-05):** Mutex dropped before zero-fill.
-//! - **Parallel reduction (OPT-6):** rayon `fold().reduce()` with thread-local histograms.
+//! - **Parallel reduction (OPT-6):** Moirai fold/reduce with thread-local histograms.
 //! - **Histogram pool (ARCH-315-03):** Reusable buffers, Mutex poison recovery.
 //! - **Monomorphized fold (PERF-315-02):** `accumulate_sample` factors out common body.
 //! - **Branch-eliminated (FIX-316-07):** OOB folded into `Option`-returning constructors.
 //!
 //! # Safety
 //!
-//! **No `unsafe` code.** Parallelism via rayon safe abstractions. `HistogramPool`
+//! **No `unsafe` code.** Parallelism via Moirai safe abstractions. `HistogramPool`
 //! uses `Mutex` with poison recovery so panics don't propagate.
 //!
 //! `StackWeights`: zero-filled `[f32; 32]` — entries beyond `len` are `0.0`,

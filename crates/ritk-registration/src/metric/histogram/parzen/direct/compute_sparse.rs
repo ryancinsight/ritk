@@ -6,7 +6,6 @@
 //! hot-path that reuses cached fixed-image weights.
 
 use burn::tensor::{Shape, TensorData};
-use moirai::prelude::ParallelSliceMut;
 
 use super::accumulate::{accumulate_sample_sparse, merge_histograms, validate_inputs};
 use super::pool::HistogramPool;
@@ -40,7 +39,7 @@ pub fn build_sparse_w_fixed_transposed(
 
     // SPARSE-329-01: each element is (entries, inv_sum_f)
     let mut entries: SparseWFixedT = (0..n).map(|_| (SparseSampleCache::new(), 0.0f32)).collect();
-    entries.par_mut().enumerate(|i, entry| {
+    moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut entries, |i, entry| {
         // OOB check — reuse SampleWindow::mask_val (ARCH-321-04)
         if SampleWindow::mask_val(i, oob_mask).is_none() {
             return;
@@ -65,7 +64,7 @@ pub fn build_sparse_w_fixed_transposed(
 /// Sparse hot-loop variant for CMA-ES iterations after the first. Only moving
 /// weights recomputed (`StackWeights`); fixed weights from pre-computed sparse
 /// cache (~7 non-zero entries/sample, eliminating full `0..num_bins` scan and
-/// `if w_f > 0.0` branch). Rayon parallel reduction (OPT-6) with histogram pool.
+/// `if w_f > 0.0` branch). Moirai parallel reduction (OPT-6) with histogram pool.
 ///
 /// SPARSE-329-01: Full joint normalization `inv_norm = inv_sum_f × inv_sum_m`
 /// is now applied, matching the direct path. `inv_sum_f` is stored per-sample

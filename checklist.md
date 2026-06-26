@@ -1,5 +1,48 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 419 — Direct Moirai Registration Enumeration
+**Target version**: 0.12.94
+**Sprint phase**: Closure — registration `ParallelSliceMut` use is removed from the selected paths
+
+### In-flight plan (Sprint 419)
+- [x] MIG-419-01 [patch]: Audit registration Parzen direct-histogram and CMA-ES
+  `ParallelSliceMut` users and confirm the loops are independent mutable
+  enumeration writes.
+- [x] MIG-419-02 [patch]: Replace those extension-trait calls with direct
+  `moirai::enumerate_mut_with::<moirai::Adaptive>` calls and remove stale Rayon
+  wording from the touched documentation/comments.
+- [x] MIG-419-03 [patch]: Repair local Coeus provider compile blockers exposed by
+  the RITK gate without widening the RITK behavioral change.
+- [x] MIG-419-04 [patch]: Verify focused registration compile, format, clippy,
+  nextest, doctest, docs, and structural audits.
+
+### Verification gate (Sprint 419)
+- [x] Coeus: `cargo fmt --check -p coeus-ops` -> passed
+- [x] Coeus: `cargo check -p coeus-ops --all-targets` -> passed
+- [x] Coeus: `cargo nextest run -p coeus-ops` -> 147 passed
+- [x] Coeus: `cargo fmt --check -p coeus-autograd` -> passed
+- [x] Coeus: `cargo check -p coeus-autograd --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-registration` -> passed
+- [x] RITK: `cargo check -p ritk-registration --all-targets` -> passed
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-registration` -> 656 passed, 23 skipped
+- [x] RITK: `cargo test --doc -p ritk-registration` -> 3 passed, 14 ignored
+- [x] RITK: `cargo doc -p ritk-registration --no-deps` -> passed
+- [x] Structural audit: `rg "ParallelSliceMut|par_mut\(|rayon"
+  crates/ritk-registration/src/optimizer/cma_es
+  crates/ritk-registration/src/metric/histogram/parzen/direct` -> no matches
+
+### Deferred / carry-forward
+- [ ] PERF-419-01 [patch]: Profile registration integration tests that exceed the
+  30s slow-test budget; this gate passed functionally but did not prove the
+  selected paths are performance-clean.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+
+---
+
 ## Sprint 418 — Direct Moirai Segmentation Enumeration
 **Target version**: 0.12.93
 **Sprint phase**: Closure — remaining segmentation `ParallelSliceMut` use is removed

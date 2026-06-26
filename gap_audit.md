@@ -1,5 +1,34 @@
 # RITK Gap Audit - Active
 
+## Sprint 419 Audit (2026-06-26) — Direct Moirai Registration Enumeration
+
+### Gaps Closed
+
+- **[MIG-419-01 CLOSED]** registration `ParallelSliceMut` imports:
+  audit found the selected live extension-trait uses in CMA-ES population
+  fitness writes and Parzen direct sparse-entry initialization. Both are
+  independent mutable enumeration loops, so they now call
+  `moirai::enumerate_mut_with::<moirai::Adaptive>` directly. Evidence tier:
+  compile/lint/docs plus value-semantic registration tests
+  (`cargo nextest run -p ritk-registration` -> 656 passed, 23 skipped).
+- **[PROVIDER-GRAPH CLOSED]** Coeus path provider blockers:
+  the current local Coeus `0.2.26` graph blocked RITK verification after shape
+  module partitioning and embedding/autograd edits. The provider graph now
+  exposes the moved shape index helper, has one real embedding backward
+  padding-index accumulation path, and imports the autograd contiguous function
+  through the shape re-export. Evidence tier: compile plus value-semantic
+  provider tests (`cargo nextest run -p coeus-ops` -> 147 passed).
+
+### Residual Risk
+
+- This is a call-site cleanup and does not change the broader Burn/Coeus tensor
+  surface or image tensor storage.
+- This is not an `ndarray` boundary removal.
+- Registration nextest passed functionally but several integration tests exceed
+  the 30s slow-test budget; longest observed row was 193.625s.
+
+---
+
 ## Sprint 418 Audit (2026-06-25) — Direct Moirai Segmentation Enumeration
 
 ### Gaps Closed

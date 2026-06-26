@@ -4,8 +4,6 @@
 //! advances it by exactly one generation.  Separating this from the outer loop
 //! control in `mod.rs` keeps each file focused and below the 500-line limit.
 
-use moirai::prelude::ParallelSliceMut;
-
 use super::constants::AdaptationConstants;
 use super::math::{chol_mul, chol_solve_lower, cholesky, identity, vec_norm};
 use super::state::{CmaEsConfig, CmaEsStopReason, HistoryPolicy, PopulationEval};
@@ -172,14 +170,14 @@ where
 
     // 2. Evaluate and rank
     if config.parallel_population == PopulationEval::Parallel {
-        // Parallel evaluation across rayon threads — each candidate
+        // Parallel evaluation through Moirai — each candidate
         // evaluation is independent (read-only access to the objective
         // closure's captured state).  The objective must be Sync.
         //
         // Bind xs to a local reference so the borrow of state.xs and the
-        // mutable borrow of state.fvals (via par_mut) are visibly disjoint.
+        // mutable borrow of state.fvals are visibly disjoint.
         let xs = &state.xs;
-        state.fvals.par_mut().enumerate(|k, entry| {
+        moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut state.fvals, |k, entry| {
             let x_slice = &xs[k * n..(k + 1) * n];
             *entry = (f(x_slice), k);
         });

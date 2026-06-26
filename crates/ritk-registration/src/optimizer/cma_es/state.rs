@@ -9,7 +9,7 @@ pub enum PopulationEval {
     /// Evaluate candidates sequentially in the current thread.
     #[default]
     Sequential,
-    /// Evaluate candidates in parallel across rayon threads.
+    /// Evaluate candidates in parallel through Moirai.
     /// The objective function `f` must be `Sync`.
     Parallel,
 }
@@ -61,7 +61,7 @@ pub struct CmaEsConfig {
     /// LCG seed for the Box-Muller random normal generator. Different seeds
     /// give independent runs.
     pub seed: u64,
-    /// Whether to evaluate the population in parallel using rayon.
+    /// Whether to evaluate the population in parallel using Moirai.
     /// When [`PopulationEval::Parallel`], the λ candidates per generation are
     /// evaluated concurrently across CPU cores. The objective function `f`
     /// must be `Sync`.
