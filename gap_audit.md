@@ -1,5 +1,35 @@
 # RITK Gap Audit - Active
 
+## Sprint 423 Audit (2026-06-26) — NIfTI Shape Bounds SSOT
+
+### Gaps Closed
+
+- **[MIG-423-01 CLOSED]** NIfTI shape-product overflow:
+  audit found reader-side voxel-count checks were private to `reader.rs`, while
+  label writer shape validation still multiplied `nz * ny * nx` directly before
+  constructing the ndarray handoff buffer. NIfTI shape arithmetic now lives in
+  one `shape` module, and both reader and writer paths use the same checked
+  `usize` product before allocation or buffer construction. Evidence tier:
+  compile/lint/docs plus value-semantic NIfTI tests (`cargo nextest run -p
+  ritk-nifti` -> 23 passed).
+- **[WRITER BOUNDARY CLOSED]** adversarial label shapes:
+  `write_nifti_labels` now rejects overflowing shape products before comparing
+  label length or allocating an ndarray handoff array. The regression test uses
+  an empty label slice plus `[1, 2, usize::MAX]` shape so the failure path is
+  exercised without allocating.
+
+### Residual Risk
+
+- This is a safety and memory-boundary hardening slice, not a measured
+  performance win.
+- NIfTI still depends on `ndarray` because the current `nifti` crate reader and
+  writer APIs expose ndarray conversion and handoff surfaces.
+- This is not a Burn/Coeus tensor replacement.
+- Cargo refreshed local Coeus path packages from `0.2.30` to `0.2.33` while
+  verifying the current Atlas provider graph.
+
+---
+
 ## Sprint 422 Audit (2026-06-26) — PACS Worker Send Signal
 
 ### Gaps Closed

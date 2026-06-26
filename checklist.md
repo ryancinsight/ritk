@@ -1,5 +1,42 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 423 — NIfTI Shape Bounds SSOT
+**Target version**: 0.12.98
+**Sprint phase**: Closure — NIfTI voxel-count arithmetic is centralized
+
+### In-flight plan (Sprint 423)
+- [x] MIG-423-01 [patch]: Audit NIfTI read/write shape-product arithmetic for
+  unchecked multiplication before allocation or ndarray handoff.
+- [x] MIG-423-02 [patch]: Move checked voxel-count arithmetic into one
+  NIfTI-local shape module used by reader and writer paths.
+- [x] MIG-423-03 [patch]: Validate image and label writer shape products before
+  constructing ndarray handoff buffers.
+- [x] MIG-423-04 [patch]: Add value-semantic overflow regression coverage for
+  adversarial label shapes.
+- [x] MIG-423-05 [patch]: Verify focused NIfTI compile, format, clippy, nextest,
+  doctest, docs, and structural audits.
+
+### Verification gate (Sprint 423)
+- [x] RITK: `cargo check -p ritk-nifti --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-nifti` -> passed
+- [x] RITK: `cargo clippy -p ritk-nifti --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-nifti` -> 23 passed
+- [x] RITK: `cargo test --doc -p ritk-nifti` -> 0 passed, 1 ignored
+- [x] RITK: `cargo doc -p ritk-nifti --no-deps` -> passed
+- [x] Structural audit: `rg "checked_voxel_count|nz \* ny \* nx|nx \* ny \* nz|shape product|overflows usize"
+  crates/ritk-nifti/src --glob '*.rs'` -> production read/write paths use the
+  shared checked helper; remaining direct products are small test fixtures.
+
+### Deferred / carry-forward
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+- [ ] PERF-419-01 [patch]: Profile registration integration tests that exceed
+  the 30s slow-test budget.
+
+---
+
 ## Sprint 422 — PACS Worker Send Signal
 **Target version**: 0.12.97
 **Sprint phase**: Closure — PACS worker completion handoff is explicit

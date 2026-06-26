@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 423: NIfTI shape bounds SSOT
+
+### Changed
+- `ritk-nifti`: Reader and writer paths now share one checked voxel-count helper
+  before allocation or ndarray handoff.
+- `ritk-nifti`: Label and image writers validate shape products before building
+  ndarray arrays, rejecting adversarial overflow instead of relying on unchecked
+  multiplication.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-nifti`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-nifti` -> 23 passed.
+- Structural audit: production NIfTI read/write shape products use the shared
+  checked helper; remaining direct products are small test fixtures.
+- Residual risk: NIfTI still uses `ndarray` at the current `nifti` crate API
+  boundary, and this is not a Burn/Coeus tensor replacement.
+
+---
+
 ## [Unreleased] — Sprint 422: PACS worker send signal
 
 ### Changed

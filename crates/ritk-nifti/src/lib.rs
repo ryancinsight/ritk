@@ -29,6 +29,7 @@
 //! rows are sign-flipped between LPS and RAS.
 
 mod reader;
+mod shape;
 mod spatial;
 mod writer;
 

@@ -6,6 +6,14 @@
 
 ## Open performance items
 
+- **MIG-423-01 [patch] — NIfTI shape bounds SSOT. DONE.**
+  Move NIfTI voxel-count arithmetic into one `ritk-nifti::shape` helper used by
+  reader and writer paths. Label and image writers now validate shape products
+  before constructing ndarray handoff buffers, and adversarial overflowing label
+  shapes fail with a typed error instead of multiplication wraparound or
+  allocation. Evidence tier: compile/lint/docs plus value-semantic tests
+  (`cargo nextest run -p ritk-nifti` -> 23/23 passed).
+
 - **MIG-422-01 [patch] — PACS worker send signal and Tokio drift cleanup. DONE.**
   Remove the final stale Tokio reference from `ritk-snap` PACS worker docs,
   correct completed-response backpressure wording, and replace the discarded

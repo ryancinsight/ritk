@@ -93,6 +93,29 @@ fn write_nifti_labels_length_mismatch_returns_err() {
     );
 }
 
+#[test]
+fn write_nifti_labels_overflowing_shape_returns_err() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("overflow.nii");
+
+    let direction: [f32; 9] = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+    let result = write_nifti_labels(
+        &path,
+        &[],
+        [1, 2, usize::MAX],
+        [0.0; 3],
+        [1.0; 3],
+        direction,
+    );
+
+    let err = result.expect_err("overflowing shape product must be rejected");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("overflows usize"),
+        "error must name voxel-count overflow invariant: {msg}"
+    );
+}
+
 /// Single-voxel label survives write-read at the exact analytical value 7.
 #[test]
 fn write_nifti_labels_single_voxel_label_7_round_trips() -> Result<()> {
