@@ -5,7 +5,6 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::dictionary_std::tags;
 use dicom::object::{FileDicomObject, InMemDicomObject};
-use moirai::prelude::ParallelSlice;
 use ritk_core::image::Image;
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
@@ -31,10 +30,9 @@ pub fn load_dicom_series<B: Backend>(
     }
 
     // 1. Read all headers to sort spatially
-    let mut slices: Vec<(PathBuf, FileDicomObject<InMemDicomObject>)> = series
-        .file_paths
-        .par()
-        .map_collect(|p| {
+    let mut slices: Vec<(PathBuf, FileDicomObject<InMemDicomObject>)> =
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(series.file_paths.len(), |i| {
+            let p = &series.file_paths[i];
             let obj =
                 parse_file_with::<DicomRsBackend, _>(p).context("Failed to open DICOM file")?;
             Ok((p.clone(), obj))
@@ -155,9 +153,9 @@ pub fn load_dicom_series<B: Backend>(
     let direction = Direction::from_columns([dir_x, dir_y, dir_z]);
 
     // 6. Load Pixel Data in Parallel
-    let slice_pixels: Vec<Vec<f32>> = slices
-        .par()
-        .map_collect(|(_p, obj)| {
+    let slice_pixels: Vec<Vec<f32>> =
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(slices.len(), |i| {
+            let obj = &slices[i].1;
             let slope = get_scalar(obj, tags::RESCALE_SLOPE).unwrap_or(1.0);
             let intercept = get_scalar(obj, tags::RESCALE_INTERCEPT).unwrap_or(0.0);
             let samples_per_pixel =

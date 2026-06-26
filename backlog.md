@@ -6,6 +6,15 @@
 
 ## Open performance items
 
+- **MIG-421-01 [patch] — Direct Moirai DICOM series loading. DONE.**
+  Replace `ritk-io` DICOM directory scan, series header parse, and pixel decode
+  `ParallelSlice` extension-trait call sites with direct
+  `moirai::map_collect_index_with::<moirai::Adaptive>` calls. This keeps
+  file/slice ordering explicit by index and leaves no `ParallelSlice`,
+  `.par()`, or `map_collect` matches in `crates/ritk-io/src/format/dicom`.
+  Evidence tier: compile/lint/docs plus value-semantic tests
+  (`cargo nextest run -p ritk-io` -> 340/340 passed).
+
 - **MIG-420-01 [patch] — Direct Moirai filter diffusion enumeration. DONE.**
   Replace `ritk-filter` Perona-Malik and coherence diffusion
   `ParallelSliceMut` extension-trait call sites with direct

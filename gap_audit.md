@@ -1,5 +1,30 @@
 # RITK Gap Audit - Active
 
+## Sprint 421 Audit (2026-06-26) — Direct Moirai DICOM Series Loading
+
+### Gaps Closed
+
+- **[MIG-421-01 CLOSED]** DICOM `ParallelSlice` imports:
+  audit found the remaining extension-trait collection calls in DICOM directory
+  series discovery, legacy series loading, and high-level reader decode paths.
+  These are independent ordered map operations, so they now call
+  `moirai::map_collect_index_with::<moirai::Adaptive>` over file/slice indices.
+  Evidence tier: compile/lint/docs plus value-semantic I/O tests
+  (`cargo nextest run -p ritk-io` -> 340 passed).
+- **[ORDERING CONTRACT CLOSED]** DICOM scan/decode ordering:
+  indexed collection preserves the original `entries`, `file_paths`, and
+  `slices` index order before the existing deterministic sort/merge or
+  sequential copy phase.
+
+### Residual Risk
+
+- This is a call-site cleanup and does not remove Burn, ndarray, or DICOM
+  crate-owned ndarray feature usage from I/O.
+- Cargo refreshed local Coeus path packages from `0.2.28` to `0.2.29` while
+  verifying the current Atlas provider graph.
+
+---
+
 ## Sprint 420 Audit (2026-06-26) — Direct Moirai Filter Diffusion Enumeration
 
 ### Gaps Closed

@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 421: Direct Moirai DICOM series loading
+
+### Changed
+- `ritk-io`: DICOM directory scanning, legacy series header/pixel loading, and
+  high-level reader pixel decode now use direct
+  `moirai::map_collect_index_with::<moirai::Adaptive>` calls instead of the
+  `ParallelSlice` extension trait.
+- `ritk-io`: DICOM ordered map operations now make file/slice index ownership
+  explicit before the existing deterministic sort/merge or sequential copy
+  phase.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-io` passed
+  all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs, and
+  `cargo nextest run -p ritk-io` -> 340 passed.
+- Structural audit: no `ParallelSlice`, `.par()`, or `map_collect` matches remain
+  in `crates/ritk-io/src/format/dicom`.
+- Residual risk: this is not a Burn/Coeus tensor replacement and does not remove
+  DICOM crate-owned ndarray feature usage.
+
+---
+
 ## [Unreleased] — Sprint 420: Direct Moirai filter diffusion enumeration
 
 ### Changed

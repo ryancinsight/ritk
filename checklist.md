@@ -1,5 +1,39 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 421 — Direct Moirai DICOM Series Loading
+**Target version**: 0.12.96
+**Sprint phase**: Closure — DICOM series `ParallelSlice` use is removed
+
+### In-flight plan (Sprint 421)
+- [x] MIG-421-01 [patch]: Audit remaining DICOM I/O `ParallelSlice` and
+  `.par().map_collect` call sites.
+- [x] MIG-421-02 [patch]: Replace directory scan, header parse, and pixel decode
+  extension-trait calls with direct `moirai::map_collect_index_with` calls.
+- [x] MIG-421-03 [patch]: Preserve slice/file ordering and existing fallible
+  decode propagation through indexed collection plus sequential merge/copy.
+- [x] MIG-421-04 [patch]: Verify focused I/O compile, format, clippy, nextest,
+  doctest, docs, and structural audits.
+
+### Verification gate (Sprint 421)
+- [x] RITK: `cargo check -p ritk-io --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-io` -> passed
+- [x] RITK: `cargo clippy -p ritk-io --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-io` -> 340 passed
+- [x] RITK: `cargo test --doc -p ritk-io` -> 0 passed, 4 ignored
+- [x] RITK: `cargo doc -p ritk-io --no-deps` -> passed
+- [x] Structural audit: `rg "ParallelSlice|\.par\(\)|map_collect\("
+  crates/ritk-io/src/format/dicom --glob '*.rs'` -> no matches
+
+### Deferred / carry-forward
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+- [ ] PROVIDER-420-01 [patch]: Land the Hermes provider dispatch-bound cleanup
+  separately; the local Hermes tree remains dirty outside this RITK branch.
+
+---
+
 ## Sprint 420 — Direct Moirai Filter Diffusion Enumeration
 **Target version**: 0.12.95
 **Sprint phase**: Closure — filter diffusion `ParallelSliceMut` use is removed
