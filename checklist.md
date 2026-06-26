@@ -1,5 +1,41 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 422 — PACS Worker Send Signal
+**Target version**: 0.12.97
+**Sprint phase**: Closure — PACS worker completion handoff is explicit
+
+### In-flight plan (Sprint 422)
+- [x] MIG-422-01 [patch]: Audit remaining Rayon/Tokio/parallel-extension drift
+  across RITK source and package manifests.
+- [x] MIG-422-02 [patch]: Remove stale Tokio wording from the PACS worker docs
+  and correct the completed-response backpressure claim.
+- [x] MIG-422-03 [patch]: Replace the silently discarded PACS worker
+  `SyncSender::send` result with an explicit send-status helper.
+- [x] MIG-422-04 [patch]: Add value-semantic tests for delivered and
+  receiver-dropped worker response handoff paths.
+- [x] MIG-422-05 [patch]: Verify focused SNAP compile, format, clippy, nextest,
+  doctest, docs, and structural audits.
+
+### Verification gate (Sprint 422)
+- [x] RITK: `cargo check -p ritk-snap --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-snap` -> passed
+- [x] RITK: `cargo clippy -p ritk-snap --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-snap` -> 635 passed
+- [x] RITK: `cargo test --doc -p ritk-snap` -> 2 passed, 2 ignored
+- [x] RITK: `cargo doc -p ritk-snap --no-deps` -> passed
+- [x] Structural audit: `rg "\brayon\b|\btokio\b|ParallelSlice|ParallelSliceMut|\.par\(\)|par_mut\(|map_collect\("
+  crates --glob '*.rs' --glob 'Cargo.toml'` -> no matches
+
+### Deferred / carry-forward
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+- [ ] PERF-419-01 [patch]: Profile registration integration tests that exceed
+  the 30s slow-test budget.
+
+---
+
 ## Sprint 421 — Direct Moirai DICOM Series Loading
 **Target version**: 0.12.96
 **Sprint phase**: Closure — DICOM series `ParallelSlice` use is removed

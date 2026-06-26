@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 422: PACS worker send signal
+
+### Changed
+- `ritk-snap`: PACS worker response handoff now uses one explicit
+  send-status helper instead of discarding `SyncSender::send` failures.
+- `ritk-snap`: PACS worker docs no longer mention Tokio and no longer overstate
+  response-channel backpressure beyond completed-response handoff.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-snap`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-snap` -> 635 passed.
+- Structural audit: no `rayon`, `tokio`, `ParallelSlice`, `ParallelSliceMut`,
+  `.par()`, `par_mut`, or `map_collect` matches remain in RITK source or package
+  manifests.
+- Residual risk: this is not a measured performance win, not a Burn/Coeus tensor
+  replacement, and not an `ndarray` boundary removal.
+
+---
+
 ## [Unreleased] — Sprint 421: Direct Moirai DICOM series loading
 
 ### Changed
