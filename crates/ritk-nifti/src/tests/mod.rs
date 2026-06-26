@@ -1,6 +1,6 @@
 use super::*;
 use crate::header::{
-    write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader,
+    write_single_file_bytes, HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader,
 };
 use anyhow::Result;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -80,6 +80,47 @@ fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
     assert!((loaded.spacing()[0] - 1.0).abs() < 1e-5);
     assert!((loaded.spacing()[1] - 0.7).abs() < 1e-5);
     assert!((loaded.spacing()[2] - 2.3).abs() < 1e-5);
+
+    Ok(())
+}
+
+#[test]
+fn test_write_nifti2_from_bytes_roundtrip() -> Result<()> {
+    let dir = tempdir()?;
+    let file_path = dir.path().join("test_nifti2_roundtrip.nii");
+    let device = Default::default();
+
+    let shape = Shape::new([3, 2, 4]); // Z, Y, X
+    let values = (0..24).map(|v| v as f32 + 0.25).collect::<Vec<_>>();
+    let tensor =
+        Tensor::<TestBackend, 3>::from_data(TensorData::new(values.clone(), shape), &device);
+    let image = Image::new(
+        tensor,
+        Point::new([8.0, -2.0, 5.0]),
+        Spacing::new([1.25, 0.5, 2.0]),
+        Direction::identity(),
+    );
+
+    write_nifti2(&file_path, &image)?;
+    let bytes = std::fs::read(&file_path)?;
+    let header = NiftiHeader::parse(&bytes)?;
+    assert_eq!(header.version, HeaderVersion::Two);
+    assert_eq!(header.dim, [3, 4, 2, 3, 1, 1, 1, 1]);
+    assert_eq!(header.vox_offset, 544);
+
+    let loaded = read_nifti_from_bytes::<TestBackend>(&bytes, &device)?;
+    assert_eq!(loaded.shape(), [3, 2, 4]);
+    assert_eq!(
+        loaded.try_data_vec()?,
+        values,
+        "NIfTI-2 Float32 image round-trip must preserve voxel values"
+    );
+    assert!((loaded.origin()[0] - 8.0).abs() < 1e-5);
+    assert!((loaded.origin()[1] + 2.0).abs() < 1e-5);
+    assert!((loaded.origin()[2] - 5.0).abs() < 1e-5);
+    assert!((loaded.spacing()[0] - 1.25).abs() < 1e-5);
+    assert!((loaded.spacing()[1] - 0.5).abs() < 1e-5);
+    assert!((loaded.spacing()[2] - 2.0).abs() < 1e-5);
 
     Ok(())
 }

@@ -50,6 +50,42 @@ fn write_nifti_labels_round_trip_preserves_all_voxels() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn write_nifti2_labels_round_trip_preserves_header_and_voxels() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("labels2.nii");
+
+    let [nz, ny, nx]: [usize; 3] = [2, 2, 3];
+    let labels: Vec<u32> = (0..nz * ny * nx)
+        .map(|value| (value as u32 + 1) * 3)
+        .collect();
+    let direction: [f32; 9] = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+
+    write_nifti2_labels(
+        &path,
+        &labels,
+        [nz, ny, nx],
+        [1.0, 2.0, 3.0],
+        [0.5, 1.5, 2.5],
+        direction,
+    )?;
+
+    let bytes = std::fs::read(&path)?;
+    let header = crate::header::NiftiHeader::parse(&bytes)?;
+    assert_eq!(header.version, crate::header::HeaderVersion::Two);
+    assert_eq!(header.dim, [3, nx, ny, nz, 1, 1, 1, 1]);
+    assert_eq!(header.vox_offset, 544);
+
+    let (read_labels, read_shape) = read_nifti_labels(&path)?;
+    assert_eq!(read_shape, [nz, ny, nx], "NIfTI-2 label shape must survive");
+    assert_eq!(
+        read_labels, labels,
+        "NIfTI-2 UInt32 labels must preserve every voxel"
+    );
+
+    Ok(())
+}
+
 /// Background-only label map (all zeros) round-trips correctly.
 #[test]
 fn write_nifti_labels_all_background_round_trips() -> Result<()> {

@@ -6,6 +6,16 @@
 
 ## Open performance items
 
+- **MIG-425-01 [minor] — Native NIfTI-2 single-file codec. DONE.**
+  Extend `ritk-nifti`'s native codec from NIfTI-1-only single-file support to
+  automatic NIfTI-1/NIfTI-2 reads plus explicit NIfTI-2 image and label writers.
+  The header module is now one versioned SSOT over datatype validation, endian
+  detection, widened NIfTI-2 dimensions/spatial fields, checked payload ranges,
+  and endian-aware payload lane reads. Analyze 7.5 `.hdr`/`.img` remains owned
+  by `ritk-analyze`; paired NIfTI `ni1`/`ni2` is a separate deferred variant.
+  Evidence tier: compile/lint/docs plus value-semantic tests (`cargo nextest
+  run -p ritk-nifti` -> 29/29 passed).
+
 - **MIG-424-01 [patch] — Native RITK NIfTI codec. DONE.**
   Replace `ritk-nifti`'s dependency on `nifti-rs` and direct ndarray
   conversion/writer handoff with a native NIfTI-1 single-file codec. The new
