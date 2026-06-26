@@ -1,5 +1,25 @@
 # RITK Gap Audit - Active
 
+## Sprint 418 Audit (2026-06-25) — Direct Moirai Segmentation Enumeration
+
+### Gaps Closed
+
+- **[MIG-418-01 CLOSED]** remaining segmentation `ParallelSliceMut` imports:
+  audit found the only remaining `ritk-segmentation` extension-trait uses in
+  isolated watershed gradient magnitude and the STAPLE E-step. Both were
+  independent single-output mutable enumeration loops, so they now call
+  `moirai::enumerate_mut_with::<moirai::Adaptive>` directly. Evidence tier:
+  compile/lint/docs plus value-semantic segmentation tests
+  (`cargo nextest run -p ritk-segmentation` -> 435 passed).
+
+### Residual Risk
+
+- This is a call-site cleanup and does not change the broader Burn/Coeus tensor
+  surface or image tensor storage.
+- This is not an `ndarray` boundary removal.
+
+---
+
 ## Sprint 417 Audit (2026-06-25) — Level-set Safe Moirai Metrics
 
 ### Gaps Closed
@@ -19,9 +39,7 @@
 
 ### Residual Risk
 
-- Remaining `ParallelSliceMut` use in watershed/STAPLE is safe Moirai API use,
-  but still needs a contention/performance audit for whether a chunk helper
-  would reduce hidden side effects or allocation.
+- Remaining `ParallelSliceMut` use in watershed/STAPLE was removed in Sprint 418.
 - This is not a Burn/Coeus tensor replacement and does not alter image tensor storage.
 - This is not an `ndarray` boundary removal.
 

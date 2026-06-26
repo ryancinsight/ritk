@@ -40,7 +40,6 @@
 //! - ITK `itk::IsolatedWatershedImageFilter`
 
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use moirai::prelude::ParallelSliceMut;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
@@ -81,7 +80,7 @@ fn neighbours(idx: usize, dims: [usize; 3]) -> impl Iterator<Item = usize> {
 fn gradient_magnitude(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let mut out = vec![0.0_f32; nz * ny * nx];
-    out.par_mut().enumerate(|i, val| {
+    moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut out, |i, val| {
         let z = i / (ny * nx);
         let rem = i % (ny * nx);
         let y = rem / nx;

@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 418: Direct Moirai segmentation enumeration
+
+### Changed
+- `ritk-segmentation`: Isolated watershed gradient magnitude and STAPLE E-step
+  writes now use direct `moirai::enumerate_mut_with::<moirai::Adaptive>` calls
+  instead of importing the `ParallelSliceMut` extension trait.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-segmentation`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-segmentation` -> 435/435 passed.
+
+---
+
 ## [Unreleased] — Sprint 417: Level-set safe Moirai metrics
 
 ### Changed

@@ -6,6 +6,15 @@
 
 ## Open performance items
 
+- **MIG-418-01 [patch] — Direct Moirai segmentation enumeration. DONE.**
+  Replace the last `ritk-segmentation` `ParallelSliceMut` extension-trait call
+  sites in isolated watershed and STAPLE with direct
+  `moirai::enumerate_mut_with::<moirai::Adaptive>` calls. This keeps the
+  execution policy explicit at the call site and leaves no `ParallelSliceMut`,
+  `par_mut`, `unsafe`, or `SendPtr` matches in `ritk-segmentation/src`.
+  Evidence tier: compile/lint/docs plus value-semantic tests
+  (`cargo nextest run -p ritk-segmentation` -> 435/435 passed).
+
 - **MIG-417-01 [patch] — Level-set safe Moirai convergence metrics. DONE.**
   Replace the five level-set raw-pointer `SendPtr` convergence-metric side writes
   with one shared helper that pairs each mutable z-slice with its metric slot

@@ -1,5 +1,36 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 418 — Direct Moirai Segmentation Enumeration
+**Target version**: 0.12.93
+**Sprint phase**: Closure — remaining segmentation `ParallelSliceMut` use is removed
+
+### In-flight plan (Sprint 418)
+- [x] MIG-418-01 [patch]: Audit remaining `ParallelSliceMut` users in
+  `ritk-segmentation` and confirm the two sites are independent single-output
+  mutable enumeration loops.
+- [x] MIG-418-02 [patch]: Replace isolated watershed and STAPLE extension-trait
+  calls with direct `moirai::enumerate_mut_with::<moirai::Adaptive>` calls.
+- [x] MIG-418-03 [patch]: Verify focused segmentation compile, format, clippy,
+  nextest, doctest, docs, and structural audits.
+
+### Verification gate (Sprint 418)
+- [x] RITK: `cargo fmt --check -p ritk-segmentation` -> passed
+- [x] RITK: `cargo check -p ritk-segmentation --all-targets` -> passed
+- [x] RITK: `cargo clippy -p ritk-segmentation --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-segmentation` -> 435 passed
+- [x] RITK: `cargo test --doc -p ritk-segmentation` -> 0 doctests
+- [x] RITK: `cargo doc -p ritk-segmentation --no-deps` -> passed
+- [x] Structural audit: `rg "ParallelSliceMut|par_mut\(|unsafe|SendPtr"
+  crates/ritk-segmentation/src` -> no matches
+
+### Deferred / carry-forward
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+- [ ] MIG-387-01 [arch]: Continue `ndarray` boundary removal in NIfTI, CLI,
+  registration, and I/O packages.
+
+---
+
 ## Sprint 417 — Level-set Safe Moirai Metrics
 **Target version**: 0.12.92
 **Sprint phase**: Closure — level-set unsafe metric side-write removal is verified
@@ -28,7 +59,7 @@
   crates/ritk-segmentation/src/region_growing/growcut.rs` -> no matches
 
 ### Deferred / carry-forward
-- [ ] MIG-417-05 [patch]: Audit remaining `ParallelSliceMut` users in
+- [x] MIG-417-05 [patch]: Audit remaining `ParallelSliceMut` users in
   watershed/STAPLE and replace with Moirai owned chunk helpers where a second
   mutable side effect or reduction metric appears.
 - [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate

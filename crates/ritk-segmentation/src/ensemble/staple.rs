@@ -155,8 +155,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
         }
 
         // ── E-step: voxels are independent → parallel ────────────────────────
-        use moirai::prelude::ParallelSliceMut;
-        w.par_mut().enumerate(|i, val| {
+        moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut w, |i, val| {
             let mut log_alpha = log_f;
             let mut log_beta = log_1mf;
             for k_idx in 0..k {
