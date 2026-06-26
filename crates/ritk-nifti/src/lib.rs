@@ -1,8 +1,14 @@
 //! NIfTI (Neuroimaging Informatics Technology Initiative) I/O for RITK.
 //!
-//! This crate provides canonical single-source-of-truth implementations for reading and writing
-//! NIfTI-1 files (medical imaging format). It separates NIfTI logic from the polymorphic I/O
-//! dispatch layer in `ritk-io`.
+//! This crate provides native, canonical single-source-of-truth implementations
+//! for reading and writing NIfTI-1 single-file payloads. It separates NIfTI
+//! byte-level logic from the polymorphic I/O dispatch layer in `ritk-io` and
+//! does not depend on `nifti-rs` or ndarray conversion surfaces.
+//!
+//! The current codec supports uncompressed `.nii` and gzip-wrapped `.nii.gz`
+//! streams for the RITK image contracts used in this workspace: 3-D Float32
+//! images, UInt32 label maps, sform/qform spatial metadata, checked shape
+//! products, and bounded payload reads before allocation.
 //!
 //! # Key APIs
 //!
@@ -28,6 +34,7 @@
 //! `[internal_col, internal_row, internal_depth]` and the first two physical
 //! rows are sign-flipped between LPS and RAS.
 
+mod header;
 mod reader;
 mod shape;
 mod spatial;

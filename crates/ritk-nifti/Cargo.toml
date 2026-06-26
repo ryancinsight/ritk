@@ -9,9 +9,8 @@ ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
 burn = { workspace = true }
 anyhow = { workspace = true }
-nifti = { workspace = true }
-ndarray = { workspace = true }
 tracing = { workspace = true }
+flate2 = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

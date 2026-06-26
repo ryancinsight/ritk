@@ -138,8 +138,6 @@ fn write_nifti_labels_single_voxel_label_7_round_trips() -> Result<()> {
 /// as RAS rows in the NIfTI header. We verify by reading the raw header.
 #[test]
 fn write_nifti_labels_sform_encodes_origin_and_spacing() -> Result<()> {
-    use nifti::{NiftiObject, ReaderOptions};
-
     let dir = tempdir()?;
     let path = dir.path().join("spatial.nii");
 
@@ -154,8 +152,8 @@ fn write_nifti_labels_sform_encodes_origin_and_spacing() -> Result<()> {
         direction,
     )?;
 
-    let obj = ReaderOptions::new().read_file(&path)?;
-    let header = obj.header();
+    let bytes = std::fs::read(&path)?;
+    let header = crate::header::NiftiHeader::parse(&bytes)?;
 
     // With axial LPS direction and spacing [dz, dy, dx] = [2,3,4],
     // NIfTI file columns [x,y,z] receive internal [col,row,depth].

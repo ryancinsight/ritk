@@ -1,5 +1,40 @@
 # RITK Gap Audit - Active
 
+## Sprint 424 Audit (2026-06-26) — Native RITK NIfTI Codec
+
+### Gaps Closed
+
+- **[MIG-424-01 CLOSED]** `nifti-rs` dependency and ndarray conversion surface:
+  `ritk-nifti` now owns NIfTI-1 single-file header parsing/serialization, endian
+  detection, datatype validation, checked payload ranges, sform/qform affine
+  extraction, Float32 image decode, Float32/UInt32 label decode, and direct
+  writer emission. The crate no longer depends on `nifti-rs` and no longer uses
+  ndarray conversion or ndarray writer handoff paths. Evidence tier:
+  compile/lint/docs plus value-semantic NIfTI tests (`cargo nextest run -p
+  ritk-nifti` -> 25 passed).
+- **[MEMORY BOUNDARY CLOSED]** writer payload buffering:
+  image and label writers now stream header, extension bytes, and reordered
+  voxel lanes directly to the output writer or gzip encoder. The previous
+  ndarray handoff allocation and the intermediate full payload byte buffer are
+  removed from production writer paths.
+- **[TEST ORACLE CLOSED]** external NIfTI oracle:
+  focused tests now inspect native headers and byte fixtures directly, including
+  `.nii`, `.nii.gz`, sform metadata, oblique affine, path-sanitized errors,
+  spatial rejection, and label round trips.
+
+### Residual Risk
+
+- Native datatype coverage is intentionally scoped to the current public RITK
+  contract: Float32 images plus Float32/UInt32 label reads and UInt32 label
+  writes. Additional scalar types should be added as typed codec variants when a
+  caller requires them.
+- NIfTI-2 and `.hdr`/`.img` file pairs are not implemented in this patch because
+  no current RITK caller exercises those variants.
+- `burn-ndarray` remains as a dev-dependency test backend; production
+  `ritk-nifti` no longer imports ndarray or depends on `nifti-rs`.
+
+---
+
 ## Sprint 423 Audit (2026-06-26) — NIfTI Shape Bounds SSOT
 
 ### Gaps Closed
