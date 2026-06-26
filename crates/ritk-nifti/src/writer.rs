@@ -4,6 +4,7 @@ use nifti::NiftiHeader;
 use ritk_core::image::Image;
 use std::path::Path;
 
+use crate::shape::checked_voxel_count;
 use crate::spatial::sform_from_internal_lps_metadata;
 
 /// Write a label map to a NIfTI-1 file with `DT_UINT32` data type.
@@ -40,7 +41,7 @@ pub fn write_nifti_labels<P: AsRef<Path>>(
     use nifti::writer::WriterOptions;
 
     let [nz, ny, nx] = shape;
-    let expected = nz * ny * nx;
+    let expected = checked_voxel_count(nx, ny, nz)?;
     if labels.len() != expected {
         anyhow::bail!(
             "write_nifti_labels: labels.len()={} != shape product {}",
@@ -111,10 +112,18 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
     let nz = shape[0];
     let ny = shape[1];
     let nx = shape[2];
+    let expected = checked_voxel_count(nx, ny, nz)?;
 
     let slice = &image
         .try_data_vec()
         .context("NIfTI writer requires f32 image data")?;
+    if slice.len() != expected {
+        anyhow::bail!(
+            "write_nifti: image data len {} != shape product {}",
+            slice.len(),
+            expected
+        );
+    }
 
     let mut array = Array3::<f32>::zeros((nx, ny, nz));
     for z in 0..nz {

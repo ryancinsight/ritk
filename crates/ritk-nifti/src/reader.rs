@@ -6,6 +6,7 @@ use ritk_core::image::Image;
 use std::io::Cursor;
 use std::path::Path;
 
+use crate::shape::checked_voxel_count;
 use crate::spatial::metadata_from_nifti_ras_affine;
 
 pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
@@ -205,12 +206,6 @@ pub fn read_nifti_labels<P: AsRef<Path>>(path: P) -> Result<(Vec<u32>, [usize; 3
     Ok((labels, [nz, ny, nx]))
 }
 
-fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize> {
-    nx.checked_mul(ny)
-        .and_then(|xy| xy.checked_mul(nz))
-        .ok_or_else(|| anyhow!("NIfTI voxel count overflows usize: nx={nx}, ny={ny}, nz={nz}"))
-}
-
 fn checked_spatial_pixdim(pixdim: [f32; 8]) -> Result<[f32; 3]> {
     let spatial = [pixdim[1], pixdim[2], pixdim[3]];
     for (offset, value) in spatial.iter().enumerate() {
@@ -256,28 +251,7 @@ fn qform_quaternion_scalar(b: f32, c: f32, d: f32) -> Result<f32> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        checked_spatial_pixdim, checked_voxel_count, qfac_from_pixdim, qform_quaternion_scalar,
-    };
-
-    #[test]
-    fn checked_voxel_count_multiplies_dimensions() {
-        assert_eq!(
-            checked_voxel_count(4, 3, 2).expect("small dimensions must multiply"),
-            24
-        );
-    }
-
-    #[test]
-    fn checked_voxel_count_rejects_overflow() {
-        let err = checked_voxel_count(usize::MAX, 2, 1)
-            .expect_err("overflowing NIfTI dimensions must be rejected");
-
-        assert!(
-            err.to_string().contains("overflows usize"),
-            "error must name overflow invariant: {err}"
-        );
-    }
+    use super::{checked_spatial_pixdim, qfac_from_pixdim, qform_quaternion_scalar};
 
     #[test]
     fn checked_spatial_pixdim_rejects_zero() {
