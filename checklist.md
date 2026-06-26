@@ -1,5 +1,35 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 427 — Coeus Tensor-Ops Contract Tests
+**Target version**: 0.13.2
+**Sprint phase**: Closure — Coeus feature contract tests deduplicated and value-semantic
+
+### In-flight plan (Sprint 427)
+- [x] MIG-427-01 [patch]: Audit `ritk-tensor-ops` Coeus feature tests for
+  duplicated setup and weak assertions.
+- [x] MIG-427-02 [patch]: Consolidate elementwise Coeus/Burn differential tests
+  into one table-driven path with explicit expected values.
+- [x] MIG-427-03 [patch]: Strengthen Coeus shape-operation coverage so reshape
+  and transpose assert logical values, not only output shapes.
+- [x] MIG-427-04 [patch]: Verify focused compile, format, clippy, nextest,
+  doctest, and docs with `--features coeus`.
+
+### Verification gate (Sprint 427)
+- [x] RITK: `cargo fmt --check -p ritk-tensor-ops` -> passed
+- [x] RITK: `cargo check -p ritk-tensor-ops --all-targets --features coeus` -> passed
+- [x] RITK: `cargo clippy -p ritk-tensor-ops --all-targets --features coeus -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-tensor-ops --features coeus` -> 14 passed
+- [x] RITK: `cargo test --doc -p ritk-tensor-ops --features coeus` -> 0 passed, 1 ignored
+- [x] RITK: `cargo doc -p ritk-tensor-ops --features coeus --no-deps` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-387-01 [arch]: Continue replacing production Burn tensor boundaries
+  with Coeus only where a complete tensor/image contract and focused tests are
+  available. This slice strengthens the Coeus contract tests and does not claim
+  production Burn removal.
+
+---
+
 ## Sprint 426 — NIfTI Fixture Provenance and Import Coverage
 **Target version**: 0.13.1
 **Sprint phase**: Closure — sourced and generated NIfTI fixture imports verified
