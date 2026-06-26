@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 427: Coeus tensor-ops contract tests
+
+### Changed
+- `ritk-tensor-ops`: Consolidated Coeus feature elementwise differential tests
+  into one table-driven fixture with explicit expected values for add, sub, mul,
+  and div.
+- `ritk-tensor-ops`: Strengthened Coeus reshape/transpose coverage with
+  value-semantic assertions instead of shape-only checks.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests.
+  `ritk-tensor-ops` passed all-target compile, rustfmt, clippy with
+  `-D warnings`, doctests, docs, and `cargo nextest run -p ritk-tensor-ops
+  --features coeus` -> 14 passed.
+- Residual risk: this is Coeus migration evidence hardening; production Burn
+  tensor boundaries remain for a separate contract-preserving slice.
+
+---
+
 ## [Unreleased] — Sprint 426: NIfTI fixture provenance and import coverage
 
 ### Added

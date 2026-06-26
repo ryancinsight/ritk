@@ -1,5 +1,30 @@
 # RITK Gap Audit - Active
 
+## Sprint 427 Audit (2026-06-26) — Coeus Tensor-Ops Contract Tests
+
+### Gaps Closed
+
+- **[MIG-427-01 CLOSED]** duplicated Coeus differential tests:
+  the `ritk-tensor-ops` Coeus feature tests now use one table-driven binary-op
+  fixture for add/sub/mul/div, reducing repeated setup and expected-value drift.
+- **[MIG-427-02 CLOSED]** weak shape-operation assertions:
+  audit found Coeus reshape/transpose coverage asserted only output shape. The
+  test now asserts reshaped storage values and transposed logical values through
+  indexed reads, so a shape-only or storage-order-only implementation cannot
+  pass.
+
+### Residual Risk
+
+- `ritk-tensor-ops` remains a production Burn tensor boundary. This patch
+  strengthens Coeus migration evidence but does not remove the Burn bridge.
+- Burn remains the differential oracle for this feature test because the public
+  production API is still Burn-shaped. The next production migration slice needs
+  a real Coeus-backed image/tensor contract before changing callers.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused graph; this is provider-graph hygiene outside the selected test slice.
+
+---
+
 ## Sprint 426 Audit (2026-06-26) — NIfTI Fixture Provenance and Import Coverage
 
 ### Gaps Closed

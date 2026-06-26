@@ -6,6 +6,14 @@
 
 ## Open performance items
 
+- **MIG-427-01 [patch] — Coeus tensor-ops contract tests. DONE.**
+  Consolidate `ritk-tensor-ops` Coeus feature tests so elementwise
+  Coeus/Burn differential coverage runs through one table-driven fixture with
+  explicit expected values. Shape-operation coverage now asserts reshape values
+  and transpose logical indexing instead of shape-only success. Evidence tier:
+  compile/lint/docs plus value-semantic tests (`cargo nextest run -p
+  ritk-tensor-ops --features coeus` -> 14/14 passed).
+
 - **MIG-426-01 [patch] — NIfTI fixture provenance and import coverage. DONE.**
   Add source-backed NIfTI import validation around `ritk-nifti`: the real
   repository NIfTI-1 gzip fixture (`test_data/registration/brain_fixed.nii.gz`)
