@@ -71,7 +71,6 @@ burn-ndarray = "0.19" # For CPU testing
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.8.0", default-features = false, features = ["pixeldata", "ndarray"] }
-nifti = { version = "0.17.0", default-features = false, features = ["ndarray_volumes"] }
 moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe", "no-global-alloc"] }
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "0.2.0", default-features = false, features = ["parallel", "std_tls"] }
 coeus-core = { path = "../coeus/coeus-core", version = "0.2.0" }

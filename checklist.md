@@ -1,5 +1,47 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 424 — Native RITK NIfTI Codec
+**Target version**: 0.12.99
+**Sprint phase**: Closure — `ritk-nifti` owns NIfTI-1 codec logic
+
+### In-flight plan (Sprint 424)
+- [x] MIG-424-01 [patch]: Audit `ritk-nifti` for `nifti-rs` and ndarray
+  dependency surfaces.
+- [x] MIG-424-02 [patch]: Replace external header parsing/writing with a native
+  NIfTI-1 header module covering endian detection, datatype validation,
+  sform/qform affine extraction, and checked payload ranges.
+- [x] MIG-424-03 [patch]: Replace ndarray handoff writer paths with direct
+  streamed `.nii` / `.nii.gz` header and voxel-lane emission.
+- [x] MIG-424-04 [patch]: Replace ndarray reader conversion with native Float32
+  image and Float32/UInt32 label decoding into RITK ZYX order.
+- [x] MIG-424-05 [patch]: Rewrite tests to use native header inspection and byte
+  fixtures instead of `nifti-rs` as an oracle.
+- [x] MIG-424-06 [patch]: Verify focused NIfTI compile, format, clippy, nextest,
+  doctest, docs, and dependency audits.
+
+### Verification gate (Sprint 424)
+- [x] RITK: `cargo check -p ritk-nifti --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-nifti` -> passed
+- [x] RITK: `cargo clippy -p ritk-nifti --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-nifti` -> 25 passed
+- [x] RITK: `cargo test --doc -p ritk-nifti` -> 0 passed, 1 ignored
+- [x] RITK: `cargo doc -p ritk-nifti --no-deps` -> passed
+- [x] Structural audit: `rg 'name = "nifti"|\bnifti::|IntoNdArray|ReaderOptions|WriterOptions|NiftiObject|\bndarray\b'
+  Cargo.lock crates/ritk-nifti/Cargo.toml crates/ritk-nifti/src --glob '*.rs'
+  --glob 'Cargo.toml'` -> no `nifti-rs` dependency or API use; only
+  `burn-ndarray` remains as the test backend and crate docs mention ndarray as
+  a removed conversion surface.
+
+### Deferred / carry-forward
+- [ ] MIG-424-02 [minor]: Extend native NIfTI datatype coverage beyond Float32
+  images and UInt32/Float32 labels when a caller needs additional scalar kinds.
+- [ ] MIG-424-03 [minor]: Add NIfTI-2 and header/img pair support if those file
+  variants become required by an integration contract.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+
+---
+
 ## Sprint 423 — NIfTI Shape Bounds SSOT
 **Target version**: 0.12.98
 **Sprint phase**: Closure — NIfTI voxel-count arithmetic is centralized

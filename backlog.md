@@ -6,6 +6,15 @@
 
 ## Open performance items
 
+- **MIG-424-01 [patch] — Native RITK NIfTI codec. DONE.**
+  Replace `ritk-nifti`'s dependency on `nifti-rs` and direct ndarray
+  conversion/writer handoff with a native NIfTI-1 single-file codec. The new
+  vertical structure owns header parsing/serialization, checked dimensions,
+  sform/qform spatial extraction, Float32 image decoding, Float32/UInt32 label
+  decoding, and streamed `.nii` / `.nii.gz` writing without a full payload copy.
+  Evidence tier: compile/lint/docs plus value-semantic tests (`cargo nextest
+  run -p ritk-nifti` -> 25/25 passed).
+
 - **MIG-423-01 [patch] — NIfTI shape bounds SSOT. DONE.**
   Move NIfTI voxel-count arithmetic into one `ritk-nifti::shape` helper used by
   reader and writer paths. Label and image writers now validate shape products

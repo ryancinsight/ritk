@@ -1512,8 +1512,6 @@ name = "coeus-leto"
 version = "0.2.33"
 dependencies = [
  "coeus-core",
- "half",
- "hermes-simd 0.3.0",
  "leto",
  "leto-ops",
 ]
@@ -5296,7 +5294,6 @@ version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "882ed72dce9365842bf196bdeedf5055305f11fc8c03dee7bb0194a6cad34841"
 dependencies = [
- "approx",
  "matrixmultiply",
  "num-complex",
  "num-integer",
@@ -5352,25 +5349,6 @@ name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
-
-[[package]]
-name = "nifti"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bac57e0b2eeed409bce85d9e4294fb82fae6cd37d14e04349586b2a6ebe7153"
-dependencies = [
- "approx",
- "bytemuck",
- "byteordered",
- "either",
- "flate2",
- "ndarray 0.16.1",
- "num-complex",
- "num-derive",
- "num-traits",
- "quick-error 2.0.1",
- "rgb",
-]
 
 [[package]]
 name = "nix"
@@ -6788,9 +6766,6 @@ name = "rgb"
 version = "0.8.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c6a884d2998352bb4daf0183589aec883f16a6da1f4dde84d8e2e9a5409a1ce"
-dependencies = [
- "bytemuck",
-]
 
 [[package]]
 name = "ritk-analyze"
@@ -7094,8 +7069,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
- "ndarray 0.16.1",
- "nifti",
+ "flate2",
  "ritk-core",
  "ritk-image",
  "ritk-spatial",

@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 424: Native RITK NIfTI codec
+
+### Changed
+- `ritk-nifti`: Replaced `nifti-rs` and ndarray conversion/writer handoff paths
+  with a native NIfTI-1 single-file codec.
+- `ritk-nifti`: Added native header parsing/serialization, endian detection,
+  datatype validation, checked payload ranges, sform/qform affine extraction,
+  Float32 image decoding, Float32/UInt32 label decoding, and `.nii.gz` handling.
+- `ritk-nifti`: Writers now stream reordered voxel lanes directly to the output
+  writer or gzip encoder instead of allocating an ndarray handoff array or full
+  payload byte buffer.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-nifti`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-nifti` -> 25 passed.
+- Structural audit: `ritk-nifti` no longer depends on `nifti-rs`, and
+  production code has no ndarray import or conversion surface.
+- Residual risk: native datatype coverage is currently Float32 images plus
+  Float32/UInt32 labels; NIfTI-2 and `.hdr`/`.img` pairs remain future typed
+  codec extensions.
+
+---
+
 ## [Unreleased] — Sprint 423: NIfTI shape bounds SSOT
 
 ### Changed

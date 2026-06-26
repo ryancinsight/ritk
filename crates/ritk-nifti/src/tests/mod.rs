@@ -1,8 +1,10 @@
 use super::*;
+use crate::header::{
+    write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader,
+};
 use anyhow::Result;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
-use nifti::{NiftiHeader, NiftiObject};
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -78,6 +80,42 @@ fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
     assert!((loaded.spacing()[0] - 1.0).abs() < 1e-5);
     assert!((loaded.spacing()[1] - 0.7).abs() < 1e-5);
     assert!((loaded.spacing()[2] - 2.3).abs() < 1e-5);
+
+    Ok(())
+}
+
+#[test]
+fn test_gzipped_nifti_roundtrip() -> Result<()> {
+    let dir = tempdir()?;
+    let file_path = dir.path().join("test_gzip_roundtrip.nii.gz");
+    let device = Default::default();
+
+    let shape = Shape::new([2, 2, 3]);
+    let values = (0..12).map(|v| v as f32).collect::<Vec<_>>();
+    let tensor =
+        Tensor::<TestBackend, 3>::from_data(TensorData::new(values.clone(), shape), &device);
+    let image = Image::new(
+        tensor,
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.9, 1.1, 1.3]),
+        Direction::identity(),
+    );
+
+    write_nifti(&file_path, &image)?;
+    let bytes = std::fs::read(&file_path)?;
+    assert_eq!(
+        &bytes[..2],
+        &[0x1f, 0x8b],
+        "nii.gz output must carry the gzip stream signature"
+    );
+
+    let loaded = read_nifti::<TestBackend, _>(&file_path, &device)?;
+    assert_eq!(loaded.shape(), [2, 2, 3]);
+    let loaded_values = loaded.try_data_vec()?;
+    assert_eq!(
+        loaded_values, values,
+        "gzip round-trip must preserve voxels"
+    );
 
     Ok(())
 }
@@ -173,8 +211,7 @@ fn test_read_nifti_error_leak() {
         Ok(_) => panic!("Should fail"),
         Err(e) => {
             let msg = format!("{:?}", e);
-            // The nifti crate might include the path in the error message if the file doesn't exist.
-            // We want to ensure it DOES NOT leak the path.
+            // Public reader errors must not leak local filesystem paths.
             if msg.contains(path) {
                 println!(
                     "Vulnerability confirmed: Path leaked in error message: {}",
@@ -247,8 +284,8 @@ fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
 
     write_nifti(&file_path, &image)?;
 
-    let obj = nifti::ReaderOptions::new().read_file(&file_path)?;
-    let header = obj.header();
+    let bytes = std::fs::read(&file_path)?;
+    let header = NiftiHeader::parse(&bytes)?;
 
     assert_eq!(header.sform_code, 1, "writer must set sform_code=1");
     assert_eq!(
@@ -328,23 +365,26 @@ fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
 
 #[test]
 fn read_nifti_rejects_zero_sform_column() -> Result<()> {
-    use ndarray::Array3;
-    use nifti::writer::WriterOptions;
-
     let dir = tempdir()?;
     let file_path = dir.path().join("zero_sform_column.nii");
     let device = Default::default();
 
-    let header = NiftiHeader {
-        sform_code: 1,
-        qform_code: 0,
-        srow_z: [0.0, 0.0, 0.0, 0.0],
-        ..NiftiHeader::default()
-    };
-    let data = Array3::<f32>::zeros((2, 2, 2));
-    WriterOptions::new(&file_path)
-        .reference_header(&header)
-        .write_nifti(&data)?;
+    let header = NiftiHeader::new_3d(
+        HeaderDims {
+            nx: 2,
+            ny: 2,
+            nz: 2,
+        },
+        NiftiDatatype::Float32,
+        HeaderSpatial {
+            pixdim: [1.0; 8],
+            srow_x: [1.0, 0.0, 0.0, 0.0],
+            srow_y: [0.0, 1.0, 0.0, 0.0],
+            srow_z: [0.0, 0.0, 0.0, 0.0],
+        },
+    )?;
+    let data = vec![0_u8; 2 * 2 * 2 * 4];
+    std::fs::write(&file_path, write_single_file_bytes(&header, &data))?;
 
     let err = read_nifti::<TestBackend, _>(&file_path, &device)
         .expect_err("zero sform column must be rejected");
