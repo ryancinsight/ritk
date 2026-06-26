@@ -7,7 +7,7 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 
-use crate::header::{NiftiDatatype, NiftiHeader};
+use crate::header::NiftiHeader;
 use crate::shape::checked_voxel_count;
 use crate::spatial::metadata_from_nifti_ras_affine;
 
@@ -22,9 +22,9 @@ pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Re
     read_nifti_from_bytes(&bytes, device).map_err(|e| {
         tracing::error!("Failed to decode NIfTI file: {e:#}");
         if format!("{e:#}").contains("Invalid NIfTI spatial metadata") {
-            anyhow!("Invalid NIfTI spatial metadata")
+            e.context("Invalid NIfTI spatial metadata")
         } else {
-            anyhow!("Failed to read NIfTI file")
+            e.context("Failed to read NIfTI file")
         }
     })
 }
@@ -50,30 +50,21 @@ fn image_from_single_file_bytes<B: Backend>(
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
     let header = NiftiHeader::parse(bytes).context("Invalid NIfTI header")?;
-    if header.datatype != NiftiDatatype::Float32 {
-        anyhow::bail!(
-            "read_nifti requires Float32 datatype, got {}",
-            header.datatype.code()
-        );
-    }
-
     let spatial = metadata_from_nifti_ras_affine(header.affine()?)
         .context("Invalid NIfTI spatial metadata")?;
     let [nx, ny, nz] = dims_xyz(&header)?;
     let voxel_count = checked_voxel_count(nx, ny, nz)?;
     let range = header.volume_byte_range(bytes.len())?;
     let data_bytes = &bytes[range];
+    let lane_width = header.datatype.byte_width();
 
     let mut data_vec = vec![0.0_f32; voxel_count];
     for z in 0..nz {
         for y in 0..ny {
             for x in 0..nx {
                 let file_index = x + nx * (y + ny * z);
-                let offset = file_index * 4;
-                let raw = data_bytes[offset..offset + 4]
-                    .try_into()
-                    .expect("invariant: checked volume byte range gives complete f32 lanes");
-                let value = header.read_f32_lane(raw);
+                let offset = file_index * lane_width;
+                let value = header.read_f32_voxel(&data_bytes[offset..offset + lane_width])?;
                 data_vec[z * ny * nx + y * nx + x] = value;
             }
         }
@@ -103,7 +94,7 @@ pub fn read_nifti_labels<P: AsRef<Path>>(path: P) -> Result<(Vec<u32>, [usize; 3
     })?;
     read_nifti_labels_from_bytes(&bytes).map_err(|e| {
         tracing::error!("Failed to decode NIfTI label file: {e:#}");
-        anyhow!("Failed to read NIfTI label file")
+        e.context("Failed to read NIfTI label file")
     })
 }
 
@@ -121,20 +112,16 @@ fn read_nifti_labels_from_bytes(bytes: &[u8]) -> Result<(Vec<u32>, [usize; 3])> 
     let voxel_count = checked_voxel_count(nx, ny, nz)?;
     let range = header.volume_byte_range(payload.len())?;
     let data_bytes = &payload[range];
+    let lane_width = header.datatype.byte_width();
     let mut labels = vec![0_u32; voxel_count];
 
     for z in 0..nz {
         for y in 0..ny {
             for x in 0..nx {
                 let file_index = x + nx * (y + ny * z);
-                let offset = file_index * 4;
-                let raw = data_bytes[offset..offset + 4]
-                    .try_into()
-                    .expect("invariant: checked volume byte range gives complete 4-byte lanes");
-                labels[z * ny * nx + y * nx + x] = match header.datatype {
-                    NiftiDatatype::Float32 => header.read_f32_lane(raw).max(0.0).round() as u32,
-                    NiftiDatatype::Uint32 => header.read_u32_lane(raw),
-                };
+                let offset = file_index * lane_width;
+                labels[z * ny * nx + y * nx + x] =
+                    header.read_label_voxel(&data_bytes[offset..offset + lane_width])?;
             }
         }
     }

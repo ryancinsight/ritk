@@ -6,6 +6,18 @@
 
 ## Open performance items
 
+- **MIG-426-01 [patch] — NIfTI fixture provenance and import coverage. DONE.**
+  Add source-backed NIfTI import validation around `ritk-nifti`: the real
+  repository NIfTI-1 gzip fixture (`test_data/registration/brain_fixed.nii.gz`)
+  is documented as an ANTs/MNI152 copy and imported in tests; deterministic
+  generated NIfTI-2 gzip fixtures validate the native writer/reader path; and
+  Analyze-style `.hdr` bytes are rejected by the NIfTI reader so Analyze 7.5
+  remains owned by `ritk-analyze`. The native reader now also imports UInt8
+  NIfTI image payloads into the public f32 tensor boundary, with generated
+  UInt8 fixture coverage and sourced MNI152 fixture coverage. Evidence tier:
+  compile/lint/docs plus value-semantic tests (`cargo nextest run -p
+  ritk-nifti` -> 34/34 passed).
+
 - **MIG-425-01 [minor] — Native NIfTI-2 single-file codec. DONE.**
   Extend `ritk-nifti`'s native codec from NIfTI-1-only single-file support to
   automatic NIfTI-1/NIfTI-2 reads plus explicit NIfTI-2 image and label writers.

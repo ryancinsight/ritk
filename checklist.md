@@ -1,5 +1,40 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 426 — NIfTI Fixture Provenance and Import Coverage
+**Target version**: 0.13.1
+**Sprint phase**: Closure — sourced and generated NIfTI fixture imports verified
+
+### In-flight plan (Sprint 426)
+- [x] MIG-426-01 [patch]: Audit existing NIfTI and Analyze test-data provenance.
+- [x] MIG-426-02 [patch]: Add `ritk-nifti` fixture-source tests that document
+  the sourced repository NIfTI-1 gzip fixture and deterministic generated
+  NIfTI-2 fixture strategy.
+- [x] MIG-426-03 [patch]: Add import coverage for sourced NIfTI-1 `.nii.gz`,
+  generated NIfTI-2 `.nii.gz`, and Analyze-style header rejection.
+- [x] MIG-426-04 [patch]: Correct `test_data/README.md` so the
+  `brain_fixed.nii.gz` / `brain_moving.nii.gz` pair is documented as an
+  ANTs/MNI152 source copy, not a meaningful registration-quality pair.
+- [x] MIG-426-05 [patch]: Verify focused NIfTI compile, clippy, nextest,
+  doctest, docs, and structural audits after provider graph reconciliation.
+
+### Verification gate (Sprint 426)
+- [x] Leto provider: `cargo fmt --check -p leto` -> passed after reconciling
+  fixed stack math primitive commits on `codex/leto-fixed-spatial-reconcile`.
+- [x] Leto provider: `cargo nextest run -p leto` -> 160 passed.
+- [x] RITK: `cargo check -p ritk-nifti --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-nifti` -> passed
+- [x] RITK: `cargo clippy -p ritk-nifti --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-nifti` -> 34 passed
+- [x] RITK: `cargo test --doc -p ritk-nifti` -> 0 passed, 1 ignored
+- [x] RITK: `cargo doc -p ritk-nifti --no-deps` -> passed
+- [x] RITK: `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-425-01 [minor]: Add paired NIfTI `ni1`/`ni2` `.hdr`/`.img` support if a
+  caller needs NIfTI pairs; keep Analyze 7.5 routed through `ritk-analyze`.
+
+---
+
 ## Sprint 425 — Native NIfTI-2 Single-File Codec
 **Target version**: 0.13.0
 **Sprint phase**: Closure — `ritk-nifti` reads and writes NIfTI-2 single-file streams

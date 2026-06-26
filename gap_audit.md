@@ -1,5 +1,38 @@
 # RITK Gap Audit - Active
 
+## Sprint 426 Audit (2026-06-26) — NIfTI Fixture Provenance and Import Coverage
+
+### Gaps Closed
+
+- **[MIG-426-01 CLOSED]** NIfTI test-data provenance:
+  `test_data/README.md` now records that `registration/brain_fixed.nii.gz` and
+  `brain_moving.nii.gz` are byte-identical copies of the ANTs/MNI152 fixture,
+  matching `test_data/registration/README.md`, and no longer describes them as a
+  meaningful registration-quality pair.
+- **[MIG-426-02 CLOSED]** format import tests:
+  `ritk-nifti` now has a dedicated `tests_format_sources` leaf module covering
+  documented repository fixture sources, sourced NIfTI-1 gzip import, generated
+  NIfTI-2 gzip import, and rejection of Analyze-style headers without NIfTI
+  magic. Evidence tier: compile/lint/docs plus value-semantic tests (`cargo
+  nextest run -p ritk-nifti` -> 34 passed).
+- **[MIG-426-03 CLOSED]** UInt8 image import:
+  audit found the sourced MNI152 fixture is NIfTI datatype code 2 (UInt8), while
+  `read_nifti` only accepted Float32 images and assumed four-byte payload lanes.
+  Header-owned datatype metadata now includes UInt8 byte width and image/label
+  voxel decoding uses datatype-aware lane conversion before allocation.
+
+### Residual Risk
+
+- The sourced MNI152 fixture imports as RITK ZYX shape `[215, 256, 207]` with
+  0.737463116645813 mm spacing, finite non-zero f32 tensor content, and a UInt8
+  on-disk payload. Additional scalar datatypes beyond Float32/UInt8 images and
+  Float32/UInt32/UInt8 labels remain future typed codec variants.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused NIfTI graph; this is provider-graph hygiene outside the selected codec
+  slice.
+
+---
+
 ## Sprint 425 Audit (2026-06-26) — Native NIfTI-2 Single-File Codec
 
 ### Gaps Closed

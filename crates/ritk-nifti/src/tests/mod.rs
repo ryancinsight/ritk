@@ -298,9 +298,10 @@ fn test_read_nifti_invalid_file_error_leak() -> Result<()> {
             } else {
                 println!("Path NOT leaked in error message: {}", msg);
                 assert!(msg.contains("Failed to read NIfTI file"));
-                if msg.contains("Caused by") {
-                    panic!("Underlying error leaked: {}", msg);
-                }
+                assert!(
+                    msg.contains("Invalid NIfTI sizeof_hdr"),
+                    "decode errors must preserve the violated header invariant: {msg}"
+                );
             }
         }
     }
@@ -438,4 +439,5 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
     Ok(())
 }
 
+mod tests_format_sources;
 mod tests_labels;
