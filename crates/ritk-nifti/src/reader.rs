@@ -32,7 +32,7 @@ pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Re
 /// Read a NIfTI payload from in-memory bytes.
 ///
 /// Accepts `.nii` bytes directly and `.nii.gz` bytes by detecting the gzip
-/// header. The decoded payload must be a single-file NIfTI-1 stream.
+/// header. The decoded payload must be a single-file NIfTI-1 or NIfTI-2 stream.
 pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B::Device) -> Result<Image<B, 3>> {
     let decoded;
     let payload = if bytes.starts_with(&GZIP_MAGIC) {
@@ -70,11 +70,10 @@ fn image_from_single_file_bytes<B: Backend>(
             for x in 0..nx {
                 let file_index = x + nx * (y + ny * z);
                 let offset = file_index * 4;
-                let value = f32::from_le_bytes(
-                    data_bytes[offset..offset + 4]
-                        .try_into()
-                        .expect("invariant: checked volume byte range gives complete f32 lanes"),
-                );
+                let raw = data_bytes[offset..offset + 4]
+                    .try_into()
+                    .expect("invariant: checked volume byte range gives complete f32 lanes");
+                let value = header.read_f32_lane(raw);
                 data_vec[z * ny * nx + y * nx + x] = value;
             }
         }
@@ -133,8 +132,8 @@ fn read_nifti_labels_from_bytes(bytes: &[u8]) -> Result<(Vec<u32>, [usize; 3])> 
                     .try_into()
                     .expect("invariant: checked volume byte range gives complete 4-byte lanes");
                 labels[z * ny * nx + y * nx + x] = match header.datatype {
-                    NiftiDatatype::Float32 => f32::from_le_bytes(raw).max(0.0).round() as u32,
-                    NiftiDatatype::Uint32 => u32::from_le_bytes(raw),
+                    NiftiDatatype::Float32 => header.read_f32_lane(raw).max(0.0).round() as u32,
+                    NiftiDatatype::Uint32 => header.read_u32_lane(raw),
                 };
             }
         }
@@ -144,11 +143,7 @@ fn read_nifti_labels_from_bytes(bytes: &[u8]) -> Result<(Vec<u32>, [usize; 3])> 
 }
 
 fn dims_xyz(header: &NiftiHeader) -> Result<[usize; 3]> {
-    Ok([
-        usize::from(header.dim[1]),
-        usize::from(header.dim[2]),
-        usize::from(header.dim[3]),
-    ])
+    Ok([header.dim[1], header.dim[2], header.dim[3]])
 }
 
 fn decode_gzip(bytes: &[u8]) -> Result<Vec<u8>> {

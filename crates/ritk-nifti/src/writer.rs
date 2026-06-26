@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use crate::header::{HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader};
+use crate::header::{HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader};
 use crate::shape::checked_voxel_count;
 use crate::spatial::sform_from_internal_lps_metadata;
 
@@ -34,6 +34,50 @@ pub fn write_nifti_labels<P: AsRef<Path>>(
     spacing: [f32; 3],
     direction: [f32; 9],
 ) -> Result<()> {
+    write_nifti_labels_with_version(
+        HeaderVersion::One,
+        path,
+        labels,
+        shape,
+        origin,
+        spacing,
+        direction,
+    )
+}
+
+/// Write a label map to a NIfTI-2 file with `DT_UINT32` data type.
+///
+/// This emits the native single-file `.nii`/`.nii.gz` NIfTI-2 header (`n+2`)
+/// and the same ZYX-to-XYZ voxel ordering and LPS-to-RAS sform convention as
+/// [`write_nifti_labels`].
+pub fn write_nifti2_labels<P: AsRef<Path>>(
+    path: P,
+    labels: &[u32],
+    shape: [usize; 3],
+    origin: [f32; 3],
+    spacing: [f32; 3],
+    direction: [f32; 9],
+) -> Result<()> {
+    write_nifti_labels_with_version(
+        HeaderVersion::Two,
+        path,
+        labels,
+        shape,
+        origin,
+        spacing,
+        direction,
+    )
+}
+
+fn write_nifti_labels_with_version<P: AsRef<Path>>(
+    version: HeaderVersion,
+    path: P,
+    labels: &[u32],
+    shape: [usize; 3],
+    origin: [f32; 3],
+    spacing: [f32; 3],
+    direction: [f32; 9],
+) -> Result<()> {
     let [nz, ny, nx] = shape;
     let expected = checked_voxel_count(nx, ny, nz)?;
     if labels.len() != expected {
@@ -45,9 +89,8 @@ pub fn write_nifti_labels<P: AsRef<Path>>(
     }
 
     let header = header_from_spatial(
-        nx,
-        ny,
-        nz,
+        version,
+        HeaderDims { nx, ny, nz },
         NiftiDatatype::Uint32,
         origin.map(f64::from),
         spacing.map(f64::from),
@@ -85,6 +128,23 @@ pub fn write_nifti_labels<P: AsRef<Path>>(
 /// `[direction.col(2)*spacing[2], direction.col(1)*spacing[1],
 /// direction.col(0)*spacing[0]]`, then converts LPS rows to RAS rows.
 pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+    write_nifti_with_version(HeaderVersion::One, path, image)
+}
+
+/// Write an image to a NIfTI-2 single-file stream with full sform metadata.
+///
+/// The reader auto-detects NIfTI-1 and NIfTI-2. This writer is explicit so
+/// callers do not silently change on-disk format when NIfTI-1 dimensions still
+/// suffice.
+pub fn write_nifti2<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+    write_nifti_with_version(HeaderVersion::Two, path, image)
+}
+
+fn write_nifti_with_version<B: Backend, P: AsRef<Path>>(
+    version: HeaderVersion,
+    path: P,
+    image: &Image<B, 3>,
+) -> Result<()> {
     let shape = image.shape();
     let nz = shape[0];
     let ny = shape[1];
@@ -117,9 +177,8 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
         direction[(2, 2)],
     ];
     let header = header_from_spatial(
-        nx,
-        ny,
-        nz,
+        version,
+        HeaderDims { nx, ny, nz },
         NiftiDatatype::Float32,
         [origin[0], origin[1], origin[2]],
         [spacing[0], spacing[1], spacing[2]],
@@ -139,33 +198,24 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
 }
 
 fn header_from_spatial(
-    nx: usize,
-    ny: usize,
-    nz: usize,
+    version: HeaderVersion,
+    dims: HeaderDims,
     datatype: NiftiDatatype,
     origin: [f64; 3],
     spacing: [f64; 3],
     direction: [f64; 9],
 ) -> Result<NiftiHeader> {
     let sform = sform_from_internal_lps_metadata(origin, spacing, direction);
-    let pixdim = [
-        1.0,
-        spacing[2] as f32,
-        spacing[1] as f32,
-        spacing[0] as f32,
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-    ];
-    NiftiHeader::new_3d(
-        HeaderDims { nx, ny, nz },
+    let pixdim = [1.0, spacing[2], spacing[1], spacing[0], 1.0, 1.0, 1.0, 1.0];
+    NiftiHeader::new_3d_with_version(
+        version,
+        dims,
         datatype,
         HeaderSpatial {
             pixdim,
-            srow_x: sform.x,
-            srow_y: sform.y,
-            srow_z: sform.z,
+            srow_x: sform.x.map(f64::from),
+            srow_y: sform.y.map(f64::from),
+            srow_z: sform.z.map(f64::from),
         },
     )
 }

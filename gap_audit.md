@@ -1,5 +1,43 @@
 # RITK Gap Audit - Active
 
+## Sprint 425 Audit (2026-06-26) — Native NIfTI-2 Single-File Codec
+
+### Gaps Closed
+
+- **[MIG-425-01 CLOSED]** NIfTI-2 single-file support:
+  `ritk-nifti` now parses NIfTI-1 and NIfTI-2 single-file headers through one
+  versioned header SSOT. NIfTI-2 support covers the 540-byte header, `n+2`
+  magic, 64-bit dimensions, f64 spatial fields, integer `vox_offset`, Float32
+  image reads, UInt32/Float32 label reads, and checked payload ranges before
+  allocation. Evidence tier: compile/lint/docs plus value-semantic NIfTI tests
+  (`cargo nextest run -p ritk-nifti` -> 29 passed).
+- **[WRITER VARIANT CLOSED]** explicit NIfTI-2 writes:
+  `write_nifti2` and `write_nifti2_labels` emit native single-file NIfTI-2
+  streams while `write_nifti` and `write_nifti_labels` keep their NIfTI-1
+  on-disk contract. Tests assert header version, dimensions, voxel offset, shape,
+  spatial metadata, and exact voxel/label preservation.
+- **[FORMAT BOUNDARY CLOSED]** Analyze pair separation:
+  Analyze 7.5 `.hdr`/`.img` ownership remains in `ritk-analyze`. `ritk-nifti`
+  documentation now records that paired NIfTI `ni1`/`ni2` is distinct from
+  Analyze and is not mixed into the single-file codec.
+- **[PROVIDER-GRAPH CLOSED]** Coeus path-version drift:
+  the local Atlas Coeus checkout now declares 0.3.0, so RITK's workspace Coeus
+  path dependency pins and lockfile entries were synchronized to 0.3.0 to keep
+  focused NIfTI gates buildable on the current provider graph.
+
+### Residual Risk
+
+- Paired NIfTI `ni1`/`ni2` `.hdr`/`.img` is not implemented in this patch; add it
+  only behind NIfTI-specific tests and keep Analyze 7.5 routed through
+  `ritk-analyze`.
+- Native datatype coverage remains scoped to Float32 images plus Float32/UInt32
+  labels.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused NIfTI graph; this warning is provider-graph hygiene outside the
+  selected codec slice.
+
+---
+
 ## Sprint 424 Audit (2026-06-26) — Native RITK NIfTI Codec
 
 ### Gaps Closed

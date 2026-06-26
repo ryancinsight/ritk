@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 425: Native NIfTI-2 single-file codec
+
+### Added
+- `ritk-nifti`: Added automatic NIfTI-2 single-file reads and explicit
+  `write_nifti2` / `write_nifti2_labels` writer APIs.
+
+### Changed
+- `ritk-nifti`: Refactored native header handling into one versioned SSOT for
+  NIfTI-1 and NIfTI-2 dimensions, datatype validation, endian detection, spatial
+  fields, voxel offsets, and checked payload ranges.
+- `ritk-nifti`: Payload decoding now reads Float32 and UInt32 lanes according to
+  the parsed header endian flag.
+- Workspace: Synced Coeus path dependency pins and lockfile entries to the local
+  Atlas Coeus 0.3.0 provider graph.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-nifti`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-nifti` -> 29 passed.
+- Structural audit: `ritk-nifti` owns NIfTI-2 single-file `n+2`; `ritk-analyze`
+  owns Analyze 7.5 `.hdr/.img`; paired NIfTI `ni1`/`ni2` remains a separate
+  deferred NIfTI variant.
+- Residual risk: native datatype coverage remains Float32 images plus
+  Float32/UInt32 labels.
+
+---
+
 ## [Unreleased] — Sprint 424: Native RITK NIfTI codec
 
 ### Changed

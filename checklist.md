@@ -1,5 +1,53 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 425 — Native NIfTI-2 Single-File Codec
+**Target version**: 0.13.0
+**Sprint phase**: Closure — `ritk-nifti` reads and writes NIfTI-2 single-file streams
+
+### In-flight plan (Sprint 425)
+- [x] MIG-425-01 [minor]: Separate Analyze `.hdr`/`.img` ownership from NIfTI
+  single-file work; `ritk-analyze` remains the Analyze 7.5 pair owner.
+- [x] MIG-425-02 [minor]: Refactor `ritk-nifti` header state into one versioned
+  SSOT covering NIfTI-1 and NIfTI-2 dimensions, datatype validation, endian
+  detection, spatial fields, and checked payload ranges.
+- [x] MIG-425-03 [minor]: Add explicit NIfTI-2 image and label writers while
+  keeping existing `write_nifti` / `write_nifti_labels` as NIfTI-1 emitters.
+- [x] MIG-425-04 [patch]: Make payload reads endian-aware through header-owned
+  lane decoders.
+- [x] MIG-425-05 [patch]: Add value-semantic NIfTI-2 image/header and
+  UInt32-label round-trip coverage.
+- [x] MIG-425-06 [patch]: Sync RITK Coeus path dependency pins to the local
+  Atlas Coeus 0.3.0 provider graph required by the current checkout.
+- [x] MIG-425-07 [patch]: Verify focused NIfTI compile, format, clippy, nextest,
+  doctest, docs, and structural audits.
+
+### Verification gate (Sprint 425)
+- [x] RITK: `cargo check -p ritk-nifti --all-targets` -> passed
+- [x] RITK: `cargo fmt --check -p ritk-nifti` -> passed
+- [x] RITK: `cargo clippy -p ritk-nifti --all-targets -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-nifti` -> 29 passed
+- [x] RITK: `cargo test --doc -p ritk-nifti` -> 0 passed, 1 ignored
+- [x] RITK: `cargo doc -p ritk-nifti --no-deps` -> passed
+- [x] Structural audit: `rg 'name = "nifti"|\bnifti::|IntoNdArray|ReaderOptions|WriterOptions|NiftiObject|\bndarray\b'
+  Cargo.lock crates/ritk-nifti/Cargo.toml crates/ritk-nifti/src --glob '*.rs'
+  --glob 'Cargo.toml'` -> no `nifti-rs` dependency or API use; `burn-ndarray`
+  remains only as the test backend and crate docs mention ndarray as a removed
+  conversion surface.
+- [x] Format-boundary audit: `rg 'n\+2|ni2|Analyze|\.hdr|\.img|write_nifti2|HeaderVersion'
+  crates/ritk-nifti/src crates/ritk-analyze/src --glob '*.rs'` -> `ritk-nifti`
+  owns NIfTI-2 single-file `n+2`; `ritk-analyze` owns Analyze 7.5 `.hdr/.img`;
+  paired NIfTI `ni1`/`ni2` remains deferred as a distinct NIfTI variant.
+
+### Deferred / carry-forward
+- [ ] MIG-425-01 [minor]: Add paired NIfTI `ni1`/`ni2` `.hdr`/`.img` support if a
+  caller needs NIfTI pairs; do not route Analyze 7.5 through `ritk-nifti`.
+- [ ] MIG-424-02 [minor]: Extend native NIfTI datatype coverage beyond Float32
+  images and UInt32/Float32 labels when a caller needs additional scalar kinds.
+- [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate
+  contract-preserving slice.
+
+---
+
 ## Sprint 424 — Native RITK NIfTI Codec
 **Target version**: 0.12.99
 **Sprint phase**: Closure — `ritk-nifti` owns NIfTI-1 codec logic

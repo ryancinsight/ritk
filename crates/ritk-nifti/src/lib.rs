@@ -1,7 +1,8 @@
 //! NIfTI (Neuroimaging Informatics Technology Initiative) I/O for RITK.
 //!
 //! This crate provides native, canonical single-source-of-truth implementations
-//! for reading and writing NIfTI-1 single-file payloads. It separates NIfTI
+//! for reading NIfTI-1/NIfTI-2 and writing explicit NIfTI-1 or NIfTI-2
+//! single-file payloads. It separates NIfTI
 //! byte-level logic from the polymorphic I/O dispatch layer in `ritk-io` and
 //! does not depend on `nifti-rs` or ndarray conversion surfaces.
 //!
@@ -10,12 +11,18 @@
 //! images, UInt32 label maps, sform/qform spatial metadata, checked shape
 //! products, and bounded payload reads before allocation.
 //!
+//! Analyze 7.5 `.hdr`/`.img` pairs are owned by `ritk-analyze`. Paired NIfTI
+//! headers (`ni1`/`ni2`) are a distinct NIfTI extension point and are not mixed
+//! into this single-file codec.
+//!
 //! # Key APIs
 //!
 //! - [`read_nifti`]: Read a NIfTI file as a Burn tensor-backed Image with spatial metadata
 //! - [`write_nifti`]: Write an Image to a NIfTI file with full sform affine encoding
+//! - [`write_nifti2`]: Write an Image to a NIfTI-2 file with full sform affine encoding
 //! - [`read_nifti_labels`]: Read label maps (segmentations) as ZYX-ordered u32 vectors
 //! - [`write_nifti_labels`]: Write label maps to NIfTI with spatial metadata
+//! - [`write_nifti2_labels`]: Write label maps to NIfTI-2 with spatial metadata
 //!
 //! # Spatial Convention
 //!
@@ -41,7 +48,7 @@ mod spatial;
 mod writer;
 
 pub use reader::{read_nifti, read_nifti_from_bytes, read_nifti_labels};
-pub use writer::{write_nifti, write_nifti_labels};
+pub use writer::{write_nifti, write_nifti2, write_nifti2_labels, write_nifti_labels};
 
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
