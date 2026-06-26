@@ -4,7 +4,6 @@ use anyhow::{Context, Result};
 use arrayvec::ArrayString;
 use dicom::dictionary_std::tags;
 use dicom::object::{FileDicomObject, InMemDicomObject};
-use moirai::prelude::ParallelSlice;
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::collections::HashMap;
 use std::fs;
@@ -47,9 +46,10 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
     }
 
     // 1. Parallel-collect per-file data (no Mutex during parallel phase).
-    let raw: Vec<ScannedEntry> = entries
-        .par()
-        .map_collect(|file_path| -> anyhow::Result<Option<ScannedEntry>> {
+    let raw: Vec<ScannedEntry> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(
+        entries.len(),
+        |i| -> anyhow::Result<Option<ScannedEntry>> {
+            let file_path = &entries[i];
             let Ok(obj) = parse_file_with::<DicomRsBackend, _>(file_path) else {
                 return Ok(None);
             };
@@ -94,10 +94,11 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
                 patient_id,
                 file_path.clone(),
             )))
-        })
-        .into_iter()
-        .filter_map(|r| r.ok().flatten())
-        .collect();
+        },
+    )
+    .into_iter()
+    .filter_map(|r| r.ok().flatten())
+    .collect();
 
     // 2. Sequential merge — no Mutex required.
     let mut map: HashMap<ArrayString<64>, DicomSeriesInfo> = HashMap::new();

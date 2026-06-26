@@ -162,10 +162,9 @@ pub(crate) fn load_from_series<B: Backend>(
         // Irregular z-spacing: decode to frame vectors then resample to uniform grid.
         #[cfg(not(target_arch = "wasm32"))]
         let decoded: Vec<Vec<f32>> = {
-            use moirai::prelude::ParallelSlice;
-            let decoded: Result<Vec<Vec<f32>>, anyhow::Error> = slices
-                .par()
-                .map_collect(|slice| {
+            let decoded: Result<Vec<Vec<f32>>, anyhow::Error> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(slices.len(), |z| {
+                    let slice = &slices[z];
                     let data = if let Some(ref bytes) = slice.part10_bytes {
                         read_slice_pixels_from_bytes(bytes, slice)
                     } else {
@@ -225,25 +224,26 @@ pub(crate) fn load_from_series<B: Backend>(
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use moirai::prelude::ParallelSlice;
             // Decode slices in parallel (fallible), then write into the volume
             // sequentially (cheap memcpy) so the first decode error propagates.
-            let decoded: Vec<Result<Vec<f32>>> = slices.par().map_collect(|slice| {
-                let data = if let Some(ref bytes) = slice.part10_bytes {
-                    read_slice_pixels_from_bytes(bytes, slice)
-                } else {
-                    read_slice_pixels(slice)
-                }
-                .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
-                if data.len() != frame_len {
-                    bail!(
-                        "DICOM slice size mismatch: expected {} pixels, got {}",
-                        frame_len,
-                        data.len()
-                    );
-                }
-                Ok(data)
-            });
+            let decoded: Vec<Result<Vec<f32>>> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(slices.len(), |z| {
+                    let slice = &slices[z];
+                    let data = if let Some(ref bytes) = slice.part10_bytes {
+                        read_slice_pixels_from_bytes(bytes, slice)
+                    } else {
+                        read_slice_pixels(slice)
+                    }
+                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                    if data.len() != frame_len {
+                        bail!(
+                            "DICOM slice size mismatch: expected {} pixels, got {}",
+                            frame_len,
+                            data.len()
+                        );
+                    }
+                    Ok(data)
+                });
             for (z, result) in decoded.into_iter().enumerate() {
                 let data = result?;
                 let offset = z * frame_len;
