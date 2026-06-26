@@ -24,6 +24,7 @@ impl HeaderVersion {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum NiftiDatatype {
+    Uint8,
     Float32,
     Uint32,
 }
@@ -31,6 +32,7 @@ pub(crate) enum NiftiDatatype {
 impl NiftiDatatype {
     pub(crate) const fn code(self) -> i16 {
         match self {
+            Self::Uint8 => 2,
             Self::Float32 => 16,
             Self::Uint32 => 768,
         }
@@ -38,12 +40,18 @@ impl NiftiDatatype {
 
     const fn bitpix(self) -> i16 {
         match self {
+            Self::Uint8 => 8,
             Self::Float32 | Self::Uint32 => 32,
         }
     }
 
+    pub(crate) const fn byte_width(self) -> usize {
+        (self.bitpix() / 8) as usize
+    }
+
     pub(crate) fn from_code(code: i16) -> Result<Self> {
         match code {
+            2 => Ok(Self::Uint8),
             16 => Ok(Self::Float32),
             768 => Ok(Self::Uint32),
             _ => bail!("Unsupported NIfTI datatype code {code}"),
@@ -366,6 +374,24 @@ impl NiftiHeader {
         }
     }
 
+    pub(crate) fn read_f32_voxel(&self, raw: &[u8]) -> Result<f32> {
+        Ok(match self.datatype {
+            NiftiDatatype::Uint8 => f32::from(raw[0]),
+            NiftiDatatype::Float32 => self.read_f32_lane(checked_lane::<4>(raw)?),
+            NiftiDatatype::Uint32 => self.read_u32_lane(checked_lane::<4>(raw)?) as f32,
+        })
+    }
+
+    pub(crate) fn read_label_voxel(&self, raw: &[u8]) -> Result<u32> {
+        Ok(match self.datatype {
+            NiftiDatatype::Uint8 => u32::from(raw[0]),
+            NiftiDatatype::Float32 => {
+                self.read_f32_lane(checked_lane::<4>(raw)?).max(0.0).round() as u32
+            }
+            NiftiDatatype::Uint32 => self.read_u32_lane(checked_lane::<4>(raw)?),
+        })
+    }
+
     pub(crate) fn affine(&self) -> Result<[[f32; 4]; 4]> {
         if self.sform_code > 0 {
             Ok([
@@ -414,7 +440,7 @@ impl NiftiHeader {
     pub(crate) fn volume_byte_range(&self, byte_len: usize) -> Result<std::ops::Range<usize>> {
         let voxel_count = crate::shape::checked_voxel_count(self.dim[1], self.dim[2], self.dim[3])?;
         let data_len = voxel_count
-            .checked_mul(4)
+            .checked_mul(self.datatype.byte_width())
             .ok_or_else(|| anyhow!("NIfTI data byte count overflows usize"))?;
         let end = self
             .vox_offset
@@ -425,6 +451,15 @@ impl NiftiHeader {
         }
         Ok(self.vox_offset..end)
     }
+}
+
+fn checked_lane<const N: usize>(raw: &[u8]) -> Result<[u8; N]> {
+    raw.try_into().map_err(|_| {
+        anyhow!(
+            "NIfTI voxel lane width mismatch: expected {N}, got {}",
+            raw.len()
+        )
+    })
 }
 
 pub(crate) fn qfac_from_pixdim(value: f64) -> Result<f64> {

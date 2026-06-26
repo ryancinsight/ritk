@@ -73,10 +73,10 @@ numpy = "0.22"
 dicom = { version = "0.8.0", default-features = false, features = ["pixeldata", "ndarray"] }
 moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe", "no-global-alloc"] }
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "0.2.0", default-features = false, features = ["parallel", "std_tls"] }
-coeus-core = { path = "../coeus/coeus-core", version = "0.3.0" }
-coeus-tensor = { path = "../coeus/coeus-tensor", version = "0.3.0" }
-coeus-ops = { path = "../coeus/coeus-ops", version = "0.3.0" }
-coeus-leto = { path = "../coeus/coeus-leto", version = "0.3.0" }
+coeus-core = { path = "../coeus/coeus-core", version = "0.5.1" }
+coeus-tensor = { path = "../coeus/coeus-tensor", version = "0.5.1" }
+coeus-ops = { path = "../coeus/coeus-ops", version = "0.5.1" }
+coeus-leto = { path = "../coeus/coeus-leto", version = "0.5.1" }
 leto = { path = "../leto/crates/leto", version = "0.35.1" }
 leto-ops = { path = "../leto/crates/leto-ops", version = "0.35.1" }
 hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.10.0" }

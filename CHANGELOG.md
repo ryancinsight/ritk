@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 426: NIfTI fixture provenance and import coverage
+
+### Added
+- `ritk-nifti`: Added fixture-source tests for documented NIfTI-1 gzip data,
+  generated NIfTI-2 gzip data, and Analyze-style header rejection.
+- `ritk-nifti`: Added UInt8 NIfTI image import coverage with both generated
+  NIfTI-1 bytes and the sourced MNI152 `.nii.gz` fixture.
+
+### Changed
+- `ritk-nifti`: Native image and label readers now use header-owned datatype
+  byte widths and voxel conversion, so UInt8 payloads do not go through the old
+  fixed four-byte lane assumption.
+- `ritk-nifti`: Decode errors preserve the violated parser invariant while
+  public file-read errors continue to redact local filesystem paths.
+- `test_data`: Corrected the `registration/brain_fixed.nii.gz` and
+  `brain_moving.nii.gz` description to identify them as ANTs/MNI152 source
+  copies rather than a meaningful registration-quality pair.
+- Workspace: Synced Coeus path dependency pins and lockfile entries to the
+  local Atlas Coeus 0.5.1 provider graph.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-nifti`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests, docs,
+  and `cargo nextest run -p ritk-nifti` -> 34 passed.
+- Provider evidence: local Leto reconciliation passed `cargo fmt --check -p
+  leto` and `cargo nextest run -p leto` -> 160 passed.
+
+---
+
 ## [Unreleased] — Sprint 425: Native NIfTI-2 single-file codec
 
 ### Added
