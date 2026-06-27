@@ -6,6 +6,16 @@
 
 ## Open performance items
 
+- **MIG-430-01 [minor] — Coeus image tensor-ops boundary. DONE.**
+  Add feature-gated `ritk_tensor_ops::coeus` helpers for
+  `ritk_image::coeus::Image<T, B, D>`: borrowed contiguous extraction, owned
+  extraction, and checked rebuild while preserving image metadata. The image
+  helpers delegate to the existing Coeus tensor rank, contiguity, and
+  shape-product validation SSOT. Evidence tier: compile/lint/docs plus
+  value-semantic tests (`cargo nextest run -p ritk-tensor-ops --features
+  coeus` -> 24/24 passed). Production image callers still need migration from
+  the legacy Burn root image type.
+
 - **MIG-429-01 [minor] — Coeus image contract. DONE.**
   Add a feature-gated `ritk_image::coeus::Image<T, B, D>` backed by
   `coeus_tensor::Tensor<T, B>`. Construction validates tensor rank against the

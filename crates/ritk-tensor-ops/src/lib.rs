@@ -28,8 +28,8 @@
 //!
 //! The legacy `Image<B, D>` helpers cross the Burn tensor ↔ CPU memory boundary
 //! and are therefore inherently O(N) in both time and space. The `coeus` feature
-//! adds borrowed extraction for contiguous Coeus tensors so read-only kernels can
-//! avoid a copy.
+//! adds borrowed extraction for contiguous Coeus tensors and Coeus-backed images
+//! so read-only kernels can avoid a copy.
 
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};

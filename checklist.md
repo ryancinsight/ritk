@@ -1,5 +1,40 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 430 — Coeus Image Tensor-Ops Boundary
+**Target version**: 0.13.5
+**Sprint phase**: Closure — Coeus image-level tensor-ops helpers added and verified
+
+### In-flight plan (Sprint 430)
+- [x] MIG-430-01 [minor]: Audit the remaining Burn image helper dependency and
+  identify `ritk-tensor-ops` as the narrow migration seam for Coeus image
+  callers.
+- [x] MIG-430-02 [minor]: Add feature-gated
+  `ritk_tensor_ops::coeus::{extract_image_slice, extract_image_vec,
+  rebuild_image}` for `ritk_image::coeus::Image<T, B, D>`.
+- [x] MIG-430-03 [patch]: Keep tensor rank, contiguity, and shape-product
+  validation delegated to the existing Coeus tensor helpers so the image-level
+  API has one validation SSOT.
+- [x] MIG-430-04 [patch]: Add value-semantic tests for Coeus image borrowed
+  extraction, owned extraction, rebuild metadata preservation, shape mismatch,
+  and exact negative-path diagnostics.
+- [x] MIG-430-05 [patch]: Verify focused compile, format, clippy, nextest,
+  doctest, docs, and diff hygiene with `--features coeus`.
+
+### Verification gate (Sprint 430)
+- [x] RITK: `cargo fmt --check -p ritk-tensor-ops` -> passed
+- [x] RITK: `cargo check -p ritk-tensor-ops --all-targets --features coeus` -> passed
+- [x] RITK: `cargo clippy -p ritk-tensor-ops --all-targets --features coeus -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-tensor-ops --features coeus` -> 24 passed
+- [x] RITK: `cargo test --doc -p ritk-tensor-ops --features coeus` -> 0 passed, 1 ignored
+- [x] RITK: `cargo doc -p ritk-tensor-ops --features coeus --no-deps` -> passed
+- [x] RITK: `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-430-06 [minor]: Migrate the first production image consumer from the
+  legacy Burn `Image<B, D>` helper path to the Coeus image tensor-ops path.
+
+---
+
 ## Sprint 429 — Coeus Image Contract
 **Target version**: 0.13.4
 **Sprint phase**: Closure — Coeus-backed image metadata contract added and verified
@@ -30,9 +65,9 @@
 - [x] RITK: `git diff --check` -> passed
 
 ### Deferred / carry-forward
-- [ ] MIG-429-06 [minor]: Migrate image consumers from the legacy Burn
-  `ritk_image::Image<B, D>` root type to `ritk_image::coeus::Image<T, B, D>`
-  before deleting Burn image helpers from `ritk-tensor-ops`.
+- [x] MIG-429-06 [minor]: Add Coeus image-level tensor-ops helpers before
+  deleting Burn image helpers. Closed by Sprint 430; production caller
+  migration remains MIG-430-06.
 
 ---
 

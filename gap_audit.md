@@ -1,5 +1,34 @@
 # RITK Gap Audit - Active
 
+## Sprint 430 Audit (2026-06-27) — Coeus Image Tensor-Ops Boundary
+
+### Gaps Closed
+
+- **[MIG-430-01 CLOSED]** missing Coeus image-level tensor-ops seam:
+  `ritk-tensor-ops` now exposes feature-gated
+  `extract_image_slice`, `extract_image_vec`, and `rebuild_image` helpers for
+  `ritk_image::coeus::Image<T, B, D>`. Evidence tier: compile/lint/docs plus
+  value-semantic tests (`cargo nextest run -p ritk-tensor-ops --features coeus`
+  -> 24 passed).
+- **[MIG-430-02 CLOSED]** duplicated validation risk:
+  the new image helpers delegate to the existing Coeus tensor helpers, so rank
+  checks, contiguity rejection, checked shape products, and exact length
+  mismatch diagnostics remain one implementation.
+- **[MIG-430-03 CLOSED]** weak negative-path Coeus tensor tests:
+  previous `contains(...)` assertions for rank, contiguity, and shape mismatch
+  are now exact value-semantic error assertions.
+
+### Residual Risk
+
+- Production consumers still use the legacy Burn-backed `ritk_image::Image<B, D>`
+  root type. The next migration slice should move one production caller onto
+  `ritk_image::coeus::Image<T, B, D>` plus the Sprint 430 tensor-ops helpers.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused graph; this is provider-graph hygiene outside the selected image
+  tensor-ops slice.
+
+---
+
 ## Sprint 429 Audit (2026-06-27) — Coeus Image Contract
 
 ### Gaps Closed
@@ -27,9 +56,9 @@
 ### Residual Risk
 
 - Existing production consumers still use the legacy Burn-backed
-  `ritk_image::Image<B, D>` root type. The next complete migration slice should
-  move callers to `ritk_image::coeus::Image<T, B, D>` and then delete the Burn
-  image helpers from `ritk-tensor-ops`.
+  `ritk_image::Image<B, D>` root type. Sprint 430 added the Coeus image
+  tensor-ops seam; the next complete migration slice should move a production
+  caller to it.
 - The Hephaestus patch entries are still reported as unused by Cargo for this
   focused graph; this is provider-graph hygiene outside the selected image
   contract slice.

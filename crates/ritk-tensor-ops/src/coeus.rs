@@ -8,6 +8,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use coeus_tensor::Tensor;
+use ritk_image::coeus::Image;
 
 /// Borrow contiguous Coeus tensor data with a statically checked rank.
 ///
@@ -56,6 +57,44 @@ where
     Ok((slice.to_vec(), dims))
 }
 
+/// Borrow contiguous Coeus image data with a statically checked rank.
+///
+/// This image-level helper delegates to [`extract_slice`], keeping tensor rank
+/// and contiguity validation in one implementation.
+///
+/// # Errors
+/// Returns an error when the wrapped tensor is not rank `D` or is a
+/// non-contiguous view.
+pub fn extract_image_slice<T, B, const D: usize>(
+    image: &Image<T, B, D>,
+) -> anyhow::Result<(&[T], [usize; D])>
+where
+    T: coeus_core::Scalar,
+    B: ComputeBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    extract_slice(image.data())
+}
+
+/// Copy Coeus image data into an owned vector with a statically checked rank.
+///
+/// Use [`extract_image_slice`] for read-only kernels that can finish while the
+/// image borrow is live.
+///
+/// # Errors
+/// Returns an error under the same conditions as [`extract_image_slice`].
+pub fn extract_image_vec<T, B, const D: usize>(
+    image: &Image<T, B, D>,
+) -> anyhow::Result<(Vec<T>, [usize; D])>
+where
+    T: coeus_core::Scalar,
+    B: ComputeBackend,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    let (slice, dims) = extract_image_slice(image)?;
+    Ok((slice.to_vec(), dims))
+}
+
 /// Construct a Coeus tensor from a flat buffer after validating shape length.
 ///
 /// # Errors
@@ -80,6 +119,25 @@ where
         );
     }
     Ok(Tensor::from_slice_on(dims, &vals, backend))
+}
+
+/// Construct a Coeus image from a flat buffer, preserving source metadata.
+///
+/// # Errors
+/// Returns an error when the checked product of `dims` overflows, does not
+/// match `vals.len()`, or the rebuilt tensor rank does not match the image rank.
+pub fn rebuild_image<T, B, const D: usize>(
+    vals: Vec<T>,
+    dims: [usize; D],
+    src: &Image<T, B, D>,
+    backend: &B,
+) -> anyhow::Result<Image<T, B, D>>
+where
+    T: coeus_core::Scalar,
+    B: ComputeBackend,
+{
+    let tensor = rebuild(vals, dims, backend)?;
+    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 fn checked_dims<const D: usize>(shape: &[usize]) -> anyhow::Result<[usize; D]> {

@@ -6,6 +6,8 @@ use burn::tensor::TensorData;
 use burn_ndarray::NdArray;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor as CoeusTensor;
+use ritk_image::coeus::Image as CoeusImage;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type BurnB = NdArray<f32>;
 type Shape2 = [usize; 2];
@@ -56,6 +58,16 @@ const BINARY_CASES: &[BinaryCase] = &[
 
 fn coeus_tensor(values: &[f32]) -> CoeusTensor<f32, MoiraiBackend> {
     CoeusTensor::<f32, _>::from_slice_on(SHAPE, values, &MoiraiBackend)
+}
+
+fn coeus_image(values: &[f32]) -> CoeusImage<f32, MoiraiBackend, 2> {
+    CoeusImage::new(
+        coeus_tensor(values),
+        Point::new([10.0, 20.0]),
+        Spacing::new([0.5, 1.5]),
+        Direction::identity(),
+    )
+    .unwrap()
 }
 
 fn burn_tensor(values: &[f32]) -> BurnTensor<BurnB, 2> {
@@ -184,9 +196,9 @@ fn coeus_extract_slice_rejects_non_contiguous_view() {
     let err = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 2>(&transposed)
         .expect_err("transposed view must not be borrowed as contiguous");
 
-    assert!(
-        err.to_string().contains("requires contiguous layout"),
-        "unexpected error: {err}"
+    assert_eq!(
+        err.to_string(),
+        "coeus tensor ops: extract_slice requires contiguous layout, got shape=[3, 2] strides=[1, 3]"
     );
 }
 
@@ -197,9 +209,9 @@ fn coeus_extract_slice_rejects_rank_mismatch() {
     let err = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 3>(&tensor)
         .expect_err("rank mismatch must be reported");
 
-    assert!(
-        err.to_string().contains("expected rank 3"),
-        "unexpected error: {err}"
+    assert_eq!(
+        err.to_string(),
+        "coeus tensor ops: expected rank 3, got rank 2 shape=[2, 3]"
     );
 }
 
@@ -215,9 +227,9 @@ fn coeus_rebuild_validates_shape_product() {
         Err(err) => err,
     };
 
-    assert!(
-        err.to_string().contains("does not match shape"),
-        "unexpected error: {err}"
+    assert_eq!(
+        err.to_string(),
+        "coeus tensor ops: data length 3 does not match shape [2, 3] product 6"
     );
 }
 
@@ -232,4 +244,68 @@ fn coeus_rebuild_preserves_values_and_shape() {
 
     assert_eq!(tensor.shape(), SHAPE);
     assert_eq!(tensor.as_slice(), values.as_slice());
+}
+
+#[test]
+fn coeus_image_extract_slice_borrows_contiguous_image() {
+    let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let image = coeus_image(&values);
+
+    let (slice, dims) =
+        coeus_tensor_ops::extract_image_slice::<f32, MoiraiBackend, 2>(&image).unwrap();
+
+    assert_eq!(dims, SHAPE);
+    assert_eq!(slice, values.as_slice());
+}
+
+#[test]
+fn coeus_image_extract_vec_matches_slice_values() {
+    let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let image = coeus_image(&values);
+
+    let (owned, dims) =
+        coeus_tensor_ops::extract_image_vec::<f32, MoiraiBackend, 2>(&image).unwrap();
+
+    assert_eq!(dims, SHAPE);
+    assert_eq!(owned, values);
+}
+
+#[test]
+fn coeus_rebuild_image_preserves_values_shape_and_metadata() {
+    let backend = MoiraiBackend;
+    let source = coeus_image(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let values = vec![6.0, 5.0, 4.0, 3.0, 2.0, 1.0];
+
+    let rebuilt = coeus_tensor_ops::rebuild_image::<f32, MoiraiBackend, 2>(
+        values.clone(),
+        SHAPE,
+        &source,
+        &backend,
+    )
+    .unwrap();
+
+    assert_eq!(rebuilt.shape(), SHAPE);
+    assert_eq!(rebuilt.data_slice().unwrap(), values.as_slice());
+    assert_eq!(rebuilt.origin(), source.origin());
+    assert_eq!(rebuilt.spacing(), source.spacing());
+    assert_eq!(rebuilt.direction(), source.direction());
+}
+
+#[test]
+fn coeus_rebuild_image_validates_shape_product() {
+    let backend = MoiraiBackend;
+    let source = coeus_image(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+
+    let err = coeus_tensor_ops::rebuild_image::<f32, MoiraiBackend, 2>(
+        vec![1.0, 2.0, 3.0],
+        SHAPE,
+        &source,
+        &backend,
+    )
+    .unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "coeus tensor ops: data length 3 does not match shape [2, 3] product 6"
+    );
 }

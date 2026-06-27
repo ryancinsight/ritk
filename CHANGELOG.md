@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 430: Coeus image tensor-ops boundary
+
+### Added
+- `ritk-tensor-ops`: Added feature-gated Coeus image helpers for
+  `ritk_image::coeus::Image<T, B, D>`: borrowed contiguous extraction, owned
+  extraction, and checked rebuild while preserving image metadata.
+
+### Changed
+- `ritk-tensor-ops`: Routed Coeus image helpers through the existing Coeus
+  tensor rank, contiguity, and shape-product validation helpers so image-level
+  migration has one validation SSOT.
+- `ritk-tensor-ops`: Strengthened Coeus negative-path tests from substring
+  checks to exact diagnostic assertions.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests.
+  `ritk-tensor-ops` passed all-target compile, rustfmt, clippy with
+  `-D warnings`, doctests, docs, `git diff --check`, and `cargo nextest run -p
+  ritk-tensor-ops --features coeus` -> 24 passed.
+- Residual risk: production image consumers still use the Burn-backed root type;
+  the next slice is migrating one production caller onto the Coeus image
+  tensor-ops path.
+
+---
+
 ## [Unreleased] — Sprint 429: Coeus image contract
 
 ### Added
