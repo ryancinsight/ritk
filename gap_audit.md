@@ -1,5 +1,41 @@
 # RITK Gap Audit - Active
 
+## Sprint 429 Audit (2026-06-27) — Coeus Image Contract
+
+### Gaps Closed
+
+- **[MIG-429-01 CLOSED]** missing Coeus-backed image contract:
+  `ritk-image` now exposes feature-gated `ritk_image::coeus::Image<T, B, D>`
+  over `coeus_tensor::Tensor<T, B>`. The constructor validates tensor rank
+  against the const dimensionality before metadata enters the image value.
+  Evidence tier: compile/lint/docs plus value-semantic tests (`cargo nextest
+  run -p ritk-image --features coeus` -> 33 passed).
+- **[MIG-429-02 CLOSED]** hidden allocation risk at the image data boundary:
+  `Image::data_slice` is available only when the Coeus backend storage is
+  CPU-addressable and returns a borrowed slice only for contiguous tensors.
+  Non-contiguous layouts return an error naming shape and strides rather than
+  copying behind a borrowed API.
+- **[MIG-429-03 CLOSED]** metadata ownership ambiguity during migration:
+  `into_tensor` and `into_parts` give callers explicit ownership-preserving
+  exits from the Coeus image wrapper, so downstream migration does not need
+  adapter shims around the legacy Burn image root.
+- **[PROVIDER-GRAPH CLOSED]** Coeus path-version drift:
+  the local Atlas Coeus checkout declares 0.5.3, so RITK's workspace Coeus
+  path dependency pins and lockfile entries were synchronized to 0.5.3 to keep
+  focused image gates buildable on the current provider graph.
+
+### Residual Risk
+
+- Existing production consumers still use the legacy Burn-backed
+  `ritk_image::Image<B, D>` root type. The next complete migration slice should
+  move callers to `ritk_image::coeus::Image<T, B, D>` and then delete the Burn
+  image helpers from `ritk-tensor-ops`.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused graph; this is provider-graph hygiene outside the selected image
+  contract slice.
+
+---
+
 ## Sprint 428 Audit (2026-06-27) — Coeus Tensor-Ops Host Boundary
 
 ### Gaps Closed

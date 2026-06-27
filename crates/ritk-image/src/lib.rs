@@ -1,7 +1,10 @@
 //! Image types and operations — Image, RgbVolume, ColorVolume, grid generation, metadata.
 //!
-//! Depends on `ritk-spatial` for spatial types and `burn` for tensor backend.
+//! Depends on `ritk-spatial` for spatial types, `burn` for the legacy root
+//! image backend, and optional `coeus` support for Atlas tensor migration.
 
+#[cfg(feature = "coeus")]
+pub mod coeus;
 pub mod color;
 pub mod grid;
 pub mod host_extract;

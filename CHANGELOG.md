@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 429: Coeus image contract
+
+### Added
+- `ritk-image`: Added feature-gated `ritk_image::coeus::Image<T, B, D>` backed
+  by `coeus_tensor::Tensor<T, B>`, with checked tensor rank construction,
+  physical metadata accessors, ownership-preserving decomposition, and
+  contiguous host slice borrowing for CPU-addressable Coeus backends.
+
+### Changed
+- `ritk-image`: Established the Coeus-native image migration target without
+  changing the legacy Burn-backed `ritk_image::Image<B, D>` root contract.
+- Workspace: Synced Coeus path dependency pins and lockfile entries to the
+  local Atlas Coeus 0.5.3 provider graph.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests. `ritk-image`
+  passed all-target compile, rustfmt, clippy with `-D warnings`, doctests,
+  docs, `git diff --check`, and `cargo nextest run -p ritk-image --features
+  coeus` -> 33 passed.
+- Residual risk: production image consumers still use the Burn-backed root type;
+  caller migration and Burn helper deletion remain a separate complete slice.
+
+---
+
 ## [Unreleased] — Sprint 428: Coeus tensor-ops host boundary
 
 ### Added

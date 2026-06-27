@@ -6,6 +6,16 @@
 
 ## Open performance items
 
+- **MIG-429-01 [minor] — Coeus image contract. DONE.**
+  Add a feature-gated `ritk_image::coeus::Image<T, B, D>` backed by
+  `coeus_tensor::Tensor<T, B>`. Construction validates tensor rank against the
+  const image dimensionality; metadata access and `into_parts` preserve
+  ownership; contiguous host borrowing is available only for CPU-addressable
+  Coeus backends and rejects non-contiguous layouts instead of materializing
+  silently. Evidence tier: compile/lint/docs plus value-semantic tests (`cargo
+  nextest run -p ritk-image --features coeus` -> 33/33 passed). Legacy Burn
+  image consumers remain until call sites migrate to this Coeus contract.
+
 - **MIG-428-01 [minor] — Coeus tensor-ops host boundary. DONE.**
   Add a feature-gated Coeus-native host-buffer boundary to `ritk-tensor-ops`:
   borrowed contiguous extraction for zero-copy read-only kernels, owned
@@ -13,8 +23,8 @@
   rejects overflowing or mismatched shape products before allocation. Evidence
   tier: compile/lint/docs plus value-semantic tests (`cargo nextest run -p
   ritk-tensor-ops --features coeus` -> 20/20 passed). Legacy Burn-backed
-  `Image<B, D>` helpers remain until `ritk-image` has a complete Coeus image
-  contract.
+  `Image<B, D>` helpers remain until image consumers migrate to the Sprint 429
+  Coeus image contract.
 
 - **MIG-427-01 [patch] — Coeus tensor-ops contract tests. DONE.**
   Consolidate `ritk-tensor-ops` Coeus feature tests so elementwise

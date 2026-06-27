@@ -1,5 +1,41 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 429 — Coeus Image Contract
+**Target version**: 0.13.4
+**Sprint phase**: Closure — Coeus-backed image metadata contract added and verified
+
+### In-flight plan (Sprint 429)
+- [x] MIG-429-01 [minor]: Audit `ritk-image` Burn-backed public root and
+  identify an additive Coeus-native image contract that does not break existing
+  callers.
+- [x] MIG-429-02 [minor]: Add feature-gated `ritk_image::coeus::Image<T, B, D>`
+  over `coeus_tensor::Tensor<T, B>` with checked rank construction, metadata
+  accessors, ownership-preserving decomposition, and contiguous host slice
+  borrowing for CPU-addressable backends.
+- [x] MIG-429-03 [patch]: Add value-semantic tests for metadata preservation,
+  rank mismatch, contiguous borrowing, non-contiguous rejection, and `into_parts`
+  ownership.
+- [x] MIG-429-04 [patch]: Sync RITK Coeus path dependency pins to the local
+  Atlas Coeus 0.5.3 provider graph required by the current checkout.
+- [x] MIG-429-05 [patch]: Verify focused compile, format, clippy, nextest,
+  doctest, docs, and diff hygiene with `--features coeus`.
+
+### Verification gate (Sprint 429)
+- [x] RITK: `cargo fmt --check -p ritk-image` -> passed
+- [x] RITK: `cargo check -p ritk-image --all-targets --features coeus` -> passed
+- [x] RITK: `cargo clippy -p ritk-image --all-targets --features coeus -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-image --features coeus` -> 33 passed
+- [x] RITK: `cargo test --doc -p ritk-image --features coeus` -> 0 passed
+- [x] RITK: `cargo doc -p ritk-image --features coeus --no-deps` -> passed
+- [x] RITK: `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-429-06 [minor]: Migrate image consumers from the legacy Burn
+  `ritk_image::Image<B, D>` root type to `ritk_image::coeus::Image<T, B, D>`
+  before deleting Burn image helpers from `ritk-tensor-ops`.
+
+---
+
 ## Sprint 428 — Coeus Tensor-Ops Host Boundary
 **Target version**: 0.13.3
 **Sprint phase**: Closure — Coeus tensor host extraction/rebuild boundary added and verified
@@ -27,9 +63,9 @@
 - [x] RITK: `git diff --check` -> passed
 
 ### Deferred / carry-forward
-- [ ] MIG-428-05 [minor]: Migrate `ritk-image::Image<B, D>` to a complete
-  Coeus-backed image contract before removing the legacy Burn `Image` helpers
-  from `ritk-tensor-ops`.
+- [x] MIG-428-05 [minor]: Add a complete Coeus-backed image contract before
+  removing the legacy Burn `Image` helpers from `ritk-tensor-ops`. Closed by
+  Sprint 429; caller migration and Burn helper deletion remain MIG-429-06.
 
 ---
 

@@ -9,8 +9,12 @@ ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
 burn = { workspace = true }
 burn-ndarray = { workspace = true }
 anyhow = { workspace = true }
+coeus-core = { workspace = true, optional = true }
+coeus-tensor = { workspace = true, optional = true }
 
 [features]
+## Expose the Coeus-backed image contract used by the Atlas tensor migration.
+coeus = ["dep:coeus-core", "dep:coeus-tensor"]
 ## Expose `test_support` helpers to downstream test crates.
 ## Add `ritk-image = { …, features = ["test-helpers"] }` to your `[dev-dependencies]`.
 test-helpers = []
