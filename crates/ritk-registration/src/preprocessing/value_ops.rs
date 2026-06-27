@@ -61,6 +61,20 @@ pub(crate) fn validate_mask(
     Ok(expected)
 }
 
+pub(crate) fn validate_value_count(len: usize, dims: [usize; 3], context: &str) -> Result<usize> {
+    let expected = checked_voxel_count_with_label(dims, context)?;
+    if len != expected {
+        return Err(anyhow!(
+            "{} value count {} does not match voxel count {} for dims {:?}",
+            context,
+            len,
+            expected,
+            dims
+        ));
+    }
+    Ok(expected)
+}
+
 fn zscore(vals: &[f32]) -> Vec<f32> {
     let n = vals.len() as f32;
     let mean = vals.iter().sum::<f32>() / n;
@@ -85,10 +99,14 @@ fn minmax(vals: &[f32], out_min: f32, out_max: f32) -> Vec<f32> {
         .collect()
 }
 
-fn checked_voxel_count(dims: [usize; 3]) -> Result<usize> {
+pub(crate) fn checked_voxel_count(dims: [usize; 3]) -> Result<usize> {
+    checked_voxel_count_with_label(dims, "mask shape")
+}
+
+fn checked_voxel_count_with_label(dims: [usize; 3], label: &str) -> Result<usize> {
     dims.iter().try_fold(1usize, |acc, &dim| {
         acc.checked_mul(dim)
-            .ok_or_else(|| anyhow!("mask shape {:?} product overflows usize", dims))
+            .ok_or_else(|| anyhow!("{} {:?} product overflows usize", label, dims))
     })
 }
 
@@ -116,6 +134,16 @@ mod tests {
         assert_eq!(
             err.to_string(),
             "image value count 2 does not match mask length 1"
+        );
+    }
+
+    #[test]
+    fn validate_value_count_rejects_length_mismatch() {
+        let err = validate_value_count(3, [1, 2, 2], "coeus smoothing").unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "coeus smoothing value count 3 does not match voxel count 4 for dims [1, 2, 2]"
         );
     }
 }

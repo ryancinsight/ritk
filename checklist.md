@@ -1,5 +1,46 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 433 — Coeus Preprocessing Smoothing
+**Target version**: 0.13.8
+**Sprint phase**: Closure — Coeus preprocessing smoothing routes through Moirai smoothing SSOT
+
+### In-flight plan (Sprint 433)
+- [x] MIG-433-01 [minor]: Audit the remaining Coeus preprocessing filter-backed
+  steps and select Gaussian smoothing as the bounded migration slice; N4 remains
+  a larger bias-field filter migration.
+- [x] MIG-433-02 [patch]: Extend the existing Moirai-backed
+  `deformable_field_ops` Gaussian smoothing primitive with per-axis voxel
+  sigmas so image spacing is handled without cloning convolution logic.
+- [x] MIG-433-03 [minor]: Route Coeus preprocessing `Smoothing` through
+  `ritk_tensor_ops::coeus` extraction/rebuild and the Moirai Gaussian smoothing
+  SSOT with executor-reused scratch storage.
+- [x] MIG-433-04 [patch]: Add value-semantic tests for constant preservation,
+  impulse smoothing, non-finite sigma rejection, N4 rejection, and smoothing
+  value-count validation.
+- [x] MIG-433-05 [patch]: Verify focused compile, format, clippy, nextest,
+  doctest, docs, and diff hygiene with `--features coeus`.
+
+### Verification gate (Sprint 433)
+- [x] RITK: `cargo fmt --check -p ritk-registration` -> passed
+- [x] RITK: `cargo check -p ritk-registration --all-targets --features coeus` -> passed
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets --features coeus -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus preprocessing` -> 20 passed
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus` -> 666 passed, with long-running registration integration tests still recorded as PERF-432-01
+- [x] RITK: `cargo test --doc -p ritk-registration --features coeus` -> 3 passed, 14 ignored
+- [x] RITK: `cargo doc -p ritk-registration --features coeus --no-deps` -> passed
+- [x] RITK: `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation before the Coeus
+  preprocessing executor can run every preprocessing step.
+- [ ] PERF-432-01 [patch]: Profile and reduce long-running registration
+  integration tests currently covered by `.config/nextest.toml` 600s overrides;
+  the latest full package run passed but still violates the stricter 30s/60s
+  AGENTS.md budget.
+
+---
+
 ## Sprint 432 — Coeus Registration Preprocessing Scalar Consumer
 **Target version**: 0.13.7
 **Sprint phase**: Closure — registration scalar preprocessing has a Coeus image path
@@ -34,9 +75,9 @@
 - [x] RITK: `git diff --check` -> passed
 
 ### Deferred / carry-forward
-- [ ] MIG-432-07 [minor]: Migrate registration N4 bias correction and Gaussian
-  smoothing to Coeus/Leto/Hephaestus-backed filter implementations before the
-  Coeus preprocessing executor can run every preprocessing step.
+- [x] MIG-432-07 [minor]: Migrate registration Gaussian smoothing to the Coeus
+  preprocessing executor. Closed by Sprint 433 using the Moirai Gaussian
+  smoothing SSOT; N4 remains MIG-433-06.
 - [ ] PERF-432-01 [patch]: Profile and reduce long-running registration
   integration tests currently covered by `.config/nextest.toml` 600s overrides;
   the full package run passed but violates the stricter 30s/60s AGENTS.md
@@ -992,8 +1033,8 @@
 
 ### Deferred / carry-forward
 - [ ] PERF-406-02 [patch]: Profile and reduce slow registration tests observed in Sprint 406
-  (`test_bspline_cr_registration_small` 183s, `test_multires_cr_registration` 129s,
-  `bspline_registers_offset_sphere` 93s, plus several 40s rigid/affine/versor rows).
+  (`test_bspline_cr_registration_small` 161s, `test_multires_cr_registration` 116s,
+  `bspline_registers_offset_sphere` 81s, plus several 30s-40s rigid/affine/versor rows).
 - [ ] PERF-392-02 [patch]: Continue flat-buffer audit with public VTK cell-list storage
   only after an ADR/migration plan, because `VtkPolyData`/`VtkUnstructuredGrid` expose
   nested cell vectors as public fields.

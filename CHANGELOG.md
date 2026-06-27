@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 433: Coeus preprocessing smoothing
+
+### Added
+- `ritk-registration`: Added Coeus preprocessing `Smoothing` support using the
+  Moirai-backed Gaussian smoothing primitive and Coeus image extraction/rebuild
+  helpers.
+
+### Changed
+- `ritk-registration`: Extended the deformable-field Gaussian smoothing SSOT
+  with per-axis voxel sigmas so Coeus image smoothing preserves spacing-aware
+  physical sigma semantics without cloning convolution loops.
+- `ritk-registration`: Coeus preprocessing smoothing now rejects non-finite
+  sigma and validates value count against checked shape products before
+  smoothing.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests.
+  `ritk-registration` passed all-target compile, rustfmt, clippy with
+  `-D warnings`, doctests, docs, `git diff --check`, focused preprocessing
+  nextest -> 20 passed, and full package nextest with `--features coeus` -> 666
+  passed.
+- Residual risk: N4 bias correction remains unsupported by the Coeus
+  preprocessing executor; long-running registration integration tests remain
+  tracked as PERF-432-01.
+
+---
+
 ## [Unreleased] — Sprint 432: Coeus registration preprocessing scalar consumer
 
 ### Added

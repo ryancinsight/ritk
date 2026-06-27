@@ -95,12 +95,36 @@ pub(crate) fn gaussian_smooth_with_scratch(
     if sigma <= 0.0 {
         return;
     }
+    gaussian_smooth_with_scratch_per_axis(data, dims, [sigma; 3], scratch);
+}
+
+/// Apply separable 3-D Gaussian smoothing with per-axis voxel sigmas.
+///
+/// Each axis is skipped when its sigma is non-positive. The caller supplies
+/// scratch storage with the same length as `data`, so the smoothing passes do
+/// not allocate per axis.
+pub(crate) fn gaussian_smooth_with_scratch_per_axis(
+    data: &mut [f32],
+    dims: VolumeDims,
+    sigmas: [f64; 3],
+    scratch: &mut [f32],
+) {
+    smooth_axis::<0>(data, dims, sigmas[0], scratch);
+    smooth_axis::<1>(data, dims, sigmas[1], scratch);
+    smooth_axis::<2>(data, dims, sigmas[2], scratch);
+}
+
+fn smooth_axis<const AXIS: usize>(
+    data: &mut [f32],
+    dims: VolumeDims,
+    sigma: f64,
+    scratch: &mut [f32],
+) {
+    if sigma <= 0.0 {
+        return;
+    }
     let kernel = gaussian_kernel(sigma, None);
-    convolve_axis::<0>(data, dims, &kernel, scratch);
-    data.copy_from_slice(scratch);
-    convolve_axis::<1>(data, dims, &kernel, scratch);
-    data.copy_from_slice(scratch);
-    convolve_axis::<2>(data, dims, &kernel, scratch);
+    convolve_axis::<AXIS>(data, dims, &kernel, scratch);
     data.copy_from_slice(scratch);
 }
 

@@ -13,7 +13,18 @@
   unmodified test below the AGENTS.md 30s slow threshold, or replace the
   `.config/nextest.toml` 600s override with a stricter repo policy only after
   the real implementation path is optimized. Current evidence: full package run
-  passed 661 tests, but the slowest tests took 94s, 156s, and 183s.
+  passed 666 tests, but the slowest tests took 81s, 116s, and 161s.
+
+- **MIG-433-01 [minor] — Coeus preprocessing Gaussian smoothing. DONE.**
+  Route `PreprocessingPipeline::execute_coeus` `Smoothing` through the existing
+  Moirai-backed Gaussian smoothing primitive, extended with per-axis voxel
+  sigmas for spacing-aware images. Coeus extraction/rebuild remains centralized
+  in `ritk_tensor_ops::coeus`; smoothing reuses executor-owned scratch storage and
+  rejects non-finite sigma. Evidence tier: compile/lint/docs plus
+  value-semantic tests (`cargo nextest run -p ritk-registration --features
+  coeus preprocessing` -> 20/20 passed; full package nextest -> 666/666
+  passed). N4 bias correction remains the only unsupported preprocessing step
+  on the Coeus executor.
 
 - **MIG-432-01 [minor] — Coeus registration preprocessing scalar consumer. DONE.**
   Add feature-gated `PreprocessingPipeline::execute_coeus` for scalar-safe
@@ -21,8 +32,8 @@
   `value_ops` implementation shared with the legacy Burn executor. Evidence
   tier: compile/lint/docs plus value-semantic tests (`cargo nextest run -p
   ritk-registration --features coeus` -> 661/661 passed; focused preprocessing
-  selection -> 16/16 passed). N4 and Gaussian smoothing still require
-  Coeus/Leto/Hephaestus-backed filter migration.
+  selection -> 16/16 passed). Gaussian smoothing was closed by MIG-433-01; N4
+  still requires Coeus/Leto/Hephaestus-backed filter migration.
 
 - **MIG-431-01 [minor] — Coeus statistics image consumer. DONE.**
   Add feature-gated `ritk_statistics::image_statistics::coeus` entry points for

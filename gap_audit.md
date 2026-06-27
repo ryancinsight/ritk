@@ -1,5 +1,37 @@
 # RITK Gap Audit - Active
 
+## Sprint 433 Audit (2026-06-27) — Coeus Preprocessing Smoothing
+
+### Gaps Closed
+
+- **[MIG-433-01 CLOSED]** Coeus preprocessing smoothing gap:
+  `PreprocessingPipeline::execute_coeus` now supports `Smoothing` over
+  `ritk_image::coeus::Image<f32, B, 3>` by extracting through
+  `ritk_tensor_ops::coeus`, smoothing via the Moirai-backed
+  `deformable_field_ops` Gaussian primitive, and rebuilding through the Coeus
+  image helper.
+- **[MIG-433-02 CLOSED]** isotropic-only smoothing primitive:
+  `gaussian_smooth_with_scratch_per_axis` centralizes per-axis voxel sigma
+  smoothing so image spacing is handled without duplicating convolution loops.
+- **[MIG-433-03 CLOSED]** smoothing input validation:
+  Coeus smoothing rejects non-finite sigma and validates value count against the
+  checked shape product before entering the smoothing passes.
+
+### Residual Risk
+
+- `N4BiasCorrection` remains a Burn-backed preprocessing step. The Coeus
+  executor still returns an explicit N4 error until a Coeus/Leto/Hephaestus
+  bias-field implementation exists.
+- `cargo nextest run -p ritk-registration --features coeus` passed 666 tests,
+  but long-running registration integration tests still exceed the strict
+  AGENTS.md 30s/60s budget under committed 600s overrides. This remains
+  PERF-432-01.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused graph; this is provider-graph hygiene outside the selected
+  preprocessing smoothing slice.
+
+---
+
 ## Sprint 432 Audit (2026-06-27) — Coeus Registration Preprocessing Scalar Consumer
 
 ### Gaps Closed
@@ -20,9 +52,8 @@
 
 ### Residual Risk
 
-- `N4BiasCorrection` and `Smoothing` remain filter-backed Burn executor steps.
-  The Coeus preprocessing executor returns explicit errors for those steps until
-  the corresponding Coeus/Leto/Hephaestus filter implementations exist.
+- `N4BiasCorrection` remains a filter-backed Burn executor step. Sprint 433
+  migrated Coeus preprocessing `Smoothing` through the Moirai smoothing SSOT.
 - `cargo nextest run -p ritk-registration --features coeus` passed 661 tests,
   but several registration integration tests exceeded 30s and the committed
   `.config/nextest.toml` grants 600s overrides for those tests. This conflicts
@@ -784,8 +815,8 @@
   dirty `D:\atlas\repos\coeus` provider compile errors in `coeus-autograd` after the local
   Coeus `0.2.6` lock refresh.
 - The touched-package `nextest` run passed but exposed registration tests above the 30s slow
-  budget, including `test_bspline_cr_registration_small` at 183s,
-  `test_multires_cr_registration` at 129s, and `bspline_registers_offset_sphere` at 93s.
+  budget, including `test_bspline_cr_registration_small` at 161s,
+  `test_multires_cr_registration` at 116s, and `bspline_registers_offset_sphere` at 81s.
   These are performance defects for the next registration-focused sprint.
 
 ---
