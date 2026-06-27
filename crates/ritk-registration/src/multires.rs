@@ -1,6 +1,6 @@
 use crate::metric::Metric;
 use crate::optimizer::Optimizer;
-use crate::registration::Registration;
+use crate::registration::{Registration, RegistrationConfig};
 use burn::module::AutodiffModule;
 use burn::tensor::backend::AutodiffBackend;
 use ritk_core::image::Image;
@@ -90,6 +90,7 @@ impl<const D: usize> RegistrationSchedule<D> {
 /// (coarse-to-fine) to improve robustness and convergence range.
 pub struct MultiResolutionRegistration<B, M, T, const D: usize> {
     metric: M,
+    registration_config: RegistrationConfig,
     _phantom: PhantomData<(B, T)>,
 }
 
@@ -103,8 +104,20 @@ where
     pub fn new(metric: M) -> Self {
         Self {
             metric,
+            registration_config: RegistrationConfig::default(),
             _phantom: PhantomData,
         }
+    }
+
+    /// Set the per-level registration loop configuration.
+    ///
+    /// The same config is cloned into each resolution level so validation,
+    /// progress, and convergence policies remain consistent across the
+    /// coarse-to-fine schedule.
+    #[must_use]
+    pub fn with_registration_config(mut self, config: RegistrationConfig) -> Self {
+        self.registration_config = config;
+        self
     }
 
     /// Execute the multi-resolution registration.
@@ -161,7 +174,11 @@ where
 
             // Create fresh optimizer for this level
             let optimizer = optimizer_factory(lr);
-            let mut registration = Registration::new(optimizer, self.metric.clone());
+            let mut registration = Registration::with_config(
+                optimizer,
+                self.metric.clone(),
+                self.registration_config.clone(),
+            );
 
             tracing::info!(
                 "Starting level {}/{} with lr={}, iters={}",

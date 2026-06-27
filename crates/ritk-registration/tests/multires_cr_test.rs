@@ -6,6 +6,8 @@ use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_registration::metric::{CorrelationDirection, CorrelationRatio};
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::AdamOptimizer;
+use ritk_registration::registration::RegistrationConfig;
+use ritk_registration::ConvergenceChecker;
 use ritk_statistics::IntensityRange;
 use ritk_transform::TranslationTransform;
 
@@ -70,7 +72,11 @@ fn test_multires_cr_registration() {
         CorrelationDirection::MovingGivenFixed,
         &device,
     );
-    let multires = MultiResolutionRegistration::new(metric);
+    let registration_config = RegistrationConfig::new()
+        .with_convergence_detection(ConvergenceChecker::new(1.0e-4, 20))
+        .with_log_interval(25);
+    let multires =
+        MultiResolutionRegistration::new(metric).with_registration_config(registration_config);
 
     // Schedule: 3 levels (Shrink 4, 2, 1)
     let mut schedule = RegistrationSchedule::<3>::default(3);

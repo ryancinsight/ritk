@@ -5,7 +5,8 @@ use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_registration::metric::{CorrelationDirection, CorrelationRatio};
 use ritk_registration::optimizer::AdamOptimizer;
-use ritk_registration::registration::Registration;
+use ritk_registration::registration::{Registration, RegistrationConfig};
+use ritk_registration::ConvergenceChecker;
 use ritk_statistics::IntensityRange;
 use ritk_transform::{BSplineTransform, Transform};
 
@@ -87,13 +88,22 @@ fn test_bspline_cr_registration_small() {
         &device,
     );
 
-    let mut registration = Registration::new(optimizer, metric);
+    let config = RegistrationConfig::new()
+        .with_convergence_detection(ConvergenceChecker::new(1.0e-4, 20))
+        .with_log_interval(25);
+    let mut registration = Registration::with_config(optimizer, metric, config);
 
     // 4. Execute Registration
     // Adjusted to 150 iterations for convergence without causing CI timeouts.
-    let result_transform = registration
-        .execute(&fixed, &moving, transform, 150, 1.0)
+    let summary = registration
+        .execute_with_summary(&fixed, &moving, transform, 150, 1.0)
         .unwrap();
+    assert!(
+        summary.iterations_completed < 150,
+        "convergence should stop redundant BSpline CR iterations; completed {}",
+        summary.iterations_completed
+    );
+    let result_transform = summary.transform;
 
     // 5. Verify Result
     // Check deformation at the center (7, 7, 7)

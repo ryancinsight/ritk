@@ -1,5 +1,43 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 434 — Registration Convergence Runtime Budget
+**Target version**: 0.13.9
+**Sprint phase**: Closure — CR integration tests use corrected convergence semantics
+
+### In-flight plan (Sprint 434)
+- [x] PERF-434-01 [patch]: Audit the three PERF-432 slow registration rows and
+  identify the Correlation Ratio rows as safe convergence-policy candidates.
+- [x] FIX-434-02 [patch]: Correct `ConvergenceChecker` so a current best loss
+  counts as improvement instead of immediate convergence after the patience
+  window fills.
+- [x] API-434-03 [minor]: Add `MultiResolutionRegistration::with_registration_config`
+  so multires callers can apply the same validated registration loop policy at
+  every level.
+- [x] PERF-434-04 [patch]: Apply the corrected convergence policy to the
+  B-spline CR and multires CR integration tests without weakening their
+  value-semantic transform assertions.
+- [ ] PERF-434-05 [patch]: Optimize `bspline_registers_offset_sphere`; this
+  MSE B-spline row remains above the strict 60s termination budget at 87.615s
+  and needs a production hot-path fix rather than convergence-window truncation.
+
+### Verification gate (Sprint 434)
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus bspline_registers_offset_sphere test_bspline_cr_registration_small test_multires_cr_registration` -> 3 passed; CR rows reduced to 17.908s and 22.531s, MSE B-spline row remained above budget in follow-up experiments
+- [x] RITK: `cargo fmt --check -p ritk-registration`
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets --features coeus -- -D warnings`
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus progress::convergence bspline_cr multires_cr` -> 5 passed; CR rows 22.302s and 23.720s
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus` -> 669 passed, 23 skipped; CR rows 24.296s and 25.115s; MSE B-spline row 87.615s
+- [x] RITK: `cargo test --doc -p ritk-registration --features coeus` -> 3 passed, 14 ignored
+- [x] RITK: `cargo doc -p ritk-registration --features coeus --no-deps`
+- [x] RITK: `git diff --check`
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch]: Continue with the remaining MSE B-spline runtime
+  defect after this convergence-policy slice.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+
+---
+
 ## Sprint 433 — Coeus Preprocessing Smoothing
 **Target version**: 0.13.8
 **Sprint phase**: Closure — Coeus preprocessing smoothing routes through Moirai smoothing SSOT

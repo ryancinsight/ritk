@@ -1,5 +1,39 @@
 # RITK Gap Audit - Active
 
+## Sprint 434 Audit (2026-06-27) — Registration Convergence Runtime Budget
+
+### Gaps Closed
+
+- **[FIX-434-01 CLOSED]** convergence checker false convergence:
+  `ConvergenceChecker::check_convergence` now compares the current loss against
+  the best loss in the previous patience window. A current best loss is treated
+  as progress, not convergence. Evidence tier: value-semantic unit tests.
+- **[API-434-02 CLOSED]** multires registration could not carry registration
+  loop policies into levels:
+  `MultiResolutionRegistration::with_registration_config` clones the selected
+  loop config into each resolution level, preserving validation, progress, and
+  convergence policy across the coarse-to-fine schedule.
+- **[PERF-434-03 CLOSED]** CR slow rows:
+  B-spline CR and multires CR integration tests now use the corrected
+  convergence policy while retaining their original value-semantic transform
+  assertions. Focused nextest measured the rows at 22.302s and 23.720s; full
+  package nextest measured them at 24.296s and 25.115s.
+
+### Residual Risk
+
+- `bspline_registers_offset_sphere` remains above the strict 60s termination
+  budget at 87.615s in the full package run. Convergence-window truncation was
+  tested and rejected because it stopped before the displacement assertion
+  passed. This remains PERF-432-01.
+- The committed `.config/nextest.toml` still grants 600s overrides to the
+  historical slow registration rows until the remaining MSE B-spline path is
+  optimized.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused graph; this is provider-graph hygiene outside the selected
+  registration convergence slice.
+
+---
+
 ## Sprint 433 Audit (2026-06-27) — Coeus Preprocessing Smoothing
 
 ### Gaps Closed

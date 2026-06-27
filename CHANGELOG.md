@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 434: Registration convergence runtime budget
+
+### Added
+- `ritk-registration`: Added
+  `MultiResolutionRegistration::with_registration_config` so multires
+  registration can apply a caller-selected registration loop policy at every
+  resolution level.
+
+### Fixed
+- `ritk-registration`: Corrected `ConvergenceChecker` so a current best loss is
+  treated as improvement instead of being included in the previous-best
+  comparison window.
+
+### Changed
+- `ritk-registration`: B-spline CR and multires CR integration tests now use
+  the corrected convergence policy while retaining their original transform
+  value assertions.
+
+### Evidence
+- Evidence tier: value-semantic unit and integration tests. Focused slow-test
+  nextest passed with the CR rows at 22.302s and 23.720s. Full package nextest
+  passed 669 tests with the CR rows at 24.296s and 25.115s. The MSE B-spline
+  row remains a PERF-432 residual risk at 87.615s.
+
+---
+
 ## [Unreleased] — Sprint 433: Coeus preprocessing smoothing
 
 ### Added

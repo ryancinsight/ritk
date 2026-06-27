@@ -15,6 +15,17 @@
   the real implementation path is optimized. Current evidence: full package run
   passed 666 tests, but the slowest tests took 81s, 116s, and 161s.
 
+- **PERF-434-01 [patch] — Correct CR registration convergence and expose
+  multires loop config. DONE.**
+  Fixed `ConvergenceChecker` so the current best loss is compared against the
+  previous patience window instead of being included in the best-loss baseline.
+  Added `MultiResolutionRegistration::with_registration_config` and used the
+  corrected convergence policy for B-spline CR and multires CR integration
+  tests. Evidence tier: value-semantic nextest rows; the CR rows passed at
+  22.302s and 23.720s in the focused run, then at 24.296s and 25.115s in the
+  full package run. The MSE B-spline row remains open under PERF-432-01 at
+  87.615s.
+
 - **MIG-433-01 [minor] — Coeus preprocessing Gaussian smoothing. DONE.**
   Route `PreprocessingPipeline::execute_coeus` `Smoothing` through the existing
   Moirai-backed Gaussian smoothing primitive, extended with per-axis voxel

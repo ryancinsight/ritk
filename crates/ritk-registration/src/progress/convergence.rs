@@ -62,8 +62,12 @@ impl ConvergenceChecker {
 
         let recent_start = loss_history.len() - self.patience - 1;
         let recent_losses = &loss_history[recent_start..];
+        let previous_losses = &recent_losses[..self.patience];
 
-        let best_loss = recent_losses.iter().cloned().fold(f64::INFINITY, f64::min);
+        let best_loss = previous_losses
+            .iter()
+            .cloned()
+            .fold(f64::INFINITY, f64::min);
         let current_loss = *loss_history
             .last()
             .expect("loss history must not be empty when checking convergence");
@@ -72,5 +76,37 @@ impl ConvergenceChecker {
         let relative_improvement = (best_loss - current_loss) / (best_loss.abs() + 1e-10);
 
         relative_improvement < self.min_improvement
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ConvergenceChecker;
+
+    #[test]
+    fn improving_best_loss_does_not_converge() {
+        let checker = ConvergenceChecker::new(1.0e-3, 3);
+
+        assert!(
+            !checker.check_convergence(&[1.0, 0.9, 0.8, 0.7]),
+            "current best loss must count as improvement, not convergence"
+        );
+    }
+
+    #[test]
+    fn small_window_improvement_converges() {
+        let checker = ConvergenceChecker::new(1.0e-3, 3);
+
+        assert!(
+            checker.check_convergence(&[1.0, 0.9000, 0.8999, 0.8998]),
+            "relative improvement across the patience window is below threshold"
+        );
+    }
+
+    #[test]
+    fn min_loss_converges_without_full_window() {
+        let checker = ConvergenceChecker::new(1.0e-3, 10).with_min_loss(0.1);
+
+        assert!(checker.check_convergence(&[0.09]));
     }
 }
