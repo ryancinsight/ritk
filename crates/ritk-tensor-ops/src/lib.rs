@@ -1,13 +1,13 @@
-//! Shared pixel-buffer I/O helpers bridging Burn tensors ↔ flat `Vec<f32>`.
+//! Shared pixel-buffer I/O helpers for tensor-backed RITK image operations.
 //!
 //! # Design Rationale (SSOT / DRY)
 //!
 //! Every scalar-path filter and statistics routine must perform the same two operations:
 //!
-//! 1. **Extract** the voxel data from a `Tensor<B, D>` into a contiguous `Vec<f32>`
-//!    that can be processed by CPU-side iterators.
-//! 2. **Rebuild** the output `Image<B, D>` from the modified `Vec<f32>`, preserving
-//!    all spatial metadata (origin, spacing, direction) from the source image.
+//! 1. **Extract** voxel data from tensor-backed images into contiguous host
+//!    memory for CPU-side iterator kernels.
+//! 2. **Rebuild** outputs from modified buffers while preserving the caller's
+//!    dimensional contract and spatial metadata where applicable.
 //!
 //! Prior to this module, both helpers were defined independently in 10–13 leaf
 //! filter files (e.g. `arithmetic.rs`, `rescale.rs`, `bilateral.rs`, `sobel.rs`).
@@ -26,17 +26,19 @@
 //!
 //! # Performance notes
 //!
-//! These helpers cross the Burn tensor ↔ CPU memory boundary and are therefore
-//! inherently O(N) in both time and space. They are appropriate for scalar-path
-//! operations that cannot be expressed as a single Burn kernel dispatch. For
-//! purely tensor-native operations (element-wise arithmetic, reductions) callers
-//! must prefer `Tensor::map` / `Tensor::elementwise_*` to avoid the round-trip.
+//! The legacy `Image<B, D>` helpers cross the Burn tensor ↔ CPU memory boundary
+//! and are therefore inherently O(N) in both time and space. The `coeus` feature
+//! adds borrowed extraction for contiguous Coeus tensors so read-only kernels can
+//! avoid a copy.
 
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use num_traits::Float;
 use ritk_image::Image;
 use std::ops::AddAssign;
+
+#[cfg(feature = "coeus")]
+pub mod coeus;
 
 // ── extract_vec ───────────────────────────────────────────────────────────────
 

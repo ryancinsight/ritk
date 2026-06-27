@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 428 — Coeus Tensor-Ops Host Boundary
+**Target version**: 0.13.3
+**Sprint phase**: Closure — Coeus tensor host extraction/rebuild boundary added and verified
+
+### In-flight plan (Sprint 428)
+- [x] MIG-428-01 [minor]: Audit `ritk-tensor-ops` Burn-shaped production
+  boundary and identify a safe Coeus-native increment that does not force
+  `ritk-image::Image<B, D>` migration prematurely.
+- [x] MIG-428-02 [minor]: Add feature-gated `ritk_tensor_ops::coeus` helpers
+  for borrowed contiguous extraction, owned extraction, and checked tensor
+  rebuild.
+- [x] MIG-428-03 [patch]: Add value-semantic Coeus tests for zero-copy borrow,
+  owned extraction, non-contiguous rejection, rank mismatch, shape/data
+  mismatch, and rebuild values.
+- [x] MIG-428-04 [patch]: Verify focused compile, format, clippy, nextest,
+  doctest, docs, and diff hygiene with `--features coeus`.
+
+### Verification gate (Sprint 428)
+- [x] RITK: `cargo fmt --check -p ritk-tensor-ops` -> passed
+- [x] RITK: `cargo check -p ritk-tensor-ops --all-targets --features coeus` -> passed
+- [x] RITK: `cargo clippy -p ritk-tensor-ops --all-targets --features coeus -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-tensor-ops --features coeus` -> 20 passed
+- [x] RITK: `cargo test --doc -p ritk-tensor-ops --features coeus` -> 0 passed, 1 ignored
+- [x] RITK: `cargo doc -p ritk-tensor-ops --features coeus --no-deps` -> passed
+- [x] RITK: `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-428-05 [minor]: Migrate `ritk-image::Image<B, D>` to a complete
+  Coeus-backed image contract before removing the legacy Burn `Image` helpers
+  from `ritk-tensor-ops`.
+
+---
+
 ## Sprint 427 — Coeus Tensor-Ops Contract Tests
 **Target version**: 0.13.2
 **Sprint phase**: Closure — Coeus feature contract tests deduplicated and value-semantic

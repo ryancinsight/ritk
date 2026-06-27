@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 428: Coeus tensor-ops host boundary
+
+### Added
+- `ritk-tensor-ops`: Added feature-gated `ritk_tensor_ops::coeus` helpers for
+  borrowed contiguous extraction, owned extraction, and checked rebuild of Coeus
+  tensors.
+
+### Changed
+- `ritk-tensor-ops`: Clarified crate docs so the Burn-backed `Image<B, D>`
+  helpers are legacy image-boundary helpers, while the `coeus` feature owns the
+  Coeus-native host-buffer path.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests.
+  `ritk-tensor-ops` passed all-target compile, rustfmt, clippy with
+  `-D warnings`, doctests, docs, `git diff --check`, and `cargo nextest run -p
+  ritk-tensor-ops --features coeus` -> 20 passed.
+- Residual risk: `ritk-image::Image<B, D>` remains Burn-backed; removing the
+  legacy helpers requires a complete Coeus image contract and caller migration.
+
+---
+
 ## [Unreleased] — Sprint 427: Coeus tensor-ops contract tests
 
 ### Changed

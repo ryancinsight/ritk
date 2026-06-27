@@ -1,5 +1,36 @@
 # RITK Gap Audit - Active
 
+## Sprint 428 Audit (2026-06-27) — Coeus Tensor-Ops Host Boundary
+
+### Gaps Closed
+
+- **[MIG-428-01 CLOSED]** missing production Coeus host-buffer boundary:
+  `ritk-tensor-ops` now exposes feature-gated `ritk_tensor_ops::coeus`
+  helpers for Coeus tensors. `extract_slice` borrows contiguous host storage
+  without allocation, `extract_vec` makes the copy explicit when ownership is
+  needed, and `rebuild` validates checked shape products before constructing a
+  tensor. Evidence tier: compile/lint/docs plus value-semantic tests (`cargo
+  nextest run -p ritk-tensor-ops --features coeus` -> 20 passed).
+- **[MIG-428-02 CLOSED]** hidden copy risk for non-contiguous Coeus views:
+  `extract_slice` rejects non-contiguous layouts instead of materializing
+  silently, so read-only kernels cannot accidentally hide O(N) allocation behind
+  a borrowed API.
+- **[MIG-428-03 CLOSED]** unchecked Coeus rebuild dimensions:
+  `rebuild` checks shape multiplication for overflow and exact buffer length
+  before calling `Tensor::from_slice_on`, turning shape/data mismatch into a
+  recoverable error instead of an assertion path.
+
+### Residual Risk
+
+- The legacy Burn-backed `Image<B, D>` helpers remain because `ritk-image` is
+  still Burn-shaped. Removing them requires a complete Coeus-backed image
+  contract and caller migration, not a local helper rename.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused graph; this is provider-graph hygiene outside the selected tensor-ops
+  slice.
+
+---
+
 ## Sprint 427 Audit (2026-06-26) — Coeus Tensor-Ops Contract Tests
 
 ### Gaps Closed

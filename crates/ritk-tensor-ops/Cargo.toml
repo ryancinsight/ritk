@@ -2,7 +2,7 @@
 name = "ritk-tensor-ops"
 version = "0.1.0"
 edition = "2021"
-description = "Shared tensor extract/rebuild helpers — bridges burn::Tensor ↔ flat Vec<f32> for CPU-side filter and statistics paths"
+description = "Shared tensor extract/rebuild helpers for Burn image and Coeus tensor host-buffer paths"
 
 [features]
 default = []

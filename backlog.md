@@ -6,6 +6,16 @@
 
 ## Open performance items
 
+- **MIG-428-01 [minor] — Coeus tensor-ops host boundary. DONE.**
+  Add a feature-gated Coeus-native host-buffer boundary to `ritk-tensor-ops`:
+  borrowed contiguous extraction for zero-copy read-only kernels, owned
+  extraction when mutation/storage is required, and checked tensor rebuild that
+  rejects overflowing or mismatched shape products before allocation. Evidence
+  tier: compile/lint/docs plus value-semantic tests (`cargo nextest run -p
+  ritk-tensor-ops --features coeus` -> 20/20 passed). Legacy Burn-backed
+  `Image<B, D>` helpers remain until `ritk-image` has a complete Coeus image
+  contract.
+
 - **MIG-427-01 [patch] — Coeus tensor-ops contract tests. DONE.**
   Consolidate `ritk-tensor-ops` Coeus feature tests so elementwise
   Coeus/Burn differential coverage runs through one table-driven fixture with

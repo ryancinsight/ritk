@@ -1,5 +1,6 @@
 #![cfg(feature = "coeus")]
 
+use crate::coeus as coeus_tensor_ops;
 use burn::tensor::Tensor as BurnTensor;
 use burn::tensor::TensorData;
 use burn_ndarray::NdArray;
@@ -151,4 +152,84 @@ fn differential_reductions() {
     assert_eq!(got_mean_coeus, 3.5);
     assert_eq!(got_sum_coeus, got_sum_burn);
     assert_eq!(got_mean_coeus, got_mean_burn);
+}
+
+#[test]
+fn coeus_extract_slice_borrows_contiguous_tensor() {
+    let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let tensor = coeus_tensor(&values);
+
+    let (slice, dims) = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 2>(&tensor).unwrap();
+
+    assert_eq!(dims, SHAPE);
+    assert_eq!(slice, values.as_slice());
+}
+
+#[test]
+fn coeus_extract_vec_matches_slice_values() {
+    let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    let tensor = coeus_tensor(&values);
+
+    let (owned, dims) = coeus_tensor_ops::extract_vec::<f32, MoiraiBackend, 2>(&tensor).unwrap();
+
+    assert_eq!(dims, SHAPE);
+    assert_eq!(owned, values);
+}
+
+#[test]
+fn coeus_extract_slice_rejects_non_contiguous_view() {
+    let tensor = coeus_tensor(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let transposed = tensor.t();
+
+    let err = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 2>(&transposed)
+        .expect_err("transposed view must not be borrowed as contiguous");
+
+    assert!(
+        err.to_string().contains("requires contiguous layout"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn coeus_extract_slice_rejects_rank_mismatch() {
+    let tensor = coeus_tensor(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+
+    let err = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 3>(&tensor)
+        .expect_err("rank mismatch must be reported");
+
+    assert!(
+        err.to_string().contains("expected rank 3"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn coeus_rebuild_validates_shape_product() {
+    let backend = MoiraiBackend;
+    let err = match coeus_tensor_ops::rebuild::<f32, MoiraiBackend, 2>(
+        vec![1.0, 2.0, 3.0],
+        SHAPE,
+        &backend,
+    ) {
+        Ok(_) => panic!("shape/data mismatch must be reported"),
+        Err(err) => err,
+    };
+
+    assert!(
+        err.to_string().contains("does not match shape"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn coeus_rebuild_preserves_values_and_shape() {
+    let backend = MoiraiBackend;
+    let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+
+    let tensor =
+        coeus_tensor_ops::rebuild::<f32, MoiraiBackend, 2>(values.clone(), SHAPE, &backend)
+            .unwrap();
+
+    assert_eq!(tensor.shape(), SHAPE);
+    assert_eq!(tensor.as_slice(), values.as_slice());
 }
