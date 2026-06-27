@@ -10,6 +10,7 @@ default = ["direct-parzen", "serde"]
 # backends where the tensor matmul path is preferred, or when the Parzen
 # weight matrices must remain in the autodiff graph.
 direct-parzen = []
+coeus = ["dep:coeus-core", "dep:coeus-tensor", "ritk-image/coeus", "ritk-tensor-ops/coeus"]
 serde = ["dep:serde"]
 
 [dependencies]
@@ -23,6 +24,7 @@ ritk-transform = { path = "../ritk-transform" }
 ritk-filter = { path = "../ritk-filter" }
 ritk-segmentation = { path = "../ritk-segmentation" }
 ritk-model = { path = "../ritk-model" }
+ritk-tensor-ops = { path = "../ritk-tensor-ops", optional = true }
 burn = { workspace = true }
 bytemuck = { workspace = true }
 anyhow = { workspace = true }
@@ -32,6 +34,8 @@ ndarray = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
 moirai = { workspace = true }
+coeus-core = { workspace = true, optional = true }
+coeus-tensor = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]

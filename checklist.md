@@ -1,5 +1,84 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 432 — Coeus Registration Preprocessing Scalar Consumer
+**Target version**: 0.13.7
+**Sprint phase**: Closure — registration scalar preprocessing has a Coeus image path
+
+### In-flight plan (Sprint 432)
+- [x] MIG-432-01 [minor]: Audit remaining production Burn image consumers and
+  select `ritk-registration::preprocessing` as the next bounded Coeus image
+  consumer because clamp, masking, and intensity normalization are scalar
+  buffer transforms.
+- [x] MIG-432-02 [patch]: Extract scalar preprocessing value semantics into a
+  shared `value_ops` leaf so the Burn executor and Coeus executor use one
+  implementation for normalization, clamping, masking, and mask validation.
+- [x] MIG-432-03 [minor]: Add a feature-gated Coeus preprocessing executor for
+  scalar-safe steps over `ritk_image::coeus::Image<f32, B, 3>`.
+- [x] MIG-432-04 [patch]: Route Coeus extraction and rebuild through
+  `ritk_tensor_ops::coeus` image helpers so rank, contiguity, metadata, and
+  shape-product validation stay centralized.
+- [x] MIG-432-05 [patch]: Add value-semantic Coeus tests for clamp metadata
+  preservation, masking, exact min-max values, unsupported filter-backed step
+  diagnostics, and checked mask-product overflow.
+- [x] MIG-432-06 [patch]: Verify focused compile, format, clippy, nextest,
+  doctest, docs, and diff hygiene with `--features coeus`.
+
+### Verification gate (Sprint 432)
+- [x] RITK: `cargo fmt --check -p ritk-registration` -> passed
+- [x] RITK: `cargo check -p ritk-registration --all-targets --features coeus` -> passed
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets --features coeus -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus preprocessing` -> 16 passed
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus` -> 661 passed, with long-running registration integration tests recorded as PERF-432-01
+- [x] RITK: `cargo test --doc -p ritk-registration --features coeus` -> 3 passed, 14 ignored
+- [x] RITK: `cargo doc -p ritk-registration --features coeus --no-deps` -> passed
+- [x] RITK: `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-432-07 [minor]: Migrate registration N4 bias correction and Gaussian
+  smoothing to Coeus/Leto/Hephaestus-backed filter implementations before the
+  Coeus preprocessing executor can run every preprocessing step.
+- [ ] PERF-432-01 [patch]: Profile and reduce long-running registration
+  integration tests currently covered by `.config/nextest.toml` 600s overrides;
+  the full package run passed but violates the stricter 30s/60s AGENTS.md
+  budget.
+
+---
+
+## Sprint 431 — Coeus Statistics Image Consumer
+**Target version**: 0.13.6
+**Sprint phase**: Closure — first production image consumer has a Coeus image path
+
+### In-flight plan (Sprint 431)
+- [x] MIG-431-01 [minor]: Audit production image consumers and choose
+  `ritk-statistics::image_statistics` as the first bounded Coeus image
+  consumer because the statistics algorithm already has a slice-level SSOT.
+- [x] MIG-431-02 [minor]: Add feature-gated
+  `ritk_statistics::image_statistics::coeus` functions for Coeus-backed
+  `compute_statistics` and `masked_statistics`.
+- [x] MIG-431-03 [patch]: Route Coeus image extraction through the Sprint 430
+  `ritk_tensor_ops::coeus` image helpers so rank, contiguity, and shape-product
+  validation stay centralized.
+- [x] MIG-431-04 [patch]: Add value-semantic parity tests against the existing
+  Burn-backed image statistics path plus a fallible empty-mask diagnostic test.
+- [x] MIG-431-05 [patch]: Verify focused compile, format, clippy, nextest,
+  doctest, docs, and diff hygiene with `--features coeus`.
+
+### Verification gate (Sprint 431)
+- [x] RITK: `cargo fmt --check -p ritk-statistics` -> passed
+- [x] RITK: `cargo check -p ritk-statistics --all-targets --features coeus` -> passed
+- [x] RITK: `cargo clippy -p ritk-statistics --all-targets --features coeus -- -D warnings` -> passed
+- [x] RITK: `cargo nextest run -p ritk-statistics --features coeus` -> 290 passed
+- [x] RITK: `cargo test --doc -p ritk-statistics --features coeus` -> 1 passed, 3 ignored
+- [x] RITK: `cargo doc -p ritk-statistics --features coeus --no-deps` -> passed
+- [x] RITK: `git diff --check` -> passed
+
+### Deferred / carry-forward
+- [ ] MIG-431-06 [minor]: Migrate the next production image consumer from the
+  legacy Burn `Image<B, D>` helper path to a Coeus image path, prioritizing
+  consumers with existing slice-level SSOTs.
+
+---
+
 ## Sprint 430 — Coeus Image Tensor-Ops Boundary
 **Target version**: 0.13.5
 **Sprint phase**: Closure — Coeus image-level tensor-ops helpers added and verified
@@ -30,8 +109,10 @@
 - [x] RITK: `git diff --check` -> passed
 
 ### Deferred / carry-forward
-- [ ] MIG-430-06 [minor]: Migrate the first production image consumer from the
+- [x] MIG-430-06 [minor]: Migrate the first production image consumer from the
   legacy Burn `Image<B, D>` helper path to the Coeus image tensor-ops path.
+  Closed by Sprint 431 for `ritk-statistics::image_statistics`; further
+  production caller migration remains MIG-431-06.
 
 ---
 

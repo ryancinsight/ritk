@@ -1,5 +1,56 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 432: Coeus registration preprocessing scalar consumer
+
+### Added
+- `ritk-registration`: Added feature-gated
+  `PreprocessingPipeline::execute_coeus` for scalar-safe Coeus-backed
+  preprocessing steps over `ritk_image::coeus::Image<f32, B, 3>`.
+
+### Changed
+- `ritk-registration`: Consolidated scalar preprocessing value semantics into a
+  shared `value_ops` leaf used by both the legacy Burn executor and the Coeus
+  executor.
+- `ritk-registration`: Replaced masking voxel-count multiplication with checked
+  shape-product validation.
+
+### Evidence
+- Evidence tier: compile/lint/docs plus value-semantic tests.
+  `ritk-registration` passed all-target compile, rustfmt, clippy with
+  `-D warnings`, doctests, docs, `git diff --check`, focused preprocessing
+  nextest selection -> 16 passed, and full package nextest with `--features
+  coeus` -> 661 passed.
+- Residual risk: full package nextest exposed long-running registration
+  integration tests covered by `.config/nextest.toml` 600s overrides; tracked
+  as PERF-432-01.
+
+---
+
+## [Unreleased] — Sprint 431: Coeus statistics image consumer
+
+### Added
+- `ritk-statistics`: Added feature-gated
+  `ritk_statistics::image_statistics::coeus` entry points for Coeus-backed
+  image `compute_statistics` and `masked_statistics`.
+
+### Changed
+- `ritk-statistics`: The Coeus statistics path borrows through
+  `ritk_tensor_ops::coeus::extract_image_slice` and reuses the existing
+  slice-level statistics algorithm instead of duplicating computation.
+- `ritk-statistics`: The Coeus masked-statistics boundary returns typed errors
+  for empty masks and length mismatch, while leaving the legacy Burn API
+  unchanged.
+
+### Evidence
+- Evidence tier: compile/lint plus value-semantic parity tests.
+  `ritk-statistics` passed all-target compile, rustfmt, clippy with
+  `-D warnings`, doctests, docs, `git diff --check`, and
+  `cargo nextest run -p ritk-statistics --features coeus` -> 290 passed.
+- Residual risk: additional production image consumers still use the
+  Burn-backed root type.
+
+---
+
 ## [Unreleased] — Sprint 430: Coeus image tensor-ops boundary
 
 ### Added

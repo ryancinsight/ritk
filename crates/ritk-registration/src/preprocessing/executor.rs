@@ -8,7 +8,8 @@ use ritk_filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
 use ritk_image::Image;
 
 use super::pipeline::PreprocessingPipeline;
-use super::step::{IntensityRescaleMode, PreprocessingStep};
+use super::step::PreprocessingStep;
+use super::value_ops::{apply_mask_values, clamp_values, normalize_values, validate_mask};
 
 impl PreprocessingPipeline {
     /// Execute all steps sequentially.
@@ -33,31 +34,7 @@ impl PreprocessingPipeline {
                     let vals = image
                         .try_data_vec()
                         .context("IntensityNormalization requires f32 image data")?;
-                    let n = vals.len();
-                    let result = match mode {
-                        IntensityRescaleMode::ZScore => {
-                            let mean = vals.iter().sum::<f32>() / n as f32;
-                            let variance =
-                                vals.iter().map(|&v| (v - mean).powi(2)).sum::<f32>() / n as f32;
-                            let std = variance.sqrt();
-                            if std < 1e-8 {
-                                vec![0.0f32; n]
-                            } else {
-                                vals.iter().map(|&v| (v - mean) / std).collect()
-                            }
-                        }
-                        IntensityRescaleMode::MinMax { out_min, out_max } => {
-                            let min = vals.iter().cloned().fold(f32::INFINITY, f32::min);
-                            let max = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-                            let range = (max - min).max(1e-8);
-                            vals.iter()
-                                .map(|&v| {
-                                    let n01 = (v - min) / range;
-                                    n01 * (out_max - out_min) + out_min
-                                })
-                                .collect()
-                        }
-                    };
+                    let result = normalize_values(&vals, mode);
                     rebuild_image(&image, result)?
                 }
 
@@ -65,7 +42,7 @@ impl PreprocessingPipeline {
                     let vals = image
                         .try_data_vec()
                         .context("Clamp requires f32 image data")?;
-                    let result: Vec<f32> = vals.iter().map(|&v| v.clamp(*lower, *upper)).collect();
+                    let result = clamp_values(&vals, *lower, *upper);
                     rebuild_image(&image, result)?
                 }
 
@@ -74,30 +51,11 @@ impl PreprocessingPipeline {
                     dims: mask_dims,
                 } => {
                     let shape = image.shape();
-                    let [nz, ny, nx] = shape;
-                    if mask_dims != &[nz, ny, nx] {
-                        return Err(anyhow::anyhow!(
-                            "mask dims {:?} do not match image shape {:?}",
-                            mask_dims,
-                            shape
-                        ));
-                    }
-                    let expected = nz * ny * nx;
-                    if mask.len() != expected {
-                        return Err(anyhow::anyhow!(
-                            "mask length {} != voxel count {}",
-                            mask.len(),
-                            expected
-                        ));
-                    }
+                    validate_mask(mask, *mask_dims, shape)?;
                     let vals = image
                         .try_data_vec()
                         .context("Masking requires f32 image data")?;
-                    let result: Vec<f32> = vals
-                        .iter()
-                        .zip(mask.iter())
-                        .map(|(&v, &m)| if m == 0 { 0.0 } else { v })
-                        .collect();
+                    let result = apply_mask_values(&vals, mask)?;
                     rebuild_image(&image, result)?
                 }
 

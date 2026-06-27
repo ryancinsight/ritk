@@ -6,6 +6,33 @@
 
 ## Open performance items
 
+- **PERF-432-01 [patch] — Registration integration tests exceed the strict
+  nextest budget. READY.**
+  Acceptance: profile the slow registration integration tests reported by
+  `cargo nextest run -p ritk-registration --features coeus` and reduce each
+  unmodified test below the AGENTS.md 30s slow threshold, or replace the
+  `.config/nextest.toml` 600s override with a stricter repo policy only after
+  the real implementation path is optimized. Current evidence: full package run
+  passed 661 tests, but the slowest tests took 94s, 156s, and 183s.
+
+- **MIG-432-01 [minor] — Coeus registration preprocessing scalar consumer. DONE.**
+  Add feature-gated `PreprocessingPipeline::execute_coeus` for scalar-safe
+  preprocessing steps and consolidate scalar value semantics into one
+  `value_ops` implementation shared with the legacy Burn executor. Evidence
+  tier: compile/lint/docs plus value-semantic tests (`cargo nextest run -p
+  ritk-registration --features coeus` -> 661/661 passed; focused preprocessing
+  selection -> 16/16 passed). N4 and Gaussian smoothing still require
+  Coeus/Leto/Hephaestus-backed filter migration.
+
+- **MIG-431-01 [minor] — Coeus statistics image consumer. DONE.**
+  Add feature-gated `ritk_statistics::image_statistics::coeus` entry points for
+  Coeus-backed image statistics. The Coeus functions borrow image data through
+  the Sprint 430 `ritk_tensor_ops::coeus` image helpers and reuse the existing
+  slice-level statistics computation SSOT. Evidence tier: compile/lint plus
+  value-semantic parity tests (`cargo nextest run -p ritk-statistics --features
+  coeus` -> 290/290 passed; doctests and docs passed). Additional production
+  image consumers still need Coeus image paths.
+
 - **MIG-430-01 [minor] — Coeus image tensor-ops boundary. DONE.**
   Add feature-gated `ritk_tensor_ops::coeus` helpers for
   `ritk_image::coeus::Image<T, B, D>`: borrowed contiguous extraction, owned

@@ -5,6 +5,23 @@ use ritk_image::Image;
 
 type TestBackend = NdArray<f32>;
 
+#[cfg(feature = "coeus")]
+fn make_coeus_image<const D: usize>(
+    data: Vec<f32>,
+    dims: [usize; D],
+) -> ritk_image::coeus::Image<f32, coeus_core::MoiraiBackend, D> {
+    use coeus_tensor::Tensor;
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    ritk_image::coeus::Image::new(
+        Tensor::<f32, coeus_core::MoiraiBackend>::from_slice(dims, &data),
+        Point::new([0.0; D]),
+        Spacing::new([1.0; D]),
+        Direction::identity(),
+    )
+    .unwrap()
+}
+
 // ── Positive tests ────────────────────────────────────────────────────────
 
 #[test]
@@ -44,6 +61,19 @@ fn test_known_sequence() {
     assert_eq!(s.percentiles[0], 3.0, "p25");
     assert_eq!(s.percentiles[1], 5.0, "p50");
     assert_eq!(s.percentiles[2], 7.0, "p75");
+}
+
+#[cfg(feature = "coeus")]
+#[test]
+fn coeus_compute_statistics_matches_burn_path() {
+    let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
+    let burn_image: Image<TestBackend, 1> = make_image(data.clone(), [8]);
+    let coeus_image = make_coeus_image(data, [8]);
+
+    let burn_stats = compute_statistics(&burn_image);
+    let coeus_stats = coeus::compute_statistics(&coeus_image).unwrap();
+
+    assert_eq!(coeus_stats, burn_stats);
 }
 
 #[test]
@@ -147,6 +177,25 @@ fn test_masked_statistics_all_foreground_matches_full() {
     assert_eq!(s_full.percentiles, s_masked.percentiles);
 }
 
+#[cfg(feature = "coeus")]
+#[test]
+fn coeus_masked_statistics_matches_burn_path() {
+    let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
+    let mut mask_data = vec![0.0f32; 8];
+    for v in mask_data.iter_mut().take(6).skip(2) {
+        *v = 1.0;
+    }
+    let burn_image: Image<TestBackend, 1> = make_image(data.clone(), [8]);
+    let burn_mask: Image<TestBackend, 1> = make_image(mask_data.clone(), [8]);
+    let coeus_image = make_coeus_image(data, [8]);
+    let coeus_mask = make_coeus_image(mask_data, [8]);
+
+    let burn_stats = masked_statistics(&burn_image, &burn_mask);
+    let coeus_stats = coeus::masked_statistics(&coeus_image, &coeus_mask).unwrap();
+
+    assert_eq!(coeus_stats, burn_stats);
+}
+
 #[test]
 fn test_masked_statistics_single_foreground_voxel() {
     // Only one foreground voxel → std = 0, all percentiles = that value.
@@ -181,6 +230,20 @@ fn test_masked_statistics_shape_mismatch_panics() {
     let image: Image<TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0], [3]);
     let mask: Image<TestBackend, 1> = make_image(vec![1.0, 1.0], [2]);
     let _ = masked_statistics(&image, &mask);
+}
+
+#[cfg(feature = "coeus")]
+#[test]
+fn coeus_masked_statistics_empty_mask_returns_error() {
+    let image = make_coeus_image(vec![1.0, 2.0, 3.0], [3]);
+    let mask = make_coeus_image(vec![0.0, 0.0, 0.0], [3]);
+
+    let err = coeus::masked_statistics(&image, &mask).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "coeus image statistics: mask contains no foreground voxels"
+    );
 }
 
 // ── Large-N f64-accumulation precision ───────────────────────────────────

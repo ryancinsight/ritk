@@ -20,6 +20,9 @@ use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
+#[cfg(feature = "coeus")]
+pub mod coeus;
+
 /// Descriptive statistics over image intensities.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImageStatistics {

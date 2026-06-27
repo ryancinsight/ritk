@@ -1,5 +1,71 @@
 # RITK Gap Audit - Active
 
+## Sprint 432 Audit (2026-06-27) — Coeus Registration Preprocessing Scalar Consumer
+
+### Gaps Closed
+
+- **[MIG-432-01 CLOSED]** duplicated scalar preprocessing semantics:
+  `ritk-registration::preprocessing::value_ops` now owns normalization,
+  clamping, masking, and checked mask validation for both the legacy Burn
+  executor and the Coeus executor. Evidence tier: compile/lint/docs plus
+  value-semantic tests.
+- **[MIG-432-02 CLOSED]** next production Coeus image consumer:
+  `PreprocessingPipeline::execute_coeus` now runs scalar-safe preprocessing
+  steps over `ritk_image::coeus::Image<f32, B, 3>` using
+  `ritk_tensor_ops::coeus` image extraction/rebuild helpers.
+- **[MIG-432-03 CLOSED]** unchecked mask voxel product in registration
+  preprocessing:
+  mask validation now uses checked multiplication and has an exact negative
+  test for `usize` overflow.
+
+### Residual Risk
+
+- `N4BiasCorrection` and `Smoothing` remain filter-backed Burn executor steps.
+  The Coeus preprocessing executor returns explicit errors for those steps until
+  the corresponding Coeus/Leto/Hephaestus filter implementations exist.
+- `cargo nextest run -p ritk-registration --features coeus` passed 661 tests,
+  but several registration integration tests exceeded 30s and the committed
+  `.config/nextest.toml` grants 600s overrides for those tests. This conflicts
+  with the stricter AGENTS.md 30s/60s budget and is tracked as PERF-432-01.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused graph; this is provider-graph hygiene outside the selected
+  preprocessing consumer slice.
+
+---
+
+## Sprint 431 Audit (2026-06-27) — Coeus Statistics Image Consumer
+
+### Gaps Closed
+
+- **[MIG-431-01 CLOSED]** first production Coeus image consumer:
+  `ritk-statistics::image_statistics::coeus` now exposes Coeus-backed
+  `compute_statistics` and `masked_statistics` entry points over
+  `ritk_image::coeus::Image<f32, B, D>`. Evidence tier: compile/lint plus
+  value-semantic tests (`cargo nextest run -p ritk-statistics --features coeus`
+  -> 290 passed).
+- **[MIG-431-02 CLOSED]** duplicated extraction risk:
+  the Coeus statistics path borrows through
+  `ritk_tensor_ops::coeus::extract_image_slice`, preserving the Sprint 430
+  validation SSOT for rank, contiguity, and host-addressable storage.
+- **[MIG-431-03 CLOSED]** panic-only mask boundary for the Coeus path:
+  the Coeus masked-statistics API returns typed errors for empty foreground
+  masks and mismatched element counts instead of matching the legacy Burn
+  panic boundary.
+
+### Residual Risk
+
+- Most production consumers still use the legacy Burn-backed
+  `ritk_image::Image<B, D>` root type. Migrate additional consumers that already
+  have slice-level core logic before deleting the Burn image helpers.
+- The local Coeus checkout has unrelated dirty WIP and emits an unused re-export
+  warning from `coeus-ops/src/fuse/op_tags/mod.rs` during RITK package gates.
+  This is provider WIP outside the selected RITK statistics slice.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  focused graph; this is provider-graph hygiene outside the selected
+  statistics consumer slice.
+
+---
+
 ## Sprint 430 Audit (2026-06-27) — Coeus Image Tensor-Ops Boundary
 
 ### Gaps Closed
@@ -20,9 +86,10 @@
 
 ### Residual Risk
 
-- Production consumers still use the legacy Burn-backed `ritk_image::Image<B, D>`
-  root type. The next migration slice should move one production caller onto
-  `ritk_image::coeus::Image<T, B, D>` plus the Sprint 430 tensor-ops helpers.
+- Most production consumers still use the legacy Burn-backed
+  `ritk_image::Image<B, D>` root type. Sprint 431 moved
+  `ritk-statistics::image_statistics` onto a Coeus image path; additional
+  production callers remain.
 - The Hephaestus patch entries are still reported as unused by Cargo for this
   focused graph; this is provider-graph hygiene outside the selected image
   tensor-ops slice.

@@ -15,9 +15,12 @@
 //!   Smoothing         : `I' = Gaussian_sigma(I)`
 
 pub mod brain_mask;
+#[cfg(feature = "coeus")]
+pub(crate) mod coeus_executor;
 pub(crate) mod executor;
 pub(crate) mod pipeline;
 pub(crate) mod step;
+pub(crate) mod value_ops;
 
 pub use brain_mask::{ct_brain_mask, CtBrainMaskConfig};
 pub use pipeline::PreprocessingPipeline;

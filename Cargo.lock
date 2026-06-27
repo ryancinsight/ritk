@@ -4980,6 +4980,7 @@ dependencies = [
  "mnemosyne-core",
  "mnemosyne-local",
  "mnemosyne-prof",
+ "themis",
 ]
 
 [[package]]
@@ -7138,6 +7139,8 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "bytemuck",
+ "coeus-core",
+ "coeus-tensor",
  "criterion",
  "image 0.24.9",
  "leto",
@@ -7155,6 +7158,7 @@ dependencies = [
  "ritk-segmentation",
  "ritk-spatial",
  "ritk-statistics",
+ "ritk-tensor-ops",
  "ritk-transform",
  "ritk-wgpu-compat",
  "serde",
@@ -7233,6 +7237,8 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "coeus-core",
+ "coeus-tensor",
  "moirai",
  "ritk-image",
  "ritk-spatial",
