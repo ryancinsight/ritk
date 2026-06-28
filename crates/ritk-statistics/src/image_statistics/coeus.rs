@@ -8,7 +8,7 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::coeus::Image;
 use ritk_tensor_ops::coeus as tensor_ops;
 
-use super::{compute_from_values, compute_statistics_from_slice, ImageStatistics};
+use super::{compute_from_owned, compute_statistics_from_slice, ImageStatistics};
 
 /// Compute statistics over all voxels in a Coeus-backed image.
 ///
@@ -61,5 +61,5 @@ where
         anyhow::bail!("coeus image statistics: mask contains no foreground voxels");
     }
 
-    Ok(compute_from_values(&values, 0))
+    Ok(compute_from_owned(values, 0))
 }

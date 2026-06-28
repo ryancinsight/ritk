@@ -51,9 +51,8 @@ pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> Im
 ///
 /// This is the zero-domain-logic public helper for callers that already have
 /// borrowed f32 tensor storage. The sorted copy required for percentile
-/// computation is allocated once inside `compute_from_values`.
+/// computation is allocated once inside [`compute_from_values`].
 pub fn compute_statistics_from_slice(slice: &[f32], ddof: usize) -> ImageStatistics {
-    // Delegate directly; compute_from_values allocates a sorted copy internally.
     compute_from_values(slice, ddof)
 }
 
@@ -84,7 +83,7 @@ pub fn masked_statistics<B: Backend, const D: usize>(
         .collect();
 
     assert!(!values.is_empty(), "mask contains no foreground voxels");
-    compute_from_values(&values, 0)
+    compute_from_owned(values, 0)
 }
 
 /// Core statistics computation.
@@ -112,7 +111,14 @@ pub fn masked_statistics<B: Backend, const D: usize>(
 /// rounded to zero and the sum saturates.  Two-pass f64 accumulation is the
 /// algorithm's numerical contract requirement, not a convenience cast.
 pub fn compute_from_values(values: &[f32], ddof: usize) -> ImageStatistics {
-    let mut buffer = values.to_vec();
+    compute_from_owned(values.to_vec(), ddof)
+}
+
+/// Compute statistics while consuming an owned buffer that may be reordered.
+///
+/// Masked-statistics paths already allocate this foreground buffer, so this
+/// helper avoids cloning it before the in-place percentile selection.
+pub(crate) fn compute_from_owned(mut buffer: Vec<f32>, ddof: usize) -> ImageStatistics {
     let values = buffer.as_mut_slice();
     let n = values.len();
     debug_assert!(n > 0, "compute_from_values requires non-empty input");

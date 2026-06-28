@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 441: Statistics masked-buffer allocation cleanup
+
+### Changed
+- `ritk-statistics`: Burn-backed and Coeus-backed masked image statistics now
+  consume their owned foreground buffers directly for in-place percentile
+  selection, avoiding a redundant clone while preserving the public borrowed
+  slice API.
+
+### Tests
+- `ritk-statistics`: Added value-semantic coverage proving
+  `compute_from_values` preserves the caller's input order.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-statistics --features coeus image_statistics`
+  passed 16 tests, including the large-N precision rows.
+
+---
+
 ## [Unreleased] — Sprint 440: Coeus image flat-buffer boundary
 
 ### Added

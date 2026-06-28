@@ -1,5 +1,31 @@
 # RITK Gap Audit - Active
 
+## Sprint 441 Audit (2026-06-28) — Statistics Masked-Buffer Allocation Cleanup
+
+### Gaps Closed
+
+- **[MEM-441-01 CLOSED]** `ritk-statistics` masked statistics allocated a
+  foreground `Vec<f32>` and then cloned it inside `compute_from_values` before
+  in-place percentile selection:
+  added a crate-private owned-buffer path and routed both Burn-backed and
+  Coeus-backed masked statistics through it.
+- **[TEST-441-03 CLOSED]** The public borrowed-slice contract needed explicit
+  protection after introducing an owned mutable implementation:
+  added a value-semantic regression test proving `compute_from_values` preserves
+  caller input order.
+
+### Residual Risk
+
+- This removes one redundant masked-statistics allocation but does not eliminate
+  the required percentile work buffer for borrowed-slice callers.
+- Full-image Burn-backed statistics still materialize tensor data through the
+  legacy Burn extraction boundary; replacing those aliases remains under
+  MIG-439-03.
+- Cargo still reports unused Hephaestus patch entries for this graph; the
+  warning is provider-graph hygiene outside this statistics allocation slice.
+
+---
+
 ## Sprint 440 Audit (2026-06-28) — Coeus Image Flat-Buffer Boundary
 
 ### Gaps Closed

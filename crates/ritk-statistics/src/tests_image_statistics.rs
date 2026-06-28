@@ -63,6 +63,18 @@ fn test_known_sequence() {
     assert_eq!(s.percentiles[2], 7.0, "p75");
 }
 
+#[test]
+fn compute_from_values_preserves_input_order() {
+    let data = vec![4.0, 1.0, 3.0, 2.0];
+
+    let stats = compute_from_values(&data, 0);
+
+    assert_eq!(data, vec![4.0, 1.0, 3.0, 2.0]);
+    assert_eq!(stats.min, 1.0);
+    assert_eq!(stats.max, 4.0);
+    assert_eq!(stats.percentiles, [2.0, 3.0, 4.0]);
+}
+
 #[cfg(feature = "coeus")]
 #[test]
 fn coeus_compute_statistics_matches_burn_path() {

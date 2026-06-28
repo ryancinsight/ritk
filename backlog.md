@@ -19,6 +19,14 @@
   after regressing the focused row to 78.925s; with that production change
   removed, the latest focused evidence is 80.456s.
 
+- **MEM-441-01 [patch] — Statistics masked-buffer allocation cleanup. DONE.**
+  Split the image-statistics core into the existing non-mutating borrowed-slice
+  API and a crate-private owned-buffer path. Burn and Coeus masked statistics
+  now consume the foreground vector directly for in-place percentile selection
+  instead of cloning it before quickselect. Evidence tier: value-semantic
+  nextest plus compile/lint/docs; `cargo nextest run -p ritk-statistics
+  --features coeus image_statistics` passed 16 tests.
+
 - **MIG-440-01 [patch] — Coeus image flat-buffer boundary. DONE.**
   Added `ritk_image::coeus::Image::from_flat_on` and `from_flat` so Coeus image
   construction from flat buffers validates checked shape products and length
