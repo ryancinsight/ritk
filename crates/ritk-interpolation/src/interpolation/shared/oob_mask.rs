@@ -1,37 +1,57 @@
 //! Out-of-bounds mask computation for multi-dimensional voxel indices.
 
-/// Compute a `{0.0, 1.0}` in-bounds mask for 3-D moving-image voxel indices.
+/// Compute a `{0.0, 1.0}` in-bounds mask for moving-image voxel indices.
 ///
 /// Returns an `[N]` float tensor: `1.0` = in-bounds, `0.0` = out-of-bounds.
 /// Mirrors the zero-pad criterion in `LinearInterpolator`: a sample is
 /// in-bounds when `floor(coord_d) ∈ [0, dim_d − 1]` for every axis.
 ///
-/// Column convention (matches `interpolation::linear::dim3`):
-/// - column 0 → x (→ `shape[2]`, the X / last dimension)
-/// - column 1 → y (→ `shape[1]`, the Y / middle dimension)
-/// - column 2 → z (→ `shape[0]`, the Z / first dimension)
+/// Column convention matches the interpolation kernels:
+/// column `c` maps to `shape[D - 1 - c]`.
 pub fn compute_oob_mask<B: burn::tensor::backend::Backend>(
-    indices: &burn::tensor::Tensor<B, 2>, // [N, 3]
-    shape: &[usize],                      // at least 3 elements: [d0=Z, d1=Y, d2=X]
+    indices: &burn::tensor::Tensor<B, 2>,
+    shape: &[usize],
 ) -> burn::tensor::Tensor<B, 1> {
-    let d0 = shape[0]; // Z
-    let d1 = shape[1]; // Y
-    let d2 = shape[2]; // X
+    assert!(!shape.is_empty(), "image dimensionality must be non-zero");
 
-    // narrow() consumes self, so we must clone once per column — but we
-    // can clone the full [N,3] tensor three times (cheap vs the per-element
-    // compute below) rather than cloning per intermediate.
-    let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
-    let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);
-    let z = indices.clone().narrow(1, 2, 1).squeeze_dims(&[1]);
+    let [n, _] = indices.dims();
+    let device = indices.device();
+    let mut mask = burn::tensor::Tensor::<B, 1>::ones([n], &device);
+    let dims = shape.len();
 
-    let x0 = x.clone().floor();
-    let y0 = y.clone().floor();
-    let z0 = z.clone().floor();
+    for column in 0..dims {
+        let axis = dims - 1 - column;
+        let coord = indices.clone().narrow(1, column, 1).squeeze_dims(&[1]);
+        let lower = coord.floor();
+        let in_axis = lower
+            .clone()
+            .equal(lower.clamp(0.0, (shape[axis] - 1) as f64))
+            .float();
+        mask = mask * in_axis;
+    }
 
-    let x_in = x0.clone().equal(x0.clamp(0.0, (d2 - 1) as f64)).float();
-    let y_in = y0.clone().equal(y0.clamp(0.0, (d1 - 1) as f64)).float();
-    let z_in = z0.clone().equal(z0.clamp(0.0, (d0 - 1) as f64)).float();
+    mask
+}
 
-    x_in * y_in * z_in
+#[cfg(test)]
+mod tests {
+    use super::compute_oob_mask;
+    use burn::tensor::Tensor;
+    use burn_ndarray::NdArray;
+
+    type B = NdArray<f32>;
+
+    #[test]
+    fn oob_mask_respects_inner_first_columns_for_2d() {
+        let device = Default::default();
+        let indices = Tensor::<B, 2>::from_floats(
+            [[0.0, 0.0], [2.0, 1.0], [3.0, 1.0], [2.0, 2.0], [-1.0, 0.0]],
+            &device,
+        );
+
+        let mask = compute_oob_mask(&indices, &[2, 3]);
+        let values = mask.into_data().into_vec::<f32>().unwrap();
+
+        assert_eq!(values, vec![1.0, 1.0, 0.0, 0.0, 0.0]);
+    }
 }

@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 435: Fused MSE interpolation cleanup
+
+### Changed
+- `ritk-interpolation`: Generalized `transform_and_interpolate` from a 3D-only
+  helper to a dimension-generic fused transform-to-index-to-linear-interpolation
+  helper.
+- `ritk-registration`: Routed `MeanSquaredError` through the fused
+  interpolation helper to centralize moving-index construction and interpolation.
+
+### Fixed
+- `ritk-interpolation`: Generalized OOB mask construction over the image shape
+  length while preserving the inner-most-first column convention used by the
+  interpolation kernels.
+
+### Evidence
+- Evidence tier: value-semantic tests plus focused runtime measurement.
+  `cargo nextest run -p ritk-interpolation oob_mask fused` passed 8 tests.
+  `bspline_registers_offset_sphere` passed at 76.441s; PERF-432 remains open
+  because the row is still over the 60s budget.
+
+---
+
 ## [Unreleased] — Sprint 434: Registration convergence runtime budget
 
 ### Added

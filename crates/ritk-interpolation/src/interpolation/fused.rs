@@ -1,18 +1,13 @@
-//! Fused transform → world-to-index → linear interpolation for 3D images.
+//! Fused transform → world-to-index → linear interpolation.
 //!
 //! Combines three operations that normally produce intermediate `[N, 3]` tensors:
 //! 1. Transform application (fixed world → moving world)
 //! 2. World-to-index conversion (moving world → moving index)
 //! 3. Linear interpolation (moving index → intensity values)
 //!
-//! For the special case where the moving image has an identity direction matrix,
-//! steps 2 and 3 are fused into a single pass, eliminating the intermediate
-//! `moving_indices` tensor allocation (a `[N, 3]` tensor).
-//!
-//! For the general (non-identity direction) case, this still provides benefit by
-//! inlining the world-to-index computation and passing indices directly to
-//! interpolation, avoiding the method-call overhead and potential extra
-//! allocations inside `world_to_index_tensor`.
+//! This inlines world-to-index construction and avoids repeated call-site
+//! allocation around `Image::world_to_index_tensor` while preserving the
+//! existing transform and interpolation contracts.
 
 use burn::tensor::backend::Backend;
 use burn::tensor::{Tensor, TensorData};
@@ -22,9 +17,6 @@ use crate::interpolation::LinearInterpolator;
 use ritk_core::interpolation::Interpolator;
 use ritk_core::transform::Transform;
 use ritk_image::Image;
-
-/// Spatial dimensionality for the fused transform+interpolation path.
-const SPATIAL_DIMS: usize = 3;
 
 /// Check whether a direction matrix is the identity (within tolerance).
 #[cfg(test)]
@@ -55,7 +47,7 @@ pub struct FusedInterpolationResult<B: Backend> {
     pub oob_mask: Option<Tensor<B, 1>>,
 }
 
-/// Fused transform → world-to-index → linear interpolation for 3D images.
+/// Fused transform → world-to-index → linear interpolation.
 ///
 /// Combines three operations that normally produce intermediate `[N, 3]` tensors:
 /// 1. Transform application (fixed world → moving world)
@@ -64,13 +56,7 @@ pub struct FusedInterpolationResult<B: Backend> {
 ///
 /// Additionally computes an out-of-bounds mask from the inlined indices,
 /// avoiding the need for the caller to retain the `moving_indices` tensor
-/// just for OOB masking. This eliminates one `[N, 3]` intermediate allocation
-/// compared to the unfused path (`transform_points` → `world_to_index_tensor`
-/// → `compute_oob_mask` → `interpolate`).
-///
-/// For the special case where the moving image has an identity direction matrix,
-/// the world-to-index conversion uses element-wise `(world - origin) * inv_spacing`
-/// instead of a matmul, further reducing compute cost.
+/// just for OOB masking.
 ///
 /// # Arguments
 /// * `fixed_points` — `[N, 3]` world-space points from the fixed image
@@ -81,10 +67,10 @@ pub struct FusedInterpolationResult<B: Backend> {
 /// # Returns
 /// [`FusedInterpolationResult`] containing interpolated values `[N]` and
 /// an OOB mask `[N]` (`1.0` = in-bounds, `0.0` = out-of-bounds).
-pub fn transform_and_interpolate<B: Backend, T: Transform<B, 3>>(
+pub fn transform_and_interpolate<B: Backend, T: Transform<B, D>, const D: usize>(
     fixed_points: Tensor<B, 2>,
     transform: &T,
-    moving: &Image<B, 3>,
+    moving: &Image<B, D>,
     interpolator: &LinearInterpolator,
 ) -> FusedInterpolationResult<B> {
     let [n_points, _] = fixed_points.dims();
@@ -95,11 +81,9 @@ pub fn transform_and_interpolate<B: Backend, T: Transform<B, 3>>(
     let moving_world = transform.transform_points(fixed_points);
 
     // ---- Step 2: world-to-index (fused, inlined) ----
-    let origin_data: Vec<f32> = (0..SPATIAL_DIMS)
-        .map(|i| moving.origin()[i] as f32)
-        .collect();
+    let origin_data: Vec<f32> = (0..D).map(|i| moving.origin()[i] as f32).collect();
     let origin_tensor = Tensor::<B, 1>::from_data(
-        TensorData::new(origin_data, burn::tensor::Shape::new([SPATIAL_DIMS])),
+        TensorData::new(origin_data, burn::tensor::Shape::new([D])),
         &device,
     );
 
@@ -107,23 +91,21 @@ pub fn transform_and_interpolate<B: Backend, T: Transform<B, 3>>(
         .direction()
         .try_inverse()
         .expect("Direction matrix must be invertible");
-    let mut t_data = Vec::with_capacity(SPATIAL_DIMS * SPATIAL_DIMS);
-    for r in 0..SPATIAL_DIMS {
-        for c in 0..SPATIAL_DIMS {
-            let axis = 2 - c;
+    let mut t_data = Vec::with_capacity(D * D);
+    for r in 0..D {
+        for c in 0..D {
+            let axis = D - 1 - c;
             let val = (inv_dir[(axis, r)] / moving.spacing()[axis]) as f32;
             t_data.push(val);
         }
     }
     let t_tensor = Tensor::<B, 2>::from_data(
-        TensorData::new(
-            t_data,
-            burn::tensor::Shape::new([SPATIAL_DIMS, SPATIAL_DIMS]),
-        ),
+        TensorData::new(t_data, burn::tensor::Shape::new([D, D])),
         &device,
     );
 
-    let indices = compute_general_indices_chunked(moving_world, origin_tensor, t_tensor, n_points);
+    let indices =
+        compute_general_indices_chunked::<B, D>(moving_world, origin_tensor, t_tensor, n_points);
 
     // ---- Step 2b: compute OOB mask from indices before interpolation consumes them ----
     let oob_mask = compute_oob_mask(&indices, &moving.shape());
@@ -140,13 +122,13 @@ pub fn transform_and_interpolate<B: Backend, T: Transform<B, 3>>(
 /// Compute `(world - origin) @ T` with chunking for WGPU dispatch limits.
 ///
 /// For general-direction images, this inlines the world-to-index matmul.
-fn compute_general_indices_chunked<B: Backend>(
+fn compute_general_indices_chunked<B: Backend, const D: usize>(
     world: Tensor<B, 2>,
-    origin: Tensor<B, 1>, // shape [3], will be reshaped to [1, 3] per chunk
-    t: Tensor<B, 2>,      // shape [3, 3]
+    origin: Tensor<B, 1>,
+    t: Tensor<B, 2>,
     n_points: usize,
 ) -> Tensor<B, 2> {
-    let origin = origin.reshape([1usize, SPATIAL_DIMS]);
+    let origin = origin.reshape([1usize, D]);
 
     if n_points <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
         let diff = world - origin;

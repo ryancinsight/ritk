@@ -1,5 +1,37 @@
 # RITK Gap Audit - Active
 
+## Sprint 435 Audit (2026-06-28) — Fused MSE Interpolation Cleanup
+
+### Gaps Closed
+
+- **[PERF-435-01 CLOSED]** MSE duplicated transform-to-index interpolation
+  plumbing:
+  `MeanSquaredError` now routes through the existing fused interpolation helper
+  instead of open-coding transform, world-to-index, and interpolation steps.
+- **[PERF-435-02 CLOSED]** fused interpolation was 3D-only:
+  `transform_and_interpolate` now accepts `const D: usize`; OOB mask generation
+  uses the same inner-most-first column convention for any dimensionality.
+- **[TEST-435-03 CLOSED]** generalized OOB mask lacked non-3D coverage:
+  Added 2D value-semantic coverage for in-bounds and out-of-bounds coordinates.
+- **[PROVIDER-435-04 CLOSED]** Coeus provider trait split blocked RITK
+  `--features coeus` nextest:
+  `coeus-ops` CPU dispatch now implements the interface-segregated operation
+  traits directly, restoring the blanket `BackendOps` aggregate.
+
+### Residual Risk
+
+- `bspline_registers_offset_sphere` remains above the strict 60s termination
+  budget. The focused row improved to 76.441s, but this is still a budget
+  violation and remains PERF-432-01.
+- The committed `.config/nextest.toml` still grants 600s overrides to
+  historical slow registration rows until the remaining B-spline path is
+  optimized.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  graph; this remains provider-graph hygiene outside this fused interpolation
+  slice.
+
+---
+
 ## Sprint 434 Audit (2026-06-27) — Registration Convergence Runtime Budget
 
 ### Gaps Closed

@@ -1,5 +1,46 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 435 — Fused MSE Interpolation Cleanup
+**Target version**: 0.13.10
+**Sprint phase**: Closure — MSE uses dimension-generic fused interpolation, B-spline remains over budget
+
+### In-flight plan (Sprint 435)
+- [x] PERF-435-01 [patch]: Audit the remaining MSE B-spline row and confirm
+  the unfused MSE path still materializes transform-to-index intermediates.
+- [x] PERF-435-02 [patch]: Generalize the existing fused
+  transform-to-index-to-linear-interpolation helper from 3D-only to
+  dimension-generic operation.
+- [x] PERF-435-03 [patch]: Route `MeanSquaredError` through the fused helper so
+  moving-index materialization is centralized and reused instead of open-coded
+  in the metric.
+- [x] TEST-435-04 [patch]: Add 2D value-semantic OOB mask coverage for the
+  inner-most-first column convention.
+- [ ] PERF-435-05 [patch]: Continue optimizing
+  `bspline_registers_offset_sphere`; focused nextest improved to 76.441s but
+  still exceeds the strict 60s termination budget.
+
+### Verification gate (Sprint 435)
+- [x] Coeus: `cargo check -p coeus-ops --all-targets`
+- [x] Coeus: `cargo clippy -p coeus-ops --all-targets -- -D warnings`
+- [x] Coeus: `cargo nextest run -p coeus-ops -E 'binary(binary_simd_diff) | binary(unary_leto_diff) | binary(matmul_leto_diff) | binary(reduction_simd_diff)'` -> 11 passed
+- [x] RITK: `cargo nextest run -p ritk-interpolation oob_mask fused` -> 8 passed
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus bspline_registers_offset_sphere` -> 1 passed; row 76.441s
+- [x] RITK: `cargo fmt --check -p ritk-interpolation -p ritk-registration`
+- [x] RITK: `cargo clippy -p ritk-interpolation --all-targets -- -D warnings`
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets --features coeus -- -D warnings`
+- [x] RITK: `cargo test --doc -p ritk-interpolation -p ritk-registration --features coeus` -> interpolation 0 passed, 1 ignored; registration 3 passed, 14 ignored
+- [x] RITK: `cargo doc -p ritk-interpolation -p ritk-registration --features coeus --no-deps`
+- [x] RITK: `git diff --check`
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch]: Continue with the remaining MSE B-spline runtime
+  defect; this slice removed one intermediate materialization path but did not
+  bring the row below the 60s budget.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+
+---
+
 ## Sprint 434 — Registration Convergence Runtime Budget
 **Target version**: 0.13.9
 **Sprint phase**: Closure — CR integration tests use corrected convergence semantics

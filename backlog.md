@@ -13,7 +13,17 @@
   unmodified test below the AGENTS.md 30s slow threshold, or replace the
   `.config/nextest.toml` 600s override with a stricter repo policy only after
   the real implementation path is optimized. Current evidence: full package run
-  passed 666 tests, but the slowest tests took 81s, 116s, and 161s.
+  passed 669 tests with `bspline_registers_offset_sphere` at 87.615s; the fused
+  MSE interpolation slice reduced the focused row to 76.441s but did not close
+  the budget violation.
+
+- **PERF-435-01 [patch] — Route MSE through fused interpolation. PARTIAL.**
+  Generalized `ritk_interpolation::transform_and_interpolate` over spatial
+  dimensionality, generalized the OOB mask helper over the image shape length,
+  and routed `MeanSquaredError` through the fused transform-to-index-to-linear
+  interpolation path. Evidence tier: value-semantic nextest and focused timing;
+  fused/OOB tests passed 8/8 and the MSE B-spline row passed at 76.441s. This is
+  not a speedup claim against the 60s budget; PERF-432-01 remains open.
 
 - **PERF-434-01 [patch] — Correct CR registration convergence and expose
   multires loop config. DONE.**

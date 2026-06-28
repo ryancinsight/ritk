@@ -5,7 +5,7 @@ use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_image::grid;
 use ritk_image::Image;
-use ritk_interpolation::{Interpolator, LinearInterpolator};
+use ritk_interpolation::{transform_and_interpolate, LinearInterpolator};
 use ritk_transform::Transform;
 
 /// Mean Squared Error Metric.
@@ -51,14 +51,8 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
             // Transform fixed indices to physical points
             let fixed_points = fixed.index_to_world_tensor(fixed_indices); // [N, D]
 
-            // Apply Transform to get corresponding points in moving image physical space
-            let moving_points = transform.transform_points(fixed_points); // [N, D]
-
-            // Transform moving physical points to moving image indices
-            let moving_indices = moving.world_to_index_tensor(moving_points); // [N, D]
-
-            // Sample moving image at moving_indices
-            let m = self.interpolator.interpolate(moving.data(), moving_indices); // [N]
+            let m = transform_and_interpolate(fixed_points, transform, moving, &self.interpolator)
+                .values;
             let f = fixed.data().clone().reshape([n]); // [N]
 
             let diff = m - f;
@@ -77,11 +71,13 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
                 let f = fixed_values_flat.clone().slice([chunk_range]);
 
                 let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices);
-                let chunk_moving_points = transform.transform_points(chunk_fixed_points);
-                let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
-                let m = self
-                    .interpolator
-                    .interpolate(moving.data(), chunk_moving_indices);
+                let m = transform_and_interpolate(
+                    chunk_fixed_points,
+                    transform,
+                    moving,
+                    &self.interpolator,
+                )
+                .values;
 
                 let diff = m - f;
                 acc_sq_diff = acc_sq_diff + diff.powf_scalar(2.0).sum();
