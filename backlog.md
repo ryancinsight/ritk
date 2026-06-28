@@ -19,6 +19,15 @@
   after regressing the focused row to 78.925s; with that production change
   removed, the latest focused evidence is 80.456s.
 
+- **MEM-443-01 [patch] — Nyul-Udupa output buffer reuse. DONE.**
+  `NyulUdupaNormalizer::apply` still needs one sorted work buffer because
+  percentile landmarks require sorted intensities while image reconstruction
+  must preserve original voxel order. It now reuses the extracted original-order
+  voxel buffer as the transform output after landmark computation, avoiding a
+  separate output `Vec<f32>` allocation. Evidence tier: value-semantic nextest
+  plus compile/lint/docs; `cargo nextest run -p ritk-statistics --features coeus
+  nyul` passed 21 tests, including an unsorted-order regression.
+
 - **MEM-442-01 [patch] — Statistics full-image owned extraction cleanup.
   DONE.**
   Routed Burn-backed full-image statistics from `extract_vec_infallible`

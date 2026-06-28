@@ -154,6 +154,23 @@ fn test_learn_and_apply_single_image_roundtrip() {
 }
 
 #[test]
+fn test_apply_preserves_original_voxel_order_after_landmark_sort() {
+    let data = vec![8.0, 1.0, 6.0, 3.0, 5.0, 2.0, 7.0, 4.0];
+    let image: Image<TestBackend, 1> = make_image(data.clone(), [8]);
+
+    let mut normalizer = NyulUdupaNormalizer::with_percentiles(vec![0.0, 50.0, 100.0]);
+    normalizer.learn_standard(&[&image]);
+
+    let result = normalizer.apply(&image).expect("apply");
+    let result_vals = get_values(&result);
+
+    assert_eq!(
+        result_vals, data,
+        "identity mapping must preserve original voxel order after sorting landmarks"
+    );
+}
+
+#[test]
 fn test_standardize_two_different_ranges_converge() {
     // Image A: intensities in [0, 100].
     // Image B: intensities in [1000, 2000].

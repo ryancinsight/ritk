@@ -1,5 +1,29 @@
 # RITK Gap Audit - Active
 
+## Sprint 443 Audit (2026-06-28) — Nyul-Udupa Output Buffer Reuse
+
+### Gaps Closed
+
+- **[MEM-443-01 CLOSED]** `NyulUdupaNormalizer::apply` allocated an extracted
+  original-order voxel `Vec<f32>`, a sorted landmark work `Vec<f32>`, and a
+  separate output `Vec<f32>`:
+  it now reuses the extracted original-order buffer as the output buffer after
+  computing source landmarks.
+- **[TEST-443-03 CLOSED]** Added an unsorted-input regression proving the
+  transform preserves voxel order after the landmark-sort phase.
+
+### Residual Risk
+
+- The sorted work buffer remains required by the current percentile algorithm:
+  landmark computation needs sorted intensities while reconstruction must
+  preserve original voxel order.
+- Full removal of Burn/Burn-NdArray normalization test aliases remains under
+  MIG-439-03.
+- Cargo still reports unused Hephaestus patch entries for this graph; the
+  warning is provider-graph hygiene outside this normalization allocation slice.
+
+---
+
 ## Sprint 442 Audit (2026-06-28) — Statistics Full-Image Owned Extraction
 
 ### Gaps Closed

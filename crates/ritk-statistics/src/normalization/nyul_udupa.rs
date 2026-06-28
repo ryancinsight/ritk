@@ -243,11 +243,9 @@ impl NyulUdupaNormalizer {
             anyhow::anyhow!("standard landmarks not learned; call learn_standard before apply")
         })?;
 
-        let shape: [usize; D] = image.shape();
-
         // ── 1. Extract and sort voxel intensities ─────────────────────────────
-        let (img_slice, dims) = extract_vec_infallible(image);
-        let mut sorted: Vec<f32> = img_slice.clone();
+        let (mut values, dims) = extract_vec_infallible(image);
+        let mut sorted = values.clone();
         crate::sort_floats(&mut sorted);
 
         // ── 2. Compute input image landmarks ──────────────────────────────────
@@ -258,14 +256,12 @@ impl NyulUdupaNormalizer {
             .collect();
 
         // ── 3. Apply piecewise-linear mapping ─────────────────────────────────
-        let n_total: usize = shape.iter().product();
-        let mut output: Vec<f32> = Vec::with_capacity(n_total);
-        for &v in img_slice.iter() {
-            output.push(piecewise_linear_map(v, &source_landmarks, standard));
+        for value in &mut values {
+            *value = piecewise_linear_map(*value, &source_landmarks, standard);
         }
 
         // ── 4. Reconstruct image ──────────────────────────────────────────────
-        Ok(rebuild(output, dims, image))
+        Ok(rebuild(values, dims, image))
     }
 }
 

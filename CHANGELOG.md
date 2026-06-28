@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 443: Nyul-Udupa output buffer reuse
+
+### Changed
+- `ritk-statistics`: `NyulUdupaNormalizer::apply` now reuses the extracted
+  original-order voxel buffer as the transform output after source-landmark
+  computation, avoiding a separate output `Vec<f32>` allocation.
+
+### Tests
+- `ritk-statistics`: Added unsorted-input coverage proving the transform
+  preserves original voxel order after the required landmark-sort phase.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-statistics --features coeus nyul` passed 21 tests.
+
+---
+
 ## [Unreleased] — Sprint 442: Statistics full-image owned extraction
 
 ### Changed
