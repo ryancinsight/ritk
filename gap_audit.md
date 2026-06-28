@@ -1,5 +1,29 @@
 # RITK Gap Audit - Active
 
+## Sprint 442 Audit (2026-06-28) — Statistics Full-Image Owned Extraction
+
+### Gaps Closed
+
+- **[MEM-442-01 CLOSED]** `compute_statistics` extracted an owned tensor
+  `Vec<f32>` and then cloned it through `compute_statistics_from_slice` before
+  in-place percentile selection:
+  it now consumes the owned extraction directly through the crate-private
+  owned-buffer statistics core.
+- **[TEST-442-03 CLOSED]** Added a value-semantic regression test proving the
+  caller-visible image tensor values remain unchanged after `compute_statistics`.
+
+### Residual Risk
+
+- This removes the redundant post-extraction clone for Burn-backed full-image
+  statistics, but the legacy Burn extraction itself still materializes owned
+  host data.
+- Full removal of Burn/Burn-NdArray image-statistics boundaries remains under
+  MIG-439-03.
+- Cargo still reports unused Hephaestus patch entries for this graph; the
+  warning is provider-graph hygiene outside this statistics allocation slice.
+
+---
+
 ## Sprint 441 Audit (2026-06-28) — Statistics Masked-Buffer Allocation Cleanup
 
 ### Gaps Closed

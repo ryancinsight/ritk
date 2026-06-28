@@ -75,6 +75,19 @@ fn compute_from_values_preserves_input_order() {
     assert_eq!(stats.percentiles, [2.0, 3.0, 4.0]);
 }
 
+#[test]
+fn compute_statistics_preserves_image_values() {
+    let image: Image<TestBackend, 1> = make_image(vec![4.0, 1.0, 3.0, 2.0], [4]);
+
+    let stats = compute_statistics(&image);
+    let values = image.data().clone().into_data().into_vec::<f32>().unwrap();
+
+    assert_eq!(values, vec![4.0, 1.0, 3.0, 2.0]);
+    assert_eq!(stats.min, 1.0);
+    assert_eq!(stats.max, 4.0);
+    assert_eq!(stats.percentiles, [2.0, 3.0, 4.0]);
+}
+
 #[cfg(feature = "coeus")]
 #[test]
 fn coeus_compute_statistics_matches_burn_path() {

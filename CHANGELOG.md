@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 442: Statistics full-image owned extraction
+
+### Changed
+- `ritk-statistics`: Full-image Burn-backed statistics now consume the owned
+  tensor extraction directly for in-place percentile selection, avoiding a
+  redundant clone while preserving caller-visible image values.
+- Workspace lockfile: Refreshed Coeus path-package entries from 0.5.3 to 0.5.4
+  as part of the verified `--features coeus` graph.
+
+### Tests
+- `ritk-statistics`: Added value-semantic coverage proving
+  `compute_statistics` leaves the source image values unchanged.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-statistics --features coeus image_statistics`
+  passed 17 tests, including the large-N precision rows.
+
+---
+
 ## [Unreleased] — Sprint 441: Statistics masked-buffer allocation cleanup
 
 ### Changed

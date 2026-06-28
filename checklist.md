@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 442 — Statistics Full-Image Owned Extraction
+**Target version**: 0.13.10
+**Sprint phase**: Closure — full-image statistics extraction clone removed
+
+### In-flight plan (Sprint 442)
+- [x] MEM-442-01 [patch]: Audit `compute_statistics` after Sprint 441 and
+  confirm the Burn-backed full-image path still cloned the extracted owned
+  tensor buffer before percentile selection.
+- [x] MEM-442-02 [patch]: Route the owned tensor extraction directly into the
+  crate-private owned-buffer statistics core.
+- [x] TEST-442-03 [patch]: Add value-semantic coverage proving
+  `compute_statistics` preserves caller-visible image values.
+
+### Verification gate (Sprint 442)
+- [x] RITK: `cargo fmt --check -p ritk-statistics`
+- [x] RITK: `cargo clippy -p ritk-statistics --all-targets --features coeus -- -D warnings`
+- [x] RITK: `cargo nextest run -p ritk-statistics --features coeus image_statistics` -> 17 passed
+- [x] RITK: `cargo test --doc -p ritk-statistics --features coeus` -> 1 passed, 3 ignored
+- [x] RITK: `cargo doc -p ritk-statistics --features coeus --no-deps`
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias with
+  an Atlas-backed backend after the image/filter/IO command boundaries are
+  migrated.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases and
+  tests with Atlas-backed Coeus/Leto surfaces where each crate boundary is
+  migrated.
+
+---
+
 ## Sprint 441 — Statistics Masked-Buffer Allocation Cleanup
 **Target version**: 0.13.10
 **Sprint phase**: Closure — redundant masked-statistics buffer clone removed

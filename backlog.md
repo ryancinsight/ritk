@@ -19,6 +19,16 @@
   after regressing the focused row to 78.925s; with that production change
   removed, the latest focused evidence is 80.456s.
 
+- **MEM-442-01 [patch] — Statistics full-image owned extraction cleanup.
+  DONE.**
+  Routed Burn-backed full-image statistics from `extract_vec_infallible`
+  directly into the owned-buffer statistics core, avoiding a redundant clone of
+  the extracted tensor values before percentile selection. Evidence tier:
+  value-semantic nextest plus compile/lint/docs; `cargo nextest run -p
+  ritk-statistics --features coeus image_statistics` passed 17 tests. The
+  verified graph refreshed Coeus path crates in `Cargo.lock` from 0.5.3 to
+  0.5.4.
+
 - **MEM-441-01 [patch] — Statistics masked-buffer allocation cleanup. DONE.**
   Split the image-statistics core into the existing non-mutating borrowed-slice
   API and a crate-private owned-buffer path. Burn and Coeus masked statistics

@@ -43,8 +43,7 @@ pub struct ImageStatistics {
 /// Extraction path: `tensor.clone().into_data()` → `as_slice::<f32>()` → CPU arithmetic.
 pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> ImageStatistics {
     let (vals, _) = extract_vec_infallible(image);
-    let slice: &[f32] = &vals;
-    compute_statistics_from_slice(slice, 0)
+    compute_from_owned(vals, 0)
 }
 
 /// Compute statistics from an immutable slice.
