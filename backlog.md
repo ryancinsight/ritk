@@ -37,6 +37,16 @@
   `cargo doc -p ritk-registration --features coeus --no-deps` passed after the
   provider fix.
 
+- **MIG-438-01 [patch] — Registration direct ndarray dependency cleanup.
+  DONE.**
+  Removed the unused direct `ndarray` dependency from `ritk-registration` after
+  auditing production source for direct `ndarray` symbols. The remaining
+  registration matches are `burn_ndarray` test/backend aliases. Updated the
+  classical-engine Rustdoc from stale ndarray wording to the active Leto array
+  substrate. Evidence tier: source audit plus compile/lint/docs and
+  value-semantic nextest; `cargo nextest run -p ritk-registration --features
+  coeus classical` passed 45 tests.
+
 - **PERF-435-01 [patch] — Route MSE through fused interpolation. PARTIAL.**
   Generalized `ritk_interpolation::transform_and_interpolate` over spatial
   dimensionality, generalized the OOB mask helper over the image shape length,

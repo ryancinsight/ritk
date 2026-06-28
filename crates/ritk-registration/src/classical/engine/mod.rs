@@ -1,6 +1,6 @@
 //! Classical image registration engine.
 //!
-//! Orchestrates non-ML registration algorithms using pure ndarray primitives:
+//! Orchestrates non-ML registration algorithms using Leto array primitives:
 //! - Kabsch SVD for landmark-based rigid registration
 //! - Mutual-information hill-climb for intensity-based rigid/affine registration
 //!

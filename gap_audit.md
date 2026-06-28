@@ -1,5 +1,25 @@
 # RITK Gap Audit - Active
 
+## Sprint 438 Audit (2026-06-28) — Registration Leto Dependency Cleanup
+
+### Gaps Closed
+
+- **[MIG-438-01 CLOSED]** `ritk-registration` still declared a direct
+  production `ndarray` dependency after the classical engine had moved to Leto:
+  removed the unused dependency and corrected the classical-engine Rustdoc to
+  name Leto array primitives as the implementation substrate.
+
+### Residual Risk
+
+- `burn_ndarray::NdArray` remains in registration tests and legacy Burn-backed
+  backend paths; it is not direct production `ndarray` crate usage.
+- Cargo still reports unused Hephaestus patch entries for this graph; the
+  warning is provider-graph hygiene outside this registration dependency slice.
+- `bspline_registers_offset_sphere` remains above the strict runtime budget at
+  the latest focused row of 80.456s; PERF-432-01 remains open.
+
+---
+
 ## Sprint 437 Audit (2026-06-28) — CLI Leto MI Boundary Cleanup
 
 ### Gaps Closed

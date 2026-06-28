@@ -1,5 +1,35 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 438 — Registration Leto Dependency Cleanup
+**Target version**: 0.13.10
+**Sprint phase**: Closure — stale registration ndarray dependency removed
+
+### In-flight plan (Sprint 438)
+- [x] MIG-438-01 [patch]: Audit `ritk-registration` production `ndarray`
+  usage and confirm the remaining matches are `burn_ndarray` test/backend
+  aliases rather than direct `ndarray` crate usage.
+- [x] MIG-438-02 [patch]: Remove the unused direct `ndarray` dependency from
+  `ritk-registration`.
+- [x] DOC-438-03 [patch]: Correct classical-engine Rustdoc to describe Leto
+  array primitives as the active implementation substrate.
+
+### Verification gate (Sprint 438)
+- [x] RITK: `cargo fmt --check -p ritk-registration`
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets --features coeus -- -D warnings`
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus classical` -> 45 passed
+- [x] RITK: `cargo test --doc -p ritk-registration --features coeus` -> 3 passed, 14 ignored
+- [x] RITK: `cargo doc -p ritk-registration --features coeus --no-deps`
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias with
+  an Atlas-backed backend after the image/filter/IO command boundaries are
+  migrated.
+
+---
+
 ## Sprint 437 — CLI Leto MI Boundary Cleanup
 **Target version**: 0.13.10
 **Sprint phase**: Closure — direct CLI MI ndarray volume boundary replaced and verified

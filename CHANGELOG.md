@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 438: Registration Leto dependency cleanup
+
+### Changed
+- `ritk-registration`: Corrected classical-engine Rustdoc to describe Leto
+  array primitives as the active non-ML registration substrate.
+
+### Removed
+- `ritk-registration`: Removed the unused direct `ndarray` dependency. Remaining
+  registration `ndarray` matches are `burn_ndarray` test/backend aliases.
+
+### Evidence
+- Evidence tier: source audit, compile/lint/docs, and value-semantic nextest.
+  `cargo nextest run -p ritk-registration --features coeus classical` passed 45
+  tests. `cargo test --doc -p ritk-registration --features coeus` passed 3
+  doctests with 14 ignored examples.
+
+---
+
 ## [Unreleased] — Sprint 437: CLI Leto MI boundary cleanup
 
 ### Changed

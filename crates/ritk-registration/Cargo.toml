@@ -30,7 +30,6 @@ bytemuck = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-ndarray = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
 moirai = { workspace = true }
