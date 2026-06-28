@@ -15,7 +15,9 @@
   the real implementation path is optimized. Current evidence: full package run
   passed 669 tests with `bspline_registers_offset_sphere` at 87.615s; the fused
   MSE interpolation slice reduced the focused row to 76.441s but did not close
-  the budget violation.
+  the budget violation. A follow-up identity-direction fast path was rejected
+  after regressing the focused row to 78.925s; with that production change
+  removed, the latest focused evidence is 80.456s.
 
 - **PERF-435-01 [patch] — Route MSE through fused interpolation. PARTIAL.**
   Generalized `ritk_interpolation::transform_and_interpolate` over spatial
@@ -24,6 +26,13 @@
   interpolation path. Evidence tier: value-semantic nextest and focused timing;
   fused/OOB tests passed 8/8 and the MSE B-spline row passed at 76.441s. This is
   not a speedup claim against the 60s budget; PERF-432-01 remains open.
+
+- **TEST-436-01 [patch] — Fused identity-direction coordinate convention.
+  DONE.**
+  Added asymmetric-origin, anisotropic-spacing differential coverage comparing
+  fused interpolation against the unfused transform -> world-to-index ->
+  interpolation path. Evidence tier: value-semantic differential nextest;
+  `cargo nextest run -p ritk-interpolation fused` passed 8/8.
 
 - **PERF-434-01 [patch] — Correct CR registration convergence and expose
   multires loop config. DONE.**

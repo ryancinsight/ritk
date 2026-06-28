@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 436: Fused coordinate-convention coverage
+
+### Changed
+- `ritk-interpolation`: Corrected fused interpolation Rustdoc to describe the
+  dimension-generic `[N, D]` point tensor contract and the currently populated
+  OOB mask.
+
+### Tests
+- `ritk-interpolation`: Added asymmetric-origin, anisotropic-spacing
+  differential coverage for identity-direction fused interpolation against the
+  unfused transform -> world-to-index -> interpolation path.
+
+### Evidence
+- Evidence tier: value-semantic differential tests plus focused runtime
+  measurement. `cargo nextest run -p ritk-interpolation fused` passed 8 tests.
+  `bspline_registers_offset_sphere` passed at 80.456s. PERF-432 remains open;
+  an identity-direction fast path was rejected after it regressed the focused
+  row to 78.925s.
+
+---
+
 ## [Unreleased] — Sprint 435: Fused MSE interpolation cleanup
 
 ### Changed

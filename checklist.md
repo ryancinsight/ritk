@@ -1,5 +1,42 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 436 — Fused Coordinate-Convention Coverage
+**Target version**: 0.13.10
+**Sprint phase**: Closure — safety coverage added; PERF-432 remains open
+
+### In-flight plan (Sprint 436)
+- [x] TEST-436-01 [patch]: Add asymmetric-origin, anisotropic-spacing
+  differential coverage for identity-direction fused interpolation against the
+  unfused transform -> world-to-index -> interpolation path.
+- [x] PERF-436-02 [patch]: Audit an identity-direction index fast path and
+  reject it after focused timing showed `bspline_registers_offset_sphere`
+  regressed to 78.925s.
+- [ ] PERF-432-01 [patch]: Continue reducing
+  `bspline_registers_offset_sphere`; latest focused row is 80.456s and still
+  exceeds the strict runtime budget.
+
+### Verification gate (Sprint 436)
+- [x] RITK: `cargo fmt --check -p ritk-interpolation -p ritk-registration`
+- [x] RITK: `cargo clippy -p ritk-interpolation --all-targets -- -D warnings`
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets --features coeus -- -D warnings`
+- [x] Provider: `cargo nextest run -p mnemosyne-prof` -> 6 passed
+- [x] Provider: `cargo fmt -p mnemosyne-prof --check`
+- [x] Provider: `cargo clippy -p mnemosyne-prof --all-targets --all-features -- -D warnings`
+- [x] Provider: `cargo test --doc -p mnemosyne-prof --all-features` -> 0 doctests
+- [x] Provider: `cargo doc -p mnemosyne-prof --all-features --no-deps`
+- [x] RITK: `cargo nextest run -p ritk-interpolation fused` -> 8 passed
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus bspline_registers_offset_sphere` -> 1 passed; row 80.456s
+- [x] RITK: `cargo test --doc -p ritk-interpolation -p ritk-registration --features coeus` -> interpolation 0 passed, 1 ignored; registration 3 passed, 14 ignored
+- [x] RITK: `cargo doc -p ritk-interpolation -p ritk-registration --features coeus --no-deps`
+- [x] RITK/Mnemosyne: `git diff --check`
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+
+---
+
 ## Sprint 435 — Fused MSE Interpolation Cleanup
 **Target version**: 0.13.10
 **Sprint phase**: Closure — MSE uses dimension-generic fused interpolation, B-spline remains over budget

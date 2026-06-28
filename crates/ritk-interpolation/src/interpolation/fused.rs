@@ -1,6 +1,6 @@
 //! Fused transform → world-to-index → linear interpolation.
 //!
-//! Combines three operations that normally produce intermediate `[N, 3]` tensors:
+//! Combines three operations that normally produce intermediate `[N, D]` tensors:
 //! 1. Transform application (fixed world → moving world)
 //! 2. World-to-index conversion (moving world → moving index)
 //! 3. Linear interpolation (moving index → intensity values)
@@ -43,13 +43,13 @@ pub struct FusedInterpolationResult<B: Backend> {
     /// Interpolated intensity values `[N]`.
     pub values: Tensor<B, 1>,
     /// Out-of-bounds mask `[N]`: `1.0` = in-bounds, `0.0` = out-of-bounds.
-    /// `None` when the moving image is not 3D or OOB masking is not needed.
+    /// Currently populated by this fused path.
     pub oob_mask: Option<Tensor<B, 1>>,
 }
 
 /// Fused transform → world-to-index → linear interpolation.
 ///
-/// Combines three operations that normally produce intermediate `[N, 3]` tensors:
+/// Combines three operations that normally produce intermediate `[N, D]` tensors:
 /// 1. Transform application (fixed world → moving world)
 /// 2. World-to-index conversion (moving world → moving index)  — **inlined, no separate allocation**
 /// 3. Linear interpolation (moving index → intensity values)
@@ -59,7 +59,7 @@ pub struct FusedInterpolationResult<B: Backend> {
 /// just for OOB masking.
 ///
 /// # Arguments
-/// * `fixed_points` — `[N, 3]` world-space points from the fixed image
+/// * `fixed_points` — `[N, D]` world-space points from the fixed image
 /// * `transform` — spatial transform (fixed world → moving world)
 /// * `moving` — moving image (provides origin, spacing, direction, data)
 /// * `interpolator` — linear interpolation method

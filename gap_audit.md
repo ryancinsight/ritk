@@ -1,5 +1,28 @@
 # RITK Gap Audit - Active
 
+## Sprint 436 Audit (2026-06-28) — Fused Coordinate-Convention Coverage
+
+### Gaps Closed
+
+- **[TEST-436-01 CLOSED]** fused identity-direction coverage still relied on
+  symmetric origins:
+  Added an asymmetric-origin, anisotropic-spacing differential test comparing
+  the fused path against the unfused transform -> world-to-index ->
+  interpolation path. This protects the physical-coordinate `[x,y,z]` to
+  tensor-index `[z,y,x]` convention without duplicating expected-value logic.
+
+### Residual Risk
+
+- `bspline_registers_offset_sphere` remains above the strict runtime budget.
+  An identity-direction index fast path was tested and rejected because it
+  regressed the focused row to 78.925s. With the production hot path restored,
+  the latest focused row passed at 80.456s, so PERF-432-01 remains open.
+- The Hephaestus patch entries are still reported as unused by Cargo for this
+  graph; this remains provider-graph hygiene outside this fused interpolation
+  safety slice.
+
+---
+
 ## Sprint 435 Audit (2026-06-28) — Fused MSE Interpolation Cleanup
 
 ### Gaps Closed

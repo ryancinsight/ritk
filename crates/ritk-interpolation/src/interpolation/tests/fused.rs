@@ -204,6 +204,55 @@ fn test_fused_matches_unfused() {
 }
 
 #[test]
+fn test_fused_identity_direction_anisotropic_matches_unfused() {
+    let device = Default::default();
+    let data_vec: Vec<f32> = (0..60).map(|i| i as f32 * 1.25).collect();
+    let data = Tensor::<Backend, 3>::from_data(
+        TensorData::new(data_vec, burn::tensor::Shape::new([3, 4, 5])),
+        &device,
+    );
+    let origin = Point3::new([10.0, -20.0, 30.0]);
+    let spacing = Spacing3::new([2.0, 3.0, 5.0]);
+    let moving = Image::new(data, origin, spacing, Direction3::identity());
+
+    let transform = TranslationTransform {
+        offset: [1.5, -2.0, 7.5],
+    };
+    let interpolator = LinearInterpolator::new();
+
+    let fixed_points = Tensor::<Backend, 2>::from_floats(
+        [
+            [9.0, -18.0, 27.5],
+            [11.0, -17.0, 32.5],
+            [13.0, -14.0, 35.0],
+            [16.0, -11.0, 40.0],
+        ],
+        &device,
+    );
+
+    let fused_result =
+        transform_and_interpolate(fixed_points.clone(), &transform, &moving, &interpolator);
+
+    let moving_world = transform.transform_points(fixed_points);
+    let indices = moving.world_to_index_tensor(moving_world);
+    let unfused_result = interpolator.interpolate(moving.data(), indices);
+
+    let fused_vals = fused_result.values.into_data().into_vec::<f32>().unwrap();
+    let unfused_vals = unfused_result.into_data().into_vec::<f32>().unwrap();
+
+    for i in 0..fused_vals.len() {
+        let diff = (fused_vals[i] - unfused_vals[i]).abs();
+        assert!(
+            diff < 1e-4,
+            "Identity-direction fused and unfused results differ at index {i}: fused={}, unfused={}, diff={}",
+            fused_vals[i],
+            unfused_vals[i],
+            diff,
+        );
+    }
+}
+
+#[test]
 fn test_fused_general_direction_matches_unfused() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32).collect();
