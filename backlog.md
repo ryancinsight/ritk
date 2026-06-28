@@ -19,6 +19,24 @@
   after regressing the focused row to 78.925s; with that production change
   removed, the latest focused evidence is 80.456s.
 
+- **MIG-437-01 [patch] — CLI MI registration direct ndarray boundary. DONE.**
+  Replaced the `ritk-cli` MI registration image conversion helpers with
+  `leto::Array3<f64>` so the CLI hands Leto volumes directly to the classical
+  registration engine and spatial warp. Removed the direct `ndarray`
+  dependency from `ritk-cli`; the remaining `burn_ndarray::NdArray` alias is a
+  separate CLI backend migration item. Evidence tier: source audit plus
+  value-semantic boundary test. `cargo nextest run -p ritk-cli leto_volume`
+  passed 1 test; `cargo clippy -p ritk-cli --all-targets -- -D warnings`
+  passed.
+
+- **PROVIDER-437-02 [minor] — Moirai stream module rename completion. DONE.**
+  Completed the `moirai-iter` `parallel_stream` -> `stream` module rename that
+  blocked RITK Coeus rustdoc, and verified the bounded concurrent stream API in
+  Moirai. Evidence tier: compile/lint/docs plus value-semantic nextest;
+  `cargo nextest run -p moirai-iter stream` passed 10 tests, and RITK
+  `cargo doc -p ritk-registration --features coeus --no-deps` passed after the
+  provider fix.
+
 - **PERF-435-01 [patch] — Route MSE through fused interpolation. PARTIAL.**
   Generalized `ritk_interpolation::transform_and_interpolate` over spatial
   dimensionality, generalized the OOB mask helper over the image shape length,

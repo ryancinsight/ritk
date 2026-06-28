@@ -138,20 +138,24 @@ mod tests {
         });
     }
 
-    // ── Boundary: image_to_array3 round-trip preserves values ────────────
+    // ── Boundary: Leto volume round-trip preserves values ────────────────
 
-    /// Converting an image to `Array3<f64>` and back must preserve voxel
+    /// Converting an image to `leto::Array3<f64>` and back must preserve voxel
     /// values within f32 precision.
     #[test]
-    fn test_image_to_array3_and_back_preserves_values() {
+    fn test_leto_volume_round_trip_preserves_values() {
         let image = make_ramp_image();
-        let arr = image_to_array3(&image);
+        let volume = image_to_leto_volume(&image);
 
         // Verify shape.
-        assert_eq!(arr.dim(), (4, 4, 4), "array shape must match image shape");
+        assert_eq!(
+            volume.shape(),
+            [4, 4, 4],
+            "array shape must match image shape"
+        );
 
         // Verify values: flat index i → value i * 4.0.
-        let flat: Vec<f64> = arr.iter().copied().collect();
+        let flat: Vec<f64> = volume.iter().copied().collect();
         for (i, &v) in flat.iter().enumerate() {
             let expected = i as f64 * 4.0;
             assert!(
@@ -161,7 +165,7 @@ mod tests {
         }
 
         // Convert back and verify sum is preserved.
-        let reconstructed = array3_to_image(arr, &image);
+        let reconstructed = leto_volume_to_image(volume, &image);
         let orig_sum: f32 = image.with_data_slice(|s| s.iter().copied().sum());
         let recon_sum: f32 = reconstructed.with_data_slice(|s| s.iter().copied().sum());
         assert!(

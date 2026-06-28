@@ -14,9 +14,9 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     let filter = GaussianFilter::<Backend>::new(vec![args.sigma_fixed; 3]);
     let (fixed_img, moving_img) = (filter.apply(&fixed_img), filter.apply(&moving_img));
 
-    // ── 3. Convert images to ndarray::Array3<f64> ─────────────────────────
-    let fixed_arr = image_to_array3(&fixed_img);
-    let moving_arr = image_to_array3(&moving_img);
+    // ── 3. Convert images to leto::Array3<f64> ────────────────────────────
+    let fixed_arr = image_to_leto_volume(&fixed_img);
+    let moving_arr = image_to_leto_volume(&moving_img);
 
     // ── 4. Build registration engine with user-supplied iteration budget ───
     let config = ClassicalConfig {
@@ -45,13 +45,13 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     // Re-read the original (un-smoothed) moving image for warping so the
     // output preserves the full-resolution signal.
     let moving_orig = super::super::read_image(&args.moving)?;
-    let moving_orig_arr = image_to_array3(&moving_orig);
+    let moving_orig_arr = image_to_leto_volume(&moving_orig);
     let warped_arr = spatial::apply_transform(&moving_orig_arr, &result.transform);
 
     // ── 7. Convert warped array back to Image and write output ─────────────
     // Spatial metadata comes from the fixed image (the output lives in the
     // fixed image's coordinate frame).
-    let warped_img = array3_to_image(warped_arr, &fixed_img);
+    let warped_img = leto_volume_to_image(warped_arr, &fixed_img);
     super::super::write_image_inferred(&args.output, &warped_img)?;
 
     // ── 8. Optionally write transform JSON ─────────────────────────────────

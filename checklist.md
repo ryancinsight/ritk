@@ -1,5 +1,44 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 437 — CLI Leto MI Boundary Cleanup
+**Target version**: 0.13.10
+**Sprint phase**: Closure — direct CLI MI ndarray volume boundary replaced and verified
+
+### In-flight plan (Sprint 437)
+- [x] MIG-437-01 [patch]: Audit CLI MI registration array handoff and confirm
+  the registration engine already accepts `leto::Array3<f64>`.
+- [x] MIG-437-02 [patch]: Replace `ritk-cli` MI conversion helpers with
+  `leto::Array3<f64>` and remove the direct `ndarray` dependency from
+  `ritk-cli`.
+- [x] TEST-437-03 [patch]: Update the CLI registration boundary test to assert
+  Leto shape and voxel-value preservation.
+
+### Verification gate (Sprint 437)
+- [x] RITK: `cargo fmt --check -p ritk-cli -p ritk-registration`
+- [x] RITK: `cargo clippy -p ritk-cli --all-targets -- -D warnings`
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets --features coeus -- -D warnings`
+- [x] RITK: `cargo nextest run -p ritk-cli leto_volume` -> 1 passed
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus preprocessing` -> 20 passed
+- [x] RITK: `cargo test --doc -p ritk-cli` -> not applicable; `ritk-cli`
+  has no library target
+- [x] RITK: `cargo doc -p ritk-cli --no-deps`
+- [x] RITK: `cargo doc -p ritk-registration --features coeus --no-deps`
+- [x] Provider: `cargo fmt --check -p moirai-iter`
+- [x] Provider: `cargo clippy -p moirai-iter --all-targets --all-features -- -D warnings`
+- [x] Provider: `cargo nextest run -p moirai-iter stream` -> 10 passed
+- [x] Provider: `cargo doc -p moirai-iter --all-features --no-deps`
+- [x] RITK/Moirai: `git diff --check`
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias with
+  an Atlas-backed backend after the image/filter/IO command boundaries are
+  migrated.
+
+---
+
 ## Sprint 436 — Fused Coordinate-Convention Coverage
 **Target version**: 0.13.10
 **Sprint phase**: Closure — safety coverage added; PERF-432 remains open

@@ -9,7 +9,9 @@ use ritk_image::Image;
 
 use super::pipeline::PreprocessingPipeline;
 use super::step::PreprocessingStep;
-use super::value_ops::{apply_mask_values, clamp_values, normalize_values, validate_mask};
+use super::value_ops::{
+    apply_mask_values, clamp_values, normalize_values, validate_mask, validate_value_count,
+};
 
 impl PreprocessingPipeline {
     /// Execute all steps sequentially.
@@ -74,6 +76,7 @@ impl PreprocessingPipeline {
 /// Reconstruct a 3-D image from a flat `Vec<f32>`, preserving spatial metadata.
 fn rebuild_image<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>) -> Result<Image<B, 3>> {
     let shape = src.shape();
+    validate_value_count(vals.len(), shape, "preprocessing rebuild")?;
     let device = src.data().device();
     let tensor = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &device);
     Ok(Image::new(

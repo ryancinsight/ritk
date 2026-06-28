@@ -1,5 +1,32 @@
 # RITK Gap Audit - Active
 
+## Sprint 437 Audit (2026-06-28) — CLI Leto MI Boundary Cleanup
+
+### Gaps Closed
+
+- **[MIG-437-01 CLOSED]** CLI MI registration still converted images through a
+  direct `ndarray::Array3<f64>` boundary:
+  `ritk-cli` now constructs `leto::Array3<f64>` volumes for MI registration and
+  converts warped Leto volumes back to Burn-backed images only at the command
+  boundary. The old direct `ndarray` dependency was removed from `ritk-cli`.
+- **[PROVIDER-437-02 CLOSED]** RITK Coeus rustdoc was blocked by Moirai's
+  incomplete stream module rename:
+  `moirai-iter` now exports `moirai_iter::stream`, and its bounded concurrent
+  stream tests cover item preservation, concurrency bounds, filtering, and
+  for-each visitation.
+
+### Residual Risk
+
+- `burn_ndarray::NdArray` remains the CLI-wide concrete backend alias. That is
+  not part of the MI volume handoff and requires a separate Atlas-backed image
+  backend migration across read/filter/write command paths.
+- Cargo still reports unused Hephaestus patch entries for this graph; the
+  warning is provider-graph hygiene outside this CLI MI migration slice.
+- `bspline_registers_offset_sphere` remains above the strict runtime budget at
+  the latest focused row of 80.456s; PERF-432-01 remains open.
+
+---
+
 ## Sprint 436 Audit (2026-06-28) — Fused Coordinate-Convention Coverage
 
 ### Gaps Closed

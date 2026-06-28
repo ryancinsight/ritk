@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 437: CLI Leto MI boundary cleanup
+
+### Changed
+- `ritk-cli`: MI registration now converts command images to
+  `leto::Array3<f64>` before invoking the classical registration engine and
+  spatial warp.
+
+### Removed
+- `ritk-cli`: Removed the direct `ndarray` dependency from the CLI registration
+  volume handoff. The CLI-wide `burn_ndarray::NdArray` backend alias remains a
+  separate migration item.
+
+### Evidence
+- Evidence tier: source audit, compile/lint/docs, and value-semantic nextest.
+  `cargo nextest run -p ritk-cli leto_volume` passed 1 test.
+  `cargo nextest run -p ritk-registration --features coeus preprocessing`
+  passed 20 tests. Moirai provider verification for the rustdoc blocker passed
+  `cargo nextest run -p moirai-iter stream` with 10 tests.
+
+---
+
 ## [Unreleased] — Sprint 436: Fused coordinate-convention coverage
 
 ### Changed

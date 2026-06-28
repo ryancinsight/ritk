@@ -33,9 +33,11 @@ pub(crate) use integrate::{scaling_and_squaring, scaling_and_squaring_into};
 pub(crate) use normalize::normalize_forces_into;
 #[cfg(test)]
 pub(crate) use smooth::gaussian_smooth_field_inplace;
+#[cfg(feature = "coeus")]
+pub(crate) use smooth::gaussian_smooth_with_scratch_per_axis;
 pub(crate) use smooth::{
     gaussian_smooth_field_inplace_with_scratch, gaussian_smooth_inplace,
-    gaussian_smooth_with_scratch, gaussian_smooth_with_scratch_per_axis,
+    gaussian_smooth_with_scratch,
 };
 
 // ── GPU-accelerated smoothing (Burn tensor path) ─────────────────────────────

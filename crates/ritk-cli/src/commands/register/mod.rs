@@ -21,7 +21,7 @@
 //!
 //! 1. Read fixed and moving images (format inferred from extension).
 //! 2. Optionally apply isotropic Gaussian smoothing (`--sigma-fixed`).
-//! 3. Convert both images to `ndarray::Array3<f64>` (for MI methods) or
+//! 3. Convert both images to `leto::Array3<f64>` (for MI methods) or
 //!    flat `Vec<f32>` (for deformable methods).
 //! 4. Run the selected registration method; initial transform is identity.
 //! 5. Apply the estimated 4×4 homogeneous transform to the moving image
@@ -40,6 +40,7 @@ use anyhow::{Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use clap::Args;
+use leto::Array3;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -211,34 +212,34 @@ pub struct RegisterArgs {
     pub n_squarings: usize,
 }
 
-// ── Image ↔ ndarray conversion ────────────────────────────────────────────────
+// ── Image ↔ Leto volume conversion ────────────────────────────────────────────
 
-/// Convert a 3-D `Image<Backend, 3>` to an `ndarray::Array3<f64>`.
+/// Convert a 3-D `Image<Backend, 3>` to a `leto::Array3<f64>`.
 ///
 /// Data is extracted in the image's native [Z, Y, X] layout (C-order) and
 /// cast element-wise from `f32` to `f64`.
 ///
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
-pub(super) fn image_to_array3(image: &Image<Backend, 3>) -> ndarray::Array3<f64> {
+pub(super) fn image_to_leto_volume(image: &Image<Backend, 3>) -> Array3<f64> {
     let shape = image.shape();
     let slice = image.data_slice();
     let f64_vec: Vec<f64> = slice.iter().map(|&v| v as f64).collect();
-    ndarray::Array3::from_shape_vec((shape[0], shape[1], shape[2]), f64_vec)
+    Array3::from_shape_vec([shape[0], shape[1], shape[2]], f64_vec)
         .expect("shape derived from image must be consistent with data length")
 }
 
-/// Convert a warped `ndarray::Array3<f64>` back to `Image<Backend, 3>`.
+/// Convert a warped `leto::Array3<f64>` back to `Image<Backend, 3>`.
 ///
 /// The spatial metadata (origin, spacing, direction) is copied from
 /// `reference` so the output image lives in the fixed image's frame.
-pub(super) fn array3_to_image(
-    arr: ndarray::Array3<f64>,
+pub(super) fn leto_volume_to_image(
+    volume: Array3<f64>,
     reference: &Image<Backend, 3>,
 ) -> Image<Backend, 3> {
     let device: <Backend as BurnBackend>::Device = Default::default();
-    let (nz, ny, nx) = arr.dim();
-    let f32_vec: Vec<f32> = arr.iter().map(|&v| v as f32).collect();
+    let [nz, ny, nx] = volume.shape();
+    let f32_vec: Vec<f32> = volume.iter().map(|&v| v as f32).collect();
     let td = TensorData::new(f32_vec, Shape::new([nz, ny, nx]));
     let tensor = Tensor::<Backend, 3>::from_data(td, &device);
     Image::new(
