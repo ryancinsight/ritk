@@ -1,5 +1,32 @@
 # RITK Gap Audit - Active
 
+## Sprint 440 Audit (2026-06-28) — Coeus Image Flat-Buffer Boundary
+
+### Gaps Closed
+
+- **[SAFE-440-02 CLOSED]** Coeus image construction from flat buffers was
+  repeated at consumer test boundaries by manually constructing a Coeus tensor
+  and then wrapping it in `ritk_image::coeus::Image`:
+  added checked `Image::from_flat_on` / `Image::from_flat` constructors that
+  validate shape-product overflow and data length before tensor construction.
+- **[DRY-440-03 CLOSED]** Coeus statistics and registration preprocessing test
+  helpers duplicated flat-buffer image assembly:
+  both call sites now route through the image-level constructor.
+
+### Residual Risk
+
+- The constructors centralize checked Coeus image assembly but do not yet
+  remove Burn-backed production APIs or `burn_ndarray` backend aliases.
+- `burn_ndarray::NdArray` remains in backend aliases, tests, examples, and
+  legacy command paths; MIG-439-03 remains the migration track for replacing
+  those crate boundaries with Atlas-backed Coeus/Leto surfaces.
+- Cargo still reports unused Hephaestus patch entries for this graph; the
+  warning is provider-graph hygiene outside this Coeus image boundary slice.
+- `bspline_registers_offset_sphere` remains above the strict runtime budget at
+  the latest focused row of 80.456s; PERF-432-01 remains open.
+
+---
+
 ## Sprint 439 Audit (2026-06-28) — I/O Workspace Dependency Cleanup
 
 ### Gaps Closed

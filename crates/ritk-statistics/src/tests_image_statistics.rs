@@ -10,11 +10,11 @@ fn make_coeus_image<const D: usize>(
     data: Vec<f32>,
     dims: [usize; D],
 ) -> ritk_image::coeus::Image<f32, coeus_core::MoiraiBackend, D> {
-    use coeus_tensor::Tensor;
     use ritk_spatial::{Direction, Point, Spacing};
 
-    ritk_image::coeus::Image::new(
-        Tensor::<f32, coeus_core::MoiraiBackend>::from_slice(dims, &data),
+    ritk_image::coeus::Image::from_flat(
+        data,
+        dims,
         Point::new([0.0; D]),
         Spacing::new([1.0; D]),
         Direction::identity(),

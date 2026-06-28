@@ -1,5 +1,43 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 440 — Coeus Image Flat-Buffer Boundary
+**Target version**: 0.13.10
+**Sprint phase**: Closure — flat Coeus image construction centralized and verified
+
+### In-flight plan (Sprint 440)
+- [x] MIG-440-01 [patch]: Audit remaining direct `rayon`/`tokio`/`rustfft`/
+  `ndarray`/`nalgebra` edges and confirm the active migration surface is
+  Burn/Burn-NdArray backend usage.
+- [x] SAFE-440-02 [patch]: Add a checked `ritk_image::coeus::Image`
+  flat-buffer constructor that validates shape-product overflow and length
+  mismatches before tensor construction.
+- [x] DRY-440-03 [patch]: Route existing Coeus statistics and registration
+  preprocessing test-image construction through the checked image constructor.
+
+### Verification gate (Sprint 440)
+- [x] RITK: `cargo fmt --check -p ritk-image -p ritk-statistics -p ritk-registration`
+- [x] RITK: `cargo clippy -p ritk-image --all-targets --features coeus -- -D warnings`
+- [x] RITK: `cargo clippy -p ritk-statistics --all-targets --features coeus -- -D warnings`
+- [x] RITK: `cargo clippy -p ritk-registration --all-targets --features coeus -- -D warnings`
+- [x] RITK: `cargo nextest run -p ritk-image --features coeus from_flat` -> 3 passed
+- [x] RITK: `cargo nextest run -p ritk-statistics --features coeus coeus` -> 3 passed
+- [x] RITK: `cargo nextest run -p ritk-registration --features coeus execute_coeus` -> 7 passed
+- [x] RITK: `cargo test --doc -p ritk-image --features coeus` -> 0 doctests
+- [x] RITK: `cargo doc -p ritk-image --features coeus --no-deps`
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias with
+  an Atlas-backed backend after the image/filter/IO command boundaries are
+  migrated.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases and
+  tests with Atlas-backed Coeus/Leto surfaces where each crate boundary is
+  migrated.
+
+---
+
 ## Sprint 439 — I/O Workspace Dependency Cleanup
 **Target version**: 0.13.10
 **Sprint phase**: Closure — stale I/O ndarray and workspace nalgebra edges removed

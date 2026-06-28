@@ -110,7 +110,6 @@ fn smooth_values(
 #[cfg(test)]
 mod tests {
     use coeus_core::SequentialBackend;
-    use coeus_tensor::Tensor;
     use ritk_spatial::{Direction, Point, Spacing};
 
     use crate::preprocessing::{IntensityRescaleMode, PreprocessingPipeline, PreprocessingStep};
@@ -120,9 +119,9 @@ mod tests {
     type B = SequentialBackend;
 
     fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
-        let data = Tensor::<f32, B>::from_slice(dims, &vals);
-        Image::new(
-            data,
+        Image::from_flat(
+            vals,
+            dims,
             Point::new([10.0, 20.0, 30.0]),
             Spacing::new([0.5, 1.5, 2.5]),
             Direction::identity(),

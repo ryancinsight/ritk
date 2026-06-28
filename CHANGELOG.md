@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 440: Coeus image flat-buffer boundary
+
+### Added
+- `ritk-image`: Added checked `ritk_image::coeus::Image::from_flat_on` and
+  `from_flat` constructors for Coeus image construction from flat buffers.
+
+### Changed
+- `ritk-statistics` and `ritk-registration`: Coeus test image helpers now route
+  through the image-level flat-buffer constructor instead of duplicating tensor
+  construction before image wrapping.
+
+### Evidence
+- Evidence tier: type-level rank encoding, value-semantic nextest, and
+  compile/lint/docs. `cargo nextest run -p ritk-image --features coeus
+  from_flat` passed 3 tests; `cargo nextest run -p ritk-statistics --features
+  coeus coeus` passed 3 tests; `cargo nextest run -p ritk-registration
+  --features coeus execute_coeus` passed 7 tests.
+
+---
+
 ## [Unreleased] — Sprint 439: I/O workspace dependency cleanup
 
 ### Removed

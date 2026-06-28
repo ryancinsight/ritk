@@ -19,6 +19,16 @@
   after regressing the focused row to 78.925s; with that production change
   removed, the latest focused evidence is 80.456s.
 
+- **MIG-440-01 [patch] — Coeus image flat-buffer boundary. DONE.**
+  Added `ritk_image::coeus::Image::from_flat_on` and `from_flat` so Coeus image
+  construction from flat buffers validates checked shape products and length
+  mismatches at the image boundary before tensor construction. Routed existing
+  Coeus statistics and registration preprocessing test helpers through the new
+  constructor. Evidence tier: type-level rank encoding plus value-semantic
+  nextest and compile/lint/docs; `cargo nextest run -p ritk-image --features
+  coeus from_flat` passed 3 tests, statistics Coeus rows passed 3 tests, and
+  registration Coeus preprocessing rows passed 7 tests.
+
 - **MIG-439-01 [patch] — I/O direct ndarray and workspace nalgebra cleanup.
   DONE.**
   Removed the unused direct `ndarray` dependency from `ritk-io` and removed the

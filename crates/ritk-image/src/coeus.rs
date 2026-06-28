@@ -48,6 +48,42 @@ where
     T: Scalar,
     B: ComputeBackend,
 {
+    /// Create an image from flat voxel data, shape, and physical metadata.
+    ///
+    /// This constructor validates the shape product before constructing the
+    /// tensor, so malformed external buffers fail at the image boundary instead
+    /// of relying on a downstream tensor panic.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the checked product of `dims` overflows, or when
+    /// `data.len()` does not equal that product.
+    pub fn from_flat_on(
+        data: Vec<T>,
+        dims: [usize; D],
+        origin: Point<D>,
+        spacing: Spacing<D>,
+        direction: Direction<D>,
+        backend: &B,
+    ) -> anyhow::Result<Self> {
+        let expected = checked_numel(&dims)?;
+        if data.len() != expected {
+            bail!(
+                "image flat data length {} does not match shape {:?} product {}",
+                data.len(),
+                dims,
+                expected
+            );
+        }
+
+        Self::new(
+            Tensor::from_slice_on(dims, &data, backend),
+            origin,
+            spacing,
+            direction,
+        )
+    }
+
     /// Create an image from Coeus tensor data and physical metadata.
     ///
     /// # Errors
@@ -130,6 +166,28 @@ where
 impl<T, B, const D: usize> Image<T, B, D>
 where
     T: Scalar,
+    B: ComputeBackend + Default,
+{
+    /// Create an image from flat voxel data on `B::default()`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error under the same conditions as [`Image::from_flat_on`].
+    #[inline]
+    pub fn from_flat(
+        data: Vec<T>,
+        dims: [usize; D],
+        origin: Point<D>,
+        spacing: Spacing<D>,
+        direction: Direction<D>,
+    ) -> anyhow::Result<Self> {
+        Self::from_flat_on(data, dims, origin, spacing, direction, &B::default())
+    }
+}
+
+impl<T, B, const D: usize> Image<T, B, D>
+where
+    T: Scalar,
     B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
@@ -152,6 +210,13 @@ where
 
         Ok(self.data.as_slice())
     }
+}
+
+fn checked_numel(dims: &[usize]) -> anyhow::Result<usize> {
+    dims.iter().try_fold(1usize, |acc, &dim| {
+        acc.checked_mul(dim)
+            .ok_or_else(|| anyhow!("image shape {:?} product overflows usize", dims))
+    })
 }
 
 #[cfg(test)]
@@ -183,6 +248,54 @@ mod tests {
         assert_eq!(image.spacing(), &spacing);
         assert_eq!(image.direction(), &direction);
         assert_eq!(image.data_slice().unwrap(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    }
+
+    #[test]
+    fn from_flat_preserves_shape_values_and_metadata() {
+        let (origin, spacing, direction) = metadata_2d();
+
+        let image = TensorImage::<2>::from_flat(
+            vec![1.0, 2.0, 3.0, 4.0],
+            [2, 2],
+            origin,
+            spacing,
+            direction,
+        )
+        .unwrap();
+
+        assert_eq!(image.shape(), [2, 2]);
+        assert_eq!(image.origin(), &origin);
+        assert_eq!(image.spacing(), &spacing);
+        assert_eq!(image.direction(), &direction);
+        assert_eq!(image.data_slice().unwrap(), &[1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn from_flat_rejects_shape_product_mismatch() {
+        let (origin, spacing, direction) = metadata_2d();
+
+        let err =
+            TensorImage::<2>::from_flat(vec![1.0, 2.0, 3.0], [2, 2], origin, spacing, direction)
+                .unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "image flat data length 3 does not match shape [2, 2] product 4"
+        );
+    }
+
+    #[test]
+    fn from_flat_rejects_shape_product_overflow() {
+        let (origin, spacing, direction) = metadata_2d();
+
+        let err =
+            TensorImage::<2>::from_flat(Vec::new(), [usize::MAX, 2], origin, spacing, direction)
+                .unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "image shape [18446744073709551615, 2] product overflows usize"
+        );
     }
 
     #[test]
