@@ -6937,7 +6937,6 @@ dependencies = [
  "gaia",
  "image 0.24.9",
  "moirai",
- "ndarray 0.16.1",
  "reqwest",
  "ritk-analyze",
  "ritk-annotation",

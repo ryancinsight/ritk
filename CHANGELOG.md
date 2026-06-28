@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 439: I/O workspace dependency cleanup
+
+### Removed
+- `ritk-io`: Removed the unused direct `ndarray` dependency.
+- Workspace: Removed stale root `ndarray` and `nalgebra` dependency entries so
+  crates cannot inherit those third-party math substrates through the workspace.
+
+### Evidence
+- Evidence tier: source audit, compile/lint/docs, and value-semantic nextest.
+  `cargo nextest run -p ritk-io` passed 340 tests. `cargo test --doc -p
+  ritk-io` completed with 4 ignored doctests.
+
+---
+
 ## [Unreleased] — Sprint 438: Registration Leto dependency cleanup
 
 ### Changed

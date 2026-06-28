@@ -83,13 +83,11 @@ hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.
 hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.10.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.14.0" }
 num-complex = { version = "0.4.6", features = ["bytemuck"] }
-ndarray = { version = "0.16" }
 anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 bytemuck = "1.0"
-nalgebra = { version = "0.33", features = ["serde-serialize"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tempfile = "3.10" # For testing

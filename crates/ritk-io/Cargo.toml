@@ -29,7 +29,6 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 burn = { workspace = true }
 moirai = { workspace = true }
-ndarray = { workspace = true }
 image = { workspace = true }
 tiff = { workspace = true }
 sha2 = { workspace = true }

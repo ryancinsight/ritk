@@ -19,6 +19,25 @@
   after regressing the focused row to 78.925s; with that production change
   removed, the latest focused evidence is 80.456s.
 
+- **MIG-439-01 [patch] — I/O direct ndarray and workspace nalgebra cleanup.
+  DONE.**
+  Removed the unused direct `ndarray` dependency from `ritk-io` and removed the
+  stale root workspace `ndarray` and `nalgebra` entries after auditing source
+  and manifests for direct usage. Remaining matches are `burn_ndarray`
+  backend/test aliases or Python `numpy::ndarray` boundary imports, not direct
+  `ndarray`/`nalgebra` crate edges. Evidence tier: source audit plus
+  compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
+  passed 340 tests.
+
+- **MIG-439-03 [minor] — Replace remaining Burn NdArray backend aliases with
+  Atlas-backed surfaces. READY.**
+  Acceptance: migrate one crate boundary at a time from `burn_ndarray::NdArray`
+  aliases/tests to Coeus/Leto-backed surfaces without changing value semantics,
+  then remove each direct `burn-ndarray` dependency when the crate no longer
+  needs it. Start with an image/filter/IO boundary that has package-scoped
+  nextest coverage and keep Python `numpy::ndarray` imports confined to PyO3
+  conversion code.
+
 - **MIG-437-01 [patch] — CLI MI registration direct ndarray boundary. DONE.**
   Replaced the `ritk-cli` MI registration image conversion helpers with
   `leto::Array3<f64>` so the CLI hands Leto volumes directly to the classical

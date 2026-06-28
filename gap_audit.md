@@ -1,5 +1,33 @@
 # RITK Gap Audit - Active
 
+## Sprint 439 Audit (2026-06-28) — I/O Workspace Dependency Cleanup
+
+### Gaps Closed
+
+- **[MIG-439-01 CLOSED]** `ritk-io` still declared a direct `ndarray`
+  dependency even though its source uses no direct `ndarray` symbols:
+  removed the unused crate-local dependency.
+- **[MIG-439-02 CLOSED]** The root workspace still exposed stale direct
+  `ndarray` and `nalgebra` dependency entries after direct crate consumers had
+  been removed:
+  removed both root workspace entries so future crates cannot accidentally keep
+  using those third-party math substrates through workspace inheritance.
+
+### Residual Risk
+
+- `burn_ndarray::NdArray` remains in backend aliases, tests, examples, and some
+  legacy command paths; this is the next Atlas backend migration track rather
+  than direct `ndarray` crate usage.
+- `numpy::ndarray` remains in the PyO3 boundary where Python arrays are
+  converted at the FFI surface; domain crates must continue to avoid Python
+  array types.
+- Cargo still reports unused Hephaestus patch entries for this graph; the
+  warning is provider-graph hygiene outside this manifest cleanup slice.
+- `bspline_registers_offset_sphere` remains above the strict runtime budget at
+  the latest focused row of 80.456s; PERF-432-01 remains open.
+
+---
+
 ## Sprint 438 Audit (2026-06-28) — Registration Leto Dependency Cleanup
 
 ### Gaps Closed
