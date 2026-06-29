@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 448: NIfTI header SoC decomposition
+
+### Changed
+- `ritk-nifti`: split the 840-line `header.rs` into a `header/` module with
+  single-concern leaf files — `raw` (endian byte-field codec), `validate` (field
+  predicates), `convert` (f64→f32 narrowing), and `mod` (the `NiftiHeader` type
+  with NIfTI-1/2 parse/encode). Internal helpers narrowed from `pub(crate)` to
+  `pub(super)`. Pure refactor: no public API or behavioral change.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-nifti` passed 34 tests (including the relocated
+  validation unit tests); clippy `-D warnings`, `cargo doc`, and `cargo fmt
+  --check` clean.
+
+---
+
 ## [Unreleased] — Sprint 447: Centralized bounded reads across format parsers
 
 ### Fixed

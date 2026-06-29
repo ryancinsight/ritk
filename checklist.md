@@ -1,5 +1,39 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 448 — NIfTI Header SoC Decomposition
+**Target version**: 0.13.10
+**Sprint phase**: Closure — 840-line header.rs split into single-concern modules
+
+### In-flight plan (Sprint 448)
+- [x] ARCH-448-01 [patch]: Audit the workspace for files exceeding the 500-line
+  SRP target; `ritk-nifti/src/header.rs` (840) is the sole non-test outlier.
+- [x] ARCH-448-02 [patch]: Decompose into `header/{raw,validate,convert,mod}.rs`
+  along genuine concern boundaries (byte codec / validation / narrowing / type),
+  preserving the `crate::header` surface and narrowing helpers to `pub(super)`.
+- [x] TEST-448-03 [patch]: Relocate validation unit tests beside the validation
+  code; round-trip tests stay with the codec in `mod.rs`.
+
+### Verification gate (Sprint 448)
+- [x] RITK: `cargo fmt -p ritk-nifti --check`
+- [x] RITK: `cargo nextest run -p ritk-nifti` -> 34 passed
+- [x] RITK: `cargo clippy -p ritk-nifti --all-targets -- -D warnings`
+- [x] RITK: `cargo doc -p ritk-nifti --no-deps`
+
+### Deferred / carry-forward
+- [ ] TEST-447-05 [patch]: Format-level hostile-fixture regression for the MINC
+  reader (HDF5 shape > backing bytes).
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias with
+  an Atlas-backed backend after the image/filter/IO command boundaries are
+  migrated.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases and
+  tests with Atlas-backed Coeus/Leto surfaces where each crate boundary is
+  migrated.
+
+---
+
 ## Sprint 447 — Centralized Bounded Reads Across Format Parsers
 **Target version**: 0.13.10
 **Sprint phase**: Closure — SSOT bounding helpers in ritk-core, format parsers hardened

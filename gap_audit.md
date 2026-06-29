@@ -1,5 +1,35 @@
 # RITK Gap Audit - Active
 
+## Sprint 448 Audit (2026-06-28) — NIfTI Header SoC Decomposition
+
+### Audit performed
+
+- Workspace-wide scan for non-test source files exceeding the 500-line SRP
+  target: `ritk-nifti/src/header.rs` (840) was the **only** outlier — the deep
+  vertical hierarchy is otherwise well-maintained.
+- Contention-primitive review (Mutex/RwLock/Atomic): the Parzen histogram pool
+  already releases its lock before the O(num_bins²) zero-fill/allocation, so its
+  critical section is an O(1) pointer move — not a contention bottleneck. No
+  change warranted (a lock-free rewrite would need loom justification).
+- Codec untrusted-allocation review (RLE, PackBits, JPEG/J2K component counts):
+  RLE validates segment count ≤15 and offset bounds; PackBits caps output at
+  `expected_len`; codec `width*height` buffers are inherent decompressor output,
+  not a bound-against-input case. No clean defect.
+
+### Gaps Closed
+
+- **[ARCH-448-01/02/03 CLOSED]** Decomposed `ritk-nifti/src/header.rs` into a
+  `header/` module: `raw` (byte codec), `validate` (predicates + tests),
+  `convert` (narrowing), `mod` (type + NIfTI-1/2 codec + round-trip tests).
+  Pure refactor; behavior and the `crate::header` surface preserved.
+
+### Residual Risk
+
+- `header/mod.rs` remains 560 lines (~470 non-test): the cohesive NIfTI-1/2
+  parse/encode core. Further splitting would mechanically slice cohesive
+  version-specific layout logic (ravioli) for no maintainability gain; held at
+  the cohesion boundary per the SRP guidance.
+
 ## Sprint 447 Audit (2026-06-28) — Centralized Bounded Reads Across Format Parsers
 
 ### Gaps Closed
