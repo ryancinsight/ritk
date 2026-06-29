@@ -33,6 +33,52 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
+    let DecodedMetaImage {
+        data,
+        dims,
+        origin,
+        spacing,
+        direction,
+    } = decode_metaimage(path)?;
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
+    Ok(Image::new(tensor, origin, spacing, direction))
+}
+
+/// Read a MetaImage (`.mha`/`.mhd`) into a Coeus-backed 3-D image on `backend`.
+///
+/// The Atlas-tensor counterpart to [`read_metaimage`]: shares the header parse,
+/// bounded payload read, and voxel decode with the Burn path via
+/// `decode_metaimage`, differing only in the final image construction.
+#[cfg(feature = "coeus")]
+pub fn read_metaimage_coeus<B, P>(
+    path: P,
+    backend: &B,
+) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    P: AsRef<Path>,
+{
+    let DecodedMetaImage {
+        data,
+        dims,
+        origin,
+        spacing,
+        direction,
+    } = decode_metaimage(path)?;
+    ritk_image::coeus::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+}
+
+/// Backend-agnostic decoded MetaImage volume: voxels in `[nz, ny, nx]` order plus
+/// the derived physical metadata. Shared by the Burn and Coeus reader paths.
+struct DecodedMetaImage {
+    data: Vec<f32>,
+    dims: [usize; 3],
+    origin: ritk_spatial::Point<3>,
+    spacing: ritk_spatial::Spacing<3>,
+    direction: ritk_spatial::Direction<3>,
+}
+
+fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
     let path = path.as_ref();
 
     let file = std::fs::File::open(path)
@@ -255,13 +301,8 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         ));
     }
 
-    // ── Tensor construction ───────────────────────────────────────────────
-    // MetaImage X-fastest flat order equals Burn row-major order for RITK [Z,Y,X].
-    let shape_burn = Shape::new([nz, ny, nx]);
-    let tensor_data = TensorData::new(f32_data, shape_burn);
-    let tensor = Tensor::<B, 3>::from_data(tensor_data, device);
-
     // ── Spatial metadata ──────────────────────────────────────────────────
+    // MetaImage X-fastest flat order equals row-major order for RITK [Z,Y,X].
     let origin = Point::new([offset_vals[0], offset_vals[1], offset_vals[2]]);
     let spatial = metadata_from_file_transform(
         [spacing_vals[0], spacing_vals[1], spacing_vals[2]],
@@ -271,12 +312,13 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         ],
     );
 
-    Ok(Image::new(
-        tensor,
+    Ok(DecodedMetaImage {
+        data: f32_data,
+        dims: [nz, ny, nx],
         origin,
-        spatial.spacing,
-        spatial.direction,
-    ))
+        spacing: spatial.spacing,
+        direction: spatial.direction,
+    })
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────

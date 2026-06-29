@@ -432,3 +432,29 @@ fn test_mhd_external_raw_file() -> Result<()> {
     });
     Ok(())
 }
+
+#[cfg(feature = "coeus")]
+#[test]
+fn read_metaimage_coeus_preserves_shape_and_voxels() {
+    use crate::read_metaimage_coeus;
+    use coeus_core::SequentialBackend;
+
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("coeus.mha");
+    let nx = 2usize;
+    let ny = 2usize;
+    let nz = 2usize;
+    let data: Vec<f32> = (0..(nx * ny * nz)).map(|i| i as f32).collect();
+    write_minimal_mha(&path, &data, nx, ny, nz, [1.5, 2.0, 2.5], [0.0, 0.0, 0.0]);
+
+    let backend = SequentialBackend;
+    let image = read_metaimage_coeus(&path, &backend).expect("coeus MetaImage read");
+
+    assert_eq!(
+        image.shape(),
+        [nz, ny, nx],
+        "coeus image shape is [nz, ny, nx]"
+    );
+    let loaded = image.data_slice().expect("contiguous host voxel data");
+    assert_eq!(loaded, data.as_slice());
+}

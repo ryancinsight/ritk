@@ -6997,6 +6997,7 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "bytemuck",
+ "coeus-core",
  "flate2",
  "ritk-codecs",
  "ritk-core",
