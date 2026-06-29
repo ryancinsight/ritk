@@ -73,6 +73,7 @@ numpy = "0.22"
 dicom = { version = "0.8.0", default-features = false, features = ["pixeldata", "ndarray"] }
 moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe", "no-global-alloc"] }
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "0.2.0", default-features = false, features = ["parallel", "std_tls"] }
+eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = false }
 coeus-core = { path = "../coeus/coeus-core", version = "0.5.3" }
 coeus-tensor = { path = "../coeus/coeus-tensor", version = "0.5.3" }
 coeus-ops = { path = "../coeus/coeus-ops", version = "0.5.3" }
@@ -137,6 +138,9 @@ moirai = { path = "../moirai/moirai" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne.git"]
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
+
+[patch."https://github.com/ryancinsight/eunomia"]
+eunomia = { path = "../eunomia/crates/eunomia" }
 
 [patch."https://github.com/ryancinsight/leto.git"]
 leto = { path = "../leto/crates/leto" }
