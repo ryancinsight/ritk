@@ -13,7 +13,7 @@ burn = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-spatial = { path = "../ritk-spatial" }
 anyhow = { workspace = true }
-num-traits = { workspace = true }
+eunomia = { workspace = true }
 coeus-core = { workspace = true, optional = true }
 coeus-tensor = { workspace = true, optional = true }
 coeus-ops = { workspace = true, optional = true }

@@ -33,9 +33,9 @@
 
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use num_traits::Float;
+use eunomia::FloatElement;
 use ritk_image::Image;
-use std::ops::AddAssign;
+use std::ops::{AddAssign, Neg};
 
 #[cfg(feature = "coeus")]
 pub mod coeus;
@@ -166,8 +166,8 @@ pub fn rebuild_with_metadata<B: Backend, const D: usize>(
 
 /// Build a normalised 1-D Gaussian kernel of type `T`.
 ///
-/// The kernel is symmetric, centred, and sums to `T::one()` (probability-
-/// preserving convolution). If `sigma <= T::zero()`, returns `vec![T::one()]`
+/// The kernel is symmetric, centred, and sums to `T::ONE` (probability-
+/// preserving convolution). If `sigma <= T::ZERO`, returns `vec![T::ONE]`
 /// (identity kernel). When `radius` is `None`, the radius defaults to
 /// `⌈3σ⌉`, which captures >99.7% of the Gaussian mass.
 ///
@@ -186,7 +186,7 @@ pub fn rebuild_with_metadata<B: Backend, const D: usize>(
 ///
 /// # Type parameters
 ///
-/// `T: Float + AddAssign + Default` — supports `f32` and `f64`. Monomorphisation
+/// `T: FloatElement + AddAssign + Neg + Default` — supports `f32` and `f64`. Monomorphisation
 /// emits zero-cost specialisations identical to hand-written concrete versions.
 ///
 /// # Evidence tier
@@ -194,24 +194,24 @@ pub fn rebuild_with_metadata<B: Backend, const D: usize>(
 /// Property-tested: normalisation, symmetry, peak-at-centre, length.
 pub fn gaussian_kernel<T>(sigma: T, radius: Option<usize>) -> Vec<T>
 where
-    T: Float + AddAssign + Default,
+    T: FloatElement + AddAssign + Neg<Output = T> + Default,
 {
-    let zero = T::zero();
-    let one = T::one();
+    let zero = T::ZERO;
+    let one = T::ONE;
 
     if sigma <= zero {
         return vec![one];
     }
 
-    let r = radius.unwrap_or_else(|| (T::from(3.0).unwrap() * sigma).ceil().to_usize().unwrap());
+    let r = radius.unwrap_or_else(|| (T::from_f64(3.0) * sigma).ceil().to_f64() as usize);
     // SAFETY: 2.0 is exactly representable in every IEEE-754 float type.
-    let two_sigma2 = T::from(2.0).unwrap() * sigma * sigma; // 2σ²
+    let two_sigma2 = T::from_f64(2.0) * sigma * sigma; // 2σ²
     let len = 2 * r + 1;
 
     let mut kernel = Vec::with_capacity(len);
     let mut sum = zero;
     for i in 0..len {
-        let d = T::from(i).unwrap() - T::from(r).unwrap();
+        let d = T::from_f64(i as f64) - T::from_f64(r as f64);
         let w = (-d * d / two_sigma2).exp();
         kernel.push(w);
         sum += w;
@@ -219,7 +219,7 @@ where
 
     let inv_sum = one / sum;
     for w in &mut kernel {
-        *w = *w * inv_sum;
+        *w *= inv_sum;
     }
 
     kernel
