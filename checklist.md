@@ -1,5 +1,43 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 446 — VTK Reader Untrusted-Input Allocation Hardening
+**Target version**: 0.13.10
+**Sprint phase**: Closure — header-count-driven eager allocation bounded
+
+### In-flight plan (Sprint 446)
+- [x] SEC-446-01 [patch]: Audit VTK/PLY readers for header count/size fields
+  driving unbounded eager allocation (untrusted-input hardening).
+- [x] SEC-446-02 [patch]: Add SSOT `read_exact_bounded` + `bounded_capacity`
+  helpers and route `read_binary_be`, `read_ascii`,
+  `reader::read_binary_scalars`, and the PLY vertex/face readers through them;
+  add `checked_mul` overflow guard to `read_binary_be`.
+- [x] TEST-446-03 [patch]: Add value-semantic regressions for hostile counts,
+  length overflow, and truncation (read_helpers + PLY reader).
+- [x] CHORE-446-04 [patch]: Remove stale `test_output.txt` and stray `nul`.
+
+### Verification gate (Sprint 446)
+- [x] RITK: `cargo fmt -p ritk-vtk --check`
+- [x] RITK: `cargo nextest run -p ritk-vtk` -> 256 passed
+- [x] RITK: `cargo clippy -p ritk-vtk --all-targets -- -D warnings`
+- [x] RITK: `cargo test --doc -p ritk-vtk` -> 1 ignored
+- [x] RITK: `cargo doc -p ritk-vtk --no-deps`
+
+### Deferred / carry-forward
+- [ ] SEC-446-05 [patch]: Apply the same untrusted-input allocation hardening to
+  the remaining format-parser crates (ritk-nrrd, ritk-nifti, ritk-metaimage,
+  ritk-mgh, ritk-minc) whose readers reserve from header count/size fields.
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias with
+  an Atlas-backed backend after the image/filter/IO command boundaries are
+  migrated.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases and
+  tests with Atlas-backed Coeus/Leto surfaces where each crate boundary is
+  migrated.
+
+---
+
 ## Sprint 445 — MAD Noise Work-Buffer Reuse
 **Target version**: 0.13.10
 **Sprint phase**: Closure — absolute-deviation allocation removed

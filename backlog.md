@@ -4,6 +4,29 @@
 
 ---
 
+## Open safety items
+
+- **SEC-446-05 [patch] — Untrusted-input allocation hardening for the remaining
+  format-parser crates. READY.**
+  Acceptance: audit `ritk-nrrd`, `ritk-nifti`, `ritk-metaimage`, `ritk-mgh`, and
+  `ritk-minc` readers for header count/size fields driving eager allocation
+  (`vec![0; n]`, `Vec::with_capacity(n)`) before the bytes are confirmed
+  present, and bound each like Sprint 446 (chunked `read_exact`, capacity cap,
+  `checked_mul`). Each fix carries a value-semantic regression: a hostile header
+  with a tiny body returns a typed truncation error, not OOM. Driver: same DoS
+  class fixed in `ritk-vtk` Sprint 446 (read_helpers SSOT).
+
+- **SEC-446-01 [patch] — VTK reader untrusted-input allocation hardening. DONE.**
+  `ritk-vtk` binary/ASCII VTK and PLY readers no longer reserve `count * size`
+  bytes up front from header count fields. SSOT `read_exact_bounded` /
+  `bounded_capacity` helpers cap speculative allocation at 16 MiB/chunk and
+  report truncation; `read_binary_be` checks the length product for overflow.
+  Evidence tier: value-semantic nextest plus compile/lint/docs;
+  `cargo nextest run -p ritk-vtk` passed 256 tests including hostile-count,
+  overflow, and truncation regressions.
+
+---
+
 ## Open performance items
 
 - **PERF-432-01 [patch] — Registration integration tests exceed the strict

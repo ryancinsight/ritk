@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 446: VTK reader untrusted-input allocation hardening
+
+### Fixed
+- `ritk-vtk`: VTK/PLY readers no longer reserve `count * size` bytes up front
+  from corruption- or attacker-controlled header count fields (`POINTS n`,
+  `CELLS n total`, `element vertex N`). A hostile header naming billions of
+  elements previously forced a multi-gigabyte allocation before any data was
+  read (out-of-memory abort on a tiny file).
+
+### Changed
+- `ritk-vtk`: Added SSOT `read_helpers::read_exact_bounded` (grows the read
+  buffer by at most 16 MiB per confirmed chunk, reports truncation) and
+  `read_helpers::bounded_capacity` (caps speculative `Vec` reservations to the
+  same budget). `read_binary_be`, `read_ascii`, `reader::read_binary_scalars`,
+  and the PLY vertex/face readers route through them; `read_binary_be` now
+  checks the `count * SIZE` product for overflow. Legitimate large payloads
+  still read in full.
+
+### Removed
+- Stale empty `test_output.txt` scratch artifact and a stray `nul` file.
+
+### Tests
+- `ritk-vtk`: Added value-semantic regressions for hostile counts, length
+  overflow, and truncation in `read_helpers` and the PLY reader.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-vtk` passed 256 tests; `cargo clippy -p ritk-vtk
+  --all-targets -- -D warnings`, `cargo test --doc -p ritk-vtk`, and
+  `cargo fmt -p ritk-vtk --check` clean.
+
+---
+
 ## [Unreleased] — Sprint 445: MAD noise work-buffer reuse
 
 ### Changed

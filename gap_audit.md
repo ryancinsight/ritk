@@ -1,5 +1,30 @@
 # RITK Gap Audit - Active
 
+## Sprint 446 Audit (2026-06-28) — VTK Reader Untrusted-Input Allocation Hardening
+
+### Gaps Closed
+
+- **[SEC-446-01 CLOSED]** `ritk-vtk` VTK/PLY readers reserved `count * size`
+  bytes from header count fields before reading any data, turning a hostile or
+  corrupt header (`POINTS 4000000000`, `element vertex N`) into an OOM abort.
+  Bounded via SSOT `read_exact_bounded` (16 MiB/chunk growth, truncation error)
+  and `bounded_capacity` (capacity cap); `read_binary_be` now `checked_mul`-s the
+  length product.
+- **[TEST-446-03 CLOSED]** Added value-semantic regressions: hostile count,
+  length overflow, and truncation for `read_helpers` and the PLY reader.
+- **[CHORE-446-04 CLOSED]** Removed stale `test_output.txt` and stray `nul`.
+
+### Residual Risk
+
+- **[SEC-446-05 OPEN]** The same eager-allocation pattern exists in other
+  format-parser crates (ritk-nrrd, ritk-nifti, ritk-metaimage, ritk-mgh,
+  ritk-minc) whose readers reserve from header count/size fields. Tracked as a
+  READY backlog item; not yet hardened. Evidence tier for the unhardened
+  crates: none — pattern identified by grep, not yet exploited or fixed.
+- Audit scope was `ritk-vtk` only; the broader workspace burn→Atlas migration
+  (MIG-439-03) is unchanged by this sprint.
+
+
 ## Sprint 445 Audit (2026-06-28) — MAD Noise Work-Buffer Reuse
 
 ### Gaps Closed
