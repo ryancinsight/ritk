@@ -14,8 +14,8 @@
 
 use super::types::{PlyFormat, PlyHeader, PlyType};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
-use crate::io::read_helpers::bounded_capacity;
 use anyhow::{bail, Context, Result};
+use ritk_core::io_bounds::bounded_capacity;
 use std::path::Path;
 
 // ── Public interface ──────────────────────────────────────────────────────────

@@ -120,9 +120,11 @@ fn read_mgh_from_reader<B: Backend, R: Read>(
         anyhow::anyhow!("Data size overflow: {} voxels × {} bytes", n_voxels, bpv)
     })?;
 
-    let mut raw = vec![0u8; data_size];
-    reader
-        .read_exact(&mut raw)
+    // Bound the speculative allocation: `data_size` derives from the header
+    // dimensions and may exceed the bytes actually present. `read_exact_bounded`
+    // grows the buffer per confirmed chunk and reports truncation rather than
+    // reserving the full claimed size (out-of-memory abort on a hostile header).
+    let raw = ritk_core::io_bounds::read_exact_bounded(reader, data_size)
         .context("Failed to read MGH voxel data")?;
     let f32_data = decode_voxels(mri_type, &raw);
 

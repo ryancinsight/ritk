@@ -93,9 +93,14 @@ pub fn read_minc<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         .checked_mul(elem_size)
         .ok_or_else(|| anyhow::anyhow!("Voxel data size overflow"))?;
 
-    let mut raw = vec![0u8; total_bytes];
-    hdf5.read_contiguous_dataset_bytes(data_address, 0, &mut raw)
-        .map_err(|e| anyhow::anyhow!("Failed to read voxel data: {}", e))?;
+    // Bound the speculative allocation: `total_bytes` derives from the dataset
+    // shape and may exceed the bytes actually backed on disk. `read_bounded_with`
+    // grows the buffer per confirmed chunk, so a hostile shape surfaces the
+    // HDF5 read error rather than reserving the full claimed size up front.
+    let raw = ritk_core::io_bounds::read_bounded_with(total_bytes, |offset, sub| {
+        hdf5.read_contiguous_dataset_bytes(data_address, offset, sub)
+    })
+    .map_err(|e| anyhow::anyhow!("Failed to read voxel data: {}", e))?;
 
     let f32_data = decode_raw_bytes(&raw, &dataset.datatype)?;
 

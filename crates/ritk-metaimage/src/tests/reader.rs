@@ -44,6 +44,55 @@ fn write_minimal_mha(
     }
 }
 
+/// Write a compressed `.mha` whose `DimSize` claims `nx*ny*nz` voxels but whose
+/// zlib payload inflates to `raw_payload`. Used to exercise the bounded
+/// decompression capacity hint against a hostile header.
+fn write_compressed_mha_with_dims(
+    path: &std::path::Path,
+    raw_payload: &[u8],
+    nx: usize,
+    ny: usize,
+    nz: usize,
+) {
+    use flate2::write::ZlibEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+    let mut f = std::fs::File::create(path).unwrap();
+    writeln!(f, "ObjectType = Image").unwrap();
+    writeln!(f, "NDims = 3").unwrap();
+    writeln!(f, "BinaryData = True").unwrap();
+    writeln!(f, "BinaryDataByteOrderMSB = False").unwrap();
+    writeln!(f, "CompressedData = True").unwrap();
+    writeln!(f, "TransformMatrix = 1 0 0 0 1 0 0 0 1").unwrap();
+    writeln!(f, "Offset = 0 0 0").unwrap();
+    writeln!(f, "CenterOfRotation = 0 0 0").unwrap();
+    writeln!(f, "ElementSpacing = 1 1 1").unwrap();
+    writeln!(f, "DimSize = {} {} {}", nx, ny, nz).unwrap();
+    writeln!(f, "ElementType = MET_FLOAT").unwrap();
+    writeln!(f, "ElementDataFile = LOCAL").unwrap();
+    let mut enc = ZlibEncoder::new(Vec::new(), Compression::default());
+    enc.write_all(raw_payload).unwrap();
+    let compressed = enc.finish().unwrap();
+    f.write_all(&compressed).unwrap();
+}
+
+#[test]
+fn test_compressed_hostile_dimsize_errors_without_oom() {
+    // DimSize claims a 1024^3 float volume (~4.3 GiB) but the zlib payload
+    // inflates to 16 bytes. The capped capacity hint must avoid a multi-GiB
+    // reservation; the post-inflation length check then rejects the file.
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("hostile_compressed.mha");
+    write_compressed_mha_with_dims(&path, &[0u8; 16], 1024, 1024, 1024);
+
+    let device: <TestBackend as Backend>::Device = Default::default();
+    let result = read_metaimage::<TestBackend, _>(&path, &device);
+    assert!(
+        result.is_err(),
+        "Hostile compressed DimSize must fail, not OOM"
+    );
+}
+
 // ── Shape and metadata ─────────────────────────────────────────────────
 
 /// The reader must shape X-fastest MetaImage payloads directly as RITK [Z,Y,X].

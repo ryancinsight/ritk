@@ -67,3 +67,26 @@ fn test_read_truncated_file() {
     let result = read_mgh::<TestBackend, _>(&path, &device);
     assert!(result.is_err(), "Truncated file must fail");
 }
+
+#[test]
+fn test_read_hostile_dims_does_not_oom() {
+    // Header claims a 1024^3 float volume (~4.3 GiB) but supplies 16 bytes. The
+    // bounded reader must reserve at most one chunk and fail with a read error
+    // rather than reserving ~4.3 GiB and aborting on out-of-memory.
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("hostile_dims.mgh");
+    let device: <TestBackend as Backend>::Device = Default::default();
+    let mgh = build_mgh_bytes(
+        1,
+        [1024, 1024, 1024],
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &[0u8; 16],
+    );
+    std::fs::write(&path, &mgh).unwrap();
+
+    let result = read_mgh::<TestBackend, _>(&path, &device);
+    assert!(result.is_err(), "Hostile dimensions must fail, not OOM");
+}

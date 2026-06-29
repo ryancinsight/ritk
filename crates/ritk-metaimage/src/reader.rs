@@ -211,7 +211,14 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     };
 
     let raw_bytes: Vec<u8> = if compressed {
-        let mut out = Vec::with_capacity(expected_payload_bytes);
+        // Cap the decompression capacity hint: `expected_payload_bytes` derives
+        // from the header DimSize and may be hostile. `read_to_end` still grows
+        // the buffer to the true inflated size; the cap only bounds the
+        // speculative reservation against an out-of-memory abort.
+        let mut out = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
+            expected_payload_bytes,
+            1,
+        ));
         flate2::read::ZlibDecoder::new(&payload[..])
             .read_to_end(&mut out)
             .context("Failed to inflate zlib-compressed MetaImage payload")?;

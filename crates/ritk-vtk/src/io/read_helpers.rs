@@ -2,56 +2,8 @@
 //! and shared line/cell parsing utilities.
 
 use anyhow::{bail, Context, Result};
+use ritk_core::io_bounds::{bounded_capacity, read_exact_bounded};
 use std::io::{BufRead, Read};
-
-/// Upper bound, in bytes, on speculative buffer allocation for a length field
-/// that has not yet been validated against the actual input stream.
-///
-/// VTK count/size fields (`POINTS n`, `CELLS n total`, …) are attacker- and
-/// corruption-controlled: a header may name a multi-gigabyte `count` whose bytes
-/// are not present in the file. Allocating the full claimed size up front turns
-/// such a header into an out-of-memory abort. The bounded readers below grow
-/// their buffers by at most this increment per *confirmed* chunk, so a lying
-/// length fails fast with a truncation error after a bounded allocation while
-/// legitimate large payloads still read in full.
-const MAX_EAGER_BYTES: usize = 16 * 1024 * 1024; // 16 MiB
-
-/// Capacity to reserve for a collection of `count` elements of `elem_size` bytes
-/// when `count` comes from an unvalidated length field.
-///
-/// Caps the reservation at [`MAX_EAGER_BYTES`] so a hostile header cannot force a
-/// huge speculative allocation; the collection still grows to its true length as
-/// elements are pushed from validated input.
-pub(crate) fn bounded_capacity(count: usize, elem_size: usize) -> usize {
-    count.min(MAX_EAGER_BYTES / elem_size.max(1))
-}
-
-/// Read exactly `byte_count` bytes into a freshly allocated `Vec<u8>`, bounding
-/// the speculative allocation to [`MAX_EAGER_BYTES`] per chunk.
-///
-/// Equivalent in result to `read_exact` over a `vec![0u8; byte_count]`, but the
-/// buffer grows only as bytes are confirmed present. A `byte_count` larger than
-/// the remaining input therefore yields a truncation `Err` after allocating at
-/// most one extra chunk, never a huge up-front reservation. `ctx` describes the
-/// payload for the error message.
-pub(crate) fn read_exact_bounded<R: Read + ?Sized>(
-    reader: &mut R,
-    byte_count: usize,
-    ctx: &str,
-) -> Result<Vec<u8>> {
-    let mut buf: Vec<u8> = Vec::new();
-    let mut remaining = byte_count;
-    while remaining > 0 {
-        let chunk = remaining.min(MAX_EAGER_BYTES);
-        let start = buf.len();
-        buf.resize(start + chunk, 0);
-        reader
-            .read_exact(&mut buf[start..])
-            .with_context(|| ctx.to_owned())?;
-        remaining -= chunk;
-    }
-    Ok(buf)
-}
 
 /// Read `count` ASCII whitespace-delimited numeric values from a buffered reader.
 ///
@@ -186,11 +138,8 @@ pub fn read_binary_be<T: FromBeBytes>(
     let byte_count = count
         .checked_mul(T::SIZE)
         .with_context(|| format!("binary {type_name} length overflow ({count} values)"))?;
-    let buf = read_exact_bounded(
-        reader,
-        byte_count,
-        &format!("truncated binary {type_name} (need {count} values)"),
-    )?;
+    let buf = read_exact_bounded(reader, byte_count)
+        .with_context(|| format!("truncated binary {type_name} (need {count} values)"))?;
     Ok(buf
         .chunks_exact(T::SIZE)
         .map(|c| T::from_be_slice(c))
@@ -256,19 +205,5 @@ mod tests {
             err.to_string().contains("expected"),
             "unexpected error: {err}"
         );
-    }
-
-    #[test]
-    fn read_exact_bounded_reads_full_payload() {
-        let mut cur = Cursor::new(vec![1u8, 2, 3, 4, 5]);
-        let out = read_exact_bounded(&mut cur, 5, "ctx").expect("read");
-        assert_eq!(out, vec![1u8, 2, 3, 4, 5]);
-    }
-
-    #[test]
-    fn read_exact_bounded_truncation_errors() {
-        let mut cur = Cursor::new(vec![1u8, 2, 3]);
-        let err = read_exact_bounded(&mut cur, 5, "payload ctx").expect_err("must error");
-        assert!(err.to_string().contains("payload ctx"), "unexpected: {err}");
     }
 }
