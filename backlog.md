@@ -19,6 +19,14 @@
   after regressing the focused row to 78.925s; with that production change
   removed, the latest focused evidence is 80.456s.
 
+- **MEM-445-01 [patch] — MAD noise work-buffer reuse. DONE.**
+  MAD noise estimation now overwrites its mutable work buffer with absolute
+  deviations after the median is known, avoiding the previous second
+  `Vec<f32>` allocation for deviation sorting. Evidence tier: value-semantic
+  nextest plus compile/lint/docs; `cargo nextest run -p ritk-statistics
+  --features coeus mad` passed 9 tests, including borrowed-slice
+  order-preservation coverage.
+
 - **MEM-444-01 [patch] — Histogram matching allocation cleanup. DONE.**
   `HistogramMatcher::match_histograms` now reuses the extracted source voxel
   buffer as the transform output after landmark estimation, avoiding a separate

@@ -1,5 +1,28 @@
 # RITK Gap Audit - Active
 
+## Sprint 445 Audit (2026-06-28) — MAD Noise Work-Buffer Reuse
+
+### Gaps Closed
+
+- **[MEM-445-01 CLOSED]** `mad_sigma` sorted the mutable input buffer and then
+  allocated a second `Vec<f32>` for absolute deviations:
+  it now overwrites the same mutable buffer with deviations and sorts it again.
+- **[TEST-445-03 CLOSED]** Added borrowed-slice coverage proving
+  `estimate_noise_mad_from_slice` preserves caller-owned order and values while
+  the internal owned work buffer is reused.
+
+### Residual Risk
+
+- `estimate_noise_mad_from_slice` still allocates one owned work buffer because
+  the public API accepts an immutable borrowed slice and must not mutate caller
+  data.
+- Burn-backed image extraction remains in the production API until MIG-439-03
+  migrates the surrounding image boundary to Atlas-backed surfaces.
+- Cargo still reports unused Hephaestus patch entries for this graph; the
+  warning is provider-graph hygiene outside this MAD allocation slice.
+
+---
+
 ## Sprint 444 Audit (2026-06-28) — Histogram Matching Allocation Cleanup
 
 ### Gaps Closed

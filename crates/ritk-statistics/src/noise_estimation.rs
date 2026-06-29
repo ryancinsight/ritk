@@ -23,6 +23,7 @@
 //! ## Complexity
 //!
 //! O(n log n) dominated by sorting the voxel values and the absolute deviations.
+//! The implementation reuses one mutable work buffer for both sorts.
 //!
 //! ## References
 //!
@@ -74,11 +75,12 @@ fn mad_sigma(values: &mut [f32]) -> f32 {
     crate::sort_floats(values);
     let med = median_sorted(values);
 
-    // Compute absolute deviations from the median.
-    let mut abs_devs: Vec<f32> = values.iter().map(|&x| (x - med).abs()).collect();
-    crate::sort_floats(&mut abs_devs);
+    for value in values.iter_mut() {
+        *value = (*value - med).abs();
+    }
+    crate::sort_floats(values);
 
-    let mad = median_sorted(&abs_devs);
+    let mad = median_sorted(values);
 
     MAD_CONSISTENCY_CONSTANT * mad
 }
@@ -104,7 +106,7 @@ fn mad_sigma(values: &mut [f32]) -> f32 {
 /// O(n log n) where n is the total number of voxels.
 pub fn estimate_noise_mad<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
     let (vals, _) = extract_vec_infallible(image);
-    let mut values: Vec<f32> = vals;
+    let mut values = vals;
     mad_sigma(&mut values)
 }
 

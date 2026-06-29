@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 445: MAD noise work-buffer reuse
+
+### Changed
+- `ritk-statistics`: MAD noise estimation now reuses its mutable work buffer
+  for absolute deviations after the median is known, avoiding a separate
+  deviation `Vec<f32>` allocation.
+
+### Tests
+- `ritk-statistics`: Added borrowed-slice coverage proving
+  `estimate_noise_mad_from_slice` preserves caller-owned values and order.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-statistics --features coeus mad` passed 9 tests.
+
+---
+
 ## [Unreleased] — Sprint 444: Histogram matching allocation cleanup
 
 ### Changed

@@ -125,6 +125,24 @@ fn test_mad_two_voxels_known_value() {
 }
 
 #[test]
+fn test_mad_from_slice_preserves_caller_order() {
+    let data = vec![9.0, 1.0, 7.0, 3.0, 5.0];
+    let before = data.clone();
+
+    let estimated = estimate_noise_mad_from_slice(&data);
+
+    assert_eq!(
+        data, before,
+        "borrowed-slice MAD API must not mutate caller-owned data"
+    );
+    assert!(
+        (estimated - 2.9652).abs() < 1e-4,
+        "expected MAD sigma 2.9652 for symmetric odd sample, got {}",
+        estimated
+    );
+}
+
+#[test]
 fn test_mad_masked_empty_foreground_returns_zero() {
     // No foreground voxels → 0.0 (graceful degradation, not panic).
     let image = make_image_1d(vec![1.0, 2.0, 3.0]);
