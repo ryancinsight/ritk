@@ -1,5 +1,25 @@
 # RITK Gap Audit - Active
 
+## Sprint 450 Audit (2026-06-28) — NIfTI Coeus Reader
+
+### Gap Closed
+
+- **[MIG-450 CLOSED]** `ritk-nifti` gains additive, feature-gated Coeus readers
+  (`read_nifti_coeus`, `read_nifti_coeus_from_bytes`) sharing `decode_nifti_bytes`
+  with the Burn path (gzip detect, header parse, byte-range validation, voxel
+  decode). Value-semantic Coeus voxel/shape regression added. Replicates the
+  Sprint 449 ritk-mgh pattern; the byte-range validation hardening from Sprint
+  447 is shared by both backends via the common decode step.
+
+### Residual Risk
+
+- **[MIG-450-04 OPEN]** The NIfTI label-map reader (`read_nifti_labels`) still
+  returns a Burn-independent `Vec<u32>` and has no Coeus image variant; and the
+  ritk-metaimage / ritk-minc readers remain Burn-only. The `decode_* + coeus`
+  pattern is established across two crates (mgh, nifti) and replicable.
+- Burn remains in `ritk-nifti` for the default reader/writer surface until the
+  workspace-wide `Image` migration completes; the coeus path is additive.
+
 ## Sprint 449 Audit (2026-06-28) — burn→Atlas Migration Frontier + MGH Coeus Reader
 
 ### Migration-frontier audit

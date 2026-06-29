@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 450: NIfTI Coeus-backed reader path
+
+### Added
+- `ritk-nifti`: `read_nifti_coeus` / `read_nifti_coeus_from_bytes` (behind the
+  new `coeus` feature) read NIfTI-1/2 files into `ritk_image::coeus::Image`, the
+  Atlas-tensor counterpart to the Burn-backed readers. Continues the burn→Atlas
+  reader-frontier migration; additive and feature-gated.
+
+### Changed
+- `ritk-nifti`: extracted the backend-agnostic gzip detection, header parse,
+  byte-range validation, and voxel decode into `decode_nifti_bytes` so the Burn
+  and Coeus reader paths differ only in final image construction (DRY/SSOT).
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-nifti` 34 passed (default) and 35 passed
+  (`--features coeus`, incl. a Coeus voxel/shape regression); clippy
+  `-D warnings` clean for both feature sets; doc/fmt/doctest clean.
+
+---
+
 ## [Unreleased] — Sprint 449: MGH Coeus-backed reader path
 
 ### Added
