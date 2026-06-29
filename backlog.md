@@ -6,15 +6,22 @@
 
 ## Open safety items
 
+- **TEST-447-05 [patch] — MINC format-level hostile-fixture regression. READY.**
+  Acceptance: construct (or extend the MINC writer to forge) an HDF5 file whose
+  image dataset shape claims more bytes than are backed on disk, and assert
+  `read_minc` returns a typed error without OOM. Blocked on a way to emit a
+  shape≠data HDF5 fixture; the underlying `read_bounded_with` primitive is
+  unit-tested in `ritk-core::io_bounds`. Driver: complete Sprint 447 per-crate
+  regression coverage.
+
 - **SEC-446-05 [patch] — Untrusted-input allocation hardening for the remaining
-  format-parser crates. READY.**
-  Acceptance: audit `ritk-nrrd`, `ritk-nifti`, `ritk-metaimage`, `ritk-mgh`, and
-  `ritk-minc` readers for header count/size fields driving eager allocation
-  (`vec![0; n]`, `Vec::with_capacity(n)`) before the bytes are confirmed
-  present, and bound each like Sprint 446 (chunked `read_exact`, capacity cap,
-  `checked_mul`). Each fix carries a value-semantic regression: a hostile header
-  with a tiny body returns a typed truncation error, not OOM. Driver: same DoS
-  class fixed in `ritk-vtk` Sprint 446 (read_helpers SSOT).
+  format-parser crates. DONE (Sprint 447).**
+  `ritk-mgh`, `ritk-metaimage`, and `ritk-minc` readers route through the new
+  `ritk-core::io_bounds` SSOT helpers; `ritk-vtk` migrated onto the same module
+  (per-crate copies removed). `ritk-nifti` already validates `volume_byte_range`
+  against the input length and `ritk-nrrd` allocates from real payload length, so
+  both were already safe. Evidence tier: value-semantic nextest (352 passed
+  across the five crates) plus compile/lint/docs.
 
 - **SEC-446-01 [patch] — VTK reader untrusted-input allocation hardening. DONE.**
   `ritk-vtk` binary/ASCII VTK and PLY readers no longer reserve `count * size`

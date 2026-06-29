@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 447: Centralized bounded reads across format parsers
+
+### Fixed
+- `ritk-mgh`, `ritk-metaimage`, `ritk-minc`: voxel readers no longer reserve the
+  full header-claimed payload size up front. A hostile or corrupt header (MGH
+  `width×height×depth`, MINC dataset shape, MetaImage `DimSize`) previously
+  forced a multi-gigabyte allocation before any data was read (out-of-memory
+  abort on a tiny file).
+
+### Added
+- `ritk-core::io_bounds`: SSOT bounded-allocation primitives for untrusted input
+  — `bounded_capacity` (capped speculative `Vec` reservation), `read_bounded_with`
+  (source-agnostic chunked read, used by the MINC HDF5 reader), and
+  `read_exact_bounded` (the `std::io::Read` specialization). 16 MiB chunk budget.
+
+### Changed
+- `ritk-vtk`: migrated the VTK/PLY readers onto `ritk-core::io_bounds`, removing
+  the per-crate `read_helpers` copies of the bounding helpers (consolidation).
+
+### Tests
+- `ritk-core`: unit coverage for truncation, length-overflow, offset progression,
+  and capacity capping. `ritk-mgh` / `ritk-metaimage`: hostile-header regressions
+  (1024³ dims with a tiny body → error, not OOM).
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-core -p ritk-vtk -p ritk-mgh -p ritk-metaimage
+  -p ritk-minc` passed 352 tests; clippy `-D warnings`, `cargo test --doc
+  -p ritk-core`, and `cargo fmt --check` clean.
+
+---
+
 ## [Unreleased] — Sprint 446: VTK reader untrusted-input allocation hardening
 
 ### Fixed

@@ -1,5 +1,37 @@
 # RITK Gap Audit - Active
 
+## Sprint 447 Audit (2026-06-28) — Centralized Bounded Reads Across Format Parsers
+
+### Gaps Closed
+
+- **[SEC-447-01/02/03 CLOSED]** Added `ritk-core::io_bounds` as the SSOT for
+  untrusted-input allocation bounding and routed the VTK, MGH, MetaImage, and
+  MINC readers through it. `ritk-vtk`'s per-crate copies of `bounded_capacity`/
+  `read_exact_bounded` were removed (DRY consolidation into the deepest common
+  ancestor crate). MGH `vec![0u8; data_size]`, MINC `vec![0u8; total_bytes]`, and
+  MetaImage compressed `Vec::with_capacity(expected_payload_bytes)` no longer
+  reserve the header-claimed size before the bytes are confirmed present.
+- **[TEST-447-04 CLOSED]** Core unit tests (truncation, overflow, offset
+  progression, capacity cap) plus MGH/MetaImage hostile-header regressions
+  (1024³ dims with a tiny body → error, not OOM).
+
+### Audit findings (no change required)
+
+- `ritk-nifti`: `volume_byte_range(byte_len)` already enforces
+  `byte_len >= vox_offset + voxel_count * width` with checked arithmetic before
+  allocation — safe.
+- `ritk-nrrd`: reader allocates `Vec::with_capacity(payload.len() * 2)` from the
+  already-read payload length, not a header field — safe.
+- `ritk-vtk` `image_xml` binary reader validates `n_bytes` against the in-memory
+  block length before `Vec::with_capacity(n_floats)` — safe.
+
+### Residual Risk
+
+- **[TEST-447-05 OPEN]** MINC lacks a format-level hostile-fixture regression
+  because forging a shape≠data HDF5 file is non-trivial; the `read_bounded_with`
+  primitive it uses is unit-tested in `ritk-core`. Tracked as a READY backlog
+  item.
+
 ## Sprint 446 Audit (2026-06-28) — VTK Reader Untrusted-Input Allocation Hardening
 
 ### Gaps Closed

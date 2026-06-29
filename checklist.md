@@ -1,5 +1,42 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 447 — Centralized Bounded Reads Across Format Parsers
+**Target version**: 0.13.10
+**Sprint phase**: Closure — SSOT bounding helpers in ritk-core, format parsers hardened
+
+### In-flight plan (Sprint 447)
+- [x] SEC-447-01 [patch]: Add `ritk-core::io_bounds` SSOT module
+  (`bounded_capacity`, `read_bounded_with`, `read_exact_bounded`) with unit
+  coverage.
+- [x] SEC-447-02 [patch]: Migrate ritk-vtk readers onto the core helpers,
+  removing the per-crate `read_helpers` duplicates (consolidation).
+- [x] SEC-447-03 [patch]: Harden ritk-mgh, ritk-metaimage, ritk-minc voxel
+  readers via the core helpers (bounded eager allocation).
+- [x] TEST-447-04 [patch]: Hostile-header regressions for ritk-mgh and
+  ritk-metaimage; core unit tests cover the MINC non-`Read` primitive.
+
+### Verification gate (Sprint 447)
+- [x] RITK: `cargo fmt -p ritk-core -p ritk-vtk -p ritk-mgh -p ritk-metaimage -p ritk-minc --check`
+- [x] RITK: `cargo nextest run -p ritk-core -p ritk-vtk -p ritk-mgh -p ritk-metaimage -p ritk-minc` -> 352 passed
+- [x] RITK: `cargo clippy -p ritk-core -p ritk-vtk -p ritk-mgh -p ritk-metaimage -p ritk-minc --all-targets -- -D warnings`
+- [x] RITK: `cargo test --doc -p ritk-core` -> 1 passed, 1 ignored
+
+### Deferred / carry-forward
+- [ ] TEST-447-05 [patch]: Format-level hostile-fixture regression for the MINC
+  reader (requires forging an HDF5 dataset with shape > backing bytes; the
+  `read_bounded_with` primitive is unit-tested in ritk-core).
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias with
+  an Atlas-backed backend after the image/filter/IO command boundaries are
+  migrated.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases and
+  tests with Atlas-backed Coeus/Leto surfaces where each crate boundary is
+  migrated.
+
+---
+
 ## Sprint 446 — VTK Reader Untrusted-Input Allocation Hardening
 **Target version**: 0.13.10
 **Sprint phase**: Closure — header-count-driven eager allocation bounded
