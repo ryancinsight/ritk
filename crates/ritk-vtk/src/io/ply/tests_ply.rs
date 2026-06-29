@@ -242,3 +242,16 @@ fn test_ply_binary_le_header_format_in_memory() {
     assert!(header.contains("element vertex 4"));
     assert!(header.contains("element face 4"));
 }
+
+#[test]
+fn parse_ply_rejects_hostile_vertex_count_without_oom() {
+    // Header claims four billion vertices but supplies one line of data. The
+    // bounded reservation must keep allocation small and the read must fail with
+    // a truncation error rather than reserving ~48 GiB and aborting on OOM.
+    let ply = b"ply\nformat ascii 1.0\nelement vertex 4000000000\nproperty float x\nproperty float y\nproperty float z\nelement face 0\nproperty list uchar int vertex_indices\nend_header\n0.0 0.0 0.0\n";
+    let err = parse_ply(ply).expect_err("hostile vertex count must error");
+    assert!(
+        err.to_string().contains("truncated vertex data"),
+        "unexpected error: {err}"
+    );
+}

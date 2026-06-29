@@ -315,13 +315,16 @@ fn read_binary_scalars(
         .checked_mul(byte_width)
         .with_context(|| "scalar data size overflow")?;
 
-    let mut raw = vec![0u8; total_bytes];
-    reader.read_exact(&mut raw).with_context(|| {
-        format!(
-            "failed to read {} bytes of VTK binary data ({} voxels × {} bytes)",
-            total_bytes, count, byte_width
-        )
-    })?;
+    // Bound the speculative allocation: `count` is a header field and may exceed
+    // the bytes actually present. `read_exact_bounded` grows the buffer per
+    // confirmed chunk and reports truncation rather than aborting on OOM.
+    let raw = crate::io::read_helpers::read_exact_bounded(
+        reader,
+        total_bytes,
+        &format!(
+            "failed to read {total_bytes} bytes of VTK binary data ({count} voxels × {byte_width} bytes)"
+        ),
+    )?;
 
     let mut out = Vec::with_capacity(count);
 

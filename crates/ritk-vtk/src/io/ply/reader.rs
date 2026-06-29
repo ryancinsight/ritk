@@ -14,6 +14,7 @@
 
 use super::types::{PlyFormat, PlyHeader, PlyType};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
+use crate::io::read_helpers::bounded_capacity;
 use anyhow::{bail, Context, Result};
 use std::path::Path;
 
@@ -177,9 +178,15 @@ fn parse_ascii_body(text: &str, hdr: &PlyHeader) -> Result<VtkPolyData> {
         (0, 0, 0)
     };
 
-    let mut points = Vec::with_capacity(hdr.vertex_count);
+    let mut points = Vec::with_capacity(bounded_capacity(
+        hdr.vertex_count,
+        std::mem::size_of::<[f32; 3]>(),
+    ));
     let mut normals: Option<Vec<[f32; 3]>> = if has_n {
-        Some(Vec::with_capacity(hdr.vertex_count))
+        Some(Vec::with_capacity(bounded_capacity(
+            hdr.vertex_count,
+            std::mem::size_of::<[f32; 3]>(),
+        )))
     } else {
         None
     };
@@ -213,7 +220,10 @@ fn parse_ascii_body(text: &str, hdr: &PlyHeader) -> Result<VtkPolyData> {
         }
     }
 
-    let mut polygons = Vec::with_capacity(hdr.face_count);
+    let mut polygons = Vec::with_capacity(bounded_capacity(
+        hdr.face_count,
+        std::mem::size_of::<Vec<u32>>(),
+    ));
     for f in 0..hdr.face_count {
         let line = lines
             .next()
@@ -253,9 +263,15 @@ fn parse_binary_le_body(body: &[u8], hdr: &PlyHeader) -> Result<VtkPolyData> {
 
     let vert_sz = hdr.vertex_byte_size();
     let mut off = 0usize;
-    let mut points = Vec::with_capacity(hdr.vertex_count);
+    let mut points = Vec::with_capacity(bounded_capacity(
+        hdr.vertex_count,
+        std::mem::size_of::<[f32; 3]>(),
+    ));
     let mut normals: Option<Vec<[f32; 3]>> = if has_n {
-        Some(Vec::with_capacity(hdr.vertex_count))
+        Some(Vec::with_capacity(bounded_capacity(
+            hdr.vertex_count,
+            std::mem::size_of::<[f32; 3]>(),
+        )))
     } else {
         None
     };
@@ -291,7 +307,10 @@ fn parse_binary_le_body(body: &[u8], hdr: &PlyHeader) -> Result<VtkPolyData> {
 
     let cnt_sz = hdr.face_count_type.byte_size();
     let idx_sz = hdr.face_index_type.byte_size();
-    let mut polygons = Vec::with_capacity(hdr.face_count);
+    let mut polygons = Vec::with_capacity(bounded_capacity(
+        hdr.face_count,
+        std::mem::size_of::<Vec<u32>>(),
+    ));
 
     for f in 0..hdr.face_count {
         if off + cnt_sz > body.len() {
