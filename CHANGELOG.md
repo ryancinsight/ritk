@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 451: MetaImage Coeus-backed reader path
+
+### Added
+- `ritk-metaimage`: `read_metaimage_coeus` (behind the new `coeus` feature) reads
+  MHA/MHD files into `ritk_image::coeus::Image`, the Atlas-tensor counterpart to
+  the Burn-backed `read_metaimage`. Continues the burn→Atlas reader migration.
+
+### Changed
+- `ritk-metaimage`: converted the reader body into a backend-agnostic
+  `decode_metaimage` (`DecodedMetaImage`) shared by the Burn and Coeus paths
+  (DRY/SSOT); the two differ only in final image construction.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-metaimage` 22 passed (default) and 23 passed
+  (`--features coeus`, incl. a Coeus voxel/shape regression); clippy
+  `-D warnings` clean for both feature sets; doc/fmt clean.
+
+---
+
 ## [Unreleased] — Sprint 450: NIfTI Coeus-backed reader path
 
 ### Added

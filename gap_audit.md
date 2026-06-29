@@ -1,5 +1,23 @@
 # RITK Gap Audit - Active
 
+## Sprint 451 Audit (2026-06-28) — MetaImage Coeus Reader
+
+### Gap Closed
+
+- **[MIG-451 CLOSED]** `ritk-metaimage` gains an additive, feature-gated Coeus
+  reader (`read_metaimage_coeus`) sharing `decode_metaimage` with the Burn path.
+  Value-semantic Coeus voxel/shape regression added. All three single-volume
+  image readers (mgh, nifti, metaimage) now expose Coeus paths via the same
+  `decode_* + from_flat_on` pattern.
+
+### Residual Risk
+
+- **[MIG-451-04 OPEN]** ritk-minc (HDF5) has no Coeus reader yet; the NIfTI
+  label-map reader remains Burn-independent `Vec<u32>` only.
+- Burn remains the default reader/writer surface in these crates until the
+  workspace-wide `Image` migration (fleet-owned) completes; the coeus paths are
+  purely additive.
+
 ## Sprint 450 Audit (2026-06-28) — NIfTI Coeus Reader
 
 ### Gap Closed

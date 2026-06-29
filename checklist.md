@@ -1,5 +1,35 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 451 — MetaImage Coeus-Backed Reader Path
+**Target version**: 0.14.0 (minor: additive public API)
+**Sprint phase**: Closure — feature-gated Coeus MetaImage reader landed
+
+### In-flight plan (Sprint 451)
+- [x] MIG-451-01 [minor]: Convert the MetaImage reader body into a
+  backend-agnostic `decode_metaimage`/`DecodedMetaImage` (header parse, bounded
+  payload read, voxel decode) shared by Burn and Coeus paths (DRY).
+- [x] MIG-451-02 [minor]: Add `coeus` feature + `read_metaimage_coeus` building
+  `ritk_image::coeus::Image::from_flat_on`; re-export from the crate root.
+- [x] TEST-451-03 [minor]: Value-semantic Coeus reader regression (voxel/shape).
+
+### Verification gate (Sprint 451)
+- [x] RITK: `cargo fmt -p ritk-metaimage --check`
+- [x] RITK: `cargo nextest run -p ritk-metaimage` -> 22 passed
+- [x] RITK: `cargo nextest run -p ritk-metaimage --features coeus` -> 23 passed
+- [x] RITK: `cargo clippy -p ritk-metaimage --all-targets -- -D warnings` (default + coeus)
+- [x] RITK: `cargo doc -p ritk-metaimage --features coeus --no-deps` (warning-clean)
+
+### Deferred / carry-forward
+- [ ] MIG-451-04 [minor]: Coeus reader path for ritk-minc (HDF5); Coeus NIfTI
+  label-map reader. Single-volume image readers (mgh, nifti, metaimage) now done.
+- [ ] TEST-447-05 [patch]: MINC format-level hostile-fixture regression.
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Registration N4 bias correction onto Coeus/Leto/Hephaestus.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases.
+
+---
+
 ## Sprint 450 — NIfTI Coeus-Backed Reader Path
 **Target version**: 0.14.0 (minor: additive public API)
 **Sprint phase**: Closure — feature-gated Coeus NIfTI reader landed
