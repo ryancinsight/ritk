@@ -1,4 +1,25 @@
+//! NIfTI-1 / NIfTI-2 single-file header model, parsing, and encoding.
+//!
+//! This module owns the [`NiftiHeader`] domain type and the NIfTI-1/2 byte
+//! layout. The byte-field codec ([`raw`]), field validation ([`validate`]), and
+//! `f64`→`f32` narrowing ([`convert`]) live in focused sibling modules.
+
+mod convert;
+mod raw;
+mod validate;
+
 use anyhow::{anyhow, bail, Context, Result};
+use convert::{f64_affine_to_f32, f64_to_f32, f64x4_to_f32x4};
+use raw::{
+    read_array, read_f32, read_f32x4_as_f64, read_f64, read_f64x4, read_i16, read_i32, read_i64,
+    read_u16, write_f32, write_f32x4, write_f64, write_f64x4, write_i16, write_i32, write_i64,
+    write_u16, Endian,
+};
+use validate::{
+    checked_lane, checked_spatial_pixdim, dims_for_version, qfac_from_pixdim,
+    qform_quaternion_scalar, validate_3d_dims, validate_bitpix, validate_i64_vox_offset,
+    validate_vox_offset,
+};
 
 const NIFTI1_HEADER_LEN: usize = 348;
 const NIFTI1_SINGLE_FILE_VOX_OFFSET: usize = 352;
@@ -14,7 +35,7 @@ pub(crate) enum HeaderVersion {
 }
 
 impl HeaderVersion {
-    const fn single_file_vox_offset(self) -> usize {
+    pub(super) const fn single_file_vox_offset(self) -> usize {
         match self {
             Self::One => NIFTI1_SINGLE_FILE_VOX_OFFSET,
             Self::Two => NIFTI2_SINGLE_FILE_VOX_OFFSET,
@@ -38,7 +59,7 @@ impl NiftiDatatype {
         }
     }
 
-    const fn bitpix(self) -> i16 {
+    pub(super) const fn bitpix(self) -> i16 {
         match self {
             Self::Uint8 => 8,
             Self::Float32 | Self::Uint32 => 32,
@@ -57,12 +78,6 @@ impl NiftiDatatype {
             _ => bail!("Unsupported NIfTI datatype code {code}"),
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Endian {
-    Little,
-    Big,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -453,259 +468,6 @@ impl NiftiHeader {
     }
 }
 
-fn checked_lane<const N: usize>(raw: &[u8]) -> Result<[u8; N]> {
-    raw.try_into().map_err(|_| {
-        anyhow!(
-            "NIfTI voxel lane width mismatch: expected {N}, got {}",
-            raw.len()
-        )
-    })
-}
-
-pub(crate) fn qfac_from_pixdim(value: f64) -> Result<f64> {
-    if !value.is_finite() {
-        bail!("NIfTI pixdim[0] qfac must be finite, got {value}");
-    }
-
-    if value == 0.0 || value == 1.0 {
-        Ok(1.0)
-    } else if value == -1.0 {
-        Ok(-1.0)
-    } else {
-        bail!("NIfTI pixdim[0] qfac must be -1, 0, or 1, got {value}");
-    }
-}
-
-pub(crate) fn checked_spatial_pixdim(pixdim: [f64; 8]) -> Result<[f64; 3]> {
-    let spatial = [pixdim[1], pixdim[2], pixdim[3]];
-    for (offset, value) in spatial.iter().enumerate() {
-        let index = offset + 1;
-        if !value.is_finite() || *value <= 0.0 {
-            bail!("NIfTI pixdim[{index}] must be positive and finite, got {value}");
-        }
-    }
-
-    Ok(spatial)
-}
-
-pub(crate) fn qform_quaternion_scalar(b: f64, c: f64, d: f64) -> Result<f64> {
-    for (name, value) in [("b", b), ("c", c), ("d", d)] {
-        if !value.is_finite() {
-            bail!("NIfTI qform quaternion {name} must be finite, got {value}");
-        }
-    }
-
-    let squared_vector_norm = b.mul_add(b, c.mul_add(c, d * d));
-    if squared_vector_norm > 1.0 + 1.0e-5 {
-        bail!("NIfTI qform quaternion vector norm squared must be <= 1, got {squared_vector_norm}");
-    }
-
-    Ok((1.0 - squared_vector_norm).max(0.0).sqrt())
-}
-
-fn dims_for_version(version: HeaderVersion, dims: HeaderDims) -> Result<[usize; 8]> {
-    if matches!(version, HeaderVersion::One) {
-        u16::try_from(dims.nx).context("NIfTI-1 nx exceeds u16 header capacity")?;
-        u16::try_from(dims.ny).context("NIfTI-1 ny exceeds u16 header capacity")?;
-        u16::try_from(dims.nz).context("NIfTI-1 nz exceeds u16 header capacity")?;
-    } else {
-        i64::try_from(dims.nx).context("NIfTI-2 nx exceeds i64 header capacity")?;
-        i64::try_from(dims.ny).context("NIfTI-2 ny exceeds i64 header capacity")?;
-        i64::try_from(dims.nz).context("NIfTI-2 nz exceeds i64 header capacity")?;
-    }
-
-    Ok([3, dims.nx, dims.ny, dims.nz, 1, 1, 1, 1])
-}
-
-fn validate_3d_dims(dim: [usize; 8]) -> Result<()> {
-    if dim[0] != 3 {
-        bail!("Expected 3-D NIfTI volume, found {} dimensions", dim[0]);
-    }
-    for (axis, value) in dim.iter().enumerate().take(4).skip(1) {
-        if *value == 0 {
-            bail!("NIfTI dim[{axis}] must be positive");
-        }
-    }
-    Ok(())
-}
-
-fn validate_bitpix(datatype: NiftiDatatype, bitpix: i16) -> Result<()> {
-    if bitpix != datatype.bitpix() {
-        bail!(
-            "NIfTI bitpix {bitpix} does not match datatype {}",
-            datatype.code()
-        );
-    }
-    Ok(())
-}
-
-fn validate_vox_offset(version: HeaderVersion, vox_offset: f64) -> Result<usize> {
-    let minimum = version.single_file_vox_offset();
-    if !vox_offset.is_finite() || vox_offset < minimum as f64 {
-        bail!("NIfTI vox_offset must be at least {minimum}, got {vox_offset}");
-    }
-    if vox_offset.fract() != 0.0 {
-        bail!("NIfTI vox_offset must be an integer byte offset, got {vox_offset}");
-    }
-
-    usize::try_from(vox_offset as u128)
-        .map_err(|_| anyhow!("NIfTI vox_offset does not fit usize, got {vox_offset}"))
-}
-
-fn validate_i64_vox_offset(version: HeaderVersion, vox_offset: i64) -> Result<usize> {
-    let minimum = version.single_file_vox_offset();
-    let value = usize::try_from(vox_offset)
-        .map_err(|_| anyhow!("NIfTI vox_offset must be non-negative, got {vox_offset}"))?;
-    if value < minimum {
-        bail!("NIfTI vox_offset must be at least {minimum}, got {vox_offset}");
-    }
-    Ok(value)
-}
-
-fn read_array<const N: usize>(bytes: &[u8], offset: usize) -> Result<[u8; N]> {
-    bytes
-        .get(offset..offset + N)
-        .ok_or_else(|| anyhow!("NIfTI header truncated at byte {offset}"))?
-        .try_into()
-        .map_err(|_| anyhow!("NIfTI header field width mismatch at byte {offset}"))
-}
-
-fn read_u16(bytes: &[u8], offset: usize, endian: Endian) -> Result<u16> {
-    let raw = read_array::<2>(bytes, offset)?;
-    Ok(match endian {
-        Endian::Little => u16::from_le_bytes(raw),
-        Endian::Big => u16::from_be_bytes(raw),
-    })
-}
-
-fn read_i16(bytes: &[u8], offset: usize, endian: Endian) -> Result<i16> {
-    let raw = read_array::<2>(bytes, offset)?;
-    Ok(match endian {
-        Endian::Little => i16::from_le_bytes(raw),
-        Endian::Big => i16::from_be_bytes(raw),
-    })
-}
-
-fn read_i32(bytes: &[u8], offset: usize, endian: Endian) -> Result<i32> {
-    let raw = read_array::<4>(bytes, offset)?;
-    Ok(match endian {
-        Endian::Little => i32::from_le_bytes(raw),
-        Endian::Big => i32::from_be_bytes(raw),
-    })
-}
-
-fn read_i64(bytes: &[u8], offset: usize, endian: Endian) -> Result<i64> {
-    let raw = read_array::<8>(bytes, offset)?;
-    Ok(match endian {
-        Endian::Little => i64::from_le_bytes(raw),
-        Endian::Big => i64::from_be_bytes(raw),
-    })
-}
-
-fn read_f32(bytes: &[u8], offset: usize, endian: Endian) -> Result<f32> {
-    let raw = read_array::<4>(bytes, offset)?;
-    Ok(match endian {
-        Endian::Little => f32::from_le_bytes(raw),
-        Endian::Big => f32::from_be_bytes(raw),
-    })
-}
-
-fn read_f64(bytes: &[u8], offset: usize, endian: Endian) -> Result<f64> {
-    let raw = read_array::<8>(bytes, offset)?;
-    Ok(match endian {
-        Endian::Little => f64::from_le_bytes(raw),
-        Endian::Big => f64::from_be_bytes(raw),
-    })
-}
-
-fn read_f32x4_as_f64(bytes: &[u8], offset: usize, endian: Endian) -> Result<[f64; 4]> {
-    Ok([
-        f64::from(read_f32(bytes, offset, endian)?),
-        f64::from(read_f32(bytes, offset + 4, endian)?),
-        f64::from(read_f32(bytes, offset + 8, endian)?),
-        f64::from(read_f32(bytes, offset + 12, endian)?),
-    ])
-}
-
-fn read_f64x4(bytes: &[u8], offset: usize, endian: Endian) -> Result<[f64; 4]> {
-    Ok([
-        read_f64(bytes, offset, endian)?,
-        read_f64(bytes, offset + 8, endian)?,
-        read_f64(bytes, offset + 16, endian)?,
-        read_f64(bytes, offset + 24, endian)?,
-    ])
-}
-
-fn write_i32(out: &mut [u8], offset: usize, value: i32) {
-    out[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
-}
-
-fn write_i64(out: &mut [u8], offset: usize, value: i64) {
-    out[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
-}
-
-fn write_u16(out: &mut [u8], offset: usize, value: u16) {
-    out[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
-}
-
-fn write_i16(out: &mut [u8], offset: usize, value: i16) {
-    out[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
-}
-
-fn write_f32(out: &mut [u8], offset: usize, value: f32) {
-    out[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
-}
-
-fn write_f64(out: &mut [u8], offset: usize, value: f64) {
-    out[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
-}
-
-fn write_f32x4(out: &mut [u8], offset: usize, values: [f64; 4]) {
-    for (index, value) in values.into_iter().enumerate() {
-        write_f32(out, offset + index * 4, f64_to_f32(value, "srow"));
-    }
-}
-
-fn write_f64x4(out: &mut [u8], offset: usize, values: [f64; 4]) {
-    for (index, value) in values.into_iter().enumerate() {
-        write_f64(out, offset + index * 8, value);
-    }
-}
-
-fn f64_to_f32(value: f64, field: &str) -> f32 {
-    assert!(
-        value.is_finite() && value >= f64::from(f32::MIN) && value <= f64::from(f32::MAX),
-        "invariant: {field} must be finite and f32-representable for NIfTI-1 encoding"
-    );
-    value as f32
-}
-
-fn f64x4_to_f32x4(values: [f64; 4], field: &str) -> Result<[f32; 4]> {
-    Ok([
-        checked_f64_to_f32(values[0], field)?,
-        checked_f64_to_f32(values[1], field)?,
-        checked_f64_to_f32(values[2], field)?,
-        checked_f64_to_f32(values[3], field)?,
-    ])
-}
-
-fn f64_affine_to_f32(values: [[f64; 4]; 4]) -> Result<[[f32; 4]; 4]> {
-    let mut out = [[0.0_f32; 4]; 4];
-    for row in 0..4 {
-        for col in 0..4 {
-            out[row][col] = checked_f64_to_f32(values[row][col], "affine")?;
-        }
-    }
-    Ok(out)
-}
-
-fn checked_f64_to_f32(value: f64, field: &str) -> Result<f32> {
-    if !value.is_finite() || value < f64::from(f32::MIN) || value > f64::from(f32::MAX) {
-        bail!("NIfTI {field} value must be finite and f32-representable, got {value}");
-    }
-    Ok(value as f32)
-}
-
 #[cfg(test)]
 pub(crate) fn write_single_file_bytes(header: &NiftiHeader, data: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(header.vox_offset + data.len());
@@ -717,10 +479,7 @@ pub(crate) fn write_single_file_bytes(header: &NiftiHeader, data: &[u8]) -> Vec<
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        checked_spatial_pixdim, qfac_from_pixdim, qform_quaternion_scalar, HeaderDims,
-        HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader,
-    };
+    use super::{HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader};
 
     #[test]
     fn header_round_trip_preserves_nifti1_core_fields() {
@@ -796,45 +555,6 @@ mod tests {
         assert!(
             err.to_string().contains("u16"),
             "error must name NIfTI-1 dimension bound: {err}"
-        );
-    }
-
-    #[test]
-    fn checked_spatial_pixdim_rejects_zero() {
-        let err = checked_spatial_pixdim([1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0])
-            .expect_err("zero NIfTI spacing must be rejected");
-
-        assert!(
-            err.to_string().contains("pixdim[2]"),
-            "error must name offending pixdim index: {err}"
-        );
-    }
-
-    #[test]
-    fn qfac_accepts_standard_values() {
-        assert_eq!(qfac_from_pixdim(0.0).expect("0 qfac maps to +1"), 1.0);
-        assert_eq!(qfac_from_pixdim(1.0).expect("+1 qfac is valid"), 1.0);
-        assert_eq!(qfac_from_pixdim(-1.0).expect("-1 qfac is valid"), -1.0);
-    }
-
-    #[test]
-    fn qfac_rejects_non_standard_value() {
-        let err = qfac_from_pixdim(2.0).expect_err("non-standard qfac must be rejected");
-
-        assert!(
-            err.to_string().contains("qfac"),
-            "error must name qfac invariant: {err}"
-        );
-    }
-
-    #[test]
-    fn qform_quaternion_rejects_impossible_norm() {
-        let err = qform_quaternion_scalar(1.0, 1.0, 0.0)
-            .expect_err("impossible qform quaternion must be rejected");
-
-        assert!(
-            err.to_string().contains("norm squared"),
-            "error must name quaternion norm invariant: {err}"
         );
     }
 }
