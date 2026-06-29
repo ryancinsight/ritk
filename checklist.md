@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 449 — MGH Coeus-Backed Reader Path (burn→Atlas migration begin)
+**Target version**: 0.14.0 (minor: additive public API)
+**Sprint phase**: Closure — feature-gated Coeus reader landed on the reader frontier
+
+### In-flight plan (Sprint 449)
+- [x] MIG-449-01 [minor]: Map the burn→Atlas migration frontier; readers still
+  produce only Burn `Image` while compute crates consume `coeus::Image`. Select
+  a quiet leaf reader (ritk-mgh) for the first reader-side migration.
+- [x] MIG-449-02 [minor]: Extract backend-agnostic `decode_mgh` (header parse,
+  bounded read, geometry) shared by Burn and Coeus paths (DRY).
+- [x] MIG-449-03 [minor]: Add `coeus` feature + `read_mgh_coeus` building
+  `ritk_image::coeus::Image::from_flat_on`; re-export from the crate root.
+- [x] TEST-449-04 [minor]: Value-semantic Coeus reader regression (voxel/shape).
+
+### Verification gate (Sprint 449)
+- [x] RITK: `cargo fmt -p ritk-mgh --check`
+- [x] RITK: `cargo nextest run -p ritk-mgh` -> 31 passed
+- [x] RITK: `cargo nextest run -p ritk-mgh --features coeus` -> 32 passed
+- [x] RITK: `cargo clippy -p ritk-mgh --all-targets -- -D warnings` (default + coeus)
+- [x] RITK: `cargo doc -p ritk-mgh --features coeus --no-deps` (warning-clean)
+
+### Deferred / carry-forward
+- [ ] MIG-449-05 [minor]: Apply the same `decode_*` split + Coeus reader path to
+  the sibling readers (ritk-nifti, ritk-metaimage, ritk-minc) following the
+  ritk-mgh pattern.
+- [ ] TEST-447-05 [patch]: MINC format-level hostile-fixture regression.
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Registration N4 bias correction onto Coeus/Leto/Hephaestus.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases.
+
+---
+
 ## Sprint 448 — NIfTI Header SoC Decomposition
 **Target version**: 0.13.10
 **Sprint phase**: Closure — 840-line header.rs split into single-concern modules

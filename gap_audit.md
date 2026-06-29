@@ -1,5 +1,38 @@
 # RITK Gap Audit - Active
 
+## Sprint 449 Audit (2026-06-28) — burn→Atlas Migration Frontier + MGH Coeus Reader
+
+### Migration-frontier audit
+
+- rayon/tokio/nalgebra/rustfft: 0 source usage (migrated out in earlier sprints).
+- FFT: `ritk-filter`'s entire FFT/convolution suite already runs on `apollo-fft`
+  (`FftPlan1D`); the rustfft→apollo migration is complete there.
+- `ritk-morphology`, `ritk-annotation`, `ritk-dicom`, `ritk-codecs`: already
+  burn-free (no dep, no source usage).
+- Remaining burn usage is two entangled axes: (1) the central
+  `Image<B: Backend>` type parameter threaded through every compute/reader crate
+  (fleet migrating via the dual-backend `ritk_image::coeus::Image`), and (2) the
+  burn `Module`/`AutodiffModule`/`Record` ecosystem that spatial types plug into
+  for neural nets (segmentation/registration). Neither is removable in an
+  isolated leaf without the fleet's dual-backend scaffolding.
+- Reader frontier was untouched: readers produced only Burn `Image` while
+  `ritk-statistics`/`ritk-registration`/`ritk-tensor-ops` already consume
+  `coeus::Image`. Sprint 449 opens that frontier.
+
+### Gap Closed
+
+- **[MIG-449 CLOSED]** `ritk-mgh` gains an additive, feature-gated Coeus reader
+  (`read_mgh_coeus`) sharing `decode_mgh` with the Burn path. Value-semantic
+  Coeus voxel/shape regression added.
+
+### Residual Risk
+
+- **[MIG-449-05 OPEN]** Sibling readers (nifti/metaimage/minc) still Burn-only;
+  the `decode_* + coeus path` pattern is established and replicable.
+- The two entangled migration axes above remain fleet-owned; independent
+  reader-side coeus paths are additive and safe but do not remove burn until the
+  central `Image` type migration completes workspace-wide.
+
 ## Sprint 448 Audit (2026-06-28) — NIfTI Header SoC Decomposition
 
 ### Audit performed

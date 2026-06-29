@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 449: MGH Coeus-backed reader path
+
+### Added
+- `ritk-mgh`: `read_mgh_coeus` (behind the new `coeus` feature) reads MGH/MGZ
+  files into `ritk_image::coeus::Image`, the Atlas-tensor counterpart to the
+  Burn-backed `read_mgh`. Begins the burn→Atlas migration on the reader
+  frontier; additive and feature-gated, so the default Burn path is unchanged.
+
+### Changed
+- `ritk-mgh`: extracted the backend-agnostic header parse, bounded voxel read,
+  and geometry derivation into a shared `decode_mgh` so the Burn and Coeus
+  reader paths differ only in final image construction (DRY/SSOT).
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-mgh` 31 passed (default) and 32 passed
+  (`--features coeus`, including a Coeus voxel/shape regression); clippy
+  `-D warnings` clean for both feature sets; doc/fmt/doctest clean.
+
+---
+
 ## [Unreleased] — Sprint 448: NIfTI header SoC decomposition
 
 ### Changed
