@@ -41,6 +41,23 @@ fn test_self_match_is_approximately_identity() {
 }
 
 #[test]
+fn test_self_match_preserves_unsorted_source_order() {
+    let data = vec![7.0, 1.0, 6.0, 2.0, 5.0, 3.0, 4.0, 0.0];
+    let image: Image<TestBackend, 1> = make_image(data.clone(), [data.len()]);
+
+    let matcher = HistogramMatcher::new(8)
+        .with_match_points(0)
+        .with_threshold_at_mean(false);
+    let result = matcher.match_histograms(&image, &image);
+    let values = get_values(&result);
+
+    assert_eq!(
+        values, data,
+        "self-match must preserve original voxel order when landmarks are estimated"
+    );
+}
+
+#[test]
 fn test_match_shifts_mean_toward_reference() {
     // Source in [0, 10]; reference in [90, 100].
     // After matching, output mean must be close to reference mean ≈ 95.

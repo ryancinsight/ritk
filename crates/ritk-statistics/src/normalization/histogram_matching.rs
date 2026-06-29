@@ -77,9 +77,7 @@ impl HistogramMatcher {
         source: &Image<B, D>,
         reference: &Image<B, D>,
     ) -> Image<B, D> {
-        let shape: [usize; D] = source.shape();
-
-        let (src_vec, _) = extract_vec_infallible(source);
+        let (mut src_vec, dims) = extract_vec_infallible(source);
         let (ref_vec, _) = extract_vec_infallible(reference);
 
         let (src_min, src_max, src_mean) = min_max_mean(&src_vec);
@@ -125,12 +123,11 @@ impl HistogramMatcher {
         enforce_monotone(&mut src_land);
         enforce_monotone(&mut ref_land);
 
-        let output: Vec<f32> = src_vec
-            .iter()
-            .map(|&v| piecewise_linear(v, &src_land, &ref_land))
-            .collect();
+        for value in &mut src_vec {
+            *value = piecewise_linear(*value, &src_land, &ref_land);
+        }
 
-        rebuild(output, shape, source)
+        rebuild(src_vec, dims, source)
     }
 }
 
@@ -186,33 +183,33 @@ fn quantile_landmarks(data: &[f32], lo: f32, hi: f32, bins: usize, k: usize) -> 
         return vec![lo; k];
     }
 
-    // Cumulative frequency per bin.
-    let mut cum = vec![0u64; bins];
+    let mut landmarks = Vec::with_capacity(k);
     let mut acc = 0u64;
-    for (c, &h) in cum.iter_mut().zip(hist.iter()) {
-        acc += h;
-        *c = acc;
-    }
-
-    (1..=k)
-        .map(|j| {
+    let mut j = 1usize;
+    for (bin, &count) in hist.iter().enumerate() {
+        let next_acc = acc + count;
+        while j <= k {
             let target = j as f64 / (k as f64 + 1.0) * total as f64;
-            // First bin whose cumulative frequency reaches the quantile.
-            let bin = cum.partition_point(|&c| (c as f64) < target).min(bins - 1);
+            if (next_acc as f64) < target {
+                break;
+            }
             // ITK's `Histogram::Quantile` interpolates LINEARLY within the bin
             // from its lower edge (not the bin centre): the fraction is how far
             // the target sits between the cumulative count before this bin and
             // after it.
-            let cum_before = (cum[bin] - hist[bin]) as f64;
-            let in_bin = hist[bin] as f64;
+            let in_bin = count as f64;
             let frac = if in_bin > 0.0 {
-                ((target - cum_before) / in_bin).clamp(0.0, 1.0)
+                ((target - acc as f64) / in_bin).clamp(0.0, 1.0)
             } else {
                 0.5
             };
-            lo + (bin as f64 + frac) as f32 * bin_w
-        })
-        .collect()
+            landmarks.push(lo + (bin as f64 + frac) as f32 * bin_w);
+            j += 1;
+        }
+        acc = next_acc;
+    }
+    debug_assert_eq!(landmarks.len(), k);
+    landmarks
 }
 
 /// Make a landmark sequence non-decreasing (numerical guard for interpolation).

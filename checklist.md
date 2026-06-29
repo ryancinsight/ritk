@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 444 — Histogram Matching Allocation Cleanup
+**Target version**: 0.13.10
+**Sprint phase**: Closure — output and cumulative-histogram buffers removed
+
+### In-flight plan (Sprint 444)
+- [x] MEM-444-01 [patch]: Audit `HistogramMatcher::match_histograms` for
+  redundant buffers after the Nyul-Udupa output-reuse cleanup.
+- [x] MEM-444-02 [patch]: Reuse the extracted source voxel buffer as the output
+  buffer after landmark estimation and compute quantile landmarks without a
+  separate cumulative histogram `Vec<u64>`.
+- [x] TEST-444-03 [patch]: Add value-semantic coverage proving self-matching
+  an unsorted source preserves original voxel order.
+
+### Verification gate (Sprint 444)
+- [x] RITK: `cargo fmt --check -p ritk-statistics`
+- [x] RITK: `cargo nextest run -p ritk-statistics --features coeus histogram_matching` -> 12 passed
+- [x] RITK: `cargo clippy -p ritk-statistics --all-targets --features coeus -- -D warnings`
+- [x] RITK: `cargo test --doc -p ritk-statistics --features coeus` -> 1 passed, 3 ignored
+- [x] RITK: `cargo doc -p ritk-statistics --features coeus --no-deps`
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Migrate registration N4 bias correction to a
+  Coeus/Leto/Hephaestus-backed bias-field implementation.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias with
+  an Atlas-backed backend after the image/filter/IO command boundaries are
+  migrated.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases and
+  tests with Atlas-backed Coeus/Leto surfaces where each crate boundary is
+  migrated.
+
+---
+
 ## Sprint 443 — Nyul-Udupa Output Buffer Reuse
 **Target version**: 0.13.10
 **Sprint phase**: Closure — transform output allocation removed

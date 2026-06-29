@@ -1,5 +1,32 @@
 # RITK Gap Audit - Active
 
+## Sprint 444 Audit (2026-06-28) — Histogram Matching Allocation Cleanup
+
+### Gaps Closed
+
+- **[MEM-444-01 CLOSED]** `HistogramMatcher::match_histograms` allocated an
+  extracted source `Vec<f32>` and then built a separate mapped output
+  `Vec<f32>`:
+  it now transforms the extracted source buffer in place after landmark
+  estimation.
+- **[MEM-444-02 CLOSED]** `quantile_landmarks` allocated a cumulative
+  histogram `Vec<u64>` after building the histogram counts:
+  it now emits quantile landmarks during one cumulative scan over the histogram
+  bins.
+- **[TEST-444-03 CLOSED]** Added an unsorted-input self-match regression
+  proving histogram matching preserves source voxel order after landmark
+  estimation.
+
+### Residual Risk
+
+- The source and reference extraction buffers remain required while the public
+  histogram-matching API is Burn-backed. Full Burn/Burn-NdArray boundary
+  removal remains under MIG-439-03.
+- Cargo still reports unused Hephaestus patch entries for this graph; the
+  warning is provider-graph hygiene outside this normalization allocation slice.
+
+---
+
 ## Sprint 443 Audit (2026-06-28) — Nyul-Udupa Output Buffer Reuse
 
 ### Gaps Closed

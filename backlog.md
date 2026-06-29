@@ -19,6 +19,15 @@
   after regressing the focused row to 78.925s; with that production change
   removed, the latest focused evidence is 80.456s.
 
+- **MEM-444-01 [patch] — Histogram matching allocation cleanup. DONE.**
+  `HistogramMatcher::match_histograms` now reuses the extracted source voxel
+  buffer as the transform output after landmark estimation, avoiding a separate
+  output `Vec<f32>`. `quantile_landmarks` now emits landmarks during a single
+  histogram-bin scan instead of allocating a cumulative histogram `Vec<u64>`.
+  Evidence tier: value-semantic nextest plus compile/lint/docs;
+  `cargo nextest run -p ritk-statistics --features coeus histogram_matching`
+  passed 12 tests, including an unsorted-order regression.
+
 - **MEM-443-01 [patch] — Nyul-Udupa output buffer reuse. DONE.**
   `NyulUdupaNormalizer::apply` still needs one sorted work buffer because
   percentile landmarks require sorted intensities while image reconstruction

@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 444: Histogram matching allocation cleanup
+
+### Changed
+- `ritk-statistics`: `HistogramMatcher::match_histograms` now reuses the
+  extracted source voxel buffer as the transform output after landmark
+  estimation.
+- `ritk-statistics`: Histogram-matching quantile landmark estimation now emits
+  landmarks during the histogram-bin scan instead of allocating a cumulative
+  histogram buffer.
+
+### Tests
+- `ritk-statistics`: Added unsorted-input self-match coverage proving histogram
+  matching preserves source voxel order after landmark estimation.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-statistics --features coeus histogram_matching`
+  passed 12 tests.
+
+---
+
 ## [Unreleased] — Sprint 443: Nyul-Udupa output buffer reuse
 
 ### Changed
