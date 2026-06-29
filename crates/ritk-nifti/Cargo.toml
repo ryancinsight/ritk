@@ -3,6 +3,11 @@ name = "ritk-nifti"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+# Atlas migration: expose a Coeus-backed reader path alongside the Burn one.
+coeus = ["dep:coeus-core", "ritk-image/coeus"]
+
 [dependencies]
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
@@ -11,6 +16,7 @@ burn = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 flate2 = { workspace = true }
+coeus-core = { workspace = true, optional = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

@@ -9,7 +9,7 @@ use std::path::Path;
 
 use crate::header::NiftiHeader;
 use crate::shape::checked_voxel_count;
-use crate::spatial::metadata_from_nifti_ras_affine;
+use crate::spatial::{metadata_from_nifti_ras_affine, InternalSpatialMetadata};
 
 const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 
@@ -34,6 +34,31 @@ pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Re
 /// Accepts `.nii` bytes directly and `.nii.gz` bytes by detecting the gzip
 /// header. The decoded payload must be a single-file NIfTI-1 or NIfTI-2 stream.
 pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B::Device) -> Result<Image<B, 3>> {
+    let DecodedNifti {
+        data,
+        dims,
+        spatial,
+    } = decode_nifti_bytes(bytes)?;
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
+    Ok(Image::new(
+        tensor,
+        spatial.origin,
+        spatial.spacing,
+        spatial.direction,
+    ))
+}
+
+/// Backend-agnostic decoded NIfTI volume: voxels in `[nz, ny, nx]` order plus the
+/// derived physical metadata. Shared by the Burn and Coeus reader paths so the
+/// header parse, byte-range validation, and voxel decode have one implementation.
+struct DecodedNifti {
+    data: Vec<f32>,
+    dims: [usize; 3],
+    spatial: InternalSpatialMetadata,
+}
+
+/// Decode NIfTI bytes (gzip-detected) into a backend-agnostic [`DecodedNifti`].
+fn decode_nifti_bytes(bytes: &[u8]) -> Result<DecodedNifti> {
     let decoded;
     let payload = if bytes.starts_with(&GZIP_MAGIC) {
         decoded = decode_gzip(bytes).context("Failed to decode gzipped NIfTI bytes")?;
@@ -42,13 +67,10 @@ pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B::Device) -> Re
         bytes
     };
 
-    image_from_single_file_bytes(payload, device)
+    decode_single_file(payload)
 }
 
-fn image_from_single_file_bytes<B: Backend>(
-    bytes: &[u8],
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
     let header = NiftiHeader::parse(bytes).context("Invalid NIfTI header")?;
     let spatial = metadata_from_nifti_ras_affine(header.affine()?)
         .context("Invalid NIfTI spatial metadata")?;
@@ -70,15 +92,51 @@ fn image_from_single_file_bytes<B: Backend>(
         }
     }
 
-    let shape_burn = Shape::new([nz, ny, nx]);
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data_vec, shape_burn), device);
+    Ok(DecodedNifti {
+        data: data_vec,
+        dims: [nz, ny, nx],
+        spatial,
+    })
+}
 
-    Ok(Image::new(
-        tensor,
+/// Read a NIfTI file into a Coeus-backed 3-D image on `backend`.
+///
+/// The Atlas-tensor counterpart to [`read_nifti`]: shares the gzip detection,
+/// header parse, byte-range validation, and voxel decode with the Burn path,
+/// differing only in the final image construction.
+#[cfg(feature = "coeus")]
+pub fn read_nifti_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    P: AsRef<Path>,
+{
+    let bytes = fs::read(path.as_ref())
+        .map_err(|e| anyhow!("Failed to read NIfTI file {:?}: {e}", path.as_ref()))?;
+    read_nifti_coeus_from_bytes(&bytes, backend)
+}
+
+/// Read a NIfTI payload from in-memory bytes into a Coeus-backed image.
+#[cfg(feature = "coeus")]
+pub fn read_nifti_coeus_from_bytes<B>(
+    bytes: &[u8],
+    backend: &B,
+) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+{
+    let DecodedNifti {
+        data,
+        dims,
+        spatial,
+    } = decode_nifti_bytes(bytes)?;
+    ritk_image::coeus::Image::from_flat_on(
+        data,
+        dims,
         spatial.origin,
         spatial.spacing,
         spatial.direction,
-    ))
+        backend,
+    )
 }
 
 /// Read a NIfTI file as an integer label map in ZYX order.

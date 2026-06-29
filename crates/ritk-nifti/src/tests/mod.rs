@@ -439,5 +439,7 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "coeus")]
+mod tests_coeus;
 mod tests_format_sources;
 mod tests_labels;

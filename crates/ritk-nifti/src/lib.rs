@@ -48,6 +48,8 @@ mod spatial;
 mod writer;
 
 pub use reader::{read_nifti, read_nifti_from_bytes, read_nifti_labels};
+#[cfg(feature = "coeus")]
+pub use reader::{read_nifti_coeus, read_nifti_coeus_from_bytes};
 pub use writer::{write_nifti, write_nifti2, write_nifti2_labels, write_nifti_labels};
 
 use burn::tensor::backend::Backend;
