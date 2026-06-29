@@ -7012,6 +7012,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "coeus-core",
  "flate2",
  "ritk-core",
  "ritk-image",

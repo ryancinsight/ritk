@@ -40,6 +40,8 @@ mod test_support;
 mod types;
 mod writer;
 
+#[cfg(feature = "coeus")]
+pub use reader::read_mgh_coeus;
 pub use reader::{read_mgh, MghReader};
 pub use writer::{write_mgh, MghWriter};
 

@@ -40,10 +40,35 @@ pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Resu
     }
 }
 
+/// Backend-agnostic decoded MGH volume: voxels in `[nz, ny, nx]` order plus the
+/// derived physical geometry. Shared by the Burn and Coeus reader paths so the
+/// header parse, bounded voxel read, and geometry derivation have a single
+/// implementation.
+struct DecodedMgh {
+    data: Vec<f32>,
+    dims: [usize; 3],
+    origin: ritk_spatial::Point<3>,
+    spacing: ritk_spatial::Spacing<3>,
+    direction: ritk_spatial::Direction<3>,
+}
+
 fn read_mgh_from_reader<B: Backend, R: Read>(
     reader: &mut R,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
+    let DecodedMgh {
+        data,
+        dims,
+        origin,
+        spacing,
+        direction,
+    } = decode_mgh(reader)?;
+    let tensor_data = TensorData::new(data, Shape::new(dims));
+    let tensor = Tensor::<B, 3>::from_data(tensor_data, device);
+    Ok(Image::new(tensor, origin, spacing, direction))
+}
+
+fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
     let version = read_i32_be(reader)?;
     if version != VERSION {
         bail!(
@@ -128,10 +153,59 @@ fn read_mgh_from_reader<B: Backend, R: Read>(
         .context("Failed to read MGH voxel data")?;
     let f32_data = decode_voxels(mri_type, &raw);
 
-    let tensor_data = TensorData::new(f32_data, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<B, 3>::from_data(tensor_data, device);
+    Ok(DecodedMgh {
+        data: f32_data,
+        dims: [nz, ny, nx],
+        origin,
+        spacing,
+        direction,
+    })
+}
 
-    Ok(Image::new(tensor, origin, spacing, direction))
+/// Read an MGH or MGZ file into a Coeus-backed 3-D image on `backend`.
+///
+/// The Atlas-tensor counterpart to [`read_mgh`]: shares the header parse,
+/// bounded voxel read, and geometry derivation with the Burn path, differing
+/// only in the final image construction. `.mgz`/`.mgh.gz` paths are gzip-decoded.
+#[cfg(feature = "coeus")]
+pub fn read_mgh_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    P: AsRef<Path>,
+{
+    let path = path.as_ref();
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
+
+    if is_gzip_path(path) {
+        let gz = GzDecoder::new(BufReader::new(file));
+        let mut reader = BufReader::new(gz);
+        read_mgh_coeus_from_reader(&mut reader, backend)
+            .with_context(|| format!("Failed to parse MGZ file {:?}", path))
+    } else {
+        let mut reader = BufReader::new(file);
+        read_mgh_coeus_from_reader(&mut reader, backend)
+            .with_context(|| format!("Failed to parse MGH file {:?}", path))
+    }
+}
+
+#[cfg(feature = "coeus")]
+fn read_mgh_coeus_from_reader<B, R>(
+    reader: &mut R,
+    backend: &B,
+) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    R: Read,
+{
+    let DecodedMgh {
+        data,
+        dims,
+        origin,
+        spacing,
+        direction,
+    } = decode_mgh(reader)?;
+    ritk_image::coeus::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3]> {

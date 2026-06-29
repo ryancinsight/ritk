@@ -9,6 +9,8 @@ use ritk_spatial::{Direction, Point, Spacing};
 use std::io::Write;
 use tempfile::tempdir;
 
+#[cfg(feature = "coeus")]
+mod coeus;
 mod datatypes;
 mod errors;
 mod geometry;
