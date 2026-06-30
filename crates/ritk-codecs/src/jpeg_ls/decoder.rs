@@ -2,7 +2,20 @@
 
 use super::bitstream::BitReader;
 use super::scan::{decode_scan, Predictor, ScanParams};
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
+
+/// Upper bound on the decoded pixel count (`width × height`).
+///
+/// JPEG-LS dimensions are 16-bit SOF55 header fields, so a hostile or corrupt
+/// header can declare up to 65535×65535 ≈ 4.3 billion pixels. The scan decoder
+/// materializes one `i32` working buffer and one output sample per declared
+/// pixel regardless of how few scan bytes are present, and run mode can expand a
+/// handful of bits into an arbitrarily long pixel run — so the decoded size
+/// cannot be bounded by the scan length, only by the declared dimensions.
+/// This cap (256 Mi pixels ≈ a 1 GiB `i32` working buffer) admits realistic
+/// medical frames while rejecting absurd headers that would otherwise allocate
+/// multiple gigabytes and loop billions of times from a tiny file.
+const MAX_DECODED_PIXELS: usize = 1 << 28;
 
 /// Interleave mode from the SOS header (JPEG-LS standard §C.1.3).
 ///
@@ -96,6 +109,22 @@ impl JpegLsDecoder {
             );
         }
 
+        // Bound the decode against a hostile/corrupt header before allocating
+        // the per-pixel working and sample buffers. `checked_mul` also rejects a
+        // `width * height` product that would overflow `usize`.
+        let pixel_count = self
+            .width
+            .checked_mul(self.height)
+            .filter(|&n| n <= MAX_DECODED_PIXELS)
+            .ok_or_else(|| {
+                anyhow!(
+                    "JPEG-LS image {}x{} exceeds the {}-pixel decode limit",
+                    self.width,
+                    self.height,
+                    MAX_DECODED_PIXELS
+                )
+            })?;
+
         let params = ScanParams {
             rows: self.height,
             cols: self.width,
@@ -108,7 +137,7 @@ impl JpegLsDecoder {
         };
 
         let mut reader = BitReader::new(data);
-        let mut samples = Vec::with_capacity(self.height * self.width);
+        let mut samples = Vec::with_capacity(pixel_count);
         decode_scan(&mut reader, &params, &mut samples).context("JPEG-LS scan decode failed")?;
 
         let bytes_per_sample = (self.bits_per_sample as usize).div_ceil(8);
@@ -121,5 +150,28 @@ impl JpegLsDecoder {
             }
         }
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decode_fragment_rejects_oversized_dimensions_without_oom() {
+        // A hostile SOF55 can declare 65535×65535 ≈ 4.29e9 pixels. The guard must
+        // reject it with a typed error rather than allocating a ~17 GiB buffer and
+        // looping billions of times over an empty scan.
+        let mut decoder = JpegLsDecoder::new();
+        decoder.width = 65535;
+        decoder.height = 65535;
+        decoder.components.push(ComponentInfo {});
+        let err = decoder
+            .decode_fragment(&[])
+            .expect_err("oversized JPEG-LS dimensions must error");
+        assert!(
+            err.to_string().contains("decode limit"),
+            "unexpected error: {err}"
+        );
     }
 }
