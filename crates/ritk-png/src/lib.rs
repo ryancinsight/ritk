@@ -16,15 +16,34 @@ pub fn read_png_to_image<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
-    let path = path.as_ref();
+    let (pixels, dims) = decode_png_single(path.as_ref())?;
+    image_from_flat_pixels(pixels, dims[0], dims[1], dims[2], device)
+}
+
+/// Read a single grayscale PNG into a Coeus-backed `Image` on `backend`.
+///
+/// The Atlas-tensor counterpart to [`read_png_to_image`], sharing `decode_png_single`.
+#[cfg(feature = "coeus")]
+pub fn read_png_to_image_coeus<B, P>(
+    path: P,
+    backend: &B,
+) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    P: AsRef<Path>,
+{
+    let (pixels, dims) = decode_png_single(path.as_ref())?;
+    coeus_image_from_flat_pixels(pixels, dims, backend)
+}
+
+/// Decode a single grayscale PNG into row-major `f32` pixels and `[1, h, w]` dims.
+fn decode_png_single(path: &Path) -> Result<(Vec<f32>, [usize; 3])> {
     let img = image::open(path)
         .with_context(|| format!("Failed to open PNG: {}", path.display()))?
         .to_luma8();
-
     let (width, height) = img.dimensions();
     let pixels: Vec<f32> = img.iter().map(|&v| v as f32).collect();
-
-    image_from_flat_pixels(pixels, 1, height as usize, width as usize, device)
+    Ok((pixels, [1, height as usize, width as usize]))
 }
 
 /// Read a directory of PNG files into a 3-D image with shape `[depth, height, width]`.
@@ -34,7 +53,28 @@ pub fn read_png_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
-    let dir = path.as_ref();
+    let (pixels, dims) = decode_png_series(path.as_ref())?;
+    image_from_flat_pixels(pixels, dims[0], dims[1], dims[2], device)
+}
+
+/// Read a directory of PNG files into a Coeus-backed `[depth, height, width]` image.
+///
+/// The Atlas-tensor counterpart to [`read_png_series`], sharing `decode_png_series`.
+#[cfg(feature = "coeus")]
+pub fn read_png_series_coeus<B, P>(
+    path: P,
+    backend: &B,
+) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    P: AsRef<Path>,
+{
+    let (pixels, dims) = decode_png_series(path.as_ref())?;
+    coeus_image_from_flat_pixels(pixels, dims, backend)
+}
+
+/// Decode a sorted PNG series into row-major `f32` pixels and `[depth, h, w]` dims.
+fn decode_png_series(dir: &Path) -> Result<(Vec<f32>, [usize; 3])> {
     let png_files = sorted_png_files(dir)?;
 
     let first_img = image::open(&png_files[0])
@@ -66,13 +106,10 @@ pub fn read_png_series<B: Backend, P: AsRef<Path>>(
         append_png_pixels(&mut all_pixels, &img);
     }
 
-    image_from_flat_pixels(
+    Ok((
         all_pixels,
-        png_files.len(),
-        height as usize,
-        width as usize,
-        device,
-    )
+        [png_files.len(), height as usize, width as usize],
+    ))
 }
 
 pub(crate) fn sorted_png_files(dir: &Path) -> Result<Vec<PathBuf>> {
@@ -135,6 +172,25 @@ fn image_from_flat_pixels<B: Backend>(
     let direction = Direction::identity();
 
     Ok(Image::new(tensor, origin, spacing, direction))
+}
+
+/// Build a Coeus-backed grayscale image from flat pixels and `[depth, h, w]`
+/// dims with default spatial metadata. The Coeus constructor validates the
+/// shape product against `pixels.len()`.
+#[cfg(feature = "coeus")]
+fn coeus_image_from_flat_pixels<B: coeus_core::ComputeBackend>(
+    pixels: Vec<f32>,
+    dims: [usize; 3],
+    backend: &B,
+) -> Result<ritk_image::coeus::Image<f32, B, 3>> {
+    ritk_image::coeus::Image::from_flat_on(
+        pixels,
+        dims,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+        backend,
+    )
 }
 
 /// DIP boundary for standard PNG single slices.
@@ -299,5 +355,34 @@ mod tests {
         assert_eq!(natural_cmp("slice2", "slice10"), Ordering::Less);
         assert_eq!(natural_cmp("slice10", "slice2"), Ordering::Greater);
         assert_eq!(natural_cmp("slice2", "slice02"), Ordering::Less);
+    }
+
+    #[cfg(feature = "coeus")]
+    #[test]
+    fn read_png_coeus_matches_burn_single_and_series() -> anyhow::Result<()> {
+        use crate::{read_png_series_coeus, read_png_to_image_coeus};
+        use coeus_core::SequentialBackend;
+
+        let dir = tempdir()?;
+        let single = dir.path().join("slice.png");
+        write_gray_png(&single, 3, 2, &[10, 20, 30, 40, 50, 60]);
+        let device: <TestBackend as Backend>::Device = Default::default();
+
+        let burn = read_png_to_image::<TestBackend, _>(&single, &device)?;
+        let coeus = read_png_to_image_coeus(&single, &SequentialBackend)?;
+        assert_eq!(coeus.shape(), burn.shape());
+        assert_eq!(coeus.data_slice()?, tensor_values(&burn).as_slice());
+
+        let series_dir = tempdir()?;
+        write_gray_png(&series_dir.path().join("s1.png"), 2, 1, &[1, 4]);
+        write_gray_png(&series_dir.path().join("s2.png"), 2, 1, &[2, 3]);
+        let burn_series = read_png_series::<TestBackend, _>(series_dir.path(), &device)?;
+        let coeus_series = read_png_series_coeus(series_dir.path(), &SequentialBackend)?;
+        assert_eq!(coeus_series.shape(), burn_series.shape());
+        assert_eq!(
+            coeus_series.data_slice()?,
+            tensor_values(&burn_series).as_slice()
+        );
+        Ok(())
     }
 }
