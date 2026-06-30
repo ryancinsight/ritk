@@ -269,14 +269,13 @@ dependencies = [
  "coeus-core",
  "coeus-ops",
  "coeus-tensor",
+ "eunomia",
  "half",
  "hermes-simd 0.2.0",
  "leto",
  "mnemosyne",
  "moirai",
  "ndarray 0.16.1",
- "num-complex",
- "num-traits",
  "once_cell",
  "parking_lot",
  "rand 0.8.5",
@@ -1497,6 +1496,7 @@ name = "coeus-core"
 version = "0.5.4"
 dependencies = [
  "bytemuck",
+ "eunomia",
  "half",
  "hermes-simd 0.3.0",
  "mnemosyne",
@@ -2950,6 +2950,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 
 [[package]]
+name = "eunomia"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "half",
+ "libm",
+ "rkyv",
+]
+
+[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3293,13 +3303,12 @@ dependencies = [
  "anyhow",
  "approx",
  "aquamarine",
+ "eunomia",
  "geometry-predicates",
  "hashbrown 0.15.5",
  "indexmap",
  "leto",
  "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
- "nalgebra",
- "num-traits",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -3676,23 +3685,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "hermes-numeric"
-version = "0.3.0"
-dependencies = [
- "bytemuck",
- "half",
- "libm",
- "rkyv",
-]
-
-[[package]]
 name = "hermes-simd"
 version = "0.2.0"
 source = "git+https://github.com/ryancinsight/hermes.git?rev=df67249ef05de8e1addc5a26d6831c70d63c3d18#df67249ef05de8e1addc5a26d6831c70d63c3d18"
 dependencies = [
  "bytemuck",
  "half",
- "hermes-numeric 0.2.0",
+ "hermes-numeric",
  "hermes-simd-core 0.2.0",
  "hermes-simd-intrinsics 0.2.0",
  "hermes-simd-macros 0.2.0",
@@ -3705,8 +3704,8 @@ name = "hermes-simd"
 version = "0.3.0"
 dependencies = [
  "bytemuck",
+ "eunomia",
  "half",
- "hermes-numeric 0.3.0",
  "hermes-simd-core 0.3.0",
  "hermes-simd-intrinsics 0.3.0",
  "hermes-simd-macros 0.3.0",
@@ -3721,7 +3720,7 @@ source = "git+https://github.com/ryancinsight/hermes.git?rev=df67249ef05de8e1add
 dependencies = [
  "bytemuck",
  "half",
- "hermes-numeric 0.2.0",
+ "hermes-numeric",
  "mnemosyne",
  "rkyv",
 ]
@@ -3731,8 +3730,8 @@ name = "hermes-simd-core"
 version = "0.3.0"
 dependencies = [
  "bytemuck",
+ "eunomia",
  "half",
- "hermes-numeric 0.3.0",
  "mnemosyne",
  "rkyv",
  "themis",
@@ -3745,7 +3744,7 @@ source = "git+https://github.com/ryancinsight/hermes.git?rev=df67249ef05de8e1add
 dependencies = [
  "bytemuck",
  "half",
- "hermes-numeric 0.2.0",
+ "hermes-numeric",
  "hermes-simd-core 0.2.0",
  "rkyv",
 ]
@@ -3755,8 +3754,8 @@ name = "hermes-simd-intrinsics"
 version = "0.3.0"
 dependencies = [
  "bytemuck",
+ "eunomia",
  "half",
- "hermes-numeric 0.3.0",
  "hermes-simd-core 0.3.0",
  "rkyv",
 ]
@@ -4612,11 +4611,11 @@ name = "leto"
 version = "0.35.1"
 dependencies = [
  "bytemuck",
+ "eunomia",
  "half",
  "mnemosyne",
  "ndarray 0.16.1",
- "num-complex",
- "num-traits",
+ "serde",
  "thiserror 2.0.18",
 ]
 
@@ -4629,8 +4628,6 @@ dependencies = [
  "hermes-simd 0.3.0",
  "leto",
  "moirai",
- "num-complex",
- "num-traits",
  "themis",
  "thiserror 2.0.18",
 ]
@@ -4920,6 +4917,7 @@ dependencies = [
 name = "mnemosyne"
 version = "0.2.0"
 dependencies = [
+ "eunomia",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-core",
@@ -4928,16 +4926,15 @@ dependencies = [
  "mnemosyne-heap",
  "mnemosyne-local",
  "mnemosyne-prof",
- "num-complex",
 ]
 
 [[package]]
 name = "mnemosyne-arena"
 version = "0.2.0"
 dependencies = [
+ "eunomia",
  "mnemosyne-backend",
  "mnemosyne-core",
- "num-complex",
  "themis",
 ]
 
@@ -5215,34 +5212,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nalgebra"
-version = "0.33.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26aecdf64b707efd1310e3544d709c5c0ac61c13756046aaaba41be5c4f66a3b"
-dependencies = [
- "approx",
- "matrixmultiply",
- "nalgebra-macros",
- "num-complex",
- "num-rational",
- "num-traits",
- "serde",
- "simba",
- "typenum",
-]
-
-[[package]]
-name = "nalgebra-macros"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "254a5372af8fc138e36684761d3c0cdb758a4410e938babcff1c860ce14ddbfc"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.114",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5420,9 +5389,7 @@ version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
 dependencies = [
- "bytemuck",
  "num-traits",
- "serde",
 ]
 
 [[package]]
@@ -6870,9 +6837,9 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "criterion",
+ "eunomia",
  "gaia",
  "moirai",
- "num-complex",
  "rand 0.9.2",
  "ritk-annotation",
  "ritk-core",
@@ -6972,6 +6939,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "coeus-core",
  "image 0.24.9",
  "ritk-core",
  "ritk-image",
@@ -7029,6 +6997,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "coeus-core",
  "consus-core",
  "consus-hdf5",
  "consus-io",
@@ -7103,6 +7072,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "coeus-core",
  "image 0.24.9",
  "ritk-core",
  "ritk-image",
@@ -7255,7 +7225,7 @@ dependencies = [
  "coeus-leto",
  "coeus-ops",
  "coeus-tensor",
- "num-traits",
+ "eunomia",
  "ritk-image",
  "ritk-spatial",
 ]
@@ -7267,6 +7237,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "coeus-core",
  "ritk-core",
  "ritk-image",
  "ritk-spatial",
@@ -7448,15 +7419,6 @@ name = "safe-transmute"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3944826ff8fa8093089aba3acb4ef44b9446a99a16f3bf4e74af3f77d340ab7d"
-
-[[package]]
-name = "safe_arch"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b02de82ddbe1b636e6170c21be622223aea188ef2e139be0a5b219ec215323"
-dependencies = [
- "bytemuck",
-]
 
 [[package]]
 name = "same-file"
@@ -7682,19 +7644,6 @@ checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
 dependencies = [
  "errno",
  "libc",
-]
-
-[[package]]
-name = "simba"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c99284beb21666094ba2b75bbceda012e610f5479dfcc2d6e2426f53197ffd95"
-dependencies = [
- "approx",
- "num-complex",
- "num-traits",
- "paste",
- "wide",
 ]
 
 [[package]]
@@ -9196,16 +9145,6 @@ dependencies = [
  "home",
  "once_cell",
  "rustix 0.38.44",
-]
-
-[[package]]
-name = "wide"
-version = "0.7.33"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ce5da8ecb62bcd8ec8b7ea19f69a51275e91299be594ea5cc6ef7819e16cd03"
-dependencies = [
- "bytemuck",
- "safe_arch",
 ]
 
 [[package]]

@@ -20,7 +20,7 @@ use super::helpers::{
     run_fft,
 };
 use crate::fft::convolution::{ForwardFft, InverseFft};
-use num_complex::Complex;
+use eunomia::Complex;
 
 /// Default convergence tolerance for iterative deconvolution algorithms.
 pub(crate) const DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6;

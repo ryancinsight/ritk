@@ -1,6 +1,6 @@
 use apollo_fft::domain::metadata::shape::Shape1D;
 use apollo_fft::FftPlan1D;
-use num_complex::Complex;
+use eunomia::Complex;
 
 // ── ZST FFT direction strategy ──────────────────────────────────────────────
 

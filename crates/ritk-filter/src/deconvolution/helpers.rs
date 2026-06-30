@@ -8,7 +8,7 @@
 //! and crop logic is shared across all supported dimensionalities.
 
 use crate::fft::convolution::{fft_nd, ForwardFft, InverseFft};
-use num_complex::Complex;
+use eunomia::Complex;
 
 // ── Padding & FFT ───────────────────────────────────────────────────────────
 

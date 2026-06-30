@@ -27,7 +27,7 @@
 use crate::fft::convolution::{fft_nd, ForwardFft};
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use num_complex::Complex;
+use eunomia::Complex;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 

@@ -30,7 +30,7 @@
 
 use anyhow::{bail, Result};
 use burn::tensor::backend::Backend;
-use num_complex::Complex;
+use eunomia::Complex;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
