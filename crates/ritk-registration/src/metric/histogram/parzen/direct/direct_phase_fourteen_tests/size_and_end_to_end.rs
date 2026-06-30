@@ -42,17 +42,40 @@ fn fma_inner_loop_matches_reference() {
 #[test]
 fn compaction_sizes_regression() {
     let sizes = compaction_sizes();
-    assert_eq!(sizes.bin_range, 4, "BinRange must be 4 bytes (u16×2), got {}", sizes.bin_range);
-    assert_eq!(sizes.sparse_fixed_entry, 8, "SparseWFixedEntry must be 8 bytes (u16+pad+f32), got {}", sizes.sparse_fixed_entry);
-    assert!(sizes.stack_weights >= 128 && sizes.stack_weights <= 136, "StackWeights must be ~128-136 bytes, got {}", sizes.stack_weights);
-    assert!(sizes.parzen_config >= 16 && sizes.parzen_config <= 32, "ParzenConfig must be 16-32 bytes (usize half_width), got {}", sizes.parzen_config);
-    assert!(sizes.sample_window >= 256 && sizes.sample_window <= 352, "SampleWindow must be 256-352 bytes, got {}", sizes.sample_window);
+    assert_eq!(
+        sizes.bin_range, 4,
+        "BinRange must be 4 bytes (u16×2), got {}",
+        sizes.bin_range
+    );
+    assert_eq!(
+        sizes.sparse_fixed_entry, 8,
+        "SparseWFixedEntry must be 8 bytes (u16+pad+f32), got {}",
+        sizes.sparse_fixed_entry
+    );
+    assert!(
+        sizes.stack_weights >= 128 && sizes.stack_weights <= 136,
+        "StackWeights must be ~128-136 bytes, got {}",
+        sizes.stack_weights
+    );
+    assert!(
+        sizes.parzen_config >= 16 && sizes.parzen_config <= 32,
+        "ParzenConfig must be 16-32 bytes (usize half_width), got {}",
+        sizes.parzen_config
+    );
+    assert!(
+        sizes.sample_window >= 256 && sizes.sample_window <= 352,
+        "SampleWindow must be 256-352 bytes, got {}",
+        sizes.sample_window
+    );
 }
 
 #[test]
 fn stack_weights_size_exact() {
     let size = std::mem::size_of::<StackWeights>();
-    assert!(size == 128 || size == 132 || size == 136, "StackWeights is {size} bytes — expected 128, 132, or 136 (depends on alignment)");
+    assert!(
+        size == 128 || size == 132 || size == 136,
+        "StackWeights is {size} bytes — expected 128, 132, or 136 (depends on alignment)"
+    );
 }
 
 #[test]
@@ -70,7 +93,10 @@ fn sparse_fixed_entry_size_exact() {
 #[test]
 fn parzen_config_size() {
     let size = std::mem::size_of::<ParzenConfig>();
-    assert!(size == 12 || size == 16 || size == 24, "ParzenConfig is {size} bytes — expected 12, 16, or 24 (platform-dependent)");
+    assert!(
+        size == 12 || size == 16 || size == 24,
+        "ParzenConfig is {size} bytes — expected 12, 16, or 24 (platform-dependent)"
+    );
 }
 
 // ── CLEANUP-329-03: Verify dead_code annotations are still valid ────────
@@ -102,7 +128,10 @@ fn sparse_w_fixed_t_is_tuple_type() {
     assert_eq!(sparse.len(), 1, "single sample → one entry");
     let (entries, inv_sum_f) = &sparse[0];
     assert!(!entries.is_empty(), "in-bounds sample must have entries");
-    assert!(*inv_sum_f > 0.0, "inv_sum_f must be positive for in-bounds sample");
+    assert!(
+        *inv_sum_f > 0.0,
+        "inv_sum_f must be positive for in-bounds sample"
+    );
 }
 
 // ── Accumulate_sample_sparse with inv_norm parameter ─────────────────────
@@ -164,19 +193,32 @@ fn sparse_path_with_pool_matches_without() {
     let sparse_w_fixed = build_sparse_w_fixed_transposed(&fixed, num_bins, sigma_sq, None);
 
     let hist_no_pool = compute_joint_histogram_from_cache_sparse(
-        &sparse_w_fixed, &moving, num_bins, sigma_sq, None, None,
+        &sparse_w_fixed,
+        &moving,
+        num_bins,
+        sigma_sq,
+        None,
+        None,
     );
 
     let pool = HistogramPool::new(num_bins * num_bins);
     let hist_with_pool = compute_joint_histogram_from_cache_sparse(
-        &sparse_w_fixed, &moving, num_bins, sigma_sq, None, Some(&pool),
+        &sparse_w_fixed,
+        &moving,
+        num_bins,
+        sigma_sq,
+        None,
+        Some(&pool),
     );
 
     let no_pool_slice = hist_no_pool.as_slice::<f32>().unwrap();
     let with_pool_slice = hist_with_pool.as_slice::<f32>().unwrap();
 
     for (i, (a, b)) in no_pool_slice.iter().zip(with_pool_slice.iter()).enumerate() {
-        assert!((a - b).abs() < 1e-10, "pool mismatch at bin {i}: no_pool={a}, with_pool={b}");
+        assert!(
+            (a - b).abs() < 1e-10,
+            "pool mismatch at bin {i}: no_pool={a}, with_pool={b}"
+        );
     }
 }
 
@@ -193,7 +235,12 @@ fn sparse_sigma_invariance() {
     for &sigma_sq in &[0.5, 1.0, 4.0] {
         let sparse_w_fixed = build_sparse_w_fixed_transposed(&fixed, num_bins, sigma_sq, None);
         let hist_data = compute_joint_histogram_from_cache_sparse(
-            &sparse_w_fixed, &moving, num_bins, sigma_sq, None, None,
+            &sparse_w_fixed,
+            &moving,
+            num_bins,
+            sigma_sq,
+            None,
+            None,
         );
         let sum: f32 = hist_data.as_slice::<f32>().unwrap().iter().sum();
         sums.push(sum);
@@ -202,6 +249,9 @@ fn sparse_sigma_invariance() {
     let avg = sums.iter().sum::<f32>() / sums.len() as f32;
     for (i, &sum) in sums.iter().enumerate() {
         let rel = (sum - avg).abs() / avg;
-        assert!(rel < 0.15, "sigma variant {i}: sum={sum}, avg={avg}, rel={rel}");
+        assert!(
+            rel < 0.15,
+            "sigma variant {i}: sum={sum}, avg={avg}, rel={rel}"
+        );
     }
 }

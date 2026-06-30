@@ -4,6 +4,7 @@
 
 pub(crate) mod cache_slot;
 pub mod correlation_ratio;
+pub mod dl_losses;
 pub mod entropy;
 pub mod histogram;
 pub mod lncc;

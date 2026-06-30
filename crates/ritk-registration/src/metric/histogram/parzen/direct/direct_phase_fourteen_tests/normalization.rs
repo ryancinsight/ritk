@@ -1,6 +1,5 @@
 //! SPARSE-329-01: Full joint normalization in sparse path.
 
-use super::super::sample::SampleWindow;
 use super::super::types::ParzenConfig;
 use super::super::*;
 

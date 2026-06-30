@@ -11,7 +11,6 @@ mnemosyne-alloc = ["dep:mnemosyne"]
 burn = { workspace = true }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-image = { path = "../ritk-image" }
-ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
 ritk-morphology = { path = "../ritk-morphology" }
 ritk-annotation = { path = "../ritk-annotation" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }

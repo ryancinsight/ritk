@@ -155,3 +155,9 @@ pub use dispatch_nearest as dispatch_nearest_for_shape;
 #[cfg(test)]
 #[path = "../tests_dispatch/mod.rs"]
 mod tests_dispatch;
+
+/// Cross-dimension routing smoke tests (distinct from [`tests_dispatch`],
+/// which covers per-kernel dispatch correctness).
+#[cfg(test)]
+#[path = "tests_dispatch.rs"]
+mod tests_dispatch_routing;

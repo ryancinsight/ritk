@@ -151,6 +151,8 @@ mod direct_phase_eleven_tests;
 #[cfg(test)]
 mod direct_phase_fifteen_tests;
 #[cfg(test)]
+mod direct_phase_fourteen_tests;
+#[cfg(test)]
 mod direct_phase_nine_tests;
 #[cfg(test)]
 mod direct_phase_seven_tests;

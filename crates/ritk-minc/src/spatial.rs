@@ -176,3 +176,7 @@ pub fn build_spatial_metadata(
 
     (origin, spacing, direction)
 }
+
+#[cfg(test)]
+#[path = "tests_spatial.rs"]
+mod tests_spatial;

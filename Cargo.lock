@@ -6811,7 +6811,6 @@ dependencies = [
  "ritk-spatial",
  "ritk-statistics",
  "ritk-tensor-ops",
- "ritk-wgpu-compat",
 ]
 
 [[package]]

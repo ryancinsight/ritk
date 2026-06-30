@@ -200,3 +200,92 @@ pub fn mi_loss<B: Backend>(
     // Return negative MI
     mi.neg()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use burn_ndarray::NdArray;
+
+    type B = NdArray<f32>;
+
+    /// Build a [1, 1, d, d, d] non-constant tensor (ascending values) so
+    /// correlation-based losses are well-defined (zero-variance inputs make
+    /// NCC/LNCC's denominator vanish).
+    fn ascending_volume(d: usize, device: &<B as Backend>::Device) -> Tensor<B, 5> {
+        let n = d * d * d;
+        let data: Vec<f32> = (0..n).map(|i| i as f32).collect();
+        Tensor::<B, 1>::from_floats(data.as_slice(), device).reshape([1, 1, d, d, d])
+    }
+
+    #[test]
+    fn mse_loss_identical_images_is_exactly_zero() {
+        let device = Default::default();
+        let image = ascending_volume(3, &device);
+        let loss = mse_loss(image.clone(), image).into_scalar();
+        assert_eq!(loss, 0.0, "MSE of identical images must be exactly zero");
+    }
+
+    #[test]
+    fn mse_loss_known_constant_difference_matches_closed_form() {
+        let device = Default::default();
+        let zeros = Tensor::<B, 5>::zeros([1, 1, 2, 2, 2], &device);
+        let ones = Tensor::<B, 5>::ones([1, 1, 2, 2, 2], &device);
+        // mean((0 - 1)^2) = 1.0 exactly.
+        let loss = mse_loss(zeros, ones).into_scalar();
+        assert_eq!(loss, 1.0, "MSE of an all-zero/all-one pair must equal 1.0");
+    }
+
+    #[test]
+    fn ncc_loss_identical_non_constant_images_is_near_negative_one() {
+        let device = Default::default();
+        let image = ascending_volume(4, &device);
+        // Self-correlation is exactly 1, so the negated NCC loss is exactly -1
+        // up to the numerical-stability epsilon added to the denominator.
+        let loss = ncc_loss(image.clone(), image).into_scalar();
+        assert!(
+            (loss - (-1.0)).abs() < 1e-3,
+            "NCC of an image with itself should be ~-1.0, got {loss}"
+        );
+    }
+
+    #[test]
+    fn lncc_loss_identical_non_constant_images_is_near_negative_one() {
+        let device = Default::default();
+        let image = ascending_volume(5, &device);
+        let loss = lncc_loss(image.clone(), image, 3).into_scalar();
+        assert!(
+            (loss - (-1.0)).abs() < 1e-2,
+            "LNCC of an image with itself should be ~-1.0, got {loss}"
+        );
+    }
+
+    #[test]
+    fn mi_loss_self_information_exceeds_unrelated_images() {
+        let device = Default::default();
+        let d = 4;
+        let image = ascending_volume(d, &device);
+        let n = d * d * d;
+        // A genuinely unrelated image: a low-period repeating pattern. Unlike
+        // a monotonic transform of `image` (which would carry identical MI,
+        // since MI is invariant under invertible per-variable maps), this
+        // many-to-one mapping breaks the voxel-wise correspondence.
+        let unrelated: Vec<f32> = (0..n).map(|i| (i % 3) as f32).collect();
+        let other =
+            Tensor::<B, 1>::from_floats(unrelated.as_slice(), &device).reshape([1, 1, d, d, d]);
+
+        // Normalize both to [0, 1] as mi_loss assumes.
+        let max = (n - 1) as f32;
+        let norm_image = image.clone() / max;
+        let norm_other = other / 2.0;
+
+        let self_mi = mi_loss(norm_image.clone(), norm_image.clone(), 8, 0.1).into_scalar();
+        let cross_mi = mi_loss(norm_image, norm_other, 8, 0.1).into_scalar();
+        assert!(self_mi.is_finite() && cross_mi.is_finite());
+        // Self-MI (negated) must be the more negative of the two: an image
+        // carries maximal information about itself.
+        assert!(
+            self_mi < cross_mi,
+            "negated self-MI ({self_mi}) should be < negated cross-MI ({cross_mi})"
+        );
+    }
+}
