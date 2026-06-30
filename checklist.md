@@ -1,5 +1,47 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 461 — Restore Orphaned DICOM color_multiframe Module
+**Target version**: 0.14.0
+**Sprint phase**: Closure — orphaned module restored; both color loaders bounded
+
+### In-flight plan (Sprint 461)
+- [x] SEC-460-03 [patch]: Bound the DICOM color-series and color-multiframe
+  `vec![0.0; total_samples]` eager allocations.
+- [x] BUG-461-01 [patch] (discovered mid-task): `color_multiframe.rs` was
+  silently dropped from `dicom/mod.rs` by an unrelated ritk-snap refactor
+  (152b7b55) — fully dead code (uncompiled, untested, unreachable) since.
+  Restored `mod color_multiframe;` + `pub use` re-export.
+- [x] TEST-461-02 [patch]: Hostile-dimension regression
+  (60000×60000×2 frames, 12 real bytes -> typed error, not OOM) for the
+  multiframe path; verified the underlying native decode already
+  bounds-checks the byte range so the fix is fully effective.
+- [x] CHORE-461-03 [patch]: Fix pre-existing rustfmt drift in
+  color_multiframe.rs (never fmt-checked while orphaned).
+
+### Verification gate (Sprint 461)
+- [x] RITK: `cargo nextest run -p ritk-io` -> 344 passed
+- [x] RITK: `cargo clippy -p ritk-io --lib --tests -- -D warnings`
+- [x] RITK: `cargo fmt -p ritk-io --check`
+- [x] RITK: `cargo doc -p ritk-io --no-deps` (warning-clean)
+
+### Process note
+- Attempted a workspace-wide basename-heuristic sweep for other orphaned
+  modules; abandoned as too noisy (many files legitimately share basenames —
+  `tests.rs`, `helpers.rs` — referenced via relative `#[path]` from different
+  parents). Filed as SEC-461-04: a proper sweep needs AST/tooling support
+  (e.g. `cargo modules`, `cargo-udeps`), not basename matching.
+
+### Deferred / carry-forward
+- [ ] SEC-461-04 [patch]: Tooling-based orphaned-module sweep (see note above).
+- [ ] TEST-461-05 [patch]: Hostile-dimension regression for the color-series
+  path (color/mod.rs) — structurally identical to the multiframe one added
+  this sprint; lower priority since the underlying mechanism is proven safe.
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
+- [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.
+
+---
+
 ## Sprint 460 — Workspace Unblock + DICOM Multiframe Alloc Bound
 **Target version**: 0.14.0
 **Sprint phase**: Closure — apollo-fft co-evolution resolved; multiframe DoS bounded

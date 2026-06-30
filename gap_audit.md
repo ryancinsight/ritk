@@ -1,5 +1,58 @@
 # RITK Gap Audit - Active
 
+## Sprint 461 Audit (2026-06-29) — Orphaned Module Discovery + Color Alloc Bound
+
+### Major finding: orphaned module
+
+- While completing SEC-460-03 (bound DICOM color allocation), discovered
+  `crates/ritk-io/src/format/dicom/color_multiframe.rs` was not declared by any
+  `mod` statement — fully dead code. `git log -S"mod color_multiframe;"`
+  traced the regression to commit `152b7b55` ("refactor(ritk-snap): restructure
+  app module and consolidate viewport rendering"), an unrelated ritk-snap
+  refactor that also touched `dicom/mod.rs` and dropped three `mod`
+  declarations (`color`, `color_common`, `color_multiframe`) plus their
+  `pub use` re-exports. `color`/`color_common` were re-wired by a later
+  commit; `color_multiframe` was not. Its public API
+  (`read_dicom_color_multiframe`, `load_dicom_color_multiframe`) has been
+  unreachable since, and its 3 tests have not run in CI since.
+- Verified the implementation was already correct: restoring the `mod`/`pub
+  use` lines alone (no logic changes) made all 3 tests compile and pass,
+  confirming no regression accumulated while the module was dark — but the
+  feature class (DICOM RGB multiframe load) was silently unavailable to any
+  consumer for an unknown number of sprints.
+- Confirmed no caller anywhere in the workspace references the dead API
+  (consistent with it being unreachable), and confirmed neither `ritk-cli` nor
+  `ritk-snap` has automatic dispatch logic for single-file RGB multiframe
+  objects (`is_rgb_dicom_series` only detects directory-based RGB *series*).
+  Wiring that dispatch is a separate, larger UX-layer enhancement spanning two
+  crates — filed as a backlog item, not done in this commit (scope discipline).
+
+### Gap Closed (SEC-460-03)
+
+- Both DICOM color loaders (`color/mod.rs`, `color_multiframe.rs`) did
+  `vec![0.0_f32; total_samples]` from header-derived Rows/Columns/NumberOfFrames
+  — checked_mul-safe but unbounded, forcing an eager multi-gigabyte zero-fill
+  before any data decoded. Converted both to a capped, incrementally-grown
+  buffer (`bounded_capacity` + `extend_from_slice` per validated frame).
+  Verified the underlying native DICOM decode (`dicom_rs.rs`) already does
+  `bytes.get(start..end).ok_or_else(...)` — a safe bounds check, not a
+  panic — so the fix fully closes the DoS surface. Hostile-dimension
+  regression added for the multiframe path.
+
+### Residual Risk
+
+- **[SEC-461-04 OPEN]** A reliable orphaned-module sweep needs AST/tooling
+  support (`cargo modules`, `cargo-udeps`, or a custom syn-based check), not
+  basename heuristics — attempted and abandoned this pass (too noisy:
+  `tests.rs`/`helpers.rs`/etc. legitimately recur via relative `#[path]` across
+  many unrelated parents).
+- **[TEST-461-05 OPEN]** The color-series path lacks its own hostile-dimension
+  regression (lower priority — same underlying mechanism proven safe by the
+  multiframe test).
+- **[Backlog]** Neither ritk-cli nor ritk-snap auto-detects single-file RGB
+  multiframe DICOM objects for dispatch to the now-restored loader; only
+  directory-based RGB series detection (`is_rgb_dicom_series`) exists.
+
 ## Sprint 460 Audit (2026-06-29) — Workspace Unblock + Multiframe Bound
 
 ### Blocker resolved

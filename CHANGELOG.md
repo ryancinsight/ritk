@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 461: Restore orphaned DICOM color_multiframe module
+
+### Fixed
+- `ritk-io`: `color_multiframe.rs` (the RGB multiframe DICOM loader —
+  `read_dicom_color_multiframe`/`load_dicom_color_multiframe`, full
+  implementation, doc comments, 3 tests) had been silently dropped from the
+  module tree by an unrelated `ritk-snap` refactor commit, which deleted its
+  `mod`/`pub use` declarations from `dicom/mod.rs`. The file has been fully
+  dead code since — never compiled, never tested, unreachable from outside
+  the crate. Restored the wiring; all 3 previously-inert tests now compile
+  and pass.
+- `ritk-io`: both DICOM color loaders (`color/mod.rs` series path and the
+  restored `color_multiframe.rs`) did `vec![0.0_f32; total_samples]` from
+  header-derived Rows/Columns/NumberOfFrames (checked_mul-safe but
+  unbounded) — an eager multi-gigabyte zero-fill before any data was
+  decoded. Converted both to a capped `Vec::with_capacity` (via
+  `bounded_capacity`) grown by `extend_from_slice` per validated,
+  sequentially-decoded frame. Confirmed the underlying native decode already
+  bounds-checks the byte range rather than panicking, so the combination
+  fully defends against hostile dimension claims. Added a hostile-dimension
+  regression.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-io` 344 passed (incl. 3 restored + 1 new
+  color_multiframe tests); clippy `-D warnings`, fmt, doc clean.
+
+---
+
 ## [Unreleased] — Sprint 460: Workspace unblock + DICOM multiframe alloc bound
 
 ### Fixed
