@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 456: TIFF Coeus reader path
+
+### Added
+- `ritk-tiff`: `read_tiff_coeus` (behind the new `coeus` feature) reads
+  multi-page TIFF/BigTIFF into `ritk_image::coeus::Image`, the Atlas-tensor
+  counterpart to the Burn-backed `read_tiff`. Completes the grayscale
+  image-reader Coeus frontier.
+
+### Changed
+- `ritk-tiff`: extracted the backend-agnostic page decode and dimension
+  validation into `decode_tiff_from_reader` shared by the Burn and Coeus paths
+  (DRY/SSOT).
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-tiff` 16 passed (default) and 17 passed
+  (`--features coeus`, incl. a Burn/Coeus differential); clippy `-D warnings`
+  clean for both feature sets; doc/fmt clean.
+
+---
+
 ## [Unreleased] — Sprint 455: PNG Coeus reader paths
 
 ### Added

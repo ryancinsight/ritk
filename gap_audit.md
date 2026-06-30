@@ -1,5 +1,29 @@
 # RITK Gap Audit - Active
 
+## Sprint 456 Audit (2026-06-29) — TIFF Coeus Reader Path
+
+### Audit + Gap Closed
+
+- Reviewed the TIFF decode path: `decode_page_to_scalar` already uses
+  `into_iter().map` over the decoded buffer (no per-pixel indexing) — clean.
+- **[MIG-456 CLOSED]** Added feature-gated `read_tiff_coeus` sharing
+  `decode_tiff_from_reader` with the Burn path; Burn/Coeus differential test.
+
+### Milestone
+
+- **Grayscale image-reader Coeus frontier complete**: mgh, nifti, metaimage,
+  minc, jpeg, png, tiff all expose additive `--features coeus` reader paths via
+  the `decode_* + from_flat_on` pattern, each validated against the Burn path.
+
+### Residual Risk / next
+
+- Color-volume Coeus variants (jpeg/png/tiff RGB) and the DICOM reader (distinct
+  API) remain Burn-only. The diminishing marginal value of further additive
+  per-crate reader paths suggests the next high-leverage work is the fleet-owned
+  central `Image` migration (which these paths feed), or a fresh audit dimension
+  (PERF-432-01; the J2K/JPEG-LS codec safety sweep).
+- Burn remains the default surface until the central `Image` migration completes.
+
 ## Sprint 455 Audit (2026-06-29) — PNG Coeus Reader Paths
 
 ### Audit + Gap Closed

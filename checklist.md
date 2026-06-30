@@ -1,5 +1,37 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 456 — TIFF Coeus Reader Path (grayscale frontier complete)
+**Target version**: 0.14.0 (minor: additive public API)
+**Sprint phase**: Closure — TIFF Coeus path landed; grayscale reader frontier done
+
+### In-flight plan (Sprint 456)
+- [x] MIG-456-01 [minor]: Extract backend-agnostic `decode_tiff_from_reader`
+  (page decode + dimension validation) shared by Burn and Coeus.
+- [x] MIG-456-02 [minor]: Add `coeus` feature + `read_tiff_coeus`; re-export.
+- [x] TEST-456-03 [minor]: Burn/Coeus differential test.
+
+### Verification gate (Sprint 456)
+- [x] RITK: `cargo fmt -p ritk-tiff --check`
+- [x] RITK: `cargo nextest run -p ritk-tiff` -> 16 passed
+- [x] RITK: `cargo nextest run -p ritk-tiff --features coeus` -> 17 passed
+- [x] RITK: `cargo clippy -p ritk-tiff --all-targets -- -D warnings` (default + coeus)
+- [x] RITK: `cargo doc -p ritk-tiff --features coeus --no-deps` (warning-clean)
+
+### Milestone
+- Grayscale single-image/volume Coeus reader paths complete:
+  **mgh, nifti, metaimage, minc, jpeg, png, tiff**.
+
+### Deferred / carry-forward
+- [ ] MIG-456-04 [minor]: Color-volume Coeus variants across jpeg/png/tiff;
+  DICOM Coeus reader (separate API surface).
+- [ ] TEST-447-05 [patch]: MINC format-level hostile-fixture regression.
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Registration N4 bias correction onto Coeus/Leto/Hephaestus.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases.
+
+---
+
 ## Sprint 455 — PNG Coeus Reader Paths
 **Target version**: 0.14.0 (minor: additive public API)
 **Sprint phase**: Closure — PNG single + series Coeus paths landed
