@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 457 — JPEG-LS Decode DoS Hardening
+**Target version**: 0.14.0
+**Sprint phase**: Closure — codec safety audit + hostile-dimension guard landed
+
+### In-flight plan (Sprint 457)
+- [x] SEC-457-01 [patch]: Audit codec parsers/decoders for untrusted-input
+  panics and unbounded allocation. jpeg_ls/parser bounds-guards are sound;
+  found `decode_fragment` sizing buffers from unbounded SOF55 dimensions.
+- [x] SEC-457-02 [patch]: Add `MAX_DECODED_PIXELS` + `checked_mul` guard in
+  `JpegLsDecoder::decode_fragment` before per-pixel allocation.
+- [x] TEST-457-03 [patch]: Oversized-dimension regression (65535² → typed error,
+  not OOM).
+
+### Verification gate (Sprint 457)
+- [x] RITK: `cargo fmt -p ritk-codecs --check`
+- [x] RITK: `cargo nextest run -p ritk-codecs` -> 253 passed
+- [x] RITK: `cargo clippy -p ritk-codecs --all-targets -- -D warnings`
+- [x] RITK: `cargo test --doc -p ritk-codecs`
+
+### Audit notes (no change required)
+- jpeg_ls/parser.rs marker parsers each bounds-check before fixed-offset reads.
+- jpeg_2000 has openjp2 differential interop tests (`jpeg2000_interop`).
+
+### Deferred / carry-forward
+- [ ] SEC-457-04 [patch]: Audit jpeg (baseline) and jpeg_2000 decoders for the
+  same dimension-driven allocation pattern (SOF/SIZ width×height).
+- [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
+- [ ] TEST-447-05 [patch]: MINC format-level hostile-fixture regression.
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.
+
+---
+
 ## Sprint 456 — TIFF Coeus Reader Path (grayscale frontier complete)
 **Target version**: 0.14.0 (minor: additive public API)
 **Sprint phase**: Closure — TIFF Coeus path landed; grayscale reader frontier done

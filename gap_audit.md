@@ -1,5 +1,32 @@
 # RITK Gap Audit - Active
 
+## Sprint 457 Audit (2026-06-29) — Codec Untrusted-Input Safety
+
+### Audit performed (ritk-codecs)
+
+- **jpeg_ls/parser.rs**: each marker parser (SOF55, DNL, DRI, LSE, SOS) guards
+  its fixed-offset reads with an explicit `pos + N > data.len()` bail or a
+  short-circuited length check — sound, no panic on truncated headers.
+- **jpeg_ls/decoder.rs**: DEFECT — `decode_fragment` sized `samples`
+  (`with_capacity(h*w)`) and `decode_scan` sized `buf` (`vec![0i32; (h+1)*w]`)
+  from the u16 SOF55 dimensions, and the scan loop runs `h*w` iterations while
+  the BitReader zero-fills past EOF. A tiny hostile file → ~17 GiB alloc + ~4.3e9
+  iterations.
+- **jpeg_2000**: has openjp2 differential interop tests; not the focus this pass.
+
+### Gap Closed
+
+- **[SEC-457 CLOSED]** `MAX_DECODED_PIXELS` (256 Mi) + `checked_mul` guard in
+  `decode_fragment`, before the per-pixel buffers allocate. Oversized-dimension
+  regression added. Run mode's exponential expansion means the bound must be on
+  declared dimensions, not scan length (documented at the constant).
+
+### Residual Risk
+
+- **[SEC-457-04 OPEN]** The baseline JPEG (SOF) and JPEG 2000 (SIZ) decoders
+  likely share the same dimension-driven allocation pattern; audit + bound them
+  the same way.
+
 ## Sprint 456 Audit (2026-06-29) — TIFF Coeus Reader Path
 
 ### Audit + Gap Closed

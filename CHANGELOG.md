@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 457: JPEG-LS decode DoS hardening
+
+### Fixed
+- `ritk-codecs`: the JPEG-LS decoder sized its working/output buffers from the
+  SOF55 `width × height` (each u16) and `decode_scan` materialized one sample
+  per declared pixel regardless of scan length (the BitReader zero-fills past
+  EOF). A tiny file declaring 65535×65535 could force a ~17 GiB allocation and
+  billions of iterations. Added a documented `MAX_DECODED_PIXELS` (256 Mi)
+  guard with `checked_mul` in `decode_fragment`, covering both per-pixel
+  buffers. (Run mode can expand a few bits into an arbitrarily long pixel run,
+  so the bound must be on dimensions, not scan length.)
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint.
+  `cargo nextest run -p ritk-codecs` 253 passed (incl. an oversized-dimension
+  regression); clippy `-D warnings`, fmt, doctest clean.
+
+---
+
 ## [Unreleased] — Sprint 456: TIFF Coeus reader path
 
 ### Added
