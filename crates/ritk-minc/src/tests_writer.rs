@@ -136,3 +136,35 @@ fn read_minc_coeus_matches_burn_round_trip() {
         assert_eq!(sorted, expected, "all 8 voxel values preserved");
     });
 }
+
+#[test]
+fn read_minc_rejects_shape_exceeding_backed_data() {
+    use crate::hdf5_binary::write_minc2_hdf5;
+    use crate::read_minc;
+
+    // Forge a MINC2 file whose image dataset shape claims 64×64×64 voxels
+    // (1 MiB of f32) but whose contiguous data region backs only 8 voxels.
+    // The reader derives the read size from the dataspace, so the bounded
+    // voxel read (Sprint 447 `read_bounded_with`) must surface a truncation
+    // error rather than over-reading or OOM-ing.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("forged.mnc");
+    let tiny_data = vec![0u8; 8 * 4]; // 8 f32 samples
+    write_minc2_hdf5(
+        &path,
+        &tiny_data,
+        [64, 64, 64],
+        [0.0; 3],
+        [1.0; 3],
+        &Direction::identity(),
+    )
+    .expect("write forged MINC");
+
+    let device = Default::default();
+    let err = read_minc::<B, _>(&path, &device)
+        .expect_err("shape exceeding backed data must error, not OOM");
+    assert!(
+        format!("{err:#}").contains("voxel data"),
+        "expected a voxel-data read error, got: {err:#}"
+    );
+}
