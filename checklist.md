@@ -1,5 +1,46 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 462 — Workspace-Wide Orphaned-Module Sweep (SEC-461-04)
+**Target version**: 0.14.0
+**Sprint phase**: Closure — corrected tooling-based sweep, all 14 candidates triaged
+
+### In-flight plan (Sprint 462)
+- [x] SEC-461-04 [patch]: Build a correct per-file Rust module-resolution
+  checker (mod.rs/lib.rs vs leaf-file semantics; `#[path]` incl. `../`
+  traversal via `realpath -m`) — the basename heuristic from Sprint 461 was
+  abandoned as too noisy; this one converged after 4 iterations of bug fixes,
+  down from 105 candidates to 14 trustworthy ones.
+- [x] CHORE-462-01 [patch]: Triage all 14 candidates individually (content
+  diff against the active module / caller search) and act:
+  - Deleted 9 confirmed-dead files (6 exact test duplicates, 1 scratch
+    artifact, 1 redundant shim + its Cargo dep).
+  - Restored 4 genuinely orphaned, never-duplicated modules (wired + built +
+    tested): ritk-minc tests_spatial (5 tests), ritk-interpolation dispatch
+    routing tests (3 tests), ritk-registration direct_phase_fourteen_tests
+    (24 tests), ritk-registration metric::dl_losses (4 fns + 5 new tests).
+  - Deferred 1 (ritk-snap coordinate_system.rs): real, tested utility with no
+    UI consumer — filed as backlog rather than wired speculatively.
+
+### Verification gate (Sprint 462)
+- [x] RITK: `cargo nextest run -p ritk-minc -p ritk-interpolation
+  -p ritk-registration -p ritk-core` -> 867 passed
+- [x] RITK: `cargo nextest run -p ritk-cli -p ritk-interpolation -p ritk-io
+  -p ritk-png -p ritk-tiff -p ritk-model -p ritk-core` -> 773 passed
+  (deletion-affected crates; confirms no coverage loss)
+- [x] RITK: `cargo clippy --all-targets -- -D warnings` clean across all 9
+  touched crates
+- [x] RITK: `cargo fmt --check` clean across all 9 touched crates
+
+### Deferred / carry-forward
+- [ ] BACKLOG: Wire `ritk-snap::ui::coordinate_system` (LPS/RAS conversion +
+  DICOM patient-position formatting, fully tested) into an actual coordinate
+  readout UI feature, or remove if the display feature is never built.
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
+- [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.
+
+---
+
 ## Sprint 461 — Restore Orphaned DICOM color_multiframe Module
 **Target version**: 0.14.0
 **Sprint phase**: Closure — orphaned module restored; both color loaders bounded

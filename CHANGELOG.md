@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 462: Workspace-wide orphaned-module sweep
+
+### Fixed
+- Restored four genuinely orphaned modules across the workspace, each dropped
+  from its parent's `mod` list by a past refactor and never compiled/tested
+  since: `ritk-minc::spatial` test coverage (5 tests), an
+  `ritk-interpolation` dispatch cross-dimension routing smoke-test file
+  (3 tests, distinct from the already-wired per-kernel dispatch tests),
+  `ritk-registration`'s `direct_phase_fourteen_tests` (24 tests — Sprint-329
+  sparse/direct numerical identity, FMA-loop parity, structural size
+  regressions, simply missing from the `mod` list alongside its wired
+  phase-thirteen/fifteen siblings), and `ritk-registration::metric::dl_losses`
+  (4 DL-training loss functions — MSE/NCC/LNCC/MI — that had never been wired
+  or tested; given 5 new value-semantic tests as part of restoration).
+
+### Removed
+- Nine confirmed-dead files: six exact duplicates of currently-active inline
+  test modules (`ritk-cli`, `ritk-interpolation`, `ritk-io`, `ritk-png` ×2,
+  `ritk-tiff` ×2), one debug-scratch artifact with no doc comments or
+  references (`ritk-model/ssmmorph/repro.rs`), and one redundant re-export
+  shim whose real consumers all import the underlying crate directly
+  (`ritk-core/wgpu_compat.rs`, plus its now-unused Cargo dependency).
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint.
+  `cargo nextest run` across the nine touched crates: 867 passed (restoration
+  crates) + 773 passed (deletion-affected crates, confirming no coverage
+  loss); clippy `-D warnings` and fmt clean across all nine.
+
+---
+
 ## [Unreleased] — Sprint 461: Restore orphaned DICOM color_multiframe module
 
 ### Fixed

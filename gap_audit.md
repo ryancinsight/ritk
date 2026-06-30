@@ -1,5 +1,68 @@
 # RITK Gap Audit - Active
 
+## Sprint 462 Audit (2026-06-29) — Workspace-Wide Orphaned-Module Sweep
+
+### Method note: basename heuristics are unreliable; per-file resolution is required
+
+Sprint 461 flagged the basename-heuristic sweep as too noisy and recommended
+AST/tooling support. Built a correct shell-based per-file resolver instead
+(no AST needed): for every `.rs` file under `src/`, resolve each `mod NAME;`
+and `#[path = "FILE"] mod NAME;` declaration to its real target — `mod.rs`/
+`lib.rs`/`main.rs` resolve siblings directly; any other leaf file `foo.rs`
+resolves no-path children under `foo/` (the Rust 2018 rule the first attempt
+missed); `#[path]` is always relative to the declaring file's own directory
+and must be normalized through `realpath -m` (the second bug: `../` segments
+were never collapsed before string comparison). Took four iterations to
+converge: 105 → 36 (excluding Cargo-auto-discovered `tests/`/`benches/`/
+`examples/`) → 29 (fixing leaf-file resolution) → 14 (fixing `../` traversal).
+
+### Gaps Closed
+
+- **9 confirmed-dead files deleted** (diffed function names against the
+  active module to verify before deleting): exact duplicates of currently-
+  compiled inline `mod tests {}` blocks in ritk-cli, ritk-interpolation,
+  ritk-io, ritk-png (×2), ritk-tiff (×2); one debug-scratch artifact with
+  placeholder names and no doc comments (`ritk-model/ssmmorph/repro.rs`); one
+  redundant re-export shim (`ritk-core/wgpu_compat.rs`) whose every real
+  consumer already imports `ritk_wgpu_compat` directly — removed it and its
+  now-unused Cargo dependency.
+- **4 genuinely orphaned modules restored** (verified distinct from any
+  active duplicate, then wired + compiled + tested):
+  - `ritk-minc::spatial` test coverage (5 tests) for
+    `build_spatial_metadata`/`order_dimensions_by_dimorder` — functions with
+    *zero* test coverage anywhere else in the crate.
+  - `ritk-interpolation` dispatch cross-dimension routing smoke tests
+    (3 tests) — distinct from the already-wired `tests_dispatch/` directory.
+  - `ritk-registration`'s `direct_phase_fourteen_tests/` (24 tests): real
+    numerical-correctness coverage for Sprint-329 sparse/direct parity
+    (SPARSE-329-01), FMA-loop fidelity (PERF-329-02), and structural size
+    regressions (MEM-329-04) — simply missing from `direct/mod.rs`'s `mod`
+    list alongside its already-wired phase-thirteen/fifteen siblings.
+  - `ritk-registration::metric::dl_losses` (mse_loss/ncc_loss/lncc_loss/
+    mi_loss): real, complete DL-training loss functions with no prior
+    consumer and *zero* prior tests. Restoring untested code to a reachable
+    module would violate the no-half-finished-implementation standard, so
+    5 new value-semantic tests were added as part of the restoration
+    (identity, closed-form MSE, self-correlation ≈ -1, MI self-information >
+    cross-information). One test design defect caught during authoring: an
+    initial "unrelated image" fixture used a reversed intensity ramp, which
+    is mathematically *not* MI-independent (mutual information is invariant
+    under invertible per-variable transforms) — replaced with a genuine
+    many-to-one mapping.
+
+### Residual Risk
+
+- **[Backlog]** `ritk-snap::ui::coordinate_system` (LPS/RAS conversion, DICOM
+  patient-position formatting) is real, documented, and fully tested, but has
+  no UI consumer. Deferred rather than wired speculatively — restoring code
+  with no consumer adds maintenance surface without use; needs either a
+  coordinate-readout display feature to consume it, or removal if abandoned.
+- Local path-dependency churn (coeus 0.5.4→0.5.5) re-appeared on every cargo
+  invocation during this sprint, confirming it reflects the real current
+  state of a concurrently-modified sibling repo, not a transient build
+  artifact — Cargo.lock changes were isolated to exactly this sprint's one
+  dependency removal by patching against `origin/main`'s lock baseline.
+
 ## Sprint 461 Audit (2026-06-29) — Orphaned Module Discovery + Color Alloc Bound
 
 ### Major finding: orphaned module
