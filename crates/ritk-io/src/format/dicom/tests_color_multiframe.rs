@@ -15,6 +15,27 @@ fn write_multiframe(
     planar_configuration: Option<u16>,
     samples: Vec<u8>,
 ) {
+    write_multiframe_with_dims(
+        path,
+        samples_per_pixel,
+        photometric,
+        planar_configuration,
+        1,
+        2,
+        samples,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn write_multiframe_with_dims(
+    path: &Path,
+    samples_per_pixel: u16,
+    photometric: &str,
+    planar_configuration: Option<u16>,
+    rows: u16,
+    cols: u16,
+    samples: Vec<u8>,
+) {
     let mut obj = InMemDicomObject::new_empty();
     obj.put(DataElement::new(
         Tag(0x0008, 0x0016),
@@ -56,12 +77,12 @@ fn write_multiframe(
     obj.put(DataElement::new(
         Tag(0x0028, 0x0010),
         VR::US,
-        PrimitiveValue::from(1_u16),
+        PrimitiveValue::from(rows),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0011),
         VR::US,
-        PrimitiveValue::from(2_u16),
+        PrimitiveValue::from(cols),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0030),
@@ -169,5 +190,27 @@ fn read_dicom_color_multiframe_rejects_planar_rgb() {
     assert!(
         msg.contains("PlanarConfiguration=0") && msg.contains("declares 1"),
         "expected planar rejection, got {msg}"
+    );
+}
+
+#[test]
+fn read_dicom_color_multiframe_rejects_hostile_dimensions_without_oom() {
+    // Rows=60000, Columns=60000, NumberOfFrames=2 (declares ~21.6 billion RGB
+    // samples / ~86 GiB as f32) but the PixelData element supplies only 12
+    // bytes. Since the eager `vec![0.0; total_samples]` zero-fill was replaced
+    // by a capped, incrementally-grown buffer, the native decode must fail with
+    // a typed "out of range" error at the first frame rather than attempting
+    // a multi-gigabyte allocation.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("hostile_mf.dcm");
+    write_multiframe_with_dims(&path, 3, "RGB", Some(0), 60000, 60000, vec![0u8; 12]);
+    let device = <B as Backend>::Device::default();
+
+    let err = read_dicom_color_multiframe::<B, _>(&path, &device)
+        .expect_err("hostile multiframe dimensions must error, not OOM");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("out of range"),
+        "expected a bounds error, got: {msg}"
     );
 }

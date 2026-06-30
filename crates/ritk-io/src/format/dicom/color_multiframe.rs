@@ -45,7 +45,15 @@ pub fn read_dicom_color_multiframe<B: Backend, P: AsRef<Path>>(
     let total_samples = frame_samples
         .checked_mul(info.n_frames)
         .context("DICOM RGB multiframe volume sample count overflow")?;
-    let mut volume = vec![0.0_f32; total_samples];
+    // `rows`/`cols`/`n_frames` are header-derived, so a hostile or corrupt file
+    // could otherwise force an up-front multi-gigabyte zero-fill before any
+    // frame is decoded. Cap the speculative reservation and grow the buffer by
+    // appending each validated, sequentially-decoded frame instead of
+    // pre-sizing and indexing into it.
+    let mut volume = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
+        total_samples,
+        std::mem::size_of::<f32>(),
+    ));
 
     for frame_index in 0..info.n_frames {
         let frame = decode_frame_with::<DicomRsBackend>(
@@ -81,8 +89,7 @@ pub fn read_dicom_color_multiframe<B: Backend, P: AsRef<Path>>(
                 frame_samples
             );
         }
-        let start = frame_index * frame_samples;
-        volume[start..start + frame_samples].copy_from_slice(&frame);
+        volume.extend_from_slice(&frame);
     }
 
     let tensor = Tensor::<B, 4>::from_data(
@@ -260,9 +267,7 @@ fn direction_from_info(info: &MultiFrameInfo) -> Direction<3> {
     let normal =
         super::reader::normalize([ry * cz - rz * cy, rz * cx - rx * cz, rx * cy - ry * cx])
             .unwrap_or([0.0, 0.0, 1.0]);
-    Direction::from_column_major([
-        normal[0], normal[1], normal[2], cx, cy, cz, rx, ry, rz,
-    ])
+    Direction::from_column_major([normal[0], normal[1], normal[2], cx, cy, cz, rx, ry, rz])
 }
 
 #[cfg(test)]

@@ -135,9 +135,17 @@ fn load_color_from_series<B: Backend>(
         .checked_mul(depth)
         .context("DICOM color volume sample count overflow")?;
 
-    let mut volume = vec![0.0_f32; total_samples];
+    // `rows`/`cols` are header-derived (DICOM Rows/Columns), so a hostile or
+    // corrupt file could otherwise force an up-front multi-gigabyte zero-fill
+    // before any slice is decoded. Cap the speculative reservation and grow
+    // the buffer by appending each validated, sequentially-decoded slice
+    // instead of pre-sizing and indexing into it.
+    let mut volume = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
+        total_samples,
+        std::mem::size_of::<f32>(),
+    ));
 
-    for (z, slice) in slices.iter().enumerate() {
+    for slice in slices.iter() {
         let frame = if let Some(ref bytes) = slice.part10_bytes {
             read_rgb_slice_samples_from_bytes(bytes, slice, rows, cols)
         } else {
@@ -154,8 +162,7 @@ fn load_color_from_series<B: Backend>(
             );
         }
 
-        let start = z * frame_samples;
-        volume[start..start + frame_samples].copy_from_slice(&frame);
+        volume.extend_from_slice(&frame);
     }
 
     metadata.dimensions = [rows, cols, depth];

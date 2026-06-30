@@ -2,6 +2,7 @@ mod anonymize;
 mod codec;
 mod color;
 mod color_common;
+mod color_multiframe;
 mod helpers;
 mod multiframe;
 pub mod networking;
@@ -25,6 +26,7 @@ pub use color::{
     is_rgb_dicom_series, load_dicom_color_from_series, load_dicom_color_series,
     read_dicom_color_series,
 };
+pub use color_multiframe::{load_dicom_color_multiframe, read_dicom_color_multiframe};
 pub use multiframe::{
     load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe,
     write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, MultiFrameInfo,
