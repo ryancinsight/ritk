@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 459: MINC shape-exceeds-data regression
+
+### Tests
+- `ritk-minc`: added a format-level hostile-fixture regression (TEST-447-05).
+  A forged MINC2 file declaring 64×64×64 voxels but backing only 8 confirms
+  `read_minc` surfaces a voxel-data read error (not an over-read/OOM) via the
+  Sprint 447 bounded `read_bounded_with` path — coverage that was impossible
+  until the Sprint 452 write→read round-trip fix.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint.
+  `cargo nextest run -p ritk-minc` 37 passed; clippy `-D warnings`, fmt clean.
+
+---
+
 ## [Unreleased] — Sprint 458: JPEG/J2K decode dimension bounds (SSOT)
 
 ### Fixed

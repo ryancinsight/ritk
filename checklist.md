@@ -1,5 +1,29 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 459 — MINC Shape-Exceeds-Data Regression (TEST-447-05)
+**Target version**: 0.14.0
+**Sprint phase**: Closure — MINC bounded-read hardening now has format-level coverage
+
+### In-flight plan (Sprint 459)
+- [x] TEST-459-01 [patch]: Forge a shape≠data MINC2 file via `write_minc2_hdf5`
+  and assert `read_minc` errors (not OOM), exercising `read_bounded_with`.
+
+### Verification gate (Sprint 459)
+- [x] RITK: `cargo fmt -p ritk-minc --check`
+- [x] RITK: `cargo nextest run -p ritk-minc` -> 37 passed
+- [x] RITK: `cargo clippy -p ritk-minc --all-targets -- -D warnings`
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect
+  (oldest open perf item; prior fused-MSE/identity-direction attempts did not
+  close the 30s budget).
+- [ ] SEC-459-02 [patch]: Audit the DICOM-level `PixelLayout` (Rows×Columns)
+  construction for an upstream pixel-count bound feeding the codecs.
+- [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
+- [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.
+
+---
+
 ## Sprint 458 — JPEG/J2K Decode Dimension Bounds (SSOT)
 **Target version**: 0.14.0
 **Sprint phase**: Closure — codec decode pixel-bound consolidated to one helper

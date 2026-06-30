@@ -1,5 +1,23 @@
 # RITK Gap Audit - Active
 
+## Sprint 459 Audit (2026-06-29) — MINC Shape-Exceeds-Data Regression
+
+### Gap Closed (TEST-447-05)
+
+- The MINC reader's Sprint 447 `read_bounded_with` hardening had no format-level
+  regression because no readable MINC fixtures existed (the writer/reader
+  round-trip was broken until Sprint 452). Now closed: a forged shape≠data file
+  (64³ declared, 8 backed) confirms `read_minc` surfaces a voxel-data read error
+  with bounded allocation, not an over-read or OOM.
+
+### Residual Risk
+
+- **[SEC-459-02 OPEN]** The codec dimension bounds (Sprint 457–458) cap the
+  decoder buffers, but the DICOM-level `PixelLayout` (Rows×Columns) that feeds
+  them is constructed upstream; whether that path bounds the pixel product was
+  not audited this pass.
+- **[PERF-432-01 OPEN]** Oldest open performance item, untouched this pass.
+
 ## Sprint 458 Audit (2026-06-29) — JPEG/J2K Decode Dimension Bounds
 
 ### Gap Closed (SEC-457-04)
