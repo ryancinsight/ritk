@@ -1,5 +1,32 @@
 # RITK Gap Audit - Active
 
+## Sprint 458 Audit (2026-06-29) — JPEG/J2K Decode Dimension Bounds
+
+### Gap Closed (SEC-457-04)
+
+- **Baseline JPEG** (`scan_dct`/`scan_lossless`): allocated `vec![0u8; width*height]`
+  (and ×3 for RGB) from the u16 SOF dimensions with no bound — same DoS class as
+  JPEG-LS. Now guarded after SOF parse in `RitkJpegDecoder::decode`.
+- **JPEG 2000** (`image.rs`): already required SIZ to match the DICOM `layout`,
+  so less exposed, but the full `f32` output (`layout.rows*cols*spp`) is now
+  bounded too (defense-in-depth, overflow-checked).
+- Consolidated the cap into `dimensions::checked_pixel_count` (SSOT); jpeg_ls's
+  crate-local const was removed in favor of it (second-occurrence consolidation).
+
+### Codec safety posture
+
+- Decode-dimension / allocation DoS is now bounded across **all** RITK image
+  decoders (jpeg_ls, JPEG baseline/lossless, JPEG 2000) and the format readers
+  (Sprints 446–447). J2K has openjp2 differential interop tests for correctness.
+
+### Residual Risk
+
+- The 256 Mi pixel cap is a documented policy limit (STRONG-DEFAULT); adjustable
+  via the single `MAX_DECODED_PIXELS` constant if a legitimate larger frame
+  appears.
+- The DICOM-level Rows×Columns bound (upstream of these codecs) is enforced where
+  `PixelLayout` is constructed; not re-audited this pass.
+
 ## Sprint 457 Audit (2026-06-29) — Codec Untrusted-Input Safety
 
 ### Audit performed (ritk-codecs)

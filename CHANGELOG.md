@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 458: JPEG/J2K decode dimension bounds (SSOT)
+
+### Fixed
+- `ritk-codecs`: the baseline JPEG decoder (`scan_dct`/`scan_lossless`) sized its
+  pixel buffers from the u16 SOF `width × height` with no bound — same DoS class
+  as the JPEG-LS fix. Added a guard after SOF parse. The JPEG 2000 decoder gained
+  a defense-in-depth pixel-count bound before its `f32` output allocation.
+
+### Changed
+- `ritk-codecs`: added `dimensions::checked_pixel_count` as the SSOT for the
+  decode pixel-count cap (256 Mi, `checked_mul`); jpeg_ls now uses it (replacing
+  its crate-local const), and the JPEG and JPEG 2000 decoders route through it.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint.
+  `cargo nextest run -p ritk-codecs` 256 passed (incl. shared-helper unit tests
+  and the JPEG-LS oversized-dimension regression); clippy `-D warnings`, fmt,
+  doctest clean.
+
+---
+
 ## [Unreleased] — Sprint 457: JPEG-LS decode DoS hardening
 
 ### Fixed

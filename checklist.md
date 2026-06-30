@@ -1,5 +1,34 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 458 — JPEG/J2K Decode Dimension Bounds (SSOT)
+**Target version**: 0.14.0
+**Sprint phase**: Closure — codec decode pixel-bound consolidated to one helper
+
+### In-flight plan (Sprint 458)
+- [x] SEC-458-01 [patch]: Add `dimensions::checked_pixel_count` SSOT helper
+  (256 Mi cap, `checked_mul`) with unit tests.
+- [x] SEC-458-02 [patch]: Route jpeg_ls (replacing its local const), baseline
+  JPEG (`frame.sof` dims), and JPEG 2000 (`layout` dims) through it.
+- [x] TEST-458-03 [patch]: Helper unit tests + retained JPEG-LS regression.
+
+### Verification gate (Sprint 458)
+- [x] RITK: `cargo fmt -p ritk-codecs --check`
+- [x] RITK: `cargo nextest run -p ritk-codecs` -> 256 passed
+- [x] RITK: `cargo clippy -p ritk-codecs --all-targets -- -D warnings`
+- [x] RITK: `cargo test --doc -p ritk-codecs`
+
+### Codec safety sweep — complete
+- Allocation/decode-dimension DoS bounded across all RITK image decoders:
+  jpeg_ls, baseline/lossless JPEG, JPEG 2000 (+ the format readers, Sprints 446–447).
+
+### Deferred / carry-forward
+- [ ] TEST-447-05 [patch]: MINC format-level hostile-fixture regression.
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
+- [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.
+
+---
+
 ## Sprint 457 — JPEG-LS Decode DoS Hardening
 **Target version**: 0.14.0
 **Sprint phase**: Closure — codec safety audit + hostile-dimension guard landed
