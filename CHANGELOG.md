@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 453: MINC Coeus-backed reader path
+
+### Added
+- `ritk-minc`: `read_minc_coeus` (behind the new `coeus` feature) reads MINC2
+  files into `ritk_image::coeus::Image`, the Atlas-tensor counterpart to the
+  Burn-backed `read_minc`. Completes the format-reader Coeus frontier
+  (mgh/nifti/metaimage/minc).
+
+### Changed
+- `ritk-minc`: extracted the backend-agnostic HDF5 navigation, bounded voxel
+  read, decode, and geometry derivation into `decode_minc` shared by the Burn
+  and Coeus paths (DRY/SSOT).
+
+### Tests
+- `ritk-minc`: added a Burn/Coeus differential round-trip test (identical voxels
+  across backends plus value preservation), enabled by the Sprint 452 write→read
+  round-trip fix.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-minc` 36 passed (default) and 37 passed
+  (`--features coeus`); clippy `-D warnings` clean for both feature sets;
+  doc/fmt clean.
+
+---
+
 ## [Unreleased] — Sprint 452: MINC HDF5 writer round-trip fix
 
 ### Fixed

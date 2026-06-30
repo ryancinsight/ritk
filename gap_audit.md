@@ -1,5 +1,24 @@
 # RITK Gap Audit - Active
 
+## Sprint 453 Audit (2026-06-29) — MINC Coeus Reader
+
+### Gap Closed
+
+- **[MIG-453 CLOSED]** `ritk-minc` gains an additive, feature-gated Coeus reader
+  (`read_minc_coeus`) sharing `decode_minc` with the Burn path. The Sprint 452
+  round-trip fix provides the value-semantic oracle: a Burn/Coeus differential
+  test confirms identical voxels across backends. **All four single-volume image
+  readers (mgh, nifti, metaimage, minc) now expose Coeus paths** via the same
+  `decode_* + from_flat_on` pattern (DRY/SSOT).
+
+### Residual Risk
+
+- Burn remains the default reader/writer surface across these crates until the
+  workspace-wide central `Image` migration (fleet-owned) completes; the Coeus
+  paths are purely additive building blocks toward it.
+- **[MIG-453-04 OPEN]** NIfTI label-map reader still Burn-independent `Vec<u32>`;
+  not an Image migration target but noted for completeness.
+
 ## Sprint 452 Audit (2026-06-29) — MINC HDF5 Writer Round-Trip
 
 ### Defect discovered and fixed

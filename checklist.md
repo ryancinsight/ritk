@@ -1,5 +1,33 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 453 — MINC Coeus-Backed Reader Path
+**Target version**: 0.14.0 (minor: additive public API)
+**Sprint phase**: Closure — format-reader Coeus frontier complete
+
+### In-flight plan (Sprint 453)
+- [x] MIG-453-01 [minor]: Extract backend-agnostic `decode_minc`/`DecodedMinc`
+  (HDF5 navigation, bounded read, decode, geometry) shared by Burn and Coeus.
+- [x] MIG-453-02 [minor]: Add `coeus` feature + `read_minc_coeus` building
+  `ritk_image::coeus::Image::from_flat_on`; re-export from the crate root.
+- [x] TEST-453-03 [minor]: Burn/Coeus differential round-trip test.
+
+### Verification gate (Sprint 453)
+- [x] RITK: `cargo fmt -p ritk-minc --check`
+- [x] RITK: `cargo nextest run -p ritk-minc` -> 36 passed
+- [x] RITK: `cargo nextest run -p ritk-minc --features coeus` -> 37 passed
+- [x] RITK: `cargo clippy -p ritk-minc --all-targets -- -D warnings` (default + coeus)
+- [x] RITK: `cargo doc -p ritk-minc --features coeus --no-deps` (warning-clean)
+
+### Deferred / carry-forward
+- [ ] TEST-447-05 [patch]: MINC format-level hostile-fixture regression.
+- [ ] MIG-453-04 [minor]: Coeus NIfTI label-map reader (`read_nifti_labels`).
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Registration N4 bias correction onto Coeus/Leto/Hephaestus.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases.
+
+---
+
 ## Sprint 452 — MINC HDF5 Writer Round-Trip Fix
 **Target version**: 0.14.0
 **Sprint phase**: Closure — write→read round-trip restored, reader coverage added
