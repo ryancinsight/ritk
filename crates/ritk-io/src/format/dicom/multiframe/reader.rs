@@ -234,8 +234,18 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         "load_dicom_multiframe: functional groups extracted"
     );
 
-    let frame_pixels = info.rows * info.cols;
-    let mut floats = Vec::with_capacity(info.n_frames * frame_pixels);
+    let frame_pixels = info
+        .rows
+        .checked_mul(info.cols)
+        .context("DICOM multiframe frame pixel count overflows usize")?;
+    // Cap the speculative reservation: `n_frames` and `frame_pixels` are
+    // header-derived, so a hostile file could otherwise abort on a huge
+    // `Vec::with_capacity`. The buffer still grows to its true size as frames
+    // decode, and each frame is bounds-validated below.
+    let mut floats = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
+        info.n_frames.saturating_mul(frame_pixels),
+        std::mem::size_of::<f32>(),
+    ));
 
     for frame_idx in 0..info.n_frames {
         let frame_info = per_frame.get(frame_idx);
