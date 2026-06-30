@@ -9,6 +9,8 @@ mod reader;
 mod writer;
 
 pub use color::{read_jpeg_color_to_volume, JpegColorReader};
+#[cfg(feature = "coeus")]
+pub use reader::read_jpeg_coeus;
 pub use reader::{read_jpeg, JpegReader};
 pub use writer::{write_jpeg, JpegWriter};
 

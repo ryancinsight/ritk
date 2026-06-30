@@ -179,3 +179,32 @@ fn roundtrip_single_pixel() {
         loaded_slice[0]
     );
 }
+
+#[cfg(feature = "coeus")]
+#[test]
+fn read_jpeg_coeus_matches_burn() {
+    use crate::read_jpeg_coeus;
+    use coeus_core::SequentialBackend;
+
+    let device = Default::default();
+    let (nz, ny, nx) = (1usize, 8usize, 12usize);
+    let data_vec: Vec<f32> = (0..(ny * nx))
+        .map(|i| (i as f32) / ((ny * nx - 1) as f32) * 255.0)
+        .collect();
+    let image = image_from_values(&device, [nz, ny, nx], data_vec);
+    let dir = tempdir().expect("tempdir");
+    let path = dir.path().join("coeus.jpg");
+    write_jpeg(&path, &image).expect("write");
+
+    let burn = read_jpeg::<TestBackend, _>(&path, &device).expect("burn read");
+    let coeus = read_jpeg_coeus(&path, &SequentialBackend).expect("coeus read");
+
+    assert_eq!(coeus.shape(), [nz, ny, nx]);
+    let burn_data = burn.data().to_data();
+    let burn_slice: &[f32] = burn_data.as_slice().expect("slice");
+    let coeus_slice = coeus.data_slice().expect("contiguous host data");
+    assert_eq!(
+        coeus_slice, burn_slice,
+        "coeus and burn JPEG voxels identical"
+    );
+}
