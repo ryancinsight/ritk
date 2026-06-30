@@ -212,3 +212,34 @@ fn negative_values_survive_round_trip() -> anyhow::Result<()> {
     });
     Ok(())
 }
+
+#[cfg(feature = "coeus")]
+#[test]
+fn read_tiff_coeus_matches_burn() -> anyhow::Result<()> {
+    use crate::read_tiff_coeus;
+    use coeus_core::SequentialBackend;
+
+    let dir = tempdir()?;
+    let path = dir.path().join("coeus.tiff");
+    let device: <TestBackend as Backend>::Device = Default::default();
+
+    let (nz, ny, nx) = (2usize, 3usize, 4usize);
+    let data_vec: Vec<f32> = (0u32..(nz * ny * nx) as u32)
+        .map(|i| i as f32 * 0.5)
+        .collect();
+    let image = make_image(data_vec, nz, ny, nx);
+    write_tiff(&image, &path)?;
+
+    let burn = read_tiff::<TestBackend, _>(&path, &device)?;
+    let coeus = read_tiff_coeus(&path, &SequentialBackend)?;
+
+    assert_eq!(coeus.shape(), [nz, ny, nx]);
+    let coeus_slice = coeus.data_slice()?;
+    burn.with_data_slice(|burn_vals| {
+        assert_eq!(
+            coeus_slice, burn_vals,
+            "coeus and burn TIFF voxels identical"
+        );
+    });
+    Ok(())
+}

@@ -53,6 +53,31 @@ pub fn read_tiff<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     read_tiff_from_reader::<B, _>(reader, device, path)
 }
 
+/// Read a multi-page TIFF / BigTIFF file into a Coeus-backed 3-D image.
+///
+/// The Atlas-tensor counterpart to [`read_tiff`]: shares the page decode and
+/// dimension validation via `decode_tiff_from_reader`, differing only in the
+/// final image construction.
+#[cfg(feature = "coeus")]
+pub fn read_tiff_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    P: AsRef<Path>,
+{
+    let path = path.as_ref();
+    let file =
+        std::fs::File::open(path).with_context(|| format!("Cannot open TIFF file {:?}", path))?;
+    let (data, dims) = decode_tiff_from_reader(BufReader::new(file), path)?;
+    ritk_image::coeus::Image::from_flat_on(
+        data,
+        dims,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+        backend,
+    )
+}
+
 /// Core reader operating on any `Read + Seek` stream.
 ///
 /// `display_path` is used only for error messages.
@@ -61,6 +86,23 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
     device: &B::Device,
     display_path: &Path,
 ) -> Result<Image<B, 3>> {
+    let (data, dims) = decode_tiff_from_reader(reader, display_path)?;
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
+    Ok(Image::new(
+        tensor,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    ))
+}
+
+/// Decode all TIFF pages into row-major `f32` voxels and `[nz, ny, nx]` dims.
+///
+/// `display_path` is used only for error messages.
+fn decode_tiff_from_reader<R: Read + Seek>(
+    reader: R,
+    display_path: &Path,
+) -> Result<(Vec<f32>, [usize; 3])> {
     let mut decoder = Decoder::new(reader).map_err(|e| {
         anyhow!(
             "Failed to create TIFF decoder for {:?}: {}",
@@ -135,14 +177,7 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
         }
     }
 
-    let tensor_data = TensorData::new(data, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<B, 3>::from_data(tensor_data, device);
-
-    let origin = Point::new([0.0, 0.0, 0.0]);
-    let spacing = Spacing::new([1.0, 1.0, 1.0]);
-    let direction = Direction::identity();
-
-    Ok(Image::new(tensor, origin, spacing, direction))
+    Ok((data, [nz, ny, nx]))
 }
 
 /// Convert a [`DecodingResult`] variant to `Vec<f32>`.

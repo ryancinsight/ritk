@@ -9,5 +9,7 @@ mod reader;
 mod writer;
 
 pub use color::{read_tiff_color_to_volume, TiffColorReader};
+#[cfg(feature = "coeus")]
+pub use reader::read_tiff_coeus;
 pub use reader::{read_tiff, TiffReader};
 pub use writer::{write_tiff, TiffWriter};
