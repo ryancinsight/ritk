@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 452: MINC HDF5 writer round-trip fix
+
+### Fixed
+- `ritk-minc`: the hand-rolled MINC2 HDF5 writer produced files the
+  `consus_hdf5` reader could not parse, so `write_minc`/`read_minc` never
+  round-tripped (and `read_minc` had no test coverage). Three HDF5 v1
+  spec violations corrected: object-header messages are now padded to an
+  8-byte boundary with padded envelope sizes; float/integer datatype
+  descriptors now include the mandatory IEEE-754 property bytes; and the
+  datatype section inside v1 attribute messages is padded to 8 bytes
+  (matching the reader's `align_up(dt_size, 8)` advance).
+
+### Changed
+- `ritk-minc`: added SSOT `wrap_message` (used by both message-envelope
+  helpers), `float_datatype`, and `int_datatype` builders, removing the
+  duplicated envelope logic.
+
+### Tests
+- `ritk-minc`: added the first end-to-end `write_minc` → `read_minc`
+  round-trip test (order-agnostic voxel preservation).
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint.
+  `cargo nextest run -p ritk-minc` 36 passed (incl. the round-trip);
+  clippy `-D warnings` clean.
+
+---
+
 ## [Unreleased] — Sprint 451: MetaImage Coeus-backed reader path
 
 ### Added

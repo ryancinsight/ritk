@@ -1,5 +1,36 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 452 — MINC HDF5 Writer Round-Trip Fix
+**Target version**: 0.14.0
+**Sprint phase**: Closure — write→read round-trip restored, reader coverage added
+
+### In-flight plan (Sprint 452)
+- [x] BUG-452-01 [patch]: Diagnose why `write_minc` output is unreadable by
+  `read_minc`/`consus_hdf5` (discovered while attempting the MINC Coeus reader).
+- [x] BUG-452-02 [patch]: Fix HDF5 v1 object-header message 8-byte alignment +
+  padded envelope size; complete float/integer datatype property descriptors;
+  pad attribute datatype sections. SSOT `wrap_message`/`float_datatype`/
+  `int_datatype` helpers.
+- [x] TEST-452-03 [patch]: First end-to-end `write_minc`→`read_minc` round-trip
+  test (order-agnostic voxel preservation).
+
+### Verification gate (Sprint 452)
+- [x] RITK: `cargo fmt -p ritk-minc --check`
+- [x] RITK: `cargo nextest run -p ritk-minc` -> 36 passed (incl. round-trip)
+- [x] RITK: `cargo clippy -p ritk-minc --all-targets -- -D warnings`
+
+### Deferred / carry-forward
+- [ ] MIG-451-04 [minor]: MINC Coeus reader path — now unblocked by the
+  round-trip fix (the write→read test gives a value-semantic oracle for it);
+  was reverted once by a concurrent agent, re-attempt with a fast commit.
+- [ ] TEST-447-05 [patch]: MINC format-level hostile-fixture regression.
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-433-06 [minor]: Registration N4 bias correction onto Coeus/Leto/Hephaestus.
+- [ ] MIG-437-04 [minor]: Replace the CLI-wide Burn NdArray backend alias.
+- [ ] MIG-439-03 [minor]: Replace remaining `burn_ndarray` backend aliases.
+
+---
+
 ## Sprint 451 — MetaImage Coeus-Backed Reader Path
 **Target version**: 0.14.0 (minor: additive public API)
 **Sprint phase**: Closure — feature-gated Coeus MetaImage reader landed

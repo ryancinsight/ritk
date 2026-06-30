@@ -1,5 +1,36 @@
 # RITK Gap Audit - Active
 
+## Sprint 452 Audit (2026-06-29) — MINC HDF5 Writer Round-Trip
+
+### Defect discovered and fixed
+
+- **[BUG-452 CLOSED]** `ritk-minc`'s hand-rolled MINC2 HDF5 writer emitted
+  files unreadable by the `consus_hdf5` reader — `write_minc`/`read_minc` never
+  round-tripped, and `read_minc` had zero test coverage (which is why the gap
+  went unnoticed). Surfaced while attempting the MINC Coeus reader. Root causes,
+  each fixed and confirmed by the progressive reader errors:
+  1. v1 object-header messages were not 8-byte aligned and the envelope size
+     omitted padding → "header message overflows block".
+  2. Float/integer datatype descriptors omitted the mandatory IEEE-754 property
+     bytes → "floating-point properties truncated".
+  3. Attribute-message datatype sections were not padded to 8 bytes while the
+     reader advances by `align_up(dt_size, 8)` → "unsupported dataspace version: 0".
+  SSOT `wrap_message`/`float_datatype`/`int_datatype` added; first end-to-end
+  round-trip test added.
+
+### Process note (concurrent-agent hazard)
+
+- A peer agent's `git` operation reverted this session's uncommitted MINC
+  *reader* migration mid-edit (consistent with the recorded hazard). Recovery:
+  discarded the broken fragment, re-synced to origin/main, re-did the
+  self-contained writer fix, and committed immediately. Reinforces: keep
+  increments small and commit the moment the gate is green.
+
+### Residual Risk
+
+- **[MIG-451-04 OPEN]** MINC Coeus reader still pending; now unblocked — the
+  round-trip test provides a value-semantic oracle. Re-attempt with a fast commit.
+
 ## Sprint 451 Audit (2026-06-28) — MetaImage Coeus Reader
 
 ### Gap Closed
