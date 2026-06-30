@@ -1,5 +1,32 @@
 # RITK Gap Audit - Active
 
+## Sprint 460 Audit (2026-06-29) — Workspace Unblock + Multiframe Bound
+
+### Blocker resolved
+
+- The workspace did not compile: a concurrent apollo refactor migrated
+  `apollo-fft`'s public complex type to `eunomia::Complex`, leaving ritk-filter's
+  `num_complex` FFT boundary mismatched (E0308 in `fft/convolution/helpers.rs`).
+  Multi-repo co-evolution gap (upstream changed, consumer not updated). Fixed on
+  the ritk side: ritk-filter FFT modules now use the layout-compatible
+  `eunomia::Complex` drop-in. Committed and pushed first to unblock the fleet.
+
+### Gap Closed (SEC-459-02 follow-on)
+
+- `ritk-io::load_dicom_multiframe` reserved `n_frames*rows*cols` floats from
+  header fields with an unchecked product — abort-on-huge-`with_capacity`.
+  Bounded via checked_mul + `bounded_capacity`.
+
+### Residual Risk
+
+- **[SEC-460-03 OPEN]** DICOM color and color-multiframe loaders still
+  `vec![0.0; total_samples]` (full eager allocation from header dims; product is
+  checked_mul-safe but unbounded). Needs an incremental per-frame build or a
+  pixel-data-length bound.
+- The num_complex→eunomia swap is layout-guaranteed (eunomia Complex is
+  `#[repr(C)]` and provides every method ritk-filter uses); FFT round-trip tests
+  confirm value-semantic equivalence.
+
 ## Sprint 459 Audit (2026-06-29) — MINC Shape-Exceeds-Data Regression
 
 ### Gap Closed (TEST-447-05)

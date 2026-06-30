@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 460: Workspace unblock + DICOM multiframe alloc bound
+
+### Fixed
+- `ritk-filter`: restored workspace compilation after `apollo-fft` migrated its
+  public complex type to `eunomia::Complex`. Switched the FFT / deconvolution /
+  correlation modules from `num_complex::Complex` to the layout-compatible
+  `eunomia::Complex` drop-in (10 files) and dropped the `num-complex` dependency.
+- `ritk-io`: `load_dicom_multiframe` reserved `n_frames * rows * cols` floats up
+  front from header fields with an unchecked product — a hostile DICOM could
+  abort on a huge `Vec::with_capacity`. Now `checked_mul` + capped speculative
+  reservation via `ritk_core::io_bounds::bounded_capacity` (the buffer still
+  grows to true size as frames decode).
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint.
+  `cargo nextest run -p ritk-filter {fft,deconv,correlation,ncc}` 111 passed;
+  `cargo nextest run -p ritk-io multiframe` 27 passed; clippy `-D warnings`, fmt
+  clean for both.
+
+---
+
 ## [Unreleased] — Sprint 459: MINC shape-exceeds-data regression
 
 ### Tests

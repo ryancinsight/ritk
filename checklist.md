@@ -1,5 +1,38 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 460 — Workspace Unblock + DICOM Multiframe Alloc Bound
+**Target version**: 0.14.0
+**Sprint phase**: Closure — apollo-fft co-evolution resolved; multiframe DoS bounded
+
+### In-flight plan (Sprint 460)
+- [x] FIX-460-01 [patch]: Resolve the workspace build break — apollo-fft migrated
+  to `eunomia::Complex`; migrate ritk-filter's FFT modules off `num_complex`
+  (10 files, drop num-complex dep). [BLOCKER — committed and pushed first.]
+- [x] SEC-460-02 [patch]: Bound `load_dicom_multiframe`'s up-front
+  `n_frames*rows*cols` reservation (checked_mul + `bounded_capacity`).
+
+### Verification gate (Sprint 460)
+- [x] RITK: `cargo nextest run -p ritk-filter {fft,deconv,correlation,ncc}` -> 111 passed
+- [x] RITK: `cargo nextest run -p ritk-io multiframe` -> 27 passed
+- [x] RITK: `cargo clippy -p ritk-filter --all-targets -- -D warnings`; `-p ritk-io --lib`
+- [x] RITK: `cargo fmt -p ritk-filter -p ritk-io --check`
+
+### Co-evolution note
+- apollo (upstream, separate repo) changed `apollo-fft`'s public Complex type;
+  ritk (consumer) was left unbuilt. Resolved on the ritk side per the
+  co-evolution protocol. The num_complex→eunomia swap also advances the Atlas
+  vocabulary migration.
+
+### Deferred / carry-forward
+- [ ] SEC-460-03 [patch]: Bound the DICOM color/color-multiframe `vec![0.0;
+  total_samples]` full allocations (checked_mul present; eager-alloc-from-header
+  remains — needs incremental build or a pixel-data-length bound).
+- [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
+- [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
+- [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.
+
+---
+
 ## Sprint 459 — MINC Shape-Exceeds-Data Regression (TEST-447-05)
 **Target version**: 0.14.0
 **Sprint phase**: Closure — MINC bounded-read hardening now has format-level coverage
