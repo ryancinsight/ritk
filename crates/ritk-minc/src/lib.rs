@@ -67,6 +67,8 @@ pub mod reader;
 pub mod spatial;
 pub mod writer;
 
+#[cfg(feature = "coeus")]
+pub use reader::read_minc_coeus;
 pub use reader::{read_minc, MincReader};
 pub use writer::{write_minc, MincWriter};
 

@@ -5,6 +5,11 @@ edition = "2021"
 description = "MINC2 (.mnc / .mnc2) image I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 
+[features]
+default = []
+# Atlas migration: expose a Coeus-backed reader path alongside the Burn one.
+coeus = ["dep:coeus-core", "ritk-image/coeus"]
+
 [dependencies]
 ritk-core = { workspace = true }
 ritk-image = { path = "../ritk-image" }
@@ -14,6 +19,7 @@ anyhow = { workspace = true }
 consus-hdf5 = { workspace = true }
 consus-core = { workspace = true }
 consus-io = { workspace = true }
+coeus-core = { workspace = true, optional = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

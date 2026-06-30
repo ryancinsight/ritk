@@ -52,6 +52,49 @@ use std::path::Path;
 /// - The image dataset uses chunked storage (not yet supported).
 /// - A data type conversion fails.
 pub fn read_minc<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+    let DecodedMinc {
+        data,
+        dims,
+        origin,
+        spacing,
+        direction,
+    } = decode_minc(path)?;
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
+    Ok(Image::new(tensor, origin, spacing, direction))
+}
+
+/// Read a MINC2 file into a Coeus-backed 3-D image on `backend`.
+///
+/// The Atlas-tensor counterpart to [`read_minc`]: shares the HDF5 navigation,
+/// bounded contiguous voxel read, decode, and geometry derivation with the Burn
+/// path via `decode_minc`, differing only in the final image construction.
+#[cfg(feature = "coeus")]
+pub fn read_minc_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    P: AsRef<Path>,
+{
+    let DecodedMinc {
+        data,
+        dims,
+        origin,
+        spacing,
+        direction,
+    } = decode_minc(path)?;
+    ritk_image::coeus::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+}
+
+/// Backend-agnostic decoded MINC2 volume: voxels plus derived physical metadata.
+/// Shared by the Burn and Coeus reader paths.
+struct DecodedMinc {
+    data: Vec<f32>,
+    dims: [usize; 3],
+    origin: ritk_spatial::Point<3>,
+    spacing: ritk_spatial::Spacing<3>,
+    direction: ritk_spatial::Direction<3>,
+}
+
+fn decode_minc<P: AsRef<Path>>(path: P) -> Result<DecodedMinc> {
     let path = path.as_ref();
     let file =
         std::fs::File::open(path).with_context(|| format!("Cannot open MINC2 file {:?}", path))?;
@@ -122,10 +165,13 @@ pub fn read_minc<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         );
     }
 
-    let tensor_data = TensorData::new(f32_data, Shape::new(shape_arr));
-    let tensor = Tensor::<B, 3>::from_data(tensor_data, device);
-
-    Ok(Image::new(tensor, origin, spacing, direction))
+    Ok(DecodedMinc {
+        data: f32_data,
+        dims: shape_arr,
+        origin,
+        spacing,
+        direction,
+    })
 }
 
 /// Typed reader wrapping `read_minc` for API consistency.

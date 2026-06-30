@@ -107,3 +107,32 @@ fn write_minc_then_read_minc_round_trips_voxels() {
         );
     });
 }
+
+#[cfg(feature = "coeus")]
+#[test]
+fn read_minc_coeus_matches_burn_round_trip() {
+    use crate::{read_minc, read_minc_coeus};
+    use coeus_core::SequentialBackend;
+
+    // Differential: write a known volume, then read it via both the Burn and
+    // Coeus paths (which share decode_minc) and assert identical voxels. Also
+    // assert order-agnostic value preservation against the source.
+    let image = make_test_image(2, 2, 2, [0.0; 3], [1.0; 3]);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("coeus.mnc");
+    write_minc::<B, _>(&image, &path).expect("write MINC");
+
+    let device = Default::default();
+    let burn = read_minc::<B, _>(&path, &device).expect("burn read");
+    let coeus = read_minc_coeus(&path, &SequentialBackend).expect("coeus read");
+
+    assert_eq!(coeus.shape(), burn.shape(), "coeus and burn shapes match");
+    let coeus_vals = coeus.data_slice().expect("contiguous host data");
+    burn.with_data_slice(|burn_vals| {
+        assert_eq!(coeus_vals, burn_vals, "coeus and burn voxels identical");
+        let mut sorted = burn_vals.to_vec();
+        sorted.sort_by(|a, b| a.partial_cmp(b).expect("no NaN voxels"));
+        let expected: Vec<f32> = (0..8u32).map(|i| i as f32).collect();
+        assert_eq!(sorted, expected, "all 8 voxel values preserved");
+    });
+}
