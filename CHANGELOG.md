@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 454: JPEG Coeus reader + decode optimization
+
+### Added
+- `ritk-jpeg`: `read_jpeg_coeus` (behind the new `coeus` feature) reads JPEG
+  grayscale files into `ritk_image::coeus::Image`, the Atlas-tensor counterpart
+  to the Burn-backed `read_jpeg`.
+
+### Changed
+- `ritk-jpeg`: extracted the backend-agnostic Luma8 decode into `decode_jpeg`
+  shared by the Burn and Coeus paths (DRY/SSOT), and replaced the per-pixel
+  bounds-checked `get_pixel` double loop with a direct `into_raw()` conversion
+  (the Luma8 buffer already matches the `[1, h, w]` layout).
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-jpeg` 9 passed (default) and 10 passed
+  (`--features coeus`, incl. a Burn/Coeus differential); clippy `-D warnings`
+  clean for both feature sets; doc/fmt clean.
+
+---
+
 ## [Unreleased] — Sprint 453: MINC Coeus-backed reader path
 
 ### Added

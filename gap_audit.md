@@ -1,5 +1,26 @@
 # RITK Gap Audit - Active
 
+## Sprint 454 Audit (2026-06-29) — JPEG Coeus Reader + Decode
+
+### Audit + Gap Closed
+
+- Reviewed the JPEG decode path: decoding is delegated to the well-tested
+  `image` crate (no in-house untrusted-input parsing), so no safety defect.
+  Found a memory/perf cleanliness issue — the Luma8→f32 conversion used a
+  per-pixel bounds-checked `get_pixel` double loop where the raw row-major
+  buffer already matches the `[1, h, w]` layout.
+- **[MIG-454 CLOSED]** Added the feature-gated `read_jpeg_coeus` path sharing
+  `decode_jpeg` with Burn (Burn/Coeus differential test), and replaced the
+  per-pixel loop with `into_raw()`.
+
+### Residual Risk
+
+- **[MIG-454-04 OPEN]** ritk-png and ritk-tiff readers (and the color-volume
+  variants across jpeg/png/tiff) still Burn-only; same `decode_* + into_raw`
+  pattern applies.
+- Burn remains the default surface until the workspace-wide `Image` migration
+  (fleet-owned) completes; the Coeus paths are additive.
+
 ## Sprint 453 Audit (2026-06-29) — MINC Coeus Reader
 
 ### Gap Closed
