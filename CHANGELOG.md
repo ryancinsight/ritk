@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 455: PNG Coeus reader paths
+
+### Added
+- `ritk-png`: `read_png_to_image_coeus` and `read_png_series_coeus` (behind the
+  new `coeus` feature) read grayscale PNG single slices and sorted series into
+  `ritk_image::coeus::Image`, the Atlas-tensor counterparts to the Burn readers.
+
+### Changed
+- `ritk-png`: extracted backend-agnostic `decode_png_single`/`decode_png_series`
+  and a `coeus_image_from_flat_pixels` builder mirroring the Burn
+  `image_from_flat_pixels` (DRY/SSOT); the two paths differ only in image
+  construction.
+
+### Evidence
+- Evidence tier: value-semantic nextest plus compile/lint/docs.
+  `cargo nextest run -p ritk-png` 9 passed (default) and 10 passed
+  (`--features coeus`, incl. a Burn/Coeus differential for single + series);
+  clippy `-D warnings` clean for both feature sets; doc/fmt clean.
+
+---
+
 ## [Unreleased] — Sprint 454: JPEG Coeus reader + decode optimization
 
 ### Added

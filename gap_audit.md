@@ -1,5 +1,27 @@
 # RITK Gap Audit - Active
 
+## Sprint 455 Audit (2026-06-29) — PNG Coeus Reader Paths
+
+### Audit + Gap Closed
+
+- Reviewed the PNG decode path: already iterates the raw Luma8 buffer
+  (`img.iter()`, not per-pixel `get_pixel`) and routes through a shared
+  `image_from_flat_pixels` builder — already clean, no perf/DRY defect.
+- **[MIG-455 CLOSED]** Added feature-gated `read_png_to_image_coeus` and
+  `read_png_series_coeus` sharing `decode_png_single`/`decode_png_series` with
+  the Burn path; Burn/Coeus differential test for both.
+
+### Migration progress
+
+- Grayscale single-volume/image Coeus reader paths now exist for: mgh, nifti,
+  metaimage, minc, jpeg, png. Remaining: ritk-tiff grayscale, and the
+  color-volume variants across jpeg/png/tiff.
+
+### Residual Risk
+
+- Burn remains the default surface until the workspace-wide `Image` migration
+  (fleet-owned) completes; Coeus paths are additive.
+
 ## Sprint 454 Audit (2026-06-29) — JPEG Coeus Reader + Decode
 
 ### Audit + Gap Closed
