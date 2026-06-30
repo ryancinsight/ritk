@@ -80,7 +80,12 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
 
     // Decode all tile-parts.
     // We allocate the full output and write each tile into its region.
-    let total_pixels = layout.rows * layout.cols * layout.samples_per_pixel;
+    // Bound the pixel count against a hostile/corrupt header before allocating
+    // the full `f32` output (defense-in-depth: SIZ is already required to match
+    // the DICOM layout above).
+    let pixels =
+        crate::dimensions::checked_pixel_count(layout.cols, layout.rows).context("J2K image")?;
+    let total_pixels = pixels * layout.samples_per_pixel;
     let mut out = vec![0f32; total_pixels];
 
     // State machine: walk the tile-part markers.

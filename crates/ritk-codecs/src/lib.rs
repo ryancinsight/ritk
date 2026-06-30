@@ -18,6 +18,7 @@
 //! encoders) are pure Rust with no C/C++ FFI.
 
 pub mod byte_decode;
+pub(crate) mod dimensions;
 pub mod jpeg;
 pub mod jpeg_2000;
 pub mod jpeg_ls;
