@@ -101,13 +101,7 @@ fn build_link_msg(name: &str, target_addr: u64) -> Vec<u8> {
     msg_data.extend_from_slice(name_bytes);
     msg_data.extend_from_slice(&target_addr.to_le_bytes());
 
-    let mut envelope = Vec::new();
-    envelope.extend_from_slice(&0x0006u16.to_le_bytes());
-    envelope.extend_from_slice(&(msg_data.len() as u16).to_le_bytes());
-    envelope.push(0);
-    envelope.extend_from_slice(&[0u8; 3]);
-    envelope.extend_from_slice(&msg_data);
-    envelope
+    wrap_message(0x0006, msg_data)
 }
 
 // ── Attribute message helpers ─────────────────────────────────────────────────
@@ -115,6 +109,63 @@ fn build_link_msg(name: &str, target_addr: u64) -> Vec<u8> {
 #[inline]
 fn pad8(n: usize) -> usize {
     (n + 7) & !7
+}
+
+/// Wrap message data in a v1 object-header message envelope.
+///
+/// Envelope: type(2) + size(2) + flags(1) + reserved(3), then the data. The
+/// HDF5 v1 object header format requires each message to occupy a multiple of
+/// eight bytes and the size field to be rounded up to that boundary, so the data
+/// is zero-padded and `size` reports the padded length. Without this, every
+/// message after the first parses at a misaligned offset and the file is
+/// unreadable.
+fn wrap_message(type_code: u16, mut msg_data: Vec<u8>) -> Vec<u8> {
+    let padded = pad8(msg_data.len());
+    msg_data.resize(padded, 0);
+    let mut envelope = Vec::with_capacity(8 + padded);
+    envelope.extend_from_slice(&type_code.to_le_bytes());
+    envelope.extend_from_slice(&(padded as u16).to_le_bytes());
+    envelope.push(0);
+    envelope.extend_from_slice(&[0u8; 3]);
+    envelope.extend_from_slice(&msg_data);
+    envelope
+}
+
+/// HDF5 datatype descriptor for a little-endian IEEE-754 float (class 1, v1).
+///
+/// `size` is 4 (`f32`) or 8 (`f64`). The descriptor is the 8-byte header plus
+/// the 12 mandatory floating-point property bytes (bit offset/precision,
+/// exponent/mantissa location and size, exponent bias); omitting the properties
+/// makes the type unreadable ("floating-point properties truncated").
+fn float_datatype(size: u32) -> Vec<u8> {
+    let (exp_size, mant_size, bias): (u8, u8, u32) = match size {
+        4 => (8, 23, 127),
+        8 => (11, 52, 1023),
+        other => unreachable!("unsupported float datatype size {other}"),
+    };
+    let precision = (size * 8) as u16;
+    let mut dt = vec![0u8; 20];
+    dt[0] = 0x11; // version 1, class 1 (floating-point)
+    dt[1] = 0x20; // bit field: LE byte order, mantissa normalization = 2
+    dt[2] = (size * 8 - 1) as u8; // sign bit location
+    dt[4..8].copy_from_slice(&size.to_le_bytes());
+    dt[10..12].copy_from_slice(&precision.to_le_bytes()); // bit precision (offset stays 0)
+    dt[12] = mant_size; // exponent location
+    dt[13] = exp_size; // exponent size
+    dt[15] = mant_size; // mantissa size (location stays 0)
+    dt[16..20].copy_from_slice(&bias.to_le_bytes());
+    dt
+}
+
+/// HDF5 datatype descriptor for a little-endian fixed-point integer (class 0,
+/// v1): 8-byte header plus the 4 mandatory bit-offset/precision property bytes.
+fn int_datatype(size: u32, signed: bool) -> Vec<u8> {
+    let mut dt = vec![0u8; 12];
+    dt[0] = 0x10; // version 1, class 0 (fixed-point)
+    dt[1] = if signed { 0x08 } else { 0x00 }; // LE byte order; bit 3 = signed
+    dt[4..8].copy_from_slice(&size.to_le_bytes());
+    dt[10..12].copy_from_slice(&((size * 8) as u16).to_le_bytes()); // bit precision
+    dt
 }
 
 /// Build the shared attribute message header and body for a scalar attribute.
@@ -145,8 +196,10 @@ fn build_scalar_attr_raw(
     msg_data.push(0);
     msg_data.resize(msg_data.len() + pad8(name_size) - name_size, 0);
 
-    // Datatype.
+    // Datatype, padded to an 8-byte boundary (the reader advances by
+    // `align_up(dt_size, 8)`; the size field stays the unpadded length).
     msg_data.extend_from_slice(dt_bytes);
+    msg_data.resize(msg_data.len() + pad8(dt_bytes.len()) - dt_bytes.len(), 0);
 
     // Dataspace: scalar (rank=0).
     msg_data.extend_from_slice(&[1u8, 0, 0, 0, 0, 0, 0, 0]);
@@ -159,20 +212,12 @@ fn build_scalar_attr_raw(
 
 /// Build an attribute message (type 0x000C, v1) for a scalar `f64`.
 pub(crate) fn build_attr_msg_float(name: &str, value: f64) -> Vec<u8> {
-    let mut dt = [0u8; 8];
-    dt[0] = 0x11; // class=1 (float), version=1
-    dt[1] = 0x20;
-    dt[4..8].copy_from_slice(&8u32.to_le_bytes());
-    build_scalar_attr_raw(name, dt, value.to_le_bytes())
+    build_scalar_attr_raw(name, float_datatype(8), value.to_le_bytes())
 }
 
 /// Build an attribute message (type 0x000C, v1) for a scalar `i32`.
 pub(crate) fn build_attr_msg_int(name: &str, value: i32) -> Vec<u8> {
-    let mut dt = [0u8; 8];
-    dt[0] = 0x00; // class=0 (integer), version=0
-    dt[1] = 0x08; // byte order LE, signed
-    dt[4..8].copy_from_slice(&4u32.to_le_bytes());
-    build_scalar_attr_raw(name, dt, value.to_le_bytes())
+    build_scalar_attr_raw(name, int_datatype(4, true), value.to_le_bytes())
 }
 
 /// Build an attribute message for a 3-element `f64` array.
@@ -182,7 +227,8 @@ pub(crate) fn build_attr_msg_int(name: &str, value: i32) -> Vec<u8> {
 pub(crate) fn build_attr_msg_float_array(name: &str, values: &[f64; 3]) -> Vec<u8> {
     let name_bytes = name.as_bytes();
     let name_size = name_bytes.len() + 1;
-    let dt_size: u16 = 8; // f64 datatype descriptor
+    let datatype = float_datatype(8);
+    let dt_size = datatype.len() as u16; // f64 datatype descriptor
     let ds_size: u16 = 16; // 1-D dataspace: version(1)+rank(1)+flags(1)+rsvd(1)+rsvd(4)+dim0(8)
 
     let mut msg_data = Vec::new();
@@ -196,12 +242,9 @@ pub(crate) fn build_attr_msg_float_array(name: &str, values: &[f64; 3]) -> Vec<u
     msg_data.push(0);
     msg_data.resize(msg_data.len() + pad8(name_size) - name_size, 0);
 
-    // Datatype: 64-bit LE float.
-    let mut dt = [0u8; 8];
-    dt[0] = 0x11;
-    dt[1] = 0x20;
-    dt[4..8].copy_from_slice(&8u32.to_le_bytes());
-    msg_data.extend_from_slice(&dt);
+    // Datatype: 64-bit LE float, padded to an 8-byte boundary.
+    msg_data.extend_from_slice(&datatype);
+    msg_data.resize(msg_data.len() + pad8(datatype.len()) - datatype.len(), 0);
 
     // Dataspace: 1-D, dim0 = 3.
     let mut ds = [0u8; 16];
@@ -220,13 +263,7 @@ pub(crate) fn build_attr_msg_float_array(name: &str, values: &[f64; 3]) -> Vec<u
 }
 
 fn wrap_attr_envelope(msg_data: Vec<u8>) -> Vec<u8> {
-    let mut envelope = Vec::new();
-    envelope.extend_from_slice(&0x000Cu16.to_le_bytes()); // ATTRIBUTE
-    envelope.extend_from_slice(&(msg_data.len() as u16).to_le_bytes());
-    envelope.push(0);
-    envelope.extend_from_slice(&[0u8; 3]);
-    envelope.extend_from_slice(&msg_data);
-    envelope
+    wrap_message(0x000C, msg_data)
 }
 
 // ── Main builder ──────────────────────────────────────────────────────────────
@@ -338,12 +375,7 @@ fn build_minc2_hdf5_binary(
 
     // ── image dataset OH ──────────────────────────────────────────────────
     // DATATYPE (0x0003): 32-bit LE float.
-    let mut dt_data = [0u8; 8];
-    dt_data[0] = 0x11;
-    dt_data[1] = 0x20;
-    dt_data[2] = 0x1F;
-    dt_data[4..8].copy_from_slice(&4u32.to_le_bytes());
-    let dt_msg = wrap_msg(0x0003, &dt_data);
+    let dt_msg = wrap_msg(0x0003, &float_datatype(4));
 
     // DATASPACE (0x0001): 3-D fixed.
     let mut ds_data = vec![1u8, 3u8, 0u8, 0u8]; // version, rank=3, flags, reserved
@@ -371,13 +403,7 @@ fn build_minc2_hdf5_binary(
 }
 
 fn wrap_msg(msg_type: u16, data: &[u8]) -> Vec<u8> {
-    let mut envelope = Vec::new();
-    envelope.extend_from_slice(&msg_type.to_le_bytes());
-    envelope.extend_from_slice(&(data.len() as u16).to_le_bytes());
-    envelope.push(0); // flags
-    envelope.extend_from_slice(&[0u8; 3]); // reserved
-    envelope.extend_from_slice(data);
-    envelope
+    wrap_message(msg_type, data.to_vec())
 }
 
 #[cfg(test)]

@@ -80,3 +80,30 @@ fn write_minc_eof_field_matches_file_size() {
     let eof_addr = u64::from_le_bytes(eof_bytes);
     assert_eq!(eof_addr, bytes.len() as u64, "EOF address mismatch");
 }
+
+#[test]
+fn write_minc_then_read_minc_round_trips_voxels() {
+    use crate::read_minc;
+
+    // values 0..8 over a 2×2×2 cube; assert value preservation order-agnostically
+    // to stay clear of the MINC dimorder axis-order convention. This is the first
+    // end-to-end write→read coverage and guards the HDF5 v1 object-header message
+    // alignment and datatype-descriptor encoding the consus reader requires.
+    let image = make_test_image(2, 2, 2, [0.0; 3], [1.0; 3]);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("roundtrip.mnc");
+    write_minc::<B, _>(&image, &path).expect("write MINC");
+
+    let device = Default::default();
+    let read = read_minc::<B, _>(&path, &device).expect("read MINC");
+    assert_eq!(read.shape(), [2, 2, 2]);
+    read.with_data_slice(|loaded| {
+        let mut got = loaded.to_vec();
+        got.sort_by(|a, b| a.partial_cmp(b).expect("no NaN voxels"));
+        let expected: Vec<f32> = (0..8u32).map(|i| i as f32).collect();
+        assert_eq!(
+            got, expected,
+            "all 8 voxel values preserved through round-trip"
+        );
+    });
+}
