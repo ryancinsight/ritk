@@ -1,5 +1,54 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 470 — MIG-470-01 Complete Coeus Binary-Morphology Family + Test-Harness Consolidation
+**Target version**: 0.14.0
+**Sprint phase**: Execution — three new verified code paths, one consolidation
+
+### In-flight plan (Sprint 470)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Verified each target core's Burn-independence by source read before
+  wrapping (per established discipline): `dilate_binary_3d` is pure
+  separable-sweep `&[f32]`→`Vec<f32>`; `BinaryMorphologicalClosing`/
+  `Opening` compose `erode_binary_3d`/`dilate_binary_3d` directly on flat
+  buffers with no separate core. All substrate-agnostic — boundary-wrapper
+  tasks, same shape as erode (Sprint 468).
+- [x] Added `binary_dilate_coeus`, `binary_closing_coeus`,
+  `binary_opening_coeus` through the shared `map_flat_image` helper. Each
+  reproduces its Burn counterpart's exact core composition; no algorithm
+  rewritten.
+- [x] Consolidated the differential-test harness on its second occurrence:
+  factored `coeus_support::assert_coeus_matches_burn` and rewrote the
+  pre-existing `tests_binary_erode_coeus.rs` and
+  `tests_unsigned_coeus.rs` (distance transform) to use it, then wrote the
+  three new test files against it — five wrapper test files, one harness,
+  no copied scaffolding.
+- [x] Verified: `cargo nextest run -p ritk-filter --features coeus`
+  964/964 (944 + 20 Coeus differential); default-feature 944/944
+  unaffected; clippy `-D warnings` clean; `cargo doc --features coeus
+  --no-deps` clean; Cargo.lock unchanged (no new dep edges).
+
+### Verification gate (Sprint 470)
+- [x] All commands above run and green.
+- [x] Scope check: only `ritk-filter` touched (morphology/mod.rs, 3 new
+  wrapper files + 3 new test files, coeus_support.rs harness addition, and
+  2 pre-existing test files refactored onto the harness).
+
+### Deferred / carry-forward
+- `PERF-432-01` remains open (Sprint 464 finding).
+- `MIG-439-03`'s workspace-wide Burn-caller-graph audit not yet performed.
+- Binary-morphology family Coeus layer is now complete (erode/dilate/
+  closing/opening). Remaining `ritk-filter` morphology with no Coeus
+  coverage: grayscale morphology (erosion/dilation/closing/opening/
+  gradient/geodesic/fillhole/grind-peak), label morphology, hit-or-miss,
+  top-hat, h-transform, regional-extrema, reconstruction, thinning/pruning
+  — check each core's Burn-independence before wrapping (grayscale ops
+  likely have pure cores too; label/reconstruction ops may not). Also
+  chamfer-distance and convolution kernels. None yet individually verified.
+- Registration metric-kernel Coeus migration still gated on Coeus-native
+  `Transform`/`Interpolator` paths (NOT on autodiff, which exists — see
+  Sprint 469 correction).
+- MIG-456-04 and `ritk-snap::ui::coordinate_system` remain open, untouched.
+
 ## Sprint 469 — MIG-469-01 Retract False "Coeus Has No Autodiff" Claim
 **Target version**: 0.14.0
 **Sprint phase**: Foundation — correcting a false claim from Sprint 468, no

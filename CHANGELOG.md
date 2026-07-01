@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 470: Coeus binary-morphology family + test-harness consolidation (MIG-470-01)
+
+### Added
+- `ritk-filter`: `binary_dilate_coeus`, `binary_closing_coeus`,
+  `binary_opening_coeus` — Coeus-native wrappers over the existing
+  substrate-agnostic morphology cores via the shared
+  `coeus_support::map_flat_image` helper, completing the binary-morphology
+  family's Coeus boundary layer (erode was added in Sprint 468). Each
+  verified bitwise-identical to its Burn counterpart.
+- `ritk-filter`: `coeus_support::assert_coeus_matches_burn`, a shared
+  generic Burn-vs-Coeus differential-test harness.
+
+### Changed
+- `ritk-filter`: refactored the pre-existing `binary_erode_coeus` and
+  `distance_transform_coeus` test files onto the shared harness (net-new
+  coverage without duplicated scaffolding).
+
+### Evidence
+- Evidence tier: value-semantic differential nextest (964/964 with
+  `coeus` — 944 pre-existing + 20 Coeus differential; 944/944
+  default-feature), plus compile/lint/docs;
+  `cargo nextest run -p ritk-filter --features coeus`,
+  `cargo clippy -p ritk-filter --all-targets --features coeus -- -D
+  warnings`, `cargo doc -p ritk-filter --features coeus --no-deps` all
+  passed. Cargo.lock unchanged.
+
+---
+
 ## [Unreleased] — Sprint 469: Retract false "Coeus has no autodiff" claim (MIG-469-01)
 
 ### Fixed

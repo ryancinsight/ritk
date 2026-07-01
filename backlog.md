@@ -201,6 +201,28 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-470-01 [minor] — Coeus-native binary dilation/closing/opening,
+  shared differential-test harness. DONE.**
+  Completed the binary-morphology family's Coeus boundary layer: added
+  `binary_dilate_coeus`, `binary_closing_coeus`, and `binary_opening_coeus`
+  alongside the existing `binary_erode_coeus`, each a thin
+  `map_flat_image` wrapper over its already substrate-agnostic pure core
+  (`dilate_binary_3d`; `erode∘dilate`; `dilate∘erode` — all pure
+  `&[f32]`/`Vec<f32>`, no Burn dependency; verified each core's
+  Burn-independence by source read before wrapping). Consolidated the
+  differential-test harness on its second occurrence (per
+  architecture_scoping): factored `coeus_support::assert_coeus_matches_burn`
+  (a generic Burn-vs-Coeus bitwise-equality checker taking a Burn-apply and
+  a Coeus-apply closure) and rewrote the pre-existing erode and
+  distance-transform test files to use it, so the five wrapper test files
+  share one harness instead of five copies. Evidence tier: value-semantic
+  differential nextest, `cargo nextest run -p ritk-filter --features coeus`
+  passed 964/964 (944 pre-existing + 20 Coeus differential tests across the
+  4 morphology ops and distance transform); default-feature build 944/944
+  unaffected; `cargo clippy --all-targets --features coeus -- -D warnings`
+  and `cargo doc --features coeus --no-deps` both clean. No new dependency
+  edges (Cargo.lock unchanged).
+
 - **MIG-469-01 [patch] — Retract false "Coeus has no autodiff" claim.
   DONE.**
   The user directly challenged Sprint 468's assertion that "Coeus does not

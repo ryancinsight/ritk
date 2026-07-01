@@ -1,5 +1,45 @@
 # RITK Gap Audit - Active
 
+## Sprint 470 Audit (2026-06-30) — Binary-Morphology Coeus Family Completed, Harness Consolidated
+
+### Finding: the whole binary-morphology family was boundary-wrapper-shaped
+
+Following Sprint 468's flagged `binary_dilate` candidate, checked the whole
+binary-morphology family's cores before writing: `dilate_binary_3d` is a
+pure separable-sweep `&[f32]`→`Vec<f32>` with no Burn dependency, and
+`BinaryMorphologicalClosing`/`Opening` compose `erode_binary_3d`/
+`dilate_binary_3d` directly on the flat buffer (no separate cores). All
+three are the same boundary-wrapper shape as `binary_erode` (Sprint 468) —
+so the family closes out as one coherent batch (erode already done; dilate/
+closing/opening added this sprint) rather than one filter per sprint.
+
+### Consolidation applied on the harness's second occurrence
+
+The differential-test scaffolding (build a Burn `NdArray` image and a Coeus
+`SequentialBackend` image from the same buffer, run both, assert bitwise
+equality) existed once (`tests_binary_erode_coeus.rs`, and again inline in
+the distance-transform test). Adding three more filters would have copied
+it five times. Per architecture_scoping's second-occurrence trigger,
+factored `coeus_support::assert_coeus_matches_burn` — a generic checker
+taking a Burn-apply and a Coeus-apply closure — and rewrote the two
+pre-existing test files onto it before writing the three new ones. Net
+effect: five wrapper test files share one harness; the diff adds real
+coverage (12 net-new differential tests) while removing duplicated
+scaffolding.
+
+### Residual Risk / Next Increment
+
+- Binary-morphology Coeus layer is complete. Grayscale morphology
+  (erosion/dilation/closing/opening/gradient/geodesic/fillhole/grind-peak)
+  is the next likely batch — grayscale cores are probably pure min/max
+  sweeps like the binary ones, but each must be source-checked for
+  Burn-independence before wrapping (do not assume from the binary
+  precedent). Label morphology and reconstruction ops may have Burn-coupled
+  cores and need individual assessment.
+- No regression: `git diff --stat` shows only `ritk-filter` files; no
+  `Cargo.lock` change (no new dependency edge — `coeus` feature and
+  `coeus-core` dep already present since Sprint 467).
+
 ## Sprint 469 Audit (2026-06-30) — A False Claim, Caught by the User, Corrected Immediately
 
 ### What happened
