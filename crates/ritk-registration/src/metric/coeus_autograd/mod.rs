@@ -22,11 +22,14 @@
 //!   thin MSE wrappers.
 //! - [`optim`] — the `Var`-level gradient-descent step a registration loop
 //!   uses to update the transform parameters from the metric gradient.
+//! - [`driver`] — [`driver::gradient_descent`], the reusable end-to-end
+//!   "run a Coeus registration" entry point composing the above.
 //! - [`traits`] — the Coeus-native `CoeusTransform` and `CoeusMetric` seams
 //!   (ADR 0001); [`metric::evaluate`] dispatches over their implementors
 //!   ([`transform::Translation`]/[`transform::Affine`], [`mse::Mse`]/
 //!   [`ncc::Ncc`]).
 
+pub mod driver;
 pub mod metric;
 pub mod mse;
 pub mod ncc;
@@ -35,6 +38,7 @@ pub mod sampling;
 pub mod traits;
 pub mod transform;
 
+pub use driver::{gradient_descent, GradientDescentConfig, RegistrationOutcome};
 pub use metric::{affine_mse_coeus, evaluate, mse_metric};
 pub use mse::{mean_squared_error_coeus, Mse};
 pub use ncc::{normalized_cross_correlation_coeus, Ncc};

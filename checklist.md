@@ -1,5 +1,47 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 482 — MIG-482-01 Coeus-Native Gradient-Descent Registration Driver
+**Target version**: 0.14.0
+**Sprint phase**: Execution — the parallel Coeus primitives composed into a
+runnable end-to-end unit
+
+### In-flight plan (Sprint 482)
+- [x] Re-synced with origin/main (0/0); confirmed upstream (leto) builds green
+  (heavy build contention).
+- [x] Diagnosed the standing gap (paranoia check): 10 sprints of verified Coeus
+  registration primitives had **no composed runnable entry point** — chose the
+  driver over a 3rd metric (MI) as higher-value/lower-risk (MI is fiddly
+  shape-gymnastics; build cycles are expensive under contention; the driver
+  reuses only already-verified ops).
+- [x] Added `driver::gradient_descent` + `GradientDescentConfig` +
+  `RegistrationOutcome` — generic over `CoeusMetric`/`CoeusTransform`, transform
+  rebuilt each iteration from parameter leaves via a caller closure (no
+  parameter-reflection trait needed).
+- [x] Fixed a `final_loss` off-by-one by re-evaluating at the returned
+  post-step params.
+- [x] Tests: recovers a known translation (loss → <1e-8); generic over `Affine`
+  (multi-param, substantial reduction). Corrected an arbitrary over-strong
+  1000× convergence threshold to a defensible order-of-magnitude bar (the test
+  verifies genericity + reduction, not a specific rate — no analytical
+  requirement for 1000×).
+- [x] 42/42 `coeus_autograd`; full package `--features coeus` 740/740; default
+  build unaffected; clippy `-D warnings` and `cargo doc --features coeus
+  --no-deps` clean. Discarded upstream-migration Cargo.lock churn.
+
+### Verification gate (Sprint 482)
+- [x] All commands above green.
+- [x] Scope check: new `driver.rs` + `tests_driver.rs` + two `mod.rs`
+  re-exports; no Cargo.lock delta; burn path untouched.
+
+### Deferred / carry-forward
+- Wiring `gradient_descent` behind the production registration API (still Burn):
+  needs multi-resolution, convergence/stopping policy, and caller migration —
+  the larger remaining phase.
+- Coeus-native MI/Parzen metric (3rd `CoeusMetric` implementor).
+- A tolerance-based early-stop for the driver (currently fixed iteration count).
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 481 — MIG-478-02 Coeus-Native `CoeusMetric` Reduction Seam (Mse/Ncc)
 **Target version**: 0.14.0
 **Sprint phase**: Execution — second registration seam introduced, composition

@@ -201,6 +201,28 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-482-01 [minor] — Coeus-native gradient-descent registration driver.
+  DONE.**
+  Addressed the standing risk that the Coeus registration primitives (built
+  and verified individually over MIG-471…481) had no composed, usable
+  end-to-end entry point — a parallel capability nothing could *run*. Added
+  `metric::coeus_autograd::driver::gradient_descent` + `GradientDescentConfig`
+  + `RegistrationOutcome`: the reusable "run a Coeus registration" SSOT that
+  ties `evaluate` → `Var::backward` → `sgd_step_var` into the optimization
+  loop, generic over any `CoeusMetric` and `CoeusTransform`. The transform is
+  rebuilt each iteration from the current parameter leaves via a caller
+  closure (`Fn(&[Var]) -> Tf`), so the driver is transform-generic without a
+  parameter-reflection trait (the caller owns the params→transform mapping).
+  `final_loss` is re-evaluated at the returned post-step parameters (correct,
+  no off-by-one vs. the pre-step loss). Evidence tier: end-to-end
+  optimizability — recovers a known translation (loss → <1e-8) and is
+  exercised generically with `Affine` (multi-parameter, order-of-magnitude
+  loss reduction). 42/42 `coeus_autograd` tests; full package `--features
+  coeus` 740/740; default build unaffected; clippy `-D warnings` and `cargo
+  doc --features coeus --no-deps` clean. No new dependency edges. This
+  connects the whole Coeus registration capability into one callable unit;
+  wiring it behind the production (Burn) engine's API is the remaining phase.
+
 - **MIG-479-01 [minor] — Consolidate per-axis translation onto the
   `CoeusTransform` seam. DONE.**
   Removed both superseded per-axis translation functions — `translation_mse_coeus`

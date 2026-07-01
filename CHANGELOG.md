@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 482: Coeus-native gradient-descent registration driver (MIG-482-01)
+
+### Added
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::driver::gradient_descent` (+ `GradientDescentConfig`,
+  `RegistrationOutcome`) — the reusable end-to-end "run a Coeus registration"
+  entry point, composing `evaluate` → `backward` → `sgd_step_var` into the
+  optimization loop, generic over any `CoeusMetric` and `CoeusTransform` (the
+  transform is rebuilt each iteration from parameter leaves via a caller
+  closure). Connects the individually-verified Coeus registration primitives
+  into one callable unit.
+
+### Evidence
+- Evidence tier: end-to-end optimizability — recovers a known translation
+  (loss → <1e-8) and is exercised generically with `Affine` (multi-parameter,
+  order-of-magnitude loss reduction). `cargo nextest run -p ritk-registration
+  --features coeus coeus_autograd` 42/42; full package `--features coeus`
+  740/740; default build unaffected; clippy `-D warnings` and `cargo doc
+  --features coeus --no-deps` clean. Cargo.lock unchanged.
+
+---
+
 ## [Unreleased] — Sprint 481: Coeus-native `CoeusMetric` reduction seam over Mse/Ncc (MIG-478-02)
 
 ### Added

@@ -19,9 +19,10 @@ pub mod trait_;
 
 #[cfg(feature = "coeus")]
 pub use coeus_autograd::{
-    affine_mse_coeus, affine_transform_coeus, evaluate, mean_squared_error_coeus, mse_metric,
-    normalized_cross_correlation_coeus, sample_linear_1d_coeus, sample_trilinear_coeus,
-    sgd_step_var, Affine, CoeusMetric, CoeusTransform, Mse, Ncc, Translation,
+    affine_mse_coeus, affine_transform_coeus, evaluate, gradient_descent,
+    mean_squared_error_coeus, mse_metric, normalized_cross_correlation_coeus, sample_linear_1d_coeus,
+    sample_trilinear_coeus, sgd_step_var, Affine, CoeusMetric, CoeusTransform, GradientDescentConfig,
+    Mse, Ncc, RegistrationOutcome, Translation,
 };
 pub use correlation_ratio::{CorrelationDirection, CorrelationRatio};
 pub use entropy::{entropy, entropy_with_eps, DEFAULT_ENTROPY_EPS};

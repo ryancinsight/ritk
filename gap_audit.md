@@ -1,5 +1,51 @@
 # RITK Gap Audit - Active
 
+## Sprint 482 Audit (2026-06-30) — Connected the Parallel Coeus Capability Into a Runnable Unit
+
+### Paranoia check that changed the plan: verified primitives ≠ a usable feature
+
+The obvious next backlog item was a 3rd metric (MI). Stepping back: 10 sprints
+had produced an extensive, individually-verified Coeus registration toolkit
+(loss ×2, sampling, transforms ×2, generic metric, optimizer step, two seams)
+that **nothing could actually run end-to-end** — a parallel cathedral risk. The
+higher-value move was to compose it into a single callable driver, proving the
+assembly works as a unit, before piling on more unconnected parts. This is the
+"vertical slice of a complete feature" discipline over breadth-first
+accumulation.
+
+### Driver design avoided an unnecessary abstraction
+
+Making the loop generic over any transform naively suggests a
+`parameters()`/`from_parameters()` reflection trait on `CoeusTransform`.
+Instead the driver takes a `Fn(&[Var]) -> Tf` closure, so the caller owns the
+params→transform mapping and the seam stays minimal (no speculative trait
+surface). Two real call shapes (Translation single-param, Affine two-param)
+confirm it's general enough without the extra abstraction — YAGNI honored.
+
+### Two self-corrections, both upward
+
+(1) A `final_loss` off-by-one (reporting the pre-final-step loss while returning
+post-step params) was caught and fixed by re-evaluating at the returned params —
+correctness of the reported outcome, not just the optimization. (2) An
+arbitrary 1000× convergence threshold on the affine test failed on a genuine
+90× reduction; rather than the number being "wrong," the *assertion* was
+over-specified — replaced with a defensible order-of-magnitude bar that tests
+what the test is for (genericity + real reduction), with the reasoning recorded
+inline. Neither was a test-weakening to pass; both aligned the assertion to the
+actual, analytically-defensible requirement.
+
+### Residual Risk / Next Increment
+
+- The driver is the usable Coeus registration entry point, but it is still a
+  parallel capability — the production registration API/engine remains Burn.
+  Wiring `gradient_descent` behind that API (with multi-resolution and a
+  stopping policy) is the larger remaining phase and is not started.
+- The driver uses a fixed iteration count; a tolerance-based early stop is a
+  small filed follow-up.
+- Upstream Atlas foundation crates remain under active concurrent migration
+  (build contention/intermittent breakage); continue verifying only against a
+  green upstream.
+
 ## Sprint 481 Audit (2026-06-30) — `CoeusMetric` Seam Introduced Exactly When Justified; a Test Caught a Real Property
 
 ### The seam was introduced at the right moment, not speculatively

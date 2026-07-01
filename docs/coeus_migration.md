@@ -79,6 +79,14 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Reverse-mode autodiff — gradient-descent registration driver (Sprint 482).**
+  Added `driver::gradient_descent` (+ config/outcome types) composing the
+  verified primitives into one runnable entry point, generic over any
+  `CoeusMetric`/`CoeusTransform`. Verified end-to-end (known-translation
+  recovery to <1e-8; generic over `Affine`). This makes the Coeus registration
+  capability *usable as a unit*; wiring it behind the production (Burn) engine
+  API — multi-resolution, stopping policy, caller migration — is the remaining
+  phase.
 - **Reverse-mode autodiff — `CoeusMetric` reduction seam (Sprint 481).** Added
   `traits::CoeusMetric` with `Mse`/`Ncc` implementors and generalized the
   composition to `metric::evaluate<M, Tf>` (`mse_metric` now a thin `Mse`
