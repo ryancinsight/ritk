@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 463: PERF-432-01 profiling (no code change)
+
+### Investigated
+- `PERF-432-01` (registration integration tests over the nextest slow budget):
+  profiled `bspline_registers_offset_sphere` with temporary timers (the
+  sanctioned flamegraph/perf/samply tools are impractical on this host) and
+  located the bottleneck precisely — forward ≈42%, backward ≈45% of the ~87s
+  loop, dominated by ~30 chained burn tensor ops per call in
+  `BSplineTransform::transform_3d_chunk` at this workspace's mandated debug
+  test profile.
+- Attempted a loss-plateau early-stopping fix via the engine's existing
+  `ConvergenceChecker`; **rejected after verification** — it reduced runtime
+  but broke the test's accuracy assertion, because aggregate MSE-loss
+  convergence does not track this test's single-point geometric query.
+  Fully reverted; no test or production code changed.
+- Filed two concrete, verified, value-preserving next increments (redundant
+  fixed-grid recompute in `MeanSquaredError::forward`; static index tensors
+  rebuilt every call in `transform_3d_chunk`) — see backlog.md.
+
+### Evidence
+- Evidence tier: profiling instrumentation (temporary, removed) plus offline
+  simulation against the exact recorded loss curve. No nextest/clippy/fmt
+  changes this sprint — working tree is unchanged from Sprint 462.
+
+---
+
 ## [Unreleased] — Sprint 462: Workspace-wide orphaned-module sweep
 
 ### Fixed

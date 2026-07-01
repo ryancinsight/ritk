@@ -49,6 +49,74 @@
   after regressing the focused row to 78.925s; with that production change
   removed, the latest focused evidence is 80.456s.
 
+  **New profiling evidence (this pass)**: instrumented `run_loop` with
+  `std::time::Instant` timers around forward/backward/step (removed after
+  measuring; `cargo flamegraph`/`perf`/`samply` are impractical on this
+  Windows/MSYS host — flamegraph requires a release rebuild too slow to
+  iterate with and Windows lacks `perf`). On `bspline_registers_offset_sphere`
+  (10³ voxels, 5³ B-spline control points, 200 iterations): `forward` ≈ 42%,
+  `backward` ≈ 45%, optimizer `step` + scalar extraction ≈ negligible (<0.1%)
+  of the ~87s loop. The bottleneck is squarely the metric-forward /
+  autodiff-backward tensor graph, consistent with `BSplineTransform::
+  transform_3d_chunk` chaining ~30 distinct burn tensor ops (gather/select/
+  reshape/floor/clamp/compare/mul/sum) per call — each op is a separate
+  autodiff graph node whose dispatch/allocation overhead dominates at this
+  workspace's mandated `[profile.test] opt-level = 0` (kept for readable
+  Windows backtraces). This explains why "fused MSE interpolation" (reducing
+  op count) got a real but partial win (87.6s→76.4s) and why further op-count
+  reduction is the correct, durable fix — not a config change.
+
+  **Rejected approach (evidence-backed, do not re-attempt as-is)**: configuring
+  `Registration::with_config(...).with_convergence_detection(ConvergenceChecker)`
+  to stop once the aggregate MSE loss plateaus. A full per-iteration loss dump
+  simulated offline against patience∈{10,20,30,50}/threshold∈{1e-4..5e-3}
+  showed threshold=1e-4,patience=20 robustly triggers at iteration 90 (loss
+  0.013698 vs the iteration-199 floor of 0.013640 — only 0.4% higher). Wiring
+  that exact config into the test still **failed the assertion**
+  (err_x 0.668 vs the iteration-199 value 0.342, threshold 0.5) — a 2x error
+  increase from a 0.4% loss difference. Root cause: aggregate voxel-wise MSE
+  is dominated by the (much larger) near-static background, so the loss curve
+  can visually plateau while the few control points governing the actual
+  query point (5,5,5) are still refining — aggregate-loss convergence is not a
+  safe proxy for this test's single-point geometric assertion. Do not retune
+  the threshold further; the failure mode is structural, not a tuning miss
+  (confirmed by testing two thresholds an order of magnitude apart, both
+  failing). This may still be valid for OTHER registration tests whose
+  assertions are loss-aligned (e.g. a global-similarity check) — untested.
+
+  **Next real increment (two verified, concrete op-count reductions, neither
+  yet implemented — both change nothing about computed *values*, only how many
+  times equivalent tensors are rebuilt, so neither carries the convergence-
+  criterion risk documented above)**:
+  1. `crates/ritk-registration/src/metric/mse.rs::MeanSquaredError::forward`
+     (lines ~41-44) calls `grid::generate_grid(fixed_shape, &device)` then
+     `fixed.index_to_world_tensor(fixed_indices)` fresh on *every* call, but
+     `fixed` never changes across `run_loop`'s 200 iterations (verified: the
+     loop in `crates/ritk-registration/src/registration/engine.rs::run_loop`
+     passes the same `fixed: &Image<B, D>` reference every iteration). This
+     recomputes an iteration-invariant tensor 200 times. Fixing it requires a
+     design decision (cache inside `MeanSquaredError` via `RefCell` keyed on
+     image identity — adds statefulness/thread-safety questions to a
+     currently-stateless, freely-`Clone`-able metric; vs. hoist grid
+     generation to `run_loop`/`Metric::forward` signature — touches every
+     `Metric` implementor: NCC, LNCC, MI, correlation_ratio, ngf, histogram/
+     mutual_information). That trait-level blast radius is why this is filed
+     rather than implemented in this pass.
+  2. `crates/ritk-transform/src/transform/bspline/interpolation/dim3.rs::
+     transform_3d_chunk` (lines ~93-96, ~110-113) constructs `range`/`i_idx`/
+     `j_idx`/`k_idx`/`zeros` — verified to depend only on the literal shape
+     `[0,1,2,3]`/`[1,4,4,4]` and `device`, never on `points` or
+     `t.coefficients` — fresh on every forward call, i.e. every iteration.
+     These are the same five tensors every time `execute()` runs on a given
+     device; hoisting them to a per-`BSplineTransform` cache (populated once
+     at construction, since `device` is fixed at construction too) removes
+     5 of the ~30 ops per call with zero risk to computed values.
+  3. (Lower-confidence, unverified) fuse the basis-weight outer product
+     (`bx⊗by⊗bz`) and the index-gather-and-weighted-sum into fewer burn ops —
+     the general direction "fused MSE interpolation" already partially
+     explored (87.6s→76.4s); items 1-2 above are more concretely scoped
+     first steps toward the same op-count-reduction goal.
+
 - **MEM-445-01 [patch] — MAD noise work-buffer reuse. DONE.**
   MAD noise estimation now overwrites its mutable work buffer with absolute
   deviations after the median is known, avoiding the previous second

@@ -1,5 +1,58 @@
 # RITK Gap Audit - Active
 
+## Sprint 463 Audit (2026-06-30) — PERF-432-01 Profiling and a Rejected Fix
+
+### Method note: profiling tooling on this host
+
+`cargo-flamegraph` is installed but requires a release rebuild too slow to
+iterate with here, and this Windows/MSYS host has neither `perf` nor
+`samply`. Used temporary `std::time::Instant` timers around the
+forward/backward/optimizer-step phases in `run_loop` instead (added,
+measured, then fully removed — never committed). This is a durable technique
+for future profiling passes on this host when the sanctioned tools aren't
+viable.
+
+### Finding: bottleneck location (high confidence, measured)
+
+`bspline_registers_offset_sphere`'s ~87s loop is ~42% forward, ~45% backward,
+<0.1% optimizer step + scalar extraction. The metric-forward/autodiff-backward
+tensor graph is the entire cost center — consistent with
+`BSplineTransform::transform_3d_chunk` chaining ~30 distinct burn tensor ops
+per call, each a separate autodiff graph node whose dispatch/allocation
+overhead dominates at this workspace's mandated `opt-level = 0` test profile.
+
+### Rejected approach (verified, do not re-attempt as-is)
+
+Configuring loss-plateau-based early stopping
+(`RegistrationConfig::with_convergence_detection`) to skip the tail of wasted
+iterations. A full per-iteration loss dump, simulated offline against
+patience∈{10,20,30,50}×threshold∈{1e-4..5e-3}, showed a config that would
+robustly stop at iteration 90 with only 0.4% higher loss than the
+iteration-199 floor. Wiring that exact config into the test **still failed
+the assertion** (err_x 0.668 vs the passing 0.342 at threshold 0.5) — a 2x
+error increase from a 0.4% loss difference. Root cause: this test's assertion
+is a single-point geometric query, but aggregate voxel-wise MSE is dominated
+by the (much larger) static background, so the aggregate loss curve can look
+converged while the specific control points governing the queried point are
+still refining. **Aggregate-loss convergence is not a safe stopping proxy for
+a single-point assertion**, confirmed by two threshold settings an order of
+magnitude apart both failing — this is a structural mismatch, not a tuning
+miss, so do not re-attempt by retuning the threshold further. May still be
+valid for other registration tests whose assertions are loss-aligned
+(untested; not in scope this pass).
+
+### Residual Risk / Next Increment
+
+- **[PERF-432-01 still OPEN]** Two concrete, verified, value-preserving
+  op-count reductions filed in backlog.md: (1) `MeanSquaredError::forward`
+  recomputes the iteration-invariant fixed-image grid every call (200×
+  redundant; fix requires a `Metric`-trait-wide design decision, hence not
+  done in this pass); (2) `transform_3d_chunk` rebuilds 5 device/shape-only
+  static index tensors every call (zero-risk hoist, not yet implemented).
+- No code changes survived this sprint — `git status`/`git diff` clean.
+  Recorded as a Foundation-phase audit sprint per the sprint-phase
+  definitions (audit + gap analysis, not yet Execution).
+
 ## Sprint 462 Audit (2026-06-29) — Workspace-Wide Orphaned-Module Sweep
 
 ### Method note: basename heuristics are unreliable; per-file resolution is required

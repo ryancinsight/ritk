@@ -1,5 +1,56 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 463 — PERF-432-01 Profiling: Bottleneck Located, One Approach Rejected
+**Target version**: 0.14.0
+**Sprint phase**: Foundation — evidence gathered, no code change (both attempted
+fixes were reverted after verification; see rationale below)
+
+### In-flight plan (Sprint 463)
+- [x] PERF-432-01 [patch]: Profile `bspline_registers_offset_sphere` with
+  temporary `std::time::Instant` timers (flamegraph/perf/samply unavailable
+  or impractical on this Windows/MSYS host) — forward ≈42%, backward ≈45%,
+  optimizer step + scalar extraction <0.1% of the ~87s loop. Bottleneck is
+  the metric-forward/autodiff-backward tensor graph (~30 chained burn ops in
+  `BSplineTransform::transform_3d_chunk` per call), consistent with why the
+  prior "fused MSE interpolation" op-count reduction got a real but partial
+  win.
+- [x] PERF-432-01 [patch]: Attempted and **rejected** a
+  `ConvergenceChecker`-based early-stop (loss-plateau detection) — simulated
+  offline against the full 200-iteration loss curve, wired in the config that
+  the simulation showed would trigger at iteration 90 (0.4% higher loss than
+  the iteration-199 floor), and it **failed the test's accuracy assertion**
+  (err_x 0.668 vs 0.342, threshold 0.5). Root cause: aggregate MSE loss
+  plateaus while the specific control points governing the asserted query
+  point are still refining — aggregate-loss convergence is not a safe proxy
+  for this test's single-point geometric assertion. Fully reverted (test
+  file, engine.rs instrumentation, Cargo.lock) to the clean original state.
+- [x] Documented two concrete, verified, lower-risk op-count-reduction
+  opportunities (redundant fixed-grid recompute in `MeanSquaredError::
+  forward`; static index tensors rebuilt every call in
+  `transform_3d_chunk`) in backlog.md as the next real increment.
+
+### Verification gate (Sprint 463)
+- [x] Confirmed `bspline_registers_offset_sphere` passes unchanged at
+  baseline (200 iterations, no config change) after reverting.
+- [x] `git status` / `git diff` clean — no source files modified; this
+  sprint is audit/evidence-only.
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch] remains OPEN. Next increment (see backlog.md for
+  full detail): (1) cache the iteration-invariant fixed-image grid in
+  `MeanSquaredError::forward` instead of recomputing it 200×/call — requires
+  a design decision on trait-level caching vs. hoisting, since it touches
+  every `Metric` implementor; (2) hoist the 5 static index/mask tensors in
+  `transform_3d_chunk` to a per-`BSplineTransform` cache (zero value-risk,
+  removes 5 of ~30 ops/call); (3) further fusion of the basis-weight outer
+  product and gather-weighted-sum, the same direction as the prior partial
+  "fused MSE interpolation" win.
+- [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
+- [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.
+- [ ] BACKLOG: Wire `ritk-snap::ui::coordinate_system` into a UI feature or remove.
+
+---
+
 ## Sprint 462 — Workspace-Wide Orphaned-Module Sweep (SEC-461-04)
 **Target version**: 0.14.0
 **Sprint phase**: Closure — corrected tooling-based sweep, all 14 candidates triaged
