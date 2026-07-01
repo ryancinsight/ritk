@@ -19,7 +19,7 @@ pub mod trait_;
 
 #[cfg(feature = "coeus")]
 pub use coeus_autograd::{
-    mean_squared_error_coeus, sample_linear_1d_coeus, sample_trilinear_coeus,
+    mean_squared_error_coeus, sample_linear_1d_coeus, sample_trilinear_coeus, sgd_step_var,
     translate_axis_coeus, translation_mse_coeus,
 };
 pub use correlation_ratio::{CorrelationDirection, CorrelationRatio};

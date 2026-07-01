@@ -18,16 +18,20 @@
 //! - [`metric`] — the end-to-end composition
 //!   `mse(sample(moving, translate(grid, t)), fixed)`, whose gradient reaches
 //!   the translation parameters.
+//! - [`optim`] — the `Var`-level gradient-descent step a registration loop
+//!   uses to update the transform parameters from the metric gradient.
 //!
 //! The Coeus-native `Metric`/`Transform` trait surface that wraps this
 //! composition remains a separate (ADR-gated, `[arch]`) increment.
 
 pub mod metric;
 pub mod mse;
+pub mod optim;
 pub mod sampling;
 pub mod transform;
 
 pub use metric::translation_mse_coeus;
 pub use mse::mean_squared_error_coeus;
+pub use optim::sgd_step_var;
 pub use sampling::{sample_linear_1d_coeus, sample_trilinear_coeus};
 pub use transform::translate_axis_coeus;

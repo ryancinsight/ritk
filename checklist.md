@@ -1,5 +1,42 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 475 — MIG-475-01 Coeus-Autograd Gradient-Descent Optimizability Proof
+**Target version**: 0.14.0
+**Sprint phase**: Execution — optimizer step + end-to-end convergence proof
+
+### In-flight plan (Sprint 475)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Checked Coeus for an existing `Var`-level optimizer step: only a
+  low-level fused `sgd_step` over raw device buffers exists (coeus-ops), no
+  `Var`-level helper — so a thin ritk-side step is warranted (not reinventing).
+- [x] Added `optim::sgd_step_var` — returns a fresh `requires_grad` leaf
+  `param − lr·grad` (tape-based-autograd idiom; off-tape param update).
+- [x] Split the affine-transform half of the former MIG-475-01 into MIG-476-01
+  — its per-axis-vs-`matmul`/column-split API decision deserves a focused
+  increment rather than being rushed alongside the optimizability proof.
+- [x] Verified: 20-step GD loop on `translation_mse_coeus` from a +1 offset →
+  loss strictly decreases each step, `tx` converges to `1.0` within `1e-6`
+  (closed-form quadratic bowl); plus 2 `sgd_step_var` unit tests. 23/23
+  (`coeus_autograd` filter, 3 new + 20 prior).
+- [x] Full package `--features coeus` 721/721; default build unaffected;
+  clippy `-D warnings` clean; `cargo doc --features coeus --no-deps` clean.
+- [x] Discarded the recurring unrelated `ndarray`-drop Cargo.lock churn
+  (no deps added); commit lock-clean.
+
+### Verification gate (Sprint 475)
+- [x] All commands above green.
+- [x] Scope check: only the `coeus_autograd/` tree (new `optim.rs` +
+  `tests_optim.rs`, GD test appended to `tests_metric.rs`) and the two
+  `mod.rs` re-exports; no Cargo.lock delta.
+
+### Deferred / carry-forward
+- **MIG-476-01 [READY]**: differentiable affine transform (`R·coords + t`);
+  resolve per-axis-vs-`matmul`+column-split first. Precedes the trait ADR.
+- Coeus-native `Metric`/`Transform` trait surface still [arch] (ADR-gated) —
+  now backed by both a composed metric *and* proof it optimizes.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 474 — MIG-474-01 End-to-End Coeus-Autograd MSE-over-a-Translation Metric
 **Target version**: 0.14.0
 **Sprint phase**: Execution — differentiable primitives composed into a usable

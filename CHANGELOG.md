@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 475: Coeus-autograd gradient-descent optimizability proof (MIG-475-01)
+
+### Added
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::optim::sgd_step_var`, a `Var`-level vanilla
+  gradient-descent step returning a fresh `requires_grad` leaf
+  `param − lr·grad` (the tape-based-autograd idiom; off-tape parameter update).
+
+### Evidence
+- Evidence tier: analytical — a 20-step gradient-descent loop on
+  `translation_mse_coeus` from a known +1-voxel offset asserts the loss
+  strictly decreases every step and the translation parameter converges to the
+  true offset within `1e-6` (closed-form quadratic bowl), proving the Coeus
+  registration objective is usable for optimization, not merely
+  differentiable; plus two `sgd_step_var` unit tests.
+  `cargo nextest run -p ritk-registration --features coeus coeus_autograd`
+  23/23; full package `--features coeus` 721/721; default build unaffected;
+  clippy `-D warnings` and `cargo doc --features coeus --no-deps` clean.
+  Cargo.lock unchanged.
+
+### Notes
+- The differentiable-affine-transform half of the original MIG-475-01 was
+  split to MIG-476-01 (its per-axis-vs-`matmul` API decision warrants a
+  focused increment). `docs/coeus_migration.md` updated.
+
+---
+
 ## [Unreleased] — Sprint 474: End-to-end Coeus-autograd MSE-over-a-translation metric (MIG-474-01)
 
 ### Added

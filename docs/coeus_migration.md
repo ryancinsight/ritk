@@ -79,6 +79,14 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Reverse-mode autodiff — gradient-descent optimizability (Sprint 475).**
+  Added `metric::coeus_autograd::optim::sgd_step_var` and proved end-to-end
+  that `translation_mse_coeus` optimizes: a 20-step descent loop from a known
+  offset drives the loss monotonically to ~0 and the translation parameter to
+  the true offset. The Coeus registration objective is now demonstrably usable,
+  not merely differentiable. Differentiable affine transform split to
+  `MIG-476-01`; the Coeus-native `Metric`/`Transform` trait ADR is now
+  well-supported but deliberately awaits the affine parameter shape.
 - **Reverse-mode autodiff — end-to-end MSE-over-a-translation metric
   (Sprint 474).** Composed the loss kernel, trilinear sampler, and a new
   differentiable translation (`transform::translate_axis_coeus`) into

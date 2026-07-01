@@ -1,5 +1,54 @@
 # RITK Gap Audit - Active
 
+## Sprint 475 Audit (2026-06-30) — Proved the Coeus Metric Optimizes, Split the Affine Design Out
+
+### Finding: "differentiable + correctly-signed" is necessary but not sufficient
+
+Sprint 474 proved the metric's gradient points toward alignment. That does not
+by itself prove the objective *optimizes* — a correctly-signed gradient can
+still stall or diverge under iteration if the tape is rebuilt wrongly between
+steps, or if the parameter update detaches incorrectly. This sprint closed that
+gap with an actual gradient-descent loop asserting monotone loss decrease and
+convergence to the true offset. The key correctness point it validates: a
+tape-based optimizer must rebuild the graph from *fresh* parameter leaves each
+iteration (`sgd_step_var` returns a new `requires_grad` leaf), and the
+`stepped_parameter_is_a_fresh_requires_grad_leaf` test pins that the returned
+leaf actually re-accumulates gradients — a subtle requirement that, if wrong,
+would make iteration 2+ silently produce no gradient.
+
+### Reused rather than reinvented, but at the right layer
+
+Coeus has a fused `sgd_step` — but it operates on raw device buffers with
+explicit layouts, not `Var`s, and is a GPU/CPU kernel for bulk parameter
+tensors. For a 3-parameter registration transform on the autograd tape, the
+`Var`-level step is the right abstraction; the low-level kernel would require
+manually managing velocity buffers and layouts off-tape. Documented the
+distinction so a future high-parameter-count model path (which *should* use the
+fused kernel) knows the two exist for different scales.
+
+### Scope discipline: split the affine transform out rather than rush it
+
+The former MIG-475-01 bundled affine transform + optimizability. The affine
+design has a genuine unresolved decision (per-axis vs `[N,3]`+`matmul`, gated on
+verifying a differentiable column-split's gradient) that shouldn't be rushed
+alongside a clean optimizability proof. Split to MIG-476-01 with the decision
+written down, so the next increment starts from the design question, not a
+half-made choice.
+
+### Residual Risk / Next Increment
+
+- MIG-476-01 (affine): rotation gradients are the discriminating correctness
+  case (translation is trivially linear); verify against finite differences
+  carefully. The column-split-vs-per-axis decision affects whether the
+  established sampler API changes.
+- The trait-surface ADR is now well-supported (composed metric + convergence
+  evidence) but still deliberately unopened until affine informs the parameter
+  shape — designing `Transform` before knowing how affine parameters thread
+  would be premature.
+- Recurring unrelated `ndarray`-drop Cargo.lock churn discarded again (5th
+  sprint running); flagged for coordination — the owning sibling agent should
+  land its dependency change on `main` to stop the recurring local delta.
+
 ## Sprint 474 Audit (2026-06-30) — Differentiable Primitives Composed Into a Usable Metric
 
 ### Finding: the composition closed the "differentiable but not yet usable" gap

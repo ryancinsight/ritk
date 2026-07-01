@@ -9,6 +9,7 @@
 //! zero. Cross-checked with a self-consistent central finite difference on the
 //! metric's own forward. Deterministic `SequentialBackend`.
 
+use super::super::optim::sgd_step_var;
 use super::translation_mse_coeus;
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
@@ -133,4 +134,50 @@ fn tx_gradient_matches_self_consistent_finite_difference() {
     let h = 1e-6;
     let fd = (loss_at_tx(&grid_x, &fixed, h) - loss_at_tx(&grid_x, &fixed, -h)) / (2.0 * h);
     assert!((analytic - fd).abs() < 1e-5, "analytic {analytic}, finite-diff {fd}");
+}
+
+#[test]
+fn gradient_descent_converges_to_the_true_offset() {
+    // End-to-end optimizability proof: from tx = 0, plain gradient descent on
+    // translation_mse_coeus must monotonically decrease the loss and converge
+    // to the true offset tx = 1 (fixed = ramp shifted +1 in x). Analytically
+    // loss(tx) = (tx − 1)², grad = 2(tx − 1); with lr = 0.25 the update
+    // tx' = tx − 0.25·2(tx − 1) contracts toward 1 by a factor 0.5 per step.
+    let grid_x = [1.0, 2.0, 3.0];
+    let fixed = [2.0, 3.0, 4.0];
+    let moving = ramp_moving();
+    let zeros = vec![0.0; grid_x.len()];
+    let lr = 0.25;
+
+    let mut tx = var(&[0.0], true);
+    let mut prev_loss = f64::INFINITY;
+    let mut last_tx = 0.0;
+    for step in 0..20 {
+        let loss = translation_mse_coeus(
+            &var(&moving, false),
+            DIMS,
+            &var(&fixed, false),
+            &var(&zeros, false),
+            &var(&zeros, false),
+            &var(&grid_x, false),
+            &var(&[0.0], false),
+            &var(&[0.0], false),
+            &tx,
+        );
+        let loss_val = loss.tensor.as_slice()[0];
+        assert!(
+            loss_val < prev_loss || loss_val < 1e-14,
+            "loss must strictly decrease each step (step {step}: {loss_val} !< {prev_loss})"
+        );
+        prev_loss = loss_val;
+        loss.backward();
+        tx = sgd_step_var(&tx, lr);
+        last_tx = tx.tensor.as_slice()[0];
+    }
+
+    assert!(
+        (last_tx - 1.0).abs() < 1e-6,
+        "translation must converge to the true offset 1.0, got {last_tx}"
+    );
+    assert!(prev_loss < 1e-10, "final loss must be ~0, got {prev_loss}");
 }

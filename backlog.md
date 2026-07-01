@@ -201,20 +201,47 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
-- **MIG-475-01 [minor] — Coeus-autograd differentiable affine/rigid transform
-  + gradient-descent alignment demonstration. READY.**
-  Acceptance: (1) add a differentiable affine coordinate transform
-  (`coords' = R·coords + t` via Coeus autograd `matmul`, gradient to the 3×3
-  `R` and 3-vector `t` params) alongside the existing translation, verified
-  against a host affine reference + finite-difference parameter gradients;
-  (2) demonstrate the metric is optimizable end-to-end — run a few manual
-  gradient-descent steps on `translation_mse_coeus` (MIG-474-01) from a known
-  offset and assert the loss monotonically decreases and the translation
-  parameter converges toward the true offset (analytical: quadratic bowl, so
-  GD with a suitable step provably descends). This proves the whole Coeus
-  registration path is not just differentiable but *usable* for optimization,
-  and gives the empirical evidence needed before opening the ADR for the
-  Coeus-native `Metric`/`Transform` trait surface.
+- **MIG-476-01 [minor] — Coeus-autograd differentiable affine coordinate
+  transform. READY.**
+  Acceptance: add a differentiable affine transform `coords' = R·coords + t`
+  (gradient to the 3×3 `R` and 3-vector `t`), verified against a host affine
+  reference + finite-difference parameter gradients (rotation gradients are
+  the discriminating case — verify carefully). Design decision to resolve
+  first: the existing sampler/transform API is **per-axis** (`[N]` `Var`s) to
+  avoid a differentiable column-split; an affine naturally wants `matmul` on
+  `[N,3]`. Two options — (a) express affine per-axis with `broadcast`/`mul`/
+  `add` on the three input-axis `Var`s (no `matmul`, composes with the current
+  API, 9+3 scalar params), or (b) verify a differentiable column-split
+  (`slice`/`index_select` gradient) and switch to an `[N,3]` + `matmul`
+  formulation (more standard, uses Coeus `matmul`, but a larger API change).
+  Pick after checking the column-split op's gradient semantics in
+  `coeus-autograd`. Split out of the former MIG-475-01 (whose optimizability
+  half is now DONE) so the affine design gets its own focused increment
+  rather than being rushed. Precedes the Coeus-native `Transform` trait ADR.
+
+- **MIG-475-01 [minor] — Coeus-autograd gradient-descent optimizability of the
+  registration metric. DONE.**
+  Proved the end-to-end Coeus registration objective is not merely
+  differentiable but *usable for optimization*. Added
+  `metric::coeus_autograd::optim::sgd_step_var` — a `Var`-level vanilla
+  gradient-descent step (Coeus provides only a low-level fused `sgd_step` over
+  raw buffers, no `Var`-level helper; this returns a fresh `requires_grad`
+  leaf `param − lr·grad`, the tape-based-autograd idiom of rebuilding the graph
+  from new leaves each iteration; off-tape by construction, so gate #3 does not
+  apply). Evidence tier: analytical — a 20-step gradient-descent loop on
+  `translation_mse_coeus` from a known +1-voxel offset asserts the loss
+  strictly decreases every step and the translation parameter converges to the
+  true offset `1.0` within `1e-6` (closed-form quadratic bowl `loss=(tx−1)²`,
+  contraction factor 0.5 at `lr=0.25`); plus two `sgd_step_var` unit tests
+  (step equals `x−lr·2x` for `loss=Σx²`; the stepped leaf is itself
+  `requires_grad` so the next iteration backprops). 23/23 via `cargo nextest
+  run -p ritk-registration --features coeus coeus_autograd` (3 new + 20 prior);
+  full package `--features coeus` 721/721; default build unaffected; clippy
+  `-D warnings` and `cargo doc --features coeus --no-deps` clean. No new
+  dependency edges. The differentiable-affine half was split out to MIG-476-01
+  (its API/parameterization decision deserves its own increment). This is the
+  empirical "it optimizes" evidence that should precede the Coeus-native
+  `Metric`/`Transform` trait-surface ADR.
 
 - **MIG-474-01 [minor] — End-to-end Coeus-autograd MSE-over-a-translation
   registration metric. DONE.**
