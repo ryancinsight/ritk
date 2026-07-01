@@ -1,5 +1,42 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 477 — MIG-477-01 End-to-End Coeus-Autograd Affine-MSE Registration Metric
+**Target version**: 0.14.0
+**Sprint phase**: Execution — affine composition completed; primitive set for
+the Coeus registration path is now complete
+
+### In-flight plan (Sprint 477)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Composed `affine_mse_coeus` = mse ∘ trilinear ∘ (slice/reshape of
+  affine[N,3]) ∘ affine, using the confirmed-differentiable `slice`+`reshape`
+  to split the affine output into the per-axis coords the sampler needs.
+- [x] Verified end-to-end analytically: linear moving field → trilinear exact →
+  closed-form host reference matched at forward; identity → zero loss + zero
+  R/t gradient; all 9 R + 3 t gradients vs self-consistent finite differences
+  (full matmul→slice→reshape→trilinear→mse tape); 200-step GD loop drives
+  loss monotonically to <1e-8.
+- [x] Documented honestly: single-ramp field constrains only `slope·t`, so
+  loss→0 (alignment) is the claim, not unique parameter recovery.
+- [x] 8/8 metric tests; full package `--features coeus` 728/728; default build
+  unaffected; clippy `-D warnings` clean; `cargo doc --features coeus
+  --no-deps` clean.
+- [x] Discarded the recurring unrelated `ndarray`-drop Cargo.lock churn.
+
+### Verification gate (Sprint 477)
+- [x] All commands above green.
+- [x] Scope check: only `metric.rs` + `tests_metric.rs` + the two `mod.rs`
+  re-exports; no Cargo.lock delta.
+
+### Deferred / carry-forward
+- **MIG-478-01 [arch, READY — ADR first]**: the Coeus-native
+  `Metric`/`Transform` trait surface. The primitive set is now complete and
+  verified; the parameter shapes are known. Per [major]/[arch] discipline the
+  ADR must be written and signed off before the trait implementation begins.
+  This is the culmination the last seven increments (MIG-471 … 477) were
+  de-risking.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 476 — MIG-476-01 Coeus-Autograd Differentiable Affine Transform
 **Target version**: 0.14.0
 **Sprint phase**: Execution — matmul-based affine transform primitive added

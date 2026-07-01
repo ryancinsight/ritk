@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 477: End-to-end Coeus-autograd affine-MSE metric (MIG-477-01)
+
+### Added
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::metric::affine_mse_coeus`, the end-to-end
+  differentiable affine registration metric
+  `mse(sample_trilinear(moving, affine(grid, R, t)), fixed)`, gradient reaching
+  the `[3,3]` `R` and `[3]` `t` parameters. The affine's `[N,3]` output is
+  split to the per-axis sampler via the differentiable `slice`+`reshape`.
+
+### Evidence
+- Evidence tier: analytical — a linear moving field makes trilinear exact,
+  giving a closed-form host reference matched at forward, identity zero
+  loss/gradient, all 12 (`R`,`t`) gradients vs self-consistent finite
+  differences, and a 200-step gradient-descent loop driving the loss
+  monotonically to `<1e-8`. `cargo nextest run -p ritk-registration --features
+  coeus coeus_autograd::metric` 8/8; full package `--features coeus` 728/728;
+  default build unaffected; clippy `-D warnings` and `cargo doc --features
+  coeus --no-deps` clean. Cargo.lock unchanged.
+
+### Notes
+- Completes the Coeus-autograd registration primitive set (loss, sampling,
+  translation/affine transforms, composed metrics, optimizer step). The
+  Coeus-native `Metric`/`Transform` trait surface is next (MIG-478-01, [arch],
+  ADR first). `docs/coeus_migration.md` updated.
+
+---
+
 ## [Unreleased] — Sprint 476: Coeus-autograd differentiable affine transform (MIG-476-01)
 
 ### Added

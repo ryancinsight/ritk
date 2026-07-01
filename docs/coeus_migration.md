@@ -79,6 +79,16 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Reverse-mode autodiff — end-to-end affine-MSE metric (Sprint 477).**
+  Added `metric::affine_mse_coeus` = `mse(sample(moving, affine(grid, R, t)),
+  fixed)`, splitting the affine `[N,3]` output to the per-axis sampler via the
+  differentiable `slice`+`reshape`. Verified forward vs a closed-form linear-
+  field reference, all 12 (R,t) gradients vs finite differences, and a 200-step
+  GD loop driving the loss to ~0. This completes the Coeus-autograd
+  registration primitive set (loss, sampling, translation/affine transforms,
+  composed metrics, optimizer step); nothing in the differentiable forward/
+  backward path depends on Burn. The Coeus-native `Metric`/`Transform` trait
+  surface (`MIG-478-01`, [arch]) is next — ADR first.
 - **Reverse-mode autodiff — differentiable affine transform (Sprint 476).**
   Added `transform::affine_transform_coeus` (`coords·Rᵀ + t` via Coeus
   `matmul`), gradient to the `[3,3]` `R` and `[3]` `t`. Verified against a host

@@ -1,5 +1,51 @@
 # RITK Gap Audit - Active
 
+## Sprint 477 Audit (2026-06-30) — Affine Metric Composed; Coeus Registration Primitive Set Complete
+
+### Finding: the burn→coeus registration primitive set is now feature-complete and verified
+
+Seven increments (MIG-471…477) built and verified, each at the analytical tier:
+differentiable MSE loss, 1-D and trilinear sampling, translation and affine
+transforms, translation- and affine-MSE composed metrics, and a proven-
+convergent SGD step. `affine_mse_coeus` closes the set — a full differentiable
+affine registration objective on Coeus autograd, gradient to `R` and `t`,
+proven to optimize. Nothing in the differentiable registration forward/backward
+path now depends on Burn.
+
+### The composition's hardest seam (the [N,3]→per-axis split) is verified
+
+The affine emits `[N,3]`; the sampler consumes per-axis `[N]`. The split uses
+`slice`+`reshape`, whose differentiability was confirmed by source in Sprint
+476. The risk was that the split silently detaches the tape. The 12-way
+finite-difference gradient check (9 `R` + 3 `t`) against the metric's own
+forward proves gradients survive the entire matmul→slice→reshape→trilinear→mse
+chain — the split is tape-transparent.
+
+### Honesty about what the GD demo proves
+
+A rotation/affine MSE landscape is non-convex in general; a naive joint
+rotation-recovery GD unit test would be fragile. Rather than tune one into
+passing (an empirical hack), the demo uses a linear moving field — which makes
+the loss a genuine convex quadratic, so GD robustly reaches loss ~0 — and the
+comment states plainly that this proves the *alignment objective* converges,
+not unique parameter recovery (the single ramp is rank-deficient in the
+parameters). Unique joint rotation recovery is correctly deferred to a
+richer-image integration test, not overclaimed here.
+
+### Residual Risk / Next Increment
+
+- MIG-478-01 is [arch]: the Coeus-native `Metric`/`Transform` trait surface.
+  It is now well-founded (concrete verified primitives + known parameter
+  shapes) but must start with a signed-off ADR per [major]/[arch] discipline —
+  designing the trait is the remaining risk, and it should be done as a design
+  artifact first, not code-first.
+- The existing `ritk_core` `Metric`/`Transform` traits are burn-bound; the ADR
+  must decide parameterize-over-substrate vs parallel-Coeus-family, and how the
+  per-axis-vs-`[N,3]` coordinate convention (currently split between sampler
+  and affine) is unified in the trait.
+- Recurring unrelated `ndarray`-drop Cargo.lock churn discarded again (7th
+  sprint); still flagged for the owning sibling to land on `main`.
+
 ## Sprint 476 Audit (2026-06-30) — Affine Transform via matmul, Design Decision Resolved by Source
 
 ### The deferred decision was resolved by reading source, not guessing

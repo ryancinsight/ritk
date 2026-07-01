@@ -31,7 +31,7 @@ pub mod optim;
 pub mod sampling;
 pub mod transform;
 
-pub use metric::translation_mse_coeus;
+pub use metric::{affine_mse_coeus, translation_mse_coeus};
 pub use mse::mean_squared_error_coeus;
 pub use optim::sgd_step_var;
 pub use sampling::{sample_linear_1d_coeus, sample_trilinear_coeus};

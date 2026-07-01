@@ -201,20 +201,42 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
-- **MIG-477-01 [minor] — Compose the end-to-end Coeus-autograd affine-MSE
-  registration metric. READY.**
-  Acceptance: compose `affine_transform_coeus` (MIG-476-01) with
-  `sample_trilinear_coeus` + `mean_squared_error_coeus` into
-  `affine_mse_coeus(moving, dims, fixed, grid[N,3], R[3,3], t[3])`, splitting
-  the affine's `[N,3]` output into the three per-axis coordinate `Var`s the
-  sampler needs via the (now-confirmed differentiable) `slice`/`index_select`
-  op, and verify end-to-end that a gradient-descent loop recovers a known
-  rotation+translation offset (loss decreases, `R`/`t` converge). Confirmed
-  during MIG-476-01 that both `slice` (range) and `index_select` are
-  differentiable in coeus-autograd (scatter-add backward), so the column-split
-  is available. This unifies affine with the translation metric (MIG-474-01)
-  and is the last piece of empirical evidence before the Coeus-native
-  `Metric`/`Transform` trait ADR.
+- **MIG-478-01 [arch] — ADR + Coeus-native `Metric`/`Transform` trait surface.
+  READY (ADR first).**
+  All the primitives now exist and are verified (differentiable MSE, 1-D/
+  trilinear sampling, translation + affine transforms, composed translation-
+  and affine-MSE metrics, a proven-convergent SGD step). Acceptance: (1) write
+  an ADR proposing Coeus-native `Metric`/`Transform` traits that parameterize
+  the existing burn-bound `ritk_core` traits over the tensor substrate (or a
+  parallel Coeus trait family), informed by the concrete parameter shapes these
+  free functions established (`[N,3]` coords, `[3,3]`/`[3]` affine params,
+  scalar-loss `Var`); (2) once the ADR is signed off, introduce the trait(s)
+  and implement them for the Coeus path, wrapping the verified free functions.
+  This is the [arch] step the last seven increments were de-risking; it does
+  not begin until the ADR is recorded (per versioning/[major] discipline).
+
+- **MIG-477-01 [minor] — End-to-end Coeus-autograd affine-MSE registration
+  metric. DONE.**
+  Composed `affine_transform_coeus` + `sample_trilinear_coeus` +
+  `mean_squared_error_coeus` into `affine_mse_coeus(moving_flat, dims, fixed,
+  grid[N,3], R[3,3], t[3])`, splitting the affine's `[N,3]` output into the
+  three per-axis coordinate `Var`s the sampler consumes via the differentiable
+  `slice` + `reshape` (their scatter backward keeps the tape intact through the
+  split). Evidence tier: analytical — a linear moving field makes trilinear
+  exact and the loss a convex quadratic, giving a closed-form host reference
+  (`m(R·p+t)`) matched exactly at forward; identity → zero loss + zero `R`/`t`
+  gradient; all 9 `R` + 3 `t` gradients matched against self-consistent central
+  finite differences on the metric's own forward (proving the full
+  matmul→slice→reshape→trilinear→mse tape); and an end-to-end 200-step
+  gradient-descent loop that monotonically drives the loss to ~0 (`<1e-8`).
+  Documented honestly that the single-ramp field constrains only the
+  combination `slope·t`, so the *alignment objective* (loss→0) is what
+  converges, not a unique parameter recovery (a richer image / integration
+  test is the place for unique joint rotation recovery). 8/8 metric tests via
+  `cargo nextest run -p ritk-registration --features coeus coeus_autograd::metric`;
+  full package `--features coeus` 728/728; default build unaffected; clippy
+  `-D warnings` and `cargo doc --features coeus --no-deps` clean. No new
+  dependency edges.
 
 - **MIG-476-01 [minor] — Coeus-autograd differentiable affine coordinate
   transform. DONE.**
