@@ -1,5 +1,58 @@
 # RITK Gap Audit - Active
 
+## Sprint 478 Audit (2026-06-30) — Coeus Registration Seam Introduced, ADR-First and Non-Disruptive
+
+### The [arch] step was gated behind an ADR, as discipline requires
+
+MIG-478-01 is [arch]. Rather than code the trait first, wrote ADR 0001 to
+resolve the two real design questions (substrate-generalize vs parallel family;
+per-axis vs `[N,3]` convention) before writing the surface. The decisions —
+parallel family, `[N,3]` seam, one generic metric over transform implementors —
+are recorded with rationale so the choice is auditable and the burn path is
+provably untouched.
+
+### The seam is justified by real implementors, not speculation
+
+seam-first discipline says canonical trait surfaces are intentional and must be
+design-validated against a second implementor before publishing.
+`CoeusTransform` ships now because it already has two real implementors
+(`Translation`, `Affine`). The `CoeusMetric` trait was *not* shipped — only MSE
+exists, so it would be a single-implementor abstraction (YAGNI); it is filed to
+land with the second metric. This is the correct application of both seam-first
+(don't YAGNI a justified seam) and YAGNI (don't build a single-implementor
+trait) — the distinguishing factor is implementor count, made explicit.
+
+### Consolidation, not just addition
+
+Introducing `mse_metric` as the composition SSOT and refactoring
+`affine_mse_coeus` to delegate removed a copy of the split→sample→mse chain
+rather than adding a third. The one remaining copy (`translation_mse_coeus`,
+per-axis) is filed for consolidation (MIG-479-01) rather than left silently —
+its per-axis→`[N,3]` bridge is a small real change to a merged tested function,
+correctly deferred to bound this [arch] increment's risk.
+
+### Non-disruption verified
+
+The entire change is additive behind the `coeus` feature: no `ritk_core` trait
+touched, no burn call site changed, default build unaffected (732/732 with the
+feature; the burn path's tests unchanged). This is exactly the parallel-path
+migration posture `docs/coeus_migration.md` mandates — grow Coeus alongside
+Burn, remove Burn only when all callers have migrated.
+
+### Residual Risk / Next Increment
+
+- The burn→coeus differentiable-registration path is now complete *as a
+  parallel capability* (MIG-471…478): loss, sampling, transforms, generic
+  metric + seam, optimizer. It is not yet *wired into the production
+  registration engine* — that engine still runs on Burn. Actually replacing the
+  Burn registration path requires (a) a Coeus-native `Metric` trait (2nd
+  metric), (b) porting the engine loop / multi-resolution / optimizer config,
+  and (c) migrating callers — each a further tracked increment, none started.
+- Immediate next: MIG-479-01 (translation consolidation) and a Coeus-native NCC
+  (unblocks `CoeusMetric`).
+- Recurring unrelated `ndarray`-drop Cargo.lock churn discarded again (8th
+  sprint); still flagged for the owning sibling to land on `main`.
+
 ## Sprint 477 Audit (2026-06-30) — Affine Metric Composed; Coeus Registration Primitive Set Complete
 
 ### Finding: the burn→coeus registration primitive set is now feature-complete and verified

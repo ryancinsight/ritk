@@ -21,18 +21,20 @@
 //!   the translation parameters.
 //! - [`optim`] — the `Var`-level gradient-descent step a registration loop
 //!   uses to update the transform parameters from the metric gradient.
-//!
-//! The Coeus-native `Metric`/`Transform` trait surface that wraps this
-//! composition remains a separate (ADR-gated, `[arch]`) increment.
+//! - [`traits`] — the Coeus-native `CoeusTransform` seam (ADR 0001); the generic
+//!   [`metric::mse_metric`] dispatches over its implementors
+//!   ([`transform::Translation`], [`transform::Affine`]).
 
 pub mod metric;
 pub mod mse;
 pub mod optim;
 pub mod sampling;
+pub mod traits;
 pub mod transform;
 
-pub use metric::{affine_mse_coeus, translation_mse_coeus};
+pub use metric::{affine_mse_coeus, mse_metric, translation_mse_coeus};
 pub use mse::mean_squared_error_coeus;
 pub use optim::sgd_step_var;
 pub use sampling::{sample_linear_1d_coeus, sample_trilinear_coeus};
-pub use transform::{affine_transform_coeus, translate_axis_coeus};
+pub use traits::CoeusTransform;
+pub use transform::{affine_transform_coeus, translate_axis_coeus, Affine, Translation};

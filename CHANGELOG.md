@@ -1,5 +1,41 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 478: Coeus-native `CoeusTransform` trait surface + generic metric (MIG-478-01)
+
+### Added
+- ADR 0001 (`docs/adr/0001-coeus-native-registration-traits.md`) — decision
+  record for the Coeus-native registration trait surface (parallel family,
+  `[N,3]` seam, generic metric over transform implementors).
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::traits::CoeusTransform` (the Coeus-native transform
+  seam, mirroring the burn `Transform::transform_points` shape);
+  `transform::Translation` and `transform::Affine` parameter bundles
+  implementing it; and `metric::mse_metric<Tf: CoeusTransform>` — one generic
+  MSE registration metric dispatching over any transform (composition SSOT).
+
+### Changed
+- `ritk-registration`: `affine_mse_coeus` refactored to delegate to
+  `mse_metric` (removing its duplicated split→sample→mse composition).
+- `docs/coeus_migration.md`: recorded the trait-surface increment.
+
+### Evidence
+- Evidence tier: differential — `mse_metric`+`Affine` value-identical to the
+  `affine_mse_coeus` free function; `Affine`/`Translation` structs match
+  free-function/closed-form references; gradient descent through the
+  `Translation` trait drives the loss to ~0. `cargo nextest run
+  -p ritk-registration --features coeus coeus_autograd` 34/34; full package
+  `--features coeus` 732/732; default build unaffected; clippy `-D warnings`
+  and `cargo doc --features coeus --no-deps` clean. Entirely additive behind
+  the `coeus` feature — no `ritk_core` trait or Burn call site changed.
+  Cargo.lock unchanged.
+
+### Notes
+- The `CoeusMetric` trait is deferred until a second metric type (NCC/MI)
+  justifies it (single-implementor = YAGNI; MIG-478-02).
+  `translation_mse_coeus`'s consolidation onto the seam is MIG-479-01.
+
+---
+
 ## [Unreleased] — Sprint 477: End-to-end Coeus-autograd affine-MSE metric (MIG-477-01)
 
 ### Added

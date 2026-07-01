@@ -5,15 +5,17 @@
 //! [`super::sampling`]. Because the parameter is on the autograd tape, the loss
 //! gradient reaches it through the sampled intensities.
 //!
-//! This module currently provides translation — the simplest transform, and
-//! the one that needs no new Coeus op (a broadcast add). Rotation/affine
-//! (matmul-based) transforms are later increments; the eventual Coeus-native
-//! `Transform` trait surface that bundles per-axis parameters into a single
-//! `[D]`/matrix parameter is ADR-gated (`[arch]`) and will wrap these primitives.
+//! This module provides the low-level per-axis/point transform functions
+//! ([`translate_axis_coeus`], [`affine_transform_coeus`]) and the
+//! [`CoeusTransform`]-implementing parameter bundles ([`Translation`],
+//! [`Affine`]) that the generic metric ([`super::metric::mse_metric`])
+//! dispatches over (ADR 0001).
 
 use coeus_autograd::{add, broadcast_to, matmul, reshape, transpose_2d, Var};
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_ops::BackendOps;
+
+use super::traits::CoeusTransform;
 
 /// Differentiable per-axis translation: `out = coords + t` (broadcast).
 ///
@@ -84,6 +86,60 @@ where
     let t_row = reshape(t, [1usize, 3]);
     let t_broadcast = broadcast_to(&t_row, vec![n, 3]);
     add(&linear, &t_broadcast)
+}
+
+/// Translation transform parameter bundle: a single `[3]` offset applied to
+/// every point. Implements [`CoeusTransform`] (`out = points + t`).
+#[derive(Clone)]
+pub struct Translation<T, B>
+where
+    T: Scalar,
+    B: ComputeBackend + BackendOps<T> + Default,
+{
+    /// Translation vector, shape `[3]`; mark `requires_grad` to optimize it.
+    pub t: Var<T, B>,
+}
+
+impl<T, B> CoeusTransform<T, B> for Translation<T, B>
+where
+    T: Scalar,
+    B: ComputeBackend + BackendOps<T> + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    fn transform_points(&self, points: &Var<T, B>) -> Var<T, B> {
+        let shape = points.tensor.shape();
+        assert_eq!(shape.len(), 2, "Translation: points must be [N, 3]");
+        assert_eq!(shape[1], 3, "Translation: points must have 3 columns");
+        assert_eq!(self.t.tensor.shape(), [3], "Translation: t must be [3]");
+        let n = shape[0];
+        let t_row = reshape(&self.t, [1usize, 3]);
+        add(points, &broadcast_to(&t_row, vec![n, 3]))
+    }
+}
+
+/// Affine transform parameter bundle: a `[3, 3]` linear map plus a `[3]`
+/// translation. Implements [`CoeusTransform`] (`out = points·Rᵀ + t`).
+#[derive(Clone)]
+pub struct Affine<T, B>
+where
+    T: Scalar,
+    B: ComputeBackend + BackendOps<T> + Default,
+{
+    /// Linear map, shape `[3, 3]`.
+    pub r: Var<T, B>,
+    /// Translation vector, shape `[3]`.
+    pub t: Var<T, B>,
+}
+
+impl<T, B> CoeusTransform<T, B> for Affine<T, B>
+where
+    T: Scalar,
+    B: ComputeBackend + BackendOps<T> + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    fn transform_points(&self, points: &Var<T, B>) -> Var<T, B> {
+        affine_transform_coeus(points, &self.r, &self.t)
+    }
 }
 
 #[cfg(test)]

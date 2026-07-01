@@ -1,5 +1,46 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 478 — MIG-478-01 Coeus-Native `CoeusTransform` Trait Surface + Generic Metric
+**Target version**: 0.14.0
+**Sprint phase**: Execution — [arch] seam introduced (ADR-first)
+
+### In-flight plan (Sprint 478)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Wrote ADR 0001 (`docs/adr/0001-coeus-native-registration-traits.md`):
+  parallel Coeus trait family (not substrate-generalization of the burn-bound
+  `ritk_core` traits), `[N,3]` canonical coordinate convention, one generic MSE
+  metric over `CoeusTransform` implementors. Recorded the deferrals
+  (`CoeusMetric` until a 2nd metric; `translation_mse_coeus` consolidation).
+- [x] Implemented `traits::CoeusTransform` (mirrors burn
+  `Transform::transform_points`), `transform::{Translation, Affine}`
+  implementors, and `metric::mse_metric<Tf>` (composition SSOT).
+- [x] Refactored `affine_mse_coeus` to delegate to `mse_metric` — removed its
+  duplicated split→sample→mse composition (net-effect: consolidation).
+- [x] Dropped the `Debug` derive on the transform structs (`Var` is not
+  `Debug`); kept `Clone`.
+- [x] Verified differentially: `mse_metric`+`Affine` == `affine_mse_coeus`;
+  `Affine`/`Translation` structs match free-function/closed-form refs; GD
+  through `Translation` drives loss to ~0. 34/34 `coeus_autograd`; full package
+  `--features coeus` 732/732; default build unaffected; clippy `-D warnings`
+  and `cargo doc --features coeus --no-deps` clean.
+- [x] Discarded the recurring unrelated `ndarray`-drop Cargo.lock churn.
+
+### Verification gate (Sprint 478)
+- [x] All commands above green.
+- [x] Scope check: new `traits.rs` + `tests_traits.rs`, transform-struct
+  additions, `mse_metric` + `affine_mse_coeus` delegation, `mod.rs` re-exports,
+  ADR; no Cargo.lock delta; no change to the burn path or `ritk_core` traits.
+
+### Deferred / carry-forward
+- **MIG-479-01 [READY]**: consolidate `translation_mse_coeus` onto
+  `mse_metric` + `Translation` (last duplicated composition).
+- **MIG-478-02 [BLOCKED]**: `CoeusMetric` trait — introduce with the 2nd
+  metric type (NCC/MI), per ADR 0001.
+- Coeus-native NCC / MI metrics (would justify `CoeusMetric` and extend the
+  metric coverage beyond MSE) — natural next Coeus-registration direction.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 477 — MIG-477-01 End-to-End Coeus-Autograd Affine-MSE Registration Metric
 **Target version**: 0.14.0
 **Sprint phase**: Execution — affine composition completed; primitive set for

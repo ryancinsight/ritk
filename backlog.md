@@ -201,19 +201,51 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
-- **MIG-478-01 [arch] — ADR + Coeus-native `Metric`/`Transform` trait surface.
-  READY (ADR first).**
-  All the primitives now exist and are verified (differentiable MSE, 1-D/
-  trilinear sampling, translation + affine transforms, composed translation-
-  and affine-MSE metrics, a proven-convergent SGD step). Acceptance: (1) write
-  an ADR proposing Coeus-native `Metric`/`Transform` traits that parameterize
-  the existing burn-bound `ritk_core` traits over the tensor substrate (or a
-  parallel Coeus trait family), informed by the concrete parameter shapes these
-  free functions established (`[N,3]` coords, `[3,3]`/`[3]` affine params,
-  scalar-loss `Var`); (2) once the ADR is signed off, introduce the trait(s)
-  and implement them for the Coeus path, wrapping the verified free functions.
-  This is the [arch] step the last seven increments were de-risking; it does
-  not begin until the ADR is recorded (per versioning/[major] discipline).
+- **MIG-479-01 [minor] — Consolidate `translation_mse_coeus` onto the
+  `CoeusTransform` seam. READY.**
+  Acceptance: reimplement `translation_mse_coeus` (per-axis signature, MIG-474)
+  to delegate to `mse_metric` with a `Translation` transform — building the
+  `[N,3]` grid constant from its per-axis constant inputs and the `[3]` `t`
+  from its three scalar `t` inputs — removing the last duplicated split→sample
+  →mse composition, OR migrate its callers (tests only) to `mse_metric` +
+  `Translation` directly and remove it. Per ADR 0001, `translation_mse_coeus`
+  is superseded by the trait path; this closes the consolidation. Deferred from
+  MIG-478-01 to keep that [arch] increment's risk bounded (its per-axis→`[N,3]`
+  bridge is a small but real change to a merged, tested function).
+
+- **MIG-478-02 [minor] — Coeus-native `CoeusMetric` trait (second metric type).
+  BLOCKED on a second metric.**
+  Per ADR 0001, the `CoeusMetric` trait is deferred until a second metric type
+  (NCC/MI) exists — a single-implementor trait would be YAGNI. When a
+  Coeus-native NCC lands, introduce `CoeusMetric` with MSE + NCC implementors.
+  Not startable until that second metric is built.
+
+- **MIG-478-01 [arch] — Coeus-native `CoeusTransform` trait surface + generic
+  MSE metric. DONE.**
+  Wrote ADR 0001 (`docs/adr/0001-coeus-native-registration-traits.md`)
+  deciding: a **parallel** Coeus-native trait family (not substrate-
+  generalization of the burn-bound `ritk_core` traits, which would be a
+  workspace-wide breaking [major] change), unified on the `[N,3]` coordinate
+  convention at the seam, with **one generic MSE metric** dispatching over
+  `CoeusTransform` implementors (SSOT). Implemented: `traits::CoeusTransform`
+  (`transform_points(&Var[N,3]) -> Var[N,3]`, mirroring the burn
+  `Transform::transform_points` shape); `transform::Translation` and
+  `transform::Affine` parameter bundles implementing it; and
+  `metric::mse_metric<Tf: CoeusTransform>` as the composition SSOT.
+  `affine_mse_coeus` refactored to delegate to `mse_metric` (removing its
+  duplicated composition). Introduced `CoeusTransform` now (two real
+  implementors justify the seam); deferred the `CoeusMetric` trait to
+  MIG-478-02 (single implementor = YAGNI) and `translation_mse_coeus`'s
+  consolidation to MIG-479-01 (bounded-risk). Evidence tier: differential —
+  `mse_metric`+`Affine` is value-identical to the `affine_mse_coeus` free
+  function; `Affine`/`Translation` structs match their free-function/closed-form
+  references; GD through the `Translation` trait drives loss to ~0. 34/34
+  `coeus_autograd` tests (4 new trait tests + 30 prior); full package
+  `--features coeus` 732/732; default build unaffected; clippy `-D warnings`
+  and `cargo doc --features coeus --no-deps` clean. No new dependency edges.
+  Culminates the burn→coeus differentiable-registration path (MIG-471…478): a
+  complete, verified Coeus-native transform seam + generic metric, entirely
+  parallel to and non-disruptive of the Burn path.
 
 - **MIG-477-01 [minor] — End-to-end Coeus-autograd affine-MSE registration
   metric. DONE.**

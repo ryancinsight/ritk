@@ -79,6 +79,15 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Reverse-mode autodiff — Coeus-native transform seam + generic metric
+  (Sprint 478).** ADR 0001 + `traits::CoeusTransform` with `Translation`/
+  `Affine` implementors and a generic `mse_metric` over them (composition
+  SSOT); `affine_mse_coeus` delegates to it. A parallel Coeus trait family,
+  `[N,3]`-canonical, entirely additive behind the `coeus` feature (burn path
+  untouched). Completes the differentiable-registration path as a parallel
+  capability (MIG-471…478). Not yet wired into the production (Burn)
+  registration engine — that, plus a `CoeusMetric` trait (2nd metric, NCC) and
+  engine-loop port, are the remaining tracked steps.
 - **Reverse-mode autodiff — end-to-end affine-MSE metric (Sprint 477).**
   Added `metric::affine_mse_coeus` = `mse(sample(moving, affine(grid, R, t)),
   fixed)`, splitting the affine `[N,3]` output to the per-axis sampler via the
