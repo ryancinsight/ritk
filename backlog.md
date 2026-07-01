@@ -201,21 +201,44 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
-- **MIG-472-01 [minor] — Coeus-autograd differentiable image sampling. READY.**
-  Acceptance: implement differentiable interpolation of a moving-image `Var`
-  at transform-dependent continuous coordinates (trilinear via Coeus autograd
-  `gather` + fractional weights built as `Var` ops), such that the sampled
-  intensity `Var`'s gradient flows back to the coordinate/transform-parameter
-  leaves. Verify the coordinate gradient against central finite differences on
-  a linear-ramp signal (analytical: interpolation gradient equals the ramp
-  slope) and the forward values against the existing Burn `LinearInterpolator`.
-  Blocker to resolve first: confirm Coeus `gather`'s index argument semantics
-  (`&Var<T,B>` index — float-encoded? int? differentiable through indices or
-  only through gathered values?) by reading `coeus-autograd/src/ops` and its
-  tests before implementing. This is the step that makes
-  `mean_squared_error_coeus` (MIG-471-01) a function of transform parameters —
-  i.e. a usable registration metric. [arch]-adjacent: pairs with a future
-  Coeus-native `Transform` surface (still gated, tracked separately).
+- **MIG-473-01 [minor] — Coeus-autograd differentiable trilinear (3-D) image
+  sampling. READY.**
+  Acceptance: extend the 1-D `sample_linear_1d_coeus` mechanism (MIG-472-01) to
+  3-D trilinear — 8-corner `gather` from a flattened moving-image `Var` with
+  per-axis fractional weights built as `Var` ops, coordinate gradient flowing
+  to a `[N,3]` coords leaf. Verify forward against the existing Burn
+  trilinear/`LinearInterpolator` path (differential) and the coordinate
+  gradient against central finite differences (and, on a separable linear ramp
+  `a + bx·x + by·y + bz·z`, the analytical per-axis slopes). The gather-index
+  mechanism is already de-risked and proven correct in 1-D; this is the
+  index-arithmetic extension (flat index = z·(H·W) + y·W + x, corners clamped
+  independently). This is the last primitive before a Coeus-native
+  MSE-over-a-transform metric can be composed end-to-end.
+
+- **MIG-472-01 [minor] — Coeus-autograd differentiable 1-D linear image
+  sampling. DONE.**
+  Resolved the gather-semantics blocker first (read
+  `coeus-autograd/src/ops/shape/select/gather.rs`): `gather(input, dim, index)`
+  takes the index as a `Var<T,B>` of integer-valued floats and is
+  differentiable through the gathered *values* (`scatter_add` backward) but not
+  the index (piecewise-constant) — exactly the interpolation pattern, where the
+  coordinate gradient flows through the differentiable fractional weights, not
+  the corner indices. Added
+  `ritk_registration::metric::coeus_autograd::sampling::sample_linear_1d_coeus`:
+  differentiable linear interpolation of a 1-D signal `Var` at continuous
+  `coords`, with the coordinate gradient flowing to the `coords` leaf
+  (`∂out/∂x = signal[i1] − signal[i0]`, the local slope) and the value gradient
+  flowing to `signal` via `gather`. Refactored `metric/coeus_autograd.rs` into a
+  directory (`mse.rs` + `sampling.rs` + `mod.rs`) per the two-concern partition
+  growth-trigger. Evidence tier: analytical — for a linear ramp the coordinate
+  gradient equals the closed-form slope; plus a `gather`-backward value-gradient
+  check, an edge-clamp flat-extrapolation zero-gradient case, a forward
+  reference match, and a central finite-difference cross-check. 10/10 via
+  `cargo nextest run -p ritk-registration --features coeus coeus_autograd`
+  (5 sampling + 5 MSE); full package `--features coeus` 708/708; default build
+  unaffected; clippy `-D warnings` and `cargo doc --features coeus --no-deps`
+  clean (one broken-intra-doc-link on `[arch]` fixed by code-quoting). No new
+  dependency edges (Cargo.lock unchanged). 3-D trilinear filed as MIG-473-01.
 
 - **MIG-471-01 [minor] — Coeus-autograd differentiable MSE loss kernel. DONE.**
   First verified increment of the burn→coeus registration-metric autodiff path

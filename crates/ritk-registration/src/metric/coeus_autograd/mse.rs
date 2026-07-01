@@ -1,23 +1,11 @@
-//! Coeus-autograd differentiable similarity-loss kernels.
+//! Differentiable mean-squared-error loss reduction on Coeus autograd `Var`s.
 //!
-//! Atlas migration (burn → coeus): the first verified increment of the
-//! registration-metric autodiff path (`docs/coeus_migration.md`, dev-sequence
-//! step 6, gate #3 — "registration metrics preserve autodiff tape
-//! connectivity; no host extraction on differentiable paths").
-//!
-//! [`mean_squared_error_coeus`] is the terminal intensity-difference loss node
-//! every intensity metric (MSE, and the numerator/denominator moments of NCC)
-//! reduces to. It operates entirely on Coeus autograd [`Var`]s — no host
-//! extraction between ops — so the reverse pass propagates gradients into both
-//! the moving and the fixed intensity leaves, which is what an upstream
-//! differentiable sampler/transform will consume once that increment lands.
-//!
-//! Scope of this increment (kept honest, per no-mock discipline): this is the
-//! loss reduction only. Differentiable image *sampling* (interpolating the
-//! moving image at transform-dependent continuous coordinates, the step that
-//! makes the loss a function of the transform parameters) is the next gated
-//! increment — it depends on Coeus `gather` index semantics and is filed
-//! separately, not stubbed here.
+//! The terminal intensity-difference loss node every intensity metric (MSE,
+//! and the numerator/denominator moments of NCC) reduces to. Stays entirely in
+//! the autograd graph — no host extraction between ops (migration gate #3) —
+//! so the reverse pass propagates gradients into both intensity leaves. Pairs
+//! with [`super::sampling`], which produces the differentiable moving-intensity
+//! `Var` this reduction consumes.
 
 use coeus_autograd::{mean, mul, sub, Var};
 use coeus_core::{ComputeBackend, Scalar};
@@ -52,5 +40,5 @@ where
 }
 
 #[cfg(test)]
-#[path = "tests_coeus_autograd.rs"]
+#[path = "tests_mse.rs"]
 mod tests;

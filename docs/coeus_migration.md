@@ -79,6 +79,16 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Reverse-mode autodiff — differentiable 1-D linear sampling (Sprint 472).**
+  Added `metric::coeus_autograd::sampling::sample_linear_1d_coeus`. Resolved the
+  gather-semantics blocker (index is a non-differentiable integer-valued float
+  `Var`; gradient flows through gathered values via `scatter_add`), so the
+  coordinate gradient flows through the fractional weights: `∂out/∂x =
+  signal[i1] − signal[i0]`. Verified against the closed-form ramp slope, a
+  `gather` value-gradient check, an edge-clamp zero-gradient case, and a
+  finite-difference cross-check. This is the mechanism that makes the MSE loss
+  (below) a function of transform parameters; 3-D trilinear is the mechanical
+  extension (backlog `MIG-473-01`).
 - **Reverse-mode autodiff — MSE loss kernel (Sprint 471).** Added
   `ritk_registration::metric::coeus_autograd::mean_squared_error_coeus`, a
   differentiable `mean((moving − fixed)²)` built entirely from Coeus autograd

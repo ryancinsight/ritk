@@ -1,5 +1,56 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 472 — MIG-472-01 Coeus-Autograd Differentiable 1-D Linear Sampling
+**Target version**: 0.14.0
+**Sprint phase**: Execution — differentiable-sampling mechanism proven and
+verified
+
+### In-flight plan (Sprint 472)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Resolved the MIG-472-01 blocker first: read
+  `coeus-autograd/src/ops/shape/select/gather.rs`. `gather(input, dim, index)`
+  — index is a `Var<T,B>` of integer-valued floats; backward is `scatter_add`
+  into `input` (differentiable through gathered values), index non-
+  differentiable. Confirms the interpolation pattern: coordinate gradient must
+  flow through the fractional weights (`Var` ops on coords), not the indices.
+- [x] Confirmed the arithmetic seam (`sub`/`add`/`mul`/`gather` signatures and
+  bounds; gather needs `B::DeviceBuffer<T>: CpuAddressableStorage +
+  CpuAddressableStorageMut`).
+- [x] Partitioned `metric/coeus_autograd.rs` into a directory (`mod.rs`,
+  `mse.rs`, `sampling.rs`, `tests_mse.rs`, `tests_sampling.rs`) per the
+  two-bounded-concerns growth trigger (loss reduction vs. sampling = distinct
+  SRP units). MSE moved unchanged (its doc trimmed; umbrella doc → mod.rs).
+- [x] Implemented `sample_linear_1d_coeus`: floor/clamped-corner indices built
+  as constant `Var`s from a host read of coords (does not detach coords from
+  the tape); fractional weight `f = sub(coords, floor_const)` keeps coords on
+  the tape (∂f/∂coords = 1); `out = v0·(1−f) + v1·f` with `v0,v1` from
+  differentiable `gather`.
+- [x] Verified analytically: ramp coordinate gradient = closed-form slope;
+  `gather` value-gradient reaches `signal`; edge-clamp → flat extrapolation
+  with zero coordinate gradient; forward matches the linear-interp reference;
+  central finite-difference cross-check. 10/10 (`coeus_autograd` filter).
+- [x] Full package `--features coeus` 708/708 (703 + 5 new); default build
+  unaffected; clippy `-D warnings` clean; `cargo doc --features coeus
+  --no-deps` clean after fixing one `[arch]` broken-intra-doc-link.
+- [x] Cargo.lock unchanged (no new dep edges); updated `docs/coeus_migration.md`
+  Verified Increments.
+
+### Verification gate (Sprint 472)
+- [x] All commands above green.
+- [x] Scope check: only the `metric/coeus_autograd/` directory (restructure +
+  new sampling module + tests), `metric/mod.rs` re-export, migration doc, and
+  PM artifacts.
+
+### Deferred / carry-forward
+- **MIG-473-01 [READY]**: extend to 3-D trilinear sampling (8-corner gather),
+  the last primitive before an end-to-end Coeus MSE-over-a-transform metric.
+  Mechanism already de-risked here; it's the index-arithmetic extension.
+- Coeus-native `Metric`/`Transform` trait surface remains [arch] (needs ADR);
+  still delivering free-function primitives until the trait shape is informed
+  by the trilinear + transform primitives.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — all still open.
+
 ## Sprint 471 — MIG-471-01 Coeus-Autograd Differentiable MSE Loss Kernel
 **Target version**: 0.14.0
 **Sprint phase**: Execution — first verified increment of the registration

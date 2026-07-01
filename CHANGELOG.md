@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 472: Coeus-autograd differentiable 1-D linear sampling (MIG-472-01)
+
+### Added
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::sampling::sample_linear_1d_coeus`, differentiable
+  linear interpolation of a 1-D signal `Var` at continuous coordinates. The
+  coordinate gradient flows to the `coords` leaf through the fractional weights
+  (`∂out/∂x = signal[i1] − signal[i0]`); the value gradient flows to `signal`
+  through Coeus autograd `gather`. This is the sampling mechanism that makes a
+  registration loss a function of the transform parameters.
+
+### Changed
+- `ritk-registration`: partitioned `metric/coeus_autograd.rs` into a directory
+  (`mod.rs`, `mse.rs`, `sampling.rs`) as a second bounded concern (sampling)
+  joined the loss reduction. MSE kernel unchanged.
+- `docs/coeus_migration.md`: recorded the sampling increment.
+
+### Evidence
+- Evidence tier: analytical (ramp coordinate gradient = closed-form slope;
+  gather value-gradient; edge-clamp zero-gradient) plus finite-difference
+  cross-check and a forward-reference match; `cargo nextest run
+  -p ritk-registration --features coeus coeus_autograd` 10/10; full package
+  `--features coeus` 708/708; default build unaffected; clippy `-D warnings`
+  and `cargo doc --features coeus --no-deps` clean. Cargo.lock unchanged.
+
+---
+
 ## [Unreleased] — Sprint 471: Coeus-autograd differentiable MSE loss kernel (MIG-471-01)
 
 ### Added

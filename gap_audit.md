@@ -1,5 +1,54 @@
 # RITK Gap Audit - Active
 
+## Sprint 472 Audit (2026-06-30) — Differentiable-Sampling Mechanism De-Risked and Proven
+
+### Blocker resolved by reading source, not guessing
+
+MIG-472-01's filed blocker was Coeus `gather` index semantics. Read
+`coeus-autograd/src/ops/shape/select/gather.rs` before writing any code:
+its own header comment documents `d_index = 0 (integer index,
+non-differentiable)` and the backward as `scatter_add` into `input`. This
+confirmed the interpolation design — the coordinate gradient cannot and must
+not flow through the (piecewise-constant) corner indices; it flows through the
+differentiable fractional weights. Building on an unverified assumption here
+would have produced either a wrong gradient or a compile failure; the source
+read settled it in one pass.
+
+### The subtle correctness point, verified against an analytical oracle
+
+The whole increment hinges on one non-obvious fact: for linear interpolation,
+`∂(sample at x)/∂x = signal[i1] − signal[i0]` (the local slope), because the
+indices are constant in `x` and only the weight `f = x − ⌊x⌋` carries the
+derivative (`∂f/∂x = 1`). This is easy to get wrong (e.g. accidentally
+detaching coords, or trying to differentiate through the index). The
+ramp-slope test is the closed-form oracle: for `signal[i] = a + b·i` the
+gradient must be exactly `b` everywhere in-bounds — asserted to 1e-12. The
+edge-clamp test pins the boundary behavior (both corners clamp equal → zero
+gradient), and a finite-difference cross-check on a non-ramp signal guards the
+general case.
+
+### Structure: partitioned on the second concern, per the growth trigger
+
+`metric/coeus_autograd.rs` was a single-concern file (MSE loss). Adding
+sampling introduced a second bounded concern, so it was partitioned into a
+directory (`mse.rs` / `sampling.rs` / `mod.rs`) immediately rather than letting
+a two-concern file accumulate — architecture_scoping's module-with-two-concerns
+trigger. MSE moved unchanged; no behavior touched.
+
+### Residual Risk / Next Increment
+
+- MIG-473-01 (3-D trilinear) is now low-risk: the gather+weight-gradient
+  mechanism is proven; only the flat-index arithmetic and 8-corner combination
+  remain, both verifiable the same way (differential vs. Burn trilinear +
+  finite-difference coordinate gradient).
+- Host-reading `coords` to build constant floor/index `Var`s is on the CPU
+  backend only; a future GPU-backend differentiable sampler would need an
+  on-device floor/index path (no host readback) to satisfy gate #3 on GPU.
+  Noted for when the WGPU Coeus backend is wired — not a CPU-path defect.
+- No regression: `git diff --stat` shows only the restructured
+  `metric/coeus_autograd/` tree, the mod.rs re-export, the migration doc, and
+  PM artifacts; Cargo.lock unchanged.
+
 ## Sprint 471 Audit (2026-06-30) — Autodiff Migration Path Opened With a Verified First Node
 
 ### Finding: the highest-value Coeus target was mis-triaged for two sprints
