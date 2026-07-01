@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 467: Coeus-native Euclidean distance transform (MIG-467-01)
+
+### Added
+- `ritk-filter`: new `coeus` feature and `distance_transform_coeus`, a thin
+  `ritk_image::coeus::Image` boundary around the existing pure
+  `euclidean_dt` core (already substrate-agnostic, no algorithm change),
+  verified bitwise-identical to the Burn path via 4 differential tests.
+
+### Investigated
+- Confirmed `ritk-filter`'s Euclidean distance transform core has no Burn
+  dependency before writing any code — the gap was a missing Coeus-`Image`
+  boundary wrapper, not a missing algorithm port.
+
+### Evidence
+- Evidence tier: value-semantic differential nextest (948/948 with `coeus`,
+  944/944 default-feature, both green) plus compile/lint/docs;
+  `cargo nextest run -p ritk-filter --features coeus`,
+  `cargo clippy -p ritk-filter --all-targets --features coeus -- -D
+  warnings`, `cargo doc -p ritk-filter --features coeus --no-deps` all
+  passed. A transient unrelated build break in the `leto` repo (concurrent
+  agent's uncommitted WIP) resolved itself on retry; not touched.
+
+---
+
 ## [Unreleased] — Sprint 466: Coeus-native trilinear interpolation (MIG-466-01)
 
 ### Added

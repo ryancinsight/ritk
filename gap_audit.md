@@ -1,5 +1,61 @@
 # RITK Gap Audit - Active
 
+## Sprint 467 Audit (2026-06-30) — Boundary-Wrapper Gap Closed, Concurrent-Agent Interference Handled Correctly
+
+### Finding: `ritk-filter`'s missing `coeus` feature was a real, closeable gap
+
+Following up on Sprint 466's flagged-but-unverified candidate, checked
+`ritk-filter`'s Euclidean distance transform before writing anything: the
+core (`crates/ritk-filter/src/distance/euclidean/core.rs`, module doc "Pure
+mathematical functions: no image I/O, no burn dependency",
+`#![forbid(unsafe_code)]`) is already substrate-agnostic. This meant the
+gap was a missing Coeus-`Image` boundary wrapper, not a missing port — the
+same shape as the FFT non-finding in Sprint 466, not the trilinear-port
+finding. Closed it: `MIG-467-01`, 4 differential tests, all passing on the
+first run (no algorithmic divergence possible since both paths share the
+core routine).
+
+### Process note: concurrent-agent interference, handled per policy
+
+Mid-verification, `cargo nextest run -p ritk-filter --features coeus` failed
+with an unrelated compile error inside `leto` (a missing trait method on
+`leto::application::array::Array`). Checked `git status` in
+`D:/atlas/repos/leto` before assuming anything was wrong with this change:
+confirmed a concurrent agent had uncommitted WIP changes across several
+`leto-ops` files. Per the concurrent-agents protocol (never revert or work
+around a peer's uncommitted work; re-verify and retry), did nothing to the
+leto tree and simply re-ran the same command minutes later — it had
+resolved itself once the peer's edit stabilized. This is the correct
+response distinguishing "my change is broken" from "the shared tree is
+mid-edit by someone else"; the former requires debugging, the latter
+requires patience and re-verification, not action.
+
+### A dead-code lint caught unnecessary API surface before it shipped
+
+`distance_transform_coeus_default` (a convenience wrapper for the default
+threshold) was written to mirror the Burn side's `Default` impl, but
+`cargo clippy` flagged it as unused since nothing in this crate calls it
+yet. Removed rather than silenced — the convenience isn't needed until a
+caller wants it (YAGNI), and callers can pass
+`BinarizationThreshold::DEFAULT` directly with no loss of clarity.
+
+### Residual Risk / Next Increment
+
+- `ritk-filter` still has no Coeus coverage for morphology, convolution, or
+  chamfer-distance kernels — only the Euclidean-distance boundary is done.
+  Not yet independently verified whether those kernels are similarly
+  substrate-agnostic-already (boundary-wrapper task) or need a genuine
+  algorithm port (larger, riskier) — check before scoping the next
+  increment, per this sprint's and Sprint 466's demonstrated discipline.
+- `ritk-registration`'s metric compute kernels remain Burn-only despite the
+  crate's `coeus` feature existing (covers preprocessing only) — still the
+  highest-value, highest-risk candidate identified across the last two
+  sprints' surveys, still unverified.
+- No regression: `git diff --stat` shows only `ritk-filter`'s Cargo.toml/
+  euclidean/mod.rs plus two new files, and a single-line genuine
+  `Cargo.lock` edge with no unrelated churn this time (the earlier upstream
+  coeus version bump had already landed via Sprint 466's merge).
+
 ## Sprint 466 Audit (2026-06-30) — A Subagent Survey's Top Findings Were Stale; the Real Gap Was Elsewhere
 
 ### Process finding: verify subagent claims before acting, same discipline as Sprint 465

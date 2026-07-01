@@ -6818,6 +6818,7 @@ dependencies = [
  "apollo-fft",
  "burn",
  "burn-ndarray",
+ "coeus-core",
  "criterion",
  "eunomia",
  "gaia",

@@ -1,5 +1,60 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 467 — MIG-467-01 Coeus-Native Euclidean Distance Transform
+**Target version**: 0.14.0
+**Sprint phase**: Execution — new verified Coeus-native code path added
+
+### In-flight plan (Sprint 467)
+- [x] Re-synced with origin/main first (0 commits behind/ahead) — no
+  concurrent-agent changes to reconcile before starting.
+- [x] Picked the next flagged-but-unverified target from Sprint 466:
+  `ritk-filter` has zero `coeus` feature. Verified before committing to a
+  plan (per the same discipline that caught two stale survey findings last
+  sprint): the crate's `euclidean_dt` core is already
+  `#![forbid(unsafe_code)]` and substrate-agnostic (no Burn dependency,
+  pure `&[bool]` in, `Vec<f32>` out) — so this is a boundary-wrapper task,
+  not an algorithm port, matching the FFT precedent (Sprint 466) rather
+  than the trilinear precedent (a genuine port).
+- [x] Added the `coeus` feature to `ritk-filter/Cargo.toml` and a new
+  `distance/euclidean/unsigned_coeus.rs` wrapping `euclidean_dt` for
+  `ritk_image::coeus::Image<f32, B, 3>`, bound on `B::DeviceBuffer<f32>:
+  CpuAddressableStorage<f32>` (needed for `data_slice()` readback, which
+  the FFT/trilinear precedents didn't need).
+- [x] Removed a `distance_transform_coeus_default` convenience wrapper after
+  clippy flagged it as dead code — callers can pass
+  `BinarizationThreshold::DEFAULT` directly; not adding an unused
+  convenience function (YAGNI).
+- [x] Added 4 differential tests vs. the Burn/NdArray reference; all passed
+  first try (no divergence found, unlike the trilinear port which had a
+  real bug) — expected, since both paths call the identical core routine.
+- [x] Hit a transient build break in `leto` (concurrent agent's uncommitted
+  WIP, confirmed via `git status` in that repo). Did not touch it or work
+  around it; retried the same command a few minutes later and it had
+  resolved itself.
+- [x] Verified: `cargo nextest run -p ritk-filter --features coeus` 948/948
+  (944 + 4 new); default-feature 944/944 unaffected; clippy `-D warnings`
+  clean; `cargo doc --features coeus --no-deps` clean.
+- [x] Cargo.lock: clean single-edge diff this time (no unrelated churn to
+  reconcile — the earlier coeus 0.5.4->0.5.5 bump had already landed on
+  `main` via Sprint 466's merge).
+
+### Verification gate (Sprint 467)
+- [x] All commands above run and green.
+- [x] Scope check: only `ritk-filter` touched (Cargo.toml, euclidean/mod.rs,
+  two new files) plus `Cargo.lock`.
+
+### Deferred / carry-forward
+- `PERF-432-01` remains open (Sprint 464: 84.1% of `transform_3d_chunk` in
+  the coefficients gather+weighted-sum block).
+- `MIG-439-03`'s real scope (workspace-wide Burn-caller-graph audit) not yet
+  performed.
+- `ritk-filter` still has no coeus coverage for its morphology/convolution/
+  chamfer-distance kernels — only the Euclidean-distance boundary is done
+  now. `ritk-registration`'s metric compute kernels (histogram/MI/NCC/
+  gradient) remain Burn-only despite the crate's `coeus` feature. Neither
+  yet independently verified for the next scoped increment.
+- MIG-456-04 and `ritk-snap::ui::coordinate_system` remain open, untouched.
+
 ## Sprint 466 — MIG-466-01 Coeus-Native Trilinear Interpolation
 **Target version**: 0.14.0
 **Sprint phase**: Execution — new verified Coeus-native code path added

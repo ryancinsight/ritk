@@ -201,6 +201,30 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-467-01 [minor] — Coeus-native Euclidean distance transform for
+  `ritk-filter`. DONE.**
+  Added a `coeus` feature to `ritk-filter` (it had none — the only
+  compute-heavy crate in that state after MIG-466-01) and
+  `distance_transform_coeus`, a thin `ritk_image::coeus::Image` boundary
+  around the existing pure `euclidean_dt` core (Meijster–Roerdink–
+  Hesselink, `#![forbid(unsafe_code)]`, already substrate-agnostic — no
+  algorithm rewrite needed, only a new I/O wrapper mirroring the Burn
+  wrapper's exact sequence). Bound on `B::DeviceBuffer<f32>:
+  CpuAddressableStorage<f32>` for `data_slice()` readback, matching the
+  established `ritk-image::coeus` pattern. Evidence tier: value-semantic
+  differential nextest (4 tests: single foreground voxel, all-foreground,
+  all-background, scattered foreground) asserting bitwise-identical output
+  against the Burn/NdArray reference (both paths call the identical core
+  routine, so any divergence would indicate a boundary bug, not an
+  algorithmic one — none found). `cargo nextest run -p ritk-filter --features
+  coeus` passed 948/948 (944 pre-existing + 4 new); default-feature build
+  944/944 unaffected; `cargo clippy -p ritk-filter --all-targets --features
+  coeus -- -D warnings` and `cargo doc --features coeus --no-deps` both
+  clean. Encountered and waited out a transient upstream build break in the
+  `leto` repo (a concurrent agent's uncommitted WIP) — did not touch or
+  revert it, retried after it resolved itself, per concurrent-agent
+  discipline (never touch a peer's uncommitted work).
+
 - **MIG-466-01 [minor] — Coeus-native trilinear interpolation path for
   `ritk-interpolation`. DONE.**
   Added a `coeus` feature to `ritk-interpolation` (workspace pattern already
