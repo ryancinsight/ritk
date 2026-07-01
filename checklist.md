@@ -1,5 +1,44 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 481 — MIG-478-02 Coeus-Native `CoeusMetric` Reduction Seam (Mse/Ncc)
+**Target version**: 0.14.0
+**Sprint phase**: Execution — second registration seam introduced, composition
+generalized
+
+### In-flight plan (Sprint 481)
+- [x] Re-synced with origin/main (0/0); confirmed upstream (leto) builds green.
+- [x] Added `traits::CoeusMetric` (`reduce(sampled, fixed) -> loss`, `T: Float`)
+  — minimal role interface; transform+sample stays shared (interface
+  segregation).
+- [x] Added `Mse`/`Ncc` ZST implementors in `mse.rs`/`ncc.rs` (SoC: each metric
+  owns its struct+impl next to its reduction fn).
+- [x] Generalized composition SSOT to `metric::evaluate<M, Tf>`; `mse_metric`
+  now `evaluate(…, &Mse, …)`; `affine_mse_coeus` still delegates. Tightened
+  those two to `T: Float` (Float covers all image types; no real caller lost).
+- [x] Tests: `evaluate`+Mse == `mse_metric`; `evaluate`+Ncc == manual
+  sample-then-NCC (and ≠ MSE, proving the seam switches reductions);
+  NCC-through-Affine gradient reaches R and is shift-invariant in t.
+- [x] Corrected an over-strong initial NCC-gradient assertion — the failure
+  surfaced a real property (NCC additive-shift-invariance ⇒ ∂loss/∂t=0 for a
+  translated linear field), now encoded as the expected behavior rather than
+  weakened.
+- [x] 40/40 `coeus_autograd`; full package `--features coeus` 738/738; default
+  build unaffected; clippy `-D warnings` and `cargo doc --features coeus
+  --no-deps` clean. Discarded upstream-migration Cargo.lock churn.
+
+### Verification gate (Sprint 481)
+- [x] All commands above green.
+- [x] Scope check: `traits.rs`, `mse.rs`, `ncc.rs`, `metric.rs`, `tests_traits.rs`,
+  two `mod.rs` re-exports; no Cargo.lock delta; burn path untouched.
+
+### Deferred / carry-forward
+- Coeus-native MI/Parzen metric — a third `CoeusMetric` implementor; the seam is
+  designed to accept it (reduction over the two intensity vectors).
+- Wiring the Coeus registration path into the production (Burn) engine —
+  needs an engine-loop/multi-resolution port + caller migration.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 480 — MIG-480-01 Coeus-Native Differentiable NCC Loss Reduction
 **Target version**: 0.14.0
 **Sprint phase**: Execution — second Coeus metric reduction added (unblocks the

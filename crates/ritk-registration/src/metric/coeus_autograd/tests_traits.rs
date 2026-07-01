@@ -5,8 +5,11 @@
 //! verified free-function primitives it wraps; plus a gradient-descent
 //! convergence check through the trait. Deterministic `SequentialBackend`.
 
-use super::super::metric::{affine_mse_coeus, mse_metric};
+use super::super::metric::{affine_mse_coeus, evaluate, mse_metric};
+use super::super::mse::{mean_squared_error_coeus, Mse};
+use super::super::ncc::{normalized_cross_correlation_coeus, Ncc};
 use super::super::optim::sgd_step_var;
+use super::super::sampling::sample_trilinear_coeus;
 use super::super::transform::{affine_transform_coeus, Affine, Translation};
 use super::CoeusTransform;
 use coeus_autograd::Var;
@@ -180,4 +183,113 @@ fn gradient_descent_through_translation_trait_reduces_loss() {
         t = sgd_step_var(&t, lr);
     }
     assert!(prev < 1e-8, "GD through the Translation trait must drive loss to ~0, got {prev}");
+}
+
+// ── CoeusMetric seam (Mse / Ncc dispatched via evaluate) ─────────────────────
+
+#[test]
+fn evaluate_with_mse_matches_mse_metric() {
+    // The generic `evaluate` with the `Mse` reduction must equal the `mse_metric`
+    // convenience it now underlies.
+    let (gf, n) = grid_flat();
+    let moving = linear_moving();
+    let fixed: Vec<f64> = (0..n).map(|k| 0.5 + gf[k * 3]).collect();
+    let t0 = [0.1, -0.05, 0.2];
+
+    let via_mse_metric = mse_metric(
+        &var(&moving, false),
+        DIMS,
+        &var(&fixed, false),
+        &var_shaped(&[n, 3], &gf, false),
+        &Translation { t: var(&t0, false) },
+    );
+    let via_evaluate = evaluate(
+        &var(&moving, false),
+        DIMS,
+        &var(&fixed, false),
+        &var_shaped(&[n, 3], &gf, false),
+        &Mse,
+        &Translation { t: var(&t0, false) },
+    );
+    assert!(
+        (via_mse_metric.tensor.as_slice()[0] - via_evaluate.tensor.as_slice()[0]).abs() < 1e-14,
+        "evaluate+Mse must equal mse_metric"
+    );
+}
+
+#[test]
+fn evaluate_with_ncc_matches_manual_sample_then_reduce() {
+    // `evaluate` with `Ncc` must equal manually sampling at the transformed grid
+    // and applying the NCC reduction — verifying the seam dispatches to the NCC
+    // reduction, not MSE.
+    let (gf, n) = grid_flat();
+    let moving = linear_moving();
+    let fixed: Vec<f64> = (0..n).map(|k| 0.7 + 0.5 * gf[k * 3 + 1]).collect();
+    let t0 = [0.1, -0.05, 0.2];
+
+    let via_evaluate = evaluate(
+        &var(&moving, false),
+        DIMS,
+        &var(&fixed, false),
+        &var_shaped(&[n, 3], &gf, false),
+        &Ncc,
+        &Translation { t: var(&t0, false) },
+    );
+
+    // Manual path: translate grid, split, sample, NCC-reduce.
+    let transformed = Translation { t: var(&t0, false) }.transform_points(&var_shaped(&[n, 3], &gf, false));
+    let cz: Vec<f64> = (0..n).map(|k| transformed.tensor.as_slice()[k * 3]).collect();
+    let cy: Vec<f64> = (0..n).map(|k| transformed.tensor.as_slice()[k * 3 + 1]).collect();
+    let cx: Vec<f64> = (0..n).map(|k| transformed.tensor.as_slice()[k * 3 + 2]).collect();
+    let sampled = sample_trilinear_coeus(
+        &var(&moving, false),
+        DIMS,
+        &var(&cz, false),
+        &var(&cy, false),
+        &var(&cx, false),
+    );
+    let manual = normalized_cross_correlation_coeus(&sampled, &var(&fixed, false));
+
+    assert!(
+        (via_evaluate.tensor.as_slice()[0] - manual.tensor.as_slice()[0]).abs() < 1e-12,
+        "evaluate+Ncc must equal manual sample-then-NCC-reduce"
+    );
+    // Sanity: it is NOT the MSE value (the seam actually switched reductions).
+    let mse_val = mean_squared_error_coeus(&sampled, &var(&fixed, false)).tensor.as_slice()[0];
+    assert!(
+        (via_evaluate.tensor.as_slice()[0] - mse_val).abs() > 1e-6,
+        "NCC and MSE reductions must differ for this input"
+    );
+}
+
+#[test]
+fn evaluate_ncc_gradient_reaches_affine_r_and_is_shift_invariant_in_t() {
+    // The NCC metric's gradient flows through the full tape to the affine `R`
+    // (which changes the sampled *pattern*). It is exactly zero w.r.t. `t` here:
+    // translating a linear moving field only shifts the sampled mean, and NCC is
+    // invariant to additive shifts — a defining property, verified end-to-end.
+    let (gf, n) = grid_flat();
+    let moving = linear_moving();
+    let fixed: Vec<f64> = (0..n).map(|k| 0.4 + 0.3 * gf[k * 3] + 0.1 * gf[k * 3 + 2]).collect();
+    let r = var_shaped(&[3, 3], &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], true);
+    let t = var(&[0.05, 0.0, -0.05], true);
+
+    let loss = evaluate(
+        &var(&moving, false),
+        DIMS,
+        &var(&fixed, false),
+        &var_shaped(&[n, 3], &gf, false),
+        &Ncc,
+        &Affine { r: r.clone(), t: t.clone() },
+    );
+    loss.backward();
+
+    let gr = r.grad().expect("R grad").as_slice().to_vec();
+    let gt = t.grad().expect("t grad").as_slice().to_vec();
+    assert!(gr.iter().any(|g| g.abs() > 1e-9), "NCC gradient must reach R");
+    assert!(gr.iter().chain(gt.iter()).all(|g| g.is_finite()), "all gradients finite");
+    // NCC shift-invariance: translating a linear field is a pure mean shift.
+    for (j, &g) in gt.iter().enumerate() {
+        assert!(g.abs() < 1e-9, "NCC ∂loss/∂t[{j}] should be ~0 (shift-invariance), got {g}");
+    }
 }

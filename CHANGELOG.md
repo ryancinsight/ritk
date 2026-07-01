@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 481: Coeus-native `CoeusMetric` reduction seam over Mse/Ncc (MIG-478-02)
+
+### Added
+- `ritk-registration` (`coeus` feature): `traits::CoeusMetric` — the
+  Coeus-native intensity-metric reduction seam (`reduce(sampled, fixed) ->
+  loss`); `mse::Mse` and `ncc::Ncc` ZST implementors; and
+  `metric::evaluate<M: CoeusMetric, Tf: CoeusTransform>` — the generic
+  composition SSOT `metric.reduce(sample(moving, transform(grid)), fixed)`.
+
+### Changed
+- `ritk-registration`: `mse_metric` is now `evaluate(…, &Mse, …)` and
+  `affine_mse_coeus` delegates through it — no duplicated composition. Both
+  tightened to `T: Float` (covers all image types).
+- `docs/coeus_migration.md`: recorded the metric-seam increment.
+
+### Evidence
+- Evidence tier: differential — `evaluate`+`Mse` == `mse_metric`;
+  `evaluate`+`Ncc` == a manual sample-then-NCC reduce and provably ≠ the MSE
+  value (the seam truly switches reductions); NCC-through-`Affine` gradient
+  reaches `R` and is exactly shift-invariant in `t` (NCC's defining property,
+  verified end-to-end). `cargo nextest run -p ritk-registration --features
+  coeus coeus_autograd` 40/40; full package `--features coeus` 738/738; default
+  build unaffected; clippy `-D warnings` and `cargo doc --features coeus
+  --no-deps` clean. Cargo.lock unchanged.
+
+---
+
 ## [Unreleased] — Sprint 480: Coeus-native differentiable NCC loss reduction (MIG-480-01)
 
 ### Added

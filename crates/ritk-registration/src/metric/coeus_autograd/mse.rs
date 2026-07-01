@@ -8,8 +8,10 @@
 //! `Var` this reduction consumes.
 
 use coeus_autograd::{mean, mul, sub, Var};
-use coeus_core::{ComputeBackend, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar};
 use coeus_ops::BackendOps;
+
+use super::traits::CoeusMetric;
 
 /// Differentiable mean squared error between two equal-length intensity
 /// vectors, `MSE = mean((moving − fixed)²)`.
@@ -37,6 +39,23 @@ where
     let diff = sub(moving, fixed);
     let sq = mul(&diff, &diff);
     mean(&sq)
+}
+
+/// Mean-squared-error metric ([`CoeusMetric`] implementor). Zero-sized; the
+/// reduction has no configuration.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Mse;
+
+impl<T, B> CoeusMetric<T, B> for Mse
+where
+    T: Float,
+    B: ComputeBackend + BackendOps<T> + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    #[inline]
+    fn reduce(&self, sampled: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B> {
+        mean_squared_error_coeus(sampled, fixed)
+    }
 }
 
 #[cfg(test)]

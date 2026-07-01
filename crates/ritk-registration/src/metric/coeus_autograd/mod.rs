@@ -16,14 +16,16 @@
 //!   to the transform parameters that produce the coordinates).
 //! - [`mse`] / [`ncc`] — the terminal intensity-metric loss reductions the
 //!   sampled intensities feed into (MSE; negative normalized cross-correlation).
-//! - [`metric`] — the end-to-end composition
-//!   `mse(sample(moving, translate(grid, t)), fixed)`, whose gradient reaches
-//!   the translation parameters.
+//! - [`metric`] — the generic end-to-end composition
+//!   [`metric::evaluate`] `= metric.reduce(sample(moving, transform(grid)),
+//!   fixed)`, dispatching over both seams; `mse_metric`/`affine_mse_coeus` are
+//!   thin MSE wrappers.
 //! - [`optim`] — the `Var`-level gradient-descent step a registration loop
 //!   uses to update the transform parameters from the metric gradient.
-//! - [`traits`] — the Coeus-native `CoeusTransform` seam (ADR 0001); the generic
-//!   [`metric::mse_metric`] dispatches over its implementors
-//!   ([`transform::Translation`], [`transform::Affine`]).
+//! - [`traits`] — the Coeus-native `CoeusTransform` and `CoeusMetric` seams
+//!   (ADR 0001); [`metric::evaluate`] dispatches over their implementors
+//!   ([`transform::Translation`]/[`transform::Affine`], [`mse::Mse`]/
+//!   [`ncc::Ncc`]).
 
 pub mod metric;
 pub mod mse;
@@ -33,10 +35,10 @@ pub mod sampling;
 pub mod traits;
 pub mod transform;
 
-pub use metric::{affine_mse_coeus, mse_metric};
-pub use mse::mean_squared_error_coeus;
-pub use ncc::normalized_cross_correlation_coeus;
+pub use metric::{affine_mse_coeus, evaluate, mse_metric};
+pub use mse::{mean_squared_error_coeus, Mse};
+pub use ncc::{normalized_cross_correlation_coeus, Ncc};
 pub use optim::sgd_step_var;
 pub use sampling::{sample_linear_1d_coeus, sample_trilinear_coeus};
-pub use traits::CoeusTransform;
+pub use traits::{CoeusMetric, CoeusTransform};
 pub use transform::{affine_transform_coeus, Affine, Translation};

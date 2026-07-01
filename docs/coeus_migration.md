@@ -79,6 +79,13 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Reverse-mode autodiff — `CoeusMetric` reduction seam (Sprint 481).** Added
+  `traits::CoeusMetric` with `Mse`/`Ncc` implementors and generalized the
+  composition to `metric::evaluate<M, Tf>` (`mse_metric` now a thin `Mse`
+  wrapper). Completes the Coeus-native registration seam set
+  (`CoeusTransform` + `CoeusMetric`); a third metric (MI) can now plug in as
+  another reduction. Verified the seam actually dispatches (Ncc ≠ Mse value)
+  and that NCC's additive-shift invariance holds end-to-end.
 - **Reverse-mode autodiff — differentiable NCC loss reduction (Sprint 480).**
   Added `ncc::normalized_cross_correlation_coeus` (`−NCC`, single-pass
   algebraic moments on the autograd tape) — the second Coeus intensity-metric

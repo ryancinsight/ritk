@@ -15,6 +15,8 @@ use coeus_autograd::{div, mul, neg, scalar_add, scalar_div, sqrt, sub, sum, Var}
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_ops::BackendOps;
 
+use super::traits::CoeusMetric;
+
 /// Differentiable negative normalized cross-correlation between two equal-length
 /// intensity vectors, `loss = −NCC(moving, fixed)`.
 ///
@@ -61,6 +63,23 @@ where
     let eps = T::from_f64(1e-10);
     let denominator = sqrt(&scalar_add(&mul(&d_f, &d_m), eps));
     neg(&div(&num, &denominator))
+}
+
+/// Negative-normalized-cross-correlation metric ([`CoeusMetric`] implementor).
+/// Zero-sized; the reduction has no configuration.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Ncc;
+
+impl<T, B> CoeusMetric<T, B> for Ncc
+where
+    T: Float,
+    B: ComputeBackend + BackendOps<T> + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    #[inline]
+    fn reduce(&self, sampled: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B> {
+        normalized_cross_correlation_coeus(sampled, fixed)
+    }
 }
 
 #[cfg(test)]

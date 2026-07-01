@@ -238,17 +238,29 @@
   recovered, then the full gate was run green — no unverified code was
   committed. Unblocks MIG-478-02 (`CoeusMetric` trait now has its 2nd metric).
 
-- **MIG-478-02 [minor] — Coeus-native `CoeusMetric` trait (second metric type).
-  READY (unblocked by MIG-480-01).**
-  Per ADR 0001, the `CoeusMetric` trait was deferred until a second metric type
-  existed; NCC (MIG-480-01) is now that second metric. Acceptance: introduce a
-  `CoeusMetric` reduction seam (`reduce(&self, sampled: &Var[N], fixed:
-  &Var[N]) -> Var[1]`) with `Mse` and `Ncc` implementors wrapping the two
-  reduction functions, and generalize `mse_metric` into an `evaluate<M:
-  CoeusMetric, Tf: CoeusTransform>` (keeping `mse_metric`/`affine_mse_coeus` as
-  thin `Mse` wrappers). Two real implementors now justify the seam; design it
-  as a minimal role interface (the reduction only — sample+transform stay
-  shared) so MI/Parzen can implement it later too.
+- **MIG-478-02 [minor] — Coeus-native `CoeusMetric` reduction seam over
+  Mse/Ncc. DONE.**
+  Introduced `traits::CoeusMetric` (`reduce(&self, sampled: &Var[N], fixed:
+  &Var[N]) -> Var[1]`, `T: Float`) — the minimal role interface distinguishing
+  metric types (the shared transform+sample step stays in the generic
+  composition, not in implementors, per interface segregation). Added `Mse`
+  (`mse.rs`) and `Ncc` (`ncc.rs`) ZST implementors wrapping the existing
+  reduction functions. Generalized the composition SSOT to `metric::evaluate<M:
+  CoeusMetric, Tf: CoeusTransform>` = `metric.reduce(sample_trilinear(moving,
+  split(transform(grid))), fixed)`; `mse_metric` is now `evaluate(…, &Mse, …)`
+  and `affine_mse_coeus` still delegates through it (no duplicated composition).
+  Introduced now (not earlier) because a 2nd real implementor (NCC) exists —
+  seam-first, per ADR 0001. Evidence tier: differential — `evaluate`+`Mse`
+  value-identical to `mse_metric`; `evaluate`+`Ncc` value-identical to a manual
+  sample-then-NCC-reduce (and provably ≠ the MSE value, so the seam truly
+  switches reductions); an NCC-through-`Affine` end-to-end test confirms the
+  gradient reaches `R` and encodes NCC's additive-shift invariance
+  (`∂loss/∂t = 0` for a translated linear field — a defining property verified
+  end-to-end, which also caught and corrected an over-strong initial
+  assertion). 40/40 `coeus_autograd` tests; full package `--features coeus`
+  738/738; default build unaffected; clippy `-D warnings` and `cargo doc
+  --features coeus --no-deps` clean. No new dependency edges. Completes the
+  Coeus-native registration seam set (`CoeusTransform` + `CoeusMetric`).
 
 - **MIG-478-01 [arch] — Coeus-native `CoeusTransform` trait surface + generic
   MSE metric. DONE.**

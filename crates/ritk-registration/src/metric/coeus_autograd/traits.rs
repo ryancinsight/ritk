@@ -1,18 +1,15 @@
-//! Coeus-native registration `Transform` seam (ADR 0001).
+//! Coeus-native registration seams (ADR 0001): [`CoeusTransform`] (coordinate
+//! transform) and [`CoeusMetric`] (intensity-loss reduction).
 //!
-//! Parallel to `ritk_core::transform::Transform` but over Coeus autograd
-//! `Var`s: a differentiable map of a `[N, 3]` batch of points to a `[N, 3]`
-//! batch, with trainable parameters on the autograd tape so a metric's gradient
-//! reaches them. `[N, 3]` is the canonical coordinate convention at this seam
-//! (per-axis splitting is an internal sampler detail — see [`super::metric`]).
-//!
-//! Introduced now (not deferred) because it already has two real implementors
-//! ([`super::transform::Translation`], [`super::transform::Affine`]); the
-//! analogous Coeus `Metric` trait is deferred until a second metric type exists
-//! (ADR 0001, Consequences).
+//! Both are parallel to the burn-bound `ritk_core`/`ritk_registration` traits
+//! but over Coeus autograd `Var`s, with trainable state on the tape so a loss
+//! gradient reaches it. Each is introduced once it has ≥2 real implementors
+//! (seam-first, not speculative): `CoeusTransform` has
+//! [`super::transform::Translation`]/[`super::transform::Affine`];
+//! `CoeusMetric` has [`super::mse::Mse`]/[`super::ncc::Ncc`].
 
 use coeus_autograd::Var;
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar};
 use coeus_ops::BackendOps;
 
 /// A differentiable coordinate transform on Coeus autograd `Var`s.
@@ -29,6 +26,25 @@ where
 {
     /// Transform a `[N, 3]` batch of points into a `[N, 3]` batch.
     fn transform_points(&self, points: &Var<T, B>) -> Var<T, B>;
+}
+
+/// A differentiable intensity-similarity reduction on Coeus autograd `Var`s.
+///
+/// `reduce` maps a `[N]` sampled-intensity vector and the `[N]` fixed-intensity
+/// vector to a scalar (`[1]`) minimization loss, keeping the tape intact so the
+/// gradient flows back to `sampled` (hence, upstream, to the transform
+/// parameters). This is the minimal role interface distinguishing metric types
+/// (MSE vs NCC vs future MI); the shared transform-and-sample step is owned by
+/// [`super::metric::evaluate`], not by implementors. `T: Float` because
+/// correlation/normalization metrics need `sqrt`.
+pub trait CoeusMetric<T, B>
+where
+    T: Float,
+    B: ComputeBackend + BackendOps<T> + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    /// Reduce `(sampled, fixed)` intensity vectors (`[N]`) to a scalar loss.
+    fn reduce(&self, sampled: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>;
 }
 
 #[cfg(test)]

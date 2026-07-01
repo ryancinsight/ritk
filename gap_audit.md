@@ -1,5 +1,47 @@
 # RITK Gap Audit - Active
 
+## Sprint 481 Audit (2026-06-30) — `CoeusMetric` Seam Introduced Exactly When Justified; a Test Caught a Real Property
+
+### The seam was introduced at the right moment, not speculatively
+
+ADR 0001 deferred `CoeusMetric` until a second metric existed. That is now true
+(MSE + NCC), so the seam ships with two real implementors — a genuine
+abstraction, not a single-implementor YAGNI trait. The composition SSOT
+generalized cleanly from `mse_metric` to `evaluate<M, Tf>`; `mse_metric`/
+`affine_mse_coeus` became thin `Mse` wrappers, so no composition was duplicated.
+Both seams (`CoeusTransform`, `CoeusMetric`) are now present and minimal —
+transform+sample shared, only the reduction varies (interface segregation).
+
+### A failing test surfaced a defining property, not a bug — and was corrected upward
+
+My first NCC-through-Affine gradient test asserted the gradient reaches `t`.
+It failed — correctly: translating a *linear* moving field only shifts the
+sampled mean, and NCC is invariant to additive shifts, so `∂NCC/∂t = 0`
+exactly. The disciplined response was to fix the *test* to encode the true
+property (gradient reaches `R`; `∂loss/∂t = 0` by NCC shift-invariance), not to
+weaken it or "adjust" the code. The test is now stronger — it verifies NCC's
+defining invariance end-to-end through the whole tape (transform → sample →
+reduce → backward). This is the value of value-semantic assertions over
+`is_finite()`-style checks: the wrong assumption showed up immediately.
+
+### Differential coverage proves the seam actually dispatches
+
+`evaluate`+`Ncc` is asserted equal to a manual sample-then-NCC path AND
+provably *unequal* to the MSE value on the same input — so the test proves the
+seam genuinely switches reductions, not that it silently always runs MSE (a
+mock-detection-style guard against a dispatch that ignores its metric arg).
+
+### Residual Risk / Next Increment
+
+- A third `CoeusMetric` implementor (MI/Parzen) is the natural next metric; the
+  seam is shaped to accept it (reduction over the two `[N]` intensity vectors).
+- The Coeus registration path remains a parallel capability; wiring it into the
+  production Burn engine (engine loop, multi-resolution, optimizer config,
+  caller migration) is the larger remaining phase, not yet started.
+- Upstream Atlas foundation crates remain under active concurrent migration
+  (intermittently non-compiling); continue verifying only against a green
+  upstream, never committing unverified, never touching peer WIP.
+
 ## Sprint 480 Audit (2026-06-30) — Second Coeus Metric (NCC) Landed; Concurrent Build Breakage Handled Correctly
 
 ### The recurring concurrent churn escalated to a full build breakage — handled per protocol
