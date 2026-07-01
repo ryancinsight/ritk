@@ -14,8 +14,8 @@
 //! - [`sampling`] — differentiable interpolation of a moving-image `Var` at
 //!   continuous coordinates; the gradient flows to the coordinate leaf (hence
 //!   to the transform parameters that produce the coordinates).
-//! - [`mse`] — the terminal intensity-difference loss reduction the sampled
-//!   intensities feed into.
+//! - [`mse`] / [`ncc`] — the terminal intensity-metric loss reductions the
+//!   sampled intensities feed into (MSE; negative normalized cross-correlation).
 //! - [`metric`] — the end-to-end composition
 //!   `mse(sample(moving, translate(grid, t)), fixed)`, whose gradient reaches
 //!   the translation parameters.
@@ -27,6 +27,7 @@
 
 pub mod metric;
 pub mod mse;
+pub mod ncc;
 pub mod optim;
 pub mod sampling;
 pub mod traits;
@@ -34,6 +35,7 @@ pub mod transform;
 
 pub use metric::{affine_mse_coeus, mse_metric};
 pub use mse::mean_squared_error_coeus;
+pub use ncc::normalized_cross_correlation_coeus;
 pub use optim::sgd_step_var;
 pub use sampling::{sample_linear_1d_coeus, sample_trilinear_coeus};
 pub use traits::CoeusTransform;

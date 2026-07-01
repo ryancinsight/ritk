@@ -1,5 +1,49 @@
 # RITK Gap Audit - Active
 
+## Sprint 480 Audit (2026-06-30) — Second Coeus Metric (NCC) Landed; Concurrent Build Breakage Handled Correctly
+
+### The recurring concurrent churn escalated to a full build breakage — handled per protocol
+
+The `ndarray`-drop Cargo.lock churn flagged for 9 sprints escalated: sibling
+agents were mid-migration on the `leto` foundation crate with uncommitted,
+non-compiling source (new `geometry.rs`, modified `array.rs` — E0515/E0493),
+breaking the whole downstream stack (coeus → gaia → apollo → ritk). This is the
+textbook "shared tree broke on code I didn't touch" case. Response, per the
+concurrent-agents rules: (1) re-read/investigated to pinpoint the root cause
+(leto WIP), not guessed; (2) did **not** edit, revert, or "fix" the peer's
+uncommitted work; (3) held verification and reported the block rather than
+committing code that could not compile — an explicit refusal to fabricate a
+green gate. When the upstream recovered, the full gate was run and passed, and
+only then was the increment committed. No unverified code entered history.
+
+### NCC verified at the analytical tier, like every prior Coeus primitive
+
+`normalized_cross_correlation_coeus` reuses the single-pass algebraic-moments
+form the Burn NCC uses, but on the autograd tape. Verified with closed-form
+oracles (perfect correlation → `−1` under affine intensity scaling, since NCC
+is scale-invariant; anti-correlation → `+1`), a host-reference forward match,
+and a finite-difference gradient check. The scale-invariance test doubles as a
+correctness check that the moment cancellation is right (a naive SSD-style
+metric would not be affine-invariant).
+
+### The `CoeusMetric` seam is now genuinely justified (not before)
+
+ADR 0001 deferred `CoeusMetric` precisely until a second metric existed — to
+avoid a single-implementor YAGNI trait. That condition is now met (MSE + NCC),
+so MIG-478-02 moves from BLOCKED to READY. This is the discipline working as
+intended: the seam is introduced exactly when a second implementor makes it a
+real abstraction rather than speculation.
+
+### Residual Risk / Next Increment
+
+- The Atlas foundation crates (leto/eunomia/gaia/apollo) are under active
+  concurrent migration and periodically non-compiling; my ritk-side Coeus work
+  will keep hitting transient upstream breakage. Mitigation is unchanged: verify
+  only against a green upstream, never commit unverified, never touch peer WIP.
+- MIG-478-02 (`CoeusMetric` seam over Mse+Ncc) is the immediate next increment.
+- The Coeus registration path is still a parallel capability, not yet wired into
+  the production Burn engine.
+
 ## Sprint 479 Audit (2026-06-30) — Superseded Translation Code Removed, Coverage Migrated Not Dropped
 
 ### Finding: two public functions had become dead-but-for-tests after ADR 0001

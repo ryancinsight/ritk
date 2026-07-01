@@ -220,12 +220,35 @@
   build unaffected; clippy `-D warnings` and `cargo doc --features coeus
   --no-deps` clean. No new dependency edges.
 
+- **MIG-480-01 [minor] — Coeus-native differentiable NCC loss reduction. DONE.**
+  Added `metric::coeus_autograd::ncc::normalized_cross_correlation_coeus`, the
+  second Coeus-native intensity-metric reduction (after MSE), computing
+  `−NCC(moving, fixed)` via the single-pass algebraic-moments form (Lewis 1995)
+  entirely on the autograd tape (`sum`/`mul`/`sub`/scalar ops/`sqrt`/`div`/
+  `neg`; `T: Float` bound). Evidence tier: analytical — perfect correlation
+  (affine-scaled inputs) → loss `−1`, perfect anti-correlation → `+1`, forward
+  matches a host closed-form reference, and a central finite-difference
+  gradient check vs. `∂loss/∂moving`. 5/5 `coeus_autograd::ncc` tests; full
+  package `--features coeus` 735/735; default build unaffected; clippy
+  `-D warnings` and `cargo doc --features coeus --no-deps` clean. No new
+  dependency edges. **Verification note:** this increment was implemented while
+  the Atlas dependency graph was mid-migration by sibling agents (leto
+  foundation crate uncommitted/non-compiling → cascade through
+  coeus/gaia/apollo/ritk); verification was held until the upstream build
+  recovered, then the full gate was run green — no unverified code was
+  committed. Unblocks MIG-478-02 (`CoeusMetric` trait now has its 2nd metric).
+
 - **MIG-478-02 [minor] — Coeus-native `CoeusMetric` trait (second metric type).
-  BLOCKED on a second metric.**
-  Per ADR 0001, the `CoeusMetric` trait is deferred until a second metric type
-  (NCC/MI) exists — a single-implementor trait would be YAGNI. When a
-  Coeus-native NCC lands, introduce `CoeusMetric` with MSE + NCC implementors.
-  Not startable until that second metric is built.
+  READY (unblocked by MIG-480-01).**
+  Per ADR 0001, the `CoeusMetric` trait was deferred until a second metric type
+  existed; NCC (MIG-480-01) is now that second metric. Acceptance: introduce a
+  `CoeusMetric` reduction seam (`reduce(&self, sampled: &Var[N], fixed:
+  &Var[N]) -> Var[1]`) with `Mse` and `Ncc` implementors wrapping the two
+  reduction functions, and generalize `mse_metric` into an `evaluate<M:
+  CoeusMetric, Tf: CoeusTransform>` (keeping `mse_metric`/`affine_mse_coeus` as
+  thin `Mse` wrappers). Two real implementors now justify the seam; design it
+  as a minimal role interface (the reduction only — sample+transform stay
+  shared) so MI/Parzen can implement it later too.
 
 - **MIG-478-01 [arch] — Coeus-native `CoeusTransform` trait surface + generic
   MSE metric. DONE.**

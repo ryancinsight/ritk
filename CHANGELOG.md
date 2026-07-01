@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 480: Coeus-native differentiable NCC loss reduction (MIG-480-01)
+
+### Added
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::ncc::normalized_cross_correlation_coeus`, the second
+  Coeus-native intensity-metric reduction (after MSE). Computes `−NCC` via the
+  single-pass algebraic-moments form entirely on the autograd tape, gradient
+  flowing to the sampled-intensity leaf. Unblocks the deferred `CoeusMetric`
+  trait (now has its second implementor).
+
+### Evidence
+- Evidence tier: analytical — perfect correlation → loss `−1` (scale-invariant),
+  anti-correlation → `+1`, host-reference forward match, finite-difference
+  gradient check. `cargo nextest run -p ritk-registration --features coeus
+  coeus_autograd::ncc` 5/5; full package `--features coeus` 735/735; default
+  build unaffected; clippy `-D warnings` and `cargo doc --features coeus
+  --no-deps` clean. Cargo.lock unchanged.
+- Verification was held while sibling agents' in-flight `leto` migration broke
+  the shared Atlas build, then run green on recovery — no unverified code
+  committed.
+
+---
+
 ## [Unreleased] — Sprint 479: Consolidate per-axis translation onto the trait seam (MIG-479-01)
 
 ### Removed

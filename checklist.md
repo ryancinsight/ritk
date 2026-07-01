@@ -1,5 +1,43 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 480 — MIG-480-01 Coeus-Native Differentiable NCC Loss Reduction
+**Target version**: 0.14.0
+**Sprint phase**: Execution — second Coeus metric reduction added (unblocks the
+`CoeusMetric` trait)
+
+### In-flight plan (Sprint 480)
+- [x] Confirmed `sqrt`/`neg`/`div` autograd op bounds (`T: Float`) by source
+  before authoring; NCC function bounded `T: Float`.
+- [x] Implemented `ncc::normalized_cross_correlation_coeus` — single-pass
+  algebraic-moments `−NCC`, entirely on the autograd tape.
+- [x] Verified analytically: perfect correlation → `−1`, anti-correlation →
+  `+1`, host-reference forward match, finite-difference gradient check.
+- [x] **Concurrent-agent block, handled per protocol:** mid-sprint the Atlas
+  dependency graph was broken by sibling agents migrating the `leto` foundation
+  crate (uncommitted, non-compiling → cascade through coeus/gaia/apollo/ritk).
+  Investigated and pinpointed the root cause (leto `array.rs`/`geometry.rs`
+  uncommitted WIP); did **not** touch the peer's tree; held verification and
+  reported the block rather than committing unverified code.
+- [x] On upstream recovery, ran the full gate green: `cargo nextest run
+  -p ritk-registration --features coeus coeus_autograd::ncc` 5/5; full package
+  `--features coeus` 735/735; default build unaffected; clippy `-D warnings`
+  and `cargo doc --features coeus --no-deps` clean.
+- [x] Restored `Cargo.lock` (no new dep edges; discarded upstream-migration
+  churn).
+
+### Verification gate (Sprint 480)
+- [x] All commands above green (after upstream recovery).
+- [x] Scope check: only `ncc.rs` + `tests_ncc.rs` + two `mod.rs` re-exports;
+  no Cargo.lock delta; burn path untouched.
+
+### Deferred / carry-forward
+- **MIG-478-02 [READY, unblocked]**: `CoeusMetric` reduction seam over `Mse` +
+  `Ncc`, generalizing `mse_metric` to `evaluate<M, Tf>`.
+- Coeus-native MI/Parzen metric (a third `CoeusMetric` implementor); wiring the
+  Coeus registration path into the production (Burn) engine.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 479 — MIG-479-01 Consolidate Per-Axis Translation onto the Trait Seam
 **Target version**: 0.14.0
 **Sprint phase**: Closure — DRY/SSOT consolidation, superseded code removed
