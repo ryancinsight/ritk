@@ -1,5 +1,52 @@
 # RITK Gap Audit - Active
 
+## Sprint 465 Audit (2026-06-30) — MIG-439-03's Acceptance Criteria Were Wrong
+
+### Finding: the backlog item asked for something that would violate integrity rules
+
+MIG-439-03 asked to "migrate `burn_ndarray::NdArray` aliases/tests to
+Coeus/Leto-backed surfaces without changing value semantics." Investigating
+the best-scoped candidate (`ritk-jpeg`) found this premise false for the
+general case: `NdArray<f32>` in that crate's tests is the concrete CPU
+instantiation of `burn::tensor::backend::Backend`, load-bearing for exercising
+the crate's still-public, still-Burn-generic `read_jpeg`/`write_jpeg`
+functions. Coeus does not implement `burn::tensor::backend::Backend` (it is a
+structurally distinct tensor stack by design — the migration replaces Burn,
+it does not bridge it). There is no swap that preserves value semantics here;
+the only way to "close" the item as originally worded would be to delete the
+NdArray test instantiation, which deletes coverage for a live production API
+— a HARD-prohibited test-gaming move this audit declined to make.
+
+### Rejected approach
+
+Considered deleting/skipping the `NdArray`-backed tests in `ritk-jpeg` to
+satisfy the letter of MIG-439-03. Rejected: reduces coverage of a shipped,
+still-Burn-generic API with no replacement verification, which the
+mock-detection and no-test-gaming heuristics both flag directly.
+
+### Correct template already exists
+
+`ritk-jpeg` already demonstrates the right pattern: `read_jpeg_coeus`
+(Coeus-native, `coeus` feature) plus `read_jpeg_coeus_matches_burn`
+(differential test asserting voxel-identical output vs. the Burn path).
+Production Burn API stays covered by its own tests; the Coeus-native
+alternative is added and verified alongside it, not instead of it. The
+Burn path is only removable once every caller in the workspace has migrated
+to the Coeus-native equivalent — a workspace-wide caller-graph audit, not a
+per-crate test-alias edit.
+
+### Residual Risk / Next Increment
+
+- MIG-439-03 rescoped in backlog.md with the exact check a future agent
+  should run before attempting this again (does the *production* function
+  still bind `B: burn::tensor::backend::Backend`? if yes, its NdArray test
+  instantiation is load-bearing, not a migration target).
+- Real next increment: a workspace-wide audit of which crates' Burn-generic
+  production functions have zero remaining internal callers on the Burn
+  path (fully superseded by a Coeus-native equivalent) — that is the actual
+  gate for removing a `burn-ndarray` dev-dependency. Not yet performed.
+- No code changed this sprint; `git status`/`git diff` clean.
+
 ## Sprint 464 Audit (2026-06-30) — Retracted a Prior Unmeasured Claim, Found the Real Bottleneck
 
 ### Process finding: my own prior finding was wrong, and I corrected it by measuring

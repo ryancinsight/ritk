@@ -202,13 +202,40 @@
   passed 340 tests.
 
 - **MIG-439-03 [minor] — Replace remaining Burn NdArray backend aliases with
-  Atlas-backed surfaces. READY.**
-  Acceptance: migrate one crate boundary at a time from `burn_ndarray::NdArray`
-  aliases/tests to Coeus/Leto-backed surfaces without changing value semantics,
-  then remove each direct `burn-ndarray` dependency when the crate no longer
-  needs it. Start with an image/filter/IO boundary that has package-scoped
-  nextest coverage and keep Python `numpy::ndarray` imports confined to PyO3
-  conversion code.
+  Atlas-backed surfaces. RESCOPED (was READY; original acceptance criteria
+  do not hold — see Sprint 465 finding).**
+  **Correction (Sprint 465, evidence-based)**: investigated the strongest
+  candidate crate (`ritk-jpeg`, smallest burn_ndarray footprint, already has
+  a parallel Coeus reader) to execute the original acceptance criteria
+  ("migrate `burn_ndarray::NdArray` test aliases to Coeus/Leto without
+  changing value semantics"). Finding: `type TestBackend = NdArray<f32>;` in
+  `crates/ritk-jpeg/src/tests.rs` and `src/color.rs` is not a swappable
+  convenience alias — it is the concrete CPU instantiation of
+  `burn::tensor::backend::Backend`, required to exercise the crate's still-
+  shipped, still-public Burn-generic `read_jpeg`/`write_jpeg`/
+  `read_jpeg_color_to_volume` functions in tests. Coeus (`coeus-core`,
+  `coeus-tensor`) is a structurally distinct tensor stack — it does not
+  implement `burn::tensor::backend::Backend` and is not intended to (the
+  mission is to replace Burn, not bridge it). Deleting the `NdArray` test
+  instantiation would not "migrate" anything; it would delete test coverage
+  for a production API that is still exported and used, which is HARD-
+  prohibited (test-gaming / coverage reduction to satisfy a checklist item).
+  `ritk-jpeg` already has the correct migration shape for this pattern: a
+  parallel Coeus-native reader (`read_jpeg_coeus`, `coeus` feature) with a
+  differential test (`read_jpeg_coeus_matches_burn`) proving voxel-identical
+  output against the Burn path — this is the template, not a gap.
+  **Revised acceptance**: the real "remove burn_ndarray" increment is
+  gated on removing the *production* Burn-generic API each crate still
+  exports (`read_jpeg`, `write_jpeg`, and equivalents elsewhere), which
+  requires every caller across the workspace to have migrated to the
+  Coeus/Leto-native equivalent first — a workspace-wide, multi-crate,
+  [major]-classed effort tracked by the existing MIG-433-06/437-04/439-03
+  burn-backend-migration family, not a single-crate mechanical swap. Do not
+  file "swap NdArray for Coeus in a test" as a standalone [patch]/[minor]
+  item again without first confirming (via this same check) that the
+  crate's underlying production function has already dropped its
+  `B: burn::tensor::backend::Backend` generic bound in favor of a Coeus
+  bound — otherwise the NdArray usage is load-bearing, not dead weight.
 
 - **MIG-437-01 [patch] — CLI MI registration direct ndarray boundary. DONE.**
   Replaced the `ritk-cli` MI registration image conversion helpers with

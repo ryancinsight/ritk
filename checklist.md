@@ -1,5 +1,63 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 465 — MIG-439-03 Rescoped: NdArray-in-Tests Is Load-Bearing, Not Dead Weight
+**Target version**: 0.14.0
+**Sprint phase**: Foundation — investigation and backlog correction, no code
+change
+
+### In-flight plan (Sprint 465)
+- [x] MIG-439-03 [minor]: Surveyed `burn_ndarray` usage workspace-wide via a
+  subagent; ranked `ritk-jpeg` as the smallest, best-scaffolded candidate
+  (7 tests, an existing Coeus feature, burn_ndarray confined to test-only
+  backend aliases).
+- [x] MIG-439-03 [minor]: Read `crates/ritk-jpeg/src/color.rs`,
+  `src/tests.rs`, `src/reader.rs`, `src/lib.rs`, and `Cargo.toml` in full.
+  Found: `type TestBackend = NdArray<f32>` instantiates
+  `burn::tensor::backend::Backend` to exercise the crate's still-public,
+  still-Burn-generic `read_jpeg`/`write_jpeg`/`read_jpeg_color_to_volume`.
+  Coeus (`coeus-core`/`coeus-tensor`) does not implement
+  `burn::tensor::backend::Backend` and is not meant to — it is a distinct
+  tensor stack. There is no value-semantics-preserving swap available here;
+  removing the NdArray instantiation would delete coverage for a live
+  production API, which is HARD-prohibited.
+- [x] MIG-439-03 [minor]: Confirmed `ritk-jpeg` already has the correct
+  migration shape for this exact pattern — `read_jpeg_coeus` (Coeus-native,
+  `coeus` feature) plus `read_jpeg_coeus_matches_burn` (differential test,
+  voxel-identical to the Burn path). This is the template other crates
+  should follow, not a gap to close in ritk-jpeg.
+- [x] MIG-439-03 [minor]: Rescoped the backlog item — the real "drop
+  burn_ndarray" increment requires removing each crate's *production*
+  Burn-generic API entirely, which is gated on every workspace caller having
+  migrated to the Coeus/Leto-native equivalent first. That is the existing
+  MIG-433-06/437-04/439-03 burn-backend-migration family's actual scope
+  ([major]-classed, multi-crate), not a single-crate mechanical alias swap.
+  Recorded the exact check (does the production fn still bind
+  `B: burn::tensor::backend::Backend`?) so a future agent doesn't re-attempt
+  the same non-actionable "swap" and doesn't delete test coverage to force
+  a checklist item closed.
+
+### Verification gate (Sprint 465)
+- [x] No source code changed — `git status`/`git diff` clean on every file
+  under `crates/`. Only `backlog.md`, `checklist.md`, `gap_audit.md`,
+  `CHANGELOG.md` touched.
+- [x] No test/build/lint run required for a docs-only backlog correction;
+  Sprint 464's verified-clean baseline stands.
+
+### Deferred / carry-forward
+- `PERF-432-01` remains open, localized to the gather+weighted-sum block in
+  `transform_3d_chunk` (Sprint 464 finding, 84.1% of function time) — needs
+  a custom fused burn kernel or an analytic-backward bypass; not a scoped
+  increment yet.
+- The real Burn→Coeus/Leto backend migration (MIG-433-06/437-04/439-03
+  family) remains open at the workspace-caller-graph level: identify which
+  crates' *production* Burn-generic functions have zero remaining internal
+  callers of the Burn path (all migrated to Coeus-native equivalents) and
+  are therefore safe to have their Burn path removed — not yet audited this
+  session.
+- MIG-456-04 (color-volume Coeus variants + DICOM Coeus reader) and the
+  `ritk-snap::ui::coordinate_system` backlog item remain open, untouched
+  this session.
+
 ## Sprint 464 — PERF-432-01 Precise Op-Level Profiling, One Prior Claim Retracted
 **Target version**: 0.14.0
 **Sprint phase**: Foundation — deeper measurement, no code change (both attempted

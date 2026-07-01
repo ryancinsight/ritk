@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 465: MIG-439-03 rescoped, no code change
+
+### Investigated
+- MIG-439-03 ("migrate `burn_ndarray::NdArray` aliases/tests to
+  Coeus/Leto-backed surfaces") investigated against its best-scoped
+  candidate crate, `ritk-jpeg`. Found the acceptance criteria did not hold:
+  `NdArray<f32>` there instantiates `burn::tensor::backend::Backend` to
+  exercise the crate's still-public, still-Burn-generic `read_jpeg`/
+  `write_jpeg`; Coeus does not implement that trait and is not meant to.
+  Deleting the instantiation to "migrate" it would delete coverage of a
+  live production API — declined as test-gaming.
+- Confirmed `ritk-jpeg` already has the correct template for this pattern:
+  a parallel Coeus-native `read_jpeg_coeus` (feature-gated) plus a
+  differential test (`read_jpeg_coeus_matches_burn`) proving voxel-identical
+  output against the Burn path.
+- Rescoped MIG-439-03 in backlog.md: the real increment is a workspace-wide
+  caller-graph audit of which crates' Burn-generic production functions have
+  no remaining internal callers on the Burn path, gating removal of each
+  `burn-ndarray` dev-dependency — not a per-crate test-alias swap.
+
+### Evidence
+- Evidence tier: source audit (read `ritk-jpeg`'s Cargo.toml, `color.rs`,
+  `tests.rs`, `reader.rs`, `lib.rs` in full) plus a workspace-wide subagent
+  survey of `burn_ndarray` usage. No production/test code changed; only PM
+  artifacts (this file, backlog.md, checklist.md, gap_audit.md).
+
+---
+
 ## [Unreleased] — Sprint 464: PERF-432-01 op-level profiling, one prior claim retracted (no code change)
 
 ### Investigated
