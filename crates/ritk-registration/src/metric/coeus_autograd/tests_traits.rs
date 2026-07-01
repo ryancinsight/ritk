@@ -95,6 +95,24 @@ fn translation_struct_adds_offset_to_every_row() {
 }
 
 #[test]
+fn translation_parameter_gradient_sums_over_points() {
+    // `t` broadcasts across all N points, so ∂(Σ out)/∂t_j = N (the summing
+    // backward of the broadcast) — the property the removed per-axis
+    // `translate_axis_coeus` used to assert, now on the `Translation` struct.
+    use coeus_autograd::sum;
+    let (gf, n) = grid_flat();
+    let t = var(&[0.0, 0.0, 0.0], true);
+    let out = Translation { t: t.clone() }.transform_points(&var_shaped(&[n, 3], &gf, false));
+    sum(&out).backward();
+    for (j, &g) in t.grad().expect("t grad").as_slice().iter().enumerate() {
+        assert!(
+            (g - n as f64).abs() < 1e-12,
+            "∂(Σout)/∂t[{j}] should equal N={n}, got {g}"
+        );
+    }
+}
+
+#[test]
 fn mse_metric_with_affine_matches_affine_mse_free_function() {
     // The generic trait-dispatched metric must equal the free-function path it
     // now delegates through — forward value identical.

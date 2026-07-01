@@ -1,5 +1,43 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 479 — MIG-479-01 Consolidate Per-Axis Translation onto the Trait Seam
+**Target version**: 0.14.0
+**Sprint phase**: Closure — DRY/SSOT consolidation, superseded code removed
+
+### In-flight plan (Sprint 479)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Confirmed via grep that `translation_mse_coeus` and `translate_axis_coeus`
+  had only test callers after ADR 0001 (superseded by `Translation` +
+  `mse_metric`).
+- [x] Removed both functions and their re-exports; left one authoritative
+  translation path (`Translation` `CoeusTransform` → `mse_metric`). `mse_metric`
+  is now the sole split→sample→mse composition (SSOT).
+- [x] Migrated their analytical coverage onto the SSOT path rather than dropping
+  it: translation identity/closed-form-gradient/FD/GD-convergence tests now use
+  `mse_metric` + `Translation`; added a `Translation` param-gradient-sums-to-N
+  test to preserve the broadcast-summing-backward assertion.
+- [x] Verified: 32/32 `coeus_autograd`; full package `--features coeus`
+  730/730; default build unaffected; clippy `-D warnings` clean; `cargo doc
+  --features coeus --no-deps` clean.
+- [x] Discarded the recurring unrelated `ndarray`-drop Cargo.lock churn.
+
+### Verification gate (Sprint 479)
+- [x] All commands above green.
+- [x] Scope check: only the `coeus_autograd/` tree (metric/transform/mod +
+  three test files) and `metric/mod.rs` re-export; no Cargo.lock delta; burn
+  path untouched.
+
+### Deferred / carry-forward
+- **MIG-478-02 [BLOCKED]**: `CoeusMetric` trait — introduce with the 2nd metric
+  type (NCC/MI), per ADR 0001.
+- Coeus-native NCC / MI metrics — the natural next Coeus-registration direction
+  (a Coeus NCC unblocks `CoeusMetric`).
+- Wiring the Coeus registration path into the production engine (still Burn):
+  needs `CoeusMetric` + engine-loop/multi-resolution port + caller migration —
+  each a further tracked increment.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 478 — MIG-478-01 Coeus-Native `CoeusTransform` Trait Surface + Generic Metric
 **Target version**: 0.14.0
 **Sprint phase**: Execution — [arch] seam introduced (ADR-first)

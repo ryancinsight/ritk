@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 479: Consolidate per-axis translation onto the trait seam (MIG-479-01)
+
+### Removed
+- `ritk-registration` (`coeus` feature): the superseded per-axis translation
+  functions `translation_mse_coeus` and `translate_axis_coeus` (unreleased,
+  behind the `coeus` feature). Translation now has a single authoritative
+  implementation — the `Translation` `CoeusTransform` struct dispatched through
+  the generic `mse_metric`. `mse_metric` is the sole split→sample→mse
+  composition (SSOT).
+
+### Changed
+- `ritk-registration`: translation-MSE analytical tests migrated onto
+  `mse_metric` + `Translation`; a `Translation` parameter-gradient test added to
+  preserve the broadcast-summing-backward coverage from the removed primitive.
+
+### Evidence
+- Evidence tier: value-semantic differential nextest — every analytical
+  property of the removed functions is still asserted on the SSOT path.
+  `cargo nextest run -p ritk-registration --features coeus coeus_autograd`
+  32/32; full package `--features coeus` 730/730; default build unaffected;
+  clippy `-D warnings` and `cargo doc --features coeus --no-deps` clean.
+  Cargo.lock unchanged.
+
+---
+
 ## [Unreleased] — Sprint 478: Coeus-native `CoeusTransform` trait surface + generic metric (MIG-478-01)
 
 ### Added

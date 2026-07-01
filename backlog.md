@@ -201,17 +201,24 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
-- **MIG-479-01 [minor] — Consolidate `translation_mse_coeus` onto the
-  `CoeusTransform` seam. READY.**
-  Acceptance: reimplement `translation_mse_coeus` (per-axis signature, MIG-474)
-  to delegate to `mse_metric` with a `Translation` transform — building the
-  `[N,3]` grid constant from its per-axis constant inputs and the `[3]` `t`
-  from its three scalar `t` inputs — removing the last duplicated split→sample
-  →mse composition, OR migrate its callers (tests only) to `mse_metric` +
-  `Translation` directly and remove it. Per ADR 0001, `translation_mse_coeus`
-  is superseded by the trait path; this closes the consolidation. Deferred from
-  MIG-478-01 to keep that [arch] increment's risk bounded (its per-axis→`[N,3]`
-  bridge is a small but real change to a merged, tested function).
+- **MIG-479-01 [minor] — Consolidate per-axis translation onto the
+  `CoeusTransform` seam. DONE.**
+  Removed both superseded per-axis translation functions — `translation_mse_coeus`
+  (composed metric) and `translate_axis_coeus` (per-axis primitive) — leaving a
+  single authoritative translation path: the `Translation` `CoeusTransform`
+  struct dispatched through the generic `mse_metric` (SSOT). Both had only
+  test callers after ADR 0001; removing them (rather than leaving dead public
+  API) follows the subtractive / remove-superseded-immediately discipline.
+  Their analytical coverage was migrated, not lost: the translation-MSE tests
+  (identity zero-gradient, closed-form `∂loss/∂tx = −2`, self-consistent FD, GD
+  convergence to the true offset) now run through `mse_metric` + `Translation`,
+  and a `Translation` parameter-gradient-sums-to-`N` test preserves the
+  broadcast-summing-backward assertion the removed primitive had. Net: −7
+  superseded tests, +5 on the SSOT path; one composition remains
+  (`mse_metric`). Evidence tier: value-semantic differential nextest; 32/32
+  `coeus_autograd` tests; full package `--features coeus` 730/730; default
+  build unaffected; clippy `-D warnings` and `cargo doc --features coeus
+  --no-deps` clean. No new dependency edges.
 
 - **MIG-478-02 [minor] — Coeus-native `CoeusMetric` trait (second metric type).
   BLOCKED on a second metric.**

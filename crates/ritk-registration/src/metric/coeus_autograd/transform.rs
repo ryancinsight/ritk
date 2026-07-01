@@ -5,9 +5,8 @@
 //! [`super::sampling`]. Because the parameter is on the autograd tape, the loss
 //! gradient reaches it through the sampled intensities.
 //!
-//! This module provides the low-level per-axis/point transform functions
-//! ([`translate_axis_coeus`], [`affine_transform_coeus`]) and the
-//! [`CoeusTransform`]-implementing parameter bundles ([`Translation`],
+//! This module provides the point-transform function [`affine_transform_coeus`]
+//! and the [`CoeusTransform`]-implementing parameter bundles ([`Translation`],
 //! [`Affine`]) that the generic metric ([`super::metric::mse_metric`])
 //! dispatches over (ADR 0001).
 
@@ -16,36 +15,6 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut
 use coeus_ops::BackendOps;
 
 use super::traits::CoeusTransform;
-
-/// Differentiable per-axis translation: `out = coords + t` (broadcast).
-///
-/// `coords` is a `[N]` coordinate vector for one axis; `t` is a scalar (`[1]`)
-/// translation parameter. The result is `[N]`. The scalar broadcasts across all
-/// `N` points, and `broadcast_to`'s summing backward means the gradient
-/// accumulated into `t` is `Σ_k ∂loss/∂out_k` — the correct gradient for a
-/// single translation parameter shared by every point.
-///
-/// # Panics
-///
-/// Panics if `coords` is not 1-D or `t` is not a single-element (`[1]`) tensor
-/// — caller invariants.
-pub fn translate_axis_coeus<T, B>(coords: &Var<T, B>, t: &Var<T, B>) -> Var<T, B>
-where
-    T: Scalar,
-    B: ComputeBackend + BackendOps<T> + Default,
-    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
-{
-    let coords_shape = coords.tensor.shape();
-    assert_eq!(coords_shape.len(), 1, "translate_axis_coeus: coords must be 1-D");
-    assert_eq!(
-        t.tensor.shape(),
-        [1],
-        "translate_axis_coeus: translation must be a single [1] scalar parameter"
-    );
-    let n = coords_shape[0];
-    let t_broadcast = broadcast_to(t, vec![n]);
-    add(coords, &t_broadcast)
-}
 
 /// Differentiable affine transform of a batch of points: `out = coords·Rᵀ + t`,
 /// i.e. `out[n, :] = R · coords[n, :] + t` per point.

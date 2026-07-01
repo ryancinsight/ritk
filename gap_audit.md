@@ -1,5 +1,47 @@
 # RITK Gap Audit - Active
 
+## Sprint 479 Audit (2026-06-30) — Superseded Translation Code Removed, Coverage Migrated Not Dropped
+
+### Finding: two public functions had become dead-but-for-tests after ADR 0001
+
+`grep` confirmed `translation_mse_coeus` and `translate_axis_coeus` had no
+non-test callers once `Translation`/`mse_metric` landed. Leaving superseded
+public API "just in case" is exactly the dead-weight the subtractive /
+remove-superseded-immediately discipline prohibits. Removed both; translation
+now has one authoritative implementation (`Translation` `CoeusTransform` +
+generic `mse_metric`). `mse_metric` is the single split→sample→mse composition
+— no duplication remains across the metric family.
+
+### The refactor migrated coverage rather than dropping it
+
+The risk in deleting tested functions is silently losing the assertions they
+carried. Each analytical property was re-homed on the SSOT path, not discarded:
+the closed-form `∂loss/∂tx = −2`, identity zero-gradient, self-consistent FD,
+and GD-convergence tests now exercise `mse_metric` + `Translation`; and the
+broadcast-summing-backward property (`∂(Σout)/∂t = N`) that the removed
+`translate_axis_coeus` asserted was re-added as a `Translation` test. Net test
+count dropped by 2 only because the 3 per-axis-primitive tests collapsed into
+the struct's coverage — every distinct property is still asserted.
+
+### Consolidation completes the ADR-0001 debt
+
+ADR 0001 explicitly filed this as the remaining consolidation after the
+bounded-risk trait-introduction increment. Closing it means the Coeus
+registration surface is now genuinely SSOT: one transform seam, two transform
+implementors, one generic metric, one optimizer step — no redundant entry
+points.
+
+### Residual Risk / Next Increment
+
+- The Coeus registration path remains a parallel capability, still not wired
+  into the production (Burn) engine — unchanged from Sprint 478. Next
+  substantive directions: a Coeus-native NCC metric (unblocks the `CoeusMetric`
+  trait, MIG-478-02) and then the engine-loop port.
+- Recurring unrelated `ndarray`-drop Cargo.lock churn discarded again (9th
+  sprint); still flagged for the owning sibling to land on `main`. If it has
+  not landed after a few more sprints, escalate to the user as a coordination
+  blocker rather than silently discarding indefinitely.
+
 ## Sprint 478 Audit (2026-06-30) — Coeus Registration Seam Introduced, ADR-First and Non-Disruptive
 
 ### The [arch] step was gated behind an ADR, as discipline requires

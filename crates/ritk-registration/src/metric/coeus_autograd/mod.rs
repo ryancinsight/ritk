@@ -32,9 +32,9 @@ pub mod sampling;
 pub mod traits;
 pub mod transform;
 
-pub use metric::{affine_mse_coeus, mse_metric, translation_mse_coeus};
+pub use metric::{affine_mse_coeus, mse_metric};
 pub use mse::mean_squared_error_coeus;
 pub use optim::sgd_step_var;
 pub use sampling::{sample_linear_1d_coeus, sample_trilinear_coeus};
 pub use traits::CoeusTransform;
-pub use transform::{affine_transform_coeus, translate_axis_coeus, Affine, Translation};
+pub use transform::{affine_transform_coeus, Affine, Translation};
