@@ -1,5 +1,64 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 466 — MIG-466-01 Coeus-Native Trilinear Interpolation
+**Target version**: 0.14.0
+**Sprint phase**: Execution — new verified Coeus-native code path added
+
+### In-flight plan (Sprint 466)
+- [x] Surveyed coeus/leto/hephaestus integration gaps via subagent, then
+  independently verified the top two findings before acting on them
+  (codebase_fidelity: re-verify before acting) — both were stale/overstated:
+  Kabsch already uses `leto_ops::svd_rank_revealing` (not Burn), and
+  `ritk-filter`'s FFT math already runs through `apollo-fft` (extract/rebuild
+  is only the Burn-`Image` boundary, unavoidable while `Image<B,D>` stays
+  Burn-generic). Confirmed zero remaining `rustfft`/`nalgebra` edges
+  workspace-wide.
+- [x] Picked the next real gap: `ritk-interpolation` had no `coeus` feature
+  at all. Added one, following the `ritk-jpeg`/`ritk-statistics` template.
+- [x] Implemented `trilinear_interpolation_coeus` (flat-buffer,
+  `coeus_core::Scalar`-generic) mirroring `tensor_trilinear::
+  trilinear_interpolation`'s exact op sequence. First draft had a real bug —
+  derived the upper-neighbor clamp index from the already-clamped lower
+  index instead of independently clamping `floor+1`, which diverges from
+  Burn's independent-clamp pair at negative coordinates. Caught by the
+  negative-coordinate differential test before landing; fixed.
+- [x] Added 5 differential tests asserting bitwise-identical output vs. the
+  Burn/NdArray reference (center sample, exact corner, negative-coordinate
+  extrapolation, beyond-extent extrapolation, multi-batch/multi-point grid).
+- [x] Verified: `cargo nextest run -p ritk-interpolation --features coeus`
+  129/129 (124 pre-existing + 5 new); default-feature build 124/124
+  unaffected; `cargo clippy --all-targets --features coeus -- -D warnings`
+  clean (one `identity_op` lint fixed in the new test file); `cargo doc
+  --features coeus --no-deps` clean.
+- [x] Cargo.lock: discarded transient noise, kept the genuine new
+  `ritk-interpolation -> coeus-core` edge plus the already-merged upstream
+  coeus 0.5.4->0.5.5 bump (apollo-fft dropped its now-unneeded
+  coeus-autograd/coeus-ops/coeus-tensor deps per coeus's merged
+  "coeus-fft, Apollo-backed, no autograd" commit) — confirmed via `git log`
+  in the coeus repo that this is a real merged change, not live WIP, so the
+  lock correctly reflects current reality rather than fighting it.
+
+### Verification gate (Sprint 466)
+- [x] All commands above run and green; no test/lint/doc shortcuts taken.
+- [x] Scope check: only `ritk-interpolation` touched (Cargo.toml, mod.rs,
+  two new files) plus `Cargo.lock`; no other crate's source changed.
+
+### Deferred / carry-forward
+- `PERF-432-01` remains open (Sprint 464 finding: 84.1% of
+  `transform_3d_chunk` in the coefficients gather+weighted-sum block).
+- `MIG-439-03`'s real scope (workspace-wide Burn-caller-graph audit) not yet
+  performed.
+- Next coeus/leto/hephaestus integration candidates from this sprint's
+  survey, unverified until independently checked like the two above:
+  `ritk-registration`'s metric compute kernels (histogram/MI/NCC/gradients)
+  still Burn-only even with the crate's `coeus` feature covering only
+  preprocessing; `ritk-filter` has zero `coeus` feature at all (its FFT
+  compute is already Apollo-backed, but morphology/distance-transform/
+  convolution kernels are Burn-only) — both plausible next targets, neither
+  yet independently verified for feasibility/risk the way this sprint's
+  target was.
+- MIG-456-04 and `ritk-snap::ui::coordinate_system` remain open, untouched.
+
 ## Sprint 465 — MIG-439-03 Rescoped: NdArray-in-Tests Is Load-Bearing, Not Dead Weight
 **Target version**: 0.14.0
 **Sprint phase**: Foundation — investigation and backlog correction, no code

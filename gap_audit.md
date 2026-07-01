@@ -1,5 +1,59 @@
 # RITK Gap Audit - Active
 
+## Sprint 466 Audit (2026-06-30) — A Subagent Survey's Top Findings Were Stale; the Real Gap Was Elsewhere
+
+### Process finding: verify subagent claims before acting, same discipline as Sprint 465
+
+A workspace-wide survey (subagent) ranked `ritk-filter`'s FFT path and
+`ritk-registration`'s Kabsch/SVD as the top two coeus/leto integration
+targets. Both were checked against the actual source before any code was
+written (codebase_fidelity: API verification, stale-memory rule) and both
+were already resolved: `crates/ritk-registration/src/classical/spatial/
+kabsch.rs` already computes its SVD via `leto_ops::svd_rank_revealing` (not
+Burn, not nalgebra); `crates/ritk-filter/src/fft/{forward,inverse}.rs`
+already delegates the actual transform to `apollo_fft::fft_nd` — the
+`extract_vec`/`rebuild` around it is only the Burn-`Image` boundary, which
+cannot be removed while `Image<B, D>` itself stays Burn-generic (that's a
+larger, separate migration, not an FFT gap). Acting on the survey's ranking
+without this check would have produced either a no-op "fix" or duplicate
+work.
+
+### Real gap found and closed
+
+`ritk-interpolation` had zero `coeus` feature — the only compute-heavy
+interpolation crate in that state (`ritk-jpeg`, `ritk-statistics`,
+`ritk-registration`, `ritk-image`, `ritk-tensor-ops`, and several I/O crates
+already have one). Added a Coeus-native `trilinear_interpolation_coeus`
+mirroring the existing Burn `trilinear_interpolation` exactly, verified
+bitwise-identical via 5 differential tests. See MIG-466-01 in backlog.md.
+
+### A real bug caught during implementation, not after
+
+The first draft computed the upper-neighbor clamp index as
+`(lower_clamped_index + 1).min(max)`. This diverges from the Burn
+reference at negative coordinates: Burn clamps `z0` and `z1 = z0+1`
+*independently* to `[0, extent-1]`, so a sufficiently negative coordinate
+clamps *both* neighbors to index `0` — but deriving `z1` from the
+already-clamped `z0` instead produces `1`. The
+`matches_burn_negative_coordinate_extrapolation` test failed on the first
+run and pinpointed the exact divergence before any code shipped.
+
+### Residual Risk / Next Increment
+
+- Two plausible next targets identified but *not yet independently
+  verified* the way this sprint's target was — do not act on them without
+  first checking the actual source, per the same discipline this audit just
+  applied: `ritk-registration`'s metric compute kernels (histogram/MI/NCC/
+  gradient) are Burn-only even though the crate's `coeus` feature exists
+  (it currently covers preprocessing only); `ritk-filter` has no `coeus`
+  feature at all (morphology/distance-transform/convolution kernels are
+  Burn-only; its FFT is already Apollo-backed, per the finding above, so
+  FFT specifically is not the gap there).
+- No regression: `git diff --stat` shows only `ritk-interpolation`'s
+  Cargo.toml/mod.rs plus two new files, and `Cargo.lock`'s genuine new edge
+  plus an already-merged upstream version bump (verified via `git log` in
+  the coeus repo, not fought as transient noise).
+
 ## Sprint 465 Audit (2026-06-30) — MIG-439-03's Acceptance Criteria Were Wrong
 
 ### Finding: the backlog item asked for something that would violate integrity rules

@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 466: Coeus-native trilinear interpolation (MIG-466-01)
+
+### Added
+- `ritk-interpolation`: new `coeus` feature and `trilinear_interpolation_coeus`
+  (`coeus_core::Scalar`-generic, flat-buffer) alongside the existing
+  Burn-generic `trilinear_interpolation`, verified bitwise-identical via 5
+  differential tests (center sample, exact corner, negative-coordinate and
+  beyond-extent extrapolation, multi-batch/multi-point grid).
+
+### Fixed
+- Caught and fixed a real divergence in the new Coeus path before landing:
+  the upper-neighbor clamp index must be derived independently from
+  `floor(coord) + 1`, not from the already-clamped lower-neighbor index —
+  otherwise negative coordinates clamp to different neighbor pairs than the
+  Burn reference.
+
+### Investigated
+- A subagent survey ranked `ritk-filter` FFT and `ritk-registration` Kabsch
+  as top coeus/leto integration gaps; both were verified against source and
+  found already resolved (FFT already delegates to `apollo_fft::fft_nd`;
+  Kabsch already uses `leto_ops::svd_rank_revealing`) — no code changed for
+  either. Confirmed zero remaining `rustfft`/`nalgebra` edges workspace-wide.
+
+### Evidence
+- Evidence tier: value-semantic differential nextest (129/129 with `coeus`,
+  124/124 default-feature, both green) plus compile/lint/docs;
+  `cargo nextest run -p ritk-interpolation --features coeus`,
+  `cargo clippy -p ritk-interpolation --all-targets --features coeus -- -D
+  warnings`, `cargo doc -p ritk-interpolation --features coeus --no-deps`
+  all passed.
+
+---
+
 ## [Unreleased] — Sprint 465: MIG-439-03 rescoped, no code change
 
 ### Investigated

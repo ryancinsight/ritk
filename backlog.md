@@ -201,6 +201,29 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-466-01 [minor] — Coeus-native trilinear interpolation path for
+  `ritk-interpolation`. DONE.**
+  Added a `coeus` feature to `ritk-interpolation` (workspace pattern already
+  used by `ritk-jpeg`/`ritk-statistics`/`ritk-registration`) and a
+  Coeus-native `trilinear_interpolation_coeus` operating on flat row-major
+  buffers via `coeus_core::Scalar`, mirroring the Burn-generic
+  `trilinear_interpolation` contract exactly — including the per-neighbor
+  independent clamp behavior at negative/beyond-extent coordinates (a real
+  correctness subtlety: naively deriving the upper-neighbor index from the
+  already-clamped lower index diverges from Burn's independent-clamp pair at
+  out-of-bounds coordinates; caught and fixed before landing). This is the
+  template MIG-439-03's correction below points to: production Burn path
+  stays, a verified Coeus-native equivalent is added alongside it. Evidence
+  tier: value-semantic differential nextest (5 tests: center sample,
+  multi-channel exact corner, negative-coordinate extrapolation,
+  beyond-extent extrapolation, multi-batch/multi-point grid) asserting
+  bitwise-identical output against the Burn/NdArray reference — no epsilon,
+  since both paths perform the same scalar op sequence in the same order.
+  `cargo nextest run -p ritk-interpolation --features coeus` passed 129/129
+  (124 pre-existing + 5 new); default-feature build unaffected at 124/124;
+  `cargo clippy -p ritk-interpolation --all-targets --features coeus -- -D
+  warnings` and `cargo doc --features coeus --no-deps` both clean.
+
 - **MIG-439-03 [minor] — Replace remaining Burn NdArray backend aliases with
   Atlas-backed surfaces. RESCOPED (was READY; original acceptance criteria
   do not hold — see Sprint 465 finding).**
