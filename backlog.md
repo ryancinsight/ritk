@@ -84,38 +84,58 @@
   failing). This may still be valid for OTHER registration tests whose
   assertions are loss-aligned (e.g. a global-similarity check) — untested.
 
-  **Next real increment (two verified, concrete op-count reductions, neither
-  yet implemented — both change nothing about computed *values*, only how many
-  times equivalent tensors are rebuilt, so neither carries the convergence-
-  criterion risk documented above)**:
-  1. `crates/ritk-registration/src/metric/mse.rs::MeanSquaredError::forward`
-     (lines ~41-44) calls `grid::generate_grid(fixed_shape, &device)` then
-     `fixed.index_to_world_tensor(fixed_indices)` fresh on *every* call, but
-     `fixed` never changes across `run_loop`'s 200 iterations (verified: the
-     loop in `crates/ritk-registration/src/registration/engine.rs::run_loop`
-     passes the same `fixed: &Image<B, D>` reference every iteration). This
-     recomputes an iteration-invariant tensor 200 times. Fixing it requires a
-     design decision (cache inside `MeanSquaredError` via `RefCell` keyed on
-     image identity — adds statefulness/thread-safety questions to a
-     currently-stateless, freely-`Clone`-able metric; vs. hoist grid
-     generation to `run_loop`/`Metric::forward` signature — touches every
-     `Metric` implementor: NCC, LNCC, MI, correlation_ratio, ngf, histogram/
-     mutual_information). That trait-level blast radius is why this is filed
-     rather than implemented in this pass.
-  2. `crates/ritk-transform/src/transform/bspline/interpolation/dim3.rs::
-     transform_3d_chunk` (lines ~93-96, ~110-113) constructs `range`/`i_idx`/
-     `j_idx`/`k_idx`/`zeros` — verified to depend only on the literal shape
-     `[0,1,2,3]`/`[1,4,4,4]` and `device`, never on `points` or
-     `t.coefficients` — fresh on every forward call, i.e. every iteration.
-     These are the same five tensors every time `execute()` runs on a given
-     device; hoisting them to a per-`BSplineTransform` cache (populated once
-     at construction, since `device` is fixed at construction too) removes
-     5 of the ~30 ops per call with zero risk to computed values.
-  3. (Lower-confidence, unverified) fuse the basis-weight outer product
-     (`bx⊗by⊗bz`) and the index-gather-and-weighted-sum into fewer burn ops —
-     the general direction "fused MSE interpolation" already partially
-     explored (87.6s→76.4s); items 1-2 above are more concretely scoped
-     first steps toward the same op-count-reduction goal.
+  **Correction to the item filed in the previous pass, plus new precise
+  evidence (this pass)**: the "hoist static `range`/`i_idx`/`j_idx`/`k_idx`/
+  `zeros` tensors" idea filed previously was **reasoned from reading the code,
+  not measured** — exactly the mistake "profile before optimizing" exists to
+  prevent. Directly instrumented those 5 lines inside `transform_3d_chunk`
+  with `std::time::Instant` (added, measured, fully reverted): across 200
+  calls they cost 28.4ms total out of 58.9s (**0.05%**) — negligible. **Do
+  not implement that hoist**; it would not measurably help and is not worth
+  the risk of adding fields to a `#[derive(Module)]` struct.
+
+  A follow-up section-by-section instrumentation of the whole
+  `transform_3d_chunk` body (5 buckets: grid+mask setup, basis evaluation,
+  weights outer product, index computation, and the final gather+weighted-sum
+  block) found the cost concentrated almost entirely in the **last bucket**:
+  of 52.2s total across 200 calls — grid_mask 0.67s (1.3%), basis 0.43s
+  (0.8%), weights 2.34s (4.5%), index 4.87s (9.3%), **gather_sum 43.86s
+  (84.1%)**. That bucket is `flat_indices.reshape(...)` →
+  `t.coefficients.val().select(0, gather_indices)` (gathering 64 control-point
+  rows per query point — 64,000 gathered rows for this test's 1000 points) →
+  `reshape` → `(coeffs * weights).sum_dim(1).flatten(...)` →
+  `displacement * valid_mask` → `points + masked_displacement`
+  (`crates/ritk-transform/src/transform/bspline/interpolation/dim3.rs`,
+  the block starting at `let gather_indices = ...` through the function's
+  return). `select` gathers the one tensor that carries gradients
+  (`t.coefficients`, the only `Param`), so burn's autodiff backward for this
+  block is a scatter-add over 64,000 indices into a 125-row buffer — the
+  likely reason `backward` is 45% of the outer loop.
+
+  **Why no fix is filed as "ready to implement"**: this bucket is not
+  reducible by caching (every op depends on `points`, `base_index`, or the
+  per-iteration `t.coefficients` — none of it is iteration-invariant) and not
+  reducible by simple op-fusion at the call-site level (it's already one
+  contiguous chain, not scattered redundant calls like the earlier "fused MSE
+  interpolation" win). A real fix needs either a custom fused gather+weighted-
+  sum burn kernel (framework-level work) or bypassing burn's generic
+  autodiff for this specific operation with a manually-implemented analytic
+  backward (an architectural change to the `Transform`/`Metric` trait
+  contract) — both larger, riskier undertakings than this session's verified-
+  and-reverted profiling passes. Filed as the next investigation target, not
+  a scoped implementation task: quantify whether a hand-written CPU gather-
+  weighted-sum (bypassing burn's generic `select` for just this hot path,
+  with a matching hand-derived backward) is worth the correctness-
+  verification cost, before attempting it.
+
+  **Also unverified — do not trust without measuring first**: a prior version
+  of this entry also claimed `MeanSquaredError::forward`'s per-call
+  `grid::generate_grid`/`index_to_world_tensor` recompute was a "verified"
+  win. It was reasoned, not measured, same as the retracted item above — given
+  the gather_sum bucket now measured at 84% of `transform_3d_chunk` alone,
+  this grid-recompute cost is almost certainly comparatively small, but that
+  has not been directly measured either. Treat as an open hypothesis, not a
+  ready increment.
 
 - **MEM-445-01 [patch] — MAD noise work-buffer reuse. DONE.**
   MAD noise estimation now overwrites its mutable work buffer with absolute

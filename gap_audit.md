@@ -1,5 +1,55 @@
 # RITK Gap Audit - Active
 
+## Sprint 464 Audit (2026-06-30) — Retracted a Prior Unmeasured Claim, Found the Real Bottleneck
+
+### Process finding: my own prior finding was wrong, and I corrected it by measuring
+
+Sprint 463 filed "hoist static index tensors in `transform_3d_chunk`" as a
+"verified, concrete op-count reduction" — but that claim was reasoned from
+reading the code (5 tensors that don't depend on per-iteration state, so
+"obviously" worth caching), never measured. This sprint measured it directly:
+**0.05%** of the function's time. The claim is retracted. This is exactly
+the failure mode the "profile before optimizing" / "no fabricated stronger
+evidence tier" discipline exists to catch — a plausible-sounding,
+code-reading-derived optimization claim that evidence disproves. Also
+retracted equivalent unverified confidence in the sibling
+`MeanSquaredError::forward` fixed-grid-recompute claim from the same sprint,
+downgrading it from "verified next increment" to "open hypothesis" until it
+is actually measured.
+
+### Finding: precise bottleneck localization (high confidence, measured)
+
+Section-by-section `std::time::Instant` instrumentation of
+`transform_3d_chunk`'s full body (5 buckets, added/measured/reverted) found
+84.1% of its time in one contiguous block: `t.coefficients.val().select(0,
+gather_indices)` (gathering 64 control-point rows per query point — 64,000
+gathers for this test) through the final `reshape`/`sum_dim`/`flatten`/
+`mul`/`add` chain. `t.coefficients` is the only differentiable `Param` in the
+computation, so burn's autodiff backward for this gather is a scatter-add
+over 64,000 indices into a 125-row buffer — plausibly why `backward` is 45%
+of the outer registration loop (Sprint 463 finding).
+
+### Why this is filed as an investigation target, not a ready fix
+
+The gather+weighted-sum block is not reducible by caching (every op depends
+on `points`, `base_index`, or the per-iteration `t.coefficients`) or by
+call-site fusion (already one contiguous chain). A real fix needs a custom
+fused burn kernel or an architectural bypass of generic autodiff for this
+path with a hand-derived analytic backward — both larger and riskier than a
+scoped patch. Recorded precisely (file, function, block) in backlog.md so
+the next attempt starts from measured fact, not another reasoned guess.
+
+### Residual Risk
+
+- **[PERF-432-01 still OPEN]**, now localized to a specific ~40-line block
+  rather than "the forward pass" generally. No code changed this sprint —
+  `git status`/`git diff` clean; Foundation-phase audit sprint (per the
+  sprint-phase definitions), not yet Execution.
+- Pattern to watch for in future sprints: verify "obviously true" performance
+  claims derived from reading code, not just from architectural reasoning,
+  before recording them as backlog-ready increments — two consecutive
+  findings this session were disproven by direct measurement.
+
 ## Sprint 463 Audit (2026-06-30) — PERF-432-01 Profiling and a Rejected Fix
 
 ### Method note: profiling tooling on this host

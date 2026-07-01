@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 464: PERF-432-01 op-level profiling, one prior claim retracted (no code change)
+
+### Investigated
+- Retracted Sprint 463's "hoist static index tensors in `transform_3d_chunk`"
+  claim: directly measured (temporary `Instant`/`thread_local!` timers, added
+  and fully reverted) at **0.05%** of the function's time (28.4ms/58.9s over
+  200 calls) — the claim had been reasoned from code structure, not measured,
+  and is disproven. Do not implement it.
+- Section-by-section profiling of the full `transform_3d_chunk` body (5
+  buckets, same temporary/reverted method) localized the real cost: grid+mask
+  1.3%, basis 0.8%, weights 4.5%, index computation 9.3%, and the final
+  gather+weighted-sum block **84.1%** (43.86s/52.2s over 200 calls) — the
+  `t.coefficients.val().select(0, gather_indices)` gather (64 control points
+  per query point) through the closing `reshape`/`sum_dim`/`flatten`/mul/add
+  chain in `crates/ritk-transform/src/transform/bspline/interpolation/dim3.rs`.
+  `t.coefficients` is the only differentiable `Param` in the block, so burn's
+  autodiff backward is a scatter-add over 64,000 indices — plausibly why
+  `backward` is ~45% of the outer loop (Sprint 463 finding).
+- Downgraded the sibling `MeanSquaredError::forward` fixed-grid-recompute
+  claim from "verified next increment" to "unmeasured hypothesis" — it was
+  filed by the same reasoning-not-measuring process as the retracted claim
+  above and has not itself been measured.
+- No fix implemented: the gather block is not reducible by caching (every
+  input varies per call/iteration) or call-site fusion (already one
+  contiguous chain); a real fix needs a custom fused burn kernel or an
+  architectural bypass of generic autodiff with a hand-derived analytic
+  backward. Filed as an investigation target in backlog.md, not a ready
+  increment.
+
+### Evidence
+- Evidence tier: profiling instrumentation (temporary, added and fully
+  reverted this sprint). No production/test code changed — `git diff` clean
+  on all source files; only PM artifacts (this file, backlog.md,
+  checklist.md, gap_audit.md) changed.
+
+---
+
 ## [Unreleased] — Sprint 463: PERF-432-01 profiling (no code change)
 
 ### Investigated

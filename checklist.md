@@ -1,5 +1,52 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 464 — PERF-432-01 Precise Op-Level Profiling, One Prior Claim Retracted
+**Target version**: 0.14.0
+**Sprint phase**: Foundation — deeper measurement, no code change (both attempted
+fixes were reverted after verification)
+
+### In-flight plan (Sprint 464)
+- [x] PERF-432-01 [patch]: Directly measured the Sprint 463 backlog's "hoist
+  static `range`/`i_idx`/`j_idx`/`k_idx`/`zeros` tensors" claim with
+  `std::time::Instant` timers wrapping exactly those 5 lines — **0.05%** of
+  `transform_3d_chunk`'s time (28.4ms / 58.9s over 200 calls). That claim was
+  reasoned from reading the code, not measured, and is now **retracted** —
+  do not implement it.
+- [x] PERF-432-01 [patch]: Section-by-section instrumentation of the whole
+  `transform_3d_chunk` body (5 buckets) found the cost concentrated in the
+  final gather+weighted-sum block: grid_mask 1.3%, basis 0.8%, weights 4.5%,
+  index 9.3%, **gather_sum 84.1%** (43.86s/52.2s over 200 calls). That block
+  gathers `t.coefficients` (the only differentiable `Param`) at 64
+  neighboring control points per query point — burn's autodiff backward for
+  it is a scatter-add over 64,000 indices, the likely reason `backward` is
+  45% of the outer loop.
+- [x] Retracted the previously-filed "cache `MeanSquaredError::forward`'s
+  fixed-grid recompute" item's confidence — it was ALSO reasoned, not
+  measured, same mistake pattern. Downgraded from "verified next increment"
+  to "open, unmeasured hypothesis" in backlog.md.
+- [x] Fully reverted all temporary instrumentation (`dim3.rs`, Cargo.lock);
+  no source files changed this sprint.
+
+### Verification gate (Sprint 464)
+- [x] `git status`/`git diff` clean after reverting instrumentation.
+- [x] Confirmed `bspline_registers_offset_sphere` still passes at the
+  unmodified baseline (no config/code change survived).
+
+### Deferred / carry-forward
+- [ ] PERF-432-01 [patch] remains OPEN. Precisely localized (gather+weighted-
+  sum block, `crates/ritk-transform/src/transform/bspline/interpolation/
+  dim3.rs`) but the real fix — a custom fused gather+weighted-sum kernel, or
+  bypassing burn's generic autodiff for this hot path with a hand-derived
+  analytic backward — is an architectural change beyond a scoped patch; filed
+  as an investigation target (quantify whether a hand-written CPU
+  gather-weighted-sum is worth its correctness-verification cost), not a
+  ready increment.
+- [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
+- [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.
+- [ ] BACKLOG: Wire `ritk-snap::ui::coordinate_system` into a UI feature or remove.
+
+---
+
 ## Sprint 463 — PERF-432-01 Profiling: Bottleneck Located, One Approach Rejected
 **Target version**: 0.14.0
 **Sprint phase**: Foundation — evidence gathered, no code change (both attempted
