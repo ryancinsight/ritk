@@ -1,5 +1,62 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 471 — MIG-471-01 Coeus-Autograd Differentiable MSE Loss Kernel
+**Target version**: 0.14.0
+**Sprint phase**: Execution — first verified increment of the registration
+autodiff migration path
+
+### In-flight plan (Sprint 471)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Acted on the user's clarification that Coeus is predominately the
+  autograd/ML layer (built on leto/hephaestus/apollo internally) — pivoted
+  from leaf filter wrappers to the differentiable registration-metric path,
+  the intended high-value target. Confirmed `coeus-autograd` is a full
+  reverse-mode engine (128 differentiable ops incl. gather/matmul/conv) via
+  a scoped subagent API survey.
+- [x] Read the ritk seam: `Metric`/`Transform` traits are hard-bound to
+  `burn::tensor` — full trait migration is [arch]-class. Chose the disciplined
+  Phase-1: one verified, non-mock building block + SSOT doc update, not an
+  ad-hoc rewrite.
+- [x] Added `coeus-autograd` (+ `coeus-ops`, needed for the `BackendOps`
+  bound) to the workspace and the crate's `coeus` feature.
+- [x] Implemented `metric::coeus_autograd::mean_squared_error_coeus`
+  (`mean((moving − fixed)²)`, generic over `T: Scalar`, `B: ComputeBackend +
+  BackendOps<T> + Default`), entirely in the autograd graph — no host
+  extraction (gate #3).
+- [x] Verified analytically (strongest oracle): closed-form value; closed-form
+  gradients w.r.t. moving (`+2/N·(m−f)`) and fixed (`−2/N·(m−f)`); central
+  finite-difference cross-check; perfect-match zero case. 5/5 via
+  `cargo nextest run -p ritk-registration --features coeus coeus_autograd`.
+- [x] Full package `--features coeus` 703/703 (incl. the 86s PERF-432-01
+  bspline test under its 600s override); default build unaffected
+  (`#[cfg(feature = "coeus")]`); clippy `-D warnings` clean; `cargo doc
+  --features coeus --no-deps` clean.
+- [x] Cargo.lock: 15 lines, only the genuine new edges (re-added
+  `coeus-autograd` package entry + ritk-registration → coeus-autograd/
+  coeus-ops); no unrelated churn.
+- [x] Updated `docs/coeus_migration.md` (SSOT) with a "Verified Increments"
+  section recording this step against the dev sequence.
+
+### Verification gate (Sprint 471)
+- [x] All commands above run and green.
+- [x] Scope check: only Cargo.toml (workspace + crate), metric/mod.rs, two
+  new files, docs/coeus_migration.md, and PM artifacts; no unrelated source
+  touched.
+
+### Deferred / carry-forward
+- **MIG-472-01 [READY]**: differentiable image sampling (interpolation of a
+  moving `Var` at transform-dependent coords) — the step that makes the MSE
+  kernel a function of transform parameters. Blocker: confirm Coeus `gather`
+  index semantics first. Filed with acceptance + analytical oracle.
+- Full Coeus-native `Metric`/`Transform` trait surface remains [arch] (needs
+  ADR); this sprint deliberately delivered a free-function primitive, not the
+  trait redesign.
+- `PERF-432-01` still open (Sprint 464 finding).
+- `MIG-439-03` workspace-wide Burn-caller-graph audit not yet performed.
+- Grayscale morphology / label / reconstruction Coeus wrappers (Sprint 470
+  carry-forward) still open — lower priority than the autodiff path now.
+- MIG-456-04 and `ritk-snap::ui::coordinate_system` remain open, untouched.
+
 ## Sprint 470 — MIG-470-01 Complete Coeus Binary-Morphology Family + Test-Harness Consolidation
 **Target version**: 0.14.0
 **Sprint phase**: Execution — three new verified code paths, one consolidation

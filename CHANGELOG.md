@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 471: Coeus-autograd differentiable MSE loss kernel (MIG-471-01)
+
+### Added
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::mean_squared_error_coeus`, a differentiable
+  `mean((moving − fixed)²)` built entirely from Coeus autograd `Var` ops
+  (`sub`/`mul`/`mean`) with no host extraction on the differentiable path.
+  The first verified increment of the burn→coeus registration-metric autodiff
+  migration (`docs/coeus_migration.md` dev-sequence step 6, gate #3). Verified
+  against a closed-form value oracle, closed-form gradients w.r.t. both inputs
+  (`±(2/N)(moving − fixed)`), and a central finite-difference cross-check.
+- `coeus-autograd` and `coeus-ops` added to the workspace and the
+  `ritk-registration` `coeus` feature.
+
+### Changed
+- `docs/coeus_migration.md`: added a "Verified Increments" section recording
+  this step (and the Sprints 466–470 filter wrappers) against the sequence.
+
+### Evidence
+- Evidence tier: analytical (closed-form value and gradient) plus
+  finite-difference cross-check; `cargo nextest run -p ritk-registration
+  --features coeus coeus_autograd` 5/5; full package `--features coeus`
+  703/703; default-feature build unaffected; `cargo clippy --all-targets
+  --features coeus -- -D warnings` and `cargo doc --features coeus --no-deps`
+  clean. Deterministic `SequentialBackend`.
+
+---
+
 ## [Unreleased] — Sprint 470: Coeus binary-morphology family + test-harness consolidation (MIG-470-01)
 
 ### Added

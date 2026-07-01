@@ -1,5 +1,55 @@
 # RITK Gap Audit - Active
 
+## Sprint 471 Audit (2026-06-30) — Autodiff Migration Path Opened With a Verified First Node
+
+### Finding: the highest-value Coeus target was mis-triaged for two sprints
+
+Sprints 466–470 pursued leaf filter wrappers (distance transform, morphology)
+because the registration-metric path had been (wrongly) rejected as a Coeus
+target — first on the false "no autodiff" claim (Sprint 468, retracted 469),
+then on "gated on Coeus-native Transform/Interpolator." The user's clarification
+that Coeus is *predominately the autograd/ML layer* re-centered the priority:
+the differentiable registration metrics are exactly what Coeus is for, and
+`coeus-autograd` is a complete reverse-mode engine (128 ops). The two-sprint
+detour into leaf wrappers was correct-but-low-value work; this sprint corrects
+the triage and opens the real path.
+
+### Scope discipline: [arch] work delivered as a verified Phase-1 node, not a rewrite
+
+The `Metric`/`Transform` traits are hard-bound to `burn::tensor::Tensor` — a
+full Coeus-native trait surface is [arch]-class and needs an ADR. Rather than
+start that rewrite ad hoc, delivered the smallest genuinely-useful, fully-
+verifiable node: the differentiable MSE loss reduction, which every intensity
+metric reduces to. Verified at the strongest evidence tier available — a
+*closed-form* gradient oracle (`±(2/N)(m−f)`), not merely finite differences —
+plus an FD cross-check. Kept honest per no-mock discipline: the loss reduction
+is real and complete; the differentiable *sampling* that makes it a function of
+transform parameters is explicitly filed (MIG-472-01), not stubbed.
+
+### Gate #3 satisfied in miniature
+
+`docs/coeus_migration.md` gate #3 requires differentiable paths to preserve
+autodiff-tape connectivity with no host extraction. `mean_squared_error_coeus`
+chains `sub → mul → mean` entirely on `Var`s; there is no `.as_slice()`/host
+readback between the inputs and the loss, so `.backward()` propagates to the
+leaves. The tests confirm gradients actually arrive at both inputs.
+
+### Residual Risk / Next Increment
+
+- MIG-472-01 (differentiable sampling) is the gating unknown for a usable
+  Coeus registration metric. Its risk is concentrated in Coeus `gather` index
+  semantics (float vs int index `Var`, and whether gradient flows through
+  indices) — must be read from `coeus-autograd/src/ops` + tests before
+  implementing, not assumed. Recorded in backlog with an analytical oracle
+  (linear-ramp interpolation gradient = ramp slope).
+- The Coeus-native `Metric`/`Transform` trait surface remains an unopened
+  [arch] item (needs an ADR); this node is a free function to avoid
+  prematurely committing to a trait shape before the sampling primitive
+  informs it.
+- No regression: `git diff --stat` shows only Cargo manifests, metric/mod.rs,
+  two new files, the migration doc, and PM artifacts; Cargo.lock diff is the
+  15 legitimate dependency-edge lines only.
+
 ## Sprint 470 Audit (2026-06-30) — Binary-Morphology Coeus Family Completed, Harness Consolidated
 
 ### Finding: the whole binary-morphology family was boundary-wrapper-shaped

@@ -1475,6 +1475,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "coeus-autograd"
+version = "0.5.5"
+dependencies = [
+ "apollo-fft",
+ "coeus-core",
+ "coeus-ops",
+ "coeus-sparse",
+ "coeus-tensor",
+ "leto-ops",
+ "smallvec",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "coeus-core"
 version = "0.5.5"
 dependencies = [
@@ -7093,7 +7107,9 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "bytemuck",
+ "coeus-autograd",
  "coeus-core",
+ "coeus-ops",
  "coeus-tensor",
  "criterion",
  "image 0.24.9",

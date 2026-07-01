@@ -3,6 +3,8 @@
 //! This module contains various similarity metrics used for image registration.
 
 pub(crate) mod cache_slot;
+#[cfg(feature = "coeus")]
+pub mod coeus_autograd;
 pub mod correlation_ratio;
 pub mod dl_losses;
 pub mod entropy;
@@ -15,6 +17,8 @@ pub mod ngf;
 pub mod sampling;
 pub mod trait_;
 
+#[cfg(feature = "coeus")]
+pub use coeus_autograd::mean_squared_error_coeus;
 pub use correlation_ratio::{CorrelationDirection, CorrelationRatio};
 pub use entropy::{entropy, entropy_with_eps, DEFAULT_ENTROPY_EPS};
 pub use lncc::LocalNormalizedCrossCorrelation;

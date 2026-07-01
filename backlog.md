@@ -201,6 +201,44 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-472-01 [minor] — Coeus-autograd differentiable image sampling. READY.**
+  Acceptance: implement differentiable interpolation of a moving-image `Var`
+  at transform-dependent continuous coordinates (trilinear via Coeus autograd
+  `gather` + fractional weights built as `Var` ops), such that the sampled
+  intensity `Var`'s gradient flows back to the coordinate/transform-parameter
+  leaves. Verify the coordinate gradient against central finite differences on
+  a linear-ramp signal (analytical: interpolation gradient equals the ramp
+  slope) and the forward values against the existing Burn `LinearInterpolator`.
+  Blocker to resolve first: confirm Coeus `gather`'s index argument semantics
+  (`&Var<T,B>` index — float-encoded? int? differentiable through indices or
+  only through gathered values?) by reading `coeus-autograd/src/ops` and its
+  tests before implementing. This is the step that makes
+  `mean_squared_error_coeus` (MIG-471-01) a function of transform parameters —
+  i.e. a usable registration metric. [arch]-adjacent: pairs with a future
+  Coeus-native `Transform` surface (still gated, tracked separately).
+
+- **MIG-471-01 [minor] — Coeus-autograd differentiable MSE loss kernel. DONE.**
+  First verified increment of the burn→coeus registration-metric autodiff path
+  (`docs/coeus_migration.md` dev-sequence step 6, gate #3). Added
+  `ritk_registration::metric::coeus_autograd::mean_squared_error_coeus`
+  (`coeus` feature): `mean((moving − fixed)²)` built entirely from Coeus
+  autograd `Var` ops (`sub`/`mul`/`mean`), no host extraction on the
+  differentiable path. Added `coeus-autograd` and `coeus-ops` to the workspace
+  and the crate's `coeus` feature. Evidence tier: analytical (strongest
+  available) — closed-form value oracle, closed-form gradients w.r.t. both
+  inputs (`±(2/N)(moving − fixed)`), and a central finite-difference
+  cross-check, plus a perfect-match zero-gradient case; 5/5 tests via
+  `cargo nextest run -p ritk-registration --features coeus coeus_autograd` on
+  the deterministic `SequentialBackend`. Full package `--features coeus`
+  703/703; default-feature build unaffected (module is `#[cfg(feature =
+  "coeus")]`); `cargo clippy --all-targets --features coeus -- -D warnings`
+  and `cargo doc --features coeus --no-deps` clean. Scope was deliberately the
+  loss reduction only; differentiable sampling filed as MIG-472-01, not
+  stubbed. Corrects the Sprint 468 misconception (retracted Sprint 469) that
+  Coeus lacks autodiff — it has a full reverse-mode engine (`coeus-autograd`,
+  128 differentiable ops), and this increment proves it correct for RITK's
+  metric use.
+
 - **MIG-470-01 [minor] — Coeus-native binary dilation/closing/opening,
   shared differential-test harness. DONE.**
   Completed the binary-morphology family's Coeus boundary layer: added

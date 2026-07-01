@@ -75,6 +75,31 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
    WGPU.
 6. Python binding tests verify value-semantic equivalence through the Rust core.
 
+## Verified Increments
+
+Landed, evidence-backed steps of the sequence below (most recent first):
+
+- **Reverse-mode autodiff — MSE loss kernel (Sprint 471).** Added
+  `ritk_registration::metric::coeus_autograd::mean_squared_error_coeus`, a
+  differentiable `mean((moving − fixed)²)` built entirely from Coeus autograd
+  `Var` ops (`sub`/`mul`/`mean`) with no host extraction on the path
+  (satisfies gate #3 in miniature). Verified against a closed-form value
+  oracle, closed-form gradients w.r.t. both inputs (`±(2/N)(moving − fixed)`),
+  and a central finite-difference cross-check. This establishes that Coeus
+  reverse-mode autodiff produces analytically correct gradients for the
+  terminal intensity-loss node every intensity metric (MSE, NCC moments)
+  reduces to. Behind the `coeus` feature; deterministic `SequentialBackend`.
+  Gap it does **not** yet close: differentiable *sampling* (interpolating the
+  moving image at transform-dependent coordinates), which makes the loss a
+  function of transform parameters — filed as the next increment (depends on
+  Coeus `gather` index semantics; see backlog `MIG-472-01`).
+- **Filter compute paths (Sprints 466–470).** Coeus-native trilinear
+  interpolation and the Euclidean-distance-transform + binary-morphology
+  family (erode/dilate/closing/opening) via `ritk_filter::coeus_support`,
+  each verified bitwise-identical to its Burn counterpart. These are
+  non-differentiable boundary wrappers over already substrate-agnostic cores,
+  distinct from the autodiff path above.
+
 ## Development Sequence
 
 1. Keep Burn as the production backend.
