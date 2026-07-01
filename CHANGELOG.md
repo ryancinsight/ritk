@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 469: Retract false "Coeus has no autodiff" claim (MIG-469-01)
+
+### Fixed
+- Retracted a false claim from Sprint 468: "Coeus does not provide
+  autodiff." The user challenged it directly; verification found
+  `coeus-autograd` is a real, complete reverse-mode autodiff crate
+  (`Var<T, B>::backward`, a full computation graph, 100+ differentiable
+  ops including `gather`/`index_select`/`matmul`/`conv3d`/`softmax`) —
+  comparable in scope to Burn's `AutodiffBackend`. Corrected in
+  backlog.md's MIG-468-01 entry with the verified facts. The separate,
+  still-valid reason for deferring the registration metric-kernel port
+  (`Transform`/`Interpolator`/`Image` lack Coeus-native paths) is
+  unaffected by this correction.
+
+### Evidence
+- Evidence tier: direct source read of
+  `D:/atlas/repos/coeus/coeus-autograd/{Cargo.toml, src/lib.rs, src/var.rs,
+  src/ops/*}`. No source/test code changed in `ritk`; only PM artifacts.
+
+---
+
 ## [Unreleased] — Sprint 468: Coeus-native binary erosion + shared helper (MIG-468-01)
 
 ### Added

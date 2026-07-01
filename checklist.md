@@ -1,5 +1,52 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 469 — MIG-469-01 Retract False "Coeus Has No Autodiff" Claim
+**Target version**: 0.14.0
+**Sprint phase**: Foundation — correcting a false claim from Sprint 468, no
+code change
+
+### In-flight plan (Sprint 469)
+- [x] User directly challenged the Sprint 468 claim "Coeus does not
+  provide autodiff." Did not defend it — checked immediately.
+- [x] Read `D:/atlas/repos/coeus/coeus-autograd/Cargo.toml`,
+  `src/lib.rs`, and `src/var.rs`: confirmed a real, existing reverse-mode
+  autodiff crate with `Var<T, B>::backward`/`backward_with_seed`, a full
+  computation graph (`BackwardNode`), and 100+ differentiable ops
+  (`gather`, `index_select`, `matmul`, `conv1d/2d/3d`, `softmax`, loss
+  functions, reductions, etc.) — comparable in scope to Burn's
+  `AutodiffBackend`. The Sprint 468 claim was false, asserted without
+  verification.
+- [x] Corrected backlog.md's MIG-468-01 entry in place with the verified
+  facts, and filed this correction as its own tracked item (MIG-469-01),
+  matching the Sprint 464/465 retraction precedent (correct in place with
+  evidence, don't silently edit history).
+- [x] Preserved the part of the original reasoning that remains valid and
+  independent of the autodiff question: `Transform`/`Interpolator`/`Image`
+  still lack Coeus-native paths, and no `ritk-*` crate currently depends on
+  `coeus-autograd` — the metric-kernel port is still gated on that, just
+  not on "Coeus can't do autodiff in principle" (which is false).
+
+### Verification gate (Sprint 469)
+- [x] No source code changed — `git status`/`git diff` clean on every file
+  under `crates/`. Only PM artifacts touched.
+- [x] Evidence tier: direct source read of the sibling `coeus-autograd`
+  crate, not a subagent report or reasoning from silence.
+
+### Deferred / carry-forward
+- `PERF-432-01` remains open (Sprint 464 finding).
+- `MIG-439-03`'s workspace-wide Burn-caller-graph audit not yet performed.
+- Registration metric-kernel Coeus migration: now understood as gated on
+  (a) `Transform`/`Interpolator`/`Image` needing Coeus-native paths and
+  (b) no `ritk-*` crate yet depending on `coeus-autograd` — NOT gated on
+  Coeus lacking autodiff. This reopens the door to eventually porting MI's
+  differentiable Parzen histogramming once (a) and (b) are addressed, but
+  that is still a multi-crate foundational effort, not a scoped increment
+  for a single sprint. Do not re-attempt until `Transform`/`Interpolator`
+  have Coeus-native equivalents.
+- `binary_dilate` remains the next likely `ritk-filter` Coeus candidate
+  (erosion's dual), not yet independently verified.
+- MIG-456-04 and `ritk-snap::ui::coordinate_system` remain open, untouched.
+
 ## Sprint 468 — MIG-468-01 Coeus-Native Binary Erosion + Shared Boundary Helper
 **Target version**: 0.14.0
 **Sprint phase**: Execution — new verified code path added, one consolidation

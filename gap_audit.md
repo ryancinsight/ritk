@@ -1,5 +1,64 @@
 # RITK Gap Audit - Active
 
+## Sprint 469 Audit (2026-06-30) — A False Claim, Caught by the User, Corrected Immediately
+
+### What happened
+
+Sprint 468's gap_audit/backlog/CHANGELOG entries asserted "Coeus does not
+provide autodiff" as one of two reasons to defer porting
+`ritk-registration`'s metric kernels. The user directly challenged this
+("What do you mean coeus has no autodiff, it should"). The claim was wrong
+and should never have been asserted without checking — this session had
+just spent several sprints enforcing exactly this discipline on itself
+(retracting the unmeasured "static tensor hoist" claim in Sprint 464,
+verifying subagent survey findings before acting on them in Sprints
+466–468) and then violated it in the same sprint by asserting an *absence*
+of a capability from memory/assumption rather than a source read.
+
+### Verified correction
+
+`D:/atlas/repos/coeus/coeus-autograd` is a real, existing workspace member:
+a full reverse-mode automatic differentiation engine (`src/lib.rs`:
+"Reverse-mode automatic differentiation engine built on the Coeus tensor
+and ops stacks"). `Var<T, B>` (`src/var.rs`) carries an optional gradient
+accumulator and creator-node link; `Var::backward`/`backward_with_seed`
+trigger topological graph traversal. Over 100 differentiable ops are
+exported from `coeus_autograd::ops`, including `gather`, `index_select`,
+`matmul`, `conv1d/2d/3d`, `softmax`, `cross_entropy_loss`, and reductions —
+directly comparable in scope to Burn's `AutodiffBackend`. This is not a
+stub or partial implementation; it is a complete, ops-rich autodiff stack.
+
+### What remains true, and what was actually wrong
+
+The *other* half of Sprint 468's reasoning — that `ritk-registration`'s
+metrics compose Burn tensor ops through `Transform`/`Interpolator`/`Image`
+end-to-end, with no substrate-agnostic core to wrap, and that porting them
+requires those traits to grow Coeus-native implementations first — was
+based on an actual source read (`mse.rs`, `ncc.rs`) and remains correct;
+it did not depend on the autodiff question at all. Only the specific claim
+"Coeus cannot do this because it lacks autodiff" was false. The corrected
+framing: the metric-kernel port is blocked on missing Coeus-native
+`Transform`/`Interpolator` implementations and the fact that no `ritk-*`
+crate yet depends on `coeus-autograd` — an engineering gap to close, not an
+architectural impossibility.
+
+### Residual Risk / Next Increment
+
+- Registration metric-kernel Coeus migration is now understood as
+  *eventually tractable* (autodiff exists), but still gated on building
+  Coeus-native `Transform`/`Interpolator` paths first — a multi-crate,
+  foundational effort, correctly still out of scope for a single sprint.
+  Do not re-attempt without that prerequisite; do not re-cite "no
+  autodiff" as a blocker.
+- Process lesson recorded for this session's own future conduct: an
+  absence claim ("X does not support Y") needs the same source-read
+  discipline as a presence claim ("X's core is Burn-independent") — this
+  sprint's error was treating "I don't recall seeing autodiff in Coeus" as
+  equivalent to "I checked and it isn't there." They are not the same tier
+  of evidence.
+- No code changed this sprint; `git diff` clean except the three PM
+  artifacts and this file.
+
 ## Sprint 468 Audit (2026-06-30) — A Real Architectural Gap Rejected With Reasons, a Consolidation Applied on Sight
 
 ### Finding: registration metrics are a genuine prerequisite gap, not a scoped increment

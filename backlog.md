@@ -201,6 +201,29 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-469-01 [patch] — Retract false "Coeus has no autodiff" claim.
+  DONE.**
+  The user directly challenged Sprint 468's assertion that "Coeus does not
+  provide autodiff." Checked rather than defended: `D:/atlas/repos/coeus/
+  coeus-autograd` is a real crate (`[package] name = "coeus-autograd"`,
+  workspace member, depends on `coeus-core`/`coeus-tensor`/`coeus-ops`/
+  `coeus-sparse`/`apollo-fft`/`leto-ops`) implementing full reverse-mode
+  autodiff: `Var<T, B>` (a tracked tensor with an optional gradient
+  accumulator and creator-node link), `Var::backward`/
+  `Var::backward_with_seed` (topological graph traversal), and >100
+  differentiable ops in `coeus_autograd::ops` including `gather`,
+  `index_select`, `matmul`, `conv1d/2d/3d`, `softmax`, `cross_entropy_loss`,
+  reductions, and more — comparable in scope to Burn's `AutodiffBackend`.
+  The claim was asserted in Sprint 468 without verification, exactly the
+  failure mode the project's evidence-tier discipline exists to prevent.
+  Retracted in the MIG-468-01 entry below with the verified facts. The
+  separate, still-valid reason for deferring the metric-kernel port
+  (`Transform`/`Interpolator`/`Image` lack Coeus-native paths, and no
+  `ritk-*` crate currently depends on `coeus-autograd`) is unaffected —
+  only the false "impossible in principle" framing is removed. No code
+  changed. Evidence tier: direct source read of `coeus-autograd/src/
+  {lib.rs, var.rs, ops/*}` in the sibling repo.
+
 - **MIG-468-01 [minor] — Coeus-native binary erosion + shared boundary
   helper for `ritk-filter`. DONE.**
   Added `crates/ritk-filter/src/coeus_support.rs::map_flat_image`, a
@@ -212,21 +235,32 @@
   a third copy. Added `binary_erode_coeus` wrapping the already substrate-
   agnostic `erode_binary_3d` core (pure `&[f32]`/`Vec<f32>`, Moirai-
   parallel, no Burn dependency) through the shared helper. Also
-  investigated and **explicitly rejected** `ritk-registration`'s metric
-  kernels (NCC, MSE, MI) as a Coeus target this sprint: unlike
-  distance-transform/morphology, their compute is tensor-op-native
-  throughout (`Transform::transform_points`, `Interpolator::interpolate`,
+  investigated and **deferred** `ritk-registration`'s metric kernels (NCC,
+  MSE, MI) as a Coeus target this sprint: unlike distance-transform/
+  morphology, their compute is tensor-op-native throughout
+  (`Transform::transform_points`, `Interpolator::interpolate`,
   `Image::world_to_index_tensor`), not a thin wrapper around a substrate-
   agnostic core — porting them requires the `Transform`/`Interpolator`/
-  `Image`-grid machinery to have Coeus-native equivalents first, and MI's
-  Parzen-window histogramming is specifically *differentiable* soft-binning
-  load-bearing for gradient-based optimization, which Coeus does not
-  provide (no autodiff). Confirmed the classical (non-Burn) registration
+  `Image`-grid machinery to have Coeus-native equivalents first.
+  **Correction (Sprint 469, evidence-based)**: this entry originally also
+  claimed "Coeus does not provide autodiff" as a reason MI's differentiable
+  Parzen-window histogramming couldn't migrate. That claim was asserted
+  without checking and is **false** — `D:/atlas/repos/coeus/coeus-autograd`
+  is a real, existing reverse-mode autodiff crate (`Var<T, B>::backward`,
+  a full computation graph, `gather`/`index_select`/`matmul`/`conv3d`/
+  `softmax` and more as differentiable ops), comparable in scope to Burn's
+  autodiff. See MIG-469-01 below for the full correction. The
+  Transform/Interpolator-machinery gate above is unaffected by this
+  correction and still holds — that reasoning never depended on autodiff
+  availability. Confirmed the classical (non-Burn) registration
   engine already uses `leto::Array3`/plain arrays throughout — it never
-  depended on Burn, so there is nothing to migrate there either. This is a
-  genuine architectural prerequisite gap, not a scoped increment; do not
-  re-attempt without first adding Coeus-native `Transform`/`Interpolator`
-  paths. Evidence tier: value-semantic differential nextest (4 new binary-
+  depended on Burn, so there is nothing to migrate there either. This
+  remains an architectural prerequisite gap (Transform/Interpolator need
+  Coeus-native paths, and no `ritk-*` crate depends on `coeus-autograd`
+  yet), not a scoped increment; do not re-attempt without first adding
+  Coeus-native `Transform`/`Interpolator` paths — but do not cite "Coeus
+  has no autodiff" as a reason, since that is false. Evidence tier:
+  value-semantic differential nextest (4 new binary-
   erosion tests plus the 4 pre-existing distance-transform tests, all
   passing against the identical shared-helper boundary); `cargo nextest
   run -p ritk-filter --features coeus` passed 952/952; default-feature
