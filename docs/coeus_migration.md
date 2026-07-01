@@ -79,6 +79,14 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Reverse-mode autodiff — differentiable trilinear sampling (Sprint 473).**
+  Added `metric::coeus_autograd::sampling::sample_trilinear_coeus`, extending
+  the 1-D mechanism to 3-D (8-corner `gather`, per-axis fractional-weight
+  products, coordinate gradient to each of the three axis leaves). Verified
+  against a host trilinear reference, separable-ramp per-axis analytical
+  gradients, and per-axis finite differences. With the MSE kernel and a trivial
+  differentiable translation, an end-to-end MSE-over-a-transform metric can now
+  be composed (backlog `MIG-474-01`).
 - **Reverse-mode autodiff — differentiable 1-D linear sampling (Sprint 472).**
   Added `metric::coeus_autograd::sampling::sample_linear_1d_coeus`. Resolved the
   gather-semantics blocker (index is a non-differentiable integer-valued float

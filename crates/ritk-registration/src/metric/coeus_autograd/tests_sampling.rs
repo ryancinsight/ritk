@@ -6,7 +6,7 @@
 //! `gather` value-gradient path, edge-clamp behavior, and a finite-difference
 //! cross-check on a non-ramp signal. Deterministic `SequentialBackend`.
 
-use super::sample_linear_1d_coeus;
+use super::{sample_linear_1d_coeus, sample_trilinear_coeus};
 use coeus_autograd::{sum, Var};
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
@@ -132,4 +132,163 @@ fn edge_clamp_extrapolates_flat_with_zero_gradient() {
         c.grad().expect("grad").as_slice()[0].abs() < 1e-12,
         "flat extrapolation must have zero coordinate gradient"
     );
+}
+
+// ── Trilinear (3-D) sampling ────────────────────────────────────────────────
+
+/// Clamp a floored coordinate to `[0, max_index]` (mirrors `clamp_index`).
+fn clamp_idx(floor: f64, max_index: usize) -> usize {
+    if floor <= 0.0 {
+        0
+    } else if floor >= max_index as f64 {
+        max_index
+    } else {
+        floor as usize
+    }
+}
+
+/// Host trilinear reference over a flat `[Z·Y·X]` signal, matching the
+/// production semantics (weights from unclamped floors, corners clamped
+/// independently per axis).
+fn trilinear_reference(signal: &[f64], dims: [usize; 3], z: f64, y: f64, x: f64) -> f64 {
+    let [nz, ny, nx] = dims;
+    let (fz, fy, fx) = (z.floor(), y.floor(), x.floor());
+    let (wz1, wy1, wx1) = (z - fz, y - fy, x - fx);
+    let (wz0, wy0, wx0) = (1.0 - wz1, 1.0 - wy1, 1.0 - wx1);
+    let iz = [clamp_idx(fz, nz - 1), clamp_idx(fz + 1.0, nz - 1)];
+    let iy = [clamp_idx(fy, ny - 1), clamp_idx(fy + 1.0, ny - 1)];
+    let ix = [clamp_idx(fx, nx - 1), clamp_idx(fx + 1.0, nx - 1)];
+    let wz = [wz0, wz1];
+    let wy = [wy0, wy1];
+    let wx = [wx0, wx1];
+    let mut acc = 0.0;
+    for a in 0..2 {
+        for b in 0..2 {
+            for c in 0..2 {
+                let flat = iz[a] * ny * nx + iy[b] * nx + ix[c];
+                acc += signal[flat] * wz[a] * wy[b] * wx[c];
+            }
+        }
+    }
+    acc
+}
+
+#[test]
+fn trilinear_forward_matches_host_reference() {
+    let dims = [3usize, 4, 5];
+    let n = dims[0] * dims[1] * dims[2];
+    // A non-separable signal so all eight corners genuinely contribute.
+    let signal: Vec<f64> = (0..n).map(|i| ((i * 7) % 13) as f64 + 0.25 * i as f64).collect();
+    let zs = [0.5, 1.25, 2.0];
+    let ys = [1.5, 0.0, 3.9];
+    let xs = [2.5, 4.0, 0.1];
+
+    let out = sample_trilinear_coeus(
+        &var(&signal, false),
+        dims,
+        &var(&zs, false),
+        &var(&ys, false),
+        &var(&xs, false),
+    );
+    let got = out.tensor.as_slice();
+    for k in 0..zs.len() {
+        let expected = trilinear_reference(&signal, dims, zs[k], ys[k], xs[k]);
+        assert!(
+            (got[k] - expected).abs() < 1e-12,
+            "trilinear[{k}]: got {}, expected {expected}",
+            got[k]
+        );
+    }
+}
+
+#[test]
+fn trilinear_coordinate_gradient_of_separable_ramp_is_the_per_axis_slopes() {
+    // signal[z,y,x] = a + bz·z + by·y + bx·x  ⇒  ∂sample/∂z = bz, etc.,
+    // for all in-bounds coordinates (the cross terms of trilinear vanish for a
+    // separable-affine field).
+    let dims = [4usize, 4, 4];
+    let (a, bz, by, bx) = (1.0, 2.0, -3.0, 0.5);
+    let [nz, ny, nx] = dims;
+    let mut signal = vec![0.0f64; nz * ny * nx];
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                signal[z * ny * nx + y * nx + x] =
+                    a + bz * z as f64 + by * y as f64 + bx * x as f64;
+            }
+        }
+    }
+    let zc = var(&[1.5, 2.25], true);
+    let yc = var(&[0.5, 2.0], true);
+    let xc = var(&[2.5, 1.1], true);
+    let out = sample_trilinear_coeus(&var(&signal, false), dims, &zc, &yc, &xc);
+    sum(&out).backward();
+
+    for (axis, (leaf, slope)) in [(&zc, bz), (&yc, by), (&xc, bx)].iter().enumerate() {
+        let grad = leaf.grad().expect("coord requires_grad").as_slice().to_vec();
+        for (k, &g) in grad.iter().enumerate() {
+            assert!(
+                (g - slope).abs() < 1e-10,
+                "axis {axis} grad[{k}]: got {g}, expected slope {slope}"
+            );
+        }
+    }
+}
+
+#[test]
+fn trilinear_coordinate_gradient_matches_central_finite_difference() {
+    let dims = [3usize, 3, 3];
+    let n = dims[0] * dims[1] * dims[2];
+    let signal: Vec<f64> = (0..n).map(|i| ((i * 5 + 1) % 11) as f64).collect();
+    let z0 = 1.3;
+    let y0 = 0.7;
+    let x0 = 1.6;
+
+    let zc = var(&[z0], true);
+    let yc = var(&[y0], true);
+    let xc = var(&[x0], true);
+    let out = sample_trilinear_coeus(&var(&signal, false), dims, &zc, &yc, &xc);
+    sum(&out).backward();
+    let gz = zc.grad().expect("grad").as_slice()[0];
+    let gy = yc.grad().expect("grad").as_slice()[0];
+    let gx = xc.grad().expect("grad").as_slice()[0];
+
+    let h = 1e-6;
+    let fd_z = (trilinear_reference(&signal, dims, z0 + h, y0, x0)
+        - trilinear_reference(&signal, dims, z0 - h, y0, x0))
+        / (2.0 * h);
+    let fd_y = (trilinear_reference(&signal, dims, z0, y0 + h, x0)
+        - trilinear_reference(&signal, dims, z0, y0 - h, x0))
+        / (2.0 * h);
+    let fd_x = (trilinear_reference(&signal, dims, z0, y0, x0 + h)
+        - trilinear_reference(&signal, dims, z0, y0, x0 - h))
+        / (2.0 * h);
+    assert!((gz - fd_z).abs() < 1e-5, "∂/∂z: analytic {gz}, fd {fd_z}");
+    assert!((gy - fd_y).abs() < 1e-5, "∂/∂y: analytic {gy}, fd {fd_y}");
+    assert!((gx - fd_x).abs() < 1e-5, "∂/∂x: analytic {gx}, fd {fd_x}");
+}
+
+#[test]
+fn trilinear_value_gradient_flows_to_signal_at_integer_voxel() {
+    // Sample exactly at integer voxel (1,2,0): all fractional weights are 0/1,
+    // so out = signal[flat(1,2,0)] and only that entry gets gradient 1.
+    let dims = [3usize, 3, 3];
+    let n = dims[0] * dims[1] * dims[2];
+    let signal: Vec<f64> = (0..n).map(|i| i as f64).collect();
+    let s = var(&signal, true);
+    let out = sample_trilinear_coeus(
+        &s,
+        dims,
+        &var(&[1.0], false),
+        &var(&[2.0], false),
+        &var(&[0.0], false),
+    );
+    let flat = dims[1] * dims[2] + 2 * dims[2];
+    assert!((out.tensor.as_slice()[0] - signal[flat]).abs() < 1e-12);
+    sum(&out).backward();
+    let grad = s.grad().expect("grad").as_slice().to_vec();
+    for (i, &g) in grad.iter().enumerate() {
+        let expected = if i == flat { 1.0 } else { 0.0 };
+        assert!((g - expected).abs() < 1e-12, "signal grad[{i}]: got {g}, expected {expected}");
+    }
 }

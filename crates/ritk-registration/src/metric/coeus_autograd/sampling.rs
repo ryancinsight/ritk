@@ -1,46 +1,103 @@
-//! Differentiable 1-D linear image sampling on Coeus autograd `Var`s.
+//! Differentiable linear/trilinear image sampling on Coeus autograd `Var`s.
 //!
-//! Interpolates a signal at continuous coordinates such that the gradient of
-//! the sampled values flows back to the **coordinate** leaf. This is the step
+//! Interpolates an image at continuous coordinates such that the gradient of
+//! the sampled values flows back to the **coordinate** leaves. This is the step
 //! that makes a registration loss a function of the transform parameters: the
 //! transform produces continuous coordinates, sampling reads the moving image
 //! at them, and the coordinate gradient drives the optimizer.
 //!
 //! # Mechanism (why the coordinate gradient is correct)
 //!
-//! For a coordinate `x`, linear interpolation is
-//! `out = signal[i0]·(1 − f) + signal[i1]·f` where `i0 = clamp(⌊x⌋)`,
-//! `i1 = clamp(⌊x⌋+1)`, and `f = x − ⌊x⌋`. The two corner *indices* are
-//! piecewise-constant in `x` (Coeus `gather` treats its index as
+//! Along one axis, linear interpolation is `s[i0]·(1 − f) + s[i1]·f` where
+//! `i0 = clamp(⌊x⌋)`, `i1 = clamp(⌊x⌋+1)`, and `f = x − ⌊x⌋`. The corner
+//! *indices* are piecewise-constant in `x` (Coeus `gather` treats its index as
 //! non-differentiable — gradient flows only through the gathered values), so
-//! the coordinate gradient flows entirely through the fractional weight:
+//! the coordinate gradient flows entirely through the fractional weight
+//! (`∂f/∂x = 1`). In 1-D this gives `∂out/∂x = s[i1] − s[i0]` (the local
+//! slope); in 3-D the trilinear weight of each of the eight corners is the
+//! product of the three per-axis weights, so the per-axis coordinate gradient
+//! is the corresponding trilinear finite difference.
 //!
-//! ```text
-//! ∂out/∂x = signal[i0]·∂(1−f)/∂x + signal[i1]·∂f/∂x
-//!         = −signal[i0] + signal[i1]   (since ∂f/∂x = 1)
-//!         = signal[i1] − signal[i0]
-//! ```
-//!
-//! i.e. the local finite slope of the signal — exactly the analytical gradient
-//! the tests assert (for a linear ramp `signal[i] = a + b·i`, this is the
-//! constant slope `b`).
-//!
-//! The weight `f` is built as `sub(coords, ⌊coords⌋)`, keeping the coordinate
-//! on the autograd tape (its derivative is 1); `⌊coords⌋` and the clamped
-//! integer corner indices are materialized as constant (`requires_grad = false`)
-//! `Var`s. Reading `coords`' host values to compute those constants does not
-//! detach `coords` from the tape — the differentiable path `coords → f → out`
-//! is unbroken (migration gate #3).
+//! Each per-axis weight `f` is built as `sub(coord_axis, ⌊coord_axis⌋)`, keeping
+//! that coordinate on the autograd tape; `⌊·⌋` and the clamped integer corner
+//! indices are materialized as constant (`requires_grad = false`) `Var`s.
+//! Reading a coordinate's host values to compute those constants does not
+//! detach it from the tape — the differentiable path `coord → f → out` is
+//! unbroken (migration gate #3). `AxisInterp` is the single shared per-axis
+//! computation both samplers use (DRY: 1-D and each of the three trilinear axes
+//! are the same operation).
 
 use coeus_autograd::{add, gather, mul, sub, Var};
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Scalar};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
+/// Per-axis linear-interpolation decomposition: the two differentiable corner
+/// weights `w0 = 1 − f`, `w1 = f` (as `Var`s on the coordinate tape) and the
+/// two independently-clamped integer corner indices (as plain `usize`s, ready
+/// to be combined into flat gather indices).
+struct AxisInterp<T: Scalar, B>
+where
+    B: ComputeBackend + BackendOps<T> + Default,
+{
+    w0: Var<T, B>,
+    w1: Var<T, B>,
+    idx0: Vec<usize>,
+    idx1: Vec<usize>,
+}
+
+/// Decompose one coordinate axis (`coords`, shape `[N]`) against an `extent`
+/// (`[0, extent-1]`) into its corner weights and clamped corner indices.
+///
+/// The weight derives from the unclamped floor (so the mapping stays
+/// continuous), while the two corner indices are clamped independently
+/// (matching the RITK trilinear reference's edge behavior). Reads `coords`'
+/// host values to build the constant floor/index `Var`s; `coords` itself stays
+/// on the tape via `w1 = coords − ⌊coords⌋`.
+fn axis_interp<T, B>(coords: &Var<T, B>, extent: usize, backend: &B) -> AxisInterp<T, B>
+where
+    T: Scalar,
+    B: ComputeBackend + BackendOps<T> + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    let shape = coords.tensor.shape();
+    assert_eq!(shape.len(), 1, "axis_interp: coords must be 1-D");
+    let n = shape[0];
+    assert!(extent > 0, "axis_interp: extent must be non-zero");
+    let max_index = extent - 1;
+
+    let coord_vals = coords.tensor.as_slice();
+    let mut floor_vals = Vec::with_capacity(n);
+    let mut idx0 = Vec::with_capacity(n);
+    let mut idx1 = Vec::with_capacity(n);
+    for &c in coord_vals {
+        let floor = c.to_f64().floor();
+        floor_vals.push(T::from_f64(floor));
+        idx0.push(clamp_index(floor, max_index));
+        idx1.push(clamp_index(floor + 1.0, max_index));
+    }
+
+    let floor_const = Var::new(Tensor::from_slice_on([n], &floor_vals, backend), false);
+    let ones = Var::new(Tensor::full_on([n], T::one(), backend), false);
+    let w1 = sub(coords, &floor_const);
+    let w0 = sub(&ones, &w1);
+
+    AxisInterp { w0, w1, idx0, idx1 }
+}
+
+/// Build a constant index `Var` of shape `[N]` from flat `usize` indices.
+fn index_var<T, B>(indices: &[usize], backend: &B) -> Var<T, B>
+where
+    T: Scalar,
+    B: ComputeBackend + BackendOps<T> + Default,
+{
+    let vals: Vec<T> = indices.iter().map(|&i| T::from_f64(i as f64)).collect();
+    Var::new(Tensor::from_slice_on([indices.len()], &vals, backend), false)
+}
+
 /// Differentiable linear interpolation of a 1-D `signal` (shape `[L]`) at
 /// continuous `coords` (shape `[N]`), returning sampled intensities (shape
-/// `[N]`). Out-of-range coordinates clamp to the signal edges (indices are
-/// clamped independently, matching the RITK trilinear reference); the weight
+/// `[N]`). Out-of-range coordinates clamp to the signal edges; the weight
 /// derives from the unclamped floor, so the mapping is continuous.
 ///
 /// The result's autograd graph links back to `coords` (through the fractional
@@ -49,9 +106,8 @@ use coeus_tensor::Tensor;
 /// # Panics
 ///
 /// Panics if `signal` or `coords` is not 1-D, if `signal` is empty, or if
-/// either tensor is non-contiguous (host readback of coordinate values and
-/// signal length requires contiguity) — all caller invariants, not
-/// input-data errors.
+/// either tensor is non-contiguous — all caller invariants, not input-data
+/// errors.
 pub fn sample_linear_1d_coeus<T, B>(signal: &Var<T, B>, coords: &Var<T, B>) -> Var<T, B>
 where
     T: Scalar,
@@ -59,51 +115,91 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let backend = B::default();
-
     let signal_shape = signal.tensor.shape();
     assert_eq!(signal_shape.len(), 1, "sample_linear_1d_coeus: signal must be 1-D");
     let len = signal_shape[0];
     assert!(len > 0, "sample_linear_1d_coeus: signal must be non-empty");
-    let max_index = len - 1;
 
-    let coords_shape = coords.tensor.shape();
-    assert_eq!(coords_shape.len(), 1, "sample_linear_1d_coeus: coords must be 1-D");
-    let n = coords_shape[0];
+    let axis = axis_interp(coords, len, &backend);
+    let v0 = gather(signal, 0, &index_var(&axis.idx0, &backend));
+    let v1 = gather(signal, 0, &index_var(&axis.idx1, &backend));
+    add(&mul(&v0, &axis.w0), &mul(&v1, &axis.w1))
+}
 
-    // Host-read the coordinate values to build the (non-differentiable) floor
-    // and clamped integer corner indices. This constructs constants; it does
-    // not detach `coords` from the tape used below.
-    let coord_vals = coords.tensor.as_slice();
+/// Differentiable trilinear interpolation of a flattened 3-D `signal` (shape
+/// `[Z·Y·X]`, row-major with `dims = [Z, Y, X]`) at continuous per-axis
+/// coordinates `coords_z`, `coords_y`, `coords_x` (each shape `[N]`, in voxel
+/// index space), returning sampled intensities (shape `[N]`).
+///
+/// Coordinates are supplied per axis (rather than as an `[N, 3]` tensor) so the
+/// gradient flows to three independent coordinate leaves without depending on a
+/// differentiable column-slice op; a transform producing `[N, 3]` splits into
+/// three columns at its boundary. Out-of-range coordinates clamp per axis
+/// independently (matching the RITK trilinear reference); weights derive from
+/// the unclamped floors.
+///
+/// The result's autograd graph links back to each coordinate axis (through the
+/// per-axis fractional weights) and to `signal` (through `gather`).
+///
+/// # Panics
+///
+/// Panics if `signal` is not 1-D of length `Z·Y·X`, if any coordinate vector is
+/// not 1-D, if the three coordinate vectors differ in length, or on
+/// non-contiguous input — all caller invariants.
+pub fn sample_trilinear_coeus<T, B>(
+    signal: &Var<T, B>,
+    dims: [usize; 3],
+    coords_z: &Var<T, B>,
+    coords_y: &Var<T, B>,
+    coords_x: &Var<T, B>,
+) -> Var<T, B>
+where
+    T: Scalar,
+    B: ComputeBackend + BackendOps<T> + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
+{
+    let backend = B::default();
+    let [nz, ny, nx] = dims;
+    let expected = nz * ny * nx;
+    let signal_shape = signal.tensor.shape();
+    assert_eq!(signal_shape.len(), 1, "sample_trilinear_coeus: signal must be flat 1-D");
+    assert_eq!(
+        signal_shape[0], expected,
+        "sample_trilinear_coeus: signal length must equal Z·Y·X"
+    );
+    let n = coords_z.tensor.shape().first().copied().unwrap_or(0);
+    assert_eq!(coords_y.tensor.shape(), [n], "coords_y length must match coords_z");
+    assert_eq!(coords_x.tensor.shape(), [n], "coords_x length must match coords_z");
 
-    let mut floor_vals = Vec::with_capacity(n);
-    let mut idx0_vals = Vec::with_capacity(n);
-    let mut idx1_vals = Vec::with_capacity(n);
-    for &c in coord_vals {
-        let cf = c.to_f64();
-        let floor = cf.floor();
-        floor_vals.push(T::from_f64(floor));
-        // Independent clamp of each corner to [0, len-1].
-        let i0 = clamp_index(floor, max_index);
-        let i1 = clamp_index(floor + 1.0, max_index);
-        idx0_vals.push(T::from_f64(i0 as f64));
-        idx1_vals.push(T::from_f64(i1 as f64));
+    let az = axis_interp(coords_z, nz, &backend);
+    let ay = axis_interp(coords_y, ny, &backend);
+    let ax = axis_interp(coords_x, nx, &backend);
+
+    let stride_z = ny * nx;
+    let stride_y = nx;
+
+    // Accumulate the eight trilinear corners. Corner (cz, cy, cx) contributes
+    // gathered_value · (wz · wy · wx); the flat gather index combines the three
+    // clamped per-axis corner indices.
+    let mut acc: Option<Var<T, B>> = None;
+    for (iz, wz) in [(&az.idx0, &az.w0), (&az.idx1, &az.w1)] {
+        for (iy, wy) in [(&ay.idx0, &ay.w0), (&ay.idx1, &ay.w1)] {
+            for (ix, wx) in [(&ax.idx0, &ax.w0), (&ax.idx1, &ax.w1)] {
+                let flat: Vec<usize> = (0..n)
+                    .map(|k| iz[k] * stride_z + iy[k] * stride_y + ix[k])
+                    .collect();
+                let value = gather(signal, 0, &index_var(&flat, &backend));
+                let weight = mul(&mul(wz, wy), wx);
+                let term = mul(&value, &weight);
+                acc = Some(match acc {
+                    Some(prev) => add(&prev, &term),
+                    None => term,
+                });
+            }
+        }
     }
 
-    let floor_const = Var::new(Tensor::from_slice_on([n], &floor_vals, &backend), false);
-    let idx0 = Var::new(Tensor::from_slice_on([n], &idx0_vals, &backend), false);
-    let idx1 = Var::new(Tensor::from_slice_on([n], &idx1_vals, &backend), false);
-    let ones = Var::new(Tensor::full_on([n], T::one(), &backend), false);
-
-    // Fractional weight f = coords − ⌊coords⌋ (tape: ∂f/∂coords = 1); w0 = 1 − f.
-    let w1 = sub(coords, &floor_const);
-    let w0 = sub(&ones, &w1);
-
-    // Corner values via differentiable gather (gradient flows to `signal`).
-    let v0 = gather(signal, 0, &idx0);
-    let v1 = gather(signal, 0, &idx1);
-
-    // out = v0·w0 + v1·w1
-    add(&mul(&v0, &w0), &mul(&v1, &w1))
+    acc.expect("trilinear always accumulates eight corners")
 }
 
 /// Clamp a floored coordinate to a valid `[0, max_index]` signal index.

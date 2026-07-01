@@ -18,7 +18,9 @@ pub mod sampling;
 pub mod trait_;
 
 #[cfg(feature = "coeus")]
-pub use coeus_autograd::{mean_squared_error_coeus, sample_linear_1d_coeus};
+pub use coeus_autograd::{
+    mean_squared_error_coeus, sample_linear_1d_coeus, sample_trilinear_coeus,
+};
 pub use correlation_ratio::{CorrelationDirection, CorrelationRatio};
 pub use entropy::{entropy, entropy_with_eps, DEFAULT_ENTROPY_EPS};
 pub use lncc::LocalNormalizedCrossCorrelation;

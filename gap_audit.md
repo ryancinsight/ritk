@@ -1,5 +1,58 @@
 # RITK Gap Audit - Active
 
+## Sprint 473 Audit (2026-06-30) — Trilinear Sampling Extended and Consolidated, Concurrent Lock Churn Handled
+
+### Finding: the 3-D extension was low-risk because 1-D de-risked the mechanism
+
+MIG-472-01 deliberately proved the gather+weight-gradient mechanism in 1-D
+first. This sprint's 3-D trilinear extension therefore carried no mechanism
+risk — only flat-index arithmetic (`z·Y·X + y·X + x`) and the 8-corner
+weight-product combination. Verified the same way: a host trilinear reference
+for forward parity, a *separable-ramp* analytical oracle (per-axis gradient =
+per-axis slope, since trilinear cross-terms vanish for a separable-affine
+field), and a per-axis finite-difference cross-check. Slicing the hard mechanism
+into its own prior increment is why this one landed cleanly.
+
+### API decision: per-axis coordinates, recorded with rationale
+
+`sample_trilinear_coeus` takes three `[N]` coordinate `Var`s rather than one
+`[N,3]`. Reason: extracting a differentiable column from `[N,3]` would depend on
+a Coeus slice/index-select op whose gradient semantics I have not verified, and
+the transform that feeds this can emit per-axis coordinates or split at its
+boundary cheaply. This keeps the three coordinate leaves independent and the
+tape obviously intact. Recorded so the future `Transform` surface knows the
+expected coordinate shape.
+
+### DRY consolidation on the second per-axis occurrence
+
+The per-axis floor/clamp/fractional-weight computation now exists once
+(`axis_interp` → `AxisInterp`) and is used by the 1-D sampler and all three
+trilinear axes. The 1-D sampler was refactored onto it in the same change
+rather than leaving two copies — the second occurrence (three trilinear axes)
+was the trigger.
+
+### Process: concurrent-agent Cargo.lock churn discarded correctly
+
+A full-package build surfaced a Cargo.lock delta dropping `ndarray 0.16.1` from
+an unrelated crate — a sibling agent's edit to another D:/atlas crate, not this
+change (which adds no dependencies). Restored Cargo.lock from origin/main so the
+commit carries no lock delta; the sibling's dependency change is theirs to
+commit. This is the correct read/write-split discipline: I neither adopt nor
+revert a peer's in-flight change, I just keep my commit scoped.
+
+### Residual Risk / Next Increment
+
+- MIG-474-01 (end-to-end MSE-over-a-transform) is now unblocked: all three
+  differentiable primitives (trilinear sample, MSE, and a trivial translation)
+  are verified. The only new piece is composing them and asserting the
+  parameter gradient drives alignment — the first genuinely *usable* Coeus
+  registration metric.
+- GPU-backend caveat (from Sprint 472) still stands: the host-read floor/index
+  construction is CPU-only; a WGPU differentiable sampler needs an on-device
+  index path. Not a CPU-path defect.
+- No regression: `git diff --stat` shows only the sampling module/tests and two
+  re-export lines; no Cargo.lock delta.
+
 ## Sprint 472 Audit (2026-06-30) — Differentiable-Sampling Mechanism De-Risked and Proven
 
 ### Blocker resolved by reading source, not guessing

@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 473: Coeus-autograd differentiable trilinear sampling (MIG-473-01)
+
+### Added
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::sampling::sample_trilinear_coeus`, differentiable
+  3-D trilinear interpolation of a flattened moving-image `Var` at per-axis
+  continuous coordinates. Eight-corner `gather` weighted by the products of the
+  three per-axis fractional weights; the coordinate gradient flows to each
+  axis leaf, the value gradient to `signal`.
+
+### Changed
+- `ritk-registration`: factored the shared per-axis floor/clamp/fractional-
+  weight computation into `axis_interp`/`AxisInterp`; the 1-D sampler was
+  refactored onto it (DRY, no duplicated per-axis logic).
+- `docs/coeus_migration.md`: recorded the trilinear increment.
+
+### Evidence
+- Evidence tier: analytical (separable-ramp per-axis coordinate gradients =
+  closed-form slopes; integer-voxel gather value-gradient) plus a host
+  trilinear-reference forward match and per-axis finite-difference cross-check;
+  `cargo nextest run -p ritk-registration --features coeus coeus_autograd`
+  14/14; full package `--features coeus` 712/712; default build unaffected;
+  clippy `-D warnings` and `cargo doc --features coeus --no-deps` clean.
+  Cargo.lock unchanged.
+
+---
+
 ## [Unreleased] — Sprint 472: Coeus-autograd differentiable 1-D linear sampling (MIG-472-01)
 
 ### Added

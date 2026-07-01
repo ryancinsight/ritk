@@ -1,5 +1,48 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 473 — MIG-473-01 Coeus-Autograd Differentiable Trilinear Sampling
+**Target version**: 0.14.0
+**Sprint phase**: Execution — 3-D sampling primitive added, per-axis helper
+consolidated
+
+### In-flight plan (Sprint 473)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Extended the 1-D mechanism (proven in MIG-472-01) to 3-D trilinear in
+  `sample_trilinear_coeus`: 8-corner `gather` from a flattened moving-image
+  `Var`, flat index `z·Y·X + y·X + x` with per-axis independent corner clamps,
+  corner weight = product of the three per-axis fractional-weight `Var`s.
+- [x] Coordinates passed per axis (three `[N]` `Var`s) — avoids a
+  differentiable column-slice dependency and gives three independent
+  coordinate leaves; documented the rationale.
+- [x] DRY: factored the per-axis floor/clamp/weight logic into
+  `AxisInterp`/`axis_interp` and refactored the 1-D sampler onto it (no
+  duplicated per-axis logic across the two samplers).
+- [x] Verified analytically: separable-ramp per-axis gradients = closed-form
+  slopes (`∂/∂z=bz`, etc.); host trilinear-reference forward match;
+  per-axis central finite-difference cross-check; integer-voxel `gather`
+  value-gradient. 14/14 (`coeus_autograd` filter).
+- [x] Full package `--features coeus` 712/712 (708 + 4 new); default build
+  unaffected; clippy `-D warnings` clean (fixed an `identity_op` in a test
+  flat-index expr); `cargo doc --features coeus --no-deps` clean (fixed one
+  private-intra-doc-link on `AxisInterp`).
+- [x] Discarded an unrelated concurrent-agent `ndarray`-drop churn in
+  Cargo.lock (I added no deps) to keep the commit lock-clean.
+
+### Verification gate (Sprint 473)
+- [x] All commands above green.
+- [x] Scope check: only the `metric/coeus_autograd/sampling.rs` +
+  `tests_sampling.rs` + the two `mod.rs` re-exports; no Cargo.lock delta.
+
+### Deferred / carry-forward
+- **MIG-474-01 [READY]**: compose the three verified primitives (trilinear
+  sample + differentiable translation + MSE) into an end-to-end
+  MSE-over-a-transform metric with gradient to the transform parameters. Needs
+  a trivial differentiable translation primitive first (no new Coeus op).
+- Coeus-native `Metric`/`Transform` trait surface remains [arch] (ADR-gated);
+  the composition (MIG-474-01) will inform its shape.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 472 — MIG-472-01 Coeus-Autograd Differentiable 1-D Linear Sampling
 **Target version**: 0.14.0
 **Sprint phase**: Execution — differentiable-sampling mechanism proven and

@@ -23,4 +23,4 @@ pub mod mse;
 pub mod sampling;
 
 pub use mse::mean_squared_error_coeus;
-pub use sampling::sample_linear_1d_coeus;
+pub use sampling::{sample_linear_1d_coeus, sample_trilinear_coeus};
