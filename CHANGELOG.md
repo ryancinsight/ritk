@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 474: End-to-end Coeus-autograd MSE-over-a-translation metric (MIG-474-01)
+
+### Added
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::transform::translate_axis_coeus`, a differentiable
+  per-axis translation (`coords + broadcast(t)`), and
+  `metric::coeus_autograd::metric::translation_mse_coeus`, the end-to-end
+  differentiable metric `mse(sample_trilinear(moving, translate(grid, t)),
+  fixed)` whose gradient reaches the per-axis translation parameters — the
+  first usable Coeus-native registration objective.
+
+### Changed
+- `ritk-registration`: `coeus_autograd/` gains SRP leaf modules `transform.rs`
+  and `metric.rs` alongside `mse.rs`/`sampling.rs`.
+- `docs/coeus_migration.md`: recorded the composed-metric increment.
+
+### Evidence
+- Evidence tier: analytical — closed-form loss `(tx−1)²` and gradient `−2` at
+  `tx=0`, zero gradient on degenerate axes and at identity alignment — plus a
+  self-consistent finite-difference cross-check on the metric's own forward;
+  `cargo nextest run -p ritk-registration --features coeus coeus_autograd`
+  20/20; full package `--features coeus` 718/718; default build unaffected;
+  clippy `-D warnings` and `cargo doc --features coeus --no-deps` clean.
+  Cargo.lock unchanged.
+
+---
+
 ## [Unreleased] — Sprint 473: Coeus-autograd differentiable trilinear sampling (MIG-473-01)
 
 ### Added

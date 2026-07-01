@@ -79,6 +79,16 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Reverse-mode autodiff — end-to-end MSE-over-a-translation metric
+  (Sprint 474).** Composed the loss kernel, trilinear sampler, and a new
+  differentiable translation (`transform::translate_axis_coeus`) into
+  `metric::translation_mse_coeus` = `mse(sample(moving, translate(grid, t)),
+  fixed)`, gradient reaching the translation parameters. Verified end-to-end
+  (closed-form loss/gradient at a known offset, zero at alignment,
+  self-consistent finite-difference), proving the tape is intact through all
+  three seams. The first usable Coeus-native registration objective; a
+  gradient-descent convergence demonstration + affine transform is the next
+  step (`MIG-475-01`) before the trait-surface ADR.
 - **Reverse-mode autodiff — differentiable trilinear sampling (Sprint 473).**
   Added `metric::coeus_autograd::sampling::sample_trilinear_coeus`, extending
   the 1-D mechanism to 3-D (8-corner `gather`, per-axis fractional-weight

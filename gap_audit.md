@@ -1,5 +1,52 @@
 # RITK Gap Audit - Active
 
+## Sprint 474 Audit (2026-06-30) — Differentiable Primitives Composed Into a Usable Metric
+
+### Finding: the composition closed the "differentiable but not yet usable" gap
+
+Sprints 471–473 delivered three verified-but-isolated primitives (MSE loss,
+1-D/trilinear sampling). None was a usable metric on its own — each was
+explicitly filed as "not yet a function of transform parameters." This sprint
+composed them with a differentiable translation into `translation_mse_coeus`,
+the first Coeus-native metric whose gradient actually reaches the transform
+parameters. The end-to-end test proving the gradient *points toward alignment*
+(not just "is finite") is the qualitative difference: this is now an
+optimizable objective, not a disconnected forward.
+
+### The verification is genuinely end-to-end, not per-primitive
+
+The prior sprints verified each primitive in isolation. The risk in composition
+is that the tape connectivity breaks at a seam (translate→sample→mse). The
+end-to-end tests exercise the full chain: at a known +1-voxel offset the
+gradient is the exact closed form `∂loss/∂tx = −2`, and a *self-consistent*
+finite difference (re-running the whole metric forward at `tx ± h`) matches the
+autograd gradient — so the tape is proven intact through all three seams, not
+just within each primitive.
+
+### Structure held to SRP under growth
+
+Adding transform + composition could have bloated an existing file. Instead
+each concern got its own leaf module (`transform.rs`, `metric.rs`) joining
+`mse.rs`/`sampling.rs` under `coeus_autograd/` — four single-responsibility
+modules behind one `mod.rs` facade, matching the deep-vertical-hierarchy
+mandate.
+
+### Residual Risk / Next Increment
+
+- The metric is proven differentiable and correctly-signed, but not yet
+  demonstrated *convergent* under iteration. MIG-475-01 will run actual
+  gradient-descent steps and assert monotone loss decrease + parameter
+  convergence — the empirical evidence that should precede the [arch] ADR for
+  the Coeus-native `Metric`/`Transform` trait surface (don't design the trait
+  before proving the objective optimizes).
+- Only translation is differentiable so far; affine/rigid (matmul-based `R`)
+  is MIG-475-01's other half. Rotation gradients are where a real autodiff
+  engine earns its keep — worth verifying carefully against finite differences.
+- GPU-backend host-read caveat (Sprints 472–473) still stands.
+- Recurring unrelated `ndarray`-drop Cargo.lock churn from a sibling agent
+  discarded again; if it keeps recurring, the sibling's dependency change
+  should land on `main` so the lock stabilizes — noted for coordination.
+
 ## Sprint 473 Audit (2026-06-30) — Trilinear Sampling Extended and Consolidated, Concurrent Lock Churn Handled
 
 ### Finding: the 3-D extension was low-risk because 1-D de-risked the mechanism

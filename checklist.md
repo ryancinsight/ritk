@@ -1,5 +1,47 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 474 — MIG-474-01 End-to-End Coeus-Autograd MSE-over-a-Translation Metric
+**Target version**: 0.14.0
+**Sprint phase**: Execution — differentiable primitives composed into a usable
+metric
+
+### In-flight plan (Sprint 474)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Verified `broadcast_to` semantics (rank-preserving, summing backward)
+  before using it for the scalar translation parameter — its backward
+  sum-reduces the broadcast dim, giving the correct single-parameter gradient.
+- [x] Added `transform::translate_axis_coeus` (`coords + broadcast(t)`) — the
+  differentiable transform primitive; no new Coeus op needed.
+- [x] Composed `metric::translation_mse_coeus` = mse ∘ sample_trilinear ∘
+  translate, gradient to the three per-axis translation params. New SRP
+  modules `transform.rs` and `metric.rs` under `coeus_autograd/`.
+- [x] Verified end-to-end analytically: ramp moving + 1-voxel-shifted fixed →
+  closed-form loss `(tx−1)²`, `∂loss/∂tx = −2` at `tx=0` (exact); identity
+  alignment → zero loss + zero gradient; degenerate y/z axes → exactly zero
+  gradient; self-consistent central finite-difference cross-check on the
+  metric's own forward; 3 translation-primitive gradient tests.
+- [x] 20/20 (`coeus_autograd` filter, 6 new + 14 prior); full package
+  `--features coeus` 718/718; default build unaffected; clippy `-D warnings`
+  clean; `cargo doc --features coeus --no-deps` clean (fixed one `[arch]`
+  broken-intra-doc-link).
+- [x] Discarded the recurring unrelated `ndarray`-drop Cargo.lock churn (no
+  deps added this sprint); commit is lock-clean.
+
+### Verification gate (Sprint 474)
+- [x] All commands above green.
+- [x] Scope check: only the `coeus_autograd/` tree (2 new modules + 2 new test
+  files) and the two `mod.rs` re-exports; no Cargo.lock delta.
+
+### Deferred / carry-forward
+- **MIG-475-01 [READY]**: differentiable affine/rigid transform (matmul-based)
+  + a gradient-descent alignment demonstration (loss monotonically decreases,
+  parameter converges to the true offset) — the empirical evidence before
+  opening the ADR for the Coeus-native `Metric`/`Transform` trait surface.
+- Coeus-native `Metric`/`Transform` trait surface still [arch] (ADR-gated);
+  now has a concrete composed metric to model its shape on.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 473 — MIG-473-01 Coeus-Autograd Differentiable Trilinear Sampling
 **Target version**: 0.14.0
 **Sprint phase**: Execution — 3-D sampling primitive added, per-axis helper

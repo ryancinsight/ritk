@@ -201,22 +201,43 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
-- **MIG-474-01 [minor] — Compose the end-to-end Coeus-autograd MSE-over-a-
-  transform registration metric. READY.**
-  Acceptance: compose `sample_trilinear_coeus` (MIG-473-01) with a
-  differentiable coordinate transform and `mean_squared_error_coeus`
-  (MIG-471-01) into a single differentiable metric
-  `mse(sample(moving, transform(grid)), fixed)` whose gradient flows to the
-  transform parameters, and verify end-to-end: (a) at identity transform the
-  loss is ~0 and its parameter gradient is ~0; (b) at a known offset the
-  gradient points toward alignment (sign/direction check against a
-  finite-difference gradient on the transform parameter). Needs a
-  differentiable transform primitive first — start with translation
-  (`coords_axis + t`, `t` a scalar `Var`), which is trivially differentiable
-  and needs no new Coeus op. This is the increment that turns the three
-  verified primitives into an actual usable metric; it informs (but does not
-  yet require) the Coeus-native `Metric`/`Transform` trait surface ([arch],
-  still ADR-gated).
+- **MIG-475-01 [minor] — Coeus-autograd differentiable affine/rigid transform
+  + gradient-descent alignment demonstration. READY.**
+  Acceptance: (1) add a differentiable affine coordinate transform
+  (`coords' = R·coords + t` via Coeus autograd `matmul`, gradient to the 3×3
+  `R` and 3-vector `t` params) alongside the existing translation, verified
+  against a host affine reference + finite-difference parameter gradients;
+  (2) demonstrate the metric is optimizable end-to-end — run a few manual
+  gradient-descent steps on `translation_mse_coeus` (MIG-474-01) from a known
+  offset and assert the loss monotonically decreases and the translation
+  parameter converges toward the true offset (analytical: quadratic bowl, so
+  GD with a suitable step provably descends). This proves the whole Coeus
+  registration path is not just differentiable but *usable* for optimization,
+  and gives the empirical evidence needed before opening the ADR for the
+  Coeus-native `Metric`/`Transform` trait surface.
+
+- **MIG-474-01 [minor] — End-to-end Coeus-autograd MSE-over-a-translation
+  registration metric. DONE.**
+  Composed the three verified primitives into the first usable Coeus-native
+  registration metric: `translation_mse_coeus` =
+  `mean_squared_error_coeus(sample_trilinear_coeus(moving, translate(grid, t)),
+  fixed)`, gradient flowing to the per-axis translation parameters. Added the
+  differentiable transform primitive it needed —
+  `transform::translate_axis_coeus` (`coords + broadcast(t)`; `broadcast_to`'s
+  summing backward gives the single-parameter gradient `Σ_k ∂loss/∂out_k`, no
+  new Coeus op required). New SRP modules `transform.rs` (transforms) and
+  `metric.rs` (composition) under `coeus_autograd/`, keeping loss/sampling/
+  transform/composition as distinct leaf concerns. Evidence tier: analytical —
+  on a moving ramp with a +1-voxel-shifted fixed image the loss is the closed
+  form `(tx−1)²` with `∂loss/∂tx = −2` at `tx=0` (asserted exactly), degenerate
+  y/z axes contribute exactly zero gradient, and the identity-alignment case is
+  zero loss + zero gradient; plus a self-consistent central finite-difference
+  cross-check against the metric's own forward, and 3 translation-primitive
+  gradient tests. 20/20 via `cargo nextest run -p ritk-registration --features
+  coeus coeus_autograd` (6 new + 14 prior); full package `--features coeus`
+  718/718; default build unaffected; clippy `-D warnings` and `cargo doc
+  --features coeus --no-deps` clean. No new dependency edges (discarded the
+  recurring unrelated `ndarray`-drop Cargo.lock churn from a sibling agent).
 
 - **MIG-473-01 [minor] — Coeus-autograd differentiable trilinear (3-D) image
   sampling. DONE.**
