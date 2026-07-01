@@ -1,5 +1,43 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 476 — MIG-476-01 Coeus-Autograd Differentiable Affine Transform
+**Target version**: 0.14.0
+**Sprint phase**: Execution — matmul-based affine transform primitive added
+
+### In-flight plan (Sprint 476)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Resolved the deferred design decision by reading source: both
+  `coeus-autograd` `slice` (range) and `index_select` are differentiable
+  (scatter/scatter-add backward), so the `[N,3]`+`matmul` formulation is
+  viable. Chose it over the per-axis-scalar form — natural `[3,3]`/`[3]`
+  parameter tensors + exercises Coeus `matmul` per the migration directive.
+- [x] Implemented `transform::affine_transform_coeus` = `coords·Rᵀ + t`
+  (`matmul` + `transpose_2d` + `reshape` + `broadcast_to` + `add`), returning
+  `[N,3]`; gradient to `R` and `t`.
+- [x] Verified analytically: forward vs host reference under rotation+shear+
+  scale `R` (all 9 entries participate); translation gradient = N; matrix
+  gradient `∂(Σout)/∂R[j,k] = Σ_n coords[n,k]` closed form + 9-entry
+  finite-difference cross-check. 6/6 (`coeus_autograd::transform`).
+- [x] Full package `--features coeus` 724/724; default build unaffected;
+  clippy `-D warnings` clean; `cargo doc --features coeus --no-deps` clean.
+- [x] Discarded the recurring unrelated `ndarray`-drop Cargo.lock churn.
+
+### Verification gate (Sprint 476)
+- [x] All commands above green.
+- [x] Scope check: only `transform.rs` + `tests_transform.rs` + the two
+  `mod.rs` re-exports; no Cargo.lock delta.
+
+### Deferred / carry-forward
+- **MIG-477-01 [READY]**: compose `affine_transform_coeus` + trilinear sample
+  + MSE into an end-to-end affine-MSE metric (splitting the `[N,3]` output to
+  the per-axis sampler via the confirmed-differentiable `slice`), with a
+  gradient-descent recovery of a known rotation+translation. Last empirical
+  piece before the Coeus-native `Metric`/`Transform` trait ADR.
+- The trait-surface ADR is now well-supported (translation + affine
+  primitives, composed metric, convergence proof) and near-ready to open.
+- `PERF-432-01`, `MIG-439-03`, grayscale-morphology Coeus wrappers,
+  MIG-456-04, `ritk-snap::ui::coordinate_system` — still open.
+
 ## Sprint 475 — MIG-475-01 Coeus-Autograd Gradient-Descent Optimizability Proof
 **Target version**: 0.14.0
 **Sprint phase**: Execution — optimizer step + end-to-end convergence proof

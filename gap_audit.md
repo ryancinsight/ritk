@@ -1,5 +1,45 @@
 # RITK Gap Audit - Active
 
+## Sprint 476 Audit (2026-06-30) — Affine Transform via matmul, Design Decision Resolved by Source
+
+### The deferred decision was resolved by reading source, not guessing
+
+MIG-476-01 carried an explicit open design question (per-axis scalar affine vs
+`[N,3]`+`matmul`, gated on whether a differentiable column-split exists). Read
+`coeus-autograd/src/ops/shape/transform/slice.rs` and `.../select/index_select.rs`
+before deciding: both are differentiable (slice backward scatters gradient to
+the sliced region; index_select uses scatter-add). That confirmed the
+`[N,3]`+`matmul` formulation is viable, and it's the better choice — the
+parameters are the natural `[3,3]` matrix + `[3]` vector an affine optimizer
+holds, and it exercises Coeus `matmul` (the migration's Burn/nalgebra matrix
+replacement) rather than avoiding it with 9 scalar params. Deferring the
+decision to a dedicated increment (rather than rushing it in Sprint 475) let it
+be made on evidence.
+
+### Rotation is the discriminating correctness case — tested as such
+
+Translation is trivially linear; the risk in an affine is the matrix mixing
+axes (rotation/shear). The forward test uses a 90°-rotation-plus-shear-plus-
+scale `R` so every one of the 9 entries participates, checked against a host
+reference. The gradient test verifies all 9 `∂/∂R[j,k]` against both a closed
+form (`Σ_n coords[n,k]` for `loss=Σout`) and a self-consistent finite
+difference — so the `matmul`/`transpose_2d` backward chain is proven correct
+per-entry, not just in aggregate.
+
+### Residual Risk / Next Increment
+
+- MIG-477-01 composes affine with the sampler, which needs the `[N,3]`→per-axis
+  split (`slice`); slice's differentiability is confirmed but the composition's
+  end-to-end gradient (rotation recovery under GD) is the real test — a
+  rotation has a non-convex loss landscape, so the GD demo must start near
+  enough the basin, or use a small angle, to converge (document the regime).
+- The Coeus-native `Metric`/`Transform` trait ADR is now well-supported
+  (translation + affine transforms, composed translation metric, convergence
+  proof); after MIG-477-01 (affine metric + rotation recovery) the parameter
+  shapes are fully known and the ADR can open without premature guessing.
+- Recurring unrelated `ndarray`-drop Cargo.lock churn discarded again (6th
+  sprint); still flagged for the owning sibling to land on `main`.
+
 ## Sprint 475 Audit (2026-06-30) — Proved the Coeus Metric Optimizes, Split the Affine Design Out
 
 ### Finding: "differentiable + correctly-signed" is necessary but not sufficient

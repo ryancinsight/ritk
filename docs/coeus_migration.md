@@ -79,6 +79,12 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Reverse-mode autodiff — differentiable affine transform (Sprint 476).**
+  Added `transform::affine_transform_coeus` (`coords·Rᵀ + t` via Coeus
+  `matmul`), gradient to the `[3,3]` `R` and `[3]` `t`. Verified against a host
+  reference under rotation+shear and 9-entry finite-difference gradients. The
+  Atlas replacement for the Burn/nalgebra affine matrix path; composing it into
+  an affine-MSE metric with rotation recovery is `MIG-477-01`.
 - **Reverse-mode autodiff — gradient-descent optimizability (Sprint 475).**
   Added `metric::coeus_autograd::optim::sgd_step_var` and proved end-to-end
   that `translation_mse_coeus` optimizes: a 20-step descent loop from a known

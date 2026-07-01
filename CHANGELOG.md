@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 476: Coeus-autograd differentiable affine transform (MIG-476-01)
+
+### Added
+- `ritk-registration` (`coeus` feature):
+  `metric::coeus_autograd::transform::affine_transform_coeus`, a differentiable
+  affine coordinate transform `coords·Rᵀ + t` (`[N,3]` × `[3,3]` + `[3]`)
+  built on Coeus `matmul`/`transpose_2d`/`broadcast_to`, with the gradient
+  flowing to the `R` matrix and `t` vector parameters. The Atlas replacement
+  for the Burn/nalgebra affine matrix path.
+
+### Evidence
+- Evidence tier: analytical — forward matches a host affine reference under a
+  rotation+shear+scale `R` (all 9 entries participate); translation gradient =
+  point count; matrix gradient `∂(Σout)/∂R[j,k] = Σ_n coords[n,k]` (closed
+  form) plus a 9-entry self-consistent finite-difference cross-check.
+  `cargo nextest run -p ritk-registration --features coeus
+  coeus_autograd::transform` 6/6; full package `--features coeus` 724/724;
+  default build unaffected; clippy `-D warnings` and `cargo doc --features
+  coeus --no-deps` clean. Cargo.lock unchanged.
+
+### Notes
+- Chose the `[N,3]`+`matmul` formulation over per-axis scalars after confirming
+  `coeus-autograd` `slice`/`index_select` are differentiable (enabling the
+  later `[N,3]`→per-axis split for the sampler). Affine-MSE composition +
+  rotation-recovery is MIG-477-01. `docs/coeus_migration.md` updated.
+
+---
+
 ## [Unreleased] — Sprint 475: Coeus-autograd gradient-descent optimizability proof (MIG-475-01)
 
 ### Added

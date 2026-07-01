@@ -201,23 +201,42 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-477-01 [minor] — Compose the end-to-end Coeus-autograd affine-MSE
+  registration metric. READY.**
+  Acceptance: compose `affine_transform_coeus` (MIG-476-01) with
+  `sample_trilinear_coeus` + `mean_squared_error_coeus` into
+  `affine_mse_coeus(moving, dims, fixed, grid[N,3], R[3,3], t[3])`, splitting
+  the affine's `[N,3]` output into the three per-axis coordinate `Var`s the
+  sampler needs via the (now-confirmed differentiable) `slice`/`index_select`
+  op, and verify end-to-end that a gradient-descent loop recovers a known
+  rotation+translation offset (loss decreases, `R`/`t` converge). Confirmed
+  during MIG-476-01 that both `slice` (range) and `index_select` are
+  differentiable in coeus-autograd (scatter-add backward), so the column-split
+  is available. This unifies affine with the translation metric (MIG-474-01)
+  and is the last piece of empirical evidence before the Coeus-native
+  `Metric`/`Transform` trait ADR.
+
 - **MIG-476-01 [minor] — Coeus-autograd differentiable affine coordinate
-  transform. READY.**
-  Acceptance: add a differentiable affine transform `coords' = R·coords + t`
-  (gradient to the 3×3 `R` and 3-vector `t`), verified against a host affine
-  reference + finite-difference parameter gradients (rotation gradients are
-  the discriminating case — verify carefully). Design decision to resolve
-  first: the existing sampler/transform API is **per-axis** (`[N]` `Var`s) to
-  avoid a differentiable column-split; an affine naturally wants `matmul` on
-  `[N,3]`. Two options — (a) express affine per-axis with `broadcast`/`mul`/
-  `add` on the three input-axis `Var`s (no `matmul`, composes with the current
-  API, 9+3 scalar params), or (b) verify a differentiable column-split
-  (`slice`/`index_select` gradient) and switch to an `[N,3]` + `matmul`
-  formulation (more standard, uses Coeus `matmul`, but a larger API change).
-  Pick after checking the column-split op's gradient semantics in
-  `coeus-autograd`. Split out of the former MIG-475-01 (whose optimizability
-  half is now DONE) so the affine design gets its own focused increment
-  rather than being rushed. Precedes the Coeus-native `Transform` trait ADR.
+  transform. DONE.**
+  Added `transform::affine_transform_coeus(coords[N,3], R[3,3], t[3]) → [N,3]`
+  = `coords·Rᵀ + t` (i.e. `R·point + t` per row), gradient flowing to `R`
+  (via Coeus `matmul` + `transpose_2d`) and `t` (via `broadcast_to`'s summing
+  backward). **Design decision (resolved by checking source):** both `slice`
+  and `index_select` are differentiable in coeus-autograd, so the `[N,3]` +
+  `matmul` formulation is viable and was chosen over the per-axis-scalar form —
+  it uses the natural `[3,3]`/`[3]` parameter tensors an affine optimizer holds
+  and exercises Coeus `matmul` (the Atlas replacement for the Burn/nalgebra
+  matrix path), per the migration directive. Evidence tier: analytical —
+  forward matches a host affine reference under a rotation+shear+scale `R`
+  (every entry participates, the discriminating case); translation gradient =
+  point count; matrix gradient `∂(Σout)/∂R[j,k] = Σ_n coords[n,k]` (closed
+  form) plus a self-consistent central finite-difference cross-check over all
+  9 entries. 6/6 transform tests via `cargo nextest run -p ritk-registration
+  --features coeus coeus_autograd::transform` (3 new affine + 3 translation);
+  full package `--features coeus` 724/724; default build unaffected; clippy
+  `-D warnings` and `cargo doc --features coeus --no-deps` clean. No new
+  dependency edges. Composing it into an affine-MSE metric (needs the
+  `[N,3]`→per-axis split) is MIG-477-01.
 
 - **MIG-475-01 [minor] — Coeus-autograd gradient-descent optimizability of the
   registration metric. DONE.**
