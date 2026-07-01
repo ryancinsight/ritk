@@ -13,6 +13,8 @@ use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::coeus::Image;
 
+use crate::coeus_support::map_flat_image;
+
 use super::super::types::BinarizationThreshold;
 use super::euclidean_dt;
 
@@ -30,23 +32,14 @@ where
     B: ComputeBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    let dims = image.shape();
-    let vals = image.data_slice()?;
-    let threshold_f32: f32 = threshold.into();
-    let fg: Vec<bool> = vals.iter().map(|&v| v > threshold_f32).collect();
-
     let sp = image.spacing();
     let spacing = [sp[0], sp[1], sp[2]];
-    let result = euclidean_dt(&fg, dims, spacing);
+    let threshold_f32: f32 = threshold.into();
 
-    Image::from_flat_on(
-        result,
-        dims,
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-        backend,
-    )
+    map_flat_image(image, backend, |vals, dims| {
+        let fg: Vec<bool> = vals.iter().map(|&v| v > threshold_f32).collect();
+        euclidean_dt(&fg, dims, spacing)
+    })
 }
 
 #[cfg(test)]

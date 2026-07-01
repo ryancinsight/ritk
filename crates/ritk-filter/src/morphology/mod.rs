@@ -52,12 +52,16 @@ pub use top_hat::{BlackTopHatFilter, WhiteTopHatFilter};
 pub mod binary_closing;
 pub mod binary_dilate;
 pub mod binary_erode;
+#[cfg(feature = "coeus")]
+pub mod binary_erode_coeus;
 pub mod binary_fillhole;
 pub mod binary_opening;
 
 pub use binary_closing::BinaryMorphologicalClosing;
 pub use binary_dilate::BinaryDilateFilter;
 pub use binary_erode::BinaryErodeFilter;
+#[cfg(feature = "coeus")]
+pub use binary_erode_coeus::binary_erode_coeus;
 pub use binary_fillhole::BinaryFillholeFilter;
 pub use binary_opening::BinaryMorphologicalOpening;
 

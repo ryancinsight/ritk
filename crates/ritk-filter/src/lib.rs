@@ -156,6 +156,9 @@ pub use transform::{
     ZeroFluxNeumannPadImageFilter,
 };
 
+#[cfg(feature = "coeus")]
+mod coeus_support;
+
 // ── Surface & distance ───────────────────────────────────────────────────────
 pub mod colliding_fronts;
 pub mod displacement;

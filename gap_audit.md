@@ -1,5 +1,63 @@
 # RITK Gap Audit - Active
 
+## Sprint 468 Audit (2026-06-30) — A Real Architectural Gap Rejected With Reasons, a Consolidation Applied on Sight
+
+### Finding: registration metrics are a genuine prerequisite gap, not a scoped increment
+
+Carried forward as "highest-value, highest-risk, unverified" from Sprints
+466/467. This sprint verified it properly before writing anything: read
+`ritk-registration/src/metric/{mse,ncc}.rs` in full. Both compose Burn
+tensor ops directly against `Transform`/`Interpolator`/`Image` — grid
+generation, `world_to_index_tensor`, `interpolator.interpolate`, tensor
+arithmetic — end to end. There is no substrate-agnostic pure core hiding
+underneath, unlike every prior Coeus target this session (FFT, Kabsch,
+trilinear, Euclidean distance transform, binary erosion all had one).
+Additionally, mutual information's Parzen-window histogram is
+*differentiable by design* — soft binning exists specifically so gradients
+flow through it during optimization — and Coeus has no autodiff. Porting
+these metrics is gated on Coeus-native `Transform` and `Interpolator`
+implementations existing first, which is a foundational, multi-crate
+undertaking, not a leaf wrapper. Also checked the classical (non-Burn)
+registration engine's spatial transform module
+(`classical/spatial/transform.rs`): it already uses `leto::Array3` and
+plain `[f64; N]` arrays throughout — it never depended on Burn, so there is
+nothing to migrate there. Both conclusions are now recorded precisely in
+backlog.md as a **rejected, reasoned non-target**, not a vague "still
+unverified" carry-forward — the next agent that reads this should not
+re-run the same survey and reach the same dead end.
+
+### Consolidation applied on the second occurrence, per policy
+
+While scoping the actual target this sprint (`binary_erode_coeus`), the
+extract→compute→reconstruct Coeus-`Image` boundary sequence was about to be
+written a second time verbatim (`distance_transform_coeus` from Sprint 467
+already has it). Per architecture_scoping's second-occurrence trigger,
+factored it into `coeus_support::map_flat_image` and refactored the
+existing distance-transform wrapper to use it, before writing the new
+erosion wrapper against the shared helper — avoided a third hand-copied
+boundary block from ever existing.
+
+### A doc-lint caught two broken references, not suppressed
+
+`cargo doc --features coeus` flagged two `rustdoc::private_intra_doc_links`
+warnings: doc comments referencing `pub(crate)` items
+(`coeus_support::map_flat_image`, `binary_erode::erode_binary_3d`) via
+linkable `[`...`]` syntax, which rustdoc cannot resolve for private items.
+Fixed by de-linking (plain code-formatted text) rather than adding
+`--document-private-items` or suppressing the warning — the doc content is
+unchanged, only the broken cross-reference syntax.
+
+### Residual Risk / Next Increment
+
+- `ritk-filter` has ~15 more morphology filters and its convolution/
+  chamfer-distance kernels with no Coeus coverage. `binary_dilate` (the
+  erosion dual) is the most likely next candidate but not yet checked for
+  its core's Burn-independence the way `binary_erode` was — verify before
+  wrapping, per this sprint's and Sprint 467's method.
+- No regression: `git diff --stat` shows only `ritk-filter`'s lib.rs,
+  morphology/mod.rs, the `unsigned_coeus.rs` refactor, and 3 new files; no
+  `Cargo.lock` change needed (no new external dependency edge).
+
 ## Sprint 467 Audit (2026-06-30) — Boundary-Wrapper Gap Closed, Concurrent-Agent Interference Handled Correctly
 
 ### Finding: `ritk-filter`'s missing `coeus` feature was a real, closeable gap

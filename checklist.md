@@ -1,5 +1,72 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 468 — MIG-468-01 Coeus-Native Binary Erosion + Shared Boundary Helper
+**Target version**: 0.14.0
+**Sprint phase**: Execution — new verified code path added, one consolidation
+
+### In-flight plan (Sprint 468)
+- [x] Re-synced with origin/main (0/0) before starting.
+- [x] Verified the flagged `ritk-registration` metric-kernel target
+  properly before touching code: read `mse.rs`, `ncc.rs`, and the classical
+  (non-Burn) `spatial/transform.rs`. Found metrics are tensor-op-native
+  throughout (not a thin wrapper around a substrate-agnostic core, unlike
+  distance-transform/trilinear), and MI's Parzen histogramming is
+  differentiable-by-design for gradient optimization — Coeus has no
+  autodiff. Also confirmed the classical engine already uses
+  `leto::Array3`, never depended on Burn. **Explicitly rejected as this
+  sprint's target** — recorded precisely in backlog.md so it isn't
+  re-attempted without first building Coeus-native `Transform`/
+  `Interpolator` paths.
+- [x] Found the next real, safely-scoped target instead: `ritk-morphology`
+  (the pure-algorithm crate) has zero Burn dependency at all already;
+  `ritk-filter/src/morphology/binary_erode.rs`'s `erode_binary_3d` core is
+  the same "already substrate-agnostic, needs a boundary wrapper only"
+  shape as distance-transform.
+- [x] Noticed the boundary-wrapper marshaling (extract shape+data → pure fn
+  → `Image::from_flat_on`) was about to be written a second time verbatim
+  (`unsigned_coeus.rs` already had it). Per the second-occurrence
+  consolidation rule, factored it into `crates/ritk-filter/src/
+  coeus_support.rs::map_flat_image` first, then refactored
+  `unsigned_coeus.rs` to use it, then wrote `binary_erode_coeus.rs` against
+  the shared helper — no third copy of the marshaling sequence.
+  `map_flat_image` is `pub(crate)`; two rustdoc private-intra-doc-link
+  warnings from referencing it (and the also-`pub(crate)` `erode_binary_3d`)
+  in public doc comments were fixed by removing the link brackets, not by
+  suppressing the lint.
+- [x] Added 4 differential tests for `binary_erode_coeus` vs. the Burn path
+  (radius-zero identity, all-foreground, scattered foreground, all-
+  background) — all passed first try (expected: same core routine on both
+  sides, so no algorithmic divergence is possible, only a boundary bug
+  would show up).
+- [x] Verified: `cargo nextest run -p ritk-filter --features coeus`
+  952/952 (944 + 8 across both Coeus wrappers); default-feature 944/944
+  unaffected; clippy `-D warnings` clean; `cargo doc --features coeus
+  --no-deps` clean after the de-linking fix.
+- [x] Cargo.lock: no change needed (no new external dependency edges).
+
+### Verification gate (Sprint 468)
+- [x] All commands above run and green.
+- [x] Scope check: only `ritk-filter` touched (lib.rs, morphology/mod.rs,
+  distance/euclidean/unsigned_coeus.rs refactor, 3 new files).
+
+### Deferred / carry-forward
+- `PERF-432-01` remains open (Sprint 464: 84.1% of `transform_3d_chunk` in
+  the coefficients gather+weighted-sum block).
+- `MIG-439-03`'s real scope (workspace-wide Burn-caller-graph audit) not
+  yet performed.
+- `ritk-filter` still has ~15 other morphology filters
+  (dilate/opening/closing/fillhole/grayscale-*/label-*/hit-or-miss/etc.)
+  plus convolution/chamfer-distance kernels with no Coeus coverage — most
+  are plausibly the same boundary-wrapper shape as `binary_erode` (check
+  each core for a Burn dependency before wrapping, per this sprint's and
+  Sprint 467's demonstrated discipline), but none yet individually
+  verified. `binary_dilate` is the natural next candidate (erosion's dual,
+  likely identical structure).
+- `ritk-registration`'s metric kernels are now a **confirmed non-target**
+  until Coeus-native `Transform`/`Interpolator` paths exist — do not
+  re-survey this without that prerequisite.
+- MIG-456-04 and `ritk-snap::ui::coordinate_system` remain open, untouched.
+
 ## Sprint 467 — MIG-467-01 Coeus-Native Euclidean Distance Transform
 **Target version**: 0.14.0
 **Sprint phase**: Execution — new verified Coeus-native code path added

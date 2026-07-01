@@ -1,5 +1,44 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 468: Coeus-native binary erosion + shared helper (MIG-468-01)
+
+### Added
+- `ritk-filter`: `coeus_support::map_flat_image`, a shared generic
+  extract→compute→reconstruct helper for `ritk_image::coeus::Image`
+  boundaries, factored out on the second occurrence of the same
+  marshaling sequence.
+- `ritk-filter`: `binary_erode_coeus`, wrapping the existing substrate-
+  agnostic `erode_binary_3d` core through the shared helper, verified
+  bitwise-identical to the Burn path via 4 differential tests.
+
+### Changed
+- `ritk-filter`: `distance_transform_coeus` (MIG-467-01) refactored to use
+  `coeus_support::map_flat_image` instead of its own inline boundary code.
+
+### Investigated
+- Verified `ritk-registration`'s metric kernels (MSE, NCC, MI) and
+  rejected them as a Coeus target: their compute is tensor-op-native
+  throughout (not a thin wrapper around a substrate-agnostic core), and
+  MI's Parzen histogramming is differentiable by design, which Coeus
+  cannot provide (no autodiff). Confirmed the classical (non-Burn)
+  registration engine already uses `leto::Array3` throughout and never
+  depended on Burn. Recorded as a reasoned non-target, not left as an
+  open question.
+
+### Fixed
+- Two `rustdoc::private_intra_doc_links` warnings (doc comments linking to
+  `pub(crate)` items) fixed by de-linking, not suppressed.
+
+### Evidence
+- Evidence tier: value-semantic differential nextest (952/952 with
+  `coeus`, 944/944 default-feature, both green) plus compile/lint/docs;
+  `cargo nextest run -p ritk-filter --features coeus`,
+  `cargo clippy -p ritk-filter --all-targets --features coeus -- -D
+  warnings`, `cargo doc -p ritk-filter --features coeus --no-deps` all
+  passed.
+
+---
+
 ## [Unreleased] — Sprint 467: Coeus-native Euclidean distance transform (MIG-467-01)
 
 ### Added

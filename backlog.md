@@ -201,6 +201,40 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-468-01 [minor] — Coeus-native binary erosion + shared boundary
+  helper for `ritk-filter`. DONE.**
+  Added `crates/ritk-filter/src/coeus_support.rs::map_flat_image`, a
+  generic extract→compute→reconstruct helper for `ritk_image::coeus::Image`
+  boundaries, and refactored `distance_transform_coeus` (MIG-467-01) to use
+  it — the second occurrence of the identical five-line marshaling sequence
+  (this sprint's `binary_erode_coeus`) triggered consolidation immediately,
+  per the architecture_scoping second-occurrence rule, rather than writing
+  a third copy. Added `binary_erode_coeus` wrapping the already substrate-
+  agnostic `erode_binary_3d` core (pure `&[f32]`/`Vec<f32>`, Moirai-
+  parallel, no Burn dependency) through the shared helper. Also
+  investigated and **explicitly rejected** `ritk-registration`'s metric
+  kernels (NCC, MSE, MI) as a Coeus target this sprint: unlike
+  distance-transform/morphology, their compute is tensor-op-native
+  throughout (`Transform::transform_points`, `Interpolator::interpolate`,
+  `Image::world_to_index_tensor`), not a thin wrapper around a substrate-
+  agnostic core — porting them requires the `Transform`/`Interpolator`/
+  `Image`-grid machinery to have Coeus-native equivalents first, and MI's
+  Parzen-window histogramming is specifically *differentiable* soft-binning
+  load-bearing for gradient-based optimization, which Coeus does not
+  provide (no autodiff). Confirmed the classical (non-Burn) registration
+  engine already uses `leto::Array3`/plain arrays throughout — it never
+  depended on Burn, so there is nothing to migrate there either. This is a
+  genuine architectural prerequisite gap, not a scoped increment; do not
+  re-attempt without first adding Coeus-native `Transform`/`Interpolator`
+  paths. Evidence tier: value-semantic differential nextest (4 new binary-
+  erosion tests plus the 4 pre-existing distance-transform tests, all
+  passing against the identical shared-helper boundary); `cargo nextest
+  run -p ritk-filter --features coeus` passed 952/952; default-feature
+  build 944/944 unaffected; `cargo clippy --all-targets --features coeus
+  -- -D warnings` and `cargo doc --features coeus --no-deps` both clean
+  (two private-intra-doc-link warnings from referencing `pub(crate)` items
+  in doc comments were fixed by de-linking, not suppressing).
+
 - **MIG-467-01 [minor] — Coeus-native Euclidean distance transform for
   `ritk-filter`. DONE.**
   Added a `coeus` feature to `ritk-filter` (it had none — the only
