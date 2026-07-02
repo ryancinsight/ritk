@@ -1,44 +1,44 @@
-//! Differential coverage for the Coeus reader implementors of the
-//! [`crate::domain::coeus`] contract.
+//! Differential coverage for the Atlas-native reader implementors of the
+//! unified [`crate::domain::ImageReader`] contract.
 //!
-//! One harness, all formats: read the *same file* through the Coeus trait
+//! One harness, all formats: read the *same file* through the native trait
 //! reader and the Burn free-function reader and assert exact voxel and shape
 //! equality. Comparing two readers of one file (rather than reader output vs.
 //! original values) makes the oracle independent of any write-side lossiness
-//! (e.g. JPEG quantization) — the Coeus adapter must decode identically to
+//! (e.g. JPEG quantization) — the native adapter must decode identically to
 //! the verified Burn path, byte-for-byte of the decoded stream.
 
-use crate::domain::coeus::CoeusImageReader;
+use crate::domain::ImageReader;
 use burn::tensor::backend::Backend;
 use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image as BurnImage;
-use ritk_image::coeus::Image as CoeusImage;
+use ritk_image::coeus::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
 type BurnBackend = NdArray<f32>;
 
-/// Read `path` through the Coeus trait `reader` and the Burn `read_burn`
+/// Read `path` through the native trait `reader` and the Burn `read_burn`
 /// free function; assert identical shape and exact voxel equality.
-fn assert_coeus_reader_matches_burn<R>(
+fn assert_native_reader_matches_burn<R>(
     path: &Path,
     reader: &R,
     read_burn: impl Fn(&Path) -> anyhow::Result<BurnImage<BurnBackend, 3>>,
 ) where
-    R: CoeusImageReader<f32, SequentialBackend, 3>,
+    R: ImageReader<NativeImage<f32, SequentialBackend, 3>>,
 {
-    let coeus: CoeusImage<f32, SequentialBackend, 3> =
-        reader.read(path).expect("coeus trait read");
+    let native: NativeImage<f32, SequentialBackend, 3> =
+        reader.read(path).expect("native trait read");
     let burn = read_burn(path).expect("burn read");
 
-    assert_eq!(coeus.shape(), burn.shape(), "shape parity");
-    let coeus_vals = coeus.data_slice().expect("contiguous coeus data");
+    assert_eq!(native.shape(), burn.shape(), "shape parity");
+    let native_vals = native.data_slice().expect("contiguous native data");
     let burn_vals = burn.try_data_vec().expect("burn host data");
     assert_eq!(
-        coeus_vals,
+        native_vals,
         burn_vals.as_slice(),
-        "coeus trait reader must decode identically to the burn reader"
+        "native trait reader must decode identically to the burn reader"
     );
 }
 
@@ -65,61 +65,61 @@ fn burn_device() -> <BurnBackend as Backend>::Device {
 }
 
 #[test]
-fn coeus_mgh_reader_matches_burn() {
+fn native_mgh_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.mgh");
     ritk_mgh::write_mgh(&burn_volume([2, 3, 4]), &path).expect("mgh write");
-    assert_coeus_reader_matches_burn(
+    assert_native_reader_matches_burn(
         &path,
-        &super::mgh::CoeusMghReader::new(SequentialBackend),
+        &super::mgh::native::MghReader::new(SequentialBackend),
         |p| ritk_mgh::read_mgh::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
 #[test]
-fn coeus_metaimage_reader_matches_burn() {
+fn native_metaimage_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.mha");
     ritk_metaimage::write_metaimage(&path, &burn_volume([2, 3, 4])).expect("mha write");
-    assert_coeus_reader_matches_burn(
+    assert_native_reader_matches_burn(
         &path,
-        &super::metaimage::CoeusMetaImageReader::new(SequentialBackend),
+        &super::metaimage::native::MetaImageReader::new(SequentialBackend),
         |p| ritk_metaimage::read_metaimage::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
 #[test]
-fn coeus_minc_reader_matches_burn() {
+fn native_minc_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.mnc");
     ritk_minc::write_minc(&burn_volume([2, 3, 4]), &path).expect("minc write");
-    assert_coeus_reader_matches_burn(
+    assert_native_reader_matches_burn(
         &path,
-        &super::minc::CoeusMincReader::new(SequentialBackend),
+        &super::minc::native::MincReader::new(SequentialBackend),
         |p| ritk_minc::read_minc::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
 #[test]
-fn coeus_tiff_reader_matches_burn() {
+fn native_tiff_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.tiff");
     ritk_tiff::write_tiff(&burn_volume([2, 3, 4]), &path).expect("tiff write");
-    assert_coeus_reader_matches_burn(
+    assert_native_reader_matches_burn(
         &path,
-        &super::tiff::CoeusTiffReader::new(SequentialBackend),
+        &super::tiff::native::TiffReader::new(SequentialBackend),
         |p| ritk_tiff::read_tiff::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
 #[test]
-fn coeus_jpeg_reader_matches_burn() {
+fn native_jpeg_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("slice.jpg");
     ritk_jpeg::write_jpeg(&path, &burn_volume([1, 8, 12])).expect("jpeg write");
-    assert_coeus_reader_matches_burn(
+    assert_native_reader_matches_burn(
         &path,
-        &super::jpeg::CoeusJpegReader::new(SequentialBackend),
+        &super::jpeg::native::JpegReader::new(SequentialBackend),
         |p| ritk_jpeg::read_jpeg::<BurnBackend, _>(p, &burn_device()),
     );
 }
@@ -133,25 +133,25 @@ fn write_gray_png(path: &Path, width: u32, height: u32, seed: u8) {
 }
 
 #[test]
-fn coeus_png_reader_matches_burn() {
+fn native_png_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("slice.png");
     write_gray_png(&path, 12, 8, 3);
-    assert_coeus_reader_matches_burn(
+    assert_native_reader_matches_burn(
         &path,
-        &super::png::CoeusPngReader::new(SequentialBackend),
+        &super::png::native::PngReader::new(SequentialBackend),
         |p| ritk_png::read_png_to_image::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
 #[test]
-fn coeus_png_series_reader_matches_burn() {
+fn native_png_series_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_gray_png(&dir.path().join("s000.png"), 6, 4, 11);
     write_gray_png(&dir.path().join("s001.png"), 6, 4, 71);
-    assert_coeus_reader_matches_burn(
+    assert_native_reader_matches_burn(
         dir.path(),
-        &super::png::CoeusPngSeriesReader::new(SequentialBackend),
+        &super::png::native::PngSeriesReader::new(SequentialBackend),
         |p| ritk_png::read_png_series::<BurnBackend, _>(p, &burn_device()),
     );
 }

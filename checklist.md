@@ -1,5 +1,45 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 488 — MIG-488-01 Correction: Image-Generic I/O Contract, De-Branded Types
+**Target version**: 0.14.0
+**Sprint phase**: Execution — user-review correction applied while unreleased
+
+### In-flight plan (Sprint 488)
+- [x] Accepted the user's review findings as correct on both counts: `Coeus*`
+  names violate the no-variation-dimensions-in-names rule (worse here since
+  Burn is being *completely removed*), and the contract should have been one
+  generic trait, not a parallel branded pair.
+- [x] Unified the contract: `ImageReader<I>`/`ImageWriter<I>`, image-generic,
+  zero-cost. Verified the old trait pair had no users outside ritk-io before
+  making the breaking signature change; updated all 8 Burn impl blocks and
+  test turbofish call sites in the same change.
+- [x] Deleted `CoeusImageReader`/`CoeusImageWriter` + `domain/coeus.rs`
+  outright (no deprecation shim); renamed all 9 adapters to plain names in
+  transitional `format::<fmt>::native` modules (die with Burn); removed
+  root-level `Coeus*` re-exports; de-branded docs/tests; moved `to_io_err`
+  to `domain`.
+- [x] ADR 0002 Amendment A1 records the durable naming policy; MIG-489 filed
+  for the remaining renames (format-crate `*_coeus` fns, `coeus` module
+  names, feature-name candidate `atlas`).
+- [x] Gates re-run green on the unified trait: `ritk-io --features coeus`
+  352/352; default 344/344; clippy `-D warnings`; doc clean. Held through
+  two more in-flight upstream edits (hermes bump, coeus-leto match arm).
+- [x] Lock: one upstream-committed line (`mnemosyne-build-util`).
+
+### Verification gate (Sprint 488)
+- [x] All commands above green; zero `Coeus` identifiers remain in ritk-io.
+- [x] Scope: ritk-io only + ADR amendment + PM artifacts.
+
+### Deferred / carry-forward
+- **MIG-489 [READY]**: de-brand remaining `*_coeus` fns, module names,
+  feature name (rename map recorded in the backlog item).
+- Consumer-cutover gate (unchanged): VTK/NRRD/Analyze/DICOM native read
+  paths + per-format native writers, then the `ritk-cli`/`ritk-python`
+  cutover.
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, grayscale-morphology
+  native wrappers, MI/Parzen 3rd metric, driver early-stop.
+
+
 ## Sprint 487 — MIG-487-01 Seven Coeus Reader Implementors (Contract Coverage 1→8)
 **Target version**: 0.14.0
 **Sprint phase**: Execution — mechanical format coverage for the ADR-0002

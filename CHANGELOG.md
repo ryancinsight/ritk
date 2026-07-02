@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 488: Correction — image-generic I/O contract, de-branded types (MIG-488-01)
+
+### Changed (Breaking — unreleased surface only)
+- `ritk-io`: `ImageReader`/`ImageWriter` are now generic over the image
+  container (`ImageReader<I>`), replacing the Burn-typed `<B, const D>`
+  signature; all in-crate implementations updated. No users existed outside
+  `ritk-io` (verified).
+- `ritk-io`: all `Coeus*` adapter types renamed to plain end-state names in
+  transitional `format::<fmt>::native` modules (e.g.
+  `nifti::native::NiftiReader`); root `Coeus*` re-exports removed.
+
+### Removed
+- `ritk-io`: `CoeusImageReader`/`CoeusImageWriter` and `domain/coeus.rs`
+  (superseded by the unified generic contract; deleted, not deprecated).
+
+### Added
+- ADR 0002 Amendment A1 — durable naming policy: no substrate brand names in
+  component names; transitional module paths only. MIG-489 files the
+  remaining renames.
+
+### Evidence
+- Evidence tier: value-semantic — the full differential/round-trip suites
+  re-run green through the unified trait: `cargo nextest run -p ritk-io
+  --features coeus` 352/352, default 344/344; clippy `-D warnings` and
+  `cargo doc --features coeus --no-deps` clean. Lock delta: one
+  upstream-committed line.
+
+---
+
+
 ## [Unreleased] — Sprint 487: Seven Coeus reader implementors — contract coverage 1→8 (MIG-487-01)
 
 ### Added

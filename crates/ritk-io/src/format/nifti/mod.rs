@@ -8,49 +8,50 @@ pub use ritk_nifti::{
     NiftiReader, NiftiWriter,
 };
 
+/// Atlas-native-substrate NIfTI reader/writer implementing the unified
+/// [`crate::domain::ImageReader`]/[`crate::domain::ImageWriter`] contract.
+///
+/// Transitional module: names inside are the plain end-state names; the
+/// module disambiguates from the Burn types during coexistence and folds
+/// away when the Burn path is deleted (ADR 0002).
 #[cfg(feature = "coeus")]
-pub use coeus::{CoeusNiftiReader, CoeusNiftiWriter};
-
-/// Coeus-typed NIfTI reader/writer — the first implementors of the
-/// [`crate::domain::coeus`] contract (ADR 0002 cutover step 2).
-#[cfg(feature = "coeus")]
-mod coeus {
-    use crate::domain::coeus::{to_io_err, CoeusImageReader, CoeusImageWriter};
+pub mod native {
+    use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
     use ritk_image::coeus::Image;
     use std::path::Path;
 
-    /// Backend-bound Coeus NIfTI reader (counterpart of [`super::NiftiReader`]).
-    pub struct CoeusNiftiReader<B: ComputeBackend> {
+    /// Backend-bound NIfTI reader (counterpart of the Burn [`super::NiftiReader`]).
+    pub struct NiftiReader<B: ComputeBackend> {
         backend: B,
     }
 
-    impl<B: ComputeBackend> CoeusNiftiReader<B> {
+    impl<B: ComputeBackend> NiftiReader<B> {
         /// Create a reader that constructs images on `backend`.
         pub fn new(backend: B) -> Self {
             Self { backend }
         }
     }
 
-    impl<B: ComputeBackend> CoeusImageReader<f32, B, 3> for CoeusNiftiReader<B> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for NiftiReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_nifti::read_nifti_coeus(path, &self.backend).map_err(to_io_err)
         }
     }
 
-    /// Backend-bound Coeus NIfTI writer (counterpart of [`super::NiftiWriter`]).
-    pub struct CoeusNiftiWriter<B: ComputeBackend> {
+    /// Backend-bound NIfTI writer (counterpart of the Burn [`super::NiftiWriter`]).
+    pub struct NiftiWriter<B: ComputeBackend> {
         backend: B,
     }
 
-    impl<B: ComputeBackend> CoeusNiftiWriter<B> {
+    impl<B: ComputeBackend> NiftiWriter<B> {
         /// Create a writer that extracts host data via `backend`.
         pub fn new(backend: B) -> Self {
             Self { backend }
         }
     }
 
-    impl<B> CoeusImageWriter<f32, B, 3> for CoeusNiftiWriter<B>
+    impl<B> ImageWriter<Image<f32, B, 3>> for NiftiWriter<B>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -67,11 +68,11 @@ mod coeus {
         use ritk_spatial::{Direction, Point, Spacing};
         use tempfile::tempdir;
 
-        /// Trait-dispatched round trip: write through `CoeusImageWriter`, read
-        /// back through `CoeusImageReader`, exact voxel + metadata parity —
-        /// the Coeus I/O contract is usable end-to-end, not just nominal.
+        /// Trait-dispatched round trip: write through `ImageWriter`, read
+        /// back through `ImageReader`, exact voxel + metadata parity — the
+        /// unified contract is usable end-to-end on the Atlas substrate.
         #[test]
-        fn coeus_contract_round_trips_nifti() {
+        fn native_contract_round_trips_nifti() {
             let dims = [2usize, 3, 4];
             let n = dims[0] * dims[1] * dims[2];
             let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.25 - 2.0).collect();
@@ -90,11 +91,11 @@ mod coeus {
             let dir = tempdir().expect("tempdir");
             let path = dir.path().join("contract.nii");
 
-            let writer = CoeusNiftiWriter::new(SequentialBackend);
-            CoeusImageWriter::write(&writer, &path, &image).expect("contract write");
+            let writer = NiftiWriter::new(SequentialBackend);
+            ImageWriter::write(&writer, &path, &image).expect("contract write");
 
-            let reader = CoeusNiftiReader::new(SequentialBackend);
-            let loaded = CoeusImageReader::read(&reader, &path).expect("contract read");
+            let reader = NiftiReader::new(SequentialBackend);
+            let loaded = ImageReader::read(&reader, &path).expect("contract read");
 
             assert_eq!(loaded.shape(), dims);
             assert_eq!(

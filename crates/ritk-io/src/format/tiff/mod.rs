@@ -7,14 +7,14 @@ use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;
 
-impl<B: Backend> ImageReader<B, 3> for TiffReader<B> {
+impl<B: Backend> ImageReader<Image<B, 3>> for TiffReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
         self.read_image(path)
             .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
-impl<B: Backend> ImageWriter<B, 3> for TiffWriter {
+impl<B: Backend> ImageWriter<Image<B, 3>> for TiffWriter {
     fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
         write_tiff(image, path).map_err(|e| std::io::Error::other(e.to_string()))
     }
@@ -57,11 +57,11 @@ mod tests {
         // Write via ImageWriter adapter.
         let image = image_from_values(&device, [2, 3, 4], vec![1.5f32; 2 * 3 * 4]);
         let writer = TiffWriter;
-        ImageWriter::<TestBackend, 3>::write(&writer, &path, &image)?;
+        ImageWriter::<Image<TestBackend, 3>>::write(&writer, &path, &image)?;
 
         // Read via ImageReader adapter.
         let reader = TiffReader::<TestBackend>::new(device);
-        let loaded = ImageReader::<TestBackend, 3>::read(&reader, &path)?;
+        let loaded = ImageReader::<Image<TestBackend, 3>>::read(&reader, &path)?;
 
         assert_eq!(
             loaded.shape(),
@@ -83,31 +83,31 @@ mod tests {
     }
 }
 
+/// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
+///
+/// Transitional module: names inside are the plain end-state names; the
+/// module itself disambiguates from the Burn types during coexistence and
+/// folds away when the Burn path is deleted (ADR 0002).
 #[cfg(feature = "coeus")]
-pub use coeus::{CoeusTiffReader};
-
-/// Coeus-typed reader implementors for the [`crate::domain::coeus`] contract
-/// (ADR 0002 cutover step 2 — format coverage).
-#[cfg(feature = "coeus")]
-mod coeus {
-    use crate::domain::coeus::{to_io_err, CoeusImageReader};
+pub mod native {
+    use crate::domain::{to_io_err, ImageReader};
     use coeus_core::ComputeBackend;
     use ritk_image::coeus::Image;
     use std::path::Path;
 
-    /// Backend-bound Coeus reader (counterpart of [`super::TiffReader`]).
-    pub struct CoeusTiffReader<B: ComputeBackend> {
+    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::TiffReader`]).
+    pub struct TiffReader<B: ComputeBackend> {
         backend: B,
     }
 
-    impl<B: ComputeBackend> CoeusTiffReader<B> {
+    impl<B: ComputeBackend> TiffReader<B> {
         /// Create a reader that constructs images on `backend`.
         pub fn new(backend: B) -> Self {
             Self { backend }
         }
     }
 
-    impl<B: ComputeBackend> CoeusImageReader<f32, B, 3> for CoeusTiffReader<B> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for TiffReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_tiff::read_tiff_coeus(path, &self.backend).map_err(to_io_err)
         }

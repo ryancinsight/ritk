@@ -94,6 +94,13 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Correction — image-generic I/O contract, de-branded names (Sprint 488,
+  ADR 0002 Amendment A1).** User review: substrate brands must not appear in
+  component names, and backend variation belongs in traits. `ImageReader<I>`/
+  `ImageWriter<I>` unified (Coeus trait pair deleted); adapters renamed to
+  plain names in transitional `native` modules. Remaining renames tracked as
+  MIG-489.
+
 - **Cutover step 2 coverage — seven more Coeus reader implementors
   (Sprint 487).** jpeg/mgh/metaimage/minc/png/png-series/tiff trait readers,
   each proven identical to its Burn reader on the same file. The consumer-

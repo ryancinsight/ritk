@@ -201,6 +201,50 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-489 [minor] — De-brand the remaining substrate-named APIs. READY.**
+  Per ADR 0002 Amendment A1 (user-identified naming defect), apply the same
+  no-brand-names rule to the remaining items: (a) format crates'
+  `read_*_coeus`/`write_nifti_coeus` functions (rename to plain names inside a
+  transitional `native` module per crate, or take a `backend` parameter
+  distinction only — decide per crate; update ritk-io adapters + tests in the
+  same change); (b) module names `ritk_image::coeus` and
+  `ritk_registration::metric::coeus_autograd` (→ `native`/`autodiff` or
+  similar substrate-free names) including the `*_coeus` function names inside
+  registration (`sample_trilinear_coeus`, `affine_mse_coeus`, …);
+  (c) evaluate renaming the `coeus` cargo feature to `atlas` (coordinated
+  across ~12 crates in one change; features are unreleased, no shim needed).
+  All renames delete old names and update every call site in the same change
+  (no compatibility soup).
+
+- **MIG-488-01 [major] — Correction: image-generic I/O contract + de-branded
+  ritk-io types (user review). DONE.**
+  User review caught two real defects in the Sprint 486/487 work: substrate
+  brand names baked into component names (`Coeus*` — a violation of the
+  workspace naming rule, and permanent noise given Burn is being completely
+  removed), and a parallel branded trait pair where one generic trait
+  belonged. Corrected while everything is unreleased/feature-gated:
+  (1) unified the contract into image-generic `ImageReader<I>`/
+  `ImageWriter<I>` (zero-cost, monomorphized per container); all 8 Burn impl
+  blocks updated mechanically (`ImageReader<B, 3>` →
+  `ImageReader<Image<B, 3>>`), trait confirmed to have **no users outside
+  ritk-io** (CLI/Python call free functions), so the breaking trait-signature
+  change is fully contained; (2) **deleted** `CoeusImageReader`/
+  `CoeusImageWriter` and `domain/coeus.rs` (no deprecation shim); (3) renamed
+  all 9 adapter types to plain end-state names inside transitional
+  `format::<fmt>::native` modules that die with Burn (`CoeusNiftiReader` →
+  `nifti::native::NiftiReader`, …); root-level `Coeus*` re-exports removed
+  (transition access is path-qualified; the plain root names flip to the
+  native types when Burn is deleted); (4) doc comments and test names
+  de-branded; `to_io_err` moved to `domain`. ADR 0002 Amendment A1 records
+  the durable policy; MIG-489 files the remaining renames (format-crate fns,
+  module names, feature name). Evidence tier: value-semantic — the full
+  existing differential/round-trip suites re-run green through the unified
+  trait: `ritk-io --features coeus` 352/352, default 344/344, clippy
+  `-D warnings` clean, doc clean. Lock delta: one upstream-committed line
+  (`mnemosyne-build-util` propagation). Gates were held through two more
+  in-flight upstream edits (hermes-simd version bump, coeus-leto match arm)
+  and run only on stabilized snapshots.
+
 - **MIG-487-01 [minor] — All seven remaining Coeus reader implementors for the
   `ritk-io` contract. DONE.**
   Broadened the Coeus I/O contract's format coverage from 1 to 8 reader

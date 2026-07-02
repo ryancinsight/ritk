@@ -5,14 +5,14 @@ use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;
 
-impl<B: Backend> ImageReader<B, 3> for MincReader<B> {
+impl<B: Backend> ImageReader<Image<B, 3>> for MincReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
         self.read_image(path)
             .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
-impl<B: Backend> ImageWriter<B, 3> for MincWriter {
+impl<B: Backend> ImageWriter<Image<B, 3>> for MincWriter {
     fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
         write_minc(image, path).map_err(|e| std::io::Error::other(e.to_string()))
     }
@@ -54,7 +54,7 @@ mod tests {
 
         let image = make_image(&device, [2, 2, 2], vec![1.0f32; 8]);
         let writer = MincWriter;
-        ImageWriter::<TestBackend, 3>::write(&writer, &path, &image)?;
+        ImageWriter::<Image<TestBackend, 3>>::write(&writer, &path, &image)?;
 
         assert!(path.exists(), "adapter must create file");
         let bytes = std::fs::read(&path)?;
@@ -74,36 +74,36 @@ mod tests {
         std::fs::write(&path, b"not an hdf5 file").unwrap();
         let device: <TestBackend as Backend>::Device = Default::default();
         let reader = MincReader::<TestBackend>::new(device);
-        let result = ImageReader::<TestBackend, 3>::read(&reader, &path);
+        let result = ImageReader::<Image<TestBackend, 3>>::read(&reader, &path);
         assert!(result.is_err(), "reading invalid HDF5 must fail");
     }
 }
 
+/// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
+///
+/// Transitional module: names inside are the plain end-state names; the
+/// module itself disambiguates from the Burn types during coexistence and
+/// folds away when the Burn path is deleted (ADR 0002).
 #[cfg(feature = "coeus")]
-pub use coeus::{CoeusMincReader};
-
-/// Coeus-typed reader implementors for the [`crate::domain::coeus`] contract
-/// (ADR 0002 cutover step 2 — format coverage).
-#[cfg(feature = "coeus")]
-mod coeus {
-    use crate::domain::coeus::{to_io_err, CoeusImageReader};
+pub mod native {
+    use crate::domain::{to_io_err, ImageReader};
     use coeus_core::ComputeBackend;
     use ritk_image::coeus::Image;
     use std::path::Path;
 
-    /// Backend-bound Coeus reader (counterpart of [`super::MincReader`]).
-    pub struct CoeusMincReader<B: ComputeBackend> {
+    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::MincReader`]).
+    pub struct MincReader<B: ComputeBackend> {
         backend: B,
     }
 
-    impl<B: ComputeBackend> CoeusMincReader<B> {
+    impl<B: ComputeBackend> MincReader<B> {
         /// Create a reader that constructs images on `backend`.
         pub fn new(backend: B) -> Self {
             Self { backend }
         }
     }
 
-    impl<B: ComputeBackend> CoeusImageReader<f32, B, 3> for CoeusMincReader<B> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MincReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_minc::read_minc_coeus(path, &self.backend).map_err(to_io_err)
         }

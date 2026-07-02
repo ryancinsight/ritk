@@ -8,14 +8,14 @@ use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;
 
-impl<B: Backend> ImageReader<B, 3> for PngReader<B> {
+impl<B: Backend> ImageReader<Image<B, 3>> for PngReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
         self.read_image(path)
             .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
-impl<B: Backend> ImageReader<B, 3> for PngSeriesReader<B> {
+impl<B: Backend> ImageReader<Image<B, 3>> for PngSeriesReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
         self.read_image(path)
             .map_err(|e| std::io::Error::other(e.to_string()))
@@ -26,6 +26,7 @@ impl<B: Backend> ImageReader<B, 3> for PngSeriesReader<B> {
 mod tests {
     use super::{PngReader, PngSeriesReader};
     use crate::domain::ImageReader;
+    use ritk_core::image::Image;
     use burn::tensor::backend::Backend;
     use burn_ndarray::NdArray;
     use std::path::Path;
@@ -51,7 +52,7 @@ mod tests {
 
         let device: <TestBackend as Backend>::Device = Default::default();
         let reader = PngReader::<TestBackend>::new(device);
-        let image = ImageReader::<TestBackend, 3>::read(&reader, &path)?;
+        let image = ImageReader::<Image<TestBackend, 3>>::read(&reader, &path)?;
 
         assert_eq!(image.shape(), [1, 1, 2]);
         assert_eq!(tensor_values(&image), vec![9.0, 10.0]);
@@ -66,7 +67,7 @@ mod tests {
 
         let device: <TestBackend as Backend>::Device = Default::default();
         let reader = PngSeriesReader::<TestBackend>::new(device);
-        let image = ImageReader::<TestBackend, 3>::read(&reader, dir.path())?;
+        let image = ImageReader::<Image<TestBackend, 3>>::read(&reader, dir.path())?;
 
         assert_eq!(image.shape(), [2, 1, 1]);
         assert_eq!(tensor_values(&image), vec![1.0, 2.0]);
@@ -74,49 +75,49 @@ mod tests {
     }
 }
 
+/// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
+///
+/// Transitional module: names inside are the plain end-state names; the
+/// module itself disambiguates from the Burn types during coexistence and
+/// folds away when the Burn path is deleted (ADR 0002).
 #[cfg(feature = "coeus")]
-pub use coeus::{CoeusPngReader, CoeusPngSeriesReader};
-
-/// Coeus-typed reader implementors for the [`crate::domain::coeus`] contract
-/// (ADR 0002 cutover step 2 — format coverage).
-#[cfg(feature = "coeus")]
-mod coeus {
-    use crate::domain::coeus::{to_io_err, CoeusImageReader};
+pub mod native {
+    use crate::domain::{to_io_err, ImageReader};
     use coeus_core::ComputeBackend;
     use ritk_image::coeus::Image;
     use std::path::Path;
 
-    /// Backend-bound Coeus reader (counterpart of [`super::PngReader`]).
-    pub struct CoeusPngReader<B: ComputeBackend> {
+    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::PngReader`]).
+    pub struct PngReader<B: ComputeBackend> {
         backend: B,
     }
 
-    impl<B: ComputeBackend> CoeusPngReader<B> {
+    impl<B: ComputeBackend> PngReader<B> {
         /// Create a reader that constructs images on `backend`.
         pub fn new(backend: B) -> Self {
             Self { backend }
         }
     }
 
-    impl<B: ComputeBackend> CoeusImageReader<f32, B, 3> for CoeusPngReader<B> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for PngReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_png::read_png_to_image_coeus(path, &self.backend).map_err(to_io_err)
         }
     }
 
-    /// Backend-bound Coeus reader (counterpart of [`super::PngSeriesReader`]).
-    pub struct CoeusPngSeriesReader<B: ComputeBackend> {
+    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::PngSeriesReader`]).
+    pub struct PngSeriesReader<B: ComputeBackend> {
         backend: B,
     }
 
-    impl<B: ComputeBackend> CoeusPngSeriesReader<B> {
+    impl<B: ComputeBackend> PngSeriesReader<B> {
         /// Create a reader that constructs images on `backend`.
         pub fn new(backend: B) -> Self {
             Self { backend }
         }
     }
 
-    impl<B: ComputeBackend> CoeusImageReader<f32, B, 3> for CoeusPngSeriesReader<B> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for PngSeriesReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_png::read_png_series_coeus(path, &self.backend).map_err(to_io_err)
         }

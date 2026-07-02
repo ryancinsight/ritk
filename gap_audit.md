@@ -1,5 +1,50 @@
 # RITK Gap Audit - Active
 
+## Sprint 488 Audit (2026-07-02) — User Review Caught a Naming/Design Defect the Self-Audits Missed
+
+### The defect, and why my own checks didn't catch it
+
+For three sprints I named new components `Coeus*` and built a parallel
+`CoeusImageReader`/`CoeusImageWriter` trait pair — rationalized as "parallel
+family per ADR 0002." The user's review identified both as defects: the tensor
+substrate is a bounded variation dimension, and the workspace naming rule
+(no variation dimensions in names) applies to backend brands exactly as it
+does to scalar-type suffixes; and the contract should have been ONE
+image-generic trait from the start — `ImageReader<I>` — which is precisely the
+zero-cost trait abstraction the substrate dimension called for. The
+self-audit blind spot: I applied the naming rule to `_f32`-style suffixes but
+not to brand prefixes, and I mis-derived "parallel trait family" from ADR
+0002's parallel-*implementation* strategy. Both are now durable policy via
+ADR 0002 Amendment A1 so the class of error is checkable, not tribal.
+
+### The correction was cheap precisely because it was caught pre-release
+
+Everything renamed/deleted was unreleased and feature-gated with no external
+users (verified by grep before the breaking trait change: zero
+`ImageReader`/`ImageWriter` bound users outside ritk-io). Deleted, not
+deprecated; all call sites updated in the same change; the full differential
+suites re-ran green through the unified trait. This is the strongest argument
+for the review loop happening early — the same correction after a release
+would have been a [major] with a migration guide.
+
+### What remains branded (filed, not hidden)
+
+`read_*_coeus`/`write_nifti_coeus` fns in 7 format crates, the
+`ritk_image::coeus` and `metric::coeus_autograd` module names and their
+`*_coeus` fns, and the `coeus` feature name itself — MIG-489 carries the
+rename map. Filed rather than done now to keep this correction reviewable;
+the same no-shim rule will apply.
+
+### Residual Risk / Next Increment
+
+- MIG-489 (remaining de-branding) should land before more implementors are
+  added on top of the branded fn names (each new caller raises rename cost).
+- Consumer-cutover gate unchanged: VTK/NRRD/Analyze/DICOM native read paths,
+  per-format native writers, then the CLI/Python cutover.
+- Upstream churn remains high (hermes bump + coeus-leto edits mid-sprint);
+  green-upstream-only verification continues to hold.
+
+
 ## Sprint 487 Audit (2026-07-01) — Contract Coverage 1→8; the Real Cutover Gate Is Now Precisely Known
 
 ### The same-file/two-readers oracle generalizes across lossy formats

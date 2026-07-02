@@ -1,12 +1,4 @@
-use burn::tensor::backend::Backend;
-use ritk_image::Image;
 use std::path::Path;
-
-/// Coeus-typed I/O contract (ADR 0002 parallel family).
-#[cfg(feature = "coeus")]
-pub mod coeus;
-#[cfg(feature = "coeus")]
-pub use coeus::{CoeusImageReader, CoeusImageWriter};
 
 // VTK domain types are authoritative in ritk-vtk.
 // Keep module shims so existing `crate::domain::vtk_data_object::*` paths resolve.
@@ -21,13 +13,28 @@ pub use vtk_pipeline::{VtkFilter, VtkPipeline, VtkSink, VtkSource};
 pub use vtk_scene::{RenderProperties, VtkActor, VtkScene};
 
 /// High-level trait for abstracting image reading.
-pub trait ImageReader<B: Backend, const D: usize> {
+///
+/// Generic over the image container `I` (the tensor substrate is a variation
+/// dimension and never appears in trait or implementor names): implementors
+/// read the Burn `ritk_image::Image<B, D>` today and the Atlas
+/// `ritk_image::coeus::Image<T, B, D>` on the migration path, monomorphized
+/// per container — one contract, zero-cost, no parallel branded trait family.
+pub trait ImageReader<I> {
     /// Read an image natively from a path returning bounded topological structures.
-    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, D>>;
+    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<I>;
 }
 
 /// High-level trait for abstracting image writing.
-pub trait ImageWriter<B: Backend, const D: usize> {
+///
+/// Generic over the image container `I` — see [`ImageReader`].
+pub trait ImageWriter<I> {
     /// Write a constrained topology image onto disk avoiding approximations.
-    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, D>) -> std::io::Result<()>;
+    fn write<P: AsRef<Path>>(&self, path: P, image: &I) -> std::io::Result<()>;
+}
+
+/// Map a format crate's `anyhow` error onto the contract's `std::io::Error`
+/// (one mapping shared by every implementor).
+#[cfg(feature = "coeus")]
+pub(crate) fn to_io_err(e: anyhow::Error) -> std::io::Error {
+    std::io::Error::other(e.to_string())
 }

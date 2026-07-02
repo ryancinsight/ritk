@@ -276,7 +276,7 @@ impl<B: Backend> DicomReader<B> {
     }
 }
 
-impl<B: Backend> ImageReader<B, 3> for DicomReader<B> {
+impl<B: Backend> ImageReader<Image<B, 3>> for DicomReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
         read_dicom_series(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
     }

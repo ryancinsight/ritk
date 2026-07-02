@@ -119,3 +119,31 @@ same change that removes the last caller (no compatibility shim — integrity).
   increment must lower a crate's `source_tokens` and, when complete, flip its
   `manifest` to false, with differential parity tests proving the Coeus path
   matches the removed Burn path before deletion.
+
+## Amendment A1 (2026-07-02) — Naming: no substrate brands in API names; one image-generic I/O contract
+
+User review of the Sprint 486/487 work identified two defects this amendment
+corrects and makes durable policy:
+
+1. **No substrate brand names in component names.** The tensor substrate is a
+   bounded variation dimension; per the workspace naming rule it must never
+   appear in type/function names (`CoeusImageReader`, `read_nifti_coeus`, …),
+   especially since Burn is being *completely removed* — the brand prefix
+   would survive as permanent noise. During Burn/Atlas coexistence,
+   disambiguation from same-named Burn types uses a transitional module path
+   only (`format::<fmt>::native::*`), which folds away when the Burn path is
+   deleted. Module paths are organizational and deletable; type names are
+   forever.
+2. **One image-generic I/O contract, not a parallel branded trait family.**
+   `ImageReader<I>` / `ImageWriter<I>` are generic over the image container
+   `I` (zero-cost, monomorphized per container); Burn implementors use
+   `I = ritk_image::Image<B, D>` and Atlas implementors
+   `I = ritk_image::coeus::Image<T, B, D>`. The previously-added
+   `CoeusImageReader`/`CoeusImageWriter` pair was deleted, not deprecated.
+   (This does not reopen the rejected op-level substrate trait — the I/O
+   contract only names the container, not tensor operations.)
+
+Remaining brand-named items are tracked for the same treatment (backlog
+MIG-489): the format crates' `read_*_coeus`/`write_*_coeus` functions, the
+`ritk_image::coeus` / `ritk_registration::metric::coeus_autograd` module
+names, and the `coeus` cargo feature name itself (candidate: `atlas`).

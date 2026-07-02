@@ -4,31 +4,31 @@
 
 pub use ritk_mgh::{read_mgh, write_mgh, MghReader, MghWriter};
 
+/// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
+///
+/// Transitional module: names inside are the plain end-state names; the
+/// module itself disambiguates from the Burn types during coexistence and
+/// folds away when the Burn path is deleted (ADR 0002).
 #[cfg(feature = "coeus")]
-pub use coeus::{CoeusMghReader};
-
-/// Coeus-typed reader implementors for the [`crate::domain::coeus`] contract
-/// (ADR 0002 cutover step 2 — format coverage).
-#[cfg(feature = "coeus")]
-mod coeus {
-    use crate::domain::coeus::{to_io_err, CoeusImageReader};
+pub mod native {
+    use crate::domain::{to_io_err, ImageReader};
     use coeus_core::ComputeBackend;
     use ritk_image::coeus::Image;
     use std::path::Path;
 
-    /// Backend-bound Coeus reader (counterpart of [`super::MghReader`]).
-    pub struct CoeusMghReader<B: ComputeBackend> {
+    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::MghReader`]).
+    pub struct MghReader<B: ComputeBackend> {
         backend: B,
     }
 
-    impl<B: ComputeBackend> CoeusMghReader<B> {
+    impl<B: ComputeBackend> MghReader<B> {
         /// Create a reader that constructs images on `backend`.
         pub fn new(backend: B) -> Self {
             Self { backend }
         }
     }
 
-    impl<B: ComputeBackend> CoeusImageReader<f32, B, 3> for CoeusMghReader<B> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MghReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_mgh::read_mgh_coeus(path, &self.backend).map_err(to_io_err)
         }
