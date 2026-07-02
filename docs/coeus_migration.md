@@ -10,6 +10,21 @@ execution.
 
 Evidence tier: manifest audit and source audit. No migration proof is claimed.
 
+**Strategy & sequencing: see [ADR 0002](adr/0002-core-image-burn-to-coeus-migration.md).**
+Key findings from the 2026-06-30 audit that ADR 0002 acts on:
+- The other stated migration targets are already clean in RITK — **no `rayon`,
+  `tokio`, `nalgebra`, `ndarray`, or `rustfft` direct dependencies remain.**
+  Burn is the entire remaining substrate surface.
+- The parallel Coeus capability built so far (registration autodiff MIG-471…482,
+  `ritk_image::coeus::Image`, per-format `read_*_coeus`) is the correct
+  **capability-add** phase but has **not reduced the Burn token surface** — the
+  Burn paths are all still load-bearing.
+- Burn removal is **bottom-blocked** on `ritk_core`'s `Image<B: Backend>` and
+  `ritk-io`'s `ImageReader`/`ImageWriter` traits; leaf crates cannot drop Burn
+  in isolation. Capability is added bottom-up; **removal proceeds top-down**
+  from the `ritk-io` consumers (`ritk-cli`/`ritk-python`) toward the core
+  `Image` last (ADR 0002 §Cutover ordering).
+
 ## Current Burn Surface
 
 Run the repeatable audit from the RITK workspace root:

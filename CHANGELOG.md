@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 483: Migration-surface audit + core-Image strategy ADR (MIG-483-01)
+
+### Added
+- ADR 0002 (`docs/adr/0002-core-image-burn-to-coeus-migration.md`) — the
+  strategy for migrating the core `Image`/tensor substrate off Burn: parallel
+  paths + crate-by-crate cutover, with capability added bottom-up and Burn
+  removal proceeding top-down from the `ritk-io` consumers to the core `Image`
+  last, and a measurable per-crate done-criterion (audit tokens → 0).
+
+### Investigated
+- Objective `burn-migration-audit`: Burn is the sole remaining substrate in
+  RITK (`rayon`/`tokio`/`nalgebra`/`ndarray`/`rustfft` already absent). The
+  parallel Coeus registration capability (MIG-471…482) has not reduced the Burn
+  token surface; leaf crates are bottom-blocked by `ritk_core::Image<B>` and
+  `ritk-io`'s reader/writer traits. Findings recorded in
+  `docs/coeus_migration.md`.
+
+### Evidence
+- Foundation/design sprint — no code change; existing baseline green (Sprint
+  482: full package `--features coeus` 740/740). Documentation-only.
+
+---
+
 ## [Unreleased] — Sprint 482: Coeus-native gradient-descent registration driver (MIG-482-01)
 
 ### Added

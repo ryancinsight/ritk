@@ -1,5 +1,42 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 483 — MIG-483-01 Migration-Surface Audit + Core-Image Strategy (ADR 0002)
+**Target version**: 0.14.0
+**Sprint phase**: Foundation — audit + [arch] design artifact (no code change)
+
+### In-flight plan (Sprint 483)
+- [x] Re-synced with origin/main (0/0).
+- [x] Paranoia step-back after 12 registration-track sprints: ran
+  `burn-migration-audit` and grepped manifests for all stated targets.
+- [x] Found `rayon`/`tokio`/`nalgebra`/`ndarray`/`rustfft` already absent from
+  RITK — Burn is the sole remaining substrate; token surface concentrated in
+  registration/filter/interpolation/transform/model/io.
+- [x] Traced the migration bottleneck: leaf crates can't drop Burn while
+  `ritk_core::Image<B>` + `ritk-io::{ImageReader,ImageWriter}` are Burn-typed;
+  the parallel Coeus capability adds capability but hasn't cut the Burn surface.
+- [x] Wrote ADR 0002 (strategy B; top-down removal ordering; measurable
+  per-crate done-criterion), rejecting unify-behind-one-trait and wholesale-swap
+  with recorded reasoning.
+- [x] Recorded the audit findings in `docs/coeus_migration.md`.
+
+### Verification gate (Sprint 483)
+- [x] No code change (design/audit sprint); nothing to test beyond the existing
+  green baseline (Sprint 482: full package `--features coeus` 740/740).
+- [x] Scope: ADR 0002 + `docs/coeus_migration.md` + PM artifacts only.
+
+### Deferred / carry-forward — next phase is CUTOVER (per ADR 0002)
+- **MIG-484 [READY, Phase-1]**: gap-audit `ritk_image::coeus::Image`'s accessor/
+  host-extraction surface against each `ritk-io` consumer's needs; extend the
+  Coeus `Image` (and Coeus) to fill gaps, tested — the prerequisite before any
+  cutover.
+- **MIG-485 [Phase-2, [major]]**: Coeus-typed `ritk-io` `ImageReader`/
+  `ImageWriter` surface + route `read_*_coeus`/`write_*_coeus` through it.
+- Then consumers (`ritk-cli`/`ritk-python`) → leaf crates' Burn removal → core
+  `Image` last.
+- Also open (non-migration): PERF-432-01, TEST-447-05 (MINC hostile fixture),
+  MIG-439-03, grayscale-morphology Coeus wrappers, MI/Parzen 3rd metric,
+  driver tolerance-based early stop.
+
 ## Sprint 482 — MIG-482-01 Coeus-Native Gradient-Descent Registration Driver
 **Target version**: 0.14.0
 **Sprint phase**: Execution — the parallel Coeus primitives composed into a

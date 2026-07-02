@@ -1,5 +1,53 @@
 # RITK Gap Audit - Active
 
+## Sprint 483 Audit (2026-06-30) — Stepped Back: the Migration Is [arch]-Blocked, and 12 Sprints Hadn't Moved the Needle
+
+### The uncomfortable finding, surfaced by stepping back
+
+After twelve consecutive registration-autodiff sprints, an objective
+`burn-migration-audit` shows the Burn token surface essentially unchanged —
+because everything built (MIG-471…482) is *parallel* Coeus capability behind the
+`coeus` feature; not one Burn code path was removed. This is precisely the
+"something is being missed" the standing mandate warns about: steady per-sprint
+green deliverables can mask that the headline goal (replace Burn) had not
+advanced on its own metric. Naming this plainly is the value of this sprint.
+
+### Root cause is architectural, not effort
+
+Leaf crates cannot drop Burn while `ritk_core::Image<B: Backend>` and
+`ritk-io`'s `ImageReader`/`ImageWriter` traits are Burn-typed — traced concretely
+(`ritk-vtk` → `ritk-io` trait hub → `ritk-cli`/`ritk-python`). So more parallel
+leaf capability yields diminishing returns; the migration needs a top-down
+cutover starting at the I/O consumers. ADR 0002 records the strategy, the
+non-obvious add-bottom-up / remove-top-down ordering, and a measurable
+per-crate done-criterion (audit tokens → 0).
+
+### Also confirmed: the non-Burn targets are already done
+
+`rayon`, `tokio`, `nalgebra`, `ndarray`, `rustfft` are absent from RITK. The
+"replace rayon/tokio with moirai, nalgebra/ndarray/rustfft with
+leto/…/apollo" part of the mandate is, for RITK's own crates, already complete —
+worth stating so effort isn't spent chasing already-clean targets.
+
+### Discipline note (self)
+
+This was an ADR-first Foundation sprint deliberately chosen over reflexively
+adding a 3rd metric — the higher-value move was to stop, audit, and record why
+the current approach can't finish the migration, before spending more sprints on
+capability that doesn't reduce the surface. Design-before-more-code is the
+correct [arch] posture.
+
+### Residual Risk / Next Increment
+
+- The [major] cutover phase (ADR 0002 steps 1–6) has real breaking-change risk
+  per crate (public image type changes); each step is its own increment with
+  differential parity tests before Burn deletion.
+- Cutover requires Coeus `Image` accessor parity (MIG-484) first — verify each
+  `ritk-io` consumer's needs are met before changing the I/O contract.
+- Upstream Atlas foundation crates remain under concurrent migration; the
+  cutover work will keep hitting transient upstream breakage — verify only
+  against green upstream.
+
 ## Sprint 482 Audit (2026-06-30) — Connected the Parallel Coeus Capability Into a Runnable Unit
 
 ### Paranoia check that changed the plan: verified primitives ≠ a usable feature

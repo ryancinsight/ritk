@@ -201,6 +201,26 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-483-01 [arch] — Core `Image`/tensor-substrate migration strategy (ADR
+  0002). DONE (design artifact; Foundation phase).**
+  Audited the full migration surface (`burn-migration-audit` + manifest greps):
+  confirmed `rayon`/`tokio`/`nalgebra`/`ndarray`/`rustfft` are already absent
+  from RITK — Burn is the sole remaining substrate. Established that the 12
+  sprints of parallel Coeus registration capability (MIG-471…482), while
+  complete and verified, have **not reduced the Burn token surface**, and traced
+  why: leaf crates cannot drop Burn while `ritk_core::Image<B: Backend>` and
+  `ritk-io`'s `ImageReader`/`ImageWriter` traits remain Burn-typed — the whole
+  I/O + compute stack funnels through them. Wrote ADR 0002 deciding Strategy B
+  (parallel paths, crate-by-crate cutover) over a unify-behind-one-trait
+  approach (dead-weight abstraction for a to-be-deleted backend) and a wholesale
+  swap (un-reviewable blast radius), and — the key finding — specifying that
+  capability is added **bottom-up** but Burn **removal is top-down** (from the
+  `ritk-io` consumers `ritk-cli`/`ritk-python` toward the core `Image` last),
+  with a measurable per-crate done-criterion (audit token count → 0). Recorded
+  the audit findings in `docs/coeus_migration.md`. No code change (Foundation/
+  design). This prevents wasted effort (e.g. attempting to de-Burn a leaf crate
+  directly, which is impossible) and defines the next phase's concrete order.
+
 - **MIG-482-01 [minor] — Coeus-native gradient-descent registration driver.
   DONE.**
   Addressed the standing risk that the Coeus registration primitives (built
