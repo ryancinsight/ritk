@@ -201,6 +201,35 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-485-01 [minor] — First Coeus format writer: `write_nifti_coeus` +
+  shared serialization core. DONE.**
+  The write-side half of the ADR-0002 cutover prerequisite, and the direct
+  validation of MIG-484's `data_cow` extraction. Refactored
+  `ritk-nifti/src/writer.rs` to a substrate-agnostic serialization SSOT
+  (`write_flat_with_version`: header-from-spatial + `[Z,Y,X]` byte stream) and
+  made the Burn `write_nifti` a thin extraction boundary over it; added
+  `write_nifti_coeus` (`coeus` feature) as the second thin boundary, extracting
+  layout-independently via `data_cow_on`. Consolidated the duplicated
+  Direction→row-major mapping into one helper on its second occurrence. Fixed
+  an initial type error by matching the core to the real `header_from_spatial`
+  contract (`f64` spatial metadata; the f32 narrowing lives inside the header
+  builder where the NIfTI-1 format requires it). Evidence tier: value-semantic
+  + byte-differential — coeus write → coeus read round-trips voxels exactly and
+  spacing/origin within header precision; and **the coeus writer's file is
+  byte-for-byte identical to the Burn writer's for the same logical image**
+  (the strongest oracle, proving the shared core and both boundaries), plus a
+  cross-substrate check (Burn reader consumes the coeus-written file).
+  `cargo nextest run -p ritk-nifti --features coeus` 37/37 (35 + 2 new);
+  default 34/34; clippy `-D warnings` and `cargo doc --features coeus
+  --no-deps` clean. **Also in this change (co-evolution):** mnemosyne upstream
+  removed its no-op `parallel` marker feature (committed, 87c4743); updated
+  ritk's workspace manifest to `features = ["std_tls"]` and took the bounded
+  4-line Cargo.lock delta from the committed upstream graph changes —
+  behavior-preserving (upstream states the feature was a no-op), verified by
+  `ritk-core` green. **Verification note:** the test gate was held through
+  ~12 minutes of a sibling's active mnemosyne-local refactor (errors changing
+  between retries) and run only once upstream stabilized; peer WIP untouched.
+
 - **MIG-484-01 [minor] — Coeus `Image` host-extraction parity (ADR 0002
   cutover prerequisite, step 1). DONE (extraction gap); RESIDUAL filed.**
   Gap-audited the Coeus `Image` accessor surface against the actual method

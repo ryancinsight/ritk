@@ -94,6 +94,12 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Cutover prerequisite — first Coeus format writer (Sprint 485, ADR 0002
+  step 1 write-side).** `write_nifti_coeus` over a serialization core shared
+  with the Burn writer, byte-identical output proven by differential test;
+  first production use of Sprint 484's `data_cow_on`. The Coeus-typed
+  `ritk-io` contract (MIG-486) is now justified — NIfTI has both a Coeus
+  reader and writer; remaining format writers are mechanical repeats.
 - **Cutover prerequisite — Coeus `Image` host-extraction parity (Sprint 484,
   ADR 0002 step 1).** Grep-audited the Burn-`Image` methods the I/O consumers
   actually call and closed the one genuine gap: layout-independent host

@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 485: First Coeus format writer — `write_nifti_coeus` (MIG-485-01)
+
+### Added
+- `ritk-nifti` (`coeus` feature): `write_nifti_coeus`, the first Coeus-native
+  format writer, extracting host data layout-independently via `data_cow_on`
+  and serializing through a core shared with the Burn writer.
+
+### Changed
+- `ritk-nifti`: writer refactored to a substrate-agnostic serialization SSOT
+  (`write_flat_with_version`); the Burn `write_nifti` is now a thin extraction
+  boundary over it (byte-identical output, proven by test). Duplicated
+  Direction→row-major mapping consolidated.
+- Workspace: mnemosyne feature list updated for the committed upstream removal
+  of the no-op `parallel` marker (`features = ["std_tls"]`; bounded lock delta;
+  behavior-preserving per upstream, `ritk-core` verified green).
+
+### Evidence
+- Evidence tier: value-semantic + byte-differential — coeus write → coeus read
+  round-trips voxels exactly; the coeus-written file is byte-for-byte identical
+  to the Burn-written file for the same logical image; Burn reader consumes the
+  coeus-written file. `cargo nextest run -p ritk-nifti --features coeus` 37/37;
+  default 34/34; clippy `-D warnings` and `cargo doc --features coeus
+  --no-deps` clean.
+
+---
+
 ## [Unreleased] — Sprint 484: Coeus `Image` host-extraction parity (MIG-484-01)
 
 ### Added

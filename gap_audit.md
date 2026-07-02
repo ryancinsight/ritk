@@ -1,5 +1,53 @@
 # RITK Gap Audit - Active
 
+## Sprint 485 Audit (2026-07-01) — First Coeus Writer, Byte-Identical by Construction; Two Kinds of Upstream Churn Distinguished
+
+### The writer gap was the real one — and it validated last sprint's extraction
+
+Scoping MIG-485 surfaced that **no format crate had a Coeus writer** (7 readers,
+0 writers), so a Coeus `ImageWriter` trait would have been a zero-implementor
+abstraction. Built the first writer instead (NIfTI), which is also the first
+production consumer of MIG-484's `data_cow_on` — the extraction API is now
+validated by real use, not just its own unit tests.
+
+### Byte-identical differential is the strongest possible writer oracle
+
+The refactor put one substrate-agnostic serialization core under both writers,
+so the test can demand the coeus-written file be **byte-for-byte identical** to
+the Burn-written file for the same logical image — no epsilon, no partial
+metadata checks. Any drift in either boundary (extraction order, metadata
+mapping, f64→f32 narrowing point) fails loudly. A cross-substrate read (Burn
+reader consuming the coeus file) closes the loop.
+
+### Two kinds of upstream churn, handled differently
+
+(1) mnemosyne's `parallel` feature removal was **committed** upstream — so the
+consumer-side manifest update in ritk is my work per the co-evolution protocol,
+done here with the bounded lock delta and a `ritk-core` verification. (2) The
+mnemosyne-local refactor breaking the test graph mid-sprint was **uncommitted
+peer WIP** — held the gate ~12 minutes across retries (errors visibly
+converging) and ran only against the stabilized tree; touched nothing. The
+distinction (committed upstream change → act; uncommitted WIP → wait) is the
+operative rule and both branches were exercised in one sprint.
+
+### A type error caught a narrowing-point subtlety
+
+The first draft typed the shared core's spatial metadata as `f32`; the compiler
+rejected it because `header_from_spatial` takes `f64` and performs the f32
+narrowing inside the header builder — where the NIfTI-1 format (f32 srow/
+pixdim) requires it. Keeping the narrowing at the format boundary rather than
+the extraction boundary preserves f64 metadata precision up to the last
+possible point (numerical-discipline: conversions live where the contract
+demands them).
+
+### Residual Risk / Next Increment
+
+- MIG-486 ([major]): the Coeus-typed `ritk-io` contract — now properly
+  justified (NIfTI has reader + writer; 6 more format readers exist).
+- Remaining format writers are mechanical repeats of the shared-core pattern.
+- The sibling's mnemosyne refactor was still in flight at sprint end; future
+  gates may hit it again.
+
 ## Sprint 484 Audit (2026-06-30) — Cutover Phase Opened With an Evidence-Driven Gap Closure
 
 ### The gap was measured, not assumed

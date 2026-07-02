@@ -1,5 +1,49 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 485 — MIG-485-01 First Coeus Format Writer (`write_nifti_coeus`)
+**Target version**: 0.14.0
+**Sprint phase**: Execution — write-side cutover prerequisite; MIG-484
+extraction validated in production use
+
+### In-flight plan (Sprint 485)
+- [x] Re-synced with origin/main (0/0). Scoped MIG-485: no format crate had a
+  Coeus *writer* (readers only), so a Coeus-typed `ImageWriter` trait would
+  have had zero implementors — built the first writer (NIfTI, flagship
+  format) before the trait, per the same YAGNI/implementor-count discipline
+  as ADR 0001.
+- [x] Refactored the NIfTI writer to a substrate-agnostic serialization SSOT
+  (`write_flat_with_version`); Burn `write_nifti` and new `write_nifti_coeus`
+  are thin extraction boundaries (coeus via MIG-484's `data_cow_on`).
+  Consolidated the Direction→row-major mapping on its second occurrence.
+- [x] Corrected the core's parameter types to the real `header_from_spatial`
+  contract (`f64` spatial metadata; f32 narrowing stays inside the header
+  builder where NIfTI-1 requires it).
+- [x] Co-evolution fix: mnemosyne upstream removed its no-op `parallel`
+  feature (committed); updated ritk's workspace manifest
+  (`features = ["std_tls"]`) + bounded 4-line lock delta; `ritk-core` green.
+- [x] Held the test gate through a sibling's active mnemosyne-local refactor
+  (~12 min, errors changing between retries); ran only once upstream
+  stabilized; peer WIP untouched.
+- [x] Tests: coeus round-trip (exact voxels; spacing/origin within header
+  precision) + **byte-identical differential vs the Burn writer** + Burn
+  reader consuming the coeus-written file. 37/37 coeus, 34/34 default;
+  clippy `-D warnings` clean; doc clean.
+
+### Verification gate (Sprint 485)
+- [x] All commands above green.
+- [x] Scope: `ritk-nifti` writer/lib/tests + workspace `Cargo.toml` mnemosyne
+  feature + bounded `Cargo.lock`; burn behavior unchanged (byte-identical).
+
+### Deferred / carry-forward
+- **MIG-486 [Phase-2, [major]]**: Coeus-typed `ritk-io` reader/writer
+  contract — now justified: NIfTI has both a Coeus reader AND writer to route
+  (plus 6 more format readers). Include the index↔world residual.
+- Then consumers (`ritk-cli`/`ritk-python`) → leaf Burn removal → core `Image`.
+- Coeus writers for the remaining formats (mgh/metaimage/minc/png/jpeg/tiff)
+  — mechanical repeats of this sprint's shared-core pattern.
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, grayscale-morphology Coeus
+  wrappers, MI/Parzen 3rd metric, driver early-stop.
+
 ## Sprint 484 — MIG-484-01 Coeus `Image` Host-Extraction Parity (Cutover Step 1)
 **Target version**: 0.14.0
 **Sprint phase**: Execution — first ADR-0002 cutover-prerequisite increment

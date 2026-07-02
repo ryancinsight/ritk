@@ -146,42 +146,68 @@ fn write_nifti_with_version<B: Backend, P: AsRef<Path>>(
     image: &Image<B, 3>,
 ) -> Result<()> {
     let shape = image.shape();
-    let nz = shape[0];
-    let ny = shape[1];
-    let nx = shape[2];
-    let expected = checked_voxel_count(nx, ny, nz)?;
-
-    let slice = &image
+    let voxels = image
         .try_data_vec()
         .context("NIfTI writer requires f32 image data")?;
-    if slice.len() != expected {
+    let origin = image.origin();
+    let spacing = image.spacing();
+
+    write_flat_with_version(
+        version,
+        path.as_ref(),
+        &voxels,
+        shape,
+        [origin[0], origin[1], origin[2]],
+        [spacing[0], spacing[1], spacing[2]],
+        direction_row_major(image.direction()),
+    )
+}
+
+/// Flatten a 3×3 direction-cosine matrix to the row-major layout the header
+/// builder consumes (shared by the Burn and Coeus writer boundaries).
+fn direction_row_major(direction: &ritk_core::spatial::Direction<3>) -> [f64; 9] {
+    let d = direction.0;
+    [
+        d[(0, 0)],
+        d[(0, 1)],
+        d[(0, 2)],
+        d[(1, 0)],
+        d[(1, 1)],
+        d[(1, 2)],
+        d[(2, 0)],
+        d[(2, 1)],
+        d[(2, 2)],
+    ]
+}
+
+/// Substrate-agnostic NIfTI serialization core: header from spatial metadata
+/// plus the `[Z, Y, X]`-ordered voxel stream. The Burn and Coeus writers are
+/// thin host-extraction boundaries over this single implementation (SSOT).
+fn write_flat_with_version(
+    version: HeaderVersion,
+    path: &Path,
+    voxels: &[f32],
+    shape: [usize; 3],
+    origin: [f64; 3],
+    spacing: [f64; 3],
+    direction_row_major: [f64; 9],
+) -> Result<()> {
+    let [nz, ny, nx] = shape;
+    let expected = checked_voxel_count(nx, ny, nz)?;
+    if voxels.len() != expected {
         anyhow::bail!(
             "write_nifti: image data len {} != shape product {}",
-            slice.len(),
+            voxels.len(),
             expected
         );
     }
 
-    let direction = image.direction().0;
-    let origin = image.origin();
-    let spacing = image.spacing();
-    let direction_row_major = [
-        direction[(0, 0)],
-        direction[(0, 1)],
-        direction[(0, 2)],
-        direction[(1, 0)],
-        direction[(1, 1)],
-        direction[(1, 2)],
-        direction[(2, 0)],
-        direction[(2, 1)],
-        direction[(2, 2)],
-    ];
     let header = header_from_spatial(
         version,
         HeaderDims { nx, ny, nz },
         NiftiDatatype::Float32,
-        [origin[0], origin[1], origin[2]],
-        [spacing[0], spacing[1], spacing[2]],
+        origin,
+        spacing,
         direction_row_major,
     )?;
 
@@ -189,12 +215,45 @@ fn write_nifti_with_version<B: Backend, P: AsRef<Path>>(
         for z in 0..nz {
             for y in 0..ny {
                 for x in 0..nx {
-                    writer.write_all(&slice[z * ny * nx + y * nx + x].to_le_bytes())?;
+                    writer.write_all(&voxels[z * ny * nx + y * nx + x].to_le_bytes())?;
                 }
             }
         }
         Ok(())
     })
+}
+
+/// Write a Coeus-backed image to a NIfTI-1 single-file stream.
+///
+/// The Atlas-tensor counterpart to [`write_nifti`] (same spatial convention
+/// and byte-identical output for the same logical image): host data is
+/// extracted layout-independently via `data_cow_on`, then serialized through
+/// the same core as the Burn writer. The first Coeus-native format writer —
+/// the write-side half of the ADR 0002 cutover prerequisite.
+#[cfg(feature = "coeus")]
+pub fn write_nifti_coeus<B, P>(
+    path: P,
+    image: &ritk_image::coeus::Image<f32, B, 3>,
+    backend: &B,
+) -> Result<()>
+where
+    B: coeus_core::ComputeBackend + Default,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    let voxels = image.data_cow_on(backend);
+    let origin = image.origin();
+    let spacing = image.spacing();
+
+    write_flat_with_version(
+        HeaderVersion::One,
+        path.as_ref(),
+        &voxels,
+        image.shape(),
+        [origin[0], origin[1], origin[2]],
+        [spacing[0], spacing[1], spacing[2]],
+        direction_row_major(image.direction()),
+    )
 }
 
 fn header_from_spatial(

@@ -271,7 +271,6 @@ dependencies = [
  "leto",
  "mnemosyne",
  "moirai",
- "ndarray 0.16.1",
  "once_cell",
  "parking_lot",
  "rand 0.8.5",
@@ -4612,7 +4611,8 @@ dependencies = [
  "half",
  "mnemosyne",
  "ndarray 0.16.1",
- "serde",
+ "num-complex",
+ "num-traits",
  "thiserror 2.0.18",
 ]
 
@@ -4625,6 +4625,8 @@ dependencies = [
  "hermes-simd 0.3.0",
  "leto",
  "moirai",
+ "num-complex",
+ "num-traits",
  "themis",
  "thiserror 2.0.18",
 ]
