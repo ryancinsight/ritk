@@ -1,5 +1,53 @@
 # RITK Gap Audit - Active
 
+## Sprint 486 Audit (2026-07-01) — The Coeus I/O Contract Landed With Live Implementors on Both Sides
+
+### Sequencing paid off: the contract shipped justified, not speculative
+
+Two sprints ago a Coeus `ImageWriter` trait would have had zero implementors;
+last sprint built the first writer; this sprint the contract ships with a real
+reader *and* writer implementing it on day one, proven by a trait-dispatched
+round-trip. The deliberate order (capability → first implementors → seam) is
+the same implementor-count discipline as ADR 0001's `CoeusMetric` deferral, now
+applied at the I/O layer. The remaining 6 format readers are mechanical
+implementor additions.
+
+### Classification kept honest
+
+This increment is [minor], not the [major] the ADR-0002 plan sketches for
+"the `ritk-io` contract change" — because it is purely additive behind the
+`coeus` feature; no existing public item changed. The [major] is the *consumer
+cutover* (`ritk-cli`/`ritk-python` switching image types), correctly still
+ahead. Misclassifying additive work as breaking would have triggered ADR/
+migration-guide ceremony the change doesn't warrant; the distinction is now
+recorded.
+
+### Trait genericity matches the image, not the format
+
+`CoeusImageReader<T, B, const D>` carries the scalar parameter because the
+Coeus `Image<T, B, D>` does; the NIfTI implementors pin `T = f32` (the
+format's decode type). This keeps the contract ready for future non-f32
+formats without widening it speculatively — the parameter already exists on
+the image type, so it costs nothing.
+
+### Upstream churn: third sprint running, same protocol, now routine
+
+A sibling's in-flight `coeus-leto` edit (non-exhaustive match on a new `Erf`
+op) broke the test graph mid-sprint; waited ~3 minutes, upstream stabilized,
+gate ran green. The mnemosyne refactor from last sprint has landed upstream
+(`mnemosyne-build-util` now in the committed graph — reflected in this
+commit's bounded lock delta). The wait-vs-act distinction continues to hold
+without incident.
+
+### Residual Risk / Next Increment
+
+- The consumer cutover ([major]) is now the head of the ADR-0002 sequence:
+  `ritk-cli`/`ritk-python` onto the Coeus contract, including the index↔world
+  residual. It changes user-facing types — needs its own careful increment.
+- Remaining format implementors (6 readers, 6 writers) are parallelizable
+  mechanical work that can proceed independently of the cutover.
+- Upstream Atlas churn remains active; gates stay green-upstream-only.
+
 ## Sprint 485 Audit (2026-07-01) — First Coeus Writer, Byte-Identical by Construction; Two Kinds of Upstream Churn Distinguished
 
 ### The writer gap was the real one — and it validated last sprint's extraction

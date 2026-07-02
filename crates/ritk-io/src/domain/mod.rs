@@ -2,6 +2,12 @@ use burn::tensor::backend::Backend;
 use ritk_image::Image;
 use std::path::Path;
 
+/// Coeus-typed I/O contract (ADR 0002 parallel family).
+#[cfg(feature = "coeus")]
+pub mod coeus;
+#[cfg(feature = "coeus")]
+pub use coeus::{CoeusImageReader, CoeusImageWriter};
+
 // VTK domain types are authoritative in ritk-vtk.
 // Keep module shims so existing `crate::domain::vtk_data_object::*` paths resolve.
 pub mod vtk_data_object;

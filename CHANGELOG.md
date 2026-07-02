@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 486: Coeus-typed `ritk-io` I/O contract + NIfTI implementors (MIG-486-01)
+
+### Added
+- `ritk-io` (`coeus` feature): `domain::coeus::{CoeusImageReader,
+  CoeusImageWriter}` — the Coeus-typed I/O contract paralleling the Burn
+  `ImageReader`/`ImageWriter` role interfaces (ADR 0002 cutover step 2) —
+  and its first implementors `CoeusNiftiReader`/`CoeusNiftiWriter` wrapping
+  the verified per-format Coeus functions. Additive behind the feature; the
+  Burn contract and all its implementations are untouched.
+
+### Evidence
+- Evidence tier: value-semantic — a trait-dispatched round-trip (write via
+  `CoeusImageWriter`, read via `CoeusImageReader`) asserts exact voxel parity
+  and spacing/origin within header precision. `cargo nextest run -p ritk-io
+  --features coeus` 345/345; default 344/344; clippy `-D warnings` and
+  `cargo doc --features coeus --no-deps` clean. Bounded lock delta (new
+  `ritk-io → coeus-core` edge + upstream's committed `mnemosyne-build-util`).
+
+---
+
 ## [Unreleased] — Sprint 485: First Coeus format writer — `write_nifti_coeus` (MIG-485-01)
 
 ### Added

@@ -3,7 +3,13 @@ name = "ritk-io"
 version = "0.2.0"
 edition = "2021"
 
+[features]
+default = []
+# Atlas migration (ADR 0002): Coeus-typed I/O contract alongside the Burn one.
+coeus = ["dep:coeus-core", "ritk-image/coeus", "ritk-nifti/coeus"]
+
 [dependencies]
+coeus-core = { workspace = true, optional = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }

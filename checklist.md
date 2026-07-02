@@ -1,5 +1,44 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 486 — MIG-486-01 Coeus-Typed `ritk-io` Contract + NIfTI Implementors
+**Target version**: 0.14.0
+**Sprint phase**: Execution — ADR 0002 cutover step 2 (the I/O contract)
+
+### In-flight plan (Sprint 486)
+- [x] Re-synced with origin/main (0/0).
+- [x] Added `ritk-io` `coeus` feature (`coeus-core` + `ritk-image/coeus` +
+  `ritk-nifti/coeus`).
+- [x] New leaf module `domain/coeus.rs`: `CoeusImageReader`/`CoeusImageWriter`
+  role traits over `ritk_image::coeus::Image<T, B, D>` — parallel family per
+  ADR 0002, Burn traits untouched; deep-vertical placement mirrors the Burn
+  contract's home.
+- [x] First implementors `CoeusNiftiReader`/`CoeusNiftiWriter` in
+  `format/nifti` (cfg-gated), wrapping the verified per-format functions —
+  contract ships with live implementors on both sides (reader + writer).
+- [x] Classification check: [minor], additive-only behind the feature; the
+  consumer cutover remains the [major].
+- [x] Trait-dispatched round-trip test (write via trait → read via trait →
+  exact voxels + metadata) — the contract proven usable, not nominal.
+- [x] Gates: `ritk-io --features coeus` 345/345 (344 + 1); default 344/344;
+  clippy `-D warnings` clean; doc clean. Lock delta bounded (my
+  `ritk-io → coeus-core` edge + upstream's committed `mnemosyne-build-util`).
+- [x] Held the gate through a sibling's in-flight `coeus-leto` edit; ran only
+  after upstream stabilized; peer WIP untouched.
+
+### Verification gate (Sprint 486)
+- [x] All commands above green.
+- [x] Scope: `ritk-io` only (Cargo.toml, domain/mod.rs + new domain/coeus.rs,
+  format/nifti/mod.rs, lib.rs) + bounded lock; Burn path untouched.
+
+### Deferred / carry-forward
+- Wire the remaining 6 format readers (mgh/metaimage/minc/png/jpeg/tiff) as
+  `CoeusImageReader` implementors — mechanical repeats.
+- Coeus writers for remaining formats (shared-core pattern per format crate).
+- **Consumer cutover** (`ritk-cli`/`ritk-python` onto the Coeus contract) —
+  the real [major]; includes the index↔world residual.
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, grayscale-morphology Coeus
+  wrappers, MI/Parzen 3rd metric, driver early-stop.
+
 ## Sprint 485 — MIG-485-01 First Coeus Format Writer (`write_nifti_coeus`)
 **Target version**: 0.14.0
 **Sprint phase**: Execution — write-side cutover prerequisite; MIG-484

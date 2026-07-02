@@ -201,6 +201,34 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-486-01 [minor] — Coeus-typed `ritk-io` I/O contract + first
+  implementors (ADR 0002 cutover step 2). DONE.**
+  Added the parallel Coeus I/O contract to `ritk-io`:
+  `domain::coeus::{CoeusImageReader, CoeusImageWriter}` (new leaf module,
+  `coeus` feature), mirroring the Burn `ImageReader`/`ImageWriter` role
+  interfaces over `ritk_image::coeus::Image<T, B, D>` — generic over the
+  scalar `T` (implementors pin `f32`), backend, and rank, matching the
+  Coeus image's own type parameters. First implementors:
+  `format::nifti::{CoeusNiftiReader, CoeusNiftiWriter}` wrapping
+  `read_nifti_coeus`/`write_nifti_coeus`; introduced with the contract (not
+  before it) because NIfTI supplies both a real reader and writer — the
+  contract ships with live implementors on both sides, not as a speculative
+  seam. Burn traits/impls untouched (parallel-then-cutover per ADR 0002).
+  Classed [minor] not [major]: purely additive behind the `coeus` feature —
+  the existing public contract did not change (the [major] step is the later
+  consumer cutover). Evidence tier: value-semantic — a trait-dispatched
+  round-trip (write through `CoeusImageWriter`, read through
+  `CoeusImageReader`) asserts exact voxel parity and spacing/origin within
+  header precision, proving the contract is usable end-to-end. `cargo
+  nextest run -p ritk-io --features coeus` 345/345 (344 + 1); default
+  344/344 unaffected; clippy `-D warnings` and `cargo doc --features coeus
+  --no-deps` clean. Lock delta bounded (my `ritk-io → coeus-core` edge +
+  upstream's committed `mnemosyne-build-util`). Held the gate through a
+  sibling's in-flight `coeus-leto` edit (non-exhaustive-match break) and ran
+  only after it stabilized. **Next per ADR 0002:** wire the remaining format
+  readers (6 crates) as `CoeusImageReader` implementors (mechanical), then
+  the consumer cutover (`ritk-cli`/`ritk-python`, the real [major]).
+
 - **MIG-485-01 [minor] — First Coeus format writer: `write_nifti_coeus` +
   shared serialization core. DONE.**
   The write-side half of the ADR-0002 cutover prerequisite, and the direct

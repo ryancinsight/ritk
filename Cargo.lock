@@ -4945,6 +4945,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mnemosyne-build-util"
+version = "0.1.0"
+
+[[package]]
 name = "mnemosyne-core"
 version = "0.1.0"
 
@@ -4995,6 +4999,7 @@ name = "mnemosyne-prof"
 version = "0.1.0"
 dependencies = [
  "backtrace",
+ "mnemosyne-build-util",
  "mnemosyne-core",
 ]
 
@@ -6892,6 +6897,7 @@ dependencies = [
  "arrayvec",
  "burn",
  "burn-ndarray",
+ "coeus-core",
  "consus-core",
  "consus-hdf5",
  "consus-io",

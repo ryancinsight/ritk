@@ -94,6 +94,13 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Cutover step 2 — Coeus-typed `ritk-io` contract (Sprint 486).**
+  `domain::coeus::{CoeusImageReader, CoeusImageWriter}` with
+  `CoeusNiftiReader`/`CoeusNiftiWriter` as live first implementors, proven by
+  a trait-dispatched round-trip. Additive ([minor]) behind the `coeus`
+  feature; the [major] consumer cutover (`ritk-cli`/`ritk-python`) is now the
+  head of the sequence, with the remaining 12 format implementors as
+  parallel mechanical work.
 - **Cutover prerequisite — first Coeus format writer (Sprint 485, ADR 0002
   step 1 write-side).** `write_nifti_coeus` over a serialization core shared
   with the Burn writer, byte-identical output proven by differential test;
