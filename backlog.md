@@ -201,6 +201,31 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-484-01 [minor] — Coeus `Image` host-extraction parity (ADR 0002
+  cutover prerequisite, step 1). DONE (extraction gap); RESIDUAL filed.**
+  Gap-audited the Coeus `Image` accessor surface against the actual method
+  calls the `ritk-io` writers/CLI/Python boundary make on the Burn `Image`
+  (grep-enumerated: `shape`/`spacing`/`origin`/`direction` metadata — already
+  present; `with_data_slice`/`data_slice`/`try_data_vec`/`data_vec_fast` host
+  extraction — the gap; one `transform_continuous_index_to_physical_point`
+  call). Closed the extraction gap: added `data_cow_on`/`data_cow` (borrow
+  when contiguous, materialize via `Tensor::to_contiguous_on` otherwise —
+  `Cow`-based, mirroring the Burn `Image::data_slice() -> Cow` contract) and
+  `data_vec_on`/`data_vec` (owned), layout-independent so writers get logical
+  row-major data regardless of tensor strides; the strict zero-copy
+  `data_slice()` contract is unchanged (still rejects strided views). The
+  closure-form `with_data_slice` is subsumed by `data_cow` (no parallel API
+  added). Evidence tier: value-semantic nextest — contiguous case asserts
+  `Cow::Borrowed` + exact values; permuted `[2,3]→[3,2]` non-contiguous view
+  asserts `Cow::Owned` + logical order matching a host-transpose oracle, and
+  that `data_slice` still errors. `cargo nextest run -p ritk-image --features
+  coeus` 38/38 (36 + 2 new); downstream `ritk-statistics --features coeus`
+  295/295; clippy `-D warnings` and `cargo doc --features coeus --no-deps`
+  clean. No new dependency edges. **Residual (still MIG-484 scope):**
+  index↔world transform on the Coeus `Image` (single CLI call site) — the
+  math is metadata-only (origin/spacing/direction), portable without tensor
+  work; file with MIG-485's `ritk-io` contract change.
+
 - **MIG-483-01 [arch] — Core `Image`/tensor-substrate migration strategy (ADR
   0002). DONE (design artifact; Foundation phase).**
   Audited the full migration surface (`burn-migration-audit` + manifest greps):

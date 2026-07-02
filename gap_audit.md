@@ -1,5 +1,46 @@
 # RITK Gap Audit - Active
 
+## Sprint 484 Audit (2026-06-30) — Cutover Phase Opened With an Evidence-Driven Gap Closure
+
+### The gap was measured, not assumed
+
+Rather than guess what "Coeus `Image` parity" means, grep-enumerated the exact
+methods every writer/CLI/Python call site invokes on the Burn `Image` (~200
+call sites): metadata accessors (`shape`/`spacing`/`origin`/`direction`) — all
+already present on the Coeus `Image`; host extraction (`with_data_slice`,
+`data_slice`, `try_data_vec`, `data_vec_fast`) — the genuine gap, since the
+Coeus `data_slice()` hard-errors on strided views and no owned path existed;
+plus exactly one index↔world transform call (filed as residual, metadata-only
+math). This keeps the parity work proportional to real usage instead of
+mirroring the whole Burn surface.
+
+### One `Cow` API instead of four mirrored methods
+
+The Burn `Image` grew four overlapping extraction methods over time
+(`with_data_slice`, `data_slice`, `try_data_vec`, `data_vec_fast`). The Coeus
+side gets one semantic: `data_cow_on` (`Borrowed` when contiguous, `Owned`
+when the layout requires a copy) plus a thin `data_vec_on`. The closure form
+was deliberately not mirrored — it is subsumed by the `Cow`. Consolidation at
+port time beats faithfully copying accumulated API sprawl.
+
+### Correctness pinned against a layout oracle
+
+The non-contiguous test permutes a `[2,3]` tensor to a `[3,2]` strided view
+and asserts extraction yields the *logical* row-major order (host-transpose
+oracle) — the property writers depend on. It also pins that the strict
+`data_slice` still rejects strided views, so the new lenient API did not
+silently weaken the existing zero-copy contract.
+
+### Residual Risk / Next Increment
+
+- MIG-485 ([major]) is the real contract change: Coeus-typed `ritk-io`
+  reader/writer surfaces. The extraction parity landed here is its
+  prerequisite and is now met for the writer paths audited.
+- The index↔world residual (one CLI call site) rides with MIG-485.
+- `to_contiguous_on` requiring `B: Default` propagates a `Default` bound onto
+  the extraction APIs — harmless for the ZST CPU backends, but worth noting if
+  a stateful GPU backend ever lacks `Default`.
+
 ## Sprint 483 Audit (2026-06-30) — Stepped Back: the Migration Is [arch]-Blocked, and 12 Sprints Hadn't Moved the Needle
 
 ### The uncomfortable finding, surfaced by stepping back

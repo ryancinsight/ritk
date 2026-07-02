@@ -94,6 +94,13 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Cutover prerequisite — Coeus `Image` host-extraction parity (Sprint 484,
+  ADR 0002 step 1).** Grep-audited the Burn-`Image` methods the I/O consumers
+  actually call and closed the one genuine gap: layout-independent host
+  extraction (`data_cow_on`/`data_vec_on` + `Default`-backend conveniences),
+  verified against a host-transpose oracle on a strided view. Metadata
+  accessors already had parity; the index↔world call (1 site) rides with the
+  MIG-485 `ritk-io` contract change.
 - **Reverse-mode autodiff — gradient-descent registration driver (Sprint 482).**
   Added `driver::gradient_descent` (+ config/outcome types) composing the
   verified primitives into one runnable entry point, generic over any

@@ -1,5 +1,45 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 484 — MIG-484-01 Coeus `Image` Host-Extraction Parity (Cutover Step 1)
+**Target version**: 0.14.0
+**Sprint phase**: Execution — first ADR-0002 cutover-prerequisite increment
+
+### In-flight plan (Sprint 484)
+- [x] Re-synced with origin/main (0/0).
+- [x] Gap-audited by grep-enumerating the exact Burn-`Image` methods the
+  writers/CLI/Python call: metadata accessors already have Coeus parity; the
+  real gap was layout-independent host extraction (the Coeus `data_slice()`
+  errors on strided views; no owned path existed).
+- [x] Added `data_cow_on`/`data_cow` + `data_vec_on`/`data_vec` to
+  `ritk_image::coeus::Image` — `Cow::Borrowed` when contiguous (zero-copy),
+  `Cow::Owned` via `Tensor::to_contiguous_on` otherwise; mirrors the Burn
+  `data_slice() -> Cow` contract. `B: Default` bound follows from
+  `to_contiguous_on` itself (discovered at compile, blocks merged accordingly).
+- [x] Did NOT add a closure-form `with_data_slice` twin (subsumed by
+  `data_cow`; no parallel API).
+- [x] Tests: contiguous → `Cow::Borrowed` + exact values; permuted
+  non-contiguous view → `Cow::Owned` + logical row-major order vs a
+  host-transpose oracle; `data_slice` still rejects strided views (existing
+  strict contract pinned).
+- [x] Gates: `ritk-image --features coeus` 38/38; downstream
+  `ritk-statistics --features coeus` 295/295; clippy `-D warnings` clean;
+  `cargo doc --features coeus --no-deps` clean. Discarded upstream Cargo.lock
+  churn (no new deps).
+
+### Verification gate (Sprint 484)
+- [x] All commands above green.
+- [x] Scope check: one file (`crates/ritk-image/src/coeus.rs`); additive only;
+  burn path untouched; no Cargo.lock delta.
+
+### Deferred / carry-forward
+- **MIG-484 residual**: index↔world transform on the Coeus `Image` (single CLI
+  call site; metadata-only math) — file with MIG-485.
+- **MIG-485 [Phase-2, [major]]**: Coeus-typed `ritk-io`
+  `ImageReader`/`ImageWriter` surface, routing `read_*_coeus`/`write_*_coeus`.
+- Then consumers (`ritk-cli`/`ritk-python`) → leaf Burn removal → core `Image`.
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, grayscale-morphology Coeus
+  wrappers, MI/Parzen 3rd metric, driver early-stop.
+
 ## Sprint 483 — MIG-483-01 Migration-Surface Audit + Core-Image Strategy (ADR 0002)
 **Target version**: 0.14.0
 **Sprint phase**: Foundation — audit + [arch] design artifact (no code change)

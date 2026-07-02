@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 484: Coeus `Image` host-extraction parity (MIG-484-01)
+
+### Added
+- `ritk-image` (`coeus` feature): layout-independent host extraction on the
+  Coeus `Image` — `data_cow_on`/`data_cow` (`Cow::Borrowed` when contiguous,
+  `Cow::Owned` via `Tensor::to_contiguous_on` otherwise) and
+  `data_vec_on`/`data_vec` (owned). The ADR-0002 cutover prerequisite for the
+  format writers/CLI/Python boundary; the strict zero-copy `data_slice()`
+  contract is unchanged.
+
+### Investigated
+- Grep-enumerated the exact Burn-`Image` methods the `ritk-io` consumers call:
+  metadata accessors already had Coeus parity; host extraction was the genuine
+  gap (closed here); one index↔world call remains (residual, filed with
+  MIG-485). Consolidated four Burn extraction methods into one `Cow` semantic
+  rather than mirroring API sprawl.
+
+### Evidence
+- Evidence tier: value-semantic nextest — contiguous → `Cow::Borrowed` + exact
+  values; permuted non-contiguous view → `Cow::Owned` + logical row-major
+  order vs a host-transpose oracle; `data_slice` still rejects strided views.
+  `cargo nextest run -p ritk-image --features coeus` 38/38; downstream
+  `ritk-statistics --features coeus` 295/295; clippy `-D warnings` and
+  `cargo doc --features coeus --no-deps` clean. Cargo.lock unchanged.
+
+---
+
 ## [Unreleased] — Sprint 483: Migration-surface audit + core-Image strategy ADR (MIG-483-01)
 
 ### Added

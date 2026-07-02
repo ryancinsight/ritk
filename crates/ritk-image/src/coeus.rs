@@ -210,6 +210,54 @@ where
 
         Ok(self.data.as_slice())
     }
+
+}
+
+impl<T, B, const D: usize> Image<T, B, D>
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    /// Host image data in logical row-major order, borrowing when the tensor
+    /// is already contiguous and materializing a compact copy otherwise.
+    ///
+    /// The layout-independent host-extraction surface format writers and
+    /// boundary code need (ADR 0002 cutover prerequisite): unlike
+    /// [`Self::data_slice`], it never fails on a strided view — it pays the
+    /// copy exactly when the layout requires one (`Cow::Owned`), and is
+    /// zero-copy otherwise (`Cow::Borrowed`). Mirrors the Burn `Image`'s
+    /// `data_slice() -> Cow` contract. (`B: Default` follows from
+    /// `Tensor::to_contiguous_on`'s own bound.)
+    #[must_use]
+    pub fn data_cow_on(&self, backend: &B) -> std::borrow::Cow<'_, [T]> {
+        if self.data.is_contiguous() {
+            std::borrow::Cow::Borrowed(self.data.as_slice())
+        } else {
+            std::borrow::Cow::Owned(self.data.to_contiguous_on(backend).as_slice().to_vec())
+        }
+    }
+
+    /// Owned host image data in logical row-major order (layout-independent).
+    ///
+    /// Thin wrapper over [`Self::data_cow_on`] for callers that need a `Vec`
+    /// (the Coeus counterpart of the Burn `Image`'s `try_data_vec`).
+    #[must_use]
+    pub fn data_vec_on(&self, backend: &B) -> Vec<T> {
+        self.data_cow_on(backend).into_owned()
+    }
+
+    /// [`Self::data_cow_on`] on `B::default()` (mirrors [`Self::from_flat`]).
+    #[must_use]
+    pub fn data_cow(&self) -> std::borrow::Cow<'_, [T]> {
+        self.data_cow_on(&B::default())
+    }
+
+    /// [`Self::data_vec_on`] on `B::default()`.
+    #[must_use]
+    pub fn data_vec(&self) -> Vec<T> {
+        self.data_vec_on(&B::default())
+    }
 }
 
 fn checked_numel(dims: &[usize]) -> anyhow::Result<usize> {
@@ -268,6 +316,52 @@ mod tests {
         assert_eq!(image.spacing(), &spacing);
         assert_eq!(image.direction(), &direction);
         assert_eq!(image.data_slice().unwrap(), &[1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn data_cow_borrows_when_contiguous() {
+        let (origin, spacing, direction) = metadata_2d();
+        let image = TensorImage::<2>::from_flat(
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            [2, 3],
+            origin,
+            spacing,
+            direction,
+        )
+        .unwrap();
+
+        let cow = image.data_cow();
+        assert!(
+            matches!(cow, std::borrow::Cow::Borrowed(_)),
+            "contiguous image must borrow (zero-copy)"
+        );
+        assert_eq!(cow.as_ref(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        assert_eq!(image.data_vec(), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    }
+
+    #[test]
+    fn data_cow_materializes_logical_order_for_permuted_view() {
+        // Build a [2, 3] image, permute the tensor to [3, 2] (non-contiguous
+        // strided view), and re-wrap. Logical row-major order of the permuted
+        // view is the host transpose — the oracle the extraction must match.
+        let (origin, spacing, direction) = metadata_2d();
+        let base =
+            Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let permuted = base.permute(&[1, 0]); // shape [3, 2], strides non-contiguous
+        let image = TensorImage::<2>::new(permuted, origin, spacing, direction).unwrap();
+
+        // The strict borrow API must refuse the strided view (existing contract).
+        assert!(image.data_slice().is_err(), "data_slice must reject non-contiguous");
+
+        // Host transpose oracle: [[1,4],[2,5],[3,6]] row-major.
+        let expected = [1.0, 4.0, 2.0, 5.0, 3.0, 6.0];
+        let cow = image.data_cow();
+        assert!(
+            matches!(cow, std::borrow::Cow::Owned(_)),
+            "non-contiguous image must materialize (owned)"
+        );
+        assert_eq!(cow.as_ref(), &expected);
+        assert_eq!(image.data_vec(), expected.to_vec());
     }
 
     #[test]
