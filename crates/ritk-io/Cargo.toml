@@ -6,7 +6,17 @@ edition = "2021"
 [features]
 default = []
 # Atlas migration (ADR 0002): Coeus-typed I/O contract alongside the Burn one.
-coeus = ["dep:coeus-core", "ritk-image/coeus", "ritk-nifti/coeus"]
+coeus = [
+    "dep:coeus-core",
+    "ritk-image/coeus",
+    "ritk-nifti/coeus",
+    "ritk-mgh/coeus",
+    "ritk-metaimage/coeus",
+    "ritk-minc/coeus",
+    "ritk-png/coeus",
+    "ritk-jpeg/coeus",
+    "ritk-tiff/coeus",
+]
 
 [dependencies]
 coeus-core = { workspace = true, optional = true }

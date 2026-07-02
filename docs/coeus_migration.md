@@ -94,6 +94,11 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Cutover step 2 coverage — seven more Coeus reader implementors
+  (Sprint 487).** jpeg/mgh/metaimage/minc/png/png-series/tiff trait readers,
+  each proven identical to its Burn reader on the same file. The consumer-
+  cutover gate is now exactly: Coeus read paths for VTK/NRRD/Analyze/DICOM
+  (none exist yet) + per-format Coeus writers (only NIfTI has one).
 - **Cutover step 2 — Coeus-typed `ritk-io` contract (Sprint 486).**
   `domain::coeus::{CoeusImageReader, CoeusImageWriter}` with
   `CoeusNiftiReader`/`CoeusNiftiWriter` as live first implementors, proven by

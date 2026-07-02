@@ -1,5 +1,42 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 487 — MIG-487-01 Seven Coeus Reader Implementors (Contract Coverage 1→8)
+**Target version**: 0.14.0
+**Sprint phase**: Execution — mechanical format coverage for the ADR-0002
+cutover gate
+
+### In-flight plan (Sprint 487)
+- [x] Re-synced with origin/main (0/0).
+- [x] Enumerated the six remaining `read_*_coeus` signatures — all share one
+  shape (`fn(path, &backend) -> Result<coeus::Image<f32, B, 3>>`), so the
+  implementor pattern is uniform.
+- [x] Added 7 reader implementors (jpeg, mgh, metaimage, minc, png,
+  png-series, tiff), each cfg-gated in its format's own module (per-format
+  placement per convention); consolidated the shared error mapping into
+  `domain::coeus::to_io_err` and refactored NIfTI onto it.
+- [x] Extended the `ritk-io` `coeus` feature to the six format crates.
+- [x] One consolidated differential test harness: same file, two readers
+  (Coeus trait vs Burn free fn), exact shape+voxel equality — lossiness-
+  independent oracle; Burn-writer fixtures + synthesized PNGs.
+- [x] Compiler caught a `write_metaimage` argument-order mismatch
+  (path-first); fixed in the test fixture.
+- [x] Gates: `ritk-io --features coeus` 352/352 (345 + 7); default 344/344;
+  clippy `-D warnings` clean; doc clean; no Cargo.lock delta.
+
+### Verification gate (Sprint 487)
+- [x] All commands above green.
+- [x] Scope: `ritk-io` only; additive behind the feature; Burn path untouched.
+
+### Deferred / carry-forward
+- **Consumer-cutover gate remainder:** Coeus read paths for VTK, NRRD,
+  Analyze, DICOM (none have `read_*_coeus` yet — these need the per-crate
+  boundary work first, like nifti got), and per-format Coeus writers (only
+  NIfTI has one; shared-core pattern per crate).
+- **Consumer cutover** (`ritk-cli`/`ritk-python`) — the real [major]; also
+  carries the index↔world residual.
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, grayscale-morphology Coeus
+  wrappers, MI/Parzen 3rd metric, driver early-stop.
+
 ## Sprint 486 — MIG-486-01 Coeus-Typed `ritk-io` Contract + NIfTI Implementors
 **Target version**: 0.14.0
 **Sprint phase**: Execution — ADR 0002 cutover step 2 (the I/O contract)

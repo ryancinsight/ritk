@@ -73,3 +73,52 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(feature = "coeus")]
+pub use coeus::{CoeusPngReader, CoeusPngSeriesReader};
+
+/// Coeus-typed reader implementors for the [`crate::domain::coeus`] contract
+/// (ADR 0002 cutover step 2 — format coverage).
+#[cfg(feature = "coeus")]
+mod coeus {
+    use crate::domain::coeus::{to_io_err, CoeusImageReader};
+    use coeus_core::ComputeBackend;
+    use ritk_image::coeus::Image;
+    use std::path::Path;
+
+    /// Backend-bound Coeus reader (counterpart of [`super::PngReader`]).
+    pub struct CoeusPngReader<B: ComputeBackend> {
+        backend: B,
+    }
+
+    impl<B: ComputeBackend> CoeusPngReader<B> {
+        /// Create a reader that constructs images on `backend`.
+        pub fn new(backend: B) -> Self {
+            Self { backend }
+        }
+    }
+
+    impl<B: ComputeBackend> CoeusImageReader<f32, B, 3> for CoeusPngReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
+            ritk_png::read_png_to_image_coeus(path, &self.backend).map_err(to_io_err)
+        }
+    }
+
+    /// Backend-bound Coeus reader (counterpart of [`super::PngSeriesReader`]).
+    pub struct CoeusPngSeriesReader<B: ComputeBackend> {
+        backend: B,
+    }
+
+    impl<B: ComputeBackend> CoeusPngSeriesReader<B> {
+        /// Create a reader that constructs images on `backend`.
+        pub fn new(backend: B) -> Self {
+            Self { backend }
+        }
+    }
+
+    impl<B: ComputeBackend> CoeusImageReader<f32, B, 3> for CoeusPngSeriesReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
+            ritk_png::read_png_series_coeus(path, &self.backend).map_err(to_io_err)
+        }
+    }
+}

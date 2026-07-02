@@ -1,5 +1,49 @@
 # RITK Gap Audit - Active
 
+## Sprint 487 Audit (2026-07-01) — Contract Coverage 1→8; the Real Cutover Gate Is Now Precisely Known
+
+### The same-file/two-readers oracle generalizes across lossy formats
+
+The differential harness compares the Coeus trait reader against the Burn
+reader on the *same file*, not against the original voxel values — so JPEG's
+quantization is irrelevant to the oracle: both readers must decode the one
+byte stream identically. One harness covers all seven formats without
+per-format tolerance reasoning, and any adapter or per-crate decode divergence
+fails exactly.
+
+### Per-format nominal types, deliberately not a generic clone-collapse
+
+Seven structurally-identical adapter structs look like a DRY violation, but
+format identity is not a variation dimension one canonical generic can absorb
+— each adapter binds a *different* decode implementation, exactly as the Burn
+side's per-format types do in the same files. The genuinely shared logic (the
+anyhow→io error mapping) was consolidated (`to_io_err`, NIfTI refactored onto
+it). Collapsing the structs via fn-pointer fields or macros would trade
+nominal clarity and enum-dispatchability for cosmetic dedup.
+
+### The compiler caught an API inconsistency worth recording
+
+`write_metaimage(path, image)` is path-first while `write_mgh`/`write_minc`/
+`write_tiff` are image-first. Caught at compile time in the fixture code.
+Filed observation: when the per-format Coeus *writers* are built (the
+shared-core pattern), normalize the argument order across format crates —
+inconsistent sibling APIs are exactly what a port should straighten out.
+
+### Cutover gate now precisely enumerable
+
+After this sprint: 8 Coeus trait readers exist; VTK, NRRD, Analyze, and DICOM
+have **no** Coeus read path at all (they need per-crate boundary work first,
+as NIfTI got), and only NIfTI has a Coeus writer. The consumer cutover
+([major]) is gated on exactly that list — no vagueness left in what remains.
+
+### Residual Risk / Next Increment
+
+- DICOM is the heavyweight remaining format (series loader, pixel decoding) —
+  its Coeus read path will be the largest single boundary port.
+- Per-format Coeus writers: apply the NIfTI shared-core pattern; normalize
+  writer argument order while touching them.
+- Upstream Atlas churn was quiet this sprint; protocol unchanged.
+
 ## Sprint 486 Audit (2026-07-01) — The Coeus I/O Contract Landed With Live Implementors on Both Sides
 
 ### Sequencing paid off: the contract shipped justified, not speculative

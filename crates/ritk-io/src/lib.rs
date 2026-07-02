@@ -46,6 +46,15 @@ pub use format::nifti::{
 pub use domain::coeus::{CoeusImageReader, CoeusImageWriter};
 #[cfg(feature = "coeus")]
 pub use format::nifti::{CoeusNiftiReader, CoeusNiftiWriter};
+#[cfg(feature = "coeus")]
+pub use format::{
+    jpeg::CoeusJpegReader,
+    metaimage::CoeusMetaImageReader,
+    mgh::CoeusMghReader,
+    minc::CoeusMincReader,
+    png::{CoeusPngReader, CoeusPngSeriesReader},
+    tiff::CoeusTiffReader,
+};
 pub use format::nrrd::{read_nrrd, write_nrrd, write_nrrd_with_data, NrrdReader, NrrdWriter};
 pub use format::png::{read_png_series, read_png_to_image, PngReader, PngSeriesReader};
 pub use format::tiff::{read_tiff, write_tiff, TiffReader, TiffWriter};

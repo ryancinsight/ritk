@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 487: Seven Coeus reader implementors — contract coverage 1→8 (MIG-487-01)
+
+### Added
+- `ritk-io` (`coeus` feature): `CoeusJpegReader`, `CoeusMghReader`,
+  `CoeusMetaImageReader`, `CoeusMincReader`, `CoeusPngReader`,
+  `CoeusPngSeriesReader`, `CoeusTiffReader` — per-format implementors of the
+  Coeus I/O contract, each in its format's own module; feature extended to the
+  six format crates.
+
+### Changed
+- `ritk-io`: shared anyhow→io error mapping consolidated into
+  `domain::coeus::to_io_err`; NIfTI implementors refactored onto it.
+
+### Evidence
+- Evidence tier: value-semantic differential — one shared harness reads the
+  same file through the Coeus trait reader and the Burn reader and asserts
+  exact shape + voxel equality (lossiness-independent oracle; holds for JPEG).
+  `cargo nextest run -p ritk-io --features coeus` 352/352; default 344/344;
+  clippy `-D warnings` and `cargo doc --features coeus --no-deps` clean. No
+  Cargo.lock delta.
+
+---
+
 ## [Unreleased] — Sprint 486: Coeus-typed `ritk-io` I/O contract + NIfTI implementors (MIG-486-01)
 
 ### Added

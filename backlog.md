@@ -201,6 +201,32 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
+- **MIG-487-01 [minor] — All seven remaining Coeus reader implementors for the
+  `ritk-io` contract. DONE.**
+  Broadened the Coeus I/O contract's format coverage from 1 to 8 reader
+  implementors: added `CoeusJpegReader`, `CoeusMghReader`,
+  `CoeusMetaImageReader`, `CoeusMincReader`, `CoeusPngReader`,
+  `CoeusPngSeriesReader`, and `CoeusTiffReader` — each a cfg-gated module in
+  its format's own `ritk-io/src/format/<fmt>/mod.rs` (per-format placement
+  matching the Burn side; format identity is not a monomorphizable variation
+  dimension, so per-format nominal adapter types are correct, with the shared
+  error mapping consolidated into `domain::coeus::to_io_err` and the NIfTI
+  module refactored onto it). Extended the `coeus` feature to the six format
+  crates' coeus features. Evidence tier: value-semantic differential — one
+  shared harness reads the *same file* through the Coeus trait reader and the
+  Burn free-function reader and asserts exact shape + voxel equality (the
+  same-file/two-readers oracle is independent of write-side lossiness, so it
+  holds for JPEG too); fixtures via the formats' Burn writers (mgh, mha, mnc,
+  tiff, jpg) and synthesized grayscale PNGs (single + series). Caught and
+  fixed a `write_metaimage` argument-order mismatch (path-first, unlike its
+  siblings) via the compiler. `cargo nextest run -p ritk-io --features coeus`
+  352/352 (345 + 7); default 344/344 unaffected; clippy `-D warnings` and
+  `cargo doc --features coeus --no-deps` clean. No Cargo.lock delta
+  (feature-only). **Cutover gate progress:** every image format the consumers
+  dispatch over except VTK/NRRD/Analyze/DICOM now has a Coeus trait reader;
+  the consumer cutover ([major]) additionally needs those four formats'
+  Coeus read paths and per-format Coeus writers for write dispatch.
+
 - **MIG-486-01 [minor] — Coeus-typed `ritk-io` I/O contract + first
   implementors (ADR 0002 cutover step 2). DONE.**
   Added the parallel Coeus I/O contract to `ritk-io`:

@@ -26,3 +26,9 @@ pub trait CoeusImageWriter<T: Scalar, B: ComputeBackend, const D: usize> {
     /// spatial metadata beyond the format's own representation limits.
     fn write<P: AsRef<Path>>(&self, path: P, image: &Image<T, B, D>) -> std::io::Result<()>;
 }
+
+/// Map a format crate's `anyhow` error onto the contract's `std::io::Error`
+/// (shared by every per-format implementor; one mapping, not N copies).
+pub(crate) fn to_io_err(e: anyhow::Error) -> std::io::Error {
+    std::io::Error::other(e.to_string())
+}

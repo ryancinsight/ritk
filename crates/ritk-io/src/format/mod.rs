@@ -10,3 +10,7 @@ pub mod nrrd;
 pub mod png;
 pub mod tiff;
 pub mod vtk;
+
+#[cfg(all(test, feature = "coeus"))]
+#[path = "tests_coeus_readers.rs"]
+mod tests_coeus_readers;

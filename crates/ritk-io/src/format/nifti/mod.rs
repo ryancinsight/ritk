@@ -15,7 +15,7 @@ pub use coeus::{CoeusNiftiReader, CoeusNiftiWriter};
 /// [`crate::domain::coeus`] contract (ADR 0002 cutover step 2).
 #[cfg(feature = "coeus")]
 mod coeus {
-    use crate::domain::coeus::{CoeusImageReader, CoeusImageWriter};
+    use crate::domain::coeus::{to_io_err, CoeusImageReader, CoeusImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
     use ritk_image::coeus::Image;
     use std::path::Path;
@@ -34,8 +34,7 @@ mod coeus {
 
     impl<B: ComputeBackend> CoeusImageReader<f32, B, 3> for CoeusNiftiReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_nifti::read_nifti_coeus(path, &self.backend)
-                .map_err(|e| std::io::Error::other(e.to_string()))
+            ritk_nifti::read_nifti_coeus(path, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -57,8 +56,7 @@ mod coeus {
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
-            ritk_nifti::write_nifti_coeus(path, image, &self.backend)
-                .map_err(|e| std::io::Error::other(e.to_string()))
+            ritk_nifti::write_nifti_coeus(path, image, &self.backend).map_err(to_io_err)
         }
     }
 
