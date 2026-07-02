@@ -5,7 +5,7 @@
 //! host reference and a central finite-difference gradient check. Deterministic
 //! `SequentialBackend`.
 
-use super::normalized_cross_correlation_coeus;
+use super::normalized_cross_correlation;
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
@@ -39,7 +39,7 @@ fn perfect_correlation_gives_loss_minus_one() {
     // perfectly correlated ⇒ NCC = 1 ⇒ loss = −1.
     let fixed = [1.0, 2.0, 3.0, 5.0, 8.0];
     let moving: Vec<f64> = fixed.iter().map(|v| 2.0 * v + 3.0).collect();
-    let loss = normalized_cross_correlation_coeus(&var(&moving, false), &var(&fixed, false));
+    let loss = normalized_cross_correlation(&var(&moving, false), &var(&fixed, false));
     let got = loss.tensor.as_slice()[0];
     assert!((got - (-1.0)).abs() < 1e-6, "perfect correlation loss should be -1, got {got}");
 }
@@ -48,7 +48,7 @@ fn perfect_correlation_gives_loss_minus_one() {
 fn perfect_anti_correlation_gives_loss_plus_one() {
     let fixed = [1.0, 2.0, 3.0, 5.0, 8.0];
     let moving: Vec<f64> = fixed.iter().map(|v| -1.5 * v + 0.5).collect();
-    let loss = normalized_cross_correlation_coeus(&var(&moving, false), &var(&fixed, false));
+    let loss = normalized_cross_correlation(&var(&moving, false), &var(&fixed, false));
     let got = loss.tensor.as_slice()[0];
     assert!((got - 1.0).abs() < 1e-6, "perfect anti-correlation loss should be +1, got {got}");
 }
@@ -57,7 +57,7 @@ fn perfect_anti_correlation_gives_loss_plus_one() {
 fn forward_matches_host_reference() {
     let fixed = [0.3, -1.2, 2.7, 0.9, 4.1, -0.6];
     let moving = [1.0, 0.4, 2.0, 1.5, 3.0, 0.1];
-    let got = normalized_cross_correlation_coeus(&var(&moving, false), &var(&fixed, false))
+    let got = normalized_cross_correlation(&var(&moving, false), &var(&fixed, false))
         .tensor
         .as_slice()[0];
     let expected = neg_ncc_reference(&moving, &fixed);
@@ -70,7 +70,7 @@ fn gradient_wrt_moving_matches_central_finite_difference() {
     let moving = [1.0, 0.4, 2.0, 1.5, 3.0, 0.1];
 
     let m = var(&moving, true);
-    let loss = normalized_cross_correlation_coeus(&m, &var(&fixed, false));
+    let loss = normalized_cross_correlation(&m, &var(&fixed, false));
     loss.backward();
     let analytic = m.grad().expect("moving grad").as_slice().to_vec();
 
@@ -98,7 +98,7 @@ fn gradient_is_zero_at_perfect_correlation_optimum() {
     let fixed = [1.0, 2.0, 3.0, 5.0, 8.0];
     let moving: Vec<f64> = fixed.iter().map(|v| 2.0 * v + 3.0).collect();
     let m = var(&moving, true);
-    let loss = normalized_cross_correlation_coeus(&m, &var(&fixed, false));
+    let loss = normalized_cross_correlation(&m, &var(&fixed, false));
     loss.backward();
     let analytic = m.grad().expect("grad").as_slice().to_vec();
     let h = 1e-6;

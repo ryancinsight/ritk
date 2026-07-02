@@ -1,5 +1,39 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 489 — MIG-489 Slice 1: De-Brand Registration Autodiff + Inline Pass
+**Target version**: 0.14.0
+**Sprint phase**: Execution — naming-policy application + monomorphization pass
+
+### In-flight plan (Sprint 489)
+- [x] Verified zero users of `metric::coeus_autograd` items outside
+  ritk-registration before the rename (grep).
+- [x] `git mv coeus_autograd → autodiff`; de-suffixed all `*_coeus` fns;
+  `CoeusTransform`/`CoeusMetric` → `autodiff::{Transform, Metric}`; removed
+  the colliding metric-level flattening re-export (path-qualified access).
+- [x] Rename fixed a latent bare-path shadowing hazard vs the external
+  `coeus_autograd` crate.
+- [x] `#[inline]` on the `transform_points` trait impls (reduce impls already
+  had it); confirmed the seams stay statically dispatched (zero `dyn`).
+- [x] De-branded doc prose naming our components; kept factual references to
+  the external coeus-autograd engine.
+- [x] Gates: full package `--features coeus` 740/740 under new names;
+  default build green; clippy `-D warnings`; doc clean (0 broken links);
+  lock churn discarded (no dep changes).
+
+### Verification gate (Sprint 489)
+- [x] All commands above green; zero `Coeus`-branded identifiers remain in
+  ritk-registration.
+- [x] Scope: ritk-registration only (17 renamed files + metric/mod.rs).
+
+### Deferred / carry-forward
+- MIG-489 remaining slices: format-crate `*_coeus` fns + `ritk_image::coeus`
+  module (one coordinated change); feature-name evaluation.
+- Consumer-cutover gate unchanged (VTK/NRRD/Analyze/DICOM native readers,
+  per-format native writers, then CLI/Python cutover).
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, grayscale-morphology
+  native wrappers, MI/Parzen 3rd metric, driver early-stop.
+
+
 ## Sprint 488 — MIG-488-01 Correction: Image-Generic I/O Contract, De-Branded Types
 **Target version**: 0.14.0
 **Sprint phase**: Execution — user-review correction applied while unreleased

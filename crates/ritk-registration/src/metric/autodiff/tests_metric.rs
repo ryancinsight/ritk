@@ -1,5 +1,5 @@
 //! End-to-end verification of the generic `mse_metric` over translation and
-//! affine `CoeusTransform`s.
+//! affine `Transform`s.
 //!
 //! Evidence tier: analytical. Translation case: a moving image that is a linear
 //! ramp along x (`moving[z,y,x] = x`), a `[1,1,6]` volume so y/z are degenerate,
@@ -12,7 +12,7 @@
 
 use super::super::optim::sgd_step_var;
 use super::super::transform::Translation;
-use super::{affine_mse_coeus, mse_metric};
+use super::{affine_mse, mse_metric};
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
@@ -210,7 +210,7 @@ fn affine_mse_reference(grid: &[[f64; 3]], fixed: &[f64], r: &[f64; 9], t: &[f64
 /// Evaluate the affine metric's scalar loss at concrete `r`/`t` (no grad).
 fn affine_loss(grid_flat: &[f64], n: usize, fixed: &[f64], r: &[f64; 9], t: &[f64; 3]) -> f64 {
     let moving = linear_moving();
-    let out = affine_mse_coeus(
+    let out = affine_mse(
         &var(&moving, false),
         AFF_DIMS,
         &var(fixed, false),
@@ -232,7 +232,7 @@ fn affine_metric_identity_is_zero_loss_and_zero_gradient() {
 
     let r = var_shaped(&[3, 3], &identity, true);
     let t = var(&[0.0, 0.0, 0.0], true);
-    let loss = affine_mse_coeus(
+    let loss = affine_mse(
         &var(&linear_moving(), false),
         AFF_DIMS,
         &var(&fixed, false),
@@ -276,7 +276,7 @@ fn affine_metric_gradient_matches_self_consistent_finite_difference() {
 
     let r = var_shaped(&[3, 3], &r0, true);
     let t = var(&t0, true);
-    let loss = affine_mse_coeus(
+    let loss = affine_mse(
         &var(&linear_moving(), false),
         AFF_DIMS,
         &var(&fixed, false),
@@ -335,7 +335,7 @@ fn affine_metric_gradient_descent_reduces_loss_to_zero() {
     let mut t = var(&[0.0, 0.0, 0.0], true);
     let mut prev = f64::INFINITY;
     for step in 0..200 {
-        let loss = affine_mse_coeus(
+        let loss = affine_mse(
             &var(&moving, false),
             AFF_DIMS,
             &var(&fixed, false),

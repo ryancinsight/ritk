@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 489: De-brand registration autodiff module + inline pass (MIG-489 slice 1)
+
+### Changed (unreleased surface only)
+- `ritk-registration`: `metric::coeus_autograd` → `metric::autodiff`; all
+  `*_coeus` functions de-suffixed; `CoeusTransform`/`CoeusMetric` →
+  `autodiff::{Transform, Metric}` (path-disambiguated from the burn
+  `metric::Metric`; colliding flattening re-export removed — zero external
+  users verified). Fixes a latent bare-path shadowing hazard against the
+  external `coeus_autograd` crate.
+- `ritk-registration`: `#[inline]` added to the `transform_points` trait
+  impls (cross-crate monomorphization standard); seams verified statically
+  dispatched (zero `dyn`).
+
+### Evidence
+- Full package `--features coeus` 740/740 under the new names; default build
+  green; clippy `-D warnings` and doc clean. Pure rename — no behavior
+  change, no dependency changes.
+
+---
+
+
 ## [Unreleased] — Sprint 488: Correction — image-generic I/O contract, de-branded types (MIG-488-01)
 
 ### Changed (Breaking — unreleased surface only)

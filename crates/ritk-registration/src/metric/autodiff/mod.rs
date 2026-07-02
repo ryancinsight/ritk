@@ -1,4 +1,4 @@
-//! Coeus-autograd differentiable registration primitives.
+//! Differentiable registration primitives on the Atlas autodiff engine.
 //!
 //! Atlas migration (burn → coeus): the reverse-mode autodiff path for the
 //! registration metrics (`docs/coeus_migration.md`, dev-sequence step 6,
@@ -18,13 +18,13 @@
 //!   sampled intensities feed into (MSE; negative normalized cross-correlation).
 //! - [`metric`] — the generic end-to-end composition
 //!   [`metric::evaluate`] `= metric.reduce(sample(moving, transform(grid)),
-//!   fixed)`, dispatching over both seams; `mse_metric`/`affine_mse_coeus` are
+//!   fixed)`, dispatching over both seams; `mse_metric`/`affine_mse` are
 //!   thin MSE wrappers.
 //! - [`optim`] — the `Var`-level gradient-descent step a registration loop
 //!   uses to update the transform parameters from the metric gradient.
 //! - [`driver`] — [`driver::gradient_descent`], the reusable end-to-end
-//!   "run a Coeus registration" entry point composing the above.
-//! - [`traits`] — the Coeus-native `CoeusTransform` and `CoeusMetric` seams
+//!   "run an autodiff registration" entry point composing the above.
+//! - [`traits`] — the `Transform` and `Metric` seams
 //!   (ADR 0001); [`metric::evaluate`] dispatches over their implementors
 //!   ([`transform::Translation`]/[`transform::Affine`], [`mse::Mse`]/
 //!   [`ncc::Ncc`]).
@@ -39,10 +39,10 @@ pub mod traits;
 pub mod transform;
 
 pub use driver::{gradient_descent, GradientDescentConfig, RegistrationOutcome};
-pub use metric::{affine_mse_coeus, evaluate, mse_metric};
-pub use mse::{mean_squared_error_coeus, Mse};
-pub use ncc::{normalized_cross_correlation_coeus, Ncc};
+pub use metric::{affine_mse, evaluate, mse_metric};
+pub use mse::{mean_squared_error, Mse};
+pub use ncc::{normalized_cross_correlation, Ncc};
 pub use optim::sgd_step_var;
-pub use sampling::{sample_linear_1d_coeus, sample_trilinear_coeus};
-pub use traits::{CoeusMetric, CoeusTransform};
-pub use transform::{affine_transform_coeus, Affine, Translation};
+pub use sampling::{sample_linear_1d, sample_trilinear};
+pub use traits::{Metric, Transform};
+pub use transform::{affine_transform, Affine, Translation};

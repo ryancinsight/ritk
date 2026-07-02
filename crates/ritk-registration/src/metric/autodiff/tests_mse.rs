@@ -5,7 +5,7 @@
 //! single-threaded `SequentialBackend` so the tape and reductions are
 //! reproducible (no reduction-order variance to bound).
 
-use super::mean_squared_error_coeus;
+use super::mean_squared_error;
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
@@ -34,7 +34,7 @@ fn mse_reference(moving: &[f64], fixed: &[f64]) -> f64 {
 fn forward_value_matches_closed_form() {
     let moving = [1.0, 2.5, -3.0, 4.0, 0.5];
     let fixed = [1.5, 2.0, -2.0, 4.5, -0.5];
-    let loss = mean_squared_error_coeus(&var(&moving, false), &var(&fixed, false));
+    let loss = mean_squared_error(&var(&moving, false), &var(&fixed, false));
     let got = loss.tensor.as_slice()[0];
     let expected = mse_reference(&moving, &fixed);
     assert!(
@@ -51,7 +51,7 @@ fn gradient_wrt_moving_matches_closed_form() {
 
     let m = var(&moving, true);
     let f = var(&fixed, false);
-    let loss = mean_squared_error_coeus(&m, &f);
+    let loss = mean_squared_error(&m, &f);
     loss.backward();
 
     let grad = m.grad().expect("moving requires_grad, grad must exist");
@@ -75,7 +75,7 @@ fn gradient_wrt_fixed_is_negated_moving_gradient() {
 
     let m = var(&moving, false);
     let f = var(&fixed, true);
-    let loss = mean_squared_error_coeus(&m, &f);
+    let loss = mean_squared_error(&m, &f);
     loss.backward();
 
     let grad = f.grad().expect("fixed requires_grad, grad must exist");
@@ -98,7 +98,7 @@ fn gradient_matches_central_finite_difference() {
 
     let m = var(&moving, true);
     let f = var(&fixed, false);
-    let loss = mean_squared_error_coeus(&m, &f);
+    let loss = mean_squared_error(&m, &f);
     loss.backward();
     let analytic = m.grad().expect("grad").as_slice().to_vec();
 
@@ -125,7 +125,7 @@ fn zero_loss_and_zero_gradient_at_perfect_match() {
     let vals = [1.0, 2.0, 3.0, 4.0];
     let m = var(&vals, true);
     let f = var(&vals, false);
-    let loss = mean_squared_error_coeus(&m, &f);
+    let loss = mean_squared_error(&m, &f);
     assert_eq!(loss.tensor.as_slice()[0], 0.0);
     loss.backward();
     for (i, &g) in m.grad().expect("grad").as_slice().iter().enumerate() {

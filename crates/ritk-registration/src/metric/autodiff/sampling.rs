@@ -108,7 +108,7 @@ where
 /// Panics if `signal` or `coords` is not 1-D, if `signal` is empty, or if
 /// either tensor is non-contiguous — all caller invariants, not input-data
 /// errors.
-pub fn sample_linear_1d_coeus<T, B>(signal: &Var<T, B>, coords: &Var<T, B>) -> Var<T, B>
+pub fn sample_linear_1d<T, B>(signal: &Var<T, B>, coords: &Var<T, B>) -> Var<T, B>
 where
     T: Scalar,
     B: ComputeBackend + BackendOps<T> + Default,
@@ -116,9 +116,9 @@ where
 {
     let backend = B::default();
     let signal_shape = signal.tensor.shape();
-    assert_eq!(signal_shape.len(), 1, "sample_linear_1d_coeus: signal must be 1-D");
+    assert_eq!(signal_shape.len(), 1, "sample_linear_1d: signal must be 1-D");
     let len = signal_shape[0];
-    assert!(len > 0, "sample_linear_1d_coeus: signal must be non-empty");
+    assert!(len > 0, "sample_linear_1d: signal must be non-empty");
 
     let axis = axis_interp(coords, len, &backend);
     let v0 = gather(signal, 0, &index_var(&axis.idx0, &backend));
@@ -146,7 +146,7 @@ where
 /// Panics if `signal` is not 1-D of length `Z·Y·X`, if any coordinate vector is
 /// not 1-D, if the three coordinate vectors differ in length, or on
 /// non-contiguous input — all caller invariants.
-pub fn sample_trilinear_coeus<T, B>(
+pub fn sample_trilinear<T, B>(
     signal: &Var<T, B>,
     dims: [usize; 3],
     coords_z: &Var<T, B>,
@@ -162,10 +162,10 @@ where
     let [nz, ny, nx] = dims;
     let expected = nz * ny * nx;
     let signal_shape = signal.tensor.shape();
-    assert_eq!(signal_shape.len(), 1, "sample_trilinear_coeus: signal must be flat 1-D");
+    assert_eq!(signal_shape.len(), 1, "sample_trilinear: signal must be flat 1-D");
     assert_eq!(
         signal_shape[0], expected,
-        "sample_trilinear_coeus: signal length must equal Z·Y·X"
+        "sample_trilinear: signal length must equal Z·Y·X"
     );
     let n = coords_z.tensor.shape().first().copied().unwrap_or(0);
     assert_eq!(coords_y.tensor.shape(), [n], "coords_y length must match coords_z");

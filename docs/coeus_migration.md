@@ -94,6 +94,13 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **De-branding slice 1 — registration autodiff (Sprint 489, MIG-489).**
+  `metric::coeus_autograd` → `metric::autodiff`; `*_coeus` fns de-suffixed;
+  seams now `autodiff::{Transform, Metric}` (path-disambiguated). Fixed a
+  latent external-crate shadowing hazard; `#[inline]` pass on trait impls.
+  740/740 under the new names. Remaining: format-crate fns +
+  `ritk_image::coeus` module (one coordinated change), feature name.
+
 - **Correction — image-generic I/O contract, de-branded names (Sprint 488,
   ADR 0002 Amendment A1).** User review: substrate brands must not appear in
   component names, and backend variation belongs in traits. `ImageReader<I>`/

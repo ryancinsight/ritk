@@ -1,8 +1,8 @@
 //! Differentiable normalized cross-correlation (NCC) loss reduction on Coeus
 //! autograd `Var`s.
 //!
-//! The second Coeus-native intensity-metric reduction (after [`super::mse`]);
-//! together they justify the `CoeusMetric` seam (ADR 0001, deferred to its own
+//! The second intensity-metric reduction (after [`super::mse`]);
+//! together they justify the `Metric` seam (ADR 0001, deferred to its own
 //! increment). Computed via the single-pass algebraic-moments form (Lewis 1995)
 //! that the Burn `NormalizedCrossCorrelation` also uses, but entirely on the
 //! autograd tape so the reverse pass reaches the sampled-intensity leaf (hence
@@ -15,7 +15,7 @@ use coeus_autograd::{div, mul, neg, scalar_add, scalar_div, sqrt, sub, sum, Var}
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_ops::BackendOps;
 
-use super::traits::CoeusMetric;
+use super::traits::Metric;
 
 /// Differentiable negative normalized cross-correlation between two equal-length
 /// intensity vectors, `loss = −NCC(moving, fixed)`.
@@ -38,7 +38,7 @@ use super::traits::CoeusMetric;
 ///
 /// Panics if the two inputs differ in shape (the elementwise `mul`/`sub`
 /// contract) — a caller invariant.
-pub fn normalized_cross_correlation_coeus<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
+pub fn normalized_cross_correlation<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
 where
     T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
@@ -65,12 +65,12 @@ where
     neg(&div(&num, &denominator))
 }
 
-/// Negative-normalized-cross-correlation metric ([`CoeusMetric`] implementor).
+/// Negative-normalized-cross-correlation metric ([`Metric`] implementor).
 /// Zero-sized; the reduction has no configuration.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Ncc;
 
-impl<T, B> CoeusMetric<T, B> for Ncc
+impl<T, B> Metric<T, B> for Ncc
 where
     T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
@@ -78,7 +78,7 @@ where
 {
     #[inline]
     fn reduce(&self, sampled: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B> {
-        normalized_cross_correlation_coeus(sampled, fixed)
+        normalized_cross_correlation(sampled, fixed)
     }
 }
 

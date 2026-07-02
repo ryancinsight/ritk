@@ -1,11 +1,11 @@
-//! Gradient-descent registration driver on the Coeus-native seams.
+//! Gradient-descent registration driver on the autodiff seams.
 //!
 //! Ties the verified primitives into one reusable entry point: given a moving
-//! image, a fixed sampling grid, a [`CoeusMetric`], and a [`CoeusTransform`]
+//! image, a fixed sampling grid, a [`Metric`], and a [`Transform`]
 //! built from trainable parameter `Var`s, [`gradient_descent`] runs the
 //! forward → backward → step loop ([`super::metric::evaluate`] →
 //! `Var::backward` → [`super::optim::sgd_step_var`]) and returns the optimized
-//! parameters. This is the SSOT for "run a Coeus registration"; the per-sprint
+//! parameters. This is the SSOT for "run an autodiff registration"; the per-sprint
 //! primitives (loss, sampling, transform, metric, optimizer step) were built
 //! and verified individually — this composes them into a usable whole.
 //!
@@ -20,7 +20,7 @@ use coeus_ops::BackendOps;
 
 use super::metric::evaluate;
 use super::optim::sgd_step_var;
-use super::traits::{CoeusMetric, CoeusTransform};
+use super::traits::{Metric, Transform};
 
 /// Configuration for [`gradient_descent`].
 #[derive(Debug, Clone, Copy)]
@@ -51,7 +51,7 @@ where
 ///
 /// - `params`: the trainable parameter leaves (each `requires_grad`); order is
 ///   preserved in the outcome.
-/// - `make_transform`: builds the [`CoeusTransform`] from the current parameter
+/// - `make_transform`: builds the [`Transform`] from the current parameter
 ///   slice each iteration (e.g. `|p| Translation { t: p[0].clone() }`).
 ///
 /// Each iteration rebuilds the transform from the current parameters, evaluates
@@ -77,8 +77,8 @@ where
     T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
-    M: CoeusMetric<T, B>,
-    Tf: CoeusTransform<T, B>,
+    M: Metric<T, B>,
+    Tf: Transform<T, B>,
     F: Fn(&[Var<T, B>]) -> Tf,
 {
     assert!(!params.is_empty(), "gradient_descent: params must be non-empty");

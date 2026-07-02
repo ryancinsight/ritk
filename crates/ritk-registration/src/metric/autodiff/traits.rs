@@ -1,12 +1,12 @@
-//! Coeus-native registration seams (ADR 0001): [`CoeusTransform`] (coordinate
-//! transform) and [`CoeusMetric`] (intensity-loss reduction).
+//! Coeus-native registration seams (ADR 0001): [`Transform`] (coordinate
+//! transform) and [`Metric`] (intensity-loss reduction).
 //!
 //! Both are parallel to the burn-bound `ritk_core`/`ritk_registration` traits
 //! but over Coeus autograd `Var`s, with trainable state on the tape so a loss
 //! gradient reaches it. Each is introduced once it has ≥2 real implementors
-//! (seam-first, not speculative): `CoeusTransform` has
+//! (seam-first, not speculative): `Transform` has
 //! [`super::transform::Translation`]/[`super::transform::Affine`];
-//! `CoeusMetric` has [`super::mse::Mse`]/[`super::ncc::Ncc`].
+//! `Metric` has [`super::mse::Mse`]/[`super::ncc::Ncc`].
 
 use coeus_autograd::Var;
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar};
@@ -18,7 +18,7 @@ use coeus_ops::BackendOps;
 /// `[N, 3]` transformed points; the result's autograd graph links back to the
 /// implementor's parameters, so `.backward()` on a downstream loss accumulates
 /// their gradients.
-pub trait CoeusTransform<T, B>
+pub trait Transform<T, B>
 where
     T: Scalar,
     B: ComputeBackend + BackendOps<T> + Default,
@@ -37,7 +37,7 @@ where
 /// (MSE vs NCC vs future MI); the shared transform-and-sample step is owned by
 /// [`super::metric::evaluate`], not by implementors. `T: Float` because
 /// correlation/normalization metrics need `sqrt`.
-pub trait CoeusMetric<T, B>
+pub trait Metric<T, B>
 where
     T: Float,
     B: ComputeBackend + BackendOps<T> + Default,

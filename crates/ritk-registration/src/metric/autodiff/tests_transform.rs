@@ -2,9 +2,9 @@
 //!
 //! Evidence tier: analytical (host reference + closed-form / finite-difference
 //! parameter gradients). Deterministic `SequentialBackend`. The `Translation`
-//! and `Affine` `CoeusTransform` impls are exercised in `tests_traits.rs`.
+//! and `Affine` `Transform` impls are exercised in `tests_traits.rs`.
 
-use super::affine_transform_coeus;
+use super::affine_transform;
 use coeus_autograd::{sum, Var};
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
@@ -54,7 +54,7 @@ fn affine_forward_matches_host_reference_under_rotation_shear() {
     let coords = [[1.0, 2.0, 3.0], [-1.0, 0.5, 4.0], [0.0, 0.0, 0.0]];
     let flat: Vec<f64> = coords.iter().flatten().copied().collect();
 
-    let out = affine_transform_coeus(
+    let out = affine_transform(
         &var_shaped(&[coords.len(), 3], &flat, false),
         &var_shaped(&[3, 3], &r, false),
         &var(&t, false),
@@ -74,7 +74,7 @@ fn affine_translation_gradient_is_the_point_count() {
     let flat: Vec<f64> = coords.iter().flatten().copied().collect();
     let identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
     let t = var(&[0.0, 0.0, 0.0], true);
-    let out = affine_transform_coeus(
+    let out = affine_transform(
         &var_shaped(&[coords.len(), 3], &flat, false),
         &var_shaped(&[3, 3], &identity, false),
         &t,
@@ -100,7 +100,7 @@ fn affine_matrix_gradient_matches_closed_form_and_finite_difference() {
     let t0 = [0.0, 0.0, 0.0];
 
     let r = var_shaped(&[3, 3], &r0, true);
-    let out = affine_transform_coeus(
+    let out = affine_transform(
         &var_shaped(&[coords.len(), 3], &flat, false),
         &r,
         &var(&t0, false),

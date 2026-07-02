@@ -11,7 +11,7 @@ use coeus_autograd::{mean, mul, sub, Var};
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar};
 use coeus_ops::BackendOps;
 
-use super::traits::CoeusMetric;
+use super::traits::Metric;
 
 /// Differentiable mean squared error between two equal-length intensity
 /// vectors, `MSE = mean((moving − fixed)²)`.
@@ -31,7 +31,7 @@ use super::traits::CoeusMetric;
 ///
 /// Panics if the two inputs do not have identical shapes, matching the
 /// elementwise `sub` contract (a caller invariant, not input-data error).
-pub fn mean_squared_error_coeus<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
+pub fn mean_squared_error<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
 where
     T: Scalar,
     B: ComputeBackend + BackendOps<T> + Default,
@@ -41,12 +41,12 @@ where
     mean(&sq)
 }
 
-/// Mean-squared-error metric ([`CoeusMetric`] implementor). Zero-sized; the
+/// Mean-squared-error metric ([`Metric`] implementor). Zero-sized; the
 /// reduction has no configuration.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Mse;
 
-impl<T, B> CoeusMetric<T, B> for Mse
+impl<T, B> Metric<T, B> for Mse
 where
     T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
@@ -54,7 +54,7 @@ where
 {
     #[inline]
     fn reduce(&self, sampled: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B> {
-        mean_squared_error_coeus(sampled, fixed)
+        mean_squared_error(sampled, fixed)
     }
 }
 

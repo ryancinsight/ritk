@@ -1,17 +1,17 @@
-//! Verification of the `CoeusTransform` seam and the generic `mse_metric`
+//! Verification of the `Transform` seam and the generic `mse_metric`
 //! dispatching over it (ADR 0001).
 //!
 //! Evidence tier: differential — the trait path must be value-identical to the
 //! verified free-function primitives it wraps; plus a gradient-descent
 //! convergence check through the trait. Deterministic `SequentialBackend`.
 
-use super::super::metric::{affine_mse_coeus, evaluate, mse_metric};
-use super::super::mse::{mean_squared_error_coeus, Mse};
-use super::super::ncc::{normalized_cross_correlation_coeus, Ncc};
+use super::super::metric::{affine_mse, evaluate, mse_metric};
+use super::super::mse::{mean_squared_error, Mse};
+use super::super::ncc::{normalized_cross_correlation, Ncc};
 use super::super::optim::sgd_step_var;
-use super::super::sampling::sample_trilinear_coeus;
-use super::super::transform::{affine_transform_coeus, Affine, Translation};
-use super::CoeusTransform;
+use super::super::sampling::sample_trilinear;
+use super::super::transform::{affine_transform, Affine, Translation};
+use super::Transform;
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
@@ -63,7 +63,7 @@ fn affine_transform_struct_matches_free_function() {
     let t0 = [0.05, -0.03, 0.04];
     let grid = var_shaped(&[n, 3], &gf, false);
 
-    let via_fn = affine_transform_coeus(&grid, &var_shaped(&[3, 3], &r0, false), &var(&t0, false));
+    let via_fn = affine_transform(&grid, &var_shaped(&[3, 3], &r0, false), &var(&t0, false));
     let via_trait = Affine {
         r: var_shaped(&[3, 3], &r0, false),
         t: var(&t0, false),
@@ -125,7 +125,7 @@ fn mse_metric_with_affine_matches_affine_mse_free_function() {
     let r0 = [1.0, 0.02, 0.0, 0.01, 1.0, 0.03, 0.0, 0.02, 1.0];
     let t0 = [0.05, -0.03, 0.04];
 
-    let via_free = affine_mse_coeus(
+    let via_free = affine_mse(
         &var(&moving, false),
         DIMS,
         &var(&fixed, false),
@@ -185,7 +185,7 @@ fn gradient_descent_through_translation_trait_reduces_loss() {
     assert!(prev < 1e-8, "GD through the Translation trait must drive loss to ~0, got {prev}");
 }
 
-// ── CoeusMetric seam (Mse / Ncc dispatched via evaluate) ─────────────────────
+// ── Metric seam (Mse / Ncc dispatched via evaluate) ─────────────────────
 
 #[test]
 fn evaluate_with_mse_matches_mse_metric() {
@@ -241,21 +241,21 @@ fn evaluate_with_ncc_matches_manual_sample_then_reduce() {
     let cz: Vec<f64> = (0..n).map(|k| transformed.tensor.as_slice()[k * 3]).collect();
     let cy: Vec<f64> = (0..n).map(|k| transformed.tensor.as_slice()[k * 3 + 1]).collect();
     let cx: Vec<f64> = (0..n).map(|k| transformed.tensor.as_slice()[k * 3 + 2]).collect();
-    let sampled = sample_trilinear_coeus(
+    let sampled = sample_trilinear(
         &var(&moving, false),
         DIMS,
         &var(&cz, false),
         &var(&cy, false),
         &var(&cx, false),
     );
-    let manual = normalized_cross_correlation_coeus(&sampled, &var(&fixed, false));
+    let manual = normalized_cross_correlation(&sampled, &var(&fixed, false));
 
     assert!(
         (via_evaluate.tensor.as_slice()[0] - manual.tensor.as_slice()[0]).abs() < 1e-12,
         "evaluate+Ncc must equal manual sample-then-NCC-reduce"
     );
     // Sanity: it is NOT the MSE value (the seam actually switched reductions).
-    let mse_val = mean_squared_error_coeus(&sampled, &var(&fixed, false)).tensor.as_slice()[0];
+    let mse_val = mean_squared_error(&sampled, &var(&fixed, false)).tensor.as_slice()[0];
     assert!(
         (via_evaluate.tensor.as_slice()[0] - mse_val).abs() > 1e-6,
         "NCC and MSE reductions must differ for this input"

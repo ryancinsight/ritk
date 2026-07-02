@@ -6,7 +6,7 @@
 //! `gather` value-gradient path, edge-clamp behavior, and a finite-difference
 //! cross-check on a non-ramp signal. Deterministic `SequentialBackend`.
 
-use super::{sample_linear_1d_coeus, sample_trilinear_coeus};
+use super::{sample_linear_1d, sample_trilinear};
 use coeus_autograd::{sum, Var};
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
@@ -46,7 +46,7 @@ fn interp_reference(signal: &[f64], x: f64) -> f64 {
 fn forward_matches_linear_interp_reference() {
     let signal: Vec<f64> = (0..8).map(|i| 2.0 + 0.5 * i as f64).collect();
     let coords = [0.0, 1.5, 3.25, 6.999];
-    let out = sample_linear_1d_coeus(&var(&signal, false), &var(&coords, false));
+    let out = sample_linear_1d(&var(&signal, false), &var(&coords, false));
     let got = out.tensor.as_slice();
     for (k, &x) in coords.iter().enumerate() {
         let expected = interp_reference(&signal, x);
@@ -67,7 +67,7 @@ fn coordinate_gradient_of_ramp_is_the_slope() {
     let coords = [0.0, 1.5, 3.25, 6.5];
 
     let c = var(&coords, true);
-    let out = sample_linear_1d_coeus(&var(&signal, false), &c);
+    let out = sample_linear_1d(&var(&signal, false), &c);
     sum(&out).backward();
 
     let grad = c.grad().expect("coords requires_grad").as_slice().to_vec();
@@ -86,7 +86,7 @@ fn coordinate_gradient_matches_central_finite_difference() {
     let coords = [0.3, 1.8, 2.5, 4.1];
 
     let c = var(&coords, true);
-    let out = sample_linear_1d_coeus(&var(&signal, false), &c);
+    let out = sample_linear_1d(&var(&signal, false), &c);
     sum(&out).backward();
     let analytic = c.grad().expect("grad").as_slice().to_vec();
 
@@ -107,7 +107,7 @@ fn gather_gradient_flows_to_signal() {
     // out = signal[2]. ∂(sum out)/∂signal[2] = 1, all other entries 0.
     let signal = [10.0, 11.0, 12.0, 13.0, 14.0];
     let s = var(&signal, true);
-    let out = sample_linear_1d_coeus(&s, &var(&[2.0], false));
+    let out = sample_linear_1d(&s, &var(&[2.0], false));
     sum(&out).backward();
     let grad = s.grad().expect("signal requires_grad").as_slice().to_vec();
     let expected = [0.0, 0.0, 1.0, 0.0, 0.0];
@@ -125,7 +125,7 @@ fn edge_clamp_extrapolates_flat_with_zero_gradient() {
     // the coordinate gradient (signal[i1] − signal[i0]) is exactly zero.
     let signal = [3.0, 5.0, 9.0];
     let c = var(&[-1.5], true);
-    let out = sample_linear_1d_coeus(&var(&signal, false), &c);
+    let out = sample_linear_1d(&var(&signal, false), &c);
     assert!((out.tensor.as_slice()[0] - 3.0).abs() < 1e-12);
     sum(&out).backward();
     assert!(
@@ -183,7 +183,7 @@ fn trilinear_forward_matches_host_reference() {
     let ys = [1.5, 0.0, 3.9];
     let xs = [2.5, 4.0, 0.1];
 
-    let out = sample_trilinear_coeus(
+    let out = sample_trilinear(
         &var(&signal, false),
         dims,
         &var(&zs, false),
@@ -221,7 +221,7 @@ fn trilinear_coordinate_gradient_of_separable_ramp_is_the_per_axis_slopes() {
     let zc = var(&[1.5, 2.25], true);
     let yc = var(&[0.5, 2.0], true);
     let xc = var(&[2.5, 1.1], true);
-    let out = sample_trilinear_coeus(&var(&signal, false), dims, &zc, &yc, &xc);
+    let out = sample_trilinear(&var(&signal, false), dims, &zc, &yc, &xc);
     sum(&out).backward();
 
     for (axis, (leaf, slope)) in [(&zc, bz), (&yc, by), (&xc, bx)].iter().enumerate() {
@@ -247,7 +247,7 @@ fn trilinear_coordinate_gradient_matches_central_finite_difference() {
     let zc = var(&[z0], true);
     let yc = var(&[y0], true);
     let xc = var(&[x0], true);
-    let out = sample_trilinear_coeus(&var(&signal, false), dims, &zc, &yc, &xc);
+    let out = sample_trilinear(&var(&signal, false), dims, &zc, &yc, &xc);
     sum(&out).backward();
     let gz = zc.grad().expect("grad").as_slice()[0];
     let gy = yc.grad().expect("grad").as_slice()[0];
@@ -276,7 +276,7 @@ fn trilinear_value_gradient_flows_to_signal_at_integer_voxel() {
     let n = dims[0] * dims[1] * dims[2];
     let signal: Vec<f64> = (0..n).map(|i| i as f64).collect();
     let s = var(&signal, true);
-    let out = sample_trilinear_coeus(
+    let out = sample_trilinear(
         &s,
         dims,
         &var(&[1.0], false),

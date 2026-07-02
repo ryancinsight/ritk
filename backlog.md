@@ -201,7 +201,29 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
-- **MIG-489 [minor] — De-brand the remaining substrate-named APIs. READY.**
+- **MIG-489 [minor] — De-brand the remaining substrate-named APIs.
+  SLICE 1 DONE (registration autodiff); format-crate + module + feature
+  slices remain.**
+  **Slice 1 (Sprint 489, DONE):** `ritk-registration::metric::coeus_autograd`
+  → `metric::autodiff`; all `*_coeus` fns de-suffixed (`affine_mse`,
+  `mean_squared_error`, `normalized_cross_correlation`, `sample_linear_1d`,
+  `sample_trilinear`, `affine_transform`); traits de-branded to
+  `autodiff::Transform`/`autodiff::Metric` (module-path-disambiguated from
+  the burn `metric::Metric`; the colliding metric-level flattening
+  re-export block was removed — access is `metric::autodiff::*`, zero
+  external users verified by grep before the change). The rename also fixed
+  a latent shadowing hazard: our module previously shadowed the *external*
+  `coeus_autograd` crate name inside `metric/mod.rs` while submodule files
+  resolved the same bare path to the external crate. Monomorphization pass
+  per standards: `#[inline]` added to the `Transform::transform_points`
+  impls (the `reduce` impls already had it); seams remain fully generic /
+  statically dispatched (zero `dyn`). Doc prose de-branded where it named
+  our components (factual references to the external coeus-autograd crate
+  kept). Evidence: full package `--features coeus` 740/740 under the new
+  names; default build green; clippy `-D warnings` clean; doc clean.
+  **Remaining slices:** (a) format crates' `read_*_coeus`/`write_nifti_coeus`
+  fns + `ritk_image::coeus` module (widely referenced — one coordinated
+  change); (b) `coeus` feature-name evaluation (candidate `atlas`).
   Per ADR 0002 Amendment A1 (user-identified naming defect), apply the same
   no-brand-names rule to the remaining items: (a) format crates'
   `read_*_coeus`/`write_nifti_coeus` functions (rename to plain names inside a

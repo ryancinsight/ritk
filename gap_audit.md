@@ -1,5 +1,41 @@
 # RITK Gap Audit - Active
 
+## Sprint 489 Audit (2026-07-02) — De-Branding Fixed a Real Shadowing Hazard, Not Just Names
+
+### The rename surfaced a latent resolution hazard
+
+Our module was literally named `coeus_autograd` while the crate depends on the
+*external* `coeus_autograd` crate: `metric/mod.rs` resolved the bare path to
+our module, while files inside the module resolved the same bare path to the
+external crate. It compiled, but any future `use coeus_autograd::…` at the
+wrong nesting level would silently bind the other target. Renaming to
+`autodiff` (a role, not a brand) removed the ambiguity class entirely —
+evidence that the no-brand-names rule is load-bearing, not cosmetic.
+
+### Collision handling chose path-qualification over renaming the domain
+
+`autodiff::Metric` coexists with the burn `metric::Metric` trait; rather than
+inventing a third name, the flattening re-export was removed so access is
+path-qualified (`metric::autodiff::Metric`). Same policy as ritk-io's
+`native` modules: module paths are the transitional disambiguator and fold
+away when Burn is deleted, at which point the plain names stand alone.
+
+### Monomorphization posture verified, not just asserted
+
+The seams (`Transform`, `Metric`) are generic type parameters at every use
+site (`evaluate<M, Tf>`, `gradient_descent<…, M, Tf, F>`) — zero `dyn`, fully
+monomorphized; `#[inline]` now on all four trait-impl methods per the
+cross-crate-inlining standard. The 740/740 rerun confirms behavior identity
+under the renames.
+
+### Residual Risk / Next Increment
+
+- MIG-489 remaining: the `ritk_image::coeus` module rename fans out across
+  ~10 crates that reference the path — needs one coordinated change with the
+  format-crate fn de-suffixing to avoid touching the same files twice.
+- Upstream churn quiet this sprint.
+
+
 ## Sprint 488 Audit (2026-07-02) — User Review Caught a Naming/Design Defect the Self-Audits Missed
 
 ### The defect, and why my own checks didn't catch it

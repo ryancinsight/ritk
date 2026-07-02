@@ -7,15 +7,15 @@
 //! loss = mse( sample_trilinear( moving, split( transform(grid) ) ), fixed )
 //! ```
 //!
-//! - a [`CoeusTransform`] maps the `[N, 3]` fixed grid into moving space as a
+//! - a [`Transform`] maps the `[N, 3]` fixed grid into moving space as a
 //!   function of its trainable parameters;
-//! - [`super::sampling::sample_trilinear_coeus`] reads the moving image at the
+//! - [`super::sampling::sample_trilinear`] reads the moving image at the
 //!   transformed coordinates (gradient flows back to them);
-//! - [`super::mse::mean_squared_error_coeus`] reduces to the scalar loss.
+//! - [`super::mse::mean_squared_error`] reduces to the scalar loss.
 //!
 //! The whole chain stays on the autograd tape, so `.backward()` on the returned
 //! loss accumulates the gradient into the transform's parameters — the signal a
-//! gradient-descent optimizer consumes to drive alignment. [`affine_mse_coeus`]
+//! gradient-descent optimizer consumes to drive alignment. [`affine_mse`]
 //! is a thin convenience wrapper constructing an [`Affine`] and dispatching.
 
 use coeus_autograd::{reshape, slice, Var};
@@ -23,8 +23,8 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut
 use coeus_ops::BackendOps;
 
 use super::mse::Mse;
-use super::sampling::sample_trilinear_coeus;
-use super::traits::{CoeusMetric, CoeusTransform};
+use super::sampling::sample_trilinear;
+use super::traits::{Metric, Transform};
 use super::transform::Affine;
 
 /// Differentiable MSE between `fixed` and the `moving` image sampled at an
@@ -48,7 +48,7 @@ use super::transform::Affine;
 /// Panics on the shape-invariant violations of the composed primitives
 /// (non-flat `moving_flat`, `grid` not `[N, 3]`, `r` not `[3, 3]`, `t` not
 /// `[3]`) — caller invariants.
-pub fn affine_mse_coeus<T, B>(
+pub fn affine_mse<T, B>(
     moving_flat: &Var<T, B>,
     dims: [usize; 3],
     fixed: &Var<T, B>,
@@ -70,7 +70,7 @@ where
     mse_metric(moving_flat, dims, fixed, grid, &transform)
 }
 
-/// Convenience MSE metric over any [`CoeusTransform`]: `evaluate` with [`Mse`].
+/// Convenience MSE metric over any [`Transform`]: `evaluate` with [`Mse`].
 ///
 /// See [`evaluate`] for the composition and parameter semantics.
 pub fn mse_metric<T, B, Tf>(
@@ -84,13 +84,13 @@ where
     T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
-    Tf: CoeusTransform<T, B>,
+    Tf: Transform<T, B>,
 {
     evaluate(moving_flat, dims, fixed, grid, &Mse, transform)
 }
 
-/// Generic differentiable registration metric over any [`CoeusMetric`] and
-/// [`CoeusTransform`] (ADR 0001). This is the single composition SSOT:
+/// Generic differentiable registration metric over any [`Metric`] and
+/// [`Transform`] (ADR 0001). This is the single composition SSOT:
 /// `metric.reduce(sample_trilinear(moving, split(transform(grid))), fixed)`.
 ///
 /// - `moving_flat`: flattened moving image `[Z·Y·X]` with `dims = [Z, Y, X]`.
@@ -120,8 +120,8 @@ where
     T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
-    M: CoeusMetric<T, B>,
-    Tf: CoeusTransform<T, B>,
+    M: Metric<T, B>,
+    Tf: Transform<T, B>,
 {
     let grid_shape = grid.tensor.shape();
     assert_eq!(grid_shape.len(), 2, "evaluate: grid must be [N, 3]");
@@ -132,7 +132,7 @@ where
     let cz = reshape(&slice(&transformed, &[(0, n), (0, 1)]), [n]);
     let cy = reshape(&slice(&transformed, &[(0, n), (1, 2)]), [n]);
     let cx = reshape(&slice(&transformed, &[(0, n), (2, 3)]), [n]);
-    let sampled = sample_trilinear_coeus(moving_flat, dims, &cz, &cy, &cx);
+    let sampled = sample_trilinear(moving_flat, dims, &cz, &cy, &cx);
     metric.reduce(&sampled, fixed)
 }
 
