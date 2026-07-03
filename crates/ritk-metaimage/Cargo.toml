@@ -5,11 +5,6 @@ edition = "2021"
 description = "MetaImage (MHA/MHD) I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 
-[features]
-default = []
-# Atlas migration: expose a Coeus-backed reader path alongside the Burn one.
-coeus = ["dep:coeus-core", "ritk-image/coeus"]
-
 [dependencies]
 ritk-core = { workspace = true }
 ritk-image = { path = "../ritk-image" }
@@ -19,7 +14,7 @@ burn = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }
 flate2 = { workspace = true }
-coeus-core = { workspace = true, optional = true }
+coeus-core = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

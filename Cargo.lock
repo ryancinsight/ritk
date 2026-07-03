@@ -3699,14 +3699,12 @@ dependencies = [
 name = "hermes-simd"
 version = "0.3.0"
 dependencies = [
- "bytemuck",
  "eunomia",
  "half",
  "hermes-simd-core 0.3.0",
  "hermes-simd-intrinsics 0.3.0",
  "hermes-simd-macros 0.3.0",
  "hermes-simd-types 0.3.0",
- "rkyv",
 ]
 
 [[package]]
@@ -3749,11 +3747,9 @@ dependencies = [
 name = "hermes-simd-intrinsics"
 version = "0.3.0"
 dependencies = [
- "bytemuck",
  "eunomia",
  "half",
  "hermes-simd-core 0.3.0",
- "rkyv",
 ]
 
 [[package]]
@@ -4610,9 +4606,9 @@ dependencies = [
  "eunomia",
  "half",
  "mnemosyne",
- "ndarray 0.16.1",
  "num-complex",
  "num-traits",
+ "serde",
  "thiserror 2.0.18",
 ]
 
@@ -4621,6 +4617,7 @@ name = "leto-ops"
 version = "0.35.1"
 dependencies = [
  "bytemuck",
+ "eunomia",
  "half",
  "hermes-simd 0.3.0",
  "leto",
@@ -10240,8 +10237,8 @@ dependencies = [
 
 [[patch.unused]]
 name = "hephaestus-core"
-version = "0.10.0"
+version = "0.11.0"
 
 [[patch.unused]]
 name = "hephaestus-wgpu"
-version = "0.10.0"
+version = "0.11.0"

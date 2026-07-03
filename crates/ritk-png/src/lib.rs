@@ -309,7 +309,6 @@ mod tests {
         assert_eq!(natural_cmp("slice2", "slice02"), Ordering::Less);
     }
 
-    #[cfg(feature = "coeus")]
     #[test]
     fn native_read_png_matches_burn_single_and_series() -> anyhow::Result<()> {
         use coeus_core::SequentialBackend;
@@ -341,7 +340,6 @@ mod tests {
 /// Atlas-native-substrate entry points (transitional module: plain
 /// end-state names, disambiguated from the Burn functions by module
 /// path only; folds away when the Burn path is deleted — ADR 0002 A1).
-#[cfg(feature = "coeus")]
 pub mod native {
     #[allow(unused_imports)]
     use super::*;

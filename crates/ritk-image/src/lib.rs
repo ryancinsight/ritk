@@ -3,7 +3,6 @@
 //! Depends on `ritk-spatial` for spatial types, `burn` for the legacy root
 //! image backend, and an optional Atlas-native tensor image (`native` module, `coeus` feature).
 
-#[cfg(feature = "coeus")]
 pub mod native;
 pub mod color;
 pub mod grid;

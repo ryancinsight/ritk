@@ -1,5 +1,35 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 492 — MIG-489 Slice 4: Coeus Is Not a Feature (Un-Gate the Mainline)
+**Target version**: 0.14.0
+**Sprint phase**: Execution — Atlas substrate promoted from opt-in to mainline
+
+### In-flight plan (Sprint 492)
+- [x] User directive: coeus fully replaces Burn — it must not be an optional
+  feature. Removed the `coeus` feature from all 14 crates; coeus deps made
+  unconditional; 40 source files un-gated (`cfg(all(test, feature))` →
+  `cfg(test)`; `cfg(any(test, feature))` dropped).
+- [x] One straggler inner attr (`#![cfg(feature = "coeus")]`) caught by the
+  post-edit grep sweep and removed.
+- [x] Full workspace build: zero errors. All 14 crates green in DEFAULT
+  nextest runs, counts equal to the former `--features coeus` runs (2,714
+  tests) — activation changed, behavior identical.
+- [x] Upstream co-evolution rode along verified (hephaestus 0.10→0.11,
+  mnemosyne eunomia feature in the workspace manifest + bounded lock delta).
+
+### Verification gate (Sprint 492)
+- [x] `grep 'feature = "coeus"'` returns empty workspace-wide.
+- [x] The default test run now covers the entire native/autodiff surface —
+  no second build configuration to maintain or forget.
+
+### Deferred / carry-forward
+- MIG-489 is now fully closed. Cutover work resumes: VTK/NRRD/Analyze/DICOM
+  native readers, per-format native writers, CLI/Python consumer cutover,
+  then Burn deletion (the audit token counts finally drop).
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, grayscale-morphology
+  native wrappers, MI/Parzen 3rd metric, driver early-stop.
+
+
 ## Sprint 491 — MIG-489 Slice 3: Zero `coeus` in ritk Function Names
 **Target version**: 0.14.0
 **Sprint phase**: Execution — completed the user's de-branding directive

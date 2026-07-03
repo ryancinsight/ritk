@@ -5,11 +5,6 @@ edition = "2021"
 description = "PNG single-slice and sequential-volume I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 
-[features]
-default = []
-# Atlas migration: expose Coeus-backed reader paths alongside the Burn ones.
-coeus = ["dep:coeus-core", "ritk-image/coeus"]
-
 [dependencies]
 ritk-core = { workspace = true }
 ritk-image = { path = "../ritk-image" }
@@ -17,7 +12,7 @@ ritk-spatial = { path = "../ritk-spatial" }
 burn = { workspace = true }
 anyhow = { workspace = true }
 image = { workspace = true }
-coeus-core = { workspace = true, optional = true }
+coeus-core = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

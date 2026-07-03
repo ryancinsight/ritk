@@ -52,7 +52,6 @@ pub use reader::{read_nifti, read_nifti_from_bytes, read_nifti_labels};
 pub use writer::{write_nifti, write_nifti2, write_nifti2_labels, write_nifti_labels};
 /// Atlas-native-substrate entry points (transitional facade over the
 /// per-file `native` modules; folds away when the Burn path is deleted).
-#[cfg(feature = "coeus")]
 pub mod native {
     pub use crate::reader::native::*;
     pub use crate::writer::native::*;

@@ -4,6 +4,14 @@
 
 ---
 
+## Closed dependency items
+
+- **DEP-492-01 [patch] - Mnemosyne Eunomia scratch feature propagation.
+  DONE.** RITK's workspace `mnemosyne` dependency enables `eunomia` so the
+  local Apollo FFT dependency graph sees Mnemosyne's `ScratchElement` impls
+  for `eunomia::Complex32/64`. Evidence tier: compile-time validation;
+  `cargo check -p ritk-core` passes.
+
 ## Open safety items
 
 - **TEST-447-05 [patch] — MINC format-level hostile-fixture regression. READY.**
@@ -201,9 +209,25 @@
   compile/lint/docs and value-semantic nextest; `cargo nextest run -p ritk-io`
   passed 340 tests.
 
-- **MIG-489 [minor] — De-brand the remaining substrate-named APIs.
-  SLICES 1–3 DONE — zero `coeus` in any ritk fn/struct name; feature-name
-  slice remains.**
+- **MIG-489 [minor] — De-brand the remaining substrate-named APIs. DONE
+  (all slices; the feature-name slice was resolved by *removing* the
+  feature, per the user's directive).**
+  **Slice 4 (Sprint 492, DONE):** "coeus is not a feature" — the Atlas
+  substrate is the mainline, not an opt-in. Removed the `coeus` cargo
+  feature from all 14 crates: coeus-core/tensor/ops/autograd deps made
+  unconditional, every `#[cfg(feature = "coeus")]` gate stripped (40
+  source files), `#[cfg(all(test, feature = "coeus"))]` → `#[cfg(test)]`.
+  The `native` modules, the autodiff registration stack, and the unified
+  I/O contract implementors now always compile and always test in the
+  default run — no second build configuration to forget. Evidence: full
+  workspace builds with zero errors; all 14 crates green in DEFAULT
+  nextest runs with counts equal to the former `--features coeus` runs
+  (image 38, tensor-ops 24, statistics 295, interpolation 129, filter
+  964, nifti 37, mgh 32, metaimage 23, minc 43, png 10, jpeg 10, tiff 17,
+  io 352, registration 740 = 2,714 tests) — proving the gates' removal
+  changed activation, not behavior. Lock delta is upstream co-evolution
+  (hephaestus 0.10→0.11, mnemosyne eunomia feature), verified green
+  together.
   **Slice 3 (Sprint 491, DONE):** completed the user's directive — no
   substrate brand in any ritk function name. (a) All 7 format crates'
   `read_*_coeus`/`write_nifti_coeus` fns moved into per-file `pub mod

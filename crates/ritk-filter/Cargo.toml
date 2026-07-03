@@ -3,11 +3,6 @@ name = "ritk-filter"
 version = "0.2.60"
 edition = "2021"
 
-[features]
-default = []
-# Atlas migration: expose Coeus-native compute paths alongside the Burn ones.
-coeus = ["dep:coeus-core", "ritk-image/coeus"]
-
 [dependencies]
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
@@ -27,7 +22,7 @@ gaia = { workspace = true }
 rand = { workspace = true }
 moirai = { workspace = true }
 serde = { workspace = true }
-coeus-core = { workspace = true, optional = true }
+coeus-core = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

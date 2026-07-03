@@ -108,7 +108,6 @@ fn write_minc_then_read_minc_round_trips_voxels() {
     });
 }
 
-#[cfg(feature = "coeus")]
 #[test]
 fn native_read_minc_matches_burn_round_trip() {
     use crate::read_minc;

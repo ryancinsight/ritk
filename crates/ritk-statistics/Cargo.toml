@@ -4,10 +4,6 @@ version = "0.1.1"
 edition = "2021"
 description = "Image statistics, information theory, image comparison metrics, normalization, and noise estimation"
 
-[features]
-default = []
-coeus = ["dep:coeus-core", "dep:coeus-tensor", "ritk-image/coeus", "ritk-tensor-ops/coeus"]
-
 [dependencies]
 burn = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
@@ -15,8 +11,8 @@ ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 ritk-spatial = { path = "../ritk-spatial" }
 moirai = { workspace = true }
 anyhow = { workspace = true }
-coeus-core = { workspace = true, optional = true }
-coeus-tensor = { workspace = true, optional = true }
+coeus-core = { workspace = true }
+coeus-tensor = { workspace = true }
 
 
 [dev-dependencies]

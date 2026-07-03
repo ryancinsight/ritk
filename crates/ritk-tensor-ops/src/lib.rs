@@ -37,7 +37,6 @@ use eunomia::FloatElement;
 use ritk_image::Image;
 use std::ops::{AddAssign, Neg};
 
-#[cfg(feature = "coeus")]
 pub mod native;
 
 // ── extract_vec ───────────────────────────────────────────────────────────────

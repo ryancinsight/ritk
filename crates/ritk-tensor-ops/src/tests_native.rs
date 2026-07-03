@@ -1,4 +1,3 @@
-#![cfg(feature = "coeus")]
 
 use crate::native as coeus_tensor_ops;
 use burn::tensor::Tensor as BurnTensor;

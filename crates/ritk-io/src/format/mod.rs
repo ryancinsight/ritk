@@ -11,6 +11,6 @@ pub mod png;
 pub mod tiff;
 pub mod vtk;
 
-#[cfg(all(test, feature = "coeus"))]
+#[cfg(test)]
 #[path = "tests_native_readers.rs"]
 mod tests_native_readers;

@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 492: Coeus un-gated — Atlas substrate is the mainline (MIG-489 slice 4)
+
+### Changed
+- Removed the `coeus` cargo feature from all 14 crates; the coeus
+  dependencies are unconditional and every `#[cfg(feature = "coeus")]` gate
+  is gone (40 source files). The native modules, autodiff registration
+  stack, and unified I/O contract implementors always compile and always
+  test in the default run.
+
+### Evidence
+- Full workspace build, zero errors; all 14 crates green in default nextest
+  runs with counts equal to the former `--features coeus` runs (2,714
+  tests) — a pure activation change. Upstream co-evolution (hephaestus
+  0.10→0.11, mnemosyne eunomia feature) verified green together.
+
+---
+
+
+## [Unreleased] - Sprint 492: Atlas scratch-feature propagation
+
+### Changed (unreleased dependency surface only)
+- `mnemosyne` workspace dependency now enables `eunomia` alongside `std_tls`
+  so local Apollo FFT scratch caches can use `eunomia::Complex` through
+  Mnemosyne's sealed scratch element surface.
+
+### Evidence
+- `cargo check -p ritk-core` passes.
+
+---
+
 ## [Unreleased] — Sprint 491: Zero `coeus` in ritk function names (MIG-489 slice 3)
 
 ### Changed (unreleased surface only)

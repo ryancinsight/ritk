@@ -433,7 +433,6 @@ fn test_mhd_external_raw_file() -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "coeus")]
 #[test]
 fn native_read_metaimage_preserves_shape_and_voxels() {
     use crate::native::read_metaimage;

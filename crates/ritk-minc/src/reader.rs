@@ -177,7 +177,6 @@ impl<B: Backend> MincReader<B> {
 /// Atlas-native-substrate entry points (transitional module: plain
 /// end-state names, disambiguated from the Burn functions by module
 /// path only; folds away when the Burn path is deleted — ADR 0002 A1).
-#[cfg(feature = "coeus")]
 pub mod native {
     #[allow(unused_imports)]
     use super::*;

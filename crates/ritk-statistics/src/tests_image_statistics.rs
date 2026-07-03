@@ -5,7 +5,6 @@ use ritk_image::Image;
 
 type TestBackend = NdArray<f32>;
 
-#[cfg(feature = "coeus")]
 fn make_native_image<const D: usize>(
     data: Vec<f32>,
     dims: [usize; D],
@@ -88,7 +87,6 @@ fn compute_statistics_preserves_image_values() {
     assert_eq!(stats.percentiles, [2.0, 3.0, 4.0]);
 }
 
-#[cfg(feature = "coeus")]
 #[test]
 fn native_compute_statistics_matches_burn_path() {
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
@@ -202,7 +200,6 @@ fn test_masked_statistics_all_foreground_matches_full() {
     assert_eq!(s_full.percentiles, s_masked.percentiles);
 }
 
-#[cfg(feature = "coeus")]
 #[test]
 fn native_masked_statistics_matches_burn_path() {
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
@@ -257,7 +254,6 @@ fn test_masked_statistics_shape_mismatch_panics() {
     let _ = masked_statistics(&image, &mask);
 }
 
-#[cfg(feature = "coeus")]
 #[test]
 fn native_masked_statistics_empty_mask_returns_error() {
     let image = make_native_image(vec![1.0, 2.0, 3.0], [3]);

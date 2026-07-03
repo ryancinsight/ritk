@@ -94,6 +94,12 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Un-gating — coeus is the mainline, not a feature (Sprint 492, MIG-489
+  slice 4).** The `coeus` cargo feature removed from all 14 crates; deps
+  unconditional; 40 files un-gated. Default runs now cover the entire
+  native/autodiff surface (2,714 tests, counts identical to the former
+  feature-gated runs). MIG-489 fully closed.
+
 - **De-branding slice 3 — zero `coeus` in ritk fn/struct names (Sprint 491,
   MIG-489).** Format-crate fns → per-crate `native` modules with plain
   names; ritk-filter wrappers consolidated (net −7 files); interpolation /

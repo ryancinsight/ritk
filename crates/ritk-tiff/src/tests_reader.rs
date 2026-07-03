@@ -213,7 +213,6 @@ fn negative_values_survive_round_trip() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "coeus")]
 #[test]
 fn native_read_tiff_matches_burn() -> anyhow::Result<()> {
     use coeus_core::SequentialBackend;

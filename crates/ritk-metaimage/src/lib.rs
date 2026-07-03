@@ -30,7 +30,6 @@ pub mod reader;
 mod spatial;
 pub mod writer;
 
-#[cfg(feature = "coeus")]
 pub use reader::native;
 pub use reader::{read_metaimage, MetaImageReader};
 pub use writer::{write_metaimage, write_metaimage_with_data, MetaImageWriter};

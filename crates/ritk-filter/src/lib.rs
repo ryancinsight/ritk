@@ -156,7 +156,6 @@ pub use transform::{
     ZeroFluxNeumannPadImageFilter,
 };
 
-#[cfg(feature = "coeus")]
 mod native_support;
 
 // ── Surface & distance ───────────────────────────────────────────────────────

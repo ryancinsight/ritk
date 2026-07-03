@@ -5,7 +5,6 @@
 //! The `Interpolator` trait remains in `ritk-core::interpolation::Interpolator`
 //! (re-exported here for convenience). All concrete interpolators live here.
 
-#[cfg(feature = "coeus")]
 pub mod native;
 pub mod dispatch;
 pub mod fused;

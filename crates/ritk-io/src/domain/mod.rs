@@ -34,7 +34,6 @@ pub trait ImageWriter<I> {
 
 /// Map a format crate's `anyhow` error onto the contract's `std::io::Error`
 /// (one mapping shared by every implementor).
-#[cfg(feature = "coeus")]
 pub(crate) fn to_io_err(e: anyhow::Error) -> std::io::Error {
     std::io::Error::other(e.to_string())
 }

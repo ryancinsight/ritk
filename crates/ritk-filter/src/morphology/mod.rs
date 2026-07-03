@@ -49,7 +49,6 @@ pub use label_morphology::{
 };
 pub use top_hat::{BlackTopHatFilter, WhiteTopHatFilter};
 
-#[cfg(feature = "coeus")]
 pub mod native;
 pub mod binary_closing;
 pub mod binary_dilate;

@@ -3,7 +3,6 @@
 //! This module contains various similarity metrics used for image registration.
 
 pub(crate) mod cache_slot;
-#[cfg(feature = "coeus")]
 pub mod autodiff;
 pub mod correlation_ratio;
 pub mod dl_losses;

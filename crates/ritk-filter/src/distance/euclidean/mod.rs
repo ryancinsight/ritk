@@ -36,10 +36,8 @@ mod core;
 mod maurer;
 mod signed;
 mod unsigned;
-#[cfg(feature = "coeus")]
 pub mod native;
 
-#[cfg(any(test, feature = "coeus"))]
 pub(crate) use core::euclidean_dt;
 pub(crate) use maurer::signed_maurer_core;
 pub use maurer::SignedMaurerDistanceMapImageFilter;

@@ -1,5 +1,33 @@
 # RITK Gap Audit - Active
 
+## Sprint 492 Audit (2026-07-03) — The Feature Gate Was the Last Vestige of "Parallel" Thinking
+
+### The user's framing corrected a posture, not just a config
+
+Gating the Atlas path behind an optional feature encoded "coeus is an
+experiment"; the directive — it fully replaces Burn — makes it the mainline.
+Removing the gates has a concrete safety payoff beyond naming: the default
+build/test run now exercises the entire native + autodiff surface, so there
+is no second configuration whose breakage goes unnoticed until someone
+remembers `--features coeus`. Every future sprint's default gate covers it.
+
+### Equal test counts are the proof of a pure activation change
+
+Each crate's default run now reports exactly the count its `--features
+coeus` run reported before (2,714 tests across 14 crates). That equality is
+the value-semantic evidence that stripping 40 files of cfg gates changed
+*when* code compiles, not *what* it does.
+
+### Residual Risk / Next Increment
+
+- Burn remains a mandatory dependency everywhere (unchanged) — the actual
+  deletion path is still ADR 0002's top-down cutover, now with the native
+  side permanently on. Next: VTK/NRRD/Analyze/DICOM native readers,
+  per-format native writers, CLI/Python cutover.
+- The `[features]` sections that remain (registration's direct-parzen/serde,
+  image's test-helpers) are genuine independent toggles, not substrate gates.
+
+
 ## Sprint 491 Audit (2026-07-03) — De-Branding Complete at the Identifier Level; Consolidation Came Free
 
 ### The rename was also a consolidation

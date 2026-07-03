@@ -180,7 +180,6 @@ fn roundtrip_single_pixel() {
     );
 }
 
-#[cfg(feature = "coeus")]
 #[test]
 fn native_read_jpeg_matches_burn() {
     use coeus_core::SequentialBackend;
