@@ -1,5 +1,24 @@
 # RITK Backlog - Active Planning
 
+- **MIG-493 [minor] — Native-reader parity across all 9 image formats (DONE).**
+  The top-down Burn cutover (cli/python `read_image` → native) was blocked
+  because ritk-nrrd and ritk-analyze were the only format crates with no
+  Atlas-native reader. Closed the gap: extracted a substrate-agnostic
+  `decode_nrrd`/`decode_analyze` seam from each Burn reader (header parse,
+  encoding, datatype decode, axis handling now shared), then added a `native`
+  module wrapping it via `ritk_image::native::Image::from_flat_on`. Wired both
+  into ritk-io's unified `ImageReader<Image<f32,B,3>>` contract
+  (`format::{nrrd,analyze}::native::*Reader`). All 9 formats now expose a
+  native reader through one generic zero-cost trait. Evidence: per-crate
+  differential tests (native vs Burn reader on the same file — bitwise voxel +
+  shape + origin/spacing/direction equality) and 2 new cases in ritk-io's
+  differential harness; ritk-nrrd 34/34, ritk-analyze 4/4, ritk-io 354/354;
+  clippy `-D warnings` + doc clean; no dep/behavior change to the Burn path
+  (refactor-in-place, ritk-io's other 352 tests unchanged). Also removed 2
+  orphaned unused imports left by the Sprint 490 de-branding (mgh/metaimage
+  native tests). **Unblocks:** cli/python `read_image` native cutover — the
+  next [major], which finally begins dropping Burn from the format crates.
+
 > **Full sprint history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
 
 ---

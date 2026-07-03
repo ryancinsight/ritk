@@ -138,6 +138,56 @@ fn test_spacing_from_space_directions() -> Result<()> {
     Ok(())
 }
 
+/// Differential oracle: the Atlas-native reader must be value-identical to the
+/// Burn reader on the SAME file — both wrap the identical `decode_nrrd` core,
+/// so shape, every voxel (bitwise), origin, spacing, and direction must match.
+/// Uses anisotropic spacing and a non-zero origin so an axis transposition or
+/// metadata reorder in either path would diverge.
+#[test]
+fn native_reader_matches_burn_reader() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("differential.nrrd");
+
+    let nx = 4usize;
+    let ny = 3usize;
+    let nz = 2usize;
+    let data: Vec<f32> = (0..(nx * ny * nz)).map(|i| (i as f32) * 0.5 - 3.0).collect();
+    write_inline_nrrd(&path, &data, nx, ny, nz, [0.9, 0.75, 1.5], [5.0, 10.0, 15.0]);
+
+    let device: <TestBackend as Backend>::Device = Default::default();
+    let burn = read_nrrd::<TestBackend, _>(&path, &device)?;
+
+    let backend = coeus_core::SequentialBackend;
+    let native = super::super::reader::native::read_nrrd(&path, &backend)?;
+
+    assert_eq!(native.shape(), burn.shape(), "shape must match Burn path");
+    assert_eq!(native.origin(), burn.origin(), "origin must match Burn path");
+    assert_eq!(
+        native.spacing(),
+        burn.spacing(),
+        "spacing must match Burn path"
+    );
+    assert_eq!(
+        native.direction(),
+        burn.direction(),
+        "direction must match Burn path"
+    );
+
+    let native_vox = native.data_slice().expect("contiguous native voxels");
+    burn.with_data_slice(|burn_vox| {
+        assert_eq!(native_vox.len(), burn_vox.len(), "voxel count must match");
+        for (i, (&n, &b)) in native_vox.iter().zip(burn_vox.iter()).enumerate() {
+            assert_eq!(
+                n.to_bits(),
+                b.to_bits(),
+                "voxel[{i}] must be bitwise-identical to the Burn reader"
+            );
+        }
+    });
+
+    Ok(())
+}
+
 /// `spacings` field (no `space directions`) must use NRRD [x,y,z]
 /// scalars as RITK [z,y,x] spacing with canonical axis-aligned columns.
 #[test]

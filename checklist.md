@@ -1,5 +1,37 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 493 — MIG-493: Native-Reader Parity (nrrd + analyze)
+**Target version**: 0.14.0
+**Sprint phase**: Execution — closing the last format-crate native gap
+
+### In-flight plan (Sprint 493)
+- [x] Two read-only audits (consumer-chain trace + coeus capability matrix)
+  identified the exact cutover chokepoint (`read_image` in cli/python) and
+  confirmed nrrd/analyze were the only formats lacking native readers.
+- [x] ritk-nrrd: extracted `decode_nrrd` seam; Burn `read_nrrd` + `native::
+  read_nrrd`/`NrrdReader` both wrap it; added `coeus-core` dep + crate-root
+  `native` re-export.
+- [x] ritk-analyze: same shape — `decode_analyze` seam, `native` module.
+- [x] ritk-io: `format::{nrrd,analyze}::native` adapters implementing the
+  unified `ImageReader<Image<f32,B,3>>` contract; 2 new differential-harness
+  cases.
+- [x] Differential oracle per crate (native == Burn on same file, bitwise).
+- [x] Cleanup: removed 2 orphaned unused imports (mgh/metaimage native tests).
+- [x] Gates: nrrd 34/34, analyze 4/4, io 354/354; clippy -D warnings + doc
+  clean; lock churn discarded.
+
+### Verification gate (Sprint 493)
+- [x] All 9 format crates expose a native reader via one generic trait.
+- [x] Burn path behavior unchanged (refactor-in-place; io's prior 352 pass).
+
+### Deferred / carry-forward
+- NEXT [major]: cli/python `read_image` native cutover (now unblocked) →
+  begins deleting Burn from format crates → SSOT token counts drop.
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, MI/Parzen 3rd metric,
+  driver early-stop; coeus gaps (3D interp already native in ritk, multi-D
+  FFT via apollo, gather/scatter autograd backward) for the heavy crates.
+
+
 ## Sprint 492 — MIG-489 Slice 4: Coeus Is Not a Feature (Un-Gate the Mainline)
 **Target version**: 0.14.0
 **Sprint phase**: Execution — Atlas substrate promoted from opt-in to mainline

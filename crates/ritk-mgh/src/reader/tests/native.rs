@@ -1,6 +1,5 @@
-//! Value-semantic coverage for the Coeus-backed MGH reader path.
+//! Value-semantic coverage for the Atlas-native MGH reader path.
 
-use crate::native::read_mgh;
 use crate::test_support::{build_mgh_bytes, IDENTITY_DIR};
 use crate::MRI_FLOAT;
 use coeus_core::SequentialBackend;

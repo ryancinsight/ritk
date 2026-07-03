@@ -1,5 +1,47 @@
 # RITK Gap Audit - Active
 
+## Sprint 493 Audit (2026-07-03) — The Cutover Was Blocked by Two Missing Readers, Not by Coeus Gaps
+
+### Two audits reframed the remaining work
+
+A consumer-chain trace showed the entire top-down Burn cutover funnels through
+exactly two functions — `read_image` in ritk-cli and ritk-python — and that
+nine format crates sit behind them. A parallel coeus-capability audit found
+coeus already covers ~96% of Burn's surface (full nn stack, optimizers,
+autodiff); the feared "model/segmentation need nn" blocker is largely a
+non-issue. The real, narrow blocker was mechanical: two format crates
+(nrrd, analyze) had no native reader, so `read_image` could not go fully
+native even for the formats that did.
+
+### Refactor-in-place, not parallel-copy
+
+Both Burn readers had their decode logic inline. Rather than copy it into the
+native reader (which would fork the header/datatype/axis handling and invite
+drift), the decode was extracted into one substrate-agnostic `decode_*`
+returning `(data, dims, origin, spacing, direction)`; both readers are now
+thin boundary wrappers. This matches the mgh/nifti template and keeps a single
+source of truth for each format's parsing — verified by ritk-io's unchanged
+352 prior tests (the Burn path is byte-identical after the extraction).
+
+### Differential oracle at two levels
+
+Per-crate tests assert the native reader is bitwise-identical to the
+already-SITK-validated Burn reader on the same file (voxels + full metadata);
+ritk-io's harness re-checks the same equivalence through the unified trait
+adapter. Using the Burn reader as the oracle (not hand-computed values) reuses
+its verified semantics and is independent of any write-side lossiness.
+
+### Residual Risk / Next Increment
+
+- This slice is prerequisite plumbing: it does NOT drop the migration-audit
+  token counts (format crates still carry Burn readers + manifests). The
+  numbers fall only when the cli/python cutover lets the Burn readers be
+  deleted — that is the next [major], now unblocked.
+- coeus gaps that remain for the heavy-crate cutover: multi-D FFT (apollo has
+  it; needs a coeus-fft wrapper), gather/scatter autograd backward. 3-D
+  trilinear is already native in ritk-interpolation.
+
+
 ## Sprint 492 Audit (2026-07-03) — The Feature Gate Was the Last Vestige of "Parallel" Thinking
 
 ### The user's framing corrected a posture, not just a config

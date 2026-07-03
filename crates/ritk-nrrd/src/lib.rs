@@ -35,6 +35,11 @@ pub mod writer;
 pub use reader::{read_nrrd, NrrdReader};
 pub use writer::{write_nrrd, write_nrrd_with_data, NrrdWriter};
 
+/// Atlas-native-substrate readers (plain end-state names, disambiguated from
+/// the Burn functions by module path only; folds away when the Burn path is
+/// deleted — ADR 0002 A1).
+pub use reader::native;
+
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;

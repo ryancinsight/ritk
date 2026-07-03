@@ -21,6 +21,11 @@ pub mod writer;
 pub use reader::{read_analyze, AnalyzeReader};
 pub use writer::{write_analyze, AnalyzeWriter};
 
+/// Atlas-native-substrate readers (plain end-state names, disambiguated from
+/// the Burn functions by module path only; folds away when the Burn path is
+/// deleted — ADR 0002 A1).
+pub use reader::native;
+
 // Re-export datatype codes for documentation and test helpers.
 pub use reader::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_UNSIGNED_CHAR};
 

@@ -435,7 +435,6 @@ fn test_mhd_external_raw_file() -> Result<()> {
 
 #[test]
 fn native_read_metaimage_preserves_shape_and_voxels() {
-    use crate::native::read_metaimage;
     use coeus_core::SequentialBackend;
 
     let dir = tempdir().unwrap();

@@ -94,6 +94,12 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Native-reader parity — nrrd + analyze (Sprint 493, MIG-493).** Extracted
+  `decode_*` seams; added `native` readers + ritk-io unified-contract
+  adapters so all 9 formats read natively through one generic trait.
+  Prerequisite for the cli/python cutover (the next [major] that drops Burn
+  from the format crates). nrrd 34/34, analyze 4/4, io 354/354.
+
 - **Un-gating — coeus is the mainline, not a feature (Sprint 492, MIG-489
   slice 4).** The `coeus` cargo feature removed from all 14 crates; deps
   unconditional; 40 files un-gated. Default runs now cover the entire

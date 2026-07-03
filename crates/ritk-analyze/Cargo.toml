@@ -10,6 +10,7 @@ ritk-core = { workspace = true }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
 burn = { workspace = true }
+coeus-core = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 

@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 493: Native-reader parity for NRRD + Analyze (MIG-493)
+
+### Added
+- `ritk_nrrd::native::{read_nrrd, NrrdReader}` and
+  `ritk_analyze::native::read_analyze` — Atlas-native readers wrapping a new
+  substrate-agnostic `decode_*` seam shared with the Burn readers.
+- ritk-io `format::{nrrd,analyze}::native` adapters implementing the unified
+  `ImageReader<Image<f32,B,3>>` contract. All 9 image formats now expose a
+  native reader through one generic zero-cost trait.
+
+### Changed
+- ritk-nrrd/ritk-analyze Burn readers refactored to wrap the extracted
+  `decode_*` core (behavior-identical; ritk-io's prior 352 tests unchanged).
+
+### Fixed
+- Removed 2 orphaned unused imports in mgh/metaimage native tests (Sprint 490
+  de-branding leftover).
+
+### Evidence
+- Differential tests (native == Burn on same file, bitwise voxels + shape +
+  metadata) per crate + 2 new ritk-io harness cases; nrrd 34/34, analyze 4/4,
+  io 354/354; clippy -D warnings + doc clean.
+
+---
+
+
 ## [Unreleased] — Sprint 492: Coeus un-gated — Atlas substrate is the mainline (MIG-489 slice 4)
 
 ### Changed

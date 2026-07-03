@@ -88,6 +88,32 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
+    let DecodedAnalyze {
+        data,
+        dims,
+        origin,
+        spacing,
+        direction,
+    } = decode_analyze(path)?;
+
+    // Analyze raw order is X-fastest, matching RITK [Z,Y,X] flat memory, so
+    // the decoded payload maps directly to shape [nz, ny, nx].
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
+    Ok(Image::new(tensor, origin, spacing, direction))
+}
+
+/// Substrate-agnostic decode of an Analyze `.hdr`/`.img` pair into flat
+/// `[Z, Y, X]` voxels plus spatial metadata — the shared core the Burn and
+/// Atlas-native readers both wrap.
+struct DecodedAnalyze {
+    data: Vec<f32>,
+    dims: [usize; 3],
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    direction: Direction<3>,
+}
+
+fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     let path = path.as_ref();
 
     // Derive sibling paths regardless of which file the caller passed.
@@ -252,22 +278,51 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
         }
     };
 
-    // ── Build RITK Image<B, 3> with shape [nz, ny, nx] ────────────────────────
-    let td = TensorData::new(vals, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<B, 3>::from_data(td, device);
+    tracing::debug!(nx, ny, nz, datatype, "decode_analyze: complete");
 
     // Spacing reverses file `[sx, sy, sz]` into core tensor-axis order
     // `[sz, sy, sx]`; origin stays a world-space `[x, y, z]` point.
-    let image = Image::new(
-        tensor,
-        Point::new([ox, oy, oz]),
-        Spacing::new([sz, sy, sx]),
-        Direction::identity(),
-    );
+    Ok(DecodedAnalyze {
+        data: vals,
+        dims: [nz, ny, nx],
+        origin: Point::new([ox, oy, oz]),
+        spacing: Spacing::new([sz, sy, sx]),
+        direction: Direction::identity(),
+    })
+}
 
-    tracing::debug!(nx, ny, nz, datatype, "read_analyze: complete");
+/// Atlas-native-substrate entry points (transitional module: plain end-state
+/// names, disambiguated from the Burn functions by module path only; folds
+/// away when the Burn path is deleted — ADR 0002 A1).
+pub mod native {
+    use super::{decode_analyze, DecodedAnalyze};
+    use anyhow::Result;
+    use std::path::Path;
 
-    Ok(image)
+    /// Read an Analyze `.hdr`/`.img` pair into an Atlas-native 3-D image on
+    /// `backend`.
+    ///
+    /// Shares the entire header parse, datatype decode, and axis handling with
+    /// the Burn [`read_analyze`](super::read_analyze); differs only in the
+    /// final image construction, which materialises the flat `[Z, Y, X]`
+    /// payload directly onto `backend` without an intermediate Burn tensor.
+    pub fn read_analyze<B, P>(
+        path: P,
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        P: AsRef<Path>,
+    {
+        let DecodedAnalyze {
+            data,
+            dims,
+            origin,
+            spacing,
+            direction,
+        } = decode_analyze(path)?;
+        ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    }
 }
 
 // ── Reader wrapper type ───────────────────────────────────────────────────────

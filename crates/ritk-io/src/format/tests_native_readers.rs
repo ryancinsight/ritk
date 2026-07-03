@@ -101,6 +101,30 @@ fn native_minc_reader_matches_burn() {
 }
 
 #[test]
+fn native_nrrd_reader_matches_burn() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("vol.nrrd");
+    ritk_nrrd::write_nrrd(&path, &burn_volume([2, 3, 4])).expect("nrrd write");
+    assert_native_reader_matches_burn(
+        &path,
+        &super::nrrd::native::NrrdReader::new(SequentialBackend),
+        |p| ritk_nrrd::read_nrrd::<BurnBackend, _>(p, &burn_device()),
+    );
+}
+
+#[test]
+fn native_analyze_reader_matches_burn() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("vol.hdr");
+    ritk_analyze::write_analyze(&path, &burn_volume([2, 3, 4])).expect("analyze write");
+    assert_native_reader_matches_burn(
+        &path,
+        &super::analyze::native::AnalyzeReader::new(SequentialBackend),
+        |p| ritk_analyze::read_analyze::<BurnBackend, _>(p, &burn_device()),
+    );
+}
+
+#[test]
 fn native_tiff_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.tiff");
