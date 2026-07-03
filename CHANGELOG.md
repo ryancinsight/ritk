@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 490: `ritk_image::coeus` → `ritk_image::native` (MIG-489 slice 2)
+
+### Changed (unreleased surface only)
+- `ritk-image`: the Atlas-native image module renamed `coeus` → `native`
+  (`ritk_image::native::Image`); all 30 referencing files across 13 crates
+  updated in the same change. Pure rename — zero behavior change.
+
+### Evidence
+- Every touched crate's `--features coeus` suite re-run green (1,825 tests
+  across 13 crates: image 38, io 352, registration 740, filter 964,
+  statistics 295, tensor-ops 24, and the 7 format crates); clippy
+  `-D warnings` and doc clean. No dependency changes.
+
+---
+
+
 ## [Unreleased] — Sprint 489: De-brand registration autodiff module + inline pass (MIG-489 slice 1)
 
 ### Changed (unreleased surface only)

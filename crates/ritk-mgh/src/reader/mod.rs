@@ -168,7 +168,7 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
 /// bounded voxel read, and geometry derivation with the Burn path, differing
 /// only in the final image construction. `.mgz`/`.mgh.gz` paths are gzip-decoded.
 #[cfg(feature = "coeus")]
-pub fn read_mgh_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+pub fn read_mgh_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     P: AsRef<Path>,
@@ -193,7 +193,7 @@ where
 fn read_mgh_coeus_from_reader<B, R>(
     reader: &mut R,
     backend: &B,
-) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+) -> Result<ritk_image::native::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     R: Read,
@@ -205,7 +205,7 @@ where
         spacing,
         direction,
     } = decode_mgh(reader)?;
-    ritk_image::coeus::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3]> {

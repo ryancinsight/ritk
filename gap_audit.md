@@ -1,5 +1,42 @@
 # RITK Gap Audit - Active
 
+## Sprint 490 Audit (2026-07-02) — Widest De-Branding Slice Landed as a Pure Rename, Fully Re-Verified
+
+### Slicing by edit shape, not by file ownership
+
+MIG-489's remaining work was split by *edit shape*: this sprint's module-path
+rename is a single textual transformation the compiler fully checks (any
+missed reference fails to build), while the format-crate fn restructuring is
+structural (moving fns into per-crate `native` modules) and comes next. Doing
+the simple-wide change alone made the verification story clean: 13 crates'
+suites re-run green with zero behavior deltas expected or observed.
+
+### Re-verification breadth matched the fan-out, not the diff size
+
+A pure rename tempts a "compiles = done" shortcut. Instead every crate whose
+source changed had its `--features coeus` suite re-run — 1,825 tests across
+13 crates — because the naming rule's whole point is that renames must be
+completed everywhere in one change, and the test matrix is the proof the
+change is complete rather than partial.
+
+### Upstream churn: two overlapping WIP windows in one sprint
+
+hermes-simd broke mid-build, then moirai's committed dead-code purge (~2,970
+lines) plus in-flight moirai-async edits broke resolution (`moirai-utils`
+version conflict) and imports. Both windows were waited out (~10 minutes
+total) with gates run only on stabilized snapshots. The wait-vs-act
+distinction has now handled six such windows across four sprints without a
+single unverified commit.
+
+### Residual Risk / Next Increment
+
+- The format-crate fn slice (7 crates) is the last rename with API shape
+  changes; the feature-name slice after it is config-only.
+- `ritk-filter`'s file names (`coeus_support.rs`, `*_coeus.rs` wrappers) and
+  struct-less fn names (`distance_transform_coeus`, `binary_erode_coeus`, …)
+  belong to the same fn slice — include them in its rename map.
+
+
 ## Sprint 489 Audit (2026-07-02) — De-Branding Fixed a Real Shadowing Hazard, Not Just Names
 
 ### The rename surfaced a latent resolution hazard

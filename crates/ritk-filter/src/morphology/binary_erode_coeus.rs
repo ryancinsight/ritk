@@ -12,7 +12,7 @@
 
 use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::coeus::Image;
+use ritk_image::native::Image;
 
 use crate::coeus_support::map_flat_image;
 

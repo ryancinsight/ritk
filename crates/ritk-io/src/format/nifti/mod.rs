@@ -18,7 +18,7 @@ pub use ritk_nifti::{
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
-    use ritk_image::coeus::Image;
+    use ritk_image::native::Image;
     use std::path::Path;
 
     /// Backend-bound NIfTI reader (counterpart of the Burn [`super::NiftiReader`]).

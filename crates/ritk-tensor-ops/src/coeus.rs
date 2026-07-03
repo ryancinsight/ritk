@@ -8,7 +8,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use coeus_tensor::Tensor;
-use ritk_image::coeus::Image;
+use ritk_image::native::Image;
 
 /// Borrow contiguous Coeus tensor data with a statically checked rank.
 ///

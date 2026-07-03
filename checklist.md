@@ -1,5 +1,39 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 490 — MIG-489 Slice 2: `ritk_image::coeus` → `ritk_image::native`
+**Target version**: 0.14.0
+**Sprint phase**: Execution — widest-fan-out de-branding slice
+
+### In-flight plan (Sprint 490)
+- [x] Enumerated fan-out first: 13 crates / 40 files reference the module
+  path; chose this as its own slice (simple shape, wide reach) with the
+  format-crate fn restructuring deferred to the next slice (different edit
+  shape, same files — but structural vs textual edits don't conflict).
+- [x] `git mv coeus.rs → native.rs`; module decl + all `ritk_image::coeus`
+  paths replaced workspace-wide (30 files); `crate::coeus` intra-crate paths
+  in ritk-image updated.
+- [x] Full verification matrix: all 13 touched crates' coeus suites green
+  (image 38, io 352, registration 740, filter 964, statistics 295,
+  tensor-ops 24, nifti 37, mgh 32, metaimage 23, minc 43, png 10, jpeg 10,
+  tiff 17); clippy `-D warnings` + doc clean on ritk-image.
+- [x] Held gates through hermes-simd and moirai (dead-code purge)
+  WIP windows; ran only on stabilized snapshots; peer trees untouched.
+- [x] Lock churn discarded (pure rename, no dep changes).
+
+### Verification gate (Sprint 490)
+- [x] Zero `ritk_image::coeus` references remain workspace-wide.
+- [x] Scope: rename-only; the `coeus` cargo feature names unchanged (that is
+  the final MIG-489 slice).
+
+### Deferred / carry-forward
+- MIG-489 remaining: format-crate `*_coeus` fn restructuring into per-crate
+  `native` modules (plain names; 7 crates + ritk-io adapters + tests), then
+  the feature-name evaluation (`coeus` → `atlas`).
+- Consumer-cutover gate unchanged.
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, grayscale-morphology
+  native wrappers, MI/Parzen 3rd metric, driver early-stop.
+
+
 ## Sprint 489 — MIG-489 Slice 1: De-Brand Registration Autodiff + Inline Pass
 **Target version**: 0.14.0
 **Sprint phase**: Execution — naming-policy application + monomorphization pass

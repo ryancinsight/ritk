@@ -13,7 +13,7 @@ use burn::tensor::backend::Backend;
 use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image as BurnImage;
-use ritk_image::coeus::Image as NativeImage;
+use ritk_image::native::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 

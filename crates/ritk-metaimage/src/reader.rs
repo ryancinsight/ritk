@@ -53,7 +53,7 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
 pub fn read_metaimage_coeus<B, P>(
     path: P,
     backend: &B,
-) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+) -> Result<ritk_image::native::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     P: AsRef<Path>,
@@ -65,7 +65,7 @@ where
         spacing,
         direction,
     } = decode_metaimage(path)?;
-    ritk_image::coeus::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 /// Backend-agnostic decoded MetaImage volume: voxels in `[nz, ny, nx]` order plus

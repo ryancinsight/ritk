@@ -59,7 +59,7 @@ pub fn read_tiff<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
 /// dimension validation via `decode_tiff_from_reader`, differing only in the
 /// final image construction.
 #[cfg(feature = "coeus")]
-pub fn read_tiff_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+pub fn read_tiff_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     P: AsRef<Path>,
@@ -68,7 +68,7 @@ where
     let file =
         std::fs::File::open(path).with_context(|| format!("Cannot open TIFF file {:?}", path))?;
     let (data, dims) = decode_tiff_from_reader(BufReader::new(file), path)?;
-    ritk_image::coeus::Image::from_flat_on(
+    ritk_image::native::Image::from_flat_on(
         data,
         dims,
         Point::new([0.0, 0.0, 0.0]),

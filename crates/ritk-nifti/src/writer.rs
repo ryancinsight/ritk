@@ -233,7 +233,7 @@ fn write_flat_with_version(
 #[cfg(feature = "coeus")]
 pub fn write_nifti_coeus<B, P>(
     path: P,
-    image: &ritk_image::coeus::Image<f32, B, 3>,
+    image: &ritk_image::native::Image<f32, B, 3>,
     backend: &B,
 ) -> Result<()>
 where

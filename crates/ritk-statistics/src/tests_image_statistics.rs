@@ -9,10 +9,10 @@ type TestBackend = NdArray<f32>;
 fn make_coeus_image<const D: usize>(
     data: Vec<f32>,
     dims: [usize; D],
-) -> ritk_image::coeus::Image<f32, coeus_core::MoiraiBackend, D> {
+) -> ritk_image::native::Image<f32, coeus_core::MoiraiBackend, D> {
     use ritk_spatial::{Direction, Point, Spacing};
 
-    ritk_image::coeus::Image::from_flat(
+    ritk_image::native::Image::from_flat(
         data,
         dims,
         Point::new([0.0; D]),

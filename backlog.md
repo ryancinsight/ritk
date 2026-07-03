@@ -202,8 +202,20 @@
   passed 340 tests.
 
 - **MIG-489 [minor] — De-brand the remaining substrate-named APIs.
-  SLICE 1 DONE (registration autodiff); format-crate + module + feature
-  slices remain.**
+  SLICES 1–2 DONE; format-crate fn + feature slices remain.**
+  **Slice 2 (Sprint 490, DONE):** `ritk_image::coeus` → `ritk_image::native`
+  — the image-module rename with the widest fan-out (30 files across 13
+  crates), applied as one coordinated textual change with the compiler
+  enforcing completeness. Every touched crate's `--features coeus` suite
+  re-run green under the rename: ritk-image 38/38, ritk-io 352/352,
+  ritk-registration 740/740, ritk-filter 964/964, ritk-statistics 295/295,
+  ritk-tensor-ops 24/24, nifti 37/37, mgh 32/32, metaimage 23/23, minc
+  43/43, png 10/10, jpeg 10/10, tiff 17/17; clippy `-D warnings` and doc
+  clean on the renamed crate. Pure rename — zero behavior change, no
+  dependency changes (lock churn discarded). Verification was held through
+  two overlapping upstream WIP windows (hermes-simd, then moirai-async /
+  moirai-utils resolution churn from moirai's dead-code purge) and run only
+  on stabilized snapshots.
   **Slice 1 (Sprint 489, DONE):** `ritk-registration::metric::coeus_autograd`
   → `metric::autodiff`; all `*_coeus` fns de-suffixed (`affine_mse`,
   `mean_squared_error`, `normalized_cross_correlation`, `sample_linear_1d`,

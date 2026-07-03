@@ -93,7 +93,7 @@ mod tests {
 pub mod native {
     use crate::domain::{to_io_err, ImageReader};
     use coeus_core::ComputeBackend;
-    use ritk_image::coeus::Image;
+    use ritk_image::native::Image;
     use std::path::Path;
 
     /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::JpegReader`]).

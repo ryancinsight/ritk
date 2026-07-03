@@ -3,7 +3,7 @@
 //!
 //! Every Coeus-native filter wrapper in `ritk-filter` follows the same
 //! extract → compute → reconstruct sequence: pull the contiguous voxel
-//! buffer out of a [`ritk_image::coeus::Image`], hand it to an
+//! buffer out of a [`ritk_image::native::Image`], hand it to an
 //! already-substrate-agnostic pure function, and rebuild an `Image` from
 //! the result with the source's spatial metadata preserved. `map_flat_image`
 //! is the single generic entry point for that sequence (consolidation:
@@ -13,7 +13,7 @@
 
 use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::coeus::Image;
+use ritk_image::native::Image;
 
 /// Apply a pure flat-buffer transform to a Coeus 3-D image, preserving its
 /// shape and spatial metadata (origin, spacing, direction).

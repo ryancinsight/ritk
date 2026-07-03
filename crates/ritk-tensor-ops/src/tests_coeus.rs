@@ -6,7 +6,7 @@ use burn::tensor::TensorData;
 use burn_ndarray::NdArray;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor as CoeusTensor;
-use ritk_image::coeus::Image as CoeusImage;
+use ritk_image::native::Image as CoeusImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type BurnB = NdArray<f32>;

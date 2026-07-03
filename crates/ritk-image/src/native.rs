@@ -2,7 +2,7 @@
 //!
 //! This module is the Atlas tensor migration target for image metadata.  The
 //! legacy crate root still exposes the Burn-backed [`crate::Image`] while
-//! downstream callers migrate to `ritk_image::coeus::Image`.
+//! downstream callers migrate to `ritk_image::native::Image`.
 
 use std::fmt;
 

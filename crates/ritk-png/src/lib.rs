@@ -27,7 +27,7 @@ pub fn read_png_to_image<B: Backend, P: AsRef<Path>>(
 pub fn read_png_to_image_coeus<B, P>(
     path: P,
     backend: &B,
-) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+) -> Result<ritk_image::native::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     P: AsRef<Path>,
@@ -64,7 +64,7 @@ pub fn read_png_series<B: Backend, P: AsRef<Path>>(
 pub fn read_png_series_coeus<B, P>(
     path: P,
     backend: &B,
-) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+) -> Result<ritk_image::native::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     P: AsRef<Path>,
@@ -182,8 +182,8 @@ fn coeus_image_from_flat_pixels<B: coeus_core::ComputeBackend>(
     pixels: Vec<f32>,
     dims: [usize; 3],
     backend: &B,
-) -> Result<ritk_image::coeus::Image<f32, B, 3>> {
-    ritk_image::coeus::Image::from_flat_on(
+) -> Result<ritk_image::native::Image<f32, B, 3>> {
+    ritk_image::native::Image::from_flat_on(
         pixels,
         dims,
         Point::new([0.0, 0.0, 0.0]),

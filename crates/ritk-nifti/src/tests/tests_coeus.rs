@@ -68,7 +68,7 @@ fn test_volume() -> (Vec<f32>, [usize; 3], Point<3>, Spacing<3>, Direction<3>) {
 fn coeus_writer_round_trips_through_coeus_reader() {
     let (voxels, dims, origin, spacing, direction) = test_volume();
     let backend = SequentialBackend;
-    let image = ritk_image::coeus::Image::from_flat_on(
+    let image = ritk_image::native::Image::from_flat_on(
         voxels.clone(),
         dims,
         origin,
@@ -127,7 +127,7 @@ fn coeus_writer_output_is_byte_identical_to_burn_writer() {
     };
     let backend = SequentialBackend;
     let coeus_image =
-        ritk_image::coeus::Image::from_flat_on(voxels, dims, origin, spacing, direction, &backend)
+        ritk_image::native::Image::from_flat_on(voxels, dims, origin, spacing, direction, &backend)
             .expect("coeus image");
 
     let dir = tempfile::tempdir().expect("tempdir");

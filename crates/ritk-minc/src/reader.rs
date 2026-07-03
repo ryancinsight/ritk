@@ -69,7 +69,7 @@ pub fn read_minc<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
 /// bounded contiguous voxel read, decode, and geometry derivation with the Burn
 /// path via `decode_minc`, differing only in the final image construction.
 #[cfg(feature = "coeus")]
-pub fn read_minc_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+pub fn read_minc_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     P: AsRef<Path>,
@@ -81,7 +81,7 @@ where
         spacing,
         direction,
     } = decode_minc(path)?;
-    ritk_image::coeus::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 /// Backend-agnostic decoded MINC2 volume: voxels plus derived physical metadata.

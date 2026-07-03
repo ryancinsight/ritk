@@ -105,7 +105,7 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
 /// header parse, byte-range validation, and voxel decode with the Burn path,
 /// differing only in the final image construction.
 #[cfg(feature = "coeus")]
-pub fn read_nifti_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+pub fn read_nifti_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     P: AsRef<Path>,
@@ -120,7 +120,7 @@ where
 pub fn read_nifti_coeus_from_bytes<B>(
     bytes: &[u8],
     backend: &B,
-) -> Result<ritk_image::coeus::Image<f32, B, 3>>
+) -> Result<ritk_image::native::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
 {
@@ -129,7 +129,7 @@ where
         dims,
         spatial,
     } = decode_nifti_bytes(bytes)?;
-    ritk_image::coeus::Image::from_flat_on(
+    ritk_image::native::Image::from_flat_on(
         data,
         dims,
         spatial.origin,

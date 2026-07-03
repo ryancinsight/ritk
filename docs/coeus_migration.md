@@ -94,6 +94,12 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **De-branding slice 2 — `ritk_image::coeus` → `ritk_image::native`
+  (Sprint 490, MIG-489).** The widest-fan-out rename (30 files / 13 crates),
+  one coordinated textual change, all touched suites re-run green (1,825
+  tests). Remaining: format-crate `*_coeus` fn restructuring (incl.
+  ritk-filter wrapper names), then the feature-name evaluation.
+
 - **De-branding slice 1 — registration autodiff (Sprint 489, MIG-489).**
   `metric::coeus_autograd` → `metric::autodiff`; `*_coeus` fns de-suffixed;
   seams now `autodiff::{Transform, Metric}` (path-disambiguated). Fixed a
