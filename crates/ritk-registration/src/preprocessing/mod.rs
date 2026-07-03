@@ -16,7 +16,7 @@
 
 pub mod brain_mask;
 #[cfg(feature = "coeus")]
-pub(crate) mod coeus_executor;
+pub(crate) mod native_executor;
 pub(crate) mod executor;
 pub(crate) mod pipeline;
 pub(crate) mod step;

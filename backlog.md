@@ -202,7 +202,34 @@
   passed 340 tests.
 
 - **MIG-489 [minor] — De-brand the remaining substrate-named APIs.
-  SLICES 1–2 DONE; format-crate fn + feature slices remain.**
+  SLICES 1–3 DONE — zero `coeus` in any ritk fn/struct name; feature-name
+  slice remains.**
+  **Slice 3 (Sprint 491, DONE):** completed the user's directive — no
+  substrate brand in any ritk function name. (a) All 7 format crates'
+  `read_*_coeus`/`write_nifti_coeus` fns moved into per-file `pub mod
+  native` blocks with plain end-state names (`native::read_nifti`,
+  `native::write_nifti`, …), lib.rs facades, ritk-io adapters and all
+  in-crate tests updated; private helpers de-branded with them.
+  (b) ritk-filter: the 4 morphology wrapper files consolidated into one
+  `morphology/native.rs` (`native::{binary_erode, binary_dilate,
+  binary_closing, binary_opening}`) with one consolidated per-op-submodule
+  test file (net −7 files); `distance/euclidean/native.rs`
+  (`native::distance_transform`); `coeus_support` → `native_support` with
+  `assert_native_matches_burn`. (c) ritk-interpolation:
+  `native::trilinear_interpolation` (flat re-export dropped; burn/native
+  disambiguated by module path). (d) ritk-tensor-ops and ritk-statistics
+  module files `coeus.rs` → `native.rs` (their fns were already plain).
+  (e) ritk-registration `coeus_executor`/`execute_coeus` →
+  `native_executor`/`execute_native`. (f) All test files/modules/fn names
+  de-branded. Everything remains generic over `B: ComputeBackend` —
+  statically dispatched, zero `dyn`, zero-cost. Evidence: all touched
+  suites green — filter 964, io 352, registration 740, statistics 295,
+  interpolation 129, tensor-ops 24, nifti 37, mgh 32, metaimage 23, minc
+  43, png 10, jpeg 10, tiff 17 (2,916 tests / 13 crates); clippy
+  `-D warnings` clean on filter/io/interpolation; final grep confirms
+  **zero** `coeus`-containing fn or struct names workspace-wide.
+  **Remaining:** the `coeus` cargo feature name (config-only; candidate
+  `atlas`).
   **Slice 2 (Sprint 490, DONE):** `ritk_image::coeus` → `ritk_image::native`
   — the image-module rename with the widest fan-out (30 files across 13
   crates), applied as one coordinated textual change with the compiler

@@ -1,14 +1,14 @@
-//! Differential coverage: `distance_transform_coeus` must be value-identical
+//! Differential coverage: `distance_transform` must be value-identical
 //! to the Burn-generic `DistanceTransformImageFilter::apply` it mirrors —
 //! both call the same `euclidean_dt` core (shared harness in `coeus_support`).
 
-use super::distance_transform_coeus;
-use crate::coeus_support::assert_coeus_matches_burn;
+use super::distance_transform;
+use crate::native_support::assert_native_matches_burn;
 use crate::distance::euclidean::DistanceTransformImageFilter;
 use crate::distance::types::BinarizationThreshold;
 
 fn check(vals: Vec<f32>, dims: [usize; 3]) {
-    assert_coeus_matches_burn(
+    assert_native_matches_burn(
         vals,
         dims,
         |img| {
@@ -16,7 +16,7 @@ fn check(vals: Vec<f32>, dims: [usize; 3]) {
                 .apply(img)
                 .expect("burn distance transform")
         },
-        |img, backend| distance_transform_coeus(img, BinarizationThreshold::DEFAULT, backend),
+        |img, backend| distance_transform(img, BinarizationThreshold::DEFAULT, backend),
     );
 }
 

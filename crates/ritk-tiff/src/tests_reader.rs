@@ -215,8 +215,7 @@ fn negative_values_survive_round_trip() -> anyhow::Result<()> {
 
 #[cfg(feature = "coeus")]
 #[test]
-fn read_tiff_coeus_matches_burn() -> anyhow::Result<()> {
-    use crate::read_tiff_coeus;
+fn native_read_tiff_matches_burn() -> anyhow::Result<()> {
     use coeus_core::SequentialBackend;
 
     let dir = tempdir()?;
@@ -231,7 +230,7 @@ fn read_tiff_coeus_matches_burn() -> anyhow::Result<()> {
     write_tiff(&image, &path)?;
 
     let burn = read_tiff::<TestBackend, _>(&path, &device)?;
-    let coeus = read_tiff_coeus(&path, &SequentialBackend)?;
+    let coeus = crate::native::read_tiff(&path, &SequentialBackend)?;
 
     assert_eq!(coeus.shape(), [nz, ny, nx]);
     let coeus_slice = coeus.data_slice()?;

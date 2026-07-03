@@ -1,8 +1,7 @@
-//! Differential coverage: `trilinear_interpolation_coeus` must be
+//! Differential coverage: `trilinear_interpolation` must be
 //! value-identical to the Burn-generic `trilinear_interpolation` it mirrors.
 
-use super::trilinear_interpolation_coeus;
-use crate::interpolation::tensor_trilinear::trilinear_interpolation;
+use crate::interpolation::tensor_trilinear;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 
@@ -35,12 +34,12 @@ fn assert_matches_burn(
         &device,
     );
 
-    let burn_result = trilinear_interpolation(image_tensor, grid_tensor);
+    let burn_result = tensor_trilinear::trilinear_interpolation(image_tensor, grid_tensor);
     let burn_data = burn_result.into_data();
     let burn_slice: &[f32] = burn_data.as_slice().expect("burn result slice");
 
     let coeus_result =
-        trilinear_interpolation_coeus::<f32>(&image, b, c, d, h, w, &grid, out_d, out_h, out_w);
+        super::trilinear_interpolation::<f32>(&image, b, c, d, h, w, &grid, out_d, out_h, out_w);
 
     assert_eq!(
         coeus_result.len(),

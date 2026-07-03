@@ -58,7 +58,7 @@ where
 /// occurrence of this harness (the binary-morphology family) rather than
 /// copied per filter.
 #[cfg(test)]
-pub(crate) fn assert_coeus_matches_burn<FB, FC>(
+pub(crate) fn assert_native_matches_burn<FB, FC>(
     vals: Vec<f32>,
     dims: [usize; 3],
     burn_apply: FB,

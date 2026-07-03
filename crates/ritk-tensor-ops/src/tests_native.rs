@@ -1,6 +1,6 @@
 #![cfg(feature = "coeus")]
 
-use crate::coeus as coeus_tensor_ops;
+use crate::native as coeus_tensor_ops;
 use burn::tensor::Tensor as BurnTensor;
 use burn::tensor::TensorData;
 use burn_ndarray::NdArray;
@@ -56,13 +56,13 @@ const BINARY_CASES: &[BinaryCase] = &[
     },
 ];
 
-fn coeus_tensor(values: &[f32]) -> CoeusTensor<f32, MoiraiBackend> {
+fn native_tensor(values: &[f32]) -> CoeusTensor<f32, MoiraiBackend> {
     CoeusTensor::<f32, _>::from_slice_on(SHAPE, values, &MoiraiBackend)
 }
 
-fn coeus_image(values: &[f32]) -> CoeusImage<f32, MoiraiBackend, 2> {
+fn native_image(values: &[f32]) -> CoeusImage<f32, MoiraiBackend, 2> {
     CoeusImage::new(
-        coeus_tensor(values),
+        native_tensor(values),
         Point::new([10.0, 20.0]),
         Spacing::new([0.5, 1.5]),
         Direction::identity(),
@@ -78,7 +78,7 @@ fn burn_tensor(values: &[f32]) -> BurnTensor<BurnB, 2> {
     )
 }
 
-fn coeus_data(tensor: &CoeusTensor<f32, MoiraiBackend>) -> Vec<f32> {
+fn native_data(tensor: &CoeusTensor<f32, MoiraiBackend>) -> Vec<f32> {
     tensor.as_slice().to_vec()
 }
 
@@ -93,13 +93,13 @@ fn burn_data<const D: usize>(tensor: BurnTensor<BurnB, D>) -> Vec<f32> {
 fn differential_elementwise_binary_ops() {
     for case in BINARY_CASES {
         let backend = MoiraiBackend;
-        let lhs_coeus = coeus_tensor(case.lhs);
-        let rhs_coeus = coeus_tensor(case.rhs);
+        let lhs_coeus = native_tensor(case.lhs);
+        let rhs_coeus = native_tensor(case.rhs);
         let got_coeus = match case.op {
-            BinaryOp::Add => coeus_data(&coeus_ops::add(&lhs_coeus, &rhs_coeus, &backend)),
-            BinaryOp::Sub => coeus_data(&coeus_ops::sub(&lhs_coeus, &rhs_coeus, &backend)),
-            BinaryOp::Mul => coeus_data(&coeus_ops::mul(&lhs_coeus, &rhs_coeus, &backend)),
-            BinaryOp::Div => coeus_data(&coeus_ops::div(&lhs_coeus, &rhs_coeus, &backend)),
+            BinaryOp::Add => native_data(&coeus_ops::add(&lhs_coeus, &rhs_coeus, &backend)),
+            BinaryOp::Sub => native_data(&coeus_ops::sub(&lhs_coeus, &rhs_coeus, &backend)),
+            BinaryOp::Mul => native_data(&coeus_ops::mul(&lhs_coeus, &rhs_coeus, &backend)),
+            BinaryOp::Div => native_data(&coeus_ops::div(&lhs_coeus, &rhs_coeus, &backend)),
         };
 
         let lhs_burn = burn_tensor(case.lhs);
@@ -120,10 +120,10 @@ fn differential_elementwise_binary_ops() {
 fn differential_shape_ops_preserve_values() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
-    let coeus = coeus_tensor(&values);
+    let coeus = native_tensor(&values);
     let reshaped_coeus = coeus.clone().reshape([3, 2]);
     assert_eq!(reshaped_coeus.shape(), &[3, 2]);
-    assert_eq!(coeus_data(&reshaped_coeus), values);
+    assert_eq!(native_data(&reshaped_coeus), values);
 
     let transposed_coeus = coeus.t();
     assert_eq!(transposed_coeus.shape(), &[3, 2]);
@@ -152,7 +152,7 @@ fn differential_reductions() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
     let backend = MoiraiBackend;
-    let coeus = coeus_tensor(&values);
+    let coeus = native_tensor(&values);
     let got_sum_coeus = coeus_ops::sum(&coeus, &backend);
     let got_mean_coeus = coeus_ops::mean(&coeus, &backend);
 
@@ -167,9 +167,9 @@ fn differential_reductions() {
 }
 
 #[test]
-fn coeus_extract_slice_borrows_contiguous_tensor() {
+fn native_extract_slice_borrows_contiguous_tensor() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let tensor = coeus_tensor(&values);
+    let tensor = native_tensor(&values);
 
     let (slice, dims) = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 2>(&tensor).unwrap();
 
@@ -178,9 +178,9 @@ fn coeus_extract_slice_borrows_contiguous_tensor() {
 }
 
 #[test]
-fn coeus_extract_vec_matches_slice_values() {
+fn native_extract_vec_matches_slice_values() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let tensor = coeus_tensor(&values);
+    let tensor = native_tensor(&values);
 
     let (owned, dims) = coeus_tensor_ops::extract_vec::<f32, MoiraiBackend, 2>(&tensor).unwrap();
 
@@ -189,8 +189,8 @@ fn coeus_extract_vec_matches_slice_values() {
 }
 
 #[test]
-fn coeus_extract_slice_rejects_non_contiguous_view() {
-    let tensor = coeus_tensor(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+fn native_extract_slice_rejects_non_contiguous_view() {
+    let tensor = native_tensor(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     let transposed = tensor.t();
 
     let err = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 2>(&transposed)
@@ -203,8 +203,8 @@ fn coeus_extract_slice_rejects_non_contiguous_view() {
 }
 
 #[test]
-fn coeus_extract_slice_rejects_rank_mismatch() {
-    let tensor = coeus_tensor(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+fn native_extract_slice_rejects_rank_mismatch() {
+    let tensor = native_tensor(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
     let err = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 3>(&tensor)
         .expect_err("rank mismatch must be reported");
@@ -216,7 +216,7 @@ fn coeus_extract_slice_rejects_rank_mismatch() {
 }
 
 #[test]
-fn coeus_rebuild_validates_shape_product() {
+fn native_rebuild_validates_shape_product() {
     let backend = MoiraiBackend;
     let err = match coeus_tensor_ops::rebuild::<f32, MoiraiBackend, 2>(
         vec![1.0, 2.0, 3.0],
@@ -234,7 +234,7 @@ fn coeus_rebuild_validates_shape_product() {
 }
 
 #[test]
-fn coeus_rebuild_preserves_values_and_shape() {
+fn native_rebuild_preserves_values_and_shape() {
     let backend = MoiraiBackend;
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
@@ -247,9 +247,9 @@ fn coeus_rebuild_preserves_values_and_shape() {
 }
 
 #[test]
-fn coeus_image_extract_slice_borrows_contiguous_image() {
+fn native_image_extract_slice_borrows_contiguous_image() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let image = coeus_image(&values);
+    let image = native_image(&values);
 
     let (slice, dims) =
         coeus_tensor_ops::extract_image_slice::<f32, MoiraiBackend, 2>(&image).unwrap();
@@ -259,9 +259,9 @@ fn coeus_image_extract_slice_borrows_contiguous_image() {
 }
 
 #[test]
-fn coeus_image_extract_vec_matches_slice_values() {
+fn native_image_extract_vec_matches_slice_values() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let image = coeus_image(&values);
+    let image = native_image(&values);
 
     let (owned, dims) =
         coeus_tensor_ops::extract_image_vec::<f32, MoiraiBackend, 2>(&image).unwrap();
@@ -271,9 +271,9 @@ fn coeus_image_extract_vec_matches_slice_values() {
 }
 
 #[test]
-fn coeus_rebuild_image_preserves_values_shape_and_metadata() {
+fn native_rebuild_image_preserves_values_shape_and_metadata() {
     let backend = MoiraiBackend;
-    let source = coeus_image(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let source = native_image(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     let values = vec![6.0, 5.0, 4.0, 3.0, 2.0, 1.0];
 
     let rebuilt = coeus_tensor_ops::rebuild_image::<f32, MoiraiBackend, 2>(
@@ -292,9 +292,9 @@ fn coeus_rebuild_image_preserves_values_shape_and_metadata() {
 }
 
 #[test]
-fn coeus_rebuild_image_validates_shape_product() {
+fn native_rebuild_image_validates_shape_product() {
     let backend = MoiraiBackend;
-    let source = coeus_image(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let source = native_image(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
     let err = coeus_tensor_ops::rebuild_image::<f32, MoiraiBackend, 2>(
         vec![1.0, 2.0, 3.0],

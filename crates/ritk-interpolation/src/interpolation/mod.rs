@@ -6,7 +6,7 @@
 //! (re-exported here for convenience). All concrete interpolators live here.
 
 #[cfg(feature = "coeus")]
-pub mod coeus_trilinear;
+pub mod native;
 pub mod dispatch;
 pub mod fused;
 pub(crate) mod kernel;
@@ -20,8 +20,6 @@ mod tests;
 pub use ritk_core::interpolation::Interpolator;
 
 // ── Concrete types defined in this crate ───────────────────────────────────
-#[cfg(feature = "coeus")]
-pub use coeus_trilinear::trilinear_interpolation_coeus;
 pub use fused::{transform_and_interpolate, FusedInterpolationResult};
 pub use kernel::bspline::{bspline_decomposition_coefficients, BSplineInterpolator};
 pub use kernel::linear::LinearInterpolator;

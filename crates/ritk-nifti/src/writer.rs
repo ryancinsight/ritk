@@ -223,38 +223,6 @@ fn write_flat_with_version(
     })
 }
 
-/// Write a Coeus-backed image to a NIfTI-1 single-file stream.
-///
-/// The Atlas-tensor counterpart to [`write_nifti`] (same spatial convention
-/// and byte-identical output for the same logical image): host data is
-/// extracted layout-independently via `data_cow_on`, then serialized through
-/// the same core as the Burn writer. The first Coeus-native format writer —
-/// the write-side half of the ADR 0002 cutover prerequisite.
-#[cfg(feature = "coeus")]
-pub fn write_nifti_coeus<B, P>(
-    path: P,
-    image: &ritk_image::native::Image<f32, B, 3>,
-    backend: &B,
-) -> Result<()>
-where
-    B: coeus_core::ComputeBackend + Default,
-    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-    P: AsRef<Path>,
-{
-    let voxels = image.data_cow_on(backend);
-    let origin = image.origin();
-    let spacing = image.spacing();
-
-    write_flat_with_version(
-        HeaderVersion::One,
-        path.as_ref(),
-        &voxels,
-        image.shape(),
-        [origin[0], origin[1], origin[2]],
-        [spacing[0], spacing[1], spacing[2]],
-        direction_row_major(image.direction()),
-    )
-}
 
 fn header_from_spatial(
     version: HeaderVersion,
@@ -311,4 +279,45 @@ fn is_gzip_path(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| ext.eq_ignore_ascii_case("gz"))
+}
+
+/// Atlas-native-substrate entry points (transitional module: plain
+/// end-state names, disambiguated from the Burn functions by module
+/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
+#[cfg(feature = "coeus")]
+pub mod native {
+    #[allow(unused_imports)]
+    use super::*;
+
+    /// Write a Coeus-backed image to a NIfTI-1 single-file stream.
+    ///
+    /// The Atlas-tensor counterpart to [`write_nifti`] (same spatial convention
+    /// and byte-identical output for the same logical image): host data is
+    /// extracted layout-independently via `data_cow_on`, then serialized through
+    /// the same core as the Burn writer. The first Coeus-native format writer —
+    /// the write-side half of the ADR 0002 cutover prerequisite.
+    pub fn write_nifti<B, P>(
+        path: P,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> Result<()>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+        P: AsRef<Path>,
+    {
+        let voxels = image.data_cow_on(backend);
+        let origin = image.origin();
+        let spacing = image.spacing();
+
+        write_flat_with_version(
+            HeaderVersion::One,
+            path.as_ref(),
+            &voxels,
+            image.shape(),
+            [origin[0], origin[1], origin[2]],
+            [spacing[0], spacing[1], spacing[2]],
+            direction_row_major(image.direction()),
+        )
+    }
 }

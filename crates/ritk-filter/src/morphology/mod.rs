@@ -49,33 +49,19 @@ pub use label_morphology::{
 };
 pub use top_hat::{BlackTopHatFilter, WhiteTopHatFilter};
 
+#[cfg(feature = "coeus")]
+pub mod native;
 pub mod binary_closing;
-#[cfg(feature = "coeus")]
-pub mod binary_closing_coeus;
 pub mod binary_dilate;
-#[cfg(feature = "coeus")]
-pub mod binary_dilate_coeus;
 pub mod binary_erode;
-#[cfg(feature = "coeus")]
-pub mod binary_erode_coeus;
 pub mod binary_fillhole;
 pub mod binary_opening;
-#[cfg(feature = "coeus")]
-pub mod binary_opening_coeus;
 
 pub use binary_closing::BinaryMorphologicalClosing;
-#[cfg(feature = "coeus")]
-pub use binary_closing_coeus::binary_closing_coeus;
 pub use binary_dilate::BinaryDilateFilter;
-#[cfg(feature = "coeus")]
-pub use binary_dilate_coeus::binary_dilate_coeus;
 pub use binary_erode::BinaryErodeFilter;
-#[cfg(feature = "coeus")]
-pub use binary_erode_coeus::binary_erode_coeus;
 pub use binary_fillhole::BinaryFillholeFilter;
 pub use binary_opening::BinaryMorphologicalOpening;
-#[cfg(feature = "coeus")]
-pub use binary_opening_coeus::binary_opening_coeus;
 
 pub mod grayscale_closing;
 pub mod grayscale_fillhole;

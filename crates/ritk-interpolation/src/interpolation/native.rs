@@ -28,7 +28,7 @@ use coeus_core::Scalar;
 /// matches the Burn path, which panics identically via tensor shape
 /// mismatches).
 #[allow(clippy::too_many_arguments)]
-pub fn trilinear_interpolation_coeus<T: Scalar>(
+pub fn trilinear_interpolation<T: Scalar>(
     image: &[T],
     b: usize,
     c: usize,
@@ -43,12 +43,12 @@ pub fn trilinear_interpolation_coeus<T: Scalar>(
     assert_eq!(
         image.len(),
         b * c * d * h * w,
-        "trilinear_interpolation_coeus: image buffer length mismatch"
+        "trilinear_interpolation: image buffer length mismatch"
     );
     assert_eq!(
         grid.len(),
         b * 3 * out_d * out_h * out_w,
-        "trilinear_interpolation_coeus: grid buffer length mismatch"
+        "trilinear_interpolation: grid buffer length mismatch"
     );
 
     let out_elements = out_d * out_h * out_w;
@@ -139,5 +139,5 @@ fn floor_weights<T: Scalar>(coord: T, extent: usize) -> (usize, usize, T, T) {
 }
 
 #[cfg(test)]
-#[path = "tests_coeus_trilinear.rs"]
+#[path = "tests_native.rs"]
 mod tests;

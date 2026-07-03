@@ -24,7 +24,7 @@ impl PreprocessingPipeline {
     /// Returns an error when tensor extraction/rebuild validation fails, mask
     /// dimensions do not match the image, or a filter-backed step is requested
     /// before its Coeus implementation exists.
-    pub fn execute_coeus<B>(
+    pub fn execute_native<B>(
         &self,
         mut image: Image<f32, B, 3>,
         backend: &B,
@@ -37,30 +37,30 @@ impl PreprocessingPipeline {
         for step in &self.steps {
             image = match step {
                 PreprocessingStep::IntensityNormalization { mode } => {
-                    let (vals, dims) = ritk_tensor_ops::coeus::extract_image_vec(&image)
+                    let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(&image)
                         .context("coeus preprocessing intensity normalization requires contiguous f32 image data")?;
                     let result = normalize_values(&vals, mode);
-                    ritk_tensor_ops::coeus::rebuild_image(result, dims, &image, backend)?
+                    ritk_tensor_ops::native::rebuild_image(result, dims, &image, backend)?
                 }
                 PreprocessingStep::Clamp { lower, upper } => {
-                    let (vals, dims) = ritk_tensor_ops::coeus::extract_image_vec(&image)
+                    let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(&image)
                         .context("coeus preprocessing clamp requires contiguous f32 image data")?;
                     let result = clamp_values(&vals, *lower, *upper);
-                    ritk_tensor_ops::coeus::rebuild_image(result, dims, &image, backend)?
+                    ritk_tensor_ops::native::rebuild_image(result, dims, &image, backend)?
                 }
                 PreprocessingStep::Masking {
                     mask,
                     dims: mask_dims,
                 } => {
                     validate_mask(mask, *mask_dims, image.shape())?;
-                    let (vals, dims) = ritk_tensor_ops::coeus::extract_image_vec(&image).context(
+                    let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(&image).context(
                         "coeus preprocessing masking requires contiguous f32 image data",
                     )?;
                     let result = apply_mask_values(&vals, mask)?;
-                    ritk_tensor_ops::coeus::rebuild_image(result, dims, &image, backend)?
+                    ritk_tensor_ops::native::rebuild_image(result, dims, &image, backend)?
                 }
                 PreprocessingStep::Smoothing { sigma } => {
-                    let (mut vals, dims) = ritk_tensor_ops::coeus::extract_image_vec(&image)
+                    let (mut vals, dims) = ritk_tensor_ops::native::extract_image_vec(&image)
                         .context("coeus preprocessing smoothing requires contiguous f32 image data")?;
                     smooth_values(
                         &mut vals,
@@ -69,7 +69,7 @@ impl PreprocessingPipeline {
                         *sigma,
                         &mut smoothing_scratch,
                     )?;
-                    ritk_tensor_ops::coeus::rebuild_image(vals, dims, &image, backend)?
+                    ritk_tensor_ops::native::rebuild_image(vals, dims, &image, backend)?
                 }
                 PreprocessingStep::N4BiasCorrection { .. } => anyhow::bail!(
                     "coeus preprocessing does not support N4BiasCorrection; use the legacy Burn executor until N4 is migrated"
@@ -130,7 +130,7 @@ mod tests {
     }
 
     #[test]
-    fn execute_coeus_clamp_preserves_metadata() {
+    fn execute_native_clamp_preserves_metadata() {
         let backend = B::new();
         let image = make_image(vec![-1.0, 0.25, 0.75, 2.0], [1, 2, 2]);
         let origin = *image.origin();
@@ -141,7 +141,7 @@ mod tests {
             upper: 1.0,
         });
 
-        let out = pipeline.execute_coeus(image, &backend).unwrap();
+        let out = pipeline.execute_native(image, &backend).unwrap();
 
         assert_eq!(out.data_slice().unwrap(), &[0.0, 0.25, 0.75, 1.0]);
         assert_eq!(out.origin(), &origin);
@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn execute_coeus_masking_matches_mask_values() {
+    fn execute_native_masking_matches_mask_values() {
         let backend = B::new();
         let image = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 2, 2]);
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::Masking {
@@ -158,13 +158,13 @@ mod tests {
             dims: [1, 2, 2],
         });
 
-        let out = pipeline.execute_coeus(image, &backend).unwrap();
+        let out = pipeline.execute_native(image, &backend).unwrap();
 
         assert_eq!(out.data_slice().unwrap(), &[1.0, 0.0, 3.0, 0.0]);
     }
 
     #[test]
-    fn execute_coeus_minmax_matches_bounded_reference() {
+    fn execute_native_minmax_matches_bounded_reference() {
         let backend = B::new();
         let image = make_image(vec![2.0, 4.0, 6.0], [1, 1, 3]);
         let pipeline =
@@ -175,19 +175,19 @@ mod tests {
                 },
             });
 
-        let out = pipeline.execute_coeus(image, &backend).unwrap();
+        let out = pipeline.execute_native(image, &backend).unwrap();
 
         assert_eq!(out.data_slice().unwrap(), &[0.0, 0.5, 1.0]);
     }
 
     #[test]
-    fn execute_coeus_smoothing_preserves_constant_image() {
+    fn execute_native_smoothing_preserves_constant_image() {
         let backend = B::new();
         let image = make_image(vec![3.25; 27], [3, 3, 3]);
         let pipeline =
             PreprocessingPipeline::new().add_step(PreprocessingStep::Smoothing { sigma: 1.0 });
 
-        let out = pipeline.execute_coeus(image, &backend).unwrap();
+        let out = pipeline.execute_native(image, &backend).unwrap();
 
         for &value in out.data_slice().unwrap() {
             // Three f64-normalized convolution passes round once per pass into
@@ -200,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn execute_coeus_smoothing_reduces_impulse_peak() {
+    fn execute_native_smoothing_reduces_impulse_peak() {
         let backend = B::new();
         let mut values = vec![0.0; 27];
         values[13] = 1.0;
@@ -208,7 +208,7 @@ mod tests {
         let pipeline =
             PreprocessingPipeline::new().add_step(PreprocessingStep::Smoothing { sigma: 1.0 });
 
-        let out = pipeline.execute_coeus(image, &backend).unwrap();
+        let out = pipeline.execute_native(image, &backend).unwrap();
         let data = out.data_slice().unwrap();
 
         // Physical sigma 1.0 maps through the fixture spacing to per-axis voxel
@@ -233,13 +233,13 @@ mod tests {
     }
 
     #[test]
-    fn execute_coeus_rejects_nonfinite_smoothing_sigma() {
+    fn execute_native_rejects_nonfinite_smoothing_sigma() {
         let backend = B::new();
         let image = make_image(vec![1.0; 4], [1, 2, 2]);
         let pipeline =
             PreprocessingPipeline::new().add_step(PreprocessingStep::Smoothing { sigma: f32::NAN });
 
-        let err = pipeline.execute_coeus(image, &backend).unwrap_err();
+        let err = pipeline.execute_native(image, &backend).unwrap_err();
 
         assert_eq!(
             err.to_string(),
@@ -248,7 +248,7 @@ mod tests {
     }
 
     #[test]
-    fn execute_coeus_rejects_n4_explicitly() {
+    fn execute_native_rejects_n4_explicitly() {
         let backend = B::new();
         let image = make_image(vec![1.0; 4], [1, 2, 2]);
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::N4BiasCorrection {
@@ -256,7 +256,7 @@ mod tests {
             n_fitting_levels: 1,
         });
 
-        let err = pipeline.execute_coeus(image, &backend).unwrap_err();
+        let err = pipeline.execute_native(image, &backend).unwrap_err();
 
         assert_eq!(
             err.to_string(),

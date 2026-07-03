@@ -99,45 +99,7 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
     })
 }
 
-/// Read a NIfTI file into a Coeus-backed 3-D image on `backend`.
-///
-/// The Atlas-tensor counterpart to [`read_nifti`]: shares the gzip detection,
-/// header parse, byte-range validation, and voxel decode with the Burn path,
-/// differing only in the final image construction.
-#[cfg(feature = "coeus")]
-pub fn read_nifti_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
-where
-    B: coeus_core::ComputeBackend,
-    P: AsRef<Path>,
-{
-    let bytes = fs::read(path.as_ref())
-        .map_err(|e| anyhow!("Failed to read NIfTI file {:?}: {e}", path.as_ref()))?;
-    read_nifti_coeus_from_bytes(&bytes, backend)
-}
 
-/// Read a NIfTI payload from in-memory bytes into a Coeus-backed image.
-#[cfg(feature = "coeus")]
-pub fn read_nifti_coeus_from_bytes<B>(
-    bytes: &[u8],
-    backend: &B,
-) -> Result<ritk_image::native::Image<f32, B, 3>>
-where
-    B: coeus_core::ComputeBackend,
-{
-    let DecodedNifti {
-        data,
-        dims,
-        spatial,
-    } = decode_nifti_bytes(bytes)?;
-    ritk_image::native::Image::from_flat_on(
-        data,
-        dims,
-        spatial.origin,
-        spatial.spacing,
-        spatial.direction,
-        backend,
-    )
-}
 
 /// Read a NIfTI file as an integer label map in ZYX order.
 ///
@@ -196,4 +158,51 @@ fn decode_gzip(bytes: &[u8]) -> Result<Vec<u8>> {
     let mut decoded = Vec::new();
     decoder.read_to_end(&mut decoded)?;
     Ok(decoded)
+}
+
+/// Atlas-native-substrate entry points (transitional module: plain
+/// end-state names, disambiguated from the Burn functions by module
+/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
+#[cfg(feature = "coeus")]
+pub mod native {
+    #[allow(unused_imports)]
+    use super::*;
+
+    /// Read a NIfTI payload from in-memory bytes into a Coeus-backed image.
+    pub fn read_nifti_from_bytes<B>(
+        bytes: &[u8],
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+    {
+        let DecodedNifti {
+            data,
+            dims,
+            spatial,
+        } = decode_nifti_bytes(bytes)?;
+        ritk_image::native::Image::from_flat_on(
+            data,
+            dims,
+            spatial.origin,
+            spatial.spacing,
+            spatial.direction,
+            backend,
+        )
+    }
+
+    /// Read a NIfTI file into a Coeus-backed 3-D image on `backend`.
+    ///
+    /// The Atlas-tensor counterpart to [`read_nifti`]: shares the gzip detection,
+    /// header parse, byte-range validation, and voxel decode with the Burn path,
+    /// differing only in the final image construction.
+    pub fn read_nifti<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        P: AsRef<Path>,
+    {
+        let bytes = fs::read(path.as_ref())
+            .map_err(|e| anyhow!("Failed to read NIfTI file {:?}: {e}", path.as_ref()))?;
+        read_nifti_from_bytes(&bytes, backend)
+    }
 }

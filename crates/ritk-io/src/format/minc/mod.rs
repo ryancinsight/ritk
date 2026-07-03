@@ -105,7 +105,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MincReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_minc::read_minc_coeus(path, &self.backend).map_err(to_io_err)
+            ritk_minc::native::read_minc(path, &self.backend).map_err(to_io_err)
         }
     }
 }

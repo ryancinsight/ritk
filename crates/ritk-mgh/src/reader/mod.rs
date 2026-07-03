@@ -162,51 +162,7 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
     })
 }
 
-/// Read an MGH or MGZ file into a Coeus-backed 3-D image on `backend`.
-///
-/// The Atlas-tensor counterpart to [`read_mgh`]: shares the header parse,
-/// bounded voxel read, and geometry derivation with the Burn path, differing
-/// only in the final image construction. `.mgz`/`.mgh.gz` paths are gzip-decoded.
-#[cfg(feature = "coeus")]
-pub fn read_mgh_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
-where
-    B: coeus_core::ComputeBackend,
-    P: AsRef<Path>,
-{
-    let path = path.as_ref();
-    let file = std::fs::File::open(path)
-        .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
 
-    if is_gzip_path(path) {
-        let gz = GzDecoder::new(BufReader::new(file));
-        let mut reader = BufReader::new(gz);
-        read_mgh_coeus_from_reader(&mut reader, backend)
-            .with_context(|| format!("Failed to parse MGZ file {:?}", path))
-    } else {
-        let mut reader = BufReader::new(file);
-        read_mgh_coeus_from_reader(&mut reader, backend)
-            .with_context(|| format!("Failed to parse MGH file {:?}", path))
-    }
-}
-
-#[cfg(feature = "coeus")]
-fn read_mgh_coeus_from_reader<B, R>(
-    reader: &mut R,
-    backend: &B,
-) -> Result<ritk_image::native::Image<f32, B, 3>>
-where
-    B: coeus_core::ComputeBackend,
-    R: Read,
-{
-    let DecodedMgh {
-        data,
-        dims,
-        origin,
-        spacing,
-        direction,
-    } = decode_mgh(reader)?;
-    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
-}
 
 fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3]> {
     let mut columns = [[0.0f32; 3]; 3];
@@ -244,5 +200,58 @@ impl MghReader {
     /// Read an MGH or MGZ file into a 3-D `Image`.
     pub fn read<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
         read_mgh(path, device)
+    }
+}
+
+/// Atlas-native-substrate entry points (transitional module: plain
+/// end-state names, disambiguated from the Burn functions by module
+/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
+#[cfg(feature = "coeus")]
+pub mod native {
+    #[allow(unused_imports)]
+    use super::*;
+
+    fn read_mgh_from_reader<B, R>(
+        reader: &mut R,
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        R: Read,
+    {
+        let DecodedMgh {
+            data,
+            dims,
+            origin,
+            spacing,
+            direction,
+        } = decode_mgh(reader)?;
+        ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    }
+
+    /// Read an MGH or MGZ file into a Coeus-backed 3-D image on `backend`.
+    ///
+    /// The Atlas-tensor counterpart to [`read_mgh`]: shares the header parse,
+    /// bounded voxel read, and geometry derivation with the Burn path, differing
+    /// only in the final image construction. `.mgz`/`.mgh.gz` paths are gzip-decoded.
+    pub fn read_mgh<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        P: AsRef<Path>,
+    {
+        let path = path.as_ref();
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
+
+        if is_gzip_path(path) {
+            let gz = GzDecoder::new(BufReader::new(file));
+            let mut reader = BufReader::new(gz);
+            read_mgh_from_reader(&mut reader, backend)
+                .with_context(|| format!("Failed to parse MGZ file {:?}", path))
+        } else {
+            let mut reader = BufReader::new(file);
+            read_mgh_from_reader(&mut reader, backend)
+                .with_context(|| format!("Failed to parse MGH file {:?}", path))
+        }
     }
 }

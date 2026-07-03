@@ -110,7 +110,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for JpegReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_jpeg::read_jpeg_coeus(path, &self.backend).map_err(to_io_err)
+            ritk_jpeg::native::read_jpeg(path, &self.backend).map_err(to_io_err)
         }
     }
 }

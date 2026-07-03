@@ -21,7 +21,7 @@ use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
 #[cfg(feature = "coeus")]
-pub mod coeus;
+pub mod native;
 
 /// Descriptive statistics over image intensities.
 #[derive(Debug, Clone, PartialEq)]

@@ -1,13 +1,13 @@
 //! Value-semantic coverage for the Coeus-backed MGH reader path.
 
-use crate::read_mgh_coeus;
+use crate::native::read_mgh;
 use crate::test_support::{build_mgh_bytes, IDENTITY_DIR};
 use crate::MRI_FLOAT;
 use coeus_core::SequentialBackend;
 use tempfile::tempdir;
 
 #[test]
-fn read_mgh_coeus_preserves_shape_and_voxels() {
+fn native_read_mgh_preserves_shape_and_voxels() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("coeus.mgh");
     let values = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -24,7 +24,7 @@ fn read_mgh_coeus_preserves_shape_and_voxels() {
     std::fs::write(&path, &mgh).unwrap();
 
     let backend = SequentialBackend;
-    let image = read_mgh_coeus(&path, &backend).expect("coeus MGH read");
+    let image = crate::native::read_mgh(&path, &backend).expect("coeus MGH read");
 
     assert_eq!(
         image.shape(),

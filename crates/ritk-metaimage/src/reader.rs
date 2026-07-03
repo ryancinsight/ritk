@@ -44,29 +44,6 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     Ok(Image::new(tensor, origin, spacing, direction))
 }
 
-/// Read a MetaImage (`.mha`/`.mhd`) into a Coeus-backed 3-D image on `backend`.
-///
-/// The Atlas-tensor counterpart to [`read_metaimage`]: shares the header parse,
-/// bounded payload read, and voxel decode with the Burn path via
-/// `decode_metaimage`, differing only in the final image construction.
-#[cfg(feature = "coeus")]
-pub fn read_metaimage_coeus<B, P>(
-    path: P,
-    backend: &B,
-) -> Result<ritk_image::native::Image<f32, B, 3>>
-where
-    B: coeus_core::ComputeBackend,
-    P: AsRef<Path>,
-{
-    let DecodedMetaImage {
-        data,
-        dims,
-        origin,
-        spacing,
-        direction,
-    } = decode_metaimage(path)?;
-    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
-}
 
 /// Backend-agnostic decoded MetaImage volume: voxels in `[nz, ny, nx]` order plus
 /// the derived physical metadata. Shared by the Burn and Coeus reader paths.
@@ -367,5 +344,37 @@ impl MetaImageReader {
         device: &B::Device,
     ) -> Result<Image<B, 3>> {
         read_metaimage(path, device)
+    }
+}
+
+/// Atlas-native-substrate entry points (transitional module: plain
+/// end-state names, disambiguated from the Burn functions by module
+/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
+#[cfg(feature = "coeus")]
+pub mod native {
+    #[allow(unused_imports)]
+    use super::*;
+
+    /// Read a MetaImage (`.mha`/`.mhd`) into a Coeus-backed 3-D image on `backend`.
+    ///
+    /// The Atlas-tensor counterpart to [`read_metaimage`]: shares the header parse,
+    /// bounded payload read, and voxel decode with the Burn path via
+    /// `decode_metaimage`, differing only in the final image construction.
+    pub fn read_metaimage<B, P>(
+        path: P,
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        P: AsRef<Path>,
+    {
+        let DecodedMetaImage {
+            data,
+            dims,
+            origin,
+            spacing,
+            direction,
+        } = decode_metaimage(path)?;
+        ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
     }
 }

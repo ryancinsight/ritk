@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 491: Zero `coeus` in ritk function names (MIG-489 slice 3)
+
+### Changed (unreleased surface only)
+- All 7 format crates: `read_*_coeus`/`write_nifti_coeus` → plain names in
+  per-crate `native` modules (`ritk_nifti::native::read_nifti`, …).
+- `ritk-filter`: morphology wrappers consolidated into `morphology::native`
+  (net −7 files); `distance::euclidean::native::distance_transform`;
+  `native_support` module + `assert_native_matches_burn` harness.
+- `ritk-interpolation`: `interpolation::native::trilinear_interpolation`.
+- `ritk-tensor-ops`/`ritk-statistics`: `coeus.rs` module files → `native.rs`.
+- `ritk-registration`: `native_executor::execute_native`.
+- All test files/modules/fn names de-branded. Static dispatch preserved
+  (generic `B: ComputeBackend`, zero `dyn`).
+
+### Evidence
+- All touched suites green — 2,916 tests across 13 crates; clippy
+  `-D warnings` clean; final grep confirms zero `coeus`-containing fn or
+  struct names workspace-wide. No dependency changes.
+
+---
+
+
 ## [Unreleased] — Sprint 490: `ritk_image::coeus` → `ritk_image::native` (MIG-489 slice 2)
 
 ### Changed (unreleased surface only)

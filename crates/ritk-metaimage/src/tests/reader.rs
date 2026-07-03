@@ -435,8 +435,8 @@ fn test_mhd_external_raw_file() -> Result<()> {
 
 #[cfg(feature = "coeus")]
 #[test]
-fn read_metaimage_coeus_preserves_shape_and_voxels() {
-    use crate::read_metaimage_coeus;
+fn native_read_metaimage_preserves_shape_and_voxels() {
+    use crate::native::read_metaimage;
     use coeus_core::SequentialBackend;
 
     let dir = tempdir().unwrap();
@@ -448,7 +448,7 @@ fn read_metaimage_coeus_preserves_shape_and_voxels() {
     write_minimal_mha(&path, &data, nx, ny, nz, [1.5, 2.0, 2.5], [0.0, 0.0, 0.0]);
 
     let backend = SequentialBackend;
-    let image = read_metaimage_coeus(&path, &backend).expect("coeus MetaImage read");
+    let image = crate::native::read_metaimage(&path, &backend).expect("coeus MetaImage read");
 
     assert_eq!(
         image.shape(),

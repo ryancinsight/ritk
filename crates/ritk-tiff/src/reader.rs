@@ -53,30 +53,6 @@ pub fn read_tiff<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     read_tiff_from_reader::<B, _>(reader, device, path)
 }
 
-/// Read a multi-page TIFF / BigTIFF file into a Coeus-backed 3-D image.
-///
-/// The Atlas-tensor counterpart to [`read_tiff`]: shares the page decode and
-/// dimension validation via `decode_tiff_from_reader`, differing only in the
-/// final image construction.
-#[cfg(feature = "coeus")]
-pub fn read_tiff_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
-where
-    B: coeus_core::ComputeBackend,
-    P: AsRef<Path>,
-{
-    let path = path.as_ref();
-    let file =
-        std::fs::File::open(path).with_context(|| format!("Cannot open TIFF file {:?}", path))?;
-    let (data, dims) = decode_tiff_from_reader(BufReader::new(file), path)?;
-    ritk_image::native::Image::from_flat_on(
-        data,
-        dims,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-        backend,
-    )
-}
 
 /// Core reader operating on any `Read + Seek` stream.
 ///
@@ -229,3 +205,36 @@ impl<B: Backend> TiffReader<B> {
 #[cfg(test)]
 #[path = "tests_reader.rs"]
 mod tests;
+
+/// Atlas-native-substrate entry points (transitional module: plain
+/// end-state names, disambiguated from the Burn functions by module
+/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
+#[cfg(feature = "coeus")]
+pub mod native {
+    #[allow(unused_imports)]
+    use super::*;
+
+    /// Read a multi-page TIFF / BigTIFF file into a Coeus-backed 3-D image.
+    ///
+    /// The Atlas-tensor counterpart to [`read_tiff`]: shares the page decode and
+    /// dimension validation via `decode_tiff_from_reader`, differing only in the
+    /// final image construction.
+    pub fn read_tiff<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        P: AsRef<Path>,
+    {
+        let path = path.as_ref();
+        let file =
+            std::fs::File::open(path).with_context(|| format!("Cannot open TIFF file {:?}", path))?;
+        let (data, dims) = decode_tiff_from_reader(BufReader::new(file), path)?;
+        ritk_image::native::Image::from_flat_on(
+            data,
+            dims,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+            backend,
+        )
+    }
+}

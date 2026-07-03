@@ -20,26 +20,6 @@ pub fn read_jpeg<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     ))
 }
 
-/// Read a JPEG file into a Coeus-backed 3-D grayscale image on `backend`.
-///
-/// The Atlas-tensor counterpart to [`read_jpeg`]: shares Luma8 decoding via
-/// `decode_jpeg`, differing only in the final image construction.
-#[cfg(feature = "coeus")]
-pub fn read_jpeg_coeus<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
-where
-    B: coeus_core::ComputeBackend,
-    P: AsRef<Path>,
-{
-    let DecodedJpeg { data, dims } = decode_jpeg(path)?;
-    ritk_image::native::Image::from_flat_on(
-        data,
-        dims,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-        backend,
-    )
-}
 
 /// Backend-agnostic decoded grayscale JPEG: Luma8 voxels as `f32` in
 /// `[0.0, 255.0]` plus the `[1, height, width]` shape. Shared by the Burn and
@@ -89,5 +69,34 @@ impl<B: Backend> JpegReader<B> {
 
     pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
         read_jpeg(path, &self.device)
+    }
+}
+
+/// Atlas-native-substrate entry points (transitional module: plain
+/// end-state names, disambiguated from the Burn functions by module
+/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
+#[cfg(feature = "coeus")]
+pub mod native {
+    #[allow(unused_imports)]
+    use super::*;
+
+    /// Read a JPEG file into a Coeus-backed 3-D grayscale image on `backend`.
+    ///
+    /// The Atlas-tensor counterpart to [`read_jpeg`]: shares Luma8 decoding via
+    /// `decode_jpeg`, differing only in the final image construction.
+    pub fn read_jpeg<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        P: AsRef<Path>,
+    {
+        let DecodedJpeg { data, dims } = decode_jpeg(path)?;
+        ritk_image::native::Image::from_flat_on(
+            data,
+            dims,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+            backend,
+        )
     }
 }

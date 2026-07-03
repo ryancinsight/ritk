@@ -35,7 +35,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for NiftiReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_nifti::read_nifti_coeus(path, &self.backend).map_err(to_io_err)
+            ritk_nifti::native::read_nifti(path, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -57,7 +57,7 @@ pub mod native {
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
-            ritk_nifti::write_nifti_coeus(path, image, &self.backend).map_err(to_io_err)
+            ritk_nifti::native::write_nifti(path, image, &self.backend).map_err(to_io_err)
         }
     }
 

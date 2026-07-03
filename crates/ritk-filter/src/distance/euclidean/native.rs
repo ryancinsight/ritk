@@ -5,7 +5,7 @@
 //! no Burn dependency) is the same pure algorithm the Burn-generic
 //! [`super::DistanceTransformImageFilter::apply`] calls. This module adds a
 //! thin Coeus-`Image` boundary around that same core, following the
-//! `read_jpeg_coeus`/`trilinear_interpolation_coeus` template: production
+//! `read_jpeg_coeus`/`trilinear_interpolation` template: production
 //! Burn API stays, a Coeus-native equivalent is added and verified against
 //! it, no algorithm is duplicated or rewritten.
 
@@ -13,7 +13,7 @@ use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image;
 
-use crate::coeus_support::map_flat_image;
+use crate::native_support::map_flat_image;
 
 use super::super::types::BinarizationThreshold;
 use super::euclidean_dt;
@@ -23,7 +23,7 @@ use super::euclidean_dt;
 /// See [`super::DistanceTransformImageFilter`] for the mathematical
 /// specification and ITK parity; this function computes the identical
 /// contract via the identical core routine, only the image boundary differs.
-pub fn distance_transform_coeus<B>(
+pub fn distance_transform<B>(
     image: &Image<f32, B, 3>,
     threshold: BinarizationThreshold,
     backend: &B,
@@ -43,5 +43,5 @@ where
 }
 
 #[cfg(test)]
-#[path = "tests_unsigned_coeus.rs"]
+#[path = "tests_native.rs"]
 mod tests;

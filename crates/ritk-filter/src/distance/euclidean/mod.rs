@@ -37,7 +37,7 @@ mod maurer;
 mod signed;
 mod unsigned;
 #[cfg(feature = "coeus")]
-mod unsigned_coeus;
+pub mod native;
 
 #[cfg(any(test, feature = "coeus"))]
 pub(crate) use core::euclidean_dt;
@@ -45,8 +45,6 @@ pub(crate) use maurer::signed_maurer_core;
 pub use maurer::SignedMaurerDistanceMapImageFilter;
 pub use signed::SignedDistanceTransformImageFilter;
 pub use unsigned::DistanceTransformImageFilter;
-#[cfg(feature = "coeus")]
-pub use unsigned_coeus::distance_transform_coeus;
 
 #[cfg(test)]
 #[path = "../tests_euclidean.rs"]

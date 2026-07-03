@@ -10,7 +10,7 @@ use std::io::Write;
 use tempfile::tempdir;
 
 #[cfg(feature = "coeus")]
-mod coeus;
+mod native;
 mod datatypes;
 mod errors;
 mod geometry;

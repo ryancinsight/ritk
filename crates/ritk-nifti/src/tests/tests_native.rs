@@ -3,11 +3,10 @@
 use crate::header::{
     write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader,
 };
-use crate::read_nifti_coeus_from_bytes;
 use coeus_core::SequentialBackend;
 
 #[test]
-fn read_nifti_coeus_preserves_shape_and_voxels() {
+fn read_nifti_native_preserves_shape_and_voxels() {
     // 2×2×2 cube: file order (x-fastest) equals output [z, y, x] order, so the
     // decoded voxels equal the input sequence 0..8 element-for-element.
     let header = NiftiHeader::new_3d(
@@ -30,7 +29,7 @@ fn read_nifti_coeus_preserves_shape_and_voxels() {
     let bytes = write_single_file_bytes(&header, &data);
 
     let backend = SequentialBackend;
-    let image = read_nifti_coeus_from_bytes(&bytes, &backend).expect("coeus NIfTI read");
+    let image = crate::native::read_nifti_from_bytes(&bytes, &backend).expect("coeus NIfTI read");
 
     assert_eq!(
         image.shape(),
@@ -44,7 +43,7 @@ fn read_nifti_coeus_preserves_shape_and_voxels() {
 
 // ── Coeus writer (write_nifti_coeus) ────────────────────────────────────────
 
-use crate::{read_nifti, write_nifti, write_nifti_coeus};
+use crate::{read_nifti, write_nifti};
 use burn_ndarray::NdArray;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -65,7 +64,7 @@ fn test_volume() -> (Vec<f32>, [usize; 3], Point<3>, Spacing<3>, Direction<3>) {
 }
 
 #[test]
-fn coeus_writer_round_trips_through_coeus_reader() {
+fn native_writer_round_trips_through_native_reader() {
     let (voxels, dims, origin, spacing, direction) = test_volume();
     let backend = SequentialBackend;
     let image = ritk_image::native::Image::from_flat_on(
@@ -80,9 +79,9 @@ fn coeus_writer_round_trips_through_coeus_reader() {
 
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("coeus_roundtrip.nii");
-    write_nifti_coeus(&path, &image, &backend).expect("coeus NIfTI write");
+    crate::native::write_nifti(&path, &image, &backend).expect("coeus NIfTI write");
 
-    let loaded = crate::read_nifti_coeus(&path, &backend).expect("coeus NIfTI read");
+    let loaded = crate::native::read_nifti(&path, &backend).expect("coeus NIfTI read");
     assert_eq!(loaded.shape(), dims);
     assert_eq!(
         loaded.data_slice().expect("contiguous"),
@@ -110,7 +109,7 @@ fn coeus_writer_round_trips_through_coeus_reader() {
 }
 
 #[test]
-fn coeus_writer_output_is_byte_identical_to_burn_writer() {
+fn native_writer_output_is_byte_identical_to_burn_writer() {
     // Strongest differential oracle: for the same logical image the Coeus and
     // Burn writers share the serialization core, so the files must be
     // byte-for-byte identical.
@@ -134,7 +133,7 @@ fn coeus_writer_output_is_byte_identical_to_burn_writer() {
     let burn_path = dir.path().join("burn.nii");
     let coeus_path = dir.path().join("coeus.nii");
     write_nifti(&burn_path, &burn_image).expect("burn write");
-    write_nifti_coeus(&coeus_path, &coeus_image, &backend).expect("coeus write");
+    crate::native::write_nifti(&coeus_path, &coeus_image, &backend).expect("coeus write");
 
     let burn_bytes = std::fs::read(&burn_path).expect("burn bytes");
     let coeus_bytes = std::fs::read(&coeus_path).expect("coeus bytes");

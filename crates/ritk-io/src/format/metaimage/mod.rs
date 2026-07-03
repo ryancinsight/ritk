@@ -28,7 +28,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MetaImageReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_metaimage::read_metaimage_coeus(path, &self.backend).map_err(to_io_err)
+            ritk_metaimage::native::read_metaimage(path, &self.backend).map_err(to_io_err)
         }
     }
 }

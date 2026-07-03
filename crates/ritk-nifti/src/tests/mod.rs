@@ -440,6 +440,7 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
 }
 
 #[cfg(feature = "coeus")]
-mod tests_coeus;
+#[path = "tests_native.rs"]
+mod tests_native;
 mod tests_format_sources;
 mod tests_labels;

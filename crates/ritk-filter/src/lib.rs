@@ -157,7 +157,7 @@ pub use transform::{
 };
 
 #[cfg(feature = "coeus")]
-mod coeus_support;
+mod native_support;
 
 // ── Surface & distance ───────────────────────────────────────────────────────
 pub mod colliding_fronts;

@@ -110,8 +110,8 @@ fn write_minc_then_read_minc_round_trips_voxels() {
 
 #[cfg(feature = "coeus")]
 #[test]
-fn read_minc_coeus_matches_burn_round_trip() {
-    use crate::{read_minc, read_minc_coeus};
+fn native_read_minc_matches_burn_round_trip() {
+    use crate::read_minc;
     use coeus_core::SequentialBackend;
 
     // Differential: write a known volume, then read it via both the Burn and
@@ -124,7 +124,7 @@ fn read_minc_coeus_matches_burn_round_trip() {
 
     let device = Default::default();
     let burn = read_minc::<B, _>(&path, &device).expect("burn read");
-    let coeus = read_minc_coeus(&path, &SequentialBackend).expect("coeus read");
+    let coeus = crate::native::read_minc(&path, &SequentialBackend).expect("coeus read");
 
     assert_eq!(coeus.shape(), burn.shape(), "coeus and burn shapes match");
     let coeus_vals = coeus.data_slice().expect("contiguous host data");

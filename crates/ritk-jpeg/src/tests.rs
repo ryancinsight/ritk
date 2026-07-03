@@ -182,8 +182,7 @@ fn roundtrip_single_pixel() {
 
 #[cfg(feature = "coeus")]
 #[test]
-fn read_jpeg_coeus_matches_burn() {
-    use crate::read_jpeg_coeus;
+fn native_read_jpeg_matches_burn() {
     use coeus_core::SequentialBackend;
 
     let device = Default::default();
@@ -197,7 +196,7 @@ fn read_jpeg_coeus_matches_burn() {
     write_jpeg(&path, &image).expect("write");
 
     let burn = read_jpeg::<TestBackend, _>(&path, &device).expect("burn read");
-    let coeus = read_jpeg_coeus(&path, &SequentialBackend).expect("coeus read");
+    let coeus = crate::native::read_jpeg(&path, &SequentialBackend).expect("coeus read");
 
     assert_eq!(coeus.shape(), [nz, ny, nx]);
     let burn_data = burn.data().to_data();

@@ -20,21 +20,6 @@ pub fn read_png_to_image<B: Backend, P: AsRef<Path>>(
     image_from_flat_pixels(pixels, dims[0], dims[1], dims[2], device)
 }
 
-/// Read a single grayscale PNG into a Coeus-backed `Image` on `backend`.
-///
-/// The Atlas-tensor counterpart to [`read_png_to_image`], sharing `decode_png_single`.
-#[cfg(feature = "coeus")]
-pub fn read_png_to_image_coeus<B, P>(
-    path: P,
-    backend: &B,
-) -> Result<ritk_image::native::Image<f32, B, 3>>
-where
-    B: coeus_core::ComputeBackend,
-    P: AsRef<Path>,
-{
-    let (pixels, dims) = decode_png_single(path.as_ref())?;
-    coeus_image_from_flat_pixels(pixels, dims, backend)
-}
 
 /// Decode a single grayscale PNG into row-major `f32` pixels and `[1, h, w]` dims.
 fn decode_png_single(path: &Path) -> Result<(Vec<f32>, [usize; 3])> {
@@ -57,21 +42,6 @@ pub fn read_png_series<B: Backend, P: AsRef<Path>>(
     image_from_flat_pixels(pixels, dims[0], dims[1], dims[2], device)
 }
 
-/// Read a directory of PNG files into a Coeus-backed `[depth, height, width]` image.
-///
-/// The Atlas-tensor counterpart to [`read_png_series`], sharing `decode_png_series`.
-#[cfg(feature = "coeus")]
-pub fn read_png_series_coeus<B, P>(
-    path: P,
-    backend: &B,
-) -> Result<ritk_image::native::Image<f32, B, 3>>
-where
-    B: coeus_core::ComputeBackend,
-    P: AsRef<Path>,
-{
-    let (pixels, dims) = decode_png_series(path.as_ref())?;
-    coeus_image_from_flat_pixels(pixels, dims, backend)
-}
 
 /// Decode a sorted PNG series into row-major `f32` pixels and `[depth, h, w]` dims.
 fn decode_png_series(dir: &Path) -> Result<(Vec<f32>, [usize; 3])> {
@@ -174,24 +144,6 @@ fn image_from_flat_pixels<B: Backend>(
     Ok(Image::new(tensor, origin, spacing, direction))
 }
 
-/// Build a Coeus-backed grayscale image from flat pixels and `[depth, h, w]`
-/// dims with default spatial metadata. The Coeus constructor validates the
-/// shape product against `pixels.len()`.
-#[cfg(feature = "coeus")]
-fn coeus_image_from_flat_pixels<B: coeus_core::ComputeBackend>(
-    pixels: Vec<f32>,
-    dims: [usize; 3],
-    backend: &B,
-) -> Result<ritk_image::native::Image<f32, B, 3>> {
-    ritk_image::native::Image::from_flat_on(
-        pixels,
-        dims,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-        backend,
-    )
-}
 
 /// DIP boundary for standard PNG single slices.
 pub struct PngReader<B: Backend> {
@@ -359,8 +311,7 @@ mod tests {
 
     #[cfg(feature = "coeus")]
     #[test]
-    fn read_png_coeus_matches_burn_single_and_series() -> anyhow::Result<()> {
-        use crate::{read_png_series_coeus, read_png_to_image_coeus};
+    fn native_read_png_matches_burn_single_and_series() -> anyhow::Result<()> {
         use coeus_core::SequentialBackend;
 
         let dir = tempdir()?;
@@ -369,7 +320,7 @@ mod tests {
         let device: <TestBackend as Backend>::Device = Default::default();
 
         let burn = read_png_to_image::<TestBackend, _>(&single, &device)?;
-        let coeus = read_png_to_image_coeus(&single, &SequentialBackend)?;
+        let coeus = crate::native::read_png_to_image(&single, &SequentialBackend)?;
         assert_eq!(coeus.shape(), burn.shape());
         assert_eq!(coeus.data_slice()?, tensor_values(&burn).as_slice());
 
@@ -377,12 +328,69 @@ mod tests {
         write_gray_png(&series_dir.path().join("s1.png"), 2, 1, &[1, 4]);
         write_gray_png(&series_dir.path().join("s2.png"), 2, 1, &[2, 3]);
         let burn_series = read_png_series::<TestBackend, _>(series_dir.path(), &device)?;
-        let coeus_series = read_png_series_coeus(series_dir.path(), &SequentialBackend)?;
+        let coeus_series = crate::native::read_png_series(series_dir.path(), &SequentialBackend)?;
         assert_eq!(coeus_series.shape(), burn_series.shape());
         assert_eq!(
             coeus_series.data_slice()?,
             tensor_values(&burn_series).as_slice()
         );
         Ok(())
+    }
+}
+
+/// Atlas-native-substrate entry points (transitional module: plain
+/// end-state names, disambiguated from the Burn functions by module
+/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
+#[cfg(feature = "coeus")]
+pub mod native {
+    #[allow(unused_imports)]
+    use super::*;
+
+    /// Build a Coeus-backed grayscale image from flat pixels and `[depth, h, w]`
+    /// dims with default spatial metadata. The Coeus constructor validates the
+    /// shape product against `pixels.len()`.
+    fn image_from_flat_pixels<B: coeus_core::ComputeBackend>(
+        pixels: Vec<f32>,
+        dims: [usize; 3],
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>> {
+        ritk_image::native::Image::from_flat_on(
+            pixels,
+            dims,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+            backend,
+        )
+    }
+
+    /// Read a single grayscale PNG into a Coeus-backed `Image` on `backend`.
+    ///
+    /// The Atlas-tensor counterpart to [`read_png_to_image`], sharing `decode_png_single`.
+    pub fn read_png_to_image<B, P>(
+        path: P,
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        P: AsRef<Path>,
+    {
+        let (pixels, dims) = decode_png_single(path.as_ref())?;
+        image_from_flat_pixels(pixels, dims, backend)
+    }
+
+    /// Read a directory of PNG files into a Coeus-backed `[depth, height, width]` image.
+    ///
+    /// The Atlas-tensor counterpart to [`read_png_series`], sharing `decode_png_series`.
+    pub fn read_png_series<B, P>(
+        path: P,
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        P: AsRef<Path>,
+    {
+        let (pixels, dims) = decode_png_series(path.as_ref())?;
+        image_from_flat_pixels(pixels, dims, backend)
     }
 }

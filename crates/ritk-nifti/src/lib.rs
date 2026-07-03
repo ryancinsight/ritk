@@ -48,11 +48,15 @@ mod spatial;
 mod writer;
 
 pub use reader::{read_nifti, read_nifti_from_bytes, read_nifti_labels};
-#[cfg(feature = "coeus")]
-pub use reader::{read_nifti_coeus, read_nifti_coeus_from_bytes};
+
 pub use writer::{write_nifti, write_nifti2, write_nifti2_labels, write_nifti_labels};
+/// Atlas-native-substrate entry points (transitional facade over the
+/// per-file `native` modules; folds away when the Burn path is deleted).
 #[cfg(feature = "coeus")]
-pub use writer::write_nifti_coeus;
+pub mod native {
+    pub use crate::reader::native::*;
+    pub use crate::writer::native::*;
+}
 
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;

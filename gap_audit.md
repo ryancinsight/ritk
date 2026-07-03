@@ -1,5 +1,39 @@
 # RITK Gap Audit - Active
 
+## Sprint 491 Audit (2026-07-03) — De-Branding Complete at the Identifier Level; Consolidation Came Free
+
+### The rename was also a consolidation
+
+Moving ritk-filter's four one-fn wrapper files into a single `native.rs`
+(plus one test file with per-op submodules) removed seven files while
+changing zero behavior — the de-branding forced a re-look at structure the
+original per-file additions had accumulated. The morphology native surface
+is now one module, matching how the four fns are used together.
+
+### Scripted refactors need the compiler as the completeness oracle
+
+The brace-counting extraction and blanket renames produced five artifact
+classes (double-qualified paths, shadowing fn-local imports, a dangling cfg
+attribute, merged-test name collisions, missed brace-imports) — every one
+caught by the compiler or test build, none by eyeball. The discipline that
+made this safe: run every touched crate's suite, not just the risky-looking
+ones — 2,916 tests across 13 crates re-ran green.
+
+### The naming end-state is now enforceable
+
+A one-line grep for coeus-containing fn/struct names returns empty across
+all ritk crates — CI-able. The only remaining `coeus` tokens are the
+external crate names (correct), `cfg(feature = "coeus")` attributes (final
+slice), and factual prose references to the Coeus engine.
+
+### Residual Risk / Next Increment
+
+- Feature-name slice (`coeus` → `atlas`) is config-only (~12 Cargo.tomls +
+  cfg attrs), zero API impact.
+- With naming settled, cutover resumes: VTK/NRRD/Analyze/DICOM native
+  readers, per-format native writers, CLI/Python consumer cutover.
+
+
 ## Sprint 490 Audit (2026-07-02) — Widest De-Branding Slice Landed as a Pure Rename, Fully Re-Verified
 
 ### Slicing by edit shape, not by file ownership

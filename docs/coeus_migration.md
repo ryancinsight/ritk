@@ -94,6 +94,12 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **De-branding slice 3 — zero `coeus` in ritk fn/struct names (Sprint 491,
+  MIG-489).** Format-crate fns → per-crate `native` modules with plain
+  names; ritk-filter wrappers consolidated (net −7 files); interpolation /
+  tensor-ops / statistics / registration modules de-branded. 2,916 tests
+  green across 13 crates. Remaining: the `coeus` feature name (config-only).
+
 - **De-branding slice 2 — `ritk_image::coeus` → `ritk_image::native`
   (Sprint 490, MIG-489).** The widest-fan-out rename (30 files / 13 crates),
   one coordinated textual change, all touched suites re-run green (1,825

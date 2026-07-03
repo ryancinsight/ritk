@@ -6,7 +6,7 @@ use ritk_image::Image;
 type TestBackend = NdArray<f32>;
 
 #[cfg(feature = "coeus")]
-fn make_coeus_image<const D: usize>(
+fn make_native_image<const D: usize>(
     data: Vec<f32>,
     dims: [usize; D],
 ) -> ritk_image::native::Image<f32, coeus_core::MoiraiBackend, D> {
@@ -90,13 +90,13 @@ fn compute_statistics_preserves_image_values() {
 
 #[cfg(feature = "coeus")]
 #[test]
-fn coeus_compute_statistics_matches_burn_path() {
+fn native_compute_statistics_matches_burn_path() {
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
     let burn_image: Image<TestBackend, 1> = make_image(data.clone(), [8]);
-    let coeus_image = make_coeus_image(data, [8]);
+    let coeus_image = make_native_image(data, [8]);
 
     let burn_stats = compute_statistics(&burn_image);
-    let coeus_stats = coeus::compute_statistics(&coeus_image).unwrap();
+    let coeus_stats = native::compute_statistics(&coeus_image).unwrap();
 
     assert_eq!(coeus_stats, burn_stats);
 }
@@ -204,7 +204,7 @@ fn test_masked_statistics_all_foreground_matches_full() {
 
 #[cfg(feature = "coeus")]
 #[test]
-fn coeus_masked_statistics_matches_burn_path() {
+fn native_masked_statistics_matches_burn_path() {
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
     let mut mask_data = vec![0.0f32; 8];
     for v in mask_data.iter_mut().take(6).skip(2) {
@@ -212,11 +212,11 @@ fn coeus_masked_statistics_matches_burn_path() {
     }
     let burn_image: Image<TestBackend, 1> = make_image(data.clone(), [8]);
     let burn_mask: Image<TestBackend, 1> = make_image(mask_data.clone(), [8]);
-    let coeus_image = make_coeus_image(data, [8]);
-    let coeus_mask = make_coeus_image(mask_data, [8]);
+    let coeus_image = make_native_image(data, [8]);
+    let coeus_mask = make_native_image(mask_data, [8]);
 
     let burn_stats = masked_statistics(&burn_image, &burn_mask);
-    let coeus_stats = coeus::masked_statistics(&coeus_image, &coeus_mask).unwrap();
+    let coeus_stats = native::masked_statistics(&coeus_image, &coeus_mask).unwrap();
 
     assert_eq!(coeus_stats, burn_stats);
 }
@@ -259,11 +259,11 @@ fn test_masked_statistics_shape_mismatch_panics() {
 
 #[cfg(feature = "coeus")]
 #[test]
-fn coeus_masked_statistics_empty_mask_returns_error() {
-    let image = make_coeus_image(vec![1.0, 2.0, 3.0], [3]);
-    let mask = make_coeus_image(vec![0.0, 0.0, 0.0], [3]);
+fn native_masked_statistics_empty_mask_returns_error() {
+    let image = make_native_image(vec![1.0, 2.0, 3.0], [3]);
+    let mask = make_native_image(vec![0.0, 0.0, 0.0], [3]);
 
-    let err = coeus::masked_statistics(&image, &mask).unwrap_err();
+    let err = native::masked_statistics(&image, &mask).unwrap_err();
 
     assert_eq!(
         err.to_string(),

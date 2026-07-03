@@ -38,7 +38,7 @@ use ritk_image::Image;
 use std::ops::{AddAssign, Neg};
 
 #[cfg(feature = "coeus")]
-pub mod coeus;
+pub mod native;
 
 // ── extract_vec ───────────────────────────────────────────────────────────────
 
@@ -232,4 +232,4 @@ where
 mod tests;
 
 #[cfg(test)]
-mod tests_coeus;
+mod tests_native;

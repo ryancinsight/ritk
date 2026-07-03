@@ -1,5 +1,39 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 491 — MIG-489 Slice 3: Zero `coeus` in ritk Function Names
+**Target version**: 0.14.0
+**Sprint phase**: Execution — completed the user's de-branding directive
+
+### In-flight plan (Sprint 491)
+- [x] Enumerated the complete remaining identifier map first (17 pub fns, 12
+  module files, ~30 test fns across 12 crates).
+- [x] Format crates: fns moved into per-file `pub mod native` blocks (brace-
+  counting extraction keeps private-helper access via `use super::*`), plain
+  names, lib.rs facades; ritk-io adapters + tests updated.
+- [x] ritk-filter: 4 morphology wrapper files consolidated into one
+  `native.rs` + one test file (net −7 files, subtractive); distance wrapper
+  → `euclidean::native`; support module renamed with its harness.
+- [x] interpolation/tensor-ops/statistics/registration modules + fns
+  de-branded; burn/native collisions resolved by module path only.
+- [x] Script artifacts caught by compiler and fixed (double-qualification,
+  shadowing local imports, dangling cfg attr, merged-test collisions →
+  per-op submodules).
+- [x] All touched suites green (2,916 tests / 13 crates); clippy clean;
+  final grep: zero `coeus` fn/struct names workspace-wide.
+
+### Verification gate (Sprint 491)
+- [x] All commands green; lock churn discarded (no dep changes).
+- [x] Static dispatch preserved everywhere (generic `B: ComputeBackend`; no
+  `dyn` introduced).
+
+### Deferred / carry-forward
+- MIG-489 final slice: `coeus` feature name (config-only; candidate `atlas`).
+- Consumer-cutover gate unchanged (VTK/NRRD/Analyze/DICOM native readers,
+  per-format native writers, CLI/Python cutover).
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, grayscale-morphology
+  native wrappers, MI/Parzen 3rd metric, driver early-stop.
+
+
 ## Sprint 490 — MIG-489 Slice 2: `ritk_image::coeus` → `ritk_image::native`
 **Target version**: 0.14.0
 **Sprint phase**: Execution — widest-fan-out de-branding slice

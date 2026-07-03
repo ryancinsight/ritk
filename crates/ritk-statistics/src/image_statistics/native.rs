@@ -6,7 +6,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image;
-use ritk_tensor_ops::coeus as tensor_ops;
+use ritk_tensor_ops::native as tensor_ops;
 
 use super::{compute_from_owned, compute_statistics_from_slice, ImageStatistics};
 
