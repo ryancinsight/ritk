@@ -52,8 +52,21 @@ fn decode_png_series(dir: &Path) -> Result<(Vec<f32>, [usize; 3])> {
         .to_luma8();
     let (width, height) = first_img.dimensions();
 
-    let mut all_pixels: Vec<f32> =
-        Vec::with_capacity(png_files.len() * height as usize * width as usize);
+    // Bound the upfront reservation: the reserved length is `file_count ×
+    // height × width`, all derived from untrusted inputs (directory listing +
+    // the first PNG's decoded dimensions). A directory whose first image is
+    // large amplifies the reservation by the file count even though later
+    // mismatched files make the loop bail. `saturating_mul` avoids an
+    // overflow wrapping to a tiny capacity; `bounded_capacity` caps the eager
+    // reservation while the Vec still grows to its true length as pages append.
+    let reserve = png_files
+        .len()
+        .saturating_mul(height as usize)
+        .saturating_mul(width as usize);
+    let mut all_pixels: Vec<f32> = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
+        reserve,
+        std::mem::size_of::<f32>(),
+    ));
     append_png_pixels(&mut all_pixels, &first_img);
 
     for file in &png_files[1..] {

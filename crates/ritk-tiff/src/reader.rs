@@ -102,7 +102,15 @@ fn decode_tiff_from_reader<R: Read + Seek>(
         ));
     }
 
-    let mut data = Vec::with_capacity(pixels_per_page);
+    // Bound the upfront reservation: `pixels_per_page` comes from the IFD
+    // width/height tags, which a crafted TIFF can declare far larger than the
+    // strip/tile data actually present (`read_image()` fails later, but an
+    // unbounded `with_capacity` would OOM first). The Vec still grows to its
+    // true length as pages are decoded. (ritk_core::io_bounds SSOT.)
+    let mut data = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
+        pixels_per_page,
+        std::mem::size_of::<f32>(),
+    ));
     let mut nz = 0usize;
 
     loop {
