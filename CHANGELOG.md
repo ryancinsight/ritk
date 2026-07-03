@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 495: Native writers for mgh/metaimage/minc/tiff/jpeg (MIG-495)
+
+### Added
+- Atlas-native writers for the remaining 5 formats:
+  `ritk_mgh::native::write_mgh`, `ritk_metaimage::native::write_metaimage`,
+  `ritk_minc::native::write_minc`, `ritk_tiff::native::write_tiff`,
+  `ritk_jpeg::native::write_jpeg`, each wrapping a substrate-agnostic
+  serialization core shared with the Burn writer.
+- ritk-io native `{Mgh,MetaImage,Minc,Tiff,Jpeg}Writer` implementing the
+  unified `ImageWriter<Image<f32,B,3>>` contract. All 9 formats now read AND
+  write natively.
+
+### Changed
+- The 5 Burn writers refactored to wrap the extracted serialization cores
+  (behavior-identical). Each crate's reader+writer `native` modules merged
+  into one crate-root `native` facade.
+
+### Evidence
+- io writer→reader contract round-trips (4 lossless) + jpeg byte-identical
+  native-vs-Burn oracle; mgh 32, metaimage 23, minc 43, tiff 17, jpeg 11,
+  io 360; clippy -D warnings + doc clean.
+
+---
+
+
 ## [Unreleased] — Sprint 494: Native writers for NRRD + Analyze (MIG-494)
 
 ### Added

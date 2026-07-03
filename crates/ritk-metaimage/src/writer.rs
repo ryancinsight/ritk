@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use ritk_image::HostExtract;
+use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
@@ -39,20 +40,38 @@ pub fn write_metaimage_with_data<B: Backend, P: AsRef<Path>>(
     image: &Image<B, 3>,
     f32_slice: &[f32],
 ) -> Result<()> {
-    let path = path.as_ref();
+    write_metaimage_flat(
+        path.as_ref(),
+        image.shape(),
+        image.spacing(),
+        image.origin(),
+        image.direction(),
+        f32_slice,
+    )
+}
 
-    // image.shape() is [nz, ny, nx] in RITK convention.
+/// Substrate-agnostic MetaImage serialization core: the shared SSOT the Burn
+/// and Atlas-native writers both wrap. Takes flat `[Z, Y, X]` voxels plus the
+/// (backend-independent) spatial metadata so header emission and byte layout
+/// live in exactly one place. `f32_slice.len()` must equal the voxel count.
+fn write_metaimage_flat(
+    path: &Path,
+    shape: [usize; 3],
+    spacing: &Spacing<3>,
+    origin: &Point<3>,
+    direction: &Direction<3>,
+    f32_slice: &[f32],
+) -> Result<()> {
+    // shape is [nz, ny, nx] in RITK convention.
     // MetaImage DimSize is written in [nx, ny, nz] file-axis order.
-    let shape = image.shape();
     let nz = shape[0];
     let ny = shape[1];
     let nx = shape[2];
 
     // ── Spatial metadata ──────────────────────────────────────────────────
-    let origin = image.origin();
-    let dir = image.direction().0;
+    let dir = direction.0;
     let spatial_fields = file_spatial_fields_from_internal(
-        [image.spacing()[0], image.spacing()[1], image.spacing()[2]],
+        [spacing[0], spacing[1], spacing[2]],
         [
             dir[(0, 0)],
             dir[(0, 1)],
@@ -136,5 +155,42 @@ impl MetaImageWriter {
         image: &Image<B, 3>,
     ) -> Result<()> {
         write_metaimage(path, image)
+    }
+}
+
+/// Atlas-native-substrate MetaImage writers (plain end-state names,
+/// disambiguated from the Burn functions by module path only; folds away when
+/// the Burn path is deleted — ADR 0002 A1).
+pub mod native {
+    use super::write_metaimage_flat;
+    use anyhow::Result;
+    use std::path::Path;
+
+    /// Write an Atlas-native 3-D image to a `.mha` MetaImage file.
+    ///
+    /// Host data is extracted layout-independently via `data_cow_on`, then
+    /// serialized through the same
+    /// [`write_metaimage_flat`](super::write_metaimage_flat) core as the Burn
+    /// [`write_metaimage`](super::write_metaimage) — byte-identical output for
+    /// the same logical image.
+    pub fn write_metaimage<B, P>(
+        path: P,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> Result<()>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+        P: AsRef<Path>,
+    {
+        let voxels = image.data_cow_on(backend);
+        write_metaimage_flat(
+            path.as_ref(),
+            image.shape(),
+            image.spacing(),
+            image.origin(),
+            image.direction(),
+            &voxels,
+        )
     }
 }

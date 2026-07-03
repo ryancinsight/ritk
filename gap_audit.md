@@ -1,5 +1,41 @@
 # RITK Gap Audit - Active
 
+## Sprint 495 Audit (2026-07-03) — All-Format Native I/O Parity Reached
+
+### The seam pattern generalized cleanly across 5 more formats
+
+Every Burn writer already extracted host data before serializing, so the
+`write_*_flat` core extraction was mechanical and uniform — the same shape as
+nrrd/analyze. minc needed no extraction at all: its `write_minc2_hdf5` was
+already substrate-agnostic, so the native writer just extracts and calls it
+(the ideal DRY outcome). mgh needed a two-level split (`_stream` for the gzip
+branch, `_flat` for the serialization) because its file entry wraps the writer
+in a conditional GzEncoder.
+
+### Oracle chosen per lossiness
+
+Lossless formats (mgh, metaimage, minc, tiff) use io-level writer→reader
+contract round-trips asserting exact voxel recovery — this exercises the new
+io ImageWriter adapter, the crate native writer, and the crate native reader
+in one path. jpeg is lossy, so round-trip can't assert exact voxels; it uses
+the byte-identical native-vs-Burn oracle instead (same encoder core → same
+bytes). Both are stronger than existence checks.
+
+### Milestone: all 9 formats read+write natively
+
+With MIG-493/494/495, every image format in ritk now has a complete native
+I/O vertical behind the unified `ImageReader`/`ImageWriter<Image<f32,B,3>>`
+contract. The format layer is fully migration-ready.
+
+### Residual Risk / Next Increment
+
+- Still prerequisite: the Burn writers remain (consumed by ritk-io→cli/python),
+  so the migration-audit counts have NOT dropped. The only remaining blocker
+  before format-crate Burn deletion is the cli/python cutover [major], which
+  needs an ADR (the image type flows through the whole processing pipeline, so
+  it is not a mechanical change).
+
+
 ## Sprint 494 Audit (2026-07-03) — Native Writers: the Same Seam Pattern, in Reverse
 
 ### Writers mirror readers around one serialization SSOT

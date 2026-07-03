@@ -38,25 +38,29 @@ use tiff::encoder::TiffEncoder;
 /// - Tensor data cannot be extracted as `f32`.
 /// - The `tiff` encoder fails to write a page.
 pub fn write_tiff<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> Result<()> {
-    let path = path.as_ref();
+    let f32_vec = image.try_data_vec()?;
+    write_tiff_stream(path.as_ref(), image.shape(), &f32_vec)
+}
 
+/// Substrate-agnostic TIFF file entry: creates the file and delegates to
+/// [`write_tiff_flat`]. TIFF carries no physical-space metadata, so only the
+/// shape and flat voxels are needed. The shared SSOT the Burn and Atlas-native
+/// writers both wrap.
+fn write_tiff_stream(path: &Path, shape: [usize; 3], f32_slice: &[f32]) -> Result<()> {
     let file = std::fs::File::create(path)
         .with_context(|| format!("Cannot create TIFF file {:?}", path))?;
     let writer = BufWriter::new(file);
-
-    write_tiff_to_writer::<B, _>(image, writer, path)
+    write_tiff_flat(writer, shape, f32_slice, path)
 }
 
-/// Core writer operating on any `Write + Seek` stream.
-fn write_tiff_to_writer<B: Backend, W: Write + Seek>(
-    image: &Image<B, 3>,
+/// Core writer operating on any `Write + Seek` stream from flat `[Z, Y, X]`
+/// voxels: one `Gray32Float` IFD page per Z-slice.
+fn write_tiff_flat<W: Write + Seek>(
     writer: W,
+    shape: [usize; 3],
+    f32_slice: &[f32],
     display_path: &Path,
 ) -> Result<()> {
-    let f32_vec = image.try_data_vec()?;
-    let f32_slice: &[f32] = &f32_vec;
-
-    let shape = image.shape();
     let nz = shape[0];
     let ny = shape[1];
     let nx = shape[2];
@@ -121,6 +125,36 @@ impl TiffWriter {
     /// See [`write_tiff`] for full documentation.
     pub fn write<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> Result<()> {
         write_tiff(image, path)
+    }
+}
+
+/// Atlas-native-substrate TIFF writers (plain end-state names, disambiguated
+/// from the Burn functions by module path only; folds away when the Burn path
+/// is deleted — ADR 0002 A1).
+pub mod native {
+    use super::write_tiff_stream;
+    use anyhow::Result;
+    use std::path::Path;
+
+    /// Write an Atlas-native 3-D image as a multi-page TIFF file.
+    ///
+    /// Host data is extracted layout-independently via `data_cow_on`, then
+    /// serialized through the same
+    /// [`write_tiff_stream`](super::write_tiff_stream) core as the Burn
+    /// [`write_tiff`](super::write_tiff) — byte-identical output for the same
+    /// logical image.
+    pub fn write_tiff<B, P>(
+        image: &ritk_image::native::Image<f32, B, 3>,
+        path: P,
+        backend: &B,
+    ) -> Result<()>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+        P: AsRef<Path>,
+    {
+        let voxels = image.data_cow_on(backend);
+        write_tiff_stream(path.as_ref(), image.shape(), &voxels)
     }
 }
 

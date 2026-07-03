@@ -94,6 +94,12 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Native writers — remaining 5 formats (Sprint 495, MIG-495).** mgh,
+  metaimage, minc, tiff, jpeg gain native writers wrapping substrate-agnostic
+  serialization cores + ritk-io `ImageWriter` adapters. All 9 formats now
+  read+write natively via the unified contract. Next: the cli/python cutover
+  [major] that drops Burn from the format crates.
+
 - **Native writers — nrrd + analyze (Sprint 494, MIG-494).** Extracted
   `write_*_flat` serialization cores; added `native` writers + ritk-io
   `ImageWriter` adapters. Byte-identical to the Burn writers. nrrd/analyze now

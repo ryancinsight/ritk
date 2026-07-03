@@ -206,3 +206,41 @@ fn native_read_jpeg_matches_burn() {
         "coeus and burn JPEG voxels identical"
     );
 }
+
+/// Strongest differential oracle for the (lossy) JPEG writer: since the
+/// Atlas-native and Burn writers share the `write_jpeg_flat` encoding core,
+/// their output files must be byte-for-byte identical for the same logical
+/// image — the same encoder, same quantization, same bytes.
+#[test]
+fn native_writer_output_is_byte_identical_to_burn_writer() -> anyhow::Result<()> {
+    let (nz, ny, nx) = (1usize, 8usize, 12usize);
+    let values: Vec<f32> = (0..(nz * ny * nx))
+        .map(|i| (i * 7 % 256) as f32)
+        .collect();
+
+    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let burn_image = image_from_values(&device, [nz, ny, nx], values.clone());
+
+    let backend = coeus_core::SequentialBackend;
+    let native_image = ritk_image::native::Image::from_flat_on(
+        values,
+        [nz, ny, nx],
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+        &backend,
+    )?;
+
+    let dir = tempdir()?;
+    let burn_path = dir.path().join("burn.jpg");
+    let native_path = dir.path().join("native.jpg");
+    write_jpeg(&burn_path, &burn_image)?;
+    crate::writer::native::write_jpeg(&native_path, &native_image, &backend)?;
+
+    assert_eq!(
+        std::fs::read(&burn_path)?,
+        std::fs::read(&native_path)?,
+        "native and Burn JPEG writers must emit identical bytes"
+    );
+    Ok(())
+}

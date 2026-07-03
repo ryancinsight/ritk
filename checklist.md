@@ -1,5 +1,36 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 495 — MIG-495: Native Writers for the Remaining 5 Formats
+**Target version**: 0.14.0
+**Sprint phase**: Execution — all-format native I/O parity
+
+### In-flight plan (Sprint 495)
+- [x] Surveyed the 5 Burn writers: all extract host data then serialize from a
+  flat slice + metadata; minc already had a `write_minc2_hdf5` core.
+- [x] Extracted a substrate-agnostic serialization core per format
+  (`write_*_flat`/`*_stream`); Burn + native writers wrap it. Native writers
+  use `data_cow_on` for layout-independent host extraction.
+- [x] Merged each crate's reader+writer `native` modules into one crate-root
+  `native` facade.
+- [x] ritk-io: native `{Mgh,MetaImage,Minc,Tiff,Jpeg}Writer` implementing the
+  unified `ImageWriter<Image<f32,B,3>>` contract (arg order per crate).
+- [x] Tests: io writer→reader contract round-trips (4 lossless) + jpeg
+  byte-identical native-vs-Burn oracle.
+- [x] Gates: mgh 32, metaimage 23, minc 43, tiff 17, jpeg 11, io 360; clippy
+  -D warnings + doc clean; upstream (moirai) WIP waited out.
+
+### Verification gate (Sprint 495)
+- [x] All 9 formats now read AND write natively via the unified contract.
+- [x] Burn-path behavior unchanged (refactor-in-place).
+
+### Deferred / carry-forward
+- The cli/python native cutover [major] (needs ADR) — now the only remaining
+  blocker before Burn can be deleted from the format crates and the SSOT
+  token counts fall.
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, MI/Parzen 3rd metric,
+  driver early-stop; coeus gaps (multi-D FFT wrapper, gather/scatter autograd).
+
+
 ## Sprint 494 — MIG-494: Native Writers for NRRD + Analyze
 **Target version**: 0.14.0
 **Sprint phase**: Execution — completing the native I/O vertical for two formats

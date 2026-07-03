@@ -1,5 +1,24 @@
 # RITK Backlog - Active Planning
 
+- **MIG-495 [minor] — Native writers for the remaining 5 formats; all-format
+  native I/O parity (DONE).** Completes native-writer parity: mgh, metaimage,
+  minc, tiff, jpeg now have Atlas-native writers, so all 9 image formats read
+  AND write on the Atlas substrate through the unified contract. Each Burn
+  writer refactored to wrap a substrate-agnostic serialization core
+  (`write_mgh_stream`/`write_mgh_flat`, `write_metaimage_flat`,
+  `write_tiff_stream`/`write_tiff_flat`, `write_jpeg_flat`; minc reuses the
+  existing `write_minc2_hdf5` core), taking flat `[Z,Y,X]` voxels + the shared
+  Spacing/Point/Direction. Native writers extract host data via `data_cow_on`.
+  Each crate's reader+writer `native` modules merged into one crate-root
+  `native` facade. Wired native `{Mgh,MetaImage,Minc,Tiff,Jpeg}Writer` into
+  ritk-io's unified `ImageWriter<Image<f32,B,3>>` contract. Evidence: io-level
+  writer→reader contract round-trips (exact voxel recovery) for the 4 lossless
+  formats + byte-identical native-vs-Burn oracle for jpeg (lossy); mgh 32/32,
+  metaimage 23/23, minc 43/43, tiff 17/17, jpeg 11/11, io 360/360; clippy
+  -D warnings + doc clean; Burn-path behavior unchanged (refactor-in-place).
+  **All 9 formats now have complete native read+write.** Next: the cli/python
+  native cutover [major] (needs ADR) → drops Burn from the format crates.
+
 - **MIG-494 [minor] — Native writers for NRRD + Analyze (full native I/O
   vertical, DONE).** Completes the native I/O of the two crates that gained
   native readers in MIG-493 — they now round-trip entirely on the Atlas

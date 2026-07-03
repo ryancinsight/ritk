@@ -112,6 +112,69 @@ impl MincWriter {
     }
 }
 
+/// Atlas-native-substrate MINC2 writers (plain end-state names, disambiguated
+/// from the Burn functions by module path only; folds away when the Burn path
+/// is deleted — ADR 0002 A1).
+pub mod native {
+    use crate::hdf5_binary::write_minc2_hdf5;
+    use anyhow::{bail, Result};
+    use std::path::Path;
+
+    /// Write an Atlas-native 3-D image as a MINC2 (`.mnc`) HDF5 file.
+    ///
+    /// Host data is extracted layout-independently via `data_cow_on`, then
+    /// serialized through the same
+    /// [`write_minc2_hdf5`](crate::hdf5_binary::write_minc2_hdf5) core as the
+    /// Burn [`write_minc`](super::write_minc) — byte-identical HDF5 payload for
+    /// the same logical image.
+    pub fn write_minc<B, P>(
+        image: &ritk_image::native::Image<f32, B, 3>,
+        path: P,
+        backend: &B,
+    ) -> Result<()>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+        P: AsRef<Path>,
+    {
+        let [nz, ny, nx] = image.shape();
+        let total_voxels = nz * ny * nx;
+        if total_voxels == 0 {
+            bail!("Cannot write empty image (zero voxels)");
+        }
+
+        let voxels = image.data_cow_on(backend);
+        if voxels.len() != total_voxels {
+            bail!(
+                "voxel data length {} does not match shape [{}, {}, {}] ({} voxels)",
+                voxels.len(),
+                nz,
+                ny,
+                nx,
+                total_voxels
+            );
+        }
+
+        let mut raw_bytes: Vec<u8> = Vec::with_capacity(total_voxels * 4);
+        for &v in voxels.iter() {
+            raw_bytes.extend_from_slice(&v.to_le_bytes());
+        }
+
+        let origin = image.origin();
+        let spacing = image.spacing();
+        let direction = image.direction();
+
+        write_minc2_hdf5(
+            path.as_ref(),
+            &raw_bytes,
+            [nz, ny, nx],
+            [origin[0], origin[1], origin[2]],
+            [spacing[0], spacing[1], spacing[2]],
+            direction,
+        )
+    }
+}
+
 #[cfg(test)]
 #[path = "tests_writer.rs"]
 mod tests;

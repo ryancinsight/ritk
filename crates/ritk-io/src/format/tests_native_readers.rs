@@ -118,6 +118,46 @@ fn native_analyze_writer_reader_contract_round_trips() {
 }
 
 #[test]
+fn native_mgh_writer_reader_contract_round_trips() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    assert_native_writer_reader_round_trips(
+        &dir.path().join("contract.mgh"),
+        &super::mgh::native::MghWriter::new(SequentialBackend),
+        &super::mgh::native::MghReader::new(SequentialBackend),
+    );
+}
+
+#[test]
+fn native_metaimage_writer_reader_contract_round_trips() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    assert_native_writer_reader_round_trips(
+        &dir.path().join("contract.mha"),
+        &super::metaimage::native::MetaImageWriter::new(SequentialBackend),
+        &super::metaimage::native::MetaImageReader::new(SequentialBackend),
+    );
+}
+
+#[test]
+fn native_minc_writer_reader_contract_round_trips() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    assert_native_writer_reader_round_trips(
+        &dir.path().join("contract.mnc"),
+        &super::minc::native::MincWriter::new(SequentialBackend),
+        &super::minc::native::MincReader::new(SequentialBackend),
+    );
+}
+
+#[test]
+fn native_tiff_writer_reader_contract_round_trips() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    assert_native_writer_reader_round_trips(
+        &dir.path().join("contract.tiff"),
+        &super::tiff::native::TiffWriter::new(SequentialBackend),
+        &super::tiff::native::TiffReader::new(SequentialBackend),
+    );
+}
+
+#[test]
 fn native_mgh_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.mgh");
