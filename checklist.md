@@ -1,5 +1,39 @@
 # RITK Sprint Checklist — Active
 
+## Sprint 494 — MIG-494: Native Writers for NRRD + Analyze
+**Target version**: 0.14.0
+**Sprint phase**: Execution — completing the native I/O vertical for two formats
+
+### In-flight plan (Sprint 494)
+- [x] Audited native-writer parity: only nifti had a native writer; 8 formats
+  were Burn-write-only. Scoped this turn to nrrd + analyze (the crates that
+  just gained native readers) for a complete per-crate vertical.
+- [x] Extracted `write_{nrrd,analyze}_flat` substrate-agnostic core (shared
+  Spacing/Point/Direction + flat slice); Burn + `_with_data` + native writers
+  all wrap it. Native writer uses `data_cow_on` for layout-independent host
+  extraction.
+- [x] Merged reader+writer `native` modules into one crate-root `native`
+  facade per crate.
+- [x] ritk-io: native `NrrdWriter`/`AnalyzeWriter` implementing the unified
+  `ImageWriter<Image<f32,B,3>>` contract.
+- [x] Byte-identical differential oracle per crate + io writer→reader contract
+  round-trips.
+- [x] Gates: nrrd 35/35, analyze 5/5, io 356/356; clippy -D warnings + doc
+  clean; lock churn discarded; upstream (moirai) WIP waited out.
+
+### Verification gate (Sprint 494)
+- [x] Native writer bytes == Burn writer bytes (shared core, enforced).
+- [x] nrrd/analyze now have full native read+write parity (with MIG-493).
+
+### Deferred / carry-forward
+- Native-writer parity for the remaining formats: mgh, metaimage, minc, tiff,
+  jpeg (png has no Burn writer). Same seam-extraction pattern; next [minor].
+- Then the cli/python native cutover [major] (needs ADR) → drops Burn from
+  format crates → SSOT token counts fall.
+- Also open: PERF-432-01, TEST-447-05, MIG-439-03, MI/Parzen 3rd metric,
+  driver early-stop; coeus gaps (multi-D FFT wrapper, gather/scatter autograd).
+
+
 ## Sprint 493 — MIG-493: Native-Reader Parity (nrrd + analyze)
 **Target version**: 0.14.0
 **Sprint phase**: Execution — closing the last format-crate native gap

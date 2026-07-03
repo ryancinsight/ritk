@@ -171,3 +171,54 @@ fn analyze_reader_accepts_img_path_and_rejects_invalid_header() -> Result<()> {
 
     Ok(())
 }
+
+/// Strongest differential oracle: for the same logical image the Atlas-native
+/// and Burn writers share the `write_analyze_flat` serialization core, so both
+/// the `.hdr` and `.img` outputs must be byte-for-byte identical. Origin is an
+/// exact voxel multiple of the anisotropic spacing so the `originator` field is
+/// well-defined on both paths.
+#[test]
+fn native_writer_output_is_byte_identical_to_burn_writer() -> Result<()> {
+    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let values: Vec<f32> = (0..24).map(|v| v as f32 * 0.5 - 3.0).collect();
+    let origin = Point::new([7.5, 5.0, 3.75]);
+    let spacing = Spacing::new([1.25, 2.5, 3.75]);
+
+    let dir = tempdir()?;
+    let burn_path = dir.path().join("burn.hdr");
+    let native_path = dir.path().join("native.hdr");
+
+    let burn_image = Image::new(
+        Tensor::<TestBackend, 3>::from_data(
+            TensorData::new(values.clone(), Shape::new([2, 3, 4])),
+            &device,
+        ),
+        origin,
+        spacing,
+        Direction::identity(),
+    );
+    write_analyze(&burn_path, &burn_image)?;
+
+    let backend = coeus_core::SequentialBackend;
+    let native_image = ritk_image::native::Image::from_flat_on(
+        values,
+        [2, 3, 4],
+        origin,
+        spacing,
+        Direction::identity(),
+        &backend,
+    )?;
+    crate::writer::native::write_analyze(&native_path, &native_image, &backend)?;
+
+    assert_eq!(
+        std::fs::read(&burn_path)?,
+        std::fs::read(&native_path)?,
+        "native and Burn Analyze .hdr must be byte-identical"
+    );
+    assert_eq!(
+        std::fs::read(burn_path.with_extension("img"))?,
+        std::fs::read(native_path.with_extension("img"))?,
+        "native and Burn Analyze .img must be byte-identical"
+    );
+    Ok(())
+}

@@ -39,6 +39,7 @@
 use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_spatial::{Point, Spacing};
 
 use crate::codec::{write_le, DT_FLOAT, EXTENTS, HDR_SIZE};
 use std::marker::PhantomData;
@@ -58,23 +59,39 @@ use std::path::Path;
 /// - Any dimension exceeds `i16::MAX` (32 767).
 /// - Writing the header or data file fails.
 pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    let path = path.as_ref();
-
-    // Derive sibling paths (<base>.hdr, <base>.img).
-    let hdr_path = path.with_extension("hdr");
-    let img_path = path.with_extension("img");
-
     // Extract voxel values from the tensor as f32.
     let vals = image
         .try_data_vec()
         .context("Analyze writer requires f32 image data")?;
+    write_analyze_flat(
+        path.as_ref(),
+        image.shape(),
+        image.spacing(),
+        image.origin(),
+        &vals,
+    )
+}
+
+/// Substrate-agnostic Analyze serialization core: the shared SSOT the Burn and
+/// Atlas-native writers both wrap. Takes flat `[Z, Y, X]` voxels plus the
+/// (backend-independent) spatial metadata so header layout and byte order live
+/// in exactly one place. Analyze 7.5 has no direction field (identity implied).
+fn write_analyze_flat(
+    path: &Path,
+    shape: [usize; 3],
+    spacing: &Spacing<3>,
+    origin: &Point<3>,
+    vals: &[f32],
+) -> Result<()> {
+    // Derive sibling paths (<base>.hdr, <base>.img).
+    let hdr_path = path.with_extension("hdr");
+    let img_path = path.with_extension("img");
 
     // Spatial metadata.  RITK shape = [nz, ny, nx]; spacing/origin in XYZ order.
-    let shape = image.shape(); // [nz, ny, nx]
     let [nz, ny, nx] = shape;
-    let sp = image.spacing(); // tensor-axis order [sz, sy, sx]
-    let orig = image.origin(); // world-space [ox, oy, oz]
-                               // File-axis spacing [sx, sy, sz] is the reverse of core [sz, sy, sx].
+    let sp = spacing; // tensor-axis order [sz, sy, sx]
+    let orig = origin; // world-space [ox, oy, oz]
+                       // File-axis spacing [sx, sy, sz] is the reverse of core [sz, sy, sx].
     let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
 
     // Validate dimensions fit in i16 (Analyze constraint).
@@ -132,7 +149,7 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     // ── Write .img (raw f32 little-endian, same memory order as RITK) ─────────
     // RITK layout: flat[iz*ny*nx + iy*nx + ix] — identical to Analyze X-fastest.
     let mut img_data = Vec::with_capacity(vals.len() * 4);
-    for v in &vals {
+    for v in vals {
         img_data.extend_from_slice(&v.to_le_bytes());
     }
     std::fs::write(&img_path, &img_data).context("Failed to write Analyze data")?;
@@ -175,4 +192,40 @@ fn vox_coord(origin_mm: f64, spacing_mm: f64) -> i16 {
     }
     let vox = (origin_mm / spacing_mm).round();
     vox.clamp(i16::MIN as f64, i16::MAX as f64) as i16
+}
+
+/// Atlas-native-substrate Analyze writers (plain end-state names, disambiguated
+/// from the Burn functions by module path only; folds away when the Burn path
+/// is deleted — ADR 0002 A1).
+pub mod native {
+    use super::write_analyze_flat;
+    use anyhow::Result;
+    use std::path::Path;
+
+    /// Write an Atlas-native 3-D image to an Analyze `.hdr`/`.img` pair.
+    ///
+    /// Host data is extracted layout-independently via `data_cow_on`, then
+    /// serialized through the same
+    /// [`write_analyze_flat`](super::write_analyze_flat) core as the Burn
+    /// [`write_analyze`](super::write_analyze) — byte-identical output for the
+    /// same logical image.
+    pub fn write_analyze<B, P>(
+        path: P,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> Result<()>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+        P: AsRef<Path>,
+    {
+        let voxels = image.data_cow_on(backend);
+        write_analyze_flat(
+            path.as_ref(),
+            image.shape(),
+            image.spacing(),
+            image.origin(),
+            &voxels,
+        )
+    }
 }

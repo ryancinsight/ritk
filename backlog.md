@@ -1,5 +1,23 @@
 # RITK Backlog - Active Planning
 
+- **MIG-494 [minor] — Native writers for NRRD + Analyze (full native I/O
+  vertical, DONE).** Completes the native I/O of the two crates that gained
+  native readers in MIG-493 — they now round-trip entirely on the Atlas
+  substrate. Extracted a substrate-agnostic `write_nrrd_flat` /
+  `write_analyze_flat` serialization core (SSOT) taking the shared
+  `Spacing/Point/Direction` types + a flat `[Z,Y,X]` slice; the Burn writer,
+  the `*_with_data` perf variant, and a new `native` writer all wrap it. The
+  native writer extracts host data layout-independently via `data_cow_on`.
+  Merged each crate's reader+writer `native` modules into one crate-root
+  `native` facade. Wired native `NrrdWriter`/`AnalyzeWriter` into ritk-io's
+  unified `ImageWriter<Image<f32,B,3>>` contract. Evidence: byte-identical
+  differential oracle (native writer emits the exact Burn bytes for the same
+  logical image — both `.hdr` and `.img` for Analyze) + io-level
+  writer→reader contract round-trips; ritk-nrrd 35/35, ritk-analyze 5/5,
+  ritk-io 356/356; clippy -D warnings + doc clean; Burn path behavior
+  unchanged (refactor-in-place). With MIG-493, nrrd/analyze now have complete
+  native read+write parity.
+
 - **MIG-493 [minor] — Native-reader parity across all 9 image formats (DONE).**
   The top-down Burn cutover (cli/python `read_image` → native) was blocked
   because ritk-nrrd and ritk-analyze were the only format crates with no

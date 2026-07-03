@@ -64,6 +64,59 @@ fn burn_device() -> <BurnBackend as Backend>::Device {
     <BurnBackend as Backend>::Device::default()
 }
 
+/// Round-trip a native volume through the unified [`crate::domain::ImageWriter`]
+/// then [`crate::domain::ImageReader`] adapters; assert exact voxel + shape
+/// parity. Exercises the native writer adapter end-to-end (the reader adapters
+/// are covered by the differential tests above).
+fn assert_native_writer_reader_round_trips<W, R>(path: &std::path::Path, writer: &W, reader: &R)
+where
+    W: crate::domain::ImageWriter<NativeImage<f32, SequentialBackend, 3>>,
+    R: ImageReader<NativeImage<f32, SequentialBackend, 3>>,
+{
+    let dims = [2usize, 3, 4];
+    let n = dims[0] * dims[1] * dims[2];
+    let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.5 - 4.0).collect();
+    let image = NativeImage::from_flat_on(
+        voxels.clone(),
+        dims,
+        Point::new([5.0, -10.0, 15.0]),
+        Spacing::new([1.5, 0.75, 0.9]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("native image");
+
+    writer.write(path, &image).expect("contract write");
+    let loaded: NativeImage<f32, SequentialBackend, 3> = reader.read(path).expect("contract read");
+
+    assert_eq!(loaded.shape(), dims, "shape parity");
+    assert_eq!(
+        loaded.data_slice().expect("contiguous"),
+        voxels.as_slice(),
+        "native writer→reader contract must preserve voxels exactly"
+    );
+}
+
+#[test]
+fn native_nrrd_writer_reader_contract_round_trips() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    assert_native_writer_reader_round_trips(
+        &dir.path().join("contract.nrrd"),
+        &super::nrrd::native::NrrdWriter::new(SequentialBackend),
+        &super::nrrd::native::NrrdReader::new(SequentialBackend),
+    );
+}
+
+#[test]
+fn native_analyze_writer_reader_contract_round_trips() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    assert_native_writer_reader_round_trips(
+        &dir.path().join("contract.hdr"),
+        &super::analyze::native::AnalyzeWriter::new(SequentialBackend),
+        &super::analyze::native::AnalyzeReader::new(SequentialBackend),
+    );
+}
+
 #[test]
 fn native_mgh_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");

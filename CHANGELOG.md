@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 494: Native writers for NRRD + Analyze (MIG-494)
+
+### Added
+- `ritk_nrrd::native::{write_nrrd, NrrdWriter}` and
+  `ritk_analyze::native::write_analyze` — Atlas-native writers wrapping a new
+  substrate-agnostic `write_*_flat` serialization core shared with the Burn
+  writers.
+- ritk-io native `NrrdWriter`/`AnalyzeWriter` implementing the unified
+  `ImageWriter<Image<f32,B,3>>` contract.
+
+### Changed
+- ritk-nrrd/ritk-analyze Burn writers refactored to wrap the extracted
+  `write_*_flat` core (behavior-identical). Each crate's reader+writer `native`
+  modules merged into one crate-root `native` facade.
+
+### Evidence
+- Byte-identical differential (native writer emits the exact Burn bytes;
+  `.hdr`+`.img` for Analyze) + io writer→reader contract round-trips; nrrd
+  35/35, analyze 5/5, io 356/356; clippy -D warnings + doc clean.
+
+---
+
+
 ## [Unreleased] — Sprint 493: Native-reader parity for NRRD + Analyze (MIG-493)
 
 ### Added

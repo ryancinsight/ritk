@@ -1,5 +1,41 @@
 # RITK Gap Audit - Active
 
+## Sprint 494 Audit (2026-07-03) — Native Writers: the Same Seam Pattern, in Reverse
+
+### Writers mirror readers around one serialization SSOT
+
+The reader work extracted a `decode_*` seam both substrates wrap; writers are
+the exact mirror — a `write_*_flat` core taking flat `[Z,Y,X]` voxels plus the
+(substrate-independent) `Spacing/Point/Direction`. Because those spatial types
+are shared between the Burn and native `Image`, the core needs no generic
+parameter at all — it is plain data in, bytes out. The Burn writer, its
+`_with_data` perf variant, and the native writer are all thin wrappers, so
+each format's header/byte layout lives in exactly one place.
+
+### The byte-identical oracle is the strongest differential
+
+A writer's correctness oracle is stronger than a reader's: since both writers
+call the identical core, their output files must be byte-for-byte identical
+for the same logical image — asserted directly (both `.hdr` and `.img` for
+Analyze). This catches any metadata-extraction divergence between the Burn
+`.spacing()/.origin()` path and the native one, not merely voxel equality.
+
+### Facade consolidation
+
+Each crate had grown two `native` modules (reader + writer). Merged into one
+crate-root `native` facade (`pub mod native { pub use reader::native::*;
+pub use writer::native::*; }`) so consumers see a single `ritk_nrrd::native::*`
+surface — matching the reader-only shape from MIG-493 before it fragmented.
+
+### Residual Risk / Next Increment
+
+- Still prerequisite plumbing: does NOT drop the migration-audit counts (Burn
+  writers remain, consumed by ritk-io→cli/python). The counts fall only at the
+  cli/python cutover.
+- 5 formats still lack native writers (mgh, metaimage, minc, tiff, jpeg) —
+  same mechanical pattern, filed as the next [minor].
+
+
 ## Sprint 493 Audit (2026-07-03) — The Cutover Was Blocked by Two Missing Readers, Not by Coeus Gaps
 
 ### Two audits reframed the remaining work

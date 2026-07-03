@@ -94,6 +94,12 @@ must not switch GPU registration to Coeus until these RITK-specific gates pass:
 
 Landed, evidence-backed steps of the sequence below (most recent first):
 
+- **Native writers — nrrd + analyze (Sprint 494, MIG-494).** Extracted
+  `write_*_flat` serialization cores; added `native` writers + ritk-io
+  `ImageWriter` adapters. Byte-identical to the Burn writers. nrrd/analyze now
+  have full native read+write parity. Remaining writers: mgh, metaimage, minc,
+  tiff, jpeg.
+
 - **Native-reader parity — nrrd + analyze (Sprint 493, MIG-493).** Extracted
   `decode_*` seams; added `native` readers + ritk-io unified-contract
   adapters so all 9 formats read natively through one generic trait.

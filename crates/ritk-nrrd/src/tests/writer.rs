@@ -399,3 +399,47 @@ fn test_round_trip_nrrd() -> Result<()> {
     });
     Ok(())
 }
+
+/// Strongest differential oracle: for the same logical image the Atlas-native
+/// and Burn writers share the `write_nrrd_flat` serialization core, so their
+/// output files must be byte-for-byte identical. Anisotropic spacing, a
+/// non-axis-aligned direction, and a non-zero origin ensure any metadata
+/// divergence would surface.
+#[test]
+fn native_writer_output_is_byte_identical_to_burn_writer() -> Result<()> {
+    let nx = 4usize;
+    let ny = 3usize;
+    let nz = 2usize;
+    let data: Vec<f32> = (0..(nx * ny * nz)).map(|i| i as f32 * 0.5 - 3.0).collect();
+    let origin = Point::new([5.0, -10.0, 15.0]);
+    let spacing = Spacing::new([1.5, 0.75, 0.9]);
+    let direction = axial_direction();
+
+    let dir = tempdir()?;
+    let burn_path = dir.path().join("burn.nrrd");
+    let native_path = dir.path().join("native.nrrd");
+
+    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let burn_image = Image::new(
+        Tensor::<TestBackend, 3>::from_data(
+            TensorData::new(data.clone(), Shape::new([nz, ny, nx])),
+            &device,
+        ),
+        origin,
+        spacing,
+        direction,
+    );
+    write_nrrd(&burn_path, &burn_image)?;
+
+    let backend = coeus_core::SequentialBackend;
+    let native_image =
+        ritk_image::native::Image::from_flat_on(data, [nz, ny, nx], origin, spacing, direction, &backend)?;
+    crate::native::write_nrrd(&native_path, &native_image, &backend)?;
+
+    assert_eq!(
+        std::fs::read(&burn_path)?,
+        std::fs::read(&native_path)?,
+        "native and Burn NRRD writers must emit identical bytes"
+    );
+    Ok(())
+}
