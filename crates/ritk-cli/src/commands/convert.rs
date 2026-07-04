@@ -18,7 +18,10 @@ use ritk_io::ImageFormat;
 use std::path::PathBuf;
 use tracing::info;
 
-use super::{infer_format, read_image, write_image};
+use super::{
+    infer_format, is_native_read_capable, is_native_write_capable, read_image, read_image_native,
+    write_image, write_image_native,
+};
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
@@ -75,9 +78,12 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         args.output.display()
     );
 
-    let image = read_image(&args.input)?;
-    let shape = image.shape();
-    let spacing = image.spacing();
+    let in_fmt = infer_format(&args.input).ok_or_else(|| {
+        anyhow!(
+            "Cannot infer input format from path: {}",
+            args.input.display()
+        )
+    })?;
 
     // Resolve output format: explicit flag takes precedence over extension.
     let out_fmt: ImageFormat = match args.format {
@@ -100,7 +106,24 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         })?,
     };
 
-    write_image(&args.output, &image, out_fmt)?;
+    // ADR 0003 Phase A: route through the Atlas-native path when both ends
+    // have a native reader/writer; otherwise fall back to the Burn path
+    // (currently `dicom` and `vtk` on either side). This avoids converting
+    // between the two image types mid-command — each command run picks one
+    // substrate for its whole read→write span.
+    let shape;
+    let spacing;
+    if is_native_read_capable(in_fmt) && is_native_write_capable(out_fmt) {
+        let image = read_image_native(&args.input)?;
+        shape = image.shape();
+        spacing = *image.spacing();
+        write_image_native(&args.output, &image, out_fmt)?;
+    } else {
+        let image = read_image(&args.input)?;
+        shape = image.shape();
+        spacing = *image.spacing();
+        write_image(&args.output, &image, out_fmt)?;
+    }
 
     println!(
         "Converted {} \u{2192} {} (shape: {}x{}x{}, spacing: {:.4}\u{d7}{:.4}\u{d7}{:.4})",
@@ -327,5 +350,126 @@ mod tests {
         assert!(output.exists());
         let recovered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(recovered.shape(), [3, 4, 5]);
+    }
+
+    // ── ADR 0003 Phase A: native-dispatch coverage ────────────────────────────
+
+    /// `is_native_read_capable`/`is_native_write_capable` must agree exactly
+    /// with the format matrix documented in ADR 0003: 7 formats read+write
+    /// natively, PNG reads only (no native writer, matching the Burn path),
+    /// and DICOM/VTK have neither. A drift here would silently misroute a
+    /// command onto the wrong substrate without any other test catching it.
+    #[test]
+    fn test_native_capability_predicates_match_adr_0003_matrix() {
+        use super::super::{is_native_read_capable, is_native_write_capable};
+
+        let read_and_write = [
+            ImageFormat::NIfTI,
+            ImageFormat::Nrrd,
+            ImageFormat::Analyze,
+            ImageFormat::Mgh,
+            ImageFormat::MetaImage,
+            ImageFormat::Tiff,
+            ImageFormat::Jpeg,
+        ];
+        for fmt in read_and_write {
+            assert!(is_native_read_capable(fmt), "{fmt:?} must read natively");
+            assert!(is_native_write_capable(fmt), "{fmt:?} must write natively");
+        }
+
+        assert!(is_native_read_capable(ImageFormat::Png), "PNG reads natively");
+        assert!(
+            !is_native_write_capable(ImageFormat::Png),
+            "PNG has no native writer"
+        );
+
+        for fmt in [ImageFormat::Dicom, ImageFormat::Vtk] {
+            assert!(!is_native_read_capable(fmt), "{fmt:?} has no native reader yet");
+            assert!(!is_native_write_capable(fmt), "{fmt:?} has no native writer yet");
+        }
+    }
+
+    /// Differential oracle at the CLI dispatch boundary: converting the same
+    /// logical image through the (now-native) `convert` path and through the
+    /// pre-cutover Burn writer directly must produce byte-identical NIfTI
+    /// files. This is stronger than the round-trip tests above — it catches a
+    /// dispatch bug (e.g. routing to the wrong substrate) that a shape-only
+    /// assertion would miss, independent of the crate-level writer parity
+    /// already proven in MIG-494/495.
+    #[test]
+    fn test_native_convert_output_is_byte_identical_to_burn_writer() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let native_output = dir.path().join("via_convert.nii");
+        let burn_output = dir.path().join("via_burn_direct.nii");
+
+        let image = make_test_image();
+        ritk_io::write_nifti(&input, &image).unwrap();
+
+        // Through `convert` — nifti→nifti is native-capable both ends, so
+        // this exercises `read_image_native`/`write_image_native`.
+        run(ConvertArgs {
+            input: input.clone(),
+            output: native_output.clone(),
+            format: None,
+        })
+        .unwrap();
+
+        // Directly through the Burn writer, from the same source file read
+        // via the Burn reader — the pre-cutover reference path.
+        let burn_image = ritk_io::read_nifti::<Backend, _>(&input, &Default::default()).unwrap();
+        ritk_io::write_nifti(&burn_output, &burn_image).unwrap();
+
+        assert_eq!(
+            std::fs::read(&native_output).unwrap(),
+            std::fs::read(&burn_output).unwrap(),
+            "convert's native dispatch must emit the exact bytes the Burn path would"
+        );
+    }
+
+    /// VTK has no native path (ADR 0003), so `convert` must fall back to the
+    /// Burn helpers end-to-end. This is coverage the original suite lacked —
+    /// every prior test used a native-capable format pair.
+    #[test]
+    fn test_convert_vtk_input_falls_back_to_burn_path() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.vtk");
+        let output = dir.path().join("output.nii");
+
+        let image = make_test_image();
+        ritk_io::write_vtk(&input, &image).unwrap();
+
+        run(ConvertArgs {
+            input,
+            output: output.clone(),
+            format: None,
+        })
+        .unwrap();
+
+        assert!(output.exists());
+        let recovered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(recovered.shape(), [3, 4, 5]);
+    }
+
+    /// Symmetric case: a native-capable input converted to VTK output must
+    /// also fall back to the Burn path (checked via `--format vtk` since VTK
+    /// output has no standard extension to infer from in this test fixture).
+    #[test]
+    fn test_convert_vtk_output_falls_back_to_burn_path() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("output.vtk");
+
+        let image = make_test_image();
+        ritk_io::write_nifti(&input, &image).unwrap();
+
+        run(ConvertArgs {
+            input,
+            output: output.clone(),
+            format: Some(OutputFormat::Vtk),
+        })
+        .unwrap();
+
+        assert!(output.exists());
     }
 }

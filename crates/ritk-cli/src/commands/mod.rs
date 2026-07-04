@@ -16,8 +16,11 @@ pub mod viewer;
 use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::Image;
 use ritk_io::{is_rgb_dicom_series, read_dicom_series, ImageFormat};
+use ritk_io::{ImageReader, ImageWriter};
 use std::path::Path;
 
 // ── Shared backend ────────────────────────────────────────────────────────────
@@ -27,6 +30,13 @@ use std::path::Path;
 /// `NdArray<f32>` requires no GPU runtime and produces deterministic results,
 /// which is appropriate for a CLI tool that must run on any host.
 pub(crate) type Backend = NdArray<f32>;
+
+/// Atlas-native CPU backend used for the native I/O path (ADR 0003).
+///
+/// `SequentialBackend` mirrors [`Backend`]'s rationale — no GPU runtime,
+/// deterministic — and keeps the native path's dependency surface minimal
+/// while Burn is still present. Zero-sized; constructed fresh per call.
+pub(crate) type NativeBackend = SequentialBackend;
 
 // ── Format inference ──────────────────────────────────────────────────────────
 
@@ -135,6 +145,172 @@ pub(crate) fn write_image_inferred(path: &Path, image: &Image<Backend, 3>) -> Re
     let fmt = infer_format(path)
         .ok_or_else(|| anyhow!("Cannot infer output format from path: {}", path.display()))?;
     write_image(path, image, fmt)
+}
+
+// ── Atlas-native I/O (ADR 0003 Phase A) ───────────────────────────────────────
+//
+// Parallel native helpers coexisting with the Burn helpers above during the
+// cutover (ADR 0003). `dicom` and `vtk` have no Atlas-native reader/writer
+// yet, so [`is_native_read_capable`]/[`is_native_write_capable`] exclude them;
+// commands route those formats through the Burn helpers instead. This
+// duplication is transitional and folds away once every format has a native
+// path and every command has migrated.
+
+/// True when `fmt` has an Atlas-native reader (ADR 0003 Phase A coverage).
+pub(crate) fn is_native_read_capable(fmt: ImageFormat) -> bool {
+    matches!(
+        fmt,
+        ImageFormat::NIfTI
+            | ImageFormat::Nrrd
+            | ImageFormat::Analyze
+            | ImageFormat::Mgh
+            | ImageFormat::MetaImage
+            | ImageFormat::Tiff
+            | ImageFormat::Jpeg
+            | ImageFormat::Png
+    )
+}
+
+/// True when `fmt` has an Atlas-native writer (ADR 0003 Phase A coverage).
+///
+/// Narrower than [`is_native_read_capable`]: PNG has no native writer, matching
+/// the Burn path (which also cannot write PNG — see [`write_image`]).
+pub(crate) fn is_native_write_capable(fmt: ImageFormat) -> bool {
+    matches!(
+        fmt,
+        ImageFormat::NIfTI
+            | ImageFormat::Nrrd
+            | ImageFormat::Analyze
+            | ImageFormat::Mgh
+            | ImageFormat::MetaImage
+            | ImageFormat::Tiff
+            | ImageFormat::Jpeg
+    )
+}
+
+/// Read a 3-D medical image from `path` via the Atlas-native path.
+///
+/// Callers must first check [`is_native_read_capable`] on the inferred
+/// format; formats without a native reader return a descriptive `Err` rather
+/// than panicking, since the capability check is a contract, not a proof.
+///
+/// # Errors
+/// Returns an error when the extension is unrecognised, the format has no
+/// native reader, or the underlying reader fails.
+pub(crate) fn read_image_native(path: &Path) -> Result<NativeImage<f32, NativeBackend, 3>> {
+    let backend = NativeBackend::default();
+    let fmt = infer_format(path)
+        .ok_or_else(|| anyhow!("Cannot infer input format from path: {}", path.display()))?;
+
+    match fmt {
+        ImageFormat::NIfTI => ImageReader::read(
+            &ritk_io::format::nifti::native::NiftiReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read NIfTI file (native): {}", path.display())),
+        ImageFormat::MetaImage => ImageReader::read(
+            &ritk_io::format::metaimage::native::MetaImageReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read MetaImage file (native): {}", path.display())),
+        ImageFormat::Nrrd => ImageReader::read(
+            &ritk_io::format::nrrd::native::NrrdReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read NRRD file (native): {}", path.display())),
+        ImageFormat::Png => ImageReader::read(
+            &ritk_io::format::png::native::PngReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read PNG file (native): {}", path.display())),
+        ImageFormat::Mgh => ImageReader::read(
+            &ritk_io::format::mgh::native::MghReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read MGH file (native): {}", path.display())),
+        ImageFormat::Tiff => ImageReader::read(
+            &ritk_io::format::tiff::native::TiffReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read TIFF file (native): {}", path.display())),
+        ImageFormat::Jpeg => ImageReader::read(
+            &ritk_io::format::jpeg::native::JpegReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read JPEG file (native): {}", path.display())),
+        ImageFormat::Analyze => ImageReader::read(
+            &ritk_io::format::analyze::native::AnalyzeReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read Analyze file (native): {}", path.display())),
+        ImageFormat::Dicom | ImageFormat::Vtk => Err(anyhow!(
+            "{:?} has no Atlas-native reader; check is_native_read_capable first",
+            fmt
+        )),
+    }
+}
+
+/// Write `image` to `path` via the Atlas-native path, using the explicitly
+/// supplied `format`.
+///
+/// Callers must first check [`is_native_write_capable`] on the target format.
+///
+/// # Errors
+/// Returns an error when the format has no native writer or the writer fails.
+pub(crate) fn write_image_native(
+    path: &Path,
+    image: &NativeImage<f32, NativeBackend, 3>,
+    format: ImageFormat,
+) -> Result<()> {
+    let backend = NativeBackend::default();
+    match format {
+        ImageFormat::NIfTI => ImageWriter::write(
+            &ritk_io::format::nifti::native::NiftiWriter::new(backend),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write NIfTI file (native): {}", path.display())),
+        ImageFormat::MetaImage => ImageWriter::write(
+            &ritk_io::format::metaimage::native::MetaImageWriter::new(backend),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write MetaImage file (native): {}", path.display())),
+        ImageFormat::Nrrd => ImageWriter::write(
+            &ritk_io::format::nrrd::native::NrrdWriter::new(backend),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write NRRD file (native): {}", path.display())),
+        ImageFormat::Mgh => ImageWriter::write(
+            &ritk_io::format::mgh::native::MghWriter::new(backend),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write MGH file (native): {}", path.display())),
+        ImageFormat::Tiff => ImageWriter::write(
+            &ritk_io::format::tiff::native::TiffWriter::new(backend),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write TIFF file (native): {}", path.display())),
+        ImageFormat::Jpeg => ImageWriter::write(
+            &ritk_io::format::jpeg::native::JpegWriter::new(backend),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write JPEG file (native): {}", path.display())),
+        ImageFormat::Analyze => ImageWriter::write(
+            &ritk_io::format::analyze::native::AnalyzeWriter::new(backend),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write Analyze file (native): {}", path.display())),
+        ImageFormat::Png | ImageFormat::Dicom | ImageFormat::Vtk => Err(anyhow!(
+            "{:?} has no Atlas-native writer; check is_native_write_capable first",
+            format
+        )),
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

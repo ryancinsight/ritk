@@ -27,6 +27,7 @@ tracing-subscriber = { workspace = true }
 burn = { workspace = true, features = ["ndarray"] }
 burn-ndarray = { workspace = true }
 leto = { workspace = true }
+coeus-core = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
