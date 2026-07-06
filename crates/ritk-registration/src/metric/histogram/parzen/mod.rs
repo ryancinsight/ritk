@@ -16,6 +16,17 @@ pub(crate) mod dispatch;
 pub(crate) mod image_cache_helpers;
 pub(crate) mod oob;
 pub(crate) mod sparse;
+
+// Atlas-typed sibling module (sub-batch #3.b, atlas-meta Batch #3, ADR 0012).
+// Strictly additive: provides Atlas-prefixed re-exports of the leaf direct-path
+// CPU algorithms (`build_atlas_sparse_w_fixed_transposed`,
+// `compute_atlas_joint_histogram_direct`, `AtlasParzenConfig`,
+// `AtlasSparseSampleCache`, `atlas_normalize_intensities`) so the rewritten
+// `tests/cache_property_tests.rs` exercises the cache surface through a
+// single Atlas-only import block. The Burn-keyed `direct` module remains
+// in place; the Atlas twin re-exports its leaf functions under Atlas-prefix
+// names without altering any public Burn-keyed surface.
+pub mod atlas_parzen_cache;
 #[cfg(test)]
 mod tests;
 
