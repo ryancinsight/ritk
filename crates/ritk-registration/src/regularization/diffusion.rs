@@ -16,8 +16,8 @@
 //! - L2 smoothness penalty
 
 use super::trait_::Regularizer;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// Diffusion regularizer for displacement fields.
 ///
@@ -28,7 +28,7 @@ use burn::tensor::Tensor;
 ///
 /// ```rust,ignore
 /// use ritk_registration::regularization::DiffusionRegularizer;
-/// use burn::tensor::Tensor;
+/// use ritk_image::tensor::Tensor;
 ///
 /// let reg = DiffusionRegularizer::new(0.1);
 /// // displacement field: [B, 2, H, W] for 2D

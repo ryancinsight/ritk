@@ -1,7 +1,7 @@
 //! Explicit discrete shape geometry constraints avoiding dimensional divergence.
 
 use crate::error::{RegistrationError, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 /// Validate that two images strictly mirror shape geometry sizes precisely avoiding structural scaling shifts internally.

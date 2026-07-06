@@ -7,7 +7,7 @@
 //!
 //! ```rust,ignore
 //! use ritk_registration::optimizer::SgdConfig;
-//! use burn::optim::Optimizer;
+//! use ritk_image::burn::optim::Optimizer;
 //!
 //! let config = SgdConfig::new().with_learning_rate(0.01);
 //! let optimizer = config.init();

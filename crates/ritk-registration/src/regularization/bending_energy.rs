@@ -18,8 +18,8 @@
 //! - L2 penalty on second derivatives
 
 use super::trait_::Regularizer;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// Bending energy regularizer for displacement fields.
 ///
@@ -30,7 +30,7 @@ use burn::tensor::Tensor;
 ///
 /// ```rust,ignore
 /// use ritk_registration::regularization::BendingEnergyRegularizer;
-/// use burn::tensor::Tensor;
+/// use ritk_image::tensor::Tensor;
 ///
 /// let reg = BendingEnergyRegularizer::new(0.1);
 /// // displacement field: [B, 2, H, W] for 2D

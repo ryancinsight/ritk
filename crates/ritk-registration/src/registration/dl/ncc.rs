@@ -1,6 +1,6 @@
 //! Global Normalized Cross Correlation (NCC) loss module.
 
-use burn::{
+use ritk_image::burn::{
     module::{Ignored, Module},
     tensor::{backend::Backend, Tensor},
 };

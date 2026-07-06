@@ -4,7 +4,7 @@
 //! 1. Download test data: `cargo xtask download-datasets`
 //! 2. Run tests: `cargo test --test real_data_test -- --ignored`
 
-use burn::tensor::Tensor;
+use ritk_image::tensor::Tensor;
 use burn_ndarray::NdArray;
 // use ritk_core::image::Image;
 use ritk_core::spatial::Point3; // Used in test

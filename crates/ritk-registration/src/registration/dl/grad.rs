@@ -1,6 +1,6 @@
 //! First-order gradient regularization loss for deformation fields.
 
-use burn::{
+use ritk_image::burn::{
     module::{Ignored, Module},
     tensor::{backend::Backend, Tensor},
 };

@@ -1,6 +1,7 @@
 use super::*;
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
+use ritk_image::tensor::Tensor;
 use ritk_transform::TranslationTransform;
 
 type B = NdArray<f32>;
@@ -41,8 +42,7 @@ fn lncc_identical_images_loss_near_negative_one() {
 
     let image = make_image(data, [size, size, size]);
     let device = Default::default();
-    let transform =
-        TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
+    let transform = TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
 
     let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.5));
     let loss = metric.forward(&image, &image, &transform);
@@ -74,8 +74,7 @@ fn lncc_linear_rescaling_invariant() {
     let moving = make_image(data2, [size, size, size]);
 
     let device = Default::default();
-    let transform =
-        TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
+    let transform = TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
 
     let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.5));
     let loss = metric.forward(&fixed, &moving, &transform);
@@ -102,8 +101,7 @@ fn lncc_cache_returns_same_result_on_second_call() {
 
     let image = make_image(data, [size, size, size]);
     let device = Default::default();
-    let transform =
-        TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
+    let transform = TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
 
     let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.5));
 
@@ -129,8 +127,7 @@ fn lncc_constant_image_loss_is_finite() {
     let size = 4;
     let image = make_image(vec![5.0_f32; size * size * size], [size, size, size]);
     let device = Default::default();
-    let transform =
-        TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
+    let transform = TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
 
     let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.0));
     let loss_val = metric.forward(&image, &image, &transform).into_scalar();

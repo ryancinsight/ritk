@@ -1,9 +1,9 @@
 //! Gradient norm visitor for computing ‖∇L‖₂ across module parameters.
 
-use burn::module::Param;
-use burn::optim::GradientsParams;
-use burn::tensor::backend::AutodiffBackend;
-use burn::tensor::{ElementConversion, Tensor};
+use ritk_image::burn::module::Param;
+use ritk_image::burn::optim::GradientsParams;
+use ritk_image::tensor::AutodiffBackend;
+use ritk_image::tensor::{ElementConversion, Tensor};
 use std::marker::PhantomData;
 
 /// `ModuleVisitor` that accumulates the squared-L2-norm of all gradient tensors
@@ -33,7 +33,7 @@ impl<'a, B: AutodiffBackend> GradientNormVisitor<'a, B> {
     }
 }
 
-impl<B: AutodiffBackend> burn::module::ModuleVisitor<B> for GradientNormVisitor<'_, B> {
+impl<B: AutodiffBackend> ritk_image::burn::module::ModuleVisitor<B> for GradientNormVisitor<'_, B> {
     fn visit_float<const D: usize>(&mut self, param: &Param<Tensor<B, D>>) {
         if let Some(grad) = self.grads.get::<B::InnerBackend, D>(param.id) {
             let data = grad.to_data();

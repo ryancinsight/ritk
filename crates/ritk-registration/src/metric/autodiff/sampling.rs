@@ -71,7 +71,7 @@ where
     let mut idx0 = Vec::with_capacity(n);
     let mut idx1 = Vec::with_capacity(n);
     for &c in coord_vals {
-        let floor = c.to_f64().floor();
+        let floor = <T as Scalar>::to_f64(c).floor();
         floor_vals.push(T::from_f64(floor));
         idx0.push(clamp_index(floor, max_index));
         idx1.push(clamp_index(floor + 1.0, max_index));

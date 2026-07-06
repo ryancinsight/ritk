@@ -14,7 +14,7 @@
 //! or DX12).  On systems without GPU support the benchmark will still
 //! compile but may panic at runtime.
 
-use burn::backend::wgpu::{Wgpu, WgpuDevice};
+use ritk_image::burn::backend::wgpu::{Wgpu, WgpuDevice};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::SeedableRng;
 

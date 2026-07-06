@@ -6,7 +6,7 @@
 //!   3. Joint histogram computation only
 //!   4. Transform + interpolation chain only
 
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -21,7 +21,7 @@ use ritk_transform::{Transform, TranslationTransform};
 type B = NdArray<f32>;
 
 /// Create a 32³ ramp test image with intensity range [0, 255].
-fn create_test_image(device: &<B as burn::tensor::backend::Backend>::Device) -> Image<B, 3> {
+fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
     let n = 32 * 32 * 32;
     let data: Vec<f32> = (0..n).map(|i| i as f32 % 256.0).collect();
     let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new([32, 32, 32])), device);
@@ -34,7 +34,7 @@ fn create_test_image(device: &<B as burn::tensor::backend::Backend>::Device) -> 
 }
 
 fn bench_registration_pipeline(c: &mut Criterion) {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     let fixed = create_test_image(&device);
     let moving = create_test_image(&device);

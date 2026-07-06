@@ -12,12 +12,10 @@
 //! [`ritk_filter::GaussianFilter`] for 10-50× speedup on typical 256³
 //! displacement fields.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
-
 use super::flat;
 use super::FieldSmoother;
 use ritk_filter::gaussian_kernel;
+use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
 use ritk_spatial::{Spacing, VolumeDims};
 
 /// Convolve `data` along axis `AXIS` (0 = Z, 1 = Y, 2 = X) with `kernel`;
@@ -190,7 +188,7 @@ pub struct GpuFieldSmoother<B: Backend> {
     spacing: Spacing<3>,
     /// Tensor shape `[nz, ny, nx]` — stored to avoid re-deriving from
     /// tensor dimensions (which no longer live on `self`).
-    shape: burn::tensor::Shape,
+    shape: Shape,
     /// Pre-allocated CPU staging buffers.
     ///
     /// On each invocation of [`Self::smooth_field_inplace`], the incoming field
@@ -224,7 +222,7 @@ impl<B: Backend> GpuFieldSmoother<B> {
     /// Panics if `dims` has a zero dimension.
     pub fn new(dims: [usize; 3], spacing: Spacing<3>, sigma: f64, device: &B::Device) -> Self {
         assert!(dims.iter().all(|&d| d > 0), "dims must be nonzero");
-        let shape = burn::tensor::Shape::new(dims);
+        let shape = Shape::new(dims);
         let n = dims[0] * dims[1] * dims[2];
         let sigmas = vec![
             ritk_filter::GaussianSigma::new_unchecked(sigma),
@@ -265,17 +263,17 @@ impl<B: Backend> GpuFieldSmoother<B> {
         // ── Upload: copy_from_slice → mem::take → TensorData → local Tensor ──
         self.staging_z.copy_from_slice(fz);
         let tz = Tensor::from_data(
-            burn::tensor::TensorData::new(std::mem::take(&mut self.staging_z), self.shape.clone()),
+            TensorData::new(std::mem::take(&mut self.staging_z), self.shape.clone()),
             &self.device,
         );
         self.staging_y.copy_from_slice(fy);
         let ty = Tensor::from_data(
-            burn::tensor::TensorData::new(std::mem::take(&mut self.staging_y), self.shape.clone()),
+            TensorData::new(std::mem::take(&mut self.staging_y), self.shape.clone()),
             &self.device,
         );
         self.staging_x.copy_from_slice(fx);
         let tx = Tensor::from_data(
-            burn::tensor::TensorData::new(std::mem::take(&mut self.staging_x), self.shape.clone()),
+            TensorData::new(std::mem::take(&mut self.staging_x), self.shape.clone()),
             &self.device,
         );
 

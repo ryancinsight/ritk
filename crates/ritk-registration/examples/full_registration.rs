@@ -1,5 +1,5 @@
-use burn::backend::Autodiff;
-use burn::tensor::Tensor;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::Tensor;
 use burn_ndarray::{NdArray, NdArrayDevice};
 use ritk_core::image::Image;
 use ritk_filter::resample::ResampleImageFilter;

@@ -1,6 +1,6 @@
 //! Combined similarity + regularization registration loss orchestrator.
 
-use burn::tensor::{backend::Backend, Tensor};
+use ritk_image::tensor::{Backend, Tensor};
 
 use super::grad::{GradLoss, GradientPenalty};
 use super::lncc::LocalNCCLoss;

@@ -1,9 +1,9 @@
 //! RSGD step mapper: applies `θ_new = θ − (Δ / ‖g‖) · g`.
 
-use burn::module::Param;
-use burn::optim::GradientsParams;
-use burn::tensor::backend::AutodiffBackend;
-use burn::tensor::Tensor;
+use ritk_image::burn::module::Param;
+use ritk_image::burn::optim::GradientsParams;
+use ritk_image::tensor::AutodiffBackend;
+use ritk_image::tensor::Tensor;
 use std::marker::PhantomData;
 
 /// `ModuleMapper` that applies the RSGD update rule on an AutodiffModule:
@@ -35,7 +35,7 @@ impl<'a, B: AutodiffBackend> RsgdStepMapper<'a, B> {
     }
 }
 
-impl<B: AutodiffBackend> burn::module::ModuleMapper<B> for RsgdStepMapper<'_, B> {
+impl<B: AutodiffBackend> ritk_image::burn::module::ModuleMapper<B> for RsgdStepMapper<'_, B> {
     fn map_float<const D: usize>(&mut self, param: Param<Tensor<B, D>>) -> Param<Tensor<B, D>> {
         let (id, tensor, mapper) = param.consume();
         let is_require_grad = tensor.is_require_grad();

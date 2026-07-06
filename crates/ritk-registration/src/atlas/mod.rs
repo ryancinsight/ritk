@@ -135,7 +135,7 @@ impl AtlasRegistration {
     ///   shape.  Called once per resolution level (the SyN multires
     ///   registration creates its own per-level smoothers) and once for the
     ///   full-resolution template sharpening.
-    pub fn build_atlas_with<B: burn::tensor::backend::Backend>(
+    pub fn build_atlas_with<B: ritk_image::tensor::Backend>(
         &self,
         subjects: &[&[f32]],
         dims: [usize; 3],

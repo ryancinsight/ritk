@@ -1,8 +1,8 @@
-use burn::module::Param;
-use burn::nn::conv::Conv3dConfig;
-use burn::nn::PaddingConfig3d;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::burn::module::Param;
+use ritk_image::burn::nn::conv::Conv3dConfig;
+use ritk_image::burn::nn::PaddingConfig3d;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// Mean Squared Error Loss for 5D tensors [Batch, Channel, D, H, W].
 ///

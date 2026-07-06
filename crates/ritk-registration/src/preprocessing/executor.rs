@@ -1,11 +1,10 @@
 //! `execute()` implementation and per-step dispatch logic.
 
 use anyhow::{Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_filter::bias::N4Config;
 use ritk_filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
 use ritk_image::Image;
+use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
 
 use super::pipeline::PreprocessingPipeline;
 use super::step::PreprocessingStep;
@@ -91,9 +90,9 @@ fn rebuild_image<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>) -> Result<Image<
 mod tests {
     use super::super::pipeline::PreprocessingPipeline;
     use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
-    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;

@@ -35,8 +35,8 @@ pub(crate) use fixed_prep::NgfFixedPrep;
 pub use scalar::center_gaussian_weight_field;
 
 use super::trait_::Metric;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_image::Image;
 use ritk_transform::Transform;
 

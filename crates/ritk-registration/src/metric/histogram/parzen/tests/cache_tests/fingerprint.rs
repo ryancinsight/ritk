@@ -5,14 +5,14 @@ use super::super::*;
 #[cfg(feature = "direct-parzen")]
 #[test]
 fn masked_cache_fingerprint_detects_collision() {
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     let shape = [4, 4, 4];
     let n_voxels = shape[0] * shape[1] * shape[2];

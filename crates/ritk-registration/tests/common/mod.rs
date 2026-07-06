@@ -19,7 +19,7 @@
 
 #![allow(dead_code)]
 
-use burn::backend::Autodiff;
+use ritk_image::burn::backend::Autodiff;
 use burn_ndarray::NdArray;
 
 /// Backend with autodiff — required by `GlobalMiRegistration`.

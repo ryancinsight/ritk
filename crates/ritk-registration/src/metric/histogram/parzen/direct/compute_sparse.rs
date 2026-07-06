@@ -5,7 +5,7 @@
 //! public APIs — the sparse W_fixed^T cache build and the CMA-ES iteration
 //! hot-path that reuses cached fixed-image weights.
 
-use burn::tensor::{Shape, TensorData};
+use ritk_image::tensor::{Shape, TensorData};
 
 use super::accumulate::{accumulate_sample_sparse, merge_histograms, validate_inputs};
 use super::pool::HistogramPool;

@@ -3,11 +3,11 @@
 // Extracted from `registration.rs` to keep the public API surface in a
 // focused file while the heavy lifting lives here.
 
-use burn::tensor::backend::AutodiffBackend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::AutodiffBackend;
 use ritk_core::image::Image;
 use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_filter::GaussianSigma;
+use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
 use ritk_transform::RigidTransform;
 
 use super::super::transforms::estimate_intensity_range;
@@ -43,7 +43,7 @@ pub(super) fn strip_autodiff<B: AutodiffBackend>(img: &Image<B, 3>) -> Image<B::
 /// When `moving_range` is `Some((min, max))`, the moving-image axis of the joint
 /// histogram uses its own independent range (elastix-style), giving the moving
 /// image the full `num_bins` resolution instead of sharing the combined range.
-pub(super) fn build_metric<IB: burn::tensor::backend::Backend>(
+pub(super) fn build_metric<IB: Backend>(
     variant: MutualInformationVariant,
     num_bins: usize,
     min_int: f32,
@@ -292,7 +292,7 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
 /// If the mask is empty at this pyramid level (all zeros after downsampling),
 /// a warning is emitted and a uniform stride-sampled set of all voxels is
 /// returned so registration can continue.
-pub(super) fn extract_foreground_world_points<IB: burn::tensor::backend::Backend>(
+pub(super) fn extract_foreground_world_points<IB: Backend>(
     fixed_inner: &Image<IB, 3>,
     mask_inner: &Image<IB, 3>,
     sampling_pct: f32,

@@ -18,12 +18,12 @@
 //! ## When to use curvature regularization
 //!
 use super::trait_::Regularizer;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 /// - When extremely smooth deformations are desired
 /// - For surfaces or thin structures
 /// - When bending energy is not sufficient
 /// - In deformable models for computational anatomy
-use burn::tensor::Tensor;
+use ritk_image::tensor::Tensor;
 
 /// Curvature regularizer for displacement fields.
 ///
@@ -35,7 +35,7 @@ use burn::tensor::Tensor;
 ///
 /// ```rust,ignore
 /// use ritk_registration::regularization::CurvatureRegularizer;
-/// use burn::tensor::Tensor;
+/// use ritk_image::tensor::Tensor;
 ///
 /// let reg = CurvatureRegularizer::new(0.01);
 /// // displacement field: [B, 2, H, W] for 2D

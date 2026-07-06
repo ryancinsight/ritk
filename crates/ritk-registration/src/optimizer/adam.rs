@@ -1,8 +1,8 @@
 use crate::optimizer::{Optimizer, OptimizerAlgorithm, OptimizerTelemetry};
-use burn::module::AutodiffModule;
-use burn::optim::adaptor::OptimizerAdaptor;
-use burn::optim::{Adam, AdamConfig, GradientsParams, Optimizer as BurnOptimizer};
-use burn::tensor::backend::AutodiffBackend;
+use ritk_image::burn::module::AutodiffModule;
+use ritk_image::burn::optim::adaptor::OptimizerAdaptor;
+use ritk_image::burn::optim::{Adam, AdamConfig, GradientsParams, Optimizer as BurnOptimizer};
+use ritk_image::tensor::AutodiffBackend;
 
 /// Adam optimizer.
 ///

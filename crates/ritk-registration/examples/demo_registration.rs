@@ -6,9 +6,9 @@
 //! Usage:
 //!   cargo run --example demo_registration
 
-use burn::backend::wgpu::Wgpu;
-use burn::backend::Autodiff;
-use burn::tensor::Tensor;
+use ritk_image::burn::backend::wgpu::Wgpu;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
 use ritk_interpolation::LinearInterpolator;

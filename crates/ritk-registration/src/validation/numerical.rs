@@ -2,7 +2,7 @@
 
 use super::config::{NumericalCheck, ValidationConfig};
 use crate::error::{RegistrationError, Result};
-use burn::tensor::{backend::Backend, ElementConversion, Tensor};
+use ritk_image::tensor::{Backend, ElementConversion, Tensor};
 
 pub fn validate_tensor<B: Backend, const D: usize>(
     tensor: &Tensor<B, D>,

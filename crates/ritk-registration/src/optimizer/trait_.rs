@@ -3,9 +3,9 @@
 //! This module defines the core Optimizer trait that all optimization algorithms
 //! must implement for training transforms in image registration.
 
-use burn::module::AutodiffModule;
-use burn::optim::GradientsParams;
-use burn::tensor::backend::AutodiffBackend;
+use ritk_image::burn::module::AutodiffModule;
+use ritk_image::burn::optim::GradientsParams;
+use ritk_image::tensor::AutodiffBackend;
 
 /// Discriminant for optimizer algorithm variants used in registration telemetry.
 ///

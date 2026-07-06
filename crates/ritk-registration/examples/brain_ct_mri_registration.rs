@@ -6,8 +6,8 @@
 //! Usage:
 //!   cargo run --example brain_ct_mri_registration
 
-use burn::backend::Autodiff;
-use burn::tensor::Tensor;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::Tensor;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;

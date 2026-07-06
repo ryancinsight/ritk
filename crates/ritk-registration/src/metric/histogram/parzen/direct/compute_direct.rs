@@ -4,7 +4,7 @@
 //! `compute_joint_histogram_direct` public API — the hot-path that
 //! iterates samples and accumulates directly into `[num_bins, num_bins]`.
 
-use burn::tensor::{Shape, TensorData};
+use ritk_image::tensor::{Shape, TensorData};
 
 use super::accumulate::{accumulate_sample_direct, merge_histograms, validate_inputs};
 use super::pool::HistogramPool;

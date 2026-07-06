@@ -25,8 +25,8 @@
 //! - Modern variants: Hyperelastic (volume-preserving) formulations
 
 use super::trait_::Regularizer;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// Elastic regularizer combining membrane and volume-preserving terms.
 ///
@@ -44,7 +44,7 @@ use burn::tensor::Tensor;
 ///
 /// ```rust,ignore
 /// use ritk_registration::regularization::ElasticRegularizer;
-/// use burn::tensor::Tensor;
+/// use ritk_image::tensor::Tensor;
 ///
 /// // Create hyperelastic regularizer
 /// let reg = ElasticRegularizer::hyperelastic(0.1, 0.01);

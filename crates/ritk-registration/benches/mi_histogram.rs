@@ -2,7 +2,7 @@
 //!
 //! Benchmarks the core hot-path used by MutualInformation metrics during registration.
 
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use criterion::{criterion_group, criterion_main, Criterion};
 use ritk_registration::metric::histogram::ParzenJointHistogram;
@@ -11,7 +11,7 @@ type B = NdArray<f32>;
 
 /// Benchmark Parzen joint histogram with 1000 intensity sample pairs, 32 bins.
 fn bench_parzen_joint_histogram(c: &mut Criterion) {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let n = 1000usize;
 
     // Deterministic intensity samples spanning [0, 255] — no RNG needed.

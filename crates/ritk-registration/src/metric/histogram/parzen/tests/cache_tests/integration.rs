@@ -71,14 +71,14 @@ fn sparse_cache_dispatch_matches_direct() {
 #[cfg(feature = "direct-parzen")]
 #[test]
 fn chunked_sparse_path_matches_nonchunked() {
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     let shape = [64, 32, 32];
     let n = shape[0] * shape[1] * shape[2];

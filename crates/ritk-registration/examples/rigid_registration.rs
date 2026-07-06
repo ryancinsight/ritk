@@ -13,8 +13,8 @@
 //! Usage:
 //!   cargo run --example rigid_registration
 
-use burn::backend::Autodiff;
-use burn::tensor::Tensor;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::Tensor;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
@@ -88,7 +88,7 @@ fn main() -> anyhow::Result<()> {
     // Calculate image center for rotation center
     let fixed_shape = fixed.shape();
     let center = Tensor::<Backend, 1>::from_data(
-        burn::tensor::TensorData::from([
+        ritk_image::tensor::TensorData::from([
             fixed_shape[0] as f32 / 2.0,
             fixed_shape[1] as f32 / 2.0,
             fixed_shape[2] as f32 / 2.0,

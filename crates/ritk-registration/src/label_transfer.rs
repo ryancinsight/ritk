@@ -17,8 +17,8 @@
 //! For a deformable result the displacement/velocity field implements [`Transform`]
 //! too, so the same call warps labels through a SyN/Demons/B-spline field.
 
-use burn::tensor::backend::Backend;
 use ritk_image::{grid, Image};
+use ritk_image::tensor::Backend;
 use ritk_interpolation::{Interpolator, NearestNeighborInterpolator};
 use ritk_transform::Transform;
 use std::collections::BTreeMap;
@@ -119,8 +119,8 @@ pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> anyhow::Result<Vec<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use ritk_transform::TranslationTransform;
 

@@ -4,11 +4,12 @@ pub(super) mod config;
 pub(super) mod functional;
 pub(super) mod invariants;
 
-use burn::backend::Autodiff;
-use burn::module::{Module, Param};
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::burn::module::{Module, Param};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use burn_ndarray::NdArray;
+use ritk_image::tensor::TensorData;
 
 pub(super) type TestBackend = Autodiff<NdArray<f32>>;
 
@@ -23,7 +24,7 @@ pub(super) struct Quadratic<B: Backend> {
 
 impl<B: Backend> Quadratic<B> {
     pub(super) fn new(x0: &[f32], device: &B::Device) -> Self {
-        let x = Tensor::<B, 1>::from_data(burn::tensor::TensorData::from(x0), device);
+        let x = Tensor::<B, 1>::from_data(TensorData::from(x0), device);
         Self {
             x: Param::from_tensor(x),
         }

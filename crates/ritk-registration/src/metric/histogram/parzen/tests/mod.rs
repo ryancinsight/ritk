@@ -3,7 +3,7 @@ use burn_ndarray::NdArray;
 
 type B = NdArray<f32>;
 
-fn device() -> <B as burn::tensor::backend::Backend>::Device {
+fn device() -> <B as ritk_image::tensor::Backend>::Device {
     Default::default()
 }
 
@@ -298,14 +298,14 @@ fn dispatch_with_oob_mask() {
 #[test]
 #[cfg_attr(feature = "direct-parzen", ignore = "requires tensor path")]
 fn chunked_cached_path_matches_non_chunked() {
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     // Create a volume large enough to trigger chunking (N > 32768).
     // 64 × 32 × 32 = 65536 > 32768.

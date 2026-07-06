@@ -3,8 +3,8 @@
 //! Provides seamless integration of SSMMorph network with ritk's registration
 //! pipeline, including spatial transformation and loss computation.
 
-use burn::prelude::*;
-use burn::tensor::cast::ToElement;
+use ritk_image::burn::prelude::*;
+use ritk_image::tensor::ToElement;
 
 use ritk_image::Image;
 use ritk_interpolation::LinearInterpolator;

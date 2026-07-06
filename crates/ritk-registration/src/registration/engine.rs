@@ -6,8 +6,8 @@ use crate::validation::{
     validate_image_shapes, validate_iterations, validate_learning_rate, validate_tensor,
     NumericalCheck, ShapeValidation,
 };
-use burn::optim::GradientsParams;
-use burn::tensor::ElementConversion;
+use ritk_image::burn::optim::GradientsParams;
+use ritk_image::tensor::ElementConversion;
 use ritk_image::Image;
 use ritk_transform::Transform;
 
@@ -25,10 +25,10 @@ struct LoopOutcome<T> {
 
 impl<B, O, M, T, const D: usize> Registration<B, O, M, T, D>
 where
-    B: burn::tensor::backend::AutodiffBackend,
+    B: ritk_image::tensor::AutodiffBackend,
     O: Optimizer<T, B>,
     M: Metric<B, D>,
-    T: Transform<B, D> + burn::module::AutodiffModule<B>,
+    T: Transform<B, D> + ritk_image::burn::module::AutodiffModule<B>,
 {
     /// Create a new registration.
     pub fn new(optimizer: O, metric: M) -> Self {

@@ -1,19 +1,20 @@
 use super::*;
-use burn::backend::Autodiff;
-use burn::module::Module;
-use burn::tensor::Tensor;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::burn::module::Module;
+use ritk_image::tensor::Tensor;
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Backend, TensorData};
 
 type TestBackend = Autodiff<NdArray<f32>>;
 
 #[derive(Module, Debug)]
-struct Quadratic<B: burn::tensor::backend::Backend> {
+struct Quadratic<B: Backend> {
     x: Param<Tensor<B, 1>>,
 }
 
-impl<B: burn::tensor::backend::Backend> Quadratic<B> {
+impl<B: Backend> Quadratic<B> {
     fn new(x0: &[f32], device: &B::Device) -> Self {
-        let x = Tensor::<B, 1>::from_data(burn::tensor::TensorData::from(x0), device);
+        let x = Tensor::<B, 1>::from_data(TensorData::from(x0), device);
         Self {
             x: Param::from_tensor(x),
         }

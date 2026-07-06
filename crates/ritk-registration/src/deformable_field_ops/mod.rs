@@ -20,8 +20,8 @@ mod smooth;
 mod validation;
 mod warp;
 
-use burn::tensor::backend::Backend;
 use ritk_spatial::VolumeDims;
+use ritk_image::tensor::Backend;
 
 // Flat `flat` and `trilinear_interpolate` are defined here to avoid peer-module
 // resolution cycles: every sub-module accesses them via `use super::{flat, trilinear_interpolate}`.
@@ -120,9 +120,9 @@ impl FieldSmoother for CpuFieldSmoother {
 /// # Type parameter
 ///
 /// `B` is the Burn backend used by the GPU variant.  For CPU-only usage,
-/// any backend will work (it is never used by the [`Cpu`](CpuOrGpu::Cpu)
-/// arm) — [`burn::backend::Wgpu`] is a convenient choice.
-pub enum CpuOrGpu<B: Backend = burn::backend::Wgpu> {
+/// the default [`ritk_image::burn::backend::NdArray`] backend keeps the enum usable without
+/// selecting a concrete GPU provider.
+pub enum CpuOrGpu<B: Backend = ritk_image::burn::backend::NdArray> {
     /// CPU Gaussian smoother with pre-allocated scratch buffer.
     Cpu(CpuFieldSmoother),
     /// GPU Gaussian smoother with Burn backend `B`.

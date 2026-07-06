@@ -120,7 +120,7 @@ fn normalize_and_extract_known_values() {
     // for known inputs. This is the host-side normalization used by
     // the direct path.
     use crate::metric::histogram::parzen::dispatch::normalize_and_extract;
-    use burn::tensor::Tensor;
+    use ritk_image::tensor::Tensor;
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
@@ -144,7 +144,7 @@ fn normalize_and_extract_clamps_out_of_range() {
     // TEST-321-08: Values outside [min, max] should be clamped to
     // [0, num_bins-1].
     use crate::metric::histogram::parzen::dispatch::normalize_and_extract;
-    use burn::tensor::Tensor;
+    use ritk_image::tensor::Tensor;
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
@@ -172,7 +172,7 @@ fn normalize_and_extract_with_offset() {
     // TEST-321-08: Normalization with non-zero min should apply the
     // correct offset.
     use crate::metric::histogram::parzen::dispatch::normalize_and_extract;
-    use burn::tensor::Tensor;
+    use ritk_image::tensor::Tensor;
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
@@ -273,7 +273,7 @@ fn normalize_to_bins_matches_dispatch() {
     // DRY-321-01: The tensor-path normalize_to_bins must produce the
     // same values as the host-side normalize_and_extract.
     use crate::metric::histogram::parzen::dispatch::normalize_and_extract;
-    use burn::tensor::Tensor;
+    use ritk_image::tensor::Tensor;
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;

@@ -1,4 +1,4 @@
-use burn::{
+use ritk_image::burn::{
     backend::wgpu::{Wgpu, WgpuDevice},
     tensor::{Distribution, Tensor},
 };

@@ -2,8 +2,8 @@
 //!
 //! This module defines the core trait for all regularization techniques.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// Trait for deformation field regularizers.
 ///

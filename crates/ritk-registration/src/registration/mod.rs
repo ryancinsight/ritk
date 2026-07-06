@@ -9,8 +9,8 @@
 //! - Comprehensive error handling
 
 use crate::progress::EarlyStoppingCallback;
-use burn::module::AutodiffModule;
-use burn::tensor::backend::AutodiffBackend;
+use ritk_image::burn::module::AutodiffModule;
+use ritk_image::tensor::AutodiffBackend;
 use ritk_transform::Transform;
 use std::marker::PhantomData;
 use std::sync::Arc;

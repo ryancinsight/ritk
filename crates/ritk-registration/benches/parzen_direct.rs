@@ -7,7 +7,7 @@
 //! performance impact of `StackWeights.len` `usize → u8` (MEM-325-01) and
 //! `SparseWFixedEntry.bin` `usize → u16` (PERF-326-02).
 
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ritk_core::image::Image;
@@ -22,7 +22,7 @@ use ritk_transform::{Transform, TranslationTransform};
 
 type B = NdArray<f32>;
 
-fn create_test_image(device: &<B as burn::tensor::backend::Backend>::Device) -> Image<B, 3> {
+fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
     let n = 32 * 32 * 32;
     let data: Vec<f32> = (0..n).map(|i| i as f32 % 256.0).collect();
     let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new([32, 32, 32])), device);
@@ -35,7 +35,7 @@ fn create_test_image(device: &<B as burn::tensor::backend::Backend>::Device) -> 
 }
 
 fn bench_parzen_direct(c: &mut Criterion) {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let fixed = create_test_image(&device);
     let moving = create_test_image(&device);
     let transform = TranslationTransform::<B, 3>::new(Tensor::zeros([3], &device));
@@ -174,7 +174,7 @@ fn bench_parzen_direct(c: &mut Criterion) {
 /// Also measures sparse cache total heap allocation for a 32³ volume
 /// and build throughput at broad sigma to stress the compacted types.
 fn bench_compaction_memory(c: &mut Criterion) {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let fixed = create_test_image(&device);
 
     let fixed_flat = fixed.data().clone().reshape([32 * 32 * 32]);
@@ -249,7 +249,7 @@ fn bench_compaction_memory(c: &mut Criterion) {
 /// These are stress/regression benchmarks, not A/B comparisons — the
 /// compactions are compile-time changes with no pre-compaction baseline.
 fn bench_parzen_broad_sigma(c: &mut Criterion) {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let fixed = create_test_image(&device);
     let moving = create_test_image(&device);
     let transform = TranslationTransform::<B, 3>::new(Tensor::zeros([3], &device));

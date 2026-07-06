@@ -1,8 +1,8 @@
 use crate::optimizer::{Optimizer, OptimizerAlgorithm, OptimizerTelemetry};
-use burn::module::AutodiffModule;
-use burn::optim::adaptor::OptimizerAdaptor;
-use burn::optim::{GradientsParams, Optimizer as BurnOptimizer, Sgd, SgdConfig};
-use burn::tensor::backend::AutodiffBackend;
+use ritk_image::burn::module::AutodiffModule;
+use ritk_image::burn::optim::adaptor::OptimizerAdaptor;
+use ritk_image::burn::optim::{GradientsParams, Optimizer as BurnOptimizer, Sgd, SgdConfig};
+use ritk_image::tensor::AutodiffBackend;
 
 /// Gradient descent optimizer.
 ///

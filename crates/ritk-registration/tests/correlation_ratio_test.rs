@@ -1,6 +1,6 @@
-use burn::tensor::Shape;
-use burn::tensor::Tensor;
-use burn::tensor::TensorData;
+use ritk_image::tensor::Shape;
+use ritk_image::tensor::Tensor;
+use ritk_image::tensor::TensorData;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};

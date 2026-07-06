@@ -1,9 +1,8 @@
 //! Transform-to-matrix conversion helpers and intensity range estimation.
 
 use crate::types::AffineTransform;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
 use ritk_core::image::Image;
+use ritk_image::tensor::{Backend, Tensor, TensorData};
 use ritk_transform::{
     AffineTransform as CoreAffineTransform, RigidTransform, TranslationTransform,
 };
@@ -98,7 +97,7 @@ pub(crate) fn compute_image_center<B: Backend, const D: usize>(image: &Image<B, 
         .collect();
     let device = image.data().device();
     let center_tensor = Tensor::<B, 1>::from_data(
-        burn::tensor::TensorData::from(center_indices.as_slice()),
+        TensorData::from(center_indices.as_slice()),
         &device,
     );
     let physical = image.index_to_world_tensor(center_tensor.unsqueeze_dim(0));

@@ -20,9 +20,9 @@
 //! so gradient flow through the moving-image weights is preserved.
 
 #[cfg(test)]
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 #[cfg(test)]
-use burn::tensor::{Int, Tensor};
+use ritk_image::tensor::{Int, Shape, Tensor, TensorData};
 
 /// Minimum support half-width.
 ///
@@ -107,10 +107,7 @@ pub(crate) fn compute_sparse_parzen_weights<B: Backend>(
     //    Shape: [1, window_size] — broadcasts over N samples.
     let offsets_data: Vec<i32> = (-(half_width as i32)..=(half_width as i32)).collect();
     let offsets = Tensor::<B, 1, Int>::from_data(
-        burn::tensor::TensorData::new(
-            offsets_data.clone(),
-            burn::tensor::Shape::new([window_size]),
-        ),
+        TensorData::new(offsets_data.clone(), Shape::new([window_size])),
         &device,
     );
 
@@ -155,7 +152,7 @@ mod tests {
 
     type B = NdArray<f32>;
 
-    fn device() -> <B as burn::tensor::backend::Backend>::Device {
+    fn device() -> <B as Backend>::Device {
         Default::default()
     }
 
@@ -164,7 +161,7 @@ mod tests {
         vals: &Tensor<B, 1>,
         num_bins: usize,
         sigma_sq: f32,
-        dev: &<B as burn::tensor::backend::Backend>::Device,
+        dev: &<B as Backend>::Device,
     ) -> Tensor<B, 2> {
         let bins_exp = Tensor::<B, 1, Int>::arange(0..num_bins as i64, dev)
             .float()

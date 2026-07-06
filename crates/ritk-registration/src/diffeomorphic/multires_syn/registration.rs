@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::VecDeque;
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 
 use crate::deformable_field_ops::{
     cc_converged, compose_fields_into, compute_gradient_into, normalize_forces_into,

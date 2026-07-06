@@ -21,7 +21,7 @@
 //! it is promoted here so registration consumers can mask without reimplementing
 //! it.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_core::Image;
 use ritk_filter::{
     BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryThresholdImageFilter,
@@ -92,7 +92,7 @@ pub fn ct_brain_mask<B: Backend>(ct: &Image<B, 3>, config: &CtBrainMaskConfig) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Tensor, TensorData};
+    use ritk_image::tensor::{Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::{Direction, Point, Spacing};
 

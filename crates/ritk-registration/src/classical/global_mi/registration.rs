@@ -10,9 +10,9 @@ use crate::metric::{Metric, MutualInformation};
 use crate::optimizer::{ConvergenceReason, Optimizer, RegularStepGradientDescent};
 use crate::types::AffineTransform;
 
-use burn::module::AutodiffModule;
-use burn::optim::GradientsParams;
-use burn::tensor::backend::AutodiffBackend;
+use ritk_image::burn::module::AutodiffModule;
+use ritk_image::burn::optim::GradientsParams;
+use ritk_image::tensor::AutodiffBackend;
 use ritk_core::image::Image;
 use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_transform::{
@@ -129,7 +129,7 @@ impl GlobalMiRegistration {
     }
 
     /// Compute the physical center of an image.
-    pub fn image_center<B: burn::tensor::backend::Backend, const D: usize>(
+    pub fn image_center<B: ritk_image::tensor::Backend, const D: usize>(
         image: &Image<B, D>,
     ) -> [f64; 3] {
         compute_image_center(image)

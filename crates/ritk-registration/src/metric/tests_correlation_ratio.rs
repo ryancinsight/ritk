@@ -21,8 +21,8 @@ fn test_cr_name() {
 
 #[test]
 fn test_cr_gradient_non_zero() {
-    use burn::backend::Autodiff;
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::burn::backend::Autodiff;
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use ritk_transform::TranslationTransform;
 
@@ -81,7 +81,7 @@ fn test_cr_gradient_non_zero() {
 
 #[test]
 fn test_cr_identical_images() {
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use ritk_transform::TranslationTransform;
 

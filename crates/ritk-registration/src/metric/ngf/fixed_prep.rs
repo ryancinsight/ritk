@@ -1,6 +1,6 @@
 use super::scalar::*;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_image::{grid, Image};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_transform::Transform;

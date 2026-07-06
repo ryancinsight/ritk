@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use burn::tensor::{Distribution, Shape, Tensor};
+    use ritk_image::tensor::{Distribution, Shape, Tensor};
     use burn_ndarray::NdArray;
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};

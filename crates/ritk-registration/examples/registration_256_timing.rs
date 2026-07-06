@@ -43,8 +43,8 @@
 
 use std::time::Instant;
 
-use burn::backend::Autodiff;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_registration::metric::MutualInformation;
@@ -59,7 +59,7 @@ type B = Autodiff<NdArray<f32>>;
 const SIZE: usize = 256;
 
 /// Build a 256³ synthetic phantom with a smooth gradient + central sphere.
-fn build_phantom(device: &<B as burn::tensor::backend::Backend>::Device) -> Image<B, 3> {
+fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
     let n = SIZE * SIZE * SIZE;
     let mut data = vec![0.0_f32; n];
 
@@ -101,7 +101,7 @@ fn build_phantom(device: &<B as burn::tensor::backend::Backend>::Device) -> Imag
 /// after the transform — for the synthetic case we apply a simple
 /// translation (rotation would require building a full 3D interpolator
 /// here, which is the registration's job).
-fn build_moving(device: &<B as burn::tensor::backend::Backend>::Device) -> Image<B, 3> {
+fn build_moving(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
     // For the timing harness we just build an independent (slightly
     // perturbed) phantom as the "moving" image. The optimizer will still
     // measure wall-clock regardless of whether the registration converges.
@@ -130,7 +130,7 @@ fn build_moving(device: &<B as burn::tensor::backend::Backend>::Device) -> Image
 }
 
 fn main() {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     eprintln!("[256^3 timing] building phantom + moving image...");
     let fixed = build_phantom(&device);

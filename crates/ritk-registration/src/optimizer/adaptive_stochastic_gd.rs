@@ -38,10 +38,10 @@
 use crate::optimizer::{
     ConvergenceFlag, ConvergenceReason, Optimizer, OptimizerAlgorithm, OptimizerTelemetry,
 };
-use burn::module::{AutodiffModule, Param};
-use burn::optim::GradientsParams;
-use burn::tensor::backend::AutodiffBackend;
-use burn::tensor::{ElementConversion, Tensor};
+use ritk_image::burn::module::{AutodiffModule, Param};
+use ritk_image::burn::optim::GradientsParams;
+use ritk_image::tensor::AutodiffBackend;
+use ritk_image::tensor::{ElementConversion, Tensor};
 use std::marker::PhantomData;
 // ─── Configuration ─────────────────────────────────────────────────────────────────────────────────
 
@@ -146,7 +146,7 @@ impl<'a, B: AutodiffBackend> GradientExtractVisitor<'a, B> {
     }
 }
 
-impl<B: AutodiffBackend> burn::module::ModuleVisitor<B> for GradientExtractVisitor<'_, B> {
+impl<B: AutodiffBackend> ritk_image::burn::module::ModuleVisitor<B> for GradientExtractVisitor<'_, B> {
     fn visit_float<const D: usize>(&mut self, param: &Param<Tensor<B, D>>) {
         if let Some(grad) = self.grads.get::<B::InnerBackend, D>(param.id) {
             let data = grad.to_data();
@@ -187,7 +187,7 @@ impl<'a, B: AutodiffBackend> AsgdStepMapper<'a, B> {
     }
 }
 
-impl<B: AutodiffBackend> burn::module::ModuleMapper<B> for AsgdStepMapper<'_, B> {
+impl<B: AutodiffBackend> ritk_image::burn::module::ModuleMapper<B> for AsgdStepMapper<'_, B> {
     fn map_float<const D: usize>(&mut self, param: Param<Tensor<B, D>>) -> Param<Tensor<B, D>> {
         let (id, tensor, mapper) = param.consume();
         let is_require_grad = tensor.is_require_grad();

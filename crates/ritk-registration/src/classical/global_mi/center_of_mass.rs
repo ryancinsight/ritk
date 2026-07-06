@@ -20,7 +20,7 @@
 //! All returned coordinates follow RITK's `[z, y, x]` ordering in physical
 //! units (mm), consistent with `Image::origin()` and `Image::spacing()`.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
 
 // ─── Center-of-Mass ──────────────────────────────────────────────────────────
@@ -159,9 +159,9 @@ pub fn translation_from_centers_of_mass<B: Backend>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;

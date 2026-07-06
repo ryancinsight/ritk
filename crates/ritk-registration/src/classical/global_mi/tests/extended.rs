@@ -4,7 +4,7 @@ use super::super::config::{GlobalMiConfig, GlobalMiTransformType};
 use super::super::registration::GlobalMiRegistration;
 use crate::optimizer::RegularStepGdConfig;
 use crate::optimizer::{HistoryPolicy, PopulationEval};
-use burn::tensor::Tensor;
+use ritk_image::tensor::Tensor;
 use ritk_filter::GaussianSigma;
 use ritk_transform::TranslationTransform;
 

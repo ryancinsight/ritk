@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_filter::bias::{apply_n4_bias_correction_values, N4Config};
 use ritk_image::native::Image;
 use ritk_spatial::{Spacing, VolumeDims};
 
@@ -16,14 +17,13 @@ use super::value_ops::{
 impl PreprocessingPipeline {
     /// Execute preprocessing steps on a Coeus-backed image.
     ///
-    /// The method supports pointwise scalar transforms, masking, and Gaussian
-    /// smoothing. N4 still depends on the legacy Burn filter implementation and
-    /// returns an explicit error rather than silently downgrading the Coeus path.
+    /// The method supports pointwise scalar transforms, masking, Gaussian
+    /// smoothing, and N4 bias-field correction on native image buffers.
     ///
     /// # Errors
     /// Returns an error when tensor extraction/rebuild validation fails, mask
-    /// dimensions do not match the image, or a filter-backed step is requested
-    /// before its Coeus implementation exists.
+    /// dimensions do not match the image, or backend-neutral N4 correction
+    /// fails.
     pub fn execute_native<B>(
         &self,
         mut image: Image<f32, B, 3>,
@@ -61,7 +61,9 @@ impl PreprocessingPipeline {
                 }
                 PreprocessingStep::Smoothing { sigma } => {
                     let (mut vals, dims) = ritk_tensor_ops::native::extract_image_vec(&image)
-                        .context("coeus preprocessing smoothing requires contiguous f32 image data")?;
+                        .context(
+                            "coeus preprocessing smoothing requires contiguous f32 image data",
+                        )?;
                     smooth_values(
                         &mut vals,
                         dims,
@@ -71,9 +73,20 @@ impl PreprocessingPipeline {
                     )?;
                     ritk_tensor_ops::native::rebuild_image(vals, dims, &image, backend)?
                 }
-                PreprocessingStep::N4BiasCorrection { .. } => anyhow::bail!(
-                    "coeus preprocessing does not support N4BiasCorrection; use the legacy Burn executor until N4 is migrated"
-                ),
+                PreprocessingStep::N4BiasCorrection {
+                    n_iterations,
+                    n_fitting_levels,
+                } => {
+                    let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(&image)
+                        .context("coeus preprocessing N4 requires contiguous f32 image data")?;
+                    let cfg = N4Config {
+                        num_fitting_levels: *n_fitting_levels as usize,
+                        num_iterations: *n_iterations as usize,
+                        ..N4Config::default()
+                    };
+                    let result = apply_n4_bias_correction_values(&vals, dims, &cfg)?;
+                    ritk_tensor_ops::native::rebuild_image(result, dims, &image, backend)?
+                }
             };
         }
         Ok(image)
@@ -248,19 +261,42 @@ mod tests {
     }
 
     #[test]
-    fn execute_native_rejects_n4_explicitly() {
+    fn execute_native_n4_matches_value_ssot_and_preserves_metadata() {
         let backend = B::new();
-        let image = make_image(vec![1.0; 4], [1, 2, 2]);
+        let values: Vec<f32> = (0..64)
+            .map(|i| {
+                let z = i / 16;
+                let y = (i % 16) / 4;
+                let x = i % 4;
+                1.0 + z as f32 * 0.03 + y as f32 * 0.05 + x as f32 * 0.07
+            })
+            .collect();
+        let dims = [4, 4, 4];
+        let image = make_image(values.clone(), dims);
+        let origin = *image.origin();
+        let spacing = *image.spacing();
+        let direction = *image.direction();
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::N4BiasCorrection {
             n_iterations: 1,
             n_fitting_levels: 1,
         });
+        let cfg = N4Config {
+            num_iterations: 1,
+            num_fitting_levels: 1,
+            ..N4Config::default()
+        };
+        let expected = apply_n4_bias_correction_values(&values, dims, &cfg).unwrap();
 
-        let err = pipeline.execute_native(image, &backend).unwrap_err();
+        let out = pipeline.execute_native(image, &backend).unwrap();
 
-        assert_eq!(
-            err.to_string(),
-            "coeus preprocessing does not support N4BiasCorrection; use the legacy Burn executor until N4 is migrated"
-        );
+        assert_eq!(out.data_slice().unwrap(), expected.as_slice());
+        assert_eq!(out.origin(), &origin);
+        assert_eq!(out.spacing(), &spacing);
+        assert_eq!(out.direction(), &direction);
+        assert!(out
+            .data_slice()
+            .unwrap()
+            .iter()
+            .all(|value| value.is_finite() && *value > 0.0));
     }
 }

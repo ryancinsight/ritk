@@ -13,8 +13,8 @@
 //! plain [`Backend`] — pre-mask the images (e.g. to a brain mask) to focus the
 //! metric on the shared rigid structure.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_image::Image;
 use ritk_transform::RigidTransform;
 
@@ -368,7 +368,7 @@ pub fn default_ngf_pyramid(center_weight_sigma_frac: Option<f64>) -> Vec<NgfPyra
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::spatial::{Direction, Point, Spacing};
 

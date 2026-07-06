@@ -27,7 +27,7 @@ use ritk_registration::{
 #[ignore = "requires test_data/registration/rire; runs CMA-ES NGF (~minutes) on CPU"]
 fn test_ngf_rigid_tre_on_rire_patient001() {
     let rire_dir = find_rire_dir().expect("RIRE data not found under test_data/registration/rire/");
-    let device: <NdArray<f32> as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <NdArray<f32> as ritk_image::tensor::Backend>::Device = Default::default();
 
     let ct =
         read_metaimage::<B, _>(&rire_dir.join("training_001_ct.mha"), &device).expect("load CT");

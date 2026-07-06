@@ -16,7 +16,7 @@
 //! localized covariance numerator and standard deviation product in the denominator,
 //! proving $LNCC(M(x), F(x)) = LNCC(M'(x), F(x))$.
 
-use burn::{
+use ritk_image::burn::{
     module::{Ignored, Module, Param},
     nn::conv::{Conv3d, Conv3dConfig},
     tensor::{backend::Backend, Tensor},
@@ -34,7 +34,7 @@ impl<B: Backend> LocalNCCLoss<B> {
         let padding = window_size / 2;
         let conv_config = Conv3dConfig::new([1, 1], [window_size, window_size, window_size])
             .with_stride([1, 1, 1])
-            .with_padding(burn::nn::PaddingConfig3d::Explicit(
+            .with_padding(ritk_image::burn::nn::PaddingConfig3d::Explicit(
                 padding, padding, padding,
             ))
             .with_bias(false);

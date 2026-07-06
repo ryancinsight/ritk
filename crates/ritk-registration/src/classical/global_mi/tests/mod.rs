@@ -11,11 +11,11 @@ use super::transforms::{
 };
 use crate::optimizer::RegularStepGdConfig;
 use crate::optimizer::{HistoryPolicy, PopulationEval};
-use burn::backend::Autodiff;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::burn::backend::Autodiff;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_filter::GaussianSigma;
+use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::{RigidTransform, TranslationTransform};
 
@@ -26,7 +26,7 @@ pub(super) fn make_gaussian_blob(
     shape: [usize; 3],
     center: [f32; 3],
     sigma: f32,
-    device: &<TestBackend as burn::tensor::backend::Backend>::Device,
+    device: &<TestBackend as Backend>::Device,
 ) -> Image<TestBackend, 3> {
     let n = shape[0] * shape[1] * shape[2];
     let mut data = vec![0.0f32; n];
@@ -58,7 +58,7 @@ pub(super) fn make_ellipsoid(
     shape: [usize; 3],
     center: [f32; 3],
     scales: [f32; 3],
-    device: &<TestBackend as burn::tensor::backend::Backend>::Device,
+    device: &<TestBackend as Backend>::Device,
 ) -> Image<TestBackend, 3> {
     let n = shape[0] * shape[1] * shape[2];
     let mut data = vec![0.0f32; n];
@@ -366,7 +366,7 @@ pub(super) fn make_box_mask(
     z_range: std::ops::Range<usize>,
     y_range: std::ops::Range<usize>,
     x_range: std::ops::Range<usize>,
-    device: &<TestBackend as burn::tensor::backend::Backend>::Device,
+    device: &<TestBackend as Backend>::Device,
 ) -> Image<TestBackend, 3> {
     let n = shape[0] * shape[1] * shape[2];
     let mut data = vec![0.0f32; n];

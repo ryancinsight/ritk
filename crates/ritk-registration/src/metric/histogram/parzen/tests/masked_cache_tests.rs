@@ -9,14 +9,14 @@ fn masked_cache_reuses_weights_on_same_key() {
     // compute_masked_joint_histogram causes the second call to reuse the
     // cached W_fixed^T (and sparse cache), producing the same histogram
     // without recomputing fixed-image weights.
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     // Create a small 3D image
     let shape = [8, 8, 8];
@@ -116,14 +116,14 @@ fn masked_cache_reuses_weights_on_same_key() {
 fn masked_cache_different_key_recomputes() {
     // Verify that providing a DIFFERENT cache_key causes recomputation
     // (cache miss with new key).
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     let shape = [8, 8, 8];
     let n_voxels = shape[0] * shape[1] * shape[2];
@@ -202,14 +202,14 @@ fn masked_cache_different_key_recomputes() {
 fn masked_no_cache_key_matches_uncached() {
     // Verify that passing None as cache_key produces the same result
     // as the original uncached path.
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     let shape = [8, 8, 8];
     let n_voxels = shape[0] * shape[1] * shape[2];
@@ -308,14 +308,14 @@ fn masked_no_cache_key_matches_uncached() {
 fn cache_invalidate_clears_image_cache() {
     // Verify that invalidate_cache() clears the image-grid cache that was
     // populated by a prior compute_image_joint_histogram call.
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     // Small volume
     let shape = [4, 4, 4];
@@ -386,14 +386,14 @@ fn cache_invalidate_clears_image_cache() {
 fn cache_invalidate_clears_masked_cache() {
     // Verify that invalidate_masked_cache() clears the masked cache that was
     // populated by a prior compute_masked_joint_histogram call with a cache_key.
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     // Create a small 3D image
     let shape = [8, 8, 8];

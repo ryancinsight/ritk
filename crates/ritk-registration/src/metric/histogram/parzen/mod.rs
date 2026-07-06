@@ -1,5 +1,5 @@
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use std::marker::PhantomData;
 use std::sync::Arc;
 

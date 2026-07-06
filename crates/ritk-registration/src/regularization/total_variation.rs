@@ -14,7 +14,7 @@
 //! ## Characteristics
 //!
 use super::trait_::Regularizer;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 /// - **Edge-preserving**: Maintains sharp boundaries
 /// - **Non-smooth**: Uses L1 norm (not L2)
 /// - **Sparsity**: Promotes sparse gradient estimates
@@ -30,7 +30,7 @@ use burn::tensor::backend::Backend;
 /// - Rudin, Osher, Fatemi (1992): Original TV denoising
 /// - Chan et al.: TV for image restoration
 /// - Extensions for flow and displacement fields
-use burn::tensor::Tensor;
+use ritk_image::tensor::Tensor;
 
 /// Total Variation regularizer for displacement fields.
 ///
@@ -45,7 +45,7 @@ use burn::tensor::Tensor;
 ///
 /// ```rust,ignore
 /// use ritk_registration::regularization::TotalVariationRegularizer;
-/// use burn::tensor::Tensor;
+/// use ritk_image::tensor::Tensor;
 ///
 /// let reg = TotalVariationRegularizer::new(0.05);
 /// // displacement field: [B, 2, H, W] for 2D

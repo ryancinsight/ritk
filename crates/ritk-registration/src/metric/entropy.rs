@@ -27,8 +27,8 @@
 //! is a tiny perturbation on `p_i = 0` and a negligible perturbation
 //! on the `p_i` that actually carry mass.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// Default epsilon for `log(0)` protection in entropy computation.
 pub const DEFAULT_ENTROPY_EPS: f32 = 1e-10;
@@ -70,7 +70,7 @@ pub fn entropy_with_eps<B: Backend>(p: Tensor<B, 1>, eps: f32) -> Tensor<B, 1> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::TensorData;
+    use ritk_image::tensor::TensorData;
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;

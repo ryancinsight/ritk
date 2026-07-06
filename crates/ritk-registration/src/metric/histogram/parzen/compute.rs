@@ -1,5 +1,5 @@
-use burn::tensor::backend::Backend;
-use burn::tensor::{Int, Tensor};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Int, Tensor};
 
 use super::ParzenJointHistogram;
 

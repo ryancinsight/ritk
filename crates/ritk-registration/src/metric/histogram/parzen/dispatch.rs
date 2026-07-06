@@ -38,8 +38,8 @@
 //! `compute_image/mod.rs`, `masked/mod.rs`, and test files now call
 //! `ParzenConfig::from_intensity_sigma` directly.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use std::borrow::Cow;
 
 use super::ParzenJointHistogram;

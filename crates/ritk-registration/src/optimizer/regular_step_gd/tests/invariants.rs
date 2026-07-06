@@ -2,7 +2,7 @@
 
 use super::super::{RegularStepGdConfig, RegularStepGradientDescent};
 use super::{Quadratic, TestBackend};
-use burn::nn::Linear;
+use ritk_image::burn::nn::Linear;
 
 type TestModule = Linear<TestBackend>;
 
@@ -56,7 +56,7 @@ fn rsgd_set_loss_stores_current_loss() {
 }
 
 use crate::optimizer::Optimizer;
-use burn::optim::GradientsParams;
+use ritk_image::burn::optim::GradientsParams;
 
 /// REG-01: `prev_loss` must not advance on a rejected step.
 ///

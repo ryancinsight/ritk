@@ -6,7 +6,7 @@
 use super::super::{ConvergenceReason, RegularStepGdConfig, RegularStepGradientDescent};
 use super::{Quadratic, TestBackend};
 use crate::optimizer::Optimizer;
-use burn::optim::GradientsParams;
+use ritk_image::burn::optim::GradientsParams;
 
 // ── Minimize f(x) = xᵀx from x₀ = [5, -3] ───────────────────────────────────
 //

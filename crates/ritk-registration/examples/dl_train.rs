@@ -1,5 +1,5 @@
 #![recursion_limit = "512"]
-use burn::{
+use ritk_image::burn::{
     backend::{
         wgpu::{Wgpu, WgpuDevice},
         Autodiff,
@@ -155,7 +155,7 @@ fn run_training() {
 
         // Update Weights
         println!("  Optimizer step...");
-        let grads_params = burn::optim::GradientsParams::from_grads(grads, &model);
+        let grads_params = ritk_image::burn::optim::GradientsParams::from_grads(grads, &model);
         model = optimizer.step(1e-4, model, grads_params);
 
         let duration = start.elapsed();

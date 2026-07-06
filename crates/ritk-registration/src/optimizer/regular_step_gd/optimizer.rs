@@ -5,9 +5,9 @@ use super::convergence::{ConvergenceFlag, ConvergenceReason};
 use super::grad_norm::GradientNormVisitor;
 use super::step_mapper::RsgdStepMapper;
 use crate::optimizer::{Optimizer, OptimizerAlgorithm, OptimizerTelemetry};
-use burn::module::AutodiffModule;
-use burn::optim::GradientsParams;
-use burn::tensor::backend::AutodiffBackend;
+use ritk_image::burn::module::AutodiffModule;
+use ritk_image::burn::optim::GradientsParams;
+use ritk_image::tensor::AutodiffBackend;
 use std::marker::PhantomData;
 
 /// Regular Step Gradient Descent optimizer (ITK `RegularStepGradientDescentOptimizerv4`).

@@ -8,7 +8,7 @@
 //! Usage: `cargo run --release -p ritk-registration --example registration_compare_figure`
 //! (paths default to the RIRE-109 pair + elastix result under leoneuro/).
 
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use image::{Rgb, RgbImage};
 use ritk_image::{grid, Image};

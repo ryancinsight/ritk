@@ -7,8 +7,8 @@
 //! monomorphizes each branch and dead-code eliminates unreachable arms —
 //! achieving zero-cost dispatch without requiring a `where` bound on callers.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 struct RegularizerDimGuard<const D: usize>;
 
