@@ -17,10 +17,10 @@
 //! it, so those algorithms fall back to the portable `into_data()` path at their
 //! own call sites.
 
-use burn::backend::Autodiff;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Tensor, TensorPrimitive};
 use burn_ndarray::{NdArray, NdArrayTensor};
+use crate::burn::backend::Autodiff;
+use crate::tensor::backend::Backend;
+use crate::tensor::{Tensor, TensorPrimitive};
 
 use crate::Image;
 
@@ -96,7 +96,7 @@ impl<B: HostExtract, const D: usize> Image<B, D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::TensorData;
+    use crate::tensor::TensorData;
 
     type B = NdArray<f32>;
 

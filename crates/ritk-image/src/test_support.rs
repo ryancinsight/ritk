@@ -36,8 +36,8 @@
 //!
 //! [`Image`]: crate::Image
 
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use crate::tensor::backend::Backend;
+use crate::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
 use crate::Image;

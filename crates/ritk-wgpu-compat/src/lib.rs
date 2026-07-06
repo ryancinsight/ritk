@@ -9,7 +9,11 @@
 //! * [`WGPU_CHUNK_SIZE_4D`] — reduced ceiling for 4-D B-spline kernels that
 //!   issue more sub-dispatches per point than the 3-D path.
 
-use burn::tensor::{backend::Backend, Tensor};
+pub mod burn {
+    pub use ::burn::tensor;
+}
+
+use crate::burn::tensor::{backend::Backend, Tensor};
 
 /// Maximum rows dispatched per shader invocation for 2-D/3-D operations.
 ///
@@ -147,7 +151,7 @@ pub(crate) fn apply_row_chunks_3d<B: Backend, const CHUNK: usize>(
 mod tests {
     //! Tests for the WGPU chunked-row-apply helpers.
     use super::*;
-    use burn::tensor::{Tensor, TensorData};
+    use crate::burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
 
     type TestBackend = NdArray<f32>;
@@ -168,7 +172,7 @@ mod tests {
         let data: Vec<f32> = (0..n * 2 * 3).map(|i| i as f32).collect();
         let device = Default::default();
         Tensor::<TestBackend, 3>::from_data(
-            TensorData::new(data, burn::tensor::Shape::new([n, 2, 3])),
+            TensorData::new(data, Shape::new([n, 2, 3])),
             &device,
         )
     }

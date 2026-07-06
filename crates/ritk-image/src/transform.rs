@@ -1,6 +1,6 @@
 use crate::types::Image;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Tensor, TensorData};
+use crate::tensor::backend::Backend;
+use crate::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::Point;
 use ritk_wgpu_compat::apply_row_chunks;
 
@@ -65,7 +65,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| self.origin()[i] as f32).collect();
         let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_vec, burn::tensor::Shape::new([D])),
+            TensorData::new(origin_vec, Shape::new([D])),
             &device,
         )
         .reshape([1, D]);
@@ -89,7 +89,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
         }
 
         let t_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(t_data, burn::tensor::Shape::new([D, D])),
+            TensorData::new(t_data, Shape::new([D, D])),
             &device,
         );
 
@@ -113,7 +113,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| self.origin()[i] as f32).collect();
         let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_vec, burn::tensor::Shape::new([D])),
+            TensorData::new(origin_vec, Shape::new([D])),
             &device,
         )
         .reshape([1, D]);
@@ -136,7 +136,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
         }
 
         let m_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(m_data, burn::tensor::Shape::new([D, D])),
+            TensorData::new(m_data, Shape::new([D, D])),
             &device,
         );
 

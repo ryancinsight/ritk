@@ -2,8 +2,7 @@
 //!
 //! This module defines the core Interpolator trait that all interpolation methods must implement.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::{Backend, Tensor};
 
 /// Interpolator trait for sampling values at continuous coordinates.
 ///

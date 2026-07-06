@@ -25,3 +25,8 @@ pub type Spacing2 = Spacing<2>;
 pub type Spacing3 = Spacing<3>;
 pub type Direction2 = Direction<2>;
 pub type Direction3 = Direction<3>;
+
+/// Legacy Burn compatibility surface for migration shims.
+pub mod burn {
+    pub use ::burn::{module, record, tensor};
+}

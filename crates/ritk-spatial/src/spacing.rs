@@ -17,12 +17,12 @@
 //! caller can guarantee validity and the validation cost is unacceptable.
 
 use super::Vector;
-use burn::module::{
+use crate::burn::module::{
     AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault, ModuleMapper,
     ModuleVisitor,
 };
-use burn::record::{PrecisionSettings, Record};
-use burn::tensor::backend::{AutodiffBackend, Backend};
+use crate::burn::record::{PrecisionSettings, Record};
+use crate::burn::tensor::backend::{AutodiffBackend, Backend};
 use std::ops::{Deref, DerefMut};
 
 /// Tolerance for determining whether voxel spacing is isotropic.

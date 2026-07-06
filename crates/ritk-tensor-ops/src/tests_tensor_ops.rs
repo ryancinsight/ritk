@@ -1,15 +1,14 @@
 use super::*;
-use burn::tensor::TensorData;
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
 fn make_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    use burn::tensor::Shape;
+    use ritk_image::tensor::Shape;
     let device = Default::default();
-    let t =
-        burn::tensor::Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
+    let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
     Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),
@@ -51,8 +50,8 @@ fn rebuild_preserves_metadata() {
     let sp = Spacing::new([2.5, 1.0, 0.5]);
     let orig = Point::new([10.0, 20.0, 30.0]);
     let device = Default::default();
-    let t = burn::tensor::Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 6], burn::tensor::Shape::new([1usize, 2, 3])),
+    let t = Tensor::<B, 3>::from_data(
+        TensorData::new(vec![1.0_f32; 6], ritk_image::tensor::Shape::new([1usize, 2, 3])),
         &device,
     );
     let img = Image::new(t, orig, sp, Direction::identity());

@@ -5,7 +5,6 @@ edition = "2021"
 description = "Shared tensor extract/rebuild helpers for Burn image and Coeus tensor host-buffer paths"
 
 [dependencies]
-burn = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-spatial = { path = "../ritk-spatial" }
 anyhow = { workspace = true }
@@ -16,4 +15,5 @@ coeus-ops = { workspace = true }
 coeus-leto = { workspace = true }
 
 [dev-dependencies]
+burn = { workspace = true }
 burn-ndarray = { workspace = true }

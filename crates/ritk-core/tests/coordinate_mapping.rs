@@ -1,7 +1,7 @@
-use burn::tensor::Tensor;
 use burn_ndarray::NdArray;
 use proptest::prelude::*;
 use ritk_core::image::Image;
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type Backend = NdArray<f32>;

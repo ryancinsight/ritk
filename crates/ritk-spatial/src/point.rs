@@ -3,9 +3,12 @@
 //! Points represent positions in physical space.
 
 use crate::vector::Vector;
-use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
-use burn::record::{PrecisionSettings, Record};
-use burn::tensor::backend::{AutodiffBackend, Backend};
+use crate::burn::module::{
+    AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault, ModuleMapper,
+    ModuleVisitor,
+};
+use crate::burn::record::{PrecisionSettings, Record};
+use crate::burn::tensor::backend::{AutodiffBackend, Backend};
 use leto::FixedVector;
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -57,11 +60,11 @@ impl<B: Backend, const D: usize> Record<B> for Point<D> {
 impl<B: Backend, const D: usize> Module<B> for Point<D> {
     type Record = Self;
 
-    fn visit<V: burn::module::ModuleVisitor<B>>(&self, _visitor: &mut V) {
+    fn visit<V: ModuleVisitor<B>>(&self, _visitor: &mut V) {
         // No tensors to visit
     }
 
-    fn map<M: burn::module::ModuleMapper<B>>(self, _mapper: &mut M) -> Self {
+    fn map<M: ModuleMapper<B>>(self, _mapper: &mut M) -> Self {
         self
     }
 

@@ -31,9 +31,8 @@
 //! adds borrowed extraction for contiguous Coeus tensors and Coeus-backed images
 //! so read-only kernels can avoid a copy.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use eunomia::FloatElement;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use std::ops::{AddAssign, Neg};
 
@@ -65,12 +64,7 @@ pub fn extract_vec<B: Backend, const D: usize>(
     image: &Image<B, D>,
 ) -> anyhow::Result<(Vec<f32>, [usize; D])> {
     let dims = image.shape();
-    let vals = image
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("filter ops: cannot convert tensor to f32 Vec: {:?}", e))?;
+    let vals = image.try_data_vec()?;
     Ok((vals, dims))
 }
 
@@ -88,10 +82,7 @@ pub fn extract_vec_infallible<B: Backend, const D: usize>(
 ) -> (Vec<f32>, [usize; D]) {
     let dims = image.shape();
     let vals = image
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
+        .try_data_vec()
         .expect("filter ops: extract_vec_infallible requires an f32 backend tensor");
     (vals, dims)
 }
@@ -115,24 +106,20 @@ pub fn extract_vec_infallible<B: Backend, const D: usize>(
 /// # Invariant
 /// `vals.len() == dims[0] * dims[1] * … * dims[D-1]`
 #[inline]
-fn build_tensor<B: Backend, const D: usize>(
-    vals: Vec<f32>,
-    dims: [usize; D],
-    device: &B::Device,
-) -> Tensor<B, D> {
-    let td = TensorData::new(vals, Shape::new(dims));
-    Tensor::<B, D>::from_data(td, device)
-}
-
-#[inline]
 pub fn rebuild<B: Backend, const D: usize>(
     vals: Vec<f32>,
     dims: [usize; D],
     src: &Image<B, D>,
 ) -> Image<B, D> {
     let device = src.data().device();
-    let tensor = build_tensor::<B, D>(vals, dims, &device);
-    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
+    Image::from_flat_on(
+        vals,
+        dims,
+        *src.origin(),
+        *src.spacing(),
+        *src.direction(),
+        &device,
+    )
 }
 
 #[inline]
@@ -143,8 +130,7 @@ pub fn rebuild_with_origin<B: Backend, const D: usize>(
     src: &Image<B, D>,
 ) -> Image<B, D> {
     let device = src.data().device();
-    let tensor = build_tensor::<B, D>(vals, dims, &device);
-    Image::new(tensor, new_origin, *src.spacing(), *src.direction())
+    Image::from_flat_on(vals, dims, new_origin, *src.spacing(), *src.direction(), &device)
 }
 
 #[inline]
@@ -157,8 +143,7 @@ pub fn rebuild_with_metadata<B: Backend, const D: usize>(
     src: &Image<B, D>,
 ) -> Image<B, D> {
     let device = src.data().device();
-    let tensor = build_tensor::<B, D>(vals, dims, &device);
-    Image::new(tensor, new_origin, new_spacing, new_direction)
+    Image::from_flat_on(vals, dims, new_origin, new_spacing, new_direction, &device)
 }
 
 // ── gaussian_kernel ─────────────────────────────────────────────────────────

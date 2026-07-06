@@ -3,14 +3,13 @@
 //! This module defines the core Transform trait that all spatial transforms must implement.
 
 use crate::spatial::{Direction, Point, Spacing};
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::{Backend, Tensor};
 
 /// Transform trait for spatial coordinate transformations.
 ///
 /// Maps points from one physical space to another.
 /// All transforms must implement this trait to be used in registration.
-/// Note: This trait does not enforce `burn::module::Module` inheritance,
+/// Note: This trait does not enforce `ritk_image::burn::module::Module` inheritance,
 /// allowing for both trainable (Module) and non-trainable (pure) transforms.
 ///
 /// # Type Parameters

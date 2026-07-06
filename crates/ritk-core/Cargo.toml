@@ -8,7 +8,6 @@ default = ["mnemosyne-alloc"]
 mnemosyne-alloc = ["dep:mnemosyne"]
 
 [dependencies]
-burn = { workspace = true }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-image = { path = "../ritk-image" }
 ritk-morphology = { path = "../ritk-morphology" }
@@ -18,5 +17,6 @@ ritk-statistics = { path = "../ritk-statistics" }
 mnemosyne = { workspace = true, optional = true }
 
 [dev-dependencies]
+burn = { workspace = true }
 burn-ndarray = { workspace = true }
 proptest = { workspace = true }

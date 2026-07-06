@@ -1,5 +1,5 @@
-use burn::tensor::backend::Backend;
-use burn::tensor::{Distribution, Shape, Tensor, TensorData};
+use crate::tensor::backend::Backend;
+use crate::tensor::{Distribution, Shape, Tensor, TensorData};
 
 /// Generate random continuous indices for the given image shape.
 ///

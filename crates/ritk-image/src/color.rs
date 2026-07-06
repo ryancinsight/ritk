@@ -4,8 +4,8 @@
 //! tensor with shape `[depth, rows, cols, C]`. Spatial metadata remains 3-D.
 
 use anyhow::{bail, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use crate::tensor::backend::Backend;
+use crate::tensor::{Shape, Tensor, TensorData};
 
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -191,8 +191,8 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, TensorData};
     use burn_ndarray::NdArray;
+    use crate::tensor::{Shape, TensorData};
 
     type B = NdArray<f32>;
 

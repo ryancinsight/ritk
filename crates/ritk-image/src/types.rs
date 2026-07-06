@@ -6,8 +6,8 @@
 use std::borrow::Cow;
 
 use anyhow::anyhow;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use crate::tensor::backend::Backend;
+use crate::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Medical image with physical metadata.
@@ -40,6 +40,20 @@ impl<B: Backend, const D: usize> Image<B, D> {
             spacing,
             direction,
         }
+    }
+
+    /// Construct an image from flat f32 voxel data on a specific backend device.
+    #[inline]
+    pub fn from_flat_on(
+        values: Vec<f32>,
+        dims: [usize; D],
+        origin: Point<D>,
+        spacing: Spacing<D>,
+        direction: Direction<D>,
+        device: &B::Device,
+    ) -> Self {
+        let tensor = Tensor::<B, D>::from_data(TensorData::new(values, Shape::new(dims)), device);
+        Self::new(tensor, origin, spacing, direction)
     }
 
     /// Get the image data tensor.
