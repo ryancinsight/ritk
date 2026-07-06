@@ -26,7 +26,7 @@
 //! Corresponds to `itk::NoiseImageFilter` (`sitk.Noise`), default radius
 //! `[1, 1, 1]`.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

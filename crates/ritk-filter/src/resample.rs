@@ -1,10 +1,10 @@
-﻿//! Resample image filter.
+//! Resample image filter.
 //!
 //! This module provides ResampleImageFilter which resamples an image
 //! into a new coordinate system using a transform and an interpolator.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_interpolation::Interpolator;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -198,8 +198,8 @@ where
             let h = self.size[0];
             let w = self.size[1];
 
-            let y_range = Tensor::<B, 1, burn::tensor::Int>::arange(0..h as i64, device);
-            let x_range = Tensor::<B, 1, burn::tensor::Int>::arange(0..w as i64, device);
+            let y_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..h as i64, device);
+            let x_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..w as i64, device);
 
             // Create meshgrid using repeat with slice
             let y_grid = y_range.reshape([h, 1]).repeat(&[1, w]).reshape([h * w]);
@@ -214,9 +214,9 @@ where
             let h = self.size[1];
             let w = self.size[2];
 
-            let z_range = Tensor::<B, 1, burn::tensor::Int>::arange(0..d as i64, device);
-            let y_range = Tensor::<B, 1, burn::tensor::Int>::arange(0..h as i64, device);
-            let x_range = Tensor::<B, 1, burn::tensor::Int>::arange(0..w as i64, device);
+            let z_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..d as i64, device);
+            let y_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..h as i64, device);
+            let x_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..w as i64, device);
 
             // Create 3D meshgrid using repeat with slice
             let z_grid = z_range
@@ -261,7 +261,7 @@ where
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| self.origin[i] as f32).collect();
         let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_vec, burn::tensor::Shape::new([D])),
+            TensorData::new(origin_vec, ritk_image::tensor::Shape::new([D])),
             device,
         )
         .reshape([1, D]);
@@ -284,7 +284,7 @@ where
         }
 
         let m_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(m_data, burn::tensor::Shape::new([D, D])),
+            TensorData::new(m_data, ritk_image::tensor::Shape::new([D, D])),
             device,
         );
 

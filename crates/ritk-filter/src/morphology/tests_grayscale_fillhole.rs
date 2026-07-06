@@ -1,7 +1,7 @@
 //! Tests for grayscale_fillhole
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
@@ -182,7 +182,7 @@ fn spatial_metadata_preserved() {
     let origin = Point::new([2.0, 3.0, 4.0]);
     let spacing = Spacing::new([0.75, 0.75, 1.5]);
     let direction = Direction::identity();
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let td = TensorData::new(vec![1.0_f32; 27], Shape::new([3, 3, 3]));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     let img = Image::new(tensor, origin, spacing, direction);

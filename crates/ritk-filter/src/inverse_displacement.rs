@@ -29,7 +29,7 @@
 //! sitk's 2-D filter. Internal arithmetic is `f64`. Axis-aligned (identity
 //! direction) is assumed, as for the sibling inversion filters.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

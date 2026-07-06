@@ -14,7 +14,7 @@
 
 use super::grayscale_dilation::GrayscaleDilation;
 use super::grayscale_erosion::GrayscaleErosion;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
@@ -61,7 +61,7 @@ impl BlackTopHatFilter {
 }
 
 fn sub_clamp<B: Backend>(a: &Image<B, 3>, b: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     let (av, dims) = extract_vec(a)?;
     let (bv, _) = extract_vec(b)?;
     let result: Vec<f32> = av

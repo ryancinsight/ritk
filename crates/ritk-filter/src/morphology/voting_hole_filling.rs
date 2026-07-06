@@ -32,7 +32,7 @@
 //! (which uses a shrink window), this clamps the boundary to match ITK on 2-D
 //! and bordering voxels.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

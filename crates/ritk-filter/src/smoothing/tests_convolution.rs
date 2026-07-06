@@ -1,7 +1,7 @@
 //! Unit tests for [`SpatialConvolutionFilter`].
 
 use crate::smoothing::SpatialConvolutionFilter;
-use burn::tensor::{Shape, TensorData};
+use ritk_image::tensor::{Shape, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -11,7 +11,7 @@ type B = NdArray<f32>;
 fn make_image(vals: &[f32], dims: [usize; 3]) -> Image<B, 3> {
     let device = Default::default();
     let td = TensorData::new(vals.to_vec(), Shape::new(dims));
-    let tensor = burn::tensor::Tensor::<B, 3>::from_data(td, &device);
+    let tensor = ritk_image::tensor::Tensor::<B, 3>::from_data(td, &device);
     Image::new(
         tensor,
         Point::new([1.1, 2.2, 3.3]),

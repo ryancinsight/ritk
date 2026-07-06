@@ -23,8 +23,8 @@ fn test_resample_translation_planar() {
     data[5 * 10 + 4] = 1.0;
     data[5 * 10 + 5] = 1.0;
 
-    let tensor = burn::tensor::Tensor::<TestBackend, 2>::from_floats(
-        burn::tensor::TensorData::new(data, Shape::new([10, 10])),
+    let tensor = ritk_image::tensor::Tensor::<TestBackend, 2>::from_floats(
+        ritk_image::tensor::TensorData::new(data, Shape::new([10, 10])),
         &device,
     );
 
@@ -39,7 +39,7 @@ fn test_resample_translation_planar() {
     // [y, x] (matching world_to_index_tensor / index_to_world_tensor), so the
     // output→input map subtracts [1, 2]: output reads input one row up and two
     // columns left, moving the square down one row and right two columns.
-    let offset = burn::tensor::Tensor::<TestBackend, 1>::from_floats([-1.0, -2.0], &device);
+    let offset = ritk_image::tensor::Tensor::<TestBackend, 1>::from_floats([-1.0, -2.0], &device);
     let transform = TranslationTransform::<TestBackend, 2>::new(offset);
 
     // 3. Define Interpolator
@@ -90,8 +90,8 @@ fn test_resample_identity_anisotropic_z1_volumetric() {
             data[y * nx + x] = (y * 10 + x) as f32;
         }
     }
-    let tensor = burn::tensor::Tensor::<TestBackend, 3>::from_floats(
-        burn::tensor::TensorData::new(data.clone(), Shape::new([nz, ny, nx])),
+    let tensor = ritk_image::tensor::Tensor::<TestBackend, 3>::from_floats(
+        ritk_image::tensor::TensorData::new(data.clone(), Shape::new([nz, ny, nx])),
         &device,
     );
     // Anisotropic spacing: z = 1.0, y = x = 0.35 (mirrors a promoted 2-D slice).
@@ -102,7 +102,7 @@ fn test_resample_identity_anisotropic_z1_volumetric() {
         Direction::<3>::identity(),
     );
 
-    let zero = burn::tensor::Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, 0.0], &device);
+    let zero = ritk_image::tensor::Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, 0.0], &device);
     let filter = ResampleImageFilter::new(
         [nz, ny, nx],
         *image.origin(),

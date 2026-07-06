@@ -3,7 +3,7 @@ use crate::fft::convolution::padding::{
     checked_edge_shape_2d, checked_fft_shape_2d, edge_source_index,
 };
 use anyhow::{anyhow, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use eunomia::Complex;
 use ritk_core::image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};

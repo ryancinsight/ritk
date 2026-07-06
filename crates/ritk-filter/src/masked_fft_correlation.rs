@@ -29,7 +29,7 @@
 //! non-trivial fraction the result is float-exact to SimpleITK.
 
 use anyhow::{bail, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use eunomia::Complex;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -183,7 +183,7 @@ fn build_output<B: Backend>(
     dims: [usize; 3],
     fixed: &Image<B, 3>,
 ) -> Image<B, 3> {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     let device = fixed.data().device();
     let td = TensorData::new(values, Shape::new(dims));
     let tensor = Tensor::<B, 3>::from_data(td, &device);

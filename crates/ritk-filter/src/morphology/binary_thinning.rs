@@ -24,7 +24,7 @@
 //! Neighbour indices follow Gonzalez & Woods (ITK `(x, y)` offsets mapped to the
 //! `(y, x)` plane): `p2..p9` = N, NE, E, SE, S, SW, W, NW.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

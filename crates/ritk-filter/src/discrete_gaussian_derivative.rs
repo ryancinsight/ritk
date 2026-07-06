@@ -23,8 +23,8 @@
 //! variance across all derivative orders.
 
 use super::discrete_gaussian::{convolve_separable, gaussian_operator_1d};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 
 /// Discrete Gaussian derivative filter.

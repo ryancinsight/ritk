@@ -11,8 +11,8 @@
 //! the neighbourhood half-width, using introselect (select_nth_unstable_by)
 //! rather than a full sort.  Parallelised over z-slices via Rayon.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_tensor_ops::extract_vec;
 
@@ -178,7 +178,7 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};

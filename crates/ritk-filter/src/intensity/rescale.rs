@@ -1,4 +1,4 @@
-﻿//! Linear intensity rescaling filter.
+//! Linear intensity rescaling filter.
 //!
 //! # Mathematical Specification
 //!
@@ -8,7 +8,7 @@
 //!
 //! This is the unique affine bijection mapping [I_min, I_max] to [out_min, out_max].
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 

@@ -1,6 +1,6 @@
 //! Sliding-window percentile filter (see [`PercentileFilter`]).
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_morphology::StructuringElement;
 use ritk_tensor_ops::{extract_vec, rebuild};

@@ -88,7 +88,7 @@ fn test_zero_variance_produces_identity() {
 
 #[test]
 fn test_spatial_metadata_preserved() {
-    let dev: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let dev: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let t = Tensor::<B, 3>::from_data(
         TensorData::new(vec![1.0_f32; 27], Shape::new([3, 3, 3])),
         &dev,

@@ -21,7 +21,7 @@
 //! `BoxMean[0] = (10+20)/2 = 15` vs `Mean[0] = (10+10+20)/3 = 13.33`. Pinned by a
 //! `sitk.BoxMean` probe.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

@@ -22,7 +22,7 @@
 //! time steps, and iteration counts, in both 2-D (`z = 1`, `Dispatch<2>`) and
 //! 3-D (`Dispatch<3>`).
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 

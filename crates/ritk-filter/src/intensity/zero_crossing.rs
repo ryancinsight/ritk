@@ -29,7 +29,7 @@
 //! Typical use: detect zero crossings of a Laplacian-of-Gaussian edge image.
 
 use crate::morphology::types::ForegroundValue;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

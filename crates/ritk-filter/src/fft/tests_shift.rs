@@ -4,7 +4,7 @@
 //!   shape invariant → self-inverse property → DC-to-centre mapping → 3-D shape invariant
 
 use crate::fft::{FftShiftFilter, RealFftShiftFilter};
-use burn::tensor::{Shape, TensorData};
+use ritk_image::tensor::{Shape, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -16,7 +16,7 @@ type B = NdArray<f32>;
 fn make_complex_2d(vals: &[f32], h: usize, cw: usize) -> Image<B, 2> {
     let device = Default::default();
     let td = TensorData::new(vals.to_vec(), Shape::new([h, cw]));
-    let tensor = burn::tensor::Tensor::<B, 2>::from_data(td, &device);
+    let tensor = ritk_image::tensor::Tensor::<B, 2>::from_data(td, &device);
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64]),
@@ -28,7 +28,7 @@ fn make_complex_2d(vals: &[f32], h: usize, cw: usize) -> Image<B, 2> {
 fn make_complex_3d(vals: &[f32], depth: usize, h: usize, cw: usize) -> Image<B, 3> {
     let device = Default::default();
     let td = TensorData::new(vals.to_vec(), Shape::new([depth, h, cw]));
-    let tensor = burn::tensor::Tensor::<B, 3>::from_data(td, &device);
+    let tensor = ritk_image::tensor::Tensor::<B, 3>::from_data(td, &device);
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64, 0.0_f64]),

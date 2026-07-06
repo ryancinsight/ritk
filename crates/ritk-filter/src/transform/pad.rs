@@ -40,7 +40,7 @@
 //!
 //! - ITK Software Guide, 2nd ed., §6.2 Padding.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_spatial::{Point, Spacing};
 use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_origin};

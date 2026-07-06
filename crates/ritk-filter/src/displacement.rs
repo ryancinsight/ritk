@@ -22,8 +22,8 @@
 //! transform)`.
 
 use anyhow::Result;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::{generate_grid, Image};
 
 /// Sample an affine transform `T(p) = M·(p − c) + c + t` onto the reference

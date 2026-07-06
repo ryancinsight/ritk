@@ -48,11 +48,11 @@ fn derivative_order2_of_parabola_is_two() {
 fn derivative_respects_image_spacing() {
     use ritk_spatial::{Direction, Point, Spacing};
     let device: burn_ndarray::NdArrayDevice = Default::default();
-    let td = burn::tensor::TensorData::new(
+    let td = ritk_image::tensor::TensorData::new(
         vec![0.0_f32, 10.0, 20.0, 30.0, 40.0],
-        burn::tensor::Shape::new([1, 1, 5]),
+        ritk_image::tensor::Shape::new([1, 1, 5]),
     );
-    let t = burn::tensor::Tensor::<B, 3>::from_data(td, &device);
+    let t = ritk_image::tensor::Tensor::<B, 3>::from_data(td, &device);
     let img = Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),

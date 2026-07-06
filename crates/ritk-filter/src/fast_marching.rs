@@ -21,7 +21,7 @@
 //! `sitk.FastMarching`. Internal arithmetic is `f64` (ITK's solver precision).
 //! Voxels never reached keep the large sentinel value.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 

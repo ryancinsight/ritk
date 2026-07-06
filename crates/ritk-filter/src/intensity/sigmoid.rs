@@ -1,4 +1,4 @@
-﻿//! Sigmoid intensity transform filter.
+//! Sigmoid intensity transform filter.
 //!
 //! # Mathematical Specification
 //!
@@ -13,7 +13,7 @@
 //! Reference: Sethian (1996). The output is strictly bounded in (min_output, max_output)
 //! for finite input and nonzero beta.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 

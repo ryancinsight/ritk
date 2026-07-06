@@ -12,7 +12,7 @@
 //! boundary handling (positions outside `[0, n−1]` clamp to the nearest sample),
 //! exactly as ITK's `LinearInterpolateImageFunction` behaves at the Expand grid.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_core::spatial::{Point, Spacing};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -78,8 +78,8 @@ impl ExpandImageFilter {
         }
 
         let device = image.data().device();
-        let td = burn::tensor::TensorData::new(out, burn::tensor::Shape::new([oz_n, oy_n, ox_n]));
-        let tensor = burn::tensor::Tensor::<B, 3>::from_data(td, &device);
+        let td = ritk_image::tensor::TensorData::new(out, ritk_image::tensor::Shape::new([oz_n, oy_n, ox_n]));
+        let tensor = ritk_image::tensor::Tensor::<B, 3>::from_data(td, &device);
         Image::new(
             tensor,
             Point::new(orig_out),

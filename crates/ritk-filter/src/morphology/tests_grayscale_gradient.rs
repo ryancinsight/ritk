@@ -1,7 +1,7 @@
 //! Tests for grayscale_gradient
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
 use ritk_image::Image;

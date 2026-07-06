@@ -4,7 +4,7 @@
 //! RITK produces results consistent with ITK/SimpleITK for the same inputs.
 #![allow(clippy::needless_range_loop)]
 
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::{
     image::Image,

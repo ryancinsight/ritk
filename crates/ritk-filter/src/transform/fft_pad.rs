@@ -30,7 +30,7 @@
 use super::pad::{
     ConstantPadImageFilter, Padding, WrapPadImageFilter, ZeroFluxNeumannPadImageFilter,
 };
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 /// Boundary condition for the padded region, matching ITK `FFTPadImageFilter`'s

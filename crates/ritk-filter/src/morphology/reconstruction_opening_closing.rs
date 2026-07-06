@@ -31,7 +31,7 @@
 
 use crate::morphology::label_morphology::{MorphologicalReconstruction, ReconstructionMode};
 use crate::morphology::{Connectivity, GrayscaleDilation, GrayscaleErosion};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 /// Opening by reconstruction: `R^δ_f(ε_B(f))`.

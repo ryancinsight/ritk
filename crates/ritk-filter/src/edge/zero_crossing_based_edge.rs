@@ -21,7 +21,7 @@
 //! Defaults match ITK: `variance = 1.0`, `maximum_error = 0.01`,
 //! `foreground_value = 1.0`, `background_value = 0.0`.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use crate::discrete_gaussian::DiscreteGaussianFilter;

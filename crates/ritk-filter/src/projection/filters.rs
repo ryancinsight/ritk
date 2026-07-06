@@ -1,7 +1,7 @@
 use super::ops::{fold_native, fold_wide, project_any, project_median, project_stddev};
 use super::ProjectionAxis;
 use anyhow::Result;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
 
 // ── MaxIntensityProjectionFilter ──────────────────────────────────────────────

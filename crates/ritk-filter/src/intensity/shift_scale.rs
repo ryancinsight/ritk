@@ -1,4 +1,4 @@
-﻿//! Shift-scale intensity filter.
+//! Shift-scale intensity filter.
 //!
 //! # Mathematical Specification
 //!
@@ -20,7 +20,7 @@
 //! `itk::ShiftScaleImageFilter` with `SetShift(s)` and `SetScale(k)`.
 //! Output type defaults to f32 (matching ITK behaviour when input is float).
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

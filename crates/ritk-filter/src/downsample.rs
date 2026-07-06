@@ -1,5 +1,5 @@
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_core::image::Image;
 
 /// Downsample filter.
@@ -49,7 +49,7 @@ impl<B: Backend> DownsampleFilter<B> {
 
             let indices_vec: Vec<i32> = (0..size).step_by(factor).map(|x| x as i32).collect();
             let indices =
-                Tensor::<B, 1, burn::tensor::Int>::from_ints(indices_vec.as_slice(), &device);
+                Tensor::<B, 1, ritk_image::tensor::Int>::from_ints(indices_vec.as_slice(), &device);
 
             data = data.select(d, indices);
 

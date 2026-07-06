@@ -1,4 +1,4 @@
-﻿//! Intensity windowing filter (clamp-then-rescale).
+//! Intensity windowing filter (clamp-then-rescale).
 //!
 //! # Mathematical Specification
 //!
@@ -9,7 +9,7 @@
 //! Pixels below window_min map to out_min; pixels above window_max map to out_max.
 //! Interior pixels are mapped linearly.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 

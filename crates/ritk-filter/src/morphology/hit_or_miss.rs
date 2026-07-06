@@ -10,8 +10,8 @@
 //! - Serra, J. (1982). Image Analysis and Mathematical Morphology. Academic Press.
 //! - Soille, P. (2003). Morphological Image Analysis, 2nd ed. Springer.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 

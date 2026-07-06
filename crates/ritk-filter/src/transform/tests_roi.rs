@@ -68,8 +68,8 @@ fn roi_updates_origin_with_identity_direction() {
     // new_origin[0] = 0 + 1*2*1 = 2
     // new_origin[1] = 0 + 1*3*1 = 3
     // new_origin[2] = 0 + 1*4*1 = 4
-    use burn::tensor::{Shape, Tensor, TensorData};
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let td = TensorData::new(vec![0.0f32; 27], Shape::new([3, 3, 3]));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     let img = Image::new(

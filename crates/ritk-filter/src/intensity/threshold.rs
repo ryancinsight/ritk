@@ -1,4 +1,4 @@
-﻿//! Threshold-based intensity suppression filter.
+//! Threshold-based intensity suppression filter.
 //!
 //! # Mathematical Specification
 //!
@@ -7,7 +7,7 @@
 //! - Above:   output(x) = if I(x) > threshold { outside_value } else { I(x) }
 //! - Outside: output(x) = if I(x) < lower || I(x) > upper { outside_value } else { I(x) }
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 

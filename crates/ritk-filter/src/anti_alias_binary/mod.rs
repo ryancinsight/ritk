@@ -9,7 +9,7 @@
 //! flow, constrained so the zero crossing never leaves the original boundary
 //! band (the per-pixel sign is locked to the input binary).
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

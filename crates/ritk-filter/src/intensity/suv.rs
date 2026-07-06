@@ -15,7 +15,7 @@
 //! - Spatial metadata (shape, origin, spacing, direction) is preserved exactly.
 //! - Transforms voxels from Bq/mL to unitless SUV.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
@@ -85,7 +85,7 @@ mod tests {
     type B = NdArray<f32>;
 
     fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
         let device = Default::default();
         let td = TensorData::new(vals, Shape::new(shape));
         let tensor = Tensor::<B, 3>::from_data(td, &device);

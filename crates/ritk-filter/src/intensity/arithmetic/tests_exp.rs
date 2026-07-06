@@ -1,6 +1,6 @@
 use super::*;
 use crate::intensity::arithmetic::LogImageFilter;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_image::test_support as ts;

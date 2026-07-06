@@ -14,7 +14,7 @@
 //!
 //! `itk::BlendImageFilter`
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_annotation::overlay::Opacity;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -87,7 +87,7 @@ impl BlendImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_spatial::{Direction, Point, Spacing};
 

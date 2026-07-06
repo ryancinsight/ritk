@@ -1,4 +1,4 @@
-﻿//! Global and adaptive histogram equalization filters.
+//! Global and adaptive histogram equalization filters.
 //!
 //! # Mathematical Specification
 //!
@@ -28,7 +28,7 @@
 //! - ImageJ: Process â†’ Enhance Contrast (Equalize Histogram).
 
 use anyhow::Result;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

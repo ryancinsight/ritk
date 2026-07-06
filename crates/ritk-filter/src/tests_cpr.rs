@@ -335,8 +335,8 @@ fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
     // are the image-axis vectors expressed in physical space. We place the
     // first two columns as the rotated (y, -x) pair, third as (0, 0, 1).
     let device = Default::default();
-    let data = burn::tensor::Tensor::<B, 3>::from_data(
-        burn::tensor::TensorData::new(vals, burn::tensor::Shape::new([dim, dim, dim])),
+    let data = ritk_image::tensor::Tensor::<B, 3>::from_data(
+        ritk_image::tensor::TensorData::new(vals, ritk_image::tensor::Shape::new([dim, dim, dim])),
         &device,
     );
     let mut direction = Direction::identity();

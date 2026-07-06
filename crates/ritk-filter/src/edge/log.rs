@@ -41,7 +41,7 @@
 
 use super::GaussianSigma;
 use crate::recursive_gaussian::laplacian_recursive_gaussian;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 // ── Filter struct ─────────────────────────────────────────────────────────────

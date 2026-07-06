@@ -32,8 +32,8 @@ use bessel::{modified_bessel_i, modified_bessel_i0, modified_bessel_i1};
 pub(crate) use convolve::convolve_separable;
 
 use crate::edge::GaussianSigma;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;

@@ -27,8 +27,8 @@
 //! produces so the displacement adds to the world points column-wise.
 
 use anyhow::{anyhow, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::{generate_grid, Image};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_tensor_ops::extract_vec_infallible;

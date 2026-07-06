@@ -69,7 +69,7 @@ fn test_cylindrical_tube_detects_line() {
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&image).expect("apply failed");
 
-    let _device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let _device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let out: Vec<f32> = result
         .data()
         .clone()

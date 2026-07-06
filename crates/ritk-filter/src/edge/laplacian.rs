@@ -21,7 +21,7 @@
 //! Press et al., *Numerical Recipes*, 3rd ed., §18.1; boundary handling per ITK
 //! `itk::ZeroFluxNeumannBoundaryCondition`.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_spatial::Spacing;
 use ritk_tensor_ops::{extract_vec, rebuild};

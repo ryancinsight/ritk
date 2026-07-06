@@ -18,7 +18,7 @@
 //! `sitk.BinaryPruning`. Output is binary (`1.0`/`0.0`). ITK default
 //! `iteration = 3`.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

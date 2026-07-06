@@ -1,5 +1,5 @@
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
@@ -47,7 +47,7 @@ fn constant_pad_custom_value() {
 /// Constant pad preserves spacing, updates origin.
 #[test]
 fn constant_pad_origin_updated() {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let td = TensorData::new(vec![1.0f32], Shape::new([1, 1, 1]));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     // Origin at [0, 0, 10], spacing [1, 1, 2] — pad 1 voxel on lower X.

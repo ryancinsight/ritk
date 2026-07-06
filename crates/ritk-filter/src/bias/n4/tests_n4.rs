@@ -283,6 +283,17 @@ fn rms_diff_identity_and_positive() {
     assert!((d - 1.0).abs() < 1e-6, "expected rms=1.0, got {d}");
 }
 
+#[test]
+fn n4_value_helper_rejects_shape_length_mismatch() {
+    let err = apply_n4_bias_correction_values(&[1.0, 2.0, 3.0], [1, 2, 2], &N4Config::default())
+        .unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        "N4 input value count 3 does not match voxel count 4 for dims [1, 2, 2]"
+    );
+}
+
 fn dft_real(data: &[f64], n: usize) -> Vec<(f64, f64)> {
     let mut out = vec![(0.0, 0.0); n];
     dft_real_into(data, n, &mut out);

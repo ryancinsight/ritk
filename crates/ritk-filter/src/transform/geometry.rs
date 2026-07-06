@@ -20,7 +20,7 @@
 //! it directly. Float-exact to `sitk.TransformGeometry`.
 
 use anyhow::{bail, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Vector};
 

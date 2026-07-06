@@ -18,7 +18,7 @@
 //! | `AcosImageFilter`               | `AcosImageFilter`                     | acos(x), domain [−1,1]  |
 //! | `BoundedReciprocalImageFilter`  | `BoundedReciprocalImageFilter`        | 1 / (1 + |x|)           |
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 

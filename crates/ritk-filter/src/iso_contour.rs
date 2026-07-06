@@ -27,7 +27,7 @@
 //! default `level_set_value = 0`, `far_value = 10`), full (non-narrow-band) mode,
 //! ZeroFluxNeumann boundary.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

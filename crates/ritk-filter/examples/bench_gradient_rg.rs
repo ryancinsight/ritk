@@ -10,7 +10,7 @@
 
 use std::time::Instant;
 
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::{NdArray, NdArrayDevice};
 use ritk_filter::{
     gradient_recursive_gaussian_components, recursive_gaussian::recursive_gaussian_directional,

@@ -18,8 +18,8 @@
 //!   *IEEE Trans. Image Process.* 2(2):176-201.
 
 use crate::morphology::Connectivity;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 use std::collections::VecDeque;

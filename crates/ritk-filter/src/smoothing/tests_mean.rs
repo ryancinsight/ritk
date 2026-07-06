@@ -1,7 +1,7 @@
 //! Tests for mean
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Point, Spacing};
@@ -68,7 +68,7 @@ fn step_edge_center_mean() {
 #[test]
 fn preserves_spatial_metadata() {
     use ritk_spatial::Direction;
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let td = TensorData::new(vec![1.0f32; 8], Shape::new([2, 2, 2]));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     let origin = Point::new([3.0_f64, 5.0, 7.0]);

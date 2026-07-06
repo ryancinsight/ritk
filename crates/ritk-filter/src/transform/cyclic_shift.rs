@@ -5,7 +5,7 @@
 //! every voxel is preserved and merely repositioned (no interpolation, no data
 //! loss). Matches ITK `CyclicShiftImageFilter` / `sitk.CyclicShift`.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

@@ -27,7 +27,7 @@
 mod kernel;
 pub use kernel::{GradientKernel, PrewittKernel, SobelKernel};
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use moirai;
 use ritk_core::image::Image;
 use ritk_spatial::Spacing;

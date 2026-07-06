@@ -22,7 +22,7 @@
 //! clamped to the buffer. Internal arithmetic is `f64` (ITK's `RealType` for a
 //! float field), so the result is float-exact to `sitk.InvertDisplacementField`.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

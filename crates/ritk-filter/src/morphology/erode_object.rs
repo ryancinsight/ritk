@@ -20,7 +20,7 @@
 //! (`sitk.ErodeObjectMorphology(..., sitkBox, objectValue, backgroundValue)`),
 //! default radius `[1, 1, 1]`, `object_value = 1`, `background_value = 0`.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
