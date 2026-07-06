@@ -3,6 +3,8 @@
 //! This module defines the core Transform trait that all spatial transforms must implement.
 
 use crate::spatial::{Direction, Point, Spacing};
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor as CoeusTensor;
 use ritk_image::tensor::{Backend, Tensor};
 
 /// Transform trait for spatial coordinate transformations.
@@ -50,6 +52,43 @@ pub trait Resampleable<B: Backend, const D: usize> {
     ///
     /// # Returns
     /// A new instance of the transform adapted to the new grid.
+    fn resample(
+        &self,
+        shape: [usize; D],
+        origin: Point<D>,
+        spacing: Spacing<D>,
+        direction: Direction<D>,
+    ) -> Self;
+}
+
+// Atlas-side parallels (Additive, day-1 surface; concrete impls land in sub-batch #3+
+// as consumer crates migrate). Cross-walked at
+// `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §Sub-batch #1.
+
+/// Atlas-typed parallel to [`Transform`].
+#[allow(dead_code)]
+pub trait TransformAtlas<T, B, const D: usize>: Sized
+where
+    T: Scalar,
+    B: ComputeBackend,
+{
+    /// Apply transform to a batch of points (Atlas substrate).
+    fn transform_points(&self, points: CoeusTensor<T, B>) -> CoeusTensor<T, B>;
+
+    /// Inverse transform, default `None`.
+    fn inverse(&self) -> Option<Self> {
+        None
+    }
+}
+
+/// Atlas-typed parallel to [`Resampleable`].
+#[allow(dead_code)]
+pub trait ResampleableAtlas<T, B, const D: usize>
+where
+    T: Scalar,
+    B: ComputeBackend,
+{
+    /// Resample the transform to match a new image grid (Atlas substrate).
     fn resample(
         &self,
         shape: [usize; D],

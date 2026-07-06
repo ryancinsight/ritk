@@ -180,6 +180,35 @@
       nextest run -p kwavers-imaging dicom --status-level fail --no-fail-fast`
       passed 14/14.
 
+## Atlas Batch #3 — RITK Atlas-typed parallel trait surface (Sub-batch #1 of ritual Burn-trait rebind)
+
+**Target version**: 0.14.0
+**Sprint phase**: Closure complete for this slice (2026-07-06)
+
+### Completed plan (Atlas Batch #3 Sub-batch #1, additive)
+- [x] [patch] **RITK-Atlas-typed-trait-surface (Additive)** — Add parallel Atlas-typed
+      trait surface (`TransformAtlas<T, B, D>`, `InterpolatorAtlas<T, B>`,
+      `ResampleableAtlas<T, B, D>`) ALONGSIDE the Burn-keyed legacy
+      `Transform<B, D>`, `Interpolator<B>`, `Resampleable<B, D>`; traits are
+      default-bodied with no concrete impls on day 1, so legacy surface is
+      untouched. Add `pub use native::Image as AtlasImage;` re-export in
+      `ritk-image/src/lib.rs` so `ritk_image::AtlasImage<T, B, D>` resolves
+      cross-crate through the Atlas substrate carrier already at
+      `ritk-image/src/native.rs:18-25`. Add `coeus-core = { workspace = true }`
+      and `coeus-tensor = { workspace = true }` to `ritk-core/Cargo.toml`
+      (`[dependencies]`) — both are workspace-declared at
+      `ritk/Cargo.toml:78-79`. Completion condition: purely additive; no public
+      Burn-keyed surface symbol removed/narrowed/renamed; `xtask/burn_surface.allowlist`
+      unchanged; Burn GPU-default drift (closed in inner commit `65a1a0fd`)
+      preserved.
+- Evidence tier: lexical + cross-crate dep-graph + cargo check of touched
+      packages. Sub-batch #1 is the additive foundation for sub-batches #2-#6
+      (RITK-trait-deprecate, RITK-crate-migrate, RITK-spatial-rebind,
+      RITK-burn-remove, RITK-xtask-ci) per
+      `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Decision.
+- Reserved inner tag: `ritk/atlas-migration-push/batch3` per ADR 0010
+      §Decision §"Per-batch name pattern".
+
 ## Sprint 495 — MIG-495: Native Writers for the Remaining 5 Formats
 **Target version**: 0.14.0
 **Sprint phase**: Execution — all-format native I/O parity

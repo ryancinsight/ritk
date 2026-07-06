@@ -155,6 +155,22 @@
 
 ---
 
+## Atlas Batch #3 sub-batches (ritk Burn-trait rebind — 6 atomic commits per `atlas/docs/adr/0012-ritk-burn-trait-rebind.md`)
+
+**Sub-batch #1 of ritk Burn-trait rebind (RITK-Atlas-typed-trait-surface, **DONE 2026-07-06**)**
+is the additive Atlas-typed parallel trait surface landed in this inner
+commit, cross-walked at `atlas/backlog.md` §"Batch #3 sub-batches" and
+`atlas/checklist.md` §Batch #3. Sub-batches #2-#6 (RITK-trait-deprecate soft
+doc deprecation, RITK-crate-migrate per-crate burn-line flips in the order
+filter → registration → segmentation → model → statistics → io/interpolation/
+transform → python/cli/snap, RITK-spatial-rebind dropping Burn
+`Module`/`Record` impls, RITK-burn-remove `[major]` Cargo dep strip with
+`pub use types::Image;` re-export path switch, RITK-xtask-ci allowlist / CI
+scan gates) remain reserved per the §atomic-boundary discipline in ADR 0012
+§Decision. Every per-crate rebind increment (sub-batch #3.{a-g}) is itself
+sub-atomic; the `xtask/burn_surface.allowlist` source-entries contract on
+sub-batch #5 re-enter. Reserved inner tag: `ritk/atlas-migration-push/batch3`.
+
 ## Closed dependency items
 
 - **DEP-492-01 [patch] - Mnemosyne Eunomia scratch feature propagation.

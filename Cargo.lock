@@ -7607,6 +7607,8 @@ version = "0.9.0"
 dependencies = [
  "burn",
  "burn-ndarray",
+ "coeus-core",
+ "coeus-tensor",
  "mnemosyne",
  "proptest",
  "ritk-annotation",

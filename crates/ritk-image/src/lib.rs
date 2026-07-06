@@ -18,6 +18,7 @@ pub use grid::generate_grid;
 pub use host_extract::HostExtract;
 pub use metadata::ImageMetadata;
 pub use types::Image;
+pub use native::Image as AtlasImage;
 
 /// Legacy Burn compatibility surface used by migration-shim crates.
 pub mod burn {

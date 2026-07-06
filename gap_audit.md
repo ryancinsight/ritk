@@ -29,6 +29,52 @@ ready deletions should follow this same pattern: remove the leaf dependency
 only after a real consumer-boundary bridge or native-only call path exists, then
 refresh the allowlist and require a lower audit count.
 
+## Atlas Batch #3 sub-batch #1 audit (2026-07-06) — RITK Atlas-typed parallel trait surface additive
+
+### Sub-batch #1 of ritk Burn-trait rebind: Atlas-typed trait surface lands alongside Burn surface
+
+The Atlas substrate carrier `pub struct Image<T: Scalar, B: ComputeBackend, const D: usize>`
+was already present at `crates/ritk-image/src/native.rs:18-25` (closed by
+the Atlas-provider migration Sprint 429). The Burn-keyed legacy
+`pub use types::Image;` re-export at `crates/ritk-image/src/lib.rs` still
+points at the Burn-keyed type. Sub-batch #1 closes the trait-surface gap
+without touching either: a new `pub use native::Image as AtlasImage;`
+re-export makes the Atlas substrate reachable cross-crate, and three
+Atlas-typed parallel traits (`TransformAtlas<T, B, D>`,
+`InterpolatorAtlas<T, B>`, `ResampleableAtlas<T, B, D>`) are appended with
+default bodies and no concrete impls on day 1. `ritk-core/Cargo.toml`
+gains `coeus-core = { workspace = true }` and
+`coeus-tensor = { workspace = true }` references; both are workspace-declared
+already (`ritk/Cargo.toml:78-79`), so this is pure inline-additive.
+
+Evidence tier: lexical + cross-crate dep-graph verification plus cargo
+check on the touched packages. No public Burn-keyed surface symbol is
+removed, renamed, narrowed, or re-exported differently. The Burn GPU-default
+drift (closed by inner commit `65a1a0fd`) remains stable — sub-batch #1 does
+not touch `Cargo.toml` Burn feature set or `xtask/burn_surface.allowlist`.
+
+### Why default-bodied, no-impl traits are the right day-1 surface
+
+An empty-body parallel trait with zero impls is structurally dead code and
+an alias-driven-architecture violation. A same-shape parallel trait that
+mirrors the Burn trait's required method shape with `#[allow(dead_code)]`
+markers defines a concrete contract consumer crates migrate to during
+sub-batch #3 — no contract speculation, no premature trait surface, and
+mismatches between the legacy and Atlas contracts are visible at compile
+(cargo clippy -D warnings on the touched packages will flag any
+signature drift).
+
+### Residual Risk / Next Increment
+
+- Sub-batches #2-#6 remain reserved per ADR 0012. Sub-batch #5
+  (`RITK-burn-remove`, `[major]`) is the only commit allowed to delete or
+  rename `[dependencies]` lines in `ritk-core/Cargo.toml` or
+  `ritk-wgpu-compat/Cargo.toml`; all other manifests remain additive.
+- The Atlas-side `coeus-nn::Record` impl question is deferred to
+  sub-batch #4 — only added IF downstream PINN-SSM consumer code in
+  `kwavers-solver` or `helios-solver` mandates it; otherwise sub-batch #4 is
+  a strict removal commit. Currently no Atlas-side consumer requires it.
+
 ## MIG-496-04 audit (2026-07-05)
 
 ### Python image I/O no longer dispatches through Burn readers/writers
