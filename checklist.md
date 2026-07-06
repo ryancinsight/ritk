@@ -1,5 +1,21 @@
 # RITK Sprint Checklist — Active
 
+## DEP-496-04 — DICOM Attribute Ownership
+**Target version**: 0.14.0
+**Sprint phase**: Closure complete for this slice
+
+### Completed plan (DEP-496-04)
+- [x] Add `ritk-dicom` typed tag vocabulary. Completion condition: consumers
+      can refer to DICOM image tags through RITK-owned constants.
+- [x] Add `DicomAttributeRead` over parsed backend objects. Completion
+      condition: required/optional unsigned scalars, decimal scalars,
+      multi-valued decimal vectors, and transfer-syntax UID reads are available
+      without importing dicom-rs APIs downstream.
+- [x] Verify upstream and downstream behavior. Evidence:
+      `rustup run nightly cargo nextest run -p ritk-dicom attribute
+      --status-level fail --no-fail-fast` passed 2/2, and Helios
+      `helios-domain/dicom` nextest passed 5/5 through the new surface.
+
 ## MIG-496-05 — Analyze Burn Dependency Deletion
 **Target version**: 0.14.0
 **Sprint phase**: Closure complete for this slice

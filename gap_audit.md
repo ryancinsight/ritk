@@ -1,5 +1,27 @@
 # RITK Gap Audit - Active
 
+## DEP-496-04 audit (2026-07-06)
+
+### DICOM attribute ownership moves behind RITK
+
+Helios exposed a consumer-boundary drift: `ritk-dicom` owned parse and pixel
+decode, but Helios still imported dicom-rs `Tag`/object APIs for Rows, Columns,
+PixelSpacing, SliceThickness, ImagePositionPatient, rescale attributes, and
+transfer syntax. `ritk-dicom` now owns that attribute vocabulary through
+`DicomTag`, common image tag constants, and `DicomAttributeRead`.
+
+Evidence tier: value-semantic tests plus downstream integration validation.
+`rustup run nightly cargo nextest run -p ritk-dicom attribute --status-level
+fail --no-fail-fast` passed 2/2, Helios `helios-domain/dicom` nextest passed
+5/5, and `cargo tree -p helios-domain --features dicom -e normal -i dicom`
+shows dicom-rs only below `ritk-dicom`.
+
+Residual risk: Helios still owns radiation-imaging reconstruction/projector
+kernels in `helios-imaging`; those are domain-specific MVCT simulation kernels,
+not the generic medical-image I/O/toolkit surface closed here. Any future move
+of generic image registration or image-format operations belongs in RITK first,
+then Helios should consume the RITK API directly.
+
 ## MIG-496-05 audit (2026-07-05)
 
 ### Analyze leaf no longer owns Burn dependencies

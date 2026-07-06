@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 496: DICOM attribute ownership
+
+### Added
+- `ritk-dicom`: Added `DicomTag`, common image tag constants, and
+  `DicomAttributeRead` so consumers can read DICOM geometry and modality-LUT
+  attributes without importing dicom-rs object APIs directly.
+
+### Evidence
+- Evidence tier: value-semantic tests plus downstream consumer validation.
+  `rustup run nightly cargo nextest run -p ritk-dicom attribute --status-level
+  fail --no-fail-fast` passed 2/2, and Helios `helios-domain/dicom` tests pass
+  through the new RITK attribute surface.
+
 ## [Unreleased] — Sprint 496: Analyze Burn dependency deletion (MIG-496-05)
 
 ### Changed

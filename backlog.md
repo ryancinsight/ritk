@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **DEP-496-04 [minor] - DICOM attribute ownership for consumers (DONE).**
+  `ritk-dicom` now exposes `DicomTag`, common image tag constants, and
+  `DicomAttributeRead` over the parsed DICOM object produced by the RITK
+  backend. This closes the Helios consumer gap where DICOM pixel decode was
+  RITK-owned but geometry/modality-LUT attribute reads still imported dicom-rs
+  directly. Evidence tier: value-semantic `ritk-dicom` attribute tests plus
+  downstream Helios compile/test/tree validation.
+
 - **MIG-496-05 [patch] - Analyze Burn dependency deletion (DONE).**
   `ritk-analyze` no longer depends on `burn` or `burn-ndarray`; its public
   reader/writer API is now native-only over
