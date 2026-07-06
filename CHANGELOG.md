@@ -1,5 +1,160 @@
 # CHANGELOG
 
+## [Unreleased] — Sprint 496: Analyze Burn dependency deletion (MIG-496-05)
+
+### Changed
+- `ritk-analyze`: The public Analyze reader/writer surface now operates on
+  Atlas-native images instead of Burn-backed images.
+- `ritk-io`: Owns the remaining Analyze Burn compatibility bridge for current
+  Burn-typed consumers.
+
+### Removed
+- `ritk-analyze`: Removed stale `burn` and `burn-ndarray` dependencies and the
+  Burn-typed reader/writer/test surface from the native-ready leaf crate.
+
+### Evidence
+- Evidence tier: static audit plus compile and value-semantic parity tests.
+  `D:\atlas\target\debug\xtask.exe burn-migration-audit` is clean after
+  `refresh-burn-allowlist`; Burn manifest dependencies are down from 27 to 26
+  and Burn-surface source files are down from 672 to 670. `rustup run nightly
+  cargo check -p ritk-analyze -p ritk-io --lib` passed. `rustup run nightly
+  cargo nextest run -p ritk-analyze --status-level fail --no-fail-fast`
+  passed 4/4, and focused `ritk-io` Analyze native-vs-Burn parity passed 1/1.
+
+## [Unreleased] — Sprint 496: Python native image I/O cutover (MIG-496-04)
+
+### Added
+- `ritk-io`: Shared `read_image_native`/`write_image_native` consumer helpers
+  over the existing Atlas-native image reader/writer adapters.
+
+### Changed
+- `ritk-python`: `ritk.io.read_image` and `ritk.io.write_image` now dispatch
+  through the Atlas-native `ritk-io` image I/O helpers instead of matching
+  formats onto Burn `NdArray` readers/writers inside the PyO3 crate.
+
+### Removed
+- `ritk-python`: Removed the Python I/O module's local Burn `NdArrayDevice`
+  construction and local `Backend` alias.
+
+### Evidence
+- Source-level implementation and `git diff --check` passed. Focused cargo
+  gates were attempted but blocked on shared package/build/artifact locks before
+  this slice compiled.
+
+## [Unreleased] — Sprint 496: CLI native loading cutover (ADR-0003-02)
+
+### Changed
+- `ritk-cli`: Shared `read_image` now routes native-readable formats through
+  `read_image_native`, including scalar DICOM series, and keeps VTK as the
+  only Burn read fallback because `ritk-io` has no native VTK reader.
+- `ritk-cli`: Added the explicit `native_image_to_burn` boundary bridge for
+  commands that still consume Burn-backed `Image<Backend, 3>` values.
+- `ritk-cli`: The headless viewer now decodes scalar DICOM studies with
+  `load_native_dicom_series_with_metadata` before bridging into the current
+  Burn-typed `ritk-snap` viewer core.
+
+### Evidence
+- Evidence tier: value-semantic differential tests. `rustup run nightly cargo
+  nextest run -p ritk-cli dicom --status-level fail --no-fail-fast` passed
+  5/5, and `rustup run nightly cargo nextest run -p ritk-cli native
+  --status-level fail --no-fail-fast` passed 6/6.
+- `rustup run nightly rustfmt --check
+  crates/ritk-cli/src/commands/mod.rs
+  crates/ritk-cli/src/commands/viewer.rs
+  crates/ritk-cli/src/commands/convert.rs` passed.
+
+## [Unreleased] — Sprint 496: Registration native N4 preprocessing (MIG-433-06)
+
+### Added
+- `ritk-filter`: Exposed `apply_n4_bias_correction_values` as the
+  backend-neutral N4 bias-correction SSOT over flat z-major 3-D buffers.
+- `ritk-registration`: `PreprocessingPipeline::execute_native` now executes
+  `N4BiasCorrection` on native Coeus images by extracting the native image
+  buffer, applying the Rust-owned N4 SSOT, and rebuilding the native image with
+  metadata preserved.
+
+### Changed
+- `N4BiasFieldCorrectionFilter::apply` now delegates to the same value-level
+  N4 implementation used by the native registration preprocessing executor,
+  removing the Burn image wrapper as the only callable N4 path.
+
+### Evidence
+- Evidence tier: value-semantic differential and focused integration tests.
+  `rustup run nightly cargo nextest run -p ritk-registration preprocessing
+  --status-level fail --no-fail-fast` passed 20/20, including the native N4
+  executor exact-match test. `rustup run nightly cargo nextest run -p
+  ritk-filter n4 --status-level fail --no-fail-fast` passed 9/9 before the
+  final value-helper length-regression test was added; the post-add rerun is
+  now blocked before RITK by the provider graph noted below.
+- `rustup run nightly rustfmt --check
+  crates/ritk-filter/src/bias/n4/mod.rs
+  crates/ritk-filter/src/bias/n4/tests_n4.rs
+  crates/ritk-filter/src/bias/mod.rs
+  crates/ritk-registration/src/preprocessing/native_executor.rs` passed.
+- Current post-helper `rustup run nightly cargo nextest run -p ritk-filter n4
+  --status-level fail --no-fail-fast`, `rustup run nightly cargo clippy -p
+  ritk-registration --all-targets -- -D warnings`, `rustup run nightly cargo
+  test --doc -p ritk-registration`, and `rustup run nightly cargo doc -p
+  ritk-registration --no-deps` are blocked before RITK by sibling
+  `coeus-core`/`leto-ops` ambiguity between Eunomia numeric traits and local
+  scalar traits for `T::from_f64`/`T::from_usize`.
+
+## [Unreleased] — PERF-432 registration hot path
+
+### Changed
+- Added a bounded dense support-matrix path for small 3-D B-spline transform
+  lattices in `ritk-transform`. The registration hot path now avoids repeated
+  coefficient gather/select for `batch * control_points <= 1_000_000`, while
+  larger lattices keep the sparse gather implementation.
+
+### Evidence
+- Baseline focused row: `rustup run nightly cargo nextest run -p
+  ritk-registration bspline_registers_offset_sphere --status-level all
+  --no-fail-fast` passed in 67.991s before the optimization.
+- Post-change verification is blocked before `ritk-registration` builds by
+  current local `coeus-core`/`leto-ops` `E0034` ambiguity errors on
+  `from_f64`/`from_usize`. The requested `--features coeus` gate is stale
+  because `ritk-registration` no longer defines that feature.
+
+## [Unreleased] — Atlas consumer integration
+
+### Added
+- Native DICOM series loading on both RITK DICOM reader facades:
+  `read_native_dicom_series_with_metadata`/`load_native_dicom_*_with_metadata`
+  for the metadata-rich reader and `read_native_dicom_series`/
+  `load_native_dicom_series` for the public series facade consumed by
+  Kwavers.
+
+### Changed
+- The workspace `dicom` dependency no longer selects aggregate `ndarray` or
+  `pixeldata` features. `ritk-dicom` still owns pixel decoding through its
+  explicit `dicom-pixeldata` dependency.
+- RITK's workspace Burn dependency no longer enables the Burn WGPU backend by
+  default; it selects `std`, `ndarray`, and `autodiff` only. The
+  `CpuOrGpu<B>` registration smoother enum now defaults `B` to
+  `burn::backend::NdArray` so downstream consumers do not inherit a concrete
+  GPU backend unless they name one explicitly.
+- DICOM series decoding now has one decoded-volume seam per reader facade, with
+  Burn and native image constructors wrapping the same decoded voxels and
+  spatial metadata.
+
+### Evidence
+- RITK DICOM dependency cleanup: `rustup run nightly cargo check -p ritk-dicom`
+  passes; `rustup run nightly cargo nextest run -p ritk-dicom --status-level
+  fail --no-fail-fast` passes 16/16; Helios feature-tree validation shows no
+  aggregate `dicom/ndarray` edge for `helios-domain --features dicom`, and
+  focused Helios DICOM nextest passes 5/5.
+- Downstream kwavers integration check: `rustup run nightly cargo check -p
+  kwavers --features pinn` passes, and `cargo tree -p kwavers --features pinn`
+  selects no `burn-wgpu`, `burn-cuda`, or `burn-rocm` packages.
+- Native DICOM evidence: `rustup run nightly cargo check -p ritk-io` passes;
+  focused `cargo nextest run -p ritk-io native_dicom_loader_matches_legacy_loader`
+  passes 1/1; focused `cargo nextest run -p ritk-io
+  native_series_loader_matches_legacy_loader` passes 1/1; downstream
+  `cargo check -p kwavers-imaging` passes and focused
+  `cargo nextest run -p kwavers-imaging dicom --status-level fail
+  --no-fail-fast` passes 14/14.
+
 ## [Unreleased] — Sprint 495: Native writers for mgh/metaimage/minc/tiff/jpeg (MIG-495)
 
 ### Added

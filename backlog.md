@@ -1,5 +1,98 @@
 # RITK Backlog - Active Planning
 
+- **MIG-496-05 [patch] - Analyze Burn dependency deletion (DONE).**
+  `ritk-analyze` no longer depends on `burn` or `burn-ndarray`; its public
+  reader/writer API is now native-only over
+  `ritk_image::native::Image<f32, B, 3>`. The remaining Analyze Burn bridge
+  moved to `ritk-io`, which is the active consumer boundary for unmigrated
+  Burn-typed CLI/Python paths. `xtask/burn_surface.allowlist` was refreshed
+  with the new flow after the real deletion: `burn-migration-audit` is clean,
+  manifest dependencies dropped from 27 to 26, and Burn-surface source files
+  dropped from 672 to 670. Evidence tier: static audit plus compile and
+  value-semantic parity tests; `cargo check -p ritk-analyze -p ritk-io --lib`
+  passes, `cargo nextest run -p ritk-analyze` passes 4/4, and focused
+  `ritk-io` Analyze native-vs-Burn parity passes 1/1.
+
+- **MIG-496-04 [minor] - Python native image I/O cutover (IN PROGRESS).**
+  `ritk-io` now owns the shared native consumer dispatch
+  (`read_image_native`/`write_image_native`) over its existing native
+  `ImageReader`/`ImageWriter` adapters on `SequentialBackend`. `ritk-python`
+  `read_image`/`write_image` call that shared native dispatch and convert only
+  at the `PyImage` boundary while the rest of the Python processing surface is
+  still Burn-backed. Removed the Python I/O module's direct Burn `NdArrayDevice`
+  construction and local `Backend` alias. VTK image I/O now fails explicitly
+  from Python until the VTK image reader/writer has a native substrate adapter;
+  PNG and DICOM writes remain unsupported. Evidence tier: source-level
+  implementation plus diff hygiene; focused cargo gates are blocked by current
+  shared package/build/artifact lock contention before this slice compiles.
+
+- **MIG-433-06 [minor] — Registration N4 bias correction on native
+  preprocessing path. CODE COMPLETE / DOC-CLIPPY BLOCKED.** `ritk-filter`
+  now exposes `apply_n4_bias_correction_values`, the backend-neutral N4 SSOT
+  over flat z-major 3-D buffers, and the legacy Burn
+  `N4BiasFieldCorrectionFilter::apply` delegates to it. `ritk-registration`
+  `PreprocessingPipeline::execute_native` now runs `N4BiasCorrection` on
+  native Coeus images by extracting the native image buffer, applying that
+  Rust-owned N4 SSOT, and rebuilding the native image with metadata preserved.
+  Evidence tier: value-semantic differential tests; focused
+  `ritk-registration preprocessing` nextest passed 20/20, and focused
+  `ritk-filter n4` nextest passed 9/9 before the final value-helper length
+  regression was added. Remaining gate blocker: post-helper `ritk-filter n4`
+  nextest plus clippy/doctest/doc for `ritk-registration` fail before RITK in
+  sibling `coeus-core`/`leto-ops` `E0034` ambiguity between Eunomia numeric
+  traits and local scalar traits for `T::from_f64`/`T::from_usize`.
+
+- **PERF-432-01 [patch] — Registration B-spline small-lattice autodiff
+  gather hot path. IN PROGRESS / VERIFICATION BLOCKED.** Profiling evidence
+  remains the prior `transform_3d_chunk` bucket breakdown: gather+weighted-sum
+  was 43.86s of 52.2s across 200 calls (84.1%), and the current checkout
+  baseline confirmed `bspline_registers_offset_sphere` still exceeds the strict
+  budget at 67.991s via `rustup run nightly cargo nextest run -p
+  ritk-registration bspline_registers_offset_sphere --status-level all
+  --no-fail-fast` (the requested `--features coeus` form is stale because
+  `ritk-registration` no longer defines that feature). Production change:
+  `ritk-transform` now routes bounded 3-D B-spline support matrices
+  (`batch * control_points <= 1_000_000`) through scatter-to-support-matrix +
+  matmul so coefficient gradients use matmul backward instead of Burn's repeated
+  coefficient `select` scatter-add; larger matrices retain the sparse gather
+  path. Verification is blocked before `ritk-registration` by current local
+  dependency graph errors in `D:\atlas\repos\coeus\coeus-core` and
+  `D:\atlas\repos\leto\crates\leto-ops` (`E0034`: `from_f64`/`from_usize`
+  ambiguous between Eunomia numeric traits and local scalar traits).
+
+- **DEP-496-03 [patch] - DICOM aggregate ndarray feature removal (DONE).**
+  RITK's workspace `dicom` dependency no longer selects the aggregate
+  `ndarray`/`pixeldata` features. `ritk-dicom` still owns pixel decoding via
+  its explicit `dicom-pixeldata` dependency, while the aggregate `dicom` crate
+  is used for object parsing. Evidence tier: compile/test plus downstream
+  feature-tree validation; `cargo check -p ritk-dicom` passes,
+  `cargo nextest run -p ritk-dicom --status-level fail --no-fail-fast` passes
+  16/16, Helios `cargo tree -p helios-domain --features dicom -e features -i
+  dicom` shows only the base `dicom v0.8.2` package edge, and Helios focused
+  DICOM nextest passes 5/5.
+
+- **DEP-496-01 [patch] - Burn WGPU default feature removal (DONE).** RITK's
+  workspace Burn dependency now selects only `std`, `ndarray`, and `autodiff`
+  instead of enabling Burn's WGPU backend by default. The registration
+  `CpuOrGpu<B>` smoother enum defaults to `burn::backend::NdArray`, preserving
+  the generic backend parameter without forcing downstream consumers to resolve
+  a concrete Burn GPU backend. Evidence tier: downstream dependency-tree and
+  compile validation; kwavers' selected `--features pinn` graph contains no
+  `burn-wgpu`, `burn-cuda`, or `burn-rocm`, and `rustup run nightly cargo
+  check -p kwavers --features pinn` passes.
+
+- **MIG-496-02 [patch] - Native DICOM series loading for Kwavers imaging
+  (DONE).** Factored DICOM series loading so decoded voxels and typed spatial
+  metadata feed both the legacy Burn constructor and native Coeus image
+  construction. Added native entry points for the metadata-rich reader and the
+  public `DicomSeriesInfo` facade consumed by Kwavers. Evidence tier:
+  value-semantic differential tests plus downstream integration; `cargo check
+  -p ritk-io` passes, focused RITK nextest passes
+  `native_dicom_loader_matches_legacy_loader` 1/1 and
+  `native_series_loader_matches_legacy_loader` 1/1, downstream `cargo check
+  -p kwavers-imaging` passes, and focused downstream `cargo nextest run -p
+  kwavers-imaging dicom --status-level fail --no-fail-fast` passes 14/14.
+
 - **MIG-495 [minor] — Native writers for the remaining 5 formats; all-format
   native I/O parity (DONE).** Completes native-writer parity: mgh, metaimage,
   minc, tiff, jpeg now have Atlas-native writers, so all 9 image formats read
