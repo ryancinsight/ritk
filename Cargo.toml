@@ -66,7 +66,7 @@ ritk-statistics = { path = "crates/ritk-statistics" }
 gaia = { path = "../gaia", default-features = false }
 
 criterion = { version = "0.5", features = ["html_reports"] }
-burn = { version = "0.19", default-features = false, features = ["std", "ndarray", "autodiff", "wgpu"] }
+burn = { version = "0.19", default-features = false, features = ["std", "ndarray", "autodiff"] }
 burn-ndarray = "0.19" # For CPU testing
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
 numpy = "0.22"

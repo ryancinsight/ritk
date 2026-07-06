@@ -14,8 +14,10 @@ cross the I/O boundary.
 Evidence tier: static audit plus compile and value-semantic parity tests.
 Before the deletion, `burn-migration-audit` reported 27 Burn manifests and 672
 source files with Burn-surface tokens. After the real deletion and
-`refresh-burn-allowlist`, the audit is clean at 26 manifests and 670 source
-files; `crates/ritk-analyze/Cargo.toml` and its reader/writer/tests are no
+`refresh-burn-allowlist`, the audit was clean at 26 manifests and 670 source
+files; after the 2026-07-06 Burn GPU-default manifest reconciliation and
+allowlist refresh, the current audit is clean at 26 manifests and 615 source
+files. `crates/ritk-analyze/Cargo.toml` and its reader/writer/tests are no
 longer active Burn allowlist entries. `rustup run nightly cargo check -p
 ritk-analyze -p ritk-io --lib` passed; `rustup run nightly cargo nextest run
 -p ritk-analyze --status-level fail --no-fail-fast` passed 4/4; focused

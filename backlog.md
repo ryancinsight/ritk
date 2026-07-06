@@ -6,9 +6,11 @@
   `ritk_image::native::Image<f32, B, 3>`. The remaining Analyze Burn bridge
   moved to `ritk-io`, which is the active consumer boundary for unmigrated
   Burn-typed CLI/Python paths. `xtask/burn_surface.allowlist` was refreshed
-  with the new flow after the real deletion: `burn-migration-audit` is clean,
+  with the new flow after the real deletion: `burn-migration-audit` was clean,
   manifest dependencies dropped from 27 to 26, and Burn-surface source files
-  dropped from 672 to 670. Evidence tier: static audit plus compile and
+  dropped from 672 to 670. After the 2026-07-06 Burn GPU-default manifest
+  reconciliation and allowlist refresh, the current audit is clean at 26
+  manifests and 615 source files. Evidence tier: static audit plus compile and
   value-semantic parity tests; `cargo check -p ritk-analyze -p ritk-io --lib`
   passes, `cargo nextest run -p ritk-analyze` passes 4/4, and focused
   `ritk-io` Analyze native-vs-Burn parity passes 1/1.

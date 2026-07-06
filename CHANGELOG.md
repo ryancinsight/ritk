@@ -14,12 +14,15 @@
 
 ### Evidence
 - Evidence tier: static audit plus compile and value-semantic parity tests.
-  `D:\atlas\target\debug\xtask.exe burn-migration-audit` is clean after
-  `refresh-burn-allowlist`; Burn manifest dependencies are down from 27 to 26
-  and Burn-surface source files are down from 672 to 670. `rustup run nightly
-  cargo check -p ritk-analyze -p ritk-io --lib` passed. `rustup run nightly
-  cargo nextest run -p ritk-analyze --status-level fail --no-fail-fast`
-  passed 4/4, and focused `ritk-io` Analyze native-vs-Burn parity passed 1/1.
+  `D:\atlas\target\debug\xtask.exe burn-migration-audit` was clean after the
+  Analyze deletion `refresh-burn-allowlist`; Burn manifest dependencies fell
+  from 27 to 26 and Burn-surface source files fell from 672 to 670. After the
+  2026-07-06 Burn GPU-default manifest reconciliation and allowlist refresh,
+  the current audit is clean at 26 manifests and 615 source files. `rustup run
+  nightly cargo check -p ritk-analyze -p ritk-io --lib` passed. `rustup run
+  nightly cargo nextest run -p ritk-analyze --status-level fail
+  --no-fail-fast` passed 4/4, and focused `ritk-io` Analyze native-vs-Burn
+  parity passed 1/1.
 
 ## [Unreleased] — Sprint 496: Python native image I/O cutover (MIG-496-04)
 
