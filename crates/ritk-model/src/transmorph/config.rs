@@ -1,6 +1,6 @@
-use burn::nn::conv::Conv3dConfig;
-use burn::nn::PaddingConfig3d;
-use burn::tensor::backend::Backend;
+use ritk_image::burn::nn::conv::Conv3dConfig;
+use ritk_image::burn::nn::PaddingConfig3d;
+use ritk_image::tensor::Backend;
 
 use crate::transmorph::{
     integration::VecInt, model::TransMorph, spatial_transform::SpatialTransformer,

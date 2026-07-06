@@ -54,7 +54,7 @@ impl SnapApp {
 
         self.cine.stop();
 
-        let device: <LoadBackend as burn::tensor::backend::Backend>::Device = Default::default();
+        let device: <LoadBackend as ritk_image::tensor::Backend>::Device = Default::default();
 
         match ritk_io::load_dicom_series_with_metadata::<LoadBackend, _>(&load_root, &device) {
             Ok((image, meta)) => {
@@ -198,7 +198,7 @@ impl SnapApp {
             .map(std::path::Path::to_path_buf)
             .unwrap_or_else(|| path.clone());
 
-        let device: <LoadBackend as burn::tensor::backend::Backend>::Device = Default::default();
+        let device: <LoadBackend as ritk_image::tensor::Backend>::Device = Default::default();
 
         match ritk_io::load_dicom_series_with_metadata::<LoadBackend, _>(&load_root, &device) {
             Ok((image, meta)) => {

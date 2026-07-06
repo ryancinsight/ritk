@@ -1,7 +1,7 @@
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 use super::{connected_threshold, ConnectedThresholdFilter};
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_image::test_support::make_image;
@@ -139,7 +139,7 @@ fn test_fully_grown_region_output_is_strictly_binary() {
 #[test]
 fn test_spatial_metadata_preserved() {
     use ritk_core::spatial::{Direction, Point, Spacing};
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::Backend>::Device = Default::default();
     let td = TensorData::new(vec![100.0_f32; 27], Shape::new([3, 3, 3]));
     let tensor = Tensor::<TestBackend, 3>::from_data(td, &device);
     let origin = Point::new([1.0, 2.0, 3.0]);

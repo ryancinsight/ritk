@@ -49,7 +49,7 @@ type B = NdArray<f32>;
 /// Centralises the `<B as Backend>::Device::default()` spelling so callers
 /// don't repeat the turbofish at every format branch.
 #[inline]
-fn device() -> <B as burn::tensor::backend::Backend>::Device {
+fn device() -> <B as ritk_image::tensor::Backend>::Device {
     Default::default()
 }
 

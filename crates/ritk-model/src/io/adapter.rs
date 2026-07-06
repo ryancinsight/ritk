@@ -1,6 +1,5 @@
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
 use ritk_image::Image;
+use ritk_image::tensor::{Backend, Tensor};
 // use ritk_spatial::{Point, Spacing, Direction};
 use anyhow::{ensure, Result};
 use ritk_transform::StaticDisplacementField;

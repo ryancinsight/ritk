@@ -1,11 +1,11 @@
 //! Functional bounds spanning VMamba block executions individually.
-use burn::nn::conv::{Conv3d, Conv3dConfig};
-use burn::nn::PaddingConfig3d;
-use burn::prelude::*;
+use ritk_image::burn::nn::conv::{Conv3d, Conv3dConfig};
+use ritk_image::burn::nn::PaddingConfig3d;
+use ritk_image::burn::prelude::*;
 
 use super::config::{DownsamplePolicy, EncoderStageConfig};
 use crate::ssmmorph::vmamba_block::{VMambaBlock, VMambaBlockConfig};
-use burn::module::Ignored;
+use ritk_image::burn::module::Ignored;
 
 /// Whether this encoder stage has a downsampling layer attached.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

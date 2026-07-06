@@ -1,6 +1,7 @@
 use super::*;
-use burn::tensor::Tensor;
 use burn_ndarray::{NdArray, NdArrayDevice};
+use ritk_image::tensor::Tensor;
+use ritk_image::tensor::activation;
 
 #[test]
 fn test_state_space_creation_dimensions() {
@@ -54,7 +55,7 @@ fn test_forward_3d_discretization_bounds() {
     // Project and assert bound invariant: dt > 0.0
     let x_rank = ssm.dt_in_proj.forward(x_part);
     let dt_unbounded = ssm.dt_proj.forward(x_rank);
-    let dt = burn::tensor::activation::softplus(dt_unbounded, 1.0);
+    let dt = activation::softplus(dt_unbounded, 1.0);
 
     let dt_data: Vec<f32> = dt.into_data().to_vec::<f32>().unwrap();
     // Guaranteed by softplus mathematics (x > 0)

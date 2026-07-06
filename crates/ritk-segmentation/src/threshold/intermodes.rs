@@ -4,7 +4,7 @@
 //! the histogram with a 3-point running mean until it is bimodal (exactly two
 //! local maxima), then take the average of the two mode positions.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};

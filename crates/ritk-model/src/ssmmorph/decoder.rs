@@ -4,9 +4,9 @@
 //! skip connections from the encoder. Uses VMamba blocks for feature refinement
 //! at each scale.
 
-use burn::nn::conv::{Conv3d, Conv3dConfig, ConvTranspose3d, ConvTranspose3dConfig};
-use burn::nn::{LayerNorm, PaddingConfig3d};
-use burn::prelude::*;
+use ritk_image::burn::nn::conv::{Conv3d, Conv3dConfig, ConvTranspose3d, ConvTranspose3dConfig};
+use ritk_image::burn::nn::{LayerNorm, LayerNormConfig, PaddingConfig3d};
+use ritk_image::burn::prelude::*;
 
 use super::vmamba_block::{VMambaBlock, VMambaBlockConfig};
 
@@ -134,7 +134,7 @@ impl<B: Backend> DecoderStage<B> {
             .collect();
 
         // Layer normalization
-        let norm = burn::nn::LayerNormConfig::new(out_channels).init(device);
+        let norm = LayerNormConfig::new(out_channels).init(device);
 
         Self {
             upsample,
@@ -181,7 +181,7 @@ impl<B: Backend> DecoderStage<B> {
     }
 }
 
-use burn::module::Ignored;
+use ritk_image::burn::module::Ignored;
 
 /// SSMMorph Decoder - Hierarchical upsampling with skip connections
 #[derive(Module, Debug)]

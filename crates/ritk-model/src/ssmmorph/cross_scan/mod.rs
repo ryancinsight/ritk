@@ -12,9 +12,8 @@ pub use module::{CrossScan, CrossScanConfig};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::backend::Backend;
-    use burn::tensor::Tensor;
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::{Backend, Tensor};
 
     #[test]
     fn test_scan_planar() {

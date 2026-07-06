@@ -2,7 +2,7 @@
 //! Extracted to keep the 500-line structural limit.
 #![allow(clippy::identity_op, clippy::erasing_op)]
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::test_support::make_image;
@@ -117,7 +117,7 @@ fn test_max_iteration_limit_respected() {
 
 #[test]
 fn test_spatial_metadata_preserved() {
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::Backend>::Device = Default::default();
     let td = TensorData::new(vec![100.0_f32; 27], Shape::new([3, 3, 3]));
     let tensor = Tensor::<TestBackend, 3>::from_data(td, &device);
     let origin = Point::new([1.0, 2.0, 3.0]);

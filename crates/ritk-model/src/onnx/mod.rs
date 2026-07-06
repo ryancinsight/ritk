@@ -41,11 +41,11 @@
 //!
 //! ```ignore
 //! use ritk_model::onnx::{OnnxImporter, ImportConfig};
-//! use burn::backend::Wgpu;
+//! use ritk_image::burn::backend::Wgpu;
 //! use burn_ndarray::NdArray;
 //!
 //! type Backend = Wgpu;
-//! let device = burn::backend::wgpu::WgpuDevice::default();
+//! let device = ritk_image::burn::backend::wgpu::WgpuDevice::default();
 //!
 //! // Import ONNX model
 //! let config = ImportConfig::default();
@@ -73,7 +73,7 @@ pub use error::{OnnxError, OnnxResult};
 pub use graph::{OnnxAttribute, OnnxElementType, OnnxGraph, OnnxNode, OnnxTensor, OnnxValue};
 pub use importer::{ImportConfig, OnnxImporter};
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 
 /// Trait for ONNX-imported models.
 ///

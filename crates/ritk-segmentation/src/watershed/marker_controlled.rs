@@ -45,7 +45,7 @@
 //!   algorithm based on immersion simulations." *IEEE Trans. Pattern Anal. Mach. Intell.*,
 //!   13(6), 583–598.
 
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::{BTreeMap, VecDeque};

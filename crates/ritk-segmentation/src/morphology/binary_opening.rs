@@ -10,7 +10,7 @@
 //! Invariant: Opening(M) ⊆ M (opening can only remove foreground, never add).
 
 use super::MorphologicalOperation;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 /// Binary morphological opening filter.

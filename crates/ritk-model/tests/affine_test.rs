@@ -1,4 +1,4 @@
-use burn::tensor::{Distribution, Tensor};
+use ritk_image::tensor::{Distribution, Tensor};
 use burn_ndarray::{NdArray, NdArrayDevice};
 use ritk_model::affine::{AffineNetworkConfig, AffineTransform};
 

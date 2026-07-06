@@ -1,6 +1,6 @@
 //! 3D Cross-Scan dimension tracking
 use super::directions::ScanDirection;
-use burn::prelude::*;
+use ritk_image::burn::prelude::*;
 
 /// 3D Cross-Scan operation
 ///

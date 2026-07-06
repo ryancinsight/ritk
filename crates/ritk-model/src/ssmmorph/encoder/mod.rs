@@ -43,7 +43,7 @@ pub mod stage;
 pub use config::{DownsamplePolicy, DropPath, EncoderStageConfig, SSMMorphEncoderConfig};
 pub use stage::{DownsampleStage, EncoderStage};
 
-use burn::prelude::*;
+use ritk_image::burn::prelude::*;
 
 /// SSMMorph Encoder - Hierarchical feature extraction
 #[derive(Module, Debug)]

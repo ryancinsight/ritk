@@ -49,7 +49,7 @@
 //! ITK `itkConfidenceConnectedImageFilter.hxx` (N−1 variance, per-iteration
 //! re-flood, seed-clamped inclusive bounds).
 
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_core::spatial::VoxelIndex;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;

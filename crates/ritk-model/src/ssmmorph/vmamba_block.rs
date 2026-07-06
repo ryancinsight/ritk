@@ -26,10 +26,10 @@
 //! Output
 //!```
 
-use burn::nn::conv::{Conv3d, Conv3dConfig};
-use burn::nn::PaddingConfig3d;
-use burn::nn::{Gelu, LayerNorm, Linear};
-use burn::prelude::*;
+use ritk_image::burn::nn::conv::{Conv3d, Conv3dConfig};
+use ritk_image::burn::nn::PaddingConfig3d;
+use ritk_image::burn::nn::{Gelu, LayerNorm, LayerNormConfig, Linear, LinearConfig};
+use ritk_image::burn::prelude::*;
 
 use super::cross_scan::{CrossScan, CrossScanConfig, ScanDirection};
 use super::policy::ScanDimensionality;
@@ -71,7 +71,7 @@ impl VMambaBlockConfig {
     }
 }
 
-use burn::module::Ignored;
+use ritk_image::burn::module::Ignored;
 
 /// VMamba Block combining CNN and SSM
 ///
@@ -125,15 +125,15 @@ impl<B: Backend> VMambaBlock<B> {
         let inner_dim = config.dim * 4; // Standard FFN expansion
 
         Self {
-            norm1: burn::nn::LayerNormConfig::new(config.dim).init(device),
-            norm2: burn::nn::LayerNormConfig::new(config.dim).init(device),
+            norm1: LayerNormConfig::new(config.dim).init(device),
+            norm2: LayerNormConfig::new(config.dim).init(device),
             dwconv: dwconv_config.init(device),
             cross_scan: Ignored(CrossScan::new(&cross_scan_config)),
             ssm: SelectiveStateSpace::new(&ssm_config, device),
-            ffn_expand: burn::nn::LinearConfig::new(config.dim, inner_dim)
+            ffn_expand: LinearConfig::new(config.dim, inner_dim)
                 .with_bias(true)
                 .init(device),
-            ffn_project: burn::nn::LinearConfig::new(inner_dim, config.dim)
+            ffn_project: LinearConfig::new(inner_dim, config.dim)
                 .with_bias(true)
                 .init(device),
             act: Gelu::new(),

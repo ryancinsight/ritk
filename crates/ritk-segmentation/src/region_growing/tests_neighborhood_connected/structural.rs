@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn test_spatial_metadata_preserved() {
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::Backend>::Device = Default::default();
     let td = TensorData::new(vec![100.0_f32; 27], Shape::new([3, 3, 3]));
     let tensor = Tensor::<TestBackend, 3>::from_data(td, &device);
     let origin = Point::new([1.0, 2.0, 3.0]);

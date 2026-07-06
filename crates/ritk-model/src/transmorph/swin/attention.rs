@@ -1,9 +1,10 @@
-use burn::{
+use ritk_image::burn::{
     module::Param,
     nn::{Dropout, DropoutConfig, Linear, LinearConfig},
     prelude::*,
     tensor::{activation::softmax, backend::Backend, Int, Tensor},
 };
+use ritk_image::tensor::Distribution;
 
 #[derive(Module, Debug)]
 pub struct WindowAttention<B: Backend> {
@@ -39,7 +40,7 @@ impl WindowAttentionConfig {
         let num_relative_distance = (2 * m - 1).pow(3);
         let table = Tensor::random(
             [num_relative_distance, self.num_heads],
-            burn::tensor::Distribution::Normal(0.0, 0.02),
+            Distribution::Normal(0.0, 0.02),
             device,
         );
 

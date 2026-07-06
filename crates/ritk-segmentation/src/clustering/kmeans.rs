@@ -42,7 +42,7 @@
 //! - Arthur, D. & Vassilvitskii, S. (2007). "k-means++: The Advantages of
 //!   Careful Seeding." *Proc. 18th ACM-SIAM Symposium on Discrete Algorithms*.
 
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 

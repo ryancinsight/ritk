@@ -4,8 +4,7 @@
 //! to Burn tensor structures, handling various data types and layouts.
 
 use crate::onnx::graph::{OnnxElementType, OnnxTensor};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor};
+use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
 
 /// Convert an ONNX tensor to a Burn tensor.
 ///
@@ -44,7 +43,7 @@ pub fn onnx_tensor_to_burn<B: Backend, const D: usize>(
     let data = onnx_tensor.to_f32_vec()?;
 
     // Create Burn tensor
-    let tensor_data = burn::tensor::TensorData::new(data, shape);
+    let tensor_data = TensorData::new(data, shape);
     Ok(Tensor::from_data(tensor_data, device))
 }
 

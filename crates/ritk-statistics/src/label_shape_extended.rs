@@ -43,7 +43,7 @@
 //! perimeter pass (O(N·13)), and the Feret pass over the boundary set (O(B²),
 //! B ≪ N). One parallel fold groups voxel indices; one parallel map over labels.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_spatial::Point;
 use ritk_tensor_ops::extract_vec_infallible;

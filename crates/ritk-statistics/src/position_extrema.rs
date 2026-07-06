@@ -22,7 +22,7 @@
 //! O(n) where n = ∏ d_k. One pass over the data, no allocation beyond the
 //! 4-byte (or 8-byte) running extremum and the returned `[usize; D]`.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 

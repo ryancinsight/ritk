@@ -93,7 +93,7 @@ fn loaded_volume_from_scalar_image(
 fn load_dicom_scalar_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
-    let device = <B as burn::tensor::backend::Backend>::Device::default();
+    let device = <B as ritk_image::tensor::Backend>::Device::default();
     let (image, meta) = load_dicom_from_series::<B>(series, &device)
         .with_context(|| "failed to load DICOM series from scanned instances")?;
     loaded_volume_from_scalar_image(image, meta, None)
@@ -103,7 +103,7 @@ fn load_dicom_scalar_volume_from_scanned_series(
 fn load_dicom_color_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
-    let device = <B as burn::tensor::backend::Backend>::Device::default();
+    let device = <B as ritk_image::tensor::Backend>::Device::default();
     let (rgb_vol, meta) = load_dicom_color_from_series::<B>(series, &device)
         .with_context(|| "failed to load DICOM RGB series from scanned instances")?;
     let [depth, rows, cols] = rgb_vol.spatial_shape();
@@ -169,7 +169,7 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
     let folder = folder.as_ref();
     info!(path = %folder.display(), "loading DICOM volume");
 
-    let device = <B as burn::tensor::backend::Backend>::Device::default();
+    let device = <B as ritk_image::tensor::Backend>::Device::default();
 
     // Detect RGB colour series and route to the colour-volume loader.
     if is_rgb_dicom_series(folder).unwrap_or(false) {
@@ -187,7 +187,7 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
 /// - `folder` — path to the DICOM series directory.
 /// - `device` — burn backend device.  Only the `Default::default()` CPU
 ///   device is guaranteed to work.
-fn load_dicom_color_volume<B: burn::tensor::backend::Backend>(
+fn load_dicom_color_volume<B: ritk_image::tensor::Backend>(
     folder: &Path,
     device: &B::Device,
 ) -> Result<LoadedVolume> {

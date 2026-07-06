@@ -27,7 +27,7 @@
 //!     SSMMorph, SSMMorphConfig,
 //!     network::presets,
 //! };
-//! use burn::tensor::Tensor;
+//! use ritk_image::tensor::Tensor;
 //! use burn_ndarray::NdArray;
 //!
 //! type B = NdArray;

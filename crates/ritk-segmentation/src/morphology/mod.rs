@@ -38,7 +38,7 @@ pub use skeletonization::Skeletonization;
 ///
 /// Implementors transform a binary mask image (0.0/1.0) into a new binary
 /// mask image of the same shape, preserving all spatial metadata.
-pub trait MorphologicalOperation<B: burn::tensor::backend::Backend, const D: usize> {
+pub trait MorphologicalOperation<B: ritk_image::tensor::Backend, const D: usize> {
     /// Apply the morphological operation to .
     ///
     /// # Arguments

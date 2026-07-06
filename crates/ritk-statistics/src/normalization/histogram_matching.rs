@@ -25,7 +25,7 @@
 //! - `src_min → ref_min`, `src_max → ref_max` (landmark endpoints).
 //! - A constant source (`src_min == src_max`) is returned unchanged.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

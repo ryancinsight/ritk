@@ -29,7 +29,7 @@ pub fn load_nifti_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     let path = path.as_ref();
     info!(path = %path.display(), "loading NIfTI volume");
 
-    let device = <B as burn::tensor::backend::Backend>::Device::default();
+    let device = <B as ritk_image::tensor::Backend>::Device::default();
     let image = read_nifti::<B, _>(path, &device)
         .with_context(|| format!("failed to read NIfTI file '{}'", path.display()))?;
 

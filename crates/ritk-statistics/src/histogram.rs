@@ -33,7 +33,7 @@
 //! by extracting the contiguous f32 storage and iterating. No
 //! `dyn Trait`, no vtable indirection.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 

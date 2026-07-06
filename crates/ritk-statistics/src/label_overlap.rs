@@ -28,7 +28,7 @@
 //! # ITK Parity
 //! `itk::LabelOverlapMeasuresImageFilter` (ITK 5.x).
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::HashMap;

@@ -28,7 +28,7 @@
 //!
 //! ```rust
 //! use ritk_model::transmorph::{TransMorphConfig, TransMorph};
-//! use burn::tensor::backend::Backend;
+//! use ritk_image::tensor::Backend;
 //!
 //! fn create_model<B: Backend>(device: &B::Device) -> TransMorph<B> {
 //!     TransMorphConfig::new(1, 12, 3)

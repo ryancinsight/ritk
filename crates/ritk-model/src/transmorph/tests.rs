@@ -1,7 +1,7 @@
 use super::*;
 use crate::transmorph::config::TransformIntegration;
-use burn::tensor::Tensor;
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Distribution, Tensor};
 
 #[test]
 fn test_transmorph_forward() {
@@ -27,7 +27,7 @@ fn test_transmorph_forward() {
     // Input: [1, 1, 64, 64, 64]
     let x = Tensor::<B, 5>::random(
         [1, 1, 64, 64, 64],
-        burn::tensor::Distribution::Normal(0.0, 1.0),
+        Distribution::Normal(0.0, 1.0),
         &device,
     );
 

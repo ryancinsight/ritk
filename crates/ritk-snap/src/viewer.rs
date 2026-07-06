@@ -15,7 +15,7 @@ pub type DefaultBackend = burn_ndarray::NdArray<f32>;
 /// This wraps the image together with optional DICOM metadata so a backend can
 /// inspect geometry, slice spacing, and modality-specific context.
 #[derive(Debug, Clone)]
-pub struct Study<B: burn::tensor::backend::Backend, const D: usize> {
+pub struct Study<B: ritk_image::tensor::Backend, const D: usize> {
     /// The voxel image.
     pub image: Image<B, D>,
     /// Optional DICOM metadata associated with the image.
@@ -24,7 +24,7 @@ pub struct Study<B: burn::tensor::backend::Backend, const D: usize> {
     pub source: Option<PathBuf>,
 }
 
-impl<B: burn::tensor::backend::Backend, const D: usize> Study<B, D> {
+impl<B: ritk_image::tensor::Backend, const D: usize> Study<B, D> {
     /// Create a new study from an image.
     pub fn new(image: Image<B, D>) -> Self {
         Self {
@@ -120,7 +120,7 @@ pub trait ViewerBackend {
     /// Initialize the backend.
     fn initialize(&mut self) -> Result<(), Self::Error>;
     /// Load a study into the backend.
-    fn load_study<B: burn::tensor::backend::Backend, const D: usize>(
+    fn load_study<B: ritk_image::tensor::Backend, const D: usize>(
         &mut self,
         study: &Study<B, D>,
         state: &ViewerState,
@@ -135,12 +135,12 @@ pub trait ViewerBackend {
 
 /// Headless viewer core that owns the current study and presentation state.
 #[derive(Debug)]
-pub struct ViewerCore<B: burn::tensor::backend::Backend, const D: usize> {
+pub struct ViewerCore<B: ritk_image::tensor::Backend, const D: usize> {
     pub(crate) study: Option<Study<B, D>>,
     pub(crate) state: ViewerState,
 }
 
-impl<B: burn::tensor::backend::Backend, const D: usize> ViewerCore<B, D> {
+impl<B: ritk_image::tensor::Backend, const D: usize> ViewerCore<B, D> {
     /// Create an empty viewer core.
     pub fn new() -> Self {
         Self {
@@ -185,7 +185,7 @@ impl<B: burn::tensor::backend::Backend, const D: usize> ViewerCore<B, D> {
     }
 }
 
-impl<B: burn::tensor::backend::Backend, const D: usize> Default for ViewerCore<B, D> {
+impl<B: ritk_image::tensor::Backend, const D: usize> Default for ViewerCore<B, D> {
     fn default() -> Self {
         Self::new()
     }

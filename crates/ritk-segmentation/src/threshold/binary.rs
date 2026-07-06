@@ -23,7 +23,7 @@
 //! # References
 //! - ITK `BinaryThresholdImageFilter` (www.itk.org/Doxygen/html/classitk_1_1BinaryThresholdImageFilter.html)
 
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 

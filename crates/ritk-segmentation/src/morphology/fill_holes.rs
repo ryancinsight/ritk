@@ -13,7 +13,7 @@
 //! rather than treating every voxel as a z-face border.
 
 use super::MorphologicalOperation;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::VecDeque;

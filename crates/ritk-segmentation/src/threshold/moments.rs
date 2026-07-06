@@ -4,7 +4,7 @@
 //! "Moments" method: choose the threshold so the thresholded image preserves the
 //! first three moments of the original grey-level histogram.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};

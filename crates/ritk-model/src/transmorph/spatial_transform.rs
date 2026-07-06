@@ -1,4 +1,4 @@
-use burn::{
+use ritk_image::burn::{
     module::Module,
     tensor::{backend::Backend, Tensor},
 };

@@ -1,4 +1,4 @@
-use burn::tensor::{backend::Backend, Tensor};
+use ritk_image::tensor::{Backend, Tensor};
 
 /// Selective scan operation using Parallel Associative Scan
 pub(crate) fn selective_scan<B: Backend>(

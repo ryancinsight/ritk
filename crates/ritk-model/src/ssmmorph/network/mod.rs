@@ -16,7 +16,7 @@
 //!
 //! ```rust,no_run
 //! use ritk_model::ssmmorph::network::{SSMMorph, SSMMorphConfig};
-//! use burn::tensor::Tensor;
+//! use ritk_image::tensor::Tensor;
 //! use burn_ndarray::NdArray;
 //!
 //! type B = NdArray;

@@ -24,7 +24,7 @@
 //! Threshold search:       O(N) bins using prefix sums.
 //! Total:                  O(n + N).
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{bin_right_edge, itk_bin_width, threshold_from_slice, AutoThreshold};

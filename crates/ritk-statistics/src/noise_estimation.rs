@@ -32,7 +32,7 @@
 //! - Rousseeuw, P. J. & Croux, C. (1993). Alternatives to the Median Absolute
 //!   Deviation. *J. Amer. Statist. Assoc.*, 88(424), 1273–1283.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 

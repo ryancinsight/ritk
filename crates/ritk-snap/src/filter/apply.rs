@@ -25,7 +25,7 @@ use ritk_segmentation::region_growing::{
 };
 use ritk_segmentation::{ConnectedComponentsFilter, MultiOtsuThreshold, RelabelComponentFilter};
 
-impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
+impl<B: ritk_image::tensor::Backend> ViewerCore<B, 3> {
     /// Apply a filter to the currently loaded study's image.
     ///
     /// Returns `Ok(Status)` if no study is loaded (no error raised).
@@ -183,8 +183,8 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                     .collect();
                 let device = study.image.data().device();
                 let mask_td =
-                    burn::tensor::TensorData::new(mask_vals, burn::tensor::Shape::new(dims));
-                let mask_tensor = burn::tensor::Tensor::<B, 3>::from_data(mask_td, &device);
+                    ritk_image::tensor::TensorData::new(mask_vals, ritk_image::tensor::Shape::new(dims));
+                let mask_tensor = ritk_image::tensor::Tensor::<B, 3>::from_data(mask_td, &device);
                 let mask_image = Image::new(
                     mask_tensor,
                     *study.image.origin(),

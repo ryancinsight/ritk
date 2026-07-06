@@ -1,4 +1,4 @@
-use burn::{
+use ritk_image::burn::{
     module::Module,
     nn::conv::Conv3d,
     tensor::{backend::Backend, Tensor},

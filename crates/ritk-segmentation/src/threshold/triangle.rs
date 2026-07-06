@@ -35,7 +35,7 @@
 //!   sister chromatid exchange frequency." *J. Histochem. Cytochem.* 25(7):741–753.
 //! - ITK `itkTriangleThresholdCalculator.hxx` (percentile endpoints, +1 shift).
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{itk_bin_width, threshold_from_slice, AutoThreshold};

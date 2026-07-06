@@ -1,7 +1,7 @@
-use burn::module::Param;
-use burn::nn::{Linear, LinearConfig};
-use burn::prelude::*;
-use burn::tensor::activation;
+use ritk_image::burn::module::Param;
+use ritk_image::burn::nn::{Linear, LinearConfig};
+use ritk_image::burn::prelude::*;
+use ritk_image::tensor::activation;
 
 use super::config::SelectiveStateSpaceConfig;
 use super::scan::selective_scan;

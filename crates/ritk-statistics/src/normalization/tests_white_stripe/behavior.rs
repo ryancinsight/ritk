@@ -2,7 +2,7 @@ use super::super::{
     empirical_cdf_rank, quantile_sorted, MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
 };
 use super::*;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::test_support::make_image;
 use ritk_image::Image;
 

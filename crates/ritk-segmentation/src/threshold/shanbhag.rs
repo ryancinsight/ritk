@@ -4,7 +4,7 @@
 //! balances the information measures of the background and foreground fuzzy
 //! membership distributions (minimises `|ent_back − ent_obj|`).
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};

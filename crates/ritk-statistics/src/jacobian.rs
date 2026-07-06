@@ -39,7 +39,7 @@
 //! The outer Z loop is parallelised with `moirai::Adaptive`; each Z-slice is independent.
 
 use anyhow::{anyhow, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 

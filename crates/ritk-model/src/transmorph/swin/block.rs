@@ -2,7 +2,7 @@ use super::{
     attention::{WindowAttention, WindowAttentionConfig},
     mlp::{Mlp, MlpConfig},
 };
-use burn::{
+use ritk_image::burn::{
     nn::{LayerNorm, LayerNormConfig},
     prelude::*,
     tensor::{backend::Backend, Tensor},

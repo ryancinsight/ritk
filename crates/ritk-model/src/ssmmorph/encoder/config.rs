@@ -1,5 +1,5 @@
 //! Configuration mappings for hierarchical encodings
-use burn::prelude::*;
+use ritk_image::burn::prelude::*;
 
 /// Whether an encoder stage performs spatial downsampling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

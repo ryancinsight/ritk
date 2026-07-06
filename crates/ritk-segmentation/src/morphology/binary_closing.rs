@@ -10,7 +10,7 @@
 //! O(n · (2r+1)^D) where n = total voxels, r = radius, D = image dimension.
 
 use super::MorphologicalOperation;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 

@@ -1,4 +1,4 @@
-use burn::{
+use ritk_image::burn::{
     nn::{Dropout, DropoutConfig, Gelu, Linear, LinearConfig},
     prelude::*,
     tensor::backend::Backend,

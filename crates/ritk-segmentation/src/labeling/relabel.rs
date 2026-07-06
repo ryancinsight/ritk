@@ -29,7 +29,7 @@
 //! - Pass 2 (remap):  O(n).
 //! - Space:           O(K) auxiliary.
 
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

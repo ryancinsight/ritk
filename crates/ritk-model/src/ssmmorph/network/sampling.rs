@@ -3,7 +3,7 @@
 //! Provides 3D grid sampling with trilinear interpolation and flow field
 //! composition for deformable image registration.
 
-use burn::prelude::*;
+use ritk_image::burn::prelude::*;
 
 /// Padding mode for grid sampling
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

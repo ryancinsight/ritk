@@ -1,5 +1,5 @@
 //! Core CrossScan algorithmic orchestration
-use burn::prelude::*;
+use ritk_image::burn::prelude::*;
 
 use super::super::policy::ScanDimensionality;
 use super::dim2::Scan2D;

@@ -1,5 +1,5 @@
 use super::state::{LoadBackend, SnapApp};
-use burn::tensor::{Shape, TensorData};
+use ritk_image::tensor::{Shape, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -29,7 +29,7 @@ impl SnapApp {
 
         // Build Image<LoadBackend, 3> from the flat volume data.
         let td = TensorData::new((*vol.data).clone(), Shape::new([depth, rows, cols]));
-        let tensor = burn::tensor::Tensor::<LoadBackend, 3>::from_data(td, &device);
+        let tensor = ritk_image::tensor::Tensor::<LoadBackend, 3>::from_data(td, &device);
 
         let origin = Point::new(vol.origin);
         let spacing = Spacing::new(vol.spacing);
@@ -193,9 +193,9 @@ impl SnapApp {
                         .collect();
                     let device = image.data().device();
                     let mask_td =
-                        burn::tensor::TensorData::new(mask_vals, burn::tensor::Shape::new(dims));
+                        ritk_image::tensor::TensorData::new(mask_vals, ritk_image::tensor::Shape::new(dims));
                     let mask_tensor =
-                        burn::tensor::Tensor::<LoadBackend, 3>::from_data(mask_td, &device);
+                        ritk_image::tensor::Tensor::<LoadBackend, 3>::from_data(mask_td, &device);
                     let mask_image = ritk_image::Image::new(
                         mask_tensor,
                         *image.origin(),

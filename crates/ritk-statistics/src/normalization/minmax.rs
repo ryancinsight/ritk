@@ -19,7 +19,7 @@
 
 use super::intensity_range::IntensityRange;
 use crate::image_statistics::compute_statistics;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 
 /// Min-max intensity normalizer.

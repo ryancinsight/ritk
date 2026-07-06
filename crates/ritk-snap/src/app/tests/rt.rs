@@ -82,7 +82,7 @@ fn rt_dose_plan_link_status_reports_linked_uid() {
 // defined in the crate root (lib.rs). They use `burn_ndarray::NdArray<f32>`
 // as the backend.
 
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{BedSeparationConfig, ComponentPolicy};
@@ -106,7 +106,7 @@ type Backend = burn_ndarray::NdArray<f32>;
 /// Shape is preserved: [2, 4, 4]
 #[test]
 fn test_filter_kind_bed_separation_dispatch_replaces_study_image() {
-    let device: <Backend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <Backend as ritk_image::tensor::Backend>::Device = Default::default();
     // Analytically: first 16 = -1000.0 (air, below threshold), next 16 = 0.0 (tissue).
     let mut vals = vec![-1000.0_f32; 16];
     vals.extend_from_slice(&[0.0_f32; 16]);
@@ -180,7 +180,7 @@ fn test_filter_kind_bed_separation_dispatch_replaces_study_image() {
 /// Expected: filter succeeds, study image shape becomes [1, num_cross, num_path].
 #[test]
 fn test_filter_kind_cpr_dispatch_reshapes_planar_to_volumetric() {
-    let device: <Backend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <Backend as ritk_image::tensor::Backend>::Device = Default::default();
     let vals = vec![100.0_f32; 4 * 4 * 4];
     let tensor =
         Tensor::<Backend, 3>::from_data(TensorData::new(vals, Shape::new([4, 4, 4])), &device);
@@ -291,7 +291,7 @@ fn test_viewer_status_new() {
 
 #[test]
 fn test_viewer_core_load_study_emits_event() {
-    let device: <Backend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <Backend as ritk_image::tensor::Backend>::Device = Default::default();
     let tensor = Tensor::<Backend, 3>::from_data(
         TensorData::new(vec![1.0f32; 8], Shape::new([2, 2, 2])),
         &device,

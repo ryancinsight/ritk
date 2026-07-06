@@ -32,7 +32,7 @@
 //!   automatic multilevel thresholding." *IEEE Trans. Image Process.*, 4(3),
 //!   370–378.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};

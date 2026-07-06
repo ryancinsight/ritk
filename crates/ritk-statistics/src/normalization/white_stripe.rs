@@ -47,7 +47,7 @@
 //! - `stripe_size` in the result is always > 0 for valid inputs with at least one
 //!   foreground voxel.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

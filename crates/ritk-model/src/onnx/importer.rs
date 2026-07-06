@@ -3,8 +3,8 @@
 //! This module provides the main entry point for importing ONNX models
 //! into the Burn framework for deep learning registration.
 use crate::onnx::{OnnxError, OnnxGraph, OnnxMetadata, OnnxResult};
-use burn::tensor::backend::Backend;
 use onnx_ir::OnnxGraphBuilder;
+use ritk_image::tensor::Backend;
 use std::collections::HashMap;
 use std::path::Path;
 

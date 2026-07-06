@@ -44,7 +44,7 @@ pub mod isolated;
 pub mod marker_controlled;
 pub mod morphological;
 pub mod toboggan;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 pub use isolated::IsolatedWatershed;
 pub use marker_controlled::MarkerControlledWatershed;
 pub use morphological::MorphologicalWatershed;

@@ -1,6 +1,6 @@
 //! 2D Cross-Scan mechanisms and dimension mappings
 use super::directions::ScanDirection;
-use burn::prelude::*;
+use ritk_image::burn::prelude::*;
 
 /// 2D Cross-Scan operation
 ///

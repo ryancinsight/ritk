@@ -22,7 +22,7 @@
 //! # Supported dimensionalities
 //! D = 1, 2, 3.  For D outside this set the function panics with a clear message.
 
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 

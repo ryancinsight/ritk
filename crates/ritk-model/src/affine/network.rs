@@ -1,4 +1,4 @@
-use burn::{
+use ritk_image::burn::{
     module::Module,
     nn::{
         conv::{Conv3d, Conv3dConfig},
@@ -153,8 +153,8 @@ impl<B: Backend> AffineNetwork<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::Tensor;
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::Tensor;
 
     type B = NdArray<f32>;
 

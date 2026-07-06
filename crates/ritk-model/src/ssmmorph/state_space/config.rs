@@ -1,4 +1,4 @@
-use burn::prelude::*;
+use ritk_image::burn::prelude::*;
 
 /// Configuration for selective state space parameters
 #[derive(Debug, Clone, Copy, PartialEq)]

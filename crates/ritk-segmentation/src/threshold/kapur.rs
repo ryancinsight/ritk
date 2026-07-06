@@ -29,7 +29,7 @@
 //!   Picture Thresholding Using the Entropy of the Histogram," *Computer
 //!   Vision, Graphics, and Image Processing*, 29(3):273–285, 1985.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};

@@ -1,7 +1,7 @@
 //! Diffeomorphic Integration - Scaling and Squaring
 
 use super::sampling::FlowComposer;
-use burn::prelude::*;
+use ritk_image::burn::prelude::*;
 
 /// Configuration for diffeomorphic integration
 #[derive(Debug, Clone, Copy, PartialEq)]

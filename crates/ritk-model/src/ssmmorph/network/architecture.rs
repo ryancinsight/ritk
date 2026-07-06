@@ -46,13 +46,13 @@
 //! - "VMambaMorph: Multi-Modality Deformable Image Registration based on VSSM"
 //! - "MambaBIR: Residual Pyramid Network for Brain Image Registration with SSM"
 
-use burn::prelude::*;
+use ritk_image::burn::prelude::*;
 
 use crate::ssmmorph::decoder::{SSMMorphDecoder, SSMMorphDecoderConfig};
 use crate::ssmmorph::encoder::{SSMMorphEncoder, SSMMorphEncoderConfig};
 
 use super::integration::{IntegrationConfig, VelocityFieldIntegrator};
-use burn::module::Ignored;
+use ritk_image::burn::module::Ignored;
 
 /// Whether the network applies diffeomorphic (topology-preserving) integration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]

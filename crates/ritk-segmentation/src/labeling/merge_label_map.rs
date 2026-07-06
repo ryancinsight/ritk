@@ -25,7 +25,7 @@
 //! Bit-exact to `sitk.LabelMapToLabel(sitk.MergeLabelMap([…], method))` for all
 //! four methods, including the persistent-deferred-queue behavior with ≥3 inputs.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use std::collections::BTreeMap;

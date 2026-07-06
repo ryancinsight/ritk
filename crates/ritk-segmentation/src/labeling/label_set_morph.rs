@@ -24,7 +24,7 @@
 //! `[x, y, z]`.  A `z = 1` volume (2-D image) yields length-1 z-lines that are
 //! no-ops, so the 3-D path reproduces SimpleITK's 2-D result exactly.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

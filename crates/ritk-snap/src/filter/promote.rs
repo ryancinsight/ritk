@@ -6,7 +6,7 @@ use ritk_image::Image;
 /// The 2-D spatial axes [Y, X] map to the 3-D axes [Y, X] (Z=0).
 /// This enables filters that produce 2-D output (e.g. CPR) to be stored in
 /// the `Study<B, 3>` type used by `ViewerCore`.
-pub(crate) fn elevate_to_volume<B: burn::tensor::backend::Backend>(
+pub(crate) fn elevate_to_volume<B: ritk_image::tensor::Backend>(
     image_2d: Image<B, 2>,
 ) -> anyhow::Result<Image<B, 3>> {
     let (tensor_2d, origin_2d, spacing_2d, _dir_2d) = image_2d.into_parts();
@@ -20,8 +20,8 @@ pub(crate) fn elevate_to_volume<B: burn::tensor::backend::Backend>(
         .into_data()
         .into_vec::<f32>()
         .expect("elevate_to_volume requires f32 backend");
-    let td_3d = burn::tensor::TensorData::new(vals, burn::tensor::Shape::new([1, nr, nc]));
-    let tensor_3d = burn::tensor::Tensor::<B, 3>::from_data(td_3d, &device);
+    let td_3d = ritk_image::tensor::TensorData::new(vals, ritk_image::tensor::Shape::new([1, nr, nc]));
+    let tensor_3d = ritk_image::tensor::Tensor::<B, 3>::from_data(td_3d, &device);
     let origin_3d = ritk_spatial::Point::new([0.0, origin_2d[0], origin_2d[1]]);
     let spacing_3d = ritk_spatial::Spacing::new([1.0, spacing_2d[0], spacing_2d[1]]);
     let dir_3d = ritk_spatial::Direction::identity();

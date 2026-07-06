@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::dicom::series_tree::SeriesEntry;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use std::borrow::Cow;
@@ -107,7 +107,7 @@ fn test_load_nifti_volume_shape() {
 fn test_load_volume_from_bytes_nifti_roundtrip_shape() {
     let dir = tempdir().expect("create temp dir");
     let path = dir.path().join("drop_test.nii");
-    let device = <B as burn::tensor::backend::Backend>::Device::default();
+    let device = <B as ritk_image::tensor::Backend>::Device::default();
     let shape = Shape::new([3, 2, 4]);
     let data = TensorData::new((0..24).map(|v| v as f32).collect::<Vec<_>>(), shape);
     let tensor = Tensor::<B, 3>::from_data(data, &device);

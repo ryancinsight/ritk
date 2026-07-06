@@ -1,7 +1,6 @@
 use super::spatial_transform::SpatialTransformer;
-use burn::module::Module;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::burn::module::Module;
+use ritk_image::tensor::{Backend, Tensor};
 
 /// Velocity Integration Module (Scaling and Squaring).
 ///

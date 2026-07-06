@@ -20,7 +20,7 @@
 //! out-of-image neighbour is simply skipped, so a 2-D (`z = 1`) volume reproduces
 //! SimpleITK's 2-D `Toboggan` exactly.
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
