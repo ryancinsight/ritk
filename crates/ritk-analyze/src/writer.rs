@@ -37,12 +37,10 @@
 //! coordinates `(round(ox/sx), round(oy/sy), round(oz/sz), 0, 0)`.
 
 use anyhow::{Context, Result};
-use burn::tensor::backend::Backend;
-use ritk_core::image::Image;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_spatial::{Point, Spacing};
 
 use crate::codec::{write_le, DT_FLOAT, EXTENTS, HDR_SIZE};
-use std::marker::PhantomData;
 use std::path::Path;
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -58,11 +56,17 @@ use std::path::Path;
 /// - `path`'s parent directory does not exist.
 /// - Any dimension exceeds `i16::MAX` (32 767).
 /// - Writing the header or data file fails.
-pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    // Extract voxel values from the tensor as f32.
-    let vals = image
-        .try_data_vec()
-        .context("Analyze writer requires f32 image data")?;
+pub fn write_analyze<B, P>(
+    path: P,
+    image: &ritk_image::native::Image<f32, B, 3>,
+    backend: &B,
+) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    let vals = image.data_cow_on(backend);
     write_analyze_flat(
         path.as_ref(),
         image.shape(),
@@ -72,8 +76,7 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     )
 }
 
-/// Substrate-agnostic Analyze serialization core: the shared SSOT the Burn and
-/// Atlas-native writers both wrap. Takes flat `[Z, Y, X]` voxels plus the
+/// Substrate-agnostic Analyze serialization core. Takes flat `[Z, Y, X]` voxels plus the
 /// (backend-independent) spatial metadata so header layout and byte order live
 /// in exactly one place. Analyze 7.5 has no direction field (identity implied).
 fn write_analyze_flat(
@@ -165,22 +168,27 @@ fn write_analyze_flat(
 // ── Analyze writer wrapper type ───────────────────────────────────────────────
 
 /// Write-side type implementing the `ImageWriter` domain trait.
-pub struct AnalyzeWriter<B> {
-    pub(crate) _phantom: PhantomData<fn() -> B>,
+pub struct AnalyzeWriter<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> AnalyzeWriter<B> {
+impl<B: ComputeBackend> AnalyzeWriter<B> {
     /// Construct a new writer.
-    pub fn new() -> Self {
-        Self {
-            _phantom: PhantomData,
-        }
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
-}
 
-impl<B: Backend> Default for AnalyzeWriter<B> {
-    fn default() -> Self {
-        Self::new()
+    /// Write an Analyze image through the bound backend.
+    pub fn write<P: AsRef<Path>>(
+        &self,
+        path: P,
+        image: &ritk_image::native::Image<f32, B, 3>,
+    ) -> Result<()>
+    where
+        B: Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        write_analyze(path, image, &self.backend)
     }
 }
 
@@ -192,40 +200,4 @@ fn vox_coord(origin_mm: f64, spacing_mm: f64) -> i16 {
     }
     let vox = (origin_mm / spacing_mm).round();
     vox.clamp(i16::MIN as f64, i16::MAX as f64) as i16
-}
-
-/// Atlas-native-substrate Analyze writers (plain end-state names, disambiguated
-/// from the Burn functions by module path only; folds away when the Burn path
-/// is deleted — ADR 0002 A1).
-pub mod native {
-    use super::write_analyze_flat;
-    use anyhow::Result;
-    use std::path::Path;
-
-    /// Write an Atlas-native 3-D image to an Analyze `.hdr`/`.img` pair.
-    ///
-    /// Host data is extracted layout-independently via `data_cow_on`, then
-    /// serialized through the same
-    /// [`write_analyze_flat`](super::write_analyze_flat) core as the Burn
-    /// [`write_analyze`](super::write_analyze) — byte-identical output for the
-    /// same logical image.
-    pub fn write_analyze<B, P>(
-        path: P,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B,
-    ) -> Result<()>
-    where
-        B: coeus_core::ComputeBackend + Default,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-        P: AsRef<Path>,
-    {
-        let voxels = image.data_cow_on(backend);
-        write_analyze_flat(
-            path.as_ref(),
-            image.shape(),
-            image.spacing(),
-            image.origin(),
-            &voxels,
-        )
-    }
 }

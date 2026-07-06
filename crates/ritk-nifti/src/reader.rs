@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use flate2::read::GzDecoder;
 use ritk_core::image::Image;
 use std::fs;

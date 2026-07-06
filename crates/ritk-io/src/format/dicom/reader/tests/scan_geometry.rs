@@ -23,7 +23,7 @@ use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_directory_warns_on_inconsistent_iop() {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
@@ -35,7 +35,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
     let mixed = temp.path().join("iop_mixed");
     std::fs::create_dir_all(&mixed).unwrap();
 
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let data = vec![500.0f32; 4]; // 1×2×2
 
     // Axial series: IOP=[1,0,0,0,1,0], normal=[0,0,1], origin=[0,0,0].
@@ -170,7 +170,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
 
 #[test]
 fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
@@ -182,7 +182,7 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
     let mixed = temp.path().join("ps_mixed");
     std::fs::create_dir_all(&mixed).unwrap();
 
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let data = vec![500.0f32; 4]; // 1×2×2
 
     // Series A: pixel_spacing=[0.8,0.8], origin=[0,0,0], IPP=[0,0,0].
@@ -318,12 +318,12 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     // Invariant: advancing the depth index by 1 must move the physical point by exactly
     // Δz along the slice normal N̂. With spacing=[Δz, ΔRow, ΔCol] and direction
     // cols=[N̂, F_c, F_r]: point(1,0,0) = origin + 1*Δz*N̂.
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     type B = burn_ndarray::NdArray<f32>;
     const TOL: f64 = 1e-10;
 
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         TensorData::new(vec![0.0f32; 2 * 4 * 4], Shape::new([2, 4, 4])),
         &device,

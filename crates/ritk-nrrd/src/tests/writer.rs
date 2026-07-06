@@ -1,5 +1,5 @@
 use anyhow::Result;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -45,7 +45,7 @@ fn decode_le_f32_payload(bytes: &[u8]) -> Vec<f32> {
 fn test_mandatory_header_fields_present() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("mandatory.nrrd");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let tensor = Tensor::<TestBackend, 3>::from_data(
         TensorData::new(vec![1.0f32; 2 * 3 * 4], Shape::new([2, 3, 4])),
@@ -85,7 +85,7 @@ fn test_mandatory_header_fields_present() -> Result<()> {
 fn test_sizes_written_in_xyz_order() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("sizes.nrrd");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     // RITK shape [nz=2, ny=3, nx=4]
     let tensor = Tensor::<TestBackend, 3>::from_data(
@@ -116,7 +116,7 @@ fn test_sizes_written_in_xyz_order() -> Result<()> {
 fn test_space_directions_encodes_spacing_on_diagonal() -> Result<()> {
     let dir_tmp = tempdir()?;
     let path = dir_tmp.path().join("diag_sd.nrrd");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
     let image = Image::new(
@@ -154,7 +154,7 @@ fn test_space_directions_encodes_spacing_on_diagonal() -> Result<()> {
 fn test_space_origin_written_correctly() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("origin.nrrd");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
     let image = Image::new(
@@ -189,7 +189,7 @@ fn test_space_origin_written_correctly() -> Result<()> {
 fn test_payload_size_correct() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("payload.nrrd");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let nz = 3usize;
     let ny = 4usize;
@@ -228,7 +228,7 @@ fn test_payload_size_correct() -> Result<()> {
 fn test_payload_written_in_x_fastest_order() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("payload_order.nrrd");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let nz = 2usize;
     let ny = 2usize;
@@ -270,7 +270,7 @@ fn test_payload_written_in_x_fastest_order() -> Result<()> {
 fn test_writer_struct_creates_file() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("writer_struct.nrrd");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
     let image = Image::new(
@@ -303,7 +303,7 @@ fn test_writer_struct_creates_file() -> Result<()> {
 fn test_rotated_direction_in_space_directions() -> Result<()> {
     let dir_tmp = tempdir()?;
     let path = dir_tmp.path().join("rotated.nrrd");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
 
@@ -356,7 +356,7 @@ fn test_round_trip_nrrd() -> Result<()> {
 
     let dir = tempdir()?;
     let path = dir.path().join("round_trip.nrrd");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     // RITK [Z,Y,X] shape [2, 3, 4] with analytically known values 0..23.
     let data_vec: Vec<f32> = (0u32..24).map(|i| i as f32).collect();
@@ -419,7 +419,7 @@ fn native_writer_output_is_byte_identical_to_burn_writer() -> Result<()> {
     let burn_path = dir.path().join("burn.nrrd");
     let native_path = dir.path().join("native.nrrd");
 
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let burn_image = Image::new(
         Tensor::<TestBackend, 3>::from_data(
             TensorData::new(data.clone(), Shape::new([nz, ny, nx])),

@@ -29,7 +29,7 @@
 
 use crate::hdf5_binary::write_minc2_hdf5;
 use anyhow::{bail, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;
 

@@ -1,8 +1,8 @@
 //! Multi-frame DICOM reader: header extraction and volume loading.
 
 use anyhow::{bail, Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use dicom::core::Tag;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;

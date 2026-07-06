@@ -1,6 +1,6 @@
 use crate::{write_metaimage, MetaImageWriter};
 use anyhow::Result;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -35,7 +35,7 @@ fn payload_values(bytes: &[u8]) -> Vec<f32> {
 fn test_header_fields_present() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("header_check.mha");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let tensor = Tensor::<TestBackend, 3>::from_data(
         TensorData::new(vec![1.0f32; 2 * 3 * 4], Shape::new([2, 3, 4])),
@@ -78,7 +78,7 @@ fn test_header_fields_present() -> Result<()> {
 fn test_dimsize_written_in_xyz_order() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("dimsize.mha");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     // RITK shape [nz=2, ny=3, nx=4]
     let tensor = Tensor::<TestBackend, 3>::from_data(
@@ -108,7 +108,7 @@ fn test_dimsize_written_in_xyz_order() -> Result<()> {
 fn test_spatial_metadata_in_header() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("spatial.mha");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
     let image = Image::new(
@@ -168,7 +168,7 @@ fn test_internal_identity_direction_written_as_file_axis_reorder() -> Result<()>
 fn test_payload_size_correct() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("payload.mha");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let nz = 3usize;
     let ny = 4usize;
@@ -243,7 +243,7 @@ fn test_payload_values_written_without_permutation() -> Result<()> {
 fn test_writer_struct_creates_file() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("writer_struct.mha");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
     let image = Image::new(
@@ -270,7 +270,7 @@ fn test_writer_struct_creates_file() -> Result<()> {
 fn test_non_identity_direction_reordered_in_header() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("rotated.mha");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
     // 90-degree rotation around Z: X→Y, Y→−X, Z→Z

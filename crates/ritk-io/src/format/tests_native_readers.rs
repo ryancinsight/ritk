@@ -9,7 +9,7 @@
 //! the verified Burn path, byte-for-byte of the decoded stream.
 
 use crate::domain::ImageReader;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image as BurnImage;
@@ -44,14 +44,12 @@ fn assert_native_reader_matches_burn<R>(
 
 /// A small anisotropic Burn test volume for the formats with Burn writers.
 fn burn_volume(dims: [usize; 3]) -> BurnImage<BurnBackend, 3> {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     let n = dims[0] * dims[1] * dims[2];
     let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.5 - 4.0).collect();
     let device = <BurnBackend as Backend>::Device::default();
-    let tensor = Tensor::<BurnBackend, 3>::from_data(
-        TensorData::new(voxels, Shape::new(dims)),
-        &device,
-    );
+    let tensor =
+        Tensor::<BurnBackend, 3>::from_data(TensorData::new(voxels, Shape::new(dims)), &device);
     BurnImage::new(
         tensor,
         Point::new([1.0, -2.0, 3.0]),
@@ -209,11 +207,11 @@ fn native_nrrd_reader_matches_burn() {
 fn native_analyze_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.hdr");
-    ritk_analyze::write_analyze(&path, &burn_volume([2, 3, 4])).expect("analyze write");
+    super::analyze::write_analyze(&path, &burn_volume([2, 3, 4])).expect("analyze write");
     assert_native_reader_matches_burn(
         &path,
         &super::analyze::native::AnalyzeReader::new(SequentialBackend),
-        |p| ritk_analyze::read_analyze::<BurnBackend, _>(p, &burn_device()),
+        |p| super::analyze::read_analyze::<BurnBackend, _>(p, &burn_device()),
     );
 }
 

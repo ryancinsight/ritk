@@ -3,8 +3,8 @@ use decode::*;
 
 use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spacings};
 use anyhow::{anyhow, Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};

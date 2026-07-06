@@ -28,8 +28,8 @@ use crate::{
     IMAGE_PATH,
 };
 use anyhow::{bail, Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use consus_hdf5::dataset::StorageLayout;
 use consus_hdf5::file::Hdf5File;
 use ritk_core::image::Image;

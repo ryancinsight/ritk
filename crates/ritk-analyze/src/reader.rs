@@ -54,12 +54,9 @@
 //! it), so origin parity with foreign Analyze files is not guaranteed.
 
 use anyhow::{anyhow, Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_core::image::Image;
+use coeus_core::ComputeBackend;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::Read;
-use std::marker::PhantomData;
 use std::path::Path;
 
 use crate::codec::{read_le, HDR_SIZE};
@@ -75,7 +72,7 @@ pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_U
 /// # Supported datatypes
 /// `DT_UNSIGNED_CHAR` (2), `DT_SIGNED_SHORT` (4), `DT_SIGNED_INT` (8),
 /// `DT_FLOAT` (16), `DT_DOUBLE` (64).  All are converted to `f32` in the
-/// returned tensor.
+/// returned native image buffer.
 ///
 /// # Errors
 /// Returns an error when:
@@ -84,10 +81,10 @@ pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_U
 /// - Any image dimension is zero.
 /// - The `.img` file is smaller than the declared data size.
 /// - `datatype` is not one of the five supported codes.
-pub fn read_analyze<B: Backend, P: AsRef<Path>>(
+pub fn read_analyze<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+    backend: &B,
+) -> Result<ritk_image::native::Image<f32, B, 3>> {
     let DecodedAnalyze {
         data,
         dims,
@@ -96,15 +93,11 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
         direction,
     } = decode_analyze(path)?;
 
-    // Analyze raw order is X-fastest, matching RITK [Z,Y,X] flat memory, so
-    // the decoded payload maps directly to shape [nz, ny, nx].
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
-    Ok(Image::new(tensor, origin, spacing, direction))
+    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 /// Substrate-agnostic decode of an Analyze `.hdr`/`.img` pair into flat
-/// `[Z, Y, X]` voxels plus spatial metadata — the shared core the Burn and
-/// Atlas-native readers both wrap.
+/// `[Z, Y, X]` voxels plus spatial metadata for the public reader.
 struct DecodedAnalyze {
     data: Vec<f32>,
     dims: [usize; 3],
@@ -291,54 +284,21 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     })
 }
 
-/// Atlas-native-substrate entry points (transitional module: plain end-state
-/// names, disambiguated from the Burn functions by module path only; folds
-/// away when the Burn path is deleted — ADR 0002 A1).
-pub mod native {
-    use super::{decode_analyze, DecodedAnalyze};
-    use anyhow::Result;
-    use std::path::Path;
-
-    /// Read an Analyze `.hdr`/`.img` pair into an Atlas-native 3-D image on
-    /// `backend`.
-    ///
-    /// Shares the entire header parse, datatype decode, and axis handling with
-    /// the Burn [`read_analyze`](super::read_analyze); differs only in the
-    /// final image construction, which materialises the flat `[Z, Y, X]`
-    /// payload directly onto `backend` without an intermediate Burn tensor.
-    pub fn read_analyze<B, P>(
-        path: P,
-        backend: &B,
-    ) -> Result<ritk_image::native::Image<f32, B, 3>>
-    where
-        B: coeus_core::ComputeBackend,
-        P: AsRef<Path>,
-    {
-        let DecodedAnalyze {
-            data,
-            dims,
-            origin,
-            spacing,
-            direction,
-        } = decode_analyze(path)?;
-        ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
-    }
-}
-
 // ── Reader wrapper type ───────────────────────────────────────────────────────
 
 /// Read-side wrapper type implementing the `ImageReader` domain trait.
-pub struct AnalyzeReader<B: Backend> {
-    pub(crate) _device: B::Device,
-    pub(crate) _phantom: PhantomData<fn() -> B>,
+pub struct AnalyzeReader<B: ComputeBackend> {
+    pub(crate) backend: B,
 }
 
-impl<B: Backend> AnalyzeReader<B> {
-    /// Construct a reader bound to `device`.
-    pub fn new(device: B::Device) -> Self {
-        Self {
-            _device: device,
-            _phantom: PhantomData,
-        }
+impl<B: ComputeBackend> AnalyzeReader<B> {
+    /// Construct a reader bound to `backend`.
+    pub fn new(backend: B) -> Self {
+        Self { backend }
+    }
+
+    /// Read an Analyze image through the bound backend.
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<ritk_image::native::Image<f32, B, 3>> {
+        read_analyze(path, &self.backend)
     }
 }

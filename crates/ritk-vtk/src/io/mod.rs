@@ -45,7 +45,7 @@ pub mod writer;
 pub use reader::read_vtk;
 pub use writer::write_vtk;
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use std::path::Path;
 

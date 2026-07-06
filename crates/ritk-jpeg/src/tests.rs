@@ -1,5 +1,5 @@
 use super::{read_jpeg, write_jpeg};
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -8,7 +8,7 @@ use tempfile::tempdir;
 type TestBackend = NdArray<f32>;
 
 fn image_from_values(
-    device: &<TestBackend as burn::tensor::backend::Backend>::Device,
+    device: &<TestBackend as ritk_image::tensor::backend::Backend>::Device,
     shape: [usize; 3],
     values: Vec<f32>,
 ) -> Image<TestBackend, 3> {
@@ -218,7 +218,7 @@ fn native_writer_output_is_byte_identical_to_burn_writer() -> anyhow::Result<()>
         .map(|i| (i * 7 % 256) as f32)
         .collect();
 
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let burn_image = image_from_values(&device, [nz, ny, nx], values.clone());
 
     let backend = coeus_core::SequentialBackend;

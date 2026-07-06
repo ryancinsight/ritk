@@ -1,134 +1,73 @@
 use anyhow::Result;
-use burn::tensor::{Shape, Tensor, TensorData};
-use burn_ndarray::NdArray;
-use ritk_core::image::Image;
+use coeus_core::SequentialBackend;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
 use crate::{read_analyze, write_analyze};
 
-type TestBackend = NdArray<f32>;
-
-fn image_values(image: &Image<TestBackend, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .to_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn make_image(
+    values: Vec<f32>,
+    shape: [usize; 3],
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    backend: &SequentialBackend,
+) -> Result<ritk_image::native::Image<f32, SequentialBackend, 3>> {
+    ritk_image::native::Image::from_flat_on(
+        values,
+        shape,
+        origin,
+        spacing,
+        Direction::identity(),
+        backend,
+    )
 }
 
 #[test]
 fn analyze_roundtrip_preserves_shape_spacing_origin_and_values() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("volume.hdr");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+    let backend = SequentialBackend;
     let values: Vec<f32> = (0..24).map(|v| v as f32 + 0.25).collect();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(values.clone(), Shape::new([2, 3, 4])),
-        &device,
-    );
     // Core spacing is tensor-axis order [sz, sy, sx]; the file stores file-axis
-    // [sx, sy, sz] = [3.75, 2.5, 1.25]. The `originator` field encodes the origin
-    // as integer voxel coordinates, so a faithful round-trip requires each
-    // world-space [x, y, z] origin component to be an exact integer multiple of
-    // its per-axis spacing: ox=2·3.75, oy=2·2.5, oz=3·1.25.
-    let image = Image::new(
-        tensor,
+    // [sx, sy, sz] = [3.75, 2.5, 1.25]. The `originator` field encodes the
+    // origin as integer voxel coordinates, so a faithful round-trip requires
+    // each world-space [x, y, z] origin component to be an exact integer
+    // multiple of its per-axis spacing.
+    let image = make_image(
+        values.clone(),
+        [2, 3, 4],
         Point::new([7.5, 5.0, 3.75]),
         Spacing::new([1.25, 2.5, 3.75]),
-        Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_analyze(&path, &image)?;
-    let loaded = read_analyze::<TestBackend, _>(&path, &device)?;
+    write_analyze(&path, &image, &backend)?;
+    let loaded = read_analyze(&path, &backend)?;
 
     assert_eq!(loaded.shape(), [2, 3, 4]);
     assert_eq!(*loaded.spacing(), Spacing::new([1.25, 2.5, 3.75]));
     assert_eq!(*loaded.origin(), Point::new([7.5, 5.0, 3.75]));
     assert_eq!(*loaded.direction(), Direction::identity());
-    assert_eq!(image_values(&loaded), values);
-
-    Ok(())
-}
-
-/// Differential oracle: the Atlas-native reader must be value-identical to the
-/// Burn reader on the SAME `.hdr`/`.img` pair — both wrap the identical
-/// `decode_analyze` core, so shape, every voxel (bitwise), origin, spacing, and
-/// direction must match. Anisotropic spacing and a non-zero origin ensure an
-/// axis transposition or metadata reorder in either path would diverge.
-#[test]
-fn native_reader_matches_burn_reader() -> Result<()> {
-    let dir = tempdir()?;
-    let path = dir.path().join("differential.hdr");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
-
-    let values: Vec<f32> = (0..24).map(|v| v as f32 * 0.5 - 3.0).collect();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(values.clone(), Shape::new([2, 3, 4])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
-        Point::new([7.5, 5.0, 3.75]),
-        Spacing::new([1.25, 2.5, 3.75]),
-        Direction::identity(),
-    );
-    write_analyze(&path, &image)?;
-
-    let burn = read_analyze::<TestBackend, _>(&path, &device)?;
-
-    let backend = coeus_core::SequentialBackend;
-    let native = crate::reader::native::read_analyze(&path, &backend)?;
-
-    assert_eq!(native.shape(), burn.shape(), "shape must match Burn path");
-    assert_eq!(native.origin(), burn.origin(), "origin must match Burn path");
-    assert_eq!(
-        native.spacing(),
-        burn.spacing(),
-        "spacing must match Burn path"
-    );
-    assert_eq!(
-        native.direction(),
-        burn.direction(),
-        "direction must match Burn path"
-    );
-
-    let native_vox = native.data_slice().expect("contiguous native voxels");
-    let burn_vox = image_values(&burn);
-    assert_eq!(native_vox.len(), burn_vox.len(), "voxel count must match");
-    for (i, (&n, &b)) in native_vox.iter().zip(burn_vox.iter()).enumerate() {
-        assert_eq!(
-            n.to_bits(),
-            b.to_bits(),
-            "voxel[{i}] must be bitwise-identical to the Burn reader"
-        );
-    }
+    assert_eq!(loaded.data_slice()?, values.as_slice());
 
     Ok(())
 }
 
 #[test]
 fn analyze_writer_emits_pixdim_in_file_axis_order() -> Result<()> {
-    // The Analyze header stores spacing in file-axis order pixdim[1..3] = [sx, sy,
-    // sz], the reverse of RITK's core tensor-axis spacing [sz, sy, sx]. A symmetric
-    // round-trip cannot detect an axis swap, so assert the raw on-disk bytes.
+    // The Analyze header stores spacing in file-axis order pixdim[1..3] =
+    // [sx, sy, sz], the reverse of RITK's tensor-axis spacing [sz, sy, sx].
     let dir = tempdir()?;
     let path = dir.path().join("axis.hdr");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![0.0_f32; 24], Shape::new([2, 3, 4])),
-        &device,
-    );
-    // Core spacing [sz, sy, sx] = [1.25, 2.5, 3.75]; expect pixdim = [3.75, 2.5, 1.25].
-    let image = Image::new(
-        tensor,
+    let backend = SequentialBackend;
+    let image = make_image(
+        vec![0.0_f32; 24],
+        [2, 3, 4],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.25, 2.5, 3.75]),
-        Direction::identity(),
-    );
-    write_analyze(&path, &image)?;
+        &backend,
+    )?;
+    write_analyze(&path, &image, &backend)?;
 
     let hdr = std::fs::read(&path)?;
     let read_f32 =
@@ -145,25 +84,22 @@ fn analyze_reader_accepts_img_path_and_rejects_invalid_header() -> Result<()> {
     let dir = tempdir()?;
     let hdr_path = dir.path().join("volume.hdr");
     let img_path = dir.path().join("volume.img");
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![1.0, 2.0], Shape::new([1, 1, 2])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
+    let backend = SequentialBackend;
+    let image = make_image(
+        vec![1.0, 2.0],
+        [1, 1, 2],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_analyze(&hdr_path, &image)?;
-    let loaded = read_analyze::<TestBackend, _>(&img_path, &device)?;
+    write_analyze(&hdr_path, &image, &backend)?;
+    let loaded = read_analyze(&img_path, &backend)?;
     assert_eq!(loaded.shape(), [1, 1, 2]);
-    assert_eq!(image_values(&loaded), vec![1.0, 2.0]);
+    assert_eq!(loaded.data_slice()?, &[1.0, 2.0]);
 
     std::fs::write(&hdr_path, [0u8; 348])?;
-    let err = read_analyze::<TestBackend, _>(&hdr_path, &device).unwrap_err();
+    let err = read_analyze(&hdr_path, &backend).unwrap_err();
     assert!(
         err.to_string().contains("sizeof_hdr"),
         "error must identify invalid Analyze header, got: {err:#}"
@@ -172,53 +108,31 @@ fn analyze_reader_accepts_img_path_and_rejects_invalid_header() -> Result<()> {
     Ok(())
 }
 
-/// Strongest differential oracle: for the same logical image the Atlas-native
-/// and Burn writers share the `write_analyze_flat` serialization core, so both
-/// the `.hdr` and `.img` outputs must be byte-for-byte identical. Origin is an
-/// exact voxel multiple of the anisotropic spacing so the `originator` field is
-/// well-defined on both paths.
 #[test]
-fn native_writer_output_is_byte_identical_to_burn_writer() -> Result<()> {
-    let device: <TestBackend as burn::tensor::backend::Backend>::Device = Default::default();
+fn analyze_writer_output_is_byte_stable_for_native_image() -> Result<()> {
     let values: Vec<f32> = (0..24).map(|v| v as f32 * 0.5 - 3.0).collect();
     let origin = Point::new([7.5, 5.0, 3.75]);
     let spacing = Spacing::new([1.25, 2.5, 3.75]);
+    let backend = SequentialBackend;
 
     let dir = tempdir()?;
-    let burn_path = dir.path().join("burn.hdr");
-    let native_path = dir.path().join("native.hdr");
+    let first_path = dir.path().join("first.hdr");
+    let second_path = dir.path().join("second.hdr");
 
-    let burn_image = Image::new(
-        Tensor::<TestBackend, 3>::from_data(
-            TensorData::new(values.clone(), Shape::new([2, 3, 4])),
-            &device,
-        ),
-        origin,
-        spacing,
-        Direction::identity(),
-    );
-    write_analyze(&burn_path, &burn_image)?;
-
-    let backend = coeus_core::SequentialBackend;
-    let native_image = ritk_image::native::Image::from_flat_on(
-        values,
-        [2, 3, 4],
-        origin,
-        spacing,
-        Direction::identity(),
-        &backend,
-    )?;
-    crate::writer::native::write_analyze(&native_path, &native_image, &backend)?;
+    let first_image = make_image(values.clone(), [2, 3, 4], origin, spacing, &backend)?;
+    let second_image = make_image(values, [2, 3, 4], origin, spacing, &backend)?;
+    write_analyze(&first_path, &first_image, &backend)?;
+    write_analyze(&second_path, &second_image, &backend)?;
 
     assert_eq!(
-        std::fs::read(&burn_path)?,
-        std::fs::read(&native_path)?,
-        "native and Burn Analyze .hdr must be byte-identical"
+        std::fs::read(&first_path)?,
+        std::fs::read(&second_path)?,
+        "Analyze .hdr output must be byte-stable for the same logical image"
     );
     assert_eq!(
-        std::fs::read(burn_path.with_extension("img"))?,
-        std::fs::read(native_path.with_extension("img"))?,
-        "native and Burn Analyze .img must be byte-identical"
+        std::fs::read(first_path.with_extension("img"))?,
+        std::fs::read(second_path.with_extension("img"))?,
+        "Analyze .img output must be byte-stable for the same logical image"
     );
     Ok(())
 }

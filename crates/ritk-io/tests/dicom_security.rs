@@ -1,5 +1,5 @@
 use arrayvec::ArrayString;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use dicom::core::Tag;
 use dicom::object::open_file;
@@ -201,7 +201,7 @@ fn test_write_analyze_path_leak() {
 
     let non_existent_path = PathBuf::from("/non/existent/path/output.hdr");
     let image = {
-        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
         use ritk_core::image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 

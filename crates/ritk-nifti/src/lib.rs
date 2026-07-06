@@ -57,7 +57,7 @@ pub mod native {
     pub use crate::writer::native::*;
 }
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;
 

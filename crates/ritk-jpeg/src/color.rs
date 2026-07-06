@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use image::{ColorType, RgbImage};
 use ritk_core::image::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -89,7 +89,7 @@ fn rgb_volume_from_flat_pixels<B: Backend>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::backend::Backend;
+    use ritk_image::tensor::backend::Backend;
     use burn_ndarray::NdArray;
     use image::codecs::jpeg::JpegEncoder;
     use image::{GrayImage, Luma, RgbImage};

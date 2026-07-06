@@ -47,8 +47,10 @@ pub use object_model::{
 };
 pub use reader::{
     literal_arraystring, load_dicom_from_series, load_dicom_series_with_metadata,
-    read_dicom_series_with_metadata, scan_dicom_instances, scan_dicom_part10_bytes,
-    DicomReadMetadata, DicomSliceMetadata, PatientPosition, ScannedDicomSeries,
+    load_native_dicom_from_series, load_native_dicom_series_with_metadata,
+    read_dicom_series_with_metadata, read_native_dicom_series_with_metadata, scan_dicom_instances,
+    scan_dicom_part10_bytes, DicomReadMetadata, DicomSliceMetadata, PatientPosition,
+    ScannedDicomSeries,
 };
 pub use rt_dose::{
     read_rt_dose, write_rt_dose, RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID,
@@ -67,8 +69,37 @@ pub use seg::{
 // Re-export series types and functions from the series submodule.
 pub use ritk_dicom::PixelSignedness;
 pub use series::{
-    load_dicom_series, read_dicom_series, scan_dicom_directory, DicomReader, DicomSeriesInfo,
+    load_dicom_series, load_native_dicom_series, read_dicom_series, read_native_dicom_series,
+    scan_dicom_directory, DicomReader, DicomSeriesInfo,
 };
 pub use transfer_syntax::TransferSyntaxKind;
 pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};
 pub use writer_object::{model_to_in_mem, write_object as write_dicom_object};
+
+/// Atlas-native-substrate DICOM reader implementing the unified image reader contract.
+pub mod native {
+    use crate::domain::{to_io_err, ImageReader};
+    use coeus_core::ComputeBackend;
+    use ritk_image::native::Image;
+    use std::path::Path;
+
+    /// Backend-bound DICOM series reader.
+    pub struct DicomReader<B: ComputeBackend> {
+        backend: B,
+    }
+
+    impl<B: ComputeBackend> DicomReader<B> {
+        /// Create a reader that constructs images on `backend`.
+        pub fn new(backend: B) -> Self {
+            Self { backend }
+        }
+    }
+
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for DicomReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
+            super::read_native_dicom_series_with_metadata(path, &self.backend)
+                .map(|(image, _metadata)| image)
+                .map_err(to_io_err)
+        }
+    }
+}

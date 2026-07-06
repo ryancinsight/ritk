@@ -51,7 +51,7 @@ pub mod mesh_writer;
 pub use mesh_writer::{mesh_to_vtk_string, write_mesh_as_vtk};
 
 use crate::domain::{ImageReader, ImageWriter};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;
 
@@ -94,7 +94,7 @@ impl<B: Backend> ImageWriter<Image<B, 3>> for VtkWriter<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;

@@ -116,7 +116,7 @@ fn native_writer_output_is_byte_identical_to_burn_writer() {
     let (voxels, dims, origin, spacing, direction) = test_volume();
 
     let burn_image = {
-        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
         let device = Default::default();
         let tensor = Tensor::<BurnBackend, 3>::from_data(
             TensorData::new(voxels.clone(), Shape::new(dims)),

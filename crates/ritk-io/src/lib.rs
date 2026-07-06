@@ -13,23 +13,26 @@ pub use format::dicom::{
     dicom_retrieve, dicom_retrieve_series, dicom_seg_to_label_map, dicom_store, is_private_tag,
     is_rgb_dicom_series, label_map_to_dicom_seg, label_map_to_rt_struct, literal_arraystring,
     load_dicom_color_from_series, load_dicom_color_series, load_dicom_from_series,
-    load_dicom_multiframe, load_dicom_series, load_dicom_series_with_metadata, model_to_in_mem,
-    read_dicom_color_series, read_dicom_seg, read_dicom_series, read_dicom_series_with_metadata,
-    read_multiframe_info, read_rt_dose, read_rt_plan, read_rt_struct, rt_roi_to_polydata,
-    scan_dicom_directory, scan_dicom_instances, scan_dicom_part10_bytes, write_dicom_multiframe,
-    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, write_dicom_object,
-    write_dicom_seg, write_dicom_series, write_dicom_series_with_metadata, write_rt_dose,
-    write_rt_plan, write_rt_struct, AeTitle, AnonymizationProfile, AnonymizeOptions,
-    AnonymizeResult, AnonymizeStats, AssociationConfig, CleaningPolicy, ContourGeometricType,
-    DicomAddress, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
-    DicomReadMetadata, DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo,
-    DicomSliceMetadata, DicomTag, DicomValue, DicomWriter, EchoResponse, FindLevel, FindQuery,
-    FindResult, MoveDestination, MoveResponse, MultiFrameInfo, MultiFrameSpatialMetadata,
-    MultiFrameWriterConfig, NetworkingError, PatientPosition, PixelSignedness, RtBeamInfo,
-    RtContour, RtDoseGrid, RtDoseSummationType, RtDoseType, RtFractionGroup, RtPlanInfo, RtRoiInfo,
-    RtRoiInterpretedType, RtStructureSet, ScannedDicomSeries, ScpConfig, SegEncoding,
-    SegmentAlgorithmType, SegmentationType, StoreResponse, StoreScp, StoreScpHandle,
-    StoredInstance, TagAction, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
+    load_dicom_multiframe, load_dicom_series, load_dicom_series_with_metadata,
+    load_native_dicom_from_series, load_native_dicom_series,
+    load_native_dicom_series_with_metadata, model_to_in_mem, read_dicom_color_series,
+    read_dicom_seg, read_dicom_series, read_dicom_series_with_metadata, read_multiframe_info,
+    read_native_dicom_series, read_native_dicom_series_with_metadata, read_rt_dose, read_rt_plan,
+    read_rt_struct, rt_roi_to_polydata, scan_dicom_directory, scan_dicom_instances,
+    scan_dicom_part10_bytes, write_dicom_multiframe, write_dicom_multiframe_with_config,
+    write_dicom_multiframe_with_options, write_dicom_object, write_dicom_seg, write_dicom_series,
+    write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, write_rt_struct, AeTitle,
+    AnonymizationProfile, AnonymizeOptions, AnonymizeResult, AnonymizeStats, AssociationConfig,
+    CleaningPolicy, ContourGeometricType, DicomAddress, DicomObjectModel, DicomObjectNode,
+    DicomPreservationSet, DicomPreservedElement, DicomReadMetadata, DicomSegmentInfo,
+    DicomSegmentation, DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata, DicomTag,
+    DicomValue, DicomWriter, EchoResponse, FindLevel, FindQuery, FindResult, MoveDestination,
+    MoveResponse, MultiFrameInfo, MultiFrameSpatialMetadata, MultiFrameWriterConfig,
+    NetworkingError, PatientPosition, PixelSignedness, RtBeamInfo, RtContour, RtDoseGrid,
+    RtDoseSummationType, RtDoseType, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtRoiInterpretedType,
+    RtStructureSet, ScannedDicomSeries, ScpConfig, SegEncoding, SegmentAlgorithmType,
+    SegmentationType, StoreResponse, StoreScp, StoreScpHandle, StoredInstance, TagAction,
+    TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
 pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
 pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
@@ -145,5 +148,254 @@ impl ImageFormat {
             "analyze" => Some(Self::Analyze),
             _ => None,
         }
+    }
+}
+
+// ── Atlas-native image dispatch ───────────────────────────────────────────────
+
+/// Atlas-native CPU backend used by consumer-level image I/O.
+///
+/// `SequentialBackend` keeps file I/O deterministic and avoids pulling a device
+/// runtime into CLI or Python boundary code.
+pub type NativeBackend = coeus_core::SequentialBackend;
+
+/// Atlas-native 3-D f32 image used by consumer-level image I/O.
+pub type NativeImage = ritk_image::native::Image<f32, NativeBackend, 3>;
+
+/// True when `fmt` has an Atlas-native reader in the unified `ritk-io` contract.
+#[must_use]
+pub fn is_native_read_capable(fmt: ImageFormat) -> bool {
+    matches!(
+        fmt,
+        ImageFormat::NIfTI
+            | ImageFormat::MetaImage
+            | ImageFormat::Nrrd
+            | ImageFormat::Png
+            | ImageFormat::Dicom
+            | ImageFormat::Mgh
+            | ImageFormat::Tiff
+            | ImageFormat::Jpeg
+            | ImageFormat::Analyze
+    )
+}
+
+/// True when `fmt` has an Atlas-native writer in the unified `ritk-io` contract.
+///
+/// PNG has no image writer, DICOM writes still target the legacy series writer,
+/// and VTK image I/O has not yet migrated to the native substrate.
+#[must_use]
+pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
+    matches!(
+        fmt,
+        ImageFormat::NIfTI
+            | ImageFormat::MetaImage
+            | ImageFormat::Nrrd
+            | ImageFormat::Mgh
+            | ImageFormat::Tiff
+            | ImageFormat::Jpeg
+            | ImageFormat::Analyze
+    )
+}
+
+/// Read a 3-D f32 image through the Atlas-native reader contract.
+///
+/// DICOM directories are accepted before extension inference because a series
+/// directory has no image extension.
+///
+/// # Errors
+///
+/// Returns an error when the path has no supported native reader or the selected
+/// format reader fails.
+pub fn read_image_native<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<NativeImage> {
+    let path = path.as_ref();
+    if path.is_dir() {
+        return crate::ImageReader::read(
+            &format::dicom::native::DicomReader::new(NativeBackend::default()),
+            path,
+        )
+        .map_err(anyhow::Error::from);
+    }
+
+    let fmt = ImageFormat::from_path(path).ok_or_else(|| {
+        anyhow::anyhow!(
+            "cannot infer native image input format from path: {}",
+            path.display()
+        )
+    })?;
+
+    match fmt {
+        ImageFormat::NIfTI => crate::ImageReader::read(
+            &format::nifti::native::NiftiReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::MetaImage => crate::ImageReader::read(
+            &format::metaimage::native::MetaImageReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::Nrrd => crate::ImageReader::read(
+            &format::nrrd::native::NrrdReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::Png => crate::ImageReader::read(
+            &format::png::native::PngReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::Dicom => crate::ImageReader::read(
+            &format::dicom::native::DicomReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::Mgh => crate::ImageReader::read(
+            &format::mgh::native::MghReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::Tiff => crate::ImageReader::read(
+            &format::tiff::native::TiffReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::Jpeg => crate::ImageReader::read(
+            &format::jpeg::native::JpegReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::Analyze => crate::ImageReader::read(
+            &format::analyze::native::AnalyzeReader::new(NativeBackend::default()),
+            path,
+        ),
+        ImageFormat::Vtk => Err(std::io::Error::other(
+            "VTK has no Atlas-native image reader",
+        )),
+    }
+    .map_err(anyhow::Error::from)
+}
+
+/// Write a 3-D f32 image through the Atlas-native writer contract.
+///
+/// # Errors
+///
+/// Returns an error when the path has no supported native writer or the selected
+/// format writer fails.
+pub fn write_image_native<P: AsRef<std::path::Path>>(
+    path: P,
+    image: &NativeImage,
+) -> anyhow::Result<()> {
+    let path = path.as_ref();
+    let fmt = ImageFormat::from_path(path).ok_or_else(|| {
+        anyhow::anyhow!(
+            "cannot infer native image output format from path: {}",
+            path.display()
+        )
+    })?;
+
+    match fmt {
+        ImageFormat::NIfTI => crate::ImageWriter::write(
+            &format::nifti::native::NiftiWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
+        ImageFormat::MetaImage => crate::ImageWriter::write(
+            &format::metaimage::native::MetaImageWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
+        ImageFormat::Nrrd => crate::ImageWriter::write(
+            &format::nrrd::native::NrrdWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
+        ImageFormat::Mgh => crate::ImageWriter::write(
+            &format::mgh::native::MghWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
+        ImageFormat::Tiff => crate::ImageWriter::write(
+            &format::tiff::native::TiffWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
+        ImageFormat::Jpeg => crate::ImageWriter::write(
+            &format::jpeg::native::JpegWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
+        ImageFormat::Analyze => crate::ImageWriter::write(
+            &format::analyze::native::AnalyzeWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
+        ImageFormat::Png => Err(std::io::Error::other(
+            "PNG image writing is not implemented on the native substrate",
+        )),
+        ImageFormat::Dicom => Err(std::io::Error::other(
+            "DICOM image writing is not implemented on the native substrate",
+        )),
+        ImageFormat::Vtk => Err(std::io::Error::other(
+            "VTK has no Atlas-native image writer",
+        )),
+    }
+    .map_err(anyhow::Error::from)
+}
+
+#[cfg(test)]
+mod native_dispatch_tests {
+    use super::*;
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    fn native_volume() -> NativeImage {
+        let dims = [2usize, 2, 3];
+        let values: Vec<f32> = (0..12).map(|i| i as f32 * 0.5 - 1.0).collect();
+        NativeImage::from_flat(
+            values,
+            dims,
+            Point::new([1.0, 2.0, 3.0]),
+            Spacing::new([0.5, 0.75, 1.25]),
+            Direction::identity(),
+        )
+        .expect("test image")
+    }
+
+    #[test]
+    fn native_capability_matrix_matches_dispatch() {
+        for fmt in [
+            ImageFormat::NIfTI,
+            ImageFormat::MetaImage,
+            ImageFormat::Nrrd,
+            ImageFormat::Mgh,
+            ImageFormat::Tiff,
+            ImageFormat::Jpeg,
+            ImageFormat::Analyze,
+        ] {
+            assert!(is_native_read_capable(fmt), "{fmt:?} must read natively");
+            assert!(is_native_write_capable(fmt), "{fmt:?} must write natively");
+        }
+        assert!(is_native_read_capable(ImageFormat::Png));
+        assert!(is_native_read_capable(ImageFormat::Dicom));
+        assert!(!is_native_write_capable(ImageFormat::Png));
+        assert!(!is_native_write_capable(ImageFormat::Dicom));
+
+        assert!(!is_native_read_capable(ImageFormat::Vtk));
+        assert!(!is_native_write_capable(ImageFormat::Vtk));
+    }
+
+    #[test]
+    fn native_dispatch_round_trips_nrrd_values() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("native.nrrd");
+        let image = native_volume();
+
+        write_image_native(&path, &image).expect("native write");
+        let loaded = read_image_native(&path).expect("native read");
+
+        assert_eq!(loaded.shape(), image.shape());
+        assert_eq!(loaded.data_slice().unwrap(), image.data_slice().unwrap());
+        assert_eq!(loaded.origin(), image.origin());
+        assert_eq!(loaded.spacing(), image.spacing());
+    }
+
+    #[test]
+    fn native_dispatch_rejects_vtk_without_burn_fallback() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("native.vtk");
+        let err = write_image_native(&path, &native_volume()).unwrap_err();
+
+        assert_eq!(err.to_string(), "VTK has no Atlas-native image writer");
     }
 }

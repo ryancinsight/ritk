@@ -1,7 +1,7 @@
 //! Multi-frame DICOM writer: serializes a 3-D image as a single DICOM Part 10 file.
 
 use anyhow::{bail, Context, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;

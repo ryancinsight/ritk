@@ -24,7 +24,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 
 #[test]
 fn test_scan_metadata_round_trip_spatial_fields() {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
@@ -36,7 +36,7 @@ fn test_scan_metadata_round_trip_spatial_fields() {
     // Image: 3 slices, 6 rows, 8 cols.
     let (depth, rows, cols) = (3usize, 6usize, 8usize);
     let data = vec![500.0f32; depth * rows * cols];
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         TensorData::new(data, Shape::new([depth, rows, cols])),
         &device,
@@ -226,7 +226,7 @@ fn test_scan_metadata_round_trip_spatial_fields() {
 
 #[test]
 fn test_scan_metadata_round_trip_rescale_params() {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
@@ -244,7 +244,7 @@ fn test_scan_metadata_round_trip_rescale_params() {
     }
     let original_first = data[0];
 
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         TensorData::new(data, Shape::new([depth, rows, cols])),
         &device,
@@ -326,7 +326,7 @@ fn test_scan_metadata_round_trip_rescale_params() {
 
 #[test]
 fn test_scan_metadata_round_trip_transfer_syntax() {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
@@ -337,7 +337,7 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
 
     let (depth, rows, cols) = (2usize, 4usize, 4usize);
     let data = vec![1000.0f32; depth * rows * cols];
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         TensorData::new(data, Shape::new([depth, rows, cols])),
         &device,

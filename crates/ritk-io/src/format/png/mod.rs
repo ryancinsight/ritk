@@ -4,7 +4,7 @@ pub use ritk_png::{
 };
 
 use crate::domain::ImageReader;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;
 
@@ -26,9 +26,9 @@ impl<B: Backend> ImageReader<Image<B, 3>> for PngSeriesReader<B> {
 mod tests {
     use super::{PngReader, PngSeriesReader};
     use crate::domain::ImageReader;
-    use ritk_core::image::Image;
-    use burn::tensor::backend::Backend;
+    use ritk_image::tensor::backend::Backend;
     use burn_ndarray::NdArray;
+    use ritk_core::image::Image;
     use std::path::Path;
     use tempfile::tempdir;
 

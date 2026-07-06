@@ -7,7 +7,7 @@ use super::utils::{
 };
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use anyhow::{bail, Context, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;

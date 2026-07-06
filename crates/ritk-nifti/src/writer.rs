@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use ritk_core::image::Image;

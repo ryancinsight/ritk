@@ -113,7 +113,7 @@ fn test_load_series_compressed_ts_errors() {
             "scan must record compressed TS in slice metadata"
         );
 
-        let device = <B as burn::tensor::backend::Backend>::Device::default();
+        let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
         let load_result =
             load_dicom_series_with_metadata::<B, _>(&series_dir, &device).map(|(img, _meta)| img);
         // JPEG-LS lossless routes through the RITK native codec boundary. This synthetic
@@ -255,7 +255,7 @@ fn test_load_series_jpeg_baseline_codec_round_trip() {
         .write_to_file(series_dir.join("slice0001.dcm"))
         .expect("write");
 
-    let device = <B as burn::tensor::backend::Backend>::Device::default();
+    let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
     let (img, _meta) = load_dicom_series_with_metadata::<B, _>(&series_dir, &device)
         .expect("JPEG Baseline series load must succeed via codec path");
 
@@ -292,7 +292,7 @@ fn test_load_series_big_endian_ts_errors() {
     // pixel decode since decode_pixel_bytes uses little-endian byte order.
     // Uses write_stub_dicom to emit a file and then verifies load_dicom_series errors.
     type B = burn_ndarray::NdArray<f32>;
-    let device = <B as burn::tensor::backend::Backend>::Device::default();
+    let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
     let dir = tempfile::TempDir::new().unwrap();
     // Write a stub DICOM file and then patch its meta TS to BigEndian.
     // Since write_stub_dicom writes ExplicitVrLE, we manually construct a minimal

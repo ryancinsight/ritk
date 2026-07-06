@@ -80,6 +80,8 @@ enum Commands {
 
     /// Report the current Burn dependency surface for the future Coeus migration.
     BurnMigrationAudit,
+    /// Refresh the Burn migration allowlist baseline file.
+    RefreshBurnAllowlist,
 }
 
 fn main() -> Result<()> {
@@ -117,6 +119,9 @@ fn main() -> Result<()> {
         }
         Commands::BurnMigrationAudit => {
             migration_audit::print_burn_migration_audit(Path::new("."))?;
+        }
+        Commands::RefreshBurnAllowlist => {
+            migration_audit::refresh_burn_allowlist(Path::new("."))?;
         }
     }
 

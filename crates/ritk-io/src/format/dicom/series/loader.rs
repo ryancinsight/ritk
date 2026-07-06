@@ -1,8 +1,9 @@
 //! Series loading — `load_dicom_series`, `read_dicom_series`, and the `DicomReader` facade.
 
 use anyhow::{bail, Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_core::ComputeBackend;
 use dicom::dictionary_std::tags;
 use dicom::object::{FileDicomObject, InMemDicomObject};
 use ritk_core::image::Image;
@@ -10,6 +11,7 @@ use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness,
 };
+use ritk_image::native::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::path::{Path, PathBuf};
 
@@ -25,6 +27,47 @@ pub fn load_dicom_series<B: Backend>(
     series: &DicomSeriesInfo,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
+    let decoded = decode_series(series)?;
+    let data = TensorData::new(decoded.voxels, Shape::new(decoded.shape));
+    let tensor = Tensor::<B, 3>::from_data(data, device);
+
+    Ok(Image::new(
+        tensor,
+        decoded.origin,
+        decoded.spacing,
+        decoded.direction,
+    ))
+}
+
+/// Load a specific DICOM series into a native Coeus-backed 3D Image.
+///
+/// Performs the same spatial consistency checks and pixel decode as
+/// [`load_dicom_series`], but constructs the image on the Atlas native tensor
+/// substrate instead of a Burn tensor.
+pub fn load_native_dicom_series<B: ComputeBackend>(
+    series: &DicomSeriesInfo,
+    backend: &B,
+) -> Result<NativeImage<f32, B, 3>> {
+    let decoded = decode_series(series)?;
+    NativeImage::from_flat_on(
+        decoded.voxels,
+        decoded.shape,
+        decoded.origin,
+        decoded.spacing,
+        decoded.direction,
+        backend,
+    )
+}
+
+struct DecodedDicomSeries {
+    voxels: Vec<f32>,
+    shape: [usize; 3],
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    direction: Direction<3>,
+}
+
+fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
     if series.file_paths.is_empty() {
         bail!("Series {} has no files", series.series_instance_uid);
     }
@@ -207,12 +250,13 @@ pub fn load_dicom_series<B: Backend>(
         flattened.extend(slice);
     }
 
-    // 7. Create Tensor
-    let shape = Shape::new([depth, rows as usize, cols as usize]);
-    let data = TensorData::new(flattened, shape);
-    let tensor = Tensor::<B, 3>::from_data(data, device);
-
-    Ok(Image::new(tensor, origin, spacing, direction))
+    Ok(DecodedDicomSeries {
+        voxels: flattened,
+        shape: [depth, rows as usize, cols as usize],
+        origin,
+        spacing,
+        direction,
+    })
 }
 
 /// Convenience function to read a single series from a directory.
@@ -235,6 +279,29 @@ pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
     }
 
     load_dicom_series(&series_list[0], device)
+}
+
+/// Convenience function to read a single series into a native Coeus-backed image.
+///
+/// If multiple series exist, it errors out to avoid ambiguity.
+pub fn read_native_dicom_series<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+) -> Result<NativeImage<f32, B, 3>> {
+    let path_ref = path.as_ref().to_path_buf();
+
+    let series_list = scan_dicom_directory(&path_ref)?;
+    if series_list.is_empty() {
+        bail!("No DICOM series found in {:?}", path_ref);
+    }
+    if series_list.len() > 1 {
+        bail!(
+            "Multiple DICOM series found in {:?}. Use scan_dicom_directory to select one.",
+            path_ref
+        );
+    }
+
+    load_native_dicom_series(&series_list[0], backend)
 }
 
 // --- Helpers ---
@@ -279,5 +346,102 @@ impl<B: Backend> DicomReader<B> {
 impl<B: Backend> ImageReader<Image<B, 3>> for DicomReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
         read_dicom_series(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{load_dicom_series, load_native_dicom_series};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_core::SequentialBackend;
+    use ritk_core::image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
+    use std::collections::HashMap;
+
+    #[test]
+    fn native_series_loader_matches_legacy_loader() {
+        type B = burn_ndarray::NdArray<f32>;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let series_path = dir.path().join("series_native_parity");
+
+        let (depth, rows, cols) = (3usize, 3usize, 4usize);
+        let values: Vec<f32> = (0..(depth * rows * cols))
+            .map(|i| i as f32 * 0.25 + 2.0)
+            .collect();
+        let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(values, Shape::new([depth, rows, cols])),
+            &device,
+        );
+        let image = Image::<B, 3>::new(
+            tensor,
+            Point::new([1.0, 2.0, 3.0]),
+            Spacing::new([1.5, 0.75, 0.5]),
+            Direction::identity(),
+        );
+
+        let meta = crate::format::dicom::DicomReadMetadata {
+            series_instance_uid: Some("2.25.71001".try_into().unwrap()),
+            study_instance_uid: Some("2.25.71002".try_into().unwrap()),
+            frame_of_reference_uid: None,
+            series_description: None,
+            modality: Some("CT".try_into().unwrap()),
+            patient_id: None,
+            patient_name: None,
+            study_date: None,
+            series_date: None,
+            series_time: None,
+            dimensions: [rows, cols, depth],
+            spacing: [1.5, 0.75, 0.5],
+            origin: [1.0, 2.0, 3.0],
+            direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+            bits_allocated: Some(16),
+            bits_stored: Some(16),
+            high_bit: Some(15),
+            photometric_interpretation: Some("MONOCHROME2".try_into().unwrap()),
+            slices: Vec::new(),
+            private_tags: HashMap::new(),
+            preservation: crate::format::dicom::DicomPreservationSet::new(),
+            patient_weight_kg: None,
+            decay_correction: None,
+            radionuclide_total_dose_bq: None,
+            radiopharmaceutical_start_time: None,
+            radionuclide_half_life_s: None,
+        };
+        crate::format::dicom::writer::write_dicom_series_with_metadata(
+            &series_path,
+            &image,
+            Some(&meta),
+        )
+        .expect("write_dicom_series_with_metadata");
+        let series = crate::format::dicom::scan_dicom_directory(&series_path)
+            .expect("scan series")
+            .pop()
+            .expect("one series");
+
+        let legacy = load_dicom_series::<B>(&series, &device).expect("legacy load");
+        let native =
+            load_native_dicom_series(&series, &SequentialBackend).expect("native series load");
+
+        assert_eq!(native.shape(), legacy.shape());
+        legacy.with_data_slice(|legacy_values: &[f32]| {
+            assert_eq!(
+                native.data_slice().expect("native contiguous data"),
+                legacy_values,
+                "native series facade must use the same decoded voxels"
+            );
+        });
+        assert_eq!(native.origin().to_array(), legacy.origin().to_array());
+        assert_eq!(native.spacing().to_array(), legacy.spacing().to_array());
+        for row in 0..3 {
+            for col in 0..3 {
+                assert_eq!(
+                    native.direction()[(row, col)],
+                    legacy.direction()[(row, col)],
+                    "direction[{row},{col}]"
+                );
+            }
+        }
     }
 }

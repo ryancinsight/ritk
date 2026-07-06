@@ -1,5 +1,5 @@
 use super::*;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use burn_ndarray::NdArray;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, VR};

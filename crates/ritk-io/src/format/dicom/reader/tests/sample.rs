@@ -22,7 +22,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
     println!("START test_scan_skull_ct_folder_with_dicomdir_loads_series");
-    let device: <burn_ndarray::NdArray<f32> as burn::tensor::backend::Backend>::Device =
+    let device: <burn_ndarray::NdArray<f32> as ritk_image::tensor::backend::Backend>::Device =
         Default::default();
     let series_path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
@@ -60,7 +60,7 @@ fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
 
 #[test]
 fn test_scan_skull_ct_dicomdir_and_folder_agree_on_series() {
-    let device: <burn_ndarray::NdArray<f32> as burn::tensor::backend::Backend>::Device =
+    let device: <burn_ndarray::NdArray<f32> as ritk_image::tensor::backend::Backend>::Device =
         Default::default();
     let series_path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");

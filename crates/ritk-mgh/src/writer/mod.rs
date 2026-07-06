@@ -7,7 +7,7 @@ use crate::binary::{write_f32_be, write_i16_be, write_i32_be};
 use crate::spatial::ras_center_from_geometry;
 use crate::{is_gzip_path, MRI_FLOAT, PADDING_LEN, VERSION};
 use anyhow::{anyhow, Context, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use ritk_image::Image;

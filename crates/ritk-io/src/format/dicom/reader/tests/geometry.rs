@@ -200,7 +200,7 @@ fn test_dot_product() {
 
 #[test]
 fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
@@ -211,7 +211,7 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
 
     let (depth, rows, cols) = (3usize, 2usize, 2usize);
     let data = vec![500.0f32; depth * rows * cols];
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         TensorData::new(data, Shape::new([depth, rows, cols])),
         &device,

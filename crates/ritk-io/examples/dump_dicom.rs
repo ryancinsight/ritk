@@ -1,6 +1,6 @@
 use dicom::dictionary_std::tags;
 use dicom::object::open_file;
-use dicom::pixeldata::PixelDecoder;
+use dicom_pixeldata::PixelDecoder;
 use ritk_io::read_dicom_seg;
 use std::env;
 

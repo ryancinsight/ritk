@@ -23,7 +23,7 @@ use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;
 
@@ -31,7 +31,7 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
     let dir = tmp.path().join("priv_rt");
 
     // Build a 1-slice 4×4 image.
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let td = TensorData::new(vec![42.0_f32; 4 * 4], Shape::new([1_usize, 4, 4]));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     let image = Image::new(

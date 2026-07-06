@@ -368,9 +368,9 @@ fn test_load_multiframe_spacing_from_slice_thickness() {
 
     // 3 frames of 4×4 pixels, spacing_z = 2.5 mm
     let data: Vec<f32> = (0..3 * 4 * 4).map(|i| i as f32).collect();
-    let device = <NdArray as burn::tensor::backend::Backend>::Device::default();
-    let tensor = burn::tensor::Tensor::<NdArray, 3>::from_data(
-        burn::tensor::TensorData::new(data, burn::tensor::Shape::new([3, 4, 4])),
+    let device = <NdArray as ritk_image::tensor::backend::Backend>::Device::default();
+    let tensor = ritk_image::tensor::Tensor::<NdArray, 3>::from_data(
+        ritk_image::tensor::TensorData::new(data, ritk_image::tensor::Shape::new([3, 4, 4])),
         &device,
     );
     let image = Image::new(

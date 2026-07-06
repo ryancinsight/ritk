@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use image::{GrayImage, Luma};
 use ritk_core::image::Image;
 use std::marker::PhantomData;

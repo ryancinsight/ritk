@@ -40,7 +40,7 @@ pub mod native {
 pub use reader::{read_metaimage, MetaImageReader};
 pub use writer::{write_metaimage, write_metaimage_with_data, MetaImageWriter};
 
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;
 

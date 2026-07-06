@@ -4,7 +4,7 @@ use crate::test_support::{
 };
 use crate::{HEADER_SIZE, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR};
 use anyhow::Result;
-use burn::tensor::backend::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 

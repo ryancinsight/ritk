@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::{Path, PathBuf};
@@ -233,7 +233,7 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 #[cfg(test)]
 mod tests {
     use super::{natural_cmp, read_png_series, read_png_to_image};
-    use burn::tensor::backend::Backend;
+    use ritk_image::tensor::backend::Backend;
     use burn_ndarray::NdArray;
     use std::cmp::Ordering;
     use std::path::Path;

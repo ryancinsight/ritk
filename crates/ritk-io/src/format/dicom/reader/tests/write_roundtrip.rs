@@ -6,7 +6,8 @@ use super::super::geometry::{
     analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
+    load_dicom_series_with_metadata, load_from_series, load_native_dicom_series_with_metadata,
+    read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
@@ -23,7 +24,7 @@ use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_write_series_load_series_intensity_roundtrip() {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     type B = burn_ndarray::NdArray<f32>;
@@ -35,7 +36,7 @@ fn test_write_series_load_series_intensity_roundtrip() {
     // Intensities 0..=63, row-major order.
     let (depth, rows, cols) = (4usize, 4usize, 4usize);
     let original_data: Vec<f32> = (0..(depth * rows * cols)).map(|i| i as f32).collect();
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         TensorData::new(original_data.clone(), Shape::new([depth, rows, cols])),
         &device,
@@ -83,8 +84,68 @@ fn test_write_series_load_series_intensity_roundtrip() {
 }
 
 #[test]
+fn native_dicom_loader_matches_legacy_loader() {
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_core::SequentialBackend;
+    type B = burn_ndarray::NdArray<f32>;
+
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let series_path = tmp.path().join("native_dicom_parity");
+
+    let (depth, rows, cols) = (3usize, 4usize, 5usize);
+    let original_data: Vec<f32> = (0..(depth * rows * cols))
+        .map(|i| (i as f32 * 0.5) - 7.0)
+        .collect();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(original_data, Shape::new([depth, rows, cols])),
+        &device,
+    );
+    let image = Image::<B, 3>::new(
+        tensor,
+        Point::new([3.0, -2.0, 11.0]),
+        Spacing::new([1.25, 0.8, 0.6]),
+        Direction::identity(),
+    );
+
+    crate::format::dicom::writer::write_dicom_series(&series_path, &image)
+        .expect("write_dicom_series must succeed");
+
+    let (legacy, legacy_meta) =
+        load_dicom_series_with_metadata::<B, _>(&series_path, &device).expect("legacy load");
+    let (native, native_meta) =
+        load_native_dicom_series_with_metadata(&series_path, &SequentialBackend)
+            .expect("native load");
+
+    assert_eq!(native.shape(), legacy.shape());
+    legacy.with_data_slice(|legacy_values: &[f32]| {
+        assert_eq!(
+            native.data_slice().expect("native data must be contiguous"),
+            legacy_values,
+            "native DICOM loader must reuse the same decoded voxel contract"
+        );
+    });
+
+    assert_eq!(native_meta.dimensions, legacy_meta.dimensions);
+    assert_eq!(native_meta.spacing, legacy_meta.spacing);
+    assert_eq!(native_meta.origin, legacy_meta.origin);
+    assert_eq!(native_meta.direction, legacy_meta.direction);
+    assert_eq!(native.spacing().to_array(), legacy.spacing().to_array());
+    assert_eq!(native.origin().to_array(), legacy.origin().to_array());
+    for row in 0..3 {
+        for col in 0..3 {
+            assert_eq!(
+                native.direction()[(row, col)],
+                legacy.direction()[(row, col)],
+                "direction[{row},{col}]"
+            );
+        }
+    }
+}
+
+#[test]
 fn test_write_metadata_series_load_series_intensity_roundtrip() {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
@@ -102,7 +163,7 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
             (slice_idx * 16 + intra_idx) as f32
         })
         .collect();
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         TensorData::new(original_data.clone(), Shape::new([depth, rows, cols])),
         &device,

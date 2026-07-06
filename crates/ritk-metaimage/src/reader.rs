@@ -1,7 +1,7 @@
 use crate::spatial::metadata_from_file_transform;
 use anyhow::{anyhow, Context, Result};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
 use ritk_core::image::Image;
 use ritk_spatial::Point;
