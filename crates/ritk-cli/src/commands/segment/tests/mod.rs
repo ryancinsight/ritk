@@ -1,9 +1,9 @@
 pub(crate) use super::{count_foreground, parse_seed, Backend};
 pub use super::{run, SegmentArgs, SegmentMethod};
 
-pub use burn::tensor::backend::Backend as BurnBackend;
-pub use burn::tensor::{Shape, Tensor, TensorData};
 pub use ritk_core::image::Image;
+pub use ritk_image::tensor::Backend as BurnBackend;
+pub use ritk_image::tensor::{Shape, Tensor, TensorData};
 pub use ritk_segmentation::{
     multi_otsu_threshold, otsu_threshold, KapurThreshold, LiThreshold, TriangleThreshold,
     YenThreshold,

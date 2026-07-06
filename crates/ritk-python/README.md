@@ -58,15 +58,24 @@ py -m pytest crates/ritk-python/tests/ -v
 
 The extension module (`_ritk.cdylib`) is compiled from `src/lib.rs` and registered as
 submodules `filter`, `registration`, `segmentation`, `statistics`, and `io`.  All computation
-delegates to `ritk-core` (zero business logic in the binding layer).  The `PyImage` wrapper
-holds an `Arc<Image<NdArray<f32>, 3>>` and provides `.to_numpy()` for zero-copy-where-possible
-extraction.
+delegates to Rust crates (zero business logic in the binding layer).  The image I/O boundary
+uses `ritk-io`'s Atlas-native readers/writers and converts only at the `PyImage` boundary while
+the processing surface remains Burn-backed.  The `PyImage` wrapper holds an
+`Arc<Image<NdArray<f32>, 3>>` and provides `.to_numpy()` for zero-copy-where-possible extraction.
 
 ### DICOM I/O
 
-`ritk.io.read_image(path)` dispatches to `ritk_io::read_dicom_series` when `path` is a
-directory, enabling transparent DICOM series loading.  Pass the DICOM series directory
-directly; the reader selects the first series UID via `scan_dicom_directory`.
+`ritk.io.read_image(path)` dispatches to `ritk_io::read_image_native`, which routes DICOM
+directories through the native DICOM series reader before extension inference.  Pass the DICOM
+series directory directly; the reader selects the first series UID via `scan_dicom_directory`.
+
+### Native image I/O coverage
+
+Python image reads use the Atlas-native path for NIfTI, MetaImage, NRRD, PNG, DICOM
+directories, MGH/MGZ, TIFF, JPEG, and Analyze.  Python image writes use the Atlas-native path
+for NIfTI, MetaImage, NRRD, MGH/MGZ, TIFF, JPEG, and Analyze.  PNG, DICOM, and VTK image writes
+are rejected until native writers exist; VTK image reads are rejected until the VTK image reader
+migrates to the native substrate.
 
 ### Extension Points
 

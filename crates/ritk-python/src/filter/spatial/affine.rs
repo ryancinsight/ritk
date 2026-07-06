@@ -1,11 +1,11 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, Backend, PyImage};
-use burn::tensor::backend::Backend as BurnBackend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use pyo3::prelude::*;
 use ritk_filter::ResampleImageFilter;
 use ritk_interpolation::LinearInterpolator;
 use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
+use ritk_image::tensor::backend::Backend as BurnBackend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_transform::affine::affine::AffineTransform;
 use ritk_transform::affine::translation::TranslationTransform;
 

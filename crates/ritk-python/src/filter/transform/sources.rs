@@ -1,5 +1,4 @@
 use crate::image::{into_py_image, Backend, PyImage};
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
@@ -9,6 +8,7 @@ use ritk_filter::{
     grid_image_source as core_grid_image_source,
 };
 use ritk_image::Image;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 /// Generate a Gaussian blob image (`itk::GaussianImageSource` / `sitk.GaussianSource`).
 ///

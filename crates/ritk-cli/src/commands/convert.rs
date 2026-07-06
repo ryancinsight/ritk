@@ -152,8 +152,8 @@ pub fn run(args: ConvertArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::backend::Backend as BurnBackend;
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::Backend as BurnBackend;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
@@ -356,8 +356,7 @@ mod tests {
 
     /// `is_native_read_capable`/`is_native_write_capable` must agree exactly
     /// with the format matrix documented in ADR 0003: 7 formats read+write
-    /// natively, PNG reads only (no native writer, matching the Burn path),
-    /// and DICOM/VTK have neither. A drift here would silently misroute a
+    /// natively, PNG and DICOM read only, and VTK has neither. A drift here would silently misroute a
     /// command onto the wrong substrate without any other test catching it.
     #[test]
     fn test_native_capability_predicates_match_adr_0003_matrix() {
@@ -377,16 +376,32 @@ mod tests {
             assert!(is_native_write_capable(fmt), "{fmt:?} must write natively");
         }
 
-        assert!(is_native_read_capable(ImageFormat::Png), "PNG reads natively");
+        assert!(
+            is_native_read_capable(ImageFormat::Png),
+            "PNG reads natively"
+        );
         assert!(
             !is_native_write_capable(ImageFormat::Png),
             "PNG has no native writer"
         );
 
-        for fmt in [ImageFormat::Dicom, ImageFormat::Vtk] {
-            assert!(!is_native_read_capable(fmt), "{fmt:?} has no native reader yet");
-            assert!(!is_native_write_capable(fmt), "{fmt:?} has no native writer yet");
-        }
+        assert!(
+            is_native_read_capable(ImageFormat::Dicom),
+            "DICOM reads natively"
+        );
+        assert!(
+            !is_native_write_capable(ImageFormat::Dicom),
+            "DICOM has no native writer yet"
+        );
+
+        assert!(
+            !is_native_read_capable(ImageFormat::Vtk),
+            "VTK has no native reader yet"
+        );
+        assert!(
+            !is_native_write_capable(ImageFormat::Vtk),
+            "VTK has no native writer yet"
+        );
     }
 
     /// Differential oracle at the CLI dispatch boundary: converting the same

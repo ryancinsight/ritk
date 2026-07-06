@@ -1,10 +1,10 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::Backend;
 use crate::image::{into_py_image, PyImage};
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_image::Image;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components,

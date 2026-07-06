@@ -12,12 +12,12 @@ mod cma_es;
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};
-use burn::backend::Autodiff;
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use pyo3::prelude::*;
 use ritk_core::image::Image;
 use ritk_filter::GaussianSigma;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_registration::classical::global_mi::{
     ConvergenceStatus, GlobalMiConfig, GlobalMiRegistration, GlobalMiTransformType,
 };

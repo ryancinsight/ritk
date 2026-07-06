@@ -26,7 +26,6 @@ pub use frequency::{
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, Backend, PyImage};
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_filter::{
@@ -34,6 +33,7 @@ use ritk_filter::{
     RealFftShiftFilter, RealToHalfHermitianForwardFftFilter,
 };
 use ritk_image::Image;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::sync::Arc;
 
 /// Deinterleave a complex image `[D, H, 2W]` (real,imag pairs along X) into a

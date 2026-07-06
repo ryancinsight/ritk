@@ -168,9 +168,9 @@ pub(crate) fn default_args(input: PathBuf, output: PathBuf, kind: FilterKind) ->
 /// Build a 5×5×5 test image whose voxel values are `0, 1, 2, …, 124`.
 #[cfg(test)]
 pub(crate) fn make_test_image() -> Image<Backend, 3> {
-    use burn::tensor::backend::Backend as BurnBackend;
-    use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
+    use ritk_image::tensor::Backend as BurnBackend;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
 
     let device: <Backend as BurnBackend>::Device = Default::default();

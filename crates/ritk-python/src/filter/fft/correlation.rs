@@ -2,7 +2,6 @@
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, vec_to_image_like, PyImage};
-use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_core::image::Image;
@@ -10,6 +9,7 @@ use ritk_filter::{
     normalized_correlation as core_normalized_correlation, FftNormalizedCorrelation3DFilter,
     FftNormalizedCorrelationFilter,
 };
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::sync::Arc;
 

@@ -215,9 +215,9 @@ pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::commands::filter::{default_args, make_test_image, FilterKind};
-    use burn::tensor::backend::Backend as BurnBackend;
-    use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
+    use ritk_image::tensor::Backend as BurnBackend;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 

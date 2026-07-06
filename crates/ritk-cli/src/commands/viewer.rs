@@ -9,18 +9,17 @@
 //! core types without changing the import path or study-loading logic.
 
 use anyhow::{Context, Result};
-use burn::tensor::backend::Backend as BurnBackend;
 use clap::Parser;
 use ritk_image::Image;
 use ritk_io::{
-    load_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
-    DicomSliceMetadata,
+    load_native_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata,
+    DicomSeriesInfo, DicomSliceMetadata,
 };
 use ritk_snap::{GeometrySummary, Study, ViewerBackend, ViewerCore, ViewerEvent, ViewerState};
 use std::path::PathBuf;
 
 /// CPU backend for the CLI viewer — inherits the type defined in `commands/mod.rs`.
-use super::Backend;
+use super::{native_image_to_burn, Backend, NativeBackend};
 
 /// Inspect a DICOM study from the command line.
 #[derive(Debug, Clone, Parser)]
@@ -58,7 +57,7 @@ impl ViewerBackend for HeadlessViewerBackend {
         Ok(())
     }
 
-    fn load_study<B: burn::tensor::backend::Backend, const D: usize>(
+    fn load_study<B: ritk_image::tensor::Backend, const D: usize>(
         &mut self,
         _study: &Study<B, D>,
         state: &ViewerState,
@@ -84,7 +83,6 @@ impl ViewerBackend for HeadlessViewerBackend {
 
 /// Run the viewer command.
 pub fn run(args: ViewerArgs) -> Result<()> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
     let path = args.path.as_path();
 
     let series_list = scan_dicom_directory(path)
@@ -93,8 +91,7 @@ pub fn run(args: ViewerArgs) -> Result<()> {
         .iter()
         .max_by_key(|series| series.file_paths.len())
         .with_context(|| format!("no DICOM series found at {}", path.display()))?;
-    let (image, metadata) = load_dicom_series_with_metadata::<Backend, _>(path, &device)
-        .with_context(|| format!("failed to load DICOM study at {}", path.display()))?;
+    let (image, metadata) = load_scalar_dicom_for_viewer(path)?;
 
     let study = Study::new(image.clone())
         .with_dicom(metadata.clone())
@@ -123,6 +120,16 @@ pub fn run(args: ViewerArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn load_scalar_dicom_for_viewer(
+    path: &std::path::Path,
+) -> Result<(Image<Backend, 3>, DicomReadMetadata)> {
+    let backend = NativeBackend::default();
+    let (image, metadata) = load_native_dicom_series_with_metadata(path, &backend)
+        .with_context(|| format!("failed to load DICOM study at {}", path.display()))?;
+
+    Ok((native_image_to_burn(image), metadata))
 }
 
 fn print_summary(path: &std::path::Path, series: &DicomSeriesInfo, image: &Image<Backend, 3>) {
@@ -245,5 +252,51 @@ mod tests {
         backend.render().expect("render");
         assert_eq!(backend.state, state);
         assert_eq!(backend.last_event, Some(event));
+    }
+
+    #[test]
+    fn test_viewer_native_dicom_loader_matches_legacy_loader() {
+        use ritk_image::tensor::Backend as BurnBackend;
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
+        use ritk_spatial::{Direction, Point, Spacing};
+
+        let dir = tempfile::tempdir().unwrap();
+        let series_path = dir.path().join("viewer_series.dicom");
+        let values = (0..8).map(|v| v as f32).collect::<Vec<_>>();
+        let shape = [2, 2, 2];
+        let origin = Point::new([0.0; 3]);
+        let spacing = Spacing::new([1.0; 3]);
+        let direction = Direction::identity();
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let tensor =
+            Tensor::<Backend, 3>::from_data(TensorData::new(values, Shape::new(shape)), &device);
+        let image = Image::new(tensor, origin, spacing, direction);
+
+        ritk_io::write_dicom_series::<Backend, _>(&series_path, &image)
+            .expect("DICOM fixture write must succeed");
+
+        let (legacy_image, legacy_metadata) =
+            ritk_io::load_dicom_series_with_metadata::<Backend, _>(&series_path, &device)
+                .expect("legacy viewer load");
+        let (viewer_image, viewer_metadata) =
+            load_scalar_dicom_for_viewer(&series_path).expect("native viewer load");
+
+        assert_eq!(viewer_image.shape(), legacy_image.shape());
+        assert_eq!(*viewer_image.origin(), *legacy_image.origin());
+        assert_eq!(*viewer_image.spacing(), *legacy_image.spacing());
+        assert_eq!(*viewer_image.direction(), *legacy_image.direction());
+        assert_eq!(
+            viewer_image.try_data_vec().unwrap(),
+            legacy_image.try_data_vec().unwrap()
+        );
+        assert_eq!(viewer_metadata.dimensions, legacy_metadata.dimensions);
+        assert_eq!(viewer_metadata.spacing, legacy_metadata.spacing);
+        assert_eq!(viewer_metadata.origin, legacy_metadata.origin);
+        assert_eq!(viewer_metadata.direction, legacy_metadata.direction);
+        assert_eq!(viewer_metadata.modality, legacy_metadata.modality);
+        assert_eq!(
+            viewer_metadata.series_instance_uid,
+            legacy_metadata.series_instance_uid
+        );
     }
 }

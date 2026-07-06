@@ -14,12 +14,12 @@ pub mod stats;
 pub mod viewer;
 
 use anyhow::{anyhow, bail, Context, Result};
-use burn::tensor::backend::Backend as BurnBackend;
 use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
+use ritk_image::tensor::Backend as BurnBackend;
 use ritk_image::Image;
-use ritk_io::{is_rgb_dicom_series, read_dicom_series, ImageFormat};
+use ritk_io::{is_rgb_dicom_series, ImageFormat};
 use ritk_io::{ImageReader, ImageWriter};
 use std::path::Path;
 
@@ -62,14 +62,6 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
         .ok_or_else(|| anyhow!("Cannot infer input format from path: {}", path.display()))?;
 
     match fmt {
-        ImageFormat::NIfTI => ritk_io::read_nifti::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read NIfTI file: {}", path.display())),
-        ImageFormat::MetaImage => ritk_io::read_metaimage::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read MetaImage file: {}", path.display())),
-        ImageFormat::Nrrd => ritk_io::read_nrrd::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read NRRD file: {}", path.display())),
-        ImageFormat::Png => ritk_io::read_png_to_image::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read PNG file: {}", path.display())),
         ImageFormat::Dicom => {
             if is_rgb_dicom_series(path).unwrap_or(false) {
                 bail!(
@@ -77,19 +69,18 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
                      Use `ritk-snap` (the graphical viewer) to load and inspect RGB DICOM volumes."
                 );
             }
-            read_dicom_series::<Backend, _>(path, &device)
-                .with_context(|| format!("Failed to read DICOM series from: {}", path.display()))
+            read_image_native(path).map(native_image_to_burn)
         }
-        ImageFormat::Mgh => ritk_io::read_mgh::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read MGH file: {}", path.display())),
-        ImageFormat::Tiff => ritk_io::read_tiff::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read TIFF file: {}", path.display())),
         ImageFormat::Vtk => ritk_io::read_vtk::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read VTK file: {}", path.display())),
-        ImageFormat::Jpeg => ritk_io::read_jpeg::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read JPEG file: {}", path.display())),
-        ImageFormat::Analyze => ritk_io::read_analyze::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read Analyze file: {}", path.display())),
+        ImageFormat::NIfTI
+        | ImageFormat::MetaImage
+        | ImageFormat::Nrrd
+        | ImageFormat::Png
+        | ImageFormat::Mgh
+        | ImageFormat::Tiff
+        | ImageFormat::Jpeg
+        | ImageFormat::Analyze => read_image_native(path).map(native_image_to_burn),
     }
 }
 
@@ -150,11 +141,9 @@ pub(crate) fn write_image_inferred(path: &Path, image: &Image<Backend, 3>) -> Re
 // ── Atlas-native I/O (ADR 0003 Phase A) ───────────────────────────────────────
 //
 // Parallel native helpers coexisting with the Burn helpers above during the
-// cutover (ADR 0003). `dicom` and `vtk` have no Atlas-native reader/writer
-// yet, so [`is_native_read_capable`]/[`is_native_write_capable`] exclude them;
-// commands route those formats through the Burn helpers instead. This
-// duplication is transitional and folds away once every format has a native
-// path and every command has migrated.
+// cutover (ADR 0003). `vtk` has no Atlas-native reader/writer yet, so commands
+// route that format through the Burn helper. DICOM now has a native reader but
+// still lacks a native writer.
 
 /// True when `fmt` has an Atlas-native reader (ADR 0003 Phase A coverage).
 pub(crate) fn is_native_read_capable(fmt: ImageFormat) -> bool {
@@ -168,6 +157,7 @@ pub(crate) fn is_native_read_capable(fmt: ImageFormat) -> bool {
             | ImageFormat::Tiff
             | ImageFormat::Jpeg
             | ImageFormat::Png
+            | ImageFormat::Dicom
     )
 }
 
@@ -218,16 +208,14 @@ pub(crate) fn read_image_native(path: &Path) -> Result<NativeImage<f32, NativeBa
             path,
         )
         .with_context(|| format!("Failed to read NRRD file (native): {}", path.display())),
-        ImageFormat::Png => ImageReader::read(
-            &ritk_io::format::png::native::PngReader::new(backend),
-            path,
-        )
-        .with_context(|| format!("Failed to read PNG file (native): {}", path.display())),
-        ImageFormat::Mgh => ImageReader::read(
-            &ritk_io::format::mgh::native::MghReader::new(backend),
-            path,
-        )
-        .with_context(|| format!("Failed to read MGH file (native): {}", path.display())),
+        ImageFormat::Png => {
+            ImageReader::read(&ritk_io::format::png::native::PngReader::new(backend), path)
+                .with_context(|| format!("Failed to read PNG file (native): {}", path.display()))
+        }
+        ImageFormat::Mgh => {
+            ImageReader::read(&ritk_io::format::mgh::native::MghReader::new(backend), path)
+                .with_context(|| format!("Failed to read MGH file (native): {}", path.display()))
+        }
         ImageFormat::Tiff => ImageReader::read(
             &ritk_io::format::tiff::native::TiffReader::new(backend),
             path,
@@ -243,11 +231,30 @@ pub(crate) fn read_image_native(path: &Path) -> Result<NativeImage<f32, NativeBa
             path,
         )
         .with_context(|| format!("Failed to read Analyze file (native): {}", path.display())),
-        ImageFormat::Dicom | ImageFormat::Vtk => Err(anyhow!(
+        ImageFormat::Dicom => ImageReader::read(
+            &ritk_io::format::dicom::native::DicomReader::new(backend),
+            path,
+        )
+        .with_context(|| format!("Failed to read DICOM series (native): {}", path.display())),
+        ImageFormat::Vtk => Err(anyhow!(
             "{:?} has no Atlas-native reader; check is_native_read_capable first",
             fmt
         )),
     }
+}
+
+/// Bridge a native image into the Burn image type required by command
+/// pipelines that have not migrated past ADR 0003 Phase A.
+pub(crate) fn native_image_to_burn(image: NativeImage<f32, NativeBackend, 3>) -> Image<Backend, 3> {
+    let backend = NativeBackend::default();
+    let shape = image.shape();
+    let origin = *image.origin();
+    let spacing = *image.spacing();
+    let direction = *image.direction();
+    let values = image.data_cow_on(&backend).into_owned();
+    let device: <Backend as BurnBackend>::Device = Default::default();
+
+    Image::from_flat_on(values, shape, origin, spacing, direction, &device)
 }
 
 /// Write `image` to `path` via the Atlas-native path, using the explicitly
@@ -275,7 +282,12 @@ pub(crate) fn write_image_native(
             path,
             image,
         )
-        .with_context(|| format!("Failed to write MetaImage file (native): {}", path.display())),
+        .with_context(|| {
+            format!(
+                "Failed to write MetaImage file (native): {}",
+                path.display()
+            )
+        }),
         ImageFormat::Nrrd => ImageWriter::write(
             &ritk_io::format::nrrd::native::NrrdWriter::new(backend),
             path,
@@ -449,8 +461,100 @@ mod tests {
     }
 
     #[test]
+    fn test_native_read_capability_tracks_dicom_cutover() {
+        assert!(
+            is_native_read_capable(ImageFormat::Dicom),
+            "DICOM reads must route through the native reader"
+        );
+        assert!(
+            !is_native_write_capable(ImageFormat::Dicom),
+            "DICOM writes remain on the legacy writer until a native writer exists"
+        );
+        assert!(
+            !is_native_read_capable(ImageFormat::Vtk),
+            "VTK has no native reader in ritk-io"
+        );
+    }
+
+    #[test]
+    fn test_native_image_to_burn_preserves_values_and_metadata() {
+        use ritk_spatial::{Direction, Point, Spacing};
+
+        let backend = NativeBackend::default();
+        let shape = [2, 2, 3];
+        let values = (0..12).map(|v| v as f32 + 0.25).collect::<Vec<_>>();
+        let origin = Point::new([1.0, 2.0, 3.0]);
+        let spacing = Spacing::new([0.5, 0.75, 1.25]);
+        let direction = Direction::identity();
+        let native = NativeImage::<f32, NativeBackend, 3>::from_flat_on(
+            values.clone(),
+            shape,
+            origin,
+            spacing,
+            direction,
+            &backend,
+        )
+        .expect("native image construction must preserve valid shape");
+
+        let burn = native_image_to_burn(native);
+
+        assert_eq!(burn.shape(), shape);
+        assert_eq!(*burn.origin(), origin);
+        assert_eq!(*burn.spacing(), spacing);
+        assert_eq!(*burn.direction(), direction);
+        assert_eq!(burn.try_data_vec().unwrap(), values);
+    }
+
+    #[test]
+    fn test_dicom_native_read_matches_legacy_reader_and_shared_helper() {
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::Image;
+        use ritk_spatial::{Direction, Point, Spacing};
+
+        let dir = tempfile::tempdir().unwrap();
+        let series_path = dir.path().join("series.dicom");
+        let values = (0..8).map(|v| v as f32).collect::<Vec<_>>();
+        let shape = [2, 2, 2];
+        let origin = Point::new([0.0; 3]);
+        let spacing = Spacing::new([1.0; 3]);
+        let direction = Direction::identity();
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let tensor = Tensor::<Backend, 3>::from_data(
+            TensorData::new(values.clone(), Shape::new(shape)),
+            &device,
+        );
+        let image = Image::new(tensor, origin, spacing, direction);
+
+        ritk_io::write_dicom_series::<Backend, _>(&series_path, &image)
+            .expect("DICOM fixture write must succeed");
+
+        let (legacy, _) =
+            ritk_io::load_dicom_series_with_metadata::<Backend, _>(&series_path, &device)
+                .expect("legacy metadata-rich read");
+        let native = read_image_native(&series_path).expect("native read");
+        let shared = read_image(&series_path).expect("shared helper read");
+
+        assert_eq!(native.shape(), legacy.shape());
+        assert_eq!(*native.origin(), *legacy.origin());
+        assert_eq!(*native.spacing(), *legacy.spacing());
+        assert_eq!(*native.direction(), *legacy.direction());
+        assert_eq!(
+            native.data_vec_on(&NativeBackend::default()),
+            legacy.try_data_vec().unwrap()
+        );
+        assert_eq!(shared.shape(), legacy.shape());
+        assert_eq!(*shared.origin(), *legacy.origin());
+        assert_eq!(*shared.spacing(), *legacy.spacing());
+        assert_eq!(*shared.direction(), *legacy.direction());
+        assert_eq!(
+            shared.try_data_vec().unwrap(),
+            legacy.try_data_vec().unwrap()
+        );
+    }
+
+    #[test]
     fn test_write_image_png_returns_err() {
-        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 
@@ -474,7 +578,7 @@ mod tests {
 
     #[test]
     fn test_write_image_dicom_creates_directory() {
-        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
         let dir = tempfile::tempdir().unwrap();
@@ -499,7 +603,7 @@ mod tests {
 
     #[test]
     fn test_write_image_vtk_succeeds() {
-        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 
@@ -526,7 +630,7 @@ mod tests {
 
     #[test]
     fn test_write_image_jpeg_nz_gt_1_returns_err() {
-        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 
@@ -554,7 +658,7 @@ mod tests {
 
     #[test]
     fn test_write_image_jpeg_2d_succeeds() {
-        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 

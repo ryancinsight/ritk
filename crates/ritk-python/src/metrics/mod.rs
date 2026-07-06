@@ -98,18 +98,18 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 mod tests {
     use super::*;
     use crate::image::PyImage;
-    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::{
         image::Image,
         spatial::{Direction, Point, Spacing},
     };
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use std::sync::Arc;
 
     type B = NdArray<f32>;
 
     fn make_image(values: Vec<f32>, shape: [usize; 3]) -> PyImage {
-        let device = <B as burn::tensor::backend::Backend>::Device::default();
+        let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
         let td = TensorData::new(values, Shape::new(shape));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
         let img = Image::new(

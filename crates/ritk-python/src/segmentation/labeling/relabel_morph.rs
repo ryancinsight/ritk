@@ -201,7 +201,7 @@ pub fn change_label(
     label_image: &PyImage,
     change_map: std::collections::HashMap<i64, i64>,
 ) -> PyImage {
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     let img = Arc::clone(&label_image.inner);
     let out = py.allow_threads(|| {
         let dims = img.shape();

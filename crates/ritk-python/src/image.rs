@@ -7,7 +7,7 @@
 //! - The inner `Arc<Image<Backend, 3>>` allows cheap clone across Python objects.
 
 use crate::errors::{RitkPyError, RitkResult};
-use burn::tensor::{Shape, Tensor, TensorData, TensorPrimitive};
+use ritk_image::tensor::{Shape, Tensor, TensorData, TensorPrimitive};
 use burn_ndarray::{NdArray, NdArrayDevice, NdArrayTensor};
 use numpy::{ndarray::Array3, IntoPyArray, PyArray3, PyReadonlyArray3, PyUntypedArrayMethods};
 use pyo3::prelude::*;
@@ -163,6 +163,37 @@ pub fn into_py_image(image: Image<Backend, 3>) -> PyImage {
     PyImage {
         inner: Arc::new(image),
     }
+}
+
+/// Wrap an Atlas-native image in the current Python image container.
+///
+/// The Python processing surface still operates on the legacy Burn-backed
+/// image type; disk I/O reaches this helper only after the format reader has
+/// completed on the Atlas-native substrate.
+pub fn native_into_py_image(image: ritk_io::NativeImage) -> PyImage {
+    let values = image.data_vec();
+    let shape = image.shape();
+    into_py_image(vec_to_image(
+        values,
+        shape,
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+    ))
+}
+
+/// Convert the current Python image container into the Atlas-native image used
+/// by `ritk-io` native writers.
+pub fn py_image_to_native(image: &PyImage) -> RitkResult<ritk_io::NativeImage> {
+    let (values, shape) = image_to_vec(image.inner.as_ref());
+    ritk_io::NativeImage::from_flat(
+        values,
+        shape,
+        *image.inner.origin(),
+        *image.inner.spacing(),
+        *image.inner.direction(),
+    )
+    .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 /// Extract tensor data as `Vec<f32>` plus shape `[Z, Y, X]`.

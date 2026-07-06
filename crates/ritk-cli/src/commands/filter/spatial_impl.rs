@@ -344,8 +344,10 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
         .into_data()
         .into_vec::<f32>()
         .expect("CPR requires f32 backend");
-    let td_3d = burn::tensor::TensorData::new(vals, burn::tensor::Shape::new([1, nr, nc]));
-    let tensor_3d = burn::tensor::Tensor::<super::super::Backend, 3>::from_data(td_3d, &device);
+    let td_3d =
+        ritk_image::tensor::TensorData::new(vals, ritk_image::tensor::Shape::new([1, nr, nc]));
+    let tensor_3d =
+        ritk_image::tensor::Tensor::<super::super::Backend, 3>::from_data(td_3d, &device);
     let origin_3d = Point::new([0.0, origin_2d[0], origin_2d[1]]);
     let spacing_3d = Spacing::new([1.0, spacing_2d[0], spacing_2d[1]]);
     let image_3d = Image::new(tensor_3d, origin_3d, spacing_3d, Direction::identity());

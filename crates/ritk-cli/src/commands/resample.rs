@@ -5,10 +5,10 @@
 //! Identity transform (zero-offset TranslationTransform) maps output to input space.
 
 use anyhow::{bail, Result};
-use burn::tensor::backend::Backend as BurnBackend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use clap;
 use ritk_filter::resample::ResampleImageFilter;
+use ritk_image::tensor::Backend as BurnBackend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_interpolation::{
     BSplineInterpolator, Lanczos5Interpolator, LinearInterpolator, NearestNeighborInterpolator,
 };
@@ -144,7 +144,7 @@ pub fn run(args: ResampleArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;

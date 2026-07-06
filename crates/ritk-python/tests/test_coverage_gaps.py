@@ -397,6 +397,11 @@ def test_multi_otsu_threshold_two_classes():
 # ---------------------------------------------------------------------------
 
 def test_read_write_image_nrrd_roundtrip():
+    """Python image I/O dispatches through ritk-io's Atlas-native NRRD path.
+
+    The oracle is exact voxel recovery through write→read on the same native
+    format contract; no Burn reader/writer is involved in the Python I/O layer.
+    """
     rng = np.random.default_rng(0)
     arr = rng.random((8, 8, 8)).astype(np.float32)
     img = _ritk(arr, spacing=(2.0, 1.5, 1.0))
@@ -414,6 +419,7 @@ def test_read_write_image_nrrd_roundtrip():
 
 
 def test_read_write_image_nifti_roundtrip():
+    """Python image I/O dispatches through ritk-io's Atlas-native NIfTI path."""
     rng = np.random.default_rng(1)
     arr = rng.random((8, 8, 8)).astype(np.float32)
     img = _ritk(arr)
@@ -428,6 +434,15 @@ def test_read_write_image_nifti_roundtrip():
         np.testing.assert_allclose(arr2, arr, atol=1e-4)
     finally:
         os.unlink(path)
+
+
+def test_write_image_vtk_rejects_missing_native_writer(tmp_path):
+    """VTK has no Atlas-native image writer, so Python I/O must fail explicitly."""
+    img = _ritk(np.ones((2, 2, 2), dtype=np.float32))
+    path = tmp_path / "out.vtk"
+
+    with pytest.raises(OSError, match="VTK has no Atlas-native image writer"):
+        rio.write_image(img, str(path))
 
 
 def test_read_write_transform_translation_roundtrip():
