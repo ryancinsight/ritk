@@ -34,8 +34,8 @@
 //! - Lanczos, C. (1956). *Applied Analysis*. Prentice-Hall.
 //! - Turkowski, K. (1990). Filters for common resampling tasks. *Graphics Gems I*, 147-165.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
 
 /// Lanczos-windowed Sinc interpolator.
@@ -52,7 +52,7 @@ use ritk_core::interpolation::Interpolator;
 /// ```ignore
 /// use ritk_core::interpolation::LanczosInterpolator;
 /// use burn_ndarray::NdArray;
-/// use burn::tensor::Tensor;
+/// use ritk_image::tensor::Tensor;
 ///
 /// type Backend = NdArray<f32>;
 /// let device = Default::default();
@@ -381,7 +381,7 @@ impl<B: Backend, const A: usize> Interpolator<B> for LanczosInterpolator<A> {
         }
 
         Tensor::from_data(
-            burn::tensor::TensorData::new(results, burn::tensor::Shape::new([n_points])),
+            ritk_image::tensor::TensorData::new(results, ritk_image::tensor::Shape::new([n_points])),
             &device,
         )
     }

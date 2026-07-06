@@ -2,7 +2,7 @@
 //!
 //! Covers the Sprint 294 regression scenario: 1000 random points on a 64³ volume.
 
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ritk_interpolation::{BSplineInterpolator, Interpolator};
@@ -12,7 +12,7 @@ type B = NdArray<f32>;
 /// 3-D benchmark: 1000 points on a 64×64×64 f32 volume.
 /// This is the primary Sprint 294 regression scenario (~850× speedup).
 fn bench_bspline_3d(c: &mut Criterion) {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let n = 64usize;
     let n_pts = 1000usize;
 
@@ -40,7 +40,7 @@ fn bench_bspline_3d(c: &mut Criterion) {
 
 /// 2-D benchmark: 1000 points on a 64×64 f32 image.
 fn bench_bspline_2d(c: &mut Criterion) {
-    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let n = 64usize;
     let n_pts = 1000usize;
 

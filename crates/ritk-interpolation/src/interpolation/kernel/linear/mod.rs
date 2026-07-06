@@ -9,13 +9,13 @@ pub mod dim4;
 
 use super::BoundsPolicy;
 use crate::interpolation::dispatch::dispatch_linear;
-use burn::module::{
+use ritk_image::burn::module::{
     AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault, ModuleMapper,
     ModuleVisitor,
 };
-use burn::record::{PrecisionSettings, Record};
-use burn::tensor::backend::{AutodiffBackend, Backend};
-use burn::tensor::Tensor;
+use ritk_image::tensor::backend::{AutodiffBackend, Backend};
+use ritk_image::tensor::Tensor;
+use ritk_image::burn::record::{PrecisionSettings, Record};
 use ritk_core::interpolation::Interpolator;
 use serde::{Deserialize, Serialize};
 

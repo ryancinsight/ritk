@@ -1,6 +1,6 @@
 use crate::transform::bspline::BSplineTransform;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     /// Compute Cubic B-Spline basis functions.

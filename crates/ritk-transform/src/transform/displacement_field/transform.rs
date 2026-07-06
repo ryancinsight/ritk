@@ -1,8 +1,8 @@
 use super::core::DisplacementField;
 use crate::transform::{Resampleable, Transform};
-use burn::module::Module;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::burn::module::Module;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 

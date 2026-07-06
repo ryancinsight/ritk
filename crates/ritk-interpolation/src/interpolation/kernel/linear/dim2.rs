@@ -8,7 +8,7 @@
 //! file supplies only the gather + bilinear lerp cascade body.
 
 use super::slice_batch;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Tensor;
 
 ritk_macros::interp_dim_template!(2, interpolate_2d, x, y, wx, wy, d1 - 1, d0 - 1, {
     let flat_data = data.clone().reshape([d0 * d1]);

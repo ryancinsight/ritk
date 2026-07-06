@@ -1,5 +1,5 @@
 use super::*;
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 
 type TestBackend = NdArray<f32>;
@@ -9,7 +9,7 @@ fn test_linear_interpolator_volumetric_axes() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
     let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2])),
         &device,
     );
 
@@ -52,7 +52,7 @@ fn test_linear_interpolator_planar() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0];
     let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
         &device,
     );
 
@@ -72,7 +72,7 @@ fn test_linear_interpolation_at_grid_points() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 2.0, 3.0];
     let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
         &device,
     );
 
@@ -97,7 +97,7 @@ fn test_linear_interpolator_out_of_bounds() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 2.0, 3.0];
     let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
         &device,
     );
 
@@ -117,7 +117,7 @@ fn test_linear_interpolator_zero_pad_out_of_bounds() {
     let device = Default::default();
     let data_vec = vec![0.0_f32, 1.0, 2.0, 3.0];
     let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
         &device,
     );
 
@@ -156,7 +156,7 @@ fn test_linear_interpolator_volumetric_zero_pad_out_of_bounds() {
     let device = Default::default();
     let data_vec = vec![0.0_f32, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
     let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2])),
         &device,
     );
     let interp = LinearInterpolator::new_zero_pad();
@@ -193,7 +193,7 @@ fn test_linear_interpolator_line() {
     let device = Default::default();
     let data_vec = vec![0.0, 10.0, 20.0, 30.0];
     let data = Tensor::<TestBackend, 1>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([4])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4])),
         &device,
     );
 
@@ -220,7 +220,7 @@ fn test_linear_interpolator_volumetric_typed() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
     let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2])),
         &device,
     );
 
@@ -270,7 +270,7 @@ fn test_linear_interpolator_4d() {
     data_vec[15] = 100.0;
 
     let data = Tensor::<TestBackend, 4>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2, 2])),
         &device,
     );
 
@@ -298,7 +298,7 @@ fn test_linear_interpolator_line_typed() {
     let device = Default::default();
     let data_vec = vec![0.0, 10.0, 20.0, 30.0];
     let data = Tensor::<TestBackend, 1>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([4])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4])),
         &device,
     );
 
@@ -336,7 +336,7 @@ fn test_linear_interpolator_planar_typed() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0];
     let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
         &device,
     );
 
@@ -381,7 +381,7 @@ fn test_linear_interpolator_4d_typed() {
     data_vec[15] = 100.0;
 
     let data = Tensor::<TestBackend, 4>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2, 2])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2, 2])),
         &device,
     );
 

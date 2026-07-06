@@ -75,7 +75,7 @@ fn dispatch_falls_through_to_generic_for_non_cube() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..100 * 150 * 200).map(|i| i as f32).collect();
     let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([100, 150, 200])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([100, 150, 200])),
         &device,
     );
     let indices = Tensor::<TestBackend, 2>::from_floats([[10.0, 20.0, 30.0]], &device);

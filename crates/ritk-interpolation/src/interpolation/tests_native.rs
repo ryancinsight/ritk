@@ -2,7 +2,7 @@
 //! value-identical to the Burn-generic `trilinear_interpolation` it mirrors.
 
 use crate::interpolation::tensor_trilinear;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 
 type TestBackend = NdArray<f32>;

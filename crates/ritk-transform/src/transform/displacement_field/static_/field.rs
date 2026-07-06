@@ -7,8 +7,8 @@
 //! $T(x) = x + D(x)$
 
 use crate::transform::{Resampleable, Transform};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 

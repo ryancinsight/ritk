@@ -1,6 +1,6 @@
 //! Smoke tests for `interpolation::kernel::sinc`.
 
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 
 type B = NdArray<f32>;

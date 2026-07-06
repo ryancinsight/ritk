@@ -9,8 +9,8 @@
 //! allocation around `Image::world_to_index_tensor` while preserving the
 //! existing transform and interpolation contracts.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Tensor, TensorData};
 
 use crate::interpolation::shared::compute_oob_mask;
 use crate::interpolation::LinearInterpolator;
@@ -83,7 +83,7 @@ pub fn transform_and_interpolate<B: Backend, T: Transform<B, D>, const D: usize>
     // ---- Step 2: world-to-index (fused, inlined) ----
     let origin_data: Vec<f32> = (0..D).map(|i| moving.origin()[i] as f32).collect();
     let origin_tensor = Tensor::<B, 1>::from_data(
-        TensorData::new(origin_data, burn::tensor::Shape::new([D])),
+        TensorData::new(origin_data, ritk_image::tensor::Shape::new([D])),
         &device,
     );
 
@@ -100,7 +100,7 @@ pub fn transform_and_interpolate<B: Backend, T: Transform<B, D>, const D: usize>
         }
     }
     let t_tensor = Tensor::<B, 2>::from_data(
-        TensorData::new(t_data, burn::tensor::Shape::new([D, D])),
+        TensorData::new(t_data, ritk_image::tensor::Shape::new([D, D])),
         &device,
     );
 

@@ -1,6 +1,6 @@
 use super::BSplineTransform;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// 1D B-spline transform — direct path (no row chunking, since the
 /// per-point work is small). Called from `super::sealed` via const-generic
@@ -39,7 +39,7 @@ pub(super) fn transform_1d<B: Backend, const D: usize>(
     let weights = bx.unsqueeze_dim::<3>(2); // [Batch, 4, 1]
 
     let nx = t.grid_size[0] as i32;
-    let range = Tensor::<B, 1, burn::tensor::Int>::from_ints([0, 1, 2, 3], &device);
+    let range = Tensor::<B, 1, ritk_image::tensor::Int>::from_ints([0, 1, 2, 3], &device);
     let i_idx = range.reshape([1, 4]);
 
     let base_x = base_index.clone(); // [Batch, 1]

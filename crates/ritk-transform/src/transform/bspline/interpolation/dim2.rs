@@ -1,6 +1,6 @@
 use super::BSplineTransform;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_wgpu_compat::apply_row_chunks;
 
 /// 2D B-spline transform — chunked over rows for WGPU-friendly memory
@@ -72,7 +72,7 @@ fn transform_2d_chunk<B: Backend, const D: usize>(
     let nx = t.grid_size[0] as i32;
     let ny = t.grid_size[1] as i32;
 
-    let range = Tensor::<B, 1, burn::tensor::Int>::from_ints([0, 1, 2, 3], &device);
+    let range = Tensor::<B, 1, ritk_image::tensor::Int>::from_ints([0, 1, 2, 3], &device);
 
     let i_idx = range.clone().reshape([1, 4, 1]);
     let j_idx = range.clone().reshape([1, 1, 4]);
@@ -89,7 +89,7 @@ fn transform_2d_chunk<B: Backend, const D: usize>(
     let idx_x = base_x + i_idx;
     let idx_y = base_y + j_idx;
 
-    let zeros = Tensor::<B, 3, burn::tensor::Int>::zeros([1, 4, 4], &device);
+    let zeros = Tensor::<B, 3, ritk_image::tensor::Int>::zeros([1, 4, 4], &device);
 
     let idx_x_flat = (idx_x + zeros.clone()).reshape([batch_size, 16]);
     let idx_y_flat = (idx_y + zeros.clone()).reshape([batch_size, 16]);

@@ -3,7 +3,7 @@
 //! Atlas migration target: the same contract as
 //! [`super::tensor_trilinear::trilinear_interpolation`] (Burn-generic), but
 //! operating directly on flat row-major buffers through
-//! [`coeus_core::Scalar`] instead of `burn::tensor::Tensor`. Both paths
+//! [`coeus_core::Scalar`] instead of `ritk_image::tensor::Tensor`. Both paths
 //! implement the identical trilinear-interpolation contract; this module does
 //! not change the math, only the substrate. `read_jpeg_coeus`/
 //! `trilinear_interpolation` (`ritk-jpeg`) established the parallel-path
@@ -121,7 +121,7 @@ pub fn trilinear_interpolation<T: Scalar>(
 /// magnitudes voxel coordinates take.
 #[inline]
 fn floor_weights<T: Scalar>(coord: T, extent: usize) -> (usize, usize, T, T) {
-    let coord_f64 = coord.to_f64();
+    let coord_f64 = <T as Scalar>::to_f64(coord);
     let floor_f64 = coord_f64.floor();
     let w1 = coord - T::from_f64(floor_f64);
     let w0 = T::one() - w1;

@@ -1,7 +1,7 @@
 use crate::interpolation::kernel::bspline::cubic_bspline;
 use crate::interpolation::kernel::BoundsPolicy;
 use crate::interpolation::BSplineInterpolator;
-use burn::tensor::{ElementConversion, Tensor, TensorData};
+use ritk_image::tensor::{ElementConversion, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::interpolation::Interpolator;
 
@@ -229,7 +229,7 @@ fn test_bspline_performance_regression_volumetric() {
     let n_voxels = size * size * size;
     let data: Vec<f32> = (0..n_voxels).map(|i| (i % 256) as f32).collect();
     let data_tensor = Tensor::<TestBackend, 3>::from_data(
-        burn::tensor::TensorData::new(data, [size, size, size]),
+        ritk_image::tensor::TensorData::new(data, [size, size, size]),
         &device,
     );
 
@@ -244,7 +244,7 @@ fn test_bspline_performance_regression_volumetric() {
         indices_data[i * 3 + 2] = (rand::random::<f32>() * size as f32) - 0.5;
     }
     let indices = Tensor::<TestBackend, 2>::from_data(
-        burn::tensor::TensorData::new(indices_data, [n_points, 3]),
+        ritk_image::tensor::TensorData::new(indices_data, [n_points, 3]),
         &device,
     );
 

@@ -12,7 +12,7 @@
 //! sample along a single axis. The product across all axes gives the
 //! multi-dimensional in-bounds mask.
 
-use burn::tensor::{backend::Backend, Tensor};
+use ritk_image::tensor::{backend::Backend, Tensor};
 
 /// Out-of-bounds handling policy for interpolation kernels.
 ///

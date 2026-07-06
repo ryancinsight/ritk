@@ -7,7 +7,7 @@
 //! [`DispatchByShape`] trait method directly.
 use super::*;
 use crate::interpolation::shared::OutOfBoundsMode;
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 
 type TestBackend = NdArray<f32>;

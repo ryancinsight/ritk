@@ -3,7 +3,7 @@
 // `interpolation::kernel::linear` and `interpolation::kernel::nearest`.
 // This file covers cross-dimension routing smoke tests.
 
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 
 use super::{dispatch_linear, dispatch_nearest};

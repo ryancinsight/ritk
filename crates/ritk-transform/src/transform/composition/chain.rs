@@ -3,10 +3,10 @@
 //! This module provides a mechanism to chain two transforms together.
 //! T(x) = T2(T1(x))
 
-use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
-use burn::record::{PrecisionSettings, Record};
-use burn::tensor::backend::{AutodiffBackend, Backend};
-use burn::tensor::Tensor;
+use ritk_image::burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
+use ritk_image::burn::record::{PrecisionSettings, Record};
+use ritk_image::tensor::backend::{AutodiffBackend, Backend};
+use ritk_image::tensor::Tensor;
 use ritk_core::transform::Transform;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -73,12 +73,12 @@ impl<B: Backend, T1: Module<B>, T2: Module<B>, const D: usize> Module<B>
 {
     type Record = ChainedTransformRecord<T1::Record, T2::Record>;
 
-    fn visit<V: burn::module::ModuleVisitor<B>>(&self, visitor: &mut V) {
+    fn visit<V: ritk_image::burn::module::ModuleVisitor<B>>(&self, visitor: &mut V) {
         self.first.visit(visitor);
         self.second.visit(visitor);
     }
 
-    fn map<M: burn::module::ModuleMapper<B>>(self, mapper: &mut M) -> Self {
+    fn map<M: ritk_image::burn::module::ModuleMapper<B>>(self, mapper: &mut M) -> Self {
         Self {
             first: self.first.map(mapper),
             second: self.second.map(mapper),
@@ -171,7 +171,7 @@ where
 mod tests {
     use super::*;
     use crate::transform::affine::translation::TranslationTransform;
-    use burn::tensor::TensorData;
+    use ritk_image::tensor::TensorData;
     use burn_ndarray::NdArray;
 
     type TestBackend = NdArray<f32>;

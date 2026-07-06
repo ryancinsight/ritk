@@ -1,7 +1,7 @@
 //! Nearest-neighbor shape dispatch and type-narrowing wrapper traits.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 use super::sealed;
 use crate::interpolation::kernel::nearest;

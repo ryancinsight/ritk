@@ -40,8 +40,8 @@
 //! preserves the zero-cost abstraction goal: the `if D == 3` branch is
 //! dead-code eliminated for non-3-D callers.
 
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 use super::shared::OutOfBoundsMode;
 
@@ -72,8 +72,8 @@ pub(crate) mod sealed {
     /// per-shape dispatchers support. External code cannot add
     /// implementations because the `Sealed` supertrait is in a
     /// private module.
-    use burn::tensor::backend::Backend;
-    use burn::tensor::Tensor;
+    use ritk_image::tensor::Backend;
+    use ritk_image::tensor::Tensor;
     pub trait Sealed {}
     impl<B: Backend> Sealed for Tensor<B, 1> {}
     impl<B: Backend> Sealed for Tensor<B, 2> {}

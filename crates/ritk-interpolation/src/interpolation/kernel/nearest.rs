@@ -4,8 +4,8 @@
 
 use super::BoundsPolicy;
 use crate::interpolation::dispatch::dispatch_nearest;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
 
 use crate::interpolation::shared::{in_bounds_mask, OutOfBoundsMode};
@@ -330,7 +330,7 @@ mod tests {
         let mut data_vec = vec![0.0; 16];
         data_vec[15] = 100.0; // Last element (1,1,1,1)
         let data = Tensor::<TestBackend, 4>::from_data(
-            burn::tensor::TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2, 2])),
+            ritk_image::tensor::TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2, 2])),
             &device,
         );
         let interpolator = NearestNeighborInterpolator::new();
@@ -349,7 +349,7 @@ mod tests {
         let device = Default::default();
         let data_vec = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let data = Tensor::<TestBackend, 3>::from_data(
-            burn::tensor::TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2])),
+            ritk_image::tensor::TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2])),
             &device,
         );
         let interp = NearestNeighborInterpolator::new_zero_pad();
@@ -370,7 +370,7 @@ mod tests {
         let device = Default::default();
         let data_vec = vec![10.0_f32, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0];
         let data = Tensor::<TestBackend, 3>::from_data(
-            burn::tensor::TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2])),
+            ritk_image::tensor::TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2])),
             &device,
         );
         let interp = NearestNeighborInterpolator::new_zero_pad();
@@ -395,7 +395,7 @@ mod tests {
         let device = Default::default();
         let data_vec = vec![1.0_f32, 2.0, 3.0, 4.0];
         let data = Tensor::<TestBackend, 2>::from_data(
-            burn::tensor::TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
+            ritk_image::tensor::TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
             &device,
         );
         let interp = NearestNeighborInterpolator::new(); // zero_pad = false

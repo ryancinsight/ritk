@@ -2,7 +2,7 @@
 
 use crate::interpolation::fused::{is_identity_direction, transform_and_interpolate};
 use crate::interpolation::LinearInterpolator;
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::interpolation::Interpolator;
@@ -23,7 +23,7 @@ impl Transform<Backend, 3> for TranslationTransform {
     fn transform_points(&self, points: Tensor<Backend, 2>) -> Tensor<Backend, 2> {
         let device = points.device();
         let offset = Tensor::<Backend, 1>::from_data(
-            TensorData::new(self.offset.to_vec(), burn::tensor::Shape::new([3])),
+            TensorData::new(self.offset.to_vec(), ritk_image::tensor::Shape::new([3])),
             &device,
         )
         .reshape([1usize, 3]);
@@ -32,7 +32,7 @@ impl Transform<Backend, 3> for TranslationTransform {
 }
 
 fn make_identity_image(
-    device: &<Backend as burn::tensor::backend::Backend>::Device,
+    device: &<Backend as ritk_image::tensor::Backend>::Device,
 ) -> Image<Backend, 3> {
     let data = Tensor::<Backend, 3>::zeros([4, 4, 4], device);
     let origin = Point3::new([0.0, 0.0, 0.0]);
@@ -63,7 +63,7 @@ fn test_fused_identity_image_zero_translation() {
     // Create image data with known values
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32).collect();
     let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([4, 4, 4])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
         &device,
     );
     let moving = Image::new(
@@ -97,7 +97,7 @@ fn test_fused_identity_image_with_translation() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32).collect();
     let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([4, 4, 4])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
         &device,
     );
     let moving = Image::new(
@@ -130,7 +130,7 @@ fn test_fused_non_identity_spacing() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32).collect();
     let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([4, 4, 4])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
         &device,
     );
     let moving = Image::new(
@@ -161,7 +161,7 @@ fn test_fused_matches_unfused() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32 * 10.0).collect();
     let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([4, 4, 4])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
         &device,
     );
     let origin = Point3::new([5.0, 5.0, 5.0]);
@@ -208,7 +208,7 @@ fn test_fused_identity_direction_anisotropic_matches_unfused() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..60).map(|i| i as f32 * 1.25).collect();
     let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([3, 4, 5])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([3, 4, 5])),
         &device,
     );
     let origin = Point3::new([10.0, -20.0, 30.0]);
@@ -257,7 +257,7 @@ fn test_fused_general_direction_matches_unfused() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32).collect();
     let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([4, 4, 4])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
         &device,
     );
     let origin = Point3::new([0.0, 0.0, 0.0]);
@@ -312,7 +312,7 @@ fn test_fused_oob_mask() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32 * 10.0).collect();
     let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, burn::tensor::Shape::new([4, 4, 4])),
+        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
         &device,
     );
     let moving = Image::new(

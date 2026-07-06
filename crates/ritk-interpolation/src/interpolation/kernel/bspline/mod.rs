@@ -4,8 +4,8 @@
 //! of image values at continuous coordinates.
 
 use super::BoundsPolicy;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_core::interpolation::Interpolator;
 
 mod flat;

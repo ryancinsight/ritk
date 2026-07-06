@@ -10,7 +10,7 @@
 //! weights, clamped int indices) and the in-bounds mask application;
 //! this file supplies only the gather + lerp cascade body.
 
-use burn::tensor::{backend::Backend, Int, Tensor};
+use ritk_image::tensor::{backend::Backend, Int, Tensor};
 
 /// 1-D gather with a borrowed index — used by the autodiff path where
 /// the caller must retain the index tensor for further use.

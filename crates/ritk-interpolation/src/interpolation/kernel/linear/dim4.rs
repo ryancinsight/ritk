@@ -9,7 +9,7 @@
 //! with the inline `B::ad_enabled()` const-generic dispatch.
 
 use super::slice_batch;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Tensor;
 
 ritk_macros::interp_dim_template!(
     4,

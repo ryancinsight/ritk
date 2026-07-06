@@ -1,6 +1,6 @@
 use super::core::DisplacementField;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_wgpu_compat::apply_row_chunks;
 
 impl<B: Backend, const D: usize> DisplacementField<B, D> {

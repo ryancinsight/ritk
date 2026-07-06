@@ -1,7 +1,16 @@
 use super::BSplineTransform;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_wgpu_compat::apply_row_chunks;
+
+/// Maximum support-matrix elements for the dense small-lattice path.
+///
+/// The registration hot path uses small control lattices where
+/// `[batch, control_points]` stays bounded and replacing repeated coefficient
+/// gathers with one matmul reduces autodiff scatter-add work. Larger matrices
+/// retain the sparse gather path because their dense support matrix would
+/// dominate memory traffic.
+const DENSE_SUPPORT_ELEMENT_LIMIT: usize = 1_000_000;
 
 /// 3D B-spline transform — chunked over rows for WGPU-friendly memory
 /// pressure. Called from `super::sealed` via const-generic `match D = 3`.
@@ -85,7 +94,7 @@ fn transform_3d_chunk<B: Backend, const D: usize>(
     let ny = t.grid_size[1] as i32;
     let nz = t.grid_size[2] as i32;
 
-    let range = Tensor::<B, 1, burn::tensor::Int>::from_ints([0, 1, 2, 3], &device);
+    let range = Tensor::<B, 1, ritk_image::tensor::Int>::from_ints([0, 1, 2, 3], &device);
 
     let i_idx = range.clone().reshape([1, 4, 1, 1]);
     let j_idx = range.clone().reshape([1, 1, 4, 1]);
@@ -111,7 +120,7 @@ fn transform_3d_chunk<B: Backend, const D: usize>(
     let idx_y = base_y + j_idx;
     let idx_z = base_z + k_idx;
 
-    let zeros = Tensor::<B, 4, burn::tensor::Int>::zeros([1, 4, 4, 4], &device);
+    let zeros = Tensor::<B, 4, ritk_image::tensor::Int>::zeros([1, 4, 4, 4], &device);
 
     let idx_x_flat = (idx_x + zeros.clone()).reshape([batch_size, 64]);
     let idx_y_flat = (idx_y + zeros.clone()).reshape([batch_size, 64]);
@@ -126,11 +135,21 @@ fn transform_3d_chunk<B: Backend, const D: usize>(
 
     let flat_indices = idx_z_clamped * stride_z + idx_y_clamped * stride_y + idx_x_clamped;
 
-    let gather_indices = flat_indices.reshape([batch_size * 64]);
-    let coeffs = t.coefficients.val().clone().select(0, gather_indices); // [Batch*64, 3]
-    let coeffs = coeffs.reshape([batch_size, 64, 3]);
-
-    let displacement = (coeffs * weights).sum_dim(1).flatten::<2>(1, 2);
+    let support_weights = weights.reshape([batch_size, 64]);
+    let control_point_count = t.grid_size.iter().product::<usize>();
+    let support_matrix_elements = batch_size.saturating_mul(control_point_count);
+    let displacement = if support_matrix_elements <= DENSE_SUPPORT_ELEMENT_LIMIT {
+        let support_matrix = Tensor::<B, 2>::zeros([batch_size, control_point_count], &device)
+            .scatter(1, flat_indices, support_weights);
+        support_matrix.matmul(t.coefficients.val().clone())
+    } else {
+        let gather_indices = flat_indices.reshape([batch_size * 64]);
+        let coeffs = t.coefficients.val().clone().select(0, gather_indices); // [Batch*64, 3]
+        let coeffs = coeffs.reshape([batch_size, 64, 3]);
+        (coeffs * support_weights.reshape([batch_size, 64, 1]))
+            .sum_dim(1)
+            .flatten::<2>(1, 2)
+    };
 
     let masked_displacement = displacement * valid_mask;
 

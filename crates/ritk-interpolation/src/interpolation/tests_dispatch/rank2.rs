@@ -14,7 +14,7 @@ fn build_2d(side: usize) -> Tensor<TestBackend, 2> {
     data[mid * side + mid] = 1.0;
     let device = Default::default();
     Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data, burn::tensor::Shape::new([side, side])),
+        TensorData::new(data, ritk_image::tensor::Shape::new([side, side])),
         &device,
     )
 }
@@ -84,7 +84,7 @@ fn dispatch_2d_falls_through_to_generic_for_non_square() {
     let mut data = vec![0.0_f32; 100 * 150];
     data[50 * 150 + 75] = 1.0;
     let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data, burn::tensor::Shape::new([100, 150])),
+        TensorData::new(data, ritk_image::tensor::Shape::new([100, 150])),
         &device,
     );
     let indices = Tensor::<TestBackend, 2>::from_floats([[75.0, 50.0]], &device);

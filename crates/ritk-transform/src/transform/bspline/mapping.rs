@@ -1,6 +1,6 @@
 use super::BSplineTransform;
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 /// Minimum pivot magnitude for B-spline mapping inverse; guards against singular matrices.
 /// Practical threshold above f32 minimum normal (~1.2e-38).

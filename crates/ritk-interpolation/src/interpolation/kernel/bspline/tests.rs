@@ -1,5 +1,5 @@
 use super::*;
-use burn::tensor::{ElementConversion, Tensor};
+use ritk_image::tensor::{ElementConversion, Tensor};
 use burn_ndarray::NdArray;
 
 type TestBackend = NdArray<f32>;

@@ -2,9 +2,9 @@
 //!
 //! This module provides a B-Spline free-form deformation transform.
 
-use burn::module::{Module, Param};
-use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
+use ritk_image::burn::module::{Module, Param};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 /// B-Spline Transform (Free-form deformation).
 ///

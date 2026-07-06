@@ -13,7 +13,7 @@ fn build_1d(side: usize) -> Tensor<TestBackend, 1> {
     data[side / 2] = 1.0;
     let device = Default::default();
     Tensor::<TestBackend, 1>::from_data(
-        TensorData::new(data, burn::tensor::Shape::new([side])),
+        TensorData::new(data, ritk_image::tensor::Shape::new([side])),
         &device,
     )
 }

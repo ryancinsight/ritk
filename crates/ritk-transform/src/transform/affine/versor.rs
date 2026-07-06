@@ -3,9 +3,9 @@
 //! This module provides a versor rigid transform (quaternion rotation + translation).
 //! It is robust against Gimbal lock and is suitable for 3D registration.
 
-use burn::module::{Module, Param};
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::burn::module::{Module, Param};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_core::transform::Transform;
 
 /// Versor Rigid Transform (Quaternion Rotation + Translation).

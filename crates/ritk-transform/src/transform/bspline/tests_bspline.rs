@@ -74,9 +74,9 @@ fn zero_coefficients_is_identity_planar() {
     coeffs_data[5 * 2 + 1] = 1.0;
 
     let coefficients = Tensor::from_floats(
-        burn::tensor::TensorData::new(
+        ritk_image::tensor::TensorData::new(
             coeffs_data,
-            burn::tensor::Shape::new([num_control_points, 2]),
+            ritk_image::tensor::Shape::new([num_control_points, 2]),
         ),
         &device,
     );
@@ -146,9 +146,9 @@ fn zero_coefficients_is_identity_scalar() {
     coeffs_data[1] = 2.0;
 
     let coefficients = Tensor::from_floats(
-        burn::tensor::TensorData::new(
+        ritk_image::tensor::TensorData::new(
             coeffs_data,
-            burn::tensor::Shape::new([num_control_points, 1]),
+            ritk_image::tensor::Shape::new([num_control_points, 1]),
         ),
         &device,
     );

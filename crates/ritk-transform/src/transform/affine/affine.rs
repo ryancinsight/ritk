@@ -2,9 +2,9 @@
 //!
 //! This module provides an affine transform (linear transformation + translation).
 
-use burn::module::{Module, Param};
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::burn::module::{Module, Param};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
 use ritk_wgpu_compat::apply_row_chunks;
@@ -63,7 +63,7 @@ impl<B: Backend, const D: usize> AffineTransform<B, D> {
         for i in 0..D {
             matrix_data[i * (D + 1)] = 1.0;
         }
-        let data = burn::tensor::TensorData::from(matrix_data.as_slice());
+        let data = ritk_image::tensor::TensorData::from(matrix_data.as_slice());
         let matrix = Tensor::<B, 1>::from_data(data, device).reshape([D, D]);
 
         let translation = Tensor::<B, 1>::zeros([D], device);

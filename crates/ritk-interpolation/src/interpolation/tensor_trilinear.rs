@@ -1,4 +1,4 @@
-use burn::tensor::{backend::Backend, Int, Tensor};
+use ritk_image::tensor::{backend::Backend, Int, Tensor};
 
 /// Trilinear interpolation for 3D tensors.
 ///
@@ -121,7 +121,7 @@ pub fn trilinear_interpolation<B: Backend>(
 #[cfg(test)]
 mod trilinear_tests {
     use super::*;
-    use burn::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape, TensorData};
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;

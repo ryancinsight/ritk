@@ -5,8 +5,8 @@ pub mod dim3;
 pub mod dim4;
 
 use super::BSplineTransform;
-use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_core::transform::Transform;
 
 // Inherent const assert lives in its own impl block because trait impl
