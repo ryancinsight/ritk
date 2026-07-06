@@ -7642,6 +7642,7 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "coeus-core",
+ "coeus-tensor",
  "criterion",
  "eunomia",
  "gaia",
