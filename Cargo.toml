@@ -66,11 +66,11 @@ ritk-statistics = { path = "crates/ritk-statistics" }
 gaia = { path = "../gaia", default-features = false }
 
 criterion = { version = "0.5", features = ["html_reports"] }
-burn = { version = "0.19", default-features = false, features = ["wgpu", "autodiff"] }
+burn = { version = "0.19", default-features = false, features = ["std", "ndarray", "autodiff", "wgpu"] }
 burn-ndarray = "0.19" # For CPU testing
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
 numpy = "0.22"
-dicom = { version = "0.8.0", default-features = false, features = ["pixeldata", "ndarray"] }
+dicom = { version = "0.8.0", default-features = false }
 moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe", "no-global-alloc"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "0.2.0", default-features = false, features = ["std_tls", "eunomia"] }
@@ -80,8 +80,8 @@ coeus-tensor = { path = "../coeus/coeus-tensor", version = "0.5.3" }
 coeus-ops = { path = "../coeus/coeus-ops", version = "0.5.3" }
 coeus-leto = { path = "../coeus/coeus-leto", version = "0.5.3" }
 coeus-autograd = { path = "../coeus/coeus-autograd", version = "0.5.3" }
-leto = { path = "../leto/crates/leto", version = "0.35.1" }
-leto-ops = { path = "../leto/crates/leto-ops", version = "0.35.1" }
+leto = { path = "../leto/crates/leto", version = "0.36.0" }
+leto-ops = { path = "../leto/crates/leto-ops", version = "0.36.0" }
 hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.10.0" }
 hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.10.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.14.0" }
@@ -151,3 +151,6 @@ leto-ops = { path = "../leto/crates/leto-ops" }
 [patch."https://github.com/ryancinsight/hephaestus.git"]
 hephaestus-core = { path = "../hephaestus/crates/hephaestus-core" }
 hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
+
+[patch."https://github.com/ryancinsight/melinoe.git"]
+melinoe = { path = "../melinoe" }
