@@ -74,6 +74,73 @@ signature drift).
   sub-batch #4 — only added IF downstream PINN-SSM consumer code in
   `kwavers-solver` or `helios-solver` mandates it; otherwise sub-batch #4 is
   a strict removal commit. Currently no Atlas-side consumer requires it.
+- **Sub-batch #2 [CLOSE 2026-07-06]**: RITK-trait-deprecate (docstring-only) — see
+  newly-added `## Atlas Batch #3 sub-batch #2 audit (2026-07-06)` section below.
+
+## Atlas Batch #3 sub-batch #2 audit (2026-07-06) — RITK Atlas trait soft deprecation documentation
+
+### Sub-batch #2 of ritk Burn-trait rebind: soft docstring deprecation on the Burn-keyed foundational surface
+
+Each of the four Burn-keyed `pub` surface symbols (`pub trait Transform<B, D>`,
+`pub trait Resampleable<B, D>`, `pub trait Interpolator<B>`,
+`pub struct Image<B, D>`) received a bold-prefixed deprecation callout on the
+leading `///` doc-comment. The callout's structure (a) bold-prefixes the
+deprecation status with the Atlas Batch #3 sub-batch #2 stamp and the
+docstring-only qualifier; (b) forward-intra-doc-links the Atlas parallel trait
+added in sub-batch #1 (`TransformAtlas` / `ResampleableAtlas` /
+`InterpolatorAtlas` / `AtlasImage`); (c) explicitly states that NO
+`#[deprecated]` attribute is applied; (d) cross-references
+`xtask/burn_surface.allowlist` so consumer crates reading the deprecation can
+locate the source of the legacy surface contract; (e) cross-references
+`atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Sub-batch #2.
+
+### Why soft-docstring-only and not `#[deprecated]`
+
+Per the user's explicit guardrail, **no `#[deprecated(since = "...")]` attribute is
+added to any Burn-keyed item**. The cascade risk: `ritk-core::Transform::transform_points`
+appears in 671 source files across the legacy allowlist (verified via
+`xtask/burn_surface.allowlist` enumeration). A `#[deprecated]` attribute on a
+trait emits `#[warn(deprecated)]` at every implementor + every call site, so
+with 671 files in the allowlist this would generate ≥671 compile warnings per
+`cargo build` / `cargo test` and fail the per-batch pre-flight
+`cargo clippy --workspace --all-targets -- -D warnings` gate (which treats
+warnings as errors).
+
+### Asymmetric soft-deprecation surface
+
+Sub-batch #2 covers exactly the four foundational legacy surfaces the user
+specified: `Transform<B, D>`, `Resampleable<B, D>`, `Interpolator<B>`,
+`Image<B, D>`. The twelve other Burn-keyed `pub trait` declarations found
+via grep (`MorphologicalOperation<B, D>`, `Metric<B, D>`, `Regularizer<B>`,
+`OnnxModel<B>`, `Dispatch{Linear,Nearest}{ByShape,3DTyped,etc.}<B>`) belong
+to consumer-crate scope (segmentation / registration / filter / onnx /
+interpolation dispatch) and are scheduled for sub-batch #3's per-crate
+Atlas-typed migration.
+
+### Evidence tier
+
+cargo check + cargo doc --no-deps (intra-doc-link resolution gate) +
+cargo tree (re-verify Burn-WGPU / CUDA / ROCM edges remain absent).
+
+- `cargo check -p ritk-core -p ritk-image`: passes.
+- `cargo doc -p ritk-core -p ritk-image --no-deps`: passes (intra-doc-links
+  resolve: `[`TransformAtlas`]` and `[`ResampleableAtlas`]` resolve to the
+  parallels in `transform/trait_.rs`; `[`InterpolatorAtlas`]` resolves in
+  `interpolation/trait_.rs`; `[`AtlasImage`]` resolves via the
+  `ritk-image/src/lib.rs` re-export of `native::Image`).
+- `xtask/burn_surface.allowlist`: unchanged (auto-generated allowlist is
+  signature-keyed, not docstring-keyed; the four legacy symbols still exist
+  in source).
+- `cargo tree --workspace -i burn-wgpu`: zero (re-verify the post-`65a1a0fd`
+  Burn GPU-default closure state preserved).
+- `cargo tree --workspace -i burn-cuda` and `-i burn-rocm`: both zero.
+
+### Residual Risk / Next Increment
+
+- Sub-batches #3-#6 remain reserved per ADR 0012. Sub-batch #3
+  (`RITK-crate-migrate`, [minor]) is the per-crate burn-line flip sequence the
+  soft-deprecation callsites will migrate toward. Sub-batch #5 remains the only
+  commit allowed to delete or rename `[dependencies]` lines.
 
 ## MIG-496-04 audit (2026-07-05)
 

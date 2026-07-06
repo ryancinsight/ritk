@@ -6,6 +6,14 @@ use coeus_core::{ComputeBackend, Scalar};
 use coeus_tensor::Tensor as CoeusTensor;
 use ritk_image::tensor::{Backend, Tensor};
 
+/// **Soft-deprecated (Atlas Batch #3 sub-batch #2, 2026-07-06; docstring-only)** —
+/// prefer the Atlas-typed parallel [`InterpolatorAtlas`] (uses
+/// `coeus_core::ComputeBackend` instead of Burn's `Backend`).
+/// No `#[deprecated]` attribute on this item to avoid cascading
+/// `#[warn(deprecated)]` warnings across 671 burner consumer files in
+/// `xtask/burn_surface.allowlist`. Migration plan:
+/// `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Sub-batch #2.
+///
 /// Interpolator trait for sampling values at continuous coordinates.
 ///
 /// Interpolators are used to sample image values at non-integer coordinates,

@@ -209,6 +209,46 @@
 - Reserved inner tag: `ritk/atlas-migration-push/batch3` per ADR 0010
       §Decision §"Per-batch name pattern".
 
+## Atlas Batch #3 — RITK Atlas trait soft deprecation documentation (Sub-batch #2 of ritual Burn-trait rebind)
+
+**Target version**: 0.14.0
+**Sprint phase**: Closure complete for this slice (2026-07-06)
+
+### Completed plan (Atlas Batch #3 Sub-batch #2, docstring-only)
+- [x] [patch] **RITK-trait-deprecate (Docstring-only soft deprecation)** — appended
+      soft docstring deprecation callout to the four Burn-keyed foundational surfaces:
+      `Transform<B, D>`, `Resampleable<B, D>`, `Interpolator<B>`, and `Image<B, D>`.
+      Each callout (a) uses a bold-prefixed lead sentence that promotes the Atlas-typed
+      parallel trait (`TransformAtlas` / `ResampleableAtlas` / `InterpolatorAtlas` /
+      `AtlasImage`) as the forward path; (b) explicitly notes that NO
+      `#[deprecated]` attribute is applied to avoid cascading 671-file
+      `#[warn(deprecated)]` compile warnings; (c) cross-references
+      `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Sub-batch #2 for the migration
+      plan; and (d) cross-references `xtask/burn_surface.allowlist` so consumer crates
+      reading the deprecation can locate the source of the legacy surface contract.
+      **Zero functional change**: `cargo check -p ritk-core -p ritk-image` passes with
+      no warnings; `cargo doc -p ritk-core -p ritk-image --no-deps` intra-doc-link
+      resolution confirms the forward-pointing intra-doc-links ([`TransformAtlas`],
+      [`ResampleableAtlas`], [`InterpolatorAtlas`], [`AtlasImage`]) resolve correctly.
+- Evidence tier: cargo check + cargo doc (intra-doc-link resolution) + cargo tree.
+      No public Burn-keyed surface symbol is removed, narrowed, renamed, or
+      re-exported-differently. `xtask/burn_surface.allowlist` is unchanged because
+      the auto-generated allowlist is signature-keyed (not docstring-keyed); the
+      legacy symbols still exist in the source and the parallel Atlas signatures are
+      purely additive (per sub-batch #1 closure). The Burn GPU-default drift
+      (closed in inner commit `65a1a0fd`) is preserved.
+- Forward intent: the soft-deprecation hint is a compiler-quiet migration signal for
+      the next [minor] sub-batch (#3 = per-crate Atlas-typed migration) — consumer
+      crates reading rustdoc or rust-analyzer hover on these surfaces will see the
+      Atlas-typed callout at zero compile-cost.
+- Atomic-boundary discipline preserved: sub-batch #2 is purely subtractive-by-
+      documentation; no additive trait surface, no `Cargo.toml` mutation, no
+      allowlist regeneration. Sub-batches #1 (additive parallel traits) and #2
+      (docstring deprecation) are deliberately separate commits per the ADR 0012
+      §Decision atomic-boundary discipline.
+- Reserved inner tag: `ritk/atlas-migration-push/batch3` per ADR 0010
+      §Decision §"Per-batch name pattern".
+
 ## Sprint 495 — MIG-495: Native Writers for the Remaining 5 Formats
 **Target version**: 0.14.0
 **Sprint phase**: Execution — all-format native I/O parity

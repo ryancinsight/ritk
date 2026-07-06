@@ -10,6 +10,15 @@ use crate::tensor::backend::Backend;
 use crate::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
+/// **Soft-deprecated (Atlas Batch #3 sub-batch #2, 2026-07-06; docstring-only)** —
+/// prefer the Atlas-typed parallel [`AtlasImage`](crate::AtlasImage) (alias of
+/// `ritk_image::native::Image<T, B, D>` where `T = coeus_core::Scalar` and
+/// `B = coeus_core::ComputeBackend`).
+/// No `#[deprecated]` attribute on this item to avoid cascading
+/// `#[warn(deprecated)]` warnings across 671 burner consumer files in
+/// `xtask/burn_surface.allowlist`. Migration plan:
+/// `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Sub-batch #2.
+///
 /// Medical image with physical metadata.
 ///
 /// The Image type combines tensor data (potentially on GPU) with physical

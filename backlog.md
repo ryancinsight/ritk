@@ -160,16 +160,26 @@
 **Sub-batch #1 of ritk Burn-trait rebind (RITK-Atlas-typed-trait-surface, **DONE 2026-07-06**)**
 is the additive Atlas-typed parallel trait surface landed in this inner
 commit, cross-walked at `atlas/backlog.md` §"Batch #3 sub-batches" and
-`atlas/checklist.md` §Batch #3. Sub-batches #2-#6 (RITK-trait-deprecate soft
-doc deprecation, RITK-crate-migrate per-crate burn-line flips in the order
-filter → registration → segmentation → model → statistics → io/interpolation/
-transform → python/cli/snap, RITK-spatial-rebind dropping Burn
-`Module`/`Record` impls, RITK-burn-remove `[major]` Cargo dep strip with
-`pub use types::Image;` re-export path switch, RITK-xtask-ci allowlist / CI
-scan gates) remain reserved per the §atomic-boundary discipline in ADR 0012
-§Decision. Every per-crate rebind increment (sub-batch #3.{a-g}) is itself
-sub-atomic; the `xtask/burn_surface.allowlist` source-entries contract on
-sub-batch #5 re-enter. Reserved inner tag: `ritk/atlas-migration-push/batch3`.
+`atlas/checklist.md` §Batch #3. Sub-batch #2 (RITK-trait-deprecate soft
+docstring deprecation on the four Burn-keyed foundational surfaces
+`Transform<B, D>`, `Resampleable<B, D>`, `Interpolator<B>`, `Image<B, D>`)
+**DONE 2026-07-06** in a subsequent inner commit as well; the soft-
+deprecation docstrings only (no `#[deprecated]` attribute, so zero cascade
+across the 671 burner consumer files in `xtask/burn_surface.allowlist`).
+The forward-pointing intra-doc-links (`TransformAtlas` / `ResampleableAtlas`
+/ `InterpolatorAtlas` / `AtlasImage`) anchor at the Atlas-side parallels
+added in sub-batch #1 (no `xtask/burn_surface.allowlist` perturbation since
+the auto-generated allowlist is signature-keyed, not docstring-keyed).
+Sub-batches #3-#6 (RITK-crate-migrate per-crate burn-line flips in the
+order filter → registration → segmentation → model → statistics →
+io/interpolation/transform → python/cli/snap, RITK-spatial-rebind dropping
+Burn `Module`/`Record` impls, RITK-burn-remove `[major]` Cargo dep strip
+with `pub use types::Image;` re-export path switch, RITK-xtask-ci
+allowlist / CI scan gates) remain reserved per the §atomic-boundary
+discipline in ADR 0012 §Decision. Every per-crate rebind increment
+(sub-batch #3.{a-g}) is itself sub-atomic; the
+`xtask/burn_surface.allowlist` source-entries contract on sub-batch #5
+re-enter. Reserved inner tag: `ritk/atlas-migration-push/batch3`.
 
 ## Closed dependency items
 
