@@ -17,6 +17,21 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 496: NIfTI Int16 decode coverage (MIG-496-06)
+
+### Fixed
+- `ritk-nifti`: NIfTI datatype code 4 (`Int16`) now parses as a first-class
+  header datatype, validates `bitpix = 16`, and sign-extends voxel payload
+  lanes into the image scalar path.
+- `ritk-snap`: OpenNeuro-style Int16 `.nii.gz` volumes now load through the
+  existing RITK NIfTI reader instead of failing header validation.
+
+### Evidence
+- Evidence tier: value-semantic regression plus downstream and selected-package
+  integration tests. The synthetic Int16 in-memory reader regression passed
+  1/1, the previously failing SNAP NIfTI volume-shape test passed 1/1, and the
+  selected RITK package nextest gate passed 4305/4305 with 26 skipped.
+
 ## [Unreleased] — Sprint 496: DICOM attribute ownership
 
 ### Added

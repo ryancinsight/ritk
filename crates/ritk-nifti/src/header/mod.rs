@@ -46,6 +46,7 @@ impl HeaderVersion {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum NiftiDatatype {
     Uint8,
+    Int16,
     Float32,
     Uint32,
 }
@@ -54,6 +55,7 @@ impl NiftiDatatype {
     pub(crate) const fn code(self) -> i16 {
         match self {
             Self::Uint8 => 2,
+            Self::Int16 => 4,
             Self::Float32 => 16,
             Self::Uint32 => 768,
         }
@@ -62,6 +64,7 @@ impl NiftiDatatype {
     pub(super) const fn bitpix(self) -> i16 {
         match self {
             Self::Uint8 => 8,
+            Self::Int16 => 16,
             Self::Float32 | Self::Uint32 => 32,
         }
     }
@@ -73,6 +76,7 @@ impl NiftiDatatype {
     pub(crate) fn from_code(code: i16) -> Result<Self> {
         match code {
             2 => Ok(Self::Uint8),
+            4 => Ok(Self::Int16),
             16 => Ok(Self::Float32),
             768 => Ok(Self::Uint32),
             _ => bail!("Unsupported NIfTI datatype code {code}"),
@@ -389,9 +393,17 @@ impl NiftiHeader {
         }
     }
 
+    pub(crate) fn read_i16_lane(&self, raw: [u8; 2]) -> i16 {
+        match self.endian {
+            Endian::Little => i16::from_le_bytes(raw),
+            Endian::Big => i16::from_be_bytes(raw),
+        }
+    }
+
     pub(crate) fn read_f32_voxel(&self, raw: &[u8]) -> Result<f32> {
         Ok(match self.datatype {
             NiftiDatatype::Uint8 => f32::from(raw[0]),
+            NiftiDatatype::Int16 => f32::from(self.read_i16_lane(checked_lane::<2>(raw)?)),
             NiftiDatatype::Float32 => self.read_f32_lane(checked_lane::<4>(raw)?),
             NiftiDatatype::Uint32 => self.read_u32_lane(checked_lane::<4>(raw)?) as f32,
         })
@@ -400,6 +412,12 @@ impl NiftiHeader {
     pub(crate) fn read_label_voxel(&self, raw: &[u8]) -> Result<u32> {
         Ok(match self.datatype {
             NiftiDatatype::Uint8 => u32::from(raw[0]),
+            NiftiDatatype::Int16 => {
+                let value = self.read_i16_lane(checked_lane::<2>(raw)?);
+                u32::try_from(value).with_context(|| {
+                    format!("NIfTI label voxel must be non-negative, got {value}")
+                })?
+            }
             NiftiDatatype::Float32 => {
                 self.read_f32_lane(checked_lane::<4>(raw)?).max(0.0).round() as u32
             }

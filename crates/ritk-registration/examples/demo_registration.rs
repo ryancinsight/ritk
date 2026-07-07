@@ -6,11 +6,11 @@
 //! Usage:
 //!   cargo run --example demo_registration
 
-use ritk_image::burn::backend::wgpu::Wgpu;
-use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::Tensor;
+use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::Tensor;
 use ritk_interpolation::LinearInterpolator;
 use ritk_io::{read_nifti, write_nifti};
 use ritk_registration::metric::MutualInformation;
@@ -19,11 +19,11 @@ use ritk_registration::optimizer::AdamOptimizer;
 use ritk_transform::RigidTransform;
 use std::path::Path;
 
-// Use WGPU backend for GPU acceleration
-type Backend = Autodiff<Wgpu>;
+// Use the default CPU backend; Burn WGPU is not part of the default workspace feature set.
+type Backend = Autodiff<NdArray<f32>>;
 
 fn main() -> anyhow::Result<()> {
-    println!("RITK Demo Registration (GPU Backend)");
+    println!("RITK Demo Registration (CPU Backend)");
     println!("====================================\n");
 
     // Initialize tracing

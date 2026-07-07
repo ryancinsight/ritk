@@ -1,24 +1,18 @@
-use ritk_image::burn::{
-    backend::wgpu::{Wgpu, WgpuDevice},
-    tensor::{Distribution, Tensor},
-};
+use burn_ndarray::NdArray;
+use ritk_image::burn::tensor::{Distribution, Tensor};
 use ritk_model::transmorph::{
     spatial_transform::SpatialTransformer, TransMorph, TransMorphConfig, TransformIntegration,
 };
 use std::time::Instant;
 
 fn main() {
-    // Select backend (Wgpu if available, else NdArray)
-    // For this example, we use Wgpu for performance if possible, but fallback logic isn't built-in easily
-    // without dynamic dispatch or cfg. We'll use Wgpu as it is the target.
-
     println!("Initializing TransMorph Registration Example...");
-    run_registration_wgpu();
+    run_registration();
 }
 
-fn run_registration_wgpu() {
-    type Backend = Wgpu;
-    let device = WgpuDevice::default();
+fn run_registration() {
+    type Backend = NdArray<f32>;
+    let device = Default::default();
 
     println!("Using device: {:?}", device);
 

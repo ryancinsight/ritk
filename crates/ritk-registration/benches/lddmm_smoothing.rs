@@ -1,4 +1,4 @@
-//! Criterion benchmarks comparing CPU vs GPU field smoothing in LDDMM
+//! Criterion benchmarks comparing default and preallocated field smoothing in LDDMM
 //! registration.
 //!
 //! Measures wall-clock time for a single gradient-descent iteration on a
@@ -10,11 +10,7 @@
 //! cargo bench -p ritk-registration --bench lddmm_smoothing
 //! ```
 //!
-//! The GPU benchmark requires a WGPU-compatible device (Vulkan, Metal,
-//! or DX12).  On systems without GPU support the benchmark will still
-//! compile but may panic at runtime.
-
-use ritk_image::burn::backend::wgpu::{Wgpu, WgpuDevice};
+use burn_ndarray::NdArray;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::SeedableRng;
 
@@ -22,7 +18,7 @@ use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
 use ritk_registration::GpuFieldSmoother;
 use ritk_spatial::Spacing;
 
-type GpuBackend = Wgpu<f32, i32>;
+type SmoothingBackend = NdArray<f32>;
 
 /// Build a pair of synthetic 3-D images (fixed, moving) populated with
 /// uniform random values in [0, 255].  Uses a fixed RNG seed so benchmark
@@ -72,11 +68,15 @@ fn bench_lddmm_smoothing(c: &mut Criterion) {
         })
     });
 
-    // ── GPU path: GpuFieldSmoother<Wgpu> (via register_with) ─────────────
-    group.bench_function("gpu_smoother_wgpu", |b| {
-        let device = WgpuDevice::default();
-        let mut smoother =
-            GpuFieldSmoother::<GpuBackend>::new(dims, Spacing::new([1.0, 1.0, 1.0]), 2.0, &device);
+    // ── Preallocated tensor path: GpuFieldSmoother<NdArray> (via register_with) ──
+    group.bench_function("preallocated_smoother_ndarray", |b| {
+        let device = Default::default();
+        let mut smoother = GpuFieldSmoother::<SmoothingBackend>::new(
+            dims,
+            Spacing::new([1.0, 1.0, 1.0]),
+            2.0,
+            &device,
+        );
         let reg = LddmmRegistration::new(config.clone());
         b.iter(|| {
             black_box(

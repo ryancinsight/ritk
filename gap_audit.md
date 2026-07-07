@@ -17,6 +17,31 @@
 
 # RITK Gap Audit - Active
 
+## MIG-496-06 audit (2026-07-07)
+
+### NIfTI Int16 image payloads decode through the native header codec
+
+The selected RITK package gate exposed a real format-support gap: the OpenNeuro
+SNAP fixture `sub-01_T1w.nii.gz` uses NIfTI datatype code 4 (`Int16`), while
+`ritk-nifti` only admitted UInt8, Float32, and UInt32. The fix extends the
+`NiftiDatatype` SSOT with signed 16-bit lanes instead of adding a caller-side
+fallback. Image reads now sign-extend Int16 voxels into the existing scalar
+image buffer; label reads accept non-negative Int16 labels and reject negative
+label values as invalid for the `u32` label contract.
+
+Evidence tier: value-semantic regression plus downstream integration tests.
+`rustup run nightly cargo nextest run -p ritk-nifti
+read_nifti_from_bytes_accepts_int16_voxels --status-level fail
+--no-fail-fast` passed 1/1, `rustup run nightly cargo nextest run -p
+ritk-snap test_load_nifti_volume_shape --status-level fail --no-fail-fast`
+passed 1/1, and the selected RITK package gate passed 4305/4305 with 26
+skipped.
+
+Residual risk: this closes the Int16 code path only. Other NIfTI scalar
+datatypes remain unsupported until a real fixture or consumer contract requires
+them; add each through `NiftiDatatype` with value-semantic tests, not through a
+catch-all conversion branch.
+
 ## DEP-496-04 audit (2026-07-06)
 
 ### DICOM attribute ownership moves behind RITK

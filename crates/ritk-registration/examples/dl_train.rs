@@ -1,17 +1,15 @@
 #![recursion_limit = "512"]
+use burn_ndarray::NdArray;
+use ritk_core::{
+    image::Image,
+    spatial::{Direction3, Point3, Spacing3},
+};
 use ritk_image::burn::{
-    backend::{
-        wgpu::{Wgpu, WgpuDevice},
-        Autodiff,
-    },
+    backend::Autodiff,
     module::Module,
     optim::{AdamConfig, Optimizer},
     prelude::Backend,
     tensor::{Distribution, Tensor},
-};
-use ritk_core::{
-    image::Image,
-    spatial::{Direction3, Point3, Spacing3},
 };
 use ritk_model::{
     affine::{AffineNetwork, AffineNetworkConfig, AffineTransform},
@@ -97,9 +95,9 @@ fn main() {
 }
 
 fn run_training() {
-    // 1. Setup Backend (Autodiff + Wgpu)
-    type MyBackend = Autodiff<Wgpu>;
-    let device = WgpuDevice::default();
+    // 1. Setup Backend (Autodiff + NdArray)
+    type MyBackend = Autodiff<NdArray<f32>>;
+    let device = Default::default();
 
     println!("Using device: {:?}", device);
 

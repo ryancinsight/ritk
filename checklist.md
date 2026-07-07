@@ -17,6 +17,23 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-496-06 — NIfTI Int16 Decode Coverage
+**Target version**: 0.14.0
+**Sprint phase**: Closure complete for this slice
+
+### Completed plan (MIG-496-06)
+- [x] Add signed 16-bit NIfTI datatype support to the header codec. Completion
+      condition: datatype code 4 validates with 16-bit payload lanes and image
+      voxels sign-extend into the reader scalar path.
+- [x] Preserve value semantics with a synthetic in-memory regression. Evidence:
+      `rustup run nightly cargo nextest run -p ritk-nifti
+      read_nifti_from_bytes_accepts_int16_voxels --status-level fail
+      --no-fail-fast` passed 1/1.
+- [x] Re-run the downstream loader failure and the broader selected package
+      gate. Evidence: `rustup run nightly cargo nextest run -p ritk-snap
+      test_load_nifti_volume_shape --status-level fail --no-fail-fast` passed
+      1/1, and the selected RITK package gate passed 4305/4305 with 26 skipped.
+
 ## DEP-496-04 — DICOM Attribute Ownership
 **Target version**: 0.14.0
 **Sprint phase**: Closure complete for this slice

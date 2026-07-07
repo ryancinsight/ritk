@@ -3,9 +3,9 @@ use crate::header::{
     write_single_file_bytes, HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader,
 };
 use anyhow::Result;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
@@ -80,6 +80,48 @@ fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
     assert!((loaded.spacing()[0] - 1.0).abs() < 1e-5);
     assert!((loaded.spacing()[1] - 0.7).abs() < 1e-5);
     assert!((loaded.spacing()[2] - 2.3).abs() < 1e-5);
+
+    Ok(())
+}
+
+#[test]
+fn read_nifti_from_bytes_accepts_int16_voxels() -> Result<()> {
+    let device = Default::default();
+    let header = NiftiHeader::new_3d(
+        HeaderDims {
+            nx: 3,
+            ny: 2,
+            nz: 2,
+        },
+        NiftiDatatype::Int16,
+        HeaderSpatial {
+            pixdim: [1.0; 8],
+            srow_x: [1.0, 0.0, 0.0, 0.0],
+            srow_y: [0.0, 1.0, 0.0, 0.0],
+            srow_z: [0.0, 0.0, 1.0, 0.0],
+        },
+    )?;
+    let values = [
+        -1024_i16, -7, 0, 1, 42, 127, 256, 511, 1024, 2047, 3072, 4095,
+    ];
+    let mut payload = Vec::with_capacity(values.len() * 2);
+    for value in values {
+        payload.extend_from_slice(&value.to_le_bytes());
+    }
+
+    let loaded =
+        read_nifti_from_bytes::<TestBackend>(&write_single_file_bytes(&header, &payload), &device)?;
+
+    assert_eq!(
+        loaded.shape(),
+        [2, 2, 3],
+        "Int16 NIfTI reader must preserve ZYX shape"
+    );
+    assert_eq!(
+        loaded.try_data_vec()?,
+        values.map(f32::from).to_vec(),
+        "Int16 NIfTI reader must sign-extend every voxel into the image scalar"
+    );
 
     Ok(())
 }
@@ -439,7 +481,7 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
     Ok(())
 }
 
-#[path = "tests_native.rs"]
-mod tests_native;
 mod tests_format_sources;
 mod tests_labels;
+#[path = "tests_native.rs"]
+mod tests_native;
