@@ -17,6 +17,57 @@
 
 # RITK Sprint Checklist — Active
 
+## DEP-497-01 — Dead `burn` production-dep strip (17 leaf crates)
+**Target version**: 0.14.0 (no bump — dependency-only, no public API change)
+**Sprint phase**: Closed 2026-07-07 (commit `7a66d1ee`)
+
+### Completed plan (DEP-497-01)
+- [x] Remove `burn = { workspace = true }` production dependency from
+      `ritk-{cli,core,filter,io,jpeg,metaimage,mgh,minc,model,nifti,nrrd,
+      png,registration,segmentation,snap,statistics,tiff,transform,vtk}`
+      Cargo.toml where sub-batch #3 per-crate ports (`.a`-`.f`) already
+      removed the last production-code reference. `burn-ndarray` dev-dep
+      retained where per-crate sub-batch #3 test ports are still open —
+      this is explicitly distinct from sub-batch #5's full Burn Cargo
+      strip + `Image<B, D>` re-export switch per
+      `docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §Sub-batch #5
+      (no `[dependencies]` rename/`burn-ndarray` removal here, no
+      version bump).
+- [x] Fix a `clippy::doc_lazy_continuation` false trigger in
+      `ritk-model/src/ssmmorph/encoder/tests.rs` (leading `+` parsed as
+      a markdown list marker by rustdoc) surfaced while verifying this
+      slice; `cargo fmt` run across the 19 touched crates.
+      Completion condition: `cargo clippy --workspace --all-targets --
+      -D warnings` returns 0 warnings.
+- [x] Run the full verification gate. Evidence: `rustup run nightly
+      cargo nextest run -p ritk-{cli,core,filter,io,jpeg,metaimage,mgh,
+      minc,model,nifti,nrrd,png,registration,segmentation,snap,
+      statistics,tiff,transform,vtk} --no-fail-fast` passed 4258/4258
+      (23 skipped); `cargo clippy --workspace --all-targets -- -D
+      warnings` clean; `cargo fmt --check` clean for touched crates
+      (pre-existing `xtask/src/migration_audit.rs` drift left
+      untouched — out of scope for this slice); `cargo doc --no-deps`
+      generated no new warnings (2 pre-existing broken intra-doc links
+      in `ritk-filter/src/{morphology/atlas_binary_erode,
+      distance/euclidean/native}.rs` predate this change, untouched by
+      the diff — filed as residual risk below).
+- [x] Verified full-workspace `cargo nextest run --workspace` in
+      isolation reproduces an unrelated pre-existing timeout in
+      `ritk-snap app::pacs_ops::tests::handle_submit_retrieve_series_
+      sets_pending_state` only under full-workspace parallel resource
+      contention (passes in 2.1s when run scoped/isolated); the file
+      is untouched by this diff — filed as residual risk, not blocking.
+
+### Residual risk (gap_audit.md candidates)
+- `ritk-filter` doc: 2 pre-existing broken intra-doc links
+  (`erode_binary_3d`, `super::euclidean_dt` — both private items
+  referenced from public doc comments) predate this slice; fix in a
+  follow-up `[patch]`.
+- `ritk-snap::app::pacs_ops` full-workspace-nextest-only timeout is
+  resource-contention flakiness under full-parallel load, not a code
+  hang (isolated run: 2.1s pass) — worth a nextest per-binary
+  parallelism cap if it recurs, not a correctness defect.
+
 ## MIG-496-07 — DICOM Dimension Overflow Guard
 **Target version**: 0.14.0
 **Sprint phase**: Closure complete for this slice
