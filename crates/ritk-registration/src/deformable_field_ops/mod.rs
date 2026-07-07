@@ -20,8 +20,8 @@ mod smooth;
 mod validation;
 mod warp;
 
-use ritk_spatial::VolumeDims;
 use ritk_image::tensor::Backend;
+use ritk_spatial::VolumeDims;
 
 // Flat `flat` and `trilinear_interpolate` are defined here to avoid peer-module
 // resolution cycles: every sub-module accesses them via `use super::{flat, trilinear_interpolate}`.

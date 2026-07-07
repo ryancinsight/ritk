@@ -25,11 +25,7 @@ fn test_transmorph_forward() {
     let model = config.init::<B>(&device);
 
     // Input: [1, 1, 64, 64, 64]
-    let x = Tensor::<B, 5>::random(
-        [1, 1, 64, 64, 64],
-        Distribution::Normal(0.0, 1.0),
-        &device,
-    );
+    let x = Tensor::<B, 5>::random([1, 1, 64, 64, 64], Distribution::Normal(0.0, 1.0), &device);
 
     let output = model.forward(x);
 

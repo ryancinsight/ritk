@@ -18,8 +18,8 @@
 //! switch to `TiffEncoder::new_big`.
 
 use anyhow::{anyhow, Context, Result};
-use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::io::{BufWriter, Seek, Write};
 use std::path::Path;
 use tiff::encoder::colortype;
@@ -163,11 +163,11 @@ pub mod native {
 #[cfg(test)]
 mod tests {
     use crate::read_tiff;
-    use ritk_image::tensor::backend::Backend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::tensor::backend::Backend;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use tempfile::tempdir;
 
     use super::{write_tiff, TiffWriter};

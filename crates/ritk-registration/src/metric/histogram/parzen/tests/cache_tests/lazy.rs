@@ -5,9 +5,9 @@ use super::super::*;
 #[cfg(feature = "direct-parzen")]
 #[test]
 fn lazy_sparse_cache_built_on_first_access() {
-    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 

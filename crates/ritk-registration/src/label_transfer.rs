@@ -17,8 +17,8 @@
 //! For a deformable result the displacement/velocity field implements [`Transform`]
 //! too, so the same call warps labels through a SyN/Demons/B-spline field.
 
-use ritk_image::{grid, Image};
 use ritk_image::tensor::Backend;
+use ritk_image::{grid, Image};
 use ritk_interpolation::{Interpolator, NearestNeighborInterpolator};
 use ritk_transform::Transform;
 use std::collections::BTreeMap;

@@ -1,7 +1,7 @@
-use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction3, Point3, Spacing3};
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_registration::metric::{MeanSquaredError, Metric};
 use ritk_transform::TranslationTransform;
 

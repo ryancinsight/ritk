@@ -10,11 +10,11 @@ use crate::metric::{Metric, MutualInformation};
 use crate::optimizer::{ConvergenceReason, Optimizer, RegularStepGradientDescent};
 use crate::types::AffineTransform;
 
+use ritk_core::image::Image;
+use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_image::burn::module::AutodiffModule;
 use ritk_image::burn::optim::GradientsParams;
 use ritk_image::tensor::AutodiffBackend;
-use ritk_core::image::Image;
-use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_transform::{
     AffineTransform as CoreAffineTransform, Resampleable, RigidTransform, Transform,
     TranslationTransform,

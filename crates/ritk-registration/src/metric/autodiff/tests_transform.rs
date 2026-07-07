@@ -81,7 +81,10 @@ fn affine_translation_gradient_is_the_point_count() {
     );
     sum(&out).backward();
     for (j, &g) in t.grad().expect("t grad").as_slice().iter().enumerate() {
-        assert!((g - n).abs() < 1e-12, "∂(Σout)/∂t[{j}] should be N={n}, got {g}");
+        assert!(
+            (g - n).abs() < 1e-12,
+            "∂(Σout)/∂t[{j}] should be N={n}, got {g}"
+        );
     }
 }
 

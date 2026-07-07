@@ -6,9 +6,9 @@
 //!   3. Joint histogram computation only
 //!   4. Transform + interpolation chain only
 
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 use ritk_core::image::grid;
 use ritk_core::image::Image;

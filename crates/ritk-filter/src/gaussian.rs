@@ -1,8 +1,8 @@
 use crate::edge::GaussianSigma;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::ops::ConvOptions;
-use ritk_image::tensor::{Shape, Tensor};
 use ritk_core::image::Image;
+use ritk_image::tensor::ops::ConvOptions;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor};
 use ritk_spatial::Spacing;
 use ritk_wgpu_compat::apply_row_chunks;
 
@@ -159,7 +159,12 @@ impl<B: Backend> GaussianFilter<B> {
         let output_reshaped =
             apply_row_chunks(input_reshaped, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk| {
                 // BURN-API: conv1d consumes kernel_reshaped; clone required until upstream adds non-consuming variant
-                ritk_image::tensor::module::conv1d(chunk, kernel_reshaped.clone(), None, options.clone())
+                ritk_image::tensor::module::conv1d(
+                    chunk,
+                    kernel_reshaped.clone(),
+                    None,
+                    options.clone(),
+                )
             });
 
         // 3. Reshape back and inverse permute

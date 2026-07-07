@@ -29,8 +29,8 @@
 //! non-trivial fraction the result is float-exact to SimpleITK.
 
 use anyhow::{bail, Result};
-use ritk_image::tensor::Backend;
 use eunomia::Complex;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;

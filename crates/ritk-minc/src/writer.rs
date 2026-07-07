@@ -1,4 +1,4 @@
-﻿//! MINC2 writer: HDF5-based 3-D volumetric image export.
+//! MINC2 writer: HDF5-based 3-D volumetric image export.
 //!
 //! # HDF5 Structure Written
 //!
@@ -29,8 +29,8 @@
 
 use crate::hdf5_binary::write_minc2_hdf5;
 use anyhow::{bail, Result};
-use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::path::Path;
 
 // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

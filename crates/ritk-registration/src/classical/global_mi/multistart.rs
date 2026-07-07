@@ -45,9 +45,9 @@
 
 use std::f64::consts::PI;
 
+use ritk_core::image::Image;
 use ritk_image::tensor::AutodiffBackend;
 use ritk_image::tensor::{Tensor, TensorData};
-use ritk_core::image::Image;
 use ritk_transform::RigidTransform;
 
 use super::registration::GlobalMiRegistration;

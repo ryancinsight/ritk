@@ -26,8 +26,8 @@
 //! `sitk.ConnectedThreshold`, so the separating threshold — and the binary output
 //! — is bit-exact to `sitk.IsolatedConnected`.
 
-use ritk_image::tensor::Backend;
 use ritk_core::spatial::VoxelIndex;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 

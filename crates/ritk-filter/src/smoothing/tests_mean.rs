@@ -1,8 +1,8 @@
 //! Tests for mean
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::test_support as ts;
 use ritk_spatial::{Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;

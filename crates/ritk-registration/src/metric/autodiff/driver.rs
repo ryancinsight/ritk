@@ -81,7 +81,10 @@ where
     Tf: Transform<T, B>,
     F: Fn(&[Var<T, B>]) -> Tf,
 {
-    assert!(!params.is_empty(), "gradient_descent: params must be non-empty");
+    assert!(
+        !params.is_empty(),
+        "gradient_descent: params must be non-empty"
+    );
 
     let mut params = params;
     let mut initial_loss: Option<T> = None;
@@ -93,7 +96,10 @@ where
             initial_loss = Some(loss.tensor.as_slice()[0]);
         }
         loss.backward();
-        params = params.iter().map(|p| sgd_step_var(p, config.learning_rate)).collect();
+        params = params
+            .iter()
+            .map(|p| sgd_step_var(p, config.learning_rate))
+            .collect();
     }
 
     // Re-evaluate at the returned (post-final-step) parameters so `final_loss`

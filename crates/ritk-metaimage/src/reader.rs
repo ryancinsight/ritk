@@ -1,9 +1,9 @@
 use crate::spatial::metadata_from_file_transform;
 use anyhow::{anyhow, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::Point;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
@@ -43,7 +43,6 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
     Ok(Image::new(tensor, origin, spacing, direction))
 }
-
 
 /// Backend-agnostic decoded MetaImage volume: voxels in `[nz, ny, nx]` order plus
 /// the derived physical metadata. Shared by the Burn and Coeus reader paths.

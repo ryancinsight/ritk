@@ -92,7 +92,10 @@ where
     B: ComputeBackend + BackendOps<T> + Default,
 {
     let vals: Vec<T> = indices.iter().map(|&i| T::from_f64(i as f64)).collect();
-    Var::new(Tensor::from_slice_on([indices.len()], &vals, backend), false)
+    Var::new(
+        Tensor::from_slice_on([indices.len()], &vals, backend),
+        false,
+    )
 }
 
 /// Differentiable linear interpolation of a 1-D `signal` (shape `[L]`) at
@@ -116,7 +119,11 @@ where
 {
     let backend = B::default();
     let signal_shape = signal.tensor.shape();
-    assert_eq!(signal_shape.len(), 1, "sample_linear_1d: signal must be 1-D");
+    assert_eq!(
+        signal_shape.len(),
+        1,
+        "sample_linear_1d: signal must be 1-D"
+    );
     let len = signal_shape[0];
     assert!(len > 0, "sample_linear_1d: signal must be non-empty");
 
@@ -162,14 +169,26 @@ where
     let [nz, ny, nx] = dims;
     let expected = nz * ny * nx;
     let signal_shape = signal.tensor.shape();
-    assert_eq!(signal_shape.len(), 1, "sample_trilinear: signal must be flat 1-D");
+    assert_eq!(
+        signal_shape.len(),
+        1,
+        "sample_trilinear: signal must be flat 1-D"
+    );
     assert_eq!(
         signal_shape[0], expected,
         "sample_trilinear: signal length must equal Z·Y·X"
     );
     let n = coords_z.tensor.shape().first().copied().unwrap_or(0);
-    assert_eq!(coords_y.tensor.shape(), [n], "coords_y length must match coords_z");
-    assert_eq!(coords_x.tensor.shape(), [n], "coords_x length must match coords_z");
+    assert_eq!(
+        coords_y.tensor.shape(),
+        [n],
+        "coords_y length must match coords_z"
+    );
+    assert_eq!(
+        coords_x.tensor.shape(),
+        [n],
+        "coords_x length must match coords_z"
+    );
 
     let az = axis_interp(coords_z, nz, &backend);
     let ay = axis_interp(coords_y, ny, &backend);

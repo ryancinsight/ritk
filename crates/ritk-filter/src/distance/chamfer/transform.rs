@@ -2,9 +2,9 @@
 
 use super::super::types::BinarizationThreshold;
 use super::kernel::{cdt_dispatch, ChamferMetric, INF};
+use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_core::image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
 /// Compute the **chamfer distance transform** of a 3-D binary image.

@@ -96,10 +96,8 @@ pub(crate) fn compute_image_center<B: Backend, const D: usize>(image: &Image<B, 
         .map(|d| shape.get(d).copied().unwrap_or(1) as f32 / 2.0)
         .collect();
     let device = image.data().device();
-    let center_tensor = Tensor::<B, 1>::from_data(
-        TensorData::from(center_indices.as_slice()),
-        &device,
-    );
+    let center_tensor =
+        Tensor::<B, 1>::from_data(TensorData::from(center_indices.as_slice()), &device);
     let physical = image.index_to_world_tensor(center_tensor.unsqueeze_dim(0));
     let physical_flat: Tensor<B, 1> = physical.squeeze();
     let data = physical_flat.into_data();

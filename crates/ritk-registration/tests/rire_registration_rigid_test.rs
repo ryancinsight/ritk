@@ -42,8 +42,8 @@
 //! use the standard RIRE `[x, y, z]` reference frame.
 mod common;
 
-use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Tensor, TensorData};
 
 use common::{
     compute_tre, downsample_stride, find_rire_dir, identity_m4, ncc, normalize_minmax,

@@ -1,9 +1,9 @@
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 use super::{connected_threshold, ConnectedThresholdFilter};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::test_support::make_image;
 
 type TestBackend = NdArray<f32>;

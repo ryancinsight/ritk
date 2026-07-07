@@ -11,10 +11,10 @@ use super::transforms::{
 };
 use crate::optimizer::RegularStepGdConfig;
 use crate::optimizer::{HistoryPolicy, PopulationEval};
-use ritk_image::burn::backend::Autodiff;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_filter::GaussianSigma;
+use ritk_image::burn::backend::Autodiff;
 use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::{RigidTransform, TranslationTransform};

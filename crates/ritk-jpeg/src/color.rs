@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use image::{ColorType, RgbImage};
 use ritk_core::image::RgbVolume;
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
 const RGB_CHANNELS: usize = 3;
@@ -89,10 +89,10 @@ fn rgb_volume_from_flat_pixels<B: Backend>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::tensor::backend::Backend;
     use burn_ndarray::NdArray;
     use image::codecs::jpeg::JpegEncoder;
     use image::{GrayImage, Luma, RgbImage};
+    use ritk_image::tensor::backend::Backend;
     use std::fs::File;
     use std::io::BufWriter;
     use tempfile::tempdir;

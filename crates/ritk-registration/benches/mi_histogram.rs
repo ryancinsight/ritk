@@ -2,9 +2,9 @@
 //!
 //! Benchmarks the core hot-path used by MutualInformation metrics during registration.
 
-use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use criterion::{criterion_group, criterion_main, Criterion};
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_registration::metric::histogram::ParzenJointHistogram;
 
 type B = NdArray<f32>;

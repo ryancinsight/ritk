@@ -10,12 +10,12 @@
 
 use std::time::Instant;
 
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::{NdArray, NdArrayDevice};
 use ritk_filter::{
     gradient_recursive_gaussian_components, recursive_gaussian::recursive_gaussian_directional,
     DerivativeOrder,
 };
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 

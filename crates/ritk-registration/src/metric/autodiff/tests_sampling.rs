@@ -178,7 +178,9 @@ fn trilinear_forward_matches_host_reference() {
     let dims = [3usize, 4, 5];
     let n = dims[0] * dims[1] * dims[2];
     // A non-separable signal so all eight corners genuinely contribute.
-    let signal: Vec<f64> = (0..n).map(|i| ((i * 7) % 13) as f64 + 0.25 * i as f64).collect();
+    let signal: Vec<f64> = (0..n)
+        .map(|i| ((i * 7) % 13) as f64 + 0.25 * i as f64)
+        .collect();
     let zs = [0.5, 1.25, 2.0];
     let ys = [1.5, 0.0, 3.9];
     let xs = [2.5, 4.0, 0.1];
@@ -225,7 +227,11 @@ fn trilinear_coordinate_gradient_of_separable_ramp_is_the_per_axis_slopes() {
     sum(&out).backward();
 
     for (axis, (leaf, slope)) in [(&zc, bz), (&yc, by), (&xc, bx)].iter().enumerate() {
-        let grad = leaf.grad().expect("coord requires_grad").as_slice().to_vec();
+        let grad = leaf
+            .grad()
+            .expect("coord requires_grad")
+            .as_slice()
+            .to_vec();
         for (k, &g) in grad.iter().enumerate() {
             assert!(
                 (g - slope).abs() < 1e-10,
@@ -289,6 +295,9 @@ fn trilinear_value_gradient_flows_to_signal_at_integer_voxel() {
     let grad = s.grad().expect("grad").as_slice().to_vec();
     for (i, &g) in grad.iter().enumerate() {
         let expected = if i == flat { 1.0 } else { 0.0 };
-        assert!((g - expected).abs() < 1e-12, "signal grad[{i}]: got {g}, expected {expected}");
+        assert!(
+            (g - expected).abs() < 1e-12,
+            "signal grad[{i}]: got {g}, expected {expected}"
+        );
     }
 }

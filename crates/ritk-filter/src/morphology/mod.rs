@@ -49,13 +49,13 @@ pub use label_morphology::{
 };
 pub use top_hat::{BlackTopHatFilter, WhiteTopHatFilter};
 
-pub mod native;
 pub mod atlas_binary_erode;
 pub mod binary_closing;
 pub mod binary_dilate;
 pub mod binary_erode;
 pub mod binary_fillhole;
 pub mod binary_opening;
+pub mod native;
 
 pub use atlas_binary_erode::AtlasBinaryErodeFilter;
 pub use binary_closing::BinaryMorphologicalClosing;

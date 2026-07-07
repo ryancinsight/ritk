@@ -12,7 +12,6 @@ ritk-annotation = { path = "../ritk-annotation" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 ritk-statistics = { path = "../ritk-statistics" }
 ritk-spatial = { path = "../ritk-spatial" }
-burn = { workspace = true }
 ritk-interpolation = { path = "../ritk-interpolation" }
 ritk-transform = { path = "../ritk-transform" }
 anyhow = { workspace = true }

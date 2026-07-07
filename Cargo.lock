@@ -5669,7 +5669,7 @@ dependencies = [
 name = "moirai-executor"
 version = "0.2.0"
 dependencies = [
- "melinoe 0.7.0",
+ "melinoe 0.8.0",
  "mnemosyne",
  "moirai-core",
  "moirai-pal",
@@ -5698,7 +5698,7 @@ version = "0.2.0"
 dependencies = [
  "js-sys",
  "libc",
- "melinoe 0.7.0",
+ "melinoe 0.8.0",
  "moirai-core",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5710,7 +5710,7 @@ dependencies = [
 name = "moirai-parallel"
 version = "0.2.0"
 dependencies = [
- "melinoe 0.7.0",
+ "melinoe 0.8.0",
  "moirai-executor",
 ]
 
@@ -7565,7 +7565,6 @@ name = "ritk-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "clap",
  "coeus-core",
@@ -7605,7 +7604,6 @@ dependencies = [
 name = "ritk-core"
 version = "0.9.0"
 dependencies = [
- "burn",
  "burn-ndarray",
  "coeus-core",
  "coeus-tensor",
@@ -7639,7 +7637,6 @@ version = "0.2.60"
 dependencies = [
  "anyhow",
  "apollo-fft",
- "burn",
  "burn-ndarray",
  "coeus-core",
  "coeus-tensor",
@@ -7700,7 +7697,6 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "arrayvec",
- "burn",
  "burn-ndarray",
  "coeus-core",
  "coeus-tensor",
@@ -7749,7 +7745,6 @@ name = "ritk-jpeg"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "coeus-core",
  "image 0.24.9",
@@ -7774,7 +7769,6 @@ name = "ritk-metaimage"
 version = "0.1.1"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "bytemuck",
  "coeus-core",
@@ -7791,7 +7785,6 @@ name = "ritk-mgh"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "coeus-core",
  "flate2",
@@ -7807,7 +7800,6 @@ name = "ritk-minc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "coeus-core",
  "consus-core",
@@ -7851,7 +7843,6 @@ name = "ritk-nifti"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "coeus-core",
  "flate2",
@@ -7867,7 +7858,6 @@ name = "ritk-nrrd"
 version = "0.1.1"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "bytemuck",
  "coeus-core",
@@ -7884,7 +7874,6 @@ name = "ritk-png"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "coeus-core",
  "image 0.24.9",
@@ -7958,7 +7947,6 @@ name = "ritk-segmentation"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "coeus-tensor",
  "moirai",
@@ -7975,7 +7963,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arrayvec",
- "burn",
  "burn-ndarray",
  "bytemuck",
  "clap",
@@ -8021,7 +8008,6 @@ name = "ritk-statistics"
 version = "0.1.1"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "coeus-core",
  "coeus-tensor",
@@ -8052,7 +8038,6 @@ name = "ritk-tiff"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn",
  "burn-ndarray",
  "coeus-core",
  "ritk-core",
@@ -8086,8 +8071,6 @@ name = "ritk-vtk"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn",
- "burn-ndarray",
  "gaia",
  "ritk-core",
  "ritk-image",

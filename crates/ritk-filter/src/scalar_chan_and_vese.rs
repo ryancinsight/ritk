@@ -43,8 +43,8 @@
 
 use std::f64::consts::PI;
 
-use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 use crate::signed_maurer_core;

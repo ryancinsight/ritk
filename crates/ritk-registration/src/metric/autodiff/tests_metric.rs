@@ -73,10 +73,16 @@ fn translation_zero_loss_and_zero_gradient_at_identity_alignment() {
         &var_shaped(&[grid_x.len(), 3], &gf, false),
         &Translation { t: t.clone() },
     );
-    assert!(loss.tensor.as_slice()[0].abs() < 1e-12, "loss should be 0 at alignment");
+    assert!(
+        loss.tensor.as_slice()[0].abs() < 1e-12,
+        "loss should be 0 at alignment"
+    );
     loss.backward();
     for (j, &g) in t.grad().expect("grad").as_slice().iter().enumerate() {
-        assert!(g.abs() < 1e-12, "∂loss/∂t[{j}] should be ~0 at alignment, got {g}");
+        assert!(
+            g.abs() < 1e-12,
+            "∂loss/∂t[{j}] should be ~0 at alignment, got {g}"
+        );
     }
 }
 
@@ -94,11 +100,21 @@ fn translation_gradient_points_toward_alignment_at_known_offset() {
         &var_shaped(&[grid_x.len(), 3], &gf, false),
         &Translation { t: t.clone() },
     );
-    assert!((loss.tensor.as_slice()[0] - 1.0).abs() < 1e-12, "loss should be 1 at t=0");
+    assert!(
+        (loss.tensor.as_slice()[0] - 1.0).abs() < 1e-12,
+        "loss should be 1 at t=0"
+    );
     loss.backward();
     let g = t.grad().expect("grad").as_slice().to_vec();
-    assert!(g[0].abs() < 1e-12 && g[1].abs() < 1e-12, "degenerate axes must have zero gradient");
-    assert!((g[2] - (-2.0)).abs() < 1e-12, "∂loss/∂tx should be -2, got {}", g[2]);
+    assert!(
+        g[0].abs() < 1e-12 && g[1].abs() < 1e-12,
+        "degenerate axes must have zero gradient"
+    );
+    assert!(
+        (g[2] - (-2.0)).abs() < 1e-12,
+        "∂loss/∂tx should be -2, got {}",
+        g[2]
+    );
     assert!(g[2] < 0.0, "gradient must point toward +tx alignment");
 }
 
@@ -120,7 +136,10 @@ fn translation_tx_gradient_matches_self_consistent_finite_difference() {
 
     let h = 1e-6;
     let fd = (loss_at_tx(&grid_x, &fixed, h) - loss_at_tx(&grid_x, &fixed, -h)) / (2.0 * h);
-    assert!((analytic - fd).abs() < 1e-5, "analytic {analytic}, finite-diff {fd}");
+    assert!(
+        (analytic - fd).abs() < 1e-5,
+        "analytic {analytic}, finite-diff {fd}"
+    );
 }
 
 #[test]
@@ -170,7 +189,8 @@ fn linear_moving() -> Vec<f64> {
     for z in 0..nz {
         for y in 0..ny {
             for x in 0..nx {
-                v[z * ny * nx + y * nx + x] = 0.5 + 0.3 * z as f64 + 0.2 * y as f64 + 0.1 * x as f64;
+                v[z * ny * nx + y * nx + x] =
+                    0.5 + 0.3 * z as f64 + 0.2 * y as f64 + 0.1 * x as f64;
             }
         }
     }
@@ -227,7 +247,10 @@ fn affine_metric_identity_is_zero_loss_and_zero_gradient() {
     let n = grid.len();
     let grid_flat: Vec<f64> = grid.iter().flatten().copied().collect();
     // fixed = moving sampled at the grid itself ⇒ aligned at R = I, t = 0.
-    let fixed: Vec<f64> = grid.iter().map(|p| linear_value(p[0], p[1], p[2])).collect();
+    let fixed: Vec<f64> = grid
+        .iter()
+        .map(|p| linear_value(p[0], p[1], p[2]))
+        .collect();
     let identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
     let r = var_shaped(&[3, 3], &identity, true);
@@ -240,13 +263,22 @@ fn affine_metric_identity_is_zero_loss_and_zero_gradient() {
         &r,
         &t,
     );
-    assert!(loss.tensor.as_slice()[0].abs() < 1e-12, "identity loss should be 0");
+    assert!(
+        loss.tensor.as_slice()[0].abs() < 1e-12,
+        "identity loss should be 0"
+    );
     loss.backward();
     for &g in r.grad().expect("R grad").as_slice() {
-        assert!(g.abs() < 1e-10, "identity ∂loss/∂R entry should be ~0, got {g}");
+        assert!(
+            g.abs() < 1e-10,
+            "identity ∂loss/∂R entry should be ~0, got {g}"
+        );
     }
     for &g in t.grad().expect("t grad").as_slice() {
-        assert!(g.abs() < 1e-10, "identity ∂loss/∂t entry should be ~0, got {g}");
+        assert!(
+            g.abs() < 1e-10,
+            "identity ∂loss/∂t entry should be ~0, got {g}"
+        );
     }
 }
 
@@ -255,14 +287,20 @@ fn affine_metric_forward_matches_host_reference() {
     let grid = grid_points();
     let n = grid.len();
     let grid_flat: Vec<f64> = grid.iter().flatten().copied().collect();
-    let fixed: Vec<f64> = grid.iter().map(|p| linear_value(p[0], p[1], p[2])).collect();
+    let fixed: Vec<f64> = grid
+        .iter()
+        .map(|p| linear_value(p[0], p[1], p[2]))
+        .collect();
     // Small rotation-ish perturbation of identity, keeping coords in-bounds.
     let r = [1.0, 0.02, 0.0, 0.01, 1.0, 0.03, 0.0, 0.02, 1.0];
     let t = [0.05, -0.03, 0.04];
 
     let got = affine_loss(&grid_flat, n, &fixed, &r, &t);
     let expected = affine_mse_reference(&grid, &fixed, &r, &t);
-    assert!((got - expected).abs() < 1e-12, "affine metric loss: got {got}, expected {expected}");
+    assert!(
+        (got - expected).abs() < 1e-12,
+        "affine metric loss: got {got}, expected {expected}"
+    );
 }
 
 #[test]
@@ -270,7 +308,10 @@ fn affine_metric_gradient_matches_self_consistent_finite_difference() {
     let grid = grid_points();
     let n = grid.len();
     let grid_flat: Vec<f64> = grid.iter().flatten().copied().collect();
-    let fixed: Vec<f64> = grid.iter().map(|p| linear_value(p[0], p[1], p[2])).collect();
+    let fixed: Vec<f64> = grid
+        .iter()
+        .map(|p| linear_value(p[0], p[1], p[2]))
+        .collect();
     let r0 = [1.0, 0.02, 0.0, 0.01, 1.0, 0.03, 0.0, 0.02, 1.0];
     let t0 = [0.05, -0.03, 0.04];
 
@@ -297,7 +338,11 @@ fn affine_metric_gradient_matches_self_consistent_finite_difference() {
         let fd = (affine_loss(&grid_flat, n, &fixed, &rp, &t0)
             - affine_loss(&grid_flat, n, &fixed, &rm, &t0))
             / (2.0 * h);
-        assert!((gr[i] - fd).abs() < 1e-5, "∂loss/∂R[{i}]: analytic {}, fd {fd}", gr[i]);
+        assert!(
+            (gr[i] - fd).abs() < 1e-5,
+            "∂loss/∂R[{i}]: analytic {}, fd {fd}",
+            gr[i]
+        );
     }
     for i in 0..3 {
         let mut tp = t0;
@@ -307,7 +352,11 @@ fn affine_metric_gradient_matches_self_consistent_finite_difference() {
         let fd = (affine_loss(&grid_flat, n, &fixed, &r0, &tp)
             - affine_loss(&grid_flat, n, &fixed, &r0, &tm))
             / (2.0 * h);
-        assert!((gt[i] - fd).abs() < 1e-5, "∂loss/∂t[{i}]: analytic {}, fd {fd}", gt[i]);
+        assert!(
+            (gt[i] - fd).abs() < 1e-5,
+            "∂loss/∂t[{i}]: analytic {}, fd {fd}",
+            gt[i]
+        );
     }
 }
 
@@ -352,5 +401,8 @@ fn affine_metric_gradient_descent_reduces_loss_to_zero() {
         loss.backward();
         t = sgd_step_var(&t, lr);
     }
-    assert!(prev < 1e-8, "affine-metric GD must drive loss to ~0, got {prev}");
+    assert!(
+        prev < 1e-8,
+        "affine-metric GD must drive loss to ~0, got {prev}"
+    );
 }

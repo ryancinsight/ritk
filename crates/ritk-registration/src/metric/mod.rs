@@ -2,8 +2,8 @@
 //!
 //! This module contains various similarity metrics used for image registration.
 
-pub(crate) mod cache_slot;
 pub mod autodiff;
+pub(crate) mod cache_slot;
 pub mod correlation_ratio;
 pub mod dl_losses;
 pub mod entropy;

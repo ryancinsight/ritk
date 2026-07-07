@@ -1,8 +1,8 @@
-use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::Tensor;
 use burn_ndarray::{NdArray, NdArrayDevice};
 use ritk_core::image::Image;
 use ritk_filter::resample::ResampleImageFilter;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::Tensor;
 use ritk_interpolation::NearestNeighborInterpolator;
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};

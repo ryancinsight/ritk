@@ -1,10 +1,10 @@
 use super::*;
 use crate::write_tiff;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use tempfile::tempdir;
 
 type TestBackend = NdArray<f32>;

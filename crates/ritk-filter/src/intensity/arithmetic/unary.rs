@@ -9,8 +9,8 @@
 
 use std::marker::PhantomData;
 
-use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 
 // ── Sealed trait infrastructure ──────────────────────────────────────────────
@@ -211,6 +211,26 @@ impl<Op: UnaryPixelOp> UnaryImageFilter<Op> {
         let out: Vec<f32> = vals.into_iter().map(|v| Op::apply(v)).collect();
         rebuild(out, dims, image)
     }
+
+    /// Apply the operation pixelwise to a Coeus-native 3-D `image`.
+    ///
+    /// Mirrors [`Self::apply`] on the Atlas-native substrate for the common
+    /// 3-D medical-image case. Spatial metadata (origin, spacing, direction) is
+    /// preserved. The operation is identical to the Burn path — both route
+    /// through the same flat-buffer core.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, _dims| {
+            vals.iter().copied().map(|v| Op::apply(v)).collect()
+        })
+    }
 }
 
 // ── Public type aliases ───────────────────────────────────────────────────────
@@ -296,16 +316,17 @@ pub type NotImageFilter = UnaryImageFilter<Not>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::test_support as ts;
-
-    type B = burn_ndarray::NdArray<f32>;
+    use crate::native_support::{make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
 
     /// `log₁₀(10ⁿ) = n` for exact powers of ten, matching ITK `Log10ImageFilter`.
     #[test]
     fn log10_of_powers_of_ten() {
-        let img = ts::make_image::<B, 3>(vec![1.0, 10.0, 100.0, 1000.0], [1, 1, 4]);
-        let out = Log10ImageFilter::new().apply(&img);
-        let v = out.data_slice().into_owned();
+        let img = make_native_image(vec![1.0, 10.0, 100.0, 1000.0], [1, 1, 4]);
+        let out = Log10ImageFilter::new()
+            .apply_native(&img, &SequentialBackend)
+            .unwrap();
+        let v = native_vals(&out);
         for (got, exp) in v.iter().zip([0.0_f32, 1.0, 2.0, 3.0]) {
             assert!((got - exp).abs() < 1e-5, "log10: got {got}, expected {exp}");
         }
@@ -316,9 +337,11 @@ mod tests {
     #[test]
     fn exp_negative_matches_reciprocal_exp() {
         let xs = vec![0.0_f32, 1.0, 2.5, -1.0];
-        let img = ts::make_image::<B, 3>(xs.clone(), [1, 1, 4]);
-        let out = ExpNegativeImageFilter::new().apply(&img);
-        let v = out.data_slice().into_owned();
+        let img = make_native_image(xs.clone(), [1, 1, 4]);
+        let out = ExpNegativeImageFilter::new()
+            .apply_native(&img, &SequentialBackend)
+            .unwrap();
+        let v = native_vals(&out);
         for (got, &x) in v.iter().zip(xs.iter()) {
             let expected = (-x).exp();
             assert!(
@@ -331,18 +354,22 @@ mod tests {
     /// Unary minus negates every voxel.
     #[test]
     fn unary_minus_negates() {
-        let img = ts::make_image::<B, 3>(vec![0.0, 3.0, -2.5, 7.0], [1, 1, 4]);
-        let out = UnaryMinusImageFilter::new().apply(&img);
-        assert_eq!(out.data_slice().into_owned(), vec![0.0, -3.0, 2.5, -7.0]);
+        let img = make_native_image(vec![0.0, 3.0, -2.5, 7.0], [1, 1, 4]);
+        let out = UnaryMinusImageFilter::new()
+            .apply_native(&img, &SequentialBackend)
+            .unwrap();
+        assert_eq!(native_vals(&out), vec![0.0, -3.0, 2.5, -7.0]);
     }
 
     /// Round half-integer up (ITK `Math::Round`): note −2.5 → −2, not −3.
     #[test]
     fn round_half_integer_up() {
-        let img = ts::make_image::<B, 3>(vec![2.4, 2.5, 2.6, -2.5, -2.4, -0.5], [1, 1, 6]);
-        let out = RoundImageFilter::new().apply(&img);
+        let img = make_native_image(vec![2.4, 2.5, 2.6, -2.5, -2.4, -0.5], [1, 1, 6]);
+        let out = RoundImageFilter::new()
+            .apply_native(&img, &SequentialBackend)
+            .unwrap();
         assert_eq!(
-            out.data_slice().into_owned(),
+            native_vals(&out),
             vec![2.0, 3.0, 3.0, -2.0, -2.0, 0.0]
         );
     }
@@ -351,8 +378,10 @@ mod tests {
     /// nonzero value (incl. negatives and fractions) maps to `0`.
     #[test]
     fn logical_not_maps_zero_to_one() {
-        let img = ts::make_image::<B, 3>(vec![0.0, 1.0, 2.0, -3.0, 0.5], [1, 1, 5]);
-        let out = NotImageFilter::new().apply(&img);
-        assert_eq!(out.data_slice().into_owned(), vec![1.0, 0.0, 0.0, 0.0, 0.0]);
+        let img = make_native_image(vec![0.0, 1.0, 2.0, -3.0, 0.5], [1, 1, 5]);
+        let out = NotImageFilter::new()
+            .apply_native(&img, &SequentialBackend)
+            .unwrap();
+        assert_eq!(native_vals(&out), vec![1.0, 0.0, 0.0, 0.0, 0.0]);
     }
 }

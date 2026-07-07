@@ -15,8 +15,8 @@
 //!   Smoothing         : `I' = Gaussian_sigma(I)`
 
 pub mod brain_mask;
-pub(crate) mod native_executor;
 pub(crate) mod executor;
+pub(crate) mod native_executor;
 pub(crate) mod pipeline;
 pub(crate) mod step;
 pub(crate) mod value_ops;

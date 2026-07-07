@@ -1,11 +1,11 @@
 use crate::metric::Metric;
 use crate::optimizer::Optimizer;
 use crate::registration::{Registration, RegistrationConfig};
-use ritk_image::burn::module::AutodiffModule;
-use ritk_image::tensor::AutodiffBackend;
 use ritk_core::image::Image;
 use ritk_core::transform::{Resampleable, Transform};
 use ritk_filter::pyramid::MultiResolutionPyramid;
+use ritk_image::burn::module::AutodiffModule;
+use ritk_image::tensor::AutodiffBackend;
 use std::marker::PhantomData;
 
 /// Configuration for multi-resolution registration.

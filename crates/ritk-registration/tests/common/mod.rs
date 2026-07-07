@@ -19,8 +19,8 @@
 
 #![allow(dead_code)]
 
-use ritk_image::burn::backend::Autodiff;
 use burn_ndarray::NdArray;
+use ritk_image::burn::backend::Autodiff;
 
 /// Backend with autodiff — required by `GlobalMiRegistration`.
 pub type B = Autodiff<NdArray<f32>>;

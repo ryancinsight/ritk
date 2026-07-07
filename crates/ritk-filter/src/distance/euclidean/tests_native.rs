@@ -3,9 +3,9 @@
 //! both call the same `euclidean_dt` core (shared harness in `coeus_support`).
 
 use super::distance_transform;
-use crate::native_support::assert_native_matches_burn;
 use crate::distance::euclidean::DistanceTransformImageFilter;
 use crate::distance::types::BinarizationThreshold;
+use crate::native_support::assert_native_matches_burn;
 
 fn check(vals: Vec<f32>, dims: [usize; 3]) {
     assert_native_matches_burn(

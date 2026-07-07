@@ -5,7 +5,6 @@ edition = "2021"
 description = "Image statistics, information theory, image comparison metrics, normalization, and noise estimation"
 
 [dependencies]
-burn = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 ritk-spatial = { path = "../ritk-spatial" }

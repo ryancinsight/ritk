@@ -43,9 +43,20 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
     let coords_shape = coords.tensor.shape();
-    assert_eq!(coords_shape.len(), 2, "affine_transform: coords must be [N, 3]");
-    assert_eq!(coords_shape[1], 3, "affine_transform: coords must have 3 columns");
-    assert_eq!(r.tensor.shape(), [3, 3], "affine_transform: R must be [3, 3]");
+    assert_eq!(
+        coords_shape.len(),
+        2,
+        "affine_transform: coords must be [N, 3]"
+    );
+    assert_eq!(
+        coords_shape[1], 3,
+        "affine_transform: coords must have 3 columns"
+    );
+    assert_eq!(
+        r.tensor.shape(),
+        [3, 3],
+        "affine_transform: R must be [3, 3]"
+    );
     assert_eq!(t.tensor.shape(), [3], "affine_transform: t must be [3]");
     let n = coords_shape[0];
 

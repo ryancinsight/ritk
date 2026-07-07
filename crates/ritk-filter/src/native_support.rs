@@ -46,6 +46,42 @@ where
     )
 }
 
+// ── Test infrastructure ───────────────────────────────────────────────────────
+
+/// Construct a Coeus-native 3-D image from flat data with identity metadata.
+///
+/// Used by all native filter tests (ADR 0002 Batch #3 cutover).  The backend
+/// is always `SequentialBackend` for unit tests; the single source of truth
+/// for the pure `f32 → f32` algorithm is the flat buffer, not the substrate.
+#[cfg(test)]
+pub(crate) fn make_native_image(
+    data: Vec<f32>,
+    shape: [usize; 3],
+) -> Image<f32, coeus_core::SequentialBackend, 3> {
+    use ritk_spatial::{Direction, Point, Spacing};
+    Image::from_flat_on(
+        data,
+        shape,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &coeus_core::SequentialBackend,
+    )
+    .expect("make_native_image: valid shape and data length")
+}
+
+/// Extract voxel data from a Coeus-native image as an owned `Vec<f32>`.
+///
+/// Panics if the image buffer is not C-contiguous (invariant of every image
+/// that passes through the RITK filter pipeline).
+#[cfg(test)]
+pub(crate) fn native_vals(image: &Image<f32, coeus_core::SequentialBackend, 3>) -> Vec<f32> {
+    image
+        .data_slice()
+        .expect("native_vals: image must be contiguous")
+        .to_vec()
+}
+
 /// Shared differential-test harness for Coeus-native filter wrappers.
 ///
 /// Runs a Burn-generic filter (`burn_apply`, on an `NdArray<f32>` image built

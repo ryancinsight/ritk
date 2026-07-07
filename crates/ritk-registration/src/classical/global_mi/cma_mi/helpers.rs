@@ -3,10 +3,10 @@
 // Extracted from `registration.rs` to keep the public API surface in a
 // focused file while the heavy lifting lives here.
 
-use ritk_image::tensor::AutodiffBackend;
 use ritk_core::image::Image;
 use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_filter::GaussianSigma;
+use ritk_image::tensor::AutodiffBackend;
 use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
 use ritk_transform::RigidTransform;
 

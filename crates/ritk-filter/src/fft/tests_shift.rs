@@ -4,8 +4,8 @@
 //!   shape invariant → self-inverse property → DC-to-centre mapping → 3-D shape invariant
 
 use crate::fft::{FftShiftFilter, RealFftShiftFilter};
-use ritk_image::tensor::{Shape, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Shape, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 

@@ -18,8 +18,8 @@
 //!
 //! Watershed-line voxels are label 0. Face (6-)connectivity throughout.
 
-use ritk_image::tensor::Backend;
 use ritk_filter::{HMinimaFilter, RegionalMinimaFilter};
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::MarkerControlledWatershed;

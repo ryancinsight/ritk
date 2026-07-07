@@ -146,7 +146,9 @@ impl<'a, B: AutodiffBackend> GradientExtractVisitor<'a, B> {
     }
 }
 
-impl<B: AutodiffBackend> ritk_image::burn::module::ModuleVisitor<B> for GradientExtractVisitor<'_, B> {
+impl<B: AutodiffBackend> ritk_image::burn::module::ModuleVisitor<B>
+    for GradientExtractVisitor<'_, B>
+{
     fn visit_float<const D: usize>(&mut self, param: &Param<Tensor<B, D>>) {
         if let Some(grad) = self.grads.get::<B::InnerBackend, D>(param.id) {
             let data = grad.to_data();

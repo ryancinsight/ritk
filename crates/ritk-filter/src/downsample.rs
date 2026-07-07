@@ -1,6 +1,6 @@
+use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_core::image::Image;
 
 /// Downsample filter.
 ///

@@ -1,7 +1,7 @@
 use super::ProjectionAxis;
 use anyhow::Result;
-use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Reduce the collapsed axis using a native-`f32` fold (max / min).

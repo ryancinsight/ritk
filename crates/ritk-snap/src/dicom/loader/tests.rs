@@ -2,9 +2,9 @@
 
 use super::*;
 use crate::dicom::series_tree::SeriesEntry;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::borrow::Cow;
 use tempfile::tempdir;
 

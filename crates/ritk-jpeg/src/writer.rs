@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-use ritk_image::tensor::backend::Backend;
 use image::{GrayImage, Luma};
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::marker::PhantomData;
 use std::path::Path;
 

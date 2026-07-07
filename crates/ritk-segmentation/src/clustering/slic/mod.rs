@@ -66,8 +66,8 @@ pub mod gradient;
 pub mod grid;
 pub mod itk;
 
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_core::image::Image;
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_tensor_ops::extract_vec_infallible;
 
 // ── Public API ────────────────────────────────────────────────────────────────

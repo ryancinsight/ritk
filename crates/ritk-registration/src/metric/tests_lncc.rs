@@ -1,7 +1,7 @@
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support as ts;
 use ritk_image::tensor::Tensor;
+use ritk_image::test_support as ts;
 use ritk_transform::TranslationTransform;
 
 type B = NdArray<f32>;

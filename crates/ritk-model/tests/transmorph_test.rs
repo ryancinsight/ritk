@@ -1,5 +1,5 @@
-use ritk_image::tensor::{Distribution, Tensor};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Distribution, Tensor};
 use ritk_model::transmorph::config::TransformIntegration;
 use ritk_model::transmorph::{TransMorph, TransMorphConfig};
 

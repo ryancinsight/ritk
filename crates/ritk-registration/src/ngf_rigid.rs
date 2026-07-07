@@ -368,9 +368,9 @@ pub fn default_ngf_pyramid(center_weight_sigma_frac: Option<f64>) -> Vec<NgfPyra
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::tensor::{Shape, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::tensor::{Shape, TensorData};
 
     type B = NdArray<f32>;
 

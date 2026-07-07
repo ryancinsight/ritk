@@ -3,8 +3,8 @@
 use anyhow::{Context, Result};
 use ritk_filter::bias::N4Config;
 use ritk_filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
-use ritk_image::Image;
 use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
+use ritk_image::Image;
 
 use super::pipeline::PreprocessingPipeline;
 use super::step::PreprocessingStep;
@@ -91,8 +91,8 @@ mod tests {
     use super::super::pipeline::PreprocessingPipeline;
     use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
     use burn_ndarray::NdArray;
-    use ritk_image::Image;
     use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;

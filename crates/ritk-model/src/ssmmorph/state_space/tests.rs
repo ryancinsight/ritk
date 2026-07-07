@@ -1,7 +1,7 @@
 use super::*;
 use burn_ndarray::{NdArray, NdArrayDevice};
-use ritk_image::tensor::Tensor;
 use ritk_image::tensor::activation;
+use ritk_image::tensor::Tensor;
 
 #[test]
 fn test_state_space_creation_dimensions() {

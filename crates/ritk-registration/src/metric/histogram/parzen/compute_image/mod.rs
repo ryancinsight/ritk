@@ -23,10 +23,10 @@ use super::image_cache_helpers::{
 use super::image_cache_helpers::{get_cached_sparse_w_fixed, normalize_fixed_values};
 use super::ParzenJointHistogram;
 use crate::metric::sampling::{resolve_n_points, SamplingConfig};
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_core::transform::Transform;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 
 // `make_cache` was moved to `super::super::cache` in Sprint 354 (DRY-354-03).

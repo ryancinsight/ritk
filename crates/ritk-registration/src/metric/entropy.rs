@@ -70,8 +70,8 @@ pub fn entropy_with_eps<B: Backend>(p: Tensor<B, 1>, eps: f32) -> Tensor<B, 1> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::tensor::TensorData;
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::TensorData;
 
     type B = NdArray<f32>;
 

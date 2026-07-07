@@ -14,8 +14,8 @@
 //! ```
 mod common;
 
-use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Tensor, TensorData};
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
 use ritk_filter::GaussianSigma;

@@ -1,7 +1,7 @@
 use crate::{write_metaimage, MetaImageWriter};
 use anyhow::Result;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;

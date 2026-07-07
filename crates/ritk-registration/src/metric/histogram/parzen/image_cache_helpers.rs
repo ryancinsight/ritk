@@ -6,9 +6,9 @@
 
 use super::super::cache::{HistogramCache, SparseWFixedCache};
 use crate::metric::cache_slot::CacheSlot;
+use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_core::image::Image;
 
 /// Check whether a cached histogram entry matches the given image's spatial metadata.
 pub(crate) fn cache_matches_image<B: Backend, const D: usize>(

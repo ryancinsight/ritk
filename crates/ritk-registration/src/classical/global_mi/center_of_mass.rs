@@ -20,8 +20,8 @@
 //! All returned coordinates follow RITK's `[z, y, x]` ordering in physical
 //! units (mm), consistent with `Image::origin()` and `Image::spacing()`.
 
-use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
 
 // ─── Center-of-Mass ──────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 use crate::edge::GaussianSigma;
-use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 use super::pde::ced_diffuse;

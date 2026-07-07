@@ -44,7 +44,11 @@ where
     let g = grad.as_slice();
     debug_assert_eq!(p.len(), g.len(), "parameter and gradient length mismatch");
 
-    let updated: Vec<T> = p.iter().zip(g.iter()).map(|(&pv, &gv)| pv - lr * gv).collect();
+    let updated: Vec<T> = p
+        .iter()
+        .zip(g.iter())
+        .map(|(&pv, &gv)| pv - lr * gv)
+        .collect();
     let shape = param.tensor.shape().to_vec();
     Var::new(Tensor::from_slice_on(shape, &updated, &B::default()), true)
 }

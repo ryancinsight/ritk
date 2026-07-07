@@ -4,8 +4,8 @@ use super::NormalizedGradientField;
 use crate::metric::Metric;
 
 use burn_ndarray::NdArray;
-use ritk_image::Image;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::TranslationTransform;
 

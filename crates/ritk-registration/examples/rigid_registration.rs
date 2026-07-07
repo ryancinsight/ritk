@@ -13,11 +13,11 @@
 //! Usage:
 //!   cargo run --example rigid_registration
 
-use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::Tensor;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::Tensor;
 use ritk_interpolation::LinearInterpolator;
 use ritk_io::{read_nifti, write_nifti};
 use ritk_registration::metric::MutualInformation;

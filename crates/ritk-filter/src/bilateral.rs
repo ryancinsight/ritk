@@ -71,8 +71,8 @@
 //! See `median.rs` (PERF-377-01) for the histogram analysis on the
 //! median path, where the per-voxel cost *is* sort-dominated.
 
-use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 use serde::{Deserialize, Serialize};
 

@@ -1,8 +1,8 @@
 //! Unit tests for [`SpatialConvolutionFilter`].
 
 use crate::smoothing::SpatialConvolutionFilter;
-use ritk_image::tensor::{Shape, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Shape, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 

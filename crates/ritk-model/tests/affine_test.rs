@@ -1,5 +1,5 @@
-use ritk_image::tensor::{Distribution, Tensor};
 use burn_ndarray::{NdArray, NdArrayDevice};
+use ritk_image::tensor::{Distribution, Tensor};
 use ritk_model::affine::{AffineNetworkConfig, AffineTransform};
 
 type TestBackend = NdArray;

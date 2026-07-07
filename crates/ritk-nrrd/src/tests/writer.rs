@@ -1,6 +1,6 @@
 use anyhow::Result;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -432,8 +432,14 @@ fn native_writer_output_is_byte_identical_to_burn_writer() -> Result<()> {
     write_nrrd(&burn_path, &burn_image)?;
 
     let backend = coeus_core::SequentialBackend;
-    let native_image =
-        ritk_image::native::Image::from_flat_on(data, [nz, ny, nx], origin, spacing, direction, &backend)?;
+    let native_image = ritk_image::native::Image::from_flat_on(
+        data,
+        [nz, ny, nx],
+        origin,
+        spacing,
+        direction,
+        &backend,
+    )?;
     crate::native::write_nrrd(&native_path, &native_image, &backend)?;
 
     assert_eq!(

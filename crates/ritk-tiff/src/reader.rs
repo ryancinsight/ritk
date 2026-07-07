@@ -22,10 +22,10 @@
 //! crate decoder.
 
 use anyhow::{anyhow, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 use tiff::decoder::{Decoder, DecodingResult};
@@ -52,7 +52,6 @@ pub fn read_tiff<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     let reader = BufReader::new(file);
     read_tiff_from_reader::<B, _>(reader, device, path)
 }
-
 
 /// Core reader operating on any `Read + Seek` stream.
 ///
@@ -232,8 +231,8 @@ pub mod native {
         P: AsRef<Path>,
     {
         let path = path.as_ref();
-        let file =
-            std::fs::File::open(path).with_context(|| format!("Cannot open TIFF file {:?}", path))?;
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Cannot open TIFF file {:?}", path))?;
         let (data, dims) = decode_tiff_from_reader(BufReader::new(file), path)?;
         ritk_image::native::Image::from_flat_on(
             data,

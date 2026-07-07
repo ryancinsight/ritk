@@ -2,9 +2,9 @@
 
 use super::super::types::BinarizationThreshold;
 use super::core::euclidean_dt;
+use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_core::image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
 /// Unsigned Euclidean distance transform.

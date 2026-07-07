@@ -5,10 +5,10 @@
 //! histogram accumulation loops.
 
 use crate::metric::histogram::parzen::ParzenJointHistogram;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_core::transform::Transform;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 
 #[cfg(feature = "direct-parzen")]

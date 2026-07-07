@@ -9,9 +9,9 @@ use crate::spatial::{derive_image_geometry, RasValidity};
 use crate::types::bytes_per_voxel;
 use crate::{is_gzip_path, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, PADDING_LEN, VERSION};
 use anyhow::{bail, Context, Result};
+use flate2::read::GzDecoder;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use flate2::read::GzDecoder;
 use ritk_image::Image;
 use std::io::{BufReader, Read};
 use std::path::Path;
@@ -161,8 +161,6 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
         direction,
     })
 }
-
-
 
 fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3]> {
     let mut columns = [[0.0f32; 3]; 3];

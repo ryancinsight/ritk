@@ -33,10 +33,10 @@ mod histogram_sharpen;
 
 use super::bspline_bias::{bspline_evaluate, bspline_fit};
 use anyhow::{anyhow, bail};
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use histogram_sharpen::{histogram_sharpen, HistogramSharpenScratch};
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::VolumeDims;
 use ritk_tensor_ops::extract_vec;
 

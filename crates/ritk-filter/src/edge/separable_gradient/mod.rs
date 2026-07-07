@@ -27,9 +27,9 @@
 mod kernel;
 pub use kernel::{GradientKernel, PrewittKernel, SobelKernel};
 
-use ritk_image::tensor::Backend;
 use moirai;
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
 use ritk_spatial::Spacing;
 use ritk_tensor_ops::{extract_vec, rebuild};
 

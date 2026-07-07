@@ -4,11 +4,11 @@ pub(super) mod config;
 pub(super) mod functional;
 pub(super) mod invariants;
 
+use burn_ndarray::NdArray;
 use ritk_image::burn::backend::Autodiff;
 use ritk_image::burn::module::{Module, Param};
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use burn_ndarray::NdArray;
 use ritk_image::tensor::TensorData;
 
 pub(super) type TestBackend = Autodiff<NdArray<f32>>;

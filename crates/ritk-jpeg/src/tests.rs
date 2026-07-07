@@ -1,7 +1,7 @@
 use super::{read_jpeg, write_jpeg};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
@@ -214,9 +214,7 @@ fn native_read_jpeg_matches_burn() {
 #[test]
 fn native_writer_output_is_byte_identical_to_burn_writer() -> anyhow::Result<()> {
     let (nz, ny, nx) = (1usize, 8usize, 12usize);
-    let values: Vec<f32> = (0..(nz * ny * nx))
-        .map(|i| (i * 7 % 256) as f32)
-        .collect();
+    let values: Vec<f32> = (0..(nz * ny * nx)).map(|i| (i * 7 % 256) as f32).collect();
 
     let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let burn_image = image_from_values(&device, [nz, ny, nx], values.clone());

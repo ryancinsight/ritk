@@ -228,7 +228,9 @@ fn test_atlas_shape_preserves_voxel_count() {
     //   output.len() == input.len() == shape.iter().product::<usize>()
     // triangle, the contractual shape invariant for atlas-side callers using
     // `AtlasImage<f32, MoiraiBackend, 3>` rasterized over `coeus_tensor::Tensor`.
-    let flat: Vec<f32> = (0u8..27).map(|i| if i % 3 == 0 { 1.0 } else { 0.0 }).collect();
+    let flat: Vec<f32> = (0u8..27)
+        .map(|i| if i % 3 == 0 { 1.0 } else { 0.0 })
+        .collect();
     let shape = [3usize, 3, 3];
     let result = AtlasBinaryErodeFilter::new(1).apply(&flat, &shape);
     assert_eq!(

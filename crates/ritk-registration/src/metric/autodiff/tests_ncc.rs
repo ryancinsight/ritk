@@ -41,7 +41,10 @@ fn perfect_correlation_gives_loss_minus_one() {
     let moving: Vec<f64> = fixed.iter().map(|v| 2.0 * v + 3.0).collect();
     let loss = normalized_cross_correlation(&var(&moving, false), &var(&fixed, false));
     let got = loss.tensor.as_slice()[0];
-    assert!((got - (-1.0)).abs() < 1e-6, "perfect correlation loss should be -1, got {got}");
+    assert!(
+        (got - (-1.0)).abs() < 1e-6,
+        "perfect correlation loss should be -1, got {got}"
+    );
 }
 
 #[test]
@@ -50,7 +53,10 @@ fn perfect_anti_correlation_gives_loss_plus_one() {
     let moving: Vec<f64> = fixed.iter().map(|v| -1.5 * v + 0.5).collect();
     let loss = normalized_cross_correlation(&var(&moving, false), &var(&fixed, false));
     let got = loss.tensor.as_slice()[0];
-    assert!((got - 1.0).abs() < 1e-6, "perfect anti-correlation loss should be +1, got {got}");
+    assert!(
+        (got - 1.0).abs() < 1e-6,
+        "perfect anti-correlation loss should be +1, got {got}"
+    );
 }
 
 #[test]
@@ -61,7 +67,10 @@ fn forward_matches_host_reference() {
         .tensor
         .as_slice()[0];
     let expected = neg_ncc_reference(&moving, &fixed);
-    assert!((got - expected).abs() < 1e-12, "NCC loss: got {got}, expected {expected}");
+    assert!(
+        (got - expected).abs() < 1e-12,
+        "NCC loss: got {got}, expected {expected}"
+    );
 }
 
 #[test]
@@ -108,6 +117,10 @@ fn gradient_is_zero_at_perfect_correlation_optimum() {
         mp[i] += h;
         mm[i] -= h;
         let fd = (neg_ncc_reference(&mp, &fixed) - neg_ncc_reference(&mm, &fixed)) / (2.0 * h);
-        assert!((analytic[i] - fd).abs() < 1e-4, "grad[{i}] {} vs fd {fd}", analytic[i]);
+        assert!(
+            (analytic[i] - fd).abs() < 1e-4,
+            "grad[{i}] {} vs fd {fd}",
+            analytic[i]
+        );
     }
 }

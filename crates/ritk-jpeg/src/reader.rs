@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
+use ritk_core::image::Image;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
@@ -19,7 +19,6 @@ pub fn read_jpeg<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         Direction::identity(),
     ))
 }
-
 
 /// Backend-agnostic decoded grayscale JPEG: Luma8 voxels as `f32` in
 /// `[0.0, 255.0]` plus the `[1, height, width]` shape. Shared by the Burn and

@@ -40,8 +40,8 @@ pub mod native {
 pub use reader::{read_metaimage, MetaImageReader};
 pub use writer::{write_metaimage, write_metaimage_with_data, MetaImageWriter};
 
-use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::path::Path;
 
 /// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.

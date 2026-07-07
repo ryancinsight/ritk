@@ -23,8 +23,8 @@
 //! Normalization: `out[r,c] = buf[r,c].re / (H*W) = 1.0  for all (r,c)`.
 
 use super::InverseFftFilter;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec;

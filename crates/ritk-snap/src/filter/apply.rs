@@ -182,8 +182,10 @@ impl<B: ritk_image::tensor::Backend> ViewerCore<B, 3> {
                     .map(|&v| if v > threshold_f32 { 1.0_f32 } else { 0.0_f32 })
                     .collect();
                 let device = study.image.data().device();
-                let mask_td =
-                    ritk_image::tensor::TensorData::new(mask_vals, ritk_image::tensor::Shape::new(dims));
+                let mask_td = ritk_image::tensor::TensorData::new(
+                    mask_vals,
+                    ritk_image::tensor::Shape::new(dims),
+                );
                 let mask_tensor = ritk_image::tensor::Tensor::<B, 3>::from_data(mask_td, &device);
                 let mask_image = Image::new(
                     mask_tensor,

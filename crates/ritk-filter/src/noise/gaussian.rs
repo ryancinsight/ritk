@@ -3,8 +3,8 @@
 use super::fastnorm::{hash, FastNorm};
 use super::DEFAULT_NOISE_SEED;
 use anyhow::Result;
-use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Additive Gaussian noise filter.

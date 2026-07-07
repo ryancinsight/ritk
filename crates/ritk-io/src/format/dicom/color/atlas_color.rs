@@ -39,6 +39,7 @@
 use coeus_core::MoiraiBackend;
 use ritk_core::image::RgbVolume;
 use ritk_image::native::Image;
+use ritk_image::tensor::backend::Backend;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::super::color_common::RGB_CHANNELS;
@@ -91,7 +92,7 @@ where
     P: AsRef<std::path::Path>,
 {
     type LegacyBackend = burn_ndarray::NdArray<f32>;
-    let dev = <LegacyBackend as burn::tensor::backend::Backend>::Device::default();
+    let dev = <LegacyBackend as Backend>::Device::default();
     let (rgb_volume, metadata) = super::load_dicom_color_series::<LegacyBackend, _>(path, &dev)
         .map_err(|e| AtlasColorError::Legacy(format!("{e:#}")))?;
     rgb_volume_to_atlas(rgb_volume, metadata)
@@ -105,7 +106,7 @@ pub fn load_atlas_color_from_series(
     series: DicomSeriesInfo,
 ) -> Result<(Image<f32, MoiraiBackend, 4>, DicomReadMetadata), AtlasColorError> {
     type LegacyBackend = burn_ndarray::NdArray<f32>;
-    let dev = <LegacyBackend as burn::tensor::backend::Backend>::Device::default();
+    let dev = <LegacyBackend as Backend>::Device::default();
     let metadata = series.metadata.clone();
     let (rgb_volume, _) = super::load_dicom_color_from_series::<LegacyBackend>(series, &dev)
         .map_err(|e| AtlasColorError::Legacy(format!("{e:#}")))?;

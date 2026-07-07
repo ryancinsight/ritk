@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::HostExtract;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};

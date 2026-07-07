@@ -20,7 +20,8 @@ pub(crate) fn elevate_to_volume<B: ritk_image::tensor::Backend>(
         .into_data()
         .into_vec::<f32>()
         .expect("elevate_to_volume requires f32 backend");
-    let td_3d = ritk_image::tensor::TensorData::new(vals, ritk_image::tensor::Shape::new([1, nr, nc]));
+    let td_3d =
+        ritk_image::tensor::TensorData::new(vals, ritk_image::tensor::Shape::new([1, nr, nc]));
     let tensor_3d = ritk_image::tensor::Tensor::<B, 3>::from_data(td_3d, &device);
     let origin_3d = ritk_spatial::Point::new([0.0, origin_2d[0], origin_2d[1]]);
     let spacing_3d = ritk_spatial::Spacing::new([1.0, spacing_2d[0], spacing_2d[1]]);

@@ -43,8 +43,8 @@ pub mod native {
     pub use crate::writer::native::*;
 }
 
-use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::path::Path;
 
 /// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.

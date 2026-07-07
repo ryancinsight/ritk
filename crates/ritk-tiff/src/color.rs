@@ -7,10 +7,10 @@ use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::RgbVolume;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use tiff::decoder::Decoder;
 use tiff::ColorType;
 
@@ -155,8 +155,8 @@ impl<B: Backend> TiffColorReader<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::tensor::backend::Backend;
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::backend::Backend;
     use std::fs::File;
     use std::io::BufWriter;
     use tempfile::tempdir;

@@ -62,8 +62,8 @@
 //! autograd path through `coeus_autograd`).
 
 use super::direct::{
-    HistogramPool, SparseWFixedT, build_sparse_w_fixed_transposed as legacy_build,
-    compute_joint_histogram_direct as legacy_compute,
+    build_sparse_w_fixed_transposed as legacy_build,
+    compute_joint_histogram_direct as legacy_compute, HistogramPool, SparseWFixedT,
 };
 
 /// Atlas-side flattened sparse-cache entry: `bin` index in
@@ -127,8 +127,7 @@ pub fn build_atlas_sparse_w_fixed_transposed(
     sigma_sq_fix: f32,
     oob_mask: Option<&[f32]>,
 ) -> Vec<(Vec<AtlasSparseEntry>, f32)> {
-    let sparse: SparseWFixedT =
-        legacy_build(fixed_norm, num_bins, sigma_sq_fix, oob_mask);
+    let sparse: SparseWFixedT = legacy_build(fixed_norm, num_bins, sigma_sq_fix, oob_mask);
     sparse
         .into_iter()
         .map(|(cache, inv_sum_f)| {

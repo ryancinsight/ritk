@@ -54,10 +54,19 @@ where
     let s_fm = sum(&mul(fixed, moving));
 
     // num = S_FM − S_F·S_M / N
-    let num = sub(&s_fm, &scalar_div(&mul(&s_f, &s_m), T::from_f64(inv_n_scale)));
+    let num = sub(
+        &s_fm,
+        &scalar_div(&mul(&s_f, &s_m), T::from_f64(inv_n_scale)),
+    );
     // d_F = S_FF − S_F² / N ; d_M = S_MM − S_M² / N
-    let d_f = sub(&s_ff, &scalar_div(&mul(&s_f, &s_f), T::from_f64(inv_n_scale)));
-    let d_m = sub(&s_mm, &scalar_div(&mul(&s_m, &s_m), T::from_f64(inv_n_scale)));
+    let d_f = sub(
+        &s_ff,
+        &scalar_div(&mul(&s_f, &s_f), T::from_f64(inv_n_scale)),
+    );
+    let d_m = sub(
+        &s_mm,
+        &scalar_div(&mul(&s_m, &s_m), T::from_f64(inv_n_scale)),
+    );
 
     // NCC = num / √(d_F·d_M + ε); loss = −NCC.
     let eps = T::from_f64(1e-10);

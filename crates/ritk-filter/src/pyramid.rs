@@ -1,8 +1,8 @@
 use super::downsample::DownsampleFilter;
 use super::gaussian::GaussianFilter;
 use crate::edge::GaussianSigma;
-use ritk_image::tensor::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::Backend;
 
 /// Multi-resolution image pyramid.
 ///

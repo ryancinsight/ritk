@@ -43,10 +43,10 @@
 
 use std::time::Instant;
 
-use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
+use ritk_image::burn::backend::Autodiff;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_registration::metric::MutualInformation;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::regular_step_gd::RegularStepGdConfig;

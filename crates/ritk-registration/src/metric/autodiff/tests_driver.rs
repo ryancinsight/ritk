@@ -5,9 +5,9 @@
 //! translation offset; it is also generic over the transform (exercised with
 //! both `Translation` and `Affine`). Deterministic `SequentialBackend`.
 
-use super::{gradient_descent, GradientDescentConfig};
-use super::super::transform::{Affine, Translation};
 use super::super::mse::Mse;
+use super::super::transform::{Affine, Translation};
+use super::{gradient_descent, GradientDescentConfig};
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
@@ -35,7 +35,8 @@ fn linear_moving() -> Vec<f64> {
     for z in 0..nz {
         for y in 0..ny {
             for x in 0..nx {
-                v[z * ny * nx + y * nx + x] = 0.5 + 0.3 * z as f64 + 0.2 * y as f64 + 0.1 * x as f64;
+                v[z * ny * nx + y * nx + x] =
+                    0.5 + 0.3 * z as f64 + 0.2 * y as f64 + 0.1 * x as f64;
             }
         }
     }
@@ -74,11 +75,21 @@ fn driver_reduces_loss_and_reports_matching_final_loss() {
         &Mse,
         vec![var(&[0.0, 0.0, 0.0], true)],
         |p| Translation { t: p[0].clone() },
-        GradientDescentConfig { iterations: 200, learning_rate: 0.5 },
+        GradientDescentConfig {
+            iterations: 200,
+            learning_rate: 0.5,
+        },
     );
 
-    assert!(outcome.initial_loss > 1e-3, "initial loss should be non-trivial");
-    assert!(outcome.final_loss < 1e-8, "driver must drive loss to ~0, got {}", outcome.final_loss);
+    assert!(
+        outcome.initial_loss > 1e-3,
+        "initial loss should be non-trivial"
+    );
+    assert!(
+        outcome.final_loss < 1e-8,
+        "driver must drive loss to ~0, got {}",
+        outcome.final_loss
+    );
     assert!(
         outcome.final_loss < outcome.initial_loss,
         "final loss must be below initial"
@@ -113,8 +124,14 @@ fn driver_is_generic_over_affine_transform() {
             var_shaped(&[3, 3], &identity, true), // R
             var(&[0.0, 0.0, 0.0], true),          // t
         ],
-        |p| Affine { r: p[0].clone(), t: p[1].clone() },
-        GradientDescentConfig { iterations: 200, learning_rate: 0.2 },
+        |p| Affine {
+            r: p[0].clone(),
+            t: p[1].clone(),
+        },
+        GradientDescentConfig {
+            iterations: 200,
+            learning_rate: 0.2,
+        },
     );
 
     assert_eq!(outcome.params.len(), 2, "R and t params preserved");

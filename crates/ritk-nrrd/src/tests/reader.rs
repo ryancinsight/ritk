@@ -1,7 +1,7 @@
 use anyhow::Result;
+use burn_ndarray::NdArray;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use burn_ndarray::NdArray;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -151,8 +151,18 @@ fn native_reader_matches_burn_reader() -> Result<()> {
     let nx = 4usize;
     let ny = 3usize;
     let nz = 2usize;
-    let data: Vec<f32> = (0..(nx * ny * nz)).map(|i| (i as f32) * 0.5 - 3.0).collect();
-    write_inline_nrrd(&path, &data, nx, ny, nz, [0.9, 0.75, 1.5], [5.0, 10.0, 15.0]);
+    let data: Vec<f32> = (0..(nx * ny * nz))
+        .map(|i| (i as f32) * 0.5 - 3.0)
+        .collect();
+    write_inline_nrrd(
+        &path,
+        &data,
+        nx,
+        ny,
+        nz,
+        [0.9, 0.75, 1.5],
+        [5.0, 10.0, 15.0],
+    );
 
     let device: <TestBackend as Backend>::Device = Default::default();
     let burn = read_nrrd::<TestBackend, _>(&path, &device)?;
@@ -161,7 +171,11 @@ fn native_reader_matches_burn_reader() -> Result<()> {
     let native = super::super::reader::native::read_nrrd(&path, &backend)?;
 
     assert_eq!(native.shape(), burn.shape(), "shape must match Burn path");
-    assert_eq!(native.origin(), burn.origin(), "origin must match Burn path");
+    assert_eq!(
+        native.origin(),
+        burn.origin(),
+        "origin must match Burn path"
+    );
     assert_eq!(
         native.spacing(),
         burn.spacing(),

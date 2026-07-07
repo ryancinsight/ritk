@@ -1,9 +1,9 @@
 //! Mean Squared Error metric implementation.
 
 use super::trait_::Metric;
+use ritk_image::grid;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_image::grid;
 use ritk_image::Image;
 use ritk_interpolation::{transform_and_interpolate, LinearInterpolator};
 use ritk_transform::Transform;

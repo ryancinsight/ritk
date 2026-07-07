@@ -102,10 +102,7 @@ impl AtlasBinaryErodeFilter {
     /// non-contiguous AtlasImage layout). For the canonical
     /// `from_flat` construction path used by the per-crate sub-batch
     /// #3.a tests, layout is contiguous and this method never fails.
-    pub fn apply<B>(
-        &self,
-        image: &AtlasImage<f32, B, 3>,
-    ) -> anyhow::Result<AtlasImage<f32, B, 3>>
+    pub fn apply<B>(&self, image: &AtlasImage<f32, B, 3>) -> anyhow::Result<AtlasImage<f32, B, 3>>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,

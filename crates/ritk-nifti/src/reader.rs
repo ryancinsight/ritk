@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use flate2::read::GzDecoder;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -98,8 +98,6 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
         spatial,
     })
 }
-
-
 
 /// Read a NIfTI file as an integer label map in ZYX order.
 ///

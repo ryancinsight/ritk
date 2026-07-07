@@ -51,13 +51,8 @@ use crate::metric::histogram::parzen::direct::ParzenConfig;
 #[test]
 fn sparse_w_fixed_deterministic() {
     let num_bins = 32usize;
-    let sigma_sq_fix = ParzenConfig::from_intensity_sigma(
-        255.0 / 32.0,
-        0.0,
-        255.0,
-        num_bins,
-    )
-    .sigma_sq(); // SSOT-319-02
+    let sigma_sq_fix =
+        ParzenConfig::from_intensity_sigma(255.0 / 32.0, 0.0, 255.0, num_bins).sigma_sq(); // SSOT-319-02
 
     let n = 500;
     let fixed: Vec<f32> = (0..n).map(|i| (i as f32 * 0.51) % 255.0).collect();

@@ -1,8 +1,8 @@
 use super::*;
+use burn_ndarray::NdArray;
 use ritk_image::burn::backend::Autodiff;
 use ritk_image::burn::module::Module;
 use ritk_image::tensor::Tensor;
-use burn_ndarray::NdArray;
 use ritk_image::tensor::{Backend, TensorData};
 
 type TestBackend = Autodiff<NdArray<f32>>;

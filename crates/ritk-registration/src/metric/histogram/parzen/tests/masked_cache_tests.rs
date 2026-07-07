@@ -9,9 +9,9 @@ fn masked_cache_reuses_weights_on_same_key() {
     // compute_masked_joint_histogram causes the second call to reuse the
     // cached W_fixed^T (and sparse cache), producing the same histogram
     // without recomputing fixed-image weights.
-    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -116,9 +116,9 @@ fn masked_cache_reuses_weights_on_same_key() {
 fn masked_cache_different_key_recomputes() {
     // Verify that providing a DIFFERENT cache_key causes recomputation
     // (cache miss with new key).
-    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -202,9 +202,9 @@ fn masked_cache_different_key_recomputes() {
 fn masked_no_cache_key_matches_uncached() {
     // Verify that passing None as cache_key produces the same result
     // as the original uncached path.
-    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -308,9 +308,9 @@ fn masked_no_cache_key_matches_uncached() {
 fn cache_invalidate_clears_image_cache() {
     // Verify that invalidate_cache() clears the image-grid cache that was
     // populated by a prior compute_image_joint_histogram call.
-    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -386,9 +386,9 @@ fn cache_invalidate_clears_image_cache() {
 fn cache_invalidate_clears_masked_cache() {
     // Verify that invalidate_masked_cache() clears the masked cache that was
     // populated by a prior compute_masked_joint_histogram call with a cache_key.
-    use ritk_image::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::tensor::{Shape, TensorData};
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 

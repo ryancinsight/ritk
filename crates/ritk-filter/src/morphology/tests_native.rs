@@ -15,7 +15,11 @@ mod erode {
         assert_native_matches_burn(
             vals,
             dims,
-            |img| BinaryErodeFilter::new(radius).apply(img).expect("burn erode"),
+            |img| {
+                BinaryErodeFilter::new(radius)
+                    .apply(img)
+                    .expect("burn erode")
+            },
             |img, backend| binary_erode(img, radius, Default::default(), backend),
         );
     }

@@ -1,8 +1,8 @@
 //! Ground-truth constants and type aliases for the RIRE CT/MRI T1
 //! registration validation example.
 
-use ritk_image::burn::backend::Autodiff;
 use burn_ndarray::NdArray;
+use ritk_image::burn::backend::Autodiff;
 
 /// CPU backend — no autodiff needed for the NCC/resampling validation workflow.
 pub type B = NdArray<f32>;

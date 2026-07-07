@@ -51,7 +51,13 @@ fn stepped_parameter_is_a_fresh_requires_grad_leaf() {
     // New forward on the stepped parameter: loss2 = Σ (stepped)² ⇒ grad = 2·stepped.
     let loss2 = sum(&mul(&stepped, &stepped));
     loss2.backward();
-    let g = stepped.grad().expect("stepped leaf must be requires_grad").as_slice()[0];
+    let g = stepped
+        .grad()
+        .expect("stepped leaf must be requires_grad")
+        .as_slice()[0];
     let expected = 2.0 * stepped.tensor.as_slice()[0];
-    assert!((g - expected).abs() < 1e-12, "stepped-leaf grad: got {g}, expected {expected}");
+    assert!(
+        (g - expected).abs() < 1e-12,
+        "stepped-leaf grad: got {g}, expected {expected}"
+    );
 }

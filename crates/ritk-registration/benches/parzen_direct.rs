@@ -7,10 +7,10 @@
 //! performance impact of `StackWeights.len` `usize → u8` (MEM-325-01) and
 //! `SparseWFixedEntry.bin` `usize → u16` (PERF-326-02).
 
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ritk_core::image::Image;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_registration::metric::histogram::{
     build_sparse_w_fixed_transposed, compaction_sizes, compute_joint_histogram_direct,

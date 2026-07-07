@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
+use ritk_core::image::Image;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_core::image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::{Path, PathBuf};
 
@@ -19,7 +19,6 @@ pub fn read_png_to_image<B: Backend, P: AsRef<Path>>(
     let (pixels, dims) = decode_png_single(path.as_ref())?;
     image_from_flat_pixels(pixels, dims[0], dims[1], dims[2], device)
 }
-
 
 /// Decode a single grayscale PNG into row-major `f32` pixels and `[1, h, w]` dims.
 fn decode_png_single(path: &Path) -> Result<(Vec<f32>, [usize; 3])> {
@@ -41,7 +40,6 @@ pub fn read_png_series<B: Backend, P: AsRef<Path>>(
     let (pixels, dims) = decode_png_series(path.as_ref())?;
     image_from_flat_pixels(pixels, dims[0], dims[1], dims[2], device)
 }
-
 
 /// Decode a sorted PNG series into row-major `f32` pixels and `[depth, h, w]` dims.
 fn decode_png_series(dir: &Path) -> Result<(Vec<f32>, [usize; 3])> {
@@ -157,7 +155,6 @@ fn image_from_flat_pixels<B: Backend>(
     Ok(Image::new(tensor, origin, spacing, direction))
 }
 
-
 /// DIP boundary for standard PNG single slices.
 pub struct PngReader<B: Backend> {
     device: B::Device,
@@ -233,8 +230,8 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 #[cfg(test)]
 mod tests {
     use super::{natural_cmp, read_png_series, read_png_to_image};
-    use ritk_image::tensor::backend::Backend;
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::backend::Backend;
     use std::cmp::Ordering;
     use std::path::Path;
     use tempfile::tempdir;

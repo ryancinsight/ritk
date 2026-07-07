@@ -190,13 +190,13 @@ where
     B: ComputeBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    let (image_values, _) = tensor_ops::extract_image_slice(image)
-        .map_err(|_| AtlasStatsError::ShapeMismatch {
+    let (image_values, _) =
+        tensor_ops::extract_image_slice(image).map_err(|_| AtlasStatsError::ShapeMismatch {
             image_n: 0,
             mask_n: 0,
         })?;
-    let (mask_values, _) = tensor_ops::extract_image_slice(mask)
-        .map_err(|_| AtlasStatsError::ShapeMismatch {
+    let (mask_values, _) =
+        tensor_ops::extract_image_slice(mask).map_err(|_| AtlasStatsError::ShapeMismatch {
             image_n: image_values.len(),
             mask_n: 0,
         })?;

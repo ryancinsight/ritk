@@ -67,8 +67,8 @@
 //! - Adams, R., & Bischof, L. (1994). "Seeded Region Growing."
 //!   *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 16(6), 641-647.
 
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_core::spatial::VoxelIndex;
+use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::VecDeque;

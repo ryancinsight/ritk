@@ -82,10 +82,10 @@ fn rt_dose_plan_link_status_reports_linked_uid() {
 // defined in the crate root (lib.rs). They use `burn_ndarray::NdArray<f32>`
 // as the backend.
 
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{BedSeparationConfig, ComponentPolicy};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 type Backend = burn_ndarray::NdArray<f32>;
 

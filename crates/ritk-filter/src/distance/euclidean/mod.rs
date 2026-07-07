@@ -34,9 +34,9 @@
 
 mod core;
 mod maurer;
+pub mod native;
 mod signed;
 mod unsigned;
-pub mod native;
 
 pub(crate) use core::euclidean_dt;
 pub(crate) use maurer::signed_maurer_core;

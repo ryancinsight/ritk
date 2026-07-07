@@ -49,7 +49,10 @@ type Atlas1DImage = AtlasImage<f32, MoiraiBackend, 1>;
 
 /// Atlas-side construction helper: scalar slice → `AtlasImage<f32, MoiraiBackend, D>`.
 #[inline]
-fn make_atlas_image<const D: usize>(data: Vec<f32>, dims: [usize; D]) -> AtlasImage<f32, MoiraiBackend, D> {
+fn make_atlas_image<const D: usize>(
+    data: Vec<f32>,
+    dims: [usize; D],
+) -> AtlasImage<f32, MoiraiBackend, D> {
     AtlasImage::from_flat(
         data,
         dims,
@@ -71,7 +74,11 @@ fn test_uniform_image() {
     assert_eq!(s.min, 5.0);
     assert_eq!(s.max, 5.0);
     assert!((s.mean - 5.0).abs() < 1e-6, "mean={}", s.mean);
-    assert!(s.std < 1e-6, "std must be 0 for uniform image, got {}", s.std);
+    assert!(
+        s.std < 1e-6,
+        "std must be 0 for uniform image, got {}",
+        s.std
+    );
     assert_eq!(s.percentiles, [5.0, 5.0, 5.0]);
 }
 
@@ -132,8 +139,8 @@ fn test_atlas_image_preserves_values_through_from_flat() {
 
     // The Atlas-side extract path uses `extract_image_slice` which returns
     // `&[f32]` slice; verify its length matches the input vec size.
-    let (slice, _shape) = ritk_tensor_ops::native::extract_image_slice(&image)
-        .expect("slice extract");
+    let (slice, _shape) =
+        ritk_tensor_ops::native::extract_image_slice(&image).expect("slice extract");
     assert_eq!(slice.len(), 4);
     assert_eq!(slice.to_vec(), vec![4.0, 1.0, 3.0, 2.0]);
 }
@@ -147,7 +154,11 @@ fn test_single_voxel() {
     assert_eq!(s.min, 42.0);
     assert_eq!(s.max, 42.0);
     assert!((s.mean - 42.0).abs() < 1e-6);
-    assert!(s.std < 1e-6, "std must be 0 for single voxel, got {}", s.std);
+    assert!(
+        s.std < 1e-6,
+        "std must be 0 for single voxel, got {}",
+        s.std
+    );
     assert_eq!(s.percentiles, [42.0, 42.0, 42.0]);
 }
 
@@ -274,7 +285,10 @@ fn test_atlas_to_legacy_round_trip_field_identity() {
     };
     let legacy: super::ImageStatistics = atlas.clone().into();
     let back: AtlasImageStatistics = legacy.clone().into();
-    assert_eq!(atlas, back, "Atlas <-> Legacy round-trip preserves equality");
+    assert_eq!(
+        atlas, back,
+        "Atlas <-> Legacy round-trip preserves equality"
+    );
     assert_eq!(
         legacy.min, atlas.min,
         "field-by-field min preserved across conversion"

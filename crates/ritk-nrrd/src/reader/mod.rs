@@ -3,9 +3,9 @@ use decode::*;
 
 use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spacings};
 use anyhow::{anyhow, Context, Result};
+use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
 use ritk_image::tensor::backend::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
@@ -301,10 +301,7 @@ pub mod native {
     /// Burn [`read_nrrd`](super::read_nrrd); differs only in the final image
     /// construction, which materialises the flat `[Z, Y, X]` payload directly
     /// onto `backend` without an intermediate Burn tensor.
-    pub fn read_nrrd<B, P>(
-        path: P,
-        backend: &B,
-    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    pub fn read_nrrd<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         P: AsRef<Path>,

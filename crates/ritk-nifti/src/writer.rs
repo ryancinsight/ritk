@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use ritk_image::tensor::backend::Backend;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -222,7 +222,6 @@ fn write_flat_with_version(
         Ok(())
     })
 }
-
 
 fn header_from_spatial(
     version: HeaderVersion,

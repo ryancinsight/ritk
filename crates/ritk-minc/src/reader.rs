@@ -28,11 +28,11 @@ use crate::{
     IMAGE_PATH,
 };
 use anyhow::{bail, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use consus_hdf5::dataset::StorageLayout;
 use consus_hdf5::file::Hdf5File;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::path::Path;
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -62,7 +62,6 @@ pub fn read_minc<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
     let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
     Ok(Image::new(tensor, origin, spacing, direction))
 }
-
 
 /// Backend-agnostic decoded MINC2 volume: voxels plus derived physical metadata.
 /// Shared by the Burn and Coeus reader paths.

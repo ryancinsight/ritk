@@ -28,8 +28,8 @@ use super::trait_::Metric;
 use ritk_filter::gaussian::GaussianFilter;
 use ritk_filter::GaussianSigma;
 use ritk_image::grid;
-use ritk_image::Image;
 use ritk_image::tensor::{Backend, Shape, Tensor};
+use ritk_image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_transform::Transform;
 use std::sync::{Arc, RwLock};
@@ -238,14 +238,8 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
                 })
             },
         );
-        let mean_f = entry
-            .mean_f_flat
-            .clone()
-            .reshape(Shape::new(shape_dims));
-        let var_f = entry
-            .var_f_flat
-            .clone()
-            .reshape(Shape::new(shape_dims));
+        let mean_f = entry.mean_f_flat.clone().reshape(Shape::new(shape_dims));
+        let var_f = entry.var_f_flat.clone().reshape(Shape::new(shape_dims));
 
         // Local Stats for MOVING image (computed per forward pass)
         let (mean_m, var_m) =

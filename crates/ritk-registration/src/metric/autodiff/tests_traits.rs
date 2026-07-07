@@ -39,7 +39,8 @@ fn linear_moving() -> Vec<f64> {
     for z in 0..nz {
         for y in 0..ny {
             for x in 0..nx {
-                v[z * ny * nx + y * nx + x] = 0.5 + 0.3 * z as f64 + 0.2 * y as f64 + 0.1 * x as f64;
+                v[z * ny * nx + y * nx + x] =
+                    0.5 + 0.3 * z as f64 + 0.2 * y as f64 + 0.1 * x as f64;
             }
         }
     }
@@ -74,7 +75,10 @@ fn affine_transform_struct_matches_free_function() {
     let b = via_trait.tensor.as_slice();
     assert_eq!(a.len(), b.len());
     for (i, (&x, &y)) in a.iter().zip(b.iter()).enumerate() {
-        assert!((x - y).abs() < 1e-12, "affine struct vs fn mismatch at {i}: {x} vs {y}");
+        assert!(
+            (x - y).abs() < 1e-12,
+            "affine struct vs fn mismatch at {i}: {x} vs {y}"
+        );
     }
 }
 
@@ -177,12 +181,18 @@ fn gradient_descent_through_translation_trait_reduces_loss() {
             &Translation { t: t.clone() },
         );
         let lv = loss.tensor.as_slice()[0];
-        assert!(lv <= prev + 1e-12, "loss must not increase (step {step}: {lv} > {prev})");
+        assert!(
+            lv <= prev + 1e-12,
+            "loss must not increase (step {step}: {lv} > {prev})"
+        );
         prev = lv;
         loss.backward();
         t = sgd_step_var(&t, lr);
     }
-    assert!(prev < 1e-8, "GD through the Translation trait must drive loss to ~0, got {prev}");
+    assert!(
+        prev < 1e-8,
+        "GD through the Translation trait must drive loss to ~0, got {prev}"
+    );
 }
 
 // ── Metric seam (Mse / Ncc dispatched via evaluate) ─────────────────────
@@ -237,10 +247,17 @@ fn evaluate_with_ncc_matches_manual_sample_then_reduce() {
     );
 
     // Manual path: translate grid, split, sample, NCC-reduce.
-    let transformed = Translation { t: var(&t0, false) }.transform_points(&var_shaped(&[n, 3], &gf, false));
-    let cz: Vec<f64> = (0..n).map(|k| transformed.tensor.as_slice()[k * 3]).collect();
-    let cy: Vec<f64> = (0..n).map(|k| transformed.tensor.as_slice()[k * 3 + 1]).collect();
-    let cx: Vec<f64> = (0..n).map(|k| transformed.tensor.as_slice()[k * 3 + 2]).collect();
+    let transformed =
+        Translation { t: var(&t0, false) }.transform_points(&var_shaped(&[n, 3], &gf, false));
+    let cz: Vec<f64> = (0..n)
+        .map(|k| transformed.tensor.as_slice()[k * 3])
+        .collect();
+    let cy: Vec<f64> = (0..n)
+        .map(|k| transformed.tensor.as_slice()[k * 3 + 1])
+        .collect();
+    let cx: Vec<f64> = (0..n)
+        .map(|k| transformed.tensor.as_slice()[k * 3 + 2])
+        .collect();
     let sampled = sample_trilinear(
         &var(&moving, false),
         DIMS,
@@ -255,7 +272,9 @@ fn evaluate_with_ncc_matches_manual_sample_then_reduce() {
         "evaluate+Ncc must equal manual sample-then-NCC-reduce"
     );
     // Sanity: it is NOT the MSE value (the seam actually switched reductions).
-    let mse_val = mean_squared_error(&sampled, &var(&fixed, false)).tensor.as_slice()[0];
+    let mse_val = mean_squared_error(&sampled, &var(&fixed, false))
+        .tensor
+        .as_slice()[0];
     assert!(
         (via_evaluate.tensor.as_slice()[0] - mse_val).abs() > 1e-6,
         "NCC and MSE reductions must differ for this input"
@@ -270,8 +289,14 @@ fn evaluate_ncc_gradient_reaches_affine_r_and_is_shift_invariant_in_t() {
     // invariant to additive shifts — a defining property, verified end-to-end.
     let (gf, n) = grid_flat();
     let moving = linear_moving();
-    let fixed: Vec<f64> = (0..n).map(|k| 0.4 + 0.3 * gf[k * 3] + 0.1 * gf[k * 3 + 2]).collect();
-    let r = var_shaped(&[3, 3], &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], true);
+    let fixed: Vec<f64> = (0..n)
+        .map(|k| 0.4 + 0.3 * gf[k * 3] + 0.1 * gf[k * 3 + 2])
+        .collect();
+    let r = var_shaped(
+        &[3, 3],
+        &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        true,
+    );
     let t = var(&[0.05, 0.0, -0.05], true);
 
     let loss = evaluate(
@@ -280,16 +305,28 @@ fn evaluate_ncc_gradient_reaches_affine_r_and_is_shift_invariant_in_t() {
         &var(&fixed, false),
         &var_shaped(&[n, 3], &gf, false),
         &Ncc,
-        &Affine { r: r.clone(), t: t.clone() },
+        &Affine {
+            r: r.clone(),
+            t: t.clone(),
+        },
     );
     loss.backward();
 
     let gr = r.grad().expect("R grad").as_slice().to_vec();
     let gt = t.grad().expect("t grad").as_slice().to_vec();
-    assert!(gr.iter().any(|g| g.abs() > 1e-9), "NCC gradient must reach R");
-    assert!(gr.iter().chain(gt.iter()).all(|g| g.is_finite()), "all gradients finite");
+    assert!(
+        gr.iter().any(|g| g.abs() > 1e-9),
+        "NCC gradient must reach R"
+    );
+    assert!(
+        gr.iter().chain(gt.iter()).all(|g| g.is_finite()),
+        "all gradients finite"
+    );
     // NCC shift-invariance: translating a linear field is a pure mean shift.
     for (j, &g) in gt.iter().enumerate() {
-        assert!(g.abs() < 1e-9, "NCC ∂loss/∂t[{j}] should be ~0 (shift-invariance), got {g}");
+        assert!(
+            g.abs() < 1e-9,
+            "NCC ∂loss/∂t[{j}] should be ~0 (shift-invariance), got {g}"
+        );
     }
 }

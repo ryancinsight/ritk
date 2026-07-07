@@ -20,9 +20,9 @@
 //! transformations strictly in half (O(N) exact).
 
 use super::trait_::Metric;
+use ritk_image::grid;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_image::grid;
 use ritk_image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_transform::Transform;

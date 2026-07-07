@@ -4,8 +4,8 @@ use super::super::config::{GlobalMiConfig, GlobalMiTransformType};
 use super::super::registration::GlobalMiRegistration;
 use crate::optimizer::RegularStepGdConfig;
 use crate::optimizer::{HistoryPolicy, PopulationEval};
-use ritk_image::tensor::Tensor;
 use ritk_filter::GaussianSigma;
+use ritk_image::tensor::Tensor;
 use ritk_transform::TranslationTransform;
 
 use super::{make_box_mask, make_gaussian_blob, TestBackend};

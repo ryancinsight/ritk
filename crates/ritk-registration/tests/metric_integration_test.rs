@@ -4,10 +4,10 @@
 //! and MI monotonicity under rotation — all with absolute-value checks and relative
 //! ordering assertions against synthetic images.
 
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_registration::metric::{
     CorrelationDirection, CorrelationRatio, Metric, MutualInformation, MutualInformationVariant,
     NormalizationMethod,

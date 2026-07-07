@@ -3,7 +3,7 @@
 //! Per `docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §Sub-batch #3.d
 //! (RITK-crate-migrate, per-crate atlas-typed migration queue #3.a..#3.g):
 //! atlas-side parallel-struct tests for the SSM-Morph encoder configuration
-//! + construction shape, exercising the host-friendly introspection surface
+//! and construction shape, exercising the host-friendly introspection surface
 //! for atlas-side callers using `AtlasImage<f32, MoiraiBackend, 3>` over
 //! `coeus_tensor::Tensor`.
 //!

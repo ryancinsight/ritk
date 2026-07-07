@@ -38,10 +38,10 @@ use crate::metric::cache_slot::CacheSlot;
 use crate::metric::histogram::cache::WFixedCache;
 use crate::metric::sampling::SamplingConfig;
 use crate::metric::{histogram::ParzenJointHistogram, Metric};
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_core::transform::Transform;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_interpolation::LinearInterpolator;
 
 mod variant;

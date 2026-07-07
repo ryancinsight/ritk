@@ -11,9 +11,9 @@
 //! the neighbourhood half-width, using introselect (select_nth_unstable_by)
 //! rather than a full sort.  Parallelised over z-slices via Rayon.
 
+use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_core::image::Image;
 use ritk_tensor_ops::extract_vec;
 
 /// Sliding-window median filter for 3-D volumes.
@@ -178,9 +178,9 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
