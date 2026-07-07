@@ -1,3 +1,20 @@
+> ## Vocabulary policy (canonical atlas-migration terms-of-art)
+>
+> **Canonical functional terms-of-art (preserve)**:
+> - `Atlas-typed` (the CoeUs/MoiraiBackend-typed twin type-system family that pairs with `Burn-keyed` as the atomic-boundary partition term per ADR 0012 §Decision §1)
+> - `Atlas-side` (the additive production-side / subtractive test-side partition — pairs with `Burn-side`)
+> - `Atlas-only` (the validation-gate constraint term, e.g. "Atlas-only backend trait assertion")
+> - `Atlas-meta` (the atlas-meta repo/branch identifier, codex/kwavers-atlas-integration)
+> - `Atlas-native` (a label for modules/edges that route through native CoeUs/Eunomia/Leto without burn-compat shims)
+> - `Atlas-backed` (a label for migration-push surfaces that pivot the atlas-meta pointer as the migration carrier)
+>
+> **Discouraged compounds (drop)**:
+> - `Atlas-parent` (collapse to atlas-meta reference)
+> - `Atlas-root` (collapse to atlas-meta working-tree reference)
+> - `Atlas-provider` (collapse to bare `Atlas` per the canonical `<Atlas>X` mapping, preserving the noun phrase that follows)
+>
+> Cross-document consistency with the atlas-meta PM-doc surface; rubric tracked in atlas-meta `## Atlas dependency cleanup` ledger.
+
 # CHANGELOG
 
 ## [Unreleased] — Sprint 496: DICOM attribute ownership
