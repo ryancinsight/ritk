@@ -7824,6 +7824,7 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "bytemuck",
+ "coeus-tensor",
  "mockito",
  "onnx-ir",
  "reqwest 0.11.27",
@@ -8079,8 +8080,6 @@ name = "ritk-vtk"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn",
- "burn-ndarray",
  "gaia",
  "ritk-core",
  "ritk-image",

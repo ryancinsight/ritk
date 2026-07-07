@@ -37,6 +37,7 @@
 //!    Bottleneck: [batch, 256, D/8, H/8, W/8]
 //! ```
 
+pub mod atlas_encoder;
 pub mod config;
 pub mod stage;
 

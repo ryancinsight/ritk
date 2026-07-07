@@ -333,7 +333,6 @@ source:crates/ritk-model/src/ssmmorph/decoder.rs
 source:crates/ritk-model/src/ssmmorph/encoder/config.rs
 source:crates/ritk-model/src/ssmmorph/encoder/mod.rs
 source:crates/ritk-model/src/ssmmorph/encoder/stage.rs
-source:crates/ritk-model/src/ssmmorph/encoder/tests.rs
 source:crates/ritk-model/src/ssmmorph/mod.rs
 source:crates/ritk-model/src/ssmmorph/network/architecture.rs
 source:crates/ritk-model/src/ssmmorph/network/integration.rs
