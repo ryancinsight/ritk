@@ -5,8 +5,13 @@ This artifact declares the **Atlas-typed `moirai-parallel` macro-thread
 fan-out across the ritk workspace, replacing the legacy `rayon` +
 `tokio` + `ndarray::Zip::indexed().par_*` fan-out surfaces. This
 sub-batch formalizes the SSOT alignment under the
-kwavers-Atlas-migration-push ceremony naming. ritk HEAD =
-`7aaae9eb fix(ritk-nifti): Decode Int16 payloads`.
+kwavers-Atlas-migration-push ceremony naming. ritk HEAD at discovery time =
+`7aaae9eb fix(ritk-nifti): Decode Int16 payloads` was the
+pre-ceremony tip; the SSOT formalization chore itself landed at
+`2fa640ee chore(ritk): Moirai parallel-surface SSOT formalization
+and Atlas-provider audit`, with the accuracy-slips docs fixup
+layered at `docs:` follow-up — both anchored under the
+`kwavers-Atlas-migration-push` ceremony anchor.
 
 ## Surface inventory
 
@@ -18,61 +23,46 @@ kwavers-Atlas-migration-push ceremony naming. ritk HEAD =
 - The tokens appear only as string literals in
   `repos/ritk/xtask/src/migration_audit.rs`'s `LEGACY_SOURCE_TOKENS`
   const list (banned patterns), where the audit *detects* their
-  presence or absence.
+  presence and fails the build — exactly the SSOT enforcement
+  mechanism we want.
 
-### Atlas-typed moirai adoption (4 emerging call-sites)
+### Atlas-typed moirai coverage (in flight)
 
-| Surface pattern | Crates / files |
-|---|---|
-| `use moirai;` | `ritk-filter/src/edge/separable_gradient/mod.rs:30` (Atlas-typed separable Sobel/tilted gradient) |
-| `use moirai;` | `ritk-filter/src/morphology/binary_erode.rs:38` (Atlas-typed binary morphological erode) |
+- **2** `use moirai;` import sites in 2 files within `ritk-filter`:
+  - `crates/ritk-filter/src/edge/separable_gradient/mod.rs:30`
+  - `crates/ritk-filter/src/morphology/binary_erode.rs:38`
+  - Wiring routed through `moirai`'s `ParallelSlice{,Mut}` prelude.
+- Discovery provenance: ripgrep scan of `D:/atlas/repos/ritk/crates/`
+  for the regex `^use moirai` returned exactly the two lines above.
+- Additional rollout across the rest of the ritk-* production
+  crates is fanned out on a per-crate Atlas sub-batch basis
+  (lexically independent of this SSOT formalization).
 
-(Only 2 distinct *files* use moirai today; the 4-call-site estimate
-reflects moirai-spawned call patterns within each file.) The
-Atlas-typed adoption is at its *seeding* phase. Propagation across the
-31 image-processing crates is a follow-on sprint.
+## Out-of-scope partition (NOT addressed here)
 
-### Atlas co-resident dependencies
-
-| Crate | Role |
-|---|---|
-| `moirai = { features = ["melinoe", "no-global-alloc"] }` | parallel runtime, async, branded types |
-| `mnemosyne = { features = ["std_tls", "eunomia"] }` | High-perf global allocator |
-| `eunomia` | Typed scalar SSOT (replaces `num-traits`) |
-| `leto` + `leto-ops` | CPU tensors (ND replacement at the Atlas layer) |
-| `coeus-core / -tensor / -ops / -leto / -autograd` | ML/autograd backend |
-| `hephaestus-core` | GPU abstraction (HePHAESTUS-style) |
-| `apollo-fft` | FFT (replaces `rustfft`) |
-
-## Notice: in-flight `burn → coeus` migration (OUT OF SCOPE here)
-
-**IMPORTANT**: ritk currently has **259 dirty files** working on a
-parallel burn → coeus migration (atlas burn replacement, the MNIST
-training + image-tensor surface). The burn-ndarray family deps are
-still in per-crate `Cargo.toml` (dep `burn-ndarray = { workspace = true }`
-in 18+ crates). This is **out of scope** for the moirai fan-out
-migration; the burn-family drop is the `chore(ritk): Atlas ML/deep-learning
-provider swap: burn → coeus` ceremony, a parallel sub-batch.
+- The vast in-flight `burn -> coeus` tensor migration (≈ 259 dirty
+  files across `ritk-*` production crates at the time of this
+  sub-batch) is **orthogonal** to the parallel-surface SSOT work:
+  it swaps the *tensor backend* (Burn → Coeus), not the *parallel
+  runtime* (Rayon/Tokio → Moirai). It must remain scoped under its
+  own future sub-batch to avoid scope collision with this ceremony.
 
 ## Validation
 
-```
-cargo run -p xtask -- migration-audit
-```
+- **0** production-source references to `rayon::` / `tokio::` /
+  `par_iter` / `ndarray::Zip::indexed().par_*` confirmed via
+  ripgrep across `D:/atlas/repos/ritk/crates/`.
+- Informational only — no code paths change in this chore commit.
+- Future regressions gated by
+  `cd ritk && cargo run -p xtask -- migration-audit`.
 
-Expects `LEGACY_FOUND: 0` and `LEGACY_DEP_TOKENS: 0` for fan-out-
-related legacy tokens. Burn-family deps are present in manifest but
-are tracked under the parallel sub-batch (`burn → coeus`).
+## Ceremony linkage
 
-## Why moirai (ritk-specific rationale)
-
-Most ritk image-processing surfaces (NIfTI, DICOM, NRRD, MGH, MINC,
-ANALYZE, MetaImage) are I/O-bound and use synchronous
-`read_file` / `write_file` calls. The fan-out that *does* exist is in
-the `ritk-filter/**` family (separable filters, kernel-based morphology,
-maybe FFT-based smoothing), where `ParallelSlice` / `ParallelSliceMut`
-extension traits over `&[T]` slice views map directly onto the
-ritk filter API. moirai's `no-global-alloc` feature avoids a
-second allocator install when paired with mnemosyne's `std_tls` feature.
-
-Refs: kwavers-Atlas-migration-push ceremony; ritk sub-batch #1.
+This doc lands under the same `kwavers-Atlas-migration-push` SSOT
+formalization ceremony as the cfdrs counterpart
+(`D:/atlas/repos/cfdrs/docs/atlas-migration/moirai-ssot.md`) and
+the canonical kwavers sub-batch anchor (`HEAD = 702e4f125 chore
+(deps): drop unused ndarray/rayon feature`). It marks ritk's
+moirai-phase as functionally complete for parallelism-surface
+SSOT enforcement, leaving the `burn -> coeus` migration as a
+separate, dedicated future sub-batch.
