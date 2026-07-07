@@ -72,6 +72,8 @@ impl<B: Backend, const D: usize> super::MorphologicalOperation<B, D> for BinaryE
     }
 }
 
+pub mod atlas_binary_erosion;
+
 // ── Core CPU-side erosion ─────────────────────────────────────────────────────
 
 /// Apply binary erosion on a flat row-major array for shapes of rank 1, 2, or 3.

@@ -11,6 +11,7 @@ ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 burn = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+coeus-tensor = { workspace = true }
 moirai = { workspace = true }
 
 [dev-dependencies]

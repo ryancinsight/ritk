@@ -7956,6 +7956,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "coeus-tensor",
  "moirai",
  "ritk-core",
  "ritk-filter",
