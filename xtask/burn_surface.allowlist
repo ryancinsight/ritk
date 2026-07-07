@@ -24,7 +24,6 @@ manifest:crates/ritk-statistics/Cargo.toml
 manifest:crates/ritk-tensor-ops/Cargo.toml
 manifest:crates/ritk-tiff/Cargo.toml
 manifest:crates/ritk-transform/Cargo.toml
-manifest:crates/ritk-vtk/Cargo.toml
 manifest:crates/ritk-wgpu-compat/Cargo.toml
 source:crates/ritk-cli/src/commands/convert.rs
 source:crates/ritk-cli/src/commands/filter/intensity.rs
@@ -248,6 +247,7 @@ source:crates/ritk-image/src/tests_transform.rs
 source:crates/ritk-image/src/transform.rs
 source:crates/ritk-image/src/types.rs
 source:crates/ritk-interpolation/benches/bspline_interpolation.rs
+source:crates/ritk-interpolation/src/interpolation/atlas_trilinear.rs
 source:crates/ritk-interpolation/src/interpolation/dispatch/linear.rs
 source:crates/ritk-interpolation/src/interpolation/dispatch/mod.rs
 source:crates/ritk-interpolation/src/interpolation/dispatch/nearest.rs
@@ -279,6 +279,7 @@ source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank4.rs
 source:crates/ritk-interpolation/src/interpolation/tests_native.rs
 source:crates/ritk-io/examples/dicom_to_nifti.rs
 source:crates/ritk-io/src/format/analyze/mod.rs
+source:crates/ritk-io/src/format/dicom/color/atlas_color.rs
 source:crates/ritk-io/src/format/dicom/color/mod.rs
 source:crates/ritk-io/src/format/dicom/color_multiframe.rs
 source:crates/ritk-io/src/format/dicom/multiframe/reader.rs
@@ -328,9 +329,11 @@ source:crates/ritk-model/src/ssmmorph/cross_scan/dim3.rs
 source:crates/ritk-model/src/ssmmorph/cross_scan/mod.rs
 source:crates/ritk-model/src/ssmmorph/cross_scan/module.rs
 source:crates/ritk-model/src/ssmmorph/decoder.rs
+source:crates/ritk-model/src/ssmmorph/encoder/atlas_encoder.rs
 source:crates/ritk-model/src/ssmmorph/encoder/config.rs
 source:crates/ritk-model/src/ssmmorph/encoder/mod.rs
 source:crates/ritk-model/src/ssmmorph/encoder/stage.rs
+source:crates/ritk-model/src/ssmmorph/encoder/tests.rs
 source:crates/ritk-model/src/ssmmorph/mod.rs
 source:crates/ritk-model/src/ssmmorph/network/architecture.rs
 source:crates/ritk-model/src/ssmmorph/network/integration.rs
@@ -418,6 +421,7 @@ source:crates/ritk-registration/src/metric/entropy.rs
 source:crates/ritk-registration/src/metric/histogram/cache.rs
 source:crates/ritk-registration/src/metric/histogram/masked/masked_chunked.rs
 source:crates/ritk-registration/src/metric/histogram/masked/mod.rs
+source:crates/ritk-registration/src/metric/histogram/parzen/atlas_parzen_cache.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/compute.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/compute_image/chunked.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/compute_image/mod.rs
@@ -538,6 +542,7 @@ source:crates/ritk-segmentation/src/morphology/binary_closing.rs
 source:crates/ritk-segmentation/src/morphology/binary_dilation/mod.rs
 source:crates/ritk-segmentation/src/morphology/binary_dilation/tests.rs
 source:crates/ritk-segmentation/src/morphology/binary_erosion/mod.rs
+source:crates/ritk-segmentation/src/morphology/binary_erosion/tests.rs
 source:crates/ritk-segmentation/src/morphology/fill_holes.rs
 source:crates/ritk-segmentation/src/morphology/morphological_gradient.rs
 source:crates/ritk-segmentation/src/morphology/skeletonization/mod.rs
@@ -597,6 +602,7 @@ source:crates/ritk-statistics/src/normalization/tests_white_stripe/behavior.rs
 source:crates/ritk-statistics/src/normalization/tests_white_stripe/mod.rs
 source:crates/ritk-statistics/src/normalization/tests_zscore.rs
 source:crates/ritk-statistics/src/tests_histogram.rs
+source:crates/ritk-statistics/src/tests_image_statistics.rs
 source:crates/ritk-statistics/src/tests_jacobian.rs
 source:crates/ritk-statistics/src/tests_label_shape_extended.rs
 source:crates/ritk-statistics/src/tests_label_statistics.rs
@@ -611,8 +617,10 @@ source:crates/ritk-tiff/src/reader.rs
 source:crates/ritk-tiff/src/tests_reader.rs
 source:crates/ritk-tiff/src/writer.rs
 source:crates/ritk-transform/src/transform/affine/affine.rs
+source:crates/ritk-transform/src/transform/affine/atlas_affine.rs
 source:crates/ritk-transform/src/transform/affine/rigid.rs
 source:crates/ritk-transform/src/transform/affine/scale.rs
+source:crates/ritk-transform/src/transform/affine/tests_affine.rs
 source:crates/ritk-transform/src/transform/affine/tests_rigid.rs
 source:crates/ritk-transform/src/transform/affine/translation.rs
 source:crates/ritk-transform/src/transform/affine/versor.rs
