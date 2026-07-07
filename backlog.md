@@ -47,17 +47,23 @@
   Evidence tier: value-semantic differential tests; focused
   `ritk-registration preprocessing` nextest passed 20/20, and focused
   `ritk-filter n4` nextest passed 9/9 before the final value-helper length
-  regression was added. Remaining gate blocker: post-helper `ritk-filter n4`
-  nextest plus clippy/doctest/doc for `ritk-registration` fail before RITK in
-  sibling `coeus-core`/`leto-ops` `E0034` ambiguity between Eunomia numeric
-  traits and local scalar traits for `T::from_f64`/`T::from_usize`.
+  regression was added.
+  **DONE (verification unblocked).** The `coeus-core`/`leto-ops` `E0034`
+  ambiguity cleared on its own (resolved upstream by those repos; no RITK
+  change required). Re-ran the previously blocked gates on the current
+  checkout: `rustup run nightly cargo nextest run -p ritk-filter n4
+  --status-level fail --no-fail-fast` passed 10/10, `rustup run nightly
+  cargo clippy -p ritk-registration --all-targets -- -D warnings` clean,
+  `rustup run nightly cargo test --doc -p ritk-registration` passed 3/3 (14
+  ignored, as designed), and `rustup run nightly cargo doc -p
+  ritk-registration --no-deps` generated cleanly.
 
 - **PERF-432-01 [patch] — Registration B-spline small-lattice autodiff
-  gather hot path. IN PROGRESS / VERIFICATION BLOCKED.** Profiling evidence
+  gather hot path. DONE (verification unblocked).** Profiling evidence
   remains the prior `transform_3d_chunk` bucket breakdown: gather+weighted-sum
-  was 43.86s of 52.2s across 200 calls (84.1%), and the current checkout
-  baseline confirmed `bspline_registers_offset_sphere` still exceeds the strict
-  budget at 67.991s via `rustup run nightly cargo nextest run -p
+  was 43.86s of 52.2s across 200 calls (84.1%), and the checkout baseline
+  before this pass confirmed `bspline_registers_offset_sphere` still exceeded
+  the strict budget at 67.991s via `rustup run nightly cargo nextest run -p
   ritk-registration bspline_registers_offset_sphere --status-level all
   --no-fail-fast` (the requested `--features coeus` form is stale because
   `ritk-registration` no longer defines that feature). Production change:
@@ -65,10 +71,19 @@
   (`batch * control_points <= 1_000_000`) through scatter-to-support-matrix +
   matmul so coefficient gradients use matmul backward instead of Burn's repeated
   coefficient `select` scatter-add; larger matrices retain the sparse gather
-  path. Verification is blocked before `ritk-registration` by current local
-  dependency graph errors in `D:\atlas\repos\coeus\coeus-core` and
-  `D:\atlas\repos\leto\crates\leto-ops` (`E0034`: `from_f64`/`from_usize`
-  ambiguous between Eunomia numeric traits and local scalar traits).
+  path. The `coeus-core`/`leto-ops` `E0034` blocker cleared on its own (see
+  MIG-433-06 above). Re-verification: the focused row now passes at
+  **17.279s** (`rustup run nightly cargo nextest run -p ritk-registration
+  bspline_registers_offset_sphere --status-level all --no-fail-fast`), well
+  under the 30s slow threshold, and the full package gate (`rustup run
+  nightly cargo nextest run -p ritk-registration --status-level fail
+  --no-fail-fast`) passed 740/740 (23 skipped) in 67.7s wall clock with no
+  regressions. PERF-432-01 is closed; the item is superseded by the older
+  duplicate entry further below in this file (originally filed READY, then
+  IN PROGRESS through Sprints 463-465), which is retained as historical
+  investigation record only — its `E0034` dependency-graph blocker
+  (`coeus-core`/`leto-ops`, ambiguous `from_f64`/`from_usize`) cleared
+  upstream without a RITK-side change.
 
 - **DEP-496-03 [patch] - DICOM aggregate ndarray feature removal (DONE).**
   RITK's workspace `dicom` dependency no longer selects the aggregate
@@ -178,11 +193,19 @@ The forward-pointing intra-doc-links (`TransformAtlas` / `ResampleableAtlas`
 / `InterpolatorAtlas` / `AtlasImage`) anchor at the Atlas-side parallels
 added in sub-batch #1 (no `xtask/burn_surface.allowlist` perturbation since
 the auto-generated allowlist is signature-keyed, not docstring-keyed).
-Sub-batches #3-#6 (RITK-crate-migrate per-crate burn-line flips in the
+Sub-batch #4 (`RITK-spatial-rebind`) has now landed as a strict removal slice:
+`ritk-spatial` dropped its Burn `Module`/`Record` impls for `Vector`, `Point`,
+`Direction`, and `Spacing`, deleted the crate-local Burn alias module, and
+removed the `burn` dependency. Evidence: `cargo fmt -p ritk-spatial --check`
+passed, a focused `cargo check -p ritk-spatial` passed once after the edit, and
+`crates/ritk-spatial` has zero Burn-token matches. Follow-on cargo verification
+is blocked by the existing `themis -> melinoe ^0.7.0` versus local
+`melinoe 0.8.0` resolver drift recorded in `gap_audit.md`.
+
+Sub-batches #3, #5, and #6 (RITK-crate-migrate per-crate burn-line flips in the
 order filter → registration → segmentation → model → statistics →
-io/interpolation/transform → python/cli/snap, RITK-spatial-rebind dropping
-Burn `Module`/`Record` impls, RITK-burn-remove `[major]` Cargo dep strip
-with `pub use types::Image;` re-export path switch, RITK-xtask-ci
+io/interpolation/transform → python/cli/snap, RITK-burn-remove `[major]`
+Cargo dep strip with `pub use types::Image;` re-export path switch, RITK-xtask-ci
 allowlist / CI scan gates) remain reserved per the §atomic-boundary
 discipline in ADR 0012 §Decision. Every per-crate rebind increment
 (sub-batch #3.{a-g}) is itself sub-atomic; the

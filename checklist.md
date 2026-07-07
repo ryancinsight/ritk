@@ -17,6 +17,33 @@
 
 # RITK Sprint Checklist — Active
 
+## DEP-498-01 — `ritk-spatial` Burn Module/Record Removal
+**Target version**: 0.14.0 migration batch (breaking legacy Burn-trait impl removal)
+**Sprint phase**: Closure complete for this slice
+
+### Completed plan (DEP-498-01)
+- [x] Remove `ritk-spatial`'s crate-local Burn alias module and delete the
+      `burn` manifest dependency. Completion condition: `crates/ritk-spatial`
+      no longer exposes `crate::burn` or depends on Burn.
+- [x] Delete Burn `Record`, `Module`, `AutodiffModule`, and display impls from
+      `Vector`, `Point`, `Direction`, and `Spacing`. Completion condition: the
+      geometry value API stays intact while legacy Burn serialization hooks are
+      absent.
+- [x] Verify the bounded slice. Evidence: `rustup run nightly cargo fmt -p
+      ritk-spatial --check` passed; `rustup run nightly cargo check -p
+      ritk-spatial` passed once after the edit and updated `Cargo.lock` to
+      remove `burn` from `ritk-spatial`'s dependency list; `rg -n
+      "Burn|burn|ModuleDisplay|AutodiffModule|Record<|crate::burn"
+      crates\ritk-spatial` returns no matches.
+
+### Residual risk (gap_audit.md candidates)
+- Follow-on Cargo invocations are blocked before compile by existing workspace
+  dependency drift: `themis v0.9.17` requires `melinoe ^0.7.0`, while the
+  current `melinoe.git` candidate and local patch expose `melinoe 0.8.0`.
+  This blocks the attempted `cargo nextest run -p ritk-spatial --status-level
+  fail --no-fail-fast`, `cargo tree -p ritk-spatial -i burn`, and direct
+  consumer `cargo check` slice; it is not caused by the `ritk-spatial` diff.
+
 ## DEP-497-01 — Dead `burn` production-dep strip (17 leaf crates)
 **Target version**: 0.14.0 (no bump — dependency-only, no public API change)
 **Sprint phase**: Closed 2026-07-07 (commit `7a66d1ee`)
@@ -196,7 +223,7 @@
 
 ## MIG-433-06 — Registration Native N4 Preprocessing
 **Target version**: 0.14.0
-**Sprint phase**: Closure blocked on sibling provider clippy/doc graph
+**Sprint phase**: Closure complete for this slice
 
 ### In-flight plan (MIG-433-06)
 - [x] Extract the N4 algorithm from the Burn image wrapper into the
@@ -215,26 +242,24 @@
 - [x] Run focused registration nextest evidence. `rustup run nightly cargo
       nextest run -p ritk-registration preprocessing --status-level fail
       --no-fail-fast` passed 20/20.
-- [ ] Re-run focused filter N4 nextest after sibling provider repair. Previous
-      `rustup run nightly cargo nextest run -p ritk-filter n4 --status-level
-      fail --no-fail-fast` passed 9/9 before the final value-helper
-      length-regression test was added; the post-add rerun now fails before
-      RITK in the provider graph.
+- [x] Re-run focused filter N4 nextest after sibling provider repair. The
+      `coeus-core`/`leto-ops` `E0034` ambiguity cleared upstream without a
+      RITK-side change; `rustup run nightly cargo nextest run -p ritk-filter
+      n4 --status-level fail --no-fail-fast` passed 10/10 (post-add,
+      including the value-helper length-regression test).
 - [x] Run touched-file formatting evidence. `rustup run nightly rustfmt --check
       crates/ritk-filter/src/bias/n4/mod.rs
       crates/ritk-filter/src/bias/n4/tests_n4.rs
       crates/ritk-filter/src/bias/mod.rs
       crates/ritk-registration/src/preprocessing/native_executor.rs` passed.
-- [ ] Clear package clippy/doc gates after sibling provider repair. Current
-      blocker: post-helper `cargo nextest run -p ritk-filter n4 --status-level
-      fail --no-fail-fast`, `cargo clippy -p ritk-registration --all-targets -- -D warnings`,
-      `cargo test --doc -p ritk-registration`, and `cargo doc -p
-      ritk-registration --no-deps` fail before RITK in `coeus-core`/`leto-ops`
-      with `E0034` ambiguity for `T::from_f64`/`T::from_usize`.
+- [x] Clear package clippy/doc gates after sibling provider repair. Evidence:
+      `cargo clippy -p ritk-registration --all-targets -- -D warnings` clean,
+      `cargo test --doc -p ritk-registration` passed 3/3 (14 ignored), `cargo
+      doc -p ritk-registration --no-deps` clean.
 
 ## PERF-432-01 — B-spline Registration Hot Path
 **Target version**: 0.14.0
-**Sprint phase**: Closure blocked on dependency graph compile repair
+**Sprint phase**: Closure complete for this slice
 
 ### In-flight plan (PERF-432-01)
 - [x] Confirmed the requested `--features coeus` gate is stale:
@@ -247,21 +272,29 @@
       small 3-D control lattices use a dense support matrix plus matmul instead
       of repeated coefficient gather/select; larger matrices keep the sparse
       gather path.
-- [ ] Verify the optimized focused row once the local dependency graph compiles.
+- [x] Verify the optimized focused row once the local dependency graph compiles.
       Completion condition: `rustup run nightly cargo nextest run -p
       ritk-registration bspline_registers_offset_sphere --status-level all
-      --no-fail-fast` passes and reports the test under 30s.
-- [ ] Run the package-scoped gate once the local dependency graph compiles.
+      --no-fail-fast` passes and reports the test under 30s. Evidence: the
+      `coeus-core`/`leto-ops` `E0034` ambiguity cleared upstream (no RITK
+      change needed); the focused row now passes in **17.279s**.
+- [x] Run the package-scoped gate once the local dependency graph compiles.
       Completion condition: `rustup run nightly cargo nextest run -p
       ritk-registration --status-level fail --no-fail-fast` passes; do not use
-      the removed `--features coeus` flag.
+      the removed `--features coeus` flag. Evidence: 740/740 passed (23
+      skipped) in 67.7s wall clock; `cargo clippy -p ritk-registration
+      --all-targets -- -D warnings` clean; `cargo test --doc -p
+      ritk-registration` passed 3/3 (14 ignored); `cargo doc -p
+      ritk-registration --no-deps` clean.
 
-### Current blocker
+### Resolved blocker
 - `rustup run nightly cargo nextest run -p ritk-registration
-  bspline_registers_offset_sphere --status-level all --no-fail-fast` fails
-  before `ritk-registration` builds because local path dependencies
-  `coeus-core` and `leto-ops` emit `E0034` ambiguity errors for
+  bspline_registers_offset_sphere --status-level all --no-fail-fast` had
+  failed before `ritk-registration` built because local path dependencies
+  `coeus-core` and `leto-ops` emitted `E0034` ambiguity errors for
   `from_f64`/`from_usize` after Eunomia numeric trait methods entered scope.
+  Re-checked this pass: `coeus-core`/`leto-ops` now compile clean without any
+  RITK-side change — the ambiguity was resolved upstream in those repos.
 
 ## Atlas consumer integration — Burn GPU default removal
 - [x] [patch] Remove RITK's unused workspace-level `dicom/ndarray` feature
