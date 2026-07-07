@@ -17,6 +17,24 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-496-07 — DICOM Dimension Overflow Guard
+**Target version**: 0.14.0
+**Sprint phase**: Closure complete for this slice
+
+### Completed plan (MIG-496-07)
+- [x] Port PR #4's DICOM size guard into the current scalar series loader.
+      Completion condition: `rows * cols` and frame-counted volume allocation
+      sizes fail with typed errors before decode or allocation.
+- [x] Add local value-semantic regressions for frame and volume count overflow.
+      Evidence: `rustup run nightly cargo nextest run -p ritk-io
+      load_from_series_rejects --no-fail-fast` passed 2/2.
+- [x] Run the focused loader verification slice. Evidence:
+      `rustup run nightly cargo fmt -p ritk-io --check`,
+      `rustup run nightly cargo nextest run -p ritk-io
+      format::dicom::reader::tests::load_transfer --no-fail-fast` passed 5/5,
+      and `rustup run nightly cargo clippy -p ritk-io --tests -- -D warnings`
+      passed.
+
 ## MIG-496-06 — NIfTI Int16 Decode Coverage
 **Target version**: 0.14.0
 **Sprint phase**: Closure complete for this slice

@@ -17,6 +17,22 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 496: DICOM dimension overflow guard (MIG-496-07)
+
+### Fixed
+- `ritk-io`: The scalar DICOM series loader now checks frame pixel counts
+  (`rows * cols`) and volume pixel counts before allocating or decoding,
+  rejecting overflowing metadata with typed errors.
+
+### Evidence
+- Evidence tier: value-semantic regressions plus focused loader integration and
+  static diagnostics. `rustup run nightly cargo nextest run -p ritk-io
+  load_from_series_rejects --no-fail-fast` passed 2/2,
+  `rustup run nightly cargo nextest run -p ritk-io
+  format::dicom::reader::tests::load_transfer --no-fail-fast` passed 5/5,
+  `rustup run nightly cargo fmt -p ritk-io --check` passed, and
+  `rustup run nightly cargo clippy -p ritk-io --tests -- -D warnings` passed.
+
 ## [Unreleased] — Sprint 496: NIfTI Int16 decode coverage (MIG-496-06)
 
 ### Fixed

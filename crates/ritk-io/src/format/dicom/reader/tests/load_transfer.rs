@@ -142,6 +142,61 @@ fn test_load_series_compressed_ts_errors() {
 }
 
 #[test]
+fn test_load_from_series_rejects_frame_pixel_count_overflow() {
+    type B = burn_ndarray::NdArray<f32>;
+
+    let series = overflow_test_series([usize::MAX, 2, 1]);
+    let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
+
+    let err = match load_from_series::<B>(series, &device) {
+        Ok(_) => panic!("overflow must fail"),
+        Err(err) => err,
+    };
+    let msg = err.to_string();
+    assert!(
+        msg.contains("DICOM frame pixel count overflow")
+            && msg.contains("rows=")
+            && msg.contains("cols=2"),
+        "frame overflow error must name dimensions; got {err:#}"
+    );
+}
+
+#[test]
+fn test_load_from_series_rejects_volume_pixel_count_overflow() {
+    type B = burn_ndarray::NdArray<f32>;
+
+    let series = overflow_test_series([1, 2, usize::MAX]);
+    let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
+
+    let err = match load_from_series::<B>(series, &device) {
+        Ok(_) => panic!("overflow must fail"),
+        Err(err) => err,
+    };
+    let msg = err.to_string();
+    assert!(
+        msg.contains("DICOM volume pixel count overflow")
+            && msg.contains("frame_len=2")
+            && msg.contains("depth="),
+        "volume overflow error must name dimensions; got {err:#}"
+    );
+}
+
+fn overflow_test_series(dimensions: [usize; 3]) -> DicomSeriesInfo {
+    DicomSeriesInfo {
+        path: std::path::PathBuf::from("overflow-test"),
+        num_slices: 1,
+        metadata: DicomReadMetadata {
+            dimensions,
+            spacing: [1.0, 1.0, 1.0],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            slices: vec![DicomSliceMetadata::default()],
+            preservation: DicomPreservationSet::new(),
+            ..DicomReadMetadata::default()
+        },
+    }
+}
+
+#[test]
 fn test_load_series_jpeg_baseline_codec_round_trip() {
     use dicom::core::smallvec::SmallVec;
     use dicom::core::value::PixelFragmentSequence;

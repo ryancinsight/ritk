@@ -221,7 +221,7 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
         (false, metadata.spacing[0], None)
     };
 
-    let frame_len = rows * cols;
+    let frame_len = dicom_frame_pixel_count(rows, cols)?;
     let (volume, final_depth) = if needs_resample {
         // Irregular z-spacing: decode to frame vectors then resample to uniform grid.
         #[cfg(not(target_arch = "wasm32"))]
@@ -276,7 +276,8 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
         })?;
         let resampled = resample_frames_linear(&decoded, positions, final_spacing_z);
         let new_depth = resampled.len();
-        let mut volume = vec![0f32; frame_len * new_depth];
+        let volume_len = dicom_volume_pixel_count(frame_len, new_depth)?;
+        let mut volume = vec![0f32; volume_len];
         for (z, frame) in resampled.iter().enumerate() {
             let offset = z * frame_len;
             volume[offset..offset + frame_len].copy_from_slice(frame);
@@ -284,7 +285,8 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
         (volume, new_depth)
     } else {
         // Uniform z-spacing: decode directly into a preallocated contiguous volume.
-        let mut volume = vec![0f32; frame_len * depth];
+        let volume_len = dicom_volume_pixel_count(frame_len, depth)?;
+        let mut volume = vec![0f32; volume_len];
 
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -354,5 +356,16 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
         spacing,
         direction,
         metadata,
+    })
+}
+
+fn dicom_frame_pixel_count(rows: usize, cols: usize) -> Result<usize> {
+    rows.checked_mul(cols)
+        .ok_or_else(|| anyhow!("DICOM frame pixel count overflow: rows={rows}, cols={cols}"))
+}
+
+fn dicom_volume_pixel_count(frame_len: usize, depth: usize) -> Result<usize> {
+    frame_len.checked_mul(depth).ok_or_else(|| {
+        anyhow!("DICOM volume pixel count overflow: frame_len={frame_len}, depth={depth}")
     })
 }
