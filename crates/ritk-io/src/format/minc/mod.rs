@@ -1,8 +1,8 @@
 pub use ritk_minc::{read_minc, write_minc, MincReader, MincWriter};
 
 use crate::domain::{ImageReader, ImageWriter};
-use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::path::Path;
 
 impl<B: Backend> ImageReader<Image<B, 3>> for MincReader<B> {
@@ -22,10 +22,10 @@ impl<B: Backend> ImageWriter<Image<B, 3>> for MincWriter {
 mod tests {
     use super::{MincReader, MincWriter};
     use crate::domain::{ImageReader, ImageWriter};
-    use ritk_image::tensor::backend::Backend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::image::Image;
+    use ritk_image::tensor::backend::Backend;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 

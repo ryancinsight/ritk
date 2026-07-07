@@ -2,9 +2,9 @@
 //!
 //! Covers the Sprint 294 regression scenario: 1000 random points on a 64³ volume.
 
-use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_interpolation::{BSplineInterpolator, Interpolator};
 
 type B = NdArray<f32>;

@@ -1,15 +1,19 @@
+//! Atlas-typed tests for the DICOM RGB colour-volume sister loader.
+//!
+//! Strict subtractive on test surface (ADR 0012 §Decision §Sub-batch #3.f):
+//! every assertion exercises the [`super::atlas_color`] sister API rather
+//! than the legacy tensor-backed `super::load_dicom_color_*` functions. The
+//! dicom-rs `InMemDicomObject` fixture creation is preserved verbatim per
+//! ADR 0012 §Decision §C (Atlas sister only swaps the load sink).
+
 use ritk_dicom::PixelSignedness;
 
 use super::*;
 use arrayvec::ArrayString;
-use ritk_image::tensor::backend::Backend;
-use burn_ndarray::NdArray;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
-
-type B = NdArray<f32>;
 
 fn write_rgb_slice(
     path: &Path,
@@ -121,7 +125,7 @@ fn write_rgb_slice(
 }
 
 #[test]
-fn read_dicom_color_series_preserves_interleaved_rgb_samples() {
+fn test_atlas_color_series_preserves_interleaved_rgb_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("slice1.dcm"),
@@ -139,25 +143,23 @@ fn read_dicom_color_series_preserves_interleaved_rgb_samples() {
         &[0, 0, 255, 255, 255, 255],
         Some(0),
     );
-    let device = <B as Backend>::Device::default();
 
     let (volume, metadata) =
-        read_dicom_color_series::<B, _>(dir.path(), &device).expect("RGB load must succeed");
+        atlas_color::load_atlas_color_series(dir.path()).expect("RGB load must succeed");
 
     assert_eq!(volume.shape(), [2, 1, 2, 3]);
-    assert_eq!(volume.spatial_shape(), [2, 1, 2]);
     assert_eq!(metadata.dimensions, [1, 2, 2]);
     assert_eq!(metadata.photometric_interpretation.as_deref(), Some("RGB"));
-    volume.with_data_slice(|samples| {
-        assert_eq!(
-            samples,
-            &[255.0, 0.0, 0.0, 0.0, 255.0, 0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0]
-        );
-    });
+
+    let samples = volume.data_slice().expect("AtlasImage host-slice access");
+    assert_eq!(
+        samples,
+        &[255.0, 0.0, 0.0, 0.0, 255.0, 0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0]
+    );
 }
 
 #[test]
-fn read_dicom_color_series_rejects_scalar_samples() {
+fn test_atlas_color_series_rejects_scalar_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("mono.dcm");
     let mut obj = InMemDicomObject::new_empty();
@@ -220,9 +222,8 @@ fn read_dicom_color_series_rejects_scalar_samples() {
     .expect("file meta must be valid")
     .write_to_file(&path)
     .expect("scalar DICOM must be written");
-    let device = <B as Backend>::Device::default();
 
-    let err = read_dicom_color_series::<B, _>(dir.path(), &device).unwrap_err();
+    let err = atlas_color::load_atlas_color_series(dir.path()).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("SamplesPerPixel=1"),
@@ -231,7 +232,7 @@ fn read_dicom_color_series_rejects_scalar_samples() {
 }
 
 #[test]
-fn read_dicom_color_series_rejects_planar_rgb_samples() {
+fn test_atlas_color_series_rejects_planar_rgb_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("planar.dcm"),
@@ -241,8 +242,7 @@ fn read_dicom_color_series_rejects_planar_rgb_samples() {
         &[255, 0, 0, 0, 255, 0],
         Some(1),
     );
-    let device = <B as Backend>::Device::default();
-    let err = read_dicom_color_series::<B, _>(dir.path(), &device).unwrap_err();
+    let err = atlas_color::load_atlas_color_series(dir.path()).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("PlanarConfiguration=0") && msg.contains("declares 1"),
@@ -250,13 +250,8 @@ fn read_dicom_color_series_rejects_planar_rgb_samples() {
     );
 }
 
-/// Test that [`load_dicom_color_from_series`] is callable and compiles.
-///
-/// This constructs a minimal `DicomSeriesInfo` (the type aliased as
-/// `ScannedDicomSeries`) with `part10_bytes` populated from a synthetic
-/// RGB DICOM file, then calls the zero-disk color loader.
 #[test]
-fn load_dicom_color_from_series_is_callable() {
+fn test_atlas_color_from_series_is_callable() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("slice1.dcm"),
@@ -270,7 +265,6 @@ fn load_dicom_color_from_series_is_callable() {
     let path = dir.path().join("slice1.dcm");
     let bytes = std::fs::read(&path).expect("must read back written DICOM file");
 
-    // Build a minimal DicomSliceMetadata with part10_bytes populated.
     let slice = DicomSliceMetadata {
         path: path.clone(),
         preservation: Default::default(),
@@ -330,11 +324,10 @@ fn load_dicom_color_from_series_is_callable() {
         metadata,
     };
 
-    let device = <B as Backend>::Device::default();
-    let result = load_dicom_color_from_series::<B>(series, &device);
+    let result = atlas_color::load_atlas_color_from_series(series);
     assert!(
         result.is_ok(),
-        "load_dicom_color_from_series must succeed: {:?}",
+        "load_atlas_color_from_series must succeed: {:?}",
         result.err()
     );
 
@@ -343,7 +336,6 @@ fn load_dicom_color_from_series_is_callable() {
     assert_eq!(meta.dimensions, [1, 2, 1]);
     assert_eq!(meta.photometric_interpretation.as_deref(), Some("RGB"));
 
-    volume.with_data_slice(|samples| {
-        assert_eq!(samples, &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
-    });
+    let samples = volume.data_slice().expect("AtlasImage host-slice access");
+    assert_eq!(samples, &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
 }

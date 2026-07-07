@@ -5,9 +5,9 @@
 //! contained here; callers only supply a scan result and a device handle.
 
 use anyhow::{anyhow, bail, Context, Result};
+use coeus_core::ComputeBackend;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use coeus_core::ComputeBackend;
 use std::path::Path;
 
 use ritk_core::image::Image as BurnImage;

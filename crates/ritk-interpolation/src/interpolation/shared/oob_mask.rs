@@ -36,8 +36,8 @@ pub fn compute_oob_mask<B: ritk_image::tensor::Backend>(
 #[cfg(test)]
 mod tests {
     use super::compute_oob_mask;
-    use ritk_image::tensor::Tensor;
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::Tensor;
 
     type B = NdArray<f32>;
 

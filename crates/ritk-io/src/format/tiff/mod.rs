@@ -3,8 +3,8 @@ pub use ritk_tiff::{
 };
 
 use crate::domain::{ImageReader, ImageWriter};
-use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::path::Path;
 
 impl<B: Backend> ImageReader<Image<B, 3>> for TiffReader<B> {
@@ -24,10 +24,10 @@ impl<B: Backend> ImageWriter<Image<B, 3>> for TiffWriter {
 mod tests {
     use super::{TiffReader, TiffWriter};
     use crate::domain::{ImageReader, ImageWriter};
-    use ritk_image::tensor::backend::Backend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     use ritk_core::image::Image;
+    use ritk_image::tensor::backend::Backend;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 

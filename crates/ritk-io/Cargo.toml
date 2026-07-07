@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 coeus-core = { workspace = true }
+coeus-tensor = { workspace = true }
+burn-ndarray = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }

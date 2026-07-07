@@ -277,11 +277,9 @@ source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank3.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank3_extended.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank4.rs
 source:crates/ritk-interpolation/src/interpolation/tests_native.rs
-source:crates/ritk-interpolation/src/interpolation/tests_trilinear.rs
 source:crates/ritk-io/examples/dicom_to_nifti.rs
 source:crates/ritk-io/src/format/analyze/mod.rs
 source:crates/ritk-io/src/format/dicom/color/mod.rs
-source:crates/ritk-io/src/format/dicom/color/tests.rs
 source:crates/ritk-io/src/format/dicom/color_multiframe.rs
 source:crates/ritk-io/src/format/dicom/multiframe/reader.rs
 source:crates/ritk-io/src/format/dicom/multiframe/tests/mod.rs
@@ -615,7 +613,6 @@ source:crates/ritk-tiff/src/writer.rs
 source:crates/ritk-transform/src/transform/affine/affine.rs
 source:crates/ritk-transform/src/transform/affine/rigid.rs
 source:crates/ritk-transform/src/transform/affine/scale.rs
-source:crates/ritk-transform/src/transform/affine/tests_affine.rs
 source:crates/ritk-transform/src/transform/affine/tests_rigid.rs
 source:crates/ritk-transform/src/transform/affine/translation.rs
 source:crates/ritk-transform/src/transform/affine/versor.rs

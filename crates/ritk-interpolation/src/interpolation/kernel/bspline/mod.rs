@@ -4,9 +4,9 @@
 //! of image values at continuous coordinates.
 
 use super::BoundsPolicy;
+use ritk_core::interpolation::Interpolator;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Tensor, TensorData};
-use ritk_core::interpolation::Interpolator;
 
 mod flat;
 mod prefilter;

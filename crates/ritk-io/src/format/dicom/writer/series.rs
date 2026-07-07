@@ -3,12 +3,12 @@ use super::utils::{
     normalize_to_u16, DICOM_SOP_CLASS_SECONDARY_CAPTURE, MONOCHROME2,
 };
 use anyhow::{bail, Context, Result};
-use ritk_image::tensor::backend::Backend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::path::Path;
 
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;

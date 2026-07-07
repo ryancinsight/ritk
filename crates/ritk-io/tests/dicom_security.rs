@@ -1,9 +1,9 @@
 use arrayvec::ArrayString;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_io::{
     read_analyze, read_dicom_series_with_metadata, write_analyze, write_dicom_series_with_metadata,
 };
@@ -201,8 +201,8 @@ fn test_write_analyze_path_leak() {
 
     let non_existent_path = PathBuf::from("/non/existent/path/output.hdr");
     let image = {
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
         use ritk_core::image::Image;
+        use ritk_image::tensor::{Shape, Tensor, TensorData};
         use ritk_spatial::{Direction, Point, Spacing};
 
         let data = TensorData::new(vec![0.0f32], Shape::new([1, 1, 1]));

@@ -24,8 +24,8 @@ use ritk_spatial::{Direction, Point, Spacing};
 
 #[test]
 fn test_scan_metadata_round_trip_spatial_fields() {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;
@@ -226,8 +226,8 @@ fn test_scan_metadata_round_trip_spatial_fields() {
 
 #[test]
 fn test_scan_metadata_round_trip_rescale_params() {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;
@@ -326,8 +326,8 @@ fn test_scan_metadata_round_trip_rescale_params() {
 
 #[test]
 fn test_scan_metadata_round_trip_transfer_syntax() {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;

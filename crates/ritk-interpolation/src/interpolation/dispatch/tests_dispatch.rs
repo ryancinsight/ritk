@@ -3,8 +3,8 @@
 // `interpolation::kernel::linear` and `interpolation::kernel::nearest`.
 // This file covers cross-dimension routing smoke tests.
 
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 use super::{dispatch_linear, dispatch_nearest};
 use crate::interpolation::shared::OutOfBoundsMode;

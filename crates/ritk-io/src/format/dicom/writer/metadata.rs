@@ -7,12 +7,12 @@ use super::utils::{
 };
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use anyhow::{bail, Context, Result};
-use ritk_image::tensor::backend::Backend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 

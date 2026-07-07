@@ -1,6 +1,6 @@
 use super::*;
-use ritk_image::tensor::{ElementConversion, Tensor};
 use burn_ndarray::NdArray;
+use ritk_image::tensor::{ElementConversion, Tensor};
 
 type TestBackend = NdArray<f32>;
 

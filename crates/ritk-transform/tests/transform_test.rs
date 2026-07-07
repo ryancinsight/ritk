@@ -1,6 +1,6 @@
-use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_interpolation::LinearInterpolator;
 use ritk_transform::Transform;
 use ritk_transform::{DisplacementField, DisplacementFieldTransform, RigidTransform};

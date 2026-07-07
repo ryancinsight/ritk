@@ -1,9 +1,9 @@
 use crate::interpolation::kernel::bspline::cubic_bspline;
 use crate::interpolation::kernel::BoundsPolicy;
 use crate::interpolation::BSplineInterpolator;
-use ritk_image::tensor::{ElementConversion, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::interpolation::Interpolator;
+use ritk_image::tensor::{ElementConversion, Tensor, TensorData};
 
 type TestBackend = NdArray<f32>;
 

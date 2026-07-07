@@ -121,8 +121,8 @@ pub fn trilinear_interpolation<B: Backend>(
 #[cfg(test)]
 mod trilinear_tests {
     use super::*;
-    use ritk_image::tensor::{Shape, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::{Shape, TensorData};
 
     type B = NdArray<f32>;
 

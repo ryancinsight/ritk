@@ -3,11 +3,13 @@
 //! This module provides a mechanism to chain two transforms together.
 //! T(x) = T2(T1(x))
 
-use ritk_image::burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
+use ritk_core::transform::Transform;
+use ritk_image::burn::module::{
+    AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault,
+};
 use ritk_image::burn::record::{PrecisionSettings, Record};
 use ritk_image::tensor::backend::{AutodiffBackend, Backend};
 use ritk_image::tensor::Tensor;
-use ritk_core::transform::Transform;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
@@ -171,8 +173,8 @@ where
 mod tests {
     use super::*;
     use crate::transform::affine::translation::TranslationTransform;
-    use ritk_image::tensor::TensorData;
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::TensorData;
 
     type TestBackend = NdArray<f32>;
 

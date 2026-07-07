@@ -1,8 +1,6 @@
 //! Multi-frame DICOM reader: header extraction and volume loading.
 
 use anyhow::{bail, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use dicom::core::Tag;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
@@ -10,6 +8,8 @@ use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness, TransferSyntaxKind,
 };
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 

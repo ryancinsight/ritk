@@ -7,8 +7,6 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use ritk_core::image::RgbVolume;
@@ -16,10 +14,19 @@ use ritk_dicom::{
     decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
     PixelLayout, PixelSignedness, TransferSyntaxKind,
 };
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::color_common::{read_optional, read_required, required_string, RGB_CHANNELS};
 use super::reader::{self, DicomReadMetadata, DicomSliceMetadata};
+
+/// Atlas-typed sister surface for the DICOM RGB colour-volume loader.
+/// See `atlas_color.rs` for the AD 0012 sub-batch #3.f atomic-boundary
+/// rationale and the per-crate §3 no-Cargo.toml-mutation invariant.
+pub mod atlas_color;
+
+pub use atlas_color::{load_atlas_color_from_series, load_atlas_color_series};
 
 /// Check whether a directory contains a DICOM RGB colour series.
 ///

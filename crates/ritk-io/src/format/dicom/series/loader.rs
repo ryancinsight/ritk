@@ -1,8 +1,6 @@
 //! Series loading — `load_dicom_series`, `read_dicom_series`, and the `DicomReader` facade.
 
 use anyhow::{bail, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use coeus_core::ComputeBackend;
 use dicom::dictionary_std::tags;
 use dicom::object::{FileDicomObject, InMemDicomObject};
@@ -12,6 +10,8 @@ use ritk_dicom::{
     PixelSignedness,
 };
 use ritk_image::native::Image as NativeImage;
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::path::{Path, PathBuf};
 
@@ -352,9 +352,9 @@ impl<B: Backend> ImageReader<Image<B, 3>> for DicomReader<B> {
 #[cfg(test)]
 mod tests {
     use super::{load_dicom_series, load_native_dicom_series};
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
 

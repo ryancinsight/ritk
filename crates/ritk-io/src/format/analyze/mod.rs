@@ -1,10 +1,10 @@
 //! Analyze 7.5 format dispatch.
 
 use anyhow::{Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image as BurnImage;
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::marker::PhantomData;
 use std::path::Path;
 

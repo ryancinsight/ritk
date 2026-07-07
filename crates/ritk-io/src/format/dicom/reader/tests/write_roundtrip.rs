@@ -24,8 +24,8 @@ use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_write_series_load_series_intensity_roundtrip() {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     type B = burn_ndarray::NdArray<f32>;
 
@@ -85,8 +85,8 @@ fn test_write_series_load_series_intensity_roundtrip() {
 
 #[test]
 fn native_dicom_loader_matches_legacy_loader() {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use coeus_core::SequentialBackend;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     type B = burn_ndarray::NdArray<f32>;
 
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -145,8 +145,8 @@ fn native_dicom_loader_matches_legacy_loader() {
 
 #[test]
 fn test_write_metadata_series_load_series_intensity_roundtrip() {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;

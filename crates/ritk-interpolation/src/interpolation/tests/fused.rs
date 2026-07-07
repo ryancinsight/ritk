@@ -2,11 +2,11 @@
 
 use crate::interpolation::fused::{is_identity_direction, transform_and_interpolate};
 use crate::interpolation::LinearInterpolator;
-use ritk_image::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::interpolation::Interpolator;
 use ritk_core::transform::Transform;
+use ritk_image::tensor::{Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
 type Backend = NdArray<f32>;

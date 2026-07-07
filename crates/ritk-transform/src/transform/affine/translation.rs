@@ -2,11 +2,11 @@
 //!
 //! This module provides a simple translation transform.
 
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_core::transform::{Resampleable, Transform};
 use ritk_image::burn::module::{Module, Param};
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_core::transform::{Resampleable, Transform};
 
 /// Simple Translation Transform.
 ///

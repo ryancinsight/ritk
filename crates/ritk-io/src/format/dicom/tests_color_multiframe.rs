@@ -1,10 +1,10 @@
 use super::*;
-use ritk_image::tensor::backend::Backend;
 use burn_ndarray::NdArray;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
+use ritk_image::tensor::backend::Backend;
 
 type B = NdArray<f32>;
 

@@ -1,9 +1,9 @@
 use super::super::{generate_series_uid, write_dicom_series};
 use super::helpers::{make_image, Backend};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
 #[test]

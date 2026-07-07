@@ -23,8 +23,8 @@ use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_directory_warns_on_inconsistent_iop() {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;
@@ -170,8 +170,8 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
 
 #[test]
 fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;

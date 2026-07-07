@@ -51,8 +51,8 @@ pub mod mesh_writer;
 pub use mesh_writer::{mesh_to_vtk_string, write_mesh_as_vtk};
 
 use crate::domain::{ImageReader, ImageWriter};
-use ritk_image::tensor::backend::Backend;
 use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
 use std::path::Path;
 
 /// DIP boundary implementing `ImageReader` for VTK legacy structured points.
@@ -94,8 +94,8 @@ impl<B: Backend> ImageWriter<Image<B, 3>> for VtkWriter<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 

@@ -5,10 +5,11 @@
 //! The `Interpolator` trait remains in `ritk-core::interpolation::Interpolator`
 //! (re-exported here for convenience). All concrete interpolators live here.
 
-pub mod native;
+pub mod atlas_trilinear;
 pub mod dispatch;
 pub mod fused;
 pub(crate) mod kernel;
+pub mod native;
 pub mod shared;
 pub mod tensor_trilinear;
 
@@ -19,6 +20,7 @@ mod tests;
 pub use ritk_core::interpolation::Interpolator;
 
 // ── Concrete types defined in this crate ───────────────────────────────────
+pub use atlas_trilinear::atlas_trilinear_interpolate;
 pub use fused::{transform_and_interpolate, FusedInterpolationResult};
 pub use kernel::bspline::{bspline_decomposition_coefficients, BSplineInterpolator};
 pub use kernel::linear::LinearInterpolator;

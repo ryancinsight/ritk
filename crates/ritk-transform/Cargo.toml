@@ -10,6 +10,9 @@ ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-interpolation = { path = "../ritk-interpolation" }
 burn = { workspace = true }
+coeus-core = { workspace = true }
+coeus-tensor = { workspace = true }
+ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
