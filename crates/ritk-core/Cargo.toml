@@ -8,6 +8,7 @@ default = ["mnemosyne-alloc"]
 mnemosyne-alloc = ["dep:mnemosyne"]
 
 [dependencies]
+burn-ndarray = { workspace = true }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-image = { path = "../ritk-image" }
 ritk-morphology = { path = "../ritk-morphology" }
@@ -19,5 +20,4 @@ coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 
 [dev-dependencies]
-burn-ndarray = { workspace = true }
 proptest = { workspace = true }

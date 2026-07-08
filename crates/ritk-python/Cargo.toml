@@ -8,6 +8,7 @@ name = "_ritk"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+burn-ndarray = { workspace = true }
 pyo3 = { workspace = true }
 numpy = { workspace = true }
 coeus-core = { workspace = true }
@@ -21,6 +22,5 @@ ritk-filter = { path = "../ritk-filter" }
 ritk-segmentation = { path = "../ritk-segmentation" }
 ritk-io = { path = "../ritk-io" }
 ritk-registration = { path = "../ritk-registration" }
-burn-ndarray = { workspace = true }
 burn = { workspace = true, features = ["ndarray", "autodiff"] }
 anyhow = { workspace = true }

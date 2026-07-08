@@ -6,6 +6,7 @@ description = "NRRD (Nearly Raw Raster Data) I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 
 [dependencies]
+burn-ndarray = { workspace = true }
 ritk-core = { workspace = true }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
@@ -16,5 +17,4 @@ bytemuck = { workspace = true }
 flate2 = { workspace = true }
 
 [dev-dependencies]
-burn-ndarray = { workspace = true }
 tempfile = { workspace = true }

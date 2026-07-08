@@ -4,10 +4,10 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
+burn-ndarray = { workspace = true }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
 burn = { workspace = true }
-burn-ndarray = { workspace = true }
 anyhow = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
@@ -18,4 +18,3 @@ coeus-tensor = { workspace = true }
 test-helpers = []
 
 [dev-dependencies]
-burn-ndarray = { workspace = true }

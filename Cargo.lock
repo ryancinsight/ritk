@@ -1666,7 +1666,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-autograd"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "apollo-fft",
  "coeus-core",
@@ -1680,7 +1680,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-core"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1694,7 +1694,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-leto"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "coeus-core",
  "leto",
@@ -1703,7 +1703,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-ops"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -1719,7 +1719,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-sparse"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -1729,7 +1729,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-tensor"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -2050,9 +2050,9 @@ checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.5.15"
+version = "0.5.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82b8f8f868b36967f9606790d1903570de9ceaf870a7bf9fbbd3016d636a2cb2"
+checksum = "d85363c37faeca707aef026efa9f3b34d077bce547e48f770770625c6013679e"
 dependencies = [
  "crossbeam-utils",
 ]

@@ -5,6 +5,7 @@ edition = "2021"
 description = "Image statistics, information theory, image comparison metrics, normalization, and noise estimation"
 
 [dependencies]
+burn-ndarray = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 ritk-spatial = { path = "../ritk-spatial" }
@@ -15,4 +16,3 @@ coeus-tensor = { workspace = true }
 
 
 [dev-dependencies]
-burn-ndarray = { workspace = true }

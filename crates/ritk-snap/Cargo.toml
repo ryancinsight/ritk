@@ -10,10 +10,10 @@ name = "ritk-snap"
 path = "src/main.rs"
 
 [dependencies]
+burn-ndarray = { workspace = true }
 anyhow = { workspace = true }
 arrayvec = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
-burn-ndarray = { workspace = true }
 ritk-core = { workspace = true }
 ritk-annotation = { path = "../ritk-annotation" }
 ritk-image = { path = "../ritk-image" }

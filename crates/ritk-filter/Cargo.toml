@@ -4,6 +4,7 @@ version = "0.2.60"
 edition = "2021"
 
 [dependencies]
+burn-ndarray = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
@@ -25,7 +26,6 @@ coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 
 [dev-dependencies]
-burn-ndarray = { workspace = true }
 criterion = { workspace = true }
 
 [[bench]]

@@ -13,6 +13,7 @@ direct-parzen = []
 serde = ["dep:serde"]
 
 [dependencies]
+burn-ndarray = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
@@ -39,7 +40,6 @@ coeus-autograd = { workspace = true }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]
-burn-ndarray = { workspace = true }
 ritk-io = { path = "../ritk-io" }
 tracing-subscriber = { workspace = true }
 walkdir = { workspace = true }
