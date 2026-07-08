@@ -2,7 +2,7 @@
 //! normalize, unsharp mask, and zero crossing.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
@@ -32,14 +32,14 @@ pub fn rescale_intensity(
     out_min: f32,
     out_max: f32,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = RescaleIntensityFilter::new(out_min, out_max);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Clamp to [window_min, window_max] then rescale to [out_min, out_max].
@@ -62,14 +62,14 @@ pub fn intensity_windowing(
     out_min: f32,
     out_max: f32,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = IntensityWindowingFilter::new(window_min, window_max, out_min, out_max);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Set pixels strictly below threshold to outside_value; keep others unchanged.
@@ -81,14 +81,14 @@ pub fn threshold_below(
     threshold: f32,
     outside_value: f32,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = ThresholdImageFilter::below(threshold, outside_value);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Set pixels strictly above threshold to outside_value; keep others unchanged.
@@ -100,14 +100,14 @@ pub fn threshold_above(
     threshold: f32,
     outside_value: f32,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = ThresholdImageFilter::above(threshold, outside_value);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Set pixels outside [lower, upper] to outside_value; keep interior pixels unchanged.
@@ -120,14 +120,14 @@ pub fn threshold_outside(
     upper: f32,
     outside_value: f32,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = ThresholdImageFilter::outside(lower, upper, outside_value);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Sigmoid intensity transform.
@@ -156,17 +156,17 @@ pub fn sigmoid_filter(
     min_output: f32,
     max_output: f32,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         // Rust SigmoidImageFilter uses (inflection=alpha_rust, width=beta_rust).
         // Python/SimpleITK convention: alpha=width, beta=inflection.
         // Map: inflection=beta (Python), width=alpha (Python).
         let filter = SigmoidImageFilter::new(beta, alpha, min_output, max_output);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Binary threshold: foreground if I in [lower_threshold, upper_threshold], else background.
@@ -187,7 +187,7 @@ pub fn binary_threshold(
     foreground: f32,
     background: f32,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = BinaryThresholdImageFilter::new(
             lower_threshold,
@@ -196,10 +196,10 @@ pub fn binary_threshold(
             background,
         );
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Double-threshold (hysteresis): a voxel is `inside_value` if it is in the inner
@@ -218,7 +218,7 @@ pub fn double_threshold(
     inside_value: f32,
     outside_value: f32,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         DoubleThresholdImageFilter::new(
             threshold1,
@@ -228,10 +228,10 @@ pub fn double_threshold(
             inside_value,
             outside_value,
         )
-        .apply(image.as_ref())
+        .apply(&image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Linearly blend two co-registered images.
@@ -245,14 +245,14 @@ pub fn double_threshold(
 #[pyfunction]
 #[pyo3(signature = (a, b, alpha=0.5_f32))]
 pub fn blend_images(py: Python<'_>, a: &PyImage, b: &PyImage, alpha: f32) -> RitkResult<PyImage> {
-    let a_arc = std::sync::Arc::clone(&a.inner);
-    let b_arc = std::sync::Arc::clone(&b.inner);
+    let a_arc = py_image_to_burn(a);
+    let b_arc = py_image_to_burn(b);
     py.allow_threads(|| {
         BlendImageFilter::new(alpha)
-            .apply(a_arc.as_ref(), b_arc.as_ref())
+            .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Zero-mean, unit-variance intensity normalization.
@@ -268,12 +268,12 @@ pub fn blend_images(py: Python<'_>, a: &PyImage, b: &PyImage, alpha: f32) -> Rit
 ///     Normalized PyImage with identical shape and spatial metadata.
 #[pyfunction]
 pub fn normalize_image(py: Python<'_>, image: &PyImage) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let filter = NormalizeImageFilter::new();
-        filter.apply(image.as_ref())
+        filter.apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Scale the image so the sum of all voxels equals `constant`
@@ -282,10 +282,9 @@ pub fn normalize_image(py: Python<'_>, image: &PyImage) -> PyImage {
 #[pyfunction]
 #[pyo3(signature = (image, constant=1.0))]
 pub fn normalize_to_constant(py: Python<'_>, image: &PyImage, constant: f64) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
-    let result =
-        py.allow_threads(|| NormalizeToConstantImageFilter::new(constant).apply(image.as_ref()));
-    into_py_image(result)
+    let image = py_image_to_burn(image);
+    let result = py.allow_threads(|| NormalizeToConstantImageFilter::new(constant).apply(&image));
+    burn_into_py_image(result)
 }
 
 /// Unsharp mask sharpening filter.
@@ -328,7 +327,7 @@ pub fn unsharp_mask(
     threshold: f64,
     clamp: bool,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let clamp_policy = if clamp {
             ClampPolicy::ClampToInputRange
@@ -342,10 +341,10 @@ pub fn unsharp_mask(
             clamp_policy,
         );
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Detect zero crossings in a 3-D image.
@@ -374,16 +373,16 @@ pub fn zero_crossing_image(
     foreground_value: f32,
     background_value: f32,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = ZeroCrossingImageFilter::new()
             .with_foreground(foreground_value)
             .with_background(background_value);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Stark adaptive (local) histogram equalization, matching
@@ -409,17 +408,17 @@ pub fn adaptive_histogram_equalization(
     alpha: f64,
     beta: f64,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         AdaptiveHistogramEqualizationFilter {
             radius: [radius.0, radius.1, radius.2],
             alpha,
             beta,
         }
-        .apply(image.as_ref())
+        .apply(&image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Bitwise complement of an integer-valued image, matching
@@ -443,14 +442,14 @@ pub fn bitwise_not(
     bits: u32,
     signed: bool,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let filter = if signed {
         BitwiseNotImageFilter::signed()
     } else {
         BitwiseNotImageFilter::unsigned(bits)
     };
-    let out = py.allow_threads(|| filter.apply(arc.as_ref()));
-    Ok(into_py_image(out))
+    let out = py.allow_threads(|| filter.apply(&arc));
+    Ok(burn_into_py_image(out))
 }
 
 /// Apply a linear shift-then-scale to every voxel.
@@ -474,11 +473,11 @@ pub fn bitwise_not(
 #[pyfunction]
 #[pyo3(signature = (image, shift = 0.0_f32, scale = 1.0_f32))]
 pub fn shift_scale(py: Python<'_>, image: &PyImage, shift: f32, scale: f32) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         ShiftScaleImageFilter::new(shift, scale)
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

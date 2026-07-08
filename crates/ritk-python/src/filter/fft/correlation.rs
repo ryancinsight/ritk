@@ -1,10 +1,12 @@
 //! FFT-based normalized cross-correlation filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, vec_to_image_like, PyImage};
+use crate::image::{
+    burn_into_py_image, image_to_vec, into_py_image, py_image_to_burn, vec_to_image_like,
+    BurnBackend, BurnImage, PyImage,
+};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
-use ritk_core::image::Image;
 use ritk_filter::{
     normalized_correlation as core_normalized_correlation, FftNormalizedCorrelation3DFilter,
     FftNormalizedCorrelationFilter,
@@ -14,11 +16,11 @@ use ritk_spatial::{Direction, Point, Spacing};
 use std::sync::Arc;
 
 /// Build a 2-D `Image<Backend, 2>` from a flat slice of f32 values.
-fn build_image_2d(vals: Vec<f32>, rows: usize, cols: usize) -> Image<crate::image::Backend, 2> {
+fn build_image_2d(vals: Vec<f32>, rows: usize, cols: usize) -> BurnImage<2> {
     let device = NdArrayDevice::default();
     let td = TensorData::new(vals, Shape::new([rows, cols]));
-    let tensor = Tensor::<crate::image::Backend, 2>::from_data(td, &device);
-    Image::new(
+    let tensor = Tensor::<BurnBackend, 2>::from_data(td, &device);
+    BurnImage::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64]),
         Spacing::new([1.0_f64, 1.0_f64]),
@@ -68,13 +70,13 @@ pub fn fft_normalized_correlate(
         let th = tmpl_shape[1];
         let tw = tmpl_shape[2];
 
-        let img_vals: Vec<f32> = img.data_slice().into_owned();
-        let t_vals: Vec<f32> = tmpl.data_slice().into_owned();
+        let img_vals = image_to_vec(img.as_ref()).0;
+        let t_vals = image_to_vec(tmpl.as_ref()).0;
 
         // Build 2-D template image from the first (only) Z-slice.
         let t_slice: Vec<f32> = t_vals[..th * tw].to_vec();
         let template_2d = build_image_2d(t_slice, th, tw);
-        let filter = FftNormalizedCorrelationFilter::<crate::image::Backend>::new(&template_2d)
+        let filter = FftNormalizedCorrelationFilter::<BurnBackend>::new(&template_2d)
             .map_err(|e| RitkPyError::runtime(e.to_string()))?;
 
         // Process each Z-slice independently.
@@ -123,17 +125,17 @@ pub fn fft_normalized_correlate_3d(
     volume: &PyImage,
     template: &PyImage,
 ) -> RitkResult<PyImage> {
-    let vol = Arc::clone(&volume.inner);
-    let tmpl = Arc::clone(&template.inner);
+    let vol = py_image_to_burn(volume);
+    let tmpl = py_image_to_burn(template);
 
     py.allow_threads(|| {
-        let filter = FftNormalizedCorrelation3DFilter::<crate::image::Backend>::new(tmpl.as_ref())
+        let filter = FftNormalizedCorrelation3DFilter::<BurnBackend>::new(&tmpl)
             .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         filter
-            .apply(vol.as_ref())
+            .apply(&vol)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Spatial-domain normalized correlation of an image with a template, gated by a
@@ -160,14 +162,14 @@ pub fn normalized_correlation(
     mask: &PyImage,
     template: &PyImage,
 ) -> RitkResult<PyImage> {
-    let img = Arc::clone(&image.inner);
-    let msk = Arc::clone(&mask.inner);
-    let tpl = Arc::clone(&template.inner);
+    let img = py_image_to_burn(image);
+    let msk = py_image_to_burn(mask);
+    let tpl = py_image_to_burn(template);
     py.allow_threads(|| {
-        core_normalized_correlation(img.as_ref(), msk.as_ref(), tpl.as_ref())
+        core_normalized_correlation(&img, &msk, &tpl)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Masked FFT normalized cross-correlation (Padfield 2012), matching
@@ -198,17 +200,17 @@ pub fn masked_fft_normalized_correlation(
     required_number_of_overlapping_pixels: u64,
     required_fraction_of_overlapping_pixels: f32,
 ) -> RitkResult<PyImage> {
-    let f = Arc::clone(&fixed.inner);
-    let m = Arc::clone(&moving.inner);
-    let fm = Arc::clone(&fixed_mask.inner);
-    let mm = Arc::clone(&moving_mask.inner);
+    let f = py_image_to_burn(fixed);
+    let m = py_image_to_burn(moving);
+    let fm = py_image_to_burn(fixed_mask);
+    let mm = py_image_to_burn(moving_mask);
     py.allow_threads(|| {
         ritk_filter::MaskedFftNormalizedCorrelationFilter {
             required_number_of_overlapping_pixels,
             required_fraction_of_overlapping_pixels,
         }
-        .apply(f.as_ref(), m.as_ref(), fm.as_ref(), mm.as_ref())
+        .apply(&f, &m, &fm, &mm)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

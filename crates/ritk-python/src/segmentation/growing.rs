@@ -2,17 +2,14 @@
 //! and neighbourhood-connected.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::Backend;
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
-use ritk_image::Image;
 use ritk_segmentation::{
     connected_threshold as core_connected_threshold,
     vector_confidence_connected_image as core_vector_confidence_connected,
     ConfidenceConnectedFilter, IsolatedConnectedFilter, IsolatedWatershed,
     NeighborhoodConnectedFilter,
 };
-use std::sync::Arc;
 
 /// Vector confidence-connected region growing, matching
 /// `sitk.VectorConfidenceConnected`.
@@ -53,10 +50,10 @@ pub fn vector_confidence_connected_segment(
             "vector_confidence_connected: at least one channel is required",
         ));
     }
-    let arcs: Vec<Arc<Image<Backend, 3>>> = channels.iter().map(|p| Arc::clone(&p.inner)).collect();
+    let burn_images: Vec<_> = channels.iter().map(|p| py_image_to_burn(p)).collect();
     let out = py
         .allow_threads(|| {
-            let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
+            let refs: Vec<_> = burn_images.iter().collect();
             core_vector_confidence_connected(
                 &refs,
                 &seeds,
@@ -67,7 +64,7 @@ pub fn vector_confidence_connected_segment(
             )
         })
         .map_err(RitkPyError::value)?;
-    Ok(into_py_image(out))
+    Ok(burn_into_py_image(out))
 }
 
 /// Segment a region by connected-threshold flood-fill from a seed voxel.
@@ -108,9 +105,9 @@ pub fn connected_threshold_segment(
             seed, shape
         )));
     }
-    let image = Arc::clone(&image.inner);
-    let result = py.allow_threads(|| core_connected_threshold(image.as_ref(), seed, lower, upper));
-    Ok(into_py_image(result))
+    let image = py_image_to_burn(image);
+    let result = py.allow_threads(|| core_connected_threshold(&image, seed, lower, upper));
+    Ok(burn_into_py_image(result))
 }
 
 /// Isolated-connected segmentation, matching `SimpleITK.IsolatedConnected`.
@@ -148,7 +145,7 @@ pub fn isolated_connected_segment(
     isolated_value_tolerance: f64,
     find_upper_threshold: bool,
 ) -> PyImage {
-    let arc = Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let out = py.allow_threads(|| {
         IsolatedConnectedFilter {
             seed1,
@@ -159,9 +156,9 @@ pub fn isolated_connected_segment(
             isolated_value_tolerance,
             find_upper_threshold,
         }
-        .apply(arc.as_ref())
+        .apply(&arc)
     });
-    into_py_image(out)
+    burn_into_py_image(out)
 }
 
 /// Confidence-connected region growing (Yanowitz & Bruckstein 1989).
@@ -200,14 +197,14 @@ pub fn confidence_connected_segment(
             seed.len()
         )));
     }
-    let inner = Arc::clone(&image.inner);
+    let inner = py_image_to_burn(image);
     let result = py.allow_threads(move || {
         ConfidenceConnectedFilter::new([seed[0], seed[1], seed[2]], initial_lower, initial_upper)
             .with_multiplier(multiplier)
             .with_max_iterations(max_iterations)
-            .apply(inner.as_ref())
+            .apply(&inner)
     });
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }
 
 /// Neighbourhood-connected region growing.
@@ -244,13 +241,13 @@ pub fn neighborhood_connected_segment(
             seed.len()
         )));
     }
-    let inner = Arc::clone(&image.inner);
+    let inner = py_image_to_burn(image);
     let result = py.allow_threads(move || {
         NeighborhoodConnectedFilter::new([seed[0], seed[1], seed[2]], lower, upper)
             .with_radius([radius, radius, radius])
-            .apply(inner.as_ref())
+            .apply(&inner)
     });
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }
 
 // ── IsolatedWatershed ────────────────────────────────────────────────────────
@@ -288,7 +285,7 @@ pub fn isolated_watershed_segment(
     isolated_value_tolerance: f32,
     upper_value_limit: f32,
 ) -> RitkResult<PyImage> {
-    let arc = Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         IsolatedWatershed {
             seed1,
@@ -297,9 +294,9 @@ pub fn isolated_watershed_segment(
             isolated_value_tolerance,
             upper_value_limit,
         }
-        .apply(arc.as_ref())
+        .apply(&arc)
     });
     result
-        .map(into_py_image)
+        .map(burn_into_py_image)
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))
 }

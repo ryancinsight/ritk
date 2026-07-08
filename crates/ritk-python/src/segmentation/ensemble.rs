@@ -2,7 +2,9 @@
 
 use crate::errors::RitkResult;
 use crate::image::vec_to_image_like;
-use crate::image::{into_py_image, with_tensor_slice, PyImage};
+use crate::image::{
+    burn_into_py_image, into_py_image, py_image_to_burn, with_image_slice, PyImage,
+};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use ritk_segmentation::{
@@ -47,7 +49,7 @@ pub fn staple_ensemble(
     // Extract flat f32 vecs from each rater.
     let rater_vecs: Vec<Vec<f32>> = raters
         .iter()
-        .map(|r| with_tensor_slice(r.inner.data(), |s| s.to_vec()))
+        .map(|r| with_image_slice(r.inner.as_ref(), |s| s.to_vec()))
         .collect();
 
     // Validate lengths match.
@@ -131,7 +133,7 @@ pub fn multi_label_staple(
     let shape = reference.shape();
     let rater_vecs: Vec<Vec<f32>> = raters
         .iter()
-        .map(|r| with_tensor_slice(r.inner.data(), |s| s.to_vec()))
+        .map(|r| with_image_slice(r.inner.as_ref(), |s| s.to_vec()))
         .collect();
     let n = rater_vecs[0].len();
     for (i, v) in rater_vecs.iter().enumerate().skip(1) {
@@ -179,9 +181,8 @@ pub fn growcut_segment(
     seeds: &PyImage,
     max_iter: usize,
 ) -> PyImage {
-    let img_arc = Arc::clone(&image.inner);
-    let seed_arc = Arc::clone(&seeds.inner);
-    let result =
-        py.allow_threads(move || core_growcut(img_arc.as_ref(), seed_arc.as_ref(), max_iter));
-    into_py_image(result)
+    let img_arc = py_image_to_burn(image);
+    let seed_arc = py_image_to_burn(seeds);
+    let result = py.allow_threads(move || core_growcut(&img_arc, &seed_arc, max_iter));
+    burn_into_py_image(result)
 }

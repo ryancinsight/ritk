@@ -1,59 +1,34 @@
-//! Python-exposed Image class wrapping `ritk_core::Image<NdArray<f32>, 3>`.
-//!
-//! # Invariants
-//! - Shape convention: [Z, Y, X] (ritk-core canonical order).
-//! - Spacing and origin are in physical units (millimetres by default).
-//! - Direction is a 3×3 rotation matrix (identity by default).
-//! - The inner `Arc<Image<Backend, 3>>` allows cheap clone across Python objects.
+//! Python-exposed Image class wrapping native `ritk_image::native::Image`.
 
 use crate::errors::{RitkPyError, RitkResult};
-use ritk_image::tensor::{Shape, Tensor, TensorData, TensorPrimitive};
-use burn_ndarray::{NdArray, NdArrayDevice, NdArrayTensor};
+use coeus_core::{MoiraiBackend, SequentialBackend};
 use numpy::{ndarray::Array3, IntoPyArray, PyArray3, PyReadonlyArray3, PyUntypedArrayMethods};
 use pyo3::prelude::*;
-use ritk_core::{
-    image::Image,
-    spatial::{Direction, Point, Spacing},
-};
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::native::Image as NativeImage;
 use std::sync::Arc;
 
-/// Concrete backend used throughout ritk-python.
-pub type Backend = NdArray<f32>;
+/// Native backend used throughout ritk-python scalar image bindings.
+pub type Backend = MoiraiBackend;
 
-// ── PyImage ───────────────────────────────────────────────────────────────────
+/// Legacy Burn backend retained for burn-only filters and transforms.
+pub type BurnBackend = burn_ndarray::NdArray<f32>;
+
+/// Native 3-D scalar image carrier used by `PyImage`.
+pub type ScalarImage = NativeImage<f32, MoiraiBackend, 3>;
+
+/// Legacy Burn-backed scalar image carrier for adapters into burn-only crates.
+pub type BurnImage<const D: usize> = ritk_core::image::Image<BurnBackend, D>;
 
 /// Medical image with physical-space metadata.
-///
-/// Wraps `ritk_core::Image<NdArray<f32>, 3>` (always CPU, f32 precision).
-/// Shape convention: [Z, Y, X].
-///
-/// # Example (Python)
-/// ```python
-/// import numpy as np
-/// import ritk
-///
-/// arr = np.zeros((64, 64, 64), dtype=np.float32)
-/// img = ritk.Image(arr, spacing=(0.5, 0.5, 1.0), origin=(0.0, 0.0, 0.0))
-/// print(img.shape)    # (64, 64, 64)
-/// print(img.spacing)  # (0.5, 0.5, 1.0)
-/// out = img.to_numpy()
-/// assert out.shape == (64, 64, 64)
-/// ```
 #[pyclass(name = "Image")]
 pub struct PyImage {
-    pub inner: Arc<Image<Backend, 3>>,
+    pub inner: Arc<ScalarImage>,
 }
 
 #[pymethods]
 impl PyImage {
     /// Construct a PyImage from a NumPy f32 array with shape [Z, Y, X].
-    ///
-    /// Args:
-    ///     array:   f32 ndarray with shape [Z, Y, X].
-    ///     spacing: Physical voxel size (sz, sy, sx) in mm.
-    ///              Defaults to (1.0, 1.0, 1.0).
-    ///     origin:  Physical coordinate of first voxel (oz, oy, ox) in mm.
-    ///              Defaults to (0.0, 0.0, 0.0).
     #[new]
     #[pyo3(signature = (array, spacing=None, origin=None))]
     fn new_from_numpy<'py>(
@@ -64,26 +39,18 @@ impl PyImage {
     ) -> PyResult<Self> {
         let shape = array.shape();
         let (z, y, x) = (shape[0], shape[1], shape[2]);
-
-        // Iterate in array order (handles non-contiguous layouts correctly).
         let flat: Vec<f32> = array.as_array().iter().copied().collect();
-
-        let device = NdArrayDevice::default();
-        let td = TensorData::new(flat, Shape::new([z, y, x]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-
         let sp = spacing.unwrap_or([1.0, 1.0, 1.0]);
         let orig = origin.unwrap_or([0.0, 0.0, 0.0]);
-
-        // `origin`/`spacing` are given in the Python [z, y, x] axis order (matching
-        // `shape`/`to_numpy`). Spacing is stored per tensor axis [z, y, x]; the
-        // core keeps the origin as a world-space point [x, y, z], so reverse it.
-        let image = Image::new(
-            tensor,
+        let image = NativeImage::from_flat_on(
+            flat,
+            [z, y, x],
             Point::new([orig[2], orig[1], orig[0]]),
             Spacing::new(sp),
             Direction::identity(),
-        );
+            &MoiraiBackend,
+        )
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         Ok(Self {
             inner: Arc::new(image),
         })
@@ -92,13 +59,11 @@ impl PyImage {
     /// Convert image data to a NumPy f32 array with shape [Z, Y, X].
     fn to_numpy<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray3<f32>>> {
         let shape = self.inner.shape();
-        // Zero-copy slice extraction: arc clone O(1) + as_slice_memory_order O(1).
-        // One O(N) memcpy remains: f32 -> Array3 -> Python (direct f32-to-f32, no u8 round-trip).
-        with_tensor_slice(self.inner.data(), |slice| {
-            Array3::from_shape_vec((shape[0], shape[1], shape[2]), slice.to_vec())
-        })
-        .map_err(|e| RitkPyError::runtime(e.to_string()))
-        .map(|arr| arr.into_pyarray_bound(py))
+        let backend = MoiraiBackend;
+        let cow = self.inner.data_cow_on(&backend);
+        Array3::from_shape_vec((shape[0], shape[1], shape[2]), cow.into_owned())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+            .map(|arr| arr.into_pyarray_bound(py))
     }
 
     /// Image shape as (Z, Y, X).
@@ -115,24 +80,14 @@ impl PyImage {
         (sp[0], sp[1], sp[2])
     }
 
-    /// Physical coordinate of first voxel as (oz, oy, ox) in mm — the same
-    /// [z, y, x] axis order as `shape`, `spacing`, and `to_numpy`. (The core
-    /// stores it as a world-space point [x, y, z]; this getter reverses it.)
+    /// Physical coordinate of first voxel as (oz, oy, ox) in mm.
     #[getter]
     fn origin(&self) -> (f64, f64, f64) {
         let o = self.inner.origin();
         (o[2], o[1], o[0])
     }
 
-    /// Direction cosine matrix as a row-major 9-tuple in SimpleITK's `(x, y, z)`
-    /// world / image-axis convention — identical layout to
-    /// `sitk.Image.GetDirection()`.
-    ///
-    /// The core stores the matrix with columns indexed by tensor axis `[z, y, x]`
-    /// and rows by world component `[x, y, z]`; SimpleITK indexes image axis `j`
-    /// as `x, y, z` (= tensor axis `2 - j`). Hence `D_sitk[i][j] = D_core[(i, 2 - j)]`,
-    /// which maps the canonical loaded (anti-diagonal) core direction back to
-    /// SimpleITK's identity.
+    /// Direction cosine matrix as a row-major 9-tuple in SimpleITK order.
     #[getter]
     fn direction(&self) -> [f64; 9] {
         let d = self.inner.direction();
@@ -156,34 +111,56 @@ impl PyImage {
     }
 }
 
-// ── Conversion helpers (used by io, filter, segmentation, registration) ────────
+pub trait IntoPyImage {
+    fn into_py_image(self) -> PyImage;
+}
 
-/// Wrap a `ritk_core::Image<Backend, 3>` in a `PyImage`.
-pub fn into_py_image(image: Image<Backend, 3>) -> PyImage {
-    PyImage {
-        inner: Arc::new(image),
+impl IntoPyImage for ScalarImage {
+    fn into_py_image(self) -> PyImage {
+        PyImage {
+            inner: Arc::new(self),
+        }
     }
 }
 
-/// Wrap an Atlas-native image in the current Python image container.
-///
-/// The Python processing surface still operates on the legacy Burn-backed
-/// image type; disk I/O reaches this helper only after the format reader has
-/// completed on the Atlas-native substrate.
-pub fn native_into_py_image(image: ritk_io::NativeImage) -> PyImage {
-    let values = image.data_vec();
-    let shape = image.shape();
-    into_py_image(vec_to_image(
-        values,
-        shape,
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-    ))
+impl IntoPyImage for BurnImage<3> {
+    fn into_py_image(self) -> PyImage {
+        let (values, shape) = burn_image_to_vec(&self);
+        vec_to_image(
+            values,
+            shape,
+            *self.origin(),
+            *self.spacing(),
+            *self.direction(),
+        )
+        .into_py_image()
+    }
 }
 
-/// Convert the current Python image container into the Atlas-native image used
-/// by `ritk-io` native writers.
+/// Wrap either a native or Burn-backed image in `PyImage`.
+pub fn into_py_image<I: IntoPyImage>(image: I) -> PyImage {
+    image.into_py_image()
+}
+
+/// Convert a native image from `ritk-io` onto `MoiraiBackend`.
+pub fn native_into_py_image(image: ritk_io::NativeImage) -> PyImage {
+    let backend = SequentialBackend;
+    let values = image.data_vec_on(&backend);
+    let shape = image.shape();
+    into_py_image(
+        NativeImage::from_flat_on(
+            values,
+            shape,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            &MoiraiBackend,
+        )
+        .expect("native_into_py_image: known-valid shape"),
+    )
+}
+
+/// Convert the current Python image container into the native image used by `ritk-io`.
 pub fn py_image_to_native(image: &PyImage) -> RitkResult<ritk_io::NativeImage> {
     let (values, shape) = image_to_vec(image.inner.as_ref());
     ritk_io::NativeImage::from_flat(
@@ -196,80 +173,88 @@ pub fn py_image_to_native(image: &PyImage) -> RitkResult<ritk_io::NativeImage> {
     .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
-/// Extract tensor data as `Vec<f32>` plus shape `[Z, Y, X]`.
-///
-/// Infallible: the NdArray backend always stores f32 data contiguously.
-/// Panics only if the tensor primitive is not `NdArrayTensor::F32` (invariant of `Backend = NdArray<f32>`).
-pub fn image_to_vec(image: &Image<Backend, 3>) -> (Vec<f32>, [usize; 3]) {
+/// Convert a native Python image to a legacy Burn-backed image for burn-only algorithms.
+pub fn py_image_to_burn(image: &PyImage) -> BurnImage<3> {
+    let (values, shape) = image_to_vec(image.inner.as_ref());
+    let device = <BurnBackend as ritk_image::tensor::backend::Backend>::Device::default();
+    let tensor = ritk_image::tensor::Tensor::<BurnBackend, 3>::from_data(
+        ritk_image::tensor::TensorData::new(values, ritk_image::tensor::Shape::new(shape)),
+        &device,
+    );
+    BurnImage::new(
+        tensor,
+        *image.inner.origin(),
+        *image.inner.spacing(),
+        *image.inner.direction(),
+    )
+}
+
+/// Extract logical row-major image data as `Vec<f32>` plus shape `[Z, Y, X]`.
+pub fn image_to_vec(image: &ScalarImage) -> (Vec<f32>, [usize; 3]) {
     let shape = image.shape();
-    // Zero-copy slice extraction: arc clone O(1) + as_slice_memory_order O(1).
-    // The resulting to_vec() is the single unavoidable O(N) copy when the caller
-    // needs an owned Vec<f32>. Eliminates the Vec<u8> intermediate from into_data().
-    let values = with_tensor_slice(image.data(), |slice| slice.to_vec());
+    let values = image.data_cow_on(&MoiraiBackend).into_owned();
     (values, shape)
 }
 
-/// Call `f` with a borrowed `&[f32]` slice from a `Tensor<Backend, 3>`.
-///
-/// Zero-copy fast path: clones the tensor (arc refcount increment only, O(1)),
-/// calls `into_primitive()` to obtain `TensorPrimitive::Float(NdArrayTensor::F32(ArcArray))`,
-/// then calls `as_slice_memory_order()` which is O(1) for contiguous arrays.
-///
-/// The fallback (non-contiguous array) iterates into a temporary `Vec<f32>`.
-/// Burn's NdArray backend always constructs C-contiguous arrays, so the fallback
-/// is reached only in adversarial cases.
-///
-/// # Panics
-/// Panics if the tensor primitive is not `TensorPrimitive::Float(NdArrayTensor::F32)`.
-pub(crate) fn with_tensor_slice<R, F: FnOnce(&[f32]) -> R>(tensor: &Tensor<Backend, 3>, f: F) -> R {
-    let cloned = tensor.clone(); // arc refcount +1, O(1)
-    match cloned.into_primitive() {
-        TensorPrimitive::Float(NdArrayTensor::F32(arc_array)) => {
-            if let Some(slice) = arc_array.as_slice_memory_order() {
-                f(slice)
-            } else {
-                // Non-contiguous fallback: collect into a temporary Vec<f32>.
-                let vec: Vec<f32> = arc_array.iter().copied().collect();
-                f(&vec)
-            }
-        }
-        _ => panic!("with_tensor_slice: expected TensorPrimitive::Float(NdArrayTensor::F32)"),
-    }
+/// Call `f` with a logical row-major slice view of a native image.
+pub(crate) fn with_image_slice<R, F: FnOnce(&[f32]) -> R>(image: &ScalarImage, f: F) -> R {
+    let cow = image.data_cow_on(&MoiraiBackend);
+    f(cow.as_ref())
 }
 
-/// Construct an `Image<Backend, 3>` from a flat `Vec<f32>`, shape `[Z, Y, X]`,
+/// Wrap a legacy Burn-backed image result back into a `PyImage` by converting
+/// via a flat Vec<f32> round-trip. Used as the return adapter for burn-only
+/// filter algorithms that cannot yet operate on native Coeus images.
+pub fn burn_into_py_image(image: BurnImage<3>) -> PyImage {
+    let (values, shape) = burn_image_to_vec(&image);
+    into_py_image(vec_to_image(
+        values,
+        shape,
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+    ))
+}
+
+pub(crate) fn burn_image_to_vec<const D: usize>(image: &BurnImage<D>) -> (Vec<f32>, [usize; D]) {
+    let dims = image.shape();
+    let values = image
+        .data()
+        .clone()
+        .into_data()
+        .as_slice::<f32>()
+        .expect("burn_image_to_vec: contiguous f32 image")
+        .to_vec();
+    (values, dims)
+}
+
+/// Construct a native image from a flat `Vec<f32>`, shape `[Z, Y, X]`,
 /// and spatial metadata cloned from a reference image.
 pub fn vec_to_image_like(
     values: Vec<f32>,
     shape: [usize; 3],
-    reference: &Image<Backend, 3>,
-) -> Image<Backend, 3> {
-    let device = NdArrayDevice::default();
-    let td = TensorData::new(values, Shape::new(shape));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
+    reference: &ScalarImage,
+) -> ScalarImage {
+    vec_to_image(
+        values,
+        shape,
         *reference.origin(),
         *reference.spacing(),
         *reference.direction(),
     )
 }
 
-/// Construct an `Image<Backend, 3>` from a flat `Vec<f32>` with explicit metadata.
+/// Construct a native image from a flat `Vec<f32>` with explicit metadata.
 pub fn vec_to_image(
     values: Vec<f32>,
     shape: [usize; 3],
     origin: Point<3>,
     spacing: Spacing<3>,
     direction: Direction<3>,
-) -> Image<Backend, 3> {
-    let device = NdArrayDevice::default();
-    let td = TensorData::new(values, Shape::new(shape));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-    Image::new(tensor, origin, spacing, direction)
+) -> ScalarImage {
+    NativeImage::from_flat_on(values, shape, origin, spacing, direction, &MoiraiBackend)
+        .expect("vec_to_image: valid inputs")
 }
-
-// ── Submodule registration ────────────────────────────────────────────────────
 
 /// Register the `image` submodule and its classes/functions into `parent`.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {

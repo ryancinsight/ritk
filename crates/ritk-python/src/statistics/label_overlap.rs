@@ -1,6 +1,6 @@
 //! Python bindings for per-label overlap measures.
 
-use crate::image::{with_tensor_slice, PyImage};
+use crate::image::{with_image_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_statistics::label_overlap::label_overlap_measures_from_slices;
@@ -30,8 +30,8 @@ pub fn label_overlap_measures(
     prediction: &PyImage,
     ground_truth: &PyImage,
 ) -> PyResult<Py<PyList>> {
-    let measures = with_tensor_slice(prediction.inner.data(), |pred_slice| {
-        with_tensor_slice(ground_truth.inner.data(), |gt_slice| {
+    let measures = with_image_slice(prediction.inner.as_ref(), |pred_slice| {
+        with_image_slice(ground_truth.inner.as_ref(), |gt_slice| {
             label_overlap_measures_from_slices(pred_slice, gt_slice)
         })
     });

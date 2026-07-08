@@ -1,13 +1,12 @@
 //! Binary morphological operations: erosion, dilation, opening, closing, fill holes,
 //! gradient, and skeletonization.
 
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::{
     BinaryClosing, BinaryDilation, BinaryErosion, BinaryFillHoles, BinaryOpening,
     MorphologicalGradient, MorphologicalOperation, Skeletonization,
 };
-use std::sync::Arc;
 
 /// Apply binary erosion with a box structuring element.
 ///
@@ -24,12 +23,12 @@ use std::sync::Arc;
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn binary_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let op = BinaryErosion::new(radius);
-        op.apply(image.as_ref())
+        op.apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Apply binary dilation with a box structuring element.
@@ -47,12 +46,12 @@ pub fn binary_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn binary_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let op = BinaryDilation::new(radius);
-        op.apply(image.as_ref())
+        op.apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Apply binary opening (erosion followed by dilation).
@@ -69,12 +68,12 @@ pub fn binary_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> PyImag
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn binary_opening(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let op = BinaryOpening::new(radius);
-        op.apply(image.as_ref())
+        op.apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Apply binary closing (dilation followed by erosion).
@@ -91,12 +90,12 @@ pub fn binary_opening(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn binary_closing(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let op = BinaryClosing::new(radius);
-        op.apply(image.as_ref())
+        op.apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Fill enclosed background holes in a binary mask.
@@ -111,9 +110,9 @@ pub fn binary_closing(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage
 ///     Hole-filled binary mask, same shape and spatial metadata as input.
 #[pyfunction]
 pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyImage {
-    let inner = Arc::clone(&image.inner);
-    let result = py.allow_threads(move || BinaryFillHoles.apply(inner.as_ref()));
-    into_py_image(result)
+    let inner = py_image_to_burn(image);
+    let result = py.allow_threads(move || BinaryFillHoles.apply(&inner));
+    burn_into_py_image(result)
 }
 
 /// Compute the morphological gradient (boundary extraction) of a binary mask.
@@ -135,9 +134,9 @@ pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyImage {
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn morphological_gradient(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
-    let inner = Arc::clone(&image.inner);
-    let result = py.allow_threads(move || MorphologicalGradient::new(radius).apply(inner.as_ref()));
-    into_py_image(result)
+    let inner = py_image_to_burn(image);
+    let result = py.allow_threads(move || MorphologicalGradient::new(radius).apply(&inner));
+    burn_into_py_image(result)
 }
 
 /// Topology-preserving morphological skeletonization.
@@ -155,7 +154,7 @@ pub fn morphological_gradient(py: Python<'_>, image: &PyImage, radius: usize) ->
 ///     RuntimeError: on computation failure.
 #[pyfunction]
 pub fn skeletonization(py: Python<'_>, image: &PyImage) -> PyImage {
-    let inner = Arc::clone(&image.inner);
-    let result = py.allow_threads(move || Skeletonization::new().apply::<_, 3>(inner.as_ref()));
-    into_py_image(result)
+    let inner = py_image_to_burn(image);
+    let result = py.allow_threads(move || Skeletonization::new().apply::<_, 3>(&inner));
+    burn_into_py_image(result)
 }

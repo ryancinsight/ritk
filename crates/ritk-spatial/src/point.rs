@@ -3,12 +3,6 @@
 //! Points represent positions in physical space.
 
 use crate::vector::Vector;
-use crate::burn::module::{
-    AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault, ModuleMapper,
-    ModuleVisitor,
-};
-use crate::burn::record::{PrecisionSettings, Record};
-use crate::burn::tensor::backend::{AutodiffBackend, Backend};
 use leto::FixedVector;
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -44,66 +38,6 @@ impl<'de, const D: usize> Deserialize<'de> for Point<D> {
         Ok(Self::from_slice(&coords))
     }
 }
-
-impl<B: Backend, const D: usize> Record<B> for Point<D> {
-    type Item<S: PrecisionSettings> = Point<D>;
-
-    fn into_item<S: PrecisionSettings>(self) -> Self::Item<S> {
-        self
-    }
-
-    fn from_item<S: PrecisionSettings>(item: Self::Item<S>, _device: &B::Device) -> Self {
-        item
-    }
-}
-
-impl<B: Backend, const D: usize> Module<B> for Point<D> {
-    type Record = Self;
-
-    fn visit<V: ModuleVisitor<B>>(&self, _visitor: &mut V) {
-        // No tensors to visit
-    }
-
-    fn map<M: ModuleMapper<B>>(self, _mapper: &mut M) -> Self {
-        self
-    }
-
-    fn into_record(self) -> Self::Record {
-        self
-    }
-
-    fn load_record(self, record: Self::Record) -> Self {
-        record
-    }
-
-    fn collect_devices(&self, devices: Vec<B::Device>) -> Vec<B::Device> {
-        devices
-    }
-
-    fn to_device(self, _device: &B::Device) -> Self {
-        self
-    }
-
-    fn fork(self, _device: &B::Device) -> Self {
-        self
-    }
-}
-
-impl<B: AutodiffBackend, const D: usize> AutodiffModule<B> for Point<D> {
-    type InnerModule = Point<D>;
-
-    fn valid(&self) -> Self::InnerModule {
-        *self
-    }
-}
-
-impl<const D: usize> ModuleDisplayDefault for Point<D> {
-    fn content(&self, content: Content) -> Option<Content> {
-        Some(content.set_top_level_type(&format!("Point{}D", D)))
-    }
-}
-
-impl<const D: usize> ModuleDisplay for Point<D> {}
 
 impl<const D: usize> Point<D> {
     /// Create a new point from coordinates.

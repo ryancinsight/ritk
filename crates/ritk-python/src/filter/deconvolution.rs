@@ -5,7 +5,7 @@
 //! images (shape `[1, H, W]`) are handled without special-casing.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     InverseDeconvolution, LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
@@ -38,14 +38,14 @@ pub fn wiener_deconvolution(
     kernel: &PyImage,
     noise_variance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image.inner.clone();
-    let ker_ref = kernel.inner.clone();
+    let img_ref = py_image_to_burn(image);
+    let ker_ref = py_image_to_burn(kernel);
     let result = py.allow_threads(|| {
         WienerDeconvolution::new(noise_variance)
-            .apply(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }
 
 /// Apply Tikhonov-regularized deconvolution to a 3-D image.
@@ -71,14 +71,14 @@ pub fn tikhonov_deconvolution(
     kernel: &PyImage,
     lambda: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image.inner.clone();
-    let ker_ref = kernel.inner.clone();
+    let img_ref = py_image_to_burn(image);
+    let ker_ref = py_image_to_burn(kernel);
     let result = py.allow_threads(|| {
         TikhonovDeconvolution::new(lambda)
-            .apply(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }
 
 /// Apply direct inverse-filter deconvolution to a 3-D image.
@@ -106,14 +106,14 @@ pub fn inverse_deconvolution(
     kernel: &PyImage,
     kernel_zero_magnitude_threshold: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image.inner.clone();
-    let ker_ref = kernel.inner.clone();
+    let img_ref = py_image_to_burn(image);
+    let ker_ref = py_image_to_burn(kernel);
     let result = py.allow_threads(|| {
         InverseDeconvolution::new(kernel_zero_magnitude_threshold)
-            .apply(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }
 
 /// Apply Richardson-Lucy iterative deconvolution to a 3-D image.
@@ -144,16 +144,16 @@ pub fn richardson_lucy_deconvolution(
     max_iterations: usize,
     tolerance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image.inner.clone();
-    let ker_ref = kernel.inner.clone();
+    let img_ref = py_image_to_burn(image);
+    let ker_ref = py_image_to_burn(kernel);
     let result = py.allow_threads(|| {
         RichardsonLucyDeconvolution::new()
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
-            .apply(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }
 
 /// Apply Landweber iterative deconvolution to a 3-D image.
@@ -184,17 +184,17 @@ pub fn landweber_deconvolution(
     max_iterations: usize,
     tolerance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image.inner.clone();
-    let ker_ref = kernel.inner.clone();
+    let img_ref = py_image_to_burn(image);
+    let ker_ref = py_image_to_burn(kernel);
     let result = py.allow_threads(|| {
         LandweberDeconvolution::new()
             .with_step_size(step_size)
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
-            .apply(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }
 
 /// Apply projected Landweber deconvolution (non-negativity constraint) to a 3-D
@@ -222,16 +222,16 @@ pub fn projected_landweber_deconvolution(
     max_iterations: usize,
     tolerance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image.inner.clone();
-    let ker_ref = kernel.inner.clone();
+    let img_ref = py_image_to_burn(image);
+    let ker_ref = py_image_to_burn(kernel);
     let result = py.allow_threads(|| {
         LandweberDeconvolution::new()
             .with_step_size(step_size)
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
             .with_projection(LandweberProjection::NonNegative)
-            .apply(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }

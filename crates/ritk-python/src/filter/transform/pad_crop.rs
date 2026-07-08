@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     ConstantPadImageFilter, FftPadBoundary, FftPadImageFilter, MirrorPadImageFilter, Padding,
@@ -17,15 +17,15 @@ pub fn constant_pad(
     upper: (usize, usize, usize),
     constant: f32,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let lo = Padding([lower.0, lower.1, lower.2]);
     let up = Padding([upper.0, upper.1, upper.2]);
     py.allow_threads(|| {
         ConstantPadImageFilter::new(lo, up, constant)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Pad the image by mirroring at the borders. ITK Parity: MirrorPadImageFilter
@@ -38,15 +38,15 @@ pub fn mirror_pad(
     lower: (usize, usize, usize),
     upper: (usize, usize, usize),
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let lo = Padding([lower.0, lower.1, lower.2]);
     let up = Padding([upper.0, upper.1, upper.2]);
     py.allow_threads(|| {
         MirrorPadImageFilter::new(lo, up)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Pad the image by wrapping (periodic tiling) at the borders. ITK Parity:
@@ -59,15 +59,15 @@ pub fn wrap_pad(
     lower: (usize, usize, usize),
     upper: (usize, usize, usize),
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let lo = Padding([lower.0, lower.1, lower.2]);
     let up = Padding([upper.0, upper.1, upper.2]);
     py.allow_threads(|| {
         WrapPadImageFilter::new(lo, up)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Pad the image by replicating the edge voxel (zero-flux Neumann). ITK Parity:
@@ -80,15 +80,15 @@ pub fn zero_flux_neumann_pad(
     lower: (usize, usize, usize),
     upper: (usize, usize, usize),
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let lo = Padding([lower.0, lower.1, lower.2]);
     let up = Padding([upper.0, upper.1, upper.2]);
     py.allow_threads(|| {
         ZeroFluxNeumannPadImageFilter::new(lo, up)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Pad each axis to the next size whose greatest prime factor is `<= max_prime`
@@ -103,7 +103,7 @@ pub fn fft_pad(
     max_prime: usize,
     boundary: u8,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let bc = match boundary {
         0 => FftPadBoundary::Zero,
         1 => FftPadBoundary::ZeroFluxNeumann,
@@ -116,10 +116,10 @@ pub fn fft_pad(
     };
     py.allow_threads(|| {
         FftPadImageFilter::new(max_prime, bc)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Crop the image by removing `lower` and `upper` voxels from each axis face.
@@ -147,13 +147,13 @@ pub fn crop(
         )));
     }
     let size = [nz - lower.0 - uz, ny - lower.1 - uy, nx - lower.2 - ux];
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     py.allow_threads(|| {
         RegionOfInterestImageFilter::new(start, size)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Crop to a sub-region: `start` and `size` are `(z, y, x)` voxels. ITK Parity:
@@ -166,11 +166,11 @@ pub fn region_of_interest(
     start: (usize, usize, usize),
     size: (usize, usize, usize),
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     py.allow_threads(|| {
         RegionOfInterestImageFilter::new([start.0, start.1, start.2], [size.0, size.1, size.2])
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

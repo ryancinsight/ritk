@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BinaryNotImageFilter,
@@ -13,13 +13,13 @@ use ritk_filter::{
 #[pyfunction]
 #[pyo3(signature = (image, lower, upper))]
 pub fn clamp_image(py: Python<'_>, image: &PyImage, lower: f32, upper: f32) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     py.allow_threads(|| {
         ClampImageFilter::new(lower, upper)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Pixelwise modulo: out(x) = in(x) % dividend (integer images; C truncated
@@ -30,9 +30,9 @@ pub fn modulus(py: Python<'_>, image: &PyImage, dividend: i64) -> RitkResult<PyI
     if dividend == 0 {
         return Err(RitkPyError::value("modulus: dividend must be non-zero"));
     }
-    let arc = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| ModulusImageFilter::new(dividend).apply(arc.as_ref()));
-    Ok(into_py_image(out))
+    let arc = py_image_to_burn(image);
+    let out = py.allow_threads(|| ModulusImageFilter::new(dividend).apply(&arc));
+    Ok(burn_into_py_image(out))
 }
 
 /// Binary logical NOT: out(x) = background where in(x) == foreground, else
@@ -45,11 +45,10 @@ pub fn binary_not(
     foreground: f32,
     background: f32,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| {
-        BinaryNotImageFilter::with_labels(foreground, background).apply(arc.as_ref())
-    });
-    Ok(into_py_image(out))
+    let arc = py_image_to_burn(image);
+    let out =
+        py.allow_threads(|| BinaryNotImageFilter::with_labels(foreground, background).apply(&arc));
+    Ok(burn_into_py_image(out))
 }
 
 /// Invert intensities about `maximum`: out(x) = maximum − in(x).
@@ -57,9 +56,9 @@ pub fn binary_not(
 #[pyfunction]
 #[pyo3(signature = (image, maximum = 255.0))]
 pub fn invert_intensity(py: Python<'_>, image: &PyImage, maximum: f32) -> PyImage {
-    let arc = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| InvertIntensityFilter::with_maximum(maximum).apply(arc.as_ref()));
-    into_py_image(out)
+    let arc = py_image_to_burn(image);
+    let out = py.allow_threads(|| InvertIntensityFilter::with_maximum(maximum).apply(&arc));
+    burn_into_py_image(out)
 }
 
 unary_math_pyfn!(

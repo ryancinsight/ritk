@@ -1,21 +1,23 @@
 //! FFT-based convolution filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, vec_to_image_like, PyImage};
+use crate::image::{
+    burn_into_py_image, image_to_vec, into_py_image, py_image_to_burn, vec_to_image_like,
+    BurnBackend, BurnImage, PyImage,
+};
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
-use ritk_core::image::Image;
 use ritk_filter::{FftConvolution3DFilter, FftConvolutionFilter};
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::sync::Arc;
 
 /// Build a 2-D `Image<Backend, 2>` from a flat slice of f32 values.
-fn build_image_2d(vals: Vec<f32>, rows: usize, cols: usize) -> Image<crate::image::Backend, 2> {
+fn build_image_2d(vals: Vec<f32>, rows: usize, cols: usize) -> BurnImage<2> {
     let device = NdArrayDevice::default();
     let td = TensorData::new(vals, Shape::new([rows, cols]));
-    let tensor = Tensor::<crate::image::Backend, 2>::from_data(td, &device);
-    Image::new(
+    let tensor = Tensor::<BurnBackend, 2>::from_data(td, &device);
+    BurnImage::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64]),
         Spacing::new([1.0_f64, 1.0_f64]),
@@ -60,13 +62,13 @@ pub fn fft_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkRe
         let kw = kernel_shape[2];
 
         // Extract raw voxel data.
-        let img_vals: Vec<f32> = img.data_slice().into_owned();
-        let k_vals: Vec<f32> = kern.data_slice().into_owned();
+        let img_vals = image_to_vec(img.as_ref()).0;
+        let k_vals = image_to_vec(kern.as_ref()).0;
 
         // Build 2-D kernel image from the first (only) Z-slice of the kernel.
         let k_slice: Vec<f32> = k_vals[..kh * kw].to_vec();
         let kernel_2d = build_image_2d(k_slice, kh, kw);
-        let filter = FftConvolutionFilter::<crate::image::Backend>::new(&kernel_2d)
+        let filter = FftConvolutionFilter::<BurnBackend>::new(&kernel_2d)
             .map_err(|e| RitkPyError::runtime(e.to_string()))?;
 
         // Process each Z-slice independently.
@@ -107,15 +109,15 @@ pub fn fft_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkRe
 ///     RuntimeError: on internal FFT failure.
 #[pyfunction]
 pub fn fft_convolve_3d(py: Python<'_>, volume: &PyImage, kernel: &PyImage) -> RitkResult<PyImage> {
-    let vol = Arc::clone(&volume.inner);
-    let kern = Arc::clone(&kernel.inner);
+    let vol = py_image_to_burn(volume);
+    let kern = py_image_to_burn(kernel);
 
     py.allow_threads(|| {
-        let filter = FftConvolution3DFilter::<crate::image::Backend>::new(kern.as_ref())
+        let filter = FftConvolution3DFilter::<BurnBackend>::new(&kern)
             .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         filter
-            .apply(vol.as_ref())
+            .apply(&vol)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

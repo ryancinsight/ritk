@@ -1,7 +1,7 @@
 //! Derivatives, Laplacian, and Sobel gradient filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, with_tensor_slice, PyImage};
+use crate::image::{burn_image_to_vec, burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     DerivativeImageFilter, GradientMagnitudeFilter, LaplacianFilter, LaplacianSharpeningFilter,
@@ -28,13 +28,13 @@ pub fn derivative(
     }
     // sitk direction [x,y,z] → ritk tensor axis [z,y,x].
     let axis = 2 - direction;
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     py.allow_threads(|| {
         DerivativeImageFilter::new(axis, order, use_image_spacing)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Compute the gradient magnitude |∇I| via central finite differences.
@@ -52,18 +52,17 @@ pub fn derivative(
 ///     RuntimeError: on tensor extraction failure.
 #[pyfunction]
 pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let dims = arc.shape();
     let spacing = *arc.spacing();
-    with_tensor_slice(arc.data(), |vals| {
+    let (vals, _) = burn_image_to_vec(&arc);
+    py.allow_threads(|| {
         let filter = GradientMagnitudeFilter::new(spacing);
-        py.allow_threads(|| {
-            filter
-                .apply_from_slice(vals, dims, arc.as_ref())
-                .map_err(|e| RitkPyError::runtime(e.to_string()))
-        })
+        filter
+            .apply_from_slice(&vals, dims, &arc)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Compute the discrete Laplacian ∇²I = ∂²I/∂z² + ∂²I/∂y² + ∂²I/∂x².
@@ -81,15 +80,15 @@ pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage
 ///     RuntimeError: on tensor extraction failure.
 #[pyfunction]
 pub fn laplacian(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let spacing = image.spacing();
         let filter = LaplacianFilter::new(*spacing);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Sharpen an image by subtracting its (range-rescaled) Laplacian, matching
@@ -113,10 +112,9 @@ pub fn laplacian_sharpening(
     image: &PyImage,
     use_image_spacing: bool,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
-    let out =
-        py.allow_threads(|| LaplacianSharpeningFilter::new(use_image_spacing).apply(arc.as_ref()));
-    Ok(into_py_image(out))
+    let arc = py_image_to_burn(image);
+    let out = py.allow_threads(|| LaplacianSharpeningFilter::new(use_image_spacing).apply(&arc));
+    Ok(burn_into_py_image(out))
 }
 
 /// Compute the Sobel gradient magnitude of an image.
@@ -136,13 +134,13 @@ pub fn laplacian_sharpening(
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
 pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let spacing = image.spacing();
         let filter = SobelFilter::new(*spacing);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

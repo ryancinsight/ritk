@@ -1,21 +1,30 @@
-> ## Vocabulary policy (canonical atlas-migration terms-of-art)
+> ## Vocabulary policy
 >
-> **Canonical functional terms-of-art (preserve)**:
-> - `Atlas-typed` (the CoeUs/MoiraiBackend-typed twin type-system family that pairs with `Burn-keyed` as the atomic-boundary partition term per ADR 0012 §Decision §1)
-> - `Atlas-side` (the additive production-side / subtractive test-side partition — pairs with `Burn-side`)
-> - `Atlas-only` (the validation-gate constraint term, e.g. "Atlas-only backend trait assertion")
-> - `Atlas-meta` (the atlas-meta repo/branch identifier, codex/kwavers-atlas-integration)
-> - `Atlas-native` (a label for modules/edges that route through native CoeUs/Eunomia/Leto without burn-compat shims)
-> - `Atlas-backed` (a label for migration-push surfaces that pivot the atlas-meta pointer as the migration carrier)
->
-> **Discouraged compounds (drop)**:
-> - `Atlas-parent` (collapse to atlas-meta reference)
-> - `Atlas-root` (collapse to atlas-meta working-tree reference)
-> - `Atlas-provider` (collapse to bare `Atlas` per the canonical `<Atlas>X` mapping, preserving the noun phrase that follows)
->
-> Cross-document consistency with the atlas-meta PM-doc surface; rubric tracked in atlas-meta `## Atlas dependency cleanup` ledger.
+> New migration text uses provider/native names directly (`Coeus`,
+> `MoiraiBackend`, `Leto`, `Eunomia`, `native`) and does not introduce new
+> `Atlas-*` migration labels. Historical PM entries retain their original
+> wording unless touched by the current slice. Domain medical-atlas terms are
+> preserved.
 
 # CHANGELOG
+
+## [Unreleased] — Sprint 498: `ritk-spatial` Burn hook removal (DEP-498-01)
+
+### Removed
+- `ritk-spatial`: Removed the crate-local Burn alias module, the `burn`
+  manifest dependency, and Burn `Record`/`Module`/`AutodiffModule` impls from
+  `Vector`, `Point`, `Direction`, and `Spacing`.
+
+### Breaking
+- Consumers that used `ritk-spatial` geometry values as Burn modules or Burn
+  records must move to native value serialization instead.
+
+### Evidence
+- Evidence tier: static audit plus compile-time validation. `rustup run nightly
+  cargo fmt -p ritk-spatial --check` passed, and `rustup run nightly cargo
+  check -p ritk-spatial` passed. `rustup run nightly cargo nextest run -p
+  ritk-spatial --status-level fail --no-fail-fast` passed 40/40, and
+  `cargo tree -p ritk-spatial -i burn` reports no matching `burn` package.
 
 ## [Unreleased] — Sprint 496: DICOM dimension overflow guard (MIG-496-07)
 
@@ -65,7 +74,7 @@
 
 ### Changed
 - `ritk-analyze`: The public Analyze reader/writer surface now operates on
-  Atlas-native images instead of Burn-backed images.
+  native images instead of Burn-backed images.
 - `ritk-io`: Owns the remaining Analyze Burn compatibility bridge for current
   Burn-typed consumers.
 
@@ -89,21 +98,25 @@
 
 ### Added
 - `ritk-io`: Shared `read_image_native`/`write_image_native` consumer helpers
-  over the existing Atlas-native image reader/writer adapters.
+  over the existing native image reader/writer adapters.
 
 ### Changed
 - `ritk-python`: `ritk.io.read_image` and `ritk.io.write_image` now dispatch
-  through the Atlas-native `ritk-io` image I/O helpers instead of matching
+  through the native `ritk-io` image I/O helpers instead of matching
   formats onto Burn `NdArray` readers/writers inside the PyO3 crate.
 
 ### Removed
 - `ritk-python`: Removed the Python I/O module's local Burn `NdArrayDevice`
-  construction and local `Backend` alias.
+  construction and local `Backend` alias. Follow-up cleanup removed stale
+  unused imports and a dead scalar constructor from the native image cutover.
 
 ### Evidence
-- Source-level implementation and `git diff --check` passed. Focused cargo
-  gates were attempted but blocked on shared package/build/artifact locks before
-  this slice compiled.
+- Evidence tier: static diagnostics plus package tests. `rustup run nightly
+  cargo fmt -p ritk-python --check` passed, `rustup run nightly cargo check -p
+  ritk-python` passed, `rustup run nightly cargo clippy -p ritk-python
+  --all-targets -- -D warnings` passed, and `rustup run nightly cargo nextest
+  run -p ritk-python --status-level fail --no-fail-fast` passed 47/47.
+  Residual Burn bridge count in `crates/ritk-python/src`: 54 files.
 
 ## [Unreleased] — Sprint 496: CLI native loading cutover (ADR-0003-02)
 
@@ -222,7 +235,7 @@
 ## [Unreleased] — Sprint 495: Native writers for mgh/metaimage/minc/tiff/jpeg (MIG-495)
 
 ### Added
-- Atlas-native writers for the remaining 5 formats:
+- Native writers for the remaining 5 formats:
   `ritk_mgh::native::write_mgh`, `ritk_metaimage::native::write_metaimage`,
   `ritk_minc::native::write_minc`, `ritk_tiff::native::write_tiff`,
   `ritk_jpeg::native::write_jpeg`, each wrapping a substrate-agnostic
@@ -248,7 +261,7 @@
 
 ### Added
 - `ritk_nrrd::native::{write_nrrd, NrrdWriter}` and
-  `ritk_analyze::native::write_analyze` — Atlas-native writers wrapping a new
+  `ritk_analyze::native::write_analyze` — native writers wrapping a new
   substrate-agnostic `write_*_flat` serialization core shared with the Burn
   writers.
 - ritk-io native `NrrdWriter`/`AnalyzeWriter` implementing the unified
@@ -271,7 +284,7 @@
 
 ### Added
 - `ritk_nrrd::native::{read_nrrd, NrrdReader}` and
-  `ritk_analyze::native::read_analyze` — Atlas-native readers wrapping a new
+  `ritk_analyze::native::read_analyze` — native readers wrapping a new
   substrate-agnostic `decode_*` seam shared with the Burn readers.
 - ritk-io `format::{nrrd,analyze}::native` adapters implementing the unified
   `ImageReader<Image<f32,B,3>>` contract. All 9 image formats now expose a
@@ -348,7 +361,7 @@
 ## [Unreleased] — Sprint 490: `ritk_image::coeus` → `ritk_image::native` (MIG-489 slice 2)
 
 ### Changed (unreleased surface only)
-- `ritk-image`: the Atlas-native image module renamed `coeus` → `native`
+- `ritk-image`: the native image module renamed `coeus` → `native`
   (`ritk_image::native::Image`); all 30 referencing files across 13 crates
   updated in the same change. Pure rename — zero behavior change.
 

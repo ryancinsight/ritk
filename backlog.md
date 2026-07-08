@@ -23,7 +23,7 @@
   passes, `cargo nextest run -p ritk-analyze` passes 4/4, and focused
   `ritk-io` Analyze native-vs-Burn parity passes 1/1.
 
-- **MIG-496-04 [minor] - Python native image I/O cutover (IN PROGRESS).**
+- **MIG-496-04 [minor] - Python native image I/O cutover (DONE).**
   `ritk-io` now owns the shared native consumer dispatch
   (`read_image_native`/`write_image_native`) over its existing native
   `ImageReader`/`ImageWriter` adapters on `SequentialBackend`. `ritk-python`
@@ -32,9 +32,14 @@
   still Burn-backed. Removed the Python I/O module's direct Burn `NdArrayDevice`
   construction and local `Backend` alias. VTK image I/O now fails explicitly
   from Python until the VTK image reader/writer has a native substrate adapter;
-  PNG and DICOM writes remain unsupported. Evidence tier: source-level
-  implementation plus diff hygiene; focused cargo gates are blocked by current
-  shared package/build/artifact lock contention before this slice compiles.
+  PNG and DICOM writes remain unsupported. Follow-up cleanup removed the stale
+  unused imports and dead local scalar constructor left by the cutover.
+  Evidence tier: static diagnostics plus package tests; `cargo fmt -p
+  ritk-python --check`, `cargo check -p ritk-python`, `cargo clippy -p
+  ritk-python --all-targets -- -D warnings`, and `cargo nextest run -p
+  ritk-python --status-level fail --no-fail-fast` passed (47/47 tests).
+  Residual risk: 54 `crates/ritk-python/src` files still contain Burn bridge
+  symbols and belong to the next operation-family migration slices.
 
 - **MIG-433-06 [minor] — Registration N4 bias correction on native
   preprocessing path. CODE COMPLETE / DOC-CLIPPY BLOCKED.** `ritk-filter`
@@ -120,8 +125,8 @@
 
 - **MIG-495 [minor] — Native writers for the remaining 5 formats; all-format
   native I/O parity (DONE).** Completes native-writer parity: mgh, metaimage,
-  minc, tiff, jpeg now have Atlas-native writers, so all 9 image formats read
-  AND write on the Atlas substrate through the unified contract. Each Burn
+  minc, tiff, jpeg now have native writers, so all 9 image formats read
+  AND write on the native provider substrate through the unified contract. Each Burn
   writer refactored to wrap a substrate-agnostic serialization core
   (`write_mgh_stream`/`write_mgh_flat`, `write_metaimage_flat`,
   `write_tiff_stream`/`write_tiff_flat`, `write_jpeg_flat`; minc reuses the
@@ -158,7 +163,7 @@
 - **MIG-493 [minor] — Native-reader parity across all 9 image formats (DONE).**
   The top-down Burn cutover (cli/python `read_image` → native) was blocked
   because ritk-nrrd and ritk-analyze were the only format crates with no
-  Atlas-native reader. Closed the gap: extracted a substrate-agnostic
+  native reader. Closed the gap: extracted a substrate-agnostic
   `decode_nrrd`/`decode_analyze` seam from each Burn reader (header parse,
   encoding, datatype decode, axis handling now shared), then added a `native`
   module wrapping it via `ritk_image::native::Image::from_flat_on`. Wired both
@@ -197,10 +202,10 @@ Sub-batch #4 (`RITK-spatial-rebind`) has now landed as a strict removal slice:
 `ritk-spatial` dropped its Burn `Module`/`Record` impls for `Vector`, `Point`,
 `Direction`, and `Spacing`, deleted the crate-local Burn alias module, and
 removed the `burn` dependency. Evidence: `cargo fmt -p ritk-spatial --check`
-passed, a focused `cargo check -p ritk-spatial` passed once after the edit, and
-`crates/ritk-spatial` has zero Burn-token matches. Follow-on cargo verification
-is blocked by the existing `themis -> melinoe ^0.7.0` versus local
-`melinoe 0.8.0` resolver drift recorded in `gap_audit.md`.
+passed, a focused `cargo check -p ritk-spatial` passed,
+`cargo nextest run -p ritk-spatial --status-level fail --no-fail-fast` passed
+40/40, `cargo tree -p ritk-spatial -i burn` reports no matching package, and
+`crates/ritk-spatial` has zero Burn-token matches.
 
 Sub-batches #3, #5, and #6 (RITK-crate-migrate per-crate burn-line flips in the
 order filter → registration → segmentation → model → statistics →

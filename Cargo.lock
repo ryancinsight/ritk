@@ -267,7 +267,7 @@ dependencies = [
  "bytemuck",
  "eunomia",
  "half",
- "hermes-simd 0.2.0",
+ "hermes-simd 0.3.0 (git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a)",
  "leto",
  "mnemosyne",
  "moirai",
@@ -1712,7 +1712,7 @@ dependencies = [
  "coeus-tensor",
  "half",
  "leto-ops",
- "melinoe 0.8.0",
+ "melinoe",
  "smallvec",
  "thiserror 2.0.18",
 ]
@@ -3340,6 +3340,7 @@ dependencies = [
  "bytemuck",
  "half",
  "libm",
+ "num-traits",
  "rkyv",
 ]
 
@@ -3710,7 +3711,7 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap",
  "leto",
- "melinoe 0.8.0",
+ "melinoe",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -4205,32 +4206,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
-name = "hermes-numeric"
-version = "0.2.0"
-source = "git+https://github.com/ryancinsight/hermes.git?rev=df67249ef05de8e1addc5a26d6831c70d63c3d18#df67249ef05de8e1addc5a26d6831c70d63c3d18"
-dependencies = [
- "bytemuck",
- "half",
- "libm",
- "rkyv",
-]
-
-[[package]]
-name = "hermes-simd"
-version = "0.2.0"
-source = "git+https://github.com/ryancinsight/hermes.git?rev=df67249ef05de8e1addc5a26d6831c70d63c3d18#df67249ef05de8e1addc5a26d6831c70d63c3d18"
-dependencies = [
- "bytemuck",
- "half",
- "hermes-numeric",
- "hermes-simd-core 0.2.0",
- "hermes-simd-intrinsics 0.2.0",
- "hermes-simd-macros 0.2.0",
- "hermes-simd-types 0.2.0",
- "rkyv",
-]
-
-[[package]]
 name = "hermes-simd"
 version = "0.3.0"
 dependencies = [
@@ -4244,15 +4219,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "hermes-simd-core"
-version = "0.2.0"
-source = "git+https://github.com/ryancinsight/hermes.git?rev=df67249ef05de8e1addc5a26d6831c70d63c3d18#df67249ef05de8e1addc5a26d6831c70d63c3d18"
+name = "hermes-simd"
+version = "0.3.0"
+source = "git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a#9d0a358d2196390ce626ca653c180b04eae1ed4a"
 dependencies = [
- "bytemuck",
+ "eunomia",
  "half",
- "hermes-numeric",
- "mnemosyne",
- "rkyv",
+ "hermes-simd-core 0.3.0 (git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a)",
+ "hermes-simd-intrinsics 0.3.0 (git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a)",
+ "hermes-simd-macros 0.3.0 (git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a)",
+ "hermes-simd-types 0.3.0 (git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a)",
 ]
 
 [[package]]
@@ -4268,15 +4244,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "hermes-simd-intrinsics"
-version = "0.2.0"
-source = "git+https://github.com/ryancinsight/hermes.git?rev=df67249ef05de8e1addc5a26d6831c70d63c3d18#df67249ef05de8e1addc5a26d6831c70d63c3d18"
+name = "hermes-simd-core"
+version = "0.3.0"
+source = "git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a#9d0a358d2196390ce626ca653c180b04eae1ed4a"
 dependencies = [
  "bytemuck",
+ "eunomia",
  "half",
- "hermes-numeric",
- "hermes-simd-core 0.2.0",
+ "mnemosyne",
  "rkyv",
+ "themis",
 ]
 
 [[package]]
@@ -4289,13 +4266,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "hermes-simd-macros"
-version = "0.2.0"
-source = "git+https://github.com/ryancinsight/hermes.git?rev=df67249ef05de8e1addc5a26d6831c70d63c3d18#df67249ef05de8e1addc5a26d6831c70d63c3d18"
+name = "hermes-simd-intrinsics"
+version = "0.3.0"
+source = "git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a#9d0a358d2196390ce626ca653c180b04eae1ed4a"
 dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.114",
+ "eunomia",
+ "half",
+ "hermes-simd-core 0.3.0 (git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a)",
 ]
 
 [[package]]
@@ -4308,13 +4285,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "hermes-simd-types"
-version = "0.2.0"
-source = "git+https://github.com/ryancinsight/hermes.git?rev=df67249ef05de8e1addc5a26d6831c70d63c3d18#df67249ef05de8e1addc5a26d6831c70d63c3d18"
+name = "hermes-simd-macros"
+version = "0.3.0"
+source = "git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a#9d0a358d2196390ce626ca653c180b04eae1ed4a"
 dependencies = [
- "half",
- "hermes-simd-core 0.2.0",
- "hermes-simd-intrinsics 0.2.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
 ]
 
 [[package]]
@@ -4324,6 +4301,16 @@ dependencies = [
  "half",
  "hermes-simd-core 0.3.0",
  "hermes-simd-intrinsics 0.3.0",
+]
+
+[[package]]
+name = "hermes-simd-types"
+version = "0.3.0"
+source = "git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a#9d0a358d2196390ce626ca653c180b04eae1ed4a"
+dependencies = [
+ "half",
+ "hermes-simd-core 0.3.0 (git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a)",
+ "hermes-simd-intrinsics 0.3.0 (git+https://github.com/ryancinsight/hermes.git?rev=9d0a358d2196390ce626ca653c180b04eae1ed4a)",
 ]
 
 [[package]]
@@ -5397,11 +5384,6 @@ checksum = "ae960838283323069879657ca3de837e9f7bbb4c7bf6ea7f1b290d5e9476d2e0"
 
 [[package]]
 name = "melinoe"
-version = "0.7.0"
-source = "git+https://github.com/ryancinsight/melinoe.git#f0139dd77e2c175aeea51687669ef5d5fdafd078"
-
-[[package]]
-name = "melinoe"
 version = "0.8.0"
 
 [[package]]
@@ -5561,7 +5543,7 @@ dependencies = [
 name = "mnemosyne-heap"
 version = "0.1.0"
 dependencies = [
- "melinoe 0.8.0",
+ "melinoe",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-core",
@@ -5574,7 +5556,7 @@ dependencies = [
 name = "mnemosyne-local"
 version = "0.1.0"
 dependencies = [
- "melinoe 0.7.0",
+ "melinoe",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-build-util",
@@ -5628,7 +5610,7 @@ checksum = "4a0b3262dc837d2513fe2ef31ff8461352ef932dcca31ba0c0abe33547cf6b9b"
 name = "moirai"
 version = "0.2.0"
 dependencies = [
- "melinoe 0.8.0",
+ "melinoe",
  "mnemosyne",
  "moirai-async",
  "moirai-core",
@@ -5669,7 +5651,7 @@ dependencies = [
 name = "moirai-executor"
 version = "0.2.0"
 dependencies = [
- "melinoe 0.8.0",
+ "melinoe",
  "mnemosyne",
  "moirai-core",
  "moirai-pal",
@@ -5698,7 +5680,7 @@ version = "0.2.0"
 dependencies = [
  "js-sys",
  "libc",
- "melinoe 0.8.0",
+ "melinoe",
  "moirai-core",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5710,7 +5692,7 @@ dependencies = [
 name = "moirai-parallel"
 version = "0.2.0"
 dependencies = [
- "melinoe 0.8.0",
+ "melinoe",
  "moirai-executor",
 ]
 
@@ -7890,6 +7872,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "coeus-core",
  "numpy",
  "pyo3",
  "ritk-core",
@@ -7998,7 +7981,6 @@ dependencies = [
 name = "ritk-spatial"
 version = "0.1.0"
 dependencies = [
- "burn",
  "leto",
  "serde",
 ]
@@ -8982,9 +8964,8 @@ dependencies = [
 [[package]]
 name = "themis"
 version = "0.9.17"
-source = "git+https://github.com/ryancinsight/themis#e87618a241c69502302da296767a9e3c0acc4906"
 dependencies = [
- "melinoe 0.7.0",
+ "melinoe",
 ]
 
 [[package]]

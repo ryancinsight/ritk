@@ -1,6 +1,6 @@
 //! Special-purpose filters: median, bilateral, N4 bias correction, and bin-shrink downsampling.
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_to_vec, into_py_image, PyImage};
+use crate::image::{burn_into_py_image, image_to_vec, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::bias::N4Config;
 use ritk_filter::{
@@ -15,13 +15,13 @@ use ritk_filter::{
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn mean_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         MeanImageFilter::new(radius)
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply a box mean filter with per-axis radii: each voxel becomes the average
@@ -37,11 +37,10 @@ pub fn box_mean(
     radius_y: usize,
     radius_x: usize,
 ) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| {
-        BoxMeanImageFilter::new([radius_z, radius_y, radius_x]).apply(image.as_ref())
-    });
-    into_py_image(out)
+    let image = py_image_to_burn(image);
+    let out =
+        py.allow_threads(|| BoxMeanImageFilter::new([radius_z, radius_y, radius_x]).apply(&image));
+    burn_into_py_image(out)
 }
 
 /// Apply a box sigma filter: the per-axis sample standard deviation over the
@@ -57,11 +56,10 @@ pub fn box_sigma(
     radius_y: usize,
     radius_x: usize,
 ) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| {
-        BoxSigmaImageFilter::new([radius_z, radius_y, radius_x]).apply(image.as_ref())
-    });
-    into_py_image(out)
+    let image = py_image_to_burn(image);
+    let out =
+        py.allow_threads(|| BoxSigmaImageFilter::new([radius_z, radius_y, radius_x]).apply(&image));
+    burn_into_py_image(out)
 }
 
 /// Estimate local image noise: the per-axis sample standard deviation over the
@@ -78,11 +76,10 @@ pub fn local_noise(
     radius_y: usize,
     radius_x: usize,
 ) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| {
-        NoiseImageFilter::new([radius_z, radius_y, radius_x]).apply(image.as_ref())
-    });
-    into_py_image(out)
+    let image = py_image_to_burn(image);
+    let out =
+        py.allow_threads(|| NoiseImageFilter::new([radius_z, radius_y, radius_x]).apply(&image));
+    burn_into_py_image(out)
 }
 
 /// Apply a box rank filter: the order statistic at `floor(rank·(n−1))` of the
@@ -98,11 +95,10 @@ pub fn rank(
     radius_y: usize,
     radius_x: usize,
 ) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| {
-        RankImageFilter::new([radius_z, radius_y, radius_x], rank).apply(image.as_ref())
-    });
-    into_py_image(out)
+    let image = py_image_to_burn(image);
+    let out = py
+        .allow_threads(|| RankImageFilter::new([radius_z, radius_y, radius_x], rank).apply(&image));
+    burn_into_py_image(out)
 }
 
 /// Apply a binomial blur: the separable `[¼,½,¼]` kernel along each axis,
@@ -111,9 +107,9 @@ pub fn rank(
 #[pyfunction]
 #[pyo3(signature = (image, repetitions=1))]
 pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| BinomialBlurImageFilter::new(repetitions).apply(image.as_ref()));
-    into_py_image(out)
+    let image = py_image_to_burn(image);
+    let out = py.allow_threads(|| BinomialBlurImageFilter::new(repetitions).apply(&image));
+    burn_into_py_image(out)
 }
 
 /// Apply a median (rank) filter for impulse-noise removal.
@@ -135,14 +131,14 @@ pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> PyI
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn median_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = MedianFilter::new(radius);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply a bilateral filter (edge-preserving smoothing).
@@ -169,14 +165,14 @@ pub fn bilateral_filter(
     spatial_sigma: f64,
     range_sigma: f64,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = BilateralFilter::new(spatial_sigma, range_sigma);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply N4 bias field correction to an MRI image.
@@ -223,7 +219,7 @@ pub fn n4_bias_correction(
     noise_estimate: f64,
     shrink_factor: usize,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let config = N4Config {
             num_fitting_levels,
@@ -234,10 +230,10 @@ pub fn n4_bias_correction(
         };
         let filter = N4BiasFieldCorrectionFilter::new(config);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply bin-shrink downsampling (integer sub-sampling by bin averaging).
@@ -266,12 +262,12 @@ pub fn bin_shrink(
     factor_y: usize,
     factor_x: usize,
 ) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let filter = BinShrinkImageFilter::new(vec![factor_z, factor_y, factor_x]);
-        filter.apply(image.as_ref())
+        filter.apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Convolve a 3-D image with a kernel image using zero-flux Neumann boundary
@@ -306,14 +302,14 @@ pub fn bin_shrink(
 ///     RuntimeError:  on internal tensor extraction failure.
 #[pyfunction]
 pub fn spatial_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkResult<PyImage> {
-    let image_inner = std::sync::Arc::clone(&image.inner);
+    let image_inner = py_image_to_burn(image);
     let (kernel_vals, kernel_dims) = image_to_vec(kernel.inner.as_ref());
     py.allow_threads(|| {
         let filter = SpatialConvolutionFilter::new(kernel_vals, kernel_dims)
             .map_err(|e| RitkPyError::value(e.to_string()))?;
         filter
-            .apply(image_inner.as_ref())
+            .apply(&image_inner)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

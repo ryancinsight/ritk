@@ -1,10 +1,9 @@
 //! Chan-Vese level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::ChanVeseSegmentation;
-use std::sync::Arc;
 
 /// Configuration options for [`chan_vese_segment`].
 #[pyclass(name = "ChanVeseOptions")]
@@ -78,7 +77,7 @@ pub fn chan_vese_segment(
     opts: Option<PyChanVeseOptions>,
 ) -> RitkResult<PyImage> {
     let opts = opts.unwrap_or_else(|| PyChanVeseOptions::new(0.25, 0.0, 1.0, 1.0, 200, 0.1, 1e-3));
-    let image_arc = Arc::clone(&image.inner);
+    let image_arc = py_image_to_burn(image);
     py.allow_threads(|| {
         let mut seg = ChanVeseSegmentation::new();
         seg.mu = opts.mu;
@@ -88,8 +87,8 @@ pub fn chan_vese_segment(
         seg.max_iterations = opts.max_iterations;
         seg.dt = opts.dt;
         seg.tolerance = opts.tolerance;
-        seg.apply(image_arc.as_ref()).map_err(|e| e.to_string())
+        seg.apply(&image_arc).map_err(|e| e.to_string())
     })
     .map_err(RitkPyError::runtime)
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

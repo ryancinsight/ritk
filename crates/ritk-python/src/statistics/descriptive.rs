@@ -1,7 +1,7 @@
 //! Descriptive statistics, image comparison, noise estimation, and label statistics.
 
 use crate::errors::RitkResult;
-use crate::image::{with_tensor_slice, PyImage};
+use crate::image::{py_image_to_burn, with_image_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
@@ -14,7 +14,6 @@ use ritk_statistics::{
     mean_surface_distance as core_mean_surface_distance, psnr as core_psnr,
     similarity_index as core_similarity_index, ssim as core_ssim, ImageStatistics,
 };
-use std::sync::Arc;
 
 /// Convert [`ImageStatistics`] to a Python dict with keys:
 /// `min`, `max`, `mean`, `std`, `p25`, `p50`, `p75`.
@@ -46,7 +45,7 @@ pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResu
 #[pyfunction]
 #[pyo3(signature = (image, ddof=0))]
 pub fn compute_statistics(py: Python<'_>, image: &PyImage, ddof: usize) -> RitkResult<Py<PyDict>> {
-    let stats = with_tensor_slice(image.inner.data(), |slice| {
+    let stats = with_image_slice(image.inner.as_ref(), |slice| {
         compute_statistics_from_slice(slice, ddof)
     });
     stats_to_dict(py, &stats)
@@ -75,8 +74,8 @@ pub fn masked_statistics(
     mask: &PyImage,
     ddof: usize,
 ) -> RitkResult<Py<PyDict>> {
-    let stats = with_tensor_slice(image.inner.data(), |img_slice| {
-        with_tensor_slice(mask.inner.data(), |mask_slice| {
+    let stats = with_image_slice(image.inner.as_ref(), |img_slice| {
+        with_image_slice(mask.inner.as_ref(), |mask_slice| {
             assert_eq!(
                 img_slice.len(),
                 mask_slice.len(),
@@ -107,7 +106,9 @@ pub fn masked_statistics(
 ///     Dice coefficient in [0, 1]. Returns 1.0 if both images have zero volume.
 #[pyfunction]
 pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
-    core_dice_coefficient(image1.inner.as_ref(), image2.inner.as_ref())
+    let a = py_image_to_burn(image1);
+    let b = py_image_to_burn(image2);
+    core_dice_coefficient(&a, &b)
 }
 
 /// Compute the ITK `SimilarityIndexImageFilter` overlap between two images.
@@ -124,9 +125,9 @@ pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
 ///     Similarity index 2|A∩B|/(|A|+|B|) in [0, 1].
 #[pyfunction]
 pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
-    let arc1 = Arc::clone(&image1.inner);
-    let arc2 = Arc::clone(&image2.inner);
-    py.allow_threads(|| core_similarity_index(arc1.as_ref(), arc2.as_ref()))
+    let arc1 = py_image_to_burn(image1);
+    let arc2 = py_image_to_burn(image2);
+    py.allow_threads(|| core_similarity_index(&arc1, &arc2))
 }
 
 /// Compute the symmetric Hausdorff distance between two binary masks.
@@ -144,9 +145,9 @@ pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f
 pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    let arc1 = Arc::clone(&image1.inner);
-    let arc2 = Arc::clone(&image2.inner);
-    py.allow_threads(|| core_hausdorff_distance(arc1.as_ref(), arc2.as_ref(), &spacing))
+    let arc1 = py_image_to_burn(image1);
+    let arc2 = py_image_to_burn(image2);
+    py.allow_threads(|| core_hausdorff_distance(&arc1, &arc2, &spacing))
 }
 
 /// Compute the symmetric mean surface distance between two binary masks.
@@ -164,9 +165,9 @@ pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) ->
 pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    let arc1 = Arc::clone(&image1.inner);
-    let arc2 = Arc::clone(&image2.inner);
-    py.allow_threads(|| core_mean_surface_distance(arc1.as_ref(), arc2.as_ref(), &spacing))
+    let arc1 = py_image_to_burn(image1);
+    let arc2 = py_image_to_burn(image2);
+    py.allow_threads(|| core_mean_surface_distance(&arc1, &arc2, &spacing))
 }
 
 /// Compute the Peak Signal-to-Noise Ratio between two images.
@@ -184,7 +185,9 @@ pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage)
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
 pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
-    core_psnr(image1.inner.as_ref(), image2.inner.as_ref(), max_val)
+    let a = py_image_to_burn(image1);
+    let b = py_image_to_burn(image2);
+    core_psnr(&a, &b, max_val)
 }
 
 /// Compute the Structural Similarity Index (SSIM) between two images.
@@ -202,7 +205,9 @@ pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
 pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
-    core_ssim(image1.inner.as_ref(), image2.inner.as_ref(), max_val)
+    let a = py_image_to_burn(image1);
+    let b = py_image_to_burn(image2);
+    core_ssim(&a, &b, max_val)
 }
 
 /// Estimate additive Gaussian noise σ̂ via the Median Absolute Deviation (MAD).
@@ -222,12 +227,12 @@ pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
 #[pyo3(signature = (image, mask=None))]
 pub fn estimate_noise(image: &PyImage, mask: Option<&PyImage>) -> f32 {
     match mask {
-        Some(m) => with_tensor_slice(image.inner.data(), |img_slice| {
-            with_tensor_slice(m.inner.data(), |mask_slice| {
+        Some(m) => with_image_slice(image.inner.as_ref(), |img_slice| {
+            with_image_slice(m.inner.as_ref(), |mask_slice| {
                 estimate_noise_mad_masked_from_slices(img_slice, mask_slice)
             })
         }),
-        None => with_tensor_slice(image.inner.data(), estimate_noise_mad_from_slice),
+        None => with_image_slice(image.inner.as_ref(), estimate_noise_mad_from_slice),
     }
 }
 
@@ -258,8 +263,8 @@ pub fn compute_label_intensity_statistics(
     intensity_image: &PyImage,
     ddof: usize,
 ) -> RitkResult<Py<PyList>> {
-    let stats = with_tensor_slice(label_image.inner.data(), |label_slice| {
-        with_tensor_slice(intensity_image.inner.data(), |intensity_slice| {
+    let stats = with_image_slice(label_image.inner.as_ref(), |label_slice| {
+        with_image_slice(intensity_image.inner.as_ref(), |intensity_slice| {
             core_label_intensity_stats_from_slices(label_slice, intensity_slice, ddof)
         })
     });

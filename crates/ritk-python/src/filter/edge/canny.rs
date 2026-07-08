@@ -1,7 +1,7 @@
 //! Canny edge detection, Laplacian of Gaussian, and level set filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     edge::GaussianSigma, CannyEdgeDetectionImageFilter, CannyEdgeDetector,
@@ -34,7 +34,7 @@ pub fn canny_edge_detect(
     low_threshold: f64,
     high_threshold: f64,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = CannyEdgeDetector::new(
             GaussianSigma::new_unchecked(sigma),
@@ -42,10 +42,10 @@ pub fn canny_edge_detect(
             high_threshold,
         );
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// ITK-exact Canny edge detection, matching `SimpleITK.CannyEdgeDetection`
@@ -76,7 +76,7 @@ pub fn canny_edge_detection(
     variance: f64,
     maximum_error: f64,
 ) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         CannyEdgeDetectionImageFilter {
             variance,
@@ -84,9 +84,9 @@ pub fn canny_edge_detection(
             lower_threshold,
             upper_threshold,
         }
-        .apply(image.as_ref())
+        .apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Apply the Laplacian of Gaussian (LoG) filter.
@@ -108,14 +108,14 @@ pub fn canny_edge_detection(
 #[pyfunction]
 #[pyo3(signature = (image, sigma=1.0))]
 pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = LaplacianOfGaussianFilter::new(GaussianSigma::new_unchecked(sigma));
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Canny-edge-guided level set segmentation, matching
@@ -157,8 +157,8 @@ pub fn canny_segmentation_level_set(
     number_of_iterations: usize,
     iso_surface_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc_init = std::sync::Arc::clone(&initial_level_set.inner);
-    let arc_feat = std::sync::Arc::clone(&feature_image.inner);
+    let arc_init = py_image_to_burn(initial_level_set);
+    let arc_feat = py_image_to_burn(feature_image);
     let result = py.allow_threads(|| {
         CannySegmentationLevelSet {
             canny_threshold: threshold,
@@ -170,9 +170,9 @@ pub fn canny_segmentation_level_set(
             advection_scaling,
             iso_surface_value,
         }
-        .apply(arc_init.as_ref(), arc_feat.as_ref())
+        .apply(&arc_init, &arc_feat)
     });
     result
-        .map(into_py_image)
+        .map(burn_into_py_image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
 }

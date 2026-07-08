@@ -1,11 +1,10 @@
 use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::{
     slic_itk_segment as core_slic_itk_segment, SlicConfig, SlicSuperpixelFilter,
 };
-use std::sync::Arc;
 
 /// SLIC super-pixel segmentation matching `SimpleITK.SLIC`.
 ///
@@ -38,10 +37,10 @@ pub fn slic(
     enforce_connectivity: bool,
     initialization_perturbation: bool,
 ) -> PyImage {
-    let arc = Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let out = py.allow_threads(|| {
         core_slic_itk_segment(
-            arc.as_ref(),
+            &arc,
             super_grid_size,
             spatial_proximity_weight,
             maximum_number_of_iterations,
@@ -49,7 +48,7 @@ pub fn slic(
             enforce_connectivity,
         )
     });
-    into_py_image(out)
+    burn_into_py_image(out)
 }
 
 /// Segment a 3D image via SLIC super-pixel clustering (Achanta et al. 2012).
@@ -85,7 +84,7 @@ pub fn slic_superpixel(
     if n_superpixels < 1 {
         return Err(RitkPyError::value("n_superpixels must be >= 1"));
     }
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let config = SlicConfig {
             n_superpixels,
@@ -96,7 +95,7 @@ pub fn slic_superpixel(
             min_component_size,
         };
         let filter = SlicSuperpixelFilter::new(config);
-        filter.apply(image.as_ref())
+        filter.apply(&image)
     });
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }

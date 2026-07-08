@@ -5,9 +5,9 @@ macro_rules! unary_math_pyfn {
         #[doc = concat!("ITK Parity: ", $itk)]
         #[pyfunction]
         pub fn $name(py: Python<'_>, image: &PyImage) -> PyImage {
-            let arc = std::sync::Arc::clone(&image.inner);
-            let out = py.allow_threads(|| $filter::new().apply(arc.as_ref()));
-            into_py_image(out)
+            let arc = crate::image::py_image_to_burn(image);
+            let out = py.allow_threads(|| $filter::new().apply(&arc));
+            crate::image::burn_into_py_image(out)
         }
     };
 }
@@ -19,14 +19,14 @@ macro_rules! binary_pyfn {
         #[doc = concat!("ITK Parity: ", $itk)]
         #[pyfunction]
         pub fn $name(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-            let a_arc = std::sync::Arc::clone(&a.inner);
-            let b_arc = std::sync::Arc::clone(&b.inner);
+            let a_arc = crate::image::py_image_to_burn(a);
+            let b_arc = crate::image::py_image_to_burn(b);
             py.allow_threads(|| {
                 $filter::new()
-                    .apply(a_arc.as_ref(), b_arc.as_ref())
+                    .apply(&a_arc, &b_arc)
                     .map_err(|e| RitkPyError::runtime(e.to_string()))
             })
-            .map(into_py_image)
+            .map(crate::image::burn_into_py_image)
         }
     };
 }
@@ -38,15 +38,15 @@ macro_rules! ternary_pyfn {
         #[doc = concat!("ITK Parity: ", $itk)]
         #[pyfunction]
         pub fn $name(py: Python<'_>, a: &PyImage, b: &PyImage, c: &PyImage) -> RitkResult<PyImage> {
-            let a_arc = std::sync::Arc::clone(&a.inner);
-            let b_arc = std::sync::Arc::clone(&b.inner);
-            let c_arc = std::sync::Arc::clone(&c.inner);
+            let a_arc = crate::image::py_image_to_burn(a);
+            let b_arc = crate::image::py_image_to_burn(b);
+            let c_arc = crate::image::py_image_to_burn(c);
             py.allow_threads(|| {
                 $filter::new()
-                    .apply(a_arc.as_ref(), b_arc.as_ref(), c_arc.as_ref())
+                    .apply(&a_arc, &b_arc, &c_arc)
                     .map_err(|e| RitkPyError::runtime(e.to_string()))
             })
-            .map(into_py_image)
+            .map(crate::image::burn_into_py_image)
         }
     };
 }

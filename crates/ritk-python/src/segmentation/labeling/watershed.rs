@@ -1,11 +1,10 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::{
     toboggan as core_toboggan, MarkerControlledWatershed, MorphologicalWatershed,
     WatershedSegmentation,
 };
-use std::sync::Arc;
 
 /// Toboggan watershed labeling, matching `sitk.Toboggan`.
 ///
@@ -22,9 +21,9 @@ use std::sync::Arc;
 ///     label image (basin indices ≥ 2).
 #[pyfunction]
 pub fn toboggan(py: Python<'_>, image: &PyImage) -> PyImage {
-    let arc = Arc::clone(&image.inner);
-    let out = py.allow_threads(|| core_toboggan(arc.as_ref()));
-    into_py_image(out)
+    let arc = py_image_to_burn(image);
+    let out = py.allow_threads(|| core_toboggan(&arc));
+    burn_into_py_image(out)
 }
 
 /// Marker-less morphological watershed, matching
@@ -44,13 +43,13 @@ pub fn toboggan(py: Python<'_>, image: &PyImage) -> PyImage {
 #[pyfunction]
 #[pyo3(signature = (image, level=0.0_f32))]
 pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> RitkResult<PyImage> {
-    let arc = Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     py.allow_threads(|| {
         MorphologicalWatershed::new(level)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Segment a 3D image via Meyer's flooding watershed algorithm.
@@ -66,13 +65,13 @@ pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> R
 ///     Label PyImage with basin indices and watershed boundaries (0).
 #[pyfunction]
 pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let seg = WatershedSegmentation::new();
-        seg.apply(image.as_ref())
+        seg.apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Run marker-controlled watershed segmentation on a gradient-magnitude image.
@@ -107,15 +106,15 @@ pub fn marker_watershed_segment(
     mark_watershed_line: bool,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let grad_arc = Arc::clone(&gradient.inner);
-    let mark_arc = Arc::clone(&markers.inner);
+    let grad_arc = py_image_to_burn(gradient);
+    let mark_arc = py_image_to_burn(markers);
     let result = py.allow_threads(|| {
         MarkerControlledWatershed::new()
             .with_mark_watershed_line(mark_watershed_line)
             .with_fully_connected(fully_connected)
-            .apply(grad_arc.as_ref(), mark_arc.as_ref())
+            .apply(&grad_arc, &mark_arc)
     });
     result
-        .map(into_py_image)
+        .map(burn_into_py_image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
 }

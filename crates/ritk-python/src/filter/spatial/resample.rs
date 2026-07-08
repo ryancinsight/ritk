@@ -1,11 +1,10 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, Backend, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, BurnBackend, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::ResampleImageFilter;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_interpolation::LinearInterpolator;
 use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
-use ritk_image::tensor::backend::Backend as BurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::Spacing as CoreSpacing;
 use ritk_transform::affine::translation::TranslationTransform;
 
@@ -43,7 +42,7 @@ pub fn resample_image(
         )));
     }
     let mode = mode.to_string();
-    let inner = std::sync::Arc::clone(&image.inner);
+    let inner = py_image_to_burn(image);
 
     py.allow_threads(move || -> Result<_, String> {
         let orig_dims = inner.shape();
@@ -62,8 +61,9 @@ pub fn resample_image(
             .max(1.0) as usize;
 
         let new_sp = CoreSpacing::new([spacing_z, spacing_y, spacing_x]);
-        let device: <Backend as BurnBackend>::Device = Default::default();
-        let zero_t = Tensor::<Backend, 1>::from_data(
+        let device: <BurnBackend as ritk_image::tensor::backend::Backend>::Device =
+            Default::default();
+        let zero_t = Tensor::<BurnBackend, 1>::from_data(
             TensorData::new(vec![0.0f32; 3], Shape::new([3])),
             &device,
         );
@@ -74,37 +74,37 @@ pub fn resample_image(
                 orig_orig,
                 new_sp,
                 orig_dir,
-                TranslationTransform::<Backend, 3>::new(zero_t),
+                TranslationTransform::<BurnBackend, 3>::new(zero_t),
                 NearestNeighborInterpolator::new(),
             )
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             "linear" => Ok(ResampleImageFilter::new(
                 [new_nz, new_ny, new_nx],
                 orig_orig,
                 new_sp,
                 orig_dir,
-                TranslationTransform::<Backend, 3>::new(zero_t),
+                TranslationTransform::<BurnBackend, 3>::new(zero_t),
                 LinearInterpolator::new(),
             )
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             "bspline" => Ok(ResampleImageFilter::new(
                 [new_nz, new_ny, new_nx],
                 orig_orig,
                 new_sp,
                 orig_dir,
-                TranslationTransform::<Backend, 3>::new(zero_t),
+                TranslationTransform::<BurnBackend, 3>::new(zero_t),
                 BSplineInterpolator::new(),
             )
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             "lanczos" => Ok(ResampleImageFilter::new(
                 [new_nz, new_ny, new_nx],
                 orig_orig,
                 new_sp,
                 orig_dir,
-                TranslationTransform::<Backend, 3>::new(zero_t),
+                TranslationTransform::<BurnBackend, 3>::new(zero_t),
                 Lanczos5Interpolator::new(),
             )
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             other => Err(format!(
                 "Unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos",
                 other
@@ -112,7 +112,7 @@ pub fn resample_image(
         }
     })
     .map_err(RitkPyError::value)
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Zoom a 3-D image by a scale factor (scipy.ndimage.zoom parity).
@@ -151,7 +151,7 @@ pub fn zoom_image(
             "zoom factors must be positive, got ({zoom_z},{zoom_y},{zoom_x})"
         )));
     }
-    let inner = std::sync::Arc::clone(&image.inner);
+    let inner = py_image_to_burn(image);
     let sp = *inner.spacing();
     // new_spacing = old_spacing / zoom_factor
     let new_sz = sp[0] / zoom_z;

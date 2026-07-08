@@ -1,21 +1,57 @@
-> ## Vocabulary policy (canonical atlas-migration terms-of-art)
+> ## Vocabulary policy
 >
-> **Canonical functional terms-of-art (preserve)**:
-> - `Atlas-typed` (the CoeUs/MoiraiBackend-typed twin type-system family that pairs with `Burn-keyed` as the atomic-boundary partition term per ADR 0012 §Decision §1)
-> - `Atlas-side` (the additive production-side / subtractive test-side partition — pairs with `Burn-side`)
-> - `Atlas-only` (the validation-gate constraint term, e.g. "Atlas-only backend trait assertion")
-> - `Atlas-meta` (the atlas-meta repo/branch identifier, codex/kwavers-atlas-integration)
-> - `Atlas-native` (a label for modules/edges that route through native CoeUs/Eunomia/Leto without burn-compat shims)
-> - `Atlas-backed` (a label for migration-push surfaces that pivot the atlas-meta pointer as the migration carrier)
->
-> **Discouraged compounds (drop)**:
-> - `Atlas-parent` (collapse to atlas-meta reference)
-> - `Atlas-root` (collapse to atlas-meta working-tree reference)
-> - `Atlas-provider` (collapse to bare `Atlas` per the canonical `<Atlas>X` mapping, preserving the noun phrase that follows)
->
-> Cross-document consistency with the atlas-meta PM-doc surface; rubric tracked in atlas-meta `## Atlas dependency cleanup` ledger.
+> New migration text uses provider/native names directly (`Coeus`,
+> `MoiraiBackend`, `Leto`, `Eunomia`, `native`) and does not introduce new
+> `Atlas-*` migration labels. Historical PM entries retain their original
+> wording unless touched by the current slice. Domain medical-atlas terms are
+> preserved.
 
 # RITK Gap Audit - Active
+
+## DEP-498-01 audit (2026-07-07)
+
+### `ritk-spatial` no longer owns Burn serialization hooks
+
+`ritk-spatial` geometry values (`Vector`, `Point`, `Direction`, `Spacing`) are
+pure Leto/serde value types and no longer implement Burn `Record`, `Module`,
+`AutodiffModule`, or Burn display traits. The crate-local `pub mod burn`
+re-export and `burn = { workspace = true }` manifest dependency were deleted;
+`Cargo.lock` dropped `burn` from `ritk-spatial`'s dependency list.
+
+Evidence tier: static audit plus compile-time and value-semantic validation.
+`rustup run nightly cargo fmt -p ritk-spatial --check` passed, `rustup run
+nightly cargo check -p ritk-spatial` passed, and `rustup run nightly cargo
+nextest run -p ritk-spatial --status-level fail --no-fail-fast` passed 40/40.
+`rg -n "Burn|burn|ModuleDisplay|AutodiffModule|Record<|crate::burn"
+crates\ritk-spatial` returns no matches. `rustup run nightly cargo tree -p
+ritk-spatial -i burn` reports no matching `burn` package. The change is
+subtractive: 278 deleted lines and no replacement shim.
+
+Residual risk: broader RITK still contains Burn/Burn-ndarray manifest lines
+outside `ritk-spatial`; close those through their owning crates rather than
+reintroducing spatial compatibility hooks.
+
+## MIG-496-04 audit (2026-07-08)
+
+### `ritk-python` image I/O routes through native `ritk-io`
+
+`ritk-python` image read/write now crosses the I/O boundary through native
+`ritk-io` dispatch and converts at `PyImage`. The follow-up cleanup removed
+the stale unused imports and the dead local scalar constructor left by the
+native image cutover, without deleting active Burn bridges still required by
+unmigrated filters, segmentation, and statistics wrappers.
+
+Evidence tier: static diagnostics plus package tests. `rustup run nightly
+cargo fmt -p ritk-python --check` passed, `rustup run nightly cargo check -p
+ritk-python` passed, `rustup run nightly cargo clippy -p ritk-python
+--all-targets -- -D warnings` passed, and `rustup run nightly cargo nextest
+run -p ritk-python --status-level fail --no-fail-fast` passed 47/47.
+
+Residual risk: `rg -l
+"burn_into_py_image|py_image_to_burn|BurnBackend|BurnImage|burn_ndarray|burn::"
+crates\ritk-python\src` still reports 54 files. Those files are the next
+Python Burn bridge migration scope; remove them by converting each operation
+family to native Coeus/Leto-owned image contracts, not by adding adapters.
 
 ## MIG-496-06 audit (2026-07-07)
 
@@ -205,28 +241,6 @@ cargo tree (re-verify Burn-WGPU / CUDA / ROCM edges remain absent).
   (`RITK-crate-migrate`, [minor]) is the per-crate burn-line flip sequence the
   soft-deprecation callsites will migrate toward. Sub-batch #5 remains the only
   commit allowed to delete or rename `[dependencies]` lines.
-
-## MIG-496-04 audit (2026-07-05)
-
-### Python image I/O no longer dispatches through Burn readers/writers
-
-`crates/ritk-python/src/io/mod.rs` previously constructed a Burn
-`NdArrayDevice` and matched every supported format onto Burn reader/writer free
-functions. The Python I/O module now calls `ritk_io::read_image_native` and
-`ritk_io::write_image_native`, so the format dispatch and reader/writer
-selection live once in `ritk-io` over the native `ImageReader`/`ImageWriter`
-contract. The Python layer remains a thin boundary: native disk image ->
-`PyImage` conversion on read, and `PyImage` -> native disk image conversion on
-write while Python processing functions still consume the legacy Burn-backed
-`PyImage`.
-
-Evidence tier: source-level implementation plus diff hygiene. Focused tests
-cover exact NRRD/NIfTI Python round trips and assert VTK write rejection because
-VTK has no Atlas-native image writer yet, but the cargo gates did not reach
-compilation in this run: `ritk-io native_dispatch`, `ritk-python native`, and
-`ritk-io --lib` each blocked on shared package/build/artifact locks. Residual
-risk: VTK image read/write remains a native-substrate gap; PNG and DICOM writes
-remain unsupported.
 
 ## MIG-433-06 audit (2026-07-05)
 

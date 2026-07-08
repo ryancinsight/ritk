@@ -1,12 +1,11 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, BurnBackend, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::{
     label_set_morph as core_label_set_morph, merge_label_maps as core_merge_label_maps,
     relabel_consecutive as core_relabel_consecutive, LabelSetMorphOp, MergeLabelMethod,
     RelabelComponentFilter,
 };
-use std::sync::Arc;
 
 /// Relabel connected components by descending size: the largest object becomes
 /// label 1, the next largest 2, and so on. Components smaller than
@@ -28,13 +27,13 @@ pub fn relabel_components(
     label_image: &PyImage,
     minimum_object_size: usize,
 ) -> PyImage {
-    let img = Arc::clone(&label_image.inner);
+    let img = py_image_to_burn(label_image);
     let out = py.allow_threads(|| {
         RelabelComponentFilter::with_minimum_object_size(minimum_object_size)
-            .apply(img.as_ref())
+            .apply(&img)
             .0
     });
-    into_py_image(out)
+    burn_into_py_image(out)
 }
 
 /// Relabel non-zero labels to consecutive integers `1, 2, …, K` in ascending
@@ -53,9 +52,9 @@ pub fn relabel_components(
 #[pyfunction]
 #[pyo3(signature = (label_image))]
 pub fn relabel_label_map(py: Python<'_>, label_image: &PyImage) -> PyImage {
-    let img = Arc::clone(&label_image.inner);
-    let out = py.allow_threads(|| core_relabel_consecutive(img.as_ref()));
-    into_py_image(out)
+    let img = py_image_to_burn(label_image);
+    let out = py.allow_threads(|| core_relabel_consecutive(&img));
+    burn_into_py_image(out)
 }
 
 /// Merge several label images into one, matching
@@ -90,15 +89,12 @@ pub fn merge_label_map(
             )))
         }
     };
-    // Clone the Arc handles so the GIL can be released during compute.
-    let arcs: Vec<Arc<ritk_image::Image<crate::image::Backend, 3>>> =
-        label_images.iter().map(|p| Arc::clone(&p.inner)).collect();
+    let burn_images: Vec<_> = label_images.iter().map(|p| py_image_to_burn(p)).collect();
     let out = py.allow_threads(|| {
-        let refs: Vec<&ritk_image::Image<crate::image::Backend, 3>> =
-            arcs.iter().map(|a| a.as_ref()).collect();
+        let refs: Vec<_> = burn_images.iter().collect();
         core_merge_label_maps(&refs, m).map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(into_py_image(out))
+    Ok(burn_into_py_image(out))
 }
 
 /// Label-preserving Euclidean dilation, matching `sitk.LabelSetDilate`.
@@ -178,10 +174,9 @@ fn label_set_morph_py(
             )))
         }
     };
-    let img = Arc::clone(&label_image.inner);
-    let out =
-        py.allow_threads(|| core_label_set_morph(img.as_ref(), radius_itk, use_image_spacing, op));
-    Ok(into_py_image(out))
+    let img = py_image_to_burn(label_image);
+    let out = py.allow_threads(|| core_label_set_morph(&img, radius_itk, use_image_spacing, op));
+    Ok(burn_into_py_image(out))
 }
 
 /// Remap label values according to a `{old: new}` change map. Voxels whose
@@ -202,7 +197,7 @@ pub fn change_label(
     change_map: std::collections::HashMap<i64, i64>,
 ) -> PyImage {
     use ritk_image::tensor::{Shape, Tensor, TensorData};
-    let img = Arc::clone(&label_image.inner);
+    let img = py_image_to_burn(label_image);
     let out = py.allow_threads(|| {
         let dims = img.shape();
         let out: Vec<f32> = img
@@ -219,11 +214,9 @@ pub fn change_label(
             })
             .collect();
         let device = burn_ndarray::NdArrayDevice::default();
-        let tensor = Tensor::<crate::image::Backend, 3>::from_data(
-            TensorData::new(out, Shape::new(dims)),
-            &device,
-        );
+        let tensor =
+            Tensor::<BurnBackend, 3>::from_data(TensorData::new(out, Shape::new(dims)), &device);
         ritk_image::Image::new(tensor, *img.origin(), *img.spacing(), *img.direction())
     });
-    into_py_image(out)
+    burn_into_py_image(out)
 }

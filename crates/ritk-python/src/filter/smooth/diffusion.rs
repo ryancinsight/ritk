@@ -1,6 +1,6 @@
 //! Diffusion-family filters: Perona–Malik anisotropic, curvature anisotropic, and coherence-enhancing diffusion.
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::diffusion::{
     CoherenceConfig, ConductanceFunction, CurvatureConfig, DiffusionConfig,
@@ -76,7 +76,7 @@ pub fn anisotropic_diffusion(
     conductance_kind: Option<&str>,
 ) -> RitkResult<PyImage> {
     let kind = PyConductanceKind::from(conductance_kind);
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| match kind {
         // ITK-exact gradient anisotropic diffusion (matches SimpleITK).
         PyConductanceKind::Exponential => {
@@ -85,7 +85,7 @@ pub fn anisotropic_diffusion(
                 time_step: time_step as f32,
                 conductance: conductance as f32,
             })
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
         }
         // Crate-specific Perona-Malik with quadratic conductance.
@@ -95,10 +95,10 @@ pub fn anisotropic_diffusion(
             time_step: time_step as f32,
             function: ConductanceFunction::Quadratic,
         }
-        .apply(image.as_ref())
+        .apply(&image)
         .map_err(|e| RitkPyError::runtime(e.to_string())),
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply curvature anisotropic diffusion (ITK `CurvatureAnisotropicDiffusion`).
@@ -128,7 +128,7 @@ pub fn curvature_anisotropic_diffusion(
     time_step: f64,
     conductance: f64,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
             num_iterations: iterations,
@@ -136,10 +136,10 @@ pub fn curvature_anisotropic_diffusion(
             conductance: conductance as f32,
         });
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply pure mean-curvature flow: ∂I/∂t = κ for `iterations` explicit-Euler
@@ -152,16 +152,16 @@ pub fn curvature_flow(
     time_step: f64,
     iterations: usize,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         CurvatureFlowImageFilter::new(CurvatureFlowConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
         })
-        .apply(image.as_ref())
+        .apply(&image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply min/max curvature flow for `iterations` steps, gating the
@@ -177,17 +177,17 @@ pub fn min_max_curvature_flow(
     iterations: usize,
     stencil_radius: usize,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
             stencil_radius,
         })
-        .apply(image.as_ref())
+        .apply(&image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply binary min/max curvature flow: curvature flow gated by comparing the
@@ -203,7 +203,7 @@ pub fn binary_min_max_curvature_flow(
     stencil_radius: usize,
     threshold: f64,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig {
             num_iterations: iterations,
@@ -211,10 +211,10 @@ pub fn binary_min_max_curvature_flow(
             stencil_radius,
             threshold,
         })
-        .apply(image.as_ref())
+        .apply(&image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply coherence-enhancing diffusion (Weickert 1999).
@@ -247,7 +247,7 @@ pub fn coherence_enhancing_diffusion(
     time_step: f64,
     iterations: usize,
 ) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let config = CoherenceConfig {
             sigma: GaussianSigma::new_unchecked(sigma),
@@ -257,9 +257,9 @@ pub fn coherence_enhancing_diffusion(
             n_iterations: iterations,
         };
         let filter = CoherenceEnhancingDiffusionFilter::new(config);
-        filter.apply(image.as_ref())
+        filter.apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 // ── AntiAliasBinary ─────────────────────────────────────────────────────
@@ -289,15 +289,15 @@ pub fn anti_alias_binary(
     max_rms_error: f32,
     number_of_iterations: usize,
 ) -> PyImage {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         AntiAliasBinaryImageFilter {
             max_rms_error,
             number_of_iterations,
         }
-        .apply(arc.as_ref())
+        .apply(&arc)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 // ── ScalarChanAndVeseDenseLevelSet ──────────────────────────────────────
@@ -337,8 +337,8 @@ pub fn scalar_chan_and_vese_dense_level_set(
     nu: f32,
     epsilon: f32,
 ) -> RitkResult<PyImage> {
-    let arc_init = std::sync::Arc::clone(&initial_level_set.inner);
-    let arc_feat = std::sync::Arc::clone(&feature_image.inner);
+    let arc_init = py_image_to_burn(initial_level_set);
+    let arc_feat = py_image_to_burn(feature_image);
     let result = py.allow_threads(|| {
         ScalarChanAndVeseDenseLevelSet {
             number_of_iterations,
@@ -348,9 +348,9 @@ pub fn scalar_chan_and_vese_dense_level_set(
             nu,
             epsilon,
         }
-        .apply(arc_init.as_ref(), arc_feat.as_ref())
+        .apply(&arc_init, &arc_feat)
     });
     result
-        .map(into_py_image)
+        .map(burn_into_py_image)
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))
 }

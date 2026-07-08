@@ -1,11 +1,10 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, Backend, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, BurnBackend, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::ResampleImageFilter;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_interpolation::LinearInterpolator;
 use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
-use ritk_image::tensor::backend::Backend as BurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_transform::affine::affine::AffineTransform;
 use ritk_transform::affine::translation::TranslationTransform;
 
@@ -48,13 +47,13 @@ pub fn rotate_image(
     default_pixel_value: f64,
 ) -> RitkResult<PyImage> {
     let mode = mode.to_string();
-    let inner = std::sync::Arc::clone(&image.inner);
+    let inner = py_image_to_burn(image);
     py.allow_threads(move || -> Result<_, String> {
         let shape = inner.shape();
         let sp = *inner.spacing();
         let orig = *inner.origin();
         let dir = *inner.direction();
-        let device: <Backend as BurnBackend>::Device = Default::default();
+        let device: <BurnBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
         // Centre of rotation in physical coordinates:
         //   c_d = origin_d + spacing_d * (shape_d - 1) / 2
@@ -62,12 +61,12 @@ pub fn rotate_image(
         let centre: Vec<f32> = (0..3)
             .map(|d| orig[d] as f32 + sp[d] as f32 * (shape[d] as f32 - 1.0) / 2.0)
             .collect();
-        let centre_t = Tensor::<Backend, 1>::from_data(
+        let centre_t = Tensor::<BurnBackend, 1>::from_data(
             TensorData::new(centre, Shape::new([3])),
             &device,
         );
         // Zero translation (pure rotation about centre).
-        let translation = Tensor::<Backend, 1>::zeros([3], &device);
+        let translation = Tensor::<BurnBackend, 1>::zeros([3], &device);
         // Build the rotation to match SimpleITK's `Euler3DTransform`
         // (`ComputeZYX = false`, the default), whose matrix in physical [x, y, z]
         // space is `M = R_z(angle_z) · R_x(angle_x) · R_y(angle_y)`. ritk's
@@ -83,30 +82,30 @@ pub fn rotate_image(
             .map(|(i, j)| m[2 - i][2 - j] as f32)
             .collect();
         let matrix =
-            Tensor::<Backend, 2>::from_data(TensorData::new(a, Shape::new([3, 3])), &device);
-        let transform = AffineTransform::<Backend, 3>::new(matrix, translation, centre_t);
+            Tensor::<BurnBackend, 2>::from_data(TensorData::new(a, Shape::new([3, 3])), &device);
+        let transform = AffineTransform::<BurnBackend, 3>::new(matrix, translation, centre_t);
 
         match mode.as_str() {
             "nearest" => Ok(ResampleImageFilter::new(
                 shape, orig, sp, dir, transform.clone(), NearestNeighborInterpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             "linear" => Ok(ResampleImageFilter::new(
                 shape, orig, sp, dir, transform.clone(), LinearInterpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             "bspline" => Ok(ResampleImageFilter::new(
                 shape, orig, sp, dir, transform.clone(), BSplineInterpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             "lanczos" => Ok(ResampleImageFilter::new(
                 shape, orig, sp, dir, transform, Lanczos5Interpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             other => Err(format!(
                 "rotate_image: unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos",
                 other
@@ -114,7 +113,7 @@ pub fn rotate_image(
         }
     })
     .map_err(RitkPyError::value)
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Translate (shift) a 3-D image by a physical offset.
@@ -151,25 +150,26 @@ pub fn shift_image(
     default_pixel_value: f64,
 ) -> RitkResult<PyImage> {
     let mode = mode.to_string();
-    let inner = std::sync::Arc::clone(&image.inner);
+    let inner = py_image_to_burn(image);
     py.allow_threads(move || -> Result<_, String> {
         let shape = inner.shape();
         let sp = *inner.spacing();
         let orig = *inner.origin();
         let dir = *inner.direction();
-        let device: <Backend as BurnBackend>::Device = Default::default();
+        let device: <BurnBackend as ritk_image::tensor::backend::Backend>::Device =
+            Default::default();
 
         // TranslationTransform shifts the OUTPUT→INPUT mapping, so we negate:
         // to shift the image by (dz, dy, dx), the transform must map
         // out_point → out_point - [dz, dy, dx] in physical space.
-        let translation = Tensor::<Backend, 1>::from_data(
+        let translation = Tensor::<BurnBackend, 1>::from_data(
             TensorData::new(
                 vec![-shift_z as f32, -shift_y as f32, -shift_x as f32],
                 Shape::new([3]),
             ),
             &device,
         );
-        let transform = TranslationTransform::<Backend, 3>::new(translation);
+        let transform = TranslationTransform::<BurnBackend, 3>::new(translation);
 
         match mode.as_str() {
             "nearest" => Ok(ResampleImageFilter::new(
@@ -181,7 +181,7 @@ pub fn shift_image(
                 NearestNeighborInterpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             "linear" => Ok(ResampleImageFilter::new(
                 shape,
                 orig,
@@ -191,7 +191,7 @@ pub fn shift_image(
                 LinearInterpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             "bspline" => Ok(ResampleImageFilter::new(
                 shape,
                 orig,
@@ -201,7 +201,7 @@ pub fn shift_image(
                 BSplineInterpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             "lanczos" => Ok(ResampleImageFilter::new(
                 shape,
                 orig,
@@ -211,7 +211,7 @@ pub fn shift_image(
                 Lanczos5Interpolator::new(),
             )
             .with_default_pixel_value(default_pixel_value)
-            .apply(inner.as_ref())),
+            .apply(&inner)),
             other => Err(format!(
                 "shift_image: unknown mode '{}'. Use: nearest, linear, bspline, lanczos",
                 other
@@ -219,7 +219,7 @@ pub fn shift_image(
         }
     })
     .map_err(RitkPyError::value)
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// 3×3 product of two row-major matrices.
@@ -268,12 +268,16 @@ pub fn transform_to_displacement_field(
     translation: [f64; 3],
     center: [f64; 3],
 ) -> RitkResult<(PyImage, PyImage, PyImage)> {
-    let arc = std::sync::Arc::clone(&reference.inner);
+    let arc = py_image_to_burn(reference);
     let (dz, dy, dx) = py.allow_threads(|| {
-        ritk_filter::transform_to_displacement_field(arc.as_ref(), matrix, translation, center)
+        ritk_filter::transform_to_displacement_field(&arc, matrix, translation, center)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok((into_py_image(dz), into_py_image(dy), into_py_image(dx)))
+    Ok((
+        burn_into_py_image(dz),
+        burn_into_py_image(dy),
+        burn_into_py_image(dx),
+    ))
 }
 
 /// Apply an affine transform to an image's geometry (origin + direction),
@@ -295,10 +299,10 @@ pub fn transform_geometry(
     translation: [f64; 3],
     center: [f64; 3],
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     py.allow_threads(|| {
-        ritk_filter::transform_geometry(arc.as_ref(), matrix, translation, center)
+        ritk_filter::transform_geometry(&arc, matrix, translation, center)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

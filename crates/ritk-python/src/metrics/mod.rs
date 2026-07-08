@@ -97,29 +97,18 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::image::PyImage;
-    use burn_ndarray::NdArray;
-    use ritk_core::{
-        image::Image,
-        spatial::{Direction, Point, Spacing},
-    };
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use crate::image::{vec_to_image, PyImage};
     use std::sync::Arc;
 
-    type B = NdArray<f32>;
-
     fn make_image(values: Vec<f32>, shape: [usize; 3]) -> PyImage {
-        let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
-        let td = TensorData::new(values, Shape::new(shape));
-        let tensor = Tensor::<B, 3>::from_data(td, &device);
-        let img = Image::new(
-            tensor,
-            Point::new([0.0; 3]),
-            Spacing::new([1.0; 3]),
-            Direction::identity(),
-        );
         PyImage {
-            inner: Arc::new(img),
+            inner: Arc::new(vec_to_image(
+                values,
+                shape,
+                ritk_core::spatial::Point::new([0.0; 3]),
+                ritk_core::spatial::Spacing::new([1.0; 3]),
+                ritk_core::spatial::Direction::identity(),
+            )),
         }
     }
 

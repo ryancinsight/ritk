@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     BinaryPruningFilter, BinaryThinningFilter, ErodeObjectMorphologyFilter, HitOrMissTransform,
@@ -20,9 +20,9 @@ use ritk_filter::{
 ///     Skeleton PyImage, same shape and spatial metadata as input.
 #[pyfunction]
 pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
-    let arc = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| BinaryThinningFilter::new().apply(arc.as_ref()));
-    into_py_image(out)
+    let arc = py_image_to_burn(image);
+    let out = py.allow_threads(|| BinaryThinningFilter::new().apply(&arc));
+    burn_into_py_image(out)
 }
 
 /// Prune short spurs from a binary skeleton, matching `SimpleITK.BinaryPruning`
@@ -39,9 +39,9 @@ pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
 #[pyfunction]
 #[pyo3(signature = (image, iteration=3))]
 pub fn binary_pruning(py: Python<'_>, image: &PyImage, iteration: usize) -> PyImage {
-    let arc = std::sync::Arc::clone(&image.inner);
-    let out = py.allow_threads(|| BinaryPruningFilter::new(iteration).apply(arc.as_ref()));
-    into_py_image(out)
+    let arc = py_image_to_burn(image);
+    let out = py.allow_threads(|| BinaryPruningFilter::new(iteration).apply(&arc));
+    burn_into_py_image(out)
 }
 
 /// Erode an object's surface with a box structuring element, matching
@@ -69,12 +69,12 @@ pub fn erode_object_morphology(
     object_value: f32,
     background_value: f32,
 ) -> PyImage {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let out = py.allow_threads(|| {
         ErodeObjectMorphologyFilter::new([radius, radius, radius], object_value, background_value)
-            .apply(arc.as_ref())
+            .apply(&arc)
     });
-    into_py_image(out)
+    burn_into_py_image(out)
 }
 
 /// Apply hit-or-miss transform for shape detection in binary images.
@@ -91,13 +91,13 @@ pub fn hit_or_miss(
     fg_radius: usize,
     bg_radius: usize,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         HitOrMissTransform::new(fg_radius, bg_radius)
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// One voting (cellular-automaton) step on a binary image: a background voxel
@@ -115,7 +115,7 @@ pub fn voting_binary(
     foreground_value: f32,
     background_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     py.allow_threads(|| {
         VotingBinaryImageFilter::new(
             radius,
@@ -124,10 +124,10 @@ pub fn voting_binary(
             foreground_value,
             background_value,
         )
-        .apply(arc.as_ref())
+        .apply(&arc)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Fill background holes by majority vote: a background voxel becomes foreground
@@ -144,7 +144,7 @@ pub fn voting_binary_hole_filling(
     foreground_value: f32,
     background_value: f32,
 ) -> PyImage {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let out = py.allow_threads(|| {
         VotingBinaryHoleFillingImageFilter::new(
             [radius, radius, radius],
@@ -152,9 +152,9 @@ pub fn voting_binary_hole_filling(
             foreground_value,
             background_value,
         )
-        .apply(arc.as_ref())
+        .apply(&arc)
     });
-    into_py_image(out)
+    burn_into_py_image(out)
 }
 
 /// Iteratively fill background holes by majority vote, repeating the
@@ -172,7 +172,7 @@ pub fn voting_binary_iterative_hole_filling(
     foreground_value: f32,
     background_value: f32,
 ) -> PyImage {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let out = py.allow_threads(|| {
         VotingBinaryHoleFillingImageFilter::new(
             [radius, radius, radius],
@@ -180,7 +180,7 @@ pub fn voting_binary_iterative_hole_filling(
             foreground_value,
             background_value,
         )
-        .apply_iterative(arc.as_ref(), max_iterations)
+        .apply_iterative(&arc, max_iterations)
     });
-    into_py_image(out)
+    burn_into_py_image(out)
 }

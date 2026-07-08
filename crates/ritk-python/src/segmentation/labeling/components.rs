@@ -1,10 +1,9 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::Backend;
-use crate::image::{into_py_image, PyImage};
-use burn_ndarray::NdArrayDevice;
+use crate::image::{
+    burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image_like, with_image_slice,
+    PyImage,
+};
 use pyo3::prelude::*;
-use ritk_image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components,
@@ -41,14 +40,14 @@ pub fn connected_components(
         )));
     }
 
-    let mask = Arc::clone(&mask.inner);
+    let mask = py_image_to_burn(mask);
     let (label_image, num_components) = {
         let seg_conn = if connectivity == 6 {
             SegConnectivity::Six
         } else {
             SegConnectivity::TwentySix
         };
-        py.allow_threads(|| core_connected_components(mask.as_ref(), seg_conn))
+        py.allow_threads(|| core_connected_components(&mask, seg_conn))
     };
     Ok((into_py_image(label_image), num_components))
 }
@@ -80,13 +79,10 @@ pub fn scalar_connected_component(
     let arc = Arc::clone(&image.inner);
     let out = py.allow_threads(|| {
         let dims = arc.shape();
-        let vals = arc.data_slice().into_owned();
+        let vals = with_image_slice(arc.as_ref(), |slice| slice.to_vec());
         let labels =
             core_scalar_connected_components(&vals, dims, distance_threshold, connectivity);
-        let device = NdArrayDevice::default();
-        let tensor =
-            Tensor::<Backend, 3>::from_data(TensorData::new(labels, Shape::new(dims)), &device);
-        Image::new(tensor, *arc.origin(), *arc.spacing(), *arc.direction())
+        vec_to_image_like(labels, dims, arc.as_ref())
     });
     Ok(into_py_image(out))
 }
@@ -122,13 +118,13 @@ pub fn vector_connected_component(
             "vector_connected_component: at least one channel is required",
         ));
     }
-    let arcs: Vec<Arc<Image<Backend, 3>>> = channels.iter().map(|p| Arc::clone(&p.inner)).collect();
+    let burns: Vec<_> = channels.iter().map(|p| py_image_to_burn(p)).collect();
     let conn = if fully_connected { 26 } else { 6 };
     let out = py.allow_threads(|| {
-        let refs: Vec<&Image<Backend, 3>> = arcs.iter().map(|a| a.as_ref()).collect();
+        let refs: Vec<_> = burns.iter().collect();
         core_vector_connected_components(&refs, distance_threshold, conn)
     });
-    Ok(into_py_image(out))
+    Ok(burn_into_py_image(out))
 }
 
 /// Threshold an image at the lower value that maximizes the number of connected
@@ -153,7 +149,7 @@ pub fn threshold_maximum_connected_components(
     minimum_object_size: usize,
     upper_boundary: Option<i64>,
 ) -> PyImage {
-    let img = Arc::clone(&image.inner);
+    let img = py_image_to_burn(image);
     let out = py.allow_threads(|| {
         ThresholdMaximumConnectedComponentsFilter {
             minimum_object_size,
@@ -161,7 +157,7 @@ pub fn threshold_maximum_connected_components(
             inside_value: 1.0,
             outside_value: 0.0,
         }
-        .apply(img.as_ref())
+        .apply(&img)
     });
-    into_py_image(out)
+    burn_into_py_image(out)
 }

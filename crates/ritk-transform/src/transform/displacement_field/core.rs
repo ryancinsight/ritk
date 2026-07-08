@@ -3,14 +3,14 @@
 //! Exposes continuous field projections mathematically validated against geometric origins.
 
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::burn::module::{Module, Param};
+use ritk_image::burn::module::Param;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 /// Displacement field data representing a dense vector field on a regular mathematical grid.
 ///
 /// Maintains vector coordinates mapping directly over strict geometric domains enabling mathematically verifiable transformations.
-#[derive(Module, Debug)]
+#[derive(Debug)]
 pub struct DisplacementField<B: Backend, const D: usize> {
     pub(crate) components: Vec<Param<Tensor<B, D>>>,
     pub(crate) origin: Point<D>,

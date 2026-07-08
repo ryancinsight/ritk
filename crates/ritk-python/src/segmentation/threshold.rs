@@ -1,7 +1,10 @@
 //! Automatic thresholding methods: Otsu, Li, Yen, Kapur, Triangle, Multi-Otsu, binary threshold.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, vec_to_image_like, with_tensor_slice, PyImage};
+use crate::image::{
+    burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image_like, with_image_slice,
+    PyImage,
+};
 use pyo3::prelude::*;
 use ritk_segmentation::threshold::huang::compute_huang_threshold_from_slice;
 use ritk_segmentation::threshold::intermodes::compute_intermodes_threshold_from_slice;
@@ -33,7 +36,7 @@ use std::sync::Arc;
 pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_otsu_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -61,7 +64,7 @@ pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 pub fn li_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_li_threshold_from_slice(slice, 256, 1000);
             let mask_vals: Vec<f32> = slice
@@ -89,7 +92,7 @@ pub fn li_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_yen_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -117,7 +120,7 @@ pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_kapur_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -138,7 +141,7 @@ pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 pub fn isodata_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_isodata_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -159,7 +162,7 @@ pub fn isodata_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 pub fn renyi_entropy_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_renyi_entropy_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -180,7 +183,7 @@ pub fn renyi_entropy_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage
 pub fn kittler_illingworth_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_kittler_illingworth_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -201,7 +204,7 @@ pub fn kittler_illingworth_threshold(py: Python<'_>, image: &PyImage) -> (f32, P
 pub fn shanbhag_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_shanbhag_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -222,7 +225,7 @@ pub fn shanbhag_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 pub fn huang_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_huang_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -243,7 +246,7 @@ pub fn huang_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 pub fn intermodes_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_intermodes_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -264,7 +267,7 @@ pub fn intermodes_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 pub fn moments_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_moments_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -292,7 +295,7 @@ pub fn moments_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 pub fn triangle_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (threshold, mask_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let threshold = compute_triangle_threshold_from_slice(slice, 256);
             let mask_vals: Vec<f32> = slice
@@ -329,7 +332,7 @@ pub fn multi_otsu_threshold(
     }
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
-    let (thresholds, label_vals) = with_tensor_slice(arc.data(), |slice| {
+    let (thresholds, label_vals) = with_image_slice(arc.as_ref(), |slice| {
         py.allow_threads(|| {
             let thresholds = compute_multi_otsu_thresholds_from_slice(slice, num_classes, 256);
             let label_vals: Vec<f32> = slice
@@ -389,11 +392,11 @@ pub fn binary_threshold_segment(
             "outside_value must be finite, got {outside_value}"
         )));
     }
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         BinaryThreshold::new(lower, upper)
             .with_values(inside_value, outside_value)
-            .apply(image.as_ref())
+            .apply(&image)
     });
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }

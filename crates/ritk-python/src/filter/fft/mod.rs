@@ -25,16 +25,15 @@ pub use frequency::{
 };
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, Backend, PyImage};
-use burn_ndarray::NdArrayDevice;
+use crate::image::{
+    burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image_like, with_image_slice,
+    PyImage,
+};
 use pyo3::prelude::*;
 use ritk_filter::{
     FftShiftFilter, ForwardFftFilter, HalfHermitianToRealInverseFftFilter, InverseFftFilter,
     RealFftShiftFilter, RealToHalfHermitianForwardFftFilter,
 };
-use ritk_image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use std::sync::Arc;
 
 /// Deinterleave a complex image `[D, H, 2W]` (real,imag pairs along X) into a
 /// real `[D, H, W]` image by mapping each `(re, im)` pair through `f`.
@@ -46,26 +45,23 @@ fn complex_map(image: &PyImage, f: impl Fn(f32, f32) -> f32) -> RitkResult<PyIma
         )));
     }
     let w = w2 / 2;
-    let data = image.inner.data_slice();
-    let mut out = vec![0.0_f32; d * h * w];
-    for z in 0..d {
-        for y in 0..h {
-            for x in 0..w {
-                let re = data[z * h * w2 + y * w2 + 2 * x];
-                let im = data[z * h * w2 + y * w2 + 2 * x + 1];
-                out[z * h * w + y * w + x] = f(re, im);
+    let out = with_image_slice(image.inner.as_ref(), |data| {
+        let mut out = vec![0.0_f32; d * h * w];
+        for z in 0..d {
+            for y in 0..h {
+                for x in 0..w {
+                    let re = data[z * h * w2 + y * w2 + 2 * x];
+                    let im = data[z * h * w2 + y * w2 + 2 * x + 1];
+                    out[z * h * w + y * w + x] = f(re, im);
+                }
             }
         }
-    }
-    let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(out, Shape::new([d, h, w])),
-        &NdArrayDevice::default(),
-    );
-    Ok(into_py_image(Image::new(
-        tensor,
-        *image.inner.origin(),
-        *image.inner.spacing(),
-        *image.inner.direction(),
+        out
+    });
+    Ok(into_py_image(vec_to_image_like(
+        out,
+        [d, h, w],
+        image.inner.as_ref(),
     )))
 }
 
@@ -84,28 +80,26 @@ fn build_complex(
             b.inner.shape()
         )));
     }
-    let da = a.inner.data_slice();
-    let db = b.inner.data_slice();
-    let w2 = w * 2;
-    let mut out = vec![0.0_f32; d * h * w2];
-    for z in 0..d {
-        for y in 0..h {
-            for x in 0..w {
-                let (re, im) = f(da[z * h * w + y * w + x], db[z * h * w + y * w + x]);
-                out[z * h * w2 + y * w2 + 2 * x] = re;
-                out[z * h * w2 + y * w2 + 2 * x + 1] = im;
+    let out = with_image_slice(a.inner.as_ref(), |da| {
+        with_image_slice(b.inner.as_ref(), |db| {
+            let w2 = w * 2;
+            let mut out = vec![0.0_f32; d * h * w2];
+            for z in 0..d {
+                for y in 0..h {
+                    for x in 0..w {
+                        let (re, im) = f(da[z * h * w + y * w + x], db[z * h * w + y * w + x]);
+                        out[z * h * w2 + y * w2 + 2 * x] = re;
+                        out[z * h * w2 + y * w2 + 2 * x + 1] = im;
+                    }
+                }
             }
-        }
-    }
-    let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(out, Shape::new([d, h, w2])),
-        &NdArrayDevice::default(),
-    );
-    Ok(into_py_image(Image::new(
-        tensor,
-        *a.inner.origin(),
-        *a.inner.spacing(),
-        *a.inner.direction(),
+            out
+        })
+    });
+    Ok(into_py_image(vec_to_image_like(
+        out,
+        [d, h, w * 2],
+        a.inner.as_ref(),
     )))
 }
 
@@ -174,13 +168,13 @@ pub fn complex_to_phase(image: &PyImage) -> RitkResult<PyImage> {
 ///     RuntimeError: on internal FFT failure.
 #[pyfunction]
 pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         ForwardFftFilter::new()
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Real-to-half-Hermitian forward FFT, matching
@@ -198,13 +192,13 @@ pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     Half-Hermitian complex PyImage of shape [D, H, 2*(W/2+1)].
 #[pyfunction]
 pub fn real_to_half_hermitian_forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         RealToHalfHermitianForwardFftFilter::new()
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Half-Hermitian-to-real inverse FFT, matching
@@ -228,13 +222,13 @@ pub fn half_hermitian_to_real_inverse_fft(
     image: &PyImage,
     actual_x_is_odd: bool,
 ) -> RitkResult<PyImage> {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         HalfHermitianToRealInverseFftFilter::new(actual_x_is_odd)
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply the inverse FFT to a complex frequency-domain image.
@@ -255,13 +249,13 @@ pub fn half_hermitian_to_real_inverse_fft(
 ///     RuntimeError: on internal IFFT failure.
 #[pyfunction]
 pub fn inverse_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         InverseFftFilter::new()
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply FFT shift to a complex frequency-domain image.
@@ -283,13 +277,13 @@ pub fn inverse_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     RuntimeError: on internal shift failure.
 #[pyfunction]
 pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         FftShiftFilter::new()
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Shift a real-valued spatial-domain image so that the zero-frequency
@@ -316,11 +310,11 @@ pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     RuntimeError: on internal tensor extraction failure.
 #[pyfunction]
 pub fn real_fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         RealFftShiftFilter::new()
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

@@ -1,6 +1,6 @@
 //! Gaussian-family smoothing filters: FIR Gaussian, discrete Gaussian, and recursive Gaussian (IIR).
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, Backend, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, BurnBackend, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::recursive_gaussian::DerivativeOrder;
@@ -30,12 +30,13 @@ pub enum PySpacingMode {
 #[pyfunction]
 #[pyo3(signature = (image, sigma))]
 pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
-        let filter = GaussianFilter::<Backend>::new(vec![GaussianSigma::new_unchecked(sigma); 3]);
-        filter.apply(image.as_ref())
+        let filter =
+            GaussianFilter::<BurnBackend>::new(vec![GaussianSigma::new_unchecked(sigma); 3]);
+        filter.apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Apply ITK-style discrete Gaussian smoothing parameterized by variance.
@@ -64,21 +65,22 @@ pub fn discrete_gaussian(
     maximum_error: f64,
     spacing_mode: PySpacingMode,
 ) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let spacing_mode = match spacing_mode {
             PySpacingMode::Physical => ritk_filter::discrete_gaussian::SpacingMode::Physical,
             PySpacingMode::Voxel => ritk_filter::discrete_gaussian::SpacingMode::Voxel,
         };
-        let filter = DiscreteGaussianFilter::<Backend>::new(vec![ritk_filter::GaussianSigma::new(
-            variance.sqrt(),
-        )
-        .expect("invariant: variance must be positive (validated by caller)")])
-        .with_maximum_error(maximum_error)
-        .with_spacing_mode(spacing_mode);
-        filter.apply(image.as_ref())
+        let filter =
+            DiscreteGaussianFilter::<BurnBackend>::new(vec![ritk_filter::GaussianSigma::new(
+                variance.sqrt(),
+            )
+            .expect("invariant: variance must be positive (validated by caller)")])
+            .with_maximum_error(maximum_error)
+            .with_spacing_mode(spacing_mode);
+        filter.apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Apply the discrete Gaussian derivative filter.
@@ -104,7 +106,7 @@ pub fn discrete_gaussian_derivative(
     maximum_error: f64,
     use_image_spacing: bool,
 ) -> PyImage {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     // sitk (x, y, z) → ritk axis-major (z, y, x).
     let order = [order_z, order_y, order_x];
     let result = py.allow_threads(|| {
@@ -114,9 +116,9 @@ pub fn discrete_gaussian_derivative(
             maximum_error,
             use_image_spacing,
         )
-        .apply(image.as_ref())
+        .apply(&image)
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Apply a recursive Gaussian (Young–van Vliet 3rd-order IIR) filter.
@@ -155,14 +157,14 @@ pub fn recursive_gaussian(
             )));
         }
     };
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = RecursiveGaussianFilter::new(sigma).with_derivative_order(derivative_order);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply the single-axis recursive (Deriche) Gaussian or its directional
@@ -212,15 +214,15 @@ pub fn recursive_gaussian_directional(
             "recursive_gaussian_directional: direction must be 0, 1, or 2, got {direction}"
         )));
     }
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         ritk_filter::recursive_gaussian::recursive_gaussian_directional(
-            image.as_ref(),
+            &image,
             sigma,
             derivative_order,
             direction,
         )
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 pyo3 = { workspace = true }
 numpy = { workspace = true }
+coeus-core = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }

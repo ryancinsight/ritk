@@ -5,11 +5,10 @@
 //! principal moments, centroid, and Feret diameter.
 
 use crate::errors::RitkResult;
-use crate::image::PyImage;
+use crate::image::{py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_statistics::label_shape_extended::compute_label_shape_statistics_extended;
-use std::sync::Arc;
 
 /// Compute extended per-label shape statistics from a label image.
 ///
@@ -45,8 +44,8 @@ pub fn extended_label_shape_statistics_py(
     py: Python<'_>,
     label_image: &PyImage,
 ) -> RitkResult<Py<PyList>> {
-    let img = Arc::clone(&label_image.inner);
-    let stats = py.allow_threads(|| compute_label_shape_statistics_extended(img.as_ref()));
+    let img = py_image_to_burn(label_image);
+    let stats = py.allow_threads(|| compute_label_shape_statistics_extended(&img));
 
     let list = PyList::empty_bound(py);
     for s in &stats {

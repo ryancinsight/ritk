@@ -154,3 +154,6 @@ hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
 
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "../melinoe" }
+
+[patch."https://github.com/ryancinsight/themis"]
+themis = { path = "../themis" }

@@ -16,7 +16,7 @@
 //! indicates folding (anatomically invalid).
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_statistics::jacobian;
 
@@ -45,14 +45,14 @@ pub fn jacobian_determinant(
     disp_y: &PyImage,
     disp_x: &PyImage,
 ) -> RitkResult<PyImage> {
-    let dz = std::sync::Arc::clone(&disp_z.inner);
-    let dy = std::sync::Arc::clone(&disp_y.inner);
-    let dx = std::sync::Arc::clone(&disp_x.inner);
+    let dz = py_image_to_burn(disp_z);
+    let dy = py_image_to_burn(disp_y);
+    let dx = py_image_to_burn(disp_x);
     py.allow_threads(|| {
-        jacobian::jacobian_determinant(dz.as_ref(), dy.as_ref(), dx.as_ref())
+        jacobian::jacobian_determinant(&dz, &dy, &dx)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Analyze a Jacobian determinant field and return summary statistics.
@@ -86,10 +86,9 @@ pub fn analyze_jacobian<'a>(
     py: Python<'a>,
     jac: &PyImage,
 ) -> RitkResult<pyo3::Bound<'a, pyo3::types::PyDict>> {
-    let jac_inner = std::sync::Arc::clone(&jac.inner);
+    let jac_inner = py_image_to_burn(jac);
     let stats = py.allow_threads(|| {
-        jacobian::analyze_jacobian(jac_inner.as_ref())
-            .map_err(|e| RitkPyError::runtime(e.to_string()))
+        jacobian::analyze_jacobian(&jac_inner).map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     let dict = pyo3::types::PyDict::new_bound(py);
     dict.set_item("min", stats.min)

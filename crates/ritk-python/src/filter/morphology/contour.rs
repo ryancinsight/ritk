@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{BinaryContourImageFilter, Connectivity, LabelContourImageFilter};
 
@@ -14,14 +14,14 @@ pub fn binary_contour(
     fully_connected: bool,
     foreground_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         BinaryContourImageFilter::new(conn, foreground_value)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Label contour: mark the boundary voxels of every labelled region (voxels
@@ -35,14 +35,14 @@ pub fn label_contour(
     fully_connected: bool,
     background_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         LabelContourImageFilter::new(conn, background_value)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Extract iso-contours at `contour_value` from a 2-D image (`z == 1`) by
@@ -66,10 +66,9 @@ pub fn contour_extractor_2d(
     image: &PyImage,
     contour_value: f32,
 ) -> Vec<Vec<(f64, f64)>> {
-    let arc = std::sync::Arc::clone(&image.inner);
-    let contours = py.allow_threads(|| {
-        ritk_filter::ContourExtractor2DImageFilter { contour_value }.apply(arc.as_ref())
-    });
+    let arc = py_image_to_burn(image);
+    let contours = py
+        .allow_threads(|| ritk_filter::ContourExtractor2DImageFilter { contour_value }.apply(&arc));
     contours
         .into_iter()
         .map(|c| c.into_iter().map(|p| (p.y as f64, p.x as f64)).collect())

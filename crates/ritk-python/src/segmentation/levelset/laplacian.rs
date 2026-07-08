@@ -1,11 +1,10 @@
 //! Laplacian level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_segmentation::LaplacianLevelSet;
-use std::sync::Arc;
 
 /// Configuration options for [`laplacian_level_set_segment`].
 #[pyclass(name = "LaplacianLevelSetOptions")]
@@ -79,8 +78,8 @@ pub fn laplacian_level_set_segment(
 ) -> RitkResult<PyImage> {
     let opts =
         opts.unwrap_or_else(|| PyLaplacianLevelSetOptions::new(1.0, 0.2, 1.0, 0.05, 200, 1e-3));
-    let image_arc = Arc::clone(&image.inner);
-    let phi_arc = Arc::clone(&initial_phi.inner);
+    let image_arc = py_image_to_burn(image);
+    let phi_arc = py_image_to_burn(initial_phi);
     py.allow_threads(|| {
         let mut seg = LaplacianLevelSet::new();
         seg.propagation_weight = opts.propagation_weight;
@@ -89,9 +88,8 @@ pub fn laplacian_level_set_segment(
         seg.dt = opts.dt;
         seg.max_iterations = opts.max_iterations;
         seg.tolerance = opts.tolerance;
-        seg.apply(image_arc.as_ref(), phi_arc.as_ref())
-            .map_err(|e| e.to_string())
+        seg.apply(&image_arc, &phi_arc).map_err(|e| e.to_string())
     })
     .map_err(RitkPyError::runtime)
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

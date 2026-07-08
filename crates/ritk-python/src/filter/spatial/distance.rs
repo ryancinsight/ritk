@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{SignedDistanceTransformImageFilter, SignedMaurerDistanceMapImageFilter};
 use ritk_segmentation::DistanceTransform;
@@ -57,14 +57,12 @@ pub fn distance_transform(
     foreground_threshold: f32,
     metric: PyDistanceMetric,
 ) -> PyImage {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     let result = py.allow_threads(|| match metric {
-        PyDistanceMetric::Euclidean => {
-            DistanceTransform::transform(arc.as_ref(), foreground_threshold)
-        }
-        PyDistanceMetric::Squared => DistanceTransform::squared(arc.as_ref(), foreground_threshold),
+        PyDistanceMetric::Euclidean => DistanceTransform::transform(&arc, foreground_threshold),
+        PyDistanceMetric::Squared => DistanceTransform::squared(&arc, foreground_threshold),
     });
-    into_py_image(result)
+    burn_into_py_image(result)
 }
 
 /// Signed Euclidean distance map of a binary image (physical units).
@@ -84,14 +82,14 @@ pub fn signed_distance_map(
     image: &PyImage,
     foreground_threshold: f32,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     py.allow_threads(|| {
         SignedDistanceTransformImageFilter::new()
             .with_threshold(foreground_threshold)
-            .apply(arc.as_ref())
+            .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Signed Maurer distance map, bit-exact to `sitk.SignedMaurerDistanceMap`.
@@ -117,7 +115,7 @@ pub fn signed_maurer_distance_map(
     use_image_spacing: bool,
     background_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc = std::sync::Arc::clone(&image.inner);
+    let arc = py_image_to_burn(image);
     py.allow_threads(|| {
         SignedMaurerDistanceMapImageFilter {
             background_value,
@@ -125,8 +123,8 @@ pub fn signed_maurer_distance_map(
             squared_distance,
             use_image_spacing,
         }
-        .apply(arc.as_ref())
+        .apply(&arc)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

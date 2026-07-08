@@ -1,7 +1,7 @@
 //! Vesselness filters: Frangi multiscale vesselness, Sato line filter.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::vesselness::{FrangiConfig, SatoConfig, VesselPolarity};
 use ritk_filter::{FrangiVesselnessFilter, SatoLineFilter};
@@ -73,7 +73,7 @@ pub fn frangi_vesselness(
     gamma: f64,
     polarity: PyVesselPolarity,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let config = FrangiConfig {
             scales: scales.unwrap_or_else(|| vec![0.5, 1.0, 2.0]),
@@ -84,10 +84,10 @@ pub fn frangi_vesselness(
         };
         let filter = FrangiVesselnessFilter::new(config);
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 /// Apply the Sato multi-scale line filter for curvilinear structure detection.
@@ -117,7 +117,7 @@ pub fn sato_line_filter(
     alpha: f64,
     polarity: PyVesselPolarity,
 ) -> RitkResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     py.allow_threads(|| {
         let filter = SatoLineFilter::new(SatoConfig {
             scales: scales.unwrap_or_else(|| vec![1.0, 2.0, 3.0]),
@@ -125,8 +125,8 @@ pub fn sato_line_filter(
             polarity: VesselPolarity::from(polarity),
         });
         filter
-            .apply(image.as_ref())
+            .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

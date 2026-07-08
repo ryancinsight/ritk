@@ -1,12 +1,11 @@
 use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_segmentation::{
     labeling::Connectivity as SegConnectivity, ConnectedComponentsFilter, KMeansSegmentation,
 };
-use std::sync::Arc;
 
 /// Compute per-label shape statistics from a binary mask.
 ///
@@ -38,14 +37,14 @@ pub fn label_shape_statistics(
             "connectivity must be 6 or 26, got {connectivity}"
         )));
     }
-    let mask_arc = Arc::clone(&mask.inner);
+    let mask_arc = py_image_to_burn(mask);
     let (_label_image, stats) = py.allow_threads(|| {
         let seg_conn = if connectivity == 6 {
             SegConnectivity::Six
         } else {
             SegConnectivity::TwentySix
         };
-        ConnectedComponentsFilter::with_connectivity(seg_conn).apply(mask_arc.as_ref())
+        ConnectedComponentsFilter::with_connectivity(seg_conn).apply(&mask_arc)
     });
     let list = PyList::empty_bound(py);
     for s in &stats {
@@ -91,7 +90,7 @@ pub fn kmeans_segment(
     if k < 1 {
         return Err(RitkPyError::value("k must be ≥ 1"));
     }
-    let image = Arc::clone(&image.inner);
+    let image = py_image_to_burn(image);
     let result = py.allow_threads(|| {
         let mut seg = KMeansSegmentation::new(k);
         if let Some(mi) = max_iterations {
@@ -103,7 +102,7 @@ pub fn kmeans_segment(
         if let Some(s) = seed {
             seg.seed = s;
         }
-        seg.apply(image.as_ref())
+        seg.apply(&image)
     });
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }

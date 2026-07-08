@@ -1,5 +1,4 @@
-use crate::image::{into_py_image, Backend, PyImage};
-use burn_ndarray::NdArrayDevice;
+use crate::image::{into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
@@ -7,9 +6,6 @@ use ritk_filter::{
     gaussian_image_source as core_gaussian_image_source,
     grid_image_source as core_grid_image_source,
 };
-use ritk_image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-
 /// Generate a Gaussian blob image (`itk::GaussianImageSource` / `sitk.GaussianSource`).
 ///
 /// `out(index) = scale · exp(−½ · Σ_d ((origin_d + index_d·spacing_d − mean_d)/sigma_d)²)`
@@ -37,16 +33,13 @@ pub fn gaussian_image_source(
             [spacing.0, spacing.1, spacing.2],
         )
     });
-    let device = NdArrayDevice::default();
-    let tensor = Tensor::<Backend, 3>::from_data(TensorData::new(buf, Shape::new(dims)), &device);
-    // ritk metadata is axis-major [z, y, x]; reverse the sitk (x, y, z) tuples.
-    let image = Image::new(
-        tensor,
+    into_py_image(vec_to_image(
+        buf,
+        dims,
         Point::new([origin.2, origin.1, origin.0]),
         Spacing::new([spacing.2, spacing.1, spacing.0]),
         Direction::identity(),
-    );
-    into_py_image(image)
+    ))
 }
 
 /// Generate a grid-pattern image (`itk::GridImageSource` / `sitk.GridSource`):
@@ -79,15 +72,13 @@ pub fn grid_image_source(
             [which_dimensions.0, which_dimensions.1, which_dimensions.2],
         )
     });
-    let device = NdArrayDevice::default();
-    let tensor = Tensor::<Backend, 3>::from_data(TensorData::new(buf, Shape::new(dims)), &device);
-    let image = Image::new(
-        tensor,
+    into_py_image(vec_to_image(
+        buf,
+        dims,
         Point::new([origin.2, origin.1, origin.0]),
         Spacing::new([spacing.2, spacing.1, spacing.0]),
         Direction::identity(),
-    );
-    into_py_image(image)
+    ))
 }
 
 /// Generate a Gabor-wavelet image (`itk::GaborImageSource` / `sitk.GaborSource`):
@@ -116,13 +107,11 @@ pub fn gabor_image_source(
             frequency,
         )
     });
-    let device = NdArrayDevice::default();
-    let tensor = Tensor::<Backend, 3>::from_data(TensorData::new(buf, Shape::new(dims)), &device);
-    let image = Image::new(
-        tensor,
+    into_py_image(vec_to_image(
+        buf,
+        dims,
         Point::new([origin.2, origin.1, origin.0]),
         Spacing::new([spacing.2, spacing.1, spacing.0]),
         Direction::identity(),
-    );
-    into_py_image(image)
+    ))
 }

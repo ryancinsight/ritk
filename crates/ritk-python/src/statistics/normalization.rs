@@ -2,7 +2,7 @@
 //! white stripe, and Nyul-Udupa piecewise-linear standardization.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, PyImage};
+use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_statistics::normalization::white_stripe::{
     MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
@@ -10,7 +10,6 @@ use ritk_statistics::normalization::white_stripe::{
 use ritk_statistics::normalization::{
     HistogramMatcher, MinMaxNormalizer, NyulUdupaNormalizer, ZScoreNormalizer,
 };
-use std::sync::Arc;
 
 /// Validate that `target_min < target_max` for a min-max range normalization.
 pub(super) fn validate_range(target_min: f32, target_max: f32) -> Result<(), String> {
@@ -58,7 +57,7 @@ pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
 ///     Normalized PyImage with intensities in [0, 1].
 #[pyfunction]
 pub fn minmax_normalize(image: &PyImage) -> PyImage {
-    into_py_image(MinMaxNormalizer::new().normalize(image.inner.as_ref()))
+    burn_into_py_image(MinMaxNormalizer::new().normalize(&py_image_to_burn(image)))
 }
 
 /// Normalize image intensities to [target_min, target_max] via min-max rescaling.
@@ -81,8 +80,8 @@ pub fn minmax_normalize_range(
     if let Err(e) = validate_range(target_min, target_max) {
         return Err(RitkPyError::value(e));
     }
-    Ok(into_py_image(
-        MinMaxNormalizer::with_range(target_min, target_max).normalize(image.inner.as_ref()),
+    Ok(burn_into_py_image(
+        MinMaxNormalizer::with_range(target_min, target_max).normalize(&py_image_to_burn(image)),
     ))
 }
 
@@ -104,7 +103,7 @@ pub fn zscore_normalize(
     image: &PyImage,
     mask: Option<&PyImage>,
 ) -> RitkResult<PyImage> {
-    let image_arc = Arc::clone(&image.inner);
+    let image_arc = py_image_to_burn(image);
     let result = match mask {
         Some(m) => {
             if image_arc.shape() != m.inner.shape() {
@@ -112,14 +111,12 @@ pub fn zscore_normalize(
                     "zscore_normalize: mask must have the same shape as image",
                 ));
             }
-            let mask_arc = Arc::clone(&m.inner);
-            py.allow_threads(|| {
-                ZScoreNormalizer::new().normalize_masked(image_arc.as_ref(), mask_arc.as_ref())
-            })
+            let mask_arc = py_image_to_burn(m);
+            py.allow_threads(|| ZScoreNormalizer::new().normalize_masked(&image_arc, &mask_arc))
         }
-        None => py.allow_threads(|| ZScoreNormalizer::new().normalize(image_arc.as_ref())),
+        None => py.allow_threads(|| ZScoreNormalizer::new().normalize(&image_arc)),
     };
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }
 
 /// Match the intensity histogram of a source image to a reference image.
@@ -154,15 +151,15 @@ pub fn histogram_match(
             "histogram_match: num_bins must be ≥ 2, got {num_bins}"
         )));
     }
-    let source_arc = Arc::clone(&source.inner);
-    let reference_arc = Arc::clone(&reference.inner);
+    let source_arc = py_image_to_burn(source);
+    let reference_arc = py_image_to_burn(reference);
     let result = py.allow_threads(|| {
         HistogramMatcher::new(num_bins)
             .with_match_points(num_match_points)
             .with_threshold_at_mean(threshold_at_mean)
-            .match_histograms(source_arc.as_ref(), reference_arc.as_ref())
+            .match_histograms(&source_arc, &reference_arc)
     });
-    Ok(into_py_image(result))
+    Ok(burn_into_py_image(result))
 }
 
 /// Normalize a brain MRI using the Shinohara et al. (2014) white stripe method.
@@ -207,16 +204,16 @@ pub fn white_stripe_normalize(
         ..Default::default()
     };
 
-    let image_arc = Arc::clone(&image.inner);
-    let mask_arc = mask.map(|m| Arc::clone(&m.inner));
+    let image_arc = py_image_to_burn(image);
+    let mask_arc = mask.map(py_image_to_burn);
 
     let result = py.allow_threads(|| {
-        let mask_ref = mask_arc.as_ref().map(|arc| arc.as_ref());
-        WhiteStripeNormalizer::normalize(image_arc.as_ref(), mask_ref, &config)
+        let mask_ref = mask_arc.as_ref();
+        WhiteStripeNormalizer::normalize(&image_arc, mask_ref, &config)
     });
 
     Ok((
-        into_py_image(result.normalized),
+        burn_into_py_image(result.normalized),
         result.mu,
         result.sigma,
         result.wm_peak,
@@ -262,24 +259,21 @@ pub fn nyul_udupa_normalize(
 
     let training_arcs: Vec<_> = training_images
         .iter()
-        .map(|py_img| py_img.inner.clone())
+        .map(|py_img| py_image_to_burn(py_img))
         .collect();
-    let input_arc = image.inner.clone();
+    let input_arc = py_image_to_burn(image);
 
     py.allow_threads(|| {
-        let refs: Vec<&ritk_image::Image<crate::image::Backend, 3>> =
-            training_arcs.iter().map(|a| a.as_ref()).collect();
+        let refs: Vec<_> = training_arcs.iter().collect();
         let mut normalizer = match percentiles {
             Some(p) => NyulUdupaNormalizer::with_percentiles(p),
             None => NyulUdupaNormalizer::new(),
         };
         normalizer.learn_standard(&refs);
-        normalizer
-            .apply(input_arc.as_ref())
-            .map_err(|e| e.to_string())
+        normalizer.apply(&input_arc).map_err(|e| e.to_string())
     })
     .map_err(RitkPyError::runtime)
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }
 
 #[cfg(test)]

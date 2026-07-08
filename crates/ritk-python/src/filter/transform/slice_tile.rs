@@ -1,10 +1,10 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{into_py_image, Backend, PyImage};
-use burn_ndarray::NdArrayDevice;
+use crate::image::{
+    burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image, vec_to_image_like,
+    with_image_slice, PyImage,
+};
 use pyo3::prelude::*;
 use ritk_filter::PasteImageFilter;
-use ritk_image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 /// Extract a strided sub-region (numpy-style `start:stop:step` per axis).
 /// `start`/`stop`/`step` are `(z, y, x)` in ritk tensor order; each axis keeps
@@ -44,16 +44,17 @@ pub fn slice_image(
         ));
     }
     let out = py.allow_threads(|| {
-        let data = arc.data_slice();
-        let mut out = vec![0.0_f32; oz * oy * ox];
-        for (a, &z) in zi.iter().enumerate() {
-            for (b, &y) in yi.iter().enumerate() {
-                for (c, &x) in xi.iter().enumerate() {
-                    out[a * oy * ox + b * ox + c] = data[z * ny * nx + y * nx + x];
+        with_image_slice(arc.as_ref(), |data| {
+            let mut out = vec![0.0_f32; oz * oy * ox];
+            for (a, &z) in zi.iter().enumerate() {
+                for (b, &y) in yi.iter().enumerate() {
+                    for (c, &x) in xi.iter().enumerate() {
+                        out[a * oy * ox + b * ox + c] = data[z * ny * nx + y * nx + x];
+                    }
                 }
             }
-        }
-        out
+            out
+        })
     });
     // Shift the origin to the first kept voxel (per-axis spacing).
     let sp = arc.spacing().to_array();
@@ -63,11 +64,9 @@ pub fn slice_image(
         orig[1] + yi[0] as f64 * sp[1],
         orig[2] + xi[0] as f64 * sp[2],
     ]);
-    let device = NdArrayDevice::default();
-    let tensor =
-        Tensor::<Backend, 3>::from_data(TensorData::new(out, Shape::new([oz, oy, ox])), &device);
-    Ok(into_py_image(Image::new(
-        tensor,
+    Ok(into_py_image(vec_to_image(
+        out,
+        [oz, oy, ox],
         new_origin,
         *arc.spacing(),
         *arc.direction(),
@@ -99,34 +98,32 @@ pub fn checker_board(
     }
     let (px, py_, pz) = pattern; // sitk x, y, z cells
     let out = py.allow_threads(|| {
-        let da = a.data_slice();
-        let db = b.data_slice();
-        let mut out = vec![0.0_f32; nz * ny * nx];
-        for z in 0..nz {
-            let cz = z * pz / nz;
-            for y in 0..ny {
-                let cy = y * py_ / ny;
-                for x in 0..nx {
-                    let cx = x * px / nx;
-                    let i = z * ny * nx + y * nx + x;
-                    out[i] = if (cx + cy + cz) % 2 == 0 {
-                        da[i]
-                    } else {
-                        db[i]
-                    };
+        with_image_slice(a.as_ref(), |da| {
+            with_image_slice(b.as_ref(), |db| {
+                let mut out = vec![0.0_f32; nz * ny * nx];
+                for z in 0..nz {
+                    let cz = z * pz / nz;
+                    for y in 0..ny {
+                        let cy = y * py_ / ny;
+                        for x in 0..nx {
+                            let cx = x * px / nx;
+                            let i = z * ny * nx + y * nx + x;
+                            out[i] = if (cx + cy + cz) % 2 == 0 {
+                                da[i]
+                            } else {
+                                db[i]
+                            };
+                        }
+                    }
                 }
-            }
-        }
-        out
+                out
+            })
+        })
     });
-    let device = NdArrayDevice::default();
-    let tensor =
-        Tensor::<Backend, 3>::from_data(TensorData::new(out, Shape::new([nz, ny, nx])), &device);
-    Ok(into_py_image(Image::new(
-        tensor,
-        *a.origin(),
-        *a.spacing(),
-        *a.direction(),
+    Ok(into_py_image(vec_to_image_like(
+        out,
+        [nz, ny, nx],
+        a.as_ref(),
     )))
 }
 
@@ -175,26 +172,23 @@ pub fn tile(
             }
             let ty = (i / nx) % ny;
             let tx = i % nx;
-            let data = a.data_slice();
-            for z in 0..hz {
-                for y in 0..hy {
-                    for x in 0..hx {
-                        let oi = (tz * hz + z) * oy * ox + (ty * hy + y) * ox + (tx * hx + x);
-                        out[oi] = data[z * hy * hx + y * hx + x];
+            with_image_slice(a.as_ref(), |data| {
+                for z in 0..hz {
+                    for y in 0..hy {
+                        for x in 0..hx {
+                            let oi = (tz * hz + z) * oy * ox + (ty * hy + y) * ox + (tx * hx + x);
+                            out[oi] = data[z * hy * hx + y * hx + x];
+                        }
                     }
                 }
-            }
+            });
         }
         out
     });
-    let device = NdArrayDevice::default();
-    let tensor =
-        Tensor::<Backend, 3>::from_data(TensorData::new(out, Shape::new([oz, oy, ox])), &device);
-    Ok(into_py_image(Image::new(
-        tensor,
-        *arcs[0].origin(),
-        *arcs[0].spacing(),
-        *arcs[0].direction(),
+    Ok(into_py_image(vec_to_image_like(
+        out,
+        [oz, oy, ox],
+        arcs[0].as_ref(),
     )))
 }
 
@@ -223,20 +217,13 @@ pub fn join_series(py: Python<'_>, images: Vec<Py<PyImage>>) -> RitkResult<PyIma
             )));
         }
         total_z += zi;
-        data.extend_from_slice(&a.data_slice());
+        with_image_slice(a.as_ref(), |slice| data.extend_from_slice(slice));
     }
-    let device = NdArrayDevice::default();
-    let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data, Shape::new([total_z, ny, nx])),
-        &device,
-    );
-    let out = Image::new(
-        tensor,
-        *arcs[0].origin(),
-        *arcs[0].spacing(),
-        *arcs[0].direction(),
-    );
-    Ok(into_py_image(out))
+    Ok(into_py_image(vec_to_image_like(
+        data,
+        [total_z, ny, nx],
+        arcs[0].as_ref(),
+    )))
 }
 
 /// Paste `source` into a copy of `dest` at `dest_start` `(z, y, x)`. ITK Parity:
@@ -248,12 +235,12 @@ pub fn paste(
     source: &PyImage,
     dest_start: (usize, usize, usize),
 ) -> RitkResult<PyImage> {
-    let d = std::sync::Arc::clone(&dest.inner);
-    let s = std::sync::Arc::clone(&source.inner);
+    let d = py_image_to_burn(dest);
+    let s = py_image_to_burn(source);
     py.allow_threads(|| {
         PasteImageFilter::new([dest_start.0, dest_start.1, dest_start.2])
-            .apply(d.as_ref(), s.as_ref())
+            .apply(&d, &s)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(into_py_image)
+    .map(burn_into_py_image)
 }

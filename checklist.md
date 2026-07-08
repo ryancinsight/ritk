@@ -1,19 +1,10 @@
-> ## Vocabulary policy (canonical atlas-migration terms-of-art)
+> ## Vocabulary policy
 >
-> **Canonical functional terms-of-art (preserve)**:
-> - `Atlas-typed` (the CoeUs/MoiraiBackend-typed twin type-system family that pairs with `Burn-keyed` as the atomic-boundary partition term per ADR 0012 §Decision §1)
-> - `Atlas-side` (the additive production-side / subtractive test-side partition — pairs with `Burn-side`)
-> - `Atlas-only` (the validation-gate constraint term, e.g. "Atlas-only backend trait assertion")
-> - `Atlas-meta` (the atlas-meta repo/branch identifier, codex/kwavers-atlas-integration)
-> - `Atlas-native` (a label for modules/edges that route through native CoeUs/Eunomia/Leto without burn-compat shims)
-> - `Atlas-backed` (a label for migration-push surfaces that pivot the atlas-meta pointer as the migration carrier)
->
-> **Discouraged compounds (drop)**:
-> - `Atlas-parent` (collapse to atlas-meta reference)
-> - `Atlas-root` (collapse to atlas-meta working-tree reference)
-> - `Atlas-provider` (collapse to bare `Atlas` per the canonical `<Atlas>X` mapping, preserving the noun phrase that follows)
->
-> Cross-document consistency with the atlas-meta PM-doc surface; rubric tracked in atlas-meta `## Atlas dependency cleanup` ledger.
+> New migration text uses provider/native names directly (`Coeus`,
+> `MoiraiBackend`, `Leto`, `Eunomia`, `native`) and does not introduce new
+> `Atlas-*` migration labels. Historical PM entries retain their original
+> wording unless touched by the current slice. Domain medical-atlas terms are
+> preserved.
 
 # RITK Sprint Checklist — Active
 
@@ -31,18 +22,15 @@
       absent.
 - [x] Verify the bounded slice. Evidence: `rustup run nightly cargo fmt -p
       ritk-spatial --check` passed; `rustup run nightly cargo check -p
-      ritk-spatial` passed once after the edit and updated `Cargo.lock` to
-      remove `burn` from `ritk-spatial`'s dependency list; `rg -n
+      ritk-spatial` passed; `rustup run nightly cargo nextest run -p
+      ritk-spatial --status-level fail --no-fail-fast` passed 40/40; `rg -n
       "Burn|burn|ModuleDisplay|AutodiffModule|Record<|crate::burn"
-      crates\ritk-spatial` returns no matches.
+      crates\ritk-spatial` returns no matches; `rustup run nightly cargo tree
+      -p ritk-spatial -i burn` reports no matching `burn` package.
 
 ### Residual risk (gap_audit.md candidates)
-- Follow-on Cargo invocations are blocked before compile by existing workspace
-  dependency drift: `themis v0.9.17` requires `melinoe ^0.7.0`, while the
-  current `melinoe.git` candidate and local patch expose `melinoe 0.8.0`.
-  This blocks the attempted `cargo nextest run -p ritk-spatial --status-level
-  fail --no-fail-fast`, `cargo tree -p ritk-spatial -i burn`, and direct
-  consumer `cargo check` slice; it is not caused by the `ritk-spatial` diff.
+- The broader workspace still contains Burn/Burn-ndarray manifest lines outside
+  `ritk-spatial`; this slice closes only the spatial value-type hook.
 
 ## DEP-497-01 — Dead `burn` production-dep strip (17 leaf crates)
 **Target version**: 0.14.0 (no bump — dependency-only, no public API change)
@@ -176,9 +164,9 @@
 
 ## MIG-496-04 — Python Native Image I/O Cutover
 **Target version**: 0.14.0
-**Sprint phase**: Closure
+**Sprint phase**: Closure complete for this slice
 
-### In-flight plan (MIG-496-04)
+### Completed plan (MIG-496-04)
 - [x] Add a shared `ritk-io` native image dispatch surface over the existing
       native `ImageReader`/`ImageWriter` adapters. Completion condition:
       `read_image_native`/`write_image_native` select native readers/writers
@@ -188,13 +176,21 @@
       Burn `NdArrayDevice` construction.
 - [x] Add value-semantic Python coverage for NRRD/NIfTI native round trips and
       explicit VTK rejection while VTK lacks a native image writer.
-- [ ] Run focused Rust/Python gates after shared Cargo lock contention clears.
-      Attempted `rustup run nightly cargo nextest run -p ritk-io
-      native_dispatch --status-level fail --no-fail-fast`,
-      `rustup run nightly cargo nextest run -p ritk-python native
-      --status-level fail --no-fail-fast`, and `rustup run nightly cargo check
-      -p ritk-io --lib`; each blocked on the shared package/build/artifact
-      locks before compiling this slice.
+- [x] Remove residual unused imports and the dead local scalar constructor left
+      by the Python native image cutover. Completion condition: the PyO3 crate
+      compiles without warnings.
+- [x] Run focused Rust gates. Evidence: `rustup run nightly cargo fmt -p
+      ritk-python --check` passed; `rustup run nightly cargo check -p
+      ritk-python` passed; `rustup run nightly cargo clippy -p ritk-python
+      --all-targets -- -D warnings` passed; `rustup run nightly cargo nextest
+      run -p ritk-python --status-level fail --no-fail-fast` passed 47/47.
+
+### Residual risk (gap_audit.md candidates)
+- The Python processing surface still contains 54 `crates/ritk-python/src`
+  files with Burn bridge symbols (`burn_into_py_image`, `py_image_to_burn`,
+  `BurnBackend`, `BurnImage`, `burn_ndarray`, or `burn::`). This slice closes
+  native image I/O plus warning hygiene, not full Python filter/segmentation
+  Burn removal.
 
 ## ADR-0003-02 — CLI Native Loading Cutover
 **Target version**: 0.14.0
