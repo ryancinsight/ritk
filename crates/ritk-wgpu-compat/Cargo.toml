@@ -6,5 +6,8 @@ edition = "2021"
 [dependencies]
 burn-ndarray = { workspace = true }
 burn = { workspace = true }
+coeus-core = { workspace = true }
+coeus-tensor = { workspace = true }
+hephaestus-wgpu = { path = "../../../hephaestus/crates/hephaestus-wgpu", default-features = false }
 
 [dev-dependencies]

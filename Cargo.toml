@@ -64,10 +64,11 @@ ritk-annotation = { path = "crates/ritk-annotation" }
 ritk-tensor-ops = { path = "crates/ritk-tensor-ops" }
 ritk-statistics = { path = "crates/ritk-statistics" }
 gaia = { path = "../gaia", default-features = false }
-
-criterion = { version = "0.5", features = ["html_reports"] }
 burn = { version = "0.19", default-features = false, features = ["std", "ndarray", "autodiff"] }
 burn-ndarray = "0.19" # For CPU testing
+
+criterion = { version = "0.5", features = ["html_reports"] }
+coeus-nn = { path = "../coeus/coeus-nn" }
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.8.0", default-features = false }
@@ -140,6 +141,12 @@ moirai = { path = "../moirai/moirai" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne.git"]
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
+mnemosyne-core = { path = "../mnemosyne/crates/mnemosyne-core" }
+mnemosyne-arena = { path = "../mnemosyne/crates/mnemosyne-arena" }
+mnemosyne-backend = { path = "../mnemosyne/crates/mnemosyne-backend" }
+mnemosyne-decay = { path = "../mnemosyne/crates/mnemosyne-decay" }
+mnemosyne-heap = { path = "../mnemosyne/crates/mnemosyne-heap" }
+mnemosyne-local = { path = "../mnemosyne/crates/mnemosyne-local" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
 eunomia = { path = "../eunomia/crates/eunomia" }
