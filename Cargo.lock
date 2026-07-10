@@ -7927,6 +7927,7 @@ dependencies = [
  "coeus-ops",
  "coeus-tensor",
  "criterion",
+ "eunomia",
  "image 0.24.9",
  "leto",
  "leto-ops",

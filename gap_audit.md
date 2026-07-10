@@ -8,6 +8,24 @@
 
 # RITK Gap Audit - Active
 
+## MIG-503-01 audit (2026-07-10)
+
+Helios H-064 needs generic integer-voxel translation registration, but the
+algorithm was consumer-owned and RITK had no equivalent provider API. The new
+RITK owner accepts borrowed contiguous `[z, y, x]` volumes and selects SSD or
+NCC through sealed zero-sized metric policies. Candidate traversal, overlap
+handling, and native-precision accumulation exist once; no Helios-shaped
+adapter, array conversion, allocation, Burn, ndarray, or nalgebra boundary is
+introduced.
+
+Evidence tier: exact value-semantic shift recovery across f32/f64 and both
+metrics, typed negative-path coverage, package nextest 745/745,
+warning-denied Clippy, doctests, and rustdoc. The Burn audit confirms this
+slice adds no Burn surface, but remains globally red on the pre-existing
+displacement-field drift and 18 unrelated allowlist cleanup candidates. The
+downstream Helios conversion is sequenced behind the unrelated uncommitted
+H-061 work that overlaps its PM artifacts.
+
 ## MIG-502-01 audit (2026-07-10)
 
 `ritk-minc` retained two image boundaries around one HDF5 decoder/encoder even

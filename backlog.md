@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-503-01 [minor] - Native integer translation registration (DONE).**
+  Own the generic SSD/NCC exhaustive translation search required by Helios
+  H-064 in `ritk-registration`, using borrowed flat volumes, Eunomia-native
+  arithmetic, and metric ZST dispatch. Provider implementation and focused
+  value-semantic tests are complete. Evidence: focused nextest 5/5, package
+  nextest 745/745, warning-denied Clippy, doctests, and rustdoc. Helios
+  consumption stays sequenced behind its unrelated dirty H-061 integration
+  scope.
+
 - **MIG-502-01 [major] - MINC Burn boundary deletion (DONE).**
   Promoted the Coeus-backed MINC reader/writer to the sole `ritk-minc` API,
   removed its Burn image construction/extraction paths and direct

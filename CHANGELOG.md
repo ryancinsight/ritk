@@ -8,6 +8,21 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 503: translation provider (MIG-503-01)
+
+### Added
+- Added a generic borrowed-volume integer translation search to
+  `ritk-registration`, with sealed mean-squared-difference and normalized
+  cross-correlation metric ZSTs, native Eunomia arithmetic, checked shapes,
+  and typed invalid-input failures.
+
+### Evidence
+- Exact shift recovery passes for f32/f64 with both metrics; identity,
+  malformed shape, non-finite input, and undefined-correlation cases are
+  value-checked. Package nextest passes 745/745, warning-denied Clippy is
+  clean, doctests pass 3/3 with 14 existing ignored examples, and rustdoc is
+  warning-clean.
+
 ## [Unreleased] — Sprint 502: MINC native cutover (MIG-502-01)
 
 ### Removed

@@ -8,6 +8,23 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-503-01 — Native integer translation registration
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Verify RITK has no canonical integer-voxel SSD/NCC translation search
+      and confirm the required generic scalar operations in Eunomia.
+- [x] Add one allocation-free borrowed-volume search kernel with sealed metric
+      ZSTs, native-precision reductions, checked shapes, and typed failures.
+- [x] Port exact shift recovery across f32/f64 and both metrics; add invalid
+      shape, non-finite input, constant-volume, and identity coverage.
+- [x] Complete package nextest 745/745, warning-denied Clippy, doctests 3/3
+      with 14 existing ignored examples, and warning-clean rustdoc. The Burn
+      audit remains red on the pre-existing displacement-field drift and 18
+      unrelated cleanup candidates; this slice adds no Burn surface.
+- [x] Commit and push RITK, then advance the Atlas gitlink without touching the
+      dirty original RITK or Helios worktrees.
+
 ## MIG-502-01 — MINC Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

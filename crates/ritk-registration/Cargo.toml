@@ -32,6 +32,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
+eunomia = { workspace = true }
 moirai = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
