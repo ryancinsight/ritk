@@ -8,6 +8,27 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 502: MINC native cutover (MIG-502-01)
+
+### Removed
+- Removed the Burn-backed MINC reader/writer, device wrapper types, parity-only
+  fixtures, transitional native modules, and `ritk-minc`'s direct
+  `burn-ndarray` dependency.
+
+### Changed
+- Coeus-backed `read_minc`, `write_minc`, `MincReader`, and `MincWriter` now
+  occupy the canonical crate and `ritk-io` module paths.
+
+### Breaking
+- MINC APIs now accept and return `ritk_image::native::Image`; Burn image
+  callers must migrate to the native Coeus image contract.
+
+### Evidence
+- Exact native round-trip, metadata, HDF5 signature/EOF, and hostile-shape tests
+  pass: nextest 405/405, workspace all-target compilation, warning-denied
+  Clippy, and warning-clean rustdoc. Burn audit confirms the MINC entries are
+  gone and reports one unrelated pre-existing `ritk-transform` drift.
+
 ## [Unreleased] — Sprint 501: native brain-mask providers (MIG-501-01)
 
 ### Added

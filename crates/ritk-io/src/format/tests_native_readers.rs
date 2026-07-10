@@ -140,8 +140,8 @@ fn native_minc_writer_reader_contract_round_trips() {
     let dir = tempfile::tempdir().expect("tempdir");
     assert_native_writer_reader_round_trips(
         &dir.path().join("contract.mnc"),
-        &super::minc::native::MincWriter::new(SequentialBackend),
-        &super::minc::native::MincReader::new(SequentialBackend),
+        &super::minc::MincWriter::new(SequentialBackend),
+        &super::minc::MincReader::new(SequentialBackend),
     );
 }
 
@@ -176,18 +176,6 @@ fn native_metaimage_reader_matches_burn() {
         &path,
         &super::metaimage::native::MetaImageReader::new(SequentialBackend),
         |p| ritk_metaimage::read_metaimage::<BurnBackend, _>(p, &burn_device()),
-    );
-}
-
-#[test]
-fn native_minc_reader_matches_burn() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let path = dir.path().join("vol.mnc");
-    ritk_minc::write_minc(&burn_volume([2, 3, 4]), &path).expect("minc write");
-    assert_native_reader_matches_burn(
-        &path,
-        &super::minc::native::MincReader::new(SequentialBackend),
-        |p| ritk_minc::read_minc::<BurnBackend, _>(p, &burn_device()),
     );
 }
 

@@ -1,5 +1,12 @@
 # RITK Backlog - Active Planning
 
+- **MIG-502-01 [major] - MINC Burn boundary deletion (DONE).**
+  Promoted the Coeus-backed MINC reader/writer to the sole `ritk-minc` API,
+  removed its Burn image construction/extraction paths and direct
+  `burn-ndarray` dependency, and moved `ritk-io` MINC adapters to their final
+  module path. Evidence: exact native round trips, hostile-shape rejection, package
+  nextest, warning-denied Clippy, doctests, rustdoc, and migration audit.
+
 - **MIG-501-01 [minor] - Native brain-mask operation boundaries (DONE).**
   Added Coeus-native binary threshold, connected-component labeling, and binary
   hole filling over their existing flat-buffer algorithm owners. This closes

@@ -151,18 +151,18 @@ impl ImageFormat {
     }
 }
 
-// ── Atlas-native image dispatch ───────────────────────────────────────────────
+// ── Native image dispatch ─────────────────────────────────────────────────────
 
-/// Atlas-native CPU backend used by consumer-level image I/O.
+/// Native CPU backend used by consumer-level image I/O.
 ///
 /// `SequentialBackend` keeps file I/O deterministic and avoids pulling a device
 /// runtime into CLI or Python boundary code.
 pub type NativeBackend = coeus_core::SequentialBackend;
 
-/// Atlas-native 3-D f32 image used by consumer-level image I/O.
+/// Native 3-D f32 image used by consumer-level image I/O.
 pub type NativeImage = ritk_image::native::Image<f32, NativeBackend, 3>;
 
-/// True when `fmt` has an Atlas-native reader in the unified `ritk-io` contract.
+/// True when `fmt` has a native reader in the unified `ritk-io` contract.
 #[must_use]
 pub fn is_native_read_capable(fmt: ImageFormat) -> bool {
     matches!(
@@ -179,7 +179,7 @@ pub fn is_native_read_capable(fmt: ImageFormat) -> bool {
     )
 }
 
-/// True when `fmt` has an Atlas-native writer in the unified `ritk-io` contract.
+/// True when `fmt` has a native writer in the unified `ritk-io` contract.
 ///
 /// PNG has no image writer, DICOM writes still target the legacy series writer,
 /// and VTK image I/O has not yet migrated to the native substrate.
@@ -197,7 +197,7 @@ pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
     )
 }
 
-/// Read a 3-D f32 image through the Atlas-native reader contract.
+/// Read a 3-D f32 image through the native reader contract.
 ///
 /// DICOM directories are accepted before extension inference because a series
 /// directory has no image extension.
@@ -267,7 +267,7 @@ pub fn read_image_native<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<N
     .map_err(anyhow::Error::from)
 }
 
-/// Write a 3-D f32 image through the Atlas-native writer contract.
+/// Write a 3-D f32 image through the native writer contract.
 ///
 /// # Errors
 ///

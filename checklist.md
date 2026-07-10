@@ -8,6 +8,23 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-502-01 — MINC Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Verify the MINC decode/encode cores and all production consumers already
+      have native Coeus boundaries.
+- [x] Delete the Burn reader, writer, device wrappers, differential fixtures,
+      transitional `native` modules, and direct `burn-ndarray` dependency.
+- [x] Promote native MINC adapters to their final `ritk-minc`/`ritk-io` paths.
+- [x] Complete gates: nextest 405/405; workspace all-target check clean;
+      all-target/all-feature Clippy warning-clean; rustdoc clean; doctests have
+      four existing ignored networking examples and no failures. Burn audit
+      confirms 23 manifests and no MINC entries, but remains red on unrelated
+      pre-existing `ritk-transform` allowlist drift from commit `e75d8748`.
+- [x] Commit and push the RITK increment; advance the Atlas gitlink in the
+      integration repository.
+
 ## MIG-501-01 — Native brain-mask operation boundaries
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

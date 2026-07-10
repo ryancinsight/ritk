@@ -7810,7 +7810,6 @@ name = "ritk-minc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn-ndarray",
  "coeus-core",
  "consus-core",
  "consus-hdf5",

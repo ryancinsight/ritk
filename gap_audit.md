@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## MIG-502-01 audit (2026-07-10)
+
+`ritk-minc` retained two image boundaries around one HDF5 decoder/encoder even
+though every production consumer already selected the Coeus path. The Burn
+boundary and its direct dependency are deleted; the native API now occupies the
+canonical root names and `ritk-io::format::minc` no longer carries a parallel
+module family. CLI-wide format inference remains outside this slice because
+that consumer still converts native images back into Burn images.
+
+Evidence tier: exact value/shape/metadata round trips plus adversarial truncated
+dataset rejection, nextest 405/405, warning-clean compilation/Clippy/rustdoc,
+and a workspace all-target check. The Burn audit proves MINC removal (23 direct
+Burn manifests; no MINC allowlist entries) but is globally red because
+`ritk-transform/src/transform/displacement_field/module.rs` from commit
+`e75d8748` is absent from the pre-existing allowlist; this slice does not bless
+that unrelated surface.
+
 ## MIG-501-01 audit (2026-07-10)
 
 Registration brain-mask conversion was blocked by three missing provider
