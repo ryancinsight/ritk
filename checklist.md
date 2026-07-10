@@ -8,6 +8,21 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-500-01 — Reject hidden Burn dependency relocation
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Blocked; reopen when consumers are ported to Coeus-native APIs
+
+- [x] Audit the 112-file dependency cleanup and run the strongest available
+      gates: workspace all-target compile, workspace Clippy with warnings
+      denied, migration audit, and nextest 4901/4901 all pass.
+- [x] Reject completion: the diff removes direct `burn-ndarray` declarations by
+      adding/reusing Burn re-exports in `ritk-image` and `ritk-wgpu-compat`.
+      This relocates the dependency behind compatibility aliases and does not
+      port consumers to Coeus.
+- [ ] Replace each affected consumer with its native Coeus/Leto operation,
+      delete the Burn aliases, refresh the allowlist only after real source
+      removal, and rerun the same gates.
+
 ## MIG-499-01 — Canonical native binary erosion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure complete for this slice

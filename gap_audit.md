@@ -8,6 +8,17 @@
 
 # RITK Gap Audit - Active
 
+## MIG-500-01 audit (2026-07-10)
+
+The uncommitted 112-file cleanup is not a migration. It centralizes
+`burn-ndarray::NdArray` through Burn re-exports in `ritk-image` and
+`ritk-wgpu-compat`, then rewrites consumers to those aliases. Workspace
+all-target compilation, warning-denied Clippy, the migration audit, and
+nextest (4901/4901) are green, demonstrating that the compatibility layer is
+internally consistent—not that Burn was replaced. Evidence tier: static
+dependency/API audit contradicts the intended architectural claim. The diff
+remains uncommitted pending native Coeus ports.
+
 ## MIG-499-01 audit (2026-07-10)
 
 ### Binary erosion has one canonical Coeus-native boundary

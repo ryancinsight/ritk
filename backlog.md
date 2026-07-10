@@ -1,5 +1,11 @@
 # RITK Backlog - Active Planning
 
+- **MIG-500-01 [major] - Hidden Burn dependency relocation (BLOCKED).**
+  The current 112-file working diff is green but prohibited: direct
+  `burn-ndarray` dependencies are replaced with `ritk-image`/
+  `ritk-wgpu-compat` Burn aliases. Reopen only for a consumer-by-consumer
+  Coeus-native port that deletes, rather than hides, the Burn surface.
+
 - **MIG-499-01 [major] - Canonical native binary erosion (DONE).**
   Delete the unused prefixed Coeus erosion wrapper instead of retaining a
   parallel object API. Its exact semantic tests move to the canonical native
