@@ -8,6 +8,30 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 507: TIFF native cutover (MIG-507-01)
+
+### Changed
+- Native grayscale multipage reading/writing and RGB multipage reading now
+  occupy the canonical `ritk-tiff` API paths.
+- TIFF readers grow storage fallibly after decoded-page validation; writers
+  use checked shape products and checked TIFF dimension conversions.
+- `ritk-io` owns the remaining conversion required by Burn-typed CLI consumers.
+
+### Removed
+- Removed `ritk-tiff`'s Burn reader/writer/color types, parallel native
+  modules, direct `burn-ndarray` and `ritk-core` dependencies, and Burn
+  differential fixtures.
+
+### Breaking
+- `ritk-tiff` APIs now accept a Coeus backend and consume or return native
+  grayscale/color images. Burn callers migrate through `ritk-io` or to native
+  image contracts.
+
+### Evidence
+- All-target compilation, provider nextest 13/13, combined nextest 378/378,
+  warning-denied Clippy, doctests, and rustdoc pass. The Burn audit drops to 20
+  manifests and 591 source files with no TIFF residue.
+
 ## [Unreleased] — Sprint 506: PNG native cutover (MIG-506-01)
 
 ### Changed

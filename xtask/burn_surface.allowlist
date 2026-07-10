@@ -18,7 +18,6 @@ manifest:crates/ritk-segmentation/Cargo.toml
 manifest:crates/ritk-snap/Cargo.toml
 manifest:crates/ritk-statistics/Cargo.toml
 manifest:crates/ritk-tensor-ops/Cargo.toml
-manifest:crates/ritk-tiff/Cargo.toml
 manifest:crates/ritk-transform/Cargo.toml
 manifest:crates/ritk-wgpu-compat/Cargo.toml
 source:crates/ritk-cli/src/commands/convert.rs
@@ -584,10 +583,6 @@ source:crates/ritk-statistics/src/value_indices/tests.rs
 source:crates/ritk-tensor-ops/src/native.rs
 source:crates/ritk-tensor-ops/src/tests_native.rs
 source:crates/ritk-tensor-ops/src/tests_tensor_ops.rs
-source:crates/ritk-tiff/src/color.rs
-source:crates/ritk-tiff/src/reader.rs
-source:crates/ritk-tiff/src/tests_reader.rs
-source:crates/ritk-tiff/src/writer.rs
 source:crates/ritk-transform/src/transform/affine/affine.rs
 source:crates/ritk-transform/src/transform/affine/atlas_affine.rs
 source:crates/ritk-transform/src/transform/affine/rigid.rs

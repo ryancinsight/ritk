@@ -8,6 +8,27 @@
 
 # RITK Gap Audit - Active
 
+## MIG-507-01 audit (2026-07-10)
+
+`ritk-tiff` duplicated grayscale reader/writer boundaries across Burn root APIs
+and native modules while RGB multipage decoding remained Burn-only. All TIFF
+codec behavior now terminates in native grayscale or color-volume contracts;
+the provider crate no longer imports Burn image/tensor types or depends on
+`burn-ndarray`/`ritk-core`.
+
+Reader allocation now grows fallibly only after a page is decoded and its
+sample count is validated. Writer shape products and host-to-TIFF dimension
+conversions are checked before encoding. The remaining legacy conversion is
+confined to `ritk-io`, which owns the unmigrated CLI image boundary and
+delegates all TIFF codec and validation behavior upstream.
+
+Evidence tier: exact multipage/page-order/negative-value round trips, special
+floating-point bit-pattern preservation, exact RGB stacks, malformed-file and
+wrong-color rejection, zero-area validation, provider nextest 13/13, combined
+nextest 378/378, warning-denied Clippy, doctests, rustdoc, and all-target
+compilation. The migration audit drops from 21 to 20 manifests and 595 to 591
+source files; only the pre-existing displacement-field drift remains.
+
 ## MIG-506-01 audit (2026-07-10)
 
 `ritk-png` duplicated grayscale decoding across Burn root APIs and a native

@@ -22,10 +22,9 @@
 //! crate decoder.
 
 use anyhow::{anyhow, Context, Result};
-use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_core::ComputeBackend;
+use ritk_image::native::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 use tiff::decoder::{Decoder, DecodingResult};
@@ -45,30 +44,23 @@ use tiff::decoder::{Decoder, DecodingResult};
 /// - File cannot be opened or is not a valid TIFF.
 /// - Pages have inconsistent dimensions.
 /// - Page pixel count does not equal `width * height` (e.g. multi-channel).
-pub fn read_tiff<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+pub fn read_tiff<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+) -> Result<Image<f32, B, 3>> {
     let path = path.as_ref();
     let file =
         std::fs::File::open(path).with_context(|| format!("Cannot open TIFF file {:?}", path))?;
     let reader = BufReader::new(file);
-    read_tiff_from_reader::<B, _>(reader, device, path)
-}
-
-/// Core reader operating on any `Read + Seek` stream.
-///
-/// `display_path` is used only for error messages.
-fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
-    reader: R,
-    device: &B::Device,
-    display_path: &Path,
-) -> Result<Image<B, 3>> {
-    let (data, dims) = decode_tiff_from_reader(reader, display_path)?;
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
-    Ok(Image::new(
-        tensor,
+    let (data, dims) = decode_tiff_from_reader(reader, path)?;
+    Image::from_flat_on(
+        data,
+        dims,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    ))
+        backend,
+    )
 }
 
 /// Decode all TIFF pages into row-major `f32` voxels and `[nz, ny, nx]` dims.
@@ -101,15 +93,7 @@ fn decode_tiff_from_reader<R: Read + Seek>(
         ));
     }
 
-    // Bound the upfront reservation: `pixels_per_page` comes from the IFD
-    // width/height tags, which a crafted TIFF can declare far larger than the
-    // strip/tile data actually present (`read_image()` fails later, but an
-    // unbounded `with_capacity` would OOM first). The Vec still grows to its
-    // true length as pages are decoded. (ritk_core::io_bounds SSOT.)
-    let mut data = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
-        pixels_per_page,
-        std::mem::size_of::<f32>(),
-    ));
+    let mut data = Vec::new();
     let mut nz = 0usize;
 
     loop {
@@ -133,6 +117,8 @@ fn decode_tiff_from_reader<R: Read + Seek>(
             ));
         }
 
+        data.try_reserve(page_data.len())
+            .context("TIFF volume pixel allocation failed")?;
         data.extend(page_data);
         nz += 1;
 
@@ -189,21 +175,21 @@ pub(crate) fn decode_page_to_scalar(result: DecodingResult) -> Result<Vec<f32>> 
 ///
 /// Carries the compute device so it can implement the `ImageReader<B, 3>`
 /// trait from `ritk-io`.
-pub struct TiffReader<B: Backend> {
-    device: B::Device,
+pub struct TiffReader<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> TiffReader<B> {
-    /// Create a reader bound to `device`.
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
+impl<B: ComputeBackend> TiffReader<B> {
+    /// Create a reader bound to `backend`.
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 
     /// Read the TIFF file at `path` into a 3-D `Image`.
     ///
     /// See [`read_tiff`] for full documentation.
-    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
-        read_tiff(path, &self.device)
+    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<f32, B, 3>> {
+        read_tiff(path, &self.backend)
     }
 }
 
@@ -212,35 +198,3 @@ impl<B: Backend> TiffReader<B> {
 #[cfg(test)]
 #[path = "tests_reader.rs"]
 mod tests;
-
-/// Atlas-native-substrate entry points (transitional module: plain
-/// end-state names, disambiguated from the Burn functions by module
-/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
-pub mod native {
-    #[allow(unused_imports)]
-    use super::*;
-
-    /// Read a multi-page TIFF / BigTIFF file into a Coeus-backed 3-D image.
-    ///
-    /// The Atlas-tensor counterpart to [`read_tiff`]: shares the page decode and
-    /// dimension validation via `decode_tiff_from_reader`, differing only in the
-    /// final image construction.
-    pub fn read_tiff<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
-    where
-        B: coeus_core::ComputeBackend,
-        P: AsRef<Path>,
-    {
-        let path = path.as_ref();
-        let file = std::fs::File::open(path)
-            .with_context(|| format!("Cannot open TIFF file {:?}", path))?;
-        let (data, dims) = decode_tiff_from_reader(BufReader::new(file), path)?;
-        ritk_image::native::Image::from_flat_on(
-            data,
-            dims,
-            Point::new([0.0, 0.0, 0.0]),
-            Spacing::new([1.0, 1.0, 1.0]),
-            Direction::identity(),
-            backend,
-        )
-    }
-}

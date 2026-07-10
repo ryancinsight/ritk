@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-507-01 [major] - TIFF Burn boundary deletion (DONE).**
+  Promoted native grayscale multipage read/write and RGB multipage APIs to the
+  sole `ritk-tiff` surface, removed its Burn/core dependencies and duplicate
+  modules, and localized legacy storage conversion in `ritk-io`. Evidence:
+  provider nextest 13/13, combined nextest 378/378, all-target compilation,
+  warning-denied Clippy, doctests, rustdoc, and Burn manifest reduction from
+  21 to 20.
+
 - **MIG-506-01 [major] - PNG Burn boundary deletion (DONE).**
   Promoted native grayscale, natural-sorted series, RGB, and RGB-series PNG
   APIs to the sole `ritk-png` surface; removed its Burn/core dependencies and

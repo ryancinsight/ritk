@@ -8045,9 +8045,7 @@ name = "ritk-tiff"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn-ndarray",
  "coeus-core",
- "ritk-core",
  "ritk-image",
  "ritk-spatial",
  "tempfile",

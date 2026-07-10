@@ -8,6 +8,28 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-507-01 — TIFF Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Promote grayscale multipage reader/writer and RGB multipage reader to
+      canonical native image and native color-volume contracts.
+- [x] Delete Burn-specific provider implementations, transitional modules,
+      direct `burn-ndarray`/`ritk-core` dependencies, and differential-only
+      fixtures while retaining exact format and failure coverage.
+- [x] Replace metadata-sized eager reader reservation with fallible growth
+      after each page is decoded and validated; add checked writer products and
+      `u32` dimension conversions.
+- [x] Localize the remaining legacy storage conversion in `ritk-io` and route
+      native reader/writer adapters through canonical provider APIs.
+- [x] Verify provider nextest 13/13 and combined nextest 378/378; all-target
+      compilation; warning-denied Clippy; doctests with four existing ignored
+      networking examples; warning-clean rustdoc.
+- [x] Confirm the migration audit drops to 20 manifests and 591 source files,
+      with no TIFF residue or cleanup candidates and only the pre-existing
+      displacement-field drift.
+- [x] Commit, push, and advance the Atlas RITK gitlink.
+
 ## MIG-506-01 — PNG Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
