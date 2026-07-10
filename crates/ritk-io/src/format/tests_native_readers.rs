@@ -171,11 +171,11 @@ fn native_mgh_reader_matches_burn() {
 fn native_metaimage_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.mha");
-    ritk_metaimage::write_metaimage(&path, &burn_volume([2, 3, 4])).expect("mha write");
+    super::metaimage::write_metaimage(&path, &burn_volume([2, 3, 4])).expect("mha write");
     assert_native_reader_matches_burn(
         &path,
         &super::metaimage::native::MetaImageReader::new(SequentialBackend),
-        |p| ritk_metaimage::read_metaimage::<BurnBackend, _>(p, &burn_device()),
+        |p| super::metaimage::read_metaimage::<BurnBackend, _>(p, &burn_device()),
     );
 }
 

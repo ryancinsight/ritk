@@ -1,9 +1,8 @@
 use crate::spatial::metadata_from_file_transform;
 use anyhow::{anyhow, Context, Result};
+use coeus_core::ComputeBackend;
 use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::native::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
@@ -29,10 +28,10 @@ use std::path::Path;
 /// * `.mha` — single file; header followed immediately by binary data
 ///   (`ElementDataFile = LOCAL`).
 /// * `.mhd` / `.raw` — ASCII header references a separate raw file.
-pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
+pub fn read_metaimage<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+    backend: &B,
+) -> Result<Image<f32, B, 3>> {
     let DecodedMetaImage {
         data,
         dims,
@@ -40,8 +39,7 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         spacing,
         direction,
     } = decode_metaimage(path)?;
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
-    Ok(Image::new(tensor, origin, spacing, direction))
+    Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 /// Backend-agnostic decoded MetaImage volume: voxels in `[nz, ny, nx]` order plus
@@ -237,11 +235,13 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         // from the header DimSize and may be hostile. `read_to_end` still grows
         // the buffer to the true inflated size; the cap only bounds the
         // speculative reservation against an out-of-memory abort.
-        let mut out = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
-            expected_payload_bytes,
-            1,
-        ));
+        let output_limit = u64::try_from(expected_payload_bytes)
+            .context("MetaImage payload length exceeds u64")?
+            .checked_add(1)
+            .ok_or_else(|| anyhow!("MetaImage payload read limit overflows u64"))?;
+        let mut out = Vec::new();
         flate2::read::ZlibDecoder::new(&payload[..])
+            .take(output_limit)
             .read_to_end(&mut out)
             .context("Failed to inflate zlib-compressed MetaImage payload")?;
         out
@@ -337,42 +337,11 @@ pub struct MetaImageReader;
 
 impl MetaImageReader {
     /// Read a MetaImage file at `path` into an [`Image`] on `device`.
-    pub fn read<B: Backend, P: AsRef<Path>>(
+    pub fn read<B: ComputeBackend, P: AsRef<Path>>(
         &self,
         path: P,
-        device: &B::Device,
-    ) -> Result<Image<B, 3>> {
-        read_metaimage(path, device)
-    }
-}
-
-/// Atlas-native-substrate entry points (transitional module: plain
-/// end-state names, disambiguated from the Burn functions by module
-/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
-pub mod native {
-    #[allow(unused_imports)]
-    use super::*;
-
-    /// Read a MetaImage (`.mha`/`.mhd`) into a Coeus-backed 3-D image on `backend`.
-    ///
-    /// The Atlas-tensor counterpart to [`read_metaimage`]: shares the header parse,
-    /// bounded payload read, and voxel decode with the Burn path via
-    /// `decode_metaimage`, differing only in the final image construction.
-    pub fn read_metaimage<B, P>(
-        path: P,
         backend: &B,
-    ) -> Result<ritk_image::native::Image<f32, B, 3>>
-    where
-        B: coeus_core::ComputeBackend,
-        P: AsRef<Path>,
-    {
-        let DecodedMetaImage {
-            data,
-            dims,
-            origin,
-            spacing,
-            direction,
-        } = decode_metaimage(path)?;
-        ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    ) -> Result<Image<f32, B, 3>> {
+        read_metaimage(path, backend)
     }
 }

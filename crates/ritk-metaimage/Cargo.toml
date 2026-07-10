@@ -6,8 +6,6 @@ description = "MetaImage (MHA/MHD) I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 
 [dependencies]
-burn-ndarray = { workspace = true }
-ritk-core = { workspace = true }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-codecs = { path = "../ritk-codecs" }

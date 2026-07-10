@@ -1,5 +1,15 @@
 # RITK Backlog - Active Planning
 
+- **MIG-509-01 [major] - MetaImage Burn boundary deletion (DONE).**
+  Promoted MHA/MHD read/write APIs to the sole native `ritk-metaimage`
+  surface, removed its Burn/core dependencies and duplicate module, and
+  localized the remaining legacy conversion in `ritk-io`. Compressed reads
+  cap inflation at the declared payload plus one byte; writers enforce checked
+  shape products and exact caller payload length before file creation.
+  Evidence: provider nextest 24/24, combined nextest 389/389,
+  warning-denied Clippy, doctests, rustdoc, and Burn manifest reduction from
+  19 to 18.
+
 - **MIG-508-01 [major] - MGH/MGZ Burn boundary deletion (DONE).**
   Promoted native MGH/MGZ read/write APIs to the sole `ritk-mgh` surface,
   removed its Burn/core dependencies and duplicate module, and localized the

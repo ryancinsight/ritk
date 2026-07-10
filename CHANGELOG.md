@@ -8,6 +8,28 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 509: MetaImage native cutover (MIG-509-01)
+
+### Changed
+- MHA/MHD reading and writing now occupy canonical native-image API paths.
+- Compressed reads cap inflation at the declared payload plus one byte.
+- Writers check voxel products and caller-provided payload length before file
+  creation.
+- `ritk-io` owns the remaining conversion required by Burn-typed consumers.
+
+### Removed
+- Removed `ritk-metaimage`'s Burn reader/writer paths, duplicate native module,
+  and direct `burn-ndarray` and `ritk-core` dependencies.
+
+### Breaking
+- `ritk-metaimage` APIs now accept a Coeus backend and consume or return native
+  images. Burn callers migrate through `ritk-io` or to native contracts.
+
+### Evidence
+- Provider nextest 24/24, combined nextest 389/389, warning-denied Clippy,
+  doctests, and rustdoc pass. The Burn audit drops to 18 manifests and 588
+  source files with only the known displacement-field drift.
+
 ## [Unreleased] — Sprint 508: MGH/MGZ native cutover (MIG-508-01)
 
 ### Changed

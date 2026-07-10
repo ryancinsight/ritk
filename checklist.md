@@ -8,6 +8,24 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-509-01 — MetaImage Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Promote MHA/MHD reader/writer APIs to canonical native image contracts
+      and delete direct `burn-ndarray`/`ritk-core` dependencies and duplicate
+      native modules.
+- [x] Bound zlib inflation at the declared payload plus one byte so mismatch
+      detection does not require unbounded decompression.
+- [x] Enforce checked voxel products and exact caller-provided payload length
+      before creating an output file.
+- [x] Localize remaining legacy storage conversion in `ritk-io` and retain
+      exact cross-boundary reader/writer coverage.
+- [x] Verify provider nextest 24/24, combined nextest 389/389, warning-denied
+      Clippy, doctests, rustdoc, and migration audit reduction to 18 manifests
+      and 588 source files with only the known displacement-field drift.
+- [x] Commit, push, and advance the RITK gitlink in the stack repository.
+
 ## MIG-508-01 — MGH/MGZ Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

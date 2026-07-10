@@ -6,7 +6,7 @@
 //!
 //! # Key APIs
 //!
-//! - [`read_metaimage`]: Read a MetaImage file as a Burn tensor-backed Image with spatial metadata
+//! - [`read_metaimage`]: Read a MetaImage file as a native image with spatial metadata
 //! - [`write_metaimage`]: Write an Image to a MetaImage file with full affine encoding
 //!
 //! # Spatial Convention
@@ -30,54 +30,44 @@ pub mod reader;
 mod spatial;
 pub mod writer;
 
-/// Atlas-native-substrate I/O (plain end-state names, disambiguated from the
-/// Burn functions by module path only; folds away when the Burn path is
-/// deleted — ADR 0002 A1).
-pub mod native {
-    pub use crate::reader::native::*;
-    pub use crate::writer::native::*;
-}
 pub use reader::{read_metaimage, MetaImageReader};
 pub use writer::{write_metaimage, write_metaimage_with_data, MetaImageWriter};
 
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image;
 use std::path::Path;
 
 /// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.
-pub struct MetaImageDipReader<B: Backend> {
-    device: B::Device,
+pub struct MetaImageDipReader<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> MetaImageDipReader<B> {
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
+impl<B: ComputeBackend> MetaImageDipReader<B> {
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<B, 3>> {
-        read_metaimage(path, &self.device)
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<f32, B, 3>> {
+        read_metaimage(path, &self.backend)
     }
 }
 
 /// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.
-pub struct MetaImageDipWriter<B: Backend> {
-    _marker: std::marker::PhantomData<fn() -> B>,
+pub struct MetaImageDipWriter<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> Default for MetaImageDipWriter<B> {
-    fn default() -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-        }
+impl<B: ComputeBackend> MetaImageDipWriter<B> {
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
-}
 
-impl<B: Backend> MetaImageDipWriter<B> {
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> anyhow::Result<()>
+    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> anyhow::Result<()>
     where
-        B: ritk_image::HostExtract,
+        B: Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        write_metaimage(path, image)
+        write_metaimage(path, image, &self.backend)
     }
 }
 

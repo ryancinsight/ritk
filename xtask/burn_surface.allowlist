@@ -7,7 +7,6 @@ manifest:crates/ritk-filter/Cargo.toml
 manifest:crates/ritk-image/Cargo.toml
 manifest:crates/ritk-interpolation/Cargo.toml
 manifest:crates/ritk-io/Cargo.toml
-manifest:crates/ritk-metaimage/Cargo.toml
 manifest:crates/ritk-model/Cargo.toml
 manifest:crates/ritk-nifti/Cargo.toml
 manifest:crates/ritk-nrrd/Cargo.toml
@@ -289,6 +288,7 @@ source:crates/ritk-io/src/format/dicom/tests_color_multiframe.rs
 source:crates/ritk-io/src/format/dicom/writer/tests/basic.rs
 source:crates/ritk-io/src/format/dicom/writer/tests/helpers.rs
 source:crates/ritk-io/src/format/jpeg/mod.rs
+source:crates/ritk-io/src/format/metaimage/mod.rs
 source:crates/ritk-io/src/format/mgh/mod.rs
 source:crates/ritk-io/src/format/png/mod.rs
 source:crates/ritk-io/src/format/tests_native_readers.rs
@@ -296,9 +296,6 @@ source:crates/ritk-io/src/format/tiff/mod.rs
 source:crates/ritk-io/src/format/vtk/mod.rs
 source:crates/ritk-io/tests/dicom_security.rs
 source:crates/ritk-macros/src/lib.rs
-source:crates/ritk-metaimage/src/reader.rs
-source:crates/ritk-metaimage/src/tests/reader.rs
-source:crates/ritk-metaimage/src/tests/writer.rs
 source:crates/ritk-model/src/affine/network.rs
 source:crates/ritk-model/src/affine/transform.rs
 source:crates/ritk-model/src/io/adapter.rs

@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## MIG-509-01 audit (2026-07-10)
+
+`ritk-metaimage` duplicated reader/writer boundaries across Burn root APIs and
+a native module and retained `ritk-core` only for an eager-capacity policy.
+Canonical MHA/MHD APIs now use native images, while `ritk-io` alone owns
+conversion for remaining Burn-typed consumers.
+
+Compressed decoding reads at most the header-declared payload plus one byte,
+which detects both short and excess inflation without an unbounded
+`read_to_end`. Writer shape products are checked, and caller-provided payloads
+must match the image shape before the file is created. Evidence tier: exact
+axis-order, spatial metadata, external-raw, compression, datatype, malformed
+header, hostile-size, payload-length, and native/legacy round trips; provider
+nextest 24/24; combined nextest 389/389; warning-denied Clippy; doctests;
+rustdoc. The audit drops from 19 to 18 manifests and 590 to 588 source files.
+Only the pre-existing displacement-field drift remains unallowlisted.
+
 ## MIG-508-01 audit (2026-07-10)
 
 `ritk-mgh` duplicated reader/writer boundaries across Burn root APIs and a

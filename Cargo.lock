@@ -7777,12 +7777,10 @@ name = "ritk-metaimage"
 version = "0.1.1"
 dependencies = [
  "anyhow",
- "burn-ndarray",
  "bytemuck",
  "coeus-core",
  "flate2",
  "ritk-codecs",
- "ritk-core",
  "ritk-image",
  "ritk-spatial",
  "tempfile",
