@@ -8,6 +8,28 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-505-01 — JPEG Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Verify grayscale native decoding/encoding already shares the real JPEG
+      codec cores and identify RGB as the remaining provider-only Burn API.
+- [x] Promote borrowed/backend-native grayscale and RGB APIs to canonical root
+      names; delete Burn types, transitional modules, and direct Burn/core
+      dependencies from `ritk-jpeg`.
+- [x] Add the missing native `ColorVolume<T, B, C>` provider type in
+      `ritk-image`; preserve three-dimensional physical metadata while the
+      compile-time channel count controls rank-4 interleaved storage.
+- [x] Move only the still-required legacy image conversion to `ritk-io`, whose
+      CLI consumers remain Burn-typed; update native adapters to canonical APIs.
+- [x] Verify all targets; focused JPEG nextest 12/12; `ritk-jpeg` nextest 6/6;
+      combined package nextest 411/411; warning-denied Clippy; doctests with
+      five existing ignored examples; warning-clean rustdoc.
+- [x] Confirm the migration audit drops to 22 manifests and 596 source files,
+      with no JPEG entries or cleanup candidates. Its sole failure remains the
+      pre-existing displacement-field module drift.
+- [x] Commit, push, and advance the Atlas RITK gitlink.
+
 ## MIG-504-01 — Burn allowlist cleanup
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

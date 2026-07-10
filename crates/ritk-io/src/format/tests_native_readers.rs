@@ -219,11 +219,11 @@ fn native_tiff_reader_matches_burn() {
 fn native_jpeg_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("slice.jpg");
-    ritk_jpeg::write_jpeg(&path, &burn_volume([1, 8, 12])).expect("jpeg write");
+    super::jpeg::write_jpeg(&path, &burn_volume([1, 8, 12])).expect("jpeg write");
     assert_native_reader_matches_burn(
         &path,
         &super::jpeg::native::JpegReader::new(SequentialBackend),
-        |p| ritk_jpeg::read_jpeg::<BurnBackend, _>(p, &burn_device()),
+        |p| super::jpeg::read_jpeg::<BurnBackend, _>(p, &burn_device()),
     );
 }
 

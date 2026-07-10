@@ -1,99 +1,69 @@
 use anyhow::{Context, Result};
-use image::{GrayImage, Luma};
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
-use std::marker::PhantomData;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use image::GrayImage;
+use ritk_image::native::Image;
 use std::path::Path;
 
-/// Write a grayscale `Image<B, 3>` with shape `[1, height, width]` to a JPEG file.
+/// Writes a native grayscale image with shape `[1, height, width]` as JPEG.
 ///
-/// Tensor values are rounded, clamped to `[0, 255]`, and encoded as Luma8.
-pub fn write_jpeg<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    let f32_vec = image.try_data_vec()?;
-    write_jpeg_flat(path.as_ref(), image.shape(), &f32_vec)
+/// Values are rounded, clamped to `[0, 255]`, and encoded as Luma8.
+pub fn write_jpeg<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    let voxels = image.data_cow_on(backend);
+    write_jpeg_flat(path.as_ref(), image.shape(), &voxels)
 }
 
-/// Substrate-agnostic JPEG serialization core: the shared SSOT the Burn and
-/// Atlas-native writers both wrap. Takes flat `[1, height, width]` voxels;
-/// values are rounded, clamped to `[0, 255]`, and encoded as Luma8. JPEG
-/// carries no physical-space metadata.
-fn write_jpeg_flat(path: &Path, shape: [usize; 3], f32_slice: &[f32]) -> Result<()> {
-    let nz = shape[0];
-    let ny = shape[1];
-    let nx = shape[2];
-
-    if nz != 1 {
-        anyhow::bail!("JPEG only supports 2D images (nz=1), got nz={}", nz);
+fn write_jpeg_flat(path: &Path, shape: [usize; 3], values: &[f32]) -> Result<()> {
+    let [depth, height, width] = shape;
+    if depth != 1 {
+        anyhow::bail!("JPEG only supports 2-D images (depth=1), got depth={depth}");
     }
-
-    tracing::debug!(
-        nx = nx,
-        ny = ny,
-        path = %path.display(),
-        "writing JPEG grayscale image"
-    );
-
-    let mut gray_img = GrayImage::new(nx as u32, ny as u32);
-
-    for y in 0..ny {
-        for x in 0..nx {
-            let idx = y * nx + x;
-            let val = f32_slice[idx].round().clamp(0.0, 255.0) as u8;
-            gray_img.put_pixel(x as u32, y as u32, Luma([val]));
-        }
+    let expected = height
+        .checked_mul(width)
+        .context("JPEG dimensions overflow the host address space")?;
+    if values.len() != expected {
+        anyhow::bail!(
+            "JPEG voxel count {} does not match shape {shape:?}",
+            values.len()
+        );
     }
-
-    gray_img
+    let width_u32 = u32::try_from(width).context("JPEG width exceeds u32")?;
+    let height_u32 = u32::try_from(height).context("JPEG height exceeds u32")?;
+    let pixels: Vec<u8> = values
+        .iter()
+        .map(|value| value.round().clamp(0.0, 255.0) as u8)
+        .collect();
+    let image = GrayImage::from_raw(width_u32, height_u32, pixels)
+        .context("validated JPEG dimensions did not match the pixel buffer")?;
+    tracing::debug!(width, height, path = %path.display(), "write JPEG grayscale image");
+    image
         .save(path)
-        .with_context(|| format!("failed to save JPEG: {}", path.display()))?;
-
-    Ok(())
+        .with_context(|| format!("failed to save JPEG: {}", path.display()))
 }
 
-/// Stateless JPEG writer.
-pub struct JpegWriter<B: Backend> {
-    _marker: PhantomData<fn() -> B>,
+/// Backend-bound native JPEG writer.
+pub struct JpegWriter<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> Default for JpegWriter<B> {
-    fn default() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
+impl<B: ComputeBackend> JpegWriter<B> {
+    /// Creates a writer that extracts image data through `backend`.
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 }
 
-impl<B: Backend> JpegWriter<B> {
-    pub fn write_image<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> Result<()> {
-        write_jpeg(path, image)
-    }
-}
-
-/// Atlas-native-substrate JPEG writers (plain end-state names, disambiguated
-/// from the Burn functions by module path only; folds away when the Burn path
-/// is deleted — ADR 0002 A1).
-pub mod native {
-    use super::write_jpeg_flat;
-    use anyhow::Result;
-    use std::path::Path;
-
-    /// Write an Atlas-native grayscale `[1, height, width]` image to a JPEG file.
-    ///
-    /// Host data is extracted layout-independently via `data_cow_on`, then
-    /// serialized through the same [`write_jpeg_flat`](super::write_jpeg_flat)
-    /// core as the Burn [`write_jpeg`](super::write_jpeg) — byte-identical
-    /// output for the same logical image.
-    pub fn write_jpeg<B, P>(
-        path: P,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B,
-    ) -> Result<()>
-    where
-        B: coeus_core::ComputeBackend + Default,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-        P: AsRef<Path>,
-    {
-        let voxels = image.data_cow_on(backend);
-        write_jpeg_flat(path.as_ref(), image.shape(), &voxels)
+impl<B> JpegWriter<B>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    /// Writes a grayscale JPEG through the configured backend.
+    pub fn write_image<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> Result<()> {
+        write_jpeg(path, image, &self.backend)
     }
 }

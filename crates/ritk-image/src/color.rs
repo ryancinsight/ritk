@@ -9,6 +9,9 @@ use crate::tensor::{Shape, Tensor, TensorData};
 
 use ritk_spatial::{Direction, Point, Spacing};
 
+/// Coeus-backed color volumes with a non-spatial component axis.
+pub mod native;
+
 /// 3-D multi-component image volume.
 ///
 /// `C` is the compile-time channel count. The tensor axis order is

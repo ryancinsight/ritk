@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-505-01 [major] - JPEG Burn boundary deletion (DONE).**
+  Promoted native grayscale and RGB JPEG APIs to the sole `ritk-jpeg` surface,
+  deleted its Burn image types, parallel native modules, and direct
+  `burn-ndarray`/`ritk-core` dependencies, and kept the remaining legacy image
+  conversion in the active `ritk-io` consumer. A native `ColorVolume` keeps
+  RGB's component axis out of physical metadata. Evidence: three-package
+  nextest 411/411, warning-denied Clippy, doctests, rustdoc, all-target
+  compilation, and migration audit reduction from 23 to 22 Burn manifests.
+
 - **MIG-504-01 [patch] - Burn allowlist cleanup (DONE).**
   Removed all 18 audit-reported cleanup candidates after their owning files
   had already eliminated Burn surfaces. The audit now reports only the live,

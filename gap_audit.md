@@ -8,6 +8,28 @@
 
 # RITK Gap Audit - Active
 
+## MIG-505-01 audit (2026-07-10)
+
+`ritk-jpeg` exposed two image substrate families around the same JPEG codec:
+Burn root APIs and parallel native modules. The native family is now the sole
+provider contract for grayscale and RGB reads plus grayscale writes. The
+missing native `ColorVolume<T, B, C>` now owns rank-4 interleaved storage while
+retaining strictly three-dimensional physical metadata, so RGB's channel axis
+cannot be mistaken for a spatial dimension. The provider crate no longer
+imports Burn tensor/core types or depends on `burn-ndarray`/`ritk-core`.
+
+The remaining legacy conversion is localized in `ritk-io`, the active owner of
+unmigrated CLI image dispatch. It calls `ritk-jpeg` for all codec work and only
+converts image storage at that consumer boundary; no JPEG algorithm or codec
+logic is duplicated. Removing it requires the broader CLI image cutover.
+
+Evidence tier: exact comparison against the independent `image` decoder,
+native RGB sample equality, typed invalid-shape/color failures, three-package
+nextest 411/411, warning-denied Clippy, doctests, rustdoc, and all-target
+compilation. The Burn audit drops from 23 to 22 manifests and reports 596
+source files, no JPEG residue, and only the pre-existing displacement-field
+drift.
+
 ## MIG-504-01 audit (2026-07-10)
 
 The Burn migration allowlist retained 18 entries for files and one manifest

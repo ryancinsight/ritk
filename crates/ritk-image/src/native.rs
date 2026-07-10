@@ -11,6 +11,8 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
 use coeus_tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
+pub use crate::color::native::{ColorVolume, RgbVolume};
+
 /// Medical image backed by a Coeus tensor.
 ///
 /// The `D` const generic is the image dimensionality. Construction validates

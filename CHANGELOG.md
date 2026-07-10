@@ -8,6 +8,32 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 505: JPEG native cutover (MIG-505-01)
+
+### Changed
+- Native Coeus-backed grayscale and RGB JPEG readers and the grayscale writer
+  now occupy the canonical `ritk-jpeg` API paths.
+- Added native `ColorVolume<T, B, C>`/`RgbVolume<T, B>` image contracts with
+  interleaved rank-4 component storage and independent 3-D physical metadata.
+- `ritk-io` owns the remaining conversion required by its Burn-typed CLI
+  consumers while delegating all JPEG codec behavior to `ritk-jpeg`.
+
+### Removed
+- Removed `ritk-jpeg`'s Burn reader/writer/color types, parallel native
+  modules, direct `burn-ndarray` and `ritk-core` dependencies, and obsolete
+  Burn differential fixtures.
+
+### Breaking
+- `ritk-jpeg` APIs now accept a Coeus backend and return or consume
+  `ritk_image::native::Image`; direct Burn callers migrate through the active
+  `ritk-io` consumer boundary or to native images.
+
+### Evidence
+- All-target compilation, focused nextest 12/12, provider nextest 6/6,
+  combined nextest 411/411, warning-denied Clippy, doctests, and rustdoc pass.
+  The Burn audit drops to 22 manifests and 596 source files with no JPEG
+  residue.
+
 ## [Unreleased] — Sprint 504: Burn allowlist cleanup (MIG-504-01)
 
 ### Changed
