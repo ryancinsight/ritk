@@ -243,7 +243,7 @@ fn native_png_reader_matches_burn() {
     assert_native_reader_matches_burn(
         &path,
         &super::png::native::PngReader::new(SequentialBackend),
-        |p| ritk_png::read_png_to_image::<BurnBackend, _>(p, &burn_device()),
+        |p| super::png::read_png_to_image::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
@@ -255,6 +255,6 @@ fn native_png_series_reader_matches_burn() {
     assert_native_reader_matches_burn(
         dir.path(),
         &super::png::native::PngSeriesReader::new(SequentialBackend),
-        |p| ritk_png::read_png_series::<BurnBackend, _>(p, &burn_device()),
+        |p| super::png::read_png_series::<BurnBackend, _>(p, &burn_device()),
     );
 }

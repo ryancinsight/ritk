@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-506-01 [major] - PNG Burn boundary deletion (DONE).**
+  Promoted native grayscale, natural-sorted series, RGB, and RGB-series PNG
+  APIs to the sole `ritk-png` surface; removed its Burn/core dependencies and
+  dual module family. The active legacy image conversion now lives only in
+  `ritk-io`. Evidence: provider nextest 8/8, combined nextest 373/373,
+  all-target compilation, warning-denied Clippy, doctests, rustdoc, and Burn
+  manifest reduction from 22 to 21.
+
 - **MIG-505-01 [major] - JPEG Burn boundary deletion (DONE).**
   Promoted native grayscale and RGB JPEG APIs to the sole `ritk-jpeg` surface,
   deleted its Burn image types, parallel native modules, and direct

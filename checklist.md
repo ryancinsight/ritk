@@ -8,6 +8,28 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-506-01 — PNG Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Promote single-slice, natural-sorted grayscale series, RGB slice, and RGB
+      series readers to canonical Coeus-backed APIs using native image and
+      native color-volume contracts.
+- [x] Delete `ritk-png`'s Burn implementations, transitional module, direct
+      `burn-ndarray`/`ritk-core` dependencies, and differential-only fixtures.
+- [x] Replace eager directory-size-amplified reservations with fallible
+      per-decoded-image growth while retaining dimension mismatch rejection.
+- [x] Localize the remaining legacy storage conversion in `ritk-io` and route
+      its native reader adapters directly through the canonical provider APIs.
+- [x] Verify all targets; provider nextest 8/8; combined nextest 373/373;
+      warning-denied Clippy; doctests with four existing ignored networking
+      examples; warning-clean rustdoc.
+- [x] Confirm the migration audit drops to 21 manifests and 595 source files.
+      The native color-volume file is allowlisted only because the lexical
+      scanner treats Coeus `Tensor<T, B>` as a Burn token; the sole real drift
+      remains the pre-existing displacement-field module.
+- [x] Commit, push, and advance the Atlas RITK gitlink.
+
 ## MIG-505-01 — JPEG Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

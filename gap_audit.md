@@ -8,6 +8,29 @@
 
 # RITK Gap Audit - Active
 
+## MIG-506-01 audit (2026-07-10)
+
+`ritk-png` duplicated grayscale decoding across Burn root APIs and a native
+module while RGB remained Burn-only. Single-slice and naturally sorted series
+APIs for both grayscale and RGB now construct the native image contracts
+directly. `ritk-png` has no Burn/tensor compatibility code and no direct
+`burn-ndarray` or `ritk-core` dependency.
+
+The remaining legacy conversion is confined to `ritk-io`, which still owns
+Burn-typed CLI and registration-example consumers. It performs storage
+conversion after `ritk-png` completes decoding; codec, sorting, validation,
+and RGB semantics remain provider-owned. Series growth now reserves only each
+successfully decoded image and surfaces allocation failure with context,
+instead of multiplying the first image dimensions by an untrusted directory
+entry count before validating later slices.
+
+Evidence tier: exact grayscale/RGB samples, natural-order stacks, typed color
+and dimension rejection, provider nextest 8/8, combined nextest 373/373,
+warning-denied Clippy, doctests, rustdoc, and all-target compilation. The audit
+drops from 22 to 21 manifests and 596 to 595 source files. Its lexical
+`Tensor<` heuristic requires an entry for the new Coeus native color type; the
+only unallowlisted real Burn drift remains the displacement-field module.
+
 ## MIG-505-01 audit (2026-07-10)
 
 `ritk-jpeg` exposed two image substrate families around the same JPEG codec:

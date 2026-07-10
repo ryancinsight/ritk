@@ -8,6 +8,30 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 506: PNG native cutover (MIG-506-01)
+
+### Changed
+- Native grayscale and RGB single-slice and natural-sorted series readers now
+  occupy the canonical `ritk-png` paths.
+- PNG series storage grows fallibly per decoded image instead of reserving from
+  an unvalidated directory-count and first-image product.
+- `ritk-io` owns the remaining conversion required by Burn-typed CLI and
+  registration-example consumers.
+
+### Removed
+- Removed `ritk-png`'s Burn reader/color types, parallel native module, direct
+  `burn-ndarray` and `ritk-core` dependencies, and Burn differential fixtures.
+
+### Breaking
+- `ritk-png` readers now accept a Coeus backend and return native grayscale or
+  color images. Direct Burn callers migrate through `ritk-io` or to native
+  image contracts.
+
+### Evidence
+- All-target compilation, provider nextest 8/8, combined nextest 373/373,
+  warning-denied Clippy, doctests, and rustdoc pass. The Burn audit drops to 21
+  manifests and 595 source files with no PNG residue.
+
 ## [Unreleased] — Sprint 505: JPEG native cutover (MIG-505-01)
 
 ### Changed

@@ -7881,10 +7881,8 @@ name = "ritk-png"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn-ndarray",
  "coeus-core",
  "image 0.24.9",
- "ritk-core",
  "ritk-image",
  "ritk-spatial",
  "tempfile",
