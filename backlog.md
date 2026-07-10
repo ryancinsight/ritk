@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-499-01 [major] - Canonical native binary erosion (DONE).**
+  Delete the unused prefixed Coeus erosion wrapper instead of retaining a
+  parallel object API. Its exact semantic tests move to the canonical native
+  function, augmented by bounded-exhaustive comparison against an independent
+  reference over all binary 2x2x3 volumes and radii 0 through 2. Scope excludes
+  dirty Snap consumer files; their Burn cutover remains dependency-ordered
+  follow-up work. Evidence: focused nextest 8/8, package nextest 966/966,
+  clippy with warnings denied, doctests 2/2, and warning-clean rustdoc.
+
 - **DEP-496-04 [minor] - DICOM attribute ownership for consumers (DONE).**
   `ritk-dicom` now exposes `DicomTag`, common image tag constants, and
   `DicomAttributeRead` over the parsed DICOM object produced by the RITK

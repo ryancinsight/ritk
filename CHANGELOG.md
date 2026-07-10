@@ -8,6 +8,31 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 499: canonical native binary erosion (MIG-499-01)
+
+### Removed
+- `ritk-filter`: Removed the unused prefixed binary-erosion state type and its
+  duplicate Coeus image-boundary implementation. Native callers use
+  `morphology::native::binary_erode` directly.
+
+### Changed
+- Binary-erosion value-semantic tests now target the canonical native function.
+  The shared erosion core additionally has bounded-exhaustive verification over
+  every binary 2x2x3 input for radii 0 through 2.
+- Corrected stale native morphology and Euclidean-distance documentation,
+  including the remaining private intra-doc link warning.
+
+### Breaking
+- The unused prefixed erosion type is no longer exported. Consumers must call
+  `morphology::native::binary_erode` with an explicit backend and
+  `ForegroundValue`.
+
+### Evidence
+- Focused nextest passed 8/8; `ritk-filter` package nextest passed 966/966;
+  all-target/all-feature clippy passed with warnings denied; doctests passed
+  2/2; all-feature `ritk-filter` and `ritk-registration` rustdoc completed
+  without warnings.
+
 ## [Unreleased] — Sprint 498: `ritk-spatial` Burn hook removal (DEP-498-01)
 
 ### Removed

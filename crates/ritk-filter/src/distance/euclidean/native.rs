@@ -1,13 +1,11 @@
 //! Coeus-native unsigned Euclidean distance transform.
 //!
-//! Atlas migration target: [`super::euclidean_dt`] (the Meijster–Roerdink–
-//! Hesselink core, `#![forbid(unsafe_code)]`, already substrate-agnostic —
-//! no Burn dependency) is the same pure algorithm the Burn-generic
+//! The private `euclidean_dt` function (the Meijster–Roerdink–Hesselink core,
+//! `#![forbid(unsafe_code)]`, already substrate-agnostic with no Burn
+//! dependency) is the same pure algorithm the Burn-generic
 //! [`super::DistanceTransformImageFilter::apply`] calls. This module adds a
 //! thin Coeus-`Image` boundary around that same core, following the
-//! `read_jpeg_coeus`/`trilinear_interpolation` template: production
-//! Burn API stays, a Coeus-native equivalent is added and verified against
-//! it, no algorithm is duplicated or rewritten.
+//! image boundary around that core. No algorithm is duplicated or rewritten.
 
 use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};

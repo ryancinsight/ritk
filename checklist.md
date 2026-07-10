@@ -8,6 +8,38 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-499-01 — Canonical native binary erosion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure complete for this slice
+
+### Plan (MIG-499-01)
+- [x] Delete the unused prefixed binary-erosion type and its module exports.
+      Completion condition: the duplicate state, default, boundary marshalling,
+      and copied host extraction no longer exist.
+- [x] Move its seven exact semantic regressions to
+      `morphology::native::binary_erode` and add a bounded-exhaustive oracle.
+      Completion condition: every binary 2x2x3 input is checked for radii 0
+      through 2 against an independent erosion implementation.
+- [x] Synchronize stale documentation and run the package gates. Completion
+      condition: formatting, clippy, nextest, doctests, and rustdoc are clean,
+      and no source or current PM reference names the deleted surface.
+
+### Evidence
+- [x] Focused native erosion nextest: 8/8 passed, including 12,288
+      bounded-exhaustive core comparisons over all binary 2x2x3 volumes and
+      radii 0 through 2.
+- [x] `ritk-filter` package nextest: 966/966 passed in 14.020 seconds.
+- [x] `ritk-filter` all-target/all-feature clippy passed with warnings denied;
+      doctests passed 2/2 with 11 intentionally ignored; `ritk-filter` and
+      `ritk-registration` all-feature rustdoc completed without warnings.
+- [x] Exact-file rustfmt and deleted-surface static audit passed. The
+      package-wide fmt check remains blocked only by unrelated pre-existing
+      formatting drift in `intensity/arithmetic/unary.rs`.
+
+### Residual scope
+- Burn consumer cutover in registration and both Snap dispatchers is a separate
+  coordinated slice because one Snap dispatcher contains unrelated local work.
+
 ## DEP-498-01 — `ritk-spatial` Burn Module/Record Removal
 **Target version**: 0.14.0 migration batch (breaking legacy Burn-trait impl removal)
 **Sprint phase**: Closure complete for this slice
@@ -62,10 +94,8 @@
       warnings` clean; `cargo fmt --check` clean for touched crates
       (pre-existing `xtask/src/migration_audit.rs` drift left
       untouched — out of scope for this slice); `cargo doc --no-deps`
-      generated no new warnings (2 pre-existing broken intra-doc links
-      in `ritk-filter/src/{morphology/atlas_binary_erode,
-      distance/euclidean/native}.rs` predate this change, untouched by
-      the diff — filed as residual risk below).
+      generated no new warnings (2 pre-existing private intra-doc links
+      predated that change and were later closed by MIG-499-01).
 - [x] Verified full-workspace `cargo nextest run --workspace` in
       isolation reproduces an unrelated pre-existing timeout in
       `ritk-snap app::pacs_ops::tests::handle_submit_retrieve_series_
@@ -74,10 +104,8 @@
       is untouched by this diff — filed as residual risk, not blocking.
 
 ### Residual risk (gap_audit.md candidates)
-- `ritk-filter` doc: 2 pre-existing broken intra-doc links
-  (`erode_binary_3d`, `super::euclidean_dt` — both private items
-  referenced from public doc comments) predate this slice; fix in a
-  follow-up `[patch]`.
+- Closed by MIG-499-01: the 2 pre-existing private intra-doc links were removed
+  with the redundant erosion surface and the Euclidean native-doc correction.
 - `ritk-snap::app::pacs_ops` full-workspace-nextest-only timeout is
   resource-contention flakiness under full-parallel load, not a code
   hang (isolated run: 2.1s pass) — worth a nextest per-binary

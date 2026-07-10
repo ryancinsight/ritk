@@ -8,6 +8,32 @@
 
 # RITK Gap Audit - Active
 
+## MIG-499-01 audit (2026-07-10)
+
+### Binary erosion has one canonical Coeus-native boundary
+
+The unused prefixed erosion state type duplicated radius/foreground storage,
+defaults, host extraction, image reconstruction, and metadata transfer solely
+for its own tests. It and its export were deleted. The seven exact semantic
+regressions now exercise `morphology::native::binary_erode`, whose shared
+`map_flat_image` boundary borrows contiguous Coeus storage and preserves image
+metadata. A separate bounded-exhaustive test compares the substrate-agnostic
+erosion core against an independent implementation for every binary 2x2x3
+volume and radii 0 through 2 (12,288 comparisons).
+
+Evidence tier: bounded-exhaustive empirical verification plus value-semantic
+boundary tests and static diagnostics. Focused nextest passed 8/8; the complete
+`ritk-filter` package passed 966/966 in 14.020 seconds; all-target/all-feature
+clippy passed with warnings denied; doctests passed 2/2; all-feature rustdoc for
+`ritk-filter` and `ritk-registration` completed without warnings. The rustdoc
+pass also closed the previously tracked private-link warning in the native
+Euclidean-distance module.
+
+Residual risk: registration and two Snap dispatchers still consume the Burn
+binary-morphology surface. One Snap dispatcher contains unrelated local edits,
+so their coordinated native cutover remains a separate dependency-ordered
+slice; no adapter was introduced here.
+
 ## DEP-498-01 audit (2026-07-07)
 
 ### `ritk-spatial` no longer owns Burn serialization hooks

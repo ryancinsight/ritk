@@ -23,9 +23,8 @@
 //! purpose of an Atlas-side sibling. The wrappers here do the
 //! `TensorData.as_slice::<f32>().to_vec()` and the
 //! `Vec<(SparseSampleCache, f32)>` unpack at one site, then return the
-//! flattened host form. This matches the sub-batch #3.a precedent
-//! (`AtlasBinaryErodeFilter` wraps `erode_binary_3d` behind an Atlas-side
-//! struct with `pub fn apply(...)`).
+//! flattened host form. Binary erosion now exposes its Coeus-native function
+//! directly instead of duplicating the operation behind a second state type.
 //!
 //! # Cargo.toml
 //!

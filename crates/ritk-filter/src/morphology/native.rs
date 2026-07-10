@@ -1,6 +1,4 @@
-//! Atlas-native-substrate binary-morphology wrappers (transitional module:
-//! plain end-state names, disambiguated from the Burn filters by module path
-//! only; folds away when the Burn path is deleted — ADR 0002 A1).
+//! Coeus-native binary-morphology operations.
 //!
 //! Each wrapper marshals a [`ritk_image::native::Image`] boundary around the
 //! same substrate-agnostic core its Burn counterpart calls, via
