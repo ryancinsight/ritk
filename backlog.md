@@ -1,5 +1,15 @@
 # RITK Backlog - Active Planning
 
+- **MIG-508-01 [major] - MGH/MGZ Burn boundary deletion (DONE).**
+  Promoted native MGH/MGZ read/write APIs to the sole `ritk-mgh` surface,
+  removed its Burn/core dependencies and duplicate module, and localized the
+  remaining legacy conversion in `ritk-io`. Added bounded exact streaming
+  reads upstream in Consus at `831ef348`; the writer now checks dimensions and
+  voxel products and streams payload bytes without a second full-volume
+  allocation. Evidence: provider nextest 32/32, combined nextest 397/397,
+  warning-denied Clippy, doctests, rustdoc, and Burn manifest reduction from
+  20 to 19.
+
 - **MIG-507-01 [major] - TIFF Burn boundary deletion (DONE).**
   Promoted native grayscale multipage read/write and RGB multipage APIs to the
   sole `ritk-tiff` surface, removed its Burn/core dependencies and duplicate

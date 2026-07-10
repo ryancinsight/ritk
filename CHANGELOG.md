@@ -8,6 +8,28 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 508: MGH/MGZ native cutover (MIG-508-01)
+
+### Changed
+- MGH/MGZ reading and writing now occupy canonical native-image API paths.
+- Payload reads use the Consus bounded exact-read provider at `831ef348`.
+- Writers check header dimensions and voxel products and stream big-endian
+  scalar bytes without a second full-volume allocation.
+- `ritk-io` owns the remaining conversion required by Burn-typed consumers.
+
+### Removed
+- Removed `ritk-mgh`'s Burn reader/writer paths, duplicate native module, and
+  direct `burn-ndarray` and `ritk-core` dependencies.
+
+### Breaking
+- `ritk-mgh` APIs now accept a Coeus backend and consume or return native
+  images. Burn callers migrate through `ritk-io` or to native image contracts.
+
+### Evidence
+- Provider nextest 32/32, combined nextest 397/397, warning-denied Clippy,
+  doctests, and rustdoc pass. The Burn audit drops to 19 manifests and 590
+  source files with only the known displacement-field drift.
+
 ## [Unreleased] — Sprint 507: TIFF native cutover (MIG-507-01)
 
 ### Changed

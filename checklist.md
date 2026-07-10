@@ -8,6 +8,24 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-508-01 — MGH/MGZ Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add bounded exact streaming reads in the owning Consus I/O crate and pin
+      RITK to isolated provider commit `831ef348`.
+- [x] Promote MGH/MGZ reader/writer APIs to canonical native image contracts;
+      delete direct `burn-ndarray`/`ritk-core` dependencies and the duplicate
+      native module.
+- [x] Stream big-endian voxel bytes without a full payload staging allocation;
+      reject dimensions or shape products that overflow format/host bounds.
+- [x] Localize remaining legacy storage conversion in `ritk-io` and retain
+      exact native-vs-legacy and reader/writer contract coverage.
+- [x] Verify provider nextest 32/32, combined nextest 397/397, warning-denied
+      Clippy, doctests, rustdoc, and migration audit reduction to 19 manifests
+      and 590 source files with only the known displacement-field drift.
+- [x] Commit, push, and advance the RITK gitlink in the stack repository.
+
 ## MIG-507-01 — TIFF Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

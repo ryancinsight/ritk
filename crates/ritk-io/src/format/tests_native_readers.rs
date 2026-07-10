@@ -159,11 +159,11 @@ fn native_tiff_writer_reader_contract_round_trips() {
 fn native_mgh_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.mgh");
-    ritk_mgh::write_mgh(&burn_volume([2, 3, 4]), &path).expect("mgh write");
+    super::mgh::write_mgh(&burn_volume([2, 3, 4]), &path).expect("mgh write");
     assert_native_reader_matches_burn(
         &path,
         &super::mgh::native::MghReader::new(SequentialBackend),
-        |p| ritk_mgh::read_mgh::<BurnBackend, _>(p, &burn_device()),
+        |p| super::mgh::read_mgh::<BurnBackend, _>(p, &burn_device()),
     );
 }
 

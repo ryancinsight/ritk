@@ -118,10 +118,10 @@ dicom-core = "0.8"
 dicom-ul = "0.8"
 dicom-pixeldata = { version = "0.8", features = ["native"] }
 dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl"] }
-consus-hdf5 = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
-consus-core = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
-consus-compression = { git = "https://github.com/ryancinsight/consus", features = ["std", "deflate"] }
-consus-io = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
+consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "831ef348bf4711c018b096ae5bfe59b6a6679b5b", features = ["std"] }
+consus-core = { git = "https://github.com/ryancinsight/consus", rev = "831ef348bf4711c018b096ae5bfe59b6a6679b5b", features = ["std"] }
+consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "831ef348bf4711c018b096ae5bfe59b6a6679b5b", features = ["std", "deflate"] }
+consus-io = { git = "https://github.com/ryancinsight/consus", rev = "831ef348bf4711c018b096ae5bfe59b6a6679b5b", features = ["std", "alloc"] }
 jpeg-decoder = "0.3"
 
 arrayvec = "0.7"

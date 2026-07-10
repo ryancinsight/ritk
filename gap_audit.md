@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## MIG-508-01 audit (2026-07-10)
+
+`ritk-mgh` duplicated reader/writer boundaries across Burn root APIs and a
+native module and depended on `ritk-core` only for bounded payload reads. The
+bounded exact-read policy now belongs to `consus-io` at provider commit
+`831ef348`; canonical MGH/MGZ APIs use native images, while `ritk-io` alone
+owns conversion for remaining Burn-typed consumers.
+
+The writer rejects axes beyond MGH's signed 32-bit header range, detects voxel
+count overflow, and streams each big-endian scalar directly instead of
+allocating a second volume-sized byte buffer. Evidence tier: exact datatype,
+geometry, gzip, header-layout, special-value, malformed-input, hostile-size,
+and cross-boundary round trips; provider nextest 32/32; combined nextest
+397/397; warning-denied Clippy; doctests; rustdoc. The audit drops from 20 to
+19 manifests and 591 to 590 source files. Only the pre-existing
+displacement-field drift remains unallowlisted.
+
 ## MIG-507-01 audit (2026-07-10)
 
 `ritk-tiff` duplicated grayscale reader/writer boundaries across Burn root APIs

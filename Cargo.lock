@@ -1856,7 +1856,7 @@ checksum = "136d3e02915a2cea4d74caa8681e2d44b1c3254bdbf17d11d41d587ff858832c"
 [[package]]
 name = "consus-compression"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus#1e5cb6802a17a7256cc7ed19f4662f478fa9cf8b"
+source = "git+https://github.com/ryancinsight/consus?rev=831ef348bf4711c018b096ae5bfe59b6a6679b5b#831ef348bf4711c018b096ae5bfe59b6a6679b5b"
 dependencies = [
  "byteorder",
  "consus-core",
@@ -1865,7 +1865,7 @@ dependencies = [
 [[package]]
 name = "consus-core"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus#1e5cb6802a17a7256cc7ed19f4662f478fa9cf8b"
+source = "git+https://github.com/ryancinsight/consus?rev=831ef348bf4711c018b096ae5bfe59b6a6679b5b#831ef348bf4711c018b096ae5bfe59b6a6679b5b"
 dependencies = [
  "byteorder",
  "smallvec",
@@ -1875,7 +1875,7 @@ dependencies = [
 [[package]]
 name = "consus-hdf5"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus#1e5cb6802a17a7256cc7ed19f4662f478fa9cf8b"
+source = "git+https://github.com/ryancinsight/consus?rev=831ef348bf4711c018b096ae5bfe59b6a6679b5b#831ef348bf4711c018b096ae5bfe59b6a6679b5b"
 dependencies = [
  "byteorder",
  "consus-compression",
@@ -1886,7 +1886,7 @@ dependencies = [
 [[package]]
 name = "consus-io"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus#1e5cb6802a17a7256cc7ed19f4662f478fa9cf8b"
+source = "git+https://github.com/ryancinsight/consus?rev=831ef348bf4711c018b096ae5bfe59b6a6679b5b#831ef348bf4711c018b096ae5bfe59b6a6679b5b"
 dependencies = [
  "consus-core",
 ]
@@ -7793,10 +7793,9 @@ name = "ritk-mgh"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "burn-ndarray",
  "coeus-core",
+ "consus-io",
  "flate2",
- "ritk-core",
  "ritk-image",
  "ritk-spatial",
  "tempfile",
