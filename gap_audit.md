@@ -8,6 +8,19 @@
 
 # RITK Gap Audit - Active
 
+## MIG-504-01 audit (2026-07-10)
+
+The Burn migration allowlist retained 18 entries for files and one manifest
+that no longer contain a Burn surface. Removing those stale entries restores
+the allowlist as a baseline of live legacy ownership. The audit now emits no
+cleanup candidates and fails only on
+`ritk-transform/src/transform/displacement_field/module.rs`, a real Burn
+`Module`/`AutodiffModule` implementation required by the current optimizer
+path. That surface remains unallowlisted so CI continues to expose it.
+
+Evidence tier: the authoritative xtask audit directly classifies source and
+manifest tokens. No production code, dependency, test, or example changed.
+
 ## MIG-503-01 audit (2026-07-10)
 
 Helios H-064 needs generic integer-voxel translation registration, but the

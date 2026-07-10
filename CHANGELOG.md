@@ -8,6 +8,13 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 504: Burn allowlist cleanup (MIG-504-01)
+
+### Changed
+- Removed 18 stale entries for already-migrated files from the Burn migration
+  allowlist. The audit now has no cleanup candidates and retains its single
+  failure on the live, pre-existing displacement-field Burn module.
+
 ## [Unreleased] — Sprint 503: translation provider (MIG-503-01)
 
 ### Added

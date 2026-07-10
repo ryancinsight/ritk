@@ -8,6 +8,17 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-504-01 — Burn allowlist cleanup
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Remove the 18 exact cleanup candidates emitted by the authoritative Burn
+      migration audit; change no production source or manifest.
+- [x] Rerun the audit and confirm zero cleanup candidates remain.
+- [x] Keep the live displacement-field module unallowlisted; the audit remains
+      red with that single pre-existing drift as an explicit migration gate.
+- [x] Commit, push, and advance the Atlas RITK gitlink.
+
 ## MIG-503-01 — Native integer translation registration
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

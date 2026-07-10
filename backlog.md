@@ -1,5 +1,11 @@
 # RITK Backlog - Active Planning
 
+- **MIG-504-01 [patch] - Burn allowlist cleanup (DONE).**
+  Removed all 18 audit-reported cleanup candidates after their owning files
+  had already eliminated Burn surfaces. The audit now reports only the live,
+  pre-existing displacement-field module drift; it remains intentionally
+  unallowlisted pending the native optimizer/transform cutover.
+
 - **MIG-503-01 [minor] - Native integer translation registration (DONE).**
   Own the generic SSD/NCC exhaustive translation search required by Helios
   H-064 in `ritk-registration`, using borrowed flat volumes, Eunomia-native
