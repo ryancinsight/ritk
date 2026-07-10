@@ -11,6 +11,7 @@ ritk-filter = { path = "../ritk-filter" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 moirai = { workspace = true }
 

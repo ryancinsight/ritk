@@ -2,9 +2,10 @@
 //! value-identical to the Burn filter it mirrors — both call the identical
 //! substrate-agnostic core (shared harness in `native_support`).
 
-use super::{binary_closing, binary_dilate, binary_erode, binary_opening};
+use super::{binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening};
 use crate::morphology::{
-    BinaryDilateFilter, BinaryErodeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
+    BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
+    BinaryMorphologicalOpening,
 };
 use crate::native_support::assert_native_matches_burn;
 
@@ -176,5 +177,43 @@ mod opening {
     #[test]
     fn matches_burn_all_background() {
         check(vec![0.0f32; 8], [2, 2, 2], 1);
+    }
+}
+
+mod fill_holes {
+    use super::*;
+
+    #[test]
+    fn matches_burn_for_enclosed_center_hole() {
+        let mut values = vec![1.0; 27];
+        values[13] = 0.0;
+        assert_native_matches_burn(
+            values,
+            [3, 3, 3],
+            |image| {
+                BinaryFillholeFilter::new()
+                    .apply(image)
+                    .expect("burn fill holes")
+            },
+            |image, backend| binary_fill_holes(image, Default::default(), backend),
+        );
+    }
+
+    #[test]
+    fn matches_burn_for_border_connected_background() {
+        let mut values = vec![1.0; 27];
+        values[0] = 0.0;
+        values[1] = 0.0;
+        values[13] = 0.0;
+        assert_native_matches_burn(
+            values,
+            [3, 3, 3],
+            |image| {
+                BinaryFillholeFilter::new()
+                    .apply(image)
+                    .expect("burn fill holes")
+            },
+            |image, backend| binary_fill_holes(image, Default::default(), backend),
+        );
     }
 }

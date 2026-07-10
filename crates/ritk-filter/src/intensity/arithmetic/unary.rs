@@ -368,10 +368,7 @@ mod tests {
         let out = RoundImageFilter::new()
             .apply_native(&img, &SequentialBackend)
             .unwrap();
-        assert_eq!(
-            native_vals(&out),
-            vec![2.0, 3.0, 3.0, -2.0, -2.0, 0.0]
-        );
+        assert_eq!(native_vals(&out), vec![2.0, 3.0, 3.0, -2.0, -2.0, 0.0]);
     }
 
     /// Logical NOT (ITK `NotImageFilter`): only exact zero maps to `1`; any

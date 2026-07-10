@@ -134,12 +134,12 @@ impl ConnectedComponentsFilter {
         let device = mask.data().device();
         let mask_slice: &[f32] = &mask_vals;
 
-        let connectivity_val: u32 = match self.connectivity {
-            Connectivity::Six => 6,
-            Connectivity::TwentySix => 26,
-        };
-        let (label_vec, stats) =
-            hoshen_kopelman(mask_slice, shape, connectivity_val, self.background_value);
+        let (label_vec, stats) = connected_components_values(
+            mask_slice,
+            shape,
+            self.connectivity,
+            self.background_value,
+        );
 
         let td = TensorData::new(label_vec, Shape::new(shape));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
@@ -171,6 +171,20 @@ pub fn connected_components<B: Backend>(
     let filter = ConnectedComponentsFilter::with_connectivity(connectivity);
     let (label_image, stats) = filter.apply(mask);
     (label_image, stats.len())
+}
+
+/// Run the canonical connected-component core on a flat ZxYxX buffer.
+pub(crate) fn connected_components_values(
+    mask: &[f32],
+    dims: [usize; 3],
+    connectivity: Connectivity,
+    background_value: f32,
+) -> (Vec<f32>, Vec<LabelStatistics>) {
+    let connectivity = match connectivity {
+        Connectivity::Six => 6,
+        Connectivity::TwentySix => 26,
+    };
+    hoshen_kopelman(mask, dims, connectivity, background_value)
 }
 
 // ── Core algorithm ────────────────────────────────────────────────────────────

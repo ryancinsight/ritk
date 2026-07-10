@@ -8,6 +8,21 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-501-01 — Native brain-mask operation boundaries
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Consolidate legacy connected-component dispatch onto one flat-buffer
+      owner and expose a native Coeus image boundary with exact statistics.
+- [x] Expose native inclusive thresholding and binary hole filling by calling
+      the existing canonical flat-buffer cores; retain no compatibility API.
+- [x] Add exact value and metadata tests, including Burn differential hole-fill
+      coverage. Evidence: native-focused nextest 24/24; package nextest
+      1405/1405; all-target/all-feature Clippy warning-clean; doctests 2/2
+      passed with 11 existing ignored examples; rustdoc warning-clean.
+- [ ] Convert registration `ct_brain_mask` and every caller to these native
+      boundaries, then delete the corresponding Burn consumer surface.
+
 ## MIG-500-01 — Reject hidden Burn dependency relocation
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Blocked; reopen when consumers are ported to Coeus-native APIs

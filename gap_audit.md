@@ -8,6 +8,19 @@
 
 # RITK Gap Audit - Active
 
+## MIG-501-01 audit (2026-07-10)
+
+Registration brain-mask conversion was blocked by three missing provider
+boundaries, not missing algorithms. Binary thresholding, Hoshen-Kopelman
+connected components, and 6-connected hole filling already had canonical
+flat-buffer cores behind Burn images. Native Coeus entry points now borrow
+contiguous image storage, call those same cores, and rebuild with exact spatial
+metadata. No registration adapter or Burn alias was introduced.
+
+Evidence tier: exact value-semantic native tests, metadata equality, and
+Burn-vs-native differential tests for hole filling. The consumer remains Burn
+typed until the next increment updates all `ct_brain_mask` callers.
+
 ## MIG-500-01 audit (2026-07-10)
 
 The uncommitted 112-file cleanup is not a migration. It centralizes

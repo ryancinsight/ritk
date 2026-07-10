@@ -8,6 +8,23 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 501: native brain-mask providers (MIG-501-01)
+
+### Added
+- Coeus-native binary threshold and connected-component entry points in
+  `ritk-segmentation::native`.
+- Coeus-native binary hole filling in `ritk-filter::morphology::native`.
+
+### Changed
+- Burn and Coeus connected-component boundaries now call one canonical
+  Hoshen-Kopelman flat-buffer owner.
+
+### Evidence
+- Exact native threshold/component tests and native-vs-Burn hole-fill
+  differential tests pass: focused nextest 24/24, package nextest 1405/1405,
+  all-target/all-feature Clippy warning-clean, doctests 2/2, and warning-clean
+  rustdoc.
+
 ## [Unreleased] — Sprint 499: canonical native binary erosion (MIG-499-01)
 
 ### Removed

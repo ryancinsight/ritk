@@ -1,5 +1,12 @@
 # RITK Backlog - Active Planning
 
+- **MIG-501-01 [minor] - Native brain-mask operation boundaries (DONE).**
+  Added Coeus-native binary threshold, connected-component labeling, and binary
+  hole filling over their existing flat-buffer algorithm owners. This closes
+  the three provider gaps blocking a native registration brain-mask cutover;
+  the consumer conversion is the next dependency-ordered increment. Evidence:
+  native-focused nextest 24/24 plus package gates recorded in the checklist.
+
 - **MIG-500-01 [major] - Hidden Burn dependency relocation (BLOCKED).**
   The current 112-file working diff is green but prohibited: direct
   `burn-ndarray` dependencies are replaced with `ritk-image`/

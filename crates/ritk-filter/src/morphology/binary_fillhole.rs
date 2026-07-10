@@ -115,7 +115,7 @@ impl Default for BinaryFillholeFilter {
 /// - `output[i] ∈ {fg, 0.0}`.
 /// - `f(i) == fg ⇒ output[i] == fg` (extensivity).
 /// - `i ∈ E ⇒ output[i] == 0.0` (external bg preserved).
-fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue) -> Vec<f32> {
+pub(super) fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let fg: f32 = fg.into();
