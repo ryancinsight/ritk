@@ -9,7 +9,6 @@ pub mod dispatch;
 pub mod fused;
 pub(crate) mod kernel;
 pub mod shared;
-pub mod tensor_trilinear;
 pub mod trilinear;
 
 #[cfg(test)]

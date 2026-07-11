@@ -8,6 +8,24 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 527: Trilinear SSOT deletion (MIG-527-01)
+
+### Removed
+- Removed the unconsumed Burn-specific `tensor_trilinear` module and its
+  duplicate inline tests. The Coeus-backed dimension-generic interpolation
+  operation remains the single implementation.
+
+### Breaking
+- The direct `interpolation::tensor_trilinear` module path is removed.
+
+### Migration
+- Use `ritk_interpolation::trilinear_interpolation` with native Coeus-backed
+  images; no compatibility re-export is retained.
+
+### Evidence
+- Exact consumer search, interpolation nextest 122/122, warning-denied
+  Clippy, Rustdoc, doctests, and audit reduction from 533 to 532 source files.
+
 ## [Unreleased] — Sprint 526: Trainable field providers (MIG-526-01)
 
 ### Changed

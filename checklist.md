@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-527-01 — Duplicate Burn trilinear deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the Burn tensor implementation has no consumers outside its own tests.
+- [x] Delete the duplicate module and route the public operation through the canonical Coeus implementation.
+- [x] Verify interpolation nextest 122/122, warning-denied Clippy, Rustdoc,
+      doctests, and audit reduction from 533 to 532 source files.
+
 ## MIG-526-01 — Trainable displacement-field native cutover
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

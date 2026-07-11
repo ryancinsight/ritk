@@ -246,7 +246,6 @@ source:crates/ritk-interpolation/src/interpolation/kernel/tests_sinc.rs
 source:crates/ritk-interpolation/src/interpolation/shared/in_bounds.rs
 source:crates/ritk-interpolation/src/interpolation/shared/oob_mask.rs
 source:crates/ritk-interpolation/src/interpolation/tests/fused.rs
-source:crates/ritk-interpolation/src/interpolation/tensor_trilinear.rs
 source:crates/ritk-interpolation/src/interpolation/tests/linear.rs
 source:crates/ritk-interpolation/src/interpolation/tests/sinc.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/mod.rs

@@ -1,5 +1,15 @@
 # RITK Backlog - Active Planning
 
+- **MIG-527-01 [major] - Duplicate Burn trilinear deletion (DONE).**
+  The public `tensor_trilinear` module has no production or test consumers
+  outside its own inline Burn tests. The canonical native
+  `trilinear_interpolation` already delegates to Coeus
+  `linear_interpolation::<3>` and has exact corner, center, border, and
+  multichannel coverage. Delete the duplicate implementation, its tests, and
+  its allowlist row; no compatibility re-export is retained. Evidence:
+  interpolation nextest 122/122, warning-denied Clippy, Rustdoc, doctests, and
+  audit reduction from 533 to 532 source files.
+
 - **MIG-526-01 [major] - Trainable displacement-field native cutover (DONE).**
   Replace Burn parameter visitation, records, autodiff, interpolation, and
   optimizer coupling as one vertical Coeus scope. Definition of ready: pin the

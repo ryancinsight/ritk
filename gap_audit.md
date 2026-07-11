@@ -8,6 +8,19 @@
 
 # RITK Gap Audit - Active
 
+## MIG-527-01 audit (2026-07-11)
+
+`ritk-interpolation::interpolation::tensor_trilinear` duplicated the canonical
+Coeus-backed `trilinear_interpolation` contract with a Burn-specific gather
+graph and two private tests. Exact workspace search finds no external callers;
+the native operation already covers corner, center, replicated-border, and
+multichannel value semantics. The duplicate module is deleted rather than
+adapted or re-exported, leaving one authoritative implementation.
+
+Evidence tier: exact consumer search, canonical analytical value coverage,
+interpolation nextest 122/122, warning-denied Clippy, Rustdoc, doctests, and a
+clean migration audit reduced from 533 to 532 source files.
+
 ## MIG-525-01 audit (2026-07-11)
 
 `ritk-core` depended directly on `burn-ndarray` only to instantiate two
