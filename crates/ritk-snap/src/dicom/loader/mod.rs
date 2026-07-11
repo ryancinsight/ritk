@@ -10,9 +10,10 @@
 //!
 //! # Backend
 //!
-//! All tensor operations use `burn_ndarray::NdArray<f32>` (CPU, synchronous).
-//! This isolates the `<B: Backend>` type parameter to this module; callers
-//! receive a format-erased [`LoadedVolume`].
+//! DICOM scalar and color loading uses Coeus `SequentialBackend`. Remaining
+//! legacy format loaders use `burn_ndarray::NdArray<f32>` until their owning
+//! operation families migrate. Callers receive a format-erased
+//! [`LoadedVolume`].
 //!
 //! # Data layout
 //!
@@ -41,7 +42,7 @@ pub use dicom_load::load_dicom_volume;
 pub use nifti_load::load_nifti_volume;
 pub use scan::scan_folder_for_series;
 
-/// CPU backend alias used for all loading operations in this module.
+/// Legacy CPU backend used by the remaining non-DICOM loading operations.
 type B = NdArray<f32>;
 
 /// Return a default device for the `B` backend.

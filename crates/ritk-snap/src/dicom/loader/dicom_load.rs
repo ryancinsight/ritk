@@ -7,14 +7,11 @@ use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_io::{
     is_rgb_dicom_series, load_dicom_color_from_series, load_dicom_color_series,
-    load_dicom_from_series, load_dicom_series_with_metadata,
+    load_native_dicom_from_series, load_native_dicom_series_with_metadata,
 };
 use tracing::info;
 
 use crate::LoadedVolume;
-
-use super::convert::extract_spatial_metadata;
-use super::B;
 
 /// Load a DICOM series from a pre-scanned series descriptor into a [`LoadedVolume`].
 ///
@@ -51,17 +48,16 @@ pub fn load_volume_from_scanned_series(
 /// - `meta` — per-series DICOM metadata.
 /// - `source` — optional filesystem source path (absent for SCP-received instances).
 fn loaded_volume_from_scalar_image(
-    image: ritk_core::image::Image<B, 3>,
+    image: ritk_image::native::Image<f32, SequentialBackend, 3>,
     meta: ritk_io::DicomReadMetadata,
     source: Option<std::path::PathBuf>,
+    backend: &SequentialBackend,
 ) -> Result<LoadedVolume> {
     let shape = image.shape();
-    let (spacing, origin, direction) = extract_spatial_metadata(&image);
-    let tensor = image.into_tensor();
-    let tensor_data = tensor.into_data();
-    let pixels: Vec<f32> = tensor_data.into_vec::<f32>().map_err(|e| {
-        anyhow::anyhow!("failed to extract f32 pixel data from DICOM tensor: {e:?}")
-    })?;
+    let spacing = image.spacing().to_array();
+    let origin = image.origin().to_array();
+    let direction = image.direction().to_row_major();
+    let pixels = image.data_cow_on(backend).into_owned();
     let modality = meta.modality;
     let patient_name = meta.patient_name.clone();
     let patient_id = meta.patient_id.clone();
@@ -94,10 +90,10 @@ fn loaded_volume_from_scalar_image(
 fn load_dicom_scalar_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
-    let device = <B as ritk_image::tensor::Backend>::Device::default();
-    let (image, meta) = load_dicom_from_series::<B>(series, &device)
+    let backend = SequentialBackend;
+    let (image, meta) = load_native_dicom_from_series(series, &backend)
         .with_context(|| "failed to load DICOM series from scanned instances")?;
-    loaded_volume_from_scalar_image(image, meta, None)
+    loaded_volume_from_scalar_image(image, meta, None, &backend)
 }
 
 /// Load an RGB DICOM colour series from a pre-scanned series descriptor.
@@ -168,9 +164,9 @@ fn loaded_volume_from_color_image(
 ///
 /// # Algorithm
 /// 1. Detects whether the series is RGB via [`is_rgb_dicom_series`].
-/// 2. For RGB series: calls [`load_dicom_color_series`], converts the
-///    `RgbVolume<B>` into a [`LoadedVolume`] with `channels: 3`.
-/// 3. For scalar series: calls [`load_dicom_series_with_metadata`].
+/// 2. For RGB series: calls [`load_dicom_color_series`] and converts the native
+///    RGB volume into a [`LoadedVolume`] with `channels: 3`.
+/// 3. For scalar series: calls [`load_native_dicom_series_with_metadata`].
 /// 4. Extracts spatial metadata (spacing, origin, direction) from the image.
 /// 5. Populates optional DICOM-specific fields from `DicomReadMetadata`.
 ///
@@ -180,16 +176,15 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
     let folder = folder.as_ref();
     info!(path = %folder.display(), "loading DICOM volume");
 
-    let device = <B as ritk_image::tensor::Backend>::Device::default();
-
     // Detect RGB colour series and route to the colour-volume loader.
     if is_rgb_dicom_series(folder).unwrap_or(false) {
         return load_dicom_color_volume(folder);
     }
 
-    let (image, meta) = load_dicom_series_with_metadata::<B, _>(folder, &device)
+    let backend = SequentialBackend;
+    let (image, meta) = load_native_dicom_series_with_metadata(folder, &backend)
         .with_context(|| format!("failed to load DICOM series from '{}'", folder.display()))?;
-    loaded_volume_from_scalar_image(image, meta, Some(folder.to_path_buf()))
+    loaded_volume_from_scalar_image(image, meta, Some(folder.to_path_buf()), &backend)
 }
 
 /// Load an RGB DICOM colour series into a [`LoadedVolume`] with `channels: 3`.
@@ -213,6 +208,43 @@ fn load_dicom_color_volume(folder: &Path) -> Result<LoadedVolume> {
 mod tests {
     use super::*;
     use ritk_spatial::{Direction, Point, Spacing};
+
+    #[test]
+    fn native_scalar_volume_preserves_values_geometry_and_metadata() -> Result<()> {
+        let backend = SequentialBackend;
+        let pixels = vec![1.0_f32, 2.0, 3.0, 4.0];
+        let image = ritk_image::native::Image::from_flat_on(
+            pixels.clone(),
+            [1, 2, 2],
+            Point::new([3.0, 4.0, 5.0]),
+            Spacing::new([0.25, 0.5, 0.75]),
+            Direction::identity(),
+            &backend,
+        )?;
+        let metadata = ritk_io::DicomReadMetadata {
+            patient_name: Some("DOE^NATIVE".to_string()),
+            series_description: Some("native scalar".to_string()),
+            ..Default::default()
+        };
+        let source = std::path::PathBuf::from("native-scalar");
+
+        let loaded =
+            loaded_volume_from_scalar_image(image, metadata, Some(source.clone()), &backend)?;
+
+        assert_eq!(loaded.data.as_ref(), &pixels);
+        assert_eq!(loaded.shape, [1, 2, 2]);
+        assert_eq!(loaded.channels, 1);
+        assert_eq!(loaded.spacing, [0.25, 0.5, 0.75]);
+        assert_eq!(loaded.origin, [3.0, 4.0, 5.0]);
+        assert_eq!(
+            loaded.direction,
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+        );
+        assert_eq!(loaded.patient_name.as_deref(), Some("DOE^NATIVE"));
+        assert_eq!(loaded.series_description.as_deref(), Some("native scalar"));
+        assert_eq!(loaded.source.as_deref(), Some(source.as_path()));
+        Ok(())
+    }
 
     #[test]
     fn native_color_volume_preserves_values_geometry_and_metadata() -> Result<()> {

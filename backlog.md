@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-534-01 [major] - Snap native DICOM scalar boundary (DONE).**
+  Both scalar DICOM entry points now call the Coeus-native provider functions
+  on `SequentialBackend`. Burn image construction and tensor extraction are
+  absent from the DICOM loader; native storage is copied once into the viewer's
+  owned volume. Evidence: exact scalar/color regressions 2/2, full Snap nextest
+  637/637, xtask nextest 8/8, warning-denied Clippy, Rustdoc, doctests,
+  all-target compilation, and audit reduction from 659 to 658 source files.
+
 - **MIG-533-01 [major] - Snap native DICOM color boundary (DONE).**
   Snap now decodes both scanned and directory RGB series with Coeus
   `SequentialBackend` and converts native RGB volumes through one canonical

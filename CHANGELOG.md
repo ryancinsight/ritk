@@ -8,6 +8,21 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 534: Snap native DICOM scalar (MIG-534-01)
+
+### Changed
+- Scanned and directory scalar DICOM loading now uses Coeus-native images and
+  one explicit viewer ownership transfer.
+
+### Removed
+- Removed Burn image construction and tensor extraction from Snap's DICOM
+  loader; scalar and color DICOM paths are now native.
+
+### Evidence
+- Focused nextest 2/2, full Snap nextest 637/637, xtask nextest 8/8,
+  warning-denied Clippy, Rustdoc, doctests, all-target compilation, and Burn
+  audit reduction from 659 to 658 source files.
+
 ## [Unreleased] — Sprint 533: Snap native DICOM color (MIG-533-01)
 
 ### Fixed

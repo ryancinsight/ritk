@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-534-01 audit (2026-07-11)
+
+Snap's scalar DICOM entry points still called the Burn image provider even
+though `ritk-io` already owns native functions over the identical decoded
+series SSOT. Both paths now use `SequentialBackend`, borrow contiguous native
+storage when available, and perform one required copy into the viewer-owned
+`Arc<Vec<f32>>`. The DICOM loader file has no Burn tensor/backend surface.
+
+Evidence tier: exact scalar pixels, shape, channel count, spacing, origin,
+direction, metadata, and source regression; focused scalar/color nextest 2/2;
+full Snap nextest 637/637; xtask nextest 8/8; warning-denied Clippy; Rustdoc;
+doctests; all-target compilation; and clean audit reduction from 659 to 658
+source files. Remaining Snap Burn loading belongs to non-DICOM format and
+filter operation families, not this boundary.
+
 ## MIG-533-01 audit (2026-07-11)
 
 Snap's scalar DICOM path remains Burn-backed, but its color provider had

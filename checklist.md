@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-534-01 — Snap native DICOM scalar boundary
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Route scanned and directory scalar DICOM loading through the native Coeus provider API.
+- [x] Delete Burn image/tensor extraction from the DICOM loader and preserve one viewer ownership transfer.
+- [x] Pin exact scalar pixel, geometry, metadata, channel, and source semantics.
+- [x] Refresh the Burn allowlist and verify focused nextest 2/2, full Snap nextest 637/637, xtask nextest 8/8, warning-denied Clippy, Rustdoc, doctests, and all-target compilation.
+
 ## MIG-533-01 — Snap native DICOM color boundary
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
