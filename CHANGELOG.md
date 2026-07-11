@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 576: Snap native neighborhood-connected (MIG-576-01)
+### Changed
+- Snap routes neighborhood-connected region growing through its Coeus-native segmentation provider.
+
 ## [Unreleased] — Sprint 575: Snap native confidence-connected (MIG-575-01)
 ### Changed
 - Snap routes confidence-connected region growing through the Coeus-native segmentation provider.

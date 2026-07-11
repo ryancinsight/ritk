@@ -30,7 +30,7 @@ use ritk_segmentation::{
     labeling::Connectivity as SegmentationConnectivity,
     native::{
         binary_threshold, confidence_connected, connected_components, connected_threshold,
-        multi_otsu, relabel_components,
+        multi_otsu, neighborhood_connected, relabel_components,
     },
 };
 use ritk_spatial::{Direction, Point, Spacing};
@@ -98,6 +98,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::GradientAnisotropicDiffusion { .. }
             | FilterKind::ConnectedThreshold { .. }
             | FilterKind::ConfidenceConnected { .. }
+            | FilterKind::NeighborhoodConnected { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
@@ -425,6 +426,23 @@ fn apply_supported_filter(
             *initial_upper,
             *multiplier,
             *max_iterations as usize,
+            &backend,
+        ),
+        FilterKind::NeighborhoodConnected {
+            seed_z,
+            seed_y,
+            seed_x,
+            lower,
+            upper,
+            radius_z,
+            radius_y,
+            radius_x,
+        } => neighborhood_connected(
+            &image,
+            ritk_spatial::VoxelIndex::from([*seed_z, *seed_y, *seed_x]),
+            *lower,
+            *upper,
+            [*radius_z, *radius_y, *radius_x],
             &backend,
         ),
         FilterKind::BinaryThreshold {
@@ -1183,6 +1201,28 @@ mod tests {
         .expect("invariant: confidence connected has a native implementation")
         .expect("native confidence connected succeeds");
         assert_eq!(output, vec![1.0; 3]);
+    }
+
+    #[test]
+    fn native_neighborhood_connected_rejects_an_invalid_seed_neighborhood() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![1.0, 0.0, 1.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::NeighborhoodConnected {
+                seed_z: 0,
+                seed_y: 0,
+                seed_x: 0,
+                lower: 1.0,
+                upper: 1.0,
+                radius_z: 0,
+                radius_y: 0,
+                radius_x: 1,
+            },
+        )
+        .expect("invariant: neighborhood connected has a native implementation")
+        .expect("native neighborhood connected succeeds");
+        assert_eq!(output, vec![0.0; 3]);
     }
 
     #[test]

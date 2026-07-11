@@ -241,7 +241,7 @@ fn is_neighborhood_admissible(
 /// Perform BFS flood fill with neighborhood admissibility on flat `[nz × ny × nx]` data.
 ///
 /// Returns a flat binary `Vec<f32>` of the same length as `data`.
-fn grow_neighborhood(
+pub(crate) fn grow_neighborhood(
     data: &[f32],
     dims: [usize; 3],
     seed: VoxelIndex,

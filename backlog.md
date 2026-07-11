@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-576-01 [patch] - Snap native neighborhood-connected (DONE).** Native radius admissibility preserves seed rejection.
+
 - **MIG-575-01 [patch] - Snap native confidence-connected (DONE).** Native iterative region growing preserves constant-component selection.
 
 - **MIG-574-01 [patch] - Snap native connected threshold (DONE).** Native BFS routing preserves six-connected seed reachability.
