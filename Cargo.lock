@@ -7604,6 +7604,7 @@ dependencies = [
  "ritk-image",
  "ritk-interpolation",
  "ritk-morphology",
+ "ritk-segmentation",
  "ritk-spatial",
  "ritk-statistics",
  "ritk-tensor-ops",

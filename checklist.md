@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-585-01 — Consolidate binary threshold ownership
+**Target version**: 0.14.0 migration batch
+- [x] Move every consumer to ritk-segmentation and delete the duplicate filter owner.
+
 ## MIG-584-01 — Native image blend
 **Target version**: 0.14.0 migration batch
 - [x] Expose blend through a native two-image boundary with first-image metadata.

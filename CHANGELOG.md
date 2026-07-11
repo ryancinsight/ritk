@@ -8,6 +8,13 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 585: Binary threshold ownership (MIG-585-01)
+### Removed
+- Removed `ritk_filter::BinaryThresholdImageFilter`; use
+  `ritk_segmentation::binary_threshold`.
+### Migration
+- All in-repository consumers now call the segmentation provider directly.
+
 ## [Unreleased] — Sprint 584: Native image blend (MIG-584-01)
 ### Added
 - `BlendImageFilter` now exposes a Coeus-native two-image boundary.

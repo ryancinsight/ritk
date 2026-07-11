@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-585-01 [major] - Consolidate binary threshold ownership (DONE).** CLI,
+  Python, Registration, Snap, and parity tests now consume `ritk-segmentation`;
+  the duplicate `ritk-filter` implementation is deleted.
+
 - **MIG-584-01 [patch] - Native image blend (DONE).** Blend now exposes a
   Coeus-native two-image boundary with first-image geometry ownership.
 

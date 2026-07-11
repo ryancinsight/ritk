@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-585-01 audit (2026-07-11)
+
+`BinaryThresholdImageFilter` duplicated the canonical segmentation threshold
+provider. All known consumers now call `ritk_segmentation::binary_threshold`;
+the duplicate module, export, and unit tests are deleted. The parity regression
+now validates the provider directly.
+
 ## MIG-584-01 audit (2026-07-11)
 
 Blend now owns a Coeus-native two-image boundary. Exact half-alpha values and

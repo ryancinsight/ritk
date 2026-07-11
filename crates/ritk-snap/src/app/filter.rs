@@ -339,13 +339,13 @@ impl SnapApp {
                     upper,
                     foreground,
                     background,
-                } => ritk_filter::BinaryThresholdImageFilter::new(
+                } => Ok(ritk_segmentation::binary_threshold(
+                    &image,
                     *lower,
                     *upper,
-                    *foreground,
+                    (*foreground).into(),
                     *background,
-                )
-                .apply(&image),
+                )),
                 crate::FilterKind::RescaleIntensity { out_min, out_max } => {
                     ritk_filter::RescaleIntensityFilter::new(*out_min, *out_max).apply(&image)
                 }

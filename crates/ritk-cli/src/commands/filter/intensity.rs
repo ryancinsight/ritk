@@ -183,16 +183,14 @@ pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
-    use ritk_filter::BinaryThresholdImageFilter;
-
     let image = read_image(&args.input)?;
-    let filtered = BinaryThresholdImageFilter::new(
+    let filtered = ritk_segmentation::binary_threshold(
+        &image,
         args.band.lower_threshold,
         args.band.upper_threshold,
         args.band.foreground_value,
         args.band.background_value,
-    )
-    .apply(&image)?;
+    );
 
     write_image_inferred(&args.output, &filtered)?;
 
