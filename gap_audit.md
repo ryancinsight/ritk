@@ -29,6 +29,11 @@ coverage, property-based inverse round trips with a `4096 * epsilon` operation
 bound, image/core nextest 53/53, warning-denied Clippy, Rustdoc, doctests, and
 downstream registration all-target compilation.
 
+ADR 0004 grounds the displacement-field cutover in the live Coeus and RITK
+contracts. Provider gaps are named parameter enumeration, bounded rkyv state,
+dimension-complete differentiable interpolation, and native optimizer
+consumption. The atomic consumer inventory prevents a partial module shim.
+
 ## MIG-524-01 audit (2026-07-10)
 
 The model crate's final Burn edge was not runtime computation; it was the

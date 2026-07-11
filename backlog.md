@@ -1,10 +1,10 @@
 # RITK Backlog - Active Planning
 
-- **MIG-526-01 [major] - Trainable displacement-field native cutover (TODO).**
+- **MIG-526-01 [major] - Trainable displacement-field native cutover (IN PROGRESS).**
   Replace Burn parameter visitation, records, autodiff, interpolation, and
   optimizer coupling as one vertical Coeus scope. Definition of ready: pin the
   Coeus parameter persistence contract, native 2-D/3-D interpolation contract,
-  and registration optimizer consumer set in an ADR; acceptance requires
+  and registration optimizer consumer set in ADR 0004; acceptance requires
   deleting the admitted `displacement_field/module.rs` Burn surface rather
   than wrapping it.
 
