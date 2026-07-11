@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-578-01 [patch] - Snap native curvature flow (DONE).** Shared native stencil preserves constant fields.
+
 - **MIG-577-01 [patch] - Snap native bed separation (DONE).** Native pipeline preserves configured background replacement.
 
 - **MIG-576-01 [patch] - Snap native neighborhood-connected (DONE).** Native radius admissibility preserves seed rejection.

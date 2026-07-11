@@ -15,12 +15,13 @@ use ritk_filter::{
     },
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationFilter,
     BinaryContourImageFilter, BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter,
-    ConstantPadImageFilter, CosImageFilter, ExpImageFilter, FlipImageFilter,
-    GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, GrayscaleClosingFilter,
-    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
-    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
-    HistogramEqualizationFilter, InvertIntensityFilter, LabelContourImageFilter, LogImageFilter,
-    MaskImageFilter, MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    ConstantPadImageFilter, CosImageFilter, CurvatureFlowConfig, CurvatureFlowImageFilter,
+    ExpImageFilter, FlipImageFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
+    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
+    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
     ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
     TileMeanShrinkFilter, VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
@@ -97,6 +98,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::HistEq { .. }
             | FilterKind::Clahe { .. }
             | FilterKind::GradientAnisotropicDiffusion { .. }
+            | FilterKind::CurvatureFlow { .. }
             | FilterKind::ConnectedThreshold { .. }
             | FilterKind::ConfidenceConnected { .. }
             | FilterKind::NeighborhoodConnected { .. }
@@ -400,6 +402,14 @@ fn apply_supported_filter(
             num_iterations: *iterations as usize,
             time_step: *time_step,
             conductance: *conductance,
+        })
+        .apply_native(&image, &backend),
+        FilterKind::CurvatureFlow {
+            iterations,
+            time_step,
+        } => CurvatureFlowImageFilter::new(CurvatureFlowConfig {
+            num_iterations: *iterations as usize,
+            time_step: *time_step,
         })
         .apply_native(&image, &backend),
         FilterKind::ConnectedThreshold {
@@ -1240,6 +1250,22 @@ mod tests {
         .expect("invariant: bed separation has a native implementation")
         .expect("native bed separation succeeds");
         assert_eq!(output, vec![-1024.0; 2]);
+    }
+
+    #[test]
+    fn native_curvature_flow_preserves_a_constant_volume() {
+        let mut volume = test_volume([1, 2, 2]);
+        volume.data = Arc::new(vec![42.5; 4]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::CurvatureFlow {
+                iterations: 2,
+                time_step: 0.0625,
+            },
+        )
+        .expect("invariant: curvature flow has a native implementation")
+        .expect("native curvature flow succeeds");
+        assert_eq!(output, vec![42.5; 4]);
     }
 
     #[test]

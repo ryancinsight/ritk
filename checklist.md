@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-578-01 — Snap native curvature flow
+**Target version**: 0.14.0 migration batch
+- [x] Extract shared stencil, route native Snap, and verify constant-field invariance.
+
 ## MIG-577-01 — Snap native bed separation
 **Target version**: 0.14.0 migration batch
 - [x] Share CT bed pipeline natively and route Snap; verify configured replacement.

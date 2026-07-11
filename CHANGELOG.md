@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 578: Snap native curvature flow (MIG-578-01)
+### Changed
+- Snap routes curvature flow through the Coeus-native shared double-buffer stencil.
+
 ## [Unreleased] — Sprint 577: Snap native bed separation (MIG-577-01)
 ### Changed
 - Snap routes CT bed separation through the Coeus-native provider pipeline.

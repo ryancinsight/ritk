@@ -76,6 +76,7 @@
 //! - Caselles, V., Kimmel, R., Sapiro, G. (1997). "Geodesic active contours."
 //!   Int. J. Comput. Vis. 22(1):61-79.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -175,16 +176,24 @@ impl CurvatureFlowImageFilter {
     /// Returns `anyhow::Error` if the voxel data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals_vec, dims) = extract_vec(image)?;
+        let spacing = image.spacing();
+        Ok(rebuild(
+            self.apply_values(vals_vec, dims, [spacing[0], spacing[1], spacing[2]]),
+            dims,
+            image,
+        ))
+    }
+
+    fn apply_values(&self, vals_vec: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
         let [nz, ny, nx] = dims;
         let slab = ny * nx;
 
-        let sp = image.spacing();
         // Loop-invariant inverse spacings and time step — computed once, hoisted
         // outside the per-iteration and per-voxel scopes.
         let isp: [f64; 3] = [
-            sp[2].recip(), // x-axis
-            sp[1].recip(), // y-axis
-            sp[0].recip(), // z-axis
+            spacing[2].recip(), // x-axis
+            spacing[1].recip(), // y-axis
+            spacing[0].recip(), // z-axis
         ];
         let dt64 = self.config.time_step as f64;
 
@@ -345,7 +354,32 @@ impl CurvatureFlowImageFilter {
             std::mem::swap(&mut cur, &mut next);
         }
 
-        Ok(rebuild(cur, dims, image))
+        cur
+    }
+
+    /// Apply mean-curvature flow to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let spacing = image.spacing();
+        ritk_image::native::Image::from_flat_on(
+            self.apply_values(
+                image.data_slice()?.to_vec(),
+                image.shape(),
+                [spacing[0], spacing[1], spacing[2]],
+            ),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
     }
 }
 
