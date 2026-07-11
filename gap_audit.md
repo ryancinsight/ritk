@@ -8,6 +8,19 @@
 
 # RITK Gap Audit - Active
 
+## MIG-542-01 audit (2026-07-11)
+
+Snap constructed a Burn image for connected components although the segmentation
+owner already exposes a Coeus-native boundary over the same label core. The
+application now converts its closed connectivity enum directly to the native
+segmentation enum and retains only the labels; label statistics remain provider
+internal because Snap never consumed them. Exact native-provider and Snap tests
+pin the labels and mapping.
+
+Residual risk: RelabelComponents and MultiOtsu remain legacy operations because
+their native provider contracts are not present. The shared legacy dispatcher
+continues to determine the unchanged source audit count.
+
 ## MIG-541-01 audit (2026-07-11)
 
 The unsigned Euclidean distance transform already has a Coeus-native wrapper

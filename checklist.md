@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-542-01 — Snap native connected components
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Route connected-component labeling through the native segmentation owner.
+- [x] Preserve Face6/Vertex26 mapping and pin exact labels at the Snap boundary.
+- [x] Verify warning-denied Clippy, doctests 2/2, and warning-clean Rustdoc;
+  audit remaining legacy count and deliver the RITK plus Atlas commits.
+
 ## MIG-541-01 — Snap native distance transform
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

@@ -16,6 +16,9 @@ use ritk_filter::{
     AbsImageFilter, ExpImageFilter, LogImageFilter, SqrtImageFilter, SquareImageFilter,
 };
 use ritk_image::native::Image;
+use ritk_segmentation::{
+    labeling::Connectivity as SegmentationConnectivity, native::connected_components,
+};
 use ritk_spatial::{Direction, Point, Spacing};
 
 use crate::{FilterKind, LoadedVolume};
@@ -43,6 +46,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::BinaryOpening { .. }
             | FilterKind::BinaryFillhole { .. }
             | FilterKind::DistanceTransform { .. }
+            | FilterKind::ConnectedComponents { .. }
     ) {
         return None;
     }
@@ -112,6 +116,17 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         }
         FilterKind::DistanceTransform { threshold } => {
             distance_transform(&image, *threshold, &backend)
+        }
+        FilterKind::ConnectedComponents {
+            connectivity,
+            background_value,
+        } => {
+            let connectivity = match connectivity {
+                ritk_filter::Connectivity::Face6 => SegmentationConnectivity::Six,
+                ritk_filter::Connectivity::Vertex26 => SegmentationConnectivity::TwentySix,
+            };
+            connected_components(&image, connectivity, *background_value, &backend)
+                .map(|(labels, _statistics)| labels)
         }
         _ => unreachable!("invariant: dispatch admits only fully native filter variants"),
     }
@@ -243,6 +258,23 @@ mod tests {
     }
 
     #[test]
+    fn native_connected_components_preserves_labels_and_connectivity() {
+        let mut volume = test_volume([2, 2, 2]);
+        volume.data = Arc::new(vec![1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::ConnectedComponents {
+                connectivity: ritk_filter::Connectivity::Face6,
+                background_value: 0.0,
+            },
+        )
+        .expect("invariant: connected components has a native implementation")
+        .expect("native connected components accepts a scalar volume");
+
+        assert_eq!(output, vec![1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0]);
+    }
+
+    #[test]
     fn unsupported_filter_stays_outside_native_unary_dispatch() {
         let volume = test_volume([1, 1, 1]);
         assert!(apply_if_supported(&volume, &FilterKind::Gaussian { sigma: 1.0 }).is_none());
@@ -311,6 +343,26 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [2.0, 0.0, 2.0]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_connected_components() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![1.0, 0.0, 1.0]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::ConnectedComponents {
+            connectivity: ritk_filter::Connectivity::Face6,
+            background_value: 0.0,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [1.0, 0.0, 2.0]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }

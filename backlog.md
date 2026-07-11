@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-542-01 [patch] - Snap native connected components (DONE).**
+  Connected-component labeling now dispatches to the Coeus-native segmentation
+  owner with the exact Face6/Vertex26 mapping. Provider and Snap label/state
+  regressions pass, along with warning-denied Clippy, doctests 2/2, and Rustdoc.
+
 - **MIG-541-01 [patch] - Snap native distance transform (DONE).**
   The unsigned Euclidean distance transform now dispatches to the Coeus-native
   provider before legacy image construction. Provider differential coverage

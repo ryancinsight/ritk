@@ -8,6 +8,17 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 542: Snap native connected components (MIG-542-01)
+
+### Changed
+- Snap now routes connected-component labeling through the Coeus-native
+  segmentation provider, retaining exact Face6/Vertex26 connectivity mapping.
+
+### Evidence
+- Provider label/statistics regression plus focused Snap nextest 2/2 pin exact
+  labels and application-state semantics. Warning-denied Clippy, doctests 2/2,
+  and warning-clean Rustdoc pass.
+
 ## [Unreleased] — Sprint 541: Snap native distance transform (MIG-541-01)
 
 ### Changed
