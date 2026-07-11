@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-593-01 [patch] - Native constant-sum normalization (DONE).**
+  `NormalizeToConstantImageFilter` now uses the Coeus-native image boundary.
+
 - **MIG-592-01 [patch] - Native generic binary image operations (DONE).** One
   ZST-dispatched two-image kernel now serves tensor-backed and Coeus-native images.
 

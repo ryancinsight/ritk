@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-593-01 audit (2026-07-11)
+
+Constant-sum normalization now shares its f64 accumulation and zero-sum policy
+between tensor-backed and Coeus-native images. The native regression pins the
+exact target sum and source metadata.
+
 ## MIG-592-01 audit (2026-07-11)
 
 `BinaryOpFilter<Op>` now retains its single monomorphized operation kernel at

@@ -153,3 +153,30 @@ fn native_normalize_uses_sample_standard_deviation() {
         &[-1.0, 0.0, 1.0]
     );
 }
+
+#[test]
+fn native_normalize_to_constant_preserves_sum_and_metadata() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        vec![1.0, 2.0, 3.0],
+        [1, 1, 3],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = NormalizeToConstantImageFilter::new(3.0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native constant normalization succeeds");
+
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[0.5, 1.0, 1.5]
+    );
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
+}

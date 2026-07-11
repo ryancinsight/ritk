@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-593-01 — Native constant-sum normalization
+**Target version**: 0.14.0 migration batch
+- [x] Expose constant-sum normalization through Coeus-native images.
+
 ## MIG-592-01 — Native generic binary image operations
 **Target version**: 0.14.0 migration batch
 - [x] Expose the ZST binary operation kernel to Coeus-native image pairs.

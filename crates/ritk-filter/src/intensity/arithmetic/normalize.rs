@@ -135,6 +135,27 @@ impl NormalizeToConstantImageFilter {
         let out: Vec<f32> = vals.into_iter().map(|v| v * factor).collect();
         rebuild(out, dims, image)
     }
+
+    /// Apply constant-sum normalization to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| {
+            let sum = values.iter().map(|&value| f64::from(value)).sum::<f64>();
+            let factor = if sum != 0.0 {
+                (self.constant / sum) as f32
+            } else {
+                0.0
+            };
+            values.iter().map(|&value| value * factor).collect()
+        })
+    }
 }
 
 #[cfg(test)]

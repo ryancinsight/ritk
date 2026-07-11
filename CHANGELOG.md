@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 593: Native constant-sum normalization (MIG-593-01)
+### Added
+- `NormalizeToConstantImageFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 592: Native generic binary image operations (MIG-592-01)
 ### Added
 - `BinaryOpFilter<Op>` now exposes a Coeus-native two-image boundary.
