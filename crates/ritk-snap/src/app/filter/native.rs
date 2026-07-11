@@ -9,6 +9,9 @@
 use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_filter::{
+    morphology::native::{
+        binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
+    },
     AbsImageFilter, ExpImageFilter, LogImageFilter, SqrtImageFilter, SquareImageFilter,
 };
 use ritk_image::native::Image;
@@ -28,15 +31,24 @@ pub(super) fn apply_if_supported(
 ) -> Option<Result<Vec<f32>>> {
     if !matches!(
         filter,
-        FilterKind::Abs | FilterKind::Square | FilterKind::Sqrt | FilterKind::Log | FilterKind::Exp
+        FilterKind::Abs
+            | FilterKind::Square
+            | FilterKind::Sqrt
+            | FilterKind::Log
+            | FilterKind::Exp
+            | FilterKind::BinaryErode { .. }
+            | FilterKind::BinaryDilate { .. }
+            | FilterKind::BinaryClosing { .. }
+            | FilterKind::BinaryOpening { .. }
+            | FilterKind::BinaryFillhole { .. }
     ) {
         return None;
     }
 
-    Some(apply_unary(volume, filter))
+    Some(apply_supported_filter(volume, filter))
 }
 
-fn apply_unary(volume: &LoadedVolume, filter: &FilterKind) -> Result<Vec<f32>> {
+fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<Vec<f32>> {
     if volume.channels != 1 {
         anyhow::bail!(
             "native unary filters require a scalar volume, received {} interleaved channels",
@@ -77,7 +89,26 @@ fn apply_unary(volume: &LoadedVolume, filter: &FilterKind) -> Result<Vec<f32>> {
         FilterKind::Sqrt => SqrtImageFilter::new().apply_native(&image, &backend),
         FilterKind::Log => LogImageFilter::new().apply_native(&image, &backend),
         FilterKind::Exp => ExpImageFilter::new().apply_native(&image, &backend),
-        _ => unreachable!("invariant: apply_unary is called only for supported unary filters"),
+        FilterKind::BinaryErode {
+            radius,
+            foreground_value,
+        } => binary_erode(&image, *radius, *foreground_value, &backend),
+        FilterKind::BinaryDilate {
+            radius,
+            foreground_value,
+        } => binary_dilate(&image, *radius, *foreground_value, &backend),
+        FilterKind::BinaryClosing {
+            radius,
+            foreground_value,
+        } => binary_closing(&image, *radius, *foreground_value, &backend),
+        FilterKind::BinaryOpening {
+            radius,
+            foreground_value,
+        } => binary_opening(&image, *radius, *foreground_value, &backend),
+        FilterKind::BinaryFillhole { foreground_value } => {
+            binary_fill_holes(&image, *foreground_value, &backend)
+        }
+        _ => unreachable!("invariant: dispatch admits only fully native filter variants"),
     }
     .context("Coeus-native unary filter failed")?;
 
@@ -90,6 +121,7 @@ mod tests {
     use crate::app::tests::test_volume;
     use crate::app::SnapApp;
     use crate::FilterKind;
+    use ritk_filter::ForegroundValue;
     use std::sync::Arc;
 
     #[test]
@@ -143,6 +175,52 @@ mod tests {
     }
 
     #[test]
+    fn native_binary_morphology_preserves_exact_contracts() {
+        let identity = vec![0.0, 1.0, 0.0];
+        let identity_variants = [
+            FilterKind::BinaryErode {
+                radius: 0,
+                foreground_value: ForegroundValue::ONE,
+            },
+            FilterKind::BinaryDilate {
+                radius: 0,
+                foreground_value: ForegroundValue::ONE,
+            },
+            FilterKind::BinaryClosing {
+                radius: 0,
+                foreground_value: ForegroundValue::ONE,
+            },
+            FilterKind::BinaryOpening {
+                radius: 0,
+                foreground_value: ForegroundValue::ONE,
+            },
+        ];
+
+        for filter in identity_variants {
+            let mut volume = test_volume([1, 1, 3]);
+            volume.data = Arc::new(identity.clone());
+            let output = apply_if_supported(&volume, &filter)
+                .expect("invariant: binary morphology has a native implementation")
+                .expect("native binary morphology accepts a scalar volume");
+            assert_eq!(output, identity);
+        }
+
+        let mut volume = test_volume([3, 3, 3]);
+        let mut values = vec![1.0; 27];
+        values[13] = 0.0;
+        volume.data = Arc::new(values);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::BinaryFillhole {
+                foreground_value: ForegroundValue::ONE,
+            },
+        )
+        .expect("invariant: binary fill-hole has a native implementation")
+        .expect("native binary fill-hole accepts a scalar volume");
+        assert_eq!(output, vec![1.0; 27]);
+    }
+
+    #[test]
     fn unsupported_filter_stays_outside_native_unary_dispatch() {
         let volume = test_volume([1, 1, 1]);
         assert!(apply_if_supported(&volume, &FilterKind::Gaussian { sigma: 1.0 }).is_none());
@@ -172,6 +250,26 @@ mod tests {
         assert!(app.coronal_dirty);
         assert!(app.sagittal_dirty);
         assert!(app.mip_dirty);
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_binary_morphology() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 1.0, 0.0]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::BinaryDilate {
+            radius: 1,
+            foreground_value: ForegroundValue::ONE,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [1.0, 1.0, 1.0]
+        );
         assert_eq!(app.status_message, "Filter applied.");
     }
 }

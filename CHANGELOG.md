@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 540: Snap native binary morphology (MIG-540-01)
+
+### Changed
+- Snap now routes binary erosion, dilation, opening, closing, and hole filling
+  through the Coeus-native `ritk-filter::morphology::native` family.
+
+### Evidence
+- Provider differential tests already prove each native operation is exactly
+  equal to its Burn counterpart; Snap adds exact binary-contract and
+  application-state regressions. Focused Snap nextest 2/2, warning-denied
+  Clippy, doctests 2/2, and warning-clean Rustdoc pass.
+
 ## [Unreleased] — Sprint 539: Snap native unary filters (MIG-539-01)
 
 ### Changed

@@ -8,6 +8,17 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-540-01 — Snap native binary morphology
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Route the complete binary erosion/dilation/opening/closing/fill-hole
+  family through the existing Coeus-native morphology provider.
+- [x] Pin zero-radius identity and enclosed-hole contracts at the Snap boundary,
+  and verify application dispatch updates the loaded volume.
+- [x] Verify focused Snap nextest 2/2, warning-denied Clippy, doctests 2/2,
+  and warning-clean Rustdoc; commit and advance the Atlas gitlink.
+
 ## MIG-539-01 — Snap native unary-filter dispatch
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
@@ -18,9 +29,8 @@
   viewer/native transfer boundary, with no Burn fallback on provider failure.
 - [x] Add value-semantic provider and Snap-state regressions; verify focused
   nextest 3/3, warning-denied Clippy, doctests 2/2, and Rustdoc.
-- [ ] Migrate the next complete live Snap filter family only after its native
-  provider contract and exact output tests exist; retain `LoadBackend` solely
-  for the unsupported legacy graph meanwhile.
+- [x] Migrate the next complete live Snap filter family through MIG-540-01;
+  retain `LoadBackend` solely for the unsupported legacy graph meanwhile.
 
 ## MIG-538-01 — Snap mask-threshold failure propagation
 **Target version**: 0.14.0 migration batch

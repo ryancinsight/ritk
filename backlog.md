@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-540-01 [patch] - Snap native binary morphology (DONE).**
+  Binary erosion, dilation, opening, closing, and hole filling now dispatch to
+  the complete Coeus-native `ritk-filter::morphology::native` provider family.
+  The provider already differential-tests each operation against the shared
+  Burn core. Snap adds exact identity, enclosed-hole, and application-state
+  regressions. Evidence: focused Snap nextest 2/2, warning-denied Clippy,
+  doctests 2/2, and warning-clean Rustdoc.
+
 - **MIG-539-01 [patch] - Snap native unary-filter dispatch (DONE).**
   The complete Abs/Square/Sqrt/Log/Exp family now enters the existing
   Coeus-native `ritk-filter` provider directly from a scalar `LoadedVolume`.

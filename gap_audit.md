@@ -8,6 +8,24 @@
 
 # RITK Gap Audit - Active
 
+## MIG-540-01 audit (2026-07-11)
+
+The five binary morphology variants still constructed a Burn image in Snap
+despite `ritk-filter::morphology::native` exposing a complete Coeus provider
+family. They now dispatch through that owner before legacy image construction.
+The native provider's differential suite establishes exact equality with the
+same substrate-agnostic Burn algorithm core; Snap regression tests additionally
+pin zero-radius identity, enclosed-hole fill, and application state mutation.
+
+Evidence tier: provider differential tests plus empirical value-semantic Snap
+regressions. Focused Snap nextest passes 2/2, warning-denied Clippy passes,
+doctests pass 2/2, and Rustdoc is warning-clean.
+
+Residual risk: `LoadBackend` remains for filter variants without a complete
+native provider contract. This is an execution-path migration, so its source
+audit count remains unchanged while the legacy dispatcher still owns those
+unsupported variants.
+
 ## MIG-539-01 audit (2026-07-11)
 
 `SnapApp` constructed a Burn image before dispatching every filter, including
