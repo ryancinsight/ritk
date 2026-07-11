@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-582-01 [patch] - Native SUV body-weight conversion (DONE).** The
+  pure SUV values transform now has a shared Coeus image boundary.
+
 - **MIG-581-01 [patch] - Snap native Gaussian (DONE).** Native Moirai
   separable convolution preserves the zero-padding contract and removes this
   viewer route from the legacy tensor graph.

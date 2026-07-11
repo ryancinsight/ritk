@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-582-01 — Native SUV body-weight conversion
+**Target version**: 0.14.0 migration batch
+- [x] Expose the canonical SUV values transform through the native boundary.
+
 ## MIG-581-01 — Snap native Gaussian
 **Target version**: 0.14.0 migration batch
 - [x] Add native zero-padded separable convolution and verify legacy equivalence.

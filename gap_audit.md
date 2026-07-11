@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-582-01 audit (2026-07-11)
+
+SUV body-weight conversion now uses the shared Coeus image boundary over its
+canonical scalar values transform. Exact native/tensor values and metadata are
+covered by a focused regression.
+
 ## MIG-581-01 audit (2026-07-11)
 
 Gaussian smoothing now owns one Moirai-parallel, zero-padded separable values

@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 582: Native SUV body-weight conversion (MIG-582-01)
+### Added
+- `SuvBodyWeightImageFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 581: Canonical native Gaussian (MIG-581-01)
 ### Changed
 - Gaussian smoothing now routes tensor-backed and Coeus-native images through
