@@ -18,6 +18,8 @@
       metadata naming remains part of the atomic consumer cutover.
 - [x] Publish Coeus dimension-complete differentiable interpolation
       (`397b3e5`) with compile-time 2-D/3-D support and a replicated-border ZST.
+- [x] Publish stable hierarchical Coeus module parameters (`a801cbe`) with
+      optimizer-order and gradient-buffer identity preserved.
 - [ ] Replace the complete trainable field graph and delete Burn module/record plumbing.
 - [ ] Verify value, gradient, persistence, resampling, and downstream registration contracts.
 

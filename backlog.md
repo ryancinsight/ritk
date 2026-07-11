@@ -12,6 +12,9 @@
   Coeus commit `397b3e5` closes the interpolation prerequisite with one
   const-dimension 2-D/3-D forward/reverse-mode family, compile-time supported-
   dimension evidence, and an explicit replicated-border ZST policy.
+  Coeus commit `a801cbe` closes named parameter reflection: semantic leaf names
+  and hierarchical composite prefixes preserve the plain optimizer inventory's
+  order and gradient-buffer identity.
 
 - **MIG-525-01 [major] - Core geometry test cutover (DONE).**
   The Coeus-backed image now owns fallible physical/index mappings. Core

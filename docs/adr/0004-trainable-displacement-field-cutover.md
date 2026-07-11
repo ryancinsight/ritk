@@ -45,6 +45,8 @@ introduced.
 1. **Named parameter collection in Coeus.** Extend the canonical module seam
    so nested modules expose stable parameter names with their `Var`s. Preserve
    the current zero-cost static module structure; do not add dynamic dispatch.
+   Coeus commit `a801cbe` delivers stable semantic leaf names and hierarchical
+   composite paths while preserving optimizer ordering and gradient identity.
 2. **Bounded archived state.** Replace the eager `StateDict` reader with a
    bounded, validated rkyv archive contract that stores tensor shape/data and
    displacement metadata. Compatibility decoding, if required for existing

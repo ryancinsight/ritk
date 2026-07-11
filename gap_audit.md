@@ -50,8 +50,16 @@ documented border policy with zero storage. Evidence is exact values and
 image/grid gradients, independent finite differences for all five coordinate
 axes, typed malformed/non-finite rejection, Sequential/Moirai agreement,
 affected nextest 282/282, focused post-tightening nextest 6/6, Clippy,
-Rustdoc, and doctests. Named module parameters and optimizer consumption remain
-open.
+Rustdoc, and doctests. At that provider checkpoint, named module parameters and
+optimizer consumption remained open.
+
+Coeus commit `a801cbe` closes the named-module-parameter gap. The canonical
+`Module` seam now emits semantic leaf names and hierarchical paths for
+sequences, recurrent modules, attention, and transformer trees. Exact decoder
+paths, full-transformer uniqueness, and shared Arc gradient identity prove the
+named inventory is the same optimizer inventory rather than a copied record.
+Evidence: coeus-nn nextest 410/410, warning-denied Clippy, Rustdoc, and doctests.
+Native optimizer consumption and the atomic RITK field cutover remain open.
 
 ## MIG-524-01 audit (2026-07-10)
 
