@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-602-01 — Native CLI Z-score normalization
+**Target version**: 0.14.0 migration batch
+- [x] Route full-image and masked Z-score CLI paths through native I/O and statistics.
+- [x] Reject input, output, and mask formats without native I/O.
+
 ## MIG-601-01 — Native Z-score normalization provider
 **Target version**: 0.14.0 migration batch
 - [x] Expose full-image and masked Z-score population statistics natively.

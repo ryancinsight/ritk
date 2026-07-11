@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-602-01 [major] - Native CLI Z-score normalization (DONE).** Z-score,
+  including optional masks, now reads, normalizes, and writes native images.
+
 - **MIG-601-01 [minor] - Native Z-score normalization provider (DONE).**
   Full-image and masked population statistics now support native images.
 

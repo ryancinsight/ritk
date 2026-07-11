@@ -134,7 +134,10 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
         args.method
     );
 
-    if matches!(args.method, NormalizeMethod::Minmax) {
+    if matches!(
+        args.method,
+        NormalizeMethod::Minmax | NormalizeMethod::Zscore
+    ) {
         let input_format = infer_format(&args.input).ok_or_else(|| {
             anyhow!(
                 "Cannot infer input format from path: {}",
@@ -158,8 +161,32 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             output_format
         );
         let input = read_image_native(&args.input)?;
-        let output = MinMaxNormalizer::default()
-            .normalize_native(&input, &super::NativeBackend::default())?;
+        let backend = super::NativeBackend::default();
+        let output = match args.method {
+            NormalizeMethod::Minmax => {
+                MinMaxNormalizer::default().normalize_native(&input, &backend)?
+            }
+            NormalizeMethod::Zscore => {
+                if let Some(mask_path) = &args.mask {
+                    let mask_format = infer_format(mask_path).ok_or_else(|| {
+                        anyhow!(
+                            "Cannot infer mask format from path: {}",
+                            mask_path.display()
+                        )
+                    })?;
+                    anyhow::ensure!(
+                        is_native_read_capable(mask_format),
+                        "zscore normalization does not support {:?} mask input until its native reader exists",
+                        mask_format
+                    );
+                    let mask = read_image_native(mask_path)?;
+                    ZScoreNormalizer::new().normalize_masked_native(&input, &mask, &backend)?
+                } else {
+                    ZScoreNormalizer::new().normalize_native(&input, &backend)?
+                }
+            }
+            _ => unreachable!("only native normalization methods reach this branch"),
+        };
         write_image_native(&args.output, &output, output_format)?;
         println!(
             "normalize: wrote {} -> {}",
@@ -192,14 +219,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             normalizer.apply(&input)?
         }
 
-        NormalizeMethod::Zscore => {
-            if let Some(mask_path) = &args.mask {
-                let mask_img = read_image(mask_path)?;
-                ZScoreNormalizer::new().normalize_masked(&input, &mask_img)
-            } else {
-                ZScoreNormalizer.normalize(&input)
-            }
-        }
+        NormalizeMethod::Zscore => unreachable!("zscore returns through the native path"),
 
         NormalizeMethod::Minmax => unreachable!("minmax returns through the native path"),
 

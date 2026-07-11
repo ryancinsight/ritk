@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-602-01 audit (2026-07-11)
+
+CLI Z-score normalization now owns native input, optional native mask, native
+population-statistics computation, and native output. Other normalization
+methods remain on their own legacy paths until their providers are native.
+
 ## MIG-601-01 audit (2026-07-11)
 
 Z-score normalization now has native full-image and masked population-statistics

@@ -8,6 +8,11 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 602: Native CLI Z-score normalization (MIG-602-01)
+### Breaking
+- `ritk normalize --method zscore` rejects input, output, or mask formats
+  without native I/O.
+
 ## [Unreleased] — Sprint 601: Native Z-score normalization provider (MIG-601-01)
 ### Added
 - `ZScoreNormalizer` now exposes native full-image and masked normalization.
