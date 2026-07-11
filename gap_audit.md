@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## MIG-560-01 audit (2026-07-11)
+
+Opening and closing require padded extrema composition for ITK-safe border
+parity; composing the public native erosion/dilation methods would change that
+boundary band. Native owner methods now retain the existing padded sequence,
+and Snap dispatches them directly. Exact regressions pin hole filling and peak
+removal behavior.
+
 ## MIG-559-01 audit (2026-07-11)
 
 Grayscale erosion and dilation had mature separable extrema cores but remained

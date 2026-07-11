@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-560-01 — Snap native grayscale opening and closing
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Preserve the canonical safe-border compositions in native provider paths.
+- [x] Route Snap grayscale opening and closing natively.
+- [x] Verify exact composition values and warning-denied Clippy; commit and
+  advance the RITK gitlink.
+
 ## MIG-559-01 — Snap native grayscale morphology
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

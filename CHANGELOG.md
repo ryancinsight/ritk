@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 560: Snap native grayscale opening and closing (MIG-560-01)
+
+### Added
+- Grayscale opening and closing now expose Coeus-native safe-border composition
+  boundaries over their canonical padded extrema sequences.
+
+### Changed
+- Snap routes both composition filters natively.
+
+### Evidence
+- Exact Snap opening/closing composition regressions pass.
+
 ## [Unreleased] — Sprint 559: Snap native grayscale morphology (MIG-559-01)
 
 ### Added

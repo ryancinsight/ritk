@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-560-01 [patch] - Snap native grayscale opening and closing (DONE).**
+  Safe-border grayscale opening/closing now have Coeus-native boundaries over
+  their canonical compositions. Exact Snap composition regressions pass.
+
 - **MIG-559-01 [patch] - Snap native grayscale morphology (DONE).**
   Grayscale erosion and dilation now consume the existing extrema cores through
   Coeus-native boundaries; exact Snap extrema regressions pass.

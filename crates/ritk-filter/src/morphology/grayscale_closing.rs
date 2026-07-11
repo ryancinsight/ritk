@@ -84,15 +84,7 @@ impl GrayscaleClosingFilter {
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-
-        // C_B(f) = E_B(D_B(f)) with ITK's safe border: replicate-pad by `radius`,
-        // run the dilate/erode pair on the padded volume, then crop. Keeps the
-        // border band bit-exact to sitk.GrayscaleMorphologicalClosing.
-        let r = self.radius;
-        let (padded, pdims) = super::pad_replicate_3d(&vals, dims, r);
-        let dilated = dilate_3d(&padded, pdims, r);
-        let eroded = erode_3d(&dilated, pdims, r);
-        let (closed, _) = super::crop_border_3d(&eroded, pdims, r);
+        let closed = self.close_values(&vals, dims);
 
         let device = image.data().device();
         let out_td = TensorData::new(closed, Shape::new(dims));
@@ -103,6 +95,34 @@ impl GrayscaleClosingFilter {
             *image.spacing(),
             *image.direction(),
         ))
+    }
+
+    /// Apply grayscale closing to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.close_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn close_values(&self, values: &[f32], dims: [usize; 3]) -> Vec<f32> {
+        let r = self.radius;
+        let (padded, pdims) = super::pad_replicate_3d(values, dims, r);
+        let dilated = dilate_3d(&padded, pdims, r);
+        let eroded = erode_3d(&dilated, pdims, r);
+        super::crop_border_3d(&eroded, pdims, r).0
     }
 }
 
