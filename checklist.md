@@ -8,6 +8,20 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-519-01 — Image statistics native SSOT consolidation
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the migration-named statistics module duplicates the existing
+      native API and canonical result type.
+- [x] Retarget numerical, permutation, masked-error, and large-N precision
+      tests to `image_statistics::native` and the canonical slice function.
+- [x] Delete the duplicate result/error types, conversions, renamed functions,
+      module, and stale test allowlist entry.
+- [x] Verify focused nextest 14/14, full statistics nextest 292/292,
+      warning-denied Clippy, and audit reduction from 572 to 571 source files
+      with only known drift.
+
 ## MIG-518-01 — Binary erosion native SSOT promotion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

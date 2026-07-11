@@ -551,7 +551,6 @@ source:crates/ritk-statistics/src/normalization/tests_white_stripe/behavior.rs
 source:crates/ritk-statistics/src/normalization/tests_white_stripe/mod.rs
 source:crates/ritk-statistics/src/normalization/tests_zscore.rs
 source:crates/ritk-statistics/src/tests_histogram.rs
-source:crates/ritk-statistics/src/tests_image_statistics.rs
 source:crates/ritk-statistics/src/tests_jacobian.rs
 source:crates/ritk-statistics/src/tests_label_shape_extended.rs
 source:crates/ritk-statistics/src/tests_label_statistics.rs

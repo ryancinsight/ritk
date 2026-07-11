@@ -8,6 +8,20 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 519: Statistics SSOT consolidation (MIG-519-01)
+
+### Removed
+- Removed the duplicate image-statistics result/error types, conversions,
+  renamed wrappers, and migration-specific module.
+
+### Changed
+- Native image and slice statistics now expose only the canonical
+  `ImageStatistics` vocabulary and computation.
+
+### Evidence
+- Focused numerical/contract nextest 14/14, full statistics nextest 292/292,
+  warning-denied Clippy, and Burn audit reduction from 572 to 571 source files.
+
 ## [Unreleased] — Sprint 518: Erosion SSOT promotion (MIG-518-01)
 
 ### Changed

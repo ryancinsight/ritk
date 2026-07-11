@@ -8,6 +8,20 @@
 
 # RITK Gap Audit - Active
 
+## MIG-519-01 audit (2026-07-10)
+
+`atlas_image_statistics` duplicated the existing native boundary with an
+identical result struct, bidirectional conversions, renamed functions, and an
+error enum that collapsed extraction failures into shape errors. The native
+module already returns the canonical `ImageStatistics` and preserves extraction
+context through `anyhow`. Tests now exercise that SSOT directly and the entire
+parallel module is deleted.
+
+Evidence tier: exact symbol/consumer search, 14/14 focused numerical and
+masked-contract tests, full statistics nextest 292/292, warning-denied Clippy,
+and exact audit reduction from 572 to 571 source files. No compatibility alias
+or conversion path remains; the known displacement-field drift is unadmitted.
+
 ## MIG-518-01 audit (2026-07-10)
 
 The native binary-erosion sister held only a radius and delegated directly to

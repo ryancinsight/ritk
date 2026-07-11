@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-519-01 [major] - Image statistics native SSOT consolidation (DONE).**
+  Deleted the parallel statistics result/error vocabulary and renamed wrapper
+  functions. Native image and host-slice callers now share `ImageStatistics`
+  and the canonical computation. The substantive oracle suite now targets the
+  native API directly. Evidence: focused nextest 14/14, full statistics
+  nextest 292/292, warning-denied Clippy, and Burn-source reduction from 572
+  to 571.
+
 - **MIG-518-01 [major] - Binary erosion native SSOT promotion (DONE).**
   Promoted the host-slice erosion kernel to the public native operation,
   routed the legacy image boundary and property suite through it, and deleted
