@@ -51,7 +51,7 @@ pub(super) fn apply_if_supported(
 fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<Vec<f32>> {
     if volume.channels != 1 {
         anyhow::bail!(
-            "native unary filters require a scalar volume, received {} interleaved channels",
+            "native scalar filters require a scalar volume, received {} interleaved channels",
             volume.channels
         );
     }
@@ -110,7 +110,7 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         }
         _ => unreachable!("invariant: dispatch admits only fully native filter variants"),
     }
-    .context("Coeus-native unary filter failed")?;
+    .context("Coeus-native filter failed")?;
 
     Ok(output.data_cow_on(&backend).into_owned())
 }
