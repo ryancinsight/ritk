@@ -27,7 +27,7 @@ use ritk_filter::{
 use ritk_image::native::Image;
 use ritk_segmentation::{
     labeling::Connectivity as SegmentationConnectivity,
-    native::{binary_threshold, connected_components},
+    native::{binary_threshold, connected_components, relabel_components},
 };
 use ritk_spatial::{Direction, Point, Spacing};
 use std::ops::Deref;
@@ -86,6 +86,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::DistanceTransform { .. }
             | FilterKind::SignedDistanceTransform { .. }
             | FilterKind::ConnectedComponents { .. }
+            | FilterKind::RelabelComponents { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
@@ -360,6 +361,10 @@ fn apply_supported_filter(
             connected_components(&image, connectivity, *background_value, &backend)
                 .map(|(labels, _statistics)| labels)
         }
+        FilterKind::RelabelComponents {
+            minimum_object_size,
+        } => relabel_components(&image, *minimum_object_size as usize, &backend)
+            .map(|(labels, _statistics)| labels),
         FilterKind::BinaryThreshold {
             lower,
             upper,
@@ -994,6 +999,22 @@ mod tests {
     }
 
     #[test]
+    fn native_relabel_components_orders_sizes_and_discards_small_labels() {
+        let mut volume = test_volume([1, 1, 5]);
+        volume.data = Arc::new(vec![1.0, 2.0, 2.0, 2.0, 0.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::RelabelComponents {
+                minimum_object_size: 2,
+            },
+        )
+        .expect("invariant: relabel components has a native implementation")
+        .expect("native relabel components accepts a scalar label volume");
+
+        assert_eq!(output, vec![0.0, 1.0, 1.0, 1.0, 0.0]);
+    }
+
+    #[test]
     fn native_binary_threshold_includes_both_bounds() {
         let mut volume = test_volume([1, 1, 5]);
         volume.data = Arc::new(vec![-1.0, 0.0, 50.0, 100.0, 101.0]);
@@ -1121,6 +1142,25 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [1.0, 0.0, 2.0]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_relabel_components() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 5]);
+        volume.data = Arc::new(vec![1.0, 2.0, 2.0, 2.0, 0.0]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::RelabelComponents {
+            minimum_object_size: 2,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [0.0, 1.0, 1.0, 1.0, 0.0]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }

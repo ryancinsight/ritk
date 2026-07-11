@@ -8,6 +8,15 @@
 
 # RITK Gap Audit - Active
 
+## MIG-568-01 audit (2026-07-11)
+
+Relabel-components still reconstructed a legacy image even though its only
+algorithm is a flat size-count, deterministic sort, and remap. The segmentation
+owner now exposes that canonical values kernel through a Coeus-native image
+boundary, and Snap dispatches it directly. Exact provider and Snap regressions
+cover descending size order, the label-ascending tie rule, minimum-size
+removal, and metadata preservation.
+
 ## MIG-567-01 audit (2026-07-11)
 
 Zero crossing had a complete ITK-compatible tie-breaking stencil but remained

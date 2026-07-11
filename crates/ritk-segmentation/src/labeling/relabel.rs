@@ -103,7 +103,7 @@ impl RelabelComponentFilter {
         let device = label_image.data().device();
         let flat: &[f32] = &data_vals;
 
-        let (output_vec, stats) = relabel_impl(flat, self.minimum_object_size);
+        let (output_vec, stats) = relabel_values(flat, self.minimum_object_size);
 
         let td = TensorData::new(output_vec, Shape::new(shape));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
@@ -136,7 +136,7 @@ impl Default for RelabelComponentFilter {
 /// 3. Assign new labels 1…K' to entries with count ≥ `min_size`.
 /// 4. Build remap table old_label → new_label in O(K).
 /// 5. Remap the flat slice in O(n).
-fn relabel_impl(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatistics>) {
+pub(crate) fn relabel_values(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatistics>) {
     // Step 1 — Count voxels per label.
     // Labels are stored as f32 integers; convert via round then clamp to u32.
     let mut counts: std::collections::HashMap<u32, usize> =

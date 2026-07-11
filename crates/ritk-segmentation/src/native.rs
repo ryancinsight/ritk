@@ -4,7 +4,10 @@ use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image;
 
-use crate::labeling::{connected_components_values, Connectivity, LabelStatistics};
+use crate::labeling::{
+    connected_components_values, relabel::relabel_values, Connectivity, LabelStatistics,
+    RelabelStatistics,
+};
 use crate::threshold::apply_binary_threshold_to_slice;
 
 /// Apply an inclusive binary threshold to a Coeus-backed image.
@@ -75,6 +78,28 @@ where
     Ok((image, statistics))
 }
 
+/// Re-label connected components by decreasing voxel count on a Coeus-backed image.
+pub fn relabel_components<B>(
+    labels: &Image<f32, B, 3>,
+    minimum_object_size: usize,
+    backend: &B,
+) -> Result<(Image<f32, B, 3>, Vec<RelabelStatistics>)>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let (output, statistics) = relabel_values(labels.data_slice()?, minimum_object_size);
+    let image = Image::from_flat_on(
+        output,
+        labels.shape(),
+        *labels.origin(),
+        *labels.spacing(),
+        *labels.direction(),
+        backend,
+    )?;
+    Ok((image, statistics))
+}
+
 #[cfg(test)]
 mod tests {
     use coeus_core::SequentialBackend;
@@ -121,5 +146,27 @@ mod tests {
         assert_eq!(stats[0].voxel_count, 2);
         assert_eq!(stats[1].label, 2);
         assert_eq!(stats[1].voxel_count, 1);
+    }
+
+    #[test]
+    fn relabel_components_orders_sizes_and_preserves_metadata() {
+        let source = image(vec![1.0, 1.0, 2.0, 2.0, 2.0, 0.0], [1, 1, 6]);
+        let (output, statistics) = relabel_components(&source, 0, &SequentialBackend).unwrap();
+
+        assert_eq!(
+            output.data_slice().unwrap(),
+            &[2.0, 2.0, 1.0, 1.0, 1.0, 0.0]
+        );
+        assert_eq!(statistics.len(), 2);
+        assert_eq!(statistics[0].original_label, 2);
+        assert_eq!(statistics[0].new_label, 1);
+        assert_eq!(statistics[0].voxel_count, 3);
+        assert_eq!(statistics[1].original_label, 1);
+        assert_eq!(statistics[1].new_label, 2);
+        assert_eq!(statistics[1].voxel_count, 2);
+        assert_eq!(output.shape(), source.shape());
+        assert_eq!(output.origin(), source.origin());
+        assert_eq!(output.spacing(), source.spacing());
+        assert_eq!(output.direction(), source.direction());
     }
 }

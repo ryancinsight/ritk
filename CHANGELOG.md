@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 568: Snap native relabel components (MIG-568-01)
+
+### Added
+- The canonical segmentation relabel kernel now exposes a Coeus-native image
+  boundary with size-descending, label-ascending tie handling.
+
+### Changed
+- Snap routes relabel-components natively.
+
+### Evidence
+- Exact provider and Snap regressions cover ordering, minimum-size removal, and
+  metadata preservation.
+
 ## [Unreleased] — Sprint 567: Snap native zero crossing (MIG-567-01)
 
 ### Added

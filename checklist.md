@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-568-01 — Snap native relabel components
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Expose the canonical size-descending relabel kernel through segmentation's
+  native image boundary.
+- [x] Route Snap relabel-components through that provider boundary.
+- [x] Verify ordering, minimum-size removal, metadata, and warning-denied
+  Clippy; commit and advance the RITK gitlink.
+
 ## MIG-567-01 — Snap native zero crossing
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-568-01 [patch] - Snap native relabel components (DONE).**
+  The canonical segmentation relabel kernel now has a Coeus-native boundary,
+  and Snap dispatches it directly. Exact provider and consumer regressions
+  cover size order, minimum-size removal, and metadata preservation.
+
 - **MIG-567-01 [patch] - Snap native zero crossing (DONE).**
   ZeroCrossingImageFilter now shares its exact local-stencil logic with a
   Coeus-native boundary, and Snap dispatches it natively. Exact tie regression
