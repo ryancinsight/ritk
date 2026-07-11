@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 570: Snap native median (MIG-570-01)
+
+### Added
+- MedianFilter now exposes its canonical replicate-boundary kernel through a
+  Coeus-native image boundary.
+
+### Changed
+- Snap routes median filtering natively.
+
+### Evidence
+- Exact provider and Snap impulse regressions preserve the zero response and
+  spatial metadata.
+
 ## [Unreleased] — Sprint 569: Snap native Multi-Otsu (MIG-569-01)
 
 ### Added

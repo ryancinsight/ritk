@@ -18,7 +18,7 @@ use ritk_filter::{
     ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
     GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, InvertIntensityFilter,
-    LabelContourImageFilter, LogImageFilter, MaskImageFilter, MeanImageFilter,
+    LabelContourImageFilter, LogImageFilter, MaskImageFilter, MeanImageFilter, MedianFilter,
     MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
     RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
     SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter,
@@ -88,6 +88,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::ConnectedComponents { .. }
             | FilterKind::RelabelComponents { .. }
             | FilterKind::MultiOtsuThreshold { .. }
+            | FilterKind::Median { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
@@ -369,6 +370,7 @@ fn apply_supported_filter(
         FilterKind::MultiOtsuThreshold { num_classes } => {
             multi_otsu(&image, *num_classes as usize, 256, &backend)
         }
+        FilterKind::Median { radius } => MedianFilter::new(*radius).apply_native(&image, &backend),
         FilterKind::BinaryThreshold {
             lower,
             upper,
@@ -1031,6 +1033,17 @@ mod tests {
     }
 
     #[test]
+    fn native_median_removes_an_impulse() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 10.0, 0.0]);
+        let output = apply_if_supported(&volume, &FilterKind::Median { radius: 1 })
+            .expect("invariant: median has a native implementation")
+            .expect("native median accepts a scalar volume");
+
+        assert_eq!(output, vec![0.0, 0.0, 0.0]);
+    }
+
+    #[test]
     fn native_binary_threshold_includes_both_bounds() {
         let mut volume = test_volume([1, 1, 5]);
         volume.data = Arc::new(vec![-1.0, 0.0, 50.0, 100.0, 101.0]);
@@ -1194,6 +1207,23 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [0.0, 0.0, 1.0, 1.0, 2.0, 2.0]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_median() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 10.0, 0.0]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::Median { radius: 1 };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [0.0, 0.0, 0.0]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }

@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-570-01 [patch] - Snap native median (DONE).**
+  MedianFilter now exposes its canonical replicate-boundary kernel through a
+  Coeus-native boundary, and Snap dispatches it directly. Exact provider and
+  consumer impulse regressions pass.
+
 - **MIG-569-01 [patch] - Snap native Multi-Otsu (DONE).**
   The canonical threshold-and-label kernel now has a Coeus-native boundary,
   and Snap dispatches it directly. Exact provider and consumer regressions

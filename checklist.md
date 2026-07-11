@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-570-01 — Snap native median
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Expose the canonical replicate-boundary median kernel through a native
+  image boundary.
+- [x] Route Snap median filtering through that provider boundary.
+- [x] Verify exact impulse removal, metadata, and warning-denied Clippy; commit
+  and advance the RITK gitlink.
+
 ## MIG-569-01 — Snap native Multi-Otsu
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

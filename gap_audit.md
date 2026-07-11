@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## MIG-570-01 audit (2026-07-11)
+
+Median filtering already owned a Moirai-parallel, replicate-boundary values
+kernel but Snap constructed a legacy image to use it. The owner now exposes a
+Coeus-native image boundary over that same kernel, and Snap dispatches it
+directly. Exact provider and Snap regressions pin impulse removal and metadata
+preservation.
+
 ## MIG-569-01 audit (2026-07-11)
 
 Multi-Otsu already owned its flat histogram, threshold-search, and label kernel
