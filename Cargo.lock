@@ -7475,7 +7475,6 @@ dependencies = [
 name = "ritk-core"
 version = "0.9.0"
 dependencies = [
- "burn-ndarray",
  "coeus-core",
  "coeus-tensor",
  "mnemosyne",
@@ -7537,6 +7536,7 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "coeus-core",
+ "coeus-ops",
  "coeus-tensor",
  "ritk-spatial",
  "ritk-wgpu-compat",

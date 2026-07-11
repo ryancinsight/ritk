@@ -8,6 +8,23 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 525: Core geometry cutover (MIG-525-01)
+
+### Changed
+- Native Coeus-backed images now map physical points and continuous indices
+  with explicit singular-direction errors.
+- Core geometry laws now instantiate `MoiraiBackend` instead of Burn ndarray.
+
+### Removed
+- Removed `ritk-core`'s direct `burn-ndarray` dependency and unused parallel
+  `*Atlas` transform/interpolation traits.
+
+### Evidence
+- Exact rotated/anisotropic mappings, singular-direction rejection,
+  epsilon-derived property round trips, batch closed-form agreement,
+  image/core nextest 53/53, warning-denied Clippy, Rustdoc, doctests, and
+  downstream registration all-target compilation.
+
 ## [Unreleased] — Sprint 524: Consus ONNX migration (MIG-524-01)
 
 ### Changed

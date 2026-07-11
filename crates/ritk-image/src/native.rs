@@ -163,6 +163,87 @@ where
     pub fn into_parts(self) -> (Tensor<T, B>, Point<D>, Spacing<D>, Direction<D>) {
         (self.data, self.origin, self.spacing, self.direction)
     }
+
+    /// Convert a physical-space point to a continuous image index.
+    ///
+    /// The mapping is `S^-1 D^-1 (point - origin)`, where `D` is the
+    /// direction cosine matrix and `S` is the diagonal spacing matrix.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the direction matrix is singular.
+    pub fn physical_point_to_continuous_index(&self, point: &Point<D>) -> anyhow::Result<Point<D>> {
+        let inverse = self
+            .direction
+            .try_inverse()
+            .ok_or_else(|| anyhow!("image direction matrix is singular"))?;
+        let rotated = inverse * (*point - self.origin);
+        let mut index = Point::origin();
+        for axis in 0..D {
+            index[axis] = rotated[axis] / self.spacing[axis];
+        }
+        Ok(index)
+    }
+
+    /// Convert a continuous image index to a physical-space point.
+    ///
+    /// The mapping is `origin + D S index`.
+    #[must_use]
+    pub fn continuous_index_to_physical_point(&self, index: &Point<D>) -> Point<D> {
+        let mut scaled = ritk_spatial::Vector::zeros();
+        for axis in 0..D {
+            scaled[axis] = index[axis] * self.spacing[axis];
+        }
+        self.origin + self.direction * scaled
+    }
+}
+
+impl<T, B, const D: usize> Image<T, B, D>
+where
+    T: coeus_core::Float,
+    B: coeus_ops::BackendOps<T> + Default,
+{
+    /// Map a `[point_count, D]` Coeus tensor from physical coordinates to
+    /// continuous image indices.
+    ///
+    /// Coordinate columns use the same axis order as [`Point<D>`]. Backend
+    /// dispatch occurs once in broadcast subtraction and matrix multiplication;
+    /// the method does not materialize point data on the host.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `points` is not rank two with trailing dimension
+    /// `D`, or when the direction matrix is singular.
+    pub fn physical_points_to_continuous_indices(
+        &self,
+        points: &Tensor<T, B>,
+        backend: &B,
+    ) -> anyhow::Result<Tensor<T, B>> {
+        if points.ndim() != 2 || points.shape()[1] != D {
+            bail!(
+                "physical point tensor shape must be [point_count, {D}], got {:?}",
+                points.shape()
+            );
+        }
+        let inverse = self
+            .direction
+            .try_inverse()
+            .ok_or_else(|| anyhow!("image direction matrix is singular"))?;
+        let origin = (0..D)
+            .map(|axis| T::from_f64(self.origin[axis]))
+            .collect::<Vec<_>>();
+        let matrix = (0..D)
+            .flat_map(|input_axis| {
+                (0..D).map(move |output_axis| {
+                    T::from_f64(inverse[(output_axis, input_axis)] / self.spacing[output_axis])
+                })
+            })
+            .collect::<Vec<_>>();
+        let origin = Tensor::from_slice_on([1, D], &origin, backend);
+        let matrix = Tensor::from_slice_on([D, D], &matrix, backend);
+        let centered = coeus_ops::sub(points, &origin, backend);
+        Ok(coeus_ops::matmul(&centered, &matrix, backend))
+    }
 }
 
 impl<T, B, const D: usize> Image<T, B, D>
@@ -282,6 +363,84 @@ mod tests {
             Spacing::new([0.5, 1.5]),
             Direction::identity(),
         )
+    }
+
+    #[test]
+    fn physical_index_mapping_obeys_anisotropic_rotated_reference() {
+        let image = TensorImage::<3>::from_flat(
+            vec![0.0; 6],
+            [2, 3, 1],
+            Point::new([10.0, 20.0, 0.0]),
+            Spacing::new([2.0, 4.0, 1.0]),
+            Direction::from_row_major([0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+        )
+        .expect("fixture shape and data length agree");
+        let index = Point::new([3.0, -2.0, 0.0]);
+        let physical = image.continuous_index_to_physical_point(&index);
+        assert_eq!(physical, Point::new([18.0, 26.0, 0.0]));
+        assert_eq!(
+            image
+                .physical_point_to_continuous_index(&physical)
+                .expect("rotation matrix is invertible"),
+            index
+        );
+    }
+
+    #[test]
+    fn physical_index_mapping_rejects_singular_direction() {
+        let image = TensorImage::<3>::from_flat(
+            vec![0.0],
+            [1, 1, 1],
+            Point::origin(),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::from_row_major([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+        )
+        .expect("fixture shape and data length agree");
+        let error = image
+            .physical_point_to_continuous_index(&Point::origin())
+            .unwrap_err();
+        assert_eq!(error.to_string(), "image direction matrix is singular");
+    }
+
+    #[test]
+    fn physical_point_tensor_matches_scalar_mapping() {
+        let image = TensorImage::<3>::from_flat(
+            vec![0.0; 8],
+            [2, 2, 2],
+            Point::new([10.0, 20.0, 30.0]),
+            Spacing::new([2.0, 4.0, 5.0]),
+            Direction::identity(),
+        )
+        .expect("fixture shape and data length agree");
+        let backend = SequentialBackend;
+        let points =
+            Tensor::from_slice_on([2, 3], &[12.0_f32, 28.0, 40.0, 8.0, 16.0, 25.0], &backend);
+        let indices = image
+            .physical_points_to_continuous_indices(&points, &backend)
+            .expect("identity direction and point tensor are valid");
+        assert_eq!(indices.as_slice(), &[1.0, 2.0, 2.0, -1.0, -1.0, -1.0]);
+    }
+
+    #[test]
+    fn physical_point_tensor_rejects_wrong_coordinate_width() {
+        let image = TensorImage::<3>::from_flat(
+            vec![0.0],
+            [1, 1, 1],
+            Point::origin(),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        )
+        .expect("fixture shape and data length agree");
+        let backend = SequentialBackend;
+        let points = Tensor::zeros_on([2, 2], &backend);
+        let error = match image.physical_points_to_continuous_indices(&points, &backend) {
+            Ok(_) => panic!("wrong coordinate width must be rejected"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.to_string(),
+            "physical point tensor shape must be [point_count, 3], got [2, 2]"
+        );
     }
 
     #[test]

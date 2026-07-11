@@ -1,84 +1,80 @@
-use burn_ndarray::NdArray;
+use coeus_core::MoiraiBackend;
+use coeus_tensor::Tensor;
 use proptest::prelude::*;
-use ritk_core::image::Image;
-use ritk_image::tensor::Tensor;
+use ritk_core::image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type Backend = NdArray<f32>;
 const D: usize = 3;
+type Image3 = Image<f32, MoiraiBackend, D>;
 
 fn make_rotation(angle_x: f64, angle_y: f64, angle_z: f64) -> Direction<D> {
-    let cx = angle_x.cos();
-    let sx = angle_x.sin();
-    let cy = angle_y.cos();
-    let sy = angle_y.sin();
-    let cz = angle_z.cos();
-    let sz = angle_z.sin();
-
+    let (cx, sx) = (angle_x.cos(), angle_x.sin());
+    let (cy, sy) = (angle_y.cos(), angle_y.sin());
+    let (cz, sz) = (angle_z.cos(), angle_z.sin());
     let rz = Direction::from_row_major([cz, -sz, 0.0, sz, cz, 0.0, 0.0, 0.0, 1.0]);
     let ry = Direction::from_row_major([cy, 0.0, sy, 0.0, 1.0, 0.0, -sy, 0.0, cy]);
     let rx = Direction::from_row_major([1.0, 0.0, 0.0, 0.0, cx, -sx, 0.0, sx, cx]);
-
     rx * ry * rz
 }
 
 proptest! {
     #[test]
-    fn test_coordinate_roundtrip(
-        ox in -100.0f64..100.0, oy in -100.0f64..100.0, oz in -100.0f64..100.0,
-        sx in 0.1f64..5.0, sy in 0.1f64..5.0, sz in 0.1f64..5.0,
-        ax in -std::f64::consts::PI..std::f64::consts::PI,
-        ay in -std::f64::consts::PI..std::f64::consts::PI,
-        az in -std::f64::consts::PI..std::f64::consts::PI,
-        px in -50.0f64..50.0, py in -50.0f64..50.0, pz in -50.0f64..50.0
+    fn physical_index_roundtrip(
+        origin in prop::array::uniform3(-100.0f64..100.0),
+        spacing in prop::array::uniform3(0.1f64..5.0),
+        angles in prop::array::uniform3(-std::f64::consts::PI..std::f64::consts::PI),
+        point in prop::array::uniform3(-50.0f64..50.0),
     ) {
-        let device = Default::default();
-        // Use minimal data tensor as we don't access it
-        let data = Tensor::<Backend, D>::zeros([2, 2, 2], &device);
+        let image = Image3::from_flat(
+            vec![0.0; 8],
+            [2, 2, 2],
+            Point::new(origin),
+            Spacing::new(spacing),
+            make_rotation(angles[0], angles[1], angles[2]),
+        ).expect("fixture shape and data length agree");
+        let point = Point::new(point);
+        let index = image.physical_point_to_continuous_index(&point)
+            .expect("rotation matrices are invertible");
+        let recovered = image.continuous_index_to_physical_point(&index);
 
-        let origin = Point::<D>::new([ox, oy, oz]);
-        let spacing = Spacing::<D>::new([sx, sy, sz]);
-        let direction = make_rotation(ax, ay, az);
-
-        let image = Image::new(data, origin, spacing, direction);
-        let point = Point::<D>::new([px, py, pz]);
-
-        let index = image.transform_physical_point_to_continuous_index(&point);
-        let recovered = image.transform_continuous_index_to_physical_point(&index);
-
-        prop_assert!((point[0] - recovered[0]).abs() < 1e-4, "X mismatch: {} vs {}", point[0], recovered[0]);
-        prop_assert!((point[1] - recovered[1]).abs() < 1e-4, "Y mismatch: {} vs {}", point[1], recovered[1]);
-        prop_assert!((point[2] - recovered[2]).abs() < 1e-4, "Z mismatch: {} vs {}", point[2], recovered[2]);
+        for axis in 0..D {
+            // Two dense 3x3 transforms plus scaling and translation stay below
+            // gamma_4096 for this well-conditioned orthogonal direction matrix.
+            let bound = 4096.0 * f64::EPSILON * (1.0 + point[axis].abs());
+            prop_assert!((point[axis] - recovered[axis]).abs() <= bound,
+                "axis {axis} mismatch: {} vs {}", point[axis], recovered[axis]);
+        }
     }
 
     #[test]
-    fn test_tensor_batch_consistency(
-        ox in -10.0f64..10.0,
-        sx in 0.5f64..2.0,
-        px in -10.0f64..10.0
+    fn batched_scalar_mapping_agrees_with_closed_form(
+        origin in -10.0f64..10.0,
+        spacing in 0.5f64..2.0,
+        points in prop::collection::vec(-10.0f64..10.0, 1..32),
     ) {
-        // Simplified test for tensor ops (single dimension effectively for simplicity in proptest setup)
-        // We manually construct 3D inputs from these scalars
-        let device = Default::default();
-        let data = Tensor::<Backend, D>::zeros([2, 2, 2], &device);
+        let image = Image3::from_flat(
+            vec![0.0; 8],
+            [2, 2, 2],
+            Point::new([origin; D]),
+            Spacing::new([spacing; D]),
+            Direction::identity(),
+        ).expect("fixture shape and data length agree");
+        let flat = points
+            .iter()
+            .flat_map(|coordinate| [*coordinate as f32; D])
+            .collect::<Vec<_>>();
+        let backend = MoiraiBackend;
+        let point_tensor = Tensor::from_slice_on([points.len(), D], &flat, &backend);
+        let mapped = image
+            .physical_points_to_continuous_indices(&point_tensor, &backend)
+            .expect("identity direction and point tensor are valid");
 
-        let origin = Point::<D>::new([ox, ox, ox]);
-        let spacing = Spacing::<D>::new([sx, sx, sx]);
-        let direction = Direction::<D>::identity();
-
-        let image = Image::new(data, origin, spacing, direction);
-
-        let point_val = Point::<D>::new([px, px, px]);
-        let index_val = image.transform_physical_point_to_continuous_index(&point_val);
-
-        // Tensor op
-        let points_tensor = Tensor::<Backend, 2>::from_floats([[px as f32, px as f32, px as f32]], &device);
-        let indices_tensor = image.world_to_index_tensor(points_tensor);
-        let indices_data = indices_tensor.into_data();
-        let indices_slice = indices_data.as_slice::<f32>().unwrap();
-
-        prop_assert!((indices_slice[0] - index_val[0] as f32).abs() < 1e-4);
-        prop_assert!((indices_slice[1] - index_val[1] as f32).abs() < 1e-4);
-        prop_assert!((indices_slice[2] - index_val[2] as f32).abs() < 1e-4);
+        for (row, coordinate) in points.into_iter().enumerate() {
+            let expected = (coordinate as f32 - origin as f32) * (1.0 / spacing) as f32;
+            for axis in 0..D {
+                let got = f64::from(mapped.as_slice()[row * D + axis]);
+                prop_assert_eq!(got, f64::from(expected));
+            }
+        }
     }
 }

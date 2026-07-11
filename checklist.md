@@ -8,6 +8,17 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-525-01 — Core geometry test cutover
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add fallible physical/index geometry mappings to the canonical Coeus-backed image.
+- [x] Move `ritk-core` geometry unit and property tests from Burn ndarray tensors to the native image.
+- [x] Delete the direct `burn-ndarray` dependency and unused parallel `*Atlas` trait surfaces.
+- [x] Verify image/core nextest 53/53, warning-denied Clippy, Rustdoc,
+      doctests, downstream registration compilation, and record the
+      pre-existing unadmitted displacement-field allowlist drift.
+
 ## MIG-524-01 — Consus ONNX provider migration
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

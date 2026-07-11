@@ -1,5 +1,15 @@
 # RITK Backlog - Active Planning
 
+- **MIG-525-01 [major] - Core geometry test cutover (DONE).**
+  The Coeus-backed image now owns fallible physical/index mappings. Core
+  geometry tests use `MoiraiBackend`, including rotated anisotropic reference,
+  singular-direction rejection, epsilon-derived round-trip properties, and
+  batch-law coverage. The direct `ritk-core` Burn dependency and unused
+  parallel `*Atlas` traits are removed. Evidence: image/core nextest 53/53,
+  warning-denied Clippy, Rustdoc, doctests, and downstream registration
+  all-target compilation. The unrelated displacement-field allowlist drift
+  remains unadmitted.
+
 - **MIG-524-01 [major] - Consus ONNX provider migration (DONE).**
   Replaced `onnx-ir` with the bounded borrowed `consus-onnx` reader and kept
   RITK's owned graph boundary metadata-only. The parser now rejects hostile

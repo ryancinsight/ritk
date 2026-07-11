@@ -2,7 +2,6 @@
 # Each entry tracks an approved Burn surface during Coeus migration.
 manifest:Cargo.toml
 manifest:crates/ritk-cli/Cargo.toml
-manifest:crates/ritk-core/Cargo.toml
 manifest:crates/ritk-filter/Cargo.toml
 manifest:crates/ritk-image/Cargo.toml
 manifest:crates/ritk-interpolation/Cargo.toml
@@ -32,8 +31,6 @@ source:crates/ritk-cli/src/commands/stats/tests.rs
 source:crates/ritk-cli/src/commands/viewer.rs
 source:crates/ritk-core/src/interpolation/trait_.rs
 source:crates/ritk-core/src/transform/trait_.rs
-source:crates/ritk-core/tests/coordinate_mapping.rs
-source:crates/ritk-core/tests/image_test.rs
 source:crates/ritk-filter/benches/bilateral.rs
 source:crates/ritk-filter/benches/cpr_apply.rs
 source:crates/ritk-filter/benches/euclidean_dt.rs
