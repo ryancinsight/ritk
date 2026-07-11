@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-591-01 — Native adaptive histogram equalization
+**Target version**: 0.14.0 migration batch
+- [x] Share the Stark equalization kernel between tensor-backed and native images.
+
 ## MIG-590-01 — Native two-image mask family
 **Target version**: 0.14.0 migration batch
 - [x] Share mask-family two-buffer values between tensor-backed and native images.

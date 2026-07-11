@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-591-01 audit (2026-07-11)
+
+Stark adaptive histogram equalization now uses one Moirai-backed kernel for
+tensor-backed and Coeus-native images. The constant-field identity and source
+metadata invariants are covered by the native regression.
+
 ## MIG-590-01 audit (2026-07-11)
 
 The public two-image mask family now has one shape-validated values core across

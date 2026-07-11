@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 591: Native adaptive histogram equalization (MIG-591-01)
+### Added
+- `AdaptiveHistogramEqualizationFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 590: Native two-image mask family (MIG-590-01)
 ### Added
 - Mask, negated-mask, and masked-assignment filters now expose Coeus-native image boundaries.

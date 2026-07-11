@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-591-01 [patch] - Native adaptive histogram equalization (DONE).** The
+  Stark local-equalization kernel now backs Coeus-native images directly.
+
 - **MIG-590-01 [patch] - Native two-image mask family (DONE).** Mask, negated
   mask, and masked assignment now share one two-buffer core with Coeus-native images.
 
