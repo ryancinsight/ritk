@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-551-01 — Snap native ROI crop
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Consolidate ROI validation, value extraction, and origin translation at
+  the owning provider and expose its Coeus-native boundary.
+- [x] Route Snap ROI and atomically apply its output geometry.
+- [x] Verify exact provider and Snap crop/geometry regressions, warning-denied
+  Clippy, doctests, and Rustdoc; commit and advance the RITK gitlink.
+
 ## MIG-550-01 — Snap native axis flips
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
@@ -56,7 +66,7 @@
 
 - [x] Add the missing provider-owned native signed-distance boundary.
 - [x] Differential-test it against Burn and pin exact Snap output semantics.
-- [ ] Run package gates, audit, commit, push, and advance the Atlas gitlink.
+- [x] Run package gates, audit, commit, push, and advance the Atlas gitlink.
 
 ## MIG-543-01 — Snap native binary threshold
 **Target version**: 0.14.0 migration batch

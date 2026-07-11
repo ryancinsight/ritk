@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 551: Snap native ROI crop (MIG-551-01)
+
+### Added
+- `RegionOfInterestImageFilter` now exposes a Coeus-native crop boundary over
+  one shared ROI validation, extraction, and physical-origin implementation.
+
+### Changed
+- Snap applies native ROI output data and geometry atomically.
+
+### Evidence
+- Provider and Snap exact crop/shape/origin regressions pass.
+
 ## [Unreleased] — Sprint 550: Snap native axis flips (MIG-550-01)
 
 ### Added

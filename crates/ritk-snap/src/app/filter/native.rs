@@ -14,8 +14,8 @@ use ritk_filter::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
     AbsImageFilter, ClampImageFilter, ExpImageFilter, FlipImageFilter, InvertIntensityFilter,
-    LogImageFilter, NormalizeImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter,
-    SqrtImageFilter, SquareImageFilter,
+    LogImageFilter, NormalizeImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
+    ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -23,8 +23,36 @@ use ritk_segmentation::{
     native::{binary_threshold, connected_components},
 };
 use ritk_spatial::{Direction, Point, Spacing};
+use std::ops::Deref;
 
 use crate::{FilterKind, LoadedVolume};
+
+/// Host representation of a Coeus-native filter result.
+///
+/// The viewer owns the displayed geometry, so every native result carries the
+/// image metadata required to replace it consistently with its pixel data.
+#[derive(Debug)]
+pub(super) struct NativeFilterOutput {
+    pub(super) data: Vec<f32>,
+    pub(super) shape: [usize; 3],
+    pub(super) origin: [f64; 3],
+    pub(super) spacing: [f64; 3],
+    pub(super) direction: [f64; 9],
+}
+
+impl Deref for NativeFilterOutput {
+    type Target = [f32];
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl PartialEq<Vec<f32>> for NativeFilterOutput {
+    fn eq(&self, other: &Vec<f32>) -> bool {
+        self.data == *other
+    }
+}
 
 /// Apply a filter when the full operation is available on the Coeus-native
 /// image substrate.
@@ -35,7 +63,7 @@ use crate::{FilterKind, LoadedVolume};
 pub(super) fn apply_if_supported(
     volume: &LoadedVolume,
     filter: &FilterKind,
-) -> Option<Result<Vec<f32>>> {
+) -> Option<Result<NativeFilterOutput>> {
     if !matches!(
         filter,
         FilterKind::Abs
@@ -60,6 +88,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::FlipZ
             | FilterKind::FlipY
             | FilterKind::FlipX
+            | FilterKind::RegionOfInterest { .. }
     ) {
         return None;
     }
@@ -67,7 +96,10 @@ pub(super) fn apply_if_supported(
     Some(apply_supported_filter(volume, filter))
 }
 
-fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<Vec<f32>> {
+fn apply_supported_filter(
+    volume: &LoadedVolume,
+    filter: &FilterKind,
+) -> Result<NativeFilterOutput> {
     if volume.channels != 1 {
         anyhow::bail!(
             "native scalar filters require a scalar volume, received {} interleaved channels",
@@ -129,6 +161,18 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         FilterKind::FlipZ => FlipImageFilter::flip_z().apply_native(&image, &backend),
         FilterKind::FlipY => FlipImageFilter::flip_y().apply_native(&image, &backend),
         FilterKind::FlipX => FlipImageFilter::flip_x().apply_native(&image, &backend),
+        FilterKind::RegionOfInterest {
+            start_z,
+            start_y,
+            start_x,
+            size_z,
+            size_y,
+            size_x,
+        } => RegionOfInterestImageFilter::new(
+            [*start_z, *start_y, *start_x],
+            [*size_z, *size_y, *size_x],
+        )
+        .apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -182,7 +226,26 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
     }
     .context("Coeus-native filter failed")?;
 
-    Ok(output.data_cow_on(&backend).into_owned())
+    let origin = output.origin();
+    let spacing = output.spacing();
+    let direction = output.direction();
+    Ok(NativeFilterOutput {
+        data: output.data_cow_on(&backend).into_owned(),
+        shape: output.shape(),
+        origin: [origin[0], origin[1], origin[2]],
+        spacing: [spacing[0], spacing[1], spacing[2]],
+        direction: [
+            direction[(0, 0)],
+            direction[(0, 1)],
+            direction[(0, 2)],
+            direction[(1, 0)],
+            direction[(1, 1)],
+            direction[(1, 2)],
+            direction[(2, 0)],
+            direction[(2, 1)],
+            direction[(2, 2)],
+        ],
+    })
 }
 
 #[cfg(test)]
@@ -318,6 +381,31 @@ mod tests {
             .expect("invariant: flip-x has a native implementation")
             .expect("native flip succeeds");
         assert_eq!(output, vec![3.0, 2.0, 1.0]);
+    }
+
+    #[test]
+    fn native_roi_updates_shape_and_physical_origin() {
+        let mut volume = test_volume([2, 2, 2]);
+        volume.data = Arc::new((1..=8).map(|value| value as f32).collect());
+        volume.spacing = [2.0, 3.0, 4.0];
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::RegionOfInterest {
+                start_z: 1,
+                start_y: 1,
+                start_x: 1,
+                size_z: 1,
+                size_y: 1,
+                size_x: 1,
+            },
+        )
+        .expect("invariant: ROI has a native implementation")
+        .expect("native ROI accepts an in-bounds scalar volume");
+
+        assert_eq!(output.data, vec![8.0]);
+        assert_eq!(output.shape, [1, 1, 1]);
+        assert_eq!(output.origin, [2.0, 3.0, 4.0]);
+        assert_eq!(output.spacing, [2.0, 3.0, 4.0]);
     }
 
     #[test]
@@ -581,6 +669,32 @@ mod tests {
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [0.0, 1.0, 1.0]
         );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_roi_with_updated_geometry() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([2, 2, 2]);
+        volume.data = Arc::new((1..=8).map(|value| value as f32).collect());
+        volume.spacing = [2.0, 3.0, 4.0];
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::RegionOfInterest {
+            start_z: 1,
+            start_y: 1,
+            start_x: 1,
+            size_z: 1,
+            size_y: 1,
+            size_x: 1,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        let volume = app.loaded.expect("volume remains loaded after an ROI crop");
+        assert_eq!(volume.data.as_slice(), [8.0]);
+        assert_eq!(volume.shape, [1, 1, 1]);
+        assert_eq!(volume.origin, [2.0, 3.0, 4.0]);
+        assert_eq!(volume.spacing, [2.0, 3.0, 4.0]);
         assert_eq!(app.status_message, "Filter applied.");
     }
 }

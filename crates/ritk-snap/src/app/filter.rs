@@ -32,7 +32,7 @@ impl SnapApp {
                 Err(error) => {
                     self.status_message = format!("Filter failed: {error:#}");
                 }
-                Ok(data) => self.replace_loaded_volume_data(data),
+                Ok(output) => self.replace_loaded_volume_native(output),
             }
             return;
         }
@@ -460,6 +460,23 @@ impl SnapApp {
             .as_mut()
             .expect("invariant: a filter result exists only when a volume is loaded");
         volume.data = std::sync::Arc::new(data);
+        self.mark_filter_applied();
+    }
+
+    fn replace_loaded_volume_native(&mut self, output: native::NativeFilterOutput) {
+        let volume = self
+            .loaded
+            .as_mut()
+            .expect("invariant: a filter result exists only when a volume is loaded");
+        volume.data = std::sync::Arc::new(output.data);
+        volume.shape = output.shape;
+        volume.origin = output.origin;
+        volume.spacing = output.spacing;
+        volume.direction = output.direction;
+        self.mark_filter_applied();
+    }
+
+    fn mark_filter_applied(&mut self) {
         self.texture_dirty = true;
         self.coronal_dirty = true;
         self.sagittal_dirty = true;

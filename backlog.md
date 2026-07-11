@@ -1,5 +1,11 @@
 # RITK Backlog - Active Planning
 
+- **MIG-551-01 [patch] - Snap native ROI crop (DONE).**
+  RegionOfInterestImageFilter now owns one Coeus-native crop boundary sharing
+  validation, extraction, and origin translation with its existing path. Snap
+  applies native geometry atomically; exact provider and application regressions
+  pass.
+
 - **MIG-550-01 [patch] - Snap native axis flips (DONE).**
   FlipImageFilter now supplies a Coeus-native boundary and Snap routes all three
   axis variants. Provider and Snap exact reversal regressions pass.
@@ -25,7 +31,7 @@
   dispatches both fixed and automatic maxima through it. Provider and Snap
   value-semantic regressions pass.
 
-- **MIG-544-01 [patch] - Snap native signed distance transform (IN PROGRESS).**
+- **MIG-544-01 [patch] - Snap native signed distance transform (DONE).**
   `ritk-filter` now owns a Coeus-native signed-distance boundary over the
   existing Meijster core, and Snap consumes it. Differential and Snap value
   regressions pass; package gates and delivery remain.

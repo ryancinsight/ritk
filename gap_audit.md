@@ -8,6 +8,15 @@
 
 # RITK Gap Audit - Active
 
+## MIG-551-01 audit (2026-07-11)
+
+ROI crop semantics existed only behind the legacy image path. The owner now
+shares validation, contiguous crop extraction, and physical-origin translation
+between its legacy and Coeus-native image boundaries. Snap consumes the native
+result before legacy construction and replaces data plus shape, spacing,
+direction, and origin atomically. Exact provider and application regressions
+cover the `[2,2,2]` to `[1,1,1]` crop at physical origin `[2,3,4]`.
+
 ## MIG-550-01 audit (2026-07-11)
 
 FlipImageFilter already owned the canonical three-axis index mapping but lacked
