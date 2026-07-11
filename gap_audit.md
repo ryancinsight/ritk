@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-592-01 audit (2026-07-11)
+
+`BinaryOpFilter<Op>` now retains its single monomorphized operation kernel at
+both image boundaries. Native division verifies the zero-denominator contract
+and first-image spatial-metadata ownership.
+
 ## MIG-591-01 audit (2026-07-11)
 
 Stark adaptive histogram equalization now uses one Moirai-backed kernel for

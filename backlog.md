@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-592-01 [patch] - Native generic binary image operations (DONE).** One
+  ZST-dispatched two-image kernel now serves tensor-backed and Coeus-native images.
+
 - **MIG-591-01 [patch] - Native adaptive histogram equalization (DONE).** The
   Stark local-equalization kernel now backs Coeus-native images directly.
 

@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-592-01 — Native generic binary image operations
+**Target version**: 0.14.0 migration batch
+- [x] Expose the ZST binary operation kernel to Coeus-native image pairs.
+
 ## MIG-591-01 — Native adaptive histogram equalization
 **Target version**: 0.14.0 migration batch
 - [x] Share the Stark equalization kernel between tensor-backed and native images.

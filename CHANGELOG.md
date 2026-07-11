@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 592: Native generic binary image operations (MIG-592-01)
+### Added
+- `BinaryOpFilter<Op>` now exposes a Coeus-native two-image boundary.
+
 ## [Unreleased] — Sprint 591: Native adaptive histogram equalization (MIG-591-01)
 ### Added
 - `AdaptiveHistogramEqualizationFilter` now exposes a Coeus-native image boundary.
