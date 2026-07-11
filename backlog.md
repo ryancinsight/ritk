@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-547-01 [patch] - Snap native shift-scale (DONE).**
+  ShiftScale now has a Coeus-native provider boundary and Snap dispatches it.
+  Provider and Snap HU-conversion regressions pass.
+
 - **MIG-546-01 [patch] - Snap native intensity clamp (DONE).**
   The owning clamp filter now provides a Coeus-native boundary and Snap uses it.
   Provider and Snap exact-bound regressions pass.

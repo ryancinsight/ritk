@@ -14,7 +14,7 @@ use ritk_filter::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
     AbsImageFilter, ClampImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter,
-    SqrtImageFilter, SquareImageFilter,
+    ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -53,6 +53,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
+            | FilterKind::ShiftScale { .. }
     ) {
         return None;
     }
@@ -109,6 +110,9 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         },
         FilterKind::Clamp { lower, upper } => {
             ClampImageFilter::new(*lower, *upper).apply_native(&image, &backend)
+        }
+        FilterKind::ShiftScale { shift, scale } => {
+            ShiftScaleImageFilter::new(*shift, *scale).apply_native(&image, &backend)
         }
         FilterKind::BinaryErode {
             radius,
@@ -247,6 +251,22 @@ mod tests {
         .expect("native clamp succeeds");
 
         assert_eq!(output, vec![0.0, 50.0, 100.0]);
+    }
+
+    #[test]
+    fn native_shift_scale_preserves_hu_conversion() {
+        let mut volume = test_volume([1, 1, 2]);
+        volume.data = Arc::new(vec![1024.0, 0.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::ShiftScale {
+                shift: -1024.0,
+                scale: 0.001,
+            },
+        )
+        .expect("invariant: shift-scale has a native implementation")
+        .expect("native shift-scale succeeds");
+        assert_eq!(output, vec![0.0, -1.024]);
     }
 
     #[test]

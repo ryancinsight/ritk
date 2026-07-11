@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 547: Snap native shift-scale (MIG-547-01)
+
+### Added
+- `ShiftScaleImageFilter` now exposes a Coeus-native boundary with the existing
+  f64 intermediate arithmetic contract.
+
+### Changed
+- Snap routes ShiftScale through that native provider.
+
+### Evidence
+- Provider and Snap HU-conversion regressions pass.
+
 ## [Unreleased] — Sprint 546: Snap native intensity clamp (MIG-546-01)
 
 ### Added

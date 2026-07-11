@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-547-01 audit (2026-07-11)
+
+ShiftScale's canonical f64 shift-then-scale calculation lacked only its Coeus
+image boundary. The owner now supplies it and Snap dispatches before legacy
+construction. Exact HU-conversion regressions cover both provider and consumer.
+
 ## MIG-546-01 audit (2026-07-11)
 
 Clamp already had a canonical flat-buffer algorithm but no native image boundary.

@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-547-01 — Snap native shift-scale
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add the native shift-scale provider boundary.
+- [x] Route Snap ShiftScale and pin the HU conversion contract.
+
 ## MIG-546-01 — Snap native intensity clamp
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
