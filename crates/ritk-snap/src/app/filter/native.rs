@@ -16,7 +16,7 @@ use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter,
     BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
     ExpImageFilter, FlipImageFilter, InvertIntensityFilter, LogImageFilter, MaskImageFilter,
-    MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
+    MeanImageFilter, MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
     RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
     SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, WrapPadImageFilter,
 };
@@ -105,6 +105,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::Asin
             | FilterKind::Acos
             | FilterKind::BoundedReciprocal
+            | FilterKind::Mean { .. }
     ) {
         return None;
     }
@@ -251,6 +252,7 @@ fn apply_supported_filter(
         FilterKind::BoundedReciprocal => {
             BoundedReciprocalImageFilter::new().apply_native(&image, &backend)
         }
+        FilterKind::Mean { radius } => MeanImageFilter::new(*radius).apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -635,6 +637,19 @@ mod tests {
                 output.data[0]
             );
         }
+    }
+
+    #[test]
+    fn native_mean_preserves_zero_flux_boundary_values() {
+        let mut volume = test_volume([1, 1, 4]);
+        volume.data = Arc::new(vec![0.0, 0.0, 10.0, 10.0]);
+        let output = apply_if_supported(&volume, &FilterKind::Mean { radius: 1 })
+            .expect("invariant: mean filter has a native implementation")
+            .expect("native mean filter succeeds");
+
+        assert_eq!(output.shape, [1, 1, 4]);
+        assert!((output.data[1] - 10.0 / 3.0).abs() <= 1e-6);
+        assert!((output.data[2] - 20.0 / 3.0).abs() <= 1e-6);
     }
 
     #[test]

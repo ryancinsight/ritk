@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-558-01 [patch] - Snap native mean smoothing (DONE).**
+  MeanImageFilter shares one Moirai-backed kernel between substrates, and Snap
+  dispatches it natively. Exact zero-flux boundary regressions pass.
+
 - **MIG-557-01 [patch] - Snap native trigonometric family (DONE).**
   Seven duplicated trig/reciprocal filters now use the sealed native unary
   family and Snap dispatches them before legacy construction. Provider laws and

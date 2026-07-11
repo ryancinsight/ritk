@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-558-01 audit (2026-07-11)
+
+Mean smoothing was already Moirai-backed but remained behind legacy image
+construction. Its flat-buffer kernel is now shared by both substrates and Snap
+dispatches the Coeus-native result. Exact tests preserve the full-window
+zero-flux boundary convention at the two step-edge voxels.
+
 ## MIG-557-01 audit (2026-07-11)
 
 The trigonometric family duplicated the generic unary filter scaffold and was

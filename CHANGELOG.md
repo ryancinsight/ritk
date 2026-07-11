@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 558: Snap native mean smoothing (MIG-558-01)
+
+### Changed
+- MeanImageFilter now shares its Moirai-backed flat-buffer kernel between
+  legacy and Coeus-native images.
+- Snap routes mean smoothing natively.
+
+### Evidence
+- Provider and Snap regressions pin zero-flux boundary values.
+
 ## [Unreleased] — Sprint 557: Snap native trigonometric family (MIG-557-01)
 
 ### Changed

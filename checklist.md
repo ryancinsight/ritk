@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-558-01 — Snap native mean smoothing
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Extract the canonical Moirai mean kernel from the legacy image boundary.
+- [x] Add the native provider method and route Snap mean smoothing through it.
+- [x] Verify provider and Snap zero-flux boundary regressions and warning-denied
+  Clippy; commit and advance the RITK gitlink.
+
 ## MIG-557-01 — Snap native trigonometric family
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
