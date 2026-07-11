@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 594: Native deterministic Gaussian noise (MIG-594-01)
+### Added
+- `AdditiveGaussianNoiseFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 593: Native constant-sum normalization (MIG-593-01)
 ### Added
 - `NormalizeToConstantImageFilter` now exposes a Coeus-native image boundary.

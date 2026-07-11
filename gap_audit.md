@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-594-01 audit (2026-07-11)
+
+The seeded FastNorm stream now has one implementation across tensor-backed and
+Coeus-native images. The native exact sequence and source metadata are pinned.
+
 ## MIG-593-01 audit (2026-07-11)
 
 Constant-sum normalization now shares its f64 accumulation and zero-sum policy

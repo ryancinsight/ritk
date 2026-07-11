@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-594-01 [patch] - Native deterministic Gaussian noise (DONE).** FastNorm
+  noise now shares one seeded sequence across tensor-backed and native images.
+
 - **MIG-593-01 [patch] - Native constant-sum normalization (DONE).**
   `NormalizeToConstantImageFilter` now uses the Coeus-native image boundary.
 

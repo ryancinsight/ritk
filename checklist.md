@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-594-01 — Native deterministic Gaussian noise
+**Target version**: 0.14.0 migration batch
+- [x] Share seeded FastNorm noise between tensor-backed and native images.
+
 ## MIG-593-01 — Native constant-sum normalization
 **Target version**: 0.14.0 migration batch
 - [x] Expose constant-sum normalization through Coeus-native images.
