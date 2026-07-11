@@ -141,6 +141,29 @@ fn mirror_pad_1d() {
     }
 }
 
+#[test]
+fn native_mirror_pad_matches_symmetric_extension() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        vec![1.0, 2.0, 3.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = MirrorPadImageFilter::new(Padding::new([0, 0, 2]), Padding::new([0, 0, 2]))
+        .apply_native(&image, &SequentialBackend)
+        .expect("native mirror padding succeeds");
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[2.0, 1.0, 1.0, 2.0, 3.0, 3.0, 2.0]
+    );
+}
+
 /// Mirror index formula for n=1 always returns 0.
 #[test]
 fn mirror_index_n1() {
@@ -171,6 +194,29 @@ fn wrap_pad_1d() {
     assert!((v[0] - 20.0).abs() < 1e-5, "v[0]={}", v[0]);
     assert!((v[2] - 10.0).abs() < 1e-5, "v[2]={}", v[2]);
     assert!((v[5] - 10.0).abs() < 1e-5, "v[5]={}", v[5]);
+}
+
+#[test]
+fn native_wrap_pad_matches_periodic_extension() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        vec![10.0, 20.0, 30.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = WrapPadImageFilter::new(Padding::new([0, 0, 2]), Padding::new([0, 0, 2]))
+        .apply_native(&image, &SequentialBackend)
+        .expect("native wrap padding succeeds");
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[20.0, 30.0, 10.0, 20.0, 30.0, 10.0, 20.0]
+    );
 }
 
 /// Output shape correct for wrap pad.

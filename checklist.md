@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-555-01 — Snap native mirror and wrap padding
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add owner-native mirror and wrap padding boundaries.
+- [x] Route Snap policy variants through native output geometry.
+- [x] Verify exact provider and Snap policy values and warning-denied Clippy;
+  commit and advance the RITK gitlink.
+
 ## MIG-554-01 — Snap native constant padding
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

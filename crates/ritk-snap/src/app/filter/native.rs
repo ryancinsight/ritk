@@ -14,9 +14,10 @@ use ritk_filter::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
     AbsImageFilter, ClampImageFilter, ConstantPadImageFilter, ExpImageFilter, FlipImageFilter,
-    InvertIntensityFilter, LogImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
-    RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter,
-    SquareImageFilter, TileMeanShrinkFilter,
+    InvertIntensityFilter, LogImageFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
+    ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter, TileMeanShrinkFilter,
+    WrapPadImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -93,6 +94,8 @@ pub(super) fn apply_if_supported(
             | FilterKind::PermuteAxes { .. }
             | FilterKind::Shrink { .. }
             | FilterKind::ConstantPad { .. }
+            | FilterKind::MirrorPad { .. }
+            | FilterKind::WrapPad { .. }
     ) {
         return None;
     }
@@ -201,6 +204,30 @@ fn apply_supported_filter(
             ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
             ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
             *constant,
+        )
+        .apply_native(&image, &backend),
+        FilterKind::MirrorPad {
+            pad_lower_z,
+            pad_lower_y,
+            pad_lower_x,
+            pad_upper_z,
+            pad_upper_y,
+            pad_upper_x,
+        } => MirrorPadImageFilter::new(
+            ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+            ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
+        )
+        .apply_native(&image, &backend),
+        FilterKind::WrapPad {
+            pad_lower_z,
+            pad_lower_y,
+            pad_lower_x,
+            pad_upper_z,
+            pad_upper_y,
+            pad_upper_x,
+        } => WrapPadImageFilter::new(
+            ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+            ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
         )
         .apply_native(&image, &backend),
         FilterKind::BinaryErode {
@@ -508,6 +535,43 @@ mod tests {
         assert_eq!(output.data, vec![-1.0, 3.0]);
         assert_eq!(output.shape, [1, 1, 2]);
         assert_eq!(output.origin, [0.0, 0.0, 8.0]);
+    }
+
+    #[test]
+    fn native_mirror_and_wrap_padding_preserve_policy_values() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![1.0, 2.0, 3.0]);
+        let cases = [
+            (
+                FilterKind::MirrorPad {
+                    pad_lower_z: 0,
+                    pad_lower_y: 0,
+                    pad_lower_x: 1,
+                    pad_upper_z: 0,
+                    pad_upper_y: 0,
+                    pad_upper_x: 1,
+                },
+                vec![1.0, 1.0, 2.0, 3.0, 3.0],
+            ),
+            (
+                FilterKind::WrapPad {
+                    pad_lower_z: 0,
+                    pad_lower_y: 0,
+                    pad_lower_x: 1,
+                    pad_upper_z: 0,
+                    pad_upper_y: 0,
+                    pad_upper_x: 1,
+                },
+                vec![3.0, 1.0, 2.0, 3.0, 1.0],
+            ),
+        ];
+        for (filter, expected) in cases {
+            let output = apply_if_supported(&volume, &filter)
+                .expect("invariant: padding policy has a native implementation")
+                .expect("native padding policy succeeds");
+            assert_eq!(output.data, expected);
+            assert_eq!(output.shape, [1, 1, 5]);
+        }
     }
 
     #[test]

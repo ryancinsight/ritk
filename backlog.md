@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-555-01 [patch] - Snap native mirror and wrap padding (DONE).**
+  Mirror and wrap padding now supply Coeus-native boundaries with exact
+  symmetric and periodic value contracts proven at provider and Snap layers.
+
 - **MIG-554-01 [patch] - Snap native constant padding (DONE).**
   ConstantPadImageFilter now supplies a Coeus-native boundary, and all padding
   origins follow the direction matrix. Exact provider and Snap regressions pass.

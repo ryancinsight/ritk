@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-555-01 audit (2026-07-11)
+
+Mirror and wrap padding remained behind legacy image construction after the
+direction-aware padding correction. They now share the native padding geometry
+helper while retaining their distinct ITK symmetric and periodic index laws.
+Exact provider and Snap regressions pin those output values.
+
 ## MIG-554-01 audit (2026-07-11)
 
 Padding origin translation incorrectly treated voxel axes as world axes. The

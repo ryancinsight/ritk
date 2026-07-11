@@ -308,6 +308,25 @@ impl MirrorPadImageFilter {
         );
         Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
     }
+
+    /// Apply mirror padding to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        padded_native(
+            image,
+            backend,
+            &self.pad_lower,
+            &self.pad_upper,
+            mirror_index,
+        )
+    }
 }
 
 // ── WrapPadImageFilter ────────────────────────────────────────────────────────
@@ -380,6 +399,56 @@ impl WrapPadImageFilter {
         );
         Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
     }
+
+    /// Apply wrap padding to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        padded_native(image, backend, &self.pad_lower, &self.pad_upper, wrap_index)
+    }
+}
+
+fn padded_native<B>(
+    image: &ritk_image::native::Image<f32, B, 3>,
+    backend: &B,
+    lower: &Padding,
+    upper: &Padding,
+    index: fn(i64, usize) -> usize,
+) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
+    let [nz, ny, nx] = image.shape();
+    let [lz, ly, lx] = *lower.as_array();
+    let [uz, uy, ux] = *upper.as_array();
+    let [oz, oy, ox] = [nz + lz + uz, ny + ly + uy, nx + lx + ux];
+    let values = image.data_slice()?;
+    let mut output = vec![0.0; oz * oy * ox];
+    for iz in 0..oz {
+        for iy in 0..oy {
+            for ix in 0..ox {
+                let z = index(iz as i64 - lz as i64, nz);
+                let y = index(iy as i64 - ly as i64, ny);
+                let x = index(ix as i64 - lx as i64, nx);
+                output[iz * oy * ox + iy * ox + ix] = values[z * ny * nx + y * nx + x];
+            }
+        }
+    }
+    ritk_image::native::Image::from_flat_on(
+        output,
+        [oz, oy, ox],
+        updated_origin(image.origin(), image.spacing(), image.direction(), lower),
+        *image.spacing(),
+        *image.direction(),
+        backend,
+    )
 }
 
 // ── ZeroFluxNeumannPadImageFilter ─────────────────────────────────────────────

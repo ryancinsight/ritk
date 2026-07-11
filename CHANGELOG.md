@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 555: Snap native mirror and wrap padding (MIG-555-01)
+
+### Added
+- Mirror and wrap padding now expose Coeus-native boundaries over their ITK
+  symmetric and periodic index policies.
+
+### Changed
+- Snap routes both padding variants through the native geometry path.
+
+### Evidence
+- Provider and Snap exact policy-value regressions pass.
+
 ## [Unreleased] — Sprint 554: Snap native constant padding (MIG-554-01)
 
 ### Fixed
