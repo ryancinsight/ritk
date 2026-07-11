@@ -30,9 +30,8 @@
 
 use super::types::ForegroundValue;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Voting binary image filter.
 ///
@@ -83,7 +82,6 @@ impl VotingBinaryImageFilter {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let [nz, ny, nx] = dims;
-        let device = image.data().device();
 
         let r = self.radius;
         let birth = self.birth_threshold;
@@ -134,15 +132,7 @@ impl VotingBinaryImageFilter {
             }
         });
 
-        let shape = Shape::new([nz, ny, nx]);
-        let data = TensorData::new(out, shape);
-        let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out, dims, image))
     }
 }
 

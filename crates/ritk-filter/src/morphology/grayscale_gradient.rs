@@ -42,9 +42,8 @@
 //! - ITK `itk::GrayscaleMorphologicalGradientImageFilter`.
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 use super::grayscale_dilation::dilate_3d;
 use super::grayscale_erosion::erode_3d;
@@ -106,15 +105,7 @@ impl GrayscaleMorphologicalGradientFilter {
             .map(|(d, e)| d - e)
             .collect();
 
-        let device = image.data().device();
-        let td = TensorData::new(gradient, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(gradient, dims, image))
     }
 }
 

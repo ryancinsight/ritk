@@ -16,7 +16,7 @@ use super::grayscale_dilation::GrayscaleDilation;
 use super::grayscale_erosion::GrayscaleErosion;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// White top-hat filter: WTH_B(f) = f - opening_B(f).
 /// Isolates bright structures smaller than the structuring element.
@@ -61,7 +61,6 @@ impl BlackTopHatFilter {
 }
 
 fn sub_clamp<B: Backend>(a: &Image<B, 3>, b: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     let (av, dims) = extract_vec(a)?;
     let (bv, _) = extract_vec(b)?;
     let result: Vec<f32> = av
@@ -69,9 +68,7 @@ fn sub_clamp<B: Backend>(a: &Image<B, 3>, b: &Image<B, 3>) -> anyhow::Result<Ima
         .zip(bv.iter())
         .map(|(&ai, &bi)| (ai - bi).max(0.0))
         .collect();
-    let device = a.data().device();
-    let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
-    Ok(Image::new(t, *a.origin(), *a.spacing(), *a.direction()))
+    Ok(rebuild(result, dims, a))
 }
 
 #[cfg(test)]

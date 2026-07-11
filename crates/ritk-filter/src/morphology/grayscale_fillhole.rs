@@ -54,9 +54,8 @@
 //!   Processing*, 2(2), 176–201.
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
@@ -89,15 +88,7 @@ impl GrayscaleFillholeFilter {
 
         let filled = fill_holes_3d(&vals, dims);
 
-        let device = image.data().device();
-        let out_td = TensorData::new(filled, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(filled, dims, image))
     }
 }
 

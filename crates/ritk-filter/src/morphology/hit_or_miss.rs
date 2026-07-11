@@ -11,9 +11,8 @@
 //! - Soille, P. (2003). Morphological Image Analysis, 2nd ed. Springer.
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 #[derive(Debug, Clone)]
 pub struct HitOrMissTransform {
@@ -31,14 +30,7 @@ impl HitOrMissTransform {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let result = hit_or_miss_3d(&vals, dims, self.fg_radius, self.bg_radius);
-        let device = image.data().device();
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, dims, image))
     }
 }
 

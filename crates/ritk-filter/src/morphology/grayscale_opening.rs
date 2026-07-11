@@ -43,9 +43,8 @@
 use super::grayscale_dilation::dilate_3d;
 use super::grayscale_erosion::erode_3d;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -96,15 +95,7 @@ impl GrayscaleOpeningFilter {
         let dilated = dilate_3d(&eroded, pdims, r);
         let (opened, _) = super::crop_border_3d(&dilated, pdims, r);
 
-        let device = image.data().device();
-        let out_td = TensorData::new(opened, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(opened, dims, image))
     }
 }
 
