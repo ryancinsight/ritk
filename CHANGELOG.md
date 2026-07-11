@@ -8,6 +8,17 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 541: Snap native distance transform (MIG-541-01)
+
+### Changed
+- Snap now routes unsigned Euclidean distance transforms through the Coeus-native
+  provider, preserving physical voxel spacing at the viewer/native boundary.
+
+### Evidence
+- Provider differential coverage plus focused Snap nextest 2/2 pin exact
+  distance and application-state semantics. Warning-denied Clippy, doctests
+  2/2, and warning-clean Rustdoc pass.
+
 ## [Unreleased] — Sprint 540: Snap native binary morphology (MIG-540-01)
 
 ### Changed

@@ -9,6 +9,7 @@
 use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_filter::{
+    distance::euclidean::native::distance_transform,
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
@@ -41,6 +42,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::BinaryClosing { .. }
             | FilterKind::BinaryOpening { .. }
             | FilterKind::BinaryFillhole { .. }
+            | FilterKind::DistanceTransform { .. }
     ) {
         return None;
     }
@@ -108,6 +110,9 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         FilterKind::BinaryFillhole { foreground_value } => {
             binary_fill_holes(&image, *foreground_value, &backend)
         }
+        FilterKind::DistanceTransform { threshold } => {
+            distance_transform(&image, *threshold, &backend)
+        }
         _ => unreachable!("invariant: dispatch admits only fully native filter variants"),
     }
     .context("Coeus-native filter failed")?;
@@ -121,7 +126,7 @@ mod tests {
     use crate::app::tests::test_volume;
     use crate::app::SnapApp;
     use crate::FilterKind;
-    use ritk_filter::ForegroundValue;
+    use ritk_filter::{BinarizationThreshold, ForegroundValue};
     use std::sync::Arc;
 
     #[test]
@@ -221,6 +226,23 @@ mod tests {
     }
 
     #[test]
+    fn native_distance_transform_uses_loaded_volume_spacing() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 1.0, 0.0]);
+        volume.spacing = [0.5, 1.5, 2.5];
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::DistanceTransform {
+                threshold: BinarizationThreshold::DEFAULT,
+            },
+        )
+        .expect("invariant: unsigned distance transform has a native implementation")
+        .expect("native distance transform accepts a scalar volume");
+
+        assert_eq!(output, vec![2.5, 0.0, 2.5]);
+    }
+
+    #[test]
     fn unsupported_filter_stays_outside_native_unary_dispatch() {
         let volume = test_volume([1, 1, 1]);
         assert!(apply_if_supported(&volume, &FilterKind::Gaussian { sigma: 1.0 }).is_none());
@@ -269,6 +291,26 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [1.0, 1.0, 1.0]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_distance_transform() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 1.0, 0.0]);
+        volume.spacing = [1.0, 1.0, 2.0];
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::DistanceTransform {
+            threshold: BinarizationThreshold::DEFAULT,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [2.0, 0.0, 2.0]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }

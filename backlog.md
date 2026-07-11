@@ -1,5 +1,12 @@
 # RITK Backlog - Active Planning
 
+- **MIG-541-01 [patch] - Snap native distance transform (DONE).**
+  The unsigned Euclidean distance transform now dispatches to the Coeus-native
+  provider before legacy image construction. Provider differential coverage
+  and exact Snap physical-spacing/application-state regressions are complete.
+  Evidence: focused Snap nextest 2/2, warning-denied Clippy, doctests 2/2,
+  and warning-clean Rustdoc.
+
 - **MIG-540-01 [patch] - Snap native binary morphology (DONE).**
   Binary erosion, dilation, opening, closing, and hole filling now dispatch to
   the complete Coeus-native `ritk-filter::morphology::native` provider family.

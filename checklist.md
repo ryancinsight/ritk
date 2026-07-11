@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-541-01 — Snap native distance transform
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Route unsigned Euclidean distance transforms through the native provider.
+- [x] Pin physical-spacing values and Snap application-state output with exact
+  value-semantic regressions.
+- [x] Verify warning-denied Clippy, doctests 2/2, and warning-clean Rustdoc;
+  audit the remaining legacy count, then commit and advance the Atlas gitlink.
+
 ## MIG-540-01 — Snap native binary morphology
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

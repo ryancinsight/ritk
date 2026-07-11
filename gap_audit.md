@@ -8,6 +8,18 @@
 
 # RITK Gap Audit - Active
 
+## MIG-541-01 audit (2026-07-11)
+
+The unsigned Euclidean distance transform already has a Coeus-native wrapper
+around the same Meijster–Roerdink–Hesselink core used by the Burn filter, but
+Snap still built a Burn image first. Snap now dispatches this complete provider
+operation before legacy construction. Regression coverage proves that physical
+spacing reaches the provider and that the application retains the exact output.
+
+Residual risk: signed distance remains on the legacy graph because its native
+provider contract is not available. This slice preserves the legacy audit count
+while unsupported operations still share `app/filter.rs`.
+
 ## MIG-540-01 audit (2026-07-11)
 
 The five binary morphology variants still constructed a Burn image in Snap
