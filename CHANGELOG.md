@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 530: WGPU helper consolidation (MIG-530-01)
+
+### Removed
+- Deleted the unused rank-specialized row chunker, its dead-code suppression,
+  and unsupported performance claims; the generic helper remains the SSOT.
+
+### Evidence
+- Exact generic-helper values and row order, nextest 2/2, warning-denied
+  Clippy, Rustdoc, doctests, and a clean migration audit.
+
 ## [Unreleased] — Sprint 529: Burn audit precision (MIG-529-01)
 
 ### Fixed

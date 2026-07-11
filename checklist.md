@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-530-01 — WGPU chunk-helper consolidation
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the rank-specialized helper has no production consumers.
+- [x] Delete its dead implementation, lint suppression, self-only tests, and unsupported performance claims.
+- [x] Preserve exact value and row-order coverage on the canonical generic helper.
+- [x] Verify nextest 2/2, warning-denied Clippy, Rustdoc, doctests, and a clean migration audit.
+
 ## MIG-529-01 — Burn audit vocabulary precision
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

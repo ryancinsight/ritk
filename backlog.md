@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-530-01 [patch] - WGPU chunk-helper consolidation (DONE).**
+  Exact workspace search finds no consumer of `apply_row_chunks_3d`; all live
+  callers use the generic closure-based helper. The unused specialization,
+  dead-code suppression, self-only tests, and unmeasured performance claims
+  are deleted. Exact value and row-order tests now exercise the canonical
+  helper below the limit and across an uneven final chunk. Evidence: nextest
+  2/2, warning-denied Clippy, Rustdoc, doctests, and a clean migration audit.
+
 - **MIG-529-01 [patch] - Burn audit vocabulary precision (DONE).**
   The audit no longer treats generic `Tensor<`, `Autodiff`, or `Conv3d`
   vocabulary as proof of Burn ownership. It matches concrete Burn/RITK tensor

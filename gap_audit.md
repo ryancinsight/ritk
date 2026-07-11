@@ -8,6 +8,19 @@
 
 # RITK Gap Audit - Active
 
+## MIG-530-01 audit (2026-07-11)
+
+`ritk-wgpu-compat` retained an unused rank-three copy of the canonical row
+chunking helper behind `allow(dead_code)`. Its comments asserted measurable
+closure-indirection savings without a benchmark or code-generation artifact,
+and exact workspace search found no caller. The duplicate implementation,
+lint suppression, claims, and self-only tests are deleted. The generic helper
+now owns exact below-limit and uneven-final-chunk value/order coverage.
+
+Evidence tier: exact consumer inventory; nextest 2/2; warning-denied Clippy;
+Rustdoc; doctests; and a clean migration audit. The Burn manifest/source count
+is unchanged because the live generic helper still serves Burn consumers.
+
 ## MIG-529-01 audit (2026-07-11)
 
 The migration detector conflated substrate-neutral type names with Burn:
