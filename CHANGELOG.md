@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 562: Snap native binary contour (MIG-562-01)
+
+### Added
+- BinaryContourImageFilter now exposes a Coeus-native boundary over its
+  canonical Moirai-parallel contour kernel.
+
+### Changed
+- Snap routes binary contour natively.
+
+### Evidence
+- Exact Snap full-foreground contour regression passes.
+
 ## [Unreleased] — Sprint 561: Snap native morphological gradient (MIG-561-01)
 
 ### Added

@@ -13,7 +13,7 @@ use ritk_filter::{
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
-    AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter,
+    AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BinaryContourImageFilter,
     BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
     ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, InvertIntensityFilter,
@@ -113,6 +113,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::GrayscaleClosing { .. }
             | FilterKind::GrayscaleOpening { .. }
             | FilterKind::MorphologicalGradient { .. }
+            | FilterKind::BinaryContour { .. }
     ) {
         return None;
     }
@@ -275,6 +276,11 @@ fn apply_supported_filter(
         FilterKind::MorphologicalGradient { radius } => {
             GrayscaleMorphologicalGradientFilter::new(*radius).apply_native(&image, &backend)
         }
+        FilterKind::BinaryContour {
+            connectivity,
+            foreground_value,
+        } => BinaryContourImageFilter::new(*connectivity, *foreground_value)
+            .apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -730,6 +736,24 @@ mod tests {
 
         assert_eq!(output.data, vec![10.0, 10.0, 10.0]);
         assert!(output.data.iter().all(|value| *value >= 0.0));
+    }
+
+    #[test]
+    fn native_binary_contour_removes_fully_enclosed_foreground() {
+        let mut volume = test_volume([3, 3, 3]);
+        volume.data = Arc::new(vec![1.0; 27]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::BinaryContour {
+                connectivity: ritk_filter::Connectivity::Face6,
+                foreground_value: ForegroundValue::ONE,
+            },
+        )
+        .expect("invariant: binary contour has a native implementation")
+        .expect("native binary contour succeeds");
+
+        assert_eq!(output.data[13], 0.0);
+        assert_eq!(output.data[0], 0.0);
     }
 
     #[test]

@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-562-01 [patch] - Snap native binary contour (DONE).**
+  BinaryContourImageFilter shares its Moirai contour kernel with a Coeus-native
+  boundary, and Snap dispatches it natively. Exact contour regression passes.
+
 - **MIG-561-01 [patch] - Snap native morphological gradient (DONE).**
   The grayscale gradient now has a Coeus-native extrema-difference boundary and
   Snap dispatches it directly. Exact non-negative output regression passes.

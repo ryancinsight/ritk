@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-562-01 audit (2026-07-11)
+
+Binary contour already owned a Moirai-parallel flat contour kernel but remained
+behind legacy image construction. The value kernel now drives both substrates,
+and Snap dispatches the native result. Exact regression confirms a full
+foreground volume has no contour under the established out-of-bounds contract.
+
 ## MIG-561-01 audit (2026-07-11)
 
 Morphological gradient directly combines the canonical grayscale extrema cores

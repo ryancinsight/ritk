@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-562-01 — Snap native binary contour
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Extract the canonical Moirai contour values kernel from legacy image I/O.
+- [x] Add the native provider boundary and route Snap binary contour through it.
+- [x] Verify exact full-foreground contour behavior and warning-denied Clippy;
+  commit and advance the RITK gitlink.
+
 ## MIG-561-01 — Snap native morphological gradient
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
