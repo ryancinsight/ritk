@@ -178,33 +178,39 @@ impl SnapApp {
                 crate::FilterKind::FlipX => ritk_filter::FlipImageFilter::flip_x().apply(&image),
                 crate::FilterKind::MaskThreshold { threshold } => {
                     let dims = image.shape();
-                    let vals: Vec<f32> = image
-                        .try_data_vec()
-                        .unwrap_or_else(|_| vec![0.0; dims[0] * dims[1] * dims[2]]);
-                    let mask_vals: Vec<f32> = vals
-                        .iter()
-                        .map(|&v| {
-                            if v > f32::from(*threshold) {
-                                1.0_f32
-                            } else {
-                                0.0_f32
-                            }
-                        })
-                        .collect();
-                    let device = image.data().device();
-                    let mask_td = ritk_image::tensor::TensorData::new(
-                        mask_vals,
-                        ritk_image::tensor::Shape::new(dims),
-                    );
-                    let mask_tensor =
-                        ritk_image::tensor::Tensor::<LoadBackend, 3>::from_data(mask_td, &device);
-                    let mask_image = ritk_image::Image::new(
-                        mask_tensor,
-                        *image.origin(),
-                        *image.spacing(),
-                        *image.direction(),
-                    );
-                    ritk_filter::MaskImageFilter::new().apply(&image, &mask_image)
+                    match image.try_data_vec() {
+                        Ok(vals) => {
+                            let mask_vals: Vec<f32> = vals
+                                .iter()
+                                .map(|&v| {
+                                    if v > f32::from(*threshold) {
+                                        1.0_f32
+                                    } else {
+                                        0.0_f32
+                                    }
+                                })
+                                .collect();
+                            let device = image.data().device();
+                            let mask_td = ritk_image::tensor::TensorData::new(
+                                mask_vals,
+                                ritk_image::tensor::Shape::new(dims),
+                            );
+                            let mask_tensor =
+                                ritk_image::tensor::Tensor::<LoadBackend, 3>::from_data(
+                                    mask_td, &device,
+                                );
+                            let mask_image = ritk_image::Image::new(
+                                mask_tensor,
+                                *image.origin(),
+                                *image.spacing(),
+                                *image.direction(),
+                            );
+                            ritk_filter::MaskImageFilter::new().apply(&image, &mask_image)
+                        }
+                        Err(error) => Err(anyhow::anyhow!(
+                            "cannot construct MaskThreshold input from the loaded image: {error:?}"
+                        )),
+                    }
                 }
                 crate::FilterKind::GeodesicDilationSelf => {
                     ritk_filter::GrayscaleGeodesicDilationFilter::new().apply(&image, &image)

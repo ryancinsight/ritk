@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-538-01 — Snap mask-threshold failure propagation
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Remove the silent all-zero fallback when MaskThreshold cannot extract its real input image.
+- [x] Return a typed contextual filter failure instead of applying a fabricated mask.
+- [x] Verify Snap nextest 637/637 and warning-denied Clippy.
+
 ## MIG-537-01 — Legacy ViewerCore deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

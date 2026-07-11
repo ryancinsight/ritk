@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 538: MaskThreshold error propagation (MIG-538-01)
+
+### Fixed
+- MaskThreshold now reports image-extraction failure instead of filtering a
+  fabricated zero-filled volume.
+
+### Evidence
+- Snap nextest 637/637 and warning-denied Clippy.
+
 ## [Unreleased] — Sprint 537: Legacy ViewerCore deletion (MIG-537-01)
 
 ### Changed

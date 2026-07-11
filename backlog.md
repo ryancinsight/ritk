@@ -1,5 +1,11 @@
 # RITK Backlog - Active Planning
 
+- **MIG-538-01 [patch] - Snap mask-threshold failure propagation (DONE).**
+  MaskThreshold no longer substitutes a zero-filled image if Burn extraction
+  fails. The filter result now carries the concrete extraction failure with
+  context, preserving input-dependent error semantics. Evidence: Snap nextest
+  637/637 and warning-denied Clippy.
+
 - **MIG-537-01 [major] - Legacy ViewerCore deletion (DONE).**
   The generic ViewerCore, Study, ViewerBackend, event lifecycle, and duplicate
   filter dispatch had no production role beyond a CLI adapter whose backend did

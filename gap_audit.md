@@ -8,6 +8,16 @@
 
 # RITK Gap Audit - Active
 
+## MIG-538-01 audit (2026-07-11)
+
+The live MaskThreshold branch replaced an extraction failure with a fabricated
+zero-filled volume, producing a plausible but unrelated filter result. The
+branch now propagates a contextual `anyhow` error through the existing filter
+result channel. No fallback remains.
+
+Evidence tier: all-target compilation, warning-denied Clippy, and Snap nextest
+637/637. The filter graph remains a separate native-provider migration scope.
+
 ## MIG-537-01 audit (2026-07-11)
 
 The generic ViewerCore hierarchy carried a Burn image model, event stream,
