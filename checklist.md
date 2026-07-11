@@ -8,6 +8,20 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-539-01 — Snap native unary-filter dispatch
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Route the complete Abs/Square/Sqrt/Log/Exp family through the existing
+  Coeus-native `ritk-filter` provider before the legacy graph is constructed.
+- [x] Preserve scalar-volume and spatial-metadata contracts at the sole
+  viewer/native transfer boundary, with no Burn fallback on provider failure.
+- [x] Add value-semantic provider and Snap-state regressions; verify focused
+  nextest 3/3, warning-denied Clippy, doctests 2/2, and Rustdoc.
+- [ ] Migrate the next complete live Snap filter family only after its native
+  provider contract and exact output tests exist; retain `LoadBackend` solely
+  for the unsupported legacy graph meanwhile.
+
 ## MIG-538-01 — Snap mask-threshold failure propagation
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

@@ -8,6 +8,22 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 539: Snap native unary filters (MIG-539-01)
+
+### Changed
+- Snap now dispatches Abs, Square, Sqrt, Log, and Exp through the Coeus-native
+  `ritk-filter` unary family before it constructs any Burn image. The only
+  application transfer is the viewer-owned `LoadedVolume` buffer into and out
+  of the native image boundary.
+
+### Fixed
+- Native unary operations reject color volumes explicitly instead of treating
+  interleaved samples as a scalar 3-D image.
+
+### Evidence
+- Focused Snap nextest 3/3, warning-denied Clippy, doctests 2/2, and
+  warning-clean Rustdoc.
+
 ## [Unreleased] — Sprint 538: MaskThreshold error propagation (MIG-538-01)
 
 ### Fixed

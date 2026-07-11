@@ -1,5 +1,15 @@
 # RITK Backlog - Active Planning
 
+- **MIG-539-01 [patch] - Snap native unary-filter dispatch (DONE).**
+  The complete Abs/Square/Sqrt/Log/Exp family now enters the existing
+  Coeus-native `ritk-filter` provider directly from a scalar `LoadedVolume`.
+  A color input fails with a contextual contract error; it never falls back to
+  Burn. The five variants share one metadata-preserving application boundary
+  and one render-cache invalidation path. Evidence: value-semantic focused
+  Snap nextest 3/3, warning-denied Clippy, doctests 2/2, and warning-clean
+  Rustdoc. The remaining live filter variants stay in the legacy graph until
+  their owning native provider operation family is complete.
+
 - **MIG-538-01 [patch] - Snap mask-threshold failure propagation (DONE).**
   MaskThreshold no longer substitutes a zero-filled image if Burn extraction
   fails. The filter result now carries the concrete extraction failure with

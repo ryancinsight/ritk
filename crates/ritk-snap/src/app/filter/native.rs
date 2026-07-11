@@ -1,0 +1,177 @@
+//! Coeus-native Snap filter dispatch.
+//!
+//! The viewer owns host-side [`crate::LoadedVolume`] buffers, while native RITK
+//! filters operate on `ritk_image::native::Image`. This module is the sole
+//! explicit application boundary between those representations. It is entered
+//! only for fully native filter variants; all other variants remain in the
+//! legacy graph until their provider operation family is available.
+
+use anyhow::{Context, Result};
+use coeus_core::SequentialBackend;
+use ritk_filter::{
+    AbsImageFilter, ExpImageFilter, LogImageFilter, SqrtImageFilter, SquareImageFilter,
+};
+use ritk_image::native::Image;
+use ritk_spatial::{Direction, Point, Spacing};
+
+use crate::{FilterKind, LoadedVolume};
+
+/// Apply a filter when the full operation is available on the Coeus-native
+/// image substrate.
+///
+/// `None` means this operation has not completed its native migration and must
+/// remain on the legacy graph. `Some(Err(_))` reports an input or provider
+/// contract failure without falling back to another implementation.
+pub(super) fn apply_if_supported(
+    volume: &LoadedVolume,
+    filter: &FilterKind,
+) -> Option<Result<Vec<f32>>> {
+    if !matches!(
+        filter,
+        FilterKind::Abs | FilterKind::Square | FilterKind::Sqrt | FilterKind::Log | FilterKind::Exp
+    ) {
+        return None;
+    }
+
+    Some(apply_unary(volume, filter))
+}
+
+fn apply_unary(volume: &LoadedVolume, filter: &FilterKind) -> Result<Vec<f32>> {
+    if volume.channels != 1 {
+        anyhow::bail!(
+            "native unary filters require a scalar volume, received {} interleaved channels",
+            volume.channels
+        );
+    }
+
+    let backend = SequentialBackend;
+    let image = Image::from_flat_on(
+        (*volume.data).clone(),
+        volume.shape,
+        Point::new(volume.origin),
+        Spacing::new(volume.spacing),
+        Direction::from_rows([
+            [
+                volume.direction[0],
+                volume.direction[1],
+                volume.direction[2],
+            ],
+            [
+                volume.direction[3],
+                volume.direction[4],
+                volume.direction[5],
+            ],
+            [
+                volume.direction[6],
+                volume.direction[7],
+                volume.direction[8],
+            ],
+        ]),
+        &backend,
+    )
+    .context("cannot construct Coeus-native image from loaded volume")?;
+
+    let output = match filter {
+        FilterKind::Abs => AbsImageFilter::new().apply_native(&image, &backend),
+        FilterKind::Square => SquareImageFilter::new().apply_native(&image, &backend),
+        FilterKind::Sqrt => SqrtImageFilter::new().apply_native(&image, &backend),
+        FilterKind::Log => LogImageFilter::new().apply_native(&image, &backend),
+        FilterKind::Exp => ExpImageFilter::new().apply_native(&image, &backend),
+        _ => unreachable!("invariant: apply_unary is called only for supported unary filters"),
+    }
+    .context("Coeus-native unary filter failed")?;
+
+    Ok(output.data_cow_on(&backend).into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_if_supported;
+    use crate::app::tests::test_volume;
+    use crate::app::SnapApp;
+    use crate::FilterKind;
+    use std::sync::Arc;
+
+    #[test]
+    fn native_unary_filters_transform_loaded_volume_values() {
+        let cases = [
+            (FilterKind::Abs, vec![1.0, 0.0, 4.0, 1.0]),
+            (FilterKind::Square, vec![1.0, 0.0, 16.0, 1.0]),
+            (FilterKind::Sqrt, vec![f32::NAN, 0.0, 2.0, 1.0]),
+            (
+                FilterKind::Log,
+                vec![f32::NAN, f32::NEG_INFINITY, 4.0_f32.ln(), 0.0],
+            ),
+            (
+                FilterKind::Exp,
+                vec![(-1.0_f32).exp(), 1.0, 4.0_f32.exp(), 1.0_f32.exp()],
+            ),
+        ];
+
+        for (filter, expected) in cases {
+            let mut volume = test_volume([1, 2, 2]);
+            volume.data = Arc::new(vec![-1.0, 0.0, 4.0, 1.0]);
+            volume.origin = [2.0, 3.0, 5.0];
+            volume.spacing = [0.5, 1.5, 2.5];
+
+            let result = apply_if_supported(&volume, &filter)
+                .expect("invariant: unary filter has a native implementation")
+                .expect("native unary filter succeeds for a scalar volume");
+
+            assert_eq!(result.len(), expected.len());
+            for (actual, expected) in result.iter().zip(expected) {
+                if expected.is_nan() {
+                    assert!(actual.is_nan(), "expected NaN, received {actual}");
+                } else {
+                    assert_eq!(*actual, expected);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn native_unary_filters_reject_color_volumes() {
+        let mut volume = test_volume([1, 1, 1]);
+        volume.channels = 3;
+        volume.data = Arc::new(vec![0.0, 0.0, 0.0]);
+
+        let error = apply_if_supported(&volume, &FilterKind::Abs)
+            .expect("invariant: abs filter has a native implementation")
+            .expect_err("color volume violates scalar filter contract");
+
+        assert!(error.to_string().contains("3 interleaved channels"));
+    }
+
+    #[test]
+    fn unsupported_filter_stays_outside_native_unary_dispatch() {
+        let volume = test_volume([1, 1, 1]);
+        assert!(apply_if_supported(&volume, &FilterKind::Gaussian { sigma: 1.0 }).is_none());
+    }
+
+    #[test]
+    fn snap_app_applies_native_unary_filter_and_invalidates_render_caches() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 2]);
+        volume.data = Arc::new(vec![-2.0, 3.0]);
+        volume.origin = [2.0, 3.0, 5.0];
+        volume.spacing = [0.5, 1.5, 2.5];
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::Abs;
+        app.texture_dirty = false;
+        app.coronal_dirty = false;
+        app.sagittal_dirty = false;
+        app.mip_dirty = false;
+
+        app.apply_filter_to_loaded_volume();
+
+        let volume = app.loaded.expect("volume remains loaded");
+        assert_eq!(volume.data.as_slice(), [2.0, 3.0]);
+        assert_eq!(volume.origin, [2.0, 3.0, 5.0]);
+        assert_eq!(volume.spacing, [0.5, 1.5, 2.5]);
+        assert!(app.texture_dirty);
+        assert!(app.coronal_dirty);
+        assert!(app.sagittal_dirty);
+        assert!(app.mip_dirty);
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+}

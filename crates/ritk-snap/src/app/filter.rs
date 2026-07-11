@@ -3,6 +3,8 @@ use ritk_image::tensor::{Shape, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
+mod native;
+
 impl SnapApp {
     pub(crate) fn apply_filter_to_loaded_volume(&mut self) {
         use ritk_filter::{
@@ -24,6 +26,17 @@ impl SnapApp {
             return;
         };
 
+        let filter_kind = self.active_filter.clone();
+        if let Some(native_result) = native::apply_if_supported(vol, &filter_kind) {
+            match native_result {
+                Err(error) => {
+                    self.status_message = format!("Filter failed: {error:#}");
+                }
+                Ok(data) => self.replace_loaded_volume_data(data),
+            }
+            return;
+        }
+
         let [depth, rows, cols] = vol.shape;
         let device = burn_ndarray::NdArrayDevice::Cpu;
 
@@ -41,7 +54,6 @@ impl SnapApp {
         let image: Image<LoadBackend, 3> = Image::new(tensor, origin, spacing, direction);
 
         // Apply the selected filter.
-        let filter_kind = self.active_filter.clone();
         let filter_result = {
             match &filter_kind {
                 crate::FilterKind::BedSeparation(config) => {
@@ -437,14 +449,21 @@ impl SnapApp {
             Ok(out_img) => {
                 let out_td = out_img.into_tensor().into_data();
                 let out_vec: Vec<f32> = out_td.as_slice::<f32>().unwrap_or(&[]).to_vec();
-                let vol = self.loaded.as_mut().unwrap();
-                vol.data = std::sync::Arc::new(out_vec);
-                self.texture_dirty = true;
-                self.coronal_dirty = true;
-                self.sagittal_dirty = true;
-                self.mip_dirty = true;
-                self.status_message = "Filter applied.".to_owned();
+                self.replace_loaded_volume_data(out_vec);
             }
         }
+    }
+
+    fn replace_loaded_volume_data(&mut self, data: Vec<f32>) {
+        let volume = self
+            .loaded
+            .as_mut()
+            .expect("invariant: a filter result exists only when a volume is loaded");
+        volume.data = std::sync::Arc::new(data);
+        self.texture_dirty = true;
+        self.coronal_dirty = true;
+        self.sagittal_dirty = true;
+        self.mip_dirty = true;
+        self.status_message = "Filter applied.".to_owned();
     }
 }

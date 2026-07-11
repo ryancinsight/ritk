@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## MIG-539-01 audit (2026-07-11)
+
+`SnapApp` constructed a Burn image before dispatching every filter, including
+the five unary operations that already have complete Coeus-native provider
+implementations. The application now recognizes Abs, Square, Sqrt, Log, and
+Exp before that construction and transfers the scalar viewer buffer exactly at
+the native image boundary. Provider errors, including a non-scalar channel
+layout, surface through the filter result channel; no CPU/Burn fallback exists.
+
+Evidence tier: compile-time provider integration and empirical value-semantic
+regressions. Focused Snap nextest passes 3/3, warning-denied Clippy passes,
+doctests pass 2/2, and Rustdoc is warning-clean. The legacy `LoadBackend`
+remains because other live filter variants have no complete native provider
+contract yet; this slice intentionally does not claim a Burn-source-count
+reduction while `app/filter.rs` still owns that unsupported graph.
+
 ## MIG-538-01 audit (2026-07-11)
 
 The live MaskThreshold branch replaced an extraction failure with a fabricated
