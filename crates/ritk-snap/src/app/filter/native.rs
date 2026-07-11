@@ -14,7 +14,7 @@ use ritk_filter::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
     AbsImageFilter, ClampImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter,
-    ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
+    RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -54,6 +54,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
             | FilterKind::ShiftScale { .. }
+            | FilterKind::RescaleIntensity { .. }
     ) {
         return None;
     }
@@ -113,6 +114,9 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         }
         FilterKind::ShiftScale { shift, scale } => {
             ShiftScaleImageFilter::new(*shift, *scale).apply_native(&image, &backend)
+        }
+        FilterKind::RescaleIntensity { out_min, out_max } => {
+            RescaleIntensityFilter::new(*out_min, *out_max).apply_native(&image, &backend)
         }
         FilterKind::BinaryErode {
             radius,
@@ -267,6 +271,22 @@ mod tests {
         .expect("invariant: shift-scale has a native implementation")
         .expect("native shift-scale succeeds");
         assert_eq!(output, vec![0.0, -1.024]);
+    }
+
+    #[test]
+    fn native_rescale_maps_loaded_volume_range() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 50.0, 100.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::RescaleIntensity {
+                out_min: -1.0,
+                out_max: 1.0,
+            },
+        )
+        .expect("invariant: rescale has a native implementation")
+        .expect("native rescale succeeds");
+        assert_eq!(output, vec![-1.0, 0.0, 1.0]);
     }
 
     #[test]

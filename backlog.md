@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-548-01 [patch] - Snap native intensity rescale (DONE).**
+  RescaleIntensity now exposes a Coeus-native Moirai-backed boundary and Snap
+  dispatches through it. Provider and Snap exact-range regressions pass.
+
 - **MIG-547-01 [patch] - Snap native shift-scale (DONE).**
   ShiftScale now has a Coeus-native provider boundary and Snap dispatches it.
   Provider and Snap HU-conversion regressions pass.

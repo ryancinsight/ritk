@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 548: Snap native intensity rescale (MIG-548-01)
+
+### Added
+- `RescaleIntensityFilter` now exposes the Coeus-native boundary over its
+  canonical Moirai reduction and affine map.
+
+### Changed
+- Snap routes intensity rescaling through the native provider.
+
+### Evidence
+- Provider and Snap exact-range regressions pass.
+
 ## [Unreleased] — Sprint 547: Snap native shift-scale (MIG-547-01)
 
 ### Added

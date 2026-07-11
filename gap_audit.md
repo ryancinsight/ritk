@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-548-01 audit (2026-07-11)
+
+RescaleIntensity already owned the canonical Moirai min/max reduction and affine
+map but lacked a Coeus image boundary. The owner now exposes it and Snap routes
+rescale before legacy construction. Exact provider and Snap range regressions
+prove the same output contract.
+
 ## MIG-547-01 audit (2026-07-11)
 
 ShiftScale's canonical f64 shift-then-scale calculation lacked only its Coeus

@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-548-01 — Snap native intensity rescale
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add the Moirai-backed native rescale provider boundary.
+- [x] Route Snap rescale and pin exact output-range values.
+
 ## MIG-547-01 — Snap native shift-scale
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
