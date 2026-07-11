@@ -395,19 +395,34 @@ pub fn smoothing_recursive_gaussian<B: Backend>(
     image: &Image<B, 3>,
     sigmas: &[f64],
 ) -> anyhow::Result<Image<B, 3>> {
-    let (mut vals, dims) = extract_vec(image)?;
-    let spacing = image.spacing();
+    let (vals, dims) = extract_vec(image)?;
+    Ok(image_from_vals(
+        image,
+        smoothing_recursive_gaussian_values(vals, dims, image.spacing().to_array(), sigmas),
+        dims,
+    ))
+}
+
+/// Apply the canonical zero-order Deriche smoothing kernel to flat volume values.
+///
+/// This value boundary is shared by legacy tensor images and Coeus-native images.
+pub(crate) fn smoothing_recursive_gaussian_values(
+    mut vals: Vec<f32>,
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    sigmas: &[f64],
+) -> Vec<f32> {
     let last = sigmas.last().copied().unwrap_or(0.0);
-    for dim in 0..3 {
+    for (dim, &spacing_value) in spacing.iter().enumerate() {
         let sigma = sigmas.get(dim).copied().unwrap_or(last);
-        let pixel_sigma = sigma / spacing[dim];
+        let pixel_sigma = sigma / spacing_value;
         if pixel_sigma < 0.2 {
             continue;
         }
         let coeffs = DericheCoefficients::from_sigma(pixel_sigma);
         vals = apply_deriche_1d(&vals, dims, dim, &coeffs, pixel_sigma);
     }
-    Ok(image_from_vals(image, vals, dims))
+    vals
 }
 
 /// Compute all 6 independent Hessian components at every voxel using the

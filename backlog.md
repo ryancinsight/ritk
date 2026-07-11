@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-579-01 [patch] - Snap native unsharp mask (DONE).** The canonical
+  Deriche smoothing kernel now feeds direct Coeus-native sharpening; constant
+  fields remain exact identities.
+
 - **MIG-578-01 [patch] - Snap native curvature flow (DONE).** Shared native stencil preserves constant fields.
 
 - **MIG-577-01 [patch] - Snap native bed separation (DONE).** Native pipeline preserves configured background replacement.

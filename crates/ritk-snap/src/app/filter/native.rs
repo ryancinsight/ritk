@@ -24,7 +24,8 @@ use ritk_filter::{
     MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
     ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
-    TileMeanShrinkFilter, VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
+    TileMeanShrinkFilter, UnsharpMaskFilter, VotingBinaryImageFilter, WrapPadImageFilter,
+    ZeroCrossingImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -99,6 +100,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::Clahe { .. }
             | FilterKind::GradientAnisotropicDiffusion { .. }
             | FilterKind::CurvatureFlow { .. }
+            | FilterKind::UnsharpMask { .. }
             | FilterKind::ConnectedThreshold { .. }
             | FilterKind::ConfidenceConnected { .. }
             | FilterKind::NeighborhoodConnected { .. }
@@ -411,6 +413,18 @@ fn apply_supported_filter(
             num_iterations: *iterations as usize,
             time_step: *time_step,
         })
+        .apply_native(&image, &backend),
+        FilterKind::UnsharpMask {
+            sigma,
+            amount,
+            threshold,
+            clamp,
+        } => UnsharpMaskFilter::new(
+            vec![ritk_filter::GaussianSigma::new_unchecked(f64::from(*sigma))],
+            f64::from(*amount),
+            f64::from(*threshold),
+            *clamp,
+        )
         .apply_native(&image, &backend),
         FilterKind::ConnectedThreshold {
             seed_z,
@@ -1266,6 +1280,24 @@ mod tests {
         .expect("invariant: curvature flow has a native implementation")
         .expect("native curvature flow succeeds");
         assert_eq!(output, vec![42.5; 4]);
+    }
+
+    #[test]
+    fn native_unsharp_mask_preserves_a_constant_volume() {
+        let mut volume = test_volume([1, 2, 2]);
+        volume.data = Arc::new(vec![7.25; 4]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::UnsharpMask {
+                sigma: 1.0,
+                amount: 2.0,
+                threshold: 0.0,
+                clamp: ritk_filter::ClampPolicy::NoClamp,
+            },
+        )
+        .expect("invariant: unsharp mask has a native implementation")
+        .expect("native unsharp mask succeeds");
+        assert_eq!(output, vec![7.25; 4]);
     }
 
     #[test]

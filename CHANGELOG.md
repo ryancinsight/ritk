@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 579: Snap native unsharp mask (MIG-579-01)
+### Changed
+- Snap routes unsharp masking through the Coeus-native shared Deriche kernel.
+
 ## [Unreleased] — Sprint 578: Snap native curvature flow (MIG-578-01)
 ### Changed
 - Snap routes curvature flow through the Coeus-native shared double-buffer stencil.

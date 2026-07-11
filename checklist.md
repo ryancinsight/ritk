@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-579-01 — Snap native unsharp mask
+**Target version**: 0.14.0 migration batch
+- [x] Share Deriche values, route native Snap, and verify constant-field identity.
+
 ## MIG-578-01 — Snap native curvature flow
 **Target version**: 0.14.0 migration batch
 - [x] Extract shared stencil, route native Snap, and verify constant-field invariance.

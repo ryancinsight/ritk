@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-579-01 audit (2026-07-11)
+
+Unsharp mask now shares the canonical Deriche value kernel between legacy and
+Coeus-native image boundaries. Exact native and Snap regressions pin the
+constant-field identity and spatial metadata preservation.
+
 ## MIG-578-01 audit (2026-07-11)
 
 Curvature flow now shares its canonical double-buffer stencil between legacy
