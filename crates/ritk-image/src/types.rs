@@ -5,9 +5,9 @@
 
 use std::borrow::Cow;
 
-use anyhow::anyhow;
 use crate::tensor::backend::Backend;
 use crate::tensor::{Shape, Tensor, TensorData};
+use anyhow::anyhow;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// **Soft-deprecated (Atlas Batch #3 sub-batch #2, 2026-07-06; docstring-only)** —

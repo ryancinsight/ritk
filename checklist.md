@@ -8,6 +8,22 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-513-01 — Burn HostExtract boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the public Burn-only `HostExtract` trait and its image methods have
+      no workspace consumers.
+- [x] Delete the trait, NdArray/autodiff implementations, obsolete tests,
+      module, export, and migration allowlist entry.
+- [x] Retain native `data_slice` and `data_cow_on` as the sole zero-copy/Cow
+      host-access contracts.
+- [x] Verify provider nextest 38/38, warning-denied Clippy,
+      core/filter/segmentation/statistics consumer checks, doctests, rustdoc,
+      and migration audit reduction to 581 source files with only the known
+      displacement-field drift.
+- [x] Commit, push, and advance the RITK gitlink in the stack repository.
+
 ## MIG-512-01 — VTK scalar-image Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

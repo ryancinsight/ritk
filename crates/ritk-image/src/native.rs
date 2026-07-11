@@ -212,7 +212,6 @@ where
 
         Ok(self.data.as_slice())
     }
-
 }
 
 impl<T, B, const D: usize> Image<T, B, D>
@@ -353,7 +352,10 @@ mod tests {
         let image = TensorImage::<2>::new(permuted, origin, spacing, direction).unwrap();
 
         // The strict borrow API must refuse the strided view (existing contract).
-        assert!(image.data_slice().is_err(), "data_slice must reject non-contiguous");
+        assert!(
+            image.data_slice().is_err(),
+            "data_slice must reject non-contiguous"
+        );
 
         // Host transpose oracle: [[1,4],[2,5],[3,6]] row-major.
         let expected = [1.0, 4.0, 2.0, 5.0, 3.0, 6.0];

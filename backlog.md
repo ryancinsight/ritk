@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-513-01 [major] - Burn HostExtract boundary deletion (DONE).**
+  Deleted the unused Burn-only `HostExtract` trait, NdArray/autodiff
+  implementations, image methods, tests, and export from `ritk-image`.
+  Native `data_slice`/`data_cow_on` remain the sole host-access contracts.
+  Evidence: zero workspace consumers, provider nextest 38/38,
+  warning-denied Clippy, downstream core/filter/segmentation/statistics checks,
+  doctests, rustdoc, and Burn source-file reduction from 582 to 581.
+
 - **MIG-512-01 [major] - VTK scalar-image Burn boundary deletion (DONE).**
   Promoted legacy structured-points scalar read/write APIs to the sole native
   `ritk-vtk` surface, removed its legacy core dependency, and localized

@@ -223,7 +223,6 @@ source:crates/ritk-filter/tests/parity.rs
 source:crates/ritk-image/src/color.rs
 source:crates/ritk-image/src/color/native.rs
 source:crates/ritk-image/src/grid.rs
-source:crates/ritk-image/src/host_extract.rs
 source:crates/ritk-image/src/lib.rs
 source:crates/ritk-image/src/native.rs
 source:crates/ritk-image/src/test_support.rs

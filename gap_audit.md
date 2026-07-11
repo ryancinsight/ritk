@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-513-01 audit (2026-07-10)
+
+`ritk-image::HostExtract` duplicated native host access with Burn-specific
+NdArray and autodiff implementations. No workspace code consumed the public
+trait, `data_vec_fast`, or `with_data_slice_fast`; retaining them expanded the
+legacy surface without supporting a migration dependency.
+
+The complete boundary and its tests are deleted. Native `data_slice` provides
+zero-copy contiguous borrowing and `data_cow_on` materializes only strided
+views. Evidence tier: exact workspace reference search, provider nextest 38/38,
+warning-denied Clippy, downstream core/filter/segmentation/statistics compile
+checks, doctests, and rustdoc. The Burn audit remains at 16 manifests and drops
+from 582 to 581 source files. Only the pre-existing displacement-field drift
+remains unallowlisted.
+
 ## MIG-512-01 audit (2026-07-10)
 
 `ritk-vtk` exposed legacy structured-points scalar I/O only through Burn image

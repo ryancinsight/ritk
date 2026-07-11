@@ -8,6 +8,23 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 513: HostExtract deletion (MIG-513-01)
+
+### Removed
+- Removed the unused Burn-only `HostExtract` trait, NdArray/autodiff
+  implementations, image methods, tests, and export. Native `data_slice` and
+  `data_cow_on` are the sole host-access contracts.
+
+### Breaking
+- External users of `HostExtract`, `data_vec_fast`, or
+  `with_data_slice_fast` migrate to native image host-access methods.
+
+### Evidence
+- Workspace search finds no consumers; provider nextest 38/38,
+  warning-denied Clippy, downstream consumer checks, doctests, and rustdoc
+  pass. The Burn audit remains at 16 manifests and drops to 581 source files
+  with only the known displacement-field drift.
+
 ## [Unreleased] — Sprint 512: VTK native cutover (MIG-512-01)
 
 ### Changed
