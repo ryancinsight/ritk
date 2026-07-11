@@ -1,10 +1,4 @@
-//! Atlas-typed tests for the trilinear-interpolation sister adapter.
-//!
-//! Strict subtractive on test surface (ADR 0012 §Decision §Sub-batch #3.f):
-//! every assertion exercises the
-//! `crate::interpolation::atlas_trilinear::atlas_trilinear_interpolate`
-//! sister API over `Image<f32, MoiraiBackend, 5>` carriers instead of the
-//! legacy tensor-backed `super::trilinear_interpolation::<B>(image, grid)`.
+//! Value-semantic tests for native trilinear interpolation.
 
 use ritk_image::native::Image as AtlasImage;
 
@@ -57,40 +51,34 @@ fn assert_all_close(out: &AtlasImage<f32, coeus_core::MoiraiBackend, 5>, expecte
 #[test]
 fn test_atlas_trilinear_sampling_at_corner_000_returns_value_0() {
     let image = unit_cube();
-    let out = crate::interpolation::atlas_trilinear::atlas_trilinear_interpolate::<B>(
-        &image,
-        &constant_grid(0.0, 0.0, 0.0),
-    )
-    .expect("atlas trilinear corner(0,0,0)");
+    let out =
+        crate::interpolation::trilinear_interpolation::<B>(&image, &constant_grid(0.0, 0.0, 0.0))
+            .expect("atlas trilinear corner(0,0,0)");
     assert_all_close(&out, 0.0, 1e-5);
 }
 
 #[test]
 fn test_atlas_trilinear_sampling_at_corner_111_returns_value_7() {
     let image = unit_cube();
-    let out = crate::interpolation::atlas_trilinear::atlas_trilinear_interpolate::<B>(
-        &image,
-        &constant_grid(1.0, 1.0, 1.0),
-    )
-    .expect("atlas trilinear corner(1,1,1)");
+    let out =
+        crate::interpolation::trilinear_interpolation::<B>(&image, &constant_grid(1.0, 1.0, 1.0))
+            .expect("atlas trilinear corner(1,1,1)");
     assert_all_close(&out, 7.0, 1e-5);
 }
 
 #[test]
 fn test_atlas_trilinear_center_sample_returns_arithmetic_mean_3_5() {
     let image = unit_cube();
-    let out = crate::interpolation::atlas_trilinear::atlas_trilinear_interpolate::<B>(
-        &image,
-        &constant_grid(0.5, 0.5, 0.5),
-    )
-    .expect("atlas trilinear center");
+    let out =
+        crate::interpolation::trilinear_interpolation::<B>(&image, &constant_grid(0.5, 0.5, 0.5))
+            .expect("atlas trilinear center");
     assert_all_close(&out, 3.5, 1e-5);
 }
 
 #[test]
 fn test_atlas_trilinear_out_of_bounds_low_clamps_to_corner_000() {
     let image = unit_cube();
-    let out = crate::interpolation::atlas_trilinear::atlas_trilinear_interpolate::<B>(
+    let out = crate::interpolation::trilinear_interpolation::<B>(
         &image,
         &constant_grid(-1.0, -1.0, -1.0),
     )
@@ -101,11 +89,9 @@ fn test_atlas_trilinear_out_of_bounds_low_clamps_to_corner_000() {
 #[test]
 fn test_atlas_trilinear_out_of_bounds_high_clamps_to_corner_111() {
     let image = unit_cube();
-    let out = crate::interpolation::atlas_trilinear::atlas_trilinear_interpolate::<B>(
-        &image,
-        &constant_grid(2.5, 2.5, 2.5),
-    )
-    .expect("atlas trilinear oob_high");
+    let out =
+        crate::interpolation::trilinear_interpolation::<B>(&image, &constant_grid(2.5, 2.5, 2.5))
+            .expect("atlas trilinear oob_high");
     assert_all_close(&out, 7.0, 1e-5);
 }
 
@@ -123,11 +109,9 @@ fn test_atlas_trilinear_multichannel_channels_interpolated_independently() {
         ritk_spatial::Direction::identity(),
     )
     .expect("atlas two-channel image");
-    let out = crate::interpolation::atlas_trilinear::atlas_trilinear_interpolate::<B>(
-        &image,
-        &constant_grid(0.5, 0.5, 0.5),
-    )
-    .expect("atlas trilinear multichannel");
+    let out =
+        crate::interpolation::trilinear_interpolation::<B>(&image, &constant_grid(0.5, 0.5, 0.5))
+            .expect("atlas trilinear multichannel");
     let slice = out
         .data_slice()
         .expect("atlas multichannel output host-slice access");

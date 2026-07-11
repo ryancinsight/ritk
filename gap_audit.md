@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## MIG-516-01 audit (2026-07-10)
+
+RITK trilinear interpolation had three implementations: a Burn tensor kernel,
+a native adapter that copied into and out of Burn, and a flat-buffer generic
+that widened coordinates through `f64`. Coeus lacked the coordinate-grid
+operation required for a native consumer cutover. `coeus-ops` now owns the
+typed rank-5 operation with native `f32` arithmetic; RITK retains one thin
+image-metadata boundary and deletes the bridge and fake-generic duplicate.
+The Burn kernel remains live only for `ritk-model` affine and TransMorph
+consumers; their native carrier migration is the next deletion prerequisite.
+
+Evidence tier: analytical center/border and invalid-contract tests on Coeus
+Sequential/Moirai backends (2/2), full RITK interpolation nextest (122/122),
+warning-denied Clippy, `ritk-model` consumer compilation, and exact audit
+reduction from 577 to 575 source files.
+The known displacement-field allowlist drift remains unadmitted.
+
 ## MIG-515-01 audit (2026-07-10)
 
 `ritk-image` exported the same native carrier under both

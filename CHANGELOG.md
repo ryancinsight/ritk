@@ -8,6 +8,22 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 516: Native trilinear cutover (MIG-516-01)
+
+### Changed
+- Trilinear coordinate-grid sampling now delegates directly to the canonical
+  Coeus operation and preserves RITK image metadata.
+
+### Removed
+- Removed the native-to-Burn conversion bridge, fake-generic flat-buffer
+  implementation, and obsolete parity tests. The Burn tensor operation stays
+  scoped to its two live `ritk-model` consumers until that carrier cutover.
+
+### Evidence
+- Coeus nextest 2/2, RITK interpolation nextest 122/122, warning-denied
+  Clippy, model consumer compilation, and Burn audit reduction from 577 to
+  575 source files.
+
 ## [Unreleased] — Sprint 515: Native image alias deletion (MIG-515-01)
 
 ### Removed

@@ -231,7 +231,6 @@ source:crates/ritk-image/src/tests_transform.rs
 source:crates/ritk-image/src/transform.rs
 source:crates/ritk-image/src/types.rs
 source:crates/ritk-interpolation/benches/bspline_interpolation.rs
-source:crates/ritk-interpolation/src/interpolation/atlas_trilinear.rs
 source:crates/ritk-interpolation/src/interpolation/dispatch/linear.rs
 source:crates/ritk-interpolation/src/interpolation/dispatch/mod.rs
 source:crates/ritk-interpolation/src/interpolation/dispatch/nearest.rs
@@ -250,8 +249,8 @@ source:crates/ritk-interpolation/src/interpolation/kernel/sinc.rs
 source:crates/ritk-interpolation/src/interpolation/kernel/tests_sinc.rs
 source:crates/ritk-interpolation/src/interpolation/shared/in_bounds.rs
 source:crates/ritk-interpolation/src/interpolation/shared/oob_mask.rs
-source:crates/ritk-interpolation/src/interpolation/tensor_trilinear.rs
 source:crates/ritk-interpolation/src/interpolation/tests/fused.rs
+source:crates/ritk-interpolation/src/interpolation/tensor_trilinear.rs
 source:crates/ritk-interpolation/src/interpolation/tests/linear.rs
 source:crates/ritk-interpolation/src/interpolation/tests/sinc.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/mod.rs
@@ -260,7 +259,6 @@ source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank2.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank3.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank3_extended.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank4.rs
-source:crates/ritk-interpolation/src/interpolation/tests_native.rs
 source:crates/ritk-io/examples/dicom_to_nifti.rs
 source:crates/ritk-io/src/format/analyze/mod.rs
 source:crates/ritk-io/src/format/dicom/multiframe/reader.rs

@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-516-01 [major] - Native trilinear provider cutover (DONE).**
+  Added voxel-grid trilinear interpolation to `coeus-ops`, routed RITK's sole
+  native operation directly through it, and deleted the native-to-Burn bridge,
+  fake-generic flat-buffer kernel, and obsolete differential tests. The Burn
+  tensor kernel remains live for two `ritk-model` callers and is the next
+  dependency-ordered boundary. Evidence: Coeus nextest 2/2, RITK nextest
+  122/122, warning-denied Clippy, model consumer compilation, and Burn-source
+  reduction from 577 to 575 with only the known drift.
+
 - **MIG-515-01 [major] - Native image alias deletion (DONE).**
   Deleted the unused root `AtlasImage` alias so
   `ritk_image::native::Image` is the sole native carrier name, and corrected

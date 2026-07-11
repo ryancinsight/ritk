@@ -8,6 +8,21 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-516-01 — Native trilinear provider cutover
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add the missing rank-5 coordinate-grid operation in owning crate Coeus.
+- [x] Replace the native-to-Burn bridge and duplicate flat-buffer kernel with
+      one canonical native interpolation module.
+- [x] Preserve image metadata and encode malformed tensor contracts as typed
+      provider errors.
+- [x] Retain the Burn tensor kernel for its two live `ritk-model` consumers;
+      record their conversion as the next dependency-ordered boundary.
+- [x] Verify Coeus nextest 2/2, RITK interpolation nextest 122/122, targeted
+      warning-denied Clippy, model consumer compilation, and audit reduction
+      from 577 to 575 source files with only the known drift.
+
 ## MIG-515-01 — Native image alias deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
