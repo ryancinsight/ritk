@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## MIG-512-01 audit (2026-07-10)
+
+`ritk-vtk` exposed legacy structured-points scalar I/O only through Burn image
+contracts and depended on `ritk-core` for generic untrusted-allocation policy.
+Canonical scalar APIs now use native images; `ritk-io` alone owns conversion
+for remaining Burn-typed callers. Consus owns both bounded collection capacity
+and bounded exact reads, including parser-owned `dyn Read` sources.
+
+Dimension products are checked before payload processing. Writers validate
+host payload length before file creation and stream big-endian values through
+the buffered writer without allocating a second full-volume byte buffer.
+Evidence tier: exact voxel/spatial native and legacy round trips, scalar/parser
+coverage, mesh and XML suites, malformed-input tests, provider nextest 255/255,
+combined nextest 620/620, warning-denied Clippy, doctests, and rustdoc. The Burn
+audit remains at 16 manifests and drops from 583 to 582 source files. Only the
+pre-existing displacement-field drift remains unallowlisted.
+
 ## MIG-511-01 audit (2026-07-10)
 
 `ritk-nifti` duplicated scalar reader/writer boundaries across Burn root APIs

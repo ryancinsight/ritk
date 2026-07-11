@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-512-01 [major] - VTK scalar-image Burn boundary deletion (DONE).**
+  Promoted legacy structured-points scalar read/write APIs to the sole native
+  `ritk-vtk` surface, removed its legacy core dependency, and localized
+  remaining Burn conversion in `ritk-io`. Consus now owns bounded collection
+  capacity and dynamically dispatched bounded exact reads. Evidence: provider
+  nextest 255/255, combined nextest 620/620, warning-denied Clippy, doctests,
+  rustdoc, and Burn source-file reduction from 583 to 582.
+
 - **MIG-511-01 [major] - NIfTI Burn boundary deletion (DONE).**
   Promoted NIfTI-1/NIfTI-2 scalar read/write APIs to the sole native
   `ritk-nifti` surface, removed its Burn/core dependencies and duplicate

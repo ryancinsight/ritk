@@ -596,5 +596,4 @@ source:crates/ritk-transform/src/transform/displacement_field/static_/field.rs
 source:crates/ritk-transform/src/transform/displacement_field/transform.rs
 source:crates/ritk-transform/tests/bspline_test.rs
 source:crates/ritk-transform/tests/transform_test.rs
-source:crates/ritk-vtk/src/io/reader.rs
 source:crates/ritk-wgpu-compat/src/lib.rs

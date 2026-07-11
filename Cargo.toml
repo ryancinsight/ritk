@@ -83,8 +83,8 @@ coeus-leto = { path = "../coeus/coeus-leto", version = "0.5.3" }
 coeus-autograd = { path = "../coeus/coeus-autograd", version = "0.5.3" }
 leto = { path = "../leto/crates/leto", version = "0.36.0" }
 leto-ops = { path = "../leto/crates/leto-ops", version = "0.36.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.10.0" }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.10.0" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.11.0" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.11.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.14.0" }
 num-complex = { version = "0.4.6", features = ["bytemuck"] }
 anyhow = "1.0"
@@ -118,10 +118,10 @@ dicom-core = "0.8"
 dicom-ul = "0.8"
 dicom-pixeldata = { version = "0.8", features = ["native"] }
 dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl"] }
-consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "831ef348bf4711c018b096ae5bfe59b6a6679b5b", features = ["std"] }
-consus-core = { git = "https://github.com/ryancinsight/consus", rev = "831ef348bf4711c018b096ae5bfe59b6a6679b5b", features = ["std"] }
-consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "831ef348bf4711c018b096ae5bfe59b6a6679b5b", features = ["std", "deflate"] }
-consus-io = { git = "https://github.com/ryancinsight/consus", rev = "831ef348bf4711c018b096ae5bfe59b6a6679b5b", features = ["std", "alloc"] }
+consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "7424747673e5d80734a24fff4d9168ac4e7fe35e", features = ["std"] }
+consus-core = { git = "https://github.com/ryancinsight/consus", rev = "7424747673e5d80734a24fff4d9168ac4e7fe35e", features = ["std"] }
+consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "7424747673e5d80734a24fff4d9168ac4e7fe35e", features = ["std", "deflate"] }
+consus-io = { git = "https://github.com/ryancinsight/consus", rev = "7424747673e5d80734a24fff4d9168ac4e7fe35e", features = ["std", "alloc"] }
 jpeg-decoder = "0.3"
 
 arrayvec = "0.7"

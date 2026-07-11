@@ -8,6 +8,30 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 512: VTK native cutover (MIG-512-01)
+
+### Changed
+- VTK legacy structured-points scalar reading and writing now occupy canonical
+  native-image API paths.
+- Dimension products are checked and writers stream big-endian values without
+  a second full-volume byte buffer.
+- Consus owns bounded collection capacity and dynamically dispatched bounded
+  exact reads; `ritk-io` owns the remaining Burn conversion.
+- RITK pins the live Hephaestus 0.11 provider version.
+
+### Removed
+- Removed `ritk-vtk`'s Burn scalar reader/writer contracts and direct
+  `ritk-core` dependency.
+
+### Breaking
+- `ritk-vtk` scalar APIs now accept a Coeus backend and consume or return native
+  images. Burn callers migrate through `ritk-io` or to native contracts.
+
+### Evidence
+- Provider nextest 255/255, combined nextest 620/620, warning-denied Clippy,
+  doctests, and rustdoc pass. The Burn audit remains at 16 manifests and drops
+  to 582 source files with only the known displacement-field drift.
+
 ## [Unreleased] — Sprint 511: NIfTI native cutover (MIG-511-01)
 
 ### Changed

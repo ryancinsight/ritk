@@ -8,6 +8,25 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-512-01 — VTK scalar-image Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add Consus-owned bounded collection capacity and admit `Read + ?Sized`
+      bounded sources with value-semantic provider tests.
+- [x] Promote VTK legacy structured-points scalar readers and writers to
+      canonical native image contracts and remove `ritk-core` from `ritk-vtk`.
+- [x] Check dimension products, validate host payload length before file
+      creation, and stream big-endian voxels without a second volume buffer.
+- [x] Localize remaining legacy conversion in `ritk-io` and retain exact voxel,
+      origin, spacing, direction, binary, mesh, XML, and malformed-input tests.
+- [x] Reconcile RITK to Consus `74247476` and the live Hephaestus 0.11 provider
+      version.
+- [x] Verify provider nextest 255/255, combined nextest 620/620,
+      warning-denied Clippy, doctests, rustdoc, and migration audit reduction
+      to 582 source files with only the known displacement-field drift.
+- [x] Commit, push, and advance the RITK gitlink in the stack repository.
+
 ## MIG-511-01 — NIfTI Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
