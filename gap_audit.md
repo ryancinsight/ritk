@@ -8,6 +8,17 @@
 
 # RITK Gap Audit - Active
 
+## MIG-543-01 audit (2026-07-11)
+
+Snap used the Burn binary-threshold wrapper despite the segmentation owner
+already exposing an equivalent native boundary. The dispatch now enters the
+native provider before legacy image construction. Exact tests prove both bounds
+are inclusive and the application receives the output values unchanged.
+
+Residual risk: intensity rescale and clamp remain legacy operations because
+their native provider contracts are absent. The shared legacy dispatcher keeps
+the audit count unchanged.
+
 ## MIG-542-01 audit (2026-07-11)
 
 Snap constructed a Burn image for connected components although the segmentation

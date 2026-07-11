@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-543-01 — Snap native binary threshold
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Route inclusive binary thresholding through the native segmentation owner.
+- [x] Pin lower/upper bound inclusivity and Snap output semantics (nextest 2/2).
+- [x] Verify warning-denied Clippy and doctests 2/2; audit and deliver RITK plus
+  Atlas commits.
+
 ## MIG-542-01 — Snap native connected components
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

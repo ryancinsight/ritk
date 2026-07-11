@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-543-01 [patch] - Snap native binary threshold (DONE).**
+  Binary thresholding now dispatches through the Coeus-native segmentation
+  provider. Exact provider and Snap regressions prove inclusive bounds; focused
+  nextest 2/2, warning-denied Clippy, and doctests 2/2 pass.
+
 - **MIG-542-01 [patch] - Snap native connected components (DONE).**
   Connected-component labeling now dispatches to the Coeus-native segmentation
   owner with the exact Face6/Vertex26 mapping. Provider and Snap label/state

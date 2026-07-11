@@ -17,7 +17,8 @@ use ritk_filter::{
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
-    labeling::Connectivity as SegmentationConnectivity, native::connected_components,
+    labeling::Connectivity as SegmentationConnectivity,
+    native::{binary_threshold, connected_components},
 };
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -47,6 +48,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::BinaryFillhole { .. }
             | FilterKind::DistanceTransform { .. }
             | FilterKind::ConnectedComponents { .. }
+            | FilterKind::BinaryThreshold { .. }
     ) {
         return None;
     }
@@ -128,6 +130,19 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
             connected_components(&image, connectivity, *background_value, &backend)
                 .map(|(labels, _statistics)| labels)
         }
+        FilterKind::BinaryThreshold {
+            lower,
+            upper,
+            foreground,
+            background,
+        } => binary_threshold(
+            &image,
+            *lower,
+            *upper,
+            (*foreground).into(),
+            *background,
+            &backend,
+        ),
         _ => unreachable!("invariant: dispatch admits only fully native filter variants"),
     }
     .context("Coeus-native filter failed")?;
@@ -275,6 +290,25 @@ mod tests {
     }
 
     #[test]
+    fn native_binary_threshold_includes_both_bounds() {
+        let mut volume = test_volume([1, 1, 5]);
+        volume.data = Arc::new(vec![-1.0, 0.0, 50.0, 100.0, 101.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::BinaryThreshold {
+                lower: 0.0,
+                upper: 100.0,
+                foreground: ForegroundValue::ONE,
+                background: 0.0,
+            },
+        )
+        .expect("invariant: binary threshold has a native implementation")
+        .expect("native binary threshold accepts a scalar volume");
+
+        assert_eq!(output, vec![0.0, 1.0, 1.0, 1.0, 0.0]);
+    }
+
+    #[test]
     fn unsupported_filter_stays_outside_native_unary_dispatch() {
         let volume = test_volume([1, 1, 1]);
         assert!(apply_if_supported(&volume, &FilterKind::Gaussian { sigma: 1.0 }).is_none());
@@ -363,6 +397,28 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [1.0, 0.0, 2.0]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_binary_threshold() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 1.0, 2.0]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::BinaryThreshold {
+            lower: 1.0,
+            upper: 2.0,
+            foreground: ForegroundValue::ONE,
+            background: 0.0,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [0.0, 1.0, 1.0]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }

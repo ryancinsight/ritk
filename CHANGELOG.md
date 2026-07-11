@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 543: Snap native binary threshold (MIG-543-01)
+
+### Changed
+- Snap now routes inclusive binary thresholding through the Coeus-native
+  segmentation provider.
+
+### Evidence
+- Native-provider and Snap regressions prove both threshold bounds remain
+  inclusive and the viewer receives exact output values (2/2).
+
 ## [Unreleased] — Sprint 542: Snap native connected components (MIG-542-01)
 
 ### Changed
