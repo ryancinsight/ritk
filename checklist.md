@@ -12,6 +12,7 @@
 **Target version**: 0.14.0 migration batch
 - [x] Delete the conversion command's runtime Burn fallback.
 - [x] Reject input/output formats that have no native I/O implementation.
+- [x] Replace conversion-test Burn fixtures with native reader/writer fixtures.
 
 ## MIG-597-01 — Native seeded speckle noise
 **Target version**: 0.14.0 migration batch

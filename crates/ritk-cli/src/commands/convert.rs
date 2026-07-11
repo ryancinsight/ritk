@@ -148,30 +148,28 @@ pub fn run(args: ConvertArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::tensor::Backend as BurnBackend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
-    use ritk_image::Image;
+    use ritk_image::native::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
-    use crate::commands::Backend;
+    use crate::commands::NativeBackend;
 
     /// Build a small deterministic 3-D image for testing.
     ///
     /// Shape is [3, 4, 5] (nz=3, ny=4, nx=5).  Voxel value at flat index i is
     /// `i as f32`.  Origin and spacing are identity.
-    fn make_test_image() -> Image<Backend, 3> {
-        let device: <Backend as BurnBackend>::Device = Default::default();
+    fn make_test_image() -> Image<f32, NativeBackend, 3> {
         let n = 3 * 4 * 5;
         let values: Vec<f32> = (0..n).map(|i| i as f32).collect();
-        let td = TensorData::new(values, Shape::new([3, 4, 5]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-        Image::new(
-            tensor,
+        Image::from_flat_on(
+            values,
+            [3, 4, 5],
             Point::new([0.0; 3]),
             Spacing::new([1.0, 1.5, 2.0]),
             Direction::identity(),
+            &NativeBackend::default(),
         )
+        .expect("invariant: image data matches shape")
     }
 
     // ── Positive: NIfTI round-trip ────────────────────────────────────────────
@@ -185,7 +183,7 @@ mod tests {
         let output = dir.path().join("output.nii");
 
         let image = make_test_image();
-        ritk_io::write_nifti(&input, &image).unwrap();
+        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input: input.clone(),
@@ -195,7 +193,7 @@ mod tests {
         .unwrap();
 
         assert!(output.exists(), "output NIfTI must be created");
-        let recovered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let recovered = read_image_native(&output).unwrap();
         assert_eq!(
             recovered.shape(),
             [3, 4, 5],
@@ -214,7 +212,7 @@ mod tests {
         let output = dir.path().join("output.mha");
 
         let image = make_test_image();
-        ritk_io::write_nifti(&input, &image).unwrap();
+        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input: input.clone(),
@@ -224,8 +222,7 @@ mod tests {
         .unwrap();
 
         assert!(output.exists(), "output MHA must be created");
-        let recovered =
-            ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
+        let recovered = read_image_native(&output).unwrap();
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
@@ -240,7 +237,7 @@ mod tests {
         let output = dir.path().join("output.nrrd");
 
         let image = make_test_image();
-        ritk_io::write_nifti(&input, &image).unwrap();
+        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input: input.clone(),
@@ -250,7 +247,7 @@ mod tests {
         .unwrap();
 
         assert!(output.exists(), "output NRRD must be created");
-        let recovered = ritk_io::read_nrrd::<Backend, _>(&output, &Default::default()).unwrap();
+        let recovered = read_image_native(&output).unwrap();
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
@@ -266,7 +263,7 @@ mod tests {
         let output = dir.path().join("output.nii");
 
         let image = make_test_image();
-        ritk_io::write_nifti(&input, &image).unwrap();
+        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input: input.clone(),
@@ -289,7 +286,7 @@ mod tests {
         let output = dir.path().join("output.xyz");
 
         let image = make_test_image();
-        ritk_io::write_nifti(&input, &image).unwrap();
+        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
 
         let result = run(ConvertArgs {
             input,
@@ -334,7 +331,7 @@ mod tests {
         let output = dir.path().join("output.nii");
 
         let image = make_test_image();
-        ritk_io::write_metaimage(&input, &image).unwrap();
+        write_image_native(&input, &image, ImageFormat::MetaImage).unwrap();
 
         run(ConvertArgs {
             input,
@@ -344,7 +341,7 @@ mod tests {
         .unwrap();
 
         assert!(output.exists());
-        let recovered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let recovered = read_image_native(&output).unwrap();
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
@@ -400,25 +397,18 @@ mod tests {
         );
     }
 
-    /// Differential oracle at the CLI dispatch boundary: converting the same
-    /// logical image through the (now-native) `convert` path and through the
-    /// pre-cutover Burn writer directly must produce byte-identical NIfTI
-    /// files. This is stronger than the round-trip tests above — it catches a
-    /// dispatch bug (e.g. routing to the wrong substrate) that a shape-only
-    /// assertion would miss, independent of the crate-level writer parity
-    /// already proven in MIG-494/495.
+    /// Conversion preserves native NIfTI serialization bytes when no format
+    /// conversion is requested.
     #[test]
     fn test_native_convert_output_is_byte_identical_to_burn_writer() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.nii");
         let native_output = dir.path().join("via_convert.nii");
-        let burn_output = dir.path().join("via_burn_direct.nii");
+        let direct_output = dir.path().join("via_native_direct.nii");
 
         let image = make_test_image();
-        ritk_io::write_nifti(&input, &image).unwrap();
+        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
 
-        // Through `convert` — nifti→nifti is native-capable both ends, so
-        // this exercises `read_image_native`/`write_image_native`.
         run(ConvertArgs {
             input: input.clone(),
             output: native_output.clone(),
@@ -426,45 +416,32 @@ mod tests {
         })
         .unwrap();
 
-        // Directly through the Burn writer, from the same source file read
-        // via the Burn reader — the pre-cutover reference path.
-        let burn_image = ritk_io::read_nifti::<Backend, _>(&input, &Default::default()).unwrap();
-        ritk_io::write_nifti(&burn_output, &burn_image).unwrap();
+        write_image_native(&direct_output, &image, ImageFormat::NIfTI).unwrap();
 
         assert_eq!(
             std::fs::read(&native_output).unwrap(),
-            std::fs::read(&burn_output).unwrap(),
-            "convert's native dispatch must emit the exact bytes the Burn path would"
+            std::fs::read(&direct_output).unwrap(),
+            "convert must preserve the native NIfTI serialization contract"
         );
     }
 
-    /// VTK has no native path (ADR 0003), so `convert` must fall back to the
-    /// Burn helpers end-to-end. This is coverage the original suite lacked —
-    /// every prior test used a native-capable format pair.
+    /// VTK input has no native reader, so conversion must fail explicitly.
     #[test]
     fn test_convert_vtk_input_falls_back_to_burn_path() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.vtk");
         let output = dir.path().join("output.nii");
 
-        let image = make_test_image();
-        ritk_io::write_vtk(&input, &image).unwrap();
-
-        run(ConvertArgs {
+        let error = run(ConvertArgs {
             input,
-            output: output.clone(),
+            output,
             format: None,
         })
-        .unwrap();
-
-        assert!(output.exists());
-        let recovered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        assert_eq!(recovered.shape(), [3, 4, 5]);
+        .expect_err("VTK input has no native reader");
+        assert!(error.to_string().contains("does not support Vtk input"));
     }
 
-    /// Symmetric case: a native-capable input converted to VTK output must
-    /// also fall back to the Burn path (checked via `--format vtk` since VTK
-    /// output has no standard extension to infer from in this test fixture).
+    /// VTK output has no native writer, so conversion must fail explicitly.
     #[test]
     fn test_convert_vtk_output_falls_back_to_burn_path() {
         let dir = tempdir().unwrap();
@@ -472,15 +449,14 @@ mod tests {
         let output = dir.path().join("output.vtk");
 
         let image = make_test_image();
-        ritk_io::write_nifti(&input, &image).unwrap();
+        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
 
-        run(ConvertArgs {
+        let error = run(ConvertArgs {
             input,
-            output: output.clone(),
+            output,
             format: Some(OutputFormat::Vtk),
         })
-        .unwrap();
-
-        assert!(output.exists());
+        .expect_err("VTK output has no native writer");
+        assert!(error.to_string().contains("does not support Vtk output"));
     }
 }
