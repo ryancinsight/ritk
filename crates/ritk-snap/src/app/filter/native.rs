@@ -16,10 +16,11 @@ use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter,
     BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
     ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
-    GrayscaleOpeningFilter, InvertIntensityFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
-    RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
-    SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, WrapPadImageFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, InvertIntensityFilter,
+    LogImageFilter, MaskImageFilter, MeanImageFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
+    ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
+    TileMeanShrinkFilter, WrapPadImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -111,6 +112,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::GrayscaleDilate { .. }
             | FilterKind::GrayscaleClosing { .. }
             | FilterKind::GrayscaleOpening { .. }
+            | FilterKind::MorphologicalGradient { .. }
     ) {
         return None;
     }
@@ -269,6 +271,9 @@ fn apply_supported_filter(
         }
         FilterKind::GrayscaleOpening { radius } => {
             GrayscaleOpeningFilter::new(*radius).apply_native(&image, &backend)
+        }
+        FilterKind::MorphologicalGradient { radius } => {
+            GrayscaleMorphologicalGradientFilter::new(*radius).apply_native(&image, &backend)
         }
         FilterKind::BinaryErode {
             radius,
@@ -713,6 +718,18 @@ mod tests {
                 .expect("native grayscale composition succeeds");
             assert_eq!(output.data, expected);
         }
+    }
+
+    #[test]
+    fn native_morphological_gradient_uses_extrema_difference() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 10.0, 0.0]);
+        let output = apply_if_supported(&volume, &FilterKind::MorphologicalGradient { radius: 1 })
+            .expect("invariant: morphological gradient has a native implementation")
+            .expect("native morphological gradient succeeds");
+
+        assert_eq!(output.data, vec![10.0, 10.0, 10.0]);
+        assert!(output.data.iter().all(|value| *value >= 0.0));
     }
 
     #[test]

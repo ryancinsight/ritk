@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-561-01 audit (2026-07-11)
+
+Morphological gradient directly combines the canonical grayscale extrema cores
+but remained legacy-only in Snap. It now shares one value kernel across both
+image substrates and dispatches natively. Exact regression pins the
+dilation-minus-erosion result and non-negativity.
+
 ## MIG-560-01 audit (2026-07-11)
 
 Opening and closing require padded extrema composition for ITK-safe border

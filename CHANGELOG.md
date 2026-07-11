@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 561: Snap native morphological gradient (MIG-561-01)
+
+### Added
+- The grayscale morphological gradient now exposes a Coeus-native boundary over
+  its canonical dilation-minus-erosion kernel.
+
+### Changed
+- Snap routes morphological gradient natively.
+
+### Evidence
+- Exact Snap extrema-difference and non-negativity regression passes.
+
 ## [Unreleased] — Sprint 560: Snap native grayscale opening and closing (MIG-560-01)
 
 ### Added

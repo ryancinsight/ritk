@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-561-01 — Snap native morphological gradient
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Share the canonical extrema-difference kernel across image substrates.
+- [x] Route Snap morphological gradient through the native provider.
+- [x] Verify exact extrema difference/non-negativity and warning-denied Clippy;
+  commit and advance the RITK gitlink.
+
 ## MIG-560-01 — Snap native grayscale opening and closing
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

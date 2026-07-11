@@ -95,16 +95,7 @@ impl GrayscaleMorphologicalGradientFilter {
     /// possible with non-f32 backends).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-
-        let dilated = dilate_3d(&vals, dims, self.radius);
-        let eroded = erode_3d(&vals, dims, self.radius);
-
-        // gradient(x) = dilation(x) - erosion(x); ≥ 0 by extensivity / anti-extensivity.
-        let gradient: Vec<f32> = dilated
-            .into_iter()
-            .zip(eroded)
-            .map(|(d, e)| d - e)
-            .collect();
+        let gradient = self.gradient_values(&vals, dims);
 
         let device = image.data().device();
         let td = TensorData::new(gradient, Shape::new(dims));
@@ -115,6 +106,34 @@ impl GrayscaleMorphologicalGradientFilter {
             *image.spacing(),
             *image.direction(),
         ))
+    }
+
+    /// Apply the morphological gradient to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.gradient_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn gradient_values(&self, values: &[f32], dims: [usize; 3]) -> Vec<f32> {
+        dilate_3d(values, dims, self.radius)
+            .into_iter()
+            .zip(erode_3d(values, dims, self.radius))
+            .map(|(dilation, erosion)| dilation - erosion)
+            .collect()
     }
 }
 

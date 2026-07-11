@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-561-01 [patch] - Snap native morphological gradient (DONE).**
+  The grayscale gradient now has a Coeus-native extrema-difference boundary and
+  Snap dispatches it directly. Exact non-negative output regression passes.
+
 - **MIG-560-01 [patch] - Snap native grayscale opening and closing (DONE).**
   Safe-border grayscale opening/closing now have Coeus-native boundaries over
   their canonical compositions. Exact Snap composition regressions pass.
