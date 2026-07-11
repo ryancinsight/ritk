@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-578-01 audit (2026-07-11)
+
+Curvature flow remains legacy-only because its canonical double-buffer stencil
+is embedded in the legacy image method. The required provider-first increment
+is extraction into one shared values kernel before a native image boundary is
+added; no dispatcher adapter is acceptable.
+
 ## MIG-577-01 audit (2026-07-11)
 Bed separation now shares its canonical threshold/component/morphology pipeline through the native filter boundary.
 
