@@ -7567,11 +7567,8 @@ dependencies = [
  "coeus-tensor",
  "mnemosyne",
  "proptest",
- "ritk-annotation",
  "ritk-image",
- "ritk-morphology",
  "ritk-spatial",
- "ritk-tensor-ops",
 ]
 
 [[package]]

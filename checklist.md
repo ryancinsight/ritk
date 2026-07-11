@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-532-01 — Core compatibility-module deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove annotation, filter, and morphology compatibility paths have no workspace code consumers.
+- [x] Delete all three modules, root morphology re-exports, and outward core dependencies.
+- [x] Correct current filter and Snap documentation to name owning crates directly.
+- [x] Verify core nextest 11/11, warning-denied core/filter Clippy, Rustdoc, doctests, and the migration audit.
+- [x] Record the independent Snap native-color compile failure as MIG-533-01.
+
 ## MIG-531-01 — Core statistics shim deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

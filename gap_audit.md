@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-532-01 audit (2026-07-11)
+
+The annotation, filter, and morphology modules in `ritk-core` were wildcard
+compatibility re-exports with no workspace code consumers. Morphology also
+retained a second root-level re-export family. They forced the foundation
+crate to depend outward on `ritk-annotation`, `ritk-morphology`, and
+`ritk-tensor-ops`. All compatibility paths and dependency edges are deleted;
+current filter and Snap documentation names the owning crates directly.
+
+Evidence tier: exact consumer and manifest inventory; core nextest 11/11;
+warning-denied core/filter Clippy; Rustdoc; doctests; and a clean migration
+audit. Downstream Snap compilation reaches an independent pre-existing defect:
+its DICOM color loader supplies Burn `NdArray` types to the already-native
+Coeus API. MIG-533-01 owns that connected consumer cutover.
+
 ## MIG-531-01 audit (2026-07-11)
 
 `ritk-core` depended outward on `ritk-statistics` solely to expose an unused

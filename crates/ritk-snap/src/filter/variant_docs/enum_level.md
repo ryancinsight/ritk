@@ -1,7 +1,7 @@
 Selectable image filters exposed through the viewer core.
 
 Each variant maps 1-to-1 onto a concrete filter implementation in
-`ritk_core::filter`. Dispatch in `ViewerCore::apply_filter` is exhaustive
+`ritk_filter`. Dispatch in `ViewerCore::apply_filter` is exhaustive
 and concrete — no trait objects are used.
 
 # Variant invariants

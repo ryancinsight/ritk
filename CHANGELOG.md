@@ -8,6 +8,20 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 532: Core compatibility deletion (MIG-532-01)
+
+### Removed
+- Removed the unused `ritk_core::{annotation,filter,morphology}` compatibility
+  modules, root morphology re-exports, and their outward dependencies.
+
+### Breaking
+- Import annotation, morphology, and tensor-operation APIs from their owning
+  crates instead of through `ritk-core`.
+
+### Evidence
+- Exact zero-consumer inventory, core nextest 11/11, warning-denied core/filter
+  Clippy, Rustdoc, doctests, and a clean migration audit.
+
 ## [Unreleased] — Sprint 531: Core statistics SSOT (MIG-531-01)
 
 ### Removed

@@ -1,5 +1,19 @@
 # RITK Backlog - Active Planning
 
+- **MIG-533-01 [major] - Snap native DICOM color boundary (IN PROGRESS).**
+  Snap passes Burn `NdArray` backend/device types into the Coeus-native DICOM
+  RGB loader, so `cargo check -p ritk-snap --all-targets` fails at the color
+  boundary. Migrate this loader to a native Coeus backend and retain only the
+  existing owned viewer-volume conversion at the UI boundary.
+
+- **MIG-532-01 [major] - Core compatibility-module deletion (DONE).**
+  Removed zero-consumer annotation, filter, and morphology compatibility
+  modules, the root morphology wildcard surface, and the corresponding outward
+  core dependencies. Current docs now name `ritk-filter` directly. Evidence:
+  core nextest 11/11, warning-denied core/filter Clippy, Rustdoc, doctests, and
+  a clean migration audit. A downstream Snap check independently exposes its
+  stale Burn-to-native DICOM color call and is claimed as MIG-533-01.
+
 - **MIG-531-01 [major] - Core statistics shim deletion (DONE).**
   `ritk_core::statistics` had zero workspace consumers and only re-exported
   the owning `ritk-statistics` crate. Deleting it removes a compatibility path
