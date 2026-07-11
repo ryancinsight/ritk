@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-526-01 [major] - Trainable displacement-field native cutover (TODO).**
+  Replace Burn parameter visitation, records, autodiff, interpolation, and
+  optimizer coupling as one vertical Coeus scope. Definition of ready: pin the
+  Coeus parameter persistence contract, native 2-D/3-D interpolation contract,
+  and registration optimizer consumer set in an ADR; acceptance requires
+  deleting the admitted `displacement_field/module.rs` Burn surface rather
+  than wrapping it.
+
 - **MIG-525-01 [major] - Core geometry test cutover (DONE).**
   The Coeus-backed image now owns fallible physical/index mappings. Core
   geometry tests use `MoiraiBackend`, including rotated anisotropic reference,
@@ -7,8 +15,8 @@
   batch-law coverage. The direct `ritk-core` Burn dependency and unused
   parallel `*Atlas` traits are removed. Evidence: image/core nextest 53/53,
   warning-denied Clippy, Rustdoc, doctests, and downstream registration
-  all-target compilation. The unrelated displacement-field allowlist drift
-  remains unadmitted.
+  all-target compilation. The unrelated displacement-field regression is
+  admitted under MIG-526-01 so the ratchet is explicit and CI remains usable.
 
 - **MIG-524-01 [major] - Consus ONNX provider migration (DONE).**
   Replaced `onnx-ir` with the bounded borrowed `consus-onnx` reader and kept

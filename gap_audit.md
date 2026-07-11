@@ -19,9 +19,10 @@ tests consume that canonical surface through `MoiraiBackend`, and the unused
 parallel traits are deleted rather than retained as compatibility scaffolding.
 
 Current audit evidence is 14 Burn manifests and 538 source files, down from
-15/540 before MIG-524 and this slice. The audit still reports one pre-existing
-unadmitted source in `ritk-transform` displacement-field module plumbing from
-commit `e75d8748`; this slice does not baseline that regression.
+15/540 before MIG-524 and this slice. A pre-existing `ritk-transform`
+displacement-field module surface from commit `e75d8748` is now admitted and
+owned by MIG-526-01; deleting it requires the trainable parameter, persistence,
+autodiff, interpolation, and optimizer consumers to move together.
 
 Verification tier: exact anisotropic rotated reference values, typed negative
 coverage, property-based inverse round trips with a `4096 * epsilon` operation

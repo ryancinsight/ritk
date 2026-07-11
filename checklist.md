@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-526-01 — Trainable displacement-field native cutover
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Foundation
+
+- [ ] Pin the Coeus parameter persistence and native 2-D/3-D interpolation contracts in an ADR.
+- [ ] Enumerate every registration optimizer and transform consumer that must migrate atomically.
+- [ ] Replace the complete trainable field graph and delete Burn module/record plumbing.
+- [ ] Verify value, gradient, persistence, resampling, and downstream registration contracts.
+
 ## MIG-525-01 — Core geometry test cutover
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
