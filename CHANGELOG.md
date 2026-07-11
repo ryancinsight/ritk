@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 567: Snap native zero crossing (MIG-567-01)
+
+### Added
+- ZeroCrossingImageFilter now exposes a Coeus-native boundary over the exact
+  ITK near-zero tie-breaking stencil.
+
+### Changed
+- Snap routes zero crossing natively.
+
+### Evidence
+- Exact near-zero sign-change tie regression passes.
+
 ## [Unreleased] — Sprint 566: Snap native self-geodesic reconstruction (MIG-566-01)
 
 ### Added

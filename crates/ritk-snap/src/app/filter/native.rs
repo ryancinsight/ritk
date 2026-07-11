@@ -22,7 +22,7 @@ use ritk_filter::{
     MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
     RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
     SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter,
-    VotingBinaryImageFilter, WrapPadImageFilter,
+    VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -121,6 +121,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::GrayscaleFillhole
             | FilterKind::GeodesicDilationSelf
             | FilterKind::GeodesicErosionSelf
+            | FilterKind::ZeroCrossing { .. }
     ) {
         return None;
     }
@@ -316,6 +317,13 @@ fn apply_supported_filter(
         FilterKind::GeodesicErosionSelf => {
             GrayscaleGeodesicErosionFilter::new().apply_native(&image, &image, &backend)
         }
+        FilterKind::ZeroCrossing {
+            foreground_value,
+            background_value,
+        } => ZeroCrossingImageFilter::new()
+            .with_foreground(*foreground_value)
+            .with_background(*background_value)
+            .apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -856,6 +864,23 @@ mod tests {
                 .expect("native self geodesic reconstruction succeeds");
             assert_eq!(output.data, vec![0.0, 2.0, 1.0]);
         }
+    }
+
+    #[test]
+    fn native_zero_crossing_uses_near_zero_tie_breaking() {
+        let mut volume = test_volume([1, 1, 2]);
+        volume.data = Arc::new(vec![-1.0, 2.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::ZeroCrossing {
+                foreground_value: ForegroundValue::ONE,
+                background_value: 0.0,
+            },
+        )
+        .expect("invariant: zero crossing has a native implementation")
+        .expect("native zero crossing succeeds");
+
+        assert_eq!(output.data, vec![1.0, 0.0]);
     }
 
     #[test]

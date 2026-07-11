@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-567-01 — Snap native zero crossing
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Extract the canonical zero-crossing stencil values kernel.
+- [x] Add the native provider boundary and route Snap zero crossing through it.
+- [x] Verify exact near-zero tie behavior and warning-denied Clippy; commit and
+  advance the RITK gitlink.
+
 ## MIG-566-01 — Snap native self-geodesic reconstruction
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

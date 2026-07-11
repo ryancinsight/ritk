@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-567-01 [patch] - Snap native zero crossing (DONE).**
+  ZeroCrossingImageFilter now shares its exact local-stencil logic with a
+  Coeus-native boundary, and Snap dispatches it natively. Exact tie regression
+  passes.
+
 - **MIG-566-01 [patch] - Snap native self-geodesic reconstruction (DONE).**
   The reconstruction owner and both self-geodesic variants now expose native
   boundaries. Exact self-marker fixed-point regression passes.

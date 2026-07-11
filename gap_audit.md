@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-567-01 audit (2026-07-11)
+
+Zero crossing had a complete ITK-compatible tie-breaking stencil but remained
+behind legacy image construction. Its owner now supplies a Coeus-native image
+boundary using the same values kernel, and Snap dispatches it directly. Exact
+regression pins the forward-neighbour near-zero choice.
+
 ## MIG-566-01 audit (2026-07-11)
 
 Self-geodesic Snap operations built legacy images despite relying on the same
