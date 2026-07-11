@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-566-01 audit (2026-07-11)
+
+Self-geodesic Snap operations built legacy images despite relying on the same
+marker and mask. The reconstruction owner now has one Coeus-native two-image
+boundary, and both self variants consume it directly. Exact regression pins
+the fixed-point identity when marker equals mask.
+
 ## MIG-565-01 audit (2026-07-11)
 
 Grayscale fill-hole is an ordered minimax reconstruction and must retain its

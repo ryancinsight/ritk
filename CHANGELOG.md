@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 566: Snap native self-geodesic reconstruction (MIG-566-01)
+
+### Added
+- Morphological reconstruction and self-geodesic dilation/erosion now expose
+  Coeus-native image boundaries.
+
+### Changed
+- Snap routes both self-geodesic variants natively.
+
+### Evidence
+- Exact self-marker fixed-point regression passes.
+
 ## [Unreleased] — Sprint 565: Snap native grayscale fill-hole (MIG-565-01)
 
 ### Added

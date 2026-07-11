@@ -112,6 +112,48 @@ impl MorphologicalReconstruction {
             *marker.direction(),
         ))
     }
+
+    /// Apply geodesic reconstruction to Coeus-native images.
+    pub fn apply_native<B>(
+        &self,
+        marker: &ritk_image::native::Image<f32, B, 3>,
+        mask: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        if marker.shape() != mask.shape() {
+            anyhow::bail!(
+                "MorphologicalReconstruction: marker shape {:?} != mask shape {:?}",
+                marker.shape(),
+                mask.shape()
+            );
+        }
+        let values = match self.mode {
+            ReconstructionMode::Dilation => hybrid_reconstruct::<Dilation>(
+                marker.data_slice()?,
+                mask.data_slice()?,
+                marker.shape(),
+                self.connectivity,
+            ),
+            ReconstructionMode::Erosion => hybrid_reconstruct::<Erosion>(
+                marker.data_slice()?,
+                mask.data_slice()?,
+                marker.shape(),
+                self.connectivity,
+            ),
+        };
+        ritk_image::native::Image::from_flat_on(
+            values,
+            marker.shape(),
+            *marker.origin(),
+            *marker.spacing(),
+            *marker.direction(),
+            backend,
+        )
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════

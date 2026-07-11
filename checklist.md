@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-566-01 — Snap native self-geodesic reconstruction
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add native two-image reconstruction and geodesic provider boundaries.
+- [x] Route Snap self-geodesic variants through the native provider.
+- [x] Verify self-marker fixed points and warning-denied Clippy; commit and
+  advance the RITK gitlink.
+
 ## MIG-565-01 — Snap native grayscale fill-hole
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

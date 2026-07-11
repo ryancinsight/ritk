@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-566-01 [patch] - Snap native self-geodesic reconstruction (DONE).**
+  The reconstruction owner and both self-geodesic variants now expose native
+  boundaries. Exact self-marker fixed-point regression passes.
+
 - **MIG-565-01 [patch] - Snap native grayscale fill-hole (DONE).**
   GrayscaleFillholeFilter now provides a Coeus-native minimax reconstruction
   boundary, and Snap dispatches it natively. Exact enclosed-minimum regression

@@ -16,9 +16,10 @@ use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BinaryContourImageFilter,
     BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
     ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
-    GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
-    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
+    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, InvertIntensityFilter,
+    LabelContourImageFilter, LogImageFilter, MaskImageFilter, MeanImageFilter,
+    MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
     RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
     SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter,
     VotingBinaryImageFilter, WrapPadImageFilter,
@@ -118,6 +119,8 @@ pub(super) fn apply_if_supported(
             | FilterKind::LabelContour { .. }
             | FilterKind::VotingBinary { .. }
             | FilterKind::GrayscaleFillhole
+            | FilterKind::GeodesicDilationSelf
+            | FilterKind::GeodesicErosionSelf
     ) {
         return None;
     }
@@ -306,6 +309,12 @@ fn apply_supported_filter(
         .apply_native(&image, &backend),
         FilterKind::GrayscaleFillhole => {
             GrayscaleFillholeFilter::new().apply_native(&image, &backend)
+        }
+        FilterKind::GeodesicDilationSelf => {
+            GrayscaleGeodesicDilationFilter::new().apply_native(&image, &image, &backend)
+        }
+        FilterKind::GeodesicErosionSelf => {
+            GrayscaleGeodesicErosionFilter::new().apply_native(&image, &image, &backend)
         }
         FilterKind::BinaryErode {
             radius,
@@ -831,6 +840,22 @@ mod tests {
 
         assert_eq!(output.data[13], 1.0);
         assert_eq!(output.data[0], 1.0);
+    }
+
+    #[test]
+    fn native_self_geodesic_filters_are_fixed_points() {
+        let cases = [
+            FilterKind::GeodesicDilationSelf,
+            FilterKind::GeodesicErosionSelf,
+        ];
+        for filter in cases {
+            let mut volume = test_volume([1, 1, 3]);
+            volume.data = Arc::new(vec![0.0, 2.0, 1.0]);
+            let output = apply_if_supported(&volume, &filter)
+                .expect("invariant: self geodesic filter has a native implementation")
+                .expect("native self geodesic reconstruction succeeds");
+            assert_eq!(output.data, vec![0.0, 2.0, 1.0]);
+        }
     }
 
     #[test]
