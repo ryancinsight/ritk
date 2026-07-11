@@ -8,6 +8,9 @@
 
 # RITK Gap Audit - Active
 
+## MIG-575-01 audit (2026-07-11)
+Confidence-connected now shares its canonical iterative region-growing kernel through the native segmentation boundary.
+
 ## MIG-574-01 audit (2026-07-11)
 Connected threshold now shares its canonical six-connected BFS kernel through the native segmentation boundary.
 

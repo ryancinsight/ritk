@@ -8,6 +8,7 @@ use crate::labeling::{
     connected_components_values, relabel::relabel_values, Connectivity, LabelStatistics,
     RelabelStatistics,
 };
+use crate::region_growing::confidence_connected::grow_region;
 use crate::region_growing::connected_threshold::flood_fill;
 use crate::threshold::apply_binary_threshold_to_slice;
 use crate::threshold::multi_otsu::apply_multi_otsu_to_slice;
@@ -150,6 +151,39 @@ where
     );
     Image::from_flat_on(
         flood_fill(image.data_slice()?, shape, seed, lower, upper),
+        shape,
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        backend,
+    )
+}
+
+/// Grow a confidence-connected region on a Coeus-backed image.
+pub fn confidence_connected<B>(
+    image: &Image<f32, B, 3>,
+    seed: VoxelIndex,
+    lower: f32,
+    upper: f32,
+    multiplier: f32,
+    iterations: usize,
+    backend: &B,
+) -> Result<Image<f32, B, 3>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let shape = image.shape();
+    Image::from_flat_on(
+        grow_region(
+            image.data_slice()?,
+            shape,
+            seed,
+            lower,
+            upper,
+            multiplier,
+            iterations,
+        ),
         shape,
         *image.origin(),
         *image.spacing(),

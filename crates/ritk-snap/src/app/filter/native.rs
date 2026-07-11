@@ -29,7 +29,8 @@ use ritk_image::native::Image;
 use ritk_segmentation::{
     labeling::Connectivity as SegmentationConnectivity,
     native::{
-        binary_threshold, connected_components, connected_threshold, multi_otsu, relabel_components,
+        binary_threshold, confidence_connected, connected_components, connected_threshold,
+        multi_otsu, relabel_components,
     },
 };
 use ritk_spatial::{Direction, Point, Spacing};
@@ -96,6 +97,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::Clahe { .. }
             | FilterKind::GradientAnisotropicDiffusion { .. }
             | FilterKind::ConnectedThreshold { .. }
+            | FilterKind::ConfidenceConnected { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
@@ -406,6 +408,23 @@ fn apply_supported_filter(
             ritk_spatial::VoxelIndex::from([*seed_z, *seed_y, *seed_x]),
             *lower,
             *upper,
+            &backend,
+        ),
+        FilterKind::ConfidenceConnected {
+            seed_z,
+            seed_y,
+            seed_x,
+            initial_lower,
+            initial_upper,
+            multiplier,
+            max_iterations,
+        } => confidence_connected(
+            &image,
+            ritk_spatial::VoxelIndex::from([*seed_z, *seed_y, *seed_x]),
+            *initial_lower,
+            *initial_upper,
+            *multiplier,
+            *max_iterations as usize,
             &backend,
         ),
         FilterKind::BinaryThreshold {
@@ -1143,6 +1162,27 @@ mod tests {
         .expect("invariant: connected threshold has a native implementation")
         .expect("native connected threshold accepts a scalar volume");
         assert_eq!(output, vec![1.0, 1.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn native_confidence_connected_selects_a_constant_seed_component() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![2.0; 3]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::ConfidenceConnected {
+                seed_z: 0,
+                seed_y: 0,
+                seed_x: 0,
+                initial_lower: 1.0,
+                initial_upper: 3.0,
+                multiplier: 2.5,
+                max_iterations: 2,
+            },
+        )
+        .expect("invariant: confidence connected has a native implementation")
+        .expect("native confidence connected succeeds");
+        assert_eq!(output, vec![1.0; 3]);
     }
 
     #[test]

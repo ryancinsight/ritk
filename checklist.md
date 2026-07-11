@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-575-01 — Snap native confidence-connected
+**Target version**: 0.14.0 migration batch
+- [x] Expose canonical adaptive region growing and route Snap; verify constant component.
+
 ## MIG-574-01 — Snap native connected threshold
 **Target version**: 0.14.0 migration batch
 - [x] Expose canonical BFS natively and route Snap; verify reachability.

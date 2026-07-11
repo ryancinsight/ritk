@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 575: Snap native confidence-connected (MIG-575-01)
+### Changed
+- Snap routes confidence-connected region growing through the Coeus-native segmentation provider.
+
 ## [Unreleased] — Sprint 574: Snap native connected threshold (MIG-574-01)
 
 ### Changed
