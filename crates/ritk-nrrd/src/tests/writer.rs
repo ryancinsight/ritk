@@ -1,13 +1,23 @@
 use anyhow::Result;
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::Image;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
-use crate::{write_nrrd, NrrdWriter};
+use crate::{write_nrrd, write_nrrd_with_data, NrrdWriter};
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
+
+fn image(
+    data: Vec<f32>,
+    shape: [usize; 3],
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    direction: Direction<3>,
+    backend: &TestBackend,
+) -> Result<Image<f32, TestBackend, 3>> {
+    Image::from_flat_on(data, shape, origin, spacing, direction, backend)
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -45,20 +55,18 @@ fn decode_le_f32_payload(bytes: &[u8]) -> Vec<f32> {
 fn test_mandatory_header_fields_present() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("mandatory.nrrd");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![1.0f32; 2 * 3 * 4], Shape::new([2, 3, 4])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
+    let image = image(
+        vec![1.0; 2 * 3 * 4],
+        [2, 3, 4],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_nrrd(&path, &image)?;
+    write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(bytes_contain(&bytes, "NRRD0004"), "missing NRRD magic");
@@ -85,21 +93,19 @@ fn test_mandatory_header_fields_present() -> Result<()> {
 fn test_sizes_written_in_xyz_order() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("sizes.nrrd");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
     // RITK shape [nz=2, ny=3, nx=4]
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![0.0f32; 2 * 3 * 4], Shape::new([2, 3, 4])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
+    let image = image(
+        vec![0.0; 2 * 3 * 4],
+        [2, 3, 4],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_nrrd(&path, &image)?;
+    write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -116,17 +122,18 @@ fn test_sizes_written_in_xyz_order() -> Result<()> {
 fn test_space_directions_encodes_spacing_on_diagonal() -> Result<()> {
     let dir_tmp = tempdir()?;
     let path = dir_tmp.path().join("diag_sd.nrrd");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
-    let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
-    let image = Image::new(
-        tensor,
+    let image = image(
+        vec![0.0; 8],
+        [2, 2, 2],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([0.9, 0.75, 1.5]),
         axial_direction(),
-    );
+        &backend,
+    )?;
 
-    write_nrrd(&path, &image)?;
+    write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     // For axial internal columns depth=Z, row=Y, col=X:
@@ -154,17 +161,18 @@ fn test_space_directions_encodes_spacing_on_diagonal() -> Result<()> {
 fn test_space_origin_written_correctly() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("origin.nrrd");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
-    let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
-    let image = Image::new(
-        tensor,
+    let image = image(
+        vec![0.0; 8],
+        [2, 2, 2],
         Point::new([10.5, 20.25, 30.125]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_nrrd(&path, &image)?;
+    write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -189,25 +197,23 @@ fn test_space_origin_written_correctly() -> Result<()> {
 fn test_payload_size_correct() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("payload.nrrd");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
     let nz = 3usize;
     let ny = 4usize;
     let nx = 5usize;
     let n_voxels = nz * ny * nx;
 
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![1.0f32; n_voxels], Shape::new([nz, ny, nx])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
+    let image = image(
+        vec![1.0; n_voxels],
+        [nz, ny, nx],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_nrrd(&path, &image)?;
+    write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     let expected_payload = n_voxels * 4;
@@ -228,7 +234,7 @@ fn test_payload_size_correct() -> Result<()> {
 fn test_payload_written_in_x_fastest_order() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("payload_order.nrrd");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
     let nz = 2usize;
     let ny = 2usize;
@@ -242,18 +248,16 @@ fn test_payload_written_in_x_fastest_order() -> Result<()> {
         }
     }
 
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec.clone(), Shape::new([nz, ny, nx])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
+    let image = image(
+        data_vec.clone(),
+        [nz, ny, nx],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         axial_direction(),
-    );
+        &backend,
+    )?;
 
-    write_nrrd(&path, &image)?;
+    write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     let payload_values = decode_le_f32_payload(nrrd_payload(&bytes));
@@ -265,22 +269,47 @@ fn test_payload_written_in_x_fastest_order() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn test_caller_payload_length_must_match_shape() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("wrong_payload.nrrd");
+    let backend = TestBackend::default();
+    let image = image(
+        vec![0.0; 8],
+        [2, 2, 2],
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+        &backend,
+    )?;
+
+    let error =
+        write_nrrd_with_data(&path, &image, &[0.0; 7]).expect_err("short payload must be rejected");
+    assert!(
+        error.to_string().contains("requires 8"),
+        "error must report the required voxel count: {error}"
+    );
+    assert!(!path.exists(), "invalid payload must not create a file");
+    Ok(())
+}
+
 /// NrrdWriter struct delegates correctly to `write_nrrd`.
 #[test]
 fn test_writer_struct_creates_file() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("writer_struct.nrrd");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
-    let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
-    let image = Image::new(
-        tensor,
+    let image = image(
+        vec![0.0; 8],
+        [2, 2, 2],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    let writer = NrrdWriter;
+    let writer = NrrdWriter::new(TestBackend::default());
     writer.write(&path, &image)?;
 
     assert!(path.exists(), "output file must exist after write");
@@ -303,9 +332,7 @@ fn test_writer_struct_creates_file() -> Result<()> {
 fn test_rotated_direction_in_space_directions() -> Result<()> {
     let dir_tmp = tempdir()?;
     let path = dir_tmp.path().join("rotated.nrrd");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
-
-    let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
+    let backend = TestBackend::default();
 
     let mut direction = Direction::zeros();
     // Column 0 = internal depth axis = physical Z.
@@ -321,14 +348,16 @@ fn test_rotated_direction_in_space_directions() -> Result<()> {
     direction[(1, 2)] = 1.0;
     direction[(2, 2)] = 0.0;
 
-    let image = Image::new(
-        tensor,
+    let image = image(
+        vec![0.0; 8],
+        [2, 2, 2],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([2.0, 3.0, 4.0]),
         direction,
-    );
+        &backend,
+    )?;
 
-    write_nrrd(&path, &image)?;
+    write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
 
@@ -356,21 +385,24 @@ fn test_round_trip_nrrd() -> Result<()> {
 
     let dir = tempdir()?;
     let path = dir.path().join("round_trip.nrrd");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
     // RITK [Z,Y,X] shape [2, 3, 4] with analytically known values 0..23.
     let data_vec: Vec<f32> = (0u32..24).map(|i| i as f32).collect();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec.clone(), Shape::new([2, 3, 4])),
-        &device,
-    );
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([0.9, 0.75, 1.5]);
     let direction = Direction::identity();
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = image(
+        data_vec.clone(),
+        [2, 3, 4],
+        origin,
+        spacing,
+        direction,
+        &backend,
+    )?;
 
-    write_nrrd(&path, &image)?;
-    let loaded = read_nrrd::<TestBackend, _>(&path, &device)?;
+    write_nrrd(&path, &image, &backend)?;
+    let loaded = read_nrrd::<TestBackend, _>(&path, &backend)?;
 
     // Shape
     assert_eq!(loaded.shape(), [2, 3, 4]);
@@ -386,7 +418,7 @@ fn test_round_trip_nrrd() -> Result<()> {
     assert!((loaded.spacing()[2] - 1.5).abs() < 1e-6, "spacing[2]");
 
     // Voxel values: every element must equal its original value.
-    loaded.with_data_slice(|loaded_vals| {
+    loaded.data_slice().map(|loaded_vals| {
         for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
             assert!(
                 (got - expected).abs() < 1e-5,
@@ -396,56 +428,6 @@ fn test_round_trip_nrrd() -> Result<()> {
                 got
             );
         }
-    });
-    Ok(())
-}
-
-/// Strongest differential oracle: for the same logical image the Atlas-native
-/// and Burn writers share the `write_nrrd_flat` serialization core, so their
-/// output files must be byte-for-byte identical. Anisotropic spacing, a
-/// non-axis-aligned direction, and a non-zero origin ensure any metadata
-/// divergence would surface.
-#[test]
-fn native_writer_output_is_byte_identical_to_burn_writer() -> Result<()> {
-    let nx = 4usize;
-    let ny = 3usize;
-    let nz = 2usize;
-    let data: Vec<f32> = (0..(nx * ny * nz)).map(|i| i as f32 * 0.5 - 3.0).collect();
-    let origin = Point::new([5.0, -10.0, 15.0]);
-    let spacing = Spacing::new([1.5, 0.75, 0.9]);
-    let direction = axial_direction();
-
-    let dir = tempdir()?;
-    let burn_path = dir.path().join("burn.nrrd");
-    let native_path = dir.path().join("native.nrrd");
-
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
-    let burn_image = Image::new(
-        Tensor::<TestBackend, 3>::from_data(
-            TensorData::new(data.clone(), Shape::new([nz, ny, nx])),
-            &device,
-        ),
-        origin,
-        spacing,
-        direction,
-    );
-    write_nrrd(&burn_path, &burn_image)?;
-
-    let backend = coeus_core::SequentialBackend;
-    let native_image = ritk_image::native::Image::from_flat_on(
-        data,
-        [nz, ny, nx],
-        origin,
-        spacing,
-        direction,
-        &backend,
-    )?;
-    crate::native::write_nrrd(&native_path, &native_image, &backend)?;
-
-    assert_eq!(
-        std::fs::read(&burn_path)?,
-        std::fs::read(&native_path)?,
-        "native and Burn NRRD writers must emit identical bytes"
-    );
+    })?;
     Ok(())
 }

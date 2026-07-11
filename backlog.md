@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-510-01 [major] - NRRD Burn boundary deletion (DONE).**
+  Promoted inline/detached raw and gzip NRRD read/write APIs to the sole native
+  `ritk-nrrd` surface, removed its Burn/core dependencies and duplicate module,
+  and localized remaining legacy conversion in `ritk-io`. Reader size products
+  are checked and gzip output is capped at the declared payload plus one byte;
+  writers reject mismatched caller payloads before file creation. Evidence:
+  provider nextest 34/34, combined nextest 399/399, warning-denied Clippy,
+  doctests, rustdoc, and Burn manifest reduction from 18 to 17.
+
 - **MIG-509-01 [major] - MetaImage Burn boundary deletion (DONE).**
   Promoted MHA/MHD read/write APIs to the sole native `ritk-metaimage`
   surface, removed its Burn/core dependencies and duplicate module, and

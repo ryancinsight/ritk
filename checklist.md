@@ -8,6 +8,24 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-510-01 — NRRD Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Promote raw/gzip inline and detached NRRD reader/writer APIs to canonical
+      native image contracts and delete direct `burn-ndarray`/`ritk-core`
+      dependencies and duplicate native modules.
+- [x] Check declared voxel and byte products and cap gzip inflation at the
+      declared payload plus one byte.
+- [x] Enforce exact caller-provided payload length before creating an output
+      file.
+- [x] Localize remaining legacy storage conversion in `ritk-io` and retain
+      exact axis, metadata, datatype, detached-file, and round-trip coverage.
+- [x] Verify provider nextest 34/34, combined nextest 399/399, warning-denied
+      Clippy, doctests, rustdoc, and migration audit reduction to 17 manifests
+      and 586 source files with only the known displacement-field drift.
+- [x] Commit, push, and advance the RITK gitlink in the stack repository.
+
 ## MIG-509-01 — MetaImage Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

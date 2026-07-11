@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## MIG-510-01 audit (2026-07-10)
+
+`ritk-nrrd` duplicated reader/writer boundaries across Burn root APIs and a
+native module. Canonical inline/detached raw and gzip APIs now use native
+images; `ritk-io` alone owns conversion for remaining Burn-typed consumers.
+
+Declared voxel and byte products are checked before payload processing. Gzip
+decoding reads at most the declared payload plus one byte, preserving short and
+excess-payload detection without unbounded inflation. Writer payload length is
+validated before file creation. Evidence tier: exact axis-order, direction,
+spacing, origin, datatype, detached-data, malformed-header, payload-length,
+and native/legacy round trips; provider nextest 34/34; combined nextest
+399/399; warning-denied Clippy; doctests; rustdoc. The audit drops from 18 to
+17 manifests and 588 to 586 source files. Only the pre-existing
+displacement-field drift remains unallowlisted.
+
 ## MIG-509-01 audit (2026-07-10)
 
 `ritk-metaimage` duplicated reader/writer boundaries across Burn root APIs and

@@ -5,7 +5,7 @@
 //!
 //! # Key APIs
 //!
-//! - [`read_nrrd`]: Read a NRRD file as a Burn tensor-backed Image with spatial metadata
+//! - [`read_nrrd`]: Read a NRRD file as a native image with spatial metadata
 //! - [`write_nrrd`]: Write an Image to a NRRD file with full space directions and origin encoding
 //!
 //! # Spatial Convention
@@ -35,52 +35,41 @@ pub mod writer;
 pub use reader::{read_nrrd, NrrdReader};
 pub use writer::{write_nrrd, write_nrrd_with_data, NrrdWriter};
 
-/// Atlas-native-substrate I/O (plain end-state names, disambiguated from the
-/// Burn functions by module path only; folds away when the Burn path is
-/// deleted — ADR 0002 A1).
-pub mod native {
-    pub use crate::reader::native::*;
-    pub use crate::writer::native::*;
-}
-
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image;
 use std::path::Path;
 
 /// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.
-pub struct NrrdDipReader<B: Backend> {
-    device: B::Device,
+pub struct NrrdDipReader<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> NrrdDipReader<B> {
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
+impl<B: ComputeBackend> NrrdDipReader<B> {
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<B, 3>> {
-        read_nrrd(path, &self.device)
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<f32, B, 3>> {
+        read_nrrd(path, &self.backend)
     }
 }
 
 /// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.
-pub struct NrrdDipWriter<B: Backend> {
-    _marker: std::marker::PhantomData<fn() -> B>,
+pub struct NrrdDipWriter<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> Default for NrrdDipWriter<B> {
-    fn default() -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-        }
+impl<B: ComputeBackend> NrrdDipWriter<B> {
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
-}
 
-impl<B: Backend> NrrdDipWriter<B> {
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> anyhow::Result<()>
+    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> anyhow::Result<()>
     where
-        B: ritk_image::HostExtract,
+        B: Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        write_nrrd(path, image)
+        write_nrrd(path, image, &self.backend)
     }
 }
 

@@ -8,6 +8,30 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 510: NRRD native cutover (MIG-510-01)
+
+### Changed
+- Inline/detached raw and gzip NRRD reading and writing now occupy canonical
+  native-image API paths.
+- Readers check voxel/byte products and cap gzip inflation at the declared
+  payload plus one byte.
+- Writers reject caller-provided payload length mismatches before file
+  creation.
+- `ritk-io` owns the remaining conversion required by Burn-typed consumers.
+
+### Removed
+- Removed `ritk-nrrd`'s Burn reader/writer paths, duplicate native module, and
+  direct `burn-ndarray` and `ritk-core` dependencies.
+
+### Breaking
+- `ritk-nrrd` APIs now accept a Coeus backend and consume or return native
+  images. Burn callers migrate through `ritk-io` or to native contracts.
+
+### Evidence
+- Provider nextest 34/34, combined nextest 399/399, warning-denied Clippy,
+  doctests, and rustdoc pass. The Burn audit drops to 17 manifests and 586
+  source files with only the known displacement-field drift.
+
 ## [Unreleased] — Sprint 509: MetaImage native cutover (MIG-509-01)
 
 ### Changed

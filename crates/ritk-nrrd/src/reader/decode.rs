@@ -138,8 +138,21 @@ pub(super) fn decode_element_bytes(
     count: usize,
     byte_order: ByteOrder,
 ) -> Result<Vec<f32>> {
+    let (elem_size, signed, is_float) = element_type_spec(element_type)?;
+    decode_bytes_to_f32(
+        bytes,
+        elem_size,
+        signed,
+        is_float,
+        byte_order,
+        count,
+        element_type,
+    )
+}
+
+pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
     let normalised = element_type.to_lowercase();
-    let (elem_size, signed, is_float) = match normalised.as_str() {
+    let spec = match normalised.as_str() {
         "uchar" | "unsigned char" | "uint8" => (1_usize, false, false),
         "char" | "signed char" | "int8" => (1, true, false),
         "short" | "int16" | "signed short" | "int 16" => (2, true, false),
@@ -150,15 +163,7 @@ pub(super) fn decode_element_bytes(
         "double" => (8, false, true),
         other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)),
     };
-    decode_bytes_to_f32(
-        bytes,
-        elem_size,
-        signed,
-        is_float,
-        byte_order,
-        count,
-        element_type,
-    )
+    Ok(spec)
 }
 
 #[cfg(test)]
