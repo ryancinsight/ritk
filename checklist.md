@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-584-01 — Native image blend
+**Target version**: 0.14.0 migration batch
+- [x] Expose blend through a native two-image boundary with first-image metadata.
+
 ## MIG-583-01 — Native ternary image arithmetic
 **Target version**: 0.14.0 migration batch
 - [x] Expose the generic ternary ZST operation through a native three-image boundary.

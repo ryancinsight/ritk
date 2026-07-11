@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-584-01 [patch] - Native image blend (DONE).** Blend now exposes a
+  Coeus-native two-image boundary with first-image geometry ownership.
+
 - **MIG-583-01 [patch] - Native ternary image arithmetic (DONE).** The
   generic ZST ternary operation now has one Coeus-native three-image boundary.
 

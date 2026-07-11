@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 584: Native image blend (MIG-584-01)
+### Added
+- `BlendImageFilter` now exposes a Coeus-native two-image boundary.
+
 ## [Unreleased] — Sprint 583: Native ternary image arithmetic (MIG-583-01)
 ### Added
 - `TernaryOpFilter` now exposes a Coeus-native three-image boundary.

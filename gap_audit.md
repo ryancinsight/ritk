@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-584-01 audit (2026-07-11)
+
+Blend now owns a Coeus-native two-image boundary. Exact half-alpha values and
+first-image geometry are pinned by a focused regression.
+
 ## MIG-583-01 audit (2026-07-11)
 
 The generic ternary ZST operation now owns one Coeus-native three-image
