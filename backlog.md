@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-571-01 [patch] - Snap native histogram equalization (DONE).**
+  HistogramEqualizationFilter now exposes its canonical global-CDF kernel
+  through a Coeus-native boundary, and Snap dispatches it directly. Exact
+  provider and consumer CDF regressions pass.
+
 - **MIG-570-01 [patch] - Snap native median (DONE).**
   MedianFilter now exposes its canonical replicate-boundary kernel through a
   Coeus-native boundary, and Snap dispatches it directly. Exact provider and

@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## MIG-571-01 audit (2026-07-11)
+
+Global histogram equalization already owned a finite-value histogram and CDF
+mapping kernel but Snap constructed a legacy image to use it. The filter owner
+now exposes that same kernel through a Coeus-native image boundary, and Snap
+dispatches it directly. Exact provider and Snap regressions pin the CDF mapping
+and metadata preservation.
+
 ## MIG-570-01 audit (2026-07-11)
 
 Median filtering already owned a Moirai-parallel, replicate-boundary values

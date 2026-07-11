@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-571-01 — Snap native histogram equalization
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Expose the canonical global-CDF equalization kernel through a native image
+  boundary.
+- [x] Route Snap histogram equalization through that provider boundary.
+- [x] Verify exact CDF mapping, metadata, and warning-denied Clippy; commit and
+  advance the RITK gitlink.
+
 ## MIG-570-01 — Snap native median
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 571: Snap native histogram equalization (MIG-571-01)
+
+### Added
+- HistogramEqualizationFilter now exposes its canonical global-CDF kernel
+  through a Coeus-native image boundary.
+
+### Changed
+- Snap routes global histogram equalization natively.
+
+### Evidence
+- Exact provider and Snap regressions cover the CDF mapping and metadata.
+
 ## [Unreleased] — Sprint 570: Snap native median (MIG-570-01)
 
 ### Added

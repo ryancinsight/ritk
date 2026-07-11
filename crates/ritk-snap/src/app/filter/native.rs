@@ -17,12 +17,12 @@ use ritk_filter::{
     BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
     ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
     GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
-    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, InvertIntensityFilter,
-    LabelContourImageFilter, LogImageFilter, MaskImageFilter, MeanImageFilter, MedianFilter,
-    MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
-    RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
-    SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter,
-    VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
+    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
+    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
+    ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
+    TileMeanShrinkFilter, VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -89,6 +89,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::RelabelComponents { .. }
             | FilterKind::MultiOtsuThreshold { .. }
             | FilterKind::Median { .. }
+            | FilterKind::HistEq { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
@@ -371,6 +372,9 @@ fn apply_supported_filter(
             multi_otsu(&image, *num_classes as usize, 256, &backend)
         }
         FilterKind::Median { radius } => MedianFilter::new(*radius).apply_native(&image, &backend),
+        FilterKind::HistEq { bins } => {
+            HistogramEqualizationFilter::new(*bins).apply_native(&image, &backend)
+        }
         FilterKind::BinaryThreshold {
             lower,
             upper,
@@ -1044,6 +1048,17 @@ mod tests {
     }
 
     #[test]
+    fn native_histogram_equalization_maps_values_through_the_cdf() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 0.0, 1.0]);
+        let output = apply_if_supported(&volume, &FilterKind::HistEq { bins: 2 })
+            .expect("invariant: histogram equalization has a native implementation")
+            .expect("native histogram equalization accepts a scalar volume");
+
+        assert_eq!(output, vec![2.0 / 3.0, 2.0 / 3.0, 1.0]);
+    }
+
+    #[test]
     fn native_binary_threshold_includes_both_bounds() {
         let mut volume = test_volume([1, 1, 5]);
         volume.data = Arc::new(vec![-1.0, 0.0, 50.0, 100.0, 101.0]);
@@ -1224,6 +1239,23 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [0.0, 0.0, 0.0]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_histogram_equalization() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 0.0, 1.0]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::HistEq { bins: 2 };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [2.0 / 3.0, 2.0 / 3.0, 1.0]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }
