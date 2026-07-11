@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 587: Native double threshold (MIG-587-01)
+### Added
+- `DoubleThresholdImageFilter` now exposes a Coeus-native hysteresis boundary.
+
 ## [Unreleased] — Sprint 586: Native pointwise threshold (MIG-586-01)
 ### Added
 - `ThresholdImageFilter` now exposes a Coeus-native image boundary.

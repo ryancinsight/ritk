@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-587-01 — Native double threshold
+**Target version**: 0.14.0 migration batch
+- [x] Share hysteresis marker/mask construction and route reconstruction natively.
+
 ## MIG-586-01 — Native pointwise threshold
 **Target version**: 0.14.0 migration batch
 - [x] Share pointwise threshold values between tensor-backed and native images.

@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-587-01 audit (2026-07-11)
+
+Double-threshold hysteresis now shares marker/mask construction and composes
+the existing native morphological reconstruction boundary. Exact connected-band
+values and source metadata are covered directly.
+
 ## MIG-586-01 audit (2026-07-11)
 
 The pointwise suppressive threshold is distinct from binary segmentation and

@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-587-01 [patch] - Native double threshold (DONE).** Hysteresis now
+  composes native morphological reconstruction over shared marker/mask values.
+
 - **MIG-586-01 [patch] - Native pointwise threshold (DONE).** The distinct
   suppressive threshold filter now shares one values transform with Coeus.
 

@@ -7,8 +7,9 @@
 //! band (marker) under the outer band (mask).
 
 use crate::morphology::{Connectivity, MorphologicalReconstruction, ReconstructionMode};
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::Image;
+use ritk_image::{native::Image as NativeImage, Image};
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Double-threshold (hysteresis) filter with four ordered thresholds
@@ -62,15 +63,7 @@ impl DoubleThresholdImageFilter {
     /// Apply the double-threshold transform.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        // Inner band [t2, t3] → marker; outer band [t1, t4] → mask.
-        let inner: Vec<f32> = vals
-            .iter()
-            .map(|&v| (v >= self.threshold2 && v <= self.threshold3) as u8 as f32)
-            .collect();
-        let outer: Vec<f32> = vals
-            .iter()
-            .map(|&v| (v >= self.threshold1 && v <= self.threshold4) as u8 as f32)
-            .collect();
+        let (inner, outer) = self.marker_and_mask(&vals);
         let marker = rebuild(inner, dims, image);
         let mask = rebuild(outer, dims, image);
         let recon = MorphologicalReconstruction::new(ReconstructionMode::Dilation)
@@ -89,6 +82,69 @@ impl DoubleThresholdImageFilter {
             })
             .collect();
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply double-threshold hysteresis to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let (inner, outer) = self.marker_and_mask(image.data_slice()?);
+        let marker = NativeImage::from_flat_on(
+            inner,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )?;
+        let mask = NativeImage::from_flat_on(
+            outer,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )?;
+        let reconstruction = MorphologicalReconstruction::new(ReconstructionMode::Dilation)
+            .with_connectivity(self.connectivity)
+            .apply_native(&marker, &mask, backend)?;
+        let values = reconstruction
+            .data_slice()?
+            .iter()
+            .map(|&value| {
+                if value > 0.5 {
+                    self.inside_value
+                } else {
+                    self.outside_value
+                }
+            })
+            .collect();
+        NativeImage::from_flat_on(
+            values,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn marker_and_mask(&self, values: &[f32]) -> (Vec<f32>, Vec<f32>) {
+        let marker = values
+            .iter()
+            .map(|&value| (value >= self.threshold2 && value <= self.threshold3) as u8 as f32)
+            .collect();
+        let mask = values
+            .iter()
+            .map(|&value| (value >= self.threshold1 && value <= self.threshold4) as u8 as f32)
+            .collect();
+        (marker, mask)
     }
 }
 
