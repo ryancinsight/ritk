@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use ritk_io::{
-    is_rgb_dicom_series, load_dicom_color_from_series, load_dicom_color_series,
+    is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path,
     load_dicom_from_series, load_dicom_series_with_metadata,
 };
 use tracing::info;
@@ -99,46 +99,42 @@ fn load_dicom_scalar_volume_from_scanned_series(
     loaded_volume_from_scalar_image(image, meta, None)
 }
 
-/// Load an RGB DICOM colour series from a pre-scanned series descriptor.
-fn load_dicom_color_volume_from_scanned_series(
-    series: ritk_io::ScannedDicomSeries,
-) -> Result<LoadedVolume> {
-    let device = <B as ritk_image::tensor::Backend>::Device::default();
-    let (rgb_vol, meta) = load_dicom_color_from_series::<B>(series, &device)
-        .with_context(|| "failed to load DICOM RGB series from scanned instances")?;
-    let [depth, rows, cols] = rgb_vol.spatial_shape();
+/// Build a colour [`LoadedVolume`] from the substrate-free flat RGB core.
+///
+/// `flat` is the interleaved-RGB `f32` buffer produced by
+/// [`ritk_io::load_color_volume_flat`], `dims` its `[depth, rows, cols, 3]`
+/// shape. Spatial metadata is taken verbatim from `meta`; the direction array
+/// is the row-major readout of the column-major direction cosines, matching
+/// the physical-axis convention used by the scalar loader.
+fn loaded_volume_from_color_flat(
+    flat: Vec<f32>,
+    dims: [usize; 4],
+    meta: ritk_io::DicomReadMetadata,
+    source: Option<std::path::PathBuf>,
+) -> LoadedVolume {
+    let [depth, rows, cols, _channels] = dims;
     let shape = [depth, rows, cols];
-    let sp = rgb_vol.spacing();
-    let spacing = [sp[0], sp[1], sp[2]];
-    let orig = rgb_vol.origin();
-    let origin = [orig.0[0], orig.0[1], orig.0[2]];
-    let dir = rgb_vol.direction().0;
-    let direction = [
-        dir[(0, 0)],
-        dir[(0, 1)],
-        dir[(0, 2)],
-        dir[(1, 0)],
-        dir[(1, 1)],
-        dir[(1, 2)],
-        dir[(2, 0)],
-        dir[(2, 1)],
-        dir[(2, 2)],
-    ];
-    let pixels: Vec<f32> = rgb_vol.with_data_slice(|s| s.to_vec());
+    let spacing = meta.spacing;
+    let origin = meta.origin;
+    // `meta.direction` is column-major; the scalar path and the former
+    // `RgbVolume` carrier both surface direction cosines in row-major order,
+    // i.e. the transpose of the stored column-major array.
+    let d = meta.direction;
+    let direction = [d[0], d[3], d[6], d[1], d[4], d[7], d[2], d[5], d[8]];
     let modality = meta.modality;
     let patient_name = meta.patient_name.clone();
     let patient_id = meta.patient_id.clone();
     let study_date = meta.study_date;
     let series_description = meta.series_description.clone();
-    Ok(LoadedVolume {
-        data: Arc::new(pixels),
+    LoadedVolume {
+        data: Arc::new(flat),
         shape,
         channels: 3,
         spacing,
         origin,
         direction,
         metadata: Some(Box::new(meta)),
-        source: None,
+        source,
         modality,
         patient_name,
         patient_id,
@@ -150,15 +146,24 @@ fn load_dicom_color_volume_from_scanned_series(
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
         decay_correction: None,
-    })
+    }
+}
+
+/// Load an RGB DICOM colour series from a pre-scanned series descriptor.
+fn load_dicom_color_volume_from_scanned_series(
+    series: ritk_io::ScannedDicomSeries,
+) -> Result<LoadedVolume> {
+    let (flat, dims, meta) = load_color_volume_flat(series.metadata)
+        .with_context(|| "failed to load DICOM RGB series from scanned instances")?;
+    Ok(loaded_volume_from_color_flat(flat, dims, meta, None))
 }
 
 /// Load a DICOM series from `folder` into a [`LoadedVolume`].
 ///
 /// # Algorithm
 /// 1. Detects whether the series is RGB via [`is_rgb_dicom_series`].
-/// 2. For RGB series: calls [`load_dicom_color_series`], converts the
-///    `RgbVolume<B>` into a [`LoadedVolume`] with `channels: 3`.
+/// 2. For RGB series: calls [`ritk_io::load_color_volume_flat_from_path`] and
+///    builds a [`LoadedVolume`] with `channels: 3` from the flat RGB buffer.
 /// 3. For scalar series: calls [`load_dicom_series_with_metadata`].
 /// 4. Extracts spatial metadata (spacing, origin, direction) from the image.
 /// 5. Populates optional DICOM-specific fields from `DicomReadMetadata`.
@@ -173,7 +178,7 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
 
     // Detect RGB colour series and route to the colour-volume loader.
     if is_rgb_dicom_series(folder).unwrap_or(false) {
-        return load_dicom_color_volume::<B>(folder, &device);
+        return load_dicom_color_volume(folder);
     }
 
     let (image, meta) = load_dicom_series_with_metadata::<B, _>(folder, &device)
@@ -183,72 +188,22 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
 
 /// Load an RGB DICOM colour series into a [`LoadedVolume`] with `channels: 3`.
 ///
-/// # Parameters
-/// - `folder` — path to the DICOM series directory.
-/// - `device` — burn backend device.  Only the `Default::default()` CPU
-///   device is guaranteed to work.
-fn load_dicom_color_volume<B: ritk_image::tensor::Backend>(
-    folder: &Path,
-    device: &B::Device,
-) -> Result<LoadedVolume> {
+/// Routes through the substrate-free [`ritk_io::load_color_volume_flat_from_path`]
+/// core: no tensor backend is constructed on this path.
+fn load_dicom_color_volume(folder: &Path) -> Result<LoadedVolume> {
     info!(path = %folder.display(), "loading DICOM RGB colour volume");
 
-    let (rgb_vol, meta) = load_dicom_color_series::<B, _>(folder, device).with_context(|| {
+    let (flat, dims, meta) = load_color_volume_flat_from_path(folder).with_context(|| {
         format!(
             "failed to load DICOM RGB series from '{}'",
             folder.display()
         )
     })?;
 
-    let [depth, rows, cols] = rgb_vol.spatial_shape();
-    let shape = [depth, rows, cols];
-
-    let sp = rgb_vol.spacing();
-    let spacing = [sp[0], sp[1], sp[2]];
-
-    let orig = rgb_vol.origin();
-    let origin = [orig.0[0], orig.0[1], orig.0[2]];
-
-    let dir = rgb_vol.direction().0;
-    let direction = [
-        dir[(0, 0)],
-        dir[(0, 1)],
-        dir[(0, 2)],
-        dir[(1, 0)],
-        dir[(1, 1)],
-        dir[(1, 2)],
-        dir[(2, 0)],
-        dir[(2, 1)],
-        dir[(2, 2)],
-    ];
-
-    let pixels: Vec<f32> = rgb_vol.with_data_slice(|s| s.to_vec());
-
-    let modality = meta.modality;
-    let patient_name = meta.patient_name.clone();
-    let patient_id = meta.patient_id.clone();
-    let study_date = meta.study_date;
-    let series_description = meta.series_description.clone();
-
-    Ok(LoadedVolume {
-        data: Arc::new(pixels),
-        shape,
-        channels: 3,
-        spacing,
-        origin,
-        direction,
-        metadata: Some(Box::new(meta)),
-        source: Some(folder.to_path_buf()),
-        modality,
-        patient_name,
-        patient_id,
-        study_date,
-        series_description,
-        series_time: None,
-        patient_weight_kg: None,
-        injected_dose_bq: None,
-        radionuclide_half_life_s: None,
-        radiopharmaceutical_start_time: None,
-        decay_correction: None,
-    })
+    Ok(loaded_volume_from_color_flat(
+        flat,
+        dims,
+        meta,
+        Some(folder.to_path_buf()),
+    ))
 }

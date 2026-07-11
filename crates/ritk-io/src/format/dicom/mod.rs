@@ -24,7 +24,7 @@ pub use anonymize::{
 };
 pub use color::{
     is_rgb_dicom_series, load_atlas_color_from_series, load_atlas_color_series,
-    load_dicom_color_from_series, load_dicom_color_series, read_dicom_color_series,
+    load_color_volume_flat, load_color_volume_flat_from_path,
 };
 pub use color_multiframe::{load_dicom_color_multiframe, read_dicom_color_multiframe};
 pub use multiframe::{

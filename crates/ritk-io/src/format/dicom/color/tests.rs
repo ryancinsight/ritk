@@ -339,3 +339,92 @@ fn test_atlas_color_from_series_is_callable() {
     let samples = volume.data_slice().expect("AtlasImage host-slice access");
     assert_eq!(samples, &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
 }
+
+/// Differential parity: the substrate-free flat core, the native carrier, and
+/// the (now-removed) burn `RgbVolume` carrier must all expose the identical
+/// interleaved-RGB host-slice order for the same input series.
+///
+/// `flat` is first pinned to a known interleaved-RGB value oracle, so this is
+/// a value-semantic check rather than a self-consistency tautology; the burn
+/// and native carriers are then asserted to preserve that exact buffer.
+#[test]
+fn native_flat_matches_burn_rgbvolume_layout() {
+    use burn::tensor::{backend::Backend as BurnBackend, Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
+    use coeus_core::MoiraiBackend;
+    use ritk_core::image::RgbVolume;
+    use ritk_image::native::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    write_rgb_slice(
+        &dir.path().join("slice1.dcm"),
+        "2.25.7101",
+        1,
+        0.0,
+        &[255, 0, 0, 0, 255, 0],
+        Some(0),
+    );
+    write_rgb_slice(
+        &dir.path().join("slice2.dcm"),
+        "2.25.7102",
+        2,
+        2.0,
+        &[0, 0, 255, 255, 255, 255],
+        Some(0),
+    );
+
+    // Substrate-free core.
+    let (flat, dims, metadata) =
+        load_color_volume_flat_from_path(dir.path()).expect("flat RGB load must succeed");
+    assert_eq!(dims, [2, 1, 2, RGB_CHANNELS]);
+
+    // Value oracle: interleaved RGB, channel fastest, `[depth, rows, cols, 3]`.
+    let expected = [
+        255.0, 0.0, 0.0, 0.0, 255.0, 0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0,
+    ];
+    assert_eq!(flat.as_slice(), &expected);
+
+    // Burn `RgbVolume` carrier (the removed path): a permutation or transpose
+    // in the burn carrier would diverge from the flat buffer read back.
+    type B = NdArray<f32>;
+    let device = <B as BurnBackend>::Device::default();
+    let tensor = Tensor::<B, 4>::from_data(TensorData::new(flat.clone(), Shape::new(dims)), &device);
+    let rgb = RgbVolume::<B>::try_new(
+        tensor,
+        Point::new(metadata.origin),
+        Spacing::new(metadata.spacing),
+        Direction::from_column_major(metadata.direction),
+    )
+    .expect("burn RgbVolume construction");
+    assert_eq!(
+        rgb.data_vec(),
+        flat,
+        "burn RgbVolume host layout must equal native flat buffer"
+    );
+
+    // Native Coeus carrier: `from_flat` must preserve the same host-slice order.
+    let native = Image::<f32, MoiraiBackend, 4>::from_flat(
+        flat.clone(),
+        dims,
+        Point::<4>::new([
+            metadata.origin[0],
+            metadata.origin[1],
+            metadata.origin[2],
+            0.0,
+        ]),
+        Spacing::<4>::new([
+            metadata.spacing[0],
+            metadata.spacing[1],
+            metadata.spacing[2],
+            1.0,
+        ]),
+        Direction::<4>::identity(),
+    )
+    .expect("native carrier construction");
+    assert_eq!(
+        native.data_slice().expect("native host slice"),
+        flat.as_slice(),
+        "native carrier host slice must equal the flat buffer"
+    );
+}
