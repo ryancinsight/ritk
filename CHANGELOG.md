@@ -8,6 +8,23 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 523: Model Burn runtime deletion (MIG-523-01)
+
+### Changed
+- ONNX handling now exposes validated document parsing and initializer metadata
+  only; executable registration models remain explicit Coeus modules.
+
+### Removed
+- Removed `ritk-model` direct Burn dependencies, unused image/tensor adapters,
+  the non-executing operator registry, fabricated initializer payloads, and
+  unsupported conversion API.
+
+### Evidence
+- Model nextest 41/41, registration all-target compilation, warning-denied
+  Clippy, Rustdoc, doctests, and Burn audit reduction from 544 to 540 source
+  files and from 16 to 15 manifests.
+
+
 ## [Unreleased] — Sprint 522: SSM-Morph Coeus migration (MIG-522-01)
 
 ### Changed

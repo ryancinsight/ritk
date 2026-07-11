@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-523-01 [major] - Model Burn runtime surface deletion (DONE).**
+  Removed `ritk-model`'s direct Burn dependencies and unused Burn image/tensor
+  adapters. The ONNX API now truthfully parses and validates document metadata;
+  it no longer advertises nonexistent operator compilation or fabricates empty
+  initializer payloads. Evidence: model nextest 41/41, registration all-target
+  compilation, Clippy, Rustdoc, doctests, and audit reduction from 544 to 540
+  source files plus 16 to 15 Burn manifests.
+
+
 - **MIG-522-01 [major] - SSM-Morph Coeus graph migration (DONE).**
   Migrated the connected cross-scan, S6, VMamba, encoder, decoder, and
   registration inference graph to Coeus after adding `DepthwiseConv3d` in the

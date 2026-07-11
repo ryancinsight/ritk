@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-523-01 — Model Burn runtime surface deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the ONNX surface parsed metadata but did not compile or execute its advertised Burn operators.
+- [x] Replace backend-generic import claims with an honest validated document parser and initializer metadata.
+- [x] Delete unused Burn tensor conversions, operator registry, image adapter, direct Burn dependencies, placeholder conversions, and stale audit rows.
+- [x] Verify model nextest 41/41, registration all-target compilation, Clippy, Rustdoc, doctests, dependency metadata, and audit reduction.
+
 ## MIG-522-01 — SSM-Morph Coeus graph migration
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

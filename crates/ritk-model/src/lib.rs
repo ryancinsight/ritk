@@ -1,7 +1,6 @@
 pub mod affine;
 mod error;
 mod initialization;
-pub mod io;
 pub mod monai;
 pub mod onnx;
 pub mod ssmmorph;

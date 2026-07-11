@@ -7,7 +7,6 @@ manifest:crates/ritk-filter/Cargo.toml
 manifest:crates/ritk-image/Cargo.toml
 manifest:crates/ritk-interpolation/Cargo.toml
 manifest:crates/ritk-io/Cargo.toml
-manifest:crates/ritk-model/Cargo.toml
 manifest:crates/ritk-python/Cargo.toml
 manifest:crates/ritk-registration/Cargo.toml
 manifest:crates/ritk-segmentation/Cargo.toml
@@ -289,10 +288,6 @@ source:crates/ritk-io/src/format/tiff/mod.rs
 source:crates/ritk-io/src/format/vtk/mod.rs
 source:crates/ritk-io/tests/dicom_security.rs
 source:crates/ritk-macros/src/lib.rs
-source:crates/ritk-model/src/io/adapter.rs
-source:crates/ritk-model/src/onnx/importer.rs
-source:crates/ritk-model/src/onnx/mod.rs
-source:crates/ritk-model/src/onnx/tensor.rs
 source:crates/ritk-model/src/ssmmorph/decoder.rs
 source:crates/ritk-model/src/ssmmorph/encoder/stage.rs
 source:crates/ritk-model/src/ssmmorph/vmamba_block.rs

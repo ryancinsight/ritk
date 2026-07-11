@@ -1,102 +1,36 @@
-//! ONNX model importer.
+//! ONNX document parser.
 //!
-//! This module provides the main entry point for importing ONNX models
-//! into the Burn framework for deep learning registration.
+//! This module provides validated ONNX document parsing and metadata extraction.
 use crate::onnx::{OnnxError, OnnxGraph, OnnxMetadata, OnnxResult};
 use onnx_ir::OnnxGraphBuilder;
-use ritk_image::tensor::Backend;
 use std::collections::HashMap;
 use std::path::Path;
 
-/// Dynamic batch dimension handling for ONNX model import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BatchDimension {
-    /// Allow dynamic (unknown) batch sizes.
-    Dynamic,
-    /// Require static batch size at import time.
-    Static,
-}
+/// Validating ONNX document parser.
+#[derive(Debug, Clone, Copy)]
+pub struct OnnxParser;
 
-/// Graph structure validation during ONNX model import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GraphValidation {
-    /// Validate that all node inputs/outputs are connected.
-    Enabled,
-    /// Skip graph validation (faster but may silently accept malformed graphs).
-    Disabled,
-}
-
-/// Shape inference during ONNX model import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ShapeInference {
-    /// Infer tensor shapes from the graph structure.
-    Enabled,
-    /// Skip shape inference.
-    Disabled,
-}
-
-/// Configuration for ONNX model import.
-#[derive(Debug, Clone)]
-pub struct ImportConfig {
-    /// Maximum opset version to support
-    pub max_opset_version: i64,
-    /// Dynamic batch dimension handling
-    pub batch_dimension: BatchDimension,
-    /// Graph structure validation before conversion
-    pub graph_validation: GraphValidation,
-    /// Shape inference during import
-    pub shape_inference: ShapeInference,
-}
-
-impl Default for ImportConfig {
-    fn default() -> Self {
-        Self {
-            max_opset_version: 17,
-            batch_dimension: BatchDimension::Dynamic,
-            graph_validation: GraphValidation::Enabled,
-            shape_inference: ShapeInference::Enabled,
-        }
-    }
-}
-
-/// ONNX model importer.
-///
-/// Handles parsing and conversion of ONNX models to Burn modules.
-pub struct OnnxImporter {
-    config: ImportConfig,
-}
-
-impl OnnxImporter {
-    /// Create a new ONNX importer with the given configuration.
-    pub fn new(config: ImportConfig) -> Self {
-        Self { config }
+impl OnnxParser {
+    /// Create a validating parser.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
     }
 
-    /// Import an ONNX model from a file path.
+    /// Parse an ONNX document from a file path.
     ///
     /// This implementation uses `onnx-ir` to parse the model into a real ONNX
-    /// graph, then maps the parsed graph into the crate-local IR for validation
-    /// and later Burn conversion.
-    pub fn import<B: Backend, P: AsRef<Path>>(
-        &self,
-        path: P,
-        _device: &B::Device,
-    ) -> OnnxResult<OnnxImportedModel<B>> {
+    /// graph, then maps the parsed graph into the crate-local IR for validation.
+    pub fn parse<P: AsRef<Path>>(&self, path: P) -> OnnxResult<OnnxDocument> {
         let path = path.as_ref();
         let graph = self.parse_onnx_file(path)?;
 
-        if self.config.graph_validation == GraphValidation::Enabled {
-            graph
-                .validate()
-                .map_err(|e| OnnxError::InvalidModel { message: e })?;
-        }
+        graph
+            .validate()
+            .map_err(|message| OnnxError::InvalidModel { message })?;
 
         let metadata = self.extract_metadata(&graph)?;
-        Ok(OnnxImportedModel {
-            graph,
-            metadata,
-            _backend: std::marker::PhantomData,
-        })
+        Ok(OnnxDocument { graph, metadata })
     }
 
     /// Parse an ONNX file into an intermediate representation.
@@ -164,27 +98,18 @@ impl OnnxImporter {
                     domain: String::new(),
                     inputs: node.inputs().iter().map(|i| i.name.clone()).collect(),
                     outputs: node.outputs().iter().map(|o| o.name.clone()).collect(),
-                    // Attributes are stored per-node-type in onnx-ir but not re-exported
-                    // through the public API. Attribute access requires matching on the
-                    // Node enum variant directly, which is not exposed publicly.
-                    // TODO(ryancinsight): Map node attributes by matching on `Node` variant
-                    // once a public attribute accessor is available from onnx-ir.
+                    // The parser dependency exposes graph connectivity but not a
+                    // public type-erased attribute iterator.
                     attributes: HashMap::new(),
                     doc_string: None,
                 }
             })
             .collect();
 
-        // Map initializers from static input arguments (ValueSource::Static).
-        // These are ONNX graph inputs with embedded constant values (weights/biases).
-        // NOTE: arg.value() -> Option<TensorData> requires TensorDataExt trait which
-        // is in onnx_ir::ir::TensorDataExt but that trait is not in the public API.
-        // Until onnx-ir exposes a public tensor conversion API, initializers are
-        // tracked by name only — the actual data lives in onnx-ir's tensor store.
+        // Record only the initializer metadata exposed by the parser dependency.
+        // No executable weight tensor is fabricated from unavailable payload data.
         for arg in &parsed.inputs {
             if arg.is_static() {
-                // arg.value() is not available via the public onnx-ir API.
-                // Track the initializer name so is_initializer() returns true.
                 let elem_type = Self::map_dtype(arg.ty.elem_type());
                 let dims: Vec<i64> = arg
                     .ty
@@ -194,9 +119,8 @@ impl OnnxImporter {
                     .into_iter()
                     .map(|dim| dim as i64)
                     .collect();
-                // raw_data is empty until tensor data access is public in onnx-ir
-                let tensor = crate::onnx::OnnxTensor::new(arg.name.clone(), dims, elem_type);
-                graph.initializers.insert(arg.name.clone(), tensor);
+                let metadata = crate::onnx::OnnxValue::new(arg.name.clone(), elem_type, dims);
+                graph.initializers.insert(arg.name.clone(), metadata);
             }
         }
 
@@ -234,26 +158,21 @@ impl OnnxImporter {
     }
 }
 
-impl Default for OnnxImporter {
+impl Default for OnnxParser {
     fn default() -> Self {
-        Self::new(ImportConfig::default())
+        Self::new()
     }
 }
 
-/// An imported ONNX model.
-///
-/// This struct wraps the converted Burn module and provides
-/// metadata about the original ONNX model.
-pub struct OnnxImportedModel<B: Backend> {
+/// A validated ONNX document and its metadata.
+pub struct OnnxDocument {
     /// The ONNX computation graph
     graph: OnnxGraph,
     /// Model metadata
     metadata: OnnxMetadata,
-    /// Backend marker
-    _backend: std::marker::PhantomData<fn() -> B>,
 }
 
-impl<B: Backend> OnnxImportedModel<B> {
+impl OnnxDocument {
     /// Get the model metadata.
     pub fn metadata(&self) -> &OnnxMetadata {
         &self.metadata
@@ -269,27 +188,8 @@ impl<B: Backend> OnnxImportedModel<B> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_import_config_default() {
-        let config = ImportConfig::default();
-        assert_eq!(config.max_opset_version, 17);
-        assert_eq!(config.batch_dimension, BatchDimension::Dynamic);
-        assert_eq!(config.graph_validation, GraphValidation::Enabled);
-        assert_eq!(config.shape_inference, ShapeInference::Enabled);
-    }
-
-    #[test]
-    fn test_importer_creation() {
-        let config = ImportConfig {
-            max_opset_version: 15,
-            ..Default::default()
-        };
-        let importer = OnnxImporter::new(config);
-        assert_eq!(importer.config.max_opset_version, 15);
-    }
-
     /// Integration test: parse basic_model.onnx from onnx-ir test fixtures.
-    /// Verifies the importer correctly maps inputs, outputs, nodes, and initializers.
+    /// Verifies the parser maps inputs, outputs, nodes, and initializer metadata.
     #[test]
     fn test_parse_basic_model_onnx() {
         // Path to onnx-ir's basic_model.onnx fixture (copied to test_data/).
@@ -299,10 +199,11 @@ mod tests {
             .join("test_data")
             .join("basic_model.onnx");
 
-        let importer = OnnxImporter::default();
-        let graph = importer
-            .parse_onnx_file(&fixture_path)
-            .expect("parse_onnx_file should succeed for basic_model.onnx");
+        let parser = OnnxParser::new();
+        let document = parser
+            .parse(&fixture_path)
+            .expect("public parser should accept basic_model.onnx");
+        let graph = document.graph();
 
         // basic_model.onnx has 1 dynamic input, 1 output, and nodes:
         // Relu, PRelu, Add (see onnx-ir tests/basic.rs)
@@ -349,7 +250,7 @@ mod tests {
         for (name, tensor) in &graph.initializers {
             assert!(
                 matches!(
-                    tensor.data_type,
+                    tensor.value_info.elem_type,
                     crate::onnx::graph::OnnxElementType::Float
                         | crate::onnx::graph::OnnxElementType::Int64
                         | crate::onnx::graph::OnnxElementType::Int32
@@ -357,38 +258,26 @@ mod tests {
                 ),
                 "initializer '{}' has unexpected dtype {:?}",
                 name,
-                tensor.data_type
+                tensor.value_info.elem_type
             );
         }
 
         // Verify graph validation passes
-        graph
-            .validate()
-            .expect("graph should pass validation for basic_model.onnx");
+        assert_eq!(
+            document.metadata().producer_name.as_deref(),
+            Some("basic_model")
+        );
     }
 
     /// Verify parse_onnx_file returns an error for a non-existent path.
     #[test]
     fn test_parse_nonexistent_file() {
-        let importer = OnnxImporter::default();
+        let parser = OnnxParser::new();
         let path = std::path::Path::new("/nonexistent/path/model.onnx");
-        let result = importer.parse_onnx_file(path);
+        let result = parser.parse_onnx_file(path);
         assert!(
             result.is_err(),
             "parse_onnx_file should fail for nonexistent file"
         );
-    }
-
-    /// Verify opset version is bounded by config.
-    #[test]
-    fn test_opset_version_bounded() {
-        let config = ImportConfig {
-            max_opset_version: 11,
-            ..Default::default()
-        };
-        let importer = OnnxImporter::new(config);
-        // max_opset_version is a soft bound; the field is stored but not
-        // actively enforced during parse (opset validation happens at conversion time).
-        assert_eq!(importer.config.max_opset_version, 11);
     }
 }
