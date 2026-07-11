@@ -10,10 +10,8 @@ const BURN_TOKENS: &[&str] = &[
     "ritk_image::tensor",
     "TensorData",
     "Shape::new",
-    "Autodiff",
     "AutodiffBackend",
     "GradientsParams",
-    "Conv3d",
     "Param<",
 ];
 
@@ -425,7 +423,7 @@ mod tests {
         .unwrap();
         fs::write(
             root.join("crates/ritk-transform/src/lib.rs"),
-            "use coeus_tensor::Tensor;\nstruct Field<B>(Tensor<f32, B>);\n",
+            "use coeus_autograd::Var;\nuse coeus_nn::Conv3d;\nuse coeus_tensor::Tensor;\nstruct Field<B>(Tensor<f32, B>, Option<Var<f32, B>>, Option<Conv3d<f32, B>>);\n",
         )
         .unwrap();
 

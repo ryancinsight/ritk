@@ -1,5 +1,12 @@
 # RITK Backlog - Active Planning
 
+- **MIG-529-01 [patch] - Burn audit vocabulary precision (DONE).**
+  The audit no longer treats generic `Tensor<`, `Autodiff`, or `Conv3d`
+  vocabulary as proof of Burn ownership. It matches concrete Burn/RITK tensor
+  import boundaries while retaining Burn-specific record and gradient tokens.
+  Evidence: positive Burn and negative Coeus regression tests, xtask nextest
+  8/8, and a clean recalibrated audit at 14 manifests and 659 source files.
+
 - **MIG-528-01 [major] - Static displacement and SSMMorph native boundary (DONE).**
   Replace the remaining Coeus-output-to-Burn conversion as one connected
   scope. Native images feed SSMMorph through tensor views; its output remains

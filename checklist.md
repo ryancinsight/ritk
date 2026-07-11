@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-529-01 — Burn audit vocabulary precision
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Replace generic tensor, autodiff, and convolution tokens with concrete Burn import boundaries.
+- [x] Add positive Burn and negative Coeus classification regressions.
+- [x] Refresh the allowlist and verify xtask nextest 8/8 plus a clean 14-manifest/659-source audit.
+
 ## MIG-528-01 — Static displacement and SSMMorph native boundary
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

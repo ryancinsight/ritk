@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 529: Burn audit precision (MIG-529-01)
+
+### Fixed
+- Burn migration scanning now matches concrete Burn/RITK tensor boundaries
+  rather than substrate-neutral Tensor, autodiff, and convolution type names.
+
+### Evidence
+- Positive Burn and negative Coeus classification regressions, xtask nextest
+  8/8, and a clean recalibrated audit at 14 manifests and 659 source files.
+
 ## [Unreleased] — Sprint 528: Static field native boundary (MIG-528-01)
 
 ### Changed

@@ -8,6 +8,17 @@
 
 # RITK Gap Audit - Active
 
+## MIG-529-01 audit (2026-07-11)
+
+The migration detector conflated substrate-neutral type names with Burn:
+`Tensor<`, `Autodiff`, and `Conv3d` matched native Coeus field, model, and
+autograd code. Actual Burn use is now detected through `burn::`,
+`burn_ndarray`, and `ritk_image::tensor` boundaries plus Burn-specific record
+and gradient vocabulary. The negative regression contains Coeus Tensor, Var,
+and Conv3d types and must remain unclassified. The refreshed audit is clean at
+14 manifests and 659 source files; the 667-to-659 change is detector precision,
+not eight claimed migrations.
+
 ## MIG-528-01 audit (2026-07-11)
 
 The SSMMorph network was Coeus-native, but its only RITK integration boundary
