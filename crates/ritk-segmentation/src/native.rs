@@ -8,8 +8,10 @@ use crate::labeling::{
     connected_components_values, relabel::relabel_values, Connectivity, LabelStatistics,
     RelabelStatistics,
 };
+use crate::region_growing::connected_threshold::flood_fill;
 use crate::threshold::apply_binary_threshold_to_slice;
 use crate::threshold::multi_otsu::apply_multi_otsu_to_slice;
+use ritk_core::spatial::VoxelIndex;
 
 /// Apply an inclusive binary threshold to a Coeus-backed image.
 pub fn binary_threshold<B, const D: usize>(
@@ -116,6 +118,39 @@ where
     Image::from_flat_on(
         output,
         image.shape(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        backend,
+    )
+}
+
+/// Grow a six-connected threshold region on a Coeus-backed image.
+pub fn connected_threshold<B>(
+    image: &Image<f32, B, 3>,
+    seed: VoxelIndex,
+    lower: f32,
+    upper: f32,
+    backend: &B,
+) -> Result<Image<f32, B, 3>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    assert!(
+        lower <= upper,
+        "lower bound {lower} must be <= upper bound {upper}"
+    );
+    let shape = image.shape();
+    assert!(
+        seed[0] < shape[0] && seed[1] < shape[1] && seed[2] < shape[2],
+        "seed {:?} is out of bounds for image shape {:?}",
+        seed.as_array(),
+        shape
+    );
+    Image::from_flat_on(
+        flood_fill(image.data_slice()?, shape, seed, lower, upper),
+        shape,
         *image.origin(),
         *image.spacing(),
         *image.direction(),

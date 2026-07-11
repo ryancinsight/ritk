@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-574-01 [patch] - Snap native connected threshold (DONE).** Native BFS routing preserves six-connected seed reachability.
+
 - **MIG-573-01 [patch] - Snap native gradient diffusion (DONE).** The native
   boundary shares the canonical diffusion kernel, and Snap dispatches it
   directly. Exact constant-field regressions pass.

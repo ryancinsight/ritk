@@ -8,6 +8,9 @@
 
 # RITK Gap Audit - Active
 
+## MIG-574-01 audit (2026-07-11)
+Connected threshold now shares its canonical six-connected BFS kernel through the native segmentation boundary.
+
 ## MIG-573-01 audit (2026-07-11)
 
 Gradient anisotropic diffusion owned its complete ITK value kernel but Snap

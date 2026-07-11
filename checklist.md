@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-574-01 — Snap native connected threshold
+**Target version**: 0.14.0 migration batch
+- [x] Expose canonical BFS natively and route Snap; verify reachability.
+
 ## MIG-573-01 — Snap native gradient diffusion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

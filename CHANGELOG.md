@@ -8,6 +8,11 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 574: Snap native connected threshold (MIG-574-01)
+
+### Changed
+- Snap routes connected-threshold region growing through its Coeus-native BFS provider.
+
 ## [Unreleased] — Sprint 573: Snap native gradient diffusion (MIG-573-01)
 
 ### Added

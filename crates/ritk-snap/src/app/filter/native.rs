@@ -28,7 +28,9 @@ use ritk_filter::{
 use ritk_image::native::Image;
 use ritk_segmentation::{
     labeling::Connectivity as SegmentationConnectivity,
-    native::{binary_threshold, connected_components, multi_otsu, relabel_components},
+    native::{
+        binary_threshold, connected_components, connected_threshold, multi_otsu, relabel_components,
+    },
 };
 use ritk_spatial::{Direction, Point, Spacing};
 use std::ops::Deref;
@@ -93,6 +95,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::HistEq { .. }
             | FilterKind::Clahe { .. }
             | FilterKind::GradientAnisotropicDiffusion { .. }
+            | FilterKind::ConnectedThreshold { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
@@ -392,6 +395,19 @@ fn apply_supported_filter(
             conductance: *conductance,
         })
         .apply_native(&image, &backend),
+        FilterKind::ConnectedThreshold {
+            seed_z,
+            seed_y,
+            seed_x,
+            lower,
+            upper,
+        } => connected_threshold(
+            &image,
+            ritk_spatial::VoxelIndex::from([*seed_z, *seed_y, *seed_x]),
+            *lower,
+            *upper,
+            &backend,
+        ),
         FilterKind::BinaryThreshold {
             lower,
             upper,
@@ -1108,6 +1124,25 @@ mod tests {
         .expect("native gradient diffusion accepts a scalar volume");
 
         assert_eq!(output, vec![42.5; 4]);
+    }
+
+    #[test]
+    fn native_connected_threshold_keeps_only_the_seed_component() {
+        let mut volume = test_volume([1, 1, 4]);
+        volume.data = Arc::new(vec![1.0, 1.0, 0.0, 1.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::ConnectedThreshold {
+                seed_z: 0,
+                seed_y: 0,
+                seed_x: 0,
+                lower: 1.0,
+                upper: 1.0,
+            },
+        )
+        .expect("invariant: connected threshold has a native implementation")
+        .expect("native connected threshold accepts a scalar volume");
+        assert_eq!(output, vec![1.0, 1.0, 0.0, 0.0]);
     }
 
     #[test]
