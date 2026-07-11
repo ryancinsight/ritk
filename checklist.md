@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-564-01 — Snap native voting binary
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Extract the canonical Moirai cellular update values kernel.
+- [x] Add the native provider boundary and route Snap voting binary through it.
+- [x] Verify exact one-step birth behavior and warning-denied Clippy; commit and
+  advance the RITK gitlink.
+
 ## MIG-563-01 — Snap native label contour
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

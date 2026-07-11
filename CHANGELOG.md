@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 564: Snap native voting binary (MIG-564-01)
+
+### Added
+- VotingBinaryImageFilter now exposes a Coeus-native boundary over its shared
+  Moirai one-step cellular update kernel.
+
+### Changed
+- Snap routes voting binary natively.
+
+### Evidence
+- Exact one-step birth regression passes.
+
 ## [Unreleased] — Sprint 563: Snap native label contour (MIG-563-01)
 
 ### Added

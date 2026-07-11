@@ -20,7 +20,8 @@ use ritk_filter::{
     LabelContourImageFilter, LogImageFilter, MaskImageFilter, MeanImageFilter,
     MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
     RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
-    SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, WrapPadImageFilter,
+    SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter,
+    VotingBinaryImageFilter, WrapPadImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -115,6 +116,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::MorphologicalGradient { .. }
             | FilterKind::BinaryContour { .. }
             | FilterKind::LabelContour { .. }
+            | FilterKind::VotingBinary { .. }
     ) {
         return None;
     }
@@ -287,6 +289,20 @@ fn apply_supported_filter(
             background_value,
         } => LabelContourImageFilter::new(*connectivity, *background_value)
             .apply_native(&image, &backend),
+        FilterKind::VotingBinary {
+            radius,
+            birth_threshold,
+            survival_threshold,
+            foreground_value,
+            background_value,
+        } => VotingBinaryImageFilter::new(
+            *radius,
+            *birth_threshold,
+            *survival_threshold,
+            *foreground_value,
+            *background_value,
+        )
+        .apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -777,6 +793,26 @@ mod tests {
         .expect("native label contour succeeds");
 
         assert_eq!(output.data, vec![0.0, 1.0, 2.0]);
+    }
+
+    #[test]
+    fn native_voting_binary_applies_single_step_birth_rule() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 1.0, 0.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::VotingBinary {
+                radius: 1,
+                birth_threshold: 1,
+                survival_threshold: 1,
+                foreground_value: ForegroundValue::ONE,
+                background_value: 0.0,
+            },
+        )
+        .expect("invariant: voting binary has a native implementation")
+        .expect("native voting binary succeeds");
+
+        assert_eq!(output.data, vec![1.0, 1.0, 1.0]);
     }
 
     #[test]

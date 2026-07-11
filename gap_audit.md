@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-564-01 audit (2026-07-11)
+
+VotingBinary already used Moirai but tied its cellular update to legacy image
+construction. The update rule is now one shared values kernel for both image
+substrates, and Snap dispatches it natively. Exact regression pins the
+single-step birth transition.
+
 ## MIG-563-01 audit (2026-07-11)
 
 Label contour was a sequential legacy-image loop despite independent voxel

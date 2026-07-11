@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-564-01 [patch] - Snap native voting binary (DONE).**
+  VotingBinaryImageFilter shares its Moirai cellular update kernel with a
+  Coeus-native boundary, and Snap dispatches it natively. Exact birth-rule
+  regression passes.
+
 - **MIG-563-01 [patch] - Snap native label contour (DONE).**
   LabelContourImageFilter shares its new Moirai value kernel with a Coeus-native
   boundary, and Snap dispatches it natively. Exact label-boundary regression

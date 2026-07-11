@@ -82,59 +82,9 @@ impl VotingBinaryImageFilter {
     /// Apply a single voting step to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let [nz, ny, nx] = dims;
+        let out = self.vote_values(&vals, dims);
         let device = image.data().device();
-
-        let r = self.radius;
-        let birth = self.birth_threshold;
-        let survival = self.survival_threshold;
-        let fg = f32::from(self.foreground_value);
-        let bg = self.background_value;
-
-        let slab = ny * nx;
-        // PERF-378-01: parallelise over flat voxel index — each voxel reads a window from
-        // vals (read-only) with no inter-voxel output dependencies; bit-identical to serial.
-        let out = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
-            let iz = flat / slab;
-            let rem = flat - iz * slab;
-            let iy = rem / nx;
-            let ix = rem - iy * nx;
-
-            let v = vals[flat];
-            let is_fg = (v - fg).abs() < 1e-5;
-
-            let z0 = iz.saturating_sub(r);
-            let z1 = (iz + r).min(nz - 1);
-            let y0 = iy.saturating_sub(r);
-            let y1 = (iy + r).min(ny - 1);
-            let x0 = ix.saturating_sub(r);
-            let x1 = (ix + r).min(nx - 1);
-
-            let mut fg_count = 0usize;
-            for kz in z0..=z1 {
-                for ky in y0..=y1 {
-                    for kx in x0..=x1 {
-                        if (vals[kz * slab + ky * nx + kx] - fg).abs() < 1e-5 {
-                            fg_count += 1;
-                        }
-                    }
-                }
-            }
-
-            if !is_fg {
-                if fg_count >= birth {
-                    fg
-                } else {
-                    bg
-                }
-            } else if fg_count >= survival {
-                fg
-            } else {
-                bg
-            }
-        });
-
-        let shape = Shape::new([nz, ny, nx]);
+        let shape = Shape::new(dims);
         let data = TensorData::new(out, shape);
         let tensor = Tensor::<B, 3>::from_data(data, &device);
         Ok(Image::new(
@@ -143,6 +93,56 @@ impl VotingBinaryImageFilter {
             *image.spacing(),
             *image.direction(),
         ))
+    }
+
+    /// Apply a voting step to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.vote_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn vote_values(&self, values: &[f32], [nz, ny, nx]: [usize; 3]) -> Vec<f32> {
+        let (r, birth, survival) = (self.radius, self.birth_threshold, self.survival_threshold);
+        let (fg, bg) = (f32::from(self.foreground_value), self.background_value);
+        let slab = ny * nx;
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(values.len(), |flat| {
+            let z = flat / slab;
+            let rem = flat - z * slab;
+            let y = rem / nx;
+            let x = rem - y * nx;
+            let count = (z.saturating_sub(r)..=(z + r).min(nz - 1))
+                .flat_map(|z| (y.saturating_sub(r)..=(y + r).min(ny - 1)).map(move |y| (z, y)))
+                .flat_map(|(z, y)| {
+                    (x.saturating_sub(r)..=(x + r).min(nx - 1)).map(move |x| (z, y, x))
+                })
+                .filter(|&(z, y, x)| (values[z * slab + y * nx + x] - fg).abs() < 1e-5)
+                .count();
+            if (values[flat] - fg).abs() < 1e-5 {
+                if count >= survival {
+                    fg
+                } else {
+                    bg
+                }
+            } else if count >= birth {
+                fg
+            } else {
+                bg
+            }
+        })
     }
 }
 
