@@ -2,87 +2,6 @@ pub use ritk_tiff::{
     read_tiff, read_tiff_color_to_volume, write_tiff, TiffColorReader, TiffReader, TiffWriter,
 };
 
-use crate::domain::{ImageReader, ImageWriter};
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
-use std::path::Path;
-
-impl<B: Backend> ImageReader<Image<B, 3>> for TiffReader<B> {
-    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        self.read_image(path)
-            .map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-impl<B: Backend> ImageWriter<Image<B, 3>> for TiffWriter {
-    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
-        write_tiff(image, path).map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{TiffReader, TiffWriter};
-    use crate::domain::{ImageReader, ImageWriter};
-    use burn_ndarray::NdArray;
-    use ritk_core::image::Image;
-    use ritk_image::tensor::backend::Backend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
-    use ritk_spatial::{Direction, Point, Spacing};
-    use tempfile::tempdir;
-
-    type TestBackend = NdArray<f32>;
-
-    fn image_from_values(
-        device: &<TestBackend as Backend>::Device,
-        shape: [usize; 3],
-        values: Vec<f32>,
-    ) -> Image<TestBackend, 3> {
-        let tensor_data = TensorData::new(values, Shape::new(shape));
-        let tensor = Tensor::<TestBackend, 3>::from_data(tensor_data, device);
-        Image::new(
-            tensor,
-            Point::new([0.0, 0.0, 0.0]),
-            Spacing::new([1.0, 1.0, 1.0]),
-            Direction::identity(),
-        )
-    }
-
-    #[test]
-    fn tiff_reader_writer_adapters_delegate_to_authoritative_crate() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("adapter.tiff");
-        let device: <TestBackend as Backend>::Device = Default::default();
-
-        // Write via ImageWriter adapter.
-        let image = image_from_values(&device, [2, 3, 4], vec![1.5f32; 2 * 3 * 4]);
-        let writer = TiffWriter;
-        ImageWriter::<Image<TestBackend, 3>>::write(&writer, &path, &image)?;
-
-        // Read via ImageReader adapter.
-        let reader = TiffReader::<TestBackend>::new(device);
-        let loaded = ImageReader::<Image<TestBackend, 3>>::read(&reader, &path)?;
-
-        assert_eq!(
-            loaded.shape(),
-            [2, 3, 4],
-            "shape must be preserved through adapter round-trip"
-        );
-
-        loaded.with_data_slice(|loaded_vals| {
-            for (i, &v) in loaded_vals.iter().enumerate() {
-                assert!(
-                    (v - 1.5).abs() < 1e-6,
-                    "voxel[{}]: expected 1.5, got {}",
-                    i,
-                    v,
-                );
-            }
-        });
-        Ok(())
-    }
-}
-
 /// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
 ///
 /// Transitional module: names inside are the plain end-state names; the
@@ -131,6 +50,49 @@ pub mod native {
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
             ritk_tiff::native::write_tiff(image, path, &self.backend).map_err(to_io_err)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use coeus_core::SequentialBackend;
+        use ritk_spatial::{Direction, Point, Spacing};
+        use tempfile::tempdir;
+
+        /// Trait-dispatched round trip: write through `ImageWriter`, read back
+        /// through `ImageReader`, exact voxel + shape parity — the unified
+        /// contract is usable end-to-end on the Atlas substrate.
+        #[test]
+        fn native_contract_round_trips_tiff() {
+            let dims = [2usize, 3, 4];
+            let n = dims[0] * dims[1] * dims[2];
+            let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.5 - 3.0).collect();
+            let image = Image::from_flat_on(
+                voxels.clone(),
+                dims,
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+                &SequentialBackend,
+            )
+            .expect("coeus image");
+
+            let dir = tempdir().expect("tempdir");
+            let path = dir.path().join("contract.tiff");
+
+            let writer = TiffWriter::new(SequentialBackend);
+            ImageWriter::write(&writer, &path, &image).expect("contract write");
+
+            let reader = TiffReader::new(SequentialBackend);
+            let loaded = ImageReader::read(&reader, &path).expect("contract read");
+
+            assert_eq!(loaded.shape(), dims, "shape round-trip");
+            assert_eq!(
+                loaded.data_slice().expect("contiguous"),
+                voxels.as_slice(),
+                "voxels must round-trip exactly through the trait contract"
+            );
         }
     }
 }

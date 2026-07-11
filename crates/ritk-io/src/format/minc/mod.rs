@@ -1,84 +1,5 @@
 pub use ritk_minc::{read_minc, write_minc, MincReader, MincWriter};
 
-use crate::domain::{ImageReader, ImageWriter};
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
-use std::path::Path;
-
-impl<B: Backend> ImageReader<Image<B, 3>> for MincReader<B> {
-    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        self.read_image(path)
-            .map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-impl<B: Backend> ImageWriter<Image<B, 3>> for MincWriter {
-    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
-        write_minc(image, path).map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{MincReader, MincWriter};
-    use crate::domain::{ImageReader, ImageWriter};
-    use burn_ndarray::NdArray;
-    use ritk_core::image::Image;
-    use ritk_image::tensor::backend::Backend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
-    use ritk_spatial::{Direction, Point, Spacing};
-    use tempfile::tempdir;
-
-    type TestBackend = NdArray<f32>;
-
-    fn make_image(
-        device: &<TestBackend as Backend>::Device,
-        shape: [usize; 3],
-        values: Vec<f32>,
-    ) -> Image<TestBackend, 3> {
-        let td = TensorData::new(values, Shape::new(shape));
-        let tensor = Tensor::<TestBackend, 3>::from_data(td, device);
-        Image::new(
-            tensor,
-            Point::new([0.0, 0.0, 0.0]),
-            Spacing::new([1.0, 1.0, 1.0]),
-            Direction::identity(),
-        )
-    }
-
-    #[test]
-    fn minc_writer_adapter_produces_hdf5_signature() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("adapter.mnc");
-        let device: <TestBackend as Backend>::Device = Default::default();
-
-        let image = make_image(&device, [2, 2, 2], vec![1.0f32; 8]);
-        let writer = MincWriter;
-        ImageWriter::<Image<TestBackend, 3>>::write(&writer, &path, &image)?;
-
-        assert!(path.exists(), "adapter must create file");
-        let bytes = std::fs::read(&path)?;
-        assert_eq!(
-            &bytes[0..8],
-            b"\x89HDF\r\n\x1a\n",
-            "output must start with HDF5 signature"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn minc_reader_adapter_requires_valid_hdf5() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("bad.mnc");
-        std::fs::write(&path, b"not an hdf5 file").unwrap();
-        let device: <TestBackend as Backend>::Device = Default::default();
-        let reader = MincReader::<TestBackend>::new(device);
-        let result = ImageReader::<Image<TestBackend, 3>>::read(&reader, &path);
-        assert!(result.is_err(), "reading invalid HDF5 must fail");
-    }
-}
-
 /// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
 ///
 /// Transitional module: names inside are the plain end-state names; the
@@ -127,6 +48,55 @@ pub mod native {
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
             ritk_minc::native::write_minc(image, path, &self.backend).map_err(to_io_err)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use coeus_core::SequentialBackend;
+        use ritk_spatial::{Direction, Point, Spacing};
+        use tempfile::tempdir;
+
+        /// The native MINC writer emits a valid HDF5 container through the
+        /// unified `ImageWriter` contract.
+        #[test]
+        fn native_writer_produces_hdf5_signature() {
+            let image = Image::from_flat_on(
+                vec![1.0f32; 8],
+                [2usize, 2, 2],
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+                &SequentialBackend,
+            )
+            .expect("coeus image");
+
+            let dir = tempdir().expect("tempdir");
+            let path = dir.path().join("adapter.mnc");
+
+            let writer = MincWriter::new(SequentialBackend);
+            ImageWriter::write(&writer, &path, &image).expect("contract write");
+
+            let bytes = std::fs::read(&path).expect("read back");
+            assert_eq!(
+                &bytes[0..8],
+                b"\x89HDF\r\n\x1a\n",
+                "output must start with HDF5 signature"
+            );
+        }
+
+        /// The native MINC reader rejects a non-HDF5 payload with a typed error
+        /// through the unified `ImageReader` contract.
+        #[test]
+        fn native_reader_requires_valid_hdf5() {
+            let dir = tempdir().expect("tempdir");
+            let path = dir.path().join("bad.mnc");
+            std::fs::write(&path, b"not an hdf5 file").expect("write bad file");
+
+            let reader = MincReader::new(SequentialBackend);
+            let result = ImageReader::read(&reader, &path);
+            assert!(result.is_err(), "reading invalid HDF5 must fail");
         }
     }
 }
