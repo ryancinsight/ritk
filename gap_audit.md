@@ -8,6 +8,26 @@
 
 # RITK Gap Audit - Active
 
+## MIG-500-02 — Rejected shim relocation discarded; truthful baseline (2026-07-11)
+
+The 122-file uncommitted shim relocation rejected under MIG-500-01 (see below)
+was discarded (`git restore .`, recovery patch preserved in the session
+scratchpad) on user authorization, returning the tree to a clean base at
+`efacdd6f`. Consequence: the `burn-migration-audit` metric is now TRUTHFUL —
+the shim's `use ritk_image::burn::…` re-exports had falsely reported many crates
+as manifest `dep=false`. Truthful baseline: **every crate is `dep=true`** (burn
+genuinely declared in every manifest). Token surface by crate: ritk-registration
+1162 (autodiff core), ritk-filter 559, ritk-interpolation 515, ritk-transform
+373, ritk-model 309, ritk-segmentation 216, ritk-io 204, ritk-cli 136, ritk-image
+108, ritk-python 73, + leaf formats (nrrd/snap/nifti/metaimage/statistics 27–34,
+wgpu-compat/tensor-ops/core/tiff 19–21, jpeg/png/mgh/minc 9–14). Architectural
+blocker confirmed (ADR 0002): the `<B: Backend> Image<B,D>` boundary makes every
+crate consumed by another still-burn crate, so the smallest genuine removal unit
+is a multi-crate top-down [major] — NOT a coeus capability gap
+(`ritk_image::native::Image<T,MoiraiBackend,D>` + `Image::from_flat` exist).
+Next clean increment: DICOM-color-atlas + ritk-snap native cut via a shared
+substrate-agnostic `load_color_volume_flat` core.
+
 ## MIG-500-01 audit (2026-07-10)
 
 The uncommitted 112-file cleanup is not a migration. It centralizes
