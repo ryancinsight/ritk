@@ -23,7 +23,8 @@ traits require `AutodiffModule`. Deleting only `module.rs`, hiding it from the
 audit, or wrapping it with a native facade would remove capability or create a
 compatibility shim.
 
-The current Coeus contracts are insufficient for a native same-change cutover:
+At decision time, the Coeus contracts were insufficient for a native
+same-change cutover:
 
 - `coeus_nn::Module::parameters()` returns unnamed `Var`s even though
   `Parameter` owns a name;
@@ -114,3 +115,11 @@ parameter or optimizer responsibilities.
 Revisit only if Coeus gains an equivalent dimension-complete field primitive
 or an external persisted-checkpoint requirement proves that the current Burn
 record format must remain readable beyond the migration window.
+
+## Outcome
+
+MIG-526 completes the selected design. The field uses Coeus variables and
+named bounded tensor state, the replicated-border dimension-generic
+interpolation family supplies values and gradients in 2-D and 3-D, and the
+registration seam consumes named Coeus optimizers. The Burn module and record
+surface is deleted rather than adapted.

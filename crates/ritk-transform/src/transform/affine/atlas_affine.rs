@@ -9,7 +9,7 @@
 //! translation / center fields but stores them as plain `Vec<f32>` host
 //! slices (no `Param<Tensor>` / `Module` derive) so the compute step can
 //! route through the canonical host-slice path. `coeus_nn::Module::forward`
-//! deep contracts are reserved for sub-batch #5 [major] (the actual
+//! deep contracts are reserved for sub-batch #5 \[major\] (the actual
 //! neural-network forward pass migration); sub-batch #3.f exposes the
 //! data-shape surface only.
 //!
@@ -32,12 +32,12 @@ use ritk_tensor_ops::native as tensor_ops;
 
 // ── Sister struct ─────────────────────────────────────────────────────────
 
-/// Atlas-side sister struct to [`super::AffineTransform`].
+/// Atlas-side sister struct to `AffineTransform`.
 ///
 /// Field shape mirrors the legacy (matrix / translation / center) but
 /// stored on plain host slices (`Vec<f32>`) so the construct-time path
 /// stays compute-backend-agnostic. **No** `coeus_nn::Module` derive —
-/// deep forward contracts are reserved for sub-batch #5 [major] per ADR
+/// deep forward contracts are reserved for sub-batch #5 \[major\] per ADR
 /// 0012 §Decision §3.
 #[derive(Debug, Clone)]
 pub struct AtlasAffineTransform<B: ComputeBackend, const D: usize> {
@@ -107,7 +107,7 @@ impl std::error::Error for AtlasAffineError {}
 impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
     /// Construct a new Atlas affine transform from host-slice params.
     ///
-    /// Sister to [`super::AffineTransform::new`]. The matrix is stored
+    /// Sister to `AffineTransform::new`. The matrix is stored
     /// row-major as a flat `&[f32]` slice of length `D * D`; translation
     /// and center are `&[f32]` slices of length `D`.
     pub fn try_new(
@@ -143,7 +143,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
     }
 
     /// Panicking variant for parity with the legacy
-    /// [`super::AffineTransform::new`] (which panics on matrix-shape
+    /// `AffineTransform::new` (which panics on matrix-shape
     /// conflict). Test-rewrite callers use this entry point for
     /// shape-equivalence assertions against the legacy oracle.
     pub fn construct(matrix: &[f32], translation: &[f32], center: &[f32]) -> Self {
@@ -180,7 +180,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
 
     /// Apply the transform to a rank-2 `[N, D]` points carrier.
     ///
-    /// Sister to [`super::AffineTransform::transform_points`]. Computes
+    /// Sister to `AffineTransform::transform_points`. Computes
     /// `T(x) = A(x - c) + c + t` per point on the host slice and
     /// re-wraps the result in the Atlas-typed image carrier.
     /// `points` is always rank-2 with shape `[N, D]` (last axis width =

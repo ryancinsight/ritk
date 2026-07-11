@@ -410,7 +410,6 @@ source:crates/ritk-registration/tests/common/mod.rs
 source:crates/ritk-registration/tests/correlation_ratio_test.rs
 source:crates/ritk-registration/tests/ct_mri_dicom_registration_test.rs
 source:crates/ritk-registration/tests/diffeomorphic_ssmmorph_test.rs
-source:crates/ritk-registration/tests/displacement_registration_test.rs
 source:crates/ritk-registration/tests/lncc_test.rs
 source:crates/ritk-registration/tests/metric_integration_test.rs
 source:crates/ritk-registration/tests/mse_test.rs
@@ -540,11 +539,7 @@ source:crates/ritk-transform/src/transform/bspline/mod.rs
 source:crates/ritk-transform/src/transform/bspline/tests_bspline.rs
 source:crates/ritk-transform/src/transform/composition/chain.rs
 source:crates/ritk-transform/src/transform/displacement_field/core.rs
-source:crates/ritk-transform/src/transform/displacement_field/grid.rs
-source:crates/ritk-transform/src/transform/displacement_field/module.rs
-source:crates/ritk-transform/src/transform/displacement_field/resample.rs
 source:crates/ritk-transform/src/transform/displacement_field/static_/field.rs
-source:crates/ritk-transform/src/transform/displacement_field/transform.rs
 source:crates/ritk-transform/tests/bspline_test.rs
 source:crates/ritk-transform/tests/transform_test.rs
 source:crates/ritk-wgpu-compat/src/lib.rs

@@ -22,7 +22,11 @@ where
     B: coeus_core::Backend + ComputeBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
-    let output = coeus_ops::trilinear_interpolation(image.data(), grid.data())?;
+    let output = coeus_ops::linear_interpolation::<3, _, _>(
+        image.data(),
+        grid.data(),
+        coeus_ops::Replicate,
+    )?;
     Image::new(
         output,
         *image.origin(),

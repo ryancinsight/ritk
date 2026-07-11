@@ -56,7 +56,11 @@ where
         let warped = matmul(&theta, &grid);
         let warped = reshape(&warped, [batch, 3, depth, height, width]);
         let pixel_grid = denormalize(&warped, batch, depth, height, width);
-        Ok(coeus_autograd::trilinear_interpolation(image, &pixel_grid)?)
+        Ok(coeus_autograd::linear_interpolation::<3, _, _>(
+            image,
+            &pixel_grid,
+            coeus_ops::Replicate,
+        )?)
     }
 }
 

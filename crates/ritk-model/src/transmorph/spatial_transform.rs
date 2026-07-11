@@ -1,6 +1,6 @@
 //! Differentiable displacement-field sampling.
 
-use coeus_autograd::{add, cat, trilinear_interpolation, Var};
+use coeus_autograd::{add, cat, linear_interpolation, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
@@ -74,7 +74,11 @@ where
         let sample_width = add(&flow_width, &width_axis);
         let sampling_grid = cat(&[&sample_depth, &sample_height, &sample_width], 1);
 
-        Ok(trilinear_interpolation(image, &sampling_grid)?)
+        Ok(linear_interpolation::<3, _, _>(
+            image,
+            &sampling_grid,
+            coeus_ops::Replicate,
+        )?)
     }
 }
 

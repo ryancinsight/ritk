@@ -1,4 +1,4 @@
-use coeus_autograd::{add, cat, mean, mul, scalar_div, slice, sub, Var};
+use coeus_autograd::{add, cat, mean, mul, scalar_div, slice, sub, Parameter, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, MoiraiBackend};
 use coeus_nn::Module;
 use coeus_ops::BackendOps;
@@ -64,9 +64,19 @@ where
         Ok((warped, flow, theta))
     }
 
-    fn parameters(&self) -> Vec<Var<f32, B>> {
-        let mut parameters = self.affine.parameters();
-        parameters.extend(self.transmorph.parameters());
+    fn named_parameters(&self) -> Vec<Parameter<f32, B>> {
+        let mut parameters = self
+            .affine
+            .named_parameters()
+            .into_iter()
+            .map(|parameter| parameter.with_prefix("affine"))
+            .collect::<Vec<_>>();
+        parameters.extend(
+            self.transmorph
+                .named_parameters()
+                .into_iter()
+                .map(|parameter| parameter.with_prefix("transmorph")),
+        );
         parameters
     }
 
@@ -79,7 +89,7 @@ where
 
 fn main() {
     let mut model = CombinedModel::<MoiraiBackend>::new();
-    let mut optimizer = Adam::new(model.parameters(), 1e-4, 0.9, 0.999, 1e-8);
+    let mut optimizer = Adam::new(model.named_parameters(), 1e-4, 0.9, 0.999, 1e-8);
     let shape = [1, 1, 32, 32, 32];
 
     for epoch in 0..5 {
@@ -96,7 +106,13 @@ fn main() {
 
         loss.backward();
         optimizer.step();
-        model.load_parameters(&optimizer.params);
+        model.load_parameters(
+            &optimizer
+                .params
+                .iter()
+                .map(|parameter| parameter.var.clone())
+                .collect::<Vec<_>>(),
+        );
         optimizer.zero_grad();
 
         println!(

@@ -64,8 +64,26 @@ owned by `coeus-autograd`; SGD, Adam, AdamW, RMSProp, and AdaGrad retain names;
 module loading rejects count or hierarchical-name divergence; and Python
 optimizers require explicit `(name, tensor)` pairs. Evidence: optimizer
 nextest 20/20, cross-boundary nextest 21/21, Burn parity 144/144,
-warning-denied Clippy, Rustdoc, and doctests. All provider prerequisites are
-closed; the atomic RITK field cutover remains open.
+warning-denied Clippy, Rustdoc, and doctests. At that provider checkpoint all
+prerequisites were closed and only the atomic RITK field cutover remained.
+
+The atomic RITK cutover is now complete. `DisplacementField` owns Coeus
+`Var<f32, B>` components, validated physical geometry, deterministic named
+`StateDict` entries, and one dimension-generic sampling path over Coeus
+`linear_interpolation::<D>` with the `Replicate` ZST. The registration crate
+implements its native transform seam directly for the 3-D field and verifies
+named Adam ownership without Burn visitors. The legacy `module.rs`, Burn
+records, Burn autodiff implementation, old interpolation symbol call sites,
+and five allowlist rows are removed.
+
+Evidence tier: compile-time 2-D/3-D dimension restriction; exact 2-D and 3-D
+values; exact center interpolation gradients; bounded archive round trip and
+typed missing-state and point-shape rejection; constant-field resampling;
+named optimizer objective reduction; transform nextest 75/75; registration
+nextest 744/744; warning-denied Clippy; Rustdoc; doctests; and audit reduction
+from 538 to 533 source files. `core.rs` remains in the heuristic allowlist
+solely because the audit treats the canonical Coeus `Tensor<` spelling as a
+Burn-surface token.
 
 ## MIG-524-01 audit (2026-07-10)
 

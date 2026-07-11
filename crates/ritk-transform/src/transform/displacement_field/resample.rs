@@ -1,74 +1,74 @@
-use super::core::DisplacementField;
+use super::core::{DisplacementField, DisplacementFieldError};
+use coeus_autograd::{reshape, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_ops::{BackendOps, Dimension, InterpolationError, SupportedDimension};
+use coeus_tensor::Tensor;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_interpolation::{Interpolator, LinearInterpolator};
 
-impl<B: Backend, const D: usize> DisplacementField<B, D> {
-    /// # Theorem: Continuous Field Resampling
-    /// Maps a pre-existing vector deformation field across newly defined rigid geometries.
-    /// Let $F(x) \subset \mathbb{R}^D$ define an explicit functional vector map constraint, resampling formulates:
-    /// $$ F'(y) = F( T^{-1}(y) ) $$
-    ///
-    /// By determining affine target positions dynamically matching local space intervals exactly, linear projection
-    /// enforces mathematical equivalence mapping bounded geometric states precisely onto the local continuous components.
+/// Resampling failure for a trainable displacement field.
+#[derive(Debug, thiserror::Error)]
+pub enum ResampleError {
+    /// Interpolation rejected the field or coordinate grid.
+    #[error(transparent)]
+    Interpolation(#[from] InterpolationError),
+    /// The reconstructed field violated a construction invariant.
+    #[error(transparent)]
+    Field(#[from] DisplacementFieldError),
+}
+
+impl<B: Backend + BackendOps<f32>, const D: usize> DisplacementField<B, D>
+where
+    Dimension<D>: SupportedDimension,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Resample the field onto a new regular physical grid.
     pub fn resample(
         &self,
         new_shape: [usize; D],
         new_origin: Point<D>,
         new_spacing: Spacing<D>,
         new_direction: Direction<D>,
-    ) -> Self {
-        let device = self.components[0].device();
-        let interpolator = LinearInterpolator::new();
-
-        let new_indices = ritk_core::image::grid::generate_grid(new_shape, &device);
-
-        let mut m_data = Vec::with_capacity(D * D);
-        for k in 0..D {
-            for c in 0..D {
-                let val = (new_direction[(c, k)] * new_spacing[k]) as f32;
-                m_data.push(val);
-            }
-        }
-        let m_tensor =
-            Tensor::<B, 2>::from_data(TensorData::new(m_data, Shape::new([D, D])), &device);
-
-        let origin_vec: Vec<f32> = (0..D).map(|i| new_origin[i] as f32).collect();
-        let origin_tensor =
-            Tensor::<B, 1>::from_data(TensorData::new(origin_vec, Shape::new([D])), &device)
-                .reshape([1, D]);
-
-        let [n_points, _] = new_indices.dims();
-        let num_chunks = n_points.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
-
-        let mut component_chunks: Vec<Vec<Tensor<B, 1>>> = vec![Vec::with_capacity(num_chunks); D];
-
-        for i in 0..num_chunks {
-            let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
-            let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n_points);
-            let chunk_range = start..end;
-            let chunk_indices = new_indices.clone().slice([chunk_range]);
-
-            let offset = chunk_indices.matmul(m_tensor.clone());
-            let world = offset + origin_tensor.clone();
-
-            let old_indices = self.world_to_index_tensor(world);
-
-            for (d, cc) in component_chunks.iter_mut().enumerate() {
-                let comp = &self.components[d].val();
-                let val = interpolator.interpolate(comp, old_indices.clone());
-                cc.push(val);
-            }
-        }
-
-        let mut final_components = Vec::with_capacity(D);
-        for cc in component_chunks.into_iter() {
-            let flat = Tensor::cat(cc, 0);
-            let reshaped = flat.reshape(Shape::new(new_shape));
-            final_components.push(reshaped);
-        }
-
-        Self::new(final_components, new_origin, new_spacing, new_direction)
+    ) -> Result<Self, ResampleError> {
+        let points = physical_grid(new_shape, new_origin, new_spacing, new_direction);
+        let points = Var::new(
+            Tensor::from_slice_on([points.len() / D, D], &points, &B::default()),
+            false,
+        );
+        let components = self
+            .sample_components(&points, coeus_ops::Replicate)?
+            .iter()
+            .map(|sampled| reshape(sampled, new_shape).tensor)
+            .collect::<Vec<_>>();
+        Ok(Self::new(
+            components,
+            new_origin,
+            new_spacing,
+            new_direction,
+        )?)
     }
+}
+
+fn physical_grid<const D: usize>(
+    shape: [usize; D],
+    origin: Point<D>,
+    spacing: Spacing<D>,
+    direction: Direction<D>,
+) -> Vec<f32> {
+    let points = shape.iter().product::<usize>();
+    let mut coordinates = Vec::with_capacity(points * D);
+    for linear in 0..points {
+        let mut remainder = linear;
+        let mut index = [0usize; D];
+        for axis in (0..D).rev() {
+            index[axis] = remainder % shape[axis];
+            remainder /= shape[axis];
+        }
+        for row in 0..D {
+            let offset = (0..D)
+                .map(|column| direction[(row, column)] * spacing[column] * index[column] as f64)
+                .sum::<f64>();
+            coordinates.push((origin[row] + offset) as f32);
+        }
+    }
+    coordinates
 }

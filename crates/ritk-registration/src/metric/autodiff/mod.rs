@@ -30,6 +30,7 @@
 //!   [`ncc::Ncc`]).
 
 pub mod driver;
+mod field;
 pub mod metric;
 pub mod mse;
 pub mod ncc;

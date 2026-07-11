@@ -19,6 +19,29 @@
   retaining optimizer order and gradient identity.
 - Coeus `2e4ee3d` now makes named parameters the canonical optimizer-owned
   state and validates complete hierarchical names during module loading.
+- The trainable displacement field now owns Coeus autodiff components,
+  validated physical geometry, bounded named state, dimension-generic
+  differentiable interpolation, and native registration-seam dispatch.
+- RITK Coeus dependencies now consume the synchronized 0.8.0 provider graph;
+  model and interpolation call sites use the canonical
+  `linear_interpolation::<D>` operation.
+
+### Removed
+- Removed the trainable field's Burn `Module`/`AutodiffModule` visitors,
+  record types, device mappers, legacy interpolation coupling, and five stale
+  migration-allowlist entries.
+
+### Breaking
+- `DisplacementField` and `DisplacementFieldTransform` now use Coeus backends
+  and variables. Field construction is fallible, and the transform constructor
+  no longer accepts a runtime interpolator because `Replicate` is its static
+  boundary policy.
+
+### Migration
+- Construct components with `coeus_tensor::Tensor<f32, B>`, handle
+  `DisplacementField::new` as a typed `Result`, construct the transform with
+  `DisplacementFieldTransform::new(field)`, and optimize its
+  `Module::named_parameters()` through `coeus-optim`.
 
 ### Evidence
 - Deterministic bytes, borrowed zero-copy inspection, exact materialization,
@@ -28,7 +51,10 @@
   doctests; named-parameter exact paths, uniqueness, gradient identity,
   nextest 410/410, Clippy, Rustdoc, and doctests; optimizer nextest 20/20,
   cross-boundary nextest 21/21, Burn parity 144/144, Clippy, Rustdoc, and
-  doctests. No RITK Burn surface is claimed removed by these provider increments.
+  doctests; exact 2-D/3-D field values and gradients, bounded state round trip,
+  typed negative coverage, resampling preservation, native named-Adam loss
+  reduction, transform nextest 75/75, registration nextest 744/744, Clippy,
+  Rustdoc, doctests, and audit reduction from 538 to 533 source files.
 
 ## [Unreleased] — Sprint 525: Core geometry cutover (MIG-525-01)
 

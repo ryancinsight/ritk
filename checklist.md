@@ -10,7 +10,7 @@
 
 ## MIG-526-01 — Trainable displacement-field native cutover
 **Target version**: 0.14.0 migration batch
-**Sprint phase**: Foundation
+**Sprint phase**: Closure
 
 - [x] Pin the Coeus parameter persistence and native 2-D/3-D interpolation contracts in ADR 0004.
 - [x] Enumerate every registration optimizer and transform consumer that must migrate atomically.
@@ -22,8 +22,8 @@
       optimizer-order and gradient-buffer identity preserved.
 - [x] Publish Coeus named optimizer ownership (`2e4ee3d`) with typed
       name-validated module loading and Python `(name, tensor)` boundaries.
-- [ ] Replace the complete trainable field graph and delete Burn module/record plumbing.
-- [ ] Verify value, gradient, persistence, resampling, and downstream registration contracts.
+- [x] Replace the complete trainable field graph and delete Burn module/record plumbing.
+- [x] Verify value, gradient, persistence, resampling, and downstream registration contracts.
 
 ## MIG-525-01 — Core geometry test cutover
 **Target version**: 0.14.0 migration batch

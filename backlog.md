@@ -1,6 +1,6 @@
 # RITK Backlog - Active Planning
 
-- **MIG-526-01 [major] - Trainable displacement-field native cutover (IN PROGRESS).**
+- **MIG-526-01 [major] - Trainable displacement-field native cutover (DONE).**
   Replace Burn parameter visitation, records, autodiff, interpolation, and
   optimizer coupling as one vertical Coeus scope. Definition of ready: pin the
   Coeus parameter persistence contract, native 2-D/3-D interpolation contract,
@@ -17,7 +17,14 @@
   order and gradient-buffer identity. Coeus commit `2e4ee3d` closes native
   optimizer consumption: every optimizer owns canonical named parameters,
   module loading validates the complete hierarchical inventory, and the PyO3
-  boundary requires explicit `(name, tensor)` pairs.
+  boundary requires explicit `(name, tensor)` pairs. RITK now stores field
+  components as Coeus autodiff variables, samples them through the canonical
+  dimension-generic interpolation operation, persists components and geometry
+  in bounded named state, and consumes named Coeus Adam through the native
+  registration seam. The Burn module/record implementation and five stale
+  allowlist entries are deleted. Evidence: transform nextest 75/75,
+  registration nextest 744/744, warning-denied Clippy, Rustdoc, doctests, and
+  audit reduction from 538 to 533 source files.
 
 - **MIG-525-01 [major] - Core geometry test cutover (DONE).**
   The Coeus-backed image now owns fallible physical/index mappings. Core

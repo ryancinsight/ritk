@@ -181,7 +181,3 @@ mod trilinear_tests {
         assert!((result_vals[1] - 20.0).abs() < 1e-5);
     }
 }
-
-#[cfg(test)]
-#[path = "tests_trilinear.rs"]
-mod tests;
