@@ -19,8 +19,8 @@ use std::path::PathBuf;
 use tracing::info;
 
 use super::{
-    infer_format, is_native_read_capable, is_native_write_capable, read_image, read_image_native,
-    write_image, write_image_native,
+    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
+    write_image_native,
 };
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
@@ -106,24 +106,20 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         })?,
     };
 
-    // ADR 0003 Phase A: route through the Atlas-native path when both ends
-    // have a native reader/writer; otherwise fall back to the Burn path
-    // (currently `dicom` and `vtk` on either side). This avoids converting
-    // between the two image types mid-command — each command run picks one
-    // substrate for its whole read→write span.
-    let shape;
-    let spacing;
-    if is_native_read_capable(in_fmt) && is_native_write_capable(out_fmt) {
-        let image = read_image_native(&args.input)?;
-        shape = image.shape();
-        spacing = *image.spacing();
-        write_image_native(&args.output, &image, out_fmt)?;
-    } else {
-        let image = read_image(&args.input)?;
-        shape = image.shape();
-        spacing = *image.spacing();
-        write_image(&args.output, &image, out_fmt)?;
-    }
+    anyhow::ensure!(
+        is_native_read_capable(in_fmt),
+        "convert does not support {:?} input until its native reader exists",
+        in_fmt
+    );
+    anyhow::ensure!(
+        is_native_write_capable(out_fmt),
+        "convert does not support {:?} output until its native writer exists",
+        out_fmt
+    );
+    let image = read_image_native(&args.input)?;
+    let shape = image.shape();
+    let spacing = *image.spacing();
+    write_image_native(&args.output, &image, out_fmt)?;
 
     println!(
         "Converted {} \u{2192} {} (shape: {}x{}x{}, spacing: {:.4}\u{d7}{:.4}\u{d7}{:.4})",

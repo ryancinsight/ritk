@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-598-01 — Native-only CLI conversion
+**Target version**: 0.14.0 migration batch
+- [x] Delete the conversion command's runtime Burn fallback.
+- [x] Reject input/output formats that have no native I/O implementation.
+
 ## MIG-597-01 — Native seeded speckle noise
 **Target version**: 0.14.0 migration batch
 - [x] Share seeded gamma-sampled speckle noise with native images.

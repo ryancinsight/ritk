@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-598-01 audit (2026-07-11)
+
+`ritk convert` now owns one native read-to-write path. VTK input and DICOM/VTK
+output fail explicitly until native I/O exists rather than converting through
+the legacy tensor substrate.
+
 ## MIG-597-01 audit (2026-07-11)
 
 Speckle noise now shares its seeded gamma sampler across tensor-backed and

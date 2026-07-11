@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 598: Native-only CLI conversion (MIG-598-01)
+### Breaking
+- `ritk convert` rejects formats without native readers or writers instead of using Burn.
+
 ## [Unreleased] — Sprint 597: Native seeded speckle noise (MIG-597-01)
 ### Added
 - `SpeckleNoiseFilter` now exposes a Coeus-native image boundary.

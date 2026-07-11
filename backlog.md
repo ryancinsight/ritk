@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-598-01 [major] - Native-only CLI conversion (DONE).** `ritk convert`
+  deletes its runtime Burn fallback and rejects formats without native I/O.
+
 - **MIG-597-01 [patch] - Native seeded speckle noise (DONE).** Gamma-sampled
   speckle noise now shares one stream across tensor-backed and native images.
 
