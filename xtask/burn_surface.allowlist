@@ -376,7 +376,6 @@ source:crates/ritk-registration/src/metric/entropy.rs
 source:crates/ritk-registration/src/metric/histogram/cache.rs
 source:crates/ritk-registration/src/metric/histogram/masked/masked_chunked.rs
 source:crates/ritk-registration/src/metric/histogram/masked/mod.rs
-source:crates/ritk-registration/src/metric/histogram/parzen/atlas_parzen_cache.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/compute.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/compute_image/chunked.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/compute_image/mod.rs
@@ -387,7 +386,6 @@ source:crates/ritk-registration/src/metric/histogram/parzen/dispatch.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/image_cache_helpers.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/mod.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/sparse.rs
-source:crates/ritk-registration/src/metric/histogram/parzen/tests/cache_property_tests.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/tests/cache_tests/fingerprint.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/tests/cache_tests/integration.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/tests/cache_tests/lazy.rs

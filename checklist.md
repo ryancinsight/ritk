@@ -8,6 +8,20 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-520-01 — Parzen host SSOT consolidation
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the migration-named Parzen module duplicates canonical host
+      computation, sparse-entry vocabulary, and normalization.
+- [x] Promote the flat histogram values and normalization APIs in the owning
+      direct module while retaining the live tensor boundary for its callers.
+- [x] Retarget property tests and delete the duplicate wrapper, entry type,
+      copies, exports, and stale allowlist rows.
+- [x] Verify focused nextest 3/3, full registration nextest 745/745,
+      warning-denied Clippy, and audit reduction from 571 to 569 source files
+      with only known drift.
+
 ## MIG-519-01 — Image statistics native SSOT consolidation
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

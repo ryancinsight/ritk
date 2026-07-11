@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## MIG-520-01 audit (2026-07-10)
+
+`atlas_parzen_cache` copied canonical sparse entries into a duplicate entry
+type, copied histogram tensor data into a vector, and repeated intensity
+normalization. The owning direct module now exposes its computed flat values
+and normalization directly. Cache properties consume those APIs and the
+canonical sparse cache, while the still-live tensor boundary constructs
+`TensorData` locally for its remaining callers.
+
+Evidence tier: exact symbol/consumer search, focused nextest 3/3, full
+registration nextest 745/745, warning-denied Clippy, and exact audit reduction
+from 571 to 569 source files. No compatibility alias or duplicate conversion
+path remains; the known displacement-field drift is unadmitted. The full gate
+also reconfirmed previously tracked registration performance debt, with four
+tests exceeding the 30-second slow threshold (maximum 40.287 seconds).
+
 ## MIG-519-01 audit (2026-07-10)
 
 `atlas_image_statistics` duplicated the existing native boundary with an

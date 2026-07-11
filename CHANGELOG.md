@@ -8,6 +8,20 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 520: Parzen host SSOT consolidation (MIG-520-01)
+
+### Changed
+- Direct Parzen computation now exposes canonical flat histogram values and
+  intensity normalization for host-native consumers.
+
+### Removed
+- Removed the migration-named Parzen wrapper, duplicate sparse-entry type,
+  conversion copies, exports, and stale audit rows.
+
+### Evidence
+- Focused nextest 3/3, full registration nextest 745/745, warning-denied
+  Clippy, and Burn audit reduction from 571 to 569 source files.
+
 ## [Unreleased] — Sprint 519: Statistics SSOT consolidation (MIG-519-01)
 
 ### Removed

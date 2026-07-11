@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-520-01 [major] - Parzen host SSOT consolidation (DONE).**
+  Promoted the direct histogram values and normalization operations in the
+  owning module, retargeted cache properties to the canonical sparse types,
+  and deleted the migration-named wrapper, duplicate entry type, conversion
+  copies, exports, and stale allowlist rows. The tensor-data constructor
+  remains only at the live legacy tensor boundary. Evidence: focused nextest
+  3/3, full registration nextest 745/745, warning-denied Clippy, and Burn
+  source-file reduction from 571 to 569.
+
 - **MIG-519-01 [major] - Image statistics native SSOT consolidation (DONE).**
   Deleted the parallel statistics result/error vocabulary and renamed wrapper
   functions. Native image and host-slice callers now share `ImageStatistics`
