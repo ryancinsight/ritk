@@ -96,6 +96,26 @@ impl GrayscaleDilation {
             *image.direction(),
         ))
     }
+
+    /// Apply grayscale dilation to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            dilate_3d(image.data_slice()?, image.shape(), self.radius),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
 }
 
 // ── Core computation ──────────────────────────────────────────────────────────

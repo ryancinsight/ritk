@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 559: Snap native grayscale morphology (MIG-559-01)
+
+### Added
+- Grayscale erosion and dilation now expose Coeus-native boundaries over their
+  existing shared separable extrema cores.
+
+### Changed
+- Snap routes both grayscale morphology variants natively.
+
+### Evidence
+- Exact Snap extrema regressions pass.
+
 ## [Unreleased] — Sprint 558: Snap native mean smoothing (MIG-558-01)
 
 ### Changed

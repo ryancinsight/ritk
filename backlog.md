@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-559-01 [patch] - Snap native grayscale morphology (DONE).**
+  Grayscale erosion and dilation now consume the existing extrema cores through
+  Coeus-native boundaries; exact Snap extrema regressions pass.
+
 - **MIG-558-01 [patch] - Snap native mean smoothing (DONE).**
   MeanImageFilter shares one Moirai-backed kernel between substrates, and Snap
   dispatches it natively. Exact zero-flux boundary regressions pass.

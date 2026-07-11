@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-559-01 audit (2026-07-11)
+
+Grayscale erosion and dilation had mature separable extrema cores but remained
+behind legacy image construction. Native image boundaries now reuse those cores
+without duplicated kernels, and Snap dispatches both variants before legacy
+construction. Exact output checks pin the radius-one extrema contract.
+
 ## MIG-558-01 audit (2026-07-11)
 
 Mean smoothing was already Moirai-backed but remained behind legacy image

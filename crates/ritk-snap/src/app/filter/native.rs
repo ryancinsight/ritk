@@ -15,10 +15,11 @@ use ritk_filter::{
     },
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter,
     BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
-    ExpImageFilter, FlipImageFilter, InvertIntensityFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
-    RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
-    SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, WrapPadImageFilter,
+    ExpImageFilter, FlipImageFilter, GrayscaleDilation, GrayscaleErosion, InvertIntensityFilter,
+    LogImageFilter, MaskImageFilter, MeanImageFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
+    ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
+    TileMeanShrinkFilter, WrapPadImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -106,6 +107,8 @@ pub(super) fn apply_if_supported(
             | FilterKind::Acos
             | FilterKind::BoundedReciprocal
             | FilterKind::Mean { .. }
+            | FilterKind::GrayscaleErode { .. }
+            | FilterKind::GrayscaleDilate { .. }
     ) {
         return None;
     }
@@ -253,6 +256,12 @@ fn apply_supported_filter(
             BoundedReciprocalImageFilter::new().apply_native(&image, &backend)
         }
         FilterKind::Mean { radius } => MeanImageFilter::new(*radius).apply_native(&image, &backend),
+        FilterKind::GrayscaleErode { radius } => {
+            GrayscaleErosion::new(*radius).apply_native(&image, &backend)
+        }
+        FilterKind::GrayscaleDilate { radius } => {
+            GrayscaleDilation::new(*radius).apply_native(&image, &backend)
+        }
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -650,6 +659,28 @@ mod tests {
         assert_eq!(output.shape, [1, 1, 4]);
         assert!((output.data[1] - 10.0 / 3.0).abs() <= 1e-6);
         assert!((output.data[2] - 20.0 / 3.0).abs() <= 1e-6);
+    }
+
+    #[test]
+    fn native_grayscale_morphology_uses_shared_extrema_kernels() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 2.0, 1.0]);
+        let cases = [
+            (
+                FilterKind::GrayscaleErode { radius: 1 },
+                vec![0.0, 0.0, 1.0],
+            ),
+            (
+                FilterKind::GrayscaleDilate { radius: 1 },
+                vec![2.0, 2.0, 2.0],
+            ),
+        ];
+        for (filter, expected) in cases {
+            let output = apply_if_supported(&volume, &filter)
+                .expect("invariant: grayscale morphology has a native implementation")
+                .expect("native grayscale morphology succeeds");
+            assert_eq!(output.data, expected);
+        }
     }
 
     #[test]

@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-559-01 — Snap native grayscale morphology
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add native boundaries over the canonical grayscale extrema cores.
+- [x] Route Snap grayscale erosion and dilation natively.
+- [x] Verify exact extrema output and warning-denied Clippy; commit and advance
+  the RITK gitlink.
+
 ## MIG-558-01 — Snap native mean smoothing
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
