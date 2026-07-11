@@ -1,5 +1,5 @@
-use anyhow::{Context, Result};
 use anyhow::bail;
+use anyhow::{Context, Result};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -7,8 +7,7 @@ use std::path::{Path, PathBuf};
 const BURN_TOKENS: &[&str] = &[
     "burn::",
     "burn_ndarray",
-    "Tensor<",
-    "Tensor::<",
+    "ritk_image::tensor",
     "TensorData",
     "Shape::new",
     "Autodiff",
@@ -22,28 +21,15 @@ const BURN_TOKENS: &[&str] = &[
 // to Burn. These track direct (non-Burn-bundled) usage so re-imports after the
 // first migration get flagged by CI via the `xtask/burn_surface.allowlist`
 // drift detector.
-const STANDALONE_LEGACY_DEPS: &[&str] = &[
-    "approx",
-    "num-traits",
-    "rustfft",
-    "ndarray",
-];
+const STANDALONE_LEGACY_DEPS: &[&str] = &["approx", "num-traits", "rustfft", "ndarray"];
 
 /// Burn / burn-bundled manifest dep names. The burn-side manifest check
 /// routes through the same comment + section-header-aware matcher as the
 /// standalone side, so false positives like `# historical burn = "0.17"` or
 /// unrelated `burn-cache = "..."` dev-deps do not flip the per-crate flag.
-const LEGACY_BURN_DEPS: &[&str] = &[
-    "burn",
-    "burn-ndarray",
-];
+const LEGACY_BURN_DEPS: &[&str] = &["burn", "burn-ndarray"];
 
-const STANDALONE_LEGACY_TOKENS: &[&str] = &[
-    "approx::",
-    "num_traits::",
-    "rustfft::",
-    "ndarray::",
-];
+const STANDALONE_LEGACY_TOKENS: &[&str] = &["approx::", "num_traits::", "rustfft::", "ndarray::"];
 
 const COEUS_REQUIREMENTS: &[&str] = &[
     "Image tensor construction from shape + f32 slices without Burn TensorData",
@@ -265,7 +251,8 @@ fn has_any_manifest_dep(text: &str, deps: &[&str]) -> bool {
             return false;
         };
         let key = raw_key.trim();
-        deps.iter().any(|dep| key == *dep || key == format!("{dep}.workspace"))
+        deps.iter()
+            .any(|dep| key == *dep || key == format!("{dep}.workspace"))
     })
 }
 
@@ -362,7 +349,8 @@ fn compare_with_allowlist(root: &Path, report: &BurnMigrationReport) -> Result<A
 }
 
 fn load_allowlist(path: &Path) -> Result<BTreeSet<String>> {
-    let text = fs::read_to_string(path).with_context(|| format!("failed reading {}", path.display()))?;
+    let text =
+        fs::read_to_string(path).with_context(|| format!("failed reading {}", path.display()))?;
     let mut entries = BTreeSet::new();
     for line in text.lines() {
         let trimmed = line.trim();
@@ -402,7 +390,7 @@ mod tests {
         .unwrap();
         fs::write(
             root.join("crates/ritk-core/src/lib.rs"),
-            "use burn::tensor::{Shape, Tensor, TensorData};\n\
+            "use ritk_image::tensor::{Shape, Tensor, TensorData};\n\
              fn build<B>() { let _ = Shape::new([1]); let _: Option<Tensor<B, 1>> = None; }\n",
         )
         .unwrap();
@@ -418,11 +406,33 @@ mod tests {
             report.by_crate.get("ritk-core"),
             Some(&CrateBurnSurface {
                 manifest_dependency: true,
-                source_reference_count: 4,
+                source_reference_count: 3,
                 ..Default::default()
             })
         );
 
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn audit_does_not_classify_coeus_tensor_syntax_as_burn() {
+        let root = temp_root();
+        fs::create_dir_all(root.join("crates/ritk-transform/src")).unwrap();
+        fs::write(
+            root.join("crates/ritk-transform/Cargo.toml"),
+            "[dependencies]\ncoeus-tensor = { workspace = true }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("crates/ritk-transform/src/lib.rs"),
+            "use coeus_tensor::Tensor;\nstruct Field<B>(Tensor<f32, B>);\n",
+        )
+        .unwrap();
+
+        let report = scan_burn_migration_surface(&root).unwrap();
+
+        assert!(report.source_references.is_empty());
+        assert!(report.manifest_dependencies.is_empty());
         fs::remove_dir_all(root).unwrap();
     }
 

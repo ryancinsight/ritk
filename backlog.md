@@ -1,5 +1,16 @@
 # RITK Backlog - Active Planning
 
+- **MIG-528-01 [major] - Static displacement and SSMMorph native boundary (DONE).**
+  Replace the remaining Coeus-output-to-Burn conversion as one connected
+  scope. Native images feed SSMMorph through tensor views; its output remains
+  Coeus through the static field and transform. Static and trainable fields
+  share validation, coordinate geometry, and physical-grid construction, while
+  static state remains parameter-free. ADR 0005 records the decision.
+  Evidence: field nextest 8/8, SSMMorph boundary 2/2 with the real inference
+  in 12.9 seconds, transform 77/77, registration 745/745, xtask 8/8,
+  warning-denied Clippy,
+  Rustdoc, doctests, and corrected-audit reduction from 670 to 667 files.
+
 - **MIG-527-01 [major] - Duplicate Burn trilinear deletion (DONE).**
   The public `tensor_trilinear` module has no production or test consumers
   outside its own inline Burn tests. The canonical native

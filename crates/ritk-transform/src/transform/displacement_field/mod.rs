@@ -1,4 +1,5 @@
 pub mod core;
+mod geometry;
 pub mod grid;
 pub mod resample;
 pub mod static_;

@@ -8,6 +8,29 @@
 
 # RITK Gap Audit - Active
 
+## MIG-528-01 audit (2026-07-11)
+
+The SSMMorph network was Coeus-native, but its only RITK integration boundary
+performed two full input host copies and one output copy into Burn tensors.
+The returned static field independently reimplemented geometry, interpolation,
+resampling, and WGPU chunking already owned by the trainable field and Coeus.
+ADR 0005 selects native image/tensor views end to end and one shared field
+geometry module while preserving a distinct parameter-free static type.
+
+The cutover removes both full input copies and the output copy. Coeus image
+tensors are reshaped into model inputs, and the output displacement is sliced
+into component views. Static transform and resampling laws pass exactly. The
+audit now detects the actual `ritk_image::tensor` import path instead of every
+generic `Tensor<` spelling, eliminating Coeus false positives while finding
+Burn files that used inferred tensor types. Under the corrected detector this
+slice reduces the live source surface from 670 to 667 files.
+
+Evidence tier: exact consumer inventory; field nextest 8/8; SSMMorph boundary
+2/2 with real inference in 12.9 seconds and typed noncontiguous rejection;
+transform 77/77; registration 745/745; xtask
+8/8 including positive Burn and negative Coeus classification; warning-denied
+Clippy; Rustdoc; doctests; and a clean 14-manifest/667-source audit.
+
 ## MIG-527-01 audit (2026-07-11)
 
 `ritk-interpolation::interpolation::tensor_trilinear` duplicated the canonical

@@ -8,6 +8,17 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-528-01 — Static displacement and SSMMorph native boundary
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Record the atomic boundary and non-trainable ownership decision in ADR 0005.
+- [x] Consolidate field geometry and migrate static transform/resampling to Coeus.
+- [x] Replace SSMMorph Burn input/output copies with native Coeus tensor views.
+- [x] Verify field nextest 8/8, SSMMorph boundary 2/2, transform 77/77,
+      registration 745/745, xtask 8/8, warning-denied Clippy, Rustdoc,
+      doctests, and corrected-audit reduction from 670 to 667 source files.
+
 ## MIG-527-01 — Duplicate Burn trilinear deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

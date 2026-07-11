@@ -6,6 +6,8 @@ use coeus_ops::{BackendOps, Dimension, SupportedDimension};
 use coeus_tensor::{StateDict, Tensor};
 use ritk_core::spatial::{Direction, Point, Spacing};
 
+use super::geometry::{geometry_tensors, validate_components};
+
 /// Contract failures while constructing or loading a trainable field.
 #[derive(Debug, thiserror::Error)]
 pub enum DisplacementFieldError {
@@ -40,6 +42,15 @@ pub enum DisplacementFieldError {
     /// A persisted geometry value is non-finite or violates its domain.
     #[error("displacement state contains invalid {0} geometry")]
     InvalidGeometry(&'static str),
+    /// A requested field shape contains an empty axis.
+    #[error("displacement field shape axis {axis} is empty")]
+    EmptyShapeAxis { axis: usize },
+    /// A requested field shape or coordinate buffer overflows `usize`.
+    #[error("displacement field shape product overflows usize")]
+    SizeOverflow,
+    /// Coordinate-grid storage reservation failed.
+    #[error("displacement coordinate grid allocation failed for {elements} scalar values")]
+    Allocation { elements: usize },
 }
 
 /// Dense trainable displacement vectors on a regular physical grid.
@@ -68,43 +79,8 @@ where
         spacing: Spacing<D>,
         direction: Direction<D>,
     ) -> Result<Self, DisplacementFieldError> {
-        if components.len() != D {
-            return Err(DisplacementFieldError::ComponentCount {
-                expected: D,
-                actual: components.len(),
-            });
-        }
-        let shape = components
-            .first()
-            .expect("invariant: supported dimensions are nonzero and component count equals D")
-            .shape()
-            .to_vec();
-        if shape.len() != D {
-            return Err(DisplacementFieldError::ComponentRank {
-                expected: D,
-                actual: shape.len(),
-            });
-        }
-        for (component, tensor) in components.iter().enumerate().skip(1) {
-            if tensor.shape() != shape {
-                return Err(DisplacementFieldError::ComponentShape {
-                    component,
-                    expected: shape.clone(),
-                    actual: tensor.shape().to_vec(),
-                });
-            }
-        }
-
-        let inverse = direction
-            .try_inverse()
-            .ok_or(DisplacementFieldError::SingularDirection)?;
-        let origin_values = (0..D).map(|axis| origin[axis] as f32).collect::<Vec<_>>();
-        let matrix_values = (0..D)
-            .flat_map(|row| {
-                (0..D).map(move |column| (inverse[(column, row)] / spacing[column]) as f32)
-            })
-            .collect::<Vec<_>>();
-        let backend = B::default();
+        validate_components::<B, D>(&components)?;
+        let geometry = geometry_tensors::<B, D>(origin, spacing, direction)?;
 
         Ok(Self {
             components: components
@@ -114,14 +90,8 @@ where
             origin,
             spacing,
             direction,
-            world_to_index_matrix: Var::new(
-                Tensor::from_slice_on([D, D], &matrix_values, &backend),
-                false,
-            ),
-            origin_tensor: Var::new(
-                Tensor::from_slice_on([1, D], &origin_values, &backend),
-                false,
-            ),
+            world_to_index_matrix: Var::new(geometry.world_to_index, false),
+            origin_tensor: Var::new(geometry.origin, false),
         })
     }
 

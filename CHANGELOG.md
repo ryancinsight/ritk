@@ -8,6 +8,39 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 528: Static field native boundary (MIG-528-01)
+
+### Changed
+- Static displacement fields now store Coeus tensors, share physical geometry
+  with trainable fields, and use dimension-generic replicated-border sampling.
+- SSMMorph registration now accepts native Coeus images and slices its Coeus
+  output directly into static component views without host extraction.
+
+### Removed
+- Removed the static field's Burn tensor operations, runtime interpolator,
+  copied WGPU chunking path, and SSMMorph Burn image/tensor conversions.
+
+### Fixed
+- The migration audit now matches the concrete `ritk_image::tensor` Burn
+  boundary instead of classifying every generic `Tensor<` spelling as Burn.
+  This removes Coeus false positives and admits previously missed inferred-type
+  Burn files.
+
+### Breaking
+- `StaticDisplacementField::new` is fallible and accepts Coeus tensors.
+  `StaticDisplacementFieldTransform::new` no longer accepts an interpolator,
+  and `DiffeomorphicSSMMorph::new` no longer accepts a Burn device.
+
+### Migration
+- Pass `ritk_image::native::Image<f32, B, 3>` to SSMMorph and construct static
+  transforms with `StaticDisplacementFieldTransform::new(field)`.
+
+### Evidence
+- Field nextest 8/8, SSMMorph boundary 2/2 with real inference in 12.9 seconds,
+  transform 77/77, registration 745/745, xtask 8/8, warning-denied Clippy, Rustdoc,
+  doctests, and a clean corrected audit at 14 manifests and 667 source files
+  (down from 670 under the same detector).
+
 ## [Unreleased] — Sprint 527: Trilinear SSOT deletion (MIG-527-01)
 
 ### Removed

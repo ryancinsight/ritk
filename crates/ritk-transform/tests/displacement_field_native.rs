@@ -5,7 +5,7 @@ use coeus_tensor::{StateDict, Tensor};
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_transform::{
     DisplacementField, DisplacementFieldError, DisplacementFieldTransform,
-    DisplacementTransformError,
+    DisplacementTransformError, StaticDisplacementField, StaticDisplacementFieldTransform,
 };
 
 type B = MoiraiBackend;
@@ -156,4 +156,67 @@ fn constant_field_resampling_preserves_values() {
         .expect("resample field");
     assert_eq!(resampled.components()[0].tensor.as_slice(), &[2.0; 9]);
     assert_eq!(resampled.components()[1].tensor.as_slice(), &[-1.0; 9]);
+}
+
+#[test]
+fn static_planar_field_transforms_and_resamples_without_burn() {
+    let backend = MoiraiBackend;
+    let field = StaticDisplacementField::new(
+        vec![
+            Tensor::from_slice_on([2, 2], &[1.0; 4], &backend),
+            Tensor::from_slice_on([2, 2], &[-0.5; 4], &backend),
+        ],
+        Point::origin(),
+        Spacing::new([1.0; 2]),
+        Direction::identity(),
+    )
+    .expect("valid static field");
+    let transform = StaticDisplacementFieldTransform::new(field);
+    let points = Tensor::from_slice_on([1, 2], &[0.5, 0.5], &backend);
+    assert_eq!(
+        transform
+            .transform_points(&points)
+            .expect("valid static sampling")
+            .as_slice(),
+        &[1.5, 0.0]
+    );
+
+    let resampled = transform
+        .resample(
+            [3, 3],
+            Point::origin(),
+            Spacing::new([0.5; 2]),
+            Direction::identity(),
+        )
+        .expect("resample static field");
+    assert_eq!(resampled.field().components()[0].as_slice(), &[1.0; 9]);
+    assert_eq!(resampled.field().components()[1].as_slice(), &[-0.5; 9]);
+}
+
+#[test]
+fn static_resampling_rejects_empty_shape_axis() {
+    let backend = MoiraiBackend;
+    let field = StaticDisplacementField::new(
+        vec![
+            Tensor::zeros_on([1, 1], &backend),
+            Tensor::zeros_on([1, 1], &backend),
+        ],
+        Point::origin(),
+        Spacing::new([1.0; 2]),
+        Direction::identity(),
+    )
+    .expect("valid static field");
+    let error = field
+        .resample(
+            [0, 1],
+            Point::origin(),
+            Spacing::new([1.0; 2]),
+            Direction::identity(),
+        )
+        .err()
+        .expect("empty axes must be rejected");
+    assert!(matches!(
+        error,
+        ritk_transform::ResampleError::Field(DisplacementFieldError::EmptyShapeAxis { axis: 0 })
+    ));
 }
