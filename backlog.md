@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-563-01 [patch] - Snap native label contour (DONE).**
+  LabelContourImageFilter shares its new Moirai value kernel with a Coeus-native
+  boundary, and Snap dispatches it natively. Exact label-boundary regression
+  passes.
+
 - **MIG-562-01 [patch] - Snap native binary contour (DONE).**
   BinaryContourImageFilter shares its Moirai contour kernel with a Coeus-native
   boundary, and Snap dispatches it natively. Exact contour regression passes.

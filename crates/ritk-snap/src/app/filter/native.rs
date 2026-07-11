@@ -17,10 +17,10 @@ use ritk_filter::{
     BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
     ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, InvertIntensityFilter,
-    LogImageFilter, MaskImageFilter, MeanImageFilter, MirrorPadImageFilter, NormalizeImageFilter,
-    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
-    TileMeanShrinkFilter, WrapPadImageFilter,
+    LabelContourImageFilter, LogImageFilter, MaskImageFilter, MeanImageFilter,
+    MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
+    RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
+    SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, WrapPadImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -114,6 +114,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::GrayscaleOpening { .. }
             | FilterKind::MorphologicalGradient { .. }
             | FilterKind::BinaryContour { .. }
+            | FilterKind::LabelContour { .. }
     ) {
         return None;
     }
@@ -280,6 +281,11 @@ fn apply_supported_filter(
             connectivity,
             foreground_value,
         } => BinaryContourImageFilter::new(*connectivity, *foreground_value)
+            .apply_native(&image, &backend),
+        FilterKind::LabelContour {
+            connectivity,
+            background_value,
+        } => LabelContourImageFilter::new(*connectivity, *background_value)
             .apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
@@ -754,6 +760,23 @@ mod tests {
 
         assert_eq!(output.data[13], 0.0);
         assert_eq!(output.data[0], 0.0);
+    }
+
+    #[test]
+    fn native_label_contour_retains_only_different_label_boundaries() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![1.0, 1.0, 2.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::LabelContour {
+                connectivity: ritk_filter::Connectivity::Face6,
+                background_value: 0.0,
+            },
+        )
+        .expect("invariant: label contour has a native implementation")
+        .expect("native label contour succeeds");
+
+        assert_eq!(output.data, vec![0.0, 1.0, 2.0]);
     }
 
     #[test]

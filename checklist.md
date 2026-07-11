@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-563-01 — Snap native label contour
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Convert the canonical label-contour kernel to direct Moirai traversal.
+- [x] Add the native provider boundary and route Snap label contour through it.
+- [x] Verify exact label-boundary output and warning-denied Clippy; commit and
+  advance the RITK gitlink.
+
 ## MIG-562-01 — Snap native binary contour
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

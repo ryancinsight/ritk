@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 563: Snap native label contour (MIG-563-01)
+
+### Added
+- LabelContourImageFilter now exposes a Coeus-native boundary over a shared
+  Moirai-parallel label-contour kernel.
+
+### Changed
+- Snap routes label contour natively.
+
+### Evidence
+- Exact distinct-label boundary regression passes.
+
 ## [Unreleased] — Sprint 562: Snap native binary contour (MIG-562-01)
 
 ### Added

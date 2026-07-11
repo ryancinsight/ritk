@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-563-01 audit (2026-07-11)
+
+Label contour was a sequential legacy-image loop despite independent voxel
+evaluation. Its owner now has one Moirai-parallel value kernel shared by both
+image substrates, and Snap dispatches the native result. Exact regression pins
+the in-bounds distinct-label boundary contract.
+
 ## MIG-562-01 audit (2026-07-11)
 
 Binary contour already owned a Moirai-parallel flat contour kernel but remained
