@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-595-01 — Native seeded salt-and-pepper noise
+**Target version**: 0.14.0 migration batch
+- [x] Share seeded MT19937 impulse noise between tensor-backed and native images.
+
 ## MIG-594-01 — Native deterministic Gaussian noise
 **Target version**: 0.14.0 migration batch
 - [x] Share seeded FastNorm noise between tensor-backed and native images.

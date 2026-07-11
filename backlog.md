@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-595-01 [patch] - Native seeded salt-and-pepper noise (DONE).** MT19937
+  impulse noise now shares one sequence across tensor-backed and native images.
+
 - **MIG-594-01 [patch] - Native deterministic Gaussian noise (DONE).** FastNorm
   noise now shares one seeded sequence across tensor-backed and native images.
 

@@ -3,8 +3,11 @@
 use super::fastnorm::hash;
 use super::mersenne::MersenneTwister;
 use super::DEFAULT_NOISE_SEED;
+use crate::native_support::map_flat_image;
 use anyhow::Result;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
@@ -58,8 +61,25 @@ impl SaltAndPepperNoiseFilter {
     /// `seed = Hash(userSeed, 0)`; the generator is stepped in scanline order.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
+        Ok(rebuild(self.apply_values(&vals), dims, image))
+    }
+
+    /// Apply seeded salt-and-pepper noise to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| self.apply_values(values))
+    }
+
+    fn apply_values(&self, values: &[f32]) -> Vec<f32> {
         let mut gen = MersenneTwister::new(hash(self.seed, 0));
-        let out: Vec<f32> = vals
+        values
             .iter()
             .map(|&v| {
                 if gen.variate() < self.probability {
@@ -72,8 +92,7 @@ impl SaltAndPepperNoiseFilter {
                     v
                 }
             })
-            .collect();
-        Ok(rebuild(out, dims, image))
+            .collect()
     }
 }
 

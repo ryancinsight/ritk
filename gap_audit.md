@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-595-01 audit (2026-07-11)
+
+Salt-and-pepper noise now shares its scanline MT19937 stream across tensor-backed
+and Coeus-native images. The native identity policy and source metadata are pinned.
+
 ## MIG-594-01 audit (2026-07-11)
 
 The seeded FastNorm stream now has one implementation across tensor-backed and

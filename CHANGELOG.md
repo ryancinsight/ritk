@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 595: Native seeded salt-and-pepper noise (MIG-595-01)
+### Added
+- `SaltAndPepperNoiseFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 594: Native deterministic Gaussian noise (MIG-594-01)
 ### Added
 - `AdditiveGaussianNoiseFilter` now exposes a Coeus-native image boundary.
