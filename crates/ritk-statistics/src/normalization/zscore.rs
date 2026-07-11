@@ -14,6 +14,8 @@
 //! - μ and σ are computed from the full image population (not a sample).
 
 use crate::image_statistics::{compute_statistics, masked_statistics};
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -49,6 +51,94 @@ impl ZScoreNormalizer {
             *image.origin(),
             *image.spacing(),
             *image.direction(),
+        )
+    }
+
+    /// Normalize a Coeus-native image with population statistics.
+    pub fn normalize_native<B, const D: usize>(
+        &self,
+        image: &NativeImage<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        Self::normalize_native_values(image, values, values, backend, false)
+    }
+
+    /// Normalize a Coeus-native image using foreground mask statistics.
+    pub fn normalize_masked_native<B, const D: usize>(
+        &self,
+        image: &NativeImage<f32, B, D>,
+        mask: &NativeImage<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        anyhow::ensure!(image.shape() == mask.shape(), "zscore mask shape mismatch");
+        let values = image.data_slice()?;
+        Self::normalize_native_values(image, values, mask.data_slice()?, backend, true)
+    }
+
+    fn normalize_native_values<B, const D: usize>(
+        image: &NativeImage<f32, B, D>,
+        values: &[f32],
+        mask: &[f32],
+        backend: &B,
+        masked: bool,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let foreground_count = if masked {
+            mask.iter()
+                .filter(|&&value| value > crate::FOREGROUND_THRESHOLD)
+                .count()
+        } else {
+            0
+        };
+        let use_mask = masked && foreground_count != 0;
+        let count = if use_mask {
+            foreground_count
+        } else {
+            values.len()
+        } as f32;
+        let sum = values
+            .iter()
+            .zip(mask)
+            .filter_map(|(&value, &mask_value)| {
+                (!use_mask || mask_value > crate::FOREGROUND_THRESHOLD).then_some(value)
+            })
+            .sum::<f32>();
+        let mean = sum / count;
+        let variance = values
+            .iter()
+            .zip(mask)
+            .filter_map(|(&value, &mask_value)| {
+                (!use_mask || mask_value > crate::FOREGROUND_THRESHOLD).then_some(value)
+            })
+            .map(|value| {
+                let delta = value - mean;
+                delta * delta
+            })
+            .sum::<f32>()
+            / count;
+        let denominator = variance.sqrt() + super::NORMALIZER_EPSILON;
+        NativeImage::from_flat_on(
+            values
+                .iter()
+                .map(|&value| (value - mean) / denominator)
+                .collect(),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
         )
     }
 

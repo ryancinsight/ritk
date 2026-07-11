@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 601: Native Z-score normalization provider (MIG-601-01)
+### Added
+- `ZScoreNormalizer` now exposes native full-image and masked normalization.
+
 ## [Unreleased] — Sprint 600: Native CLI MinMax normalization (MIG-600-01)
 ### Breaking
 - `ritk normalize --method minmax` rejects formats without native I/O.

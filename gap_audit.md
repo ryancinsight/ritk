@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-601-01 audit (2026-07-11)
+
+Z-score normalization now has native full-image and masked population-statistics
+paths with shape validation and empty-mask fallback, without a temporary values buffer.
+
 ## MIG-600-01 audit (2026-07-11)
 
 CLI MinMax normalization now owns a complete native read-to-normalize-to-write

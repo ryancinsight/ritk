@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-601-01 [minor] - Native Z-score normalization provider (DONE).**
+  Full-image and masked population statistics now support native images.
+
 - **MIG-600-01 [major] - Native CLI MinMax normalization (DONE).** The MinMax
   command path now reads, normalizes, and writes native images without a bridge.
 

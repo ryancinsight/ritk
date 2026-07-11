@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-601-01 — Native Z-score normalization provider
+**Target version**: 0.14.0 migration batch
+- [x] Expose full-image and masked Z-score population statistics natively.
+
 ## MIG-600-01 — Native CLI MinMax normalization
 **Target version**: 0.14.0 migration batch
 - [x] Route the MinMax command path through native I/O and native statistics.
