@@ -73,3 +73,27 @@ fn invert_preserves_metadata() {
     let out = InvertIntensityFilter::new().apply(&img);
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
 }
+
+#[test]
+fn native_invert_matches_fixed_maximum_contract() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        vec![1.0, 4.0, 7.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = InvertIntensityFilter::with_maximum(10.0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native inversion succeeds");
+
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[9.0, 6.0, 3.0]
+    );
+}

@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-545-01 [patch] - Snap native intensity inversion (DONE).**
+  The owning intensity filter now provides Coeus-native inversion and Snap
+  dispatches both fixed and automatic maxima through it. Provider and Snap
+  value-semantic regressions pass.
+
 - **MIG-544-01 [patch] - Snap native signed distance transform (IN PROGRESS).**
   `ritk-filter` now owns a Coeus-native signed-distance boundary over the
   existing Meijster core, and Snap consumes it. Differential and Snap value

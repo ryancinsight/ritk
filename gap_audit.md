@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-545-01 audit (2026-07-11)
+
+Intensity inversion duplicated no algorithm; its canonical flat-buffer core
+only lacked a Coeus image boundary. The owner now supplies that boundary and
+Snap dispatches both fixed and automatic maxima before legacy construction.
+Provider and Snap regressions prove exact outputs.
+
 ## MIG-544-01 audit (2026-07-11)
 
 Signed distance lacked a native boundary even though its pure Meijster core was

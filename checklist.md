@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-545-01 — Snap native intensity inversion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add native inversion at the owning filter boundary.
+- [x] Route fixed and automatic Snap inversion through it and pin exact values.
+
 ## MIG-544-01 — Snap native signed distance transform
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

@@ -13,7 +13,8 @@ use ritk_filter::{
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
-    AbsImageFilter, ExpImageFilter, LogImageFilter, SqrtImageFilter, SquareImageFilter,
+    AbsImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter, SqrtImageFilter,
+    SquareImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -50,6 +51,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::SignedDistanceTransform { .. }
             | FilterKind::ConnectedComponents { .. }
             | FilterKind::BinaryThreshold { .. }
+            | FilterKind::InvertIntensity { .. }
     ) {
         return None;
     }
@@ -98,6 +100,12 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         FilterKind::Sqrt => SqrtImageFilter::new().apply_native(&image, &backend),
         FilterKind::Log => LogImageFilter::new().apply_native(&image, &backend),
         FilterKind::Exp => ExpImageFilter::new().apply_native(&image, &backend),
+        FilterKind::InvertIntensity { maximum } => match maximum {
+            Some(maximum) => {
+                InvertIntensityFilter::with_maximum(*maximum).apply_native(&image, &backend)
+            }
+            None => InvertIntensityFilter::new().apply_native(&image, &backend),
+        },
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -198,6 +206,26 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn native_invert_intensity_honors_fixed_and_automatic_maxima() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![1.0, 4.0, 7.0]);
+        let fixed = apply_if_supported(
+            &volume,
+            &FilterKind::InvertIntensity {
+                maximum: Some(10.0),
+            },
+        )
+        .expect("invariant: inversion has a native implementation")
+        .expect("native inversion succeeds");
+        assert_eq!(fixed, vec![9.0, 6.0, 3.0]);
+
+        let automatic = apply_if_supported(&volume, &FilterKind::InvertIntensity { maximum: None })
+            .expect("invariant: inversion has a native implementation")
+            .expect("native inversion succeeds");
+        assert_eq!(automatic, vec![6.0, 3.0, 0.0]);
     }
 
     #[test]

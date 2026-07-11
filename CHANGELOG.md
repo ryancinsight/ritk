@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 545: Snap native intensity inversion (MIG-545-01)
+
+### Added
+- `InvertIntensityFilter` now exposes a Coeus-native method over its canonical
+  flat-buffer algorithm.
+
+### Changed
+- Snap routes fixed and automatic inversion through that native provider.
+
+### Evidence
+- Provider and Snap regressions pin fixed and automatic maximum semantics.
+
 ## [Unreleased] — Sprint 544: Snap native signed distance (MIG-544-01)
 
 ### Added

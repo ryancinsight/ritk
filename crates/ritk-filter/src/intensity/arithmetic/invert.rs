@@ -2,6 +2,8 @@ use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 
+use crate::native_support::map_flat_image;
+
 /// Intensity inversion filter.
 ///
 /// # Mathematical Specification
@@ -52,6 +54,24 @@ impl InvertIntensityFilter {
             .unwrap_or_else(|| vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max));
         let out: Vec<f32> = vals.into_iter().map(|v| max_val - v).collect();
         rebuild(out, dims, image)
+    }
+
+    /// Apply intensity inversion to a Coeus-native 3-D image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| {
+            let maximum = self
+                .maximum
+                .unwrap_or_else(|| values.iter().copied().fold(f32::NEG_INFINITY, f32::max));
+            values.iter().map(|&value| maximum - value).collect()
+        })
     }
 }
 
