@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## MIG-544-01 audit (2026-07-11)
+
+Signed distance lacked a native boundary even though its pure Meijster core was
+already shared with unsigned distance. The provider now exposes that boundary,
+and Snap dispatches it before legacy construction. A differential regression
+proves exact Burn equivalence; Snap regressions pin the voxel-centre sign and
+physical spacing convention.
+
 ## MIG-543-01 audit (2026-07-11)
 
 Snap used the Burn binary-threshold wrapper despite the segmentation owner

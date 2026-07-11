@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-544-01 [patch] - Snap native signed distance transform (IN PROGRESS).**
+  `ritk-filter` now owns a Coeus-native signed-distance boundary over the
+  existing Meijster core, and Snap consumes it. Differential and Snap value
+  regressions pass; package gates and delivery remain.
+
 - **MIG-543-01 [patch] - Snap native binary threshold (DONE).**
   Binary thresholding now dispatches through the Coeus-native segmentation
   provider. Exact provider and Snap regressions prove inclusive bounds; focused

@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 544: Snap native signed distance (MIG-544-01)
+
+### Added
+- `ritk-filter` now exposes the Coeus-native signed Euclidean distance boundary
+  over its existing Meijster core.
+
+### Changed
+- Snap routes signed distance transforms through that provider.
+
+### Evidence
+- Upstream Burn differential regression and focused Snap value regressions pass.
+
 ## [Unreleased] — Sprint 543: Snap native binary threshold (MIG-543-01)
 
 ### Changed

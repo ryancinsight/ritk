@@ -40,6 +40,47 @@ where
     })
 }
 
+/// Signed Euclidean distance transform on a Coeus-backed image.
+///
+/// Background voxels receive positive distance to foreground; foreground voxels
+/// receive negative distance to background. This is the same voxel-centre
+/// convention and Meijster core as [`super::SignedDistanceTransformImageFilter`].
+pub fn signed_distance_transform<B>(
+    image: &Image<f32, B, 3>,
+    threshold: BinarizationThreshold,
+    backend: &B,
+) -> Result<Image<f32, B, 3>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let spacing = {
+        let spacing = image.spacing();
+        [spacing[0], spacing[1], spacing[2]]
+    };
+    let threshold: f32 = threshold.into();
+
+    map_flat_image(image, backend, |values, dims| {
+        let foreground: Vec<bool> = values.iter().map(|&value| value > threshold).collect();
+        let background: Vec<bool> = foreground.iter().map(|&value| !value).collect();
+        let to_foreground = euclidean_dt(&foreground, dims, spacing);
+        let to_background = euclidean_dt(&background, dims, spacing);
+
+        foreground
+            .iter()
+            .zip(to_foreground)
+            .zip(to_background)
+            .map(|((&is_foreground, to_foreground), to_background)| {
+                if is_foreground {
+                    -to_background
+                } else {
+                    to_foreground
+                }
+            })
+            .collect()
+    })
+}
+
 #[cfg(test)]
 #[path = "tests_native.rs"]
 mod tests;

@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-544-01 — Snap native signed distance transform
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add the missing provider-owned native signed-distance boundary.
+- [x] Differential-test it against Burn and pin exact Snap output semantics.
+- [ ] Run package gates, audit, commit, push, and advance the Atlas gitlink.
+
 ## MIG-543-01 — Snap native binary threshold
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

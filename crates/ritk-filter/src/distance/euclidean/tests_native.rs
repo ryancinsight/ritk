@@ -2,8 +2,10 @@
 //! to the Burn-generic `DistanceTransformImageFilter::apply` it mirrors —
 //! both call the same `euclidean_dt` core (shared harness in `coeus_support`).
 
-use super::distance_transform;
-use crate::distance::euclidean::DistanceTransformImageFilter;
+use super::{distance_transform, signed_distance_transform};
+use crate::distance::euclidean::{
+    DistanceTransformImageFilter, SignedDistanceTransformImageFilter,
+};
 use crate::distance::types::BinarizationThreshold;
 use crate::native_support::assert_native_matches_burn;
 
@@ -44,4 +46,18 @@ fn matches_burn_scattered_foreground() {
     let n = dims[0] * dims[1] * dims[2];
     let vals: Vec<f32> = (0..n).map(|i| if i % 7 == 0 { 1.0 } else { 0.0 }).collect();
     check(vals, dims);
+}
+
+#[test]
+fn signed_matches_burn_voxel_centre_convention() {
+    assert_native_matches_burn(
+        vec![0.0, 1.0, 0.0],
+        [1, 1, 3],
+        |image| {
+            SignedDistanceTransformImageFilter::new()
+                .apply(image)
+                .expect("burn signed distance transform")
+        },
+        |image, backend| signed_distance_transform(image, BinarizationThreshold::DEFAULT, backend),
+    );
 }

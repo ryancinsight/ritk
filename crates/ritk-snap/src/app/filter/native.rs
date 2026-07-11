@@ -9,7 +9,7 @@
 use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_filter::{
-    distance::euclidean::native::distance_transform,
+    distance::euclidean::native::{distance_transform, signed_distance_transform},
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
@@ -47,6 +47,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::BinaryOpening { .. }
             | FilterKind::BinaryFillhole { .. }
             | FilterKind::DistanceTransform { .. }
+            | FilterKind::SignedDistanceTransform { .. }
             | FilterKind::ConnectedComponents { .. }
             | FilterKind::BinaryThreshold { .. }
     ) {
@@ -118,6 +119,9 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         }
         FilterKind::DistanceTransform { threshold } => {
             distance_transform(&image, *threshold, &backend)
+        }
+        FilterKind::SignedDistanceTransform { threshold } => {
+            signed_distance_transform(&image, *threshold, &backend)
         }
         FilterKind::ConnectedComponents {
             connectivity,
@@ -273,6 +277,23 @@ mod tests {
     }
 
     #[test]
+    fn native_signed_distance_transform_uses_voxel_centre_convention() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 1.0, 0.0]);
+        volume.spacing = [1.0, 1.0, 2.0];
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::SignedDistanceTransform {
+                threshold: BinarizationThreshold::DEFAULT,
+            },
+        )
+        .expect("invariant: signed distance transform has a native implementation")
+        .expect("native signed distance transform accepts a scalar volume");
+
+        assert_eq!(output, vec![2.0, -2.0, 2.0]);
+    }
+
+    #[test]
     fn native_connected_components_preserves_labels_and_connectivity() {
         let mut volume = test_volume([2, 2, 2]);
         volume.data = Arc::new(vec![1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
@@ -377,6 +398,26 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [2.0, 0.0, 2.0]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_signed_distance_transform() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.0, 1.0, 0.0]);
+        volume.spacing = [1.0, 1.0, 2.0];
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::SignedDistanceTransform {
+            threshold: BinarizationThreshold::DEFAULT,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [2.0, -2.0, 2.0]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }
