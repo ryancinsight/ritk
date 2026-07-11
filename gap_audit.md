@@ -8,6 +8,19 @@
 
 # RITK Gap Audit - Active
 
+## MIG-536-01 audit (2026-07-11)
+
+`SnapApp::load_from_path` and `load_secondary_from_path` bypassed the canonical
+loader and duplicated DICOM path resolution, Burn image construction, tensor
+extraction, geometry flattening, and metadata projection. Both now consume the
+native `LoadedVolume` SSOT. Application-specific hanging protocol, viewport,
+texture, annotation, and comparison state remains in `SnapApp`.
+
+Evidence tier: exact call-site and data-field inventory; Snap nextest 637/637;
+xtask nextest 8/8; warning-denied Clippy; Rustdoc; doctests; and clean audit
+reduction from 655 to 654 source files. The remaining `LoadBackend` type is
+used only by the still-Burn filter operation graph and is not a loader seam.
+
 ## MIG-535-01 audit (2026-07-11)
 
 Snap's non-DICOM loader routed native-first format providers back through Burn

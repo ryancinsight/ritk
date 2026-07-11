@@ -610,7 +610,6 @@ source:crates/ritk-segmentation/src/watershed/toboggan.rs
 source:crates/ritk-snap/src/app/filter.rs
 source:crates/ritk-snap/src/app/state.rs
 source:crates/ritk-snap/src/app/tests/rt.rs
-source:crates/ritk-snap/src/app/volume_ops.rs
 source:crates/ritk-snap/src/filter/apply.rs
 source:crates/ritk-snap/src/filter/promote.rs
 source:crates/ritk-snap/src/viewer.rs

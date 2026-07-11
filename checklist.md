@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-536-01 — Snap application loader SSOT
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove primary and secondary application loading duplicate the canonical native DICOM loader.
+- [x] Delegate both paths directly to `load_dicom_volume` and preserve viewer protocol/state initialization.
+- [x] Delete Burn reconstruction, tensor extraction, and duplicated metadata assembly from `volume_ops.rs`.
+- [x] Verify Snap nextest 637/637, xtask nextest 8/8, warning-denied Clippy, Rustdoc, doctests, and audit reduction to 654 source files.
+
 ## MIG-535-01 — Snap native volume-loader cutover
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

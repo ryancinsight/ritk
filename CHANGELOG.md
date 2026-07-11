@@ -8,6 +8,20 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 536: Snap application loader SSOT (MIG-536-01)
+
+### Changed
+- Primary and secondary Snap application loading now consumes the canonical
+  native DICOM `LoadedVolume` and retains only viewer-state initialization.
+
+### Removed
+- Removed duplicate Burn image construction, tensor extraction, geometry
+  flattening, and metadata assembly from application volume operations.
+
+### Evidence
+- Snap nextest 637/637, xtask nextest 8/8, warning-denied Clippy, Rustdoc,
+  doctests, and audit reduction from 655 to 654 source files.
+
 ## [Unreleased] — Sprint 535: Snap native volume loading (MIG-535-01)
 
 ### Added

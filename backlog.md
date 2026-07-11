@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-536-01 [major] - Snap application loader SSOT (DONE).**
+  Primary and secondary application loading now consume the canonical native
+  `LoadedVolume` instead of independently rebuilding Burn images, extracting
+  tensors, and copying DICOM metadata. Viewer protocol and state initialization
+  remain application-owned. Evidence: Snap nextest 637/637, xtask nextest 8/8,
+  warning-denied Clippy, Rustdoc, doctests, and Burn audit reduction from 655
+  to 654 source files.
+
 - **MIG-535-01 [major] - Snap native volume-loader cutover (DONE).**
   `ritk-io` now exposes native in-memory NIfTI reading. Snap routes NIfTI,
   MetaImage, NRRD, MGH, and NIfTI byte payloads through native Coeus images;
