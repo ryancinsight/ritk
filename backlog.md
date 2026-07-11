@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-600-01 [major] - Native CLI MinMax normalization (DONE).** The MinMax
+  command path now reads, normalizes, and writes native images without a bridge.
+
 - **MIG-599-01 [minor] - Native MinMax normalization provider (DONE).**
   `MinMaxNormalizer` now exposes the native image contract required by CLI cutover.
 

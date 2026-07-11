@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 600: Native CLI MinMax normalization (MIG-600-01)
+### Breaking
+- `ritk normalize --method minmax` rejects formats without native I/O.
+
 ## [Unreleased] — Sprint 599: Native MinMax normalization provider (MIG-599-01)
 ### Added
 - `MinMaxNormalizer` now exposes a Coeus-native image boundary.

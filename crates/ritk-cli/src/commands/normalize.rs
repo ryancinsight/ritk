@@ -20,7 +20,10 @@ use ritk_statistics::normalization::{
     WhiteStripeNormalizer, ZScoreNormalizer,
 };
 
-use super::{read_image, write_image_inferred, Backend};
+use super::{
+    infer_format, is_native_read_capable, is_native_write_capable, read_image, read_image_native,
+    write_image_inferred, write_image_native, Backend,
+};
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
@@ -131,6 +134,42 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
         args.method
     );
 
+    if matches!(args.method, NormalizeMethod::Minmax) {
+        let input_format = infer_format(&args.input).ok_or_else(|| {
+            anyhow!(
+                "Cannot infer input format from path: {}",
+                args.input.display()
+            )
+        })?;
+        let output_format = infer_format(&args.output).ok_or_else(|| {
+            anyhow!(
+                "Cannot infer output format from path: {}",
+                args.output.display()
+            )
+        })?;
+        anyhow::ensure!(
+            is_native_read_capable(input_format),
+            "minmax normalization does not support {:?} input until its native reader exists",
+            input_format
+        );
+        anyhow::ensure!(
+            is_native_write_capable(output_format),
+            "minmax normalization does not support {:?} output until its native writer exists",
+            output_format
+        );
+        let input = read_image_native(&args.input)?;
+        let output = MinMaxNormalizer::default()
+            .normalize_native(&input, &super::NativeBackend::default())?;
+        write_image_native(&args.output, &output, output_format)?;
+        println!(
+            "normalize: wrote {} -> {}",
+            args.method,
+            args.output.display()
+        );
+        info!("normalize: done output={}", args.output.display());
+        return Ok(());
+    }
+
     let input = read_image(&args.input)?;
 
     let normalized: ritk_image::Image<Backend, 3> = match args.method {
@@ -162,7 +201,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             }
         }
 
-        NormalizeMethod::Minmax => MinMaxNormalizer::default().normalize(&input),
+        NormalizeMethod::Minmax => unreachable!("minmax returns through the native path"),
 
         NormalizeMethod::WhiteStripe => {
             let contrast = match args.contrast.unwrap_or(CliContrast::T1) {

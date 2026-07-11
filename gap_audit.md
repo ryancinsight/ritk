@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-600-01 audit (2026-07-11)
+
+CLI MinMax normalization now owns a complete native read-to-normalize-to-write
+path. Other CLI normalization methods remain explicitly on their own legacy paths
+until their native providers are available.
+
 ## MIG-599-01 audit (2026-07-11)
 
 MinMax normalization now uses one epsilon and affine-range contract at both

@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-600-01 — Native CLI MinMax normalization
+**Target version**: 0.14.0 migration batch
+- [x] Route the MinMax command path through native I/O and native statistics.
+- [x] Reject formats without native readers or writers for this path.
+
 ## MIG-599-01 — Native MinMax normalization provider
 **Target version**: 0.14.0 migration batch
 - [x] Expose MinMax's epsilon and affine-range contract to native images.
