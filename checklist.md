@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-524-01 — Consus ONNX provider migration
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add bounded borrowed ONNX document parsing in Consus and publish the provider increment.
+- [x] Replace `onnx-ir` with `consus-onnx` and map only owned metadata required by RITK graph validation.
+- [x] Reject oversized documents and unsupported tensor types without fabricated defaults.
+- [x] Verify exact real-fixture graph semantics, model nextest 42/42, Clippy, Rustdoc, doctests, downstream registration compilation, and no Burn or `onnx-ir` in the model graph.
+
 ## MIG-523-01 — Model Burn runtime surface deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

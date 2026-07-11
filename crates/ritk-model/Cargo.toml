@@ -13,7 +13,8 @@ coeus-ops = { workspace = true }
 coeus-autograd = { workspace = true }
 coeus-nn = { workspace = true }
 coeus-optim = { workspace = true }
-onnx-ir = { workspace = true }
+consus-io = { workspace = true }
+consus-onnx = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

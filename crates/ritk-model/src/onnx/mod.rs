@@ -7,8 +7,8 @@
 //!
 //! The ONNX parsing pipeline consists of two stages:
 //!
-//! 1. **Protobuf Parsing**: Parse ONNX file format (`.onnx`) into an intermediate
-//!    representation (IR) using the format-focused `onnx-ir` parser.
+//! 1. **Protobuf Parsing**: Parse ONNX file format (`.onnx`) into a bounded,
+//!    borrowed document using the format-focused Consus reader.
 //!
 //! 2. **Graph Validation**: Map public graph metadata into the crate-local IR
 //!    and validate its connectivity.

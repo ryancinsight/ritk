@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-524-01 audit (2026-07-10)
+
+The model crate's final Burn edge was not runtime computation; it was the
+`onnx-ir -> burn-tensor` parser dependency. Consus now owns bounded protobuf
+decoding with borrowed names and initializer payloads. RITK copies only the
+names, topology, types, and shapes required by its owned validation graph, so
+large weight payloads are neither copied nor fabricated.
+
+Evidence tier: exact real-file graph semantics and negative resource-limit
+tests, model nextest 42/42, warning-denied Clippy, Rustdoc, doctests, and
+downstream registration all-target compilation. `cargo tree -p ritk-model`
+contains neither Burn nor `onnx-ir`; the residual dependency risk recorded in
+MIG-523-01 is closed. The known displacement-field audit drift remains
+unadmitted.
+
 ## MIG-523-01 audit (2026-07-10)
 
 The removed ONNX runtime surface claimed Burn module conversion, weight loading,
@@ -24,11 +39,8 @@ warning-denied Clippy, Rustdoc, and doctests. The audit decreases from 544 to
 540 source files and from 16 to 15 Burn manifests. `ritk-model` has no direct
 Burn dependency or source token.
 
-Residual dependency risk: `cargo tree -p ritk-model -i burn-tensor@0.20.1`
-shows the sole model-path edge as `onnx-ir -> burn-tensor`. Replacing that
-format-parser dependency belongs upstream in a Consus-owned ONNX protobuf
-reader; runtime model computation is already Coeus-only. The known RITK
-displacement-field audit drift remains unadmitted.
+The former `onnx-ir -> burn-tensor` residual is closed by MIG-524-01. The known
+RITK displacement-field audit drift remains unadmitted.
 
 
 ## MIG-522-01 audit (2026-07-10)

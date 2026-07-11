@@ -113,16 +113,16 @@ hex = "0.4"
 image = "0.24"
 num-traits = "0.2"
 tiff = "0.9"
-onnx-ir = "0.20.1"
 
 dicom-core = "0.8"
 dicom-ul = "0.8"
 dicom-pixeldata = { version = "0.8", features = ["native"] }
 dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl"] }
-consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "7424747673e5d80734a24fff4d9168ac4e7fe35e", features = ["std"] }
-consus-core = { git = "https://github.com/ryancinsight/consus", rev = "7424747673e5d80734a24fff4d9168ac4e7fe35e", features = ["std"] }
-consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "7424747673e5d80734a24fff4d9168ac4e7fe35e", features = ["std", "deflate"] }
-consus-io = { git = "https://github.com/ryancinsight/consus", rev = "7424747673e5d80734a24fff4d9168ac4e7fe35e", features = ["std", "alloc"] }
+consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
+consus-core = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
+consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "deflate"] }
+consus-io = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "alloc"] }
+consus-onnx = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "alloc"] }
 jpeg-decoder = "0.3"
 
 arrayvec = "0.7"

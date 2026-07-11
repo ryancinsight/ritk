@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-524-01 [major] - Consus ONNX provider migration (DONE).**
+  Replaced `onnx-ir` with the bounded borrowed `consus-onnx` reader and kept
+  RITK's owned graph boundary metadata-only. The parser now rejects hostile
+  document sizes and unknown tensor element types instead of defaulting them
+  to float. Evidence: exact committed-fixture topology, shapes, initializer,
+  IR/opset assertions; model nextest 42/42; warning-denied Clippy; Rustdoc;
+  doctests; downstream registration all-target compilation; and no Burn or
+  `onnx-ir` node in `cargo tree -p ritk-model`.
+
 - **MIG-523-01 [major] - Model Burn runtime surface deletion (DONE).**
   Removed `ritk-model`'s direct Burn dependencies and unused Burn image/tensor
   adapters. The ONNX API now truthfully parses and validates document metadata;

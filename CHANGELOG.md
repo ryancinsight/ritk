@@ -8,6 +8,21 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 524: Consus ONNX migration (MIG-524-01)
+
+### Changed
+- ONNX document parsing now uses Consus bounded protobuf decoding and preserves
+  borrowed initializer payloads until the metadata-only RITK boundary.
+
+### Removed
+- Removed `onnx-ir` and its transitive Burn tensor-runtime dependency from
+  `ritk-model`.
+
+### Evidence
+- Exact committed-fixture graph/value assertions, model nextest 42/42,
+  warning-denied Clippy, Rustdoc, doctests, downstream registration all-target
+  compilation, and a Burn-free `ritk-model` dependency tree.
+
 ## [Unreleased] — Sprint 523: Model Burn runtime deletion (MIG-523-01)
 
 ### Changed
