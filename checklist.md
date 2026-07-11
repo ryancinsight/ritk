@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-521-01 — Affine and TransMorph Coeus graph migration
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Implement missing rank-preserving batched matmul semantics in Coeus and verify exact rank-4 forward and operand gradients.
+- [x] Replace the affine, spatial-transform, integration, Swin, and TransMorph Burn graphs with native Coeus modules and model-owned initialization.
+- [x] Convert registration inference and Adam training examples to Coeus and delete superseded Burn tests and audit rows.
+- [x] Verify Coeus 689/689, RITK model 71/71, registration 745/745, both warning-denied Clippy gates, model Rustdoc, example compilation, and a five-epoch decreasing training loss.
+
 ## MIG-520-01 — Parzen host SSOT consolidation
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

@@ -27,13 +27,13 @@
 //! # Usage
 //!
 //! ```rust
+//! use coeus_core::MoiraiBackend;
 //! use ritk_model::transmorph::{TransMorphConfig, TransMorph};
-//! use ritk_image::tensor::Backend;
 //!
-//! fn create_model<B: Backend>(device: &B::Device) -> TransMorph<B> {
+//! fn create_model() -> TransMorph<MoiraiBackend> {
 //!     TransMorphConfig::new(1, 12, 3)
 //!         .with_window_size(4)
-//!         .init(device)
+//!         .init()
 //! }
 //! ```
 
@@ -45,6 +45,3 @@ pub mod swin;
 
 pub use config::{TransMorphConfig, TransformIntegration};
 pub use model::{TransMorph, TransMorphOutput};
-
-#[cfg(test)]
-mod tests;

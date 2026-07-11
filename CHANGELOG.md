@@ -8,6 +8,23 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 521: Affine and TransMorph Coeus migration (MIG-521-01)
+
+### Changed
+- Affine registration, spatial transformation, scaling-and-squaring, Swin,
+  TransMorph, inference, and Adam training now use Coeus throughout.
+- Model-owned initialization explicitly applies Kaiming, Xavier, and zero-output
+  policies instead of relying on provider constructor defaults.
+
+### Removed
+- Removed the superseded Burn affine/TransMorph tests and ten legacy audit
+  surfaces; SSM-Morph and ONNX remain tracked conversion scopes.
+
+### Evidence
+- Coeus nextest 689/689, RITK model nextest 71/71, registration nextest
+  745/745, warning-denied Clippy, model Rustdoc, compiled examples, and a real
+  five-epoch Adam run with monotonically decreasing loss.
+
 ## [Unreleased] — Sprint 520: Parzen host SSOT consolidation (MIG-520-01)
 
 ### Changed

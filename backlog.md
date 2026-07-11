@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-521-01 [major] - Affine and TransMorph Coeus migration (DONE).**
+  Replaced the complete affine and TransMorph model graphs and both registration
+  examples with Coeus autodiff, neural-network, and optimizer APIs. Coeus now
+  preserves logical rank for batched matmul. Evidence: Coeus nextest 689/689,
+  RITK model 71/71, registration 745/745, warning-denied Clippy, Rustdoc,
+  compiled examples, and five decreasing Adam losses from 0.000478 to 0.000471.
+  The Burn audit falls from 569 to 559 source files; SSM-Morph and ONNX remain
+  separate conversion scopes.
+
 - **MIG-520-01 [major] - Parzen host SSOT consolidation (DONE).**
   Promoted the direct histogram values and normalization operations in the
   owning module, retargeted cache properties to the canonical sparse types,

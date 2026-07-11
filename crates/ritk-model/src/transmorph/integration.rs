@@ -1,59 +1,41 @@
-use super::spatial_transform::SpatialTransformer;
-use ritk_image::burn::module::Module;
-use ritk_image::tensor::{Backend, Tensor};
+//! Scaling-and-squaring velocity integration.
 
-/// Velocity Integration Module (Scaling and Squaring).
-///
-/// Integrates a stationary velocity field to produce a diffeomorphic
-/// displacement field.
-///
-/// $\phi = \exp(v)$
-///
-/// Implemented via scaling and squaring:
-/// 1. Scale flow by $1/2^N$
-/// 2. Recursively compose $v_{i+1} = v_i + v_i \circ (x + v_i)$ for N steps.
-#[derive(Module, Debug)]
-pub struct VecInt<B: Backend> {
-    stn: SpatialTransformer<B>,
-    nsteps: usize,
+use coeus_autograd::{add, scalar_mul, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_ops::BackendOps;
+
+use super::spatial_transform::SpatialTransformer;
+use crate::ModelError;
+
+/// Integrates a stationary velocity field into a displacement field.
+#[derive(Debug, Clone)]
+pub struct VecInt<B> {
+    transformer: SpatialTransformer<B>,
+    steps: usize,
 }
 
-impl<B: Backend> VecInt<B> {
-    /// Create a new Velocity Integrator.
-    ///
-    /// # Arguments
-    /// * `nsteps` - Number of integration steps (e.g., 7 for 128 steps)
-    pub fn new(nsteps: usize) -> Self {
+impl<B> VecInt<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Construct an integrator with `steps` squaring stages.
+    #[must_use]
+    pub const fn new(steps: usize) -> Self {
         Self {
-            stn: SpatialTransformer::new(),
-            nsteps,
+            transformer: SpatialTransformer::new(),
+            steps,
         }
     }
 
-    /// Forward pass: Integrate velocity field.
-    ///
-    /// # Arguments
-    /// * `flow` - Velocity field [B, 3, D, H, W]
-    ///
-    /// # Returns
-    /// * `displacement` - Integrated displacement field [B, 3, D, H, W]
-    pub fn forward(&self, flow: Tensor<B, 5>) -> Tensor<B, 5> {
-        // flow: [B, 3, D, H, W]
-        // Scale flow
-        let scale = 1.0 / (2.0f32).powi(self.nsteps as i32);
-        let mut flow = flow * scale;
-
-        // Squaring
-        for _ in 0..self.nsteps {
-            // flow = flow + flow \circ (Id + flow)
-            // STN computes image(x + flow).
-            // Here "image" is "flow".
-            // So STN(flow, flow) = flow(x + flow(x))
-            // This is exactly the composition term needed.
-            let warped_flow = self.stn.forward(flow.clone(), flow.clone());
-            flow = flow + warped_flow;
+    /// Integrate a `[batch, 3, depth, height, width]` velocity field.
+    pub fn forward(&self, flow: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
+        let scale = 1.0 / (2.0_f32).powi(self.steps as i32);
+        let mut integrated = scalar_mul(flow, scale);
+        for _ in 0..self.steps {
+            let warped = self.transformer.forward(&integrated, &integrated)?;
+            integrated = add(&integrated, &warped);
         }
-
-        flow
+        Ok(integrated)
     }
 }

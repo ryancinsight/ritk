@@ -8,6 +8,29 @@
 
 # RITK Gap Audit - Active
 
+## MIG-521-01 audit (2026-07-10)
+
+The affine, spatial-transform, scaling-and-squaring, Swin, and TransMorph graph
+is now native Coeus code. The registration examples perform real inference and
+reverse-mode Adam training through that graph. Coeus rank-4 matmul preserves
+logical batch axes and has exact forward and both-operand gradient regression
+coverage.
+
+Evidence tier: differential/value-semantic tests and empirical execution.
+Coeus nextest passed 689/689; RITK model passed 71/71; registration passed
+745/745; warning-denied Clippy and model Rustdoc are clean; the five-epoch
+training loss decreased 0.000478, 0.000476, 0.000474, 0.000473, 0.000471.
+The coarse Burn audit decreased from 569 to 559 source files. Four converted
+files remain allowlisted only because its token set also matches Coeus
+`Tensor`/`Conv3d` names. The pre-existing displacement-field drift remains
+unadmitted.
+
+Residual performance risk: the model gate observed SSM-Morph tests at 33.945,
+55.930, approximately 150-152, and 289.953 seconds. Registration tests reached
+31.296, 34.172, 39.450, 42.579, and 43.564 seconds. These exceed the committed
+30-second performance budget and remain correctness-independent optimization
+debt; no workload or threshold was weakened.
+
 ## MIG-520-01 audit (2026-07-10)
 
 `atlas_parzen_cache` copied canonical sparse entries into a duplicate entry

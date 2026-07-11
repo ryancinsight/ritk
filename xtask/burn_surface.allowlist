@@ -289,8 +289,6 @@ source:crates/ritk-io/src/format/tiff/mod.rs
 source:crates/ritk-io/src/format/vtk/mod.rs
 source:crates/ritk-io/tests/dicom_security.rs
 source:crates/ritk-macros/src/lib.rs
-source:crates/ritk-model/src/affine/network.rs
-source:crates/ritk-model/src/affine/transform.rs
 source:crates/ritk-model/src/io/adapter.rs
 source:crates/ritk-model/src/onnx/importer.rs
 source:crates/ritk-model/src/onnx/mod.rs
@@ -313,16 +311,6 @@ source:crates/ritk-model/src/ssmmorph/state_space/model.rs
 source:crates/ritk-model/src/ssmmorph/state_space/scan.rs
 source:crates/ritk-model/src/ssmmorph/state_space/tests.rs
 source:crates/ritk-model/src/ssmmorph/vmamba_block.rs
-source:crates/ritk-model/src/transmorph/config.rs
-source:crates/ritk-model/src/transmorph/integration.rs
-source:crates/ritk-model/src/transmorph/model.rs
-source:crates/ritk-model/src/transmorph/spatial_transform.rs
-source:crates/ritk-model/src/transmorph/swin/attention.rs
-source:crates/ritk-model/src/transmorph/swin/block.rs
-source:crates/ritk-model/src/transmorph/swin/mlp.rs
-source:crates/ritk-model/src/transmorph/tests.rs
-source:crates/ritk-model/tests/affine_test.rs
-source:crates/ritk-model/tests/transmorph_test.rs
 source:crates/ritk-python/src/color.rs
 source:crates/ritk-python/src/filter/fft/convolution.rs
 source:crates/ritk-python/src/filter/fft/correlation.rs
@@ -339,8 +327,6 @@ source:crates/ritk-registration/benches/parzen_direct.rs
 source:crates/ritk-registration/benches/registration_pipeline.rs
 source:crates/ritk-registration/examples/brain_ct_mri_registration.rs
 source:crates/ritk-registration/examples/demo_registration.rs
-source:crates/ritk-registration/examples/dl_registration.rs
-source:crates/ritk-registration/examples/dl_train.rs
 source:crates/ritk-registration/examples/full_registration.rs
 source:crates/ritk-registration/examples/geometry_check.rs
 source:crates/ritk-registration/examples/ngf_center_weight_bench.rs
@@ -584,3 +570,7 @@ source:crates/ritk-transform/src/transform/displacement_field/transform.rs
 source:crates/ritk-transform/tests/bspline_test.rs
 source:crates/ritk-transform/tests/transform_test.rs
 source:crates/ritk-wgpu-compat/src/lib.rs
+source:crates/ritk-model/src/affine/network.rs
+source:crates/ritk-model/src/initialization.rs
+source:crates/ritk-model/src/transmorph/config.rs
+source:crates/ritk-model/src/transmorph/model.rs

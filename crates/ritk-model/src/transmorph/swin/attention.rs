@@ -1,159 +1,219 @@
-use ritk_image::burn::{
-    module::Param,
-    nn::{Dropout, DropoutConfig, Linear, LinearConfig},
-    prelude::*,
-    tensor::{activation::softmax, backend::Backend, Int, Tensor},
-};
-use ritk_image::tensor::Distribution;
+//! Three-dimensional shifted-window attention.
 
-#[derive(Module, Debug)]
-pub struct WindowAttention<B: Backend> {
-    query: Linear<B>,
-    key: Linear<B>,
-    value: Linear<B>,
-    proj: Linear<B>,
-    relative_position_bias_table: Param<Tensor<B, 2>>,
-    relative_position_index: Tensor<B, 1, Int>, // Flattened [M^3 * M^3]
-    num_heads: usize,
+use coeus_autograd::{
+    add, index_select, matmul, permute, reshape, scalar_mul, softmax, swapaxes, unsqueeze, Var,
+};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::{init, Dropout, Linear, Module};
+use coeus_ops::BackendOps;
+use coeus_tensor::Tensor;
+
+/// Windowed multi-head self-attention with relative position bias.
+#[derive(Clone)]
+pub struct WindowAttention<B>
+where
+    B: Backend + BackendOps<f32>,
+{
+    query: Linear<f32, B>,
+    key: Linear<f32, B>,
+    value: Linear<f32, B>,
+    projection: Linear<f32, B>,
+    relative_position_bias: Var<f32, B>,
+    relative_position_index: Var<f32, B>,
+    heads: usize,
     head_dim: usize,
-    window_size: usize,
-    scale: f64,
+    scale: f32,
     dropout: Dropout,
 }
 
-#[derive(Config, Debug)]
+/// Window-attention configuration.
+#[derive(Debug, Clone, Copy)]
 pub struct WindowAttentionConfig {
     input_dim: usize,
-    num_heads: usize,
+    heads: usize,
     window_size: usize,
-    #[config(default = 0.0)]
     dropout: f64,
 }
 
 impl WindowAttentionConfig {
-    pub fn init<B: Backend>(&self, device: &B::Device) -> WindowAttention<B> {
-        let head_dim = self.input_dim / self.num_heads;
-        let m = self.window_size;
-
-        // Initialize relative position bias table
-        // Shape: [(2M-1)^3, num_heads]
-        let num_relative_distance = (2 * m - 1).pow(3);
-        let table = Tensor::random(
-            [num_relative_distance, self.num_heads],
-            Distribution::Normal(0.0, 0.02),
-            device,
-        );
-
-        // Compute relative position index
-        // We compute this on CPU and move to device because it's complex logic
-        let index = Self::compute_relative_position_index(m);
-        let index = Tensor::<B, 1, Int>::from_ints(index.as_slice(), device);
-
-        WindowAttention {
-            query: LinearConfig::new(self.input_dim, self.input_dim).init(device),
-            key: LinearConfig::new(self.input_dim, self.input_dim).init(device),
-            value: LinearConfig::new(self.input_dim, self.input_dim).init(device),
-            proj: LinearConfig::new(self.input_dim, self.input_dim).init(device),
-            relative_position_bias_table: Param::from_tensor(table),
-            relative_position_index: index,
-            num_heads: self.num_heads,
-            head_dim,
-            window_size: m,
-            scale: (head_dim as f64).powf(-0.5),
-            dropout: DropoutConfig::new(self.dropout).init(),
+    /// Construct a window-attention configuration.
+    #[must_use]
+    pub const fn new(input_dim: usize, heads: usize, window_size: usize) -> Self {
+        Self {
+            input_dim,
+            heads,
+            window_size,
+            dropout: 0.0,
         }
     }
 
-    fn compute_relative_position_index(m: usize) -> Vec<i32> {
-        // Coordinate grid
-        let mut coords = Vec::with_capacity(m * m * m);
-        for d in 0..m {
-            for h in 0..m {
-                for w in 0..m {
-                    coords.push((d as i32, h as i32, w as i32));
-                }
-            }
-        }
+    /// Set attention dropout probability.
+    #[must_use]
+    pub const fn with_dropout(mut self, dropout: f64) -> Self {
+        self.dropout = dropout;
+        self
+    }
 
-        let n = m * m * m;
-        let mut index = Vec::with_capacity(n * n);
-
-        for i in 0..n {
-            let (d1, h1, w1) = coords[i];
-            for &(d2, h2, w2) in coords.iter().take(n) {
-                let rd = (d1 - d2) + (m as i32 - 1);
-                let rh = (h1 - h2) + (m as i32 - 1);
-                let rw = (w1 - w2) + (m as i32 - 1);
-
-                let range = 2 * m as i32 - 1;
-                let idx = rd * range * range + rh * range + rw;
-                index.push(idx);
-            }
-        }
-        index
+    /// Initialize attention on backend `B`.
+    #[must_use]
+    pub fn init<B>(self) -> WindowAttention<B>
+    where
+        B: Backend + BackendOps<f32>,
+    {
+        assert_eq!(
+            self.input_dim % self.heads,
+            0,
+            "attention width must be divisible by head count"
+        );
+        let head_dim = self.input_dim / self.heads;
+        let distances = (2 * self.window_size - 1).pow(3);
+        let mut relative_position_bias = Var::new(
+            Tensor::zeros_on([distances, self.heads], &B::default()),
+            true,
+        );
+        init::normal_with_seed(&mut relative_position_bias, 0.0, 0.02, 42);
+        let index = compute_relative_position_index(self.window_size)
+            .into_iter()
+            .map(|value| value as f32)
+            .collect::<Vec<_>>();
+        let relative_position_index = Var::new(
+            Tensor::from_slice_on([index.len()], &index, &B::default()),
+            false,
+        );
+        let mut attention = WindowAttention {
+            query: Linear::new(self.input_dim, self.input_dim, true),
+            key: Linear::new(self.input_dim, self.input_dim, true),
+            value: Linear::new(self.input_dim, self.input_dim, true),
+            projection: Linear::new(self.input_dim, self.input_dim, true),
+            relative_position_bias,
+            relative_position_index,
+            heads: self.heads,
+            head_dim,
+            scale: (head_dim as f32).powf(-0.5),
+            dropout: Dropout::new(self.dropout),
+        };
+        crate::initialization::linear(&mut attention.query, self.input_dim, self.input_dim, 211);
+        crate::initialization::linear(&mut attention.key, self.input_dim, self.input_dim, 212);
+        crate::initialization::linear(&mut attention.value, self.input_dim, self.input_dim, 213);
+        crate::initialization::linear(
+            &mut attention.projection,
+            self.input_dim,
+            self.input_dim,
+            214,
+        );
+        attention
     }
 }
 
-impl<B: Backend> WindowAttention<B> {
-    pub fn forward(&self, x: Tensor<B, 3>, mask: Option<Tensor<B, 4>>) -> Tensor<B, 3> {
-        // x: [Batch_Windows, N, C] where N = ws^3
-        let [b, n, c] = x.dims();
+impl<B> WindowAttention<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Apply attention to `[windows, voxels, channels]`.
+    #[must_use]
+    pub fn forward_with_mask(
+        &self,
+        input: &Var<f32, B>,
+        mask: Option<&Var<f32, B>>,
+    ) -> Var<f32, B> {
+        let shape = input.tensor.shape();
+        assert_eq!(shape.len(), 3, "window attention requires rank three");
+        let (windows, voxels, channels) = (shape[0], shape[1], shape[2]);
+        let project = |linear: &Linear<f32, B>| {
+            let value = linear.forward(input);
+            let value = reshape(&value, [windows, voxels, self.heads, self.head_dim]);
+            permute(&value, &[0, 2, 1, 3])
+        };
+        let query = project(&self.query);
+        let key = project(&self.key);
+        let value = project(&self.value);
+        let key = swapaxes(&key, 2, 3);
+        let scores = matmul(&query, &key);
+        let scores = reshape(&scores, [windows, self.heads, voxels, voxels]);
+        let scores = scalar_mul(&scores, self.scale);
 
-        let q = self
-            .query
-            .forward(x.clone())
-            .reshape([b, n, self.num_heads, self.head_dim])
-            .permute([0, 2, 1, 3]); // [B, NumHeads, N, HeadDim]
-
-        let k = self
-            .key
-            .forward(x.clone())
-            .reshape([b, n, self.num_heads, self.head_dim])
-            .permute([0, 2, 1, 3]);
-
-        let v = self
-            .value
-            .forward(x.clone())
-            .reshape([b, n, self.num_heads, self.head_dim])
-            .permute([0, 2, 1, 3]);
-
-        // Attention score: Q @ K^T * scale
-        let mut attn = q.matmul(k.transpose()) * self.scale;
-
-        // Add relative position bias
-        // table: [L, NumHeads] where L = (2M-1)^3
-        // index: [N*N]
-        // bias: gather(table, index) -> [N*N, NumHeads]
-        // reshape -> [N, N, NumHeads]
-        // permute -> [NumHeads, N, N]
-        // unsqueeze -> [1, NumHeads, N, N]
-
-        let table = self.relative_position_bias_table.val();
-        let index = self.relative_position_index.clone();
-
-        let bias = table
-            .select(0, index)
-            .reshape([n, n, self.num_heads])
-            .permute([2, 0, 1])
-            .unsqueeze::<4>();
-
-        attn = attn + bias;
-
-        // Apply mask if provided (for shifted window attention)
+        let bias = index_select(
+            &self.relative_position_bias,
+            0,
+            &self.relative_position_index,
+        );
+        let bias = reshape(&bias, [voxels, voxels, self.heads]);
+        let bias = permute(&bias, &[2, 0, 1]);
+        let bias = unsqueeze(&bias, 0);
+        assert_eq!(
+            scores.tensor.shape(),
+            &[windows, self.heads, voxels, voxels],
+            "attention score shape must preserve window and head axes"
+        );
+        assert_eq!(
+            bias.tensor.shape(),
+            &[1, self.heads, voxels, voxels],
+            "relative-position bias must broadcast over windows"
+        );
+        let mut scores = add(&scores, &bias);
         if let Some(mask) = mask {
-            // mask shape: [B, 1, N, N]
-            attn = attn + mask;
+            scores = add(&scores, mask);
         }
-
-        let attn = softmax(attn, 3);
-        let attn = self.dropout.forward(attn);
-
-        // x = attn @ V
-        let x = attn
-            .matmul(v)
-            .permute([0, 2, 1, 3]) // [B, N, NumHeads, HeadDim]
-            .reshape([b, n, c]);
-
-        self.proj.forward(x)
+        let weights = self.dropout.forward(&softmax(&scores, 3));
+        let output = matmul(&weights, &value);
+        let output = reshape(&output, [windows, self.heads, voxels, self.head_dim]);
+        let output = permute(&output, &[0, 2, 1, 3]);
+        let output = reshape(&output, [windows, voxels, channels]);
+        self.projection.forward(&output)
     }
+}
+
+impl<B> Module<f32, B> for WindowAttention<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        let mut parameters = self.query.parameters();
+        parameters.extend(self.key.parameters());
+        parameters.extend(self.value.parameters());
+        parameters.extend(self.projection.parameters());
+        parameters.push(self.relative_position_bias.clone());
+        parameters
+    }
+
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        self.forward_with_mask(input, None)
+    }
+
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        let segment = self.query.parameters().len();
+        self.query.load_parameters(&parameters[0..segment]);
+        self.key.load_parameters(&parameters[segment..2 * segment]);
+        self.value
+            .load_parameters(&parameters[2 * segment..3 * segment]);
+        self.projection
+            .load_parameters(&parameters[3 * segment..4 * segment]);
+        self.relative_position_bias = parameters[4 * segment].clone();
+    }
+
+    fn train(&mut self, mode: bool) {
+        self.dropout.set_training(mode);
+    }
+}
+
+fn compute_relative_position_index(window_size: usize) -> Vec<usize> {
+    let coordinates = (0..window_size)
+        .flat_map(|depth| {
+            (0..window_size)
+                .flat_map(move |height| (0..window_size).map(move |width| (depth, height, width)))
+        })
+        .collect::<Vec<_>>();
+    let range = 2 * window_size - 1;
+    let mut index = Vec::with_capacity(coordinates.len() * coordinates.len());
+    for &(depth, height, width) in &coordinates {
+        for &(other_depth, other_height, other_width) in &coordinates {
+            let relative_depth = depth + window_size - 1 - other_depth;
+            let relative_height = height + window_size - 1 - other_height;
+            let relative_width = width + window_size - 1 - other_width;
+            index.push(relative_depth * range * range + relative_height * range + relative_width);
+        }
+    }
+    index
 }

@@ -16,6 +16,11 @@ thiserror = { workspace = true }
 bytemuck = { workspace = true }
 tracing = { workspace = true }
 coeus-tensor = { workspace = true }
+coeus-core = { workspace = true }
+coeus-ops = { workspace = true }
+coeus-autograd = { workspace = true }
+coeus-nn = { workspace = true }
+coeus-optim = { workspace = true }
 onnx-ir = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }

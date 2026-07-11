@@ -1693,6 +1693,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "coeus-nn"
+version = "0.5.11"
+dependencies = [
+ "coeus-autograd",
+ "coeus-core",
+ "coeus-leto",
+ "coeus-ops",
+ "coeus-tensor",
+ "smallvec",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "coeus-ops"
 version = "0.5.11"
 dependencies = [
@@ -1705,6 +1718,17 @@ dependencies = [
  "leto-ops",
  "melinoe",
  "smallvec",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "coeus-optim"
+version = "0.5.11"
+dependencies = [
+ "coeus-autograd",
+ "coeus-core",
+ "coeus-ops",
+ "coeus-tensor",
  "thiserror 2.0.18",
 ]
 
@@ -7824,6 +7848,11 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "bytemuck",
+ "coeus-autograd",
+ "coeus-core",
+ "coeus-nn",
+ "coeus-ops",
+ "coeus-optim",
  "coeus-tensor",
  "mockito",
  "onnx-ir",
@@ -7914,7 +7943,9 @@ dependencies = [
  "bytemuck",
  "coeus-autograd",
  "coeus-core",
+ "coeus-nn",
  "coeus-ops",
+ "coeus-optim",
  "coeus-tensor",
  "criterion",
  "eunomia",

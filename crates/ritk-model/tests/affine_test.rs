@@ -1,52 +1,59 @@
-use burn_ndarray::{NdArray, NdArrayDevice};
-use ritk_image::tensor::{Distribution, Tensor};
+use coeus_autograd::Var;
+use coeus_core::MoiraiBackend;
+use coeus_nn::Module;
+use coeus_tensor::Tensor;
 use ritk_model::affine::{AffineNetworkConfig, AffineTransform};
 
-type TestBackend = NdArray;
-
 #[test]
-fn test_affine_network_forward() {
-    let device = NdArrayDevice::default();
-    let config = AffineNetworkConfig::default();
-    let model = config.init::<TestBackend>(&device);
-
-    let input = Tensor::<TestBackend, 5>::random(
-        [1, 2, 32, 32, 32],
-        Distribution::Normal(0.0, 1.0),
-        &device,
+fn affine_network_forward_produces_finite_parameters() {
+    let model = AffineNetworkConfig::default().init::<MoiraiBackend>();
+    let input = Var::new(
+        Tensor::ones_on([1, 2, 32, 32, 32], &MoiraiBackend::new()),
+        false,
     );
-    let output = model.forward(input);
+    let output = model.forward(&input);
 
-    assert_eq!(output.shape().dims, [1, 12]);
+    assert_eq!(output.tensor.shape(), &[1, 12]);
+    assert!(output
+        .tensor
+        .as_slice()
+        .iter()
+        .all(|value| value.is_finite()));
 }
 
 #[test]
-fn test_affine_transform_forward() {
-    let device = NdArrayDevice::default();
-    let stn = AffineTransform::<TestBackend>::new();
-
-    let image = Tensor::<TestBackend, 5>::random(
-        [1, 1, 32, 32, 32],
-        Distribution::Normal(0.0, 1.0),
-        &device,
+fn affine_identity_preserves_voxels_exactly() {
+    let transformer = AffineTransform::<MoiraiBackend>::new();
+    let image = Var::new(
+        Tensor::from_slice_on(
+            [1, 1, 2, 2, 2],
+            &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
+            &MoiraiBackend::new(),
+        ),
+        true,
     );
-    // Identity transform
-    let theta = Tensor::<TestBackend, 1>::from_floats(
-        [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-        &device,
-    )
-    .reshape([1, 12]);
+    let theta = Var::new(
+        Tensor::from_slice_on(
+            [1, 12],
+            &[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+            &MoiraiBackend::new(),
+        ),
+        true,
+    );
 
-    let output = stn.forward(image.clone(), theta);
+    let output = transformer
+        .forward(&image, &theta)
+        .expect("identity affine contract is valid");
 
-    assert_eq!(output.shape().dims, [1, 1, 32, 32, 32]);
-
-    // Check if output is close to input (identity transform should be exact if grid is perfect,
-    // but interpolation adds some blur/error at boundaries, though with identity grid it should be exact)
-    // Actually, due to alignment of "normalized coordinates" vs "pixel coordinates",
-    // there might be small shifts if not careful.
-    // My normalized_meshgrid implementation:
-    // [-1, 1] maps to [0, D-1].
-
-    // Let's verify a simple shift
+    assert_eq!(output.tensor.shape(), &[1, 1, 2, 2, 2]);
+    assert_eq!(output.tensor.as_slice(), image.tensor.as_slice());
+    output.backward();
+    assert!(
+        image.grad().is_some(),
+        "image gradient must remain connected"
+    );
+    assert!(
+        theta.grad().is_some(),
+        "affine gradient must remain connected"
+    );
 }
