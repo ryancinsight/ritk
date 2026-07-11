@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-597-01 — Native seeded speckle noise
+**Target version**: 0.14.0 migration batch
+- [x] Share seeded gamma-sampled speckle noise with native images.
+
 ## MIG-596-01 — Native seeded shot noise
 **Target version**: 0.14.0 migration batch
 - [x] Share both seeded shot-noise sampling regimes with native images.

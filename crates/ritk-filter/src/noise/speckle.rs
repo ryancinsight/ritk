@@ -3,8 +3,11 @@
 use super::fastnorm::hash;
 use super::mersenne::MersenneTwister;
 use super::DEFAULT_NOISE_SEED;
+use crate::native_support::map_flat_image;
 use anyhow::Result;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
@@ -48,9 +51,26 @@ impl SpeckleNoiseFilter {
     /// single-threaded.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
+        Ok(rebuild(self.apply_values(&vals), dims, image))
+    }
+
+    /// Apply seeded speckle noise to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| self.apply_values(values))
+    }
+
+    fn apply_values(&self, values: &[f32]) -> Vec<f32> {
         // Degenerate variance ⇒ Gamma collapses to 1 (identity).
         if self.std == 0.0 {
-            return Ok(rebuild(vals, dims, image));
+            return values.to_vec();
         }
         let mut gen = MersenneTwister::new(hash(self.seed, 0));
 
@@ -61,7 +81,7 @@ impl SpeckleNoiseFilter {
         let delta = k - floork;
         let v0 = std::f64::consts::E / (std::f64::consts::E + delta);
 
-        let out: Vec<f32> = vals
+        values
             .iter()
             .map(|&v| {
                 // Marsaglia–Tsang gamma for the fractional shape `delta`.
@@ -88,8 +108,7 @@ impl SpeckleNoiseFilter {
                 gamma *= theta;
                 (gamma * v as f64) as f32
             })
-            .collect();
-        Ok(rebuild(out, dims, image))
+            .collect()
     }
 }
 

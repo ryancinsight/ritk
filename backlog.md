@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-597-01 [patch] - Native seeded speckle noise (DONE).** Gamma-sampled
+  speckle noise now shares one stream across tensor-backed and native images.
+
 - **MIG-596-01 [patch] - Native seeded shot noise (DONE).** The Poisson and
   normal-approximation generator paths now serve Coeus-native images.
 

@@ -1,4 +1,7 @@
 use super::*;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
+use ritk_spatial::{Direction, Point, Spacing};
 
 /// Zero std dev produces no change.
 #[test]
@@ -14,6 +17,29 @@ fn speckle_zero_std_is_identity() {
             "voxel {i} changed with zero std"
         );
     }
+}
+
+#[test]
+fn native_speckle_zero_std_preserves_values_and_metadata() {
+    let image = NativeImage::from_flat_on(
+        vec![1.0, 2.0, 3.0],
+        [1, 1, 3],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = SpeckleNoiseFilter::new(0.0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native speckle noise succeeds");
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[1.0, 2.0, 3.0]
+    );
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
 }
 
 /// Deterministic seed produces reproducible output.

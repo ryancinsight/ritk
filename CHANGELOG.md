@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 597: Native seeded speckle noise (MIG-597-01)
+### Added
+- `SpeckleNoiseFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 596: Native seeded shot noise (MIG-596-01)
 ### Added
 - `ShotNoiseFilter` now exposes a Coeus-native image boundary.

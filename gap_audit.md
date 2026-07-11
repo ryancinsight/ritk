@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-597-01 audit (2026-07-11)
+
+Speckle noise now shares its seeded gamma sampler across tensor-backed and
+Coeus-native images. The zero-variance identity and metadata contracts are pinned.
+
 ## MIG-596-01 audit (2026-07-11)
 
 Shot noise now shares its seeded Poisson and normal-approximation paths across
