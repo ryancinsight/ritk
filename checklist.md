@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-537-01 — Legacy ViewerCore deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the generic ViewerCore/ViewerBackend surface has no production consumer outside the headless CLI adapter.
+- [x] Convert CLI DICOM inspection directly to Coeus-native images and delete its no-op backend lifecycle.
+- [x] Delete the generic ViewerCore, Study, events, dead filter dispatch, and their self-only Burn tests; retain ViewerState and the live application CPR promotion helper.
+- [x] Refresh the allowlist and verify CLI nextest 199/199, Snap nextest 637/637, xtask nextest 8/8, warning-denied Clippy, Rustdoc, doctests, and audit reduction to 650 source files.
+
 ## MIG-536-01 — Snap application loader SSOT
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

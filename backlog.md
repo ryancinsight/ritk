@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-537-01 [major] - Legacy ViewerCore deletion (DONE).**
+  The generic ViewerCore, Study, ViewerBackend, event lifecycle, and duplicate
+  filter dispatch had no production role beyond a CLI adapter whose backend did
+  no rendering. CLI inspection now consumes native DICOM images directly;
+  ViewerState remains the sole viewer-domain state contract and the live Snap
+  application filter helper remains separately owned. Evidence: CLI nextest
+  199/199, Snap nextest 637/637, xtask nextest 8/8, warning-denied Clippy,
+  Rustdoc, doctests, and Burn audit reduction from 654 to 650 source files.
+
 - **MIG-536-01 [major] - Snap application loader SSOT (DONE).**
   Primary and secondary application loading now consume the canonical native
   `LoadedVolume` instead of independently rebuilding Burn images, extracting

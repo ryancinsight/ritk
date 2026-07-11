@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-537-01 audit (2026-07-11)
+
+The generic ViewerCore hierarchy carried a Burn image model, event stream,
+backend trait, no-op CLI adapter, and a 481-line duplicate filter dispatcher.
+Exact consumer search found the CLI as its only production consumer; that CLI
+loaded Coeus-native DICOM only to convert it back to Burn and render nothing.
+The CLI now prints directly from the native image. ViewerState is retained for
+the active Snap application, while the live application filter graph keeps its
+CPR rank-promotion helper until its own native operation family is ready.
+
+Evidence tier: exact consumer inventory; CLI nextest 199/199; Snap nextest
+637/637; xtask nextest 8/8; warning-denied Clippy; Rustdoc; doctests; and clean
+audit reduction from 654 to 650 source files. The JPEG-depth assertion updates
+an obsolete `nz` spelling to the provider's exact `depth=2` invariant.
+
 ## MIG-536-01 audit (2026-07-11)
 
 `SnapApp::load_from_path` and `load_secondary_from_path` bypassed the canonical

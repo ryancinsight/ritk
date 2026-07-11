@@ -8,6 +8,24 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 537: Legacy ViewerCore deletion (MIG-537-01)
+
+### Changed
+- CLI DICOM inspection now consumes Coeus-native images directly and prints
+  geometry without a no-op viewer backend lifecycle.
+
+### Removed
+- Removed the unused generic ViewerCore, Study, ViewerBackend, event model,
+  duplicate filter dispatch, self-only tests, and associated Burn surfaces.
+
+### Breaking
+- The removed ViewerCore, Study, ViewerBackend, ViewerEvent, and DefaultBackend
+  symbols have no replacement; use SnapApp and LoadedVolume application paths.
+
+### Evidence
+- CLI nextest 199/199, Snap nextest 637/637, xtask nextest 8/8, warning-denied
+  Clippy, Rustdoc, doctests, and audit reduction from 654 to 650 source files.
+
 ## [Unreleased] — Sprint 536: Snap application loader SSOT (MIG-536-01)
 
 ### Changed

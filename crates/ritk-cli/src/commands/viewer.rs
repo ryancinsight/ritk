@@ -10,16 +10,14 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use ritk_image::Image;
 use ritk_io::{
     load_native_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata,
     DicomSeriesInfo, DicomSliceMetadata,
 };
-use ritk_snap::{GeometrySummary, Study, ViewerBackend, ViewerCore, ViewerEvent, ViewerState};
+use ritk_snap::GeometrySummary;
 use std::path::PathBuf;
 
-/// CPU backend for the CLI viewer — inherits the type defined in `commands/mod.rs`.
-use super::{native_image_to_burn, Backend, NativeBackend};
+use super::NativeBackend;
 
 /// Inspect a DICOM study from the command line.
 #[derive(Debug, Clone, Parser)]
@@ -43,44 +41,6 @@ pub struct ViewerArgs {
     pub summary: bool,
 }
 
-/// Headless backend for CLI inspection.
-#[derive(Debug, Default)]
-struct HeadlessViewerBackend {
-    state: ViewerState,
-    last_event: Option<ViewerEvent>,
-}
-
-impl ViewerBackend for HeadlessViewerBackend {
-    type Error = std::io::Error;
-
-    fn initialize(&mut self) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn load_study<B: ritk_image::tensor::Backend, const D: usize>(
-        &mut self,
-        _study: &Study<B, D>,
-        state: &ViewerState,
-    ) -> Result<(), Self::Error> {
-        self.state = *state;
-        Ok(())
-    }
-
-    fn update_state(&mut self, state: &ViewerState) -> Result<(), Self::Error> {
-        self.state = *state;
-        Ok(())
-    }
-
-    fn render(&mut self) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn handle_event(&mut self, event: ViewerEvent) -> Result<(), Self::Error> {
-        self.last_event = Some(event);
-        Ok(())
-    }
-}
-
 /// Run the viewer command.
 pub fn run(args: ViewerArgs) -> Result<()> {
     let path = args.path.as_path();
@@ -92,18 +52,6 @@ pub fn run(args: ViewerArgs) -> Result<()> {
         .max_by_key(|series| series.file_paths.len())
         .with_context(|| format!("no DICOM series found at {}", path.display()))?;
     let (image, metadata) = load_scalar_dicom_for_viewer(path)?;
-
-    let study = Study::new(image.clone())
-        .with_dicom(metadata.clone())
-        .with_source(path.to_path_buf());
-
-    let mut core = ViewerCore::<Backend, 3>::new();
-    let loaded_event = core.load_study(study);
-    let mut backend = HeadlessViewerBackend::default();
-    backend.initialize()?;
-    backend.load_study(core.study().expect("study must exist"), core.state())?;
-    backend.handle_event(loaded_event)?;
-    backend.render()?;
 
     print_summary(path, selected_series, &image);
 
@@ -124,15 +72,22 @@ pub fn run(args: ViewerArgs) -> Result<()> {
 
 fn load_scalar_dicom_for_viewer(
     path: &std::path::Path,
-) -> Result<(Image<Backend, 3>, DicomReadMetadata)> {
+) -> Result<(
+    ritk_image::native::Image<f32, NativeBackend, 3>,
+    DicomReadMetadata,
+)> {
     let backend = NativeBackend::default();
     let (image, metadata) = load_native_dicom_series_with_metadata(path, &backend)
         .with_context(|| format!("failed to load DICOM study at {}", path.display()))?;
 
-    Ok((native_image_to_burn(image), metadata))
+    Ok((image, metadata))
 }
 
-fn print_summary(path: &std::path::Path, series: &DicomSeriesInfo, image: &Image<Backend, 3>) {
+fn print_summary(
+    path: &std::path::Path,
+    series: &DicomSeriesInfo,
+    image: &ritk_image::native::Image<f32, NativeBackend, 3>,
+) {
     let shape = image.shape();
     println!("DICOM study: {}", path.display());
     println!("  series_uid: {}", series.series_instance_uid());
@@ -237,66 +192,5 @@ mod tests {
     fn test_print_slice_table_handles_empty_input() {
         let empty = Vec::<DicomSliceMetadata>::new();
         print_slice_table(&empty);
-    }
-
-    #[test]
-    fn test_viewer_core_event_flow() {
-        let state = ViewerState::default();
-        let event = ViewerEvent::Status {
-            message: "ready".to_string(),
-        };
-        let mut backend = HeadlessViewerBackend::default();
-        backend.initialize().expect("initialize");
-        backend.update_state(&state).expect("update_state");
-        backend.handle_event(event.clone()).expect("handle_event");
-        backend.render().expect("render");
-        assert_eq!(backend.state, state);
-        assert_eq!(backend.last_event, Some(event));
-    }
-
-    #[test]
-    fn test_viewer_native_dicom_loader_matches_legacy_loader() {
-        use ritk_image::tensor::Backend as BurnBackend;
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
-        use ritk_spatial::{Direction, Point, Spacing};
-
-        let dir = tempfile::tempdir().unwrap();
-        let series_path = dir.path().join("viewer_series.dicom");
-        let values = (0..8).map(|v| v as f32).collect::<Vec<_>>();
-        let shape = [2, 2, 2];
-        let origin = Point::new([0.0; 3]);
-        let spacing = Spacing::new([1.0; 3]);
-        let direction = Direction::identity();
-        let device: <Backend as BurnBackend>::Device = Default::default();
-        let tensor =
-            Tensor::<Backend, 3>::from_data(TensorData::new(values, Shape::new(shape)), &device);
-        let image = Image::new(tensor, origin, spacing, direction);
-
-        ritk_io::write_dicom_series::<Backend, _>(&series_path, &image)
-            .expect("DICOM fixture write must succeed");
-
-        let (legacy_image, legacy_metadata) =
-            ritk_io::load_dicom_series_with_metadata::<Backend, _>(&series_path, &device)
-                .expect("legacy viewer load");
-        let (viewer_image, viewer_metadata) =
-            load_scalar_dicom_for_viewer(&series_path).expect("native viewer load");
-
-        assert_eq!(viewer_image.shape(), legacy_image.shape());
-        assert_eq!(*viewer_image.origin(), *legacy_image.origin());
-        assert_eq!(*viewer_image.spacing(), *legacy_image.spacing());
-        assert_eq!(*viewer_image.direction(), *legacy_image.direction());
-        assert_eq!(
-            viewer_image.try_data_vec().unwrap(),
-            legacy_image.try_data_vec().unwrap()
-        );
-        assert_eq!(viewer_metadata.dimensions, legacy_metadata.dimensions);
-        assert_eq!(viewer_metadata.spacing, legacy_metadata.spacing);
-        assert_eq!(viewer_metadata.origin, legacy_metadata.origin);
-        assert_eq!(viewer_metadata.direction, legacy_metadata.direction);
-        assert_eq!(viewer_metadata.modality, legacy_metadata.modality);
-        assert_eq!(
-            viewer_metadata.series_instance_uid,
-            legacy_metadata.series_instance_uid
-        );
     }
 }
