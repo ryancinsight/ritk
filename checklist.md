@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-557-01 — Snap native trigonometric family
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Consolidate the duplicated trig/reciprocal implementations into the
+  sealed generic unary provider.
+- [x] Route all seven Snap variants through the native image boundary.
+- [x] Verify provider laws, Snap known values, warning-denied Clippy, doctests,
+  and Rustdoc; commit and advance the RITK gitlink.
+
 ## MIG-556-01 — Snap native threshold masking
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

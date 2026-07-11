@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-557-01 [patch] - Snap native trigonometric family (DONE).**
+  Seven duplicated trig/reciprocal filters now use the sealed native unary
+  family and Snap dispatches them before legacy construction. Provider laws and
+  exact consumer values pass.
+
 - **MIG-556-01 [patch] - Snap native threshold masking (DONE).**
   MaskImageFilter now owns a Coeus-native strict threshold-mask operation, and
   Snap dispatches it natively. Provider and Snap boundary regressions pass.

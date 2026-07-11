@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## MIG-557-01 audit (2026-07-11)
+
+The trigonometric family duplicated the generic unary filter scaffold and was
+therefore legacy-only in Snap. Its ZST operations now live with the canonical
+sealed unary provider, preserving public names through the trig module's
+re-exports. The seven Snap variants dispatch natively; provider laws and exact
+known-value checks cover the contract.
+
 ## MIG-556-01 audit (2026-07-11)
 
 MaskThreshold assembled a temporary legacy mask image in Snap even though its

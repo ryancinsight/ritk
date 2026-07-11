@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 557: Snap native trigonometric family (MIG-557-01)
+
+### Changed
+- Atan, Sin, Cos, Tan, Asin, Acos, and bounded reciprocal now use the sealed
+  generic unary implementation and its Coeus-native boundary.
+- Snap routes the full family natively.
+
+### Evidence
+- Twenty-one provider laws and exact Snap known-value regressions pass.
+
 ## [Unreleased] — Sprint 556: Snap native threshold masking (MIG-556-01)
 
 ### Added

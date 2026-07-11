@@ -26,10 +26,12 @@
 // ── Generic unary infrastructure ─────────────────────────────────────────────
 pub mod unary;
 pub use unary::{
-    Abs, AbsImageFilter, Exp, ExpImageFilter, ExpNegative, ExpNegativeImageFilter, Log, Log10,
-    Log10ImageFilter, LogImageFilter, Not, NotImageFilter, Round, RoundImageFilter, Sqrt,
-    SqrtImageFilter, Square, SquareImageFilter, UnaryImageFilter, UnaryMinus,
-    UnaryMinusImageFilter, UnaryPixelOp,
+    Abs, AbsImageFilter, Acos, AcosImageFilter, Asin, AsinImageFilter, Atan, AtanImageFilter,
+    BoundedReciprocal, BoundedReciprocalImageFilter, Cos, CosImageFilter, Exp, ExpImageFilter,
+    ExpNegative, ExpNegativeImageFilter, Log, Log10, Log10ImageFilter, LogImageFilter, Not,
+    NotImageFilter, Round, RoundImageFilter, Sin, SinImageFilter, Sqrt, SqrtImageFilter, Square,
+    SquareImageFilter, Tan, TanImageFilter, UnaryImageFilter, UnaryMinus, UnaryMinusImageFilter,
+    UnaryPixelOp,
 };
 
 // ── Test-hosting modules (one per filter; contain only the #[cfg(test)] block) ─

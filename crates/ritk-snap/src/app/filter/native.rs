@@ -13,11 +13,12 @@ use ritk_filter::{
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
-    AbsImageFilter, ClampImageFilter, ConstantPadImageFilter, ExpImageFilter, FlipImageFilter,
-    InvertIntensityFilter, LogImageFilter, MaskImageFilter, MirrorPadImageFilter,
-    NormalizeImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
-    RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
-    TileMeanShrinkFilter, WrapPadImageFilter,
+    AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter,
+    BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
+    ExpImageFilter, FlipImageFilter, InvertIntensityFilter, LogImageFilter, MaskImageFilter,
+    MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
+    RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
+    SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, WrapPadImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -97,6 +98,13 @@ pub(super) fn apply_if_supported(
             | FilterKind::MirrorPad { .. }
             | FilterKind::WrapPad { .. }
             | FilterKind::MaskThreshold { .. }
+            | FilterKind::Atan
+            | FilterKind::Sin
+            | FilterKind::Cos
+            | FilterKind::Tan
+            | FilterKind::Asin
+            | FilterKind::Acos
+            | FilterKind::BoundedReciprocal
     ) {
         return None;
     }
@@ -233,6 +241,15 @@ fn apply_supported_filter(
         .apply_native(&image, &backend),
         FilterKind::MaskThreshold { threshold } => {
             MaskImageFilter::apply_threshold_native(&image, *threshold, &backend)
+        }
+        FilterKind::Atan => AtanImageFilter::new().apply_native(&image, &backend),
+        FilterKind::Sin => SinImageFilter::new().apply_native(&image, &backend),
+        FilterKind::Cos => CosImageFilter::new().apply_native(&image, &backend),
+        FilterKind::Tan => TanImageFilter::new().apply_native(&image, &backend),
+        FilterKind::Asin => AsinImageFilter::new().apply_native(&image, &backend),
+        FilterKind::Acos => AcosImageFilter::new().apply_native(&image, &backend),
+        FilterKind::BoundedReciprocal => {
+            BoundedReciprocalImageFilter::new().apply_native(&image, &backend)
         }
         FilterKind::BinaryErode {
             radius,
@@ -593,6 +610,31 @@ mod tests {
 
         assert_eq!(output.data, vec![0.0, 0.5001, 2.0]);
         assert_eq!(output.shape, [1, 1, 3]);
+    }
+
+    #[test]
+    fn native_trigonometric_family_preserves_known_values() {
+        let cases = [
+            (FilterKind::Atan, 1.0, core::f32::consts::FRAC_PI_4),
+            (FilterKind::Sin, 0.0, 0.0),
+            (FilterKind::Cos, 0.0, 1.0),
+            (FilterKind::Tan, 0.0, 0.0),
+            (FilterKind::Asin, 1.0, core::f32::consts::FRAC_PI_2),
+            (FilterKind::Acos, 0.0, core::f32::consts::FRAC_PI_2),
+            (FilterKind::BoundedReciprocal, -1.0, 0.5),
+        ];
+        for (filter, input, expected) in cases {
+            let mut volume = test_volume([1, 1, 1]);
+            volume.data = Arc::new(vec![input]);
+            let output = apply_if_supported(&volume, &filter)
+                .expect("invariant: trig filter has a native implementation")
+                .expect("native trig filter succeeds");
+            assert!(
+                (output.data[0] - expected).abs() <= 2.0 * f32::EPSILON,
+                "native trig output {} differs from expected {expected}",
+                output.data[0]
+            );
+        }
     }
 
     #[test]
