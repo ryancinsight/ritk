@@ -61,6 +61,7 @@ pub mod tile_cdf;
 use interpolate::clahe_2d_with_scratch;
 
 use anyhow::Result;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -180,20 +181,40 @@ impl ClaheFilter {
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let shape = image.shape();
-        let [depth, rows, cols] = [shape[0], shape[1], shape[2]];
         let (vals_vec, dims) = extract_vec(image)?;
-        let vals = &vals_vec;
+        Ok(rebuild(self.apply_values(&vals_vec, shape), dims, image))
+    }
 
+    /// Apply CLAHE to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.apply_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn apply_values(&self, values: &[f32], [depth, rows, cols]: [usize; 3]) -> Vec<f32> {
         let n_tiles_y = self.tile_grid_size[0].min(rows).max(1);
         let n_tiles_x = self.tile_grid_size[1].min(cols).max(1);
-
         let clip_limit = self.clip_limit;
         let bins = self.bins;
         let slice_size = rows * cols;
 
-        let out: Vec<f32> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |d| {
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |depth_index| {
             let mut scratch = ClaheScratch::new(rows, cols, n_tiles_y, n_tiles_x, bins);
-            let slice = &vals[d * slice_size..(d + 1) * slice_size];
+            let slice = &values[depth_index * slice_size..(depth_index + 1) * slice_size];
             clahe_2d_with_scratch(
                 slice,
                 rows,
@@ -207,8 +228,7 @@ impl ClaheFilter {
         })
         .into_iter()
         .flatten()
-        .collect();
-        Ok(rebuild(out, dims, image))
+        .collect()
     }
 
     /// Apply CLAHE to a 3-D image using a caller-provided scratch buffer.

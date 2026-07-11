@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-572-01 audit (2026-07-11)
+
+CLAHE already owned a Moirai per-slice values kernel but Snap constructed a
+legacy image. The owner now exposes that kernel natively; exact regressions pin
+uniform-slice identity and metadata preservation.
+
 ## MIG-571-01 audit (2026-07-11)
 
 Global histogram equalization already owned a finite-value histogram and CDF

@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-572-01 [patch] - Snap native CLAHE (DONE).** Coeus-native CLAHE now
+  shares the provider's per-slice Moirai kernel; exact provider and Snap
+  uniform-image regressions pass.
+
 - **MIG-571-01 [patch] - Snap native histogram equalization (DONE).**
   HistogramEqualizationFilter now exposes its canonical global-CDF kernel
   through a Coeus-native boundary, and Snap dispatches it directly. Exact

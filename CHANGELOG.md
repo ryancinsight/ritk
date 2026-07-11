@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 572: Snap native CLAHE (MIG-572-01)
+
+### Added
+- ClaheFilter now exposes its canonical per-slice Moirai kernel through a
+  Coeus-native image boundary.
+
+### Changed
+- Snap routes CLAHE natively.
+
 ## [Unreleased] — Sprint 571: Snap native histogram equalization (MIG-571-01)
 
 ### Added

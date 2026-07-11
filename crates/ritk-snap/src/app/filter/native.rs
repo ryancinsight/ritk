@@ -14,12 +14,12 @@ use ritk_filter::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BinaryContourImageFilter,
-    BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
-    ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
-    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
-    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
-    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter, ConstantPadImageFilter,
+    CosImageFilter, ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation,
+    GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
+    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
+    HistogramEqualizationFilter, InvertIntensityFilter, LabelContourImageFilter, LogImageFilter,
+    MaskImageFilter, MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
     ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
     TileMeanShrinkFilter, VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
@@ -90,6 +90,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::MultiOtsuThreshold { .. }
             | FilterKind::Median { .. }
             | FilterKind::HistEq { .. }
+            | FilterKind::Clahe { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
@@ -375,6 +376,10 @@ fn apply_supported_filter(
         FilterKind::HistEq { bins } => {
             HistogramEqualizationFilter::new(*bins).apply_native(&image, &backend)
         }
+        FilterKind::Clahe {
+            tile_grid_size,
+            clip_limit,
+        } => ClaheFilter::new(*tile_grid_size, *clip_limit, 256).apply_native(&image, &backend),
         FilterKind::BinaryThreshold {
             lower,
             upper,
@@ -1059,6 +1064,23 @@ mod tests {
     }
 
     #[test]
+    fn native_clahe_preserves_a_uniform_slice() {
+        let mut volume = test_volume([1, 2, 2]);
+        volume.data = Arc::new(vec![42.5; 4]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::Clahe {
+                tile_grid_size: [1, 1],
+                clip_limit: 40.0,
+            },
+        )
+        .expect("invariant: clahe has a native implementation")
+        .expect("native clahe accepts a scalar volume");
+
+        assert_eq!(output, vec![42.5; 4]);
+    }
+
+    #[test]
     fn native_binary_threshold_includes_both_bounds() {
         let mut volume = test_volume([1, 1, 5]);
         volume.data = Arc::new(vec![-1.0, 0.0, 50.0, 100.0, 101.0]);
@@ -1256,6 +1278,26 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [2.0 / 3.0, 2.0 / 3.0, 1.0]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_clahe() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 2, 2]);
+        volume.data = Arc::new(vec![42.5; 4]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::Clahe {
+            tile_grid_size: [1, 1],
+            clip_limit: 40.0,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [42.5; 4]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }

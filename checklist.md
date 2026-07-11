@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-572-01 — Snap native CLAHE
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Share the per-slice CLAHE kernel with a native image boundary.
+- [x] Route Snap CLAHE through the provider boundary.
+- [x] Verify uniform-value and metadata invariants; commit and advance RITK.
+
 ## MIG-571-01 — Snap native histogram equalization
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
