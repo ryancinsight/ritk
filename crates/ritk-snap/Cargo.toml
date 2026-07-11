@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 burn-ndarray = { workspace = true }
+coeus-core = { workspace = true }
 anyhow = { workspace = true }
 arrayvec = { workspace = true }
 clap = { workspace = true, features = ["derive"] }

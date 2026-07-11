@@ -1,10 +1,12 @@
 # RITK Backlog - Active Planning
 
-- **MIG-533-01 [major] - Snap native DICOM color boundary (IN PROGRESS).**
-  Snap passes Burn `NdArray` backend/device types into the Coeus-native DICOM
-  RGB loader, so `cargo check -p ritk-snap --all-targets` fails at the color
-  boundary. Migrate this loader to a native Coeus backend and retain only the
-  existing owned viewer-volume conversion at the UI boundary.
+- **MIG-533-01 [major] - Snap native DICOM color boundary (DONE).**
+  Snap now decodes both scanned and directory RGB series with Coeus
+  `SequentialBackend` and converts native RGB volumes through one canonical
+  viewer-owned boundary. Burn backend/device arguments and duplicate color
+  conversion logic are removed. Evidence: exact focused regression 1/1, full
+  Snap nextest 636/636, warning-denied Clippy, Rustdoc, doctests, all-target
+  compilation, and a clean migration audit.
 
 - **MIG-532-01 [major] - Core compatibility-module deletion (DONE).**
   Removed zero-consumer annotation, filter, and morphology compatibility

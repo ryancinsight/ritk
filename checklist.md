@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-533-01 — Snap native DICOM color boundary
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Reproduce the Burn-backend/Coeus-backend type failure in both scanned and directory RGB loaders.
+- [x] Route both color paths through `SequentialBackend` and one canonical viewer conversion.
+- [x] Pin exact pixel, geometry, channel, metadata, and source semantics.
+- [x] Verify focused nextest 1/1, full Snap nextest 636/636, warning-denied Clippy, Rustdoc, doctests, all-target compilation, and the migration audit.
+
 ## MIG-532-01 — Core compatibility-module deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

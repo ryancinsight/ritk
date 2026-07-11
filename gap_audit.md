@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## MIG-533-01 audit (2026-07-11)
+
+Snap's scalar DICOM path remains Burn-backed, but its color provider had
+already become Coeus-native. Both RGB call sites still supplied Burn
+`NdArray` backend/device types, making every all-target Snap build fail. The
+two paths now instantiate `SequentialBackend`, and one conversion owns the
+required native-volume-to-viewer `Arc<Vec<f32>>` transfer. No Burn/Coeus
+adapter or duplicate color conversion remains.
+
+Evidence tier: compiler rejection of the old boundary; exact pixel, shape,
+channel, spacing, origin, direction, metadata, and source regression; focused
+nextest 1/1; full Snap nextest 636/636; warning-denied Clippy; Rustdoc;
+doctests; all-target compilation; and a clean migration audit. The source-file
+count is unchanged because the same loader file still owns the live scalar
+Burn path, which is a separate connected migration boundary.
+
 ## MIG-532-01 audit (2026-07-11)
 
 The annotation, filter, and morphology modules in `ritk-core` were wildcard

@@ -7913,6 +7913,7 @@ dependencies = [
  "burn-ndarray",
  "bytemuck",
  "clap",
+ "coeus-core",
  "eframe",
  "egui",
  "gaia",

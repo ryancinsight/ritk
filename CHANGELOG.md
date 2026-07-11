@@ -8,6 +8,20 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 533: Snap native DICOM color (MIG-533-01)
+
+### Fixed
+- Snap now passes a Coeus backend to native DICOM RGB loaders, restoring
+  all-target compilation for scanned and directory color series.
+
+### Changed
+- Both RGB entry points share one native-volume-to-viewer conversion preserving
+  pixels, geometry, metadata, channels, and source ownership.
+
+### Evidence
+- Focused nextest 1/1, full Snap nextest 636/636, warning-denied Clippy,
+  Rustdoc, doctests, all-target compilation, and a clean migration audit.
+
 ## [Unreleased] — Sprint 532: Core compatibility deletion (MIG-532-01)
 
 ### Removed
