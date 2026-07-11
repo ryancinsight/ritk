@@ -8,6 +8,17 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 550: Snap native axis flips (MIG-550-01)
+
+### Added
+- `FlipImageFilter` now exposes a Coeus-native axis-flip boundary.
+
+### Changed
+- Snap routes FlipX, FlipY, and FlipZ through it.
+
+### Evidence
+- Provider and Snap exact X-axis reversal regressions pass.
+
 ## [Unreleased] — Sprint 549: Snap native intensity normalization (MIG-549-01)
 
 ### Added

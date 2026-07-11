@@ -13,9 +13,9 @@ use ritk_filter::{
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
-    AbsImageFilter, ClampImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter,
-    NormalizeImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter,
-    SquareImageFilter,
+    AbsImageFilter, ClampImageFilter, ExpImageFilter, FlipImageFilter, InvertIntensityFilter,
+    LogImageFilter, NormalizeImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter,
+    SqrtImageFilter, SquareImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -57,6 +57,9 @@ pub(super) fn apply_if_supported(
             | FilterKind::ShiftScale { .. }
             | FilterKind::RescaleIntensity { .. }
             | FilterKind::NormalizeIntensity
+            | FilterKind::FlipZ
+            | FilterKind::FlipY
+            | FilterKind::FlipX
     ) {
         return None;
     }
@@ -123,6 +126,9 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         FilterKind::NormalizeIntensity => {
             NormalizeImageFilter::new().apply_native(&image, &backend)
         }
+        FilterKind::FlipZ => FlipImageFilter::flip_z().apply_native(&image, &backend),
+        FilterKind::FlipY => FlipImageFilter::flip_y().apply_native(&image, &backend),
+        FilterKind::FlipX => FlipImageFilter::flip_x().apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -302,6 +308,16 @@ mod tests {
             .expect("invariant: normalization has a native implementation")
             .expect("native normalization succeeds");
         assert_eq!(output, vec![-1.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn native_flip_x_reverses_loaded_volume_values() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![1.0, 2.0, 3.0]);
+        let output = apply_if_supported(&volume, &FilterKind::FlipX)
+            .expect("invariant: flip-x has a native implementation")
+            .expect("native flip succeeds");
+        assert_eq!(output, vec![3.0, 2.0, 1.0]);
     }
 
     #[test]

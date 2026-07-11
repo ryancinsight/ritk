@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-550-01 [patch] - Snap native axis flips (DONE).**
+  FlipImageFilter now supplies a Coeus-native boundary and Snap routes all three
+  axis variants. Provider and Snap exact reversal regressions pass.
+
 - **MIG-549-01 [patch] - Snap native intensity normalization (DONE).**
   NormalizeImageFilter now exposes its Coeus-native sample-variance boundary
   and Snap dispatches it. Provider and Snap exact regressions pass.

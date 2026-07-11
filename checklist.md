@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-550-01 — Snap native axis flips
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add the native axis-flip provider boundary.
+- [x] Route all Snap flip variants and pin exact X-axis reversal.
+
 ## MIG-549-01 — Snap native intensity normalization
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

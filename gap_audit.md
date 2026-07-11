@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-550-01 audit (2026-07-11)
+
+FlipImageFilter already owned the canonical three-axis index mapping but lacked
+a Coeus image boundary. The owner now supplies it and Snap routes all closed
+axis variants before legacy construction. Exact provider and Snap reversal
+regressions prove the mapped values.
+
 ## MIG-549-01 audit (2026-07-11)
 
 NormalizeImageFilter's sample-standard-deviation contract lacked only a Coeus
