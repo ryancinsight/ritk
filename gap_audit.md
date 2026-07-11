@@ -8,6 +8,19 @@
 
 # RITK Gap Audit - Active
 
+## MIG-518-01 audit (2026-07-10)
+
+The native binary-erosion sister held only a radius and delegated directly to
+the same host-slice kernel used by the Burn image boundary. It was therefore a
+second API shape, not a second implementation or required backend seam. The
+kernel is now the public native operation; the image method remains a thin
+metadata boundary and the duplicate type/module is deleted.
+
+Evidence tier: exact consumer/delegation search, 14/14 focused algebraic and
+known-value cases, full segmentation nextest 437/437, warning-denied Clippy,
+and exact audit reduction from 573 to 572 source files. The known
+displacement-field drift remains unadmitted.
+
 ## MIG-517-01 audit (2026-07-10)
 
 The SSM-Morph encoder exposed parallel `Atlas*` types that copied configuration

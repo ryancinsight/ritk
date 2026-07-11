@@ -1,5 +1,12 @@
 # RITK Backlog - Active Planning
 
+- **MIG-518-01 [major] - Binary erosion native SSOT promotion (DONE).**
+  Promoted the host-slice erosion kernel to the public native operation,
+  routed the legacy image boundary and property suite through it, and deleted
+  the duplicate migration-only state wrapper. Evidence: focused nextest 14/14,
+  full segmentation nextest 437/437, warning-denied Clippy, and Burn-source
+  reduction from 573 to 572.
+
 - **MIG-517-01 [major] - SSM-Morph placeholder sister deletion (DONE).**
   Deleted the unused structural-only encoder sister and its shape-only tests.
   They performed no model computation and preserved a parallel API rather

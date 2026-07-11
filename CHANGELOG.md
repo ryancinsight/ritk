@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 518: Erosion SSOT promotion (MIG-518-01)
+
+### Changed
+- The host-slice binary erosion kernel is now the public native operation and
+  remains the single implementation used by the legacy image boundary.
+
+### Removed
+- Removed the duplicate migration-only erosion state type and module.
+
+### Evidence
+- Focused nextest 14/14, full segmentation nextest 437/437, warning-denied
+  Clippy, and Burn audit reduction from 573 to 572 source files.
+
 ## [Unreleased] — Sprint 517: Encoder placeholder deletion (MIG-517-01)
 
 ### Removed

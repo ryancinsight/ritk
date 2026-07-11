@@ -497,7 +497,6 @@ source:crates/ritk-segmentation/src/morphology/binary_closing.rs
 source:crates/ritk-segmentation/src/morphology/binary_dilation/mod.rs
 source:crates/ritk-segmentation/src/morphology/binary_dilation/tests.rs
 source:crates/ritk-segmentation/src/morphology/binary_erosion/mod.rs
-source:crates/ritk-segmentation/src/morphology/binary_erosion/tests.rs
 source:crates/ritk-segmentation/src/morphology/fill_holes.rs
 source:crates/ritk-segmentation/src/morphology/morphological_gradient.rs
 source:crates/ritk-segmentation/src/morphology/skeletonization/mod.rs

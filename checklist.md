@@ -8,6 +8,20 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-518-01 — Binary erosion native SSOT promotion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the parallel erosion state type only delegates to the existing
+      host-slice kernel.
+- [x] Promote that kernel as the public native operation and route the legacy
+      image boundary plus all property tests through it.
+- [x] Delete the duplicate state type, migration-specific module, and stale
+      test allowlist entry.
+- [x] Verify 14/14 focused algebraic/known-value tests, full segmentation
+      nextest 437/437, warning-denied Clippy, and audit reduction from 573 to
+      572 source files with only known drift.
+
 ## MIG-517-01 — SSM-Morph placeholder sister deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

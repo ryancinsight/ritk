@@ -54,7 +54,7 @@ impl BinaryErosion {
         let device = mask.data().device();
         let (flat_vals, _shape) = extract_vec_infallible(mask);
         let flat: &[f32] = &flat_vals;
-        let output = erode_nd(flat, &shape, self.radius);
+        let output = erode(flat, &shape, self.radius);
         let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
     }
@@ -72,14 +72,20 @@ impl<B: Backend, const D: usize> super::MorphologicalOperation<B, D> for BinaryE
     }
 }
 
-pub mod atlas_binary_erosion;
-
 // ── Core CPU-side erosion ─────────────────────────────────────────────────────
 
 /// Apply binary erosion on a flat row-major array for shapes of rank 1, 2, or 3.
 ///
-/// Panics for ranks other than 1, 2, 3.
-pub(super) fn erode_nd(flat: &[f32], shape: &[usize], radius: usize) -> Vec<f32> {
+/// # Panics
+///
+/// Panics when `shape` is not rank 1, 2, or 3, or when its product does not
+/// match `flat.len()`.
+pub fn erode(flat: &[f32], shape: &[usize], radius: usize) -> Vec<f32> {
+    assert_eq!(
+        shape.iter().product::<usize>(),
+        flat.len(),
+        "binary erosion shape product must match input length"
+    );
     match shape.len() {
         1 => erode_line(flat, shape[0], radius),
         2 => erode_plane(flat, shape[0], shape[1], radius),
