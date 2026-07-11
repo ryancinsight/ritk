@@ -12,42 +12,53 @@ pub use module::{CrossScan, CrossScanConfig};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::{Backend, Tensor};
+    use coeus_autograd::Var;
+    use coeus_core::MoiraiBackend;
+    use coeus_tensor::Tensor;
 
     #[test]
-    fn test_scan_planar() {
-        let device = <NdArray as Backend>::Device::default();
-        let input = Tensor::<NdArray, 4>::zeros([2, 8, 16, 16], &device);
-
-        let scanned = Scan2D::scan(input.clone(), ScanDirection::HorizontalForward);
-        assert_eq!(scanned.dims(), [2, 8, 256]); // 16 * 16 = 256
-
-        let merged = Scan2D::merge(scanned, 16, 16, ScanDirection::HorizontalForward);
-        assert_eq!(merged.dims(), [2, 8, 16, 16]);
+    fn planar_directions_round_trip_exact_values() {
+        let input = Var::new(
+            Tensor::from_slice_on(
+                [1, 1, 2, 3],
+                &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+                &MoiraiBackend::new(),
+            ),
+            true,
+        );
+        for &direction in ScanDirection::all_2d() {
+            let scanned = Scan2D::scan(&input, direction).expect("planar input is valid");
+            let merged =
+                Scan2D::merge(&scanned, 2, 3, direction).expect("planar sequence length is valid");
+            let contiguous = coeus_autograd::contiguous(&merged);
+            assert_eq!(contiguous.tensor.as_slice(), input.tensor.as_slice());
+        }
     }
 
     #[test]
-    fn test_scan_volumetric() {
-        let device = <NdArray as Backend>::Device::default();
-        let input = Tensor::<NdArray, 5>::zeros([2, 8, 4, 8, 8], &device);
-
-        let scanned = Scan3D::scan(input.clone(), ScanDirection::DepthForward);
-        assert_eq!(scanned.dims(), [2, 8, 256]); // 4 * 8 * 8 = 256
-
-        let merged = Scan3D::merge(scanned, 4, 8, 8, ScanDirection::DepthForward);
-        assert_eq!(merged.dims(), [2, 8, 4, 8, 8]);
+    fn volumetric_directions_round_trip_exact_values_and_gradient() {
+        let input = Var::new(
+            Tensor::from_slice_on(
+                [1, 1, 2, 2, 2],
+                &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
+                &MoiraiBackend::new(),
+            ),
+            true,
+        );
+        let scan = CrossScan::new(CrossScanConfig::new_3d());
+        let sequences = scan.apply(&input).expect("volumetric input is valid");
+        let merged = scan
+            .merge_3d(&sequences, 2, 2, 2)
+            .expect("six volumetric sequences are valid");
+        assert_eq!(merged.tensor.as_slice(), input.tensor.as_slice());
+        merged.backward();
+        assert!(input.grad().is_some(), "scan graph must remain connected");
     }
 
     #[test]
-    fn test_cross_scan_volumetric() {
-        let device = <NdArray as Backend>::Device::default();
-        let config = CrossScanConfig::new_3d();
-        let cross_scan = CrossScan::new(&config);
-
-        let input = Tensor::<NdArray, 5>::zeros([1, 16, 4, 8, 8], &device);
-        let sequences = cross_scan.apply(input);
-
-        assert_eq!(sequences.len(), 6); // 6 directions for 3D
+    fn rejects_rank_mismatch() {
+        let input = Var::new(Tensor::zeros_on([1, 1, 2, 2], &MoiraiBackend::new()), false);
+        let result = CrossScan::new(CrossScanConfig::new_3d()).apply(&input);
+        assert!(matches!(result, Err(crate::ModelError::Shape { .. })));
     }
 }

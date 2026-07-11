@@ -8,6 +8,25 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 522: SSM-Morph Coeus migration (MIG-522-01)
+
+### Changed
+- Cross-scan, selective S6, VMamba, hierarchical encoding/decoding, and the
+  RITK image inference boundary now use Coeus throughout.
+- SSM-Morph uses the canonical TransMorph scaling-and-squaring implementation
+  and zero-initializes its displacement projection to encode identity.
+
+### Removed
+- Removed the duplicate SSM grid sampler and integrator, Burn module/config
+  derives, stale shape-only tests, hard-coded drop-path branch, and placeholder
+  inverse/composition validation methods.
+
+### Evidence
+- Model nextest 60/60 in 2.364 seconds, registration nextest 743/743,
+  warning-denied Clippy, Rustdoc, doctests, and Burn audit reduction from 559
+  to 544 source files.
+
+
 ## [Unreleased] — Sprint 521: Affine and TransMorph Coeus migration (MIG-521-01)
 
 ### Changed

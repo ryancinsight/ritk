@@ -44,4 +44,6 @@ pub mod spatial_transform;
 pub mod swin;
 
 pub use config::{TransMorphConfig, TransformIntegration};
+pub use integration::VecInt;
 pub use model::{TransMorph, TransMorphOutput};
+pub use spatial_transform::SpatialTransformer;

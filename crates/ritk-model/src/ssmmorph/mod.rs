@@ -15,9 +15,7 @@
 //! ├── encoder/           - Hierarchical feature encoder
 //! ├── decoder/           - Hierarchical decoder with skip connections
 //! ├── network/           - Complete registration network
-//! │   ├── architecture/  - SSMMorph network definition
-//! │   ├── architecture/  - SSMMorph network definition
-//! │   └── sampling/      - Grid sampling and flow composition
+//! │   └── architecture/  - SSMMorph network definition and presets
 //! ```
 //!
 //! # Quick Start
@@ -27,21 +25,19 @@
 //!     SSMMorph, SSMMorphConfig,
 //!     network::presets,
 //! };
-//! use ritk_image::tensor::Tensor;
-//! use burn_ndarray::NdArray;
-//!
-//! type B = NdArray;
-//! let device = Default::default();
+//! use coeus_autograd::Var;
+//! use coeus_core::MoiraiBackend;
+//! use coeus_tensor::Tensor;
 //!
 //! // Create network with preset configuration
 //! let config = presets::brain_mri();
-//! let network = SSMMorph::new(&config, &device);
+//! let network = SSMMorph::<MoiraiBackend>::new(&config);
 //!
 //! // Register images
-//! let fixed = Tensor::<B, 5>::zeros([1, 1, 32, 32, 32], &device);
-//! let moving = Tensor::<B, 5>::zeros([1, 1, 32, 32, 32], &device);
-//! let output = network.forward(fixed, moving);
-//! let displacement = output.displacement;
+//! let fixed = Var::new(Tensor::zeros_on([1, 1, 32, 32, 32], &MoiraiBackend::new()), false);
+//! let moving = Var::new(Tensor::zeros_on([1, 1, 32, 32, 32], &MoiraiBackend::new()), false);
+//! let displacement = network.forward(&fixed, &moving)?.displacement;
+//! # Ok::<(), ritk_model::ModelError>(())
 //! ```
 //!
 //! References:
@@ -69,10 +65,10 @@ pub use policy::ScanDimensionality;
 
 pub use cross_scan::{CrossScan, CrossScanConfig, Scan2D, Scan3D, ScanDirection};
 
-pub use vmamba_block::{VMambaBlock, VMambaBlockConfig, VMambaStage};
+pub use vmamba_block::{VMambaBlock, VMambaBlockConfig};
 
 pub use encoder::{
-    DownsamplePolicy, DownsampleStage, DropPath, EncoderStage, EncoderStageConfig, SSMMorphEncoder,
+    DownsamplePolicy, DropPath, EncoderStage, EncoderStageConfig, SSMMorphEncoder,
     SSMMorphEncoderConfig,
 };
 
@@ -83,14 +79,4 @@ pub use decoder::{
 // Network re-exports (primary API)
 pub use network::architecture::{
     presets as network_presets, IntegrationMode, SSMMorph, SSMMorphConfig, SSMMorphOutput,
-};
-
-// Additional network components
-pub use network::integration::{
-    IntegrationConfig, TransformationComposer, VelocityFieldIntegrator,
-};
-
-pub use network::sampling::{
-    CornerAlignment, FlowComposer, GridPaddingMode, GridSampler, GridSamplerConfig,
-    InterpolationMode,
 };

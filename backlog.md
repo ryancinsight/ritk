@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-522-01 [major] - SSM-Morph Coeus graph migration (DONE).**
+  Migrated the connected cross-scan, S6, VMamba, encoder, decoder, and
+  registration inference graph to Coeus after adding `DepthwiseConv3d` in the
+  provider. Deleted duplicate SSM sampling/integration code and placeholder
+  transform operations. Evidence: focused directional/value/gradient tests,
+  model nextest 60/60, registration 743/743, Clippy, Rustdoc, and doctests.
+  The Burn audit decreases from 559 to 544 source files.
+
+
 - **MIG-521-01 [major] - Affine and TransMorph Coeus migration (DONE).**
   Replaced the complete affine and TransMorph model graphs and both registration
   examples with Coeus autodiff, neural-network, and optimizer APIs. Coeus now

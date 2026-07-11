@@ -1,6 +1,4 @@
 //! Configuration mappings for hierarchical encodings
-use ritk_image::burn::prelude::*;
-
 /// Whether an encoder stage performs spatial downsampling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DownsamplePolicy {
@@ -35,25 +33,19 @@ pub struct EncoderStageConfig {
 }
 
 /// Configuration for SSMMorph encoder
-#[derive(Config, Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SSMMorphEncoderConfig {
     /// Number of input channels (2 for fixed + moving)
-    #[config(default = "2")]
     pub in_channels: usize,
     /// Base channel dimension for first stage
-    #[config(default = "32")]
     pub base_channels: usize,
     /// Channel multiplier between stages
-    #[config(default = "2")]
     pub channel_mult: usize,
     /// Number of encoder stages
-    #[config(default = "4")]
     pub num_stages: usize,
     /// Number of VMamba blocks per stage
-    #[config(default = "2")]
     pub blocks_per_stage: usize,
     /// Use drop path (stochastic depth)
-    #[config(default = "DropPath::Disabled")]
     pub drop_path: DropPath,
 }
 

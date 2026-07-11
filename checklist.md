@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-522-01 — SSM-Morph Coeus graph migration
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add depthwise volumetric convolution to Coeus and publish the provider increment.
+- [x] Convert cross-scan, selective state space, VMamba, encoder, decoder, integration, and RITK image inference to Coeus.
+- [x] Delete duplicate sampling/integration implementations, Burn module derives, placeholder transform methods, and stale audit rows.
+- [x] Verify value/gradient properties, full model 60/60, registration 743/743, warning-denied Clippy, Rustdoc, and doctests.
+
 ## MIG-521-01 — Affine and TransMorph Coeus graph migration
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

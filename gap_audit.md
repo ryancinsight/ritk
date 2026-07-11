@@ -8,6 +8,29 @@
 
 # RITK Gap Audit - Active
 
+## MIG-522-01 audit (2026-07-10)
+
+SSM-Morph previously formed one connected Burn graph across cross-scan,
+selective state space, VMamba blocks, encoder, decoder, sampling, integration,
+and the registration boundary. Coeus now owns every compute node. The migration
+also removes the duplicated SSM grid sampler/integrator in favor of the
+canonical TransMorph scaling-and-squaring operation, deletes a hard-coded
+drop-path branch, and deletes placeholder inverse/composition validation.
+
+Evidence tier: exact directional round trips, analytical gradient connectivity,
+finite selective-state outputs, exact zero-initialized identity displacement,
+full model nextest 60/60, full registration nextest 743/743, warning-denied
+Clippy, Rustdoc, and three passing model doctests. The model gate completes in
+2.364 seconds instead of containing 33.945-289.953 second SSM tests. The coarse
+Burn audit decreases from 559 to 544 source files; three converted convolution
+files remain allowlisted solely because the audit token set also matches Coeus
+`Conv3d`. The known displacement-field drift remains unadmitted.
+
+Residual performance risk: four unrelated registration tests still exceed the
+30-second budget at 33.083, 38.525, 39.812, and 40.143 seconds. No workload or
+threshold was weakened.
+
+
 ## MIG-521-01 audit (2026-07-10)
 
 The affine, spatial-transform, scaling-and-squaring, Swin, and TransMorph graph

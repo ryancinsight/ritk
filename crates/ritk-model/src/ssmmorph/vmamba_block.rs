@@ -1,357 +1,205 @@
-//! VMamba Block - Hybrid CNN-SSM Architecture
-//!
-//! Combines the local feature extraction of CNNs with the global context modeling
-//! of State Space Models through cross-scan mechanism. This is the building block
-//! of VMambaMorph architecture.
-//!
-//! # Architecture
-//!```text
-//! Input
-//!   │
-//!   ├──► LayerNorm ──► Conv3x3 (depthwise) ──┐
-//!   │                                          │
-//!   └──► (skip connection) ◄───────────────────┤
-//!                                              │
-//!   ┌──────────────────────────────────────────┘
-//!   │
-//!   ▼
-//! Cross-Scan ──► SSM (per direction) ──► Cross-Merge
-//!   │
-//!   ▼
-//! LayerNorm ──► Conv1x1 ──► GELU ──► Conv1x1
-//!   │
-//!   └──► (skip connection from above)
-//!   │
-//!   ▼
-//! Output
-//!```
+//! VMamba convolution/state-space block.
 
-use ritk_image::burn::nn::conv::{Conv3d, Conv3dConfig};
-use ritk_image::burn::nn::PaddingConfig3d;
-use ritk_image::burn::nn::{Gelu, LayerNorm, LayerNormConfig, Linear, LinearConfig};
-use ritk_image::burn::prelude::*;
+use coeus_autograd::{add, gelu, permute, reshape, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::{DepthwiseConv3d, LayerNorm, Linear, Module};
+use coeus_ops::BackendOps;
 
-use super::cross_scan::{CrossScan, CrossScanConfig, ScanDirection};
+use super::cross_scan::{CrossScan, CrossScanConfig};
 use super::policy::ScanDimensionality;
 use super::state_space::{SelectiveStateSpace, SelectiveStateSpaceConfig};
+use crate::ModelError;
 
-/// Configuration for VMamba Block
-#[derive(Config, Debug, PartialEq)]
+/// VMamba block configuration.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct VMambaBlockConfig {
-    /// Input/output channel dimension
+    /// Input and output channel count.
     pub dim: usize,
-    /// Expansion factor for SSM hidden dimension
-    #[config(default = "2")]
+    /// State-space hidden expansion.
     pub expand_factor: usize,
-    /// State dimension for SSM
-    #[config(default = "16")]
+    /// State dimension.
     pub state_dim: usize,
-    /// Dropout probability
-    #[config(default = "0.0")]
+    /// State-space output dropout probability.
     pub dropout: f64,
-    /// Use 3D cross-scan for volumetric data
-    #[config(default = "ScanDimensionality::Scan3d")]
+    /// Spatial dimensionality of the scan.
     pub dimensionality: ScanDimensionality,
-    /// Drop path rate for stochastic depth
-    #[config(default = "0.0")]
-    pub drop_path_rate: f64,
 }
 
 impl VMambaBlockConfig {
-    /// Create new VMambaBlock config
-    pub fn new_with_dim(dim: usize) -> Self {
+    /// Construct the standard volumetric block configuration.
+    #[must_use]
+    pub const fn new_with_dim(dim: usize) -> Self {
         Self {
             dim,
             expand_factor: 2,
             state_dim: 16,
             dropout: 0.0,
             dimensionality: ScanDimensionality::Scan3d,
-            drop_path_rate: 0.0,
         }
     }
 }
 
-use ritk_image::burn::module::Ignored;
-
-/// VMamba Block combining CNN and SSM
-///
-/// Implements the core VMamba block from VMambaMorph paper:
-/// 1. Depthwise convolution for local feature extraction
-/// 2. Cross-scan SSM for global context
-/// 3. FFN for channel mixing
-#[derive(Module, Debug)]
-pub struct VMambaBlock<B: Backend> {
-    /// Layer normalization before SSM branch
-    pub norm1: LayerNorm<B>,
-    /// Layer normalization before FFN
-    pub norm2: LayerNorm<B>,
-    /// Depthwise convolution for local features
-    pub dwconv: Conv3d<B>,
-    /// Cross-scan module
-    pub cross_scan: Ignored<CrossScan>,
-    /// Selective state space module
-    pub ssm: SelectiveStateSpace<B>,
-    /// First linear layer in FFN
-    pub ffn_expand: Linear<B>,
-    /// Second linear layer in FFN
-    pub ffn_project: Linear<B>,
-    /// Activation function
-    act: Gelu,
-    /// Configuration
-    pub config: Ignored<VMambaBlockConfig>,
+/// Local depthwise features combined with global directional S6 scans.
+#[derive(Clone)]
+pub struct VMambaBlock<B>
+where
+    B: Backend + BackendOps<f32>,
+{
+    first_norm: LayerNorm<f32, B>,
+    second_norm: LayerNorm<f32, B>,
+    local_features: DepthwiseConv3d<f32, B>,
+    cross_scan: CrossScan,
+    state_space: SelectiveStateSpace<B>,
+    ffn_expand: Linear<f32, B>,
+    ffn_project: Linear<f32, B>,
+    channels: usize,
 }
 
-impl<B: Backend> VMambaBlock<B> {
-    /// Create new VMambaBlock
-    pub fn new(config: &VMambaBlockConfig, device: &B::Device) -> Self {
-        let ssm_config = SelectiveStateSpaceConfig::new_with_dims(config.dim, config.dim)
-            .with_state_dim(config.state_dim)
-            .with_expand_factor(config.expand_factor)
-            .with_dropout(config.dropout);
-
-        let cross_scan_config = if config.dimensionality == ScanDimensionality::Scan3d {
-            CrossScanConfig::new_3d()
-        } else {
-            CrossScanConfig::new_2d()
+impl<B> VMambaBlock<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Initialize a VMamba block.
+    #[must_use]
+    pub fn new(config: VMambaBlockConfig) -> Self {
+        let state_space = SelectiveStateSpace::new(SelectiveStateSpaceConfig {
+            input_dim: config.dim,
+            output_dim: config.dim,
+            state_dim: config.state_dim,
+            expand_factor: config.expand_factor,
+            dt_rank: 16,
+            dropout: config.dropout,
+        });
+        let scan_config = match config.dimensionality {
+            ScanDimensionality::Scan2d => CrossScanConfig::new_2d(),
+            ScanDimensionality::Scan3d => CrossScanConfig::new_3d(),
         };
-
-        // Depthwise convolution (groups = input channels)
-        let dwconv_config = Conv3dConfig::new([config.dim, config.dim], [3, 3, 3])
-            .with_stride([1, 1, 1])
-            .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-            .with_groups(config.dim)
-            .with_bias(true);
-
-        let inner_dim = config.dim * 4; // Standard FFN expansion
-
-        Self {
-            norm1: LayerNormConfig::new(config.dim).init(device),
-            norm2: LayerNormConfig::new(config.dim).init(device),
-            dwconv: dwconv_config.init(device),
-            cross_scan: Ignored(CrossScan::new(&cross_scan_config)),
-            ssm: SelectiveStateSpace::new(&ssm_config, device),
-            ffn_expand: LinearConfig::new(config.dim, inner_dim)
-                .with_bias(true)
-                .init(device),
-            ffn_project: LinearConfig::new(inner_dim, config.dim)
-                .with_bias(true)
-                .init(device),
-            act: Gelu::new(),
-            config: Ignored(VMambaBlockConfig::new(config.dim)),
-        }
+        let mut block = Self {
+            first_norm: LayerNorm::new(config.dim, 1e-5),
+            second_norm: LayerNorm::new(config.dim, 1e-5),
+            local_features: DepthwiseConv3d::new(config.dim, 3, 1, true),
+            cross_scan: CrossScan::new(scan_config),
+            state_space,
+            ffn_expand: Linear::new(config.dim, config.dim * 4, true),
+            ffn_project: Linear::new(config.dim * 4, config.dim, true),
+            channels: config.dim,
+        };
+        crate::initialization::depthwise_convolution(&mut block.local_features, 3, 401);
+        crate::initialization::linear(&mut block.ffn_expand, config.dim, config.dim * 4, 402);
+        crate::initialization::linear(&mut block.ffn_project, config.dim * 4, config.dim, 403);
+        block
     }
 
-    /// Forward pass for 5D volumetric input [batch, channels, depth, height, width]
-    pub fn forward(&self, input: Tensor<B, 5>) -> Tensor<B, 5> {
-        let [batch, channels, depth, height, width] = input.dims();
-        let _device = input.device();
-
-        // First branch: SSM with cross-scan
-        // LayerNorm expects channels last: [B, C, D, H, W] -> [B, D, H, W, C]
-        let x_norm1 = self.norm1.forward(input.clone().permute([0, 2, 3, 4, 1]));
-        let x_norm1 = x_norm1.permute([0, 4, 1, 2, 3]);
-
-        // Depthwise convolution for local features
-        let x_conv = self.dwconv.forward(x_norm1);
-
-        // Cross-scan: get sequences from all directions
-        let directions = self.cross_scan.directions();
-        let scanned_sequences = self.cross_scan.apply(x_conv);
-
-        // Apply SSM to each scanned direction
-        let processed_sequences: Vec<Tensor<B, 3>> = scanned_sequences
-            .into_iter()
-            .map(|seq| {
-                // seq shape: [batch, channels, seq_len]
-                // Reshape to [batch*seq_len, channels] for SSM
-                let [b, c, s] = seq.dims();
-                let seq_flat = seq.permute([0, 2, 1]).reshape([b * s, c]);
-
-                // Apply SSM
-                let processed = self.ssm.forward(seq_flat);
-
-                // Reshape back
-                processed.reshape([b, s, c]).permute([0, 2, 1])
+    /// Transform `[batch, channels, depth, height, width]` features.
+    pub fn forward(&self, input: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
+        let shape = input.tensor.shape();
+        if shape.len() != 5 || shape[1] != self.channels {
+            return Err(ModelError::Shape {
+                operation: "VMambaBlock::forward",
+                expected: "[batch, channels, depth, height, width]",
+                actual: shape.to_vec(),
+            });
+        }
+        let (batch, depth, height, width) = (shape[0], shape[2], shape[3], shape[4]);
+        let normalized = self
+            .first_norm
+            .forward_nd(&permute(input, &[0, 2, 3, 4, 1]));
+        let local = self
+            .local_features
+            .forward(&permute(&normalized, &[0, 4, 1, 2, 3]));
+        let sequences = self.cross_scan.apply(&local)?;
+        let processed = sequences
+            .iter()
+            .map(|sequence| {
+                let channel_last = permute(sequence, &[0, 2, 1]);
+                self.state_space
+                    .forward(&channel_last)
+                    .map(|output| permute(&output, &[0, 2, 1]))
             })
-            .collect();
-
-        // Cross-merge: combine all directions
-        let ssm_out = self.merge_directions(
-            processed_sequences,
-            [batch, channels, depth, height, width],
-            directions,
+            .collect::<Result<Vec<_>, _>>()?;
+        let global = self.cross_scan.merge_3d(&processed, depth, height, width)?;
+        let residual = add(input, &global);
+        let normalized = self
+            .second_norm
+            .forward_nd(&permute(&residual, &[0, 2, 3, 4, 1]));
+        let flat = reshape(&normalized, [batch * depth * height * width, self.channels]);
+        let hidden = gelu(&self.ffn_expand.forward(&flat));
+        let projected = self.ffn_project.forward(&hidden);
+        let projected = permute(
+            &reshape(&projected, [batch, depth, height, width, self.channels]),
+            &[0, 4, 1, 2, 3],
         );
-
-        // First residual connection
-        let x = input + ssm_out;
-
-        // Second branch: FFN
-        // LayerNorm expects channels last: [B, C, D, H, W] -> [B, D, H, W, C]
-        let x_norm2 = self.norm2.forward(x.clone().permute([0, 2, 3, 4, 1]));
-        let x_norm2 = x_norm2.permute([0, 4, 1, 2, 3]);
-
-        // Flatten spatial for FFN
-        let [b, c, d, h, w] = x_norm2.dims();
-        let x_flat = x_norm2.permute([0, 2, 3, 4, 1]).reshape([b * d * h * w, c]);
-
-        // FFN: expand -> activate -> project
-        let x_ffn = self.ffn_expand.forward(x_flat);
-        let x_ffn = self.act.forward(x_ffn);
-        let x_ffn = self.ffn_project.forward(x_ffn);
-
-        // Reshape back
-        let x_ffn = x_ffn.reshape([b, d, h, w, c]).permute([0, 4, 1, 2, 3]);
-
-        // Second residual connection with optional drop path
-        // Drop path (stochastic depth) is applied during training
-        // For inference, it's a no-op
-        if false {
-            // Simplified: always false for now
-            // Stochastic depth (training only, simplified here)
-            x + x_ffn
-        } else {
-            x + x_ffn
-        }
-    }
-
-    /// Merge processed sequences from all directions back to spatial tensor
-    fn merge_directions(
-        &self,
-        sequences: Vec<Tensor<B, 3>>,
-        dims: [usize; 5],
-        directions: &[ScanDirection],
-    ) -> Tensor<B, 5> {
-        let [_batch, _channels, depth, height, width] = dims;
-        let device = sequences[0].device();
-
-        // Merge each sequence back to spatial
-        let mut merged = Vec::new();
-        for (seq, &dir) in sequences.into_iter().zip(directions.iter()) {
-            let spatial = if self.cross_scan.is_3d() {
-                super::cross_scan::Scan3D::merge(seq, depth, height, width, dir)
-            } else {
-                // For 2D case, we'd need different handling
-                // This is a simplified version assuming 3D
-                super::cross_scan::Scan3D::merge(seq, depth, height, width, dir)
-            };
-            merged.push(spatial);
-        }
-
-        // Average all directions
-        let sum = merged
-            .into_iter()
-            .fold(Tensor::zeros(dims, &device), |acc, t| acc + t);
-
-        sum / (directions.len() as f64)
-    }
-
-    /// Forward for 4D input (treat as single depth slice)
-    pub fn forward_4d(&self, input: Tensor<B, 4>) -> Tensor<B, 4> {
-        let [batch, channels, height, width] = input.dims();
-        // Expand to 5D with depth=1
-        let expanded = input.unsqueeze_dim(2);
-        let output = self.forward(expanded);
-        // Remove depth dimension
-        output.reshape([batch, channels, height, width])
+        Ok(add(&residual, &projected))
     }
 }
 
-/// Stack of VMamba Blocks for hierarchical feature processing
-#[derive(Module, Debug)]
-pub struct VMambaStage<B: Backend> {
-    /// Sequence of VMamba blocks
-    pub blocks: Vec<VMambaBlock<B>>,
-    /// Downsampling layer (optional)
-    pub downsample: Option<Conv3d<B>>,
+impl<B> Module<f32, B> for VMambaBlock<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        let mut parameters = self.first_norm.parameters();
+        parameters.extend(self.second_norm.parameters());
+        parameters.extend(self.local_features.parameters());
+        parameters.extend(self.state_space.parameters());
+        parameters.extend(self.ffn_expand.parameters());
+        parameters.extend(self.ffn_project.parameters());
+        parameters
+    }
+
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        VMambaBlock::forward(self, input)
+            .expect("invariant: module input satisfies VMamba volumetric contract")
+    }
+
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        let mut offset = 0;
+        offset = load(&mut self.first_norm, parameters, offset);
+        offset = load(&mut self.second_norm, parameters, offset);
+        offset = load(&mut self.local_features, parameters, offset);
+        offset = load(&mut self.state_space, parameters, offset);
+        offset = load(&mut self.ffn_expand, parameters, offset);
+        self.ffn_project.load_parameters(&parameters[offset..]);
+    }
+
+    fn train(&mut self, mode: bool) {
+        self.state_space.train(mode);
+    }
 }
 
-impl<B: Backend> VMambaStage<B> {
-    /// Create new VMamba stage
-    ///
-    /// # Arguments
-    /// * `dim` - Channel dimension
-    /// * `depth` - Number of blocks in this stage
-    /// * `downsample` - Whether to downsample at the end
-    /// * `device` - Device
-    pub fn new(dim: usize, depth: usize, downsample: bool, device: &B::Device) -> Self {
-        let config = VMambaBlockConfig::new_with_dim(dim);
-
-        let blocks: Vec<_> = (0..depth)
-            .map(|_| VMambaBlock::new(&config, device))
-            .collect();
-
-        let downsample_layer = if downsample {
-            let ds_config = Conv3dConfig::new([dim, dim * 2], [3, 3, 3])
-                .with_stride([2, 2, 2])
-                .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-                .with_bias(false);
-            Some(ds_config.init(device))
-        } else {
-            None
-        };
-
-        Self {
-            blocks,
-            downsample: downsample_layer,
-        }
-    }
-
-    /// Forward pass through stage
-    pub fn forward(&self, input: Tensor<B, 5>) -> Tensor<B, 5> {
-        let mut x = input;
-
-        // Pass through all blocks
-        for block in &self.blocks {
-            x = block.forward(x);
-        }
-
-        // Downsample if configured
-        match &self.downsample {
-            Some(ds) => ds.forward(x),
-            None => x,
-        }
-    }
+fn load<B, M>(module: &mut M, parameters: &[Var<f32, B>], offset: usize) -> usize
+where
+    B: Backend + BackendOps<f32>,
+    M: Module<f32, B>,
+{
+    let count = module.parameters().len();
+    module.load_parameters(&parameters[offset..offset + count]);
+    offset + count
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
+    use coeus_core::MoiraiBackend;
+    use coeus_tensor::Tensor;
 
     #[test]
-    fn test_vmamba_block_creation() {
-        let device = <NdArray as Backend>::Device::default();
-        let config = VMambaBlockConfig::new_with_dim(64);
-        let block = VMambaBlock::<NdArray>::new(&config, &device);
-
-        // Check that SSM was created with correct dimensions
-        assert_eq!(block.ssm.input_dim, 64);
-        assert_eq!(block.ssm.output_dim, 64);
-    }
-
-    #[test]
-    fn test_vmamba_block_forward() {
-        let device = <NdArray as Backend>::Device::default();
-        let config = VMambaBlockConfig::new_with_dim(32);
-        let block = VMambaBlock::<NdArray>::new(&config, &device);
-
-        // Test input: [batch=1, channels=32, depth=4, height=8, width=8]
-        let input = Tensor::<NdArray, 5>::zeros([1, 32, 4, 8, 8], &device);
-        let output = block.forward(input);
-
-        assert_eq!(output.dims(), [1, 32, 4, 8, 8]);
-    }
-
-    #[test]
-    fn test_vmamba_stage() {
-        let device = <NdArray as Backend>::Device::default();
-        let stage = VMambaStage::<NdArray>::new(32, 2, true, &device);
-
-        // Test input
-        let input = Tensor::<NdArray, 5>::zeros([1, 32, 8, 16, 16], &device);
-        let output = stage.forward(input);
-
-        // With downsampling, spatial dims should be halved and channels doubled
-        assert_eq!(output.dims(), [1, 64, 4, 8, 8]);
+    fn forward_preserves_shape_values_and_gradient_connectivity() {
+        let block = VMambaBlock::<MoiraiBackend>::new(VMambaBlockConfig::new_with_dim(2));
+        let input = Var::new(
+            Tensor::ones_on([1, 2, 2, 2, 2], &MoiraiBackend::new()),
+            true,
+        );
+        let output = block.forward(&input).expect("test shape is valid");
+        assert_eq!(output.tensor.shape(), &[1, 2, 2, 2, 2]);
+        assert!(output
+            .tensor
+            .as_slice()
+            .iter()
+            .all(|value| value.is_finite()));
+        output.backward();
+        assert!(input.grad().is_some(), "VMamba graph must remain connected");
     }
 }

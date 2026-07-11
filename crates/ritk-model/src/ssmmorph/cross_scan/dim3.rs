@@ -1,130 +1,94 @@
-//! 3D Cross-Scan dimension tracking
-use super::directions::ScanDirection;
-use ritk_image::burn::prelude::*;
+//! Three-dimensional directional sequence views.
 
-/// 3D Cross-Scan operation
-///
-/// Transforms 3D volumetric features into sequences along multiple directions
+use coeus_autograd::{flip, permute, reshape, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_ops::BackendOps;
+
+use super::directions::ScanDirection;
+use crate::ModelError;
+
+/// Bidirectional scans along every spatial axis of a volume.
 pub struct Scan3D;
 
 impl Scan3D {
-    /// Scan tensor along specified direction
-    ///
-    /// # Arguments
-    /// * `input` - Input tensor [batch, channels, depth, height, width]
-    /// * `direction` - Scan direction
-    ///
-    /// # Returns
-    /// * Scanned tensor [batch, channels, seq_len] where seq_len = depth * height * width
-    pub fn scan<B: Backend>(input: Tensor<B, 5>, direction: ScanDirection) -> Tensor<B, 3> {
-        let [batch, channels, depth, height, width] = input.dims();
-        let seq_len = depth * height * width;
-
-        match direction {
-            ScanDirection::HorizontalForward => {
-                // Standard flatten: [D, H, W] -> [D*H*W]
-                input
-                    .permute([0, 1, 2, 3, 4])
-                    .reshape([batch, channels, seq_len])
-            }
-            ScanDirection::HorizontalReverse => {
-                let flipped = Self::flip_horizontal(input);
-                flipped
-                    .permute([0, 1, 2, 3, 4])
-                    .reshape([batch, channels, seq_len])
-            }
-            ScanDirection::VerticalForward => {
-                // Swap H and W dimensions
-                let permuted = input.permute([0, 1, 2, 4, 3]);
-                permuted.reshape([batch, channels, seq_len])
-            }
-            ScanDirection::VerticalReverse => {
-                let flipped = Self::flip_vertical(input);
-                let permuted = flipped.permute([0, 1, 2, 4, 3]);
-                permuted.reshape([batch, channels, seq_len])
-            }
-            ScanDirection::DepthForward => {
-                // Scan along depth: [D, H, W] -> [H, W, D]
-                let permuted = input.permute([0, 1, 3, 4, 2]);
-                permuted.reshape([batch, channels, seq_len])
-            }
-            ScanDirection::DepthReverse => {
-                let flipped = Self::flip_depth(input);
-                let permuted = flipped.permute([0, 1, 3, 4, 2]);
-                permuted.reshape([batch, channels, seq_len])
-            }
+    /// Convert `[batch, channels, depth, height, width]` into a directional sequence.
+    pub fn scan<B>(input: &Var<f32, B>, direction: ScanDirection) -> Result<Var<f32, B>, ModelError>
+    where
+        B: Backend + BackendOps<f32>,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        let shape = input.tensor.shape();
+        if shape.len() != 5 {
+            return Err(ModelError::Shape {
+                operation: "Scan3D::scan",
+                expected: "[batch, channels, depth, height, width]",
+                actual: shape.to_vec(),
+            });
         }
+        let (batch, channels, depth, height, width) =
+            (shape[0], shape[1], shape[2], shape[3], shape[4]);
+        let ordered = match direction {
+            ScanDirection::HorizontalForward => input.clone(),
+            ScanDirection::HorizontalReverse => flip(input, 4),
+            ScanDirection::VerticalForward => permute(input, &[0, 1, 2, 4, 3]),
+            ScanDirection::VerticalReverse => permute(&flip(input, 3), &[0, 1, 2, 4, 3]),
+            ScanDirection::DepthForward => permute(input, &[0, 1, 3, 4, 2]),
+            ScanDirection::DepthReverse => permute(&flip(input, 2), &[0, 1, 3, 4, 2]),
+        };
+        Ok(reshape(&ordered, [batch, channels, depth * height * width]))
     }
 
-    /// Merge scanned sequences back to volumetric tensor
-    pub fn merge<B: Backend>(
-        scanned: Tensor<B, 3>,
+    /// Restore a directional sequence to `[batch, channels, depth, height, width]`.
+    pub fn merge<B>(
+        scanned: &Var<f32, B>,
         depth: usize,
         height: usize,
         width: usize,
         direction: ScanDirection,
-    ) -> Tensor<B, 5> {
-        let [batch, channels, _] = scanned.dims();
-
-        match direction {
-            ScanDirection::HorizontalForward => {
-                scanned.reshape([batch, channels, depth, height, width])
-            }
-            ScanDirection::HorizontalReverse => {
-                let reshaped = scanned.reshape([batch, channels, depth, height, width]);
-                Self::flip_horizontal(reshaped)
-            }
-            ScanDirection::VerticalForward => {
-                let reshaped = scanned.reshape([batch, channels, depth, width, height]);
-                reshaped.permute([0, 1, 2, 4, 3])
-            }
-            ScanDirection::VerticalReverse => {
-                let reshaped = scanned.reshape([batch, channels, depth, width, height]);
-                let permuted = reshaped.permute([0, 1, 2, 4, 3]);
-                Self::flip_vertical(permuted)
-            }
-            ScanDirection::DepthForward => {
-                let reshaped = scanned.reshape([batch, channels, height, width, depth]);
-                reshaped.permute([0, 1, 4, 2, 3])
-            }
-            ScanDirection::DepthReverse => {
-                let reshaped = scanned.reshape([batch, channels, height, width, depth]);
-                let permuted = reshaped.permute([0, 1, 4, 2, 3]);
-                Self::flip_depth(permuted)
-            }
+    ) -> Result<Var<f32, B>, ModelError>
+    where
+        B: Backend + BackendOps<f32>,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        let shape = scanned.tensor.shape();
+        if shape.len() != 3 || shape[2] != depth * height * width {
+            return Err(ModelError::Shape {
+                operation: "Scan3D::merge",
+                expected: "[batch, channels, depth * height * width]",
+                actual: shape.to_vec(),
+            });
         }
-    }
-
-    /// Flip tensor horizontally (along width)
-    fn flip_horizontal<B: Backend>(input: Tensor<B, 5>) -> Tensor<B, 5> {
-        let [_batch, _channels, _depth, _height, width] = input.dims();
-        let device = input.device();
-
-        let indices: Vec<i64> = (0..width).map(|i| (width - 1 - i) as i64).collect();
-        let index_tensor = Tensor::from_data(indices.as_slice(), &device);
-
-        input.select(4, index_tensor)
-    }
-
-    /// Flip tensor vertically (along height)
-    fn flip_vertical<B: Backend>(input: Tensor<B, 5>) -> Tensor<B, 5> {
-        let [_batch, _channels, _depth, height, _width] = input.dims();
-        let device = input.device();
-
-        let indices: Vec<i64> = (0..height).map(|i| (height - 1 - i) as i64).collect();
-        let index_tensor = Tensor::from_data(indices.as_slice(), &device);
-
-        input.select(3, index_tensor)
-    }
-
-    /// Flip tensor along depth
-    fn flip_depth<B: Backend>(input: Tensor<B, 5>) -> Tensor<B, 5> {
-        let [_batch, _channels, depth, _height, _width] = input.dims();
-        let device = input.device();
-
-        let indices: Vec<i64> = (0..depth).map(|i| (depth - 1 - i) as i64).collect();
-        let index_tensor = Tensor::from_data(indices.as_slice(), &device);
-
-        input.select(2, index_tensor)
+        let (batch, channels) = (shape[0], shape[1]);
+        Ok(match direction {
+            ScanDirection::HorizontalForward => {
+                reshape(scanned, [batch, channels, depth, height, width])
+            }
+            ScanDirection::HorizontalReverse => flip(
+                &reshape(scanned, [batch, channels, depth, height, width]),
+                4,
+            ),
+            ScanDirection::VerticalForward => permute(
+                &reshape(scanned, [batch, channels, depth, width, height]),
+                &[0, 1, 2, 4, 3],
+            ),
+            ScanDirection::VerticalReverse => flip(
+                &permute(
+                    &reshape(scanned, [batch, channels, depth, width, height]),
+                    &[0, 1, 2, 4, 3],
+                ),
+                3,
+            ),
+            ScanDirection::DepthForward => permute(
+                &reshape(scanned, [batch, channels, height, width, depth]),
+                &[0, 1, 4, 2, 3],
+            ),
+            ScanDirection::DepthReverse => flip(
+                &permute(
+                    &reshape(scanned, [batch, channels, height, width, depth]),
+                    &[0, 1, 4, 2, 3],
+                ),
+                2,
+            ),
+        })
     }
 }

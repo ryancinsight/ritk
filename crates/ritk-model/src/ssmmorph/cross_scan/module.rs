@@ -1,173 +1,147 @@
-//! Core CrossScan algorithmic orchestration
-use ritk_image::burn::prelude::*;
+//! Directional scan orchestration.
+
+use coeus_autograd::{add, scalar_mul, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_ops::BackendOps;
 
 use super::super::policy::ScanDimensionality;
-use super::dim2::Scan2D;
-use super::dim3::Scan3D;
-use super::directions::ScanDirection;
+use super::{Scan2D, Scan3D, ScanDirection};
+use crate::ModelError;
 
-/// Configuration for Cross-Scan module
-#[derive(Config, Debug, PartialEq, Eq)]
+/// Cross-scan dimensionality.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CrossScanConfig {
-    /// Whether to use 3D scanning (volumetric) or 2D
-    #[config(default = "ScanDimensionality::Scan3d")]
-    pub dimensionality: ScanDimensionality,
-    /// Number of directions to scan
-    #[config(default = "6")]
-    pub num_directions: usize,
+    dimensionality: ScanDimensionality,
 }
 
 impl CrossScanConfig {
-    /// Create new 2D cross-scan config
-    pub fn new_2d() -> Self {
+    /// Construct a planar four-direction scan.
+    #[must_use]
+    pub const fn new_2d() -> Self {
         Self {
             dimensionality: ScanDimensionality::Scan2d,
-            num_directions: 4,
         }
     }
 
-    /// Create new 3D cross-scan config
-    pub fn new_3d() -> Self {
+    /// Construct a volumetric six-direction scan.
+    #[must_use]
+    pub const fn new_3d() -> Self {
         Self {
             dimensionality: ScanDimensionality::Scan3d,
-            num_directions: 6,
         }
     }
 }
 
-/// Cross-Scan module for spatial feature processing
-#[derive(Debug, Clone)]
+/// Stateless cross-scan strategy.
+#[derive(Debug, Clone, Copy)]
 pub struct CrossScan {
-    config: CrossScanConfig,
+    dimensionality: ScanDimensionality,
 }
 
 impl CrossScan {
-    /// Create new CrossScan module
-    pub fn new(config: &CrossScanConfig) -> Self {
+    /// Construct a cross-scan strategy.
+    #[must_use]
+    pub const fn new(config: CrossScanConfig) -> Self {
         Self {
-            config: config.clone(),
+            dimensionality: config.dimensionality,
         }
     }
 
-    /// Check if using 3D scanning
-    pub fn is_3d(&self) -> bool {
-        self.config.dimensionality == ScanDimensionality::Scan3d
+    /// Return whether this strategy operates on volumes.
+    #[must_use]
+    pub const fn is_3d(self) -> bool {
+        matches!(self.dimensionality, ScanDimensionality::Scan3d)
     }
 
-    /// Get scan directions based on configuration
-    pub fn directions(&self) -> &'static [ScanDirection] {
-        if self.config.dimensionality == ScanDimensionality::Scan3d {
-            ScanDirection::all_3d()
-        } else {
-            ScanDirection::all_2d()
+    /// Return the canonical directions for this dimensionality.
+    #[must_use]
+    pub fn directions(self) -> &'static [ScanDirection] {
+        match self.dimensionality {
+            ScanDimensionality::Scan2d => ScanDirection::all_2d(),
+            ScanDimensionality::Scan3d => ScanDirection::all_3d(),
         }
     }
 
-    /// Apply cross-scan to input tensor
-    ///
-    /// Returns a vector of scanned sequences, one per direction
-    pub fn apply<B: Backend, const D: usize>(&self, input: Tensor<B, D>) -> Vec<Tensor<B, 3>> {
-        let directions = self.directions();
-
-        if self.config.dimensionality == ScanDimensionality::Scan3d {
-            // Handle 3D case
-            if D != 5 {
-                panic!("3D cross-scan requires 5D input [B, C, D, H, W]");
-            }
-            // Convert to 5D for processing
-            let input_5d: Tensor<B, 5> = input.clone().reshape([
-                input.dims()[0],
-                input.dims()[1],
-                input.dims()[2],
-                input.dims()[3],
-                input.dims()[4],
-            ]);
-
-            directions
-                .iter()
-                .map(|&dir| Scan3D::scan(input_5d.clone(), dir))
-                .collect()
-        } else {
-            // Handle 2D case
-            if D != 4 {
-                panic!("2D cross-scan requires 4D input [B, C, H, W]");
-            }
-            let input_4d: Tensor<B, 4> = input.clone().reshape([
-                input.dims()[0],
-                input.dims()[1],
-                input.dims()[2],
-                input.dims()[3],
-            ]);
-
-            directions
-                .iter()
-                .map(|&dir| Scan2D::scan(input_4d.clone(), dir))
-                .collect()
-        }
+    /// Produce one sequence view for every canonical direction.
+    pub fn apply<B>(&self, input: &Var<f32, B>) -> Result<Vec<Var<f32, B>>, ModelError>
+    where
+        B: Backend + BackendOps<f32>,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        self.directions()
+            .iter()
+            .map(|&direction| match self.dimensionality {
+                ScanDimensionality::Scan2d => Scan2D::scan(input, direction),
+                ScanDimensionality::Scan3d => Scan3D::scan(input, direction),
+            })
+            .collect()
     }
 
-    /// Merge processed sequences back to spatial tensor (2D)
-    pub fn merge_2d<B: Backend>(
+    /// Merge and average planar directional sequences.
+    pub fn merge_2d<B>(
         &self,
-        sequences: Vec<Tensor<B, 3>>,
+        sequences: &[Var<f32, B>],
         height: usize,
         width: usize,
-        directions: &[ScanDirection],
-    ) -> Tensor<B, 4> {
-        assert_eq!(sequences.len(), directions.len());
-        assert!(
-            self.config.dimensionality == ScanDimensionality::Scan2d,
-            "Cannot use merge_2d with 3D config"
-        );
-
-        let merged: Vec<Tensor<B, 4>> = sequences
-            .into_iter()
-            .zip(directions.iter())
-            .map(|(seq, &dir)| Scan2D::merge(seq, height, width, dir))
-            .collect();
-
-        // Average the results from all directions
-        let sum = merged
-            .into_iter()
-            .fold(None, |acc, t| match acc {
-                None => Some(t),
-                Some(a) => Some(a + t),
-            })
-            .expect("At least one direction required");
-
-        sum / (directions.len() as f64)
+    ) -> Result<Var<f32, B>, ModelError>
+    where
+        B: Backend + BackendOps<f32>,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        if self.dimensionality != ScanDimensionality::Scan2d
+            || sequences.len() != ScanDirection::all_2d().len()
+        {
+            return Err(ModelError::Shape {
+                operation: "CrossScan::merge_2d",
+                expected: "four planar directional sequences",
+                actual: vec![sequences.len()],
+            });
+        }
+        let merged = sequences
+            .iter()
+            .zip(ScanDirection::all_2d())
+            .map(|(sequence, &direction)| Scan2D::merge(sequence, height, width, direction))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(average(&merged))
     }
 
-    /// Merge processed sequences back to spatial tensor (3D)
-    pub fn merge_3d<B: Backend>(
+    /// Merge and average volumetric directional sequences.
+    pub fn merge_3d<B>(
         &self,
-        sequences: Vec<Tensor<B, 3>>,
+        sequences: &[Var<f32, B>],
         depth: usize,
         height: usize,
         width: usize,
-        directions: &[ScanDirection],
-    ) -> Tensor<B, 5> {
-        assert_eq!(sequences.len(), directions.len());
-        assert!(
-            self.config.dimensionality == ScanDimensionality::Scan3d,
-            "Cannot use merge_3d with 2D config"
-        );
-
-        let merged: Vec<Tensor<B, 5>> = sequences
-            .into_iter()
-            .zip(directions.iter())
-            .map(|(seq, &dir)| Scan3D::merge(seq, depth, height, width, dir))
-            .collect();
-
-        // Average the results from all directions
-        let sum = merged
-            .into_iter()
-            .fold(None, |acc, t| match acc {
-                None => Some(t),
-                Some(a) => Some(a + t),
-            })
-            .expect("At least one direction required");
-
-        sum / (directions.len() as f64)
+    ) -> Result<Var<f32, B>, ModelError>
+    where
+        B: Backend + BackendOps<f32>,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        if self.dimensionality != ScanDimensionality::Scan3d
+            || sequences.len() != ScanDirection::all_3d().len()
+        {
+            return Err(ModelError::Shape {
+                operation: "CrossScan::merge_3d",
+                expected: "six volumetric directional sequences",
+                actual: vec![sequences.len()],
+            });
+        }
+        let merged = sequences
+            .iter()
+            .zip(ScanDirection::all_3d())
+            .map(|(sequence, &direction)| Scan3D::merge(sequence, depth, height, width, direction))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(average(&merged))
     }
+}
+
+fn average<B>(values: &[Var<f32, B>]) -> Var<f32, B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    let sum = values[1..]
+        .iter()
+        .fold(values[0].clone(), |sum, value| add(&sum, value));
+    scalar_mul(&sum, 1.0 / values.len() as f32)
 }

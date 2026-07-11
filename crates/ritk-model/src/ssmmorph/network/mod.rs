@@ -7,39 +7,27 @@
 //!
 //! ```text
 //! network/
-//! ├── architecture.rs    - Main network (SSMMorph)
-//! ├── integration.rs     - Diffeomorphic integration (scaling & squaring)
-//! └── sampling.rs        - Grid sampling and flow composition
+//! └── architecture.rs    - Main network and presets
 //! ```
 //!
 //! # Usage Example
 //!
 //! ```rust,no_run
 //! use ritk_model::ssmmorph::network::{SSMMorph, SSMMorphConfig};
-//! use ritk_image::tensor::Tensor;
-//! use burn_ndarray::NdArray;
-//!
-//! type B = NdArray;
-//! let device = Default::default();
+//! use coeus_autograd::Var;
+//! use coeus_core::MoiraiBackend;
+//! use coeus_tensor::Tensor;
 //!
 //! let config = SSMMorphConfig::for_3d_registration();
-//! let network = SSMMorph::new(&config, &device);
+//! let network = SSMMorph::<MoiraiBackend>::new(&config);
 //!
-//! let fixed = Tensor::<B, 5>::zeros([1, 1, 32, 32, 32], &device);
-//! let moving = Tensor::<B, 5>::zeros([1, 1, 32, 32, 32], &device);
-//! let output = network.forward(fixed, moving);
-//! let displacement = output.displacement;
+//! let fixed = Var::new(Tensor::zeros_on([1, 1, 32, 32, 32], &MoiraiBackend::new()), false);
+//! let moving = Var::new(Tensor::zeros_on([1, 1, 32, 32, 32], &MoiraiBackend::new()), false);
+//! let displacement = network.forward(&fixed, &moving)?.displacement;
+//! # Ok::<(), ritk_model::ModelError>(())
 //! ```
 
 pub mod architecture;
-pub mod integration;
-pub mod sampling;
 
 // Re-export main types for convenience
 pub use architecture::{presets, SSMMorph, SSMMorphConfig, SSMMorphOutput};
-
-pub use integration::{IntegrationConfig, TransformationComposer, VelocityFieldIntegrator};
-
-pub use sampling::{
-    FlowComposer, GridPaddingMode, GridSampler, GridSamplerConfig, InterpolationMode,
-};

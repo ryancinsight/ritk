@@ -1,5 +1,3 @@
-use ritk_image::burn::prelude::*;
-
 /// Configuration for selective state space parameters
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StateSpaceParameters {
@@ -28,29 +26,25 @@ impl Default for StateSpaceParameters {
 }
 
 /// Configuration for Selective State Space module
-#[derive(Config, Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SelectiveStateSpaceConfig {
     /// Input channel dimension
     pub input_dim: usize,
     /// Output channel dimension (typically input_dim * expand_factor)
     pub output_dim: usize,
     /// State dimension for SSM
-    #[config(default = "16")]
     pub state_dim: usize,
     /// Expansion factor for hidden dimension
-    #[config(default = "2")]
     pub expand_factor: usize,
     /// Rank for low-rank parameterization
-    #[config(default = "16")]
     pub dt_rank: usize,
     /// Dropout probability
-    #[config(default = "0.0")]
     pub dropout: f64,
 }
 
 impl SelectiveStateSpaceConfig {
     /// Initialize with input/output dimensions
-    pub fn new_with_dims(input_dim: usize, output_dim: usize) -> Self {
+    pub const fn new_with_dims(input_dim: usize, output_dim: usize) -> Self {
         Self {
             input_dim,
             output_dim,
