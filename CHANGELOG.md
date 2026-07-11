@@ -8,6 +8,17 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 546: Snap native intensity clamp (MIG-546-01)
+
+### Added
+- `ClampImageFilter` now exposes its Coeus-native boundary.
+
+### Changed
+- Snap routes clamp operations through the native filter provider.
+
+### Evidence
+- Provider and Snap exact-bound regressions pass.
+
 ## [Unreleased] — Sprint 545: Snap native intensity inversion (MIG-545-01)
 
 ### Added

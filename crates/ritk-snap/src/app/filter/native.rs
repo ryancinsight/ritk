@@ -13,8 +13,8 @@ use ritk_filter::{
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
-    AbsImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter, SqrtImageFilter,
-    SquareImageFilter,
+    AbsImageFilter, ClampImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter,
+    SqrtImageFilter, SquareImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -52,6 +52,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::ConnectedComponents { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
+            | FilterKind::Clamp { .. }
     ) {
         return None;
     }
@@ -106,6 +107,9 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
             }
             None => InvertIntensityFilter::new().apply_native(&image, &backend),
         },
+        FilterKind::Clamp { lower, upper } => {
+            ClampImageFilter::new(*lower, *upper).apply_native(&image, &backend)
+        }
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -226,6 +230,23 @@ mod tests {
             .expect("invariant: inversion has a native implementation")
             .expect("native inversion succeeds");
         assert_eq!(automatic, vec![6.0, 3.0, 0.0]);
+    }
+
+    #[test]
+    fn native_clamp_limits_loaded_volume_values() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![-5.0, 50.0, 300.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::Clamp {
+                lower: 0.0,
+                upper: 100.0,
+            },
+        )
+        .expect("invariant: clamp has a native implementation")
+        .expect("native clamp succeeds");
+
+        assert_eq!(output, vec![0.0, 50.0, 100.0]);
     }
 
     #[test]

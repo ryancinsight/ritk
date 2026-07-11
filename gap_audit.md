@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-546-01 audit (2026-07-11)
+
+Clamp already had a canonical flat-buffer algorithm but no native image boundary.
+The owner now exposes one and Snap dispatches clamp before legacy construction.
+Exact provider and Snap regressions prove lower/upper bounds are retained.
+
 ## MIG-545-01 audit (2026-07-11)
 
 Intensity inversion duplicated no algorithm; its canonical flat-buffer core

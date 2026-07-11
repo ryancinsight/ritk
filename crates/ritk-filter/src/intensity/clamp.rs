@@ -35,6 +35,8 @@ use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
+use crate::native_support::map_flat_image;
+
 // â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Clamp image intensity to the closed interval `[lower, upper]`.
@@ -92,6 +94,24 @@ impl ClampImageFilter {
             *image.spacing(),
             *image.direction(),
         ))
+    }
+
+    /// Apply the clamp to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| {
+            values
+                .iter()
+                .map(|&value| value.clamp(self.lower, self.upper))
+                .collect()
+        })
     }
 }
 

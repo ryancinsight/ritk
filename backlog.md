@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-546-01 [patch] - Snap native intensity clamp (DONE).**
+  The owning clamp filter now provides a Coeus-native boundary and Snap uses it.
+  Provider and Snap exact-bound regressions pass.
+
 - **MIG-545-01 [patch] - Snap native intensity inversion (DONE).**
   The owning intensity filter now provides Coeus-native inversion and Snap
   dispatches both fixed and automatic maxima through it. Provider and Snap

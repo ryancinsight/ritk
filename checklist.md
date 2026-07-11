@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-546-01 — Snap native intensity clamp
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add native clamp at the owning filter boundary.
+- [x] Route Snap clamp and pin exact lower/upper-bound values.
+
 ## MIG-545-01 — Snap native intensity inversion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
