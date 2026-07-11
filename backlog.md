@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-514-01 [major] - DICOM RGB Burn boundary deletion (DONE).**
+  Migrated single-frame series and multiframe RGB loaders directly to native
+  Coeus-backed `RgbVolume`, moved hostile-count reservation to Consus, and
+  deleted the Burn-to-native `atlas_color` bridge and obsolete exports. Also
+  reconciled unified native dispatch with the completed VTK cutover. Evidence:
+  combined nextest 403/403, warning-denied Clippy, doctests, rustdoc, and Burn
+  source-file reduction from 581 to 577.
+
 - **MIG-513-01 [major] - Burn HostExtract boundary deletion (DONE).**
   Deleted the unused Burn-only `HostExtract` trait, NdArray/autodiff
   implementations, image methods, tests, and export from `ritk-image`.

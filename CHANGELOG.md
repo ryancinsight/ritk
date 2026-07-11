@@ -8,6 +8,27 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 514: DICOM RGB native cutover (MIG-514-01)
+
+### Changed
+- DICOM RGB series and multiframe loaders now construct native Coeus-backed
+  interleaved color volumes directly.
+- Header-derived RGB allocation uses Consus bounded capacity.
+- Unified native capability reporting and read/write dispatch now include VTK.
+
+### Removed
+- Removed the `atlas_color` Burn-to-native conversion module, its duplicate
+  error surface, obsolete exports, and Burn-keyed multiframe tests.
+
+### Breaking
+- DICOM RGB loader functions accept a Coeus compute backend and return
+  `ritk_image::native::RgbVolume<f32, B>`.
+
+### Evidence
+- Combined nextest 403/403, warning-denied Clippy, doctests, and rustdoc pass.
+  The Burn audit remains at 16 manifests and drops to 577 source files with
+  only the known displacement-field drift.
+
 ## [Unreleased] — Sprint 513: HostExtract deletion (MIG-513-01)
 
 ### Removed

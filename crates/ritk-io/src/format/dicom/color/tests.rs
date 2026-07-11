@@ -1,11 +1,6 @@
-//! Atlas-typed tests for the DICOM RGB colour-volume sister loader.
-//!
-//! Strict subtractive on test surface (ADR 0012 §Decision §Sub-batch #3.f):
-//! every assertion exercises the [`super::atlas_color`] sister API rather
-//! than the legacy tensor-backed `super::load_dicom_color_*` functions. The
-//! dicom-rs `InMemDicomObject` fixture creation is preserved verbatim per
-//! ADR 0012 §Decision §C (Atlas sister only swaps the load sink).
+//! Native DICOM RGB color-volume tests.
 
+use coeus_core::SequentialBackend;
 use ritk_dicom::PixelSignedness;
 
 use super::*;
@@ -125,7 +120,7 @@ fn write_rgb_slice(
 }
 
 #[test]
-fn test_atlas_color_series_preserves_interleaved_rgb_samples() {
+fn native_color_series_preserves_interleaved_rgb_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("slice1.dcm"),
@@ -144,22 +139,23 @@ fn test_atlas_color_series_preserves_interleaved_rgb_samples() {
         Some(0),
     );
 
+    let backend = SequentialBackend;
     let (volume, metadata) =
-        atlas_color::load_atlas_color_series(dir.path()).expect("RGB load must succeed");
+        load_dicom_color_series(dir.path(), &backend).expect("RGB load must succeed");
 
     assert_eq!(volume.shape(), [2, 1, 2, 3]);
     assert_eq!(metadata.dimensions, [1, 2, 2]);
     assert_eq!(metadata.photometric_interpretation.as_deref(), Some("RGB"));
 
-    let samples = volume.data_slice().expect("AtlasImage host-slice access");
+    let samples = volume.data_cow_on(&backend);
     assert_eq!(
-        samples,
+        samples.as_ref(),
         &[255.0, 0.0, 0.0, 0.0, 255.0, 0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0]
     );
 }
 
 #[test]
-fn test_atlas_color_series_rejects_scalar_samples() {
+fn native_color_series_rejects_scalar_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("mono.dcm");
     let mut obj = InMemDicomObject::new_empty();
@@ -223,7 +219,7 @@ fn test_atlas_color_series_rejects_scalar_samples() {
     .write_to_file(&path)
     .expect("scalar DICOM must be written");
 
-    let err = atlas_color::load_atlas_color_series(dir.path()).unwrap_err();
+    let err = load_dicom_color_series(dir.path(), &SequentialBackend).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("SamplesPerPixel=1"),
@@ -232,7 +228,7 @@ fn test_atlas_color_series_rejects_scalar_samples() {
 }
 
 #[test]
-fn test_atlas_color_series_rejects_planar_rgb_samples() {
+fn native_color_series_rejects_planar_rgb_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("planar.dcm"),
@@ -242,7 +238,7 @@ fn test_atlas_color_series_rejects_planar_rgb_samples() {
         &[255, 0, 0, 0, 255, 0],
         Some(1),
     );
-    let err = atlas_color::load_atlas_color_series(dir.path()).unwrap_err();
+    let err = load_dicom_color_series(dir.path(), &SequentialBackend).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("PlanarConfiguration=0") && msg.contains("declares 1"),
@@ -251,7 +247,7 @@ fn test_atlas_color_series_rejects_planar_rgb_samples() {
 }
 
 #[test]
-fn test_atlas_color_from_series_is_callable() {
+fn native_color_from_series_preserves_values_and_metadata() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("slice1.dcm"),
@@ -324,18 +320,15 @@ fn test_atlas_color_from_series_is_callable() {
         metadata,
     };
 
-    let result = atlas_color::load_atlas_color_from_series(series);
-    assert!(
-        result.is_ok(),
-        "load_atlas_color_from_series must succeed: {:?}",
-        result.err()
-    );
-
-    let (volume, meta) = result.unwrap();
+    let backend = SequentialBackend;
+    let (volume, meta) =
+        load_dicom_color_from_series(series, &backend).expect("native color series must load");
     assert_eq!(volume.shape(), [1, 1, 2, 3]);
     assert_eq!(meta.dimensions, [1, 2, 1]);
     assert_eq!(meta.photometric_interpretation.as_deref(), Some("RGB"));
 
-    let samples = volume.data_slice().expect("AtlasImage host-slice access");
-    assert_eq!(samples, &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
+    assert_eq!(
+        volume.data_cow_on(&backend).as_ref(),
+        &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]
+    );
 }

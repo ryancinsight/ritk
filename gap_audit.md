@@ -8,6 +8,25 @@
 
 # RITK Gap Audit - Active
 
+## MIG-514-01 audit (2026-07-10)
+
+DICOM RGB series and multiframe loaders constructed Burn color tensors, while
+`atlas_color` immediately copied the series result back into a Coeus image.
+Both loaders now construct native interleaved `RgbVolume` values directly and
+use Consus bounded capacity for header-derived sample counts. The conversion
+module, duplicate error model, legacy exports, and Burn-keyed multiframe tests
+are deleted.
+
+The broader Burn `ColorVolume` remains live in `ritk-filter` colormap, edge,
+and per-component filtering operations; deleting it in this slice would leave
+that bounded context broken, so its removal is dependency-ordered behind the
+filter native migration rather than bridged. Native capability reporting was
+also stale after MIG-512-01 and now routes VTK read/write through the unified
+dispatch with exact value/spatial round-trip coverage. Evidence tier: combined
+nextest 403/403, warning-denied Clippy, doctests, and rustdoc. The Burn audit
+remains at 16 manifests and drops from 581 to 577 source files. Only the
+pre-existing displacement-field drift remains unallowlisted.
+
 ## MIG-513-01 audit (2026-07-10)
 
 `ritk-image::HostExtract` duplicated native host access with Burn-specific

@@ -8,6 +8,25 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-514-01 — DICOM RGB Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Convert DICOM RGB series and multiframe loaders to generic Coeus compute
+      backends and native interleaved `RgbVolume` results.
+- [x] Replace legacy core capacity policy with Consus bounded capacity for
+      hostile series and multiframe dimensions.
+- [x] Delete the `atlas_color` Burn-to-native conversion module, its error
+      wrapper, obsolete exports, and Burn-specific multiframe tests.
+- [x] Reconcile native capability reporting and unified read/write dispatch
+      with the completed VTK cutover; add exact dispatch round-trip coverage.
+- [x] Retain the legacy Burn color carrier only for its live `ritk-filter`
+      consumers; it is part of the later filter migration boundary.
+- [x] Verify combined nextest 403/403, warning-denied Clippy, doctests,
+      rustdoc, and migration audit reduction to 577 source files with only the
+      known displacement-field drift.
+- [x] Commit, push, and advance the RITK gitlink in the stack repository.
+
 ## MIG-513-01 — Burn HostExtract boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
