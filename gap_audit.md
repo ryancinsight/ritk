@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## MIG-511-01 audit (2026-07-10)
+
+`ritk-nifti` duplicated scalar reader/writer boundaries across Burn root APIs
+and a native module. Canonical NIfTI-1/NIfTI-2 APIs now use native images;
+`ritk-io` alone owns conversion for remaining Burn-typed consumers. Label
+volume APIs remain allocation-free slice contracts and require no tensor
+substrate.
+
+Gzip decoding reads only the bounded header prefix, derives the declared
+volume end, and inflates at most one byte beyond it for excess-payload
+detection. Evidence tier: exact affine, voxel, datatype, NIfTI-1/NIfTI-2,
+gzip, label, malformed-input, sourced-fixture, and native/legacy round trips;
+provider nextest 37/37; combined nextest 402/402; warning-denied Clippy;
+doctests; rustdoc. The audit drops from 17 to 16 manifests and 586 to 583
+source files. Only the pre-existing displacement-field drift remains
+unallowlisted.
+
 ## MIG-510-01 audit (2026-07-10)
 
 `ritk-nrrd` duplicated reader/writer boundaries across Burn root APIs and a

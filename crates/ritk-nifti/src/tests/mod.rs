@@ -3,37 +3,52 @@ use crate::header::{
     write_single_file_bytes, HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader,
 };
 use anyhow::Result;
-use burn_ndarray::NdArray;
-use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
+
+fn image(
+    data: Vec<f32>,
+    shape: [usize; 3],
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    direction: Direction<3>,
+    backend: &TestBackend,
+) -> Result<Image<f32, TestBackend, 3>> {
+    Image::from_flat_on(data, shape, origin, spacing, direction, backend)
+}
 
 #[test]
 fn test_read_write_nifti_cycle() -> Result<()> {
     let dir = tempdir()?;
     let file_path = dir.path().join("test_cycle.nii");
-    let device = Default::default();
+    let backend = TestBackend::default();
 
     // Create a synthetic Image
-    let shape = Shape::new([5, 4, 3]); // Z, Y, X
-    let data = TensorData::new(vec![0.0; 3 * 4 * 5], shape);
-    let tensor = Tensor::<TestBackend, 3>::from_data(data, &device);
+    let shape = [5, 4, 3]; // Z, Y, X
 
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([0.5, 0.5, 2.0]);
     // Simple identity direction
     let direction = Direction::identity();
 
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = image(
+        vec![0.0; 3 * 4 * 5],
+        shape,
+        origin,
+        spacing,
+        direction,
+        &backend,
+    )?;
 
     // Write
-    write_nifti(&file_path, &image)?;
+    write_nifti(&file_path, &image, &backend)?;
 
     // Read back
-    let loaded = read_nifti::<TestBackend, _>(&file_path, &device)?;
+    let loaded = read_nifti::<TestBackend, _>(&file_path, &backend)?;
 
     // Verify Metadata
     let l_origin = loaded.origin();
@@ -57,21 +72,21 @@ fn test_read_write_nifti_cycle() -> Result<()> {
 fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
     let dir = tempdir()?;
     let file_path = dir.path().join("test_bytes_roundtrip.nii");
-    let device = Default::default();
+    let backend = TestBackend::default();
 
-    let shape = Shape::new([4, 3, 2]); // Z, Y, X
-    let data = TensorData::new((0..24).map(|v| v as f32).collect::<Vec<_>>(), shape);
-    let tensor = Tensor::<TestBackend, 3>::from_data(data, &device);
-    let image = Image::new(
-        tensor,
+    let shape = [4, 3, 2]; // Z, Y, X
+    let image = image(
+        (0..24).map(|v| v as f32).collect(),
+        shape,
         Point::new([4.0, 5.0, 6.0]),
         Spacing::new([1.0, 0.7, 2.3]),
         Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_nifti(&file_path, &image)?;
+    write_nifti(&file_path, &image, &backend)?;
     let bytes = std::fs::read(&file_path)?;
-    let loaded = read_nifti_from_bytes::<TestBackend>(&bytes, &device)?;
+    let loaded = read_nifti_from_bytes::<TestBackend>(&bytes, &backend)?;
 
     assert_eq!(loaded.shape(), [4, 3, 2]);
     assert!((loaded.origin()[0] - 4.0).abs() < 1e-5);
@@ -86,7 +101,7 @@ fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
 
 #[test]
 fn read_nifti_from_bytes_accepts_int16_voxels() -> Result<()> {
-    let device = Default::default();
+    let backend = TestBackend::default();
     let header = NiftiHeader::new_3d(
         HeaderDims {
             nx: 3,
@@ -109,8 +124,10 @@ fn read_nifti_from_bytes_accepts_int16_voxels() -> Result<()> {
         payload.extend_from_slice(&value.to_le_bytes());
     }
 
-    let loaded =
-        read_nifti_from_bytes::<TestBackend>(&write_single_file_bytes(&header, &payload), &device)?;
+    let loaded = read_nifti_from_bytes::<TestBackend>(
+        &write_single_file_bytes(&header, &payload),
+        &backend,
+    )?;
 
     assert_eq!(
         loaded.shape(),
@@ -118,7 +135,7 @@ fn read_nifti_from_bytes_accepts_int16_voxels() -> Result<()> {
         "Int16 NIfTI reader must preserve ZYX shape"
     );
     assert_eq!(
-        loaded.try_data_vec()?,
+        loaded.data_slice()?.to_vec(),
         values.map(f32::from).to_vec(),
         "Int16 NIfTI reader must sign-extend every voxel into the image scalar"
     );
@@ -130,30 +147,30 @@ fn read_nifti_from_bytes_accepts_int16_voxels() -> Result<()> {
 fn test_write_nifti2_from_bytes_roundtrip() -> Result<()> {
     let dir = tempdir()?;
     let file_path = dir.path().join("test_nifti2_roundtrip.nii");
-    let device = Default::default();
+    let backend = TestBackend::default();
 
-    let shape = Shape::new([3, 2, 4]); // Z, Y, X
+    let shape = [3, 2, 4]; // Z, Y, X
     let values = (0..24).map(|v| v as f32 + 0.25).collect::<Vec<_>>();
-    let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(values.clone(), shape), &device);
-    let image = Image::new(
-        tensor,
+    let image = image(
+        values.clone(),
+        shape,
         Point::new([8.0, -2.0, 5.0]),
         Spacing::new([1.25, 0.5, 2.0]),
         Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_nifti2(&file_path, &image)?;
+    write_nifti2(&file_path, &image, &backend)?;
     let bytes = std::fs::read(&file_path)?;
     let header = NiftiHeader::parse(&bytes)?;
     assert_eq!(header.version, HeaderVersion::Two);
     assert_eq!(header.dim, [3, 4, 2, 3, 1, 1, 1, 1]);
     assert_eq!(header.vox_offset, 544);
 
-    let loaded = read_nifti_from_bytes::<TestBackend>(&bytes, &device)?;
+    let loaded = read_nifti_from_bytes::<TestBackend>(&bytes, &backend)?;
     assert_eq!(loaded.shape(), [3, 2, 4]);
     assert_eq!(
-        loaded.try_data_vec()?,
+        loaded.data_slice()?.to_vec(),
         values,
         "NIfTI-2 Float32 image round-trip must preserve voxel values"
     );
@@ -171,20 +188,20 @@ fn test_write_nifti2_from_bytes_roundtrip() -> Result<()> {
 fn test_gzipped_nifti_roundtrip() -> Result<()> {
     let dir = tempdir()?;
     let file_path = dir.path().join("test_gzip_roundtrip.nii.gz");
-    let device = Default::default();
+    let backend = TestBackend::default();
 
-    let shape = Shape::new([2, 2, 3]);
+    let shape = [2, 2, 3];
     let values = (0..12).map(|v| v as f32).collect::<Vec<_>>();
-    let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(values.clone(), shape), &device);
-    let image = Image::new(
-        tensor,
+    let image = image(
+        values.clone(),
+        shape,
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.9, 1.1, 1.3]),
         Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_nifti(&file_path, &image)?;
+    write_nifti(&file_path, &image, &backend)?;
     let bytes = std::fs::read(&file_path)?;
     assert_eq!(
         &bytes[..2],
@@ -192,9 +209,9 @@ fn test_gzipped_nifti_roundtrip() -> Result<()> {
         "nii.gz output must carry the gzip stream signature"
     );
 
-    let loaded = read_nifti::<TestBackend, _>(&file_path, &device)?;
+    let loaded = read_nifti::<TestBackend, _>(&file_path, &backend)?;
     assert_eq!(loaded.shape(), [2, 2, 3]);
-    let loaded_values = loaded.try_data_vec()?;
+    let loaded_values = loaded.data_slice()?.to_vec();
     assert_eq!(
         loaded_values, values,
         "gzip round-trip must preserve voxels"
@@ -209,12 +226,10 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
 
     let dir = tempdir()?;
     let file_path = dir.path().join("oblique_roundtrip.nii");
-    let device = Default::default();
+    let backend = TestBackend::default();
 
-    let shape = Shape::new([2, 3, 4]); // Z, Y, X
+    let shape = [2, 3, 4]; // Z, Y, X
     let values = (0..24).map(|v| v as f32).collect::<Vec<_>>();
-    let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(values.clone(), shape), &device);
 
     let origin = Point::new([11.0, -7.5, 3.25]);
     let spacing = Spacing::new([2.0, 1.5, 0.75]);
@@ -223,10 +238,10 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
     let direction =
         Direction::from_row_major([cosine, -sine, 0.0, sine, cosine, 0.0, 0.0, 0.0, 1.0]);
 
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = image(values.clone(), shape, origin, spacing, direction, &backend)?;
 
-    write_nifti(&file_path, &image)?;
-    let loaded = read_nifti::<TestBackend, _>(&file_path, &device)?;
+    write_nifti(&file_path, &image, &backend)?;
+    let loaded = read_nifti::<TestBackend, _>(&file_path, &backend)?;
 
     assert_eq!(
         loaded.shape(),
@@ -252,22 +267,25 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
         }
     }
 
-    let sample = |z: usize, y: usize, x: usize| -> f32 {
-        loaded
-            .data()
-            .clone()
-            .slice([z..z + 1, y..y + 1, x..x + 1])
-            .into_data()
-            .as_slice::<f32>()
-            .expect("sampled tensor must be contiguous")[0]
-    };
+    let loaded_values = loaded.data_slice()?;
+    let sample = |z: usize, y: usize, x: usize| -> f32 { loaded_values[z * 12 + y * 4 + x] };
     assert_eq!(sample(0, 0, 0), 0.0, "logical voxel [0,0,0] must survive");
     assert_eq!(sample(0, 1, 2), 6.0, "logical voxel [0,1,2] must survive");
     assert_eq!(sample(1, 2, 3), 23.0, "logical voxel [1,2,3] must survive");
 
-    let index = Point::new([1.0, 2.0, 3.0]);
-    let physical = loaded.transform_continuous_index_to_physical_point(&index);
-    let expected = image.transform_continuous_index_to_physical_point(&index);
+    let index = [1.0, 2.0, 3.0];
+    let physical_point = |value: &Image<f32, TestBackend, 3>| {
+        let mut point = value.origin().to_array();
+        for (row, coordinate) in point.iter_mut().enumerate() {
+            for (column, index_coordinate) in index.iter().copied().enumerate() {
+                *coordinate +=
+                    value.direction()[(row, column)] * value.spacing()[column] * index_coordinate;
+            }
+        }
+        point
+    };
+    let physical = physical_point(&loaded);
+    let expected = physical_point(&image);
     assert!(
         (physical[0] - expected[0]).abs() < 1e-6,
         "physical x must follow oblique affine"
@@ -287,8 +305,8 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
 #[test]
 fn test_read_nifti_error_leak() {
     let path = "/sensitive/path/that/should/not/be/in/error/message.nii";
-    let device = Default::default();
-    let result = read_nifti::<TestBackend, _>(path, &device);
+    let backend = TestBackend::default();
+    let result = read_nifti::<TestBackend, _>(path, &backend);
 
     match result {
         Ok(_) => panic!("Should fail"),
@@ -324,8 +342,8 @@ fn test_read_nifti_invalid_file_error_leak() -> Result<()> {
     }
 
     let path_str = file_path.to_string_lossy().to_string();
-    let device = Default::default();
-    let result = read_nifti::<TestBackend, _>(&file_path, &device);
+    let backend = TestBackend::default();
+    let result = read_nifti::<TestBackend, _>(&file_path, &backend);
 
     match result {
         Ok(_) => panic!("Should fail"),
@@ -354,19 +372,24 @@ fn test_read_nifti_invalid_file_error_leak() -> Result<()> {
 fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
     let dir = tempdir()?;
     let file_path = dir.path().join("test_sform_header_fields.nii");
-    let device = Default::default();
+    let backend = TestBackend::default();
 
-    let shape = Shape::new([2, 3, 4]); // Z, Y, X
-    let data = TensorData::new((0..24).map(|v| v as f32).collect::<Vec<_>>(), shape);
-    let tensor = Tensor::<TestBackend, 3>::from_data(data, &device);
+    let shape = [2, 3, 4]; // Z, Y, X
 
     let origin = Point::new([11.5, -7.25, 3.0]);
     let spacing = Spacing::new([0.8, 1.2, 2.5]);
     let direction = Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
 
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = image(
+        (0..24).map(|v| v as f32).collect(),
+        shape,
+        origin,
+        spacing,
+        direction,
+        &backend,
+    )?;
 
-    write_nifti(&file_path, &image)?;
+    write_nifti(&file_path, &image, &backend)?;
 
     let bytes = std::fs::read(&file_path)?;
     let header = NiftiHeader::parse(&bytes)?;
@@ -451,7 +474,7 @@ fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
 fn read_nifti_rejects_zero_sform_column() -> Result<()> {
     let dir = tempdir()?;
     let file_path = dir.path().join("zero_sform_column.nii");
-    let device = Default::default();
+    let backend = TestBackend::default();
 
     let header = NiftiHeader::new_3d(
         HeaderDims {
@@ -470,7 +493,7 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
     let data = vec![0_u8; 2 * 2 * 2 * 4];
     std::fs::write(&file_path, write_single_file_bytes(&header, &data))?;
 
-    let err = read_nifti::<TestBackend, _>(&file_path, &device)
+    let err = read_nifti::<TestBackend, _>(&file_path, &backend)
         .expect_err("zero sform column must be rejected");
 
     assert!(

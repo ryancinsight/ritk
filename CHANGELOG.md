@@ -8,6 +8,28 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 511: NIfTI native cutover (MIG-511-01)
+
+### Changed
+- NIfTI-1/NIfTI-2 scalar reading and writing now occupy canonical native-image
+  API paths; label slice APIs remain substrate-independent.
+- Gzip reads cap inflation at the header-declared volume end plus one byte.
+- `ritk-io` owns the remaining conversion required by Burn-typed consumers.
+
+### Removed
+- Removed `ritk-nifti`'s Burn scalar reader/writer paths, duplicate native
+  module, and direct `burn-ndarray` and `ritk-core` dependencies.
+
+### Breaking
+- `ritk-nifti` scalar APIs now accept a Coeus backend and consume or return
+  native images. Burn callers migrate through `ritk-io` or to native
+  contracts.
+
+### Evidence
+- Provider nextest 37/37, combined nextest 402/402, warning-denied Clippy,
+  doctests, and rustdoc pass. The Burn audit drops to 16 manifests and 583
+  source files with only the known displacement-field drift.
+
 ## [Unreleased] — Sprint 510: NRRD native cutover (MIG-510-01)
 
 ### Changed

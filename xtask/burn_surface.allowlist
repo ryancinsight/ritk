@@ -8,7 +8,6 @@ manifest:crates/ritk-image/Cargo.toml
 manifest:crates/ritk-interpolation/Cargo.toml
 manifest:crates/ritk-io/Cargo.toml
 manifest:crates/ritk-model/Cargo.toml
-manifest:crates/ritk-nifti/Cargo.toml
 manifest:crates/ritk-python/Cargo.toml
 manifest:crates/ritk-registration/Cargo.toml
 manifest:crates/ritk-segmentation/Cargo.toml
@@ -289,6 +288,7 @@ source:crates/ritk-io/src/format/dicom/writer/tests/helpers.rs
 source:crates/ritk-io/src/format/jpeg/mod.rs
 source:crates/ritk-io/src/format/metaimage/mod.rs
 source:crates/ritk-io/src/format/mgh/mod.rs
+source:crates/ritk-io/src/format/nifti/mod.rs
 source:crates/ritk-io/src/format/nrrd/mod.rs
 source:crates/ritk-io/src/format/png/mod.rs
 source:crates/ritk-io/src/format/tests_native_readers.rs
@@ -332,10 +332,6 @@ source:crates/ritk-model/src/transmorph/swin/mlp.rs
 source:crates/ritk-model/src/transmorph/tests.rs
 source:crates/ritk-model/tests/affine_test.rs
 source:crates/ritk-model/tests/transmorph_test.rs
-source:crates/ritk-nifti/src/reader.rs
-source:crates/ritk-nifti/src/tests/mod.rs
-source:crates/ritk-nifti/src/tests/tests_format_sources.rs
-source:crates/ritk-nifti/src/tests/tests_native.rs
 source:crates/ritk-python/src/color.rs
 source:crates/ritk-python/src/filter/fft/convolution.rs
 source:crates/ritk-python/src/filter/fft/correlation.rs

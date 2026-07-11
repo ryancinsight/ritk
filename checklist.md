@@ -8,6 +8,22 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-511-01 — NIfTI Burn boundary deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Promote NIfTI-1/NIfTI-2 scalar readers and writers to canonical native
+      image contracts and delete direct `burn-ndarray`/`ritk-core`
+      dependencies and the duplicate native module.
+- [x] Cap gzip inflation at the header-declared volume end plus one byte while
+      retaining short and excess-payload validation.
+- [x] Localize remaining legacy storage conversion in `ritk-io` and retain
+      exact affine, datatype, label, sourced-fixture, and round-trip coverage.
+- [x] Verify provider nextest 37/37, combined nextest 402/402, warning-denied
+      Clippy, doctests, rustdoc, and migration audit reduction to 16 manifests
+      and 583 source files with only the known displacement-field drift.
+- [x] Commit, push, and advance the RITK gitlink in the stack repository.
+
 ## MIG-510-01 — NRRD Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-511-01 [major] - NIfTI Burn boundary deletion (DONE).**
+  Promoted NIfTI-1/NIfTI-2 scalar read/write APIs to the sole native
+  `ritk-nifti` surface, removed its Burn/core dependencies and duplicate
+  module, and localized remaining legacy conversion in `ritk-io`. Gzip reads
+  now cap inflation at the header-declared volume end plus one byte. Evidence:
+  provider nextest 37/37, combined nextest 402/402, warning-denied Clippy,
+  doctests, rustdoc, and Burn manifest reduction from 17 to 16.
+
 - **MIG-510-01 [major] - NRRD Burn boundary deletion (DONE).**
   Promoted inline/detached raw and gzip NRRD read/write APIs to the sole native
   `ritk-nrrd` surface, removed its Burn/core dependencies and duplicate module,
