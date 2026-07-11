@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-569-01 — Snap native Multi-Otsu
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Share the canonical threshold-and-label values kernel with a native image
+  boundary.
+- [x] Route Snap Multi-Otsu thresholding through that provider boundary.
+- [x] Verify exact ordered classes, metadata, and warning-denied Clippy; commit
+  and advance the RITK gitlink.
+
 ## MIG-568-01 — Snap native relabel components
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

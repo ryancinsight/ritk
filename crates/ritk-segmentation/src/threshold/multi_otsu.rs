@@ -108,13 +108,7 @@ impl MultiOtsuThreshold {
         // (the previous compute()-then-label form cloned and copied the whole
         // volume twice per `apply`).
         let (vals, shape) = extract_vec_infallible(image);
-        let thresholds =
-            compute_multi_otsu_thresholds_from_slice(&vals, self.num_classes, self.num_bins);
-
-        let output: Vec<f32> = vals
-            .iter()
-            .map(|&v| thresholds.iter().filter(|&&t| v >= t).count() as f32)
-            .collect();
+        let output = apply_multi_otsu_to_slice(&vals, self.num_classes, self.num_bins);
 
         let device = image.data().device();
         let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
@@ -208,6 +202,24 @@ pub fn compute_multi_otsu_thresholds_from_slice(
     best.1
         .iter()
         .map(|&t| (x_min as f64 + t as f64 * bin_width) as f32)
+        .collect()
+}
+
+/// Assign Multi-Otsu class labels directly from a flat value slice.
+pub(crate) fn apply_multi_otsu_to_slice(
+    slice: &[f32],
+    num_classes: usize,
+    num_bins: usize,
+) -> Vec<f32> {
+    let thresholds = compute_multi_otsu_thresholds_from_slice(slice, num_classes, num_bins);
+    slice
+        .iter()
+        .map(|&value| {
+            thresholds
+                .iter()
+                .filter(|&&threshold| value >= threshold)
+                .count() as f32
+        })
         .collect()
 }
 

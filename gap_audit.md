@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## MIG-569-01 audit (2026-07-11)
+
+Multi-Otsu already owned its flat histogram, threshold-search, and label kernel
+but Snap reconstructed a legacy image to reach it. The segmentation owner now
+uses that same kernel through a Coeus-native image boundary, and Snap dispatches
+it directly. Exact provider and Snap regressions pin ordered three-class output
+and metadata preservation.
+
 ## MIG-568-01 audit (2026-07-11)
 
 Relabel-components still reconstructed a legacy image even though its only

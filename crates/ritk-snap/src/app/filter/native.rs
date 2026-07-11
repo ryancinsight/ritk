@@ -27,7 +27,7 @@ use ritk_filter::{
 use ritk_image::native::Image;
 use ritk_segmentation::{
     labeling::Connectivity as SegmentationConnectivity,
-    native::{binary_threshold, connected_components, relabel_components},
+    native::{binary_threshold, connected_components, multi_otsu, relabel_components},
 };
 use ritk_spatial::{Direction, Point, Spacing};
 use std::ops::Deref;
@@ -87,6 +87,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::SignedDistanceTransform { .. }
             | FilterKind::ConnectedComponents { .. }
             | FilterKind::RelabelComponents { .. }
+            | FilterKind::MultiOtsuThreshold { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
@@ -365,6 +366,9 @@ fn apply_supported_filter(
             minimum_object_size,
         } => relabel_components(&image, *minimum_object_size as usize, &backend)
             .map(|(labels, _statistics)| labels),
+        FilterKind::MultiOtsuThreshold { num_classes } => {
+            multi_otsu(&image, *num_classes as usize, 256, &backend)
+        }
         FilterKind::BinaryThreshold {
             lower,
             upper,
@@ -1015,6 +1019,18 @@ mod tests {
     }
 
     #[test]
+    fn native_multi_otsu_assigns_ordered_intensity_classes() {
+        let mut volume = test_volume([1, 1, 6]);
+        volume.data = Arc::new(vec![0.0, 0.0, 10.0, 10.0, 100.0, 100.0]);
+        let output =
+            apply_if_supported(&volume, &FilterKind::MultiOtsuThreshold { num_classes: 3 })
+                .expect("invariant: multi-otsu has a native implementation")
+                .expect("native multi-otsu accepts a scalar volume");
+
+        assert_eq!(output, vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0]);
+    }
+
+    #[test]
     fn native_binary_threshold_includes_both_bounds() {
         let mut volume = test_volume([1, 1, 5]);
         volume.data = Arc::new(vec![-1.0, 0.0, 50.0, 100.0, 101.0]);
@@ -1161,6 +1177,23 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [0.0, 1.0, 1.0, 1.0, 0.0]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_multi_otsu() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 6]);
+        volume.data = Arc::new(vec![0.0, 0.0, 10.0, 10.0, 100.0, 100.0]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::MultiOtsuThreshold { num_classes: 3 };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [0.0, 0.0, 1.0, 1.0, 2.0, 2.0]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }

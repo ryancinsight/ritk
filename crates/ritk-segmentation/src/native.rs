@@ -9,6 +9,7 @@ use crate::labeling::{
     RelabelStatistics,
 };
 use crate::threshold::apply_binary_threshold_to_slice;
+use crate::threshold::multi_otsu::apply_multi_otsu_to_slice;
 
 /// Apply an inclusive binary threshold to a Coeus-backed image.
 pub fn binary_threshold<B, const D: usize>(
@@ -100,6 +101,28 @@ where
     Ok((image, statistics))
 }
 
+/// Segment a Coeus-backed image with Multi-Otsu class labels.
+pub fn multi_otsu<B, const D: usize>(
+    image: &Image<f32, B, D>,
+    num_classes: usize,
+    num_bins: usize,
+    backend: &B,
+) -> Result<Image<f32, B, D>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let output = apply_multi_otsu_to_slice(image.data_slice()?, num_classes, num_bins);
+    Image::from_flat_on(
+        output,
+        image.shape(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        backend,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use coeus_core::SequentialBackend;
@@ -164,6 +187,21 @@ mod tests {
         assert_eq!(statistics[1].original_label, 1);
         assert_eq!(statistics[1].new_label, 2);
         assert_eq!(statistics[1].voxel_count, 2);
+        assert_eq!(output.shape(), source.shape());
+        assert_eq!(output.origin(), source.origin());
+        assert_eq!(output.spacing(), source.spacing());
+        assert_eq!(output.direction(), source.direction());
+    }
+
+    #[test]
+    fn multi_otsu_assigns_ordered_classes_and_preserves_metadata() {
+        let source = image(vec![0.0, 0.0, 10.0, 10.0, 100.0, 100.0], [1, 1, 6]);
+        let output = multi_otsu(&source, 3, 256, &SequentialBackend).unwrap();
+
+        assert_eq!(
+            output.data_slice().unwrap(),
+            &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0]
+        );
         assert_eq!(output.shape(), source.shape());
         assert_eq!(output.origin(), source.origin());
         assert_eq!(output.spacing(), source.spacing());

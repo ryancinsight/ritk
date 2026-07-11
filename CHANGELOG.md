@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 569: Snap native Multi-Otsu (MIG-569-01)
+
+### Added
+- The canonical Multi-Otsu threshold-and-label kernel now exposes a
+  Coeus-native image boundary.
+
+### Changed
+- Snap routes Multi-Otsu thresholding natively.
+
+### Evidence
+- Exact provider and Snap regressions cover ordered three-class output and
+  metadata preservation.
+
 ## [Unreleased] — Sprint 568: Snap native relabel components (MIG-568-01)
 
 ### Added

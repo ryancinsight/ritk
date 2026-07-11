@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-569-01 [patch] - Snap native Multi-Otsu (DONE).**
+  The canonical threshold-and-label kernel now has a Coeus-native boundary,
+  and Snap dispatches it directly. Exact provider and consumer regressions
+  cover ordered three-class output and metadata preservation.
+
 - **MIG-568-01 [patch] - Snap native relabel components (DONE).**
   The canonical segmentation relabel kernel now has a Coeus-native boundary,
   and Snap dispatches it directly. Exact provider and consumer regressions
