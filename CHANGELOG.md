@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 596: Native seeded shot noise (MIG-596-01)
+### Added
+- `ShotNoiseFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 595: Native seeded salt-and-pepper noise (MIG-595-01)
 ### Added
 - `SaltAndPepperNoiseFilter` now exposes a Coeus-native image boundary.

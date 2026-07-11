@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-596-01 audit (2026-07-11)
+
+Shot noise now shares its seeded Poisson and normal-approximation paths across
+tensor-backed and Coeus-native images. A fixed-seed differential spans both regimes.
+
 ## MIG-595-01 audit (2026-07-11)
 
 Salt-and-pepper noise now shares its scanline MT19937 stream across tensor-backed

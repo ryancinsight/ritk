@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-596-01 [patch] - Native seeded shot noise (DONE).** The Poisson and
+  normal-approximation generator paths now serve Coeus-native images.
+
 - **MIG-595-01 [patch] - Native seeded salt-and-pepper noise (DONE).** MT19937
   impulse noise now shares one sequence across tensor-backed and native images.
 
