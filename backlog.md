@@ -1,5 +1,11 @@
 # RITK Backlog - Active Planning
 
+- **MIG-552-01 [patch] - Snap native axis permutation (DONE).**
+  PermuteAxesImageFilter now supplies one Coeus-native boundary sharing
+  validation, voxel permutation, spacing, and direction logic. Snap consumes
+  its native geometry atomically; exact provider and application regressions
+  pass.
+
 - **MIG-551-01 [patch] - Snap native ROI crop (DONE).**
   RegionOfInterestImageFilter now owns one Coeus-native crop boundary sharing
   validation, extraction, and origin translation with its existing path. Snap

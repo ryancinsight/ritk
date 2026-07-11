@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## MIG-552-01 audit (2026-07-11)
+
+Axis permutation constructed a legacy image even though its owner has a pure
+value-plus-geometry contract. Validation, voxel permutation, spacing, and
+direction-column permutation now have one implementation used by both image
+substrates. Snap applies the native result atomically; exact regressions cover
+the `[2,1,3]` to `[3,1,2]` order `[2,1,0]` and its geometry.
+
 ## MIG-551-01 audit (2026-07-11)
 
 ROI crop semantics existed only behind the legacy image path. The owner now

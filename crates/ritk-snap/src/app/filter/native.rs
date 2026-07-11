@@ -14,8 +14,8 @@ use ritk_filter::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
     AbsImageFilter, ClampImageFilter, ExpImageFilter, FlipImageFilter, InvertIntensityFilter,
-    LogImageFilter, NormalizeImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
+    LogImageFilter, NormalizeImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
+    RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -89,6 +89,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::FlipY
             | FilterKind::FlipX
             | FilterKind::RegionOfInterest { .. }
+            | FilterKind::PermuteAxes { .. }
     ) {
         return None;
     }
@@ -173,6 +174,12 @@ fn apply_supported_filter(
             [*size_z, *size_y, *size_x],
         )
         .apply_native(&image, &backend),
+        FilterKind::PermuteAxes {
+            order_0,
+            order_1,
+            order_2,
+        } => PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
+            .apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -406,6 +413,29 @@ mod tests {
         assert_eq!(output.shape, [1, 1, 1]);
         assert_eq!(output.origin, [2.0, 3.0, 4.0]);
         assert_eq!(output.spacing, [2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn native_axis_permutation_updates_values_and_geometry() {
+        let mut volume = test_volume([2, 1, 3]);
+        volume.data = Arc::new((1..=6).map(|value| value as f32).collect());
+        volume.origin = [5.0, 7.0, 11.0];
+        volume.spacing = [1.0, 2.0, 3.0];
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::PermuteAxes {
+                order_0: 2,
+                order_1: 1,
+                order_2: 0,
+            },
+        )
+        .expect("invariant: axis permutation has a native implementation")
+        .expect("native axis permutation accepts a valid order");
+
+        assert_eq!(output.data, vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
+        assert_eq!(output.shape, [3, 1, 2]);
+        assert_eq!(output.origin, [5.0, 7.0, 11.0]);
+        assert_eq!(output.spacing, [3.0, 2.0, 1.0]);
     }
 
     #[test]
@@ -695,6 +725,32 @@ mod tests {
         assert_eq!(volume.shape, [1, 1, 1]);
         assert_eq!(volume.origin, [2.0, 3.0, 4.0]);
         assert_eq!(volume.spacing, [2.0, 3.0, 4.0]);
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_axis_permutation_with_updated_geometry() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([2, 1, 3]);
+        volume.data = Arc::new((1..=6).map(|value| value as f32).collect());
+        volume.origin = [5.0, 7.0, 11.0];
+        volume.spacing = [1.0, 2.0, 3.0];
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::PermuteAxes {
+            order_0: 2,
+            order_1: 1,
+            order_2: 0,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        let volume = app
+            .loaded
+            .expect("volume remains loaded after axis permutation");
+        assert_eq!(volume.data.as_slice(), [1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
+        assert_eq!(volume.shape, [3, 1, 2]);
+        assert_eq!(volume.origin, [5.0, 7.0, 11.0]);
+        assert_eq!(volume.spacing, [3.0, 2.0, 1.0]);
         assert_eq!(app.status_message, "Filter applied.");
     }
 }

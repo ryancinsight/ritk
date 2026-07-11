@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 552: Snap native axis permutation (MIG-552-01)
+
+### Added
+- `PermuteAxesImageFilter` now exposes a Coeus-native boundary over one shared
+  validation, voxel-permutation, spacing, and direction implementation.
+
+### Changed
+- Snap routes axis permutations through the native image path.
+
+### Evidence
+- Provider and Snap exact value/shape/geometry regressions pass.
+
 ## [Unreleased] — Sprint 551: Snap native ROI crop (MIG-551-01)
 
 ### Added
