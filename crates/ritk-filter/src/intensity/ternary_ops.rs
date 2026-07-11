@@ -16,8 +16,9 @@
 //! `TernaryMagnitudeSquaredImageFilter` (`sitk.TernaryAdd`,
 //! `sitk.TernaryMagnitude`, `sitk.TernaryMagnitudeSquared`).
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::Image;
+use ritk_image::{native::Image as NativeImage, Image};
 use ritk_tensor_ops::{extract_vec as extract, rebuild};
 
 /// Pointwise ternary operation on a voxel triple (zero-sized strategy type).
@@ -99,6 +100,42 @@ impl<Op: TernaryOp> TernaryOpFilter<Op> {
             .collect();
         Ok(rebuild(out, dims, a))
     }
+
+    /// Apply the ternary operation to three co-registered Coeus-native images.
+    pub fn apply_native<B>(
+        &self,
+        a: &NativeImage<f32, B, 3>,
+        b: &NativeImage<f32, B, 3>,
+        c: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let (sa, sb, sc) = (a.shape(), b.shape(), c.shape());
+        anyhow::ensure!(
+            sa == sb && sb == sc,
+            "ternary image filter: shape mismatch {sa:?} / {sb:?} / {sc:?}"
+        );
+        let av = a.data_slice()?;
+        let bv = b.data_slice()?;
+        let cv = c.data_slice()?;
+        let values = av
+            .iter()
+            .zip(bv)
+            .zip(cv)
+            .map(|((&x, &y), &z)| Op::apply(x, y, z))
+            .collect();
+        NativeImage::from_flat_on(
+            values,
+            sa,
+            *a.origin(),
+            *a.spacing(),
+            *a.direction(),
+            backend,
+        )
+    }
 }
 
 /// Pixelwise sum of three images. ITK Parity: `TernaryAddImageFilter`.
@@ -111,7 +148,10 @@ pub type TernaryMagnitudeSquaredImageFilter = TernaryOpFilter<TernaryMagnitudeSq
 #[cfg(test)]
 mod tests {
     use super::*;
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
     use ritk_image::test_support as ts;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = burn_ndarray::NdArray<f32>;
 
@@ -155,5 +195,34 @@ mod tests {
                 "magnitude²: got {got}, expected {exp}"
             );
         }
+    }
+
+    #[test]
+    fn native_ternary_add_matches_tensor_values_and_metadata() {
+        let image = |values| {
+            NativeImage::from_flat_on(
+                values,
+                [1, 1, 3],
+                Point::new([1.0, 2.0, 3.0]),
+                Spacing::new([0.5, 1.0, 2.0]),
+                Direction::identity(),
+                &SequentialBackend,
+            )
+            .expect("invariant: valid native image")
+        };
+        let a = image(vec![1.0, 2.0, 3.0]);
+        let b = image(vec![10.0, 20.0, 30.0]);
+        let c = image(vec![100.0, 200.0, 300.0]);
+        let output = TernaryAddImageFilter::new()
+            .apply_native(&a, &b, &c, &SequentialBackend)
+            .expect("native ternary add succeeds");
+
+        assert_eq!(
+            output.data_slice().expect("invariant: contiguous storage"),
+            &[111.0, 222.0, 333.0]
+        );
+        assert_eq!(output.origin(), a.origin());
+        assert_eq!(output.spacing(), a.spacing());
+        assert_eq!(output.direction(), a.direction());
     }
 }

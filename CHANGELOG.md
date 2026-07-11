@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 583: Native ternary image arithmetic (MIG-583-01)
+### Added
+- `TernaryOpFilter` now exposes a Coeus-native three-image boundary.
+
 ## [Unreleased] — Sprint 582: Native SUV body-weight conversion (MIG-582-01)
 ### Added
 - `SuvBodyWeightImageFilter` now exposes a Coeus-native image boundary.

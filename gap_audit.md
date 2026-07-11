@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-583-01 audit (2026-07-11)
+
+The generic ternary ZST operation now owns one Coeus-native three-image
+boundary. Exact native values and first-image metadata are covered directly.
+
 ## MIG-582-01 audit (2026-07-11)
 
 SUV body-weight conversion now uses the shared Coeus image boundary over its

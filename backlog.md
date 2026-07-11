@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-583-01 [patch] - Native ternary image arithmetic (DONE).** The
+  generic ZST ternary operation now has one Coeus-native three-image boundary.
+
 - **MIG-582-01 [patch] - Native SUV body-weight conversion (DONE).** The
   pure SUV values transform now has a shared Coeus image boundary.
 

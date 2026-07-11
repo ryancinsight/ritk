@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-583-01 — Native ternary image arithmetic
+**Target version**: 0.14.0 migration batch
+- [x] Expose the generic ternary ZST operation through a native three-image boundary.
+
 ## MIG-582-01 — Native SUV body-weight conversion
 **Target version**: 0.14.0 migration batch
 - [x] Expose the canonical SUV values transform through the native boundary.
