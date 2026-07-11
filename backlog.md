@@ -14,7 +14,10 @@
   dimension evidence, and an explicit replicated-border ZST policy.
   Coeus commit `a801cbe` closes named parameter reflection: semantic leaf names
   and hierarchical composite prefixes preserve the plain optimizer inventory's
-  order and gradient-buffer identity.
+  order and gradient-buffer identity. Coeus commit `2e4ee3d` closes native
+  optimizer consumption: every optimizer owns canonical named parameters,
+  module loading validates the complete hierarchical inventory, and the PyO3
+  boundary requires explicit `(name, tensor)` pairs.
 
 - **MIG-525-01 [major] - Core geometry test cutover (DONE).**
   The Coeus-backed image now owns fallible physical/index mappings. Core

@@ -64,6 +64,8 @@ introduced.
 4. **Optimizer consumption.** Route trainable-field registration through the
    existing Coeus `Var` optimizer path. Optimizers consume the named parameter
    collection directly; they do not emulate Burn visitors.
+   Coeus commit `2e4ee3d` delivers canonical named optimizer ownership and
+   typed complete-name validation when parameters load back into a module.
 
 ### Atomic RITK consumer set
 

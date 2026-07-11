@@ -17,6 +17,8 @@
   differentiable interpolation family and replicated-border ZST policy.
 - Coeus `a801cbe` now supplies stable hierarchical module parameter names while
   retaining optimizer order and gradient identity.
+- Coeus `2e4ee3d` now makes named parameters the canonical optimizer-owned
+  state and validates complete hierarchical names during module loading.
 
 ### Evidence
 - Deterministic bytes, borrowed zero-copy inspection, exact materialization,
@@ -24,8 +26,9 @@
   doctests; interpolation exact/differential/finite-difference checks,
   affected nextest 282/282, focused post-tightening 6/6, Clippy, Rustdoc, and
   doctests; named-parameter exact paths, uniqueness, gradient identity,
-  nextest 410/410, Clippy, Rustdoc, and doctests. Optimizer migration remains
-  open and no RITK Burn surface is claimed removed by these provider increments.
+  nextest 410/410, Clippy, Rustdoc, and doctests; optimizer nextest 20/20,
+  cross-boundary nextest 21/21, Burn parity 144/144, Clippy, Rustdoc, and
+  doctests. No RITK Burn surface is claimed removed by these provider increments.
 
 ## [Unreleased] — Sprint 525: Core geometry cutover (MIG-525-01)
 

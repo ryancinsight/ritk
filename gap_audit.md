@@ -59,7 +59,13 @@ sequences, recurrent modules, attention, and transformer trees. Exact decoder
 paths, full-transformer uniqueness, and shared Arc gradient identity prove the
 named inventory is the same optimizer inventory rather than a copied record.
 Evidence: coeus-nn nextest 410/410, warning-denied Clippy, Rustdoc, and doctests.
-Native optimizer consumption and the atomic RITK field cutover remain open.
+Coeus commit `2e4ee3d` closes native optimizer consumption. `Parameter` is now
+owned by `coeus-autograd`; SGD, Adam, AdamW, RMSProp, and AdaGrad retain names;
+module loading rejects count or hierarchical-name divergence; and Python
+optimizers require explicit `(name, tensor)` pairs. Evidence: optimizer
+nextest 20/20, cross-boundary nextest 21/21, Burn parity 144/144,
+warning-denied Clippy, Rustdoc, and doctests. All provider prerequisites are
+closed; the atomic RITK field cutover remains open.
 
 ## MIG-524-01 audit (2026-07-10)
 
