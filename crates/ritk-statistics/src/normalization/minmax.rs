@@ -19,6 +19,8 @@
 
 use super::intensity_range::IntensityRange;
 use crate::image_statistics::compute_statistics;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 
@@ -86,6 +88,35 @@ impl MinMaxNormalizer {
             *image.origin(),
             *image.spacing(),
             *image.direction(),
+        )
+    }
+
+    /// Normalize a Coeus-native image using the same range contract.
+    pub fn normalize_native<B, const D: usize>(
+        &self,
+        image: &NativeImage<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        let minimum = values.iter().copied().fold(f32::INFINITY, f32::min);
+        let maximum = values.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let input_range = (maximum - minimum) + super::NORMALIZER_EPSILON;
+        let output_span = self.range.span();
+        let output = values
+            .iter()
+            .map(|&value| ((value - minimum) / input_range) * output_span + self.range.min())
+            .collect();
+        NativeImage::from_flat_on(
+            output,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
         )
     }
 }

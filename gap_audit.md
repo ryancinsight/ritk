@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-599-01 audit (2026-07-11)
+
+MinMax normalization now uses one epsilon and affine-range contract at both
+image boundaries. Native endpoint, custom-range, and metadata semantics are covered.
+
 ## MIG-598-01 audit (2026-07-11)
 
 `ritk convert` now owns one native read-to-write path. VTK input and DICOM/VTK

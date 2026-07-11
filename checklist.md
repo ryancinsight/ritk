@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-599-01 — Native MinMax normalization provider
+**Target version**: 0.14.0 migration batch
+- [x] Expose MinMax's epsilon and affine-range contract to native images.
+
 ## MIG-598-01 — Native-only CLI conversion
 **Target version**: 0.14.0 migration batch
 - [x] Delete the conversion command's runtime Burn fallback.

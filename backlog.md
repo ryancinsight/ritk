@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-599-01 [minor] - Native MinMax normalization provider (DONE).**
+  `MinMaxNormalizer` now exposes the native image contract required by CLI cutover.
+
 - **MIG-598-01 [major] - Native-only CLI conversion (DONE).** `ritk convert`
   deletes its runtime Burn fallback and rejects formats without native I/O.
 

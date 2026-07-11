@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 599: Native MinMax normalization provider (MIG-599-01)
+### Added
+- `MinMaxNormalizer` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 598: Native-only CLI conversion (MIG-598-01)
 ### Breaking
 - `ritk convert` rejects formats without native readers or writers instead of using Burn.
