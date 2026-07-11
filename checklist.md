@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-589-01 — Native intensity windowing transform
+**Target version**: 0.14.0 migration batch
+- [x] Share windowing values between tensor-backed and native images.
+
 ## MIG-588-01 — Native sigmoid intensity transform
 **Target version**: 0.14.0 migration batch
 - [x] Share sigmoid values between tensor-backed and native images.

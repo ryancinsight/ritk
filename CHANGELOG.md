@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 589: Native intensity windowing transform (MIG-589-01)
+### Added
+- `IntensityWindowingFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 588: Native sigmoid intensity transform (MIG-588-01)
 ### Added
 - `SigmoidImageFilter` now exposes a Coeus-native image boundary.

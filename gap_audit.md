@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-589-01 audit (2026-07-11)
+
+Intensity windowing now has one canonical clamp-and-affine values path across
+tensor-backed and Coeus-native images. Endpoint, midpoint, and source metadata
+are covered by a focused native regression.
+
 ## MIG-588-01 audit (2026-07-11)
 
 Sigmoid intensity transformation now has one canonical values path across

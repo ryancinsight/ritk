@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-589-01 [patch] - Native intensity windowing transform (DONE).** Window
+  clamp-and-rescale now shares one values transform with Coeus-native images.
+
 - **MIG-588-01 [patch] - Native sigmoid intensity transform (DONE).** Sigmoid
   now shares one pointwise values transform with Coeus-native images.
 
