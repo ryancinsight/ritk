@@ -7,8 +7,10 @@
 //! - Above:   output(x) = if I(x) > threshold { outside_value } else { I(x) }
 //! - Outside: output(x) = if I(x) < lower || I(x) > upper { outside_value } else { I(x) }
 
+use crate::native_support::map_flat_image;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::Image;
+use ritk_image::{native::Image as NativeImage, Image};
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Threshold mode controlling which pixels are replaced by outside_value.
@@ -61,7 +63,24 @@ impl ThresholdImageFilter {
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let out: Vec<f32> = match &self.mode {
+        Ok(rebuild(self.apply_values(&vals), dims, image))
+    }
+
+    /// Apply the threshold operation to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| self.apply_values(values))
+    }
+
+    fn apply_values(&self, vals: &[f32]) -> Vec<f32> {
+        match &self.mode {
             ThresholdMode::Below {
                 threshold,
                 outside_value,
@@ -90,8 +109,7 @@ impl ThresholdImageFilter {
                     }
                 })
                 .collect(),
-        };
-        Ok(rebuild(out, dims, image))
+        }
     }
 }
 

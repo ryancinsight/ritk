@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-586-01 — Native pointwise threshold
+**Target version**: 0.14.0 migration batch
+- [x] Share pointwise threshold values between tensor-backed and native images.
+
 ## MIG-585-01 — Consolidate binary threshold ownership
 **Target version**: 0.14.0 migration batch
 - [x] Move every consumer to ritk-segmentation and delete the duplicate filter owner.

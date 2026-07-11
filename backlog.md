@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-586-01 [patch] - Native pointwise threshold (DONE).** The distinct
+  suppressive threshold filter now shares one values transform with Coeus.
+
 - **MIG-585-01 [major] - Consolidate binary threshold ownership (DONE).** CLI,
   Python, Registration, Snap, and parity tests now consume `ritk-segmentation`;
   the duplicate `ritk-filter` implementation is deleted.

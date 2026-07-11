@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-586-01 audit (2026-07-11)
+
+The pointwise suppressive threshold is distinct from binary segmentation and
+now shares a canonical values transform across tensor-backed and Coeus-native
+images. Exact outside-mode values and metadata are pinned directly.
+
 ## MIG-585-01 audit (2026-07-11)
 
 `BinaryThresholdImageFilter` duplicated the canonical segmentation threshold

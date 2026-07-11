@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 586: Native pointwise threshold (MIG-586-01)
+### Added
+- `ThresholdImageFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 585: Binary threshold ownership (MIG-585-01)
 ### Removed
 - Removed `ritk_filter::BinaryThresholdImageFilter`; use
