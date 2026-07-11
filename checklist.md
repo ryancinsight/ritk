@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-577-01 — Snap native bed separation
+**Target version**: 0.14.0 migration batch
+- [x] Share CT bed pipeline natively and route Snap; verify configured replacement.
+
 ## MIG-576-01 — Snap native neighborhood-connected
 **Target version**: 0.14.0 migration batch
 - [x] Expose canonical neighborhood BFS and route Snap; verify radius rejection.

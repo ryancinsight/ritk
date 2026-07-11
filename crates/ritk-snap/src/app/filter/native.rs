@@ -13,14 +13,14 @@ use ritk_filter::{
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
-    AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BinaryContourImageFilter,
-    BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter, ConstantPadImageFilter,
-    CosImageFilter, ExpImageFilter, FlipImageFilter, GradientAnisotropicDiffusionFilter,
-    GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
-    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
-    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
-    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationFilter,
+    BinaryContourImageFilter, BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter,
+    ConstantPadImageFilter, CosImageFilter, ExpImageFilter, FlipImageFilter,
+    GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, GrayscaleClosingFilter,
+    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
+    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
+    HistogramEqualizationFilter, InvertIntensityFilter, LabelContourImageFilter, LogImageFilter,
+    MaskImageFilter, MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
     ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
     TileMeanShrinkFilter, VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
@@ -78,6 +78,7 @@ pub(super) fn apply_if_supported(
     if !matches!(
         filter,
         FilterKind::Abs
+            | FilterKind::BedSeparation(_)
             | FilterKind::Square
             | FilterKind::Sqrt
             | FilterKind::Log
@@ -181,6 +182,9 @@ fn apply_supported_filter(
     .context("cannot construct Coeus-native image from loaded volume")?;
 
     let output = match filter {
+        FilterKind::BedSeparation(config) => {
+            BedSeparationFilter::new(*config).apply_native(&image, &backend)
+        }
         FilterKind::Abs => AbsImageFilter::new().apply_native(&image, &backend),
         FilterKind::Square => SquareImageFilter::new().apply_native(&image, &backend),
         FilterKind::Sqrt => SqrtImageFilter::new().apply_native(&image, &backend),
@@ -1223,6 +1227,19 @@ mod tests {
         .expect("invariant: neighborhood connected has a native implementation")
         .expect("native neighborhood connected succeeds");
         assert_eq!(output, vec![0.0; 3]);
+    }
+
+    #[test]
+    fn native_bed_separation_replaces_background_with_configured_value() {
+        let mut volume = test_volume([1, 1, 2]);
+        volume.data = Arc::new(vec![-1000.0; 2]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::BedSeparation(ritk_filter::BedSeparationConfig::default()),
+        )
+        .expect("invariant: bed separation has a native implementation")
+        .expect("native bed separation succeeds");
+        assert_eq!(output, vec![-1024.0; 2]);
     }
 
     #[test]

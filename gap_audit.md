@@ -8,6 +8,9 @@
 
 # RITK Gap Audit - Active
 
+## MIG-577-01 audit (2026-07-11)
+Bed separation now shares its canonical threshold/component/morphology pipeline through the native filter boundary.
+
 ## MIG-576-01 audit (2026-07-11)
 Neighborhood-connected now shares its canonical radius-admissible BFS kernel through the native segmentation boundary.
 

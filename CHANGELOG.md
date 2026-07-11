@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 577: Snap native bed separation (MIG-577-01)
+### Changed
+- Snap routes CT bed separation through the Coeus-native provider pipeline.
+
 ## [Unreleased] — Sprint 576: Snap native neighborhood-connected (MIG-576-01)
 ### Changed
 - Snap routes neighborhood-connected region growing through its Coeus-native segmentation provider.
