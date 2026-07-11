@@ -91,6 +91,39 @@ fn mask_filter_preserves_spatial_metadata() {
 }
 
 #[test]
+fn native_threshold_mask_retains_only_strictly_greater_values() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    let image = NativeImage::from_flat_on(
+        vec![0.5, 0.5001, 2.0],
+        [1, 1, 3],
+        Point::new([2.0, 3.0, 5.0]),
+        Spacing::new([1.0, 2.0, 4.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = MaskImageFilter::apply_threshold_native(
+        &image,
+        BinarizationThreshold::DEFAULT,
+        &SequentialBackend,
+    )
+    .expect("native threshold masking succeeds");
+
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[0.0, 0.5001, 2.0]
+    );
+    assert_eq!(output.shape(), [1, 1, 3]);
+    assert_eq!(
+        [output.origin()[0], output.origin()[1], output.origin()[2]],
+        [2.0, 3.0, 5.0]
+    );
+}
+
+#[test]
 fn mask_negated_filter_passes_values_where_mask_inactive() {
     let img = make_image(vec![10.0, 20.0, 30.0, 40.0], [1, 2, 2]);
     let mask = make_image(vec![1.0, 0.0, 1.0, 0.0], [1, 2, 2]);

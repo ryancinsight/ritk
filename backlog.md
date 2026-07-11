@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-556-01 [patch] - Snap native threshold masking (DONE).**
+  MaskImageFilter now owns a Coeus-native strict threshold-mask operation, and
+  Snap dispatches it natively. Provider and Snap boundary regressions pass.
+
 - **MIG-555-01 [patch] - Snap native mirror and wrap padding (DONE).**
   Mirror and wrap padding now supply Coeus-native boundaries with exact
   symmetric and periodic value contracts proven at provider and Snap layers.

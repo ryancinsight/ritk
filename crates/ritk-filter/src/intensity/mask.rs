@@ -92,6 +92,34 @@ impl MaskImageFilter {
             .collect();
         Ok(rebuild(out, dims, image))
     }
+
+    /// Apply threshold-derived masking to a Coeus-native image.
+    ///
+    /// Voxels greater than `threshold` are retained; all others become zero.
+    pub fn apply_threshold_native<B>(
+        image: &ritk_image::native::Image<f32, B, 3>,
+        threshold: BinarizationThreshold,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        let threshold = f32::from(threshold);
+        let output = values
+            .iter()
+            .map(|&value| if value > threshold { value } else { 0.0 })
+            .collect();
+        ritk_image::native::Image::from_flat_on(
+            output,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
 }
 
 // â”€â”€ MaskNegatedImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

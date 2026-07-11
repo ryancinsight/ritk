@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-556-01 audit (2026-07-11)
+
+MaskThreshold assembled a temporary legacy mask image in Snap even though its
+behavior is a scalar threshold-mask operation owned by MaskImageFilter. The
+owner now supplies the Coeus-native operation and Snap dispatches it before
+legacy construction. Exact regressions pin `0.5 -> 0` while `0.5001` remains.
+
 ## MIG-555-01 audit (2026-07-11)
 
 Mirror and wrap padding remained behind legacy image construction after the

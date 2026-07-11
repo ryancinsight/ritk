@@ -14,10 +14,10 @@ use ritk_filter::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
     AbsImageFilter, ClampImageFilter, ConstantPadImageFilter, ExpImageFilter, FlipImageFilter,
-    InvertIntensityFilter, LogImageFilter, MirrorPadImageFilter, NormalizeImageFilter,
-    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter, TileMeanShrinkFilter,
-    WrapPadImageFilter,
+    InvertIntensityFilter, LogImageFilter, MaskImageFilter, MirrorPadImageFilter,
+    NormalizeImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
+    RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
+    TileMeanShrinkFilter, WrapPadImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -96,6 +96,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::ConstantPad { .. }
             | FilterKind::MirrorPad { .. }
             | FilterKind::WrapPad { .. }
+            | FilterKind::MaskThreshold { .. }
     ) {
         return None;
     }
@@ -230,6 +231,9 @@ fn apply_supported_filter(
             ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
         )
         .apply_native(&image, &backend),
+        FilterKind::MaskThreshold { threshold } => {
+            MaskImageFilter::apply_threshold_native(&image, *threshold, &backend)
+        }
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -572,6 +576,23 @@ mod tests {
             assert_eq!(output.data, expected);
             assert_eq!(output.shape, [1, 1, 5]);
         }
+    }
+
+    #[test]
+    fn native_mask_threshold_keeps_only_strictly_greater_values() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![0.5, 0.5001, 2.0]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::MaskThreshold {
+                threshold: BinarizationThreshold::DEFAULT,
+            },
+        )
+        .expect("invariant: threshold masking has a native implementation")
+        .expect("native threshold masking succeeds");
+
+        assert_eq!(output.data, vec![0.0, 0.5001, 2.0]);
+        assert_eq!(output.shape, [1, 1, 3]);
     }
 
     #[test]

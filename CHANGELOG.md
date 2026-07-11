@@ -8,6 +8,17 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 556: Snap native threshold masking (MIG-556-01)
+
+### Added
+- `MaskImageFilter` now owns a Coeus-native strict threshold-mask operation.
+
+### Changed
+- Snap routes MaskThreshold through it before legacy image construction.
+
+### Evidence
+- Provider and Snap regressions pin the strict `value > threshold` contract.
+
 ## [Unreleased] — Sprint 555: Snap native mirror and wrap padding (MIG-555-01)
 
 ### Added

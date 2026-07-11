@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-556-01 — Snap native threshold masking
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add the provider-owned native threshold-mask operation.
+- [x] Route Snap MaskThreshold through the native image path.
+- [x] Verify strict-boundary provider and Snap regressions, warning-denied
+  Clippy, doctests, and Rustdoc; commit and advance the RITK gitlink.
+
 ## MIG-555-01 — Snap native mirror and wrap padding
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
