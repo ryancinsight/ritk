@@ -9,6 +9,9 @@
   than wrapping it. Coeus commit `f52c095` closes the bounded archive provider
   prerequisite with deterministic named tensor entries, validated borrowed
   inspection, explicit resource limits, and typed materialization failures.
+  Coeus commit `397b3e5` closes the interpolation prerequisite with one
+  const-dimension 2-D/3-D forward/reverse-mode family, compile-time supported-
+  dimension evidence, and an explicit replicated-border ZST policy.
 
 - **MIG-525-01 [major] - Core geometry test cutover (DONE).**
   The Coeus-backed image now owns fallible physical/index mappings. Core

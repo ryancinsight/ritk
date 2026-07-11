@@ -13,12 +13,16 @@
 ### Changed
 - Coeus `f52c095` now supplies the bounded validated rkyv tensor-state archive
   required by the displacement-field cutover.
+- Coeus `397b3e5` now supplies one compile-time dimension-complete 2-D/3-D
+  differentiable interpolation family and replicated-border ZST policy.
 
 ### Evidence
 - Deterministic bytes, borrowed zero-copy inspection, exact materialization,
   adversarial limit/format rejection, nextest 56/56, Clippy, Rustdoc, and
-  doctests. Named parameters, interpolation, and optimizer migration remain
-  open and no RITK Burn surface is claimed removed by this provider increment.
+  doctests; interpolation exact/differential/finite-difference checks,
+  affected nextest 282/282, focused post-tightening 6/6, Clippy, Rustdoc, and
+  doctests. Named parameters and optimizer migration remain open and no RITK
+  Burn surface is claimed removed by these provider increments.
 
 ## [Unreleased] — Sprint 525: Core geometry cutover (MIG-525-01)
 

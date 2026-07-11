@@ -16,6 +16,8 @@
 - [x] Enumerate every registration optimizer and transform consumer that must migrate atomically.
 - [x] Publish Coeus bounded validated rkyv tensor archives (`f52c095`); field
       metadata naming remains part of the atomic consumer cutover.
+- [x] Publish Coeus dimension-complete differentiable interpolation
+      (`397b3e5`) with compile-time 2-D/3-D support and a replicated-border ZST.
 - [ ] Replace the complete trainable field graph and delete Burn module/record plumbing.
 - [ ] Verify value, gradient, persistence, resampling, and downstream registration contracts.
 

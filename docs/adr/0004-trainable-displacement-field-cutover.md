@@ -29,8 +29,8 @@ The current Coeus contracts are insufficient for a native same-change cutover:
   `Parameter` owns a name;
 - `coeus_tensor::StateDict` is an eager, unbounded bespoke reader and does not
   archive domain metadata;
-- Coeus exposes differentiable trilinear interpolation, but the field contract
-  also ships 2-D interpolation and boundary semantics; and
+- before Coeus `397b3e5`, differentiable interpolation covered only 3-D while
+  the field contract also shipped 2-D and explicit boundary semantics; and
 - the active RITK optimizers are coupled to Burn module visitation rather than
   the already-proven Coeus optimizer path.
 
@@ -56,6 +56,9 @@ introduced.
    family parameterized by dimension and boundary policy, with 2-D and 3-D
    forward/backward implementations sharing the same contract. CPU laws and
    backend differential tests cover value and gradient semantics.
+   Coeus commit `397b3e5` delivers this contract as
+   `linear_interpolation::<D, _, _>` with sealed 2-D/3-D evidence and a
+   `Replicate` boundary-policy ZST.
 4. **Optimizer consumption.** Route trainable-field registration through the
    existing Coeus `Var` optimizer path. Optimizers consume the named parameter
    collection directly; they do not emulate Burn visitors.

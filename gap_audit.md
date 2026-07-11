@@ -39,8 +39,19 @@ deterministic archive bytes, zero-copy borrowed shape/payload inspection,
 round-trip materialization, duplicate/truncation/scalar mismatch rejection,
 explicit byte/tensor/rank limits, nextest 56/56, warning-denied Clippy,
 Rustdoc, and doctests. Materialization copies into aligned backend storage;
-only validated archive inspection is zero-copy. Named module parameters,
-dimension-complete interpolation, and optimizer consumption remain open.
+only validated archive inspection is zero-copy. At that provider checkpoint,
+named module parameters, dimension-complete interpolation, and optimizer
+consumption remained open.
+
+Coeus commit `397b3e5` closes the dimension-complete interpolation gap. One
+generic forward/backward family covers 2-D and 3-D; sealed dimension evidence
+rejects other monomorphizations at compile time, while `Replicate` selects the
+documented border policy with zero storage. Evidence is exact values and
+image/grid gradients, independent finite differences for all five coordinate
+axes, typed malformed/non-finite rejection, Sequential/Moirai agreement,
+affected nextest 282/282, focused post-tightening nextest 6/6, Clippy,
+Rustdoc, and doctests. Named module parameters and optimizer consumption remain
+open.
 
 ## MIG-524-01 audit (2026-07-10)
 
