@@ -300,11 +300,9 @@ source:crates/ritk-model/src/ssmmorph/cross_scan/dim3.rs
 source:crates/ritk-model/src/ssmmorph/cross_scan/mod.rs
 source:crates/ritk-model/src/ssmmorph/cross_scan/module.rs
 source:crates/ritk-model/src/ssmmorph/decoder.rs
-source:crates/ritk-model/src/ssmmorph/encoder/atlas_encoder.rs
 source:crates/ritk-model/src/ssmmorph/encoder/config.rs
 source:crates/ritk-model/src/ssmmorph/encoder/mod.rs
 source:crates/ritk-model/src/ssmmorph/encoder/stage.rs
-source:crates/ritk-model/src/ssmmorph/encoder/tests.rs
 source:crates/ritk-model/src/ssmmorph/mod.rs
 source:crates/ritk-model/src/ssmmorph/network/architecture.rs
 source:crates/ritk-model/src/ssmmorph/network/integration.rs

@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-517-01 [major] - SSM-Morph placeholder sister deletion (DONE).**
+  Deleted the unused structural-only encoder sister and its shape-only tests.
+  They performed no model computation and preserved a parallel API rather
+  than migrating the real Burn encoder. The combined affine/TransMorph
+  training graph remains the dependency-ordered Coeus migration boundary.
+  Evidence: model nextest 74/74, warning-denied Clippy, all-target compilation,
+  and Burn-source reduction from 575 to 573.
+
 - **MIG-516-01 [major] - Native trilinear provider cutover (DONE).**
   Added voxel-grid trilinear interpolation to `coeus-ops`, routed RITK's sole
   native operation directly through it, and deleted the native-to-Burn bridge,

@@ -37,7 +37,6 @@
 //!    Bottleneck: [batch, 256, D/8, H/8, W/8]
 //! ```
 
-pub mod atlas_encoder;
 pub mod config;
 pub mod stage;
 
@@ -115,6 +114,3 @@ impl<B: Backend> SSMMorphEncoder<B> {
         &self.stage_channels
     }
 }
-
-#[cfg(test)]
-mod tests;

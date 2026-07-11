@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-517-01 audit (2026-07-10)
+
+The SSM-Morph encoder exposed parallel `Atlas*` types that copied configuration
+metadata but explicitly omitted forward computation. Their tests replaced
+forward assertions with shape-field assertions, so the surface was a
+placeholder rather than a migration increment. Exact workspace search found
+no consumers outside those tests. Both files and their allowlist entries are
+deleted; the real encoder remains the only implementation until its complete
+Coeus conversion.
+
+Evidence tier: exact reference search, model nextest 74/74, warning-denied
+Clippy, all-target compilation, and exact audit reduction from 575 to 573
+source files. No compatibility layer was introduced; the known
+displacement-field drift remains unadmitted.
+
 ## MIG-516-01 audit (2026-07-10)
 
 RITK trilinear interpolation had three implementations: a Burn tensor kernel,

@@ -8,6 +8,17 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 517: Encoder placeholder deletion (MIG-517-01)
+
+### Removed
+- Removed the unused structural-only SSM-Morph encoder sister and shape-only
+  tests that did not exercise forward computation.
+
+### Evidence
+- Exact consumer search, model nextest 74/74, warning-denied Clippy,
+  all-target compilation, and Burn audit reduction from 575 to 573 source
+  files.
+
 ## [Unreleased] — Sprint 516: Native trilinear cutover (MIG-516-01)
 
 ### Changed

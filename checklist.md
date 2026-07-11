@@ -8,6 +8,19 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-517-01 — SSM-Morph placeholder sister deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the structural-only encoder sister has no production consumers.
+- [x] Delete its parallel config/stage/encoder types and tests that substituted
+      shape introspection for the required forward computation.
+- [x] Preserve the real Burn encoder until the complete combined training
+      graph can migrate to Coeus without a tensor or gradient shim.
+- [x] Verify warning-denied `ritk-model` Clippy, nextest 74/74, all-target
+      compilation, and audit reduction from 575 to 573 source files with only
+      the known displacement-field drift.
+
 ## MIG-516-01 — Native trilinear provider cutover
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
