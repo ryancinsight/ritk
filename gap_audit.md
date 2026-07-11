@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-581-01 audit (2026-07-11)
+
+Gaussian smoothing now owns a Coeus-native, Moirai-parallel, zero-padded
+separable values path. The provider differential regression compares it with
+the existing tensor convolution, while Snap pins constant-interior mass.
+
 ## MIG-580-01 audit (2026-07-11)
 
 CPR now shares its canonical path sampler between legacy and Coeus-native

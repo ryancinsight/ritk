@@ -1,4 +1,5 @@
 use crate::edge::GaussianSigma;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::ops::ConvOptions;
 use ritk_image::tensor::Backend;
@@ -50,6 +51,61 @@ impl<B: Backend> GaussianFilter<B> {
         let (tensor, origin, spacing, direction) = image.clone().into_parts();
         let data = self.apply_tensor(tensor, &spacing);
         Image::new(data, origin, spacing, direction)
+    }
+
+    /// Apply zero-padded separable Gaussian smoothing to a Coeus-native volume.
+    ///
+    /// The native path uses the same kernel-width, degenerate-axis, and
+    /// zero-padding contract as the legacy convolution path.
+    pub fn apply_native<C>(
+        &self,
+        image: &ritk_image::native::Image<f32, C, 3>,
+        backend: &C,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, C, 3>>
+    where
+        C: ComputeBackend,
+        C::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.apply_values_3d(
+                image.data_slice()?.to_vec(),
+                image.shape(),
+                image.spacing().to_array(),
+            ),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn apply_values_3d(
+        &self,
+        mut values: Vec<f32>,
+        dims: [usize; 3],
+        spacing: [f64; 3],
+    ) -> Vec<f32> {
+        for (axis, (&axis_len, &axis_spacing)) in dims.iter().zip(spacing.iter()).enumerate() {
+            let sigma = self
+                .sigmas
+                .get(axis)
+                .or_else(|| self.sigmas.first())
+                .expect("invariant: GaussianFilter requires at least one sigma")
+                .get();
+            if sigma <= 1e-6 || axis_len <= 1 {
+                continue;
+            }
+            let pixel_sigma = sigma / axis_spacing;
+            let radius = (3.0 * pixel_sigma).ceil() as usize;
+            let mut width = (2 * radius + 1).min(self.max_kernel_width);
+            if width.is_multiple_of(2) {
+                width -= 1;
+            }
+            let kernel = self.generate_kernel(pixel_sigma, (width - 1) / 2);
+            values = convolve_axis_zero_padded(&values, dims, axis, &kernel);
+        }
+        values
     }
 
     /// Apply the filter to a tensor directly.
@@ -198,6 +254,54 @@ impl<B: Backend> GaussianFilter<B> {
 
         output_permuted.permute(inv_permute_indices)
     }
+}
+
+fn convolve_axis_zero_padded(
+    input: &[f32],
+    [nz, ny, nx]: [usize; 3],
+    axis: usize,
+    kernel: &[f32],
+) -> Vec<f32> {
+    let mut output = vec![0.0; input.len()];
+    let radius = (kernel.len() / 2) as isize;
+    let plane = ny * nx;
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut output,
+        plane,
+        |z, out_plane| {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let mut sum = 0.0;
+                    for (tap, &weight) in kernel.iter().enumerate() {
+                        let offset = tap as isize - radius;
+                        let coordinate = match axis {
+                            0 => z as isize + offset,
+                            1 => y as isize + offset,
+                            2 => x as isize + offset,
+                            _ => unreachable!("invariant: a 3-D axis is in 0..3"),
+                        };
+                        let in_bounds = match axis {
+                            0 => coordinate >= 0 && coordinate < nz as isize,
+                            1 => coordinate >= 0 && coordinate < ny as isize,
+                            2 => coordinate >= 0 && coordinate < nx as isize,
+                            _ => unreachable!("invariant: a 3-D axis is in 0..3"),
+                        };
+                        if in_bounds {
+                            let source = match axis {
+                                0 => coordinate as usize * plane + y * nx + x,
+                                1 => z * plane + coordinate as usize * nx + x,
+                                2 => z * plane + y * nx + coordinate as usize,
+                                _ => unreachable!("invariant: a 3-D axis is in 0..3"),
+                            };
+                            sum += input[source] * weight;
+                        }
+                    }
+                    out_plane[y * nx + x] = sum;
+                }
+            }
+        },
+    );
+    output
 }
 
 #[cfg(test)]

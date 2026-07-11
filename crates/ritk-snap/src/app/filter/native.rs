@@ -16,12 +16,12 @@ use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationFilter,
     BinaryContourImageFilter, BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter,
     ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter, CurvatureFlowConfig,
-    CurvatureFlowImageFilter, ExpImageFilter, FlipImageFilter, GradientAnisotropicDiffusionFilter,
-    GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
-    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
-    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
-    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    CurvatureFlowImageFilter, ExpImageFilter, FlipImageFilter, GaussianFilter, GaussianSigma,
+    GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, GrayscaleClosingFilter,
+    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
+    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
+    HistogramEqualizationFilter, InvertIntensityFilter, LabelContourImageFilter, LogImageFilter,
+    MaskImageFilter, MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
     ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
     TileMeanShrinkFilter, UnsharpMaskFilter, VotingBinaryImageFilter, WrapPadImageFilter,
@@ -38,6 +38,7 @@ use ritk_segmentation::{
 use ritk_spatial::{Direction, Point, Spacing};
 use std::ops::Deref;
 
+use crate::app::state::LoadBackend;
 use crate::{FilterKind, LoadedVolume};
 
 /// Host representation of a Coeus-native filter result.
@@ -95,7 +96,8 @@ pub(super) fn apply_if_supported(
 
     if !matches!(
         filter,
-        FilterKind::Abs
+        FilterKind::Gaussian { .. }
+            | FilterKind::Abs
             | FilterKind::BedSeparation(_)
             | FilterKind::Square
             | FilterKind::Sqrt
@@ -241,6 +243,11 @@ fn apply_supported_filter(
     let image = native_image_from_volume(volume, &backend)?;
 
     let output = match filter {
+        FilterKind::Gaussian { sigma } => GaussianFilter::<LoadBackend>::new(vec![
+            GaussianSigma::new_unchecked(f64::from(*sigma));
+            3
+        ])
+        .apply_native(&image, &backend),
         FilterKind::BedSeparation(config) => {
             BedSeparationFilter::new(*config).apply_native(&image, &backend)
         }
@@ -1401,9 +1408,17 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_filter_stays_outside_native_unary_dispatch() {
-        let volume = test_volume([1, 1, 1]);
-        assert!(apply_if_supported(&volume, &FilterKind::Gaussian { sigma: 1.0 }).is_none());
+    fn native_gaussian_preserves_a_constant_interior() {
+        let mut volume = test_volume([1, 1, 9]);
+        volume.data = Arc::new(vec![3.0; 9]);
+        let output = apply_if_supported(&volume, &FilterKind::Gaussian { sigma: 1.0 })
+            .expect("invariant: Gaussian has a native implementation")
+            .expect("native Gaussian succeeds");
+        assert_eq!(output.shape, [1, 1, 9]);
+        assert!(
+            (output[4] - 3.0).abs() < 5.0e-3,
+            "the fully supported constant interior must preserve kernel mass"
+        );
     }
 
     #[test]

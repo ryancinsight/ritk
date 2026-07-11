@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 581: Snap native Gaussian (MIG-581-01)
+### Changed
+- Snap routes Gaussian smoothing through the Coeus-native zero-padded separable kernel.
+
 ## [Unreleased] — Sprint 580: Snap native CPR (MIG-580-01)
 ### Changed
 - Snap routes CPR through the Coeus-native shared sampler and direct planar promotion.

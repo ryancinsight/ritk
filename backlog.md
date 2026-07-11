@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-581-01 [patch] - Snap native Gaussian (DONE).** Native Moirai
+  separable convolution preserves the zero-padding contract and removes this
+  viewer route from the legacy tensor graph.
+
 - **MIG-580-01 [patch] - Snap native CPR (DONE).** The canonical CPR sampler
   now feeds a native planar result and a direct viewer rank-promotion boundary.
 

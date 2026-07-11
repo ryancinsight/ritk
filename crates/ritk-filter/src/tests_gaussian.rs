@@ -1,6 +1,8 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -118,4 +120,41 @@ fn gaussian_preserves_shape() {
         img.shape(),
         "shape must be preserved after Gaussian"
     );
+}
+
+#[test]
+fn native_gaussian_matches_legacy_zero_padded_convolution() {
+    let shape = [5, 4, 3];
+    let values: Vec<f32> = (0..shape.iter().product::<usize>())
+        .map(|index| index as f32 * 0.25 - 3.0)
+        .collect();
+    let filter = GaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1.0); 3]);
+    let legacy = filter.apply(&make_image(values.clone(), shape));
+    let native = NativeImage::from_flat_on(
+        values,
+        shape,
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let native = filter
+        .apply_native(&native, &SequentialBackend)
+        .expect("native Gaussian succeeds");
+
+    for (index, (&expected, &actual)) in voxels(&legacy)
+        .iter()
+        .zip(
+            native
+                .data_slice()
+                .expect("invariant: sequential storage is contiguous"),
+        )
+        .enumerate()
+    {
+        assert!(
+            (expected - actual).abs() <= 2.0e-5,
+            "native zero-padded convolution diverged at {index}: expected {expected}, got {actual}"
+        );
+    }
 }

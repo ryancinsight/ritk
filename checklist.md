@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-581-01 — Snap native Gaussian
+**Target version**: 0.14.0 migration batch
+- [x] Add native zero-padded separable convolution and verify legacy equivalence.
+
 ## MIG-580-01 — Snap native CPR
 **Target version**: 0.14.0 migration batch
 - [x] Share the CPR sampler, route native Snap, and verify planar promotion geometry.
