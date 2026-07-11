@@ -123,7 +123,7 @@ fn gaussian_preserves_shape() {
 }
 
 #[test]
-fn native_gaussian_matches_legacy_zero_padded_convolution() {
+fn native_gaussian_matches_tensor_backed_path() {
     let shape = [5, 4, 3];
     let values: Vec<f32> = (0..shape.iter().product::<usize>())
         .map(|index| index as f32 * 0.25 - 3.0)

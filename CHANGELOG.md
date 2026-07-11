@@ -8,9 +8,10 @@
 
 # CHANGELOG
 
-## [Unreleased] — Sprint 581: Snap native Gaussian (MIG-581-01)
+## [Unreleased] — Sprint 581: Canonical native Gaussian (MIG-581-01)
 ### Changed
-- Snap routes Gaussian smoothing through the Coeus-native zero-padded separable kernel.
+- Gaussian smoothing now routes tensor-backed and Coeus-native images through
+  one Moirai zero-padded separable kernel; Snap uses the native boundary.
 
 ## [Unreleased] — Sprint 580: Snap native CPR (MIG-580-01)
 ### Changed

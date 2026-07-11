@@ -10,9 +10,10 @@
 
 ## MIG-581-01 audit (2026-07-11)
 
-Gaussian smoothing now owns a Coeus-native, Moirai-parallel, zero-padded
-separable values path. The provider differential regression compares it with
-the existing tensor convolution, while Snap pins constant-interior mass.
+Gaussian smoothing now owns one Moirai-parallel, zero-padded separable values
+kernel shared by tensor-backed and Coeus-native images. Boundary-equivalence
+and Snap regressions pin the shared contract; the prior Burn `conv1d` path is
+deleted.
 
 ## MIG-580-01 audit (2026-07-11)
 
