@@ -8,6 +8,24 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 535: Snap native volume loading (MIG-535-01)
+
+### Added
+- Added native in-memory NIfTI reading at the owning `ritk-io` boundary.
+
+### Changed
+- Snap now loads NIfTI, MetaImage, NRRD, MGH, and NIfTI bytes through Coeus
+  native images before one explicit viewer ownership transfer.
+
+### Removed
+- Removed the Snap loader's Burn backend/device alias and legacy image
+  extraction path.
+
+### Evidence
+- I/O nextest 365/365, Snap nextest 637/637, focused tests 2/2, xtask nextest
+  8/8, warning-denied Clippy, Rustdoc, doctests, and audit reduction from 658
+  to 655 source files.
+
 ## [Unreleased] — Sprint 534: Snap native DICOM scalar (MIG-534-01)
 
 ### Changed

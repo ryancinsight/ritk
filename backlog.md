@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **MIG-535-01 [major] - Snap native volume-loader cutover (DONE).**
+  `ritk-io` now exposes native in-memory NIfTI reading. Snap routes NIfTI,
+  MetaImage, NRRD, MGH, and NIfTI byte payloads through native Coeus images;
+  its loader-wide Burn backend/device alias and legacy conversion path are
+  deleted. Evidence: I/O nextest 365/365, Snap nextest 637/637, focused native
+  provider/consumer tests 2/2, xtask nextest 8/8, warning-denied Clippy,
+  Rustdoc, doctests, and Burn audit reduction from 658 to 655 source files.
+
 - **MIG-534-01 [major] - Snap native DICOM scalar boundary (DONE).**
   Both scalar DICOM entry points now call the Coeus-native provider functions
   on `SequentialBackend`. Burn image construction and tensor extraction are

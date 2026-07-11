@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-535-01 — Snap native volume-loader cutover
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add the missing native NIfTI byte reader at the owning `ritk-io` boundary.
+- [x] Migrate NIfTI, MetaImage, NRRD, MGH, and NIfTI-byte loading to native Coeus images.
+- [x] Delete the loader's Burn backend/device alias and rewrite the byte round-trip fixture natively.
+- [x] Verify RITK I/O nextest 365/365, Snap nextest 637/637, focused provider/consumer tests 2/2, xtask nextest 8/8, warning-denied Clippy, Rustdoc, doctests, and audit reduction to 655 source files.
+
 ## MIG-534-01 — Snap native DICOM scalar boundary
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

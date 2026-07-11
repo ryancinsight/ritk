@@ -42,8 +42,8 @@ pub use format::metaimage::{
 pub use format::mgh::{read_mgh, write_mgh, MghReader, MghWriter};
 pub use format::minc::{read_minc, write_minc, MincReader, MincWriter};
 pub use format::nifti::{
-    read_nifti, read_nifti_from_bytes, read_nifti_labels, write_nifti, write_nifti_labels,
-    NiftiReader, NiftiWriter,
+    read_nifti, read_nifti_from_bytes, read_nifti_from_bytes_native, read_nifti_labels,
+    write_nifti, write_nifti_labels, NiftiReader, NiftiWriter,
 };
 pub use format::nrrd::{read_nrrd, write_nrrd, write_nrrd_with_data, NrrdReader, NrrdWriter};
 pub use format::png::{read_png_series, read_png_to_image, PngReader, PngSeriesReader};

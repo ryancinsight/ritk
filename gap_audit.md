@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-535-01 audit (2026-07-11)
+
+Snap's non-DICOM loader routed native-first format providers back through Burn
+images and one module-wide `NdArray` alias. The only provider gap was an
+in-memory native NIfTI function, now owned by `ritk-io` and delegated directly
+to `ritk-nifti`. Path dispatch for NIfTI, MetaImage, NRRD, and MGH plus NIfTI
+bytes now stays Coeus-native until the required viewer ownership transfer.
+The test fixture also writes a native image rather than reconstructing Burn.
+
+Evidence tier: native NIfTI provider round trip; exact Snap byte round trip;
+RITK I/O nextest 365/365; Snap nextest 637/637; focused tests 2/2; xtask
+nextest 8/8; warning-denied Clippy; Rustdoc; doctests; and clean audit reduction
+from 658 to 655 source files. Remaining Snap Burn surfaces belong to filters,
+viewer state, volume operations, and tests outside this loader.
+
 ## MIG-534-01 audit (2026-07-11)
 
 Snap's scalar DICOM entry points still called the Burn image provider even

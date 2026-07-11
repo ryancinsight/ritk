@@ -37,6 +37,14 @@ pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B::Device) -> Re
         .map(|native| native_to_legacy(native, device))
 }
 
+/// Reads an in-memory NIfTI payload directly into a Coeus-backed image.
+pub fn read_nifti_from_bytes_native<B: coeus_core::ComputeBackend>(
+    bytes: &[u8],
+    backend: &B,
+) -> Result<ritk_image::native::Image<f32, B, 3>> {
+    ritk_nifti::read_nifti_from_bytes(bytes, backend)
+}
+
 /// Writes a legacy image through the native NIfTI provider.
 pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
     let backend = SequentialBackend;
