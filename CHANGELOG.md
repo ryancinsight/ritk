@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 553: Snap native tile-mean shrink (MIG-553-01)
+
+### Added
+- `TileMeanShrinkFilter` now exposes a Coeus-native boundary over its shared
+  ceil-tile averaging and spacing-scaling contract.
+
+### Changed
+- Snap routes its display-oriented shrink operation through the native path.
+
+### Evidence
+- Provider and Snap exact values, shape, origin, and spacing regressions pass.
+
 ## [Unreleased] — Sprint 552: Snap native axis permutation (MIG-552-01)
 
 ### Added

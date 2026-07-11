@@ -149,63 +149,74 @@ impl Default for TileMeanShrinkFilter {
 impl TileMeanShrinkFilter {
     /// Apply the tile-averaging shrink to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let [nz, ny, nx] = image.shape();
-        let [fz, fy, fx] = [
-            self.shrink_factors[0].max(1),
-            self.shrink_factors[1].max(1),
-            self.shrink_factors[2].max(1),
-        ];
-
-        // Output shape: ceil(N/f)
-        let oz = nz.div_ceil(fz);
-        let oy = ny.div_ceil(fy);
-        let ox = nx.div_ceil(fx);
-
         let (vals_vec, _) = extract_vec_infallible(image);
-        let vals = &vals_vec;
+        let (out, out_shape) = self.tile_mean(&vals_vec, image.shape());
 
-        let mut out = vec![0.0f32; oz * oy * ox];
+        Ok(rebuild_with_metadata(
+            out,
+            out_shape,
+            *image.origin(),
+            self.scaled_spacing(image.spacing()),
+            *image.direction(),
+            image,
+        ))
+    }
 
+    /// Apply the tile-averaging shrink to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (values, shape) = self.tile_mean(image.data_slice()?, image.shape());
+        ritk_image::native::Image::from_flat_on(
+            values,
+            shape,
+            *image.origin(),
+            self.scaled_spacing(image.spacing()),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn tile_mean(&self, values: &[f32], [nz, ny, nx]: [usize; 3]) -> (Vec<f32>, [usize; 3]) {
+        let [fz, fy, fx] = self.factors();
+        let shape = [nz.div_ceil(fz), ny.div_ceil(fy), nx.div_ceil(fx)];
+        let [oz, oy, ox] = shape;
+        let mut output = vec![0.0; oz * oy * ox];
         for iz in 0..oz {
             for iy in 0..oy {
                 for ix in 0..ox {
-                    let kz0 = iz * fz;
-                    let kz1 = ((iz + 1) * fz - 1).min(nz - 1);
-                    let ky0 = iy * fy;
-                    let ky1 = ((iy + 1) * fy - 1).min(ny - 1);
-                    let kx0 = ix * fx;
-                    let kx1 = ((ix + 1) * fx - 1).min(nx - 1);
                     let mut sum = 0.0f64;
                     let mut count = 0u64;
-                    for kz in kz0..=kz1 {
-                        for ky in ky0..=ky1 {
-                            for kx in kx0..=kx1 {
-                                sum += vals[kz * ny * nx + ky * nx + kx] as f64;
+                    for kz in iz * fz..((iz + 1) * fz).min(nz) {
+                        for ky in iy * fy..((iy + 1) * fy).min(ny) {
+                            for kx in ix * fx..((ix + 1) * fx).min(nx) {
+                                sum += values[kz * ny * nx + ky * nx + kx] as f64;
                                 count += 1;
                             }
                         }
                     }
-                    out[iz * oy * ox + iy * ox + ix] = (sum / count as f64) as f32;
+                    output[iz * oy * ox + iy * ox + ix] = (sum / count as f64) as f32;
                 }
             }
         }
+        (output, shape)
+    }
 
-        // Update spacing: out_spacing[i] = in_spacing[i] * factor[i].
-        let in_s = image.spacing();
-        let out_spacing = Spacing::new([
-            in_s[0] * fz as f64,
-            in_s[1] * fy as f64,
-            in_s[2] * fx as f64,
-        ]);
+    fn factors(&self) -> [usize; 3] {
+        self.shrink_factors.map(|factor| factor.max(1))
+    }
 
-        Ok(rebuild_with_metadata(
-            out,
-            [oz, oy, ox],
-            *image.origin(),
-            out_spacing,
-            *image.direction(),
-            image,
-        ))
+    fn scaled_spacing(&self, spacing: &Spacing<3>) -> Spacing<3> {
+        let factors = self.factors();
+        Spacing::new(std::array::from_fn(|axis| {
+            spacing[axis] * factors[axis] as f64
+        }))
     }
 }
 

@@ -16,6 +16,7 @@ use ritk_filter::{
     AbsImageFilter, ClampImageFilter, ExpImageFilter, FlipImageFilter, InvertIntensityFilter,
     LogImageFilter, NormalizeImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
     RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
+    TileMeanShrinkFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -90,6 +91,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::FlipX
             | FilterKind::RegionOfInterest { .. }
             | FilterKind::PermuteAxes { .. }
+            | FilterKind::Shrink { .. }
     ) {
         return None;
     }
@@ -179,6 +181,12 @@ fn apply_supported_filter(
             order_1,
             order_2,
         } => PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
+            .apply_native(&image, &backend),
+        FilterKind::Shrink {
+            factor_z,
+            factor_y,
+            factor_x,
+        } => TileMeanShrinkFilter::new([*factor_z, *factor_y, *factor_x])
             .apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
@@ -436,6 +444,29 @@ mod tests {
         assert_eq!(output.shape, [3, 1, 2]);
         assert_eq!(output.origin, [5.0, 7.0, 11.0]);
         assert_eq!(output.spacing, [3.0, 2.0, 1.0]);
+    }
+
+    #[test]
+    fn native_tile_mean_shrink_updates_values_and_geometry() {
+        let mut volume = test_volume([1, 1, 4]);
+        volume.data = Arc::new(vec![0.0, 2.0, 4.0, 6.0]);
+        volume.origin = [5.0, 7.0, 11.0];
+        volume.spacing = [1.0, 2.0, 3.0];
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::Shrink {
+                factor_z: 1,
+                factor_y: 1,
+                factor_x: 2,
+            },
+        )
+        .expect("invariant: tile-mean shrink has a native implementation")
+        .expect("native tile-mean shrink accepts valid factors");
+
+        assert_eq!(output.data, vec![1.0, 5.0]);
+        assert_eq!(output.shape, [1, 1, 2]);
+        assert_eq!(output.origin, [5.0, 7.0, 11.0]);
+        assert_eq!(output.spacing, [1.0, 2.0, 6.0]);
     }
 
     #[test]
@@ -751,6 +782,32 @@ mod tests {
         assert_eq!(volume.shape, [3, 1, 2]);
         assert_eq!(volume.origin, [5.0, 7.0, 11.0]);
         assert_eq!(volume.spacing, [3.0, 2.0, 1.0]);
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_tile_mean_shrink_with_updated_geometry() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 1, 4]);
+        volume.data = Arc::new(vec![0.0, 2.0, 4.0, 6.0]);
+        volume.origin = [5.0, 7.0, 11.0];
+        volume.spacing = [1.0, 2.0, 3.0];
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::Shrink {
+            factor_z: 1,
+            factor_y: 1,
+            factor_x: 2,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        let volume = app
+            .loaded
+            .expect("volume remains loaded after tile-mean shrink");
+        assert_eq!(volume.data.as_slice(), [1.0, 5.0]);
+        assert_eq!(volume.shape, [1, 1, 2]);
+        assert_eq!(volume.origin, [5.0, 7.0, 11.0]);
+        assert_eq!(volume.spacing, [1.0, 2.0, 6.0]);
         assert_eq!(app.status_message, "Filter applied.");
     }
 }

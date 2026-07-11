@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-553-01 — Snap native tile-mean shrink
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Consolidate native and legacy tile-mean shrink contracts at the owner.
+- [x] Route Snap display shrink through the native geometry result.
+- [x] Verify exact provider and Snap value/shape/geometry regressions,
+  warning-denied Clippy, doctests, and Rustdoc; commit and advance the RITK
+  gitlink.
+
 ## MIG-552-01 — Snap native axis permutation
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

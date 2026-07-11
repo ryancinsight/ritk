@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## MIG-553-01 audit (2026-07-11)
+
+Snap's `Shrink` selection is the display-oriented TileMeanShrinkFilter, not
+ITK subsampling. Its ceil-tile averaging and spacing scaling now have one
+implementation shared by legacy and Coeus-native image boundaries. Exact
+provider and application regressions cover `[0,2,4,6]` to `[1,5]` and preserve
+origin while scaling X spacing from `3` to `6`.
+
 ## MIG-552-01 audit (2026-07-11)
 
 Axis permutation constructed a legacy image even though its owner has a pure

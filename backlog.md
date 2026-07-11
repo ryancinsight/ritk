@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-553-01 [patch] - Snap native tile-mean shrink (DONE).**
+  TileMeanShrinkFilter now provides a Coeus-native boundary sharing its
+  ceil-tile averaging and geometry semantics. Snap consumes the native result;
+  exact provider and application regressions pass.
+
 - **MIG-552-01 [patch] - Snap native axis permutation (DONE).**
   PermuteAxesImageFilter now supplies one Coeus-native boundary sharing
   validation, voxel permutation, spacing, and direction logic. Snap consumes
