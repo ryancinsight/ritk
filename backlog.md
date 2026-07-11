@@ -6,7 +6,9 @@
   Coeus parameter persistence contract, native 2-D/3-D interpolation contract,
   and registration optimizer consumer set in ADR 0004; acceptance requires
   deleting the admitted `displacement_field/module.rs` Burn surface rather
-  than wrapping it.
+  than wrapping it. Coeus commit `f52c095` closes the bounded archive provider
+  prerequisite with deterministic named tensor entries, validated borrowed
+  inspection, explicit resource limits, and typed materialization failures.
 
 - **MIG-525-01 [major] - Core geometry test cutover (DONE).**
   The Coeus-backed image now owns fallible physical/index mappings. Core

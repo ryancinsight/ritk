@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 526: Trainable field providers (MIG-526-01)
+
+### Changed
+- Coeus `f52c095` now supplies the bounded validated rkyv tensor-state archive
+  required by the displacement-field cutover.
+
+### Evidence
+- Deterministic bytes, borrowed zero-copy inspection, exact materialization,
+  adversarial limit/format rejection, nextest 56/56, Clippy, Rustdoc, and
+  doctests. Named parameters, interpolation, and optimizer migration remain
+  open and no RITK Burn surface is claimed removed by this provider increment.
+
 ## [Unreleased] — Sprint 525: Core geometry cutover (MIG-525-01)
 
 ### Changed

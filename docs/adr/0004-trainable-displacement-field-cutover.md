@@ -50,6 +50,8 @@ introduced.
    displacement metadata. Compatibility decoding, if required for existing
    external checkpoints, lives at an explicit import boundary and is deleted
    after conversion; RITK does not own a second serializer.
+   Coeus commit `f52c095` delivers the bounded archive contract; the consumer
+   cutover assigns stable names to the field geometry tensors.
 3. **Dimension-complete interpolation.** Add one Coeus interpolation operation
    family parameterized by dimension and boundary policy, with 2-D and 3-D
    forward/backward implementations sharing the same contract. CPU laws and

@@ -34,6 +34,14 @@ contracts. Provider gaps are named parameter enumeration, bounded rkyv state,
 dimension-complete differentiable interpolation, and native optimizer
 consumption. The atomic consumer inventory prevents a partial module shim.
 
+Coeus commit `f52c095` closes the bounded-state provider gap. Evidence is
+deterministic archive bytes, zero-copy borrowed shape/payload inspection,
+round-trip materialization, duplicate/truncation/scalar mismatch rejection,
+explicit byte/tensor/rank limits, nextest 56/56, warning-denied Clippy,
+Rustdoc, and doctests. Materialization copies into aligned backend storage;
+only validated archive inspection is zero-copy. Named module parameters,
+dimension-complete interpolation, and optimizer consumption remain open.
+
 ## MIG-524-01 audit (2026-07-10)
 
 The model crate's final Burn edge was not runtime computation; it was the
