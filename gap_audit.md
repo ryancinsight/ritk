@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-573-01 audit (2026-07-11)
+
+Gradient anisotropic diffusion owned its complete ITK value kernel but Snap
+constructed a legacy image. The filter now supplies a Coeus-native boundary
+over that same kernel. Exact native and Snap regressions pin constant-field
+invariance.
+
 ## MIG-572-01 audit (2026-07-11)
 
 CLAHE already owned a Moirai per-slice values kernel but Snap constructed a

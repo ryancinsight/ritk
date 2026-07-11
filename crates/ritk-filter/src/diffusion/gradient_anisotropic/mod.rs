@@ -47,6 +47,7 @@
 //! - ITK `itkGradientNDAnisotropicDiffusionFunction.hxx`,
 //!   `itkScalarAnisotropicDiffusionFunction.hxx`.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -114,6 +115,32 @@ impl GradientAnisotropicDiffusionFilter {
         let result = diffuse(vals, dims, spacing, &self.config);
 
         Ok(rebuild(result, dims, image))
+    }
+
+    /// Apply the diffusion kernel to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let spacing = image.spacing();
+        ritk_image::native::Image::from_flat_on(
+            diffuse(
+                image.data_slice()?,
+                image.shape(),
+                [spacing[0], spacing[1], spacing[2]],
+                &self.config,
+            ),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
     }
 }
 

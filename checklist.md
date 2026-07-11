@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-573-01 — Snap native gradient diffusion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Expose the canonical diffusion kernel through a native image boundary.
+- [x] Route Snap gradient diffusion through that provider boundary.
+- [x] Verify constant-field invariance and warning-denied Clippy; commit and
+  advance RITK.
+
 ## MIG-572-01 — Snap native CLAHE
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-573-01 [patch] - Snap native gradient diffusion (DONE).** The native
+  boundary shares the canonical diffusion kernel, and Snap dispatches it
+  directly. Exact constant-field regressions pass.
+
 - **MIG-572-01 [patch] - Snap native CLAHE (DONE).** Coeus-native CLAHE now
   shares the provider's per-slice Moirai kernel; exact provider and Snap
   uniform-image regressions pass.

@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 573: Snap native gradient diffusion (MIG-573-01)
+
+### Added
+- GradientAnisotropicDiffusionFilter now exposes its canonical ITK diffusion
+  kernel through a Coeus-native image boundary.
+
+### Changed
+- Snap routes gradient anisotropic diffusion natively.
+
 ## [Unreleased] — Sprint 572: Snap native CLAHE (MIG-572-01)
 
 ### Added

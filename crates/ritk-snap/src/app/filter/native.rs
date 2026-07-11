@@ -15,11 +15,12 @@ use ritk_filter::{
     },
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BinaryContourImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter, ConstantPadImageFilter,
-    CosImageFilter, ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation,
-    GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
-    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
-    HistogramEqualizationFilter, InvertIntensityFilter, LabelContourImageFilter, LogImageFilter,
-    MaskImageFilter, MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    CosImageFilter, ExpImageFilter, FlipImageFilter, GradientAnisotropicDiffusionFilter,
+    GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
+    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
+    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
+    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
     ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
     TileMeanShrinkFilter, VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
@@ -91,6 +92,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::Median { .. }
             | FilterKind::HistEq { .. }
             | FilterKind::Clahe { .. }
+            | FilterKind::GradientAnisotropicDiffusion { .. }
             | FilterKind::BinaryThreshold { .. }
             | FilterKind::InvertIntensity { .. }
             | FilterKind::Clamp { .. }
@@ -380,6 +382,16 @@ fn apply_supported_filter(
             tile_grid_size,
             clip_limit,
         } => ClaheFilter::new(*tile_grid_size, *clip_limit, 256).apply_native(&image, &backend),
+        FilterKind::GradientAnisotropicDiffusion {
+            iterations,
+            time_step,
+            conductance,
+        } => GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {
+            num_iterations: *iterations as usize,
+            time_step: *time_step,
+            conductance: *conductance,
+        })
+        .apply_native(&image, &backend),
         FilterKind::BinaryThreshold {
             lower,
             upper,
@@ -1081,6 +1093,24 @@ mod tests {
     }
 
     #[test]
+    fn native_gradient_diffusion_preserves_a_constant_volume() {
+        let mut volume = test_volume([1, 2, 2]);
+        volume.data = Arc::new(vec![42.5; 4]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::GradientAnisotropicDiffusion {
+                iterations: 2,
+                time_step: 0.125,
+                conductance: 1.0,
+            },
+        )
+        .expect("invariant: gradient diffusion has a native implementation")
+        .expect("native gradient diffusion accepts a scalar volume");
+
+        assert_eq!(output, vec![42.5; 4]);
+    }
+
+    #[test]
     fn native_binary_threshold_includes_both_bounds() {
         let mut volume = test_volume([1, 1, 5]);
         volume.data = Arc::new(vec![-1.0, 0.0, 50.0, 100.0, 101.0]);
@@ -1291,6 +1321,27 @@ mod tests {
         app.active_filter = FilterKind::Clahe {
             tile_grid_size: [1, 1],
             clip_limit: 40.0,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        assert_eq!(
+            app.loaded.expect("volume remains loaded").data.as_slice(),
+            [42.5; 4]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_gradient_diffusion() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([1, 2, 2]);
+        volume.data = Arc::new(vec![42.5; 4]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::GradientAnisotropicDiffusion {
+            iterations: 2,
+            time_step: 0.125,
+            conductance: 1.0,
         };
 
         app.apply_filter_to_loaded_volume();
