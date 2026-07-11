@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-565-01 audit (2026-07-11)
+
+Grayscale fill-hole is an ordered minimax reconstruction and must retain its
+priority-queue sequence rather than use a data-parallel substitute. Its owner
+now supplies a Coeus-native image boundary around the same reconstruction, and
+Snap dispatches it natively. Exact regression pins the enclosed-minimum raise.
+
 ## MIG-564-01 audit (2026-07-11)
 
 VotingBinary already used Moirai but tied its cellular update to legacy image

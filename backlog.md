@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **MIG-565-01 [patch] - Snap native grayscale fill-hole (DONE).**
+  GrayscaleFillholeFilter now provides a Coeus-native minimax reconstruction
+  boundary, and Snap dispatches it natively. Exact enclosed-minimum regression
+  passes.
+
 - **MIG-564-01 [patch] - Snap native voting binary (DONE).**
   VotingBinaryImageFilter shares its Moirai cellular update kernel with a
   Coeus-native boundary, and Snap dispatches it natively. Exact birth-rule

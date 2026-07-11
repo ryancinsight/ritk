@@ -16,9 +16,9 @@ use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BinaryContourImageFilter,
     BoundedReciprocalImageFilter, ClampImageFilter, ConstantPadImageFilter, CosImageFilter,
     ExpImageFilter, FlipImageFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
-    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, InvertIntensityFilter,
-    LabelContourImageFilter, LogImageFilter, MaskImageFilter, MeanImageFilter,
-    MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
+    GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
+    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
+    MeanImageFilter, MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
     RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SinImageFilter,
     SqrtImageFilter, SquareImageFilter, TanImageFilter, TileMeanShrinkFilter,
     VotingBinaryImageFilter, WrapPadImageFilter,
@@ -117,6 +117,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::BinaryContour { .. }
             | FilterKind::LabelContour { .. }
             | FilterKind::VotingBinary { .. }
+            | FilterKind::GrayscaleFillhole
     ) {
         return None;
     }
@@ -303,6 +304,9 @@ fn apply_supported_filter(
             *background_value,
         )
         .apply_native(&image, &backend),
+        FilterKind::GrayscaleFillhole => {
+            GrayscaleFillholeFilter::new().apply_native(&image, &backend)
+        }
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -813,6 +817,20 @@ mod tests {
         .expect("native voting binary succeeds");
 
         assert_eq!(output.data, vec![1.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn native_grayscale_fillhole_raises_enclosed_minimum() {
+        let mut volume = test_volume([3, 3, 3]);
+        let mut values = vec![1.0; 27];
+        values[13] = 0.0;
+        volume.data = Arc::new(values);
+        let output = apply_if_supported(&volume, &FilterKind::GrayscaleFillhole)
+            .expect("invariant: grayscale fill-hole has a native implementation")
+            .expect("native grayscale fill-hole succeeds");
+
+        assert_eq!(output.data[13], 1.0);
+        assert_eq!(output.data[0], 1.0);
     }
 
     #[test]

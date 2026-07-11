@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 565: Snap native grayscale fill-hole (MIG-565-01)
+
+### Added
+- GrayscaleFillholeFilter now exposes a Coeus-native boundary over its ordered
+  minimax-path reconstruction.
+
+### Changed
+- Snap routes grayscale fill-hole natively.
+
+### Evidence
+- Exact enclosed-minimum reconstruction regression passes.
+
 ## [Unreleased] — Sprint 564: Snap native voting binary (MIG-564-01)
 
 ### Added

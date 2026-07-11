@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-565-01 — Snap native grayscale fill-hole
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add the native boundary around the canonical ordered reconstruction.
+- [x] Route Snap grayscale fill-hole through the native provider.
+- [x] Verify exact enclosed-minimum reconstruction and warning-denied Clippy;
+  commit and advance the RITK gitlink.
+
 ## MIG-564-01 — Snap native voting binary
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
