@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-554-01 audit (2026-07-11)
+
+Padding origin translation incorrectly treated voxel axes as world axes. The
+provider now applies the lower-padding offset through direction columns for all
+padding filters. Constant padding also has a Coeus-native boundary consumed by
+Snap. Exact regressions cover the rotated-axis origin and padded output shape.
+
 ## MIG-553-01 audit (2026-07-11)
 
 Snap's `Shrink` selection is the display-oriented TileMeanShrinkFilter, not

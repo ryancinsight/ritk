@@ -13,10 +13,10 @@ use ritk_filter::{
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
-    AbsImageFilter, ClampImageFilter, ExpImageFilter, FlipImageFilter, InvertIntensityFilter,
-    LogImageFilter, NormalizeImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter,
-    RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
-    TileMeanShrinkFilter,
+    AbsImageFilter, ClampImageFilter, ConstantPadImageFilter, ExpImageFilter, FlipImageFilter,
+    InvertIntensityFilter, LogImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
+    RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter,
+    SquareImageFilter, TileMeanShrinkFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -92,6 +92,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::RegionOfInterest { .. }
             | FilterKind::PermuteAxes { .. }
             | FilterKind::Shrink { .. }
+            | FilterKind::ConstantPad { .. }
     ) {
         return None;
     }
@@ -188,6 +189,20 @@ fn apply_supported_filter(
             factor_x,
         } => TileMeanShrinkFilter::new([*factor_z, *factor_y, *factor_x])
             .apply_native(&image, &backend),
+        FilterKind::ConstantPad {
+            pad_lower_z,
+            pad_lower_y,
+            pad_lower_x,
+            pad_upper_z,
+            pad_upper_y,
+            pad_upper_x,
+            constant,
+        } => ConstantPadImageFilter::new(
+            ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+            ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
+            *constant,
+        )
+        .apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
             foreground_value,
@@ -467,6 +482,32 @@ mod tests {
         assert_eq!(output.shape, [1, 1, 2]);
         assert_eq!(output.origin, [5.0, 7.0, 11.0]);
         assert_eq!(output.spacing, [1.0, 2.0, 6.0]);
+    }
+
+    #[test]
+    fn native_constant_padding_updates_shape_and_origin() {
+        let mut volume = test_volume([1, 1, 1]);
+        volume.data = Arc::new(vec![3.0]);
+        volume.origin = [0.0, 0.0, 10.0];
+        volume.spacing = [1.0, 1.0, 2.0];
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::ConstantPad {
+                pad_lower_z: 0,
+                pad_lower_y: 0,
+                pad_lower_x: 1,
+                pad_upper_z: 0,
+                pad_upper_y: 0,
+                pad_upper_x: 0,
+                constant: -1.0,
+            },
+        )
+        .expect("invariant: constant padding has a native implementation")
+        .expect("native constant padding succeeds");
+
+        assert_eq!(output.data, vec![-1.0, 3.0]);
+        assert_eq!(output.shape, [1, 1, 2]);
+        assert_eq!(output.origin, [0.0, 0.0, 8.0]);
     }
 
     #[test]

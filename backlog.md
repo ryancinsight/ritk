@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-554-01 [patch] - Snap native constant padding (DONE).**
+  ConstantPadImageFilter now supplies a Coeus-native boundary, and all padding
+  origins follow the direction matrix. Exact provider and Snap regressions pass.
+
 - **MIG-553-01 [patch] - Snap native tile-mean shrink (DONE).**
   TileMeanShrinkFilter now provides a Coeus-native boundary sharing its
   ceil-tile averaging and geometry semantics. Snap consumes the native result;

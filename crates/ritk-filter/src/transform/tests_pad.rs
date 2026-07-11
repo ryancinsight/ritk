@@ -67,6 +67,60 @@ fn constant_pad_origin_updated() {
     assert!((out.origin()[0]).abs() < 1e-10, "origin[0] should be 0");
 }
 
+#[test]
+fn constant_pad_origin_follows_direction_columns() {
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(vec![1.0f32], Shape::new([1, 1, 1])),
+        &device,
+    );
+    let direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
+    let image = Image::new(
+        tensor,
+        Point::new([10.0, 20.0, 30.0]),
+        Spacing::new([2.0, 3.0, 5.0]),
+        direction,
+    );
+    let output = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::zero(), 0.0)
+        .apply(&image)
+        .expect("constant padding succeeds");
+
+    assert_eq!(
+        [output.origin()[0], output.origin()[1], output.origin()[2]],
+        [5.0, 20.0, 30.0]
+    );
+}
+
+#[test]
+fn native_constant_pad_preserves_direction_aware_origin() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
+    let image = NativeImage::from_flat_on(
+        vec![3.0],
+        [1, 1, 1],
+        Point::new([10.0, 20.0, 30.0]),
+        Spacing::new([2.0, 3.0, 5.0]),
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::zero(), -1.0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native constant padding succeeds");
+
+    assert_eq!(output.shape(), [1, 1, 2]);
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[-1.0, 3.0]
+    );
+    assert_eq!(
+        [output.origin()[0], output.origin()[1], output.origin()[2]],
+        [5.0, 20.0, 30.0]
+    );
+}
+
 // ── MirrorPadImageFilter tests ────────────────────────────────────────────
 
 /// Mirror pad (ITK symmetric, boundary repeated): 1×1×3 = [1,2,3], pad 2 each

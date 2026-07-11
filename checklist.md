@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-554-01 — Snap native constant padding
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Correct padding origin translation for non-identity direction matrices.
+- [x] Add the owner-native constant-padding boundary and route Snap through it.
+- [x] Verify direction-aware provider and Snap regressions, warning-denied
+  Clippy, doctests, and Rustdoc; commit and advance the RITK gitlink.
+
 ## MIG-553-01 — Snap native tile-mean shrink
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

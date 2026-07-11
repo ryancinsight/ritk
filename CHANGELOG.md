@@ -8,6 +8,20 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 554: Snap native constant padding (MIG-554-01)
+
+### Fixed
+- Padding origin translation now follows the image direction matrix.
+
+### Added
+- `ConstantPadImageFilter` now exposes a Coeus-native boundary.
+
+### Changed
+- Snap routes constant padding through the native geometry result.
+
+### Evidence
+- Direction-aware provider and exact Snap padding regressions pass.
+
 ## [Unreleased] — Sprint 553: Snap native tile-mean shrink (MIG-553-01)
 
 ### Added
