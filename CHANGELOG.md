@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 590: Native two-image mask family (MIG-590-01)
+### Added
+- Mask, negated-mask, and masked-assignment filters now expose Coeus-native image boundaries.
+
 ## [Unreleased] — Sprint 589: Native intensity windowing transform (MIG-589-01)
 ### Added
 - `IntensityWindowingFilter` now exposes a Coeus-native image boundary.

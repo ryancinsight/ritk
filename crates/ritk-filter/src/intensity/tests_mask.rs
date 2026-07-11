@@ -185,3 +185,55 @@ fn masked_assign_all_inactive_is_identity() {
         .unwrap();
     assert_eq!(voxels(&out), voxels(&img));
 }
+
+#[test]
+fn native_mask_family_matches_each_contract() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    let image = NativeImage::from_flat_on(
+        vec![10.0, 20.0, 30.0],
+        [1, 1, 3],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let mask = NativeImage::from_flat_on(
+        vec![0.0, 0.5, 1.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native mask");
+
+    let retained = MaskImageFilter::new()
+        .apply_native(&image, &mask, &SequentialBackend)
+        .expect("native masking succeeds");
+    let negated = MaskNegatedImageFilter::new()
+        .apply_native(&image, &mask, &SequentialBackend)
+        .expect("native negated masking succeeds");
+    let assigned = MaskedAssignImageFilter::new(-1.0)
+        .apply_native(&image, &mask, &SequentialBackend)
+        .expect("native masked assignment succeeds");
+
+    assert_eq!(
+        retained.data_slice().expect("contiguous retained"),
+        &[0.0, 0.0, 30.0]
+    );
+    assert_eq!(
+        negated.data_slice().expect("contiguous negated"),
+        &[10.0, 20.0, 0.0]
+    );
+    assert_eq!(
+        assigned.data_slice().expect("contiguous assigned"),
+        &[10.0, 20.0, -1.0]
+    );
+    assert_eq!(retained.origin(), image.origin());
+    assert_eq!(retained.spacing(), image.spacing());
+    assert_eq!(retained.direction(), image.direction());
+}

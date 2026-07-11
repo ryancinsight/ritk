@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-590-01 [patch] - Native two-image mask family (DONE).** Mask, negated
+  mask, and masked assignment now share one two-buffer core with Coeus-native images.
+
 - **MIG-589-01 [patch] - Native intensity windowing transform (DONE).** Window
   clamp-and-rescale now shares one values transform with Coeus-native images.
 

@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-590-01 — Native two-image mask family
+**Target version**: 0.14.0 migration batch
+- [x] Share mask-family two-buffer values between tensor-backed and native images.
+
 ## MIG-589-01 — Native intensity windowing transform
 **Target version**: 0.14.0 migration batch
 - [x] Share windowing values between tensor-backed and native images.
