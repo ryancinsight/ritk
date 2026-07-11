@@ -130,3 +130,26 @@ fn normalize_to_constant_zero_sum_is_zero() {
     let out = NormalizeToConstantImageFilter::new(1.0).apply(&img);
     assert_eq!(out.data_slice().into_owned(), vec![0.0, 0.0, 0.0, 0.0]);
 }
+
+#[test]
+fn native_normalize_uses_sample_standard_deviation() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        vec![1.0, 2.0, 3.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = NormalizeImageFilter::new()
+        .apply_native(&image, &SequentialBackend)
+        .expect("native normalization succeeds");
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[-1.0, 0.0, 1.0]
+    );
+}

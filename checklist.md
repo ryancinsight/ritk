@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-549-01 — Snap native intensity normalization
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Add native sample-standard-deviation normalization at the owner.
+- [x] Route Snap normalization and pin exact normalized values.
+
 ## MIG-548-01 — Snap native intensity rescale
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

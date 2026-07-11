@@ -14,7 +14,8 @@ use ritk_filter::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
     AbsImageFilter, ClampImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter,
-    RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter, SquareImageFilter,
+    NormalizeImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter, SqrtImageFilter,
+    SquareImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -55,6 +56,7 @@ pub(super) fn apply_if_supported(
             | FilterKind::Clamp { .. }
             | FilterKind::ShiftScale { .. }
             | FilterKind::RescaleIntensity { .. }
+            | FilterKind::NormalizeIntensity
     ) {
         return None;
     }
@@ -117,6 +119,9 @@ fn apply_supported_filter(volume: &LoadedVolume, filter: &FilterKind) -> Result<
         }
         FilterKind::RescaleIntensity { out_min, out_max } => {
             RescaleIntensityFilter::new(*out_min, *out_max).apply_native(&image, &backend)
+        }
+        FilterKind::NormalizeIntensity => {
+            NormalizeImageFilter::new().apply_native(&image, &backend)
         }
         FilterKind::BinaryErode {
             radius,
@@ -286,6 +291,16 @@ mod tests {
         )
         .expect("invariant: rescale has a native implementation")
         .expect("native rescale succeeds");
+        assert_eq!(output, vec![-1.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn native_normalize_uses_sample_standard_deviation() {
+        let mut volume = test_volume([1, 1, 3]);
+        volume.data = Arc::new(vec![1.0, 2.0, 3.0]);
+        let output = apply_if_supported(&volume, &FilterKind::NormalizeIntensity)
+            .expect("invariant: normalization has a native implementation")
+            .expect("native normalization succeeds");
         assert_eq!(output, vec![-1.0, 0.0, 1.0]);
     }
 

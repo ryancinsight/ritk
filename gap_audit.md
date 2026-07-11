@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-549-01 audit (2026-07-11)
+
+NormalizeImageFilter's sample-standard-deviation contract lacked only a Coeus
+image boundary. The owner now supplies it and Snap dispatches before legacy
+construction. Exact provider and Snap regressions prove `[-1,0,1]` for [1,2,3].
+
 ## MIG-548-01 audit (2026-07-11)
 
 RescaleIntensity already owned the canonical Moirai min/max reduction and affine

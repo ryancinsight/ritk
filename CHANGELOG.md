@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 549: Snap native intensity normalization (MIG-549-01)
+
+### Added
+- `NormalizeImageFilter` now exposes a Coeus-native boundary preserving sample
+  standard-deviation semantics.
+
+### Changed
+- Snap routes intensity normalization through that native provider.
+
+### Evidence
+- Provider and Snap exact sample-standard-deviation regressions pass.
+
 ## [Unreleased] — Sprint 548: Snap native intensity rescale (MIG-548-01)
 
 ### Added

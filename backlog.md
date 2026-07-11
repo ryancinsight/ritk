@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-549-01 [patch] - Snap native intensity normalization (DONE).**
+  NormalizeImageFilter now exposes its Coeus-native sample-variance boundary
+  and Snap dispatches it. Provider and Snap exact regressions pass.
+
 - **MIG-548-01 [patch] - Snap native intensity rescale (DONE).**
   RescaleIntensity now exposes a Coeus-native Moirai-backed boundary and Snap
   dispatches through it. Provider and Snap exact-range regressions pass.
