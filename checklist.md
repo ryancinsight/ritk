@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-580-01 — Snap native CPR
+**Target version**: 0.14.0 migration batch
+- [x] Share the CPR sampler, route native Snap, and verify planar promotion geometry.
+
 ## MIG-579-01 — Snap native unsharp mask
 **Target version**: 0.14.0 migration batch
 - [x] Share Deriche values, route native Snap, and verify constant-field identity.

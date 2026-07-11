@@ -8,6 +8,13 @@
 
 # RITK Gap Audit - Active
 
+## MIG-580-01 audit (2026-07-11)
+
+CPR now shares its canonical path sampler between legacy and Coeus-native
+images. Snap converts the native planar result directly into its documented
+one-slice viewer volume, deleting the legacy tensor promotion path. Provider
+and application regressions pin values and straightened geometry.
+
 ## MIG-579-01 audit (2026-07-11)
 
 Unsharp mask now shares the canonical Deriche value kernel between legacy and

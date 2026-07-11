@@ -10,12 +10,11 @@ impl SnapApp {
         use ritk_filter::{
             AbsImageFilter, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
             BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
-            ClaheFilter, Connectivity, CprConfig, CprImageFilter, ExpImageFilter, GaussianFilter,
-            GaussianSigma, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-            GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter,
-            GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter,
-            LogImageFilter, MedianFilter, NormalizeImageFilter, SqrtImageFilter, SquareImageFilter,
-            UnsharpMaskFilter,
+            ClaheFilter, Connectivity, ExpImageFilter, GaussianFilter, GaussianSigma,
+            GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, GrayscaleClosingFilter,
+            GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
+            HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
+            NormalizeImageFilter, SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter,
         };
         use ritk_segmentation::{
             ConnectedComponentsFilter, MultiOtsuThreshold, RelabelComponentFilter,
@@ -420,24 +419,8 @@ impl SnapApp {
                     time_step: *time_step,
                 })
                 .apply(&image),
-                crate::FilterKind::Cpr {
-                    control_points,
-                    num_path_samples,
-                    cross_section_half_width,
-                    num_cross_samples,
-                } => {
-                    let cpr_filter = CprImageFilter::new(
-                        control_points.clone(),
-                        CprConfig {
-                            num_path_samples: *num_path_samples as usize,
-                            cross_section_half_width: f64::from(*cross_section_half_width),
-                            num_cross_samples: *num_cross_samples as usize,
-                        },
-                    );
-                    match cpr_filter.apply(&image) {
-                        Ok(image_2d) => crate::filter::promote::elevate_to_volume(image_2d),
-                        Err(e) => Err(e),
-                    }
+                crate::FilterKind::Cpr { .. } => {
+                    unreachable!("invariant: CPR returns from the native dispatcher")
                 }
             }
         };

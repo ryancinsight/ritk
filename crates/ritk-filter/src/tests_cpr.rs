@@ -2,7 +2,9 @@
 
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
@@ -43,6 +45,39 @@ fn constant_image_uniform_output() {
             "constant image must produce uniform CPR output: {x}"
         );
     }
+}
+
+#[test]
+fn native_constant_image_preserves_values_and_cpr_geometry() {
+    let image = NativeImage::from_flat_on(
+        vec![1.0_f32; 8 * 8 * 8],
+        [8, 8, 8],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = CprImageFilter::new(
+        vec![[2.0, 2.0, 2.0], [4.0, 2.0, 2.0]],
+        CprConfig {
+            num_path_samples: 4,
+            cross_section_half_width: 1.0,
+            num_cross_samples: 3,
+        },
+    )
+    .apply_native(&image, &SequentialBackend)
+    .expect("native CPR succeeds");
+
+    assert_eq!(output.shape(), [3, 4]);
+    assert_eq!(
+        output
+            .data_slice()
+            .expect("invariant: sequential storage is contiguous"),
+        &[1.0_f32; 12]
+    );
+    assert_eq!(*output.origin(), Point::new([-1.0, 0.0]));
+    assert_eq!(*output.spacing(), Spacing::new([1.0, 2.0 / 3.0]));
 }
 
 #[test]

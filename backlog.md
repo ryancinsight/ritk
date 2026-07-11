@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-580-01 [patch] - Snap native CPR (DONE).** The canonical CPR sampler
+  now feeds a native planar result and a direct viewer rank-promotion boundary.
+
 - **MIG-579-01 [patch] - Snap native unsharp mask (DONE).** The canonical
   Deriche smoothing kernel now feeds direct Coeus-native sharpening; constant
   fields remain exact identities.

@@ -15,10 +15,10 @@ use ritk_filter::{
     },
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationFilter,
     BinaryContourImageFilter, BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter,
-    ConstantPadImageFilter, CosImageFilter, CurvatureFlowConfig, CurvatureFlowImageFilter,
-    ExpImageFilter, FlipImageFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
-    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter, CurvatureFlowConfig,
+    CurvatureFlowImageFilter, ExpImageFilter, FlipImageFilter, GradientAnisotropicDiffusionFilter,
+    GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
+    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
     InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
     MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
@@ -77,6 +77,22 @@ pub(super) fn apply_if_supported(
     volume: &LoadedVolume,
     filter: &FilterKind,
 ) -> Option<Result<NativeFilterOutput>> {
+    if let FilterKind::Cpr {
+        control_points,
+        num_path_samples,
+        cross_section_half_width,
+        num_cross_samples,
+    } = filter
+    {
+        return Some(apply_cpr(
+            volume,
+            control_points,
+            *num_path_samples as usize,
+            f64::from(*cross_section_half_width),
+            *num_cross_samples as usize,
+        ));
+    }
+
     if !matches!(
         filter,
         FilterKind::Abs
@@ -147,10 +163,10 @@ pub(super) fn apply_if_supported(
     Some(apply_supported_filter(volume, filter))
 }
 
-fn apply_supported_filter(
+fn native_image_from_volume(
     volume: &LoadedVolume,
-    filter: &FilterKind,
-) -> Result<NativeFilterOutput> {
+    backend: &SequentialBackend,
+) -> Result<Image<f32, SequentialBackend, 3>> {
     if volume.channels != 1 {
         anyhow::bail!(
             "native scalar filters require a scalar volume, received {} interleaved channels",
@@ -158,8 +174,7 @@ fn apply_supported_filter(
         );
     }
 
-    let backend = SequentialBackend;
-    let image = Image::from_flat_on(
+    Image::from_flat_on(
         (*volume.data).clone(),
         volume.shape,
         Point::new(volume.origin),
@@ -181,9 +196,49 @@ fn apply_supported_filter(
                 volume.direction[8],
             ],
         ]),
-        &backend,
+        backend,
     )
-    .context("cannot construct Coeus-native image from loaded volume")?;
+    .context("cannot construct Coeus-native image from loaded volume")
+}
+
+fn apply_cpr(
+    volume: &LoadedVolume,
+    control_points: &[[f64; 3]],
+    num_path_samples: usize,
+    cross_section_half_width: f64,
+    num_cross_samples: usize,
+) -> Result<NativeFilterOutput> {
+    let backend = SequentialBackend;
+    let image = native_image_from_volume(volume, &backend)?;
+    let output = CprImageFilter::new(
+        control_points.to_vec(),
+        CprConfig {
+            num_path_samples,
+            cross_section_half_width,
+            num_cross_samples,
+        },
+    )
+    .apply_native(&image, &backend)
+    .context("Coeus-native CPR failed")?;
+
+    let origin = output.origin();
+    let spacing = output.spacing();
+    let [rows, columns] = output.shape();
+    Ok(NativeFilterOutput {
+        data: output.data_cow_on(&backend).into_owned(),
+        shape: [1, rows, columns],
+        origin: [0.0, origin[0], origin[1]],
+        spacing: [1.0, spacing[0], spacing[1]],
+        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    })
+}
+
+fn apply_supported_filter(
+    volume: &LoadedVolume,
+    filter: &FilterKind,
+) -> Result<NativeFilterOutput> {
+    let backend = SequentialBackend;
+    let image = native_image_from_volume(volume, &backend)?;
 
     let output = match filter {
         FilterKind::BedSeparation(config) => {
@@ -1301,6 +1356,32 @@ mod tests {
     }
 
     #[test]
+    fn native_cpr_promotes_its_planar_result_with_straightened_geometry() {
+        let mut volume = test_volume([8, 8, 8]);
+        volume.data = Arc::new(vec![1.0; 8 * 8 * 8]);
+        let output = apply_if_supported(
+            &volume,
+            &FilterKind::Cpr {
+                control_points: vec![[2.0, 2.0, 2.0], [4.0, 2.0, 2.0]],
+                num_path_samples: 4,
+                cross_section_half_width: 1.0,
+                num_cross_samples: 3,
+            },
+        )
+        .expect("invariant: CPR has a native implementation")
+        .expect("native CPR succeeds");
+
+        assert_eq!(output.shape, [1, 3, 4]);
+        assert_eq!(output, vec![1.0; 12]);
+        assert_eq!(output.origin, [0.0, -1.0, 0.0]);
+        assert_eq!(output.spacing, [1.0, 1.0, 2.0 / 3.0]);
+        assert_eq!(
+            output.direction,
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+        );
+    }
+
+    #[test]
     fn native_binary_threshold_includes_both_bounds() {
         let mut volume = test_volume([1, 1, 5]);
         volume.data = Arc::new(vec![-1.0, 0.0, 50.0, 100.0, 101.0]);
@@ -1539,6 +1620,33 @@ mod tests {
         assert_eq!(
             app.loaded.expect("volume remains loaded").data.as_slice(),
             [42.5; 4]
+        );
+        assert_eq!(app.status_message, "Filter applied.");
+    }
+
+    #[test]
+    fn snap_app_applies_native_cpr_with_promoted_geometry() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([8, 8, 8]);
+        volume.data = Arc::new(vec![1.0; 8 * 8 * 8]);
+        app.loaded = Some(volume);
+        app.active_filter = FilterKind::Cpr {
+            control_points: vec![[2.0, 2.0, 2.0], [4.0, 2.0, 2.0]],
+            num_path_samples: 4,
+            cross_section_half_width: 1.0,
+            num_cross_samples: 3,
+        };
+
+        app.apply_filter_to_loaded_volume();
+
+        let output = app.loaded.expect("volume remains loaded");
+        assert_eq!(output.shape, [1, 3, 4]);
+        assert_eq!(output.data.as_slice(), [1.0; 12]);
+        assert_eq!(output.origin, [0.0, -1.0, 0.0]);
+        assert_eq!(output.spacing, [1.0, 1.0, 2.0 / 3.0]);
+        assert_eq!(
+            output.direction,
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
         );
         assert_eq!(app.status_message, "Filter applied.");
     }

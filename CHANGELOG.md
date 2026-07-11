@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 580: Snap native CPR (MIG-580-01)
+### Changed
+- Snap routes CPR through the Coeus-native shared sampler and direct planar promotion.
+
 ## [Unreleased] — Sprint 579: Snap native unsharp mask (MIG-579-01)
 ### Changed
 - Snap routes unsharp masking through the Coeus-native shared Deriche kernel.
