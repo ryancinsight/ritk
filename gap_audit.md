@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-588-01 audit (2026-07-11)
+
+Sigmoid intensity transformation now has one canonical values path across
+tensor-backed and Coeus-native images. Midpoint, asymptotes, and source
+metadata are covered by focused regressions.
+
 ## MIG-587-01 audit (2026-07-11)
 
 Double-threshold hysteresis now shares marker/mask construction and composes

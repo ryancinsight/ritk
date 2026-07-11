@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-588-01 — Native sigmoid intensity transform
+**Target version**: 0.14.0 migration batch
+- [x] Share sigmoid values between tensor-backed and native images.
+
 ## MIG-587-01 — Native double threshold
 **Target version**: 0.14.0 migration batch
 - [x] Share hysteresis marker/mask construction and route reconstruction natively.

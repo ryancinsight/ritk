@@ -13,8 +13,10 @@
 //! Reference: Sethian (1996). The output is strictly bounded in (min_output, max_output)
 //! for finite input and nonzero beta.
 
+use crate::native_support::map_flat_image;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::Image;
+use ritk_image::{native::Image as NativeImage, Image};
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Pixel-wise sigmoid intensity transform.
@@ -44,13 +46,30 @@ impl SigmoidImageFilter {
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
+        Ok(rebuild(self.apply_values(&vals), dims, image))
+    }
+
+    /// Apply the sigmoid transform to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| self.apply_values(values))
+    }
+
+    fn apply_values(&self, vals: &[f32]) -> Vec<f32> {
         let alpha = self.alpha;
         let beta = self.beta;
         let min_o = self.min_output;
         let max_o = self.max_output;
         let range = max_o - min_o;
 
-        let out: Vec<f32> = if beta.abs() < 1e-12 {
+        if beta.abs() < 1e-12 {
             vals.iter()
                 .map(|&v| if v >= alpha { max_o } else { min_o })
                 .collect()
@@ -58,9 +77,7 @@ impl SigmoidImageFilter {
             vals.iter()
                 .map(|&v| range / (1.0 + (-(v - alpha) / beta).exp()) + min_o)
                 .collect()
-        };
-
-        Ok(rebuild(out, dims, image))
+        }
     }
 }
 

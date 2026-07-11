@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 588: Native sigmoid intensity transform (MIG-588-01)
+### Added
+- `SigmoidImageFilter` now exposes a Coeus-native image boundary.
+
 ## [Unreleased] — Sprint 587: Native double threshold (MIG-587-01)
 ### Added
 - `DoubleThresholdImageFilter` now exposes a Coeus-native hysteresis boundary.

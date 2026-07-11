@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-588-01 [patch] - Native sigmoid intensity transform (DONE).** Sigmoid
+  now shares one pointwise values transform with Coeus-native images.
+
 - **MIG-587-01 [patch] - Native double threshold (DONE).** Hysteresis now
   composes native morphological reconstruction over shared marker/mask values.
 
