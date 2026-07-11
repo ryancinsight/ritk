@@ -47,8 +47,7 @@
 use crate::edge::GaussianSigma;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 use serde::{Deserialize, Serialize};
 
 #[path = "iir.rs"]
@@ -181,15 +180,7 @@ impl RecursiveGaussianFilter {
             }
         }
 
-        let device = image.data().device();
-        let out_td = TensorData::new(vals, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(vals, dims, image))
     }
 }
 // ── Recursive-Gaussian derivative operators (ITK structure) ───────────────────
@@ -263,14 +254,6 @@ fn gradient_magnitude_rg_vals(
     sum_sq
 }
 
-/// Build an `Image` from a computed buffer, copying `src`'s spatial metadata.
-fn image_from_vals<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    let device = src.data().device();
-    let out_td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
-}
-
 /// Compute `∇²(G_σ * I)` matching ITK/SimpleITK `LaplacianRecursiveGaussian`
 /// (float-exact). See `laplacian_rg_vals`.
 ///
@@ -283,7 +266,7 @@ pub fn laplacian_recursive_gaussian<B: Backend>(
     let (vals, dims) = extract_vec(image)?;
     let sp = image.spacing();
     let out = laplacian_rg_vals(&vals, dims, [sp[0], sp[1], sp[2]], sigma);
-    Ok(image_from_vals(image, out, dims))
+    Ok(rebuild(out, dims, image))
 }
 
 /// Compute `|∇(G_σ * I)|` matching ITK/SimpleITK `GradientMagnitudeRecursiveGaussian`
@@ -298,7 +281,7 @@ pub fn gradient_magnitude_recursive_gaussian<B: Backend>(
     let (vals, dims) = extract_vec(image)?;
     let sp = image.spacing();
     let out = gradient_magnitude_rg_vals(&vals, dims, [sp[0], sp[1], sp[2]], sigma);
-    Ok(image_from_vals(image, out, dims))
+    Ok(rebuild(out, dims, image))
 }
 
 /// Single-axis recursive (Deriche) Gaussian or its directional derivative along
@@ -331,7 +314,7 @@ pub fn recursive_gaussian_directional<B: Backend>(
         DerivativeOrder::Second => DericheCoefficients::second_order(pixel_sigma),
     };
     let out = apply_deriche_1d(&vals, dims, direction, &coeffs, pixel_sigma);
-    Ok(image_from_vals(image, out, dims))
+    Ok(rebuild(out, dims, image))
 }
 
 /// Compute the three first-order recursive-Gaussian gradient components on raw
@@ -407,7 +390,7 @@ pub fn smoothing_recursive_gaussian<B: Backend>(
         let coeffs = DericheCoefficients::from_sigma(pixel_sigma);
         vals = apply_deriche_1d(&vals, dims, dim, &coeffs, pixel_sigma);
     }
-    Ok(image_from_vals(image, vals, dims))
+    Ok(rebuild(vals, dims, image))
 }
 
 /// Compute all 6 independent Hessian components at every voxel using the

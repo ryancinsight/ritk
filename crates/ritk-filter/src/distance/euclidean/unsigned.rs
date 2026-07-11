@@ -4,8 +4,7 @@ use super::super::types::BinarizationThreshold;
 use super::core::euclidean_dt;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Unsigned Euclidean distance transform.
 ///
@@ -62,14 +61,6 @@ impl DistanceTransformImageFilter {
         let spacing = [sp[0], sp[1], sp[2]];
         let result = euclidean_dt(&fg, dims, spacing);
 
-        let device = image.data().device();
-        let td_out = TensorData::new(result, Shape::new([nz, ny, nx]));
-        let tensor = Tensor::<B, 3>::from_data(td_out, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, [nz, ny, nx], image))
     }
 }

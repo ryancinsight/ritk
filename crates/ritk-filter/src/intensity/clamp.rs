@@ -31,9 +31,8 @@
 //! O(N) time, O(N) space (output allocation), O(1) auxiliary.
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -83,15 +82,7 @@ impl ClampImageFilter {
         let hi = self.upper;
         let out: Vec<f32> = vals.iter().map(|&v| v.clamp(lo, hi)).collect();
 
-        let out_td = TensorData::new(out, Shape::new(dims));
-        let device = image.data().device();
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out, dims, image))
     }
 }
 

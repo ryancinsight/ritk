@@ -43,9 +43,8 @@
 
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::Spacing;
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 
 /// BinShrink image filter: integer sub-sampling by bin averaging.
 ///
@@ -91,11 +90,15 @@ impl BinShrinkImageFilter {
 
         if out_shape.iter().product::<usize>() == 0 {
             // Degenerate case: some dimension collapses to zero.
-            let device = image.data().device();
-            let td = TensorData::new(Vec::<f32>::new(), Shape::new(out_shape));
-            let tensor = Tensor::<B, D>::from_data(td, &device);
             let new_spacing = scaled_spacing(image.spacing(), &factors);
-            return Image::new(tensor, *image.origin(), new_spacing, *image.direction());
+            return rebuild_with_metadata(
+                Vec::new(),
+                out_shape,
+                *image.origin(),
+                new_spacing,
+                *image.direction(),
+                image,
+            );
         }
 
         // Separable multi-pass: shrink one dimension at a time.
@@ -111,12 +114,16 @@ impl BinShrinkImageFilter {
             current_shape[d] /= f;
         }
 
-        let device = image.data().device();
-        let td = TensorData::new(current_data, Shape::new(current_shape));
-        let tensor = Tensor::<B, D>::from_data(td, &device);
         let new_spacing = scaled_spacing(image.spacing(), &factors);
 
-        Image::new(tensor, *image.origin(), new_spacing, *image.direction())
+        rebuild_with_metadata(
+            current_data,
+            current_shape,
+            *image.origin(),
+            new_spacing,
+            *image.direction(),
+            image,
+        )
     }
 }
 

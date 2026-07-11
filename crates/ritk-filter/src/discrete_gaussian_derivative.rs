@@ -24,8 +24,8 @@
 
 use super::discrete_gaussian::{convolve_separable, gaussian_operator_1d};
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
+use ritk_tensor_ops::rebuild;
 
 /// Discrete Gaussian derivative filter.
 #[derive(Debug, Clone)]
@@ -60,7 +60,6 @@ impl DiscreteGaussianDerivativeFilter {
     /// Apply the filter to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
         let (tensor, origin, spacing, direction) = image.clone().into_parts();
-        let device = tensor.device();
         let dims: [usize; 3] = tensor.shape().dims();
 
         let mut kernels: [Option<Vec<f32>>; 3] = std::array::from_fn(|_| None);
@@ -90,8 +89,7 @@ impl DiscreteGaussianDerivativeFilter {
             .into_vec::<f32>()
             .expect("f32 tensor data");
         let result = convolve_separable(flat, dims, &kernels);
-        let out = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
-        Image::new(out, origin, spacing, direction)
+        rebuild(result, dims, image)
     }
 }
 

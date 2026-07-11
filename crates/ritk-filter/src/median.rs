@@ -13,8 +13,7 @@
 
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Sliding-window median filter for 3-D volumes.
 ///
@@ -46,16 +45,7 @@ impl MedianFilter {
 
         let filtered = median_3d(&vals, shape, self.radius);
 
-        let device = image.data().device();
-        let out_td = TensorData::new(filtered, Shape::new(shape));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(filtered, shape, image))
     }
 }
 

@@ -30,8 +30,7 @@
 use super::core::euclidean_dt;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Signed Maurer distance map (exact signed Euclidean distance to the object border).
 ///
@@ -90,15 +89,7 @@ impl SignedMaurerDistanceMapImageFilter {
             self.squared_distance,
         );
 
-        let device = image.data().device();
-        let td_out = TensorData::new(signed, Shape::new([nz, ny, nx]));
-        let tensor = Tensor::<B, 3>::from_data(td_out, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(signed, [nz, ny, nx], image))
     }
 }
 

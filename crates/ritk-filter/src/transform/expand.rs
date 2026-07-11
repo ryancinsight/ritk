@@ -15,7 +15,7 @@
 use ritk_core::spatial::{Point, Spacing};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 
 /// Integer-factor expansion filter.
 #[derive(Debug, Clone, Copy)]
@@ -77,17 +77,13 @@ impl ExpandImageFilter {
             orig_out[d] = orig[d] - 0.5 * sp[d] + 0.5 * sp_out[d];
         }
 
-        let device = image.data().device();
-        let td = ritk_image::tensor::TensorData::new(
+        rebuild_with_metadata(
             out,
-            ritk_image::tensor::Shape::new([oz_n, oy_n, ox_n]),
-        );
-        let tensor = ritk_image::tensor::Tensor::<B, 3>::from_data(td, &device);
-        Image::new(
-            tensor,
+            [oz_n, oy_n, ox_n],
             Point::new(orig_out),
             Spacing::new(sp_out),
             *image.direction(),
+            image,
         )
     }
 }

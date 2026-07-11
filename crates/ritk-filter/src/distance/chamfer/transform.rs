@@ -4,8 +4,7 @@ use super::super::types::BinarizationThreshold;
 use super::kernel::{cdt_dispatch, ChamferMetric, INF};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Compute the **chamfer distance transform** of a 3-D binary image.
 ///
@@ -111,14 +110,6 @@ impl ChamferDistanceTransform {
             .map(|&v| if v == INF { -1.0 } else { v as f32 * scale })
             .collect();
 
-        let device = image.data().device();
-        let td_out = TensorData::new(scaled, Shape::new([nz, ny, nx]));
-        let tensor = Tensor::<B, 3>::from_data(td_out, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(scaled, [nz, ny, nx], image))
     }
 }
