@@ -7571,7 +7571,6 @@ dependencies = [
  "ritk-image",
  "ritk-morphology",
  "ritk-spatial",
- "ritk-statistics",
  "ritk-tensor-ops",
 ]
 

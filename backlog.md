@@ -1,5 +1,12 @@
 # RITK Backlog - Active Planning
 
+- **MIG-531-01 [major] - Core statistics shim deletion (DONE).**
+  `ritk_core::statistics` had zero workspace consumers and only re-exported
+  the owning `ritk-statistics` crate. Deleting it removes a compatibility path
+  and the outward core-to-statistics dependency; callers use the owner
+  directly. Evidence: exact consumer inventory, core nextest 11/11,
+  warning-denied Clippy, Rustdoc, doctests, and a clean migration audit.
+
 - **MIG-530-01 [patch] - WGPU chunk-helper consolidation (DONE).**
   Exact workspace search finds no consumer of `apply_row_chunks_3d`; all live
   callers use the generic closure-based helper. The unused specialization,

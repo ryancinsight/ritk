@@ -8,6 +8,18 @@
 
 # RITK Gap Audit - Active
 
+## MIG-531-01 audit (2026-07-11)
+
+`ritk-core` depended outward on `ritk-statistics` solely to expose an unused
+wildcard compatibility re-export. Exact workspace search found no consumer of
+`ritk_core::statistics`; the canonical public surface already lives in the
+owning `ritk-statistics` crate. The shim, module declaration, manifest edge,
+and lockfile edge are deleted together.
+
+Evidence tier: exact consumer inventory; core nextest 11/11; warning-denied
+Clippy; Rustdoc; doctests; and a clean migration audit. This is a breaking
+surface deletion for external callers and part of the 0.14.0 migration batch.
+
 ## MIG-530-01 audit (2026-07-11)
 
 `ritk-wgpu-compat` retained an unused rank-three copy of the canonical row

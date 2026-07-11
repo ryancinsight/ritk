@@ -5,7 +5,6 @@ pub mod interpolation;
 pub mod io_bounds;
 pub mod morphology;
 pub mod spatial;
-pub mod statistics;
 pub mod transform;
 
 pub use image::{ColorVolume, Image, RgbVolume};

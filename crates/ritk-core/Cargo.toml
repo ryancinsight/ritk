@@ -13,7 +13,6 @@ ritk-image = { path = "../ritk-image" }
 ritk-morphology = { path = "../ritk-morphology" }
 ritk-annotation = { path = "../ritk-annotation" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
-ritk-statistics = { path = "../ritk-statistics" }
 mnemosyne = { workspace = true, optional = true }
 
 [dev-dependencies]

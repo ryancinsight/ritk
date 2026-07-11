@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-531-01 — Core statistics shim deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the compatibility module has no workspace consumers.
+- [x] Delete the re-export module and outward core-to-statistics dependency.
+- [x] Regenerate the lockfile and verify core nextest 11/11, warning-denied Clippy, Rustdoc, doctests, and the migration audit.
+
 ## MIG-530-01 — WGPU chunk-helper consolidation
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure

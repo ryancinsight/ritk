@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 531: Core statistics SSOT (MIG-531-01)
+
+### Removed
+- Removed the unused `ritk_core::statistics` wildcard compatibility re-export
+  and its outward dependency on `ritk-statistics`.
+
+### Breaking
+- Import statistics APIs directly from their owning `ritk-statistics` crate.
+
+### Evidence
+- Exact zero-consumer inventory, core nextest 11/11, warning-denied Clippy,
+  Rustdoc, doctests, and a clean migration audit.
+
 ## [Unreleased] — Sprint 530: WGPU helper consolidation (MIG-530-01)
 
 ### Removed
