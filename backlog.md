@@ -1,5 +1,12 @@
 # RITK Backlog - Active Planning
 
+- **MIG-515-01 [major] - Native image alias deletion (DONE).**
+  Deleted the unused root `AtlasImage` alias so
+  `ritk_image::native::Image` is the sole native carrier name, and corrected
+  legacy-image migration documentation. Evidence: zero code consumers,
+  provider nextest 38/38, warning-denied Clippy,
+  interpolation/statistics/model consumer checks, doctests, and rustdoc.
+
 - **MIG-514-01 [major] - DICOM RGB Burn boundary deletion (DONE).**
   Migrated single-frame series and multiframe RGB loaders directly to native
   Coeus-backed `RgbVolume`, moved hostile-count reservation to Consus, and

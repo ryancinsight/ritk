@@ -8,6 +8,21 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 515: Native image alias deletion (MIG-515-01)
+
+### Removed
+- Removed the unused root `AtlasImage` alias. Native callers use
+  `ritk_image::native::Image` directly.
+
+### Breaking
+- External imports of `ritk_image::AtlasImage` migrate to
+  `ritk_image::native::Image`.
+
+### Evidence
+- Workspace search finds no code consumers; provider nextest 38/38,
+  warning-denied Clippy, consumer checks, doctests, and rustdoc pass. The Burn
+  audit remains at 16 manifests and 577 source files.
+
 ## [Unreleased] — Sprint 514: DICOM RGB native cutover (MIG-514-01)
 
 ### Changed

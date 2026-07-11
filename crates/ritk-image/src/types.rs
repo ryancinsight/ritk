@@ -11,9 +11,8 @@ use anyhow::anyhow;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// **Soft-deprecated (Atlas Batch #3 sub-batch #2, 2026-07-06; docstring-only)** —
-/// prefer the Atlas-typed parallel [`AtlasImage`](crate::AtlasImage) (alias of
-/// `ritk_image::native::Image<T, B, D>` where `T = coeus_core::Scalar` and
-/// `B = coeus_core::ComputeBackend`).
+/// prefer [`crate::native::Image<T, B, D>`], where `T` implements
+/// `coeus_core::Scalar` and `B` implements `coeus_core::ComputeBackend`.
 /// No `#[deprecated]` attribute on this item to avoid cascading
 /// `#[warn(deprecated)]` warnings across 671 burner consumer files in
 /// `xtask/burn_surface.allowlist`. Migration plan:

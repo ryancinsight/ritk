@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## MIG-515-01 audit (2026-07-10)
+
+`ritk-image` exported the same native carrier under both
+`ritk_image::native::Image` and the root `AtlasImage` alias. Workspace search
+found no code consumer of the alias; retaining it created a parallel name and
+an alias-driven boundary without migration value. The alias is deleted and
+legacy-image documentation names the canonical path directly.
+
+Evidence tier: exact workspace reference search, provider nextest 38/38,
+warning-denied Clippy, interpolation/statistics/model consumer checks,
+doctests, and rustdoc. This naming cleanup does not change the Burn audit,
+which remains at 16 manifests and 577 source files with only the pre-existing
+displacement-field drift unallowlisted. The `ritk-filter` color carrier remains
+dependency-ordered behind native median, mean, recursive-Gaussian, and
+derivative kernels; no conversion shim was added.
+
 ## MIG-514-01 audit (2026-07-10)
 
 DICOM RGB series and multiframe loaders constructed Burn color tensors, while

@@ -15,7 +15,6 @@ pub mod types;
 pub use color::{ColorVolume, RgbVolume};
 pub use grid::generate_grid;
 pub use metadata::ImageMetadata;
-pub use native::Image as AtlasImage;
 pub use types::Image;
 
 /// Legacy Burn compatibility surface used by migration-shim crates.

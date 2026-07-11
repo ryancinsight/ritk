@@ -8,6 +8,19 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-515-01 — Native image alias deletion
+**Target version**: 0.14.0 migration batch
+**Sprint phase**: Closure
+
+- [x] Prove the root `AtlasImage` alias has no code consumers.
+- [x] Delete the alias and route migration documentation directly to
+      `ritk_image::native::Image` as the terminology SSOT.
+- [x] Verify provider nextest 38/38, warning-denied Clippy,
+      interpolation/statistics/model consumer checks, doctests, rustdoc, and
+      the unchanged 16-manifest/577-source audit baseline with only the known
+      displacement-field drift.
+- [x] Commit, push, and advance the RITK gitlink in the stack repository.
+
 ## MIG-514-01 — DICOM RGB Burn boundary deletion
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Closure
