@@ -20,6 +20,8 @@
       (`397b3e5`) with compile-time 2-D/3-D support and a replicated-border ZST.
 - [x] Publish stable hierarchical Coeus module parameters (`a801cbe`) with
       optimizer-order and gradient-buffer identity preserved.
+- [x] Publish Coeus named optimizer ownership (`2e4ee3d`) with typed
+      name-validated module loading and Python `(name, tensor)` boundaries.
 - [ ] Replace the complete trainable field graph and delete Burn module/record plumbing.
 - [ ] Verify value, gradient, persistence, resampling, and downstream registration contracts.
 
