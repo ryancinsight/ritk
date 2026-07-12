@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-612-01 audit (2026-07-11)
+
+Hausdorff now uses shared borrowed-slice boundary extraction through native
+images. Mean surface distance remains the only legacy stats CLI metric.
+
 ## MIG-611-01 audit (2026-07-11)
 
 The MAD noise estimator now reads native images and delegates to the provider's

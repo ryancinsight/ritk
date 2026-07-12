@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-612-01 [major] - Native CLI Hausdorff metric (DONE).** Shared native
+  surface extraction now replaces the legacy Hausdorff route.
+
 - **MIG-611-01 [major] - Native CLI noise estimate (DONE).** Native MAD input
   extraction now replaces the legacy image route.
 

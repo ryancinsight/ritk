@@ -3,8 +3,8 @@
 use anyhow::Result;
 use ritk_statistics::image_statistics::native::compute_statistics as compute_native_statistics;
 use ritk_statistics::{
-    dice_coefficient_native, estimate_noise_mad_native, hausdorff_distance, mean_surface_distance,
-    psnr_native, ssim_native,
+    dice_coefficient_native, estimate_noise_mad_native, hausdorff_distance_native,
+    mean_surface_distance, psnr_native, ssim_native,
 };
 use tracing::info;
 
@@ -71,12 +71,15 @@ pub(super) fn run_dice(args: &StatsArgs) -> Result<()> {
 ///
 /// Physical spacing from the input image is used for distance computation.
 pub(super) fn run_hausdorff(args: &StatsArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let (reference, ref_path) = require_reference(args)?;
+    let image = super::super::read_image_native(&args.input)?;
+    let ref_path = args.reference.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("--reference is required for the '{}' metric", args.metric)
+    })?;
+    let reference = super::super::read_image_native(ref_path)?;
 
     let sp = image.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    let value = hausdorff_distance(&image, &reference, &spacing);
+    let value = hausdorff_distance_native(&image, &reference, &spacing)?;
     println!(
         "Hausdorff distance: {:.6} mm (input={}, reference={})",
         value,

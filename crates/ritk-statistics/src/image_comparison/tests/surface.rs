@@ -3,7 +3,11 @@ use super::super::surface::{
     min_distance_to_set,
 };
 use super::*;
-use crate::image_comparison::{hausdorff_distance, mean_surface_distance};
+use crate::image_comparison::{
+    hausdorff_distance, hausdorff_distance_native, mean_surface_distance,
+};
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image_with_spacing;
 use ritk_image::Image;
 
@@ -17,6 +21,31 @@ fn test_hausdorff_identical_masks_is_zero() {
         "identical masks -> HD = 0.0, got {}",
         hd
     );
+}
+
+#[test]
+fn native_hausdorff_known_value_matches_surface_kernel() {
+    let prediction = NativeImage::from_flat_on(
+        vec![1.0, 1.0, 0.0, 0.0, 0.0],
+        [1, 1, 5],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native prediction");
+    let ground_truth = NativeImage::from_flat_on(
+        vec![0.0, 0.0, 0.0, 1.0, 1.0],
+        [1, 1, 5],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native ground truth");
+    let value = hausdorff_distance_native(&prediction, &ground_truth, &[1.0, 1.0, 1.0])
+        .expect("native Hausdorff succeeds");
+    assert_eq!(value, 3.0);
 }
 
 #[test]

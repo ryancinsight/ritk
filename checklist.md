@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-612-01 — Native CLI Hausdorff metric
+**Target version**: 0.14.0 migration batch
+- [x] Consolidate boundary extraction over borrowed voxel slices.
+- [x] Route CLI Hausdorff input/reference through native I/O and metadata.
+
 ## MIG-611-01 — Native CLI noise estimate
 **Target version**: 0.14.0 migration batch
 - [x] Expose MAD noise estimation through a native image boundary.

@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 612: Native CLI Hausdorff metric (MIG-612-01)
+### Breaking
+- `ritk stats --metric hausdorff` now requires natively readable input and reference formats.
+
 ## [Unreleased] — Sprint 611: Native CLI noise estimate (MIG-611-01)
 ### Breaking
 - `ritk stats --metric noise-estimate` now requires a natively readable input format.
