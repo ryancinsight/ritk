@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-641-01 [major] - Native binary-mask postprocessing family (DONE).** Canonical flat fill-hole, morphological-gradient, and skeletonization kernels own validated Coeus-native execution; all three CLI routes use native I/O without compatibility wrappers.
+
 - **MIG-640-01 [major] - Native connected-component family (DONE).** Canonical labeling filters own validated Coeus-native execution, CLI/Snap/PyO3 propagate typed errors, sparse relabeling prevents input-driven allocation, and the exhausted root-native module is deleted.
 
 - **MIG-639-01 [major] - Native region-growing family (DONE).** Connected, confidence, and neighborhood filters own native execution; configuration is private and validated, CLI validation/I/O is shared, Snap uses the canonical types, and duplicate root-native wrappers are deleted.

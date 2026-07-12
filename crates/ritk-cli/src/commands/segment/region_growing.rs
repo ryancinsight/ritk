@@ -7,7 +7,7 @@ use ritk_segmentation::{
 
 use super::super::{write_image_native, NativeBackend};
 use super::args::SegmentArgs;
-use super::helpers::{parse_seed, read_native_input};
+use super::helpers::{count_native_foreground, parse_seed, read_native_input};
 
 struct NativeRegionInput {
     image: ritk_image::native::Image<f32, NativeBackend, 3>,
@@ -66,11 +66,7 @@ fn write_native_region_mask(
     mask: &ritk_image::native::Image<f32, NativeBackend, 3>,
     format: ritk_io::ImageFormat,
 ) -> Result<usize> {
-    let foreground = mask
-        .data_slice()?
-        .iter()
-        .filter(|&&value| value > 0.5)
-        .count();
+    let foreground = count_native_foreground(mask)?;
     write_image_native(&args.output, mask, format)?;
     Ok(foreground)
 }

@@ -61,3 +61,13 @@ pub(crate) fn parse_seed(s: &str) -> Result<[usize; 3]> {
 pub(crate) fn count_foreground(image: &ritk_core::image::Image<Backend, 3>) -> usize {
     image.with_data_slice(|slice| slice.iter().filter(|&&v| v > 0.5).count())
 }
+
+pub(crate) fn count_native_foreground(
+    image: &ritk_image::native::Image<f32, NativeBackend, 3>,
+) -> Result<usize> {
+    Ok(image
+        .data_slice()?
+        .iter()
+        .filter(|&&value| value > 0.5)
+        .count())
+}

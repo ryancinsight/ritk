@@ -345,6 +345,69 @@ fn test_segment_skeletonization_strictly_binary() {
     });
 }
 
+#[test]
+fn native_postprocessing_cli_matches_legacy_exactly() {
+    use ritk_segmentation::{
+        BinaryFillHoles, MorphologicalGradient, MorphologicalOperation, Skeletonization,
+    };
+
+    let dir = tempdir().unwrap();
+    let input = dir.path().join("input.nii");
+    let image = make_binary_sphere_image();
+    ritk_io::write_nifti(&input, &image).unwrap();
+    let cases = [
+        (
+            SegmentMethod::FillHoles,
+            BinaryFillHoles.apply(&image).data_slice().to_vec(),
+        ),
+        (
+            SegmentMethod::MorphologicalGradient,
+            MorphologicalGradient::new(1)
+                .apply(&image)
+                .data_slice()
+                .to_vec(),
+        ),
+        (
+            SegmentMethod::Skeletonization,
+            Skeletonization::new().apply(&image).data_slice().to_vec(),
+        ),
+    ];
+    for (index, (method, expected)) in cases.into_iter().enumerate() {
+        let output = dir.path().join(format!("output-{index}.nii"));
+        run(default_args(input.clone(), output.clone(), method)).unwrap();
+        let actual = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(actual.data_slice(), expected);
+        assert_eq!(actual.origin(), image.origin());
+        assert_eq!(actual.spacing(), image.spacing());
+        assert_eq!(actual.direction(), image.direction());
+    }
+}
+
+#[test]
+fn native_postprocessing_cli_rejects_known_nonnative_format() {
+    let dir = tempdir().unwrap();
+    for (index, method) in [
+        SegmentMethod::FillHoles,
+        SegmentMethod::MorphologicalGradient,
+        SegmentMethod::Skeletonization,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let output = dir.path().join(format!("output-{index}.nii"));
+        let error = run(default_args(
+            dir.path().join("input.vtk"),
+            output.clone(),
+            method,
+        ))
+        .expect_err("known nonnative input must be rejected before I/O");
+        assert!(error
+            .to_string()
+            .contains("requires native input/output formats"));
+        assert!(!output.exists());
+    }
+}
+
 // ── Connected-components tests ────────────────────────────────────────────
 
 #[test]

@@ -8,6 +8,20 @@
 
 # RITK Gap Audit - Active
 
+## MIG-641-01 audit (2026-07-12)
+
+Fill-hole, binary morphological-gradient, and skeletonization CLI routes still
+constructed legacy tensors despite canonical flat kernels. Their filter owners
+now expose Coeus-native methods; fill-hole and gradient legacy execution share
+the same flat kernels, and the CLI uses shared native I/O/counting boundaries.
+Exact native/legacy tests pin values and geometry for all three operations.
+Native boundaries reject non-finite samples consistently, and skeletonization
+returns typed errors for rank zero and rank four rather than reaching the legacy
+panic path. Exact CLI NIfTI tests cover values and geometry; VTK rejection is
+verified before output creation.
+Evidence is differential and empirical; no machine-checked proof of topology
+preservation or flood-fill reachability was performed.
+
 ## MIG-640-01 audit (2026-07-12)
 
 The final two functions in `ritk_segmentation::native` duplicated canonical

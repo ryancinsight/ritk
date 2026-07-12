@@ -8,6 +8,21 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 641: Native binary-mask postprocessing (MIG-641-01)
+### Breaking
+- `ritk segment --method fill-holes|morphological-gradient|skeletonization`
+  requires native input and output formats.
+- `MorphologicalGradient::radius` is private; use `radius()`.
+
+### Changed
+- Fill-hole and morphological-gradient legacy/native paths share one canonical
+  flat kernel; skeletonization exposes its existing canonical kernel through a
+  filter-owned Coeus-native method.
+- The three CLI routes perform native I/O without constructing legacy tensors.
+- Native foreground counting is shared across segmentation CLI families.
+- Native binary-mask postprocessing rejects NaN and infinite samples with typed
+  errors; native skeletonization also rejects ranks outside 1 through 3.
+
 ## [Unreleased] — Sprint 640: Native connected-component family (MIG-640-01)
 ### Breaking
 - Remove `ritk_segmentation::native`; connected-component labeling and

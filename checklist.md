@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-641-01 — Native binary-mask postprocessing family
+**Target version**: 0.14.0 migration batch
+- [x] Extract canonical flat fill-hole and gradient kernels without duplication.
+- [x] Add filter-owned native fill-hole, gradient, and skeleton methods.
+- [x] Migrate the three CLI routes to native I/O and canonical types.
+- [x] Add exact differential and CLI boundary regressions.
+- [x] Run package gates, review, commit, and push.
+
 ## MIG-640-01 — Native connected-component family
 **Target version**: 0.14.0 migration batch
 - [x] Add filter-owned native connected-component and relabel methods.
