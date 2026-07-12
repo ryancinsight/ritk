@@ -374,16 +374,17 @@ impl SnapApp {
                     initial_upper,
                     multiplier,
                     max_iterations,
-                } => Ok(
-                    ritk_segmentation::region_growing::ConfidenceConnectedFilter::new(
-                        [*seed_z, *seed_y, *seed_x],
-                        *initial_lower,
-                        *initial_upper,
-                    )
-                    .with_multiplier(*multiplier)
-                    .with_max_iterations(*max_iterations as usize)
-                    .apply(&image),
-                ),
+                } => ritk_segmentation::region_growing::ConfidenceConnectedFilter::new(
+                    [*seed_z, *seed_y, *seed_x],
+                    *initial_lower,
+                    *initial_upper,
+                )
+                .with_multiplier(*multiplier)
+                .map(|filter| {
+                    filter
+                        .with_max_iterations(*max_iterations as usize)
+                        .apply(&image)
+                }),
                 crate::FilterKind::NeighborhoodConnected {
                     seed_z,
                     seed_y,

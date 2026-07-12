@@ -197,13 +197,23 @@ pub fn confidence_connected_segment(
             seed.len()
         )));
     }
+    if initial_lower.is_nan() || initial_upper.is_nan() || initial_lower > initial_upper {
+        return Err(RitkPyError::value(format!(
+            "initial bounds must be ordered and non-NaN, got [{initial_lower}, {initial_upper}]"
+        )));
+    }
+    if !multiplier.is_finite() || multiplier < 0.0 {
+        return Err(RitkPyError::value(format!(
+            "multiplier must be finite and non-negative, got {multiplier}"
+        )));
+    }
     let inner = py_image_to_burn(image);
-    let result = py.allow_threads(move || {
+    let filter =
         ConfidenceConnectedFilter::new([seed[0], seed[1], seed[2]], initial_lower, initial_upper)
             .with_multiplier(multiplier)
-            .with_max_iterations(max_iterations)
-            .apply(&inner)
-    });
+            .map_err(|error| RitkPyError::value(error.to_string()))?
+            .with_max_iterations(max_iterations);
+    let result = py.allow_threads(move || filter.apply(&inner));
     Ok(burn_into_py_image(result))
 }
 

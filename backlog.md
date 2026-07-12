@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-639-01 [major] - Native region-growing family (DONE).** Connected, confidence, and neighborhood filters own native execution; configuration is private and validated, CLI validation/I/O is shared, Snap uses the canonical types, and duplicate root-native wrappers are deleted.
+
 - **MIG-638-01 [major] - Native threshold boundary consolidation (DONE).** Obsolete standalone binary/Multi-Otsu wrappers, their duplicate tests, and the now-dead label helper are deleted; canonical threshold types are the sole native execution owners.
 
 - **MIG-637-01 [major] - Native Multi-Otsu thresholding (DONE).** Canonical slice thresholds and labels now serve one fused Coeus-native boundary, finite-sample behavior matches `AutoThreshold`, invalid mutable configuration is closed, and the CLI no longer constructs legacy tensors.

@@ -84,23 +84,23 @@ use std::collections::VecDeque;
 /// by requiring local neighborhood consistency before voxel inclusion.
 pub struct NeighborhoodConnectedFilter {
     /// Seed voxel in [z, y, x] index space.
-    pub seed: VoxelIndex,
+    seed: VoxelIndex,
     /// Inclusive lower intensity bound.
-    pub lower: f32,
+    lower: f32,
     /// Inclusive upper intensity bound.
-    pub upper: f32,
+    upper: f32,
     /// Rectangular neighborhood half-radius [rz, ry, rx].
     ///
     /// The full neighborhood for a voxel v is the set of all voxels n
     /// with |nᵢ − vᵢ| ≤ Rᵢ. Default: [1, 1, 1] (3×3×3 = 27 voxels).
-    pub radius: [usize; 3],
+    radius: [usize; 3],
 }
 
 impl NeighborhoodConnectedFilter {
     /// Create a `NeighborhoodConnectedFilter` with default radius [1, 1, 1].
     ///
     /// # Panics
-    /// Panics if `lower > upper`.
+    /// Panics if either bound is NaN or `lower > upper`.
     pub fn new(seed: impl Into<VoxelIndex>, lower: f32, upper: f32) -> Self {
         assert!(
             lower <= upper,
@@ -131,6 +131,62 @@ impl NeighborhoodConnectedFilter {
     /// fully satisfy the intensity bounds, the output is all-zero.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
         neighborhood_connected(image, self.seed, self.lower, self.upper, self.radius)
+    }
+
+    /// Return the seed voxel.
+    pub fn seed(&self) -> VoxelIndex {
+        self.seed
+    }
+
+    /// Return the inclusive lower bound.
+    pub fn lower(&self) -> f32 {
+        self.lower
+    }
+
+    /// Return the inclusive upper bound.
+    pub fn upper(&self) -> f32 {
+        self.upper
+    }
+
+    /// Return the rectangular neighborhood half-radius.
+    pub fn radius(&self) -> [usize; 3] {
+        self.radius
+    }
+
+    /// Apply neighborhood-connected growth to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the seed is outside the image, backend storage is
+    /// not host-addressable, or the output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let shape = image.shape();
+        anyhow::ensure!(
+            self.seed[0] < shape[0] && self.seed[1] < shape[1] && self.seed[2] < shape[2],
+            "seed {:?} is out of bounds for image shape {:?}",
+            self.seed.as_array(),
+            shape
+        );
+        super::native_output::from_values(
+            image,
+            grow_neighborhood(
+                image.data_slice()?,
+                shape,
+                self.seed,
+                self.lower,
+                self.upper,
+                self.radius,
+            ),
+            backend,
+        )
     }
 }
 
@@ -216,11 +272,11 @@ fn is_neighborhood_admissible(
 
     // Compute clamped neighborhood bounds.
     let z_lo = voxel[0].saturating_sub(radius[0]);
-    let z_hi = (voxel[0] + radius[0]).min(nz - 1);
+    let z_hi = voxel[0].saturating_add(radius[0]).min(nz - 1);
     let y_lo = voxel[1].saturating_sub(radius[1]);
-    let y_hi = (voxel[1] + radius[1]).min(ny - 1);
+    let y_hi = voxel[1].saturating_add(radius[1]).min(ny - 1);
     let x_lo = voxel[2].saturating_sub(radius[2]);
-    let x_hi = (voxel[2] + radius[2]).min(nx - 1);
+    let x_hi = voxel[2].saturating_add(radius[2]).min(nx - 1);
 
     for iz in z_lo..=z_hi {
         let z_offset = iz * ny * nx;
@@ -228,7 +284,7 @@ fn is_neighborhood_admissible(
             let zy_offset = z_offset + iy * nx;
             for ix in x_lo..=x_hi {
                 let val = data[zy_offset + ix];
-                if val < lower || val > upper {
+                if !super::intensity::within_finite_bounds(val, lower, upper) {
                     return false;
                 }
             }

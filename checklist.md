@@ -8,6 +8,15 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-639-01 — Native region-growing family
+**Target version**: 0.14.0 migration batch
+- [x] Add filter-owned native methods over the three canonical flat kernels.
+- [x] Privatize and validate filter configuration with documented accessors.
+- [x] Route all three CLI methods through shared native validation and I/O.
+- [x] Delete duplicate root-native wrappers and add exact differential/E2E tests.
+- [x] Verify invalid confidence configuration through the built PyO3 wheel.
+- [x] Run package gates, review, commit, and push.
+
 ## MIG-638-01 — Native threshold boundary consolidation
 **Target version**: 0.14.0 migration batch
 - [x] Delete standalone native binary/Multi-Otsu wrappers and duplicate tests.

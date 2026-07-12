@@ -17,18 +17,18 @@ use std::collections::VecDeque;
 /// within the closed interval [lower, upper].
 pub struct ConnectedThresholdFilter {
     /// Seed voxel in [z, y, x] index space.
-    pub seed: VoxelIndex,
+    seed: VoxelIndex,
     /// Inclusive lower intensity bound.
-    pub lower: f32,
+    lower: f32,
     /// Inclusive upper intensity bound.
-    pub upper: f32,
+    upper: f32,
 }
 
 impl ConnectedThresholdFilter {
     /// Create a `ConnectedThresholdFilter`.
     ///
     /// # Panics
-    /// Panics if `lower > upper`.
+    /// Panics if either bound is NaN or `lower > upper`.
     pub fn new(seed: impl Into<VoxelIndex>, lower: f32, upper: f32) -> Self {
         assert!(
             lower <= upper,
@@ -48,6 +48,56 @@ impl ConnectedThresholdFilter {
     /// satisfy `lower ≤ I(seed) ≤ upper`, the output is all-zero.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
         connected_threshold(image, self.seed, self.lower, self.upper)
+    }
+
+    /// Return the seed voxel.
+    pub fn seed(&self) -> VoxelIndex {
+        self.seed
+    }
+
+    /// Return the inclusive lower bound.
+    pub fn lower(&self) -> f32 {
+        self.lower
+    }
+
+    /// Return the inclusive upper bound.
+    pub fn upper(&self) -> f32 {
+        self.upper
+    }
+
+    /// Apply region growing to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the seed is outside the image, backend storage is
+    /// not host-addressable, or the output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let shape = image.shape();
+        anyhow::ensure!(
+            self.seed[0] < shape[0] && self.seed[1] < shape[1] && self.seed[2] < shape[2],
+            "seed {:?} is out of bounds for image shape {:?}",
+            self.seed.as_array(),
+            shape
+        );
+        super::native_output::from_values(
+            image,
+            flood_fill(
+                image.data_slice()?,
+                shape,
+                self.seed,
+                self.lower,
+                self.upper,
+            ),
+            backend,
+        )
     }
 }
 
@@ -121,7 +171,7 @@ pub(crate) fn flood_fill(
 
     // Check seed intensity.
     let seed_val = data[flat(seed[0], seed[1], seed[2])];
-    if seed_val < lower || seed_val > upper {
+    if !super::intensity::within_finite_bounds(seed_val, lower, upper) {
         return vec![0.0_f32; n];
     }
 
@@ -179,7 +229,7 @@ pub(crate) fn flood_fill(
             }
 
             let intensity = data[n_flat];
-            if intensity < lower || intensity > upper {
+            if !super::intensity::within_finite_bounds(intensity, lower, upper) {
                 continue;
             }
 

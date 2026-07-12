@@ -30,10 +30,9 @@ use ritk_filter::{
 use ritk_image::native::Image;
 use ritk_segmentation::{
     labeling::Connectivity as SegmentationConnectivity,
-    native::{
-        binary_threshold, confidence_connected, connected_components, connected_threshold,
-        multi_otsu, neighborhood_connected, relabel_components,
-    },
+    native::{connected_components, relabel_components},
+    BinaryThreshold, ConfidenceConnectedFilter, ConnectedThresholdFilter, MultiOtsuThreshold,
+    NeighborhoodConnectedFilter,
 };
 use ritk_spatial::{Direction, Point, Spacing};
 use std::ops::Deref;
@@ -448,7 +447,7 @@ fn apply_supported_filter(
         } => relabel_components(&image, *minimum_object_size as usize, &backend)
             .map(|(labels, _statistics)| labels),
         FilterKind::MultiOtsuThreshold { num_classes } => {
-            multi_otsu(&image, *num_classes as usize, 256, &backend)
+            MultiOtsuThreshold::new(*num_classes as usize).apply_native(&image, &backend)
         }
         FilterKind::Median { radius } => MedianFilter::new(*radius).apply_native(&image, &backend),
         FilterKind::HistEq { bins } => {
@@ -494,13 +493,8 @@ fn apply_supported_filter(
             seed_x,
             lower,
             upper,
-        } => connected_threshold(
-            &image,
-            ritk_spatial::VoxelIndex::from([*seed_z, *seed_y, *seed_x]),
-            *lower,
-            *upper,
-            &backend,
-        ),
+        } => ConnectedThresholdFilter::new([*seed_z, *seed_y, *seed_x], *lower, *upper)
+            .apply_native(&image, &backend),
         FilterKind::ConfidenceConnected {
             seed_z,
             seed_y,
@@ -509,15 +503,14 @@ fn apply_supported_filter(
             initial_upper,
             multiplier,
             max_iterations,
-        } => confidence_connected(
-            &image,
-            ritk_spatial::VoxelIndex::from([*seed_z, *seed_y, *seed_x]),
+        } => ConfidenceConnectedFilter::new(
+            [*seed_z, *seed_y, *seed_x],
             *initial_lower,
             *initial_upper,
-            *multiplier,
-            *max_iterations as usize,
-            &backend,
-        ),
+        )
+        .with_multiplier(*multiplier)?
+        .with_max_iterations(*max_iterations as usize)
+        .apply_native(&image, &backend),
         FilterKind::NeighborhoodConnected {
             seed_z,
             seed_y,
@@ -527,27 +520,17 @@ fn apply_supported_filter(
             radius_z,
             radius_y,
             radius_x,
-        } => neighborhood_connected(
-            &image,
-            ritk_spatial::VoxelIndex::from([*seed_z, *seed_y, *seed_x]),
-            *lower,
-            *upper,
-            [*radius_z, *radius_y, *radius_x],
-            &backend,
-        ),
+        } => NeighborhoodConnectedFilter::new([*seed_z, *seed_y, *seed_x], *lower, *upper)
+            .with_radius([*radius_z, *radius_y, *radius_x])
+            .apply_native(&image, &backend),
         FilterKind::BinaryThreshold {
             lower,
             upper,
             foreground,
             background,
-        } => binary_threshold(
-            &image,
-            *lower,
-            *upper,
-            (*foreground).into(),
-            *background,
-            &backend,
-        ),
+        } => BinaryThreshold::new(*lower, *upper)
+            .with_values((*foreground).into(), *background)
+            .apply_native(&image, &backend),
         _ => unreachable!("invariant: dispatch admits only fully native filter variants"),
     }
     .context("Coeus-native filter failed")?;

@@ -8,6 +8,27 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 639: Native region-growing family (MIG-639-01)
+### Breaking
+- `ritk segment --method connected-threshold|confidence-connected|neighborhood-connected`
+  requires native input and output formats.
+- Region-growing filter fields are private. Use the existing constructors and
+  builders plus `seed()`, bound, multiplier, iteration, and radius accessors.
+- Remove `ritk_segmentation::native::{connected_threshold,confidence_connected,neighborhood_connected}`;
+  call the corresponding filter type's `apply_native` method.
+- `ConfidenceConnectedFilter::with_multiplier` now returns `Result<Self>` and
+  rejects non-finite and negative multipliers without panicking. Callers must
+  handle the validation result before continuing the builder chain.
+
+### Changed
+- The three CLI routes share one native format/read/seed/bounds validation path
+  and one native mask writer.
+- RITK Snap consumes the canonical threshold and region-growing type methods;
+  no removed root-native wrapper remains in its dispatch.
+- All three region-growing kernels classify NaN and infinite image samples as
+  background, even under infinite intensity bounds. Neighborhood bounds use
+  saturating arithmetic, so any `usize` radius clamps to the image domain.
+
 ## [Unreleased] — Sprint 638: Native threshold boundary consolidation (MIG-638-01)
 ### Breaking
 - Remove `ritk_segmentation::native::{binary_threshold,multi_otsu}`. Use

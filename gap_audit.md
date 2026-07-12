@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## MIG-639-01 audit (2026-07-12)
+
+Connected-threshold, confidence-connected, and neighborhood-connected filters
+now own Coeus-native execution over their canonical flat kernels. Their CLI
+routes share native I/O, bound/seed validation, and exact mask writing; Snap is
+migrated from removed root-native wrappers to the canonical type APIs. Exact
+native/legacy differentials cover values and geometry, CLI end-to-end coverage
+checks all three methods, and negative cases cover NaN bounds, invalid confidence
+multipliers, nonnative formats, out-of-bounds seeds, non-finite samples, and the
+maximum representable neighborhood radius. Non-finite samples are uniformly
+background and radius arithmetic saturates before clamping to the image domain.
+Built-wheel PyO3 tests verify NaN, positive-infinite, and negative confidence
+multipliers plus a NaN bound raise `ValueError` rather than panic exceptions.
+Evidence is differential and empirical; no machine-checked proof of the BFS
+invariants was performed.
+
 ## MIG-638-01 audit (2026-07-12)
 
 Standalone `native::{binary_threshold,multi_otsu}` wrappers duplicated the

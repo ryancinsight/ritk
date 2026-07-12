@@ -2682,6 +2682,30 @@ def test_confidence_connected_segment_recovers_sphere():
     assert d >= 0.95, f"Confidence-connected Dice {d:.4f} < 0.95 vs ground-truth sphere"
 
 
+@pytest.mark.parametrize("multiplier", [float("nan"), float("inf"), -1.0])
+def test_confidence_connected_rejects_invalid_multiplier(multiplier):
+    image = _ritk(np.ones((3, 3, 3), dtype=np.float32))
+    with pytest.raises(ValueError, match="multiplier must be finite and non-negative"):
+        ritk.segmentation.confidence_connected_segment(
+            image,
+            seed=[1, 1, 1],
+            initial_lower=0.0,
+            initial_upper=2.0,
+            multiplier=multiplier,
+        )
+
+
+def test_confidence_connected_rejects_nan_bound():
+    image = _ritk(np.ones((3, 3, 3), dtype=np.float32))
+    with pytest.raises(ValueError, match="initial bounds must be ordered and non-NaN"):
+        ritk.segmentation.confidence_connected_segment(
+            image,
+            seed=[1, 1, 1],
+            initial_lower=float("nan"),
+            initial_upper=2.0,
+        )
+
+
 def test_neighborhood_connected_segment_recovers_sphere():
     """Neighborhood-connected region growing recovers the sphere.
 
