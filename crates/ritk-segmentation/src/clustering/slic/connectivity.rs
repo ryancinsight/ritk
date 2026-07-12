@@ -56,7 +56,7 @@ pub fn enforce_connectivity(
     labels: &mut [u32],
     shape: &[usize],
     _ndim: usize,
-    intensities: &[f64],
+    intensities: &[f32],
     min_size: usize,
 ) {
     let n: usize = shape.iter().product();
@@ -99,20 +99,15 @@ pub fn enforce_connectivity(
         // Compute component sizes and mean intensities.
         let mut comp_sizes: std::collections::HashMap<usize, usize> =
             std::collections::HashMap::with_capacity(n);
-        let mut comp_int_sum: std::collections::HashMap<usize, f64> =
+        let mut comp_mean: std::collections::HashMap<usize, f32> =
             std::collections::HashMap::with_capacity(n);
 
         for (i, intensity) in intensities.iter().enumerate().take(n) {
             let root = uf.find(i);
-            *comp_sizes.entry(root).or_insert(0) += 1;
-            *comp_int_sum.entry(root).or_insert(0.0) += intensity;
-        }
-
-        let mut comp_mean: std::collections::HashMap<usize, f64> =
-            std::collections::HashMap::with_capacity(n);
-        for (&root, &size) in &comp_sizes {
-            let sum = comp_int_sum.get(&root).copied().unwrap_or(0.0);
-            comp_mean.insert(root, sum / size as f64);
+            let size = comp_sizes.entry(root).or_insert(0);
+            *size += 1;
+            let mean = comp_mean.entry(root).or_insert(*intensity);
+            *mean += (*intensity - *mean) / *size as f32;
         }
 
         // Identify small components.
@@ -131,7 +126,7 @@ pub fn enforce_connectivity(
             let small_mean = comp_mean.get(&small_root).copied().unwrap_or(0.0);
 
             let mut best_label = small_label;
-            let mut best_dist = f64::MAX;
+            let mut best_dist = f32::MAX;
 
             // Find the neighboring label with minimum intensity distance.
             for i in 0..n {
@@ -160,7 +155,7 @@ pub fn enforce_connectivity(
                 }
 
                 // Early exit once any neighbor is found.
-                if best_dist < f64::MAX {
+                if best_dist < f32::MAX {
                     break;
                 }
             }

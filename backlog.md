@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-644-01 [major] - Native standard SLIC clustering (DONE).** Private validated configuration and one overflow-safe concrete-`f32` core serve legacy/Coeus-native images; standard PyO3 uses the native boundary and the distinct SimpleITK-compatible contract is unchanged.
+
 - **MIG-643-01 [major] - Native K-means clustering (DONE).** Validated private configuration and one overflow-safe native-precision core serve legacy/Coeus-native images; CLI/PyO3 surfaces and exact differential/adversarial regressions are synchronized.
 
 - **MIG-642-01 [major] - Consolidate Euclidean distance transforms (DONE).** `ritk-filter` solely owns validated Euclidean/squared and signed native execution; CLI/Snap/PyO3 are migrated, and the duplicate segmentation implementation/native wrappers are deleted.

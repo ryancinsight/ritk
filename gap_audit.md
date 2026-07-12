@@ -8,6 +8,24 @@
 
 # RITK Gap Audit - Active
 
+## MIG-644-01 audit (2026-07-12)
+
+Standard desired-count SLIC widened every image sample and all arithmetic to
+`f64`, exposed mutable invalid configuration, and had no Coeus-native execution.
+Its canonical operation family now remains in `clustering/slic` but executes in
+the concrete `f32` image precision. Normalized gradients, hypot-based distance,
+integer cardinalities, and shifted centroid means prevent finite-intermediate
+overflow without widening. Configuration is private and validated; the unused
+seed is deleted. Legacy and native images share the core, and the standard PyO3
+function converts through the native image boundary.
+
+Exact 2-D/3-D native-versus-legacy labels, geometry, extreme compactness,
+rank/extent, non-finite, and invalid-configuration regressions provide
+differential and empirical evidence. No machine-checked convergence proof was
+performed. The distinct SimpleITK-compatible fixed-grid SLIC contract remains
+`f64` to preserve its committed external differential fixtures; native ownership
+and validation of that path is the next clustering migration item.
+
 ## MIG-643-01 audit (2026-07-12)
 
 K-means already had one substrate-independent flat core, but its public mutable

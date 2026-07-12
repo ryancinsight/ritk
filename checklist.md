@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-644-01 — Native standard SLIC clustering
+**Target version**: 0.14.0 migration batch
+- [x] Make standard SLIC configuration private, fallible, and concrete-`f32`.
+- [x] Convert the standard SLIC operation family to native `f32` arithmetic and add Coeus-native execution.
+- [x] Migrate the standard PyO3 consumer without changing the SimpleITK-compatible SLIC contract.
+- [x] Add exact native/legacy differential and adversarial numeric regressions.
+- [x] Run package gates, adversarial review, commit, and push.
+
 ## MIG-643-01 — Native K-means clustering
 **Target version**: 0.14.0 migration batch
 - [x] Make K-means construction/configuration fallible and private, with finite sample validation.

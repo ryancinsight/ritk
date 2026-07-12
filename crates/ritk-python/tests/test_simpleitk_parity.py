@@ -2648,6 +2648,32 @@ def test_kmeans_segment_rejects_invalid_configuration_and_samples():
         ritk.segmentation.kmeans_segment(nonfinite, k=2)
 
 
+def test_standard_slic_native_boundary_and_validation():
+    values = np.arange(64, dtype=np.float32).reshape(4, 4, 4) % 7
+    result = ritk.segmentation.slic_superpixel(
+        _ritk(values),
+        n_superpixels=4,
+        compactness=5.0,
+        max_iterations=10,
+        tolerance=0.0,
+        min_component_size=0,
+    ).to_numpy()
+    assert result.shape == values.shape
+    assert np.array_equal(np.unique(result), np.arange(4, dtype=np.float32))
+
+    with pytest.raises(
+        ValueError, match="SLIC superpixel count must be at least 1, got 0"
+    ):
+        ritk.segmentation.slic_superpixel(_ritk(values), n_superpixels=0)
+    invalid = values.copy()
+    invalid.flat[3] = np.nan
+    with pytest.raises(
+        ValueError,
+        match="standard SLIC sample at flat index 3 must be finite, got NaN",
+    ):
+        ritk.segmentation.slic_superpixel(_ritk(invalid), n_superpixels=4)
+
+
 def test_connected_threshold_segment_recovers_sphere():
     """Connected-threshold region growing from the sphere centre recovers the sphere.
 

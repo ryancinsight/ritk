@@ -172,6 +172,14 @@ def chan_vese_segment(
     dt: float = 0.1,
     tolerance: float = 1e-3,
 ) -> Image: ...
+def slic_superpixel(
+    image: Image,
+    n_superpixels: int = 100,
+    compactness: float = 10.0,
+    max_iterations: int = 10,
+    tolerance: float = 1e-3,
+    min_component_size: int = 5,
+) -> Image: ...
 def geodesic_active_contour_segment(
     image: Image,
     initial_phi: Image,

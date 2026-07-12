@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 644: Native standard SLIC clustering (MIG-644-01)
+### Breaking
+- Standard SLIC configuration becomes private, validated, and concrete-`f32`;
+  construction and application return typed errors. The separately specified
+  SimpleITK-compatible SLIC entry point retains its `f64` contract.
+
+### Changed
+- Standard SLIC legacy and Coeus-native images share one native-precision core.
+
 ## [Unreleased] — Sprint 643: Native K-means clustering (MIG-643-01)
 ### Breaking
 - K-means configuration becomes private and validated; construction and

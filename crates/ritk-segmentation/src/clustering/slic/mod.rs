@@ -70,23 +70,23 @@ use ritk_core::image::Image;
 use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_tensor_ops::extract_vec_infallible;
 
+const MAX_EXACT_LABELS: usize = 1 << f32::MANTISSA_DIGITS;
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// SLIC super-pixel configuration.
 #[derive(Debug, Clone)]
 pub struct SlicConfig {
     /// Number of desired superpixels (cluster count K). Default: 100.
-    pub n_superpixels: usize,
+    n_superpixels: usize,
     /// Compactness parameter m: higher = more regular shapes. Default: 10.0.
-    pub compactness: f64,
+    compactness: f32,
     /// Maximum iterations. Default: 10.
-    pub max_iterations: usize,
+    max_iterations: usize,
     /// Convergence tolerance on center shift. Default: 1e-3.
-    pub tolerance: f64,
-    /// Deterministic seed (reserved for future stochastic extensions). Default: 42.
-    pub seed: u64,
+    tolerance: f32,
     /// Minimum component size for connectivity enforcement. Default: 5.
-    pub min_component_size: usize,
+    min_component_size: usize,
 }
 
 impl Default for SlicConfig {
@@ -96,7 +96,6 @@ impl Default for SlicConfig {
             compactness: 10.0,
             max_iterations: 10,
             tolerance: 1e-3,
-            seed: 42,
             min_component_size: 5,
         }
     }
@@ -105,11 +104,63 @@ impl Default for SlicConfig {
 impl SlicConfig {
     /// Create a `SlicConfig` with the given number of superpixels and defaults
     /// for all other fields.
-    pub fn new(n_superpixels: usize) -> Self {
-        Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the requested label count is zero or cannot be
+    /// represented exactly by the `f32` output label contract.
+    pub fn new(n_superpixels: usize) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            n_superpixels >= 1,
+            "SLIC superpixel count must be at least 1, got {n_superpixels}"
+        );
+        anyhow::ensure!(
+            n_superpixels <= MAX_EXACT_LABELS,
+            "SLIC superpixel count must not exceed {MAX_EXACT_LABELS}, got {n_superpixels}"
+        );
+        Ok(Self {
             n_superpixels,
             ..Self::default()
-        }
+        })
+    }
+
+    /// Set the spatial compactness weight.
+    pub fn with_compactness(mut self, compactness: f32) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            compactness.is_finite()
+                && compactness >= 0.0
+                && compactness <= f32::MAX.sqrt(),
+            "SLIC compactness must be finite, nonnegative, and square-representable, got {compactness}"
+        );
+        self.compactness = compactness;
+        Ok(self)
+    }
+
+    /// Set the maximum Lloyd iteration count.
+    pub fn with_max_iterations(mut self, max_iterations: usize) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            max_iterations >= 1,
+            "SLIC maximum iterations must be at least 1, got {max_iterations}"
+        );
+        self.max_iterations = max_iterations;
+        Ok(self)
+    }
+
+    /// Set the convergence tolerance.
+    pub fn with_tolerance(mut self, tolerance: f32) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            tolerance.is_finite() && tolerance >= 0.0,
+            "SLIC tolerance must be finite and nonnegative, got {tolerance}"
+        );
+        self.tolerance = tolerance;
+        Ok(self)
+    }
+
+    /// Set the minimum connected-component size.
+    #[must_use]
+    pub fn with_min_component_size(mut self, min_component_size: usize) -> Self {
+        self.min_component_size = min_component_size;
+        self
     }
 }
 
@@ -119,7 +170,7 @@ impl SlicConfig {
 /// SLIC algorithm. Output is a label image where each voxel carries its
 /// superpixel index (0..K−1) as f32. Spatial metadata is preserved.
 pub struct SlicSuperpixelFilter {
-    pub config: SlicConfig,
+    config: SlicConfig,
 }
 
 impl SlicSuperpixelFilter {
@@ -132,27 +183,66 @@ impl SlicSuperpixelFilter {
     ///
     /// For a constant image (zero intensity range), all voxels are assigned
     /// label 0. For n_superpixels=1, all voxels are assigned label 0.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for ranks outside 2-D/3-D, zero extents, shape/sample
+    /// mismatch or overflow, inexact coordinate bounds, non-finite samples, or
+    /// an unrepresentable intensity range.
+    pub fn apply<B: Backend, const D: usize>(
+        &self,
+        image: &Image<B, D>,
+    ) -> anyhow::Result<Image<B, D>> {
         let (vals, shape) = extract_vec_infallible(image);
+        validate_standard_input(&vals, &shape, D)?;
         let device = image.data().device();
         let ndim = D;
         let labels = slic_impl(&vals, &shape, ndim, &self.config);
         let tensor = Tensor::<B, D>::from_data(TensorData::new(labels, Shape::new(shape)), &device);
-        Image::new(
+        Ok(Image::new(
             tensor,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
+        ))
+    }
+
+    /// Apply standard SLIC to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns the validation errors documented by [`Self::apply`], or a
+    /// backend storage/output construction error.
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        validate_standard_input(values, &image.shape(), D)?;
+        crate::native_output::from_values(
+            image,
+            slic_impl(values, &image.shape(), D, &self.config),
+            backend,
         )
     }
 }
 
 /// Convenience function: apply SLIC with `n_superpixels` and default parameters.
+///
+/// # Errors
+///
+/// Returns an error for an invalid label count or any input error documented
+/// by [`SlicSuperpixelFilter::apply`].
 pub fn slic_superpixel<B: Backend, const D: usize>(
     image: &Image<B, D>,
     n_superpixels: usize,
-) -> Image<B, D> {
-    SlicSuperpixelFilter::new(SlicConfig::new(n_superpixels)).apply(image)
+) -> anyhow::Result<Image<B, D>> {
+    SlicSuperpixelFilter::new(SlicConfig::new(n_superpixels)?).apply(image)
 }
 
 /// Apply ITK-convention SLIC ([`itk::slic_itk_impl`]) to a 3-D `[z, y, x]`
@@ -221,12 +311,10 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
         return vec![0.0_f32; n];
     }
 
-    let intensities: Vec<f64> = data.iter().map(|&v| v as f64).collect();
-
     // Intensity range for normalization.
-    let (i_min, i_max) = intensities
+    let (i_min, i_max) = data
         .iter()
-        .fold((f64::MAX, f64::MIN), |(lo, hi), &v| (lo.min(v), hi.max(v)));
+        .fold((f32::MAX, f32::MIN), |(lo, hi), &v| (lo.min(v), hi.max(v)));
     let intensity_range = i_max - i_min;
 
     // Constant image: all label 0.
@@ -237,37 +325,37 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
     let m_c = intensity_range.max(1e-10);
 
     // Spatial normalization factor.
-    let m_s = (n as f64 / k as f64).sqrt().max(1.0);
+    let m_s = (n as f32 / k as f32).sqrt().max(1.0);
 
     // Grid step per axis.
-    let k_root = (k as f64).powf(1.0 / ndim as f64);
+    let k_root = (k as f32).powf(1.0 / ndim as f32);
     let steps: Vec<usize> = shape
         .iter()
-        .map(|&s| ((s as f64) / k_root).floor().max(1.0) as usize)
+        .map(|&s| ((s as f32) / k_root).floor().max(1.0) as usize)
         .collect();
 
     // ── Gradient computation ─────────────────────────────────────────────────
-    let gradient = gradient::compute_gradient(&intensities, shape, ndim);
+    let gradient = gradient::compute_gradient(data, shape, ndim, m_c);
 
     // ── Initialize cluster centers on a regular grid ─────────────────────────
-    let mut centers = grid::init_centers(&intensities, shape, ndim, &steps, &gradient, k);
+    let mut centers = grid::init_centers(data, shape, ndim, &steps, &gradient, k);
 
     // ── Build grid-to-center mapping ─────────────────────────────────────────
     let grid_sizes: Vec<usize> = steps.iter().map(|&s| s.max(1)).collect();
 
     // ── Iterative assignment + update ─────────────────────────────────────────
     let mut labels = vec![0u32; n];
-    let mut distances = vec![f64::MAX; n];
+    let mut distances = vec![f32::MAX; n];
     let mut grid_map = Vec::new();
 
     for _iter in 0..config.max_iterations {
-        distances.iter_mut().for_each(|d| *d = f64::MAX);
+        distances.iter_mut().for_each(|d| *d = f32::MAX);
 
         assign::build_grid_map_into(&centers, &grid_sizes, shape, ndim, &mut grid_map);
 
         // ── Assignment step ──────────────────────────────────────────────────
         assign::assign_voxels(
-            &intensities,
+            data,
             shape,
             ndim,
             &centers,
@@ -281,7 +369,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
         );
 
         // ── Update step ──────────────────────────────────────────────────────
-        let max_shift = assign::update_centers(&mut centers, &intensities, &labels, shape, ndim, k);
+        let max_shift = assign::update_centers(&mut centers, data, &labels, shape, ndim, k);
 
         if max_shift < config.tolerance {
             break;
@@ -289,10 +377,10 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
     }
 
     // ── Final assignment (ensure labels match final centers) ──────────────────
-    distances.iter_mut().for_each(|d| *d = f64::MAX);
+    distances.iter_mut().for_each(|d| *d = f32::MAX);
     assign::build_grid_map_into(&centers, &grid_sizes, shape, ndim, &mut grid_map);
     assign::assign_voxels(
-        &intensities,
+        data,
         shape,
         ndim,
         &centers,
@@ -311,12 +399,57 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
             &mut labels,
             shape,
             ndim,
-            &intensities,
+            data,
             config.min_component_size,
         );
     }
 
     labels.iter().map(|&l| l as f32).collect()
+}
+
+fn validate_standard_input(data: &[f32], shape: &[usize], ndim: usize) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        (2..=3).contains(&ndim),
+        "standard SLIC requires rank 2 or 3, got {ndim}"
+    );
+    anyhow::ensure!(
+        shape.iter().all(|&extent| extent > 0),
+        "standard SLIC requires nonzero dimensions, got {shape:?}"
+    );
+    let expected = shape
+        .iter()
+        .try_fold(1usize, |count, &extent| count.checked_mul(extent))
+        .ok_or_else(|| anyhow::anyhow!("standard SLIC shape product overflows usize: {shape:?}"))?;
+    anyhow::ensure!(
+        shape.iter().all(|&extent| extent <= MAX_EXACT_LABELS),
+        "standard SLIC dimensions must not exceed {MAX_EXACT_LABELS} for exact f32 coordinates, got {shape:?}"
+    );
+    anyhow::ensure!(
+        expected == data.len(),
+        "standard SLIC shape {shape:?} requires {expected} samples, got {}",
+        data.len()
+    );
+    if let Some((index, value)) = data
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        anyhow::bail!("standard SLIC sample at flat index {index} must be finite, got {value}");
+    }
+    if let Some((&first, rest)) = data.split_first() {
+        let (minimum, maximum) = rest
+            .iter()
+            .copied()
+            .fold((first, first), |(low, high), value| {
+                (low.min(value), high.max(value))
+            });
+        anyhow::ensure!(
+            (maximum - minimum).is_finite(),
+            "standard SLIC sample range must be representable in f32, got [{minimum}, {maximum}]"
+        );
+    }
+    Ok(())
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
