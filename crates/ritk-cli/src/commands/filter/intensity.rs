@@ -123,12 +123,21 @@ pub(super) fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_threshold_below(args: &FilterArgs) -> Result<()> {
     use ritk_filter::ThresholdImageFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "threshold-below requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filtered =
         ThresholdImageFilter::below(args.threshold.threshold_value, args.band.outside_value)
-            .apply(&image)?;
+            .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied threshold-below (threshold={}, outside={}) to {} -> {}",
@@ -145,12 +154,21 @@ pub(super) fn run_threshold_below(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_threshold_above(args: &FilterArgs) -> Result<()> {
     use ritk_filter::ThresholdImageFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "threshold-above requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filtered =
         ThresholdImageFilter::above(args.threshold.threshold_value, args.band.outside_value)
-            .apply(&image)?;
+            .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied threshold-above (threshold={}, outside={}) to {} -> {}",
@@ -167,15 +185,24 @@ pub(super) fn run_threshold_above(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
     use ritk_filter::ThresholdImageFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "threshold-outside requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filtered = ThresholdImageFilter::outside(
         args.band.lower_threshold,
         args.band.upper_threshold,
         args.band.outside_value,
     )
-    .apply(&image)?;
+    .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied threshold-outside ([{},{}], outside={}) to {} -> {}",
