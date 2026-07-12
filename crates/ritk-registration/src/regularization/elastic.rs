@@ -25,8 +25,8 @@
 //! - Modern variants: Hyperelastic (volume-preserving) formulations
 
 use super::trait_::Regularizer;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
+use coeus_tensor::Tensor;
 
 /// Elastic regularizer combining membrane and volume-preserving terms.
 ///
@@ -44,12 +44,13 @@ use ritk_image::tensor::Tensor;
 ///
 /// ```rust,ignore
 /// use ritk_registration::regularization::ElasticRegularizer;
-/// use ritk_image::tensor::Tensor;
+/// use ritk_registration::regularization::Regularizer;
+/// use coeus_tensor::Tensor;
 ///
 /// // Create hyperelastic regularizer
 /// let reg = ElasticRegularizer::hyperelastic(0.1, 0.01);
-/// let displacement = Tensor::zeros([1, 2, 64, 64], &device);
-/// let loss = reg.compute_loss::<4>(displacement);
+/// let displacement: Tensor<f32, _> = Tensor::zeros([1, 2, 64, 64]);
+/// let loss = reg.compute_loss(&displacement);
 /// ```
 #[derive(Clone, Debug)]
 pub struct ElasticRegularizer {
@@ -96,8 +97,13 @@ impl Default for ElasticRegularizer {
     }
 }
 
-impl<B: Backend> Regularizer<B> for ElasticRegularizer {
-    fn compute_loss<const D: usize>(&self, displacement: Tensor<B, D>) -> Tensor<B, 1> {
+impl<T, B> Regularizer<T, B> for ElasticRegularizer
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    fn compute_loss(&self, displacement: &Tensor<T, B>) -> T {
         super::dispatch::dispatch_elastic(displacement, self.alpha, self.beta)
     }
 
