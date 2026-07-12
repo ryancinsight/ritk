@@ -1,7 +1,13 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use tracing::info;
 
-use super::{read_image, write_image_inferred, Backend, FilterArgs};
+use super::{
+    super::{
+        infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
+        write_image_native, NativeBackend,
+    },
+    read_image, write_image_inferred, Backend, FilterArgs,
+};
 
 // ── Gaussian filter ───────────────────────────────────────────────────────────
 /// Apply a Gaussian smoothing filter to the input image and write the result.
@@ -14,20 +20,29 @@ pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GaussianSigma;
 
     let sigma = args.smoothing.sigma;
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "gaussian requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
 
     // sigma ≤ 0 is documented as a no-op at the CLI level; skip the filter
     // and return the image unmodified rather than constructing a near-zero sigma.
     let filtered = if sigma > 0.0 {
         let sigma = GaussianSigma::new(sigma)
             .ok_or_else(|| anyhow::anyhow!("--sigma must be > 0, got {}", sigma))?;
-        let filter: GaussianFilter<Backend> = GaussianFilter::new(vec![sigma; 3]);
-        filter.apply(&image)
+        let filter = GaussianFilter::<Backend>::new(vec![sigma; 3]);
+        filter.apply_native(&image, &backend)?
     } else {
         image
     };
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied gaussian (\u{03c3}={}) to {} \u{2192} {}",
