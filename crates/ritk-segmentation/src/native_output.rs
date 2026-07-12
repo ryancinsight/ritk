@@ -1,11 +1,11 @@
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image;
 
-pub(super) fn from_values<B>(
-    source: &Image<f32, B, 3>,
+pub(crate) fn from_values<B, const D: usize>(
+    source: &Image<f32, B, D>,
     values: Vec<f32>,
     backend: &B,
-) -> anyhow::Result<Image<f32, B, 3>>
+) -> anyhow::Result<Image<f32, B, D>>
 where
     B: ComputeBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,

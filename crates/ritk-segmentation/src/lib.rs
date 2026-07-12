@@ -20,7 +20,7 @@ pub mod ensemble;
 pub mod labeling;
 pub mod level_set;
 pub mod morphology;
-pub mod native;
+mod native_output;
 pub mod region_growing;
 pub mod threshold;
 pub mod watershed;

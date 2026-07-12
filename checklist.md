@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-640-01 — Native connected-component family
+**Target version**: 0.14.0 migration batch
+- [x] Add filter-owned native connected-component and relabel methods.
+- [x] Privatize filter configuration and expose canonical accessors.
+- [x] Migrate CLI and Snap consumers; delete the root native module.
+- [x] Add exact native/legacy and CLI boundary regressions.
+- [x] Run package gates, review, commit, and push.
+
 ## MIG-639-01 — Native region-growing family
 **Target version**: 0.14.0 migration batch
 - [x] Add filter-owned native methods over the three canonical flat kernels.

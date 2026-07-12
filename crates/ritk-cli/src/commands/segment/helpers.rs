@@ -1,6 +1,28 @@
 use anyhow::{anyhow, Context, Result};
 
-use super::super::Backend;
+use super::super::{
+    infer_format, is_native_read_capable, is_native_write_capable, read_image_native, Backend,
+    NativeBackend,
+};
+
+pub(crate) fn read_native_input(
+    input: &std::path::Path,
+    output: &std::path::Path,
+    operation: &str,
+) -> Result<(
+    ritk_image::native::Image<f32, NativeBackend, 3>,
+    ritk_io::ImageFormat,
+)> {
+    let input_format = infer_format(input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", input.display()))?;
+    let output_format = infer_format(output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "{operation} requires native input/output formats"
+    );
+    Ok((read_image_native(input)?, output_format))
+}
 
 /// Parse a `"Z,Y,X"` string into a `[usize; 3]` seed voxel index.
 ///

@@ -11,25 +11,7 @@ use super::super::{
     write_image_native, NativeBackend,
 };
 use super::args::SegmentArgs;
-
-/// Validate native threshold I/O formats and read the input image once.
-fn read_native_threshold_input(
-    args: &SegmentArgs,
-    operation: &str,
-) -> Result<(
-    ritk_image::native::Image<f32, NativeBackend, 3>,
-    ritk_io::ImageFormat,
-)> {
-    let input_format = infer_format(&args.input)
-        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
-    let output_format = infer_format(&args.output)
-        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
-        "{operation} requires native input/output formats"
-    );
-    Ok((read_image_native(&args.input)?, output_format))
-}
+use super::helpers::read_native_input;
 
 /// Apply one automatic-threshold strategy through the shared native boundary.
 ///
@@ -41,7 +23,8 @@ fn apply_auto_threshold_native<A: AutoThreshold>(
     args: &SegmentArgs,
     algorithm: &A,
 ) -> Result<(f32, usize)> {
-    let (image, output_format) = read_native_threshold_input(args, "automatic thresholding")?;
+    let (image, output_format) =
+        read_native_input(&args.input, &args.output, "automatic thresholding")?;
     let backend = NativeBackend::default();
     let (mask, threshold) = algorithm.apply_native_with_threshold(&image, &backend)?;
     let foreground = mask
@@ -106,7 +89,7 @@ pub(super) fn run_multi_otsu(args: &SegmentArgs) -> Result<()> {
         ));
     }
 
-    let (image, output_format) = read_native_threshold_input(args, "multi-otsu")?;
+    let (image, output_format) = read_native_input(&args.input, &args.output, "multi-otsu")?;
     let backend = NativeBackend::default();
     let (labeled, thresholds) =
         MultiOtsuThreshold::new(args.classes).apply_native_with_thresholds(&image, &backend)?;

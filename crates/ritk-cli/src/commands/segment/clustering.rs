@@ -6,9 +6,9 @@ use ritk_segmentation::{
     MorphologicalOperation, Skeletonization,
 };
 
-use super::super::{read_image, write_image_inferred};
+use super::super::{read_image, write_image_inferred, write_image_native, NativeBackend};
 use super::args::SegmentArgs;
-use super::helpers::count_foreground;
+use super::helpers::{count_foreground, read_native_input};
 
 // ── K-Means clustering ────────────────────────────────────────────────────────
 
@@ -132,15 +132,17 @@ pub(super) fn run_morphological_gradient(args: &SegmentArgs) -> Result<()> {
 // -- Connected components -------------------------------------------------
 
 pub(super) fn run_connected_components(args: &SegmentArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let mut filter = ConnectedComponentsFilter::new();
-    filter.connectivity = if args.connectivity == 6 {
+    let (image, output_format) =
+        read_native_input(&args.input, &args.output, "connected-components")?;
+    let connectivity = if args.connectivity == 6 {
         ritk_segmentation::labeling::Connectivity::Six
     } else {
         ritk_segmentation::labeling::Connectivity::TwentySix
     };
-    let (labels, stats) = filter.apply(&image);
-    write_image_inferred(&args.output, &labels)?;
+    let backend = NativeBackend::default();
+    let (labels, stats) = ConnectedComponentsFilter::with_connectivity(connectivity)
+        .apply_native(&image, &backend)?;
+    write_image_native(&args.output, &labels, output_format)?;
 
     println!(
         "Labeled {}: connected-components found {} components (connectivity={})",

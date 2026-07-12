@@ -25,7 +25,9 @@ fn flat(img: &Image<B, 3>) -> Vec<f32> {
 fn single_component_identity() {
     // 2×1×1 image: both voxels are component 1.
     let img = make_label_image(vec![1.0, 1.0], [2, 1, 1]);
-    let (out, stats) = RelabelComponentFilter::new().apply(&img);
+    let (out, stats) = RelabelComponentFilter::new()
+        .apply(&img)
+        .expect("valid labels");
     assert_eq!(flat(&out), vec![1.0, 1.0]);
     assert_eq!(stats.len(), 1);
     assert_eq!(stats[0].new_label, 1);
@@ -46,7 +48,9 @@ fn three_components_sorted_descending() {
     let n = vals.len();
     let img = make_label_image(vals.clone(), [1, 1, n]);
 
-    let (out, stats) = RelabelComponentFilter::new().apply(&img);
+    let (out, stats) = RelabelComponentFilter::new()
+        .apply(&img)
+        .expect("valid labels");
     let out_flat = flat(&out);
 
     // stats should be sorted by descending count: 15, 5, 3.
@@ -85,7 +89,9 @@ fn minimum_object_size_removes_small() {
     let n = vals.len();
     let img = make_label_image(vals, [1, 1, n]);
 
-    let (out, stats) = RelabelComponentFilter::with_minimum_object_size(5).apply(&img);
+    let (out, stats) = RelabelComponentFilter::with_minimum_object_size(5)
+        .apply(&img)
+        .expect("valid labels");
     let out_flat = flat(&out);
 
     // Only the large component survives as label 1.
@@ -106,7 +112,9 @@ fn all_below_threshold_gives_all_zero() {
     let vals: Vec<f32> = (1..=4).map(|v| v as f32).collect(); // labels 1,2,3,4 each with 1 voxel
     let img = make_label_image(vals, [1, 1, 4]);
 
-    let (out, stats) = RelabelComponentFilter::with_minimum_object_size(2).apply(&img);
+    let (out, stats) = RelabelComponentFilter::with_minimum_object_size(2)
+        .apply(&img)
+        .expect("valid labels");
 
     assert!(stats.is_empty());
     assert!(flat(&out).iter().all(|&v| v == 0.0));
@@ -119,7 +127,9 @@ fn background_preserved() {
     let vals = vec![0.0, 1.0, 0.0, 1.0, 0.0];
     let img = make_label_image(vals, [1, 1, 5]);
 
-    let (out, stats) = RelabelComponentFilter::new().apply(&img);
+    let (out, stats) = RelabelComponentFilter::new()
+        .apply(&img)
+        .expect("valid labels");
     let out_flat = flat(&out);
 
     assert_eq!(stats.len(), 1);
@@ -130,7 +140,9 @@ fn background_preserved() {
 #[test]
 fn all_background_produces_empty_stats() {
     let img = make_label_image(vec![0.0, 0.0, 0.0], [1, 1, 3]);
-    let (out, stats) = RelabelComponentFilter::new().apply(&img);
+    let (out, stats) = RelabelComponentFilter::new()
+        .apply(&img)
+        .expect("valid labels");
     assert!(stats.is_empty());
     assert_eq!(flat(&out), vec![0.0, 0.0, 0.0]);
 }
@@ -150,7 +162,9 @@ fn spatial_metadata_preserved() {
     );
     let img = Image::new(tensor, origin, spacing, direction);
 
-    let (out, _) = RelabelComponentFilter::new().apply(&img);
+    let (out, _) = RelabelComponentFilter::new()
+        .apply(&img)
+        .expect("valid labels");
 
     assert_eq!(*out.origin(), origin);
     assert_eq!(*out.spacing(), spacing);
@@ -166,7 +180,9 @@ fn equal_size_tiebreak_by_label() {
     let vals = vec![1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0];
     let img = make_label_image(vals, [1, 1, 8]);
 
-    let (out, stats) = RelabelComponentFilter::new().apply(&img);
+    let (out, stats) = RelabelComponentFilter::new()
+        .apply(&img)
+        .expect("valid labels");
 
     // Tie-break: label 1 comes first (ascending original label).
     assert_eq!(stats[0].original_label, 1);
@@ -185,7 +201,9 @@ fn minimum_object_size_one_retains_all() {
     let vals = vec![1.0, 2.0, 3.0]; // three single-voxel components
     let img = make_label_image(vals, [1, 1, 3]);
 
-    let (_, stats) = RelabelComponentFilter::with_minimum_object_size(1).apply(&img);
+    let (_, stats) = RelabelComponentFilter::with_minimum_object_size(1)
+        .apply(&img)
+        .expect("valid labels");
     assert_eq!(stats.len(), 3);
     assert!(stats.iter().all(|s| s.new_label > 0));
 }

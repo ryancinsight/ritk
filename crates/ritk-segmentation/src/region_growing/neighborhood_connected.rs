@@ -175,7 +175,7 @@ impl NeighborhoodConnectedFilter {
             self.seed.as_array(),
             shape
         );
-        super::native_output::from_values(
+        crate::native_output::from_values(
             image,
             grow_neighborhood(
                 image.data_slice()?,

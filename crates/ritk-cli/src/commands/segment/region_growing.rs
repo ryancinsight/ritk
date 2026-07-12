@@ -5,12 +5,9 @@ use ritk_segmentation::{
     ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter,
 };
 
-use super::super::{
-    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-    write_image_native, NativeBackend,
-};
+use super::super::{write_image_native, NativeBackend};
 use super::args::SegmentArgs;
-use super::helpers::parse_seed;
+use super::helpers::{parse_seed, read_native_input};
 
 struct NativeRegionInput {
     image: ritk_image::native::Image<f32, NativeBackend, 3>,
@@ -43,15 +40,7 @@ fn read_native_region_input(args: &SegmentArgs, method: &str) -> Result<NativeRe
     let seed = parse_seed(seed_text).with_context(|| {
         format!("Failed to parse --seed '{seed_text}' for {method} (expected Z,Y,X integer format)")
     })?;
-    let input_format = infer_format(&args.input)
-        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
-    let output_format = infer_format(&args.output)
-        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
-        "{method} requires native input/output formats"
-    );
-    let image = read_image_native(&args.input)?;
+    let (image, output_format) = read_native_input(&args.input, &args.output, method)?;
     let shape = image.shape();
     anyhow::ensure!(
         seed[0] < shape[0] && seed[1] < shape[1] && seed[2] < shape[2],

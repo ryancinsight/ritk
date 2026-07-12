@@ -104,19 +104,16 @@ impl SnapApp {
                             ritk_segmentation::labeling::Connectivity::TwentySix
                         }
                     };
-                    let filter = ConnectedComponentsFilter::with_connectivity(seg_connectivity)
-                        .with_background(*background_value);
-                    let (label_image, _stats) = filter.apply(&image);
-                    Ok(label_image)
+                    ConnectedComponentsFilter::with_connectivity(seg_connectivity)
+                        .with_background(*background_value)
+                        .map(|filter| filter.apply(&image).0)
                 }
                 crate::FilterKind::RelabelComponents {
                     minimum_object_size,
                 } => {
-                    let (relabeled, _stats) = RelabelComponentFilter::with_minimum_object_size(
-                        *minimum_object_size as usize,
-                    )
-                    .apply(&image);
-                    Ok(relabeled)
+                    RelabelComponentFilter::with_minimum_object_size(*minimum_object_size as usize)
+                        .apply(&image)
+                        .map(|(relabeled, _stats)| relabeled)
                 }
                 crate::FilterKind::MultiOtsuThreshold { num_classes } => {
                     Ok(MultiOtsuThreshold::new(*num_classes as usize).apply(&image))

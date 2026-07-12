@@ -87,7 +87,7 @@ impl ConnectedThresholdFilter {
             self.seed.as_array(),
             shape
         );
-        super::native_output::from_values(
+        crate::native_output::from_values(
             image,
             flood_fill(
                 image.data_slice()?,

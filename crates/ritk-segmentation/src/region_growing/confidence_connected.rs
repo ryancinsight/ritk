@@ -182,7 +182,7 @@ impl ConfidenceConnectedFilter {
             self.seed.as_array(),
             shape
         );
-        super::native_output::from_values(
+        crate::native_output::from_values(
             image,
             grow_region(
                 image.data_slice()?,

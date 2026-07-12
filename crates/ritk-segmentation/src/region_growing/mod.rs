@@ -14,7 +14,6 @@ pub mod connected_threshold;
 pub mod growcut;
 mod intensity;
 pub mod isolated_connected;
-mod native_output;
 #[doc(hidden)]
 pub mod neighborhood_connected;
 pub mod vector_confidence_connected;

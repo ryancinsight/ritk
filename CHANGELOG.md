@@ -8,6 +8,27 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 640: Native connected-component family (MIG-640-01)
+### Breaking
+- Remove `ritk_segmentation::native`; connected-component labeling and
+  relabeling now use `ConnectedComponentsFilter::apply_native` and
+  `RelabelComponentFilter::apply_native`.
+- Connected-component and relabel filter configuration fields are private. Use
+  their constructors, builders, and read-only accessors.
+- `ConnectedComponentsFilter::with_background` and
+  `RelabelComponentFilter::apply` now return `Result`; non-finite background
+  values and invalid label samples are rejected without panicking.
+
+### Changed
+- The connected-components CLI route now performs native image I/O and calls
+  the canonical filter-owned Coeus path.
+- Segmentation native output reconstruction and CLI native format validation
+  each have one shared implementation across operation families.
+- RITK Snap consumes the canonical connected-component filter types.
+- Relabeling validates finite, non-negative, integer labels in the exact `f32`
+  integer range and uses a sparse remap, preventing input-driven allocation from
+  large sparse label IDs.
+
 ## [Unreleased] — Sprint 639: Native region-growing family (MIG-639-01)
 ### Breaking
 - `ritk segment --method connected-threshold|confidence-connected|neighborhood-connected`

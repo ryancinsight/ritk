@@ -2706,6 +2706,15 @@ def test_confidence_connected_rejects_nan_bound():
         )
 
 
+@pytest.mark.parametrize(
+    "label", [float("nan"), float("inf"), float("-inf"), -1.0, 1.5, 4294967296.0]
+)
+def test_relabel_components_rejects_invalid_labels(label):
+    image = _ritk(np.full((2, 2, 2), label, dtype=np.float32))
+    with pytest.raises(ValueError, match="label values must be finite non-negative integers"):
+        ritk.segmentation.relabel_components(image)
+
+
 def test_neighborhood_connected_segment_recovers_sphere():
     """Neighborhood-connected region growing recovers the sphere.
 

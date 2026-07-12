@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-640-01 [major] - Native connected-component family (DONE).** Canonical labeling filters own validated Coeus-native execution, CLI/Snap/PyO3 propagate typed errors, sparse relabeling prevents input-driven allocation, and the exhausted root-native module is deleted.
+
 - **MIG-639-01 [major] - Native region-growing family (DONE).** Connected, confidence, and neighborhood filters own native execution; configuration is private and validated, CLI validation/I/O is shared, Snap uses the canonical types, and duplicate root-native wrappers are deleted.
 
 - **MIG-638-01 [major] - Native threshold boundary consolidation (DONE).** Obsolete standalone binary/Multi-Otsu wrappers, their duplicate tests, and the now-dead label helper are deleted; canonical threshold types are the sole native execution owners.

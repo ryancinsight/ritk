@@ -29,10 +29,9 @@ use ritk_filter::{
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
-    labeling::Connectivity as SegmentationConnectivity,
-    native::{connected_components, relabel_components},
-    BinaryThreshold, ConfidenceConnectedFilter, ConnectedThresholdFilter, MultiOtsuThreshold,
-    NeighborhoodConnectedFilter,
+    labeling::Connectivity as SegmentationConnectivity, BinaryThreshold, ConfidenceConnectedFilter,
+    ConnectedComponentsFilter, ConnectedThresholdFilter, MultiOtsuThreshold,
+    NeighborhoodConnectedFilter, RelabelComponentFilter,
 };
 use ritk_spatial::{Direction, Point, Spacing};
 use std::ops::Deref;
@@ -439,12 +438,15 @@ fn apply_supported_filter(
                 ritk_filter::Connectivity::Face6 => SegmentationConnectivity::Six,
                 ritk_filter::Connectivity::Vertex26 => SegmentationConnectivity::TwentySix,
             };
-            connected_components(&image, connectivity, *background_value, &backend)
+            ConnectedComponentsFilter::with_connectivity(connectivity)
+                .with_background(*background_value)
+                .and_then(|filter| filter.apply_native(&image, &backend))
                 .map(|(labels, _statistics)| labels)
         }
         FilterKind::RelabelComponents {
             minimum_object_size,
-        } => relabel_components(&image, *minimum_object_size as usize, &backend)
+        } => RelabelComponentFilter::with_minimum_object_size(*minimum_object_size as usize)
+            .apply_native(&image, &backend)
             .map(|(labels, _statistics)| labels),
         FilterKind::MultiOtsuThreshold { num_classes } => {
             MultiOtsuThreshold::new(*num_classes as usize).apply_native(&image, &backend)

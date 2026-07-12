@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## MIG-640-01 audit (2026-07-12)
+
+The final two functions in `ritk_segmentation::native` duplicated canonical
+connected-component and relabel flat kernels. Their filter owners now expose
+Coeus-native methods; CLI and Snap consume those methods, the exhausted native
+module is deleted, and native image reconstruction is shared with region
+growing. Exact native/legacy tests pin label values, statistics, and geometry.
+Relabel validation rejects NaN, infinities, negatives, fractions, and labels
+outside the exact `f32` integer range before allocation; a sparse-map regression
+pins the maximum exact label. Connected-component tests pin the ITK equality
+contract in which non-finite mask samples are foreground under a finite
+background, while non-finite configured background values are rejected.
+Built-wheel PyO3 tests verify all invalid label classes raise `ValueError`.
+Evidence is differential and empirical; no machine-checked proof of the
+Hoshen-Kopelman invariants was performed.
+
 ## MIG-639-01 audit (2026-07-12)
 
 Connected-threshold, confidence-connected, and neighborhood-connected filters
