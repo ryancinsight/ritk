@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 620: Native CLI curvature diffusion (MIG-620-01)
+### Breaking
+- `ritk filter --filter curvature` requires native input and output formats.
+
 ## [Unreleased] — Sprint 619: Native CLI Gaussian smoothing (MIG-619-01)
 ### Breaking
 - `ritk filter --filter gaussian` requires native input and output formats.

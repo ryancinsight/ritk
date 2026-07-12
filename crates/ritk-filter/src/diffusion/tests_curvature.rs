@@ -1,6 +1,9 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
@@ -38,6 +41,42 @@ fn test_constant_image_unchanged() {
     assert!(
         max_diff < 1e-5,
         "constant image must be unchanged; max diff = {max_diff}"
+    );
+}
+
+#[test]
+fn native_curvature_preserves_geometry_and_matches_kernel() {
+    let dimensions = [2, 3, 4];
+    let values: Vec<f32> = (0..24).map(|index| index as f32 * 0.25).collect();
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let image = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let config = CurvatureConfig {
+        num_iterations: 2,
+        time_step: 1.0 / 16.0,
+        conductance: 3.0,
+    };
+
+    let output = CurvatureAnisotropicDiffusionFilter::new(config.clone())
+        .apply_native(&image, &SequentialBackend)
+        .expect("native curvature succeeds");
+
+    assert_eq!(output.shape(), dimensions);
+    assert_eq!(*output.origin(), origin);
+    assert_eq!(*output.spacing(), spacing);
+    assert_eq!(*output.direction(), direction);
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        curvature_diffuse(&values, dimensions, [0.5, 1.0, 2.0], &config)
     );
 }
 

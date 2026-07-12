@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-620-01 [major] - Native CLI curvature diffusion (DONE).** Curvature
+  anisotropic diffusion now owns a Coeus-native provider boundary; the CLI
+  reads, computes, and writes native images end to end.
+
 - **MIG-619-01 [major] - Native CLI Gaussian smoothing (DONE).** Gaussian
   filtering and the sigma-zero no-op now use native image boundaries.
 

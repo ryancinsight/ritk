@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-620-01 — Native CLI curvature diffusion
+**Target version**: 0.14.0 migration batch
+- [x] Expose curvature anisotropic diffusion through a Coeus-native image boundary.
+- [x] Route the CLI and output regression through native image I/O.
+
 ## MIG-619-01 — Native CLI Gaussian smoothing
 **Target version**: 0.14.0 migration batch
 - [x] Route Gaussian and sigma-zero no-op through native I/O.

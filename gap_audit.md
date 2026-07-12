@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-620-01 audit (2026-07-11)
+
+Curvature anisotropic diffusion now owns a native provider contract with a
+metadata-preserving native regression. The CLI no longer crosses the legacy
+tensor boundary for this route.
+
 ## MIG-619-01 audit (2026-07-11)
 
 Gaussian smoothing and its sigma-zero no-op now invoke the native provider at

@@ -136,7 +136,16 @@ pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_curvature(args: &FilterArgs) -> Result<()> {
     use ritk_filter::diffusion::{CurvatureAnisotropicDiffusionFilter, CurvatureConfig};
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "curvature requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
 
     let config = CurvatureConfig {
         num_iterations: args.diffusion.iterations,
@@ -144,9 +153,9 @@ pub(super) fn run_curvature(args: &FilterArgs) -> Result<()> {
         conductance: args.diffusion.conductance as f32,
     };
     let filter = CurvatureAnisotropicDiffusionFilter::new(config);
-    let filtered = filter.apply(&image)?;
+    let filtered = filter.apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied curvature (iters={}, dt={}) to {} -> {}",
@@ -380,10 +389,9 @@ mod tests {
 
         let mut args = default_args(input, output.clone(), FilterKind::Curvature);
         args.diffusion.iterations = 3;
-        let result = run_curvature(&args);
-        assert!(result.is_ok(), "curvature must succeed: {:?}", result.err());
-        assert!(output.exists(), "curvature must write output file");
-        let out_img = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        run_curvature(&args).expect("curvature must succeed");
+        let out_img = crate::commands::read_image_native(&output)
+            .expect("curvature output must be natively readable");
         assert_eq!(out_img.shape(), [5, 5, 5], "output shape must match input");
     }
 
