@@ -14,7 +14,16 @@ use super::{
 pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
     use ritk_filter::{BedSeparationConfig, BedSeparationFilter};
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "bed-separation requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
 
     let config = BedSeparationConfig {
         body_threshold: args.bed.body_threshold,
@@ -23,9 +32,9 @@ pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
         outside_value: args.bed.outside_value,
         ..Default::default()
     };
-    let filtered = BedSeparationFilter::new(config).apply(&image)?;
+    let filtered = BedSeparationFilter::new(config).apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied bed-separation (body_threshold={}, closing_radius={}, opening_radius={}, outside={}) to {} -> {}",
