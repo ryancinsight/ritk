@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-619-01 [major] - Native CLI Gaussian smoothing (DONE).** Gaussian
+  filtering and the sigma-zero no-op now use native image boundaries.
+
 - **MIG-618-01 [major] - Native CLI bed separation (DONE).** Bed separation
   now uses native provider and I/O boundaries.
 

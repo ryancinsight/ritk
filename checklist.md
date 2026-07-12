@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-619-01 — Native CLI Gaussian smoothing
+**Target version**: 0.14.0 migration batch
+- [x] Route Gaussian and sigma-zero no-op through native I/O.
+
 ## MIG-618-01 — Native CLI bed separation
 **Target version**: 0.14.0 migration batch
 - [x] Route bed separation through native provider and I/O.
