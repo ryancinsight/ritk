@@ -8,6 +8,12 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-638-01 — Native threshold boundary consolidation
+**Target version**: 0.14.0 migration batch
+- [x] Delete standalone native binary/Multi-Otsu wrappers and duplicate tests.
+- [x] Verify zero call sites and canonical type-owned native coverage.
+- [x] Run focused package gates, review, commit, and push.
+
 ## MIG-637-01 — Native Multi-Otsu thresholding
 **Target version**: 0.14.0 migration batch
 - [x] Align Multi-Otsu extrema, normalization, and labels with the finite-sample SSOT.

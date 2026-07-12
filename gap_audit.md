@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## MIG-638-01 audit (2026-07-12)
+
+Standalone `native::{binary_threshold,multi_otsu}` wrappers duplicated the
+canonical type methods added by MIG-635/MIG-637. They had no production callers
+and are deleted with their duplicate tests and the dead Multi-Otsu label helper.
+Static call-site search plus canonical threshold regression suites provide
+structural and differential evidence; no compatibility aliases remain.
+
 ## MIG-637-01 audit (2026-07-12)
 
 Multi-Otsu now reuses the finite-extrema and histogram SSOT, normalizes by the

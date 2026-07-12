@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 638: Native threshold boundary consolidation (MIG-638-01)
+### Breaking
+- Remove `ritk_segmentation::native::{binary_threshold,multi_otsu}`. Use
+  `BinaryThreshold::{apply_native}` and
+  `MultiOtsuThreshold::{apply_native,apply_native_with_thresholds}`.
+
+### Removed
+- Duplicate native threshold wrappers, duplicate wrapper tests, and the dead
+  Multi-Otsu label helper are deleted; threshold types remain the SSOT.
+
 ## [Unreleased] — Sprint 637: Native Multi-Otsu thresholding (MIG-637-01)
 ### Breaking
 - `ritk segment --method multi-otsu` requires native input and output formats.

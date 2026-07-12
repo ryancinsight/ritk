@@ -271,15 +271,6 @@ pub fn compute_multi_otsu_thresholds_from_slice(
         .collect()
 }
 
-/// Assign Multi-Otsu class labels directly from a flat value slice.
-pub(crate) fn apply_multi_otsu_to_slice(
-    slice: &[f32],
-    num_classes: usize,
-    num_bins: usize,
-) -> Vec<f32> {
-    multi_otsu_labels_from_slice(slice, num_classes, num_bins).1
-}
-
 fn multi_otsu_labels_from_slice(
     slice: &[f32],
     num_classes: usize,

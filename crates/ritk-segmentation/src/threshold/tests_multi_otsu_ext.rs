@@ -103,7 +103,7 @@ fn slice_thresholds_reject_invalid_bin_count() {
 fn assert_class_bin_boundary(num_classes: usize, num_bins: usize) {
     let values: Vec<f32> = (0..num_bins).map(|value| value as f32).collect();
     let thresholds = compute_multi_otsu_thresholds_from_slice(&values, num_classes, num_bins);
-    let labels = apply_multi_otsu_to_slice(&values, num_classes, num_bins);
+    let labels = multi_otsu_labels_from_slice(&values, num_classes, num_bins).1;
 
     assert_eq!(thresholds.len(), num_classes - 1);
     assert!(thresholds.windows(2).all(|pair| pair[0] < pair[1]));

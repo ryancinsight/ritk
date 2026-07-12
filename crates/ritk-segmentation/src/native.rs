@@ -11,52 +11,7 @@ use crate::labeling::{
 use crate::region_growing::confidence_connected::grow_region;
 use crate::region_growing::connected_threshold::flood_fill;
 use crate::region_growing::neighborhood_connected::grow_neighborhood;
-use crate::threshold::apply_binary_threshold_to_slice;
-use crate::threshold::multi_otsu::apply_multi_otsu_to_slice;
 use ritk_core::spatial::VoxelIndex;
-
-/// Apply an inclusive binary threshold to a Coeus-backed image.
-pub fn binary_threshold<B, const D: usize>(
-    image: &Image<f32, B, D>,
-    lower: f32,
-    upper: f32,
-    inside_value: f32,
-    outside_value: f32,
-    backend: &B,
-) -> Result<Image<f32, B, D>>
-where
-    B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
-    assert!(
-        lower <= upper,
-        "lower bound {lower} must be <= upper bound {upper}"
-    );
-    assert!(
-        inside_value.is_finite(),
-        "inside_value must be finite, got {inside_value}"
-    );
-    assert!(
-        outside_value.is_finite(),
-        "outside_value must be finite, got {outside_value}"
-    );
-
-    let output = apply_binary_threshold_to_slice(
-        image.data_slice()?,
-        lower,
-        upper,
-        inside_value,
-        outside_value,
-    );
-    Image::from_flat_on(
-        output,
-        image.shape(),
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-        backend,
-    )
-}
 
 /// Label connected foreground components in a Coeus-backed 3-D image.
 pub fn connected_components<B>(
@@ -103,28 +58,6 @@ where
         backend,
     )?;
     Ok((image, statistics))
-}
-
-/// Segment a Coeus-backed image with Multi-Otsu class labels.
-pub fn multi_otsu<B, const D: usize>(
-    image: &Image<f32, B, D>,
-    num_classes: usize,
-    num_bins: usize,
-    backend: &B,
-) -> Result<Image<f32, B, D>>
-where
-    B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
-    let output = apply_multi_otsu_to_slice(image.data_slice()?, num_classes, num_bins);
-    Image::from_flat_on(
-        output,
-        image.shape(),
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-        backend,
-    )
 }
 
 /// Grow a six-connected threshold region on a Coeus-backed image.
@@ -237,18 +170,6 @@ mod tests {
     }
 
     #[test]
-    fn threshold_preserves_values_shape_and_metadata() {
-        let source = image(vec![-1.0, 0.0, 50.0, 100.0, 101.0], [1, 1, 5]);
-        let result = binary_threshold(&source, 0.0, 100.0, 1.0, 0.0, &SequentialBackend).unwrap();
-
-        assert_eq!(result.data_slice().unwrap(), &[0.0, 1.0, 1.0, 1.0, 0.0]);
-        assert_eq!(result.shape(), source.shape());
-        assert_eq!(result.origin(), source.origin());
-        assert_eq!(result.spacing(), source.spacing());
-        assert_eq!(result.direction(), source.direction());
-    }
-
-    #[test]
     fn connected_components_reports_exact_labels_and_counts() {
         let source = image(vec![1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0], [2, 2, 2]);
         let (labels, stats) =
@@ -281,21 +202,6 @@ mod tests {
         assert_eq!(statistics[1].original_label, 1);
         assert_eq!(statistics[1].new_label, 2);
         assert_eq!(statistics[1].voxel_count, 2);
-        assert_eq!(output.shape(), source.shape());
-        assert_eq!(output.origin(), source.origin());
-        assert_eq!(output.spacing(), source.spacing());
-        assert_eq!(output.direction(), source.direction());
-    }
-
-    #[test]
-    fn multi_otsu_assigns_ordered_classes_and_preserves_metadata() {
-        let source = image(vec![0.0, 0.0, 10.0, 10.0, 100.0, 100.0], [1, 1, 6]);
-        let output = multi_otsu(&source, 3, 256, &SequentialBackend).unwrap();
-
-        assert_eq!(
-            output.data_slice().unwrap(),
-            &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0]
-        );
         assert_eq!(output.shape(), source.shape());
         assert_eq!(output.origin(), source.origin());
         assert_eq!(output.spacing(), source.spacing());
