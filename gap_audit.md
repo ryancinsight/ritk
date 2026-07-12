@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-621-01 audit (2026-07-11)
+
+The generic Perona-Malik provider now accepts native images while retaining its
+compile-time conductance strategy. The CLI's exponential route no longer crosses
+the legacy tensor boundary.
+
 ## MIG-620-01 audit (2026-07-11)
 
 Curvature anisotropic diffusion now owns a native provider contract with a

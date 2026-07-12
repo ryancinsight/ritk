@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-621-01 [major] - Native CLI anisotropic diffusion (DONE).** Perona-Malik
+  anisotropic diffusion now owns a Coeus-native provider boundary and the CLI
+  reads, computes, and writes native images end to end.
+
 - **MIG-620-01 [major] - Native CLI curvature diffusion (DONE).** Curvature
   anisotropic diffusion now owns a Coeus-native provider boundary; the CLI
   reads, computes, and writes native images end to end.

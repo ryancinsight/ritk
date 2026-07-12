@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 621: Native CLI anisotropic diffusion (MIG-621-01)
+### Breaking
+- `ritk filter --filter anisotropic` requires native input and output formats.
+
 ## [Unreleased] — Sprint 620: Native CLI curvature diffusion (MIG-620-01)
 ### Breaking
 - `ritk filter --filter curvature` requires native input and output formats.

@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-621-01 — Native CLI anisotropic diffusion
+**Target version**: 0.14.0 migration batch
+- [x] Expose generic Perona-Malik diffusion through a Coeus-native image boundary.
+- [x] Route the exponential CLI path and output regression through native image I/O.
+
 ## MIG-620-01 — Native CLI curvature diffusion
 **Target version**: 0.14.0 migration batch
 - [x] Expose curvature anisotropic diffusion through a Coeus-native image boundary.

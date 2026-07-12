@@ -101,7 +101,16 @@ pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
     use ritk_filter::AnisotropicDiffusionFilter;
     use ritk_filter::ExponentialConductance;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "anisotropic requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
 
     let config = DiffusionConfig {
         num_iterations: args.diffusion.iterations,
@@ -110,9 +119,9 @@ pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
         function: ConductanceFunction::Exponential,
     };
     let filter = AnisotropicDiffusionFilter::<ExponentialConductance>::new(config);
-    let filtered = filter.apply(&image)?;
+    let filtered = filter.apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied anisotropic (iters={}, K={}) to {} \u{2192} {}",
@@ -370,13 +379,10 @@ mod tests {
 
         let mut args = default_args(input, output.clone(), FilterKind::Anisotropic);
         args.diffusion.iterations = 5;
-        let result = run_anisotropic(&args);
-        assert!(
-            result.is_ok(),
-            "anisotropic must succeed: {:?}",
-            result.err()
-        );
-        assert!(output.exists(), "anisotropic must write output file");
+        run_anisotropic(&args).expect("anisotropic must succeed");
+        let output = crate::commands::read_image_native(&output)
+            .expect("anisotropic output must be natively readable");
+        assert_eq!(output.shape(), [5, 5, 5], "output shape must match input");
     }
 
     #[test]
