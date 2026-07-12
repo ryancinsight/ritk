@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-624-01 [major] - Native CLI N4 bias correction (DONE).** N4 now owns a
+  Coeus-native provider boundary over its existing numerical values provider;
+  the CLI reads, computes, and writes native images end to end.
+
 - **MIG-623-01 [major] - Native CLI Sato vesselness (DONE).** Sato vesselness
   now owns a Coeus-native provider boundary and the CLI reads, computes, and
   writes native images end to end.

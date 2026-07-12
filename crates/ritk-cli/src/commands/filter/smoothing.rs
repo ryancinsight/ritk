@@ -6,7 +6,7 @@ use super::{
         infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
         write_image_native, NativeBackend,
     },
-    read_image, write_image_inferred, Backend, FilterArgs,
+    Backend, FilterArgs,
 };
 
 // ── Gaussian filter ───────────────────────────────────────────────────────────
@@ -65,7 +65,16 @@ pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
     use ritk_filter::bias::N4Config;
     use ritk_filter::N4BiasFieldCorrectionFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "n4-bias requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
 
     let config = N4Config {
         num_fitting_levels: args.diffusion.levels,
@@ -73,9 +82,9 @@ pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
         ..Default::default()
     };
     let filter = N4BiasFieldCorrectionFilter::new(config);
-    let filtered = filter.apply(&image)?;
+    let filtered = filter.apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied n4-bias (levels={}, iters={}) to {} \u{2192} {}",
@@ -381,9 +390,10 @@ mod tests {
         let mut args = default_args(input, output.clone(), FilterKind::N4Bias);
         args.diffusion.levels = 1;
         args.diffusion.iterations = 5;
-        let result = run_n4_bias(&args);
-        assert!(result.is_ok(), "n4-bias must succeed: {:?}", result.err());
-        assert!(output.exists(), "n4-bias must write output file");
+        run_n4_bias(&args).expect("N4 bias correction must succeed");
+        let output = crate::commands::read_image_native(&output)
+            .expect("N4 output must be natively readable");
+        assert_eq!(output.shape(), [5, 5, 5], "output shape must match input");
     }
 
     // ── Positive: anisotropic diffusion creates output file ──────────────

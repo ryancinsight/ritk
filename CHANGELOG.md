@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 624: Native CLI N4 bias correction (MIG-624-01)
+### Breaking
+- `ritk filter --filter n4-bias` requires native input and output formats.
+
 ## [Unreleased] — Sprint 623: Native CLI Sato vesselness (MIG-623-01)
 ### Breaking
 - `ritk filter --filter sato` requires native input and output formats.

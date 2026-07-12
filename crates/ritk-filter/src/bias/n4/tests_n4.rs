@@ -3,9 +3,11 @@
 
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
-use ritk_spatial::VolumeDims;
+use ritk_spatial::{Direction, Point, Spacing, VolumeDims};
 
 type B = NdArray<f32>;
 
@@ -15,6 +17,43 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
 
 fn extract_vals(img: Image<B, 3>) -> Vec<f32> {
     img.data_slice().into_owned()
+}
+
+#[test]
+fn native_n4_preserves_geometry_and_matches_values_provider() {
+    let dimensions = [4, 4, 4];
+    let values: Vec<f32> = (0..64).map(|index| 20.0 + index as f32 * 0.25).collect();
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let image = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let config = N4Config {
+        num_fitting_levels: 1,
+        num_iterations: 1,
+        ..Default::default()
+    };
+
+    let output = N4BiasFieldCorrectionFilter::new(config.clone())
+        .apply_native(&image, &SequentialBackend)
+        .expect("native N4 succeeds");
+
+    assert_eq!(output.shape(), dimensions);
+    assert_eq!(*output.origin(), origin);
+    assert_eq!(*output.spacing(), spacing);
+    assert_eq!(*output.direction(), direction);
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        apply_n4_bias_correction_values(&values, dimensions, &config)
+            .expect("values provider succeeds")
+    );
 }
 
 /// Coefficient of variation (σ/μ) for a subset of voxels identified by indices.

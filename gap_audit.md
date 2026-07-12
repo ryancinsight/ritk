@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-624-01 audit (2026-07-11)
+
+N4 bias correction now delegates its native image boundary directly to the
+existing numerical values provider. The smoothing CLI family has no remaining
+legacy tensor I/O route.
+
 ## MIG-623-01 audit (2026-07-11)
 
 Sato vesselness now owns a native provider contract with direct multiscale
