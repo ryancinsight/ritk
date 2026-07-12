@@ -276,13 +276,9 @@ pub(crate) fn build_histogram(slice: &[f32], num_bins: usize, x_min: f32, x_max:
 /// Returns `0.0` for an empty or all-nonfinite slice and `x_min` for a constant
 /// finite slice. Non-finite samples do not contribute to the histogram.
 pub(crate) fn threshold_from_slice<A: AutoThreshold + ?Sized>(algo: &A, slice: &[f32]) -> f32 {
-    let mut finite = slice.iter().copied().filter(|value| value.is_finite());
-    let Some(first) = finite.next() else {
+    let Some((x_min, x_max, _)) = finite_bounds(slice) else {
         return 0.0;
     };
-    let (x_min, x_max) = finite.fold((first, first), |(minimum, maximum), value| {
-        (minimum.min(value), maximum.max(value))
-    });
 
     // Degenerate: constant image has no separable classes.
     if (x_max - x_min).abs() < f32::EPSILON {
@@ -292,6 +288,17 @@ pub(crate) fn threshold_from_slice<A: AutoThreshold + ?Sized>(algo: &A, slice: &
     let n_bins = algo.num_bins();
     let hist = build_histogram(slice, n_bins, x_min, x_max);
     algo.compute_threshold(&hist, n_bins, x_min, x_max)
+}
+
+/// Return finite minimum, maximum, and sample count without allocating.
+pub(crate) fn finite_bounds(slice: &[f32]) -> Option<(f32, f32, usize)> {
+    let mut finite = slice.iter().copied().filter(|value| value.is_finite());
+    let first = finite.next()?;
+    let (minimum, maximum, additional) = finite.fold(
+        (first, first, 0_usize),
+        |(minimum, maximum, count), value| (minimum.min(value), maximum.max(value), count + 1),
+    );
+    Some((minimum, maximum, additional + 1))
 }
 
 fn threshold_mask_from_slice<A: AutoThreshold + ?Sized>(

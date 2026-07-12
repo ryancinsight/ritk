@@ -102,7 +102,9 @@ fn test_segment_multi_otsu_creates_output_with_correct_shape() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("labels.nii");
 
-    ritk_io::write_nifti(&input, &make_trimodal_image()).unwrap();
+    let fixture = make_trimodal_image();
+    let expected = ritk_segmentation::MultiOtsuThreshold::new(3).apply(&fixture);
+    ritk_io::write_nifti(&input, &fixture).unwrap();
 
     run(default_args(
         input.clone(),
@@ -112,8 +114,16 @@ fn test_segment_multi_otsu_creates_output_with_correct_shape() {
     .unwrap();
 
     assert!(output.exists(), "output label image must be created");
-    let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+    let labels = crate::commands::read_image_native(&output)
+        .expect("Multi-Otsu output is natively readable");
     assert_eq!(labels.shape(), [6, 6, 6], "label shape must match input");
+    assert_eq!(*labels.origin(), *expected.origin());
+    assert_eq!(*labels.spacing(), *expected.spacing());
+    assert_eq!(*labels.direction(), *expected.direction());
+    assert_eq!(
+        labels.data_slice().expect("contiguous native labels"),
+        expected.data_slice().as_ref()
+    );
 }
 
 // ── Positive: Multi-Otsu labels are in valid set ───────────────────────────

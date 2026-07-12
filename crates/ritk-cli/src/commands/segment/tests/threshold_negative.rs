@@ -71,6 +71,23 @@ fn automatic_threshold_rejects_known_nonnative_output_before_io() {
     );
     assert!(!output.exists());
 }
+
+#[test]
+fn multi_otsu_rejects_known_nonnative_input_before_io() {
+    let dir = tempdir().unwrap();
+    let output = dir.path().join("output.nii");
+    let error = run(default_args(
+        dir.path().join("input.vtk"),
+        output.clone(),
+        SegmentMethod::MultiOtsu,
+    ))
+    .expect_err("VTK input lacks native Multi-Otsu support");
+    assert_eq!(
+        error.to_string(),
+        "multi-otsu requires native input/output formats"
+    );
+    assert!(!output.exists());
+}
 #[test]
 fn test_segment_multi_otsu_classes_lt_2_returns_error() {
     let dir = tempdir().unwrap();
@@ -94,6 +111,21 @@ fn test_segment_multi_otsu_classes_lt_2_returns_error() {
         msg.contains("\u{2265} 2"),
         "error must state the minimum class count, got: {msg}"
     );
+}
+
+#[test]
+fn multi_otsu_rejects_classes_above_default_bin_count_before_io() {
+    let dir = tempdir().unwrap();
+    let output = dir.path().join("output.nii");
+    let mut args = default_args(
+        dir.path().join("input.nii"),
+        output.clone(),
+        SegmentMethod::MultiOtsu,
+    );
+    args.classes = 257;
+    let error = run(args).expect_err("classes above bins must be rejected before I/O");
+    assert!(error.to_string().contains("must be ≤ 256"));
+    assert!(!output.exists());
 }
 
 // ── Boundary: parse_seed correct output ───────────────────────────────────

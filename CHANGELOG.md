@@ -8,6 +8,24 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 637: Native Multi-Otsu thresholding (MIG-637-01)
+### Breaking
+- `ritk segment --method multi-otsu` requires native input and output formats.
+- `MultiOtsuThreshold` configuration fields are private. Replace field reads
+  with `num_classes()` and `num_bins()`; construction remains through `new` or
+  `with_bins`.
+
+### Added
+- `MultiOtsuThreshold` provides native threshold computation, label creation,
+  and fused thresholds-plus-labels without duplicate host extraction.
+
+### Changed
+- Multi-Otsu excludes NaN and ±Inf from histogram statistics and assigns their
+  voxels to background class `0.0`, matching the automatic-threshold scaffold.
+- Exact O(K·B²) dynamic programming replaces combinatorial exhaustive search;
+  every boundary now enforces `2 <= classes <= bins` and the non-Otsu evenly
+  spaced fallback is removed.
+
 ## [Unreleased] — Sprint 636: Native automatic-threshold scaffold (MIG-636-01)
 ### Breaking
 - `ritk segment --method otsu|li|yen|kapur|triangle` requires native input and

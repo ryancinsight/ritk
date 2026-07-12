@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-637-01 — Native Multi-Otsu thresholding
+**Target version**: 0.14.0 migration batch
+- [x] Align Multi-Otsu extrema, normalization, and labels with the finite-sample SSOT.
+- [x] Add fused Coeus-native thresholds-plus-labels without duplicate extraction.
+- [x] Route Multi-Otsu CLI through native I/O with exact differential coverage.
+- [x] Verify degenerate and special-value cases, then run package gates.
+
 ## MIG-636-01 — Native automatic-threshold scaffold and CLI family
 **Target version**: 0.14.0 migration batch
 - [x] Add one Coeus-native threshold/mask default implementation to `AutoThreshold`.

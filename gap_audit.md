@@ -8,6 +8,19 @@
 
 # RITK Gap Audit - Active
 
+## MIG-637-01 audit (2026-07-12)
+
+Multi-Otsu now reuses the finite-extrema and histogram SSOT, normalizes by the
+finite sample count, and assigns non-finite voxels to background. Native compute,
+label-only, and fused thresholds-plus-labels paths match the legacy public
+boundary exactly across dimensions 1–3, constant, mixed-nonfinite, and
+all-nonfinite inputs. The native CLI writes exact labels and geometry matching
+the legacy oracle. Exact O(K·B²) dynamic programming replaces the unbounded
+combinatorial search and is cross-checked against an exhaustive small-histogram
+oracle; coupled class/bin boundaries include K=B=256. Evidence is property,
+differential, and empirical; no machine-checked proof of the recurrence was
+performed.
+
 ## MIG-636-01 audit (2026-07-12)
 
 All twelve sealed automatic-threshold strategies inherit one Coeus-native

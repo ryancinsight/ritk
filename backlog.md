@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-637-01 [major] - Native Multi-Otsu thresholding (DONE).** Canonical slice thresholds and labels now serve one fused Coeus-native boundary, finite-sample behavior matches `AutoThreshold`, invalid mutable configuration is closed, and the CLI no longer constructs legacy tensors.
+
 - **MIG-636-01 [major] - Native automatic-threshold scaffold and CLI family (DONE).** One Coeus-native default scaffold is inherited by all twelve sealed strategies; exact generic conformance covers every implementor, and Otsu, Li, Yen, Kapur, and Triangle share one native CLI boundary.
 
 - **MIG-635-01 [major] - Native CLI binary segmentation threshold (DONE).** The canonical flat threshold kernel now serves the Coeus-native image boundary; exact public-boundary differential coverage preserves geometry, and the CLI emits exact native values without constructing a legacy tensor.
