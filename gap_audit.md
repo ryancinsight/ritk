@@ -8,6 +8,10 @@
 
 # RITK Gap Audit - Active
 
+## MIG-616-01 audit (2026-07-11)
+
+Rescale intensity now uses native I/O and its native provider implementation.
+
 ## MIG-615-01 audit (2026-07-11)
 
 Intensity windowing and sigmoid now use native providers directly. Other filter

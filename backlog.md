@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-616-01 [major] - Native CLI rescale intensity (DONE).** Rescale now
+  reads, computes, and writes through native provider boundaries.
+
 - **MIG-615-01 [major] - Native CLI intensity windowing and sigmoid (DONE).**
   Both provider-native intensity routes now own native I/O end to end.
 

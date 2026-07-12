@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 616: Native CLI rescale intensity (MIG-616-01)
+### Breaking
+- `ritk filter --filter rescale-intensity` now requires native input and output formats.
+
 ## [Unreleased] — Sprint 615: Native CLI intensity routes (MIG-615-01)
 ### Breaking
 - `ritk filter` windowing and sigmoid routes require native input and output formats.

@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-616-01 — Native CLI rescale intensity
+**Target version**: 0.14.0 migration batch
+- [x] Route rescale through its native provider and native I/O.
+
 ## MIG-615-01 — Native CLI intensity windowing and sigmoid
 **Target version**: 0.14.0 migration batch
 - [x] Route windowing and sigmoid through existing native filter providers and I/O.

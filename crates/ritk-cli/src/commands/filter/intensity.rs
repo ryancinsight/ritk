@@ -44,11 +44,26 @@ pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
     use ritk_filter::RescaleIntensityFilter;
 
-    let image = read_image(&args.input)?;
-    let filtered =
-        RescaleIntensityFilter::new(args.range.out_min, args.range.out_max).apply(&image)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format),
+        "rescale-intensity requires native input support for {:?}",
+        input_format
+    );
+    anyhow::ensure!(
+        is_native_write_capable(output_format),
+        "rescale-intensity requires native output support for {:?}",
+        output_format
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let filtered = RescaleIntensityFilter::new(args.range.out_min, args.range.out_max)
+        .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied rescale-intensity (out=[{},{}]) to {} -> {}",
