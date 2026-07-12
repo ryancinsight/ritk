@@ -8,6 +8,11 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 603: Native CLI histogram matching (MIG-603-01)
+### Breaking
+- `ritk normalize --method histogram-match` rejects source, reference, or output
+  formats without native I/O.
+
 ## [Unreleased] — Sprint 602: Native CLI Z-score normalization (MIG-602-01)
 ### Breaking
 - `ritk normalize --method zscore` rejects input, output, or mask formats

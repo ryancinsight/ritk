@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-603-01 audit (2026-07-11)
+
+Histogram matching now computes source/reference quantile landmarks directly from
+native storage and preserves the source geometry. Nyul-Udupa and White Stripe
+remain legacy-owned until their providers expose native contracts.
+
 ## MIG-602-01 audit (2026-07-11)
 
 CLI Z-score normalization now owns native input, optional native mask, native

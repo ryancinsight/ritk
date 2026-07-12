@@ -136,7 +136,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
 
     if matches!(
         args.method,
-        NormalizeMethod::Minmax | NormalizeMethod::Zscore
+        NormalizeMethod::HistogramMatch | NormalizeMethod::Minmax | NormalizeMethod::Zscore
     ) {
         let input_format = infer_format(&args.input).ok_or_else(|| {
             anyhow!(
@@ -152,12 +152,14 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
         })?;
         anyhow::ensure!(
             is_native_read_capable(input_format),
-            "minmax normalization does not support {:?} input until its native reader exists",
+            "{} normalization does not support {:?} input until its native reader exists",
+            args.method,
             input_format
         );
         anyhow::ensure!(
             is_native_write_capable(output_format),
-            "minmax normalization does not support {:?} output until its native writer exists",
+            "{} normalization does not support {:?} output until its native writer exists",
+            args.method,
             output_format
         );
         let input = read_image_native(&args.input)?;
@@ -185,6 +187,25 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                     ZScoreNormalizer::new().normalize_native(&input, &backend)?
                 }
             }
+            NormalizeMethod::HistogramMatch => {
+                let reference_path = args.reference.as_ref().ok_or_else(|| {
+                    anyhow!("--reference is required for the 'histogram-match' method")
+                })?;
+                let reference_format = infer_format(reference_path).ok_or_else(|| {
+                    anyhow!(
+                        "Cannot infer reference format from path: {}",
+                        reference_path.display()
+                    )
+                })?;
+                anyhow::ensure!(
+                    is_native_read_capable(reference_format),
+                    "histogram-match normalization does not support {:?} reference input until its native reader exists",
+                    reference_format
+                );
+                let reference = read_image_native(reference_path)?;
+                HistogramMatcher::new(args.num_bins)
+                    .match_histograms_native(&input, &reference, &backend)?
+            }
             _ => unreachable!("only native normalization methods reach this branch"),
         };
         write_image_native(&args.output, &output, output_format)?;
@@ -201,11 +222,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
 
     let normalized: ritk_image::Image<Backend, 3> = match args.method {
         NormalizeMethod::HistogramMatch => {
-            let ref_path = args.reference.as_ref().ok_or_else(|| {
-                anyhow!("--reference is required for the 'histogram-match' method")
-            })?;
-            let reference = read_image(ref_path)?;
-            HistogramMatcher::new(args.num_bins).match_histograms(&input, &reference)
+            unreachable!("histogram-match returns through the native path")
         }
 
         NormalizeMethod::Nyul => {

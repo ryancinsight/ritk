@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-603-01 — Native CLI histogram matching
+**Target version**: 0.14.0 migration batch
+- [x] Expose native source/reference histogram matching with source geometry ownership.
+- [x] Route CLI source, reference, and output through native I/O.
+
 ## MIG-602-01 — Native CLI Z-score normalization
 **Target version**: 0.14.0 migration batch
 - [x] Route full-image and masked Z-score CLI paths through native I/O and statistics.

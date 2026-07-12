@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-603-01 [major] - Native CLI histogram matching (DONE).** Histogram
+  matching now reads source/reference images, computes landmarks, and writes natively.
+
 - **MIG-602-01 [major] - Native CLI Z-score normalization (DONE).** Z-score,
   including optional masks, now reads, normalizes, and writes native images.
 
