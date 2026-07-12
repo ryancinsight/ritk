@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-604-01 — Native CLI Nyul-Udupa normalization
+**Target version**: 0.14.0 migration batch
+- [x] Expose native training and application over CPU-addressable storage.
+- [x] Route optional reference training and output through native I/O.
+
 ## MIG-603-01 — Native CLI histogram matching
 **Target version**: 0.14.0 migration batch
 - [x] Expose native source/reference histogram matching with source geometry ownership.

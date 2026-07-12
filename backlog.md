@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-604-01 [major] - Native CLI Nyul-Udupa normalization (DONE).** Native
+  training and application now replace the legacy image route.
+
 - **MIG-603-01 [major] - Native CLI histogram matching (DONE).** Histogram
   matching now reads source/reference images, computes landmarks, and writes natively.
 

@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-604-01 audit (2026-07-11)
+
+Nyul-Udupa now learns native percentile landmarks and applies them directly to
+native storage. White Stripe is the remaining legacy-owned CLI normalization
+route.
+
 ## MIG-603-01 audit (2026-07-11)
 
 Histogram matching now computes source/reference quantile landmarks directly from

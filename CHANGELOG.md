@@ -8,6 +8,11 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 604: Native CLI Nyul-Udupa normalization (MIG-604-01)
+### Breaking
+- `ritk normalize --method nyul` rejects source, optional reference, or output
+  formats without native I/O.
+
 ## [Unreleased] — Sprint 603: Native CLI histogram matching (MIG-603-01)
 ### Breaking
 - `ritk normalize --method histogram-match` rejects source, reference, or output

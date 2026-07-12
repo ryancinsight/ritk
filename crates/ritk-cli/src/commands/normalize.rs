@@ -136,7 +136,10 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
 
     if matches!(
         args.method,
-        NormalizeMethod::HistogramMatch | NormalizeMethod::Minmax | NormalizeMethod::Zscore
+        NormalizeMethod::HistogramMatch
+            | NormalizeMethod::Minmax
+            | NormalizeMethod::Nyul
+            | NormalizeMethod::Zscore
     ) {
         let input_format = infer_format(&args.input).ok_or_else(|| {
             anyhow!(
@@ -206,6 +209,27 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                 HistogramMatcher::new(args.num_bins)
                     .match_histograms_native(&input, &reference, &backend)?
             }
+            NormalizeMethod::Nyul => {
+                let mut normalizer = NyulUdupaNormalizer::default();
+                if let Some(reference_path) = &args.reference {
+                    let reference_format = infer_format(reference_path).ok_or_else(|| {
+                        anyhow!(
+                            "Cannot infer reference format from path: {}",
+                            reference_path.display()
+                        )
+                    })?;
+                    anyhow::ensure!(
+                        is_native_read_capable(reference_format),
+                        "nyul normalization does not support {:?} reference input until its native reader exists",
+                        reference_format
+                    );
+                    let reference = read_image_native(reference_path)?;
+                    normalizer.learn_standard_native(&[&input, &reference])?;
+                } else {
+                    normalizer.learn_standard_native(&[&input])?;
+                }
+                normalizer.apply_native(&input, &backend)?
+            }
             _ => unreachable!("only native normalization methods reach this branch"),
         };
         write_image_native(&args.output, &output, output_format)?;
@@ -225,16 +249,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             unreachable!("histogram-match returns through the native path")
         }
 
-        NormalizeMethod::Nyul => {
-            let mut normalizer = NyulUdupaNormalizer::default();
-            if let Some(ref_path) = args.reference.as_ref() {
-                let reference = read_image(ref_path)?;
-                normalizer.learn_standard(&[&input, &reference]);
-            } else {
-                normalizer.learn_standard(&[&input]);
-            }
-            normalizer.apply(&input)?
-        }
+        NormalizeMethod::Nyul => unreachable!("nyul returns through the native path"),
 
         NormalizeMethod::Zscore => unreachable!("zscore returns through the native path"),
 
