@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-607-01 — Native CLI statistics summary
+**Target version**: 0.14.0 migration batch
+- [x] Route summary input and descriptive statistics through native providers.
+
 ## MIG-606-01 — Native CLI normalization fixtures
 **Target version**: 0.14.0 migration batch
 - [x] Replace Burn tensor fixtures and output readers with native NIfTI I/O.

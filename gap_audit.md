@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-607-01 audit (2026-07-11)
+
+The summary statistics CLI metric now uses native I/O and native descriptive
+statistics. Pairwise metrics remain on legacy images pending their provider-owned
+native APIs.
+
 ## MIG-606-01 audit (2026-07-11)
 
 `ritk normalize` tests no longer construct or inspect Burn images. The remaining

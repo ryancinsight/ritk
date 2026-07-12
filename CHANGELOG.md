@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 607: Native CLI statistics summary (MIG-607-01)
+### Breaking
+- `ritk stats --metric summary` now requires a natively readable input format.
+
 ## [Unreleased] — Sprint 606: Native CLI normalization fixtures (MIG-606-01)
 ### Changed
 - Normalization command tests now use native NIfTI fixtures and readers.

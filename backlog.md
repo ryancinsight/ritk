@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-607-01 [major] - Native CLI statistics summary (DONE).** Summary now
+  reads native images and consumes provider-owned native statistics.
+
 - **MIG-606-01 [patch] - Native CLI normalization fixtures (DONE).** The
   normalization command tests now construct, write, and read native images.
 

@@ -1,9 +1,9 @@
 // ── Metric implementations ───────────────────────────────────────────────────
 
 use anyhow::Result;
+use ritk_statistics::image_statistics::native::compute_statistics as compute_native_statistics;
 use ritk_statistics::{
-    compute_statistics, dice_coefficient, estimate_noise_mad, hausdorff_distance,
-    mean_surface_distance, psnr, ssim,
+    dice_coefficient, estimate_noise_mad, hausdorff_distance, mean_surface_distance, psnr, ssim,
 };
 use tracing::info;
 
@@ -14,8 +14,8 @@ use super::{read_image, require_reference, StatsArgs};
 /// Print min, max, mean, std, and percentiles (p25, p50, p75) for the input
 /// image.
 pub(super) fn run_summary(args: &StatsArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let s = compute_statistics(&image);
+    let image = super::super::read_image_native(&args.input)?;
+    let s = compute_native_statistics(&image)?;
 
     println!("Image statistics for {}:", args.input.display());
     println!("  min: {:.6}", s.min);
