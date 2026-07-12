@@ -56,10 +56,19 @@ pub(super) fn run_grayscale_dilation(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_white_top_hat(args: &FilterArgs) -> Result<()> {
     use ritk_filter::WhiteTopHatFilter;
 
-    let image = read_image(&args.input)?;
-    let filtered = WhiteTopHatFilter::new(args.kernel.radius).apply(&image)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "white-top-hat requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let filtered = WhiteTopHatFilter::new(args.kernel.radius).apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
     info!("filter: white-top-hat complete");
 
     Ok(())
@@ -68,10 +77,19 @@ pub(super) fn run_white_top_hat(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_black_top_hat(args: &FilterArgs) -> Result<()> {
     use ritk_filter::BlackTopHatFilter;
 
-    let image = read_image(&args.input)?;
-    let filtered = BlackTopHatFilter::new(args.kernel.radius).apply(&image)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "black-top-hat requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let filtered = BlackTopHatFilter::new(args.kernel.radius).apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
     info!("filter: black-top-hat complete");
 
     Ok(())
@@ -249,6 +267,28 @@ mod tests {
         let output = crate::commands::read_image_native(&output)
             .expect("grayscale dilation output is natively readable");
         assert_eq!(output.shape(), [5, 5, 5]);
+    }
+
+    #[test]
+    fn top_hat_routes_write_native_output() {
+        let dir = tempdir().unwrap();
+        for kind in [FilterKind::WhiteTopHat, FilterKind::BlackTopHat] {
+            let input = dir.path().join(format!("{kind:?}-input.nii"));
+            let output = dir.path().join(format!("{kind:?}-output.nii"));
+            ritk_io::write_nifti(&input, &make_test_image()).expect("input fixture writes");
+
+            let mut args = default_args(input, output.clone(), kind);
+            args.kernel.radius = 1;
+            match kind {
+                FilterKind::WhiteTopHat => run_white_top_hat(&args),
+                FilterKind::BlackTopHat => run_black_top_hat(&args),
+                _ => unreachable!("top-hat test only enumerates top-hat routes"),
+            }
+            .expect("top-hat route succeeds");
+            let output = crate::commands::read_image_native(&output)
+                .expect("top-hat output is natively readable");
+            assert_eq!(output.shape(), [5, 5, 5]);
+        }
     }
 
     #[test]

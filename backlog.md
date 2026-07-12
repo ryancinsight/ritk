@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-633-01 [major] - Native CLI top-hat filters (DONE).** White and black
+  top-hat filters now share native clamped subtraction and use native image I/O.
+
 - **MIG-632-01 [major] - Native CLI label opening and closing (DONE).** Opening
   and closing now compose the Coeus-native label erosion/dilation providers and
   use native image I/O.

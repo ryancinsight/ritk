@@ -8,6 +8,11 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 633: Native CLI top-hat filters (MIG-633-01)
+### Breaking
+- `ritk filter --filter white-top-hat` and `black-top-hat` require native input
+  and output formats.
+
 ## [Unreleased] — Sprint 632: Native CLI label opening and closing (MIG-632-01)
 ### Breaking
 - `ritk filter --filter label-opening` and `label-closing` require native input

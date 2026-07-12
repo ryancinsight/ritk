@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-633-01 audit (2026-07-11)
+
+White and black top-hat filters now share a native clamped subtraction helper.
+Both CLI routes no longer cross the legacy tensor boundary.
+
 ## MIG-632-01 audit (2026-07-11)
 
 Label opening and closing now compose native erosion/dilation boundaries, so

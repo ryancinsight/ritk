@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-633-01 — Native CLI top-hat filters
+**Target version**: 0.14.0 migration batch
+- [x] Compose native erosion/dilation and one clamped-subtraction boundary.
+- [x] Route white and black top-hat CLI output through native image I/O.
+
 ## MIG-632-01 — Native CLI label opening and closing
 **Target version**: 0.14.0 migration batch
 - [x] Compose label opening and closing from native erosion/dilation providers.
