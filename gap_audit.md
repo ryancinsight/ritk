@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-628-01 audit (2026-07-11)
+
+Grayscale dilation now has provider-native geometry/value coverage, and its CLI
+no longer crosses the legacy tensor boundary. Other morphology routes remain
+independently legacy-owned.
+
 ## MIG-627-01 audit (2026-07-11)
 
 Grayscale erosion now has provider-native geometry/value coverage, and its CLI

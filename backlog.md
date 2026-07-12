@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-628-01 [major] - Native CLI grayscale dilation (DONE).** Grayscale
+  dilation now consumes its existing Coeus-native provider and native image I/O.
+
 - **MIG-627-01 [major] - Native CLI grayscale erosion (DONE).** Grayscale
   erosion now consumes its existing Coeus-native provider and native image I/O.
 

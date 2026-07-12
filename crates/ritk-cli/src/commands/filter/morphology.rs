@@ -35,10 +35,19 @@ pub(super) fn run_grayscale_erosion(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_grayscale_dilation(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GrayscaleDilation;
 
-    let image = read_image(&args.input)?;
-    let filtered = GrayscaleDilation::new(args.kernel.radius).apply(&image)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "grayscale-dilation requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let filtered = GrayscaleDilation::new(args.kernel.radius).apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
     info!("filter: grayscale-dilation complete");
 
     Ok(())
@@ -175,6 +184,21 @@ mod tests {
         run_grayscale_erosion(&args).expect("grayscale erosion succeeds");
         let output = crate::commands::read_image_native(&output)
             .expect("grayscale erosion output is natively readable");
+        assert_eq!(output.shape(), [5, 5, 5]);
+    }
+
+    #[test]
+    fn grayscale_dilation_writes_native_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("output.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).expect("input fixture writes");
+
+        let mut args = default_args(input, output.clone(), FilterKind::GrayscaleDilation);
+        args.kernel.radius = 1;
+        run_grayscale_dilation(&args).expect("grayscale dilation succeeds");
+        let output = crate::commands::read_image_native(&output)
+            .expect("grayscale dilation output is natively readable");
         assert_eq!(output.shape(), [5, 5, 5]);
     }
 

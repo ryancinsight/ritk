@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 628: Native CLI grayscale dilation (MIG-628-01)
+### Breaking
+- `ritk filter --filter grayscale-dilation` requires native input and output formats.
+
 ## [Unreleased] — Sprint 627: Native CLI grayscale erosion (MIG-627-01)
 ### Breaking
 - `ritk filter --filter grayscale-erosion` requires native input and output formats.
