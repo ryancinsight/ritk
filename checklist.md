@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-609-01 — Native CLI PSNR metric
+**Target version**: 0.14.0 migration batch
+- [x] Add provider-owned native PSNR with shape validation and identity handling.
+- [x] Route CLI PSNR input/reference through native I/O.
+
 ## MIG-608-01 — Native CLI Dice metric
 **Target version**: 0.14.0 migration batch
 - [x] Add provider-owned native Dice with equal-size validation.

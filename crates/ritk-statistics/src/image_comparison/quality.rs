@@ -1,3 +1,5 @@
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -25,6 +27,42 @@ pub fn psnr<B: Backend, const D: usize>(
     }
 
     10.0 * (max_val * max_val / mse).log10()
+}
+
+/// Compute PSNR between two Coeus-native images.
+///
+/// Returns positive infinity for identical inputs.
+pub fn psnr_native<B, const D: usize>(
+    image: &NativeImage<f32, B, D>,
+    reference: &NativeImage<f32, B, D>,
+    max_val: f32,
+) -> anyhow::Result<f32>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let image_values = image.data_slice()?;
+    let reference_values = reference.data_slice()?;
+    anyhow::ensure!(
+        image_values.len() == reference_values.len(),
+        "psnr requires equal element counts: {} != {}",
+        image_values.len(),
+        reference_values.len()
+    );
+    let sum_squared_error = image_values
+        .iter()
+        .zip(reference_values)
+        .map(|(&value, &reference)| {
+            let delta = value - reference;
+            delta * delta
+        })
+        .sum::<f32>();
+    let mean_squared_error = sum_squared_error / image_values.len() as f32;
+    Ok(if mean_squared_error < f32::EPSILON {
+        f32::INFINITY
+    } else {
+        10.0 * (max_val * max_val / mean_squared_error).log10()
+    })
 }
 
 /// Compute the global Structural Similarity Index (SSIM) between two images.

@@ -52,7 +52,7 @@ mod quality;
 mod surface;
 
 pub use overlap::{dice_coefficient, dice_coefficient_native, similarity_index};
-pub use quality::{psnr, ssim};
+pub use quality::{psnr, psnr_native, ssim};
 pub use surface::{hausdorff_distance, mean_surface_distance};
 
 #[cfg(test)]

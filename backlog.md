@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-609-01 [major] - Native CLI PSNR metric (DONE).** Native mean-square
+  reduction and input/reference I/O now replace the legacy PSNR route.
+
 - **MIG-608-01 [major] - Native CLI Dice metric (DONE).** Native binary overlap
   validation and computation now replace the legacy CLI Dice route.
 

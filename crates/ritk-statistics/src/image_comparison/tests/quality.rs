@@ -1,5 +1,7 @@
 use super::*;
-use crate::image_comparison::{psnr, ssim};
+use crate::image_comparison::{psnr, psnr_native, ssim};
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 
 #[test]
 fn test_psnr_identical_images_is_infinity() {
@@ -10,6 +12,30 @@ fn test_psnr_identical_images_is_infinity() {
         "identical images -> PSNR = +inf, got {}",
         result
     );
+}
+
+#[test]
+fn native_psnr_known_value_matches_formula() {
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 0.0],
+        [1, 1, 2],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let reference = NativeImage::from_flat_on(
+        vec![0.1, 0.1],
+        [1, 1, 2],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native reference");
+    let value = psnr_native(&image, &reference, 1.0).expect("native psnr succeeds");
+    assert!((value - 20.0).abs() < 1e-3);
 }
 
 #[test]

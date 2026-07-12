@@ -3,8 +3,8 @@
 use anyhow::Result;
 use ritk_statistics::image_statistics::native::compute_statistics as compute_native_statistics;
 use ritk_statistics::{
-    dice_coefficient_native, estimate_noise_mad, hausdorff_distance, mean_surface_distance, psnr,
-    ssim,
+    dice_coefficient_native, estimate_noise_mad, hausdorff_distance, mean_surface_distance,
+    psnr_native, ssim,
 };
 use tracing::info;
 
@@ -92,10 +92,13 @@ pub(super) fn run_hausdorff(args: &StatsArgs) -> Result<()> {
 
 /// Compute Peak Signal-to-Noise Ratio between input and reference.
 pub(super) fn run_psnr(args: &StatsArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let (reference, ref_path) = require_reference(args)?;
+    let image = super::super::read_image_native(&args.input)?;
+    let ref_path = args.reference.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("--reference is required for the '{}' metric", args.metric)
+    })?;
+    let reference = super::super::read_image_native(ref_path)?;
 
-    let value = psnr(&image, &reference, args.max_val);
+    let value = psnr_native(&image, &reference, args.max_val)?;
     println!(
         "PSNR: {:.6} dB (max_val={}, input={}, reference={})",
         value,

@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-609-01 audit (2026-07-11)
+
+PSNR now uses native I/O and a provider-owned native reduction. SSIM and surface
+distance metrics remain legacy-owned until their native providers are available.
+
 ## MIG-608-01 audit (2026-07-11)
 
 Dice now uses a native provider and native input/reference images. Other pairwise
