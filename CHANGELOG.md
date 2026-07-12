@@ -8,6 +8,21 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 636: Native automatic-threshold scaffold (MIG-636-01)
+### Breaking
+- `ritk segment --method otsu|li|yen|kapur|triangle` requires native input and
+  output formats.
+
+### Added
+- `AutoThreshold` provides Coeus-native threshold computation, mask creation,
+  and fused threshold-plus-mask defaults inherited by all sealed strategies.
+
+### Changed
+- The five automatic-threshold CLI routes share one generic native I/O and
+  execution boundary.
+- Automatic-threshold histograms exclude NaN and ±Inf samples; non-finite
+  voxels map to background, and all-nonfinite inputs produce threshold `0.0`.
+
 ## [Unreleased] — Sprint 635: Native CLI binary segmentation threshold (MIG-635-01)
 ### Breaking
 - `ritk segment --method binary` requires native input and output formats.

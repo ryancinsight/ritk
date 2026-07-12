@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-636-01 audit (2026-07-12)
+
+All twelve sealed automatic-threshold strategies inherit one Coeus-native
+threshold/mask scaffold; Otsu, Li, Yen, Kapur, and Triangle now share one native
+CLI boundary. Evidence is differential and empirical: each implementor's native
+threshold and mask match its legacy public boundary exactly, fused and mask-only
+native paths agree, and empty, constant, singleton, mixed-nonfinite, and
+all-nonfinite inputs pin the shared special-value policy. Geometry is preserved,
+each migrated CLI route writes an exact mask matching its public legacy oracle,
+and negative CLI cases cover unknown and known-but-nonnative formats. No
+machine-checked proof of the histogram algorithms was performed.
+`cargo-semver-checks` remains unavailable for this branch because the
+`origin/main` baseline resolves `themis ^0.8.0` against a Git source exposing
+`0.9.17`; MIG-635 records the reproduced dependency error.
+
 ## MIG-635-01 audit (2026-07-12)
 
 Binary segmentation thresholding now shares one flat computation across the

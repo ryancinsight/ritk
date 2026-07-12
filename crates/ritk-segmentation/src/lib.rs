@@ -53,7 +53,7 @@ pub use region_growing::{
 };
 pub use threshold::{
     binary_threshold, kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold,
-    triangle_threshold, yen_threshold, BinaryThreshold, KapurThreshold, LiThreshold,
+    triangle_threshold, yen_threshold, AutoThreshold, BinaryThreshold, KapurThreshold, LiThreshold,
     MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
 };
 pub use watershed::{

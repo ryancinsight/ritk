@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-636-01 — Native automatic-threshold scaffold and CLI family
+**Target version**: 0.14.0 migration batch
+- [x] Add one Coeus-native threshold/mask default implementation to `AutoThreshold`.
+- [x] Verify generic native/legacy conformance across every sealed implementor.
+- [x] Route Otsu, Li, Yen, Kapur, and Triangle through one native CLI boundary.
+- [x] Assert exact end-to-end masks and run focused package gates.
+
 ## MIG-635-01 — Native CLI binary segmentation threshold
 **Target version**: 0.14.0 migration batch
 - [x] Expose the canonical flat threshold kernel through a Coeus-native image boundary.

@@ -23,6 +23,54 @@ fn binary_threshold_rejects_nan_upper_bound() {
     let error = run(args).expect_err("NaN upper bound must be rejected before I/O");
     assert!(error.to_string().contains("must not be NaN"));
 }
+
+#[test]
+fn automatic_threshold_rejects_unknown_input_format_before_io() {
+    let dir = tempdir().unwrap();
+    let output = dir.path().join("output.nii");
+    let error = run(default_args(
+        dir.path().join("input.unknown"),
+        output.clone(),
+        SegmentMethod::Otsu,
+    ))
+    .expect_err("unknown input format must be rejected");
+    assert!(error.to_string().contains("Cannot infer input format"));
+    assert!(!output.exists());
+}
+
+#[test]
+fn automatic_threshold_rejects_known_nonnative_input_before_io() {
+    let dir = tempdir().unwrap();
+    let output = dir.path().join("output.nii");
+    let error = run(default_args(
+        dir.path().join("input.vtk"),
+        output.clone(),
+        SegmentMethod::Otsu,
+    ))
+    .expect_err("VTK input lacks native threshold support");
+    assert_eq!(
+        error.to_string(),
+        "automatic thresholding requires native input/output formats"
+    );
+    assert!(!output.exists());
+}
+
+#[test]
+fn automatic_threshold_rejects_known_nonnative_output_before_io() {
+    let dir = tempdir().unwrap();
+    let output = dir.path().join("output.png");
+    let error = run(default_args(
+        dir.path().join("input.nii"),
+        output.clone(),
+        SegmentMethod::Otsu,
+    ))
+    .expect_err("PNG output lacks native threshold support");
+    assert_eq!(
+        error.to_string(),
+        "automatic thresholding requires native input/output formats"
+    );
+    assert!(!output.exists());
+}
 #[test]
 fn test_segment_multi_otsu_classes_lt_2_returns_error() {
     let dir = tempdir().unwrap();
