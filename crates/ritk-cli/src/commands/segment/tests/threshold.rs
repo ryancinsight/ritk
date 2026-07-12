@@ -176,7 +176,7 @@ fn test_segment_multi_otsu_returns_k_minus_1_thresholds() {
 // ── Binary threshold tests ────────────────────────────────────────────────
 
 #[test]
-fn test_segment_binary_threshold_creates_output_with_correct_shape() {
+fn test_segment_binary_threshold_writes_exact_native_output() {
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
     let output = dir.path().join("out.nii");
@@ -188,11 +188,14 @@ fn test_segment_binary_threshold_creates_output_with_correct_shape() {
     run(args).unwrap();
 
     assert!(output.exists(), "output file must be created");
-    let out_image = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+    let out_image = crate::commands::read_image_native(&output)
+        .expect("binary threshold output is natively readable");
+    assert_eq!(out_image.shape(), [4, 4, 4]);
+    assert_eq!(*out_image.origin(), Point::new([0.0; 3]));
+    assert_eq!(*out_image.spacing(), Spacing::new([1.0; 3]));
     assert_eq!(
-        out_image.shape(),
-        [4, 4, 4],
-        "output shape must match input 4×4×4"
+        out_image.data_slice().expect("contiguous output"),
+        [vec![0.0; 32], vec![1.0; 32]].concat()
     );
 }
 

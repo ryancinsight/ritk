@@ -1,4 +1,28 @@
 use super::*; // ── Negative: multi-otsu classes < 2 returns error ───────────────────────
+
+#[test]
+fn binary_threshold_rejects_nan_lower_bound() {
+    let mut args = default_args(
+        "unused-input.nii".into(),
+        "unused-output.nii".into(),
+        SegmentMethod::Binary,
+    );
+    args.lower = Some(f32::NAN);
+    let error = run(args).expect_err("NaN lower bound must be rejected before I/O");
+    assert!(error.to_string().contains("must not be NaN"));
+}
+
+#[test]
+fn binary_threshold_rejects_nan_upper_bound() {
+    let mut args = default_args(
+        "unused-input.nii".into(),
+        "unused-output.nii".into(),
+        SegmentMethod::Binary,
+    );
+    args.upper = Some(f32::NAN);
+    let error = run(args).expect_err("NaN upper bound must be rejected before I/O");
+    assert!(error.to_string().contains("must not be NaN"));
+}
 #[test]
 fn test_segment_multi_otsu_classes_lt_2_returns_error() {
     let dir = tempdir().unwrap();

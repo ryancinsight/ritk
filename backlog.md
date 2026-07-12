@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-635-01 [major] - Native CLI binary segmentation threshold (DONE).** The canonical flat threshold kernel now serves the Coeus-native image boundary; exact public-boundary differential coverage preserves geometry, and the CLI emits exact native values without constructing a legacy tensor.
+
 - **MIG-634-01 [major] - Native CLI hit-or-miss transform (DONE).** The existing canonical flat kernel now serves the Coeus-native image boundary; exact native parity and geometry coverage includes the degenerate-axis case, and the CLI no longer constructs legacy tensors for this command.
 
 - **MIG-633-01 [major] - Native CLI top-hat filters (DONE).** White and black

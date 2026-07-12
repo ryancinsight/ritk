@@ -13,10 +13,11 @@
 //! ## Special cases
 //! - lower = f32::NEG_INFINITY: any value ≤ upper → inside.
 //! - upper = f32::INFINITY:     any value ≥ lower → inside.
-//! - lower = f32::NEG_INFINITY, upper = f32::INFINITY: all voxels → inside.
+//! - lower = f32::NEG_INFINITY, upper = f32::INFINITY: all non-NaN voxels → inside.
+//! - NaN input voxels never satisfy the closed interval and map to `outside_value`.
 //!
 //! ## Invariants
-//! - lower ≤ upper (panics otherwise).
+//! - lower and upper are not NaN, and lower ≤ upper (panics otherwise).
 //! - inside_value and outside_value must be finite (panics otherwise).
 //! - Spatial metadata preserved exactly.
 //!
@@ -41,20 +42,20 @@ use ritk_tensor_ops::extract_vec_infallible;
 #[derive(Debug, Clone)]
 pub struct BinaryThreshold {
     /// Inclusive lower intensity bound. Default `f32::NEG_INFINITY`.
-    pub lower: f32,
+    lower: f32,
     /// Inclusive upper intensity bound. Default `f32::INFINITY`.
-    pub upper: f32,
+    upper: f32,
     /// Output value for voxels inside \[lower, upper\]. Default 1.0.
-    pub inside_value: f32,
+    inside_value: f32,
     /// Output value for voxels outside \[lower, upper\]. Default 0.0.
-    pub outside_value: f32,
+    outside_value: f32,
 }
 
 impl BinaryThreshold {
     /// Create a `BinaryThreshold` with explicit bounds and default inside/outside values (1.0 / 0.0).
     ///
     /// # Panics
-    /// Panics if `lower > upper`.
+    /// Panics if either bound is NaN or if `lower > upper`.
     pub fn new(lower: f32, upper: f32) -> Self {
         assert!(
             lower <= upper,
@@ -88,6 +89,26 @@ impl BinaryThreshold {
         self
     }
 
+    /// Return the inclusive lower intensity bound.
+    pub fn lower(&self) -> f32 {
+        self.lower
+    }
+
+    /// Return the inclusive upper intensity bound.
+    pub fn upper(&self) -> f32 {
+        self.upper
+    }
+
+    /// Return the output value assigned inside the threshold interval.
+    pub fn inside_value(&self) -> f32 {
+        self.inside_value
+    }
+
+    /// Return the output value assigned outside the threshold interval.
+    pub fn outside_value(&self) -> f32 {
+        self.outside_value
+    }
+
     /// Apply the binary threshold to `image`.
     ///
     /// Returns an image with the same shape and spatial metadata as `image`.
@@ -100,6 +121,38 @@ impl BinaryThreshold {
             self.upper,
             self.inside_value,
             self.outside_value,
+        )
+    }
+
+    /// Apply the threshold to a Coeus-native CPU-addressable image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the backend storage is not available as a
+    /// contiguous host slice or when the output image cannot be constructed
+    /// from the computed flat volume and input geometry.
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            apply_binary_threshold_to_slice(
+                image.data_slice()?,
+                self.lower,
+                self.upper,
+                self.inside_value,
+                self.outside_value,
+            ),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
         )
     }
 }

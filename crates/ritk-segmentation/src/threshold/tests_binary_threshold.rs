@@ -2,10 +2,105 @@
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::{make_image, make_image_with};
 
 type B = NdArray<f32>;
+
+fn assert_native_legacy_conformance<const D: usize>(values: Vec<f32>, dimensions: [usize; D]) {
+    let native = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        Point::new([0.0; D]),
+        Spacing::new([1.0; D]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let filter = BinaryThreshold::new(1.0, 3.0);
+    let native_output = filter
+        .apply_native(&native, &SequentialBackend)
+        .expect("native binary threshold succeeds");
+    let legacy_output = filter.apply(&make_image::<B, D>(values, dimensions));
+
+    assert_eq!(native_output.shape(), dimensions);
+    assert_eq!(
+        native_output.data_slice().expect("contiguous output"),
+        legacy_output.data_slice().as_ref()
+    );
+}
+
+#[test]
+fn native_threshold_conforms_across_supported_dimensions() {
+    assert_native_legacy_conformance(vec![0.0, 1.0, 2.0, 4.0], [4]);
+    assert_native_legacy_conformance(vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0], [2, 3]);
+    assert_native_legacy_conformance(vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0], [1, 2, 3]);
+}
+
+#[test]
+fn nan_voxels_map_to_outside_value_on_both_boundaries() {
+    let dimensions = [3];
+    let values = vec![f32::NEG_INFINITY, f32::NAN, f32::INFINITY];
+    let native = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        Point::new([0.0]),
+        Spacing::new([1.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let filter = BinaryThreshold::default();
+    let native_output = filter
+        .apply_native(&native, &SequentialBackend)
+        .expect("native binary threshold succeeds");
+    let legacy_output = filter.apply(&make_image::<B, 1>(values, dimensions));
+
+    assert_eq!(
+        native_output.data_slice().expect("contiguous output"),
+        [1.0, 0.0, 1.0]
+    );
+    assert_eq!(get_slice_1d(&legacy_output), [1.0, 0.0, 1.0]);
+}
+
+#[test]
+fn native_threshold_matches_legacy_boundary_and_preserves_geometry() {
+    let dimensions = [2, 2, 3];
+    let values = vec![-1.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let native = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let filter = BinaryThreshold::new(1.0, 3.5).with_values(7.0, -2.0);
+
+    let native_output = filter
+        .apply_native(&native, &SequentialBackend)
+        .expect("native binary threshold succeeds");
+    let legacy_output = filter.apply(&make_image_3d(values, dimensions));
+
+    assert_eq!(native_output.shape(), dimensions);
+    assert_eq!(*native_output.origin(), origin);
+    assert_eq!(*native_output.spacing(), spacing);
+    assert_eq!(*native_output.direction(), direction);
+    assert_eq!(
+        native_output.data_slice().expect("contiguous output"),
+        get_slice_3d(&legacy_output)
+    );
+    assert_eq!(
+        native_output.data_slice().expect("contiguous output"),
+        [-2.0, -2.0, -2.0, 7.0, 7.0, 7.0, 7.0, 7.0, 7.0, -2.0, -2.0, -2.0]
+    );
+}
 
 fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
     let n = data.len();
@@ -288,10 +383,24 @@ fn test_nan_outside_value_panics() {
 #[test]
 fn test_default_construction() {
     let d = BinaryThreshold::default();
-    assert_eq!(d.lower, f32::NEG_INFINITY);
-    assert_eq!(d.upper, f32::INFINITY);
-    assert_eq!(d.inside_value, 1.0);
-    assert_eq!(d.outside_value, 0.0);
+    assert_eq!(d.lower(), f32::NEG_INFINITY);
+    assert_eq!(d.upper(), f32::INFINITY);
+    assert_eq!(d.inside_value(), 1.0);
+    assert_eq!(d.outside_value(), 0.0);
+    let result = d.apply(&make_image_1d(vec![f32::NEG_INFINITY, 0.0, f32::INFINITY]));
+    assert_eq!(get_slice_1d(&result), [1.0, 1.0, 1.0]);
+}
+
+#[test]
+#[should_panic(expected = "lower bound NaN must be ≤ upper bound")]
+fn nan_lower_bound_panics_at_construction() {
+    BinaryThreshold::new(f32::NAN, 1.0);
+}
+
+#[test]
+#[should_panic(expected = "lower bound 0 must be ≤ upper bound NaN")]
+fn nan_upper_bound_panics_at_construction() {
+    BinaryThreshold::new(0.0, f32::NAN);
 }
 
 // ── Adversarial: 3D analytical correctness ────────────────────────────────

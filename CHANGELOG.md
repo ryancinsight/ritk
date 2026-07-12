@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 635: Native CLI binary segmentation threshold (MIG-635-01)
+### Breaking
+- `ritk segment --method binary` requires native input and output formats.
+- `BinaryThreshold` fields are private so invalid filter states cannot be
+  created after validation. Replace struct literals with `BinaryThreshold::new`
+  and `.with_values(...)`; replace field reads with `lower()`, `upper()`,
+  `inside_value()`, and `outside_value()`.
+
+### Changed
+- `BinaryThreshold` exposes its canonical flat computation through a
+  const-dimension Coeus-native image boundary while preserving spatial metadata.
+
 ## [Unreleased] — Sprint 634: Native CLI hit-or-miss transform (MIG-634-01)
 ### Breaking
 - `ritk filter --filter hit-or-miss` requires native input and output formats.

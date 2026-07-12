@@ -8,6 +8,12 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-635-01 — Native CLI binary segmentation threshold
+**Target version**: 0.14.0 migration batch
+- [x] Expose the canonical flat threshold kernel through a Coeus-native image boundary.
+- [x] Add exact native/legacy differential coverage with geometry preservation.
+- [x] Route binary segmentation through native I/O and assert exact end-to-end values.
+
 ## MIG-634-01 — Native CLI hit-or-miss transform
 **Target version**: 0.14.0 migration batch
 - [x] Expose the canonical hit-or-miss kernel through a Coeus-native image boundary.

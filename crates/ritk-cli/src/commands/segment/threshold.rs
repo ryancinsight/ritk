@@ -6,7 +6,10 @@ use ritk_segmentation::{
     MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
 };
 
-use super::super::{read_image, write_image_inferred};
+use super::super::{
+    infer_format, is_native_read_capable, is_native_write_capable, read_image, read_image_native,
+    write_image_inferred, write_image_native, NativeBackend,
+};
 use super::args::SegmentArgs;
 use super::helpers::count_foreground;
 
@@ -232,20 +235,40 @@ pub(super) fn run_triangle(args: &SegmentArgs) -> Result<()> {
 /// S(v) = 0.0  otherwise
 ///
 /// # Errors
-/// Returns an error if `lower > upper` (empty interval).
+/// Returns an error if either bound is NaN, `lower > upper`, the input or
+/// output format is unknown or lacks native support, native image I/O fails,
+/// or the backend storage is not available as a contiguous host slice.
 pub(super) fn run_binary(args: &SegmentArgs) -> Result<()> {
     let lower = args.lower.unwrap_or(f32::NEG_INFINITY);
     let upper = args.upper.unwrap_or(f32::INFINITY);
+    if lower.is_nan() || upper.is_nan() {
+        return Err(anyhow!(
+            "binary threshold: bounds must not be NaN (lower={lower}, upper={upper})"
+        ));
+    }
     if lower > upper {
         return Err(anyhow!(
             "binary threshold: lower ({lower}) must be ≤ upper ({upper})"
         ));
     }
 
-    let image = read_image(&args.input)?;
-    let mask = BinaryThreshold::new(lower, upper).apply(&image);
-    let n_foreground = count_foreground(&mask);
-    write_image_inferred(&args.output, &mask)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "binary threshold requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let mask = BinaryThreshold::new(lower, upper).apply_native(&image, &backend)?;
+    let n_foreground = mask
+        .data_slice()?
+        .iter()
+        .filter(|&&value| value > 0.5)
+        .count();
+    write_image_native(&args.output, &mask, output_format)?;
 
     println!(
         "Segmented {} (binary): [{lower:.4}, {upper:.4}] → {n_foreground} foreground voxels",

@@ -8,6 +8,18 @@
 
 # RITK Gap Audit - Active
 
+## MIG-635-01 audit (2026-07-12)
+
+Binary segmentation thresholding now shares one flat computation across the
+legacy and const-dimension Coeus-native image boundaries. The CLI remains native
+through I/O. Evidence is differential and empirical: exact public-boundary
+parity covers custom inside/outside values and geometry, while an end-to-end
+NIfTI regression asserts the complete 64-voxel mask. No machine-checked proof
+of the threshold implementation was performed. `cargo-semver-checks` could not
+complete against `origin/main`: baseline dependency resolution requires
+`themis ^0.8.0`, while its Git source currently exposes `0.9.17`. The breaking
+field-privacy migration is therefore documented but not tool-verified.
+
 ## MIG-634-01 audit (2026-07-12)
 
 Hit-or-miss now shares one flat computation across the legacy and Coeus-native
