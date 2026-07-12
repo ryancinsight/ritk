@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-627-01 [major] - Native CLI grayscale erosion (DONE).** Grayscale
+  erosion now consumes its existing Coeus-native provider and native image I/O.
+
 - **MIG-626-01 [major] - Native CLI curved planar reformation (DONE).** CPR now
   consumes its Coeus-native provider, promotes the 2-D result to native 3-D
   writer form, and uses native I/O end to end.

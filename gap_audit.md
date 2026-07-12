@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-627-01 audit (2026-07-11)
+
+Grayscale erosion now has provider-native geometry/value coverage, and its CLI
+no longer crosses the legacy tensor boundary. Other morphology routes remain
+independently legacy-owned.
+
 ## MIG-626-01 audit (2026-07-11)
 
 CPR now preserves native ownership through reformation and its 2-D-to-3-D

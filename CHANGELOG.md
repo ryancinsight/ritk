@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 627: Native CLI grayscale erosion (MIG-627-01)
+### Breaking
+- `ritk filter --filter grayscale-erosion` requires native input and output formats.
+
 ## [Unreleased] — Sprint 626: Native CLI curved planar reformation (MIG-626-01)
 ### Breaking
 - `ritk filter --filter cpr` requires native input and output formats.

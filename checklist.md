@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-627-01 — Native CLI grayscale erosion
+**Target version**: 0.14.0 migration batch
+- [x] Cover the existing native erosion provider with value and metadata assertions.
+- [x] Route the CLI and its output regression through native image I/O.
+
 ## MIG-626-01 — Native CLI curved planar reformation
 **Target version**: 0.14.0 migration batch
 - [x] Route CPR input and reformation through its Coeus-native provider.
