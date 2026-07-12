@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-632-01 audit (2026-07-11)
+
+Label opening and closing now compose native erosion/dilation boundaries, so
+their CLI routes no longer cross the legacy tensor graph.
+
 ## MIG-631-01 audit (2026-07-11)
 
 Label erosion now exposes its canonical values kernel to native images. The

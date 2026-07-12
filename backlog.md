@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-632-01 [major] - Native CLI label opening and closing (DONE).** Opening
+  and closing now compose the Coeus-native label erosion/dilation providers and
+  use native image I/O.
+
 - **MIG-631-01 [major] - Native CLI label erosion (DONE).** Label erosion now
   owns a Coeus-native provider boundary and native CLI I/O with isolated-label
   removal coverage.

@@ -8,6 +8,11 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 632: Native CLI label opening and closing (MIG-632-01)
+### Breaking
+- `ritk filter --filter label-opening` and `label-closing` require native input
+  and output formats.
+
 ## [Unreleased] — Sprint 631: Native CLI label erosion (MIG-631-01)
 ### Breaking
 - `ritk filter --filter label-erosion` requires native input and output formats.

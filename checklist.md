@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-632-01 — Native CLI label opening and closing
+**Target version**: 0.14.0 migration batch
+- [x] Compose label opening and closing from native erosion/dilation providers.
+- [x] Route both CLI paths and output regressions through native image I/O.
+
 ## MIG-631-01 — Native CLI label erosion
 **Target version**: 0.14.0 migration batch
 - [x] Expose label erosion's canonical values kernel through a Coeus-native boundary.
