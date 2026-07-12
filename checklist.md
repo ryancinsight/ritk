@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-626-01 — Native CLI curved planar reformation
+**Target version**: 0.14.0 migration batch
+- [x] Route CPR input and reformation through its Coeus-native provider.
+- [x] Promote the native 2-D result to the native 3-D writer contract and assert shape.
+
 ## MIG-625-01 — Native CLI median filter
 **Target version**: 0.14.0 migration batch
 - [x] Route the existing native median provider through native CLI I/O.

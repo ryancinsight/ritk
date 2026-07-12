@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-626-01 [major] - Native CLI curved planar reformation (DONE).** CPR now
+  consumes its Coeus-native provider, promotes the 2-D result to native 3-D
+  writer form, and uses native I/O end to end.
+
 - **MIG-625-01 [major] - Native CLI median filter (DONE).** Median filtering
   now consumes its existing Coeus-native provider and native image I/O.
 

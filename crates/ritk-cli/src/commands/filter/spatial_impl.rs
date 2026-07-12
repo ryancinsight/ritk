@@ -299,7 +299,6 @@ pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
 
 // ── CPR (Curved Planar Reformation) ────────────────────────────────────────
 pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
-    use ritk_core::image::Image;
     use ritk_filter::{CprConfig, CprImageFilter};
     use ritk_spatial::{Direction, Point, Spacing};
 
@@ -332,7 +331,16 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
         })
         .collect::<Result<Vec<_>>>()?;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "cpr requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
 
     let cpr_filter = CprImageFilter::new(
         control_points,
@@ -343,28 +351,21 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
         },
     );
 
-    let image_2d = cpr_filter.apply(&image)?;
+    let image_2d = cpr_filter.apply_native(&image, &backend)?;
 
     // Promote 2-D [rows, cols] → 3-D [1, rows, cols] for the 3-D writer pipeline.
-    let (tensor_2d, origin_2d, spacing_2d, _dir_2d) = image_2d.into_parts();
-    let [nr, nc] = tensor_2d
-        .shape()
-        .dims
-        .try_into()
-        .expect("CPR output must be 2-D");
-    let device = tensor_2d.device();
-    let vals = tensor_2d
-        .into_data()
-        .into_vec::<f32>()
-        .expect("CPR requires f32 backend");
-    let td_3d =
-        ritk_image::tensor::TensorData::new(vals, ritk_image::tensor::Shape::new([1, nr, nc]));
-    let tensor_3d =
-        ritk_image::tensor::Tensor::<super::super::Backend, 3>::from_data(td_3d, &device);
-    let origin_3d = Point::new([0.0, origin_2d[0], origin_2d[1]]);
-    let spacing_3d = Spacing::new([1.0, spacing_2d[0], spacing_2d[1]]);
-    let image_3d = Image::new(tensor_3d, origin_3d, spacing_3d, Direction::identity());
-    write_image_inferred(&args.output, &image_3d)?;
+    let [nr, nc] = image_2d.shape();
+    let origin = image_2d.origin();
+    let spacing = image_2d.spacing();
+    let image_3d = ritk_image::native::Image::from_flat_on(
+        image_2d.data_slice()?.to_vec(),
+        [1, nr, nc],
+        Point::new([0.0, origin[0], origin[1]]),
+        Spacing::new([1.0, spacing[0], spacing[1]]),
+        Direction::identity(),
+        &backend,
+    )?;
+    write_image_native(&args.output, &image_3d, output_format)?;
 
     println!(
         "Applied CPR to {} → {}",

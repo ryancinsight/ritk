@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-626-01 audit (2026-07-11)
+
+CPR now preserves native ownership through reformation and its 2-D-to-3-D
+writer promotion. The output shape is `[1, cross_samples, path_samples]`.
+
 ## MIG-625-01 audit (2026-07-11)
 
 The median CLI now invokes its existing native provider and native image I/O.

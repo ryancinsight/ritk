@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 626: Native CLI curved planar reformation (MIG-626-01)
+### Breaking
+- `ritk filter --filter cpr` requires native input and output formats.
+
 ## [Unreleased] — Sprint 625: Native CLI median filter (MIG-625-01)
 ### Breaking
 - `ritk filter --filter median` requires native input and output formats.
