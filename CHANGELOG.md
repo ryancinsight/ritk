@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 618: Native CLI bed separation (MIG-618-01)
+### Breaking
+- `ritk filter --filter bed-separation` requires native input and output formats.
+
 ## [Unreleased] — Sprint 617: Native CLI threshold family (MIG-617-01)
 ### Breaking
 - Threshold-below, threshold-above, and threshold-outside require native formats.

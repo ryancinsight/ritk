@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-618-01 [major] - Native CLI bed separation (DONE).** Bed separation
+  now uses native provider and I/O boundaries.
+
 - **MIG-617-01 [major] - Native CLI threshold family (DONE).** Below, above,
   and outside modes now use native provider and I/O boundaries.
 
