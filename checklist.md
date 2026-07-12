@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-617-01 — Native CLI threshold family
+**Target version**: 0.14.0 migration batch
+- [x] Route below, above, and outside threshold modes through native I/O/providers.
+
 ## MIG-616-01 — Native CLI rescale intensity
 **Target version**: 0.14.0 migration batch
 - [x] Route rescale through its native provider and native I/O.

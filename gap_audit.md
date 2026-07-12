@@ -8,6 +8,10 @@
 
 # RITK Gap Audit - Active
 
+## MIG-617-01 audit (2026-07-11)
+
+The intensity threshold family now uses native images end to end.
+
 ## MIG-616-01 audit (2026-07-11)
 
 Rescale intensity now uses native I/O and its native provider implementation.

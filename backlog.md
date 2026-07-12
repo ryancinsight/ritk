@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-617-01 [major] - Native CLI threshold family (DONE).** Below, above,
+  and outside modes now use native provider and I/O boundaries.
+
 - **MIG-616-01 [major] - Native CLI rescale intensity (DONE).** Rescale now
   reads, computes, and writes through native provider boundaries.
 

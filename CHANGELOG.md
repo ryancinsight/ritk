@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 617: Native CLI threshold family (MIG-617-01)
+### Breaking
+- Threshold-below, threshold-above, and threshold-outside require native formats.
+
 ## [Unreleased] — Sprint 616: Native CLI rescale intensity (MIG-616-01)
 ### Breaking
 - `ritk filter --filter rescale-intensity` now requires native input and output formats.
