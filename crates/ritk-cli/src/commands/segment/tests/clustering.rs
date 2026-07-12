@@ -211,6 +211,36 @@ fn test_segment_distance_transform_background_is_zero() {
     });
 }
 
+#[test]
+fn native_distance_transform_cli_preserves_exact_physical_values_and_geometry() {
+    let dir = tempdir().unwrap();
+    let input = dir.path().join("input.nii");
+    let output = dir.path().join("distance.nii");
+    let device: <Backend as BurnBackend>::Device = Default::default();
+    let tensor = Tensor::<Backend, 3>::from_data(
+        TensorData::new(vec![1.0, 0.0, 0.0, 0.0], Shape::new([1, 1, 4])),
+        &device,
+    );
+    let image = Image::new(
+        tensor,
+        Point::new([2.0, 3.0, 5.0]),
+        Spacing::new([2.0, 3.0, 4.0]),
+        Direction::identity(),
+    );
+    ritk_io::write_nifti(&input, &image).unwrap();
+    run(default_args(
+        input,
+        output.clone(),
+        SegmentMethod::DistanceTransform,
+    ))
+    .unwrap();
+    let actual = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+    assert_eq!(actual.data_slice().as_ref(), &[0.0, 4.0, 8.0, 12.0]);
+    assert_eq!(actual.origin(), image.origin());
+    assert_eq!(actual.spacing(), image.spacing());
+    assert_eq!(actual.direction(), image.direction());
+}
+
 // ── Fill-holes tests ──────────────────────────────────────────────────────
 
 #[test]
@@ -387,6 +417,7 @@ fn native_postprocessing_cli_matches_legacy_exactly() {
 fn native_postprocessing_cli_rejects_known_nonnative_format() {
     let dir = tempdir().unwrap();
     for (index, method) in [
+        SegmentMethod::DistanceTransform,
         SegmentMethod::FillHoles,
         SegmentMethod::MorphologicalGradient,
         SegmentMethod::Skeletonization,

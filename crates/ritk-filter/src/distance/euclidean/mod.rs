@@ -34,15 +34,19 @@
 
 mod core;
 mod maurer;
-pub mod native;
 mod signed;
 mod unsigned;
 
+#[cfg(test)]
 pub(crate) use core::euclidean_dt;
 pub(crate) use maurer::signed_maurer_core;
 pub use maurer::SignedMaurerDistanceMapImageFilter;
 pub use signed::SignedDistanceTransformImageFilter;
 pub use unsigned::DistanceTransformImageFilter;
+
+#[cfg(test)]
+#[path = "tests_native.rs"]
+mod tests_native;
 
 #[cfg(test)]
 #[path = "../tests_euclidean.rs"]

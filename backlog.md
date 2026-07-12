@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-642-01 [major] - Consolidate Euclidean distance transforms (DONE).** `ritk-filter` solely owns validated Euclidean/squared and signed native execution; CLI/Snap/PyO3 are migrated, and the duplicate segmentation implementation/native wrappers are deleted.
+
 - **MIG-641-01 [major] - Native binary-mask postprocessing family (DONE).** Canonical flat fill-hole, morphological-gradient, and skeletonization kernels own validated Coeus-native execution; all three CLI routes use native I/O without compatibility wrappers.
 
 - **MIG-640-01 [major] - Native connected-component family (DONE).** Canonical labeling filters own validated Coeus-native execution, CLI/Snap/PyO3 propagate typed errors, sparse relabeling prevents input-driven allocation, and the exhausted root-native module is deleted.

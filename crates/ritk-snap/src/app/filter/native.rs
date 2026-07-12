@@ -9,23 +9,23 @@
 use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_filter::{
-    distance::euclidean::native::{distance_transform, signed_distance_transform},
     morphology::native::{
         binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
     },
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationFilter,
     BinaryContourImageFilter, BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter,
     ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter, CurvatureFlowConfig,
-    CurvatureFlowImageFilter, ExpImageFilter, FlipImageFilter, GaussianFilter, GaussianSigma,
-    GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, GrayscaleClosingFilter,
-    GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
-    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
-    HistogramEqualizationFilter, InvertIntensityFilter, LabelContourImageFilter, LogImageFilter,
-    MaskImageFilter, MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    CurvatureFlowImageFilter, DistanceTransformImageFilter, ExpImageFilter, FlipImageFilter,
+    GaussianFilter, GaussianSigma, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
+    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
+    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, TanImageFilter,
-    TileMeanShrinkFilter, UnsharpMaskFilter, VotingBinaryImageFilter, WrapPadImageFilter,
-    ZeroCrossingImageFilter,
+    ShiftScaleImageFilter, SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter,
+    SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
+    VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
 };
 use ritk_image::native::Image;
 use ritk_segmentation::{
@@ -424,11 +424,13 @@ fn apply_supported_filter(
         FilterKind::BinaryFillhole { foreground_value } => {
             binary_fill_holes(&image, *foreground_value, &backend)
         }
-        FilterKind::DistanceTransform { threshold } => {
-            distance_transform(&image, *threshold, &backend)
-        }
+        FilterKind::DistanceTransform { threshold } => DistanceTransformImageFilter::new()
+            .with_threshold(*threshold)
+            .apply_native(&image, &backend),
         FilterKind::SignedDistanceTransform { threshold } => {
-            signed_distance_transform(&image, *threshold, &backend)
+            SignedDistanceTransformImageFilter::new()
+                .with_threshold(*threshold)
+                .apply_native(&image, &backend)
         }
         FilterKind::ConnectedComponents {
             connectivity,

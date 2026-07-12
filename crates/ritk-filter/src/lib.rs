@@ -188,8 +188,8 @@ pub use colliding_fronts::CollidingFrontsFilter;
 pub use displacement::transform_to_displacement_field;
 pub(crate) use distance::signed_maurer_core;
 pub use distance::{
-    ApproximateSignedDistanceMapFilter, BinarizationThreshold, DistanceTransformImageFilter,
-    FastChamferDistanceFilter, SignedDistanceTransformImageFilter,
+    ApproximateSignedDistanceMapFilter, BinarizationThreshold, DistanceMeasure,
+    DistanceTransformImageFilter, FastChamferDistanceFilter, SignedDistanceTransformImageFilter,
     SignedMaurerDistanceMapImageFilter,
 };
 pub use fast_marching::FastMarchingFilter;

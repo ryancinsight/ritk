@@ -160,6 +160,20 @@ pub(super) fn meijster_row(
 /// `spacing = [sz, sy, sx]` in mm.
 /// Returns `Vec<f32>` of Euclidean distances (not squared) in mm.
 pub(crate) fn euclidean_dt(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
+    euclidean_dt_with_measure(
+        fg,
+        dims,
+        spacing,
+        crate::distance::DistanceMeasure::Euclidean,
+    )
+}
+
+pub(crate) fn euclidean_dt_with_measure(
+    fg: &[bool],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    measure: crate::distance::DistanceMeasure,
+) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let [sz, sy, sx] = spacing;
     let n_total = nz * ny * nx;
@@ -254,12 +268,17 @@ pub(crate) fn euclidean_dt(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> 
             out_chunk.copy_from_slice(&dt_buf[..nz]);
         },
     );
-    // Scatter and sqrt: edt[iz*n_cols + col] = sqrt(edt2_t[col*nz + iz])
+    // Scatter into z-major order, applying the selected measure once at the
+    // operation boundary.
     (0..n_total)
         .map(|flat| {
             let iz = flat / n_cols;
             let col = flat % n_cols;
-            edt2_t[col * nz + iz].sqrt() as f32
+            let squared = edt2_t[col * nz + iz];
+            match measure {
+                crate::distance::DistanceMeasure::Euclidean => squared.sqrt() as f32,
+                crate::distance::DistanceMeasure::Squared => squared as f32,
+            }
         })
         .collect()
 }

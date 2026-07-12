@@ -8,6 +8,28 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 642: Euclidean distance-transform consolidation (MIG-642-01)
+### Breaking
+- Remove `ritk_segmentation::{distance_transform,distance_transform_squared,DistanceTransform}`;
+  use `ritk_filter::DistanceTransformImageFilter`.
+- Remove `ritk_filter::distance::euclidean::native`; unsigned and signed
+  filter types now own `apply_native`.
+- Distance-transform filter configuration fields are private; use builders and
+  accessors. `ritk segment --method distance-transform` requires native formats.
+- `BinarizationThreshold` removes its infallible primitive conversion; use
+  `new` or `TryFrom<f32>`, which reject negative and non-finite values and are
+  enforced during deserialization.
+
+### Added
+- `DistanceMeasure::{Euclidean,Squared}` selects the output contract without
+  duplicating the Meijster passes.
+
+### Changed
+- CLI, Snap, and PyO3 distance consumers use the `ritk-filter` owner.
+- Empty unsigned seed sets return zero, preserving the removed segmentation
+  contract. Native and legacy boundaries reject non-finite samples, invalid
+  thresholds, non-positive spacing, and zero-sized dimensions with typed errors.
+
 ## [Unreleased] — Sprint 641: Native binary-mask postprocessing (MIG-641-01)
 ### Breaking
 - `ritk segment --method fill-holes|morphological-gradient|skeletonization`

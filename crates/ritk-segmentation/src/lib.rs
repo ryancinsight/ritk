@@ -15,7 +15,6 @@
 //! - [`ensemble`]: Ensemble methods (STAPLE EM algorithm).
 
 pub mod clustering;
-pub mod distance_transform;
 pub mod ensemble;
 pub mod labeling;
 pub mod level_set;
@@ -28,7 +27,6 @@ pub mod watershed;
 pub use clustering::{
     kmeans_segment, slic_itk_segment, KMeansSegmentation, SlicConfig, SlicSuperpixelFilter,
 };
-pub use distance_transform::{distance_transform, distance_transform_squared, DistanceTransform};
 pub use ensemble::{
     multi_label_staple, staple, MultiLabelStapleResult, StapleConvergence, StapleResult,
 };

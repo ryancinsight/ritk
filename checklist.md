@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-642-01 — Consolidate Euclidean distance transforms
+**Target version**: 0.14.0 migration batch
+- [x] Extend the `ritk-filter` owner with Euclidean/squared output policy and native methods.
+- [x] Migrate CLI, Snap, and PyO3 consumers to the canonical filter types.
+- [x] Delete the duplicated `ritk-segmentation` distance-transform module and native free wrappers.
+- [x] Add exact differential, special-value, and boundary regressions.
+- [x] Run package gates, review, commit, and push.
+
 ## MIG-641-01 — Native binary-mask postprocessing family
 **Target version**: 0.14.0 migration batch
 - [x] Extract canonical flat fill-hole and gradient kernels without duplication.

@@ -8,6 +8,25 @@
 
 # RITK Gap Audit - Active
 
+## MIG-642-01 audit (2026-07-12)
+
+`ritk-segmentation` and `ritk-filter` contained independent complete Meijster
+Euclidean distance-transform implementations. The filter implementation is the
+canonical owner because it already serves filter-internal, Snap, and signed
+distance consumers and uses the Moirai-parallel substrate-agnostic core. It now
+supports Euclidean or squared output through one enum-selected pass, owns native
+methods on both filter types, and preserves the removed segmentation empty-seed
+zero contract. CLI, Snap, and PyO3 consumers are migrated; the segmentation
+module and native free wrappers are deleted. Exact squared-grid, anisotropic CLI,
+native/legacy differential, empty-seed, and invalid-numeric tests provide
+empirical and differential evidence; no machine-checked proof of the lower
+envelope algorithm was performed.
+`BinarizationThreshold` now has one fallible primitive/Serde validity boundary,
+so invalid threshold state is unrepresentable rather than rejected only at
+execution.
+Built-wheel PyO3 coverage verifies Euclidean/squared values and exact
+`ValueError` behavior for negative and non-finite thresholds.
+
 ## MIG-641-01 audit (2026-07-12)
 
 Fill-hole, binary morphological-gradient, and skeletonization CLI routes still

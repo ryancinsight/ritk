@@ -2,23 +2,31 @@
 //! to the Burn-generic `DistanceTransformImageFilter::apply` it mirrors —
 //! both call the same `euclidean_dt` core (shared harness in `coeus_support`).
 
-use super::{distance_transform, signed_distance_transform};
 use crate::distance::euclidean::{
     DistanceTransformImageFilter, SignedDistanceTransformImageFilter,
 };
-use crate::distance::types::BinarizationThreshold;
+use crate::distance::DistanceMeasure;
 use crate::native_support::assert_native_matches_burn;
 
 fn check(vals: Vec<f32>, dims: [usize; 3]) {
+    check_measure(vals, dims, DistanceMeasure::Euclidean);
+}
+
+fn check_measure(vals: Vec<f32>, dims: [usize; 3], measure: DistanceMeasure) {
     assert_native_matches_burn(
         vals,
         dims,
         |img| {
             DistanceTransformImageFilter::new()
+                .with_measure(measure)
                 .apply(img)
                 .expect("burn distance transform")
         },
-        |img, backend| distance_transform(img, BinarizationThreshold::DEFAULT, backend),
+        |img, backend| {
+            DistanceTransformImageFilter::new()
+                .with_measure(measure)
+                .apply_native(img, backend)
+        },
     );
 }
 
@@ -49,6 +57,13 @@ fn matches_burn_scattered_foreground() {
 }
 
 #[test]
+fn squared_measure_matches_burn_exactly() {
+    let mut values = vec![0.0; 27];
+    values[0] = 1.0;
+    check_measure(values, [3, 3, 3], DistanceMeasure::Squared);
+}
+
+#[test]
 fn signed_matches_burn_voxel_centre_convention() {
     assert_native_matches_burn(
         vec![0.0, 1.0, 0.0],
@@ -58,6 +73,6 @@ fn signed_matches_burn_voxel_centre_convention() {
                 .apply(image)
                 .expect("burn signed distance transform")
         },
-        |image, backend| signed_distance_transform(image, BinarizationThreshold::DEFAULT, backend),
+        |image, backend| SignedDistanceTransformImageFilter::new().apply_native(image, backend),
     );
 }

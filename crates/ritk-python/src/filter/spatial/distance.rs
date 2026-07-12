@@ -1,8 +1,10 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
-use ritk_filter::{SignedDistanceTransformImageFilter, SignedMaurerDistanceMapImageFilter};
-use ritk_segmentation::DistanceTransform;
+use ritk_filter::{
+    BinarizationThreshold, DistanceMeasure, DistanceTransformImageFilter,
+    SignedDistanceTransformImageFilter, SignedMaurerDistanceMapImageFilter,
+};
 
 /// Distance metric variant for distance transform, replacing `squared: bool`.
 ///
@@ -56,13 +58,22 @@ pub fn distance_transform(
     image: &PyImage,
     foreground_threshold: f32,
     metric: PyDistanceMetric,
-) -> PyImage {
+) -> RitkResult<PyImage> {
     let arc = py_image_to_burn(image);
-    let result = py.allow_threads(|| match metric {
-        PyDistanceMetric::Euclidean => DistanceTransform::transform(&arc, foreground_threshold),
-        PyDistanceMetric::Squared => DistanceTransform::squared(&arc, foreground_threshold),
+    let measure = match metric {
+        PyDistanceMetric::Euclidean => DistanceMeasure::Euclidean,
+        PyDistanceMetric::Squared => DistanceMeasure::Squared,
+    };
+    let threshold = BinarizationThreshold::new(foreground_threshold).map_err(RitkPyError::value)?;
+    let result = py.allow_threads(|| {
+        DistanceTransformImageFilter::new()
+            .with_threshold(threshold)
+            .with_measure(measure)
+            .apply(&arc)
     });
-    burn_into_py_image(result)
+    result
+        .map(burn_into_py_image)
+        .map_err(|error| RitkPyError::value(error.to_string()))
 }
 
 /// Signed Euclidean distance map of a binary image (physical units).
@@ -83,9 +94,10 @@ pub fn signed_distance_map(
     foreground_threshold: f32,
 ) -> RitkResult<PyImage> {
     let arc = py_image_to_burn(image);
+    let threshold = BinarizationThreshold::new(foreground_threshold).map_err(RitkPyError::value)?;
     py.allow_threads(|| {
         SignedDistanceTransformImageFilter::new()
-            .with_threshold(foreground_threshold)
+            .with_threshold(threshold)
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

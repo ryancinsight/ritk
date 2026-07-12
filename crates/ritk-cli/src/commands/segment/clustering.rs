@@ -1,6 +1,7 @@
 use anyhow::Result;
 use tracing::info;
 
+use ritk_filter::{DistanceMeasure, DistanceTransformImageFilter};
 use ritk_segmentation::{
     BinaryFillHoles, ConnectedComponentsFilter, KMeansSegmentation, MorphologicalGradient,
     Skeletonization,
@@ -53,17 +54,16 @@ pub(super) fn run_kmeans(args: &SegmentArgs) -> Result<()> {
 /// Compute the Euclidean distance transform of a binary mask.
 ///
 /// The input is binarised at threshold 0.5 (voxels > 0.5 = foreground).
-/// The output is a float image where each foreground voxel contains the
-/// Euclidean distance (in voxel units) to the nearest background voxel.
-/// Background voxels have value 0.0.
+/// Foreground voxels receive zero; each background voxel receives its physical
+/// Euclidean distance to the nearest foreground voxel using image spacing.
 pub(super) fn run_distance_transform(args: &SegmentArgs) -> Result<()> {
-    use ritk_segmentation::distance_transform;
-
-    let image = read_image(&args.input)?;
-
-    let dt = distance_transform(&image, 0.5);
-
-    write_image_inferred(&args.output, &dt)?;
+    let (image, output_format) =
+        read_native_input(&args.input, &args.output, "distance-transform")?;
+    let backend = NativeBackend::default();
+    let dt = DistanceTransformImageFilter::new()
+        .with_measure(DistanceMeasure::Euclidean)
+        .apply_native(&image, &backend)?;
+    write_image_native(&args.output, &dt, output_format)?;
 
     println!(
         "Computed distance-transform for {} \u{2192} {}",
