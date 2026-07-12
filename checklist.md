@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-643-01 — Native K-means clustering
+**Target version**: 0.14.0 migration batch
+- [x] Make K-means construction/configuration fallible and private, with finite sample validation.
+- [x] Add a Coeus-native image method over the canonical flat clustering core.
+- [x] Migrate CLI and PyO3 consumers without compatibility adapters.
+- [x] Add exact legacy/native differential, boundary, and adversarial regressions.
+- [x] Run package gates, adversarial review, commit, and push.
+
 ## MIG-642-01 — Consolidate Euclidean distance transforms
 **Target version**: 0.14.0 migration batch
 - [x] Extend the `ritk-filter` owner with Euclidean/squared output policy and native methods.

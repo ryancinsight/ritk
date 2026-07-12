@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-643-01 [major] - Native K-means clustering (DONE).** Validated private configuration and one overflow-safe native-precision core serve legacy/Coeus-native images; CLI/PyO3 surfaces and exact differential/adversarial regressions are synchronized.
+
 - **MIG-642-01 [major] - Consolidate Euclidean distance transforms (DONE).** `ritk-filter` solely owns validated Euclidean/squared and signed native execution; CLI/Snap/PyO3 are migrated, and the duplicate segmentation implementation/native wrappers are deleted.
 
 - **MIG-641-01 [major] - Native binary-mask postprocessing family (DONE).** Canonical flat fill-hole, morphological-gradient, and skeletonization kernels own validated Coeus-native execution; all three CLI routes use native I/O without compatibility wrappers.

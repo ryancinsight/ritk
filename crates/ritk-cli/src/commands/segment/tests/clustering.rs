@@ -140,6 +140,70 @@ fn test_segment_kmeans_tolerance_param_accepted() {
     );
 }
 
+#[test]
+fn native_kmeans_cli_matches_canonical_legacy_output_exactly() {
+    let dir = tempdir().unwrap();
+    let input = dir.path().join("input.nii");
+    let output = dir.path().join("labels.nii");
+    let image = make_trimodal_image();
+    ritk_io::write_nifti(&input, &image).unwrap();
+    let args = SegmentArgs {
+        input,
+        output: output.clone(),
+        method: SegmentMethod::Kmeans,
+        classes: 3,
+        kmeans_max_iterations: Some(20),
+        kmeans_tolerance: Some(0.0),
+        kmeans_seed: Some(7),
+        ..Default::default()
+    };
+    run(args).unwrap();
+
+    let expected = ritk_segmentation::KMeansSegmentation::new(3)
+        .unwrap()
+        .with_max_iterations(20)
+        .unwrap()
+        .with_tolerance(0.0)
+        .unwrap()
+        .with_seed(7)
+        .apply(&image)
+        .unwrap();
+    let actual = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+    assert_eq!(actual.data_slice(), expected.data_slice());
+    assert_eq!(actual.origin(), image.origin());
+    assert_eq!(actual.spacing(), image.spacing());
+    assert_eq!(actual.direction(), image.direction());
+}
+
+#[test]
+fn native_kmeans_cli_rejects_invalid_configuration_and_nonnative_input() {
+    let dir = tempdir().unwrap();
+    let valid_input = dir.path().join("input.nii");
+    ritk_io::write_nifti(&valid_input, &make_bimodal_image()).unwrap();
+    let invalid_k = run(SegmentArgs {
+        input: valid_input,
+        output: dir.path().join("output.nii"),
+        method: SegmentMethod::Kmeans,
+        classes: 0,
+        ..Default::default()
+    })
+    .unwrap_err();
+    assert_eq!(invalid_k.to_string(), "k must be at least 1, got 0");
+
+    let output = dir.path().join("output.nii");
+    let format_error = run(default_args(
+        dir.path().join("input.vtk"),
+        output.clone(),
+        SegmentMethod::Kmeans,
+    ))
+    .unwrap_err();
+    assert_eq!(
+        format_error.to_string(),
+        "kmeans requires native input/output formats"
+    );
+    assert!(!output.exists());
+}
+
 // ── Positive: Distance transform creates output ───────────────────────────
 
 #[test]

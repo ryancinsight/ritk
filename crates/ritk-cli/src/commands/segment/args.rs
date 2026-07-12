@@ -103,7 +103,7 @@ pub struct SegmentArgs {
 
     /// Centroid-displacement convergence tolerance for `kmeans`. Default: 1e-6.
     #[arg(long, value_name = "FLOAT")]
-    pub kmeans_tolerance: Option<f64>,
+    pub kmeans_tolerance: Option<f32>,
 
     /// Deterministic seed for k-means++ initialization. Default: 42.
     #[arg(long, value_name = "INT")]

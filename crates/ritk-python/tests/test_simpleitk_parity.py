@@ -2625,6 +2625,29 @@ def test_kmeans_segment_produces_k_clusters():
     assert np.all(np.isfinite(result)), "K-means produced non-finite values"
 
 
+def test_kmeans_segment_rejects_invalid_configuration_and_samples():
+    image = _ritk(np.array([[[0.0, 1.0, 2.0]]], dtype=np.float32))
+    with pytest.raises(ValueError, match="k must be at least 1, got 0"):
+        ritk.segmentation.kmeans_segment(image, k=0)
+    with pytest.raises(
+        ValueError,
+        match="k-means tolerance must be finite and nonnegative, got -1",
+    ):
+        ritk.segmentation.kmeans_segment(image, k=2, tolerance=-1.0)
+    with pytest.raises(
+        ValueError,
+        match="k-means maximum iterations must be at least 1, got 0",
+    ):
+        ritk.segmentation.kmeans_segment(image, k=2, max_iterations=0)
+
+    nonfinite = _ritk(np.array([[[0.0, np.nan, 2.0]]], dtype=np.float32))
+    with pytest.raises(
+        ValueError,
+        match="k-means sample at flat index 1 must be finite, got NaN",
+    ):
+        ritk.segmentation.kmeans_segment(nonfinite, k=2)
+
+
 def test_connected_threshold_segment_recovers_sphere():
     """Connected-threshold region growing from the sphere centre recovers the sphere.
 

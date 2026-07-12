@@ -89,7 +89,13 @@ def connected_threshold_segment(
 
 # ── Clustering ──────────────────────────────────────────────────────────────
 
-def kmeans_segment(image: Image, k: int = 3) -> Image: ...
+def kmeans_segment(
+    image: Image,
+    k: int = 3,
+    max_iterations: int | None = None,
+    tolerance: float | None = None,
+    seed: int | None = None,
+) -> Image: ...
 
 # ── Watershed ────────────────────────────────────────────────────
 

@@ -8,6 +8,25 @@
 
 # RITK Gap Audit - Active
 
+## MIG-643-01 audit (2026-07-12)
+
+K-means already had one substrate-independent flat core, but its public mutable
+configuration admitted invalid state, construction panicked on zero clusters,
+legacy execution accepted non-finite samples, and the CLI still constructed
+Burn tensors. The canonical type now owns fallible legacy and Coeus-native
+boundaries, private builder configuration, and native CLI execution. Arithmetic
+and accumulation remain in the concrete `f32` image precision: normalized
+k-means++ weights and shifted cluster means prevent intermediate overflow, while
+an unrepresentable full input range is rejected explicitly. Cluster identifiers
+are deterministic for a fixed seed but semantically unordered; no stable label
+number is promised across algorithm revisions.
+
+Exact native/legacy value and geometry comparisons, finite-extreme, non-finite,
+invalid-configuration, CLI format, and built-wheel PyO3 regressions provide
+differential and empirical evidence. The 716-test package nextest gate, clippy,
+rustdoc, and doctests are clean. No machine-checked proof of Lloyd convergence
+or k-means++ approximation quality was performed.
+
 ## MIG-642-01 audit (2026-07-12)
 
 `ritk-segmentation` and `ritk-filter` contained independent complete Meijster

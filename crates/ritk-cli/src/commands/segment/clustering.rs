@@ -7,7 +7,7 @@ use ritk_segmentation::{
     Skeletonization,
 };
 
-use super::super::{read_image, write_image_inferred, write_image_native, NativeBackend};
+use super::super::{write_image_native, NativeBackend};
 use super::args::SegmentArgs;
 use super::helpers::{count_native_foreground, read_native_input};
 
@@ -18,21 +18,22 @@ use super::helpers::{count_native_foreground, read_native_input};
 /// Each voxel in the output contains its assigned cluster index (0..K−1)
 /// as `f32`.  Spatial metadata is preserved.
 pub(super) fn run_kmeans(args: &SegmentArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
+    let (image, output_format) = read_native_input(&args.input, &args.output, "kmeans")?;
 
-    let mut km = KMeansSegmentation::new(args.classes);
+    let mut km = KMeansSegmentation::new(args.classes)?;
     if let Some(mi) = args.kmeans_max_iterations {
-        km.max_iterations = mi;
+        km = km.with_max_iterations(mi)?;
     }
     if let Some(tol) = args.kmeans_tolerance {
-        km.tolerance = tol;
+        km = km.with_tolerance(tol)?;
     }
     if let Some(seed) = args.kmeans_seed {
-        km.seed = seed;
+        km = km.with_seed(seed);
     }
-    let labeled = km.apply(&image);
+    let backend = NativeBackend::default();
+    let labeled = km.apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &labeled)?;
+    write_image_native(&args.output, &labeled, output_format)?;
 
     println!(
         "Segmented {} (kmeans): k={} clusters",

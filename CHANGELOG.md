@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 643: Native K-means clustering (MIG-643-01)
+### Breaking
+- K-means configuration becomes private and validated; construction and
+  application return typed errors instead of panicking or accepting non-finite
+  values. CLI K-means segmentation requires native image formats.
+
+### Changed
+- The canonical K-means core serves both legacy tensors and Coeus-native images;
+  the CLI executes through native image storage.
+
 ## [Unreleased] — Sprint 642: Euclidean distance-transform consolidation (MIG-642-01)
 ### Breaking
 - Remove `ritk_segmentation::{distance_transform,distance_transform_squared,DistanceTransform}`;
