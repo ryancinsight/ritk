@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-629-01 — Native CLI morphological reconstruction
+**Target version**: 0.14.0 migration batch
+- [x] Route native marker and mask images to the existing two-image provider.
+- [x] Validate native marker, mask, and output formats with a native output regression.
+
 ## MIG-628-01 — Native CLI grayscale dilation
 **Target version**: 0.14.0 migration batch
 - [x] Cover the existing native dilation provider with value and metadata assertions.

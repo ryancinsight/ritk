@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-629-01 [major] - Native CLI morphological reconstruction (DONE).**
+  Two-image reconstruction now consumes its existing Coeus-native provider and
+  native marker, mask, and output I/O.
+
 - **MIG-628-01 [major] - Native CLI grayscale dilation (DONE).** Grayscale
   dilation now consumes its existing Coeus-native provider and native image I/O.
 

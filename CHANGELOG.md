@@ -8,6 +8,11 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 629: Native CLI morphological reconstruction (MIG-629-01)
+### Breaking
+- `ritk filter --filter morphological-reconstruction` requires native marker,
+  mask, and output formats.
+
 ## [Unreleased] — Sprint 628: Native CLI grayscale dilation (MIG-628-01)
 ### Breaking
 - `ritk filter --filter grayscale-dilation` requires native input and output formats.

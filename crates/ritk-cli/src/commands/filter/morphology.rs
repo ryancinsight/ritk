@@ -145,17 +145,30 @@ pub(super) fn run_label_closing(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_morphological_reconstruction(args: &FilterArgs) -> Result<()> {
     use ritk_filter::{MorphologicalReconstruction, ReconstructionMode};
 
-    let marker = read_image(&args.input)?;
     let mask_path =
         args.mask_input.mask.as_ref().ok_or_else(|| {
             anyhow::anyhow!("morphological-reconstruction requires --mask <path>")
         })?;
-    let mask = read_image(mask_path)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let mask_format = infer_format(mask_path)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer mask format: {}", mask_path.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format)
+            && is_native_read_capable(mask_format)
+            && is_native_write_capable(output_format),
+        "morphological-reconstruction requires native marker, mask, and output formats"
+    );
+    let marker = read_image_native(&args.input)?;
+    let mask = read_image_native(mask_path)?;
+    let backend = NativeBackend::default();
 
-    let filtered =
-        MorphologicalReconstruction::new(ReconstructionMode::Dilation).apply(&marker, &mask)?;
+    let filtered = MorphologicalReconstruction::new(ReconstructionMode::Dilation)
+        .apply_native(&marker, &mask, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
     info!("filter: morphological-reconstruction complete");
 
     Ok(())
@@ -199,6 +212,28 @@ mod tests {
         run_grayscale_dilation(&args).expect("grayscale dilation succeeds");
         let output = crate::commands::read_image_native(&output)
             .expect("grayscale dilation output is natively readable");
+        assert_eq!(output.shape(), [5, 5, 5]);
+    }
+
+    #[test]
+    fn morphological_reconstruction_writes_native_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("marker.nii");
+        let mask = dir.path().join("mask.nii");
+        let output = dir.path().join("output.nii");
+        let fixture = make_test_image();
+        ritk_io::write_nifti(&input, &fixture).expect("marker fixture writes");
+        ritk_io::write_nifti(&mask, &fixture).expect("mask fixture writes");
+
+        let mut args = default_args(
+            input,
+            output.clone(),
+            FilterKind::MorphologicalReconstruction,
+        );
+        args.mask_input.mask = Some(mask);
+        run_morphological_reconstruction(&args).expect("morphological reconstruction succeeds");
+        let output = crate::commands::read_image_native(&output)
+            .expect("reconstruction output is natively readable");
         assert_eq!(output.shape(), [5, 5, 5]);
     }
 

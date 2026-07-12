@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-629-01 audit (2026-07-11)
+
+Morphological reconstruction now retains native ownership across its marker,
+mask, and output boundaries. Other morphology routes remain independently
+legacy-owned.
+
 ## MIG-628-01 audit (2026-07-11)
 
 Grayscale dilation now has provider-native geometry/value coverage, and its CLI
