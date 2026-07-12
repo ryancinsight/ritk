@@ -8,6 +8,12 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-634-01 — Native CLI hit-or-miss transform
+**Target version**: 0.14.0 migration batch
+- [x] Expose the canonical hit-or-miss kernel through a Coeus-native image boundary.
+- [x] Add value-semantic native parity and geometry coverage, including the degenerate-axis case.
+- [x] Route the CLI through native I/O and verify focused package gates.
+
 ## MIG-633-01 — Native CLI top-hat filters
 **Target version**: 0.14.0 migration batch
 - [x] Compose native erosion/dilation and one clamped-subtraction boundary.

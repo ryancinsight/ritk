@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-634-01 [major] - Native CLI hit-or-miss transform (DONE).** The existing canonical flat kernel now serves the Coeus-native image boundary; exact native parity and geometry coverage includes the degenerate-axis case, and the CLI no longer constructs legacy tensors for this command.
+
 - **MIG-633-01 [major] - Native CLI top-hat filters (DONE).** White and black
   top-hat filters now share native clamped subtraction and use native image I/O.
 

@@ -8,7 +8,7 @@ use super::{
         infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
         write_image_native, NativeBackend,
     },
-    read_image, write_image_inferred, FilterArgs,
+    FilterArgs,
 };
 
 pub(super) fn run_grayscale_erosion(args: &FilterArgs) -> Result<()> {
@@ -98,10 +98,20 @@ pub(super) fn run_black_top_hat(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_hit_or_miss(args: &FilterArgs) -> Result<()> {
     use ritk_filter::HitOrMissTransform;
 
-    let image = read_image(&args.input)?;
-    let filtered = HitOrMissTransform::new(args.kernel.radius, args.kernel.radius).apply(&image)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "hit-or-miss requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let filtered = HitOrMissTransform::new(args.kernel.radius, args.kernel.radius)
+        .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
     info!("filter: hit-or-miss complete");
 
     Ok(())
@@ -289,6 +299,40 @@ mod tests {
                 .expect("top-hat output is natively readable");
             assert_eq!(output.shape(), [5, 5, 5]);
         }
+    }
+
+    #[test]
+    fn hit_or_miss_writes_exact_native_values_and_geometry() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("input.nii");
+        let output_path = dir.path().join("output.nii");
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let values: Vec<f32> = (0..27)
+            .map(|index| if index % 4 == 0 { 1.0 } else { 0.0 })
+            .collect();
+        let origin = Point::new([2.0, 3.0, 5.0]);
+        let spacing = Spacing::new([0.5, 1.0, 2.0]);
+        let image = Image::new(
+            Tensor::<Backend, 3>::from_data(
+                TensorData::new(values.clone(), Shape::new([3, 3, 3])),
+                &device,
+            ),
+            origin,
+            spacing,
+            Direction::identity(),
+        );
+        ritk_io::write_nifti::<Backend, _>(&input_path, &image).expect("input fixture writes");
+
+        let mut args = default_args(input_path, output_path.clone(), FilterKind::HitOrMiss);
+        args.kernel.radius = 0;
+        run_hit_or_miss(&args).expect("hit-or-miss succeeds");
+        let output = crate::commands::read_image_native(&output_path)
+            .expect("hit-or-miss output is natively readable");
+
+        assert_eq!(output.shape(), [3, 3, 3]);
+        assert_eq!(*output.origin(), origin);
+        assert_eq!(*output.spacing(), spacing);
+        assert_eq!(output.data_slice().expect("contiguous output"), values);
     }
 
     #[test]

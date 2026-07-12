@@ -8,6 +8,14 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 634: Native CLI hit-or-miss transform (MIG-634-01)
+### Breaking
+- `ritk filter --filter hit-or-miss` requires native input and output formats.
+
+### Changed
+- `HitOrMissTransform` exposes the existing canonical computation through a
+  Coeus-native image boundary while preserving spatial metadata.
+
 ## [Unreleased] — Sprint 633: Native CLI top-hat filters (MIG-633-01)
 ### Breaking
 - `ritk filter --filter white-top-hat` and `black-top-hat` require native input

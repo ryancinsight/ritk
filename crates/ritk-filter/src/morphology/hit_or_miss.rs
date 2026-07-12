@@ -40,6 +40,37 @@ impl HitOrMissTransform {
             *image.direction(),
         ))
     }
+
+    /// Apply the transform to a Coeus-native CPU-addressable image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the backend storage is not available as a
+    /// contiguous host slice or when the output image cannot be constructed
+    /// from the computed flat volume and input geometry.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            hit_or_miss_3d(
+                image.data_slice()?,
+                image.shape(),
+                self.fg_radius,
+                self.bg_radius,
+            ),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
 }
 
 /// True if the offset addresses a **degenerate (size-1) axis** off its only

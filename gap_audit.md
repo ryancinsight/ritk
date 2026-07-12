@@ -8,6 +8,15 @@
 
 # RITK Gap Audit - Active
 
+## MIG-634-01 audit (2026-07-12)
+
+Hit-or-miss now shares one flat computation across the legacy and Coeus-native
+image boundaries, and the CLI retains native ownership through I/O. Evidence is
+differential and empirical: exact public-boundary parity covers a degenerate
+axis and a three-dimensional nonzero background ring; an end-to-end NIfTI CLI
+regression asserts exact output values and geometry. No machine-checked proof
+of the morphological implementation was performed.
+
 ## MIG-633-01 audit (2026-07-11)
 
 White and black top-hat filters now share a native clamped subtraction helper.
