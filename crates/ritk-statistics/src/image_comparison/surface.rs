@@ -217,3 +217,44 @@ pub fn mean_surface_distance<B: Backend, const D: usize>(
 
     ((msd_p_to_g + msd_g_to_p) / 2.0) as f32
 }
+
+/// Compute symmetric mean surface distance between Coeus-native binary masks.
+///
+/// # Errors
+/// Returns an error when storage is not CPU-addressable or the masks differ in
+/// shape.
+pub fn mean_surface_distance_native<B, const D: usize>(
+    prediction: &NativeImage<f32, B, D>,
+    ground_truth: &NativeImage<f32, B, D>,
+    spacing: &[f64; D],
+) -> anyhow::Result<f32>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    anyhow::ensure!(
+        prediction.shape() == ground_truth.shape(),
+        "mean surface distance requires equal shapes: {:?} != {:?}",
+        prediction.shape(),
+        ground_truth.shape()
+    );
+    let prediction_boundary = extract_boundary_physical_from_values(
+        prediction.data_slice()?,
+        prediction.shape(),
+        spacing,
+    );
+    let ground_truth_boundary = extract_boundary_physical_from_values(
+        ground_truth.data_slice()?,
+        ground_truth.shape(),
+        spacing,
+    );
+    Ok(
+        if prediction_boundary.is_empty() && ground_truth_boundary.is_empty() {
+            0.0
+        } else {
+            ((directed_msd(&prediction_boundary, &ground_truth_boundary)
+                + directed_msd(&ground_truth_boundary, &prediction_boundary))
+                / 2.0) as f32
+        },
+    )
+}

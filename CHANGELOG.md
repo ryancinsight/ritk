@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 613: Native CLI mean surface distance (MIG-613-01)
+### Breaking
+- `ritk stats --metric mean-surface-distance` now requires native input and reference formats.
+
 ## [Unreleased] — Sprint 612: Native CLI Hausdorff metric (MIG-612-01)
 ### Breaking
 - `ritk stats --metric hausdorff` now requires natively readable input and reference formats.

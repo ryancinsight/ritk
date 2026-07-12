@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-613-01 — Native CLI mean surface distance
+**Target version**: 0.14.0 migration batch
+- [x] Expose native mean surface distance through shared boundary extraction.
+- [x] Delete the legacy production stats helper after all metrics cut over.
+
 ## MIG-612-01 — Native CLI Hausdorff metric
 **Target version**: 0.14.0 migration batch
 - [x] Consolidate boundary extraction over borrowed voxel slices.

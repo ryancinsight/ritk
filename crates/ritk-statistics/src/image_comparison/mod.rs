@@ -53,7 +53,10 @@ mod surface;
 
 pub use overlap::{dice_coefficient, dice_coefficient_native, similarity_index};
 pub use quality::{psnr, psnr_native, ssim, ssim_native};
-pub use surface::{hausdorff_distance, hausdorff_distance_native, mean_surface_distance};
+pub use surface::{
+    hausdorff_distance, hausdorff_distance_native, mean_surface_distance,
+    mean_surface_distance_native,
+};
 
 #[cfg(test)]
 mod tests;

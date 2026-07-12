@@ -5,6 +5,7 @@ use super::super::surface::{
 use super::*;
 use crate::image_comparison::{
     hausdorff_distance, hausdorff_distance_native, mean_surface_distance,
+    mean_surface_distance_native,
 };
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
@@ -106,6 +107,31 @@ fn test_msd_identical_masks_is_zero() {
         "identical masks -> MSD = 0.0, got {}",
         msd
     );
+}
+
+#[test]
+fn native_msd_known_value_matches_surface_kernel() {
+    let prediction = NativeImage::from_flat_on(
+        vec![1.0, 1.0, 0.0, 0.0, 0.0],
+        [1, 1, 5],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native prediction");
+    let ground_truth = NativeImage::from_flat_on(
+        vec![0.0, 0.0, 0.0, 1.0, 1.0],
+        [1, 1, 5],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native ground truth");
+    let value = mean_surface_distance_native(&prediction, &ground_truth, &[1.0, 1.0, 1.0])
+        .expect("native mean surface distance succeeds");
+    assert_eq!(value, 2.5);
 }
 
 #[test]

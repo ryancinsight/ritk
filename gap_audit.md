@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-613-01 audit (2026-07-11)
+
+All `ritk stats` production metrics now use native image I/O and provider-owned
+native APIs. Burn remains in stats test fixtures only and is tracked for the
+next test-boundary cleanup slice.
+
 ## MIG-612-01 audit (2026-07-11)
 
 Hausdorff now uses shared borrowed-slice boundary extraction through native

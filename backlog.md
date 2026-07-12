@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-613-01 [major] - Native CLI mean surface distance (DONE).** All stats
+  command production metrics are now native-only; the legacy stats helper is deleted.
+
 - **MIG-612-01 [major] - Native CLI Hausdorff metric (DONE).** Shared native
   surface extraction now replaces the legacy Hausdorff route.
 

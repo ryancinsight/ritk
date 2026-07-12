@@ -4,11 +4,11 @@ use anyhow::Result;
 use ritk_statistics::image_statistics::native::compute_statistics as compute_native_statistics;
 use ritk_statistics::{
     dice_coefficient_native, estimate_noise_mad_native, hausdorff_distance_native,
-    mean_surface_distance, psnr_native, ssim_native,
+    mean_surface_distance_native, psnr_native, ssim_native,
 };
 use tracing::info;
 
-use super::{read_image, require_reference, StatsArgs};
+use super::StatsArgs;
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 
@@ -143,12 +143,15 @@ pub(super) fn run_ssim(args: &StatsArgs) -> Result<()> {
 ///
 /// Physical spacing from the input image is used for distance computation.
 pub(super) fn run_mean_surface_distance(args: &StatsArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let (reference, ref_path) = require_reference(args)?;
+    let image = super::super::read_image_native(&args.input)?;
+    let ref_path = args.reference.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("--reference is required for the '{}' metric", args.metric)
+    })?;
+    let reference = super::super::read_image_native(ref_path)?;
 
     let sp = image.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    let value = mean_surface_distance(&image, &reference, &spacing);
+    let value = mean_surface_distance_native(&image, &reference, &spacing)?;
     println!(
         "Mean surface distance: {:.6} mm (input={}, reference={})",
         value,
