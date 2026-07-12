@@ -34,7 +34,9 @@ pub use label_statistics::{
     compute_label_intensity_statistics, compute_label_intensity_statistics_from_slices,
     LabelIntensityStatistics,
 };
-pub use noise_estimation::{estimate_noise_mad, estimate_noise_mad_masked};
+pub use noise_estimation::{
+    estimate_noise_mad, estimate_noise_mad_masked, estimate_noise_mad_native,
+};
 pub use normalization::{
     HistogramMatcher, IntensityRange, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer,
     WhiteStripeConfig, WhiteStripeNormalizer, WhiteStripeResult, ZScoreNormalizer,

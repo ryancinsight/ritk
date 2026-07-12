@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 611: Native CLI noise estimate (MIG-611-01)
+### Breaking
+- `ritk stats --metric noise-estimate` now requires a natively readable input format.
+
 ## [Unreleased] — Sprint 610: Native CLI SSIM metric (MIG-610-01)
 ### Breaking
 - `ritk stats --metric ssim` now requires natively readable input and reference formats.

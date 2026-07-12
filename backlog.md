@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-611-01 [major] - Native CLI noise estimate (DONE).** Native MAD input
+  extraction now replaces the legacy image route.
+
 - **MIG-610-01 [major] - Native CLI SSIM metric (DONE).** One slice-level SSIM
   implementation now serves legacy and native images; CLI uses native I/O.
 

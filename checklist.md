@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-611-01 — Native CLI noise estimate
+**Target version**: 0.14.0 migration batch
+- [x] Expose MAD noise estimation through a native image boundary.
+- [x] Route CLI noise estimation through native I/O.
+
 ## MIG-610-01 — Native CLI SSIM metric
 **Target version**: 0.14.0 migration batch
 - [x] Consolidate SSIM numerical math behind a shared slice-level implementation.

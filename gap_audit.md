@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-611-01 audit (2026-07-11)
+
+The MAD noise estimator now reads native images and delegates to the provider's
+slice-level implementation. Surface-distance metrics remain legacy-owned.
+
 ## MIG-610-01 audit (2026-07-11)
 
 SSIM now owns one slice-level mathematical implementation shared by native and

@@ -3,7 +3,7 @@
 use anyhow::Result;
 use ritk_statistics::image_statistics::native::compute_statistics as compute_native_statistics;
 use ritk_statistics::{
-    dice_coefficient_native, estimate_noise_mad, hausdorff_distance, mean_surface_distance,
+    dice_coefficient_native, estimate_noise_mad_native, hausdorff_distance, mean_surface_distance,
     psnr_native, ssim_native,
 };
 use tracing::info;
@@ -163,8 +163,8 @@ pub(super) fn run_mean_surface_distance(args: &StatsArgs) -> Result<()> {
 ///
 /// Formula: sigma_hat = 1.4826 * MAD(I). No reference image required.
 pub(super) fn run_noise_estimate(args: &StatsArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let sigma = estimate_noise_mad(&image);
+    let image = super::super::read_image_native(&args.input)?;
+    let sigma = estimate_noise_mad_native(&image)?;
 
     println!(
         "Noise estimate (MAD): sigma_hat = {:.6} (input={})",
