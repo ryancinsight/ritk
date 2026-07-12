@@ -217,14 +217,23 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
     use ritk_filter::{DiscreteGaussianFilter, GaussianSigma};
 
     let variance = args.discrete.variance;
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "discrete-gaussian requires native input/output formats"
+    );
 
     // variance < 0 is invalid; variance = 0 is identity (no smoothing applied).
     if variance < 0.0 {
         anyhow::bail!("--variance must be non-negative, got {}", variance);
     }
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     if variance == 0.0 {
-        write_image_inferred(&args.output, &image)?;
+        write_image_native(&args.output, &image, output_format)?;
         println!(
             "Applied discrete-gaussian (variance=0.0: identity) to {} -> {}",
             args.input.display(),
@@ -239,9 +248,9 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
     let filter = DiscreteGaussianFilter::<Backend>::new(vec![sigma])
         .with_maximum_error(args.discrete.maximum_error)
         .with_spacing_mode(args.discrete.spacing_mode);
-    let filtered = filter.apply(&image);
+    let filtered = filter.apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied discrete-gaussian (variance={}, maximum_error={}, spacing_mode={}) to {} -> {}",
@@ -413,14 +422,9 @@ mod tests {
         args.discrete.variance = 1.0;
         args.discrete.maximum_error = 0.01;
         args.discrete.spacing_mode = SpacingMode::Physical;
-        let result = run_discrete_gaussian(&args);
-        assert!(
-            result.is_ok(),
-            "discrete-gaussian must succeed: {:?}",
-            result.err()
-        );
-        assert!(output.exists(), "discrete-gaussian must write output file");
-        let out_img = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        run_discrete_gaussian(&args).expect("discrete-gaussian must succeed");
+        let out_img = crate::commands::read_image_native(&output)
+            .expect("discrete Gaussian output must be natively readable");
         assert_eq!(out_img.shape(), [5, 5, 5], "output shape must match input");
     }
 
@@ -444,19 +448,12 @@ mod tests {
 
         let mut args = default_args(input, output.clone(), FilterKind::DiscreteGaussian);
         args.discrete.variance = 0.0;
-        let result = run_discrete_gaussian(&args);
-        assert!(
-            result.is_ok(),
-            "discrete-gaussian zero variance must succeed: {:?}",
-            result.err()
-        );
-        let out_img = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
+        run_discrete_gaussian(&args).expect("zero-variance discrete Gaussian must succeed");
+        let out_img = crate::commands::read_image_native(&output)
+            .expect("identity output must be natively readable");
         let output_sum: f32 = out_img
-            .data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
+            .data_slice()
+            .expect("contiguous native output")
             .iter()
             .copied()
             .sum();

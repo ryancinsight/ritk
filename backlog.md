@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-622-01 [major] - Native CLI discrete Gaussian (DONE).** Discrete
+  Gaussian now owns one shared values kernel across tensor and Coeus-native
+  images; the CLI uses native I/O for smoothing and identity output.
+
 - **MIG-621-01 [major] - Native CLI anisotropic diffusion (DONE).** Perona-Malik
   anisotropic diffusion now owns a Coeus-native provider boundary and the CLI
   reads, computes, and writes native images end to end.

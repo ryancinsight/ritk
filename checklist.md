@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-622-01 — Native CLI discrete Gaussian
+**Target version**: 0.14.0 migration batch
+- [x] Share discrete-Gaussian values convolution with a Coeus-native image boundary.
+- [x] Route smoothing and zero-variance identity CLI paths through native image I/O.
+
 ## MIG-621-01 — Native CLI anisotropic diffusion
 **Target version**: 0.14.0 migration batch
 - [x] Expose generic Perona-Malik diffusion through a Coeus-native image boundary.

@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 622: Native CLI discrete Gaussian (MIG-622-01)
+### Breaking
+- `ritk filter --filter discrete-gaussian` requires native input and output formats.
+
 ## [Unreleased] — Sprint 621: Native CLI anisotropic diffusion (MIG-621-01)
 ### Breaking
 - `ritk filter --filter anisotropic` requires native input and output formats.

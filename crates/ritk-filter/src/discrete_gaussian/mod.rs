@@ -32,6 +32,7 @@ use bessel::{modified_bessel_i, modified_bessel_i0, modified_bessel_i1};
 pub(crate) use convolve::convolve_separable;
 
 use crate::edge::GaussianSigma;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
@@ -141,6 +142,26 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         Image::new(smoothed, origin, spacing, direction)
     }
 
+    /// Apply the filter to a Coeus-native image.
+    pub fn apply_native<C, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, C, D>,
+        backend: &C,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, C, D>>
+    where
+        C: ComputeBackend,
+        C::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.apply_values(image.data_slice()?.to_vec(), image.shape(), image.spacing()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
     #[inline]
     fn variance_for_dim(&self, d: usize) -> f64 {
         if d < self.variance.len() {
@@ -186,6 +207,17 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         let device = data.device();
         let dims: [usize; D] = data.shape().dims();
 
+        let flat: Vec<f32> = data.into_data().into_vec::<f32>().expect("f32 tensor data");
+        let result = self.apply_values(flat, dims, spacing);
+        Tensor::<B, D>::from_data(TensorData::new(result, Shape::new(dims)), &device)
+    }
+
+    fn apply_values<const D: usize>(
+        &self,
+        flat: Vec<f32>,
+        dims: [usize; D],
+        spacing: &ritk_spatial::Spacing<D>,
+    ) -> Vec<f32> {
         let mut kernels: [Option<Vec<f32>>; D] = std::array::from_fn(|_| None);
         for (d, kernel_slot) in kernels.iter_mut().enumerate() {
             let sigma = self.pixel_sigma_for_dim::<D>(d, spacing);
@@ -199,12 +231,10 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         }
 
         if kernels.iter().all(|k| k.is_none()) {
-            return data;
+            return flat;
         }
 
-        let flat: Vec<f32> = data.into_data().into_vec::<f32>().expect("f32 tensor data");
-        let result = convolve_separable(flat, dims, &kernels);
-        Tensor::<B, D>::from_data(TensorData::new(result, Shape::new(dims)), &device)
+        convolve_separable(flat, dims, &kernels)
     }
 }
 

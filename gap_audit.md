@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-622-01 audit (2026-07-11)
+
+Discrete Gaussian now has one separable values kernel for tensor-backed and
+native images. The CLI's smoothing and zero-variance identity paths no longer
+cross the legacy tensor boundary.
+
 ## MIG-621-01 audit (2026-07-11)
 
 The generic Perona-Malik provider now accepts native images while retaining its
