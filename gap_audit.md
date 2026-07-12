@@ -8,6 +8,16 @@
 
 # RITK Gap Audit - Active
 
+## MIG-619-01 audit (2026-07-11)
+
+Gaussian smoothing and its sigma-zero no-op now invoke the native provider at
+the CLI boundary. Native I/O owns both input and output formats.
+
+## MIG-618-01 audit (2026-07-11)
+
+Bed separation now invokes its native provider at the CLI boundary and retains
+the filter's configured masking semantics through native image I/O.
+
 ## MIG-617-01 audit (2026-07-11)
 
 The intensity threshold family now uses native images end to end.

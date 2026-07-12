@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 619: Native CLI Gaussian smoothing (MIG-619-01)
+### Breaking
+- `ritk filter --filter gaussian` requires native input and output formats.
+
 ## [Unreleased] — Sprint 618: Native CLI bed separation (MIG-618-01)
 ### Breaking
 - `ritk filter --filter bed-separation` requires native input and output formats.
