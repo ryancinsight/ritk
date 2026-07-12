@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 614: Native CLI stats fixtures (MIG-614-01)
+### Changed
+- Stats command tests now use native NIfTI fixtures and native metric oracles.
+
 ## [Unreleased] — Sprint 613: Native CLI mean surface distance (MIG-613-01)
 ### Breaking
 - `ritk stats --metric mean-surface-distance` now requires native input and reference formats.

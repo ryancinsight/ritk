@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-614-01 — Native CLI stats fixtures
+**Target version**: 0.14.0 migration batch
+- [x] Replace Burn tensor fixtures and direct legacy metric oracles with native equivalents.
+
 ## MIG-613-01 — Native CLI mean surface distance
 **Target version**: 0.14.0 migration batch
 - [x] Expose native mean surface distance through shared boundary extraction.

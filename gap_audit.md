@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-614-01 audit (2026-07-11)
+
+`ritk stats` production code and focused test boundary are native-only. The next
+CLI migration boundary lies outside the stats command family.
+
 ## MIG-613-01 audit (2026-07-11)
 
 All `ritk stats` production metrics now use native image I/O and provider-owned

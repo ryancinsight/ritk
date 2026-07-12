@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-614-01 [patch] - Native CLI stats fixtures (DONE).** Stats tests now
+  construct, persist, read, and assert native images/providers.
+
 - **MIG-613-01 [major] - Native CLI mean surface distance (DONE).** All stats
   command production metrics are now native-only; the legacy stats helper is deleted.
 
