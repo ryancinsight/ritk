@@ -8,6 +8,11 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 605: Native CLI White Stripe normalization (MIG-605-01)
+### Breaking
+- `ritk normalize --method white-stripe` rejects source or output formats
+  without native I/O.
+
 ## [Unreleased] — Sprint 604: Native CLI Nyul-Udupa normalization (MIG-604-01)
 ### Breaking
 - `ritk normalize --method nyul` rejects source, optional reference, or output

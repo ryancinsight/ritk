@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-605-01 audit (2026-07-11)
+
+All `ritk normalize` methods now route through native I/O and provider-owned
+native statistics. The legacy CLI normalization branch is deleted; test fixture
+coverage still retains legacy readers as a migration oracle.
+
 ## MIG-604-01 audit (2026-07-11)
 
 Nyul-Udupa now learns native percentile landmarks and applies them directly to

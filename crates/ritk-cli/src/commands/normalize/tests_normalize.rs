@@ -1,5 +1,6 @@
 //! Tests for the `normalize` command.
 use super::*;
+use crate::commands::Backend;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend as BurnBackend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};

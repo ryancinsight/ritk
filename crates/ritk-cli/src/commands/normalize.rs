@@ -21,8 +21,8 @@ use ritk_statistics::normalization::{
 };
 
 use super::{
-    infer_format, is_native_read_capable, is_native_write_capable, read_image, read_image_native,
-    write_image_inferred, write_image_native, Backend,
+    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
+    write_image_native,
 };
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
@@ -139,6 +139,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
         NormalizeMethod::HistogramMatch
             | NormalizeMethod::Minmax
             | NormalizeMethod::Nyul
+            | NormalizeMethod::WhiteStripe
             | NormalizeMethod::Zscore
     ) {
         let input_format = infer_format(&args.input).ok_or_else(|| {
@@ -230,7 +231,28 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                 }
                 normalizer.apply_native(&input, &backend)?
             }
-            _ => unreachable!("only native normalization methods reach this branch"),
+            NormalizeMethod::WhiteStripe => {
+                let contrast = match args.contrast.unwrap_or(CliContrast::T1) {
+                    CliContrast::T1 => MriContrast::T1,
+                    CliContrast::T2 => MriContrast::T2,
+                };
+                let config = WhiteStripeConfig {
+                    contrast,
+                    width: args.ws_width.unwrap_or(0.05),
+                    ..Default::default()
+                };
+                let result =
+                    WhiteStripeNormalizer::normalize_native(&input, None, &config, &backend)?;
+                info!(
+                    "white-stripe: mu={:.4} sigma={:.4} wm_peak={:.4} stripe_size={}",
+                    result.mu, result.sigma, result.wm_peak, result.stripe_size
+                );
+                println!(
+                    "white-stripe stats: mu={:.4}, sigma={:.4}, wm_peak={:.4}, stripe_size={}",
+                    result.mu, result.sigma, result.wm_peak, result.stripe_size
+                );
+                result.normalized
+            }
         };
         write_image_native(&args.output, &output, output_format)?;
         println!(
@@ -239,53 +261,10 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             args.output.display()
         );
         info!("normalize: done output={}", args.output.display());
-        return Ok(());
+        Ok(())
+    } else {
+        unreachable!("all normalization methods have native routes")
     }
-
-    let input = read_image(&args.input)?;
-
-    let normalized: ritk_image::Image<Backend, 3> = match args.method {
-        NormalizeMethod::HistogramMatch => {
-            unreachable!("histogram-match returns through the native path")
-        }
-
-        NormalizeMethod::Nyul => unreachable!("nyul returns through the native path"),
-
-        NormalizeMethod::Zscore => unreachable!("zscore returns through the native path"),
-
-        NormalizeMethod::Minmax => unreachable!("minmax returns through the native path"),
-
-        NormalizeMethod::WhiteStripe => {
-            let contrast = match args.contrast.unwrap_or(CliContrast::T1) {
-                CliContrast::T1 => MriContrast::T1,
-                CliContrast::T2 => MriContrast::T2,
-            };
-            let config = WhiteStripeConfig {
-                contrast,
-                width: args.ws_width.unwrap_or(0.05),
-                ..Default::default()
-            };
-            let result = WhiteStripeNormalizer::normalize(&input, None, &config);
-            info!(
-                "white-stripe: mu={:.4} sigma={:.4} wm_peak={:.4} stripe_size={}",
-                result.mu, result.sigma, result.wm_peak, result.stripe_size
-            );
-            println!(
-                "white-stripe stats: mu={:.4}, sigma={:.4}, wm_peak={:.4}, stripe_size={}",
-                result.mu, result.sigma, result.wm_peak, result.stripe_size
-            );
-            result.normalized
-        }
-    };
-
-    write_image_inferred(&args.output, &normalized)?;
-    println!(
-        "normalize: wrote {} -> {}",
-        args.method,
-        args.output.display()
-    );
-    info!("normalize: done output={}", args.output.display());
-    Ok(())
 }
 
 #[cfg(test)]

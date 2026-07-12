@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-605-01 [major] - Native CLI White Stripe normalization (DONE).** KDE
+  peak selection, diagnostics, and output now use native images; the legacy CLI route is deleted.
+
 - **MIG-604-01 [major] - Native CLI Nyul-Udupa normalization (DONE).** Native
   training and application now replace the legacy image route.
 

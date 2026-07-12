@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-605-01 — Native CLI White Stripe normalization
+**Target version**: 0.14.0 migration batch
+- [x] Expose native KDE normalization and diagnostics with optional native-mask support.
+- [x] Delete the CLI legacy normalization route after native cutover.
+
 ## MIG-604-01 — Native CLI Nyul-Udupa normalization
 **Target version**: 0.14.0 migration batch
 - [x] Expose native training and application over CPU-addressable storage.
