@@ -42,8 +42,8 @@ pub mod xml_write_attr;
 pub mod reader;
 pub mod writer;
 
-pub use reader::read_vtk;
-pub use writer::write_vtk;
+pub use reader::{read_vtk, read_vtk_flat};
+pub use writer::{encode_vtk_flat, write_vtk};
 
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;

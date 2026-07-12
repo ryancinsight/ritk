@@ -51,9 +51,75 @@ pub mod mesh_writer;
 pub use mesh_writer::{mesh_to_vtk_string, write_mesh_as_vtk};
 
 use crate::domain::{ImageReader, ImageWriter};
+use anyhow::{Context, Result};
+use coeus_core::MoiraiBackend;
 use ritk_core::image::Image;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
+use ritk_spatial::{Direction, Point, Spacing};
+use std::io::BufWriter;
 use std::path::Path;
+
+/// Read a VTK legacy structured-points file into a native Coeus-backed image.
+///
+/// Native counterpart of [`read_vtk`]: both route through the substrate-free
+/// [`ritk_vtk::read_vtk_flat`] decode core, so the returned voxel values and
+/// geometry are byte-identical to the burn-backed reader — they differ only in
+/// the image carrier. Returns `Image<f32, MoiraiBackend, 3>` with tensor shape
+/// `[nz, ny, nx]`.
+///
+/// ## Convention
+///
+/// `read_vtk_flat` returns `dims` in VTK header **[nx, ny, nz]** order; the
+/// native image is built with RITK tensor **[nz, ny, nx]** order (Z slowest, X
+/// fastest), matching the burn reader. `origin` / `spacing` are VTK **[X, Y, Z]**
+/// order and transfer directly.
+///
+/// # Errors
+///
+/// Returns an error under the same conditions as [`ritk_vtk::read_vtk_flat`], or
+/// when the flat data cannot be laid out as a native image.
+pub fn read_vtk_native<P: AsRef<Path>>(path: P) -> Result<NativeImage<f32, MoiraiBackend, 3>> {
+    let (data, [nx, ny, nz], origin, spacing) = ritk_vtk::read_vtk_flat(path)?;
+    NativeImage::<f32, MoiraiBackend, 3>::from_flat(
+        data,
+        [nz, ny, nx],
+        Point::new(origin),
+        Spacing::new(spacing),
+        Direction::identity(),
+    )
+}
+
+/// Write a native Coeus-backed image to a VTK legacy structured-points file.
+///
+/// Native counterpart of [`write_vtk`]: both delegate the byte-level encode to
+/// the substrate-free [`ritk_vtk::encode_vtk_flat`], so given identical voxel
+/// data and geometry the output file is byte-identical to the burn-backed
+/// writer. Emits BINARY encoding with big-endian `f32` scalars (VTK legacy
+/// version 3.0).
+///
+/// # Errors
+///
+/// Returns an error when the image data is not host-contiguous, or when the
+/// file cannot be created or written.
+pub fn write_vtk_native<P: AsRef<Path>>(
+    image: &NativeImage<f32, MoiraiBackend, 3>,
+    path: P,
+) -> Result<()> {
+    let path = path.as_ref();
+    let dims = image.shape(); // [nz, ny, nx]
+    let origin = image.origin(); // [X, Y, Z] order
+    let spacing = image.spacing(); // [X, Y, Z] order
+    let origin_arr = [origin[0], origin[1], origin[2]];
+    let spacing_arr = [spacing[0], spacing[1], spacing[2]];
+    let slice = image.data_slice()?;
+
+    let file = std::fs::File::create(path)
+        .with_context(|| format!("failed to create VTK file: {}", path.display()))?;
+    let mut writer = BufWriter::new(file);
+
+    ritk_vtk::encode_vtk_flat(&mut writer, slice, dims, origin_arr, spacing_arr)
+}
 
 /// DIP boundary implementing `ImageReader` for VTK legacy structured points.
 pub struct VtkReader<B: Backend> {
@@ -129,5 +195,103 @@ mod tests {
         loaded.with_data_slice(|loaded_vals| {
             assert_eq!(loaded_vals, values.as_slice());
         });
+    }
+}
+
+/// Differential parity between the native (Coeus `MoiraiBackend`) VTK path and
+/// the authoritative burn path. The burn reader/writer is used purely as a
+/// byte-level oracle; both routes share the substrate-free flat core, so
+/// agreement verifies the native carrier construction, not the decode itself.
+#[cfg(test)]
+mod native_parity_tests {
+    use super::{read_vtk, read_vtk_native, write_vtk, write_vtk_native};
+    use burn_ndarray::NdArray;
+    use coeus_core::MoiraiBackend;
+    use ritk_core::image::Image;
+    use ritk_image::native::Image as NativeImage;
+    use ritk_image::tensor::backend::Backend;
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_spatial::{Direction, Point, Spacing};
+    use tempfile::tempdir;
+
+    type BurnBackend = NdArray<f32>;
+
+    /// Tensor shape `[nz, ny, nx] = [2, 2, 3]`, negative and fractional values to
+    /// exercise the full big-endian f32 encoding (sign bit, mantissa).
+    fn fixture() -> (Vec<f32>, [usize; 3], [f64; 3], [f64; 3]) {
+        let values: Vec<f32> = (0..12).map(|v| v as f32 * 1.5 - 3.25).collect();
+        (values, [2, 2, 3], [1.0, 2.0, 3.0], [0.5, 0.75, 1.25])
+    }
+
+    #[test]
+    fn native_read_decodes_identically_to_burn_read() {
+        let (values, shape, origin, spacing) = fixture();
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("parity_read.vtk");
+
+        // Produce a VTK fixture on disk via the authoritative burn writer.
+        let device: <BurnBackend as Backend>::Device = Default::default();
+        let tensor = Tensor::<BurnBackend, 3>::from_data(
+            TensorData::new(values.clone(), Shape::new(shape)),
+            &device,
+        );
+        let burn_img = Image::new(
+            tensor,
+            Point::new(origin),
+            Spacing::new(spacing),
+            Direction::identity(),
+        );
+        write_vtk(&path, &burn_img).unwrap();
+
+        // Oracle: burn reader.
+        let burn_loaded = read_vtk::<BurnBackend, _>(&path, &device).unwrap();
+        // Under test: native reader.
+        let native_loaded = read_vtk_native(&path).unwrap();
+
+        assert_eq!(native_loaded.shape(), burn_loaded.shape());
+        assert_eq!(native_loaded.origin(), burn_loaded.origin());
+        assert_eq!(native_loaded.spacing(), burn_loaded.spacing());
+
+        let native_data = native_loaded.data_slice().unwrap();
+        let burn_data = burn_loaded.try_data_vec().unwrap();
+        // Byte-identical: f32 bit patterns must match exactly (no reinterpretation).
+        assert_eq!(native_data, burn_data.as_slice());
+    }
+
+    #[test]
+    fn native_write_emits_identical_bytes_to_burn_write() {
+        let (values, shape, origin, spacing) = fixture();
+        let dir = tempdir().unwrap();
+        let burn_path = dir.path().join("parity_write_burn.vtk");
+        let native_path = dir.path().join("parity_write_native.vtk");
+
+        // Burn carrier + writer (oracle).
+        let device: <BurnBackend as Backend>::Device = Default::default();
+        let tensor = Tensor::<BurnBackend, 3>::from_data(
+            TensorData::new(values.clone(), Shape::new(shape)),
+            &device,
+        );
+        let burn_img = Image::new(
+            tensor,
+            Point::new(origin),
+            Spacing::new(spacing),
+            Direction::identity(),
+        );
+        write_vtk(&burn_path, &burn_img).unwrap();
+
+        // Native carrier + writer (under test).
+        let native_img = NativeImage::<f32, MoiraiBackend, 3>::from_flat(
+            values,
+            shape,
+            Point::new(origin),
+            Spacing::new(spacing),
+            Direction::identity(),
+        )
+        .unwrap();
+        write_vtk_native(&native_img, &native_path).unwrap();
+
+        let burn_bytes = std::fs::read(&burn_path).unwrap();
+        let native_bytes = std::fs::read(&native_path).unwrap();
+        assert_eq!(native_bytes, burn_bytes);
     }
 }

@@ -84,7 +84,28 @@ struct VtkHeader {
     scalar_type: VtkScalarType,
 }
 
-/// Read a VTK legacy structured-points file into an `Image<B, 3>`.
+/// Decode a VTK legacy structured-points file into substrate-free flat voxel
+/// data plus geometry, without constructing any tensor or image carrier.
+///
+/// This is the shared core underlying both the burn-backed [`read_vtk`] and the
+/// Coeus-backed `ritk_io` native reader: it performs the complete decode (header
+/// parse, POINT_DATA validation, ASCII/binary scalar decode to `f32`) and
+/// returns the raw ingredients so each caller can build its own carrier from an
+/// identical byte-level decode.
+///
+/// ## Return convention
+///
+/// Returns `(data, dims, origin, spacing)` where:
+/// - `data` is row-major scalar data with X varying fastest, Y next, Z slowest
+///   (VTK's native storage order, matching RITK's `[nz, ny, nx]` tensor layout).
+/// - `dims` is `[nx, ny, nz]` — VTK header `DIMENSIONS` **[X, Y, Z]** order, not
+///   yet permuted to tensor `[nz, ny, nx]` order.
+/// - `origin` / `spacing` are `[ox, oy, oz]` / `[sx, sy, sz]` in VTK **[X, Y, Z]**
+///   order, transferring directly to RITK spatial metadata without permutation.
+///
+/// All scalar types (`float`, `double`, `unsigned_char`, `short`,
+/// `unsigned_short`, `int`, `unsigned_int`) decode to `f32`. Binary payloads are
+/// big-endian per the VTK legacy specification.
 ///
 /// # Errors
 ///
@@ -93,7 +114,14 @@ struct VtkHeader {
 /// - The header does not conform to VTK legacy structured-points format.
 /// - The declared scalar type is unsupported.
 /// - The data section is truncated or malformed.
-pub fn read_vtk<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+// The 4-tuple is a flat decode bundle (scalars, dims, origin, spacing) whose
+// element roles are pinned in the "Return convention" doc section above; a
+// wrapper struct would add a named type without improving call-site clarity,
+// since both consumers destructure all four fields immediately.
+#[allow(clippy::type_complexity)]
+pub fn read_vtk_flat<P: AsRef<Path>>(
+    path: P,
+) -> Result<(Vec<f32>, [usize; 3], [f64; 3], [f64; 3])> {
     let path = path.as_ref();
     let file = std::fs::File::open(path)
         .with_context(|| format!("failed to open VTK file: {}", path.display()))?;
@@ -130,13 +158,30 @@ pub fn read_vtk<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Resu
         }
     };
 
+    Ok((data_f32, header.dims, header.origin, header.spacing))
+}
+
+/// Read a VTK legacy structured-points file into an `Image<B, 3>`.
+///
+/// Decodes through [`read_vtk_flat`], then builds the burn tensor carrier.
+///
+/// # Errors
+///
+/// Returns an error when:
+/// - The file cannot be opened or read.
+/// - The header does not conform to VTK legacy structured-points format.
+/// - The declared scalar type is unsupported.
+/// - The data section is truncated or malformed.
+pub fn read_vtk<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+    let (data_f32, [nx, ny, nz], origin_arr, spacing_arr) = read_vtk_flat(path)?;
+
     // Tensor shape: [nz, ny, nx] per RITK convention.
     let shape = Shape::new([nz, ny, nx]);
     let tensor_data = TensorData::new(data_f32, shape);
     let tensor = Tensor::<B, 3>::from_data(tensor_data, device);
 
-    let origin = Point::new(header.origin);
-    let spacing = Spacing::new(header.spacing);
+    let origin = Point::new(origin_arr);
+    let spacing = Spacing::new(spacing_arr);
     let direction = Direction::identity();
 
     tracing::debug!(
