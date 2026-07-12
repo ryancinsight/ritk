@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 623: Native CLI Sato vesselness (MIG-623-01)
+### Breaking
+- `ritk filter --filter sato` requires native input and output formats.
+
 ## [Unreleased] — Sprint 622: Native CLI discrete Gaussian (MIG-622-01)
 ### Breaking
 - `ritk filter --filter discrete-gaussian` requires native input and output formats.

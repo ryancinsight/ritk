@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-623-01 [major] - Native CLI Sato vesselness (DONE).** Sato vesselness
+  now owns a Coeus-native provider boundary and the CLI reads, computes, and
+  writes native images end to end.
+
 - **MIG-622-01 [major] - Native CLI discrete Gaussian (DONE).** Discrete
   Gaussian now owns one shared values kernel across tensor and Coeus-native
   images; the CLI uses native I/O for smoothing and identity output.

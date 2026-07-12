@@ -182,7 +182,16 @@ pub(super) fn run_curvature(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
     use ritk_filter::vesselness::{SatoConfig, SatoLineFilter};
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "sato requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
 
     let scales = args.vesselness.scales.clone();
     let scales = if scales.is_empty() {
@@ -197,9 +206,9 @@ pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
         polarity: ritk_filter::vesselness::VesselPolarity::Bright,
     };
     let filter = SatoLineFilter::new(config);
-    let filtered = filter.apply(&image)?;
+    let filtered = filter.apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied sato (scales={:?}, alpha={}) to {} -> {}",
@@ -473,10 +482,9 @@ mod tests {
 
         let mut args = default_args(input, output.clone(), FilterKind::Sato);
         args.vesselness.scales = vec![1.0];
-        let result = run_sato(&args);
-        assert!(result.is_ok(), "sato must succeed: {:?}", result.err());
-        assert!(output.exists(), "sato must write output file");
-        let out_img = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        assert_eq!(out_img.shape(), [5, 5, 5], "output shape must match input");
+        run_sato(&args).expect("Sato must succeed");
+        let output = crate::commands::read_image_native(&output)
+            .expect("Sato output must be natively readable");
+        assert_eq!(output.shape(), [5, 5, 5], "output shape must match input");
     }
 }

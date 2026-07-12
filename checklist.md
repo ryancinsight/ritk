@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-623-01 — Native CLI Sato vesselness
+**Target version**: 0.14.0 migration batch
+- [x] Expose Sato's multiscale response through a Coeus-native image boundary.
+- [x] Route the CLI and its output regression through native image I/O.
+
 ## MIG-622-01 — Native CLI discrete Gaussian
 **Target version**: 0.14.0 migration batch
 - [x] Share discrete-Gaussian values convolution with a Coeus-native image boundary.
