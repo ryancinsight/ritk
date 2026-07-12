@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-631-01 audit (2026-07-11)
+
+Label erosion now exposes its canonical values kernel to native images. The
+CLI no longer crosses the legacy tensor boundary, and a native regression
+asserts removal of an isolated radius-one label.
+
 ## MIG-630-01 audit (2026-07-11)
 
 Label dilation now exposes its canonical values kernel to native images. The

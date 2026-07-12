@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-631-01 [major] - Native CLI label erosion (DONE).** Label erosion now
+  owns a Coeus-native provider boundary and native CLI I/O with isolated-label
+  removal coverage.
+
 - **MIG-630-01 [major] - Native CLI label dilation (DONE).** Label dilation
   now owns a Coeus-native provider boundary and native CLI I/O with value
   coverage for label expansion.

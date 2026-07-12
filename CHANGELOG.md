@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 631: Native CLI label erosion (MIG-631-01)
+### Breaking
+- `ritk filter --filter label-erosion` requires native input and output formats.
+
 ## [Unreleased] — Sprint 630: Native CLI label dilation (MIG-630-01)
 ### Breaking
 - `ritk filter --filter label-dilation` requires native input and output formats.

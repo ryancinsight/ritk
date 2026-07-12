@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-631-01 — Native CLI label erosion
+**Target version**: 0.14.0 migration batch
+- [x] Expose label erosion's canonical values kernel through a Coeus-native boundary.
+- [x] Route the CLI through native I/O and assert isolated-label removal.
+
 ## MIG-630-01 — Native CLI label dilation
 **Target version**: 0.14.0 migration batch
 - [x] Expose label dilation's canonical values kernel through a Coeus-native boundary.

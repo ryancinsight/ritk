@@ -201,6 +201,26 @@ impl LabelErosion {
             *image.direction(),
         ))
     }
+
+    /// Apply label erosion to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            erode_labels(image.data_slice()?, image.shape(), self.radius),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
 }
 
 fn erode_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {

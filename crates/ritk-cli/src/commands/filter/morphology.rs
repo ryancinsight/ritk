@@ -118,10 +118,19 @@ pub(super) fn run_label_dilation(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_label_erosion(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LabelErosion;
 
-    let image = read_image(&args.input)?;
-    let filtered = LabelErosion::new(args.kernel.radius).apply(&image)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "label-erosion requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let filtered = LabelErosion::new(args.kernel.radius).apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
     info!("filter: label-erosion complete");
 
     Ok(())
@@ -300,7 +309,13 @@ mod tests {
         let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelErosion);
         args.kernel.radius = 1;
         run_label_erosion(&args).expect("label-erosion must succeed");
-        assert!(output_path.exists());
+        let output = crate::commands::read_image_native(&output_path)
+            .expect("label erosion output is natively readable");
+        assert_eq!(output.shape(), [5, 5, 5]);
+        assert_eq!(
+            output.data_slice().expect("contiguous native output")[2 * 25 + 2 * 5 + 2],
+            0.0
+        );
     }
 
     #[test]
