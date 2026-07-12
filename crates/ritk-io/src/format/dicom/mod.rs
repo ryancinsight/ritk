@@ -26,11 +26,16 @@ pub use color::{
     is_rgb_dicom_series, load_atlas_color_from_series, load_atlas_color_series,
     load_color_volume_flat, load_color_volume_flat_from_path,
 };
-pub use color_multiframe::{load_dicom_color_multiframe, read_dicom_color_multiframe};
+pub use color_multiframe::{
+    load_atlas_color_multiframe, load_color_multiframe_flat, load_dicom_color_multiframe,
+    read_dicom_color_multiframe, ColorMultiFrameVolume,
+};
 pub use multiframe::{
-    load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe,
+    load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_native,
+    read_multiframe_info, write_dicom_multiframe, write_dicom_multiframe_native,
+    write_dicom_multiframe_native_with_config, write_dicom_multiframe_native_with_options,
     write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, MultiFrameInfo,
-    MultiFrameSpatialMetadata, MultiFrameWriterConfig,
+    MultiFrameSpatialMetadata, MultiFrameVolume, MultiFrameWriterConfig,
 };
 pub use networking::dimse::{CommandField, DimseMessage, DimseStatus};
 pub use networking::pdu::{AssociateAcPdu, AssociateRqPdu, Pdu};

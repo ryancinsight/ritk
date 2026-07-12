@@ -6,15 +6,38 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use coeus_core::MoiraiBackend;
 use dicom::core::Tag;
 use ritk_core::image::RgbVolume;
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness, TransferSyntaxKind,
 };
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
+
+/// Substrate-agnostic decoded RGB multi-frame volume: a flat interleaved-RGB
+/// `f32` buffer in `[frames, rows, cols, 3]` order (channel fastest) plus the
+/// resolved spatial metadata (the three physical axes only).
+///
+/// Shared, tensor-free core of the colour multi-frame read path. Both the Burn
+/// carrier ([`read_dicom_color_multiframe`]) and the native Coeus carrier
+/// ([`load_atlas_color_multiframe`]) construct from the same instance produced
+/// by [`load_color_multiframe_flat`].
+pub struct ColorMultiFrameVolume {
+    /// Interleaved RGB voxels in `[frames, rows, cols, 3]` order.
+    pub data: Vec<f32>,
+    /// Volume shape `[frames, rows, cols, 3]`.
+    pub shape: [usize; 4],
+    /// Physical coordinate of the first voxel (three spatial axes).
+    pub origin: Point<3>,
+    /// Inter-voxel spacing `[z, row, col]` in mm.
+    pub spacing: Spacing<3>,
+    /// Direction cosine matrix derived from ImageOrientationPatient.
+    pub direction: Direction<3>,
+}
 
 use super::color_common::{read_optional, required_string, RGB_CHANNELS};
 use super::multiframe::{read_multiframe_info, MultiFrameInfo};
@@ -29,6 +52,54 @@ pub fn read_dicom_color_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<RgbVolume<B>> {
+    let ColorMultiFrameVolume {
+        data,
+        shape,
+        origin,
+        spacing,
+        direction,
+    } = load_color_multiframe_flat(path)?;
+    let tensor = Tensor::<B, 4>::from_data(TensorData::new(data, Shape::new(shape)), device);
+    RgbVolume::try_new(tensor, origin, spacing, direction)
+}
+
+/// Read an interleaved RGB DICOM multiframe object into a native rank-4 colour
+/// volume.
+///
+/// Native counterpart of [`read_dicom_color_multiframe`]: identical decode
+/// (both route through [`load_color_multiframe_flat`]). Returns
+/// `Image<f32, MoiraiBackend, 4>` with shape `[frames, rows, cols, 3]`,
+/// interleaved RGB samples in the channel axis. The three physical axes carry
+/// the frame origin/spacing/direction; the channel axis is a non-spatial
+/// identity axis (origin offset 0, spacing 1, identity direction).
+pub fn load_atlas_color_multiframe<P: AsRef<Path>>(
+    path: P,
+) -> Result<NativeImage<f32, MoiraiBackend, 4>> {
+    let ColorMultiFrameVolume {
+        data,
+        shape,
+        origin,
+        spacing,
+        direction: _,
+    } = load_color_multiframe_flat(path)?;
+    let origin4 = Point::<4>::new([origin[0], origin[1], origin[2], 0.0]);
+    let spacing4 = Spacing::<4>::new([spacing[0], spacing[1], spacing[2], 1.0]);
+    NativeImage::<f32, MoiraiBackend, 4>::from_flat(
+        data,
+        shape,
+        origin4,
+        spacing4,
+        Direction::<4>::identity(),
+    )
+}
+
+/// Decode an interleaved RGB DICOM multiframe object into a substrate-free
+/// [`ColorMultiFrameVolume`].
+///
+/// Shared, tensor-free core: RGB validation, per-frame pixel decode, and
+/// spatial-metadata resolution, without constructing any image carrier. Accepts
+/// only unsigned 8-bit RGB with `PlanarConfiguration=0` (interleaved channels).
+pub fn load_color_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<ColorMultiFrameVolume> {
     let path = path.as_ref();
     let info = read_multiframe_info(path)?;
     let obj = parse_file_with::<DicomRsBackend, _>(path)
@@ -92,19 +163,13 @@ pub fn read_dicom_color_multiframe<B: Backend, P: AsRef<Path>>(
         volume.extend_from_slice(&frame);
     }
 
-    let tensor = Tensor::<B, 4>::from_data(
-        TensorData::new(
-            volume,
-            Shape::new([info.n_frames, info.rows, info.cols, RGB_CHANNELS]),
-        ),
-        device,
-    );
-    RgbVolume::try_new(
-        tensor,
-        Point::new(origin_from_info(&info)),
-        spacing_from_info(&info)?,
-        direction_from_info(&info),
-    )
+    Ok(ColorMultiFrameVolume {
+        data: volume,
+        shape: [info.n_frames, info.rows, info.cols, RGB_CHANNELS],
+        origin: Point::new(origin_from_info(&info)),
+        spacing: spacing_from_info(&info)?,
+        direction: direction_from_info(&info),
+    })
 }
 
 /// Alias matching the scalar multiframe loader naming convention.
