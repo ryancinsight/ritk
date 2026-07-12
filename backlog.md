@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-610-01 [major] - Native CLI SSIM metric (DONE).** One slice-level SSIM
+  implementation now serves legacy and native images; CLI uses native I/O.
+
 - **MIG-609-01 [major] - Native CLI PSNR metric (DONE).** Native mean-square
   reduction and input/reference I/O now replace the legacy PSNR route.
 

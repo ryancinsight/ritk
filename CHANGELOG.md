@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 610: Native CLI SSIM metric (MIG-610-01)
+### Breaking
+- `ritk stats --metric ssim` now requires natively readable input and reference formats.
+
 ## [Unreleased] — Sprint 609: Native CLI PSNR metric (MIG-609-01)
 ### Breaking
 - `ritk stats --metric psnr` now requires natively readable input and reference formats.

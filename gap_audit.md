@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-610-01 audit (2026-07-11)
+
+SSIM now owns one slice-level mathematical implementation shared by native and
+legacy boundaries; CLI SSIM consumes only native images. Surface metrics remain
+legacy-owned pending native providers.
+
 ## MIG-609-01 audit (2026-07-11)
 
 PSNR now uses native I/O and a provider-owned native reduction. SSIM and surface

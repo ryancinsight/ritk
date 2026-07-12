@@ -13,7 +13,7 @@ pub mod value_indices;
 pub use histogram::{histogram, histogram_from_slice, Histogram};
 pub use image_comparison::{
     dice_coefficient, dice_coefficient_native, hausdorff_distance, mean_surface_distance, psnr,
-    psnr_native, similarity_index, ssim,
+    psnr_native, similarity_index, ssim, ssim_native,
 };
 pub use image_statistics::{compute_statistics, masked_statistics, ImageStatistics};
 pub use information::{

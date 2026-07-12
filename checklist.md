@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-610-01 — Native CLI SSIM metric
+**Target version**: 0.14.0 migration batch
+- [x] Consolidate SSIM numerical math behind a shared slice-level implementation.
+- [x] Route CLI SSIM input/reference through native I/O.
+
 ## MIG-609-01 — Native CLI PSNR metric
 **Target version**: 0.14.0 migration batch
 - [x] Add provider-owned native PSNR with shape validation and identity handling.

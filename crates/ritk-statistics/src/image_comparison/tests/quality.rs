@@ -1,5 +1,5 @@
 use super::*;
-use crate::image_comparison::{psnr, psnr_native, ssim};
+use crate::image_comparison::{psnr, psnr_native, ssim, ssim_native};
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 
@@ -88,6 +88,21 @@ fn test_ssim_identical_images_is_one() {
         "identical images -> SSIM = 1.0, got {}",
         result
     );
+}
+
+#[test]
+fn native_ssim_identical_images_is_one() {
+    let image = NativeImage::from_flat_on(
+        vec![1.0, 2.0, 3.0],
+        [1, 1, 3],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let value = ssim_native(&image, &image, 3.0).expect("native ssim succeeds");
+    assert!((value - 1.0).abs() < F32_TOL);
 }
 
 #[test]
