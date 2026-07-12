@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 615: Native CLI intensity routes (MIG-615-01)
+### Breaking
+- `ritk filter` windowing and sigmoid routes require native input and output formats.
+
 ## [Unreleased] — Sprint 614: Native CLI stats fixtures (MIG-614-01)
 ### Changed
 - Stats command tests now use native NIfTI fixtures and native metric oracles.

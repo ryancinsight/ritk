@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-615-01 — Native CLI intensity windowing and sigmoid
+**Target version**: 0.14.0 migration batch
+- [x] Route windowing and sigmoid through existing native filter providers and I/O.
+
 ## MIG-614-01 — Native CLI stats fixtures
 **Target version**: 0.14.0 migration batch
 - [x] Replace Burn tensor fixtures and direct legacy metric oracles with native equivalents.

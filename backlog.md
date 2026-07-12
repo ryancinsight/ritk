@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-615-01 [major] - Native CLI intensity windowing and sigmoid (DONE).**
+  Both provider-native intensity routes now own native I/O end to end.
+
 - **MIG-614-01 [patch] - Native CLI stats fixtures (DONE).** Stats tests now
   construct, persist, read, and assert native images/providers.
 

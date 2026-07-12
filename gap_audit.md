@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-615-01 audit (2026-07-11)
+
+Intensity windowing and sigmoid now use native providers directly. Other filter
+routes remain independently legacy-owned until their native providers are ready.
+
 ## MIG-614-01 audit (2026-07-11)
 
 `ritk stats` production code and focused test boundary are native-only. The next
