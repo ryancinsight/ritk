@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-606-01 [patch] - Native CLI normalization fixtures (DONE).** The
+  normalization command tests now construct, write, and read native images.
+
 - **MIG-605-01 [major] - Native CLI White Stripe normalization (DONE).** KDE
   peak selection, diagnostics, and output now use native images; the legacy CLI route is deleted.
 

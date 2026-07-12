@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-606-01 audit (2026-07-11)
+
+`ritk normalize` tests no longer construct or inspect Burn images. The remaining
+legacy CLI test dependencies are outside this command's native boundary.
+
 ## MIG-605-01 audit (2026-07-11)
 
 All `ritk normalize` methods now route through native I/O and provider-owned

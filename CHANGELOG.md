@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 606: Native CLI normalization fixtures (MIG-606-01)
+### Changed
+- Normalization command tests now use native NIfTI fixtures and readers.
+
 ## [Unreleased] — Sprint 605: Native CLI White Stripe normalization (MIG-605-01)
 ### Breaking
 - `ritk normalize --method white-stripe` rejects source or output formats

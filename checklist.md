@@ -8,6 +8,10 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-606-01 — Native CLI normalization fixtures
+**Target version**: 0.14.0 migration batch
+- [x] Replace Burn tensor fixtures and output readers with native NIfTI I/O.
+
 ## MIG-605-01 — Native CLI White Stripe normalization
 **Target version**: 0.14.0 migration batch
 - [x] Expose native KDE normalization and diagnostics with optional native-mask support.
