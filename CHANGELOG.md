@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 608: Native CLI Dice metric (MIG-608-01)
+### Breaking
+- `ritk stats --metric dice` now requires natively readable input and reference formats.
+
 ## [Unreleased] — Sprint 607: Native CLI statistics summary (MIG-607-01)
 ### Breaking
 - `ritk stats --metric summary` now requires a natively readable input format.

@@ -3,7 +3,8 @@
 use anyhow::Result;
 use ritk_statistics::image_statistics::native::compute_statistics as compute_native_statistics;
 use ritk_statistics::{
-    dice_coefficient, estimate_noise_mad, hausdorff_distance, mean_surface_distance, psnr, ssim,
+    dice_coefficient_native, estimate_noise_mad, hausdorff_distance, mean_surface_distance, psnr,
+    ssim,
 };
 use tracing::info;
 
@@ -46,10 +47,13 @@ pub(super) fn run_summary(args: &StatsArgs) -> Result<()> {
 /// reference images are passed directly to `dice_coefficient` which treats
 /// non-zero voxels as foreground.
 pub(super) fn run_dice(args: &StatsArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let (reference, ref_path) = require_reference(args)?;
+    let image = super::super::read_image_native(&args.input)?;
+    let ref_path = args.reference.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("--reference is required for the '{}' metric", args.metric)
+    })?;
+    let reference = super::super::read_image_native(ref_path)?;
 
-    let value = dice_coefficient(&image, &reference);
+    let value = dice_coefficient_native(&image, &reference)?;
     println!(
         "Dice coefficient: {:.6} (input={}, reference={})",
         value,

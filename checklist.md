@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-608-01 — Native CLI Dice metric
+**Target version**: 0.14.0 migration batch
+- [x] Add provider-owned native Dice with equal-size validation.
+- [x] Route CLI Dice input/reference through native I/O.
+
 ## MIG-607-01 — Native CLI statistics summary
 **Target version**: 0.14.0 migration batch
 - [x] Route summary input and descriptive statistics through native providers.

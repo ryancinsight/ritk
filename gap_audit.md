@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-608-01 audit (2026-07-11)
+
+Dice now uses a native provider and native input/reference images. Other pairwise
+metrics remain legacy-owned until equivalent provider contracts exist.
+
 ## MIG-607-01 audit (2026-07-11)
 
 The summary statistics CLI metric now uses native I/O and native descriptive

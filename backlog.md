@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-608-01 [major] - Native CLI Dice metric (DONE).** Native binary overlap
+  validation and computation now replace the legacy CLI Dice route.
+
 - **MIG-607-01 [major] - Native CLI statistics summary (DONE).** Summary now
   reads native images and consumes provider-owned native statistics.
 
