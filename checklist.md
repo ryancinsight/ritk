@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-625-01 — Native CLI median filter
+**Target version**: 0.14.0 migration batch
+- [x] Route the existing native median provider through native CLI I/O.
+- [x] Assert natively readable output in the command regression.
+
 ## MIG-624-01 — Native CLI N4 bias correction
 **Target version**: 0.14.0 migration batch
 - [x] Expose N4's numerical values provider through a Coeus-native image boundary.

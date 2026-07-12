@@ -1,5 +1,8 @@
 # RITK Backlog - Active Planning
 
+- **MIG-625-01 [major] - Native CLI median filter (DONE).** Median filtering
+  now consumes its existing Coeus-native provider and native image I/O.
+
 - **MIG-624-01 [major] - Native CLI N4 bias correction (DONE).** N4 now owns a
   Coeus-native provider boundary over its existing numerical values provider;
   the CLI reads, computes, and writes native images end to end.

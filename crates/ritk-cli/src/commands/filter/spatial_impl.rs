@@ -1,6 +1,10 @@
 use anyhow::{anyhow, Context, Result};
 use tracing::info;
 
+use super::super::{
+    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
+    write_image_native, NativeBackend,
+};
 use super::{read_image, write_image_inferred, FilterArgs};
 
 // ── Gradient magnitude ────────────────────────────────────────────────────────
@@ -106,10 +110,19 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
     use ritk_filter::MedianFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "median requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filter = MedianFilter::new(args.kernel.radius);
-    let filtered = filter.apply(&image)?;
-    write_image_inferred(&args.output, &filtered)?;
+    let filtered = filter.apply_native(&image, &backend)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied median (radius={}) to {} \u{2192} {}",

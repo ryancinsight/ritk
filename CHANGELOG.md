@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 625: Native CLI median filter (MIG-625-01)
+### Breaking
+- `ritk filter --filter median` requires native input and output formats.
+
 ## [Unreleased] — Sprint 624: Native CLI N4 bias correction (MIG-624-01)
 ### Breaking
 - `ritk filter --filter n4-bias` requires native input and output formats.

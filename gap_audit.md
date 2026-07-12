@@ -8,6 +8,11 @@
 
 # RITK Gap Audit - Active
 
+## MIG-625-01 audit (2026-07-11)
+
+The median CLI now invokes its existing native provider and native image I/O.
+The spatial filter family retains independently owned legacy routes.
+
 ## MIG-624-01 audit (2026-07-11)
 
 N4 bias correction now delegates its native image boundary directly to the
