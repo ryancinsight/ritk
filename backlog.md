@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **MIG-630-01 [major] - Native CLI label dilation (DONE).** Label dilation
+  now owns a Coeus-native provider boundary and native CLI I/O with value
+  coverage for label expansion.
+
 - **MIG-629-01 [major] - Native CLI morphological reconstruction (DONE).**
   Two-image reconstruction now consumes its existing Coeus-native provider and
   native marker, mask, and output I/O.

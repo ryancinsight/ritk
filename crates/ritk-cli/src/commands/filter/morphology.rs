@@ -92,10 +92,19 @@ pub(super) fn run_hit_or_miss(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_label_dilation(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LabelDilation;
 
-    let image = read_image(&args.input)?;
-    let filtered = LabelDilation::new(args.kernel.radius).apply(&image)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "label-dilation requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let filtered = LabelDilation::new(args.kernel.radius).apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
     info!(
         "filter: label-dilation complete radius={} input={} output={}",
         args.kernel.radius,
@@ -235,6 +244,38 @@ mod tests {
         let output = crate::commands::read_image_native(&output)
             .expect("reconstruction output is natively readable");
         assert_eq!(output.shape(), [5, 5, 5]);
+    }
+
+    #[test]
+    fn label_dilation_writes_native_values() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("input.nii");
+        let output_path = dir.path().join("output.nii");
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let mut values = vec![0.0f32; 125];
+        values[2 * 25 + 2 * 5 + 2] = 3.0;
+        let tensor = Tensor::<Backend, 3>::from_data(
+            TensorData::new(values, Shape::new([5, 5, 5])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        ritk_io::write_nifti::<Backend, _>(&input_path, &image).expect("input fixture writes");
+
+        let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelDilation);
+        args.kernel.radius = 1;
+        run_label_dilation(&args).expect("label dilation succeeds");
+        let output = crate::commands::read_image_native(&output_path)
+            .expect("label dilation output is natively readable");
+        let values = output.data_slice().expect("contiguous native output");
+        assert_eq!(output.shape(), [5, 5, 5]);
+        assert_eq!(values[2 * 25 + 2 * 5 + 2], 3.0);
+        assert_eq!(values[2 * 25 + 2 * 5 + 1], 3.0);
+        assert_eq!(values[0], 0.0);
     }
 
     #[test]

@@ -8,6 +8,12 @@
 
 # RITK Gap Audit - Active
 
+## MIG-630-01 audit (2026-07-11)
+
+Label dilation now exposes its canonical values kernel to native images. The
+CLI no longer crosses the legacy tensor boundary, and a native regression
+asserts center, expanded-neighbour, and background label values.
+
 ## MIG-629-01 audit (2026-07-11)
 
 Morphological reconstruction now retains native ownership across its marker,

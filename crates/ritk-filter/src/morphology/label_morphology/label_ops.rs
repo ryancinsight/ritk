@@ -16,6 +16,7 @@
 //! # References
 //! - Serra, J. (1982). Image Analysis and Mathematical Morphology. Academic Press.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
@@ -55,6 +56,26 @@ impl LabelDilation {
             *image.spacing(),
             *image.direction(),
         ))
+    }
+
+    /// Apply label dilation to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            dilate_labels(image.data_slice()?, image.shape(), self.radius),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
     }
 }
 

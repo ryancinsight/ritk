@@ -8,6 +8,11 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-630-01 — Native CLI label dilation
+**Target version**: 0.14.0 migration batch
+- [x] Expose label dilation's canonical values kernel through a Coeus-native boundary.
+- [x] Route the CLI through native I/O and assert expanded label values.
+
 ## MIG-629-01 — Native CLI morphological reconstruction
 **Target version**: 0.14.0 migration batch
 - [x] Route native marker and mask images to the existing two-image provider.

@@ -8,6 +8,10 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 630: Native CLI label dilation (MIG-630-01)
+### Breaking
+- `ritk filter --filter label-dilation` requires native input and output formats.
+
 ## [Unreleased] — Sprint 629: Native CLI morphological reconstruction (MIG-629-01)
 ### Breaking
 - `ritk filter --filter morphological-reconstruction` requires native marker,
