@@ -43,9 +43,10 @@ eliminate the failure, falsifying aggregate memory exhaustion. A captured
 backtrace proves `openjp2 0.6.1` calls Rust `dealloc` on a null decoded-codeblock
 pointer during codec drop. Upstream PR 6 guards those sites but also replaces
 the allocator, which RITK's suite rejected with invalid-pointer aborts. Focused
-upstream PR 9 changes only the two unsafe deallocation sites. RITK pins that
-exact commit until upstream merges and releases it, while retaining the complete
-differential workload and normal nextest concurrency.
+upstream PR 9 changes only the two unsafe deallocation sites. RITK pins the same
+guards on the exact published 0.6.1 source commit, preserving the `std` feature
+required by `jpeg2k 0.10.1`, until upstream merges and releases the fix. The
+complete differential workload and normal nextest concurrency remain intact.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the
