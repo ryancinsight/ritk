@@ -8,6 +8,14 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 651: Native scalar region-growing PyO3 (MIG-651-01)
+### Changed
+- Connected-threshold, confidence-connected, and neighborhood-connected Python
+  bindings now execute through their existing Coeus-native providers and retain
+  physical image geometry without constructing Burn tensors.
+- Scalar region-growing bindings reject non-finite intensity bounds and map
+  native seed-boundary failures to `ValueError`.
+
 ## [Unreleased] — Sprint 650: Correct native isolated watershed (MIG-650-01)
 ### Breaking
 - Replace public mutable isolated-watershed fields with validated construction;

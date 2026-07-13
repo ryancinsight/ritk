@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-651-01 audit (2026-07-12)
+
+Three scalar region-growing Python bindings still converted native `PyImage`
+storage into Burn tensors even though their canonical filters already owned
+Coeus-native execution. They now operate directly on the `PyImage` Moirai
+storage, release the GIL around the owning filter, and return the resulting
+native image without a backend round trip.
+The distinct isolated-connected and vector-confidence algorithms remain
+unchanged because they do not yet expose equivalent native providers.
+
+Installed-wheel tests preserve full binary values, spacing, origin, direction,
+and out-of-bounds seed failures across all three bindings; existing synthetic
+and real-data SimpleITK comparisons remain green. Evidence is empirical
+differential verification, not machine-checked proof.
+
 ## MIG-650-01 audit (2026-07-12)
 
 The prior isolated-watershed shortcut returned only finest gradient-descent

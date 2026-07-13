@@ -10,10 +10,10 @@
 
 ## MIG-651-01 — Native scalar region-growing PyO3 family
 **Target version**: 0.14.0 migration batch
-- [ ] Audit existing native provider contracts and current Python validation duplication.
-- [ ] Route connected, confidence, and neighborhood bindings through native images.
-- [ ] Add installed-wheel value, geometry, and failure regressions.
-- [ ] Run package gates, adversarial review, commit, and push.
+- [x] Audit existing native provider contracts and current Python validation duplication.
+- [x] Route connected, confidence, and neighborhood bindings through native images.
+- [x] Add installed-wheel value, geometry, and failure regressions.
+- [x] Run package gates and adversarial review; commit and push close the delivery cycle.
 
 ## MIG-650-01 — Correct native isolated watershed
 **Target version**: 0.14.0 migration batch

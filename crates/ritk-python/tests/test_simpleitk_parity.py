@@ -2834,7 +2834,7 @@ def test_confidence_connected_rejects_invalid_multiplier(multiplier):
 
 def test_confidence_connected_rejects_nan_bound():
     image = _ritk(np.ones((3, 3, 3), dtype=np.float32))
-    with pytest.raises(ValueError, match="initial bounds must be ordered and non-NaN"):
+    with pytest.raises(ValueError, match="initial bounds must be finite and ordered"):
         ritk.segmentation.confidence_connected_segment(
             image,
             seed=[1, 1, 1],
@@ -2879,6 +2879,57 @@ def test_neighborhood_connected_segment_recovers_sphere():
     assert d >= 0.50, (
         f"Neighborhood-connected Dice {d:.4f} < 0.50 vs ground-truth sphere"
     )
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        lambda image, seed: ritk.segmentation.connected_threshold_segment(
+            image, seed, 0.0, 2.0
+        ),
+        lambda image, seed: ritk.segmentation.confidence_connected_segment(
+            image, seed, 0.0, 2.0, max_iterations=1
+        ),
+        lambda image, seed: ritk.segmentation.neighborhood_connected_segment(
+            image, seed, 0.0, 2.0, radius=0
+        ),
+    ],
+    ids=["connected", "confidence", "neighborhood"],
+)
+def test_scalar_region_growing_native_bindings_preserve_values_geometry_and_errors(
+    segment, tmp_path
+):
+    reference = sitk.GetImageFromArray(np.ones((2, 3, 4), dtype=np.float32))
+    reference.SetSpacing((2.5, 1.5, 0.5))
+    reference.SetOrigin((5.0, 3.0, 2.0))
+    reference.SetDirection((0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0))
+    path = tmp_path / "region-growing-geometry.mha"
+    sitk.WriteImage(reference, str(path))
+    image = ritk.io.read_image(str(path))
+    output = segment(image, [1, 1, 2])
+    np.testing.assert_array_equal(output.to_numpy(), np.ones((2, 3, 4), np.float32))
+    assert output.spacing == image.spacing
+    assert output.origin == image.origin
+    assert output.direction == image.direction
+    with pytest.raises(ValueError, match="seed .* out of bounds"):
+        segment(image, [2, 0, 0])
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        lambda image: ritk.segmentation.connected_threshold_segment(
+            image, [0, 0, 0], float("nan"), 1.0
+        ),
+        lambda image: ritk.segmentation.neighborhood_connected_segment(
+            image, [0, 0, 0], 0.0, float("inf"), radius=0
+        ),
+    ],
+    ids=["connected", "neighborhood"],
+)
+def test_scalar_region_growing_native_bindings_reject_nonfinite_bounds(segment):
+    with pytest.raises(ValueError, match="bounds must be finite and ordered"):
+        segment(_ritk(np.ones((1, 1, 1), np.float32)))
 
 
 def test_curvature_anisotropic_diffusion_smooths_noisy_image():
