@@ -8,6 +8,20 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 652: Native isolated-connected region growing (MIG-652-01)
+### Breaking
+- Replace public mutable isolated-connected fields with validated configuration
+  and explicit upper/lower search selection; invalid configuration, image
+  storage, or seeds now return errors. The Python isolated-connected function
+  now returns its image together with ITK-compatible thresholding-failure status.
+
+### Changed
+- Run ITK-compatible threshold bisection in a reusable flat workspace shared by
+  legacy and Coeus-native execution, then route the Python binding directly
+  through `MoiraiBackend` storage without a Burn conversion.
+- Preserve physical geometry and return the final ITK-compatible output when a
+  lower-threshold search cannot separate the seeds.
+
 ## [Unreleased] — Sprint 651: Native scalar region-growing PyO3 (MIG-651-01)
 ### Changed
 - Connected-threshold, confidence-connected, and neighborhood-connected Python

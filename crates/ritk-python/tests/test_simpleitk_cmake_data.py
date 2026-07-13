@@ -1179,11 +1179,11 @@ def test_cmake_iso_contour_distance(shape, far):
 
 
 @pytest.mark.parametrize(
-    "bridge,find_upper",
-    [(150, True), (40, True), (150, False)],
-    ids=["bridge150-up", "bridge40-up", "bridge150-low"],
+    "bridge,find_upper,expected_thresholding_failed",
+    [(150, True, False), (40, True, False), (40, False, False), (150, False, True)],
+    ids=["bridge150-up", "bridge40-up", "bridge40-low", "bridge150-low-failed"],
 )
-def test_cmake_isolated_connected(bridge, find_upper):
+def test_cmake_isolated_connected(bridge, find_upper, expected_thresholding_failed):
     """IsolatedConnected: binary-search the threshold separating two seeds. ritk
     `segmentation.isolated_connected_segment` vs `sitk.IsolatedConnected` on two
     blobs joined by an intermediate-intensity bridge. Bit-exact — the bisection
@@ -1203,22 +1203,19 @@ def test_cmake_isolated_connected(bridge, find_upper):
         sitk.IsolatedConnected(si, seed1, seed2, lo, hi, 1, 1.0, find_upper)
     ).astype(_np.float64)
     ri = ritk.Image(_np.ascontiguousarray(img[None]))
-    r = _np.squeeze(
-        _np.asarray(
-            ritk.segmentation.isolated_connected_segment(
-                ri,
-                [0, seed1[1], seed1[0]],
-                [0, seed2[1], seed2[0]],
-                lo,
-                hi,
-                1.0,
-                1.0,
-                find_upper,
-            ).to_numpy(),
-            _np.float64,
-        )
+    result, thresholding_failed = ritk.segmentation.isolated_connected_segment(
+        ri,
+        [0, seed1[1], seed1[0]],
+        [0, seed2[1], seed2[0]],
+        lo,
+        hi,
+        1.0,
+        1.0,
+        find_upper,
     )
+    r = _np.squeeze(_np.asarray(result.to_numpy(), _np.float64))
     assert _np.array_equal(r, s), "IsolatedConnected differs from sitk"
+    assert thresholding_failed is expected_thresholding_failed
 
 
 @pytest.mark.parametrize("level", [0.0, 5.0, 10.0], ids=["l0", "l5", "l10"])

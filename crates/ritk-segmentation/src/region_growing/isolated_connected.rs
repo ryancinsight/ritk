@@ -1,129 +1,421 @@
 //! Isolated-connected region growing.
 //!
-//! # Mathematical Specification
-//!
-//! Ports `itk::IsolatedConnectedImageFilter`. Given two seeds, it binary-searches
-//! the threshold that **just separates** them: the largest upper threshold
-//! (`find_upper_threshold`) — or smallest lower threshold — for which a
-//! connected-threshold region grown from `seed1` does **not** reach `seed2`.
-//!
-//! For `find_upper_threshold` (ITK default), with fixed band floor `lower`:
-//!
-//! ```text
-//! lo = lower,  hi = upper,  guess = hi
-//! while lo + tol < guess:
-//!   region = flood(seed1, band = [lower, guess])
-//!   if seed2 ∈ region:  hi = guess        # too permissive, lower the ceiling
-//!   else:               lo = guess        # still separated, raise the floor
-//!   guess = (hi + lo) / 2
-//! isolated = lo
-//! output = flood(seed1, [lower, isolated]) · replace_value
-//! ```
-//!
-//! `find_upper_threshold = false` mirrors this, searching the lower threshold in
-//! the band `[guess, upper]` and taking `isolated = hi`. The flood is ritk's
-//! [`connected_threshold()`] (face connectivity), bit-exact to
-//! `sitk.ConnectedThreshold`, so the separating threshold — and the binary output
-//! — is bit-exact to `sitk.IsolatedConnected`.
+//! Given seeds `s1` and `s2`, this filter binary-searches the inclusive
+//! connected-threshold band that still contains `s1` but excludes `s2`.
+//! Search arithmetic uses `f64`, matching ITK's accumulator contract, while
+//! image samples and threshold predicates remain `f32`.
+
+use std::collections::VecDeque;
 
 use ritk_core::spatial::VoxelIndex;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 
-use super::connected_threshold;
+use super::connected_threshold::flood_fill;
+use super::intensity::within_finite_bounds;
 
-/// Isolated-connected region-growing filter (`itk::IsolatedConnectedImageFilter`).
-#[derive(Debug, Clone, Copy)]
-pub struct IsolatedConnectedFilter {
-    /// Seed inside the region to keep, `[z, y, x]`.
-    pub seed1: [usize; 3],
-    /// Seed to isolate (must end up excluded), `[z, y, x]`.
-    pub seed2: [usize; 3],
-    /// Fixed band floor (`find_upper_threshold`) / search floor. ITK `Lower`.
-    pub lower: f32,
-    /// Fixed band ceiling (`!find_upper_threshold`) / search ceiling. ITK `Upper`.
-    pub upper: f32,
-    /// Value written to the grown region. ITK default `1`.
-    pub replace_value: f32,
-    /// Bisection stop tolerance. ITK default `1.0`.
-    pub isolated_value_tolerance: f64,
-    /// Search the upper threshold (ITK default `true`) vs the lower.
-    pub find_upper_threshold: bool,
+/// Threshold endpoint varied by isolated-connected search.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum IsolationThreshold {
+    /// Search the upper endpoint while holding the lower endpoint fixed.
+    #[default]
+    Upper,
+    /// Search the lower endpoint while holding the upper endpoint fixed.
+    Lower,
 }
 
-impl Default for IsolatedConnectedFilter {
+/// Validated isolated-connected search configuration.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct IsolatedConnectedConfig {
+    lower: f32,
+    upper: f32,
+    replace_value: f32,
+    tolerance: f64,
+    threshold: IsolationThreshold,
+}
+
+impl IsolatedConnectedConfig {
+    /// Construct a validated search configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error unless bounds and replacement are finite and tolerance
+    /// is finite and positive.
+    pub fn new(
+        lower: f32,
+        upper: f32,
+        replace_value: f32,
+        tolerance: f64,
+        threshold: IsolationThreshold,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            lower.is_finite() && upper.is_finite() && lower <= upper,
+            "isolated connected bounds must be finite and ordered, got [{lower}, {upper}]"
+        );
+        anyhow::ensure!(
+            replace_value.is_finite(),
+            "isolated connected replacement must be finite, got {replace_value}"
+        );
+        anyhow::ensure!(
+            tolerance.is_finite() && tolerance > 0.0,
+            "isolated connected tolerance must be finite and positive, got {tolerance}"
+        );
+        Ok(Self {
+            lower,
+            upper,
+            replace_value,
+            tolerance,
+            threshold,
+        })
+    }
+
+    /// Return the lower intensity bound.
+    pub fn lower(self) -> f32 {
+        self.lower
+    }
+
+    /// Return the upper intensity bound.
+    pub fn upper(self) -> f32 {
+        self.upper
+    }
+
+    /// Return the nonzero output label.
+    pub fn replace_value(self) -> f32 {
+        self.replace_value
+    }
+
+    /// Return the binary-search tolerance.
+    pub fn tolerance(self) -> f64 {
+        self.tolerance
+    }
+
+    /// Return the searched threshold endpoint.
+    pub fn threshold(self) -> IsolationThreshold {
+        self.threshold
+    }
+}
+
+impl Default for IsolatedConnectedConfig {
     fn default() -> Self {
         Self {
-            seed1: [0, 0, 0],
-            seed2: [0, 0, 0],
             lower: 0.0,
             upper: 1.0,
             replace_value: 1.0,
-            isolated_value_tolerance: 1.0,
-            find_upper_threshold: true,
+            tolerance: 1.0,
+            threshold: IsolationThreshold::Upper,
         }
     }
 }
 
-impl IsolatedConnectedFilter {
-    /// Grow the region from `seed1` at the separating threshold.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
-        let [_, ny, nx] = image.shape();
-        let s2 = (self.seed2[0] * ny + self.seed2[1]) * nx + self.seed2[2];
-        let tol = self.isolated_value_tolerance;
-        let seed1 = VoxelIndex::new(self.seed1[0], self.seed1[1], self.seed1[2]);
+/// Isolated-connected region-growing filter.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct IsolatedConnectedFilter {
+    seed1: VoxelIndex,
+    seed2: VoxelIndex,
+    config: IsolatedConnectedConfig,
+}
 
-        // Flood from seed1 over [lo, hi]; returns whether seed2 was reached.
-        let reaches_seed2 = |lo: f32, hi: f32| -> bool {
-            let region = connected_threshold(image, seed1, lo, hi);
-            extract_vec_infallible(&region).0[s2] != 0.0
-        };
+/// Result of isolated-connected region growing.
+#[derive(Debug)]
+pub struct IsolatedConnectedOutput<I> {
+    image: I,
+    thresholding_failed: bool,
+}
 
-        let isolated = if self.find_upper_threshold {
-            let mut lo = self.lower as f64;
-            let mut hi = self.upper as f64;
-            let mut guess = hi;
-            while lo + tol < guess {
-                if reaches_seed2(self.lower, guess as f32) {
-                    hi = guess;
-                } else {
-                    lo = guess;
-                }
-                guess = (hi + lo) / 2.0;
-            }
-            lo as f32
-        } else {
-            let mut lo = self.lower as f64;
-            let mut hi = self.upper as f64;
-            let mut guess = lo;
-            while guess < hi - tol {
-                if reaches_seed2(guess as f32, self.upper) {
-                    lo = guess;
-                } else {
-                    hi = guess;
-                }
-                guess = (hi + lo) / 2.0;
-            }
-            hi as f32
-        };
-
-        let (band_lo, band_hi) = if self.find_upper_threshold {
-            (self.lower, isolated)
-        } else {
-            (isolated, self.upper)
-        };
-        let region = connected_threshold(image, seed1, band_lo, band_hi);
-        let (mask, dims) = extract_vec_infallible(&region);
-        let rv = self.replace_value;
-        let out: Vec<f32> = mask
-            .iter()
-            .map(|&v| if v != 0.0 { rv } else { 0.0 })
-            .collect();
-        rebuild(out, dims, image)
+impl<I> IsolatedConnectedOutput<I> {
+    /// Return whether the final ITK-compatible band failed to separate the seeds.
+    pub fn thresholding_failed(&self) -> bool {
+        self.thresholding_failed
     }
+
+    /// Borrow the produced image.
+    pub fn image(&self) -> &I {
+        &self.image
+    }
+
+    /// Consume this result and return the produced image.
+    pub fn into_image(self) -> I {
+        self.image
+    }
+}
+
+impl IsolatedConnectedFilter {
+    /// Construct an isolated-connected filter.
+    pub fn new(
+        seed1: impl Into<VoxelIndex>,
+        seed2: impl Into<VoxelIndex>,
+        config: IsolatedConnectedConfig,
+    ) -> Self {
+        Self {
+            seed1: seed1.into(),
+            seed2: seed2.into(),
+            config,
+        }
+    }
+
+    /// Apply isolated-connected growth to a legacy image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid image storage, seed coordinates, non-finite
+    /// samples, or output reconstruction failure.
+    pub fn apply<B: Backend>(
+        &self,
+        image: &Image<B, 3>,
+    ) -> anyhow::Result<IsolatedConnectedOutput<Image<B, 3>>> {
+        let (values, dimensions) = extract_vec(image)?;
+        let output =
+            isolated_connected_values(&values, dimensions, self.seed1, self.seed2, self.config)?;
+        Ok(IsolatedConnectedOutput {
+            image: rebuild(output.values, dimensions, image),
+            thresholding_failed: output.thresholding_failed,
+        })
+    }
+
+    /// Apply isolated-connected growth directly to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid image storage, seed coordinates, non-finite
+    /// samples, or output construction failure. An unseparable final band is
+    /// returned with `thresholding_failed` set, matching ITK.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<IsolatedConnectedOutput<ritk_image::native::Image<f32, B, 3>>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let output = isolated_connected_values(
+            image.data_slice()?,
+            image.shape(),
+            self.seed1,
+            self.seed2,
+            self.config,
+        )?;
+        Ok(IsolatedConnectedOutput {
+            image: crate::native_output::from_values(image, output.values, backend)?,
+            thresholding_failed: output.thresholding_failed,
+        })
+    }
+}
+
+fn isolated_connected_values(
+    values: &[f32],
+    dimensions: [usize; 3],
+    seed1: VoxelIndex,
+    seed2: VoxelIndex,
+    config: IsolatedConnectedConfig,
+) -> anyhow::Result<FlatOutput> {
+    validate_input(values, dimensions, seed1, seed2)?;
+    let seed2_flat = flatten(seed2, dimensions);
+    let mut workspace = FloodWorkspace::new(values.len());
+    let isolated = match config.threshold {
+        IsolationThreshold::Upper => {
+            let mut lower = f64::from(config.lower);
+            let mut upper = f64::from(config.upper);
+            let mut guess = upper;
+            while lower + config.tolerance < guess {
+                if workspace.reaches(
+                    values,
+                    dimensions,
+                    seed1,
+                    seed2_flat,
+                    config.lower,
+                    guess as f32,
+                ) {
+                    upper = guess;
+                } else {
+                    lower = guess;
+                }
+                guess = (upper + lower) * 0.5;
+            }
+            lower as f32
+        }
+        IsolationThreshold::Lower => {
+            let mut lower = f64::from(config.lower);
+            let mut upper = f64::from(config.upper);
+            let mut guess = lower;
+            while guess < upper - config.tolerance {
+                if workspace.reaches(
+                    values,
+                    dimensions,
+                    seed1,
+                    seed2_flat,
+                    guess as f32,
+                    config.upper,
+                ) {
+                    lower = guess;
+                } else {
+                    upper = guess;
+                }
+                guess = (upper + lower) * 0.5;
+            }
+            upper as f32
+        }
+    };
+    let (band_lower, band_upper) = match config.threshold {
+        IsolationThreshold::Upper => (config.lower, isolated),
+        IsolationThreshold::Lower => (isolated, config.upper),
+    };
+    let mask = flood_fill(values, dimensions, seed1, band_lower, band_upper);
+    let seed1_flat = flatten(seed1, dimensions);
+    let thresholding_failed = mask[seed1_flat] == 0.0 || mask[seed2_flat] != 0.0;
+    Ok(FlatOutput {
+        values: mask
+            .into_iter()
+            .map(|value| {
+                if value != 0.0 {
+                    config.replace_value
+                } else {
+                    0.0
+                }
+            })
+            .collect(),
+        thresholding_failed,
+    })
+}
+
+struct FlatOutput {
+    values: Vec<f32>,
+    thresholding_failed: bool,
+}
+
+fn validate_input(
+    values: &[f32],
+    dimensions: [usize; 3],
+    seed1: VoxelIndex,
+    seed2: VoxelIndex,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        dimensions.iter().all(|&extent| extent > 0),
+        "isolated connected requires nonzero dimensions, got {dimensions:?}"
+    );
+    let expected = dimensions
+        .iter()
+        .try_fold(1usize, |count, &extent| count.checked_mul(extent))
+        .ok_or_else(|| {
+            anyhow::anyhow!("isolated connected shape product overflows usize: {dimensions:?}")
+        })?;
+    anyhow::ensure!(
+        values.len() == expected,
+        "isolated connected shape {dimensions:?} requires {expected} samples, got {}",
+        values.len()
+    );
+    for (name, seed) in [("seed1", seed1), ("seed2", seed2)] {
+        anyhow::ensure!(
+            seed[0] < dimensions[0] && seed[1] < dimensions[1] && seed[2] < dimensions[2],
+            "isolated connected {name} {:?} is outside shape {dimensions:?}",
+            seed.as_array()
+        );
+    }
+    if let Some((index, value)) = values
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        anyhow::bail!(
+            "isolated connected sample at flat index {index} must be finite, got {value}"
+        );
+    }
+    Ok(())
+}
+
+struct FloodWorkspace {
+    visited: Vec<u32>,
+    generation: u32,
+    queue: VecDeque<usize>,
+}
+
+impl FloodWorkspace {
+    fn new(sample_count: usize) -> Self {
+        Self {
+            visited: vec![0; sample_count],
+            generation: 0,
+            queue: VecDeque::with_capacity(sample_count.min(1024)),
+        }
+    }
+
+    fn reaches(
+        &mut self,
+        values: &[f32],
+        dimensions: [usize; 3],
+        seed: VoxelIndex,
+        target: usize,
+        lower: f32,
+        upper: f32,
+    ) -> bool {
+        self.generation = self.generation.wrapping_add(1);
+        if self.generation == 0 {
+            self.visited.fill(0);
+            self.generation = 1;
+        }
+        self.queue.clear();
+        let seed_flat = flatten(seed, dimensions);
+        if !within_finite_bounds(values[seed_flat], lower, upper) {
+            return false;
+        }
+        self.visited[seed_flat] = self.generation;
+        self.queue.push_back(seed_flat);
+        let [depth, height, width] = dimensions;
+        while let Some(index) = self.queue.pop_front() {
+            if index == target {
+                return true;
+            }
+            let z = index / (height * width);
+            let remainder = index % (height * width);
+            let y = remainder / width;
+            let x = remainder % width;
+            for (nz, ny, nx) in [
+                (z.checked_sub(1), Some(y), Some(x)),
+                ((z + 1 < depth).then_some(z + 1), Some(y), Some(x)),
+                (Some(z), y.checked_sub(1), Some(x)),
+                (Some(z), (y + 1 < height).then_some(y + 1), Some(x)),
+                (Some(z), Some(y), x.checked_sub(1)),
+                (Some(z), Some(y), (x + 1 < width).then_some(x + 1)),
+            ] {
+                let (Some(nz), Some(ny), Some(nx)) = (nz, ny, nx) else {
+                    continue;
+                };
+                let neighbor = (nz * height + ny) * width + nx;
+                if self.visited[neighbor] != self.generation
+                    && within_finite_bounds(values[neighbor], lower, upper)
+                {
+                    self.visited[neighbor] = self.generation;
+                    self.queue.push_back(neighbor);
+                }
+            }
+        }
+        false
+    }
+}
+
+fn flatten(seed: VoxelIndex, dimensions: [usize; 3]) -> usize {
+    (seed[0] * dimensions[1] + seed[1]) * dimensions[2] + seed[2]
 }
 
 #[cfg(test)]
 #[path = "tests_isolated_connected.rs"]
 mod tests_isolated_connected;
+
+#[cfg(test)]
+mod workspace_tests {
+    use super::{FloodWorkspace, VoxelIndex};
+
+    #[test]
+    fn search_workspace_reuses_visited_and_queue_storage() {
+        let values = vec![1.0; 64];
+        let dimensions = [1, 8, 8];
+        let mut workspace = FloodWorkspace::new(values.len());
+        assert!(workspace.reaches(&values, dimensions, VoxelIndex::new(0, 0, 0), 63, 0.0, 2.0));
+        let visited = workspace.visited.as_ptr();
+        let capacity = workspace.queue.capacity();
+        assert!(workspace.reaches(&values, dimensions, VoxelIndex::new(0, 0, 0), 63, 0.0, 2.0));
+        assert_eq!(workspace.visited.as_ptr(), visited);
+        assert_eq!(workspace.queue.capacity(), capacity);
+    }
+}

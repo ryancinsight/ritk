@@ -47,7 +47,8 @@ pub use morphology::{
 };
 pub use region_growing::{
     connected_threshold, growcut, growcut_slice, vector_confidence_connected_image,
-    ConfidenceConnectedFilter, ConnectedThresholdFilter, GrowCutFilter, IsolatedConnectedFilter,
+    ConfidenceConnectedFilter, ConnectedThresholdFilter, GrowCutFilter, IsolatedConnectedConfig,
+    IsolatedConnectedFilter, IsolatedConnectedOutput, IsolationThreshold,
     NeighborhoodConnectedFilter,
 };
 pub use threshold::{

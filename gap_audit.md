@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## MIG-652-01 audit (2026-07-12)
+
+The prior isolated-connected filter exposed invalid mutable state and rebuilt a
+legacy image for every bisection probe. The native owner now validates its
+configuration before construction and uses a generation-tagged visited map plus
+reused queue for the flat ITK threshold search. Legacy and Coeus-native images
+share that core; the PyO3 boundary operates directly on `MoiraiBackend` image
+storage.
+
+The lower-threshold direction cannot separate a high bridge from lower-valued
+seeds; this is an ITK thresholding failure that retains the final mask. The
+binding returns that mask together with the explicit status, while a low bridge
+validates the successful lower-direction contract. Exact legacy/native values,
+full physical geometry, input failures, workspace reuse, and independent SimpleITK runs are
+green. Evidence is type-level construction validation and empirical
+differential verification, not machine-checked proof.
+
 ## MIG-651-01 audit (2026-07-12)
 
 Three scalar region-growing Python bindings still converted native `PyImage`

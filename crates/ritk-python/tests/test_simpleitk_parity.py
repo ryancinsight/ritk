@@ -2932,6 +2932,34 @@ def test_scalar_region_growing_native_bindings_reject_nonfinite_bounds(segment):
         segment(_ritk(np.ones((1, 1, 1), np.float32)))
 
 
+def test_isolated_connected_native_binding_preserves_geometry_and_validates(tmp_path):
+    array = np.zeros((1, 5, 9), np.float32)
+    array[:, 1:4, 1:3] = 1.0
+    array[:, 1:4, 6:8] = 1.0
+    array[:, 2:3, 3:6] = 1.5
+    reference = sitk.GetImageFromArray(array)
+    reference.SetSpacing((2.5, 1.5, 0.5))
+    reference.SetOrigin((5.0, 3.0, 2.0))
+    reference.SetDirection((0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0))
+    path = tmp_path / "isolated-connected-geometry.mha"
+    sitk.WriteImage(reference, str(path))
+    image = ritk.io.read_image(str(path))
+    output, thresholding_failed = ritk.segmentation.isolated_connected_segment(
+        image, [0, 2, 1], [0, 2, 7], 0.5, 2.0, 1.0, 0.01, True
+    )
+    assert not thresholding_failed
+    expected = np.zeros_like(array)
+    expected[:, 1:4, 1:3] = 1.0
+    np.testing.assert_array_equal(output.to_numpy(), expected)
+    assert output.spacing == image.spacing
+    assert output.origin == image.origin
+    assert output.direction == image.direction
+    with pytest.raises(ValueError, match="tolerance must be finite and positive"):
+        ritk.segmentation.isolated_connected_segment(
+            image, [0, 2, 1], [0, 2, 7], 0.5, 2.0, 1.0, 0.0, True
+        )
+
+
 def test_curvature_anisotropic_diffusion_smooths_noisy_image():
     """Curvature anisotropic diffusion reduces noise while preserving mean intensity.
 

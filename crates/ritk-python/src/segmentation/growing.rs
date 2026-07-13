@@ -10,8 +10,9 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use pyo3::prelude::*;
 use ritk_segmentation::{
     vector_confidence_connected_image as core_vector_confidence_connected,
-    ConfidenceConnectedFilter, ConnectedThresholdFilter, IsolatedConnectedFilter,
-    IsolatedWatershed, IsolatedWatershedConfig, NeighborhoodConnectedFilter,
+    ConfidenceConnectedFilter, ConnectedThresholdFilter, IsolatedConnectedConfig,
+    IsolatedConnectedFilter, IsolatedWatershed, IsolatedWatershedConfig, IsolationThreshold,
+    NeighborhoodConnectedFilter,
 };
 
 /// Vector confidence-connected region growing, matching
@@ -128,7 +129,9 @@ pub fn connected_threshold_segment(
 ///     find_upper_threshold: Search the upper threshold (default True).
 ///
 /// Returns:
-///     Binary PyImage of the isolated region.
+///     `(image, thresholding_failed)`, where `image` is the binary isolated
+///     region and `thresholding_failed` records whether the final ITK-compatible
+///     band still connects both seeds.
 #[pyfunction]
 #[pyo3(signature = (image, seed1, seed2, lower=0.0_f32, upper=1.0_f32,
                     replace_value=1.0_f32, isolated_value_tolerance=1.0_f64,
@@ -144,21 +147,28 @@ pub fn isolated_connected_segment(
     replace_value: f32,
     isolated_value_tolerance: f64,
     find_upper_threshold: bool,
-) -> PyImage {
-    let arc = py_image_to_burn(image);
-    let out = py.allow_threads(|| {
-        IsolatedConnectedFilter {
-            seed1,
-            seed2,
-            lower,
-            upper,
-            replace_value,
-            isolated_value_tolerance,
-            find_upper_threshold,
-        }
-        .apply(&arc)
-    });
-    burn_into_py_image(out)
+) -> RitkResult<(PyImage, bool)> {
+    let threshold = if find_upper_threshold {
+        IsolationThreshold::Upper
+    } else {
+        IsolationThreshold::Lower
+    };
+    let config = IsolatedConnectedConfig::new(
+        lower,
+        upper,
+        replace_value,
+        isolated_value_tolerance,
+        threshold,
+    )
+    .map_err(|error| RitkPyError::value(error.to_string()))?;
+    let filter = IsolatedConnectedFilter::new(seed1, seed2, config);
+    let image = image.inner.clone();
+    py.allow_threads(move || filter.apply_native(image.as_ref(), &MoiraiBackend))
+        .map(|output| {
+            let thresholding_failed = output.thresholding_failed();
+            (into_py_image(output.into_image()), thresholding_failed)
+        })
+        .map_err(|error| RitkPyError::value(error.to_string()))
 }
 
 /// Confidence-connected region growing (Yanowitz & Bruckstein 1989).
