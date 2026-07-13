@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-653-01 — Native vector confidence-connected region growing
+**Owner**: Codex
+**Target version**: 0.14.0 migration batch
+- [x] Audit the live Burn conversion, provider core, callers, and stale board claims.
+- [ ] Ground validation and numerical contracts against ITK and the existing SimpleITK oracle.
+- [ ] Replace owned per-channel widening with one borrowed-channel provider core.
+- [ ] Add exact legacy/native execution and direct Moirai PyO3.
+- [ ] Add value, geometry, boundary, and allocation-structure regressions.
+- [ ] Run package gates, adversarial review, PM synchronization, commit, and push.
+
 ## MIG-652-01 — Native isolated-connected region growing
 **Target version**: 0.14.0 migration batch
 - [x] Ground both ITK search directions and validation contracts.

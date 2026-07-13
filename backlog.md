@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-653-01 [major] - Native vector confidence-connected region growing (IN PROGRESS; owner=Codex; scope=vector confidence-connected provider, PyO3/tests/docs; last-update=2026-07-13).** Acceptance: one validated provider over borrowed channel storage, exact legacy/Coeus-native execution, direct Moirai PyO3 without full-image Burn conversion, and value/geometry/failure evidence against the existing SimpleITK contract. Dependencies: existing Coeus-native scalar image storage and the canonical RITK Mahalanobis implementation are available; ADR 0008 records the breaking surface.
+
 - **MIG-652-01 [major] - Native isolated-connected region growing (DONE).** Validated private configuration and a generation-tagged flat search workspace serve exact legacy/Coeus-native execution; PyO3 consumes `MoiraiBackend` storage directly, preserves physical geometry, and returns ITK-compatible final output plus explicit thresholding-failure status.
 
 - **MIG-651-01 [major] - Native scalar region-growing PyO3 family (DONE).** Connected-threshold, confidence-connected, and neighborhood-connected bindings consume their existing Coeus-native providers; installed-wheel regressions preserve exact values/geometry and typed boundary failures without changing isolated/vector algorithms.
