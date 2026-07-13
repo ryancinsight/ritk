@@ -42,11 +42,12 @@
 //!   efficient algorithm based on immersion simulations." *IEEE TPAMI*,
 //!   13(6), 583–598. DOI: 10.1109/34.87344.
 
+mod hierarchy;
 pub mod isolated;
 pub mod marker_controlled;
 pub mod morphological;
 pub mod toboggan;
-pub use isolated::IsolatedWatershed;
+pub use isolated::{IsolatedWatershed, IsolatedWatershedConfig};
 pub use marker_controlled::{FloodConnectivity, MarkerControlledWatershed, WatershedLinePolicy};
 pub use morphological::MorphologicalWatershed;
 use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};

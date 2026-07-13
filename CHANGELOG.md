@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 650: Correct native isolated watershed (MIG-650-01)
+### Breaking
+- Replace public mutable isolated-watershed fields with validated construction;
+  invalid hierarchy bounds, seeds, shapes, or non-finite samples return errors.
+
+### Changed
+- Build and search the plateau-aware directed watershed hierarchy using stable
+  ITK-compatible edge ordering, with one flat core for legacy and Coeus-native
+  images and a native PyO3 route.
+- Execute isolation tolerance and upper-level arithmetic in the double precision
+  required by the ITK search contract while gradient samples remain `f32`.
+
 ## [Unreleased] — Sprint 649: Native Toboggan watershed (MIG-649-01)
 ### Breaking
 - Replace the infallible free Toboggan function with `TobogganFilter`; invalid
@@ -4271,7 +4283,9 @@
 ### Fixed (correctness)
 - `ritk-filter`: **Frangi vesselness + Sato line filter** — Hessian was computed via discrete sampled-Gaussian blur followed by finite-difference second derivatives, diverging from ITK for σ ≲ 2 px. Replaced with `compute_hessian_iir`: all 6 Hessian components (`H_{dd}`, `H_{di}`) now computed via Deriche IIR recursion (matching ITK `HessianRecursiveGaussianImageFilter`). New test `test_hessian_iir_laplacian_consistency` verifies algebraic identity `H_{zz}+H_{yy}+H_{xx} = ∇²G` to 1e-3. Closes CORR-384-01.
 - `ritk-filter`: **`ScalarChanAndVeseDenseLevelSet`** — `mu` default was 0.5 instead of ITK's `CurvatureWeight=1.0`; fixed to 1.0. Added adaptive per-iteration dt: `actual_dt = dt / max|δ(φ)·force|` (stability criterion matching ITK's `DenseFiniteDifferenceImageFilter`). Python binding now exposes `mu` kwarg. Closes CORR-384-03.
-- `ritk-segmentation`: **`IsolatedWatershed`** — replaced incorrect ConnectedThreshold BFS with a proper steepest-descent gradient-descent watershed matching ITK `WatershedImageFilter` semantics. Each voxel drains to its gradient-magnitude local minimum via O(N) path-compressed descent tracing. Achieves pixel-perfect match (1.0) on the 7×7 reference test vs sitk. Closes CORR-384-02.
+- `ritk-segmentation`: **`IsolatedWatershed` interim correction** — replaced
+  ConnectedThreshold BFS with gradient basins for the 7×7 regression. This
+  historical implementation was superseded by MIG-650-01's complete hierarchy.
 
 ### Added
 - `ritk-python`: **`ritk.filter.shift_scale(image, shift=0.0, scale=1.0)`** — PyO3 binding for `ShiftScaleImageFilter` (`out(x) = (in(x) + shift) * scale`), matching `SimpleITK.ShiftScale`. Stub and smoke-test entries added. cmake parity test `test_cmake_shift_scale_matches_sitk` now passes (was skipped). Closes NEW-384-01.

@@ -2,12 +2,15 @@
 //! and neighbourhood-connected.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{
+    burn_into_py_image, native_into_py_image, py_image_to_burn, py_image_to_native, PyImage,
+};
+use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
     connected_threshold as core_connected_threshold,
     vector_confidence_connected_image as core_vector_confidence_connected,
-    ConfidenceConnectedFilter, IsolatedConnectedFilter, IsolatedWatershed,
+    ConfidenceConnectedFilter, IsolatedConnectedFilter, IsolatedWatershed, IsolatedWatershedConfig,
     NeighborhoodConnectedFilter,
 };
 
@@ -270,7 +273,7 @@ pub fn neighborhood_connected_segment(
 /// Label convention:
 ///     1 = region reachable from seed1 at T*
 ///     2 = region reachable from seed2 at T*
-///     3 = remaining voxels
+///     0 = remaining voxels
 ///
 /// Args:
 ///     image:                    Input scalar 3-D PyImage (normalised to [0, 1]).
@@ -281,7 +284,7 @@ pub fn neighborhood_connected_segment(
 ///     upper_value_limit:        Upper bound for the search (default 1.0).
 ///
 /// Returns:
-///     Label PyImage (f32 values 1.0, 2.0, or 3.0).
+///     Label PyImage (f32 values 0.0, 1.0, or 2.0).
 #[pyfunction]
 #[pyo3(signature = (image, seed1, seed2, threshold=0.0,
                     isolated_value_tolerance=0.001, upper_value_limit=1.0))]
@@ -292,21 +295,17 @@ pub fn isolated_watershed_segment(
     seed1: [usize; 3],
     seed2: [usize; 3],
     threshold: f32,
-    isolated_value_tolerance: f32,
-    upper_value_limit: f32,
+    isolated_value_tolerance: f64,
+    upper_value_limit: f64,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let image = py_image_to_native(image)?;
+    let config =
+        IsolatedWatershedConfig::new(threshold, isolated_value_tolerance, upper_value_limit)
+            .map_err(|error| RitkPyError::value(error.to_string()))?;
     let result = py.allow_threads(|| {
-        IsolatedWatershed {
-            seed1,
-            seed2,
-            threshold,
-            isolated_value_tolerance,
-            upper_value_limit,
-        }
-        .apply(&arc)
+        IsolatedWatershed::new(seed1, seed2, config).apply_native(&image, &SequentialBackend)
     });
     result
-        .map(burn_into_py_image)
-        .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))
+        .map(native_into_py_image)
+        .map_err(|error| RitkPyError::value(error.to_string()))
 }

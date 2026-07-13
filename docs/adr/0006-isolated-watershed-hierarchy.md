@@ -32,7 +32,8 @@ watershed bounded context:
    candidate is queued.
 4. Relabel the initial segmentation through hierarchy merges whose saliency is
    at most `level * maximum_hierarchy_saliency`.
-5. Reproduce ITK's binary-search update and lower-level fallback exactly, then
+5. Reproduce ITK's double-precision binary-search update, preserve its last
+   evaluated level at the tolerance boundary, and apply its lower-level fallback, then
    map the two seed segments to configured output labels and all other segments
    to background.
 
@@ -51,7 +52,8 @@ approximation is introduced.
 
 ## Verification
 
-- Exact differential outputs against SimpleITK for fixed 2-D and 3-D fixtures.
+- Exact differential outputs against SimpleITK for fixed fixtures and a seeded
+  40-case random sweep.
 - Parameter-sensitivity cases for threshold, upper limit, and tolerance.
 - Exact native/legacy equality and physical-geometry preservation.
 - Positive, negative, boundary, non-finite, seed-range, and cardinality tests.

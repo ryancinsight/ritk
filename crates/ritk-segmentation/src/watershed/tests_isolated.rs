@@ -5,10 +5,13 @@
 //! minimum of `g` it flows to via steepest descent, then seed basins are labeled
 //! 1.0 and 2.0, and the rest 0.0.
 
-use super::isolated_watershed;
+use super::isolated_watershed_values;
 use super::IsolatedWatershed;
 use super::IsolatedWatershedConfig;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
 use ritk_image::Image;
 
@@ -60,7 +63,7 @@ const RELIEF_7X7: [f32; 49] = [
     1.0, 1.0, 2.0, 5.0, 2.0, 1.0, 1.0, //
 ];
 
-// Golden produced by the gradient-descent watershed algorithm.
+// Golden produced by SimpleITK's hierarchical isolated watershed.
 // seed1=(y=1, x=3) → basin of local min at (y=0, x=3) → label 1.0 at rows 0–1, cols 2–4.
 // seed2=(y=5, x=3) → basin of local min at (y=6, x=3) → label 2.0 at rows 5–6, cols 2–4.
 const GOLDEN_7X7: [f32; 49] = [
@@ -80,12 +83,8 @@ fn test_isolated_watershed_matches_sitk_relief_7x7() {
     #[allow(clippy::identity_op)]
     let seed1 = 1 * 7 + 3;
     let seed2 = 5 * 7 + 3;
-    let config = IsolatedWatershedConfig {
-        threshold: 0.0,
-        isolated_value_tolerance: 0.001,
-        upper_value_limit: 1.0,
-    };
-    let result = isolated_watershed(&RELIEF_7X7, dims, seed1, seed2, &config);
+    let config = IsolatedWatershedConfig::default();
+    let result = isolated_watershed_values(&RELIEF_7X7, dims, seed1, seed2, &config);
     assert_eq!(
         result, GOLDEN_7X7,
         "isolated watershed must produce correct gradient-descent basin labels"
@@ -95,13 +94,7 @@ fn test_isolated_watershed_matches_sitk_relief_7x7() {
 #[test]
 fn test_isolated_watershed_apply_matches_sitk_relief_7x7() {
     let image = image_2d(RELIEF_7X7.to_vec(), 7, 7);
-    let filter = IsolatedWatershed {
-        seed1: [0, 1, 3],
-        seed2: [0, 5, 3],
-        threshold: 0.0,
-        isolated_value_tolerance: 0.001,
-        upper_value_limit: 1.0,
-    };
+    let filter = IsolatedWatershed::new([0, 1, 3], [0, 5, 3], IsolatedWatershedConfig::default());
     let result = filter.apply(&image).expect("apply must not error");
     assert_eq!(result.shape(), [1, 7, 7]);
     assert_eq!(labels(&result), GOLDEN_7X7);
@@ -113,7 +106,7 @@ fn test_isolated_watershed_apply_matches_sitk_relief_7x7() {
 fn test_isolated_watershed_identical_seeds_all_label1() {
     let data = vec![0.2_f32, 0.5, 0.2, 0.8];
     let dims = [1_usize, 1, 4];
-    let result = isolated_watershed(&data, dims, 0, 0, &IsolatedWatershedConfig::default());
+    let result = isolated_watershed_values(&data, dims, 0, 0, &IsolatedWatershedConfig::default());
     assert!(
         result.iter().all(|&v| v == 1.0),
         "identical seeds must yield all-label-1 output, got {result:?}"
@@ -125,13 +118,7 @@ fn test_isolated_watershed_identical_seeds_all_label1() {
 #[test]
 fn test_isolated_watershed_spatial_metadata_preserved() {
     let image = image_2d(RELIEF_7X7.to_vec(), 7, 7);
-    let filter = IsolatedWatershed {
-        seed1: [0, 1, 3],
-        seed2: [0, 5, 3],
-        threshold: 0.0,
-        isolated_value_tolerance: 0.001,
-        upper_value_limit: 1.0,
-    };
+    let filter = IsolatedWatershed::new([0, 1, 3], [0, 5, 3], IsolatedWatershedConfig::default());
     let result = filter.apply(&image).unwrap();
     assert_eq!(result.origin(), image.origin());
     assert_eq!(result.spacing(), image.spacing());
@@ -147,7 +134,7 @@ fn test_isolated_watershed_flat_plateau() {
     let data = vec![4.0_f32, 3.0, 2.0, 2.0, 2.0, 1.0, 0.0];
     let dims = [1_usize, 1, 7];
     let config = IsolatedWatershedConfig::default();
-    let result = isolated_watershed(&data, dims, 0, 6, &config);
+    let result = isolated_watershed_values(&data, dims, 0, 6, &config);
     // Verify successful execution (no panic or cycle) and that the seed basins
     // receive the correct labels.
     assert_eq!(result.len(), 7);
@@ -161,22 +148,175 @@ fn test_isolated_watershed_plateau_flow() {
     // Intensities: [6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0]
     // g: [0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5]
     // Local minima in g are at 0 and 6.
-    // The plateau [1..=5] should flow to the nearest minimum:
-    // {0, 1, 2, 3} flow to 0 (Label 1).
-    // {4, 5, 6} flow to 6 (Label 2).
+    // SimpleITK 2.5.0 assigns the connected flat-gradient component to its
+    // first lowest boundary, leaving only the final voxel in seed2's basin.
     let data = vec![6.0_f32, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0];
     let dims = [1_usize, 1, 7];
     let config = IsolatedWatershedConfig::default();
-    let result = isolated_watershed(&data, dims, 0, 6, &config);
+    let result = isolated_watershed_values(&data, dims, 0, 6, &config);
 
     assert_eq!(result.len(), 7);
-    // {0, 1, 2, 3} should be labeled 1.0
-    assert_eq!(result[0], 1.0);
-    assert_eq!(result[1], 1.0);
-    assert_eq!(result[2], 1.0);
-    assert_eq!(result[3], 1.0);
-    // {4, 5, 6} should be labeled 2.0
-    assert_eq!(result[4], 2.0);
-    assert_eq!(result[5], 2.0);
-    assert_eq!(result[6], 2.0);
+    assert_eq!(result, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0]);
+}
+
+#[test]
+fn configuration_validation_errors_are_exact() {
+    for threshold in [f32::NAN, f32::NEG_INFINITY, -0.1, 1.1] {
+        assert_eq!(
+            IsolatedWatershedConfig::new(threshold, 0.001, 1.0)
+                .unwrap_err()
+                .to_string(),
+            format!("isolated watershed threshold must be finite and in [0, 1], got {threshold}")
+        );
+    }
+    for tolerance in [f64::NAN, f64::INFINITY, 0.0, -0.1] {
+        assert_eq!(
+            IsolatedWatershedConfig::new(0.0, tolerance, 1.0)
+                .unwrap_err()
+                .to_string(),
+            format!("isolated watershed tolerance must be finite and positive, got {tolerance}")
+        );
+    }
+    assert_eq!(
+        IsolatedWatershedConfig::new(0.5, 0.001, 0.4)
+            .unwrap_err()
+            .to_string(),
+        "isolated watershed upper value limit must be finite and in [0.5, 1], got 0.4"
+    );
+}
+
+#[test]
+fn validation_rejects_invalid_seed_and_sample() {
+    let image = image_2d(vec![0.0, f32::NAN], 1, 2);
+    let filter = IsolatedWatershed::new([0, 0, 0], [0, 0, 1], IsolatedWatershedConfig::default());
+    assert_eq!(
+        filter.apply(&image).unwrap_err().to_string(),
+        "isolated watershed sample at flat index 1 must be finite, got NaN"
+    );
+    let image = image_2d(vec![0.0, 1.0], 1, 2);
+    let filter = IsolatedWatershed::new([0, 1, 0], [0, 0, 1], IsolatedWatershedConfig::default());
+    assert_eq!(
+        filter.apply(&image).unwrap_err().to_string(),
+        "isolated watershed seed1 [0, 1, 0] is outside shape [1, 1, 2]"
+    );
+}
+
+#[test]
+fn native_and_legacy_execution_are_exact_with_geometry() {
+    let values = RELIEF_7X7.to_vec();
+    let legacy = image_2d(values.clone(), 7, 7);
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
+    let native = NativeImage::from_flat_on(
+        values,
+        [1, 7, 7],
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .unwrap();
+    let filter = IsolatedWatershed::new([0, 1, 3], [0, 5, 3], IsolatedWatershedConfig::default());
+    let expected = filter.apply(&legacy).unwrap();
+    let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
+    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(*actual.origin(), origin);
+    assert_eq!(*actual.spacing(), spacing);
+    assert_eq!(*actual.direction(), direction);
+}
+
+#[test]
+fn binary_search_stops_at_last_evaluated_level() {
+    // Fourth deterministic RNG case from seed 20260712. SimpleITK 2.5.0
+    // stops at level 0.998046875; evaluating the next unevaluated midpoint
+    // 0.9990234375 incorrectly absorbs all 26 background voxels into seed2.
+    let relief = vec![
+        -0.4217013,
+        0.8255467,
+        -0.10693295,
+        1.2878131,
+        -0.66178954,
+        0.32409462,
+        -1.6825387,
+        0.15025051,
+        -0.6496092,
+        -2.9501545,
+        -0.710426,
+        -1.3518157,
+        1.7783191,
+        -0.3269836,
+        -1.1650844,
+        -0.54003257,
+        1.9648689,
+        0.8496015,
+        -0.79775494,
+        -0.72220045,
+        0.83873594,
+        0.43512583,
+        0.8552623,
+        -0.20597069,
+        -2.0306077,
+        -0.96593696,
+        1.183625,
+        0.592062,
+        -0.7258898,
+        -2.6461942,
+        -0.26070863,
+        0.3568976,
+        1.2084751,
+        -0.83981955,
+        -0.203254,
+        -1.3480649,
+        -0.8894473,
+        0.28772372,
+        -0.20647214,
+        -0.5742853,
+        0.2245181,
+        -0.5700375,
+        0.026643064,
+        -1.3193803,
+        1.8009243,
+        0.74783707,
+        -1.8457456,
+        0.90884584,
+        -1.0550301,
+        0.40466174,
+        0.26878977,
+        -0.078658596,
+        0.5079706,
+        0.80048037,
+        0.23433799,
+        -0.8401252,
+    ];
+    let expected = vec![
+        1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 0.0, 1.0,
+        0.0, 0.0, 2.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0,
+    ];
+    let filter = IsolatedWatershed::new([0, 1, 1], [0, 5, 6], IsolatedWatershedConfig::default());
+    let image = image_2d(relief, 7, 8);
+    assert_eq!(labels(&filter.apply(&image).unwrap()), expected);
+
+    let label_counts = |config| {
+        let output = labels(
+            &IsolatedWatershed::new([0, 1, 1], [0, 5, 6], config)
+                .apply(&image)
+                .unwrap(),
+        );
+        [0.0, 1.0, 2.0].map(|label| output.iter().filter(|&&value| value == label).count())
+    };
+    assert_eq!(
+        label_counts(IsolatedWatershedConfig::new(0.2, 0.001, 1.0).unwrap()),
+        [1, 31, 24]
+    );
+    assert_eq!(
+        label_counts(IsolatedWatershedConfig::new(0.0, 0.1, 1.0).unwrap()),
+        [27, 8, 21]
+    );
+    assert_eq!(
+        label_counts(IsolatedWatershedConfig::new(0.0, 0.001, 0.8).unwrap()),
+        [32, 8, 16]
+    );
 }

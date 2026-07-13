@@ -5929,13 +5929,9 @@ def test_cmake_isolated_watershed_structural():
 
     Upstream cmake case mirrors: IsolatedWatershedImageFilter.yaml.
 
-    Evidence tier: empirical (failing — ritk.segmentation.isolated_watershed_segment
-    not yet implemented; expected: AttributeError).
+    Evidence tier: empirical differential comparison with SimpleITK.
     """
     import numpy as _np
-
-    if not hasattr(ritk.segmentation, "isolated_watershed_segment"):
-        pytest.skip("isolated_watershed_segment is unimplemented in ritk")
 
     path = fetch_input("RA-Float.nrrd")
     raw_arr = sitk.GetArrayFromImage(

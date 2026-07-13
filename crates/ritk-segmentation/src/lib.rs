@@ -56,6 +56,6 @@ pub use threshold::{
     MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
 };
 pub use watershed::{
-    FloodConnectivity, IsolatedWatershed, MarkerControlledWatershed, MorphologicalWatershed,
-    TobogganFilter, WatershedLinePolicy, WatershedSegmentation,
+    FloodConnectivity, IsolatedWatershed, IsolatedWatershedConfig, MarkerControlledWatershed,
+    MorphologicalWatershed, TobogganFilter, WatershedLinePolicy, WatershedSegmentation,
 };
