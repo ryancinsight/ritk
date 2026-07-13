@@ -33,6 +33,10 @@ linking `libpython`, and the parity environments did not install SciPy or the
 pytest timeout plugin required by their tests and configuration. Extension mode
 is now a `ritk-python` wheel-build feature, while one requirements manifest
 drives both Python test workflows.
+The resulting full parity run exposed one stale top-level expectation predating
+the public `ColorImage` and `image` exports. The canonical runtime, stub,
+`__all__`, and drift reporter already agreed; the value-semantic parity test now
+asserts that same ordered contract.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the

@@ -167,6 +167,8 @@ def test_top_level_package_exports_and_metadata_are_consistent() -> None:
 
     expected_exports = {
         "Image",
+        "ColorImage",
+        "image",
         "io",
         "filter",
         "metrics",
@@ -176,6 +178,8 @@ def test_top_level_package_exports_and_metadata_are_consistent() -> None:
     }
     expected_all = [
         "Image",
+        "ColorImage",
+        "image",
         "io",
         "filter",
         "metrics",

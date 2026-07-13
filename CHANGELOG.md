@@ -22,6 +22,8 @@
   retaining target-specific native feature activation.
 - Track deep Python binding modules in the API-drift audit and synchronize the
   runtime, stubs, smoke contract, and `__all__` for all public exports.
+- Synchronize the top-level parity regression with the public `ColorImage` and
+  `image` exports already enforced by the runtime/stub drift report.
 - Pin Moirai's portable IPC error capture and thread-confined kqueue storage so
   macOS consumers compile without Linux-only symbols or non-`Send` shared
   event buffers.
