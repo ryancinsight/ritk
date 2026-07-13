@@ -1246,6 +1246,38 @@ def test_cmake_morphological_watershed(level):
     assert np.array_equal(r, s), f"{int((r != s).sum())} voxels differ from sitk"
 
 
+def test_morphological_watershed_native_validation_errors():
+    image = ritk.Image(np.zeros((1, 2, 3), dtype=np.float32))
+    for level in (np.nan, np.inf, -np.inf, -1.0):
+        with pytest.raises(
+            ValueError,
+            match=r"morphological watershed level must be finite and nonnegative",
+        ):
+            ritk.segmentation.morphological_watershed(image, float(level))
+
+    invalid = np.zeros((1, 2, 3), dtype=np.float32)
+    invalid.flat[2] = np.nan
+    with pytest.raises(
+        ValueError,
+        match=r"regional-extrema sample at flat index 2 must be finite",
+    ):
+        ritk.segmentation.morphological_watershed(ritk.Image(invalid), 0.0)
+
+    with pytest.raises(
+        ValueError,
+        match=r"h-transform marker at flat index 0 must remain finite after shift",
+    ):
+        ritk.filter.h_minima(
+            ritk.Image(np.full((1, 1, 1), np.finfo(np.float32).max, dtype=np.float32)),
+            float(np.finfo(np.float32).max),
+        )
+    with pytest.raises(
+        ValueError,
+        match=r"regional-extrema sample at flat index 2 must be finite",
+    ):
+        ritk.filter.regional_minima(ritk.Image(invalid))
+
+
 @pytest.mark.parametrize(
     "shape,seeds",
     [
@@ -7856,4 +7888,3 @@ def test_cmake_sato_line_filter_multiscale_max_parity():
     expected_max = _np.maximum(r1_arr, r2_arr)
     max_diff = float(_np.abs(rm_arr - expected_max).max())
     assert max_diff < 1e-5, f"Sato multiscale max aggregation self-consistency failed: diff={max_diff:.3e}"
-

@@ -1,5 +1,8 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{
+    burn_into_py_image, native_into_py_image, py_image_to_burn, py_image_to_native, PyImage,
+};
+use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     ClosingByReconstructionFilter, GrayscaleFillholeFilter, GrayscaleGrindPeakFilter,
@@ -81,15 +84,15 @@ pub fn h_minima(
     height: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let image = py_image_to_native(image)?;
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         HMinimaFilter::new(height)
             .with_connectivity(conn)
-            .apply(&arc)
-            .map_err(|e| RitkPyError::runtime(e.to_string()))
+            .apply_native(&image, &SequentialBackend)
+            .map_err(|error| RitkPyError::value(error.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(native_into_py_image)
 }
 
 /// H-convex transform: `f − HMaxima_h(f)`, the bright dynamic suppressed by
@@ -168,16 +171,16 @@ pub fn regional_minima(
     background: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let image = py_image_to_native(image)?;
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         RegionalMinimaFilter::new()
             .with_values(foreground, background)
             .with_connectivity(conn)
-            .apply(&arc)
-            .map_err(|e| RitkPyError::runtime(e.to_string()))
+            .apply_native(&image, &SequentialBackend)
+            .map_err(|error| RitkPyError::value(error.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(native_into_py_image)
 }
 
 /// Valued regional maxima: keep the input value on regional maxima, set

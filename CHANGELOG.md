@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 648: Native morphological watershed (MIG-648-01)
+### Breaking
+- Morphological-watershed construction validates finite, nonnegative levels;
+  h-transforms and regional extrema reject non-finite samples.
+
+### Changed
+- H-minima and regional-minima filters own Coeus-native execution, allowing
+  their direct PyO3 surfaces and marker-less watershed composition to remain
+  native; shifted h-transform markers are checked for overflow.
+
 ## [Unreleased] — Sprint 647: Native Meyer watershed (MIG-647-01)
 ### Breaking
 - Meyer watershed rejects zero extents, invalid cardinality, non-finite relief,

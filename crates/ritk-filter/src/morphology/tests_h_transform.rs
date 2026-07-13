@@ -1,6 +1,9 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
@@ -90,4 +93,106 @@ fn h_extrema_respect_ordering_invariants() {
         assert!(lo <= a + 1e-6, "HMaxima must be ≤ input: {lo} > {a}");
         assert!(hi >= a - 1e-6, "HMinima must be ≥ input: {hi} < {a}");
     }
+}
+
+#[test]
+fn hminima_native_matches_legacy_and_preserves_geometry() {
+    let values = vec![10.0, 10.0, 0.0, 10.0, 10.0];
+    let legacy = img(values.clone(), [1, 1, 5]);
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
+    let native = NativeImage::from_flat_on(
+        values,
+        [1, 1, 5],
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .unwrap();
+    let filter = HMinimaFilter::new(3.0);
+    let expected = filter.apply(&legacy).unwrap();
+    let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
+    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(*actual.origin(), origin);
+    assert_eq!(*actual.spacing(), spacing);
+    assert_eq!(*actual.direction(), direction);
+}
+
+#[test]
+fn hminima_validation_errors_are_exact() {
+    let image = img(vec![0.0], [1, 1, 1]);
+    for height in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, -1.0] {
+        assert_eq!(
+            HMinimaFilter::new(height)
+                .apply(&image)
+                .unwrap_err()
+                .to_string(),
+            format!("h-transform height must be finite and nonnegative, got {height}")
+        );
+    }
+    let invalid = img(vec![f32::NAN], [1, 1, 1]);
+    assert_eq!(
+        HMinimaFilter::new(1.0)
+            .apply(&invalid)
+            .unwrap_err()
+            .to_string(),
+        "h-transform sample at flat index 0 must be finite, got NaN"
+    );
+
+    assert_eq!(
+        HMinimaFilter::new(f32::MAX)
+            .apply(&img(vec![f32::MAX], [1, 1, 1]))
+            .unwrap_err()
+            .to_string(),
+        "h-transform marker at flat index 0 must remain finite after shift, got inf"
+    );
+    assert_eq!(
+        HMaximaFilter::new(f32::MAX)
+            .apply(&img(vec![-f32::MAX], [1, 1, 1]))
+            .unwrap_err()
+            .to_string(),
+        "h-transform marker at flat index 0 must remain finite after shift, got -inf"
+    );
+
+    let native = NativeImage::from_flat_on(
+        vec![f32::MAX],
+        [1, 1, 1],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    assert_eq!(
+        HMinimaFilter::new(f32::MAX)
+            .apply_native(&native, &SequentialBackend)
+            .unwrap_err()
+            .to_string(),
+        "h-transform marker at flat index 0 must remain finite after shift, got inf"
+    );
+    assert_eq!(
+        HMinimaFilter::new(-1.0)
+            .apply_native(&native, &SequentialBackend)
+            .unwrap_err()
+            .to_string(),
+        "h-transform height must be finite and nonnegative, got -1"
+    );
+    let native_invalid = NativeImage::from_flat_on(
+        vec![f32::NAN],
+        [1, 1, 1],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    assert_eq!(
+        HMinimaFilter::new(1.0)
+            .apply_native(&native_invalid, &SequentialBackend)
+            .unwrap_err()
+            .to_string(),
+        "h-transform sample at flat index 0 must be finite, got NaN"
+    );
 }

@@ -10,11 +10,11 @@
 
 ## MIG-648-01 — Native morphological watershed composition
 **Target version**: 0.14.0 migration batch
-- [ ] Audit and implement provider-owned native h-minima and regional-minima operations.
-- [ ] Validate morphological-watershed configuration and compose canonical native owners.
-- [ ] Migrate PyO3 without duplicating morphology or labeling logic.
-- [ ] Add exact native/legacy and unchanged SimpleITK level regressions.
-- [ ] Run package gates, adversarial review, commit, and push.
+- [x] Audit and implement provider-owned native h-minima and regional-minima operations.
+- [x] Validate morphological-watershed configuration and compose canonical native owners.
+- [x] Migrate PyO3 without duplicating morphology or labeling logic.
+- [x] Add exact native/legacy and unchanged SimpleITK level regressions.
+- [x] Run package gates, adversarial review, commit, and push.
 
 ## MIG-647-01 — Native Meyer watershed
 **Target version**: 0.14.0 migration batch

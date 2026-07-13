@@ -8,6 +8,24 @@
 
 # RITK Gap Audit - Active
 
+## MIG-648-01 audit (2026-07-12)
+
+Marker-less morphological watershed still crossed through Burn because its
+upstream h-minima and regional-minima owners lacked native entry points. Those
+filters now expose Coeus-native execution over their existing reconstruction
+and flat-zone cores. The downstream filter composes native h-minima, regional
+minima, connected components, and marker-controlled flooding without wrapping
+or reproducing any provider operation.
+
+Morphological-watershed levels are private, finite, and nonnegative. H-transform
+height/input/shifted-marker validation and regional-extrema finite-sample
+validation prevent NaN/Inf or finite-addition overflow from silently becoming
+extrema or reconstruction values. Direct PyO3 h-minima/regional-minima routes
+also use the native owners. Exact
+legacy/native equality at levels 0/1/2, provider regressions, and unchanged
+SimpleITK fixtures at levels 0/5/10 provide differential and empirical evidence;
+no machine-checked proof was performed.
+
 ## MIG-647-01 audit (2026-07-12)
 
 Meyer watershed accepted non-finite relief through a partial comparison,

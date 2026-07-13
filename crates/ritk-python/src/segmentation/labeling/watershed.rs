@@ -46,13 +46,15 @@ pub fn toboggan(py: Python<'_>, image: &PyImage) -> PyImage {
 #[pyfunction]
 #[pyo3(signature = (image, level=0.0_f32))]
 pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let image = py_image_to_native(image)?;
+    let filter = MorphologicalWatershed::new(level)
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
     py.allow_threads(|| {
-        MorphologicalWatershed::new(level)
-            .apply(&arc)
-            .map_err(|e| RitkPyError::runtime(e.to_string()))
+        filter
+            .apply_native(&image, &SequentialBackend)
+            .map_err(|error| RitkPyError::value(error.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(native_into_py_image)
 }
 
 /// Segment a 3D image via Meyer's flooding watershed algorithm.
