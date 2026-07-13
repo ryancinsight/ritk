@@ -1,9 +1,12 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{
+    burn_into_py_image, native_into_py_image, py_image_to_burn, py_image_to_native, PyImage,
+};
+use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
-    toboggan as core_toboggan, MarkerControlledWatershed, MorphologicalWatershed,
-    WatershedSegmentation,
+    toboggan as core_toboggan, FloodConnectivity, MarkerControlledWatershed,
+    MorphologicalWatershed, WatershedLinePolicy, WatershedSegmentation,
 };
 
 /// Toboggan watershed labeling, matching `sitk.Toboggan`.
@@ -106,15 +109,25 @@ pub fn marker_watershed_segment(
     mark_watershed_line: bool,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let grad_arc = py_image_to_burn(gradient);
-    let mark_arc = py_image_to_burn(markers);
+    let gradient = py_image_to_native(gradient)?;
+    let markers = py_image_to_native(markers)?;
+    let connectivity = if fully_connected {
+        FloodConnectivity::Full
+    } else {
+        FloodConnectivity::Face
+    };
+    let watershed_lines = if mark_watershed_line {
+        WatershedLinePolicy::Mark
+    } else {
+        WatershedLinePolicy::Omit
+    };
     let result = py.allow_threads(|| {
         MarkerControlledWatershed::new()
-            .with_mark_watershed_line(mark_watershed_line)
-            .with_fully_connected(fully_connected)
-            .apply(&grad_arc, &mark_arc)
+            .with_connectivity(connectivity)
+            .with_watershed_lines(watershed_lines)
+            .apply_native(&gradient, &markers, &SequentialBackend)
     });
     result
-        .map(burn_into_py_image)
-        .map_err(|e| RitkPyError::runtime(e.to_string()))
+        .map(native_into_py_image)
+        .map_err(|e| RitkPyError::value(e.to_string()))
 }

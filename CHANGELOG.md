@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 646: Native marker-controlled watershed (MIG-646-01)
+### Breaking
+- Marker-controlled watershed configuration is private and uses explicit
+  connectivity and watershed-line policies; invalid relief, markers, shape, or
+  geometry return typed errors instead of panicking or coercing values.
+
+### Changed
+- Legacy and Coeus-native images share one validated flooding core; CLI and
+  PyO3 marker-watershed execution use native image boundaries.
+
 ## [Unreleased] — Sprint 645: Native SimpleITK-compatible SLIC (MIG-645-01)
 ### Breaking
 - Replace the free `slic_itk_segment` API with validated `ItkSlicConfig` and

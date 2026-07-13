@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## MIG-646-01 audit (2026-07-12)
+
+Marker-controlled watershed exposed mutable boolean configuration, coerced
+invalid marker values, and routed CLI and PyO3 consumers through legacy Burn
+images. `MarkerControlledWatershed` now owns explicit connectivity and
+watershed-line policies, private state, shared legacy/native execution, and
+validation of shape cardinality, physical geometry, nonnegative finite relief,
+and exactly representable nonnegative integer labels. The maximum label is
+`2^24`, the largest consecutive integer exactly representable by `f32`.
+
+All four policy combinations are compared exactly between legacy and
+Coeus-native images. Boundary tests cover numeric, geometry, zero-extent,
+overflow, and storage-cardinality failures; CLI and built-wheel tests exercise
+the native consumers. This is differential and empirical evidence; no
+machine-checked proof was performed.
+
 ## MIG-645-01 audit (2026-07-12)
 
 The SimpleITK-compatible fixed-grid SLIC contract was exposed through a free

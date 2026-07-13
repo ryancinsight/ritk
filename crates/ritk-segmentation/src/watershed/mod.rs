@@ -45,7 +45,7 @@ pub mod marker_controlled;
 pub mod morphological;
 pub mod toboggan;
 pub use isolated::IsolatedWatershed;
-pub use marker_controlled::MarkerControlledWatershed;
+pub use marker_controlled::{FloodConnectivity, MarkerControlledWatershed, WatershedLinePolicy};
 pub use morphological::MorphologicalWatershed;
 use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;

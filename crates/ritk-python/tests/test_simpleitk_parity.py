@@ -981,6 +981,40 @@ def test_marker_watershed_matches_sitk_many_basins():
                 f"markLine={ml} fc={fc}: {int((rm != sm).sum())} voxels differ from sitk"
 
 
+def test_marker_watershed_native_validation_errors():
+    relief = np.zeros((1, 2, 3), dtype=np.float32)
+    markers = np.zeros_like(relief)
+    markers.flat[0] = 1.0
+
+    invalid_relief = relief.copy()
+    invalid_relief.flat[2] = np.nan
+    with pytest.raises(
+        ValueError,
+        match="marker watershed gradient at flat index 2 must be finite and nonnegative, got NaN",
+    ):
+        ritk.segmentation.marker_watershed_segment(
+            _ritk(invalid_relief), _ritk(markers)
+        )
+
+    invalid_markers = markers.copy()
+    invalid_markers.flat[4] = 1.5
+    with pytest.raises(
+        ValueError,
+        match="marker watershed label at flat index 4 must be a finite nonnegative integer",
+    ):
+        ritk.segmentation.marker_watershed_segment(
+            _ritk(relief), _ritk(invalid_markers)
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="gradient and marker shapes must match",
+    ):
+        ritk.segmentation.marker_watershed_segment(
+            _ritk(relief), _ritk(markers[:, :, :2])
+        )
+
+
 def test_staple_matches_sitk():
     # STAPLE EM converges to the same probabilistic truth and per-rater
     # sensitivity/specificity as sitk.STAPLE.

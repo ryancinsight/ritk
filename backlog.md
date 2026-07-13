@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-646-01 [major] - Native marker-controlled watershed (DONE).** Explicit policies and private state, validated geometry/numeric contracts, one flat core serving legacy/Coeus-native images, native CLI/PyO3 execution, and unchanged SimpleITK parity cases are verified by 729 Rust tests and three built-wheel marker tests.
+
 - **MIG-645-01 [major] - Native SimpleITK-compatible SLIC owner (DONE).** Validated filter/config ownership and explicit policy enums serve exact legacy/Coeus-native execution; PyO3 is native and the obsolete free API is deleted without changing SimpleITK fixtures.
 
 - **MIG-644-01 [major] - Native standard SLIC clustering (DONE).** Private validated configuration and one overflow-safe concrete-`f32` core serve legacy/Coeus-native images; standard PyO3 uses the native boundary and the distinct SimpleITK-compatible contract is unchanged.

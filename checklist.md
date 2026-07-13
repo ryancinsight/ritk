@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-646-01 — Native marker-controlled watershed
+**Target version**: 0.14.0 migration batch
+- [x] Replace boolean-blind public configuration with explicit policies and accessors.
+- [x] Centralize geometry/numeric validation and add filter-owned native execution.
+- [x] Migrate CLI and PyO3 to native I/O without changing morphological composition.
+- [x] Add exact policy, differential, boundary, CLI, and wheel regressions.
+- [x] Run package gates, adversarial review, commit, and push.
+
 ## MIG-645-01 — Native SimpleITK-compatible SLIC owner
 **Target version**: 0.14.0 migration batch
 - [x] Introduce validated ITK SLIC configuration and explicit policy enums.

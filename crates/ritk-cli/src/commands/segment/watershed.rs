@@ -4,8 +4,12 @@ use tracing::info;
 
 use ritk_segmentation::{MarkerControlledWatershed, WatershedSegmentation};
 
-use super::super::{read_image, write_image_inferred};
+use super::super::{
+    infer_format, is_native_read_capable, read_image, read_image_native, write_image_inferred,
+    write_image_native, NativeBackend,
+};
 use super::args::SegmentArgs;
+use super::helpers::read_native_input;
 
 // ── Watershed segmentation ────────────────────────────────────────────────────
 
@@ -60,17 +64,29 @@ pub(super) fn run_marker_watershed(args: &SegmentArgs) -> Result<()> {
         .as_ref()
         .ok_or_else(|| anyhow!("marker-watershed requires --markers <PATH>"))?;
 
-    let gradient = read_image(&args.input)?;
-    let markers = read_image(markers_path)?;
+    let (gradient, output_format) =
+        read_native_input(&args.input, &args.output, "marker-watershed")?;
+    let marker_format = infer_format(markers_path)
+        .ok_or_else(|| anyhow!("Cannot infer marker format: {}", markers_path.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(marker_format),
+        "marker-watershed requires native marker format"
+    );
+    let markers = read_image_native(markers_path)?;
+    let backend = NativeBackend::default();
 
     let labeled = MarkerControlledWatershed::new()
-        .apply(&gradient, &markers)
+        .apply_native(&gradient, &markers, &backend)
         .with_context(|| format!("marker-watershed failed for input={}", args.input.display()))?;
 
-    let max_label = labeled.with_data_slice(|vals| vals.iter().copied().fold(0.0_f32, f32::max));
+    let max_label = labeled
+        .data_slice()?
+        .iter()
+        .copied()
+        .fold(0.0_f32, f32::max);
     let n_basins = max_label as usize;
 
-    write_image_inferred(&args.output, &labeled)?;
+    write_image_native(&args.output, &labeled, output_format)?;
 
     println!(
         "Segmented {} (marker-watershed): found {} basins",

@@ -177,3 +177,55 @@ fn test_segment_marker_watershed_output_contains_both_basin_labels() {
         );
     });
 }
+
+#[test]
+fn native_marker_watershed_cli_matches_canonical_legacy_output_exactly() {
+    let dir = tempdir().unwrap();
+    let gradient_path = dir.path().join("gradient.nii");
+    let markers_path = dir.path().join("markers.nii");
+    let output_path = dir.path().join("output.nii");
+    let gradient = make_uniform_gradient_image();
+    let markers = make_two_seed_marker_image();
+    ritk_io::write_nifti(&gradient_path, &gradient).unwrap();
+    ritk_io::write_nifti(&markers_path, &markers).unwrap();
+    run(SegmentArgs {
+        markers: Some(markers_path),
+        ..default_args(
+            gradient_path,
+            output_path.clone(),
+            SegmentMethod::MarkerWatershed,
+        )
+    })
+    .unwrap();
+
+    let expected = ritk_segmentation::MarkerControlledWatershed::new()
+        .apply(&gradient, &markers)
+        .unwrap();
+    let actual = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+    assert_eq!(actual.data_slice(), expected.data_slice());
+    assert_eq!(actual.origin(), gradient.origin());
+    assert_eq!(actual.spacing(), gradient.spacing());
+    assert_eq!(actual.direction(), gradient.direction());
+}
+
+#[test]
+fn native_marker_watershed_cli_rejects_nonnative_marker_before_output() {
+    let dir = tempdir().unwrap();
+    let gradient_path = dir.path().join("gradient.nii");
+    let output_path = dir.path().join("output.nii");
+    ritk_io::write_nifti(&gradient_path, &make_uniform_gradient_image()).unwrap();
+    let error = run(SegmentArgs {
+        markers: Some(dir.path().join("markers.vtk")),
+        ..default_args(
+            gradient_path,
+            output_path.clone(),
+            SegmentMethod::MarkerWatershed,
+        )
+    })
+    .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "marker-watershed requires native marker format"
+    );
+    assert!(!output_path.exists());
+}
