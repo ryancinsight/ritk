@@ -2674,6 +2674,27 @@ def test_standard_slic_native_boundary_and_validation():
         ritk.segmentation.slic_superpixel(_ritk(invalid), n_superpixels=4)
 
 
+def test_itk_slic_native_boundary_validation():
+    values = np.arange(64, dtype=np.float32).reshape(4, 4, 4)
+    with pytest.raises(
+        ValueError, match="ITK SLIC super-grid size must be at least 1, got 0"
+    ):
+        ritk.segmentation.slic(_ritk(values), 0)
+    with pytest.raises(
+        ValueError, match="ITK SLIC maximum iterations must be at least 1, got 0"
+    ):
+        ritk.segmentation.slic(
+            _ritk(values), 2, maximum_number_of_iterations=0
+        )
+    invalid = values.copy()
+    invalid.flat[5] = np.inf
+    with pytest.raises(
+        ValueError,
+        match="ITK SLIC sample at flat index 5 must be finite, got inf",
+    ):
+        ritk.segmentation.slic(_ritk(invalid), 2)
+
+
 def test_connected_threshold_segment_recovers_sphere():
     """Connected-threshold region growing from the sphere centre recovers the sphere.
 

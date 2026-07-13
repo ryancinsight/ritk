@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-645-01 — Native SimpleITK-compatible SLIC owner
+**Target version**: 0.14.0 migration batch
+- [x] Introduce validated ITK SLIC configuration and explicit policy enums.
+- [x] Add filter-owned legacy/native execution and delete the free public API.
+- [x] Migrate PyO3 to native execution while preserving SimpleITK fixtures.
+- [x] Add exact boundary, validation, and differential regressions.
+- [x] Run package gates, adversarial review, commit, and push.
+
 ## MIG-644-01 — Native standard SLIC clustering
 **Target version**: 0.14.0 migration batch
 - [x] Make standard SLIC configuration private, fallible, and concrete-`f32`.

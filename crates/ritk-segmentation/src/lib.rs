@@ -25,7 +25,8 @@ pub mod threshold;
 pub mod watershed;
 
 pub use clustering::{
-    kmeans_segment, slic_itk_segment, KMeansSegmentation, SlicConfig, SlicSuperpixelFilter,
+    kmeans_segment, ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig,
+    ItkSlicFilter, KMeansSegmentation, SlicConfig, SlicSuperpixelFilter,
 };
 pub use ensemble::{
     multi_label_staple, staple, MultiLabelStapleResult, StapleConvergence, StapleResult,

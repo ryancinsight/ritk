@@ -8,6 +8,24 @@
 
 # RITK Gap Audit - Active
 
+## MIG-645-01 audit (2026-07-12)
+
+The SimpleITK-compatible fixed-grid SLIC contract was exposed through a free
+multi-boolean legacy-image function even though its core is a distinct,
+differential-verified algorithm. `ItkSlicConfig` and `ItkSlicFilter` now own the
+contract. Explicit perturbation and connectivity enums replace boolean-blind
+Rust parameters; construction validates grid, proximity-weight distance bounds,
+iteration count, finite samples, nonzero dimensions, checked center count, and
+exact `f32` output-label capacity. Both legacy and Coeus-native images execute
+the same core, and PyO3 uses the native boundary.
+
+The core intentionally retains `f64` arithmetic because its externally pinned
+contract is label-for-label parity with ITK/SimpleITK, including centered-grid
+and order-sensitive postprocessing semantics. Six unchanged published-oracle
+fixtures plus filter/native and all four policy-combination regressions provide
+differential and empirical evidence; no machine-checked proof was performed.
+The obsolete `slic_itk_segment` export and all production callers are deleted.
+
 ## MIG-644-01 audit (2026-07-12)
 
 Standard desired-count SLIC widened every image sample and all arithmetic to

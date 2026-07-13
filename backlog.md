@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-645-01 [major] - Native SimpleITK-compatible SLIC owner (DONE).** Validated filter/config ownership and explicit policy enums serve exact legacy/Coeus-native execution; PyO3 is native and the obsolete free API is deleted without changing SimpleITK fixtures.
+
 - **MIG-644-01 [major] - Native standard SLIC clustering (DONE).** Private validated configuration and one overflow-safe concrete-`f32` core serve legacy/Coeus-native images; standard PyO3 uses the native boundary and the distinct SimpleITK-compatible contract is unchanged.
 
 - **MIG-643-01 [major] - Native K-means clustering (DONE).** Validated private configuration and one overflow-safe native-precision core serve legacy/Coeus-native images; CLI/PyO3 surfaces and exact differential/adversarial regressions are synchronized.

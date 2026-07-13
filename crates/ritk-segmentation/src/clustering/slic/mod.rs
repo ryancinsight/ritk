@@ -65,6 +65,10 @@ pub mod coords;
 pub mod gradient;
 pub mod grid;
 pub mod itk;
+mod itk_filter;
+pub use itk_filter::{
+    ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig, ItkSlicFilter,
+};
 
 use ritk_core::image::Image;
 use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
@@ -243,54 +247,6 @@ pub fn slic_superpixel<B: Backend, const D: usize>(
     n_superpixels: usize,
 ) -> anyhow::Result<Image<B, D>> {
     SlicSuperpixelFilter::new(SlicConfig::new(n_superpixels)?).apply(image)
-}
-
-/// Apply ITK-convention SLIC ([`itk::slic_itk_impl`]) to a 3-D `[z, y, x]`
-/// image, matching `SimpleITK.SLIC`. A `z == 1` volume is treated as a genuine
-/// 2-D image (so per-axis grid count, search window, connectivity, and
-/// `minSuperSize` match sitk's 2-D filter) and the labels reshape back to
-/// `[1, y, x]`. `super_grid` is the uniform per-axis grid step; the remaining
-/// parameters map to sitk's `spatialProximityWeight`, `maximumNumberOfIterations`,
-/// `initializationPerturbation`, and `enforceConnectivity`.
-pub fn slic_itk_segment<B: Backend>(
-    image: &Image<B, 3>,
-    super_grid: usize,
-    spatial_proximity_weight: f64,
-    max_iterations: usize,
-    perturbation: bool,
-    enforce_connectivity: bool,
-) -> Image<B, 3> {
-    let (vals, shape) = extract_vec_infallible(image);
-    let device = image.data().device();
-    let [z, y, x] = shape;
-    let labels = if z == 1 {
-        itk::slic_itk_impl(
-            &vals,
-            &[y, x],
-            &[super_grid, super_grid],
-            spatial_proximity_weight,
-            max_iterations,
-            perturbation,
-            enforce_connectivity,
-        )
-    } else {
-        itk::slic_itk_impl(
-            &vals,
-            &[z, y, x],
-            &[super_grid, super_grid, super_grid],
-            spatial_proximity_weight,
-            max_iterations,
-            perturbation,
-            enforce_connectivity,
-        )
-    };
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(shape)), &device);
-    Image::new(
-        tensor,
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-    )
 }
 
 // ── Core implementation ────────────────────────────────────────────────────────

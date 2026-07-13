@@ -1,12 +1,11 @@
 use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
-use crate::image::{
-    burn_into_py_image, native_into_py_image, py_image_to_burn, py_image_to_native, PyImage,
-};
+use crate::image::{native_into_py_image, py_image_to_native, PyImage};
 use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
-    slic_itk_segment as core_slic_itk_segment, SlicConfig, SlicSuperpixelFilter,
+    ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig, ItkSlicFilter, SlicConfig,
+    SlicSuperpixelFilter,
 };
 
 /// SLIC super-pixel segmentation matching `SimpleITK.SLIC`.
@@ -39,19 +38,31 @@ pub fn slic(
     maximum_number_of_iterations: usize,
     enforce_connectivity: bool,
     initialization_perturbation: bool,
-) -> PyImage {
-    let arc = py_image_to_burn(image);
-    let out = py.allow_threads(|| {
-        core_slic_itk_segment(
-            &arc,
-            super_grid_size,
-            spatial_proximity_weight,
-            maximum_number_of_iterations,
-            initialization_perturbation,
-            enforce_connectivity,
-        )
-    });
-    burn_into_py_image(out)
+) -> RitkResult<PyImage> {
+    let perturbation = if initialization_perturbation {
+        InitializationPerturbation::Enabled
+    } else {
+        InitializationPerturbation::Disabled
+    };
+    let connectivity = if enforce_connectivity {
+        ConnectivityEnforcement::Enabled
+    } else {
+        ConnectivityEnforcement::Disabled
+    };
+    let config = ItkSlicConfig::new(super_grid_size)
+        .and_then(|config| config.with_spatial_proximity_weight(spatial_proximity_weight))
+        .and_then(|config| config.with_maximum_iterations(maximum_number_of_iterations))
+        .map(|config| {
+            config
+                .with_initialization_perturbation(perturbation)
+                .with_connectivity(connectivity)
+        })
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
+    let image = py_image_to_native(image)?;
+    let output = py
+        .allow_threads(|| ItkSlicFilter::new(config).apply_native(&image, &SequentialBackend))
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
+    Ok(native_into_py_image(output))
 }
 
 /// Segment a 3D image via SLIC super-pixel clustering (Achanta et al. 2012).

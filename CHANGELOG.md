@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 645: Native SimpleITK-compatible SLIC (MIG-645-01)
+### Breaking
+- Replace the free `slic_itk_segment` API with validated `ItkSlicConfig` and
+  `ItkSlicFilter` ownership; binary policies use explicit enums.
+
+### Changed
+- SimpleITK-compatible SLIC legacy and Coeus-native images share the existing
+  differential-verified ITK core, and PyO3 executes through the native boundary.
+
 ## [Unreleased] — Sprint 644: Native standard SLIC clustering (MIG-644-01)
 ### Breaking
 - Standard SLIC configuration becomes private, validated, and concrete-`f32`;
