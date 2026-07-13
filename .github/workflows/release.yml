@@ -43,6 +43,15 @@ jobs:
         uses: actions/checkout@v6
         with:
           path: ritk
+          persist-credentials: false
+          persist-credentials: false
+          persist-credentials: false
+          persist-credentials: false
+          persist-credentials: false
+          persist-credentials: false
+          persist-credentials: false
+          persist-credentials: false
+          persist-credentials: false
 
       - name: Checkout provider dependencies
         uses: ./ritk/.github/actions/checkout-atlas-dependencies

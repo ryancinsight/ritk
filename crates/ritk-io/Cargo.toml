@@ -44,12 +44,12 @@ serde_json = { workspace = true }
 arrayvec = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-dicom-pixeldata = { workspace = true }
-dicom-transfer-syntax-registry = { workspace = true }
+dicom-pixeldata = { workspace = true, features = ["native"] }
+dicom-transfer-syntax-registry = { workspace = true, features = ["native", "jpegxl"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-dicom-pixeldata = { version = "0.8", default-features = false }
-dicom-transfer-syntax-registry = { version = "0.8", default-features = false }
+dicom-pixeldata = { workspace = true }
+dicom-transfer-syntax-registry = { workspace = true }
 
 [dev-dependencies]
 ritk-codecs = { workspace = true }

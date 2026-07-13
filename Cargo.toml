@@ -95,6 +95,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 bytemuck = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+toml = "1.1.2"
 tempfile = "3.10" # For testing
 proptest = "1.0"
 walkdir = "2.4"
@@ -132,8 +133,8 @@ tiff = "0.9"
 
 dicom-core = "0.8"
 dicom-ul = "0.8"
-dicom-pixeldata = { version = "0.8", features = ["native"] }
-dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl"] }
+dicom-pixeldata = { version = "0.8", default-features = false }
+dicom-transfer-syntax-registry = { version = "0.8", default-features = false }
 consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
 consus-core = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
 consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "deflate"] }

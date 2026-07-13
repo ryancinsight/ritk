@@ -27,6 +27,16 @@ clean 311-function API-drift report. The first complete matrix exposed and drove
 fix-forward changes for workspace-only formatting, Moirai's Linux-only errno
 accessor and shared kqueue buffer, stale deep-module audit paths, and non-Linux
 `patchelf` installation.
+
+Review adjudication accepted all three actionable CI findings: primary checkout
+credentials are no longer persisted, metadata runs with `--locked`, and the
+alignment gate parses the exact dependency-kind and target table rather than
+matching manifest text. The stronger gate exposed two DICOM target variants;
+their versions now inherit one workspace declaration while native-only features
+remain activated solely in native target tables. The target-table regression is
+value-checked in the xtask suite. A local wasm build attempt was not evidence:
+the selected Rust toolchain lacked its wasm standard library, so cross-target
+compilation remains covered by CI rather than claimed locally.
 GitHub matrix evidence remains pending until the updated fix-forward PR
 completes.
 

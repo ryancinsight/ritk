@@ -15,7 +15,11 @@
   dependency-alignment step with a tested Rust `xtask` command.
 - Run PyO3 Rust unit tests under the committed nextest timeout policy.
 - Restrict rustfmt to RITK workspace members, use Node 24 GitHub actions, and
-  install Linux-only wheel repair tooling only on Linux.
+  install Linux-only wheel repair tooling only on Linux; primary checkouts no
+  longer persist repository credentials into build steps.
+- Parse manifests as TOML when enforcing locked workspace inheritance, keeping
+  dependency kind and target scope distinct; consolidate DICOM versions while
+  retaining target-specific native feature activation.
 - Track deep Python binding modules in the API-drift audit and synchronize the
   runtime, stubs, smoke contract, and `__all__` for all public exports.
 - Pin Moirai's portable IPC error capture and thread-confined kqueue storage so
