@@ -1,5 +1,7 @@
-use burn_ndarray::NdArray;
-use ritk_image::burn::tensor::{Distribution, Tensor};
+use coeus_autograd::{cat, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend};
+use coeus_ops::BackendOps;
+use coeus_tensor::Tensor;
 use ritk_model::transmorph::{
     spatial_transform::SpatialTransformer, TransMorph, TransMorphConfig, TransformIntegration,
 };
@@ -7,67 +9,62 @@ use std::time::Instant;
 
 fn main() {
     println!("Initializing TransMorph Registration Example...");
-    run_registration();
+    run_registration::<SequentialBackend>();
 }
 
-fn run_registration() {
-    type Backend = NdArray<f32>;
-    let device = Default::default();
-
-    println!("Using device: {:?}", device);
-
-    // 1. Configuration
+fn run_registration<B>()
+where
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     let config_reg = TransMorphConfig::new(2, 48, 3)
-        .with_window_size(4) // Small window for example
+        .with_window_size(4)
         .with_integration(TransformIntegration::Direct);
 
     println!("Initializing model...");
-    let model_reg: TransMorph<Backend> = config_reg.init(&device);
-    let st = SpatialTransformer::<Backend>::new();
+    let model_reg: TransMorph<B> = config_reg.init::<B>();
+    let st = SpatialTransformer::new();
 
-    // 2. Create Dummy Data (Fixed and Moving Images)
-    // Shape: [Batch, Channels, D, H, W]
-    // Using small volume for demo: 64x64x64
     let shape = [1, 1, 64, 64, 64];
     println!("Creating dummy volumes with shape: {:?}", shape);
 
-    let fixed = Tensor::<Backend, 5>::random(shape, Distribution::Normal(0.5, 0.1), &device);
-    let moving = Tensor::<Backend, 5>::random(shape, Distribution::Normal(0.5, 0.1), &device);
+    let n: usize = shape.iter().product();
+    let fixed_data: Vec<f32> = (0..n).map(|i| ((i % 17) as f32) / 17.0).collect();
+    let moving_data: Vec<f32> = (0..n).map(|i| ((i * 3 + 7) % 31) as f32 / 31.0).collect();
 
-    // 3. Forward Pass (Registration)
+    let fixed = Var::new(
+        Tensor::from_slice_on(shape, &fixed_data, &B::default()),
+        false,
+    );
+    let moving = Var::new(
+        Tensor::from_slice_on(shape, &moving_data, &B::default()),
+        false,
+    );
+
     println!("Running registration...");
     let start = Instant::now();
 
-    // TransMorph takes concatenated input [B, 2, D, H, W]
-    let input = Tensor::cat(vec![moving.clone(), fixed.clone()], 1); // [1, 2, 64, 64, 64]
-
-    let transmorph_output = model_reg.forward(input); // Output struct with warped and flow
-    let flow = transmorph_output.flow; // [1, 3, 16, 16, 16] (1/4 resolution)
+    let input = cat(&vec![&moving, &fixed], 1);
+    let output = model_reg.forward(&input);
+    let flow = output.flow;
 
     let duration = start.elapsed();
     println!("Registration took: {:?}", duration);
-    println!("Flow shape: {:?}", flow.shape());
-
-    // 4. Warp Moving Image
-    // Since flow is 1/4 resolution (16^3), we downsample images to match for this demo.
-    // In production, you would upsample the flow to 64^3 using interpolation.
-
-    // Downsample by slicing (stride 4)
-    // Burn slice uses ranges.
-    // We can't easily stride with slice? Slice is continuous.
-    // We can use stride in gathering or simple reshape logic if dimensions allow.
-    // Actually, we can just create new dummy data at 16^3 for warping demo
-    // or just assume we want to visualize at low res.
+    println!("Flow shape: {:?}", flow.tensor.shape());
 
     let dims_low = [1, 1, 16, 16, 16];
-    let _fixed_low =
-        Tensor::<Backend, 5>::random(dims_low, Distribution::Normal(0.5, 0.1), &device);
-    let moving_low =
-        Tensor::<Backend, 5>::random(dims_low, Distribution::Normal(0.5, 0.1), &device);
+    let n_low: usize = dims_low.iter().product();
+    let moving_low_data: Vec<f32> = (0..n_low)
+        .map(|i| ((i * 3 + 7) % 31) as f32 / 31.0)
+        .collect();
+    let moving_low = Var::new(
+        Tensor::from_slice_on(dims_low, &moving_low_data, &B::default()),
+        false,
+    );
 
     println!("Warping at 1/4 resolution (16x16x16)...");
-    let warped = st.forward(moving_low, flow);
+    let warped = st.forward(&moving_low, &flow);
 
-    println!("Warped shape: {:?}", warped.shape());
+    println!("Warped shape: {:?}", warped.tensor.shape());
     println!("Example finished successfully!");
 }

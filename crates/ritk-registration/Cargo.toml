@@ -37,6 +37,8 @@ coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 coeus-ops = { workspace = true }
 coeus-autograd = { workspace = true }
+coeus-nn = { workspace = true }
+coeus-optim = { workspace = true }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -84,3 +86,7 @@ path = "examples/brain_ct_mri_registration.rs"
 [[example]]
 name = "rire_mri_ct_registration"
 path = "examples/rire_mri_ct_registration/main.rs"
+
+[[example]]
+name = "dl_train"
+path = "examples/dl_train.rs"

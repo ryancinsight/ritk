@@ -1,195 +1,73 @@
-#![recursion_limit = "512"]
-use burn_ndarray::NdArray;
-use ritk_core::{
-    image::Image,
-    spatial::{Direction3, Point3, Spacing3},
-};
-use ritk_image::burn::{
-    backend::Autodiff,
-    module::Module,
-    optim::{AdamConfig, Optimizer},
-    prelude::Backend,
-    tensor::{Distribution, Tensor},
-};
-use ritk_model::{
-    affine::{AffineNetwork, AffineNetworkConfig, AffineTransform},
-    io::adapter::images_to_batch,
-    transmorph::{
-        config::TransformIntegration, spatial_transform::SpatialTransformer, TransMorph,
-        TransMorphConfig,
-    },
-};
-use ritk_registration::registration::dl::{GlobalNCCLoss, GradLoss, GradientPenalty, LocalNCCLoss};
+use coeus_autograd::{cat, mean, pow, sub, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend};
+use coeus_nn::Module;
+use coeus_ops::BackendOps;
+use coeus_optim::{Adam, Optimizer};
+use coeus_tensor::Tensor;
+use ritk_model::affine::{AffineNetwork, AffineNetworkConfig, AffineTransform};
 use std::time::Instant;
 
-#[derive(Module, Debug)]
-pub struct CombinedModel<B: Backend> {
-    affine: AffineNetwork<B>,
-    transmorph: TransMorph<B>,
-    affine_stn: AffineTransform<B>,
-    stn: SpatialTransformer<B>,
-}
-
-impl<B: Backend> CombinedModel<B> {
-    pub fn new(device: &B::Device) -> Self {
-        let affine_config = AffineNetworkConfig::default();
-        let affine = affine_config.init(device);
-        let affine_stn = AffineTransform::new();
-
-        let transmorph_config = TransMorphConfig {
-            in_channels: 2,
-            embed_dim: 48,
-            out_channels: 3,
-            window_size: 4,
-            integration: TransformIntegration::Integrated,
-            integration_steps: 5,
-        };
-        let transmorph = transmorph_config.init(device);
-        let stn = SpatialTransformer::new();
-
-        Self {
-            affine,
-            transmorph,
-            affine_stn,
-            stn,
-        }
-    }
-
-    pub fn forward(
-        &self,
-        moving: Tensor<B, 5>,
-        fixed: Tensor<B, 5>,
-    ) -> (Tensor<B, 5>, Tensor<B, 5>, Tensor<B, 3>) {
-        // 1. Affine Registration
-        // Concatenate inputs for affine net
-        let input_affine = Tensor::cat(vec![moving.clone(), fixed.clone()], 1);
-        let affine_theta = self.affine.forward(input_affine);
-
-        // Apply affine transform
-        let moving_affine = self
-            .affine_stn
-            .forward(moving.clone(), affine_theta.clone());
-
-        // 2. Deformable Registration
-        // Concatenate affine-registered moving image with fixed image
-        let input_transmorph = Tensor::cat(vec![moving_affine.clone(), fixed.clone()], 1);
-        let transmorph_out = self.transmorph.forward(input_transmorph);
-        let flow = transmorph_out.flow;
-
-        // Flow is now full resolution from TransMorph
-
-        // Apply deformable transform to the ALREADY affine-warped image
-        let moving_deformed = self.stn.forward(moving_affine, flow.clone());
-
-        (
-            moving_deformed,
-            flow,
-            affine_theta.reshape([moving.dims()[0], 3, 4]),
-        )
-    }
-}
-
 fn main() {
-    println!("Starting TransMorph + Affine Training Example...");
-    run_training();
+    println!("Starting Affine Registration Training Example...");
+    run_training::<SequentialBackend>();
 }
 
-fn run_training() {
-    // 1. Setup Backend (Autodiff + NdArray)
-    type MyBackend = Autodiff<NdArray<f32>>;
-    let device = Default::default();
+fn run_training<B>()
+where
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    let config = AffineNetworkConfig::default();
+    let mut model: AffineNetwork<f32, B> = config.init::<f32, B>();
+    let stn = AffineTransform::new();
 
-    println!("Using device: {:?}", device);
-
-    println!("Initializing combined model...");
-    let mut model: CombinedModel<MyBackend> = CombinedModel::new(&device);
-
-    // 3. Loss Functions
-    let _ncc_local = LocalNCCLoss::<MyBackend>::new(5, &device);
-    let _ncc_global = GlobalNCCLoss::<MyBackend>::new();
-    let grad_loss = GradLoss::<MyBackend>::new(GradientPenalty::L2);
-    let lambda_reg = 1.0;
-
-    // 4. Optimizer
-    let optim_config = AdamConfig::new();
-    let mut optimizer = optim_config.init();
-
-    // 5. Training Loop
     let num_epochs = 5;
-    let batch_size = 1;
-    let shape = [64, 64, 64]; // Spatial dimensions only for Image creation
+    let in_shape = [1, 1, 32, 32, 32];
+    let n: usize = in_shape.iter().product();
+
+    let fixed_data: Vec<f32> = (0..n).map(|i| ((i % 17) as f32) / 17.0).collect();
+    let moving_data: Vec<f32> = (0..n).map(|i| ((i * 3 + 7) % 31) as f32 / 31.0).collect();
+
+    let fixed = Var::new(
+        Tensor::from_slice_on(in_shape, &fixed_data, &B::default()),
+        false,
+    );
+    let moving = Var::new(
+        Tensor::from_slice_on(in_shape, &moving_data, &B::default()),
+        false,
+    );
+
+    let params = model.named_parameters();
+    let mut opt = Adam::new(params, 1e-3, 0.9, 0.999, 1e-8);
 
     println!("Starting training loop ({} epochs)...", num_epochs);
 
     for epoch in 0..num_epochs {
         let start = Instant::now();
 
-        // Simulate loading real data using ritk-core Image and ritk-model IO adapter
-        let fixed_batch = create_mock_batch::<MyBackend>(batch_size, shape, &device);
-        let moving_batch = create_mock_batch::<MyBackend>(batch_size, shape, &device);
+        let input = cat(&vec![&moving, &fixed], 1);
+        let theta = model.forward(&input);
+        let warped = stn.forward(&moving, &theta);
 
-        // Forward Pass
-        println!("  Forward pass...");
+        let diff = sub(&warped, &fixed);
+        let loss = mean(&pow(&diff, 2.0));
 
-        let (warped, flow, _affine_theta) =
-            model.forward(moving_batch.clone(), fixed_batch.clone());
+        let loss_val = loss.tensor.as_slice()[0];
 
-        println!("  Flow shape: {:?}", flow.shape());
-        println!("  Warped shape: {:?}", warped.shape());
+        loss.backward();
+        opt.step();
 
-        // 5. Compute Loss
-        println!("  Calculating Loss (MSE + Reg)...");
-        let loss_sim = (fixed_batch.clone() - warped.clone())
-            .powf_scalar(2.0)
-            .mean();
-        let loss_reg = grad_loss.forward(flow.clone());
+        let updated: Vec<Var<f32, B>> = opt.params.iter().map(|p| p.var.clone()).collect();
+        model.load_parameters(&updated);
 
-        // BURN-API: consuming ops require clone to retain loss_sim/loss_reg for reporting.
-        let loss = loss_sim.clone() + loss_reg.clone() * lambda_reg;
-
-        // Backward Pass
-        println!("  Backward pass...");
-        let grads = loss.backward();
-
-        // Update Weights
-        println!("  Optimizer step...");
-        let grads_params = ritk_image::burn::optim::GradientsParams::from_grads(grads, &model);
-        model = optimizer.step(1e-4, model, grads_params);
+        opt.zero_grad();
 
         let duration = start.elapsed();
-
         println!(
-            "Epoch {} | Loss: {:.4} (Sim: {:.4}, Reg: {:.4}) | Time: {:?}",
-            epoch,
-            loss.into_scalar(),
-            loss_sim.into_scalar(),
-            loss_reg.into_scalar(),
-            duration
+            "Epoch {} | Loss: {:.6} | Time: {:?}",
+            epoch, loss_val, duration
         );
     }
 
     println!("Training finished successfully!");
-}
-
-/// Simulates loading a batch of NIfTI files
-fn create_mock_batch<B: Backend>(
-    batch_size: usize,
-    shape: [usize; 3],
-    device: &B::Device,
-) -> Tensor<B, 5> {
-    let mut images = Vec::new();
-
-    let origin = Point3::new([0.0, 0.0, 0.0]);
-    let spacing = Spacing3::new([1.0, 1.0, 1.0]);
-    let direction = Direction3::identity();
-
-    for _ in 0..batch_size {
-        // Create random data [D, H, W]
-        let data = Tensor::<B, 3>::random(shape, Distribution::Normal(0.5, 0.1), device);
-        let image = Image::new(data, origin, spacing, direction);
-        images.push(image);
-    }
-
-    // Convert using adapter
-    images_to_batch(images).expect("Failed to create batch")
 }
