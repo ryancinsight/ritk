@@ -53,6 +53,11 @@ the repository's stale 10-second default nextest termination. That timeout
 contradicted the required 30-second slow threshold and 60-second hang boundary;
 the committed default now encodes those exact limits without changing the test,
 its input, or its assertions.
+On Windows the unchanged suite then passed all 5,048 tests in 379.596 seconds,
+but the workflow's 30-minute job envelope canceled subsequent cache and checkout
+cleanup. Linux and macOS retain that bound; Windows receives 40 minutes, derived
+from the observed approximately 25-minute setup-plus-test path and ten minutes
+for its slower post-test cleanup. Per-test nextest limits remain unchanged.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the

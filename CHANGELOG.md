@@ -36,6 +36,8 @@
   allocation call path.
 - Enforce the workspace's 30-second slow-test threshold and 60-second
   termination boundary instead of killing valid compute tests after 10 seconds.
+- Preserve the 30-minute Linux/macOS CI bound while allowing Windows post-test
+  cache cleanup to finish after its complete 5,048-test suite passes.
 
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking
