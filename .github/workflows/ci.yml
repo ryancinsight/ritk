@@ -14,7 +14,7 @@ jobs:
       run:
         working-directory: ritk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: ritk
       - uses: ./ritk/.github/actions/checkout-atlas-dependencies
@@ -25,7 +25,11 @@ jobs:
           components: rustfmt
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        shell: bash
+        run: |
+          cargo metadata --no-deps --format-version 1 \
+            | jq -r '.workspace_members[] as $id | .packages[] | select(.id == $id) | "-p", .name' \
+            | xargs sh -c 'cargo fmt "$@" -- --check' _
 
   clippy:
     name: Clippy
@@ -34,7 +38,7 @@ jobs:
       run:
         working-directory: ritk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: ritk
       - uses: ./ritk/.github/actions/checkout-atlas-dependencies
@@ -55,7 +59,7 @@ jobs:
       run:
         working-directory: ritk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: ritk
       - uses: ./ritk/.github/actions/checkout-atlas-dependencies
@@ -78,7 +82,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: ritk
       - uses: ./ritk/.github/actions/checkout-atlas-dependencies
@@ -127,7 +131,7 @@ jobs:
         working-directory: ritk
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: ritk
       - uses: ./ritk/.github/actions/checkout-atlas-dependencies
