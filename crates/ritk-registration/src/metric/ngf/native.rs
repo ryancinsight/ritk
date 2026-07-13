@@ -23,41 +23,13 @@
 //! (`sampling: None`); the stochastic-sample estimator has no native consumer
 //! yet and is left on Burn (recorded as a residual gap).
 
+use super::super::native_resample::{fixed_world_points, resample_moving_at_world};
 use super::scalar::{
     compute_gradient_field, row_major_strides, weighted_eta2, weighted_ngf_from_fixed,
 };
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use coeus_tensor::Tensor;
 use ritk_image::native::Image;
-use ritk_interpolation::native::trilinear_interpolation;
-use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
-
-/// Innermost-first (`col 0 = x = axis D-1`) row-major index grid over `shape`,
-/// as flat `[N·3]` `f32` — the same column/row convention as
-/// `ritk_image::grid::generate_grid` (Burn), reproduced here because no native
-/// grid generator exists yet (that op is owned upstream by `ritk-image`; until
-/// it lands, this local generator keeps the native NGF path self-contained).
-fn fixed_index_grid(shape: [usize; 3]) -> Vec<f32> {
-    let total: usize = shape.iter().product();
-    let mut grid = Vec::with_capacity(total * 3);
-    let mut idx = [0usize; 3];
-    for _ in 0..total {
-        // Innermost dimension first: col 0 = x = idx[D-1].
-        for d in (0..3).rev() {
-            grid.push(idx[d] as f32);
-        }
-        // Increment innermost first → row-major iteration (rows match flat data).
-        for d in (0..3).rev() {
-            idx[d] += 1;
-            if idx[d] < shape[d] {
-                break;
-            }
-            idx[d] = 0;
-        }
-    }
-    grid
-}
 
 /// Precomputed native fixed-image NGF state for repeated transform evaluations.
 ///
@@ -95,13 +67,9 @@ where
         weights: Option<&[f32]>,
     ) -> Self {
         let shape = fixed.shape();
-        let n: usize = shape.iter().product();
         let stride = row_major_strides(&shape);
 
-        // Fixed grid indices (innermost-first) → world (axis-major) via the native
-        // batch transform (bit-faithful to the Burn `index_to_world_tensor`).
-        let idx = Tensor::<f32, B>::from_slice([n, 3], &fixed_index_grid(shape));
-        let fixed_world = fixed.index_to_world_native(&idx).as_slice().to_vec();
+        let fixed_world = fixed_world_points(fixed);
 
         let f = fixed.data_vec();
         let gf = compute_gradient_field(&f, &shape, &stride);
@@ -141,42 +109,7 @@ where
     /// Resample `moving` through `transform` at the fixed-grid world points,
     /// returning the `N` interpolated host values in fixed C-order.
     fn resample(&self, moving: &Image<f32, B, 3>, transform: &AtlasAffineTransform<B, 3>) -> Vec<f32> {
-        let n = self.shape.iter().product::<usize>();
-
-        // Fixed world points (axis-major) → transformed moving-space world points.
-        let world_img = Image::<f32, B, 2>::from_flat(
-            self.fixed_world.clone(),
-            [n, 3],
-            Point::origin(),
-            Spacing::uniform(1.0),
-            Direction::identity(),
-        )
-        .expect("fixed world points carry a valid [N, 3] rank-2 layout");
-        let moving_world = transform
-            .transform_points(&world_img)
-            .expect("affine transform of [N, 3] world points")
-            .data_vec();
-
-        // Transformed world (axis-major) → moving continuous indices (innermost-
-        // first: col 0 = x = axis 2).
-        let moving_world_t = Tensor::<f32, B>::from_slice([n, 3], &moving_world);
-        let moving_idx = moving.world_to_index_native(&moving_world_t);
-        let mi = moving_idx.as_slice();
-
-        // Trilinear grid layout `[1, 3, N, 1, 1]`, channels (z, y, x) = axes
-        // (0, 1, 2). The native kernel's channel `k` samples image axis `k`, so
-        // channel `k` reads the index column for axis `k` = innermost-first
-        // column `2 - k`.
-        let mut grid = vec![0.0f32; 3 * n];
-        for p in 0..n {
-            grid[p] = mi[p * 3 + 2]; // channel 0 = z (axis 0) ← col 2
-            grid[n + p] = mi[p * 3 + 1]; // channel 1 = y (axis 1) ← col 1
-            grid[2 * n + p] = mi[p * 3]; // channel 2 = x (axis 2) ← col 0
-        }
-
-        let [d, h, w] = moving.shape();
-        let moving_flat = moving.data_vec();
-        trilinear_interpolation::<f32>(&moving_flat, 1, 1, d, h, w, &grid, n, 1, 1)
+        resample_moving_at_world(&self.fixed_world, moving, transform)
     }
 }
 
