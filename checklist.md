@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-652-01 — Native isolated-connected region growing
+**Target version**: 0.14.0 migration batch
+- [ ] Ground both ITK search directions and validation contracts.
+- [ ] Replace public fields and per-iteration legacy image rebuilds with one flat core.
+- [ ] Add exact legacy/native execution and direct Moirai PyO3.
+- [ ] Add SimpleITK, geometry, boundary, and allocation-structure regressions.
+- [ ] Run package gates, adversarial review, commit, and push.
+
 ## MIG-651-01 — Native scalar region-growing PyO3 family
 **Target version**: 0.14.0 migration batch
 - [x] Audit existing native provider contracts and current Python validation duplication.

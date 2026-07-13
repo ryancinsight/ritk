@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-652-01 [major] - Native isolated-connected region growing (IN PROGRESS; owner=Codex; scope=isolated-connected provider, PyO3/tests/docs).** Acceptance: validated private configuration, allocation-reusing flat separation search, exact legacy/Coeus-native execution, direct Moirai PyO3, and both search-direction SimpleITK evidence.
+
 - **MIG-651-01 [major] - Native scalar region-growing PyO3 family (DONE).** Connected-threshold, confidence-connected, and neighborhood-connected bindings consume their existing Coeus-native providers; installed-wheel regressions preserve exact values/geometry and typed boundary failures without changing isolated/vector algorithms.
 
 - **MIG-650-01 [major] - Correct native isolated watershed (DONE).** A plateau-aware ordered watershed hierarchy now drives the exact ITK isolation search; validated private configuration, canonical legacy/Coeus-native execution, and native PyO3 are covered by 518 Rust tests, exact installed-wheel SimpleITK cases, and a 40-case deterministic differential sweep.
