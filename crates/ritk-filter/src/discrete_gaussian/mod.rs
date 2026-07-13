@@ -28,6 +28,9 @@
 mod bessel;
 mod convolve;
 
+#[cfg(test)]
+mod tests_native;
+
 use bessel::{modified_bessel_i, modified_bessel_i0, modified_bessel_i1};
 pub(crate) use convolve::convolve_separable;
 
@@ -177,15 +180,17 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     /// Minimum pixel variance below which the kernel is the identity impulse.
     const VARIANCE_MIN: f64 = 1e-18;
 
-    #[inline]
-    fn apply_inner<const D: usize>(
+    /// Build the per-axis discrete-Gaussian kernels for the given spacing.
+    ///
+    /// Returns `[Option<Vec<f32>>; D]`: `None` for an axis whose pixel variance
+    /// is below [`Self::VARIANCE_MIN`] or whose kernel collapses to the identity
+    /// impulse (length ≤ 1). Single source of truth for kernel construction,
+    /// shared by the Burn [`apply_inner`](Self::apply_inner) path and the
+    /// Coeus-native [`apply_native`](Self::apply_native) path.
+    fn kernels_for_spacing<const D: usize>(
         &self,
-        data: Tensor<B, D>,
         spacing: &ritk_spatial::Spacing<D>,
-    ) -> Tensor<B, D> {
-        let device = data.device();
-        let dims: [usize; D] = data.shape().dims();
-
+    ) -> [Option<Vec<f32>>; D] {
         let mut kernels: [Option<Vec<f32>>; D] = std::array::from_fn(|_| None);
         for (d, kernel_slot) in kernels.iter_mut().enumerate() {
             let sigma = self.pixel_sigma_for_dim::<D>(d, spacing);
@@ -197,7 +202,19 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
                 }
             }
         }
+        kernels
+    }
 
+    #[inline]
+    fn apply_inner<const D: usize>(
+        &self,
+        data: Tensor<B, D>,
+        spacing: &ritk_spatial::Spacing<D>,
+    ) -> Tensor<B, D> {
+        let device = data.device();
+        let dims: [usize; D] = data.shape().dims();
+
+        let kernels = self.kernels_for_spacing::<D>(spacing);
         if kernels.iter().all(|k| k.is_none()) {
             return data;
         }
@@ -205,6 +222,36 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         let flat: Vec<f32> = data.into_data().into_vec::<f32>().expect("f32 tensor data");
         let result = convolve_separable(flat, dims, &kernels);
         Tensor::<B, D>::from_data(TensorData::new(result, Shape::new(dims)), &device)
+    }
+
+    /// Coeus-native sister of [`DiscreteGaussianFilter::apply`].
+    ///
+    /// Runs the identical separable discrete-Gaussian convolution (ITK
+    /// `GaussianOperator` kernel, replicate boundary) via the shared
+    /// [`kernels_for_spacing`](Self::kernels_for_spacing) kernel builder and the
+    /// substrate-agnostic [`convolve_separable`] host core on the image's
+    /// contiguous host buffer, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
+    pub fn apply_native<BC>(
+        &self,
+        image: &ritk_image::native::Image<f32, BC, 3>,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, BC, 3>>
+    where
+        BC: coeus_core::ComputeBackend + Default,
+        BC::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let kernels = self.kernels_for_spacing::<3>(image.spacing());
+        let result = if kernels.iter().all(|k| k.is_none()) {
+            vals
+        } else {
+            convolve_separable(vals, dims, &kernels)
+        };
+        ritk_tensor_ops::native::rebuild_image(result, dims, image, &BC::default())
     }
 }
 

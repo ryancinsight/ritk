@@ -47,6 +47,29 @@ impl MedianFilter {
 
         Ok(rebuild(filtered, shape, image))
     }
+
+    /// Coeus-native sister of [`MedianFilter::apply`].
+    ///
+    /// Runs the identical sliding-window lower-median (replicate boundary) via
+    /// the shared [`median_3d`] host core on the image's contiguous host buffer,
+    /// so the result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let filtered = median_3d(&vals, dims, self.radius);
+        ritk_tensor_ops::native::rebuild_image(filtered, dims, image, &B::default())
+    }
 }
 
 /// Sliding-window median on a 3-D volume stored in flat Z×Y×X order.
@@ -164,6 +187,10 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[path = "tests_median_native.rs"]
+mod tests_native;
 
 #[cfg(test)]
 mod tests {

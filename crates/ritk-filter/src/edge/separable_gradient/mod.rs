@@ -77,14 +77,31 @@ impl<K: GradientKernel> SeparableGradientFilter<K> {
     /// Returns an `Image` whose voxel values are |∇I| = √(G_z² + G_y² + G_x²).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let (gz, gy, gx) = gradient_components::<K>(&vals, dims, &self.spacing);
-        let mag: Vec<f32> = gz
-            .iter()
-            .zip(gy.iter())
-            .zip(gx.iter())
-            .map(|((&z, &y), &x)| (z * z + y * y + x * x).sqrt())
-            .collect();
+        let mag = gradient_magnitude_vec::<K>(&vals, dims, &self.spacing);
         Ok(rebuild(mag, dims, image))
+    }
+
+    /// Coeus-native sister of [`SeparableGradientFilter::apply`].
+    ///
+    /// Runs the identical separable-convolution gradient magnitude (replicate
+    /// boundary) via the shared [`gradient_magnitude_vec`] host core on the
+    /// image's contiguous host buffer, so the result is bitwise-identical to the
+    /// Burn path. No Burn tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
+    pub fn apply_native<BC>(
+        &self,
+        image: &ritk_image::native::Image<f32, BC, 3>,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, BC, 3>>
+    where
+        BC: coeus_core::ComputeBackend + Default,
+        BC::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let mag = gradient_magnitude_vec::<K>(&vals, dims, &self.spacing);
+        ritk_tensor_ops::native::rebuild_image(mag, dims, image, &BC::default())
     }
 
     /// Compute the three gradient component images.
@@ -150,6 +167,23 @@ fn gradient_components<K: GradientKernel>(
     };
 
     (gz, gy, gx)
+}
+
+/// Gradient magnitude `√(gz² + gy² + gx²)` from the separable components.
+///
+/// Single host realization shared by the Burn [`SeparableGradientFilter::apply`]
+/// path and the Coeus-native [`SeparableGradientFilter::apply_native`] path.
+pub(crate) fn gradient_magnitude_vec<K: GradientKernel>(
+    data: &[f32],
+    dims: [usize; 3],
+    spacing: &Spacing<3>,
+) -> Vec<f32> {
+    let (gz, gy, gx) = gradient_components::<K>(data, dims, spacing);
+    gz.iter()
+        .zip(gy.iter())
+        .zip(gx.iter())
+        .map(|((&z, &y), &x)| (z * z + y * y + x * x).sqrt())
+        .collect()
 }
 
 /// Divide every element of `v` by `norm`.

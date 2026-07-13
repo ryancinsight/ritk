@@ -97,9 +97,6 @@ impl GradientMagnitudeFilter {
         src: &Image<B, 3>,
     ) -> anyhow::Result<Image<B, 3>> {
         let [nz, ny, nx] = dims;
-        let sz = self.spacing[0] as f32;
-        let sy = self.spacing[1] as f32;
-        let sx = self.spacing[2] as f32;
 
         debug_assert_eq!(
             vals.len(),
@@ -107,29 +104,80 @@ impl GradientMagnitudeFilter {
             "apply_from_slice: vals.len() != nz*ny*nx"
         );
 
-        let mag: Vec<f32> =
-            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
-                let iz = flat / (ny * nx);
-                let iy = (flat / nx) % ny;
-                let ix = flat % nx;
-                let f = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
-
-                // ZeroFluxNeumann central difference: clamp the out-of-range
-                // neighbour to the edge voxel. A degenerate (length-1) axis
-                // yields a zero numerator, so the partial derivative is 0.
-                let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
-                let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
-                let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
-
-                let gz = (f(zhi, iy, ix) - f(zlo, iy, ix)) / (2.0 * sz);
-                let gy = (f(iz, yhi, ix) - f(iz, ylo, ix)) / (2.0 * sy);
-                let gx = (f(iz, iy, xhi) - f(iz, iy, xlo)) / (2.0 * sx);
-
-                (gz * gz + gy * gy + gx * gx).sqrt()
-            });
-
+        let mag = gradient_magnitude_vec(vals, dims, &self.spacing);
         Ok(rebuild(mag, dims, src))
     }
+}
+
+// ── Coeus-native path ─────────────────────────────────────────────────────────
+
+impl GradientMagnitudeFilter {
+    /// Coeus-native sister of [`GradientMagnitudeFilter::apply`].
+    ///
+    /// Runs the identical central finite-difference gradient magnitude
+    /// (ZeroFluxNeumann boundary) via the shared [`gradient_magnitude_vec`] host
+    /// core on the image's contiguous host buffer, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed. Spatial
+    /// metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let mag = gradient_magnitude_vec(&vals, dims, &self.spacing);
+        ritk_tensor_ops::native::rebuild_image(mag, dims, image, &B::default())
+    }
+}
+
+// ── gradient_magnitude_vec ─────────────────────────────────────────────────────
+
+/// Central finite-difference gradient magnitude on a flat 3-D volume.
+///
+/// # Invariants
+/// - Central second-order differences divided by `2·spacing` per axis.
+/// - Boundary voxels clamp the out-of-range neighbour to the edge voxel
+///   (ZeroFluxNeumann), matching ITK; a length-1 axis yields a zero component.
+/// - `|∇I| = √(gz² + gy² + gx²)`; output length equals `nz · ny · nx`.
+///
+/// Single host realization shared by the Burn [`GradientMagnitudeFilter::apply`]
+/// path and the Coeus-native [`GradientMagnitudeFilter::apply_native`] path.
+pub(crate) fn gradient_magnitude_vec(
+    vals: &[f32],
+    dims: [usize; 3],
+    spacing: &Spacing<3>,
+) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let sz = spacing[0] as f32;
+    let sy = spacing[1] as f32;
+    let sx = spacing[2] as f32;
+
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
+        let iz = flat / (ny * nx);
+        let iy = (flat / nx) % ny;
+        let ix = flat % nx;
+        let f = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
+
+        // ZeroFluxNeumann central difference: clamp the out-of-range
+        // neighbour to the edge voxel. A degenerate (length-1) axis
+        // yields a zero numerator, so the partial derivative is 0.
+        let (zlo, zhi) = (iz.saturating_sub(1), (iz + 1).min(nz - 1));
+        let (ylo, yhi) = (iy.saturating_sub(1), (iy + 1).min(ny - 1));
+        let (xlo, xhi) = (ix.saturating_sub(1), (ix + 1).min(nx - 1));
+
+        let gz = (f(zhi, iy, ix) - f(zlo, iy, ix)) / (2.0 * sz);
+        let gy = (f(iz, yhi, ix) - f(iz, ylo, ix)) / (2.0 * sy);
+        let gx = (f(iz, iy, xhi) - f(iz, iy, xlo)) / (2.0 * sx);
+
+        (gz * gz + gy * gy + gx * gx).sqrt()
+    })
 }
 
 // ── gradient_vecs ────────────────────────────────────────────────────────────────

@@ -83,6 +83,36 @@ impl LaplacianOfGaussianFilter {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         laplacian_recursive_gaussian(image, self.sigma.get())
     }
+
+    /// Coeus-native sister of [`LaplacianOfGaussianFilter::apply`].
+    ///
+    /// Runs the identical `∇²(G_σ * I)` via the separable second-order Deriche
+    /// recursion — the shared [`crate::recursive_gaussian::laplacian_rg_vals`]
+    /// host core the Burn path also calls — on the image's contiguous host
+    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let sp = image.spacing();
+        let out = crate::recursive_gaussian::laplacian_rg_vals(
+            &vals,
+            dims,
+            [sp[0], sp[1], sp[2]],
+            self.sigma.get(),
+        );
+        ritk_tensor_ops::native::rebuild_image(out, dims, image, &B::default())
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

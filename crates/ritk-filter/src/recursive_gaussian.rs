@@ -139,20 +139,51 @@ impl RecursiveGaussianFilter {
     ///
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let (mut vals, dims) = extract_vec(image)?;
-
+        let (vals, dims) = extract_vec(image)?;
         let spacing = image.spacing();
+        let out = self.filter_vals(vals, dims, [spacing[0], spacing[1], spacing[2]]);
+        Ok(rebuild(out, dims, image))
+    }
 
-        // Derivative order selects the separable Deriche structure that matches
-        // ITK/SimpleITK: order 0 smooths all axes; orders 1 and 2 apply the
-        // first/second-order Deriche recursion along each axis (zero-order along
-        // the others) and combine — magnitude for order 1, sum for order 2.
-        let sp = [spacing[0], spacing[1], spacing[2]];
+    /// Coeus-native sister of [`RecursiveGaussianFilter::apply`].
+    ///
+    /// Runs the identical separable Deriche IIR recursion (order 0/1/2 plus scale
+    /// normalization; constant/replicate boundary) via the shared
+    /// [`RecursiveGaussianFilter::filter_vals`] host core on the image's
+    /// contiguous host buffer, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let spacing = image.spacing();
+        let out = self.filter_vals(vals, dims, [spacing[0], spacing[1], spacing[2]]);
+        ritk_tensor_ops::native::rebuild_image(out, dims, image, &B::default())
+    }
+
+    /// Shared host core: separable Deriche recursion with the configured
+    /// derivative order and scale normalization, on a flat z-major buffer.
+    ///
+    /// Both the Burn [`apply`](Self::apply) and Coeus-native
+    /// [`apply_native`](Self::apply_native) paths call this single realization;
+    /// order 0 smooths all axes, orders 1 and 2 apply the first/second-order
+    /// Deriche recursion along each axis (zero-order along the others) and
+    /// combine — magnitude for order 1, sum for order 2.
+    fn filter_vals(&self, mut vals: Vec<f32>, dims: [usize; 3], sp: [f64; 3]) -> Vec<f32> {
         let sigma = self.sigma.get();
         vals = match self.derivative_order {
             DerivativeOrder::Zero => {
-                for dim in 0..3 {
-                    let pixel_sigma = sigma / spacing[dim];
+                for (dim, &s) in sp.iter().enumerate() {
+                    let pixel_sigma = sigma / s;
                     if pixel_sigma < 0.2 {
                         continue;
                     }
@@ -169,8 +200,8 @@ impl RecursiveGaussianFilter {
         if let ScaleNormalization::Normalize = self.scale_normalization {
             let scale_factor = match self.derivative_order {
                 DerivativeOrder::Zero => 1.0,
-                DerivativeOrder::First => self.sigma.get(),
-                DerivativeOrder::Second => self.sigma.get() * self.sigma.get(),
+                DerivativeOrder::First => sigma,
+                DerivativeOrder::Second => sigma * sigma,
             };
             if (scale_factor - 1.0).abs() > 1e-12 {
                 let sf = scale_factor as f32;
@@ -180,7 +211,7 @@ impl RecursiveGaussianFilter {
             }
         }
 
-        Ok(rebuild(vals, dims, image))
+        vals
     }
 }
 // ── Recursive-Gaussian derivative operators (ITK structure) ───────────────────
@@ -190,7 +221,12 @@ impl RecursiveGaussianFilter {
 /// `d` and the **zero-order** (smoothing) recursion along the others; each
 /// per-axis second derivative is divided by `spacing[d]²` (physical units) and
 /// summed. Float-exact to ITK/SimpleITK `LaplacianRecursiveGaussian`.
-fn laplacian_rg_vals(vals: &[f32], dims: [usize; 3], spacing: [f64; 3], sigma: f64) -> Vec<f32> {
+pub(crate) fn laplacian_rg_vals(
+    vals: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    sigma: f64,
+) -> Vec<f32> {
     let mut laplacian = vec![0.0f32; vals.len()];
     for d in 0..3 {
         // First axis reads `vals` directly (no upfront clone); each subsequent
@@ -221,7 +257,7 @@ fn laplacian_rg_vals(vals: &[f32], dims: [usize; 3], spacing: [f64; 3], sigma: f
 /// first derivative is divided by `spacing[d]` (physical units), squared and
 /// accumulated, then the square root is taken. Float-exact to ITK/SimpleITK
 /// `GradientMagnitudeRecursiveGaussian`.
-fn gradient_magnitude_rg_vals(
+pub(crate) fn gradient_magnitude_rg_vals(
     vals: &[f32],
     dims: [usize; 3],
     spacing: [f64; 3],
@@ -480,3 +516,7 @@ pub(crate) fn compute_hessian_iir(
 #[cfg(test)]
 #[path = "tests_recursive_gaussian.rs"]
 mod tests_recursive_gaussian;
+
+#[cfg(test)]
+#[path = "tests_recursive_gaussian_native.rs"]
+mod tests_recursive_gaussian_native;
