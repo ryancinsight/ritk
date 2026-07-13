@@ -24,7 +24,7 @@ pub use format::dicom::{
     write_dicom_multiframe, write_dicom_multiframe_native,
     write_dicom_multiframe_native_with_config, write_dicom_multiframe_native_with_options,
     write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, write_dicom_object,
-    write_dicom_seg, write_dicom_series,
+    write_dicom_seg, write_dicom_series, write_dicom_series_native,
     write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, write_rt_struct, AeTitle,
     AnonymizationProfile, AnonymizeOptions, AnonymizeResult, AnonymizeStats, AssociationConfig,
     CleaningPolicy, ContourGeometricType, DicomAddress, DicomObjectModel, DicomObjectNode,

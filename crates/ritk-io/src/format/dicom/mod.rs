@@ -78,7 +78,9 @@ pub use series::{
     scan_dicom_directory, DicomReader, DicomSeriesInfo,
 };
 pub use transfer_syntax::TransferSyntaxKind;
-pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};
+pub use writer::{
+    write_dicom_series, write_dicom_series_native, write_dicom_series_with_metadata, DicomWriter,
+};
 pub use writer_object::{model_to_in_mem, write_object as write_dicom_object};
 
 /// Atlas-native-substrate DICOM reader implementing the unified image reader contract.
