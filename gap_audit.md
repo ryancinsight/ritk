@@ -100,6 +100,12 @@ centered moments without intermediate allocation. Affine, constant, empty, and
 shape-mismatch contracts are pinned in the owning crate. NumPy's independent
 correlation oracle completed the same committed volume in 0.31 seconds; this is
 empirical evidence that the workload itself is not minute-scale.
+Pytest's configured signal timeout could not interrupt the running native call,
+so CI exposed neither the test name nor the 60-second breach. The wheel gate now
+uses pytest-timeout's watchdog-thread method and verbose test IDs; a native call
+that exceeds the unchanged bound terminates the process with the active test in
+the log. The independent wheel and workspace suites now run concurrently rather
+than serializing their wall-clock cost.
 The stronger
 alignment gate exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely
