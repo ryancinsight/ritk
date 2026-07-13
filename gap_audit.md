@@ -42,7 +42,10 @@ processes together; all four aborted at the allocator's non-null precondition
 while a fifth test in the same binary had passed. A binary-scoped nextest group
 now runs one OpenJPEG reference process at a time, bounding aggregate memory
 without changing inputs, assertions, or timeout enforcement. GitHub rerun
-evidence is required before accepting aggregate memory exhaustion as the cause.
+reduced four simultaneous aborts to one but did not eliminate the failure, so
+aggregate memory exhaustion is not accepted as the root cause. Rust CI now
+captures backtraces to locate the failing allocation before any implementation
+change is selected.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the

@@ -32,6 +32,8 @@
   timeout plugin from one requirements manifest in both test workflows.
 - Bound the memory-intensive OpenJPEG differential test binary to one nextest
   process at a time without changing its cases, assertions, or timeouts.
+- Capture Rust backtraces in workspace CI so native aborts retain their complete
+  allocation call path.
 
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking
