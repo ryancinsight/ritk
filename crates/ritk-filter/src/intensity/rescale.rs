@@ -41,33 +41,65 @@ impl RescaleIntensityFilter {
     /// Apply the rescaling to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let n = vals.len();
-
-        // Fused parallel min/max reduction (one pass over the data instead of
-        // two sequential folds). NaN compares `false` in `min`/`max`, leaving
-        // the running extremum unchanged â€” matching the prior `f32::min`/`max`.
-        let (i_min, i_max) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
-            n,
-            || (f32::INFINITY, f32::NEG_INFINITY),
-            |(mn, mx), i| {
-                let v = vals[i];
-                (mn.min(v), mx.max(v))
-            },
-            |(a_mn, a_mx), (b_mn, b_mx)| (a_mn.min(b_mn), a_mx.max(b_mx)),
-        );
-
-        let out: Vec<f32> = if (i_max - i_min).abs() < f32::EPSILON {
-            vec![self.out_min; n]
-        } else {
-            // Affine remap, parallelized element-wise (independent per voxel).
-            let scale = (self.out_max - self.out_min) / (i_max - i_min);
-            let out_min = self.out_min;
-            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
-                (vals[i] - i_min) * scale + out_min
-            })
-        };
-
+        let out = rescale_vec(&vals, self.out_min, self.out_max);
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Coeus-native sister of [`RescaleIntensityFilter::apply`].
+    ///
+    /// Runs the identical global-min/max affine remap via the shared
+    /// [`rescale_vec`] host core on the image's contiguous host buffer, so the
+    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata (origin, spacing, direction) is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, _dims| {
+            rescale_vec(vals, self.out_min, self.out_max)
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`RescaleIntensityFilter`].
+///
+/// Computes the global `[I_min, I_max]` extrema in one fused parallel pass,
+/// then affinely remaps every voxel to `[out_min, out_max]`. When the input is
+/// constant (`I_max == I_min` within `f32::EPSILON`), every output voxel is
+/// `out_min`, matching the mathematical specification.
+pub(crate) fn rescale_vec(vals: &[f32], out_min: f32, out_max: f32) -> Vec<f32> {
+    let n = vals.len();
+
+    // Fused parallel min/max reduction (one pass over the data instead of
+    // two sequential folds). NaN compares `false` in `min`/`max`, leaving
+    // the running extremum unchanged — matching the prior `f32::min`/`max`.
+    let (i_min, i_max) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        n,
+        || (f32::INFINITY, f32::NEG_INFINITY),
+        |(mn, mx), i| {
+            let v = vals[i];
+            (mn.min(v), mx.max(v))
+        },
+        |(a_mn, a_mx), (b_mn, b_mx)| (a_mn.min(b_mn), a_mx.max(b_mx)),
+    );
+
+    if (i_max - i_min).abs() < f32::EPSILON {
+        vec![out_min; n]
+    } else {
+        // Affine remap, parallelized element-wise (independent per voxel).
+        let scale = (out_max - out_min) / (i_max - i_min);
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            (vals[i] - i_min) * scale + out_min
+        })
     }
 }
 

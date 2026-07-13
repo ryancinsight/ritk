@@ -108,16 +108,7 @@ impl BedSeparationFilter {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let (vals, _) = extract_vec(image)?;
-        let binary = threshold_foreground(&vals, self.config.body_threshold);
-        let binary = if self.config.component_policy == ComponentPolicy::LargestOnly {
-            keep_largest_component(&binary, dims)
-        } else {
-            binary
-        };
-        let binary = binary_closing(&binary, dims, self.config.closing_radius);
-        let binary = binary_opening(&binary, dims, self.config.opening_radius);
-        let out = apply_mask(&vals, &binary, self.config.outside_value);
-
+        let out = separate_vec(&vals, dims, &self.config);
         Ok(rebuild(out, dims, image))
     }
 
@@ -125,18 +116,63 @@ impl BedSeparationFilter {
     pub fn mask<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let (vals, _) = extract_vec(image)?;
-        let binary = threshold_foreground(&vals, self.config.body_threshold);
-        let binary = if self.config.component_policy == ComponentPolicy::LargestOnly {
-            keep_largest_component(&binary, dims)
-        } else {
-            binary
-        };
-        let binary = binary_closing(&binary, dims, self.config.closing_radius);
-        let binary = binary_opening(&binary, dims, self.config.opening_radius);
+        let binary = foreground_mask(&vals, dims, &self.config);
         let mask: Vec<f32> = binary.into_iter().map(|v| v as f32).collect();
-
         Ok(rebuild(mask, dims, image))
     }
+
+    /// Coeus-native sister of [`BedSeparationFilter::apply`].
+    ///
+    /// Runs the identical threshold → largest-component → closing → opening →
+    /// masking pipeline via the shared [`separate_vec`] host core on the image's
+    /// contiguous host buffer, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Spatial metadata (origin, spacing,
+    /// direction) is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            separate_vec(vals, dims, &self.config)
+        })
+    }
+}
+
+/// Substrate-agnostic host core computing the retained foreground mask.
+///
+/// Thresholds the volume, optionally keeps only the largest 6-connected
+/// component, then closes and opens the binary mask per the config radii.
+fn foreground_mask(vals: &[f32], dims: [usize; 3], config: &BedSeparationConfig) -> Vec<u8> {
+    let binary = threshold_foreground(vals, config.body_threshold);
+    let binary = if config.component_policy == ComponentPolicy::LargestOnly {
+        keep_largest_component(&binary, dims)
+    } else {
+        binary
+    };
+    let binary = binary_closing(&binary, dims, config.closing_radius);
+    binary_opening(&binary, dims, config.opening_radius)
+}
+
+/// Substrate-agnostic host core for [`BedSeparationFilter::apply`].
+///
+/// Masks the input intensity volume by the [`foreground_mask`] result,
+/// replacing background voxels with `config.outside_value`.
+pub(crate) fn separate_vec(
+    vals: &[f32],
+    dims: [usize; 3],
+    config: &BedSeparationConfig,
+) -> Vec<f32> {
+    let binary = foreground_mask(vals, dims, config);
+    apply_mask(vals, &binary, config.outside_value)
 }
 
 fn apply_mask(values: &[f32], mask: &[u8], outside_value: f32) -> Vec<f32> {

@@ -42,16 +42,68 @@ impl BinaryThresholdImageFilter {
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let lo = self.lower_threshold;
-        let hi = self.upper_threshold;
-        let fg = f32::from(self.foreground);
-        let bg = self.background;
-        let out: Vec<f32> = vals
-            .iter()
-            .map(|&v| if v >= lo && v <= hi { fg } else { bg })
-            .collect();
+        let out = binary_threshold_vec(
+            &vals,
+            self.lower_threshold,
+            self.upper_threshold,
+            f32::from(self.foreground),
+            self.background,
+        );
         Ok(rebuild(out, dims, image))
     }
+
+    /// Coeus-native sister of [`BinaryThresholdImageFilter::apply`].
+    ///
+    /// Runs the identical binary-indicator map via the shared
+    /// [`binary_threshold_vec`] host core on the image's contiguous host buffer,
+    /// so the result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata (origin, spacing, direction) is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let fg = f32::from(self.foreground);
+        crate::native_support::map_flat_image(image, backend, |vals, _dims| {
+            binary_threshold_vec(
+                vals,
+                self.lower_threshold,
+                self.upper_threshold,
+                fg,
+                self.background,
+            )
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`BinaryThresholdImageFilter`].
+///
+/// Maps voxels in the inclusive interval `[lower, upper]` to `foreground` and
+/// all others to `background` — the indicator function `1[v ∈ [lo, hi]]`.
+pub(crate) fn binary_threshold_vec(
+    vals: &[f32],
+    lower: f32,
+    upper: f32,
+    foreground: f32,
+    background: f32,
+) -> Vec<f32> {
+    vals.iter()
+        .map(|&v| {
+            if v >= lower && v <= upper {
+                foreground
+            } else {
+                background
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]

@@ -83,18 +83,46 @@ impl GrayscaleClosingFilter {
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-
-        // C_B(f) = E_B(D_B(f)) with ITK's safe border: replicate-pad by `radius`,
-        // run the dilate/erode pair on the padded volume, then crop. Keeps the
-        // border band bit-exact to sitk.GrayscaleMorphologicalClosing.
-        let r = self.radius;
-        let (padded, pdims) = super::pad_replicate_3d(&vals, dims, r);
-        let dilated = dilate_3d(&padded, pdims, r);
-        let eroded = erode_3d(&dilated, pdims, r);
-        let (closed, _) = super::crop_border_3d(&eroded, pdims, r);
-
+        let closed = close_3d(&vals, dims, self.radius);
         Ok(rebuild(closed, dims, image))
     }
+
+    /// Coeus-native sister of [`GrayscaleClosingFilter::apply`].
+    ///
+    /// Runs the identical safe-border dilate→erode closing via the shared
+    /// [`close_3d`] host core on the image's contiguous host buffer, so the
+    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            close_3d(vals, dims, self.radius)
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`GrayscaleClosingFilter`].
+///
+/// `C_B(f) = E_B(D_B(f))` with ITK's safe border: replicate-pad by `radius`,
+/// run the dilate/erode pair on the padded volume, then crop. Keeps the border
+/// band bit-exact to `sitk.GrayscaleMorphologicalClosing`.
+pub(crate) fn close_3d(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
+    let (padded, pdims) = super::pad_replicate_3d(vals, dims, radius);
+    let dilated = dilate_3d(&padded, pdims, radius);
+    let eroded = erode_3d(&dilated, pdims, radius);
+    let (closed, _) = super::crop_border_3d(&eroded, pdims, radius);
+    closed
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

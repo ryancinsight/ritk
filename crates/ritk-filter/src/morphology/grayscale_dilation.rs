@@ -87,6 +87,30 @@ impl GrayscaleDilation {
 
         Ok(rebuild(dilated, dims, image))
     }
+
+    /// Coeus-native sister of [`GrayscaleDilation::apply`].
+    ///
+    /// Runs the identical `(2r+1)³` cubic-neighbourhood maximum (replicate
+    /// boundary) via the shared [`dilate_3d`] host core on the image's contiguous
+    /// host buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            dilate_3d(vals, dims, self.radius)
+        })
+    }
 }
 
 // ── Core computation ──────────────────────────────────────────────────────────

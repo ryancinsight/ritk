@@ -32,6 +32,30 @@ impl HitOrMissTransform {
         let result = hit_or_miss_3d(&vals, dims, self.fg_radius, self.bg_radius);
         Ok(rebuild(result, dims, image))
     }
+
+    /// Coeus-native sister of [`HitOrMissTransform::apply`].
+    ///
+    /// Runs the identical `(M ⊖ SE1) ∧ (Mᶜ ⊖ SE2)` transform via the shared
+    /// [`hit_or_miss_3d`] host core on the image's contiguous host buffer, so the
+    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            hit_or_miss_3d(vals, dims, self.fg_radius, self.bg_radius)
+        })
+    }
 }
 
 /// True if the offset addresses a **degenerate (size-1) axis** off its only

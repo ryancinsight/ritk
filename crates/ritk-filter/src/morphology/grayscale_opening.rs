@@ -84,19 +84,47 @@ impl GrayscaleOpeningFilter {
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-
-        // O_B(f) = D_B(E_B(f)) with ITK's safe border: replicate-pad by `radius`,
-        // run the erode/dilate pair on the padded volume, then crop. This keeps
-        // the border band bit-exact to sitk.GrayscaleMorphologicalOpening
-        // (naive erode→dilate diverges within `radius` of the edge).
-        let r = self.radius;
-        let (padded, pdims) = super::pad_replicate_3d(&vals, dims, r);
-        let eroded = erode_3d(&padded, pdims, r);
-        let dilated = dilate_3d(&eroded, pdims, r);
-        let (opened, _) = super::crop_border_3d(&dilated, pdims, r);
-
+        let opened = open_3d(&vals, dims, self.radius);
         Ok(rebuild(opened, dims, image))
     }
+
+    /// Coeus-native sister of [`GrayscaleOpeningFilter::apply`].
+    ///
+    /// Runs the identical safe-border erode→dilate opening via the shared
+    /// [`open_3d`] host core on the image's contiguous host buffer, so the result
+    /// is bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            open_3d(vals, dims, self.radius)
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`GrayscaleOpeningFilter`].
+///
+/// `O_B(f) = D_B(E_B(f))` with ITK's safe border: replicate-pad by `radius`,
+/// run the erode/dilate pair on the padded volume, then crop. This keeps the
+/// border band bit-exact to `sitk.GrayscaleMorphologicalOpening` (naive
+/// erode→dilate diverges within `radius` of the edge).
+pub(crate) fn open_3d(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
+    let (padded, pdims) = super::pad_replicate_3d(vals, dims, radius);
+    let eroded = erode_3d(&padded, pdims, radius);
+    let dilated = dilate_3d(&eroded, pdims, radius);
+    let (opened, _) = super::crop_border_3d(&dilated, pdims, radius);
+    opened
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

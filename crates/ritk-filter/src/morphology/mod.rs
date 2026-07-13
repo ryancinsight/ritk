@@ -112,6 +112,10 @@ pub use iterate_structure::{iterate_structure, iterate_structure_with_origin, Bo
 pub mod types;
 pub use types::ForegroundValue;
 
+#[cfg(test)]
+#[path = "tests_native_grayscale.rs"]
+mod tests_native_grayscale;
+
 /// True if voxel `(iz, iy, ix)` lies on the image border, **ignoring degenerate
 /// (size-1) axes**.
 ///

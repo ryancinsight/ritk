@@ -74,3 +74,6 @@ pub use trig::{
     CosImageFilter, SinImageFilter, TanImageFilter,
 };
 pub use zero_crossing::ZeroCrossingImageFilter;
+
+#[cfg(test)]
+mod tests_native;
