@@ -94,19 +94,49 @@ impl GrayscaleMorphologicalGradientFilter {
     /// possible with non-f32 backends).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-
-        let dilated = dilate_3d(&vals, dims, self.radius);
-        let eroded = erode_3d(&vals, dims, self.radius);
-
-        // gradient(x) = dilation(x) - erosion(x); ≥ 0 by extensivity / anti-extensivity.
-        let gradient: Vec<f32> = dilated
-            .into_iter()
-            .zip(eroded)
-            .map(|(d, e)| d - e)
-            .collect();
-
+        let gradient = gradient_vec(&vals, dims, self.radius);
         Ok(rebuild(gradient, dims, image))
     }
+
+    /// Coeus-native sister of [`GrayscaleMorphologicalGradientFilter::apply`].
+    ///
+    /// Runs the identical Beucher gradient (`dilate − erode` over a cubic SE)
+    /// via the shared [`gradient_vec`] host core on the image's contiguous host
+    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let radius = self.radius;
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            gradient_vec(vals, dims, radius)
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`GrayscaleMorphologicalGradientFilter`].
+///
+/// `grad(x) = dilate_B(f)(x) − erode_B(f)(x)` over the flat cubic SE of the
+/// given `radius` (replicate padding). Non-negative by extensivity /
+/// anti-extensivity.
+pub(crate) fn gradient_vec(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
+    let dilated = dilate_3d(vals, dims, radius);
+    let eroded = erode_3d(vals, dims, radius);
+    dilated
+        .into_iter()
+        .zip(eroded)
+        .map(|(d, e)| d - e)
+        .collect()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

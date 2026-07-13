@@ -100,6 +100,32 @@ impl CurvatureAnisotropicDiffusionFilter {
 
         Ok(rebuild(result, dims, image))
     }
+
+    /// Coeus-native sister of [`CurvatureAnisotropicDiffusionFilter::apply`].
+    ///
+    /// Runs the identical ITK `CurvatureNDAnisotropicDiffusionFunction` (MCDE)
+    /// explicit Euler PDE (double-buffered on a flat host array) via the shared
+    /// [`curvature_diffuse`] host core, so the result is bitwise-identical to the
+    /// Burn path. No Burn tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let sp = image.spacing();
+        let spacing = [sp[0], sp[1], sp[2]];
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            curvature_diffuse(vals, dims, spacing, &self.config)
+        })
+    }
 }
 
 // ── Core computation (ITK CurvatureNDAnisotropicDiffusionFunction) ────────────
@@ -244,3 +270,42 @@ fn curvature_diffuse(
 #[cfg(test)]
 #[path = "tests_curvature.rs"]
 mod tests;
+
+#[cfg(test)]
+mod tests_native {
+    use super::{CurvatureAnisotropicDiffusionFilter, CurvatureConfig};
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn matches_burn() {
+        let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 13) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| {
+                CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig::default())
+                    .apply(img)
+                    .expect("burn curvature diffusion")
+            },
+            |img, backend| {
+                CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig::default())
+                    .apply_native(img, backend)
+            },
+        );
+    }
+
+    #[test]
+    fn oracle_constant_field_preserved() {
+        let img = make_native_image(vec![5.0f32; 27], [3, 3, 3]);
+        let out = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig::default())
+            .apply_native(&img, &SequentialBackend)
+            .expect("native curvature diffusion");
+        for &v in &native_vals(&out) {
+            assert!(
+                (v - 5.0).abs() < 1e-5,
+                "constant field must be preserved, got {v}"
+            );
+        }
+    }
+}

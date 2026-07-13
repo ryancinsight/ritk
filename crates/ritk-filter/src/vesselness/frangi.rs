@@ -103,21 +103,53 @@ impl FrangiVesselnessFilter {
     /// Returns an error if the tensor dtype is not `f32` or if the input is
     /// degenerate (fewer than 1 voxel per dimension).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        // ── Extract voxel data ────────────────────────────────────────────────
         let (vals_vec, dims) = extract_vec(image)?;
-        let vals = &vals_vec;
         let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
+        let vesselness_max = self.compute(&vals_vec, dims, spacing);
+        Ok(rebuild(vesselness_max, dims, image))
+    }
 
+    /// Coeus-native sister of [`FrangiVesselnessFilter::apply`].
+    ///
+    /// Runs the identical multi-scale Frangi vesselness (recursive-Gaussian
+    /// Hessian + eigen-analysis, max over scales) via the shared [`compute`]
+    /// host core on the image's contiguous host buffer, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata is preserved.
+    ///
+    /// [`compute`]: FrangiVesselnessFilter::compute
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            self.compute(vals, dims, spacing)
+        })
+    }
+
+    /// Substrate-agnostic host core: per-voxel maximum Frangi vesselness over all
+    /// configured scales, on a flat `[nz, ny, nx]` buffer. Shared single source
+    /// of truth for the Burn [`apply`](Self::apply) and Coeus-native
+    /// [`apply_native`](Self::apply_native) paths.
+    fn compute(&self, vals: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
         let n = dims[0] * dims[1] * dims[2];
         let mut vesselness_max = vec![0.0f32; n];
 
-        // ── Max over scales ───────────────────────────────────────────────────
         for &sigma in &self.config.scales {
             // Compute Hessian via second-order Deriche IIR recursion —
             // matching ITK HessianRecursiveGaussianImageFilter.
             let hessians = compute_hessian_iir(vals, dims, spacing, sigma);
 
-            // Compute Frangi vesselness at every voxel.
             let hessians_ref = &hessians;
             moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
                 &mut vesselness_max,
@@ -136,9 +168,7 @@ impl FrangiVesselnessFilter {
                 },
             );
         }
-
-        // ── Rebuild image ─────────────────────────────────────────────────────
-        Ok(rebuild(vesselness_max, dims, image))
+        vesselness_max
     }
 
     /// Evaluate the Frangi vesselness measure for a single voxel.
@@ -296,3 +326,39 @@ pub(crate) fn gaussian_blur_vec(
 #[cfg(test)]
 #[path = "tests_frangi.rs"]
 mod tests_frangi;
+
+#[cfg(test)]
+mod tests_native {
+    use super::{FrangiConfig, FrangiVesselnessFilter};
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn matches_burn() {
+        let vals: Vec<f32> = (0..210).map(|i| ((i * 5) % 23) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [5, 6, 7],
+            |img| {
+                FrangiVesselnessFilter::new(FrangiConfig::default())
+                    .apply(img)
+                    .expect("burn frangi")
+            },
+            |img, backend| {
+                FrangiVesselnessFilter::new(FrangiConfig::default()).apply_native(img, backend)
+            },
+        );
+    }
+
+    #[test]
+    fn oracle_constant_field_zero_response() {
+        // Hessian of a constant field is zero → zero vesselness everywhere.
+        let img = make_native_image(vec![9.0f32; 343], [7, 7, 7]);
+        let out = FrangiVesselnessFilter::new(FrangiConfig::default())
+            .apply_native(&img, &SequentialBackend)
+            .expect("native frangi");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 0.0, "constant field must give zero vesselness");
+        }
+    }
+}

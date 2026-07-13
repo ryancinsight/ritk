@@ -75,6 +75,30 @@ impl HistogramEqualizationFilter {
 
         Ok(rebuild(out, dims, image))
     }
+
+    /// Coeus-native sister of [`HistogramEqualizationFilter::apply`].
+    ///
+    /// Runs the identical global histogram equalization via the shared
+    /// [`histogram_equalize_global`] host core on the image's contiguous host
+    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, _dims| {
+            histogram_equalize_global(vals, self.bins)
+        })
+    }
 }
 
 // â”€â”€ Internal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

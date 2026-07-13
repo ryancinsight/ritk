@@ -88,16 +88,7 @@ impl<B: Backend> GaussianFilter<B> {
                 continue;
             }
 
-            // Calculate kernel
-            let pixel_sigma = sigma / spacing_val;
-            let radius = (3.0 * pixel_sigma).ceil() as usize;
-            let mut width = (2 * radius + 1).min(self.max_kernel_width);
-            if width.is_multiple_of(2) {
-                width -= 1;
-            }
-            let actual_radius = (width - 1) / 2;
-
-            let kernel = self.generate_kernel(pixel_sigma, actual_radius);
+            let kernel = axis_kernel(sigma, spacing_val, self.max_kernel_width);
             let kernel_tensor = Tensor::<B, 1>::from_floats(kernel.as_slice(), &device);
 
             // Convolve along dimension d
@@ -106,8 +97,53 @@ impl<B: Backend> GaussianFilter<B> {
         data
     }
 
-    fn generate_kernel(&self, sigma: f64, radius: usize) -> Vec<f32> {
-        crate::gaussian_kernel(sigma as f32, Some(radius))
+    /// Coeus-native sister of [`GaussianFilter::apply`] for 3-D images.
+    ///
+    /// Runs the identical separable zero-padded Gaussian smoothing as the Burn
+    /// [`apply`](Self::apply) path — the same per-axis [`axis_kernel`] builder
+    /// (shared SSOT for the kernel) and the same zero (constant-0) boundary
+    /// convolution that Burn's `conv1d(padding = k/2)` performs — via the pure
+    /// host core [`convolve_zero_pad_3d`]. No Burn tensor is constructed;
+    /// spatial metadata is preserved.
+    ///
+    /// The result matches the Burn path to a derived floating-point tolerance
+    /// (not bitwise): both evaluate the same separable zero-pad convolution with
+    /// the same kernels, but Burn's `conv1d` and this host core sum the taps in
+    /// different orders, so results differ only by accumulation rounding
+    /// (`O(width · ε · ‖I‖∞)` per axis; see the differential tests).
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<C>(
+        &self,
+        image: &ritk_image::native::Image<f32, C, 3>,
+        backend: &C,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, C, 3>>
+    where
+        C: coeus_core::ComputeBackend,
+        C::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
+        let sigmas: [f64; 3] = std::array::from_fn(|d| {
+            if d < self.sigmas.len() {
+                self.sigmas[d].get()
+            } else {
+                self.sigmas[0].get()
+            }
+        });
+        let max_w = self.max_kernel_width;
+        crate::native_support::map_flat_image(image, backend, move |vals, dims| {
+            let mut data = vals.to_vec();
+            for d in 0..3 {
+                if sigmas[d] <= 1e-6 || dims[d] <= 1 {
+                    continue;
+                }
+                let kernel = axis_kernel(sigmas[d], spacing[d], max_w);
+                data = convolve_zero_pad_3d(&data, dims, d, &kernel);
+            }
+            data
+        })
     }
 
     fn convolve_1d<const D: usize>(
@@ -200,6 +236,75 @@ impl<B: Backend> GaussianFilter<B> {
     }
 }
 
+/// Build the 1-D Gaussian smoothing kernel for one axis.
+///
+/// Shared SSOT for the per-axis kernel used by both the Burn
+/// [`GaussianFilter::apply`] path and the Coeus-native
+/// [`GaussianFilter::apply_native`] path, so both convolve with identical
+/// coefficients. The pixel-space sigma is `sigma_phys / spacing`; the kernel
+/// half-width is `⌈3·pixel_sigma⌉` capped at `max_kernel_width` and forced odd,
+/// then the coefficients are the normalised sampled Gaussian
+/// ([`crate::gaussian_kernel`]).
+fn axis_kernel(sigma_phys: f64, spacing: f64, max_kernel_width: usize) -> Vec<f32> {
+    let pixel_sigma = sigma_phys / spacing;
+    let radius = (3.0 * pixel_sigma).ceil() as usize;
+    let mut width = (2 * radius + 1).min(max_kernel_width);
+    if width.is_multiple_of(2) {
+        width -= 1;
+    }
+    let actual_radius = (width - 1) / 2;
+    crate::gaussian_kernel(pixel_sigma as f32, Some(actual_radius))
+}
+
+/// Convolve a flat C-order `[nz, ny, nx]` volume along `dim` with `kernel`,
+/// using zero (constant-0) boundary padding.
+///
+/// This reproduces Burn `conv1d` with `padding = kernel.len() / 2`: for output
+/// position `p`, `out[p] = Σ_k in[p − r + k] · kernel[k]` with `r = k/2` and any
+/// out-of-range tap treated as `0`. The kernel is applied as correlation;
+/// Gaussian kernels are symmetric, so this equals convolution. Zero padding
+/// darkens boundary voxels (a constant field is *not* preserved at the edge),
+/// matching the Burn Gaussian filter exactly in contract.
+pub(crate) fn convolve_zero_pad_3d(
+    data: &[f32],
+    dims: [usize; 3],
+    dim: usize,
+    kernel: &[f32],
+) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    let r = (kernel.len() / 2) as isize;
+    let (stride, len) = match dim {
+        0 => (ny * nx, nz),
+        1 => (nx, ny),
+        2 => (1, nx),
+        _ => unreachable!("3-D volume has axes 0..=2"),
+    };
+    let stride_i = stride as isize;
+    let len_i = len as isize;
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |idx| {
+        // Position of this voxel along `dim`, and the flat offset of its line start.
+        let p = match dim {
+            0 => idx / (ny * nx),
+            1 => (idx % (ny * nx)) / nx,
+            _ => idx % nx,
+        } as isize;
+        let base = idx as isize - p * stride_i;
+        let mut acc = 0.0f32;
+        for (k, &w) in kernel.iter().enumerate() {
+            let sp = p + k as isize - r;
+            if sp >= 0 && sp < len_i {
+                acc += data[(base + sp * stride_i) as usize] * w;
+            }
+        }
+        acc
+    })
+}
+
 #[cfg(test)]
 #[path = "tests_gaussian.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests_gaussian_native.rs"]
+mod tests_native;

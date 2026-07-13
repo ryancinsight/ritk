@@ -90,6 +90,30 @@ impl GrayscaleFillholeFilter {
 
         Ok(rebuild(filled, dims, image))
     }
+
+    /// Coeus-native sister of [`GrayscaleFillholeFilter::apply`].
+    ///
+    /// Runs the identical minimax-path fill-hole via the shared [`fill_holes_3d`]
+    /// host core on the image's contiguous host buffer, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            fill_holes_3d(vals, dims)
+        })
+    }
 }
 
 // ── Core computation ──────────────────────────────────────────────────────────
@@ -107,7 +131,7 @@ impl GrayscaleFillholeFilter {
 /// - `h[x] >= I[x]` for all x: holes can only be raised.
 /// - `h[b] = I[b]` for all border voxels b.
 /// - Output length = `nz * ny * nx`.
-fn fill_holes_3d(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
+pub(crate) fn fill_holes_3d(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
 

@@ -5,15 +5,23 @@
 //! `native_support::assert_native_matches_burn`). A handful of analytical
 //! oracles pin the mathematical contract independent of the Burn reference.
 
-use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+use crate::native_support::{
+    assert_native_matches_burn, assert_native_matches_burn_pair, make_native_image, native_vals,
+};
 use coeus_core::SequentialBackend;
 
+use super::adaptive_equalization::AdaptiveHistogramEqualizationFilter;
 use super::bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPolicy};
 use super::binary_threshold::BinaryThresholdImageFilter;
+use super::clamp::ClampImageFilter;
+use super::equalization::HistogramEqualizationFilter;
+use super::mask::{MaskImageFilter, MaskNegatedImageFilter, MaskedAssignImageFilter};
 use super::rescale::RescaleIntensityFilter;
+use super::shift_scale::ShiftScaleImageFilter;
 use super::sigmoid::SigmoidImageFilter;
 use super::threshold::ThresholdImageFilter;
 use super::windowing::IntensityWindowingFilter;
+use super::zero_crossing::ZeroCrossingImageFilter;
 
 fn ramp(n: usize) -> Vec<f32> {
     (0..n).map(|i| i as f32).collect()
@@ -264,6 +272,253 @@ mod binary_threshold {
             let inside = (6.0..=18.0).contains(&(i as f32));
             let expected = if inside { 1.0 } else { 0.0 };
             assert_eq!(v, expected, "binary indicator wrong at {i}");
+        }
+    }
+}
+
+// ── Clamp ─────────────────────────────────────────────────────────────────────
+
+mod clamp {
+    use super::*;
+
+    #[test]
+    fn matches_burn() {
+        assert_native_matches_burn(
+            ramp(60),
+            [3, 4, 5],
+            |img| {
+                ClampImageFilter::new(10.0, 40.0)
+                    .apply(img)
+                    .expect("burn clamp")
+            },
+            |img, backend| ClampImageFilter::new(10.0, 40.0).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_projects_into_interval() {
+        let img = make_native_image(ramp(60), [3, 4, 5]);
+        let out = ClampImageFilter::new(10.0, 40.0)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native clamp");
+        for (i, &v) in native_vals(&out).iter().enumerate() {
+            assert_eq!(v, (i as f32).clamp(10.0, 40.0), "clamp wrong at {i}");
+        }
+    }
+}
+
+// ── Shift-scale ───────────────────────────────────────────────────────────────
+
+mod shift_scale {
+    use super::*;
+
+    #[test]
+    fn matches_burn() {
+        assert_native_matches_burn(
+            ramp(24),
+            [2, 3, 4],
+            |img| {
+                ShiftScaleImageFilter::new(-5.0, 0.5)
+                    .apply(img)
+                    .expect("burn shift-scale")
+            },
+            |img, backend| ShiftScaleImageFilter::new(-5.0, 0.5).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_affine() {
+        let img = make_native_image(ramp(24), [2, 3, 4]);
+        let out = ShiftScaleImageFilter::new(-5.0, 0.5)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native shift-scale");
+        for (i, &v) in native_vals(&out).iter().enumerate() {
+            assert_eq!(
+                v,
+                ((i as f64 - 5.0) * 0.5) as f32,
+                "shift-scale wrong at {i}"
+            );
+        }
+    }
+}
+
+// ── Mask (two-input) ──────────────────────────────────────────────────────────
+
+mod mask {
+    use super::*;
+
+    fn mask_pattern(n: usize) -> Vec<f32> {
+        (0..n).map(|i| if i % 2 == 0 { 1.0 } else { 0.0 }).collect()
+    }
+
+    #[test]
+    fn matches_burn_mask() {
+        assert_native_matches_burn_pair(
+            ramp(24),
+            mask_pattern(24),
+            [2, 3, 4],
+            |img, m| {
+                MaskImageFilter::new()
+                    .with_outside_value(-1.0)
+                    .apply(img, m)
+                    .expect("burn mask")
+            },
+            |img, m, backend| {
+                MaskImageFilter::new()
+                    .with_outside_value(-1.0)
+                    .apply_native(img, m, backend)
+            },
+        );
+    }
+
+    #[test]
+    fn matches_burn_mask_negated() {
+        assert_native_matches_burn_pair(
+            ramp(24),
+            mask_pattern(24),
+            [2, 3, 4],
+            |img, m| {
+                MaskNegatedImageFilter::new()
+                    .with_outside_value(-1.0)
+                    .apply(img, m)
+                    .expect("burn mask negated")
+            },
+            |img, m, backend| {
+                MaskNegatedImageFilter::new()
+                    .with_outside_value(-1.0)
+                    .apply_native(img, m, backend)
+            },
+        );
+    }
+
+    #[test]
+    fn matches_burn_masked_assign() {
+        assert_native_matches_burn_pair(
+            ramp(24),
+            mask_pattern(24),
+            [2, 3, 4],
+            |img, m| {
+                MaskedAssignImageFilter::new(99.0)
+                    .apply(img, m)
+                    .expect("burn masked assign")
+            },
+            |img, m, backend| MaskedAssignImageFilter::new(99.0).apply_native(img, m, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_indicator() {
+        let dims = [2, 3, 4];
+        let img = make_native_image(ramp(24), dims);
+        let m = make_native_image(mask_pattern(24), dims);
+        let out = MaskImageFilter::new()
+            .with_outside_value(-1.0)
+            .apply_native(&img, &m, &SequentialBackend)
+            .expect("native mask");
+        for (i, &v) in native_vals(&out).iter().enumerate() {
+            let expected = if i % 2 == 0 { i as f32 } else { -1.0 };
+            assert_eq!(v, expected, "mask indicator wrong at {i}");
+        }
+    }
+}
+
+// ── Zero-crossing ─────────────────────────────────────────────────────────────
+
+mod zero_crossing {
+    use super::*;
+
+    #[test]
+    fn matches_burn() {
+        // A sign-changing field so crossings actually occur.
+        let vals: Vec<f32> = (0..60).map(|i| i as f32 - 29.5).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| {
+                ZeroCrossingImageFilter::new()
+                    .apply(img)
+                    .expect("burn zero-crossing")
+            },
+            |img, backend| ZeroCrossingImageFilter::new().apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_constant_has_no_crossings() {
+        // A constant (non-zero) field can never sign-change: output all background.
+        let img = make_native_image(vec![3.0f32; 27], [3, 3, 3]);
+        let out = ZeroCrossingImageFilter::new()
+            .apply_native(&img, &SequentialBackend)
+            .expect("native zero-crossing");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 0.0, "constant field must yield no zero crossings");
+        }
+    }
+}
+
+// ── Histogram equalization ────────────────────────────────────────────────────
+
+mod equalization {
+    use super::*;
+
+    #[test]
+    fn matches_burn() {
+        let vals: Vec<f32> = (0..64).map(|i| (i * 3 % 17) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [4, 4, 4],
+            |img| {
+                HistogramEqualizationFilter::new(32)
+                    .apply(img)
+                    .expect("burn equalize")
+            },
+            |img, backend| HistogramEqualizationFilter::new(32).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_uniform_stays_uniform() {
+        // A single-value field has span 0 → identity (module invariant).
+        let img = make_native_image(vec![7.0f32; 64], [4, 4, 4]);
+        let out = HistogramEqualizationFilter::new(32)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native equalize");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 7.0, "uniform field must be unchanged");
+        }
+    }
+}
+
+// ── Adaptive (Stark) equalization ─────────────────────────────────────────────
+
+mod adaptive_equalization {
+    use super::*;
+
+    #[test]
+    fn matches_burn() {
+        let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 13) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| {
+                AdaptiveHistogramEqualizationFilter::new([1, 1, 1])
+                    .apply(img)
+                    .expect("burn adaptive")
+            },
+            |img, backend| {
+                AdaptiveHistogramEqualizationFilter::new([1, 1, 1]).apply_native(img, backend)
+            },
+        );
+    }
+
+    #[test]
+    fn oracle_constant_is_identity() {
+        let img = make_native_image(vec![5.0f32; 27], [3, 3, 3]);
+        let out = AdaptiveHistogramEqualizationFilter::new([1, 1, 1])
+            .apply_native(&img, &SequentialBackend)
+            .expect("native adaptive");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 5.0, "constant field must be identity");
         }
     }
 }

@@ -111,6 +111,32 @@ impl SatoLineFilter {
 
         Ok(rebuild(response, dims, image))
     }
+
+    /// Coeus-native sister of [`SatoLineFilter::apply`].
+    ///
+    /// Runs the identical multi-scale Sato line response (Hessian eigen-analysis
+    /// via recursive-Gaussian derivatives) through the shared
+    /// [`compute_sato_multiscale`] host core on the image's contiguous host
+    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            compute_sato_multiscale(vals, dims, spacing, &self.config)
+        })
+    }
 }
 
 // ── Core computation ──────────────────────────────────────────────────────────
@@ -231,3 +257,38 @@ fn sato_response(eigenvalues: [f32; 3], alpha: f64, polarity: VesselPolarity) ->
 #[cfg(test)]
 #[path = "tests_sato.rs"]
 mod tests;
+
+#[cfg(test)]
+mod tests_native {
+    use super::{SatoConfig, SatoLineFilter};
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn matches_burn() {
+        let vals: Vec<f32> = (0..210).map(|i| ((i * 5) % 23) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [5, 6, 7],
+            |img| {
+                SatoLineFilter::new(SatoConfig::default())
+                    .apply(img)
+                    .expect("burn sato")
+            },
+            |img, backend| SatoLineFilter::new(SatoConfig::default()).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_constant_field_zero_response() {
+        // The Hessian of a constant field is zero → all eigenvalues zero →
+        // vesselness response is exactly zero everywhere.
+        let img = make_native_image(vec![9.0f32; 343], [7, 7, 7]);
+        let out = SatoLineFilter::new(SatoConfig::default())
+            .apply_native(&img, &SequentialBackend)
+            .expect("native sato");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 0.0, "constant field must give zero line response");
+        }
+    }
+}

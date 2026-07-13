@@ -93,16 +93,54 @@ impl MorphologicalReconstruction {
             );
         }
 
-        let current: Vec<f32> = match self.mode {
-            ReconstructionMode::Dilation => {
-                hybrid_reconstruct::<Dilation>(&marker_vals, &mask_vals, dims, self.connectivity)
-            }
-            ReconstructionMode::Erosion => {
-                hybrid_reconstruct::<Erosion>(&marker_vals, &mask_vals, dims, self.connectivity)
-            }
-        };
+        let current = self.reconstruct_flat(&marker_vals, &mask_vals, dims);
 
         Ok(rebuild(current, dims, marker))
+    }
+
+    /// Substrate-agnostic host core: Vincent hybrid reconstruction dispatched on
+    /// [`ReconstructionMode`]. Shared single source of truth for the Burn
+    /// [`apply`](Self::apply) and Coeus-native [`apply_native`](Self::apply_native)
+    /// paths; `marker` and `mask` must be the same length as `dims`'s product.
+    pub(crate) fn reconstruct_flat(
+        &self,
+        marker: &[f32],
+        mask: &[f32],
+        dims: [usize; 3],
+    ) -> Vec<f32> {
+        match self.mode {
+            ReconstructionMode::Dilation => {
+                hybrid_reconstruct::<Dilation>(marker, mask, dims, self.connectivity)
+            }
+            ReconstructionMode::Erosion => {
+                hybrid_reconstruct::<Erosion>(marker, mask, dims, self.connectivity)
+            }
+        }
+    }
+
+    /// Coeus-native sister of [`MorphologicalReconstruction::apply`].
+    ///
+    /// Runs the identical Vincent hybrid reconstruction via the shared
+    /// [`reconstruct_flat`](Self::reconstruct_flat) host core on both images'
+    /// contiguous host buffers, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Output geometry comes from `marker`.
+    ///
+    /// # Errors
+    /// Returns an error on shape mismatch, non-contiguous buffers, or failed
+    /// shape validation of the rebuilt image.
+    pub fn apply_native<B>(
+        &self,
+        marker: &ritk_image::native::Image<f32, B, 3>,
+        mask: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_pair(marker, mask, backend, |m, i, dims| {
+            self.reconstruct_flat(m, i, dims)
+        })
     }
 }
 

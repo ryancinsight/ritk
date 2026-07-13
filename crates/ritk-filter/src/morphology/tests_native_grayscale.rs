@@ -238,3 +238,212 @@ fn hit_or_miss_matches_burn() {
         |img, backend| HitOrMissTransform::new(1, 1).apply_native(img, backend),
     );
 }
+
+// ── Morphological gradient / Laplacian (added: native path) ─────────────────────
+
+mod gradient_and_laplace {
+    use super::*;
+    use crate::morphology::{GrayscaleMorphologicalGradientFilter, MorphologicalLaplacian};
+
+    #[test]
+    fn gradient_matches_burn() {
+        let dims = [4usize, 5, 6];
+        assert_native_matches_burn(
+            scattered(dims),
+            dims,
+            |img| {
+                GrayscaleMorphologicalGradientFilter::new(1)
+                    .apply(img)
+                    .expect("burn gradient")
+            },
+            |img, backend| GrayscaleMorphologicalGradientFilter::new(1).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_gradient_of_constant_is_zero() {
+        let img = make_native_image(vec![4.0f32; 27], [3, 3, 3]);
+        let out = GrayscaleMorphologicalGradientFilter::new(1)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native gradient");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 0.0, "gradient of a constant field must be zero");
+        }
+    }
+
+    #[test]
+    fn laplace_matches_burn() {
+        let dims = [4usize, 5, 6];
+        assert_native_matches_burn(
+            scattered(dims),
+            dims,
+            |img| {
+                MorphologicalLaplacian::new(1)
+                    .apply(img)
+                    .expect("burn laplace")
+            },
+            |img, backend| MorphologicalLaplacian::new(1).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_laplace_of_constant_is_zero() {
+        let img = make_native_image(vec![4.0f32; 27], [3, 3, 3]);
+        let out = MorphologicalLaplacian::new(1)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native laplace");
+        for &v in &native_vals(&out) {
+            assert_eq!(
+                v, 0.0,
+                "morphological Laplacian of a constant field must be zero"
+            );
+        }
+    }
+}
+
+// ── Fill-hole (grayscale + binary) ──────────────────────────────────────────────
+
+mod fillhole {
+    use super::*;
+    use crate::morphology::{BinaryFillholeFilter, GrayscaleFillholeFilter};
+
+    /// A bright wall enclosing one dark interior voxel (a hole).
+    fn walled_pit() -> ([usize; 3], Vec<f32>) {
+        let dims = [3usize, 3, 3];
+        let mut v = vec![10.0f32; 27];
+        v[13] = 0.0; // centre voxel is the pit
+        (dims, v)
+    }
+
+    #[test]
+    fn grayscale_matches_burn() {
+        let (dims, v) = walled_pit();
+        assert_native_matches_burn(
+            v,
+            dims,
+            |img| {
+                GrayscaleFillholeFilter::new()
+                    .apply(img)
+                    .expect("burn fillhole")
+            },
+            |img, backend| GrayscaleFillholeFilter::new().apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_grayscale_raises_pit() {
+        let (dims, v) = walled_pit();
+        let img = make_native_image(v, dims);
+        let out = GrayscaleFillholeFilter::new()
+            .apply_native(&img, &SequentialBackend)
+            .expect("native fillhole");
+        // The enclosed pit is raised to the surrounding wall level (10).
+        assert_eq!(
+            native_vals(&out)[13],
+            10.0,
+            "enclosed pit must be filled to wall level"
+        );
+    }
+
+    #[test]
+    fn binary_matches_burn() {
+        let (dims, v) = walled_pit();
+        // Binary image: wall = 1, pit = 0.
+        let bin: Vec<f32> = v.iter().map(|&x| if x > 5.0 { 1.0 } else { 0.0 }).collect();
+        assert_native_matches_burn(
+            bin,
+            dims,
+            |img| {
+                BinaryFillholeFilter::new()
+                    .apply(img)
+                    .expect("burn binary fillhole")
+            },
+            |img, backend| BinaryFillholeFilter::new().apply_native(img, backend),
+        );
+    }
+}
+
+// ── Voting binary ──────────────────────────────────────────────────────────────
+
+mod voting_binary {
+    use super::*;
+    use crate::morphology::VotingBinaryImageFilter;
+
+    #[test]
+    fn matches_burn() {
+        let dims = [4usize, 4, 4];
+        let n = dims[0] * dims[1] * dims[2];
+        let vals: Vec<f32> = (0..n).map(|i| if i % 3 == 0 { 1.0 } else { 0.0 }).collect();
+        assert_native_matches_burn(
+            vals,
+            dims,
+            |img| {
+                VotingBinaryImageFilter::default()
+                    .apply(img)
+                    .expect("burn voting")
+            },
+            |img, backend| VotingBinaryImageFilter::default().apply_native(img, backend),
+        );
+    }
+}
+
+// ── Geodesic reconstruction (two-input) + reconstruction opening/closing ────────
+
+mod reconstruction {
+    use super::*;
+    use crate::morphology::{
+        ClosingByReconstructionFilter, GrayscaleGeodesicDilationFilter,
+        OpeningByReconstructionFilter,
+    };
+    use crate::native_support::assert_native_matches_burn_pair;
+
+    #[test]
+    fn geodesic_dilation_matches_burn() {
+        let dims = [3usize, 4, 5];
+        let n = dims[0] * dims[1] * dims[2];
+        let mask: Vec<f32> = (0..n).map(|i| ((i * 11) % 19) as f32).collect();
+        // Marker ≤ mask (dilation reconstruction precondition).
+        let marker: Vec<f32> = mask.iter().map(|&m| m * 0.5).collect();
+        assert_native_matches_burn_pair(
+            marker,
+            mask,
+            dims,
+            |mk, ms| {
+                GrayscaleGeodesicDilationFilter::new()
+                    .apply(mk, ms)
+                    .expect("burn geodesic")
+            },
+            |mk, ms, backend| GrayscaleGeodesicDilationFilter::new().apply_native(mk, ms, backend),
+        );
+    }
+
+    #[test]
+    fn opening_by_reconstruction_matches_burn() {
+        let dims = [4usize, 5, 6];
+        assert_native_matches_burn(
+            scattered(dims),
+            dims,
+            |img| {
+                OpeningByReconstructionFilter::new(1)
+                    .apply(img)
+                    .expect("burn OBR")
+            },
+            |img, backend| OpeningByReconstructionFilter::new(1).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn closing_by_reconstruction_matches_burn() {
+        let dims = [4usize, 5, 6];
+        assert_native_matches_burn(
+            scattered(dims),
+            dims,
+            |img| {
+                ClosingByReconstructionFilter::new(1)
+                    .apply(img)
+                    .expect("burn CBR")
+            },
+            |img, backend| ClosingByReconstructionFilter::new(1).apply_native(img, backend),
+        );
+    }
+}

@@ -82,6 +82,31 @@ impl BinaryFillholeFilter {
 
         Ok(rebuild(result, dims, image))
     }
+
+    /// Coeus-native sister of [`BinaryFillholeFilter::apply`].
+    ///
+    /// Runs the identical 6-connected BFS hole fill via the shared
+    /// [`fill_holes_3d`] host core on the image's contiguous host buffer, so the
+    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let fg = self.foreground_value;
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            fill_holes_3d(vals, dims, fg)
+        })
+    }
 }
 
 impl Default for BinaryFillholeFilter {
@@ -107,7 +132,7 @@ impl Default for BinaryFillholeFilter {
 /// - `output[i] ∈ {fg, 0.0}`.
 /// - `f(i) == fg ⇒ output[i] == fg` (extensivity).
 /// - `i ∈ E ⇒ output[i] == 0.0` (external bg preserved).
-fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue) -> Vec<f32> {
+pub(crate) fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let fg: f32 = fg.into();

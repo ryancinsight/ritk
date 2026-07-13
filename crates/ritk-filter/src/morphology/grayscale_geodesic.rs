@@ -84,6 +84,26 @@ impl GrayscaleGeodesicDilationFilter {
     ) -> anyhow::Result<Image<B, 3>> {
         self.inner.apply(marker, mask)
     }
+
+    /// Coeus-native sister of [`GrayscaleGeodesicDilationFilter::apply`].
+    ///
+    /// Delegates to the native [`MorphologicalReconstruction::apply_native`],
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    ///
+    /// # Errors
+    /// Returns an error on shape mismatch or non-contiguous buffers.
+    pub fn apply_native<B>(
+        &self,
+        marker: &ritk_image::native::Image<f32, B, 3>,
+        mask: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        self.inner.apply_native(marker, mask, backend)
+    }
 }
 
 // ── GrayscaleGeodesicErosionFilter ───────────────────────────────────────────
@@ -135,6 +155,26 @@ impl GrayscaleGeodesicErosionFilter {
         mask: &Image<B, 3>,
     ) -> anyhow::Result<Image<B, 3>> {
         self.inner.apply(marker, mask)
+    }
+
+    /// Coeus-native sister of [`GrayscaleGeodesicErosionFilter::apply`].
+    ///
+    /// Delegates to the native [`MorphologicalReconstruction::apply_native`],
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    ///
+    /// # Errors
+    /// Returns an error on shape mismatch or non-contiguous buffers.
+    pub fn apply_native<B>(
+        &self,
+        marker: &ritk_image::native::Image<f32, B, 3>,
+        mask: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        self.inner.apply_native(marker, mask, backend)
     }
 }
 

@@ -170,6 +170,35 @@ impl<K: ConductanceKernel> AnisotropicDiffusionFilter<K> {
 
         Ok(rebuild(result, dims, image))
     }
+
+    /// Coeus-native sister of [`AnisotropicDiffusionFilter::apply`].
+    ///
+    /// Runs the identical explicit-Euler Perona–Malik PDE (double-buffered on a
+    /// flat host array) via the shared [`diffuse`] host core, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let spacing = [
+            image.spacing()[0] as f32,
+            image.spacing()[1] as f32,
+            image.spacing()[2] as f32,
+        ];
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            diffuse::<K>(vals, dims, spacing, &self.config)
+        })
+    }
 }
 
 // ── Backward-compatible non-generic entry point ──────────────────────────────
@@ -193,6 +222,39 @@ impl DiffusionConfig {
             }
         };
         Ok(rebuild(result, dims, image))
+    }
+
+    /// Coeus-native sister of [`DiffusionConfig::apply`].
+    ///
+    /// Dispatches to the conductance kernel selected in `self.function` and runs
+    /// the shared [`diffuse`] host core, bitwise-identical to the Burn path. No
+    /// Burn tensor is constructed.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let spacing = [
+            image.spacing()[0] as f32,
+            image.spacing()[1] as f32,
+            image.spacing()[2] as f32,
+        ];
+        crate::native_support::map_flat_image(image, backend, |vals, dims| match self.function {
+            ConductanceFunction::Exponential => {
+                diffuse::<ExponentialConductance>(vals, dims, spacing, self)
+            }
+            ConductanceFunction::Quadratic => {
+                diffuse::<QuadraticConductance>(vals, dims, spacing, self)
+            }
+        })
     }
 }
 
@@ -280,3 +342,40 @@ fn diffuse<K: ConductanceKernel>(
 #[cfg(test)]
 #[path = "tests_perona_malik.rs"]
 mod tests;
+
+#[cfg(test)]
+mod tests_native {
+    use super::DiffusionConfig;
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn matches_burn() {
+        let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 13) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| {
+                DiffusionConfig::default()
+                    .apply(img)
+                    .expect("burn diffusion")
+            },
+            |img, backend| DiffusionConfig::default().apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_constant_field_preserved() {
+        // Zero gradients everywhere → zero flux → the field is a fixed point.
+        let img = make_native_image(vec![5.0f32; 27], [3, 3, 3]);
+        let out = DiffusionConfig::default()
+            .apply_native(&img, &SequentialBackend)
+            .expect("native diffusion");
+        for &v in &native_vals(&out) {
+            assert!(
+                (v - 5.0).abs() < 1e-5,
+                "constant field must be preserved, got {v}"
+            );
+        }
+    }
+}

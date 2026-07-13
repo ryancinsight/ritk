@@ -72,68 +72,102 @@ impl ZeroCrossingImageFilter {
     /// Apply to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals_vec, dims) = extract_vec_infallible(image);
-        let vals = &vals_vec;
-        let [nz, ny, nx] = dims;
+        let out = zero_crossing_vec(
+            &vals_vec,
+            dims,
+            f32::from(self.foreground_value),
+            self.background_value,
+        );
+        Ok(rebuild(out, dims, image))
+    }
 
-        let idx = |iz: usize, iy: usize, ix: usize| iz * ny * nx + iy * nx + ix;
-
+    /// Coeus-native sister of [`ZeroCrossingImageFilter::apply`].
+    ///
+    /// Runs the identical 6-connected sign-change detection via the shared
+    /// [`zero_crossing_vec`] host core on the image's contiguous host buffer, so
+    /// the result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let fg = f32::from(self.foreground_value);
         let bg = self.background_value;
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            zero_crossing_vec(vals, dims, fg, bg)
+        })
+    }
+}
 
-        let mut out = vec![bg; nz * ny * nx];
+/// Substrate-agnostic host core for [`ZeroCrossingImageFilter`].
+///
+/// Emits `fg` at every voxel that is the near-zero side of a 6-connected sign
+/// change and `bg` elsewhere (see the module-level ITK-parity specification).
+/// Out-of-bounds neighbours are ignored.
+pub(crate) fn zero_crossing_vec(vals: &[f32], dims: [usize; 3], fg: f32, bg: f32) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let idx = |iz: usize, iy: usize, ix: usize| iz * ny * nx + iy * nx + ix;
+    let mut out = vec![bg; nz * ny * nx];
 
-        for iz in 0..nz {
-            for iy in 0..ny {
-                for ix in 0..nx {
-                    let v = vals[idx(iz, iy, ix)];
-                    // ITK ZeroCrossingImageFilter: a voxel is a crossing if its
-                    // sign differs from a 6-connected neighbour (opposite signs, or
-                    // exactly one of the two is zero) AND it is the side *closer to
-                    // zero* (`|v| < |nv|` strictly; an exact-magnitude tie is broken
-                    // toward the forward `+` neighbour via `<=`). An exact zero is
-                    // NOT a crossing on its own — only when it has a non-zero
-                    // neighbour (otherwise flat zero regions, e.g. the Laplacian of
-                    // constant background, would be marked wholesale).
-                    let in_b = |z: isize, y: isize, x: isize| {
-                        z >= 0
-                            && y >= 0
-                            && x >= 0
-                            && z < nz as isize
-                            && y < ny as isize
-                            && x < nx as isize
-                    };
-                    // Sign change: opposite signs, or exactly one operand is zero.
-                    let sign_change = |a: f32, b: f32| (a * b < 0.0) || ((a == 0.0) != (b == 0.0));
-                    let av = v.abs();
-                    let mut crosses = false;
-                    // axis offsets: (dz, dy, dx)
-                    for &(dz, dy, dx) in &[(1isize, 0isize, 0isize), (0, 1, 0), (0, 0, 1)] {
-                        let (fz, fy, fx) = (iz as isize + dz, iy as isize + dy, ix as isize + dx);
-                        if in_b(fz, fy, fx) {
-                            let nv = vals[idx(fz as usize, fy as usize, fx as usize)];
-                            if sign_change(v, nv) && av <= nv.abs() {
-                                crosses = true;
-                                break;
-                            }
-                        }
-                        let (bz, by, bx) = (iz as isize - dz, iy as isize - dy, ix as isize - dx);
-                        if in_b(bz, by, bx) {
-                            let nv = vals[idx(bz as usize, by as usize, bx as usize)];
-                            if sign_change(v, nv) && av < nv.abs() {
-                                crosses = true;
-                                break;
-                            }
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let v = vals[idx(iz, iy, ix)];
+                // ITK ZeroCrossingImageFilter: a voxel is a crossing if its
+                // sign differs from a 6-connected neighbour (opposite signs, or
+                // exactly one of the two is zero) AND it is the side *closer to
+                // zero* (`|v| < |nv|` strictly; an exact-magnitude tie is broken
+                // toward the forward `+` neighbour via `<=`). An exact zero is
+                // NOT a crossing on its own — only when it has a non-zero
+                // neighbour (otherwise flat zero regions, e.g. the Laplacian of
+                // constant background, would be marked wholesale).
+                let in_b = |z: isize, y: isize, x: isize| {
+                    z >= 0
+                        && y >= 0
+                        && x >= 0
+                        && z < nz as isize
+                        && y < ny as isize
+                        && x < nx as isize
+                };
+                // Sign change: opposite signs, or exactly one operand is zero.
+                let sign_change = |a: f32, b: f32| (a * b < 0.0) || ((a == 0.0) != (b == 0.0));
+                let av = v.abs();
+                let mut crosses = false;
+                // axis offsets: (dz, dy, dx)
+                for &(dz, dy, dx) in &[(1isize, 0isize, 0isize), (0, 1, 0), (0, 0, 1)] {
+                    let (fz, fy, fx) = (iz as isize + dz, iy as isize + dy, ix as isize + dx);
+                    if in_b(fz, fy, fx) {
+                        let nv = vals[idx(fz as usize, fy as usize, fx as usize)];
+                        if sign_change(v, nv) && av <= nv.abs() {
+                            crosses = true;
+                            break;
                         }
                     }
-                    if crosses {
-                        out[idx(iz, iy, ix)] = fg;
+                    let (bz, by, bx) = (iz as isize - dz, iy as isize - dy, ix as isize - dx);
+                    if in_b(bz, by, bx) {
+                        let nv = vals[idx(bz as usize, by as usize, bx as usize)];
+                        if sign_change(v, nv) && av < nv.abs() {
+                            crosses = true;
+                            break;
+                        }
                     }
+                }
+                if crosses {
+                    out[idx(iz, iy, ix)] = fg;
                 }
             }
         }
-
-        Ok(rebuild(out, dims, image))
     }
+    out
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

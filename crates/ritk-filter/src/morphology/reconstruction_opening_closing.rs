@@ -65,6 +65,30 @@ impl OpeningByReconstructionFilter {
             .with_connectivity(self.connectivity)
             .apply(&marker, image)
     }
+
+    /// Coeus-native sister of [`OpeningByReconstructionFilter::apply`].
+    ///
+    /// Composes the native grayscale erosion (marker) with the native dilation
+    /// reconstruction under `image`, both bitwise-identical to their Burn
+    /// counterparts. No Burn tensor is constructed.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or a rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let marker = GrayscaleErosion::new(self.radius).apply_native(image, backend)?;
+        MorphologicalReconstruction::new(ReconstructionMode::Dilation)
+            .with_connectivity(self.connectivity)
+            .apply_native(&marker, image, backend)
+    }
 }
 
 /// Closing by reconstruction: `R^ε_f(δ_B(f))`.
@@ -96,6 +120,30 @@ impl ClosingByReconstructionFilter {
         MorphologicalReconstruction::new(ReconstructionMode::Erosion)
             .with_connectivity(self.connectivity)
             .apply(&marker, image)
+    }
+
+    /// Coeus-native sister of [`ClosingByReconstructionFilter::apply`].
+    ///
+    /// Composes the native grayscale dilation (marker) with the native erosion
+    /// reconstruction under `image`, both bitwise-identical to their Burn
+    /// counterparts. No Burn tensor is constructed.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or a rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let marker = GrayscaleDilation::new(self.radius).apply_native(image, backend)?;
+        MorphologicalReconstruction::new(ReconstructionMode::Erosion)
+            .with_connectivity(self.connectivity)
+            .apply_native(&marker, image, backend)
     }
 }
 

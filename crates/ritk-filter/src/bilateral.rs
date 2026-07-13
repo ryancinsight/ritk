@@ -169,6 +169,32 @@ impl BilateralFilter {
         );
         Ok(rebuild(filtered, dims, image))
     }
+
+    /// Coeus-native sister of [`BilateralFilter::apply`].
+    ///
+    /// Runs the identical joint spatial/range kernel via the shared [`compute`]
+    /// host core on the image's contiguous host buffer, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let spatial = self.spatial_sigma.get();
+        let range = self.range_sigma.get();
+        crate::native_support::map_flat_image(image, backend, |data, dims| {
+            compute(data, dims, spatial, range)
+        })
+    }
 }
 
 /// Minimum sigma value to prevent division-by-zero in bilateral weighting.
@@ -305,3 +331,41 @@ fn compute(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64)
 #[cfg(test)]
 #[path = "tests_bilateral.rs"]
 mod tests;
+
+#[cfg(test)]
+mod tests_native {
+    use super::BilateralFilter;
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn matches_burn() {
+        let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 11) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| {
+                BilateralFilter::new(1.5, 2.0)
+                    .apply(img)
+                    .expect("burn bilateral")
+            },
+            |img, backend| BilateralFilter::new(1.5, 2.0).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_constant_field_preserved() {
+        // Weighted average of equal values is that value: a constant is a fixed
+        // point of the bilateral filter regardless of the kernel weights.
+        let img = make_native_image(vec![6.0f32; 27], [3, 3, 3]);
+        let out = BilateralFilter::new(1.5, 2.0)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native bilateral");
+        for &v in &native_vals(&out) {
+            assert!(
+                (v - 6.0).abs() < 1e-4,
+                "constant field must be preserved, got {v}"
+            );
+        }
+    }
+}
