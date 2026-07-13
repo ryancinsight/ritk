@@ -1,10 +1,14 @@
-use burn_ndarray::NdArray;
+//! Coordinate mapping tests migrated to the Atlas-native (Coeus) path.
+//!
+//! Tensor-batch transform (`world_to_index_tensor`) is excluded pending
+//! native-Image implementation of `world_to_index_tensor` (ADR 0002).
+
+use coeus_core::SequentialBackend;
 use proptest::prelude::*;
-use ritk_core::image::Image;
-use ritk_image::tensor::Tensor;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type Backend = NdArray<f32>;
+type Backend = SequentialBackend;
 const D: usize = 3;
 
 fn make_rotation(angle_x: f64, angle_y: f64, angle_z: f64) -> Direction<D> {
@@ -22,6 +26,22 @@ fn make_rotation(angle_x: f64, angle_y: f64, angle_z: f64) -> Direction<D> {
     rx * ry * rz
 }
 
+fn make_image(
+    origin: Point<D>,
+    spacing: Spacing<D>,
+    direction: Direction<D>,
+) -> Image<f32, Backend, D> {
+    Image::from_flat_on(
+        vec![0.0f32; 2 * 2 * 2],
+        [2, 2, 2],
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("valid image")
+}
+
 proptest! {
     #[test]
     fn test_coordinate_roundtrip(
@@ -32,15 +52,10 @@ proptest! {
         az in -std::f64::consts::PI..std::f64::consts::PI,
         px in -50.0f64..50.0, py in -50.0f64..50.0, pz in -50.0f64..50.0
     ) {
-        let device = Default::default();
-        // Use minimal data tensor as we don't access it
-        let data = Tensor::<Backend, D>::zeros([2, 2, 2], &device);
-
         let origin = Point::<D>::new([ox, oy, oz]);
         let spacing = Spacing::<D>::new([sx, sy, sz]);
         let direction = make_rotation(ax, ay, az);
-
-        let image = Image::new(data, origin, spacing, direction);
+        let image = make_image(origin, spacing, direction);
         let point = Point::<D>::new([px, py, pz]);
 
         let index = image.transform_physical_point_to_continuous_index(&point);
@@ -49,36 +64,5 @@ proptest! {
         prop_assert!((point[0] - recovered[0]).abs() < 1e-4, "X mismatch: {} vs {}", point[0], recovered[0]);
         prop_assert!((point[1] - recovered[1]).abs() < 1e-4, "Y mismatch: {} vs {}", point[1], recovered[1]);
         prop_assert!((point[2] - recovered[2]).abs() < 1e-4, "Z mismatch: {} vs {}", point[2], recovered[2]);
-    }
-
-    #[test]
-    fn test_tensor_batch_consistency(
-        ox in -10.0f64..10.0,
-        sx in 0.5f64..2.0,
-        px in -10.0f64..10.0
-    ) {
-        // Simplified test for tensor ops (single dimension effectively for simplicity in proptest setup)
-        // We manually construct 3D inputs from these scalars
-        let device = Default::default();
-        let data = Tensor::<Backend, D>::zeros([2, 2, 2], &device);
-
-        let origin = Point::<D>::new([ox, ox, ox]);
-        let spacing = Spacing::<D>::new([sx, sx, sx]);
-        let direction = Direction::<D>::identity();
-
-        let image = Image::new(data, origin, spacing, direction);
-
-        let point_val = Point::<D>::new([px, px, px]);
-        let index_val = image.transform_physical_point_to_continuous_index(&point_val);
-
-        // Tensor op
-        let points_tensor = Tensor::<Backend, 2>::from_floats([[px as f32, px as f32, px as f32]], &device);
-        let indices_tensor = image.world_to_index_tensor(points_tensor);
-        let indices_data = indices_tensor.into_data();
-        let indices_slice = indices_data.as_slice::<f32>().unwrap();
-
-        prop_assert!((indices_slice[0] - index_val[0] as f32).abs() < 1e-4);
-        prop_assert!((indices_slice[1] - index_val[1] as f32).abs() < 1e-4);
-        prop_assert!((indices_slice[2] - index_val[2] as f32).abs() < 1e-4);
     }
 }

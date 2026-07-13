@@ -318,4 +318,33 @@ pub mod native {
             direction_row_major(image.direction()),
         )
     }
+
+    /// Write a Coeus-backed image to a NIfTI-2 single-file stream.
+    ///
+    /// NIfTI-2 counterpart of [`write_nifti`] — same spatial encoding, larger
+    /// header (vox_offset=544).
+    pub fn write_nifti2<B, P>(
+        path: P,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> Result<()>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+        P: AsRef<Path>,
+    {
+        let voxels = image.data_cow_on(backend);
+        let origin = image.origin();
+        let spacing = image.spacing();
+
+        write_flat_with_version(
+            HeaderVersion::Two,
+            path.as_ref(),
+            &voxels,
+            image.shape(),
+            [origin[0], origin[1], origin[2]],
+            [spacing[0], spacing[1], spacing[2]],
+            direction_row_major(image.direction()),
+        )
+    }
 }

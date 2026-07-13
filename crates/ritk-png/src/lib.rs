@@ -229,14 +229,13 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 
 #[cfg(test)]
 mod tests {
-    use super::{natural_cmp, read_png_series, read_png_to_image};
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::backend::Backend;
+    use super::natural_cmp;
+    use coeus_core::SequentialBackend;
     use std::cmp::Ordering;
     use std::path::Path;
     use tempfile::tempdir;
 
-    type TestBackend = NdArray<f32>;
+    type TestBackend = SequentialBackend;
 
     fn write_gray_png(path: &Path, width: u32, height: u32, pixels: &[u8]) {
         let image = image::GrayImage::from_raw(width, height, pixels.to_vec())
@@ -244,8 +243,8 @@ mod tests {
         image.save(path).expect("test PNG write must succeed");
     }
 
-    fn tensor_values(image: &ritk_core::image::Image<TestBackend, 3>) -> Vec<f32> {
-        image.data_slice().into_owned()
+    fn tensor_values(image: &ritk_image::native::Image<f32, TestBackend, 3>) -> Vec<f32> {
+        image.data_slice().expect("contiguous image data").to_vec()
     }
 
     #[test]
@@ -254,8 +253,8 @@ mod tests {
         let path = dir.path().join("slice.png");
         write_gray_png(&path, 3, 2, &[10, 20, 30, 40, 50, 60]);
 
-        let device: <TestBackend as Backend>::Device = Default::default();
-        let image = read_png_to_image::<TestBackend, _>(&path, &device)?;
+        let backend = SequentialBackend;
+        let image = crate::native::read_png_to_image(&path, &backend)?;
 
         assert_eq!(image.shape(), [1, 2, 3]);
         assert_eq!(
@@ -282,8 +281,8 @@ mod tests {
         write_gray_png(&dir.path().join("slice2.png"), 2, 1, &[2, 3]);
         write_gray_png(&dir.path().join("slice1.png"), 2, 1, &[1, 4]);
 
-        let device: <TestBackend as Backend>::Device = Default::default();
-        let image = read_png_series::<TestBackend, _>(dir.path(), &device)?;
+        let backend = SequentialBackend;
+        let image = crate::native::read_png_series(dir.path(), &backend)?;
 
         assert_eq!(image.shape(), [3, 1, 2]);
         assert_eq!(tensor_values(&image), vec![1.0, 4.0, 2.0, 3.0, 10.0, 11.0]);
@@ -297,8 +296,8 @@ mod tests {
         write_gray_png(&dir.path().join("slice1.png"), 2, 1, &[1, 2]);
         write_gray_png(&dir.path().join("slice2.png"), 1, 1, &[3]);
 
-        let device: <TestBackend as Backend>::Device = Default::default();
-        let result = read_png_series::<TestBackend, _>(dir.path(), &device);
+        let backend = SequentialBackend;
+        let result = crate::native::read_png_series(dir.path(), &backend);
         let msg = match result {
             Ok(_) => panic!("mismatched PNG dimensions must fail"),
             Err(err) => format!("{err:?}"),
@@ -326,9 +325,9 @@ mod tests {
         let dir = tempdir()?;
         let single = dir.path().join("slice.png");
         write_gray_png(&single, 3, 2, &[10, 20, 30, 40, 50, 60]);
-        let device: <TestBackend as Backend>::Device = Default::default();
+        let backend = SequentialBackend;
 
-        let burn = read_png_to_image::<TestBackend, _>(&single, &device)?;
+        let burn = crate::native::read_png_to_image(&single, &backend)?;
         let coeus = crate::native::read_png_to_image(&single, &SequentialBackend)?;
         assert_eq!(coeus.shape(), burn.shape());
         assert_eq!(coeus.data_slice()?, tensor_values(&burn).as_slice());
@@ -336,7 +335,7 @@ mod tests {
         let series_dir = tempdir()?;
         write_gray_png(&series_dir.path().join("s1.png"), 2, 1, &[1, 4]);
         write_gray_png(&series_dir.path().join("s2.png"), 2, 1, &[2, 3]);
-        let burn_series = read_png_series::<TestBackend, _>(series_dir.path(), &device)?;
+        let burn_series = crate::native::read_png_series(series_dir.path(), &backend)?;
         let coeus_series = crate::native::read_png_series(series_dir.path(), &SequentialBackend)?;
         assert_eq!(coeus_series.shape(), burn_series.shape());
         assert_eq!(

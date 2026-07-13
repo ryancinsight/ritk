@@ -1,12 +1,19 @@
-use crate::{write_metaimage, MetaImageWriter};
+use crate::native;
 use anyhow::Result;
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_image::Image;
+use coeus_core::SequentialBackend;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
-type TestBackend = NdArray<f32>;
+use ritk_image::native::Image;
+
+type TestBackend = SequentialBackend;
+
+fn make_image(data: Vec<f32>, dims: [usize; 3], origin: ritk_spatial::Point<3>,
+    spacing: ritk_spatial::Spacing<3>, direction: ritk_spatial::Direction<3>)
+    -> Image<f32, TestBackend, 3> {
+    Image::from_flat_on(data, dims, origin, spacing, direction, &SequentialBackend)
+        .expect("valid image")
+}
 
 // ── Header content ─────────────────────────────────────────────────────
 
@@ -35,18 +42,14 @@ fn payload_values(bytes: &[u8]) -> Vec<f32> {
 fn test_header_fields_present() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("header_check.mha");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = SequentialBackend;
 
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![1.0f32; 2 * 3 * 4], Shape::new([2, 3, 4])),
-        &device,
-    );
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = make_image(vec![1.0f32; 2 * 3 * 4], [2, 3, 4], origin, spacing, direction);
 
-    write_metaimage(&path, &image)?;
+    native::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
 
@@ -78,21 +81,18 @@ fn test_header_fields_present() -> Result<()> {
 fn test_dimsize_written_in_xyz_order() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("dimsize.mha");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = SequentialBackend;
 
     // RITK shape [nz=2, ny=3, nx=4]
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![0.0f32; 2 * 3 * 4], Shape::new([2, 3, 4])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
+    let image = make_image(
+        vec![0.0f32; 2 * 3 * 4],
+        [2, 3, 4],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     );
 
-    write_metaimage(&path, &image)?;
+    native::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -108,17 +108,17 @@ fn test_dimsize_written_in_xyz_order() -> Result<()> {
 fn test_spatial_metadata_in_header() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("spatial.mha");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = SequentialBackend;
 
-    let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
-    let image = Image::new(
-        tensor,
+    let image = make_image(
+        vec![0.0f32; 2 * 2 * 2],
+        [2, 2, 2],
         Point::new([10.5, 20.25, 30.125]),
         Spacing::new([0.9, 0.75, 1.5]),
         Direction::identity(),
     );
 
-    write_metaimage(&path, &image)?;
+    native::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -141,17 +141,17 @@ fn test_spatial_metadata_in_header() -> Result<()> {
 fn test_internal_identity_direction_written_as_file_axis_reorder() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("identity_direction.mha");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = SequentialBackend;
 
-    let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
-    let image = Image::new(
-        tensor,
+    let image = make_image(
+        vec![0.0f32; 2 * 2 * 2],
+        [2, 2, 2],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     );
 
-    write_metaimage(&path, &image)?;
+    native::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -168,25 +168,22 @@ fn test_internal_identity_direction_written_as_file_axis_reorder() -> Result<()>
 fn test_payload_size_correct() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("payload.mha");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = SequentialBackend;
 
     let nz = 3usize;
     let ny = 4usize;
     let nx = 5usize;
     let n_voxels = nz * ny * nx;
 
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![1.0f32; n_voxels], Shape::new([nz, ny, nx])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
+    let image = make_image(
+        vec![1.0f32; n_voxels],
+        [nz, ny, nx],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     );
 
-    write_metaimage(&path, &image)?;
+    native::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     let expected_payload_bytes = n_voxels * 4;
@@ -213,24 +210,21 @@ fn test_payload_size_correct() -> Result<()> {
 fn test_payload_values_written_without_permutation() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("payload_values.mha");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = SequentialBackend;
 
     let nz = 2usize;
     let ny = 2usize;
     let nx = 3usize;
     let values: Vec<f32> = (0..(nz * ny * nx)).map(|value| value as f32).collect();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(values.clone(), Shape::new([nz, ny, nx])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
+    let image = make_image(
+        values.clone(),
+        [nz, ny, nx],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     );
 
-    write_metaimage(&path, &image)?;
+    native::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert_eq!(payload_values(&bytes), values);
@@ -243,18 +237,17 @@ fn test_payload_values_written_without_permutation() -> Result<()> {
 fn test_writer_struct_creates_file() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("writer_struct.mha");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = SequentialBackend;
 
-    let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
-    let image = Image::new(
-        tensor,
+    let image = make_image(
+        vec![0.0f32; 2 * 2 * 2],
+        [2, 2, 2],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     );
 
-    let writer = MetaImageWriter;
-    writer.write(&path, &image)?;
+    native::write_metaimage(&path, &image, &backend)?;
 
     assert!(path.exists(), "output file must exist after write");
     assert!(
@@ -270,9 +263,8 @@ fn test_writer_struct_creates_file() -> Result<()> {
 fn test_non_identity_direction_reordered_in_header() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("rotated.mha");
-    let device: <TestBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let backend = SequentialBackend;
 
-    let tensor = Tensor::<TestBackend, 3>::zeros([2, 2, 2], &device);
     // 90-degree rotation around Z: X→Y, Y→−X, Z→Z
     let mut direction = Direction::zeros();
     direction[(0, 0)] = 0.0;
@@ -285,14 +277,15 @@ fn test_non_identity_direction_reordered_in_header() -> Result<()> {
     direction[(2, 1)] = 0.0;
     direction[(2, 2)] = 1.0;
 
-    let image = Image::new(
-        tensor,
+    let image = make_image(
+        vec![0.0f32; 2 * 2 * 2],
+        [2, 2, 2],
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         direction,
     );
 
-    write_metaimage(&path, &image)?;
+    native::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     // ITK MetaImage TransformMatrix is row-major with each row an axis direction
@@ -306,7 +299,7 @@ fn test_non_identity_direction_reordered_in_header() -> Result<()> {
     );
 
     // Round-trip: reading the written file must recover the exact direction.
-    let read_back = crate::read_metaimage::<TestBackend, _>(&path, &device)?;
+    let read_back = crate::native::read_metaimage(&path, &backend)?;
     let got = read_back.direction().0;
     for i in 0..3 {
         for j in 0..3 {
