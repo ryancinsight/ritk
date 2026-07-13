@@ -6,6 +6,11 @@ use ritk_image::tensor::{Shape, Tensor};
 use ritk_spatial::Spacing;
 use ritk_wgpu_compat::apply_row_chunks;
 
+/// Default Gaussian kernel half-extent cap (`radius·2 + 1`), bounding the
+/// per-axis convolution cost. Shared by [`GaussianFilter::new`] and the
+/// burn-free [`gaussian_smooth_flat_3d`] entry so both smooth identically.
+pub const DEFAULT_MAX_KERNEL_WIDTH: usize = 32;
+
 /// Gaussian smoothing filter.
 ///
 /// Applies a Gaussian smoothing filter to an image using separable 1D convolutions.
@@ -34,7 +39,7 @@ impl<B: Backend> GaussianFilter<B> {
     pub fn new(sigmas: Vec<GaussianSigma>) -> Self {
         Self {
             sigmas,
-            max_kernel_width: 32, // Default max kernel width to prevent excessive computation
+            max_kernel_width: DEFAULT_MAX_KERNEL_WIDTH,
             _b: std::marker::PhantomData,
         }
     }
@@ -259,6 +264,23 @@ fn axis_kernel(sigma_phys: f64, spacing: f64, max_kernel_width: usize) -> Vec<f3
 /// bitwise): both evaluate the same kernels but sum the taps in different orders
 /// (`conv1d` vs this correlation), differing only by accumulation rounding
 /// (`O(width · ε · ‖I‖∞)` per axis).
+/// Burn-free separable Gaussian smoothing of a flat z-major 3-D volume — the
+/// public entry to the [`GaussianFilter::apply_native`] host core for callers
+/// operating directly on flat host buffers (no Burn backend, no native `Image`
+/// construction). Physical `sigmas`/`spacing` per axis; uses the shared
+/// [`DEFAULT_MAX_KERNEL_WIDTH`], so the result matches [`GaussianFilter::apply`]
+/// to the same derived accumulation-rounding tolerance as `apply_native`.
+#[must_use]
+pub fn gaussian_smooth_flat_3d(
+    vals: &[f32],
+    dims: [usize; 3],
+    sigmas: [GaussianSigma; 3],
+    spacing: [f64; 3],
+) -> Vec<f32> {
+    let sig = [sigmas[0].get(), sigmas[1].get(), sigmas[2].get()];
+    gaussian_smooth_native_flat(vals, dims, sig, spacing, DEFAULT_MAX_KERNEL_WIDTH)
+}
+
 pub(crate) fn gaussian_smooth_native_flat(
     vals: &[f32],
     dims: [usize; 3],
