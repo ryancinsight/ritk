@@ -18,13 +18,6 @@ jobs:
         with:
           path: ritk
           persist-credentials: false
-          persist-credentials: false
-          persist-credentials: false
-          persist-credentials: false
-          persist-credentials: false
-          persist-credentials: false
-          persist-credentials: false
-          persist-credentials: false
       - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain with rustfmt
