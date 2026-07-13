@@ -7,7 +7,7 @@ use anyhow::{bail, Result};
 use pyo3::prelude::*;
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_to_vec, PyImage};
+use crate::image::{with_image_pair_slices, PyImage};
 
 /// Pearson r = cov(a,b) / (std_a · std_b + ε).
 pub(super) fn ncc_slices(a: &[f32], b: &[f32]) -> Result<f64> {
@@ -43,16 +43,21 @@ pub(super) fn ncc_slices(a: &[f32], b: &[f32]) -> Result<f64> {
 /// # Formula
 /// NCC = Σ(aᵢ−ā)(bᵢ−b̄) / (N·σ_a·σ_b + ε)
 #[pyfunction]
-pub fn compute_ncc(fixed: &PyImage, moving: &PyImage) -> RitkResult<f64> {
-    let (a, shape_a) = image_to_vec(&fixed.inner);
-    let (b, shape_b) = image_to_vec(&moving.inner);
+pub fn compute_ncc(py: Python<'_>, fixed: &PyImage, moving: &PyImage) -> RitkResult<f64> {
+    let shape_a = fixed.inner.shape();
+    let shape_b = moving.inner.shape();
     if shape_a != shape_b {
         return Err(RitkPyError::value(format!(
             "shape mismatch: fixed {:?} != moving {:?}",
             shape_a, shape_b
         )));
     }
-    ncc_slices(&a, &b).map_err(|e| RitkPyError::runtime(e.to_string()))
+    let fixed = fixed.inner.clone();
+    let moving = moving.inner.clone();
+    py.allow_threads(move || {
+        with_image_pair_slices(&fixed, &moving, ncc_slices)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
 }
 
 #[cfg(test)]

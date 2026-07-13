@@ -202,6 +202,17 @@ pub(crate) fn with_image_slice<R, F: FnOnce(&[f32]) -> R>(image: &ScalarImage, f
     f(cow.as_ref())
 }
 
+/// Call `f` with logical row-major views of two native images.
+pub(crate) fn with_image_pair_slices<R, F: FnOnce(&[f32], &[f32]) -> R>(
+    first: &ScalarImage,
+    second: &ScalarImage,
+    f: F,
+) -> R {
+    with_image_slice(first, |first_values| {
+        with_image_slice(second, |second_values| f(first_values, second_values))
+    })
+}
+
 /// Wrap a legacy Burn-backed image result back into a `PyImage` by converting
 /// via a flat `Vec<f32>` round-trip. Used as the return adapter for burn-only
 /// filter algorithms that cannot yet operate on native Coeus images.
@@ -263,4 +274,30 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<crate::color::PyColorImage>()?;
     parent.add_submodule(&m)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn contiguous_image_pair_preserves_borrowed_storage() {
+        let image = vec_to_image(
+            vec![1.0, 2.0, 3.0, 4.0],
+            [1, 2, 2],
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        let storage = image
+            .data_slice()
+            .expect("contiguous image must expose its storage");
+
+        with_image_pair_slices(&image, &image, |first, second| {
+            assert_eq!(first, storage);
+            assert_eq!(second, storage);
+            assert_eq!(first.as_ptr(), storage.as_ptr());
+            assert_eq!(second.as_ptr(), storage.as_ptr());
+        });
+    }
 }

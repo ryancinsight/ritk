@@ -46,7 +46,8 @@
 - Bound both Python test workflows at 30 minutes and force explicitly parallel
   CMA-ES populations through Moirai's parallel policy rather than its
   1,024-element adaptive threshold; retain sparse fixed-image Parzen weights
-  behind shared ownership and bypass fixed-image interpolation on cache hits.
+  behind shared ownership, bypass fixed-image interpolation on cache hits, and
+  evaluate Python MSE/NCC directly over borrowed native storage outside the GIL.
 
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking

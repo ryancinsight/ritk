@@ -84,7 +84,14 @@ megabyte of sparse fixed-image Parzen weights per evaluation and repeated
 fixed-image coordinate conversion plus interpolation on cache hits. Sparse
 weights now use one shared allocation, with pointer-identity and exact-result
 regressions, and fixed sampling runs only on cache misses or uncached calls.
-The wheel job retains the 30-minute native CI bound.
+The next exact-head run completed tests 1-144 in 3 minutes 40 seconds, then
+spent the rest of the unchanged 30-minute job in test 145,
+`test_ncc_same_image_is_one_on_brain`. That wrapper materialized two owned
+full-volume vectors and retained the GIL even though native image storage is
+contiguous. MSE and NCC now share one borrowed image-pair boundary, release the
+GIL around their reductions, and a pointer-identity regression proves that
+contiguous inputs retain their original storage. The wheel job retains the
+30-minute native CI bound.
 The stronger
 alignment gate exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely

@@ -17,6 +17,7 @@
 - [x] Verify workspace loading and affected workflow contracts.
 - [x] Isolate PyO3 extension-module linkage to wheel builds and consolidate Python parity dependencies.
 - [x] Root-cause the over-hour wheel run and remove CMA-ES serial dispatch, sparse-cache cloning, and fixed cache-hit interpolation.
+- [x] Localize the residual timeout to full-brain NCC and remove its two full-image allocations and GIL retention.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
