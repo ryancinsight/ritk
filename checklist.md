@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-649-01 — Native Toboggan watershed
+**Target version**: 0.14.0 migration batch
+- [ ] Extract and validate the canonical flat Toboggan core.
+- [ ] Add exact legacy/native execution with geometry preservation.
+- [ ] Migrate PyO3 to the native owner and typed validation errors.
+- [ ] Preserve label-exact SimpleITK 2-D/3-D fixtures and add boundary regressions.
+- [ ] Run package gates, adversarial review, commit, and push.
+
 ## MIG-648-01 — Native morphological watershed composition
 **Target version**: 0.14.0 migration batch
 - [x] Audit and implement provider-owned native h-minima and regional-minima operations.
