@@ -38,9 +38,17 @@ jobs:
     name: Audit burn migration (xtask burn-migration-audit)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: ritk
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          path: ritk
+
+      - name: Checkout provider dependencies
+        uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -52,8 +60,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: cargo-ubuntu-latest-stable-${{ hashFiles('Cargo.lock') }}
+            ritk/target/
+          key: cargo-ubuntu-latest-stable-${{ hashFiles('ritk/Cargo.lock') }}
           restore-keys: |
             cargo-ubuntu-latest-stable-
 
@@ -69,5 +77,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ritk-burn-migration-audit-log
-          path: audit_log.txt
+          path: ritk/audit_log.txt
           if-no-files-found: warn

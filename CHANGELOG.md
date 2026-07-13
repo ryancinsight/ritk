@@ -8,6 +8,13 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 654: Restore CI dependency topology (MIG-654-01)
+### Fixed
+- Check out the exact sibling Rust provider graph before loading the RITK
+  workspace in CI and release jobs; replace the invalid embedded Python
+  dependency-alignment step with a tested Rust `xtask` command.
+- Run PyO3 Rust unit tests under the committed nextest timeout policy.
+
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking
 - Replace the mutable vector confidence-connected implementation and public

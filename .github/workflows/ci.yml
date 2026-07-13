@@ -10,8 +10,14 @@ jobs:
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ritk
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ritk
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain with rustfmt
         uses: dtolnay/rust-toolchain@stable
@@ -24,8 +30,14 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ritk
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ritk
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain with clippy
         uses: dtolnay/rust-toolchain@stable
@@ -39,53 +51,27 @@ jobs:
   dependency-alignment:
     name: Workspace Dependency Alignment
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ritk
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ritk
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Enforce workspace dependency inheritance
-        run: cargo metadata --format-version 1 --no-deps > /tmp/metadata.json && python - <<'PY'
-          import json
-          import pathlib
-          import sys
-
-          root = pathlib.Path.cwd()
-          metadata = json.loads(pathlib.Path("/tmp/metadata.json").read_text())
-          workspace_root = pathlib.Path(metadata["workspace_root"])
-          failures = []
-
-          for package in metadata["packages"]:
-              manifest_path = pathlib.Path(package["manifest_path"])
-              if manifest_path.parent == workspace_root:
-                  continue
-
-              text = manifest_path.read_text()
-              for dep in package["dependencies"]:
-                  source = dep.get("source")
-                  path = dep.get("path")
-                  if path is not None:
-                      continue
-                  if source is None:
-                      continue
-
-                  name = dep["name"]
-                  if f"{name} = {{ workspace = true" not in text and f"{name}={{ workspace = true" not in text:
-                      failures.append(f"{manifest_path.relative_to(workspace_root)}: dependency '{name}' is not inherited from workspace")
-
-          if failures:
-              print("Workspace dependency alignment check failed:")
-              for failure in failures:
-                  print(f" - {failure}")
-              sys.exit(1)
-
-          print("Workspace dependency alignment check passed.")
-          PY
+        run: cargo run -p xtask -- dependency-alignment
 
   test:
     name: Test Suite (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ritk
     timeout-minutes: 30
     needs: dependency-alignment
     strategy:
@@ -93,6 +79,9 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ritk
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -122,8 +111,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: cargo-${{ matrix.os }}-stable-${{ hashFiles('Cargo.lock') }}
+            ritk/target/
+          key: cargo-${{ matrix.os }}-stable-${{ hashFiles('ritk/Cargo.lock') }}
           restore-keys: |
             cargo-${{ matrix.os }}-stable-
 
@@ -133,9 +122,15 @@ jobs:
   python-wheel:
     name: Python Wheel (smoke test)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ritk
     needs: test
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ritk
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable

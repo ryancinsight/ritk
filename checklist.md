@@ -12,9 +12,9 @@
 **Owner**: Codex
 **Target version**: 0.14.0 migration batch
 - [x] Reproduce the merged GitHub failure and identify the missing sibling path dependency.
-- [ ] Inventory the complete transitive sibling repository graph and pinned revisions.
-- [ ] Consolidate dependency checkout into one reusable workflow component.
-- [ ] Verify workspace loading and affected workflow contracts.
+- [x] Inventory the complete transitive sibling repository graph and pinned revisions.
+- [x] Consolidate dependency checkout into one reusable workflow component.
+- [x] Verify workspace loading and affected workflow contracts.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

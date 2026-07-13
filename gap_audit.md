@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## MIG-654-01 audit (2026-07-13)
+
+The merged migration graph used eleven sibling path-dependent Rust repositories,
+but every GitHub workflow checked out only RITK. Cargo therefore failed before
+the migration audit or Python matrix could run. The Rust CI workflow also held
+an invalid multiline YAML scalar and did not schedule, while Python CI bypassed
+the committed nextest timeout policy.
+
+One composite action now pins and checks out the complete provider graph beside
+RITK, preserving the Cargo path topology across Linux, Windows, macOS, and the
+release container. All workspace-loading jobs consume that action. Dependency
+alignment is a value-reporting Rust `xtask` command; the complete existing
+manifest drift was corrected rather than hidden. Local evidence comprises YAML
+parsing, locked metadata, a clean migration audit, a passing alignment command,
+and 9/9 xtask plus 47/47 ritk-python nextest tests. GitHub matrix evidence remains
+pending until the fix-forward PR completes.
+
 ## MIG-653-01 audit (2026-07-13)
 
 Vector confidence-connected segmentation widened every channel into an owned
