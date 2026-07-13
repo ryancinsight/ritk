@@ -1,66 +1,87 @@
-use ritk_image::burn::{
-    module::Module,
-    tensor::{backend::Backend, Tensor},
-};
-use ritk_interpolation::tensor_trilinear::trilinear_interpolation;
-use std::marker::PhantomData;
+//! Spatial transformer (warp), Coeus-native.
+//!
+//! Warps a `[B, C, D, H, W]` volume by a dense voxel-space displacement field
+//! `[B, 3, D, H, W]` (channel order `(d, h, w)`), routing the resampling through
+//! the differentiable [`coeus_autograd::grid_sample_3d`] op (PyTorch
+//! `grid_sample` semantics: `align_corners = true`, zero padding, trilinear
+//! interpolation). Gradients flow to the displacement field through the sampling
+//! grid, which is the signal deformable-registration optimization requires.
 
-#[derive(Module, Debug)]
-pub struct SpatialTransformer<B: Backend> {
-    phantom: PhantomData<B>,
-}
+use coeus_autograd::{add, cat, grid_sample_3d, reshape, scalar_mul, slice, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_ops::BackendOps;
+use coeus_tensor::Tensor;
 
-impl<B: Backend> Default for SpatialTransformer<B> {
-    fn default() -> Self {
-        Self::new()
+/// Stateless differentiable warp (spatial transformer network).
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SpatialTransformer;
+
+impl SpatialTransformer {
+    /// Construct the (stateless) spatial transformer.
+    #[inline]
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
     }
-}
 
-impl<B: Backend> SpatialTransformer<B> {
-    pub fn new() -> Self {
-        Self {
-            phantom: PhantomData,
-        }
-    }
+    /// Warp `image` `[B, C, D, H, W]` by voxel displacement `flow`
+    /// `[B, 3, D, H, W]`, channel order `(d, h, w)`.
+    ///
+    /// # Panics
+    /// Panics if `image` is not rank-5 or `flow`'s shape is inconsistent with it.
+    pub fn forward<B>(&self, image: &Var<f32, B>, flow: &Var<f32, B>) -> Var<f32, B>
+    where
+        B: Backend + BackendOps<f32> + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        let sh = image.tensor.shape();
+        assert_eq!(sh.len(), 5, "SpatialTransformer expects a rank-5 image");
+        let (b, d, h, w) = (sh[0], sh[2], sh[3], sh[4]);
 
-    pub fn forward(&self, image: Tensor<B, 5>, flow: Tensor<B, 5>) -> Tensor<B, 5> {
-        // image: [B, C, D, H, W]
-        // flow: [B, 3, D, H, W]
+        // Per-axis voxel→normalized scale (align_corners): 2/(extent-1), or 0 for
+        // a singleton extent (its normalized center).
+        let scale = |extent: usize| -> f32 {
+            if extent > 1 {
+                2.0 / (extent - 1) as f32
+            } else {
+                0.0
+            }
+        };
+        let (sd, sh_, sw) = (scale(d), scale(h), scale(w));
 
-        let [b, _c, d, h, w] = image.dims();
-        let device = image.device();
+        // Displacement components as [B, D, H, W, 1] (channel order d, h, w).
+        let component = |ch: usize| {
+            let c = slice(flow, &[(0, b), (ch, ch + 1), (0, d), (0, h), (0, w)]);
+            reshape(&c, [b, d, h, w, 1])
+        };
+        let disp_d = scalar_mul(&component(0), sd);
+        let disp_h = scalar_mul(&component(1), sh_);
+        let disp_w = scalar_mul(&component(2), sw);
 
-        // 1. Split flow into components
-        // flow is [B, 3, D, H, W]
-        let flow_d = flow.clone().slice([0..b, 0..1, 0..d, 0..h, 0..w]);
-        let flow_h = flow.clone().slice([0..b, 1..2, 0..d, 0..h, 0..w]);
-        let flow_w = flow.slice([0..b, 2..3, 0..d, 0..h, 0..w]);
+        // Constant normalized voxel-center grids [1, D, H, W, 1] per axis.
+        let base = |axis_len: usize, axis: usize, s: f32| -> Var<f32, B> {
+            let mut data = vec![0.0f32; d * h * w];
+            let center = |i: usize, e: usize| if e > 1 { i as f32 * s - 1.0 } else { 0.0 };
+            for z in 0..d {
+                for y in 0..h {
+                    for x in 0..w {
+                        let coord = [z, y, x][axis];
+                        data[z * (h * w) + y * w + x] = center(coord, axis_len);
+                    }
+                }
+            }
+            Var::new(Tensor::from_slice_on([1, d, h, w, 1], &data, &B::default()), false)
+        };
+        let base_d = base(d, 0, sd);
+        let base_h = base(h, 1, sh_);
+        let base_w = base(w, 2, sw);
 
-        // 2. Create coordinate grids (small, broadcastable)
-        // D coords: [1, 1, D, 1, 1]
-        let d_range = Tensor::arange(0..d as i64, &device)
-            .float()
-            .reshape([1, 1, d, 1, 1]);
+        // grid_sample last-dim order is (x, y, z) → (W, H, D).
+        let grid_x = add(&base_w, &disp_w);
+        let grid_y = add(&base_h, &disp_h);
+        let grid_z = add(&base_d, &disp_d);
+        let grid = cat(&[&grid_x, &grid_y, &grid_z], 4);
 
-        // H coords: [1, 1, 1, H, 1]
-        let h_range = Tensor::arange(0..h as i64, &device)
-            .float()
-            .reshape([1, 1, 1, h, 1]);
-
-        // W coords: [1, 1, 1, 1, W]
-        let w_range = Tensor::arange(0..w as i64, &device)
-            .float()
-            .reshape([1, 1, 1, 1, w]);
-
-        // 3. Add flow to grid (Broadcasting avoids allocating full identity grid)
-        let sample_d = flow_d + d_range;
-        let sample_h = flow_h + h_range;
-        let sample_w = flow_w + w_range;
-
-        // 4. Stack back to [B, 3, D, H, W] for interpolation
-        let sampling_grid = Tensor::cat(vec![sample_d, sample_h, sample_w], 1);
-
-        // 5. Interpolate
-        trilinear_interpolation(image, sampling_grid)
+        grid_sample_3d(image, &grid)
     }
 }

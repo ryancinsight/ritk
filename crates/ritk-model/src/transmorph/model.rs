@@ -1,145 +1,191 @@
-use ritk_image::burn::{
-    module::Module,
-    nn::conv::Conv3d,
-    tensor::{backend::Backend, Tensor},
-};
+//! TransMorph model, Coeus-native.
+//!
+//! Encoder–decoder registration network: a Swin-transformer encoder (patch
+//! embedding + four hierarchical stages with strided-conv downsampling), a
+//! U-Net-style decoder with nearest-neighbor upsampling and skip connections,
+//! optional diffeomorphic velocity integration, and a differentiable spatial
+//! transformer. Built entirely on [`coeus_nn`]/[`coeus_autograd`] over
+//! [`coeus_autograd::Var`]; no Burn tensors, modules, or backends cross this
+//! boundary.
+//!
+//! Reference: Chen et al., "TransMorph: Transformer for unsupervised medical
+//! image registration", Medical Image Analysis 82 (2022) 102615.
+
+use coeus_autograd::{cat, permute, reshape, tile, Parameter, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::module::Module;
+use coeus_nn::Conv3d;
+use coeus_ops::BackendOps;
 
 use crate::transmorph::{
     integration::VecInt, spatial_transform::SpatialTransformer, swin::SwinTransformerBlock,
 };
 
-/// Output from TransMorph forward pass
-#[derive(Debug, Clone)]
-pub struct TransMorphOutput<B: Backend> {
-    /// Warped input image(s) [batch, C, D, H, W]
-    pub warped: Tensor<B, 5>,
-    /// Final displacement field [batch, 3, D, H, W]
-    pub flow: Tensor<B, 5>,
+/// Output of the TransMorph forward pass.
+#[derive(Clone)]
+pub struct TransMorphOutput<B: Backend + BackendOps<f32> + Default> {
+    /// Warped moving image `[B, C, D, H, W]`.
+    pub warped: Var<f32, B>,
+    /// Final displacement field `[B, 3, D, H, W]`.
+    pub flow: Var<f32, B>,
 }
 
-#[derive(Module, Debug)]
-pub struct TransMorph<B: Backend> {
-    pub(crate) patch_embed: Conv3d<B>,
+/// TransMorph registration network.
+#[derive(Clone)]
+pub struct TransMorph<B: Backend + BackendOps<f32> + Default> {
+    pub(crate) patch_embed: Conv3d<f32, B>,
     pub(crate) stage1: Vec<SwinTransformerBlock<B>>,
-    pub(crate) down1: Conv3d<B>,
+    pub(crate) down1: Conv3d<f32, B>,
     pub(crate) stage2: Vec<SwinTransformerBlock<B>>,
-    pub(crate) down2: Conv3d<B>,
+    pub(crate) down2: Conv3d<f32, B>,
     pub(crate) stage3: Vec<SwinTransformerBlock<B>>,
-    pub(crate) down3: Conv3d<B>,
+    pub(crate) down3: Conv3d<f32, B>,
     pub(crate) stage4: Vec<SwinTransformerBlock<B>>,
-
-    // Decoder
-    pub(crate) up_conv1: Conv3d<B>,
-    pub(crate) up_conv2: Conv3d<B>,
-    pub(crate) up_conv3: Conv3d<B>,
-    pub(crate) flow_conv: Conv3d<B>,
-
-    pub(crate) integration: Option<VecInt<B>>,
-    pub(crate) spatial_transform: SpatialTransformer<B>,
+    pub(crate) up_conv1: Conv3d<f32, B>,
+    pub(crate) up_conv2: Conv3d<f32, B>,
+    pub(crate) up_conv3: Conv3d<f32, B>,
+    pub(crate) flow_conv: Conv3d<f32, B>,
+    pub(crate) integration: Option<VecInt>,
+    pub(crate) spatial_transform: SpatialTransformer,
 }
 
-impl<B: Backend> TransMorph<B> {
-    pub fn forward(&self, x: Tensor<B, 5>) -> TransMorphOutput<B> {
-        // Encoder
-        // x: [B, C, D, H, W]
-        let x0 = self.patch_embed.forward(x.clone()); // [B, 12, D/4, H/4, W/4]
+impl<B> TransMorph<B>
+where
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Forward pass: register `image` `[B, C, D, H, W]`, producing the warped
+    /// image and the displacement field.
+    pub fn forward(&self, image: &Var<f32, B>) -> TransMorphOutput<B> {
+        // Patch embedding, then four Swin stages in channels-last layout.
+        let x0 = self.patch_embed.forward(image);
 
-        // Stage 1
-        // Permute to [B, D, H, W, C] for Swin Blocks
-        let mut x1 = x0.permute([0, 2, 3, 4, 1]);
-        for block in &self.stage1 {
-            x1 = block.forward(x1);
-        }
-        // Permute back to [B, C, D, H, W] for downsampling and skip connection
-        let x1_out = x1.permute([0, 4, 1, 2, 3]);
+        let x1_out = self.run_stage(&x0, &self.stage1);
+        let x1_down = self.down1.forward(&x1_out);
 
-        let x1_down = self.down1.forward(x1_out.clone());
+        let x2_out = self.run_stage(&x1_down, &self.stage2);
+        let x2_down = self.down2.forward(&x2_out);
 
-        // Stage 2
-        let mut x2 = x1_down.permute([0, 2, 3, 4, 1]);
-        for block in &self.stage2 {
-            x2 = block.forward(x2);
-        }
-        let x2_out = x2.permute([0, 4, 1, 2, 3]);
+        let x3_out = self.run_stage(&x2_down, &self.stage3);
+        let x3_down = self.down3.forward(&x3_out);
 
-        let x2_down = self.down2.forward(x2_out.clone());
+        let x4_out = self.run_stage(&x3_down, &self.stage4);
 
-        // Stage 3
-        let mut x3 = x2_down.permute([0, 2, 3, 4, 1]);
-        for block in &self.stage3 {
-            x3 = block.forward(x3);
-        }
-        let x3_out = x3.permute([0, 4, 1, 2, 3]);
+        // U-Net decoder: upsample, concatenate skip, convolve.
+        let x4_up = self.upsample(&x4_out, 2);
+        let d1 = self.up_conv1.forward(&cat(&[&x4_up, &x3_out], 1));
 
-        let x3_down = self.down3.forward(x3_out.clone());
+        let d1_up = self.upsample(&d1, 2);
+        let d2 = self.up_conv2.forward(&cat(&[&d1_up, &x2_out], 1));
 
-        // Stage 4
-        let mut x4 = x3_down.permute([0, 2, 3, 4, 1]);
-        for block in &self.stage4 {
-            x4 = block.forward(x4);
-        }
-        let x4_out = x4.permute([0, 4, 1, 2, 3]);
+        let d2_up = self.upsample(&d2, 2);
+        let d3 = self.up_conv3.forward(&cat(&[&d2_up, &x1_out], 1));
 
-        // Decoder (Simple U-Net style with nearest neighbor upsampling)
-        // x4_out: [B, 96, D/32, H/32, W/32]
+        let d3_up = self.upsample(&d3, 4);
+        let flow = self.flow_conv.forward(&d3_up);
 
-        // Up 1
-        let x4_up = self.upsample(x4_out, 2.0); // -> [D/16...]
-        let cat1 = Tensor::cat(vec![x4_up, x3_out], 1);
-        let d1 = self.up_conv1.forward(cat1);
-
-        // Up 2
-        let d1_up = self.upsample(d1, 2.0); // -> [D/8...]
-        let cat2 = Tensor::cat(vec![d1_up, x2_out], 1);
-        let d2 = self.up_conv2.forward(cat2);
-
-        // Up 3
-        let d2_up = self.upsample(d2, 2.0); // -> [D/4...]
-        let cat3 = Tensor::cat(vec![d2_up, x1_out], 1);
-        let d3 = self.up_conv3.forward(cat3);
-
-        // Up 4 (Final resolution)
-        let d3_up = self.upsample(d3, 4.0); // -> [D, H, W]
-
-        // Flow
-        let flow = self.flow_conv.forward(d3_up);
-
-        // Integration
-        let final_flow = if let Some(integration) = &self.integration {
-            integration.forward(flow)
-        } else {
-            flow
+        let flow = match &self.integration {
+            Some(integration) => integration.forward(&flow),
+            None => flow,
         };
 
-        // Warp
-        let warped = self.spatial_transform.forward(x, final_flow.clone());
-
-        TransMorphOutput {
-            warped,
-            flow: final_flow,
-        }
+        let warped = self.spatial_transform.forward(image, &flow);
+        TransMorphOutput { warped, flow }
     }
 
-    fn upsample(&self, x: Tensor<B, 5>, scale: f64) -> Tensor<B, 5> {
-        let [b, c, d, h, w] = x.dims();
-        let scale_int = scale as usize;
+    /// Run one Swin stage: `[B, C, D, H, W]` → channels-last blocks → back.
+    fn run_stage(&self, x: &Var<f32, B>, blocks: &[SwinTransformerBlock<B>]) -> Var<f32, B> {
+        let mut y = permute(x, &[0, 2, 3, 4, 1]);
+        for block in blocks {
+            y = block.forward(&y);
+        }
+        permute(&y, &[0, 4, 1, 2, 3])
+    }
 
-        // Naive Nearest Neighbor via iterative repeat to avoid >6 dims
-        // [B, C, D, H, W] -> [B, C, D*S, H, W] -> ...
+    /// Nearest-neighbor upsample `[B, C, D, H, W]` by an integer `scale` on each
+    /// spatial axis. Each axis inserts a unit dimension, tiles it, and merges,
+    /// keeping every intermediate tensor at most rank-5.
+    fn upsample(&self, x: &Var<f32, B>, scale: usize) -> Var<f32, B> {
+        let sh = x.tensor.shape();
+        let (b, c, d, h, w) = (sh[0], sh[1], sh[2], sh[3], sh[4]);
 
-        // 1. D-dimension: [B, C, D, 1, H * W] (5D)
-        let x = x.reshape([b, c, d, 1, h * w]);
-        let x = x.repeat(&[1, 1, 1, scale_int, 1]);
-        let x = x.reshape([b, c, d * scale_int, h, w]);
+        // D axis.
+        let x = reshape(x, [b, c, d, 1, h * w]);
+        let x = tile(&x, &[1, 1, 1, scale, 1]);
+        let x = reshape(&x, [b, c, d * scale, h, w]);
 
-        // 2. H-dimension: [B, C * D' * S, H, 1, W]
-        let x = x.reshape([b, c * d * scale_int, h, 1, w]);
-        let x = x.repeat(&[1, 1, 1, scale_int, 1]);
-        let x = x.reshape([b, c, d * scale_int, h * scale_int, w]);
+        // H axis.
+        let x = reshape(&x, [b, c * d * scale, h, 1, w]);
+        let x = tile(&x, &[1, 1, 1, scale, 1]);
+        let x = reshape(&x, [b, c, d * scale, h * scale, w]);
 
-        // 3. W-dimension: [B, C * D' * H', W, 1]
-        let x = x.reshape([b, c * d * scale_int * h * scale_int, w, 1]);
-        let x = x.repeat(&[1, 1, scale_int]);
-        x.reshape([b, c, d * scale_int, h * scale_int, w * scale_int])
+        // W axis.
+        let x = reshape(&x, [b, c * d * scale * h * scale, w, 1]);
+        let x = tile(&x, &[1, 1, 1, scale]);
+        reshape(&x, [b, c, d * scale, h * scale, w * scale])
+    }
+
+    /// Trainable parameters in forward order.
+    pub fn parameters(&self) -> Vec<Var<f32, B>> {
+        let mut params = self.patch_embed.parameters();
+        let stages = [&self.stage1, &self.stage2, &self.stage3, &self.stage4];
+        let downs = [&self.down1, &self.down2, &self.down3];
+        for (i, stage) in stages.iter().enumerate() {
+            for block in stage.iter() {
+                params.extend(block.parameters());
+            }
+            if let Some(down) = downs.get(i) {
+                params.extend(down.parameters());
+            }
+        }
+        params.extend(self.up_conv1.parameters());
+        params.extend(self.up_conv2.parameters());
+        params.extend(self.up_conv3.parameters());
+        params.extend(self.flow_conv.parameters());
+        params
+    }
+
+    /// Trainable parameters with stable hierarchical names.
+    pub fn named_parameters(&self) -> Vec<Parameter<f32, B>> {
+        let mut named: Vec<Parameter<f32, B>> = self
+            .patch_embed
+            .named_parameters()
+            .into_iter()
+            .map(|p| p.with_prefix("patch_embed"))
+            .collect();
+
+        let stages = [
+            ("stage1", &self.stage1),
+            ("stage2", &self.stage2),
+            ("stage3", &self.stage3),
+            ("stage4", &self.stage4),
+        ];
+        for (stage_name, blocks) in stages {
+            for (i, block) in blocks.iter().enumerate() {
+                let prefix = format!("{stage_name}.{i}");
+                named.extend(
+                    block
+                        .named_parameters()
+                        .into_iter()
+                        .map(|p| p.with_prefix(&prefix)),
+                );
+            }
+        }
+        for (name, conv) in [
+            ("down1", &self.down1),
+            ("down2", &self.down2),
+            ("down3", &self.down3),
+            ("up_conv1", &self.up_conv1),
+            ("up_conv2", &self.up_conv2),
+            ("up_conv3", &self.up_conv3),
+            ("flow_conv", &self.flow_conv),
+        ] {
+            named.extend(
+                conv.named_parameters()
+                    .into_iter()
+                    .map(|p| p.with_prefix(name)),
+            );
+        }
+        named
     }
 }

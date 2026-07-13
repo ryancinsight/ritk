@@ -1,40 +1,34 @@
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{Distribution, Tensor};
+//! End-to-end shape check for the Coeus-native TransMorph through the public API.
+
+use coeus_autograd::Var;
+use coeus_core::SequentialBackend;
+use coeus_tensor::Tensor;
 use ritk_model::transmorph::config::TransformIntegration;
 use ritk_model::transmorph::{TransMorph, TransMorphConfig};
 
-type Backend = NdArray<f32>;
+type Backend = SequentialBackend;
 
 #[test]
 fn test_transmorph_forward() {
-    let device = Default::default();
-
-    // Initialize model with small config for testing speed
+    // Minimum input is 32³: patch-4 embedding followed by three stride-2
+    // downsamplings requires divisibility by 32.
     let config = TransMorphConfig {
         in_channels: 1,
-        embed_dim: 12, // Small dim
+        embed_dim: 12,
         out_channels: 3,
         window_size: 4,
         integration: TransformIntegration::Direct,
         integration_steps: 7,
     };
+    let model: TransMorph<Backend> = config.init();
 
-    let model: TransMorph<Backend> = config.init(&device);
+    let shape = [1usize, 1, 32, 32, 32];
+    let n: usize = shape.iter().product();
+    let data: Vec<f32> = (0..n).map(|i| ((i % 13) as f32) / 13.0 - 0.5).collect();
+    let input = Var::new(Tensor::from_slice_on(shape, &data, &SequentialBackend), false);
 
-    // Create random input: [Batch=1, Channels=1, D=32, H=32, W=32]
-    // Must be divisible by 4 (patch_embed) * 2^3 (downsamples) = 32
-    // So minimum size is 32.
-    let input =
-        Tensor::<Backend, 5>::random([1, 1, 32, 32, 32], Distribution::Normal(0.0, 1.0), &device);
+    let output = model.forward(&input);
 
-    let output = model.forward(input);
-
-    // Output should be [1, 3, 32, 32, 32] (full resolution due to final upsampling)
-    // The encoder downsamples by 4 initially, then 3 more times by 2 (total 32x downsampling in depth)
-    // But the decoder upsamples back to full resolution with final_up (4x4x4 stride 4)
-    let dims = output.flow.dims();
-    println!("Flow dims: {:?}", dims);
-    println!("Warped dims: {:?}", output.warped.dims());
-
-    assert_eq!(dims, [1, 3, 32, 32, 32]);
+    assert_eq!(output.flow.tensor.shape(), &[1, 3, 32, 32, 32]);
+    assert_eq!(output.warped.tensor.shape(), &[1, 1, 32, 32, 32]);
 }
