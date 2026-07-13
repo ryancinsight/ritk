@@ -64,13 +64,32 @@ parameters, and the package initializer hardcoded `0.12.4` while the built wheel
 reported `0.12.79`. The smoke path now uses the canonical options object, and
 the compiled crate version is the single runtime and wheel metadata source.
 
-Review adjudication accepted all three actionable CI findings: primary checkout
-credentials are no longer persisted, metadata runs with `--locked`, and the
+Review adjudication accepted every actionable CI finding: primary checkout
+credentials are no longer persisted, metadata runs with `--locked`, the
 alignment gate parses the exact dependency-kind and target table rather than
-matching manifest text. The stronger gate exposed two DICOM target variants;
-their versions now inherit one workspace declaration while native-only features
-remain activated solely in native target tables. The target-table regression is
-value-checked in the xtask suite. A local wasm build attempt was not evidence:
+matching manifest text, test-workflow tokens have read-only repository access,
+and Python parity dependencies carry tested compatibility ranges. The bounds
+cover the exact Python 3.9 and 3.13 resolver endpoints exercised by the matrix:
+NumPy 2.0.2 through 2.5.1, pytest 8.4.2 through 9.1.1, SciPy 1.13.1 through
+1.18.0, SimpleITK 2.5.5, pytest-timeout 2.4.0, and VTK 9.6.2. The stronger
+Python matrix is bounded at twice its approximately 15-minute Windows runtime.
+The complete wheel suite reached only 49% after 61 minutes; progress timestamps
+localized most runtime to registration tests. Source inspection then identified
+the production defect: `PopulationEval::Parallel` routed CMA-ES populations of
+roughly 9-18 candidates through Moirai's 1,024-element `Adaptive` threshold, so
+every generation executed serially. The explicit parallel mode now uses
+Moirai's `Parallel` policy without changing populations, generations, samples,
+or assertions. The same objective path also deep-cloned approximately one
+megabyte of sparse fixed-image Parzen weights per evaluation and repeated
+fixed-image coordinate conversion plus interpolation on cache hits. Sparse
+weights now use one shared allocation, with pointer-identity and exact-result
+regressions, and fixed sampling runs only on cache misses or uncached calls.
+The wheel job retains the 30-minute native CI bound.
+The stronger
+alignment gate exposed two DICOM target variants; their versions now inherit
+one workspace declaration while native-only features remain activated solely
+in native target tables. The target-table regression is value-checked in the
+xtask suite. A local wasm build attempt was not evidence:
 the selected Rust toolchain lacked its wasm standard library, so cross-target
 compilation remains covered by CI rather than claimed locally.
 GitHub matrix evidence remains pending until the updated fix-forward PR

@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 env:
   RUST_BACKTRACE: 1
 
@@ -141,6 +144,9 @@ jobs:
   python-wheel:
     name: Python Wheel (smoke test)
     runs-on: ubuntu-latest
+    # The full installed-wheel suite is a performance gate, not a long-running
+    # validation lane; setup and tests must complete within the native CI bound.
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: ritk
@@ -176,4 +182,4 @@ jobs:
           pip install --find-links /tmp/ritk-wheel ritk
           python -c "import importlib.metadata; import ritk; assert ritk.__version__ == importlib.metadata.version('ritk')"
           python -c "import numpy as np; import ritk; img = ritk.Image(np.zeros((5, 5, 5), dtype=np.float32)); phi = ritk.Image(np.ones((5, 5, 5), dtype=np.float32)); opts = ritk.segmentation.ShapeDetectionOptions(max_iterations=1); out = ritk.segmentation.shape_detection_segment(img, phi, opts); arr = out.to_numpy(); assert arr.shape == (5, 5, 5); assert np.isfinite(arr).all()"
-          pytest crates/ritk-python/tests -q
+          pytest crates/ritk-python/tests -q --durations=25

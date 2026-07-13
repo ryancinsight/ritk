@@ -177,7 +177,7 @@ where
         // Bind xs to a local reference so the borrow of state.xs and the
         // mutable borrow of state.fvals are visibly disjoint.
         let xs = &state.xs;
-        moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut state.fvals, |k, entry| {
+        moirai::enumerate_mut_with::<moirai::Parallel, _, _>(&mut state.fvals, |k, entry| {
             let x_slice = &xs[k * n..(k + 1) * n];
             *entry = (f(x_slice), k);
         });

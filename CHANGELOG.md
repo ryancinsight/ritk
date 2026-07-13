@@ -41,6 +41,12 @@
 - Source the Python runtime version from the compiled crate metadata and keep
   the shape-detection stub and installed-wheel smoke call aligned with its
   options-object API.
+- Restrict test-workflow tokens to repository read access and bound Python
+  parity dependencies to the versions exercised across Python 3.9 through 3.13.
+- Bound both Python test workflows at 30 minutes and force explicitly parallel
+  CMA-ES populations through Moirai's parallel policy rather than its
+  1,024-element adaptive threshold; retain sparse fixed-image Parzen weights
+  behind shared ownership and bypass fixed-image interpolation on cache hits.
 
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking

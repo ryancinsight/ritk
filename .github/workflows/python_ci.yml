@@ -25,6 +25,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -33,6 +36,9 @@ jobs:
   build-and-smoke-test:
     name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # Windows is the binding matrix path at about 15 minutes; retain one full
+    # observed runtime for dependency and runner variance.
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: ritk
