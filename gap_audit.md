@@ -41,10 +41,11 @@ The full workspace nextest run then aborted in c2rust OpenJPEG differential
 decodes. Serialization reduced four simultaneous aborts to one but did not
 eliminate the failure, falsifying aggregate memory exhaustion. A captured
 backtrace proves `openjp2 0.6.1` calls Rust `dealloc` on a null decoded-codeblock
-pointer during codec drop. The defect remains on upstream `master`; upstream PR
-6 guards both unsafe deallocation sites and carries regression coverage. RITK
-pins that exact PR commit until upstream merges and releases it, while retaining
-the complete differential workload and normal nextest concurrency.
+pointer during codec drop. Upstream PR 6 guards those sites but also replaces
+the allocator, which RITK's suite rejected with invalid-pointer aborts. Focused
+upstream PR 9 changes only the two unsafe deallocation sites. RITK pins that
+exact commit until upstream merges and releases it, while retaining the complete
+differential workload and normal nextest concurrency.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the

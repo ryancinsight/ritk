@@ -30,7 +30,7 @@
 - Restrict PyO3 extension-module linkage to wheel builds so Linux Rust tests
   link `libpython`, and install Python parity oracles plus the configured pytest
   timeout plugin from one requirements manifest in both test workflows.
-- Pin upstream OpenJPEG PR 6, which guards null decoder buffers before Rust
+- Pin focused upstream OpenJPEG PR 9, which guards null decoder buffers before Rust
   deallocation, preserving the complete differential suite on current Rust.
 - Capture Rust backtraces in workspace CI so native aborts retain their complete
   allocation call path.
