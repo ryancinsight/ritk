@@ -27,6 +27,8 @@
 - [x] Root-cause the first forced-parallel CI crash and pin worker-nested indexed flattening without serializing the outer CMA population.
 - [x] Pin the reviewed end-to-end worker-plus-caller lane distribution correction.
 - [x] Synchronize the migration audit allowlist with the masked cache-dispatch leaf move.
+- [x] Remove CMA-ES result writes through disjoint raw pointers; retain the
+  reusable buffer behind a mutex and assert one result per candidate.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

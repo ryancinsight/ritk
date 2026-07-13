@@ -7,6 +7,7 @@
 use super::constants::AdaptationConstants;
 use super::math::{chol_mul, chol_solve_lower, cholesky, identity, vec_norm};
 use super::state::{CmaEsConfig, CmaEsStopReason, HistoryPolicy, PopulationEval};
+use std::sync::Mutex;
 
 /// Mutable state that evolves across CMA-ES generations.
 ///
@@ -172,15 +173,32 @@ where
     if config.parallel_population == PopulationEval::Parallel {
         // Parallel evaluation through Moirai — each candidate
         // evaluation is independent (read-only access to the objective
-        // closure's captured state).  The objective must be Sync.
+        // closure's captured state). The objective must be Sync. Results are
+        // appended under one lock because their production order is irrelevant:
+        // the next operation sorts them by objective value. This avoids exposing
+        // the optimizer's reusable buffer through disjoint raw-pointer writes.
         //
         // Bind xs to a local reference so the borrow of state.xs and the
         // mutable borrow of state.fvals are visibly disjoint.
         let xs = &state.xs;
-        moirai::enumerate_mut_with::<moirai::Parallel, _, _>(&mut state.fvals, |k, entry| {
+        state.fvals.clear();
+        let fvals = Mutex::new(&mut state.fvals);
+        moirai::for_each_index_with::<moirai::Parallel, _>(lambda, |k| {
             let x_slice = &xs[k * n..(k + 1) * n];
-            *entry = (f(x_slice), k);
+            let value = f(x_slice);
+            fvals
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .push((value, k));
         });
+        assert_eq!(
+            fvals
+                .into_inner()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .len(),
+            lambda,
+            "parallel CMA-ES evaluation must produce one result per candidate"
+        );
     } else {
         for k in 0..lambda {
             let x_slice = &state.xs[k * n..(k + 1) * n];

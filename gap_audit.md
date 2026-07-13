@@ -126,8 +126,18 @@ thin-slab CMA in about 12 seconds, then segfaulted inside its nested parallel
 work instead of timing out; this falsified the wait-only design and drove the
 flattening fix. RITK pins the verified 0.2-compatible provider commit because
 current Moirai main also carries an unrelated Mnemosyne 0.3 breaking edge;
-current-main PR 67 ports the same fix forward. RITK verification remains pending
-the exact-head wheel run. The stronger alignment gate
+current-main PR 67 ports the same fix forward. That PR merged as `2a1c235c`.
+The next exact-head wheel run completed the default brain binding in 2.68
+seconds and reached the thin-slab call in 24 seconds, but still segfaulted during
+the doubled IPOP population. This falsified nested-region flattening as the
+complete cause. The remaining optimizer-local unchecked boundary wrote fitness
+results through disjoint raw pointers. CMA-ES does not consume production order,
+so the evaluator now appends into its existing reusable result buffer under one
+mutex, asserts exactly one result per candidate, then performs its canonical
+objective sort. A lambda-18 regression asserts the exact initialization plus
+per-generation evaluation count and finite objective improvement. Evidence tier:
+type-safe ownership plus value-semantic regression; exact thin-slab runtime and
+crash resolution remain pending CI. The stronger alignment gate
 exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely
 in native target tables. The target-table regression is value-checked in the

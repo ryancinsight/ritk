@@ -35,6 +35,8 @@
   flattening so low-cardinality CMA populations execute concurrently without
   recursively stealing outer candidates during nested histogram reductions;
   balance remainder work across every selected worker-plus-caller lane.
+- Collect CMA fitness values into the reusable synchronized result buffer
+  instead of writing through disjoint raw pointers.
 - Restrict PyO3 extension-module linkage to wheel builds so Linux Rust tests
   link `libpython`, and install Python parity oracles plus the configured pytest
   timeout plugin from one requirements manifest in both test workflows.
