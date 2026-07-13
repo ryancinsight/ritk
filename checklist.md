@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-647-01 — Native Meyer watershed
+**Target version**: 0.14.0 migration batch
+- [ ] Specify finite-relief, cardinality, deterministic-order, and exact-label contracts.
+- [ ] Add validated filter-owned native execution over the canonical flat core.
+- [ ] Migrate CLI and PyO3 consumers to native images.
+- [ ] Add exact differential, boundary, CLI, and wheel regressions.
+- [ ] Run package gates, adversarial review, commit, and push.
+
 ## MIG-646-01 — Native marker-controlled watershed
 **Target version**: 0.14.0 migration batch
 - [x] Replace boolean-blind public configuration with explicit policies and accessors.

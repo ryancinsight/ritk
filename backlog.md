@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-647-01 [major] - Native Meyer watershed (IN PROGRESS; owner=Codex; scope=watershed owner, CLI/PyO3 consumers, tests/docs).** Acceptance: validated finite relief and cardinality, one flat core serving legacy/Coeus-native images, deterministic total ordering, native CLI/PyO3 execution, and exact legacy/native plus boundary regressions.
+
 - **MIG-646-01 [major] - Native marker-controlled watershed (DONE).** Explicit policies and private state, validated geometry/numeric contracts, one flat core serving legacy/Coeus-native images, native CLI/PyO3 execution, and unchanged SimpleITK parity cases are verified by 729 Rust tests and three built-wheel marker tests.
 
 - **MIG-645-01 [major] - Native SimpleITK-compatible SLIC owner (DONE).** Validated filter/config ownership and explicit policy enums serve exact legacy/Coeus-native execution; PyO3 is native and the obsolete free API is deleted without changing SimpleITK fixtures.
