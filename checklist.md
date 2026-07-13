@@ -20,7 +20,7 @@
 - [x] Remove full-volume copies and GIL retention from the Python MSE/NCC boundary; move Pearson correlation into its owning `ritk-statistics` crate with Moirai reductions.
 - [x] Replace quiet pytest progress with process-enforcing verbose diagnostics; disprove the NCC hypothesis and localize the timeout to Moirai silently serializing explicit parallel CMA populations.
 - [x] Pin Moirai's 0.2-compatible forced-policy and nested-region flattening fixes while the current provider main carries a separate Mnemosyne 0.3 break.
-- [ ] Verify the unchanged thin-slab CMA comparison under the 60-second per-test bound.
+- [x] Verify the unchanged thin-slab CMA comparison under the 60-second per-test bound (39.10 seconds on exact-head CI).
 - [x] Make native Python test timeouts process-enforcing and run the wheel gate concurrently with workspace nextest.
 - [x] Resolve review feedback by pinning the cargo-nextest installer action to its immutable reviewed revision.
 - [x] Consolidate repeated masked histogram sparse-or-dense cache dispatch without changing either kernel.
@@ -29,6 +29,8 @@
 - [x] Synchronize the migration audit allowlist with the masked cache-dispatch leaf move.
 - [x] Remove CMA-ES result writes through disjoint raw pointers; retain the
   reusable buffer behind a mutex and assert one result per candidate.
+- [x] Remove redundant SimpleITK B-spline physical-shift scale estimation and
+  replace the stale missing-VTK-writer assertion with an exact native roundtrip.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

@@ -436,13 +436,17 @@ def test_read_write_image_nifti_roundtrip():
         os.unlink(path)
 
 
-def test_write_image_vtk_rejects_missing_native_writer(tmp_path):
-    """VTK has no Atlas-native image writer, so Python I/O must fail explicitly."""
-    img = _ritk(np.ones((2, 2, 2), dtype=np.float32))
+def test_write_image_vtk_roundtrips_native_values(tmp_path):
+    """VTK native image I/O preserves shape and voxel values."""
+    values = np.arange(8, dtype=np.float32).reshape(2, 2, 2)
+    img = _ritk(values)
     path = tmp_path / "out.vtk"
 
-    with pytest.raises(OSError, match="VTK has no Atlas-native image writer"):
-        rio.write_image(img, str(path))
+    rio.write_image(img, str(path))
+    assert path.stat().st_size > 0
+    restored = rio.read_image(str(path)).to_numpy()
+    assert restored.shape == values.shape
+    np.testing.assert_array_equal(restored, values)
 
 
 def test_read_write_transform_translation_roundtrip():

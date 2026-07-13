@@ -136,8 +136,21 @@ so the evaluator now appends into its existing reusable result buffer under one
 mutex, asserts exactly one result per candidate, then performs its canonical
 objective sort. A lambda-18 regression asserts the exact initialization plus
 per-generation evaluation count and finite objective improvement. Evidence tier:
-type-safe ownership plus value-semantic regression; exact thin-slab runtime and
-crash resolution remain pending CI. The stronger alignment gate
+type-safe ownership plus value-semantic regression. Exact-head wheel evidence
+then passed the unchanged comparison in 39.10 seconds, the default brain preset
+in 2.60 seconds, and the additional thin-slab paths in 30.95 and 28.18 seconds.
+The suite advanced to 14% before a separate SimpleITK B-spline oracle exceeded
+60 seconds. The same external call reproduced locally in 78.29 seconds; removing
+`SetOptimizerScalesFromPhysicalShift` reduced it to 48.35 seconds while keeping
+the 64-cubed image, 25% Mattes sampling, 9-cubed control grid, 30 iterations,
+and improving NCC from 0.848935 to 0.987894. B-spline coefficients already
+represent physical displacements, so unit scales are dimensionally canonical
+and the per-coefficient perturbation pass was redundant. The wheel also exposed
+a stale Python test that still expected VTK image writing to be absent even
+though `ritk-io` owns a native VTK reader/writer with Rust roundtrip coverage;
+the Python boundary now asserts the same exact shape and values. Evidence tier:
+empirical differential timing plus value-semantic analytical-image and I/O
+oracles; final exact-head suite evidence remains pending CI. The stronger alignment gate
 exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely
 in native target tables. The target-table regression is value-checked in the
