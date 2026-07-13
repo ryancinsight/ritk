@@ -37,15 +37,14 @@ The resulting full parity run exposed one stale top-level expectation predating
 the public `ColorImage` and `image` exports. The canonical runtime, stub,
 `__all__`, and drift reporter already agreed; the value-semantic parity test now
 asserts that same ordered contract.
-The full workspace nextest run then started four c2rust OpenJPEG differential
-processes together; all four aborted at the allocator's non-null precondition
-while a fifth test in the same binary had passed. A binary-scoped nextest group
-now runs one OpenJPEG reference process at a time, bounding aggregate memory
-without changing inputs, assertions, or timeout enforcement. GitHub rerun
-reduced four simultaneous aborts to one but did not eliminate the failure, so
-aggregate memory exhaustion is not accepted as the root cause. Rust CI now
-captures backtraces to locate the failing allocation before any implementation
-change is selected.
+The full workspace nextest run then aborted in c2rust OpenJPEG differential
+decodes. Serialization reduced four simultaneous aborts to one but did not
+eliminate the failure, falsifying aggregate memory exhaustion. A captured
+backtrace proves `openjp2 0.6.1` calls Rust `dealloc` on a null decoded-codeblock
+pointer during codec drop. The defect remains on upstream `master`; upstream PR
+6 guards both unsafe deallocation sites and carries regression coverage. RITK
+pins that exact PR commit until upstream merges and releases it, while retaining
+the complete differential workload and normal nextest concurrency.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the

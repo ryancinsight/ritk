@@ -154,6 +154,11 @@ arrayvec = "0.7"
 opt-level = 0
 debug = true
 
+[patch.crates-io]
+# Upstream PR 6 guards decoder buffers before `dealloc`; 0.6.1 invokes
+# `dealloc(null, layout)` during codec drop, violating Rust's allocator contract.
+openjp2 = { git = "https://github.com/pmarks/openjp2.git", rev = "61c4c1a3aa9b5a42cb3437ea5d9617671c8734e0" }
+
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai = { path = "../moirai/moirai" }
 
