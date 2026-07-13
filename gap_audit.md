@@ -47,6 +47,12 @@ upstream PR 9 changes only the two unsafe deallocation sites. RITK pins the same
 guards on the exact published 0.6.1 source commit, preserving the `std` feature
 required by `jpeg2k 0.10.1`, until upstream merges and releases the fix. The
 complete differential workload and normal nextest concurrency remain intact.
+The next full Ubuntu run advanced past the OpenJPEG differential tests and
+executed 2,484 workspace tests before a Coeus TransMorph forward regression test hit
+the repository's stale 10-second default nextest termination. That timeout
+contradicted the required 30-second slow threshold and 60-second hang boundary;
+the committed default now encodes those exact limits without changing the test,
+its input, or its assertions.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the

@@ -34,6 +34,8 @@
   deallocation, preserving the complete differential suite on current Rust.
 - Capture Rust backtraces in workspace CI so native aborts retain their complete
   allocation call path.
+- Enforce the workspace's 30-second slow-test threshold and 60-second
+  termination boundary instead of killing valid compute tests after 10 seconds.
 
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking
