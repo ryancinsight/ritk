@@ -25,6 +25,7 @@
 - [x] Resolve review feedback by pinning the cargo-nextest installer action to its immutable reviewed revision.
 - [x] Consolidate repeated masked histogram sparse-or-dense cache dispatch without changing either kernel.
 - [x] Root-cause the first forced-parallel CI crash and pin worker-nested indexed flattening without serializing the outer CMA population.
+- [x] Pin the reviewed end-to-end worker-plus-caller lane distribution correction.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

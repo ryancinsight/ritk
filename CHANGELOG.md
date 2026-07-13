@@ -33,7 +33,8 @@
   event buffers.
 - Pin Moirai's 0.2-compatible forced indexed-policy and worker-nested region
   flattening so low-cardinality CMA populations execute concurrently without
-  recursively stealing outer candidates during nested histogram reductions.
+  recursively stealing outer candidates during nested histogram reductions;
+  balance remainder work across every selected worker-plus-caller lane.
 - Restrict PyO3 extension-module linkage to wheel builds so Linux Rust tests
   link `libpython`, and install Python parity oracles plus the configured pytest
   timeout plugin from one requirements manifest in both test workflows.
