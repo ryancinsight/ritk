@@ -9,7 +9,7 @@
 //! | `.mha`, `.mhd`        | ✓    | ✓     | ritk-io MetaImage    |
 //! | `.nrrd`               | ✓    | ✓     | ritk-io NRRD         |
 //! | `.tif`, `.tiff`       | ✓    | ✓     | ritk-io TIFF         |
-//! | `.vtk` (image)        | ✗    | ✗     | native path pending  |
+//! | `.vtk` (image)        | ✓    | ✓     | ritk-io VTK          |
 //! | `.mgh`, `.mgz`        | ✓    | ✓     | ritk-io MGH          |
 //! | `.hdr`, `.img`        | ✓    | ✓     | ritk-io Analyze      |
 //! | `.jpg`, `.jpeg`       | ✓    | ✓     | ritk-io JPEG         |
@@ -47,7 +47,7 @@ fn io_err<E: std::fmt::Display>(label: &'static str) -> impl Fn(E) -> RitkPyErro
 /// Read a medical image from file.
 ///
 /// Supports: .nii, .nii.gz, .png, .mha, .mhd, .nrrd, .tif, .tiff,
-/// .mgh, .mgz, .hdr, .img, .jpg, .jpeg, or a DICOM directory.
+/// .vtk, .mgh, .mgz, .hdr, .img, .jpg, .jpeg, or a DICOM directory.
 ///
 /// Raises:
 ///     IOError: on read failure or unsupported format.
@@ -67,7 +67,7 @@ pub fn read_image(py: Python<'_>, path: &str) -> RitkResult<PyImage> {
 /// Write a medical image to file.  Format inferred from extension.
 ///
 /// Supported: .nii, .nii.gz, .mha, .mhd, .nrrd, .tif, .tiff,
-/// .mgh, .mgz, .hdr, .img, .jpg, .jpeg.
+/// .vtk, .mgh, .mgz, .hdr, .img, .jpg, .jpeg.
 ///
 /// Raises:
 ///     IOError: on write failure or unsupported format.
