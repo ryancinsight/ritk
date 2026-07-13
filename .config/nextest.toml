@@ -11,6 +11,7 @@
 # processes runs at a time, eliminating the startup race.
 [test-groups]
 ritk-snap-native-serial = { max-threads = 1 }
+ritk-codecs-openjpeg-serial = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(ritk-snap)'
@@ -19,6 +20,18 @@ test-group = 'ritk-snap-native-serial'
 [[profile.ci.overrides]]
 filter = 'package(ritk-snap)'
 test-group = 'ritk-snap-native-serial'
+
+# The OpenJPEG differential binary launches the c2rust OpenJPEG reference in
+# each test process. Four concurrent instances received null allocations and
+# aborted together on the GitHub runner. Bound their aggregate memory without
+# changing test inputs, assertions, or timeout enforcement.
+[[profile.default.overrides]]
+filter = 'package(ritk-codecs) & binary(jpeg2000_interop)'
+test-group = 'ritk-codecs-openjpeg-serial'
+
+[[profile.ci.overrides]]
+filter = 'package(ritk-codecs) & binary(jpeg2000_interop)'
+test-group = 'ritk-codecs-openjpeg-serial'
 
 [profile.default]
 # Default per-test timeout: abort tests that hang unexpectedly.

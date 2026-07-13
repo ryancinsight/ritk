@@ -30,6 +30,8 @@
 - Restrict PyO3 extension-module linkage to wheel builds so Linux Rust tests
   link `libpython`, and install Python parity oracles plus the configured pytest
   timeout plugin from one requirements manifest in both test workflows.
+- Bound the memory-intensive OpenJPEG differential test binary to one nextest
+  process at a time without changing its cases, assertions, or timeouts.
 
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking

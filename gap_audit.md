@@ -37,6 +37,12 @@ The resulting full parity run exposed one stale top-level expectation predating
 the public `ColorImage` and `image` exports. The canonical runtime, stub,
 `__all__`, and drift reporter already agreed; the value-semantic parity test now
 asserts that same ordered contract.
+The full workspace nextest run then started four c2rust OpenJPEG differential
+processes together; all four aborted at the allocator's non-null precondition
+while a fifth test in the same binary had passed. A binary-scoped nextest group
+now runs one OpenJPEG reference process at a time, bounding aggregate memory
+without changing inputs, assertions, or timeout enforcement. GitHub rerun
+evidence is required before accepting aggregate memory exhaustion as the cause.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the
