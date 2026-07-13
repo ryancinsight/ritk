@@ -18,8 +18,9 @@
   install Linux-only wheel repair tooling only on Linux.
 - Track deep Python binding modules in the API-drift audit and synchronize the
   runtime, stubs, smoke contract, and `__all__` for all public exports.
-- Pin Moirai's portable IPC error capture so macOS consumers no longer compile
-  a Linux-only errno symbol.
+- Pin Moirai's portable IPC error capture and thread-confined kqueue storage so
+  macOS consumers compile without Linux-only symbols or non-`Send` shared
+  event buffers.
 
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking

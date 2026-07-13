@@ -25,7 +25,8 @@ parsing, locked metadata, a clean migration audit, a passing alignment command,
 9/9 xtask plus 47/47 ritk-python nextest tests, 16/16 Python smoke tests, and a
 clean 311-function API-drift report. The first complete matrix exposed and drove
 fix-forward changes for workspace-only formatting, Moirai's Linux-only errno
-accessor, stale deep-module audit paths, and non-Linux `patchelf` installation.
+accessor and shared kqueue buffer, stale deep-module audit paths, and non-Linux
+`patchelf` installation.
 GitHub matrix evidence remains pending until the updated fix-forward PR
 completes.
 
