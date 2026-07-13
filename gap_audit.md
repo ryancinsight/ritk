@@ -58,6 +58,11 @@ but the workflow's 30-minute job envelope canceled subsequent cache and checkout
 cleanup. Linux and macOS retain that bound; Windows receives 40 minutes, derived
 from the observed approximately 25-minute setup-plus-test path and ten minutes
 for its slower post-test cleanup. Per-test nextest limits remain unchanged.
+The resulting wheel reached its installed smoke check and exposed two stale
+Python artifacts: the workflow and stub retained removed shape-detection keyword
+parameters, and the package initializer hardcoded `0.12.4` while the built wheel
+reported `0.12.79`. The smoke path now uses the canonical options object, and
+the compiled crate version is the single runtime and wheel metadata source.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the

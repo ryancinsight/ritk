@@ -38,6 +38,9 @@
   termination boundary instead of killing valid compute tests after 10 seconds.
 - Preserve the 30-minute Linux/macOS CI bound while allowing Windows post-test
   cache cleanup to finish after its complete 5,048-test suite passes.
+- Source the Python runtime version from the compiled crate metadata and keep
+  the shape-detection stub and installed-wheel smoke call aligned with its
+  options-object API.
 
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking

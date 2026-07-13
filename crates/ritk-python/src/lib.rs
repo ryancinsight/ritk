@@ -31,6 +31,7 @@ use pyo3::prelude::*;
 /// are importable as `ritk.image`, `ritk.io`, `ritk.filter`, etc.
 #[pymodule]
 fn _ritk(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     image::register(m)?;
     io::register(m)?;
     filter::register(m)?;

@@ -104,15 +104,10 @@ def parse_top_level_all(path: Path) -> list[str]:
 def parse_top_level_version(path: Path) -> str:
     module = ast.parse(path.read_text(encoding="utf-8"))
     for node in module.body:
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "__version__":
-                    if not isinstance(node.value, ast.Constant) or not isinstance(
-                        node.value.value, str
-                    ):
-                        raise AssertionError("__version__ must be a string literal")
-                    return node.value.value
-    raise AssertionError("__version__ assignment not found")
+        if isinstance(node, ast.ImportFrom) and node.module == "ritk._ritk":
+            if any(alias.name == "__version__" for alias in node.names):
+                return "ritk._ritk.__version__"
+    raise AssertionError("__version__ must be imported from ritk._ritk")
 
 
 def parse_smoke_required_functions(path: Path, test_name: str) -> set[str]:

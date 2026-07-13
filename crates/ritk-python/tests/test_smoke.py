@@ -8,6 +8,7 @@ Run with: pytest crates/ritk-python/tests/test_smoke.py
 """
 
 import importlib
+import importlib.metadata
 import sys
 
 # Import verification
@@ -478,7 +479,7 @@ def test_ritk_has_version():
     assert isinstance(ritk.__version__, str), (
         f"__version__ must be str, got {type(ritk.__version__)}"
     )
-    assert ritk.__version__, "__version__ must not be empty"
+    assert ritk.__version__ == importlib.metadata.version("ritk")
 
 
 def test_python_version_is_supported():
