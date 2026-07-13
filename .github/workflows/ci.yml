@@ -124,7 +124,7 @@ jobs:
           echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@cargo-nextest
+        uses: taiki-e/install-action@f47c9687269207d6b374de4134cb8b1fa5b49649 # cargo-nextest
 
       - name: Cache Cargo registry and build artifacts
         uses: actions/cache@v4

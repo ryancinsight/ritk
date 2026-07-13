@@ -129,7 +129,7 @@ jobs:
         run: python crates/ritk-python/tests/python_api_drift_report.py
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@cargo-nextest
+        uses: taiki-e/install-action@f47c9687269207d6b374de4134cb8b1fa5b49649 # cargo-nextest
 
       - name: Run Rust unit tests
         run: cargo nextest run -p ritk-python --lib

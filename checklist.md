@@ -22,6 +22,8 @@
 - [x] Pin Moirai's 0.2-compatible forced-policy and work-conserving nested-wait fixes while the current provider main carries a separate Mnemosyne 0.3 break.
 - [ ] Verify the unchanged thin-slab CMA comparison under the 60-second per-test bound.
 - [x] Make native Python test timeouts process-enforcing and run the wheel gate concurrently with workspace nextest.
+- [x] Resolve review feedback by pinning the cargo-nextest installer action to its immutable reviewed revision.
+- [x] Consolidate repeated masked histogram sparse-or-dense cache dispatch without changing either kernel.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

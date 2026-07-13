@@ -53,6 +53,10 @@
 - Run the full wheel lane concurrently with workspace nextest, emit each Python
   test name, and enforce the existing 60-second per-test bound from a watchdog
   thread so native calls cannot defer timeout delivery.
+- Pin the cargo-nextest installer action to the reviewed immutable revision in
+  both test workflows.
+- Consolidate masked histogram cache-hit and cache-fill dispatch into one
+  sparse-or-dense policy per chunking regime.
 - Bound both Python test workflows at 30 minutes and force explicitly parallel
   CMA-ES populations through Moirai's parallel policy rather than its
   1,024-element adaptive threshold; retain sparse fixed-image Parzen weights
