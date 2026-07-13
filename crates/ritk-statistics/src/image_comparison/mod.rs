@@ -47,6 +47,7 @@
 //!
 //! This implementation computes a single global SSIM over all voxels.
 
+pub mod native;
 mod overlap;
 mod quality;
 mod surface;

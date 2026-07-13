@@ -35,21 +35,22 @@ pub(super) fn coords_to_flat(coords: &[usize], strides: &[usize]) -> usize {
         .sum()
 }
 
-/// Extract boundary voxels as physical coordinates from a binary mask.
+/// Extract boundary voxels as physical coordinates from a flat binary mask.
 ///
 /// A voxel is a boundary voxel if it is foreground (`value > 0.5`) and at
 /// least one axis-aligned neighbor is background (`<= 0.5`) or out of bounds.
 ///
 /// Returns `Vec<[f64; D]>` — one stack-sized array per boundary point — rather
 /// than `Vec<Vec<f64>>`, eliminating the inner heap allocation per point.
-fn extract_boundary_physical<B: Backend, const D: usize>(
-    mask: &Image<B, D>,
+///
+/// Operates on the extracted `flat`/`shape` pair so the Burn and Coeus-native
+/// adapters share one boundary-extraction implementation.
+pub(crate) fn extract_boundary_physical<const D: usize>(
+    flat: &[f32],
+    shape: [usize; D],
     spacing: &[f64; D],
 ) -> Vec<[f64; D]> {
-    let shape: [usize; D] = mask.shape();
     let shape_slice: &[usize] = &shape;
-    let flat_vec = extract_vec_infallible(mask).0;
-    let flat: &[f32] = &flat_vec;
     let strides = compute_strides(shape_slice);
     let n_total: usize = shape_slice.iter().product();
     let mut boundary: Vec<[f64; D]> = Vec::with_capacity(n_total / 32);
@@ -130,14 +131,20 @@ fn directed_msd<const D: usize>(from_set: &[[f64; D]], to_set: &[[f64; D]]) -> f
     total / from_set.len() as f64
 }
 
-/// Compute the Hausdorff distance between two binary segmentation masks.
-pub fn hausdorff_distance<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
+/// Symmetric Hausdorff distance over two flat binary masks (shared host core).
+///
+/// The Burn-backed [`hausdorff_distance`] and the Coeus-native
+/// `native::hausdorff_distance` both extract `(flat, shape)` and delegate here,
+/// so the boundary extraction and directed-distance math have exactly one home.
+pub(crate) fn hausdorff_from_flat<const D: usize>(
+    pred_flat: &[f32],
+    pred_shape: [usize; D],
+    gt_flat: &[f32],
+    gt_shape: [usize; D],
     spacing: &[f64; D],
 ) -> f32 {
-    let boundary_p = extract_boundary_physical(prediction, spacing);
-    let boundary_g = extract_boundary_physical(ground_truth, spacing);
+    let boundary_p = extract_boundary_physical(pred_flat, pred_shape, spacing);
+    let boundary_g = extract_boundary_physical(gt_flat, gt_shape, spacing);
 
     if boundary_p.is_empty() && boundary_g.is_empty() {
         return 0.0;
@@ -149,14 +156,16 @@ pub fn hausdorff_distance<B: Backend, const D: usize>(
     hd_p_to_g.max(hd_g_to_p) as f32
 }
 
-/// Compute the symmetric mean surface distance between two binary masks.
-pub fn mean_surface_distance<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
+/// Symmetric mean surface distance over two flat binary masks (shared host core).
+pub(crate) fn msd_from_flat<const D: usize>(
+    pred_flat: &[f32],
+    pred_shape: [usize; D],
+    gt_flat: &[f32],
+    gt_shape: [usize; D],
     spacing: &[f64; D],
 ) -> f32 {
-    let boundary_p = extract_boundary_physical(prediction, spacing);
-    let boundary_g = extract_boundary_physical(ground_truth, spacing);
+    let boundary_p = extract_boundary_physical(pred_flat, pred_shape, spacing);
+    let boundary_g = extract_boundary_physical(gt_flat, gt_shape, spacing);
 
     if boundary_p.is_empty() && boundary_g.is_empty() {
         return 0.0;
@@ -166,4 +175,26 @@ pub fn mean_surface_distance<B: Backend, const D: usize>(
     let msd_g_to_p = directed_msd(&boundary_g, &boundary_p);
 
     ((msd_p_to_g + msd_g_to_p) / 2.0) as f32
+}
+
+/// Compute the Hausdorff distance between two binary segmentation masks.
+pub fn hausdorff_distance<B: Backend, const D: usize>(
+    prediction: &Image<B, D>,
+    ground_truth: &Image<B, D>,
+    spacing: &[f64; D],
+) -> f32 {
+    let (pred_flat, pred_shape) = extract_vec_infallible(prediction);
+    let (gt_flat, gt_shape) = extract_vec_infallible(ground_truth);
+    hausdorff_from_flat(&pred_flat, pred_shape, &gt_flat, gt_shape, spacing)
+}
+
+/// Compute the symmetric mean surface distance between two binary masks.
+pub fn mean_surface_distance<B: Backend, const D: usize>(
+    prediction: &Image<B, D>,
+    ground_truth: &Image<B, D>,
+    spacing: &[f64; D],
+) -> f32 {
+    let (pred_flat, pred_shape) = extract_vec_infallible(prediction);
+    let (gt_flat, gt_shape) = extract_vec_infallible(ground_truth);
+    msd_from_flat(&pred_flat, pred_shape, &gt_flat, gt_shape, spacing)
 }

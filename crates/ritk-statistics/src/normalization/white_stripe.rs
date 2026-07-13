@@ -47,8 +47,11 @@
 //! - `stripe_size` in the result is always > 0 for valid inputs with at least one
 //!   foreground voxel.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
+use ritk_tensor_ops::native as tensor_ops;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Selects which extreme of the local-maxima set to return.
@@ -123,6 +126,150 @@ pub struct WhiteStripeResult<B: Backend> {
     pub stripe_size: usize,
 }
 
+/// Coeus-native white stripe result (sister of [`WhiteStripeResult`]).
+///
+/// Field-shape identical to the Burn-keyed result except the `normalized` image
+/// is the Coeus-backed [`ritk_image::native::Image`].
+#[derive(Debug, Clone)]
+pub struct NativeWhiteStripeResult<B: ComputeBackend> {
+    /// Normalized image: `I_norm = (I − μ_ws) / (σ_ws + ε)`.
+    pub normalized: NativeImage<f32, B, 3>,
+    /// White stripe mean (μ_ws).
+    pub mu: f64,
+    /// White stripe standard deviation (σ_ws), population std (guaranteed > 0).
+    pub sigma: f64,
+    /// Detected white matter peak intensity.
+    pub wm_peak: f64,
+    /// Number of voxels in the white stripe.
+    pub stripe_size: usize,
+}
+
+/// Backend-independent white stripe computation output over host buffers.
+struct WhiteStripeComputed {
+    normalized: Vec<f32>,
+    mu: f64,
+    sigma: f64,
+    wm_peak: f64,
+    stripe_size: usize,
+}
+
+/// Shared host core: compute white stripe statistics and the normalized flat
+/// buffer from an image slice and an optional mask slice.
+///
+/// Both the Burn-backed [`WhiteStripeNormalizer::normalize`] and the Coeus-native
+/// [`WhiteStripeNormalizer::normalize_native`] delegate here, so the KDE, peak
+/// detection, and normalization math have exactly one home.
+///
+/// # Panics
+/// Panics when no foreground voxels exist, when image and mask element counts
+/// differ, or when the white stripe is empty — matching the Burn contract.
+fn compute_white_stripe(
+    all_slice: &[f32],
+    mask_slice: Option<&[f32]>,
+    config: &WhiteStripeConfig,
+) -> WhiteStripeComputed {
+    let foreground: Vec<f64> = match mask_slice {
+        Some(mask_slice) => {
+            assert_eq!(
+                all_slice.len(),
+                mask_slice.len(),
+                "image and mask must have identical element count"
+            );
+            all_slice
+                .iter()
+                .zip(mask_slice.iter())
+                .filter(|(_, &mv)| mv > crate::FOREGROUND_THRESHOLD)
+                .map(|(&v, _)| v as f64)
+                .collect()
+        }
+        None => all_slice
+            .iter()
+            .filter(|&&v| v > 0.0)
+            .map(|&v| v as f64)
+            .collect(),
+    };
+
+    assert!(
+        !foreground.is_empty(),
+        "no foreground voxels found for white stripe normalization"
+    );
+
+    let mut sorted_fg = foreground.clone();
+    sorted_fg.sort_by(|a, b| {
+        a.partial_cmp(b)
+            .expect("foreground values must be comparable")
+    });
+
+    let n = sorted_fg.len();
+    let fg_min = sorted_fg[0];
+    let fg_max = sorted_fg[n - 1];
+    let fg_median = quantile_sorted(&sorted_fg, 0.5);
+
+    let bandwidth = match config.bandwidth {
+        Some(bw) => bw,
+        None => silverman_bandwidth(&sorted_fg),
+    };
+
+    let (grid, density) = kde_gaussian(&sorted_fg, fg_min, fg_max, config.num_bins, bandwidth);
+
+    let (search_lo, search_hi) = match config.contrast {
+        MriContrast::T1 => (fg_median, fg_max),
+        MriContrast::T2 => (fg_min, fg_median),
+    };
+
+    let side = if matches!(config.contrast, MriContrast::T1) {
+        ExtremeSide::Rightmost
+    } else {
+        ExtremeSide::Leftmost
+    };
+    let wm_peak = find_extreme_local_mode(&grid, &density, search_lo, search_hi, side);
+
+    let p_wm = empirical_cdf_rank(&sorted_fg, wm_peak);
+
+    let p_lo = (p_wm - config.width).clamp(0.0, 1.0);
+    let p_hi = (p_wm + config.width).clamp(0.0, 1.0);
+
+    let intensity_lo = quantile_sorted(&sorted_fg, p_lo);
+    let intensity_hi = quantile_sorted(&sorted_fg, p_hi);
+
+    let stripe: Vec<f64> = sorted_fg
+        .iter()
+        .copied()
+        .filter(|&v| v >= intensity_lo && v <= intensity_hi)
+        .collect();
+
+    assert!(
+        !stripe.is_empty(),
+        "white stripe contains zero voxels; adjust width or inspect the input"
+    );
+
+    let stripe_size = stripe.len();
+
+    let mu_ws: f64 = stripe.iter().sum::<f64>() / stripe_size as f64;
+    let var_ws: f64 = stripe
+        .iter()
+        .map(|&v| (v - mu_ws) * (v - mu_ws))
+        .sum::<f64>()
+        / stripe_size as f64;
+    let sigma_ws = var_ws.sqrt();
+
+    let eps = 1e-10_f64;
+    let denom = sigma_ws + eps;
+
+    let normalized: Vec<f32> = all_slice
+        .iter()
+        .map(|&v| ((v as f64 - mu_ws) / denom) as f32)
+        .collect();
+
+    WhiteStripeComputed {
+        normalized,
+        mu: mu_ws,
+        sigma: sigma_ws.max(1e-9),
+        wm_peak,
+        stripe_size,
+    }
+}
+
 /// White stripe normalizer.
 ///
 /// Implements the Shinohara et al. (2014) white stripe method for inter-subject
@@ -149,124 +296,55 @@ impl WhiteStripeNormalizer {
         mask: Option<&Image<B, 3>>,
         config: &WhiteStripeConfig,
     ) -> WhiteStripeResult<B> {
-        // Step 1: Extract foreground voxel intensities.
         let (all_vec, dims) = extract_vec_infallible(image);
-        let all_slice = &all_vec;
-
-        let foreground: Vec<f64> = match mask {
-            Some(m) => {
-                let (mask_vec, _) = extract_vec_infallible(m);
-                let mask_slice = &mask_vec;
-                assert_eq!(
-                    all_slice.len(),
-                    mask_slice.len(),
-                    "image and mask must have identical element count"
-                );
-                all_slice
-                    .iter()
-                    .zip(mask_slice.iter())
-                    .filter(|(_, &mv)| mv > crate::FOREGROUND_THRESHOLD)
-                    .map(|(&v, _)| v as f64)
-                    .collect()
-            }
-            None => all_slice
-                .iter()
-                .filter(|&&v| v > 0.0)
-                .map(|&v| v as f64)
-                .collect(),
-        };
-
-        assert!(
-            !foreground.is_empty(),
-            "no foreground voxels found for white stripe normalization"
-        );
-
-        let mut sorted_fg = foreground.clone();
-        sorted_fg.sort_by(|a, b| {
-            a.partial_cmp(b)
-                .expect("foreground values must be comparable")
-        });
-
-        let n = sorted_fg.len();
-        let fg_min = sorted_fg[0];
-        let fg_max = sorted_fg[n - 1];
-        let fg_median = quantile_sorted(&sorted_fg, 0.5);
-
-        // Step 2: Kernel Density Estimation.
-        let bandwidth = match config.bandwidth {
-            Some(bw) => bw,
-            None => silverman_bandwidth(&sorted_fg),
-        };
-
-        let (grid, density) = kde_gaussian(&sorted_fg, fg_min, fg_max, config.num_bins, bandwidth);
-
-        // Step 3: Detect white matter peak.
-        // For T1: WM is the brightest tissue class → find the rightmost local maximum
-        //   in [median, max]. This avoids selecting the GM peak which may have higher
-        //   density but sits at a lower intensity.
-        // For T2: WM is darker than CSF → find the leftmost local maximum in [min, median].
-        let (search_lo, search_hi) = match config.contrast {
-            MriContrast::T1 => (fg_median, fg_max),
-            MriContrast::T2 => (fg_min, fg_median),
-        };
-
-        let side = if matches!(config.contrast, MriContrast::T1) {
-            ExtremeSide::Rightmost
-        } else {
-            ExtremeSide::Leftmost
-        };
-        let wm_peak = find_extreme_local_mode(&grid, &density, search_lo, search_hi, side);
-
-        // Step 4: Define the white stripe.
-        // Compute the empirical quantile rank of the WM peak.
-        let p_wm = empirical_cdf_rank(&sorted_fg, wm_peak);
-
-        let p_lo = (p_wm - config.width).clamp(0.0, 1.0);
-        let p_hi = (p_wm + config.width).clamp(0.0, 1.0);
-
-        let intensity_lo = quantile_sorted(&sorted_fg, p_lo);
-        let intensity_hi = quantile_sorted(&sorted_fg, p_hi);
-
-        let stripe: Vec<f64> = sorted_fg
-            .iter()
-            .copied()
-            .filter(|&v| v >= intensity_lo && v <= intensity_hi)
-            .collect();
-
-        assert!(
-            !stripe.is_empty(),
-            "white stripe contains zero voxels; adjust width or inspect the input"
-        );
-
-        let stripe_size = stripe.len();
-
-        // Step 5: Compute white stripe statistics.
-        let mu_ws: f64 = stripe.iter().sum::<f64>() / stripe_size as f64;
-        let var_ws: f64 = stripe
-            .iter()
-            .map(|&v| (v - mu_ws) * (v - mu_ws))
-            .sum::<f64>()
-            / stripe_size as f64;
-        let sigma_ws = var_ws.sqrt();
-
-        // Step 6: Normalize.
-        let eps = 1e-10_f64;
-        let denom = sigma_ws + eps;
-
-        let normalized_data: Vec<f32> = all_slice
-            .iter()
-            .map(|&v| ((v as f64 - mu_ws) / denom) as f32)
-            .collect();
-
-        let normalized = rebuild(normalized_data, dims, image);
+        let mask_vec = mask.map(|m| extract_vec_infallible(m).0);
+        let computed = compute_white_stripe(&all_vec, mask_vec.as_deref(), config);
 
         WhiteStripeResult {
-            normalized,
-            mu: mu_ws,
-            sigma: sigma_ws.max(1e-9),
-            wm_peak,
-            stripe_size,
+            normalized: rebuild(computed.normalized, dims, image),
+            mu: computed.mu,
+            sigma: computed.sigma,
+            wm_peak: computed.wm_peak,
+            stripe_size: computed.stripe_size,
         }
+    }
+
+    /// Coeus-native sister of [`WhiteStripeNormalizer::normalize`].
+    ///
+    /// Identical Shinohara et al. (2014) algorithm over host-resident Coeus
+    /// tensors, returning a [`NativeWhiteStripeResult`].
+    ///
+    /// # Errors
+    /// Returns an error when the image or mask tensor is not host-addressable or
+    /// contiguous, or the rebuilt tensor fails shape validation.
+    ///
+    /// # Panics
+    /// Panics under the same conditions as
+    /// [`WhiteStripeNormalizer::normalize`] (no foreground voxels, image/mask
+    /// element-count mismatch, or empty white stripe).
+    pub fn normalize_native<B>(
+        image: &NativeImage<f32, B, 3>,
+        mask: Option<&NativeImage<f32, B, 3>>,
+        config: &WhiteStripeConfig,
+    ) -> anyhow::Result<NativeWhiteStripeResult<B>>
+    where
+        B: ComputeBackend + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let (all_vec, dims) = tensor_ops::extract_image_vec(image)?;
+        let mask_vec = match mask {
+            Some(m) => Some(tensor_ops::extract_image_vec(m)?.0),
+            None => None,
+        };
+        let computed = compute_white_stripe(&all_vec, mask_vec.as_deref(), config);
+
+        Ok(NativeWhiteStripeResult {
+            normalized: tensor_ops::rebuild_image(computed.normalized, dims, image, &B::default())?,
+            mu: computed.mu,
+            sigma: computed.sigma,
+            wm_peak: computed.wm_peak,
+            stripe_size: computed.stripe_size,
+        })
     }
 }
 
