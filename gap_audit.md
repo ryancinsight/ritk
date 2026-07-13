@@ -23,10 +23,10 @@ alignment is a value-reporting Rust `xtask` command; the complete existing
 manifest drift was corrected rather than hidden. Local evidence comprises YAML
 parsing, locked metadata, a clean migration audit, a passing alignment command,
 9/9 xtask plus 47/47 ritk-python nextest tests, 16/16 Python smoke tests, and a
-clean 311-function API-drift report. The first complete matrix exposed and drove
+clean 327-function API-drift report. The first complete matrix exposed and drove
 fix-forward changes for workspace-only formatting, Moirai's Linux-only errno
-accessor and shared kqueue buffer, stale deep-module audit paths, and non-Linux
-`patchelf` installation.
+accessor and shared kqueue buffer, Apollo's unconditional x86 Stockham module
+resolution, stale deep-module audit paths, and non-Linux `patchelf` installation.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the

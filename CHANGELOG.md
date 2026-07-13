@@ -8184,6 +8184,10 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+- [patch] The pinned Apollo provider now gates AVX/FMA Stockham modules and
+  precision strategies to x86_64, allowing the RITK macOS wheel matrix to use
+  Apollo's existing scalar Stockham path on Apple Silicon.
+
 ### Added
 - Added a shared multivariate-metric batch-conversion helper in [crates/ritk-python/src/metrics/image_batch.rs](crates/ritk-python/src/metrics/image_batch.rs) to remove repeated image materialization and shape validation across TC/DTC/O-information/MVI wrappers.
 - Added real-brain SimpleITK parity coverage in [crates/ritk-python/tests/test_simpleitk_parity.py](crates/ritk-python/tests/test_simpleitk_parity.py) for total correlation, variation of information, and multivariate VI using the available `brain_mni` fixtures.
