@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-648-01 [major] - Native morphological watershed composition (IN PROGRESS; owner=Codex; scope=ritk-filter h-minima/regional-minima owners, segmentation composition, PyO3/tests/docs).** Acceptance: provider-owned native h-minima and regional-minima execution, validated morphological-watershed configuration, one native composition through canonical connected components and marker flooding, and unchanged SimpleITK level fixtures.
+
 - **MIG-647-01 [major] - Native Meyer watershed (DONE).** Validated finite relief/cardinality and level-wise geodesic plateau flooding serve legacy/Coeus-native images; CLI/PyO3 use native execution, with 734 Rust tests and three built-wheel tests including an exact SimpleITK plateau oracle.
 
 - **MIG-646-01 [major] - Native marker-controlled watershed (DONE).** Explicit policies and private state, validated geometry/numeric contracts, one flat core serving legacy/Coeus-native images, native CLI/PyO3 execution, and unchanged SimpleITK parity cases are verified by 729 Rust tests and three built-wheel marker tests.
