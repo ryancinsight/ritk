@@ -198,8 +198,19 @@ pub mod native {
         B: coeus_core::ComputeBackend,
         P: AsRef<Path>,
     {
-        let bytes = fs::read(path.as_ref())
-            .map_err(|e| anyhow!("Failed to read NIfTI file {:?}: {e}", path.as_ref()))?;
-        read_nifti_from_bytes(&bytes, backend)
+        let bytes = fs::read(path.as_ref()).map_err(|e| {
+            // Log the path for diagnostics but do NOT include it in the public error
+            // message to avoid leaking sensitive filesystem paths (mirrors the Burn
+            // reader's error-redaction contract).
+            tracing::error!("Failed to read NIfTI file {:?}: {}", path.as_ref(), e);
+            anyhow!("Failed to read NIfTI file")
+        })?;
+        read_nifti_from_bytes(&bytes, backend).map_err(|e| {
+            if format!("{e:#}").contains("Invalid NIfTI spatial metadata") {
+                e.context("Invalid NIfTI spatial metadata")
+            } else {
+                e.context("Failed to read NIfTI file")
+            }
+        })
     }
 }
