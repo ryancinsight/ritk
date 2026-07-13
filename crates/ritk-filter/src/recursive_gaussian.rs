@@ -414,19 +414,36 @@ pub fn smoothing_recursive_gaussian<B: Backend>(
     image: &Image<B, 3>,
     sigmas: &[f64],
 ) -> anyhow::Result<Image<B, 3>> {
-    let (mut vals, dims) = extract_vec(image)?;
+    let (vals, dims) = extract_vec(image)?;
     let spacing = image.spacing();
+    let out =
+        smoothing_recursive_gaussian_vals(vals, dims, [spacing[0], spacing[1], spacing[2]], sigmas);
+    Ok(rebuild(out, dims, image))
+}
+
+/// Substrate-agnostic host core for [`smoothing_recursive_gaussian`]: the
+/// separable zero-order Deriche IIR smoothing on a flat z-major buffer, with
+/// per-dimension physical `sigmas` broadcast from the last entry. Shared single
+/// source of truth for the Burn free function above and the Coeus-native
+/// consumers (e.g. `UnsharpMaskFilter::apply_native`), so results are
+/// bitwise-identical across substrates.
+pub(crate) fn smoothing_recursive_gaussian_vals(
+    mut vals: Vec<f32>,
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    sigmas: &[f64],
+) -> Vec<f32> {
     let last = sigmas.last().copied().unwrap_or(0.0);
-    for dim in 0..3 {
+    for (dim, &h) in spacing.iter().enumerate() {
         let sigma = sigmas.get(dim).copied().unwrap_or(last);
-        let pixel_sigma = sigma / spacing[dim];
+        let pixel_sigma = sigma / h;
         if pixel_sigma < 0.2 {
             continue;
         }
         let coeffs = DericheCoefficients::from_sigma(pixel_sigma);
         vals = apply_deriche_1d(&vals, dims, dim, &coeffs, pixel_sigma);
     }
-    Ok(rebuild(vals, dims, image))
+    vals
 }
 
 /// Compute all 6 independent Hessian components at every voxel using the

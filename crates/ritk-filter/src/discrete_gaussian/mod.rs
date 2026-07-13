@@ -144,65 +144,23 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         Image::new(smoothed, origin, spacing, direction)
     }
 
-    #[inline]
-    fn variance_for_dim(&self, d: usize) -> f64 {
-        if d < self.variance.len() {
-            self.variance[d]
-        } else {
-            *self
-                .variance
-                .last()
-                .expect("variance schedule must not be empty")
-        }
-    }
-
-    #[inline]
-    fn pixel_sigma_for_dim<const D: usize>(
-        &self,
-        d: usize,
-        spacing: &ritk_spatial::Spacing<D>,
-    ) -> f64 {
-        let v = self.variance_for_dim(d);
-        match self.spacing_mode {
-            SpacingMode::Physical => {
-                let h = spacing[d];
-                v.max(0.0).sqrt() / h.max(1e-12)
-            }
-            SpacingMode::Voxel => v.max(0.0).sqrt(),
-        }
-    }
-
-    #[inline]
-    fn build_kernel(&self, pixel_variance: f64) -> Vec<f32> {
-        gaussian_operator_1d(pixel_variance, self.maximum_error)
-    }
-
-    /// Minimum pixel variance below which the kernel is the identity impulse.
-    const VARIANCE_MIN: f64 = 1e-18;
-
     /// Build the per-axis discrete-Gaussian kernels for the given spacing.
     ///
-    /// Returns `[Option<Vec<f32>>; D]`: `None` for an axis whose pixel variance
-    /// is below [`Self::VARIANCE_MIN`] or whose kernel collapses to the identity
-    /// impulse (length ≤ 1). Single source of truth for kernel construction,
-    /// shared by the Burn [`apply_inner`](Self::apply_inner) path and the
-    /// Coeus-native [`apply_native`](Self::apply_native) path.
+    /// Delegates to the burn-free [`discrete_gaussian_kernels`] free function
+    /// (single source of truth for kernel construction), shared by the Burn
+    /// [`apply_inner`](Self::apply_inner) path, the Coeus-native
+    /// [`apply_native`](Self::apply_native) path, and the burn-free
+    /// [`discrete_gaussian_smooth_flat`] core the Canny filters call.
     fn kernels_for_spacing<const D: usize>(
         &self,
         spacing: &ritk_spatial::Spacing<D>,
     ) -> [Option<Vec<f32>>; D] {
-        let mut kernels: [Option<Vec<f32>>; D] = std::array::from_fn(|_| None);
-        for (d, kernel_slot) in kernels.iter_mut().enumerate() {
-            let sigma = self.pixel_sigma_for_dim::<D>(d, spacing);
-            let pixel_variance = sigma * sigma;
-            if pixel_variance >= Self::VARIANCE_MIN {
-                let kernel = self.build_kernel(pixel_variance);
-                if kernel.len() > 1 {
-                    *kernel_slot = Some(kernel);
-                }
-            }
-        }
-        kernels
+        discrete_gaussian_kernels::<D>(
+            &self.variance,
+            self.maximum_error,
+            self.spacing_mode,
+            spacing,
+        )
     }
 
     #[inline]
@@ -252,6 +210,67 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
             convolve_separable(vals, dims, &kernels)
         };
         ritk_tensor_ops::native::rebuild_image(result, dims, image, &BC::default())
+    }
+}
+
+/// Minimum pixel variance below which a per-axis kernel is the identity impulse.
+const VARIANCE_MIN: f64 = 1e-18;
+
+/// Burn-free single source of truth for the per-axis discrete-Gaussian kernels.
+///
+/// Returns `[Option<Vec<f32>>; D]`: `None` for an axis whose pixel variance is
+/// below [`VARIANCE_MIN`] or whose kernel collapses to the identity impulse
+/// (length ≤ 1). `variance` is the per-axis physical-variance schedule
+/// (broadcast from the last entry); `spacing_mode` selects the physical→pixel
+/// conversion. Shared by [`DiscreteGaussianFilter::kernels_for_spacing`] and
+/// [`discrete_gaussian_smooth_flat`].
+pub(crate) fn discrete_gaussian_kernels<const D: usize>(
+    variance: &[f64],
+    maximum_error: f64,
+    spacing_mode: SpacingMode,
+    spacing: &ritk_spatial::Spacing<D>,
+) -> [Option<Vec<f32>>; D] {
+    std::array::from_fn(|d| {
+        let v = if d < variance.len() {
+            variance[d]
+        } else {
+            *variance
+                .last()
+                .expect("variance schedule must not be empty")
+        };
+        let sigma = match spacing_mode {
+            SpacingMode::Physical => v.max(0.0).sqrt() / spacing[d].max(1e-12),
+            SpacingMode::Voxel => v.max(0.0).sqrt(),
+        };
+        let pixel_variance = sigma * sigma;
+        if pixel_variance >= VARIANCE_MIN {
+            let kernel = gaussian_operator_1d(pixel_variance, maximum_error);
+            if kernel.len() > 1 {
+                return Some(kernel);
+            }
+        }
+        None
+    })
+}
+
+/// Burn-free host core: separable discrete-Gaussian smoothing on a flat z-major
+/// buffer (ITK `GaussianOperator` kernel, replicate boundary via
+/// [`convolve_separable`]). Bitwise-identical to
+/// [`DiscreteGaussianFilter::apply`]/`apply_native`; used by the Canny filters
+/// so their native paths need no Burn backend to smooth.
+pub(crate) fn discrete_gaussian_smooth_flat(
+    vals: Vec<f32>,
+    dims: [usize; 3],
+    spacing: &ritk_spatial::Spacing<3>,
+    variance: &[f64],
+    maximum_error: f64,
+    spacing_mode: SpacingMode,
+) -> Vec<f32> {
+    let kernels = discrete_gaussian_kernels::<3>(variance, maximum_error, spacing_mode, spacing);
+    if kernels.iter().all(|k| k.is_none()) {
+        vals
+    } else {
+        convolve_separable(vals, dims, &kernels)
     }
 }
 

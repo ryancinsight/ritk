@@ -52,7 +52,7 @@
 //! - ITK Software Guide 4th Ed., Â§6.5.2 UnsharpMaskingImageFilter.
 
 use crate::edge::GaussianSigma;
-use crate::recursive_gaussian::smoothing_recursive_gaussian;
+use crate::recursive_gaussian::smoothing_recursive_gaussian_vals;
 use anyhow::Result;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
@@ -151,14 +151,49 @@ impl UnsharpMaskFilter {
     /// Returns `Err` if tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (input, dims) = extract_vec_infallible(image);
+        let sp = image.spacing();
+        let output = self.unsharp_mask_flat(&input, dims, [sp[0], sp[1], sp[2]]);
+        Ok(rebuild(output, dims, image))
+    }
+
+    /// Coeus-native sister of [`UnsharpMaskFilter::apply`].
+    ///
+    /// Runs the identical recursive-Gaussian unsharp-mask formula via the shared
+    /// [`unsharp_mask_flat`](Self::unsharp_mask_flat) host core on the image's
+    /// contiguous host buffer, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let sp = image.spacing();
+        let spacing = [sp[0], sp[1], sp[2]];
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            self.unsharp_mask_flat(vals, dims, spacing)
+        })
+    }
+
+    /// Substrate-agnostic host core: recursive-Gaussian blur, thresholded
+    /// mask-add, and optional input-range clamp on a flat z-major buffer. Single
+    /// source of truth for the Burn [`apply`](Self::apply) and Coeus-native
+    /// [`apply_native`](Self::apply_native) paths.
+    fn unsharp_mask_flat(&self, input: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
         let n = input.len();
 
         // Blur via the recursive (Deriche) Gaussian — the smoother ITK/SimpleITK
         // `UnsharpMask` uses (`SmoothingRecursiveGaussian`), not the discrete
         // Gaussian. Per-dimension physical sigma, broadcast from the last entry.
         let sigmas: Vec<f64> = self.sigmas.iter().map(|s| s.get()).collect();
-        let blur = smoothing_recursive_gaussian(image, &sigmas)?;
-        let (blurred, _) = extract_vec_infallible(&blur);
+        let blurred = smoothing_recursive_gaussian_vals(input.to_vec(), dims, spacing, &sigmas);
 
         let amount = self.amount as f32;
         let threshold = self.threshold as f32;
@@ -192,10 +227,9 @@ impl UnsharpMaskFilter {
         //   |mask| ≥ threshold  → output = I(p) + amount · (|mask| − threshold) · sign(mask)
         //
         // Then clamp to [v_min, v_max] if requested.
-        let input_ref = &input;
         let blurred_ref = &blurred;
-        let output = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
-            let inp = input_ref[i];
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            let inp = input[i];
             let mask = inp - blurred_ref[i];
             let abs_mask = mask.abs();
             let sharpened = if abs_mask < threshold {
@@ -204,12 +238,53 @@ impl UnsharpMaskFilter {
                 inp + amount * (abs_mask - threshold) * mask.signum()
             };
             sharpened.clamp(v_min, v_max)
-        });
-
-        Ok(rebuild(output, dims, image))
+        })
     }
 }
 
 #[cfg(test)]
 #[path = "tests_unsharp_mask.rs"]
 mod tests;
+
+#[cfg(test)]
+mod tests_native {
+    use super::{ClampPolicy, GaussianSigma, UnsharpMaskFilter};
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    fn filter() -> UnsharpMaskFilter {
+        UnsharpMaskFilter::new(
+            vec![GaussianSigma::new_unchecked(1.0)],
+            1.5,
+            0.0,
+            ClampPolicy::NoClamp,
+        )
+    }
+
+    #[test]
+    fn matches_burn() {
+        let vals: Vec<f32> = (0..60).map(|i| ((i * 3) % 11) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| filter().apply(img).expect("burn unsharp mask"),
+            |img, backend| filter().apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_uniform_input_unchanged() {
+        // Blur of a uniform field is the field itself → mask = 0 everywhere →
+        // output == input (no sharpening), independent of `amount`.
+        let img = make_native_image(vec![9.0f32; 27], [3, 3, 3]);
+        let out = filter()
+            .apply_native(&img, &SequentialBackend)
+            .expect("native unsharp mask");
+        for &v in &native_vals(&out) {
+            assert!(
+                (v - 9.0).abs() < 1e-4,
+                "uniform input must be preserved, got {v}"
+            );
+        }
+    }
+}

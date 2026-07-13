@@ -175,178 +175,226 @@ impl CurvatureFlowImageFilter {
     /// Returns `anyhow::Error` if the voxel data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals_vec, dims) = extract_vec(image)?;
-        let [nz, ny, nx] = dims;
-        let slab = ny * nx;
-
         let sp = image.spacing();
-        // Loop-invariant inverse spacings and time step — computed once, hoisted
-        // outside the per-iteration and per-voxel scopes.
-        let isp: [f64; 3] = [
-            sp[2].recip(), // x-axis
-            sp[1].recip(), // y-axis
-            sp[0].recip(), // z-axis
-        ];
-        let dt64 = self.config.time_step as f64;
+        let result = curvature_flow_evolve(&vals_vec, dims, [sp[0], sp[1], sp[2]], &self.config);
+        Ok(rebuild(result, dims, image))
+    }
 
-        let mut cur: Vec<f32> = vals_vec;
-        // Pre-allocate output buffer: avoids one `n × 4` byte heap allocation per
-        // iteration (vs. `map_collect_index_with` which calls `collect()` each
-        // sweep).  `MinMaxCurvatureFlowImageFilter` uses the identical pattern.
-        let mut next: Vec<f32> = vec![0.0_f32; nz * slab];
+    /// Coeus-native sister of [`CurvatureFlowImageFilter::apply`].
+    ///
+    /// Runs the identical level-set mean-curvature-flow explicit-Euler PDE
+    /// (double-buffered f64 stencils, ZeroFluxNeumann boundary) via the shared
+    /// [`curvature_flow_evolve`] host core on the image's contiguous host
+    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let sp = image.spacing();
+        let spacing = [sp[0], sp[1], sp[2]];
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            curvature_flow_evolve(vals, dims, spacing, &self.config)
+        })
+    }
+}
 
-        for _ in 0..self.config.num_iterations {
-            {
-                // Shared borrow of `cur` captured by the parallel closure.
-                // `for_each_chunk_mut_enumerated_with` uses scoped threads so
-                // this non-`'static` borrow is safe.
-                let cur_ref: &[f32] = &cur;
-                moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-                    &mut next,
-                    slab,
-                    |iz, iz_out| {
-                        let z = iz as isize;
-                        let nz_max = nz as isize - 1;
-                        let ny_max = ny as isize - 1;
-                        let nx_max = nx as isize - 1;
+// ── Core computation (ITK CurvatureFlowImageFilter, explicit Euler) ──────────
 
-                        // Clamped accessor: used only for the boundary shell
-                        // (~5 % of voxels).  ITK uses ZeroFluxNeumann, i.e. clamp.
-                        let get = |zz: isize, yy: isize, xx: isize| -> f64 {
-                            let zc = zz.clamp(0, nz_max) as usize;
-                            let yc = yy.clamp(0, ny_max) as usize;
-                            let xc = xx.clamp(0, nx_max) as usize;
-                            cur_ref[zc * slab + yc * nx + xc] as f64
-                        };
+/// Substrate-agnostic host core: `config.num_iterations` explicit-Euler sweeps
+/// of level-set mean curvature flow (`speed = N / |∇I|²`) on a flat z-major
+/// buffer, double-buffered. All stencil arithmetic runs in `f64` (ITK
+/// `PixelRealType = double`); the per-iteration update is narrowed to `f32` on
+/// write. Boundary voxels use the clamped (ZeroFluxNeumann) accessor.
+///
+/// Single source of truth for the Burn [`apply`](CurvatureFlowImageFilter::apply)
+/// and Coeus-native [`apply_native`](CurvatureFlowImageFilter::apply_native)
+/// paths — both call this, so their outputs are bitwise-identical.
+fn curvature_flow_evolve(
+    vals: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    config: &CurvatureFlowConfig,
+) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let slab = ny * nx;
 
-                        let z_interior = iz >= 1 && iz < nz - 1;
+    // Loop-invariant inverse spacings and time step — computed once, hoisted
+    // outside the per-iteration and per-voxel scopes.
+    let isp: [f64; 3] = [
+        spacing[2].recip(), // x-axis
+        spacing[1].recip(), // y-axis
+        spacing[0].recip(), // z-axis
+    ];
+    let dt64 = config.time_step as f64;
 
-                        for iy in 0..ny {
-                            let y = iy as isize;
-                            let y_interior = iy >= 1 && iy < ny - 1;
+    let mut cur: Vec<f32> = vals.to_vec();
+    // Pre-allocate output buffer: avoids one `n × 4` byte heap allocation per
+    // iteration (vs. `map_collect_index_with` which calls `collect()` each
+    // sweep).  `MinMaxCurvatureFlowImageFilter` uses the identical pattern.
+    let mut next: Vec<f32> = vec![0.0_f32; nz * slab];
 
-                            for ix in 0..nx {
-                                let flat = iz * slab + iy * nx + ix;
-                                let c64 = cur_ref[flat] as f64;
+    for _ in 0..config.num_iterations {
+        {
+            // Shared borrow of `cur` captured by the parallel closure.
+            // `for_each_chunk_mut_enumerated_with` uses scoped threads so
+            // this non-`'static` borrow is safe.
+            let cur_ref: &[f32] = &cur;
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut next,
+                slab,
+                |iz, iz_out| {
+                    let z = iz as isize;
+                    let nz_max = nz as isize - 1;
+                    let ny_max = ny as isize - 1;
+                    let nx_max = nx as isize - 1;
 
-                                let (ix_, iy_, iz_, ixx, iyy, izz, ixy, ixz, iyz) =
-                                    if z_interior && y_interior && ix >= 1 && ix < nx - 1 {
-                                        // ── Interior fast path ──────────────────────────
-                                        // No clamp overhead (~95 % of voxels).
-                                        // Axis-aligned neighbours loaded once, reused for
-                                        // both 1st and 2nd derivatives (CSE by let binding).
-                                        let xm = cur_ref[flat - 1] as f64;
-                                        let xp = cur_ref[flat + 1] as f64;
-                                        let ym = cur_ref[flat - nx] as f64;
-                                        let yp = cur_ref[flat + nx] as f64;
-                                        let zm = cur_ref[flat - slab] as f64;
-                                        let zp = cur_ref[flat + slab] as f64;
+                    // Clamped accessor: used only for the boundary shell
+                    // (~5 % of voxels).  ITK uses ZeroFluxNeumann, i.e. clamp.
+                    let get = |zz: isize, yy: isize, xx: isize| -> f64 {
+                        let zc = zz.clamp(0, nz_max) as usize;
+                        let yc = yy.clamp(0, ny_max) as usize;
+                        let xc = xx.clamp(0, nx_max) as usize;
+                        cur_ref[zc * slab + yc * nx + xc] as f64
+                    };
 
-                                        let ix_ = (xp - xm) * 0.5 * isp[0];
-                                        let iy_ = (yp - ym) * 0.5 * isp[1];
-                                        let iz_ = (zp - zm) * 0.5 * isp[2];
+                    let z_interior = iz >= 1 && iz < nz - 1;
 
-                                        let ixx = (xp - 2.0 * c64 + xm) * isp[0] * isp[0];
-                                        let iyy = (yp - 2.0 * c64 + ym) * isp[1] * isp[1];
-                                        let izz = (zp - 2.0 * c64 + zm) * isp[2] * isp[2];
+                    for iy in 0..ny {
+                        let y = iy as isize;
+                        let y_interior = iy >= 1 && iy < ny - 1;
 
-                                        // Cross-derivatives: direct flat-index arithmetic.
-                                        let ixy = (cur_ref[flat + nx + 1] as f64
-                                            - cur_ref[flat + nx - 1] as f64
-                                            - cur_ref[flat - nx + 1] as f64
-                                            + cur_ref[flat - nx - 1] as f64)
-                                            * 0.25
-                                            * isp[0]
-                                            * isp[1];
-                                        let ixz = (cur_ref[flat + slab + 1] as f64
-                                            - cur_ref[flat + slab - 1] as f64
-                                            - cur_ref[flat - slab + 1] as f64
-                                            + cur_ref[flat - slab - 1] as f64)
-                                            * 0.25
-                                            * isp[0]
-                                            * isp[2];
-                                        let iyz = (cur_ref[flat + slab + nx] as f64
-                                            - cur_ref[flat + slab - nx] as f64
-                                            - cur_ref[flat - slab + nx] as f64
-                                            + cur_ref[flat - slab - nx] as f64)
-                                            * 0.25
-                                            * isp[1]
-                                            * isp[2];
+                        for ix in 0..nx {
+                            let flat = iz * slab + iy * nx + ix;
+                            let c64 = cur_ref[flat] as f64;
 
-                                        (ix_, iy_, iz_, ixx, iyy, izz, ixy, ixz, iyz)
-                                    } else {
-                                        // ── Boundary path ─────────────────────────────
-                                        // Clamped get; only ~5 % of voxels.
-                                        let x = ix as isize;
-                                        let xm = get(z, y, x - 1);
-                                        let xp = get(z, y, x + 1);
-                                        let ym = get(z, y - 1, x);
-                                        let yp = get(z, y + 1, x);
-                                        let zm = get(z - 1, y, x);
-                                        let zp = get(z + 1, y, x);
+                            let (ix_, iy_, iz_, ixx, iyy, izz, ixy, ixz, iyz) =
+                                if z_interior && y_interior && ix >= 1 && ix < nx - 1 {
+                                    // ── Interior fast path ──────────────────────────
+                                    // No clamp overhead (~95 % of voxels).
+                                    // Axis-aligned neighbours loaded once, reused for
+                                    // both 1st and 2nd derivatives (CSE by let binding).
+                                    let xm = cur_ref[flat - 1] as f64;
+                                    let xp = cur_ref[flat + 1] as f64;
+                                    let ym = cur_ref[flat - nx] as f64;
+                                    let yp = cur_ref[flat + nx] as f64;
+                                    let zm = cur_ref[flat - slab] as f64;
+                                    let zp = cur_ref[flat + slab] as f64;
 
-                                        let ix_ = (xp - xm) * 0.5 * isp[0];
-                                        let iy_ = (yp - ym) * 0.5 * isp[1];
-                                        let iz_ = (zp - zm) * 0.5 * isp[2];
+                                    let ix_ = (xp - xm) * 0.5 * isp[0];
+                                    let iy_ = (yp - ym) * 0.5 * isp[1];
+                                    let iz_ = (zp - zm) * 0.5 * isp[2];
 
-                                        let ixx = (xp - 2.0 * c64 + xm) * isp[0] * isp[0];
-                                        let iyy = (yp - 2.0 * c64 + ym) * isp[1] * isp[1];
-                                        let izz = (zp - 2.0 * c64 + zm) * isp[2] * isp[2];
+                                    let ixx = (xp - 2.0 * c64 + xm) * isp[0] * isp[0];
+                                    let iyy = (yp - 2.0 * c64 + ym) * isp[1] * isp[1];
+                                    let izz = (zp - 2.0 * c64 + zm) * isp[2] * isp[2];
 
-                                        let ixy = (get(z, y + 1, x + 1)
-                                            - get(z, y + 1, x - 1)
-                                            - get(z, y - 1, x + 1)
-                                            + get(z, y - 1, x - 1))
-                                            * 0.25
-                                            * isp[0]
-                                            * isp[1];
-                                        let ixz = (get(z + 1, y, x + 1)
-                                            - get(z + 1, y, x - 1)
-                                            - get(z - 1, y, x + 1)
-                                            + get(z - 1, y, x - 1))
-                                            * 0.25
-                                            * isp[0]
-                                            * isp[2];
-                                        let iyz = (get(z + 1, y + 1, x)
-                                            - get(z + 1, y - 1, x)
-                                            - get(z - 1, y + 1, x)
-                                            + get(z - 1, y - 1, x))
-                                            * 0.25
-                                            * isp[1]
-                                            * isp[2];
+                                    // Cross-derivatives: direct flat-index arithmetic.
+                                    let ixy = (cur_ref[flat + nx + 1] as f64
+                                        - cur_ref[flat + nx - 1] as f64
+                                        - cur_ref[flat - nx + 1] as f64
+                                        + cur_ref[flat - nx - 1] as f64)
+                                        * 0.25
+                                        * isp[0]
+                                        * isp[1];
+                                    let ixz = (cur_ref[flat + slab + 1] as f64
+                                        - cur_ref[flat + slab - 1] as f64
+                                        - cur_ref[flat - slab + 1] as f64
+                                        + cur_ref[flat - slab - 1] as f64)
+                                        * 0.25
+                                        * isp[0]
+                                        * isp[2];
+                                    let iyz = (cur_ref[flat + slab + nx] as f64
+                                        - cur_ref[flat + slab - nx] as f64
+                                        - cur_ref[flat - slab + nx] as f64
+                                        + cur_ref[flat - slab - nx] as f64)
+                                        * 0.25
+                                        * isp[1]
+                                        * isp[2];
 
-                                        (ix_, iy_, iz_, ixx, iyy, izz, ixy, ixz, iyz)
-                                    };
-
-                                // Mean curvature numerator N
-                                let num = ixx * (iy_ * iy_ + iz_ * iz_)
-                                    + iyy * (ix_ * ix_ + iz_ * iz_)
-                                    + izz * (ix_ * ix_ + iy_ * iy_)
-                                    - 2.0 * ix_ * iy_ * ixy
-                                    - 2.0 * ix_ * iz_ * ixz
-                                    - 2.0 * iy_ * iz_ * iyz;
-
-                                // Speed = |∇I|·κ = N / |∇I|².  The |∇I| factor
-                                // cancels the flat-region singularity.
-                                let grad_sq = ix_ * ix_ + iy_ * iy_ + iz_ * iz_;
-                                let speed = if grad_sq > GRAD_MAG_EPSILON {
-                                    num / grad_sq
+                                    (ix_, iy_, iz_, ixx, iyy, izz, ixy, ixz, iyz)
                                 } else {
-                                    0.0
+                                    // ── Boundary path ─────────────────────────────
+                                    // Clamped get; only ~5 % of voxels.
+                                    let x = ix as isize;
+                                    let xm = get(z, y, x - 1);
+                                    let xp = get(z, y, x + 1);
+                                    let ym = get(z, y - 1, x);
+                                    let yp = get(z, y + 1, x);
+                                    let zm = get(z - 1, y, x);
+                                    let zp = get(z + 1, y, x);
+
+                                    let ix_ = (xp - xm) * 0.5 * isp[0];
+                                    let iy_ = (yp - ym) * 0.5 * isp[1];
+                                    let iz_ = (zp - zm) * 0.5 * isp[2];
+
+                                    let ixx = (xp - 2.0 * c64 + xm) * isp[0] * isp[0];
+                                    let iyy = (yp - 2.0 * c64 + ym) * isp[1] * isp[1];
+                                    let izz = (zp - 2.0 * c64 + zm) * isp[2] * isp[2];
+
+                                    let ixy = (get(z, y + 1, x + 1)
+                                        - get(z, y + 1, x - 1)
+                                        - get(z, y - 1, x + 1)
+                                        + get(z, y - 1, x - 1))
+                                        * 0.25
+                                        * isp[0]
+                                        * isp[1];
+                                    let ixz = (get(z + 1, y, x + 1)
+                                        - get(z + 1, y, x - 1)
+                                        - get(z - 1, y, x + 1)
+                                        + get(z - 1, y, x - 1))
+                                        * 0.25
+                                        * isp[0]
+                                        * isp[2];
+                                    let iyz = (get(z + 1, y + 1, x)
+                                        - get(z + 1, y - 1, x)
+                                        - get(z - 1, y + 1, x)
+                                        + get(z - 1, y - 1, x))
+                                        * 0.25
+                                        * isp[1]
+                                        * isp[2];
+
+                                    (ix_, iy_, iz_, ixx, iyy, izz, ixy, ixz, iyz)
                                 };
 
-                                // Cast back to f32, matching ITK's
-                                // `static_cast<PixelType>(update)`.
-                                iz_out[iy * nx + ix] = (c64 + dt64 * speed) as f32;
-                            }
-                        }
-                    },
-                );
-            }
-            std::mem::swap(&mut cur, &mut next);
-        }
+                            // Mean curvature numerator N
+                            let num = ixx * (iy_ * iy_ + iz_ * iz_)
+                                + iyy * (ix_ * ix_ + iz_ * iz_)
+                                + izz * (ix_ * ix_ + iy_ * iy_)
+                                - 2.0 * ix_ * iy_ * ixy
+                                - 2.0 * ix_ * iz_ * ixz
+                                - 2.0 * iy_ * iz_ * iyz;
 
-        Ok(rebuild(cur, dims, image))
+                            // Speed = |∇I|·κ = N / |∇I|².  The |∇I| factor
+                            // cancels the flat-region singularity.
+                            let grad_sq = ix_ * ix_ + iy_ * iy_ + iz_ * iz_;
+                            let speed = if grad_sq > GRAD_MAG_EPSILON {
+                                num / grad_sq
+                            } else {
+                                0.0
+                            };
+
+                            // Cast back to f32, matching ITK's
+                            // `static_cast<PixelType>(update)`.
+                            iz_out[iy * nx + ix] = (c64 + dt64 * speed) as f32;
+                        }
+                    }
+                },
+            );
+        }
+        std::mem::swap(&mut cur, &mut next);
     }
+
+    cur
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -354,3 +402,42 @@ impl CurvatureFlowImageFilter {
 #[cfg(test)]
 #[path = "tests_curvature_flow.rs"]
 mod tests;
+
+#[cfg(test)]
+mod tests_native {
+    use super::{CurvatureFlowConfig, CurvatureFlowImageFilter};
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn matches_burn() {
+        let vals: Vec<f32> = (0..60).map(|i| ((i * 11) % 17) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| {
+                CurvatureFlowImageFilter::new(CurvatureFlowConfig::default())
+                    .apply(img)
+                    .expect("burn curvature flow")
+            },
+            |img, backend| {
+                CurvatureFlowImageFilter::new(CurvatureFlowConfig::default())
+                    .apply_native(img, backend)
+            },
+        );
+    }
+
+    #[test]
+    fn oracle_constant_field_preserved() {
+        // Mean curvature flow of a constant field: all derivatives are 0, so
+        // the speed N/|∇I|² is gated to 0 (|∇I|² ≤ ε) and the image is a fixed
+        // point of the evolution.
+        let img = make_native_image(vec![7.0f32; 27], [3, 3, 3]);
+        let out = CurvatureFlowImageFilter::new(CurvatureFlowConfig::default())
+            .apply_native(&img, &SequentialBackend)
+            .expect("native curvature flow");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 7.0, "constant field must be a fixed point, got {v}");
+        }
+    }
+}

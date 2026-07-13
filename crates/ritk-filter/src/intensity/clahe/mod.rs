@@ -179,10 +179,42 @@ impl ClaheFilter {
     /// # Errors
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        let shape = image.shape();
-        let [depth, rows, cols] = [shape[0], shape[1], shape[2]];
         let (vals_vec, dims) = extract_vec(image)?;
-        let vals = &vals_vec;
+        let out = self.clahe_flat(&vals_vec, dims);
+        Ok(rebuild(out, dims, image))
+    }
+
+    /// Coeus-native sister of [`ClaheFilter::apply`].
+    ///
+    /// Runs the identical per-axial-slice CLAHE via the shared
+    /// [`clahe_flat`](Self::clahe_flat) host core (per-slice driver over
+    /// [`clahe_2d_with_scratch`]) on the image's contiguous host buffer, so the
+    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            self.clahe_flat(vals, dims)
+        })
+    }
+
+    /// Substrate-agnostic host core: applies CLAHE independently to each axial
+    /// (Z=depth) slice of a flat z-major buffer. Single source of truth for the
+    /// Burn [`apply`](Self::apply) and Coeus-native
+    /// [`apply_native`](Self::apply_native) paths.
+    fn clahe_flat(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
+        let [depth, rows, cols] = dims;
 
         let n_tiles_y = self.tile_grid_size[0].min(rows).max(1);
         let n_tiles_x = self.tile_grid_size[1].min(cols).max(1);
@@ -191,7 +223,7 @@ impl ClaheFilter {
         let bins = self.bins;
         let slice_size = rows * cols;
 
-        let out: Vec<f32> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |d| {
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |d| {
             let mut scratch = ClaheScratch::new(rows, cols, n_tiles_y, n_tiles_x, bins);
             let slice = &vals[d * slice_size..(d + 1) * slice_size];
             clahe_2d_with_scratch(
@@ -207,8 +239,7 @@ impl ClaheFilter {
         })
         .into_iter()
         .flatten()
-        .collect();
-        Ok(rebuild(out, dims, image))
+        .collect()
     }
 
     /// Apply CLAHE to a 3-D image using a caller-provided scratch buffer.
@@ -273,3 +304,39 @@ mod tests_clahe;
 #[cfg(test)]
 #[path = "../tests_clahe_apply.rs"]
 mod tests_clahe_apply;
+
+#[cfg(test)]
+mod tests_native {
+    use super::ClaheFilter;
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn matches_burn() {
+        // Two axial slices, structured intensities so tile histograms differ.
+        let vals: Vec<f32> = (0..128).map(|i| ((i * 17) % 64) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [2, 8, 8],
+            |img| {
+                ClaheFilter::new([2, 2], 4.0, 32)
+                    .apply(img)
+                    .expect("burn clahe")
+            },
+            |img, backend| ClaheFilter::new([2, 2], 4.0, 32).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_uniform_slice_unchanged() {
+        // A uniform slice (`v_min == v_max`) maps to itself: the CLAHE per-slice
+        // invariant `output == input` when the slice has zero intensity span.
+        let img = make_native_image(vec![12.0f32; 64], [1, 8, 8]);
+        let out = ClaheFilter::new([2, 2], 4.0, 32)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native clahe");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 12.0, "uniform slice must be preserved, got {v}");
+        }
+    }
+}

@@ -134,15 +134,7 @@ impl<B: Backend> GaussianFilter<B> {
         });
         let max_w = self.max_kernel_width;
         crate::native_support::map_flat_image(image, backend, move |vals, dims| {
-            let mut data = vals.to_vec();
-            for d in 0..3 {
-                if sigmas[d] <= 1e-6 || dims[d] <= 1 {
-                    continue;
-                }
-                let kernel = axis_kernel(sigmas[d], spacing[d], max_w);
-                data = convolve_zero_pad_3d(&data, dims, d, &kernel);
-            }
-            data
+            gaussian_smooth_native_flat(vals, dims, sigmas, spacing, max_w)
         })
     }
 
@@ -254,6 +246,35 @@ fn axis_kernel(sigma_phys: f64, spacing: f64, max_kernel_width: usize) -> Vec<f3
     }
     let actual_radius = (width - 1) / 2;
     crate::gaussian_kernel(pixel_sigma as f32, Some(actual_radius))
+}
+
+/// Burn-free host core for [`GaussianFilter::apply_native`]: separable
+/// zero-padded Gaussian smoothing on a flat z-major buffer, matching the Burn
+/// `conv1d(padding = k/2)` contract (per-axis [`axis_kernel`] +
+/// [`convolve_zero_pad_3d`]). Shared by the native Gaussian path and the native
+/// [`CannyEdgeDetector`](crate::edge::CannyEdgeDetector) smoothing stage, so no
+/// Burn backend is needed to smooth.
+///
+/// The result matches the Burn path to a derived floating-point tolerance (not
+/// bitwise): both evaluate the same kernels but sum the taps in different orders
+/// (`conv1d` vs this correlation), differing only by accumulation rounding
+/// (`O(width · ε · ‖I‖∞)` per axis).
+pub(crate) fn gaussian_smooth_native_flat(
+    vals: &[f32],
+    dims: [usize; 3],
+    sigmas: [f64; 3],
+    spacing: [f64; 3],
+    max_kernel_width: usize,
+) -> Vec<f32> {
+    let mut data = vals.to_vec();
+    for d in 0..3 {
+        if sigmas[d] <= 1e-6 || dims[d] <= 1 {
+            continue;
+        }
+        let kernel = axis_kernel(sigmas[d], spacing[d], max_kernel_width);
+        data = convolve_zero_pad_3d(&data, dims, d, &kernel);
+    }
+    data
 }
 
 /// Convolve a flat C-order `[nz, ny, nx]` volume along `dim` with `kernel`,
