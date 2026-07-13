@@ -91,7 +91,15 @@ full-volume vectors and retained the GIL even though native image storage is
 contiguous. MSE and NCC now share one borrowed image-pair boundary, release the
 GIL around their reductions, and a pointer-identity regression proves that
 contiguous inputs retain their original storage. The wheel job retains the
-30-minute native CI bound.
+30-minute native CI bound. Exact-head CI then reproduced the same stop after
+144 tests: test 145 occupied the final 18 minutes despite the zero-copy
+boundary. The remaining defect was the Python module's private scalar Pearson
+loop over 11,393,280 voxels. The operation now belongs to `ritk-statistics`,
+where two f64-accumulating Moirai fold/reduce passes compute its means and
+centered moments without intermediate allocation. Affine, constant, empty, and
+shape-mismatch contracts are pinned in the owning crate. NumPy's independent
+correlation oracle completed the same committed volume in 0.31 seconds; this is
+empirical evidence that the workload itself is not minute-scale.
 The stronger
 alignment gate exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely

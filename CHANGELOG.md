@@ -9,6 +9,10 @@
 # CHANGELOG
 
 ## [Unreleased] — Sprint 654: Restore CI dependency topology (MIG-654-01)
+### Added
+- Add `ritk_statistics::pearson_correlation`, with allocation-free Moirai
+  partitioning for both f64-accumulating passes.
+
 ### Fixed
 - Check out the exact sibling Rust provider graph before loading the RITK
   workspace in CI and release jobs; replace the invalid embedded Python

@@ -18,6 +18,7 @@
 - [x] Isolate PyO3 extension-module linkage to wheel builds and consolidate Python parity dependencies.
 - [x] Root-cause the over-hour wheel run and remove CMA-ES serial dispatch, sparse-cache cloning, and fixed cache-hit interpolation.
 - [x] Localize the residual timeout to full-brain NCC and remove its two full-image allocations and GIL retention.
+- [x] Confirm the boundary-only change leaves test 145 stalled, then move Pearson correlation into `ritk-statistics` with Moirai reductions.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

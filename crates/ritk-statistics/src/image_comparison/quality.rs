@@ -4,6 +4,79 @@ use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
+/// Compute the Pearson correlation coefficient between equal-length images.
+///
+/// The implementation uses two f64-accumulating passes: one for the means and
+/// one for the centered covariance and variances. Both passes use Moirai's
+/// indexed fold/reduce, so large images are partitioned across workers without
+/// allocating intermediate buffers.
+///
+/// Constant inputs have zero variance and return `0.0`. NaN and infinity
+/// propagate through the arithmetic.
+///
+/// # Errors
+///
+/// Returns an error when the slices differ in length or are empty.
+pub fn pearson_correlation(image: &[f32], reference: &[f32]) -> anyhow::Result<f64> {
+    anyhow::ensure!(
+        image.len() == reference.len(),
+        "pearson correlation requires equal element counts: {} != {}",
+        image.len(),
+        reference.len()
+    );
+    anyhow::ensure!(
+        !image.is_empty(),
+        "pearson correlation requires at least one element"
+    );
+
+    let (image_sum, reference_sum) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        image.len(),
+        || (0.0_f64, 0.0_f64),
+        |(image_acc, reference_acc), index| {
+            (
+                image_acc + image[index] as f64,
+                reference_acc + reference[index] as f64,
+            )
+        },
+        |(image_left, reference_left), (image_right, reference_right)| {
+            (image_left + image_right, reference_left + reference_right)
+        },
+    );
+    let count = image.len() as f64;
+    let image_mean = image_sum / count;
+    let reference_mean = reference_sum / count;
+
+    let (covariance, image_variance, reference_variance) =
+        moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+            image.len(),
+            || (0.0_f64, 0.0_f64, 0.0_f64),
+            |(covariance_acc, image_acc, reference_acc), index| {
+                let image_delta = image[index] as f64 - image_mean;
+                let reference_delta = reference[index] as f64 - reference_mean;
+                (
+                    covariance_acc + image_delta * reference_delta,
+                    image_acc + image_delta * image_delta,
+                    reference_acc + reference_delta * reference_delta,
+                )
+            },
+            |(covariance_left, image_left, reference_left),
+             (covariance_right, image_right, reference_right)| {
+                (
+                    covariance_left + covariance_right,
+                    image_left + image_right,
+                    reference_left + reference_right,
+                )
+            },
+        );
+
+    let denominator = (image_variance * reference_variance).sqrt();
+    Ok(if denominator == 0.0 {
+        0.0
+    } else {
+        (covariance / denominator).clamp(-1.0, 1.0)
+    })
+}
+
 /// Compute the Peak Signal-to-Noise Ratio (PSNR) between two images.
 ///
 /// Returns `f32::INFINITY` when the images are identical.
