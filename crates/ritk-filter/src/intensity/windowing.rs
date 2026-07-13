@@ -9,6 +9,9 @@
 //! Pixels below window_min map to out_min; pixels above window_max map to out_max.
 //! Interior pixels are mapped linearly.
 
+use crate::native_support::map_flat_image;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -40,6 +43,23 @@ impl IntensityWindowingFilter {
     /// Apply windowing to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
+        Ok(rebuild(self.apply_values(&vals), dims, image))
+    }
+
+    /// Apply windowing to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| self.apply_values(values))
+    }
+
+    fn apply_values(&self, vals: &[f32]) -> Vec<f32> {
         let wmin = self.window_min;
         let wmax = self.window_max;
         let omin = self.out_min;
@@ -57,7 +77,7 @@ impl IntensityWindowingFilter {
                 .collect()
         };
 
-        Ok(rebuild(out, dims, image))
+        out
     }
 }
 

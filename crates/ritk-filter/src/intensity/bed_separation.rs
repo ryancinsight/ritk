@@ -33,6 +33,7 @@
 //! ultrasound, the caller should either avoid this filter or provide explicit
 //! configuration derived from modality-specific display semantics.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -108,7 +109,31 @@ impl BedSeparationFilter {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let (vals, _) = extract_vec(image)?;
-        let binary = threshold_foreground(&vals, self.config.body_threshold);
+        Ok(rebuild(self.apply_values(&vals, dims), dims, image))
+    }
+
+    /// Apply bed separation to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.apply_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn apply_values(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
+        let binary = threshold_foreground(vals, self.config.body_threshold);
         let binary = if self.config.component_policy == ComponentPolicy::LargestOnly {
             keep_largest_component(&binary, dims)
         } else {
@@ -116,9 +141,7 @@ impl BedSeparationFilter {
         };
         let binary = binary_closing(&binary, dims, self.config.closing_radius);
         let binary = binary_opening(&binary, dims, self.config.opening_radius);
-        let out = apply_mask(&vals, &binary, self.config.outside_value);
-
-        Ok(rebuild(out, dims, image))
+        apply_mask(vals, &binary, self.config.outside_value)
     }
 
     /// Compute the foreground mask without modifying the source intensity values.

@@ -58,15 +58,78 @@ fn reconstruct_h_extrema<B: Backend>(
     connectivity: Connectivity,
 ) -> anyhow::Result<Image<B, 3>> {
     let (vals, dims) = extract_vec(image)?;
+    validate_height_and_samples(height, &vals)?;
     let shift = match mode {
         ReconstructionMode::Dilation => -height,
         ReconstructionMode::Erosion => height,
     };
-    let marker_vals: Vec<f32> = vals.iter().map(|&v| v + shift).collect();
+    let marker_vals = shifted_marker(&vals, shift)?;
     let marker = rebuild(marker_vals, dims, image);
     MorphologicalReconstruction::new(mode)
         .with_connectivity(connectivity)
         .apply(&marker, image)
+}
+
+fn reconstruct_h_extrema_native<B>(
+    image: &ritk_image::native::Image<f32, B, 3>,
+    height: f32,
+    mode: ReconstructionMode,
+    connectivity: Connectivity,
+    backend: &B,
+) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
+    let values = image.data_slice()?;
+    validate_height_and_samples(height, values)?;
+    let shift = match mode {
+        ReconstructionMode::Dilation => -height,
+        ReconstructionMode::Erosion => height,
+    };
+    let marker = ritk_image::native::Image::from_flat_on(
+        shifted_marker(values, shift)?,
+        image.shape(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        backend,
+    )?;
+    MorphologicalReconstruction::new(mode)
+        .with_connectivity(connectivity)
+        .apply_native(&marker, image, backend)
+}
+
+fn shifted_marker(values: &[f32], shift: f32) -> anyhow::Result<Vec<f32>> {
+    values
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(index, value)| {
+            let marker = value + shift;
+            anyhow::ensure!(
+                marker.is_finite(),
+                "h-transform marker at flat index {index} must remain finite after shift, got {marker}"
+            );
+            Ok(marker)
+        })
+        .collect()
+}
+
+fn validate_height_and_samples(height: f32, values: &[f32]) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        height.is_finite() && height >= 0.0,
+        "h-transform height must be finite and nonnegative, got {height}"
+    );
+    if let Some((index, value)) = values
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        anyhow::bail!("h-transform sample at flat index {index} must be finite, got {value}");
+    }
+    Ok(())
 }
 
 /// Pointwise difference `a − b` of two co-shaped images (helper for h-convex /
@@ -150,6 +213,30 @@ impl HMinimaFilter {
             self.height,
             ReconstructionMode::Erosion,
             self.connectivity,
+        )
+    }
+
+    /// Apply the h-minima transform to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a non-finite/negative height, a non-finite sample,
+    /// inaccessible backend storage, or native output construction failure.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        reconstruct_h_extrema_native(
+            image,
+            self.height,
+            ReconstructionMode::Erosion,
+            self.connectivity,
+            backend,
         )
     }
 }

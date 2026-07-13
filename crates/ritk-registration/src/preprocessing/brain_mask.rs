@@ -22,11 +22,9 @@
 //! it.
 
 use ritk_core::Image;
-use ritk_filter::{
-    BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryThresholdImageFilter,
-};
+use ritk_filter::{BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter};
 use ritk_image::tensor::Backend;
-use ritk_segmentation::{ConnectedComponentsFilter, Connectivity};
+use ritk_segmentation::{binary_threshold, ConnectedComponentsFilter, Connectivity};
 
 /// Parameters for [`ct_brain_mask`].
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -62,8 +60,7 @@ impl Default for CtBrainMaskConfig {
 /// has no connected component (e.g. an empty or non-CT input).
 #[must_use]
 pub fn ct_brain_mask<B: Backend>(ct: &Image<B, 3>, config: &CtBrainMaskConfig) -> Image<B, 3> {
-    let threshold = BinaryThresholdImageFilter::new(config.hu_low, config.hu_high, 1.0, 0.0);
-    let mask = threshold.apply(ct).expect("brain-mask threshold failed");
+    let mask = binary_threshold(ct, config.hu_low, config.hu_high, 1.0, 0.0);
 
     let eroded = BinaryErodeFilter::new(config.erode_radius)
         .apply(&mask)
@@ -76,9 +73,7 @@ pub fn ct_brain_mask<B: Backend>(ct: &Image<B, 3>, config: &CtBrainMaskConfig) -
         .max_by_key(|s| s.voxel_count)
         .expect("brain mask: eroded soft-tissue mask has no connected component");
     let lv = largest.label as f32;
-    let largest_only = BinaryThresholdImageFilter::new(lv, lv, 1.0, 0.0)
-        .apply(&label_img)
-        .expect("brain-mask largest-component threshold failed");
+    let largest_only = binary_threshold(&label_img, lv, lv, 1.0, 0.0);
 
     let dilated = BinaryDilateFilter::new(config.dilate_radius)
         .apply(&largest_only)

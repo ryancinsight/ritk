@@ -1,14 +1,15 @@
 use anyhow::Result;
 use tracing::info;
 
+use ritk_filter::{DistanceMeasure, DistanceTransformImageFilter};
 use ritk_segmentation::{
     BinaryFillHoles, ConnectedComponentsFilter, KMeansSegmentation, MorphologicalGradient,
-    MorphologicalOperation, Skeletonization,
+    Skeletonization,
 };
 
-use super::super::{read_image, write_image_inferred};
+use super::super::{write_image_native, NativeBackend};
 use super::args::SegmentArgs;
-use super::helpers::count_foreground;
+use super::helpers::{count_native_foreground, read_native_input};
 
 // ── K-Means clustering ────────────────────────────────────────────────────────
 
@@ -17,21 +18,22 @@ use super::helpers::count_foreground;
 /// Each voxel in the output contains its assigned cluster index (0..K−1)
 /// as `f32`.  Spatial metadata is preserved.
 pub(super) fn run_kmeans(args: &SegmentArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
+    let (image, output_format) = read_native_input(&args.input, &args.output, "kmeans")?;
 
-    let mut km = KMeansSegmentation::new(args.classes);
+    let mut km = KMeansSegmentation::new(args.classes)?;
     if let Some(mi) = args.kmeans_max_iterations {
-        km.max_iterations = mi;
+        km = km.with_max_iterations(mi)?;
     }
     if let Some(tol) = args.kmeans_tolerance {
-        km.tolerance = tol;
+        km = km.with_tolerance(tol)?;
     }
     if let Some(seed) = args.kmeans_seed {
-        km.seed = seed;
+        km = km.with_seed(seed);
     }
-    let labeled = km.apply(&image);
+    let backend = NativeBackend::default();
+    let labeled = km.apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &labeled)?;
+    write_image_native(&args.output, &labeled, output_format)?;
 
     println!(
         "Segmented {} (kmeans): k={} clusters",
@@ -53,17 +55,16 @@ pub(super) fn run_kmeans(args: &SegmentArgs) -> Result<()> {
 /// Compute the Euclidean distance transform of a binary mask.
 ///
 /// The input is binarised at threshold 0.5 (voxels > 0.5 = foreground).
-/// The output is a float image where each foreground voxel contains the
-/// Euclidean distance (in voxel units) to the nearest background voxel.
-/// Background voxels have value 0.0.
+/// Foreground voxels receive zero; each background voxel receives its physical
+/// Euclidean distance to the nearest foreground voxel using image spacing.
 pub(super) fn run_distance_transform(args: &SegmentArgs) -> Result<()> {
-    use ritk_segmentation::distance_transform;
-
-    let image = read_image(&args.input)?;
-
-    let dt = distance_transform(&image, 0.5);
-
-    write_image_inferred(&args.output, &dt)?;
+    let (image, output_format) =
+        read_native_input(&args.input, &args.output, "distance-transform")?;
+    let backend = NativeBackend::default();
+    let dt = DistanceTransformImageFilter::new()
+        .with_measure(DistanceMeasure::Euclidean)
+        .apply_native(&image, &backend)?;
+    write_image_native(&args.output, &dt, output_format)?;
 
     println!(
         "Computed distance-transform for {} \u{2192} {}",
@@ -85,10 +86,10 @@ pub(super) fn run_distance_transform(args: &SegmentArgs) -> Result<()> {
 /// The input must be a binary mask (0.0 / 1.0). All background voxels not
 /// reachable from the border are converted to foreground.
 pub(super) fn run_fill_holes(args: &SegmentArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let filled = BinaryFillHoles.apply(&image);
-
-    write_image_inferred(&args.output, &filled)?;
+    let (image, output_format) = read_native_input(&args.input, &args.output, "fill-holes")?;
+    let backend = NativeBackend::default();
+    let filled = BinaryFillHoles.apply_native(&image, &backend)?;
+    write_image_native(&args.output, &filled, output_format)?;
 
     println!(
         "Segmented {} (fill-holes) -> {}",
@@ -109,10 +110,11 @@ pub(super) fn run_fill_holes(args: &SegmentArgs) -> Result<()> {
 ///
 /// Produces a boundary mask from the binary input via dilation AND NOT erosion.
 pub(super) fn run_morphological_gradient(args: &SegmentArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let gradient = MorphologicalGradient::new(1).apply(&image);
-
-    write_image_inferred(&args.output, &gradient)?;
+    let (image, output_format) =
+        read_native_input(&args.input, &args.output, "morphological-gradient")?;
+    let backend = NativeBackend::default();
+    let gradient = MorphologicalGradient::new(1).apply_native(&image, &backend)?;
+    write_image_native(&args.output, &gradient, output_format)?;
 
     println!(
         "Segmented {} (morphological-gradient) -> {}",
@@ -132,15 +134,17 @@ pub(super) fn run_morphological_gradient(args: &SegmentArgs) -> Result<()> {
 // -- Connected components -------------------------------------------------
 
 pub(super) fn run_connected_components(args: &SegmentArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let mut filter = ConnectedComponentsFilter::new();
-    filter.connectivity = if args.connectivity == 6 {
+    let (image, output_format) =
+        read_native_input(&args.input, &args.output, "connected-components")?;
+    let connectivity = if args.connectivity == 6 {
         ritk_segmentation::labeling::Connectivity::Six
     } else {
         ritk_segmentation::labeling::Connectivity::TwentySix
     };
-    let (labels, stats) = filter.apply(&image);
-    write_image_inferred(&args.output, &labels)?;
+    let backend = NativeBackend::default();
+    let (labels, stats) = ConnectedComponentsFilter::with_connectivity(connectivity)
+        .apply_native(&image, &backend)?;
+    write_image_native(&args.output, &labels, output_format)?;
 
     println!(
         "Labeled {}: connected-components found {} components (connectivity={})",
@@ -161,11 +165,11 @@ pub(super) fn run_connected_components(args: &SegmentArgs) -> Result<()> {
 // -- Skeletonization ------------------------------------------------------
 
 pub(super) fn run_skeletonization(args: &SegmentArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let skeleton = Skeletonization::new().apply::<_, 3>(&image);
-    let n_skeleton = count_foreground(&skeleton);
-
-    write_image_inferred(&args.output, &skeleton)?;
+    let (image, output_format) = read_native_input(&args.input, &args.output, "skeletonization")?;
+    let backend = NativeBackend::default();
+    let skeleton = Skeletonization::new().apply_native(&image, &backend)?;
+    let n_skeleton = count_native_foreground(&skeleton)?;
+    write_image_native(&args.output, &skeleton, output_format)?;
 
     println!(
         "Computed skeleton for {} -> {} ({} skeleton voxels)",

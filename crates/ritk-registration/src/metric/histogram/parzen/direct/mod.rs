@@ -111,7 +111,7 @@ pub(crate) mod types;
 // ── Re-exports ─────────────────────────────────────────────────────────────
 
 // Public API functions (backward-compatible paths from `direct::`).
-pub use compute_direct::compute_joint_histogram_direct;
+pub use compute_direct::{compute_joint_histogram_direct, compute_joint_histogram_values};
 pub use compute_sparse::{
     build_sparse_w_fixed_transposed, compute_joint_histogram_from_cache_sparse,
 };
@@ -141,6 +141,32 @@ pub(crate) use types::{BinRange, StackWeights};
 #[allow(unused_imports)]
 pub(crate) use types::compute_half_width;
 pub(crate) use types::ParzenConfig;
+
+/// Normalize intensities into the clamped histogram-bin coordinate range.
+///
+/// # Panics
+///
+/// Panics when fewer than two bins are requested or the intensity range is
+/// empty or reversed.
+#[must_use]
+pub fn normalize_intensities(
+    values: &[f32],
+    min_intensity: f32,
+    max_intensity: f32,
+    num_bins: usize,
+) -> Vec<f32> {
+    assert!(num_bins > 1, "normalization requires at least two bins");
+    assert!(
+        max_intensity > min_intensity,
+        "normalization requires max_intensity > min_intensity"
+    );
+    let upper = (num_bins - 1) as f32;
+    let scale = upper / (max_intensity - min_intensity);
+    values
+        .iter()
+        .map(|&value| ((value - min_intensity) * scale).clamp(0.0, upper))
+        .collect()
+}
 
 // ── Test registrations ─────────────────────────────────────────────────────
 

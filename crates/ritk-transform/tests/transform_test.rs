@@ -1,7 +1,9 @@
 use burn_ndarray::NdArray;
+use coeus_autograd::Var;
+use coeus_core::MoiraiBackend;
+use coeus_tensor::Tensor as CoeusTensor;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::tensor::{Tensor, TensorData};
-use ritk_interpolation::LinearInterpolator;
 use ritk_transform::Transform;
 use ritk_transform::{DisplacementField, DisplacementFieldTransform, RigidTransform};
 use std::f32::consts::PI;
@@ -98,36 +100,35 @@ fn rigid_translation_volume_displaces_correctly() {
 
 #[test]
 fn displacement_field_planar_maps_by_offset() {
-    let device = Default::default();
-
     // Create a 2x2 displacement field
     // X component: [[1.0, 1.0], [1.0, 1.0]] (Constant shift +1 in X)
     // Y component: [[0.5, 0.5], [0.5, 0.5]] (Constant shift +0.5 in Y)
 
     // Create a 2D displacement field with shape [2, 2] (spatial)
-    let x_data = TensorData::from([[1.0, 1.0], [1.0, 1.0]]); // [2, 2]
-    let x_tensor = Tensor::<B, 2>::from_data(x_data, &device);
-
-    let y_data = TensorData::from([[0.5, 0.5], [0.5, 0.5]]); // [2, 2]
-    let y_tensor = Tensor::<B, 2>::from_data(y_data, &device);
+    let backend = MoiraiBackend;
+    let x_tensor = CoeusTensor::from_slice_on([2, 2], &[1.0; 4], &backend);
+    let y_tensor = CoeusTensor::from_slice_on([2, 2], &[0.5; 4], &backend);
 
     let origin = Point::new([0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0]);
     let direction = Direction::identity();
 
-    let field = DisplacementField::new(vec![x_tensor, y_tensor], origin, spacing, direction);
-
-    let transform = DisplacementFieldTransform::<B, 2>::new(field, LinearInterpolator::new());
+    let field = DisplacementField::new(vec![x_tensor, y_tensor], origin, spacing, direction)
+        .expect("valid planar field");
+    let transform = DisplacementFieldTransform::<MoiraiBackend, 2>::new(field);
 
     // Test point (0.5, 0.5)
     // Physical (0.5, 0.5) -> Index (0.5, 0.5)
     // Interpolation should be perfect since values are constant
-    let points_data = TensorData::from([[0.5, 0.5]]);
-    let points = Tensor::<B, 2>::from_data(points_data, &device);
+    let points = Var::new(
+        CoeusTensor::from_slice_on([1, 2], &[0.5, 0.5], &backend),
+        false,
+    );
 
-    let transformed = transform.transform_points(points);
-    let result = transformed.into_data();
-    let actual = result.as_slice::<f32>().unwrap();
+    let transformed = transform
+        .transform_points(&points)
+        .expect("valid interpolation contract");
+    let actual = transformed.tensor.as_slice();
 
     // Expected: (0.5 + 1.0, 0.5 + 0.5) = (1.5, 1.0)
     // But wait, the interpolation adds displacement to the point.

@@ -15,6 +15,7 @@ pub mod error;
 pub mod global_mi;
 pub mod spatial;
 pub mod temporal;
+pub mod translation;
 
 // Re-export core types for convenience
 pub use engine::{ImageRegistration, RegistrationResult};
@@ -27,6 +28,10 @@ pub use global_mi::{
 };
 pub use spatial::SpatialTransform;
 pub use temporal::TemporalSync;
+pub use translation::{
+    register_translation, MeanSquaredDifference, NormalizedCrossCorrelation, TranslationMetric,
+    TranslationRegistrationError,
+};
 
 // Re-export quality metrics from validation (SSOT)
 pub use crate::validation::{RegistrationQualityMetrics, TemporalQualityMetrics};

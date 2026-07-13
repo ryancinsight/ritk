@@ -32,7 +32,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 #[derive(Debug, Clone)]
 pub struct SignedDistanceTransformImageFilter {
     /// Intensity threshold separating background from foreground.
-    pub threshold: BinarizationThreshold,
+    threshold: BinarizationThreshold,
 }
 
 impl Default for SignedDistanceTransformImageFilter {
@@ -48,9 +48,13 @@ impl SignedDistanceTransformImageFilter {
         Self::default()
     }
 
-    pub fn with_threshold(mut self, t: impl Into<BinarizationThreshold>) -> Self {
-        self.threshold = t.into();
+    pub fn with_threshold(mut self, threshold: BinarizationThreshold) -> Self {
+        self.threshold = threshold;
         self
+    }
+
+    pub fn threshold(&self) -> BinarizationThreshold {
+        self.threshold
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
@@ -64,19 +68,8 @@ impl SignedDistanceTransformImageFilter {
         let bg: Vec<bool> = fg.iter().map(|&b| !b).collect();
         let sp = image.spacing();
         let spacing = [sp[0], sp[1], sp[2]];
-
-        // EDT from each voxel to nearest foreground (background voxels get positive value)
-        let edt_to_fg = euclidean_dt(&fg, dims, spacing);
-        // EDT from each voxel to nearest background (foreground voxels get positive value)
-        let edt_to_bg = euclidean_dt(&bg, dims, spacing);
-
-        // Signed: outside (+) = edt_to_fg, inside (−) = −edt_to_bg
-        let result: Vec<f32> = fg
-            .iter()
-            .zip(edt_to_fg.iter())
-            .zip(edt_to_bg.iter())
-            .map(|((&is_fg, &d_fg), &d_bg)| if is_fg { -d_bg } else { d_fg })
-            .collect();
+        super::unsigned::validate_input(&vals, dims, spacing, self.threshold)?;
+        let result = signed_values(&fg, &bg, dims, spacing);
 
         let device = image.data().device();
         let td_out = TensorData::new(result, Shape::new([nz, ny, nx]));
@@ -88,4 +81,57 @@ impl SignedDistanceTransformImageFilter {
             *image.direction(),
         ))
     }
+
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        let dims = image.shape();
+        let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
+        super::unsigned::validate_input(values, dims, spacing, self.threshold)?;
+        let foreground: Vec<bool> = values
+            .iter()
+            .map(|&value| value > f32::from(self.threshold))
+            .collect();
+        let background: Vec<bool> = foreground.iter().map(|&value| !value).collect();
+        crate::native_support::map_flat_image(image, backend, |_, _| {
+            signed_values(&foreground, &background, dims, spacing)
+        })
+    }
+}
+
+fn signed_values(
+    foreground: &[bool],
+    background: &[bool],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+) -> Vec<f32> {
+    let to_foreground = if foreground.iter().any(|&value| value) {
+        euclidean_dt(foreground, dims, spacing)
+    } else {
+        vec![0.0; foreground.len()]
+    };
+    let to_background = if background.iter().any(|&value| value) {
+        euclidean_dt(background, dims, spacing)
+    } else {
+        vec![0.0; background.len()]
+    };
+    foreground
+        .iter()
+        .zip(to_foreground)
+        .zip(to_background)
+        .map(|((&is_foreground, to_foreground), to_background)| {
+            if is_foreground {
+                -to_background
+            } else {
+                to_foreground
+            }
+        })
+        .collect()
 }

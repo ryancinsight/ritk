@@ -1,7 +1,7 @@
 //! ONNX computation graph intermediate representation.
 //!
 //! This module defines data structures for representing ONNX computation
-//! graphs in memory, enabling conversion to Burn modules.
+//! graphs in memory for validation and inspection.
 
 mod attribute;
 mod element_type;
@@ -34,8 +34,8 @@ pub struct OnnxGraph {
     pub outputs: Vec<OnnxValue>,
     /// Computation nodes in topological order
     pub nodes: Vec<OnnxNode>,
-    /// Initializers (weights/biases) as name -> tensor mapping
-    pub initializers: HashMap<String, OnnxTensor>,
+    /// Initializer shape/type metadata keyed by tensor name.
+    pub initializers: HashMap<String, OnnxValue>,
     /// Value info for intermediate tensors (name -> shape/type)
     pub value_info: HashMap<String, OnnxValueInfo>,
 }
@@ -68,8 +68,8 @@ impl OnnxGraph {
         self.nodes.iter().find(|n| n.name == name)
     }
 
-    /// Get an initializer tensor by name.
-    pub fn get_initializer(&self, name: &str) -> Option<&OnnxTensor> {
+    /// Get initializer metadata by name.
+    pub fn get_initializer(&self, name: &str) -> Option<&OnnxValue> {
         self.initializers.get(name)
     }
 
@@ -83,7 +83,7 @@ impl OnnxGraph {
         if let Some(info) = self.value_info.get(name) {
             Some(&info.shape)
         } else if let Some(tensor) = self.initializers.get(name) {
-            Some(&tensor.dims)
+            Some(&tensor.value_info.shape)
         } else {
             None
         }

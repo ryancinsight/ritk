@@ -1179,11 +1179,11 @@ def test_cmake_iso_contour_distance(shape, far):
 
 
 @pytest.mark.parametrize(
-    "bridge,find_upper",
-    [(150, True), (40, True), (150, False)],
-    ids=["bridge150-up", "bridge40-up", "bridge150-low"],
+    "bridge,find_upper,expected_thresholding_failed",
+    [(150, True, False), (40, True, False), (40, False, False), (150, False, True)],
+    ids=["bridge150-up", "bridge40-up", "bridge40-low", "bridge150-low-failed"],
 )
-def test_cmake_isolated_connected(bridge, find_upper):
+def test_cmake_isolated_connected(bridge, find_upper, expected_thresholding_failed):
     """IsolatedConnected: binary-search the threshold separating two seeds. ritk
     `segmentation.isolated_connected_segment` vs `sitk.IsolatedConnected` on two
     blobs joined by an intermediate-intensity bridge. Bit-exact — the bisection
@@ -1203,22 +1203,19 @@ def test_cmake_isolated_connected(bridge, find_upper):
         sitk.IsolatedConnected(si, seed1, seed2, lo, hi, 1, 1.0, find_upper)
     ).astype(_np.float64)
     ri = ritk.Image(_np.ascontiguousarray(img[None]))
-    r = _np.squeeze(
-        _np.asarray(
-            ritk.segmentation.isolated_connected_segment(
-                ri,
-                [0, seed1[1], seed1[0]],
-                [0, seed2[1], seed2[0]],
-                lo,
-                hi,
-                1.0,
-                1.0,
-                find_upper,
-            ).to_numpy(),
-            _np.float64,
-        )
+    result, thresholding_failed = ritk.segmentation.isolated_connected_segment(
+        ri,
+        [0, seed1[1], seed1[0]],
+        [0, seed2[1], seed2[0]],
+        lo,
+        hi,
+        1.0,
+        1.0,
+        find_upper,
     )
+    r = _np.squeeze(_np.asarray(result.to_numpy(), _np.float64))
     assert _np.array_equal(r, s), "IsolatedConnected differs from sitk"
+    assert thresholding_failed is expected_thresholding_failed
 
 
 @pytest.mark.parametrize("level", [0.0, 5.0, 10.0], ids=["l0", "l5", "l10"])
@@ -1244,6 +1241,38 @@ def test_cmake_morphological_watershed(level):
         )
     )
     assert np.array_equal(r, s), f"{int((r != s).sum())} voxels differ from sitk"
+
+
+def test_morphological_watershed_native_validation_errors():
+    image = ritk.Image(np.zeros((1, 2, 3), dtype=np.float32))
+    for level in (np.nan, np.inf, -np.inf, -1.0):
+        with pytest.raises(
+            ValueError,
+            match=r"morphological watershed level must be finite and nonnegative",
+        ):
+            ritk.segmentation.morphological_watershed(image, float(level))
+
+    invalid = np.zeros((1, 2, 3), dtype=np.float32)
+    invalid.flat[2] = np.nan
+    with pytest.raises(
+        ValueError,
+        match=r"regional-extrema sample at flat index 2 must be finite",
+    ):
+        ritk.segmentation.morphological_watershed(ritk.Image(invalid), 0.0)
+
+    with pytest.raises(
+        ValueError,
+        match=r"h-transform marker at flat index 0 must remain finite after shift",
+    ):
+        ritk.filter.h_minima(
+            ritk.Image(np.full((1, 1, 1), np.finfo(np.float32).max, dtype=np.float32)),
+            float(np.finfo(np.float32).max),
+        )
+    with pytest.raises(
+        ValueError,
+        match=r"regional-extrema sample at flat index 2 must be finite",
+    ):
+        ritk.filter.regional_minima(ritk.Image(invalid))
 
 
 @pytest.mark.parametrize(
@@ -1875,6 +1904,18 @@ def test_cmake_toboggan_3d():
     assert _np.array_equal(got, ref), (
         f"Toboggan 3D differs at {int((got != ref).sum())} voxels"
     )
+
+
+def test_toboggan_native_validation_errors():
+    relief = np.zeros((1, 2, 3), dtype=np.float32)
+    for value in (np.nan, np.inf, -np.inf):
+        invalid = relief.copy()
+        invalid.flat[2] = value
+        with pytest.raises(
+            ValueError,
+            match=r"Toboggan relief at flat index 2 must be finite",
+        ):
+            ritk.segmentation.toboggan(ritk.Image(invalid))
 
 
 @pytest.mark.parametrize("fully_connected", [False, True])
@@ -5885,13 +5926,9 @@ def test_cmake_isolated_watershed_structural():
 
     Upstream cmake case mirrors: IsolatedWatershedImageFilter.yaml.
 
-    Evidence tier: empirical (failing — ritk.segmentation.isolated_watershed_segment
-    not yet implemented; expected: AttributeError).
+    Evidence tier: empirical differential comparison with SimpleITK.
     """
     import numpy as _np
-
-    if not hasattr(ritk.segmentation, "isolated_watershed_segment"):
-        pytest.skip("isolated_watershed_segment is unimplemented in ritk")
 
     path = fetch_input("RA-Float.nrrd")
     raw_arr = sitk.GetArrayFromImage(
@@ -7856,4 +7893,3 @@ def test_cmake_sato_line_filter_multiscale_max_parity():
     expected_max = _np.maximum(r1_arr, r2_arr)
     max_diff = float(_np.abs(rm_arr - expected_max).max())
     assert max_diff < 1e-5, f"Sato multiscale max aggregation self-consistency failed: diff={max_diff:.3e}"
-

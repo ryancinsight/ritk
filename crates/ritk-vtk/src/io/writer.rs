@@ -16,8 +16,8 @@
 //! layout. No data permutation is required.
 
 use anyhow::{Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::Image;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
@@ -34,19 +34,36 @@ use std::path::Path;
 /// Returns an error when:
 /// - The file cannot be created or written.
 /// - The tensor data cannot be extracted as `f32`.
-pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+pub fn write_vtk<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
     let path = path.as_ref();
-    let file = std::fs::File::create(path)
-        .with_context(|| format!("failed to create VTK file: {}", path.display()))?;
-    let mut writer = BufWriter::new(file);
-
-    // --- Extract spatial metadata ---
-
     let shape = image.shape(); // [nz, ny, nx]
     let nz = shape[0];
     let ny = shape[1];
     let nx = shape[2];
-    let total_voxels = nx * ny * nz;
+    let total_voxels = nx
+        .checked_mul(ny)
+        .and_then(|plane| plane.checked_mul(nz))
+        .with_context(|| format!("VTK image shape product overflows usize: {nx}×{ny}×{nz}"))?;
+    let voxels = image.data_cow_on(backend);
+    if voxels.len() != total_voxels {
+        anyhow::bail!(
+            "image contains {} elements but expected {} ({}×{}×{})",
+            voxels.len(),
+            total_voxels,
+            nx,
+            ny,
+            nz
+        );
+    }
+
+    let file = std::fs::File::create(path)
+        .with_context(|| format!("failed to create VTK file: {}", path.display()))?;
+    let mut writer = BufWriter::new(file);
 
     let origin = image.origin(); // [X, Y, Z] order
     let spacing = image.spacing(); // [X, Y, Z] order
@@ -98,29 +115,11 @@ pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Re
     writeln!(writer, "LOOKUP_TABLE default").with_context(|| "failed to write VTK LOOKUP_TABLE")?;
 
     // --- Write binary scalar data (big-endian f32) ---
-    let f32_vec = image.try_data_vec()?;
-    let slice: &[f32] = &f32_vec;
-
-    if slice.len() != total_voxels {
-        anyhow::bail!(
-            "tensor contains {} elements but expected {} ({}×{}×{})",
-            slice.len(),
-            total_voxels,
-            nx,
-            ny,
-            nz
-        );
+    for &voxel in voxels.iter() {
+        writer
+            .write_all(&voxel.to_be_bytes())
+            .with_context(|| "failed to write VTK binary scalar data")?;
     }
-
-    // Pre-allocate the full binary buffer to minimise I/O calls.
-    let mut binary_buf = Vec::with_capacity(total_voxels * 4);
-    for &val in slice {
-        binary_buf.extend_from_slice(&val.to_be_bytes());
-    }
-
-    writer
-        .write_all(&binary_buf)
-        .with_context(|| "failed to write VTK binary scalar data")?;
 
     writer
         .flush()

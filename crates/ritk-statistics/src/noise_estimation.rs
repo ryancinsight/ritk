@@ -32,6 +32,8 @@
 //! - Rousseeuw, P. J. & Croux, C. (1993). Alternatives to the Median Absolute
 //!   Deviation. *J. Amer. Statist. Assoc.*, 88(424), 1273–1283.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -108,6 +110,20 @@ pub fn estimate_noise_mad<B: Backend, const D: usize>(image: &Image<B, D>) -> f3
     let (vals, _) = extract_vec_infallible(image);
     let mut values = vals;
     mad_sigma(&mut values)
+}
+
+/// Estimate Gaussian noise sigma-hat from a Coeus-native image.
+///
+/// # Errors
+/// Returns an error when the image storage is not CPU-addressable.
+pub fn estimate_noise_mad_native<B, const D: usize>(
+    image: &NativeImage<f32, B, D>,
+) -> anyhow::Result<f32>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    Ok(estimate_noise_mad_from_slice(image.data_slice()?))
 }
 
 /// Estimate the standard deviation of additive Gaussian noise in `image` using

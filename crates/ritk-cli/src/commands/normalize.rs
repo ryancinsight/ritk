@@ -20,7 +20,10 @@ use ritk_statistics::normalization::{
     WhiteStripeNormalizer, ZScoreNormalizer,
 };
 
-use super::{read_image, write_image_inferred, Backend};
+use super::{
+    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
+    write_image_native,
+};
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
@@ -131,70 +134,137 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
         args.method
     );
 
-    let input = read_image(&args.input)?;
-
-    let normalized: ritk_image::Image<Backend, 3> = match args.method {
-        NormalizeMethod::HistogramMatch => {
-            let ref_path = args.reference.as_ref().ok_or_else(|| {
-                anyhow!("--reference is required for the 'histogram-match' method")
-            })?;
-            let reference = read_image(ref_path)?;
-            HistogramMatcher::new(args.num_bins).match_histograms(&input, &reference)
-        }
-
-        NormalizeMethod::Nyul => {
-            let mut normalizer = NyulUdupaNormalizer::default();
-            if let Some(ref_path) = args.reference.as_ref() {
-                let reference = read_image(ref_path)?;
-                normalizer.learn_standard(&[&input, &reference]);
-            } else {
-                normalizer.learn_standard(&[&input]);
-            }
-            normalizer.apply(&input)?
-        }
-
-        NormalizeMethod::Zscore => {
-            if let Some(mask_path) = &args.mask {
-                let mask_img = read_image(mask_path)?;
-                ZScoreNormalizer::new().normalize_masked(&input, &mask_img)
-            } else {
-                ZScoreNormalizer.normalize(&input)
-            }
-        }
-
-        NormalizeMethod::Minmax => MinMaxNormalizer::default().normalize(&input),
-
-        NormalizeMethod::WhiteStripe => {
-            let contrast = match args.contrast.unwrap_or(CliContrast::T1) {
-                CliContrast::T1 => MriContrast::T1,
-                CliContrast::T2 => MriContrast::T2,
-            };
-            let config = WhiteStripeConfig {
-                contrast,
-                width: args.ws_width.unwrap_or(0.05),
-                ..Default::default()
-            };
-            let result = WhiteStripeNormalizer::normalize(&input, None, &config);
-            info!(
-                "white-stripe: mu={:.4} sigma={:.4} wm_peak={:.4} stripe_size={}",
-                result.mu, result.sigma, result.wm_peak, result.stripe_size
-            );
-            println!(
-                "white-stripe stats: mu={:.4}, sigma={:.4}, wm_peak={:.4}, stripe_size={}",
-                result.mu, result.sigma, result.wm_peak, result.stripe_size
-            );
-            result.normalized
-        }
-    };
-
-    write_image_inferred(&args.output, &normalized)?;
-    println!(
-        "normalize: wrote {} -> {}",
+    if matches!(
         args.method,
-        args.output.display()
-    );
-    info!("normalize: done output={}", args.output.display());
-    Ok(())
+        NormalizeMethod::HistogramMatch
+            | NormalizeMethod::Minmax
+            | NormalizeMethod::Nyul
+            | NormalizeMethod::WhiteStripe
+            | NormalizeMethod::Zscore
+    ) {
+        let input_format = infer_format(&args.input).ok_or_else(|| {
+            anyhow!(
+                "Cannot infer input format from path: {}",
+                args.input.display()
+            )
+        })?;
+        let output_format = infer_format(&args.output).ok_or_else(|| {
+            anyhow!(
+                "Cannot infer output format from path: {}",
+                args.output.display()
+            )
+        })?;
+        anyhow::ensure!(
+            is_native_read_capable(input_format),
+            "{} normalization does not support {:?} input until its native reader exists",
+            args.method,
+            input_format
+        );
+        anyhow::ensure!(
+            is_native_write_capable(output_format),
+            "{} normalization does not support {:?} output until its native writer exists",
+            args.method,
+            output_format
+        );
+        let input = read_image_native(&args.input)?;
+        let backend = super::NativeBackend::default();
+        let output = match args.method {
+            NormalizeMethod::Minmax => {
+                MinMaxNormalizer::default().normalize_native(&input, &backend)?
+            }
+            NormalizeMethod::Zscore => {
+                if let Some(mask_path) = &args.mask {
+                    let mask_format = infer_format(mask_path).ok_or_else(|| {
+                        anyhow!(
+                            "Cannot infer mask format from path: {}",
+                            mask_path.display()
+                        )
+                    })?;
+                    anyhow::ensure!(
+                        is_native_read_capable(mask_format),
+                        "zscore normalization does not support {:?} mask input until its native reader exists",
+                        mask_format
+                    );
+                    let mask = read_image_native(mask_path)?;
+                    ZScoreNormalizer::new().normalize_masked_native(&input, &mask, &backend)?
+                } else {
+                    ZScoreNormalizer::new().normalize_native(&input, &backend)?
+                }
+            }
+            NormalizeMethod::HistogramMatch => {
+                let reference_path = args.reference.as_ref().ok_or_else(|| {
+                    anyhow!("--reference is required for the 'histogram-match' method")
+                })?;
+                let reference_format = infer_format(reference_path).ok_or_else(|| {
+                    anyhow!(
+                        "Cannot infer reference format from path: {}",
+                        reference_path.display()
+                    )
+                })?;
+                anyhow::ensure!(
+                    is_native_read_capable(reference_format),
+                    "histogram-match normalization does not support {:?} reference input until its native reader exists",
+                    reference_format
+                );
+                let reference = read_image_native(reference_path)?;
+                HistogramMatcher::new(args.num_bins)
+                    .match_histograms_native(&input, &reference, &backend)?
+            }
+            NormalizeMethod::Nyul => {
+                let mut normalizer = NyulUdupaNormalizer::default();
+                if let Some(reference_path) = &args.reference {
+                    let reference_format = infer_format(reference_path).ok_or_else(|| {
+                        anyhow!(
+                            "Cannot infer reference format from path: {}",
+                            reference_path.display()
+                        )
+                    })?;
+                    anyhow::ensure!(
+                        is_native_read_capable(reference_format),
+                        "nyul normalization does not support {:?} reference input until its native reader exists",
+                        reference_format
+                    );
+                    let reference = read_image_native(reference_path)?;
+                    normalizer.learn_standard_native(&[&input, &reference])?;
+                } else {
+                    normalizer.learn_standard_native(&[&input])?;
+                }
+                normalizer.apply_native(&input, &backend)?
+            }
+            NormalizeMethod::WhiteStripe => {
+                let contrast = match args.contrast.unwrap_or(CliContrast::T1) {
+                    CliContrast::T1 => MriContrast::T1,
+                    CliContrast::T2 => MriContrast::T2,
+                };
+                let config = WhiteStripeConfig {
+                    contrast,
+                    width: args.ws_width.unwrap_or(0.05),
+                    ..Default::default()
+                };
+                let result =
+                    WhiteStripeNormalizer::normalize_native(&input, None, &config, &backend)?;
+                info!(
+                    "white-stripe: mu={:.4} sigma={:.4} wm_peak={:.4} stripe_size={}",
+                    result.mu, result.sigma, result.wm_peak, result.stripe_size
+                );
+                println!(
+                    "white-stripe stats: mu={:.4}, sigma={:.4}, wm_peak={:.4}, stripe_size={}",
+                    result.mu, result.sigma, result.wm_peak, result.stripe_size
+                );
+                result.normalized
+            }
+        };
+        write_image_native(&args.output, &output, output_format)?;
+        println!(
+            "normalize: wrote {} -> {}",
+            args.method,
+            args.output.display()
+        );
+        info!("normalize: done output={}", args.output.display());
+        Ok(())
+    } else {
+        unreachable!("all normalization methods have native routes")
+    }
 }
 
 #[cfg(test)]

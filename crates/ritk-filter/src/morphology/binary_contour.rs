@@ -97,54 +97,9 @@ impl BinaryContourImageFilter {
     /// Apply the binary contour filter to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let [nz, ny, nx] = dims;
+        let out = self.contour_values(&vals, dims);
         let device = image.data().device();
-
-        let fg = f32::from(self.foreground_value);
-        let n26 = n26();
-
-        let slab = ny * nx;
-        let connectivity = self.connectivity; // Copy type - can be moved into closure
-                                              // PERF-378-01: parallelise over flat voxel index
-        let out = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
-            let v = vals[flat];
-            if (v - fg).abs() > 1e-5 {
-                return 0.0f32;
-            }
-            let iz = flat / slab;
-            let rem = flat - iz * slab;
-            let iy = rem / nx;
-            let ix = rem - iy * nx;
-            let neighbour_is_bg = |dz: i32, dy: i32, dx: i32| -> bool {
-                let qz = iz as i32 + dz;
-                let qy = iy as i32 + dy;
-                let qx = ix as i32 + dx;
-                if qz < 0
-                    || qy < 0
-                    || qx < 0
-                    || qz >= nz as i32
-                    || qy >= ny as i32
-                    || qx >= nx as i32
-                {
-                    return false;
-                }
-                let nv = vals[qz as usize * slab + qy as usize * nx + qx as usize];
-                (nv - fg).abs() > 1e-5
-            };
-            let is_border = match connectivity {
-                Connectivity::Vertex26 => {
-                    n26.iter().any(|&(dz, dy, dx)| neighbour_is_bg(dz, dy, dx))
-                }
-                Connectivity::Face6 => N6.iter().any(|&(dz, dy, dx)| neighbour_is_bg(dz, dy, dx)),
-            };
-            if is_border {
-                fg
-            } else {
-                0.0f32
-            }
-        });
-
-        let shape = Shape::new([nz, ny, nx]);
+        let shape = Shape::new(dims);
         let data = TensorData::new(out, shape);
         let tensor = Tensor::<B, 3>::from_data(data, &device);
         Ok(Image::new(
@@ -153,6 +108,61 @@ impl BinaryContourImageFilter {
             *image.spacing(),
             *image.direction(),
         ))
+    }
+
+    /// Apply binary contour extraction to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.contour_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn contour_values(&self, values: &[f32], [nz, ny, nx]: [usize; 3]) -> Vec<f32> {
+        let fg = f32::from(self.foreground_value);
+        let n26 = n26();
+        let slab = ny * nx;
+        let connectivity = self.connectivity;
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(values.len(), |flat| {
+            if (values[flat] - fg).abs() > 1e-5 {
+                return 0.0;
+            }
+            let iz = flat / slab;
+            let rem = flat - iz * slab;
+            let iy = rem / nx;
+            let ix = rem - iy * nx;
+            let is_background = |dz: i32, dy: i32, dx: i32| {
+                let [z, y, x] = [iz as i32 + dz, iy as i32 + dy, ix as i32 + dx];
+                z >= 0
+                    && y >= 0
+                    && x >= 0
+                    && z < nz as i32
+                    && y < ny as i32
+                    && x < nx as i32
+                    && (values[z as usize * slab + y as usize * nx + x as usize] - fg).abs() > 1e-5
+            };
+            let border = match connectivity {
+                Connectivity::Vertex26 => n26.iter().any(|&(z, y, x)| is_background(z, y, x)),
+                Connectivity::Face6 => N6.iter().any(|&(z, y, x)| is_background(z, y, x)),
+            };
+            if border {
+                fg
+            } else {
+                0.0
+            }
+        })
     }
 }
 

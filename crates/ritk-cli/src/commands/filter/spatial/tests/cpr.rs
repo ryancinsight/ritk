@@ -15,9 +15,14 @@ fn test_filter_cpr_creates_output() {
     args.cpr.cpr_cross_samples = 16;
     args.cpr.cpr_half_width = 2.0;
 
-    let result = run_cpr(&args);
-    assert!(result.is_ok(), "CPR must succeed: {:?}", result.err());
-    assert!(output.exists(), "CPR must write output file");
+    run_cpr(&args).expect("CPR must succeed");
+    let output =
+        crate::commands::read_image_native(&output).expect("CPR output must be natively readable");
+    assert_eq!(
+        output.shape(),
+        [1, 16, 32],
+        "CPR output shape must match configuration"
+    );
 }
 
 #[test]

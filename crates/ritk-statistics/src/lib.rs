@@ -12,7 +12,9 @@ pub mod position_extrema;
 pub mod value_indices;
 pub use histogram::{histogram, histogram_from_slice, Histogram};
 pub use image_comparison::{
-    dice_coefficient, hausdorff_distance, mean_surface_distance, psnr, similarity_index, ssim,
+    dice_coefficient, dice_coefficient_native, hausdorff_distance, hausdorff_distance_native,
+    mean_surface_distance, mean_surface_distance_native, psnr, psnr_native, similarity_index, ssim,
+    ssim_native,
 };
 pub use image_statistics::{compute_statistics, masked_statistics, ImageStatistics};
 pub use information::{
@@ -33,7 +35,9 @@ pub use label_statistics::{
     compute_label_intensity_statistics, compute_label_intensity_statistics_from_slices,
     LabelIntensityStatistics,
 };
-pub use noise_estimation::{estimate_noise_mad, estimate_noise_mad_masked};
+pub use noise_estimation::{
+    estimate_noise_mad, estimate_noise_mad_masked, estimate_noise_mad_native,
+};
 pub use normalization::{
     HistogramMatcher, IntensityRange, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer,
     WhiteStripeConfig, WhiteStripeNormalizer, WhiteStripeResult, ZScoreNormalizer,

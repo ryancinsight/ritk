@@ -4,7 +4,7 @@ use super::*;
 fn test_read_invalid_version() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("bad_version.mgh");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
     let mgh = build_mgh_bytes(
         2,
         [2, 2, 2],
@@ -16,7 +16,7 @@ fn test_read_invalid_version() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &device);
+    let result = read_mgh::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Reading invalid version must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
@@ -29,7 +29,7 @@ fn test_read_invalid_version() {
 fn test_read_unsupported_type_code() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("bad_type.mgh");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
@@ -41,7 +41,7 @@ fn test_read_unsupported_type_code() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &device);
+    let result = read_mgh::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Unsupported type code must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
@@ -54,7 +54,7 @@ fn test_read_unsupported_type_code() {
 fn test_read_truncated_file() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("truncated.mgh");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
     let mut buf = vec![0u8; 100];
     buf[0..4].copy_from_slice(&1_i32.to_be_bytes());
     buf[4..8].copy_from_slice(&2_i32.to_be_bytes());
@@ -64,7 +64,7 @@ fn test_read_truncated_file() {
     buf[20..24].copy_from_slice(&MRI_FLOAT.to_be_bytes());
     std::fs::write(&path, &buf).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &device);
+    let result = read_mgh::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Truncated file must fail");
 }
 
@@ -75,7 +75,7 @@ fn test_read_hostile_dims_does_not_oom() {
     // rather than reserving ~4.3 GiB and aborting on out-of-memory.
     let dir = tempdir().unwrap();
     let path = dir.path().join("hostile_dims.mgh");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
     let mgh = build_mgh_bytes(
         1,
         [1024, 1024, 1024],
@@ -87,6 +87,6 @@ fn test_read_hostile_dims_does_not_oom() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &device);
+    let result = read_mgh::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Hostile dimensions must fail, not OOM");
 }

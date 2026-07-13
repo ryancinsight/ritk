@@ -1,7 +1,10 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 type B = NdArray<f32>;
 
 fn make_image(vals: Vec<f32>) -> Image<B, 3> {
@@ -88,4 +91,28 @@ fn test_equal_window_bounds_gives_out_min() {
             v
         );
     }
+}
+
+#[test]
+fn native_windowing_clamps_rescales_and_preserves_metadata() {
+    let image = NativeImage::from_flat_on(
+        vec![-10.0, 50.0, 200.0],
+        [1, 1, 3],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = IntensityWindowingFilter::new(0.0, 100.0, 0.0, 1.0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native windowing succeeds");
+
+    assert_eq!(
+        output.data_slice().expect("invariant: contiguous storage"),
+        &[0.0, 0.5, 1.0]
+    );
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
 }

@@ -1,5 +1,8 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
 
 type B = NdArray<f32>;
@@ -130,13 +133,6 @@ fn test_labels_are_nonneg_integers() {
     }
 }
 
-// ── Default delegates to new ───────────────────────────────────────────────
-
-#[test]
-fn test_default_construction() {
-    let _ws = WatershedSegmentation::default();
-}
-
 // ── Single voxel → single basin ────────────────────────────────────────────
 
 #[test]
@@ -148,4 +144,100 @@ fn test_single_voxel_single_basin() {
     let labels = get_labels(&result);
     assert_eq!(labels.len(), 1);
     assert_eq!(labels[0], 1.0, "single voxel must be labelled 1");
+}
+
+#[test]
+fn native_and_legacy_execution_are_exact_and_deterministic() {
+    let dimensions = [1, 3, 5];
+    let values = vec![
+        -0.0, 1.0, 4.0, 1.0, 0.0, 1.0, 2.0, 5.0, 2.0, 1.0, 0.0, 1.0, 4.0, 1.0, 0.0,
+    ];
+    let legacy = make_image_3d(values.clone(), dimensions);
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
+    let native = NativeImage::from_flat_on(
+        values,
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .unwrap();
+    let filter = WatershedSegmentation::new();
+    let expected = filter.apply(&legacy).unwrap();
+    let first = filter.apply_native(&native, &SequentialBackend).unwrap();
+    let second = filter.apply_native(&native, &SequentialBackend).unwrap();
+    assert_eq!(first.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(second.data_slice().unwrap(), first.data_slice().unwrap());
+    assert_eq!(*first.origin(), origin);
+    assert_eq!(*first.spacing(), spacing);
+    assert_eq!(*first.direction(), direction);
+}
+
+#[test]
+fn relief_validation_errors_are_exact() {
+    for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        let image = make_image_3d(vec![0.0, value], [1, 1, 2]);
+        assert_eq!(
+            WatershedSegmentation::new()
+                .apply(&image)
+                .unwrap_err()
+                .to_string(),
+            format!("Meyer watershed relief at flat index 1 must be finite, got {value}")
+        );
+    }
+    assert_eq!(
+        validate_relief(&[], [1, 0, 2]).unwrap_err().to_string(),
+        "Meyer watershed requires nonzero dimensions, got [1, 0, 2]"
+    );
+    assert_eq!(
+        validate_relief(&[], [usize::MAX, 2, 1])
+            .unwrap_err()
+            .to_string(),
+        format!(
+            "Meyer watershed shape product overflows usize: [{}, 2, 1]",
+            usize::MAX
+        )
+    );
+    assert_eq!(
+        validate_relief(&[0.0], [1, 1, 2]).unwrap_err().to_string(),
+        "Meyer watershed shape [1, 1, 2] requires 2 samples, got 1"
+    );
+    assert_eq!(
+        validate_relief(&[], [1, 4097, 4096])
+            .unwrap_err()
+            .to_string(),
+        "Meyer watershed supports at most 16777216 samples for exact f32 labels, got 16781312"
+    );
+}
+
+#[test]
+fn plateau_flooding_matches_simpleitk_oracle_exactly() {
+    // SimpleITK MorphologicalWatershed(level=0, markWatershedLine=true,
+    // fullyConnected=false) returns this symmetric geodesic split.
+    let image = make_image_3d(vec![0.0, 100.0, 100.0, 100.0, 0.0], [1, 1, 5]);
+    let labels = WatershedSegmentation::new().apply(&image).unwrap();
+    assert_eq!(labels.data_slice().as_ref(), &[1.0, 1.0, 0.0, 2.0, 2.0]);
+}
+
+#[test]
+fn signed_zero_substitution_preserves_plateau_partition() {
+    let positive = make_image_3d(vec![0.0, 0.0, 0.0, 1.0, 0.0], [1, 1, 5]);
+    let signed = make_image_3d(vec![-0.0, 0.0, -0.0, 1.0, -0.0], [1, 1, 5]);
+    let positive_labels = WatershedSegmentation::new().apply(&positive).unwrap();
+    let signed_labels = WatershedSegmentation::new().apply(&signed).unwrap();
+    assert_eq!(signed_labels.data_slice(), positive_labels.data_slice());
+}
+
+#[test]
+fn plateau_partition_is_reversal_invariant() {
+    let forward = make_image_3d(vec![0.0, 5.0, 5.0, 5.0, 1.0], [1, 1, 5]);
+    let reverse = make_image_3d(vec![1.0, 5.0, 5.0, 5.0, 0.0], [1, 1, 5]);
+    let forward_labels = WatershedSegmentation::new().apply(&forward).unwrap();
+    let reverse_labels = WatershedSegmentation::new().apply(&reverse).unwrap();
+    let mut reflected = reverse_labels.data_slice().to_vec();
+    reflected.reverse();
+    assert_eq!(reflected, forward_labels.data_slice().as_ref());
 }

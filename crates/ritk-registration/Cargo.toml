@@ -32,11 +32,14 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
+eunomia = { workspace = true }
 moirai = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 coeus-ops = { workspace = true }
 coeus-autograd = { workspace = true }
+coeus-nn = { workspace = true }
+coeus-optim = { workspace = true }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]

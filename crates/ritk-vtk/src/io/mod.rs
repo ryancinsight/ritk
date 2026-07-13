@@ -45,26 +45,26 @@ pub mod writer;
 pub use reader::read_vtk;
 pub use writer::write_vtk;
 
-use ritk_image::tensor::backend::Backend;
-use ritk_image::Image;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image;
 use std::path::Path;
 
 /// Simple wrapper for reading VTK legacy structured-points images.
 ///
 /// Does not implement `ritk_io::ImageReader`; that wrapper lives in `ritk-io`
 /// to avoid orphan-rule violations.
-pub struct VtkReader<B: Backend> {
-    device: B::Device,
+pub struct VtkReader<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> VtkReader<B> {
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
+impl<B: ComputeBackend> VtkReader<B> {
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 
     /// Read a VTK legacy structured-points file at `path`.
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<B, 3>> {
-        read_vtk(path, &self.device)
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<f32, B, 3>> {
+        read_vtk(path, &self.backend)
     }
 }
 
@@ -72,21 +72,62 @@ impl<B: Backend> VtkReader<B> {
 ///
 /// Does not implement `ritk_io::ImageWriter`; that wrapper lives in `ritk-io`
 /// to avoid orphan-rule violations.
-pub struct VtkWriter<B: Backend> {
-    _marker: std::marker::PhantomData<fn() -> B>,
+pub struct VtkWriter<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> Default for VtkWriter<B> {
-    fn default() -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-        }
+impl<B: ComputeBackend> VtkWriter<B> {
+    pub fn new(backend: B) -> Self {
+        Self { backend }
+    }
+
+    /// Write a VTK legacy structured-points file to `path`.
+    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> anyhow::Result<()>
+    where
+        B: Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        write_vtk(path, image, &self.backend)
     }
 }
 
-impl<B: Backend> VtkWriter<B> {
-    /// Write a VTK legacy structured-points file to `path`.
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> anyhow::Result<()> {
-        write_vtk(path, image)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use coeus_core::SequentialBackend;
+    use ritk_spatial::{Direction, Point, Spacing};
+    use tempfile::tempdir;
+
+    #[test]
+    fn native_scalar_round_trip_preserves_values_and_spatial_metadata() {
+        let backend = SequentialBackend;
+        let shape = [2, 2, 3];
+        let values: Vec<f32> = (0..shape.iter().product())
+            .map(|index| index as f32 * 0.25 - 1.0)
+            .collect();
+        let origin = Point::new([1.0, -2.0, 3.5]);
+        let spacing = Spacing::new([0.5, 0.75, 1.25]);
+        let image = Image::from_flat_on(
+            values.clone(),
+            shape,
+            origin,
+            spacing,
+            Direction::identity(),
+            &backend,
+        )
+        .expect("native image");
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("roundtrip.vtk");
+
+        VtkWriter::new(backend)
+            .write(&path, &image)
+            .expect("write VTK");
+        let loaded = VtkReader::new(backend).read(&path).expect("read VTK");
+
+        assert_eq!(loaded.shape(), shape);
+        assert_eq!(loaded.data_slice().expect("contiguous image"), values);
+        assert_eq!(*loaded.origin(), origin);
+        assert_eq!(*loaded.spacing(), spacing);
+        assert_eq!(*loaded.direction(), Direction::identity());
     }
 }

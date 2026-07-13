@@ -3,6 +3,7 @@ use super::*;
 #[test]
 fn test_header_binary_layout() -> Result<()> {
     let dir = tempdir()?;
+    let backend = TestBackend::default();
     let path = dir.path().join("header_check.mgh");
     let data_vec: Vec<f32> = (0..(2 * 3 * 5) as u32).map(|i| i as f32).collect();
     let image = make_image_with_spatial(
@@ -14,7 +15,7 @@ fn test_header_binary_layout() -> Result<()> {
         Spacing::new([0.5, 1.0, 2.0]),
         Direction::identity(),
     );
-    write_mgh(&image, &path)?;
+    write_mgh(&image, &path, &backend)?;
 
     let raw = std::fs::read(&path)?;
     assert_eq!(raw.len(), HEADER_SIZE + 2 * 3 * 5 * 4);
@@ -57,10 +58,11 @@ fn test_header_binary_layout() -> Result<()> {
 #[test]
 fn test_file_contains_full_payload() -> Result<()> {
     let dir = tempdir()?;
+    let backend = TestBackend::default();
     let path = dir.path().join("payload.mgh");
     let image = make_image(vec![1.0f32; 2 * 3 * 4], 2, 3, 4);
 
-    write_mgh(&image, &path)?;
+    write_mgh(&image, &path, &backend)?;
     let file_size = std::fs::metadata(&path)?.len();
     let expected = (HEADER_SIZE + 2 * 3 * 4 * 4) as u64;
     assert_eq!(

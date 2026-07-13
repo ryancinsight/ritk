@@ -23,7 +23,7 @@ fn native_read_mgh_preserves_shape_and_voxels() {
     std::fs::write(&path, &mgh).unwrap();
 
     let backend = SequentialBackend;
-    let image = crate::native::read_mgh(&path, &backend).expect("coeus MGH read");
+    let image = crate::read_mgh(&path, &backend).expect("coeus MGH read");
 
     assert_eq!(
         image.shape(),

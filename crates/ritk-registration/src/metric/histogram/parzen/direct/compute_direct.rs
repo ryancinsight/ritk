@@ -13,13 +13,13 @@ use super::types::ParzenConfig;
 
 /// Compute the joint histogram directly from normalized intensity values.
 ///
-/// NdArray hot-path: iterates samples, accumulates directly into
+/// The host-native hot path iterates samples and accumulates directly into
 /// `[num_bins, num_bins]` instead of building full `[N, num_bins]` weight
 /// matrices. Fixed/moving weights pre-computed as `StackWeights` in
 /// `SampleWindow` — heap-free inner loop, no `SparseWFixedEntry`.
 ///
-/// Rayon parallel reduction (OPT-6): thread-local histograms merged in
-/// reduce phase — no locks, atomics, or `unsafe`.
+/// Moirai parallel reduction uses thread-local histograms merged in the
+/// reduction phase, with no locks, atomics, or `unsafe`.
 ///
 /// # Arguments
 /// * `fixed_norm` — Normalized fixed-image values `[N]` in `[0, num_bins-1]`
@@ -30,14 +30,14 @@ use super::types::ParzenConfig;
 /// * `oob_mask` — Optional OOB mask `[N]` (1.0 = in-bounds, 0.0 = OOB)
 ///
 /// # Returns
-/// Joint histogram `[num_bins, num_bins]` as TensorData.
+/// Flat row-major joint histogram with shape `[num_bins, num_bins]`.
 ///
 /// # Parallel accumulation trade-off
 ///
 /// Float accumulation order differs under parallel reduction (~1e-5 vs
 /// sequential), within the 1e-4 test tolerance.
 #[allow(private_interfaces)]
-pub fn compute_joint_histogram_direct(
+pub fn compute_joint_histogram_values(
     fixed_norm: &[f32],
     moving_norm: &[f32],
     num_bins: usize,
@@ -45,7 +45,7 @@ pub fn compute_joint_histogram_direct(
     sigma_sq_mov: f32,
     oob_mask: Option<&[f32]>,
     pool: Option<&HistogramPool>,
-) -> TensorData {
+) -> Vec<f32> {
     // Input validation (DRY-327-05)
     assert!(!fixed_norm.is_empty(), "fixed_norm must not be empty");
     assert!(!moving_norm.is_empty(), "moving_norm must not be empty");
@@ -68,7 +68,7 @@ pub fn compute_joint_histogram_direct(
         }
     };
 
-    let histogram: Vec<f32> = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+    moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
         n,
         || pool.checkout(),
         |mut local_hist, i| {
@@ -90,7 +90,32 @@ pub fn compute_joint_histogram_direct(
             pool.return_buffer(local);
             acc
         },
-    );
+    )
+}
 
-    TensorData::new(histogram, Shape::new([num_bins, num_bins]))
+/// Compute Burn tensor data for remaining legacy tensor consumers.
+///
+/// New host-side consumers use [`compute_joint_histogram_values`] directly.
+#[allow(private_interfaces)]
+pub fn compute_joint_histogram_direct(
+    fixed_norm: &[f32],
+    moving_norm: &[f32],
+    num_bins: usize,
+    sigma_sq_fix: f32,
+    sigma_sq_mov: f32,
+    oob_mask: Option<&[f32]>,
+    pool: Option<&HistogramPool>,
+) -> TensorData {
+    TensorData::new(
+        compute_joint_histogram_values(
+            fixed_norm,
+            moving_norm,
+            num_bins,
+            sigma_sq_fix,
+            sigma_sq_mov,
+            oob_mask,
+            pool,
+        ),
+        Shape::new([num_bins, num_bins]),
+    )
 }

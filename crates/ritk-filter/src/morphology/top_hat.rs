@@ -14,6 +14,7 @@
 
 use super::grayscale_dilation::GrayscaleDilation;
 use super::grayscale_erosion::GrayscaleErosion;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
@@ -37,6 +38,21 @@ impl WhiteTopHatFilter {
         let opened = GrayscaleDilation::new(self.radius).apply(&eroded)?;
         sub_clamp(image, &opened)
     }
+
+    /// Apply white top-hat filtering to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let eroded = GrayscaleErosion::new(self.radius).apply_native(image, backend)?;
+        let opened = GrayscaleDilation::new(self.radius).apply_native(&eroded, backend)?;
+        sub_clamp_native(image, &opened, backend)
+    }
 }
 
 /// Black top-hat filter: BTH_B(f) = closing_B(f) - f.
@@ -58,6 +74,50 @@ impl BlackTopHatFilter {
         let closed = GrayscaleErosion::new(self.radius).apply(&dilated)?;
         sub_clamp(&closed, image)
     }
+
+    /// Apply black top-hat filtering to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let dilated = GrayscaleDilation::new(self.radius).apply_native(image, backend)?;
+        let closed = GrayscaleErosion::new(self.radius).apply_native(&dilated, backend)?;
+        sub_clamp_native(&closed, image, backend)
+    }
+}
+
+fn sub_clamp_native<B>(
+    a: &ritk_image::native::Image<f32, B, 3>,
+    b: &ritk_image::native::Image<f32, B, 3>,
+    backend: &B,
+) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    anyhow::ensure!(
+        a.shape() == b.shape(),
+        "top-hat operands must share a shape"
+    );
+    let values = a
+        .data_slice()?
+        .iter()
+        .zip(b.data_slice()?)
+        .map(|(&left, &right)| (left - right).max(0.0))
+        .collect();
+    ritk_image::native::Image::from_flat_on(
+        values,
+        a.shape(),
+        *a.origin(),
+        *a.spacing(),
+        *a.direction(),
+        backend,
+    )
 }
 
 fn sub_clamp<B: Backend>(a: &Image<B, 3>, b: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {

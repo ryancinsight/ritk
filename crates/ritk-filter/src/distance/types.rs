@@ -2,6 +2,16 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Output measure for an unsigned Euclidean distance transform.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum DistanceMeasure {
+    /// Physical Euclidean distance.
+    #[default]
+    Euclidean,
+    /// Squared physical Euclidean distance.
+    Squared,
+}
+
 /// Binarization threshold separating background from foreground in distance transforms.
 ///
 /// Background voxels have intensity `\u2264 threshold`; foreground voxels have intensity `> threshold`.
@@ -10,6 +20,7 @@ use serde::{Deserialize, Serialize};
 /// Default: `0.5` (standard for binary images stored as `{0.0, 1.0}`).
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(try_from = "f32", into = "f32")]
 pub struct BinarizationThreshold(f32);
 
 impl BinarizationThreshold {
@@ -18,18 +29,20 @@ impl BinarizationThreshold {
 
     /// Construct a validated `BinarizationThreshold`.
     ///
-    /// Returns `Err` if `value < 0.0`.
+    /// Returns `Err` if `value` is non-finite or negative.
     pub fn new(value: f32) -> Result<Self, &'static str> {
-        if value < 0.0 {
-            return Err("BinarizationThreshold must be >= 0");
+        if !value.is_finite() || value < 0.0 {
+            return Err("BinarizationThreshold must be finite and non-negative");
         }
         Ok(Self(value))
     }
 }
 
-impl From<f32> for BinarizationThreshold {
-    fn from(value: f32) -> Self {
-        Self(value)
+impl TryFrom<f32> for BinarizationThreshold {
+    type Error = &'static str;
+
+    fn try_from(value: f32) -> Result<Self, Self::Error> {
+        Self::new(value)
     }
 }
 

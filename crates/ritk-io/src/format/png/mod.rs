@@ -1,12 +1,85 @@
 pub use ritk_png::{
-    read_png_color_series, read_png_color_to_volume, read_png_series, read_png_to_image,
-    PngColorReader, PngColorSeriesReader, PngReader, PngSeriesReader,
+    read_png_color_series, read_png_color_to_volume, PngColorReader, PngColorSeriesReader,
 };
 
 use crate::domain::ImageReader;
+use anyhow::Result;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::path::Path;
+
+fn native_to_legacy<B: Backend>(
+    native: ritk_image::native::Image<f32, SequentialBackend, 3>,
+    device: &B::Device,
+) -> Image<B, 3> {
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(
+            native.data_cow_on(&SequentialBackend).into_owned(),
+            Shape::new(native.shape()),
+        ),
+        device,
+    );
+    Image::new(
+        tensor,
+        *native.origin(),
+        *native.spacing(),
+        *native.direction(),
+    )
+}
+
+/// Reads one PNG through the native provider and converts at this legacy boundary.
+pub fn read_png_to_image<B: Backend, P: AsRef<Path>>(
+    path: P,
+    device: &B::Device,
+) -> Result<Image<B, 3>> {
+    ritk_png::read_png_to_image(path, &SequentialBackend)
+        .map(|native| native_to_legacy(native, device))
+}
+
+/// Reads a PNG series through the native provider and converts at this legacy boundary.
+pub fn read_png_series<B: Backend, P: AsRef<Path>>(
+    path: P,
+    device: &B::Device,
+) -> Result<Image<B, 3>> {
+    ritk_png::read_png_series(path, &SequentialBackend)
+        .map(|native| native_to_legacy(native, device))
+}
+
+/// Device-bound legacy PNG reader.
+pub struct PngReader<B: Backend> {
+    device: B::Device,
+}
+
+impl<B: Backend> PngReader<B> {
+    /// Creates a reader for `device`.
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+
+    /// Reads one PNG into the legacy image substrate.
+    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
+        read_png_to_image(path, &self.device)
+    }
+}
+
+/// Device-bound legacy PNG series reader.
+pub struct PngSeriesReader<B: Backend> {
+    device: B::Device,
+}
+
+impl<B: Backend> PngSeriesReader<B> {
+    /// Creates a series reader for `device`.
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+
+    /// Reads a PNG series into the legacy image substrate.
+    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
+        read_png_series(path, &self.device)
+    }
+}
 
 impl<B: Backend> ImageReader<Image<B, 3>> for PngReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
@@ -100,7 +173,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for PngReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_png::native::read_png_to_image(path, &self.backend).map_err(to_io_err)
+            ritk_png::read_png_to_image(path, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -118,7 +191,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for PngSeriesReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_png::native::read_png_series(path, &self.backend).map_err(to_io_err)
+            ritk_png::read_png_series(path, &self.backend).map_err(to_io_err)
         }
     }
 }

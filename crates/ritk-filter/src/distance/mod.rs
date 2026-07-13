@@ -22,4 +22,4 @@ pub use euclidean::{
     SignedMaurerDistanceMapImageFilter,
 };
 pub use fast_chamfer::{ApproximateSignedDistanceMapFilter, FastChamferDistanceFilter};
-pub use types::BinarizationThreshold;
+pub use types::{BinarizationThreshold, DistanceMeasure};

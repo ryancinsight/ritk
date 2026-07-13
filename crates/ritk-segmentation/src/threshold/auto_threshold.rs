@@ -5,12 +5,17 @@
 //! a pre-built `&[u32]` histogram and returns the threshold intensity.  The
 //! common extract→histogram and threshold→binary-mask pipelines are provided as
 //! blanket default methods ([`AutoThreshold::compute`] /
-//! [`AutoThreshold::apply`]).
+//! [`AutoThreshold::apply`] and their Coeus-native counterparts).
+//!
+//! # Non-finite intensities
+//!
+//! NaN and ±Inf samples are excluded from histogram statistics and always map
+//! to background (`0.0`). An input with no finite samples has threshold `0.0`
+//! and an all-background mask.
 //!
 //! # Sealing
-//! The trait is sealed via a private `sealed::Sealed` supertrait: only the five
-//! types enumerated in this module (`OtsuThreshold`, `LiThreshold`,
-//! `YenThreshold`, `KapurThreshold`, `TriangleThreshold`) may implement it.
+//! The trait is sealed via a private `sealed::Sealed` supertrait. Its twelve
+//! implementors are the threshold strategies explicitly registered below.
 
 use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
@@ -55,11 +60,14 @@ impl sealed::Sealed for super::renyi::RenyiEntropyThreshold {}
 /// # Blanket methods
 /// - [`compute`](AutoThreshold::compute): extract → histogram → threshold.
 /// - [`apply`](AutoThreshold::apply): compute threshold → binary mask image.
+/// - [`compute_native`](AutoThreshold::compute_native): native slice → threshold.
+/// - [`apply_native_with_threshold`](AutoThreshold::apply_native_with_threshold):
+///   native slice → threshold and binary mask without duplicate extraction.
 ///
 /// # Sealing
-/// Only the five concrete threshold types defined in this crate implement this
-/// trait.  External implementors are prevented by the private `sealed::Sealed`
-/// supertrait.
+/// Only the twelve concrete threshold types registered in this module implement
+/// this trait. External implementors are prevented by the private
+/// `sealed::Sealed` supertrait.
 pub trait AutoThreshold: sealed::Sealed {
     /// Number of equally-spaced histogram bins to use when building the
     /// intensity histogram.
@@ -107,12 +115,7 @@ pub trait AutoThreshold: sealed::Sealed {
         // extracts internally) and then extracted a second time, cloning and
         // copying the whole volume twice per `apply`.
         let (vals, shape) = extract_vec_infallible(image);
-        let threshold = threshold_from_slice(self, &vals);
-
-        let output: Vec<f32> = vals
-            .iter()
-            .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
-            .collect();
+        let (_, output) = threshold_mask_from_slice(self, &vals);
 
         let device = image.data().device();
         let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
@@ -123,6 +126,69 @@ pub trait AutoThreshold: sealed::Sealed {
             *image.spacing(),
             *image.direction(),
         )
+    }
+
+    /// Compute the threshold directly from a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the backend storage is not available as a
+    /// contiguous host slice.
+    fn compute_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+    ) -> anyhow::Result<f32>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        Ok(threshold_from_slice(self, image.data_slice()?))
+    }
+
+    /// Apply the threshold to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the backend storage is not available as a
+    /// contiguous host slice or when the output image cannot be constructed.
+    fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        self.apply_native_with_threshold(image, backend)
+            .map(|(output, _)| output)
+    }
+
+    /// Compute the threshold and native mask from one host-slice extraction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the backend storage is not available as a
+    /// contiguous host slice or when the output image cannot be constructed.
+    fn apply_native_with_threshold<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<(ritk_image::native::Image<f32, B, D>, f32)>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (threshold, output) = threshold_mask_from_slice(self, image.data_slice()?);
+        let mask = ritk_image::native::Image::from_flat_on(
+            output,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )?;
+        Ok((mask, threshold))
     }
 }
 
@@ -191,7 +257,7 @@ pub(crate) fn build_histogram(slice: &[f32], num_bins: usize, x_min: f32, x_max:
     let lo = x_min as f64;
     let mut counts = vec![0u32; num_bins];
 
-    for &v in slice {
+    for &v in slice.iter().filter(|value| value.is_finite()) {
         let bin = ((v as f64 - lo) / bin_width).floor() as usize;
         let bin = bin.min(num_bins - 1);
         counts[bin] += 1;
@@ -207,14 +273,12 @@ pub(crate) fn build_histogram(slice: &[f32], num_bins: usize, x_min: f32, x_max:
 /// `compute_*_from_slice` convenience functions, guaranteeing they agree
 /// bit-for-bit.
 ///
-/// Returns `0.0` for an empty slice and `x_min` for a constant slice.
+/// Returns `0.0` for an empty or all-nonfinite slice and `x_min` for a constant
+/// finite slice. Non-finite samples do not contribute to the histogram.
 pub(crate) fn threshold_from_slice<A: AutoThreshold + ?Sized>(algo: &A, slice: &[f32]) -> f32 {
-    if slice.is_empty() {
+    let Some((x_min, x_max, _)) = finite_bounds(slice) else {
         return 0.0;
-    }
-
-    let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
-    let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    };
 
     // Degenerate: constant image has no separable classes.
     if (x_max - x_min).abs() < f32::EPSILON {
@@ -225,3 +289,36 @@ pub(crate) fn threshold_from_slice<A: AutoThreshold + ?Sized>(algo: &A, slice: &
     let hist = build_histogram(slice, n_bins, x_min, x_max);
     algo.compute_threshold(&hist, n_bins, x_min, x_max)
 }
+
+/// Return finite minimum, maximum, and sample count without allocating.
+pub(crate) fn finite_bounds(slice: &[f32]) -> Option<(f32, f32, usize)> {
+    let mut finite = slice.iter().copied().filter(|value| value.is_finite());
+    let first = finite.next()?;
+    let (minimum, maximum, additional) = finite.fold(
+        (first, first, 0_usize),
+        |(minimum, maximum, count), value| (minimum.min(value), maximum.max(value), count + 1),
+    );
+    Some((minimum, maximum, additional + 1))
+}
+
+fn threshold_mask_from_slice<A: AutoThreshold + ?Sized>(
+    algorithm: &A,
+    slice: &[f32],
+) -> (f32, Vec<f32>) {
+    let threshold = threshold_from_slice(algorithm, slice);
+    let mask = slice
+        .iter()
+        .map(|&value| {
+            if value.is_finite() && value >= threshold {
+                1.0
+            } else {
+                0.0
+            }
+        })
+        .collect();
+    (threshold, mask)
+}
+
+#[cfg(test)]
+#[path = "tests_auto_threshold_native.rs"]
+mod tests_auto_threshold_native;

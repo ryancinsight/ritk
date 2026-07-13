@@ -1,11 +1,11 @@
 pub mod core;
+mod geometry;
 pub mod grid;
-pub mod module;
 pub mod resample;
 pub mod static_;
 pub mod transform;
 
-pub use core::DisplacementField;
-pub use module::DisplacementFieldRecord;
+pub use core::{DisplacementField, DisplacementFieldError};
+pub use resample::ResampleError;
 pub use static_::field::{StaticDisplacementField, StaticDisplacementFieldTransform};
-pub use transform::DisplacementFieldTransform;
+pub use transform::{DisplacementFieldTransform, DisplacementTransformError};

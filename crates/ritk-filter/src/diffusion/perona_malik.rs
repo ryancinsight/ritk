@@ -35,6 +35,7 @@
 //! anisotropic diffusion. *IEEE Trans. Pattern Anal. Mach. Intell.*
 //! 12(7):629–639. doi:10.1109/34.56205
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -169,6 +170,32 @@ impl<K: ConductanceKernel> AnisotropicDiffusionFilter<K> {
         let result = diffuse::<K>(vals, dims, spacing, &self.config);
 
         Ok(rebuild(result, dims, image))
+    }
+
+    /// Apply the filter to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let spacing = image.spacing();
+        ritk_image::native::Image::from_flat_on(
+            diffuse::<K>(
+                image.data_slice()?,
+                image.shape(),
+                [spacing[0] as f32, spacing[1] as f32, spacing[2] as f32],
+                &self.config,
+            ),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
     }
 }
 

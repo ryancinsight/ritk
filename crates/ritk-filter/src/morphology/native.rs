@@ -13,6 +13,7 @@ use crate::native_support::map_flat_image;
 
 use super::binary_dilate::dilate_binary_3d;
 use super::binary_erode::erode_binary_3d;
+use super::binary_fillhole::fill_holes_3d;
 use super::types::ForegroundValue;
 
 /// Binary erosion on a Coeus-backed image.
@@ -98,6 +99,25 @@ where
     map_flat_image(image, backend, |vals, dims| {
         let eroded = erode_binary_3d(vals, dims, radius, foreground_value);
         dilate_binary_3d(&eroded, dims, radius, foreground_value)
+    })
+}
+
+/// Fill enclosed holes in a Coeus-backed binary image.
+///
+/// See [`super::binary_fillhole::BinaryFillholeFilter`] for the mathematical
+/// specification and ITK parity. This boundary calls the same 6-connected
+/// flood-fill core as the Burn image implementation.
+pub fn binary_fill_holes<B>(
+    image: &Image<f32, B, 3>,
+    foreground_value: ForegroundValue,
+    backend: &B,
+) -> Result<Image<f32, B, 3>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    map_flat_image(image, backend, |vals, dims| {
+        fill_holes_3d(vals, dims, foreground_value)
     })
 }
 

@@ -1,5 +1,113 @@
 use super::*;
 
+#[test]
+fn native_region_growing_cli_family_matches_legacy_boundaries_exactly() {
+    use ritk_segmentation::{
+        ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter,
+    };
+
+    let dir = tempdir().unwrap();
+    for method in [
+        SegmentMethod::ConnectedThreshold,
+        SegmentMethod::ConfidenceConnected,
+        SegmentMethod::NeighborhoodConnected,
+    ] {
+        let label = format!("{method:?}");
+        let input = dir.path().join(format!("{label}-input.nii"));
+        let output = dir.path().join(format!("{label}-output.nii"));
+        let fixture = make_sphere_image();
+        let mut args = default_args(input.clone(), output.clone(), method);
+        args.lower = Some(100.0);
+        args.upper = Some(255.0);
+        args.seed = Some("2,2,2".to_string());
+        let expected = match &args.method {
+            SegmentMethod::ConnectedThreshold => {
+                ConnectedThresholdFilter::new([2, 2, 2], 100.0, 255.0).apply(&fixture)
+            }
+            SegmentMethod::ConfidenceConnected => {
+                ConfidenceConnectedFilter::new([2, 2, 2], 100.0, 255.0)
+                    .with_multiplier(args.multiplier)
+                    .expect("test multiplier is valid")
+                    .with_max_iterations(args.max_iterations)
+                    .apply(&fixture)
+            }
+            SegmentMethod::NeighborhoodConnected => {
+                let radius = args.neighborhood_radius;
+                NeighborhoodConnectedFilter::new([2, 2, 2], 100.0, 255.0)
+                    .with_radius([radius; 3])
+                    .apply(&fixture)
+            }
+            _ => unreachable!("test enumerates only region-growing methods"),
+        };
+        ritk_io::write_nifti(&input, &fixture).unwrap();
+
+        run(args).unwrap();
+        let actual = crate::commands::read_image_native(&output)
+            .expect("region-growing output is natively readable");
+
+        assert_eq!(actual.shape(), expected.shape());
+        assert_eq!(*actual.origin(), *expected.origin());
+        assert_eq!(*actual.spacing(), *expected.spacing());
+        assert_eq!(*actual.direction(), *expected.direction());
+        assert_eq!(
+            actual.data_slice().expect("contiguous native mask"),
+            expected.data_slice().as_ref(),
+            "{label} native CLI output diverged from its legacy public boundary"
+        );
+    }
+}
+
+#[test]
+fn region_growing_rejects_nan_bounds_before_io() {
+    let dir = tempdir().unwrap();
+    let output = dir.path().join("output.nii");
+    let mut args = default_args(
+        dir.path().join("missing.nii"),
+        output.clone(),
+        SegmentMethod::ConnectedThreshold,
+    );
+    args.lower = Some(f32::NAN);
+    args.upper = Some(1.0);
+    args.seed = Some("0,0,0".to_string());
+    let error = run(args).expect_err("NaN bounds must be rejected before I/O");
+    assert!(error.to_string().contains("must not be NaN"));
+    assert!(!output.exists());
+}
+
+#[test]
+fn confidence_connected_rejects_invalid_multiplier_before_io() {
+    for multiplier in [f32::NAN, f32::INFINITY, -1.0] {
+        let mut args = default_args(
+            "missing.nii".into(),
+            "output.nii".into(),
+            SegmentMethod::ConfidenceConnected,
+        );
+        args.multiplier = multiplier;
+        let error = run(args).expect_err("invalid multiplier must be rejected before I/O");
+        assert!(error.to_string().contains("finite and non-negative"));
+    }
+}
+
+#[test]
+fn region_growing_rejects_known_nonnative_formats_before_io() {
+    let dir = tempdir().unwrap();
+    let output = dir.path().join("output.png");
+    let mut args = default_args(
+        dir.path().join("input.vtk"),
+        output.clone(),
+        SegmentMethod::NeighborhoodConnected,
+    );
+    args.lower = Some(0.0);
+    args.upper = Some(1.0);
+    args.seed = Some("0,0,0".to_string());
+    let error = run(args).expect_err("nonnative formats must be rejected before I/O");
+    assert_eq!(
+        error.to_string(),
+        "neighborhood-connected requires native input/output formats"
+    );
+    assert!(!output.exists());
+}
+
 // ── Positive: Connected-threshold grows sphere region ─────────────────────
 
 /// Seeding at the centre of the sphere must grow exactly the 7 high-intensity

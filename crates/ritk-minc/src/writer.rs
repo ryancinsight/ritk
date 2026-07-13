@@ -29,8 +29,6 @@
 
 use crate::hdf5_binary::write_minc2_hdf5;
 use anyhow::{bail, Result};
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
 use std::path::Path;
 
 // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -46,37 +44,30 @@ use std::path::Path;
 ///
 /// Returns `Err` when the file cannot be created, tensor data extraction
 /// fails, or an I/O error occurs during HDF5 writing.
-pub fn write_minc<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> Result<()> {
-    let path = path.as_ref();
-
-    let shape = image.data().shape();
-    let dims = shape.dims;
-    if dims.len() != 3 {
-        bail!(
-            "MINC2 writer requires a 3-D image, got {} dimensions",
-            dims.len()
-        );
-    }
-
-    let nz = dims[0];
-    let ny = dims[1];
-    let nx = dims[2];
+pub fn write_minc<B, P>(
+    image: &ritk_image::native::Image<f32, B, 3>,
+    path: P,
+    backend: &B,
+) -> Result<()>
+where
+    B: coeus_core::ComputeBackend + Default,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    let [nz, ny, nx] = image.shape();
     let total_voxels = nz * ny * nx;
 
     if total_voxels == 0 {
         bail!("Cannot write empty image (zero voxels)");
     }
 
-    let tensor_data = image.data().to_data();
-    let f32_values: Vec<f32> = tensor_data
-        .to_vec()
-        .map_err(|e| anyhow::anyhow!("Failed to extract f32 data from tensor: {:?}", e))?;
+    let f32_values = image.data_cow_on(backend);
 
     if f32_values.len() != total_voxels {
         bail!(
             "Tensor data length {} does not match shape {:?} ({} voxels)",
             f32_values.len(),
-            dims,
+            [nz, ny, nx],
             total_voxels
         );
     }
@@ -86,12 +77,12 @@ pub fn write_minc<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> R
     let direction = image.direction();
 
     let mut raw_bytes: Vec<u8> = Vec::with_capacity(total_voxels * 4);
-    for &v in &f32_values {
+    for &v in f32_values.iter() {
         raw_bytes.extend_from_slice(&v.to_le_bytes());
     }
 
     write_minc2_hdf5(
-        path,
+        path.as_ref(),
         &raw_bytes,
         [nz, ny, nx],
         [origin[0], origin[1], origin[2]],
@@ -103,75 +94,27 @@ pub fn write_minc<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> R
 }
 
 /// Typed writer wrapping `write_minc` for API consistency.
-pub struct MincWriter;
-
-impl MincWriter {
-    /// Write a 3-D image as a MINC2 file.
-    pub fn write<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> Result<()> {
-        write_minc(image, path)
-    }
+pub struct MincWriter<B: coeus_core::ComputeBackend> {
+    backend: B,
 }
 
-/// Atlas-native-substrate MINC2 writers (plain end-state names, disambiguated
-/// from the Burn functions by module path only; folds away when the Burn path
-/// is deleted — ADR 0002 A1).
-pub mod native {
-    use crate::hdf5_binary::write_minc2_hdf5;
-    use anyhow::{bail, Result};
-    use std::path::Path;
+impl<B: coeus_core::ComputeBackend> MincWriter<B> {
+    /// Construct a writer that extracts image data through `backend`.
+    pub fn new(backend: B) -> Self {
+        Self { backend }
+    }
 
-    /// Write an Atlas-native 3-D image as a MINC2 (`.mnc`) HDF5 file.
-    ///
-    /// Host data is extracted layout-independently via `data_cow_on`, then
-    /// serialized through the same
-    /// [`write_minc2_hdf5`](crate::hdf5_binary::write_minc2_hdf5) core as the
-    /// Burn [`write_minc`](super::write_minc) — byte-identical HDF5 payload for
-    /// the same logical image.
-    pub fn write_minc<B, P>(
+    /// Write a 3-D image as a MINC2 file.
+    pub fn write<P: AsRef<Path>>(
+        &self,
         image: &ritk_image::native::Image<f32, B, 3>,
         path: P,
-        backend: &B,
     ) -> Result<()>
     where
-        B: coeus_core::ComputeBackend + Default,
+        B: Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-        P: AsRef<Path>,
     {
-        let [nz, ny, nx] = image.shape();
-        let total_voxels = nz * ny * nx;
-        if total_voxels == 0 {
-            bail!("Cannot write empty image (zero voxels)");
-        }
-
-        let voxels = image.data_cow_on(backend);
-        if voxels.len() != total_voxels {
-            bail!(
-                "voxel data length {} does not match shape [{}, {}, {}] ({} voxels)",
-                voxels.len(),
-                nz,
-                ny,
-                nx,
-                total_voxels
-            );
-        }
-
-        let mut raw_bytes: Vec<u8> = Vec::with_capacity(total_voxels * 4);
-        for &v in voxels.iter() {
-            raw_bytes.extend_from_slice(&v.to_le_bytes());
-        }
-
-        let origin = image.origin();
-        let spacing = image.spacing();
-        let direction = image.direction();
-
-        write_minc2_hdf5(
-            path.as_ref(),
-            &raw_bytes,
-            [nz, ny, nx],
-            [origin[0], origin[1], origin[2]],
-            [spacing[0], spacing[1], spacing[2]],
-            direction,
-        )
+        write_minc(image, path, &self.backend)
     }
 }
 

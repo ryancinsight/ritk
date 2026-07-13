@@ -14,7 +14,6 @@ pub mod adaptive_equalization;
 pub mod arithmetic;
 pub mod bed_separation;
 pub mod binary_ops;
-pub mod binary_threshold;
 pub mod blend;
 pub mod clahe;
 pub mod clamp;
@@ -48,7 +47,6 @@ pub use binary_ops::{
     PowImageFilter, PowOp, SquaredDifferenceImageFilter, SquaredDifferenceOp, SubtractImageFilter,
     SubtractOp, XorImageFilter, XorOp,
 };
-pub use binary_threshold::BinaryThresholdImageFilter;
 pub use blend::BlendImageFilter;
 pub use clahe::{ClaheFilter, ClaheScratch};
 pub use clamp::ClampImageFilter;

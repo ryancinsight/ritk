@@ -109,6 +109,14 @@ pub struct CprImageFilter {
     pub config: CprConfig,
 }
 
+/// Flat CPR output and its straightened-space geometry.
+struct CprResult {
+    values: Vec<f32>,
+    shape: [usize; 2],
+    origin: Point<2>,
+    spacing: Spacing<2>,
+}
+
 impl CprImageFilter {
     /// Create a new CPR filter.
     pub fn new(control_points: Vec<[f64; 3]>, config: CprConfig) -> Self {
@@ -123,6 +131,61 @@ impl CprImageFilter {
     /// Returns a 2-D `Image` where rows = cross-section offset and columns = path position.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 2>> {
         let (vals, dims) = extract_vec(image)?;
+        let result = self.apply_values(
+            &vals,
+            dims,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+        )?;
+        let device = image.data().device();
+        let tensor = Tensor::<B, 2>::from_data(
+            TensorData::new(result.values, Shape::new(result.shape)),
+            &device,
+        );
+        Ok(Image::new(
+            tensor,
+            result.origin,
+            result.spacing,
+            Direction::identity(),
+        ))
+    }
+
+    /// Apply CPR to a Coeus-native volume.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 2>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let result = self.apply_values(
+            image.data_slice()?,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+        )?;
+        ritk_image::native::Image::from_flat_on(
+            result.values,
+            result.shape,
+            result.origin,
+            result.spacing,
+            Direction::identity(),
+            backend,
+        )
+    }
+
+    fn apply_values(
+        &self,
+        vals: &[f32],
+        dims: [usize; 3],
+        origin: Point<3>,
+        spacing: Spacing<3>,
+        direction: Direction<3>,
+    ) -> anyhow::Result<CprResult> {
         let [nz, ny, nx] = dims;
 
         if self.control_points.len() < CPR_MIN_CONTROL_POINTS {
@@ -131,10 +194,6 @@ impl CprImageFilter {
                 self.control_points.len()
             );
         }
-
-        let origin = *image.origin();
-        let spacing = *image.spacing();
-        let direction = *image.direction();
 
         let num_path = self.config.num_path_samples;
         let num_cross = self.config.num_cross_samples;
@@ -268,15 +327,11 @@ impl CprImageFilter {
                 ];
 
                 let idx = j * num_path + i;
-                output[idx] = trilinear_sample_from_idx(&vals, [nz, ny, nx], idx_voxel);
+                output[idx] = trilinear_sample_from_idx(vals, [nz, ny, nx], idx_voxel);
             }
         }
 
-        // ── 3. Build 2-D output image ─────────────────────────────────────────
-        let device = image.data().device();
-        let td_out = TensorData::new(output, Shape::new([num_cross, num_path]));
-        let tensor = Tensor::<B, 2>::from_data(td_out, &device);
-
+        // ── 3. Describe the straightened 2-D output ────────────────────────────
         let cs_step = if num_cross > 1 {
             2.0 * half_width / (num_cross - 1) as f64
         } else {
@@ -288,12 +343,12 @@ impl CprImageFilter {
             1.0 // degenerate 1-sample path: use dummy spacing
         };
 
-        Ok(Image::new(
-            tensor,
-            Point::new([-half_width, 0.0]),
-            Spacing::new([cs_step, path_step]),
-            Direction::identity(),
-        ))
+        Ok(CprResult {
+            values: output,
+            shape: [num_cross, num_path],
+            origin: Point::new([-half_width, 0.0]),
+            spacing: Spacing::new([cs_step, path_step]),
+        })
     }
 }
 

@@ -1,189 +1,143 @@
-use ritk_image::burn::{
-    module::Module,
-    nn::{
-        conv::{Conv3d, Conv3dConfig},
-        InstanceNorm, InstanceNormConfig, Linear, LinearConfig, PaddingConfig3d, Relu,
-    },
-    tensor::{backend::Backend, Tensor},
-};
+//! Coeus-backed affine parameter regressor.
 
-#[derive(Module, Debug)]
-pub struct AffineNetwork<B: Backend> {
-    conv1: Conv3d<B>,
-    bn1: InstanceNorm<B>,
-    conv2: Conv3d<B>,
-    bn2: InstanceNorm<B>,
-    conv3: Conv3d<B>,
-    bn3: InstanceNorm<B>,
-    conv4: Conv3d<B>,
-    bn4: InstanceNorm<B>,
-    conv5: Conv3d<B>,
-    bn5: InstanceNorm<B>,
-    fc: Linear<B>,
-    activation: Relu,
+use coeus_autograd::{add, mean_axis, reshape, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::{Conv3d, InstanceNorm3d, Linear, Module};
+use coeus_ops::BackendOps;
+use coeus_tensor::Tensor;
+
+/// Convolutional affine-regression network.
+#[derive(Clone)]
+pub struct AffineNetwork<B>
+where
+    B: Backend + BackendOps<f32>,
+{
+    convolutions: [Conv3d<f32, B>; 5],
+    normalizations: [InstanceNorm3d<f32, B>; 5],
+    projection: Linear<f32, B>,
 }
 
+/// Affine-network channel configuration.
 #[derive(Debug, Clone)]
 pub struct AffineNetworkConfig {
-    pub channels: Vec<usize>,
+    pub channels: [usize; 5],
 }
 
 impl Default for AffineNetworkConfig {
     fn default() -> Self {
         Self {
-            channels: vec![16, 32, 64, 128, 256],
+            channels: [16, 32, 64, 128, 256],
         }
     }
 }
 
 impl AffineNetworkConfig {
-    pub fn init<B: Backend>(&self, device: &B::Device) -> AffineNetwork<B> {
-        let activation = Relu::new();
-
-        let conv1 = Conv3dConfig::new([2, self.channels[0]], [3, 3, 3])
-            .with_stride([2, 2, 2])
-            .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-            .init(device);
-        let bn1 = InstanceNormConfig::new(self.channels[0]).init(device);
-
-        let conv2 = Conv3dConfig::new([self.channels[0], self.channels[1]], [3, 3, 3])
-            .with_stride([2, 2, 2])
-            .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-            .init(device);
-        let bn2 = InstanceNormConfig::new(self.channels[1]).init(device);
-
-        let conv3 = Conv3dConfig::new([self.channels[1], self.channels[2]], [3, 3, 3])
-            .with_stride([2, 2, 2])
-            .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-            .init(device);
-        let bn3 = InstanceNormConfig::new(self.channels[2]).init(device);
-
-        let conv4 = Conv3dConfig::new([self.channels[2], self.channels[3]], [3, 3, 3])
-            .with_stride([2, 2, 2])
-            .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-            .init(device);
-        let bn4 = InstanceNormConfig::new(self.channels[3]).init(device);
-
-        let conv5 = Conv3dConfig::new([self.channels[3], self.channels[4]], [3, 3, 3])
-            .with_stride([2, 2, 2])
-            .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-            .init(device);
-        let bn5 = InstanceNormConfig::new(self.channels[4]).init(device);
-
-        // Initialize final linear layer to identity transform
-        // The output is 12 parameters for a 3x4 affine matrix
-        let fc = LinearConfig::new(self.channels[4], 12).init(device);
-
-        // # Theorem: Affine Lie Group Tangent Space Expansion
-        //
-        // The mapping of Deep Learning parameters over strict rigid affine deformations operates
-        // continuously along the analytical $GL(D)$ target manifold. Mathematically executing this constraint
-        // implicitly projects the arbitrary network parameters as deviations spanning the local tangent
-        // vector space around the fundamental Identity Element map $I_{D+1}$.
-        //
-        // Specifically, applying the standard $A = I + dA$ first-order Taylor limit explicitly bounds
-        // initial optimization constraints structurally to small differential properties naturally stabilizing limits
-        // and analytically enforcing exact geometric continuity equivalent to initializing an explicit
-        // topological parameter record avoiding computational matrix derivations. By projecting the Identity
-        // dynamically, all parameters intrinsically formulate the deformation gradient scalar tensors directly.
-
-        AffineNetwork {
-            conv1,
-            bn1,
-            conv2,
-            bn2,
-            conv3,
-            bn3,
-            conv4,
-            bn4,
-            conv5,
-            bn5,
-            fc,
-            activation,
+    /// Initialize the graph on backend `B`.
+    #[must_use]
+    pub fn init<B>(&self) -> AffineNetwork<B>
+    where
+        B: Backend + BackendOps<f32>,
+    {
+        let channels = self.channels;
+        let mut network = AffineNetwork {
+            convolutions: [
+                convolution(2, channels[0]),
+                convolution(channels[0], channels[1]),
+                convolution(channels[1], channels[2]),
+                convolution(channels[2], channels[3]),
+                convolution(channels[3], channels[4]),
+            ],
+            normalizations: channels.map(|width| InstanceNorm3d::new(width, 1e-5)),
+            projection: Linear::new(channels[4], 12, true),
+        };
+        for (index, convolution) in network.convolutions.iter_mut().enumerate() {
+            let input_channels = if index == 0 { 2 } else { channels[index - 1] };
+            crate::initialization::convolution(convolution, input_channels, 3, 100 + index as u64);
         }
+        coeus_nn::init::zeros(&mut network.projection.weight);
+        if let Some(bias) = &mut network.projection.bias {
+            coeus_nn::init::zeros(bias);
+        }
+        network
     }
 }
 
-impl<B: Backend> AffineNetwork<B> {
-    pub fn forward(&self, x: Tensor<B, 5>) -> Tensor<B, 2> {
-        let x = self.conv1.forward(x);
-        let x = self.bn1.forward(x);
-        let x = self.activation.forward(x);
+impl<B> Module<f32, B> for AffineNetwork<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        let mut parameters = Vec::new();
+        for (convolution, normalization) in self.convolutions.iter().zip(self.normalizations.iter())
+        {
+            parameters.extend(convolution.parameters());
+            parameters.extend(normalization.parameters());
+        }
+        parameters.extend(self.projection.parameters());
+        parameters
+    }
 
-        let x = self.conv2.forward(x);
-        let x = self.bn2.forward(x);
-        let x = self.activation.forward(x);
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        let mut activation = input.clone();
+        for (convolution, normalization) in self.convolutions.iter().zip(self.normalizations.iter())
+        {
+            activation = convolution.forward(&activation);
+            activation = normalization.forward(&activation);
+            activation = coeus_autograd::relu(&activation);
+        }
+        let shape = activation.tensor.shape();
+        let (batch, channels) = (shape[0], shape[1]);
+        let flattened = reshape(
+            &activation,
+            [batch, channels, shape[2] * shape[3] * shape[4]],
+        );
+        let pooled = mean_axis(&flattened, 2);
+        let pooled = reshape(&pooled, [batch, channels]);
+        let parameters = self.projection.forward(&pooled);
+        let identity = Var::new(
+            Tensor::from_slice_on(
+                [1, 12],
+                &[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                &B::default(),
+            ),
+            false,
+        );
+        add(&parameters, &identity)
+    }
 
-        let x = self.conv3.forward(x);
-        let x = self.bn3.forward(x);
-        let x = self.activation.forward(x);
-
-        let x = self.conv4.forward(x);
-        let x = self.bn4.forward(x);
-        let x = self.activation.forward(x);
-
-        let x = self.conv5.forward(x);
-        let x = self.bn5.forward(x);
-        let x = self.activation.forward(x);
-
-        // Global Average Pooling: [B, C, D, H, W] -> [B, C]
-        // Flatten spatial dims: [B, C, D*H*W]
-        let x = x.flatten::<3>(2, 4);
-        // Mean over spatial dim: [B, C, 1]
-        let x = x.mean_dim(2);
-        // Squeeze: [B, C]
-        let [b, c, _] = x.dims();
-        let x = x.reshape([b, c]);
-
-        let x = self.fc.forward(x);
-
-        // Exact mathematical Taylor expansion across Lie group manifolds evaluating explicitly:
-        // $ T = I_{3x4} + dA $
-        let batch_size = x.shape().dims[0];
-        let identity = Tensor::<B, 1>::from_floats(
-            [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-            &x.device(),
-        )
-        .reshape([1, 12]);
-
-        x + identity.repeat(&[batch_size, 1])
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        let mut offset = 0;
+        for (convolution, normalization) in self
+            .convolutions
+            .iter_mut()
+            .zip(self.normalizations.iter_mut())
+        {
+            load_module(convolution, parameters, &mut offset);
+            load_module(normalization, parameters, &mut offset);
+        }
+        load_module(&mut self.projection, parameters, &mut offset);
+        assert_eq!(
+            offset,
+            parameters.len(),
+            "parameter inventory must be exact"
+        );
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::Tensor;
+fn convolution<B>(input_channels: usize, output_channels: usize) -> Conv3d<f32, B>
+where
+    B: Backend + BackendOps<f32>,
+{
+    Conv3d::with_params(input_channels, output_channels, 3, 2, 1, 1, true)
+}
 
-    type B = NdArray<f32>;
-
-    #[test]
-    fn forward_output_shape_is_batch_by_12() {
-        let device = Default::default();
-        let net = AffineNetworkConfig::default().init::<B>(&device);
-        let input = Tensor::<B, 5>::ones([1, 2, 4, 4, 4], &device);
-        let out = net.forward(input);
-        assert_eq!(out.dims(), [1, 12]);
-    }
-
-    #[test]
-    fn forward_single_batch_produces_finite_12_parameters() {
-        // InstanceNorm normalises per-instance, so batch_size=1 is valid.
-        // BatchNorm with batch_size=1 computes zero variance → NaN in normalisation.
-        // This test verifies InstanceNorm produces finite values for the degenerate batch.
-        let device = Default::default();
-        let net = AffineNetworkConfig::default().init::<B>(&device);
-        let input = Tensor::<B, 5>::ones([1, 2, 4, 4, 4], &device);
-        let out = net.forward(input);
-        let data = out.into_data();
-        let vals = data.as_slice::<f32>().unwrap();
-        assert_eq!(vals.len(), 12, "output must carry 12 affine parameters");
-        for (i, &v) in vals.iter().enumerate() {
-            assert!(
-                v.is_finite(),
-                "param[{i}] is not finite — InstanceNorm must not produce NaN for B=1: {v}"
-            );
-        }
-    }
+fn load_module<M, B>(module: &mut M, parameters: &[Var<f32, B>], offset: &mut usize)
+where
+    B: Backend + BackendOps<f32>,
+    M: Module<f32, B>,
+{
+    let count = module.parameters().len();
+    module.load_parameters(&parameters[*offset..*offset + count]);
+    *offset += count;
 }

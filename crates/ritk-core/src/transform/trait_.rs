@@ -3,18 +3,8 @@
 //! This module defines the core Transform trait that all spatial transforms must implement.
 
 use crate::spatial::{Direction, Point, Spacing};
-use coeus_core::{ComputeBackend, Scalar};
-use coeus_tensor::Tensor as CoeusTensor;
 use ritk_image::tensor::{Backend, Tensor};
 
-/// **Soft-deprecated (Atlas Batch #3 sub-batch #2, 2026-07-06; docstring-only)** —
-/// prefer the Atlas-typed parallel [`TransformAtlas`] (uses
-/// `coeus_core::ComputeBackend` instead of Burn's `Backend`).
-/// No `#[deprecated]` attribute on this item to avoid cascading
-/// `#[warn(deprecated)]` warnings across 671 burner consumer files in
-/// `xtask/burn_surface.allowlist`. Migration plan:
-/// `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Sub-batch #2.
-///
 /// Transform trait for spatial coordinate transformations.
 ///
 /// Maps points from one physical space to another.
@@ -45,14 +35,6 @@ pub trait Transform<B: Backend, const D: usize>: Sized {
     }
 }
 
-/// **Soft-deprecated (Atlas Batch #3 sub-batch #2, 2026-07-06; docstring-only)** —
-/// prefer the Atlas-typed parallel [`ResampleableAtlas`] (uses
-/// `coeus_core::ComputeBackend` instead of Burn's `Backend`).
-/// No `#[deprecated]` attribute on this item to avoid cascading
-/// `#[warn(deprecated)]` warnings across 671 burner consumer files in
-/// `xtask/burn_surface.allowlist`. Migration plan:
-/// `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Sub-batch #2.
-///
 /// Trait for transforms that can be resampled to a new grid/resolution.
 ///
 /// This is used in multi-resolution registration to adapt the transform
@@ -68,43 +50,6 @@ pub trait Resampleable<B: Backend, const D: usize> {
     ///
     /// # Returns
     /// A new instance of the transform adapted to the new grid.
-    fn resample(
-        &self,
-        shape: [usize; D],
-        origin: Point<D>,
-        spacing: Spacing<D>,
-        direction: Direction<D>,
-    ) -> Self;
-}
-
-// Atlas-side parallels (Additive, day-1 surface; concrete impls land in sub-batch #3+
-// as consumer crates migrate). Cross-walked at
-// `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §Sub-batch #1.
-
-/// Atlas-typed parallel to [`Transform`].
-#[allow(dead_code)]
-pub trait TransformAtlas<T, B, const D: usize>: Sized
-where
-    T: Scalar,
-    B: ComputeBackend,
-{
-    /// Apply transform to a batch of points (Atlas substrate).
-    fn transform_points(&self, points: CoeusTensor<T, B>) -> CoeusTensor<T, B>;
-
-    /// Inverse transform, default `None`.
-    fn inverse(&self) -> Option<Self> {
-        None
-    }
-}
-
-/// Atlas-typed parallel to [`Resampleable`].
-#[allow(dead_code)]
-pub trait ResampleableAtlas<T, B, const D: usize>
-where
-    T: Scalar,
-    B: ComputeBackend,
-{
-    /// Resample the transform to match a new image grid (Atlas substrate).
     fn resample(
         &self,
         shape: [usize; D],

@@ -19,7 +19,10 @@
 //! ITK's boundary handling). `sgn(0) = 0`. Internal arithmetic is `f64`; the
 //! result is float-exact to SimpleITK (output is `f32`).
 
+use crate::native_support::map_flat_image;
 use anyhow::Result;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -69,6 +72,25 @@ impl AdaptiveHistogramEqualizationFilter {
     /// Apply the adaptive equalization.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (vals, dims) = extract_vec_infallible(image);
+        Ok(rebuild(self.apply_values(&vals, dims), dims, image))
+    }
+
+    /// Apply adaptive equalization to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, dims| {
+            self.apply_values(values, dims)
+        })
+    }
+
+    fn apply_values(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
         let (rz, ry, rx) = (self.radius[0], self.radius[1], self.radius[2]);
@@ -88,7 +110,7 @@ impl AdaptiveHistogramEqualizationFilter {
         let iscale = max - min;
         if iscale == 0.0 {
             // Constant image: the equalization is the identity.
-            return Ok(rebuild(vals, dims, image));
+            return vals.to_vec();
         }
         let norm = |i: usize| (vals[i] as f64 - min) / iscale - 0.5;
 
@@ -123,7 +145,7 @@ impl AdaptiveHistogramEqualizationFilter {
             (iscale * (sum / k as f64 + 0.5) + min) as f32
         });
 
-        Ok(rebuild(out, dims, image))
+        out
     }
 }
 

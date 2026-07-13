@@ -102,7 +102,9 @@ fn test_segment_multi_otsu_creates_output_with_correct_shape() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("labels.nii");
 
-    ritk_io::write_nifti(&input, &make_trimodal_image()).unwrap();
+    let fixture = make_trimodal_image();
+    let expected = ritk_segmentation::MultiOtsuThreshold::new(3).apply(&fixture);
+    ritk_io::write_nifti(&input, &fixture).unwrap();
 
     run(default_args(
         input.clone(),
@@ -112,8 +114,16 @@ fn test_segment_multi_otsu_creates_output_with_correct_shape() {
     .unwrap();
 
     assert!(output.exists(), "output label image must be created");
-    let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+    let labels = crate::commands::read_image_native(&output)
+        .expect("Multi-Otsu output is natively readable");
     assert_eq!(labels.shape(), [6, 6, 6], "label shape must match input");
+    assert_eq!(*labels.origin(), *expected.origin());
+    assert_eq!(*labels.spacing(), *expected.spacing());
+    assert_eq!(*labels.direction(), *expected.direction());
+    assert_eq!(
+        labels.data_slice().expect("contiguous native labels"),
+        expected.data_slice().as_ref()
+    );
 }
 
 // ── Positive: Multi-Otsu labels are in valid set ───────────────────────────
@@ -176,7 +186,7 @@ fn test_segment_multi_otsu_returns_k_minus_1_thresholds() {
 // ── Binary threshold tests ────────────────────────────────────────────────
 
 #[test]
-fn test_segment_binary_threshold_creates_output_with_correct_shape() {
+fn test_segment_binary_threshold_writes_exact_native_output() {
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
     let output = dir.path().join("out.nii");
@@ -188,11 +198,14 @@ fn test_segment_binary_threshold_creates_output_with_correct_shape() {
     run(args).unwrap();
 
     assert!(output.exists(), "output file must be created");
-    let out_image = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+    let out_image = crate::commands::read_image_native(&output)
+        .expect("binary threshold output is natively readable");
+    assert_eq!(out_image.shape(), [4, 4, 4]);
+    assert_eq!(*out_image.origin(), Point::new([0.0; 3]));
+    assert_eq!(*out_image.spacing(), Spacing::new([1.0; 3]));
     assert_eq!(
-        out_image.shape(),
-        [4, 4, 4],
-        "output shape must match input 4×4×4"
+        out_image.data_slice().expect("contiguous output"),
+        [vec![0.0; 32], vec![1.0; 32]].concat()
     );
 }
 

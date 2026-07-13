@@ -72,7 +72,30 @@ impl ZeroCrossingImageFilter {
     /// Apply to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals_vec, dims) = extract_vec_infallible(image);
-        let vals = &vals_vec;
+        Ok(rebuild(self.crossing_values(&vals_vec, dims), dims, image))
+    }
+
+    /// Apply zero-crossing detection to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.crossing_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn crossing_values(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
         let [nz, ny, nx] = dims;
 
         let idx = |iz: usize, iy: usize, ix: usize| iz * ny * nx + iy * nx + ix;
@@ -132,7 +155,7 @@ impl ZeroCrossingImageFilter {
             }
         }
 
-        Ok(rebuild(out, dims, image))
+        out
     }
 }
 

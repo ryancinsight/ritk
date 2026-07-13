@@ -37,36 +37,57 @@
 //!    Bottleneck: [batch, 256, D/8, H/8, W/8]
 //! ```
 
-pub mod atlas_encoder;
 pub mod config;
 pub mod stage;
 
 pub use config::{DownsamplePolicy, DropPath, EncoderStageConfig, SSMMorphEncoderConfig};
-pub use stage::{DownsampleStage, EncoderStage};
+pub use stage::{EncoderStage, EncoderStageOutput};
 
-use ritk_image::burn::prelude::*;
+use crate::ModelError;
+use coeus_autograd::Var;
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::BackendOps;
 
 /// SSMMorph Encoder - Hierarchical feature extraction
-#[derive(Module, Debug)]
-pub struct SSMMorphEncoder<B: Backend> {
+#[derive(Clone)]
+pub struct SSMMorphEncoder<B>
+where
+    B: Backend + BackendOps<f32>,
+{
     /// Encoder stages
     pub stages: Vec<EncoderStage<B>>,
     /// Number of stages (stored, not config)
     num_stages: usize,
     /// Stage output channels
-    #[module(ignore)]
     stage_channels: Vec<usize>,
 }
 
-impl<B: Backend> SSMMorphEncoder<B> {
+/// Multi-scale encoder result.
+pub struct SSMMorphEncoderOutput<B>
+where
+    B: Backend,
+{
+    /// Features retained for decoder skip connections.
+    pub features: Vec<Var<f32, B>>,
+    /// Lowest-resolution representation.
+    pub bottleneck: Var<f32, B>,
+}
+
+impl<B> SSMMorphEncoder<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Create new SSMMorph encoder
-    pub fn new(config: &SSMMorphEncoderConfig, device: &B::Device) -> Self {
+    pub fn new(config: &SSMMorphEncoderConfig) -> Self {
         let stage_configs = config.stage_configs();
         let stage_channels = config.stage_channels();
 
         let stages: Vec<_> = stage_configs
             .iter()
-            .map(|cfg| EncoderStage::new(cfg, device))
+            .copied()
+            .map(EncoderStage::new)
             .collect();
 
         Self {
@@ -89,20 +110,23 @@ impl<B: Backend> SSMMorphEncoder<B> {
     /// # Returns
     /// * features: Multi-scale features from each stage (for skip connections)
     /// * bottleneck: Bottleneck features at lowest resolution
-    pub fn forward(&self, input: Tensor<B, 5>) -> (Vec<Tensor<B, 5>>, Tensor<B, 5>) {
-        let mut x = input;
+    pub fn forward(&self, input: &Var<f32, B>) -> Result<SSMMorphEncoderOutput<B>, ModelError> {
+        let mut x = input.clone();
         let mut features = Vec::with_capacity(self.stages.len());
 
         for stage in &self.stages {
-            let (feat, out) = stage.forward(x);
-            features.push(feat.clone());
-            x = out.unwrap_or(feat);
+            let output = stage.forward(&x)?;
+            features.push(output.features.clone());
+            x = output.continuation.unwrap_or(output.features);
         }
 
         // The final output is the bottleneck
         let bottleneck = x;
 
-        (features, bottleneck)
+        Ok(SSMMorphEncoderOutput {
+            features,
+            bottleneck,
+        })
     }
 
     /// Get number of stages
@@ -116,5 +140,33 @@ impl<B: Backend> SSMMorphEncoder<B> {
     }
 }
 
-#[cfg(test)]
-mod tests;
+impl<B> Module<f32, B> for SSMMorphEncoder<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        self.stages.iter().flat_map(Module::parameters).collect()
+    }
+
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        SSMMorphEncoder::forward(self, input)
+            .expect("invariant: encoder module receives a valid volume")
+            .bottleneck
+    }
+
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        let mut offset = 0;
+        for stage in &mut self.stages {
+            let count = stage.parameters().len();
+            stage.load_parameters(&parameters[offset..offset + count]);
+            offset += count;
+        }
+    }
+
+    fn train(&mut self, mode: bool) {
+        for stage in &mut self.stages {
+            stage.train(mode);
+        }
+    }
+}

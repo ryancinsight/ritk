@@ -43,7 +43,7 @@ pub use geometry::{GeometrySummary, ModalityDisplay, ViewerResult, ViewerStatus}
 pub use launch::start_web;
 pub use launch::{run_app, run_app_with_options, AppLaunchOptions};
 pub use loaded_volume::LoadedVolume;
-pub use viewer::{DefaultBackend, Study, ViewerBackend, ViewerCore, ViewerEvent, ViewerState};
+pub use viewer::ViewerState;
 
 #[cfg(test)]
 #[path = "tests_lib.rs"]

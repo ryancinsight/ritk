@@ -1,9 +1,11 @@
 use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{native_into_py_image, py_image_to_native, PyImage};
+use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
-    slic_itk_segment as core_slic_itk_segment, SlicConfig, SlicSuperpixelFilter,
+    ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig, ItkSlicFilter, SlicConfig,
+    SlicSuperpixelFilter,
 };
 
 /// SLIC super-pixel segmentation matching `SimpleITK.SLIC`.
@@ -36,19 +38,31 @@ pub fn slic(
     maximum_number_of_iterations: usize,
     enforce_connectivity: bool,
     initialization_perturbation: bool,
-) -> PyImage {
-    let arc = py_image_to_burn(image);
-    let out = py.allow_threads(|| {
-        core_slic_itk_segment(
-            &arc,
-            super_grid_size,
-            spatial_proximity_weight,
-            maximum_number_of_iterations,
-            initialization_perturbation,
-            enforce_connectivity,
-        )
-    });
-    burn_into_py_image(out)
+) -> RitkResult<PyImage> {
+    let perturbation = if initialization_perturbation {
+        InitializationPerturbation::Enabled
+    } else {
+        InitializationPerturbation::Disabled
+    };
+    let connectivity = if enforce_connectivity {
+        ConnectivityEnforcement::Enabled
+    } else {
+        ConnectivityEnforcement::Disabled
+    };
+    let config = ItkSlicConfig::new(super_grid_size)
+        .and_then(|config| config.with_spatial_proximity_weight(spatial_proximity_weight))
+        .and_then(|config| config.with_maximum_iterations(maximum_number_of_iterations))
+        .map(|config| {
+            config
+                .with_initialization_perturbation(perturbation)
+                .with_connectivity(connectivity)
+        })
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
+    let image = py_image_to_native(image)?;
+    let output = py
+        .allow_threads(|| ItkSlicFilter::new(config).apply_native(&image, &SequentialBackend))
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
+    Ok(native_into_py_image(output))
 }
 
 /// Segment a 3D image via SLIC super-pixel clustering (Achanta et al. 2012).
@@ -64,38 +78,32 @@ pub fn slic(
 ///     compactness: Compactness parameter: higher = more regular shapes (default 10.0).
 ///     max_iterations: Maximum Lloyd iterations (default 10).
 ///     tolerance: Convergence tolerance on center shift (default 1e-3).
-///     seed: Deterministic seed (default 42).
 ///     min_component_size: Minimum component size for connectivity enforcement (default 5).
 ///
 /// Returns:
 ///     Label PyImage with superpixel indices in [0, K-1].
 #[pyfunction]
-#[pyo3(signature = (image, n_superpixels=100, compactness=10.0, max_iterations=10, tolerance=1e-3, seed=42, min_component_size=5))]
+#[pyo3(signature = (image, n_superpixels=100, compactness=10.0, max_iterations=10, tolerance=1e-3, min_component_size=5))]
 pub fn slic_superpixel(
     py: Python<'_>,
     image: &PyImage,
     n_superpixels: usize,
-    compactness: f64,
+    compactness: f32,
     max_iterations: usize,
-    tolerance: f64,
-    seed: u64,
+    tolerance: f32,
     min_component_size: usize,
 ) -> RitkResult<PyImage> {
-    if n_superpixels < 1 {
-        return Err(RitkPyError::value("n_superpixels must be >= 1"));
-    }
-    let image = py_image_to_burn(image);
-    let result = py.allow_threads(|| {
-        let config = SlicConfig {
-            n_superpixels,
-            compactness,
-            max_iterations,
-            tolerance,
-            seed,
-            min_component_size,
-        };
-        let filter = SlicSuperpixelFilter::new(config);
-        filter.apply(&image)
-    });
-    Ok(burn_into_py_image(result))
+    let config = SlicConfig::new(n_superpixels)
+        .and_then(|config| config.with_compactness(compactness))
+        .and_then(|config| config.with_max_iterations(max_iterations))
+        .and_then(|config| config.with_tolerance(tolerance))
+        .map(|config| config.with_min_component_size(min_component_size))
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
+    let image = py_image_to_native(image)?;
+    let result = py
+        .allow_threads(|| {
+            SlicSuperpixelFilter::new(config).apply_native(&image, &SequentialBackend)
+        })
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
+    Ok(native_into_py_image(result))
 }

@@ -203,7 +203,7 @@ pub(crate) fn with_image_slice<R, F: FnOnce(&[f32]) -> R>(image: &ScalarImage, f
 }
 
 /// Wrap a legacy Burn-backed image result back into a `PyImage` by converting
-/// via a flat Vec<f32> round-trip. Used as the return adapter for burn-only
+/// via a flat `Vec<f32>` round-trip. Used as the return adapter for burn-only
 /// filter algorithms that cannot yet operate on native Coeus images.
 pub fn burn_into_py_image(image: BurnImage<3>) -> PyImage {
     let (values, shape) = burn_image_to_vec(&image);

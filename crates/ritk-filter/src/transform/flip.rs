@@ -30,6 +30,8 @@ use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use serde::{Deserialize, Serialize};
 
+use crate::native_support::map_flat_image;
+
 /// Per-axis flip policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum FlipPolicy {
@@ -132,6 +134,47 @@ impl FlipImageFilter {
         }
 
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply the configured axis flips to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let axes = self.axes;
+        map_flat_image(image, backend, move |values, [nz, ny, nx]| {
+            let [flip_z, flip_y, flip_x] = axes;
+            let mut output = vec![0.0; values.len()];
+            for z in 0..nz {
+                let source_z = if matches!(flip_z, FlipPolicy::Flip) {
+                    nz - 1 - z
+                } else {
+                    z
+                };
+                for y in 0..ny {
+                    let source_y = if matches!(flip_y, FlipPolicy::Flip) {
+                        ny - 1 - y
+                    } else {
+                        y
+                    };
+                    for x in 0..nx {
+                        let source_x = if matches!(flip_x, FlipPolicy::Flip) {
+                            nx - 1 - x
+                        } else {
+                            x
+                        };
+                        output[z * ny * nx + y * nx + x] =
+                            values[source_z * ny * nx + source_y * nx + source_x];
+                    }
+                }
+            }
+            output
+        })
     }
 }
 

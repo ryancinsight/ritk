@@ -91,6 +91,28 @@ pub struct Round;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Not;
 
+/// Operation marker for `out(x) = atan(x)`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Atan;
+/// Operation marker for `out(x) = sin(x)`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Sin;
+/// Operation marker for `out(x) = cos(x)`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Cos;
+/// Operation marker for `out(x) = tan(x)`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Tan;
+/// Operation marker for `out(x) = asin(x)`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Asin;
+/// Operation marker for `out(x) = acos(x)`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Acos;
+/// Operation marker for `out(x) = 1 / (1 + |x|)`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BoundedReciprocal;
+
 impl sealed::Sealed for Abs {}
 impl sealed::Sealed for Sqrt {}
 impl sealed::Sealed for Exp {}
@@ -101,6 +123,13 @@ impl sealed::Sealed for ExpNegative {}
 impl sealed::Sealed for UnaryMinus {}
 impl sealed::Sealed for Round {}
 impl sealed::Sealed for Not {}
+impl sealed::Sealed for Atan {}
+impl sealed::Sealed for Sin {}
+impl sealed::Sealed for Cos {}
+impl sealed::Sealed for Tan {}
+impl sealed::Sealed for Asin {}
+impl sealed::Sealed for Acos {}
+impl sealed::Sealed for BoundedReciprocal {}
 
 impl UnaryPixelOp for Abs {
     #[inline]
@@ -171,6 +200,49 @@ impl UnaryPixelOp for Not {
     fn apply(v: f32) -> f32 {
         // ITK `!A`: nonzero → false (0), exact zero → true (1).
         (v == 0.0) as u8 as f32
+    }
+}
+
+impl UnaryPixelOp for Atan {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        v.atan()
+    }
+}
+impl UnaryPixelOp for Sin {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        v.sin()
+    }
+}
+impl UnaryPixelOp for Cos {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        v.cos()
+    }
+}
+impl UnaryPixelOp for Tan {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        v.tan()
+    }
+}
+impl UnaryPixelOp for Asin {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        v.asin()
+    }
+}
+impl UnaryPixelOp for Acos {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        v.acos()
+    }
+}
+impl UnaryPixelOp for BoundedReciprocal {
+    #[inline]
+    fn apply(v: f32) -> f32 {
+        1.0 / (1.0 + v.abs())
     }
 }
 
@@ -313,6 +385,21 @@ pub type RoundImageFilter = UnaryImageFilter<Round>;
 /// - ITK `itk::NotImageFilter<TInputImage, TOutputImage>`.
 pub type NotImageFilter = UnaryImageFilter<Not>;
 
+/// Pixelwise arctangent filter.
+pub type AtanImageFilter = UnaryImageFilter<Atan>;
+/// Pixelwise sine filter.
+pub type SinImageFilter = UnaryImageFilter<Sin>;
+/// Pixelwise cosine filter.
+pub type CosImageFilter = UnaryImageFilter<Cos>;
+/// Pixelwise tangent filter.
+pub type TanImageFilter = UnaryImageFilter<Tan>;
+/// Pixelwise arcsine filter.
+pub type AsinImageFilter = UnaryImageFilter<Asin>;
+/// Pixelwise arccosine filter.
+pub type AcosImageFilter = UnaryImageFilter<Acos>;
+/// Pixelwise bounded reciprocal filter.
+pub type BoundedReciprocalImageFilter = UnaryImageFilter<BoundedReciprocal>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -368,10 +455,7 @@ mod tests {
         let out = RoundImageFilter::new()
             .apply_native(&img, &SequentialBackend)
             .unwrap();
-        assert_eq!(
-            native_vals(&out),
-            vec![2.0, 3.0, 3.0, -2.0, -2.0, 0.0]
-        );
+        assert_eq!(native_vals(&out), vec![2.0, 3.0, 3.0, -2.0, -2.0, 0.0]);
     }
 
     /// Logical NOT (ITK `NotImageFilter`): only exact zero maps to `1`; any

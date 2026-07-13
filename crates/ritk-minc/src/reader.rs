@@ -30,9 +30,6 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use consus_hdf5::dataset::StorageLayout;
 use consus_hdf5::file::Hdf5File;
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::path::Path;
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -42,7 +39,7 @@ use std::path::Path;
 /// # Arguments
 ///
 /// - `path`: filesystem path to the MINC2 HDF5 file.
-/// - `device`: Burn backend device for tensor allocation.
+/// - `backend`: Coeus compute backend used for tensor allocation.
 ///
 /// # Errors
 ///
@@ -51,7 +48,11 @@ use std::path::Path;
 /// - The required MINC2 HDF5 structure is missing or malformed.
 /// - The image dataset uses chunked storage (not yet supported).
 /// - A data type conversion fails.
-pub fn read_minc<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+pub fn read_minc<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    P: AsRef<Path>,
+{
     let DecodedMinc {
         data,
         dims,
@@ -59,12 +60,11 @@ pub fn read_minc<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
         spacing,
         direction,
     } = decode_minc(path)?;
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
-    Ok(Image::new(tensor, origin, spacing, direction))
+    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 /// Backend-agnostic decoded MINC2 volume: voxels plus derived physical metadata.
-/// Shared by the Burn and Coeus reader paths.
+/// Shared by format validation and native image construction.
 struct DecodedMinc {
     data: Vec<f32>,
     dims: [usize; 3],
@@ -153,50 +153,22 @@ fn decode_minc<P: AsRef<Path>>(path: P) -> Result<DecodedMinc> {
     })
 }
 
-/// Typed reader wrapping `read_minc` for API consistency.
-///
-/// Carries a backend device so it can implement `ImageReader<B, 3>`
-/// without requiring callers to pass a device at read time.
-pub struct MincReader<B: Backend> {
-    device: B::Device,
+/// Backend-bound MINC2 reader.
+pub struct MincReader<B: coeus_core::ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> MincReader<B> {
-    /// Construct a `MincReader` bound to the given backend device.
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
+impl<B: coeus_core::ComputeBackend> MincReader<B> {
+    /// Construct a reader that creates images on `backend`.
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 
-    /// Read a MINC2 file into a 3-D image using the stored device.
-    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
-        read_minc(path, &self.device)
-    }
-}
-
-/// Atlas-native-substrate entry points (transitional module: plain
-/// end-state names, disambiguated from the Burn functions by module
-/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
-pub mod native {
-    #[allow(unused_imports)]
-    use super::*;
-
-    /// Read a MINC2 file into a Coeus-backed 3-D image on `backend`.
-    ///
-    /// The Atlas-tensor counterpart to [`read_minc`]: shares the HDF5 navigation,
-    /// bounded contiguous voxel read, decode, and geometry derivation with the Burn
-    /// path via `decode_minc`, differing only in the final image construction.
-    pub fn read_minc<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
-    where
-        B: coeus_core::ComputeBackend,
-        P: AsRef<Path>,
-    {
-        let DecodedMinc {
-            data,
-            dims,
-            origin,
-            spacing,
-            direction,
-        } = decode_minc(path)?;
-        ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    /// Read a MINC2 file into a 3-D image using the stored backend.
+    pub fn read_image<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<ritk_image::native::Image<f32, B, 3>> {
+        read_minc(path, &self.backend)
     }
 }

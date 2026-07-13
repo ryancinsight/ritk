@@ -95,7 +95,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                     .add(egui::Slider::new(&mut t, 0.0_f32..=1000.0).step_by(0.1))
                     .changed()
                 {
-                    *threshold = BinarizationThreshold::from(t);
+                    *threshold = BinarizationThreshold::new(t)
+                        .expect("invariant: threshold slider is finite and non-negative");
                 }
             });
             true
@@ -123,7 +124,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                     .add(egui::Slider::new(&mut t, 0.0_f32..=1000.0).step_by(0.1))
                     .changed()
                 {
-                    *threshold = BinarizationThreshold::from(t);
+                    *threshold = BinarizationThreshold::new(t)
+                        .expect("invariant: threshold slider is finite and non-negative");
                 }
             });
             true

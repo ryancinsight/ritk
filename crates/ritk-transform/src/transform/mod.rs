@@ -31,4 +31,7 @@ pub use composition::io::{CompositeTransform, TransformDescription};
 pub use displacement_field::static_::field::{
     StaticDisplacementField, StaticDisplacementFieldTransform,
 };
-pub use displacement_field::{DisplacementField, DisplacementFieldTransform};
+pub use displacement_field::{
+    DisplacementField, DisplacementFieldError, DisplacementFieldTransform,
+    DisplacementTransformError, ResampleError,
+};

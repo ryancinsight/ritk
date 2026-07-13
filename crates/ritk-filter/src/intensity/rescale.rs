@@ -12,6 +12,8 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
+use crate::native_support::map_flat_image;
+
 /// Linear rescale of image intensity to [out_min, out_max].
 ///
 /// Computes the global minimum and maximum of the input image and maps the
@@ -68,6 +70,44 @@ impl RescaleIntensityFilter {
         };
 
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply the rescaling to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| {
+            let count = values.len();
+            let (minimum, maximum) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+                count,
+                || (f32::INFINITY, f32::NEG_INFINITY),
+                |(minimum, maximum), index| {
+                    let value = values[index];
+                    (minimum.min(value), maximum.max(value))
+                },
+                |(left_minimum, left_maximum), (right_minimum, right_maximum)| {
+                    (
+                        left_minimum.min(right_minimum),
+                        left_maximum.max(right_maximum),
+                    )
+                },
+            );
+            if (maximum - minimum).abs() < f32::EPSILON {
+                vec![self.out_min; count]
+            } else {
+                let scale = (self.out_max - self.out_min) / (maximum - minimum);
+                values
+                    .iter()
+                    .map(|&value| (value - minimum) * scale + self.out_min)
+                    .collect()
+            }
+        })
     }
 }
 

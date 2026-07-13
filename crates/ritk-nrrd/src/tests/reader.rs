@@ -1,14 +1,12 @@
 use anyhow::Result;
-use burn_ndarray::NdArray;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::Image;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
 use crate::read_nrrd;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -66,8 +64,8 @@ fn test_shape_permuted_to_zyx() -> Result<()> {
     let data: Vec<f32> = (0..(nx * ny * nz)).map(|i| i as f32).collect();
     write_inline_nrrd(&path, &data, nx, ny, nz, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_nrrd::<TestBackend, _>(&path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_nrrd::<TestBackend, _>(&path, &backend)?;
 
     assert_eq!(image.shape(), [nz, ny, nx], "shape must be [nz, ny, nx]");
     Ok(())
@@ -93,10 +91,10 @@ fn test_raw_payload_x_fastest_maps_to_zyx_tensor_values() -> Result<()> {
     }
     write_inline_nrrd(&path, &data, nx, ny, nz, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_nrrd::<TestBackend, _>(&path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_nrrd::<TestBackend, _>(&path, &backend)?;
     assert_eq!(image.shape(), [nz, ny, nx]);
-    image.with_data_slice(|values| {
+    image.data_slice().map(|values| {
         for z in 0..nz {
             for y in 0..ny {
                 for x in 0..nx {
@@ -109,7 +107,7 @@ fn test_raw_payload_x_fastest_maps_to_zyx_tensor_values() -> Result<()> {
                 }
             }
         }
-    });
+    })?;
     Ok(())
 }
 
@@ -122,8 +120,8 @@ fn test_spacing_from_space_directions() -> Result<()> {
     let data = vec![0.0f32; 2 * 3 * 4];
     write_inline_nrrd(&path, &data, 4, 3, 2, [0.9, 0.75, 1.5], [5.0, 10.0, 15.0]);
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_nrrd::<TestBackend, _>(&path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_nrrd::<TestBackend, _>(&path, &backend)?;
 
     // NRRD file spacings [x,y,z] become RITK metadata [z,y,x].
     assert!((image.spacing()[0] - 1.5).abs() < 1e-9, "spacing[0]");
@@ -134,70 +132,6 @@ fn test_spacing_from_space_directions() -> Result<()> {
     assert!((image.origin()[0] - 5.0).abs() < 1e-9, "origin[0]");
     assert!((image.origin()[1] - 10.0).abs() < 1e-9, "origin[1]");
     assert!((image.origin()[2] - 15.0).abs() < 1e-9, "origin[2]");
-
-    Ok(())
-}
-
-/// Differential oracle: the Atlas-native reader must be value-identical to the
-/// Burn reader on the SAME file — both wrap the identical `decode_nrrd` core,
-/// so shape, every voxel (bitwise), origin, spacing, and direction must match.
-/// Uses anisotropic spacing and a non-zero origin so an axis transposition or
-/// metadata reorder in either path would diverge.
-#[test]
-fn native_reader_matches_burn_reader() -> Result<()> {
-    let dir = tempdir()?;
-    let path = dir.path().join("differential.nrrd");
-
-    let nx = 4usize;
-    let ny = 3usize;
-    let nz = 2usize;
-    let data: Vec<f32> = (0..(nx * ny * nz))
-        .map(|i| (i as f32) * 0.5 - 3.0)
-        .collect();
-    write_inline_nrrd(
-        &path,
-        &data,
-        nx,
-        ny,
-        nz,
-        [0.9, 0.75, 1.5],
-        [5.0, 10.0, 15.0],
-    );
-
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let burn = read_nrrd::<TestBackend, _>(&path, &device)?;
-
-    let backend = coeus_core::SequentialBackend;
-    let native = super::super::reader::native::read_nrrd(&path, &backend)?;
-
-    assert_eq!(native.shape(), burn.shape(), "shape must match Burn path");
-    assert_eq!(
-        native.origin(),
-        burn.origin(),
-        "origin must match Burn path"
-    );
-    assert_eq!(
-        native.spacing(),
-        burn.spacing(),
-        "spacing must match Burn path"
-    );
-    assert_eq!(
-        native.direction(),
-        burn.direction(),
-        "direction must match Burn path"
-    );
-
-    let native_vox = native.data_slice().expect("contiguous native voxels");
-    burn.with_data_slice(|burn_vox| {
-        assert_eq!(native_vox.len(), burn_vox.len(), "voxel count must match");
-        for (i, (&n, &b)) in native_vox.iter().zip(burn_vox.iter()).enumerate() {
-            assert_eq!(
-                n.to_bits(),
-                b.to_bits(),
-                "voxel[{i}] must be bitwise-identical to the Burn reader"
-            );
-        }
-    });
 
     Ok(())
 }
@@ -224,8 +158,8 @@ fn test_spacing_fallback_to_spacings_field() -> Result<()> {
         }
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_nrrd::<TestBackend, _>(&path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_nrrd::<TestBackend, _>(&path, &backend)?;
 
     assert!((image.spacing()[0] - 2.0).abs() < 1e-9, "spacing[0]");
     assert!((image.spacing()[1] - 0.5).abs() < 1e-9, "spacing[1]");
@@ -271,8 +205,8 @@ fn test_direction_from_scaled_space_directions() -> Result<()> {
         }
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_nrrd::<TestBackend, _>(&path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_nrrd::<TestBackend, _>(&path, &backend)?;
 
     assert!((image.spacing()[0] - 4.0).abs() < 1e-9, "spacing[0] = 4");
     assert!((image.spacing()[1] - 3.0).abs() < 1e-9, "spacing[1] = 3");
@@ -314,8 +248,8 @@ fn test_unterminated_space_directions_returns_error() -> Result<()> {
         }
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let err = read_nrrd::<TestBackend, _>(&path, &device)
+    let backend = TestBackend::default();
+    let err = read_nrrd::<TestBackend, _>(&path, &backend)
         .expect_err("unterminated space directions must reject the header");
 
     assert!(
@@ -349,8 +283,8 @@ fn test_trailing_space_directions_tokens_return_error() -> Result<()> {
         }
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let err = read_nrrd::<TestBackend, _>(&path, &device)
+    let backend = TestBackend::default();
+    let err = read_nrrd::<TestBackend, _>(&path, &backend)
         .expect_err("trailing space directions tokens must reject the header");
 
     assert!(
@@ -386,8 +320,8 @@ fn test_multiple_space_origin_vectors_return_error() -> Result<()> {
         }
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let err = read_nrrd::<TestBackend, _>(&path, &device)
+    let backend = TestBackend::default();
+    let err = read_nrrd::<TestBackend, _>(&path, &backend)
         .expect_err("multiple space origin vectors must reject the header");
 
     assert!(
@@ -409,21 +343,24 @@ fn test_round_trip_nrrd() -> Result<()> {
 
     let dir = tempdir()?;
     let path = dir.path().join("round_trip.nrrd");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
     // RITK [Z,Y,X] shape [2, 3, 4] with analytically known values 0..23.
     let data_vec: Vec<f32> = (0u32..24).map(|i| i as f32).collect();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec.clone(), Shape::new([2, 3, 4])),
-        &device,
-    );
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([0.9, 0.75, 1.5]);
     let direction = Direction::identity();
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = Image::from_flat_on(
+        data_vec.clone(),
+        [2, 3, 4],
+        origin,
+        spacing,
+        direction,
+        &backend,
+    )?;
 
-    write_nrrd(&path, &image)?;
-    let loaded = read_nrrd::<TestBackend, _>(&path, &device)?;
+    write_nrrd(&path, &image, &backend)?;
+    let loaded = read_nrrd::<TestBackend, _>(&path, &backend)?;
 
     // Shape
     assert_eq!(loaded.shape(), [2, 3, 4]);
@@ -439,7 +376,7 @@ fn test_round_trip_nrrd() -> Result<()> {
     assert!((loaded.spacing()[2] - 1.5).abs() < 1e-6, "spacing[2]");
 
     // Voxel values: every element must equal its original value.
-    loaded.with_data_slice(|loaded_vals| {
+    loaded.data_slice().map(|loaded_vals| {
         for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
             assert!(
                 (got - expected).abs() < 1e-5,
@@ -449,7 +386,7 @@ fn test_round_trip_nrrd() -> Result<()> {
                 got
             );
         }
-    });
+    })?;
     Ok(())
 }
 
@@ -458,8 +395,8 @@ fn test_round_trip_nrrd() -> Result<()> {
 /// Reading a non-existent file must return an error (not panic).
 #[test]
 fn test_missing_file_returns_error() {
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_nrrd::<TestBackend, _>("/nonexistent/path/file.nrrd", &device);
+    let backend = TestBackend::default();
+    let result = read_nrrd::<TestBackend, _>("/nonexistent/path/file.nrrd", &backend);
     assert!(result.is_err(), "Expected Err for missing file");
 }
 
@@ -475,8 +412,8 @@ fn test_invalid_magic_returns_error() -> Result<()> {
         writeln!(f, "type: float")?;
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_nrrd::<TestBackend, _>(&path, &device);
+    let backend = TestBackend::default();
+    let result = read_nrrd::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Expected Err for invalid magic");
     Ok(())
 }
@@ -498,8 +435,8 @@ fn test_gzip_encoding_returns_helpful_error() -> Result<()> {
         writeln!(f)?;
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_nrrd::<TestBackend, _>(&path, &device);
+    let backend = TestBackend::default();
+    let result = read_nrrd::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Expected Err for gzip encoding");
     let msg = format!("{}", result.unwrap_err());
     assert!(
@@ -527,8 +464,8 @@ fn test_missing_dimension_field_returns_error() -> Result<()> {
         writeln!(f)?;
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_nrrd::<TestBackend, _>(&path, &device);
+    let backend = TestBackend::default();
+    let result = read_nrrd::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Expected Err for missing dimension");
     Ok(())
 }
@@ -551,8 +488,8 @@ fn test_unsupported_type_returns_error() -> Result<()> {
         f.write_all(&[0u8; 128])?;
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_nrrd::<TestBackend, _>(&path, &device);
+    let backend = TestBackend::default();
+    let result = read_nrrd::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Expected Err for unsupported type");
     let msg = format!("{:?}", result.unwrap_err());
     assert!(
@@ -595,11 +532,11 @@ fn test_detached_data_file() -> Result<()> {
         writeln!(f)?;
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_nrrd::<TestBackend, _>(&header_path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_nrrd::<TestBackend, _>(&header_path, &backend)?;
 
     assert_eq!(image.shape(), [nz, ny, nx]);
-    image.with_data_slice(|vals| {
+    image.data_slice().map(|vals| {
         assert_eq!(
             vals,
             data.as_slice(),
@@ -611,6 +548,6 @@ fn test_detached_data_file() -> Result<()> {
             "Voxel sum mismatch: expected 28, got {}",
             sum
         );
-    });
+    })?;
     Ok(())
 }

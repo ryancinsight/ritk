@@ -1,6 +1,8 @@
 use super::*;
 use crate::edge::GaussianSigma;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = burn_ndarray::NdArray<f32>;
@@ -101,6 +103,39 @@ fn test_spatial_metadata_preserved() {
     assert_eq!(out.origin(), &origin);
     assert_eq!(out.spacing(), &spacing);
     assert_eq!(out.direction(), &dir);
+}
+
+#[test]
+fn native_discrete_gaussian_preserves_geometry_and_matches_kernel() {
+    let dimensions = [2, 3, 4];
+    let values: Vec<f32> = (0..24).map(|index| index as f32 * 0.25).collect();
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let image = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let filter = DiscreteGaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1.0)])
+        .with_spacing_mode(SpacingMode::Physical);
+
+    let output = filter
+        .apply_native(&image, &SequentialBackend)
+        .expect("native discrete Gaussian succeeds");
+
+    assert_eq!(output.shape(), dimensions);
+    assert_eq!(*output.origin(), origin);
+    assert_eq!(*output.spacing(), spacing);
+    assert_eq!(*output.direction(), direction);
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        filter.apply_values(values, dimensions, &spacing)
+    );
 }
 
 #[test]

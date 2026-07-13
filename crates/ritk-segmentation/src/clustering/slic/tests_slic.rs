@@ -5,6 +5,9 @@
 use super::*;
 use crate::clustering::slic::coords::decode_coords_dyn as decode_coords;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
 
 type B = NdArray<f32>;
@@ -37,6 +40,24 @@ fn get_slice_3d(image: &Image<B, 3>) -> Vec<f32> {
         .to_vec()
 }
 
+fn config(
+    n_superpixels: usize,
+    compactness: f32,
+    max_iterations: usize,
+    tolerance: f32,
+    min_component_size: usize,
+) -> SlicConfig {
+    SlicConfig::new(n_superpixels)
+        .unwrap()
+        .with_compactness(compactness)
+        .unwrap()
+        .with_max_iterations(max_iterations)
+        .unwrap()
+        .with_tolerance(tolerance)
+        .unwrap()
+        .with_min_component_size(min_component_size)
+}
+
 // ── Test 1: Uniform image ─────────────────────────────────────────────────────
 
 #[test]
@@ -44,8 +65,8 @@ fn test_uniform_image_single_label() {
     // All voxels same intensity → constant image → all label 0.
     let data = vec![42.0_f32; 64];
     let image = make_image_3d(data, [4, 4, 4]);
-    let config = SlicConfig::new(4);
-    let result = SlicSuperpixelFilter::new(config).apply(&image);
+    let config = SlicConfig::new(4).unwrap();
+    let result = SlicSuperpixelFilter::new(config).apply(&image).unwrap();
     let labels = get_slice_3d(&result);
     for (i, &l) in labels.iter().enumerate() {
         assert!(
@@ -67,15 +88,8 @@ fn test_two_region_boundary_respected() {
     data.extend(vec![200.0_f32; 32]);
     let image = make_image_2d(data, [8, 8]);
 
-    let config = SlicConfig {
-        n_superpixels: 4,
-        compactness: 1.0, // Low compactness → intensity dominates.
-        max_iterations: 20,
-        tolerance: 1e-6,
-        seed: 42,
-        min_component_size: 3,
-    };
-    let result = SlicSuperpixelFilter::new(config).apply(&image);
+    let config = config(4, 1.0, 20, 1e-6, 3);
+    let result = SlicSuperpixelFilter::new(config).apply(&image).unwrap();
     let labels = get_slice_2d(&result);
 
     // Compute mean intensity per label for left-half and right-half voxels.
@@ -112,15 +126,8 @@ fn test_small_image_two_superpixels() {
     data.extend(vec![255.0_f32; 32]); // z=2,3: 2*4*4 = 32 voxels
     let image = make_image_3d(data, [4, 4, 4]);
 
-    let config = SlicConfig {
-        n_superpixels: 2,
-        compactness: 1.0, // Low compactness → intensity dominates
-        max_iterations: 20,
-        tolerance: 1e-6,
-        seed: 42,
-        min_component_size: 0, // Disable connectivity enforcement for this test
-    };
-    let result = SlicSuperpixelFilter::new(config).apply(&image);
+    let config = config(2, 1.0, 20, 1e-6, 0);
+    let result = SlicSuperpixelFilter::new(config).apply(&image).unwrap();
     let labels = get_slice_3d(&result);
 
     // The first 32 voxels (z=0,1) should share a label different from
@@ -149,8 +156,8 @@ fn test_single_superpixel_all_label_zero() {
     let data: Vec<f32> = (0..64).map(|i| (i as f32) * 4.0).collect();
     let image = make_image_3d(data, [4, 4, 4]);
 
-    let config = SlicConfig::new(1);
-    let result = SlicSuperpixelFilter::new(config).apply(&image);
+    let config = SlicConfig::new(1).unwrap();
+    let result = SlicSuperpixelFilter::new(config).apply(&image).unwrap();
     let labels = get_slice_3d(&result);
 
     for (i, &l) in labels.iter().enumerate() {
@@ -171,15 +178,8 @@ fn test_label_count_bounded() {
     let data: Vec<f32> = (0..256).map(|i| (i as f32) * 1.0).collect();
     let image = make_image_3d(data, [4, 4, 16]);
 
-    let config = SlicConfig {
-        n_superpixels: k,
-        compactness: 10.0,
-        max_iterations: 10,
-        tolerance: 1e-3,
-        seed: 42,
-        min_component_size: 3,
-    };
-    let result = SlicSuperpixelFilter::new(config).apply(&image);
+    let config = config(k, 10.0, 10, 1e-3, 3);
+    let result = SlicSuperpixelFilter::new(config).apply(&image).unwrap();
     let labels = get_slice_3d(&result);
 
     let distinct: std::collections::HashSet<u32> = labels.iter().map(|&l| l as u32).collect();
@@ -208,9 +208,11 @@ fn test_deterministic_output() {
     data.extend(vec![200.0_f32; 32]);
     let image = make_image_3d(data, [4, 4, 4]);
 
-    let config = SlicConfig::new(4);
-    let r1 = SlicSuperpixelFilter::new(config.clone()).apply(&image);
-    let r2 = SlicSuperpixelFilter::new(config).apply(&image);
+    let config = SlicConfig::new(4).unwrap();
+    let r1 = SlicSuperpixelFilter::new(config.clone())
+        .apply(&image)
+        .unwrap();
+    let r2 = SlicSuperpixelFilter::new(config).apply(&image).unwrap();
 
     let l1 = get_slice_3d(&r1);
     let l2 = get_slice_3d(&r2);
@@ -225,15 +227,8 @@ fn test_algorithm_converges() {
     let data: Vec<f32> = (0..1000).map(|i| (i % 7) as f32 * 40.0).collect();
     let image = make_image_3d(data, [10, 10, 10]);
 
-    let config = SlicConfig {
-        n_superpixels: 10,
-        compactness: 10.0,
-        max_iterations: 3,
-        tolerance: 1.0, // High tolerance → fast convergence.
-        seed: 42,
-        min_component_size: 3,
-    };
-    let result = SlicSuperpixelFilter::new(config).apply(&image);
+    let config = config(10, 10.0, 3, 1.0, 3);
+    let result = SlicSuperpixelFilter::new(config).apply(&image).unwrap();
     let labels = get_slice_3d(&result);
 
     // Verify the algorithm produced valid labels (didn't hang/crash).
@@ -250,8 +245,8 @@ fn test_spatial_metadata_preserved() {
     let data: Vec<f32> = (0..24).map(|i| (i as f32) * 10.0).collect();
     let image = make_image_3d(data, [2, 3, 4]);
 
-    let config = SlicConfig::new(2);
-    let result = SlicSuperpixelFilter::new(config).apply(&image);
+    let config = SlicConfig::new(2).unwrap();
+    let result = SlicSuperpixelFilter::new(config).apply(&image).unwrap();
 
     assert_eq!(result.origin(), image.origin());
     assert_eq!(result.spacing(), image.spacing());
@@ -268,27 +263,15 @@ fn test_compactness_effect() {
     let image = make_image_2d(data, [10, 10]);
 
     // Low compactness → labels driven by intensity, more irregular boundaries.
-    let config_low = SlicConfig {
-        n_superpixels: 4,
-        compactness: 1.0,
-        max_iterations: 20,
-        tolerance: 1e-6,
-        seed: 42,
-        min_component_size: 3,
-    };
-    let result_low = SlicSuperpixelFilter::new(config_low).apply(&image);
+    let config_low = config(4, 1.0, 20, 1e-6, 3);
+    let result_low = SlicSuperpixelFilter::new(config_low).apply(&image).unwrap();
     let labels_low = get_slice_2d(&result_low);
 
     // High compactness → labels driven by spatial proximity, more regular.
-    let config_high = SlicConfig {
-        n_superpixels: 4,
-        compactness: 100.0,
-        max_iterations: 20,
-        tolerance: 1e-6,
-        seed: 42,
-        min_component_size: 3,
-    };
-    let result_high = SlicSuperpixelFilter::new(config_high).apply(&image);
+    let config_high = config(4, 100.0, 20, 1e-6, 3);
+    let result_high = SlicSuperpixelFilter::new(config_high)
+        .apply(&image)
+        .unwrap();
     let labels_high = get_slice_2d(&result_high);
 
     // With high compactness, each superpixel should be spatially compact.
@@ -352,7 +335,7 @@ fn compute_spatial_variance(labels: &[f32], shape: &[usize], ndim: usize) -> f64
 fn test_convenience_fn() {
     let data = vec![10.0_f32; 32];
     let image = make_image_2d(data, [8, 4]);
-    let result = slic_superpixel(&image, 4);
+    let result = slic_superpixel(&image, 4).unwrap();
     let labels = get_slice_2d(&result);
 
     // Constant image → all label 0.
@@ -373,7 +356,9 @@ fn test_output_shape_matches_input() {
     let n: usize = dims.iter().product();
     let data: Vec<f32> = (0..n).map(|i| (i % 5) as f32 * 50.0).collect();
     let image = make_image_3d(data, dims);
-    let result = SlicSuperpixelFilter::new(SlicConfig::new(8)).apply(&image);
+    let result = SlicSuperpixelFilter::new(SlicConfig::new(8).unwrap())
+        .apply(&image)
+        .unwrap();
     assert_eq!(result.shape(), dims);
 }
 
@@ -386,6 +371,146 @@ fn test_default_config() {
     assert!((c.compactness - 10.0).abs() < 1e-10);
     assert_eq!(c.max_iterations, 10);
     assert!((c.tolerance - 1e-3).abs() < 1e-15);
-    assert_eq!(c.seed, 42);
     assert_eq!(c.min_component_size, 5);
+}
+
+fn assert_native_legacy_exact<const D: usize>(values: Vec<f32>, dimensions: [usize; D]) {
+    let native = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        Point::new([2.0; D]),
+        Spacing::new([0.5; D]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    let legacy = make_image::<B, D>(values, dimensions);
+    let filter = SlicSuperpixelFilter::new(config(4, 5.0, 10, 0.0, 0));
+    let native_output = filter.apply_native(&native, &SequentialBackend).unwrap();
+    let legacy_output = filter.apply(&legacy).unwrap();
+    assert_eq!(
+        native_output.data_slice().unwrap(),
+        legacy_output.data_slice().as_ref()
+    );
+    assert_eq!(*native_output.origin(), Point::new([2.0; D]));
+    assert_eq!(*native_output.spacing(), Spacing::new([0.5; D]));
+    assert_eq!(*native_output.direction(), Direction::identity());
+}
+
+#[test]
+fn native_and_legacy_standard_slic_are_exact_in_two_and_three_dimensions() {
+    assert_native_legacy_exact(
+        (0..36).map(|index| (index % 7) as f32 * 3.0).collect(),
+        [6, 6],
+    );
+    assert_native_legacy_exact(
+        (0..64).map(|index| (index % 5) as f32 * 11.0).collect(),
+        [4, 4, 4],
+    );
+}
+
+#[test]
+fn standard_slic_rejects_invalid_configuration_exactly() {
+    assert_eq!(
+        SlicConfig::new(0).unwrap_err().to_string(),
+        "SLIC superpixel count must be at least 1, got 0"
+    );
+    assert_eq!(
+        SlicConfig::default()
+            .with_max_iterations(0)
+            .unwrap_err()
+            .to_string(),
+        "SLIC maximum iterations must be at least 1, got 0"
+    );
+    for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, -1.0] {
+        assert_eq!(
+            SlicConfig::default()
+                .with_tolerance(value)
+                .unwrap_err()
+                .to_string(),
+            format!("SLIC tolerance must be finite and nonnegative, got {value}")
+        );
+    }
+}
+
+#[test]
+fn standard_slic_rejects_nonfinite_samples_and_unsupported_rank() {
+    let invalid = make_image_2d(vec![0.0, f32::NAN, 1.0, 2.0], [2, 2]);
+    assert_eq!(
+        SlicSuperpixelFilter::new(SlicConfig::default())
+            .apply(&invalid)
+            .unwrap_err()
+            .to_string(),
+        "standard SLIC sample at flat index 1 must be finite, got NaN"
+    );
+    let rank_one = make_image::<B, 1>(vec![0.0, 1.0], [2]);
+    assert_eq!(
+        SlicSuperpixelFilter::new(SlicConfig::default())
+            .apply(&rank_one)
+            .unwrap_err()
+            .to_string(),
+        "standard SLIC requires rank 2 or 3, got 1"
+    );
+
+    let native_invalid = NativeImage::from_flat_on(
+        vec![0.0, f32::INFINITY, 1.0, 2.0],
+        [2, 2],
+        Point::new([0.0; 2]),
+        Spacing::new([1.0; 2]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    assert_eq!(
+        SlicSuperpixelFilter::new(SlicConfig::default())
+            .apply_native(&native_invalid, &SequentialBackend)
+            .unwrap_err()
+            .to_string(),
+        "standard SLIC sample at flat index 1 must be finite, got inf"
+    );
+    let native_rank_four = NativeImage::from_flat_on(
+        vec![0.0],
+        [1, 1, 1, 1],
+        Point::new([0.0; 4]),
+        Spacing::new([1.0; 4]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    assert_eq!(
+        SlicSuperpixelFilter::new(SlicConfig::default())
+            .apply_native(&native_rank_four, &SequentialBackend)
+            .unwrap_err()
+            .to_string(),
+        "standard SLIC requires rank 2 or 3, got 4"
+    );
+    let empty = make_image_2d(Vec::new(), [0, 2]);
+    assert_eq!(
+        SlicSuperpixelFilter::new(SlicConfig::default())
+            .apply(&empty)
+            .unwrap_err()
+            .to_string(),
+        "standard SLIC requires nonzero dimensions, got [0, 2]"
+    );
+}
+
+#[test]
+fn standard_slic_extreme_compactness_produces_finite_exact_labels() {
+    let image = make_image_2d((0..16).map(|index| index as f32).collect(), [4, 4]);
+    // Search-window deltas are bounded by 2S. Dividing sqrt(MAX) by
+    // 2S*sqrt(D) keeps the complete spatial norm representable.
+    let compactness = f32::MAX.sqrt() / (4.0 * 2.0_f32.sqrt());
+    let labels = SlicSuperpixelFilter::new(
+        SlicConfig::new(4)
+            .unwrap()
+            .with_compactness(compactness)
+            .unwrap()
+            .with_min_component_size(0),
+    )
+    .apply(&image)
+    .unwrap();
+    assert_eq!(
+        labels.data_slice().as_ref(),
+        &[0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 2.0, 2.0, 3.0, 3.0]
+    );
 }

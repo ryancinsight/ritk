@@ -1,24 +1,19 @@
 //! NIfTI volume loading into LoadedVolume.
 
-use std::path::Path;
-use std::sync::Arc;
-
 use anyhow::{Context, Result};
-use ritk_io::read_nifti;
+use std::path::Path;
 use tracing::info;
 
 use crate::LoadedVolume;
 
-use super::convert::extract_spatial_metadata;
-use super::B;
+use super::convert::volume_from_image_no_meta;
 
 /// Load a NIfTI volume from `path` (`.nii` or `.nii.gz`) into a [`LoadedVolume`].
 ///
 /// # Algorithm
-/// 1. Calls `ritk_io::read_nifti::<NdArray<f32>>`.
-/// 2. Extracts shape, spacing, origin, and direction from the returned
-///    [`ritk_core::image::Image`].
-/// 3. Copies pixel data from the tensor into a heap `Vec<f32>`.
+/// 1. Calls the native [`ritk_io::read_image_native`] dispatch.
+/// 2. Preserves shape, spacing, origin, and direction from the Coeus image.
+/// 3. Transfers pixel ownership into the viewer volume.
 ///
 /// NIfTI files carry no patient metadata; all optional DICOM fields are
 /// left as `None`.
@@ -29,38 +24,7 @@ pub fn load_nifti_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     let path = path.as_ref();
     info!(path = %path.display(), "loading NIfTI volume");
 
-    let device = <B as ritk_image::tensor::Backend>::Device::default();
-    let image = read_nifti::<B, _>(path, &device)
+    let image = ritk_io::read_image_native(path)
         .with_context(|| format!("failed to read NIfTI file '{}'", path.display()))?;
-
-    let shape = image.shape(); // [depth, rows, cols] per RITK convention
-    let (spacing, origin, direction) = extract_spatial_metadata(&image);
-
-    let tensor = image.into_tensor();
-    let tensor_data = tensor.into_data();
-    let pixels: Vec<f32> = tensor_data.into_vec::<f32>().map_err(|e| {
-        anyhow::anyhow!("failed to extract f32 pixel data from NIfTI tensor: {e:?}")
-    })?;
-
-    Ok(LoadedVolume {
-        data: Arc::new(pixels),
-        shape,
-        channels: 1,
-        spacing,
-        origin,
-        direction,
-        metadata: None,
-        source: Some(path.to_path_buf()),
-        modality: None,
-        patient_name: None,
-        patient_id: None,
-        study_date: None,
-        series_description: None,
-        series_time: None,
-        patient_weight_kg: None,
-        injected_dose_bq: None,
-        radionuclide_half_life_s: None,
-        radiopharmaceutical_start_time: None,
-        decay_correction: None,
-    })
+    volume_from_image_no_meta(image, path.to_path_buf())
 }

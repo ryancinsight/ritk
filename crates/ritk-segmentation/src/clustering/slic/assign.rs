@@ -64,7 +64,7 @@ pub fn build_grid_map_into(
 
     for (ci, center) in centers.iter().enumerate() {
         for d in 0..ndim {
-            let step = grid_sizes[d] as f64;
+            let step = grid_sizes[d] as f32;
             let gs = grid_sizes[d].max(1);
             let nc = n_cells_per_axis[d];
 
@@ -136,16 +136,16 @@ fn enumerate_cells_range(
 /// Panics if `ndim` is not in {2, 3}.
 #[allow(clippy::too_many_arguments)]
 pub fn assign_voxels(
-    intensities: &[f64],
+    intensities: &[f32],
     shape: &[usize],
     ndim: usize,
     centers: &[Center],
     grid_map: &[Vec<usize>],
     grid_sizes: &[usize],
-    m_c: f64,
-    m_s: f64,
-    compactness: f64,
-    distances: &mut [f64],
+    m_c: f32,
+    m_s: f32,
+    compactness: f32,
+    distances: &mut [f32],
     labels: &mut [u32],
 ) {
     match ndim {
@@ -183,15 +183,15 @@ pub fn assign_voxels(
 /// eliminating per-voxel `Vec` allocations in the hot parallel loop.
 #[allow(clippy::too_many_arguments)]
 fn assign_voxels_impl<const D: usize>(
-    intensities: &[f64],
+    intensities: &[f32],
     shape: &[usize],
     centers: &[Center],
     grid_map: &[Vec<usize>],
     grid_sizes: &[usize],
-    m_c: f64,
-    m_s: f64,
-    compactness: f64,
-    distances: &mut [f64],
+    m_c: f32,
+    m_s: f32,
+    compactness: f32,
+    distances: &mut [f32],
     labels: &mut [u32],
 ) {
     let shape_arr: [usize; D] = {
@@ -218,9 +218,6 @@ fn assign_voxels_impl<const D: usize>(
         arr
     };
 
-    let inv_m_c_sq = 1.0 / (m_c * m_c);
-    let compactness_sq = compactness * compactness;
-    let inv_m_s_sq = 1.0 / (m_s * m_s);
     let k = centers.len();
 
     moirai::for_each_chunk_pair_mut_enumerated_with::<moirai::Adaptive, _, _, _>(
@@ -257,8 +254,8 @@ fn assign_voxels_impl<const D: usize>(
 
                         let mut in_range = true;
                         for d in 0..D {
-                            let diff = coords[d] as f64 - center.pos[d];
-                            let step = grid_sizes_arr[d] as f64;
+                            let diff = coords[d] as f32 - center.pos[d];
+                            let step = grid_sizes_arr[d] as f32;
                             if diff.abs() > 2.0 * step + 0.5 {
                                 in_range = false;
                                 break;
@@ -268,15 +265,18 @@ fn assign_voxels_impl<const D: usize>(
                             continue;
                         }
 
-                        let di = intensity - center.intensity;
-                        let mut d_sq = di * di * inv_m_c_sq;
+                        let normalized_intensity = (intensity - center.intensity) / m_c;
+                        let mut distance = normalized_intensity.abs();
                         for (&coord_d, &pos_d) in coords.iter().zip(center.pos.iter()) {
-                            let dp = coord_d as f64 - pos_d;
-                            d_sq += compactness_sq * dp * dp * inv_m_s_sq;
+                            let normalized_position = (((coord_d as f32 - pos_d) / m_s)
+                                * compactness)
+                                .abs()
+                                .min(f32::MAX);
+                            distance = distance.hypot(normalized_position);
                         }
 
-                        if d_sq < best_dist {
-                            best_dist = d_sq;
+                        if distance < best_dist {
+                            best_dist = distance;
                             best_label = ci as u32;
                         }
                     }
@@ -297,12 +297,12 @@ fn assign_voxels_impl<const D: usize>(
 /// Panics if `ndim` is not in {2, 3}.
 pub fn update_centers(
     centers: &mut [Center],
-    intensities: &[f64],
+    intensities: &[f32],
     labels: &[u32],
     shape: &[usize],
     ndim: usize,
     k: usize,
-) -> f64 {
+) -> f32 {
     match ndim {
         2 => update_centers_impl::<2>(centers, intensities, labels, shape, k),
         3 => update_centers_impl::<3>(centers, intensities, labels, shape, k),
@@ -316,11 +316,11 @@ pub fn update_centers(
 /// per-voxel `Vec` allocations.
 fn update_centers_impl<const D: usize>(
     centers: &mut [Center],
-    intensities: &[f64],
+    intensities: &[f32],
     labels: &[u32],
     shape: &[usize],
     k: usize,
-) -> f64 {
+) -> f32 {
     let shape_arr: [usize; D] = {
         let mut arr = [0usize; D];
         arr.copy_from_slice(shape);
@@ -330,44 +330,66 @@ fn update_centers_impl<const D: usize>(
     let n: usize = shape_arr.iter().product();
 
     // Accumulate sums and counts for each center.
-    let mut sum_intensity = vec![0.0_f64; actual_k];
-    let mut sum_pos = vec![[0.0_f64; D]; actual_k];
-    let mut counts = vec![0u64; actual_k];
+    let mut mean_intensity_offset = vec![0.0_f32; actual_k];
+    let mut mean_pos_offset = vec![[0.0_f32; D]; actual_k];
+    let mut counts = vec![0usize; actual_k];
+    let mut intensity_anchors = vec![None; actual_k];
+    let mut position_anchors = vec![None; actual_k];
 
     for i in 0..n {
         let ci = labels[i] as usize;
         if ci < actual_k {
-            sum_intensity[ci] += intensities[i];
             counts[ci] += 1;
-
             let coords = decode_coords(i, shape_arr);
-            for (sum, &coord) in sum_pos[ci].iter_mut().zip(coords.iter()) {
-                *sum += coord as f64;
+            intensity_anchors[ci].get_or_insert(intensities[i]);
+            position_anchors[ci].get_or_insert(coords);
+        }
+    }
+    for i in 0..n {
+        let ci = labels[i] as usize;
+        if ci < actual_k {
+            let intensity_anchor = intensity_anchors[ci].expect("nonempty cluster has an anchor");
+            // The count remains exact; conversion supplies the nearest
+            // divisor representable by this concrete-f32 operation.
+            let count = counts[ci] as f32;
+            mean_intensity_offset[ci] += (intensities[i] - intensity_anchor) / count;
+            let coords = decode_coords(i, shape_arr);
+            let position_anchor = position_anchors[ci].expect("nonempty cluster has an anchor");
+            for ((offset, &coord), &anchor) in mean_pos_offset[ci]
+                .iter_mut()
+                .zip(coords.iter())
+                .zip(position_anchor.iter())
+            {
+                *offset += (coord as f32 - anchor as f32) / count;
             }
         }
     }
 
-    let mut max_shift = 0.0_f64;
+    let mut max_shift = 0.0_f32;
 
     for ci in 0..actual_k {
         if counts[ci] > 0 {
-            let c = counts[ci] as f64;
-            let new_intensity = sum_intensity[ci] / c;
+            let new_intensity = intensity_anchors[ci].expect("nonempty cluster has an anchor")
+                + mean_intensity_offset[ci];
 
-            let mut shift_sq = 0.0_f64;
-            for (&sum_d, pos_d) in sum_pos[ci].iter().zip(centers[ci].pos.iter_mut()) {
-                let new_pos_d = sum_d / c;
+            let mut shift = 0.0_f32;
+            let position_anchor = position_anchors[ci].expect("nonempty cluster has an anchor");
+            for ((&offset, &anchor), pos_d) in mean_pos_offset[ci]
+                .iter()
+                .zip(position_anchor.iter())
+                .zip(centers[ci].pos.iter_mut())
+            {
+                let new_pos_d = anchor as f32 + offset;
                 let dp = new_pos_d - *pos_d;
-                shift_sq += dp * dp;
+                shift = shift.hypot(dp);
                 *pos_d = new_pos_d;
             }
 
             let di = new_intensity - centers[ci].intensity;
-            shift_sq += di * di;
+            shift = shift.hypot(di);
 
             centers[ci].intensity = new_intensity;
 
-            let shift = shift_sq.sqrt();
             if shift > max_shift {
                 max_shift = shift;
             }

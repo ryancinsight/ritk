@@ -69,7 +69,19 @@ def test_isolated_watershed_matches_sitk():
                                replaceValue2=2)).astype(int)
     out = ritk.segmentation.isolated_watershed_segment(
         ritk.Image(np.ascontiguousarray(img[None])), [0, 3, 1], [0, 3, 5])
-    assert (_sq(out).astype(int) == ref).mean() > 0.999
+    np.testing.assert_array_equal(_sq(out).astype(int), ref)
+
+
+def test_isolated_watershed_rejects_invalid_contract_values():
+    image = ritk.Image(np.zeros((1, 2, 3), np.float32))
+    with pytest.raises(ValueError, match=r"threshold must be finite and in \[0, 1\]"):
+        ritk.segmentation.isolated_watershed_segment(
+            image, [0, 0, 0], [0, 1, 2], threshold=float("nan")
+        )
+    with pytest.raises(ValueError, match="seed2 .* outside shape"):
+        ritk.segmentation.isolated_watershed_segment(
+            image, [0, 0, 0], [0, 2, 0]
+        )
 
 
 @pytest.mark.xfail(

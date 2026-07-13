@@ -7,26 +7,18 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use coeus_core::ComputeBackend;
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
-use ritk_core::image::RgbVolume;
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
     PixelLayout, PixelSignedness, TransferSyntaxKind,
 };
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::native::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::color_common::{read_optional, read_required, required_string, RGB_CHANNELS};
 use super::reader::{self, DicomReadMetadata, DicomSliceMetadata};
-
-/// Atlas-typed sister surface for the DICOM RGB colour-volume loader.
-/// See `atlas_color.rs` for the AD 0012 sub-batch #3.f atomic-boundary
-/// rationale and the per-crate §3 no-Cargo.toml-mutation invariant.
-pub mod atlas_color;
-
-pub use atlas_color::{load_atlas_color_from_series, load_atlas_color_series};
 
 /// Check whether a directory contains a DICOM RGB colour series.
 ///
@@ -76,20 +68,20 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
 /// The returned tensor shape is `[depth, rows, cols, 3]` with interleaved RGB
 /// samples in the channel axis. Only byte-addressable unsigned RGB data is
 /// accepted; scalar, palette, YBR, CMYK, and signed color data are rejected.
-pub fn read_dicom_color_series<B: Backend, P: AsRef<Path>>(
+pub fn read_dicom_color_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<(RgbVolume<B>, DicomReadMetadata)> {
+    backend: &B,
+) -> Result<(RgbVolume<f32, B>, DicomReadMetadata)> {
     let series = reader::scan::scan_dicom_directory(path)?;
-    load_color_from_series(series.metadata, device)
+    load_color_from_series(series.metadata, backend)
 }
 
 /// Alias matching the scalar loader naming convention.
-pub fn load_dicom_color_series<B: Backend, P: AsRef<Path>>(
+pub fn load_dicom_color_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<(RgbVolume<B>, DicomReadMetadata)> {
-    read_dicom_color_series(path, device)
+    backend: &B,
+) -> Result<(RgbVolume<f32, B>, DicomReadMetadata)> {
+    read_dicom_color_series(path, backend)
 }
 
 /// Load a DICOM RGB color series from a pre-scanned series descriptor.
@@ -100,17 +92,17 @@ pub fn load_dicom_color_series<B: Backend, P: AsRef<Path>>(
 /// it directly instead of re-scanning a directory. Pixel decode uses
 /// `part10_bytes` from the slice metadata when present, falling back to
 /// file-path I/O otherwise.
-pub fn load_dicom_color_from_series<B: Backend>(
+pub fn load_dicom_color_from_series<B: ComputeBackend>(
     series: super::reader::DicomSeriesInfo,
-    device: &B::Device,
-) -> Result<(RgbVolume<B>, DicomReadMetadata)> {
-    load_color_from_series(series.metadata, device)
+    backend: &B,
+) -> Result<(RgbVolume<f32, B>, DicomReadMetadata)> {
+    load_color_from_series(series.metadata, backend)
 }
 
-fn load_color_from_series<B: Backend>(
+fn load_color_from_series<B: ComputeBackend>(
     mut metadata: DicomReadMetadata,
-    device: &B::Device,
-) -> Result<(RgbVolume<B>, DicomReadMetadata)> {
+    backend: &B,
+) -> Result<(RgbVolume<f32, B>, DicomReadMetadata)> {
     let slices = metadata.slices.clone();
 
     if slices.is_empty() {
@@ -147,7 +139,7 @@ fn load_color_from_series<B: Backend>(
     // before any slice is decoded. Cap the speculative reservation and grow
     // the buffer by appending each validated, sequentially-decoded slice
     // instead of pre-sizing and indexing into it.
-    let mut volume = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
+    let mut volume = Vec::with_capacity(consus_io::bounded_capacity(
         total_samples,
         std::mem::size_of::<f32>(),
     ));
@@ -174,16 +166,13 @@ fn load_color_from_series<B: Backend>(
 
     metadata.dimensions = [rows, cols, depth];
 
-    let tensor = Tensor::<B, 4>::from_data(
-        TensorData::new(volume, Shape::new([depth, rows, cols, RGB_CHANNELS])),
-        device,
-    );
-
-    let image = RgbVolume::try_new(
-        tensor,
+    let image = RgbVolume::from_flat_on(
+        volume,
+        [depth, rows, cols],
         Point::new(metadata.origin),
         Spacing::new(metadata.spacing),
         Direction::from_column_major(metadata.direction),
+        backend,
     )?;
 
     Ok((image, metadata))

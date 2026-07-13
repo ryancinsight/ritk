@@ -1,5 +1,7 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::{make_image, make_image_with};
 use ritk_image::Image;
 
@@ -38,6 +40,40 @@ fn test_self_match_is_approximately_identity() {
             step + 1e-3
         );
     }
+}
+
+#[test]
+fn native_histogram_match_maps_endpoints_and_preserves_source_geometry() {
+    let source = NativeImage::from_flat_on(
+        vec![0.0, 1.0, 2.0, 3.0, 4.0],
+        [1, 1, 5],
+        ritk_spatial::Point::new([1.0, 2.0, 3.0]),
+        ritk_spatial::Spacing::new([0.5, 1.0, 2.0]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native source image");
+    let reference = NativeImage::from_flat_on(
+        vec![10.0, 11.0, 12.0, 13.0, 14.0],
+        [1, 1, 5],
+        ritk_spatial::Point::new([4.0, 5.0, 6.0]),
+        ritk_spatial::Spacing::new([3.0, 4.0, 5.0]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native reference image");
+
+    let output = HistogramMatcher::new(64)
+        .match_histograms_native(&source, &reference, &SequentialBackend)
+        .expect("native histogram matching succeeds");
+    let values = output.data_slice().expect("contiguous native output");
+
+    assert_eq!(values.first(), Some(&10.0));
+    assert_eq!(values.last(), Some(&14.0));
+    assert!(values.iter().all(|&value| (10.0..=14.0).contains(&value)));
+    assert_eq!(output.origin(), source.origin());
+    assert_eq!(output.spacing(), source.spacing());
+    assert_eq!(output.direction(), source.direction());
 }
 
 #[test]

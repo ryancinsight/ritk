@@ -27,6 +27,7 @@ coeus-tensor = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
+ritk-segmentation = { path = "../ritk-segmentation" }
 
 [[bench]]
 name = "cpr_path"

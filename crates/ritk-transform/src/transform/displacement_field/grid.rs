@@ -1,16 +1,18 @@
 use super::core::DisplacementField;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
-use ritk_wgpu_compat::apply_row_chunks;
+use coeus_autograd::{matmul, sub, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_ops::BackendOps;
 
-impl<B: Backend, const D: usize> DisplacementField<B, D> {
-    /// Convert physical continuous points iteratively to indices isolated across chunked dimensional grids.
-    ///
-    /// Follows the mathematically verified mapping $ v^T = (w - O) T $.
-    pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
-        apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk_points| {
-            let diff = chunk_points - self.origin_tensor.clone();
-            diff.matmul(self.world_to_index_matrix.clone())
-        })
+impl<B: Backend + BackendOps<f32>, const D: usize> DisplacementField<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Map physical `[N, D]` points to continuous field indices.
+    #[must_use]
+    pub fn world_to_index_tensor(&self, points: &Var<f32, B>) -> Var<f32, B> {
+        matmul(
+            &sub(points, &self.origin_tensor),
+            &self.world_to_index_matrix,
+        )
     }
 }

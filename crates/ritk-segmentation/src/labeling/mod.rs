@@ -92,10 +92,10 @@ pub struct LabelStatistics {
 /// `background_value = 0.0`.
 pub struct ConnectedComponentsFilter {
     /// Adjacency model: face-only (6 neighbours) or full (26 neighbours).
-    pub connectivity: Connectivity,
+    connectivity: Connectivity,
     /// Pixel value that designates background (ITK `SetBackgroundValue`).
     /// Any voxel with this value is excluded from labeling. Default: 0.0.
-    pub background_value: f32,
+    background_value: f32,
 }
 
 impl ConnectedComponentsFilter {
@@ -119,9 +119,56 @@ impl ConnectedComponentsFilter {
     ///
     /// Voxels with this exact value are excluded from labeling. Matches
     /// `itk::ConnectedComponentImageFilter::SetBackgroundValue`.
-    pub fn with_background(mut self, background_value: f32) -> Self {
+    /// Non-finite mask samples differ from every finite background value and
+    /// are therefore foreground under the ITK equality contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `background_value` is non-finite.
+    pub fn with_background(mut self, background_value: f32) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            background_value.is_finite(),
+            "background value must be finite, got {background_value}"
+        );
         self.background_value = background_value;
-        self
+        Ok(self)
+    }
+
+    /// Return the configured adjacency model.
+    pub fn connectivity(&self) -> Connectivity {
+        self.connectivity
+    }
+
+    /// Return the exact value classified as background.
+    pub fn background_value(&self) -> f32 {
+        self.background_value
+    }
+
+    /// Apply labeling to a Coeus-native mask.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when backend storage is not host-addressable or the
+    /// native label image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        mask: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<(ritk_image::native::Image<f32, B, 3>, Vec<LabelStatistics>)>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (values, statistics) = connected_components_values(
+            mask.data_slice()?,
+            mask.shape(),
+            self.connectivity,
+            self.background_value,
+        );
+        Ok((
+            crate::native_output::from_values(mask, values, backend)?,
+            statistics,
+        ))
     }
 
     /// Apply labeling to a binary mask.
@@ -134,12 +181,12 @@ impl ConnectedComponentsFilter {
         let device = mask.data().device();
         let mask_slice: &[f32] = &mask_vals;
 
-        let connectivity_val: u32 = match self.connectivity {
-            Connectivity::Six => 6,
-            Connectivity::TwentySix => 26,
-        };
-        let (label_vec, stats) =
-            hoshen_kopelman(mask_slice, shape, connectivity_val, self.background_value);
+        let (label_vec, stats) = connected_components_values(
+            mask_slice,
+            shape,
+            self.connectivity,
+            self.background_value,
+        );
 
         let td = TensorData::new(label_vec, Shape::new(shape));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
@@ -171,6 +218,20 @@ pub fn connected_components<B: Backend>(
     let filter = ConnectedComponentsFilter::with_connectivity(connectivity);
     let (label_image, stats) = filter.apply(mask);
     (label_image, stats.len())
+}
+
+/// Run the canonical connected-component core on a flat ZxYxX buffer.
+pub(crate) fn connected_components_values(
+    mask: &[f32],
+    dims: [usize; 3],
+    connectivity: Connectivity,
+    background_value: f32,
+) -> (Vec<f32>, Vec<LabelStatistics>) {
+    let connectivity = match connectivity {
+        Connectivity::Six => 6,
+        Connectivity::TwentySix => 26,
+    };
+    hoshen_kopelman(mask, dims, connectivity, background_value)
 }
 
 // ── Core algorithm ────────────────────────────────────────────────────────────
@@ -362,3 +423,7 @@ fn hoshen_kopelman(
 #[cfg(test)]
 #[path = "tests_labeling.rs"]
 mod tests_labeling;
+
+#[cfg(test)]
+#[path = "tests_native.rs"]
+mod tests_native;

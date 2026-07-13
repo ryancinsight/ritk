@@ -1,5 +1,7 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support;
 use ritk_image::Image;
 
@@ -72,6 +74,21 @@ fn test_mad_constant_image_returns_zero() {
         "constant image must yield σ̂ = 0.0, got {}",
         estimated
     );
+}
+
+#[test]
+fn native_mad_matches_slice_contract() {
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 10.0],
+        [1, 1, 2],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let estimated = estimate_noise_mad_native(&image).expect("native MAD succeeds");
+    assert!((estimated - 7.413).abs() < 1e-3);
 }
 
 #[test]

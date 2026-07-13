@@ -84,25 +84,27 @@ pub fn kmeans_segment(
     image: &PyImage,
     k: usize,
     max_iterations: Option<usize>,
-    tolerance: Option<f64>,
+    tolerance: Option<f32>,
     seed: Option<u64>,
 ) -> RitkResult<PyImage> {
-    if k < 1 {
-        return Err(RitkPyError::value("k must be ≥ 1"));
+    let mut segmentation =
+        KMeansSegmentation::new(k).map_err(|error| RitkPyError::value(error.to_string()))?;
+    if let Some(iterations) = max_iterations {
+        segmentation = segmentation
+            .with_max_iterations(iterations)
+            .map_err(|error| RitkPyError::value(error.to_string()))?;
+    }
+    if let Some(tolerance) = tolerance {
+        segmentation = segmentation
+            .with_tolerance(tolerance)
+            .map_err(|error| RitkPyError::value(error.to_string()))?;
+    }
+    if let Some(seed) = seed {
+        segmentation = segmentation.with_seed(seed);
     }
     let image = py_image_to_burn(image);
-    let result = py.allow_threads(|| {
-        let mut seg = KMeansSegmentation::new(k);
-        if let Some(mi) = max_iterations {
-            seg.max_iterations = mi;
-        }
-        if let Some(tol) = tolerance {
-            seg.tolerance = tol;
-        }
-        if let Some(s) = seed {
-            seg.seed = s;
-        }
-        seg.apply(&image)
-    });
+    let result = py
+        .allow_threads(|| segmentation.apply(&image))
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
     Ok(burn_into_py_image(result))
 }

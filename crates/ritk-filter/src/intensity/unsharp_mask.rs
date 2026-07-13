@@ -52,10 +52,11 @@
 //! - ITK Software Guide 4th Ed., Â§6.5.2 UnsharpMaskingImageFilter.
 
 use crate::edge::GaussianSigma;
-use crate::recursive_gaussian::smoothing_recursive_gaussian;
+use crate::recursive_gaussian::smoothing_recursive_gaussian_values;
 use anyhow::Result;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::Image;
+use ritk_image::{native::Image as NativeImage, Image};
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use serde::{Deserialize, Serialize};
 
@@ -151,14 +152,45 @@ impl UnsharpMaskFilter {
     /// Returns `Err` if tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (input, dims) = extract_vec_infallible(image);
+        Ok(rebuild(
+            self.apply_values(input, dims, image.spacing().to_array()),
+            dims,
+            image,
+        ))
+    }
+
+    /// Apply the unsharp mask to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        NativeImage::from_flat_on(
+            self.apply_values(
+                image.data_slice()?.to_vec(),
+                image.shape(),
+                image.spacing().to_array(),
+            ),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn apply_values(&self, input: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
         let n = input.len();
 
         // Blur via the recursive (Deriche) Gaussian — the smoother ITK/SimpleITK
         // `UnsharpMask` uses (`SmoothingRecursiveGaussian`), not the discrete
         // Gaussian. Per-dimension physical sigma, broadcast from the last entry.
-        let sigmas: Vec<f64> = self.sigmas.iter().map(|s| s.get()).collect();
-        let blur = smoothing_recursive_gaussian(image, &sigmas)?;
-        let (blurred, _) = extract_vec_infallible(&blur);
+        let sigmas: Vec<f64> = self.sigmas.iter().map(|sigma| sigma.get()).collect();
+        let blurred = smoothing_recursive_gaussian_values(input.clone(), dims, spacing, &sigmas);
 
         let amount = self.amount as f32;
         let threshold = self.threshold as f32;
@@ -194,7 +226,7 @@ impl UnsharpMaskFilter {
         // Then clamp to [v_min, v_max] if requested.
         let input_ref = &input;
         let blurred_ref = &blurred;
-        let output = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
             let inp = input_ref[i];
             let mask = inp - blurred_ref[i];
             let abs_mask = mask.abs();
@@ -204,9 +236,7 @@ impl UnsharpMaskFilter {
                 inp + amount * (abs_mask - threshold) * mask.signum()
             };
             sharpened.clamp(v_min, v_max)
-        });
-
-        Ok(rebuild(output, dims, image))
+        })
     }
 }
 

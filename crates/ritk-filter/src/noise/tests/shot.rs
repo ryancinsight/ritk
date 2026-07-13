@@ -1,4 +1,7 @@
 use super::*;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
+use ritk_spatial::{Direction, Point, Spacing};
 
 /// Very large scale approximates identity (Poisson → Gaussian at large λ).
 #[test]
@@ -119,4 +122,30 @@ fn shot_preserves_metadata() {
         img.direction(),
         "direction must be preserved"
     );
+}
+
+#[test]
+fn native_shot_matches_tensor_sequence_across_sampling_regimes() {
+    let values = vec![1.0, 10.0]; // scale=10 selects Poisson then normal approximation.
+    let image = NativeImage::from_flat_on(
+        values.clone(),
+        [1, 1, 2],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let filter = ShotNoiseFilter::new(10.0).with_seed(42);
+    let native = filter
+        .apply_native(&image, &SequentialBackend)
+        .expect("native shot noise succeeds");
+    let tensor = filter.apply(&make_image(values, [1, 1, 2])).unwrap();
+    assert_eq!(
+        native.data_slice().expect("contiguous native output"),
+        tensor.data_slice().as_ref()
+    );
+    assert_eq!(native.origin(), image.origin());
+    assert_eq!(native.spacing(), image.spacing());
+    assert_eq!(native.direction(), image.direction());
 }

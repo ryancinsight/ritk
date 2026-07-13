@@ -1,7 +1,10 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 type B = NdArray<f32>;
 
 fn make_image(vals: Vec<f32>) -> Image<B, 3> {
@@ -82,4 +85,26 @@ fn test_large_negative_input_approaches_min() {
         "large negative input should approach min_output=0.0, got {}",
         result[0]
     );
+}
+
+#[test]
+fn native_sigmoid_preserves_values_and_metadata() {
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 2.0, 4.0],
+        [1, 1, 3],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = SigmoidImageFilter::new(2.0, 1.0, 0.0, 1.0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native sigmoid succeeds");
+    let values = output.data_slice().expect("invariant: contiguous storage");
+    assert!(values[0] < 0.12 && values[2] > 0.88);
+    assert_eq!(values[1], 0.5);
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
 }

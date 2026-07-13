@@ -1,7 +1,7 @@
 //! Unsigned Euclidean distance transform filter.
 
-use super::super::types::BinarizationThreshold;
-use super::core::euclidean_dt;
+use super::super::types::{BinarizationThreshold, DistanceMeasure};
+use super::core::euclidean_dt_with_measure;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
@@ -29,13 +29,15 @@ use ritk_tensor_ops::extract_vec_infallible;
 #[derive(Debug, Clone)]
 pub struct DistanceTransformImageFilter {
     /// Intensity threshold separating background (≤ threshold) from foreground (> threshold).
-    pub threshold: BinarizationThreshold,
+    threshold: BinarizationThreshold,
+    measure: DistanceMeasure,
 }
 
 impl Default for DistanceTransformImageFilter {
     fn default() -> Self {
         Self {
             threshold: BinarizationThreshold::DEFAULT,
+            measure: DistanceMeasure::Euclidean,
         }
     }
 }
@@ -45,9 +47,22 @@ impl DistanceTransformImageFilter {
         Self::default()
     }
 
-    pub fn with_threshold(mut self, t: impl Into<BinarizationThreshold>) -> Self {
-        self.threshold = t.into();
+    pub fn with_threshold(mut self, threshold: BinarizationThreshold) -> Self {
+        self.threshold = threshold;
         self
+    }
+
+    pub fn with_measure(mut self, measure: DistanceMeasure) -> Self {
+        self.measure = measure;
+        self
+    }
+
+    pub fn threshold(&self) -> BinarizationThreshold {
+        self.threshold
+    }
+
+    pub fn measure(&self) -> DistanceMeasure {
+        self.measure
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
@@ -60,7 +75,8 @@ impl DistanceTransformImageFilter {
             .collect();
         let sp = image.spacing();
         let spacing = [sp[0], sp[1], sp[2]];
-        let result = euclidean_dt(&fg, dims, spacing);
+        validate_input(&vals, dims, spacing, self.threshold)?;
+        let result = distance_values(&fg, dims, spacing, self.measure);
 
         let device = image.data().device();
         let td_out = TensorData::new(result, Shape::new([nz, ny, nx]));
@@ -72,4 +88,72 @@ impl DistanceTransformImageFilter {
             *image.direction(),
         ))
     }
+
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        let dims = image.shape();
+        let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
+        validate_input(values, dims, spacing, self.threshold)?;
+        let foreground: Vec<bool> = values
+            .iter()
+            .map(|&value| value > f32::from(self.threshold))
+            .collect();
+        crate::native_support::map_flat_image(image, backend, |_, _| {
+            distance_values(&foreground, dims, spacing, self.measure)
+        })
+    }
+}
+
+fn distance_values(
+    foreground: &[bool],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    measure: DistanceMeasure,
+) -> Vec<f32> {
+    if !foreground.iter().any(|&value| value) {
+        return vec![0.0; foreground.len()];
+    }
+    euclidean_dt_with_measure(foreground, dims, spacing, measure)
+}
+
+pub(super) fn validate_input(
+    values: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    threshold: BinarizationThreshold,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        dims.iter().all(|&dimension| dimension > 0),
+        "distance-transform dimensions must be non-zero, got {dims:?}"
+    );
+    anyhow::ensure!(
+        spacing
+            .iter()
+            .all(|value| value.is_finite() && *value > 0.0),
+        "distance-transform spacing must be finite and positive, got {spacing:?}"
+    );
+    let threshold = f32::from(threshold);
+    anyhow::ensure!(
+        threshold.is_finite() && threshold >= 0.0,
+        "distance-transform threshold must be finite and non-negative, got {threshold}"
+    );
+    if let Some((index, value)) = values
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        anyhow::bail!(
+            "distance-transform sample at flat index {index} must be finite, got {value}"
+        );
+    }
+    Ok(())
 }

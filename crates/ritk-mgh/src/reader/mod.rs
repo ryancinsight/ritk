@@ -9,10 +9,9 @@ use crate::spatial::{derive_image_geometry, RasValidity};
 use crate::types::bytes_per_voxel;
 use crate::{is_gzip_path, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, PADDING_LEN, VERSION};
 use anyhow::{bail, Context, Result};
+use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::Image;
+use ritk_image::native::Image;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
@@ -23,7 +22,10 @@ mod tests;
 ///
 /// Files ending in `.mgz` or `.mgh.gz` are decompressed with gzip before
 /// parsing. All other paths are treated as uncompressed MGH.
-pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+pub fn read_mgh<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+) -> Result<Image<f32, B, 3>> {
     let path = path.as_ref();
     let file = std::fs::File::open(path)
         .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
@@ -31,19 +33,16 @@ pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Resu
     if is_gzip_path(path) {
         let gz = GzDecoder::new(BufReader::new(file));
         let mut reader = BufReader::new(gz);
-        read_mgh_from_reader(&mut reader, device)
+        read_mgh_from_reader(&mut reader, backend)
             .with_context(|| format!("Failed to parse MGZ file {:?}", path))
     } else {
         let mut reader = BufReader::new(file);
-        read_mgh_from_reader(&mut reader, device)
+        read_mgh_from_reader(&mut reader, backend)
             .with_context(|| format!("Failed to parse MGH file {:?}", path))
     }
 }
 
-/// Backend-agnostic decoded MGH volume: voxels in `[nz, ny, nx]` order plus the
-/// derived physical geometry. Shared by the Burn and Coeus reader paths so the
-/// header parse, bounded voxel read, and geometry derivation have a single
-/// implementation.
+/// Decoded MGH volume: voxels in `[nz, ny, nx]` order plus physical geometry.
 struct DecodedMgh {
     data: Vec<f32>,
     dims: [usize; 3],
@@ -52,10 +51,10 @@ struct DecodedMgh {
     direction: ritk_spatial::Direction<3>,
 }
 
-fn read_mgh_from_reader<B: Backend, R: Read>(
+fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
     reader: &mut R,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+    backend: &B,
+) -> Result<Image<f32, B, 3>> {
     let DecodedMgh {
         data,
         dims,
@@ -63,9 +62,7 @@ fn read_mgh_from_reader<B: Backend, R: Read>(
         spacing,
         direction,
     } = decode_mgh(reader)?;
-    let tensor_data = TensorData::new(data, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(tensor_data, device);
-    Ok(Image::new(tensor, origin, spacing, direction))
+    Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
@@ -149,7 +146,7 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
     // dimensions and may exceed the bytes actually present. `read_exact_bounded`
     // grows the buffer per confirmed chunk and reports truncation rather than
     // reserving the full claimed size (out-of-memory abort on a hostile header).
-    let raw = ritk_core::io_bounds::read_exact_bounded(reader, data_size)
+    let raw = consus_io::read_exact_bounded(reader, data_size)
         .context("Failed to read MGH voxel data")?;
     let f32_data = decode_voxels(mri_type, &raw);
 
@@ -196,59 +193,10 @@ pub struct MghReader;
 
 impl MghReader {
     /// Read an MGH or MGZ file into a 3-D `Image`.
-    pub fn read<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
-        read_mgh(path, device)
-    }
-}
-
-/// Atlas-native-substrate entry points (transitional module: plain
-/// end-state names, disambiguated from the Burn functions by module
-/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
-pub mod native {
-    #[allow(unused_imports)]
-    use super::*;
-
-    fn read_mgh_from_reader<B, R>(
-        reader: &mut R,
+    pub fn read<B: ComputeBackend, P: AsRef<Path>>(
+        path: P,
         backend: &B,
-    ) -> Result<ritk_image::native::Image<f32, B, 3>>
-    where
-        B: coeus_core::ComputeBackend,
-        R: Read,
-    {
-        let DecodedMgh {
-            data,
-            dims,
-            origin,
-            spacing,
-            direction,
-        } = decode_mgh(reader)?;
-        ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
-    }
-
-    /// Read an MGH or MGZ file into a Coeus-backed 3-D image on `backend`.
-    ///
-    /// The Atlas-tensor counterpart to [`read_mgh`]: shares the header parse,
-    /// bounded voxel read, and geometry derivation with the Burn path, differing
-    /// only in the final image construction. `.mgz`/`.mgh.gz` paths are gzip-decoded.
-    pub fn read_mgh<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
-    where
-        B: coeus_core::ComputeBackend,
-        P: AsRef<Path>,
-    {
-        let path = path.as_ref();
-        let file = std::fs::File::open(path)
-            .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
-
-        if is_gzip_path(path) {
-            let gz = GzDecoder::new(BufReader::new(file));
-            let mut reader = BufReader::new(gz);
-            read_mgh_from_reader(&mut reader, backend)
-                .with_context(|| format!("Failed to parse MGZ file {:?}", path))
-        } else {
-            let mut reader = BufReader::new(file);
-            read_mgh_from_reader(&mut reader, backend)
-                .with_context(|| format!("Failed to parse MGH file {:?}", path))
-        }
+    ) -> Result<Image<f32, B, 3>> {
+        read_mgh(path, backend)
     }
 }

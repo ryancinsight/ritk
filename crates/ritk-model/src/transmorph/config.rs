@@ -1,22 +1,25 @@
-use ritk_image::burn::nn::conv::Conv3dConfig;
-use ritk_image::burn::nn::PaddingConfig3d;
-use ritk_image::tensor::Backend;
+//! TransMorph graph configuration.
+
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Conv3d;
+use coeus_ops::BackendOps;
 
 use crate::transmorph::{
     integration::VecInt, model::TransMorph, spatial_transform::SpatialTransformer,
     swin::SwinTransformerBlockConfig,
 };
 
-/// Whether the flow field is numerically integrated (diffeomorphic) or used directly.
+/// Whether to integrate the predicted velocity field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TransformIntegration {
-    /// Flow field is used directly as a displacement without integration.
+    /// Use the prediction directly as displacement.
     Direct,
-    /// Flow field is integrated via scaling-and-squaring to produce a diffeomorphic warp.
+    /// Integrate by scaling and squaring.
     #[default]
     Integrated,
 }
 
+/// TransMorph architecture configuration.
 #[derive(Debug, Clone)]
 pub struct TransMorphConfig {
     pub in_channels: usize,
@@ -28,7 +31,9 @@ pub struct TransMorphConfig {
 }
 
 impl TransMorphConfig {
-    pub fn new(in_channels: usize, embed_dim: usize, out_channels: usize) -> Self {
+    /// Construct a configuration with the standard window and integration.
+    #[must_use]
+    pub const fn new(in_channels: usize, embed_dim: usize, out_channels: usize) -> Self {
         Self {
             in_channels,
             embed_dim,
@@ -39,132 +44,97 @@ impl TransMorphConfig {
         }
     }
 
-    pub fn with_window_size(mut self, window_size: usize) -> Self {
+    /// Set the cubic window width.
+    #[must_use]
+    pub const fn with_window_size(mut self, window_size: usize) -> Self {
         self.window_size = window_size;
         self
     }
 
-    pub fn with_integration(mut self, integration: TransformIntegration) -> Self {
+    /// Set flow integration policy.
+    #[must_use]
+    pub const fn with_integration(mut self, integration: TransformIntegration) -> Self {
         self.integration = integration;
         self
     }
 
-    pub fn init<B: Backend>(&self, device: &B::Device) -> TransMorph<B> {
-        // Stage 1
-        let patch_embed = Conv3dConfig::new([self.in_channels, self.embed_dim], [4, 4, 4])
-            .with_stride([4, 4, 4])
-            .init(device);
-
-        let stage1 = vec![
-            SwinTransformerBlockConfig::new(self.embed_dim, 4, self.window_size, 0, 4.0)
-                .init(device),
-            SwinTransformerBlockConfig::new(self.embed_dim, 4, self.window_size, 0, 4.0)
-                .init(device),
-        ];
-
-        // Stage 2 (Downsample)
-        let down1 = Conv3dConfig::new([self.embed_dim, self.embed_dim * 2], [2, 2, 2])
-            .with_stride([2, 2, 2])
-            .init(device);
-
-        let stage2 = vec![
-            SwinTransformerBlockConfig::new(
-                self.embed_dim * 2,
-                4,
-                self.window_size,
-                self.window_size / 2,
-                4.0,
-            )
-            .init(device),
-            SwinTransformerBlockConfig::new(self.embed_dim * 2, 4, self.window_size, 0, 4.0)
-                .init(device),
-        ];
-
-        // Stage 3 (Downsample)
-        let down2 = Conv3dConfig::new([self.embed_dim * 2, self.embed_dim * 4], [2, 2, 2])
-            .with_stride([2, 2, 2])
-            .init(device);
-
-        let stage3 = vec![
-            SwinTransformerBlockConfig::new(
-                self.embed_dim * 4,
-                4,
-                self.window_size,
-                self.window_size / 2,
-                4.0,
-            )
-            .init(device),
-            SwinTransformerBlockConfig::new(self.embed_dim * 4, 4, self.window_size, 0, 4.0)
-                .init(device),
-        ];
-
-        // Stage 4 (Downsample)
-        let down3 = Conv3dConfig::new([self.embed_dim * 4, self.embed_dim * 8], [2, 2, 2])
-            .with_stride([2, 2, 2])
-            .init(device);
-
-        let stage4 = vec![
-            SwinTransformerBlockConfig::new(
-                self.embed_dim * 8,
-                4,
-                self.window_size,
-                self.window_size / 2,
-                4.0,
-            )
-            .init(device),
-            SwinTransformerBlockConfig::new(self.embed_dim * 8, 4, self.window_size, 0, 4.0)
-                .init(device),
-        ];
-
-        // Decoder
-        // Let's use the full implementation logic for decoder layers
-        let up_conv1 = Conv3dConfig::new(
-            [self.embed_dim * 8 + self.embed_dim * 4, self.embed_dim * 4],
-            [3, 3, 3],
-        )
-        .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-        .init(device);
-
-        let up_conv2 = Conv3dConfig::new(
-            [self.embed_dim * 4 + self.embed_dim * 2, self.embed_dim * 2],
-            [3, 3, 3],
-        )
-        .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-        .init(device);
-
-        let up_conv3 = Conv3dConfig::new(
-            [self.embed_dim * 2 + self.embed_dim, self.embed_dim],
-            [3, 3, 3],
-        )
-        .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-        .init(device);
-
-        // Final flow
-        let flow_conv = Conv3dConfig::new([self.embed_dim, self.out_channels], [3, 3, 3])
-            .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-            .init(device);
-
-        let integration = if self.integration == TransformIntegration::Integrated {
-            Some(VecInt::new(self.integration_steps))
-        } else {
-            None
+    /// Initialize the graph on backend `B`.
+    #[must_use]
+    pub fn init<B>(&self) -> TransMorph<B>
+    where
+        B: Backend + BackendOps<f32>,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        let block = |width, shift| {
+            SwinTransformerBlockConfig::new(width, 4, self.window_size, shift, 4.0).init()
         };
-
-        TransMorph {
-            patch_embed,
-            stage1,
-            down1,
-            stage2,
-            down2,
-            stage3,
-            down3,
-            stage4,
-            up_conv1,
-            up_conv2,
-            up_conv3,
-            flow_conv,
-            integration,
+        let mut model = TransMorph {
+            patch_embed: convolution(self.in_channels, self.embed_dim, 4, 4, 0),
+            stage1: vec![block(self.embed_dim, 0), block(self.embed_dim, 0)],
+            down1: convolution(self.embed_dim, self.embed_dim * 2, 2, 2, 0),
+            stage2: vec![
+                block(self.embed_dim * 2, self.window_size / 2),
+                block(self.embed_dim * 2, 0),
+            ],
+            down2: convolution(self.embed_dim * 2, self.embed_dim * 4, 2, 2, 0),
+            stage3: vec![
+                block(self.embed_dim * 4, self.window_size / 2),
+                block(self.embed_dim * 4, 0),
+            ],
+            down3: convolution(self.embed_dim * 4, self.embed_dim * 8, 2, 2, 0),
+            stage4: vec![
+                block(self.embed_dim * 8, self.window_size / 2),
+                block(self.embed_dim * 8, 0),
+            ],
+            up_conv1: convolution(self.embed_dim * 12, self.embed_dim * 4, 3, 1, 1),
+            up_conv2: convolution(self.embed_dim * 6, self.embed_dim * 2, 3, 1, 1),
+            up_conv3: convolution(self.embed_dim * 3, self.embed_dim, 3, 1, 1),
+            flow_conv: convolution(self.embed_dim, self.out_channels, 3, 1, 1),
+            integration: (self.integration == TransformIntegration::Integrated)
+                .then(|| VecInt::new(self.integration_steps)),
             spatial_transform: SpatialTransformer::new(),
+        };
+        for (index, (convolution, input_channels, kernel)) in [
+            (&mut model.patch_embed, self.in_channels, 4),
+            (&mut model.down1, self.embed_dim, 2),
+            (&mut model.down2, self.embed_dim * 2, 2),
+            (&mut model.down3, self.embed_dim * 4, 2),
+            (&mut model.up_conv1, self.embed_dim * 12, 3),
+            (&mut model.up_conv2, self.embed_dim * 6, 3),
+            (&mut model.up_conv3, self.embed_dim * 3, 3),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            crate::initialization::convolution(
+                convolution,
+                input_channels,
+                kernel,
+                300 + index as u64,
+            );
         }
+        crate::initialization::zero_convolution(&mut model.flow_conv);
+        model
     }
+}
+
+fn convolution<B>(
+    input_channels: usize,
+    output_channels: usize,
+    kernel: usize,
+    stride: usize,
+    padding: usize,
+) -> Conv3d<f32, B>
+where
+    B: Backend + BackendOps<f32>,
+{
+    Conv3d::with_params(
+        input_channels,
+        output_channels,
+        kernel,
+        stride,
+        padding,
+        1,
+        true,
+    )
 }

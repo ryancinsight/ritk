@@ -1,109 +1,65 @@
-use burn_ndarray::NdArray;
-use ritk_core::image::Image;
+use coeus_autograd::{mean, mul, sub, Var};
+use coeus_core::SequentialBackend;
+use coeus_nn::Module;
+use coeus_optim::{Adam, Optimizer};
+use coeus_tensor::Tensor;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_interpolation::LinearInterpolator;
-use ritk_registration::metric::MeanSquaredError;
-use ritk_registration::optimizer::AdamOptimizer as Adam;
-use ritk_registration::registration::{Registration, RegistrationConfig};
+use ritk_registration::metric::autodiff::Transform;
 use ritk_transform::{DisplacementField, DisplacementFieldTransform};
 
-type B = Autodiff<NdArray<f32>>;
-const D: usize = 2;
+fn apply_registration_transform<T: Transform<f32, SequentialBackend>>(
+    transform: &T,
+    points: &Var<f32, SequentialBackend>,
+) -> Var<f32, SequentialBackend> {
+    transform.transform_points(points)
+}
 
 #[test]
-fn displacement_field_registers_shifted_blob() {
-    let device = Default::default();
+fn named_adam_optimizes_displacement_through_registration_seam() {
+    let backend = SequentialBackend;
+    let field = DisplacementField::new(
+        (0..3)
+            .map(|_| Tensor::zeros_on([2, 2, 2], &backend))
+            .collect(),
+        Point::origin(),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+    )
+    .expect("valid field");
+    let mut transform = DisplacementFieldTransform::new(field);
+    let points = Var::new(
+        Tensor::from_slice_on([1, 3], &[0.5, 0.5, 0.5], &backend),
+        false,
+    );
+    let target = Var::new(
+        Tensor::from_slice_on([1, 3], &[2.5, 2.5, 2.5], &backend),
+        false,
+    );
+    let mut optimizer = Adam::new(transform.named_parameters(), 0.2, 0.9, 0.999, 1.0e-8);
 
-    // 1. Create Images (10x10)
-    let d = 10;
-    let center = 5.0;
-    let sigma = 1.5;
-
-    let make_blob = |offset_x: f32, offset_y: f32| -> Vec<f32> {
-        let mut data = Vec::with_capacity(d * d);
-        for y in 0..d {
-            for x in 0..d {
-                let dx = (x as f32) - (center + offset_x);
-                let dy = (y as f32) - (center + offset_y);
-                let val = (-(dx * dx + dy * dy) / (2.0 * sigma * sigma)).exp();
-                data.push(val);
-            }
-        }
-        data
+    let objective = |transform: &DisplacementFieldTransform<SequentialBackend, 3>| {
+        let residual = sub(&apply_registration_transform(transform, &points), &target);
+        mean(&mul(&residual, &residual))
     };
-
-    // Fixed: Center (5,5)
-    let fixed_data = make_blob(0.0, 0.0);
-    // Moving: Center (7,7) (Shifted by +2,+2)
-    // We expect D(x) = +2
-    let moving_data = make_blob(2.0, 2.0);
-
-    let shape = [d, d];
-    let fixed_tensor =
-        Tensor::<B, 2>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
-    let moving_tensor =
-        Tensor::<B, 2>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
-
-    let origin = Point::new([0.0; D]);
-    let spacing = Spacing::new([1.0; D]);
-    let direction = Direction::identity();
-
-    let fixed = Image::new(fixed_tensor.clone(), origin, spacing, direction);
-    let moving = Image::new(moving_tensor.clone(), origin, spacing, direction);
-
-    // 2. Initialize Displacement Field (Zero)
-    // Grid matches image size 10x10
-    let comp_shape = [d, d];
-
-    // Components[0] adds to X, Components[1] adds to Y
-    let comp_x = Tensor::<B, 2>::zeros(comp_shape, &device);
-    let comp_y = Tensor::<B, 2>::zeros(comp_shape, &device);
-
-    let field = DisplacementField::new(vec![comp_x, comp_y], origin, spacing, direction);
-
-    let transform = DisplacementFieldTransform::new(field, LinearInterpolator::new());
-
-    // 3. Optimizer & Metric
-    let optimizer = Adam::new(0.1); // Learning rate
-    let metric = MeanSquaredError::new();
-
-    let config = RegistrationConfig::new()
-        .with_log_interval(10)
-        .without_early_stopping(); // Run full iterations
-
-    let mut registration = Registration::with_config(optimizer, metric, config);
-
-    // 4. Execute
-    let iterations = 100;
-    let learning_rate = 0.1;
-    let result_transform = registration
-        .execute(&fixed, &moving, transform, iterations, learning_rate)
-        .unwrap();
-
-    // 5. Verify
-    // Check center displacement
-    // Center index is roughly (5,5)
-    let comps = result_transform.field().components();
-    // components are [X, Y]
-    // data is [Y, X] (10x10)
-    // slice uses [dim0_range, dim1_range] -> [y_range, x_range]
-    let dx = comps[0].clone().slice([5..6, 5..6]).into_scalar();
-    let dy = comps[1].clone().slice([5..6, 5..6]).into_scalar();
-
-    println!("Recovered Displacement at center: dx={}, dy={}", dx, dy);
-
-    // Expect approx 2.0
-    // Tolerance slightly loose as it's a small grid and boundaries affect it
+    let initial = objective(&transform).tensor.as_slice()[0];
+    optimizer.zero_grad();
+    objective(&transform).backward();
+    optimizer.step();
+    transform
+        .load_named_parameters(&optimizer.params)
+        .expect("stable field inventory");
+    let final_loss = objective(&transform).tensor.as_slice()[0];
     assert!(
-        (dx - 2.0).abs() < 0.5,
-        "X displacement should be approx 2.0, got {}",
-        dx
+        final_loss < initial,
+        "registration objective must decrease: {initial} -> {final_loss}"
     );
-    assert!(
-        (dy - 2.0).abs() < 0.5,
-        "Y displacement should be approx 2.0, got {}",
-        dy
-    );
+    let transformed = apply_registration_transform(&transform, &points);
+    for value in transformed.tensor.as_slice() {
+        // First-step Adam normalizes the nonzero gradient to a +learning-rate
+        // update. All eight center weights sum to one, so 0.5 + 0.2 = 0.7.
+        assert!(
+            (value - 0.7).abs() <= 32.0 * f32::EPSILON,
+            "first Adam point {value}"
+        );
+    }
 }

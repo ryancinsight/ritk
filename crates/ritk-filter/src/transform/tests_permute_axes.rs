@@ -88,3 +88,40 @@ fn permute_axes_invalid_order_returns_error() {
     let r2 = PermuteAxesImageFilter::new([0, 1, 3]).apply(&img);
     assert!(r2.is_err(), "out-of-range axis should return Err");
 }
+
+#[test]
+fn native_permute_axes_preserves_origin_and_reorders_geometry() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        (1..=6).map(|value| value as f32).collect(),
+        [2, 1, 3],
+        Point::new([5.0, 7.0, 11.0]),
+        Spacing::new([1.0, 2.0, 3.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = PermuteAxesImageFilter::new([2, 1, 0])
+        .apply_native(&image, &SequentialBackend)
+        .expect("native axis permutation succeeds");
+
+    assert_eq!(output.shape(), [3, 1, 2]);
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[1.0, 4.0, 2.0, 5.0, 3.0, 6.0]
+    );
+    assert_eq!(
+        [output.origin()[0], output.origin()[1], output.origin()[2]],
+        [5.0, 7.0, 11.0]
+    );
+    assert_eq!(
+        [
+            output.spacing()[0],
+            output.spacing()[1],
+            output.spacing()[2]
+        ],
+        [3.0, 2.0, 1.0]
+    );
+}

@@ -53,11 +53,11 @@ fn repository_nifti_fixture_sources_are_documented() {
 
 #[test]
 fn imports_sourced_repository_nifti1_gzip_fixture() -> Result<()> {
-    let device = Default::default();
+    let backend = TestBackend::default();
     let source = &REPOSITORY_NIFTI_SOURCES[0];
     let path = repository_path(source.relative_path);
 
-    let loaded = read_nifti::<TestBackend, _>(&path, &device)?;
+    let loaded = read_nifti::<TestBackend, _>(&path, &backend)?;
 
     assert_eq!(
         loaded.shape(),
@@ -71,7 +71,7 @@ fn imports_sourced_repository_nifti1_gzip_fixture() -> Result<()> {
         );
     }
 
-    let data = loaded.try_data_vec()?;
+    let data = loaded.data_slice()?.to_vec();
     assert_eq!(
         data.len(),
         215 * 256 * 207,
@@ -93,22 +93,22 @@ fn imports_sourced_repository_nifti1_gzip_fixture() -> Result<()> {
 fn imports_generated_nifti2_gzip_fixture() -> Result<()> {
     let dir = tempdir()?;
     let file_path = dir.path().join("synthetic_nifti2.nii.gz");
-    let device = Default::default();
+    let backend = TestBackend::default();
 
-    let shape = Shape::new([2, 3, 4]);
+    let shape = [2, 3, 4];
     let values = (0..24)
         .map(|index| index as f32 * 0.5 + 1.0)
         .collect::<Vec<_>>();
-    let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(values.clone(), shape), &device);
-    let image = Image::new(
-        tensor,
+    let image = image(
+        values.clone(),
+        shape,
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.8, 1.2, 1.6]),
         Direction::identity(),
-    );
+        &backend,
+    )?;
 
-    write_nifti2(&file_path, &image)?;
+    write_nifti2(&file_path, &image, &backend)?;
     let bytes = std::fs::read(&file_path)?;
     assert_eq!(
         &bytes[..2],
@@ -116,10 +116,10 @@ fn imports_generated_nifti2_gzip_fixture() -> Result<()> {
         "generated NIfTI-2 gzip fixture must be gzip-wrapped"
     );
 
-    let loaded = read_nifti::<TestBackend, _>(&file_path, &device)?;
+    let loaded = read_nifti::<TestBackend, _>(&file_path, &backend)?;
     assert_eq!(loaded.shape(), [2, 3, 4]);
     assert_eq!(
-        loaded.try_data_vec()?,
+        loaded.data_slice()?.to_vec(),
         values,
         "generated NIfTI-2 gzip fixture must preserve voxel values"
     );
@@ -129,7 +129,7 @@ fn imports_generated_nifti2_gzip_fixture() -> Result<()> {
 
 #[test]
 fn imports_generated_uint8_nifti1_fixture() -> Result<()> {
-    let device = Default::default();
+    let backend = TestBackend::default();
     let header = NiftiHeader::new_3d(
         HeaderDims {
             nx: 4,
@@ -147,11 +147,11 @@ fn imports_generated_uint8_nifti1_fixture() -> Result<()> {
     let values = (0..24).map(|value| value as u8).collect::<Vec<_>>();
     let bytes = write_single_file_bytes(&header, &values);
 
-    let loaded = read_nifti_from_bytes::<TestBackend>(&bytes, &device)?;
+    let loaded = read_nifti_from_bytes::<TestBackend>(&bytes, &backend)?;
 
     assert_eq!(loaded.shape(), [2, 3, 4]);
     assert_eq!(
-        loaded.try_data_vec()?,
+        loaded.data_slice()?.to_vec(),
         values.iter().copied().map(f32::from).collect::<Vec<_>>(),
         "UInt8 NIfTI-1 image voxels must import into f32 tensor values without reordering"
     );
@@ -161,11 +161,11 @@ fn imports_generated_uint8_nifti1_fixture() -> Result<()> {
 
 #[test]
 fn analyze_style_header_is_not_imported_as_nifti() {
-    let device = Default::default();
+    let backend = TestBackend::default();
     let mut analyze_header = vec![0_u8; 348];
     analyze_header[0..4].copy_from_slice(&348_i32.to_le_bytes());
 
-    let err = read_nifti_from_bytes::<TestBackend>(&analyze_header, &device)
+    let err = read_nifti_from_bytes::<TestBackend>(&analyze_header, &backend)
         .expect_err("Analyze 7.5 header without NIfTI magic must be rejected");
     let msg = format!("{err:#}");
 

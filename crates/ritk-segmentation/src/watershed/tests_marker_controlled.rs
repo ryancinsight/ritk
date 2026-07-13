@@ -1,5 +1,8 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
 
 type B = NdArray<f32>;
@@ -170,14 +173,241 @@ fn test_all_seeded_image_all_labels_preserved() {
     }
 }
 
-// ── Shape mismatch panics ──────────────────────────────────────────────────
+// ── Shape mismatch returns an error ────────────────────────────────────────
 
 #[test]
-#[should_panic(expected = "gradient and marker images must have the same shape")]
-fn test_shape_mismatch_panics() {
+fn test_shape_mismatch_errors() {
     let gradient = make_image_3d(vec![1.0_f32; 8], [2, 2, 2]);
     let markers = make_image_3d(vec![1.0_f32; 4], [1, 2, 2]);
-    let _ = MarkerControlledWatershed::new().apply(&gradient, &markers);
+    assert_eq!(
+        MarkerControlledWatershed::new()
+            .apply(&gradient, &markers)
+            .unwrap_err()
+            .to_string(),
+        "gradient and marker shapes must match: [2, 2, 2] vs [1, 2, 2]"
+    );
+}
+
+#[test]
+fn native_legacy_and_all_policy_combinations_are_exact() {
+    let dimensions = [1, 3, 5];
+    let gradient_values = vec![
+        0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0,
+    ];
+    let mut marker_values = vec![0.0; 15];
+    marker_values[0] = 1.0;
+    marker_values[14] = 2.0;
+    let legacy_gradient = make_image_3d(gradient_values.clone(), dimensions);
+    let legacy_markers = make_image_3d(marker_values.clone(), dimensions);
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let native_gradient = NativeImage::from_flat_on(
+        gradient_values,
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .unwrap();
+    let native_markers = NativeImage::from_flat_on(
+        marker_values,
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .unwrap();
+    for (connectivity, lines) in [
+        (FloodConnectivity::Face, WatershedLinePolicy::Mark),
+        (FloodConnectivity::Face, WatershedLinePolicy::Omit),
+        (FloodConnectivity::Full, WatershedLinePolicy::Mark),
+        (FloodConnectivity::Full, WatershedLinePolicy::Omit),
+    ] {
+        let filter = MarkerControlledWatershed::new()
+            .with_connectivity(connectivity)
+            .with_watershed_lines(lines);
+        assert_eq!(filter.connectivity(), connectivity);
+        assert_eq!(filter.watershed_lines(), lines);
+        let legacy = filter.apply(&legacy_gradient, &legacy_markers).unwrap();
+        let native = filter
+            .apply_native(&native_gradient, &native_markers, &SequentialBackend)
+            .unwrap();
+        assert_eq!(native.data_slice().unwrap(), legacy.data_slice().as_ref());
+        assert_eq!(*native.origin(), origin);
+        assert_eq!(*native.spacing(), spacing);
+        assert_eq!(*native.direction(), direction);
+    }
+}
+
+#[test]
+fn numeric_and_geometry_validation_errors_are_exact() {
+    for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, -1.0] {
+        let gradient = make_image_3d(vec![0.0, value], [1, 1, 2]);
+        let markers = make_image_3d(vec![1.0, 0.0], [1, 1, 2]);
+        assert_eq!(
+            MarkerControlledWatershed::new().apply(&gradient, &markers).unwrap_err().to_string(),
+            format!("marker watershed gradient at flat index 1 must be finite and nonnegative, got {value}")
+        );
+    }
+    for value in [
+        f32::NAN,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        -1.0,
+        1.5,
+        MAX_EXACT_LABEL + 2.0,
+    ] {
+        let gradient = make_image_3d(vec![0.0, 1.0], [1, 1, 2]);
+        let markers = make_image_3d(vec![1.0, value], [1, 1, 2]);
+        assert_eq!(
+            MarkerControlledWatershed::new().apply(&gradient, &markers).unwrap_err().to_string(),
+            format!("marker watershed label at flat index 1 must be a finite nonnegative integer no greater than {MAX_EXACT_LABEL}, got {value}")
+        );
+    }
+
+    let gradient = NativeImage::from_flat_on(
+        vec![0.0, 1.0],
+        [1, 1, 2],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    let markers = NativeImage::from_flat_on(
+        vec![1.0, 0.0],
+        [1, 1, 2],
+        Point::new([1.0, 0.0, 0.0]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    assert_eq!(
+        MarkerControlledWatershed::new()
+            .apply_native(&gradient, &markers, &SequentialBackend)
+            .unwrap_err()
+            .to_string(),
+        "gradient and marker origins must match"
+    );
+
+    let native_gradient = NativeImage::from_flat_on(
+        vec![0.0, f32::NAN],
+        [1, 1, 2],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    let native_markers = NativeImage::from_flat_on(
+        vec![1.0, 0.0],
+        [1, 1, 2],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    assert_eq!(
+        MarkerControlledWatershed::new()
+            .apply_native(&native_gradient, &native_markers, &SequentialBackend)
+            .unwrap_err()
+            .to_string(),
+        "marker watershed gradient at flat index 1 must be finite and nonnegative, got NaN"
+    );
+
+    let native_gradient = NativeImage::from_flat_on(
+        vec![0.0, 1.0],
+        [1, 1, 2],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    let native_markers = NativeImage::from_flat_on(
+        vec![1.0, 1.5],
+        [1, 1, 2],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .unwrap();
+    assert_eq!(
+        MarkerControlledWatershed::new()
+            .apply_native(&native_gradient, &native_markers, &SequentialBackend)
+            .unwrap_err()
+            .to_string(),
+        format!("marker watershed label at flat index 1 must be a finite nonnegative integer no greater than {MAX_EXACT_LABEL}, got 1.5")
+    );
+
+    for (spacing, direction, expected) in [
+        (
+            Spacing::new([2.0, 1.0, 1.0]),
+            Direction::identity(),
+            "gradient and marker spacing must match",
+        ),
+        (
+            Spacing::new([1.0; 3]),
+            Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
+            "gradient and marker directions must match",
+        ),
+    ] {
+        let markers = NativeImage::from_flat_on(
+            vec![1.0, 0.0],
+            [1, 1, 2],
+            Point::new([0.0; 3]),
+            spacing,
+            direction,
+            &SequentialBackend,
+        )
+        .unwrap();
+        assert_eq!(
+            MarkerControlledWatershed::new()
+                .apply_native(&native_gradient, &markers, &SequentialBackend)
+                .unwrap_err()
+                .to_string(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn structural_validation_errors_are_exact() {
+    assert_eq!(
+        validate_inputs(&[], &[], [1, 0, 2], [1, 0, 2], true, true, true)
+            .unwrap_err()
+            .to_string(),
+        "marker watershed requires nonzero dimensions, got [1, 0, 2]"
+    );
+    assert_eq!(
+        validate_inputs(
+            &[],
+            &[],
+            [usize::MAX, 2, 1],
+            [usize::MAX, 2, 1],
+            true,
+            true,
+            true,
+        )
+        .unwrap_err()
+        .to_string(),
+        format!(
+            "marker watershed shape product overflows usize: [{}, 2, 1]",
+            usize::MAX
+        )
+    );
+    assert_eq!(
+        validate_inputs(&[0.0], &[1.0, 0.0], [1, 1, 2], [1, 1, 2], true, true, true)
+            .unwrap_err()
+            .to_string(),
+        "marker watershed shape [1, 1, 2] requires 2 samples, got gradient=1 markers=2"
+    );
 }
 
 // ── Default construction ───────────────────────────────────────────────────
@@ -263,7 +493,7 @@ fn test_no_watershed_line_assigns_every_voxel() {
         .apply(&grad, &markers)
         .unwrap();
     let without = MarkerControlledWatershed::new()
-        .with_mark_watershed_line(false)
+        .with_watershed_lines(WatershedLinePolicy::Omit)
         .apply(&grad, &markers)
         .unwrap();
     let wl = get_labels(&with_line);

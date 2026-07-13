@@ -139,3 +139,27 @@ fn output_always_in_bounds() {
         assert!(v <= hi, "voxel {v} > upper bound {hi}");
     }
 }
+
+#[test]
+fn native_clamp_preserves_exact_bounds() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        vec![-5.0, 50.0, 300.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = ClampImageFilter::new(0.0, 100.0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native clamp succeeds");
+
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[0.0, 50.0, 100.0]
+    );
+}

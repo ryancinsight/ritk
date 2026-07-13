@@ -11,6 +11,7 @@
 //! the neighbourhood half-width, using introselect (select_nth_unstable_by)
 //! rather than a full sort.  Parallelised over z-slices via Rayon.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
@@ -56,6 +57,26 @@ impl MedianFilter {
             *image.spacing(),
             *image.direction(),
         ))
+    }
+
+    /// Apply the median kernel to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            median_3d(image.data_slice()?, image.shape(), self.radius),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
     }
 }
 
@@ -179,7 +200,9 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
+    use ritk_image::native::Image as NativeImage;
     use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
 
@@ -230,6 +253,29 @@ mod tests {
         for (i, &v) in result.iter().enumerate() {
             assert!((v - val).abs() < 1e-6, "voxel {i}: expected {val}, got {v}");
         }
+    }
+
+    #[test]
+    fn native_median_removes_an_impulse_and_preserves_metadata() {
+        let backend = SequentialBackend;
+        let source = NativeImage::from_flat_on(
+            vec![0.0, 10.0, 0.0],
+            [1, 1, 3],
+            Point::new([2.0, 3.0, 4.0]),
+            Spacing::new([0.5, 1.0, 2.0]),
+            Direction::identity(),
+            &backend,
+        )
+        .unwrap();
+        let output = MedianFilter::new(1)
+            .apply_native(&source, &backend)
+            .unwrap();
+
+        assert_eq!(output.data_slice().unwrap(), &[0.0, 0.0, 0.0]);
+        assert_eq!(output.shape(), source.shape());
+        assert_eq!(output.origin(), source.origin());
+        assert_eq!(output.spacing(), source.spacing());
+        assert_eq!(output.direction(), source.direction());
     }
 
     // ── Test 2: Impulse noise removed ─────────────────────────────────────

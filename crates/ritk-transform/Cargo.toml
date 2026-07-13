@@ -13,6 +13,10 @@ ritk-interpolation = { path = "../ritk-interpolation" }
 burn = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
+coeus-autograd = { workspace = true }
+coeus-nn = { workspace = true }
+coeus-ops = { workspace = true }
+thiserror = { workspace = true }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 serde = { workspace = true }
 serde_json = { workspace = true }

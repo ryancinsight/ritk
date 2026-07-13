@@ -6,14 +6,13 @@ authors = ["Ryan Clanton"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-burn-ndarray = { workspace = true }
-ritk-core = { workspace = true }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
 anyhow = { workspace = true }
 flate2 = { workspace = true }
 tracing = { workspace = true }
 coeus-core = { workspace = true }
+consus-io = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

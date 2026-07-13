@@ -1898,8 +1898,7 @@ class TestAdvancedSegmentationParity:
         seed2 = [22, 16, 16]
 
         # ritk (seed1, seed2, lower, upper, replace_value, tolerance, find_upper)
-        actual = _ritk_np(
-            ritk.segmentation.isolated_connected_segment(
+        output, thresholding_failed = ritk.segmentation.isolated_connected_segment(
                 _ritk(vol),
                 seed1,
                 seed2,
@@ -1908,8 +1907,9 @@ class TestAdvancedSegmentationParity:
                 replace_value=1.0,
                 isolated_value_tolerance=0.01,
                 find_upper_threshold=False,
-            )
         )
+        assert not thresholding_failed
+        actual = _ritk_np(output)
 
         # SimpleITK
         sitk_ic = sitk.IsolatedConnectedImageFilter()

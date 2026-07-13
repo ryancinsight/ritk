@@ -43,6 +43,8 @@
 //! - Nyúl, L. G., Udupa, J. K., & Zhang, X. (2000). New variants of a method
 //!   of MRI scale standardization. *IEEE Trans. Med. Imaging*, 19(2), 143–150.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -223,6 +225,38 @@ impl NyulUdupaNormalizer {
         );
     }
 
+    /// Learn standard landmarks from Coeus-native images.
+    pub fn learn_standard_native<B, const D: usize>(
+        &mut self,
+        images: &[&NativeImage<f32, B, D>],
+    ) -> anyhow::Result<()>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        anyhow::ensure!(
+            !images.is_empty(),
+            "at least one training image is required"
+        );
+
+        let mut sum_landmarks = vec![0.0_f64; self.percentiles.len()];
+        for image in images {
+            let mut values = image.data_slice()?.to_vec();
+            crate::sort_floats(&mut values);
+            for (sum, &percentile) in sum_landmarks.iter_mut().zip(&self.percentiles) {
+                *sum += f64::from(compute_percentile(&values, percentile));
+            }
+        }
+        let count = images.len() as f64;
+        self.standard_landmarks = Some(
+            sum_landmarks
+                .into_iter()
+                .map(|sum| (sum / count) as f32)
+                .collect(),
+        );
+        Ok(())
+    }
+
     /// Apply the learned piecewise-linear mapping to a new image.
     ///
     /// Computes the input image's own landmarks, then maps each voxel intensity
@@ -262,6 +296,41 @@ impl NyulUdupaNormalizer {
 
         // ── 4. Reconstruct image ──────────────────────────────────────────────
         Ok(rebuild(values, dims, image))
+    }
+
+    /// Apply learned landmarks to a Coeus-native image.
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &NativeImage<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let standard = self.standard_landmarks.as_deref().ok_or_else(|| {
+            anyhow::anyhow!("standard landmarks not learned; call learn_standard before apply")
+        })?;
+        let values = image.data_slice()?;
+        let mut sorted = values.to_vec();
+        crate::sort_floats(&mut sorted);
+        let source_landmarks = self
+            .percentiles
+            .iter()
+            .map(|&percentile| compute_percentile(&sorted, percentile))
+            .collect::<Vec<_>>();
+        let output = values
+            .iter()
+            .map(|&value| piecewise_linear_map(value, &source_landmarks, standard))
+            .collect();
+        NativeImage::from_flat_on(
+            output,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
     }
 }
 

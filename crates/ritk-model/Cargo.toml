@@ -4,19 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-burn-ndarray = { workspace = true }
-ritk-core = { path = "../ritk-core" }
-ritk-image = { path = "../ritk-image" }
-ritk-spatial = { path = "../ritk-spatial" }
-ritk-interpolation = { path = "../ritk-interpolation" }
-ritk-transform = { path = "../ritk-transform" }
-burn = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 bytemuck = { workspace = true }
 tracing = { workspace = true }
 coeus-tensor = { workspace = true }
-onnx-ir = { workspace = true }
+coeus-core = { workspace = true }
+coeus-ops = { workspace = true }
+coeus-autograd = { workspace = true }
+coeus-nn = { workspace = true }
+coeus-optim = { workspace = true }
+consus-io = { workspace = true }
+consus-onnx = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

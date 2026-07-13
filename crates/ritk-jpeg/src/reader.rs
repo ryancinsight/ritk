@@ -1,28 +1,29 @@
 use anyhow::{Context, Result};
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_core::ComputeBackend;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
-/// Read a JPEG file into a 3-D grayscale `Image` with shape `[1, height, width]`.
+/// Read a JPEG file into a native 3-D grayscale image with shape `[1, height, width]`.
 ///
-/// The image is converted to Luma8. Pixel intensities are stored as `f32` values
-/// in `[0.0, 255.0]` with no normalization to `[0, 1]`.
-pub fn read_jpeg<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+/// The image is converted to Luma8. Pixel intensities are stored as `f32`
+/// values in `[0.0, 255.0]` without normalization.
+pub fn read_jpeg<B, P>(path: P, backend: &B) -> Result<Image<f32, B, 3>>
+where
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
     let DecodedJpeg { data, dims } = decode_jpeg(path)?;
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
-    Ok(Image::new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
+    Image::from_flat_on(
+        data,
+        dims,
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
         Direction::identity(),
-    ))
+        backend,
+    )
 }
 
-/// Backend-agnostic decoded grayscale JPEG: Luma8 voxels as `f32` in
-/// `[0.0, 255.0]` plus the `[1, height, width]` shape. Shared by the Burn and
-/// Coeus reader paths.
 struct DecodedJpeg {
     data: Vec<f32>,
     dims: [usize; 3],
@@ -30,71 +31,30 @@ struct DecodedJpeg {
 
 fn decode_jpeg<P: AsRef<Path>>(path: P) -> Result<DecodedJpeg> {
     let path = path.as_ref();
-
-    let img = image::open(path)
-        .with_context(|| format!("Failed to open JPEG file: {}", path.display()))?
+    let image = image::open(path)
+        .with_context(|| format!("failed to open JPEG file: {}", path.display()))?
         .to_luma8();
-
-    let (width, height) = img.dimensions();
-
-    tracing::debug!(
-        path = %path.display(),
-        width = width,
-        height = height,
-        dtype = "Luma8",
-        "Read JPEG image"
-    );
-
-    // Luma8 storage is already row-major `[height][width]`, matching the
-    // `[1, height, width]` tensor layout, so the raw buffer converts directly
-    // without per-pixel bounds-checked indexing.
-    let data: Vec<f32> = img.into_raw().into_iter().map(f32::from).collect();
-
+    let (width, height) = image.dimensions();
+    tracing::debug!(path = %path.display(), width, height, dtype = "Luma8", "read JPEG image");
     Ok(DecodedJpeg {
-        data,
+        data: image.into_raw().into_iter().map(f32::from).collect(),
         dims: [1, height as usize, width as usize],
     })
 }
 
-/// Device-bound JPEG reader.
-pub struct JpegReader<B: Backend> {
-    device: B::Device,
+/// Backend-bound native JPEG reader.
+pub struct JpegReader<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> JpegReader<B> {
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
+impl<B: ComputeBackend> JpegReader<B> {
+    /// Creates a reader that constructs images on `backend`.
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 
-    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
-        read_jpeg(path, &self.device)
-    }
-}
-
-/// Atlas-native-substrate entry points (transitional module: plain
-/// end-state names, disambiguated from the Burn functions by module
-/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
-pub mod native {
-    #[allow(unused_imports)]
-    use super::*;
-
-    /// Read a JPEG file into a Coeus-backed 3-D grayscale image on `backend`.
-    ///
-    /// The Atlas-tensor counterpart to [`read_jpeg`]: shares Luma8 decoding via
-    /// `decode_jpeg`, differing only in the final image construction.
-    pub fn read_jpeg<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
-    where
-        B: coeus_core::ComputeBackend,
-        P: AsRef<Path>,
-    {
-        let DecodedJpeg { data, dims } = decode_jpeg(path)?;
-        ritk_image::native::Image::from_flat_on(
-            data,
-            dims,
-            Point::new([0.0, 0.0, 0.0]),
-            Spacing::new([1.0, 1.0, 1.0]),
-            Direction::identity(),
-            backend,
-        )
+    /// Reads a grayscale JPEG on the configured backend.
+    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<f32, B, 3>> {
+        read_jpeg(path, &self.backend)
     }
 }

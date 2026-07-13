@@ -1,5 +1,7 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::{make_image, make_image_with};
 
 type TestBackend = NdArray<f32>;
@@ -18,6 +20,29 @@ fn test_zscore_zero_mean() {
         "output mean must be ≈ 0, got {}",
         stats.mean
     );
+}
+
+#[test]
+fn native_zscore_uses_population_statistics_and_preserves_metadata() {
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 2.0, 4.0],
+        [1, 1, 3],
+        ritk_spatial::Point::new([1.0, 2.0, 3.0]),
+        ritk_spatial::Spacing::new([0.5, 1.0, 2.0]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = ZScoreNormalizer::new()
+        .normalize_native(&image, &SequentialBackend)
+        .expect("native z-score succeeds");
+    let values = output.data_slice().expect("contiguous output");
+    assert!((values[0] + 1.224_744_9).abs() < 1e-6);
+    assert!(values[1].abs() < 1e-6);
+    assert!((values[2] - 1.224_744_9).abs() < 1e-6);
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
 }
 
 #[test]

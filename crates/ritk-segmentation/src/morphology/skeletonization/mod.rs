@@ -118,6 +118,30 @@ impl Skeletonization {
         Self
     }
 
+    /// Apply skeletonization to a Coeus-native mask.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for dimensions outside 1 through 3, non-finite mask
+    /// samples, inaccessible backend storage, or output construction failure.
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        mask: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        anyhow::ensure!(
+            (1..=3).contains(&D),
+            "skeletonization supports dimensions 1 through 3, got {D}"
+        );
+        let values = mask.data_slice()?;
+        super::ensure_finite_mask(values)?;
+        crate::native_output::from_values(mask, skeleton_nd(values, &mask.shape()), backend)
+    }
+
     /// Apply skeletonization to a binary mask image.
     ///
     /// Returns a binary mask containing the skeleton (values in {0.0, 1.0})

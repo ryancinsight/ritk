@@ -1,11 +1,83 @@
-pub use ritk_jpeg::{
-    read_jpeg, read_jpeg_color_to_volume, write_jpeg, JpegColorReader, JpegReader, JpegWriter,
-};
+pub use ritk_jpeg::{read_jpeg_color_to_volume, JpegColorReader};
 
 use crate::domain::{ImageReader, ImageWriter};
+use anyhow::Result;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
+use std::marker::PhantomData;
 use std::path::Path;
+
+/// Reads JPEG through the native provider and converts at this legacy image boundary.
+pub fn read_jpeg<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+    let backend = SequentialBackend;
+    let native = ritk_jpeg::read_jpeg(path, &backend)?;
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(
+            native.data_cow_on(&backend).into_owned(),
+            Shape::new(native.shape()),
+        ),
+        device,
+    );
+    Ok(Image::new(
+        tensor,
+        *native.origin(),
+        *native.spacing(),
+        *native.direction(),
+    ))
+}
+
+/// Writes a legacy image through the native JPEG provider.
+pub fn write_jpeg<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+    let backend = SequentialBackend;
+    let native = ritk_image::native::Image::from_flat_on(
+        image.try_data_vec()?,
+        image.shape(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        &backend,
+    )?;
+    ritk_jpeg::write_jpeg(path, &native, &backend)
+}
+
+/// Device-bound legacy JPEG reader.
+pub struct JpegReader<B: Backend> {
+    device: B::Device,
+}
+
+impl<B: Backend> JpegReader<B> {
+    /// Creates a reader for `device`.
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+
+    /// Reads a JPEG into the legacy image substrate.
+    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
+        read_jpeg(path, &self.device)
+    }
+}
+
+/// Stateless legacy JPEG writer.
+pub struct JpegWriter<B: Backend> {
+    marker: PhantomData<fn() -> B>,
+}
+
+impl<B: Backend> Default for JpegWriter<B> {
+    fn default() -> Self {
+        Self {
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<B: Backend> JpegWriter<B> {
+    /// Writes a legacy image through the native provider.
+    pub fn write_image<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> Result<()> {
+        write_jpeg(path, image)
+    }
+}
 
 impl<B: Backend> ImageReader<Image<B, 3>> for JpegReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
@@ -109,7 +181,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for JpegReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_jpeg::native::read_jpeg(path, &self.backend).map_err(to_io_err)
+            ritk_jpeg::read_jpeg(path, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -131,7 +203,7 @@ pub mod native {
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
-            ritk_jpeg::native::write_jpeg(path, image, &self.backend).map_err(to_io_err)
+            ritk_jpeg::write_jpeg(path, image, &self.backend).map_err(to_io_err)
         }
     }
 }

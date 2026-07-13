@@ -21,6 +21,8 @@
 //! | `MaskNegatedImageFilter`    | `MaskNegatedImageFilter`     |
 
 use crate::distance::types::BinarizationThreshold;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -33,6 +35,39 @@ fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
         b
     );
     Ok(())
+}
+
+fn map_mask_values<F>(image: &[f32], mask: &[f32], f: F) -> Vec<f32>
+where
+    F: Fn(f32, f32) -> f32,
+{
+    image
+        .iter()
+        .zip(mask)
+        .map(|(&image_value, &mask_value)| f(image_value, mask_value))
+        .collect()
+}
+
+fn map_native_images<B, F>(
+    image: &NativeImage<f32, B, 3>,
+    mask: &NativeImage<f32, B, 3>,
+    backend: &B,
+    f: F,
+) -> anyhow::Result<NativeImage<f32, B, 3>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    F: Fn(f32, f32) -> f32,
+{
+    check_shapes(image.shape(), mask.shape())?;
+    NativeImage::from_flat_on(
+        map_mask_values(image.data_slice()?, mask.data_slice()?, f),
+        image.shape(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        backend,
+    )
 }
 
 // â”€â”€ MaskImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -85,12 +120,64 @@ impl MaskImageFilter {
         let (mv, _) = extract_vec(mask)?;
         let outside = self.outside_value;
         let thr = f32::from(self.threshold);
-        let out: Vec<f32> = iv
-            .iter()
-            .zip(mv.iter())
-            .map(|(&img_val, &mask_val)| if mask_val > thr { img_val } else { outside })
-            .collect();
+        let out = map_mask_values(&iv, &mv, |image_value, mask_value| {
+            if mask_value > thr {
+                image_value
+            } else {
+                outside
+            }
+        });
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply masking with a Coeus-native image and native mask.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        mask: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let threshold = f32::from(self.threshold);
+        let outside = self.outside_value;
+        map_native_images(image, mask, backend, move |image_value, mask_value| {
+            if mask_value > threshold {
+                image_value
+            } else {
+                outside
+            }
+        })
+    }
+
+    /// Apply threshold-derived masking to a Coeus-native image.
+    ///
+    /// Voxels greater than `threshold` are retained; all others become zero.
+    pub fn apply_threshold_native<B>(
+        image: &ritk_image::native::Image<f32, B, 3>,
+        threshold: BinarizationThreshold,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        let threshold = f32::from(threshold);
+        let output = values
+            .iter()
+            .map(|&value| if value > threshold { value } else { 0.0 })
+            .collect();
+        ritk_image::native::Image::from_flat_on(
+            output,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
     }
 }
 
@@ -144,12 +231,36 @@ impl MaskNegatedImageFilter {
         let (mv, _) = extract_vec(mask)?;
         let outside = self.outside_value;
         let thr = f32::from(self.threshold);
-        let out: Vec<f32> = iv
-            .iter()
-            .zip(mv.iter())
-            .map(|(&img_val, &mask_val)| if mask_val <= thr { img_val } else { outside })
-            .collect();
+        let out = map_mask_values(&iv, &mv, |image_value, mask_value| {
+            if mask_value <= thr {
+                image_value
+            } else {
+                outside
+            }
+        });
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply negated masking with a Coeus-native image and native mask.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        mask: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let threshold = f32::from(self.threshold);
+        let outside = self.outside_value;
+        map_native_images(image, mask, backend, move |image_value, mask_value| {
+            if mask_value <= threshold {
+                image_value
+            } else {
+                outside
+            }
+        })
     }
 }
 
@@ -199,12 +310,36 @@ impl MaskedAssignImageFilter {
         let (mv, _) = extract_vec(mask)?;
         let assign = self.assign_value;
         let thr = f32::from(self.threshold);
-        let out: Vec<f32> = iv
-            .iter()
-            .zip(mv.iter())
-            .map(|(&img_val, &mask_val)| if mask_val > thr { assign } else { img_val })
-            .collect();
+        let out = map_mask_values(&iv, &mv, |image_value, mask_value| {
+            if mask_value > thr {
+                assign
+            } else {
+                image_value
+            }
+        });
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply masked assignment with a Coeus-native image and native mask.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        mask: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let threshold = f32::from(self.threshold);
+        let assign = self.assign_value;
+        map_native_images(image, mask, backend, move |image_value, mask_value| {
+            if mask_value > threshold {
+                assign
+            } else {
+                image_value
+            }
+        })
     }
 }
 

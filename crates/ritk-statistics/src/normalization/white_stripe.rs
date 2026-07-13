@@ -47,6 +47,8 @@
 //! - `stripe_size` in the result is always > 0 for valid inputs with at least one
 //!   foreground voxel.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -123,6 +125,24 @@ pub struct WhiteStripeResult<B: Backend> {
     pub stripe_size: usize,
 }
 
+/// White Stripe result over a Coeus-native image.
+#[derive(Debug, Clone)]
+pub struct NativeWhiteStripeResult<B>
+where
+    B: ComputeBackend,
+{
+    /// Normalized image: I_norm = (I − μ_ws) / (σ_ws + ε).
+    pub normalized: NativeImage<f32, B, 3>,
+    /// White stripe mean (μ_ws).
+    pub mu: f64,
+    /// White stripe population standard deviation (σ_ws).
+    pub sigma: f64,
+    /// Detected white matter peak intensity.
+    pub wm_peak: f64,
+    /// Number of voxels in the white stripe.
+    pub stripe_size: usize,
+}
+
 /// White stripe normalizer.
 ///
 /// Implements the Shinohara et al. (2014) white stripe method for inter-subject
@@ -130,6 +150,93 @@ pub struct WhiteStripeResult<B: Backend> {
 pub struct WhiteStripeNormalizer;
 
 impl WhiteStripeNormalizer {
+    /// Normalize a Coeus-native brain MRI volume using the White Stripe method.
+    pub fn normalize_native<B>(
+        image: &NativeImage<f32, B, 3>,
+        mask: Option<&NativeImage<f32, B, 3>>,
+        config: &WhiteStripeConfig,
+        backend: &B,
+    ) -> anyhow::Result<NativeWhiteStripeResult<B>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        let mask_values = mask.map(|mask| mask.data_slice()).transpose()?;
+        if let Some(mask_values) = mask_values {
+            anyhow::ensure!(
+                values.len() == mask_values.len(),
+                "image and mask must have identical element counts: {} != {}",
+                values.len(),
+                mask_values.len()
+            );
+        }
+        let mut foreground = Vec::with_capacity(values.len());
+        for (index, &value) in values.iter().enumerate() {
+            let selected = mask_values.map_or(value > 0.0, |mask| {
+                mask[index] > crate::FOREGROUND_THRESHOLD
+            });
+            if selected {
+                foreground.push(f64::from(value));
+            }
+        }
+        anyhow::ensure!(
+            !foreground.is_empty(),
+            "no foreground voxels found for white stripe normalization"
+        );
+        foreground.sort_by(|left, right| left.total_cmp(right));
+        let fg_min = foreground[0];
+        let fg_max = *foreground
+            .last()
+            .expect("invariant: foreground is non-empty");
+        let fg_median = quantile_sorted(&foreground, 0.5);
+        let bandwidth = config
+            .bandwidth
+            .unwrap_or_else(|| silverman_bandwidth(&foreground));
+        let (grid, density) = kde_gaussian(&foreground, fg_min, fg_max, config.num_bins, bandwidth);
+        let (search_lo, search_hi, side) = match config.contrast {
+            MriContrast::T1 => (fg_median, fg_max, ExtremeSide::Rightmost),
+            MriContrast::T2 => (fg_min, fg_median, ExtremeSide::Leftmost),
+        };
+        let wm_peak = find_extreme_local_mode(&grid, &density, search_lo, search_hi, side);
+        let rank = empirical_cdf_rank(&foreground, wm_peak);
+        let lower = quantile_sorted(&foreground, (rank - config.width).clamp(0.0, 1.0));
+        let upper = quantile_sorted(&foreground, (rank + config.width).clamp(0.0, 1.0));
+        let (stripe_size, sum) = foreground
+            .iter()
+            .filter(|&&value| value >= lower && value <= upper)
+            .fold((0usize, 0.0_f64), |(count, sum), &value| {
+                (count + 1, sum + value)
+            });
+        anyhow::ensure!(stripe_size > 0, "white stripe contains zero voxels");
+        let mu = sum / stripe_size as f64;
+        let variance = foreground
+            .iter()
+            .filter(|&&value| value >= lower && value <= upper)
+            .map(|&value| (value - mu) * (value - mu))
+            .sum::<f64>()
+            / stripe_size as f64;
+        let sigma = variance.sqrt();
+        let normalized = values
+            .iter()
+            .map(|&value| ((f64::from(value) - mu) / (sigma + 1e-10)) as f32)
+            .collect();
+        Ok(NativeWhiteStripeResult {
+            normalized: NativeImage::from_flat_on(
+                normalized,
+                image.shape(),
+                *image.origin(),
+                *image.spacing(),
+                *image.direction(),
+                backend,
+            )?,
+            mu,
+            sigma: sigma.max(1e-9),
+            wm_peak,
+            stripe_size,
+        })
+    }
+
     /// Normalize a brain MRI using the white stripe method.
     ///
     /// # Arguments

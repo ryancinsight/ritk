@@ -1,3 +1,5 @@
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -47,9 +49,16 @@ fn extract_boundary_physical<B: Backend, const D: usize>(
     spacing: &[f64; D],
 ) -> Vec<[f64; D]> {
     let shape: [usize; D] = mask.shape();
-    let shape_slice: &[usize] = &shape;
     let flat_vec = extract_vec_infallible(mask).0;
-    let flat: &[f32] = &flat_vec;
+    extract_boundary_physical_from_values(&flat_vec, shape, spacing)
+}
+
+fn extract_boundary_physical_from_values<const D: usize>(
+    flat: &[f32],
+    shape: [usize; D],
+    spacing: &[f64; D],
+) -> Vec<[f64; D]> {
+    let shape_slice: &[usize] = &shape;
     let strides = compute_strides(shape_slice);
     let n_total: usize = shape_slice.iter().product();
     let mut boundary: Vec<[f64; D]> = Vec::with_capacity(n_total / 32);
@@ -149,6 +158,47 @@ pub fn hausdorff_distance<B: Backend, const D: usize>(
     hd_p_to_g.max(hd_g_to_p) as f32
 }
 
+/// Compute Hausdorff distance between Coeus-native binary masks.
+///
+/// # Errors
+/// Returns an error when storage is not CPU-addressable or the masks differ in
+/// shape.
+pub fn hausdorff_distance_native<B, const D: usize>(
+    prediction: &NativeImage<f32, B, D>,
+    ground_truth: &NativeImage<f32, B, D>,
+    spacing: &[f64; D],
+) -> anyhow::Result<f32>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    anyhow::ensure!(
+        prediction.shape() == ground_truth.shape(),
+        "hausdorff distance requires equal shapes: {:?} != {:?}",
+        prediction.shape(),
+        ground_truth.shape()
+    );
+    let prediction_boundary = extract_boundary_physical_from_values(
+        prediction.data_slice()?,
+        prediction.shape(),
+        spacing,
+    );
+    let ground_truth_boundary = extract_boundary_physical_from_values(
+        ground_truth.data_slice()?,
+        ground_truth.shape(),
+        spacing,
+    );
+    Ok(
+        if prediction_boundary.is_empty() && ground_truth_boundary.is_empty() {
+            0.0
+        } else {
+            directed_hausdorff(&prediction_boundary, &ground_truth_boundary).max(
+                directed_hausdorff(&ground_truth_boundary, &prediction_boundary),
+            ) as f32
+        },
+    )
+}
+
 /// Compute the symmetric mean surface distance between two binary masks.
 pub fn mean_surface_distance<B: Backend, const D: usize>(
     prediction: &Image<B, D>,
@@ -166,4 +216,45 @@ pub fn mean_surface_distance<B: Backend, const D: usize>(
     let msd_g_to_p = directed_msd(&boundary_g, &boundary_p);
 
     ((msd_p_to_g + msd_g_to_p) / 2.0) as f32
+}
+
+/// Compute symmetric mean surface distance between Coeus-native binary masks.
+///
+/// # Errors
+/// Returns an error when storage is not CPU-addressable or the masks differ in
+/// shape.
+pub fn mean_surface_distance_native<B, const D: usize>(
+    prediction: &NativeImage<f32, B, D>,
+    ground_truth: &NativeImage<f32, B, D>,
+    spacing: &[f64; D],
+) -> anyhow::Result<f32>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    anyhow::ensure!(
+        prediction.shape() == ground_truth.shape(),
+        "mean surface distance requires equal shapes: {:?} != {:?}",
+        prediction.shape(),
+        ground_truth.shape()
+    );
+    let prediction_boundary = extract_boundary_physical_from_values(
+        prediction.data_slice()?,
+        prediction.shape(),
+        spacing,
+    );
+    let ground_truth_boundary = extract_boundary_physical_from_values(
+        ground_truth.data_slice()?,
+        ground_truth.shape(),
+        spacing,
+    );
+    Ok(
+        if prediction_boundary.is_empty() && ground_truth_boundary.is_empty() {
+            0.0
+        } else {
+            ((directed_msd(&prediction_boundary, &ground_truth_boundary)
+                + directed_msd(&ground_truth_boundary, &prediction_boundary))
+                / 2.0) as f32
+        },
+    )
 }

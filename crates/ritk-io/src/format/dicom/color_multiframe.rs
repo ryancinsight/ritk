@@ -6,14 +6,13 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use coeus_core::ComputeBackend;
 use dicom::core::Tag;
-use ritk_core::image::RgbVolume;
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness, TransferSyntaxKind,
 };
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::native::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::color_common::{read_optional, required_string, RGB_CHANNELS};
@@ -25,10 +24,10 @@ use super::reader::geometry::{SliceCoverage, SpacingUniformity};
 /// The returned tensor shape is `[frames, rows, cols, 3]`. The loader accepts
 /// only unsigned 8-bit RGB with `PlanarConfiguration=0`, because the current
 /// color-volume boundary stores interleaved channels.
-pub fn read_dicom_color_multiframe<B: Backend, P: AsRef<Path>>(
+pub fn read_dicom_color_multiframe<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<RgbVolume<B>> {
+    backend: &B,
+) -> Result<RgbVolume<f32, B>> {
     let path = path.as_ref();
     let info = read_multiframe_info(path)?;
     let obj = parse_file_with::<DicomRsBackend, _>(path)
@@ -50,7 +49,7 @@ pub fn read_dicom_color_multiframe<B: Backend, P: AsRef<Path>>(
     // frame is decoded. Cap the speculative reservation and grow the buffer by
     // appending each validated, sequentially-decoded frame instead of
     // pre-sizing and indexing into it.
-    let mut volume = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
+    let mut volume = Vec::with_capacity(consus_io::bounded_capacity(
         total_samples,
         std::mem::size_of::<f32>(),
     ));
@@ -92,27 +91,22 @@ pub fn read_dicom_color_multiframe<B: Backend, P: AsRef<Path>>(
         volume.extend_from_slice(&frame);
     }
 
-    let tensor = Tensor::<B, 4>::from_data(
-        TensorData::new(
-            volume,
-            Shape::new([info.n_frames, info.rows, info.cols, RGB_CHANNELS]),
-        ),
-        device,
-    );
-    RgbVolume::try_new(
-        tensor,
+    RgbVolume::from_flat_on(
+        volume,
+        [info.n_frames, info.rows, info.cols],
         Point::new(origin_from_info(&info)),
         spacing_from_info(&info)?,
         direction_from_info(&info),
+        backend,
     )
 }
 
 /// Alias matching the scalar multiframe loader naming convention.
-pub fn load_dicom_color_multiframe<B: Backend, P: AsRef<Path>>(
+pub fn load_dicom_color_multiframe<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<RgbVolume<B>> {
-    read_dicom_color_multiframe(path, device)
+    backend: &B,
+) -> Result<RgbVolume<f32, B>> {
+    read_dicom_color_multiframe(path, backend)
 }
 
 fn validate_rgb_multiframe(

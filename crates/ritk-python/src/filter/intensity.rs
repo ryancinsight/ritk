@@ -6,11 +6,10 @@ use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_filter::{
-    AdaptiveHistogramEqualizationFilter, BinaryThresholdImageFilter, BitwiseNotImageFilter,
-    BlendImageFilter, ClampPolicy, DoubleThresholdImageFilter, IntensityWindowingFilter,
-    NormalizeImageFilter, NormalizeToConstantImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter, SigmoidImageFilter, ThresholdImageFilter, UnsharpMaskFilter,
-    ZeroCrossingImageFilter,
+    AdaptiveHistogramEqualizationFilter, BitwiseNotImageFilter, BlendImageFilter, ClampPolicy,
+    DoubleThresholdImageFilter, IntensityWindowingFilter, NormalizeImageFilter,
+    NormalizeToConstantImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter,
+    SigmoidImageFilter, ThresholdImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
 };
 
 /// Linearly rescale image intensity to [out_min, out_max].
@@ -189,15 +188,13 @@ pub fn binary_threshold(
 ) -> RitkResult<PyImage> {
     let image = py_image_to_burn(image);
     py.allow_threads(|| {
-        let filter = BinaryThresholdImageFilter::new(
+        Ok(ritk_segmentation::binary_threshold(
+            &image,
             lower_threshold,
             upper_threshold,
             foreground,
             background,
-        );
-        filter
-            .apply(&image)
-            .map_err(|e| RitkPyError::runtime(e.to_string()))
+        ))
     })
     .map(burn_into_py_image)
 }

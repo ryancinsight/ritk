@@ -981,6 +981,40 @@ def test_marker_watershed_matches_sitk_many_basins():
                 f"markLine={ml} fc={fc}: {int((rm != sm).sum())} voxels differ from sitk"
 
 
+def test_marker_watershed_native_validation_errors():
+    relief = np.zeros((1, 2, 3), dtype=np.float32)
+    markers = np.zeros_like(relief)
+    markers.flat[0] = 1.0
+
+    invalid_relief = relief.copy()
+    invalid_relief.flat[2] = np.nan
+    with pytest.raises(
+        ValueError,
+        match="marker watershed gradient at flat index 2 must be finite and nonnegative, got NaN",
+    ):
+        ritk.segmentation.marker_watershed_segment(
+            _ritk(invalid_relief), _ritk(markers)
+        )
+
+    invalid_markers = markers.copy()
+    invalid_markers.flat[4] = 1.5
+    with pytest.raises(
+        ValueError,
+        match="marker watershed label at flat index 4 must be a finite nonnegative integer",
+    ):
+        ritk.segmentation.marker_watershed_segment(
+            _ritk(relief), _ritk(invalid_markers)
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="gradient and marker shapes must match",
+    ):
+        ritk.segmentation.marker_watershed_segment(
+            _ritk(relief), _ritk(markers[:, :, :2])
+        )
+
+
 def test_staple_matches_sitk():
     # STAPLE EM converges to the same probabilistic truth and per-rater
     # sensitivity/specificity as sitk.STAPLE.
@@ -2597,6 +2631,39 @@ def test_watershed_segment_produces_valid_label_map():
     )
 
 
+def test_watershed_segment_native_determinism_and_validation():
+    relief = np.array(
+        [[[0.0, 1.0, 4.0, 1.0, -0.0], [1.0, 2.0, 5.0, 2.0, 1.0]]],
+        dtype=np.float32,
+    )
+    first = ritk.segmentation.watershed_segment(_ritk(relief)).to_numpy()
+    second = ritk.segmentation.watershed_segment(_ritk(relief)).to_numpy()
+    np.testing.assert_array_equal(first, second)
+
+    for value in (np.nan, np.inf, -np.inf):
+        invalid = relief.copy()
+        invalid.flat[1] = value
+        with pytest.raises(
+            ValueError,
+            match=r"Meyer watershed relief at flat index 1 must be finite",
+        ):
+            ritk.segmentation.watershed_segment(_ritk(invalid))
+
+
+def test_watershed_segment_matches_simpleitk_plateau_oracle():
+    relief = np.array([[[0.0, 100.0, 100.0, 100.0, 0.0]]], dtype=np.float32)
+    expected = sitk.GetArrayFromImage(
+        sitk.MorphologicalWatershed(
+            _sitk(relief),
+            level=0.0,
+            markWatershedLine=True,
+            fullyConnected=False,
+        )
+    ).astype(np.float32)
+    actual = ritk.segmentation.watershed_segment(_ritk(relief)).to_numpy()
+    np.testing.assert_array_equal(actual, expected)
+
+
 def test_kmeans_segment_produces_k_clusters():
     """K-means clustering on a 3-class concentric image recovers at least 2 clusters.
 
@@ -2623,6 +2690,76 @@ def test_kmeans_segment_produces_k_clusters():
         f"K-means output shape {result.shape} != input shape {arr.shape}"
     )
     assert np.all(np.isfinite(result)), "K-means produced non-finite values"
+
+
+def test_kmeans_segment_rejects_invalid_configuration_and_samples():
+    image = _ritk(np.array([[[0.0, 1.0, 2.0]]], dtype=np.float32))
+    with pytest.raises(ValueError, match="k must be at least 1, got 0"):
+        ritk.segmentation.kmeans_segment(image, k=0)
+    with pytest.raises(
+        ValueError,
+        match="k-means tolerance must be finite and nonnegative, got -1",
+    ):
+        ritk.segmentation.kmeans_segment(image, k=2, tolerance=-1.0)
+    with pytest.raises(
+        ValueError,
+        match="k-means maximum iterations must be at least 1, got 0",
+    ):
+        ritk.segmentation.kmeans_segment(image, k=2, max_iterations=0)
+
+    nonfinite = _ritk(np.array([[[0.0, np.nan, 2.0]]], dtype=np.float32))
+    with pytest.raises(
+        ValueError,
+        match="k-means sample at flat index 1 must be finite, got NaN",
+    ):
+        ritk.segmentation.kmeans_segment(nonfinite, k=2)
+
+
+def test_standard_slic_native_boundary_and_validation():
+    values = np.arange(64, dtype=np.float32).reshape(4, 4, 4) % 7
+    result = ritk.segmentation.slic_superpixel(
+        _ritk(values),
+        n_superpixels=4,
+        compactness=5.0,
+        max_iterations=10,
+        tolerance=0.0,
+        min_component_size=0,
+    ).to_numpy()
+    assert result.shape == values.shape
+    assert np.array_equal(np.unique(result), np.arange(4, dtype=np.float32))
+
+    with pytest.raises(
+        ValueError, match="SLIC superpixel count must be at least 1, got 0"
+    ):
+        ritk.segmentation.slic_superpixel(_ritk(values), n_superpixels=0)
+    invalid = values.copy()
+    invalid.flat[3] = np.nan
+    with pytest.raises(
+        ValueError,
+        match="standard SLIC sample at flat index 3 must be finite, got NaN",
+    ):
+        ritk.segmentation.slic_superpixel(_ritk(invalid), n_superpixels=4)
+
+
+def test_itk_slic_native_boundary_validation():
+    values = np.arange(64, dtype=np.float32).reshape(4, 4, 4)
+    with pytest.raises(
+        ValueError, match="ITK SLIC super-grid size must be at least 1, got 0"
+    ):
+        ritk.segmentation.slic(_ritk(values), 0)
+    with pytest.raises(
+        ValueError, match="ITK SLIC maximum iterations must be at least 1, got 0"
+    ):
+        ritk.segmentation.slic(
+            _ritk(values), 2, maximum_number_of_iterations=0
+        )
+    invalid = values.copy()
+    invalid.flat[5] = np.inf
+    with pytest.raises(
+        ValueError,
+        match="ITK SLIC sample at flat index 5 must be finite, got inf",
+    ):
+        ritk.segmentation.slic(_ritk(invalid), 2)
 
 
 def test_connected_threshold_segment_recovers_sphere():
@@ -2682,6 +2819,39 @@ def test_confidence_connected_segment_recovers_sphere():
     assert d >= 0.95, f"Confidence-connected Dice {d:.4f} < 0.95 vs ground-truth sphere"
 
 
+@pytest.mark.parametrize("multiplier", [float("nan"), float("inf"), -1.0])
+def test_confidence_connected_rejects_invalid_multiplier(multiplier):
+    image = _ritk(np.ones((3, 3, 3), dtype=np.float32))
+    with pytest.raises(ValueError, match="multiplier must be finite and non-negative"):
+        ritk.segmentation.confidence_connected_segment(
+            image,
+            seed=[1, 1, 1],
+            initial_lower=0.0,
+            initial_upper=2.0,
+            multiplier=multiplier,
+        )
+
+
+def test_confidence_connected_rejects_nan_bound():
+    image = _ritk(np.ones((3, 3, 3), dtype=np.float32))
+    with pytest.raises(ValueError, match="initial bounds must be finite and ordered"):
+        ritk.segmentation.confidence_connected_segment(
+            image,
+            seed=[1, 1, 1],
+            initial_lower=float("nan"),
+            initial_upper=2.0,
+        )
+
+
+@pytest.mark.parametrize(
+    "label", [float("nan"), float("inf"), float("-inf"), -1.0, 1.5, 4294967296.0]
+)
+def test_relabel_components_rejects_invalid_labels(label):
+    image = _ritk(np.full((2, 2, 2), label, dtype=np.float32))
+    with pytest.raises(ValueError, match="label values must be finite non-negative integers"):
+        ritk.segmentation.relabel_components(image)
+
+
 def test_neighborhood_connected_segment_recovers_sphere():
     """Neighborhood-connected region growing recovers the sphere.
 
@@ -2709,6 +2879,85 @@ def test_neighborhood_connected_segment_recovers_sphere():
     assert d >= 0.50, (
         f"Neighborhood-connected Dice {d:.4f} < 0.50 vs ground-truth sphere"
     )
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        lambda image, seed: ritk.segmentation.connected_threshold_segment(
+            image, seed, 0.0, 2.0
+        ),
+        lambda image, seed: ritk.segmentation.confidence_connected_segment(
+            image, seed, 0.0, 2.0, max_iterations=1
+        ),
+        lambda image, seed: ritk.segmentation.neighborhood_connected_segment(
+            image, seed, 0.0, 2.0, radius=0
+        ),
+    ],
+    ids=["connected", "confidence", "neighborhood"],
+)
+def test_scalar_region_growing_native_bindings_preserve_values_geometry_and_errors(
+    segment, tmp_path
+):
+    reference = sitk.GetImageFromArray(np.ones((2, 3, 4), dtype=np.float32))
+    reference.SetSpacing((2.5, 1.5, 0.5))
+    reference.SetOrigin((5.0, 3.0, 2.0))
+    reference.SetDirection((0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0))
+    path = tmp_path / "region-growing-geometry.mha"
+    sitk.WriteImage(reference, str(path))
+    image = ritk.io.read_image(str(path))
+    output = segment(image, [1, 1, 2])
+    np.testing.assert_array_equal(output.to_numpy(), np.ones((2, 3, 4), np.float32))
+    assert output.spacing == image.spacing
+    assert output.origin == image.origin
+    assert output.direction == image.direction
+    with pytest.raises(ValueError, match="seed .* out of bounds"):
+        segment(image, [2, 0, 0])
+
+
+@pytest.mark.parametrize(
+    "segment",
+    [
+        lambda image: ritk.segmentation.connected_threshold_segment(
+            image, [0, 0, 0], float("nan"), 1.0
+        ),
+        lambda image: ritk.segmentation.neighborhood_connected_segment(
+            image, [0, 0, 0], 0.0, float("inf"), radius=0
+        ),
+    ],
+    ids=["connected", "neighborhood"],
+)
+def test_scalar_region_growing_native_bindings_reject_nonfinite_bounds(segment):
+    with pytest.raises(ValueError, match="bounds must be finite and ordered"):
+        segment(_ritk(np.ones((1, 1, 1), np.float32)))
+
+
+def test_isolated_connected_native_binding_preserves_geometry_and_validates(tmp_path):
+    array = np.zeros((1, 5, 9), np.float32)
+    array[:, 1:4, 1:3] = 1.0
+    array[:, 1:4, 6:8] = 1.0
+    array[:, 2:3, 3:6] = 1.5
+    reference = sitk.GetImageFromArray(array)
+    reference.SetSpacing((2.5, 1.5, 0.5))
+    reference.SetOrigin((5.0, 3.0, 2.0))
+    reference.SetDirection((0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0))
+    path = tmp_path / "isolated-connected-geometry.mha"
+    sitk.WriteImage(reference, str(path))
+    image = ritk.io.read_image(str(path))
+    output, thresholding_failed = ritk.segmentation.isolated_connected_segment(
+        image, [0, 2, 1], [0, 2, 7], 0.5, 2.0, 1.0, 0.01, True
+    )
+    assert not thresholding_failed
+    expected = np.zeros_like(array)
+    expected[:, 1:4, 1:3] = 1.0
+    np.testing.assert_array_equal(output.to_numpy(), expected)
+    assert output.spacing == image.spacing
+    assert output.origin == image.origin
+    assert output.direction == image.direction
+    with pytest.raises(ValueError, match="tolerance must be finite and positive"):
+        ritk.segmentation.isolated_connected_segment(
+            image, [0, 2, 1], [0, 2, 7], 0.5, 2.0, 1.0, 0.0, True
+        )
 
 
 def test_curvature_anisotropic_diffusion_smooths_noisy_image():

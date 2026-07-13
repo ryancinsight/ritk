@@ -69,8 +69,8 @@ impl ChamferDistanceTransform {
 
     /// Set the intensity threshold.
     #[inline]
-    pub fn with_threshold(mut self, t: impl Into<BinarizationThreshold>) -> Self {
-        self.threshold = t.into();
+    pub fn with_threshold(mut self, threshold: BinarizationThreshold) -> Self {
+        self.threshold = threshold;
         self
     }
 

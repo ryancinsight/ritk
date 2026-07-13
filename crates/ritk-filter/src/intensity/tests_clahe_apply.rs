@@ -5,7 +5,10 @@
 
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type B = NdArray<f32>;
@@ -55,6 +58,29 @@ fn apply_uniform_volume_identity() {
             "voxel {i}: input={inp}, output={outp}"
         );
     }
+}
+
+#[test]
+fn native_apply_preserves_uniform_values_and_metadata() {
+    let backend = SequentialBackend;
+    let source = NativeImage::from_flat_on(
+        vec![42.5; 4],
+        [1, 2, 2],
+        Point::new([2.0, 3.0, 4.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &backend,
+    )
+    .unwrap();
+    let output = ClaheFilter::new([1, 1], 40.0, 256)
+        .apply_native(&source, &backend)
+        .unwrap();
+
+    assert_eq!(output.data_slice().unwrap(), &[42.5; 4]);
+    assert_eq!(output.shape(), source.shape());
+    assert_eq!(output.origin(), source.origin());
+    assert_eq!(output.spacing(), source.spacing());
+    assert_eq!(output.direction(), source.direction());
 }
 
 #[test]

@@ -71,16 +71,40 @@ impl MeanImageFilter {
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals_vec, dims) = extract_vec_infallible(image);
+        let out = self.mean_values(&vals_vec, dims);
+        Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply the mean filter to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let values = self.mean_values(image.data_slice()?, image.shape());
+        ritk_image::native::Image::from_flat_on(
+            values,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn mean_values(&self, values: &[f32], dims: [usize; 3]) -> Vec<f32> {
         let [nz, ny, nx] = dims;
 
         let r = self.radius;
 
         // identity shortcut
         if r == 0 || nz == 0 || ny == 0 || nx == 0 {
-            return Ok(image.clone());
+            return values.to_vec();
         }
-
-        let vals: &[f32] = &vals_vec;
 
         // Boundary: ITK MeanImageFilter uses a ZeroFluxNeumann (edge-replicate)
         // neighbourhood — the window is always the full (2r+1)³ samples with
@@ -94,7 +118,7 @@ impl MeanImageFilter {
         // per-slice intermediate `Vec`s. Each output voxel reads only its clamped
         // window, so the result is bitwise identical to a serial run.
         let out: Vec<f32> =
-            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |flat| {
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(values.len(), |flat| {
                 let iz = flat / (ny * nx);
                 let rem = flat % (ny * nx);
                 let iy = rem / nx;
@@ -106,14 +130,14 @@ impl MeanImageFilter {
                         let yc = (iy as isize + ky).clamp(0, nyi - 1) as usize;
                         for kx in -ri..=ri {
                             let xc = (ix as isize + kx).clamp(0, nxi - 1) as usize;
-                            sum += vals[zc * ny * nx + yc * nx + xc] as f64;
+                            sum += values[zc * ny * nx + yc * nx + xc] as f64;
                         }
                     }
                 }
                 (sum / count) as f32
             });
 
-        Ok(rebuild(out, dims, image))
+        out
     }
 }
 

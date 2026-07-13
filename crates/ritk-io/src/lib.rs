@@ -12,9 +12,9 @@ pub use format::dicom::{
     anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, dicom_echo, dicom_find,
     dicom_retrieve, dicom_retrieve_series, dicom_seg_to_label_map, dicom_store, is_private_tag,
     is_rgb_dicom_series, label_map_to_dicom_seg, label_map_to_rt_struct, literal_arraystring,
-    load_atlas_color_from_series, load_atlas_color_series, load_dicom_color_from_series,
-    load_dicom_color_series, load_dicom_from_series, load_dicom_multiframe, load_dicom_series,
-    load_dicom_series_with_metadata, load_native_dicom_from_series, load_native_dicom_series,
+    load_dicom_color_from_series, load_dicom_color_series, load_dicom_from_series,
+    load_dicom_multiframe, load_dicom_series, load_dicom_series_with_metadata,
+    load_native_dicom_from_series, load_native_dicom_series,
     load_native_dicom_series_with_metadata, model_to_in_mem, read_dicom_color_series,
     read_dicom_seg, read_dicom_series, read_dicom_series_with_metadata, read_multiframe_info,
     read_native_dicom_series, read_native_dicom_series_with_metadata, read_rt_dose, read_rt_plan,
@@ -42,8 +42,8 @@ pub use format::metaimage::{
 pub use format::mgh::{read_mgh, write_mgh, MghReader, MghWriter};
 pub use format::minc::{read_minc, write_minc, MincReader, MincWriter};
 pub use format::nifti::{
-    read_nifti, read_nifti_from_bytes, read_nifti_labels, write_nifti, write_nifti_labels,
-    NiftiReader, NiftiWriter,
+    read_nifti, read_nifti_from_bytes, read_nifti_from_bytes_native, read_nifti_labels,
+    write_nifti, write_nifti_labels, NiftiReader, NiftiWriter,
 };
 pub use format::nrrd::{read_nrrd, write_nrrd, write_nrrd_with_data, NrrdReader, NrrdWriter};
 pub use format::png::{read_png_series, read_png_to_image, PngReader, PngSeriesReader};
@@ -151,18 +151,18 @@ impl ImageFormat {
     }
 }
 
-// ── Atlas-native image dispatch ───────────────────────────────────────────────
+// ── Native image dispatch ─────────────────────────────────────────────────────
 
-/// Atlas-native CPU backend used by consumer-level image I/O.
+/// Native CPU backend used by consumer-level image I/O.
 ///
 /// `SequentialBackend` keeps file I/O deterministic and avoids pulling a device
 /// runtime into CLI or Python boundary code.
 pub type NativeBackend = coeus_core::SequentialBackend;
 
-/// Atlas-native 3-D f32 image used by consumer-level image I/O.
+/// Native 3-D f32 image used by consumer-level image I/O.
 pub type NativeImage = ritk_image::native::Image<f32, NativeBackend, 3>;
 
-/// True when `fmt` has an Atlas-native reader in the unified `ritk-io` contract.
+/// True when `fmt` has a native reader in the unified `ritk-io` contract.
 #[must_use]
 pub fn is_native_read_capable(fmt: ImageFormat) -> bool {
     matches!(
@@ -174,15 +174,16 @@ pub fn is_native_read_capable(fmt: ImageFormat) -> bool {
             | ImageFormat::Dicom
             | ImageFormat::Mgh
             | ImageFormat::Tiff
+            | ImageFormat::Vtk
             | ImageFormat::Jpeg
             | ImageFormat::Analyze
     )
 }
 
-/// True when `fmt` has an Atlas-native writer in the unified `ritk-io` contract.
+/// True when `fmt` has a native writer in the unified `ritk-io` contract.
 ///
-/// PNG has no image writer, DICOM writes still target the legacy series writer,
-/// and VTK image I/O has not yet migrated to the native substrate.
+/// PNG has no image writer and DICOM writes still target the legacy series
+/// writer.
 #[must_use]
 pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
     matches!(
@@ -192,12 +193,13 @@ pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
             | ImageFormat::Nrrd
             | ImageFormat::Mgh
             | ImageFormat::Tiff
+            | ImageFormat::Vtk
             | ImageFormat::Jpeg
             | ImageFormat::Analyze
     )
 }
 
-/// Read a 3-D f32 image through the Atlas-native reader contract.
+/// Read a 3-D f32 image through the native reader contract.
 ///
 /// DICOM directories are accepted before extension inference because a series
 /// directory has no image extension.
@@ -260,14 +262,15 @@ pub fn read_image_native<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<N
             &format::analyze::native::AnalyzeReader::new(NativeBackend::default()),
             path,
         ),
-        ImageFormat::Vtk => Err(std::io::Error::other(
-            "VTK has no Atlas-native image reader",
-        )),
+        ImageFormat::Vtk => crate::ImageReader::read(
+            &format::vtk::native::VtkReader::new(NativeBackend::default()),
+            path,
+        ),
     }
     .map_err(anyhow::Error::from)
 }
 
-/// Write a 3-D f32 image through the Atlas-native writer contract.
+/// Write a 3-D f32 image through the native writer contract.
 ///
 /// # Errors
 ///
@@ -327,9 +330,11 @@ pub fn write_image_native<P: AsRef<std::path::Path>>(
         ImageFormat::Dicom => Err(std::io::Error::other(
             "DICOM image writing is not implemented on the native substrate",
         )),
-        ImageFormat::Vtk => Err(std::io::Error::other(
-            "VTK has no Atlas-native image writer",
-        )),
+        ImageFormat::Vtk => crate::ImageWriter::write(
+            &format::vtk::native::VtkWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
     }
     .map_err(anyhow::Error::from)
 }
@@ -360,6 +365,7 @@ mod native_dispatch_tests {
             ImageFormat::Nrrd,
             ImageFormat::Mgh,
             ImageFormat::Tiff,
+            ImageFormat::Vtk,
             ImageFormat::Jpeg,
             ImageFormat::Analyze,
         ] {
@@ -370,9 +376,6 @@ mod native_dispatch_tests {
         assert!(is_native_read_capable(ImageFormat::Dicom));
         assert!(!is_native_write_capable(ImageFormat::Png));
         assert!(!is_native_write_capable(ImageFormat::Dicom));
-
-        assert!(!is_native_read_capable(ImageFormat::Vtk));
-        assert!(!is_native_write_capable(ImageFormat::Vtk));
     }
 
     #[test]
@@ -391,11 +394,16 @@ mod native_dispatch_tests {
     }
 
     #[test]
-    fn native_dispatch_rejects_vtk_without_burn_fallback() {
+    fn native_dispatch_round_trips_vtk_values() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("native.vtk");
-        let err = write_image_native(&path, &native_volume()).unwrap_err();
+        let image = native_volume();
 
-        assert_eq!(err.to_string(), "VTK has no Atlas-native image writer");
+        write_image_native(&path, &image).expect("native VTK write");
+        let loaded = read_image_native(&path).expect("native VTK read");
+        assert_eq!(loaded.shape(), image.shape());
+        assert_eq!(loaded.data_slice().unwrap(), image.data_slice().unwrap());
+        assert_eq!(loaded.origin(), image.origin());
+        assert_eq!(loaded.spacing(), image.spacing());
     }
 }

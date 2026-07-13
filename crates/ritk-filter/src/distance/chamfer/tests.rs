@@ -5,6 +5,7 @@
 //! foreground voxels carry the chamfer distance to the nearest background.
 
 use super::*;
+use crate::BinarizationThreshold;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_image::test_support as ts;
@@ -215,7 +216,8 @@ fn free_function_matches_scipy_taxicab_2x2x2() {
 fn threshold_zero_means_below_or_equal_is_background() {
     // threshold=0.0 means v > 0 is fg. With data=0 everywhere, no fg.
     let img = make_image(vec![0.0_f32; 27], [3, 3, 3]);
-    let cdt = ChamferDistanceTransform::new().with_threshold(0.0);
+    let cdt = ChamferDistanceTransform::new()
+        .with_threshold(BinarizationThreshold::new(0.0).expect("valid threshold"));
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     for &x in &v {
@@ -229,7 +231,8 @@ fn threshold_picks_up_subunit_foreground() {
     let mut data = vec![0.4_f32; 27];
     data[0] = 0.6;
     let img = make_image(data, [3, 3, 3]);
-    let cdt = ChamferDistanceTransform::new().with_threshold(0.5);
+    let cdt = ChamferDistanceTransform::new()
+        .with_threshold(BinarizationThreshold::new(0.5).expect("valid threshold"));
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     assert_eq!(v[0], 1.0, "fg voxel at index 0 should be 1.0");
@@ -245,7 +248,8 @@ fn threshold_scipy_inverse_semantics() {
     let mut data = vec![0.4_f32; 27];
     data[0] = 0.6;
     let img = make_image(data, [3, 3, 3]);
-    let cdt = ChamferDistanceTransform::new().with_threshold(0.5);
+    let cdt = ChamferDistanceTransform::new()
+        .with_threshold(BinarizationThreshold::new(0.5).expect("valid threshold"));
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     // Index 0 is fg (v=0.6 > 0.5), gets distance 1.

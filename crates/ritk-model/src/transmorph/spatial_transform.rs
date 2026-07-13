@@ -1,66 +1,91 @@
-use ritk_image::burn::{
-    module::Module,
-    tensor::{backend::Backend, Tensor},
-};
-use ritk_interpolation::tensor_trilinear::trilinear_interpolation;
+//! Differentiable displacement-field sampling.
+
+use coeus_autograd::{add, cat, linear_interpolation, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_ops::BackendOps;
+use coeus_tensor::Tensor;
 use std::marker::PhantomData;
 
-#[derive(Module, Debug)]
-pub struct SpatialTransformer<B: Backend> {
-    phantom: PhantomData<B>,
+use crate::ModelError;
+
+/// Samples an image at identity-grid coordinates displaced by a flow field.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SpatialTransformer<B> {
+    backend: PhantomData<B>,
 }
 
-impl<B: Backend> Default for SpatialTransformer<B> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<B: Backend> SpatialTransformer<B> {
-    pub fn new() -> Self {
+impl<B> SpatialTransformer<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Construct a stateless spatial transformer.
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
-            phantom: PhantomData,
+            backend: PhantomData,
         }
     }
 
-    pub fn forward(&self, image: Tensor<B, 5>, flow: Tensor<B, 5>) -> Tensor<B, 5> {
-        // image: [B, C, D, H, W]
-        // flow: [B, 3, D, H, W]
+    /// Warp `[batch, channels, depth, height, width]` by a voxel-unit flow.
+    pub fn forward(
+        &self,
+        image: &Var<f32, B>,
+        flow: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, ModelError> {
+        let image_shape = image.tensor.shape();
+        if image_shape.len() != 5 {
+            return Err(ModelError::Shape {
+                operation: "SpatialTransformer::forward image",
+                expected: "[batch, channels, depth, height, width]",
+                actual: image_shape.to_vec(),
+            });
+        }
+        let [batch, _channels, depth, height, width] = <[usize; 5]>::try_from(image_shape)
+            .expect("invariant: image rank was validated as five");
+        let expected_flow = [batch, 3, depth, height, width];
+        if flow.tensor.shape() != expected_flow {
+            return Err(ModelError::Shape {
+                operation: "SpatialTransformer::forward flow",
+                expected: "[batch, 3, depth, height, width] matching image spatial axes",
+                actual: flow.tensor.shape().to_vec(),
+            });
+        }
 
-        let [b, _c, d, h, w] = image.dims();
-        let device = image.device();
+        let flow_depth = coeus_autograd::slice(
+            flow,
+            &[(0, batch), (0, 1), (0, depth), (0, height), (0, width)],
+        );
+        let flow_height = coeus_autograd::slice(
+            flow,
+            &[(0, batch), (1, 2), (0, depth), (0, height), (0, width)],
+        );
+        let flow_width = coeus_autograd::slice(
+            flow,
+            &[(0, batch), (2, 3), (0, depth), (0, height), (0, width)],
+        );
 
-        // 1. Split flow into components
-        // flow is [B, 3, D, H, W]
-        let flow_d = flow.clone().slice([0..b, 0..1, 0..d, 0..h, 0..w]);
-        let flow_h = flow.clone().slice([0..b, 1..2, 0..d, 0..h, 0..w]);
-        let flow_w = flow.slice([0..b, 2..3, 0..d, 0..h, 0..w]);
+        let backend = B::default();
+        let depth_axis = axis_grid::<B>(depth, [1, 1, depth, 1, 1], &backend);
+        let height_axis = axis_grid::<B>(height, [1, 1, 1, height, 1], &backend);
+        let width_axis = axis_grid::<B>(width, [1, 1, 1, 1, width], &backend);
+        let sample_depth = add(&flow_depth, &depth_axis);
+        let sample_height = add(&flow_height, &height_axis);
+        let sample_width = add(&flow_width, &width_axis);
+        let sampling_grid = cat(&[&sample_depth, &sample_height, &sample_width], 1);
 
-        // 2. Create coordinate grids (small, broadcastable)
-        // D coords: [1, 1, D, 1, 1]
-        let d_range = Tensor::arange(0..d as i64, &device)
-            .float()
-            .reshape([1, 1, d, 1, 1]);
-
-        // H coords: [1, 1, 1, H, 1]
-        let h_range = Tensor::arange(0..h as i64, &device)
-            .float()
-            .reshape([1, 1, 1, h, 1]);
-
-        // W coords: [1, 1, 1, 1, W]
-        let w_range = Tensor::arange(0..w as i64, &device)
-            .float()
-            .reshape([1, 1, 1, 1, w]);
-
-        // 3. Add flow to grid (Broadcasting avoids allocating full identity grid)
-        let sample_d = flow_d + d_range;
-        let sample_h = flow_h + h_range;
-        let sample_w = flow_w + w_range;
-
-        // 4. Stack back to [B, 3, D, H, W] for interpolation
-        let sampling_grid = Tensor::cat(vec![sample_d, sample_h, sample_w], 1);
-
-        // 5. Interpolate
-        trilinear_interpolation(image, sampling_grid)
+        Ok(linear_interpolation::<3, _, _>(
+            image,
+            &sampling_grid,
+            coeus_ops::Replicate,
+        )?)
     }
+}
+
+fn axis_grid<B>(length: usize, shape: [usize; 5], backend: &B) -> Var<f32, B>
+where
+    B: Backend + BackendOps<f32>,
+{
+    let values = (0..length).map(|index| index as f32).collect::<Vec<_>>();
+    Var::new(Tensor::from_slice_on(shape, &values, backend), false)
 }

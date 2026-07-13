@@ -25,6 +25,8 @@
 //! - `src_min → ref_min`, `src_max → ref_max` (landmark endpoints).
 //! - A constant source (`src_min == src_max`) is returned unchanged.
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -128,6 +130,86 @@ impl HistogramMatcher {
         }
 
         rebuild(src_vec, dims, source)
+    }
+
+    /// Match a Coeus-native source image to a Coeus-native reference image.
+    ///
+    /// The source geometry is preserved exactly. Both inputs must expose
+    /// CPU-addressable storage because landmark estimation traverses their
+    /// values directly.
+    pub fn match_histograms_native<B, const D: usize>(
+        &self,
+        source: &NativeImage<f32, B, D>,
+        reference: &NativeImage<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let source_values = source.data_slice()?;
+        let reference_values = reference.data_slice()?;
+        let (src_min, src_max, src_mean) = min_max_mean(source_values);
+        let (ref_min, ref_max, ref_mean) = min_max_mean(reference_values);
+
+        if (src_max - src_min).abs() < f32::EPSILON {
+            return NativeImage::from_flat_on(
+                source_values.to_vec(),
+                source.shape(),
+                *source.origin(),
+                *source.spacing(),
+                *source.direction(),
+                backend,
+            );
+        }
+
+        let src_thresh = if self.threshold_at_mean {
+            src_mean
+        } else {
+            src_min
+        };
+        let ref_thresh = if self.threshold_at_mean {
+            ref_mean
+        } else {
+            ref_min
+        };
+        let src_q = quantile_landmarks(
+            source_values,
+            src_thresh,
+            src_max,
+            self.num_bins,
+            self.num_match_points,
+        );
+        let ref_q = quantile_landmarks(
+            reference_values,
+            ref_thresh,
+            ref_max,
+            self.num_bins,
+            self.num_match_points,
+        );
+        let mut src_land = Vec::with_capacity(self.num_match_points + 3);
+        let mut ref_land = Vec::with_capacity(self.num_match_points + 3);
+        src_land.extend([src_min, src_thresh]);
+        ref_land.extend([ref_min, ref_thresh]);
+        src_land.extend_from_slice(&src_q);
+        ref_land.extend_from_slice(&ref_q);
+        src_land.push(src_max);
+        ref_land.push(ref_max);
+        enforce_monotone(&mut src_land);
+        enforce_monotone(&mut ref_land);
+
+        let output = source_values
+            .iter()
+            .map(|&value| piecewise_linear(value, &src_land, &ref_land))
+            .collect();
+        NativeImage::from_flat_on(
+            output,
+            source.shape(),
+            *source.origin(),
+            *source.spacing(),
+            *source.direction(),
+            backend,
+        )
     }
 }
 

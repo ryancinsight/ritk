@@ -2,9 +2,7 @@
 
 use super::*;
 use crate::dicom::series_tree::SeriesEntry;
-use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_spatial::{Direction, Point, Spacing};
 use std::borrow::Cow;
 use tempfile::tempdir;
 
@@ -107,17 +105,17 @@ fn test_load_nifti_volume_shape() {
 fn test_load_volume_from_bytes_nifti_roundtrip_shape() {
     let dir = tempdir().expect("create temp dir");
     let path = dir.path().join("drop_test.nii");
-    let device = <B as ritk_image::tensor::Backend>::Device::default();
-    let shape = Shape::new([3, 2, 4]);
-    let data = TensorData::new((0..24).map(|v| v as f32).collect::<Vec<_>>(), shape);
-    let tensor = Tensor::<B, 3>::from_data(data, &device);
-    let image = Image::new(
-        tensor,
+    let backend = coeus_core::SequentialBackend;
+    let image = ritk_image::native::Image::from_flat_on(
+        (0..24).map(|v| v as f32).collect(),
+        [3, 2, 4],
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.8, 0.9, 1.7]),
         Direction::identity(),
-    );
-    ritk_io::write_nifti(&path, &image).expect("write synthetic nifti");
+        &backend,
+    )
+    .expect("construct synthetic native image");
+    ritk_io::write_image_native(&path, &image).expect("write synthetic nifti");
     let bytes = std::fs::read(&path).expect("read written nifti bytes");
     let vol = load_volume_from_bytes("dropped.nii", &bytes)
         .expect("load_volume_from_bytes should load valid nifti bytes");

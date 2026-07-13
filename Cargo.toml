@@ -68,7 +68,7 @@ burn = { version = "0.19", default-features = false, features = ["std", "ndarray
 burn-ndarray = "0.19" # For CPU testing
 
 criterion = { version = "0.5", features = ["html_reports"] }
-coeus-nn = { path = "../coeus/coeus-nn" }
+coeus-nn = { path = "../coeus/coeus-nn", version = "0.8.0" }
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.8.0", default-features = false }
@@ -76,15 +76,16 @@ moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe", 
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "0.2.0", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = false }
-coeus-core = { path = "../coeus/coeus-core", version = "0.5.3" }
-coeus-tensor = { path = "../coeus/coeus-tensor", version = "0.5.3" }
-coeus-ops = { path = "../coeus/coeus-ops", version = "0.5.3" }
-coeus-leto = { path = "../coeus/coeus-leto", version = "0.5.3" }
-coeus-autograd = { path = "../coeus/coeus-autograd", version = "0.5.3" }
+coeus-core = { path = "../coeus/coeus-core", version = "0.8.0" }
+coeus-tensor = { path = "../coeus/coeus-tensor", version = "0.8.0" }
+coeus-ops = { path = "../coeus/coeus-ops", version = "0.8.0" }
+coeus-leto = { path = "../coeus/coeus-leto", version = "0.8.0" }
+coeus-autograd = { path = "../coeus/coeus-autograd", version = "0.8.0" }
+coeus-optim = { path = "../coeus/coeus-optim", version = "0.8.0" }
 leto = { path = "../leto/crates/leto", version = "0.36.0" }
 leto-ops = { path = "../leto/crates/leto-ops", version = "0.36.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.10.0" }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.10.0" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.11.0" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.11.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.14.0" }
 num-complex = { version = "0.4.6", features = ["bytemuck"] }
 anyhow = "1.0"
@@ -112,16 +113,16 @@ hex = "0.4"
 image = "0.24"
 num-traits = "0.2"
 tiff = "0.9"
-onnx-ir = "0.20.1"
 
 dicom-core = "0.8"
 dicom-ul = "0.8"
 dicom-pixeldata = { version = "0.8", features = ["native"] }
 dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl"] }
-consus-hdf5 = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
-consus-core = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
-consus-compression = { git = "https://github.com/ryancinsight/consus", features = ["std", "deflate"] }
-consus-io = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
+consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
+consus-core = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
+consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "deflate"] }
+consus-io = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "alloc"] }
+consus-onnx = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "alloc"] }
 jpeg-decoder = "0.3"
 
 arrayvec = "0.7"

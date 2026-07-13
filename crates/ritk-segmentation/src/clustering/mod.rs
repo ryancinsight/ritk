@@ -11,4 +11,7 @@ pub mod kmeans;
 pub use kmeans::{kmeans_segment, KMeansSegmentation};
 
 pub mod slic;
-pub use slic::{slic_itk_segment, SlicConfig, SlicSuperpixelFilter};
+pub use slic::{
+    ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig, ItkSlicFilter, SlicConfig,
+    SlicSuperpixelFilter,
+};

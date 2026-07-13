@@ -1,5 +1,7 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::test_support as ts;
 use ritk_image::Image;
@@ -196,4 +198,37 @@ fn sharpening_increases_edge_contrast() {
         "sharpening did not increase edge contrast: \
          output contrast = {out_contrast:.4} (expected > 1.0, input contrast = 1.0)"
     );
+}
+
+/// The native boundary shares the Deriche value kernel, so a constant volume
+/// has a zero high-frequency mask and remains unchanged exactly.
+#[test]
+fn native_uniform_input_is_exact_identity() {
+    let input = NativeImage::from_flat_on(
+        vec![7.25_f32; 4],
+        [1, 2, 2],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = UnsharpMaskFilter::new(
+        vec![GaussianSigma::new_unchecked(1.0)],
+        2.0,
+        0.0,
+        ClampPolicy::NoClamp,
+    )
+    .apply_native(&input, &SequentialBackend)
+    .expect("native unsharp mask succeeds");
+
+    assert_eq!(
+        output
+            .data_slice()
+            .expect("invariant: sequential storage is contiguous"),
+        &[7.25_f32; 4]
+    );
+    assert_eq!(output.origin(), input.origin());
+    assert_eq!(output.spacing(), input.spacing());
+    assert_eq!(output.direction(), input.direction());
 }

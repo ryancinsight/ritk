@@ -1,14 +1,29 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use tracing::info;
 
 #[cfg(test)]
 use super::Backend;
-use super::{read_image, write_image_inferred, FilterArgs};
+use super::{
+    super::{
+        infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
+        write_image_native, NativeBackend,
+    },
+    read_image, write_image_inferred, FilterArgs,
+};
 
 pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
     use ritk_filter::{BedSeparationConfig, BedSeparationFilter};
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "bed-separation requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
 
     let config = BedSeparationConfig {
         body_threshold: args.bed.body_threshold,
@@ -17,9 +32,9 @@ pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
         outside_value: args.bed.outside_value,
         ..Default::default()
     };
-    let filtered = BedSeparationFilter::new(config).apply(&image)?;
+    let filtered = BedSeparationFilter::new(config).apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied bed-separation (body_threshold={}, closing_radius={}, opening_radius={}, outside={}) to {} -> {}",
@@ -38,11 +53,26 @@ pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
     use ritk_filter::RescaleIntensityFilter;
 
-    let image = read_image(&args.input)?;
-    let filtered =
-        RescaleIntensityFilter::new(args.range.out_min, args.range.out_max).apply(&image)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format),
+        "rescale-intensity requires native input support for {:?}",
+        input_format
+    );
+    anyhow::ensure!(
+        is_native_write_capable(output_format),
+        "rescale-intensity requires native output support for {:?}",
+        output_format
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let filtered = RescaleIntensityFilter::new(args.range.out_min, args.range.out_max)
+        .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied rescale-intensity (out=[{},{}]) to {} -> {}",
@@ -59,16 +89,31 @@ pub(super) fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
     use ritk_filter::IntensityWindowingFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format),
+        "intensity-windowing requires native input support for {:?}",
+        input_format
+    );
+    anyhow::ensure!(
+        is_native_write_capable(output_format),
+        "intensity-windowing requires native output support for {:?}",
+        output_format
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filtered = IntensityWindowingFilter::new(
         args.window.window_min,
         args.window.window_max,
         args.range.out_min,
         args.range.out_max,
     )
-    .apply(&image)?;
+    .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied intensity-windowing (window=[{},{}], out=[{},{}]) to {} -> {}",
@@ -87,12 +132,21 @@ pub(super) fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_threshold_below(args: &FilterArgs) -> Result<()> {
     use ritk_filter::ThresholdImageFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "threshold-below requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filtered =
         ThresholdImageFilter::below(args.threshold.threshold_value, args.band.outside_value)
-            .apply(&image)?;
+            .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied threshold-below (threshold={}, outside={}) to {} -> {}",
@@ -109,12 +163,21 @@ pub(super) fn run_threshold_below(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_threshold_above(args: &FilterArgs) -> Result<()> {
     use ritk_filter::ThresholdImageFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "threshold-above requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filtered =
         ThresholdImageFilter::above(args.threshold.threshold_value, args.band.outside_value)
-            .apply(&image)?;
+            .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied threshold-above (threshold={}, outside={}) to {} -> {}",
@@ -131,15 +194,24 @@ pub(super) fn run_threshold_above(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
     use ritk_filter::ThresholdImageFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        "threshold-outside requires native input/output formats"
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filtered = ThresholdImageFilter::outside(
         args.band.lower_threshold,
         args.band.upper_threshold,
         args.band.outside_value,
     )
-    .apply(&image)?;
+    .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied threshold-outside ([{},{}], outside={}) to {} -> {}",
@@ -157,16 +229,31 @@ pub(super) fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
     use ritk_filter::SigmoidImageFilter;
 
-    let image = read_image(&args.input)?;
+    let input_format = infer_format(&args.input)
+        .ok_or_else(|| anyhow!("Cannot infer input format: {}", args.input.display()))?;
+    let output_format = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    anyhow::ensure!(
+        is_native_read_capable(input_format),
+        "sigmoid requires native input support for {:?}",
+        input_format
+    );
+    anyhow::ensure!(
+        is_native_write_capable(output_format),
+        "sigmoid requires native output support for {:?}",
+        output_format
+    );
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filtered = SigmoidImageFilter::new(
         args.sigmoid.midpoint,
         args.sigmoid.steepness,
         args.range.out_min,
         args.range.out_max,
     )
-    .apply(&image)?;
+    .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    write_image_native(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied sigmoid (midpoint={}, steepness={}, out=[{},{}]) to {} -> {}",
@@ -183,16 +270,14 @@ pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
-    use ritk_filter::BinaryThresholdImageFilter;
-
     let image = read_image(&args.input)?;
-    let filtered = BinaryThresholdImageFilter::new(
+    let filtered = ritk_segmentation::binary_threshold(
+        &image,
         args.band.lower_threshold,
         args.band.upper_threshold,
         args.band.foreground_value,
         args.band.background_value,
-    )
-    .apply(&image)?;
+    );
 
     write_image_inferred(&args.output, &filtered)?;
 

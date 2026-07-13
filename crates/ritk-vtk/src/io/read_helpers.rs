@@ -2,7 +2,7 @@
 //! and shared line/cell parsing utilities.
 
 use anyhow::{bail, Context, Result};
-use ritk_core::io_bounds::{bounded_capacity, read_exact_bounded};
+use consus_io::{bounded_capacity, read_exact_bounded};
 use std::io::{BufRead, Read};
 
 /// Read `count` ASCII whitespace-delimited numeric values from a buffered reader.

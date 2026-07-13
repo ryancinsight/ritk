@@ -1,44 +1,46 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use coeus_core::ComputeBackend;
 use image::{ColorType, RgbImage};
-use ritk_core::image::RgbVolume;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::native::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
 
 const RGB_CHANNELS: usize = 3;
 
-/// Read one decoded RGB8 JPEG into an `RgbVolume<B>` with shape `[1, height, width, 3]`.
-pub fn read_jpeg_color_to_volume<B: Backend, P: AsRef<Path>>(
-    path: P,
-    device: &B::Device,
-) -> Result<RgbVolume<B>> {
+/// Reads an RGB8 JPEG into a native image with shape `[1, height, width, 3]`.
+pub fn read_jpeg_color_to_volume<B, P>(path: P, backend: &B) -> Result<RgbVolume<f32, B>>
+where
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
     let path = path.as_ref();
     let image = read_rgb8_jpeg(path)?;
     let (width, height) = image.dimensions();
-    let pixels = rgb_pixels_to_f32(&image);
-    rgb_volume_from_flat_pixels(pixels, height as usize, width as usize, device)
+    let pixels = image.as_raw().iter().copied().map(f32::from).collect();
+    rgb_volume_from_flat_pixels(pixels, height as usize, width as usize, backend)
 }
 
-/// Device-bound RGB JPEG reader.
-pub struct JpegColorReader<B: Backend> {
-    device: B::Device,
+/// Backend-bound RGB JPEG reader.
+pub struct JpegColorReader<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> JpegColorReader<B> {
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
+impl<B: ComputeBackend> JpegColorReader<B> {
+    /// Creates a reader that constructs RGB volumes on `backend`.
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 
-    pub fn read_volume<P: AsRef<Path>>(&self, path: P) -> Result<RgbVolume<B>> {
-        read_jpeg_color_to_volume(path, &self.device)
+    /// Reads an RGB8 JPEG on the configured backend.
+    pub fn read_volume<P: AsRef<Path>>(&self, path: P) -> Result<RgbVolume<f32, B>> {
+        read_jpeg_color_to_volume(path, &self.backend)
     }
 }
 
 fn read_rgb8_jpeg(path: &Path) -> Result<RgbImage> {
     let image = image::open(path)
-        .with_context(|| format!("Failed to open JPEG file: {}", path.display()))?;
+        .with_context(|| format!("failed to open JPEG file: {}", path.display()))?;
     let color = image.color();
     if color != ColorType::Rgb8 {
         bail!(
@@ -50,144 +52,82 @@ fn read_rgb8_jpeg(path: &Path) -> Result<RgbImage> {
     Ok(image.to_rgb8())
 }
 
-fn rgb_pixels_to_f32(image: &RgbImage) -> Vec<f32> {
-    image.as_raw().iter().map(|&v| v as f32).collect()
-}
-
-fn rgb_volume_from_flat_pixels<B: Backend>(
+fn rgb_volume_from_flat_pixels<B: ComputeBackend>(
     pixels: Vec<f32>,
     height: usize,
     width: usize,
-    device: &B::Device,
-) -> Result<RgbVolume<B>> {
+    backend: &B,
+) -> Result<RgbVolume<f32, B>> {
     let expected = height
         .checked_mul(width)
-        .and_then(|n| n.checked_mul(RGB_CHANNELS))
+        .and_then(|count| count.checked_mul(RGB_CHANNELS))
         .context("JPEG RGB volume shape overflow")?;
     if pixels.len() != expected {
         bail!(
-            "JPEG RGB pixel count {} does not match shape [1, {}, {}, 3]",
-            pixels.len(),
-            height,
-            width
+            "JPEG RGB pixel count {} does not match shape [1, {height}, {width}, 3]",
+            pixels.len()
         );
     }
-
-    let tensor = Tensor::<B, 4>::from_data(
-        TensorData::new(pixels, Shape::new([1, height, width, RGB_CHANNELS])),
-        device,
-    );
-
-    RgbVolume::try_new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
+    RgbVolume::from_flat_on(
+        pixels,
+        [1, height, width],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
         Direction::identity(),
+        backend,
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
     use image::codecs::jpeg::JpegEncoder;
-    use image::{GrayImage, Luma, RgbImage};
-    use ritk_image::tensor::backend::Backend;
+    use image::{GrayImage, Luma};
     use std::fs::File;
     use std::io::BufWriter;
     use tempfile::tempdir;
 
-    type TestBackend = NdArray<f32>;
-
     fn write_rgb_jpeg(path: &Path, width: u32, height: u32, pixels: &[u8]) -> Result<()> {
         let image = RgbImage::from_raw(width, height, pixels.to_vec())
-            .expect("test RGB image dimensions must match pixel count");
-        let file = File::create(path)?;
-        let writer = BufWriter::new(file);
-        let mut encoder = JpegEncoder::new_with_quality(writer, 100);
-        encoder.encode_image(&image)?;
+            .expect("invariant: test RGB dimensions match the pixel count");
+        let writer = BufWriter::new(File::create(path)?);
+        JpegEncoder::new_with_quality(writer, 100).encode_image(&image)?;
         Ok(())
-    }
-
-    fn write_gray_jpeg(path: &Path) -> Result<()> {
-        let mut image = GrayImage::new(2, 1);
-        image.put_pixel(0, 0, Luma([24]));
-        image.put_pixel(1, 0, Luma([192]));
-        let file = File::create(path)?;
-        let writer = BufWriter::new(file);
-        let mut encoder = JpegEncoder::new_with_quality(writer, 100);
-        encoder.encode_image(&image)?;
-        Ok(())
-    }
-
-    fn decoded_rgb_values(path: &Path) -> Result<Vec<f32>> {
-        Ok(image::open(path)?
-            .to_rgb8()
-            .as_raw()
-            .iter()
-            .map(|&v| v as f32)
-            .collect())
-    }
-
-    fn volume_values(volume: &RgbVolume<TestBackend>) -> Vec<f32> {
-        volume.with_data_slice(|s| s.to_vec())
     }
 
     #[test]
-    fn read_jpeg_color_to_volume_preserves_decoded_interleaved_rgb_samples() -> Result<()> {
+    fn color_reader_preserves_decoded_interleaved_samples() -> Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("rgb.jpg");
-        write_rgb_jpeg(&path, 2, 2, &[255, 0, 0, 0, 255, 0, 0, 0, 255, 240, 240, 0])?;
-        let device = <TestBackend as Backend>::Device::default();
-
-        let volume = read_jpeg_color_to_volume::<TestBackend, _>(&path, &device)?;
-        let expected = decoded_rgb_values(&path)?;
-
-        assert_eq!(volume.shape(), [1, 2, 2, 3]);
-        assert_eq!(volume.spatial_shape(), [1, 2, 2]);
-        assert_eq!(volume_values(&volume), expected);
-        assert_eq!(
-            [volume.origin()[0], volume.origin()[1], volume.origin()[2]],
-            [0.0, 0.0, 0.0]
-        );
-        assert_eq!(
-            [
-                volume.spacing()[0],
-                volume.spacing()[1],
-                volume.spacing()[2]
-            ],
-            [1.0, 1.0, 1.0]
-        );
+        write_rgb_jpeg(&path, 2, 1, &[255, 0, 0, 0, 255, 0])?;
+        let backend = SequentialBackend;
+        let volume = read_jpeg_color_to_volume(&path, &backend)?;
+        let expected: Vec<f32> = image::open(&path)?
+            .to_rgb8()
+            .into_raw()
+            .into_iter()
+            .map(f32::from)
+            .collect();
+        assert_eq!(volume.shape(), [1, 1, 2, 3]);
+        assert_eq!(volume.data_cow_on(&backend).as_ref(), expected.as_slice());
+        assert_eq!(volume.spatial_shape(), [1, 1, 2]);
+        assert_eq!(volume.channels(), 3);
+        assert_eq!(volume.origin().to_array(), [0.0; 3]);
+        assert_eq!(volume.spacing().to_array(), [1.0; 3]);
         Ok(())
     }
 
     #[test]
-    fn read_jpeg_color_to_volume_rejects_grayscale_jpeg() -> Result<()> {
+    fn color_reader_rejects_grayscale_jpeg() -> Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("gray.jpg");
-        write_gray_jpeg(&path)?;
-        let device = <TestBackend as Backend>::Device::default();
-
-        let err = read_jpeg_color_to_volume::<TestBackend, _>(&path, &device).unwrap_err();
-        let msg = err.to_string();
-        assert!(
-            msg.contains("supports only Rgb8"),
-            "expected Rgb8 rejection, got {msg}"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn jpeg_color_reader_delegates_to_rgb_loader() -> Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("reader.jpg");
-        write_rgb_jpeg(&path, 1, 1, &[32, 128, 224])?;
-        let reader = JpegColorReader::<TestBackend>::new(Default::default());
-
-        let volume = reader.read_volume(&path)?;
-
-        assert_eq!(volume.shape(), [1, 1, 1, 3]);
-        assert_eq!(volume_values(&volume), decoded_rgb_values(&path)?);
+        let mut image = GrayImage::new(1, 1);
+        image.put_pixel(0, 0, Luma([24]));
+        JpegEncoder::new_with_quality(BufWriter::new(File::create(&path)?), 100)
+            .encode_image(&image)?;
+        let error = read_jpeg_color_to_volume(&path, &SequentialBackend).unwrap_err();
+        assert!(error.to_string().contains("supports only Rgb8"));
         Ok(())
     }
 }

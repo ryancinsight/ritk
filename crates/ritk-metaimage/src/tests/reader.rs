@@ -1,12 +1,12 @@
 use crate::{read_metaimage, write_metaimage};
 use anyhow::Result;
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use ritk_image::Image;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image;
+
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -85,8 +85,8 @@ fn test_compressed_hostile_dimsize_errors_without_oom() {
     let path = dir.path().join("hostile_compressed.mha");
     write_compressed_mha_with_dims(&path, &[0u8; 16], 1024, 1024, 1024);
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_metaimage::<TestBackend, _>(&path, &device);
+    let backend = TestBackend::default();
+    let result = read_metaimage::<TestBackend, _>(&path, &backend);
     assert!(
         result.is_err(),
         "Hostile compressed DimSize must fail, not OOM"
@@ -109,8 +109,8 @@ fn test_shape_mapped_to_zyx_without_permutation() -> Result<()> {
     let data: Vec<f32> = (0..(nx * ny * nz)).map(|i| i as f32).collect();
     write_minimal_mha(&path, &data, nx, ny, nz, [1.0, 2.0, 3.0], [0.0, 0.0, 0.0]);
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_metaimage::<TestBackend, _>(&path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_metaimage::<TestBackend, _>(&path, &backend)?;
 
     assert_eq!(image.shape(), [nz, ny, nx], "shape must be [nz, ny, nx]");
     Ok(())
@@ -127,11 +127,11 @@ fn test_x_fastest_payload_values_are_not_permuted() -> Result<()> {
     let data: Vec<f32> = (0..(nx * ny * nz)).map(|i| i as f32).collect();
     write_minimal_mha(&path, &data, nx, ny, nz, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_metaimage::<TestBackend, _>(&path, &device)?;
-    image.with_data_slice(|values| {
+    let backend = TestBackend::default();
+    let image = read_metaimage::<TestBackend, _>(&path, &backend)?;
+    image.data_slice().map(|values| {
         assert_eq!(values, data.as_slice());
-    });
+    })?;
     Ok(())
 }
 
@@ -143,8 +143,8 @@ fn test_spacing_metadata_reordered_to_internal_axes() -> Result<()> {
     let data = vec![0.0f32; 4 * 3 * 2];
     write_minimal_mha(&path, &data, 4, 3, 2, [0.9, 0.8, 1.5], [5.0, 6.0, 7.0]);
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_metaimage::<TestBackend, _>(&path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_metaimage::<TestBackend, _>(&path, &backend)?;
 
     assert!((image.spacing()[0] - 1.5).abs() < 1e-9);
     assert!((image.spacing()[1] - 0.8).abs() < 1e-9);
@@ -164,8 +164,8 @@ fn test_file_identity_direction_reordered_to_internal_axes() -> Result<()> {
     let data = vec![0.0f32; 2 * 2 * 2];
     write_minimal_mha(&path, &data, 2, 2, 2, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_metaimage::<TestBackend, _>(&path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_metaimage::<TestBackend, _>(&path, &backend)?;
 
     let d = image.direction().0;
     let expected = Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
@@ -192,21 +192,24 @@ fn test_file_identity_direction_reordered_to_internal_axes() -> Result<()> {
 fn test_round_trip_mha() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("round_trip.mha");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
     // RITK [Z,Y,X] shape [2, 3, 4] with analytically known values 0..23.
     let data_vec: Vec<f32> = (0u32..24).map(|i| i as f32).collect();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec.clone(), Shape::new([2, 3, 4])),
-        &device,
-    );
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([0.9, 0.8, 1.5]);
     let direction = Direction::identity();
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = Image::from_flat_on(
+        data_vec.clone(),
+        [2, 3, 4],
+        origin,
+        spacing,
+        direction,
+        &backend,
+    )?;
 
-    write_metaimage(&path, &image)?;
-    let loaded = read_metaimage::<TestBackend, _>(&path, &device)?;
+    write_metaimage(&path, &image, &backend)?;
+    let loaded = read_metaimage::<TestBackend, _>(&path, &backend)?;
 
     // Shape
     assert_eq!(loaded.shape(), [2, 3, 4]);
@@ -222,7 +225,7 @@ fn test_round_trip_mha() -> Result<()> {
     assert!((loaded.spacing()[2] - 1.5).abs() < 1e-5);
 
     // Voxel values: every element must equal its original value.
-    loaded.with_data_slice(|loaded_vals| {
+    loaded.data_slice().map(|loaded_vals| {
         for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
             assert!(
                 (got - expected).abs() < 1e-5,
@@ -232,7 +235,7 @@ fn test_round_trip_mha() -> Result<()> {
                 got
             );
         }
-    });
+    })?;
     Ok(())
 }
 
@@ -241,8 +244,8 @@ fn test_round_trip_mha() -> Result<()> {
 /// Reading a non-existent file must return an error (not panic).
 #[test]
 fn test_missing_file_returns_error() {
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_metaimage::<TestBackend, _>("/nonexistent/path/file.mha", &device);
+    let backend = TestBackend::default();
+    let result = read_metaimage::<TestBackend, _>("/nonexistent/path/file.mha", &backend);
     let msg = match result {
         Ok(_) => panic!("missing file must fail"),
         Err(err) => format!("{err:?}"),
@@ -269,8 +272,8 @@ fn test_missing_required_field_returns_error() -> Result<()> {
         writeln!(f, "ElementType = MET_FLOAT")?;
         writeln!(f, "ElementDataFile = LOCAL")?;
     }
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_metaimage::<TestBackend, _>(&path, &device);
+    let backend = TestBackend::default();
+    let result = read_metaimage::<TestBackend, _>(&path, &backend);
     let msg = match result {
         Ok(_) => panic!("missing DimSize must fail"),
         Err(err) => format!("{err:?}"),
@@ -302,8 +305,8 @@ fn test_unsupported_element_type_returns_error() -> Result<()> {
         let dummy = vec![0u8; 64];
         f.write_all(&dummy)?;
     }
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_metaimage::<TestBackend, _>(&path, &device);
+    let backend = TestBackend::default();
+    let result = read_metaimage::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Expected Err for unsupported ElementType");
     let msg = format!("{:?}", result.unwrap_err());
     assert!(
@@ -338,8 +341,8 @@ fn test_extra_payload_bytes_return_error() -> Result<()> {
         }
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_metaimage::<TestBackend, _>(&path, &device);
+    let backend = TestBackend::default();
+    let result = read_metaimage::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "extra payload bytes must fail");
     let msg = result.unwrap_err().to_string();
     assert!(
@@ -371,8 +374,8 @@ fn test_dim_size_overflow_returns_error() -> Result<()> {
         writeln!(f, "ElementDataFile = LOCAL")?;
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let result = read_metaimage::<TestBackend, _>(&path, &device);
+    let backend = TestBackend::default();
+    let result = read_metaimage::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "overflowing DimSize must fail");
     let msg = result.unwrap_err().to_string();
     assert!(
@@ -420,16 +423,16 @@ fn test_mhd_external_raw_file() -> Result<()> {
         writeln!(f, "ElementDataFile = volume.raw")?;
     }
 
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let image = read_metaimage::<TestBackend, _>(&mhd_path, &device)?;
+    let backend = TestBackend::default();
+    let image = read_metaimage::<TestBackend, _>(&mhd_path, &backend)?;
 
     // Shape must be [nz, ny, nx] = [2, 2, 2]
     assert_eq!(image.shape(), [nz, ny, nx]);
 
     // Voxels: total = 8; verify X-fastest raw order is kept as RITK flat order.
-    image.with_data_slice(|loaded_vals| {
+    image.data_slice().map(|loaded_vals| {
         assert_eq!(loaded_vals, data.as_slice());
-    });
+    })?;
     Ok(())
 }
 
@@ -446,7 +449,7 @@ fn native_read_metaimage_preserves_shape_and_voxels() {
     write_minimal_mha(&path, &data, nx, ny, nz, [1.5, 2.0, 2.5], [0.0, 0.0, 0.0]);
 
     let backend = SequentialBackend;
-    let image = crate::native::read_metaimage(&path, &backend).expect("coeus MetaImage read");
+    let image = crate::read_metaimage(&path, &backend).expect("coeus MetaImage read");
 
     assert_eq!(
         image.shape(),

@@ -1,11 +1,64 @@
-pub use ritk_tiff::{
-    read_tiff, read_tiff_color_to_volume, write_tiff, TiffColorReader, TiffReader, TiffWriter,
-};
+pub use ritk_tiff::{read_tiff_color_to_volume, TiffColorReader};
 
 use crate::domain::{ImageReader, ImageWriter};
+use anyhow::Result;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::path::Path;
+
+/// Reads TIFF through the native provider and converts at this legacy boundary.
+pub fn read_tiff<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+    let native = ritk_tiff::read_tiff(path, &SequentialBackend)?;
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(
+            native.data_cow_on(&SequentialBackend).into_owned(),
+            Shape::new(native.shape()),
+        ),
+        device,
+    );
+    Ok(Image::new(
+        tensor,
+        *native.origin(),
+        *native.spacing(),
+        *native.direction(),
+    ))
+}
+
+/// Writes a legacy image through the native TIFF provider.
+pub fn write_tiff<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> Result<()> {
+    let backend = SequentialBackend;
+    let native = ritk_image::native::Image::from_flat_on(
+        image.try_data_vec()?,
+        image.shape(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        &backend,
+    )?;
+    ritk_tiff::write_tiff(&native, path, &backend)
+}
+
+/// Device-bound legacy TIFF reader.
+pub struct TiffReader<B: Backend> {
+    device: B::Device,
+}
+
+impl<B: Backend> TiffReader<B> {
+    /// Creates a reader for `device`.
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+
+    /// Reads TIFF into the legacy image substrate.
+    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
+        read_tiff(path, &self.device)
+    }
+}
+
+/// Stateless legacy TIFF writer.
+pub struct TiffWriter;
 
 impl<B: Backend> ImageReader<Image<B, 3>> for TiffReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
@@ -108,7 +161,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for TiffReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_tiff::native::read_tiff(path, &self.backend).map_err(to_io_err)
+            ritk_tiff::read_tiff(path, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -130,7 +183,7 @@ pub mod native {
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
-            ritk_tiff::native::write_tiff(image, path, &self.backend).map_err(to_io_err)
+            ritk_tiff::write_tiff(image, path, &self.backend).map_err(to_io_err)
         }
     }
 }

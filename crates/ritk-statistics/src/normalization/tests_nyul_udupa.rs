@@ -2,6 +2,8 @@
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
 
 type TestBackend = NdArray<f32>;
@@ -151,6 +153,34 @@ fn test_learn_and_apply_single_image_roundtrip() {
         hi,
         last
     );
+}
+
+#[test]
+fn native_nyul_training_and_apply_preserve_values_and_geometry() {
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 1.0, 2.0, 3.0, 4.0],
+        [1, 1, 5],
+        ritk_spatial::Point::new([1.0, 2.0, 3.0]),
+        ritk_spatial::Spacing::new([0.5, 1.0, 2.0]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let mut normalizer = NyulUdupaNormalizer::with_percentiles(vec![0.0, 50.0, 100.0]);
+    normalizer
+        .learn_standard_native(&[&image])
+        .expect("native training succeeds");
+    let output = normalizer
+        .apply_native(&image, &SequentialBackend)
+        .expect("native application succeeds");
+
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[0.0, 1.0, 2.0, 3.0, 4.0]
+    );
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
 }
 
 #[test]

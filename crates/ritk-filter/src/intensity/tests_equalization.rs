@@ -1,7 +1,10 @@
 use super::*;
 
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_spatial::{Direction, Point, Spacing};
 type B = NdArray<f32>;
 use ritk_image::Image;
 
@@ -127,6 +130,29 @@ fn apply_uniform_volume_is_identity() {
             "voxel {i}: input={inp}, output={outp}"
         );
     }
+}
+
+#[test]
+fn native_apply_maps_through_the_global_cdf_and_preserves_metadata() {
+    let backend = SequentialBackend;
+    let source = NativeImage::from_flat_on(
+        vec![0.0, 0.0, 1.0],
+        [1, 1, 3],
+        Point::new([2.0, 3.0, 4.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &backend,
+    )
+    .unwrap();
+    let output = HistogramEqualizationFilter::new(2)
+        .apply_native(&source, &backend)
+        .unwrap();
+
+    assert_eq!(output.data_slice().unwrap(), &[2.0 / 3.0, 2.0 / 3.0, 1.0]);
+    assert_eq!(output.shape(), source.shape());
+    assert_eq!(output.origin(), source.origin());
+    assert_eq!(output.spacing(), source.spacing());
+    assert_eq!(output.direction(), source.direction());
 }
 
 #[test]

@@ -85,16 +85,7 @@ impl GrayscaleOpeningFilter {
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-
-        // O_B(f) = D_B(E_B(f)) with ITK's safe border: replicate-pad by `radius`,
-        // run the erode/dilate pair on the padded volume, then crop. This keeps
-        // the border band bit-exact to sitk.GrayscaleMorphologicalOpening
-        // (naive erode→dilate diverges within `radius` of the edge).
-        let r = self.radius;
-        let (padded, pdims) = super::pad_replicate_3d(&vals, dims, r);
-        let eroded = erode_3d(&padded, pdims, r);
-        let dilated = dilate_3d(&eroded, pdims, r);
-        let (opened, _) = super::crop_border_3d(&dilated, pdims, r);
+        let opened = self.open_values(&vals, dims);
 
         let device = image.data().device();
         let out_td = TensorData::new(opened, Shape::new(dims));
@@ -105,6 +96,34 @@ impl GrayscaleOpeningFilter {
             *image.spacing(),
             *image.direction(),
         ))
+    }
+
+    /// Apply grayscale opening to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.open_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn open_values(&self, values: &[f32], dims: [usize; 3]) -> Vec<f32> {
+        let r = self.radius;
+        let (padded, pdims) = super::pad_replicate_3d(values, dims, r);
+        let eroded = erode_3d(&padded, pdims, r);
+        let dilated = dilate_3d(&eroded, pdims, r);
+        super::crop_border_3d(&dilated, pdims, r).0
     }
 }
 

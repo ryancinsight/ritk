@@ -1,6 +1,6 @@
-use crate::types::Image;
 use crate::tensor::backend::Backend;
 use crate::tensor::{Shape, Tensor, TensorData};
+use crate::types::Image;
 use ritk_spatial::Point;
 use ritk_wgpu_compat::apply_row_chunks;
 
@@ -64,11 +64,9 @@ impl<B: Backend, const D: usize> Image<B, D> {
 
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| self.origin()[i] as f32).collect();
-        let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_vec, Shape::new([D])),
-            &device,
-        )
-        .reshape([1, D]);
+        let origin_tensor =
+            Tensor::<B, 1>::from_data(TensorData::new(origin_vec, Shape::new([D])), &device)
+                .reshape([1, D]);
 
         // 2. Prepare Transform Matrix T = (S^-1 * D^-1)^T = (D^-1)^T * S^-1
         let inv_dir = self
@@ -88,10 +86,8 @@ impl<B: Backend, const D: usize> Image<B, D> {
             }
         }
 
-        let t_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(t_data, Shape::new([D, D])),
-            &device,
-        );
+        let t_tensor =
+            Tensor::<B, 2>::from_data(TensorData::new(t_data, Shape::new([D, D])), &device);
 
         apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |p| {
             (p - origin_tensor.clone()).matmul(t_tensor.clone())
@@ -112,11 +108,9 @@ impl<B: Backend, const D: usize> Image<B, D> {
 
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| self.origin()[i] as f32).collect();
-        let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_vec, Shape::new([D])),
-            &device,
-        )
-        .reshape([1, D]);
+        let origin_tensor =
+            Tensor::<B, 1>::from_data(TensorData::new(origin_vec, Shape::new([D])), &device)
+                .reshape([1, D]);
 
         // 2. Prepare Transform Matrix M = S * D^T.
         //
@@ -135,10 +129,8 @@ impl<B: Backend, const D: usize> Image<B, D> {
             }
         }
 
-        let m_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(m_data, Shape::new([D, D])),
-            &device,
-        );
+        let m_tensor =
+            Tensor::<B, 2>::from_data(TensorData::new(m_data, Shape::new([D, D])), &device);
 
         apply_row_chunks(indices, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk| {
             chunk.matmul(m_tensor.clone()) + origin_tensor.clone()

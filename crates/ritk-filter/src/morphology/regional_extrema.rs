@@ -134,6 +134,18 @@ fn regional_extrema_mask(
     is_ext
 }
 
+fn validate_samples(data: &[f32]) -> anyhow::Result<()> {
+    if let Some((index, value)) = data
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        anyhow::bail!("regional-extrema sample at flat index {index} must be finite, got {value}");
+    }
+    Ok(())
+}
+
 /// Shared driver: extract, detect, map each voxel through `value`, rebuild.
 fn run<B: Backend>(
     image: &Image<B, 3>,
@@ -142,6 +154,7 @@ fn run<B: Backend>(
     value: impl Fn(bool, f32) -> f32,
 ) -> anyhow::Result<Image<B, 3>> {
     let (vals, dims) = extract_vec(image)?;
+    validate_samples(&vals)?;
     let mask = regional_extrema_mask(&vals, dims, conn, kind);
     let out: Vec<f32> = mask
         .iter()
@@ -149,6 +162,33 @@ fn run<B: Backend>(
         .map(|(&m, &v)| value(m, v))
         .collect();
     Ok(rebuild(out, dims, image))
+}
+
+fn run_native<B>(
+    image: &ritk_image::native::Image<f32, B, 3>,
+    conn: Connectivity,
+    kind: ExtremaKind,
+    value: impl Fn(bool, f32) -> f32,
+    backend: &B,
+) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
+    let values = image.data_slice()?;
+    validate_samples(values)?;
+    let mask = regional_extrema_mask(values, image.shape(), conn, kind);
+    ritk_image::native::Image::from_flat_on(
+        mask.iter()
+            .zip(values)
+            .map(|(&is_extremum, &sample)| value(is_extremum, sample))
+            .collect(),
+        image.shape(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        backend,
+    )
 }
 
 // ── Binary regional maxima / minima ───────────────────────────────────────────
@@ -260,6 +300,37 @@ impl RegionalMinimaFilter {
                     bg
                 }
             },
+        )
+    }
+
+    /// Apply the binary regional-minima transform to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for non-finite input, inaccessible backend storage, or
+    /// native output construction failure.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (foreground, background) = (self.foreground, self.background);
+        run_native(
+            image,
+            self.connectivity,
+            ExtremaKind::Minima,
+            move |is_minimum, _| {
+                if is_minimum {
+                    foreground
+                } else {
+                    background
+                }
+            },
+            backend,
         )
     }
 }

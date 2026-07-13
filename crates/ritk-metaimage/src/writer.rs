@@ -1,8 +1,7 @@
 use crate::spatial::file_spatial_fields_from_internal;
-use anyhow::{Context, Result};
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::HostExtract;
+use anyhow::{anyhow, Context, Result};
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -22,10 +21,14 @@ use std::path::Path;
 /// # Binary payload
 /// Voxel values are written as 32-bit IEEE 754 floats in little-endian byte
 /// order immediately after the `ElementDataFile = LOCAL` header line.
-pub fn write_metaimage<B: HostExtract, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    // Extract via the backend's fast host path to avoid `into_data()`.
-    let f32_vec = image.data_vec_fast();
-    write_metaimage_with_data(path, image, &f32_vec)
+pub fn write_metaimage<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    let voxels = image.data_cow_on(backend);
+    write_metaimage_with_data(path, image, &voxels)
 }
 
 /// Like [`write_metaimage`] but uses caller-provided voxel data.
@@ -35,9 +38,9 @@ pub fn write_metaimage<B: HostExtract, P: AsRef<Path>>(path: P, image: &Image<B,
 /// holds a fast (e.g. zero-copy NdArray) slice skip the generic
 /// `into_data()` materialization, which dominates write time for large volumes.
 /// `f32_slice.len()` must equal the image voxel count.
-pub fn write_metaimage_with_data<B: Backend, P: AsRef<Path>>(
+pub fn write_metaimage_with_data<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     f32_slice: &[f32],
 ) -> Result<()> {
     write_metaimage_flat(
@@ -50,8 +53,7 @@ pub fn write_metaimage_with_data<B: Backend, P: AsRef<Path>>(
     )
 }
 
-/// Substrate-agnostic MetaImage serialization core: the shared SSOT the Burn
-/// and Atlas-native writers both wrap. Takes flat `[Z, Y, X]` voxels plus the
+/// MetaImage serialization core. Takes flat `[Z, Y, X]` voxels plus the
 /// (backend-independent) spatial metadata so header emission and byte layout
 /// live in exactly one place. `f32_slice.len()` must equal the voxel count.
 fn write_metaimage_flat(
@@ -67,6 +69,16 @@ fn write_metaimage_flat(
     let nz = shape[0];
     let ny = shape[1];
     let nx = shape[2];
+    let voxel_count = nx
+        .checked_mul(ny)
+        .and_then(|plane| plane.checked_mul(nz))
+        .ok_or_else(|| anyhow!("MetaImage shape [{nz}, {ny}, {nx}] voxel count overflows usize"))?;
+    if f32_slice.len() != voxel_count {
+        return Err(anyhow!(
+            "MetaImage payload has {} voxels but shape [{nz}, {ny}, {nx}] requires {voxel_count}",
+            f32_slice.len()
+        ));
+    }
 
     // ── Spatial metadata ──────────────────────────────────────────────────
     let dir = direction.0;
@@ -145,52 +157,24 @@ fn write_metaimage_flat(
 ///
 /// The backend `B` is supplied per-call so a single `MetaImageWriter`
 /// instance can write images from different backends.
-pub struct MetaImageWriter;
+pub struct MetaImageWriter<B: ComputeBackend> {
+    backend: B,
+}
 
-impl MetaImageWriter {
-    /// Write `image` to the MetaImage file at `path`.
-    pub fn write<B: HostExtract, P: AsRef<Path>>(
-        &self,
-        path: P,
-        image: &Image<B, 3>,
-    ) -> Result<()> {
-        write_metaimage(path, image)
+impl<B: ComputeBackend> MetaImageWriter<B> {
+    /// Creates a writer that extracts image storage through `backend`.
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 }
 
-/// Atlas-native-substrate MetaImage writers (plain end-state names,
-/// disambiguated from the Burn functions by module path only; folds away when
-/// the Burn path is deleted — ADR 0002 A1).
-pub mod native {
-    use super::write_metaimage_flat;
-    use anyhow::Result;
-    use std::path::Path;
-
-    /// Write an Atlas-native 3-D image to a `.mha` MetaImage file.
-    ///
-    /// Host data is extracted layout-independently via `data_cow_on`, then
-    /// serialized through the same
-    /// [`write_metaimage_flat`](super::write_metaimage_flat) core as the Burn
-    /// [`write_metaimage`](super::write_metaimage) — byte-identical output for
-    /// the same logical image.
-    pub fn write_metaimage<B, P>(
-        path: P,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B,
-    ) -> Result<()>
-    where
-        B: coeus_core::ComputeBackend + Default,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-        P: AsRef<Path>,
-    {
-        let voxels = image.data_cow_on(backend);
-        write_metaimage_flat(
-            path.as_ref(),
-            image.shape(),
-            image.spacing(),
-            image.origin(),
-            image.direction(),
-            &voxels,
-        )
+impl<B> MetaImageWriter<B>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    /// Write `image` to the MetaImage file at `path`.
+    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> Result<()> {
+        write_metaimage(path, image, &self.backend)
     }
 }

@@ -1,5 +1,5 @@
 use crate::FilterKind;
-use ritk_filter::Connectivity;
+use ritk_filter::{BinarizationThreshold, Connectivity};
 
 /// Second portion of the ComboBox selectable_value entries (FlipZ
 /// through ConstantPad).
@@ -26,14 +26,14 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .selectable_value(
             &mut *active_filter,
             FilterKind::MaskThreshold {
-                threshold: 0.5.into(),
+                threshold: BinarizationThreshold::DEFAULT,
             },
             "Mask Threshold",
         )
         .clicked()
     {
         *active_filter = FilterKind::MaskThreshold {
-            threshold: 0.5.into(),
+            threshold: BinarizationThreshold::DEFAULT,
         };
     }
     if ui

@@ -14,11 +14,11 @@ use super::coords::{decode_coords, encode_coords};
 /// # Panics
 /// Panics if `ndim` is not in {1, 2, 3}. SLIC is only meaningfully
 /// defined for 2-D and 3-D images in medical imaging contexts.
-pub fn compute_gradient(data: &[f64], shape: &[usize], ndim: usize) -> Vec<f64> {
+pub fn compute_gradient(data: &[f32], shape: &[usize], ndim: usize, scale: f32) -> Vec<f32> {
     match ndim {
-        1 => compute_gradient_impl::<1>(data, shape),
-        2 => compute_gradient_impl::<2>(data, shape),
-        3 => compute_gradient_impl::<3>(data, shape),
+        1 => compute_gradient_impl::<1>(data, shape, scale),
+        2 => compute_gradient_impl::<2>(data, shape, scale),
+        3 => compute_gradient_impl::<3>(data, shape, scale),
         _ => panic!("compute_gradient: unsupported dimensionality {}", ndim),
     }
 }
@@ -28,18 +28,18 @@ pub fn compute_gradient(data: &[f64], shape: &[usize], ndim: usize) -> Vec<f64> 
 /// `decode_coords` returns `[usize; D]` (stack-allocated, `Copy`),
 /// so neighbour-coordinate mutations use cheap copies instead of
 /// `Vec::clone()` — eliminating ~67M allocations for a 256³ image.
-fn compute_gradient_impl<const D: usize>(data: &[f64], shape: &[usize]) -> Vec<f64> {
+fn compute_gradient_impl<const D: usize>(data: &[f32], shape: &[usize], scale: f32) -> Vec<f32> {
     let shape_arr: [usize; D] = {
         let mut arr = [0usize; D];
         arr.copy_from_slice(shape);
         arr
     };
     let n: usize = shape_arr.iter().product();
-    let mut grad = vec![0.0_f64; n];
+    let mut grad = vec![0.0_f32; n];
 
     for i in 0..n {
         let coords = decode_coords(i, shape_arr);
-        let mut sum_sq = 0.0_f64;
+        let mut sum_sq = 0.0_f32;
         for d in 0..D {
             let diff = if coords[d] > 0 && coords[d] < shape_arr[d] - 1 {
                 let mut hi = coords;
@@ -58,7 +58,8 @@ fn compute_gradient_impl<const D: usize>(data: &[f64], shape: &[usize]) -> Vec<f
             } else {
                 0.0
             };
-            sum_sq += diff * diff;
+            let normalized = diff / scale;
+            sum_sq += normalized * normalized;
         }
         grad[i] = sum_sq.sqrt();
     }

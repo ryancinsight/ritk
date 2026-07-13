@@ -15,6 +15,7 @@ serde = { workspace = true }
 anyhow = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
+coeus-ops = { workspace = true }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 
 [dev-dependencies]

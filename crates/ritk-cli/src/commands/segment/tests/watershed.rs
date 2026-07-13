@@ -48,7 +48,8 @@ fn test_segment_watershed_creates_output() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("labels.nii");
 
-    ritk_io::write_nifti(&input, &make_ramp_image()).unwrap();
+    let relief = make_ramp_image();
+    ritk_io::write_nifti(&input, &relief).unwrap();
 
     run(default_args(
         input.clone(),
@@ -57,15 +58,43 @@ fn test_segment_watershed_creates_output() {
     ))
     .unwrap();
 
-    assert!(output.exists(), "watershed output must be created");
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    assert_eq!(labels.shape(), [4, 4, 4], "shape must be preserved");
+    let expected = ritk_segmentation::WatershedSegmentation::new()
+        .apply(&relief)
+        .unwrap();
+    assert_eq!(labels.data_slice(), expected.data_slice());
+    assert_eq!(labels.origin(), relief.origin());
+    assert_eq!(labels.spacing(), relief.spacing());
+    assert_eq!(labels.direction(), relief.direction());
+}
 
-    labels.with_data_slice(|vals| {
-        for &v in vals {
-            assert!(v >= 0.0, "watershed labels must be non-negative, got {v}");
-        }
-    });
+#[test]
+fn native_watershed_cli_rejects_nonfinite_relief_before_output() {
+    let dir = tempdir().unwrap();
+    let input = dir.path().join("input.nii");
+    let output = dir.path().join("labels.nii");
+    let device: <Backend as BurnBackend>::Device = Default::default();
+    let image = Image::new(
+        Tensor::<Backend, 3>::from_data(
+            TensorData::new(vec![0.0, f32::NAN], Shape::new([1, 1, 2])),
+            &device,
+        ),
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+    );
+    ritk_io::write_nifti(&input, &image).unwrap();
+    let error = run(default_args(
+        input,
+        output.clone(),
+        SegmentMethod::Watershed,
+    ))
+    .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Meyer watershed relief at flat index 1 must be finite, got NaN"
+    );
+    assert!(!output.exists());
 }
 
 // ── Negative: marker-watershed missing markers path returns error ─────────
@@ -176,4 +205,56 @@ fn test_segment_marker_watershed_output_contains_both_basin_labels() {
             &vals[..vals.len().min(27)]
         );
     });
+}
+
+#[test]
+fn native_marker_watershed_cli_matches_canonical_legacy_output_exactly() {
+    let dir = tempdir().unwrap();
+    let gradient_path = dir.path().join("gradient.nii");
+    let markers_path = dir.path().join("markers.nii");
+    let output_path = dir.path().join("output.nii");
+    let gradient = make_uniform_gradient_image();
+    let markers = make_two_seed_marker_image();
+    ritk_io::write_nifti(&gradient_path, &gradient).unwrap();
+    ritk_io::write_nifti(&markers_path, &markers).unwrap();
+    run(SegmentArgs {
+        markers: Some(markers_path),
+        ..default_args(
+            gradient_path,
+            output_path.clone(),
+            SegmentMethod::MarkerWatershed,
+        )
+    })
+    .unwrap();
+
+    let expected = ritk_segmentation::MarkerControlledWatershed::new()
+        .apply(&gradient, &markers)
+        .unwrap();
+    let actual = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+    assert_eq!(actual.data_slice(), expected.data_slice());
+    assert_eq!(actual.origin(), gradient.origin());
+    assert_eq!(actual.spacing(), gradient.spacing());
+    assert_eq!(actual.direction(), gradient.direction());
+}
+
+#[test]
+fn native_marker_watershed_cli_rejects_nonnative_marker_before_output() {
+    let dir = tempdir().unwrap();
+    let gradient_path = dir.path().join("gradient.nii");
+    let output_path = dir.path().join("output.nii");
+    ritk_io::write_nifti(&gradient_path, &make_uniform_gradient_image()).unwrap();
+    let error = run(SegmentArgs {
+        markers: Some(dir.path().join("markers.vtk")),
+        ..default_args(
+            gradient_path,
+            output_path.clone(),
+            SegmentMethod::MarkerWatershed,
+        )
+    })
+    .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "marker-watershed requires native marker format"
+    );
+    assert!(!output_path.exists());
 }
