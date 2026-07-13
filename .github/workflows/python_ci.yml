@@ -65,7 +65,7 @@ jobs:
           workspaces: "ritk -> target"
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -75,7 +75,14 @@ jobs:
         run: echo 'C:/msys64/ucrt64/bin' >> $GITHUB_PATH
 
       - name: Install Python test tooling
-        run: pip install maturin[patchelf] pytest numpy SimpleITK vtk
+        shell: bash
+        run: |
+          python -m pip install pytest numpy SimpleITK vtk
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            python -m pip install 'maturin[patchelf]'
+          else
+            python -m pip install maturin
+          fi
 
       - name: Build ritk wheel
         run: >-

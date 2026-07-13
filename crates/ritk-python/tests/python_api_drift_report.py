@@ -17,33 +17,35 @@ SMOKE_TEST = PYTHON_CRATE / "tests" / "test_smoke.py"
 
 MODULES = {
     "filter": {
-        "rust": SRC_DIR / "filter.rs",
+        "rust": SRC_DIR / "filter" / "mod.rs",
         "stub": STUB_DIR / "filter.pyi",
         "smoke_test": "test_filter_public_functions_exist",
     },
     "io": {
-        "rust": SRC_DIR / "io.rs",
+        "rust": SRC_DIR / "io" / "mod.rs",
         "stub": STUB_DIR / "io.pyi",
         "smoke_test": "test_io_public_functions_exist",
     },
     "registration": {
-        "rust": SRC_DIR / "registration.rs",
+        "rust": SRC_DIR / "registration" / "mod.rs",
         "stub": STUB_DIR / "registration.pyi",
         "smoke_test": "test_registration_public_functions_exist",
     },
     "segmentation": {
-        "rust": SRC_DIR / "segmentation.rs",
+        "rust": SRC_DIR / "segmentation" / "mod.rs",
         "stub": STUB_DIR / "segmentation.pyi",
         "smoke_test": "test_segmentation_public_functions_exist",
     },
     "statistics": {
-        "rust": SRC_DIR / "statistics.rs",
+        "rust": SRC_DIR / "statistics" / "mod.rs",
         "stub": STUB_DIR / "statistics.pyi",
         "smoke_test": "test_statistics_public_functions_exist",
     },
 }
 
-WRAP_PATTERN = re.compile(r"wrap_pyfunction!\((?P<name>[A-Za-z0-9_]+),\s*&m\)")
+WRAP_PATTERN = re.compile(
+    r"wrap_pyfunction!\(\s*(?:[A-Za-z0-9_]+::)*(?P<name>[A-Za-z0-9_]+),\s*&m\s*\)"
+)
 DEF_PATTERN = re.compile(r"^def\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(", re.MULTILINE)
 ASSIGN_PATTERN = re.compile(
     r"^(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?P<value>.+)$", re.MULTILINE
@@ -147,6 +149,10 @@ def parse_top_level_reexports(path: Path) -> set[str]:
                 if exported_name.startswith("_"):
                     continue
                 exported.add(exported_name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and not target.id.startswith("_"):
+                    exported.add(target.id)
     return exported
 
 
@@ -225,21 +231,27 @@ def compute_module_drift(module_name: str, paths: dict[str, Path]) -> ModuleDrif
 def compute_top_level_drift() -> TopLevelDrift:
     expected_exports = {
         "Image",
+        "ColorImage",
+        "image",
         "io",
         "filter",
+        "metrics",
         "registration",
         "segmentation",
         "statistics",
     }
     expected_all = [
         "Image",
+        "ColorImage",
+        "image",
         "io",
         "filter",
+        "metrics",
         "registration",
         "segmentation",
         "statistics",
     ]
-    allowed_stub_only_exports = {"image"}
+    allowed_stub_only_exports: set[str] = set()
 
     runtime_exports = parse_top_level_reexports(TOP_LEVEL_INIT)
     stub_exports = parse_top_level_stub_reexports(TOP_LEVEL_STUB)
@@ -284,13 +296,16 @@ def print_module_report(drift: ModuleDrift) -> None:
 def print_top_level_report(drift: TopLevelDrift) -> None:
     expected_all = [
         "Image",
+        "ColorImage",
+        "image",
         "io",
         "filter",
+        "metrics",
         "registration",
         "segmentation",
         "statistics",
     ]
-    allowed_stub_only_exports = ["image"]
+    allowed_stub_only_exports: list[str] = []
 
     print("[top-level:ritk]")
     print(f"  runtime exports  : {format_list(sorted(drift.runtime_exports))}")

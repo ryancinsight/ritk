@@ -81,6 +81,8 @@ _sys.modules.setdefault("ritk.image", _image_mod)
 
 __all__ = [
     "Image",
+    "ColorImage",
+    "image",
     "io",
     "filter",
     "metrics",
@@ -90,4 +92,3 @@ __all__ = [
 ]
 
 __version__ = "0.12.4"
-

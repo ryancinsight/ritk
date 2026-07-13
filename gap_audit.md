@@ -22,8 +22,12 @@ release container. All workspace-loading jobs consume that action. Dependency
 alignment is a value-reporting Rust `xtask` command; the complete existing
 manifest drift was corrected rather than hidden. Local evidence comprises YAML
 parsing, locked metadata, a clean migration audit, a passing alignment command,
-and 9/9 xtask plus 47/47 ritk-python nextest tests. GitHub matrix evidence remains
-pending until the fix-forward PR completes.
+9/9 xtask plus 47/47 ritk-python nextest tests, 16/16 Python smoke tests, and a
+clean 311-function API-drift report. The first complete matrix exposed and drove
+fix-forward changes for workspace-only formatting, Moirai's Linux-only errno
+accessor, stale deep-module audit paths, and non-Linux `patchelf` installation.
+GitHub matrix evidence remains pending until the updated fix-forward PR
+completes.
 
 ## MIG-653-01 audit (2026-07-13)
 
