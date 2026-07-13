@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-650-01 [major] - Correct native isolated watershed (IN PROGRESS; owner=Codex; scope=isolated watershed owner, PyO3/tests/docs).** Acceptance: every public parameter is input-sensitive under the ITK threshold-search contract, private validated configuration, canonical legacy/Coeus-native execution, native PyO3, and independent SimpleITK seed-region evidence.
+
 - **MIG-649-01 [major] - Native Toboggan watershed (DONE).** `TobogganFilter` owns validated legacy/Coeus-native execution over one allocation-reusing flat core; PyO3 is native, with 513 Rust tests and five built-wheel label-exact/validation cases green.
 
 - **MIG-648-01 [major] - Native morphological watershed composition (DONE).** Provider-owned native h-minima and regional-minima execution feed canonical connected components and marker flooding; direct and composed PyO3 routes are native, with 1,529 Rust tests and nine built-wheel oracle/validation cases green.

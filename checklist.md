@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-650-01 — Correct native isolated watershed
+**Target version**: 0.14.0 migration batch
+- [ ] Ground the threshold-search/label contract against ITK and audit current ignored inputs.
+- [ ] Replace public mutable state with validated configuration and one input-sensitive core.
+- [ ] Add exact legacy/native execution and migrate PyO3.
+- [ ] Add parameter-sensitivity, boundary, and independent SimpleITK regressions.
+- [ ] Run package gates, adversarial review, commit, and push.
+
 ## MIG-649-01 — Native Toboggan watershed
 **Target version**: 0.14.0 migration batch
 - [x] Extract and validate the canonical flat Toboggan core.
