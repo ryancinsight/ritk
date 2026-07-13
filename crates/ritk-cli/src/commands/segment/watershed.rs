@@ -5,8 +5,7 @@ use tracing::info;
 use ritk_segmentation::{MarkerControlledWatershed, WatershedSegmentation};
 
 use super::super::{
-    infer_format, is_native_read_capable, read_image, read_image_native, write_image_inferred,
-    write_image_native, NativeBackend,
+    infer_format, is_native_read_capable, read_image_native, write_image_native, NativeBackend,
 };
 use super::args::SegmentArgs;
 use super::helpers::read_native_input;
@@ -19,15 +18,20 @@ use super::helpers::read_native_input;
 /// Returns a label image where label 0 = watershed boundary and
 /// labels 1..K = catchment basin indices.
 pub(super) fn run_watershed(args: &SegmentArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
+    let (image, output_format) = read_native_input(&args.input, &args.output, "watershed")?;
+    let backend = NativeBackend::default();
 
     let ws = WatershedSegmentation::new();
-    let labeled = ws.apply(&image)?;
+    let labeled = ws.apply_native(&image, &backend)?;
 
-    let max_label = labeled.with_data_slice(|vals| vals.iter().copied().fold(0.0_f32, f32::max));
+    let max_label = labeled
+        .data_slice()?
+        .iter()
+        .copied()
+        .fold(0.0_f32, f32::max);
     let n_basins = max_label as usize;
 
-    write_image_inferred(&args.output, &labeled)?;
+    write_image_native(&args.output, &labeled, output_format)?;
 
     println!(
         "Segmented {} (watershed): found {} catchment basins",

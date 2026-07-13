@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## MIG-647-01 audit (2026-07-12)
+
+Meyer watershed accepted non-finite relief through a partial comparison,
+multiplied shape extents without checking overflow, saturated its label counter,
+and exposed only legacy Burn execution to CLI and PyO3. The canonical filter now
+validates nonzero extents, checked cardinality, storage length, finite relief,
+and the `2^24` exact-`f32` label bound before one flat core executes. Equal-height
+voxels flood as a geodesic plateau batch, both signed-zero representations share
+one relief level, and validated cardinality makes label increment exact and
+overflow-free.
+
+Legacy/native equality, repeated-execution identity, physical-geometry
+preservation, exact negative validation cases, native CLI output, and built-wheel
+PyO3 behavior provide differential and empirical evidence. A symmetric plateau
+is exact against SimpleITK's marker-less watershed oracle. No machine-checked
+proof was performed.
+
 ## MIG-646-01 audit (2026-07-12)
 
 Marker-controlled watershed exposed mutable boolean configuration, coerced

@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 647: Native Meyer watershed (MIG-647-01)
+### Breaking
+- Meyer watershed rejects zero extents, invalid cardinality, non-finite relief,
+  and volumes whose possible basin labels exceed exact `f32` representation.
+
+### Changed
+- Legacy and Coeus-native images share one deterministic `f32` flooding core;
+  CLI and PyO3 watershed execution use native image boundaries.
+
 ## [Unreleased] — Sprint 646: Native marker-controlled watershed (MIG-646-01)
 ### Breaking
 - Marker-controlled watershed configuration is private and uses explicit

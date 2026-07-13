@@ -2631,6 +2631,39 @@ def test_watershed_segment_produces_valid_label_map():
     )
 
 
+def test_watershed_segment_native_determinism_and_validation():
+    relief = np.array(
+        [[[0.0, 1.0, 4.0, 1.0, -0.0], [1.0, 2.0, 5.0, 2.0, 1.0]]],
+        dtype=np.float32,
+    )
+    first = ritk.segmentation.watershed_segment(_ritk(relief)).to_numpy()
+    second = ritk.segmentation.watershed_segment(_ritk(relief)).to_numpy()
+    np.testing.assert_array_equal(first, second)
+
+    for value in (np.nan, np.inf, -np.inf):
+        invalid = relief.copy()
+        invalid.flat[1] = value
+        with pytest.raises(
+            ValueError,
+            match=r"Meyer watershed relief at flat index 1 must be finite",
+        ):
+            ritk.segmentation.watershed_segment(_ritk(invalid))
+
+
+def test_watershed_segment_matches_simpleitk_plateau_oracle():
+    relief = np.array([[[0.0, 100.0, 100.0, 100.0, 0.0]]], dtype=np.float32)
+    expected = sitk.GetArrayFromImage(
+        sitk.MorphologicalWatershed(
+            _sitk(relief),
+            level=0.0,
+            markWatershedLine=True,
+            fullyConnected=False,
+        )
+    ).astype(np.float32)
+    actual = ritk.segmentation.watershed_segment(_ritk(relief)).to_numpy()
+    np.testing.assert_array_equal(actual, expected)
+
+
 def test_kmeans_segment_produces_k_clusters():
     """K-means clustering on a 3-class concentric image recovers at least 2 clusters.
 

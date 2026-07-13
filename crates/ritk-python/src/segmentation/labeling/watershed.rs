@@ -68,13 +68,13 @@ pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> R
 ///     Label PyImage with basin indices and watershed boundaries (0).
 #[pyfunction]
 pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = py_image_to_native(image)?;
     py.allow_threads(|| {
         let seg = WatershedSegmentation::new();
-        seg.apply(&image)
-            .map_err(|e| RitkPyError::runtime(e.to_string()))
+        seg.apply_native(&image, &SequentialBackend)
+            .map_err(|e| RitkPyError::value(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(native_into_py_image)
 }
 
 /// Run marker-controlled watershed segmentation on a gradient-magnitude image.

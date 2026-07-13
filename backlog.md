@@ -1,6 +1,6 @@
 # RITK Backlog - Active Planning
 
-- **MIG-647-01 [major] - Native Meyer watershed (IN PROGRESS; owner=Codex; scope=watershed owner, CLI/PyO3 consumers, tests/docs).** Acceptance: validated finite relief and cardinality, one flat core serving legacy/Coeus-native images, deterministic total ordering, native CLI/PyO3 execution, and exact legacy/native plus boundary regressions.
+- **MIG-647-01 [major] - Native Meyer watershed (DONE).** Validated finite relief/cardinality and level-wise geodesic plateau flooding serve legacy/Coeus-native images; CLI/PyO3 use native execution, with 734 Rust tests and three built-wheel tests including an exact SimpleITK plateau oracle.
 
 - **MIG-646-01 [major] - Native marker-controlled watershed (DONE).** Explicit policies and private state, validated geometry/numeric contracts, one flat core serving legacy/Coeus-native images, native CLI/PyO3 execution, and unchanged SimpleITK parity cases are verified by 729 Rust tests and three built-wheel marker tests.
 

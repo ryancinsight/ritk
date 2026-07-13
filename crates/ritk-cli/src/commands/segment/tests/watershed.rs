@@ -48,7 +48,8 @@ fn test_segment_watershed_creates_output() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("labels.nii");
 
-    ritk_io::write_nifti(&input, &make_ramp_image()).unwrap();
+    let relief = make_ramp_image();
+    ritk_io::write_nifti(&input, &relief).unwrap();
 
     run(default_args(
         input.clone(),
@@ -57,15 +58,43 @@ fn test_segment_watershed_creates_output() {
     ))
     .unwrap();
 
-    assert!(output.exists(), "watershed output must be created");
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    assert_eq!(labels.shape(), [4, 4, 4], "shape must be preserved");
+    let expected = ritk_segmentation::WatershedSegmentation::new()
+        .apply(&relief)
+        .unwrap();
+    assert_eq!(labels.data_slice(), expected.data_slice());
+    assert_eq!(labels.origin(), relief.origin());
+    assert_eq!(labels.spacing(), relief.spacing());
+    assert_eq!(labels.direction(), relief.direction());
+}
 
-    labels.with_data_slice(|vals| {
-        for &v in vals {
-            assert!(v >= 0.0, "watershed labels must be non-negative, got {v}");
-        }
-    });
+#[test]
+fn native_watershed_cli_rejects_nonfinite_relief_before_output() {
+    let dir = tempdir().unwrap();
+    let input = dir.path().join("input.nii");
+    let output = dir.path().join("labels.nii");
+    let device: <Backend as BurnBackend>::Device = Default::default();
+    let image = Image::new(
+        Tensor::<Backend, 3>::from_data(
+            TensorData::new(vec![0.0, f32::NAN], Shape::new([1, 1, 2])),
+            &device,
+        ),
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+    );
+    ritk_io::write_nifti(&input, &image).unwrap();
+    let error = run(default_args(
+        input,
+        output.clone(),
+        SegmentMethod::Watershed,
+    ))
+    .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Meyer watershed relief at flat index 1 must be finite, got NaN"
+    );
+    assert!(!output.exists());
 }
 
 // ── Negative: marker-watershed missing markers path returns error ─────────
