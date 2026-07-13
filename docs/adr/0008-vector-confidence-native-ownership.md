@@ -17,16 +17,26 @@ Mahalanobis computation is otherwise independent of either tensor substrate.
 
 `ritk-segmentation` owns one validated filter and one statistical core. The core
 reads channel samples through a monomorphized borrowed-source seam and performs
-the documented double-precision mean, covariance, inversion, and Mahalanobis
-arithmetic without materializing widened channel buffers. Legacy and
+the documented double-precision mean, covariance, and Mahalanobis arithmetic
+without materializing widened channel buffers. Covariance inversion delegates
+to Leto's rank-revealing SVD and applies ITK's determinant policy. Legacy and
 Coeus-native image entry points validate common geometry and call that core.
 PyO3 passes borrowed `MoiraiBackend` image storage to the native entry point and
 returns its Coeus-native label image.
 
-Configuration and seeds become validated construction state. Invalid numeric
-configuration, channel shapes, samples, and seed coordinates return typed
-errors before indexing or allocation. The public free image wrapper and mutable
-configuration shape are replaced rather than retained as forwarding adapters.
+Configuration becomes validated construction state. Invalid numeric
+configuration, channel shapes, and samples return typed errors before indexing
+or allocation. ITK intentionally ignores out-of-bounds seeds; an empty valid
+seed set returns an empty mask. Seed-neighborhood statistics use zero-flux
+boundary replication with full multiplicity, compressed to unique voxels and
+weights so runtime remains bounded by image size for every representable radius.
+The public free image wrapper and
+mutable configuration shape are replaced rather than retained as forwarding
+adapters.
+
+References: [ITK vector confidence-connected implementation](https://github.com/InsightSoftwareConsortium/ITK/blob/v5.4.6/Modules/Segmentation/RegionGrowing/include/itkVectorConfidenceConnectedImageFilter.hxx),
+[ITK covariance image function](https://github.com/InsightSoftwareConsortium/ITK/blob/v5.4.6/Modules/Core/ImageFunction/include/itkCovarianceImageFunction.hxx),
+[ITK Mahalanobis membership function](https://github.com/InsightSoftwareConsortium/ITK/blob/v5.4.6/Modules/Numerics/Statistics/include/itkMahalanobisDistanceMembershipFunction.hxx).
 
 ## Consequences
 

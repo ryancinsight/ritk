@@ -14,20 +14,16 @@ manifest:crates/ritk-statistics/Cargo.toml
 manifest:crates/ritk-tensor-ops/Cargo.toml
 manifest:crates/ritk-transform/Cargo.toml
 manifest:crates/ritk-wgpu-compat/Cargo.toml
-source:crates/ritk-cli/src/commands/convert.rs
 source:crates/ritk-cli/src/commands/filter/intensity.rs
 source:crates/ritk-cli/src/commands/filter/mod.rs
 source:crates/ritk-cli/src/commands/filter/morphology.rs
-source:crates/ritk-cli/src/commands/filter/spatial_impl.rs
 source:crates/ritk-cli/src/commands/mod.rs
-source:crates/ritk-cli/src/commands/normalize/tests_normalize.rs
 source:crates/ritk-cli/src/commands/register/mod.rs
 source:crates/ritk-cli/src/commands/resample.rs
 source:crates/ritk-cli/src/commands/segment/tests/clustering.rs
 source:crates/ritk-cli/src/commands/segment/tests/level_set.rs
 source:crates/ritk-cli/src/commands/segment/tests/mod.rs
 source:crates/ritk-cli/src/commands/segment/tests/watershed.rs
-source:crates/ritk-cli/src/commands/stats/tests.rs
 source:crates/ritk-core/src/interpolation/trait_.rs
 source:crates/ritk-core/src/transform/trait_.rs
 source:crates/ritk-filter/benches/bilateral.rs
@@ -135,7 +131,6 @@ source:crates/ritk-filter/src/intensity/arithmetic/unary.rs
 source:crates/ritk-filter/src/intensity/bed_separation.rs
 source:crates/ritk-filter/src/intensity/binary_ops.rs
 source:crates/ritk-filter/src/intensity/binary_ops/tests_binary_ops.rs
-source:crates/ritk-filter/src/intensity/binary_threshold.rs
 source:crates/ritk-filter/src/intensity/blend.rs
 source:crates/ritk-filter/src/intensity/clahe/mod.rs
 source:crates/ritk-filter/src/intensity/clamp.rs
@@ -163,7 +158,6 @@ source:crates/ritk-filter/src/intensity/tests_unsharp_mask.rs
 source:crates/ritk-filter/src/intensity/tests_windowing.rs
 source:crates/ritk-filter/src/intensity/tests_zero_crossing.rs
 source:crates/ritk-filter/src/intensity/threshold.rs
-source:crates/ritk-filter/src/intensity/trig.rs
 source:crates/ritk-filter/src/intensity/unsharp_mask.rs
 source:crates/ritk-filter/src/intensity/windowing.rs
 source:crates/ritk-filter/src/intensity/zero_crossing.rs
@@ -520,11 +514,11 @@ source:crates/ritk-registration/tests/verify_affine.rs
 source:crates/ritk-registration/tests/verify_registration.rs
 source:crates/ritk-registration/tests/versor_registration_test.rs
 source:crates/ritk-segmentation/src/clustering/kmeans.rs
+source:crates/ritk-segmentation/src/clustering/slic/itk_filter.rs
 source:crates/ritk-segmentation/src/clustering/slic/mod.rs
 source:crates/ritk-segmentation/src/clustering/slic/tests_slic.rs
+source:crates/ritk-segmentation/src/clustering/slic/tests_slic_itk.rs
 source:crates/ritk-segmentation/src/clustering/tests_kmeans.rs
-source:crates/ritk-segmentation/src/distance_transform/mod.rs
-source:crates/ritk-segmentation/src/distance_transform/tests_distance_transform.rs
 source:crates/ritk-segmentation/src/labeling/label_set_morph.rs
 source:crates/ritk-segmentation/src/labeling/merge_label_map.rs
 source:crates/ritk-segmentation/src/labeling/mod.rs
@@ -533,6 +527,7 @@ source:crates/ritk-segmentation/src/labeling/scalar_cc.rs
 source:crates/ritk-segmentation/src/labeling/tests_label_set_morph.rs
 source:crates/ritk-segmentation/src/labeling/tests_labeling.rs
 source:crates/ritk-segmentation/src/labeling/tests_merge_label_map.rs
+source:crates/ritk-segmentation/src/labeling/tests_native.rs
 source:crates/ritk-segmentation/src/labeling/tests_relabel.rs
 source:crates/ritk-segmentation/src/labeling/tests_threshold_max_cc.rs
 source:crates/ritk-segmentation/src/labeling/threshold_max_cc.rs
@@ -560,6 +555,7 @@ source:crates/ritk-segmentation/src/morphology/skeletonization/tests_skeletoniza
 source:crates/ritk-segmentation/src/morphology/skeletonization/tests_skeletonization/thin_3d.rs
 source:crates/ritk-segmentation/src/morphology/tests_fill_holes.rs
 source:crates/ritk-segmentation/src/morphology/tests_morphological_gradient.rs
+source:crates/ritk-segmentation/src/morphology/tests_native.rs
 source:crates/ritk-segmentation/src/region_growing/confidence_connected.rs
 source:crates/ritk-segmentation/src/region_growing/connected_threshold.rs
 source:crates/ritk-segmentation/src/region_growing/growcut.rs
@@ -569,9 +565,11 @@ source:crates/ritk-segmentation/src/region_growing/tests.rs
 source:crates/ritk-segmentation/src/region_growing/tests_confidence_connected.rs
 source:crates/ritk-segmentation/src/region_growing/tests_growcut.rs
 source:crates/ritk-segmentation/src/region_growing/tests_isolated_connected.rs
+source:crates/ritk-segmentation/src/region_growing/tests_native.rs
 source:crates/ritk-segmentation/src/region_growing/tests_neighborhood_connected/structural.rs
 source:crates/ritk-segmentation/src/region_growing/tests_neighborhood_connected/tests.rs
-source:crates/ritk-segmentation/src/region_growing/vector_confidence_connected.rs
+source:crates/ritk-segmentation/src/region_growing/vector_confidence_connected/mod.rs
+source:crates/ritk-segmentation/src/region_growing/vector_confidence_connected/tests.rs
 source:crates/ritk-segmentation/src/threshold/auto_threshold.rs
 source:crates/ritk-segmentation/src/threshold/binary.rs
 source:crates/ritk-segmentation/src/threshold/huang.rs
@@ -585,6 +583,7 @@ source:crates/ritk-segmentation/src/threshold/multi_otsu.rs
 source:crates/ritk-segmentation/src/threshold/otsu.rs
 source:crates/ritk-segmentation/src/threshold/renyi.rs
 source:crates/ritk-segmentation/src/threshold/shanbhag.rs
+source:crates/ritk-segmentation/src/threshold/tests_auto_threshold_native.rs
 source:crates/ritk-segmentation/src/threshold/tests_binary_threshold.rs
 source:crates/ritk-segmentation/src/threshold/tests_kapur.rs
 source:crates/ritk-segmentation/src/threshold/tests_li.rs
@@ -608,7 +607,6 @@ source:crates/ritk-segmentation/src/watershed/tests_watershed.rs
 source:crates/ritk-segmentation/src/watershed/toboggan.rs
 source:crates/ritk-snap/src/app/filter.rs
 source:crates/ritk-snap/src/app/state.rs
-source:crates/ritk-snap/src/filter/promote.rs
 source:crates/ritk-statistics/src/histogram.rs
 source:crates/ritk-statistics/src/image_comparison/overlap.rs
 source:crates/ritk-statistics/src/image_comparison/quality.rs

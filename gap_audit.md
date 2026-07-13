@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## MIG-653-01 audit (2026-07-13)
+
+Vector confidence-connected segmentation widened every channel into an owned
+`f64` volume and its PyO3 boundary crossed through Burn. The validated filter
+now reads borrowed legacy or Coeus-native `f32` storage through one core and
+performs the ITK-required statistics in `f64`. Leto owns rank-revealing SVD;
+RITK applies ITK's determinant threshold and singular inverse policy. ZeroFlux
+seed neighborhoods retain multiplicity in image-size-bounded weighted form,
+and region statistics retain FIFO flood visitation order.
+
+Exact SimpleITK masks cover iterations 0, 1, and 4 plus a corner neighborhood;
+adversarial tests cover maximal radius, determinant branches, invalid and mixed
+seeds, non-finite inputs, face connectivity, and exact legacy/native values and
+geometry. Evidence is construction-time validation plus empirical and
+differential tests, not machine-checked proof.
+
 ## MIG-652-01 audit (2026-07-12)
 
 The prior isolated-connected filter exposed invalid mutable state and rebuilt a

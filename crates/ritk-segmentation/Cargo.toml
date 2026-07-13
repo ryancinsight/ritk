@@ -14,5 +14,7 @@ tracing = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 moirai = { workspace = true }
+leto = { workspace = true }
+leto-ops = { workspace = true }
 
 [dev-dependencies]

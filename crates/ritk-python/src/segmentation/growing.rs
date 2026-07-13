@@ -2,17 +2,13 @@
 //! and neighbourhood-connected.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{
-    burn_into_py_image, into_py_image, native_into_py_image, py_image_to_burn, py_image_to_native,
-    PyImage,
-};
+use crate::image::{into_py_image, native_into_py_image, py_image_to_native, PyImage};
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use pyo3::prelude::*;
 use ritk_segmentation::{
-    vector_confidence_connected_image as core_vector_confidence_connected,
     ConfidenceConnectedFilter, ConnectedThresholdFilter, IsolatedConnectedConfig,
     IsolatedConnectedFilter, IsolatedWatershed, IsolatedWatershedConfig, IsolationThreshold,
-    NeighborhoodConnectedFilter,
+    NeighborhoodConnectedFilter, VectorConfidenceConnectedConfig, VectorConfidenceConnectedFilter,
 };
 
 /// Vector confidence-connected region growing, matching
@@ -54,21 +50,21 @@ pub fn vector_confidence_connected_segment(
             "vector_confidence_connected: at least one channel is required",
         ));
     }
-    let burn_images: Vec<_> = channels.iter().map(|p| py_image_to_burn(p)).collect();
-    let out = py
-        .allow_threads(|| {
-            let refs: Vec<_> = burn_images.iter().collect();
-            core_vector_confidence_connected(
-                &refs,
-                &seeds,
-                multiplier,
-                number_of_iterations,
-                initial_neighborhood_radius,
-                replace_value,
-            )
-        })
-        .map_err(RitkPyError::value)?;
-    Ok(burn_into_py_image(out))
+    let config = VectorConfidenceConnectedConfig::new(
+        multiplier,
+        number_of_iterations,
+        initial_neighborhood_radius,
+        replace_value,
+    )
+    .map_err(|error| RitkPyError::value(error.to_string()))?;
+    let filter = VectorConfidenceConnectedFilter::new(seeds, config);
+    let images: Vec<_> = channels.iter().map(|image| image.inner.clone()).collect();
+    py.allow_threads(move || {
+        let references: Vec<_> = images.iter().map(AsRef::as_ref).collect();
+        filter.apply_native(&references, &MoiraiBackend)
+    })
+    .map(into_py_image)
+    .map_err(|error| RitkPyError::value(error.to_string()))
 }
 
 /// Segment a region by connected-threshold flood-fill from a seed voxel.

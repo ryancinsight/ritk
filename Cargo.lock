@@ -7897,6 +7897,8 @@ dependencies = [
  "burn-ndarray",
  "coeus-core",
  "coeus-tensor",
+ "leto",
+ "leto-ops",
  "moirai",
  "ritk-core",
  "ritk-filter",

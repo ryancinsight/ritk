@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
+### Breaking
+- Replace the mutable vector confidence-connected implementation and public
+  free functions with validated `VectorConfidenceConnectedConfig` and
+  `VectorConfidenceConnectedFilter`; invalid configuration, channel storage,
+  geometry, or samples now return errors.
+
+### Changed
+- Read legacy and Coeus-native channel storage through one borrowed core, use
+  Leto's rank-revealing SVD for ITK-compatible covariance inversion, preserve
+  ZeroFlux seed neighborhoods and FIFO flood ordering, and route PyO3 directly
+  through `MoiraiBackend` without Burn or full-volume widening.
+
 ## [Unreleased] — Sprint 652: Native isolated-connected region growing (MIG-652-01)
 ### Breaking
 - Replace public mutable isolated-connected fields with validated configuration

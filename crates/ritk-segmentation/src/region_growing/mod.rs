@@ -26,7 +26,7 @@ pub use isolated_connected::{
 };
 pub use neighborhood_connected::{neighborhood_connected, NeighborhoodConnectedFilter};
 pub use vector_confidence_connected::{
-    vector_confidence_connected, vector_confidence_connected_image,
+    VectorConfidenceConnectedConfig, VectorConfidenceConnectedFilter,
 };
 
 #[cfg(test)]
