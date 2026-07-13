@@ -1,5 +1,7 @@
 # RITK Backlog - Active Planning
 
+- **MIG-651-01 [major] - Native scalar region-growing PyO3 family (IN PROGRESS; owner=Codex; scope=connected/confidence/neighborhood Python bindings and tests/docs).** Acceptance: all three bindings consume their existing validated Coeus-native providers, preserve exact output/geometry and typed failures, and delete their Burn conversions without changing the isolated/vector algorithms.
+
 - **MIG-650-01 [major] - Correct native isolated watershed (DONE).** A plateau-aware ordered watershed hierarchy now drives the exact ITK isolation search; validated private configuration, canonical legacy/Coeus-native execution, and native PyO3 are covered by 518 Rust tests, exact installed-wheel SimpleITK cases, and a 40-case deterministic differential sweep.
 
 - **MIG-649-01 [major] - Native Toboggan watershed (DONE).** `TobogganFilter` owns validated legacy/Coeus-native execution over one allocation-reusing flat core; PyO3 is native, with 513 Rust tests and five built-wheel label-exact/validation cases green.

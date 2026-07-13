@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-651-01 — Native scalar region-growing PyO3 family
+**Target version**: 0.14.0 migration batch
+- [ ] Audit existing native provider contracts and current Python validation duplication.
+- [ ] Route connected, confidence, and neighborhood bindings through native images.
+- [ ] Add installed-wheel value, geometry, and failure regressions.
+- [ ] Run package gates, adversarial review, commit, and push.
+
 ## MIG-650-01 — Correct native isolated watershed
 **Target version**: 0.14.0 migration batch
 - [x] Ground the threshold-search/label contract against ITK and audit current ignored inputs.
