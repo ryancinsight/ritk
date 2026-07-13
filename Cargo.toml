@@ -69,7 +69,7 @@ burn-ndarray = "0.19" # For CPU testing
 
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { path = "../coeus/coeus-nn", version = "0.8.0" }
-pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
+pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.8.0", default-features = false }
 moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe", "no-global-alloc"] }

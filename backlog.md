@@ -1,6 +1,6 @@
 # RITK Backlog - Active Planning
 
-- **MIG-654-01 [patch] - Restore CI dependency topology (IN PROGRESS; owner=Codex; scope=GitHub workflows/dependency checkout/PM artifacts; last-update=2026-07-13).** Acceptance: every workflow that loads the workspace checks out the complete pinned sibling dependency graph at the paths declared by Cargo, the migration audit and Python matrix start from a loadable graph, and the fix-forward PR merges green.
+- **MIG-654-01 [patch] - Restore CI dependency topology (IN PROGRESS; owner=Codex; scope=GitHub workflows/dependency checkout/PyO3 feature boundary/Python test dependencies/PM artifacts; last-update=2026-07-13).** Acceptance: every workflow that loads the workspace checks out the complete pinned sibling dependency graph at the paths declared by Cargo, Rust tests link outside extension-module mode, parity environments install their declared oracles, and the fix-forward PR merges green.
 
 - **MIG-653-01 [major] - Native vector confidence-connected region growing (DONE).** One validated borrowed-channel provider serves exact legacy/Coeus-native execution, Leto owns rank-revealing SVD, ZeroFlux neighborhoods remain image-size bounded, and PyO3 executes directly through Moirai with exact SimpleITK/value/geometry/failure evidence.
 

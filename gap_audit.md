@@ -27,6 +27,12 @@ clean 327-function API-drift report. The first complete matrix exposed and drove
 fix-forward changes for workspace-only formatting, Moirai's Linux-only errno
 accessor and shared kqueue buffer, Apollo's unconditional x86 Stockham module
 resolution, stale deep-module audit paths, and non-Linux `patchelf` installation.
+It also exposed two independent Python-boundary defects: global
+`pyo3/extension-module` activation prevented Linux Rust test binaries from
+linking `libpython`, and the parity environments did not install SciPy or the
+pytest timeout plugin required by their tests and configuration. Extension mode
+is now a `ritk-python` wheel-build feature, while one requirements manifest
+drives both Python test workflows.
 
 Review adjudication accepted all three actionable CI findings: primary checkout
 credentials are no longer persisted, metadata runs with `--locked`, and the

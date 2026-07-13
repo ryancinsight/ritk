@@ -1,0 +1,6 @@
+numpy
+pytest
+pytest-timeout
+scipy
+SimpleITK
+vtk

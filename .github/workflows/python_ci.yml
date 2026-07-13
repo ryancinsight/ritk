@@ -78,7 +78,7 @@ jobs:
       - name: Install Python test tooling
         shell: bash
         run: |
-          python -m pip install pytest numpy SimpleITK vtk
+          python -m pip install -r crates/ritk-python/requirements-test.txt
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             python -m pip install 'maturin[patchelf]'
           else

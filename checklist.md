@@ -15,6 +15,7 @@
 - [x] Inventory the complete transitive sibling repository graph and pinned revisions.
 - [x] Consolidate dependency checkout into one reusable workflow component.
 - [x] Verify workspace loading and affected workflow contracts.
+- [x] Isolate PyO3 extension-module linkage to wheel builds and consolidate Python parity dependencies.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

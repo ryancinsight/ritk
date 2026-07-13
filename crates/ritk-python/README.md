@@ -8,6 +8,12 @@ PyO3/maturin Python extension module wrapping the RITK Rust crate.
 - Python ≥ 3.9
 - maturin ≥ 1.7
 
+Install the parity-test dependencies from their canonical manifest:
+
+```sh
+py -m pip install -r crates/ritk-python/requirements-test.txt
+```
+
 ## Build (Windows)
 
 The default toolchain (`nightly-x86_64-pc-windows-gnu`) produces a wheel whose `_ritk.dll`
@@ -31,7 +37,7 @@ py -m pip install target/wheels/ritk-0.1.0-cp39-abi3-win_amd64.whl --force-reins
 ## Running Tests
 
 ```sh
-# VTK parity tests (requires vtk >= 9.6, SimpleITK >= 2.5)
+# VTK parity tests
 py -m pytest crates/ritk-python/tests/test_vtk_parity.py -v
 
 # SimpleITK parity tests (requires installed ritk wheel + SimpleITK)
