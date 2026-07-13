@@ -17,8 +17,10 @@
 - [x] Verify workspace loading and affected workflow contracts.
 - [x] Isolate PyO3 extension-module linkage to wheel builds and consolidate Python parity dependencies.
 - [x] Root-cause the over-hour wheel run and remove CMA-ES serial dispatch, sparse-cache cloning, and fixed cache-hit interpolation.
-- [x] Localize the residual timeout to full-brain NCC and remove its two full-image allocations and GIL retention.
-- [x] Confirm the boundary-only change leaves test 145 stalled, then move Pearson correlation into `ritk-statistics` with Moirai reductions.
+- [x] Remove full-volume copies and GIL retention from the Python MSE/NCC boundary; move Pearson correlation into its owning `ritk-statistics` crate with Moirai reductions.
+- [x] Replace quiet pytest progress with process-enforcing verbose diagnostics; disprove the NCC hypothesis and localize the timeout to Moirai silently serializing explicit parallel CMA populations.
+- [x] Pin Moirai's 0.2-compatible forced-policy and work-conserving nested-wait fixes while the current provider main carries a separate Mnemosyne 0.3 break.
+- [ ] Verify the unchanged thin-slab CMA comparison under the 60-second per-test bound.
 - [x] Make native Python test timeouts process-enforcing and run the wheel gate concurrently with workspace nextest.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 

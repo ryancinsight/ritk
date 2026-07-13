@@ -31,6 +31,9 @@
 - Pin Moirai's portable IPC error capture and thread-confined kqueue storage so
   macOS consumers compile without Linux-only symbols or non-`Send` shared
   event buffers.
+- Pin Moirai's 0.2-compatible forced indexed-policy and work-conserving nested
+  wait fixes so low-cardinality CMA populations execute concurrently without
+  starving their nested histogram reductions.
 - Restrict PyO3 extension-module linkage to wheel builds so Linux Rust tests
   link `libpython`, and install Python parity oracles plus the configured pytest
   timeout plugin from one requirements manifest in both test workflows.

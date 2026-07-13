@@ -74,40 +74,57 @@ NumPy 2.0.2 through 2.5.1, pytest 8.4.2 through 9.1.1, SciPy 1.13.1 through
 1.18.0, SimpleITK 2.5.5, pytest-timeout 2.4.0, and VTK 9.6.2. The stronger
 Python matrix is bounded at twice its approximately 15-minute Windows runtime.
 The complete wheel suite reached only 49% after 61 minutes; progress timestamps
-localized most runtime to registration tests. Source inspection then identified
-the production defect: `PopulationEval::Parallel` routed CMA-ES populations of
-roughly 9-18 candidates through Moirai's 1,024-element `Adaptive` threshold, so
-every generation executed serially. The explicit parallel mode now uses
-Moirai's `Parallel` policy without changing populations, generations, samples,
-or assertions. The same objective path also deep-cloned approximately one
+localized most runtime to registration tests. RITK's
+`PopulationEval::Parallel` incorrectly routed CMA-ES populations of roughly
+9-18 candidates through Moirai's 1,024-element `Adaptive` threshold. RITK now
+expresses the requested mode through Moirai's `Parallel` policy without changing
+populations, generations, samples, or assertions; later provider inspection
+found the executor still overrode that forced policy with its own grain floor.
+The same objective path also deep-cloned approximately one
 megabyte of sparse fixed-image Parzen weights per evaluation and repeated
 fixed-image coordinate conversion plus interpolation on cache hits. Sparse
 weights now use one shared allocation, with pointer-identity and exact-result
 regressions, and fixed sampling runs only on cache misses or uncached calls.
-The next exact-head run completed tests 1-144 in 3 minutes 40 seconds, then
-spent the rest of the unchanged 30-minute job in test 145,
-`test_ncc_same_image_is_one_on_brain`. That wrapper materialized two owned
-full-volume vectors and retained the GIL even though native image storage is
-contiguous. MSE and NCC now share one borrowed image-pair boundary, release the
-GIL around their reductions, and a pointer-identity regression proves that
-contiguous inputs retain their original storage. The wheel job retains the
-30-minute native CI bound. Exact-head CI then reproduced the same stop after
-144 tests: test 145 occupied the final 18 minutes despite the zero-copy
-boundary. The remaining defect was the Python module's private scalar Pearson
-loop over 11,393,280 voxels. The operation now belongs to `ritk-statistics`,
-where two f64-accumulating Moirai fold/reduce passes compute its means and
-centered moments without intermediate allocation. Affine, constant, empty, and
+Quiet pytest progress initially made the last printed dot appear to implicate
+`test_ncc_same_image_is_one_on_brain`; that inference was false. The boundary
+still contained avoidable ownership drift, so MSE and NCC now share one borrowed
+image-pair boundary, release the GIL around their reductions, and a
+pointer-identity regression proves contiguous inputs retain their original
+storage. Pearson correlation now belongs to `ritk-statistics`, where two
+f64-accumulating Moirai fold/reduce passes compute its means and centered
+moments without intermediate allocation. Affine, constant, empty, and
 shape-mismatch contracts are pinned in the owning crate. NumPy's independent
-correlation oracle completed the same committed volume in 0.31 seconds; this is
-empirical evidence that the workload itself is not minute-scale.
+correlation oracle completed the committed brain volume in 0.31 seconds, but
+this establishes only an empirical baseline, not the prior timeout's cause.
 Pytest's configured signal timeout could not interrupt the running native call,
 so CI exposed neither the test name nor the 60-second breach. The wheel gate now
 uses pytest-timeout's watchdog-thread method and verbose test IDs; a native call
 that exceeds the unchanged bound terminates the process with the active test in
 the log. The independent wheel and workspace suites now run concurrently rather
-than serializing their wall-clock cost.
-The stronger
-alignment gate exposed two DICOM target variants; their versions now inherit
+than serializing their wall-clock cost. The resulting exact-head trace showed
+`test_cma_mi_register_binding_on_rire_brain_default` passing in approximately
+4.2 seconds and terminated
+`test_elastix_vs_ritk_rire_comparison` inside the unchanged
+`brain_multiscale_thin_slab` CMA call at 60 seconds. RSGD in that comparison had
+already completed in approximately 6 seconds.
+
+The CMA population evaluator requests explicit Moirai `Parallel` execution,
+while each candidate's masked histogram schedules another synchronous indexed
+reduction. Source inspection found two provider defects. First, the executor
+applied an undocumented 256-index grain floor after policy selection, so the
+9–18 expensive CMA candidates still ran serially. Second, once forced
+parallelism is honored, indexed fan-out and map/reduce must use the provider's
+existing help-while-waiting path; parking saturated outer workers leaves inner
+histogram chunks queued without a runner. The provider fix makes execution
+policy the scheduling SSOT, routes both indexed waits through the scheduler
+drain path, and adds barrier-synchronized value regressions for small forced
+parallelism and nested fan-out/map-reduce. Evidence tier: type-level policy
+selection, structural deadlock argument, and value-semantic empirical
+regressions. RITK pins the verified 0.2-compatible provider commit because
+current Moirai main also carries an unrelated Mnemosyne 0.3 breaking edge;
+current-main PR 67 ports the same fix forward. RITK verification remains pending
+the exact-head wheel run. The stronger alignment gate
+exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely
 in native target tables. The target-table regression is value-checked in the
 xtask suite. A local wasm build attempt was not evidence:

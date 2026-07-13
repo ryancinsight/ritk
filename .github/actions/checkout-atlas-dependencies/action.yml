@@ -71,7 +71,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/Moirai
-        ref: 57bc152b26a20348392bbe056141b9453cc1b139
+        ref: b263faf674e770f2b31aa8b117fca4c7818001a9
         path: moirai
         persist-credentials: false
     - name: Checkout Themis
