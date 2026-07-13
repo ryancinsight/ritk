@@ -422,6 +422,7 @@ source:crates/ritk-registration/src/metric/correlation_ratio.rs
 source:crates/ritk-registration/src/metric/dl_losses.rs
 source:crates/ritk-registration/src/metric/entropy.rs
 source:crates/ritk-registration/src/metric/histogram/cache.rs
+source:crates/ritk-registration/src/metric/histogram/masked/cached_dispatch.rs
 source:crates/ritk-registration/src/metric/histogram/masked/masked_chunked.rs
 source:crates/ritk-registration/src/metric/histogram/masked/mod.rs
 source:crates/ritk-registration/src/metric/histogram/parzen/compute.rs

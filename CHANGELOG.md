@@ -57,7 +57,8 @@
 - Pin the cargo-nextest installer action to the reviewed immutable revision in
   both test workflows.
 - Consolidate masked histogram cache-hit and cache-fill dispatch into one
-  sparse-or-dense policy per chunking regime.
+  sparse-or-dense policy per chunking regime, and track the intentional leaf
+  move in the migration audit allowlist.
 - Bound both Python test workflows at 30 minutes and force explicitly parallel
   CMA-ES populations through Moirai's parallel policy rather than its
   1,024-element adaptive threshold; retain sparse fixed-image Parzen weights
