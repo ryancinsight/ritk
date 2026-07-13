@@ -1,12 +1,10 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{
-    burn_into_py_image, native_into_py_image, py_image_to_burn, py_image_to_native, PyImage,
-};
+use crate::image::{native_into_py_image, py_image_to_native, PyImage};
 use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
-    toboggan as core_toboggan, FloodConnectivity, MarkerControlledWatershed,
-    MorphologicalWatershed, WatershedLinePolicy, WatershedSegmentation,
+    FloodConnectivity, MarkerControlledWatershed, MorphologicalWatershed, TobogganFilter,
+    WatershedLinePolicy, WatershedSegmentation,
 };
 
 /// Toboggan watershed labeling, matching `sitk.Toboggan`.
@@ -23,10 +21,14 @@ use ritk_segmentation::{
 /// Returns:
 ///     label image (basin indices ≥ 2).
 #[pyfunction]
-pub fn toboggan(py: Python<'_>, image: &PyImage) -> PyImage {
-    let arc = py_image_to_burn(image);
-    let out = py.allow_threads(|| core_toboggan(&arc));
-    burn_into_py_image(out)
+pub fn toboggan(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
+    let image = py_image_to_native(image)?;
+    py.allow_threads(|| {
+        TobogganFilter::new()
+            .apply_native(&image, &SequentialBackend)
+            .map_err(|error| RitkPyError::value(error.to_string()))
+    })
+    .map(native_into_py_image)
 }
 
 /// Marker-less morphological watershed, matching

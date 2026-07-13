@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## MIG-649-01 audit (2026-07-12)
+
+Toboggan watershed was an infallible legacy-only free function that allocated
+path and plateau buffers for every discovered basin, accepted non-finite relief,
+and could emit labels beyond exact `f32` representation. `TobogganFilter` now
+owns legacy/native execution over one flat core, validates nonzero checked shape,
+storage cardinality, finite relief, and the `2^24 - 1` sample bound required by
+labels starting at 2, and reuses its traversal buffers across basins. PyO3 uses
+the native owner and maps contract failures to `ValueError`.
+
+Exact legacy/native equality, non-identity geometry preservation, numeric and
+structural boundary tests, and unchanged label-exact SimpleITK fixtures on three
+2-D seeded volumes plus one 3-D volume provide differential and empirical
+evidence; no machine-checked proof was performed.
+
 ## MIG-648-01 audit (2026-07-12)
 
 Marker-less morphological watershed still crossed through Burn because its

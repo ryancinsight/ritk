@@ -22,19 +22,93 @@
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Per-voxel processing state of the output buffer during labeling.
 const UNLABELED: u32 = 0;
 const IN_PROGRESS: u32 = 1;
 
-/// Apply Toboggan labeling to a scalar relief image.
-///
-/// # Postcondition
-/// Output equals `sitk.Toboggan(image)`: each voxel carries the label (≥ 2) of
-/// the basin its steepest-descent path reaches.
-pub fn toboggan<B: Backend>(image: &Image<B, 3>) -> Image<B, 3> {
-    let (input, dims) = extract_vec_infallible(image);
+/// Toboggan steepest-descent watershed filter.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct TobogganFilter;
+
+impl TobogganFilter {
+    /// Create a Toboggan filter.
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Label the steepest-descent basins of a legacy image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for inaccessible storage, zero/overflowing shape,
+    /// storage-cardinality mismatch, non-finite relief, or a volume whose
+    /// possible labels exceed exact `f32` representation.
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+        let (input, dimensions) = extract_vec(image)?;
+        validate_relief(&input, dimensions)?;
+        Ok(rebuild(
+            toboggan_values(&input, dimensions),
+            dimensions,
+            image,
+        ))
+    }
+
+    /// Label the steepest-descent basins of a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns the validation errors documented by [`Self::apply`], or a
+    /// backend storage/output construction error.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        validate_relief(values, image.shape())?;
+        crate::native_output::from_values(image, toboggan_values(values, image.shape()), backend)
+    }
+}
+
+const MAX_SAMPLE_COUNT: usize = (1usize << f32::MANTISSA_DIGITS) - 1;
+
+fn validate_relief(values: &[f32], dimensions: [usize; 3]) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        dimensions.iter().all(|&extent| extent > 0),
+        "Toboggan requires nonzero dimensions, got {dimensions:?}"
+    );
+    let expected = dimensions
+        .iter()
+        .try_fold(1usize, |count, &extent| count.checked_mul(extent))
+        .ok_or_else(|| anyhow::anyhow!("Toboggan shape product overflows usize: {dimensions:?}"))?;
+    anyhow::ensure!(
+        expected <= MAX_SAMPLE_COUNT,
+        "Toboggan supports at most {MAX_SAMPLE_COUNT} samples for exact f32 labels starting at 2, got {expected}"
+    );
+    anyhow::ensure!(
+        values.len() == expected,
+        "Toboggan shape {dimensions:?} requires {expected} samples, got {}",
+        values.len()
+    );
+    if let Some((index, value)) = values
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        anyhow::bail!("Toboggan relief at flat index {index} must be finite, got {value}");
+    }
+    Ok(())
+}
+
+/// Canonical flat Toboggan core after [`validate_relief`].
+fn toboggan_values(input: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let [zn, yn, xn] = dims;
     let strides = [(yn * xn) as isize, xn as isize, 1isize];
     let n = input.len();
@@ -42,6 +116,8 @@ pub fn toboggan<B: Backend>(image: &Image<B, 3>) -> Image<B, 3> {
     // Output classes (0 = unlabeled, 1 = in-progress, ≥2 = final label).
     let mut class = vec![UNLABELED; n];
     let mut current_label: u32 = 2;
+    let mut visited = Vec::new();
+    let mut open = Vec::new();
 
     // Slide axes in ITK Dimension order (0 = x = ritk innermost axis 2, then y,
     // z); each is probed t = +1 then −1, giving the order +x,−x,+y,−y,+z,−z.
@@ -69,7 +145,8 @@ pub fn toboggan<B: Backend>(image: &Image<B, 3>) -> Image<B, 3> {
             continue;
         }
 
-        let mut visited: Vec<usize> = vec![start];
+        visited.clear();
+        visited.push(start);
         let mut cur = start;
         // Running minimum value along the path (carries across steps, matching
         // ITK's never-reset `MinimumNeighborValue`).
@@ -123,7 +200,8 @@ pub fn toboggan<B: Backend>(image: &Image<B, 3>) -> Image<B, 3> {
 
         // ── Plateau flood-fill at a local minimum ───────────────────────────
         if min_class == IN_PROGRESS {
-            let mut open: Vec<usize> = vec![cur];
+            open.clear();
+            open.push(cur);
             while let Some(seed) = open.pop() {
                 visited.push(seed);
                 let sv = input[seed];
@@ -163,8 +241,7 @@ pub fn toboggan<B: Backend>(image: &Image<B, 3>) -> Image<B, 3> {
         }
     }
 
-    let out: Vec<f32> = class.iter().map(|&c| c as f32).collect();
-    rebuild(out, dims, image)
+    class.into_iter().map(|label| label as f32).collect()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

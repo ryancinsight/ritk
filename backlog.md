@@ -1,6 +1,6 @@
 # RITK Backlog - Active Planning
 
-- **MIG-649-01 [major] - Native Toboggan watershed (IN PROGRESS; owner=Codex; scope=ritk-segmentation Toboggan owner, PyO3/tests/docs).** Acceptance: validated finite relief/cardinality, one canonical flat core serving legacy/Coeus-native images, native PyO3 execution, and unchanged label-exact SimpleITK 2-D/3-D fixtures.
+- **MIG-649-01 [major] - Native Toboggan watershed (DONE).** `TobogganFilter` owns validated legacy/Coeus-native execution over one allocation-reusing flat core; PyO3 is native, with 513 Rust tests and five built-wheel label-exact/validation cases green.
 
 - **MIG-648-01 [major] - Native morphological watershed composition (DONE).** Provider-owned native h-minima and regional-minima execution feed canonical connected components and marker flooding; direct and composed PyO3 routes are native, with 1,529 Rust tests and nine built-wheel oracle/validation cases green.
 

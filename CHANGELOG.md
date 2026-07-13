@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 649: Native Toboggan watershed (MIG-649-01)
+### Breaking
+- Replace the infallible free Toboggan function with `TobogganFilter`; invalid
+  shape, relief, or exact-label cardinality now returns an error.
+
+### Changed
+- Legacy and Coeus-native images share one validated flat Toboggan core, and
+  the PyO3 route no longer constructs a Burn image.
+
 ## [Unreleased] — Sprint 648: Native morphological watershed (MIG-648-01)
 ### Breaking
 - Morphological-watershed construction validates finite, nonnegative levels;

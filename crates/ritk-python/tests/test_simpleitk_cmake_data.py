@@ -1909,6 +1909,18 @@ def test_cmake_toboggan_3d():
     )
 
 
+def test_toboggan_native_validation_errors():
+    relief = np.zeros((1, 2, 3), dtype=np.float32)
+    for value in (np.nan, np.inf, -np.inf):
+        invalid = relief.copy()
+        invalid.flat[2] = value
+        with pytest.raises(
+            ValueError,
+            match=r"Toboggan relief at flat index 2 must be finite",
+        ):
+            ritk.segmentation.toboggan(ritk.Image(invalid))
+
+
 @pytest.mark.parametrize("fully_connected", [False, True])
 @pytest.mark.parametrize("thr", [0.1, 0.3])
 def test_cmake_vector_connected_component(thr, fully_connected):
