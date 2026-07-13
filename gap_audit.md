@@ -113,14 +113,18 @@ while each candidate's masked histogram schedules another synchronous indexed
 reduction. Source inspection found two provider defects. First, the executor
 applied an undocumented 256-index grain floor after policy selection, so the
 9–18 expensive CMA candidates still ran serially. Second, once forced
-parallelism is honored, indexed fan-out and map/reduce must use the provider's
-existing help-while-waiting path; parking saturated outer workers leaves inner
-histogram chunks queued without a runner. The provider fix makes execution
-policy the scheduling SSOT, routes both indexed waits through the scheduler
-drain path, and adds barrier-synchronized value regressions for small forced
-parallelism and nested fan-out/map-reduce. Evidence tier: type-level policy
-selection, structural deadlock argument, and value-semantic empirical
-regressions. RITK pins the verified 0.2-compatible provider commit because
+parallelism is honored, parking saturated outer workers leaves inner histogram
+chunks queued without a runner, while recursively stealing unrelated outer jobs
+from nested waits grows the worker stack. The provider fix makes execution
+policy the scheduling SSOT, retains worker-plus-caller fanout for
+caller-originated regions, flattens worker-nested indexed regions onto the
+current outer lane, and adds barrier-synchronized value regressions that assert
+both exact results and worker identity. Evidence tier: type-level policy
+selection, structural deadlock/stack-growth argument, and value-semantic
+empirical regressions. The first exact-head wheel run advanced to the unchanged
+thin-slab CMA in about 12 seconds, then segfaulted inside its nested parallel
+work instead of timing out; this falsified the wait-only design and drove the
+flattening fix. RITK pins the verified 0.2-compatible provider commit because
 current Moirai main also carries an unrelated Mnemosyne 0.3 breaking edge;
 current-main PR 67 ports the same fix forward. RITK verification remains pending
 the exact-head wheel run. The stronger alignment gate
