@@ -29,6 +29,7 @@
 //! structure, since flat masked-out regions contribute ~0.
 
 pub mod fixed_prep;
+pub mod native;
 pub mod scalar;
 
 pub(crate) use fixed_prep::NgfFixedPrep;
