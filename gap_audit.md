@@ -275,6 +275,11 @@ registration already covered immediately in its class. The duplicate calls and
 assertions are deleted while the existing RITK tests and each unique SimpleITK
 oracle remain independent and unchanged. Evidence tier: exact duplicate call
 and assertion comparison; the next installed-wheel run remains the suite gate.
+Review found the retained cross-modal SimpleITK B-spline branch previously made
+no assertion when the helper returned no result; the duplicated RITK assertion
+had masked that vacuous path. The independent oracle now requires a result
+before checking its existing NCC bound. Evidence tier: value-semantic test
+contract; installed-wheel execution remains pending.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

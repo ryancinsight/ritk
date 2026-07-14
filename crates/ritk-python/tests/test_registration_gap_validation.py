@@ -1145,16 +1145,12 @@ class TestRIREMultiModalVoxel:
         sitk_result = _sitk_bspline_register(
             fixed_s, moving_s, grid_spacing=8.0, num_iterations=30
         )
-        ncc_sitk = (
-            _ncc(self.fixed_norm, _sitk_to_numpy(sitk_result))
-            if sitk_result is not None
-            else self.ncc_before
+        assert sitk_result is not None, "SimpleITK BSpline returned no result"
+        ncc_sitk = _ncc(self.fixed_norm, _sitk_to_numpy(sitk_result))
+        assert ncc_sitk > self.ncc_before - 0.05, (
+            f"SimpleITK BSpline regressed NCC: "
+            f"before={self.ncc_before:.4f}, after={ncc_sitk:.4f}"
         )
-        if sitk_result is not None:
-            assert ncc_sitk > self.ncc_before - 0.05, (
-                f"SimpleITK BSpline regressed NCC: "
-                f"before={self.ncc_before:.4f}, after={ncc_sitk:.4f}"
-            )
 
 
 # ===========================================================================
