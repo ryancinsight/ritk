@@ -16,6 +16,9 @@
   suite while the intermittent parallel registration crash is unresolved.
 
 ### Fixed
+- Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
+  native trace showed the decay sweep could release a huge segment still
+  observed by `TaggedSegmentStack::pop`.
 - Check out the exact sibling Rust provider graph before loading the RITK
   workspace in CI and release jobs; replace the invalid embedded Python
   dependency-alignment step with a tested Rust `xtask` command.

@@ -173,10 +173,14 @@ but segfaulted 8.27 seconds into the unchanged comparison, falsifying caller-
 region nesting as the crash root. RITK already pins Mnemosyne `477f957`, whose
 parent is the Miri-verified page-provenance correction `5a9f49f`; that allocator
 defect is therefore also excluded as the missing consumer fix. The wheel lane
-now retains optimized native symbols and runs the unchanged suite under GDB to
-capture the first native backtrace. Evidence tier: provider value-semantic tests
-plus empirical exact-consumer falsification; the active crash owner remains
-unresolved pending the symbolized trace. The stronger alignment gate
+now retains optimized native symbols and runs the unchanged suite under GDB.
+Run `29296725970` localized the fault to Mnemosyne
+`TaggedSegmentStack::pop` dereferencing an old huge-pool head while the decay
+thread could detach and release that mapping. Mnemosyne `1877bc6` serializes
+head observation through successor access/detach; RITK pins that revision for
+unchanged wheel verification. Evidence tier: symbolized native production
+trace, provider RAII synchronization, and value-semantic provider tests. The
+stronger alignment gate
 exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely
 in native target tables. The target-table regression is value-checked in the

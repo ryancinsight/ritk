@@ -64,7 +64,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/Mnemosyne
-        ref: 477f957fd1aaae75b683a173d6d0d7c72c4f212e
+        ref: 1877bc6fd05948e3a012c209fd9a247de387f40b
         path: mnemosyne
         persist-credentials: false
     - name: Checkout Moirai
