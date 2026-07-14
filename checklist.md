@@ -93,6 +93,10 @@
   differential case.
 - [x] Remove repeated SimpleITK execution from the timed denoising regression;
   retain the unchanged 64-cubed RITK workload and hash-pinned full-array oracle.
+- [x] Delete the redundant SimpleITK-only B-spline self-test after the duration
+  report measured 58.18 seconds; retain direct RITK and parity contracts.
+- [x] Delete the three-pipeline RIRE report that had no comparative oracle or
+  value assertion; retain and rename the canonical CMA-MI contract module.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

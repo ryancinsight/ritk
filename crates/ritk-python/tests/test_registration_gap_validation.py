@@ -256,45 +256,6 @@ def _sitk_affine_register(
     return resampler.Execute(moving_f)
 
 
-def _sitk_bspline_register(
-    fixed_sitk,
-    moving_sitk,
-    grid_spacing=8.0,
-    num_iterations=100,
-):
-    """BSpline deformable registration via SimpleITK."""
-    fixed_f = sitk.Cast(fixed_sitk, sitk.sitkFloat32)
-    moving_f = sitk.Cast(moving_sitk, sitk.sitkFloat32)
-    reg = sitk.ImageRegistrationMethod()
-    # The callers assert normalized cross-correlation, so optimize that exact
-    # objective rather than paying for a sampled histogram surrogate.
-    reg.SetMetricAsCorrelation()
-    reg.SetMetricSamplingStrategy(reg.RANDOM)
-    reg.SetMetricSamplingPercentage(0.25, seed=42)
-    bspline_init = sitk.BSplineTransformInitializer(
-        fixed_f,
-        [int(sz / grid_spacing + 1) for sz in fixed_f.GetSize()],
-        order=3,
-    )
-    reg.SetInitialTransform(bspline_init, inPlace=True)
-    # LBFGS2 converges the differentiable high-dimensional objective without
-    # per-coefficient physical-scale estimation or a bounded line search.
-    reg.SetOptimizerAsLBFGS2(numberOfIterations=num_iterations)
-    reg.SetInterpolator(sitk.sitkLinear)
-    reg.SetShrinkFactorsPerLevel([1])
-    reg.SetSmoothingSigmasPerLevel([0.0])
-    try:
-        final = reg.Execute(fixed_f, moving_f)
-    except RuntimeError:
-        return None
-    resampler = sitk.ResampleImageFilter()
-    resampler.SetReferenceImage(fixed_f)
-    resampler.SetInterpolator(sitk.sitkLinear)
-    resampler.SetDefaultPixelValue(0.0)
-    resampler.SetTransform(final)
-    return resampler.Execute(moving_f)
-
-
 # ---------------------------------------------------------------------------
 # RITK registration wrappers (extract warped image based on return type)
 # ---------------------------------------------------------------------------
@@ -514,24 +475,6 @@ class TestSyntheticGaussianBlob:
             f"LDDMM did not improve NCC: before={self.ncc_before:.4f}, "
             f"after={ncc_after:.4f}"
         )
-
-    def test_sitk_bspline_ncc_improves(self):
-        """SimpleITK BSpline must improve NCC on the shared Gaussian blob."""
-        fixed_s = _numpy_to_sitk(self.fixed_arr)
-        moving_s = _numpy_to_sitk(self.moving_arr)
-        sitk_result = _sitk_bspline_register(
-            fixed_s, moving_s, grid_spacing=8.0, num_iterations=30
-        )
-        ncc_sitk = (
-            _ncc(self.fixed_arr, _sitk_to_numpy(sitk_result))
-            if sitk_result is not None
-            else self.ncc_before
-        )
-        assert ncc_sitk > self.ncc_before, (
-            f"SimpleITK BSpline did not improve NCC: before={self.ncc_before:.4f}, "
-            f"after={ncc_sitk:.4f}"
-        )
-
 
 # ===========================================================================
 # Section 3: Same-modality inter-subject T1↔T1 — Colin27↔MNI (ANTs)

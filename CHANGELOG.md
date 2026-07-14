@@ -20,6 +20,11 @@
   without recomputing the 27-second external reference.
 
 ### Fixed
+- Remove the 36.88-second three-pipeline RIRE comparison that asserted only
+  successful execution and printed a table; retain the value-semantic CMA-MI
+  registration tests in the renamed `test_cma_mi_rire.py` module.
+- Remove the 58-second SimpleITK-only B-spline self-test; the suite already
+  carries direct RITK B-spline and RITK-versus-SimpleITK parity contracts.
 - Evaluate patch-based denoising pixels through bounded Moirai batches while
   preserving ITK's serial RNG stream and each pixel's floating-point reduction
   order, reuse batch storage, flatten sampled indices and interior patch

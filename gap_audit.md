@@ -92,6 +92,16 @@ against the Windows-generated SimpleITK fixture at one or more platform-
 dependent voxels. The fixture is regenerated with SimpleITK 2.5.5 on Linux
 x86-64, matching the authoritative wheel lane while retaining the one-ULP
 contract; the threshold is unchanged.
+The same duration report identified a 58.18-second SimpleITK-only B-spline
+self-test. It neither invoked RITK nor compared implementations, while direct
+RITK B-spline quality and RITK-versus-SimpleITK deformable parity tests already
+own those contracts. The redundant external-library self-test and its private
+helper are deleted.
+The 36.88-second `test_elastix_vs_ritk_rire_comparison` was a reporting script,
+not a regression: it caught every pipeline exception, accepted error records,
+and asserted only result presence and positive scalars. It is deleted with its
+test-local pipeline wrappers. The remaining value-semantic CMA-MI tests move to
+`test_cma_mi_rire.py`, matching the module's actual bounded context.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before
