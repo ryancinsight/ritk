@@ -18,7 +18,7 @@
 
 ### Fixed
 - Align the SimpleITK B-spline optimizer with the NCC oracle's correlation
-  objective, use one deterministic work unit on quota-limited runners, and
+  objective, use its convergent high-dimensional LBFGS2 implementation, and
   restore physical-shift scaling to the rigid and affine helpers.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still

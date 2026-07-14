@@ -44,8 +44,8 @@
   shift scales for rigid and affine parameters, then align the actual B-spline
   helper's optimizer objective with its NCC assertion without changing its
   data, sampling, grid, iteration cap, or assertions.
-- [x] Remove hosted-runner thread oversubscription from the deterministic
-  SimpleITK B-spline oracle without changing its numerical workload.
+- [x] Falsify a single SimpleITK work unit and dense sampling, then select
+  LBFGS2 from exact convergence and value-semantic timing evidence.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

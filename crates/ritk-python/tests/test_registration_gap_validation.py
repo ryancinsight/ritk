@@ -262,16 +262,11 @@ def _sitk_bspline_register(
     moving_sitk,
     grid_spacing=8.0,
     num_iterations=100,
-    learning_rate=1.0,
 ):
     """BSpline deformable registration via SimpleITK."""
     fixed_f = sitk.Cast(fixed_sitk, sitk.sitkFloat32)
     moving_f = sitk.Cast(moving_sitk, sitk.sitkFloat32)
     reg = sitk.ImageRegistrationMethod()
-    # Hosted runners expose the host CPU count despite a much smaller CPU
-    # quota. One work unit keeps this deterministic oracle out of oversubscribed
-    # SimpleITK thread pools without changing its evaluated samples or updates.
-    reg.SetNumberOfWorkUnits(1)
     # The callers assert normalized cross-correlation, so optimize that exact
     # objective rather than paying for a sampled histogram surrogate.
     reg.SetMetricAsCorrelation()
@@ -283,13 +278,9 @@ def _sitk_bspline_register(
         order=3,
     )
     reg.SetInitialTransform(bspline_init, inPlace=True)
-    # B-spline coefficients are physical displacements with uniform units, so
-    # physical-shift scale estimation is redundant for this parameterization.
-    reg.SetOptimizerAsRegularStepGradientDescent(
-        learningRate=learning_rate,
-        minStep=1e-4,
-        numberOfIterations=num_iterations,
-    )
+    # LBFGS2 converges the differentiable high-dimensional objective without
+    # per-coefficient physical-scale estimation or a bounded line search.
+    reg.SetOptimizerAsLBFGS2(numberOfIterations=num_iterations)
     reg.SetInterpolator(sitk.sitkLinear)
     reg.SetShrinkFactorsPerLevel([1])
     reg.SetSmoothingSigmasPerLevel([0.0])
