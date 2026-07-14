@@ -39,6 +39,15 @@ a green import skip and its claimed bit-exact contract admitted an underived
 `1e-3` error. RITK and SimpleITK are now mandatory imports in this declared
 parity environment, and the four parameterized cases require exact f32 array
 equality.
+Run `29312477671` compiled and passed clippy, formatting, alignment, and Linux/
+macOS nextest, but the unchanged 64-cubed structural case still terminated after
+60 seconds inside RITK. This falsified scheduler dispatch alone as a sufficient
+fix: the scalar inner loop still performed coordinate reconstruction and six
+bounds comparisons across approximately 6.55 billion patch elements. Sampled
+centres and patch displacements are now flattened once; the interior path uses
+direct indexed loads with no per-element coordinate or boundary work, while
+the boundary path retains identical clipping and both retain exact offset and
+f64 accumulation order.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

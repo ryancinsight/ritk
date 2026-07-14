@@ -19,9 +19,9 @@
 ### Fixed
 - Evaluate patch-based denoising pixels through bounded Moirai batches while
   preserving ITK's serial RNG stream and each pixel's floating-point reduction
-  order, reuse batch storage, and reject sample counts that exceed the bounded
-  coordinate budget, addressing the native kernel isolated by the 60-second
-  wheel timeout.
+  order, reuse batch storage, flatten sampled indices and interior patch
+  offsets, and reject sample counts that exceed the bounded index budget,
+  addressing the native kernel isolated by the 60-second wheel timeout.
 - Align the SimpleITK B-spline optimizer with the NCC oracle's correlation
   objective, use its convergent high-dimensional LBFGS2 implementation, and
   restore physical-shift scaling to the rigid and affine helpers.

@@ -40,14 +40,23 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 use std::f64::consts::PI;
 use std::mem::size_of;
 
-/// Bounds the transient sample-position storage used by one parallel batch.
+/// Bounds the transient sample-index storage used by one parallel batch.
 const SAMPLE_BATCH_BYTES: usize = 8 * 1024 * 1024;
 
 #[derive(Clone, Copy)]
 struct PixelWork {
     position: [i64; 3],
+    center_index: usize,
+    interior: bool,
     first_sample: usize,
     sample_count: usize,
+}
+
+#[derive(Clone, Copy)]
+struct PatchOffset {
+    coordinate: [i64; 3],
+    displacement: isize,
+    weight: f64,
 }
 
 // ── ITK MersenneTwister (MT19937) ───────────────────────────────────────────────
@@ -183,7 +192,7 @@ impl PatchBasedDenoisingImageFilter {
     /// Returns `Err` if the tensor data cannot be read as `f32` or the requested
     /// sample count exceeds the bounded per-batch coordinate capacity.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let max_samples = SAMPLE_BATCH_BYTES / size_of::<[i64; 3]>();
+        let max_samples = SAMPLE_BATCH_BYTES / size_of::<usize>();
         anyhow::ensure!(
             self.number_of_sample_patches <= max_samples,
             "number_of_sample_patches {} exceeds bounded capacity {max_samples}",
@@ -233,15 +242,26 @@ impl PatchBasedDenoisingImageFilter {
         // Smooth-disc squared patch weights, indexed by patch offset.
         let weights = smooth_disc_weights_sq(self.patch_radius, ndim);
 
-        // Patch offsets in (dz, dy, dx) with their weight index.
-        let mut offsets: Vec<(i64, i64, i64, usize)> = Vec::new();
+        // Patch offsets in (dz, dy, dx), with the equivalent flat displacement.
+        let row_stride = isize::try_from(nx).expect("invariant: image storage fits isize");
+        let plane_stride = isize::try_from(ny * nx).expect("invariant: image storage fits isize");
+        let mut offsets = Vec::new();
         {
             let mut wi = 0usize;
             let zr = if ndim == 3 { r } else { 0 };
             for dz in -zr..=zr {
                 for dy in -r..=r {
                     for dx in -r..=r {
-                        offsets.push((dz, dy, dx, wi));
+                        let flat = isize::try_from(dz).expect("invariant: patch offset fits isize")
+                            * plane_stride
+                            + isize::try_from(dy).expect("invariant: patch offset fits isize")
+                                * row_stride
+                            + isize::try_from(dx).expect("invariant: patch offset fits isize");
+                        offsets.push(PatchOffset {
+                            coordinate: [dx, dy, dz],
+                            displacement: flat,
+                            weight: weights[wi],
+                        });
                         wi += 1;
                     }
                 }
@@ -255,15 +275,15 @@ impl PatchBasedDenoisingImageFilter {
         let mut mt = ItkMt::new(0);
         let mut out = data.to_vec();
         let order = face_calculator_order(sizes, self.patch_radius as i64, ndim);
-        let sample_position_bytes = size_of::<[i64; 3]>();
+        let sample_index_bytes = size_of::<usize>();
         let sample_bytes_per_pixel = nrr
-            .saturating_mul(sample_position_bytes)
-            .max(sample_position_bytes);
+            .saturating_mul(sample_index_bytes)
+            .max(sample_index_bytes);
         let pixels_per_batch = (sample_budget / sample_bytes_per_pixel).max(1);
         let batch_capacity = pixels_per_batch.min(order.len());
         let sample_capacity = batch_capacity
             .saturating_mul(nrr)
-            .min(sample_budget / sample_position_bytes);
+            .min(sample_budget / sample_index_bytes);
         let mut work = Vec::with_capacity(batch_capacity);
         let mut samples = Vec::with_capacity(sample_capacity);
         let mut values = Vec::with_capacity(batch_capacity);
@@ -298,10 +318,18 @@ impl PatchBasedDenoisingImageFilter {
                     } else {
                         0
                     };
-                    samples.push([qx, qy, qz]);
+                    samples.push(idx(qx, qy, qz));
                 }
+                let center_index = idx(x, y, z);
                 work.push(PixelWork {
                     position: q0,
+                    center_index,
+                    interior: x >= r
+                        && y >= r
+                        && z >= if ndim == 3 { r } else { 0 }
+                        && x < sizes[0] - r
+                        && y < sizes[1] - r
+                        && z < sizes[2] - if ndim == 3 { r } else { 0 },
                     first_sample,
                     sample_count,
                 });
@@ -313,36 +341,50 @@ impl PatchBasedDenoisingImageFilter {
                 |work_index, value| {
                     let pixel = work[work_index];
                     let [x, y, z] = pixel.position;
-                    let p_center = data[idx(x, y, z)] as f64;
+                    let p_center = data[pixel.center_index] as f64;
                     let mut sum_g = 0.0f64;
                     let mut grad = 0.0f64;
 
-                    for &[qx, qy, qz] in
+                    for &q_center_index in
                         &samples[pixel.first_sample..pixel.first_sample + pixel.sample_count]
                     {
                         let mut sq = 0.0f64;
-                        for &(dz, dy, dx, wi) in &offsets {
-                            let (px, py, pz) = (x + dx, y + dy, z + dz);
-                            if px < 0
-                                || py < 0
-                                || pz < 0
-                                || px >= sizes[0]
-                                || py >= sizes[1]
-                                || pz >= sizes[2]
-                            {
-                                continue;
+                        if pixel.interior {
+                            for offset in &offsets {
+                                let vp = data
+                                    [pixel.center_index.wrapping_add_signed(offset.displacement)]
+                                    as f64;
+                                let vq = data
+                                    [q_center_index.wrapping_add_signed(offset.displacement)]
+                                    as f64;
+                                let diff = vp - vq;
+                                sq += offset.weight * diff * diff;
                             }
-                            // The region constraint guarantees the selected
-                            // patch coordinate is in bounds for every offset.
-                            let vp = data[idx(px, py, pz)] as f64;
-                            let vq = data[idx(qx + dx, qy + dy, qz + dz)] as f64;
-                            let diff = vp - vq;
-                            sq += weights[wi] * diff * diff;
+                        } else {
+                            for offset in &offsets {
+                                let [dx, dy, dz] = offset.coordinate;
+                                let (px, py, pz) = (x + dx, y + dy, z + dz);
+                                if px < 0
+                                    || py < 0
+                                    || pz < 0
+                                    || px >= sizes[0]
+                                    || py >= sizes[1]
+                                    || pz >= sizes[2]
+                                {
+                                    continue;
+                                }
+                                let vp = data[idx(px, py, pz)] as f64;
+                                let vq = data
+                                    [q_center_index.wrapping_add_signed(offset.displacement)]
+                                    as f64;
+                                let diff = vp - vq;
+                                sq += offset.weight * diff * diff;
+                            }
                         }
 
                         let g = (-(sq / s2) / 2.0).exp();
                         sum_g += g;
-                        grad += (data[idx(qx, qy, qz)] as f64 - p_center) * g;
+                        grad += (data[q_center_index] as f64 - p_center) * g;
                     }
 
                     let update = 0.2 * grad / (sum_g + f64::MIN_POSITIVE * 100.0);

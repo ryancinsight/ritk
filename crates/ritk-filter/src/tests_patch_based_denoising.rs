@@ -44,7 +44,7 @@ fn test_patch_based_denoising_batch_partition_invariant() {
         number_of_sample_patches: 32,
         ..Default::default()
     };
-    let sample_bytes = size_of::<[i64; 3]>() * filter.number_of_sample_patches;
+    let sample_bytes = size_of::<usize>() * filter.number_of_sample_patches;
     let reference = filter.pass_with_sample_budget(&data, [1, ny, nx], sample_bytes);
 
     for pixel_capacity in [2, 7, 17, ny * nx - 1, ny * nx, ny * nx + 1] {
@@ -57,7 +57,7 @@ fn test_patch_based_denoising_batch_partition_invariant() {
 #[test]
 fn test_patch_based_denoising_rejects_unbounded_sample_storage() {
     let image = ts::make_image::<B, 3>(vec![1.0f32; 9], [1, 3, 3]);
-    let max_samples = SAMPLE_BATCH_BYTES / size_of::<[i64; 3]>();
+    let max_samples = SAMPLE_BATCH_BYTES / size_of::<usize>();
     let error = PatchBasedDenoisingImageFilter {
         number_of_sample_patches: max_samples + 1,
         ..Default::default()

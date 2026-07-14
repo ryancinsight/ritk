@@ -78,6 +78,9 @@
   fail, and replace correlation-only validation with clean-image MSE reduction.
 - [x] Make the small-fixture differential prerequisites mandatory and enforce
   its documented bit-exact contract with exact array equality.
+- [x] Falsify parallel dispatch alone as sufficient on the unchanged 64-cubed
+  case; flatten sampled patches and remove coordinate reconstruction plus six
+  bounds comparisons from the dominant interior loop.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
