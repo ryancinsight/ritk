@@ -25,8 +25,8 @@ fn test_itk_patch_reduction_order() {
 
 #[test]
 fn test_itk_pixel_difference_rounds_before_widening() {
-    let current = 26_765.939_453_125_f32;
-    let selected = 123.456_001_281_738_28_f32;
+    let current = f32::from_bits(0x46d1_1be1);
+    let selected = f32::from_bits(0x42f6_e979);
     let actual = pixel_difference(current, selected);
 
     assert_eq!(actual, -26_642.484_375_f64);

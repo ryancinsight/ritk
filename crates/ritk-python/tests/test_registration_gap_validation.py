@@ -324,6 +324,15 @@ class TestSyntheticSphere:
         d = _dice(_sitk_to_numpy(result), self.fixed_arr)
         assert d >= 0.85, f"SimpleITK rigid Dice {d:.4f} < 0.85"
 
+    def test_sitk_affine_recovers_sphere(self):
+        """SimpleITK affine must achieve Dice >= 0.50."""
+        result = _sitk_affine_register(
+            self.fixed_sitk, self.moving_sitk, num_iterations=100
+        )
+        assert result is not None
+        d = _dice(_sitk_to_numpy(result), self.fixed_arr)
+        assert d >= 0.50, f"SimpleITK affine Dice {d:.4f} < 0.50"
+
     # --- RITK Demons family ---
 
     def test_ritk_demons_recovers_sphere(self):
@@ -349,6 +358,18 @@ class TestSyntheticSphere:
         )
         d = _dice(warped, self.fixed_arr)
         assert d >= 0.70, f"RITK Diffeomorphic Demons Dice {d:.4f} < 0.70"
+
+    def test_ritk_symmetric_demons_recovers_sphere(self):
+        """RITK Symmetric Demons must achieve Dice >= 0.70."""
+        warped = _ritk_warped(
+            "symmetric_demons_register",
+            self.fixed_ritk,
+            self.moving_ritk,
+            max_iterations=100,
+            sigma_diffusion=1.5,
+        )
+        d = _dice(warped, self.fixed_arr)
+        assert d >= 0.70, f"RITK Symmetric Demons Dice {d:.4f} < 0.70"
 
     def test_ritk_multires_demons_recovers_sphere(self):
         """RITK Multi-Res Demons must achieve Dice >= 0.70."""
@@ -397,6 +418,37 @@ class TestSyntheticSphere:
         d = _dice(warped, self.fixed_arr)
         assert d >= 0.60, f"RITK SyN Dice {d:.4f} < 0.60"
 
+    def test_ritk_multires_syn_recovers_sphere(self):
+        """RITK Multi-Res SyN must achieve Dice >= 0.60."""
+        warped = _ritk_warped(
+            "multires_syn_register",
+            self.fixed_ritk,
+            self.moving_ritk,
+            num_levels=3,
+            sigma_smooth=1.0,
+            cc_radius=2,
+            gradient_step=0.5,
+        )
+        d = _dice(warped, self.fixed_arr)
+        assert d >= 0.60, f"RITK Multi-Res SyN Dice {d:.4f} < 0.60"
+
+    def test_ritk_bspline_syn_recovers_sphere(self):
+        """RITK BSpline SyN must achieve Dice >= 0.55."""
+        warped = _ritk_warped(
+            "bspline_syn_register",
+            self.fixed_ritk,
+            self.moving_ritk,
+            max_iterations=100,
+            control_spacing_z=8,
+            control_spacing_y=8,
+            control_spacing_x=8,
+            sigma_smooth=1.0,
+            cc_radius=2,
+            gradient_step=0.5,
+        )
+        d = _dice(warped, self.fixed_arr)
+        assert d >= 0.55, f"RITK BSpline SyN Dice {d:.4f} < 0.55"
+
     def test_ritk_bspline_ffd_recovers_sphere(self):
         """RITK BSpline FFD must achieve Dice >= 0.55 on shifted sphere."""
         warped = _ritk_warped(
@@ -409,72 +461,6 @@ class TestSyntheticSphere:
         )
         d = _dice(warped, self.fixed_arr)
         assert d >= 0.55, f"RITK BSpline FFD Dice {d:.4f} < 0.55"
-
-# ===========================================================================
-# Section 2: Synthetic — shifted Gaussian blob (continuous NCC improvement)
-# ===========================================================================
-
-
-@pytest.mark.slow
-class TestSyntheticGaussianBlob:
-    """Validate NCC improvement after registration on shifted Gaussian blobs.
-
-    Gaussian blobs provide continuous intensity distributions suited to all
-    registration algorithms including SyN (which uses cross-correlation).
-    """
-
-    @pytest.fixture(autouse=True)
-    def setup_blob_pair(self):
-        self.fixed_arr = _make_gaussian_blob(size=SIZE, sigma=5.0)
-        shift = 4
-        self.moving_arr = np.roll(self.fixed_arr, shift, axis=2).astype(np.float32)
-        self.fixed_ritk = _numpy_to_ritk(self.fixed_arr)
-        self.moving_ritk = _numpy_to_ritk(self.moving_arr)
-        self.ncc_before = _ncc(self.fixed_arr, self.moving_arr)
-
-    def test_ritk_syn_ncc_improves(self):
-        """RITK SyN must improve NCC over baseline."""
-        warped = _ritk_warped(
-            "syn_register",
-            self.fixed_ritk,
-            self.moving_ritk,
-            max_iterations=100,
-            sigma_smooth=1.0,
-            cc_radius=2,
-            gradient_step=0.5,
-        )
-        ncc_after = _ncc(self.fixed_arr, warped)
-        assert ncc_after > self.ncc_before, (
-            f"SyN did not improve NCC: before={self.ncc_before:.4f}, "
-            f"after={ncc_after:.4f}"
-        )
-
-    def test_ritk_demons_ncc_improves(self):
-        """RITK Demons must improve NCC over baseline."""
-        warped = _ritk_warped(
-            "demons_register", self.fixed_ritk, self.moving_ritk, max_iterations=100
-        )
-        ncc_after = _ncc(self.fixed_arr, warped)
-        assert ncc_after > self.ncc_before, (
-            f"Demons did not improve NCC: before={self.ncc_before:.4f}, "
-            f"after={ncc_after:.4f}"
-        )
-
-    def test_ritk_lddmm_ncc_improves(self):
-        """RITK LDDMM must improve NCC over baseline."""
-        warped = _ritk_warped(
-            "lddmm_register",
-            self.fixed_ritk,
-            self.moving_ritk,
-            max_iterations=30,
-            num_time_steps=5,
-            kernel_sigma=2.0,
-        )
-        ncc_after = _ncc(self.fixed_arr, warped)
-        assert ncc_after > self.ncc_before, (
-            f"LDDMM did not improve NCC: before={self.ncc_before:.4f}, "
-            f"after={ncc_after:.4f}"
-        )
 
 # ===========================================================================
 # Section 3: Same-modality inter-subject T1↔T1 — Colin27↔MNI (ANTs)

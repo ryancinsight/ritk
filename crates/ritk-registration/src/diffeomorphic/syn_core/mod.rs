@@ -29,9 +29,7 @@ mod buffers;
 
 use std::collections::VecDeque;
 
-#[cfg(test)]
-use super::local_cc::mean_local_cc;
-use super::local_cc::{bidirectional_cc_from_sats_into, CcSats};
+use super::local_cc::bidirectional_cc_from_sats_into;
 use crate::deformable_field_ops::{
     cc_converged, compute_gradient_into, normalize_forces_into, scaling_and_squaring_into,
     validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField,
@@ -121,13 +119,12 @@ impl SyNRegistration {
 
         validate_image_pair(fixed, moving, dims)?;
 
-        let mut buf = SyNBuffers::new(n, nz);
+        let r = self.config.cc_window_radius;
+        let mut buf = SyNBuffers::new(n, dims, r);
 
         let mut cc_history: VecDeque<f64> = VecDeque::new();
         let mut final_cc = 0.0_f64;
         let mut iter = 0usize;
-        let r = self.config.cc_window_radius;
-
         for it in 0..self.config.max_iterations {
             iter = it + 1;
 
@@ -196,7 +193,7 @@ impl SyNRegistration {
             );
 
             // Shared CC statistics, symmetric forces, and convergence metric.
-            let cc_sats = CcSats::build(&buf.i_w, &buf.j_w, dims, r);
+            buf.cc_sats.rebuild(&buf.i_w, &buf.j_w, dims);
             final_cc = bidirectional_cc_from_sats_into(
                 &buf.i_w,
                 &buf.j_w,
@@ -211,7 +208,7 @@ impl SyNRegistration {
                     x: &buf.gj_x,
                 },
                 dims,
-                &cc_sats,
+                &buf.cc_sats,
                 VectorFieldMut {
                     z: &mut buf.u1z,
                     y: &mut buf.u1y,

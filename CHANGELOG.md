@@ -17,6 +17,13 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Remove the obsolete side-by-side registration module and fold repeated
+  synthetic B-spline, LDDMM, Demons, and SimpleITK assertions onto their
+  canonical computed results, eliminating 31 repeated registrations without
+  changing a retained workload, threshold, or value-semantic assertion.
+- Rebuild preallocated local-correlation summed-area tables in place and use one
+  fused voxel traversal for both force directions and convergence across dense,
+  multi-resolution, and B-spline SyN.
 - Subtract patch-denoising pixels in `f32` before widening their difference into
   the `f64` entropy accumulator, matching ITK's scalar component boundary.
 - Run the load-bearing patch-denoising differential first in the wheel gate and

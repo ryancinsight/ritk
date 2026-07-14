@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use crate::deformable_field_ops::{
     compute_gradient_into, gaussian_smooth_with_scratch, normalize_forces_into,
-    scaling_and_squaring_into, warp_image_into, VelocityField,
+    scaling_and_squaring_into, warp_image_into, VectorField, VectorFieldMut, VelocityField,
 };
 use crate::error::RegistrationError;
 
@@ -11,7 +11,7 @@ use super::primitives::{accumulate_to_cp_into, cp_count, cp_laplacian_into, eval
 use super::BSplineSyNConfig;
 use super::BSplineSyNRegistration;
 use super::BSplineSyNResult;
-use crate::diffeomorphic::local_cc::{cc_forces_into, mean_local_cc};
+use crate::diffeomorphic::local_cc::bidirectional_cc_from_sats_into;
 
 impl BSplineSyNRegistration {
     /// Create a registration instance with the given configuration.
@@ -70,13 +70,13 @@ impl BSplineSyNRegistration {
         ];
         let cp_n = cp_d[0] * cp_d[1] * cp_d[2];
 
-        let mut buf = BSplineSyNBuffers::new(n, cp_n);
+        let r = self.config.cc_window_radius;
+        let mut buf = BSplineSyNBuffers::new(n, cp_n, dims, r);
 
         let mut cc_history: VecDeque<f64> = VecDeque::new();
         let mut final_cc = 0.0_f64;
         let mut iter = 0usize;
 
-        let r = self.config.cc_window_radius;
         let rw = self.config.regularization_weight as f32;
         let sigma = self.config.sigma_smooth;
 
@@ -155,30 +155,34 @@ impl BSplineSyNRegistration {
                 &mut buf.gj_x,
             );
 
-            // CC forces (zero alloc)
-            cc_forces_into(
+            // Shared CC statistics, symmetric forces, and convergence metric.
+            buf.cc_sats.rebuild(&buf.i_w, &buf.j_w, dims);
+            final_cc = bidirectional_cc_from_sats_into(
                 &buf.i_w,
                 &buf.j_w,
-                &buf.gi_z,
-                &buf.gi_y,
-                &buf.gi_x,
+                VectorField {
+                    z: &buf.gi_z,
+                    y: &buf.gi_y,
+                    x: &buf.gi_x,
+                },
+                VectorField {
+                    z: &buf.gj_z,
+                    y: &buf.gj_y,
+                    x: &buf.gj_x,
+                },
                 dims,
-                r,
-                &mut buf.u1z,
-                &mut buf.u1y,
-                &mut buf.u1x,
-            );
-            cc_forces_into(
-                &buf.j_w,
-                &buf.i_w,
-                &buf.gj_z,
-                &buf.gj_y,
-                &buf.gj_x,
-                dims,
-                r,
-                &mut buf.u2z,
-                &mut buf.u2y,
-                &mut buf.u2x,
+                &buf.cc_sats,
+                VectorFieldMut {
+                    z: &mut buf.u1z,
+                    y: &mut buf.u1y,
+                    x: &mut buf.u1x,
+                },
+                VectorFieldMut {
+                    z: &mut buf.u2z,
+                    y: &mut buf.u2y,
+                    x: &mut buf.u2x,
+                },
+                &mut buf.cc_slices,
             );
 
             // Normalise forces so max|u₁| = max|u₂| = gradient_step
@@ -276,7 +280,6 @@ impl BSplineSyNRegistration {
                 buf.cp2x[i] += buf.d2x[i] + rw * buf.l2x[i];
             }
 
-            final_cc = mean_local_cc(&buf.i_w, &buf.j_w, dims, r);
             cc_history.push_back(final_cc);
             if cc_history.len() > self.config.convergence_window {
                 cc_history.pop_front();

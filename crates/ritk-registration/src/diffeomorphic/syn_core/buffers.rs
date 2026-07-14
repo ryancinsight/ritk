@@ -1,7 +1,10 @@
 //! Pre-allocated scratch buffers for zero-allocation SyN iteration.
 //!
-//! All buffers are sized at construction time; the iteration loop performs
-//! zero heap allocations by writing exclusively into these pre-owned buffers.
+//! All volume-sized buffers are sized at construction time and rebuilt or
+//! overwritten in place. The fused CC dispatcher retains one bounded `O(nz)`
+//! slice-descriptor allocation per iteration.
+
+use crate::diffeomorphic::local_cc::CcSats;
 
 /// Dense scratch buffers for one SyN registration.
 ///
@@ -53,11 +56,12 @@ pub(super) struct SyNBuffers {
 
     // ── Per-z-slice CC reductions ──
     pub cc_slices: Vec<(f64, usize)>,
+    pub cc_sats: CcSats,
 }
 
 impl SyNBuffers {
     /// Allocate all 29 buffers for a volume with `n = nz*ny*nx` voxels.
-    pub(super) fn new(n: usize, nz: usize) -> Self {
+    pub(super) fn new(n: usize, dims: [usize; 3], cc_radius: usize) -> Self {
         Self {
             v1z: vec![0.0_f32; n],
             v1y: vec![0.0_f32; n],
@@ -88,7 +92,8 @@ impl SyNBuffers {
             u2z: vec![0.0_f32; n],
             u2y: vec![0.0_f32; n],
             u2x: vec![0.0_f32; n],
-            cc_slices: vec![(0.0_f64, 0usize); nz],
+            cc_slices: vec![(0.0_f64, 0usize); dims[0]],
+            cc_sats: CcSats::new(dims, cc_radius),
         }
     }
 }

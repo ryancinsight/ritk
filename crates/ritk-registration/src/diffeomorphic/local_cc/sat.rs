@@ -13,7 +13,8 @@
 ///
 /// # Memory
 /// 5 × (nz+2r)(ny+2r)(nx+2r) f64 values.
-/// At r=3, 192³ input: ~315 MB. Caller should drop after the force pass.
+/// At r=3, 192³ input: ~315 MB. Iterative callers should allocate once and
+/// call [`CcSats::rebuild`] for each new warped-image pair.
 pub(crate) struct CcSats {
     sat_f: Vec<f64>,
     sat_m: Vec<f64>,
@@ -27,32 +28,62 @@ pub(crate) struct CcSats {
 }
 
 impl CcSats {
-    /// Build all 5 SATs from `i_w` and `j_w` (both length nz*ny*nx, z-major).
-    ///
-    /// `r` is the Chebyshev radius (window side = 2r+1).
-    pub(crate) fn build(i_w: &[f32], j_w: &[f32], dims: [usize; 3], r: usize) -> Self {
+    /// Allocate the five tables for one image shape and window radius.
+    pub(crate) fn new(dims: [usize; 3], r: usize) -> Self {
         let [nz, ny, nx] = dims;
         let w = 2 * r + 1;
         let cnt = (w * w * w) as f64;
-
-        // Padded dimensions: each axis has r extra on each side.
         let pnz = nz + 2 * r;
         let pny = ny + 2 * r;
         let pnx = nx + 2 * r;
+        let snz = pnz + 1;
+        let sny = pny + 1;
+        let snx = pnx + 1;
+        let sat_size = snz * sny * snx;
+
+        Self {
+            sat_f: vec![0.0_f64; sat_size],
+            sat_m: vec![0.0_f64; sat_size],
+            sat_f2: vec![0.0_f64; sat_size],
+            sat_m2: vec![0.0_f64; sat_size],
+            sat_fm: vec![0.0_f64; sat_size],
+            sdims: [snz, sny, snx],
+            r,
+            cnt,
+        }
+    }
+
+    /// Build all five tables from `i_w` and `j_w`.
+    pub(crate) fn build(i_w: &[f32], j_w: &[f32], dims: [usize; 3], r: usize) -> Self {
+        let mut tables = Self::new(dims, r);
+        tables.rebuild(i_w, j_w, dims);
+        tables
+    }
+
+    /// Rebuild previously allocated tables for a new image pair of the same shape.
+    pub(crate) fn rebuild(&mut self, i_w: &[f32], j_w: &[f32], dims: [usize; 3]) {
+        let [nz, ny, nx] = dims;
+        debug_assert_eq!(i_w.len(), nz * ny * nx);
+        debug_assert_eq!(j_w.len(), nz * ny * nx);
+        let [snz, sny, snx] = self.sdims;
+        let pnz = snz - 1;
+        let pny = sny - 1;
+        let pnx = snx - 1;
+        debug_assert_eq!(pnz, nz + 2 * self.r);
+        debug_assert_eq!(pny, ny + 2 * self.r);
+        debug_assert_eq!(pnx, nx + 2 * self.r);
+
+        self.sat_f.fill(0.0);
+        self.sat_m.fill(0.0);
+        self.sat_f2.fill(0.0);
+        self.sat_m2.fill(0.0);
+        self.sat_fm.fill(0.0);
 
         // Build all five 1-based SATs in four fused, contiguous traversals:
         // input copy followed by one prefix pass per axis. This eliminates five
         // padded volumes and replaces twenty channel-specific passes while
         // retaining replicate-clamp boundary values and summation order.
-        let snz = pnz + 1;
-        let sny = pny + 1;
-        let snx = pnx + 1;
-        let sat_size = snz * sny * snx;
-        let mut sat_f = vec![0.0_f64; sat_size];
-        let mut sat_m = vec![0.0_f64; sat_size];
-        let mut sat_f2 = vec![0.0_f64; sat_size];
-        let mut sat_m2 = vec![0.0_f64; sat_size];
-        let mut sat_fm = vec![0.0_f64; sat_size];
+        let r = self.r;
 
         for z in 1..=pnz {
             let src_z = (z - 1).saturating_sub(r).min(nz - 1);
@@ -64,22 +95,22 @@ impl CcSats {
                     let f = i_w[src] as f64;
                     let m = j_w[src] as f64;
                     let index = z * sny * snx + y * snx + x;
-                    sat_f[index] = f;
-                    sat_m[index] = m;
-                    sat_f2[index] = f * f;
-                    sat_m2[index] = m * m;
-                    sat_fm[index] = f * m;
+                    self.sat_f[index] = f;
+                    self.sat_m[index] = m;
+                    self.sat_f2[index] = f * f;
+                    self.sat_m2[index] = m * m;
+                    self.sat_fm[index] = f * m;
                 }
             }
         }
 
         macro_rules! accumulate_channels {
             ($index:expr, $previous:expr) => {
-                sat_f[$index] += sat_f[$previous];
-                sat_m[$index] += sat_m[$previous];
-                sat_f2[$index] += sat_f2[$previous];
-                sat_m2[$index] += sat_m2[$previous];
-                sat_fm[$index] += sat_fm[$previous];
+                self.sat_f[$index] += self.sat_f[$previous];
+                self.sat_m[$index] += self.sat_m[$previous];
+                self.sat_f2[$index] += self.sat_f2[$previous];
+                self.sat_m2[$index] += self.sat_m2[$previous];
+                self.sat_fm[$index] += self.sat_fm[$previous];
             };
         }
         for z in 1..=pnz {
@@ -106,17 +137,6 @@ impl CcSats {
                     accumulate_channels!(index, index - plane);
                 }
             }
-        }
-
-        Self {
-            sat_f,
-            sat_m,
-            sat_f2,
-            sat_m2,
-            sat_fm,
-            sdims: [snz, sny, snx],
-            r,
-            cnt,
         }
     }
 
@@ -268,6 +288,29 @@ mod tests_sat {
                 (vj_s - vj_r).abs() < 1e-9,
                 "vj boundary diverges at ({iz},{iy},{ix}): sat={vj_s:.12}, ref={vj_r:.12}"
             );
+        }
+    }
+
+    #[test]
+    fn rebuilt_tables_match_fresh_construction() {
+        let dims = [5, 6, 7];
+        let n = dims.iter().product();
+        let first_i: Vec<f32> = (0..n).map(|index| index as f32 / n as f32).collect();
+        let first_j: Vec<f32> = first_i.iter().rev().copied().collect();
+        let second_i: Vec<f32> = first_i.iter().map(|value| 1.0 - value).collect();
+        let second_j: Vec<f32> = first_j.iter().map(|value| value * value).collect();
+        let mut reused = CcSats::new(dims, 2);
+
+        reused.rebuild(&first_i, &first_j, dims);
+        reused.rebuild(&second_i, &second_j, dims);
+        let fresh = CcSats::build(&second_i, &second_j, dims, 2);
+
+        for z in 0..dims[0] {
+            for y in 0..dims[1] {
+                for x in 0..dims[2] {
+                    assert_eq!(reused.query_at(z, y, x), fresh.query_at(z, y, x));
+                }
+            }
         }
     }
 }

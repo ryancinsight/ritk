@@ -160,6 +160,37 @@ pixel subtraction executes in `f32` before assignment to `RealValueType`; RITK
 widened both pixels before subtracting. Patch-distance and center-gradient
 differences now round at the same `f32` boundary before `f64` accumulation, with
 a direct value-semantic precision-order regression.
+The preceding full installed-wheel run required 946.68 seconds for 1,283 tests.
+Its duration report identified twelve registration tests above the committed
+30-second defect threshold, including repeated SyN, MNI, RIRE, and synthetic-
+sphere scenarios across three validation modules. Passing the 60-second process
+limit does not close this aggregate-cost or slow-test defect. The next closure
+increment consolidates repeated executions only where one canonical test can
+retain every distinct value-semantic assertion; distinct workloads and oracles
+remain unchanged.
+Static contract equivalence identified 31 removable registrations. The deleted
+`test_registration_side_by_side.py` repeated 17 synthetic and real-dataset
+calls already owned by gap validation or SimpleITK parity; its four distinct
+64-cubed affine, symmetric-Demons, multi-resolution-SyN, and B-spline-SyN Dice
+contracts moved unchanged into the canonical gap-validation sphere class. Gap validation's
+three standalone Gaussian calls exactly repeated its parameterized algorithm
+matrix. The parity module now computes each identical B-spline, LDDMM, Thirion,
+brain, and SimpleITK registration once and applies every prior assertion to that
+result. Six additional structural Demons calls use different shapes or iteration
+counts and remain because consolidating them would change a workload.
+Production inspection also found that multi-resolution SyN rebuilt identical
+five-channel local-correlation summed-area tables three times per iteration:
+once for each force direction and once for convergence. It now consumes the
+existing fused bidirectional kernel already covered by exact independent-pass
+differential tests. Dense, multi-resolution, and B-spline SyN now allocate their
+five volume-sized tables once and rebuild them in place; at 128 cubed and radius
+four this reuses about 98 MiB of table storage per iteration. Fusion also avoids
+two additional table constructions in multi-resolution and B-spline SyN.
+The fused dispatcher still creates an `O(nz)` slice-descriptor vector because
+Moirai currently exposes at most triple mutable-slice traversal; this bounded
+allocation is recorded rather than described as zero-allocation. This is
+structural and differential evidence; exact-head runtime evidence remains
+pending.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

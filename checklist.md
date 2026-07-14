@@ -117,6 +117,11 @@
   and emit exact ULP witnesses without duplicating suite execution.
 - [x] Preserve ITK's pixel-difference precision boundary by subtracting in
   `f32` before widening into the `f64` entropy accumulator.
+- [x] Reduce the installed-wheel suite from its measured 946.68-second wall
+  time by consolidating repeated registration executions without deleting a
+  distinct value-semantic contract or changing any workload or threshold.
+- [ ] Verify that no remaining Python test crosses 30 seconds and that the
+  complete installed-wheel suite finishes in minutes on exact-head CI.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
