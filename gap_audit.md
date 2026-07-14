@@ -225,6 +225,13 @@ It now writes the five final SATs directly and fuses channels into four
 contiguous traversals, preserving the existing interior and boundary
 differential contracts. Evidence tier before CI: structural memory-pass and
 allocation reduction plus existing analytical-reference differential tests.
+Run `29302523806` remained above 60 seconds, falsifying SAT construction as the
+dominant bound. The force and convergence passes still queried the same 40 SAT
+corners three times per voxel. They now execute as one parallel traversal that
+derives both symmetric Avants forces and the convergence mean from one query.
+An exact force differential and a reduction-order bound of 1e-12 cover the
+fused kernel against the three independent passes. Evidence tier before CI:
+value-semantic differential verification and two-thirds fewer hot SAT queries.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

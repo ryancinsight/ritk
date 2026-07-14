@@ -27,6 +27,8 @@
   times per iteration.
 - Build local-correlation summed-area tables directly in four fused contiguous
   channel passes, removing five padded f64 volumes and channel-specific passes.
+- Derive both symmetric SyN forces and convergence CC in one parallel traversal
+  so each voxel queries local statistics once instead of three times.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

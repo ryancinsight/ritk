@@ -1,5 +1,7 @@
 // ── Force computation ────────────────────────────────────────────────────────
 
+use crate::deformable_field_ops::{VectorField, VectorFieldMut};
+
 /// Compute local CC gradient forces (Avants 2008, eq. 10).
 ///
 /// For each voxel p the local window W = {q : |q−p|_∞ ≤ r} yields:
@@ -145,6 +147,93 @@ pub(crate) fn cc_forces_from_sats_into<const REVERSED: bool>(
             }
         },
     );
+}
+
+/// Compute both symmetric CC force fields and mean local CC in one traversal.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "two images, gradients, outputs, and slice reductions are distinct kernel roles"
+)]
+pub(crate) fn bidirectional_cc_from_sats_into(
+    i_w: &[f32],
+    j_w: &[f32],
+    gradient_i: VectorField<'_>,
+    gradient_j: VectorField<'_>,
+    dims: [usize; 3],
+    sats: &super::CcSats,
+    force_i: VectorFieldMut<'_>,
+    force_j: VectorFieldMut<'_>,
+    slice_cc: &mut [(f64, usize)],
+) -> f64 {
+    let [nz, ny, nx] = dims;
+    let slice_len = ny * nx;
+    debug_assert_eq!(slice_cc.len(), nz);
+    let mut chunks: Vec<_> = force_i
+        .z
+        .chunks_exact_mut(slice_len)
+        .zip(force_i.y.chunks_exact_mut(slice_len))
+        .zip(force_i.x.chunks_exact_mut(slice_len))
+        .zip(force_j.z.chunks_exact_mut(slice_len))
+        .zip(force_j.y.chunks_exact_mut(slice_len))
+        .zip(force_j.x.chunks_exact_mut(slice_len))
+        .zip(slice_cc.iter_mut())
+        .map(|((((((iz, iy), ix), jz), jy), jx), cc)| (iz, iy, ix, jz, jy, jx, cc))
+        .collect();
+
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut chunks,
+        1,
+        |z, chunk| {
+            let (uiz, uiy, uix, ujz, ujy, ujx, cc_out) = &mut chunk[0];
+            let base = z * slice_len;
+            let mut cc_sum = 0.0_f64;
+            let mut cc_count = 0usize;
+            for y in 0..ny {
+                for x in 0..nx {
+                    let local = y * nx + x;
+                    let index = base + local;
+                    let (mu_i, mu_j, numerator, var_i, var_j, _) = sats.query_at(z, y, x);
+                    let centered_i = i_w[index] as f64 - mu_i;
+                    let centered_j = j_w[index] as f64 - mu_j;
+                    let raw_denom = (var_i * var_j).sqrt();
+                    if raw_denom > 1e-10 {
+                        cc_sum += numerator / raw_denom;
+                        cc_count += 1;
+                    }
+                    let denom = raw_denom + 1e-10;
+                    let cc = numerator / denom;
+                    let scale_i = if var_i < 1e-10 {
+                        0.0
+                    } else {
+                        centered_j / denom - cc * centered_i / (var_i + 1e-10)
+                    };
+                    let scale_j = if var_j < 1e-10 {
+                        0.0
+                    } else {
+                        centered_i / denom - cc * centered_j / (var_j + 1e-10)
+                    };
+                    uiz[local] = (scale_i * gradient_i.z[index] as f64) as f32;
+                    uiy[local] = (scale_i * gradient_i.y[index] as f64) as f32;
+                    uix[local] = (scale_i * gradient_i.x[index] as f64) as f32;
+                    ujz[local] = (scale_j * gradient_j.z[index] as f64) as f32;
+                    ujy[local] = (scale_j * gradient_j.y[index] as f64) as f32;
+                    ujx[local] = (scale_j * gradient_j.x[index] as f64) as f32;
+                }
+            }
+            **cc_out = (cc_sum, cc_count);
+        },
+    );
+
+    let (sum, count) = slice_cc
+        .iter()
+        .fold((0.0_f64, 0usize), |(sum, count), &(part, n)| {
+            (sum + part, count + n)
+        });
+    if count == 0 {
+        0.0
+    } else {
+        sum / count as f64
+    }
 }
 
 // ── Utility ──────────────────────────────────────────────────────────────────

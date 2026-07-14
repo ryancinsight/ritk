@@ -31,10 +31,11 @@ use std::collections::VecDeque;
 
 #[cfg(test)]
 use super::local_cc::mean_local_cc;
-use super::local_cc::{cc_forces_from_sats_into, mean_local_cc_from_sats, CcSats};
+use super::local_cc::{bidirectional_cc_from_sats_into, CcSats};
 use crate::deformable_field_ops::{
     cc_converged, compute_gradient_into, normalize_forces_into, scaling_and_squaring_into,
-    validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VelocityField,
+    validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField,
+    VectorFieldMut, VelocityField,
 };
 use crate::error::RegistrationError;
 use buffers::SyNBuffers;
@@ -120,7 +121,7 @@ impl SyNRegistration {
 
         validate_image_pair(fixed, moving, dims)?;
 
-        let mut buf = SyNBuffers::new(n);
+        let mut buf = SyNBuffers::new(n, nz);
 
         let mut cc_history: VecDeque<f64> = VecDeque::new();
         let mut final_cc = 0.0_f64;
@@ -194,31 +195,34 @@ impl SyNRegistration {
                 &mut buf.gj_x,
             );
 
-            // CC forces (zero alloc)
+            // Shared CC statistics, symmetric forces, and convergence metric.
             let cc_sats = CcSats::build(&buf.i_w, &buf.j_w, dims, r);
-            cc_forces_from_sats_into::<false>(
+            final_cc = bidirectional_cc_from_sats_into(
                 &buf.i_w,
                 &buf.j_w,
-                &buf.gi_z,
-                &buf.gi_y,
-                &buf.gi_x,
+                VectorField {
+                    z: &buf.gi_z,
+                    y: &buf.gi_y,
+                    x: &buf.gi_x,
+                },
+                VectorField {
+                    z: &buf.gj_z,
+                    y: &buf.gj_y,
+                    x: &buf.gj_x,
+                },
                 dims,
                 &cc_sats,
-                &mut buf.u1z,
-                &mut buf.u1y,
-                &mut buf.u1x,
-            );
-            cc_forces_from_sats_into::<true>(
-                &buf.j_w,
-                &buf.i_w,
-                &buf.gj_z,
-                &buf.gj_y,
-                &buf.gj_x,
-                dims,
-                &cc_sats,
-                &mut buf.u2z,
-                &mut buf.u2y,
-                &mut buf.u2x,
+                VectorFieldMut {
+                    z: &mut buf.u1z,
+                    y: &mut buf.u1y,
+                    x: &mut buf.u1x,
+                },
+                VectorFieldMut {
+                    z: &mut buf.u2z,
+                    y: &mut buf.u2y,
+                    x: &mut buf.u2x,
+                },
+                &mut buf.cc_slices,
             );
 
             // Normalise forces so max|u₁| = max|u₂| = gradient_step
@@ -248,7 +252,6 @@ impl SyNRegistration {
                 smoother.smooth_field(&mut buf.v2z, &mut buf.v2y, &mut buf.v2x);
             }
 
-            final_cc = mean_local_cc_from_sats(&cc_sats, dims);
             if cc_converged(
                 &mut cc_history,
                 final_cc,

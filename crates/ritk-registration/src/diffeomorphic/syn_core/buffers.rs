@@ -50,11 +50,14 @@ pub(super) struct SyNBuffers {
     pub u2z: Vec<f32>,
     pub u2y: Vec<f32>,
     pub u2x: Vec<f32>,
+
+    // ── Per-z-slice CC reductions ──
+    pub cc_slices: Vec<(f64, usize)>,
 }
 
 impl SyNBuffers {
     /// Allocate all 29 buffers for a volume with `n = nz*ny*nx` voxels.
-    pub(super) fn new(n: usize) -> Self {
+    pub(super) fn new(n: usize, nz: usize) -> Self {
         Self {
             v1z: vec![0.0_f32; n],
             v1y: vec![0.0_f32; n],
@@ -85,6 +88,7 @@ impl SyNBuffers {
             u2z: vec![0.0_f32; n],
             u2y: vec![0.0_f32; n],
             u2x: vec![0.0_f32; n],
+            cc_slices: vec![(0.0_f64, 0usize); nz],
         }
     }
 }

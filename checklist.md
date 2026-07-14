@@ -52,6 +52,8 @@
   onto one summed-area-table set with exact reversed-force differential coverage.
 - [x] Remove local-CC padded volumes and fuse five statistical channels across
   contiguous copy and prefix passes without changing window statistics.
+- [x] Fuse symmetric CC forces and convergence into one parallel voxel pass,
+  with exact force and analytically bounded reduction-order differentials.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

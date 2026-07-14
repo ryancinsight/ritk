@@ -213,3 +213,83 @@ fn reversed_shared_sats_match_independent_build() {
     );
     assert_eq!(shared, independent);
 }
+
+#[test]
+fn bidirectional_fusion_matches_independent_passes() {
+    let dims = [6usize, 6, 6];
+    let n = dims.iter().product();
+    let fixed: Vec<f32> = (0..n).map(|i| (i as f32 * 0.013) % 1.0).collect();
+    let moving: Vec<f32> = (0..n).map(|i| ((i as f32 * 0.021) + 0.17) % 1.0).collect();
+    let fixed_gradient =
+        crate::deformable_field_ops::compute_gradient(&fixed, dims.into(), [1.0; 3]);
+    let moving_gradient =
+        crate::deformable_field_ops::compute_gradient(&moving, dims.into(), [1.0; 3]);
+    let sats = CcSats::build(&fixed, &moving, dims, 1);
+    let mut fused_i = [vec![0.0_f32; n], vec![0.0_f32; n], vec![0.0_f32; n]];
+    let mut fused_j = [vec![0.0_f32; n], vec![0.0_f32; n], vec![0.0_f32; n]];
+    let [fused_iz, fused_iy, fused_ix] = &mut fused_i;
+    let [fused_jz, fused_jy, fused_jx] = &mut fused_j;
+    let mut slice_cc = vec![(0.0_f64, 0usize); dims[0]];
+    let fused_cc = bidirectional_cc_from_sats_into(
+        &fixed,
+        &moving,
+        crate::deformable_field_ops::VectorField {
+            z: &fixed_gradient.z,
+            y: &fixed_gradient.y,
+            x: &fixed_gradient.x,
+        },
+        crate::deformable_field_ops::VectorField {
+            z: &moving_gradient.z,
+            y: &moving_gradient.y,
+            x: &moving_gradient.x,
+        },
+        dims,
+        &sats,
+        crate::deformable_field_ops::VectorFieldMut {
+            z: fused_iz,
+            y: fused_iy,
+            x: fused_ix,
+        },
+        crate::deformable_field_ops::VectorFieldMut {
+            z: fused_jz,
+            y: fused_jy,
+            x: fused_jx,
+        },
+        &mut slice_cc,
+    );
+
+    let mut reference_i = [vec![0.0_f32; n], vec![0.0_f32; n], vec![0.0_f32; n]];
+    let [reference_iz, reference_iy, reference_ix] = &mut reference_i;
+    cc_forces_into(
+        &fixed,
+        &moving,
+        &fixed_gradient.z,
+        &fixed_gradient.y,
+        &fixed_gradient.x,
+        dims,
+        1,
+        reference_iz,
+        reference_iy,
+        reference_ix,
+    );
+    let mut reference_j = [vec![0.0_f32; n], vec![0.0_f32; n], vec![0.0_f32; n]];
+    let [reference_jz, reference_jy, reference_jx] = &mut reference_j;
+    cc_forces_into(
+        &moving,
+        &fixed,
+        &moving_gradient.z,
+        &moving_gradient.y,
+        &moving_gradient.x,
+        dims,
+        1,
+        reference_jz,
+        reference_jy,
+        reference_jx,
+    );
+    assert_eq!(fused_i, reference_i);
+    assert_eq!(fused_j, reference_j);
+    let reference_cc = mean_local_cc(&fixed, &moving, dims, 1);
+    // At most n bounded CC terms are reordered. gamma_n < 5e-14 here;
+    // 1e-12 includes the final division rounding while remaining diagnostic.
+    assert!((fused_cc - reference_cc).abs() < 1e-12);
+}
