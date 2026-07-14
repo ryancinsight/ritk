@@ -5,11 +5,12 @@
 //! # Evidence tier
 //! Cross-implementation differential validation of the lossless contract:
 //! - `openjp2` encode → RITK decode: every sample exact.
-//! - RITK encode → `openjp2` (via `jpeg2k`) decode: every sample exact.
+//! - RITK encode → `openjp2` decode: every sample exact.
 
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, WaveletTransform};
 use ritk_codecs::{decode_jpeg2000_fragment, PixelLayout, PixelSignedness};
 use std::ffi::CString;
+use std::io::Write;
 
 fn layout(rows: usize, cols: usize, bits: u16) -> PixelLayout {
     PixelLayout {
@@ -131,6 +132,75 @@ fn openjp2_encode(
     bytes
 }
 
+/// Decode a bare J2K codestream with the public `openjp2` C-compatible API.
+/// The temporary file uses the reference crate's real file stream path and
+/// keeps this differential oracle independent of a second wrapper crate.
+fn openjp2_decode(j2k: &[u8]) -> Vec<i32> {
+    let mut tmp = tempfile::NamedTempFile::new().expect("NamedTempFile::new failed");
+    tmp.write_all(j2k).expect("write encoded J2K");
+    let tmp_path = tmp.into_temp_path();
+    let tmp_cstr = CString::new(tmp_path.to_str().expect("temp path utf-8"))
+        .expect("temporary path cannot contain NUL");
+
+    // SAFETY: every pointer is created by openjp2 or points to storage owned
+    // by this function; the reference API is torn down after the decoded
+    // component is copied into an owned Vec.
+    unsafe {
+        use openjp2::openjpeg::{
+            opj_create_decompress, opj_decode, opj_destroy_codec, opj_dparameters_t,
+            opj_end_decompress, opj_image_destroy, opj_read_header,
+            opj_setup_decoder, opj_stream_create_default_file_stream, opj_stream_destroy,
+            CODEC_FORMAT, OPJ_BOOL, OPJ_TRUE,
+        };
+        use openjp2::opj_image as opj_image_t;
+
+        let mut parameters = opj_dparameters_t::default();
+        let codec = opj_create_decompress(CODEC_FORMAT::OPJ_CODEC_J2K);
+        assert!(!codec.is_null(), "opj_create_decompress returned NULL");
+        assert_eq!(
+            opj_setup_decoder(codec, &mut parameters),
+            OPJ_TRUE as OPJ_BOOL,
+            "opj_setup_decoder failed"
+        );
+
+        let stream = opj_stream_create_default_file_stream(
+            tmp_cstr.as_ptr(),
+            OPJ_TRUE as OPJ_BOOL,
+        );
+        assert!(!stream.is_null(), "decoder stream is NULL");
+        let mut image = std::ptr::null_mut::<opj_image_t>();
+        assert_eq!(
+            opj_read_header(stream, codec, &mut image),
+            OPJ_TRUE as OPJ_BOOL,
+            "opj_read_header failed"
+        );
+        assert!(!image.is_null(), "decoder image is NULL");
+        assert_eq!((*image).numcomps, 1, "single grayscale component expected");
+        assert_eq!(
+            opj_decode(codec, stream, image),
+            OPJ_TRUE as OPJ_BOOL,
+            "opj_decode failed"
+        );
+        assert_eq!(
+            opj_end_decompress(codec, stream),
+            OPJ_TRUE as OPJ_BOOL,
+            "opj_end_decompress failed"
+        );
+
+        let component = &*(*image).comps;
+        assert!(!component.data.is_null(), "decoded component data is NULL");
+        let width = usize::try_from(component.w).expect("component width exceeds usize");
+        let height = usize::try_from(component.h).expect("component height exceeds usize");
+        let sample_count = width.checked_mul(height).expect("component shape overflows usize");
+        let data = std::slice::from_raw_parts(component.data, sample_count).to_vec();
+
+        opj_destroy_codec(codec);
+        opj_stream_destroy(stream);
+        opj_image_destroy(image);
+        data
+    }
+}
+
 /// Reference → RITK: every sample must reconstruct exactly.
 fn assert_ritk_decodes_openjp2(rows: u32, cols: u32, prec: u32, numres: i32) {
     let pixels = synthetic(rows, cols, prec);
@@ -159,14 +229,7 @@ fn assert_openjp2_decodes_ritk(rows: u32, cols: u32, prec: u32, levels: u8) {
         levels,
         WaveletTransform::Reversible,
     );
-    let img = jpeg2k::Image::from_bytes(&j2k).unwrap_or_else(|e| {
-        panic!(
-            "openjp2 decode of RITK stream failed ({rows}×{cols}, prec {prec}, L{levels}): {e:#}"
-        )
-    });
-    let comps = img.components();
-    assert_eq!(comps.len(), 1, "single grayscale component expected");
-    let data = comps[0].data();
+    let data = openjp2_decode(&j2k);
     assert_eq!(data.len(), (rows * cols) as usize);
     for (i, (&orig, &dec)) in pixels.iter().zip(data.iter()).enumerate() {
         assert_eq!(
@@ -361,8 +424,7 @@ fn cross_decode_impulse_8x8_regression() {
         0,
         WaveletTransform::Reversible,
     );
-    let img = jpeg2k::Image::from_bytes(&ours).expect("openjp2 decode of RITK impulse stream");
-    let data = img.components()[0].data().to_vec();
+    let data = openjp2_decode(&ours);
     assert_eq!(data, v1_mid, "RITK → openjp2 impulse reconstruction");
 }
 
@@ -421,10 +483,7 @@ fn assert_ritk_matches_openjp2_lossy(rows: u32, cols: u32, prec: u32, numres: i3
             panic!("RITK decode of openjp2 9/7 stream failed ({rows}×{cols}, prec {prec}, numres {numres}): {e:#}")
         });
 
-    let img = jpeg2k::Image::from_bytes(&j2k).unwrap_or_else(|e| {
-        panic!("openjp2 decode of its own 9/7 stream failed ({rows}×{cols}, prec {prec}, numres {numres}): {e:#}")
-    });
-    let openjp2 = img.components()[0].data();
+    let openjp2 = openjp2_decode(&j2k);
 
     assert_eq!(
         ritk.len(),

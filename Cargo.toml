@@ -116,7 +116,6 @@ proc-macro2 = "1.0"
 quote = "1.0"
 syn = "2.0"
 openjp2 = { version = "0.6.1", default-features = false }
-jpeg2k = { version = "0.10.1", default-features = false }
 zune-core = { version = "0.4", default-features = false }
 zune-jpegxl = { version = "0.4", default-features = false }
 mockito = "1"
@@ -157,7 +156,7 @@ debug = "line-tables-only"
 [patch.crates-io]
 # Upstream PR 9 guards decoder buffers before `dealloc`; 0.6.1 invokes
 # `dealloc(null, layout)` during codec drop, violating Rust's allocator contract.
-openjp2 = { git = "https://github.com/ryancinsight/openjp2.git", rev = "689df0e2aff5a415bd5bf1d7da4efffb787ba892" }
+openjp2 = { git = "https://github.com/Neopallium/openjp2.git", rev = "38ebba2748e466b8ab35a607d7fcdf74c15c927a" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai = { path = "../moirai/moirai" }

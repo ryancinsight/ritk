@@ -8,6 +8,22 @@
 
 # RITK Sprint Checklist — Active
 
+## DEP-655-01 — Reachable OpenJPEG differential oracle
+**Target version**: Unreleased patch
+**Sprint phase**: Closure; GitHub CI verification pending
+
+- [x] Replace the unreachable private OpenJPEG patch with public PR 9 and
+      retain the decoder deallocation guard. Completion condition: the lock
+      resolves `https://github.com/Neopallium/openjp2` at
+      `38ebba2748e466b8ab35a607d7fcdf74c15c927a`.
+- [x] Remove the `jpeg2k` wrapper from the differential tests and decode with
+      the public `openjp2` API directly. Completion condition: both encode →
+      decode directions remain value-semantic differential tests.
+- [x] Run the package gates. Completion condition: Clippy, doctests, rustdoc,
+      the 14-test interop suite, and the full `ritk-codecs` suite pass.
+- [ ] Re-run GitHub Actions and close the item when the dependency-fetch,
+      Clippy, dependency-alignment, wheel-smoke, and Python matrix jobs pass.
+
 ## MIG-654-01 — Native migration branch reconciliation
 **Target version**: Unreleased patch
 **Sprint phase**: Closure; review pending

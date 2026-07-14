@@ -8,6 +8,31 @@
 
 # RITK Gap Audit - Active
 
+## DEP-655-01 audit (2026-07-14)
+
+### CI dependency-fetch blocker removed at the source boundary
+
+RITK CI failed before compilation because the patched
+`https://github.com/ryancinsight/openjp2.git` revision was unavailable to the
+runner (`revision 689df0e2... not found` followed by authentication failure).
+The repository is not publicly reachable. Public OpenJPEG PR 9 at
+`https://github.com/Neopallium/openjp2` contains the required decoder-buffer
+deallocation guard and is reachable without credentials. The workspace now
+pins that public revision and uses its `file-io` feature surface directly.
+
+The `jpeg2k` wrapper was removed from the differential oracle because its
+0.10.1 manifest requires the obsolete `openjp2/std` feature, while the
+reachable upstream revision intentionally has no such feature. The tests now
+exercise the same public `openjp2` encode/decode API directly, preserving the
+cross-implementation oracle without a local compatibility layer.
+
+Evidence tier: dependency-source inspection, Cargo lock resolution, and
+value-semantic differential tests. `cargo nextest run -p ritk-codecs --test
+jpeg2000_interop --all-features --no-fail-fast --locked` passed 14/14;
+`cargo nextest run -p ritk-codecs --all-features --no-fail-fast --locked`
+passed 256/256; warnings-denied Clippy, doctests, and package rustdoc passed.
+GitHub Actions remains the final verification gate for the published revision.
+
 ## MIG-654-01 audit (2026-07-14)
 
 ### Native migration branch reconciled and audit state is truthful

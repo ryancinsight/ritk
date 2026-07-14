@@ -8,6 +8,22 @@
 
 # CHANGELOG
 
+## [Unreleased] — Reachable OpenJPEG differential oracle (DEP-655-01)
+
+### Changed
+- Replaced the unreachable private OpenJPEG patch with public PR 9, retaining
+  the decoder-buffer deallocation guard required by the differential tests.
+- Removed the stale `jpeg2k` wrapper from the JPEG 2000 oracle and call the
+  public `openjp2` API directly for both encode and decode directions.
+
+### Evidence
+- The 14-test JPEG 2000 differential suite and all 256 `ritk-codecs` tests
+  pass with warnings-denied Clippy, doctests, and rustdoc.
+
+### Residual
+- GitHub Actions must re-run against the reachable dependency before this
+  item is closed.
+
 ## [Unreleased] — Native migration branch reconciliation (MIG-654-01)
 
 ### Changed
