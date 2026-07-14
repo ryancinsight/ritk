@@ -294,11 +294,14 @@ installed-wheel execution remains pending. Run `29306098216` advanced through
 the consolidated side-by-side module before timing out in
 `test_1b_gaussian_blob_local_deformation`. The stack shows the RITK SyN value
 oracle had completed and the timeout occurred inside the subsequent
-SimpleITK `Execute` call. Those independent implementations now run as two
-tests over one shared analytical fixture with unchanged inputs, 100-iteration
-workloads, and NCC >= 0.90 bounds. Evidence tier: exact timeout stack plus
-value-semantic contract preservation; installed-wheel execution remains
-pending. The same structural audit split the independent VM head RITK and
+SimpleITK `Execute` call. Run `29307191974` then proved the isolated RITK
+contract completes in 0.83 seconds while the isolated external SimpleITK call
+alone exceeds 60 seconds. The RITK Gaussian value oracle remains unchanged;
+the redundant SimpleITK check is deleted because the stronger 64-cubed,
+100-iteration deformable oracle remains in `test_simpleitk_parity.py`.
+Evidence tier: exact installed-wheel timestamps, timeout stack, and
+operation-family comparison; installed-wheel execution remains pending. The
+same structural audit split the independent VM head RITK and
 SimpleITK deformable calls over one shared gradient fixture; its former
 SimpleITK divergence skip is now a mandatory value oracle. Evidence tier:
 single-registration test contracts and non-vacuous assertions.

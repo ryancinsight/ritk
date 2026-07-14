@@ -660,27 +660,6 @@ def test_1b_ritk_gaussian_blob_local_deformation(locally_deformed_gaussian_pair)
     )
 
 
-@pytest.mark.slow
-def test_1b_sitk_gaussian_blob_local_deformation(locally_deformed_gaussian_pair):
-    """SimpleITK B-spline must recover the shared local deformation.
-
-    The analytical input and NCC >= 0.90 contract are identical to the RITK
-    oracle, but the independent registration executes under its own timeout.
-    """
-    arr_fixed, arr_moving = locally_deformed_gaussian_pair
-    fixed_sitk = numpy_to_sitk(arr_fixed)
-    moving_sitk = numpy_to_sitk(arr_moving)
-    result_sitk, _ = _sitk_bspline_register(
-        fixed_sitk, moving_sitk, grid_spacing=8.0, num_iterations=100
-    )
-    assert result_sitk is not None, "SimpleITK BSpline registration diverged"
-    sitk_arr = sitk_to_numpy(result_sitk)
-    ncc_sitk = ncc_3d(sitk_arr, arr_fixed)
-    assert ncc_sitk >= 0.90, (
-        f"SimpleITK BSpline NCC {ncc_sitk:.4f} < 0.90 on locally deformed Gaussian blob"
-    )
-
-
 def test_1c_identity_registration_stability():
     """Passing identical fixed/moving to RITK demons and SimpleITK must preserve the image.
 

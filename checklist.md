@@ -62,8 +62,8 @@
   multi-buffer operations and force parallel CC dispatch below 1,024 slices.
 - [x] Remove fourteen duplicate registration invocations from side-by-side tests
   that asserted no cross-implementation relation; retain every valid oracle.
-- [x] Split independent RITK and SimpleITK registrations over shared fixtures
-  so each value oracle owns one 60-second execution contract.
+- [x] Split independent VM-head registrations over a shared fixture and remove
+  the redundant external Gaussian oracle that alone exceeded 60 seconds.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
