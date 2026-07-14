@@ -98,8 +98,13 @@ The host-local run still differed by four ULP, falsifying the final-conversion-
 only model. ITK 5.4.5 constructs the smooth-disc mask in an `Image<float>` and
 only then promotes its voxel weights into real-valued denoising arithmetic;
 RITK evaluated the cubic spline directly in `f64`. RITK now reproduces the
-`f32` distance/weight boundary and promotes before squaring. The existing
-one-ULP differential remains the acceptance gate.
+`f32` distance/weight boundary and promotes before squaring, reducing the
+remaining difference to two ULP in run `29325055926`. Source review then found
+that the differential supplied different problems: RITK's voxel-radius input
+retained unit spacing while SimpleITK alone received RA-Float's anisotropic
+metadata, causing ITK to resample its physical patch extent and mask. The
+oracle now retains unit spacing on both inputs. The existing one-ULP
+differential remains the acceptance gate.
 The same duration report identified a 58.18-second SimpleITK-only B-spline
 self-test. It neither invoked RITK nor compared implementations, while direct
 RITK B-spline quality and RITK-versus-SimpleITK deformable parity tests already

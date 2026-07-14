@@ -73,6 +73,9 @@
 - [x] Replace the serial patch-denoising voxel sweep with bounded deterministic
   sample batches and Moirai pixel evaluation; preserve the exact shared RNG
   stream and per-pixel reduction order with a batch-partition invariant test.
+- [x] Reconcile the denoising differential's metadata so both implementations
+  execute the same unit-spacing voxel-radius contract without widening its
+  one-ULP acceptance bound.
 - [x] Resolve patch-denoising review findings: enforce the sample-memory bound,
   reuse batch storage, delete the stale duplicate xfail, make SimpleITK failures
   fail, and replace correlation-only validation with clean-image MSE reduction.

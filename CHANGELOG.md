@@ -17,6 +17,9 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Compare patch-denoising implementations on identical unit-spacing metadata;
+  the prior oracle copied RA-Float's anisotropic spacing only to SimpleITK,
+  changing its physical patch extent while RITK's public radius is voxel-based.
 - Construct patch-denoising smooth-disc weights through ITK's `float` weight-
   image boundary before promoting them to `f64`; direct `f64` construction
   shifted the final output by up to four ULP despite identical sampling.

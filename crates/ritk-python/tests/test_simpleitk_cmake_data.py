@@ -6079,8 +6079,10 @@ def test_cmake_patch_based_denoising_structural():
 
     r_arr = _np.asarray(ro.to_numpy(), _np.float64)
 
+    # RITK's public patch radius is voxel-based, so compare the identical
+    # unit-spacing voxel problem.  Copying RA-Float's anisotropic metadata only
+    # onto the SimpleITK operand changes ITK's physical patch radius and mask.
     si_noisy = sitk.GetImageFromArray(arr_noisy)
-    si_noisy.CopyInformation(si_clean)
     f = sitk.PatchBasedDenoisingImageFilter()
     f.KernelBandwidthEstimationOff()
     f.SetNumberOfIterations(1)
