@@ -23,9 +23,7 @@ mod sat;
 pub(crate) use forces::cc_forces;
 #[cfg(test)]
 pub(crate) use forces::field_rms;
-pub(crate) use forces::{
-    bidirectional_cc_from_sats_into, cc_forces_into,
-};
+pub(crate) use forces::{bidirectional_cc_from_sats_into, cc_forces_into};
 pub(crate) use sat::CcSats;
 
 // ── Window statistics ─────────────────────────────────────────────────────────
