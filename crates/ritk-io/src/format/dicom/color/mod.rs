@@ -7,7 +7,6 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use coeus_core::ComputeBackend;
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use ritk_dicom::{

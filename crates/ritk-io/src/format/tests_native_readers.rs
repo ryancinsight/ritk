@@ -8,7 +8,7 @@
 //! (e.g. JPEG quantization) — the native adapter must decode identically to
 //! the verified Burn path, byte-for-byte of the decoded stream.
 
-use crate::domain::ImageReader;
+use crate::domain::{ImageReader, ImageWriter};
 use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image as BurnImage;

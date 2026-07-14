@@ -249,7 +249,6 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
         anyhow::bail!("--variance must be non-negative, got {}", variance);
     }
     let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
     if variance == 0.0 {
         write_image_native(&args.output, &image, output_format)?;
         println!(
@@ -266,7 +265,7 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
     let filter = DiscreteGaussianFilter::<Backend>::new(vec![sigma])
         .with_maximum_error(args.discrete.maximum_error)
         .with_spacing_mode(args.discrete.spacing_mode);
-    let filtered = filter.apply_native(&image, &backend)?;
+    let filtered = filter.apply_native(&image)?;
 
     write_image_native(&args.output, &filtered, output_format)?;
 

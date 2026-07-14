@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_io::{
     is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path,
-    load_dicom_from_series, load_dicom_series_with_metadata,
+    load_native_dicom_from_series, load_native_dicom_series_with_metadata,
 };
 use tracing::info;
 

@@ -20,11 +20,11 @@ use ritk_filter::{
     GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
     GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
-    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
-    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter, SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter,
-    SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
+    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MeanImageFilter, MedianFilter,
+    MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
+    RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter,
+    SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
+    TanImageFilter, ThresholdImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
     VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
 };
 use ritk_image::native::Image;
@@ -338,7 +338,13 @@ fn apply_supported_filter(
         )
         .apply_native(&image, &backend),
         FilterKind::MaskThreshold { threshold } => {
-            MaskImageFilter::apply_threshold_native(&image, *threshold, &backend)
+            // Passthrough mask: keep values strictly greater than threshold, zero out the rest.
+            // Uses ThresholdMode::Outside([t + ulp, MAX]) so values AT or BELOW threshold are zeroed
+            // while values strictly above threshold pass through unchanged.
+            // Passthrough mask: keep values strictly greater than threshold, zero out the rest.
+            let t = f32::from(*threshold);
+            let lower = t + f32::EPSILON * t.abs().max(1.0);
+            ThresholdImageFilter::outside(lower, f32::MAX, 0.0).apply_native(&image, &backend)
         }
         FilterKind::Atan => AtanImageFilter::new().apply_native(&image, &backend),
         FilterKind::Sin => SinImageFilter::new().apply_native(&image, &backend),
@@ -453,7 +459,7 @@ fn apply_supported_filter(
         FilterKind::MultiOtsuThreshold { num_classes } => {
             MultiOtsuThreshold::new(*num_classes as usize).apply_native(&image, &backend)
         }
-        FilterKind::Median { radius } => MedianFilter::new(*radius).apply_native(&image, &backend),
+        FilterKind::Median { radius } => MedianFilter::new(*radius).apply_native(&image),
         FilterKind::HistEq { bins } => {
             HistogramEqualizationFilter::new(*bins).apply_native(&image, &backend)
         }

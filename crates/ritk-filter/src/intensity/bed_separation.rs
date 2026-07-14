@@ -33,7 +33,6 @@
 //! ultrasound, the caller should either avoid this filter or provide explicit
 //! configuration derived from modality-specific display semantics.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};

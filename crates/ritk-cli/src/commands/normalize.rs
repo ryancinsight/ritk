@@ -167,11 +167,8 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             output_format
         );
         let input = read_image_native(&args.input)?;
-        let backend = super::NativeBackend::default();
         let output = match args.method {
-            NormalizeMethod::Minmax => {
-                MinMaxNormalizer::default().normalize_native(&input, &backend)?
-            }
+            NormalizeMethod::Minmax => MinMaxNormalizer::default().normalize_native(&input)?,
             NormalizeMethod::Zscore => {
                 if let Some(mask_path) = &args.mask {
                     let mask_format = infer_format(mask_path).ok_or_else(|| {
@@ -186,9 +183,9 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                         mask_format
                     );
                     let mask = read_image_native(mask_path)?;
-                    ZScoreNormalizer::new().normalize_masked_native(&input, &mask, &backend)?
+                    ZScoreNormalizer::new().normalize_masked_native(&input, &mask)?
                 } else {
-                    ZScoreNormalizer::new().normalize_native(&input, &backend)?
+                    ZScoreNormalizer::new().normalize_native(&input)?
                 }
             }
             NormalizeMethod::HistogramMatch => {
@@ -207,8 +204,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                     reference_format
                 );
                 let reference = read_image_native(reference_path)?;
-                HistogramMatcher::new(args.num_bins)
-                    .match_histograms_native(&input, &reference, &backend)?
+                HistogramMatcher::new(args.num_bins).match_histograms_native(&input, &reference)?
             }
             NormalizeMethod::Nyul => {
                 let mut normalizer = NyulUdupaNormalizer::default();
@@ -229,7 +225,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                 } else {
                     normalizer.learn_standard_native(&[&input])?;
                 }
-                normalizer.apply_native(&input, &backend)?
+                normalizer.apply_native(&input)?
             }
             NormalizeMethod::WhiteStripe => {
                 let contrast = match args.contrast.unwrap_or(CliContrast::T1) {
@@ -241,8 +237,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                     width: args.ws_width.unwrap_or(0.05),
                     ..Default::default()
                 };
-                let result =
-                    WhiteStripeNormalizer::normalize_native(&input, None, &config, &backend)?;
+                let result = WhiteStripeNormalizer::normalize_native(&input, None, &config)?;
                 info!(
                     "white-stripe: mu={:.4} sigma={:.4} wm_peak={:.4} stripe_size={}",
                     result.mu, result.sigma, result.wm_peak, result.stripe_size

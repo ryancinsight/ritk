@@ -41,7 +41,6 @@
 //! - ITK `itkCurvatureNDAnisotropicDiffusionFunction.hxx`.
 
 use super::{central_diff, clamp_at};
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};

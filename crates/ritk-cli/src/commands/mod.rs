@@ -56,8 +56,6 @@ pub(crate) fn infer_format(path: &Path) -> Option<ImageFormat> {
 /// Returns an error when the extension is unrecognised or the underlying
 /// reader fails.
 pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
-
     let fmt = infer_format(path)
         .ok_or_else(|| anyhow!("Cannot infer input format from path: {}", path.display()))?;
 
@@ -71,8 +69,7 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
             }
             read_image_native(path).map(native_image_to_burn)
         }
-        ImageFormat::Vtk => ritk_io::read_vtk::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read VTK file: {}", path.display())),
+        ImageFormat::Vtk => read_image_native(path).map(native_image_to_burn),
         ImageFormat::NIfTI
         | ImageFormat::MetaImage
         | ImageFormat::Nrrd
@@ -109,18 +106,16 @@ pub(crate) fn write_image(
             .with_context(|| format!("Failed to write NRRD file: {}", path.display())),
         ImageFormat::Mgh => ritk_io::write_mgh::<Backend, _>(image, path)
             .with_context(|| format!("Failed to write MGH file: {}", path.display())),
-        ImageFormat::Tiff => ritk_io::write_tiff::<Backend, _>(image, path)
-            .with_context(|| format!("Failed to write TIFF file: {}", path.display())),
+        ImageFormat::Tiff | ImageFormat::Jpeg | ImageFormat::Vtk => {
+            let native = burn_image_to_native(image)?;
+            write_image_native(path, &native, format)
+        }
         ImageFormat::Png => Err(anyhow!(
             "PNG output is not supported: ritk-io has no write_png implementation. \
              Convert to NIfTI, MetaImage, or NRRD instead."
         )),
         ImageFormat::Dicom => ritk_io::write_dicom_series::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write DICOM series to: {}", path.display())),
-        ImageFormat::Vtk => ritk_io::write_vtk::<Backend, _>(path, image)
-            .with_context(|| format!("Failed to write VTK file: {}", path.display())),
-        ImageFormat::Jpeg => ritk_io::write_jpeg::<Backend, _>(path, image)
-            .with_context(|| format!("Failed to write JPEG file: {}", path.display())),
         ImageFormat::Analyze => ritk_io::write_analyze::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write Analyze file: {}", path.display())),
     }
@@ -156,6 +151,7 @@ pub(crate) fn is_native_read_capable(fmt: ImageFormat) -> bool {
             | ImageFormat::MetaImage
             | ImageFormat::Tiff
             | ImageFormat::Jpeg
+            | ImageFormat::Vtk
             | ImageFormat::Png
             | ImageFormat::Dicom
     )
@@ -175,6 +171,7 @@ pub(crate) fn is_native_write_capable(fmt: ImageFormat) -> bool {
             | ImageFormat::MetaImage
             | ImageFormat::Tiff
             | ImageFormat::Jpeg
+            | ImageFormat::Vtk
     )
 }
 
@@ -226,6 +223,10 @@ pub(crate) fn read_image_native(path: &Path) -> Result<NativeImage<f32, NativeBa
             path,
         )
         .with_context(|| format!("Failed to read JPEG file (native): {}", path.display())),
+        ImageFormat::Vtk => {
+            ImageReader::read(&ritk_io::format::vtk::native::VtkReader::new(backend), path)
+                .with_context(|| format!("Failed to read VTK file (native): {}", path.display()))
+        }
         ImageFormat::Analyze => ImageReader::read(
             &ritk_io::format::analyze::native::AnalyzeReader::new(backend),
             path,
@@ -236,10 +237,6 @@ pub(crate) fn read_image_native(path: &Path) -> Result<NativeImage<f32, NativeBa
             path,
         )
         .with_context(|| format!("Failed to read DICOM series (native): {}", path.display())),
-        ImageFormat::Vtk => Err(anyhow!(
-            "{:?} has no Atlas-native reader; check is_native_read_capable first",
-            fmt
-        )),
     }
 }
 
@@ -255,6 +252,22 @@ pub(crate) fn native_image_to_burn(image: NativeImage<f32, NativeBackend, 3>) ->
     let device: <Backend as BurnBackend>::Device = Default::default();
 
     Image::from_flat_on(values, shape, origin, spacing, direction, &device)
+}
+
+/// Bridge a legacy image into the native I/O contract at the CLI boundary.
+pub(crate) fn burn_image_to_native(
+    image: &Image<Backend, 3>,
+) -> Result<NativeImage<f32, NativeBackend, 3>> {
+    let backend = NativeBackend::default();
+    NativeImage::from_flat_on(
+        image.try_data_vec()?,
+        image.shape(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        &backend,
+    )
+    .context("cannot convert legacy image to native I/O image")
 }
 
 /// Write `image` to `path` via the Atlas-native path, using the explicitly
@@ -312,13 +325,19 @@ pub(crate) fn write_image_native(
             image,
         )
         .with_context(|| format!("Failed to write JPEG file (native): {}", path.display())),
+        ImageFormat::Vtk => ImageWriter::write(
+            &ritk_io::format::vtk::native::VtkWriter::new(backend),
+            path,
+            image,
+        )
+        .with_context(|| format!("Failed to write VTK file (native): {}", path.display())),
         ImageFormat::Analyze => ImageWriter::write(
             &ritk_io::format::analyze::native::AnalyzeWriter::new(backend),
             path,
             image,
         )
         .with_context(|| format!("Failed to write Analyze file (native): {}", path.display())),
-        ImageFormat::Png | ImageFormat::Dicom | ImageFormat::Vtk => Err(anyhow!(
+        ImageFormat::Png | ImageFormat::Dicom => Err(anyhow!(
             "{:?} has no Atlas-native writer; check is_native_write_capable first",
             format
         )),

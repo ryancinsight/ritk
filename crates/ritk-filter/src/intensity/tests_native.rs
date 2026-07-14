@@ -12,6 +12,7 @@ use coeus_core::SequentialBackend;
 
 use super::adaptive_equalization::AdaptiveHistogramEqualizationFilter;
 use super::bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPolicy};
+use super::binary_threshold::BinaryThresholdImageFilter;
 use super::clamp::ClampImageFilter;
 use super::equalization::HistogramEqualizationFilter;
 use super::mask::{MaskImageFilter, MaskNegatedImageFilter, MaskedAssignImageFilter};

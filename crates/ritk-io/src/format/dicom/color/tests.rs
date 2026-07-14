@@ -1,6 +1,5 @@
 //! Native DICOM RGB color-volume tests.
 
-use coeus_core::SequentialBackend;
 use ritk_dicom::PixelSignedness;
 
 use super::*;

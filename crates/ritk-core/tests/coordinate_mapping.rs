@@ -10,7 +10,6 @@ use ritk_spatial::{Direction, Point, Spacing};
 
 type Backend = SequentialBackend;
 const D: usize = 3;
-type Image3 = Image<f32, Backend, D>;
 
 fn make_rotation(angle_x: f64, angle_y: f64, angle_z: f64) -> Direction<D> {
     let (cx, sx) = (angle_x.cos(), angle_x.sin());

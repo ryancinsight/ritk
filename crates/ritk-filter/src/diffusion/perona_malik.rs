@@ -35,7 +35,6 @@
 //! anisotropic diffusion. *IEEE Trans. Pattern Anal. Mach. Intell.*
 //! 12(7):629–639. doi:10.1109/34.56205
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};

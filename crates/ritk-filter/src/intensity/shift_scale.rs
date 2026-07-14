@@ -24,8 +24,6 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
-use crate::native_support::map_flat_image;
-
 /// Apply a linear shift-then-scale to every voxel.
 ///
 /// `out(x) = (in(x) + shift) * scale`

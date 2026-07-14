@@ -35,7 +35,6 @@ use bessel::{modified_bessel_i, modified_bessel_i0, modified_bessel_i1};
 pub(crate) use convolve::convolve_separable;
 
 use crate::edge::GaussianSigma;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};

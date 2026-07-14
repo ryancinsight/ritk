@@ -12,8 +12,6 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-use crate::native_support::map_flat_image;
-
 /// Linear rescale of image intensity to [out_min, out_max].
 ///
 /// Computes the global minimum and maximum of the input image and maps the

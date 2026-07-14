@@ -61,7 +61,6 @@ pub mod tile_cdf;
 use interpolate::clahe_2d_with_scratch;
 
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};

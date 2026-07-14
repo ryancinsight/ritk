@@ -13,10 +13,8 @@
 //! Reference: Sethian (1996). The output is strictly bounded in (min_output, max_output)
 //! for finite input and nonzero beta.
 
-use crate::native_support::map_flat_image;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::{native::Image as NativeImage, Image};
+use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Pixel-wise sigmoid intensity transform.

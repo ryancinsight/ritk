@@ -1,6 +1,5 @@
 //! MINC writer tests migrated to the Atlas-native (Coeus) path — ADR 0002.
 
-use super::*;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -116,7 +115,6 @@ fn read_minc_rejects_shape_exceeding_backed_data() {
     let backend = SequentialBackend;
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("forged.mnc");
-    let tiny_data = vec![0u8; 8 * 4];
     write_minc2_hdf5(
         &path,
         &[0_u8; 8 * 4],
