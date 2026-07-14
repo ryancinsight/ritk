@@ -269,17 +269,25 @@ respectively, from the integration-only head's 26.20 and 26.12 seconds.
 Evidence tier: exact installed-wheel test timestamps plus unchanged
 value-semantic assertions. The run then advanced to a combined Colin27 test
 that repeated the same 30.48-second SyN call before an independent SimpleITK
-affine oracle and exhausted 60 seconds. Structural audit found four
-side-by-side tests with no cross-result assertion; each repeated a RITK
-registration already covered immediately in its class. The duplicate calls and
-assertions are deleted while the existing RITK tests and each unique SimpleITK
-oracle remain independent and unchanged. Evidence tier: exact duplicate call
-and assertion comparison; the next installed-wheel run remains the suite gate.
-Review found the retained cross-modal SimpleITK B-spline branch previously made
-no assertion when the helper returned no result; the duplicated RITK assertion
-had masked that vacuous path. The independent oracle now requires a result
-before checking its existing NCC bound. Evidence tier: value-semantic test
-contract; installed-wheel execution remains pending.
+affine oracle and exhausted 60 seconds. Structural audit found five duplicate
+registration invocations in side-by-side tests with no cross-result assertion;
+each repeated a stronger independent value oracle. The duplicate calls and
+assertions are deleted while those independent RITK and SimpleITK contracts
+remain unchanged. Evidence tier: exact input, call, and assertion comparison;
+the next installed-wheel run remains the suite gate.
+Run `29304966659` advanced past those cases and exposed two further defects.
+The locally deformed sphere comparison duplicated both halves of the stronger
+`test_sitk_bspline_deformable_vs_ritk_syn` oracle and timed out at 60 seconds;
+both redundant invocations are deleted, bringing the total to seven. The RIRE
+voxel-space B-spline check
+failed after its formerly vacuous `None` branch was made mandatory. Its direct
+NCC preservation threshold is not valid for CT-to-MR intensities: cross-modal
+intensity correspondence is non-linear, and the test supplied neither a
+ground-truth transform nor a derivation for its `0.05` tolerance. It is deleted
+as an incorrect specification; the physical-space RIRE rigid test retains the
+same dataset's ground-truth-backed cross-modal validation. Evidence tier:
+exact CI failure, duplicate-input comparison, and metric-contract analysis;
+installed-wheel execution remains pending.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

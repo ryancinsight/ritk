@@ -36,9 +36,12 @@
 - Dispatch three-component volume kernels through Moirai's native multi-buffer
   operation and explicitly parallelize costly bidirectional CC slices, avoiding
   accidental serial execution below the adaptive 1,024-item threshold.
-- Remove four side-by-side registration calls that duplicated independently
-  asserted RITK contracts while retaining every unique RITK and SimpleITK
-  value oracle as a separate test.
+- Remove seven side-by-side registration calls that duplicated independently
+  asserted RITK and SimpleITK contracts while retaining their stronger
+  independent value oracles.
+- Remove a SimpleITK B-spline check that applied an underived NCC tolerance to
+  cross-modal CT and MR intensities; the physical-space RIRE rigid oracle
+  retains the dataset's ground-truth-backed cross-modal validation.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

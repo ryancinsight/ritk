@@ -401,54 +401,6 @@ class TestSyntheticSphere:
         assert d_sitk >= 0.80, f"SimpleITK Dice {d_sitk:.4f} < 0.80"
         assert d_ritk >= 0.80, f"RITK Dice {d_ritk:.4f} < 0.80"
 
-    def test_side_by_side_syn_vs_sitk_bspline_quality(self):
-        """RITK SyN and SimpleITK BSpline must achieve Dice >= 0.75 on locally
-        deformed sphere (Gaussian bump displacement)."""
-        from scipy.ndimage import map_coordinates
-
-        arr_fixed = _make_sphere(size=SIZE, radius=6)
-        c = SIZE // 2
-        z, y, x = np.mgrid[:SIZE, :SIZE, :SIZE]
-        bump = 3.0 * np.exp(
-            -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / (2 * 5.0**2)
-        )
-        x_displaced = np.clip(x + bump, 0, SIZE - 1).astype(np.float32)
-        arr_moving = (
-            map_coordinates(
-                arr_fixed,
-                [z.ravel(), y.ravel(), x_displaced.ravel()],
-                order=1,
-                mode="nearest",
-            )
-            .reshape(SIZE, SIZE, SIZE)
-            .astype(np.float32)
-        )
-
-        fixed_s = _numpy_to_sitk(arr_fixed)
-        moving_s = _numpy_to_sitk(arr_moving)
-        fixed_r = _numpy_to_ritk(arr_fixed)
-        moving_r = _numpy_to_ritk(arr_moving)
-
-        # SimpleITK BSpline (fewer iterations to avoid timeout on 64^3)
-        sitk_result = _sitk_bspline_register(
-            fixed_s, moving_s, grid_spacing=8.0, num_iterations=30
-        )
-        if sitk_result is not None:
-            d_sitk = _dice(_sitk_to_numpy(sitk_result), arr_fixed)
-        else:
-            d_sitk = 0.0
-
-        # RITK SyN with reduced smoothing for continuous data
-        _, warped_m = ritk.registration.syn_register(fixed_r,
-            moving_r, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5))
-        d_ritk = _dice(warped_m.to_numpy(), arr_fixed)
-
-        assert d_sitk >= 0.70 or sitk_result is None, (
-            f"SimpleITK BSpline Dice {d_sitk:.4f} < 0.70"
-        )
-        assert d_ritk >= 0.75, f"RITK SyN Dice {d_ritk:.4f} < 0.75"
-
-
 # ============================================================================
 # Section 2: Synthetic Gaussian blob — NCC improvement
 # ============================================================================

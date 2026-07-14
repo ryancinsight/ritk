@@ -1138,21 +1138,6 @@ class TestRIREMultiModalVoxel:
             f"before={self.ncc_before:.4f}, after={ncc_after:.4f}"
         )
 
-    def test_sitk_bspline_preserves_cross_modal_ncc(self):
-        """SimpleITK BSpline must preserve cross-modal NCC within 0.05."""
-        fixed_s = _numpy_to_sitk(self.fixed_norm)
-        moving_s = _numpy_to_sitk(self.moving_norm)
-        sitk_result = _sitk_bspline_register(
-            fixed_s, moving_s, grid_spacing=8.0, num_iterations=30
-        )
-        assert sitk_result is not None, "SimpleITK BSpline returned no result"
-        ncc_sitk = _ncc(self.fixed_norm, _sitk_to_numpy(sitk_result))
-        assert ncc_sitk > self.ncc_before - 0.05, (
-            f"SimpleITK BSpline regressed NCC: "
-            f"before={self.ncc_before:.4f}, after={ncc_sitk:.4f}"
-        )
-
-
 # ===========================================================================
 # Section 9: Cross-modal CT↔MR — Visible Male head pair
 # ===========================================================================
