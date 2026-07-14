@@ -191,6 +191,25 @@ Moirai currently exposes at most triple mutable-slice traversal; this bounded
 allocation is recorded rather than described as zero-allocation. This is
 structural and differential evidence; exact-head runtime evidence remains
 pending.
+Exact-head Ubuntu Python CI completes its 310-test parity subset in 35.17
+seconds. Separate local timing attributes the remaining combined denoising case
+to 15.45 seconds of RITK computation and 26.34 seconds of single-worker
+SimpleITK computation; its 49.61-second CI duration reflects concurrent CPU
+contention, not a 49-second RITK invocation. Static hot-path accounting finds
+6,553,600,000 ordered patch terms for the 64-cubed, radius-two, 200-sample case.
+When every pixel difference is finite, 32 of each 125 smooth-disc weights are
+exactly zero. Eliding
+those terms without reordering the remaining terms removes 1,677,721,600 inner
+iterations (25.6%); non-finite input retains the full sequence because
+zero-weight multiplication participates in NaN and infinity propagation.
+Source-level differential review found one remaining arithmetic divergence:
+ITK's unqualified global `pow(float, float)` resolves to a double-returning
+overload and its radius-two face-diagonal expression produces `0x3f639b3a` only
+after the full `f64` combination. Rust's inherent `f32::powf` rounded each power
+early and produced `0x3f639b3b`. RITK now promotes the delta once, routes both
+powers through Eunomia's `f64` math provider, and pins the ITK weight before its
+`f64` square. This is source-differential and value-semantic regression
+evidence; exact full-image differential evidence is pending CI.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

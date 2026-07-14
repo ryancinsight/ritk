@@ -69,6 +69,21 @@ fn pixel_difference(current: f32, selected: f32) -> f64 {
     f64::from(selected - current)
 }
 
+#[inline]
+fn pixel_differences_are_finite(data: &[f32]) -> bool {
+    data.iter()
+        .copied()
+        .try_fold(
+            (f32::INFINITY, f32::NEG_INFINITY),
+            |(minimum, maximum), value| {
+                value
+                    .is_finite()
+                    .then_some((minimum.min(value), maximum.max(value)))
+            },
+        )
+        .is_some_and(|(minimum, maximum)| (maximum - minimum).is_finite())
+}
+
 fn itk_reduction_indices(length: usize) -> impl Iterator<Item = usize> {
     debug_assert_eq!(length % 2, 1, "patch length must be odd");
     let center = length / 2;
@@ -311,7 +326,7 @@ impl PatchBasedDenoisingImageFilter {
         // Patch offsets in (dz, dy, dx), with the equivalent flat displacement.
         let row_stride = isize::try_from(nx).expect("invariant: image storage fits isize");
         let plane_stride = isize::try_from(ny * nx).expect("invariant: image storage fits isize");
-        let offsets = {
+        let mut offsets = {
             let mut natural_offsets = Vec::new();
             let mut wi = 0usize;
             let zr = if ndim == 3 { r } else { 0 };
@@ -336,6 +351,14 @@ impl PatchBasedDenoisingImageFilter {
                 .map(|index| natural_offsets[index])
                 .collect::<Vec<_>>()
         };
+        // A zero smooth-disc weight contributes exactly +0.0 when every pixel
+        // difference is finite, so removing it preserves every retained term
+        // and their ITK reduction order. Non-finite input keeps the full
+        // sequence because 0 * NaN/Inf participates in the filter's
+        // propagation contract.
+        if pixel_differences_are_finite(data) {
+            offsets.retain(|offset| offset.weight != 0.0);
+        }
 
         let idx = |x: i64, y: i64, z: i64| -> usize {
             (z as usize) * ny * nx + (y as usize) * nx + (x as usize)
@@ -529,8 +552,15 @@ fn smooth_disc_weights_sq(patch_radius: usize, ndim: usize) -> Vec<f64> {
                     1.0f32
                 } else {
                     let delta = radius_plus_one - distance;
-                    let weight = ((-2.0 / interval.powf(3.0)) * f64::from(delta.powf(3.0))
-                        + (3.0 / interval.powf(2.0)) * f64::from(delta.powf(2.0)))
+                    // ITK's unqualified global `pow(float, float)` resolves to
+                    // the double-returning overload; both powers and the cubic
+                    // combination execute in `double` before one assignment to
+                    // the float weight image.
+                    let delta = f64::from(delta);
+                    let delta_cubed = <f64 as eunomia::FloatElement>::powf(delta, 3.0_f64);
+                    let delta_squared = <f64 as eunomia::FloatElement>::powf(delta, 2.0_f64);
+                    let weight = ((-2.0 / interval.powf(3.0)) * delta_cubed
+                        + (3.0 / interval.powf(2.0)) * delta_squared)
                         as f32;
                     weight.clamp(0.0, 1.0)
                 };

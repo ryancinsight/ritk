@@ -33,6 +33,41 @@ fn test_itk_pixel_difference_rounds_before_widening() {
     assert_ne!(actual, f64::from(selected) - f64::from(current));
 }
 
+#[test]
+fn test_zero_weight_elision_preserves_finite_patch_distance() {
+    let weights = smooth_disc_weights_sq(2, 3);
+    let itk_diagonal_weight = f32::from_bits(0x3f63_9b3a);
+    let differences: Vec<f64> = (0..weights.len())
+        .map(|index| {
+            f64::from(u32::try_from(index).expect("invariant: patch index fits u32")) * 0.125 - 7.0
+        })
+        .collect();
+    let reduction_order: Vec<usize> = itk_reduction_indices(weights.len()).collect();
+    let full = reduction_order.iter().fold(0.0_f64, |sum, &index| {
+        let weight = weights[index];
+        let difference = differences[index];
+        sum + weight * difference * difference
+    });
+    let elided = reduction_order
+        .iter()
+        .filter(|&&index| weights[index] != 0.0)
+        .fold(0.0_f64, |sum, &index| {
+            let weight = weights[index];
+            let difference = differences[index];
+            sum + weight * difference * difference
+        });
+
+    assert_eq!(weights.iter().filter(|&&weight| weight == 0.0).count(), 32);
+    assert_eq!(
+        weights[32].to_bits(),
+        (f64::from(itk_diagonal_weight) * f64::from(itk_diagonal_weight)).to_bits()
+    );
+    assert_eq!(elided.to_bits(), full.to_bits());
+    assert!(pixel_differences_are_finite(&[-1.0, 0.0, 1.0]));
+    assert!(!pixel_differences_are_finite(&[f32::NEG_INFINITY, 0.0]));
+    assert!(!pixel_differences_are_finite(&[-f32::MAX, f32::MAX]));
+}
+
 /// Determinism: the same input yields the same output (seeded RNG, seed 0).
 #[test]
 fn test_patch_based_denoising_deterministic() {

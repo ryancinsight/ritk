@@ -117,6 +117,12 @@
   and emit exact ULP witnesses without duplicating suite execution.
 - [x] Preserve ITK's pixel-difference precision boundary by subtracting in
   `f32` before widening into the `f64` entropy accumulator.
+- [x] Remove the 32 exactly-zero radius-two smooth-disc terms when every patch
+  difference is finite, with bit-exact value-semantic coverage and an overflow
+  or non-finite full path.
+- [x] Reproduce ITK's radius-two diagonal smooth-disc global-`pow` bit pattern
+  through Eunomia's `f64` contract and pin the squared weight in a direct
+  regression.
 - [x] Reduce the installed-wheel suite from its measured 946.68-second wall
   time by consolidating repeated registration executions without deleting a
   distinct value-semantic contract or changing any workload or threshold.
