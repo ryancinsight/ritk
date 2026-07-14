@@ -471,7 +471,10 @@ impl PatchBasedDenoisingImageFilter {
                         grad += (data[q_center_index] as f64 - p_center) * g;
                     }
 
-                    let update = 0.2 * grad / (sum_g + f64::MIN_POSITIVE * 100.0);
+                    // ITK normalizes the entropy gradient before applying the
+                    // smoothing step; this operation order fixes its rounding contract.
+                    let normalized_gradient = grad / (sum_g + f64::MIN_POSITIVE * 100.0);
+                    let update = normalized_gradient * 0.2;
                     *value = (p_center + update) as f32;
                 },
             );

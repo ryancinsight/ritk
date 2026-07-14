@@ -17,6 +17,8 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Normalize the patch-denoising entropy gradient before applying its smoothing
+  step, matching ITK's floating-point operation order.
 - Verify wrapping selected-patch boundary addressing against explicit debug
   coordinates and pin ITK's at-least-as-in-bounds invariant exhaustively.
 - Run the independent deterministic RITK and single-worker SimpleITK patch-

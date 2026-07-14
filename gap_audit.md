@@ -136,6 +136,12 @@ Debug builds reconstruct the sampled coordinate and verify it against the flat
 release address, preserving the proven hot-loop operation count. Small-domain
 exhaustive regressions verify every bounded sampler radius and actual 2-D/3-D
 flat-address equivalence.
+Exact-head run `29329371651` completed the unchanged denoising differential in
+51.49 seconds, eliminating the 60-second termination, but reported a two-ULP
+maximum difference. ITK divides the accumulated entropy gradient by its
+probability sum before multiplying by the `0.2` smoothing step; RITK multiplied
+before dividing. The kernel now preserves ITK's operation order. The one-ULP
+oracle remains unchanged.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

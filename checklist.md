@@ -109,6 +109,8 @@
   value assertion; retain and rename the canonical CMA-MI contract module.
 - [x] Encode ITK's sampled-patch boundary invariant with debug-verified flat
   addressing and exhaustive small-domain regressions.
+- [x] Restore ITK's normalize-then-step denoising arithmetic order exposed by
+  the unchanged one-ULP differential.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
