@@ -15,11 +15,12 @@
 - Capture a symbolized native thread backtrace from the unchanged installed-
   wheel suite, then remove the debugger and release-symbol overrides after the
   Mnemosyne fault is corrected.
-- Pin the full 64-cubed patch-denoising SimpleITK 2.5.5 output as a SHA-512-
-  verified golden array so the timed test retains its complete one-ULP oracle
-  without recomputing the 27-second external reference.
 
 ### Fixed
+- Execute the full patch-denoising RITK workload before its live single-worker
+  SimpleITK oracle; host-local generation preserves the one-ULP differential
+  across CPU/libm variants while keeping external state out of the measured
+  production path.
 - Remove the 36.88-second three-pipeline RIRE comparison that asserted only
   successful execution and printed a table; retain the value-semantic CMA-MI
   registration tests in the renamed `test_cma_mi_rire.py` module.

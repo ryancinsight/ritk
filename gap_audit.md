@@ -88,10 +88,12 @@ assertion. CI therefore measures the production kernel rather than the sum of
 two implementations.
 Run `29319990306` confirmed the corrected RITK kernel completes the unchanged
 64-cubed workload in 14.71 seconds. Its only failure was a two-ULP difference
-against the Windows-generated SimpleITK fixture at one or more platform-
-dependent voxels. The fixture is regenerated with SimpleITK 2.5.5 on Linux
-x86-64, matching the authoritative wheel lane while retaining the one-ULP
-contract; the threshold is unchanged.
+against a Windows-generated SimpleITK fixture. Regenerating with the same
+SimpleITK 2.5.5 wheel under Linux WSL still differed by four ULP on GitHub's
+Linux runner (`29321964085`), proving that OS-level fixture selection cannot
+ground the one-ULP claim across CPU/libm variants. The unstable golden is
+deleted. RITK now executes first in 14.8 seconds and the unchanged SimpleITK
+oracle executes afterward on the same host; no threshold is widened.
 The same duration report identified a 58.18-second SimpleITK-only B-spline
 self-test. It neither invoked RITK nor compared implementations, while direct
 RITK B-spline quality and RITK-versus-SimpleITK deformable parity tests already

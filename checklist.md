@@ -91,8 +91,9 @@
   express its canonical independent algorithm contracts as parameterized cases.
 - [x] Restore the Gaussian sampler-radius intersection exposed by the 64-cubed
   differential case.
-- [x] Remove repeated SimpleITK execution from the timed denoising regression;
-  retain the unchanged 64-cubed RITK workload and hash-pinned full-array oracle.
+- [x] Reject the cross-host denoising golden after Linux runners differed by
+  four ULP; retain the unchanged 64-cubed RITK workload and host-local live
+  SimpleITK one-ULP oracle, with RITK executing first.
 - [x] Delete the redundant SimpleITK-only B-spline self-test after the duration
   report measured 58.18 seconds; retain direct RITK and parity contracts.
 - [x] Delete the three-pipeline RIRE report that had no comparative oracle or
