@@ -5,10 +5,10 @@
   revision that GitHub Actions cannot fetch with public OpenJPEG PR 9, remove
   the stale `jpeg2k` wrapper from the differential tests, and align the CI
   Apollo checkout with the declared `apollo-fft` 0.15 provider. The tests now
-  call the public `openjp2` API directly. Local package gates pass; GitHub CI
-  must re-run against the reachable source and Apollo revision before closure.
-  Residual: the Apollo pin tracks its public RustFFT-removal branch until that
-  provider state is promoted to Apollo main.
+  call the public `openjp2` API directly. The Apollo provider's Apple Silicon
+  target boundary is fixed at `f1a44a7`; GitHub CI must re-run against that
+  revision before closure. Residual: the Apollo pin tracks its public
+  RustFFT-removal branch until that provider state is promoted to Apollo main.
 
 - **MIG-654-01 [patch] - Reconcile native migration branch with current main
   (REVIEW).** Integrate the merged CI/provider checkout topology, remove stale

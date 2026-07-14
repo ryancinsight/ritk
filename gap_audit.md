@@ -33,10 +33,14 @@ jpeg2000_interop --all-features --no-fail-fast --locked` passed 14/14;
 passed 256/256; warnings-denied Clippy, doctests, and package rustdoc passed.
 The first published CI rerun passed the public OpenJPEG fetch, then stopped at
 the stale Apollo checkout: the action selected `apollo-fft` 0.14.0 while the
-workspace requires 0.15.0. The action now pins public Apollo commit
-`b29100395420dd43441f8a7422d95819aba51a9e`, and the interop source is formatted
-by the repository toolchain. GitHub Actions remains the final verification
-gate for the corrected revision.
+workspace requires 0.15.0. Apollo's provider fix gates its AVX Stockham modules
+to x86 targets, so the Apple Silicon build now resolves the existing scalar
+path without importing x86-only symbols. The provider commit
+`f1a44a775cb5d5e58ffb2935e856fba6bb4205a7` passes Apollo's host tests, Clippy,
+doctests, rustdoc, and an `aarch64-apple-darwin` check. The action now pins that
+public revision, and the interop source is formatted by the repository
+toolchain. GitHub Actions remains the final verification gate for the corrected
+revision.
 
 Residual: Apollo main still exposes 0.14.0, so the action's 0.15.0 pin follows
 the public RustFFT-removal branch until that provider state is promoted.

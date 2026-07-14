@@ -22,12 +22,13 @@
 - [x] Run the package gates. Completion condition: Clippy, doctests, rustdoc,
       the 14-test interop suite, and the full `ritk-codecs` suite pass.
 - [x] Apply CI-discovered corrections. Completion condition: the interop
-      source is rustfmt-clean and the dependency checkout action pins the
-      public Apollo revision that provides `apollo-fft` 0.15.
+      source is rustfmt-clean and the dependency checkout action pins Apollo
+      `f1a44a7`, whose provider target boundary compiles for Apple Silicon and
+      provides `apollo-fft` 0.15.
 - [ ] Re-run GitHub Actions and close the item when the dependency-fetch,
       Clippy, dependency-alignment, wheel-smoke, and Python matrix jobs pass.
 
-Residual: Apollo is pinned to public `b29100395420dd43441f8a7422d95819aba51a9e`
+Residual: Apollo is pinned to public `f1a44a775cb5d5e58ffb2935e856fba6bb4205a7`
 because Apollo main still publishes `apollo-fft` 0.14.0. Remove this temporary
 branch pin when the 0.15 provider state is promoted upstream.
 

@@ -15,8 +15,9 @@
   the decoder-buffer deallocation guard required by the differential tests.
 - Removed the stale `jpeg2k` wrapper from the JPEG 2000 oracle and call the
   public `openjp2` API directly for both encode and decode directions.
-- Updated the CI Apollo checkout to the public provider revision that declares
-  `apollo-fft` 0.15, matching the workspace contract.
+- Updated the CI Apollo checkout to public Apollo commit `f1a44a7`, whose
+  provider target boundary declares `apollo-fft` 0.15 and compiles on Apple
+  Silicon.
 
 ### Evidence
 - The 14-test JPEG 2000 differential suite and all 256 `ritk-codecs` tests
