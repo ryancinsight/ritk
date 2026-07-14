@@ -38,8 +38,12 @@
 - [x] Capture a symbolized native backtrace from the unchanged installed-wheel
   suite and correct Mnemosyne's concurrent pool-reclamation boundary.
 - [x] Remove GDB and release-symbol overrides after the corrected wheel passed
-  every CMA regression; the debugger overhead alone pushed the SimpleITK
-  B-spline oracle from its 48-second baseline to the 60-second test bound.
+  every CMA regression; debugger overhead contributed to the SimpleITK
+  B-spline oracle reaching the 60-second test bound.
+- [x] Correct the prior B-spline optimization's target: restore physical-shift
+  scales for rigid parameters and remove their redundant estimation from the
+  dimensionally uniform B-spline coefficients without changing workload or
+  assertions.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

@@ -182,9 +182,12 @@ unchanged wheel verification. Evidence tier: symbolized native production
 trace, provider RAII synchronization, and value-semantic provider tests. The
 corrected wheel passed the complete CMA group, including comparison (37.83 s),
 thin-slab (30.14 s), and masked (26.59 s), then reached the independent
-SimpleITK B-spline oracle. GDB overhead pushed that external oracle to the
-60-second pytest limit versus its prior 48.35-second optimized-wheel baseline;
-the diagnostic wrapper and release-symbol overrides are removed for the final
+SimpleITK B-spline oracle. Audit then found the earlier optimization had been
+applied to `_sitk_rigid_register` rather than `_sitk_bspline_register`: rigid
+physical-shift scaling is restored, while the dimensionally uniform B-spline
+coefficients now skip the actual redundant per-parameter scale estimation.
+Iterations, 64-cubed input, sampling, grid, and NCC assertions are unchanged.
+The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate
 exposed two DICOM target variants; their versions now inherit
