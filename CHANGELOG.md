@@ -37,6 +37,8 @@
   balance remainder work across every selected worker-plus-caller lane.
 - Collect CMA fitness values into the reusable synchronized result buffer
   instead of writing through disjoint raw pointers.
+- Give concurrent CMA candidates independently constructed mutual-information
+  metric/cache lanes through a bounded RAII pool.
 - Remove redundant physical-shift scale estimation from the SimpleITK B-spline
   differential oracle and synchronize Python VTK coverage with native image I/O.
 - Restrict PyO3 extension-module linkage to wheel builds so Linux Rust tests

@@ -150,7 +150,19 @@ a stale Python test that still expected VTK image writing to be absent even
 though `ritk-io` owns a native VTK reader/writer with Rust roundtrip coverage;
 the Python boundary now asserts the same exact shape and values. Evidence tier:
 empirical differential timing plus value-semantic analytical-image and I/O
-oracles; final exact-head suite evidence remains pending CI. The stronger alignment gate
+oracles. A subsequent exact-head run passed that VTK roundtrip but segfaulted
+inside the default CMA binding in under one second. Because the identical CMA
+path passed in 2.60 seconds on the preceding run, this falsifies the synchronized
+result buffer as the complete crash cause and establishes a native concurrency
+defect whose manifestation depends on scheduling or allocation layout. Source
+inspection found that every parallel candidate shared one stateful mutual-
+information metric, including its tensor caches and histogram buffer pool.
+The current fix constructs a bounded set of independent metrics and leases one
+per candidate through an RAII pool; no metric or cache is concurrently entered,
+and unwind returns its lane. A barrier-synchronized regression asserts exact
+evaluation cardinality, exclusive lane ownership, and complete lane return.
+Evidence tier: type-level exclusive ownership plus value-semantic concurrency
+regression; final exact-head crash and timing evidence remains pending CI. The stronger alignment gate
 exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely
 in native target tables. The target-table regression is value-checked in the

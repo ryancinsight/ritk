@@ -31,6 +31,9 @@
   reusable buffer behind a mutex and assert one result per candidate.
 - [x] Remove redundant SimpleITK B-spline physical-shift scale estimation and
   replace the stale missing-VTK-writer assertion with an exact native roundtrip.
+- [ ] Isolate every concurrent CMA candidate behind an independently
+  constructed metric/cache lane; verify the unchanged wheel suite has no
+  native crash and retains sub-60-second registration tests.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
