@@ -12,8 +12,9 @@
 ### Added
 - Add `ritk_statistics::pearson_correlation`, with allocation-free Moirai
   partitioning for both f64-accumulating passes.
-- Capture symbolized native thread backtraces from the unchanged installed-wheel
-  suite while the intermittent parallel registration crash is unresolved.
+- Capture a symbolized native thread backtrace from the unchanged installed-
+  wheel suite, then remove the debugger and release-symbol overrides after the
+  Mnemosyne fault is corrected.
 
 ### Fixed
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized

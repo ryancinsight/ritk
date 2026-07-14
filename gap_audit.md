@@ -180,6 +180,12 @@ thread could detach and release that mapping. Mnemosyne `1877bc6` serializes
 head observation through successor access/detach; RITK pins that revision for
 unchanged wheel verification. Evidence tier: symbolized native production
 trace, provider RAII synchronization, and value-semantic provider tests. The
+corrected wheel passed the complete CMA group, including comparison (37.83 s),
+thin-slab (30.14 s), and masked (26.59 s), then reached the independent
+SimpleITK B-spline oracle. GDB overhead pushed that external oracle to the
+60-second pytest limit versus its prior 48.35-second optimized-wheel baseline;
+the diagnostic wrapper and release-symbol overrides are removed for the final
+production-profile run. The
 stronger alignment gate
 exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely
