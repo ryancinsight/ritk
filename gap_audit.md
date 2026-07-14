@@ -59,11 +59,12 @@ sample/accumulation order and final f32 conversion. Four small fixtures from
 the same run empirically showed only adjacent-representable differences, with
 maximum absolute error `7.6293945e-06`.
 The same run falsified the MNI SyN test's empirical `0.001` global-NCC threshold:
-the unchanged full 128-cubed workload improved NCC by `0.000724`. Local CC is
-the optimized objective and global NCC is only an external validation measure,
-so no positive dataset-independent magnitude follows analytically. The test now
-requires strict positive improvement, retaining all data, levels, iterations,
-and optimizer parameters without substituting another tolerance.
+the unchanged full 128-cubed workload improved NCC by `0.000724`. Final review
+correctly rejected even a strict positive global-NCC sign as underived because
+local CC is the optimized objective. The mandatory MNI case now evaluates ANTs
+neighborhood-correlation loss at radius four through SimpleITK before and after
+the unchanged RITK workload and requires strict loss reduction, with no numeric
+tolerance.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

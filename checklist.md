@@ -85,7 +85,8 @@
   degraded SimpleITK; require single-worker differential parity within one final
   output rounding step instead.
 - [x] Replace the underived inter-subject SyN `0.001` global-NCC threshold with
-  the strict positive-improvement contract derivable for a local-CC optimizer.
+  an independent ANTs-neighborhood-correlation oracle over the actual optimized
+  objective; make its dataset and SimpleITK prerequisites mandatory.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

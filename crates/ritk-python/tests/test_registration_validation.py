@@ -23,11 +23,8 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
-# Skip every test in this module when SimpleITK is not installed.
-sitk = pytest.importorskip("SimpleITK")
-
-import ritk  # noqa: E402
+import ritk
+import SimpleITK as sitk
 
 # ---------------------------------------------------------------------------
 # Custom pytest markers
@@ -690,10 +687,9 @@ def _load_mni_cropped(size: int = 128) -> tuple[np.ndarray, np.ndarray]:
     return fixed_cropped, moving_cropped
 
 
-@_skip_mni
 @pytest.mark.slow
 def test_3a_ritk_multires_syn_on_inter_subject():
-    """RITK multires_syn_register on cropped MNI pair must produce positive NCC improvement.
+    """RITK multires_syn_register must reduce local-CC loss on the MNI pair.
 
     Mathematical basis: RITK SyN optimises local cross-correlation (CC) using
     dense velocity fields over 9×9×9-voxel windows (cc_radius=4).  For inter-
@@ -704,15 +700,19 @@ def test_3a_ritk_multires_syn_on_inter_subject():
     iteration count or smoothing, because the optimisation converges once CC
     variance drops below 1e-8 across the last 10 iterations.
 
-    Oracle derivation: local CC and global NCC are distinct objectives, so no
-    positive dataset-independent lower bound on global-NCC gain follows from
-    the optimizer. Strict positive improvement is the strongest derived global
-    contract for this fixed pair; a quantitative lower bound would require an
-    independently established dataset baseline.
+    Oracle derivation: SyN minimizes local-CC loss, so the post-registration
+    value must be strictly lower. SimpleITK's ANTs-neighborhood-correlation
+    evaluator provides an implementation-independent oracle at the same radius.
     """
+    assert _mni_pair_present, "MNI inter-subject pair is required for SyN validation"
     fixed_arr, moving_arr = _load_mni_cropped(128)
 
-    ncc_before = ncc_3d(fixed_arr, moving_arr)
+    metric = sitk.ImageRegistrationMethod()
+    metric.SetMetricAsANTSNeighborhoodCorrelation(4)
+    fixed_metric = sitk.GetImageFromArray(fixed_arr)
+    cc_loss_before = metric.MetricEvaluate(
+        fixed_metric, sitk.GetImageFromArray(moving_arr)
+    )
 
     fixed_ritk = numpy_to_ritk(fixed_arr)
     moving_ritk = numpy_to_ritk(moving_arr)
@@ -721,12 +721,13 @@ def test_3a_ritk_multires_syn_on_inter_subject():
     #    cc_radius=2, inverse_consistency="enforced", gradient_step=0.25)
     warped_fixed, warped_moving = ritk.registration.multires_syn_register(fixed_ritk,
         moving_ritk, ritk.registration.MultiResSynOptions(num_levels=3,iterations=[200, 100, 50],sigma_smooth=1.0,cc_radius=4,inverse_consistency="enforced",gradient_step=0.5,convergence_threshold=1e-8))
-    ncc_after = ncc_3d(warped_moving.to_numpy(), fixed_arr)
+    cc_loss_after = metric.MetricEvaluate(
+        fixed_metric, sitk.GetImageFromArray(warped_moving.to_numpy())
+    )
 
-    delta = ncc_after - ncc_before
-    assert delta > 0.0, (
-        f"RITK multires SyN did not improve NCC (delta={delta:.4f}) "
-        f"(before={ncc_before:.4f}, after={ncc_after:.4f})"
+    assert cc_loss_after < cc_loss_before, (
+        "RITK multires SyN did not reduce ANTs neighborhood-correlation loss "
+        f"(before={cc_loss_before:.6f}, after={cc_loss_after:.6f})"
     )
 
 
