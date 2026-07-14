@@ -193,6 +193,12 @@ plus Mattes configuration took 80.42 seconds on the same case. B-spline
 coefficients remain uniformly dimensioned physical displacements, so the
 helper does not perform redundant per-coefficient physical-scale estimation.
 Evidence tier: empirical differential timing and value-semantic NCC comparison.
+GitHub run `29299230470` then falsified objective alignment as sufficient: the
+same call exhausted 60 seconds on the quota-limited hosted runner. The helper
+now fixes SimpleITK to one work unit so host CPU visibility cannot oversubscribe
+the runner quota; samples, transform coefficients, optimizer updates, and
+assertions remain unchanged. Evidence tier: exact installed-wheel timeout trace;
+final cross-host timing remains the acceptance gate.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

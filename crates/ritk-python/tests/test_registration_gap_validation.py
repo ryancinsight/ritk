@@ -268,6 +268,10 @@ def _sitk_bspline_register(
     fixed_f = sitk.Cast(fixed_sitk, sitk.sitkFloat32)
     moving_f = sitk.Cast(moving_sitk, sitk.sitkFloat32)
     reg = sitk.ImageRegistrationMethod()
+    # Hosted runners expose the host CPU count despite a much smaller CPU
+    # quota. One work unit keeps this deterministic oracle out of oversubscribed
+    # SimpleITK thread pools without changing its evaluated samples or updates.
+    reg.SetNumberOfWorkUnits(1)
     # The callers assert normalized cross-correlation, so optimize that exact
     # objective rather than paying for a sampled histogram surrogate.
     reg.SetMetricAsCorrelation()
