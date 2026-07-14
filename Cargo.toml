@@ -145,14 +145,13 @@ jpeg-decoder = "0.3"
 arrayvec = "0.7"
 
 # ── Profile overrides ────────────────────────────────────────────────────────
-# Test builds keep `opt-level = 0` and emit full debug info so that
+# Test builds keep `opt-level = 0` and emit line tables so that
 # `STATUS_STACK_BUFFER_OVERRUN` / `STATUS_ACCESS_VIOLATION` crashes (and any
-# other panics) produce meaningful backtraces on Windows.  Without this,
-# release-mode optimisation collapses stack frames and the signal handler
-# cannot point to the offending instruction.
+# other panics) produce source-located backtraces without duplicating full
+# variable and type debug records across the generic-heavy workspace.
 [profile.test]
 opt-level = 0
-debug = true
+debug = "line-tables-only"
 
 [patch.crates-io]
 # Upstream PR 9 guards decoder buffers before `dealloc`; 0.6.1 invokes

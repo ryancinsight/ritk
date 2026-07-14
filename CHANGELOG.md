@@ -17,6 +17,9 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Keep CI test backtraces source-located with line-table debug records, disable
+  incremental CI artifacts, and stop caching test binaries after the Ubuntu
+  nextest runner exhausted its filesystem.
 - Remove the obsolete side-by-side registration module and fold repeated
   synthetic B-spline, LDDMM, Demons, and SimpleITK assertions onto their
   canonical computed results, eliminating 31 repeated registrations without

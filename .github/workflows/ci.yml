@@ -10,6 +10,7 @@ permissions:
   contents: read
 
 env:
+  CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
 
 jobs:
@@ -126,14 +127,13 @@ jobs:
       - name: Install cargo-nextest
         uses: taiki-e/install-action@f47c9687269207d6b374de4134cb8b1fa5b49649 # cargo-nextest
 
-      - name: Cache Cargo registry and build artifacts
+      - name: Cache Cargo dependency sources
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            ritk/target/
           key: cargo-${{ matrix.os }}-stable-${{ hashFiles('ritk/Cargo.lock') }}
           restore-keys: |
             cargo-${{ matrix.os }}-stable-

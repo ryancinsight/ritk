@@ -218,7 +218,20 @@ the repository-relative `--deselect` node did not match pytest's
 `crates/ritk-python` root. The node ID is corrected, and the remaining suite is
 distributed with pytest-xdist's module-scoped scheduler so each worker retains
 module-local setup while assertions and workloads stay unchanged. Exact-head
-parallel-suite timing remains pending.
+parallel execution passes 1,252 tests with 7 skips and 1 expected pass in
+495.63 seconds. That is 263.28 seconds faster than the corrected serial run,
+but it is not closure: concurrent native pools inflated eleven registration
+cases above 30 seconds, with the slowest reaching 52.20 seconds. The scheduler
+and native worker ownership require another bounded correction before the
+runtime acceptance criterion is met.
+
+The same run's Ubuntu nextest worker failed at the runner boundary with
+`No space left on device` while writing its diagnostic log. CI had restored and
+re-cached the complete generic-heavy test target while emitting full debug
+records. The test profile now emits line tables, CI disables incremental
+artifacts, and only Cargo dependency sources are cached. This is configuration
+and runner-diagnostic evidence; exact-head cross-platform nextest remains
+pending.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

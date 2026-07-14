@@ -128,6 +128,11 @@
 - [x] Reduce the installed-wheel suite from its measured 946.68-second wall
   time by consolidating repeated registration executions without deleting a
   distinct value-semantic contract or changing any workload or threshold.
+- [x] Measure the first isolated-worker schedule: 1,252 passed, 7 skipped, and
+  1 expected pass in 495.63 seconds; reject it as closure because concurrent
+  native pools inflated eleven registration cases above 30 seconds.
+- [x] Remove cached test binaries and full debug records from CI after the
+  Ubuntu nextest runner exhausted its filesystem before reporting test results.
 - [ ] Verify that no remaining Python test crosses 30 seconds and that the
   complete installed-wheel suite finishes in minutes on exact-head CI.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
