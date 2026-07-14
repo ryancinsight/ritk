@@ -388,8 +388,14 @@ mod tests {
             "DICOM has no native writer yet"
         );
 
-        assert!(is_native_read_capable(ImageFormat::Vtk), "VTK reads natively");
-        assert!(is_native_write_capable(ImageFormat::Vtk), "VTK writes natively");
+        assert!(
+            is_native_read_capable(ImageFormat::Vtk),
+            "VTK reads natively"
+        );
+        assert!(
+            is_native_write_capable(ImageFormat::Vtk),
+            "VTK writes natively"
+        );
     }
 
     /// Conversion preserves native NIfTI serialization bytes when no format

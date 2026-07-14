@@ -87,7 +87,7 @@ impl LaplacianOfGaussianFilter {
     /// Coeus-native sister of [`LaplacianOfGaussianFilter::apply`].
     ///
     /// Runs the identical `∇²(G_σ * I)` via the separable second-order Deriche
-    /// recursion — the shared [`crate::recursive_gaussian::laplacian_rg_vals`]
+    /// recursion — the shared `crate::recursive_gaussian::laplacian_rg_vals`
     /// host core the Burn path also calls — on the image's contiguous host
     /// buffer, so the result is bitwise-identical to the Burn path. No Burn
     /// tensor is constructed. Spatial metadata is preserved.

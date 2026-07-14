@@ -90,7 +90,7 @@ impl GrayscaleClosingFilter {
     /// Coeus-native sister of [`GrayscaleClosingFilter::apply`].
     ///
     /// Runs the identical safe-border dilate→erode closing via the shared
-    /// [`close_3d`] host core on the image's contiguous host buffer, so the
+    /// `close_3d` host core on the image's contiguous host buffer, so the
     /// result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///

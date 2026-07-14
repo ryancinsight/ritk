@@ -36,7 +36,7 @@ impl HitOrMissTransform {
     /// Coeus-native sister of [`HitOrMissTransform::apply`].
     ///
     /// Runs the identical `(M ⊖ SE1) ∧ (Mᶜ ⊖ SE2)` transform via the shared
-    /// [`hit_or_miss_3d`] host core on the image's contiguous host buffer, so the
+    /// `hit_or_miss_3d` host core on the image's contiguous host buffer, so the
     /// result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///

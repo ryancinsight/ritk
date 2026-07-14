@@ -8,6 +8,31 @@
 
 # CHANGELOG
 
+## [Unreleased] — Native migration branch reconciliation (MIG-654-01)
+
+### Changed
+- Reconciled the native migration branch with merged `origin/main` and
+  removed stale CLI, registration example, Snap, filter, I/O, and statistics
+  call sites against the current provider APIs.
+- CLI VTK conversion now uses native reader/writer contracts and verifies
+  native round-trip shape and voxel values; stale VTK fallback assertions were
+  removed.
+- Refreshed `xtask/burn_surface.allowlist` from the actual source tree and
+  removed stale rustdoc links to deleted or private migration internals.
+
+### Evidence
+- `cargo fmt --all -- --check` and workspace Clippy with warnings denied pass.
+- Workspace nextest passes 5,229/5,229 tests with 26 skipped; doctests pass.
+- Workspace rustdoc completes without warnings; the Burn migration audit exits
+  successfully with `Allowlist status: clean`.
+
+### Residual
+- Fourteen manifests and 645 source files still contain intentional Burn
+  surfaces. The next increment is a native Coeus/Leto consumer cutover that
+  deletes its owning dependency; no compatibility alias or fallback is used.
+- Three registration tests exceed the 30-second slow threshold and require a
+  separate profile-guided performance increment.
+
 ## [Unreleased] — Apollo FFT provider alignment (DEP-501-01)
 
 ### Changed

@@ -14,7 +14,7 @@
 //!    diagonal cross derivative (ZeroFluxNeumann boundary).
 //! 3. **Gradient-maximum mask × magnitude**: `U = ⟦∂D/∂n ≤ 0⟧ · |∇I|`, where
 //!    `n = ∇I / |∇I|` is the gradient direction and `|∇I| = sqrt(α² + Σ I_i²)`.
-//! 4. **Zero crossing** of `D` (via [`ZeroCrossingImageFilter`]).
+//! 4. **Zero crossing** of `D` (via `ZeroCrossingImageFilter`).
 //! 5. **Multiply**: `M = U · ZeroCross(D)`.
 //! 6. **Hysteresis threshold**: edge voxels are the connected weak set
 //!    (`M > lower_threshold`) reachable from any strong voxel (`M > upper_threshold`),
@@ -82,11 +82,11 @@ impl CannyEdgeDetectionImageFilter {
 
     /// Coeus-native sister of [`CannyEdgeDetectionImageFilter::apply`].
     ///
-    /// Smooths natively via the burn-free [`discrete_gaussian_smooth_flat`] core
+    /// Smooths natively via the burn-free `discrete_gaussian_smooth_flat` core
     /// (same ITK discrete-Gaussian kernel and replicate-boundary convolution the
     /// Burn `DiscreteGaussianFilter::apply` uses) and runs the identical
     /// second-directional-derivative / zero-crossing / hysteresis pipeline via
-    /// the shared [`canny_edge_detection_flat`] host core, so the result is
+    /// the shared `canny_edge_detection_flat` host core, so the result is
     /// bitwise-identical to the Burn path. No Burn tensor is constructed.
     /// Spatial metadata is preserved.
     ///

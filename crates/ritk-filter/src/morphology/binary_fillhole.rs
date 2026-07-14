@@ -86,7 +86,7 @@ impl BinaryFillholeFilter {
     /// Coeus-native sister of [`BinaryFillholeFilter::apply`].
     ///
     /// Runs the identical 6-connected BFS hole fill via the shared
-    /// [`fill_holes_3d`] host core on the image's contiguous host buffer, so the
+    /// `fill_holes_3d` host core on the image's contiguous host buffer, so the
     /// result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///

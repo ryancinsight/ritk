@@ -83,7 +83,7 @@ impl ClampImageFilter {
 
     /// Coeus-native sister of [`ClampImageFilter::apply`].
     ///
-    /// Runs the identical pointwise clamp via the shared [`clamp_vec`] host core
+    /// Runs the identical pointwise clamp via the shared `clamp_vec` host core
     /// on the image's contiguous host buffer, so the result is bitwise-identical
     /// to the Burn path. No Burn tensor is constructed. Spatial metadata
     /// (origin, spacing, direction) is preserved.

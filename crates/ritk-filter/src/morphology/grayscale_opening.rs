@@ -91,7 +91,7 @@ impl GrayscaleOpeningFilter {
     /// Coeus-native sister of [`GrayscaleOpeningFilter::apply`].
     ///
     /// Runs the identical safe-border erode→dilate opening via the shared
-    /// [`open_3d`] host core on the image's contiguous host buffer, so the result
+    /// `open_3d` host core on the image's contiguous host buffer, so the result
     /// is bitwise-identical to the Burn path. No Burn tensor is constructed.
     /// Spatial metadata is preserved.
     ///

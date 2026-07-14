@@ -75,7 +75,7 @@ impl MinMaxCurvatureFlowImageFilter {
     /// Coeus-native sister of [`MinMaxCurvatureFlowImageFilter::apply`].
     ///
     /// Runs the identical directional-threshold min/max curvature-flow evolution
-    /// via the shared [`min_max_curvature_flow_evolve`] host core on the image's
+    /// via the shared `min_max_curvature_flow_evolve` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata is preserved.
     ///
@@ -310,7 +310,7 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
     /// Coeus-native sister of [`BinaryMinMaxCurvatureFlowImageFilter::apply`].
     ///
     /// Runs the identical scalar-threshold binary min/max curvature-flow
-    /// evolution via the shared [`binary_min_max_curvature_flow_evolve`] host
+    /// evolution via the shared `binary_min_max_curvature_flow_evolve` host
     /// core on the image's contiguous host buffer, so the result is
     /// bitwise-identical to the Burn path. No Burn tensor is constructed.
     /// Spatial metadata is preserved.

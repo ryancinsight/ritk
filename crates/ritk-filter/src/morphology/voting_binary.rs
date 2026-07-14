@@ -95,7 +95,7 @@ impl VotingBinaryImageFilter {
 
     /// Coeus-native sister of [`VotingBinaryImageFilter::apply`].
     ///
-    /// Runs the identical single voting step via the shared [`voting_binary_vec`]
+    /// Runs the identical single voting step via the shared `voting_binary_vec`
     /// host core on the image's contiguous host buffer, so the result is
     /// bitwise-identical to the Burn path. No Burn tensor is constructed.
     /// Spatial metadata is preserved.

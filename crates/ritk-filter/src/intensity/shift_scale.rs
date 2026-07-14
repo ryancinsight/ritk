@@ -83,7 +83,7 @@ impl ShiftScaleImageFilter {
     /// Coeus-native sister of [`ShiftScaleImageFilter::apply`].
     ///
     /// Runs the identical `(v + shift) * scale` remap (computed in `f64`, cast to
-    /// `f32`) via the shared [`shift_scale_vec`] host core on the image's
+    /// `f32`) via the shared `shift_scale_vec` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata is preserved.
     ///

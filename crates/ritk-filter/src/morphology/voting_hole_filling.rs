@@ -75,7 +75,7 @@ impl VotingBinaryHoleFillingImageFilter {
     /// Coeus-native sister of [`VotingBinaryHoleFillingImageFilter::apply`].
     ///
     /// Runs the identical single-pass majority-vote hole fill via the shared
-    /// [`hole_fill_flat`](Self::hole_fill_flat) host core on the image's
+    /// `hole_fill_flat` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata is preserved.
     ///
@@ -174,7 +174,7 @@ impl VotingBinaryHoleFillingImageFilter {
 
     /// Coeus-native sister of [`VotingBinaryHoleFillingImageFilter::apply_iterative`].
     ///
-    /// Iterates the shared [`hole_fill_flat`](Self::hole_fill_flat) host core on
+    /// Iterates the shared `hole_fill_flat` host core on
     /// a flat host buffer up to `max_iterations` times, stopping early when a
     /// pass changes no voxel, so the result is bitwise-identical to the Burn
     /// iterative path. No Burn tensor is constructed. Spatial metadata is

@@ -13,7 +13,7 @@ pub mod native {
     use ritk_image::native::Image;
     use std::path::Path;
 
-    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::PngReader`]).
+    /// Backend-bound Atlas-native reader (counterpart of the Burn `PngReader`).
     pub struct PngReader<B: ComputeBackend> {
         backend: B,
     }
@@ -31,7 +31,7 @@ pub mod native {
         }
     }
 
-    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::PngSeriesReader`]).
+    /// Backend-bound Atlas-native reader (counterpart of the Burn `PngSeriesReader`).
     pub struct PngSeriesReader<B: ComputeBackend> {
         backend: B,
     }

@@ -84,7 +84,7 @@ impl<K: GradientKernel> SeparableGradientFilter<K> {
     /// Coeus-native sister of [`SeparableGradientFilter::apply`].
     ///
     /// Runs the identical separable-convolution gradient magnitude (replicate
-    /// boundary) via the shared [`gradient_magnitude_vec`] host core on the
+    /// boundary) via the shared `gradient_magnitude_vec` host core on the
     /// image's contiguous host buffer, so the result is bitwise-identical to the
     /// Burn path. No Burn tensor is constructed. Spatial metadata is preserved.
     ///

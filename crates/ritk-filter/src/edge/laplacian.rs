@@ -68,7 +68,7 @@ impl LaplacianFilter {
     /// Coeus-native sister of [`LaplacianFilter::apply`].
     ///
     /// Runs the identical `[1, −2, 1]` second-difference stencil (ZeroFluxNeumann
-    /// boundary) via the shared [`laplacian_vec`] host core on the image's
+    /// boundary) via the shared `laplacian_vec` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata is preserved.
     ///

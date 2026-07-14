@@ -8,6 +8,36 @@
 
 # RITK Gap Audit - Active
 
+## MIG-654-01 audit (2026-07-14)
+
+### Native migration branch reconciled and audit state is truthful
+
+The branch was reconciled against merged `origin/main` while retaining the
+native migration commits. Stale CLI assumptions that VTK lacked native image
+I/O were replaced with native VTK read/write round trips that assert shape and
+voxel values. Stale registration examples, Snap native dispatch calls, filter
+signatures, DICOM loader imports, and warning-only imports were corrected at
+their current API boundaries. No adapter, alias, CPU fallback, or test-only
+shortcut was added.
+
+Evidence tier: compile-time diagnostics, static migration audit, value-semantic
+tests, and full workspace gates. `cargo fmt --all -- --check` passed;
+warnings-denied workspace Clippy passed; `cargo nextest run --workspace
+--all-features --no-fail-fast --locked` passed **5,229/5,229** with 26 skipped;
+doctests passed; and `cargo doc --workspace --no-deps --all-features --locked`
+completed warning-free. `cargo run -p xtask -- burn-migration-audit` reports
+`Allowlist status: clean`.
+
+### Residual risk
+
+The audit reports 14 manifests and 645 source files with Burn-surface tokens.
+The owning consumers remain on the dependency-ordered migration board; this
+increment does not claim global Burn deletion. The full run also recorded three
+registration tests over the 30-second slow threshold: `multires_registration_test`
+30.510s, `versor_registration_test` 35.422s, and
+`rigid_registration_test` 37.823s. They passed without timeout or assertion
+changes, but need a separate profile-guided optimization item.
+
 ## MIG-500-02 — Rejected shim relocation discarded; truthful baseline (2026-07-11)
 
 The 122-file uncommitted shim relocation rejected under MIG-500-01 (see below)

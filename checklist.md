@@ -8,6 +8,37 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-654-01 — Native migration branch reconciliation
+**Target version**: Unreleased patch
+**Sprint phase**: Closure; review pending
+
+- [x] Reconcile the migration branch with merged `origin/main` and preserve
+      the native provider work. Completion condition: no unresolved merge
+      entries or conflict markers remain.
+- [x] Rewrite stale CLI examples/tests against the current native VTK and
+      DICOM capability matrix. Completion condition: native VTK round trips
+      assert recovered shape and voxel values.
+- [x] Remove stale native API call sites and warning-only imports in CLI,
+      Snap, filter, I/O, registration, and statistics consumers.
+- [x] Refresh `xtask/burn_surface.allowlist` from the actual source tree.
+      Completion condition: `cargo run -p xtask -- burn-migration-audit` exits
+      successfully with `Allowlist status: clean`.
+- [x] Remove broken and private rustdoc links. Completion condition:
+      `cargo doc --workspace --no-deps --all-features --locked` finishes with
+      no warnings.
+- [x] Run the workspace gates: fmt, warnings-denied Clippy, 5,229/5,229
+      nextest tests, doctests, and rustdoc.
+
+### Residual scope
+
+The audit still reports 14 Burn-dependent manifests and 645 source files. This
+is an explicit migration residual, not a hidden compatibility layer. The next
+increment must port one consumer family to Coeus/Leto and delete its owning
+Burn dependency before refreshing the audit again. Three registration tests
+crossed the 30-second slow threshold in the full run (30.510s, 35.422s, and
+37.823s); their workload and assertions remain unchanged and require a future
+profile-guided performance item.
+
 ## DEP-501-01 — Apollo FFT provider alignment
 **Target version**: Unreleased patch
 **Sprint phase**: Verification

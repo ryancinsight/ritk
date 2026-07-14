@@ -53,7 +53,7 @@ fn series_geometry(
 /// Write a 3-D `Image<B, 3>` with shape `[depth, rows, cols]` as a series of
 /// per-slice single-frame DICOM Part 10 files.
 ///
-/// Delegates to the substrate-free [`write_series_flat`] encode core; the Burn
+/// Delegates to the substrate-free `write_series_flat` encode core; the Burn
 /// carrier only supplies the host pixel buffer and spatial geometry. Retained
 /// for consumers not yet migrated off the Burn `Image`; new native code uses
 /// [`write_dicom_series_native`].
@@ -69,7 +69,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 
 /// cols]` as a series of per-slice single-frame DICOM Part 10 files.
 ///
 /// Native counterpart of [`write_dicom_series`]: both route through the shared
-/// substrate-free [`write_series_flat`] encode core, so they emit
+/// substrate-free `write_series_flat` encode core, so they emit
 /// pixel-and-geometry-identical output for identical voxels, differing only in
 /// the per-call random UIDs.
 ///
@@ -89,7 +89,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 
 ///   spacing fallback the reader uses when `depth == 1`).
 /// - Pixel representation: unsigned 16-bit MONOCHROME2; a single per-slice
 ///   linear rescale (slope/intercept) maps the slice's f32 range onto
-///   `[0, 65535]` (see [`normalize_to_u16`]).
+///   `[0, 65535]` (see `normalize_to_u16`).
 pub fn write_dicom_series_native<P: AsRef<Path>>(
     path: P,
     image: &NativeImage<f32, MoiraiBackend, 3>,

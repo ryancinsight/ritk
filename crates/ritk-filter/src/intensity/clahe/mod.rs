@@ -187,8 +187,8 @@ impl ClaheFilter {
     /// Coeus-native sister of [`ClaheFilter::apply`].
     ///
     /// Runs the identical per-axial-slice CLAHE via the shared
-    /// [`clahe_flat`](Self::clahe_flat) host core (per-slice driver over
-    /// [`clahe_2d_with_scratch`]) on the image's contiguous host buffer, so the
+    /// `clahe_flat` host core (per-slice driver over
+    /// `clahe_2d_with_scratch`) on the image's contiguous host buffer, so the
     /// result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///

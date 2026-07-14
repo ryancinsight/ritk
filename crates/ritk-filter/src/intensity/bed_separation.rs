@@ -124,7 +124,7 @@ impl BedSeparationFilter {
     /// Coeus-native sister of [`BedSeparationFilter::apply`].
     ///
     /// Runs the identical threshold → largest-component → closing → opening →
-    /// masking pipeline via the shared [`separate_vec`] host core on the image's
+    /// masking pipeline via the shared `separate_vec` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata (origin, spacing,
     /// direction) is preserved.

@@ -79,7 +79,7 @@ impl HistogramEqualizationFilter {
     /// Coeus-native sister of [`HistogramEqualizationFilter::apply`].
     ///
     /// Runs the identical global histogram equalization via the shared
-    /// [`histogram_equalize_global`] host core on the image's contiguous host
+    /// `histogram_equalize_global` host core on the image's contiguous host
     /// buffer, so the result is bitwise-identical to the Burn path. No Burn
     /// tensor is constructed. Spatial metadata is preserved.
     ///

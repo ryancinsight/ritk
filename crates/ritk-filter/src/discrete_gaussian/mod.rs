@@ -186,8 +186,8 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     ///
     /// Runs the identical separable discrete-Gaussian convolution (ITK
     /// `GaussianOperator` kernel, replicate boundary) via the shared
-    /// [`kernels_for_spacing`](Self::kernels_for_spacing) kernel builder and the
-    /// substrate-agnostic [`convolve_separable`] host core on the image's
+    /// `kernels_for_spacing` kernel builder and the substrate-agnostic
+    /// `convolve_separable` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata is preserved.
     ///
@@ -255,7 +255,7 @@ pub(crate) fn discrete_gaussian_kernels<const D: usize>(
 
 /// Burn-free host core: separable discrete-Gaussian smoothing on a flat z-major
 /// buffer (ITK `GaussianOperator` kernel, replicate boundary via
-/// [`convolve_separable`]). Bitwise-identical to
+/// `convolve_separable`). Bitwise-identical to
 /// [`DiscreteGaussianFilter::apply`]/`apply_native`; used by the Canny filters
 /// so their native paths need no Burn backend to smooth.
 pub(crate) fn discrete_gaussian_smooth_flat(

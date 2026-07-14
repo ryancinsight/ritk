@@ -84,7 +84,7 @@ impl ZeroCrossingImageFilter {
     /// Coeus-native sister of [`ZeroCrossingImageFilter::apply`].
     ///
     /// Runs the identical 6-connected sign-change detection via the shared
-    /// [`zero_crossing_vec`] host core on the image's contiguous host buffer, so
+    /// `zero_crossing_vec` host core on the image's contiguous host buffer, so
     /// the result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///

@@ -49,7 +49,7 @@ fn local_stats(
 /// LNCC framed as a minimization loss (`−mean(LNCC)`) of `moving` resampled
 /// through `transform` onto the `fixed` grid, with local windows defined by a
 /// Gaussian of `kernel_sigma`. The Coeus-native sister of
-/// [`super::LocalNormalizedCrossCorrelation::forward`].
+/// `LocalNormalizedCrossCorrelation::forward`.
 ///
 /// `LNCC = cov / (√(v_F · v_M) + ε)` per voxel, where `μ, v, cov` are the local
 /// Gaussian-weighted mean/variance/covariance (Cachier et al. 2003); the returned

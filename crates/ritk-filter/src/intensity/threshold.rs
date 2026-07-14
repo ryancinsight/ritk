@@ -68,7 +68,7 @@ impl ThresholdImageFilter {
     /// Coeus-native sister of [`ThresholdImageFilter::apply`].
     ///
     /// Runs the identical per-voxel threshold suppression via the shared
-    /// [`threshold_vec`] host core on the image's contiguous host buffer, so the
+    /// `threshold_vec` host core on the image's contiguous host buffer, so the
     /// result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata (origin, spacing, direction) is preserved.
     ///

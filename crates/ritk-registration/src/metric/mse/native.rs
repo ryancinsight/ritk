@@ -21,7 +21,7 @@ use ritk_transform::transform::affine::AtlasAffineTransform;
 
 /// `MSE = (1/N) · Σ (Fixed(x) − Moving(T(x)))²` of `moving` resampled through
 /// `transform` onto the `fixed` grid. The Coeus-native sister of
-/// [`super::MeanSquaredError::forward`].
+/// `MeanSquaredError::forward`.
 pub fn mse_value_native<B>(
     fixed: &Image<f32, B, 3>,
     moving: &Image<f32, B, 3>,

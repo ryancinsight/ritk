@@ -321,7 +321,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
     }
 
     /// Native sister of `RigidTransform`: `T(x) = R(x − c) + c + t` with `R`
-    /// built from Euler `rotation` angles (radians; see [`euler_rotation_matrix`]).
+    /// built from Euler `rotation` angles (radians; see `euler_rotation_matrix`).
     pub fn from_euler_rigid(translation: &[f32], rotation: &[f32], center: &[f32]) -> Self {
         let matrix = euler_rotation_matrix::<D>(rotation);
         Self::construct(&matrix, translation, center)
@@ -331,7 +331,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
 impl<B: ComputeBackend> AtlasAffineTransform<B, 3> {
     /// Native sister of `VersorRigid3DTransform`: `T(x) = R(x − c) + c + t` with
     /// `R` built from the `quaternion` `[x, y, z, w]` (see
-    /// [`quaternion_rotation_matrix`]).
+    /// `quaternion_rotation_matrix`).
     pub fn from_versor(translation: &[f32], quaternion: &[f32], center: &[f32]) -> Self {
         let matrix = quaternion_rotation_matrix(quaternion);
         Self::construct(&matrix, translation, center)

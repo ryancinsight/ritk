@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-654-01 [patch] - Reconcile native migration branch with current main
+  (REVIEW).** Integrate the merged CI/provider checkout topology, remove stale
+  CLI native-capability assertions and call sites, refresh the Burn migration
+  allowlist from the real source tree, and close rustdoc link warnings. The
+  branch is ready for review after the workspace gates pass. Residual: 14
+  manifests and 645 source files still carry intentional Burn surfaces; the
+  next work is a dependency-ordered Coeus consumer cutover, not an alias or
+  fallback.
+
 - **DEP-501-01 [patch] - Apollo FFT provider alignment (IN PROGRESS).**
   Accept Apollo FFT 0.15 without a compatibility edge and verify the owning
   filter crate plus the downstream Kwavers graph.

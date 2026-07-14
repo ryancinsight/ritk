@@ -1,7 +1,7 @@
 //! Selective State Space (S6) module, Coeus-native.
 //!
 //! Coeus-native reimplementation of the Mamba/S6 selective state space block
-//! ([`super::model::SelectiveStateSpace`], still Burn-typed for the
+//! (`SelectiveStateSpace`, still Burn-typed for the
 //! registration consumer). Input-dependent parameters `Δ`, `B`, `C` are
 //! projected from the input; the discrete-time linear recurrence
 //! `h_t = Ā_t ⊙ h_{t-1} + B̄_t·x_t` is evaluated by the differentiable

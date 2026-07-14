@@ -121,7 +121,7 @@ impl MorphologicalReconstruction {
     /// Coeus-native sister of [`MorphologicalReconstruction::apply`].
     ///
     /// Runs the identical Vincent hybrid reconstruction via the shared
-    /// [`reconstruct_flat`](Self::reconstruct_flat) host core on both images'
+    /// `reconstruct_flat` host core on both images'
     /// contiguous host buffers, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Output geometry comes from `marker`.
     ///

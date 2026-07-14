@@ -159,7 +159,7 @@ impl UnsharpMaskFilter {
     /// Coeus-native sister of [`UnsharpMaskFilter::apply`].
     ///
     /// Runs the identical recursive-Gaussian unsharp-mask formula via the shared
-    /// [`unsharp_mask_flat`](Self::unsharp_mask_flat) host core on the image's
+    /// `unsharp_mask_flat` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata is preserved.
     ///

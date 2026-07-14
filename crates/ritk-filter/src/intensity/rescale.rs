@@ -48,7 +48,7 @@ impl RescaleIntensityFilter {
     /// Coeus-native sister of [`RescaleIntensityFilter::apply`].
     ///
     /// Runs the identical global-min/max affine remap via the shared
-    /// [`rescale_vec`] host core on the image's contiguous host buffer, so the
+    /// `rescale_vec` host core on the image's contiguous host buffer, so the
     /// result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata (origin, spacing, direction) is preserved.
     ///

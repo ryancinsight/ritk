@@ -105,10 +105,10 @@ impl<B: Backend> GaussianFilter<B> {
     /// Coeus-native sister of [`GaussianFilter::apply`] for 3-D images.
     ///
     /// Runs the identical separable zero-padded Gaussian smoothing as the Burn
-    /// [`apply`](Self::apply) path — the same per-axis [`axis_kernel`] builder
+    /// [`apply`](Self::apply) path — the same per-axis `axis_kernel` builder
     /// (shared SSOT for the kernel) and the same zero (constant-0) boundary
     /// convolution that Burn's `conv1d(padding = k/2)` performs — via the pure
-    /// host core [`convolve_zero_pad_3d`]. No Burn tensor is constructed;
+    /// host core `convolve_zero_pad_3d`. No Burn tensor is constructed;
     /// spatial metadata is preserved.
     ///
     /// The result matches the Burn path to a derived floating-point tolerance
@@ -225,8 +225,8 @@ fn axis_kernel(sigma_phys: f64, spacing: f64, max_kernel_width: usize) -> Vec<f3
 
 /// Burn-free host core for [`GaussianFilter::apply_native`]: separable
 /// zero-padded Gaussian smoothing on a flat z-major buffer, matching the Burn
-/// `conv1d(padding = k/2)` contract (per-axis [`axis_kernel`] +
-/// [`convolve_zero_pad_3d`]). Shared by the native Gaussian path and the native
+/// `conv1d(padding = k/2)` contract (per-axis `axis_kernel` +
+/// `convolve_zero_pad_3d`). Shared by the native Gaussian path and the native
 /// [`CannyEdgeDetector`](crate::edge::CannyEdgeDetector) smoothing stage, so no
 /// Burn backend is needed to smooth.
 ///

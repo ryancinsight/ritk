@@ -76,7 +76,7 @@ impl AdaptiveHistogramEqualizationFilter {
     /// Coeus-native sister of [`AdaptiveHistogramEqualizationFilter::apply`].
     ///
     /// Runs the identical Stark adaptive equalization via the shared
-    /// [`adaptive_equalize_vec`] host core on the image's contiguous host buffer,
+    /// `adaptive_equalize_vec` host core on the image's contiguous host buffer,
     /// so the result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///

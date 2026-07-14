@@ -116,7 +116,7 @@ impl SatoLineFilter {
     ///
     /// Runs the identical multi-scale Sato line response (Hessian eigen-analysis
     /// via recursive-Gaussian derivatives) through the shared
-    /// [`compute_sato_multiscale`] host core on the image's contiguous host
+    /// `compute_sato_multiscale` host core on the image's contiguous host
     /// buffer, so the result is bitwise-identical to the Burn path. No Burn
     /// tensor is constructed. Spatial metadata is preserved.
     ///

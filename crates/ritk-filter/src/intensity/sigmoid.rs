@@ -57,7 +57,7 @@ impl SigmoidImageFilter {
     /// Coeus-native sister of [`SigmoidImageFilter::apply`].
     ///
     /// Runs the identical per-voxel sigmoid transform via the shared
-    /// [`sigmoid_vec`] host core on the image's contiguous host buffer, so the
+    /// `sigmoid_vec` host core on the image's contiguous host buffer, so the
     /// result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata (origin, spacing, direction) is preserved.
     ///

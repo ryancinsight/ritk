@@ -155,9 +155,9 @@ impl CannyEdgeDetector {
     /// Coeus-native sister of [`CannyEdgeDetector::apply`].
     ///
     /// Smooths natively via the burn-free
-    /// [`gaussian_smooth_native_flat`](crate::gaussian::gaussian_smooth_native_flat)
+    /// `gaussian_smooth_native_flat`
     /// core, then runs the identical gradient / non-maximum-suppression /
-    /// hysteresis pipeline via the shared [`canny_edges_flat`] host core. No Burn
+    /// hysteresis pipeline via the shared `canny_edges_flat` host core. No Burn
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Parity

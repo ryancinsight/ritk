@@ -19,7 +19,7 @@
 //! kernel replace the Burn grid/tensor/`LinearInterpolator` path.
 //!
 //! 3-D only: the register engine operates on volumes, and the native trilinear
-//! kernel is 3-D. This mirrors [`super::fixed_prep::NgfFixedPrep`]'s dense path
+//! kernel is 3-D. This mirrors `NgfFixedPrep`'s dense path
 //! (`sampling: None`); the stochastic-sample estimator has no native consumer
 //! yet and is left on Burn (recorded as a residual gap).
 
@@ -33,7 +33,7 @@ use ritk_transform::transform::affine::AtlasAffineTransform;
 
 /// Precomputed native fixed-image NGF state for repeated transform evaluations.
 ///
-/// The Coeus-native sister of [`super::fixed_prep::NgfFixedPrep`]'s dense path:
+/// The Coeus-native sister of `NgfFixedPrep`'s dense path:
 /// building it ONCE removes the fixed-grid generation, the index→world mapping,
 /// the fixed host read, the fixed gradient field, and `η_F` from the optimiser's
 /// hot loop. Each [`eval`](Self::eval) resamples only the moving image and
@@ -112,7 +112,7 @@ where
 /// One-shot native NGF: `NGF ∈ [0, 1]` of `moving` resampled through `transform`
 /// onto the `fixed` grid over the `true` voxels of `mask` (or all if `None`),
 /// each masked voxel scaled by `weights` (or 1). The Coeus-native sister of
-/// [`super::NormalizedGradientField::ngf_value_weighted`]; the registration hot
+/// `NormalizedGradientField::ngf_value_weighted`; the registration hot
 /// loop builds [`NgfFixedPrepNative`] ONCE instead.
 pub fn ngf_value_native<B>(
     fixed: &Image<f32, B, 3>,

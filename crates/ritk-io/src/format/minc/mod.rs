@@ -11,7 +11,7 @@ pub mod native {
     use ritk_image::native::Image;
     use std::path::Path;
 
-    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::MincReader`]).
+    /// Backend-bound Atlas-native reader (counterpart of the Burn `MincReader`).
     pub struct MincReader<B: ComputeBackend> {
         backend: B,
     }

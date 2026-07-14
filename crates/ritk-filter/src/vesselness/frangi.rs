@@ -112,12 +112,12 @@ impl FrangiVesselnessFilter {
     /// Coeus-native sister of [`FrangiVesselnessFilter::apply`].
     ///
     /// Runs the identical multi-scale Frangi vesselness (recursive-Gaussian
-    /// Hessian + eigen-analysis, max over scales) via the shared [`compute`]
+    /// Hessian + eigen-analysis, max over scales) via the shared `compute`
     /// host core on the image's contiguous host buffer, so the result is
     /// bitwise-identical to the Burn path. No Burn tensor is constructed.
     /// Spatial metadata is preserved.
     ///
-    /// [`compute`]: FrangiVesselnessFilter::compute
+    /// `compute`: FrangiVesselnessFilter::compute
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous

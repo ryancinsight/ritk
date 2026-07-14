@@ -135,10 +135,9 @@ pub(crate) fn write_image_inferred(path: &Path, image: &Image<Backend, 3>) -> Re
 
 // ── Atlas-native I/O (ADR 0003 Phase A) ───────────────────────────────────────
 //
-// Parallel native helpers coexisting with the Burn helpers above during the
-// cutover (ADR 0003). `vtk` has no Atlas-native reader/writer yet, so commands
-// route that format through the Burn helper. DICOM now has a native reader but
-// still lacks a native writer.
+// Parallel native helpers coexisting with the legacy helpers above during the
+// cutover (ADR 0003). VTK now uses native reader/writer contracts. DICOM has a
+// native reader but still lacks a native writer.
 
 /// True when `fmt` has an Atlas-native reader (ADR 0003 Phase A coverage).
 pub(crate) fn is_native_read_capable(fmt: ImageFormat) -> bool {

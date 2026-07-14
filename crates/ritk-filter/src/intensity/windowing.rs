@@ -52,7 +52,7 @@ impl IntensityWindowingFilter {
 
     /// Coeus-native sister of [`IntensityWindowingFilter::apply`].
     ///
-    /// Runs the identical clamp-then-rescale via the shared [`window_vec`] host
+    /// Runs the identical clamp-then-rescale via the shared `window_vec` host
     /// core on the image's contiguous host buffer, so the result is
     /// bitwise-identical to the Burn path. No Burn tensor is constructed.
     /// Spatial metadata (origin, spacing, direction) is preserved.

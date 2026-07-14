@@ -105,7 +105,7 @@ impl CurvatureAnisotropicDiffusionFilter {
     ///
     /// Runs the identical ITK `CurvatureNDAnisotropicDiffusionFunction` (MCDE)
     /// explicit Euler PDE (double-buffered on a flat host array) via the shared
-    /// [`curvature_diffuse`] host core, so the result is bitwise-identical to the
+    /// `curvature_diffuse` host core, so the result is bitwise-identical to the
     /// Burn path. No Burn tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors

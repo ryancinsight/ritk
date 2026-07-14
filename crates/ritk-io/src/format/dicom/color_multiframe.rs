@@ -42,7 +42,7 @@ use super::reader::geometry::{SliceCoverage, SpacingUniformity};
 /// Read an interleaved RGB DICOM multiframe object into a native rank-4 colour
 /// volume.
 ///
-/// Native counterpart of [`read_dicom_color_multiframe`]: identical decode
+/// Native counterpart of `read_dicom_color_multiframe`: identical decode
 /// (both route through [`load_color_multiframe_flat`]). Returns
 /// `Image<f32, MoiraiBackend, 4>` with shape `[frames, rows, cols, 3]`,
 /// interleaved RGB samples in the channel axis. The three physical axes carry

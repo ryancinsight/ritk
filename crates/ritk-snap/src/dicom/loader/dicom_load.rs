@@ -161,7 +161,7 @@ fn load_dicom_color_volume_from_scanned_series(
 /// 1. Detects whether the series is RGB via [`is_rgb_dicom_series`].
 /// 2. For RGB series: calls [`ritk_io::load_color_volume_flat_from_path`] and
 ///    builds a [`LoadedVolume`] with `channels: 3` from the flat RGB buffer.
-/// 3. For scalar series: calls [`load_dicom_series_with_metadata`].
+/// 3. For scalar series: calls `load_dicom_series_with_metadata`.
 /// 4. Extracts spatial metadata (spacing, origin, direction) from the image.
 /// 5. Populates optional DICOM-specific fields from `DicomReadMetadata`.
 ///

@@ -106,7 +106,7 @@ impl MorphologicalLaplacian {
     /// Coeus-native sister of [`MorphologicalLaplacian::apply`].
     ///
     /// Runs the identical `dilate + erode − 2·f` (reflect-boundary cubic SE) via
-    /// the shared [`laplace_vec`] host core on the image's contiguous host
+    /// the shared `laplace_vec` host core on the image's contiguous host
     /// buffer, so the result is bitwise-identical to the Burn path. No Burn
     /// tensor is constructed. Spatial metadata is preserved.
     ///

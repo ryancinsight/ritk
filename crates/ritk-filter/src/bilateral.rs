@@ -172,7 +172,7 @@ impl BilateralFilter {
 
     /// Coeus-native sister of [`BilateralFilter::apply`].
     ///
-    /// Runs the identical joint spatial/range kernel via the shared [`compute`]
+    /// Runs the identical joint spatial/range kernel via the shared `compute`
     /// host core on the image's contiguous host buffer, so the result is
     /// bitwise-identical to the Burn path. No Burn tensor is constructed.
     /// Spatial metadata is preserved.

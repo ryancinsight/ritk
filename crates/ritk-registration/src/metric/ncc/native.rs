@@ -25,12 +25,12 @@ const NCC_EPS: f32 = 1e-10;
 
 /// Zero-normalized cross correlation framed as a minimization loss (`−NCC`) of
 /// `moving` resampled through `transform` onto the `fixed` grid. The Coeus-native
-/// sister of [`super::NormalizedCrossCorrelation::forward`].
+/// sister of `NormalizedCrossCorrelation::forward`.
 ///
 /// Single pass over the `N` voxels accumulates the five raw moments
 /// `ΣF, ΣM, ΣF², ΣM², ΣFM`; the central-moment reduction
 /// `NCC = (ΣFM − ΣF·ΣM/N) / √((ΣF² − ΣF²/N)·(ΣM² − ΣM²/N))` then follows
-/// (Lewis 1995), with each variance clamped to [`NCC_EPS`]. Returns `−NCC ∈ [−1, 1]`.
+/// (Lewis 1995), with each variance clamped to `NCC_EPS`. Returns `−NCC ∈ [−1, 1]`.
 pub fn ncc_loss_native<B>(
     fixed: &Image<f32, B, 3>,
     moving: &Image<f32, B, 3>,

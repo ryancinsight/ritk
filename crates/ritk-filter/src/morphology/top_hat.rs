@@ -41,7 +41,7 @@ impl WhiteTopHatFilter {
     /// Coeus-native sister of [`WhiteTopHatFilter::apply`].
     ///
     /// Runs the identical `f - D_B(E_B(f))` clamped subtraction via the shared
-    /// [`white_top_hat_vec`] host core on the image's contiguous host buffer, so
+    /// `white_top_hat_vec` host core on the image's contiguous host buffer, so
     /// the result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///
@@ -86,7 +86,7 @@ impl BlackTopHatFilter {
     /// Coeus-native sister of [`BlackTopHatFilter::apply`].
     ///
     /// Runs the identical `E_B(D_B(f)) - f` clamped subtraction via the shared
-    /// [`black_top_hat_vec`] host core on the image's contiguous host buffer, so
+    /// `black_top_hat_vec` host core on the image's contiguous host buffer, so
     /// the result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///

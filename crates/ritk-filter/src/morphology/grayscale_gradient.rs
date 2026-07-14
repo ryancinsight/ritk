@@ -101,7 +101,7 @@ impl GrayscaleMorphologicalGradientFilter {
     /// Coeus-native sister of [`GrayscaleMorphologicalGradientFilter::apply`].
     ///
     /// Runs the identical Beucher gradient (`dilate − erode` over a cubic SE)
-    /// via the shared [`gradient_vec`] host core on the image's contiguous host
+    /// via the shared `gradient_vec` host core on the image's contiguous host
     /// buffer, so the result is bitwise-identical to the Burn path. No Burn
     /// tensor is constructed. Spatial metadata is preserved.
     ///

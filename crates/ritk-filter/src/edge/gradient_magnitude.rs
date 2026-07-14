@@ -115,7 +115,7 @@ impl GradientMagnitudeFilter {
     /// Coeus-native sister of [`GradientMagnitudeFilter::apply`].
     ///
     /// Runs the identical central finite-difference gradient magnitude
-    /// (ZeroFluxNeumann boundary) via the shared [`gradient_magnitude_vec`] host
+    /// (ZeroFluxNeumann boundary) via the shared `gradient_magnitude_vec` host
     /// core on the image's contiguous host buffer, so the result is
     /// bitwise-identical to the Burn path. No Burn tensor is constructed. Spatial
     /// metadata is preserved.

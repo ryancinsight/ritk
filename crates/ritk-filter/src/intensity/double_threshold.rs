@@ -69,8 +69,8 @@ impl DoubleThresholdImageFilter {
     /// Coeus-native sister of [`DoubleThresholdImageFilter::apply`].
     ///
     /// Runs the identical band-indicator + binary morphological reconstruction
-    /// via the shared [`double_threshold_flat`](Self::double_threshold_flat) host
-    /// core (which delegates to [`MorphologicalReconstruction::reconstruct_flat`])
+    /// via the shared `double_threshold_flat` host core (which delegates to
+    /// `MorphologicalReconstruction::reconstruct_flat`)
     /// on the image's contiguous host buffer, so the result is bitwise-identical
     /// to the Burn path. No Burn tensor is constructed. Spatial metadata is
     /// preserved.

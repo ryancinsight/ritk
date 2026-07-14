@@ -149,7 +149,7 @@ impl RecursiveGaussianFilter {
     ///
     /// Runs the identical separable Deriche IIR recursion (order 0/1/2 plus scale
     /// normalization; constant/replicate boundary) via the shared
-    /// [`RecursiveGaussianFilter::filter_vals`] host core on the image's
+    /// `RecursiveGaussianFilter::filter_vals` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata is preserved.
     ///
